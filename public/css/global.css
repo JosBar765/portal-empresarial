@@ -1,0 +1,85 @@
+/* public/css/global.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Precision Logistics Architecture Design Tokens */
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Colores del Sistema */
+  --color-background: #FAF9FC;
+  --color-surface: #FAF9FC;
+  --color-surface-dim: #DAD9DD;
+  --color-surface-bright: #FAF9FC;
+  --color-surface-lowest: #FFFFFF;
+  --color-surface-low: #F4F3F7;
+  --color-surface-container: #EEEDF1;
+  --color-surface-container-high: #E9E7EB;
+  --color-surface-container-highest: #E3E2E6;
+  
+  --color-on-surface: #1A1C1E;
+  --color-on-surface-variant: #43474E;
+  --color-inverse-surface: #2F3033;
+  --color-inverse-on-surface: #F1F0F4;
+  --color-outline: #74777F;
+  --color-outline-variant: #C4C6CF;
+  --color-border-subtle: #E5E8EE;
+  
+  --color-primary: #022448;
+  --color-on-primary: #FFFFFF;
+  --color-primary-container: #1E3A5F;
+  --color-on-primary-container: #8AA4CF;
+  --color-inverse-primary: #ADC8F5;
+
+  --color-secondary: #575E73;
+  --color-on-secondary: #FFFFFF;
+  --color-secondary-container: #D9DFF8;
+  --color-on-secondary-container: #5B6278;
+
+  --color-tertiary: #341F00;
+  --color-on-tertiary: #FFFFFF;
+  --color-tertiary-container: #503300;
+  --color-on-tertiary-container: #C69B5F;
+  --color-tertiary-fixed: #FFDDB2;
+  --color-on-tertiary-fixed-variant: #60410C;
+
+  --color-error: #BA1A1A;
+  --color-on-error: #FFFFFF;
+  --color-error-container: #FFDAD6;
+  --color-on-error-container: #93000A;
+
+  --color-accent-orange: #E85D04;
+  --color-accent-orange-hover: #CC5200;
+
+  /* Border Radii */
+  --radius-sm: 0.25rem;     /* 4px */
+  --radius-default: 0.5rem; /* 8px */
+  --radius-md: 0.75rem;     /* 12px */
+  --radius-lg: 1rem;         /* 16px */
+  --radius-xl: 1.5rem;       /* 24px */
+  --radius-full: 9999px;
+
+  /* Transiciones */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 120ms var(--ease-out);
+  --transition-normal: 220ms var(--ease-out);
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--color-background);
+  color: var(--color-on-surface);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

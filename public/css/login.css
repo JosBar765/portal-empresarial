@@ -1,0 +1,501 @@
+/* public/css/login.css */
+@import url('global.css');
+
+body {
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Split-Pane Main Container */
+.login-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Panel Izquierdo: Branding & Visuals */
+.brand-panel {
+  display: none; /* Oculto en móviles */
+  flex: 1.2;
+  background-color: var(--color-primary-container);
+  position: relative;
+  overflow: hidden;
+  padding: 48px;
+  flex-direction: column;
+  justify-content: space-between;
+  color: #FFFFFF;
+}
+
+/* Cuadrícula técnica sutil */
+.brand-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-size: 40px 40px;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  z-index: 1;
+}
+
+/* Degradado radial suave */
+.brand-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 0% 0%, rgba(138, 164, 207, 0.15) 0%, transparent 60%);
+  z-index: 1;
+}
+
+/* Header de la Marca (Top Left) */
+.brand-header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo-container {
+  width: 44px;
+  height: 44px;
+  background-color: #FFFFFF;
+  border-radius: var(--radius-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.brand-logo-container img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.brand-header-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-header-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #FFFFFF;
+  line-height: 1.2;
+}
+
+.brand-header-company {
+  font-size: 13px;
+  color: var(--color-on-primary-container);
+  font-weight: 600;
+}
+
+.brand-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  margin-top: auto;
+  margin-bottom: auto;
+  max-width: 540px;
+  padding-right: 24px;
+  transform: translateY(-30px);
+}
+
+.brand-content h1 {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 48px;
+  letter-spacing: -0.01em;
+  color: #FFFFFF;
+  margin-bottom: 24px;
+}
+
+.brand-content p.brand-slogan {
+  font-size: 16px;
+  line-height: 26px;
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 400;
+  margin-bottom: 0;
+}
+
+/* Footer de Marca (Bottom) */
+.brand-footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 24px;
+  margin-top: auto;
+}
+
+.brand-copyright {
+  font-size: 13px;
+  color: var(--color-on-primary-container);
+  opacity: 0.6;
+}
+
+.country-badges {
+  display: flex;
+  gap: 8px;
+}
+
+.country-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-on-primary-container);
+  opacity: 0.8;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Panel Derecho: Formulario */
+.form-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-background);
+  padding: 40px 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 440px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  animation: fadeInUp 0.5s var(--ease-out) both;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Branding Móvil */
+.mobile-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  margin-bottom: 32px;
+}
+
+.mobile-brand img {
+  height: 48px;
+  margin-bottom: 4px;
+}
+
+.mobile-brand h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-on-surface);
+  letter-spacing: -0.01em;
+}
+
+.mobile-brand p {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent-orange);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Títulos del Formulario */
+.login-card h2 {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 36px;
+  color: var(--color-on-surface);
+  margin-bottom: 8px;
+  text-align: left;
+  letter-spacing: -0.01em;
+}
+
+.form-subtitle {
+  font-size: 14px;
+  color: var(--color-on-surface-variant);
+  margin-bottom: 32px;
+  text-align: left;
+}
+
+/* Formulario */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-on-surface-variant);
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input-wrapper ion-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--color-outline);
+  font-size: 20px;
+  pointer-events: none;
+  transition: color var(--transition-fast);
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px 14px 12px 44px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-default);
+  font-size: 14px;
+  font-family: var(--font-family);
+  color: var(--color-on-surface);
+  background-color: var(--color-surface-lowest);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  outline: none;
+}
+
+.form-input::placeholder {
+  color: var(--color-outline);
+  opacity: 0.6;
+}
+
+/* Ajustes contraseña */
+.form-input[type="password"],
+.form-input[type="text"] {
+  padding-right: 44px;
+}
+
+.form-input:focus {
+  border-color: var(--color-primary-container);
+  box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.08);
+}
+
+.form-input:focus + ion-icon {
+  color: var(--color-primary-container);
+}
+
+.form-input:disabled {
+  background-color: var(--color-surface-container);
+  color: var(--color-outline);
+  cursor: not-allowed;
+  opacity: 0.8;
+  border-color: var(--color-surface-container-high);
+}
+
+/* Botón Mostrar/Ocultar Contraseña */
+.toggle-password-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  color: var(--color-outline);
+  transition: color var(--transition-fast);
+}
+
+.toggle-password-btn:hover {
+  color: var(--color-on-surface);
+}
+
+.toggle-password-btn ion-icon {
+  position: static;
+  font-size: 20px;
+  pointer-events: auto;
+}
+
+/* Fila Checkbox + Recuperación */
+.form-options-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.remember-me-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-on-surface-variant);
+  cursor: pointer;
+  user-select: none;
+}
+
+.remember-me-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.forgot-password-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent-orange);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.forgot-password-link:hover {
+  color: var(--color-accent-orange-hover);
+  text-decoration: underline;
+}
+
+/* Botón Ingresar */
+.btn-login {
+  width: 100%;
+  padding: 12px 24px;
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  border: none;
+  border-radius: var(--radius-default);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-family);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color var(--transition-fast), transform 100ms var(--ease-out);
+}
+
+.btn-login:hover:not(:disabled) {
+  background-color: var(--color-primary-container);
+}
+
+.btn-login:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-login:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.btn-arrow-icon {
+  font-size: 18px;
+  margin-left: 2px;
+}
+
+/* Spinner */
+.login-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, .3);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+  display: none;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Caja de error */
+.login-error {
+  display: none;
+  margin-top: 20px;
+  padding: 12px 14px;
+  background-color: var(--color-error-container);
+  border: 1px solid #FFC4C0;
+  border-radius: var(--radius-default);
+  color: var(--color-on-error-container);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  animation: fadeIn var(--transition-normal);
+}
+
+.login-error.visible {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Caja de Información (Info Alert Box) */
+.info-alert-box {
+  background-color: #FDF6EE;
+  border: 1px solid #F3E4D5;
+  border-radius: var(--radius-default);
+  padding: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 24px;
+  text-align: left;
+}
+
+.info-alert-icon {
+  font-size: 20px;
+  color: var(--color-accent-orange);
+  flex-shrink: 0;
+}
+
+.info-alert-text {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--color-on-tertiary-fixed-variant);
+  font-weight: 400;
+  margin: 0;
+}
+
+/* Animación Shake */
+.shake-animation {
+  animation: shake 0.4s var(--ease-out);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.login-footer-mobile {
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-outline);
+  margin-top: 40px;
+}
+
+/* Media Queries para Pantallas Grandes */
+@media (min-width: 768px) {
+  .brand-panel {
+    display: flex;
+    border-right: 1px solid var(--color-border-subtle);
+  }
+
+  .mobile-brand {
+    display: none;
+  }
+
+  .form-panel {
+    background-color: var(--color-background);
+    padding: 60px;
+  }
+}
