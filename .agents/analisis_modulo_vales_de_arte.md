@@ -363,7 +363,7 @@ Importante seguir la estructura del proyecto y separar correctamente las capas p
 
 Las keys deben estar en un archivo .env que no tenga acceso algún usuario o algo (creo que está especificado en la arquitectura)
 
-
+El nuevo módulo debe serguir las relgas de autenticacuón en: .agents/autenticacion_jwt.md
 
 
 
