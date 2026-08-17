@@ -1,15 +1,65 @@
 // src/core/permissions/permissionMiddleware.js
+const jwtHelper = require('../auth/jwtHelper');
 
 /**
- * Middleware para asegurar que el usuario ha iniciado sesión.
+ * Middleware global para interceptar y verificar el token JWT.
+ * El token es la única fuente de verdad para identificar al usuario.
+ */
+function authenticateJWT(req, res, next) {
+  // Evitar almacenamiento en caché para prevenir "Sesión Cómplice" (Go Back en navegador)
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
+  // Extraer token de las cookies o del encabezado de Autorización (Bearer)
+  let token = req.cookies ? req.cookies.token : null;
+  
+  if (!token && req.headers.authorization) {
+    const parts = req.headers.authorization.split(' ');
+    if (parts.length === 2 && parts[0] === 'Bearer') {
+      token = parts[1];
+    }
+  }
+
+  if (!token) {
+    return handleUnauthorized(req, res);
+  }
+
+  const decoded = jwtHelper.verifyToken(token);
+  if (!decoded) {
+    // Si el token es inválido o expiró, limpiar la cookie y denegar
+    res.clearCookie('token');
+    return handleUnauthorized(req, res);
+  }
+
+  // Adjuntar el usuario decodificado al objeto req. 
+  // Esto es la ÚNICA fuente de verdad, impidiendo suplantación.
+  req.user = decoded;
+  next();
+}
+
+/**
+ * Maneja la redirección o respuesta 401 si no hay sesión activa.
+ */
+function handleUnauthorized(req, res) {
+  const isApiRequest = req.originalUrl.startsWith('/api') || req.path.startsWith('/api');
+  
+  if (isApiRequest) {
+    return res.status(401).json({
+      error: 'Sesión no válida o expirada. Por favor, inicia sesión de nuevo.'
+    });
+  }
+  
+  // Si intenta acceder a una vista/página, redirigir inmediatamente al login (302)
+  return res.redirect('/login/?expired=true');
+}
+
+/**
+ * Middleware para asegurar que el usuario ha pasado por authenticateJWT.
  */
 function requireAuth(req, res, next) {
-  if (req.session && req.session.user) {
+  if (req.user) {
     return next();
   }
-  return res.status(401).json({
-    error: 'No autorizado. Por favor, inicia sesión.'
-  });
+  return handleUnauthorized(req, res);
 }
 
 /**
@@ -18,14 +68,13 @@ function requireAuth(req, res, next) {
  */
 function requirePermission(permissionCode) {
   return (req, res, next) => {
-    // Primero validar autenticación
-    if (!req.session || !req.session.user) {
-      return res.status(401).json({ error: 'No autorizado. Por favor, inicia sesión.' });
+    if (!req.user) {
+      return handleUnauthorized(req, res);
     }
 
-    const userPermissions = req.session.permissions || [];
+    const userPermissions = req.user.permissions || [];
     
-    // Verificar si el usuario cuenta con el código de permiso especificado
+    // Verificar si el usuario cuenta con el permiso requerido
     if (userPermissions.includes(permissionCode)) {
       return next();
     }
@@ -42,23 +91,25 @@ function requirePermission(permissionCode) {
  */
 function requireModule(moduleName) {
   return (req, res, next) => {
-    if (!req.session || !req.session.user) {
-      return res.status(401).json({ error: 'No autorizado. Por favor, inicia sesión.' });
+    if (!req.user) {
+      return handleUnauthorized(req, res);
     }
 
-    const userModules = req.session.user.modulosPermitidos || [];
+    const userModules = req.user.modulosPermitidos || [];
 
-    if (userModules.includes(moduleName) || req.session.user.rolId === 1) {
+    // Permitir acceso directo si es Administrador (rol 1) o tiene asignado el módulo
+    if (userModules.includes(moduleName) || req.user.rolId === 1) {
       return next();
     }
 
     return res.status(403).json({
-      error: `Acceso denegado. No tienes acceso asignado al módulo: ${moduleName}`
+      error: `Acceso denegado. No tienes acceso autorizado al módulo: ${moduleName}`
     });
   };
 }
 
 module.exports = {
+  authenticateJWT,
   requireAuth,
   requirePermission,
   requireModule

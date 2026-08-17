@@ -1,40 +1,67 @@
 // src/app.js
 const express = require('express');
-const session = require('express-session');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const config = require('./config/env');
 const authRoutes = require('./core/auth/authRoutes');
-const { requireAuth } = require('./core/permissions/permissionMiddleware');
+const jwtHelper = require('./core/auth/jwtHelper');
+const { authenticateJWT, requireAuth } = require('./core/permissions/permissionMiddleware');
 
 const app = express();
 
-// Middlewares para parsear cuerpos de solicitudes
+// Middlewares para parsear cuerpos de solicitudes y cookies
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
-// Configuración de Sesiones en memoria (desarrollo/hosting administrado sin Redis)
-app.use(session({
-  secret: config.sessionSecret,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: config.nodeEnv === 'production',
-    maxAge: 1000 * 60 * 60 * 24 // 1 día
-  }
-}));
+// -------------------------------------------------------------------------
+// 1. Recursos Públicos (No requieren sesión activa)
+// -------------------------------------------------------------------------
+app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
+app.use('/css', express.static(path.join(__dirname, '../public/css')));
+app.use('/js', express.static(path.join(__dirname, '../public/js')));
+app.use('/login', express.static(path.join(__dirname, '../public/login')));
 
-// Servir archivos estáticos del Frontend
-app.use(express.static(path.join(__dirname, '../public')));
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
-// Rutas de Autenticación (con soporte PHP-Legacy para compatibilidad)
+// Rutas de API de autenticación (los endpoints internos deciden si requieren token)
 app.use('/api/auth.php', authRoutes);
 app.use('/api/auth', authRoutes);
 
+// Redireccionar raíz del portal a la página de login o al dashboard según corresponda
+app.get('/', (req, res) => {
+  const token = req.cookies ? req.cookies.token : null;
+  const decoded = token ? jwtHelper.verifyToken(token) : null;
+  
+  if (decoded) {
+    return res.redirect('/dashboard/');
+  }
+  return res.redirect('/login/');
+});
+
+// Redireccionamiento explícito para evitar loops o accesos extraños a la carpeta /login
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/login/index.html'));
+});
+
+// -------------------------------------------------------------------------
+// 2. Interceptor de Seguridad Global (JWT como Única Fuente de Verdad)
+// -------------------------------------------------------------------------
+app.use(authenticateJWT);
+
+// -------------------------------------------------------------------------
+// 3. Recursos Protegidos (Requieren JWT válido, interceptados por authenticateJWT)
+// -------------------------------------------------------------------------
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Servir la carpeta de vistas protegidas del dashboard
+app.use('/dashboard', express.static(path.join(__dirname, '../public/dashboard')));
+
+// Servir la carpeta de vistas protegidas de cada módulo
+app.use('/modules', express.static(path.join(__dirname, '../public/modules')));
+
 // Endpoint dinámico de Módulos del Dashboard
 app.get('/api/modules', requireAuth, (req, res) => {
-  const user = req.session.user;
-  const permissions = req.session.permissions || [];
+  const user = req.user;
+  const permissions = req.user.permissions || [];
 
   // Catálogo completo de módulos empresariales definidos en el portal
   const catalog = [
@@ -83,23 +110,6 @@ app.get('/api/modules', requireAuth, (req, res) => {
   });
 
   return res.json(userModules);
-});
-
-// Redireccionar raíz del portal a la página de login o al dashboard según corresponda
-app.get('/', (req, res) => {
-  if (req.session && req.session.user) {
-    return res.redirect('/dashboard/');
-  }
-  return res.redirect('/login/');
-});
-
-// Rutas comodín de vistas de cliente estáticas
-app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/login/index.html'));
-});
-
-app.get('/dashboard', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/dashboard/index.html'));
 });
 
 // Manejo de errores global

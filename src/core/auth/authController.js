@@ -1,5 +1,7 @@
 // src/core/auth/authController.js
 const authService = require('./authService');
+const jwtHelper = require('./jwtHelper');
+const config = require('../../config/env');
 
 class AuthController {
   async handleQueryAction(req, res) {
@@ -11,7 +13,6 @@ class AuthController {
       case 'csrf':
         return this.getCsrfToken(req, res);
       case 'login':
-        // Si el cliente envía POST a api/auth.php?action=login
         return this.loginPost(req, res);
       case 'logout':
         return this.logout(req, res);
@@ -21,41 +22,72 @@ class AuthController {
   }
 
   async sessionCheck(req, res) {
-    if (req.session && req.session.user) {
-      return res.json({
-        autenticado: true,
-        user: req.session.user
-      });
+    // Leer token de cookies o header
+    let token = req.cookies ? req.cookies.token : null;
+    
+    if (!token && req.headers.authorization) {
+      const parts = req.headers.authorization.split(' ');
+      if (parts.length === 2 && parts[0] === 'Bearer') {
+        token = parts[1];
+      }
     }
-    return res.json({ autenticado: false });
+
+    if (!token) {
+      return res.json({ autenticado: false });
+    }
+
+    const decoded = jwtHelper.verifyToken(token);
+    if (!decoded) {
+      return res.json({ autenticado: false });
+    }
+
+    return res.json({
+      autenticado: true,
+      user: {
+        id: decoded.id,
+        nombre: decoded.nombre,
+        email: decoded.email,
+        rolId: decoded.rolId,
+        rolNombre: decoded.rolNombre,
+        modulosPermitidos: decoded.modulosPermitidos
+      }
+    });
   }
 
   async getCsrfToken(req, res) {
-    // Generar un token CSRF simulado para cumplir con el contrato de la interfaz original
-    if (!req.session.csrfToken) {
-      req.session.csrfToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    }
-    return res.json({ csrf_token: req.session.csrfToken });
+    // Retornar un token CSRF estático en desarrollo para compatibilidad con la interfaz
+    return res.json({ csrf_token: 'munditrofeos_csrf_token_jwt_secure' });
   }
 
   async loginPost(req, res) {
-    const { email, password, csrf_token } = req.body;
-
-    // Si viene por query action login, también se captura aquí
-    if (req.session.csrfToken && csrf_token !== req.session.csrfToken) {
-      // Omitir validación estricta de CSRF en desarrollo si no está inicializada la sesión de token
-      if (req.session.csrfToken) {
-        return res.status(400).json({ error: 'Token de seguridad inválido. Recarga la página.' });
-      }
-    }
+    const { email, password } = req.body;
 
     try {
       const authData = await authService.authenticate(email, password);
       
-      // Guardar en sesión de Express
-      req.session.user = authData.user;
-      req.session.permissions = authData.permissions;
-      
+      // Construir payload seguro a encriptar en el JWT. 
+      // El payload contiene toda la identidad y privilegios del usuario.
+      const payload = {
+        id: authData.user.id,
+        nombre: authData.user.nombre,
+        email: authData.user.email,
+        rolId: authData.user.rolId,
+        rolNombre: authData.user.rolNombre,
+        modulosPermitidos: authData.user.modulosPermitidos,
+        permissions: authData.permissions
+      };
+
+      // Generar JWT
+      const token = jwtHelper.generateToken(payload);
+
+      // Guardar token en cookie segura HttpOnly
+      res.cookie('token', token, {
+        httpOnly: true,                               // Protege contra ataques XSS
+        secure: config.nodeEnv === 'production',      // Requiere HTTPS en producción
+        sameSite: 'strict',                           // Protege contra ataques CSRF
+        maxAge: 24 * 60 * 60 * 1000                   // 24 horas de expiración
+      });
+
       return res.json({
         ok: true,
         message: 'Autenticación exitosa',
@@ -70,13 +102,14 @@ class AuthController {
   }
 
   async logout(req, res) {
-    req.session.destroy((err) => {
-      if (err) {
-        return res.status(500).json({ error: 'No se pudo cerrar la sesión.' });
-      }
-      res.clearCookie('connect.sid');
-      return res.json({ ok: true, message: 'Sesión cerrada correctamente.' });
+    // Eliminar la cookie limpiando su valor y estableciendo expiración inmediata
+    res.cookie('token', '', {
+      httpOnly: true,
+      expires: new Date(0),
+      path: '/'
     });
+    
+    return res.json({ ok: true, message: 'Sesión cerrada correctamente.' });
   }
 }
 
