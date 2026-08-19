@@ -35,19 +35,19 @@ En caso, el proceso es de modificación, los estados visibles serán:
 
 8. Actualmente, el asesor de ventas tiene en la misma lista de vales de arte sus vales aprobados, creados/modificados, solicitados de modificación, vendidos y cancelados. Deseo que se agregue un sidebar a la vista del asesor con dos opciones:
     - Buzón: acá estará el mini dashboard y el buzón de los vales de arte, ya no mostraremos aquí los vales vendidos y cancelados. Quitamos de acá las métricas diarias relacionados con esos vales.
-    - Trabajo realizado: mismo formato que con el buzón, pero acá en el mini dashboard solo se mostrará las metricas relacionadas con los vales vendidos y cancelados. Y en la lista de los vales solo se veran los vendidos y cancelados.
+    - Trabajo realizado: mismo formato que con el buzón, pero acá en el mini dashboard solo se mostrará las metricas relacionadas con los vales vendidos y cancelados. Y en la lista de los vales solo se veran los vendidos y cancelados. Este al ser una lista de registro, su único criterio de ordenamiento es la fecha, y no le aplica las reglas de `jerarquía general`. También contiene una ventana de tiempo.
 
 ### ORDEN DE LOS VALES DE ARTE
 
 Recordar, que el criterio de orden principal en que se ponen los vales de arte es qué tan próximos están a la fecha de entrega. Este orden puede modificarse según el `Punto 2` de `Cambios generales`. 
-Los vales también tienen una `jerarquía general` detallada en el `Punto 2` de `Cambios generales` y su jerarquía individual, la cual es aplicable solo a la vista del actor. Para este actor es:
+Los vales también tienen una `jerarquía general` detallada en el `Punto 2` de `Cambios generales` y su jerarquía individual, la cual es aplicable a cualquier tabla que posea la vista del actor y muestre alguno de estos estados. Para este actor es:
 
 1. Estado de `Aprobado`
 2. Estado de `Solicitados de modificación`
 3. Estado de `Modificado`
 4. Estado de `Creado`
-4. Estado de `Vendido`
-4. Estado de `Cancelado`
+5. Estado de `Vendido`
+6. Estado de `Cancelado`
 
 ## VISTA ENCARGADO
 
@@ -62,26 +62,56 @@ Lo que debería pasar:
     - El técnico A comienza a trabajar un vale asignado
     - El panel de carga de trabajo se actualiza automáticamente (sin salirse de él) y muestra el vale en el que está trabajando el técnico
 
+2. El modal de asignaciones que se abre desde cada item del panel de trabajo, también debe actualizarse en tiempo real
+
+3. Actualmente, el encargado puede aprobar una propuesta en blanco. Esto no se debe admitir.
+
 ### ORDEN DE LOS VALES DE ARTE
 
 Recordar, que el criterio de orden principal en que se ponen los vales de arte es qué tan próximos están a la fecha de entrega. Este orden puede modificarse según el `Punto 2` de `Cambios generales`. 
-Los vales también tienen una `jerarquía general` detallada en el `Punto 2` de `Cambios generales` y su jerarquía individual, la cual es aplicable solo a la vista del actor. Para este actor es:
+Los vales también tienen una `jerarquía general` detallada en el `Punto 2` de `Cambios generales` y su jerarquía individual, la cual es aplicable a cualquier tabla que posea la vista del actor y muestre alguno de estos estados. Para este actor es:
 
 1. Estado de `En Revisión`
-2. Estado de `Creado`
+2. Estado de `Creado` o `Modificado`
 3. Estado de `En Proceso`
 4. Estado de `Asignado`
-4. Estado de `Aprobado`
+5. Estado de `Aprobado`
 
 ## VISTA TÉCNICO
 
 1. Actualmente, el técnico tiene en la misma lista de vales de arte sus vales aprobados, desaprobados, asignados y el que está en proceso. Deseo que se agregue un sidebar a la vista del técnico con dos opciones:
     - Buzón: acá estará el mini dashboard y el buzón de sus asignaciones, ya no mostraremos aquí los vales aprobados y desaprobados. Quitamos de acá las métricas diarias relacionados con esos vales.
-    - Trabajo realizado: mismo formato que con el buzón, pero acá en el mini dashboard solo se mostrará las metricas relacionadas con los vales aprobados y desaprobados. Y en la lista de los vales solo se veran los aprobados y desaprobados.
+    - Trabajo realizado: mismo formato que con el buzón, pero acá en el mini dashboard solo se mostrará las metricas relacionadas con los vales aprobados. Y en la lista de los vales solo se veran los aprobados. Este al ser una lista de registro, su único criterio de ordenamiento es la fecha, y no le aplica las reglas de `jerarquía general`. También contiene una ventana de tiempo.
+
+### ORDEN DE LOS VALES DE ARTE
+
+Recordar, que el criterio de orden principal en que se ponen los vales de arte es qué tan próximos están a la fecha de entrega. Este orden puede modificarse según el `Punto 2` de `Cambios generales`. 
+Los vales también tienen una `jerarquía general` detallada en el `Punto 2` de `Cambios generales` y su jerarquía individual, la cual es aplicable a cualquier tabla que posea la vista del actor y muestre alguno de estos estados. Para este actor es:
+
+1. Estado de `En Proceso` -> Mostrará el único vale que está trabajando
+2. Estado de `Asignado`
+3. Estado de `Aprobado`
 
 ## VISTA SUPERVISOR
 
 1. Cambiar el alert() de "Autorizar modificación" por un modal similar al de la confirmación de venta del asesor, pero que diga de autorizar la modificación
+
+2. Actualmente no sé si los supervisodres pueden ver algún otro vale que no esté relacionado con la modificación. Pero si es necesario que puedan ver vales en estado: `Solicitar modificación`, `modificado`, `aprobado`, `vendido` y `cancelado`
+
+3. Actualmente, el supervisor tiene en la misma lista de vales de arte sus vales con solicitación de modificación, modificados, aprobados, vendidos y cancelados. Deseo que se agregue un sidebar a la vista del supervisor con dos opciones:
+    - Buzón: acá estará el mini dashboard y el buzón de sus vales pendientes de confirmación de modificación, los modificados y aprobados, ya no mostraremos aquí los vales vendidos y cancelados. Quitamos de acá las métricas diarias relacionados con esos vales.
+    - Trabajo realizado: mismo formato que con el buzón, pero acá en el mini dashboard solo se mostrará las metricas relacionadas con los vales vendidos y cancelados. Y en la lista de los vales solo se veran estos dos vales. Este al ser una lista de registro, su único criterio de ordenamiento es la fecha, y no le aplica las reglas de `jerarquía general`. También contiene una ventana de tiempo.
+
+### ORDEN DE LOS VALES DE ARTE
+
+Recordar, que el criterio de orden principal en que se ponen los vales de arte es qué tan próximos están a la fecha de entrega. Este orden puede modificarse según el `Punto 2` de `Cambios generales`. 
+Los vales también tienen una `jerarquía general` detallada en el `Punto 2` de `Cambios generales` y su jerarquía individual, la cual es aplicable a cualquier tabla que posea la vista del actor y muestre alguno de estos estados. Para este actor es:
+
+1. Estado de `Solicitar Modificación` -> Mostrará el único vale que está trabajando
+2. Estado de `Modificado`
+3. Estado de `Aprobado`
+4. Estado de `Vendido`
+5. Estado de `Cancelado`
 
 ## CAMBIOS GENERALES
 
@@ -105,13 +135,15 @@ Y así para todos los niveles de la jerarquía individual
 
 4. Solo la fecha de ingreso se muestra fecha y hora dd/mm/aaaa hh:mm
 
-5. Asegurarse de aplicar idempotencia a las acciones. Esto que no solo sea validado por el frontend, que sea validado por el core del sistema supongo.
+5. Los formato de fecha y hora también aplica para los logs de la acción de historial
 
-6. Actualmente, cuando se genera una modificación, se coloca el texto: "\*\*\*\*\*\*MODIFICACION\*\*\*\*\*\*". Lo que se solicita es que:
+6. Asegurarse de aplicar idempotencia a las acciones. Esto que no solo sea validado por el frontend, que sea validado por el core del sistema supongo.
+
+7. Actualmente, cuando se genera una modificación, se coloca el texto: "\*\*\*\*\*\*MODIFICACION\*\*\*\*\*\*". Lo que se solicita es que:
     - El formulario de modificación ya no permita adjuntar documentos nuevos. Quitar esta opción
     - El texto y las nuevas imágenes se agreguen al final del vale de arte original. Todo el contenido de la modificación deberá estar en vuelto (al principio y al final del contenido de modificación) con "\*\*\*\*\*\*MODIFICACION\*\*\*\*\*\*"
     - Al pié de página, en la parte izquierda, se deberá indicar con texto "MODIFICAR". Así para todas las páginas del vale de arte (inclusive los documentos adjuntos)
 
-7. No almacenar las imágenes usadas para al creación del vale de arte, únicamente la descripción
+8. No almacenar las imágenes usadas para al creación del vale de arte, únicamente la descripción
 
-
+9. Actualmente, en ninguna de las vistas funciona la ventana de tiempo para el campo de calendario. Los botones de diario, semana, mes y todo si funcionan. Mejor, cambiemos eso a: una fecha inicial y una fecha final. Definiendo esa ventana de tiempo, que haya la consulta de los vales de arte. Y, al presionar cualquiera de los botones anteriores, que limpien el filtrado de esta ventana personalizada.
