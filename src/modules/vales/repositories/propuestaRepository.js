@@ -1,0 +1,24 @@
+// src/modules/vales/repositories/propuestaRepository.js
+const db = require('../../../config/database');
+
+class PropuestaRepository {
+  async crear(valeId, tecnicoId, url, esCancelacion, fechaSubida) {
+    const result = await db.query(
+      'INSERT INTO vale_propuestas (vale_id, tecnico_id, url, es_cancelacion, fecha_subida) VALUES (?, ?, ?, ?, ?)',
+      [valeId, tecnicoId, url || null, esCancelacion ? 1 : 0, fechaSubida],
+      'propuesta:insert'
+    );
+    return result.insertId;
+  }
+
+  async listarPorVale(valeId) {
+    return db.query('SELECT * FROM vale_propuestas WHERE vale_id = ? ORDER BY id ASC', [valeId], 'propuesta:list_by_vale');
+  }
+
+  async obtenerUltimaPorVale(valeId) {
+    const rows = await db.query('SELECT * FROM vale_propuestas WHERE vale_id = ? ORDER BY id DESC LIMIT 1', [valeId], 'propuesta:latest_by_vale');
+    return rows[0] || null;
+  }
+}
+
+module.exports = new PropuestaRepository();

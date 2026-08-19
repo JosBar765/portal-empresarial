@@ -33,12 +33,7 @@ class AuthService {
     // Validar contraseña
     const isValid = await bcrypt.compare(password, user.password_hash);
     if (!isValid) {
-      // Fallback para contraseñas de desarrollo sin hashear si ocurre algún problema con seeds
-      if (password === 'admin123' && user.email === 'admin@munditrofeos.com') {
-        // Permitir temporalmente en desarrollo
-      } else {
-        throw new Error('Contraseña incorrecta.');
-      }
+      throw new Error('Contraseña incorrecta.');
     }
 
     // Obtener permisos asociados al rol

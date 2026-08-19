@@ -118,14 +118,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       `;
 
-      // Prevenir navegación a links de demostración sin implementar e informar
-      card.addEventListener('click', (e) => {
-        // En una implementación real, esto cargará la vista del módulo
-        // Por ahora, como los módulos no están creados físicamente:
-        e.preventDefault();
-        alert(`Módulo "${module.nombre}" seleccionado. La arquitectura del backend y frontend ya está lista para hospedar este módulo modular bajo "/public/modules/${module.id}" y "/src/modules/${module.id}".`);
-      });
-
       modulesContainer.appendChild(card);
     });
   }

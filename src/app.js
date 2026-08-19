@@ -6,6 +6,7 @@ const config = require('./config/env');
 const authRoutes = require('./core/auth/authRoutes');
 const jwtHelper = require('./core/auth/jwtHelper');
 const { authenticateJWT, requireAuth } = require('./core/permissions/permissionMiddleware');
+const valeRoutes = require('./modules/vales/routes');
 
 const app = express();
 
@@ -57,6 +58,9 @@ app.use('/dashboard', express.static(path.join(__dirname, '../public/dashboard')
 
 // Servir la carpeta de vistas protegidas de cada módulo
 app.use('/modules', express.static(path.join(__dirname, '../public/modules')));
+
+// Rutas de API del módulo Vales de Arte
+app.use('/api/vales', requireAuth, valeRoutes);
 
 // Endpoint dinámico de Módulos del Dashboard
 app.get('/api/modules', requireAuth, (req, res) => {
