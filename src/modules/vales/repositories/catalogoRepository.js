@@ -26,6 +26,10 @@ class CatalogoRepository {
   async listarAcabados() {
     return db.query('SELECT id, nombre FROM vale_acabados WHERE activo = 1 ORDER BY nombre', [], 'catalog:acabados');
   }
+
+  async listarPaises() {
+    return db.query('SELECT id, codigo, nombre, codigo_telefono FROM paises ORDER BY nombre', [], 'catalog:paises');
+  }
 }
 
 module.exports = new CatalogoRepository();

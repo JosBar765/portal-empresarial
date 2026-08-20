@@ -31,10 +31,13 @@ function init(server) {
       }
     });
 
-    // Escuchar eventos globales o de registro de canal
-    socket.on('register_module', (moduleName) => {
-      socket.join(moduleName);
-      console.log(`[WebSocket] Socket ${socket.id} se unió al canal del módulo: ${moduleName}`);
+    // Escuchar eventos globales o de registro de canal. Acepta un nombre único
+    // (compatibilidad con otros módulos) o un arreglo de salas (usado por Vales
+    // de Arte para unirse solo a las salas relevantes a su rol/usuario).
+    socket.on('register_module', (canalONombres) => {
+      const canales = Array.isArray(canalONombres) ? canalONombres : [canalONombres];
+      canales.filter(Boolean).forEach(canal => socket.join(canal));
+      console.log(`[WebSocket] Socket ${socket.id} se unió a: ${canales.join(', ')}`);
     });
   });
 
@@ -85,10 +88,23 @@ function sendToUser(userId, event, data) {
   }
 }
 
+/**
+ * Envía un mensaje a un conjunto específico de salas (roles/usuarios objetivo).
+ * @param {string[]} rooms
+ * @param {string} event
+ * @param {any} data
+ */
+function sendToRooms(rooms, event, data) {
+  if (io && rooms && rooms.length) {
+    io.to(rooms).emit(event, data);
+  }
+}
+
 module.exports = {
   init,
   getIO,
   broadcast,
   sendToModule,
-  sendToUser
+  sendToUser,
+  sendToRooms
 };

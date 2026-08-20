@@ -6,21 +6,49 @@
     VENDIDO: 'Vendido', CANCELADO: 'Cancelado'
   };
 
+  // El asesor no ve el estado real de la máquina de estados, ve una versión "lógica"
+  // colapsada (ver .agents/correciones_mod_vales_de_arte_1.md, VISTA ASESOR #5).
+  const ESTADOS_VISIBLES_LABEL = {
+    CREADO: 'Creado',
+    SOLICITANDO_MODIFICACION: 'Solicitando Modificación',
+    MODIFICADO: 'Modificado',
+    APROBADO: 'Aprobado',
+    VENDIDO: 'Vendido',
+    CANCELADO: 'Cancelado'
+  };
+  const ALIAS_CLASE_ESTADO_VISIBLE = { SOLICITANDO_MODIFICACION: 'CONFIRMACION_MODIFICACION' };
+
+  // Roles con sidebar Buzón / Trabajo realizado (Asesor, Supervisor, Técnico).
+  const ROLES_CON_SIDEBAR = [3, 4, 7];
+
   const CONTADORES_CONFIG = {
-    3: [ // Asesor
-      { key: 'valesRestantesHoy', label: 'Vales restantes hoy' },
-      { key: 'valesPorRevisar', label: 'Vales por revisar' },
-      { key: 'valesAprobadosHoy', label: 'Vendidos hoy' },
-      { key: 'valesCanceladosHoy', label: 'Cancelados hoy' },
-      { key: 'valesPendientesModificacion', label: 'Pend. modificación' },
-      { key: 'valesAtrasados', label: 'Atrasados', alerta: true }
-    ],
-    4: [ // Supervisor
-      { key: 'valesEnviados', label: 'Vales enviados' },
-      { key: 'valesPorConfirmarModificacion', label: 'Por confirmar modificación' },
-      { key: 'valesConfirmadosHoy', label: 'Confirmados hoy' },
-      { key: 'valesCanceladosHoy', label: 'Cancelados hoy' }
-    ],
+    3: { // Asesor
+      buzon: [
+        { key: 'valesRestantesHoy', label: 'Vales restantes hoy' },
+        { key: 'valesPorRevisar', label: 'Vales por revisar' },
+        { key: 'valesPendientesModificacion', label: 'Pend. modificación' },
+        { key: 'valesAtrasados', label: 'Atrasados', alerta: true }
+      ],
+      trabajo: [
+        { key: 'vendidosHoy', label: 'Vendidos hoy' },
+        { key: 'canceladosHoy', label: 'Cancelados hoy' },
+        { key: 'totalVendidos', label: 'Total vendidos' },
+        { key: 'totalCancelados', label: 'Total cancelados' }
+      ]
+    },
+    4: { // Supervisor
+      buzon: [
+        { key: 'pendientesConfirmarModificacion', label: 'Por confirmar modificación' },
+        { key: 'modificados', label: 'Modificados' },
+        { key: 'aprobados', label: 'Aprobados' }
+      ],
+      trabajo: [
+        { key: 'valesConfirmadosHoy', label: 'Confirmados hoy' },
+        { key: 'valesCanceladosHoy', label: 'Cancelados hoy' },
+        { key: 'totalVendidos', label: 'Total vendidos' },
+        { key: 'totalCancelados', label: 'Total cancelados' }
+      ]
+    },
     5: [ // Encargado
       { key: 'pendientesAsignacion', label: 'Pend. asignación' },
       { key: 'pendientesAsignacionAtrasados', label: 'Pend. asignación atrasados', alerta: true },
@@ -33,13 +61,19 @@
       { key: 'aprobados', label: 'Aprobados hoy' },
       { key: 'aprobadosAtrasados', label: 'Aprobados hoy (atrasados)', alerta: true }
     ],
-    7: [ // Técnico
-      { key: 'asignados', label: 'Vales asignados' },
-      { key: 'asignadosAtrasados', label: 'Asignados atrasados', alerta: true },
-      { key: 'modificacionPendiente', label: 'Con modificación' },
-      { key: 'modificacionPendienteAtrasados', label: 'Modificación atrasados', alerta: true },
-      { key: 'enProceso', label: 'Vale en proceso', esTexto: true }
-    ]
+    7: { // Técnico
+      buzon: [
+        { key: 'asignados', label: 'Vales asignados' },
+        { key: 'asignadosAtrasados', label: 'Asignados atrasados', alerta: true },
+        { key: 'modificacionPendiente', label: 'Con modificación' },
+        { key: 'modificacionPendienteAtrasados', label: 'Modificación atrasados', alerta: true },
+        { key: 'enProceso', label: 'Vale en proceso', esTexto: true }
+      ],
+      trabajo: [
+        { key: 'totalAprobados', label: 'Total aprobados' },
+        { key: 'aprobadosHoy', label: 'Aprobados hoy' }
+      ]
+    }
   };
   CONTADORES_CONFIG[6] = CONTADORES_CONFIG[5];
   CONTADORES_CONFIG[1] = CONTADORES_CONFIG[5]; // Administrador ve una vista de control similar a encargado
@@ -49,8 +83,12 @@
     catalogos: null,
     vales: [],
     contadores: {},
-    ventana: { tipo: 'todo', fecha: null },
-    socket: null
+    vista: 'buzon', // solo aplica a roles con sidebar
+    ventana: { tipo: 'todo', desde: null, hasta: null },
+    sort: { key: null, dir: null },
+    socket: null,
+    cargaTrabajoModal: null,
+    accionesEnCurso: new Set()
   };
 
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -69,6 +107,23 @@
       case 'aprobarModificacion': return admin || r === 4;
       default: return false;
     }
+  }
+
+  function usaEstadosVisibles() {
+    return state.user.rolId === 3;
+  }
+
+  function claseEstado(v) {
+    if (usaEstadosVisibles()) {
+      const clave = ALIAS_CLASE_ESTADO_VISIBLE[v.estado_visible] || v.estado_visible;
+      return `estado-${clave}`;
+    }
+    return `estado-${v.estado}`;
+  }
+
+  function etiquetaEstado(v) {
+    if (usaEstadosVisibles()) return ESTADOS_VISIBLES_LABEL[v.estado_visible] || v.estado_visible;
+    return ESTADOS_LABEL[v.estado] || v.estado;
   }
 
   // -------------------------------------------------------------------------
@@ -100,14 +155,16 @@
     // el administrador ya ve todo desde el buzón general, por lo que no aplica aquí.
     $('#btn-carga-trabajo').style.display = (state.user.rolId === 5 || state.user.rolId === 6) ? 'flex' : 'none';
 
+    wireSidebar();
     wireToolbar();
+    wireSortHeaders();
     initSocket();
 
     try {
       const catalogosRes = await fetch('/api/vales/catalogos');
       state.catalogos = await catalogosRes.json();
     } catch (error) {
-      state.catalogos = { localidades: [], productos: [], materiales: [], tecnicas: [], acabados: [] };
+      state.catalogos = { localidades: [], productos: [], materiales: [], tecnicas: [], acabados: [], paises: [] };
     }
 
     await cargarBuzon();
@@ -120,28 +177,96 @@
     $('#btn-carga-trabajo').addEventListener('click', () => abrirModalCargaTrabajo());
   });
 
+  function wireSidebar() {
+    const sidebar = $('#sidebar-vales');
+    if (!ROLES_CON_SIDEBAR.includes(state.user.rolId)) {
+      sidebar.style.display = 'none';
+      return;
+    }
+    sidebar.style.display = 'flex';
+    $$('.sidebar-item', sidebar).forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.vista === state.vista) return;
+        $$('.sidebar-item', sidebar).forEach(b => b.classList.remove('sidebar-item-active'));
+        btn.classList.add('sidebar-item-active');
+        state.vista = btn.dataset.vista;
+        state.sort = { key: null, dir: null };
+        actualizarIndicadoresOrden();
+        $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
+        cargarBuzon();
+      });
+    });
+  }
+
   function wireToolbar() {
     $$('#ventana-selector .chip').forEach(btn => {
       btn.addEventListener('click', () => {
         $$('#ventana-selector .chip').forEach(b => b.classList.remove('chip-active'));
         btn.classList.add('chip-active');
-        state.ventana.tipo = btn.dataset.ventana;
+        state.ventana = { tipo: btn.dataset.ventana, desde: null, hasta: null };
+        $('#ventana-desde').value = '';
+        $('#ventana-hasta').value = '';
         cargarBuzon();
       });
     });
-    $('#ventana-fecha').addEventListener('change', (e) => {
-      state.ventana.fecha = e.target.value || null;
+    const onRangoChange = () => {
+      const desde = $('#ventana-desde').value || null;
+      const hasta = $('#ventana-hasta').value || null;
+      if (!desde && !hasta) return;
+      $$('#ventana-selector .chip').forEach(b => b.classList.remove('chip-active'));
+      state.ventana = { tipo: 'rango', desde, hasta };
       cargarBuzon();
-    });
+    };
+    $('#ventana-desde').addEventListener('change', onRangoChange);
+    $('#ventana-hasta').addEventListener('change', onRangoChange);
     $('#filtro-texto').addEventListener('input', () => renderTabla());
     $('#filtro-estado').addEventListener('change', () => renderTabla());
+  }
+
+  function wireSortHeaders() {
+    $$('.buzon-table thead th[data-sort-key]').forEach(th => {
+      th.innerHTML = `${th.textContent}<span class="sort-arrow">⇅</span>`;
+      th.addEventListener('click', () => {
+        const key = th.dataset.sortKey;
+        if (state.sort.key !== key) {
+          state.sort = { key, dir: 'asc' };
+        } else if (state.sort.dir === 'asc') {
+          state.sort.dir = 'desc';
+        } else {
+          state.sort = { key: null, dir: null };
+        }
+        actualizarIndicadoresOrden();
+        renderTabla();
+      });
+    });
+  }
+
+  function actualizarIndicadoresOrden() {
+    $$('.buzon-table thead th[data-sort-key]').forEach(th => {
+      const activo = th.dataset.sortKey === state.sort.key;
+      th.classList.toggle('sort-active', activo);
+      const arrow = th.querySelector('.sort-arrow');
+      if (arrow) arrow.textContent = activo ? (state.sort.dir === 'asc' ? '▲' : '▼') : '⇅';
+    });
+  }
+
+  function roomsParaUsuario(user) {
+    switch (user.rolId) {
+      case 1: return ['vales:admin'];
+      case 3: return [`asesor:${user.id}`];
+      case 4: return ['vales:supervisores'];
+      case 5:
+      case 6: return ['vales:encargados', `encargado:${user.id}`];
+      case 7: return [`tecnico:${user.id}`];
+      default: return [];
+    }
   }
 
   function initSocket() {
     if (typeof io === 'undefined') return;
     state.socket = io({ query: { userId: state.user.id } });
     state.socket.on('connect', () => {
-      state.socket.emit('register_module', 'vales');
+      state.socket.emit('register_module', roomsParaUsuario(state.user));
     });
     state.socket.on('vale_evento', (data) => {
       const esCreacion = data.tipo === 'creado';
@@ -151,6 +276,13 @@
       );
       reproducirBeep();
       cargarBuzon();
+      if (state.cargaTrabajoModal) {
+        if (state.cargaTrabajoModal.overlay.isConnected) {
+          state.cargaTrabajoModal.actualizar();
+        } else {
+          state.cargaTrabajoModal = null;
+        }
+      }
     });
   }
 
@@ -186,7 +318,11 @@
   async function cargarBuzon() {
     const qs = new URLSearchParams();
     if (state.ventana.tipo) qs.set('ventana', state.ventana.tipo);
-    if (state.ventana.fecha) qs.set('fecha', state.ventana.fecha);
+    if (state.ventana.tipo === 'rango') {
+      if (state.ventana.desde) qs.set('desde', state.ventana.desde);
+      if (state.ventana.hasta) qs.set('hasta', state.ventana.hasta);
+    }
+    if (ROLES_CON_SIDEBAR.includes(state.user.rolId)) qs.set('vista', state.vista);
 
     try {
       const res = await fetch(`/api/vales?${qs.toString()}`);
@@ -199,7 +335,7 @@
       return;
     }
 
-    if (puede('crear')) {
+    if (puede('crear') && state.vista !== 'trabajo') {
       try {
         const r = await fetch('/api/vales/limite-restante');
         const d = await r.json();
@@ -208,11 +344,13 @@
     }
 
     renderContadores();
+    poblarFiltroEstado();
     renderTabla();
   }
 
   function renderContadores() {
-    const config = CONTADORES_CONFIG[state.user.rolId] || [];
+    let config = CONTADORES_CONFIG[state.user.rolId] || [];
+    if (!Array.isArray(config)) config = config[state.vista] || [];
     const grid = $('#contadores-grid');
     grid.innerHTML = config.map(c => {
       const valor = state.contadores[c.key];
@@ -226,24 +364,57 @@
     }).join('');
   }
 
+  function poblarFiltroEstado() {
+    const select = $('#filtro-estado');
+    const valorPrevio = select.value;
+    const visibles = usaEstadosVisibles();
+    const labelMap = visibles ? ESTADOS_VISIBLES_LABEL : ESTADOS_LABEL;
+    const presentes = [...new Set(state.vales.map(v => visibles ? v.estado_visible : v.estado))];
+    select.innerHTML = '<option value="">Todos los estados</option>' +
+      presentes.map(e => `<option value="${e}">${labelMap[e] || e}</option>`).join('');
+    if (presentes.includes(valorPrevio)) select.value = valorPrevio;
+  }
+
   function nombreCatalogo(lista, id) {
     if (!state.catalogos || !id) return '-';
     const item = (state.catalogos[lista] || []).find(x => x.id === Number(id));
     return item ? (item.nombre || item.codigo) : '-';
   }
 
+  function aplicarOrdenPersonalizado(lista) {
+    if (!state.sort.key || !state.sort.dir) return lista;
+    const dir = state.sort.dir === 'asc' ? 1 : -1;
+    const valorDe = (v) => {
+      switch (state.sort.key) {
+        case 'correlativo': return v.correlativo || '';
+        case 'fecha_ingreso': return v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`;
+        case 'fecha_entrega': return v.fecha_entrega || '';
+        case 'fecha_evento': return v.fecha_evento || '';
+        default: return '';
+      }
+    };
+    return [...lista].sort((a, b) => {
+      const va = valorDe(a), vb = valorDe(b);
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
+  }
+
   function renderTabla() {
     const texto = $('#filtro-texto').value.trim().toLowerCase();
     const estadoFiltro = $('#filtro-estado').value;
+    const visibles = usaEstadosVisibles();
 
     let filas = state.vales.filter(v => {
-      if (estadoFiltro && v.estado !== estadoFiltro) return false;
+      if (estadoFiltro && (visibles ? v.estado_visible : v.estado) !== estadoFiltro) return false;
       if (texto) {
         const haystack = `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase();
         if (!haystack.includes(texto)) return false;
       }
       return true;
     });
+    filas = aplicarOrdenPersonalizado(filas);
 
     const tbody = $('#buzon-tbody');
     if (filas.length === 0) {
@@ -254,11 +425,11 @@
     tbody.innerHTML = filas.map(v => `
       <tr>
         <td><strong>${v.correlativo}</strong>${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}</td>
-        <td>${formatearFecha(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
+        <td>${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
         <td>${formatearFecha(v.fecha_entrega)}</td>
         <td>${v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`}</td>
         <td>${formatearFecha(v.fecha_evento)}</td>
-        <td><span class="estado-pill estado-${v.estado}">${ESTADOS_LABEL[v.estado] || v.estado}</span></td>
+        <td><span class="estado-pill ${claseEstado(v)}">${etiquetaEstado(v)}</span></td>
         <td class="acciones-cell" data-vale-id="${v.id}"></td>
       </tr>
     `).join('');
@@ -270,15 +441,33 @@
         btn.className = `btn-icon ${accion.clase || ''}`;
         btn.title = accion.titulo;
         btn.innerHTML = `<ion-icon name="${accion.icono}"></ion-icon>`;
-        btn.addEventListener('click', () => accion.onClick(v));
+        btn.addEventListener('click', () => {
+          if (state.accionesEnCurso.has(v.id)) return;
+          state.accionesEnCurso.add(v.id);
+          Promise.resolve(accion.onClick(v)).finally(() => state.accionesEnCurso.delete(v.id));
+        });
         cell.appendChild(btn);
       });
     });
   }
 
+  // Fechas siempre dd/mm/aaaa; solo la fecha de ingreso (y los logs de historial)
+  // muestran también la hora, como dd/mm/aaaa hh:mm.
   function formatearFecha(valor) {
     if (!valor) return '-';
-    return String(valor).replace('T', ' ').slice(0, 16);
+    const [f] = String(valor).split(/[ T]/);
+    const [y, m, d] = f.split('-');
+    if (!y || !m || !d) return String(valor);
+    return `${d}/${m}/${y}`;
+  }
+
+  function formatearFechaHora(valor) {
+    if (!valor) return '-';
+    const [f, h] = String(valor).replace('T', ' ').split(' ');
+    const [y, m, d] = f.split('-');
+    if (!y || !m || !d) return String(valor);
+    const hm = (h || '').slice(0, 5);
+    return `${d}/${m}/${y}${hm ? ' ' + hm : ''}`;
   }
 
   function construirAcciones(v) {
@@ -304,7 +493,7 @@
       acciones.push({ icono: 'close-circle-outline', titulo: 'Cancelar / Modificar', clase: 'icon-danger', onClick: abrirModalCancelarModificar });
     }
     if (puede('aprobarModificacion') && v.estado === 'CONFIRMACION_MODIFICACION') {
-      acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: accionAprobarModificacion });
+      acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });
     }
     acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
 
@@ -352,6 +541,12 @@
     return (state.catalogos[lista] || []).map(item => `<option value="${item.id}">${item[campo] || item.nombre}</option>`).join('');
   }
 
+  function opcionesPaises() {
+    return (state.catalogos.paises || []).map(p =>
+      `<option value="${p.codigo_telefono}" ${p.codigo === 'GT' ? 'selected' : ''}>${p.codigo_telefono} ${p.codigo}</option>`
+    ).join('');
+  }
+
   function abrirModalCrearVale() {
     const { overlay, cerrar } = abrirModal({
       title: 'Crear Vale de Arte',
@@ -362,7 +557,13 @@
           <div class="form-grid">
             <div class="form-field"><label>Empresa</label><input type="text" name="clienteEmpresa" /></div>
             <div class="form-field"><label>Cliente *</label><input type="text" name="clienteNombre" required /></div>
-            <div class="form-field"><label>Teléfono *</label><input type="text" name="clienteTelefono" required /></div>
+            <div class="form-field">
+              <label>Teléfono *</label>
+              <div class="form-field-phone">
+                <select name="clienteTelefonoPais">${opcionesPaises()}</select>
+                <input type="text" name="clienteTelefono" required placeholder="0000-0000" />
+              </div>
+            </div>
             <div class="form-field"><label>Correo *</label><input type="email" name="clienteCorreo" required /></div>
           </div>
 
@@ -375,7 +576,7 @@
             <div class="form-field"><label>Técnica *</label><select name="tecnicaId" required>${opcionesSelect('tecnicas')}</select></div>
             <div class="form-field"><label>Acabado *</label><select name="acabadoId" required>${opcionesSelect('acabados')}</select></div>
             <div class="form-field"><label>Cantidad * (mayor a 1)</label><input type="number" name="cantidad" min="2" required /></div>
-            <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>
+            <div class="form-field"><label>No. Cotización *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>
             <div class="form-field form-checkbox full"><input type="checkbox" name="urgente" id="chk-urgente" /><label for="chk-urgente">Urgente</label></div>
           </div>
 
@@ -399,6 +600,10 @@
       if (!form.reportValidity()) return;
       const formData = new FormData(form);
       formData.set('urgente', form.querySelector('[name="urgente"]').checked ? 'true' : 'false');
+      const paisCodigo = form.querySelector('[name="clienteTelefonoPais"]').value;
+      const telefonoNum = form.querySelector('[name="clienteTelefono"]').value.trim();
+      formData.set('clienteTelefono', `${paisCodigo} ${telefonoNum}`);
+      formData.delete('clienteTelefonoPais');
 
       const btn = overlay.querySelector('#btn-guardar-crear');
       btn.disabled = true;
@@ -445,6 +650,8 @@
     overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
       const tecnicoId = overlay.querySelector('#select-tecnico').value;
       if (!tecnicoId) return;
+      const btn = overlay.querySelector('#btn-confirmar');
+      btn.disabled = true;
       try {
         const res = await fetch(`/api/vales/${vale.id}/asignar`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tecnicoId })
@@ -456,6 +663,7 @@
         cargarBuzon();
       } catch (error) {
         mostrarErrorModal(overlay, error.message);
+        btn.disabled = false;
       }
     });
   }
@@ -484,7 +692,7 @@
             ? 'El técnico canceló el proceso y entregó una propuesta en blanco.'
             : (ultima && ultima.url
                 ? `<a href="/${ultima.url}" target="_blank" class="btn-secondary" style="text-decoration:none;display:inline-flex;">Ver propuesta adjunta</a>`
-                : 'El técnico no adjuntó documento de propuesta.')}
+                : 'El técnico no adjuntó documento de propuesta (no se puede aprobar en blanco).')}
         </p>
         <div class="form-field">
           <label>Reasignar a (solo si desaprueba)</label>
@@ -551,6 +759,8 @@
       const file = overlay.querySelector('#input-propuesta').files[0];
       const formData = new FormData();
       if (file) formData.append('propuesta', file);
+      const btn = overlay.querySelector('#btn-enviar');
+      btn.disabled = true;
       try {
         const res = await fetch(`/api/vales/${vale.id}/entregar`, { method: 'POST', body: formData });
         const data = await res.json();
@@ -560,6 +770,7 @@
         cargarBuzon();
       } catch (error) {
         mostrarErrorModal(overlay, error.message);
+        btn.disabled = false;
       }
     });
   }
@@ -580,17 +791,29 @@
   // -------------------------------------------------------------------------
   // Asesor: ver propuesta / confirmar / cancelar / modificar
   // -------------------------------------------------------------------------
-  function abrirModalPropuestaAsesor(vale) {
+  async function abrirModalPropuestaAsesor(vale) {
+    let detalle;
+    try {
+      detalle = await (await fetch(`/api/vales/${vale.id}`)).json();
+    } catch {
+      detalle = { propuestas: [] };
+    }
+    const ultima = (detalle.propuestas || [])[detalle.propuestas.length - 1];
+
     const { overlay, cerrar } = abrirModal({
       title: `Propuesta recibida — ${vale.correlativo}`,
       bodyHtml: `
-        <p style="font-size:13px;margin-bottom:14px;">Revisa el vale de arte generado y confirma la venta si el cliente aceptó la propuesta.</p>
-        <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn-secondary" style="text-decoration:none;display:inline-flex;">Ver vale de arte (PDF)</a>
+        <p style="font-size:13px;margin-bottom:14px;">Revisa la propuesta entregada por el técnico y confirma la venta si el cliente la aceptó.</p>
+        ${ultima && ultima.url
+          ? `<a href="/${ultima.url}" target="_blank" class="btn-secondary" style="text-decoration:none;display:inline-flex;">Ver propuesta adjunta</a>`
+          : '<p style="font-size:13px;color:var(--color-outline);">El técnico no adjuntó documento de propuesta.</p>'}
       `,
       footerHtml: `<button class="btn-secondary" id="btn-cerrar">Cerrar</button><button class="btn-primary" id="btn-confirmar">Confirmar Venta</button>`
     });
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
+      const btn = overlay.querySelector('#btn-confirmar');
+      btn.disabled = true;
       try {
         const res = await fetch(`/api/vales/${vale.id}/confirmar`, { method: 'POST' });
         const data = await res.json();
@@ -600,6 +823,7 @@
         cargarBuzon();
       } catch (error) {
         mostrarErrorModal(overlay, error.message);
+        btn.disabled = false;
       }
     });
   }
@@ -647,8 +871,7 @@
             <textarea name="descripcion" maxlength="600">${vale.descripcion || ''}</textarea>
           </div>
           <div class="form-grid">
-            <div class="form-field"><label>Nuevas imágenes</label><input type="file" name="imagenes" accept="image/jpeg,image/png,image/webp" multiple /></div>
-            <div class="form-field"><label>Nuevos documentos (PDF)</label><input type="file" name="documentos" accept="application/pdf" multiple /></div>
+            <div class="form-field full"><label>Nuevas imágenes</label><input type="file" name="imagenes" accept="image/jpeg,image/png,image/webp" multiple /></div>
           </div>
         </form>
       `,
@@ -659,6 +882,8 @@
       const form = overlay.querySelector('#form-modificacion');
       if (!form.reportValidity()) return;
       const formData = new FormData(form);
+      const btn = overlay.querySelector('#btn-enviar');
+      btn.disabled = true;
       try {
         const res = await fetch(`/api/vales/${vale.id}/solicitar-modificacion`, { method: 'POST', body: formData });
         const data = await res.json();
@@ -668,6 +893,7 @@
         cargarBuzon();
       } catch (error) {
         mostrarErrorModal(overlay, error.message);
+        btn.disabled = false;
       }
     });
   }
@@ -675,17 +901,28 @@
   // -------------------------------------------------------------------------
   // Supervisor: aprobar modificación
   // -------------------------------------------------------------------------
-  async function accionAprobarModificacion(vale) {
-    if (!confirm(`¿Autorizar la modificación solicitada para ${vale.correlativo}?`)) return;
-    try {
-      const res = await fetch(`/api/vales/${vale.id}/aprobar-modificacion`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      mostrarToast(`Modificación de ${vale.correlativo} autorizada.`, 'checkmark-circle-outline');
-      cargarBuzon();
-    } catch (error) {
-      mostrarToast(error.message, 'alert-circle-outline');
-    }
+  function abrirModalAprobarModificacion(vale) {
+    const { overlay, cerrar } = abrirModal({
+      title: `Autorizar modificación — ${vale.correlativo}`,
+      bodyHtml: `<p style="font-size:13px;">¿Confirmas autorizar la modificación solicitada para este vale de arte? El vale volverá al buzón de encargados para continuar su proceso.</p>`,
+      footerHtml: `<button class="btn-secondary" id="btn-cerrar">Cancelar</button><button class="btn-primary" id="btn-confirmar">Autorizar</button>`
+    });
+    overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
+    overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
+      const btn = overlay.querySelector('#btn-confirmar');
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/vales/${vale.id}/aprobar-modificacion`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        mostrarToast(`Modificación de ${vale.correlativo} autorizada.`, 'checkmark-circle-outline');
+        cerrar();
+        cargarBuzon();
+      } catch (error) {
+        mostrarErrorModal(overlay, error.message);
+        btn.disabled = false;
+      }
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -702,7 +939,7 @@
       title: `Historial — ${vale.correlativo}`,
       bodyHtml: `
         <ul class="historial-list">
-          ${(detalle.historial || []).map(h => `<li><span class="fecha">${formatearFecha(h.creado_en)}</span>${h.accion}</li>`).join('') || '<li>Sin movimientos registrados.</li>'}
+          ${(detalle.historial || []).map(h => `<li><span class="fecha">${formatearFechaHora(h.creado_en)}</span>${h.accion}</li>`).join('') || '<li>Sin movimientos registrados.</li>'}
         </ul>
       `
     });
@@ -710,49 +947,59 @@
   }
 
   // -------------------------------------------------------------------------
-  // Carga de trabajo (encargados)
+  // Carga de trabajo (encargados) — se mantiene actualizada en tiempo real
+  // mientras el modal (o su detalle) está abierto, sin necesidad de cerrarlo.
   // -------------------------------------------------------------------------
-  async function abrirModalCargaTrabajo() {
+  async function renderContenidoCargaTrabajo(overlay) {
     let data = [];
     try {
       data = await (await fetch('/api/vales/carga-trabajo')).json();
     } catch { /* se muestra vacío si falla */ }
 
     const maxAsignaciones = Math.max(1, ...data.map(t => t.asignaciones));
-    const { overlay } = abrirModal({
-      title: 'Carga de trabajo',
-      bodyHtml: data.length ? data.map(t => `
-        <div class="carga-tecnico" data-tecnico-id="${t.tecnicoId}">
-          <div class="nombre">${t.nombre}</div>
-          <div class="carga-barra"><div class="carga-barra-fill" style="width:${(t.asignaciones / maxAsignaciones) * 100}%"></div></div>
-          <div style="font-size:12px;color:var(--color-on-surface-variant);">
-            Asignaciones: ${t.asignaciones} · En proceso: ${t.enProceso || 'Ninguno'}
-          </div>
+    const body = overlay.querySelector('.modal-body');
+    body.innerHTML = data.length ? data.map(t => `
+      <div class="carga-tecnico" data-tecnico-id="${t.tecnicoId}">
+        <div class="nombre">${t.nombre}</div>
+        <div class="carga-barra"><div class="carga-barra-fill" style="width:${(t.asignaciones / maxAsignaciones) * 100}%"></div></div>
+        <div style="font-size:12px;color:var(--color-on-surface-variant);">
+          Asignaciones: ${t.asignaciones} · En proceso: ${t.enProceso || 'Ninguno'}
         </div>
-      `).join('') : '<p style="font-size:13px;">No tienes técnicos bajo tu mando.</p>'
-    });
+      </div>
+    `).join('') : '<p style="font-size:13px;">No tienes técnicos bajo tu mando.</p>';
 
-    $$('.carga-tecnico', overlay).forEach(el => {
+    $$('.carga-tecnico', body).forEach(el => {
       el.addEventListener('click', () => abrirModalAsignacionesTecnico(el.dataset.tecnicoId));
     });
   }
 
-  async function abrirModalAsignacionesTecnico(tecnicoId) {
+  function abrirModalCargaTrabajo() {
+    const { overlay, cerrar } = abrirModal({ title: 'Carga de trabajo', bodyHtml: '<p class="tabla-vacia">Cargando...</p>' });
+    void cerrar;
+    state.cargaTrabajoModal = { overlay, actualizar: () => renderContenidoCargaTrabajo(overlay) };
+    renderContenidoCargaTrabajo(overlay);
+  }
+
+  async function renderContenidoAsignacionesTecnico(overlay, tecnicoId) {
     let vales = [];
     try {
       vales = await (await fetch(`/api/vales/carga-trabajo/${tecnicoId}`)).json();
     } catch { /* se muestra vacío si falla */ }
 
-    abrirModal({
-      title: 'Asignaciones del técnico',
-      bodyHtml: vales.length ? `
-        <table class="buzon-table"><thead><tr><th>Correlativo</th><th>Entrega</th><th>Estado</th></tr></thead>
-        <tbody>${vales.map(v => `
-          <tr${v.atrasado ? ' style="color:var(--color-error);"' : ''}>
-            <td>${v.correlativo}</td><td>${formatearFecha(v.fecha_entrega)}</td>
-            <td><span class="estado-pill estado-${v.estado}">${ESTADOS_LABEL[v.estado] || v.estado}</span></td>
-          </tr>`).join('')}</tbody></table>
-      ` : '<p style="font-size:13px;">Este técnico no tiene asignaciones activas.</p>'
-    });
+    const body = overlay.querySelector('.modal-body');
+    body.innerHTML = vales.length ? `
+      <table class="buzon-table"><thead><tr><th>Correlativo</th><th>Entrega</th><th>Estado</th></tr></thead>
+      <tbody>${vales.map(v => `
+        <tr${v.atrasado ? ' style="color:var(--color-error);"' : ''}>
+          <td>${v.correlativo}</td><td>${formatearFecha(v.fecha_entrega)}</td>
+          <td><span class="estado-pill estado-${v.estado}">${ESTADOS_LABEL[v.estado] || v.estado}</span></td>
+        </tr>`).join('')}</tbody></table>
+    ` : '<p style="font-size:13px;">Este técnico no tiene asignaciones activas.</p>';
+  }
+
+  function abrirModalAsignacionesTecnico(tecnicoId) {
+    const { overlay } = abrirModal({ title: 'Asignaciones del técnico', bodyHtml: '<p class="tabla-vacia">Cargando...</p>' });
+    state.cargaTrabajoModal = { overlay, actualizar: () => renderContenidoAsignacionesTecnico(overlay, tecnicoId) };
+    renderContenidoAsignacionesTecnico(overlay, tecnicoId);
   }
 })();

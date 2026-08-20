@@ -1,6 +1,8 @@
 // src/modules/vales/services/valePdfService.js
 // Genera el PDF de un vale de arte y fusiona al final los documentos PDF adjuntos.
 // El binario nunca se persiste en BD: solo se sube vía fileStorage y se guarda su URL.
+// Las imágenes tampoco se conservan como archivo tras generarse el PDF (solo queda
+// la descripción en texto); quien las elimina es valeService una vez incrustadas aquí.
 const fs = require('fs/promises');
 const path = require('path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
@@ -10,12 +12,26 @@ const PAGE_WIDTH = 612; // Carta
 const PAGE_HEIGHT = 792;
 const MARGIN = 40;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+const FOOTER_HEIGHT = 30;
 const UPLOADS_DIR = path.join(__dirname, '../../../../uploads');
 const LOGO_PATH = path.join(__dirname, '../../../../public/assets/logos/LOGO_GP_isotipo.png');
 
-function formatFecha(valor) {
+// Fechas siempre dd/mm/aaaa; solo la fecha de ingreso muestra también hora (dd/mm/aaaa hh:mm).
+function formatFechaSolo(valor) {
   if (!valor) return '-';
-  return String(valor).replace('T', ' ').slice(0, 16);
+  const [f] = String(valor).split(/[ T]/);
+  const [y, m, d] = f.split('-');
+  if (!y || !m || !d) return String(valor);
+  return `${d}/${m}/${y}`;
+}
+
+function formatFechaHora(valor) {
+  if (!valor) return '-';
+  const [f, h] = String(valor).replace('T', ' ').split(' ');
+  const [y, m, d] = f.split('-');
+  if (!y || !m || !d) return String(valor);
+  const hm = (h || '').slice(0, 5);
+  return `${d}/${m}/${y}${hm ? ' ' + hm : ''}`;
 }
 
 function wrapText(text, font, size, maxWidth) {
@@ -74,18 +90,11 @@ class ValePdfService {
     const imagenes = documentos.filter(d => d.tipo === 'imagen');
     const docsAdjuntos = documentos.filter(d => d.tipo === 'documento');
 
-    if (vale.modificado && vale.descripcion_original) {
-      await this._dibujarBocetoDescripcion(ctx, '********** MODIFICACION **********', vale.descripcion, imagenes.filter(i => i.es_modificacion), true);
-      await this._dibujarBocetoDescripcion(ctx, null, vale.descripcion_original, imagenes.filter(i => !i.es_modificacion), false);
-    } else {
-      await this._dibujarBocetoDescripcion(ctx, null, vale.descripcion, imagenes, false);
-    }
-
-    if (docsAdjuntos.length > 0) {
-      this._escribirLinea(ctx, 'Hay documentos adjuntos.', ctx.fontBold, 10);
-    }
-
-    this._dibujarNumeracionPaginas(ctx);
+    this._asegurarEspacio(ctx, 20);
+    this._texto(ctx, 'BOCETO Y DESCRIPCIÓN', MARGIN, ctx.y, { size: 9, bold: true });
+    ctx.y -= 16;
+    this._dibujarTextoLargo(ctx, vale.descripcion);
+    await this._dibujarGridImagenes(ctx, imagenes);
 
     // Fusionar documentos PDF adjuntos al final (nunca se re-almacenan, solo se copian sus páginas)
     for (const doc of docsAdjuntos) {
@@ -99,6 +108,41 @@ class ValePdfService {
         console.warn(`[ValePdfService] No se pudo fusionar el documento adjunto ${doc.nombre_original}:`, error.message);
       }
     }
+
+    this._dibujarPiesDePagina(pdfDoc, font, fontBold, {
+      tieneAdjuntos: docsAdjuntos.length > 0,
+      modificado: false
+    });
+
+    const bytes = await pdfDoc.save();
+    return Buffer.from(bytes);
+  }
+
+  /**
+   * Anexa el bloque de modificación al FINAL del PDF ya generado (no se regenera desde cero).
+   * Las imágenes nuevas se incrustan aquí y quien llama debe eliminarlas después (no se conservan).
+   */
+  async anexarModificacion(vale, imagenesNuevas = []) {
+    const bytesExistentes = await fs.readFile(path.join(UPLOADS_DIR, path.basename(vale.pdf_url)));
+    const pdfDoc = await PDFDocument.load(bytesExistentes);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    const ctx = { pdfDoc, font, fontBold, logoImage: null, page: null, y: 0 };
+    this._nuevaPagina(ctx);
+
+    this._escribirLinea(ctx, '********** MODIFICACION **********', ctx.fontBold, 10);
+    this._asegurarEspacio(ctx, 20);
+    this._texto(ctx, 'BOCETO Y DESCRIPCIÓN (MODIFICACIÓN)', MARGIN, ctx.y, { size: 9, bold: true });
+    ctx.y -= 16;
+    this._dibujarTextoLargo(ctx, vale.descripcion);
+    await this._dibujarGridImagenes(ctx, imagenesNuevas);
+    this._escribirLinea(ctx, '********** MODIFICACION **********', ctx.fontBold, 10);
+
+    this._dibujarPiesDePagina(pdfDoc, font, fontBold, {
+      tieneAdjuntos: false, // los adjuntos originales de creación, si existían, ya se marcaron al generar el PDF base
+      modificado: true
+    });
 
     const bytes = await pdfDoc.save();
     return Buffer.from(bytes);
@@ -129,6 +173,57 @@ class ValePdfService {
     this._asegurarEspacio(ctx, size + 8);
     ctx.page.drawText(texto, { x: MARGIN, y: ctx.y, size, font, color: rgb(0, 0, 0) });
     ctx.y -= size + 8;
+  }
+
+  _dibujarTextoLargo(ctx, descripcion) {
+    const lineas = wrapText(descripcion || 'Sin descripción.', ctx.font, 9, CONTENT_WIDTH);
+    lineas.forEach(linea => {
+      this._asegurarEspacio(ctx, 14);
+      this._texto(ctx, linea, MARGIN, ctx.y, { size: 9 });
+      ctx.y -= 14;
+    });
+    ctx.y -= 6;
+  }
+
+  async _dibujarGridImagenes(ctx, imagenes) {
+    // Imágenes, máximo 3 por fila horizontal
+    const columnas = 3;
+    const gap = 10;
+    const anchoImg = (CONTENT_WIDTH - gap * (columnas - 1)) / columnas;
+    const altoImg = anchoImg;
+
+    for (let i = 0; i < imagenes.length; i += columnas) {
+      this._asegurarEspacio(ctx, altoImg + 10);
+      const fila = imagenes.slice(i, i + columnas);
+      for (let j = 0; j < fila.length; j++) {
+        const doc = fila[j];
+        const x = MARGIN + j * (anchoImg + gap);
+        try {
+          const bytes = await fs.readFile(path.join(UPLOADS_DIR, path.basename(doc.ruta)));
+          let embedded;
+          if (doc.mime_type === 'image/png') {
+            embedded = await ctx.pdfDoc.embedPng(bytes);
+          } else if (doc.mime_type === 'image/jpeg' || doc.mime_type === 'image/jpg') {
+            embedded = await ctx.pdfDoc.embedJpg(bytes);
+          } else {
+            throw new Error('Formato no soportado para incrustar directamente en el PDF (ej. webp).');
+          }
+          const dims = embedded.scaleToFit(anchoImg, altoImg);
+          ctx.page.drawImage(embedded, {
+            x: x + (anchoImg - dims.width) / 2,
+            y: ctx.y - altoImg + (altoImg - dims.height) / 2,
+            width: dims.width,
+            height: dims.height
+          });
+          this._rect(ctx, x, ctx.y - altoImg, anchoImg, altoImg);
+        } catch (error) {
+          this._rect(ctx, x, ctx.y - altoImg, anchoImg, altoImg);
+          this._texto(ctx, doc.nombre_original, x + 4, ctx.y - altoImg / 2, { size: 7 });
+        }
+      }
+      ctx.y -= altoImg + gap;
+    }
+    ctx.y -= 10;
   }
 
   _dibujarEncabezado(ctx, vale) {
@@ -214,9 +309,9 @@ class ValePdfService {
   _dibujarSeccionVenta(ctx, vale, nombres) {
     this._dibujarCajaSeccion(ctx, 'INFORMACIÓN DE VENTA', [
       [
-        { etiqueta: 'FECHA Y HORA INGRESO', valor: `${vale.fecha_creacion} ${vale.hora_creacion}`, proporcion: 3 / 8 },
-        { etiqueta: 'FECHA ENTREGA', valor: formatFecha(vale.fecha_entrega), proporcion: 2 / 8 },
-        { etiqueta: 'FECHA EVENTO', valor: formatFecha(vale.fecha_evento), proporcion: 2 / 8 },
+        { etiqueta: 'FECHA Y HORA INGRESO', valor: formatFechaHora(`${vale.fecha_creacion} ${vale.hora_creacion}`), proporcion: 3 / 8 },
+        { etiqueta: 'FECHA ENTREGA', valor: formatFechaSolo(vale.fecha_entrega), proporcion: 2 / 8 },
+        { etiqueta: 'FECHA EVENTO', valor: formatFechaSolo(vale.fecha_evento), proporcion: 2 / 8 },
         { etiqueta: 'URGENTE', valor: vale.urgente ? 'SÍ' : 'NO', proporcion: 1 / 8 }
       ],
       [
@@ -227,81 +322,41 @@ class ValePdfService {
       ],
       [
         { etiqueta: 'CANTIDAD', valor: String(vale.cantidad), proporcion: 2 / 8 },
-        { etiqueta: 'COTIZACIÓN', valor: `Q${Number(vale.cotizacion).toFixed(2)}`, proporcion: 2 / 8 },
+        { etiqueta: 'NO. COTIZACIÓN', valor: `Q${Number(vale.cotizacion).toFixed(2)}`, proporcion: 2 / 8 },
         { etiqueta: '', valor: '', proporcion: 2 / 8 },
         { etiqueta: '', valor: '', proporcion: 2 / 8 }
       ]
     ]);
   }
 
-  async _dibujarBocetoDescripcion(ctx, marcador, descripcion, imagenes, esModificacion) {
-    if (marcador) {
-      this._escribirLinea(ctx, marcador, ctx.fontBold, 10);
-    }
+  /**
+   * Dibuja el pie de página en TODAS las páginas del documento final (incluidas las de
+   * documentos adjuntos fusionados): numeración actual/total, checkbox de "hay adjuntos"
+   * a la izquierda del número, y el indicador "MODIFICAR" abajo-izquierda si aplica.
+   * Se limpia la franja inferior primero porque al anexar una modificación se recalculan
+   * el total de páginas y las marcas de páginas ya existentes.
+   */
+  _dibujarPiesDePagina(pdfDoc, font, fontBold, { tieneAdjuntos, modificado }) {
+    const total = pdfDoc.getPageCount();
+    pdfDoc.getPages().forEach((page, idx) => {
+      page.drawRectangle({ x: 0, y: 0, width: PAGE_WIDTH, height: FOOTER_HEIGHT, color: rgb(1, 1, 1) });
 
-    this._asegurarEspacio(ctx, 20);
-    this._texto(ctx, 'BOCETO Y DESCRIPCIÓN', MARGIN, ctx.y, { size: 9, bold: true });
-    ctx.y -= 16;
-
-    const lineas = wrapText(descripcion || 'Sin descripción.', ctx.font, 9, CONTENT_WIDTH);
-    lineas.forEach(linea => {
-      this._asegurarEspacio(ctx, 14);
-      this._texto(ctx, linea, MARGIN, ctx.y, { size: 9 });
-      ctx.y -= 14;
-    });
-    ctx.y -= 6;
-
-    // Imágenes, máximo 3 por fila horizontal
-    const columnas = 3;
-    const gap = 10;
-    const anchoImg = (CONTENT_WIDTH - gap * (columnas - 1)) / columnas;
-    const altoImg = anchoImg;
-
-    for (let i = 0; i < imagenes.length; i += columnas) {
-      this._asegurarEspacio(ctx, altoImg + 10);
-      const fila = imagenes.slice(i, i + columnas);
-      for (let j = 0; j < fila.length; j++) {
-        const doc = fila[j];
-        const x = MARGIN + j * (anchoImg + gap);
-        try {
-          const bytes = await fs.readFile(path.join(UPLOADS_DIR, path.basename(doc.ruta)));
-          let embedded;
-          if (doc.mime_type === 'image/png') {
-            embedded = await ctx.pdfDoc.embedPng(bytes);
-          } else if (doc.mime_type === 'image/jpeg' || doc.mime_type === 'image/jpg') {
-            embedded = await ctx.pdfDoc.embedJpg(bytes);
-          } else {
-            throw new Error('Formato no soportado para incrustar directamente en el PDF (ej. webp).');
-          }
-          const dims = embedded.scaleToFit(anchoImg, altoImg);
-          ctx.page.drawImage(embedded, {
-            x: x + (anchoImg - dims.width) / 2,
-            y: ctx.y - altoImg + (altoImg - dims.height) / 2,
-            width: dims.width,
-            height: dims.height
-          });
-          this._rect(ctx, x, ctx.y - altoImg, anchoImg, altoImg);
-        } catch (error) {
-          this._rect(ctx, x, ctx.y - altoImg, anchoImg, altoImg);
-          this._texto(ctx, doc.nombre_original, x + 4, ctx.y - altoImg / 2, { size: 7 });
-        }
+      if (modificado) {
+        page.drawText('MODIFICAR', { x: MARGIN, y: 10, size: 8, font: fontBold, color: rgb(0.72, 0.1, 0.1) });
       }
-      ctx.y -= altoImg + gap;
-    }
-    ctx.y -= 10;
-  }
 
-  _dibujarNumeracionPaginas(ctx) {
-    const total = ctx.pdfDoc.getPageCount();
-    if (total <= 1) return;
-    ctx.pdfDoc.getPages().forEach((page, idx) => {
-      page.drawText(`${idx + 1}/${total}`, {
-        x: PAGE_WIDTH - MARGIN - 30,
-        y: MARGIN / 2,
-        size: 8,
-        font: ctx.font,
-        color: rgb(0.4, 0.4, 0.4)
-      });
+      const pageNumText = `${idx + 1}/${total}`;
+      const pageNumWidth = font.widthOfTextAtSize(pageNumText, 8);
+      const boxSize = 8;
+      const boxX = PAGE_WIDTH - MARGIN - pageNumWidth - 16;
+      const boxY = 9;
+      page.drawRectangle({ x: boxX, y: boxY, width: boxSize, height: boxSize, borderColor: rgb(0.3, 0.3, 0.3), borderWidth: 1 });
+      if (tieneAdjuntos) {
+        page.drawLine({ start: { x: boxX + 1, y: boxY + 4 }, end: { x: boxX + 3, y: boxY + 1.5 }, thickness: 1, color: rgb(0, 0, 0) });
+        page.drawLine({ start: { x: boxX + 3, y: boxY + 1.5 }, end: { x: boxX + 7, y: boxY + 7 }, thickness: 1, color: rgb(0, 0, 0) });
+      }
+
+      page.drawText(pageNumText, { x: PAGE_WIDTH - MARGIN - pageNumWidth, y: 10, size: 8, font, color: rgb(0.4, 0.4, 0.4) });
     });
   }
 }

@@ -16,6 +16,8 @@ const camposAdjuntos = upload.fields([
   { name: 'imagenes', maxCount: 10 },
   { name: 'documentos', maxCount: 5 }
 ]);
+// El formulario de modificación ya no admite documentos adjuntos, solo imágenes nuevas.
+const camposSoloImagenes = upload.fields([{ name: 'imagenes', maxCount: 10 }]);
 const campoPropuesta = upload.fields([{ name: 'propuesta', maxCount: 1 }]);
 
 router.get('/catalogos', requirePermission('vales.ver'), (req, res) => valeController.catalogos(req, res));
@@ -37,7 +39,7 @@ router.post('/:id/cancelar-proceso', requirePermission('vales.trabajar'), (req, 
 router.post('/:id/revisar', requirePermission('vales.revisar'), (req, res) => valeController.revisar(req, res));
 router.post('/:id/confirmar', requirePermission('vales.confirmar'), (req, res) => valeController.confirmar(req, res));
 router.post('/:id/cancelar', requirePermission('vales.confirmar'), (req, res) => valeController.cancelar(req, res));
-router.post('/:id/solicitar-modificacion', requirePermission('vales.solicitar_modificacion'), camposAdjuntos, (req, res) => valeController.solicitarModificacion(req, res));
+router.post('/:id/solicitar-modificacion', requirePermission('vales.solicitar_modificacion'), camposSoloImagenes, (req, res) => valeController.solicitarModificacion(req, res));
 router.post('/:id/aprobar-modificacion', requirePermission('vales.aprobar_modificacion'), (req, res) => valeController.aprobarModificacion(req, res));
 
 module.exports = router;

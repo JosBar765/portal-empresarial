@@ -14,6 +14,10 @@ class DocumentoRepository {
   async listarPorVale(valeId) {
     return db.query('SELECT * FROM vale_documentos WHERE vale_id = ?', [valeId], 'documento:list_by_vale');
   }
+
+  async eliminar(id) {
+    await db.query('DELETE FROM vale_documentos WHERE id = ?', [id], 'documento:delete');
+  }
 }
 
 module.exports = new DocumentoRepository();

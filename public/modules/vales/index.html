@@ -38,64 +38,72 @@
     </div>
   </header>
 
-  <main class="main-container">
-
-    <section class="dashboard-toolbar">
-      <div class="ventana-selector" id="ventana-selector">
-        <button data-ventana="dia" class="chip">Día</button>
-        <button data-ventana="semana" class="chip">Semana</button>
-        <button data-ventana="mes" class="chip">Mes</button>
-        <button data-ventana="todo" class="chip chip-active">Todo</button>
-        <input type="date" id="ventana-fecha" class="ventana-fecha" />
-      </div>
-      <button class="btn-primary" id="btn-nuevo-vale" style="display:none;">
-        <ion-icon name="add-outline"></ion-icon>
-        Crear Vale de Arte
+  <div class="app-layout">
+    <aside class="sidebar-vales" id="sidebar-vales" style="display:none;">
+      <button class="sidebar-item sidebar-item-active" data-vista="buzon">
+        <ion-icon name="file-tray-full-outline"></ion-icon>
+        <span>Buzón</span>
       </button>
-    </section>
+      <button class="sidebar-item" data-vista="trabajo">
+        <ion-icon name="checkmark-done-circle-outline"></ion-icon>
+        <span>Trabajo realizado</span>
+      </button>
+    </aside>
 
-    <section class="contadores-grid" id="contadores-grid"></section>
+    <main class="main-container">
 
-    <section class="buzon-section">
-      <div class="buzon-toolbar">
-        <h2>Buzón de Vales de Arte</h2>
-        <div class="buzon-filtros">
-          <input type="text" id="filtro-texto" placeholder="Buscar por correlativo o cliente..." />
-          <select id="filtro-estado">
-            <option value="">Todos los estados</option>
-            <option value="CREADO">Creado</option>
-            <option value="ASIGNADO">Asignado</option>
-            <option value="EN_PROCESO">En Proceso</option>
-            <option value="EN_REVISION">En Revisión</option>
-            <option value="APROBADO">Aprobado</option>
-            <option value="CONFIRMACION_MODIFICACION">Confirmación Modificación</option>
-            <option value="MODIFICADO">Modificado</option>
-            <option value="VENDIDO">Vendido</option>
-            <option value="CANCELADO">Cancelado</option>
-          </select>
+      <section class="dashboard-toolbar">
+        <div class="ventana-selector" id="ventana-selector">
+          <button data-ventana="dia" class="chip">Día</button>
+          <button data-ventana="semana" class="chip">Semana</button>
+          <button data-ventana="mes" class="chip">Mes</button>
+          <button data-ventana="todo" class="chip chip-active">Todo</button>
+          <div class="ventana-rango">
+            <input type="date" id="ventana-desde" class="ventana-fecha" title="Desde" />
+            <span class="ventana-rango-sep">—</span>
+            <input type="date" id="ventana-hasta" class="ventana-fecha" title="Hasta" />
+          </div>
         </div>
-      </div>
+        <button class="btn-primary" id="btn-nuevo-vale" style="display:none;">
+          <ion-icon name="add-outline"></ion-icon>
+          Crear Vale de Arte
+        </button>
+      </section>
 
-      <div class="tabla-wrapper">
-        <table class="buzon-table">
-          <thead>
-            <tr>
-              <th>Correlativo</th>
-              <th>Fecha Ingreso</th>
-              <th>Fecha Entrega</th>
-              <th>Atraso</th>
-              <th>Fecha Evento</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="buzon-tbody">
-            <tr><td colspan="7" class="tabla-vacia">Cargando vales de arte...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </main>
+      <section class="contadores-grid" id="contadores-grid"></section>
+
+      <section class="buzon-section">
+        <div class="buzon-toolbar">
+          <h2 id="buzon-titulo">Buzón de Vales de Arte</h2>
+          <div class="buzon-filtros">
+            <input type="text" id="filtro-texto" placeholder="Buscar por correlativo o cliente..." />
+            <select id="filtro-estado">
+              <option value="">Todos los estados</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="tabla-wrapper">
+          <table class="buzon-table">
+            <thead>
+              <tr>
+                <th data-sort-key="correlativo">Correlativo</th>
+                <th data-sort-key="fecha_ingreso">Fecha Ingreso</th>
+                <th data-sort-key="fecha_entrega">Fecha Entrega</th>
+                <th>Atraso</th>
+                <th data-sort-key="fecha_evento">Fecha Evento</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="buzon-tbody">
+              <tr><td colspan="7" class="tabla-vacia">Cargando vales de arte...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
 
   <!-- Widget flotante de carga de trabajo (solo encargados) -->
   <button class="btn-carga-trabajo" id="btn-carga-trabajo" style="display:none;" title="Carga de trabajo">

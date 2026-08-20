@@ -58,7 +58,13 @@ class ValeController {
 
   async buzon(req, res) {
     try {
-      const filtros = { ventana: req.query.ventana, fecha: req.query.fecha };
+      const filtros = {
+        ventana: req.query.ventana,
+        fecha: req.query.fecha,
+        desde: req.query.desde,
+        hasta: req.query.hasta,
+        vista: req.query.vista
+      };
       const data = await valeService.obtenerBuzon(req.user, filtros);
       return res.json(data);
     } catch (error) {

@@ -66,6 +66,14 @@ const mockDatabase = {
     { id: 2, codigo: 'SAN', nombre: 'San Salvador', pais_id: 2, activo: 1 },
     { id: 3, codigo: 'TEG', nombre: 'Tegucigalpa', pais_id: 3, activo: 1 }
   ],
+  paises: [
+    { id: 1, codigo: 'GT', nombre: 'Guatemala', codigo_telefono: '+502', moneda_codigo: 'GTQ', moneda_simbolo: 'Q' },
+    { id: 2, codigo: 'SV', nombre: 'El Salvador', codigo_telefono: '+503', moneda_codigo: 'USD', moneda_simbolo: '$' },
+    { id: 3, codigo: 'HN', nombre: 'Honduras', codigo_telefono: '+504', moneda_codigo: 'HNL', moneda_simbolo: 'L' },
+    { id: 4, codigo: 'NI', nombre: 'Nicaragua', codigo_telefono: '+505', moneda_codigo: 'NIO', moneda_simbolo: 'C$' },
+    { id: 5, codigo: 'CR', nombre: 'Costa Rica', codigo_telefono: '+506', moneda_codigo: 'CRC', moneda_simbolo: '₡' },
+    { id: 6, codigo: 'BZ', nombre: 'Belice', codigo_telefono: '+501', moneda_codigo: 'BZD', moneda_simbolo: 'BZ$' }
+  ],
   valeProductos: [
     { id: 1, codigo: 'PRD-TROF', nombre: 'Trofeo', activo: 1 },
     { id: 2, codigo: 'PRD-MED', nombre: 'Medalla', activo: 1 },
@@ -207,6 +215,7 @@ const taggedHandlers = {
   'catalog:materiales': () => mockDatabase.valeMateriales.filter(m => m.activo),
   'catalog:tecnicas': () => mockDatabase.valeTecnicas.filter(t => t.activo),
   'catalog:acabados': () => mockDatabase.valeAcabados.filter(a => a.activo),
+  'catalog:paises': () => mockDatabase.paises,
 
   // Estas consultas nunca deben exponer password_hash: a diferencia de MySQL real (que
   // solo devuelve las columnas listadas en el SELECT), el mock ignora el SQL, así que
@@ -352,6 +361,12 @@ const taggedHandlers = {
   },
   'documento:list_by_vale': (params) => {
     return mockDatabase.valeDocumentos.filter(d => d.vale_id === Number(params[0]));
+  },
+  'documento:delete': (params) => {
+    const id = Number(params[0]);
+    const idx = mockDatabase.valeDocumentos.findIndex(d => d.id === id);
+    if (idx !== -1) mockDatabase.valeDocumentos.splice(idx, 1);
+    return { affectedRows: idx !== -1 ? 1 : 0 };
   },
 
   'historial:insert': (params) => {

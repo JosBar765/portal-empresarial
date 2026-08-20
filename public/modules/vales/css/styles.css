@@ -12,7 +12,48 @@
 }
 .header-back:hover { opacity: 1; }
 
-.main-container { max-width: 1280px; }
+.app-layout { display: flex; align-items: flex-start; gap: 24px; max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+.main-container { max-width: none; flex: 1; min-width: 0; padding: 48px 0; margin: 0; }
+
+.sidebar-vales {
+  flex-shrink: 0;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--color-surface-lowest);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 24px;
+}
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-on-surface-variant);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: var(--radius-default);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+}
+.sidebar-item ion-icon { font-size: 18px; }
+.sidebar-item:hover { background: var(--color-surface-container); color: var(--color-primary); }
+.sidebar-item-active { background: var(--color-primary); color: #FFFFFF; }
+.sidebar-item-active:hover { background: var(--color-primary); color: #FFFFFF; }
+
+@media (max-width: 900px) {
+  .app-layout { flex-direction: column; padding: 0 16px; }
+  .sidebar-vales { width: 100%; flex-direction: row; position: static; }
+}
 
 /* Toolbar */
 .dashboard-toolbar {
@@ -56,6 +97,8 @@
   font-family: var(--font-family);
   font-size: 13px;
 }
+.ventana-rango { display: flex; align-items: center; gap: 6px; }
+.ventana-rango-sep { color: var(--color-outline); font-size: 12px; }
 
 .btn-primary {
   background: var(--color-primary);
@@ -174,6 +217,14 @@
   letter-spacing: 0.03em;
   white-space: nowrap;
 }
+.buzon-table th[data-sort-key] {
+  cursor: pointer;
+  user-select: none;
+  display: table-cell;
+}
+.buzon-table th[data-sort-key]:hover { color: var(--color-primary); }
+.buzon-table th[data-sort-key] .sort-arrow { margin-left: 4px; opacity: 0.5; font-size: 10px; }
+.buzon-table th[data-sort-key].sort-active .sort-arrow { opacity: 1; color: var(--color-primary); }
 .buzon-table td {
   padding: 12px;
   border-bottom: 1px solid var(--color-border-subtle);
@@ -266,6 +317,9 @@
   font-size: 13px;
 }
 .form-field textarea { resize: vertical; min-height: 80px; }
+.form-field-phone { display: flex; gap: 6px; }
+.form-field-phone select { flex: 0 0 96px; }
+.form-field-phone input { flex: 1; min-width: 0; }
 .form-checkbox { display: flex; align-items: center; gap: 8px; }
 .form-checkbox label { font-size: 13px; font-weight: 600; }
 .form-error {
