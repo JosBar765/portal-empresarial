@@ -55,15 +55,22 @@
   /* Paleta de estados del Vale de Arte — dominio propio del módulo, bloque
      separado y sin mezclar con primary/secondary (mismo criterio que el
      semáforo de Eventos o el pipeline de Gestión de Venta en eventos_mt). */
+  /* Por taller (vale_talleres.estado) */
   --vale-estado-creado-bg: #E9E7EB;                    --vale-estado-creado-fg: #43474E;
+  --vale-estado-pendiente-asignacion-bg: #E9E7EB;      --vale-estado-pendiente-asignacion-fg: #43474E;
   --vale-estado-asignado-bg: #D9DFF8;                  --vale-estado-asignado-fg: #5B6278;
   --vale-estado-en-proceso-bg: #FFDDB2;                --vale-estado-en-proceso-fg: #60410C;
   --vale-estado-en-revision-bg: #FFF3B2;                --vale-estado-en-revision-fg: #5C4B00;
   --vale-estado-aprobado-bg: #C8F5D0;                  --vale-estado-aprobado-fg: #0B5E1F;
-  --vale-estado-confirmacion-modificacion-bg: #FFDAD6; --vale-estado-confirmacion-modificacion-fg: #93000A;
+  /* Generales (vales.estado) */
+  --vale-estado-aprobado-departamento-bg: #B2EBE0;     --vale-estado-aprobado-departamento-fg: #00695C;
+  --vale-estado-pendiente-confirmacion-bg: #FFE8A3;    --vale-estado-pendiente-confirmacion-fg: #6B4E00;
+  --vale-estado-recibido-bg: #022448;                  --vale-estado-recibido-fg: #FFFFFF;
+  --vale-estado-confirmado-bg: #022448;                --vale-estado-confirmado-fg: #FFFFFF;
+  --vale-estado-rechazado-bg: #43474E;                 --vale-estado-rechazado-fg: #FFFFFF;
+  --vale-estado-en-correccion-bg: #FFCDBA;             --vale-estado-en-correccion-fg: #7A2E00;
+  --vale-estado-solicitando-modificacion-bg: #FFDAD6;  --vale-estado-solicitando-modificacion-fg: #93000A;
   --vale-estado-modificado-bg: #ADC8F5;                --vale-estado-modificado-fg: #022448;
-  --vale-estado-vendido-bg: #022448;                   --vale-estado-vendido-fg: #FFFFFF;
-  --vale-estado-cancelado-bg: #43474E;                 --vale-estado-cancelado-fg: #FFFFFF;
 
   /* Radios */
   --radius-xs: 4px;      /* detalles pequeños */

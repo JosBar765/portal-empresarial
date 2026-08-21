@@ -1,22 +1,36 @@
 // public/modules/vales/js/app.js
 (() => {
+  // Estados REALES: nivel general del vale (vales.estado) + nivel de taller
+  // (vale_talleres.estado, ver analisis_correcciones_3.md). No colisionan entre
+  // sí, así que comparten un solo diccionario de etiquetas.
   const ESTADOS_LABEL = {
-    CREADO: 'Creado', ASIGNADO: 'Asignado', EN_PROCESO: 'En Proceso', EN_REVISION: 'En Revisión',
-    APROBADO: 'Aprobado', CONFIRMACION_MODIFICACION: 'Confirmación Modificación', MODIFICADO: 'Modificado',
-    VENDIDO: 'Vendido', CANCELADO: 'Cancelado'
+    // Generales
+    CREADO: 'Creado',
+    APROBADO_DEPARTAMENTO: 'Aprobado por Talleres',
+    PENDIENTE_CONFIRMACION: 'Pendiente Confirmación',
+    RECIBIDO: 'Recibido',
+    RECHAZADO: 'Rechazado',
+    EN_CORRECCION: 'En Corrección',
+    SOLICITANDO_MODIFICACION: 'Solicitando Modificación',
+    MODIFICADO: 'Modificado',
+    // Por taller
+    PENDIENTE_ASIGNACION: 'Pendiente Asignación',
+    ASIGNADO: 'Asignado',
+    EN_PROCESO: 'En Proceso',
+    EN_REVISION: 'En Revisión',
+    APROBADO: 'Aprobado'
   };
 
   // El asesor no ve el estado real de la máquina de estados, ve una versión "lógica"
-  // colapsada (ver .agents/correciones_mod_vales_de_arte_1.md, VISTA ASESOR #5).
+  // colapsada (analisis_correcciones_3.md #11). Nunca se usa para autorización.
   const ESTADOS_VISIBLES_LABEL = {
     CREADO: 'Creado',
     SOLICITANDO_MODIFICACION: 'Solicitando Modificación',
     MODIFICADO: 'Modificado',
-    APROBADO: 'Aprobado',
-    VENDIDO: 'Vendido',
-    CANCELADO: 'Cancelado'
+    PENDIENTE_CONFIRMACION: 'Pendiente Confirmación',
+    CONFIRMADO: 'Confirmado',
+    RECHAZADO: 'Rechazado'
   };
-  const ALIAS_CLASE_ESTADO_VISIBLE = { SOLICITANDO_MODIFICACION: 'CONFIRMACION_MODIFICACION' };
 
   // Roles con sidebar Buzón / Trabajo realizado (Asesor, Supervisor, Técnico).
   const ROLES_CON_SIDEBAR = [3, 4, 7];
@@ -25,58 +39,69 @@
     3: { // Asesor
       buzon: [
         { key: 'valesRestantesHoy', label: 'Vales restantes hoy' },
-        { key: 'valesPorRevisar', label: 'Vales por revisar' },
-        { key: 'valesPendientesModificacion', label: 'Pend. modificación' },
-        { key: 'valesAtrasados', label: 'Atrasados', alerta: true }
+        { key: 'valesPorRevisar', label: 'Pend. confirmación', filtro: 'valesPorRevisar' },
+        { key: 'valesPendientesModificacion', label: 'Solicitando modificación', filtro: 'valesPendientesModificacion' },
+        { key: 'valesAtrasados', label: 'Atrasados', alerta: true, filtro: 'valesAtrasados' }
       ],
       trabajo: [
-        { key: 'vendidosHoy', label: 'Vendidos hoy' },
-        { key: 'canceladosHoy', label: 'Cancelados hoy' },
-        { key: 'totalVendidos', label: 'Total vendidos' },
-        { key: 'totalCancelados', label: 'Total cancelados' }
+        { key: 'recibidosHoy', label: 'Recibidos hoy', filtro: 'recibidosHoy' },
+        { key: 'rechazadosHoy', label: 'Rechazados hoy', filtro: 'rechazadosHoy' },
+        { key: 'totalRecibidos', label: 'Total recibidos', filtro: 'totalRecibidos' },
+        { key: 'totalRechazados', label: 'Total rechazados', filtro: 'totalRechazados' }
       ]
     },
     4: { // Supervisor
       buzon: [
-        { key: 'pendientesConfirmarModificacion', label: 'Por confirmar modificación' },
-        { key: 'modificados', label: 'Modificados' },
-        { key: 'aprobados', label: 'Aprobados' }
+        { key: 'pendientesConfirmarModificacion', label: 'Por autorizar modificación', filtro: 'pendientesConfirmarModificacion' },
+        { key: 'modificados', label: 'Modificados', filtro: 'modificados' },
+        { key: 'enCorreccion', label: 'En corrección', filtro: 'enCorreccion' },
+        { key: 'pendientesConfirmacion', label: 'Pend. confirmación asesor', filtro: 'pendientesConfirmacion' }
       ],
       trabajo: [
-        { key: 'valesConfirmadosHoy', label: 'Confirmados hoy' },
-        { key: 'valesCanceladosHoy', label: 'Cancelados hoy' },
-        { key: 'totalVendidos', label: 'Total vendidos' },
-        { key: 'totalCancelados', label: 'Total cancelados' }
+        { key: 'valesRecibidosHoy', label: 'Recibidos hoy', filtro: 'valesRecibidosHoy' },
+        { key: 'valesRechazadosHoy', label: 'Rechazados hoy', filtro: 'valesRechazadosHoy' },
+        { key: 'totalRecibidos', label: 'Total recibidos', filtro: 'totalRecibidos' },
+        { key: 'totalRechazados', label: 'Total rechazados', filtro: 'totalRechazados' }
       ]
     },
-    5: [ // Encargado
-      { key: 'pendientesAsignacion', label: 'Pend. asignación' },
-      { key: 'pendientesAsignacionAtrasados', label: 'Pend. asignación atrasados', alerta: true },
-      { key: 'asignados', label: 'Asignados' },
-      { key: 'asignadosAtrasados', label: 'Asignados atrasados', alerta: true },
-      { key: 'enProceso', label: 'En proceso' },
-      { key: 'enProcesoAtrasados', label: 'En proceso atrasados', alerta: true },
-      { key: 'enRevision', label: 'En revisión' },
-      { key: 'enRevisionAtrasados', label: 'En revisión atrasados', alerta: true },
-      { key: 'aprobados', label: 'Aprobados hoy' },
-      { key: 'aprobadosAtrasados', label: 'Aprobados hoy (atrasados)', alerta: true }
+    5: [ // Encargado de un taller
+      { key: 'pendientesAsignacion', label: 'Pend. asignación', filtro: 'pendientesAsignacion' },
+      { key: 'pendientesAsignacionAtrasados', label: 'Pend. asignación atrasados', alerta: true, filtro: 'pendientesAsignacionAtrasados' },
+      { key: 'asignados', label: 'Asignados', filtro: 'asignados' },
+      { key: 'asignadosAtrasados', label: 'Asignados atrasados', alerta: true, filtro: 'asignadosAtrasados' },
+      { key: 'enProceso', label: 'En proceso', filtro: 'enProceso' },
+      { key: 'enProcesoAtrasados', label: 'En proceso atrasados', alerta: true, filtro: 'enProcesoAtrasados' },
+      { key: 'enRevision', label: 'En revisión', filtro: 'enRevision' },
+      { key: 'enRevisionAtrasados', label: 'En revisión atrasados', alerta: true, filtro: 'enRevisionAtrasados' },
+      { key: 'aprobados', label: 'Aprobados hoy', filtro: 'aprobados' },
+      { key: 'aprobadosAtrasados', label: 'Aprobados hoy (atrasados)', alerta: true, filtro: 'aprobadosAtrasados' }
     ],
     7: { // Técnico
       buzon: [
-        { key: 'asignados', label: 'Vales asignados' },
-        { key: 'asignadosAtrasados', label: 'Asignados atrasados', alerta: true },
-        { key: 'modificacionPendiente', label: 'Con modificación' },
-        { key: 'modificacionPendienteAtrasados', label: 'Modificación atrasados', alerta: true },
+        { key: 'asignados', label: 'Vales asignados', filtro: 'asignados' },
+        { key: 'asignadosAtrasados', label: 'Asignados atrasados', alerta: true, filtro: 'asignadosAtrasados' },
+        { key: 'modificacionPendiente', label: 'Con modificación', filtro: 'modificacionPendiente' },
+        { key: 'modificacionPendienteAtrasados', label: 'Modificación atrasados', alerta: true, filtro: 'modificacionPendienteAtrasados' },
         { key: 'enProceso', label: 'Vale en proceso', esTexto: true }
       ],
       trabajo: [
         { key: 'totalAprobados', label: 'Total aprobados' },
-        { key: 'aprobadosHoy', label: 'Aprobados hoy' }
+        { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' }
       ]
-    }
+    },
+    8: [ // Encargado General
+      { key: 'pendientesFusion', label: 'Vales por fusionar' },
+      { key: 'atrasados', label: 'Atrasados', alerta: true, filtro: 'atrasados' }
+    ]
   };
   CONTADORES_CONFIG[6] = CONTADORES_CONFIG[5];
-  CONTADORES_CONFIG[1] = CONTADORES_CONFIG[5]; // Administrador ve una vista de control similar a encargado
+  CONTADORES_CONFIG[9] = CONTADORES_CONFIG[8];
+  CONTADORES_CONFIG[1] = [ // Administrador: vista de control general
+    { key: 'total', label: 'Total vales' },
+    { key: 'pendientesConfirmacion', label: 'Pend. confirmación', filtro: 'pendientesConfirmacion' },
+    { key: 'aprobadoDepartamento', label: 'Por fusionar', filtro: 'aprobadoDepartamento' },
+    { key: 'atrasados', label: 'Atrasados', alerta: true, filtro: 'atrasados' }
+  ];
 
   const state = {
     user: null,
@@ -85,6 +110,7 @@
     contadores: {},
     vista: 'buzon', // solo aplica a roles con sidebar
     ventana: { tipo: 'todo', desde: null, hasta: null },
+    filtroContador: null,
     sort: { key: null, dir: null },
     socket: null,
     cargaTrabajoModal: null,
@@ -106,6 +132,7 @@
       case 'confirmar': return admin || r === 3;
       case 'solicitarModificacion': return admin || r === 3;
       case 'aprobarModificacion': return admin || r === 4;
+      case 'aprobarGeneral': return admin || r === 8 || r === 9;
       default: return false;
     }
   }
@@ -114,17 +141,23 @@
     return state.user.rolId === 3;
   }
 
+  // El estado que corresponde MOSTRAR depende del rol: el asesor ve su versión
+  // lógica; encargados y técnicos ven el progreso DENTRO de su taller
+  // (v.estado_taller); el resto ve el estado general del vale (v.estado).
+  function estadoActivo(v) {
+    if (usaEstadosVisibles()) return v.estado_visible;
+    if ([5, 6, 7].includes(state.user.rolId)) return v.estado_taller || v.estado;
+    return v.estado;
+  }
+
   function claseEstado(v) {
-    if (usaEstadosVisibles()) {
-      const clave = ALIAS_CLASE_ESTADO_VISIBLE[v.estado_visible] || v.estado_visible;
-      return `estado-${clave}`;
-    }
-    return `estado-${v.estado}`;
+    return `estado-${estadoActivo(v)}`;
   }
 
   function etiquetaEstado(v) {
     if (usaEstadosVisibles()) return ESTADOS_VISIBLES_LABEL[v.estado_visible] || v.estado_visible;
-    return ESTADOS_LABEL[v.estado] || v.estado;
+    const clave = estadoActivo(v);
+    return ESTADOS_LABEL[clave] || clave;
   }
 
   // -------------------------------------------------------------------------
@@ -152,22 +185,23 @@
     $('#user-display-role').textContent = state.user.rolNombre;
 
     $('#btn-nuevo-vale').style.display = puede('crear') ? 'flex' : 'none';
-    // La carga de trabajo es una herramienta de gestión del propio equipo del encargado;
-    // el administrador ya ve todo desde el buzón general, por lo que no aplica aquí.
+    // La carga de trabajo es una herramienta de gestión del propio equipo del encargado
+    // de UN taller; el Encargado General no tiene técnicos propios y el administrador
+    // ya ve todo desde el buzón general, por lo que no aplica en ninguno de los dos.
     $('#btn-carga-trabajo').style.display = (state.user.rolId === 5 || state.user.rolId === 6) ? 'flex' : 'none';
+
+    try {
+      const catalogosRes = await fetch('/api/vales/catalogos');
+      state.catalogos = await catalogosRes.json();
+    } catch (error) {
+      state.catalogos = { localidades: [], productos: [], materiales: [], paises: [], talleres: [] };
+    }
 
     wireSidebar();
     wireToolbar();
     wireSortHeaders();
     wireScrollInfinito();
     initSocket();
-
-    try {
-      const catalogosRes = await fetch('/api/vales/catalogos');
-      state.catalogos = await catalogosRes.json();
-    } catch (error) {
-      state.catalogos = { localidades: [], productos: [], materiales: [], tecnicas: [], acabados: [], paises: [] };
-    }
 
     await cargarBuzon();
 
@@ -193,6 +227,7 @@
         btn.classList.add('sidebar-item-active');
         state.vista = btn.dataset.vista;
         state.sort = { key: null, dir: null };
+        state.filtroContador = null; // un filtro de contador es propio de la vista activa
         actualizarIndicadoresOrden();
         $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
         cargarBuzon();
@@ -259,14 +294,23 @@
     });
   }
 
+  function miTaller() {
+    return (state.catalogos.talleres || []).find(t => t.encargado_id === state.user.id) || null;
+  }
+
   function roomsParaUsuario(user) {
     switch (user.rolId) {
       case 1: return ['vales:admin'];
       case 3: return [`asesor:${user.id}`];
       case 4: return ['vales:supervisores'];
       case 5:
-      case 6: return ['vales:encargados', `encargado:${user.id}`];
+      case 6: {
+        const taller = miTaller();
+        return taller ? [`taller:${taller.id}`] : [];
+      }
       case 7: return [`tecnico:${user.id}`];
+      case 8:
+      case 9: return ['vales:encargado_general'];
       default: return [];
     }
   }
@@ -324,6 +368,7 @@
       if (state.ventana.hasta) qs.set('hasta', state.ventana.hasta);
     }
     if (ROLES_CON_SIDEBAR.includes(state.user.rolId)) qs.set('vista', state.vista);
+    if (state.filtroContador) qs.set('filtroContador', state.filtroContador);
     return qs;
   }
 
@@ -341,7 +386,7 @@
       state.paginacion.total = data.total ?? state.vales.length;
       state.paginacion.hasMore = !!data.hasMore;
     } catch (error) {
-      $('#buzon-tbody').innerHTML = `<tr><td colspan="7" class="tabla-vacia">Error al cargar el buzón: ${error.message}</td></tr>`;
+      $('#buzon-tbody').innerHTML = `<tr><td colspan="8" class="tabla-vacia">Error al cargar el buzón: ${error.message}</td></tr>`;
       return;
     }
 
@@ -387,6 +432,10 @@
     });
   }
 
+  // Corrección #10: cada tarjeta con `filtro` es clickeable para filtrar el buzón por
+  // ese criterio (toggle); las propias contadores nunca cambian de valor al activarse
+  // (el backend las calcula antes de aplicar el filtro), y no afecta el scroll infinito
+  // porque el filtro viaja en la misma querystring que ya usa la paginación.
   function renderContadores() {
     let config = CONTADORES_CONFIG[state.user.rolId] || [];
     if (!Array.isArray(config)) config = config[state.vista] || [];
@@ -395,20 +444,33 @@
       const valor = state.contadores[c.key];
       const mostrado = c.esTexto ? (valor || '—') : (valor ?? 0);
       const alerta = c.alerta && Number(valor) > 0;
+      const activo = c.filtro && state.filtroContador === c.filtro;
+      const clases = ['contador-card'];
+      if (alerta) clases.push('contador-alerta');
+      if (c.filtro) clases.push('contador-clickeable');
+      if (activo) clases.push('contador-activo');
       return `
-        <div class="contador-card ${alerta ? 'contador-alerta' : ''}">
+        <div class="${clases.join(' ')}" data-filtro="${c.filtro || ''}">
           <div class="valor">${mostrado}</div>
           <div class="etiqueta">${c.label}</div>
         </div>`;
     }).join('');
+
+    $$('.contador-card', grid).forEach(card => {
+      const filtro = card.dataset.filtro;
+      if (!filtro) return;
+      card.addEventListener('click', () => {
+        state.filtroContador = state.filtroContador === filtro ? null : filtro;
+        cargarBuzon();
+      });
+    });
   }
 
   function poblarFiltroEstado() {
     const select = $('#filtro-estado');
     const valorPrevio = select.value;
-    const visibles = usaEstadosVisibles();
-    const labelMap = visibles ? ESTADOS_VISIBLES_LABEL : ESTADOS_LABEL;
-    const presentes = [...new Set(state.vales.map(v => visibles ? v.estado_visible : v.estado))];
+    const labelMap = usaEstadosVisibles() ? ESTADOS_VISIBLES_LABEL : ESTADOS_LABEL;
+    const presentes = [...new Set(state.vales.map(v => estadoActivo(v)))];
     select.innerHTML = '<option value="">Todos los estados</option>' +
       presentes.map(e => `<option value="${e}">${labelMap[e] || e}</option>`).join('');
     if (presentes.includes(valorPrevio)) select.value = valorPrevio;
@@ -443,10 +505,9 @@
   function renderTabla() {
     const texto = $('#filtro-texto').value.trim().toLowerCase();
     const estadoFiltro = $('#filtro-estado').value;
-    const visibles = usaEstadosVisibles();
 
     let filas = state.vales.filter(v => {
-      if (estadoFiltro && (visibles ? v.estado_visible : v.estado) !== estadoFiltro) return false;
+      if (estadoFiltro && estadoActivo(v) !== estadoFiltro) return false;
       if (texto) {
         const haystack = `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase();
         if (!haystack.includes(texto)) return false;
@@ -457,7 +518,7 @@
 
     const tbody = $('#buzon-tbody');
     if (filas.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" class="tabla-vacia">No hay vales de arte para mostrar.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="tabla-vacia">No hay vales de arte para mostrar.</td></tr>`;
       return;
     }
 
@@ -468,6 +529,7 @@
         <td>${formatearFecha(v.fecha_entrega)}</td>
         <td>${v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`}</td>
         <td>${formatearFecha(v.fecha_evento)}</td>
+        <td>${v.taller || '-'}</td>
         <td><span class="estado-pill ${claseEstado(v)}">${etiquetaEstado(v)}</span></td>
         <td class="acciones-cell" data-vale-id="${v.id}"></td>
       </tr>
@@ -514,24 +576,29 @@
       { icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') }
     ];
 
-    if (puede('asignar') && (v.estado === 'CREADO' || v.estado === 'MODIFICADO')) {
+    if (puede('asignar') && v.estado_taller === 'PENDIENTE_ASIGNACION') {
       acciones.push({ icono: 'person-add-outline', titulo: 'Asignar a técnico', onClick: abrirModalAsignar });
     }
-    if (puede('revisar') && v.estado === 'EN_REVISION') {
+    if (puede('revisar') && v.estado_taller === 'EN_REVISION') {
       acciones.push({ icono: 'clipboard-outline', titulo: 'Revisar propuesta', onClick: abrirModalRevisar });
     }
-    if (puede('trabajar') && v.estado === 'ASIGNADO') {
+    if (puede('trabajar') && v.estado_taller === 'ASIGNADO') {
       acciones.push({ icono: 'play-outline', titulo: 'Comenzar', clase: 'icon-success', onClick: accionComenzar });
     }
-    if (puede('trabajar') && v.estado === 'EN_PROCESO') {
+    if (puede('trabajar') && v.estado_taller === 'EN_PROCESO') {
       acciones.push({ icono: 'checkmark-done-outline', titulo: 'Entregar propuesta', clase: 'icon-success', onClick: abrirModalEntregar });
       acciones.push({ icono: 'close-outline', titulo: 'Cancelar proceso', clase: 'icon-danger', onClick: accionCancelarProceso });
     }
-    if (puede('confirmar') && v.estado === 'APROBADO') {
-      acciones.push({ icono: 'document-text-outline', titulo: 'Ver propuesta y confirmar', clase: 'icon-success', onClick: abrirModalPropuestaAsesor });
-      acciones.push({ icono: 'close-circle-outline', titulo: 'Cancelar / Modificar', clase: 'icon-danger', onClick: abrirModalCancelarModificar });
+    if (puede('aprobarGeneral') && v.estado === 'APROBADO_DEPARTAMENTO') {
+      acciones.push({ icono: 'checkmark-done-circle-outline', titulo: 'Aprobar y fusionar', clase: 'icon-success', onClick: abrirModalAprobarGeneral });
     }
-    if (puede('aprobarModificacion') && v.estado === 'CONFIRMACION_MODIFICACION') {
+    if (puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION') {
+      acciones.push({ icono: 'document-text-outline', titulo: 'Confirmar, rechazar o corregir', clase: 'icon-success', onClick: abrirModalDecisionAsesor });
+    }
+    if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado)) {
+      acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirModalSolicitarModificacion });
+    }
+    if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
       acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });
     }
     acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
@@ -574,6 +641,67 @@
   }
 
   // -------------------------------------------------------------------------
+  // Selector de tags de talleres (corrección #4) — compartido entre el
+  // formulario de creación y el de solicitud de modificación.
+  // -------------------------------------------------------------------------
+  function htmlSelectorTalleres(seleccionadosIniciales) {
+    const opciones = (state.catalogos.talleres || [])
+      .map(t => `<option value="${t.id}">${t.nombre}</option>`).join('');
+    return `
+      <div class="form-field full">
+        <label>Talleres *</label>
+        <div class="taller-tags"></div>
+        <select class="select-agregar-taller">
+          <option value="">+ Agregar taller...</option>
+          ${opciones}
+        </select>
+      </div>
+    `;
+  }
+
+  function wireSelectorTalleres(overlay, seleccionados) {
+    const container = overlay.querySelector('.taller-tags');
+    const select = overlay.querySelector('.select-agregar-taller');
+    const render = () => {
+      container.innerHTML = [...seleccionados].map(id => {
+        const t = (state.catalogos.talleres || []).find(x => x.id === id);
+        return `<span class="taller-tag" data-taller-id="${id}">${t ? t.nombre : id}<button type="button" class="taller-tag-quitar" data-taller-id="${id}">&times;</button></span>`;
+      }).join('') || '<span class="taller-tags-vacio">Ningún taller seleccionado</span>';
+    };
+    render();
+    select.addEventListener('change', () => {
+      const id = Number(select.value);
+      if (id) { seleccionados.add(id); render(); }
+      select.value = '';
+    });
+    container.addEventListener('click', (e) => {
+      const btn = e.target.closest('.taller-tag-quitar');
+      if (!btn) return;
+      seleccionados.delete(Number(btn.dataset.tallerId));
+      render();
+    });
+  }
+
+  // Corrección #3: si la entrega queda a menos de 3 días, "Urgente" se marca
+  // solo y no se puede desmarcar; con más margen, el asesor decide libremente.
+  function wireUrgenteAutoLock(overlay) {
+    const fechaInput = overlay.querySelector('[name="fechaEntrega"]');
+    const checkbox = overlay.querySelector('[name="urgente"]');
+    const actualizar = () => {
+      if (!fechaInput.value) return;
+      const diffDias = (new Date(fechaInput.value) - new Date()) / (1000 * 60 * 60 * 24);
+      if (diffDias < 3) {
+        checkbox.checked = true;
+        checkbox.disabled = true;
+      } else {
+        checkbox.disabled = false;
+      }
+    };
+    fechaInput.addEventListener('change', actualizar);
+    actualizar();
+  }
+
+  // -------------------------------------------------------------------------
   // Modal: Crear vale de arte
   // -------------------------------------------------------------------------
   function opcionesSelect(lista, campo = 'nombre') {
@@ -587,6 +715,7 @@
   }
 
   function abrirModalCrearVale() {
+    const tallerSeleccionados = new Set();
     const { overlay, cerrar } = abrirModal({
       title: 'Crear Vale de Arte',
       size: 'lg',
@@ -606,16 +735,21 @@
             <div class="form-field"><label>Correo *</label><input type="email" name="clienteCorreo" required /></div>
           </div>
 
+          <div class="section-title">Información de Taller</div>
+          <div class="form-grid">
+            ${htmlSelectorTalleres()}
+          </div>
+
           <div class="section-title">Información de Venta</div>
           <div class="form-grid">
             <div class="form-field"><label>Fecha de entrega *</label><input type="datetime-local" name="fechaEntrega" required /></div>
             <div class="form-field"><label>Fecha del evento *</label><input type="datetime-local" name="fechaEvento" required /></div>
             <div class="form-field"><label>Código de producto *</label><select name="productoId" required>${opcionesSelect('productos')}</select></div>
             <div class="form-field"><label>Material *</label><select name="materialId" required>${opcionesSelect('materiales')}</select></div>
-            <div class="form-field"><label>Técnica *</label><select name="tecnicaId" required>${opcionesSelect('tecnicas')}</select></div>
-            <div class="form-field"><label>Acabado *</label><select name="acabadoId" required>${opcionesSelect('acabados')}</select></div>
+            <div class="form-field"><label>Técnica *</label><input type="text" name="tecnica" required /></div>
+            <div class="form-field"><label>Acabado *</label><input type="text" name="acabado" required /></div>
             <div class="form-field"><label>Cantidad * (mayor a 1)</label><input type="number" name="cantidad" min="2" required /></div>
-            <div class="form-field"><label>No. Cotización *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>
+            <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>
             <div class="form-field form-checkbox full"><input type="checkbox" name="urgente" id="chk-urgente" /><label for="chk-urgente">Urgente</label></div>
           </div>
 
@@ -633,31 +767,70 @@
       `
     });
 
+    wireSelectorTalleres(overlay, tallerSeleccionados);
+    wireUrgenteAutoLock(overlay);
+
     overlay.querySelector('#btn-cancelar-crear').addEventListener('click', cerrar);
-    overlay.querySelector('#btn-guardar-crear').addEventListener('click', async () => {
+    overlay.querySelector('#btn-guardar-crear').addEventListener('click', () => {
       const form = overlay.querySelector('#form-crear-vale');
       if (!form.reportValidity()) return;
+      if (tallerSeleccionados.size === 0) {
+        mostrarErrorModal(overlay, 'Debe seleccionar al menos un taller.');
+        return;
+      }
       const formData = new FormData(form);
       formData.set('urgente', form.querySelector('[name="urgente"]').checked ? 'true' : 'false');
       const paisCodigo = form.querySelector('[name="clienteTelefonoPais"]').value;
       const telefonoNum = form.querySelector('[name="clienteTelefono"]').value.trim();
       formData.set('clienteTelefono', `${paisCodigo} ${telefonoNum}`);
       formData.delete('clienteTelefonoPais');
+      formData.set('talleresIds', JSON.stringify([...tallerSeleccionados]));
 
-      const btn = overlay.querySelector('#btn-guardar-crear');
+      // Corrección #4: antes de crear el vale de verdad, se confirma con un modal
+      // resumen (el modal de creación queda debajo, intacto, por si se cancela).
+      abrirModalConfirmarCreacion(formData);
+    });
+  }
+
+  function abrirModalConfirmarCreacion(formData) {
+    const nombresTalleres = JSON.parse(formData.get('talleresIds') || '[]')
+      .map(id => ((state.catalogos.talleres || []).find(t => t.id === id) || {}).nombre || id)
+      .join(', ');
+    const { overlay, cerrar } = abrirModal({
+      title: 'Confirmar creación de Vale de Arte',
+      bodyHtml: `
+        <p style="font-size:13px;margin-bottom:10px;">Vas a crear un vale de arte con los siguientes datos:</p>
+        <ul class="historial-list">
+          <li><strong>Cliente:</strong> ${formData.get('clienteNombre')}</li>
+          <li><strong>Talleres:</strong> ${nombresTalleres}</li>
+          <li><strong>Cantidad:</strong> ${formData.get('cantidad')}</li>
+          <li><strong>Cotización:</strong> Q${formData.get('cotizacion')}</li>
+          <li><strong>Urgente:</strong> ${formData.get('urgente') === 'true' ? 'Sí' : 'No'}</li>
+        </ul>
+      `,
+      footerHtml: `
+        <button class="btn btn--ghost" id="btn-volver">Volver</button>
+        <button class="btn btn--primary" id="btn-confirmar-crear">Confirmar y Crear</button>
+      `
+    });
+    overlay.querySelector('#btn-volver').addEventListener('click', cerrar);
+    overlay.querySelector('#btn-confirmar-crear').addEventListener('click', async () => {
+      const btn = overlay.querySelector('#btn-confirmar-crear');
       btn.disabled = true;
-      btn.textContent = 'Creando...';
+      btn.classList.add('btn--loading');
       try {
         const res = await fetch('/api/vales', { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'No se pudo crear el vale de arte.');
         window.toast.success('Vale de arte creado', `${data.correlativo} se creó correctamente.`);
         cerrar();
+        // El modal de creación original sigue debajo — se cierra también.
+        $$('.modal-overlay').forEach(o => o.remove());
         cargarBuzon();
       } catch (error) {
         mostrarErrorModal(overlay, error.message);
         btn.disabled = false;
-        btn.textContent = 'Crear Vale de Arte';
+        btn.classList.remove('btn--loading');
       }
     });
   }
@@ -708,7 +881,7 @@
   }
 
   // -------------------------------------------------------------------------
-  // Modal: Revisar propuesta (encargado)
+  // Modal: Revisar propuesta (encargado de taller)
   // -------------------------------------------------------------------------
   async function abrirModalRevisar(vale) {
     let detalle;
@@ -828,36 +1001,23 @@
   }
 
   // -------------------------------------------------------------------------
-  // Asesor: ver propuesta / confirmar / cancelar / modificar
+  // Encargado General: aprobar y fusionar un vale multi-taller
   // -------------------------------------------------------------------------
-  async function abrirModalPropuestaAsesor(vale) {
-    let detalle;
-    try {
-      detalle = await (await fetch(`/api/vales/${vale.id}`)).json();
-    } catch {
-      detalle = { propuestas: [] };
-    }
-    const ultima = (detalle.propuestas || [])[detalle.propuestas.length - 1];
-
+  function abrirModalAprobarGeneral(vale) {
     const { overlay, cerrar } = abrirModal({
-      title: `Propuesta recibida — ${vale.correlativo}`,
-      bodyHtml: `
-        <p style="font-size:13px;margin-bottom:14px;">Revisa la propuesta entregada por el técnico y confirma la venta si el cliente la aceptó.</p>
-        ${ultima && ultima.url
-          ? `<a href="/${ultima.url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta adjunta</a>`
-          : '<p style="font-size:13px;color:var(--color-text-muted);">El técnico no adjuntó documento de propuesta.</p>'}
-      `,
-      footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cerrar</button><button class="btn btn--primary" id="btn-confirmar">Confirmar Venta</button>`
+      title: `Aprobar y fusionar — ${vale.correlativo}`,
+      bodyHtml: `<p style="font-size:13px;">Todos los talleres ya aprobaron su parte de este vale de arte. Al confirmar, se fusiona todo en un solo documento final y el vale pasa a confirmación del asesor.</p>`,
+      footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Aprobar y Fusionar</button>`
     });
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
       const btn = overlay.querySelector('#btn-confirmar');
       btn.disabled = true;
       try {
-        const res = await fetch(`/api/vales/${vale.id}/confirmar`, { method: 'POST' });
+        const res = await fetch(`/api/vales/${vale.id}/aprobar-general`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        window.toast.success('Venta confirmada', `Venta de ${vale.correlativo} confirmada.`);
+        window.toast.success('Vale fusionado', `${vale.correlativo} fusionado y aprobado correctamente.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
@@ -867,67 +1027,186 @@
     });
   }
 
-  function abrirModalCancelarModificar(vale) {
+  // -------------------------------------------------------------------------
+  // Asesor: decidir sobre un vale PENDIENTE_CONFIRMACION (confirmar / rechazar / corregir)
+  // -------------------------------------------------------------------------
+  function abrirModalDecisionAsesor(vale) {
     const { overlay, cerrar } = abrirModal({
-      title: `${vale.correlativo}`,
-      bodyHtml: `<p style="font-size:13px;">¿Qué deseas hacer con este vale de arte?</p>`,
+      title: `Vale pendiente de confirmación — ${vale.correlativo}`,
+      bodyHtml: `
+        <p style="font-size:13px;margin-bottom:14px;">Revisa el vale de arte final y decide qué hacer.</p>
+        <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;margin-bottom:16px;">Ver vale de arte (PDF)</a>
+        <div class="form-field full" id="campo-motivo-correccion" style="display:none;">
+          <label>Motivo de la corrección *</label>
+          <textarea id="input-motivo-correccion"></textarea>
+        </div>
+      `,
       footerHtml: `
-        <button class="btn btn--ghost" id="btn-modificar" ${vale.modificado ? 'disabled title="Ya se usó la única modificación permitida"' : ''}>Solicitar Modificación</button>
-        <button class="btn btn--danger" id="btn-cancelar-vale">Cancelar Vale</button>
+        <button class="btn btn--ghost" id="btn-solicitar-correccion">Solicitar Corrección</button>
+        <button class="btn btn--danger" id="btn-rechazar">Rechazar</button>
+        <button class="btn btn--primary" id="btn-confirmar-recibido">Confirmar Recibido</button>
       `
     });
-    overlay.querySelector('#btn-cancelar-vale').addEventListener('click', async () => {
-      if (!confirm(`¿Confirmas cancelar el vale ${vale.correlativo}? El cliente no compró.`)) return;
+
+    overlay.querySelector('#btn-confirmar-recibido').addEventListener('click', async () => {
       try {
-        const res = await fetch(`/api/vales/${vale.id}/cancelar`, { method: 'POST' });
+        const res = await fetch(`/api/vales/${vale.id}/confirmar`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        window.toast.success('Vale cancelado', `${vale.correlativo} cancelado.`);
+        window.toast.success('Venta confirmada', `${vale.correlativo} confirmado como recibido.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
         mostrarErrorModal(overlay, error.message);
       }
     });
-    overlay.querySelector('#btn-modificar').addEventListener('click', () => {
-      cerrar();
-      abrirModalSolicitarModificacion(vale);
+
+    overlay.querySelector('#btn-rechazar').addEventListener('click', async () => {
+      if (!confirm(`¿Confirmas rechazar el vale ${vale.correlativo}? El cliente no compró.`)) return;
+      try {
+        const res = await fetch(`/api/vales/${vale.id}/cancelar`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        window.toast.success('Vale rechazado', `${vale.correlativo} rechazado.`);
+        cerrar();
+        cargarBuzon();
+      } catch (error) {
+        mostrarErrorModal(overlay, error.message);
+      }
+    });
+
+    const campoMotivo = overlay.querySelector('#campo-motivo-correccion');
+    const btnCorreccion = overlay.querySelector('#btn-solicitar-correccion');
+    btnCorreccion.addEventListener('click', async () => {
+      if (campoMotivo.style.display === 'none') {
+        campoMotivo.style.display = 'flex';
+        btnCorreccion.textContent = 'Enviar Corrección';
+        return;
+      }
+      const motivo = overlay.querySelector('#input-motivo-correccion').value.trim();
+      if (!motivo) {
+        mostrarErrorModal(overlay, 'Debe indicar el motivo de la corrección.');
+        return;
+      }
+      try {
+        const res = await fetch(`/api/vales/${vale.id}/solicitar-correccion`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivo })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        window.toast.success('Corrección solicitada', `${vale.correlativo} regresó a los talleres para corrección.`);
+        cerrar();
+        cargarBuzon();
+      } catch (error) {
+        mostrarErrorModal(overlay, error.message);
+      }
     });
   }
 
-  function abrirModalSolicitarModificacion(vale) {
+  // -------------------------------------------------------------------------
+  // Asesor: solicitar modificación (mismo formulario de creación, precargado;
+  // boceto y descripción quedan en blanco — analisis_correcciones_3.md)
+  // -------------------------------------------------------------------------
+  async function abrirModalSolicitarModificacion(vale) {
+    let detalle;
+    try {
+      detalle = await (await fetch(`/api/vales/${vale.id}`)).json();
+    } catch {
+      detalle = { talleres: [] };
+    }
+    const tallerSeleccionados = new Set((detalle.talleres || []).map(t => t.taller_id));
+    const [paisCodigoActual, ...resto] = (vale.cliente_telefono || '').split(' ');
+    const telefonoActual = resto.join(' ');
+
     const { overlay, cerrar } = abrirModal({
       title: `Solicitar modificación — ${vale.correlativo}`,
       size: 'lg',
       bodyHtml: `
         <form id="form-modificacion">
+          <div class="section-title">Información de Cliente</div>
+          <div class="form-grid">
+            <div class="form-field"><label>Empresa</label><input type="text" name="clienteEmpresa" value="${vale.cliente_empresa || ''}" /></div>
+            <div class="form-field"><label>Cliente *</label><input type="text" name="clienteNombre" value="${vale.cliente_nombre || ''}" required /></div>
+            <div class="form-field">
+              <label>Teléfono *</label>
+              <div class="form-field-phone">
+                <select name="clienteTelefonoPais">${opcionesPaises()}</select>
+                <input type="text" name="clienteTelefono" value="${telefonoActual}" required placeholder="0000-0000" />
+              </div>
+            </div>
+            <div class="form-field"><label>Correo *</label><input type="email" name="clienteCorreo" value="${vale.cliente_correo || ''}" required /></div>
+          </div>
+
+          <div class="section-title">Información de Taller</div>
+          <div class="form-grid">
+            ${htmlSelectorTalleres()}
+          </div>
+
+          <div class="section-title">Información de Venta</div>
+          <div class="form-grid">
+            <div class="form-field"><label>Fecha de entrega *</label><input type="datetime-local" name="fechaEntrega" required /></div>
+            <div class="form-field"><label>Fecha del evento *</label><input type="datetime-local" name="fechaEvento" required /></div>
+            <div class="form-field"><label>Código de producto *</label><select name="productoId" required>${opcionesSelect('productos')}</select></div>
+            <div class="form-field"><label>Material *</label><select name="materialId" required>${opcionesSelect('materiales')}</select></div>
+            <div class="form-field"><label>Técnica *</label><input type="text" name="tecnica" value="${vale.tecnica || ''}" required /></div>
+            <div class="form-field"><label>Acabado *</label><input type="text" name="acabado" value="${vale.acabado || ''}" required /></div>
+            <div class="form-field"><label>Cantidad * (mayor a 1)</label><input type="number" name="cantidad" min="2" value="${vale.cantidad || ''}" required /></div>
+            <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" value="${vale.cotizacion || ''}" required /></div>
+            <div class="form-field form-checkbox full"><input type="checkbox" name="urgente" id="chk-urgente-mod" /><label for="chk-urgente-mod">Urgente</label></div>
+          </div>
+
           <div class="form-field full">
             <label>Justificación de la modificación *</label>
             <textarea name="justificacion" required></textarea>
-          </div>
-          <div class="form-field full">
-            <label>Nueva descripción</label>
-            <textarea name="descripcion" maxlength="600">${vale.descripcion || ''}</textarea>
-          </div>
-          <div class="form-grid">
-            <div class="form-field full"><label>Nuevas imágenes</label><input type="file" name="imagenes" accept="image/jpeg,image/png,image/webp" multiple /></div>
           </div>
         </form>
       `,
       footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-enviar">Solicitar Modificación</button>`
     });
+
+    wireSelectorTalleres(overlay, tallerSeleccionados);
+    wireUrgenteAutoLock(overlay);
+    if (paisCodigoActual) overlay.querySelector('[name="clienteTelefonoPais"]').value = paisCodigoActual;
+    overlay.querySelector('[name="productoId"]').value = vale.producto_id || '';
+    overlay.querySelector('[name="materialId"]').value = vale.material_id || '';
+
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-enviar').addEventListener('click', async () => {
       const form = overlay.querySelector('#form-modificacion');
       if (!form.reportValidity()) return;
-      const formData = new FormData(form);
+      if (tallerSeleccionados.size === 0) {
+        mostrarErrorModal(overlay, 'Debe seleccionar al menos un taller.');
+        return;
+      }
+      const fd = new FormData(form);
+      const paisCodigo = fd.get('clienteTelefonoPais');
+      const telefonoNum = (fd.get('clienteTelefono') || '').trim();
+      const payload = {
+        clienteEmpresa: fd.get('clienteEmpresa'),
+        clienteNombre: fd.get('clienteNombre'),
+        clienteTelefono: `${paisCodigo} ${telefonoNum}`,
+        clienteCorreo: fd.get('clienteCorreo'),
+        fechaEntrega: fd.get('fechaEntrega'),
+        fechaEvento: fd.get('fechaEvento'),
+        urgente: form.querySelector('[name="urgente"]').checked,
+        productoId: fd.get('productoId'),
+        materialId: fd.get('materialId'),
+        tecnica: fd.get('tecnica'),
+        acabado: fd.get('acabado'),
+        cantidad: fd.get('cantidad'),
+        cotizacion: fd.get('cotizacion'),
+        talleresIds: JSON.stringify([...tallerSeleccionados]),
+        justificacion: fd.get('justificacion')
+      };
       const btn = overlay.querySelector('#btn-enviar');
       btn.disabled = true;
       try {
-        const res = await fetch(`/api/vales/${vale.id}/solicitar-modificacion`, { method: 'POST', body: formData });
+        const res = await fetch(`/api/vales/${vale.id}/solicitar-modificacion`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        window.toast.success('Modificación solicitada', `Modificación solicitada para ${data.correlativo}.`);
+        window.toast.success('Modificación solicitada', `Modificación solicitada para ${vale.correlativo}.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
@@ -938,12 +1217,12 @@
   }
 
   // -------------------------------------------------------------------------
-  // Supervisor: aprobar modificación
+  // Supervisor: aprobar modificación (crea el vale MOD- nuevo)
   // -------------------------------------------------------------------------
   function abrirModalAprobarModificacion(vale) {
     const { overlay, cerrar } = abrirModal({
       title: `Autorizar modificación — ${vale.correlativo}`,
-      bodyHtml: `<p style="font-size:13px;">¿Confirmas autorizar la modificación solicitada para este vale de arte? El vale volverá al buzón de encargados para continuar su proceso.</p>`,
+      bodyHtml: `<p style="font-size:13px;">¿Confirmas autorizar la modificación solicitada para este vale de arte? Se creará un vale de arte nuevo con el prefijo MOD-, que entrará al buzón de los talleres correspondientes.</p>`,
       footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Autorizar</button>`
     });
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
@@ -954,7 +1233,7 @@
         const res = await fetch(`/api/vales/${vale.id}/aprobar-modificacion`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        window.toast.success('Modificación autorizada', `Modificación de ${vale.correlativo} autorizada.`);
+        window.toast.success('Modificación autorizada', `Se creó el vale ${data.correlativo}.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
@@ -986,8 +1265,8 @@
   }
 
   // -------------------------------------------------------------------------
-  // Carga de trabajo (encargados) — se mantiene actualizada en tiempo real
-  // mientras el modal (o su detalle) está abierto, sin necesidad de cerrarlo.
+  // Carga de trabajo (encargados de taller) — se mantiene actualizada en tiempo
+  // real mientras el modal (o su detalle) está abierto, sin necesidad de cerrarlo.
   // -------------------------------------------------------------------------
   async function renderContenidoCargaTrabajo(overlay) {
     let data = [];
@@ -1031,7 +1310,7 @@
       <tbody>${vales.map(v => `
         <tr${v.atrasado ? ' style="color:var(--color-danger);"' : ''}>
           <td>${v.correlativo}</td><td>${formatearFecha(v.fecha_entrega)}</td>
-          <td><span class="estado-pill estado-${v.estado}">${ESTADOS_LABEL[v.estado] || v.estado}</span></td>
+          <td><span class="estado-pill estado-${v.estado_taller}">${ESTADOS_LABEL[v.estado_taller] || v.estado_taller}</span></td>
         </tr>`).join('')}</tbody></table>
     ` : '<p style="font-size:13px;">Este técnico no tiene asignaciones activas.</p>';
   }

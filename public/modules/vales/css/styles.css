@@ -195,6 +195,21 @@
   color: var(--color-danger);
 }
 
+/* Corrección #10: los contadores con filtro asociado se pueden activar/desactivar
+   con un clic para filtrar el buzón por ese criterio. */
+.contador-card.contador-clickeable {
+  cursor: pointer;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.contador-card.contador-clickeable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.contador-card.contador-activo {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
 .contador-card .etiqueta {
   font-size: 12px;
   color: var(--color-text-secondary);
@@ -315,9 +330,11 @@
   white-space: nowrap;
 }
 
-.estado-CREADO {
-  background: var(--vale-estado-creado-bg);
-  color: var(--vale-estado-creado-fg);
+/* Estado por taller (vale_talleres.estado) */
+.estado-CREADO,
+.estado-PENDIENTE_ASIGNACION {
+  background: var(--vale-estado-pendiente-asignacion-bg);
+  color: var(--vale-estado-pendiente-asignacion-fg);
 }
 
 .estado-ASIGNADO {
@@ -340,24 +357,45 @@
   color: var(--vale-estado-aprobado-fg);
 }
 
-.estado-CONFIRMACION_MODIFICACION {
-  background: var(--vale-estado-confirmacion-modificacion-bg);
-  color: var(--vale-estado-confirmacion-modificacion-fg);
+/* Estado general del vale (vales.estado) */
+.estado-APROBADO_DEPARTAMENTO {
+  background: var(--vale-estado-aprobado-departamento-bg);
+  color: var(--vale-estado-aprobado-departamento-fg);
+}
+
+.estado-PENDIENTE_CONFIRMACION {
+  background: var(--vale-estado-pendiente-confirmacion-bg);
+  color: var(--vale-estado-pendiente-confirmacion-fg);
+}
+
+.estado-RECIBIDO {
+  background: var(--vale-estado-recibido-bg);
+  color: var(--vale-estado-recibido-fg);
+}
+
+.estado-CONFIRMADO {
+  background: var(--vale-estado-confirmado-bg);
+  color: var(--vale-estado-confirmado-fg);
+}
+
+.estado-RECHAZADO {
+  background: var(--vale-estado-rechazado-bg);
+  color: var(--vale-estado-rechazado-fg);
+}
+
+.estado-EN_CORRECCION {
+  background: var(--vale-estado-en-correccion-bg);
+  color: var(--vale-estado-en-correccion-fg);
+}
+
+.estado-SOLICITANDO_MODIFICACION {
+  background: var(--vale-estado-solicitando-modificacion-bg);
+  color: var(--vale-estado-solicitando-modificacion-fg);
 }
 
 .estado-MODIFICADO {
   background: var(--vale-estado-modificado-bg);
   color: var(--vale-estado-modificado-fg);
-}
-
-.estado-VENDIDO {
-  background: var(--vale-estado-vendido-bg);
-  color: var(--vale-estado-vendido-fg);
-}
-
-.estado-CANCELADO {
-  background: var(--vale-estado-cancelado-bg);
-  color: var(--vale-estado-cancelado-fg);
 }
 
 .acciones-cell {
@@ -479,6 +517,47 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text);
+}
+
+/* Corrección #4: selector de tags de talleres */
+.taller-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+  min-height: 28px;
+}
+
+.taller-tags-vacio {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.taller-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  padding: 4px 6px 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.taller-tag-quitar {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 50%;
+}
+
+.taller-tag-quitar:hover {
+  background: rgba(37, 99, 235, 0.15);
 }
 
 .form-error {

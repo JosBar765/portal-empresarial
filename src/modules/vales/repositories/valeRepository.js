@@ -32,16 +32,16 @@ class ValeRepository {
   async crear(data) {
     const result = await db.query(
       `INSERT INTO vales (
-        correlativo, asesor_id, localidad_id, fecha_creacion, hora_creacion, fecha_entrega, fecha_evento, urgente,
+        correlativo, asesor_id, localidad_id, vale_original_id, fecha_creacion, hora_creacion, fecha_entrega, fecha_evento, urgente,
         cliente_empresa, cliente_nombre, cliente_telefono, cliente_correo,
-        producto_id, material_id, tecnica_id, acabado_id, cantidad, cotizacion, descripcion
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        producto_id, material_id, tecnica, acabado, cantidad, cotizacion, descripcion, estado
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        data.correlativo, data.asesorId, data.localidadId, data.fechaCreacion, data.horaCreacion,
+        data.correlativo, data.asesorId, data.localidadId, data.valeOriginalId || null, data.fechaCreacion, data.horaCreacion,
         data.fechaEntrega, data.fechaEvento, data.urgente ? 1 : 0,
         data.clienteEmpresa || null, data.clienteNombre, data.clienteTelefono, data.clienteCorreo,
-        data.productoId || null, data.materialId || null, data.tecnicaId || null, data.acabadoId || null,
-        data.cantidad, data.cotizacion, data.descripcion || null
+        data.productoId || null, data.materialId || null, data.tecnica, data.acabado,
+        data.cantidad, data.cotizacion, data.descripcion || null, data.estado || 'CREADO'
       ],
       'vale:insert'
     );
@@ -69,12 +69,8 @@ class ValeRepository {
     await db.query('UPDATE vales SET tiene_adjuntos = ? WHERE id = ?', [valor ? 1 : 0, id], 'vale:update_tiene_adjuntos');
   }
 
-  async registrarSolicitudModificacion(id, { descripcionOriginal, descripcionNueva, correlativoNuevo, justificacion }) {
-    await db.query(
-      'UPDATE vales SET descripcion_original = ?, descripcion = ?, correlativo = ?, justificacion_modificacion = ?, modificado = 1, estado = ? WHERE id = ?',
-      [descripcionOriginal, descripcionNueva, correlativoNuevo, justificacion, 'CONFIRMACION_MODIFICACION', id],
-      'vale:solicitar_modificacion'
-    );
+  async marcarModificado(id) {
+    await db.query('UPDATE vales SET modificado = 1 WHERE id = ?', [id], 'vale:marcar_modificado');
   }
 }
 

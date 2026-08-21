@@ -37,6 +37,15 @@ class ValeController {
     }
   }
 
+  async talleres(req, res) {
+    try {
+      const data = await valeService.obtenerTalleres();
+      return res.json(data);
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
   async limiteRestante(req, res) {
     try {
       const restantes = await valeService.obtenerLimiteRestanteAsesor(req.user.id);
@@ -64,7 +73,8 @@ class ValeController {
         desde: req.query.desde,
         hasta: req.query.hasta,
         vista: req.query.vista,
-        offset: req.query.offset
+        offset: req.query.offset,
+        filtroContador: req.query.filtroContador
       };
       const data = await valeService.obtenerBuzon(req.user, filtros);
       return res.json(data);
@@ -96,7 +106,7 @@ class ValeController {
 
   async asignar(req, res) {
     try {
-      const vale = await valeService.asignar(req.user, Number(req.params.id), Number(req.body.tecnicoId));
+      const vale = await valeService.asignar(req.user, Number(req.params.id), Number(req.body.tecnicoId), req.body.tallerId ? Number(req.body.tallerId) : null);
       return res.json(vale);
     } catch (error) {
       return res.status(400).json({ error: error.message });
@@ -136,11 +146,21 @@ class ValeController {
 
   async revisar(req, res) {
     try {
-      const { aprobar, tecnicoReasignadoId } = req.body;
+      const { aprobar, tecnicoReasignadoId, tallerId } = req.body;
       const vale = await valeService.revisarPropuesta(req.user, Number(req.params.id), {
         aprobar: aprobar === true || aprobar === 'true',
-        tecnicoReasignadoId: tecnicoReasignadoId ? Number(tecnicoReasignadoId) : null
+        tecnicoReasignadoId: tecnicoReasignadoId ? Number(tecnicoReasignadoId) : null,
+        tallerId: tallerId ? Number(tallerId) : null
       });
+      return res.json(vale);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
+  async aprobarGeneral(req, res) {
+    try {
+      const vale = await valeService.aprobarGeneral(req.user, Number(req.params.id));
       return res.json(vale);
     } catch (error) {
       return res.status(400).json({ error: error.message });
@@ -149,7 +169,7 @@ class ValeController {
 
   async confirmar(req, res) {
     try {
-      const vale = await valeService.confirmarVenta(req.user, Number(req.params.id));
+      const vale = await valeService.confirmarRecibido(req.user, Number(req.params.id));
       return res.json(vale);
     } catch (error) {
       return res.status(400).json({ error: error.message });
@@ -158,7 +178,16 @@ class ValeController {
 
   async cancelar(req, res) {
     try {
-      const vale = await valeService.cancelarVale(req.user, Number(req.params.id));
+      const vale = await valeService.rechazarVale(req.user, Number(req.params.id));
+      return res.json(vale);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
+  async solicitarCorreccion(req, res) {
+    try {
+      const vale = await valeService.solicitarCorreccion(req.user, Number(req.params.id), req.body.motivo);
       return res.json(vale);
     } catch (error) {
       return res.status(400).json({ error: error.message });
@@ -167,8 +196,7 @@ class ValeController {
 
   async solicitarModificacion(req, res) {
     try {
-      const archivos = validarArchivos(req.files);
-      const vale = await valeService.solicitarModificacion(req.user, Number(req.params.id), req.body, archivos);
+      const vale = await valeService.solicitarModificacion(req.user, Number(req.params.id), req.body);
       return res.json(vale);
     } catch (error) {
       return res.status(400).json({ error: error.message });

@@ -1,8 +1,10 @@
 // src/modules/vales/services/valePdfService.js
-// Genera el PDF de un vale de arte y fusiona al final los documentos PDF adjuntos.
-// El binario nunca se persiste en BD: solo se sube vía fileStorage y se guarda su URL.
-// Se regenera por completo en cada modificación (no se anexa sobre el PDF existente)
-// para poder mantener el orden: contenido original -> bloque de modificación -> adjuntos.
+// Genera el PDF de un vale de arte y fusiona al final los documentos PDF adjuntos
+// (y, cuando el Encargado General fusiona un vale multi-taller, también las
+// propuestas de cada taller). El binario nunca se persiste en BD: solo se sube
+// vía fileStorage y se guarda su URL. Se regenera por completo en cada cambio
+// relevante (no se anexa sobre el PDF existente) para poder mantener el orden:
+// contenido -> bloque de modificación (si aplica) -> adjuntos -> propuestas fusionadas.
 const fs = require('fs/promises');
 const path = require('path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
@@ -52,7 +54,10 @@ function wrapText(text, font, size, maxWidth) {
 }
 
 class ValePdfService {
-  async generarPdfVale(vale, documentos = []) {
+  // `propuestasParaFusionar`: rutas de propuestas PDF a fusionar al final (solo
+  // usado por el Encargado General al fusionar un vale multi-taller, ver
+  // valeService.aprobarGeneral()).
+  async generarPdfVale(vale, documentos = [], propuestasParaFusionar = []) {
     const pdfDoc = await PDFDocument.create();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -65,13 +70,10 @@ class ValePdfService {
       logoImage = null; // El logo es decorativo; su ausencia no debe romper la generación del PDF
     }
 
-    const catalogos = await Promise.all([
+    const [productos, materiales] = await Promise.all([
       catalogoRepository.listarProductos(),
-      catalogoRepository.listarMateriales(),
-      catalogoRepository.listarTecnicas(),
-      catalogoRepository.listarAcabados()
+      catalogoRepository.listarMateriales()
     ]);
-    const [productos, materiales, tecnicas, acabados] = catalogos;
     const nombreCatalogo = (lista, id) => (lista.find(x => x.id === id) || {}).nombre || (lista.find(x => x.id === id) || {}).codigo || '-';
 
     const ctx = { pdfDoc, font, fontBold, logoImage, page: null, y: 0 };
@@ -83,8 +85,9 @@ class ValePdfService {
     this._dibujarSeccionVenta(ctx, vale, {
       producto: nombreCatalogo(productos, vale.producto_id),
       material: nombreCatalogo(materiales, vale.material_id),
-      tecnica: nombreCatalogo(tecnicas, vale.tecnica_id),
-      acabado: nombreCatalogo(acabados, vale.acabado_id)
+      // Corrección #1: técnica y acabado ya no son catálogo, son texto libre en el vale.
+      tecnica: vale.tecnica || '-',
+      acabado: vale.acabado || '-'
     });
 
     const imagenes = documentos.filter(d => d.tipo === 'imagen');
@@ -117,23 +120,32 @@ class ValePdfService {
     // Fusionar documentos PDF adjuntos al final (nunca se re-almacenan, solo se copian sus páginas)
     for (const doc of docsAdjuntos) {
       if (doc.mime_type !== 'application/pdf') continue;
-      try {
-        const bytes = await fs.readFile(path.join(UPLOADS_DIR, path.basename(doc.ruta)));
-        const externo = await PDFDocument.load(bytes);
-        const paginas = await pdfDoc.copyPages(externo, externo.getPageIndices());
-        paginas.forEach(p => pdfDoc.addPage(p));
-      } catch (error) {
-        console.warn(`[ValePdfService] No se pudo fusionar el documento adjunto ${doc.nombre_original}:`, error.message);
-      }
+      await this._fusionarPdfExterno(pdfDoc, path.join(UPLOADS_DIR, path.basename(doc.ruta)), doc.nombre_original);
     }
 
-    this._dibujarPiesDePagina(pdfDoc, font, fontBold, {
-      tieneAdjuntos: !!vale.tiene_adjuntos,
-      modificado: !!vale.modificado
-    });
+    // Fusionar las propuestas de cada taller (solo cuando el Encargado General
+    // fusiona un vale multi-taller — ver valeService.aprobarGeneral()).
+    for (const rutaPropuesta of propuestasParaFusionar) {
+      await this._fusionarPdfExterno(pdfDoc, path.join(UPLOADS_DIR, path.basename(rutaPropuesta)), 'propuesta de taller');
+    }
+
+    // El checkbox de "ADJUNTOS" ya no se calcula: lo marca a mano el técnico al
+    // imprimir el vale (corrección #8) — siempre se dibuja vacío.
+    this._dibujarPiesDePagina(pdfDoc, font, fontBold, { modificado: !!vale.modificado });
 
     const bytes = await pdfDoc.save();
     return Buffer.from(bytes);
+  }
+
+  async _fusionarPdfExterno(pdfDoc, rutaAbsoluta, nombreParaLog) {
+    try {
+      const bytes = await fs.readFile(rutaAbsoluta);
+      const externo = await PDFDocument.load(bytes);
+      const paginas = await pdfDoc.copyPages(externo, externo.getPageIndices());
+      paginas.forEach(p => pdfDoc.addPage(p));
+    } catch (error) {
+      console.warn(`[ValePdfService] No se pudo fusionar "${nombreParaLog}":`, error.message);
+    }
   }
 
   _nuevaPagina(ctx) {
@@ -147,6 +159,8 @@ class ValePdfService {
     }
   }
 
+  // Solo se usa para los marcos de imágenes — las cajas de las secciones de
+  // información ya no llevan borde (corrección #6).
   _rect(ctx, x, y, width, height) {
     ctx.page.drawRectangle({ x, y, width, height, borderColor: rgb(0.6, 0.6, 0.6), borderWidth: 1 });
   }
@@ -240,18 +254,22 @@ class ValePdfService {
       });
     }
 
-    ctx.y = y - 16;
+    // Espaciado tras el encabezado reducido (corrección #6: más espacio para boceto/descripción).
+    ctx.y = y - 5;
   }
 
+  // Corrección #6: sin bordes en las cajas de sección + espaciado reducido.
+  // Cada campo se dibuja en una sola línea "ETIQUETA: valor" en vez de dos
+  // líneas apiladas — es lo que permite comprimir la altura de fila de forma
+  // segura sin que las dos líneas de texto se encimen.
   _dibujarCajaSeccion(ctx, titulo, filas) {
-    const altoTitulo = 18;
-    const altoFila = 26;
+    const altoTitulo = 12;
+    const altoFila = 10;
     const alto = altoTitulo + filas.length * altoFila;
-    this._asegurarEspacio(ctx, alto + 12);
+    this._asegurarEspacio(ctx, alto + 4);
 
     const yTop = ctx.y;
-    this._rect(ctx, MARGIN, yTop - altoTitulo, CONTENT_WIDTH, altoTitulo);
-    this._texto(ctx, titulo, MARGIN + 8, yTop - altoTitulo + 5, { size: 9, bold: true });
+    this._texto(ctx, titulo, MARGIN, yTop - altoTitulo + 3, { size: 8, bold: true });
 
     filas.forEach((fila, idx) => {
       const yFila = yTop - altoTitulo - (idx + 1) * altoFila;
@@ -259,14 +277,24 @@ class ValePdfService {
       const anchoTotal = CONTENT_WIDTH;
       fila.forEach(campo => {
         const w = anchoTotal * campo.proporcion;
-        this._rect(ctx, x, yFila, w, altoFila);
-        this._texto(ctx, campo.etiqueta, x + 6, yFila + altoFila - 10, { size: 7, bold: true });
-        this._texto(ctx, campo.valor, x + 6, yFila + 7, { size: 9 });
+        if (campo.etiqueta === '__FIRMA__') {
+          const lineaY = yFila + altoFila - 4;
+          ctx.page.drawLine({
+            start: { x: x + 4, y: lineaY }, end: { x: x + w - 4, y: lineaY },
+            thickness: 0.5, color: rgb(0.4, 0.4, 0.4)
+          });
+          this._texto(ctx, 'FIRMA AUTORIZACIÓN', x + 4, yFila + 1, { size: 6 });
+        } else if (campo.etiqueta) {
+          const prefijo = `${campo.etiqueta}: `;
+          this._texto(ctx, prefijo, x + 4, yFila + 3, { size: 7, bold: true });
+          const anchoPrefijo = ctx.fontBold.widthOfTextAtSize(prefijo, 7);
+          this._texto(ctx, campo.valor, x + 4 + anchoPrefijo, yFila + 3, { size: 8 });
+        }
         x += w;
       });
     });
 
-    ctx.y = yTop - alto - 12;
+    ctx.y = yTop - alto - 4;
   }
 
   _dibujarSeccionAsesor(ctx, vale) {
@@ -309,22 +337,23 @@ class ValePdfService {
         { etiqueta: 'ACABADO', valor: nombres.acabado, proporcion: 2 / 8 }
       ],
       [
+        // Corrección #2: revertido el label a "Cotización (Q)".
         { etiqueta: 'CANTIDAD', valor: String(vale.cantidad), proporcion: 2 / 8 },
-        { etiqueta: 'NO. COTIZACIÓN', valor: `Q${Number(vale.cotizacion).toFixed(2)}`, proporcion: 2 / 8 },
+        { etiqueta: 'COTIZACIÓN (Q)', valor: `Q${Number(vale.cotizacion).toFixed(2)}`, proporcion: 2 / 8 },
         { etiqueta: '', valor: '', proporcion: 2 / 8 },
-        { etiqueta: '', valor: '', proporcion: 2 / 8 }
+        // Corrección #5: línea en blanco para firma, no un campo de datos.
+        { etiqueta: '__FIRMA__', valor: '', proporcion: 2 / 8 }
       ]
     ]);
   }
 
   /**
    * Dibuja el pie de página en TODAS las páginas del documento final (incluidas las de
-   * documentos adjuntos fusionados): numeración actual/total, checkbox de "hay adjuntos"
-   * a la izquierda del número, y el indicador "MODIFICAR" abajo-izquierda si aplica.
-   * Se limpia la franja inferior primero porque al anexar una modificación se recalculan
-   * el total de páginas y las marcas de páginas ya existentes.
+   * documentos/propuestas fusionados): numeración actual/total, el checkbox de
+   * "ADJUNTOS" (corrección #8: siempre vacío, lo marca a mano el técnico al imprimir),
+   * y el indicador "MODIFICAR" abajo-izquierda si aplica.
    */
-  _dibujarPiesDePagina(pdfDoc, font, fontBold, { tieneAdjuntos, modificado }) {
+  _dibujarPiesDePagina(pdfDoc, font, fontBold, { modificado }) {
     const total = pdfDoc.getPageCount();
     pdfDoc.getPages().forEach((page, idx) => {
       page.drawRectangle({ x: 0, y: 0, width: PAGE_WIDTH, height: FOOTER_HEIGHT, color: rgb(1, 1, 1) });
@@ -342,10 +371,6 @@ class ValePdfService {
       const etiquetaWidth = font.widthOfTextAtSize(etiqueta, 7);
       page.drawText(etiqueta, { x: boxX - etiquetaWidth - 6, y: boxY + 1, size: 7, font, color: rgb(0.4, 0.4, 0.4) });
       page.drawRectangle({ x: boxX, y: boxY, width: boxSize, height: boxSize, borderColor: rgb(0.3, 0.3, 0.3), borderWidth: 1 });
-      if (tieneAdjuntos) {
-        page.drawLine({ start: { x: boxX + 1, y: boxY + 4 }, end: { x: boxX + 3, y: boxY + 1.5 }, thickness: 1, color: rgb(0, 0, 0) });
-        page.drawLine({ start: { x: boxX + 3, y: boxY + 1.5 }, end: { x: boxX + 7, y: boxY + 7 }, thickness: 1, color: rgb(0, 0, 0) });
-      }
 
       page.drawText(pageNumText, { x: PAGE_WIDTH - MARGIN - pageNumWidth, y: 10, size: 8, font, color: rgb(0.4, 0.4, 0.4) });
     });

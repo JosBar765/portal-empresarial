@@ -19,6 +19,18 @@ class PropuestaRepository {
     const rows = await db.query('SELECT * FROM vale_propuestas WHERE vale_id = ? ORDER BY id DESC LIMIT 1', [valeId], 'propuesta:latest_by_vale');
     return rows[0] || null;
   }
+
+  // La última propuesta de UN taller específico (identificado por el técnico que la
+  // subió) — necesario porque con varios talleres puede haber varias propuestas vivas
+  // para el mismo vale al mismo tiempo, una por taller.
+  async obtenerUltimaPorValeYTecnico(valeId, tecnicoId) {
+    const rows = await db.query(
+      'SELECT * FROM vale_propuestas WHERE vale_id = ? AND tecnico_id = ? ORDER BY id DESC LIMIT 1',
+      [valeId, tecnicoId],
+      'propuesta:latest_by_vale_tecnico'
+    );
+    return rows[0] || null;
+  }
 }
 
 module.exports = new PropuestaRepository();
