@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('Error cargando módulos:', error);
     modulesContainer.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
-        <ion-icon name="alert-circle-outline" style="color: var(--color-error);"></ion-icon>
+        <ion-icon name="alert-circle-outline" style="color: var(--color-danger);"></ion-icon>
         <h3>Error al cargar herramientas</h3>
         <p>No pudimos recuperar tus módulos autorizados. Recarga la página o inténtalo más tarde.</p>
       </div>

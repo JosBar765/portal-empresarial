@@ -1,5 +1,8 @@
 /* public/css/global.css */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* Tokens y componentes compartidos — línea visual adoptada de eventos_mt
+   (ver .agents/Skills/DESIGN_SYSTEM.md) como estándar de portal-empresarial.
+   Cualquier módulo nuevo hereda esto vía @import (directo o transitivo). */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800;900&display=swap');
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -8,78 +11,254 @@
 }
 
 :root {
-  /* Precision Logistics Architecture Design Tokens */
-  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Tipografía */
+  --font-title: 'Outfit', 'Inter', sans-serif; /* h1-h6, KPIs, títulos de modal */
+  --font-body: 'Inter', sans-serif;            /* todo lo demás */
 
-  /* Colores del Sistema */
-  --color-background: #FAF9FC;
-  --color-surface: #FAF9FC;
-  --color-surface-dim: #DAD9DD;
-  --color-surface-bright: #FAF9FC;
-  --color-surface-lowest: #FFFFFF;
-  --color-surface-low: #F4F3F7;
-  --color-surface-container: #EEEDF1;
-  --color-surface-container-high: #E9E7EB;
-  --color-surface-container-highest: #E3E2E6;
-  
-  --color-on-surface: #1A1C1E;
-  --color-on-surface-variant: #43474E;
-  --color-inverse-surface: #2F3033;
-  --color-inverse-on-surface: #F1F0F4;
-  --color-outline: #74777F;
-  --color-outline-variant: #C4C6CF;
-  --color-border-subtle: #E5E8EE;
-  
-  --color-primary: #022448;
-  --color-on-primary: #FFFFFF;
-  --color-primary-container: #1E3A5F;
-  --color-on-primary-container: #8AA4CF;
-  --color-inverse-primary: #ADC8F5;
+  --text-xs: 0.75rem;     /* 12px — badges, etiquetas */
+  --text-sm: 0.8125rem;   /* 13px — texto secundario */
+  --text-base: 0.9375rem; /* 15px — cuerpo principal */
+  --text-md: 1.0625rem;   /* 17px — subtítulos */
+  --text-lg: 1.25rem;     /* 20px — títulos de sección */
+  --text-xl: 1.5rem;      /* 24px — títulos de página */
+  --text-2xl: 2rem;       /* 32px — KPIs grandes */
 
-  --color-secondary: #575E73;
-  --color-on-secondary: #FFFFFF;
-  --color-secondary-container: #D9DFF8;
-  --color-on-secondary-container: #5B6278;
+  /* Primario — azul institucional */
+  --color-primary: #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-primary-light: #EFF6FF;
+  --color-primary-border: #C7D5E8;
+  --color-primary-rgb: 37, 99, 235;
 
-  --color-tertiary: #341F00;
-  --color-on-tertiary: #FFFFFF;
-  --color-tertiary-container: #503300;
-  --color-on-tertiary-container: #C69B5F;
-  --color-tertiary-fixed: #FFDDB2;
-  --color-on-tertiary-fixed-variant: #60410C;
+  /* Secundario — acento naranja */
+  --color-secondary: #E85D04;
+  --color-secondary-hover: #CC5200;
 
-  --color-error: #BA1A1A;
-  --color-on-error: #FFFFFF;
-  --color-error-container: #FFDAD6;
-  --color-on-error-container: #93000A;
+  /* Estados semánticos (cada uno con su fondo tenue a juego) */
+  --color-success: #16A34A;  --color-success-bg: #F0FDF4;
+  --color-warning: #D97706;  --color-warning-bg: #FFFBEB;
+  --color-danger:  #DC2626;  --color-danger-bg:  #FEF2F2;
+  --color-info:    #3B82F6;  --color-info-bg:    #EFF6FF;  --color-info-text: #1D4ED8;
 
-  --color-accent-orange: #E85D04;
-  --color-accent-orange-hover: #CC5200;
+  /* Superficies */
+  --color-bg:            #F8FAFC; /* fondo general de la app */
+  --color-surface:       #FFFFFF; /* cards, modales */
+  --color-surface-muted: #F1F5F9; /* áreas secundarias, hover de filas */
+  --color-border:        #E2E8F0;
+  --color-border-focus:  #93C5FD;
 
-  /* Border Radii */
-  --radius-sm: 0.25rem;     /* 4px */
-  --radius-default: 0.5rem; /* 8px */
-  --radius-md: 0.75rem;     /* 12px */
-  --radius-lg: 1rem;         /* 16px */
-  --radius-xl: 1.5rem;       /* 24px */
-  --radius-full: 9999px;
+  /* Texto */
+  --color-text:           #0F172A; /* primario */
+  --color-text-secondary: #475569;
+  --color-text-muted:     #94A3B8; /* terciario / placeholder */
 
-  /* Transiciones */
+  /* Paleta de estados del Vale de Arte — dominio propio del módulo, bloque
+     separado y sin mezclar con primary/secondary (mismo criterio que el
+     semáforo de Eventos o el pipeline de Gestión de Venta en eventos_mt). */
+  --vale-estado-creado-bg: #E9E7EB;                    --vale-estado-creado-fg: #43474E;
+  --vale-estado-asignado-bg: #D9DFF8;                  --vale-estado-asignado-fg: #5B6278;
+  --vale-estado-en-proceso-bg: #FFDDB2;                --vale-estado-en-proceso-fg: #60410C;
+  --vale-estado-en-revision-bg: #FFF3B2;                --vale-estado-en-revision-fg: #5C4B00;
+  --vale-estado-aprobado-bg: #C8F5D0;                  --vale-estado-aprobado-fg: #0B5E1F;
+  --vale-estado-confirmacion-modificacion-bg: #FFDAD6; --vale-estado-confirmacion-modificacion-fg: #93000A;
+  --vale-estado-modificado-bg: #ADC8F5;                --vale-estado-modificado-fg: #022448;
+  --vale-estado-vendido-bg: #022448;                   --vale-estado-vendido-fg: #FFFFFF;
+  --vale-estado-cancelado-bg: #43474E;                 --vale-estado-cancelado-fg: #FFFFFF;
+
+  /* Radios */
+  --radius-xs: 4px;      /* detalles pequeños */
+  --radius-sm: 6px;      /* botones, inputs, chips pequeños */
+  --radius-md: 10px;     /* cards, íconos en caja */
+  --radius-lg: 16px;     /* cards grandes, modales, paneles */
+  --radius-xl: 24px;
+  --radius-full: 9999px; /* badges, pills, avatares */
+
+  /* Sombras — 4 niveles neutros + 1 con tinte de marca */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.05);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,.10), 0 4px 8px rgba(0,0,0,.06);
+  --shadow-xl: 0 24px 48px rgba(0,0,0,.14), 0 8px 16px rgba(0,0,0,.06);
+  --shadow-premium: 0 20px 25px -5px rgba(37,99,235,.1), 0 10px 10px -5px rgba(37,99,235,.04);
+
+  /* Transiciones — una sola curva "snappy" en 3 velocidades */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-fast: 120ms var(--ease-out);
+  --transition-fast:   120ms var(--ease-out);
   --transition-normal: 220ms var(--ease-out);
-
-  /* Sombras */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  --transition-slow:   360ms var(--ease-out);
 }
 
 body {
-  font-family: var(--font-family);
-  background-color: var(--color-background);
-  color: var(--color-on-surface);
+  font-family: var(--font-body);
+  background-color: var(--color-bg);
+  color: var(--color-text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Numerales tabulares — cualquier tabla/KPI con cifras lo hereda automático */
+  font-feature-settings: "tnum" 1, "cv02" 1, "cv03" 1, "cv04" 1;
+}
+
+/* -------------------------------------------------------------------------
+   Animaciones compartidas
+   ------------------------------------------------------------------------- */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toastProgress { from { width: 100%; } to { width: 0%; } }
+
+.spin-animation { display: inline-flex; animation: spin 1s linear infinite; }
+
+/* -------------------------------------------------------------------------
+   Botones — sistema canónico: .btn + modificador
+   ------------------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .375rem;
+  padding: .5625rem 1rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+.btn:active { transform: scale(.975); }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+.btn--primary { background: var(--color-primary); color: #FFFFFF; }
+.btn--primary:hover:not(:disabled) { background: var(--color-primary-hover); }
+
+.btn--ghost {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+.btn--ghost:hover:not(:disabled) { background: var(--color-surface-muted); }
+
+.btn--danger { background: var(--color-danger-bg); color: var(--color-danger); }
+.btn--danger:hover:not(:disabled) { background: var(--color-danger); color: #FFFFFF; }
+
+.btn--sm { padding: .375rem .75rem; font-size: var(--text-xs); }
+.btn--lg { padding: .75rem 1.25rem; font-size: var(--text-base); width: 100%; }
+
+.btn--loading { position: relative; color: transparent !important; pointer-events: none; }
+.btn--loading::after {
+  content: '';
+  position: absolute;
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,.4);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+.btn--ghost.btn--loading::after { border-color: rgba(15,23,42,.2); border-top-color: var(--color-text); }
+
+/* -------------------------------------------------------------------------
+   Modales — genéricos, cualquier módulo los usa tal cual
+   ------------------------------------------------------------------------- */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, .4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100; padding: 20px;
+  animation: fadeIn .15s var(--ease-out);
+}
+.modal-box {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  width: 100%; max-width: 640px;
+  max-height: 90vh;
+  display: flex; flex-direction: column;
+  box-shadow: var(--shadow-xl);
+  animation: modalFadeIn .3s var(--ease-out) both;
+}
+.modal-box.modal-lg { max-width: 860px; }
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.modal-header h3 { font-family: var(--font-title); font-size: var(--text-md); font-weight: 700; color: var(--color-primary); }
+.modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--color-text-muted); }
+.modal-body { padding: 20px 24px; overflow-y: auto; }
+.modal-footer {
+  padding: 16px 24px; border-top: 1px solid var(--color-border);
+  display: flex; justify-content: flex-end; gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .modal-overlay { padding: 0; }
+  .modal-box { max-width: 100%; height: 100%; max-height: 100%; border-radius: 0; }
+  .modal-header, .modal-footer { padding: 14px 16px; }
+  .modal-body { padding: 14px 16px; }
+}
+
+/* -------------------------------------------------------------------------
+   Tabla genérica de datos
+   ------------------------------------------------------------------------- */
+.data-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.data-table.sticky-header thead th { position: sticky; top: 0; z-index: 1; }
+.data-table th {
+  text-align: left; padding: 10px 12px;
+  background: var(--color-bg); color: var(--color-text-secondary);
+  font-weight: 700; font-size: var(--text-xs);
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.data-table td { padding: 12px; border-bottom: 1px solid var(--color-border); vertical-align: middle; }
+.data-table tbody tr:hover td { background: var(--color-surface-muted); }
+
+/* -------------------------------------------------------------------------
+   Toasts — window.toast.success/error/warning/info(...), window.toastDeshacer(...)
+   (implementación en public/js/toast.js)
+   ------------------------------------------------------------------------- */
+.toast-root {
+  position: fixed; bottom: 20px; right: 20px; z-index: 200;
+  display: flex; flex-direction: column; gap: 10px;
+  align-items: flex-end;
+}
+.toast {
+  position: relative;
+  background: var(--color-surface); color: var(--color-text);
+  padding: 14px 16px 14px 14px;
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg); font-size: var(--text-sm);
+  display: flex; align-items: center; gap: 10px;
+  animation: slideIn .25s var(--ease-out);
+  max-width: 340px;
+  overflow: hidden;
+}
+.toast ion-icon { font-size: 18px; flex-shrink: 0; color: var(--color-primary); }
+.toast--success { border-left-color: var(--color-success); }
+.toast--success ion-icon { color: var(--color-success); }
+.toast--error { border-left-color: var(--color-danger); }
+.toast--error ion-icon { color: var(--color-danger); }
+.toast--warning { border-left-color: var(--color-warning); }
+.toast--warning ion-icon { color: var(--color-warning); }
+.toast--info { border-left-color: var(--color-info); }
+.toast--info ion-icon { color: var(--color-info); }
+
+.toast-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.toast-title { font-weight: 700; }
+.toast-message { color: var(--color-text-secondary); font-weight: 400; }
+
+.toast--undo .toast-undo-btn {
+  background: none; border: none; color: var(--color-primary); font-weight: 700;
+  font-size: var(--text-sm); cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.toast-progress {
+  position: absolute; left: 0; bottom: 0; height: 2px;
+  background: var(--color-warning);
+  animation: toastProgress linear forwards;
 }

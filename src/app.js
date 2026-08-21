@@ -76,7 +76,7 @@ app.get('/api/modules', requireAuth, (req, res) => {
       icono: 'color-palette-outline',
       path: '/modules/vales',
       permission: 'vales.ver',
-      color: '#1E3A5F'
+      color: '#2563EB'
     },
     {
       id: 'prompts',
@@ -85,7 +85,7 @@ app.get('/api/modules', requireAuth, (req, res) => {
       icono: 'chatbubbles-outline',
       path: '/modules/prompts',
       permission: 'prompts.ver',
-      color: '#503300'
+      color: '#7C3AED'
     },
     {
       id: 'eventos',
@@ -103,7 +103,7 @@ app.get('/api/modules', requireAuth, (req, res) => {
       icono: 'settings-outline',
       path: '/modules/admin',
       permission: 'admin.ver',
-      color: '#575E73'
+      color: '#64748B'
     }
   ];
 

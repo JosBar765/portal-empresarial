@@ -279,9 +279,9 @@
     });
     state.socket.on('vale_evento', (data) => {
       const esCreacion = data.tipo === 'creado';
-      mostrarToast(
-        esCreacion ? `Nuevo vale de arte: ${data.correlativo}` : `Vale ${data.correlativo} actualizado a ${ESTADOS_LABEL[data.estado] || data.estado}`,
-        esCreacion ? 'add-circle-outline' : 'sync-outline'
+      window.toast.info(
+        esCreacion ? 'Nuevo vale de arte' : 'Vale actualizado',
+        esCreacion ? data.correlativo : `${data.correlativo} → ${ESTADOS_LABEL[data.estado] || data.estado}`
       );
       reproducirBeep();
       cargarBuzon();
@@ -309,16 +309,6 @@
       osc.start();
       osc.stop(ctx.currentTime + 0.3);
     } catch { /* Audio no disponible en este navegador/contexto; no es crítico */ }
-  }
-
-  function mostrarToast(mensaje, icono = 'notifications-outline') {
-    const root = $('#toast-root');
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.innerHTML = `<ion-icon name="${icono}"></ion-icon><span></span>`;
-    toast.querySelector('span').textContent = mensaje;
-    root.appendChild(toast);
-    setTimeout(() => toast.remove(), 5000);
   }
 
   // -------------------------------------------------------------------------
@@ -638,8 +628,8 @@
         </form>
       `,
       footerHtml: `
-        <button class="btn-secondary" id="btn-cancelar-crear">Cancelar</button>
-        <button class="btn-primary" id="btn-guardar-crear">Crear Vale de Arte</button>
+        <button class="btn btn--ghost" id="btn-cancelar-crear">Cancelar</button>
+        <button class="btn btn--primary" id="btn-guardar-crear">Crear Vale de Arte</button>
       `
     });
 
@@ -661,7 +651,7 @@
         const res = await fetch('/api/vales', { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'No se pudo crear el vale de arte.');
-        mostrarToast(`Vale de arte ${data.correlativo} creado correctamente.`, 'checkmark-circle-outline');
+        window.toast.success('Vale de arte creado', `${data.correlativo} se creó correctamente.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
@@ -692,7 +682,7 @@
           </select>
         </div>
       `,
-      footerHtml: `<button class="btn-secondary" id="btn-cerrar">Cancelar</button><button class="btn-primary" id="btn-confirmar">Asignar</button>`
+      footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Asignar</button>`
     });
 
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
@@ -707,7 +697,7 @@
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        mostrarToast(`${vale.correlativo} asignado correctamente.`, 'checkmark-circle-outline');
+        window.toast.success('Vale asignado', `${vale.correlativo} se asignó correctamente.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
@@ -740,7 +730,7 @@
           ${ultima && ultima.es_cancelacion
             ? 'El técnico canceló el proceso y entregó una propuesta en blanco.'
             : (ultima && ultima.url
-                ? `<a href="/${ultima.url}" target="_blank" class="btn-secondary" style="text-decoration:none;display:inline-flex;">Ver propuesta adjunta</a>`
+                ? `<a href="/${ultima.url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta adjunta</a>`
                 : 'El técnico no adjuntó documento de propuesta (no se puede aprobar en blanco).')}
         </p>
         <div class="form-field">
@@ -751,8 +741,8 @@
         </div>
       `,
       footerHtml: `
-        <button class="btn-danger" id="btn-desaprobar">Desaprobar y reasignar</button>
-        <button class="btn-primary" id="btn-aprobar">Aprobar</button>
+        <button class="btn btn--danger" id="btn-desaprobar">Desaprobar y reasignar</button>
+        <button class="btn btn--primary" id="btn-aprobar">Aprobar</button>
       `
     });
 
@@ -768,7 +758,7 @@
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        mostrarToast(`${vale.correlativo} ${aprobar ? 'aprobado' : 'reasignado'} correctamente.`, 'checkmark-circle-outline');
+        window.toast.success(aprobar ? 'Propuesta aprobada' : 'Vale reasignado', `${vale.correlativo} ${aprobar ? 'aprobado' : 'reasignado'} correctamente.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
@@ -785,10 +775,10 @@
       const res = await fetch(`/api/vales/${vale.id}/comenzar`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      mostrarToast(`${vale.correlativo} marcado como en proceso.`, 'play-outline');
+      window.toast.success('En proceso', `${vale.correlativo} marcado como en proceso.`);
       cargarBuzon();
     } catch (error) {
-      mostrarToast(error.message, 'alert-circle-outline');
+      window.toast.error('No se pudo actualizar', error.message);
     }
   }
 
@@ -801,7 +791,7 @@
           <input type="file" id="input-propuesta" accept="application/pdf" />
         </div>
       `,
-      footerHtml: `<button class="btn-secondary" id="btn-cerrar">Cancelar</button><button class="btn-primary" id="btn-enviar">Entregar</button>`
+      footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-enviar">Entregar</button>`
     });
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-enviar').addEventListener('click', async () => {
@@ -814,7 +804,7 @@
         const res = await fetch(`/api/vales/${vale.id}/entregar`, { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        mostrarToast(`Propuesta de ${vale.correlativo} entregada.`, 'checkmark-done-outline');
+        window.toast.success('Propuesta entregada', `Propuesta de ${vale.correlativo} entregada.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
@@ -830,10 +820,10 @@
       const res = await fetch(`/api/vales/${vale.id}/cancelar-proceso`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      mostrarToast(`Proceso de ${vale.correlativo} cancelado.`, 'close-outline');
+      window.toast.success('Proceso cancelado', `Proceso de ${vale.correlativo} cancelado.`);
       cargarBuzon();
     } catch (error) {
-      mostrarToast(error.message, 'alert-circle-outline');
+      window.toast.error('No se pudo cancelar', error.message);
     }
   }
 
@@ -854,10 +844,10 @@
       bodyHtml: `
         <p style="font-size:13px;margin-bottom:14px;">Revisa la propuesta entregada por el técnico y confirma la venta si el cliente la aceptó.</p>
         ${ultima && ultima.url
-          ? `<a href="/${ultima.url}" target="_blank" class="btn-secondary" style="text-decoration:none;display:inline-flex;">Ver propuesta adjunta</a>`
-          : '<p style="font-size:13px;color:var(--color-outline);">El técnico no adjuntó documento de propuesta.</p>'}
+          ? `<a href="/${ultima.url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta adjunta</a>`
+          : '<p style="font-size:13px;color:var(--color-text-muted);">El técnico no adjuntó documento de propuesta.</p>'}
       `,
-      footerHtml: `<button class="btn-secondary" id="btn-cerrar">Cerrar</button><button class="btn-primary" id="btn-confirmar">Confirmar Venta</button>`
+      footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cerrar</button><button class="btn btn--primary" id="btn-confirmar">Confirmar Venta</button>`
     });
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
@@ -867,7 +857,7 @@
         const res = await fetch(`/api/vales/${vale.id}/confirmar`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        mostrarToast(`Venta de ${vale.correlativo} confirmada.`, 'checkmark-circle-outline');
+        window.toast.success('Venta confirmada', `Venta de ${vale.correlativo} confirmada.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
@@ -882,8 +872,8 @@
       title: `${vale.correlativo}`,
       bodyHtml: `<p style="font-size:13px;">¿Qué deseas hacer con este vale de arte?</p>`,
       footerHtml: `
-        <button class="btn-secondary" id="btn-modificar" ${vale.modificado ? 'disabled title="Ya se usó la única modificación permitida"' : ''}>Solicitar Modificación</button>
-        <button class="btn-danger" id="btn-cancelar-vale">Cancelar Vale</button>
+        <button class="btn btn--ghost" id="btn-modificar" ${vale.modificado ? 'disabled title="Ya se usó la única modificación permitida"' : ''}>Solicitar Modificación</button>
+        <button class="btn btn--danger" id="btn-cancelar-vale">Cancelar Vale</button>
       `
     });
     overlay.querySelector('#btn-cancelar-vale').addEventListener('click', async () => {
@@ -892,7 +882,7 @@
         const res = await fetch(`/api/vales/${vale.id}/cancelar`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        mostrarToast(`${vale.correlativo} cancelado.`, 'close-circle-outline');
+        window.toast.success('Vale cancelado', `${vale.correlativo} cancelado.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
@@ -924,7 +914,7 @@
           </div>
         </form>
       `,
-      footerHtml: `<button class="btn-secondary" id="btn-cerrar">Cancelar</button><button class="btn-primary" id="btn-enviar">Solicitar Modificación</button>`
+      footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-enviar">Solicitar Modificación</button>`
     });
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-enviar').addEventListener('click', async () => {
@@ -937,7 +927,7 @@
         const res = await fetch(`/api/vales/${vale.id}/solicitar-modificacion`, { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        mostrarToast(`Modificación solicitada para ${data.correlativo}.`, 'checkmark-circle-outline');
+        window.toast.success('Modificación solicitada', `Modificación solicitada para ${data.correlativo}.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
@@ -954,7 +944,7 @@
     const { overlay, cerrar } = abrirModal({
       title: `Autorizar modificación — ${vale.correlativo}`,
       bodyHtml: `<p style="font-size:13px;">¿Confirmas autorizar la modificación solicitada para este vale de arte? El vale volverá al buzón de encargados para continuar su proceso.</p>`,
-      footerHtml: `<button class="btn-secondary" id="btn-cerrar">Cancelar</button><button class="btn-primary" id="btn-confirmar">Autorizar</button>`
+      footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Autorizar</button>`
     });
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
@@ -964,7 +954,7 @@
         const res = await fetch(`/api/vales/${vale.id}/aprobar-modificacion`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        mostrarToast(`Modificación de ${vale.correlativo} autorizada.`, 'checkmark-circle-outline');
+        window.toast.success('Modificación autorizada', `Modificación de ${vale.correlativo} autorizada.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
@@ -1011,7 +1001,7 @@
       <div class="carga-tecnico" data-tecnico-id="${t.tecnicoId}">
         <div class="nombre">${t.nombre}</div>
         <div class="carga-barra"><div class="carga-barra-fill" style="width:${(t.asignaciones / maxAsignaciones) * 100}%"></div></div>
-        <div style="font-size:12px;color:var(--color-on-surface-variant);">
+        <div style="font-size:12px;color:var(--color-text-secondary);">
           Asignaciones: ${t.asignaciones} · En proceso: ${t.enProceso || 'Ninguno'}
         </div>
       </div>
@@ -1037,9 +1027,9 @@
 
     const body = overlay.querySelector('.modal-body');
     body.innerHTML = vales.length ? `
-      <table class="buzon-table"><thead><tr><th>Correlativo</th><th>Entrega</th><th>Estado</th></tr></thead>
+      <table class="buzon-table data-table"><thead><tr><th>Correlativo</th><th>Entrega</th><th>Estado</th></tr></thead>
       <tbody>${vales.map(v => `
-        <tr${v.atrasado ? ' style="color:var(--color-error);"' : ''}>
+        <tr${v.atrasado ? ' style="color:var(--color-danger);"' : ''}>
           <td>${v.correlativo}</td><td>${formatearFecha(v.fecha_entrega)}</td>
           <td><span class="estado-pill estado-${v.estado}">${ESTADOS_LABEL[v.estado] || v.estado}</span></td>
         </tr>`).join('')}</tbody></table>

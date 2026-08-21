@@ -19,7 +19,7 @@ body {
 .brand-panel {
   display: none; /* Oculto en móviles */
   flex: 1.2;
-  background-color: var(--color-primary-container);
+  background: linear-gradient(160deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
   position: relative;
   overflow: hidden;
   padding: 48px;
@@ -34,8 +34,8 @@ body {
   position: absolute;
   inset: 0;
   background-size: 40px 40px;
-  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-                    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   z-index: 1;
 }
 
@@ -44,7 +44,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 0% 0%, rgba(138, 164, 207, 0.15) 0%, transparent 60%);
+  background: radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.12) 0%, transparent 60%);
   z-index: 1;
 }
 
@@ -61,7 +61,7 @@ body {
   width: 44px;
   height: 44px;
   background-color: #FFFFFF;
-  border-radius: var(--radius-default);
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -81,6 +81,7 @@ body {
 }
 
 .brand-header-title {
+  font-family: var(--font-title);
   font-size: 18px;
   font-weight: 700;
   color: #FFFFFF;
@@ -89,7 +90,7 @@ body {
 
 .brand-header-company {
   font-size: 13px;
-  color: var(--color-on-primary-container);
+  color: rgba(255, 255, 255, 0.75);
   font-weight: 600;
 }
 
@@ -106,6 +107,7 @@ body {
 }
 
 .brand-content h1 {
+  font-family: var(--font-title);
   font-size: 40px;
   font-weight: 700;
   line-height: 48px;
@@ -129,15 +131,14 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
   padding-top: 24px;
   margin-top: auto;
 }
 
 .brand-copyright {
   font-size: 13px;
-  color: var(--color-on-primary-container);
-  opacity: 0.6;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .country-badges {
@@ -148,12 +149,11 @@ body {
 .country-badge {
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-on-primary-container);
-  opacity: 0.8;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   padding: 3px 10px;
   border-radius: var(--radius-sm);
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 /* Panel Derecho: Formulario */
@@ -162,7 +162,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-background);
+  background-color: var(--color-bg);
   padding: 40px 24px;
 }
 
@@ -174,11 +174,6 @@ body {
   box-shadow: none;
   padding: 0;
   animation: fadeInUp 0.5s var(--ease-out) both;
-}
-
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Branding Móvil */
@@ -197,26 +192,28 @@ body {
 }
 
 .mobile-brand h1 {
+  font-family: var(--font-title);
   font-size: 24px;
   font-weight: 600;
-  color: var(--color-on-surface);
+  color: var(--color-text);
   letter-spacing: -0.01em;
 }
 
 .mobile-brand p {
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-accent-orange);
+  color: var(--color-secondary);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 /* Títulos del Formulario */
 .login-card h2 {
+  font-family: var(--font-title);
   font-size: 28px;
   font-weight: 600;
   line-height: 36px;
-  color: var(--color-on-surface);
+  color: var(--color-text);
   margin-bottom: 8px;
   text-align: left;
   letter-spacing: -0.01em;
@@ -224,7 +221,7 @@ body {
 
 .form-subtitle {
   font-size: 14px;
-  color: var(--color-on-surface-variant);
+  color: var(--color-text-secondary);
   margin-bottom: 32px;
   text-align: left;
 }
@@ -238,9 +235,11 @@ body {
 }
 
 .form-group label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-on-surface-variant);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
 }
 
 .input-wrapper {
@@ -253,7 +252,7 @@ body {
 .input-wrapper ion-icon {
   position: absolute;
   left: 14px;
-  color: var(--color-outline);
+  color: var(--color-text-muted);
   font-size: 20px;
   pointer-events: none;
   transition: color var(--transition-fast);
@@ -262,19 +261,19 @@ body {
 .form-input {
   width: 100%;
   padding: 12px 14px 12px 44px;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-default);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   font-size: 14px;
-  font-family: var(--font-family);
-  color: var(--color-on-surface);
-  background-color: var(--color-surface-lowest);
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background-color: var(--color-surface);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   outline: none;
 }
 
 .form-input::placeholder {
-  color: var(--color-outline);
-  opacity: 0.6;
+  color: var(--color-text-muted);
+  opacity: 0.8;
 }
 
 /* Ajustes contraseña */
@@ -284,20 +283,20 @@ body {
 }
 
 .form-input:focus {
-  border-color: var(--color-primary-container);
-  box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.08);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
 }
 
 .form-input:focus + ion-icon {
-  color: var(--color-primary-container);
+  color: var(--color-primary);
 }
 
 .form-input:disabled {
-  background-color: var(--color-surface-container);
-  color: var(--color-outline);
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-muted);
   cursor: not-allowed;
   opacity: 0.8;
-  border-color: var(--color-surface-container-high);
+  border-color: var(--color-border);
 }
 
 /* Botón Mostrar/Ocultar Contraseña */
@@ -312,12 +311,12 @@ body {
   justify-content: center;
   padding: 8px;
   border-radius: var(--radius-sm);
-  color: var(--color-outline);
+  color: var(--color-text-muted);
   transition: color var(--transition-fast);
 }
 
 .toggle-password-btn:hover {
-  color: var(--color-on-surface);
+  color: var(--color-text);
 }
 
 .toggle-password-btn ion-icon {
@@ -339,7 +338,7 @@ body {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--color-on-surface-variant);
+  color: var(--color-text-secondary);
   cursor: pointer;
   user-select: none;
 }
@@ -354,46 +353,14 @@ body {
 .forgot-password-link {
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-accent-orange);
+  color: var(--color-secondary);
   text-decoration: none;
   transition: color var(--transition-fast);
 }
 
 .forgot-password-link:hover {
-  color: var(--color-accent-orange-hover);
+  color: var(--color-secondary-hover);
   text-decoration: underline;
-}
-
-/* Botón Ingresar */
-.btn-login {
-  width: 100%;
-  padding: 12px 24px;
-  background-color: var(--color-primary);
-  color: var(--color-on-primary);
-  border: none;
-  border-radius: var(--radius-default);
-  font-size: 14px;
-  font-weight: 600;
-  font-family: var(--font-family);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: background-color var(--transition-fast), transform 100ms var(--ease-out);
-}
-
-.btn-login:hover:not(:disabled) {
-  background-color: var(--color-primary-container);
-}
-
-.btn-login:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.btn-login:disabled {
-  opacity: .5;
-  cursor: not-allowed;
 }
 
 .btn-arrow-icon {
@@ -401,28 +368,15 @@ body {
   margin-left: 2px;
 }
 
-/* Spinner */
-.login-spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid rgba(255, 255, 255, .3);
-  border-top-color: #FFFFFF;
-  border-radius: 50%;
-  animation: spin .6s linear infinite;
-  display: none;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
 /* Caja de error */
 .login-error {
   display: none;
   margin-top: 20px;
   padding: 12px 14px;
-  background-color: var(--color-error-container);
-  border: 1px solid #FFC4C0;
-  border-radius: var(--radius-default);
-  color: var(--color-on-error-container);
+  background-color: var(--color-danger-bg);
+  border: 1px solid #FECACA;
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
   font-size: 13px;
   font-weight: 500;
   text-align: center;
@@ -433,16 +387,11 @@ body {
   display: block;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 /* Caja de Información (Info Alert Box) */
 .info-alert-box {
-  background-color: #FDF6EE;
-  border: 1px solid #F3E4D5;
-  border-radius: var(--radius-default);
+  background-color: var(--color-warning-bg);
+  border: 1px solid #FDE68A;
+  border-radius: var(--radius-sm);
   padding: 14px;
   display: flex;
   gap: 12px;
@@ -453,14 +402,14 @@ body {
 
 .info-alert-icon {
   font-size: 20px;
-  color: var(--color-accent-orange);
+  color: var(--color-warning);
   flex-shrink: 0;
 }
 
 .info-alert-text {
   font-size: 13px;
   line-height: 20px;
-  color: var(--color-on-tertiary-fixed-variant);
+  color: var(--color-text-secondary);
   font-weight: 400;
   margin: 0;
 }
@@ -479,7 +428,7 @@ body {
 .login-footer-mobile {
   text-align: center;
   font-size: 12px;
-  color: var(--color-outline);
+  color: var(--color-text-muted);
   margin-top: 40px;
 }
 
@@ -487,7 +436,7 @@ body {
 @media (min-width: 768px) {
   .brand-panel {
     display: flex;
-    border-right: 1px solid var(--color-border-subtle);
+    border-right: 1px solid var(--color-border);
   }
 
   .mobile-brand {
@@ -495,7 +444,7 @@ body {
   }
 
   .form-panel {
-    background-color: var(--color-background);
+    background-color: var(--color-bg);
     padding: 60px;
   }
 }

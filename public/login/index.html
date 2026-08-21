@@ -89,10 +89,9 @@
             <a href="#" class="forgot-password-link">¿Olvidaste tu contraseña?</a>
           </div>
 
-          <button type="submit" id="submit-btn" class="btn-login">
+          <button type="submit" id="submit-btn" class="btn btn--primary btn--lg">
             <span id="btn-text">Ingresar al Portal <ion-icon name="arrow-forward-outline"
                 class="btn-arrow-icon"></ion-icon></span>
-            <span class="login-spinner" id="btn-spinner"></span>
           </button>
 
           <div id="login-error" class="login-error" role="alert"></div>
@@ -115,8 +114,6 @@
       const emailInput = document.getElementById('email');
       const passwordInput = document.getElementById('password');
       const submitBtn = document.getElementById('submit-btn');
-      const btnText = document.getElementById('btn-text');
-      const spinner = document.getElementById('btn-spinner');
       const errorBox = document.getElementById('login-error');
       const togglePassBtn = document.getElementById('toggle-password');
       const eyeIcon = document.getElementById('eye-icon');
@@ -163,8 +160,7 @@
         submitBtn.disabled = loading;
         emailInput.disabled = loading;
         passwordInput.disabled = loading;
-        btnText.style.display = loading ? 'none' : '';
-        spinner.style.display = loading ? 'block' : 'none';
+        submitBtn.classList.toggle('btn--loading', loading);
       }
 
       form.addEventListener('submit', async (e) => {
