@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ingresar | MundiTrofeos S.A.</title>
+  <link rel="stylesheet" href="../assets/css/login.css">
+  <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+<body>
+
+  <div class="login-container">
+    <!-- Panel de Marca (Desktop) -->
+    <div class="brand-panel">
+      <div class="brand-header">
+        <div class="brand-logo-container">
+          <img src="../assets/logos/LOGO_GP_isotipo.png" alt="GP Isotipo" class="brand-logo">
+        </div>
+        <div class="brand-header-text">
+          <span class="brand-header-title">Portal Empresarial</span>
+          <span class="brand-header-company">MundiTrofeos S.A.</span>
+        </div>
+      </div>
+
+      <div class="brand-content">
+        <h1>Centraliza todos tus procesos y herramientas corporativas</h1>
+        <p class="brand-slogan">Accede de manera unificada a los módulos de Vales de Arte, Generador de Prompts, Logística de Eventos y reportería interna.</p>
+      </div>
+
+      <div class="brand-footer">
+        <p class="brand-copyright">© 2026 MundiTrofeos S.A. All rights reserved.</p>
+        <div class="country-badges">
+          <span class="country-badge">GT</span>
+          <span class="country-badge">SV</span>
+          <span class="country-badge">HN</span>
+          <span class="country-badge">NI</span>
+          <span class="country-badge">CR</span>
+          <span class="country-badge">BZ</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel de Formulario -->
+    <div class="form-panel">
+      <div class="login-card">
+        <div class="mobile-brand">
+          <img src="../assets/logos/LOGO_GP_isotipo.png" alt="GP Isotipo">
+          <h1>Portal Empresarial</h1>
+          <p>MundiTrofeos S.A.</p>
+        </div>
+
+        <h2>Inicia sesión</h2>
+        <p class="form-subtitle">Ingresa tus credenciales para acceder al portal de herramientas</p>
+
+        <form id="login-form" novalidate>
+          <div class="form-group">
+            <label for="email">Correo electrónico</label>
+            <div class="input-wrapper">
+              <ion-icon name="mail-outline"></ion-icon>
+              <input type="email" id="email" name="email" class="form-input" placeholder="nombre@munditrofeos.com"
+                autocomplete="email" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="password">Contraseña</label>
+            <div class="input-wrapper">
+              <ion-icon name="lock-closed-outline"></ion-icon>
+              <input type="password" id="password" name="password" class="form-input" placeholder="••••••••"
+                autocomplete="current-password" required>
+              <button type="button" id="toggle-password" class="toggle-password-btn" title="Mostrar/ocultar contraseña">
+                <ion-icon name="eye-outline" id="eye-icon"></ion-icon>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-options-row">
+            <label class="remember-me-label">
+              <input type="checkbox" id="remember-me">
+              <span>Recordarme</span>
+            </label>
+            <a href="#" class="forgot-password-link">¿Olvidaste tu contraseña?</a>
+          </div>
+
+          <button type="submit" id="submit-btn" class="btn-login">
+            <span id="btn-text">Ingresar al Portal <ion-icon name="arrow-forward-outline" class="btn-arrow-icon"></ion-icon></span>
+            <span class="login-spinner" id="btn-spinner"></span>
+          </button>
+
+          <div id="login-error" class="login-error" role="alert"></div>
+
+          <div class="info-alert-box">
+            <ion-icon name="information-circle-outline" class="info-alert-icon"></ion-icon>
+            <p class="info-alert-text">Si no tienes acceso asignado o credenciales válidas, contacta al administrador de TI de MundiTrofeos para solicitar el registro.</p>
+          </div>
+        </form>
+
+        <p class="login-footer-mobile">Acceso restringido al personal autorizado de MundiTrofeos S.A.</p>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modal — Solicitar Modificación | Portal Empresarial</title>
+  <link rel="stylesheet" href="../assets/css/vales.css">
+  <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-brand">
+      <a href="#" class="header-back" title="Volver al dashboard"><ion-icon name="arrow-back-outline"></ion-icon></a>
+      <div class="header-logo-container"><img src="../assets/logos/LOGO_GP_isotipo.png" alt="MundiTrofeos Isotipo" class="header-logo"></div>
+      <div class="header-title-wrapper">
+        <span class="header-title">Vales de Arte</span>
+        <span class="header-company">MundiTrofeos S.A.</span>
+      </div>
+    </div>
+    <div class="header-user-menu">
+      <div class="user-profile">
+        <span class="user-name">Asesor Comercial</span>
+        <span class="user-role">Asesor de Ventas</span>
+      </div>
+      <button class="btn-logout" title="Cerrar sesión"><ion-icon name="log-out-outline"></ion-icon><span>Salir</span></button>
+    </div>
+  </header>
+
+  <div class="app-layout">
+    <aside class="sidebar-vales">
+      <button class="sidebar-item sidebar-item-active"><ion-icon name="file-tray-full-outline"></ion-icon><span>Buzón</span></button>
+      <button class="sidebar-item"><ion-icon name="checkmark-done-circle-outline"></ion-icon><span>Trabajo realizado</span></button>
+    </aside>
+    <main class="main-container">
+      <section class="contadores-grid">
+        <div class="contador-card"><div class="valor">6</div><div class="etiqueta">Vales restantes hoy</div></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modals-root">
+    <div class="modal-overlay">
+      <div class="modal-box modal-lg">
+        <div class="modal-header">
+          <h3>Solicitar modificación — GUA-3-0005</h3>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form>
+            <div class="form-field full">
+              <label>Justificación de la modificación *</label>
+              <textarea required>El cliente pidió cambiar el acabado a plateado.</textarea>
+            </div>
+            <div class="form-field full">
+              <label>Nueva descripción</label>
+              <textarea maxlength="600">Trofeo copa grande con grabado láser, acabado plateado brillante.</textarea>
+            </div>
+            <div class="form-grid">
+              <div class="form-field full"><label>Nuevas imágenes</label><input type="file" multiple /></div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary">Cancelar</button>
+          <button class="btn-primary">Solicitar Modificación</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    <span class="footer-text">© 2026 MundiTrofeos S.A. | Portal de Herramientas Corporativo Interno</span>
+  </footer>
+
+</body>
+</html>

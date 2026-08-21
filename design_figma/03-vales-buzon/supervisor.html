@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vales de Arte — Buzón (Supervisor) | Portal Empresarial</title>
+  <link rel="stylesheet" href="../assets/css/vales.css">
+  <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-brand">
+      <a href="#" class="header-back" title="Volver al dashboard"><ion-icon name="arrow-back-outline"></ion-icon></a>
+      <div class="header-logo-container"><img src="../assets/logos/LOGO_GP_isotipo.png" alt="MundiTrofeos Isotipo" class="header-logo"></div>
+      <div class="header-title-wrapper">
+        <span class="header-title">Vales de Arte</span>
+        <span class="header-company">MundiTrofeos S.A.</span>
+      </div>
+    </div>
+    <div class="header-user-menu">
+      <div class="user-profile">
+        <span class="user-name">Supervisor de Ventas</span>
+        <span class="user-role">Supervisor de Ventas</span>
+      </div>
+      <button class="btn-logout" title="Cerrar sesión"><ion-icon name="log-out-outline"></ion-icon><span>Salir</span></button>
+    </div>
+  </header>
+
+  <div class="app-layout">
+    <aside class="sidebar-vales">
+      <button class="sidebar-item sidebar-item-active"><ion-icon name="file-tray-full-outline"></ion-icon><span>Buzón</span></button>
+      <button class="sidebar-item"><ion-icon name="checkmark-done-circle-outline"></ion-icon><span>Trabajo realizado</span></button>
+    </aside>
+
+    <main class="main-container">
+
+      <section class="dashboard-toolbar">
+        <div class="ventana-selector">
+          <button class="chip">Día</button>
+          <button class="chip">Semana</button>
+          <button class="chip">Mes</button>
+          <button class="chip chip-active">Todo</button>
+          <div class="ventana-rango">
+            <input type="date" class="ventana-fecha" title="Desde" />
+            <span class="ventana-rango-sep">—</span>
+            <input type="date" class="ventana-fecha" title="Hasta" />
+          </div>
+        </div>
+      </section>
+
+      <section class="contadores-grid">
+        <div class="contador-card"><div class="valor">2</div><div class="etiqueta">Por confirmar modificación</div></div>
+        <div class="contador-card"><div class="valor">1</div><div class="etiqueta">Modificados</div></div>
+        <div class="contador-card"><div class="valor">4</div><div class="etiqueta">Aprobados</div></div>
+      </section>
+
+      <section class="buzon-section">
+        <div class="buzon-toolbar">
+          <h2>Buzón de Vales de Arte</h2>
+          <div class="buzon-filtros">
+            <input type="text" placeholder="Buscar por correlativo o cliente..." />
+            <select><option>Todos los estados</option></select>
+          </div>
+        </div>
+
+        <div class="tabla-wrapper">
+          <table class="buzon-table">
+            <thead>
+              <tr>
+                <th>Correlativo<span class="sort-arrow">⇅</span></th>
+                <th>Fecha Ingreso<span class="sort-arrow">⇅</span></th>
+                <th>Fecha Entrega<span class="sort-arrow">⇅</span></th>
+                <th>Atraso</th>
+                <th>Fecha Evento<span class="sort-arrow">⇅</span></th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>MOD-GUA-3-0007</strong></td>
+                <td>10/08/2026 09:05</td>
+                <td>18/08/2026</td>
+                <td><span class="badge badge-ok">Al día</span></td>
+                <td>21/08/2026</td>
+                <td><span class="estado-pill estado-CONFIRMACION_MODIFICACION">Confirmación Modificación</span></td>
+                <td class="acciones-cell">
+                  <button class="btn-icon" title="Ver vale de arte (PDF)"><ion-icon name="eye-outline"></ion-icon></button>
+                  <button class="btn-icon icon-success" title="Aprobar modificación"><ion-icon name="checkmark-circle-outline"></ion-icon></button>
+                  <button class="btn-icon" title="Ver historial"><ion-icon name="time-outline"></ion-icon></button>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>MOD-GUA-3-0008</strong></td>
+                <td>08/08/2026 14:30</td>
+                <td>16/08/2026</td>
+                <td><span class="badge badge-atraso">5d</span></td>
+                <td>19/08/2026</td>
+                <td><span class="estado-pill estado-MODIFICADO">Modificado</span></td>
+                <td class="acciones-cell">
+                  <button class="btn-icon" title="Ver vale de arte (PDF)"><ion-icon name="eye-outline"></ion-icon></button>
+                  <button class="btn-icon" title="Ver historial"><ion-icon name="time-outline"></ion-icon></button>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>GUA-3-0005</strong></td>
+                <td>13/08/2026 08:45</td>
+                <td>17/08/2026</td>
+                <td><span class="badge badge-atraso">3d</span></td>
+                <td>19/08/2026</td>
+                <td><span class="estado-pill estado-APROBADO">Aprobado</span></td>
+                <td class="acciones-cell">
+                  <button class="btn-icon" title="Ver vale de arte (PDF)"><ion-icon name="eye-outline"></ion-icon></button>
+                  <button class="btn-icon" title="Ver historial"><ion-icon name="time-outline"></ion-icon></button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="app-footer">
+    <span class="footer-text">© 2026 MundiTrofeos S.A. | Portal de Herramientas Corporativo Interno</span>
+  </footer>
+
+</body>
+</html>
