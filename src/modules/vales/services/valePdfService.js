@@ -1,8 +1,8 @@
 // src/modules/vales/services/valePdfService.js
 // Genera el PDF de un vale de arte y fusiona al final los documentos PDF adjuntos.
 // El binario nunca se persiste en BD: solo se sube vía fileStorage y se guarda su URL.
-// Las imágenes tampoco se conservan como archivo tras generarse el PDF (solo queda
-// la descripción en texto); quien las elimina es valeService una vez incrustadas aquí.
+// Se regenera por completo en cada modificación (no se anexa sobre el PDF existente)
+// para poder mantener el orden: contenido original -> bloque de modificación -> adjuntos.
 const fs = require('fs/promises');
 const path = require('path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
@@ -90,11 +90,29 @@ class ValePdfService {
     const imagenes = documentos.filter(d => d.tipo === 'imagen');
     const docsAdjuntos = documentos.filter(d => d.tipo === 'documento');
 
-    this._asegurarEspacio(ctx, 20);
-    this._texto(ctx, 'BOCETO Y DESCRIPCIÓN', MARGIN, ctx.y, { size: 9, bold: true });
-    ctx.y -= 16;
-    this._dibujarTextoLargo(ctx, vale.descripcion);
-    await this._dibujarGridImagenes(ctx, imagenes);
+    if (vale.modificado && vale.descripcion_original) {
+      // Orden: contenido original primero, bloque de modificación después (envuelto en
+      // marcadores al inicio y al final), documentos adjuntos al final de todo.
+      this._asegurarEspacio(ctx, 20);
+      this._texto(ctx, 'BOCETO Y DESCRIPCIÓN', MARGIN, ctx.y, { size: 9, bold: true });
+      ctx.y -= 16;
+      this._dibujarTextoLargo(ctx, vale.descripcion_original);
+      await this._dibujarGridImagenes(ctx, imagenes.filter(i => !i.es_modificacion));
+
+      this._escribirLinea(ctx, '********** MODIFICACION **********', ctx.fontBold, 10);
+      this._asegurarEspacio(ctx, 20);
+      this._texto(ctx, 'BOCETO Y DESCRIPCIÓN (MODIFICACIÓN)', MARGIN, ctx.y, { size: 9, bold: true });
+      ctx.y -= 16;
+      this._dibujarTextoLargo(ctx, vale.descripcion);
+      await this._dibujarGridImagenes(ctx, imagenes.filter(i => i.es_modificacion));
+      this._escribirLinea(ctx, '********** MODIFICACION **********', ctx.fontBold, 10);
+    } else {
+      this._asegurarEspacio(ctx, 20);
+      this._texto(ctx, 'BOCETO Y DESCRIPCIÓN', MARGIN, ctx.y, { size: 9, bold: true });
+      ctx.y -= 16;
+      this._dibujarTextoLargo(ctx, vale.descripcion);
+      await this._dibujarGridImagenes(ctx, imagenes);
+    }
 
     // Fusionar documentos PDF adjuntos al final (nunca se re-almacenan, solo se copian sus páginas)
     for (const doc of docsAdjuntos) {
@@ -110,38 +128,8 @@ class ValePdfService {
     }
 
     this._dibujarPiesDePagina(pdfDoc, font, fontBold, {
-      tieneAdjuntos: docsAdjuntos.length > 0,
-      modificado: false
-    });
-
-    const bytes = await pdfDoc.save();
-    return Buffer.from(bytes);
-  }
-
-  /**
-   * Anexa el bloque de modificación al FINAL del PDF ya generado (no se regenera desde cero).
-   * Las imágenes nuevas se incrustan aquí y quien llama debe eliminarlas después (no se conservan).
-   */
-  async anexarModificacion(vale, imagenesNuevas = []) {
-    const bytesExistentes = await fs.readFile(path.join(UPLOADS_DIR, path.basename(vale.pdf_url)));
-    const pdfDoc = await PDFDocument.load(bytesExistentes);
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-    const ctx = { pdfDoc, font, fontBold, logoImage: null, page: null, y: 0 };
-    this._nuevaPagina(ctx);
-
-    this._escribirLinea(ctx, '********** MODIFICACION **********', ctx.fontBold, 10);
-    this._asegurarEspacio(ctx, 20);
-    this._texto(ctx, 'BOCETO Y DESCRIPCIÓN (MODIFICACIÓN)', MARGIN, ctx.y, { size: 9, bold: true });
-    ctx.y -= 16;
-    this._dibujarTextoLargo(ctx, vale.descripcion);
-    await this._dibujarGridImagenes(ctx, imagenesNuevas);
-    this._escribirLinea(ctx, '********** MODIFICACION **********', ctx.fontBold, 10);
-
-    this._dibujarPiesDePagina(pdfDoc, font, fontBold, {
-      tieneAdjuntos: false, // los adjuntos originales de creación, si existían, ya se marcaron al generar el PDF base
-      modificado: true
+      tieneAdjuntos: !!vale.tiene_adjuntos,
+      modificado: !!vale.modificado
     });
 
     const bytes = await pdfDoc.save();
@@ -350,6 +338,9 @@ class ValePdfService {
       const boxSize = 8;
       const boxX = PAGE_WIDTH - MARGIN - pageNumWidth - 16;
       const boxY = 9;
+      const etiqueta = 'ADJUNTOS';
+      const etiquetaWidth = font.widthOfTextAtSize(etiqueta, 7);
+      page.drawText(etiqueta, { x: boxX - etiquetaWidth - 6, y: boxY + 1, size: 7, font, color: rgb(0.4, 0.4, 0.4) });
       page.drawRectangle({ x: boxX, y: boxY, width: boxSize, height: boxSize, borderColor: rgb(0.3, 0.3, 0.3), borderWidth: 1 });
       if (tieneAdjuntos) {
         page.drawLine({ start: { x: boxX + 1, y: boxY + 4 }, end: { x: boxX + 3, y: boxY + 1.5 }, thickness: 1, color: rgb(0, 0, 0) });

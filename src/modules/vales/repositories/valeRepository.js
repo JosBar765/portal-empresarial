@@ -65,6 +65,10 @@ class ValeRepository {
     await db.query('UPDATE vales SET pdf_url = ? WHERE id = ?', [pdfUrl, id], 'vale:update_pdf_url');
   }
 
+  async actualizarTieneAdjuntos(id, valor) {
+    await db.query('UPDATE vales SET tiene_adjuntos = ? WHERE id = ?', [valor ? 1 : 0, id], 'vale:update_tiene_adjuntos');
+  }
+
   async registrarSolicitudModificacion(id, { descripcionOriginal, descripcionNueva, correlativoNuevo, justificacion }) {
     await db.query(
       'UPDATE vales SET descripcion_original = ?, descripcion = ?, correlativo = ?, justificacion_modificacion = ?, modificado = 1, estado = ? WHERE id = ?',

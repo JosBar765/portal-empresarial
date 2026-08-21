@@ -253,6 +253,7 @@ CREATE TABLE IF NOT EXISTS `vales` (
   `descripcion`                  TEXT,
   `descripcion_original`         TEXT DEFAULT NULL COMMENT 'Snapshot de la descripción previa a la única modificación permitida',
   `pdf_url`                      TEXT DEFAULT NULL COMMENT 'URL del PDF generado, nunca se guarda el binario en BD',
+  `tiene_adjuntos`               TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'TRUE si tiene documentos PDF adjuntos de creación',
   -- Control de Modificaciones
   `modificado`                   INT NOT NULL DEFAULT 0 COMMENT 'Máx 1 permitida',
   `justificacion_modificacion`   TEXT DEFAULT NULL,

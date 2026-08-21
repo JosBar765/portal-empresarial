@@ -63,7 +63,8 @@ class ValeController {
         fecha: req.query.fecha,
         desde: req.query.desde,
         hasta: req.query.hasta,
-        vista: req.query.vista
+        vista: req.query.vista,
+        offset: req.query.offset
       };
       const data = await valeService.obtenerBuzon(req.user, filtros);
       return res.json(data);

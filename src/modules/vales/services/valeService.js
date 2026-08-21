@@ -82,8 +82,10 @@ function dentroDeVentana(vale, ventana) {
 
   if (ventana.tipo === 'rango') {
     if (!ventana.desde && !ventana.hasta) return true;
+    // Fecha fin ausente con fecha inicio presente: se toma como si fuera hoy.
+    const hastaEfectiva = ventana.hasta || (ventana.desde ? hoyISO() : null);
     if (ventana.desde && fv < new Date(`${ventana.desde}T00:00:00`)) return false;
-    if (ventana.hasta && fv > new Date(`${ventana.hasta}T00:00:00`)) return false;
+    if (hastaEfectiva && fv > new Date(`${hastaEfectiva}T00:00:00`)) return false;
     return true;
   }
 
@@ -272,6 +274,9 @@ class ValeService {
     });
 
     await this._guardarAdjuntos(valeId, archivos, usuario.id, false);
+    if (archivos && archivos.documentos && archivos.documentos.length > 0) {
+      await valeRepository.actualizarTieneAdjuntos(valeId, true);
+    }
     await registrarHistorial(valeId, usuario.id, null, ESTADOS.CREADO, 'Vale de arte creado por el asesor');
     await this._regenerarPdf(valeId);
 
@@ -301,17 +306,6 @@ class ValeService {
     }
   }
 
-  // Las imágenes solo existen como archivo mientras se incrustan en el PDF: una vez
-  // generado/anexado, se eliminan del disco y de vale_documentos (solo queda la
-  // descripción en texto). Los documentos PDF adjuntos de creación sí se conservan.
-  async _eliminarImagenesTemporales(documentos) {
-    for (const doc of documentos) {
-      if (doc.tipo !== 'imagen') continue;
-      await fileStorage.deleteFile(doc.ruta);
-      await documentoRepository.eliminar(doc.id);
-    }
-  }
-
   async _regenerarPdf(valeId) {
     const vale = await valeRepository.obtenerPorId(valeId);
     const asesor = await usuarioValeRepository.obtenerPorId(vale.asesor_id);
@@ -321,11 +315,18 @@ class ValeService {
       __asesorCorreo: asesor ? asesor.email : null,
       __asesorTelefono: asesor ? asesor.telefono : null
     };
+    // Las imágenes se conservan (no se eliminan tras generar el PDF): una modificación
+    // posterior necesita poder regenerar el documento completo desde cero, con el
+    // contenido original primero y el bloque de modificación después, seguido de los
+    // documentos adjuntos (ver .agents/vales de arte/analisis_correcciones_2.md #3).
     const documentos = await documentoRepository.listarPorVale(valeId);
     const pdfBuffer = await valePdfService.generarPdfVale(valeConAsesor, documentos);
+    const pdfUrlAnterior = vale.pdf_url;
     const saved = await fileStorage.saveFile(pdfBuffer, `${vale.correlativo}.pdf`, 'application/pdf');
     await valeRepository.actualizarPdfUrl(valeId, saved.path);
-    await this._eliminarImagenesTemporales(documentos);
+    if (pdfUrlAnterior) {
+      await fileStorage.deleteFile(pdfUrlAnterior);
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -340,7 +341,21 @@ class ValeService {
       documentoRepository.listarPorVale(valeId),
       historialRepository.listarPorVale(valeId)
     ]);
-    return { ...enriquecer(vale), asignaciones, propuestas, documentos, historial };
+    const historialConActor = await this._enriquecerHistorialConActor(historial);
+    return { ...enriquecer(vale), asignaciones, propuestas, documentos, historial: historialConActor };
+  }
+
+  // El historial solo guarda usuario_id; aquí se resuelve a un nombre corto (nombre +
+  // primer apellido) para mostrar quién hizo la acción, no solo su rol/qué pasó.
+  async _enriquecerHistorialConActor(historial) {
+    const idsUnicos = [...new Set(historial.map(h => h.usuario_id))];
+    const usuarios = await Promise.all(idsUnicos.map(id => usuarioValeRepository.obtenerPorId(id)));
+    const mapaNombres = new Map(idsUnicos.map((id, idx) => {
+      const nombreCompleto = usuarios[idx] ? usuarios[idx].nombre : null;
+      const nombreCorto = nombreCompleto ? nombreCompleto.split(' ').slice(0, 2).join(' ') : null;
+      return [id, nombreCorto];
+    }));
+    return historial.map(h => ({ ...h, actor_nombre: mapaNombres.get(h.usuario_id) || null }));
   }
 
   // -----------------------------------------------------------------------
@@ -358,21 +373,36 @@ class ValeService {
     const vista = filtros.vista === 'trabajo' ? 'trabajo' : 'buzon';
     const todos = (await valeRepository.listarTodos()).map(enriquecer);
 
+    let resultado;
     switch (usuario.rolId) {
       case 1: // Administrador: ve todo
-        return this._buzonAdministrador(todos, ventana);
+        resultado = this._buzonAdministrador(todos, ventana);
+        break;
       case 3: // Asesor de Ventas
-        return vista === 'trabajo' ? this._trabajoAsesor(usuario, todos, ventana) : this._buzonAsesor(usuario, todos, ventana);
+        resultado = vista === 'trabajo' ? this._trabajoAsesor(usuario, todos, ventana) : this._buzonAsesor(usuario, todos, ventana);
+        break;
       case 4: // Supervisor de Ventas
-        return vista === 'trabajo' ? this._trabajoSupervisor(todos, ventana) : this._buzonSupervisor(todos, ventana);
+        resultado = vista === 'trabajo' ? this._trabajoSupervisor(todos, ventana) : this._buzonSupervisor(todos, ventana);
+        break;
       case 5:
       case 6: // Encargado de Diseño / UV-3D (buzón compartido)
-        return this._buzonEncargado(usuario, todos, ventana);
+        resultado = this._buzonEncargado(usuario, todos, ventana);
+        break;
       case 7: // Técnico
-        return vista === 'trabajo' ? this.obtenerTrabajoTecnico(usuario, ventana) : this.obtenerBuzonTecnico(usuario, ventana);
+        resultado = vista === 'trabajo' ? await this.obtenerTrabajoTecnico(usuario, ventana) : await this.obtenerBuzonTecnico(usuario, ventana);
+        break;
       default:
-        return { vales: [], contadores: {} };
+        resultado = { vales: [], contadores: {} };
     }
+
+    // Paginación: la jerarquía general/individual ya se aplicó por completo antes de
+    // este punto (cada método de buzón ordena la lista entera); aquí solo se recorta
+    // una página de 50 sin alterar ese orden (ver analisis_correcciones_2.md #9).
+    const limit = 50;
+    const offset = Math.max(0, Number(filtros.offset) || 0);
+    const total = resultado.vales.length;
+    const pagina = resultado.vales.slice(offset, offset + limit);
+    return { vales: pagina, contadores: resultado.contadores, total, hasMore: offset + limit < total };
   }
 
   _buzonAdministrador(todos, ventana) {
@@ -627,8 +657,8 @@ class ValeService {
       await valeRepository.actualizarEstado(valeId, ESTADOS.EN_PROCESO);
       await registrarHistorial(valeId, usuario.id, vale.estado, ESTADOS.EN_PROCESO, 'Técnico marcó el vale como en proceso');
       const actualizado = await valeRepository.obtenerPorId(valeId);
-      const asignacionActiva = await asignacionRepository.obtenerActivaPorVale(valeId);
-      valeEvents.notificarCambioEstado(actualizado, asignacionActiva ? [`encargado:${asignacionActiva.encargado_id}`] : []);
+      // Sin notificación: marcar "en proceso" no debe sonar ni del lado del técnico ni del encargado
+      // (ver .agents/vales de arte/analisis_correcciones_2.md, Cambios generales #1).
       return enriquecer(actualizado);
     });
   }
@@ -762,29 +792,12 @@ class ValeService {
       });
       await this._guardarAdjuntos(valeId, { imagenes: archivos ? archivos.imagenes : [] }, usuario.id, true);
       await registrarHistorial(valeId, usuario.id, vale.estado, ESTADOS.CONFIRMACION_MODIFICACION, 'Asesor solicitó modificación');
-
-      const valeActualizado = await valeRepository.obtenerPorId(valeId);
-      const imagenesNuevas = (await documentoRepository.listarPorVale(valeId)).filter(d => d.tipo === 'imagen' && d.es_modificacion);
-      await this._anexarModificacionAlPdf(valeActualizado, imagenesNuevas);
+      await this._regenerarPdf(valeId);
 
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificarCambioEstado(actualizado, ['vales:supervisores']);
       return enriquecer(actualizado);
     });
-  }
-
-  async _anexarModificacionAlPdf(vale, imagenesNuevas) {
-    if (!vale.pdf_url) {
-      // No debería ocurrir (todo vale creado genera su PDF), pero si falta, se genera desde cero.
-      await this._regenerarPdf(vale.id);
-      return;
-    }
-    const pdfBuffer = await valePdfService.anexarModificacion(vale, imagenesNuevas);
-    const oldPdfUrl = vale.pdf_url;
-    const saved = await fileStorage.saveFile(pdfBuffer, `${vale.correlativo}.pdf`, 'application/pdf');
-    await valeRepository.actualizarPdfUrl(vale.id, saved.path);
-    await fileStorage.deleteFile(oldPdfUrl);
-    await this._eliminarImagenesTemporales(imagenesNuevas);
   }
 
   async aprobarModificacion(usuario, valeId) {

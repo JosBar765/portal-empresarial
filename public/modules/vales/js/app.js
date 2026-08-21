@@ -88,7 +88,8 @@
     sort: { key: null, dir: null },
     socket: null,
     cargaTrabajoModal: null,
-    accionesEnCurso: new Set()
+    accionesEnCurso: new Set(),
+    paginacion: { limit: 50, offset: 0, total: 0, hasMore: false, cargandoMas: false }
   };
 
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -158,6 +159,7 @@
     wireSidebar();
     wireToolbar();
     wireSortHeaders();
+    wireScrollInfinito();
     initSocket();
 
     try {
@@ -212,7 +214,14 @@
     const onRangoChange = () => {
       const desde = $('#ventana-desde').value || null;
       const hasta = $('#ventana-hasta').value || null;
-      if (!desde && !hasta) return;
+      if (!desde && !hasta) {
+        // Al borrar ambas fechas del rango, vuelve automáticamente a "Todo".
+        $$('#ventana-selector .chip').forEach(b => b.classList.remove('chip-active'));
+        $('.chip[data-ventana="todo"]').classList.add('chip-active');
+        state.ventana = { tipo: 'todo', desde: null, hasta: null };
+        cargarBuzon();
+        return;
+      }
       $$('#ventana-selector .chip').forEach(b => b.classList.remove('chip-active'));
       state.ventana = { tipo: 'rango', desde, hasta };
       cargarBuzon();
@@ -313,9 +322,11 @@
   }
 
   // -------------------------------------------------------------------------
-  // Carga y render del buzón
+  // Carga y render del buzón (paginado: 50 vales por petición, cargados por
+  // scroll infinito; el orden — jerarquía general e individual — ya viene
+  // resuelto del backend, la paginación solo recorta esa lista ya ordenada).
   // -------------------------------------------------------------------------
-  async function cargarBuzon() {
+  function construirQueryBase() {
     const qs = new URLSearchParams();
     if (state.ventana.tipo) qs.set('ventana', state.ventana.tipo);
     if (state.ventana.tipo === 'rango') {
@@ -323,6 +334,13 @@
       if (state.ventana.hasta) qs.set('hasta', state.ventana.hasta);
     }
     if (ROLES_CON_SIDEBAR.includes(state.user.rolId)) qs.set('vista', state.vista);
+    return qs;
+  }
+
+  async function cargarBuzon() {
+    state.paginacion = { limit: 50, offset: 0, total: 0, hasMore: false, cargandoMas: false };
+    const qs = construirQueryBase();
+    qs.set('offset', '0');
 
     try {
       const res = await fetch(`/api/vales?${qs.toString()}`);
@@ -330,6 +348,8 @@
       const data = await res.json();
       state.vales = data.vales || [];
       state.contadores = data.contadores || {};
+      state.paginacion.total = data.total ?? state.vales.length;
+      state.paginacion.hasMore = !!data.hasMore;
     } catch (error) {
       $('#buzon-tbody').innerHTML = `<tr><td colspan="7" class="tabla-vacia">Error al cargar el buzón: ${error.message}</td></tr>`;
       return;
@@ -346,6 +366,35 @@
     renderContadores();
     poblarFiltroEstado();
     renderTabla();
+  }
+
+  async function cargarMasVales() {
+    if (state.paginacion.cargandoMas || !state.paginacion.hasMore) return;
+    state.paginacion.cargandoMas = true;
+    const siguienteOffset = state.paginacion.offset + state.paginacion.limit;
+    const qs = construirQueryBase();
+    qs.set('offset', String(siguienteOffset));
+
+    try {
+      const res = await fetch(`/api/vales?${qs.toString()}`);
+      if (!res.ok) throw new Error('No se pudo cargar más vales.');
+      const data = await res.json();
+      state.vales = state.vales.concat(data.vales || []);
+      state.paginacion.offset = siguienteOffset;
+      state.paginacion.total = data.total ?? state.paginacion.total;
+      state.paginacion.hasMore = !!data.hasMore;
+      poblarFiltroEstado();
+      renderTabla();
+    } catch { /* si falla, simplemente no se agregan más filas; el usuario puede reintentar scrolleando */ }
+    state.paginacion.cargandoMas = false;
+  }
+
+  function wireScrollInfinito() {
+    window.addEventListener('scroll', () => {
+      if (state.paginacion.cargandoMas || !state.paginacion.hasMore) return;
+      const cercaDelFinal = window.innerHeight + window.scrollY >= document.body.offsetHeight - 300;
+      if (cercaDelFinal) cargarMasVales();
+    });
   }
 
   function renderContadores() {
@@ -939,7 +988,7 @@
       title: `Historial — ${vale.correlativo}`,
       bodyHtml: `
         <ul class="historial-list">
-          ${(detalle.historial || []).map(h => `<li><span class="fecha">${formatearFechaHora(h.creado_en)}</span>${h.accion}</li>`).join('') || '<li>Sin movimientos registrados.</li>'}
+          ${(detalle.historial || []).map(h => `<li><span class="fecha">${formatearFechaHora(h.creado_en)}</span>${h.actor_nombre ? `<strong>${h.actor_nombre}:</strong> ` : ''}${h.accion}</li>`).join('') || '<li>Sin movimientos registrados.</li>'}
         </ul>
       `
     });

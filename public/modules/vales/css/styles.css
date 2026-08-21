@@ -82,6 +82,9 @@
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-fast);
+  /* Evita que el resaltado táctil por defecto (móvil) pinte todo el botón oscuro
+     mientras se presiona, dejando el texto ilegible antes de soltar el toque. */
+  -webkit-tap-highlight-color: transparent;
 }
 .chip:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .chip-active {
@@ -386,4 +389,18 @@
 @media (max-width: 640px) {
   .form-grid { grid-template-columns: 1fr; }
   .detalle-grid { grid-template-columns: 1fr; }
+
+  .contadores-grid {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .contador-card { padding: 10px; }
+  .contador-card .valor { font-size: 20px; }
+  .contador-card .etiqueta { font-size: 10px; margin-top: 3px; }
+
+  .buzon-section { padding: 14px; }
+  .buzon-toolbar { flex-direction: column; align-items: stretch; }
+  .buzon-filtros { flex-direction: column; }
+  .buzon-filtros input, .buzon-filtros select { width: 100%; }
 }
