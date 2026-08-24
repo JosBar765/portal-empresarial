@@ -10,6 +10,16 @@ body {
 
 /* Header de la Aplicación — fondo claro + barra de acento de gradiente
    (firma visual del sistema, no un fill de color sólido). */
+/* `sticky` (no `fixed`): reserva su propio espacio en el flujo normal —igual
+   que antes— pero se queda pegado a top:0 en cuanto el documento hace
+   scroll, en vez de desplazarse con el contenido. Antes el header no era ni
+   fixed ni sticky, así que al hacer scroll se iba con la página mientras el
+   sidebar (position:fixed) se quedaba clavado en el viewport: el sidebar
+   parecía "despegarse" del navbar. Con esto, header y sidebar quedan
+   anclados juntos y solo se desplaza el contenido del panel — sin tener que
+   convertir cada panel en un contenedor con scroll propio. z-index por
+   encima del sidebar (95) para que el header siempre gane si algo se
+   superpone. */
 .app-header {
   background-color: var(--color-surface);
   color: var(--color-text);
@@ -17,9 +27,10 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  position: relative;
+  position: sticky;
+  top: 0;
   box-shadow: var(--shadow-sm);
-  z-index: 10;
+  z-index: 100;
 }
 
 .app-header::after {

@@ -306,21 +306,42 @@
       actualizarOffsetSidebar(sidebar);
     });
 
-    // Cajón móvil — se abre con el botón de menú del header, se cierra tocando
-    // el fondo oscuro, con Escape, o al elegir una vista (arriba).
+    // Cajón móvil — el botón de menú del header lo abre Y lo cierra (toggle
+    // real, ver abrirSidebarMovil/cerrarSidebarMovil); también se cierra
+    // tocando el fondo oscuro, con Escape, o al elegir una vista (arriba).
     const backdrop = $('#sidebar-backdrop');
+    const iconoToggleMovil = toggleMovil.querySelector('ion-icon');
+    toggleMovil.setAttribute('aria-expanded', 'false');
     toggleMovil.addEventListener('click', () => {
-      sidebar.classList.add('abierto-movil');
-      backdrop.classList.add('visible');
+      if (sidebar.classList.contains('abierto-movil')) {
+        cerrarSidebarMovil();
+      } else {
+        abrirSidebarMovil();
+      }
     });
     backdrop.addEventListener('click', cerrarSidebarMovil);
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') cerrarSidebarMovil();
     });
 
+    function abrirSidebarMovil() {
+      sidebar.classList.add('abierto-movil');
+      backdrop.classList.add('visible');
+      toggleMovil.setAttribute('aria-expanded', 'true');
+      iconoToggleMovil.setAttribute('name', 'close-outline');
+      // Bloquea el scroll del fondo mientras el cajón está abierto — evita
+      // que el contenido se desplace detrás del overlay (patrón estándar de
+      // drawer/modal) y de paso evita el reflow de la barra de direcciones
+      // móvil a media apertura, que es lo que recortaba el sidebar.
+      document.body.style.overflow = 'hidden';
+    }
+
     function cerrarSidebarMovil() {
       sidebar.classList.remove('abierto-movil');
       backdrop.classList.remove('visible');
+      toggleMovil.setAttribute('aria-expanded', 'false');
+      iconoToggleMovil.setAttribute('name', 'menu-outline');
+      document.body.style.overflow = '';
     }
   }
 
