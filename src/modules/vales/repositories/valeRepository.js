@@ -57,6 +57,18 @@ class ValeRepository {
     return db.query('SELECT * FROM vales', [], 'vale:list_all');
   }
 
+  // El vale MOD- que reemplaza a este (a lo sumo uno, solo se permite una
+  // modificación por vale) — usado para resolver "Ver PDF" al vale vigente
+  // cuando el original ya fue modificado (analisis_correcciones_5.md #4).
+  async obtenerPorValeOriginalId(valeOriginalId) {
+    const rows = await db.query(
+      'SELECT * FROM vales WHERE vale_original_id = ? LIMIT 1',
+      [valeOriginalId],
+      'vale:find_by_original_id'
+    );
+    return rows[0] || null;
+  }
+
   async actualizarEstado(id, estado) {
     await db.query('UPDATE vales SET estado = ? WHERE id = ?', [estado, id], 'vale:update_estado');
   }

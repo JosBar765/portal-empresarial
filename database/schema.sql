@@ -248,8 +248,11 @@ CREATE TABLE IF NOT EXISTS `talleres` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Enum de estados del vale de arte (nivel general, ver analisis_correcciones_3.md
--- y analisis_correcciones_4.md #3): CREADO, APROBADO_DEPARTAMENTO,
--- PENDIENTE_CONFIRMACION, RECIBIDO, EN_CORRECCION, SOLICITANDO_MODIFICACION, MODIFICADO
+-- y analisis_correcciones_5.md #5): CREADO, APROBADO_DEPARTAMENTO,
+-- PENDIENTE_CONFIRMACION, RECIBIDO, SOLICITANDO_MODIFICACION, MODIFICADO. Ya no
+-- existe el estado EN_CORRECCION ni una acción de "rechazar" separada — un vale
+-- PENDIENTE_CONFIRMACION que el asesor no acepta usa el mismo camino que cualquier
+-- otra corrección: solicitar modificación.
 -- El progreso interno por taller (asignación/proceso/revisión) vive en `vale_talleres`,
 -- no aquí — un vale con 2+ talleres puede tener uno EN_PROCESO y otro recién CREADO
 -- a la vez, algo que una sola columna de estado no puede representar.
@@ -272,8 +275,8 @@ CREATE TABLE IF NOT EXISTS `vales` (
   -- Información de venta
   `producto_id`                  INT DEFAULT NULL,
   `material_id`                  INT DEFAULT NULL,
-  `tecnica`                      VARCHAR(150) NOT NULL COMMENT 'Texto libre (antes catálogo vale_tecnicas)',
-  `acabado`                      VARCHAR(150) NOT NULL COMMENT 'Texto libre (antes catálogo vale_acabados)',
+  `tecnica`                      VARCHAR(150) DEFAULT NULL COMMENT 'Texto libre (antes catálogo vale_tecnicas); opcional (analisis_correcciones_5.md #8)',
+  `acabado`                      VARCHAR(150) DEFAULT NULL COMMENT 'Texto libre (antes catálogo vale_acabados); opcional (analisis_correcciones_5.md #8)',
   `cantidad`                     INT NOT NULL COMMENT 'Debe ser > 1',
   `cotizacion`                   DECIMAL(10,2) NOT NULL,
   -- Boceto y descripción
@@ -285,10 +288,10 @@ CREATE TABLE IF NOT EXISTS `vales` (
   -- Control de Modificaciones
   `modificado`                   INT NOT NULL DEFAULT 0 COMMENT 'Máx 1 permitida',
   `justificacion_modificacion`   TEXT DEFAULT NULL,
-  -- RECHAZADO ya no es un estado persistido (analisis_correcciones_4.md #3): rechazar
-  -- un vale PENDIENTE_CONFIRMACION lo manda a EN_CORRECCION (buzón del Encargado
-  -- General); el rechazo queda registrado únicamente en vale_historial.
-  `estado` ENUM('CREADO','APROBADO_DEPARTAMENTO','PENDIENTE_CONFIRMACION','RECIBIDO','EN_CORRECCION','SOLICITANDO_MODIFICACION','MODIFICADO') NOT NULL DEFAULT 'CREADO',
+  -- No existe una acción de "rechazar" separada (analisis_correcciones_5.md #5): un
+  -- vale PENDIENTE_CONFIRMACION que el asesor no acepta solicita modificación, igual
+  -- que cualquier otra corrección — no hay un estado EN_CORRECCION.
+  `estado` ENUM('CREADO','APROBADO_DEPARTAMENTO','PENDIENTE_CONFIRMACION','RECIBIDO','SOLICITANDO_MODIFICACION','MODIFICADO') NOT NULL DEFAULT 'CREADO',
   `creado_en`                    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `actualizado_en`               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`asesor_id`)         REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -340,8 +343,8 @@ CREATE TABLE IF NOT EXISTS `vale_solicitudes_modificacion` (
   `cliente_correo`    VARCHAR(150) NOT NULL,
   `producto_id`       INT DEFAULT NULL,
   `material_id`       INT DEFAULT NULL,
-  `tecnica`           VARCHAR(150) NOT NULL,
-  `acabado`           VARCHAR(150) NOT NULL,
+  `tecnica`           VARCHAR(150) DEFAULT NULL,
+  `acabado`           VARCHAR(150) DEFAULT NULL,
   `cantidad`          INT NOT NULL,
   `cotizacion`        DECIMAL(10,2) NOT NULL,
   `talleres_ids`      VARCHAR(100) NOT NULL COMMENT 'CSV de talleres.id elegidos para el vale modificado',
@@ -452,9 +455,9 @@ INSERT INTO `vales` (`id`, `correlativo`, `asesor_id`, `localidad_id`, `vale_ori
 (6,  'GUA-3-0006', 3, 1, NULL, '2026-08-10', '13:00:00', '2026-08-15 17:00:00', '2026-08-16 09:00:00', 0, 'Copa MundiTrofeos', 'Diego Alvarado', '+502 5555-6666', 'diego.alvarado@copamt.com', 1, 2, 'Grabado Láser', 'Brillante', 100, 3200.00, 'Trofeos + banners UV de premiación Copa MundiTrofeos.', 0, 'APROBADO_DEPARTAMENTO'),
 (7,  'GUA-3-0007', 3, 1, NULL, '2026-08-09', '15:30:00', '2026-08-16 17:00:00', '2026-08-17 09:00:00', 0, 'Cliente particular', 'Sofía Ramírez', '+502 5555-7777', 'sofia.ramirez@correo.com', 2, 1, 'Sublimación', 'Mate', 40, 450.00, 'Medallas para evento escolar.', 0, 'PENDIENTE_CONFIRMACION'),
 (8,  'GUA-3-0008', 3, 1, NULL, '2026-08-05', '10:00:00', '2026-08-12 17:00:00', '2026-08-13 09:00:00', 0, 'Torneo Regional', 'Pedro Sandoval', '+502 5555-8888', 'pedro.sandoval@torneoreg.com', 1, 3, 'Grabado Láser', 'Satinado', 60, 1800.00, 'Trofeos de torneo regional, entregados.', 1, 'RECIBIDO'),
-(9,  'GUA-3-0009', 3, 1, NULL, '2026-08-04', '14:00:00', '2026-08-11 17:00:00', '2026-08-12 09:00:00', 0, 'Cliente particular', 'Elena Castillo', '+502 5555-9999', 'elena.castillo@correo.com', 3, 2, 'Impresión UV', 'Mate', 20, 700.00, 'Placas — asesor rechazó el resultado final, en espera de nueva fusión del Encargado General.', 0, 'EN_CORRECCION'),
+(9,  'GUA-3-0009', 3, 1, NULL, '2026-08-04', '14:00:00', '2026-08-11 17:00:00', '2026-08-12 09:00:00', 0, 'Cliente particular', 'Elena Castillo', '+502 5555-9999', 'elena.castillo@correo.com', 3, 2, 'Impresión UV', 'Mate', 20, 700.00, 'Placas — el cliente pidió ajustar el grabado, asesor solicitó modificación.', 0, 'SOLICITANDO_MODIFICACION'),
 (10, 'GUA-3-0010', 3, 1, NULL, '2026-07-30', '09:00:00', '2026-08-08 17:00:00', '2026-08-09 09:00:00', 0, 'Club Deportivo Antigua', 'Roberto Mejía', '+502 5555-1010', 'roberto.mejia@cdantigua.com', 1, 1, 'Grabado Láser', 'Brillante', 80, 2500.00, 'Trofeos de campeonato — modificación de acabado en curso.', 0, 'SOLICITANDO_MODIFICACION'),
-(11, 'GUA-3-0011', 3, 1, NULL, '2026-08-06', '16:00:00', '2026-08-14 17:00:00', '2026-08-15 09:00:00', 0, 'Asociación Escolar', 'Marta Solís', '+502 5555-1111', 'marta.solis@asocescolar.edu', 2, 4, 'Sublimación', 'Satinado', 25, 620.00, 'Medallas — asesor solicitó corrección tras revisar el resultado final.', 0, 'EN_CORRECCION'),
+(11, 'GUA-3-0011', 3, 1, NULL, '2026-08-06', '16:00:00', '2026-08-14 17:00:00', '2026-08-15 09:00:00', 0, 'Asociación Escolar', 'Marta Solís', '+502 5555-1111', 'marta.solis@asocescolar.edu', 2, 4, 'Sublimación', 'Satinado', 25, 620.00, 'Medallas — el logo quedó descentrado, asesor solicitó modificación.', 0, 'SOLICITANDO_MODIFICACION'),
 (12, 'MOD-GUA-3-0008', 3, 1, 8, '2026-08-20', '11:00:00', '2026-08-27 17:00:00', '2026-08-28 09:00:00', 0, 'Torneo Regional', 'Pedro Sandoval', '+502 5555-8888', 'pedro.sandoval@torneoreg.com', 1, 3, 'Grabado Láser', 'Brillante', 60, 1800.00, 'El cliente solicitó cambiar el acabado de satinado a brillante para hacer juego con el resto del set de premiación.', 0, 'MODIFICADO');
 
 -- vale_talleres: progreso por taller de cada vale (reemplaza vale_asignaciones)
@@ -471,8 +474,10 @@ INSERT INTO `vale_talleres` (`vale_id`, `taller_id`, `tecnico_id`, `estado`, `fe
 (8,  1, 7,    'APROBADO',    '2026-08-05 12:00:00', 1),
 (9,  1, 8,    'APROBADO',    '2026-08-04 15:00:00', 1),
 (10, 1, 7,    'APROBADO',    '2026-07-30 10:00:00', 1),
-(11, 1, 8,    'APROBADO',    '2026-08-13 15:00:00', 1),   -- GUA-3-0011: el taller no se reabre al rechazar (analisis_correcciones_4.md #2), solo el vale vuelve a EN_CORRECCION
-(12, 1, NULL, 'PENDIENTE_ASIGNACION', NULL, 1);
+(11, 1, 8,    'APROBADO',    '2026-08-13 15:00:00', 1);   -- GUA-3-0011: el taller no se reabre al solicitar modificación, solo el vale vuelve a SOLICITANDO_MODIFICACION
+-- vale 12 (MOD-GUA-3-0008, MODIFICADO) queda a propósito sin fila aquí — caso demo
+-- de "pendiente de reenvío" del Encargado General (analisis_correcciones_5.md #6):
+-- antes se repartía solo al crearse.
 
 INSERT INTO `vale_propuestas` (`vale_id`, `tecnico_id`, `url`, `es_cancelacion`, `fecha_subida`) VALUES
 (4, 8, NULL, 0, '2026-08-17 16:00:00'),
@@ -485,7 +490,12 @@ INSERT INTO `vale_propuestas` (`vale_id`, `tecnico_id`, `url`, `es_cancelacion`,
 (10, 7, NULL, 0, '2026-08-06 09:00:00');
 
 INSERT INTO `vale_solicitudes_modificacion` (`vale_original_id`, `asesor_id`, `fecha_entrega`, `fecha_evento`, `urgente`, `cliente_empresa`, `cliente_nombre`, `cliente_telefono`, `cliente_correo`, `producto_id`, `material_id`, `tecnica`, `acabado`, `cantidad`, `cotizacion`, `talleres_ids`, `justificacion`, `estado`) VALUES
-(10, 3, '2026-08-08 17:00:00', '2026-08-09 09:00:00', 0, 'Club Deportivo Antigua', 'Roberto Mejía', '+502 5555-1010', 'roberto.mejia@cdantigua.com', 1, 1, 'Grabado Láser', 'Mate', 80, 2500.00, '1', 'El cliente pidió cambiar el acabado de brillante a mate.', 'PENDIENTE');
+(10, 3, '2026-08-08 17:00:00', '2026-08-09 09:00:00', 0, 'Club Deportivo Antigua', 'Roberto Mejía', '+502 5555-1010', 'roberto.mejia@cdantigua.com', 1, 1, 'Grabado Láser', 'Mate', 80, 2500.00, '1', 'El cliente pidió cambiar el acabado de brillante a mate.', 'PENDIENTE'),
+-- Antes representaban vales EN_CORRECCION (estado eliminado — ver
+-- analisis_correcciones_5.md #5): ahora, como cualquier otra corrección, el asesor
+-- solicita modificación en vez de "rechazar".
+(9, 3, '2026-08-11 17:00:00', '2026-08-12 09:00:00', 0, 'Cliente particular', 'Elena Castillo', '+502 5555-9999', 'elena.castillo@correo.com', 3, 2, 'Impresión UV', 'Mate', 20, 700.00, '1', 'El cliente pidió ajustar el grabado.', 'PENDIENTE'),
+(11, 3, '2026-08-14 17:00:00', '2026-08-15 09:00:00', 0, 'Asociación Escolar', 'Marta Solís', '+502 5555-1111', 'marta.solis@asocescolar.edu', 2, 4, 'Sublimación', 'Satinado', 25, 620.00, '1', 'El logo quedó descentrado.', 'PENDIENTE');
 
 INSERT INTO `vale_historial` (`vale_id`, `usuario_id`, `taller_id`, `estado_anterior`, `estado_nuevo`, `accion`) VALUES
 (1, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
@@ -516,7 +526,7 @@ INSERT INTO `vale_historial` (`vale_id`, `usuario_id`, `taller_id`, `estado_ante
 (9, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
 (9, 5, 1, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta'),
 (9, 3, NULL, 'CREADO', 'PENDIENTE_CONFIRMACION', 'Único taller aprobado — pasa directo a confirmación del asesor'),
-(9, 3, NULL, 'PENDIENTE_CONFIRMACION', 'EN_CORRECCION', 'Asesor rechazó el vale de arte: el cliente pidió ajustar el grabado'),
+(9, 3, NULL, 'PENDIENTE_CONFIRMACION', 'SOLICITANDO_MODIFICACION', 'Asesor solicitó modificación'),
 (10, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
 (10, 5, 1, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta'),
 (10, 3, NULL, 'CREADO', 'PENDIENTE_CONFIRMACION', 'Único taller aprobado — pasa directo a confirmación del asesor'),
@@ -525,7 +535,7 @@ INSERT INTO `vale_historial` (`vale_id`, `usuario_id`, `taller_id`, `estado_ante
 (11, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
 (11, 5, 1, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta'),
 (11, 3, NULL, 'CREADO', 'PENDIENTE_CONFIRMACION', 'Único taller aprobado — pasa directo a confirmación del asesor'),
-(11, 3, NULL, 'PENDIENTE_CONFIRMACION', 'EN_CORRECCION', 'Asesor rechazó el vale de arte: el logo quedó descentrado'),
+(11, 3, NULL, 'PENDIENTE_CONFIRMACION', 'SOLICITANDO_MODIFICACION', 'Asesor solicitó modificación'),
 (12, 4, NULL, NULL, 'MODIFICADO', 'Supervisor aprobó la solicitud de modificación — se creó el vale MOD-GUA-3-0008');
 
 SET FOREIGN_KEY_CHECKS = 1;

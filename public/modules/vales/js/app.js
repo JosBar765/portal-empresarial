@@ -4,12 +4,11 @@
   // (vale_talleres.estado, ver analisis_correcciones_3.md). No colisionan entre
   // sí, así que comparten un solo diccionario de etiquetas.
   const ESTADOS_LABEL = {
-    // Generales (RECHAZADO ya no existe como estado — ver analisis_correcciones_4.md #3)
+    // Generales (RECHAZADO/EN_CORRECCION ya no existen — ver analisis_correcciones_5.md #5)
     CREADO: 'Creado',
     APROBADO_DEPARTAMENTO: 'Aprobado por Talleres',
     PENDIENTE_CONFIRMACION: 'Pendiente Confirmación',
     RECIBIDO: 'Recibido',
-    EN_CORRECCION: 'En Corrección',
     SOLICITANDO_MODIFICACION: 'Solicitando Modificación',
     MODIFICADO: 'Modificado',
     // Por taller
@@ -21,19 +20,19 @@
   };
 
   // El asesor no ve el estado real de la máquina de estados, ve una versión "lógica"
-  // colapsada (analisis_correcciones_3.md #11, redefinida en #4 de corrections_4 sin
-  // RECHAZADO). Nunca se usa para autorización.
+  // colapsada (analisis_correcciones_3.md #11, redefinida en #4/#5 sin RECHAZADO ni
+  // EN_CORRECCION). Nunca se usa para autorización.
   const ESTADOS_VISIBLES_LABEL = {
     CREADO: 'Creado',
     SOLICITANDO_MODIFICACION: 'Solicitando Modificación',
     MODIFICADO: 'Modificado',
     PENDIENTE_CONFIRMACION: 'Pendiente Confirmación',
-    CONFIRMADO: 'Confirmado',
-    EN_CORRECCION: 'En Corrección'
+    CONFIRMADO: 'Confirmado'
   };
 
-  // Roles con sidebar Buzón / Trabajo realizado (Asesor, Supervisor, Técnico).
-  const ROLES_CON_SIDEBAR = [3, 4, 7];
+  // Roles con sidebar Buzón / Trabajo realizado (Asesor, Supervisor, Técnico,
+  // Encargado General/Asistente — analisis_correcciones_5.md #1).
+  const ROLES_CON_SIDEBAR = [3, 4, 7, 8, 9];
 
   const CONTADORES_CONFIG = {
     3: { // Asesor
@@ -85,10 +84,17 @@
         { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' }
       ]
     },
-    8: [ // Encargado General
-      { key: 'pendientesFusion', label: 'Vales por fusionar' },
-      { key: 'atrasados', label: 'Atrasados', alerta: true, filtro: 'atrasados' }
-    ]
+    8: { // Encargado General
+      buzon: [
+        { key: 'pendientesFusion', label: 'Vales por fusionar' },
+        { key: 'pendientesReenvio', label: 'Pend. reenvío a taller' },
+        { key: 'atrasados', label: 'Atrasados', alerta: true, filtro: 'atrasados' }
+      ],
+      trabajo: [
+        { key: 'fusionadosHoy', label: 'Fusionados hoy', filtro: 'fusionadosHoy' },
+        { key: 'totalFusionados', label: 'Total fusionados', filtro: 'totalFusionados' }
+      ]
+    }
   };
   CONTADORES_CONFIG[6] = CONTADORES_CONFIG[5];
   CONTADORES_CONFIG[9] = CONTADORES_CONFIG[8];
@@ -107,6 +113,7 @@
     vista: 'buzon', // solo aplica a roles con sidebar
     ventana: { tipo: 'todo', desde: null, hasta: null },
     filtroContador: null,
+    busqueda: '',
     sort: { key: null, dir: null },
     socket: null,
     cargaTrabajoModal: null,
@@ -139,6 +146,7 @@
       case 'solicitarModificacion': return admin || r === 3;
       case 'aprobarModificacion': return admin || r === 4;
       case 'aprobarGeneral': return admin || r === 8 || r === 9;
+      case 'reenviarModificacion': return admin || r === 8 || r === 9;
       default: return false;
     }
   }
@@ -373,7 +381,15 @@
     };
     $('#ventana-desde').addEventListener('change', onRangoChange);
     $('#ventana-hasta').addEventListener('change', onRangoChange);
-    $('#filtro-texto').addEventListener('input', () => renderTabla());
+    // Búsqueda contra el servidor (analisis_correcciones_5.md #12) — corre sobre
+    // TODOS los vales del buzón, no solo la página ya cargada; debounced para no
+    // disparar una petición por cada tecla.
+    let debounceBusqueda;
+    $('#filtro-texto').addEventListener('input', (e) => {
+      clearTimeout(debounceBusqueda);
+      const valor = e.target.value.trim();
+      debounceBusqueda = setTimeout(() => { state.busqueda = valor; cargarBuzon(); }, 300);
+    });
     $('#filtro-estado').addEventListener('change', () => renderTabla());
   }
 
@@ -488,6 +504,7 @@
     }
     if (ROLES_CON_SIDEBAR.includes(state.user.rolId)) qs.set('vista', state.vista);
     if (state.filtroContador) qs.set('filtroContador', state.filtroContador);
+    if (state.busqueda) qs.set('busqueda', state.busqueda);
     return qs;
   }
 
@@ -622,22 +639,20 @@
   }
 
   function renderTabla() {
-    const texto = $('#filtro-texto').value.trim().toLowerCase();
+    // El texto ya viene filtrado del servidor (state.busqueda, ver cargarBuzon/
+    // construirQueryBase — analisis_correcciones_5.md #12); acá solo queda el
+    // filtro de estado, que sí es puramente de la página ya cargada.
     const estadoFiltro = $('#filtro-estado').value;
 
-    let filas = state.vales.filter(v => {
-      if (estadoFiltro && estadoActivo(v) !== estadoFiltro) return false;
-      if (texto) {
-        const haystack = `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase();
-        if (!haystack.includes(texto)) return false;
-      }
-      return true;
-    });
+    let filas = state.vales.filter(v => !estadoFiltro || estadoActivo(v) === estadoFiltro);
     filas = aplicarOrdenPersonalizado(filas);
 
     const tbody = $('#buzon-tbody');
     if (filas.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="${columnasVisibles()}" class="tabla-vacia">No hay vales de arte para mostrar.</td></tr>`;
+      const mensaje = state.busqueda
+        ? `No se encontraron vales de arte para «${state.busqueda}».`
+        : 'No hay vales de arte para mostrar.';
+      tbody.innerHTML = `<tr><td colspan="${columnasVisibles()}" class="tabla-vacia">${mensaje}</td></tr>`;
       return;
     }
 
@@ -691,13 +706,17 @@
   }
 
   function construirAcciones(v) {
-    const acciones = [
-      { icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') }
-    ];
+    // El supervisor abre un modal de elección (Ver info / Ver vale) en vez de ir
+    // directo al PDF — a veces solo necesita los datos de encabezado
+    // (analisis_correcciones_5.md #7).
+    const acciones = state.user.rolId === 4
+      ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
+      : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') }];
     // Corrección #1/#6: el hipervínculo de la propuesta ya no apunta al vale (PDF) sino
     // al documento de propuesta real — disponible tanto en el buzón (trabajo realizado)
-    // como en cualquier vista donde ya exista una propuesta oficial para el vale.
-    if (usaEstadosVisibles() && v.propuesta_general_url) {
+    // como en cualquier vista donde ya exista una propuesta oficial para el vale. El
+    // supervisor también la necesita en Trabajo realizado (analisis_correcciones_5.md #2).
+    if ((usaEstadosVisibles() || state.user.rolId === 4) && v.propuesta_general_url) {
       acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(`/${v.propuesta_general_url}`, '_blank') });
     }
 
@@ -714,11 +733,16 @@
       acciones.push({ icono: 'checkmark-done-outline', titulo: 'Entregar propuesta', clase: 'icon-success', onClick: abrirModalEntregar });
       acciones.push({ icono: 'close-outline', titulo: 'Cancelar proceso', clase: 'icon-danger', onClick: accionCancelarProceso });
     }
-    if (puede('aprobarGeneral') && ['APROBADO_DEPARTAMENTO', 'EN_CORRECCION'].includes(v.estado)) {
+    if (puede('aprobarGeneral') && v.estado === 'APROBADO_DEPARTAMENTO') {
       acciones.push({ icono: 'checkmark-done-circle-outline', titulo: 'Aprobar y fusionar', clase: 'icon-success', onClick: abrirModalAprobarGeneral });
     }
+    // Vale MODIFICADO recién aprobado, todavía sin taller — el Encargado General
+    // decide a cuál va (analisis_correcciones_5.md #6).
+    if (puede('reenviarModificacion') && v.estado === 'MODIFICADO' && (v._filasTaller || []).length === 0) {
+      acciones.push({ icono: 'send-outline', titulo: 'Reenviar a taller', clase: 'icon-success', onClick: abrirModalReenviarModificacion });
+    }
     if (puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION') {
-      acciones.push({ icono: 'document-text-outline', titulo: 'Confirmar o rechazar', clase: 'icon-success', onClick: abrirModalDecisionAsesor });
+      acciones.push({ icono: 'document-text-outline', titulo: 'Confirmar o solicitar modificación', clase: 'icon-success', onClick: abrirModalDecisionAsesor });
     }
     if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado)) {
       acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirModalSolicitarModificacion });
@@ -749,9 +773,27 @@
       </div>
     `;
     root.appendChild(overlay);
-    const cerrar = () => overlay.remove();
+    // Cerrar con Escape mientras este modal esté abierto (antes ningún modal lo
+    // tenía). El listener se quita al cerrar para no dejar huérfanos con modales
+    // anidados (analisis_correcciones_5.md #10).
+    const onKeydown = (e) => { if (e.key === 'Escape') cerrar(); };
+    document.addEventListener('keydown', onKeydown);
+    const cerrar = () => {
+      document.removeEventListener('keydown', onKeydown);
+      overlay.remove();
+    };
     overlay.querySelector('.modal-close').addEventListener('click', cerrar);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) cerrar(); });
+    // Cerrar solo si el click EMPEZÓ (mousedown) y TERMINÓ (click) sobre el propio
+    // backdrop: un `click` del DOM se dispara sobre el ancestro común de mousedown y
+    // mouseup, así que arrastrar una selección de texto desde un campo del formulario
+    // hasta soltar fuera del modal cerraba el modal aunque el arrastre haya empezado
+    // adentro (analisis_correcciones_5.md #10).
+    let mousedownEnOverlay = false;
+    overlay.addEventListener('mousedown', (e) => { mousedownEnOverlay = (e.target === overlay); });
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay && mousedownEnOverlay) cerrar();
+      mousedownEnOverlay = false;
+    });
     return { overlay, cerrar };
   }
 
@@ -822,8 +864,15 @@
         checkbox.disabled = false;
       }
     };
-    fechaInput.addEventListener('change', actualizar);
+    // El picker nativo de datetime-local no se cierra solo al elegir una fecha —
+    // .blur() en `change` es el truco estándar en Chromium (analisis_correcciones_5.md #11).
+    fechaInput.addEventListener('change', () => { actualizar(); fechaInput.blur(); });
     actualizar();
+
+    const fechaEventoInput = overlay.querySelector('[name="fechaEvento"]');
+    if (fechaEventoInput) {
+      fechaEventoInput.addEventListener('change', () => fechaEventoInput.blur());
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -837,6 +886,33 @@
     return (state.catalogos.paises || []).map(p =>
       `<option value="${p.codigo_telefono}" ${p.codigo === 'GT' ? 'selected' : ''}>${p.codigo_telefono} ${p.codigo}</option>`
     ).join('');
+  }
+
+  // Input de archivos con lista removible — un input <input type=file multiple>
+  // nativo no permite quitar un archivo individual de su propio .files, así que se
+  // mantiene un array propio en JS y se usa ESE array al armar el FormData del envío
+  // en vez de depender del input directamente (analisis_correcciones_5.md #9).
+  function wireInputArchivosRemovibles(overlay, inputSelector, listaSelector) {
+    const input = overlay.querySelector(inputSelector);
+    const lista = overlay.querySelector(listaSelector);
+    let archivos = [];
+    const render = () => {
+      lista.innerHTML = archivos.map((f, i) => `
+        <span class="archivo-chip">${f.name}<button type="button" class="archivo-chip-quitar" data-idx="${i}" title="Quitar">&times;</button></span>
+      `).join('');
+    };
+    input.addEventListener('change', () => {
+      archivos = archivos.concat(Array.from(input.files));
+      input.value = ''; // la lista real vive en `archivos`, no en el input nativo
+      render();
+    });
+    lista.addEventListener('click', (e) => {
+      const btn = e.target.closest('.archivo-chip-quitar');
+      if (!btn) return;
+      archivos.splice(Number(btn.dataset.idx), 1);
+      render();
+    });
+    return () => archivos;
   }
 
   function abrirModalCrearVale() {
@@ -871,8 +947,8 @@
             <div class="form-field"><label>Fecha del evento *</label><input type="datetime-local" name="fechaEvento" required /></div>
             <div class="form-field"><label>Código de producto *</label><select name="productoId" required>${opcionesSelect('productos')}</select></div>
             <div class="form-field"><label>Material *</label><select name="materialId" required>${opcionesSelect('materiales')}</select></div>
-            <div class="form-field"><label>Técnica *</label><input type="text" name="tecnica" required /></div>
-            <div class="form-field"><label>Acabado *</label><input type="text" name="acabado" required /></div>
+            <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" /></div>
+            <div class="form-field"><label>Acabado</label><input type="text" name="acabado" /></div>
             <div class="form-field"><label>Cantidad * (mayor a 1)</label><input type="number" name="cantidad" min="2" required /></div>
             <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>
             <div class="form-field form-checkbox full"><input type="checkbox" name="urgente" id="chk-urgente" /><label for="chk-urgente">Urgente</label></div>
@@ -881,8 +957,16 @@
           <div class="section-title">Boceto y Descripción</div>
           <div class="form-grid">
             <div class="form-field full"><label>Descripción (máx. 600 caracteres)</label><textarea name="descripcion" maxlength="600"></textarea></div>
-            <div class="form-field"><label>Imágenes (jpg, jpeg, png, webp — máx. 2MB c/u)</label><input type="file" name="imagenes" accept="image/jpeg,image/png,image/webp" multiple /></div>
-            <div class="form-field"><label>Documentos adjuntos (PDF — máx. 3MB c/u)</label><input type="file" name="documentos" accept="application/pdf" multiple /></div>
+            <div class="form-field">
+              <label>Imágenes (jpg, jpeg, png, webp — máx. 2MB c/u)</label>
+              <input type="file" name="imagenes" accept="image/jpeg,image/png,image/webp" multiple />
+              <div class="archivo-lista"></div>
+            </div>
+            <div class="form-field">
+              <label>Documentos adjuntos (PDF — máx. 3MB c/u)</label>
+              <input type="file" name="documentos" accept="application/pdf" multiple />
+              <div class="archivo-lista"></div>
+            </div>
           </div>
         </form>
       `,
@@ -894,6 +978,8 @@
 
     wireSelectorTalleres(overlay, tallerSeleccionados);
     wireUrgenteAutoLock(overlay);
+    const getImagenes = wireInputArchivosRemovibles(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista');
+    const getDocumentos = wireInputArchivosRemovibles(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista');
 
     overlay.querySelector('#btn-cancelar-crear').addEventListener('click', cerrar);
     overlay.querySelector('#btn-guardar-crear').addEventListener('click', () => {
@@ -910,6 +996,12 @@
       formData.set('clienteTelefono', `${paisCodigo} ${telefonoNum}`);
       formData.delete('clienteTelefonoPais');
       formData.set('talleresIds', JSON.stringify([...tallerSeleccionados]));
+      // Las imágenes/documentos reales viven en los arrays de wireInputArchivosRemovibles
+      // (el usuario pudo quitar alguno con la "×"), no en el input nativo.
+      formData.delete('imagenes');
+      formData.delete('documentos');
+      getImagenes().forEach(f => formData.append('imagenes', f));
+      getDocumentos().forEach(f => formData.append('documentos', f));
 
       // Corrección #4: antes de crear el vale de verdad, se confirma con un modal
       // resumen (el modal de creación queda debajo, intacto, por si se cancela).
@@ -1198,13 +1290,9 @@
           <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale de arte (PDF)</a>
           ${vale.propuesta_general_url ? `<a href="/${vale.propuesta_general_url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
         </div>
-        <div class="form-field full" id="campo-motivo-rechazo" style="display:none;">
-          <label>Motivo del rechazo *</label>
-          <textarea id="input-motivo-rechazo"></textarea>
-        </div>
       `,
       footerHtml: `
-        <button class="btn btn--danger" id="btn-rechazar">Rechazar</button>
+        <button class="btn btn--danger" id="btn-solicitar-modificacion">Solicitar Modificación</button>
         <button class="btn btn--primary" id="btn-confirmar-recibido">Confirmar Recibido</button>
       `
     });
@@ -1222,31 +1310,12 @@
       }
     });
 
-    const campoMotivo = overlay.querySelector('#campo-motivo-rechazo');
-    const btnRechazar = overlay.querySelector('#btn-rechazar');
-    btnRechazar.addEventListener('click', async () => {
-      if (campoMotivo.style.display === 'none') {
-        campoMotivo.style.display = 'flex';
-        btnRechazar.textContent = 'Enviar Rechazo';
-        return;
-      }
-      const motivo = overlay.querySelector('#input-motivo-rechazo').value.trim();
-      if (!motivo) {
-        mostrarErrorModal(overlay, 'Debe indicar el motivo del rechazo.');
-        return;
-      }
-      try {
-        const res = await fetch(`/api/vales/${vale.id}/solicitar-correccion`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivo })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        window.toast.success('Vale rechazado', `${vale.correlativo} regresó al Encargado General para corrección.`);
-        cerrar();
-        cargarBuzon();
-      } catch (error) {
-        mostrarErrorModal(overlay, error.message);
-      }
+    // Ya no existe una accion separada de "rechazar" (analisis_correcciones_5.md #5):
+    // este boton simplemente reusa el modal completo de solicitar modificacion, que
+    // ya sabe pedir la justificacion y talleres y llamar al endpoint correspondiente.
+    overlay.querySelector('#btn-solicitar-modificacion').addEventListener('click', () => {
+      cerrar();
+      abrirModalSolicitarModificacion(vale);
     });
   }
 
@@ -1295,8 +1364,8 @@
             <div class="form-field"><label>Fecha del evento *</label><input type="datetime-local" name="fechaEvento" required /></div>
             <div class="form-field"><label>Código de producto *</label><select name="productoId" required>${opcionesSelect('productos')}</select></div>
             <div class="form-field"><label>Material *</label><select name="materialId" required>${opcionesSelect('materiales')}</select></div>
-            <div class="form-field"><label>Técnica *</label><input type="text" name="tecnica" value="${vale.tecnica || ''}" required /></div>
-            <div class="form-field"><label>Acabado *</label><input type="text" name="acabado" value="${vale.acabado || ''}" required /></div>
+            <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" value="${vale.tecnica || ''}" /></div>
+            <div class="form-field"><label>Acabado</label><input type="text" name="acabado" value="${vale.acabado || ''}" /></div>
             <div class="form-field"><label>Cantidad * (mayor a 1)</label><input type="number" name="cantidad" min="2" value="${vale.cantidad || ''}" required /></div>
             <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" value="${vale.cotizacion || ''}" required /></div>
             <div class="form-field form-checkbox full"><input type="checkbox" name="urgente" id="chk-urgente-mod" /><label for="chk-urgente-mod">Urgente</label></div>
@@ -1366,10 +1435,25 @@
   // -------------------------------------------------------------------------
   // Supervisor: aprobar modificación (crea el vale MOD- nuevo)
   // -------------------------------------------------------------------------
-  function abrirModalAprobarModificacion(vale) {
+  async function abrirModalAprobarModificacion(vale) {
+    // El supervisor necesita ver la justificación para decidir (analisis_correcciones_5.md #3).
+    let detalle;
+    try {
+      detalle = await (await fetch(`/api/vales/${vale.id}`)).json();
+    } catch {
+      detalle = { solicitudModificacion: null };
+    }
+    const justificacion = detalle.solicitudModificacion && detalle.solicitudModificacion.justificacion;
+
     const { overlay, cerrar } = abrirModal({
       title: `Autorizar modificación — ${vale.correlativo}`,
-      bodyHtml: `<p style="font-size:13px;">¿Confirmas autorizar la modificación solicitada para este vale de arte? Se creará un vale de arte nuevo con el prefijo MOD-, que entrará al buzón de los talleres correspondientes.</p>`,
+      bodyHtml: `
+        <div class="form-field full" style="margin-bottom:14px;">
+          <label>Justificación de la modificación</label>
+          <p style="font-size:13px;white-space:pre-wrap;">${justificacion || 'Sin justificación registrada.'}</p>
+        </div>
+        <p style="font-size:13px;">¿Confirmas autorizar la modificación solicitada para este vale de arte? Se creará un vale de arte nuevo con el prefijo MOD-, que quedará en el buzón del Encargado General para que decida a qué taller enviarlo.</p>
+      `,
       footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Autorizar</button>`
     });
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
@@ -1388,6 +1472,114 @@
         btn.disabled = false;
       }
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // Encargado General: reenviar un vale MODIFICADO al taller correcto, viendo la
+  // justificación (analisis_correcciones_5.md #6) — reusa el mismo selector de
+  // talleres de creación/solicitud de modificación.
+  // -------------------------------------------------------------------------
+  async function abrirModalReenviarModificacion(vale) {
+    let detalle;
+    try {
+      detalle = await (await fetch(`/api/vales/${vale.id}`)).json();
+    } catch {
+      detalle = { descripcion: '' };
+    }
+    const tallerSeleccionados = new Set();
+    const { overlay, cerrar } = abrirModal({
+      title: `Reenviar modificación — ${vale.correlativo}`,
+      bodyHtml: `
+        <div class="form-field full" style="margin-bottom:14px;">
+          <label>Justificación de la modificación</label>
+          <p style="font-size:13px;white-space:pre-wrap;">${detalle.descripcion || 'Sin justificación registrada.'}</p>
+        </div>
+        <p style="font-size:13px;margin-bottom:10px;">Elige el/los taller(es) al que debe ir este vale de arte modificado.</p>
+        <div class="form-grid">
+          ${htmlSelectorTalleres()}
+        </div>
+      `,
+      footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Reenviar</button>`
+    });
+    wireSelectorTalleres(overlay, tallerSeleccionados);
+    overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
+    overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
+      if (tallerSeleccionados.size === 0) {
+        mostrarErrorModal(overlay, 'Debe seleccionar al menos un taller.');
+        return;
+      }
+      const btn = overlay.querySelector('#btn-confirmar');
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/vales/${vale.id}/reenviar-modificacion`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ talleresIds: [...tallerSeleccionados] })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        window.toast.success('Vale reenviado', `${vale.correlativo} se envió al taller seleccionado.`);
+        cerrar();
+        cargarBuzon();
+      } catch (error) {
+        mostrarErrorModal(overlay, error.message);
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Supervisor: "Ver" abre a elegir entre info de encabezado o el PDF completo
+  // (analisis_correcciones_5.md #7) — a veces solo hace falta lo primero.
+  // -------------------------------------------------------------------------
+  function abrirModalVerSupervisor(v) {
+    const { overlay, cerrar } = abrirModal({
+      title: `Ver vale de arte — ${v.correlativo}`,
+      bodyHtml: `<p style="font-size:13px;">¿Qué necesitas ver?</p>`,
+      footerHtml: `
+        <button class="btn btn--ghost" id="btn-ver-info">Ver info</button>
+        <button class="btn btn--primary" id="btn-ver-pdf">Ver vale</button>
+      `
+    });
+    overlay.querySelector('#btn-ver-pdf').addEventListener('click', () => {
+      window.open(`/api/vales/${v.id}/pdf`, '_blank');
+      cerrar();
+    });
+    overlay.querySelector('#btn-ver-info').addEventListener('click', () => {
+      cerrar();
+      abrirModalInfoVale(v);
+    });
+  }
+
+  function abrirModalInfoVale(v) {
+    const campo = (etiqueta, valor) => `
+      <div class="form-field"><label>${etiqueta}</label><p style="font-size:13px;margin:0;">${valor || '-'}</p></div>
+    `;
+    const { overlay, cerrar } = abrirModal({
+      title: `Información — ${v.correlativo}`,
+      size: 'lg',
+      bodyHtml: `
+        <div class="form-grid">
+          ${campo('Correlativo', v.correlativo)}
+          ${campo('Estado', etiquetaEstado(v))}
+          ${campo('Cliente', v.cliente_nombre)}
+          ${campo('Empresa', v.cliente_empresa)}
+          ${campo('Teléfono', v.cliente_telefono)}
+          ${campo('Correo', v.cliente_correo)}
+          ${campo('Fecha entrega', formatearFecha(v.fecha_entrega))}
+          ${campo('Fecha evento', formatearFecha(v.fecha_evento))}
+          ${campo('Taller(es)', v.taller)}
+          ${campo('Código de producto', nombreCatalogo('productos', v.producto_id))}
+          ${campo('Material', nombreCatalogo('materiales', v.material_id))}
+          ${campo('Técnica', v.tecnica)}
+          ${campo('Acabado', v.acabado)}
+          ${campo('Cantidad', v.cantidad)}
+          ${campo('Cotización', v.cotizacion != null ? `Q${Number(v.cotizacion).toFixed(2)}` : '-')}
+          ${campo('Urgente', v.urgente ? 'Sí' : 'No')}
+        </div>
+      `,
+      footerHtml: `<button class="btn btn--primary" id="btn-cerrar-info">Cerrar</button>`
+    });
+    overlay.querySelector('#btn-cerrar-info').addEventListener('click', cerrar);
   }
 
   // -------------------------------------------------------------------------

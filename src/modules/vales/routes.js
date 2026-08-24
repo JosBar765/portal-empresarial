@@ -41,12 +41,16 @@ router.post('/:id/cancelar-proceso', requirePermission('vales.trabajar'), (req, 
 router.post('/:id/revisar', requirePermission('vales.revisar'), (req, res) => valeController.revisar(req, res));
 router.post('/:id/aprobar-general', requirePermission('vales.aprobar_general'), campoFusion, (req, res) => valeController.aprobarGeneral(req, res));
 router.post('/:id/confirmar', requirePermission('vales.confirmar'), (req, res) => valeController.confirmar(req, res));
-// Rechazar y solicitar corrección son la misma acción (analisis_correcciones_4.md #2).
-router.post('/:id/solicitar-correccion', requirePermission('vales.confirmar'), (req, res) => valeController.solicitarCorreccion(req, res));
 // El formulario de modificación es el mismo de creación (todos los campos editables,
 // boceto/descripción en blanco) — ya no admite adjuntar archivos nuevos, el
 // documento de referencia es automáticamente la última propuesta del vale original.
+// Ya no existe una acción de "rechazar"/"solicitar corrección" separada
+// (analisis_correcciones_5.md #5) — un vale PENDIENTE_CONFIRMACION que el asesor no
+// acepta usa esta misma ruta de solicitar modificación.
 router.post('/:id/solicitar-modificacion', requirePermission('vales.solicitar_modificacion'), (req, res) => valeController.solicitarModificacion(req, res));
 router.post('/:id/aprobar-modificacion', requirePermission('vales.aprobar_modificacion'), (req, res) => valeController.aprobarModificacion(req, res));
+// Encargado General: elige a qué taller reenviar un vale MODIFICADO recién aprobado
+// (analisis_correcciones_5.md #6). Mismo permiso que ya tiene el rol 8/9 para fusionar.
+router.post('/:id/reenviar-modificacion', requirePermission('vales.aprobar_general'), (req, res) => valeController.reenviarModificacion(req, res));
 
 module.exports = router;

@@ -74,7 +74,8 @@ class ValeController {
         hasta: req.query.hasta,
         vista: req.query.vista,
         offset: req.query.offset,
-        filtroContador: req.query.filtroContador
+        filtroContador: req.query.filtroContador,
+        busqueda: req.query.busqueda
       };
       const data = await valeService.obtenerBuzon(req.user, filtros);
       return res.json(data);
@@ -94,7 +95,9 @@ class ValeController {
 
   async descargarPdf(req, res) {
     try {
-      const vale = await valeService.obtenerDetalle(req.user, Number(req.params.id));
+      // Si el vale pedido ya fue modificado, sirve el PDF del vale MOD- vigente en
+      // vez del original congelado (analisis_correcciones_5.md #4).
+      const vale = await valeService.obtenerValeParaPdf(req.user, Number(req.params.id));
       if (!vale.pdf_url) {
         return res.status(404).json({ error: 'El PDF de este vale aún no ha sido generado.' });
       }
@@ -180,15 +183,6 @@ class ValeController {
     }
   }
 
-  async solicitarCorreccion(req, res) {
-    try {
-      const vale = await valeService.solicitarCorreccion(req.user, Number(req.params.id), req.body.motivo);
-      return res.json(vale);
-    } catch (error) {
-      return res.status(400).json({ error: error.message });
-    }
-  }
-
   async solicitarModificacion(req, res) {
     try {
       const vale = await valeService.solicitarModificacion(req.user, Number(req.params.id), req.body);
@@ -201,6 +195,15 @@ class ValeController {
   async aprobarModificacion(req, res) {
     try {
       const vale = await valeService.aprobarModificacion(req.user, Number(req.params.id));
+      return res.json(vale);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
+  async reenviarModificacion(req, res) {
+    try {
+      const vale = await valeService.reenviarModificacion(req.user, Number(req.params.id), req.body.talleresIds);
       return res.json(vale);
     } catch (error) {
       return res.status(400).json({ error: error.message });
