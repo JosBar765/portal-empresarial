@@ -14,7 +14,7 @@
     - El asesor rechaza el vale de arte
     - El asesor coloca en la justificación que hubo un error de tamaño de correa
     - El encargado general puede reenviar la modificación al taller adecuado
-El encargado general debe poder ver la justificación de la modificación, al igual que el taller al que se lo reenvíe. Para este punto, el vale pasa al flujo de asignación, pero será un vale `MODIFICADO`
+El encargado general debe poder ver la justificación de la modificación para saber a quién reenviar, al igual que el taller al que se lo reenvíe tiene que ver la misma justificación. Para este punto, el vale pasa al flujo de asignación, pero será un vale `MODIFICADO`
 
 7. Actualmente, el supervisor cuando presiona la acción de ver ve el PDF generado de vale de arte. Solo para el supervisor, haremos que la acción "VER" abra un modal con dos opciones: 
     - Ver info: mostrará la información únicamente de los encabezados
