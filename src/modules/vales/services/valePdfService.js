@@ -18,6 +18,14 @@ const FOOTER_HEIGHT = 30;
 const UPLOADS_DIR = path.join(__dirname, '../../../../uploads');
 const LOGO_PATH = path.join(__dirname, '../../../../public/assets/logos/LOGO_GP_isotipo.png');
 
+// Paleta del layout tipo "recibo" (etiqueta gris pequeña sobre valor en negro,
+// líneas divisorias finas en vez de cajas con borde) — ver comentario sobre
+// _dibujarSeccionCampos más abajo para el origen del patrón.
+const COLOR_TEXTO = rgb(0, 0, 0);
+const COLOR_ETIQUETA = rgb(0.45, 0.48, 0.52);
+const COLOR_DIVISOR = rgb(0.85, 0.85, 0.85);
+const COLOR_DIVISOR_FUERTE = rgb(0.15, 0.15, 0.15);
+
 // Fechas siempre dd/mm/aaaa; solo la fecha de ingreso muestra también hora (dd/mm/aaaa hh:mm).
 function formatFechaSolo(valor) {
   if (!valor) return '-';
@@ -96,23 +104,17 @@ class ValePdfService {
     if (vale.modificado && vale.descripcion_original) {
       // Orden: contenido original primero, bloque de modificación después (envuelto en
       // marcadores al inicio y al final), documentos adjuntos al final de todo.
-      this._asegurarEspacio(ctx, 20);
-      this._texto(ctx, 'BOCETO Y DESCRIPCIÓN', MARGIN, ctx.y, { size: 9, bold: true });
-      ctx.y -= 16;
+      this._dibujarTituloBloque(ctx, 'BOCETO Y DESCRIPCIÓN');
       this._dibujarTextoLargo(ctx, vale.descripcion_original);
       await this._dibujarGridImagenes(ctx, imagenes.filter(i => !i.es_modificacion));
 
       this._escribirLinea(ctx, '********** MODIFICACION **********', ctx.fontBold, 10);
-      this._asegurarEspacio(ctx, 20);
-      this._texto(ctx, 'BOCETO Y DESCRIPCIÓN (MODIFICACIÓN)', MARGIN, ctx.y, { size: 9, bold: true });
-      ctx.y -= 16;
+      this._dibujarTituloBloque(ctx, 'BOCETO Y DESCRIPCIÓN (MODIFICACIÓN)');
       this._dibujarTextoLargo(ctx, vale.descripcion);
       await this._dibujarGridImagenes(ctx, imagenes.filter(i => i.es_modificacion));
       this._escribirLinea(ctx, '********** MODIFICACION **********', ctx.fontBold, 10);
     } else {
-      this._asegurarEspacio(ctx, 20);
-      this._texto(ctx, 'BOCETO Y DESCRIPCIÓN', MARGIN, ctx.y, { size: 9, bold: true });
-      ctx.y -= 16;
+      this._dibujarTituloBloque(ctx, 'BOCETO Y DESCRIPCIÓN');
       this._dibujarTextoLargo(ctx, vale.descripcion);
       await this._dibujarGridImagenes(ctx, imagenes);
     }
@@ -167,8 +169,18 @@ class ValePdfService {
 
   _texto(ctx, texto, x, y, opts = {}) {
     ctx.page.drawText(String(texto ?? ''), {
-      x, y, size: opts.size || 9, font: opts.bold ? ctx.fontBold : ctx.font, color: rgb(0, 0, 0)
+      x, y, size: opts.size || 9, font: opts.bold ? ctx.fontBold : ctx.font, color: opts.color || COLOR_TEXTO
     });
+  }
+
+  // Título de bloque reutilizado por "Boceto y descripción" y su variante de
+  // modificación — mismo tratamiento tipográfico que el título de cada
+  // _dibujarSeccionCampos, para que todo el documento comparta una sola
+  // jerarquía de títulos.
+  _dibujarTituloBloque(ctx, texto) {
+    this._asegurarEspacio(ctx, 26);
+    this._texto(ctx, texto, MARGIN, ctx.y - 10, { size: 10.5, bold: true });
+    ctx.y -= 22;
   }
 
   _escribirLinea(ctx, texto, font, size) {
@@ -228,88 +240,111 @@ class ValePdfService {
     ctx.y -= 10;
   }
 
+  // Encabezado tipo "recibo": título + subtítulo a la izquierda, correlativo
+  // destacado al centro, logo a la derecha, y una sola línea divisoria abajo
+  // — sin cajas con borde (diseño tomado de un recibo/solicitud de referencia
+  // con esa misma jerarquía: título grande, subtítulo gris, campos etiqueta-
+  // sobre-valor y líneas finas en vez de tablas con bordes).
   _dibujarEncabezado(ctx, vale) {
-    const alto = 40;
-    this._asegurarEspacio(ctx, alto + 10);
-    const y = ctx.y - alto;
-    const col1 = CONTENT_WIDTH * (3 / 6);
-    const col2 = CONTENT_WIDTH * (2 / 6);
-    const col3 = CONTENT_WIDTH * (1 / 6);
+    const alto = 46;
+    this._asegurarEspacio(ctx, alto + 20);
+    const yTop = ctx.y;
+    const hoy = new Date();
+    const fechaHoy = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
 
-    this._rect(ctx, MARGIN, y, col1, alto);
-    this._rect(ctx, MARGIN + col1, y, col2, alto);
-    this._rect(ctx, MARGIN + col1 + col2, y, col3, alto);
+    this._texto(ctx, 'VALE DE ARTE', MARGIN, yTop - 16, { size: 18, bold: true });
+    this._texto(ctx, `MundiTrofeos S.A. · Generado ${fechaHoy}`, MARGIN, yTop - 30, { size: 8, color: COLOR_ETIQUETA });
 
-    this._texto(ctx, 'VALE DE ARTE', MARGIN + 10, y + alto / 2 - 5, { size: 14, bold: true });
-    this._texto(ctx, `CORRELATIVO:`, MARGIN + col1 + 10, y + alto / 2 + 6, { size: 8, bold: true });
-    this._texto(ctx, vale.correlativo, MARGIN + col1 + 10, y + alto / 2 - 6, { size: 10, bold: true });
+    const xCorrelativo = MARGIN + CONTENT_WIDTH * 0.44;
+    this._texto(ctx, 'CORRELATIVO', xCorrelativo, yTop - 11, { size: 7, bold: true, color: COLOR_ETIQUETA });
+    this._texto(ctx, vale.correlativo, xCorrelativo, yTop - 27, { size: 13, bold: true });
 
     if (ctx.logoImage) {
-      const dims = ctx.logoImage.scaleToFit(col3 - 10, alto - 10);
+      const anchoLogo = CONTENT_WIDTH * 0.14;
+      const dims = ctx.logoImage.scaleToFit(anchoLogo, alto - 8);
       ctx.page.drawImage(ctx.logoImage, {
-        x: MARGIN + col1 + col2 + (col3 - dims.width) / 2,
-        y: y + (alto - dims.height) / 2,
+        x: MARGIN + CONTENT_WIDTH - dims.width,
+        y: yTop - alto + (alto - dims.height) / 2,
         width: dims.width,
         height: dims.height
       });
     }
 
-    // Corrección #8: el espaciado EXTERIOR (entre secciones) se reduce un 50% respecto
-    // al original (16 → 8); el espaciado INTERIOR de cada sección (altoTitulo/altoFila,
-    // en _dibujarCajaSeccion) se revierte a su valor original para mantener la
-    // legibilidad — la compactación de corrección #6 fue demasiado agresiva.
-    ctx.y = y - 8;
+    const yLinea = yTop - alto;
+    ctx.page.drawLine({
+      start: { x: MARGIN, y: yLinea }, end: { x: MARGIN + CONTENT_WIDTH, y: yLinea },
+      thickness: 1, color: COLOR_DIVISOR_FUERTE
+    });
+    ctx.y = yLinea - 18;
   }
 
-  // Corrección #6: sin bordes en las cajas de sección, campo en una sola línea
-  // "ETIQUETA: valor" (en vez de dos líneas apiladas). Corrección #8: altoTitulo/altoFila
-  // (espaciado INTERIOR, necesario para la legibilidad) vuelven a su valor original;
-  // solo el espaciado EXTERIOR (antes/después de la caja) se redujo un 50%.
-  _dibujarCajaSeccion(ctx, titulo, filas) {
-    const altoTitulo = 18;
-    const altoFila = 26;
+  // Grilla de campos "etiqueta pequeña en gris, encima del valor en negro"
+  // con una línea divisoria fina después de cada fila — el mismo lenguaje
+  // visual en todo el documento (título en negro + campos apilados + líneas
+  // finas, sin cajas con borde), tomado de un recibo/solicitud de referencia
+  // con ese mismo patrón de legibilidad.
+  _dibujarSeccionCampos(ctx, titulo, filas) {
+    const altoTitulo = 24;
+    const altoFila = 30;
     const alto = altoTitulo + filas.length * altoFila;
-    this._asegurarEspacio(ctx, alto + 6);
+    this._asegurarEspacio(ctx, alto + 14);
 
-    const yTop = ctx.y;
-    this._texto(ctx, titulo, MARGIN, yTop - altoTitulo + 3, { size: 8, bold: true });
+    this._texto(ctx, titulo, MARGIN, ctx.y - 10, { size: 10.5, bold: true });
+    ctx.y -= altoTitulo;
 
-    filas.forEach((fila, idx) => {
-      const yFila = yTop - altoTitulo - (idx + 1) * altoFila;
+    filas.forEach(fila => {
       let x = MARGIN;
-      const anchoTotal = CONTENT_WIDTH;
       fila.forEach(campo => {
-        const w = anchoTotal * campo.proporcion;
-        if (campo.etiqueta === '__FIRMA__') {
-          // Corrección #8: la línea se baja respecto al diseño original (que dejaba solo
-          // 4px libres arriba) para dar espacio real donde firmar a mano; la etiqueta
-          // sube al mismo nivel base que los demás campos (yFila+3) para no quedar
-          // pegada al límite inferior de la sección (evita que se encime con el título
-          // de la sección siguiente).
-          const lineaY = yFila + 14;
-          ctx.page.drawLine({
-            start: { x: x + 4, y: lineaY }, end: { x: x + w - 4, y: lineaY },
-            thickness: 0.5, color: rgb(0.4, 0.4, 0.4)
-          });
-          this._texto(ctx, 'FIRMA AUTORIZACIÓN', x + 4, yFila + 3, { size: 6 });
-        } else if (campo.etiqueta) {
-          // Centrado verticalmente dentro de la fila (ahora más alta tras revertir
-          // altoFila a su valor original — corrección #8).
-          const yTexto = yFila + altoFila / 2 - 3;
-          const prefijo = `${campo.etiqueta}: `;
-          this._texto(ctx, prefijo, x + 4, yTexto, { size: 7, bold: true });
-          const anchoPrefijo = ctx.fontBold.widthOfTextAtSize(prefijo, 7);
-          this._texto(ctx, campo.valor, x + 4 + anchoPrefijo, yTexto, { size: 8 });
+        const w = CONTENT_WIDTH * campo.proporcion;
+        if (campo.etiqueta) {
+          this._texto(ctx, campo.etiqueta, x, ctx.y - 7, { size: 6.5, bold: true, color: COLOR_ETIQUETA });
+          this._texto(ctx, campo.valor ?? '-', x, ctx.y - 20, { size: 9 });
         }
         x += w;
       });
+      ctx.y -= altoFila;
+      ctx.page.drawLine({
+        start: { x: MARGIN, y: ctx.y }, end: { x: MARGIN + CONTENT_WIDTH, y: ctx.y },
+        thickness: 0.75, color: COLOR_DIVISOR
+      });
     });
 
-    ctx.y = yTop - alto - 6;
+    ctx.y -= 14;
+  }
+
+  // Recuadro destacado para el monto de la cotización — mismo tratamiento que
+  // el total de un recibo (etiqueta a la izquierda, cifra grande a la
+  // derecha, dentro de un marco simple) en vez de un campo más de la grilla.
+  _dibujarCajaDestacada(ctx, etiqueta, valor) {
+    const alto = 34;
+    this._asegurarEspacio(ctx, alto + 18);
+    const y = ctx.y - alto;
+
+    ctx.page.drawRectangle({ x: MARGIN, y, width: CONTENT_WIDTH, height: alto, borderColor: COLOR_DIVISOR_FUERTE, borderWidth: 1 });
+    this._texto(ctx, etiqueta, MARGIN + 14, y + alto / 2 - 5, { size: 11, bold: true });
+    const anchoValor = ctx.fontBold.widthOfTextAtSize(valor, 16);
+    this._texto(ctx, valor, MARGIN + CONTENT_WIDTH - 14 - anchoValor, y + alto / 2 - 6, { size: 16, bold: true });
+
+    ctx.y = y - 18;
+  }
+
+  // Línea de firma independiente (ya no es un campo más dentro de la grilla)
+  // — mismo patrón del recibo de referencia: una línea fina con la etiqueta
+  // centrada justo debajo.
+  _dibujarLineaFirma(ctx, etiqueta) {
+    const anchoLinea = 220;
+    this._asegurarEspacio(ctx, 40);
+    const yLinea = ctx.y - 20;
+    ctx.page.drawLine({
+      start: { x: MARGIN, y: yLinea }, end: { x: MARGIN + anchoLinea, y: yLinea },
+      thickness: 0.75, color: rgb(0.3, 0.3, 0.3)
+    });
+    this._texto(ctx, etiqueta, MARGIN, yLinea - 12, { size: 8, color: COLOR_ETIQUETA });
+    ctx.y = yLinea - 28;
   }
 
   _dibujarSeccionAsesor(ctx, vale) {
-    this._dibujarCajaSeccion(ctx, 'INFORMACIÓN DE ASESOR DE VENTAS', [
+    this._dibujarSeccionCampos(ctx, 'INFORMACIÓN DE ASESOR DE VENTAS', [
       [
         { etiqueta: 'NOMBRE', valor: vale.__asesorNombre || `Asesor #${vale.asesor_id}`, proporcion: 0.5 },
         { etiqueta: 'CORREO', valor: vale.__asesorCorreo || '-', proporcion: 0.5 }
@@ -321,7 +356,7 @@ class ValePdfService {
   }
 
   _dibujarSeccionCliente(ctx, vale) {
-    this._dibujarCajaSeccion(ctx, 'INFORMACIÓN DE CLIENTE', [
+    this._dibujarSeccionCampos(ctx, 'INFORMACIÓN DE CLIENTE', [
       [
         { etiqueta: 'EMPRESA', valor: vale.cliente_empresa || '-', proporcion: 0.5 },
         { etiqueta: 'CLIENTE', valor: vale.cliente_nombre, proporcion: 0.5 }
@@ -334,7 +369,7 @@ class ValePdfService {
   }
 
   _dibujarSeccionVenta(ctx, vale, nombres) {
-    this._dibujarCajaSeccion(ctx, 'INFORMACIÓN DE VENTA', [
+    this._dibujarSeccionCampos(ctx, 'INFORMACIÓN DE VENTA', [
       [
         { etiqueta: 'FECHA Y HORA INGRESO', valor: formatFechaHora(`${vale.fecha_creacion} ${vale.hora_creacion}`), proporcion: 3 / 8 },
         { etiqueta: 'FECHA ENTREGA', valor: formatFechaSolo(vale.fecha_entrega), proporcion: 2 / 8 },
@@ -342,20 +377,20 @@ class ValePdfService {
         { etiqueta: 'URGENTE', valor: vale.urgente ? 'SÍ' : 'NO', proporcion: 1 / 8 }
       ],
       [
-        { etiqueta: 'COD. PRODUCTO', valor: nombres.producto, proporcion: 2 / 8 },
-        { etiqueta: 'MATERIAL', valor: nombres.material, proporcion: 2 / 8 },
-        { etiqueta: 'TÉCNICA', valor: nombres.tecnica, proporcion: 2 / 8 },
-        { etiqueta: 'ACABADO', valor: nombres.acabado, proporcion: 2 / 8 }
-      ],
-      [
-        // Corrección #2: revertido el label a "Cotización (Q)".
-        { etiqueta: 'CANTIDAD', valor: String(vale.cantidad), proporcion: 2 / 8 },
-        { etiqueta: 'COTIZACIÓN (Q)', valor: `Q${Number(vale.cotizacion).toFixed(2)}`, proporcion: 2 / 8 },
-        { etiqueta: '', valor: '', proporcion: 2 / 8 },
-        // Corrección #5: línea en blanco para firma, no un campo de datos.
-        { etiqueta: '__FIRMA__', valor: '', proporcion: 2 / 8 }
+        { etiqueta: 'COD. PRODUCTO', valor: nombres.producto, proporcion: 1 / 5 },
+        { etiqueta: 'MATERIAL', valor: nombres.material, proporcion: 1 / 5 },
+        { etiqueta: 'TÉCNICA', valor: nombres.tecnica, proporcion: 1 / 5 },
+        { etiqueta: 'ACABADO', valor: nombres.acabado, proporcion: 1 / 5 },
+        { etiqueta: 'CANTIDAD', valor: String(vale.cantidad), proporcion: 1 / 5 }
       ]
     ]);
+
+    // La cotización y la firma dejan de ser un campo más de la grilla: la
+    // cotización es el dato económico principal del vale (recuadro
+    // destacado, como el total de un recibo) y la firma necesita espacio
+    // real para firmarse a mano.
+    this._dibujarCajaDestacada(ctx, 'COTIZACIÓN', `Q ${Number(vale.cotizacion).toFixed(2)}`);
+    this._dibujarLineaFirma(ctx, 'FIRMA AUTORIZACIÓN');
   }
 
   /**
