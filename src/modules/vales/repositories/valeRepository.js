@@ -72,6 +72,10 @@ class ValeRepository {
   async marcarModificado(id) {
     await db.query('UPDATE vales SET modificado = 1 WHERE id = ?', [id], 'vale:marcar_modificado');
   }
+
+  async actualizarPropuestaGeneral(id, url) {
+    await db.query('UPDATE vales SET propuesta_general_url = ? WHERE id = ?', [url, id], 'vale:update_propuesta_general');
+  }
 }
 
 module.exports = new ValeRepository();

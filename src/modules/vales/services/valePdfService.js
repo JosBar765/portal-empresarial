@@ -254,19 +254,22 @@ class ValePdfService {
       });
     }
 
-    // Espaciado tras el encabezado reducido (corrección #6: más espacio para boceto/descripción).
-    ctx.y = y - 5;
+    // Corrección #8: el espaciado EXTERIOR (entre secciones) se reduce un 50% respecto
+    // al original (16 → 8); el espaciado INTERIOR de cada sección (altoTitulo/altoFila,
+    // en _dibujarCajaSeccion) se revierte a su valor original para mantener la
+    // legibilidad — la compactación de corrección #6 fue demasiado agresiva.
+    ctx.y = y - 8;
   }
 
-  // Corrección #6: sin bordes en las cajas de sección + espaciado reducido.
-  // Cada campo se dibuja en una sola línea "ETIQUETA: valor" en vez de dos
-  // líneas apiladas — es lo que permite comprimir la altura de fila de forma
-  // segura sin que las dos líneas de texto se encimen.
+  // Corrección #6: sin bordes en las cajas de sección, campo en una sola línea
+  // "ETIQUETA: valor" (en vez de dos líneas apiladas). Corrección #8: altoTitulo/altoFila
+  // (espaciado INTERIOR, necesario para la legibilidad) vuelven a su valor original;
+  // solo el espaciado EXTERIOR (antes/después de la caja) se redujo un 50%.
   _dibujarCajaSeccion(ctx, titulo, filas) {
-    const altoTitulo = 12;
-    const altoFila = 10;
+    const altoTitulo = 18;
+    const altoFila = 26;
     const alto = altoTitulo + filas.length * altoFila;
-    this._asegurarEspacio(ctx, alto + 4);
+    this._asegurarEspacio(ctx, alto + 6);
 
     const yTop = ctx.y;
     this._texto(ctx, titulo, MARGIN, yTop - altoTitulo + 3, { size: 8, bold: true });
@@ -278,23 +281,31 @@ class ValePdfService {
       fila.forEach(campo => {
         const w = anchoTotal * campo.proporcion;
         if (campo.etiqueta === '__FIRMA__') {
-          const lineaY = yFila + altoFila - 4;
+          // Corrección #8: la línea se baja respecto al diseño original (que dejaba solo
+          // 4px libres arriba) para dar espacio real donde firmar a mano; la etiqueta
+          // sube al mismo nivel base que los demás campos (yFila+3) para no quedar
+          // pegada al límite inferior de la sección (evita que se encime con el título
+          // de la sección siguiente).
+          const lineaY = yFila + 14;
           ctx.page.drawLine({
             start: { x: x + 4, y: lineaY }, end: { x: x + w - 4, y: lineaY },
             thickness: 0.5, color: rgb(0.4, 0.4, 0.4)
           });
-          this._texto(ctx, 'FIRMA AUTORIZACIÓN', x + 4, yFila + 1, { size: 6 });
+          this._texto(ctx, 'FIRMA AUTORIZACIÓN', x + 4, yFila + 3, { size: 6 });
         } else if (campo.etiqueta) {
+          // Centrado verticalmente dentro de la fila (ahora más alta tras revertir
+          // altoFila a su valor original — corrección #8).
+          const yTexto = yFila + altoFila / 2 - 3;
           const prefijo = `${campo.etiqueta}: `;
-          this._texto(ctx, prefijo, x + 4, yFila + 3, { size: 7, bold: true });
+          this._texto(ctx, prefijo, x + 4, yTexto, { size: 7, bold: true });
           const anchoPrefijo = ctx.fontBold.widthOfTextAtSize(prefijo, 7);
-          this._texto(ctx, campo.valor, x + 4 + anchoPrefijo, yFila + 3, { size: 8 });
+          this._texto(ctx, campo.valor, x + 4 + anchoPrefijo, yTexto, { size: 8 });
         }
         x += w;
       });
     });
 
-    ctx.y = yTop - alto - 4;
+    ctx.y = yTop - alto - 6;
   }
 
   _dibujarSeccionAsesor(ctx, vale) {

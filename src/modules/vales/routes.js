@@ -17,6 +17,9 @@ const camposAdjuntos = upload.fields([
   { name: 'documentos', maxCount: 5 }
 ]);
 const campoPropuesta = upload.fields([{ name: 'propuesta', maxCount: 1 }]);
+// El Encargado General adjunta manualmente su propio documento de fusión al aprobar
+// (analisis_correcciones_4.md #11: la fusión no la hace el sistema).
+const campoFusion = upload.fields([{ name: 'fusion', maxCount: 1 }]);
 
 router.get('/catalogos', requirePermission('vales.ver'), (req, res) => valeController.catalogos(req, res));
 router.get('/talleres', requirePermission('vales.ver'), (req, res) => valeController.talleres(req, res));
@@ -36,9 +39,9 @@ router.post('/:id/comenzar', requirePermission('vales.trabajar'), (req, res) => 
 router.post('/:id/entregar', requirePermission('vales.trabajar'), campoPropuesta, (req, res) => valeController.entregar(req, res));
 router.post('/:id/cancelar-proceso', requirePermission('vales.trabajar'), (req, res) => valeController.cancelarProceso(req, res));
 router.post('/:id/revisar', requirePermission('vales.revisar'), (req, res) => valeController.revisar(req, res));
-router.post('/:id/aprobar-general', requirePermission('vales.aprobar_general'), (req, res) => valeController.aprobarGeneral(req, res));
+router.post('/:id/aprobar-general', requirePermission('vales.aprobar_general'), campoFusion, (req, res) => valeController.aprobarGeneral(req, res));
 router.post('/:id/confirmar', requirePermission('vales.confirmar'), (req, res) => valeController.confirmar(req, res));
-router.post('/:id/cancelar', requirePermission('vales.confirmar'), (req, res) => valeController.cancelar(req, res));
+// Rechazar y solicitar corrección son la misma acción (analisis_correcciones_4.md #2).
 router.post('/:id/solicitar-correccion', requirePermission('vales.confirmar'), (req, res) => valeController.solicitarCorreccion(req, res));
 // El formulario de modificación es el mismo de creación (todos los campos editables,
 // boceto/descripción en blanco) — ya no admite adjuntar archivos nuevos, el

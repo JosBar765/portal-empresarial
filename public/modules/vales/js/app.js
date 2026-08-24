@@ -4,12 +4,11 @@
   // (vale_talleres.estado, ver analisis_correcciones_3.md). No colisionan entre
   // sí, así que comparten un solo diccionario de etiquetas.
   const ESTADOS_LABEL = {
-    // Generales
+    // Generales (RECHAZADO ya no existe como estado — ver analisis_correcciones_4.md #3)
     CREADO: 'Creado',
     APROBADO_DEPARTAMENTO: 'Aprobado por Talleres',
     PENDIENTE_CONFIRMACION: 'Pendiente Confirmación',
     RECIBIDO: 'Recibido',
-    RECHAZADO: 'Rechazado',
     EN_CORRECCION: 'En Corrección',
     SOLICITANDO_MODIFICACION: 'Solicitando Modificación',
     MODIFICADO: 'Modificado',
@@ -22,14 +21,15 @@
   };
 
   // El asesor no ve el estado real de la máquina de estados, ve una versión "lógica"
-  // colapsada (analisis_correcciones_3.md #11). Nunca se usa para autorización.
+  // colapsada (analisis_correcciones_3.md #11, redefinida en #4 de corrections_4 sin
+  // RECHAZADO). Nunca se usa para autorización.
   const ESTADOS_VISIBLES_LABEL = {
     CREADO: 'Creado',
     SOLICITANDO_MODIFICACION: 'Solicitando Modificación',
     MODIFICADO: 'Modificado',
     PENDIENTE_CONFIRMACION: 'Pendiente Confirmación',
     CONFIRMADO: 'Confirmado',
-    RECHAZADO: 'Rechazado'
+    EN_CORRECCION: 'En Corrección'
   };
 
   // Roles con sidebar Buzón / Trabajo realizado (Asesor, Supervisor, Técnico).
@@ -45,9 +45,7 @@
       ],
       trabajo: [
         { key: 'recibidosHoy', label: 'Recibidos hoy', filtro: 'recibidosHoy' },
-        { key: 'rechazadosHoy', label: 'Rechazados hoy', filtro: 'rechazadosHoy' },
-        { key: 'totalRecibidos', label: 'Total recibidos', filtro: 'totalRecibidos' },
-        { key: 'totalRechazados', label: 'Total rechazados', filtro: 'totalRechazados' }
+        { key: 'totalRecibidos', label: 'Total recibidos', filtro: 'totalRecibidos' }
       ]
     },
     4: { // Supervisor
@@ -59,9 +57,7 @@
       ],
       trabajo: [
         { key: 'valesRecibidosHoy', label: 'Recibidos hoy', filtro: 'valesRecibidosHoy' },
-        { key: 'valesRechazadosHoy', label: 'Rechazados hoy', filtro: 'valesRechazadosHoy' },
-        { key: 'totalRecibidos', label: 'Total recibidos', filtro: 'totalRecibidos' },
-        { key: 'totalRechazados', label: 'Total rechazados', filtro: 'totalRechazados' }
+        { key: 'totalRecibidos', label: 'Total recibidos', filtro: 'totalRecibidos' }
       ]
     },
     5: [ // Encargado de un taller
@@ -184,6 +180,10 @@
     $('#user-display-name').textContent = state.user.nombre;
     $('#user-display-role').textContent = state.user.rolNombre;
 
+    // Corrección #9: encargados y técnicos ya trabajan scoped a su propio taller —
+    // la columna "Taller" (pensada para el asesor y roles de supervisión) sobra ahí.
+    $('.buzon-table').classList.toggle('oculta-taller', [5, 6, 7].includes(state.user.rolId));
+
     $('#btn-nuevo-vale').style.display = puede('crear') ? 'flex' : 'none';
     // La carga de trabajo es una herramienta de gestión del propio equipo del encargado
     // de UN taller; el Encargado General no tiene técnicos propios y el administrador
@@ -294,6 +294,15 @@
     });
   }
 
+  // Cuenta las columnas realmente visibles del <thead> (la de Taller puede estar
+  // oculta vía CSS para encargados/técnicos — corrección #9) para que los mensajes
+  // de "tabla vacía"/error usen el colspan correcto sin hardcodearlo por rol.
+  function columnasVisibles() {
+    const todas = $$('.buzon-table thead th');
+    const visibles = todas.filter(th => th.offsetParent !== null);
+    return visibles.length || todas.length;
+  }
+
   function miTaller() {
     return (state.catalogos.talleres || []).find(t => t.encargado_id === state.user.id) || null;
   }
@@ -386,7 +395,7 @@
       state.paginacion.total = data.total ?? state.vales.length;
       state.paginacion.hasMore = !!data.hasMore;
     } catch (error) {
-      $('#buzon-tbody').innerHTML = `<tr><td colspan="8" class="tabla-vacia">Error al cargar el buzón: ${error.message}</td></tr>`;
+      $('#buzon-tbody').innerHTML = `<tr><td colspan="${columnasVisibles()}" class="tabla-vacia">Error al cargar el buzón: ${error.message}</td></tr>`;
       return;
     }
 
@@ -518,7 +527,7 @@
 
     const tbody = $('#buzon-tbody');
     if (filas.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="tabla-vacia">No hay vales de arte para mostrar.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${columnasVisibles()}" class="tabla-vacia">No hay vales de arte para mostrar.</td></tr>`;
       return;
     }
 
@@ -529,7 +538,7 @@
         <td>${formatearFecha(v.fecha_entrega)}</td>
         <td>${v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`}</td>
         <td>${formatearFecha(v.fecha_evento)}</td>
-        <td>${v.taller || '-'}</td>
+        <td class="col-taller">${v.taller || '-'}</td>
         <td><span class="estado-pill ${claseEstado(v)}">${etiquetaEstado(v)}</span></td>
         <td class="acciones-cell" data-vale-id="${v.id}"></td>
       </tr>
@@ -575,6 +584,12 @@
     const acciones = [
       { icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') }
     ];
+    // Corrección #1/#6: el hipervínculo de la propuesta ya no apunta al vale (PDF) sino
+    // al documento de propuesta real — disponible tanto en el buzón (trabajo realizado)
+    // como en cualquier vista donde ya exista una propuesta oficial para el vale.
+    if (usaEstadosVisibles() && v.propuesta_general_url) {
+      acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(`/${v.propuesta_general_url}`, '_blank') });
+    }
 
     if (puede('asignar') && v.estado_taller === 'PENDIENTE_ASIGNACION') {
       acciones.push({ icono: 'person-add-outline', titulo: 'Asignar a técnico', onClick: abrirModalAsignar });
@@ -589,11 +604,11 @@
       acciones.push({ icono: 'checkmark-done-outline', titulo: 'Entregar propuesta', clase: 'icon-success', onClick: abrirModalEntregar });
       acciones.push({ icono: 'close-outline', titulo: 'Cancelar proceso', clase: 'icon-danger', onClick: accionCancelarProceso });
     }
-    if (puede('aprobarGeneral') && v.estado === 'APROBADO_DEPARTAMENTO') {
+    if (puede('aprobarGeneral') && ['APROBADO_DEPARTAMENTO', 'EN_CORRECCION'].includes(v.estado)) {
       acciones.push({ icono: 'checkmark-done-circle-outline', titulo: 'Aprobar y fusionar', clase: 'icon-success', onClick: abrirModalAprobarGeneral });
     }
     if (puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION') {
-      acciones.push({ icono: 'document-text-outline', titulo: 'Confirmar, rechazar o corregir', clase: 'icon-success', onClick: abrirModalDecisionAsesor });
+      acciones.push({ icono: 'document-text-outline', titulo: 'Confirmar o rechazar', clase: 'icon-success', onClick: abrirModalDecisionAsesor });
     }
     if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado)) {
       acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirModalSolicitarModificacion });
@@ -1003,18 +1018,49 @@
   // -------------------------------------------------------------------------
   // Encargado General: aprobar y fusionar un vale multi-taller
   // -------------------------------------------------------------------------
-  function abrirModalAprobarGeneral(vale) {
+  // Encargado General: la fusión NO la hace el sistema — el propio encargado revisa la
+  // propuesta de cada taller (analisis_correcciones_4.md #10) y adjunta manualmente su
+  // documento final ya fusionado antes de aprobar (#11), sea un vale multi-taller o uno
+  // que cayó aquí por haber sido rechazado por el asesor.
+  async function abrirModalAprobarGeneral(vale) {
+    let detalle;
+    try {
+      detalle = await (await fetch(`/api/vales/${vale.id}`)).json();
+    } catch {
+      detalle = { talleres: [], propuestas: [] };
+    }
+    const filasPropuesta = (detalle.talleres || []).map(t => {
+      const delTecnico = (detalle.propuestas || []).filter(p => p.tecnico_id === t.tecnico_id);
+      const ultima = delTecnico[delTecnico.length - 1];
+      const url = ultima && !ultima.es_cancelacion ? ultima.url : null;
+      return `<li><strong>${t.taller_nombre}:</strong> ${url ? `<a href="/${url}" target="_blank">Ver propuesta</a>` : 'Sin propuesta'}</li>`;
+    }).join('');
+
     const { overlay, cerrar } = abrirModal({
       title: `Aprobar y fusionar — ${vale.correlativo}`,
-      bodyHtml: `<p style="font-size:13px;">Todos los talleres ya aprobaron su parte de este vale de arte. Al confirmar, se fusiona todo en un solo documento final y el vale pasa a confirmación del asesor.</p>`,
+      bodyHtml: `
+        <p style="font-size:13px;margin-bottom:10px;">Revisa la propuesta de cada taller y adjunta el documento final ya fusionado por ti.</p>
+        <ul class="historial-list" style="margin-bottom:14px;">${filasPropuesta || '<li>Este vale no tiene talleres asociados.</li>'}</ul>
+        <div class="form-field">
+          <label>Documento de fusión final (PDF) *</label>
+          <input type="file" id="input-fusion" accept="application/pdf" required />
+        </div>
+      `,
       footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Aprobar y Fusionar</button>`
     });
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
+      const file = overlay.querySelector('#input-fusion').files[0];
+      if (!file) {
+        mostrarErrorModal(overlay, 'Debe adjuntar el documento de fusión final.');
+        return;
+      }
+      const formData = new FormData();
+      formData.append('fusion', file);
       const btn = overlay.querySelector('#btn-confirmar');
       btn.disabled = true;
       try {
-        const res = await fetch(`/api/vales/${vale.id}/aprobar-general`, { method: 'POST' });
+        const res = await fetch(`/api/vales/${vale.id}/aprobar-general`, { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         window.toast.success('Vale fusionado', `${vale.correlativo} fusionado y aprobado correctamente.`);
@@ -1030,19 +1076,24 @@
   // -------------------------------------------------------------------------
   // Asesor: decidir sobre un vale PENDIENTE_CONFIRMACION (confirmar / rechazar / corregir)
   // -------------------------------------------------------------------------
+  // Rechazar YA NO es una acción separada de "solicitar corrección" (analisis_correcciones_4.md
+  // #2): un solo botón "Rechazar" pide el motivo y manda el vale a corrección — cae al buzón
+  // del Encargado General, nunca queda como un estado "Rechazado" persistido (#3).
   function abrirModalDecisionAsesor(vale) {
     const { overlay, cerrar } = abrirModal({
       title: `Vale pendiente de confirmación — ${vale.correlativo}`,
       bodyHtml: `
         <p style="font-size:13px;margin-bottom:14px;">Revisa el vale de arte final y decide qué hacer.</p>
-        <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;margin-bottom:16px;">Ver vale de arte (PDF)</a>
-        <div class="form-field full" id="campo-motivo-correccion" style="display:none;">
-          <label>Motivo de la corrección *</label>
-          <textarea id="input-motivo-correccion"></textarea>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale de arte (PDF)</a>
+          ${vale.propuesta_general_url ? `<a href="/${vale.propuesta_general_url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
+        </div>
+        <div class="form-field full" id="campo-motivo-rechazo" style="display:none;">
+          <label>Motivo del rechazo *</label>
+          <textarea id="input-motivo-rechazo"></textarea>
         </div>
       `,
       footerHtml: `
-        <button class="btn btn--ghost" id="btn-solicitar-correccion">Solicitar Corrección</button>
         <button class="btn btn--danger" id="btn-rechazar">Rechazar</button>
         <button class="btn btn--primary" id="btn-confirmar-recibido">Confirmar Recibido</button>
       `
@@ -1061,31 +1112,17 @@
       }
     });
 
-    overlay.querySelector('#btn-rechazar').addEventListener('click', async () => {
-      if (!confirm(`¿Confirmas rechazar el vale ${vale.correlativo}? El cliente no compró.`)) return;
-      try {
-        const res = await fetch(`/api/vales/${vale.id}/cancelar`, { method: 'POST' });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        window.toast.success('Vale rechazado', `${vale.correlativo} rechazado.`);
-        cerrar();
-        cargarBuzon();
-      } catch (error) {
-        mostrarErrorModal(overlay, error.message);
-      }
-    });
-
-    const campoMotivo = overlay.querySelector('#campo-motivo-correccion');
-    const btnCorreccion = overlay.querySelector('#btn-solicitar-correccion');
-    btnCorreccion.addEventListener('click', async () => {
+    const campoMotivo = overlay.querySelector('#campo-motivo-rechazo');
+    const btnRechazar = overlay.querySelector('#btn-rechazar');
+    btnRechazar.addEventListener('click', async () => {
       if (campoMotivo.style.display === 'none') {
         campoMotivo.style.display = 'flex';
-        btnCorreccion.textContent = 'Enviar Corrección';
+        btnRechazar.textContent = 'Enviar Rechazo';
         return;
       }
-      const motivo = overlay.querySelector('#input-motivo-correccion').value.trim();
+      const motivo = overlay.querySelector('#input-motivo-rechazo').value.trim();
       if (!motivo) {
-        mostrarErrorModal(overlay, 'Debe indicar el motivo de la corrección.');
+        mostrarErrorModal(overlay, 'Debe indicar el motivo del rechazo.');
         return;
       }
       try {
@@ -1094,7 +1131,7 @@
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        window.toast.success('Corrección solicitada', `${vale.correlativo} regresó a los talleres para corrección.`);
+        window.toast.success('Vale rechazado', `${vale.correlativo} regresó al Encargado General para corrección.`);
         cerrar();
         cargarBuzon();
       } catch (error) {

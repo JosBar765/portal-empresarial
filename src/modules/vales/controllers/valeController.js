@@ -85,7 +85,7 @@ class ValeController {
 
   async detalle(req, res) {
     try {
-      const data = await valeService.obtenerDetalle(Number(req.params.id));
+      const data = await valeService.obtenerDetalle(req.user, Number(req.params.id));
       return res.json(data);
     } catch (error) {
       return res.status(404).json({ error: error.message });
@@ -94,7 +94,7 @@ class ValeController {
 
   async descargarPdf(req, res) {
     try {
-      const vale = await valeService.obtenerDetalle(Number(req.params.id));
+      const vale = await valeService.obtenerDetalle(req.user, Number(req.params.id));
       if (!vale.pdf_url) {
         return res.status(404).json({ error: 'El PDF de este vale aún no ha sido generado.' });
       }
@@ -160,7 +160,11 @@ class ValeController {
 
   async aprobarGeneral(req, res) {
     try {
-      const vale = await valeService.aprobarGeneral(req.user, Number(req.params.id));
+      const archivo = req.files && req.files.fusion ? req.files.fusion[0] : null;
+      if (archivo && archivo.mimetype !== 'application/pdf') {
+        throw new Error('El documento de fusión debe adjuntarse en formato PDF.');
+      }
+      const vale = await valeService.aprobarGeneral(req.user, Number(req.params.id), archivo);
       return res.json(vale);
     } catch (error) {
       return res.status(400).json({ error: error.message });
@@ -170,15 +174,6 @@ class ValeController {
   async confirmar(req, res) {
     try {
       const vale = await valeService.confirmarRecibido(req.user, Number(req.params.id));
-      return res.json(vale);
-    } catch (error) {
-      return res.status(400).json({ error: error.message });
-    }
-  }
-
-  async cancelar(req, res) {
-    try {
-      const vale = await valeService.rechazarVale(req.user, Number(req.params.id));
       return res.json(vale);
     } catch (error) {
       return res.status(400).json({ error: error.message });

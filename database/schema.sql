@@ -247,9 +247,9 @@ CREATE TABLE IF NOT EXISTS `talleres` (
   FOREIGN KEY (`encargado_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Enum de estados del vale de arte (nivel general, ver analisis_correcciones_3.md):
--- CREADO, APROBADO_DEPARTAMENTO, PENDIENTE_CONFIRMACION, RECIBIDO, RECHAZADO,
--- EN_CORRECCION, SOLICITANDO_MODIFICACION, MODIFICADO
+-- Enum de estados del vale de arte (nivel general, ver analisis_correcciones_3.md
+-- y analisis_correcciones_4.md #3): CREADO, APROBADO_DEPARTAMENTO,
+-- PENDIENTE_CONFIRMACION, RECIBIDO, EN_CORRECCION, SOLICITANDO_MODIFICACION, MODIFICADO
 -- El progreso interno por taller (asignación/proceso/revisión) vive en `vale_talleres`,
 -- no aquí — un vale con 2+ talleres puede tener uno EN_PROCESO y otro recién CREADO
 -- a la vez, algo que una sola columna de estado no puede representar.
@@ -281,10 +281,14 @@ CREATE TABLE IF NOT EXISTS `vales` (
   `descripcion_original`         TEXT DEFAULT NULL COMMENT 'Snapshot de la descripción previa a la única modificación permitida',
   `pdf_url`                      TEXT DEFAULT NULL COMMENT 'URL del PDF generado, nunca se guarda el binario en BD',
   `tiene_adjuntos`               TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Marcado manualmente por el técnico al imprimir; ya no se calcula',
+  `propuesta_general_url`        TEXT DEFAULT NULL COMMENT 'Documento final "oficial" del vale: la propuesta del único taller si hubo uno solo, o el documento de fusión subido por el Encargado General si hubo varios (analisis_correcciones_4.md #1/#11)',
   -- Control de Modificaciones
   `modificado`                   INT NOT NULL DEFAULT 0 COMMENT 'Máx 1 permitida',
   `justificacion_modificacion`   TEXT DEFAULT NULL,
-  `estado` ENUM('CREADO','APROBADO_DEPARTAMENTO','PENDIENTE_CONFIRMACION','RECIBIDO','RECHAZADO','EN_CORRECCION','SOLICITANDO_MODIFICACION','MODIFICADO') NOT NULL DEFAULT 'CREADO',
+  -- RECHAZADO ya no es un estado persistido (analisis_correcciones_4.md #3): rechazar
+  -- un vale PENDIENTE_CONFIRMACION lo manda a EN_CORRECCION (buzón del Encargado
+  -- General); el rechazo queda registrado únicamente en vale_historial.
+  `estado` ENUM('CREADO','APROBADO_DEPARTAMENTO','PENDIENTE_CONFIRMACION','RECIBIDO','EN_CORRECCION','SOLICITANDO_MODIFICACION','MODIFICADO') NOT NULL DEFAULT 'CREADO',
   `creado_en`                    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `actualizado_en`               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`asesor_id`)         REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -383,17 +387,24 @@ CREATE TABLE IF NOT EXISTS `vale_documentos` (
   INDEX `idx_documentos_vale` (`vale_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Historial/trazabilidad de cada cambio de estado de un vale
+-- Historial/trazabilidad de cada cambio de estado de un vale.
+-- `taller_id` es NULL para eventos de nivel de vale (creación, aprobación general,
+-- confirmación, rechazo, modificación — visibles para todos los roles con acceso al
+-- vale); se llena con el taller correspondiente para eventos internos de un taller
+-- (asignar/comenzar/entregar/revisar) — un encargado o técnico de OTRO taller no debe
+-- ver esos eventos (analisis_correcciones_4.md #12).
 CREATE TABLE IF NOT EXISTS `vale_historial` (
   `id`              INT AUTO_INCREMENT PRIMARY KEY,
   `vale_id`         INT NOT NULL,
   `usuario_id`      INT NOT NULL,
+  `taller_id`       INT DEFAULT NULL,
   `estado_anterior` VARCHAR(50) DEFAULT NULL,
   `estado_nuevo`    VARCHAR(50) NOT NULL,
   `accion`          VARCHAR(150) NOT NULL,
   `creado_en`       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`taller_id`)  REFERENCES `talleres` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   INDEX `idx_historial_vale` (`vale_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -441,10 +452,10 @@ INSERT INTO `vales` (`id`, `correlativo`, `asesor_id`, `localidad_id`, `vale_ori
 (6,  'GUA-3-0006', 3, 1, NULL, '2026-08-10', '13:00:00', '2026-08-15 17:00:00', '2026-08-16 09:00:00', 0, 'Copa MundiTrofeos', 'Diego Alvarado', '+502 5555-6666', 'diego.alvarado@copamt.com', 1, 2, 'Grabado Láser', 'Brillante', 100, 3200.00, 'Trofeos + banners UV de premiación Copa MundiTrofeos.', 0, 'APROBADO_DEPARTAMENTO'),
 (7,  'GUA-3-0007', 3, 1, NULL, '2026-08-09', '15:30:00', '2026-08-16 17:00:00', '2026-08-17 09:00:00', 0, 'Cliente particular', 'Sofía Ramírez', '+502 5555-7777', 'sofia.ramirez@correo.com', 2, 1, 'Sublimación', 'Mate', 40, 450.00, 'Medallas para evento escolar.', 0, 'PENDIENTE_CONFIRMACION'),
 (8,  'GUA-3-0008', 3, 1, NULL, '2026-08-05', '10:00:00', '2026-08-12 17:00:00', '2026-08-13 09:00:00', 0, 'Torneo Regional', 'Pedro Sandoval', '+502 5555-8888', 'pedro.sandoval@torneoreg.com', 1, 3, 'Grabado Láser', 'Satinado', 60, 1800.00, 'Trofeos de torneo regional, entregados.', 1, 'RECIBIDO'),
-(9,  'GUA-3-0009', 3, 1, NULL, '2026-08-04', '14:00:00', '2026-08-11 17:00:00', '2026-08-12 09:00:00', 0, 'Cliente particular', 'Elena Castillo', '+502 5555-9999', 'elena.castillo@correo.com', 3, 2, 'Impresión UV', 'Mate', 20, 700.00, 'Placas — cliente rechazó la venta.', 0, 'RECHAZADO'),
+(9,  'GUA-3-0009', 3, 1, NULL, '2026-08-04', '14:00:00', '2026-08-11 17:00:00', '2026-08-12 09:00:00', 0, 'Cliente particular', 'Elena Castillo', '+502 5555-9999', 'elena.castillo@correo.com', 3, 2, 'Impresión UV', 'Mate', 20, 700.00, 'Placas — asesor rechazó el resultado final, en espera de nueva fusión del Encargado General.', 0, 'EN_CORRECCION'),
 (10, 'GUA-3-0010', 3, 1, NULL, '2026-07-30', '09:00:00', '2026-08-08 17:00:00', '2026-08-09 09:00:00', 0, 'Club Deportivo Antigua', 'Roberto Mejía', '+502 5555-1010', 'roberto.mejia@cdantigua.com', 1, 1, 'Grabado Láser', 'Brillante', 80, 2500.00, 'Trofeos de campeonato — modificación de acabado en curso.', 0, 'SOLICITANDO_MODIFICACION'),
 (11, 'GUA-3-0011', 3, 1, NULL, '2026-08-06', '16:00:00', '2026-08-14 17:00:00', '2026-08-15 09:00:00', 0, 'Asociación Escolar', 'Marta Solís', '+502 5555-1111', 'marta.solis@asocescolar.edu', 2, 4, 'Sublimación', 'Satinado', 25, 620.00, 'Medallas — asesor solicitó corrección tras revisar el resultado final.', 0, 'EN_CORRECCION'),
-(12, 'MOD-GUA-3-0008', 3, 1, 8, '2026-08-20', '11:00:00', '2026-08-27 17:00:00', '2026-08-28 09:00:00', 0, 'Torneo Regional', 'Pedro Sandoval', '+502 5555-8888', 'pedro.sandoval@torneoreg.com', 1, 3, 'Grabado Láser', 'Brillante', 60, 1800.00, '', 0, 'MODIFICADO');
+(12, 'MOD-GUA-3-0008', 3, 1, 8, '2026-08-20', '11:00:00', '2026-08-27 17:00:00', '2026-08-28 09:00:00', 0, 'Torneo Regional', 'Pedro Sandoval', '+502 5555-8888', 'pedro.sandoval@torneoreg.com', 1, 3, 'Grabado Láser', 'Brillante', 60, 1800.00, 'El cliente solicitó cambiar el acabado de satinado a brillante para hacer juego con el resto del set de premiación.', 0, 'MODIFICADO');
 
 -- vale_talleres: progreso por taller de cada vale (reemplaza vale_asignaciones)
 INSERT INTO `vale_talleres` (`vale_id`, `taller_id`, `tecnico_id`, `estado`, `fecha_asignacion`, `activo`) VALUES
@@ -460,7 +471,7 @@ INSERT INTO `vale_talleres` (`vale_id`, `taller_id`, `tecnico_id`, `estado`, `fe
 (8,  1, 7,    'APROBADO',    '2026-08-05 12:00:00', 1),
 (9,  1, 8,    'APROBADO',    '2026-08-04 15:00:00', 1),
 (10, 1, 7,    'APROBADO',    '2026-07-30 10:00:00', 1),
-(11, 1, 8,    'ASIGNADO',    '2026-08-14 09:00:00', 1),   -- GUA-3-0011 reabierto para corrección
+(11, 1, 8,    'APROBADO',    '2026-08-13 15:00:00', 1),   -- GUA-3-0011: el taller no se reabre al rechazar (analisis_correcciones_4.md #2), solo el vale vuelve a EN_CORRECCION
 (12, 1, NULL, 'PENDIENTE_ASIGNACION', NULL, 1);
 
 INSERT INTO `vale_propuestas` (`vale_id`, `tecnico_id`, `url`, `es_cancelacion`, `fecha_subida`) VALUES
@@ -476,46 +487,45 @@ INSERT INTO `vale_propuestas` (`vale_id`, `tecnico_id`, `url`, `es_cancelacion`,
 INSERT INTO `vale_solicitudes_modificacion` (`vale_original_id`, `asesor_id`, `fecha_entrega`, `fecha_evento`, `urgente`, `cliente_empresa`, `cliente_nombre`, `cliente_telefono`, `cliente_correo`, `producto_id`, `material_id`, `tecnica`, `acabado`, `cantidad`, `cotizacion`, `talleres_ids`, `justificacion`, `estado`) VALUES
 (10, 3, '2026-08-08 17:00:00', '2026-08-09 09:00:00', 0, 'Club Deportivo Antigua', 'Roberto Mejía', '+502 5555-1010', 'roberto.mejia@cdantigua.com', 1, 1, 'Grabado Láser', 'Mate', 80, 2500.00, '1', 'El cliente pidió cambiar el acabado de brillante a mate.', 'PENDIENTE');
 
-INSERT INTO `vale_historial` (`vale_id`, `usuario_id`, `estado_anterior`, `estado_nuevo`, `accion`) VALUES
-(1, 3, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
-(2, 3, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
-(2, 5, 'PENDIENTE_ASIGNACION', 'ASIGNADO', 'Encargado de Diseño asignó a Técnico Diseño A'),
-(3, 3, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
-(3, 5, 'PENDIENTE_ASIGNACION', 'ASIGNADO', 'Encargado de Diseño asignó a Técnico Diseño A'),
-(3, 7, 'ASIGNADO', 'EN_PROCESO', 'Técnico marcó el vale como en proceso'),
-(4, 3, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
-(4, 5, 'PENDIENTE_ASIGNACION', 'ASIGNADO', 'Encargado de Diseño asignó a Técnico Diseño B'),
-(4, 8, 'ASIGNADO', 'EN_PROCESO', 'Técnico marcó el vale como en proceso'),
-(4, 8, 'EN_PROCESO', 'EN_REVISION', 'Técnico entregó propuesta'),
-(5, 3, NULL, 'CREADO', 'Vale de arte creado por el asesor (talleres: Diseño, Diseño UV/3D)'),
-(5, 6, 'PENDIENTE_ASIGNACION', 'ASIGNADO', 'Encargado UV/3D asignó a Técnico UV/3D C'),
-(5, 9, 'EN_PROCESO', 'EN_REVISION', 'Técnico UV/3D entregó propuesta'),
-(5, 6, 'EN_REVISION', 'APROBADO', 'Encargado UV/3D aprobó la propuesta de su taller'),
-(6, 3, NULL, 'CREADO', 'Vale de arte creado por el asesor (talleres: Diseño, Diseño UV/3D)'),
-(6, 5, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta de su taller'),
-(6, 6, 'EN_REVISION', 'APROBADO', 'Encargado UV/3D aprobó la propuesta de su taller'),
-(6, 3, 'CREADO', 'APROBADO_DEPARTAMENTO', 'Ambos talleres aprobaron — pendiente de fusión por Encargado General'),
-(7, 3, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
-(7, 5, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta'),
-(7, 3, 'CREADO', 'PENDIENTE_CONFIRMACION', 'Único taller aprobado — pasa directo a confirmación del asesor'),
-(8, 3, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
-(8, 5, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta'),
-(8, 3, 'CREADO', 'PENDIENTE_CONFIRMACION', 'Único taller aprobado — pasa directo a confirmación del asesor'),
-(8, 3, 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'Asesor confirmó de recibido el vale de arte'),
-(9, 3, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
-(9, 5, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta'),
-(9, 3, 'CREADO', 'PENDIENTE_CONFIRMACION', 'Único taller aprobado — pasa directo a confirmación del asesor'),
-(9, 3, 'PENDIENTE_CONFIRMACION', 'RECHAZADO', 'Asesor rechazó el vale de arte'),
-(10, 3, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
-(10, 5, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta'),
-(10, 3, 'CREADO', 'PENDIENTE_CONFIRMACION', 'Único taller aprobado — pasa directo a confirmación del asesor'),
-(10, 3, 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'Asesor confirmó de recibido el vale de arte'),
-(10, 3, 'RECIBIDO', 'SOLICITANDO_MODIFICACION', 'Asesor solicitó modificación de acabado'),
-(11, 3, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
-(11, 5, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta'),
-(11, 3, 'CREADO', 'PENDIENTE_CONFIRMACION', 'Único taller aprobado — pasa directo a confirmación del asesor'),
-(11, 3, 'PENDIENTE_CONFIRMACION', 'EN_CORRECCION', 'Asesor solicitó una corrección tras revisar el resultado final'),
-(11, 5, 'EN_CORRECCION', 'EN_CORRECCION', 'Encargado de Diseño reasignó a Técnico Diseño B para la corrección'),
-(12, 4, NULL, 'MODIFICADO', 'Supervisor aprobó la solicitud de modificación — se creó el vale MOD-GUA-3-0008');
+INSERT INTO `vale_historial` (`vale_id`, `usuario_id`, `taller_id`, `estado_anterior`, `estado_nuevo`, `accion`) VALUES
+(1, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
+(2, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
+(2, 5, 1, 'PENDIENTE_ASIGNACION', 'ASIGNADO', 'Encargado de Diseño asignó a Técnico Diseño A'),
+(3, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
+(3, 5, 1, 'PENDIENTE_ASIGNACION', 'ASIGNADO', 'Encargado de Diseño asignó a Técnico Diseño A'),
+(3, 7, 1, 'ASIGNADO', 'EN_PROCESO', 'Técnico marcó el vale como en proceso'),
+(4, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
+(4, 5, 1, 'PENDIENTE_ASIGNACION', 'ASIGNADO', 'Encargado de Diseño asignó a Técnico Diseño B'),
+(4, 8, 1, 'ASIGNADO', 'EN_PROCESO', 'Técnico marcó el vale como en proceso'),
+(4, 8, 1, 'EN_PROCESO', 'EN_REVISION', 'Técnico entregó propuesta'),
+(5, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (talleres: Diseño, Diseño UV/3D)'),
+(5, 6, 2, 'PENDIENTE_ASIGNACION', 'ASIGNADO', 'Encargado UV/3D asignó a Técnico UV/3D C'),
+(5, 9, 2, 'EN_PROCESO', 'EN_REVISION', 'Técnico UV/3D entregó propuesta'),
+(5, 6, 2, 'EN_REVISION', 'APROBADO', 'Encargado UV/3D aprobó la propuesta de su taller'),
+(6, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (talleres: Diseño, Diseño UV/3D)'),
+(6, 5, 1, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta de su taller'),
+(6, 6, 2, 'EN_REVISION', 'APROBADO', 'Encargado UV/3D aprobó la propuesta de su taller'),
+(6, 3, NULL, 'CREADO', 'APROBADO_DEPARTAMENTO', 'Ambos talleres aprobaron — pendiente de fusión por Encargado General'),
+(7, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
+(7, 5, 1, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta'),
+(7, 3, NULL, 'CREADO', 'PENDIENTE_CONFIRMACION', 'Único taller aprobado — pasa directo a confirmación del asesor'),
+(8, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
+(8, 5, 1, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta'),
+(8, 3, NULL, 'CREADO', 'PENDIENTE_CONFIRMACION', 'Único taller aprobado — pasa directo a confirmación del asesor'),
+(8, 3, NULL, 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'Asesor confirmó de recibido el vale de arte'),
+(9, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
+(9, 5, 1, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta'),
+(9, 3, NULL, 'CREADO', 'PENDIENTE_CONFIRMACION', 'Único taller aprobado — pasa directo a confirmación del asesor'),
+(9, 3, NULL, 'PENDIENTE_CONFIRMACION', 'EN_CORRECCION', 'Asesor rechazó el vale de arte: el cliente pidió ajustar el grabado'),
+(10, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
+(10, 5, 1, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta'),
+(10, 3, NULL, 'CREADO', 'PENDIENTE_CONFIRMACION', 'Único taller aprobado — pasa directo a confirmación del asesor'),
+(10, 3, NULL, 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'Asesor confirmó de recibido el vale de arte'),
+(10, 3, NULL, 'RECIBIDO', 'SOLICITANDO_MODIFICACION', 'Asesor solicitó modificación de acabado'),
+(11, 3, NULL, NULL, 'CREADO', 'Vale de arte creado por el asesor (taller: Diseño)'),
+(11, 5, 1, 'EN_REVISION', 'APROBADO', 'Encargado de Diseño aprobó la propuesta'),
+(11, 3, NULL, 'CREADO', 'PENDIENTE_CONFIRMACION', 'Único taller aprobado — pasa directo a confirmación del asesor'),
+(11, 3, NULL, 'PENDIENTE_CONFIRMACION', 'EN_CORRECCION', 'Asesor rechazó el vale de arte: el logo quedó descentrado'),
+(12, 4, NULL, NULL, 'MODIFICADO', 'Supervisor aprobó la solicitud de modificación — se creó el vale MOD-GUA-3-0008');
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -47,10 +47,6 @@ class ValeTallerRepository {
   async actualizarEstado(id, estado) {
     await db.query('UPDATE vale_talleres SET estado = ? WHERE id = ?', [estado, id], 'vale_taller:update_estado');
   }
-
-  async reabrir(id) {
-    await db.query("UPDATE vale_talleres SET estado = 'PENDIENTE_ASIGNACION', tecnico_id = NULL WHERE id = ?", [id], 'vale_taller:reabrir');
-  }
 }
 
 module.exports = new ValeTallerRepository();

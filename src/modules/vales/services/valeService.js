@@ -16,17 +16,25 @@ const valeEvents = require('../events');
 // El progreso DENTRO de cada taller (asignación/proceso/revisión/aprobado) vive en
 // `vale_talleres`, no aquí — un vale con 2+ talleres puede tener uno EN_PROCESO y
 // otro recién CREADO a la vez, algo que esta única columna no puede representar.
+// RECHAZADO ya no es un estado persistido (analisis_correcciones_4.md #3): es una
+// ACCIÓN que lleva el vale a EN_CORRECCION (buzón del Encargado General) — el rechazo
+// en sí solo queda registrado en el historial, nunca como `vale.estado` vigente.
 const ESTADOS = {
   CREADO: 'CREADO',
   APROBADO_DEPARTAMENTO: 'APROBADO_DEPARTAMENTO',
   PENDIENTE_CONFIRMACION: 'PENDIENTE_CONFIRMACION',
   RECIBIDO: 'RECIBIDO',
-  RECHAZADO: 'RECHAZADO',
   EN_CORRECCION: 'EN_CORRECCION',
   SOLICITANDO_MODIFICACION: 'SOLICITANDO_MODIFICACION',
   MODIFICADO: 'MODIFICADO'
 };
-const ESTADOS_TERMINALES = [ESTADOS.RECIBIDO, ESTADOS.RECHAZADO];
+const ESTADOS_TERMINALES = [ESTADOS.RECIBIDO];
+// El asesor no debe "perder" un vale de la vista de trabajo realizado solo porque
+// solicitó una modificación sobre él (analisis_correcciones_4.md #13): el vale ya fue
+// confirmado y ese hecho se conserva mientras la solicitud está en curso — la tabla de
+// auditoría (vale_historial) nunca se toca, pero además la UI no debe "esconder" el
+// registro de confirmación mientras tanto.
+const ESTADOS_CONFIRMADOS = [ESTADOS.RECIBIDO, ESTADOS.SOLICITANDO_MODIFICACION];
 
 // Estado de un vale DENTRO de un taller específico (tabla vale_talleres).
 const ESTADOS_TALLER = {
@@ -57,7 +65,7 @@ function sumarDias(fechaISO, dias) {
 
 /**
  * El atraso es una CONDICIÓN calculada, nunca un estado persistido.
- * Para vales cerrados (RECIBIDO/RECHAZADO) se congela al momento del cierre
+ * Para vales cerrados (RECIBIDO) se congela al momento del cierre
  * (`actualizado_en`) para que el histórico siga mostrando cuánto se atrasó;
  * para el resto se calcula contra la hora actual porque el atraso sigue corriendo.
  */
@@ -90,16 +98,16 @@ function estadoVisibleAsesor(vale) {
       case ESTADOS.MODIFICADO: return 'MODIFICADO';
       case ESTADOS.PENDIENTE_CONFIRMACION: return 'PENDIENTE_CONFIRMACION';
       case ESTADOS.RECIBIDO: return 'CONFIRMADO';
-      case ESTADOS.RECHAZADO: return 'RECHAZADO';
-      default: return 'MODIFICADO'; // CREADO / APROBADO_DEPARTAMENTO / EN_CORRECCION de un vale MOD-
+      case ESTADOS.EN_CORRECCION: return 'EN_CORRECCION';
+      default: return 'MODIFICADO'; // CREADO / APROBADO_DEPARTAMENTO de un vale MOD-
     }
   }
   switch (vale.estado) {
     case ESTADOS.SOLICITANDO_MODIFICACION: return 'SOLICITANDO_MODIFICACION';
     case ESTADOS.PENDIENTE_CONFIRMACION: return 'PENDIENTE_CONFIRMACION';
     case ESTADOS.RECIBIDO: return 'CONFIRMADO';
-    case ESTADOS.RECHAZADO: return 'RECHAZADO';
-    default: return 'CREADO'; // CREADO / APROBADO_DEPARTAMENTO / EN_CORRECCION
+    case ESTADOS.EN_CORRECCION: return 'EN_CORRECCION';
+    default: return 'CREADO'; // CREADO / APROBADO_DEPARTAMENTO
   }
 }
 
@@ -193,8 +201,11 @@ function calcularUrgente(fechaEntregaNorm, urgentePayload) {
   return esVerdadero(urgentePayload);
 }
 
-async function registrarHistorial(valeId, usuarioId, estadoAnterior, estadoNuevo, accion) {
-  await historialRepository.registrar(valeId, usuarioId, estadoAnterior, estadoNuevo, accion);
+// `tallerId` es NULL para eventos de nivel de vale (visibles para todos los roles con
+// acceso al vale); se pasa cuando el evento es interno de UN taller específico
+// (asignar/comenzar/entregar/revisar) — ver analisis_correcciones_4.md #12.
+async function registrarHistorial(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion) {
+  await historialRepository.registrar(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion);
 }
 
 function esAdministrador(usuario) {
@@ -304,7 +315,7 @@ class ValeService {
       await valeRepository.actualizarTieneAdjuntos(valeId, true);
     }
     const nombresTalleres = await this._nombresDeTalleres(datos.talleresIds);
-    await registrarHistorial(valeId, usuario.id, null, ESTADOS.CREADO, `Vale de arte creado por el asesor (taller${datos.talleresIds.length > 1 ? 'es' : ''}: ${nombresTalleres})`);
+    await registrarHistorial(valeId, usuario.id, null, null, ESTADOS.CREADO, `Vale de arte creado por el asesor (taller${datos.talleresIds.length > 1 ? 'es' : ''}: ${nombresTalleres})`);
     await this._regenerarPdf(valeId);
 
     const vale = await valeRepository.obtenerPorId(valeId);
@@ -430,7 +441,7 @@ class ValeService {
   // -----------------------------------------------------------------------
   // Detalle
   // -----------------------------------------------------------------------
-  async obtenerDetalle(valeId) {
+  async obtenerDetalle(usuario, valeId) {
     const vale = await valeRepository.obtenerPorId(valeId);
     if (!vale) throw new Error('Vale de arte no encontrado.');
     const [talleres, propuestas, documentos, historial] = await Promise.all([
@@ -441,7 +452,39 @@ class ValeService {
     ]);
     const talleresConNombre = await this._enriquecerTalleresConNombre(talleres);
     const historialConActor = await this._enriquecerHistorialConActor(historial);
-    return { ...enriquecer(vale), talleres: talleresConNombre, propuestas, documentos, historial: historialConActor };
+    const historialVisible = await this._filtrarHistorialPorRol(usuario, historialConActor);
+    return { ...enriquecer(vale), talleres: talleresConNombre, propuestas, documentos, historial: historialVisible };
+  }
+
+  // El asesor solo ve sus 4/5 estados lógicos, nunca el detalle interno de cada taller
+  // (analisis_correcciones_4.md #4); un encargado o técnico solo ve lo que pasó DENTRO
+  // de su propio taller, no lo que hicieron otros talleres del mismo vale (#12).
+  // Administrador, Supervisor y Encargado General siguen viendo todo.
+  async _filtrarHistorialPorRol(usuario, historial) {
+    if (!usuario) return historial;
+    if (usuario.rolId === 3) {
+      return historial.filter(h => !ESTADOS_TALLER[h.estado_nuevo]);
+    }
+    if ([5, 6, 7].includes(usuario.rolId)) {
+      const tallerVisible = await this._tallerIdVisiblePara(usuario);
+      if (!tallerVisible) return [];
+      return historial.filter(h => h.taller_id === null || h.taller_id === tallerVisible);
+    }
+    return historial;
+  }
+
+  async _tallerIdVisiblePara(usuario) {
+    const talleres = await tallerRepository.listarActivos();
+    if (usuario.rolId === 5 || usuario.rolId === 6) {
+      const propio = talleres.find(t => t.encargado_id === usuario.id);
+      return propio ? propio.id : null;
+    }
+    if (usuario.rolId === 7) {
+      const tecnico = await usuarioValeRepository.obtenerPorId(usuario.id);
+      const propio = tecnico && tecnico.encargado_id ? talleres.find(t => t.encargado_id === tecnico.encargado_id) : null;
+      return propio ? propio.id : null;
+    }
+    return null;
   }
 
   async _enriquecerTalleresConNombre(talleres) {
@@ -568,7 +611,6 @@ class ValeService {
       total: vales.length,
       atrasados: vales.filter(v => v.atrasado).length,
       recibidosHoy: vales.filter(v => v.estado === ESTADOS.RECIBIDO && esHoy(v.actualizado_en)).length,
-      rechazadosHoy: vales.filter(v => v.estado === ESTADOS.RECHAZADO && esHoy(v.actualizado_en)).length,
       pendientesConfirmacion: vales.filter(v => v.estado === ESTADOS.PENDIENTE_CONFIRMACION).length,
       aprobadoDepartamento: vales.filter(v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO).length
     };
@@ -601,23 +643,23 @@ class ValeService {
     return { vales, contadores };
   }
 
-  // ---- Asesor: sidebar Trabajo realizado (confirmados/rechazados, orden por fecha) ----
+  // ---- Asesor: sidebar Trabajo realizado (confirmados, orden por fecha) ----
+  // Un vale confirmado permanece visible aquí incluso mientras tiene una modificación
+  // en curso (ESTADOS_CONFIRMADOS incluye SOLICITANDO_MODIFICACION) — solicitar una
+  // modificación no debe "borrar" el registro de que ya fue confirmado
+  // (analisis_correcciones_4.md #13; el historial completo vive en vale_historial).
   _trabajoAsesor(usuario, todos, ventana, filtroContador) {
     const propios = todos.filter(v => v.asesor_id === usuario.id).map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v) }));
-    const cerrados = propios.filter(v => ESTADOS_TERMINALES.includes(v.estado));
+    const cerrados = propios.filter(v => ESTADOS_CONFIRMADOS.includes(v.estado));
     const enVentana = cerrados.filter(v => dentroDeVentana(v, ventana));
 
     const contadores = {
-      totalRecibidos: enVentana.filter(v => v.estado === ESTADOS.RECIBIDO).length,
-      totalRechazados: enVentana.filter(v => v.estado === ESTADOS.RECHAZADO).length,
-      recibidosHoy: enVentana.filter(v => v.estado === ESTADOS.RECIBIDO && esHoy(v.actualizado_en)).length,
-      rechazadosHoy: enVentana.filter(v => v.estado === ESTADOS.RECHAZADO && esHoy(v.actualizado_en)).length
+      totalRecibidos: enVentana.length,
+      recibidosHoy: enVentana.filter(v => esHoy(v.actualizado_en)).length
     };
     const predicados = {
-      totalRecibidos: v => v.estado === ESTADOS.RECIBIDO,
-      totalRechazados: v => v.estado === ESTADOS.RECHAZADO,
-      recibidosHoy: v => v.estado === ESTADOS.RECIBIDO && esHoy(v.actualizado_en),
-      rechazadosHoy: v => v.estado === ESTADOS.RECHAZADO && esHoy(v.actualizado_en)
+      totalRecibidos: () => true,
+      recibidosHoy: v => esHoy(v.actualizado_en)
     };
     const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, predicados);
     return { vales: ordenarPorFecha(filtrados), contadores };
@@ -657,29 +699,28 @@ class ValeService {
     return { vales, contadores };
   }
 
-  // ---- Supervisor: sidebar Trabajo realizado (recibidos/rechazados, orden por fecha) ----
+  // ---- Supervisor: sidebar Trabajo realizado (recibidos, orden por fecha) ----
+  // Mismo criterio que _trabajoAsesor: una modificación en curso no saca al vale de
+  // esta vista (analisis_correcciones_4.md #13).
   _trabajoSupervisor(todos, ventana, filtroContador) {
-    const cerrados = todos.filter(v => ESTADOS_TERMINALES.includes(v.estado));
+    const cerrados = todos.filter(v => ESTADOS_CONFIRMADOS.includes(v.estado));
     const enVentana = cerrados.filter(v => dentroDeVentana(v, ventana));
     const contadores = {
-      valesRecibidosHoy: enVentana.filter(v => v.estado === ESTADOS.RECIBIDO && esHoy(v.actualizado_en)).length,
-      valesRechazadosHoy: enVentana.filter(v => v.estado === ESTADOS.RECHAZADO && esHoy(v.actualizado_en)).length,
-      totalRecibidos: enVentana.filter(v => v.estado === ESTADOS.RECIBIDO).length,
-      totalRechazados: enVentana.filter(v => v.estado === ESTADOS.RECHAZADO).length
+      valesRecibidosHoy: enVentana.filter(v => esHoy(v.actualizado_en)).length,
+      totalRecibidos: enVentana.length
     };
     const predicados = {
-      valesRecibidosHoy: v => v.estado === ESTADOS.RECIBIDO && esHoy(v.actualizado_en),
-      valesRechazadosHoy: v => v.estado === ESTADOS.RECHAZADO && esHoy(v.actualizado_en),
-      totalRecibidos: v => v.estado === ESTADOS.RECIBIDO,
-      totalRechazados: v => v.estado === ESTADOS.RECHAZADO
+      valesRecibidosHoy: v => esHoy(v.actualizado_en),
+      totalRecibidos: () => true
     };
     const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, predicados);
     return { vales: ordenarPorFecha(filtrados), contadores };
   }
 
-  // ---- Encargado General / Asistente: vales multi-taller listos para fusión ----
+  // ---- Encargado General / Asistente: vales multi-taller listos para fusión, más
+  // los que el asesor rechazó (EN_CORRECCION cae aquí, no de vuelta a los talleres) ----
   _buzonEncargadoGeneral(todos, ventana, filtroContador) {
-    const visibles = todos.filter(v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO);
+    const visibles = todos.filter(v => [ESTADOS.APROBADO_DEPARTAMENTO, ESTADOS.EN_CORRECCION].includes(v.estado));
     const enVentana = visibles.filter(v => dentroDeVentana(v, ventana));
     const contadores = { pendientesFusion: enVentana.length, atrasados: enVentana.filter(v => v.atrasado).length };
     const predicados = { atrasados: v => v.atrasado };
@@ -890,7 +931,7 @@ class ValeService {
       await valeTallerRepository.asignar(fila.id, tecnicoId, `${hoyISO()} ${horaActual()}`);
       const tecnico = await usuarioValeRepository.obtenerPorId(tecnicoId);
       const taller = await tallerRepository.obtenerPorId(fila.taller_id);
-      await registrarHistorial(valeId, usuario.id, ESTADOS_TALLER.PENDIENTE_ASIGNACION, ESTADOS_TALLER.ASIGNADO,
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.PENDIENTE_ASIGNACION, ESTADOS_TALLER.ASIGNADO,
         `Asignado al técnico ${tecnico ? tecnico.nombre : tecnicoId} (taller ${taller ? taller.nombre : fila.taller_id})`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificarCambioEstado(actualizado, ['tecnico:' + tecnicoId]);
@@ -913,7 +954,7 @@ class ValeService {
         }
       }
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PROCESO);
-      await registrarHistorial(valeId, usuario.id, ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, 'Técnico marcó el vale como en proceso');
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, 'Técnico marcó el vale como en proceso');
       const actualizado = await valeRepository.obtenerPorId(valeId);
       // Sin notificación: marcar "en proceso" no debe sonar ni del lado del técnico ni del encargado.
       return enriquecer(actualizado);
@@ -947,7 +988,7 @@ class ValeService {
       }
       await propuestaRepository.crear(valeId, usuario.id, url, false, `${hoyISO()} ${horaActual()}`);
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_REVISION);
-      await registrarHistorial(valeId, usuario.id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, 'Técnico entregó propuesta');
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, 'Técnico entregó propuesta');
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificarCambioEstado(actualizado, [`taller:${fila.taller_id}`]);
       return enriquecer(actualizado);
@@ -963,7 +1004,7 @@ class ValeService {
       }
       await propuestaRepository.crear(valeId, usuario.id, null, true, `${hoyISO()} ${horaActual()}`);
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_REVISION);
-      await registrarHistorial(valeId, usuario.id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, 'Técnico canceló el proceso (propuesta en blanco)');
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, 'Técnico canceló el proceso (propuesta en blanco)');
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificarCambioEstado(actualizado, [`taller:${fila.taller_id}`]);
       return enriquecer(actualizado);
@@ -984,7 +1025,7 @@ class ValeService {
         }
         await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.APROBADO);
         const taller = await tallerRepository.obtenerPorId(fila.taller_id);
-        await registrarHistorial(valeId, usuario.id, ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO,
+        await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO,
           `Encargado de ${taller ? taller.nombre : fila.taller_id} aprobó la propuesta de su taller`);
         await this._recalcularEstadoVale(valeId, usuario.id);
         const actualizado = await valeRepository.obtenerPorId(valeId);
@@ -1006,7 +1047,7 @@ class ValeService {
       }
       await valeTallerRepository.asignar(fila.id, tecnicoReasignadoId, `${hoyISO()} ${horaActual()}`);
       const tecnico = await usuarioValeRepository.obtenerPorId(tecnicoReasignadoId);
-      await registrarHistorial(valeId, usuario.id, ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.ASIGNADO,
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.ASIGNADO,
         `Encargado desaprobó la propuesta y reasignó a ${tecnico ? tecnico.nombre : tecnicoReasignadoId}`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificarCambioEstado(actualizado, [`tecnico:${tecnicoReasignadoId}`]);
@@ -1026,31 +1067,46 @@ class ValeService {
     const nuevoEstado = filas.length > 1 ? ESTADOS.APROBADO_DEPARTAMENTO : ESTADOS.PENDIENTE_CONFIRMACION;
     if (vale.estado === nuevoEstado) return;
 
+    // Con un solo taller no hay fusión que hacer (el Encargado General nunca
+    // interviene en el camino feliz) — la propuesta de ese único taller pasa a ser
+    // directamente el "documento oficial" del vale (analisis_correcciones_4.md #1).
+    if (filas.length === 1) {
+      const propuesta = await propuestaRepository.obtenerUltimaPorValeYTecnico(valeId, filas[0].tecnico_id);
+      if (propuesta && propuesta.url) {
+        await valeRepository.actualizarPropuestaGeneral(valeId, propuesta.url);
+      }
+    }
+
     await valeRepository.actualizarEstado(valeId, nuevoEstado);
     const accion = nuevoEstado === ESTADOS.PENDIENTE_CONFIRMACION
       ? 'Único taller aprobado — pasa directo a confirmación del asesor'
       : 'Todos los talleres aprobaron — pendiente de fusión por Encargado General';
-    await registrarHistorial(valeId, actorUsuarioId, vale.estado, nuevoEstado, accion);
+    await registrarHistorial(valeId, actorUsuarioId, null, vale.estado, nuevoEstado, accion);
   }
 
   // -----------------------------------------------------------------------
-  // Encargado General: fusiona y aprueba vales multi-taller
+  // Encargado General: fusiona y aprueba vales multi-taller (también el punto de
+  // reentrada cuando el asesor rechaza un vale — analisis_correcciones_4.md #2/#11)
   // -----------------------------------------------------------------------
-  async aprobarGeneral(usuario, valeId) {
+  async aprobarGeneral(usuario, valeId, archivoFusion) {
     return this._conLockDeVale(valeId, async () => {
       const vale = await this._requerirVale(valeId);
-      if (vale.estado !== ESTADOS.APROBADO_DEPARTAMENTO) {
-        throw new Error('Solo se pueden fusionar y aprobar vales en estado APROBADO_DEPARTAMENTO.');
+      if (![ESTADOS.APROBADO_DEPARTAMENTO, ESTADOS.EN_CORRECCION].includes(vale.estado)) {
+        throw new Error('Solo se pueden fusionar y aprobar vales en estado APROBADO_DEPARTAMENTO o EN_CORRECCION.');
       }
-      const filas = await valeTallerRepository.listarPorVale(valeId);
-      const propuestas = (await Promise.all(
-        filas.map(f => propuestaRepository.obtenerUltimaPorValeYTecnico(valeId, f.tecnico_id))
-      )).filter(p => p && p.url);
+      // La fusión de las propuestas de los talleres NO la hace el sistema — es trabajo
+      // manual del Encargado General, que debe adjuntar su propio documento final
+      // (analisis_correcciones_4.md #11), aun cuando solo hubo un taller involucrado.
+      if (!archivoFusion) {
+        throw new Error('Debe adjuntar el documento de fusión antes de aprobar.');
+      }
+      const saved = await fileStorage.saveFile(archivoFusion.buffer, archivoFusion.originalname, archivoFusion.mimetype);
 
-      await this._regenerarPdf(valeId, propuestas.map(p => p.url));
+      await this._regenerarPdf(valeId, [saved.path]);
+      await valeRepository.actualizarPropuestaGeneral(valeId, saved.path);
       await valeRepository.actualizarEstado(valeId, ESTADOS.PENDIENTE_CONFIRMACION);
-      await registrarHistorial(valeId, usuario.id, ESTADOS.APROBADO_DEPARTAMENTO, ESTADOS.PENDIENTE_CONFIRMACION,
-        'Encargado General fusionó el trabajo de todos los talleres y aprobó el vale');
+      await registrarHistorial(valeId, usuario.id, null, vale.estado, ESTADOS.PENDIENTE_CONFIRMACION,
+        'Encargado General adjuntó la fusión final del trabajo de los talleres y aprobó el vale');
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificarCambioEstado(actualizado, [`asesor:${vale.asesor_id}`]);
       return enriquecer(actualizado);
@@ -1058,7 +1114,7 @@ class ValeService {
   }
 
   // -----------------------------------------------------------------------
-  // Asesor: confirmar recibido / rechazar / solicitar corrección
+  // Asesor: confirmar recibido / rechazar (= solicitar corrección, misma acción)
   // -----------------------------------------------------------------------
   async confirmarRecibido(usuario, valeId) {
     return this._conLockDeVale(valeId, async () => {
@@ -1068,46 +1124,32 @@ class ValeService {
         throw new Error('Solo se puede confirmar de recibido un vale PENDIENTE_CONFIRMACION.');
       }
       await valeRepository.actualizarEstado(valeId, ESTADOS.RECIBIDO);
-      await registrarHistorial(valeId, usuario.id, vale.estado, ESTADOS.RECIBIDO, 'Asesor confirmó de recibido el vale de arte');
+      await registrarHistorial(valeId, usuario.id, null, vale.estado, ESTADOS.RECIBIDO, 'Asesor confirmó de recibido el vale de arte');
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificarCambioEstado(actualizado, ['vales:supervisores']);
       return enriquecer(actualizado);
     });
   }
 
-  async rechazarVale(usuario, valeId) {
-    return this._conLockDeVale(valeId, async () => {
-      const vale = await this._requerirVale(valeId);
-      this._assertPropioDelAsesor(usuario, vale);
-      if (ESTADOS_TERMINALES.includes(vale.estado)) {
-        throw new Error('El vale ya se encuentra cerrado.');
-      }
-      await valeRepository.actualizarEstado(valeId, ESTADOS.RECHAZADO);
-      await registrarHistorial(valeId, usuario.id, vale.estado, ESTADOS.RECHAZADO, 'Asesor rechazó el vale de arte');
-      const actualizado = await valeRepository.obtenerPorId(valeId);
-      valeEvents.notificarCambioEstado(actualizado, ['vales:supervisores']);
-      return enriquecer(actualizado);
-    });
-  }
-
+  // Rechazar YA NO es una acción separada de "solicitar corrección" — es la misma
+  // (analisis_correcciones_4.md #2): rechazar manda el vale a EN_CORRECCION y lo pone
+  // en el buzón del Encargado General (nunca reabre los talleres directamente — es el
+  // Encargado General quien decide cómo resolver la corrección). RECHAZADO nunca se
+  // persiste como estado (#3): el rechazo queda solo en el historial.
   async solicitarCorreccion(usuario, valeId, motivo) {
     return this._conLockDeVale(valeId, async () => {
       const vale = await this._requerirVale(valeId);
       this._assertPropioDelAsesor(usuario, vale);
       if (vale.estado !== ESTADOS.PENDIENTE_CONFIRMACION) {
-        throw new Error('Solo se puede solicitar una corrección sobre un vale PENDIENTE_CONFIRMACION.');
+        throw new Error('Solo se puede rechazar un vale PENDIENTE_CONFIRMACION.');
       }
       if (!motivo) {
-        throw new Error('Debe indicar el motivo de la corrección.');
-      }
-      const filas = await valeTallerRepository.listarPorVale(valeId);
-      for (const fila of filas) {
-        await valeTallerRepository.reabrir(fila.id);
+        throw new Error('Debe indicar el motivo del rechazo.');
       }
       await valeRepository.actualizarEstado(valeId, ESTADOS.EN_CORRECCION);
-      await registrarHistorial(valeId, usuario.id, vale.estado, ESTADOS.EN_CORRECCION, `Asesor solicitó una corrección: ${motivo}`);
+      await registrarHistorial(valeId, usuario.id, null, vale.estado, ESTADOS.EN_CORRECCION, `Asesor rechazó el vale de arte: ${motivo}`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
-      valeEvents.notificarCambioEstado(actualizado, filas.map(f => `taller:${f.taller_id}`));
+      valeEvents.notificarCambioEstado(actualizado, ['vales:encargado_general']);
       return enriquecer(actualizado);
     });
   }
@@ -1150,7 +1192,7 @@ class ValeService {
         justificacion: payload.justificacion
       });
       await valeRepository.actualizarEstado(valeId, ESTADOS.SOLICITANDO_MODIFICACION);
-      await registrarHistorial(valeId, usuario.id, vale.estado, ESTADOS.SOLICITANDO_MODIFICACION, 'Asesor solicitó modificación');
+      await registrarHistorial(valeId, usuario.id, null, vale.estado, ESTADOS.SOLICITANDO_MODIFICACION, 'Asesor solicitó modificación');
 
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificarCambioEstado(actualizado, ['vales:supervisores']);
@@ -1190,19 +1232,41 @@ class ValeService {
         acabado: solicitud.acabado,
         cantidad: solicitud.cantidad,
         cotizacion: solicitud.cotizacion,
-        descripcion: '',
+        // La justificación de la modificación ES el nuevo "Boceto y Descripción" del
+        // vale de arte de la modificación — no se precarga la descripción original
+        // (analisis_correcciones_4.md #7).
+        descripcion: solicitud.justificacion,
         estado: ESTADOS.MODIFICADO
       });
 
       const talleresIds = solicitud.talleres_ids.split(',').map(Number).filter(Number.isFinite);
       await this._fanOutTalleres(nuevoValeId, talleresIds);
+
+      // El documento adjunto al nuevo vale es la propuesta ya aprobada del vale
+      // original (no se precargan imágenes ni el documento adjunto original) —
+      // analisis_correcciones_4.md #7. Se fusiona automáticamente al regenerar el PDF.
+      const propuestaOriginal = original.propuesta_general_url
+        || (await propuestaRepository.obtenerUltimaPorVale(original.id))?.url;
+      if (propuestaOriginal) {
+        await documentoRepository.crear({
+          valeId: nuevoValeId,
+          nombreOriginal: `Propuesta original - ${original.correlativo}.pdf`,
+          ruta: propuestaOriginal,
+          tipo: 'documento',
+          mimeType: 'application/pdf',
+          tamano: 0,
+          esModificacion: true,
+          subidoPor: usuario.id
+        });
+      }
+
       await valeRepository.marcarModificado(original.id);
       await valeRepository.actualizarEstado(original.id, ESTADOS.RECIBIDO);
       await solicitudModificacionRepository.marcarEstado(solicitud.id, 'APROBADA');
 
-      await registrarHistorial(original.id, usuario.id, ESTADOS.SOLICITANDO_MODIFICACION, ESTADOS.RECIBIDO,
+      await registrarHistorial(original.id, usuario.id, null, ESTADOS.SOLICITANDO_MODIFICACION, ESTADOS.RECIBIDO,
         `Supervisor aprobó la solicitud de modificación — se creó el vale ${correlativoNuevo}`);
-      await registrarHistorial(nuevoValeId, usuario.id, null, ESTADOS.MODIFICADO,
+      await registrarHistorial(nuevoValeId, usuario.id, null, null, ESTADOS.MODIFICADO,
         `Vale creado a partir de la modificación aprobada de ${original.correlativo}`);
       await this._regenerarPdf(nuevoValeId);
 

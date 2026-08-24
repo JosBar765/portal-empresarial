@@ -2,10 +2,12 @@
 const db = require('../../../config/database');
 
 class HistorialRepository {
-  async registrar(valeId, usuarioId, estadoAnterior, estadoNuevo, accion) {
+  // `tallerId` es NULL para eventos de nivel de vale (visibles para todos) y el taller
+  // correspondiente para eventos internos de un taller (analisis_correcciones_4.md #12).
+  async registrar(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion) {
     await db.query(
-      'INSERT INTO vale_historial (vale_id, usuario_id, estado_anterior, estado_nuevo, accion) VALUES (?, ?, ?, ?, ?)',
-      [valeId, usuarioId, estadoAnterior, estadoNuevo, accion],
+      'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion) VALUES (?, ?, ?, ?, ?, ?)',
+      [valeId, usuarioId, tallerId || null, estadoAnterior, estadoNuevo, accion],
       'historial:insert'
     );
   }

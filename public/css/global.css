@@ -66,8 +66,7 @@
   --vale-estado-aprobado-departamento-bg: #B2EBE0;     --vale-estado-aprobado-departamento-fg: #00695C;
   --vale-estado-pendiente-confirmacion-bg: #FFE8A3;    --vale-estado-pendiente-confirmacion-fg: #6B4E00;
   --vale-estado-recibido-bg: #022448;                  --vale-estado-recibido-fg: #FFFFFF;
-  --vale-estado-confirmado-bg: #022448;                --vale-estado-confirmado-fg: #FFFFFF;
-  --vale-estado-rechazado-bg: #43474E;                 --vale-estado-rechazado-fg: #FFFFFF;
+  --vale-estado-confirmado-bg: #C8F5D0;                --vale-estado-confirmado-fg: #0B5E1F;
   --vale-estado-en-correccion-bg: #FFCDBA;             --vale-estado-en-correccion-fg: #7A2E00;
   --vale-estado-solicitando-modificacion-bg: #FFDAD6;  --vale-estado-solicitando-modificacion-fg: #93000A;
   --vale-estado-modificado-bg: #ADC8F5;                --vale-estado-modificado-fg: #022448;
