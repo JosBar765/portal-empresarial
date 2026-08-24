@@ -16,42 +16,19 @@ body {
 }
 
 /* Panel Izquierdo: Branding & Visuals */
+/* Azul oscuro de marca + textura (gradiente, cuadrícula, resplandor) vienen
+   de .surface-dark en global.css — misma superficie que el hero del
+   dashboard, ver public/css/dashboard.css. */
 .brand-panel {
   display: none; /* Oculto en móviles */
   flex: 1.2;
-  background: linear-gradient(160deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
-  position: relative;
-  overflow: hidden;
   padding: 48px;
   flex-direction: column;
   justify-content: space-between;
-  color: #FFFFFF;
-}
-
-/* Cuadrícula técnica sutil */
-.brand-panel::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-size: 40px 40px;
-  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  z-index: 1;
-}
-
-/* Degradado radial suave */
-.brand-panel::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.12) 0%, transparent 60%);
-  z-index: 1;
 }
 
 /* Header de la Marca (Top Left) */
 .brand-header {
-  position: relative;
-  z-index: 2;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -95,8 +72,6 @@ body {
 }
 
 .brand-content {
-  position: relative;
-  z-index: 2;
   display: flex;
   flex-direction: column;
   margin-top: auto;
@@ -126,8 +101,6 @@ body {
 
 /* Footer de Marca (Bottom) */
 .brand-footer {
-  position: relative;
-  z-index: 2;
   display: flex;
   justify-content: space-between;
   align-items: center;

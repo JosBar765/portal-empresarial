@@ -23,12 +23,20 @@
   --text-xl: 1.5rem;      /* 24px — títulos de página */
   --text-2xl: 2rem;       /* 32px — KPIs grandes */
 
-  /* Primario — azul institucional */
+  /* Primario — azul institucional. Uso: selección/énfasis (ítem activo del
+     sidebar, foco de teclado, enlaces, chips activos, hover de iconos) —
+     nunca como fondo sólido de botón/CTA, ver --color-primary-dark. */
   --color-primary: #2563EB;
   --color-primary-hover: #1D4ED8;
   --color-primary-light: #EFF6FF;
   --color-primary-border: #C7D5E8;
   --color-primary-rgb: 37, 99, 235;
+
+  /* Azul oscuro — fondo de botones primarios/CTA y superficies de marca
+     sólidas (login, .btn--primary). Misma familia que el sidebar oscuro del
+     dashboard: una sola fuente de verdad para "azul oscuro" en toda la app. */
+  --color-primary-dark: #1B2130;
+  --color-primary-dark-hover: #242C3B;
 
   /* Secundario — acento naranja */
   --color-secondary: #E85D04;
@@ -91,6 +99,27 @@
   --transition-fast:   120ms var(--ease-out);
   --transition-normal: 220ms var(--ease-out);
   --transition-slow:   360ms var(--ease-out);
+
+  /* Ancho reservado para el sidebar fijo del módulo Vales (0 si el rol no
+     tiene sidebar) — lo controla public/modules/vales/js/app.js según el rol
+     y el estado colapsado/expandido; .app-shell lo usa como margin-left. */
+  --sidebar-offset: 0px;
+  /* Alto real de .app-header — el sidebar arranca justo debajo (top: var()),
+     nunca detrás: el navbar siempre conserva su ancho completo arriba. */
+  --header-height: 82px;
+
+  /* Paleta oscura del sidebar de navegación (dashboard shell), tomada de
+     Pruebas/imagen sidebar.avif (variante oscura) y adaptada: el estado
+     "seleccionado" reutiliza --color-primary (el azul claro que ya usa el
+     resto de la app) en vez del azul propio de la referencia, para no
+     introducir un segundo azul de marca. El fondo reusa --color-primary-dark,
+     que es ahora el mismo azul oscuro en login y botones primarios. */
+  --sidebar-bg: var(--color-primary-dark);
+  --sidebar-bg-footer: var(--color-primary-dark-hover);
+  --sidebar-border: rgba(255, 255, 255, .08);
+  --sidebar-text: #E7EAF0;
+  --sidebar-text-muted: #94A3B8;
+  --sidebar-hover-bg: rgba(255, 255, 255, .07);
 }
 
 body {
@@ -103,6 +132,51 @@ body {
   /* Numerales tabulares — cualquier tabla/KPI con cifras lo hereda automático */
   font-feature-settings: "tnum" 1, "cv02" 1, "cv03" 1, "cv04" 1;
 }
+
+/* -------------------------------------------------------------------------
+   Foco de teclado — anillo consistente en toda la app usando el color de
+   marca ya existente. Solo aparece por navegación de teclado (:focus-visible,
+   no :focus), así que un clic de mouse no lo dispara. Los pocos elementos que
+   ya definen su propio anillo (inputs de formulario con box-shadow) tienen
+   mayor especificidad y ganan sobre esta regla sin necesidad de excluirlos.
+   ------------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* Respeta la preferencia del sistema: mantiene el feedback de estado (opacidad,
+   color) pero recorta el movimiento a lo esencial. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .spin-animation, .btn--loading::after { animation-duration: 1s !important; }
+}
+
+/* -------------------------------------------------------------------------
+   Scrollbars — finas y con la paleta neutra del sistema en vez del scrollbar
+   nativo del SO, en cualquier contenedor con overflow (tablas, sidebars,
+   modales, la página misma).
+   ------------------------------------------------------------------------- */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-bg);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--color-text-muted); }
+::-webkit-scrollbar-corner { background: transparent; }
 
 /* -------------------------------------------------------------------------
    Animaciones compartidas
@@ -120,6 +194,39 @@ body {
 .spin-animation { display: inline-flex; animation: spin 1s linear infinite; }
 
 /* -------------------------------------------------------------------------
+   Superficies "azul oscuro" — utilidad compartida por el panel de marca del
+   login (única pantalla que la usa hoy: el hero del dashboard es
+   deliberadamente minimalista, sin superficie propia, ver §5 de
+   .agents/sistema_diseno_ui.md) para no duplicar el degradado si aparece
+   una segunda superficie de marca a futuro.
+   ------------------------------------------------------------------------- */
+.text-accent { color: var(--color-primary); }
+
+.surface-dark {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--color-primary-dark) 0%, var(--color-primary-dark-hover) 100%);
+  color: #FFFFFF;
+}
+.surface-dark::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-size: 40px 40px;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  z-index: 0;
+}
+.surface-dark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.12) 0%, transparent 60%);
+  z-index: 0;
+}
+.surface-dark > * { position: relative; z-index: 1; }
+
+/* -------------------------------------------------------------------------
    Botones — sistema canónico: .btn + modificador
    ------------------------------------------------------------------------- */
 .btn {
@@ -134,14 +241,15 @@ body {
   font-size: var(--text-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast), transform var(--transition-fast), opacity var(--transition-fast);
   white-space: nowrap;
 }
 .btn:active { transform: scale(.975); }
 .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
-.btn--primary { background: var(--color-primary); color: #FFFFFF; }
-.btn--primary:hover:not(:disabled) { background: var(--color-primary-hover); }
+.btn--primary { background: var(--color-primary-dark); color: #FFFFFF; }
+.btn--primary:hover:not(:disabled) { background: var(--color-primary-dark-hover); }
 
 .btn--ghost {
   background: transparent;
@@ -221,7 +329,7 @@ body {
   font-weight: 700; font-size: var(--text-xs);
   text-transform: uppercase; letter-spacing: .05em;
 }
-.data-table td { padding: 12px; border-bottom: 1px solid var(--color-border); vertical-align: middle; }
+.data-table td { padding: 12px; border-bottom: 1px solid var(--color-border); vertical-align: middle; transition: background-color var(--transition-fast); }
 .data-table tbody tr:hover td { background: var(--color-surface-muted); }
 
 /* -------------------------------------------------------------------------

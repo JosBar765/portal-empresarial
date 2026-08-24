@@ -19,6 +19,11 @@ uploads/*
 # IDEs y Editores
 .vscode/
 .idea/
+
+# Claude Code (estado local: symlinks con ruta absoluta a .agents/skills/*
+# y settings.local.json — no portables entre máquinas; se regeneran
+# corriendo de nuevo el instalador de skills)
+.claude/
 *.suo
 *.ntvs*
 *.njsproj

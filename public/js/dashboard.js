@@ -1,10 +1,26 @@
 // public/js/dashboard.js
+// Iniciales del avatar de cuenta (p. ej. "Asesor Comercial" -> "AC") —
+// compartido por convención con la misma lógica en modules/vales/js/app.js
+// (no hay un sistema de módulos JS compartidos entre páginas en este proyecto).
+function inicialesAvatar(nombreCompleto) {
+  const palabras = (nombreCompleto || '').trim().split(/\s+/).filter(Boolean);
+  if (palabras.length === 0) return '--';
+  const iniciales = palabras.length === 1 ? palabras[0][0] : palabras[0][0] + palabras[1][0];
+  return iniciales.toUpperCase();
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const userDisplayName = document.getElementById('user-display-name');
   const userDisplayRole = document.getElementById('user-display-role');
+  const accountAvatar = document.getElementById('account-avatar');
+  const accountWidget = document.getElementById('account-widget');
+  const accountDropdown = document.getElementById('account-dropdown');
+  const accountDropdownName = document.getElementById('account-dropdown-name');
+  const accountDropdownRole = document.getElementById('account-dropdown-role');
   const welcomeMessage = document.getElementById('welcome-message');
   const logoutBtn = document.getElementById('logout-btn');
   const modulesContainer = document.getElementById('modules-container');
+  const modulesCount = document.getElementById('modules-count');
 
   let currentUser = null;
 
@@ -20,11 +36,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     currentUser = sessionData.user;
-    
+
     // Rellenar información de usuario en el header y bienvenida
     userDisplayName.textContent = currentUser.nombre;
     userDisplayRole.textContent = currentUser.rolNombre;
-    welcomeMessage.textContent = `¡Hola, ${currentUser.nombre.split(' ')[0]}!`;
+    accountDropdownName.textContent = currentUser.nombre;
+    accountDropdownRole.textContent = currentUser.rolNombre;
+    accountAvatar.textContent = inicialesAvatar(currentUser.nombre);
+    const primerNombre = currentUser.nombre.split(' ')[0];
+    welcomeMessage.innerHTML = `¡Hola, <span class="text-accent">${primerNombre}</span>!`;
   } catch (error) {
     console.error('Error verificando sesión:', error);
     window.location.href = '/login/?error=conexion';
@@ -37,6 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!modulesRes.ok) throw new Error('Error al obtener la lista de módulos.');
     
     const modules = await modulesRes.json();
+    modulesCount.textContent = modules.length === 1 ? '1 módulo' : `${modules.length} módulos`;
     renderModules(modules);
   } catch (error) {
     console.error('Error cargando módulos:', error);
@@ -48,6 +69,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
     `;
   }
+
+  // 2b. Menú desplegable de cuenta (avatar) — abre/cierra con clic, se cierra
+  // al hacer clic afuera o con Escape.
+  function cerrarMenuCuenta() {
+    accountDropdown.classList.remove('visible');
+    accountWidget.setAttribute('aria-expanded', 'false');
+  }
+  accountWidget.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const abierto = accountDropdown.classList.toggle('visible');
+    accountWidget.setAttribute('aria-expanded', String(abierto));
+  });
+  document.addEventListener('click', (e) => {
+    if (!accountDropdown.contains(e.target) && !accountWidget.contains(e.target)) cerrarMenuCuenta();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') cerrarMenuCuenta();
+  });
 
   // 3. Manejar Botón de Salir (Logout)
   logoutBtn.addEventListener('click', async () => {
@@ -110,11 +149,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           <ion-icon name="${module.icono}"></ion-icon>
         </div>
         <div class="module-info">
-          <h3 class="module-title">
-            <span>${module.nombre}</span>
-            <ion-icon name="arrow-forward-outline"></ion-icon>
-          </h3>
+          <h3 class="module-title">${module.nombre}</h3>
           <p class="module-description">${module.descripcion}</p>
+        </div>
+        <div class="module-cta">
+          <span>Abrir herramienta</span>
+          <span class="module-cta-icon"><ion-icon name="arrow-forward-outline"></ion-icon></span>
         </div>
       `;
 
