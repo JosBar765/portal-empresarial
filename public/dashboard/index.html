@@ -26,22 +26,37 @@
     </div>
 
     <div class="header-user-menu">
-      <div class="user-profile">
-        <span class="user-name" id="user-display-name">Cargando usuario...</span>
-        <span class="user-role" id="user-display-role">Cargando rol...</span>
-      </div>
-      <button class="btn-logout" id="logout-btn" title="Cerrar sesión">
-        <ion-icon name="log-out-outline"></ion-icon>
-        <span>Salir</span>
+      <button class="account-widget" id="account-widget" type="button" aria-haspopup="true" aria-expanded="false">
+        <span class="account-avatar" id="account-avatar">--</span>
+        <div class="user-profile">
+          <span class="user-name" id="user-display-name">Cargando usuario...</span>
+          <span class="user-role" id="user-display-role">Cargando rol...</span>
+        </div>
+        <ion-icon name="chevron-down-outline" class="account-chevron"></ion-icon>
       </button>
+      <div class="account-dropdown" id="account-dropdown">
+        <div class="account-dropdown-header">
+          <span class="account-dropdown-name" id="account-dropdown-name">Cargando usuario...</span>
+          <span class="account-dropdown-role" id="account-dropdown-role">Cargando rol...</span>
+        </div>
+        <button class="account-dropdown-item" id="logout-btn" type="button">
+          <ion-icon name="log-out-outline"></ion-icon>
+          <span>Cerrar sesión</span>
+        </button>
+      </div>
     </div>
   </header>
 
   <!-- Contenedor Principal del Dashboard -->
   <main class="main-container">
-    <div class="dashboard-hero">
+    <section class="dashboard-hero">
       <h1 id="welcome-message">¡Hola!</h1>
-      <p>Bienvenido al portal web unificado de MundiTrofeos. A continuación se muestran los módulos de herramientas a los que tienes acceso autorizado según tus permisos:</p>
+      <p>Aquí encontrarás tus herramientas.</p>
+    </section>
+
+    <div class="section-heading">
+      <h2>Tus herramientas</h2>
+      <span class="section-count" id="modules-count"></span>
     </div>
 
     <!-- Grid Dinámica de Módulos -->

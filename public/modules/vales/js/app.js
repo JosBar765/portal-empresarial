@@ -117,6 +117,16 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+  // Iniciales del avatar de cuenta (p. ej. "Asesor Comercial" -> "AC") —
+  // misma lógica duplicada en public/js/dashboard.js (no hay un sistema de
+  // módulos JS compartidos entre páginas en este proyecto).
+  function inicialesAvatar(nombreCompleto) {
+    const palabras = (nombreCompleto || '').trim().split(/\s+/).filter(Boolean);
+    if (palabras.length === 0) return '--';
+    const iniciales = palabras.length === 1 ? palabras[0][0] : palabras[0][0] + palabras[1][0];
+    return iniciales.toUpperCase();
+  }
+
   function puede(accion) {
     const r = state.user.rolId;
     const admin = r === 1;
@@ -179,6 +189,9 @@
 
     $('#user-display-name').textContent = state.user.nombre;
     $('#user-display-role').textContent = state.user.rolNombre;
+    $('#account-dropdown-name').textContent = state.user.nombre;
+    $('#account-dropdown-role').textContent = state.user.rolNombre;
+    $('#account-avatar').textContent = inicialesAvatar(state.user.nombre);
 
     // Corrección #9: encargados y técnicos ya trabajan scoped a su propio taller —
     // la columna "Taller" (pensada para el asesor y roles de supervisión) sobra ahí.
@@ -198,6 +211,7 @@
     }
 
     wireSidebar();
+    wireAccountMenu();
     wireToolbar();
     wireSortHeaders();
     wireScrollInfinito();
@@ -213,15 +227,60 @@
     $('#btn-carga-trabajo').addEventListener('click', () => abrirModalCargaTrabajo());
   });
 
+  // Menú desplegable de cuenta (avatar) — abre/cierra con clic, se cierra al
+  // hacer clic afuera o con Escape. Mismo patrón que public/js/dashboard.js.
+  function wireAccountMenu() {
+    const widget = $('#account-widget');
+    const dropdown = $('#account-dropdown');
+    const cerrar = () => {
+      dropdown.classList.remove('visible');
+      widget.setAttribute('aria-expanded', 'false');
+    };
+    widget.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const abierto = dropdown.classList.toggle('visible');
+      widget.setAttribute('aria-expanded', String(abierto));
+    });
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target) && !widget.contains(e.target)) cerrar();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') cerrar();
+    });
+  }
+
+  // Sidebar de navegación: colapsable en escritorio (icon-only, se recuerda por
+  // usuario vía localStorage) y cajón deslizante superpuesto en móvil.
+  // Ancho a compensar en .app-shell (--sidebar-offset, ver global.css) para que
+  // el header y el contenido no queden debajo del sidebar fijo. En móvil el
+  // propio media query de styles.css lo vuelve a poner en 0 (el sidebar pasa a
+  // ser un cajón superpuesto, no algo que empuje el contenido).
+  const SIDEBAR_ANCHO = '224px';
+  const SIDEBAR_ANCHO_COLAPSADO = '68px';
+  function actualizarOffsetSidebar(sidebar) {
+    const offset = !ROLES_CON_SIDEBAR.includes(state.user.rolId)
+      ? '0px'
+      : (sidebar.classList.contains('colapsado') ? SIDEBAR_ANCHO_COLAPSADO : SIDEBAR_ANCHO);
+    document.documentElement.style.setProperty('--sidebar-offset', offset);
+  }
+
   function wireSidebar() {
     const sidebar = $('#sidebar-vales');
+    const toggleMovil = $('#sidebar-toggle-mobile');
     if (!ROLES_CON_SIDEBAR.includes(state.user.rolId)) {
       sidebar.style.display = 'none';
+      actualizarOffsetSidebar(sidebar);
       return;
     }
     sidebar.style.display = 'flex';
+    // El botón de menú móvil arranca oculto por HTML (evita el parpadeo antes de
+    // saber el rol); se limpia el estilo inline para que la regla CSS
+    // (oculto en escritorio, visible <900px) tome el control.
+    toggleMovil.style.display = '';
+
     $$('.sidebar-item', sidebar).forEach(btn => {
       btn.addEventListener('click', () => {
+        cerrarSidebarMovil();
         if (btn.dataset.vista === state.vista) return;
         $$('.sidebar-item', sidebar).forEach(b => b.classList.remove('sidebar-item-active'));
         btn.classList.add('sidebar-item-active');
@@ -233,6 +292,36 @@
         cargarBuzon();
       });
     });
+
+    // Colapso de escritorio — se recuerda por navegador (conveniencia local,
+    // no es una preferencia que deba viajar al servidor).
+    const COLAPSO_KEY = 'vales:sidebarColapsado';
+    if (localStorage.getItem(COLAPSO_KEY) === '1') {
+      sidebar.classList.add('colapsado');
+    }
+    actualizarOffsetSidebar(sidebar);
+    $('#sidebar-collapse-toggle').addEventListener('click', () => {
+      const colapsado = sidebar.classList.toggle('colapsado');
+      localStorage.setItem(COLAPSO_KEY, colapsado ? '1' : '0');
+      actualizarOffsetSidebar(sidebar);
+    });
+
+    // Cajón móvil — se abre con el botón de menú del header, se cierra tocando
+    // el fondo oscuro, con Escape, o al elegir una vista (arriba).
+    const backdrop = $('#sidebar-backdrop');
+    toggleMovil.addEventListener('click', () => {
+      sidebar.classList.add('abierto-movil');
+      backdrop.classList.add('visible');
+    });
+    backdrop.addEventListener('click', cerrarSidebarMovil);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') cerrarSidebarMovil();
+    });
+
+    function cerrarSidebarMovil() {
+      sidebar.classList.remove('abierto-movil');
+      backdrop.classList.remove('visible');
+    }
   }
 
   function wireToolbar() {
@@ -533,14 +622,14 @@
 
     tbody.innerHTML = filas.map(v => `
       <tr>
-        <td><strong>${v.correlativo}</strong>${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}</td>
-        <td>${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
-        <td>${formatearFecha(v.fecha_entrega)}</td>
-        <td>${v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`}</td>
-        <td>${formatearFecha(v.fecha_evento)}</td>
-        <td class="col-taller">${v.taller || '-'}</td>
-        <td><span class="estado-pill ${claseEstado(v)}">${etiquetaEstado(v)}</span></td>
-        <td class="acciones-cell" data-vale-id="${v.id}"></td>
+        <td data-label="Correlativo"><strong>${v.correlativo}</strong>${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}</td>
+        <td data-label="Fecha Ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
+        <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
+        <td data-label="Atraso">${v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`}</td>
+        <td data-label="Fecha Evento">${formatearFecha(v.fecha_evento)}</td>
+        <td data-label="Taller" class="col-taller">${v.taller || '-'}</td>
+        <td data-label="Estado"><span class="estado-pill ${claseEstado(v)}">${etiquetaEstado(v)}</span></td>
+        <td data-label="Acciones" class="acciones-cell" data-vale-id="${v.id}"></td>
       </tr>
     `).join('');
 
@@ -1316,7 +1405,7 @@
     body.innerHTML = data.length ? data.map(t => `
       <div class="carga-tecnico" data-tecnico-id="${t.tecnicoId}">
         <div class="nombre">${t.nombre}</div>
-        <div class="carga-barra"><div class="carga-barra-fill" style="width:${(t.asignaciones / maxAsignaciones) * 100}%"></div></div>
+        <div class="carga-barra"><div class="carga-barra-fill" style="transform:scaleX(${t.asignaciones / maxAsignaciones})"></div></div>
         <div style="font-size:12px;color:var(--color-text-secondary);">
           Asignaciones: ${t.asignaciones} · En proceso: ${t.enProceso || 'Ninguno'}
         </div>

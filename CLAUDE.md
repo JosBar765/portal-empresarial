@@ -65,4 +65,4 @@ Follow `.agents/readme_modulo.md` exactly (the README's pointer to `src/modules/
 
 ### Frontend conventions
 
-No frontend framework or Tailwind — vanilla HTML/CSS/JS with Ionicons for icons. `public/css/global.css` holds shared design tokens; module CSS should import/extend it rather than redefine colors/typography, to keep visual consistency with `public/login` and `public/dashboard`.
+No frontend framework or Tailwind — vanilla HTML/CSS/JS with Ionicons for icons. `public/css/global.css` holds shared design tokens; module CSS should import/extend it rather than redefine colors/typography, to keep visual consistency with `public/login` and `public/dashboard`. `.agents/sistema_diseno_ui.md` is the high-level reference for the color palette (including the `--color-primary` vs `--color-primary-dark` role split — light blue for selection/emphasis, dark navy for primary-action surfaces/buttons) and overall design line — read it before touching colors, typography, or shared UI patterns.

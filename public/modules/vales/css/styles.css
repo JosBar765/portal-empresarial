@@ -16,36 +16,60 @@
   color: var(--color-primary);
 }
 
-.app-layout {
+/* Cascarón del contenido (todo lo que va DEBAJO del navbar, que siempre es
+   full-width y vive fuera de este contenedor): desplazado a la derecha del
+   ancho real del sidebar fijo (--sidebar-offset, controlado desde app.js
+   según el rol tenga sidebar y esté o no colapsado — 0 si el rol no tiene
+   sidebar). */
+.app-shell {
+  min-height: calc(100vh - var(--header-height));
   display: flex;
-  align-items: flex-start;
-  gap: 24px;
-  max-width: 1280px;
-  margin: 0 auto;
+  flex-direction: column;
+  margin-left: var(--sidebar-offset, 0px);
+  transition: margin-left var(--transition-normal);
+}
+
+.app-layout {
   padding: 0 24px;
 }
 
 .main-container {
-  max-width: none;
-  flex: 1;
-  min-width: 0;
+  max-width: 1800px;
+  margin: 0 auto;
   padding: 48px 0;
-  margin: 0;
 }
 
+/* Sidebar de navegación — anclado al borde izquierdo, arrancando DEBAJO del
+   navbar (top: var(--header-height)) porque el navbar siempre conserva su
+   ancho completo arriba, nunca queda detrás del sidebar. Paleta oscura
+   tomada de Pruebas/imagen sidebar.avif (ver tokens --sidebar-* en
+   global.css); el acento de "seleccionado" es el azul que ya usa el resto
+   de la app (--color-primary), no el azul propio de la referencia.
+   Colapsable en escritorio (ancho -> solo iconos, ver .colapsado) y panel
+   deslizante superpuesto en móvil (ver media query más abajo y
+   .abierto-movil / #sidebar-backdrop). El ancho SÍ se anima aquí a
+   propósito: es un panel con texto que se reacomoda, no algo que un
+   transform pueda simular sin distorsionar el contenido. */
 .sidebar-vales {
-  flex-shrink: 0;
-  width: 200px;
+  position: fixed;
+  top: var(--header-height);
+  left: 0;
+  bottom: 0;
+  width: 224px;
+  z-index: 95;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 12px;
-  box-shadow: var(--shadow-sm);
-  position: sticky;
-  top: 24px;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  padding: 20px 14px;
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  transition: width var(--transition-normal);
+}
+
+.sidebar-vales.colapsado {
+  width: 68px;
 }
 
 .sidebar-item {
@@ -54,7 +78,7 @@
   gap: 10px;
   border: none;
   background: transparent;
-  color: var(--color-text-secondary);
+  color: var(--sidebar-text-muted);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 600;
@@ -62,16 +86,18 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   text-align: left;
-  transition: all var(--transition-fast);
+  white-space: nowrap;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .sidebar-item ion-icon {
   font-size: 18px;
+  flex-shrink: 0;
 }
 
 .sidebar-item:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-primary);
+  background: var(--sidebar-hover-bg);
+  color: var(--sidebar-text);
 }
 
 .sidebar-item-active {
@@ -84,16 +110,143 @@
   color: #FFFFFF;
 }
 
+/* Franja inferior fija (empujada al fondo con margin-top:auto), un tono más
+   clara que el fondo — el mismo eco visual que la fila de cuenta al pie del
+   sidebar de referencia. */
+.sidebar-collapse-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  border-top: 1px solid var(--sidebar-border);
+  background: var(--sidebar-bg-footer);
+  border-radius: var(--radius-sm);
+  color: var(--sidebar-text-muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 12px;
+  margin-top: auto;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.sidebar-collapse-toggle:hover {
+  background: var(--sidebar-hover-bg);
+  color: var(--sidebar-text);
+}
+
+.sidebar-collapse-toggle ion-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.sidebar-vales.colapsado .sidebar-collapse-toggle ion-icon {
+  transform: rotate(180deg);
+}
+
+/* Con el sidebar colapsado, solo quedan los iconos centrados. */
+.sidebar-vales.colapsado .sidebar-item,
+.sidebar-vales.colapsado .sidebar-collapse-toggle {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.sidebar-vales.colapsado .sidebar-item span,
+.sidebar-vales.colapsado .sidebar-collapse-toggle span {
+  display: none;
+}
+
+.sidebar-toggle-mobile {
+  display: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 22px;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px;
+  margin-right: 4px;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.sidebar-toggle-mobile:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-primary);
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .app-layout {
-    flex-direction: column;
     padding: 0 16px;
   }
 
+  /* En móvil el sidebar deja de empujar el contenido (ver .app-shell) y se
+     vuelve un cajón (drawer) que se desliza POR ENCIMA de todo, con overlay
+     para cerrarlo tocando afuera — mismo patrón que cualquier dashboard
+     responsive. */
+  .app-shell {
+    margin-left: 0;
+  }
+
   .sidebar-vales {
-    width: 100%;
-    flex-direction: row;
-    position: static;
+    width: 260px;
+    max-width: 80vw;
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal);
+  }
+
+  .sidebar-vales.abierto-movil {
+    transform: translateX(0);
+  }
+
+  /* El colapso de escritorio no aplica dentro del cajón móvil — siempre se ve completo. */
+  .sidebar-vales.colapsado {
+    width: 260px;
+    max-width: 80vw;
+  }
+
+  .sidebar-vales.colapsado .sidebar-item,
+  .sidebar-vales.colapsado .sidebar-collapse-toggle {
+    justify-content: flex-start;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .sidebar-vales.colapsado .sidebar-item span,
+  .sidebar-vales.colapsado .sidebar-collapse-toggle span {
+    display: inline;
+  }
+
+  .sidebar-collapse-toggle {
+    display: none;
+  }
+
+  .sidebar-toggle-mobile {
+    display: inline-flex;
+  }
+
+  /* No usa inset:0 a propósito: el overlay empieza debajo del navbar, igual
+     que el propio sidebar, para no oscurecer el navbar mientras el cajón
+     está abierto. */
+  .sidebar-backdrop.visible {
+    display: block;
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, .45);
+    z-index: 90;
+    animation: fadeIn var(--transition-normal);
   }
 }
 
@@ -123,7 +276,7 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
   /* Evita que el resaltado táctil por defecto (móvil) pinte todo el botón oscuro
      mientras se presiona, dejando el texto ilegible antes de soltar el toque. */
   -webkit-tap-highlight-color: transparent;
@@ -416,7 +569,7 @@
   justify-content: center;
   cursor: pointer;
   color: var(--color-primary);
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .btn-icon:hover {
@@ -480,6 +633,7 @@
   font-size: 13px;
   color: var(--color-text);
   background: var(--color-surface);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .form-field input:focus,
@@ -556,6 +710,7 @@
   line-height: 1;
   padding: 2px 4px;
   border-radius: 50%;
+  transition: background-color var(--transition-fast);
 }
 
 .taller-tag-quitar:hover {
@@ -644,12 +799,17 @@
   background: var(--color-secondary-hover);
 }
 
+.btn-carga-trabajo:active {
+  transform: scale(0.97);
+}
+
 .carga-tecnico {
   padding: 12px 14px;
   background: var(--color-surface-muted);
   border-radius: var(--radius-sm);
   margin-bottom: 10px;
   cursor: pointer;
+  transition: background-color var(--transition-fast);
 }
 
 .carga-tecnico:hover {
@@ -671,8 +831,11 @@
 }
 
 .carga-barra-fill {
+  width: 100%;
   height: 100%;
   background: var(--color-secondary);
+  transform-origin: left;
+  transition: transform var(--transition-normal);
 }
 
 /* -------------------------------------------------------------------------
@@ -763,5 +926,87 @@
   .buzon-filtros input,
   .buzon-filtros select {
     width: 100%;
+  }
+
+  /* Tabla -> lista de tarjetas: en una pantalla angosta una tabla con 8
+     columnas nunca cabe cómodamente, ni con scroll horizontal. Se oculta el
+     encabezado visualmente (sigue accesible para lectores de pantalla) y
+     cada celda se etiqueta con su columna vía `data-label`
+     (ver renderTabla() en app.js) — patrón estándar de tablas responsive. */
+  .tabla-wrapper {
+    overflow-x: visible;
+  }
+
+  .buzon-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .buzon-table,
+  .buzon-table tbody,
+  .buzon-table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .buzon-table tbody tr {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    margin-bottom: 12px;
+    padding: 4px 14px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .buzon-table tbody tr:hover td {
+    background: transparent;
+  }
+
+  .buzon-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-border);
+    white-space: normal;
+    text-align: right;
+  }
+
+  .buzon-table td:last-child {
+    border-bottom: none;
+  }
+
+  .buzon-table td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--color-text-secondary);
+    text-align: left;
+    flex-shrink: 0;
+  }
+
+  .buzon-table td.acciones-cell {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .buzon-table td.acciones-cell::before {
+    content: none;
+  }
+
+  .buzon-table td.tabla-vacia {
+    display: block;
+    text-align: center;
+  }
+
+  .buzon-table td.tabla-vacia::before {
+    content: none;
   }
 }
