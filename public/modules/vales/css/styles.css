@@ -54,7 +54,18 @@
   position: fixed;
   top: var(--header-height);
   left: 0;
-  bottom: 0;
+  /* Alto explícito en vez de "bottom: 0": en móvil, `vh` se calcula contra el
+     viewport GRANDE (barra de direcciones oculta), así que con `bottom: 0`
+     el sidebar queda más alto que el área realmente visible mientras la
+     barra sigue mostrada — su parte inferior (el botón de colapsar) se
+     recorta y solo "aparece" al hacer scroll, cuando la barra se oculta y
+     el layout se reacomoda. `dvh` (alto de viewport dinámico) mide el área
+     visible real en cada momento, así que el sidebar siempre llena
+     exactamente el hueco entre el navbar y el borde inferior visible, sin
+     recortarse. El valor en `vh` queda antes como fallback para navegadores
+     sin soporte de `dvh`.  */
+  height: calc(100vh - var(--header-height));
+  height: calc(100dvh - var(--header-height));
   width: 224px;
   z-index: 95;
   display: flex;
@@ -243,7 +254,11 @@
     top: var(--header-height);
     left: 0;
     right: 0;
-    bottom: 0;
+    /* Mismo alto dinámico que .sidebar-vales — evita que quede un hueco (o
+       le falte cubrir) por debajo cuando la barra de direcciones móvil se
+       oculta/muestra durante el scroll. */
+    height: calc(100vh - var(--header-height));
+    height: calc(100dvh - var(--header-height));
     background: rgba(15, 23, 42, .45);
     z-index: 90;
     animation: fadeIn var(--transition-normal);
