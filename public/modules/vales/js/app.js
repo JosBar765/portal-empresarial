@@ -31,8 +31,11 @@
   };
 
   // Roles con sidebar Buzón / Trabajo realizado (Asesor, Supervisor, Técnico,
-  // Encargado General/Asistente — analisis_correcciones_5.md #1).
-  const ROLES_CON_SIDEBAR = [3, 4, 7, 8, 9];
+  // Encargado General/Asistente — analisis_correcciones_5.md #1). El Gerente
+  // (10) también tiene sidebar, pero con su propio par Dashboard/Vales de Arte
+  // en vez de Buzón/Trabajo realizado (analisis_correcciones_7.md, Vista
+  // Gerencia) — ver wireSidebar().
+  const ROLES_CON_SIDEBAR = [3, 4, 7, 8, 9, 10];
 
   // "Atrasados" (analisis_correcciones_6.md #3): para asesor, supervisor y
   // encargados (de taller y general) es un contador COMBINABLE — se marca
@@ -87,6 +90,7 @@
     8: { // Encargado General
       buzon: [
         { key: 'pendientesFusion', label: 'Vales por fusionar', filtro: 'pendientesFusion' },
+        { key: 'valesModificados', label: 'Vales Modificados', filtro: 'valesModificados' },
         { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
       ],
       trabajo: [
@@ -103,6 +107,10 @@
     { key: 'aprobadoDepartamento', label: 'Por fusionar', filtro: 'aprobadoDepartamento' },
     { key: 'atrasados', label: 'Atrasados', alerta: true, filtro: 'atrasados' }
   ];
+  // Gerente (Vista Gerencia, analisis_correcciones_7.md): mismo resumen que el
+  // administrador para su vista "Vales de Arte" — es de solo lectura, respeta la
+  // misma jerarquía que ya ve el administrador.
+  CONTADORES_CONFIG[10] = CONTADORES_CONFIG[1];
 
   const state = {
     user: null,
@@ -111,6 +119,7 @@
     contadores: {},
     vista: 'buzon', // solo aplica a roles con sidebar
     ventana: { tipo: 'todo', desde: null, hasta: null },
+    localidadId: null, // Vista Gerencia: filtro de tienda (analisis_correcciones_7.md)
     filtroContador: null,
     soloAtrasados: false, // combinable con filtroContador (analisis_correcciones_6.md #3)
     busqueda: '',
@@ -272,6 +281,21 @@
     document.documentElement.style.setProperty('--sidebar-offset', offset);
   }
 
+  // El Gerente reemplaza contadores-grid + buzon-section por su propio
+  // dashboard-gerencia mientras esté en la vista "dashboard" — el resto de
+  // roles solo cambian el título (analisis_correcciones_7.md, Vista Gerencia).
+  function actualizarTituloYSeccionesVista() {
+    if (state.user.rolId === 10) {
+      const enDashboard = state.vista === 'dashboard';
+      $('#buzon-titulo').textContent = enDashboard ? 'Dashboard' : 'Vales de Arte';
+      $('#dashboard-gerencia').style.display = enDashboard ? 'block' : 'none';
+      $('#contadores-grid').style.display = enDashboard ? 'none' : '';
+      $('.buzon-section').style.display = enDashboard ? 'none' : '';
+      return;
+    }
+    $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
+  }
+
   function wireSidebar() {
     const sidebar = $('#sidebar-vales');
     const toggleMovil = $('#sidebar-toggle-mobile');
@@ -286,6 +310,22 @@
     // (oculto en escritorio, visible <900px) tome el control.
     toggleMovil.style.display = '';
 
+    // El Gerente reusa los mismos dos botones del sidebar, pero con su propio
+    // par de vistas — Dashboard / Vales de Arte — en vez de Buzón/Trabajo
+    // realizado (analisis_correcciones_7.md, Vista Gerencia).
+    if (state.user.rolId === 10) {
+      const primario = $('#sidebar-item-primario', sidebar);
+      const secundario = $('#sidebar-item-secundario', sidebar);
+      primario.dataset.vista = 'dashboard';
+      primario.querySelector('ion-icon').setAttribute('name', 'bar-chart-outline');
+      primario.querySelector('span').textContent = 'Dashboard';
+      secundario.dataset.vista = 'vales';
+      secundario.querySelector('ion-icon').setAttribute('name', 'file-tray-full-outline');
+      secundario.querySelector('span').textContent = 'Vales de Arte';
+      state.vista = 'dashboard';
+    }
+    actualizarTituloYSeccionesVista();
+
     $$('.sidebar-item', sidebar).forEach(btn => {
       btn.addEventListener('click', () => {
         cerrarSidebarMovil();
@@ -297,7 +337,7 @@
         state.filtroContador = null; // un filtro de contador es propio de la vista activa
         state.soloAtrasados = false;
         actualizarIndicadoresOrden();
-        $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
+        actualizarTituloYSeccionesVista();
         cargarBuzon();
       });
     });
@@ -392,6 +432,22 @@
       debounceBusqueda = setTimeout(() => { state.busqueda = valor; cargarBuzon(); }, 300);
     });
     $('#filtro-estado').addEventListener('change', () => renderTabla());
+
+    // Filtro de tienda — solo Gerencia (analisis_correcciones_7.md, Vista Gerencia).
+    if (state.user.rolId === 10) {
+      const selectLocalidad = $('#filtro-localidad');
+      selectLocalidad.style.display = '';
+      (state.catalogos.localidades || []).forEach(loc => {
+        const opt = document.createElement('option');
+        opt.value = loc.id;
+        opt.textContent = loc.nombre;
+        selectLocalidad.appendChild(opt);
+      });
+      selectLocalidad.addEventListener('change', () => {
+        state.localidadId = selectLocalidad.value || null;
+        cargarBuzon();
+      });
+    }
   }
 
   function wireSortHeaders() {
@@ -507,10 +563,16 @@
     if (state.filtroContador) qs.set('filtroContador', state.filtroContador);
     if (state.soloAtrasados) qs.set('soloAtrasados', '1');
     if (state.busqueda) qs.set('busqueda', state.busqueda);
+    if (state.localidadId) qs.set('localidadId', state.localidadId);
     return qs;
   }
 
   async function cargarBuzon() {
+    // El Gerente en su vista "Dashboard" no pide el buzón de vales — pide las
+    // métricas agregadas (analisis_correcciones_7.md, Vista Gerencia).
+    if (state.user.rolId === 10 && state.vista === 'dashboard') {
+      return cargarDashboardGerencia();
+    }
     state.paginacion = { limit: 50, offset: 0, total: 0, hasMore: false, cargandoMas: false };
     const qs = construirQueryBase();
     qs.set('offset', '0');
@@ -539,6 +601,112 @@
     renderContadores();
     poblarFiltroEstado();
     renderTabla();
+  }
+
+  // -------------------------------------------------------------------------
+  // Vista Gerencia: Dashboard de métricas (analisis_correcciones_7.md) — reusa
+  // la ventana de tiempo y el filtro de tienda del resto del módulo, pero pide
+  // agregados en vez del listado de vales.
+  // -------------------------------------------------------------------------
+  const chartsGerencia = { estado: null, localidad: null };
+
+  async function cargarDashboardGerencia() {
+    const qs = new URLSearchParams();
+    if (state.ventana.tipo) qs.set('ventana', state.ventana.tipo);
+    if (state.ventana.tipo === 'rango') {
+      if (state.ventana.desde) qs.set('desde', state.ventana.desde);
+      if (state.ventana.hasta) qs.set('hasta', state.ventana.hasta);
+    }
+    if (state.localidadId) qs.set('localidadId', state.localidadId);
+    try {
+      const res = await fetch(`/api/vales/dashboard-gerencia?${qs.toString()}`);
+      if (!res.ok) throw new Error('No se pudo cargar el dashboard.');
+      renderDashboardGerencia(await res.json());
+    } catch (error) {
+      $('#dashboard-gerencia').innerHTML = `<p class="tabla-vacia">Error al cargar el dashboard: ${error.message}</p>`;
+    }
+  }
+
+  function renderDashboardGerencia(data) {
+    const cont = $('#dashboard-gerencia');
+    cont.innerHTML = `
+      <div class="contadores-grid">
+        <div class="contador-card">
+          <div class="valor">${data.total}</div>
+          <div class="etiqueta">Total vales</div>
+        </div>
+        <div class="contador-card contador-alerta">
+          <div class="valor">${data.atrasados}</div>
+          <div class="etiqueta">Atrasados (${data.porcentajeAtrasados}%)</div>
+        </div>
+        <div class="contador-card">
+          <div class="valor">${data.entregadosATiempo}</div>
+          <div class="etiqueta">Entregados a tiempo</div>
+        </div>
+        <div class="contador-card">
+          <div class="valor">${data.porcentajeEntregadosATiempo}%</div>
+          <div class="etiqueta">% a tiempo (de ${data.terminados} recibidos)</div>
+        </div>
+      </div>
+      <div class="dashboard-charts">
+        <div class="chart-card">
+          <h3>Vales por estado</h3>
+          <canvas id="chart-por-estado"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Vales por tienda</h3>
+          <canvas id="chart-por-localidad"></canvas>
+        </div>
+      </div>
+    `;
+
+    if (typeof Chart === 'undefined') return; // Chart.js no cargó (sin conexión, etc.) — las tarjetas ya se ven
+
+    const tokenColor = (nombre, fallback) => {
+      const valor = getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
+      return valor || fallback;
+    };
+    const CLAVE_CSS_ESTADO = {
+      CREADO: 'creado', APROBADO_DEPARTAMENTO: 'aprobado-departamento', PENDIENTE_CONFIRMACION: 'pendiente-confirmacion',
+      RECIBIDO: 'recibido', SOLICITANDO_MODIFICACION: 'solicitando-modificacion', MODIFICADO: 'modificado'
+    };
+    const estadosPresentes = Object.keys(data.porEstado);
+
+    chartsGerencia.estado?.destroy();
+    chartsGerencia.estado = new Chart($('#chart-por-estado'), {
+      type: 'bar',
+      data: {
+        labels: estadosPresentes.map(e => ESTADOS_LABEL[e] || e),
+        datasets: [{
+          data: estadosPresentes.map(e => data.porEstado[e]),
+          backgroundColor: estadosPresentes.map(e => tokenColor(`--vale-estado-${CLAVE_CSS_ESTADO[e]}-bg`, '#E9E7EB')),
+          borderColor: estadosPresentes.map(e => tokenColor(`--vale-estado-${CLAVE_CSS_ESTADO[e]}-fg`, '#43474E')),
+          borderWidth: 1.5, borderRadius: 4
+        }]
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+
+    chartsGerencia.localidad?.destroy();
+    chartsGerencia.localidad = new Chart($('#chart-por-localidad'), {
+      type: 'bar',
+      data: {
+        labels: data.porLocalidad.map(l => l.nombre),
+        datasets: [
+          {
+            label: 'Total', data: data.porLocalidad.map(l => l.total),
+            backgroundColor: tokenColor('--color-primary-light', '#EFF6FF'), borderColor: tokenColor('--color-primary', '#2563EB'),
+            borderWidth: 1.5, borderRadius: 4
+          },
+          {
+            label: 'Atrasados', data: data.porLocalidad.map(l => l.atrasados),
+            backgroundColor: tokenColor('--color-danger-bg', '#FEF2F2'), borderColor: tokenColor('--color-danger', '#DC2626'),
+            borderWidth: 1.5, borderRadius: 4
+          }
+        ]
+      },
+      options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
   }
 
   async function cargarMasVales() {
@@ -1558,14 +1726,7 @@
   // Asesor: solicitar modificación (mismo formulario de creación, precargado;
   // boceto y descripción quedan en blanco — analisis_correcciones_3.md)
   // -------------------------------------------------------------------------
-  async function abrirModalSolicitarModificacion(vale) {
-    let detalle;
-    try {
-      detalle = await (await fetch(`/api/vales/${vale.id}`)).json();
-    } catch {
-      detalle = { talleres: [] };
-    }
-    const tallerSeleccionados = new Set((detalle.talleres || []).map(t => t.taller_id));
+  function abrirModalSolicitarModificacion(vale) {
     const [paisCodigoActual, ...resto] = (vale.cliente_telefono || '').split(' ');
     const telefonoActual = resto.join(' ');
 
@@ -1586,11 +1747,6 @@
               </div>
             </div>
             <div class="form-field"><label>Correo *</label><input type="email" name="clienteCorreo" value="${vale.cliente_correo || ''}" required /></div>
-          </div>
-
-          <div class="section-title">Información de Taller</div>
-          <div class="form-grid">
-            ${htmlSelectorTalleres()}
           </div>
 
           <div class="section-title">Información de Venta</div>
@@ -1615,7 +1771,6 @@
       footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-enviar">Solicitar Modificación</button>`
     });
 
-    wireSelectorTalleres(overlay, tallerSeleccionados);
     wireUrgenteAutoLock(overlay);
     const apiFechaEntregaMod = wireCampoFecha(overlay, 'fechaEntrega', { minDate: hoyMedianoche() });
     const apiFechaEventoMod = wireCampoFecha(overlay, 'fechaEvento', { minDate: sumarDiaLocal(hoyMedianoche(), 1) });
@@ -1632,10 +1787,6 @@
       if (!form.reportValidity()) return;
       if (!form.querySelector('[name="fechaEntrega"]').value || !form.querySelector('[name="fechaEvento"]').value) {
         mostrarErrorModal(overlay, 'Debe seleccionar la fecha de entrega y la fecha del evento.');
-        return;
-      }
-      if (tallerSeleccionados.size === 0) {
-        mostrarErrorModal(overlay, 'Debe seleccionar al menos un taller.');
         return;
       }
       const fd = new FormData(form);
@@ -1655,7 +1806,8 @@
         acabado: fd.get('acabado'),
         cantidad: fd.get('cantidad'),
         cotizacion: fd.get('cotizacion'),
-        talleresIds: JSON.stringify([...tallerSeleccionados]),
+        // Ya no elige taller el asesor — eso es trabajo exclusivo del Encargado
+        // General al reenviar la modificación (analisis_correcciones_7.md #3).
         justificacion: fd.get('justificacion')
       };
       const btn = overlay.querySelector('#btn-enviar');

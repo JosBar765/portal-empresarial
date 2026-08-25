@@ -312,35 +312,38 @@ class ValePdfService {
     ctx.y -= 14;
   }
 
-  // Recuadro destacado para el monto de la cotización — mismo tratamiento que
-  // el total de un recibo (etiqueta a la izquierda, cifra grande a la
-  // derecha, dentro de un marco simple) en vez de un campo más de la grilla.
-  _dibujarCajaDestacada(ctx, etiqueta, valor) {
+  // Recuadro destacado para el monto de la cotización + caja de firma y
+  // autorización, lado a lado en una sola fila (analisis_correcciones_7.md #5)
+  // — antes la firma vivía en su propia línea DEBAJO, ocupando espacio vertical
+  // aparte; ahora la cotización cede 1/5 de su ancho horizontal a la firma, y
+  // todo ese espacio vertical que antes usaba la línea de firma queda libre
+  // para BOCETO Y DESCRIPCIÓN. Mismo tratamiento que el total de un recibo
+  // (etiqueta a la izquierda, cifra grande a la derecha, dentro de un marco
+  // simple) para la cotización; la firma usa el mismo marco, sin valor, solo
+  // la etiqueta.
+  _dibujarFilaCotizacionYFirma(ctx, valorCotizacion, etiquetaFirma) {
     const alto = 17; // reducido ~50% (antes 34) para liberar espacio vertical hacia BOCETO Y DESCRIPCIÓN
     this._asegurarEspacio(ctx, alto + 18);
     const y = ctx.y - alto;
+    const anchoCotizacion = (CONTENT_WIDTH * 4) / 5;
+    const anchoFirma = CONTENT_WIDTH - anchoCotizacion;
+    const xFirma = MARGIN + anchoCotizacion;
 
-    ctx.page.drawRectangle({ x: MARGIN, y, width: CONTENT_WIDTH, height: alto, borderColor: COLOR_DIVISOR_FUERTE, borderWidth: 1 });
-    this._texto(ctx, etiqueta, MARGIN + 14, y + alto / 2 - 3, { size: 8, bold: true });
-    const anchoValor = ctx.fontBold.widthOfTextAtSize(valor, 11);
-    this._texto(ctx, valor, MARGIN + CONTENT_WIDTH - 14 - anchoValor, y + alto / 2 - 4, { size: 11, bold: true });
+    ctx.page.drawRectangle({ x: MARGIN, y, width: anchoCotizacion, height: alto, borderColor: COLOR_DIVISOR_FUERTE, borderWidth: 1 });
+    this._texto(ctx, 'COTIZACIÓN', MARGIN + 14, y + alto / 2 - 3, { size: 8, bold: true });
+    const anchoValor = ctx.fontBold.widthOfTextAtSize(valorCotizacion, 11);
+    this._texto(ctx, valorCotizacion, MARGIN + anchoCotizacion - 14 - anchoValor, y + alto / 2 - 4, { size: 11, bold: true });
 
-    ctx.y = y - 18; // margen hacia la firma sin cambios
-  }
-
-  // Línea de firma independiente (ya no es un campo más dentro de la grilla)
-  // — mismo patrón del recibo de referencia: una línea fina con la etiqueta
-  // centrada justo debajo.
-  _dibujarLineaFirma(ctx, etiqueta) {
-    const anchoLinea = 220;
-    this._asegurarEspacio(ctx, 40);
-    const yLinea = ctx.y - 20;
-    ctx.page.drawLine({
-      start: { x: MARGIN, y: yLinea }, end: { x: MARGIN + anchoLinea, y: yLinea },
-      thickness: 0.75, color: rgb(0.3, 0.3, 0.3)
+    ctx.page.drawRectangle({ x: xFirma, y, width: anchoFirma, height: alto, borderColor: COLOR_DIVISOR_FUERTE, borderWidth: 1 });
+    const lineasFirma = wrapText(etiquetaFirma, ctx.fontBold, 6, anchoFirma - 8);
+    const altoLinea = 6.5;
+    const inicioY = y + alto / 2 + ((lineasFirma.length - 1) * altoLinea) / 2 - 1.5;
+    lineasFirma.forEach((linea, i) => {
+      const anchoLinea = ctx.fontBold.widthOfTextAtSize(linea, 6);
+      this._texto(ctx, linea, xFirma + (anchoFirma - anchoLinea) / 2, inicioY - i * altoLinea, { size: 6, bold: true });
     });
-    this._texto(ctx, etiqueta, MARGIN, yLinea - 12, { size: 8, color: COLOR_ETIQUETA });
-    ctx.y = yLinea - 28;
+
+    ctx.y = y - 18;
   }
 
   _dibujarSeccionAsesor(ctx, vale) {
@@ -385,10 +388,9 @@ class ValePdfService {
 
     // La cotización y la firma dejan de ser un campo más de la grilla: la
     // cotización es el dato económico principal del vale (recuadro
-    // destacado, como el total de un recibo) y la firma necesita espacio
-    // real para firmarse a mano.
-    this._dibujarCajaDestacada(ctx, 'COTIZACIÓN', `Q ${Number(vale.cotizacion).toFixed(2)}`);
-    this._dibujarLineaFirma(ctx, 'FIRMA AUTORIZACIÓN');
+    // destacado, como el total de un recibo), y ahora comparten fila con la
+    // caja de firma y autorización (analisis_correcciones_7.md #5).
+    this._dibujarFilaCotizacionYFirma(ctx, `Q ${Number(vale.cotizacion).toFixed(2)}`, 'FIRMA Y AUTORIZACIÓN');
   }
 
   /**

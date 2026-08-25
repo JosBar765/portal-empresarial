@@ -1,4 +1,4 @@
-# Flujo del módulo "Vales de Arte" (estado actual, post `analisis_correcciones_6.md`)
+# Flujo del módulo "Vales de Arte" (estado actual, post `analisis_correcciones_7.md`)
 
 Diagrama de referencia rápida. La especificación funcional completa sigue
 siendo `analisis_modulo.md` + los `analisis_correcciones_N.md`; este archivo
@@ -147,12 +147,21 @@ propio punto de este diagrama:
  Encargado General ──────► fusiona/aprueba vales multi-taller Y todo vale
  (o su Asistente)          de modificación · decide a qué taller(es)
                           reenviar una modificación aprobada
-                          (buzón: Vales por fusionar, Atrasados)
+                          (buzón: Vales por fusionar, Vales Modificados,
+                          Atrasados)
 
  Supervisor de Ventas ───► autoriza (o no) las solicitudes de modificación
                           de los asesores, viendo su justificación
                           (buzón: Por autorizar modificación, Modificados,
                           Pend. confirmación asesor, Atrasados)
+
+ Gerente ────────────────► solo lectura — nunca ejecuta ninguna acción sobre
+                          un vale. Ve el Dashboard (KPIs y gráficas: por
+                          estado, por tienda) y la vista "Vales de Arte"
+                          (mismo listado/jerarquía que Administrador),
+                          ambas filtrables por tienda y por ventana de
+                          tiempo (analisis_correcciones_7.md, Vista
+                          Gerencia)
 ```
 
 ## 4. "Atraso" no es un estado

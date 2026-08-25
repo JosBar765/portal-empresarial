@@ -21,7 +21,8 @@ const mockDatabase = {
     { id: 8, nombre: 'Técnico Diseño B', email: 'tecnico.b@munditrofeos.com', telefono: '+502 5555-0008', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, localidad_id: 1, encargado_id: 5, activo: 1 },
     { id: 9, nombre: 'Técnico UV/3D C', email: 'tecnico.c@munditrofeos.com', telefono: '+502 5555-0009', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, localidad_id: 1, encargado_id: 6, activo: 1 },
     { id: 10, nombre: 'Encargado General', email: 'encargado.general@munditrofeos.com', telefono: '+502 5555-0010', password_hash: '$2a$10$gxksPVl9V44kqmjlUY3y0uvvnhtzSNX1M7Z1Lbpfy5wzHaQ5Yp6xy', rol_id: 8, localidad_id: 1, encargado_id: null, activo: 1 },
-    { id: 11, nombre: 'Asistente Encargado General', email: 'asistente.general@munditrofeos.com', telefono: '+502 5555-0011', password_hash: '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', rol_id: 9, localidad_id: 1, encargado_id: null, activo: 1 }
+    { id: 11, nombre: 'Asistente Encargado General', email: 'asistente.general@munditrofeos.com', telefono: '+502 5555-0011', password_hash: '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', rol_id: 9, localidad_id: 1, encargado_id: null, activo: 1 },
+    { id: 12, nombre: 'Gerente General', email: 'gerente@munditrofeos.com', telefono: '+502 5555-0012', password_hash: '$2a$10$yazyTlRjxvs0e/hn5B/UEOoUr6b06lBThNpvUlSOmJr0y1vB8tVXy', rol_id: 10, localidad_id: 1, encargado_id: null, activo: 1 }
   ],
   roles: [
     { id: 1, nombre: 'Administrador', descripcion: 'Acceso total a todos los módulos' },
@@ -32,7 +33,8 @@ const mockDatabase = {
     { id: 6, nombre: 'Encargado de Diseño UV/3D', descripcion: 'Asigna vales de arte a técnicos UV/3D y revisa sus propuestas' },
     { id: 7, nombre: 'Técnico de Diseño', descripcion: 'Ejecuta los vales de arte que le asigna su encargado' },
     { id: 8, nombre: 'Encargado General', descripcion: 'Fusiona y aprueba vales de arte enviados a más de un taller' },
-    { id: 9, nombre: 'Asistente Encargado General', descripcion: 'Mismas funciones que el Encargado General para este módulo' }
+    { id: 9, nombre: 'Asistente Encargado General', descripcion: 'Mismas funciones que el Encargado General para este módulo' },
+    { id: 10, nombre: 'Gerente', descripcion: 'Visualiza reportes, métricas y el listado de vales de arte de todas las tiendas, sin poder ejecutar ninguna acción sobre ellos' }
   ],
   permisos: [
     { id: 1, codigo: 'vales.ver', nombre: 'Ver Vales', modulo: 'vales' },
@@ -50,14 +52,15 @@ const mockDatabase = {
     { id: 13, codigo: 'vales.solicitar_modificacion', nombre: 'Solicitar Modificación', modulo: 'vales' },
     { id: 14, codigo: 'vales.aprobar_modificacion', nombre: 'Aprobar Modificación', modulo: 'vales' },
     { id: 15, codigo: 'vales.supervisar', nombre: 'Supervisar Vales', modulo: 'vales' },
-    { id: 16, codigo: 'vales.aprobar_general', nombre: 'Aprobar y Fusionar (Multi-taller)', modulo: 'vales' }
+    { id: 16, codigo: 'vales.aprobar_general', nombre: 'Aprobar y Fusionar (Multi-taller)', modulo: 'vales' },
+    { id: 17, codigo: 'vales.ver_gerencia', nombre: 'Ver Panel de Gerencia', modulo: 'vales' }
   ],
   rol_permisos: [
     { rol_id: 1, permiso_id: 1 }, { rol_id: 1, permiso_id: 2 }, { rol_id: 1, permiso_id: 3 },
     { rol_id: 1, permiso_id: 4 }, { rol_id: 1, permiso_id: 5 }, { rol_id: 1, permiso_id: 6 },
     { rol_id: 1, permiso_id: 7 }, { rol_id: 1, permiso_id: 8 }, { rol_id: 1, permiso_id: 9 },
     { rol_id: 1, permiso_id: 10 }, { rol_id: 1, permiso_id: 11 }, { rol_id: 1, permiso_id: 12 },
-    { rol_id: 1, permiso_id: 13 }, { rol_id: 1, permiso_id: 14 }, { rol_id: 1, permiso_id: 15 }, { rol_id: 1, permiso_id: 16 },
+    { rol_id: 1, permiso_id: 13 }, { rol_id: 1, permiso_id: 14 }, { rol_id: 1, permiso_id: 15 }, { rol_id: 1, permiso_id: 16 }, { rol_id: 1, permiso_id: 17 },
     { rol_id: 2, permiso_id: 1 }, { rol_id: 2, permiso_id: 3 }, { rol_id: 2, permiso_id: 4 }, { rol_id: 2, permiso_id: 5 },
     { rol_id: 3, permiso_id: 1 }, { rol_id: 3, permiso_id: 2 }, { rol_id: 3, permiso_id: 3 },
     { rol_id: 3, permiso_id: 12 }, { rol_id: 3, permiso_id: 13 }, { rol_id: 3, permiso_id: 6 }, { rol_id: 3, permiso_id: 7 },
@@ -66,7 +69,8 @@ const mockDatabase = {
     { rol_id: 6, permiso_id: 1 }, { rol_id: 6, permiso_id: 9 }, { rol_id: 6, permiso_id: 10 },
     { rol_id: 7, permiso_id: 1 }, { rol_id: 7, permiso_id: 11 },
     { rol_id: 8, permiso_id: 1 }, { rol_id: 8, permiso_id: 16 },
-    { rol_id: 9, permiso_id: 1 }, { rol_id: 9, permiso_id: 16 }
+    { rol_id: 9, permiso_id: 1 }, { rol_id: 9, permiso_id: 16 },
+    { rol_id: 10, permiso_id: 1 }, { rol_id: 10, permiso_id: 17 }
   ],
   localidades: [
     { id: 1, codigo: 'GUA', nombre: 'Guatemala', pais_id: 1, activo: 1 },

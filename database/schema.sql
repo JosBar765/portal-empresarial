@@ -108,7 +108,8 @@ INSERT INTO `roles` (`id`, `nombre`, `descripcion`) VALUES
 (6, 'Encargado de Diseño UV/3D', 'Asigna vales de arte a técnicos UV/3D y revisa sus propuestas'),
 (7, 'Técnico de Diseño', 'Ejecuta los vales de arte que le asigna su encargado'),
 (8, 'Encargado General', 'Fusiona y aprueba vales de arte enviados a más de un taller'),
-(9, 'Asistente Encargado General', 'Mismas funciones que el Encargado General para este módulo');
+(9, 'Asistente Encargado General', 'Mismas funciones que el Encargado General para este módulo'),
+(10, 'Gerente', 'Visualiza reportes, métricas y el listado de vales de arte de todas las tiendas, sin poder ejecutar ninguna acción sobre ellos');
 
 -- Permisos (basado en los módulos descritos en arquitectura_reglas.md)
 INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUES
@@ -124,6 +125,7 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (14, 'vales.aprobar_modificacion', 'Aprobar Modificación', 'vales', 'Permite al supervisor autorizar una modificación solicitada'),
 (15, 'vales.supervisar', 'Supervisar Vales de Arte', 'vales', 'Acceso de solo lectura al panel de supervisión de vales de arte'),
 (16, 'vales.aprobar_general', 'Aprobar y Fusionar (Multi-taller)', 'vales', 'Permite al encargado general fusionar y aprobar un vale enviado a más de un taller'),
+(17, 'vales.ver_gerencia', 'Ver Panel de Gerencia', 'vales', 'Acceso de solo lectura al dashboard de métricas y al listado de vales de arte de todas las tiendas'),
 -- Prompts
 (4, 'prompts.ver', 'Ver Generador de Prompts', 'prompts', 'Permite acceder al generador de prompts'),
 (5, 'prompts.crear', 'Crear Prompts', 'prompts', 'Permite crear nuevos prompts para IA'),
@@ -136,7 +138,7 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 -- Asignación de Permisos a Roles (rol_permisos)
 -- Administrador: todos
 INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16),
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17),
 -- Diseñador (legacy, no ligado al flujo de actores de vales): Vales (ver, editar) + Prompts (ver, crear)
 (2, 1), (2, 3), (2, 4), (2, 5),
 -- Asesor de Ventas: Vales (ver, crear, editar en modificación, confirmar, solicitar modificación) + Eventos (ver, crear)
@@ -152,7 +154,9 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 -- Encargado General: Vales (ver, aprobar y fusionar multi-taller)
 (8, 1), (8, 16),
 -- Asistente Encargado General: mismos permisos que el Encargado General
-(9, 1), (9, 16);
+(9, 1), (9, 16),
+-- Gerente: solo lectura — ver vales + panel de gerencia (analisis_correcciones_7.md, Vista Gerencia)
+(10, 1), (10, 17);
 
 -- Usuarios (contraseñas hasheadas con bcrypt, 10 rondas)
 -- admin@munditrofeos.com          -> admin123
@@ -164,6 +168,7 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 -- tecnico.a@munditrofeos.com / tecnico.b@munditrofeos.com / tecnico.c@munditrofeos.com -> tecnico123
 -- encargado.general@munditrofeos.com -> encgeneral123
 -- asistente.general@munditrofeos.com -> asisgeneral123
+-- gerente@munditrofeos.com -> gerente123
 
 INSERT INTO `usuarios` (`id`, `nombre`, `email`, `telefono`, `password_hash`, `rol_id`, `localidad_id`, `encargado_id`) VALUES
 (1, 'Administrador General', 'admin@munditrofeos.com', '+502 5555-0001', '$2a$10$0.B9xk21MYppfOd4XbtP3u5mJ6NzlaA6eqlu65Fy5G7xb2VnN2Lwu', 1, 1, NULL),
@@ -176,14 +181,16 @@ INSERT INTO `usuarios` (`id`, `nombre`, `email`, `telefono`, `password_hash`, `r
 (8, 'Técnico Diseño B', 'tecnico.b@munditrofeos.com', '+502 5555-0008', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 1, 5),
 (9, 'Técnico UV/3D C', 'tecnico.c@munditrofeos.com', '+502 5555-0009', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 1, 6),
 (10, 'Encargado General', 'encargado.general@munditrofeos.com', '+502 5555-0010', '$2a$10$gxksPVl9V44kqmjlUY3y0uvvnhtzSNX1M7Z1Lbpfy5wzHaQ5Yp6xy', 8, 1, NULL),
-(11, 'Asistente Encargado General', 'asistente.general@munditrofeos.com', '+502 5555-0011', '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', 9, 1, NULL);
+(11, 'Asistente Encargado General', 'asistente.general@munditrofeos.com', '+502 5555-0011', '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', 9, 1, NULL),
+(12, 'Gerente General', 'gerente@munditrofeos.com', '+502 5555-0012', '$2a$10$yazyTlRjxvs0e/hn5B/UEOoUr6b06lBThNpvUlSOmJr0y1vB8tVXy', 10, 1, NULL);
 
 -- Asignación de países a usuarios
 INSERT INTO `usuario_paises` (`usuario_id`, `pais_id`) VALUES
 (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), -- Admin opera en todos
 (2, 1), -- Diseñador opera en GT
 (3, 1), (3, 2), -- Ventas opera en GT y SV
-(4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1), (10, 1), (11, 1);
+(4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1), (10, 1), (11, 1),
+(12, 1), (12, 2), (12, 3), (12, 4), (12, 5), (12, 6); -- Gerente ve métricas de todas las tiendas/países
 
 -- -------------------------------------------------------------------------
 -- 8. Módulo Vales de Arte

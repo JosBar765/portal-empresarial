@@ -9,6 +9,8 @@
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
   <script src="/socket.io/socket.io.js"></script>
+  <!-- Solo usado por el Dashboard de Gerencia (analisis_correcciones_7.md) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -58,11 +60,14 @@
        .app-shell a propósito (position:fixed no depende del padre, y así el
        resto del layout solo necesita compensarlo con --sidebar-offset). -->
   <aside class="sidebar-vales" id="sidebar-vales" style="display:none;">
-    <button class="sidebar-item sidebar-item-active" data-vista="buzon">
+    <!-- Para el Gerente estos dos botones se reescriben en JS como
+         Dashboard/Vales de Arte (analisis_correcciones_7.md, Vista Gerencia)
+         — ver wireSidebar() en app.js. -->
+    <button class="sidebar-item sidebar-item-active" id="sidebar-item-primario" data-vista="buzon">
       <ion-icon name="file-tray-full-outline"></ion-icon>
       <span>Buzón</span>
     </button>
-    <button class="sidebar-item" data-vista="trabajo">
+    <button class="sidebar-item" id="sidebar-item-secundario" data-vista="trabajo">
       <ion-icon name="checkmark-done-circle-outline"></ion-icon>
       <span>Trabajo realizado</span>
     </button>
@@ -90,6 +95,11 @@
               <input type="date" id="ventana-hasta" class="ventana-fecha" title="Hasta" />
             </div>
           </div>
+          <!-- Solo Gerencia: filtra por tienda tanto el Dashboard como la lista de
+               Vales de Arte (analisis_correcciones_7.md, Vista Gerencia). -->
+          <select id="filtro-localidad" class="filtro-localidad" style="display:none;">
+            <option value="">Todas las tiendas</option>
+          </select>
           <button class="btn btn--primary" id="btn-nuevo-vale" style="display:none;">
             <ion-icon name="add-outline"></ion-icon>
             Crear Vale de Arte
@@ -97,6 +107,10 @@
         </section>
 
         <section class="contadores-grid" id="contadores-grid"></section>
+
+        <!-- Dashboard de Gerencia (analisis_correcciones_7.md) — reemplaza a
+             contadores-grid + buzon-section mientras state.vista === 'dashboard'. -->
+        <section class="dashboard-gerencia" id="dashboard-gerencia" style="display:none;"></section>
 
         <section class="buzon-section">
           <div class="buzon-toolbar">

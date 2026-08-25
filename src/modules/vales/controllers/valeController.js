@@ -76,9 +76,27 @@ class ValeController {
         offset: req.query.offset,
         filtroContador: req.query.filtroContador,
         busqueda: req.query.busqueda,
-        soloAtrasados: req.query.soloAtrasados
+        soloAtrasados: req.query.soloAtrasados,
+        localidadId: req.query.localidadId
       };
       const data = await valeService.obtenerBuzon(req.user, filtros);
+      return res.json(data);
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  // Vista Gerencia (analisis_correcciones_7.md): métricas agregadas, solo lectura.
+  async dashboardGerencia(req, res) {
+    try {
+      const filtros = {
+        ventana: req.query.ventana,
+        fecha: req.query.fecha,
+        desde: req.query.desde,
+        hasta: req.query.hasta,
+        localidadId: req.query.localidadId
+      };
+      const data = await valeService.obtenerDashboardGerencia(req.user, filtros);
       return res.json(data);
     } catch (error) {
       return res.status(500).json({ error: error.message });

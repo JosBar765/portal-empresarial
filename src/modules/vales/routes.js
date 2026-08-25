@@ -29,6 +29,8 @@ router.get('/carga-trabajo', requirePermission('vales.asignar'), (req, res) => v
 router.get('/carga-trabajo/:tecnicoId', requirePermission('vales.asignar'), (req, res) => valeController.cargaTrabajoTecnico(req, res));
 
 router.get('/', requirePermission('vales.ver'), (req, res) => valeController.buzon(req, res));
+// Vista Gerencia (analisis_correcciones_7.md): panel de métricas de solo lectura.
+router.get('/dashboard-gerencia', requirePermission('vales.ver_gerencia'), (req, res) => valeController.dashboardGerencia(req, res));
 router.post('/', requirePermission('vales.crear'), camposAdjuntos, (req, res) => valeController.crear(req, res));
 
 router.get('/:id', requirePermission('vales.ver'), (req, res) => valeController.detalle(req, res));

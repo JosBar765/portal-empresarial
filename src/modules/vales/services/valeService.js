@@ -86,18 +86,25 @@ function enriquecer(vale) {
 // El estado LÓGICO que ve el asesor no es el estado real de la máquina de estados:
 // colapsa varios estados internos en un puñado de "cubetas" de negocio (ver
 // analisis_correcciones_3.md #11). Nunca se usa para autorización, solo para lo
-// que el asesor ve/filtra/ordena. Un vale de modificación (MODIFICADO o con
-// vale_original_id) usa un juego de 5 estados en vez de los 4 normales.
+// que el asesor ve/filtra/ordena. Un vale de modificación (MODIFICADO, con
+// vale_original_id, O el vale ORIGINAL ya modificado — `vale.modificado`, ver
+// analisis_correcciones_7.md #2) usa un juego de 5 estados en vez de los 4
+// normales.
 function esValeDeModificacion(vale) {
-  return vale.estado === ESTADOS.MODIFICADO || !!vale.vale_original_id;
+  return vale.estado === ESTADOS.MODIFICADO || !!vale.vale_original_id || !!vale.modificado;
 }
 
+// Reusada tanto por el asesor (buzón/trabajo) como por el supervisor (trabajo
+// realizado, ver estadoVisibleSupervisor más abajo) — analisis_correcciones_7.md #2.
 function estadoVisibleAsesor(vale) {
   if (esValeDeModificacion(vale)) {
     switch (vale.estado) {
       case ESTADOS.MODIFICADO: return 'MODIFICADO';
       case ESTADOS.PENDIENTE_CONFIRMACION: return 'PENDIENTE_CONFIRMACION';
-      case ESTADOS.RECIBIDO: return 'CONFIRMADO';
+      // El vale ORIGINAL que ya usó su modificación queda RECIBIDO para siempre
+      // (nunca vuelve a pasar por aquí) — se muestra como MODIFICADO, no
+      // CONFIRMADO, porque a partir de él se creó un vale nuevo.
+      case ESTADOS.RECIBIDO: return 'MODIFICADO';
       default: return 'MODIFICADO'; // CREADO / APROBADO_DEPARTAMENTO de un vale MOD-
     }
   }
@@ -328,8 +335,13 @@ class ValeService {
   }
 
   // Validaciones compartidas entre crearVale() y solicitarModificacion() (el
-  // formulario de modificación es literalmente el mismo formulario de creación).
-  async _validarDatosVale(payload) {
+  // formulario de modificación es literalmente el mismo formulario de creación,
+  // salvo por los talleres: analisis_correcciones_7.md #3 le quita al asesor la
+  // posibilidad de elegir taller al solicitar una modificación — eso ahora es
+  // trabajo exclusivo del Encargado General al reenviarla, ver
+  // reenviarModificacion() — así que crearVale() sigue exigiendo `talleresIds`
+  // pero solicitarModificacion() no).
+  async _validarDatosVale(payload, { requiereTalleres = true } = {}) {
     const {
       clienteEmpresa, clienteNombre, clienteTelefono, clienteCorreo,
       fechaEntrega, fechaEvento, urgente, productoId, materialId, tecnica, acabado,
@@ -359,7 +371,7 @@ class ValeService {
       throw new Error('La cotización debe ser un valor numérico mayor a 0.');
     }
 
-    const talleresIds = await this._validarTalleresIds(payload.talleresIds);
+    const talleresIds = requiereTalleres ? await this._validarTalleresIds(payload.talleresIds) : [];
 
     return {
       clienteEmpresa, clienteNombre, clienteTelefono, clienteCorreo,
@@ -481,7 +493,7 @@ class ValeService {
   // El asesor solo ve sus 4/5 estados lógicos, nunca el detalle interno de cada taller
   // (analisis_correcciones_4.md #4); un encargado o técnico solo ve lo que pasó DENTRO
   // de su propio taller, no lo que hicieron otros talleres del mismo vale (#12).
-  // Administrador, Supervisor y Encargado General siguen viendo todo.
+  // Administrador, Supervisor, Encargado General y Gerente siguen viendo todo.
   async _filtrarHistorialPorRol(usuario, historial) {
     if (!usuario) return historial;
     if (usuario.rolId === 3) {
@@ -558,14 +570,25 @@ class ValeService {
       mapaTalleresPorVale.set(vt.vale_id, lista);
     });
     const nombreTaller = (id) => (talleresTodos.find(t => t.id === id) || {}).nombre || `#${id}`;
-    const todosConTaller = todos.map(v => {
+    let todosConTaller = todos.map(v => {
       const filas = mapaTalleresPorVale.get(v.id) || [];
       return { ...v, taller: filas.map(f => nombreTaller(f.taller_id)).join(', '), _filasTaller: filas };
     });
 
+    // Filtro por tienda/localidad (analisis_correcciones_7.md, Vista Gerencia): solo
+    // lo manda el frontend de Gerencia (y, opcionalmente, Administrador) para acotar
+    // el listado/dashboard a una sola tienda; el resto de roles nunca lo envían.
+    if (filtros.localidadId) {
+      const localidadId = Number(filtros.localidadId);
+      todosConTaller = todosConTaller.filter(v => v.localidad_id === localidadId);
+    }
+
     let resultado;
     switch (usuario.rolId) {
       case 1: // Administrador: ve todo
+        resultado = this._buzonAdministrador(todosConTaller, ventana, filtroContador);
+        break;
+      case 10: // Gerente: mismo listado de solo lectura que el administrador (Vista Gerencia)
         resultado = this._buzonAdministrador(todosConTaller, ventana, filtroContador);
         break;
       case 3: // Asesor de Ventas
@@ -623,6 +646,61 @@ class ValeService {
     const total = valesBuscados.length;
     const pagina = valesBuscados.slice(offset, offset + limit);
     return { vales: pagina, contadores: resultado.contadores, total, hasMore: offset + limit < total };
+  }
+
+  // -----------------------------------------------------------------------
+  // Vista Gerencia (analisis_correcciones_7.md): panel de solo lectura con
+  // métricas agregadas — total de vales, % entregados a tiempo/atrasados, y
+  // desgloses por estado y por tienda (localidad), respetando la misma ventana
+  // de tiempo y el mismo filtro de tienda que la lista de vales del gerente
+  // (obtenerBuzon con filtros.localidadId). Lo más importante para gerencia son
+  // los vales atrasados (spec explícita), por eso van primero en la respuesta.
+  // -----------------------------------------------------------------------
+  async obtenerDashboardGerencia(usuario, filtros = {}) {
+    const ventana = this._resolverVentana(filtros);
+    const todos = (await valeRepository.listarTodos()).map(enriquecer);
+    const localidades = await catalogoRepository.listarLocalidades();
+
+    const base = filtros.localidadId
+      ? todos.filter(v => v.localidad_id === Number(filtros.localidadId))
+      : todos;
+    const enVentana = base.filter(v => dentroDeVentana(v, ventana));
+
+    const total = enVentana.length;
+    const atrasados = enVentana.filter(v => v.atrasado).length;
+    // El atraso de un vale ya RECIBIDO queda congelado (ver calcularAtraso) — por
+    // eso "entregados a tiempo/con atraso" se mide solo sobre los ya terminados,
+    // no sobre los que todavía están en proceso (esos cuentan en "atrasados" arriba,
+    // pero su atraso sigue corriendo, no es un resultado final todavía).
+    const terminados = enVentana.filter(v => ESTADOS_TERMINALES.includes(v.estado));
+    const entregadosATiempo = terminados.filter(v => !v.atrasado).length;
+    const entregadosAtrasados = terminados.filter(v => v.atrasado).length;
+
+    const porEstado = {};
+    enVentana.forEach(v => { porEstado[v.estado] = (porEstado[v.estado] || 0) + 1; });
+
+    const porLocalidad = localidades.map(loc => {
+      const delGrupo = enVentana.filter(v => v.localidad_id === loc.id);
+      return {
+        localidadId: loc.id,
+        nombre: loc.nombre,
+        codigo: loc.codigo,
+        total: delGrupo.length,
+        atrasados: delGrupo.filter(v => v.atrasado).length
+      };
+    });
+
+    return {
+      total,
+      atrasados,
+      porcentajeAtrasados: total ? Math.round((atrasados / total) * 100) : 0,
+      terminados: terminados.length,
+      entregadosATiempo,
+      entregadosAtrasados,
+      porcentajeEntregadosATiempo: terminados.length ? Math.round((entregadosATiempo / terminados.length) * 100) : 0,
+      porEstado,
+      porLocalidad
+    };
   }
 
   // Aplica el filtro de un contador (corrección #10) DESPUÉS de calcular las
@@ -743,9 +821,12 @@ class ValeService {
 
   // ---- Supervisor: sidebar Trabajo realizado (recibidos, orden por fecha) ----
   // Mismo criterio que _trabajoAsesor: una modificación en curso no saca al vale de
-  // esta vista (analisis_correcciones_4.md #13).
+  // esta vista (analisis_correcciones_4.md #13). También reusa estadoVisibleAsesor
+  // para que un vale ORIGINAL ya modificado se muestre como MODIFICADO en vez de
+  // CONFIRMADO (analisis_correcciones_7.md #2) — el frontend solo usa este campo
+  // para la vista de Trabajo realizado del supervisor, no para su buzón.
   _trabajoSupervisor(todos, ventana, filtroContador) {
-    const cerrados = todos.filter(v => ESTADOS_CONFIRMADOS.includes(v.estado));
+    const cerrados = todos.filter(v => ESTADOS_CONFIRMADOS.includes(v.estado)).map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v) }));
     const enVentana = cerrados.filter(v => dentroDeVentana(v, ventana));
     const contadores = {
       valesRecibidosHoy: enVentana.filter(v => esHoy(v.actualizado_en)).length,
@@ -769,15 +850,19 @@ class ValeService {
       (v.estado === ESTADOS.MODIFICADO && v._filasTaller.length === 0)
     );
     const enVentana = visibles.filter(v => dentroDeVentana(v, ventana));
-    // analisis_correcciones_6.md #3: la única tarjeta del Encargado General es
-    // "vales por fusionar" (+ el "Atrasados" combinable de obtenerBuzon). Los
-    // vales pendientes de reenvío siguen visibles en la tabla, solo ya no tienen
-    // tarjeta propia.
+    // analisis_correcciones_6.md #3 + analisis_correcciones_7.md #1: "vales por
+    // fusionar" y "vales modificados" (los MODIFICADO pendientes de reenvío a un
+    // taller) son las dos tarjetas del Encargado General, ambas con su propio
+    // filtro (+ el "Atrasados" combinable de obtenerBuzon).
     const contadores = {
       pendientesFusion: enVentana.filter(v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO).length,
+      valesModificados: enVentana.filter(v => v.estado === ESTADOS.MODIFICADO).length,
       atrasados: enVentana.filter(v => v.atrasado).length
     };
-    const predicados = { pendientesFusion: v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO };
+    const predicados = {
+      pendientesFusion: v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO,
+      valesModificados: v => v.estado === ESTADOS.MODIFICADO
+    };
     const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, predicados);
     return { vales: ordenarPorGrupos(filtrados, [v => v.atrasado]), contadores };
   }
@@ -1182,7 +1267,14 @@ class ValeService {
       }
       const saved = await fileStorage.saveFile(archivoFusion.buffer, archivoFusion.originalname, archivoFusion.mimetype);
 
-      await this._regenerarPdf(valeId, [saved.path]);
+      // Para un vale de MODIFICACIÓN, el documento que sube aquí el Encargado
+      // General queda disponible como propuesta (enlace "Ver propuesta"), pero ya
+      // NO se fusiona (copyPages) dentro del PDF oficial del vale — ese PDF ya es
+      // el documento de la corrección en sí, no una pieza más a fusionar con el
+      // trabajo de otros talleres como sí ocurre en un vale multi-taller normal
+      // (analisis_correcciones_7.md #4).
+      const propuestasParaFusionar = esValeDeModificacion(vale) ? [] : [saved.path];
+      await this._regenerarPdf(valeId, propuestasParaFusionar);
       await valeRepository.actualizarPropuestaGeneral(valeId, saved.path);
       await valeRepository.actualizarEstado(valeId, ESTADOS.PENDIENTE_CONFIRMACION);
       await registrarHistorial(valeId, usuario.id, null, vale.estado, ESTADOS.PENDIENTE_CONFIRMACION,
@@ -1230,7 +1322,7 @@ class ValeService {
       if (!payload.justificacion) {
         throw new Error('Debe justificar la modificación solicitada.');
       }
-      const datos = await this._validarDatosVale(payload);
+      const datos = await this._validarDatosVale(payload, { requiereTalleres: false });
 
       await solicitudModificacionRepository.crear({
         valeOriginalId: valeId,
