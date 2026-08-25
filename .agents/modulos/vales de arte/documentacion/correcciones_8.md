@@ -28,9 +28,24 @@ const inicioY = y + paddingInferior + (lineasFirma.length - 1) * altoLinea;
 
 Ni `alto` (la caja sigue midiendo lo mismo) ni el `ctx.y` de salida al final
 de la función se tocaron — el espacio de BOCETO Y DESCRIPCIÓN no se ve
-afectado, tal como pedía el punto. Verificado generando un vale nuevo real y
-comparando el PDF resultante contra `Pruebas/MUESTRA PDF.pdf` (la referencia
-visual que compartió el usuario): coinciden.
+afectado, tal como pedía el punto.
+
+**Ajuste posterior (mismo día):** comparando con más detalle contra
+`Pruebas/MUESTRA PDF.pdf`, la etiqueta en realidad va COMPLETAMENTE FUERA de
+la caja (que queda vacía del todo), impresa justo debajo de su borde
+inferior — no "pegada por dentro" como en la primera pasada. Se quitó el
+texto de adentro de la caja y se dibuja después, fuera de ella, dentro del
+mismo margen de 18pt que ya se reservaba hacia el siguiente bloque (mismo
+criterio: ni `alto` ni el `ctx.y` de salida cambian):
+
+```js
+ctx.page.drawRectangle({ x: xFirma, y, width: anchoFirma, height: alto, ... });
+const anchoEtiqueta = ctx.fontBold.widthOfTextAtSize(etiquetaFirma, 6);
+this._texto(ctx, etiquetaFirma, xFirma + anchoFirma - anchoEtiqueta, y - 9, { size: 6, bold: true });
+```
+
+Verificado generando un vale nuevo real y comparando el PDF resultante
+contra `Pruebas/MUESTRA PDF.pdf`: coinciden.
 
 ## 2. Modal de "Autorizar modificación" del supervisor con accesos directos
 
