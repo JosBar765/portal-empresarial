@@ -675,6 +675,25 @@ class ValeService {
     const soloAtrasados = ['1', 'true', true].includes(filtros.soloAtrasados);
     const valesConAtraso = soloAtrasados ? resultado.vales.filter(v => v.atrasado) : resultado.vales;
 
+    // Filtro de estado (analisis_correcciones_9.md #3, opción A de
+    // documentacion/solucion_paginacion.md): antes lo aplicaba SOLO el frontend
+    // sobre la página ya cargada (`state.vales`), así que un estado que solo
+    // existiera más allá de la primera página de 50 era invisible para el
+    // filtro hasta que el usuario scrolleara lo suficiente. Corre aquí, sobre
+    // el conjunto completo, con el MISMO criterio de "estado activo por rol"
+    // que ya usa el frontend para pintar la píldora — nunca dos fuentes de
+    // verdad divergentes: estado_visible para el asesor (y el supervisor en su
+    // vista de trabajo), estado_taller para encargados/técnico, estado general
+    // para el resto.
+    const usaEstadosVisiblesParaFiltro = usuario.rolId === 3 || (usuario.rolId === 4 && vista === 'trabajo');
+    const estadoActivoDe = (v) => {
+      if (usaEstadosVisiblesParaFiltro) return v.estado_visible;
+      if ([5, 6, 7].includes(usuario.rolId)) return v.estado_taller || v.estado;
+      return v.estado;
+    };
+    const estadoFiltro = filtros.estado || null;
+    const valesPorEstado = estadoFiltro ? valesConAtraso.filter(v => estadoActivoDe(v) === estadoFiltro) : valesConAtraso;
+
     // Búsqueda (analisis_correcciones_5.md #12): corre sobre la lista COMPLETA ya
     // filtrada por rol/ventana/contador (no solo sobre la página ya cargada en el
     // navegador — `resultado.vales` en este punto no tiene límite todavía), con el
@@ -682,17 +701,61 @@ class ValeService {
     // afectadas, mismo criterio que _aplicarFiltroContador (ver comentario abajo).
     const busqueda = String(filtros.busqueda || '').trim().toLowerCase();
     const valesBuscados = busqueda
-      ? valesConAtraso.filter(v => `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase().includes(busqueda))
-      : valesConAtraso;
+      ? valesPorEstado.filter(v => `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase().includes(busqueda))
+      : valesPorEstado;
 
-    // Paginación: la jerarquía general/individual ya se aplicó por completo antes de
-    // este punto (cada método de buzón ordena la lista entera); aquí solo se recorta
-    // una página de 50 sin alterar ese orden (ver analisis_correcciones_2.md #9).
+    // Orden por columna (analisis_correcciones_9.md #3, opción A): un clic en un
+    // encabezado de la tabla pide un orden explícito que REEMPLAZA por completo
+    // la jerarquía de negocio mientras esté activo — mismo criterio que ya tenía
+    // el frontend (antes solo sobre la página cargada), ahora sobre el conjunto
+    // completo ya filtrado.
+    const sortKey = filtros.sortKey || null;
+    const sortDir = filtros.sortDir === 'desc' ? -1 : 1;
+    const valorOrden = (v) => {
+      switch (sortKey) {
+        case 'correlativo': return v.correlativo || '';
+        case 'fecha_ingreso': return v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`;
+        case 'fecha_entrega': return v.fecha_entrega || '';
+        case 'fecha_evento': return v.fecha_evento || '';
+        default: return '';
+      }
+    };
+    const valesOrdenados = sortKey
+      ? [...valesBuscados].sort((a, b) => {
+          const va = valorOrden(a), vb = valorOrden(b);
+          if (va < vb) return -1 * sortDir;
+          if (va > vb) return 1 * sortDir;
+          return 0;
+        })
+      : valesBuscados;
+
+    // Paginación por cursor (analisis_correcciones_9.md #3, opción B de
+    // documentacion/solucion_paginacion.md): en vez de un `offset` numérico
+    // contra un conjunto que puede recalcularse distinto en cada request (el
+    // atraso es relativo a "ahora" y el estado de cualquier vale puede cambiar
+    // entre una página y la siguiente), se pide "lo que sigue después de este
+    // vale" por id. Si el cursor ya no aparece en el conjunto recalculado
+    // (p. ej. cambió de estado justo entre medio) se cae a `offset` como
+    // respaldo — el frontend además descarta cualquier fila duplicada al unir
+    // páginas, así que este respaldo nunca produce filas repetidas en pantalla.
     const limit = 50;
-    const offset = Math.max(0, Number(filtros.offset) || 0);
-    const total = valesBuscados.length;
-    const pagina = valesBuscados.slice(offset, offset + limit);
-    return { vales: pagina, contadores: resultado.contadores, total, hasMore: offset + limit < total };
+    const total = valesOrdenados.length;
+    let indiceInicio;
+    if (filtros.cursor) {
+      const idx = valesOrdenados.findIndex(v => v.id === Number(filtros.cursor));
+      indiceInicio = idx === -1 ? Math.max(0, Number(filtros.offset) || 0) : idx + 1;
+    } else {
+      indiceInicio = Math.max(0, Number(filtros.offset) || 0);
+    }
+    const pagina = valesOrdenados.slice(indiceInicio, indiceInicio + limit);
+    const nextCursor = pagina.length ? pagina[pagina.length - 1].id : null;
+    return {
+      vales: pagina,
+      contadores: resultado.contadores,
+      total,
+      hasMore: indiceInicio + limit < total,
+      nextCursor
+    };
   }
 
   // -----------------------------------------------------------------------
@@ -834,10 +897,14 @@ class ValeService {
     return { vales: ordenarPorFecha(filtrados), contadores };
   }
 
+  // analisis_correcciones_9.md #1: el contador del asesor pasa de mostrar solo
+  // "cuántos le quedan" a "restantes/total" — se devuelve también `limite` para
+  // que el frontend arme el texto, en vez de tener el límite diario hardcodeado
+  // ahí (el límite es por asesor, `asesor_limites.limite_diario`, ver schema).
   async obtenerLimiteRestanteAsesor(asesorId) {
     const limite = await valeRepository.obtenerLimiteDiario(asesorId);
     const usadosHoy = await valeRepository.contarValesPorAsesorYFecha(asesorId, hoyISO());
-    return Math.max(0, limite - usadosHoy);
+    return { restantes: Math.max(0, limite - usadosHoy), limite };
   }
 
   // ---- Supervisor: sidebar Buzón (modificaciones, correcciones, pendientes de confirmación) ----

@@ -48,8 +48,8 @@ class ValeController {
 
   async limiteRestante(req, res) {
     try {
-      const restantes = await valeService.obtenerLimiteRestanteAsesor(req.user.id);
-      return res.json({ restantes });
+      const { restantes, limite } = await valeService.obtenerLimiteRestanteAsesor(req.user.id);
+      return res.json({ restantes, limite });
     } catch (error) {
       return res.status(500).json({ error: error.message });
     }
@@ -74,10 +74,14 @@ class ValeController {
         hasta: req.query.hasta,
         vista: req.query.vista,
         offset: req.query.offset,
+        cursor: req.query.cursor,
         filtroContador: req.query.filtroContador,
         busqueda: req.query.busqueda,
         soloAtrasados: req.query.soloAtrasados,
-        localidadId: req.query.localidadId
+        localidadId: req.query.localidadId,
+        estado: req.query.estado,
+        sortKey: req.query.sortKey,
+        sortDir: req.query.sortDir
       };
       const data = await valeService.obtenerBuzon(req.user, filtros);
       return res.json(data);

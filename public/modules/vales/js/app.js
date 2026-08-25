@@ -30,6 +30,13 @@
     CONFIRMADO: 'Confirmado'
   };
 
+  // Subconjuntos de ESTADOS_LABEL usados solo para poblar las opciones del
+  // desplegable "Todos los estados" del buzón (analisis_correcciones_9.md #3,
+  // opción A) — reflejan exactamente qué rama de `estadoActivo()` aplica a
+  // cada rol, para no ofrecer una opción que nunca puede matchear nada.
+  const CLAVES_ESTADOS_TALLER = ['PENDIENTE_ASIGNACION', 'ASIGNADO', 'EN_PROCESO', 'EN_REVISION', 'APROBADO'];
+  const CLAVES_ESTADOS_GENERAL = ['CREADO', 'APROBADO_DEPARTAMENTO', 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'SOLICITANDO_MODIFICACION', 'MODIFICADO'];
+
   // Roles con sidebar Buzón / Trabajo realizado (Asesor, Supervisor, Técnico,
   // Encargado General/Asistente — analisis_correcciones_5.md #1). El Gerente
   // (10) también tiene sidebar, pero con su propio par Dashboard/Vales de Arte
@@ -46,7 +53,7 @@
   const CONTADORES_CONFIG = {
     3: { // Asesor
       buzon: [
-        { key: 'valesRestantesHoy', label: 'Vales restantes hoy' },
+        { key: 'valesRestantesHoy', label: 'Vales restantes hoy', esTexto: true }, // formato "restantes/total" (analisis_correcciones_9.md #1)
         { key: 'valesPorRevisar', label: 'Pend. confirmación', filtro: 'valesPorRevisar' },
         { key: 'valesPendientesModificacion', label: 'Solicitando modificación', filtro: 'valesPendientesModificacion' },
         { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
@@ -123,11 +130,16 @@
     filtroContador: null,
     soloAtrasados: false, // combinable con filtroContador (analisis_correcciones_6.md #3)
     busqueda: '',
-    sort: { key: null, dir: null },
+    estadoFiltro: '', // analisis_correcciones_9.md #3 (opción A): ahora corre en el servidor
+    sort: { key: null, dir: null }, // ídem — el orden por columna también corre en el servidor
     socket: null,
     cargaTrabajoModal: null,
     accionesEnCurso: new Set(),
-    paginacion: { limit: 50, offset: 0, total: 0, hasMore: false, cargandoMas: false }
+    // `cursor` reemplaza a `offset` para el scroll infinito (analisis_correcciones_9.md
+    // #3, opción B): es el id del último vale ya cargado, no una posición numérica —
+    // así una página siguiente no se desalinea si el conjunto ordenado cambió entre
+    // requests (ver documentacion/solucion_paginacion.md).
+    paginacion: { limit: 50, cursor: null, total: 0, hasMore: false, cargandoMas: false }
   };
 
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -160,8 +172,15 @@
     }
   }
 
+  // El supervisor también usa el estado "lógico" (estado_visible), pero solo en
+  // su vista de Trabajo realizado (analisis_correcciones_8.md #2 lo agregó en
+  // el backend — _trabajoSupervisor ya adjunta estado_visible a cada fila —
+  // pero esta función se había quedado sin el `|| rolId === 4`, así que un
+  // vale ya modificado seguía etiquetándose "Recibido" en vez de "Modificado"
+  // en pantalla; se corrige acá, detectado al tocar esta misma función para
+  // analisis_correcciones_9.md #3).
   function usaEstadosVisibles() {
-    return state.user.rolId === 3;
+    return state.user.rolId === 3 || (state.user.rolId === 4 && state.vista === 'trabajo');
   }
 
   // El estado que corresponde MOSTRAR depende del rol: el asesor ve su versión
@@ -336,6 +355,7 @@
         state.sort = { key: null, dir: null };
         state.filtroContador = null; // un filtro de contador es propio de la vista activa
         state.soloAtrasados = false;
+        state.estadoFiltro = ''; // el conjunto de estados válidos cambia entre Buzón/Trabajo realizado
         actualizarIndicadoresOrden();
         actualizarTituloYSeccionesVista();
         cargarBuzon();
@@ -431,7 +451,10 @@
       const valor = e.target.value.trim();
       debounceBusqueda = setTimeout(() => { state.busqueda = valor; cargarBuzon(); }, 300);
     });
-    $('#filtro-estado').addEventListener('change', () => renderTabla());
+    $('#filtro-estado').addEventListener('change', (e) => {
+      state.estadoFiltro = e.target.value;
+      cargarBuzon();
+    });
 
     // Filtro de tienda — solo Gerencia (analisis_correcciones_7.md, Vista Gerencia).
     if (state.user.rolId === 10) {
@@ -463,7 +486,10 @@
           state.sort = { key: null, dir: null };
         }
         actualizarIndicadoresOrden();
-        renderTabla();
+        // analisis_correcciones_9.md #3 (opción A): el orden por columna ahora
+        // corre en el servidor sobre el conjunto completo, no solo sobre la
+        // página ya cargada — hace falta un refetch, no solo repintar.
+        cargarBuzon();
       });
     });
   }
@@ -503,6 +529,14 @@
       case 7: return [`tecnico:${user.id}`];
       case 8:
       case 9: return ['vales:encargado_general'];
+      // Gerente (Vista Gerencia): rol de solo lectura sin ninguna acción sobre
+      // los vales — no debe recibir ninguna notificación en tiempo real
+      // (toast + beep de `vale_evento`), ni siquiera las que ve Administrador
+      // vía `vales:admin` (analisis_correcciones_9.md #4). Ya caía en el
+      // `default` de abajo (nunca se unía a ninguna sala), pero se deja
+      // explícito para que la ausencia de notificaciones sea intencional y no
+      // un efecto colateral de un `switch` sin `case`.
+      case 10: return [];
       default: return [];
     }
   }
@@ -564,6 +598,11 @@
     if (state.soloAtrasados) qs.set('soloAtrasados', '1');
     if (state.busqueda) qs.set('busqueda', state.busqueda);
     if (state.localidadId) qs.set('localidadId', state.localidadId);
+    if (state.estadoFiltro) qs.set('estado', state.estadoFiltro);
+    if (state.sort.key && state.sort.dir) {
+      qs.set('sortKey', state.sort.key);
+      qs.set('sortDir', state.sort.dir);
+    }
     return qs;
   }
 
@@ -573,9 +612,8 @@
     if (state.user.rolId === 10 && state.vista === 'dashboard') {
       return cargarDashboardGerencia();
     }
-    state.paginacion = { limit: 50, offset: 0, total: 0, hasMore: false, cargandoMas: false };
+    state.paginacion = { limit: 50, cursor: null, total: 0, hasMore: false, cargandoMas: false };
     const qs = construirQueryBase();
-    qs.set('offset', '0');
 
     try {
       const res = await fetch(`/api/vales?${qs.toString()}`);
@@ -585,6 +623,7 @@
       state.contadores = data.contadores || {};
       state.paginacion.total = data.total ?? state.vales.length;
       state.paginacion.hasMore = !!data.hasMore;
+      state.paginacion.cursor = data.nextCursor ?? null;
     } catch (error) {
       $('#buzon-tbody').innerHTML = `<tr><td colspan="${columnasVisibles()}" class="tabla-vacia">Error al cargar el buzón: ${error.message}</td></tr>`;
       return;
@@ -594,7 +633,8 @@
       try {
         const r = await fetch('/api/vales/limite-restante');
         const d = await r.json();
-        state.contadores.valesRestantesHoy = d.restantes;
+        // analisis_correcciones_9.md #1: formato "restantes/total" en vez de solo el número.
+        state.contadores.valesRestantesHoy = `${d.restantes}/${d.limite}`;
       } catch { /* no bloquea el render del buzón */ }
     }
 
@@ -712,19 +752,23 @@
   async function cargarMasVales() {
     if (state.paginacion.cargandoMas || !state.paginacion.hasMore) return;
     state.paginacion.cargandoMas = true;
-    const siguienteOffset = state.paginacion.offset + state.paginacion.limit;
     const qs = construirQueryBase();
-    qs.set('offset', String(siguienteOffset));
+    if (state.paginacion.cursor) qs.set('cursor', String(state.paginacion.cursor));
 
     try {
       const res = await fetch(`/api/vales?${qs.toString()}`);
       if (!res.ok) throw new Error('No se pudo cargar más vales.');
       const data = await res.json();
-      state.vales = state.vales.concat(data.vales || []);
-      state.paginacion.offset = siguienteOffset;
+      // Si el cursor ya no aparece en el conjunto recalculado del servidor, este
+      // cae a un respaldo por posición (ver obtenerBuzon) que en teoría podría
+      // repetir filas ya mostradas — se descartan acá por id, nunca duplicando
+      // una fila en pantalla (analisis_correcciones_9.md #3, opción B).
+      const yaCargados = new Set(state.vales.map(v => v.id));
+      const nuevos = (data.vales || []).filter(v => !yaCargados.has(v.id));
+      state.vales = state.vales.concat(nuevos);
+      state.paginacion.cursor = data.nextCursor ?? state.paginacion.cursor;
       state.paginacion.total = data.total ?? state.paginacion.total;
       state.paginacion.hasMore = !!data.hasMore;
-      poblarFiltroEstado();
       renderTabla();
     } catch { /* si falla, simplemente no se agregan más filas; el usuario puede reintentar scrolleando */ }
     state.paginacion.cargandoMas = false;
@@ -782,14 +826,25 @@
     });
   }
 
+  // Opciones del desplegable "Todos los estados": ya NO se derivan de
+  // `state.vales` (lo que estuviera cargado en ese momento) — se muestra
+  // siempre el conjunto completo válido para el rol/vista actual, para que un
+  // estado que solo existe más allá de la primera página siga siendo
+  // seleccionable (analisis_correcciones_9.md #3, opción A). El filtrado en
+  // sí ahora es responsabilidad del servidor (`state.estadoFiltro`, ver
+  // construirQueryBase/cargarBuzon), no de esta función.
   function poblarFiltroEstado() {
     const select = $('#filtro-estado');
-    const valorPrevio = select.value;
-    const labelMap = usaEstadosVisibles() ? ESTADOS_VISIBLES_LABEL : ESTADOS_LABEL;
-    const presentes = [...new Set(state.vales.map(v => estadoActivo(v)))];
+    let labelMap;
+    if (usaEstadosVisibles()) {
+      labelMap = ESTADOS_VISIBLES_LABEL;
+    } else {
+      const claves = [5, 6, 7].includes(state.user.rolId) ? CLAVES_ESTADOS_TALLER : CLAVES_ESTADOS_GENERAL;
+      labelMap = Object.fromEntries(claves.map(k => [k, ESTADOS_LABEL[k]]));
+    }
     select.innerHTML = '<option value="">Todos los estados</option>' +
-      presentes.map(e => `<option value="${e}">${labelMap[e] || e}</option>`).join('');
-    if (presentes.includes(valorPrevio)) select.value = valorPrevio;
+      Object.entries(labelMap).map(([clave, label]) => `<option value="${clave}">${label}</option>`).join('');
+    select.value = state.estadoFiltro || '';
   }
 
   function nombreCatalogo(lista, id) {
@@ -798,34 +853,12 @@
     return item ? (item.nombre || item.codigo) : '-';
   }
 
-  function aplicarOrdenPersonalizado(lista) {
-    if (!state.sort.key || !state.sort.dir) return lista;
-    const dir = state.sort.dir === 'asc' ? 1 : -1;
-    const valorDe = (v) => {
-      switch (state.sort.key) {
-        case 'correlativo': return v.correlativo || '';
-        case 'fecha_ingreso': return v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`;
-        case 'fecha_entrega': return v.fecha_entrega || '';
-        case 'fecha_evento': return v.fecha_evento || '';
-        default: return '';
-      }
-    };
-    return [...lista].sort((a, b) => {
-      const va = valorDe(a), vb = valorDe(b);
-      if (va < vb) return -1 * dir;
-      if (va > vb) return 1 * dir;
-      return 0;
-    });
-  }
-
   function renderTabla() {
-    // El texto ya viene filtrado del servidor (state.busqueda, ver cargarBuzon/
-    // construirQueryBase — analisis_correcciones_5.md #12); acá solo queda el
-    // filtro de estado, que sí es puramente de la página ya cargada.
-    const estadoFiltro = $('#filtro-estado').value;
-
-    let filas = state.vales.filter(v => !estadoFiltro || estadoActivo(v) === estadoFiltro);
-    filas = aplicarOrdenPersonalizado(filas);
+    // El filtro de estado y el orden por columna ya vienen resueltos del
+    // servidor (state.estadoFiltro/state.sort viajan en la query — ver
+    // construirQueryBase/cargarBuzon — analisis_correcciones_9.md #3, opción
+    // A); acá solo se pinta `state.vales` tal cual llegó.
+    const filas = state.vales;
 
     const tbody = $('#buzon-tbody');
     if (filas.length === 0) {
@@ -1840,6 +1873,13 @@
       detalle = { solicitudModificacion: null };
     }
     const justificacion = detalle.solicitudModificacion && detalle.solicitudModificacion.justificacion;
+    // analisis_correcciones_9.md #2: el link de "Ver propuesta" faltaba porque
+    // dependía de `vale.propuesta_general_url` — la fila del buzón tal como
+    // llegó al render de la tabla, que puede quedar desactualizada si el campo
+    // se pobló DESPUÉS de esa carga. `detalle` es un fetch fresco hecho acá
+    // mismo, así que es la fuente correcta; se conserva `vale...` solo como
+    // respaldo si ese fetch fallara.
+    const propuestaUrl = detalle.propuesta_general_url || vale.propuesta_general_url;
 
     // analisis_correcciones_8.md #2: mismos dos hipervínculos que ya usa el modal
     // de decisión del asesor (Ver vale de arte / Ver propuesta) — el supervisor no
@@ -1854,7 +1894,7 @@
         </div>
         <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
           <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale de arte (PDF)</a>
-          ${vale.propuesta_general_url ? `<a href="/${vale.propuesta_general_url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
+          ${propuestaUrl ? `<a href="/${propuestaUrl}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
         </div>
         <p style="font-size:13px;">¿Confirmas autorizar la modificación solicitada para este vale de arte? Se creará un vale de arte nuevo con el prefijo MOD-, que quedará en el buzón del Encargado General para que decida a qué taller enviarlo.</p>
       `,
