@@ -319,8 +319,9 @@ class ValePdfService {
   // todo ese espacio vertical que antes usaba la línea de firma queda libre
   // para BOCETO Y DESCRIPCIÓN. Mismo tratamiento que el total de un recibo
   // (etiqueta a la izquierda, cifra grande a la derecha, dentro de un marco
-  // simple) para la cotización; la firma usa el mismo marco, sin valor, solo
-  // la etiqueta.
+  // simple) para la cotización; la caja de firma queda completamente vacía
+  // (sin etiqueta adentro) para firmarse a mano, con "FIRMA Y AUTORIZACIÓN"
+  // impreso justo debajo de su borde, fuera de la caja.
   _dibujarFilaCotizacionYFirma(ctx, valorCotizacion, etiquetaFirma) {
     const alto = 17; // reducido ~50% (antes 34) para liberar espacio vertical hacia BOCETO Y DESCRIPCIÓN
     this._asegurarEspacio(ctx, alto + 18);
@@ -334,20 +335,16 @@ class ValePdfService {
     const anchoValor = ctx.fontBold.widthOfTextAtSize(valorCotizacion, 11);
     this._texto(ctx, valorCotizacion, MARGIN + anchoCotizacion - 14 - anchoValor, y + alto / 2 - 4, { size: 11, bold: true });
 
+    // La caja de firma queda completamente VACÍA para firmar a mano — la
+    // etiqueta ya NO va adentro (corrección anterior la había bajado al fondo
+    // de la caja; ahora se saca por completo), sino justo DEBAJO de su borde
+    // inferior, igual que en el documento de referencia
+    // Pruebas/MUESTRA PDF.pdf. Se dibuja dentro del mismo margen de 18pt que
+    // ya se reservaba hacia el siguiente bloque, así que ni `alto` ni el
+    // `ctx.y` de salida cambian — BOCETO Y DESCRIPCIÓN no se ve afectado.
     ctx.page.drawRectangle({ x: xFirma, y, width: anchoFirma, height: alto, borderColor: COLOR_DIVISOR_FUERTE, borderWidth: 1 });
-    const lineasFirma = wrapText(etiquetaFirma, ctx.fontBold, 6, anchoFirma - 8);
-    const altoLinea = 6.5;
-    // Corrección #8.1: la etiqueta se ancla cerca del borde INFERIOR de la caja
-    // (antes quedaba centrada verticalmente) para dejar la parte de arriba
-    // vacía y lista para la firma a mano. No se toca `alto` (la caja sigue
-    // midiendo lo mismo) ni el `ctx.y` de salida, así que el espacio de BOCETO
-    // Y DESCRIPCIÓN no se ve afectado.
-    const paddingInferior = 3;
-    const inicioY = y + paddingInferior + (lineasFirma.length - 1) * altoLinea;
-    lineasFirma.forEach((linea, i) => {
-      const anchoLinea = ctx.fontBold.widthOfTextAtSize(linea, 6);
-      this._texto(ctx, linea, xFirma + (anchoFirma - anchoLinea) / 2, inicioY - i * altoLinea, { size: 6, bold: true });
-    });
+    const anchoEtiqueta = ctx.fontBold.widthOfTextAtSize(etiquetaFirma, 6);
+    this._texto(ctx, etiquetaFirma, xFirma + anchoFirma - anchoEtiqueta, y - 9, { size: 6, bold: true });
 
     ctx.y = y - 18;
   }
