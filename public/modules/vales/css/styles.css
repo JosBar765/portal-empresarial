@@ -432,6 +432,19 @@
   font-size: 13px;
   color: var(--color-text);
   background: var(--color-surface);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.buzon-filtros input:hover,
+.buzon-filtros select:hover {
+  border-color: var(--color-text-muted);
+}
+
+.buzon-filtros input:focus,
+.buzon-filtros select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
 }
 
 .tabla-wrapper {
@@ -646,6 +659,11 @@
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
+.form-field input:hover,
+.form-field select:hover {
+  border-color: var(--color-text-muted);
+}
+
 .form-field input:focus,
 .form-field select:focus,
 .form-field textarea:focus {
@@ -657,6 +675,21 @@
 .form-field textarea {
   resize: vertical;
   min-height: 80px;
+}
+
+/* Desplegables: se quita la flecha nativa del sistema operativo (inconsistente
+   entre navegadores) por una propia, en línea con el resto de la UI —
+   mejora UI/UX pedida sobre analisis_correcciones_6.md. */
+.form-field select,
+.buzon-filtros select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 15px;
+  cursor: pointer;
 }
 
 .form-field-phone {
@@ -747,9 +780,25 @@
   border-radius: var(--radius-full);
   font-size: 12px;
   font-weight: 600;
+}
+
+.archivo-chip-icon {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.archivo-chip-nombre {
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.archivo-chip-tamano {
+  color: var(--color-text-muted);
+  font-weight: 500;
+  flex-shrink: 0;
 }
 
 .archivo-chip-quitar {
@@ -768,6 +817,223 @@
 .archivo-chip-quitar:hover {
   background: var(--color-danger-bg);
   color: var(--color-danger);
+}
+
+/* -------------------------------------------------------------------------
+   Dropzone de archivos (rediseño UI/UX, analisis_correcciones_6.md) —
+   reemplaza el botón "Elegir archivo" nativo del navegador. El input real
+   cubre toda la zona de forma invisible (arriba en el stacking, opacity 0)
+   para que tanto el clic como el drag-and-drop nativo de archivos sigan
+   funcionando sobre toda el área, no solo sobre un botón pequeño.
+   ------------------------------------------------------------------------- */
+.dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 16px 12px;
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.dropzone:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.dropzone.is-dragover,
+.dropzone:focus-within {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.12);
+}
+
+.dropzone-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.dropzone-icon {
+  font-size: 21px;
+  color: var(--color-primary);
+}
+
+.dropzone-text {
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+
+.dropzone-text strong {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.dropzone-hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* -------------------------------------------------------------------------
+   Selector de fecha propio (rediseño UI/UX, analisis_correcciones_6.md) —
+   reemplaza el <input type="datetime-local"> nativo. El botón visible vive
+   dentro del formulario/modal; el panel de calendario se ancla a
+   document.body en position:fixed (ver wireCampoFecha en app.js) para no
+   quedar recortado por el overflow del modal, con z-index por encima del
+   overlay del modal (100 en global.css).
+   ------------------------------------------------------------------------- */
+.date-field {
+  position: relative;
+}
+
+.date-field-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.date-field-trigger:hover {
+  border-color: var(--color-text-muted);
+}
+
+.date-field-trigger[aria-expanded="true"] {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.date-field-trigger ion-icon {
+  font-size: 16px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.date-field-value.is-placeholder {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.date-picker-panel {
+  position: fixed;
+  z-index: 200;
+  width: 264px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 12px;
+  animation: fadeIn .12s var(--ease-out);
+}
+
+.dp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.dp-month-label {
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-transform: capitalize;
+}
+
+.dp-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.dp-nav:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-primary);
+}
+
+.dp-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.dp-weekdays span {
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.dp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.dp-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 12.5px;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.dp-day:hover:not(.is-disabled) {
+  background: var(--color-surface-muted);
+}
+
+.dp-day.is-today {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.dp-day.is-selected {
+  background: var(--color-primary);
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+.dp-day.is-disabled {
+  color: var(--color-text-muted);
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dp-day.is-outside {
+  cursor: default;
 }
 
 .form-error {

@@ -792,6 +792,7 @@
     document.addEventListener('keydown', onKeydown);
     const cerrar = () => {
       document.removeEventListener('keydown', onKeydown);
+      cerrarPanelFechaActivo(); // por si el modal se cierra con un calendario todavía abierto
       overlay.remove();
     };
     overlay.querySelector('.modal-close').addEventListener('click', cerrar);
@@ -861,14 +862,193 @@
     });
   }
 
+  // -------------------------------------------------------------------------
+  // Selector de fecha propio (rediseño UI/UX, analisis_correcciones_6.md) —
+  // reemplaza el <input type="datetime-local"> nativo. La hora nunca se le
+  // mostró al usuario en ningún lado (formatearFecha/formatFechaSolo siempre
+  // la ocultan), así que ahora tampoco se le pide: es un calendario propio,
+  // con la línea visual del resto del formulario, que solo deja elegir un día
+  // y se cierra solo al elegirlo.
+  // -------------------------------------------------------------------------
+  const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const DIAS_SEMANA_CORTO = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
+
+  function hoyMedianoche() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  function sumarDiaLocal(fecha, dias) {
+    const d = new Date(fecha);
+    d.setDate(d.getDate() + dias);
+    return d;
+  }
+  function isoLocal(fecha) {
+    const y = fecha.getFullYear(), m = String(fecha.getMonth() + 1).padStart(2, '0'), d = String(fecha.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  function parseIsoLocal(iso) {
+    if (!iso) return null;
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  // Solo un calendario puede estar abierto a la vez (aunque el formulario tenga
+  // varios campos de fecha) — se usa para cerrar el anterior al abrir otro, y
+  // para no dejarlo huérfano si el modal se cierra mientras sigue abierto.
+  let panelFechaActivo = null;
+  function cerrarPanelFechaActivo() {
+    if (panelFechaActivo) panelFechaActivo.cerrar();
+  }
+
+  function htmlCampoFecha(label, name, requerido = true) {
+    return `
+      <div class="form-field">
+        <label>${label}${requerido ? ' *' : ''}</label>
+        <div class="date-field" data-date-field="${name}">
+          <button type="button" class="date-field-trigger">
+            <span class="date-field-value is-placeholder">Seleccionar fecha</span>
+            <ion-icon name="calendar-outline"></ion-icon>
+          </button>
+          <input type="hidden" name="${name}" />
+        </div>
+      </div>
+    `;
+  }
+
+  // minDate se puede ajustar después con api.setMinDate() — lo usa, por ejemplo,
+  // la fecha del evento, que se recalcula cuando cambia la fecha de entrega.
+  function wireCampoFecha(overlay, name, { minDate = null } = {}) {
+    const wrapper = overlay.querySelector(`[data-date-field="${name}"]`);
+    const trigger = wrapper.querySelector('.date-field-trigger');
+    const valueEl = wrapper.querySelector('.date-field-value');
+    const hidden = wrapper.querySelector('input[type="hidden"]');
+    let seleccionado = null;
+    let minActual = minDate;
+    let mesVisible = new Date();
+    let panelEl = null;
+
+    const api = {
+      cerrar: cerrarPanel,
+      getDate: () => seleccionado,
+      setMinDate(fecha) {
+        minActual = fecha;
+        if (seleccionado && minActual && seleccionado < minActual) {
+          seleccionado = null;
+          hidden.value = '';
+          refrescarLabel();
+          hidden.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    };
+
+    function refrescarLabel() {
+      if (seleccionado) {
+        valueEl.textContent = formatearFecha(isoLocal(seleccionado));
+        valueEl.classList.remove('is-placeholder');
+      } else {
+        valueEl.textContent = 'Seleccionar fecha';
+        valueEl.classList.add('is-placeholder');
+      }
+    }
+
+    function seleccionar(fecha) {
+      seleccionado = fecha;
+      hidden.value = isoLocal(fecha);
+      refrescarLabel();
+      hidden.dispatchEvent(new Event('change', { bubbles: true }));
+      cerrarPanel();
+    }
+
+    function onKeydownCapture(e) {
+      if (e.key === 'Escape') { e.stopPropagation(); cerrarPanel(); }
+    }
+    function onClickFuera(e) {
+      if (panelEl && !panelEl.contains(e.target) && !trigger.contains(e.target)) cerrarPanel();
+    }
+    function cerrarPanel() {
+      if (!panelEl) return;
+      panelEl.remove();
+      panelEl = null;
+      trigger.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('keydown', onKeydownCapture, true);
+      document.removeEventListener('click', onClickFuera, true);
+      if (panelFechaActivo === api) panelFechaActivo = null;
+    }
+
+    function renderPanel() {
+      const hoy = hoyMedianoche();
+      const primerDia = new Date(mesVisible.getFullYear(), mesVisible.getMonth(), 1);
+      const offset = (primerDia.getDay() + 6) % 7; // lunes = primer día de la semana
+      const diasEnMes = new Date(mesVisible.getFullYear(), mesVisible.getMonth() + 1, 0).getDate();
+      let celdas = '';
+      for (let i = 0; i < offset; i++) celdas += '<span class="dp-day is-outside"></span>';
+      for (let d = 1; d <= diasEnMes; d++) {
+        const fecha = new Date(mesVisible.getFullYear(), mesVisible.getMonth(), d);
+        const deshabilitado = !!(minActual && fecha < minActual);
+        const clases = ['dp-day'];
+        if (fecha.getTime() === hoy.getTime()) clases.push('is-today');
+        if (seleccionado && fecha.getTime() === seleccionado.getTime()) clases.push('is-selected');
+        if (deshabilitado) clases.push('is-disabled');
+        celdas += `<button type="button" class="${clases.join(' ')}" ${deshabilitado ? 'disabled' : ''} data-fecha="${isoLocal(fecha)}">${d}</button>`;
+      }
+      panelEl.innerHTML = `
+        <div class="dp-header">
+          <button type="button" class="dp-nav" data-nav="-1" aria-label="Mes anterior"><ion-icon name="chevron-back-outline"></ion-icon></button>
+          <span class="dp-month-label">${MESES[mesVisible.getMonth()]} ${mesVisible.getFullYear()}</span>
+          <button type="button" class="dp-nav" data-nav="1" aria-label="Mes siguiente"><ion-icon name="chevron-forward-outline"></ion-icon></button>
+        </div>
+        <div class="dp-weekdays">${DIAS_SEMANA_CORTO.map(d => `<span>${d}</span>`).join('')}</div>
+        <div class="dp-grid">${celdas}</div>
+      `;
+      panelEl.querySelectorAll('.dp-nav').forEach(btn => {
+        btn.addEventListener('click', () => {
+          mesVisible = new Date(mesVisible.getFullYear(), mesVisible.getMonth() + Number(btn.dataset.nav), 1);
+          renderPanel();
+        });
+      });
+      panelEl.querySelectorAll('.dp-day[data-fecha]:not(.is-disabled)').forEach(btn => {
+        btn.addEventListener('click', () => seleccionar(parseIsoLocal(btn.dataset.fecha)));
+      });
+    }
+
+    function posicionarPanel() {
+      const rect = trigger.getBoundingClientRect();
+      const anchoPanel = panelEl.offsetWidth;
+      let left = rect.left;
+      if (left + anchoPanel > window.innerWidth - 12) left = Math.max(12, rect.right - anchoPanel);
+      panelEl.style.top = `${rect.bottom + 6}px`;
+      panelEl.style.left = `${left}px`;
+    }
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (panelEl) { cerrarPanel(); return; }
+      if (panelFechaActivo) panelFechaActivo.cerrar();
+      const base = minActual && minActual > hoyMedianoche() ? minActual : hoyMedianoche();
+      mesVisible = seleccionado ? new Date(seleccionado) : new Date(base);
+      panelEl = document.createElement('div');
+      panelEl.className = 'date-picker-panel';
+      document.body.appendChild(panelEl);
+      renderPanel();
+      posicionarPanel();
+      trigger.setAttribute('aria-expanded', 'true');
+      document.addEventListener('keydown', onKeydownCapture, true);
+      setTimeout(() => document.addEventListener('click', onClickFuera, true), 0);
+      panelFechaActivo = api;
+    });
+
+    return api;
+  }
+
   // Corrección #3: si la entrega queda a menos de 3 días, "Urgente" se marca
   // solo y no se puede desmarcar; con más margen, el asesor decide libremente.
   function wireUrgenteAutoLock(overlay) {
     const fechaInput = overlay.querySelector('[name="fechaEntrega"]');
     const checkbox = overlay.querySelector('[name="urgente"]');
     const actualizar = () => {
-      if (!fechaInput.value) return;
-      const diffDias = (new Date(fechaInput.value) - new Date()) / (1000 * 60 * 60 * 24);
+      if (!fechaInput.value) { checkbox.disabled = false; return; }
+      const diffDias = (parseIsoLocal(fechaInput.value) - hoyMedianoche()) / (1000 * 60 * 60 * 24);
       if (diffDias < 3) {
         checkbox.checked = true;
         checkbox.disabled = true;
@@ -876,15 +1056,8 @@
         checkbox.disabled = false;
       }
     };
-    // El picker nativo de datetime-local no se cierra solo al elegir una fecha —
-    // .blur() en `change` es el truco estándar en Chromium (analisis_correcciones_5.md #11).
-    fechaInput.addEventListener('change', () => { actualizar(); fechaInput.blur(); });
+    fechaInput.addEventListener('change', actualizar);
     actualizar();
-
-    const fechaEventoInput = overlay.querySelector('[name="fechaEvento"]');
-    if (fechaEventoInput) {
-      fechaEventoInput.addEventListener('change', () => fechaEventoInput.blur());
-    }
   }
 
   // -------------------------------------------------------------------------
@@ -900,24 +1073,65 @@
     ).join('');
   }
 
-  // Input de archivos con lista removible — un input <input type=file multiple>
-  // nativo no permite quitar un archivo individual de su propio .files, así que se
-  // mantiene un array propio en JS y se usa ESE array al armar el FormData del envío
-  // en vez de depender del input directamente (analisis_correcciones_5.md #9).
-  function wireInputArchivosRemovibles(overlay, inputSelector, listaSelector) {
+  // -------------------------------------------------------------------------
+  // Selector de archivos propio (rediseño UI/UX, analisis_correcciones_6.md) —
+  // reemplaza el <input type="file"> nativo (botón "Elegir archivo" del
+  // navegador) por una zona de arrastrar-y-soltar / clic, consistente con el
+  // resto del formulario. Un <input type=file> nativo ya acepta archivos
+  // soltados encima sin JS extra; aquí solo se le da estilo y feedback visual
+  // al arrastrar. La lista de archivos elegidos es removible con una "×" —
+  // el input nativo no permite quitar un archivo individual de su propio
+  // .files, así que se mantiene un array propio en JS y se usa ESE array al
+  // armar el FormData del envío en vez de depender del input directamente
+  // (analisis_correcciones_5.md #9).
+  // -------------------------------------------------------------------------
+  function iconoParaArchivo(file) {
+    if (file.type.startsWith('image/')) return 'image-outline';
+    if (file.type === 'application/pdf') return 'document-text-outline';
+    return 'document-outline';
+  }
+  function formatearTamano(bytes) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function htmlDropzone({ name, id, accept, multiple = false, hint }) {
+    return `
+      <label class="dropzone">
+        <input type="file"${id ? ` id="${id}"` : ''}${name ? ` name="${name}"` : ''} accept="${accept}" ${multiple ? 'multiple' : ''} class="dropzone-input" />
+        <ion-icon name="cloud-upload-outline" class="dropzone-icon"></ion-icon>
+        <span class="dropzone-text"><strong>Haz clic para subir</strong> o arrastra el archivo aquí</span>
+        ${hint ? `<span class="dropzone-hint">${hint}</span>` : ''}
+      </label>
+      <div class="archivo-lista"></div>
+    `;
+  }
+
+  function wireDropzone(overlay, inputSelector, listaSelector) {
     const input = overlay.querySelector(inputSelector);
+    const dropzone = input.closest('.dropzone');
     const lista = overlay.querySelector(listaSelector);
     let archivos = [];
     const render = () => {
       lista.innerHTML = archivos.map((f, i) => `
-        <span class="archivo-chip">${f.name}<button type="button" class="archivo-chip-quitar" data-idx="${i}" title="Quitar">&times;</button></span>
+        <span class="archivo-chip">
+          <ion-icon name="${iconoParaArchivo(f)}" class="archivo-chip-icon"></ion-icon>
+          <span class="archivo-chip-nombre">${f.name}</span>
+          <span class="archivo-chip-tamano">${formatearTamano(f.size)}</span>
+          <button type="button" class="archivo-chip-quitar" data-idx="${i}" title="Quitar">&times;</button>
+        </span>
       `).join('');
     };
     input.addEventListener('change', () => {
-      archivos = archivos.concat(Array.from(input.files));
+      const nuevos = Array.from(input.files);
+      archivos = input.multiple ? archivos.concat(nuevos) : nuevos;
       input.value = ''; // la lista real vive en `archivos`, no en el input nativo
       render();
     });
+    input.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('is-dragover'); });
+    input.addEventListener('dragleave', () => dropzone.classList.remove('is-dragover'));
+    input.addEventListener('drop', () => dropzone.classList.remove('is-dragover'));
     lista.addEventListener('click', (e) => {
       const btn = e.target.closest('.archivo-chip-quitar');
       if (!btn) return;
@@ -955,8 +1169,8 @@
 
           <div class="section-title">Información de Venta</div>
           <div class="form-grid">
-            <div class="form-field"><label>Fecha de entrega *</label><input type="datetime-local" name="fechaEntrega" required /></div>
-            <div class="form-field"><label>Fecha del evento *</label><input type="datetime-local" name="fechaEvento" required /></div>
+            ${htmlCampoFecha('Fecha de entrega', 'fechaEntrega')}
+            ${htmlCampoFecha('Fecha del evento', 'fechaEvento')}
             <div class="form-field"><label>Código de producto *</label><select name="productoId" required>${opcionesSelect('productos')}</select></div>
             <div class="form-field"><label>Material *</label><select name="materialId" required>${opcionesSelect('materiales')}</select></div>
             <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" /></div>
@@ -970,14 +1184,12 @@
           <div class="form-grid">
             <div class="form-field full"><label>Descripción (máx. 600 caracteres)</label><textarea name="descripcion" maxlength="600"></textarea></div>
             <div class="form-field">
-              <label>Imágenes (jpg, jpeg, png, webp — máx. 2MB c/u)</label>
-              <input type="file" name="imagenes" accept="image/jpeg,image/png,image/webp" multiple />
-              <div class="archivo-lista"></div>
+              <label>Imágenes</label>
+              ${htmlDropzone({ name: 'imagenes', accept: 'image/jpeg,image/png,image/webp', multiple: true, hint: 'JPG, PNG o WEBP · máx. 2MB c/u' })}
             </div>
             <div class="form-field">
-              <label>Documentos adjuntos (PDF — máx. 3MB c/u)</label>
-              <input type="file" name="documentos" accept="application/pdf" multiple />
-              <div class="archivo-lista"></div>
+              <label>Documentos adjuntos</label>
+              ${htmlDropzone({ name: 'documentos', accept: 'application/pdf', multiple: true, hint: 'PDF · máx. 3MB c/u' })}
             </div>
           </div>
         </form>
@@ -990,13 +1202,22 @@
 
     wireSelectorTalleres(overlay, tallerSeleccionados);
     wireUrgenteAutoLock(overlay);
-    const getImagenes = wireInputArchivosRemovibles(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista');
-    const getDocumentos = wireInputArchivosRemovibles(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista');
+    const apiFechaEntrega = wireCampoFecha(overlay, 'fechaEntrega', { minDate: hoyMedianoche() });
+    const apiFechaEvento = wireCampoFecha(overlay, 'fechaEvento', { minDate: sumarDiaLocal(hoyMedianoche(), 1) });
+    overlay.querySelector('[name="fechaEntrega"]').addEventListener('change', () => {
+      apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || hoyMedianoche(), 1));
+    });
+    const getImagenes = wireDropzone(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista');
+    const getDocumentos = wireDropzone(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista');
 
     overlay.querySelector('#btn-cancelar-crear').addEventListener('click', cerrar);
     overlay.querySelector('#btn-guardar-crear').addEventListener('click', () => {
       const form = overlay.querySelector('#form-crear-vale');
       if (!form.reportValidity()) return;
+      if (!form.querySelector('[name="fechaEntrega"]').value || !form.querySelector('[name="fechaEvento"]').value) {
+        mostrarErrorModal(overlay, 'Debe seleccionar la fecha de entrega y la fecha del evento.');
+        return;
+      }
       if (tallerSeleccionados.size === 0) {
         mostrarErrorModal(overlay, 'Debe seleccionar al menos un taller.');
         return;
@@ -1008,7 +1229,7 @@
       formData.set('clienteTelefono', `${paisCodigo} ${telefonoNum}`);
       formData.delete('clienteTelefonoPais');
       formData.set('talleresIds', JSON.stringify([...tallerSeleccionados]));
-      // Las imágenes/documentos reales viven en los arrays de wireInputArchivosRemovibles
+      // Las imágenes/documentos reales viven en los arrays de wireDropzone
       // (el usuario pudo quitar alguno con la "×"), no en el input nativo.
       formData.delete('imagenes');
       formData.delete('documentos');
@@ -1189,15 +1410,16 @@
       title: `Entregar propuesta — ${vale.correlativo}`,
       bodyHtml: `
         <div class="form-field">
-          <label>Documento de propuesta (PDF, opcional)</label>
-          <input type="file" id="input-propuesta" accept="application/pdf" />
+          <label>Documento de propuesta (opcional)</label>
+          ${htmlDropzone({ id: 'input-propuesta', accept: 'application/pdf', hint: 'PDF' })}
         </div>
       `,
       footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-enviar">Entregar</button>`
     });
+    const getPropuesta = wireDropzone(overlay, '#input-propuesta', '.archivo-lista');
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-enviar').addEventListener('click', async () => {
-      const file = overlay.querySelector('#input-propuesta').files[0];
+      const file = getPropuesta()[0];
       const formData = new FormData();
       if (file) formData.append('propuesta', file);
       const btn = overlay.querySelector('#btn-enviar');
@@ -1256,15 +1478,16 @@
         <p style="font-size:13px;margin-bottom:10px;">Revisa la propuesta de cada taller y adjunta el documento final ya fusionado por ti.</p>
         <ul class="historial-list" style="margin-bottom:14px;">${filasPropuesta || '<li>Este vale no tiene talleres asociados.</li>'}</ul>
         <div class="form-field">
-          <label>Documento de fusión final (PDF) *</label>
-          <input type="file" id="input-fusion" accept="application/pdf" required />
+          <label>Documento de fusión final *</label>
+          ${htmlDropzone({ id: 'input-fusion', accept: 'application/pdf', hint: 'PDF' })}
         </div>
       `,
       footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Aprobar y Fusionar</button>`
     });
+    const getFusion = wireDropzone(overlay, '#input-fusion', '.archivo-lista');
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
-      const file = overlay.querySelector('#input-fusion').files[0];
+      const file = getFusion()[0];
       if (!file) {
         mostrarErrorModal(overlay, 'Debe adjuntar el documento de fusión final.');
         return;
@@ -1372,8 +1595,8 @@
 
           <div class="section-title">Información de Venta</div>
           <div class="form-grid">
-            <div class="form-field"><label>Fecha de entrega *</label><input type="datetime-local" name="fechaEntrega" required /></div>
-            <div class="form-field"><label>Fecha del evento *</label><input type="datetime-local" name="fechaEvento" required /></div>
+            ${htmlCampoFecha('Fecha de entrega', 'fechaEntrega')}
+            ${htmlCampoFecha('Fecha del evento', 'fechaEvento')}
             <div class="form-field"><label>Código de producto *</label><select name="productoId" required>${opcionesSelect('productos')}</select></div>
             <div class="form-field"><label>Material *</label><select name="materialId" required>${opcionesSelect('materiales')}</select></div>
             <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" value="${vale.tecnica || ''}" /></div>
@@ -1394,6 +1617,11 @@
 
     wireSelectorTalleres(overlay, tallerSeleccionados);
     wireUrgenteAutoLock(overlay);
+    const apiFechaEntregaMod = wireCampoFecha(overlay, 'fechaEntrega', { minDate: hoyMedianoche() });
+    const apiFechaEventoMod = wireCampoFecha(overlay, 'fechaEvento', { minDate: sumarDiaLocal(hoyMedianoche(), 1) });
+    overlay.querySelector('[name="fechaEntrega"]').addEventListener('change', () => {
+      apiFechaEventoMod.setMinDate(sumarDiaLocal(apiFechaEntregaMod.getDate() || hoyMedianoche(), 1));
+    });
     if (paisCodigoActual) overlay.querySelector('[name="clienteTelefonoPais"]').value = paisCodigoActual;
     overlay.querySelector('[name="productoId"]').value = vale.producto_id || '';
     overlay.querySelector('[name="materialId"]').value = vale.material_id || '';
@@ -1402,6 +1630,10 @@
     overlay.querySelector('#btn-enviar').addEventListener('click', async () => {
       const form = overlay.querySelector('#form-modificacion');
       if (!form.reportValidity()) return;
+      if (!form.querySelector('[name="fechaEntrega"]').value || !form.querySelector('[name="fechaEvento"]').value) {
+        mostrarErrorModal(overlay, 'Debe seleccionar la fecha de entrega y la fecha del evento.');
+        return;
+      }
       if (tallerSeleccionados.size === 0) {
         mostrarErrorModal(overlay, 'Debe seleccionar al menos un taller.');
         return;

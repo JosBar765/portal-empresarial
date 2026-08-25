@@ -298,44 +298,6 @@ body {
   pointer-events: auto;
 }
 
-/* Fila Checkbox + Recuperación */
-.form-options-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.remember-me-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  user-select: none;
-}
-
-.remember-me-label input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--color-primary);
-  cursor: pointer;
-}
-
-.forgot-password-link {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-secondary);
-  text-decoration: none;
-  transition: color var(--transition-fast);
-}
-
-.forgot-password-link:hover {
-  color: var(--color-secondary-hover);
-  text-decoration: underline;
-}
-
 .btn-arrow-icon {
   font-size: 18px;
   margin-left: 2px;

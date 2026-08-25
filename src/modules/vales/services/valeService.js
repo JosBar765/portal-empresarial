@@ -181,11 +181,17 @@ function esVerdadero(valor) {
   return valor === true || valor === 'true' || valor === '1' || valor === 1;
 }
 
-// Normaliza el valor de un <input type="datetime-local"> ("2026-08-25T17:00")
-// a 'YYYY-MM-DD HH:MM:SS', el formato que usan tanto MySQL DATETIME como el mock.
-function normalizarDatetime(valor) {
+// Normaliza una fecha ("2026-08-25", del selector de fecha propio del frontend
+// — analisis_correcciones_6.md, ya no se pide hora al usuario) o un datetime-local
+// legado ("2026-08-25T17:00") a 'YYYY-MM-DD HH:MM:SS', el formato que usan tanto
+// MySQL DATETIME como el mock. Para una fecha sin hora, `finDelDia` decide si se
+// completa como inicio (00:00:00) o fin (23:59:59) de ese día.
+function normalizarDatetime(valor, finDelDia = false) {
   if (!valor) return valor;
   const limpio = String(valor).replace('T', ' ');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(limpio)) {
+    return `${limpio} ${finDelDia ? '23:59:59' : '00:00:00'}`;
+  }
   return limpio.length === 16 ? `${limpio}:00` : limpio;
 }
 
@@ -338,8 +344,12 @@ class ValeService {
     }
     // Técnica y acabado son opcionales (analisis_correcciones_5.md #8) — se
     // guardan en blanco si no se indican, valePdfService ya maneja ese caso.
-    const fechaEntregaNorm = normalizarDatetime(fechaEntrega);
-    const fechaEventoNorm = normalizarDatetime(fechaEvento);
+    // Entrega se normaliza a fin de día (es una fecha límite: vale durante todo
+    // ese día) y evento a inicio de día, para que, ahora que ambas son solo
+    // fecha, la validación "evento posterior a entrega" siga exigiendo que el
+    // evento caiga en un día calendario distinto (y posterior) al de entrega.
+    const fechaEntregaNorm = normalizarDatetime(fechaEntrega, true);
+    const fechaEventoNorm = normalizarDatetime(fechaEvento, false);
     const cantidadNum = Number(cantidad);
     if (!Number.isFinite(cantidadNum) || cantidadNum <= 1) {
       throw new Error('La cantidad debe ser mayor a 1.');
