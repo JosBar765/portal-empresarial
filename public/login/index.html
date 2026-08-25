@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +10,7 @@
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 </head>
+
 <body>
 
   <div class="login-container">
@@ -28,12 +30,12 @@
       <!-- Contenido Principal -->
       <div class="brand-content">
         <h1>Centraliza todos tus <span class="text-accent">procesos y herramientas</span> corporativas</h1>
-        <p class="brand-slogan">Accede de manera unificada a los módulos de Vales de Arte, Generador de Prompts, Logística de Eventos y reportería interna.</p>
+        <p class="brand-slogan">Accede de manera unificada a tus módulos de trabajo</p>
       </div>
 
       <!-- Footer de Marca -->
       <div class="brand-footer">
-        <p class="brand-copyright">© 2026 MundiTrofeos S.A. All rights reserved.</p>
+        <p class="brand-copyright">© 2026 MundiTrofeos S.A. Todos los derechos reservados.</p>
         <div class="country-badges">
           <span class="country-badge">GT</span>
           <span class="country-badge">SV</span>
@@ -90,7 +92,8 @@
           <!-- Caja informativa inferior -->
           <div class="info-alert-box">
             <ion-icon name="information-circle-outline" class="info-alert-icon"></ion-icon>
-            <p class="info-alert-text">Si no tienes acceso asignado o credenciales válidas, contacta al administrador de TI de MundiTrofeos para solicitar el registro.</p>
+            <p class="info-alert-text">Si no tienes acceso asignado o credenciales válidas, contacta al administrador de
+              TI de MundiTrofeos para solicitar el registro.</p>
           </div>
         </form>
 
@@ -113,7 +116,7 @@
       try {
         const checkRes = await fetch('/api/auth.php?action=session_check');
         const checkData = await checkRes.json();
-        if (checkData.autenticado) { window.location.href = '/dashboard/'; return; }
+        if (checkData.autenticado) {window.location.href = '/dashboard/'; return;}
       } catch (_) { }
 
       // Mostrar sesión expirada
@@ -171,8 +174,8 @@
         try {
           const res = await fetch('/api/auth.php?action=login', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, csrf_token: csrfToken }),
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({email, password, csrf_token: csrfToken}),
           });
           const data = await res.json();
 
@@ -195,4 +198,5 @@
     })();
   </script>
 </body>
+
 </html>
