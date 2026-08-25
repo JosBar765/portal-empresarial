@@ -587,6 +587,14 @@ class ValeService {
         resultado = { vales: [], contadores: {} };
     }
 
+    // "Atrasados" en general (analisis_correcciones_6.md #3): a diferencia de
+    // filtroContador (mutuamente excluyente), este es el ÚNICO contador que se
+    // puede COMBINAR con cualquier otro filtro activo — se aplica aparte, sobre
+    // el resultado ya filtrado por rol/ventana/contador, sin tocar las contadores
+    // (mismo criterio que _aplicarFiltroContador).
+    const soloAtrasados = ['1', 'true', true].includes(filtros.soloAtrasados);
+    const valesConAtraso = soloAtrasados ? resultado.vales.filter(v => v.atrasado) : resultado.vales;
+
     // Búsqueda (analisis_correcciones_5.md #12): corre sobre la lista COMPLETA ya
     // filtrada por rol/ventana/contador (no solo sobre la página ya cargada en el
     // navegador — `resultado.vales` en este punto no tiene límite todavía), con el
@@ -594,8 +602,8 @@ class ValeService {
     // afectadas, mismo criterio que _aplicarFiltroContador (ver comentario abajo).
     const busqueda = String(filtros.busqueda || '').trim().toLowerCase();
     const valesBuscados = busqueda
-      ? resultado.vales.filter(v => `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase().includes(busqueda))
-      : resultado.vales;
+      ? valesConAtraso.filter(v => `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase().includes(busqueda))
+      : valesConAtraso;
 
     // Paginación: la jerarquía general/individual ya se aplicó por completo antes de
     // este punto (cada método de buzón ordena la lista entera); aquí solo se recorta
@@ -650,12 +658,14 @@ class ValeService {
       valesRestantesHoy: null, // se calcula por separado en obtenerLimiteRestanteAsesor()
       valesPorRevisar: enVentana.filter(v => v.estado_visible === 'PENDIENTE_CONFIRMACION').length,
       valesPendientesModificacion: enVentana.filter(v => v.estado_visible === 'SOLICITANDO_MODIFICACION').length,
-      valesAtrasados: enVentana.filter(v => v.atrasado).length
+      // "Atrasados en general" (analisis_correcciones_6.md #3): ya no es un filtro
+      // más de _aplicarFiltroContador — se combina con cualquier otro filtro activo,
+      // ver el manejo de `soloAtrasados` en obtenerBuzon().
+      atrasados: enVentana.filter(v => v.atrasado).length
     };
     const predicados = {
       valesPorRevisar: v => v.estado_visible === 'PENDIENTE_CONFIRMACION',
-      valesPendientesModificacion: v => v.estado_visible === 'SOLICITANDO_MODIFICACION',
-      valesAtrasados: v => v.atrasado
+      valesPendientesModificacion: v => v.estado_visible === 'SOLICITANDO_MODIFICACION'
     };
     const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, predicados);
     const vales = ordenarPorGrupos(filtrados, [
@@ -704,7 +714,8 @@ class ValeService {
     const contadores = {
       pendientesConfirmarModificacion: enVentana.filter(v => v.estado === ESTADOS.SOLICITANDO_MODIFICACION).length,
       modificados: enVentana.filter(v => v.estado === ESTADOS.MODIFICADO).length,
-      pendientesConfirmacion: enVentana.filter(v => v.estado === ESTADOS.PENDIENTE_CONFIRMACION).length
+      pendientesConfirmacion: enVentana.filter(v => v.estado === ESTADOS.PENDIENTE_CONFIRMACION).length,
+      atrasados: enVentana.filter(v => v.atrasado).length
     };
     const predicados = {
       pendientesConfirmarModificacion: v => v.estado === ESTADOS.SOLICITANDO_MODIFICACION,
@@ -748,12 +759,15 @@ class ValeService {
       (v.estado === ESTADOS.MODIFICADO && v._filasTaller.length === 0)
     );
     const enVentana = visibles.filter(v => dentroDeVentana(v, ventana));
+    // analisis_correcciones_6.md #3: la única tarjeta del Encargado General es
+    // "vales por fusionar" (+ el "Atrasados" combinable de obtenerBuzon). Los
+    // vales pendientes de reenvío siguen visibles en la tabla, solo ya no tienen
+    // tarjeta propia.
     const contadores = {
       pendientesFusion: enVentana.filter(v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO).length,
-      pendientesReenvio: enVentana.filter(v => v.estado === ESTADOS.MODIFICADO).length,
       atrasados: enVentana.filter(v => v.atrasado).length
     };
-    const predicados = { atrasados: v => v.atrasado };
+    const predicados = { pendientesFusion: v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO };
     const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, predicados);
     return { vales: ordenarPorGrupos(filtrados, [v => v.atrasado]), contadores };
   }
@@ -810,29 +824,23 @@ class ValeService {
     const enRevision = enVentana.filter(v => v.estado_taller === ESTADOS_TALLER.EN_REVISION);
     const aprobadosHoy = enVentana.filter(v => v.estado_taller === ESTADOS_TALLER.APROBADO && esHoy(v.actualizado_en));
 
+    // analisis_correcciones_6.md #3: se dejan únicamente los 5 contadores por
+    // estado (conteo completo, sin desglosar atrasado/no atrasado) + el
+    // "Atrasados en general" combinable que maneja obtenerBuzon() aparte.
     const contadores = {
-      pendientesAsignacion: pendientesAsignacion.filter(v => !v.atrasado).length,
-      pendientesAsignacionAtrasados: pendientesAsignacion.filter(v => v.atrasado).length,
-      asignados: asignados.filter(v => !v.atrasado).length,
-      asignadosAtrasados: asignados.filter(v => v.atrasado).length,
-      enProceso: enProceso.filter(v => !v.atrasado).length,
-      enProcesoAtrasados: enProceso.filter(v => v.atrasado).length,
-      enRevision: enRevision.filter(v => !v.atrasado).length,
-      enRevisionAtrasados: enRevision.filter(v => v.atrasado).length,
-      aprobados: aprobadosHoy.filter(v => !v.atrasado).length,
-      aprobadosAtrasados: aprobadosHoy.filter(v => v.atrasado).length
+      pendientesAsignacion: pendientesAsignacion.length,
+      asignados: asignados.length,
+      enProceso: enProceso.length,
+      enRevision: enRevision.length,
+      aprobadosHoy: aprobadosHoy.length,
+      atrasados: enVentana.filter(v => v.atrasado).length
     };
     const predicados = {
-      pendientesAsignacion: v => v.estado_taller === ESTADOS_TALLER.PENDIENTE_ASIGNACION && !v.atrasado,
-      pendientesAsignacionAtrasados: v => v.estado_taller === ESTADOS_TALLER.PENDIENTE_ASIGNACION && v.atrasado,
-      asignados: v => v.estado_taller === ESTADOS_TALLER.ASIGNADO && !v.atrasado,
-      asignadosAtrasados: v => v.estado_taller === ESTADOS_TALLER.ASIGNADO && v.atrasado,
-      enProceso: v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO && !v.atrasado,
-      enProcesoAtrasados: v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO && v.atrasado,
-      enRevision: v => v.estado_taller === ESTADOS_TALLER.EN_REVISION && !v.atrasado,
-      enRevisionAtrasados: v => v.estado_taller === ESTADOS_TALLER.EN_REVISION && v.atrasado,
-      aprobados: v => v.estado_taller === ESTADOS_TALLER.APROBADO && esHoy(v.actualizado_en) && !v.atrasado,
-      aprobadosAtrasados: v => v.estado_taller === ESTADOS_TALLER.APROBADO && esHoy(v.actualizado_en) && v.atrasado
+      pendientesAsignacion: v => v.estado_taller === ESTADOS_TALLER.PENDIENTE_ASIGNACION,
+      asignados: v => v.estado_taller === ESTADOS_TALLER.ASIGNADO,
+      enProceso: v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO,
+      enRevision: v => v.estado_taller === ESTADOS_TALLER.EN_REVISION,
+      aprobadosHoy: v => v.estado_taller === ESTADOS_TALLER.APROBADO && esHoy(v.actualizado_en)
     };
     const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, predicados);
     const vales = ordenarPorGrupos(filtrados, [
@@ -846,10 +854,7 @@ class ValeService {
   }
 
   _contadoresVaciosEncargado() {
-    return {
-      pendientesAsignacion: 0, pendientesAsignacionAtrasados: 0, asignados: 0, asignadosAtrasados: 0,
-      enProceso: 0, enProcesoAtrasados: 0, enRevision: 0, enRevisionAtrasados: 0, aprobados: 0, aprobadosAtrasados: 0
-    };
+    return { pendientesAsignacion: 0, asignados: 0, enProceso: 0, enRevision: 0, aprobadosHoy: 0, atrasados: 0 };
   }
 
   _tallerDelUsuario(usuario, talleresTodos) {
@@ -908,18 +913,19 @@ class ValeService {
       .filter(Boolean)
       .filter(v => dentroDeVentana(v, ventana));
 
+    // analisis_correcciones_6.md #3: se dejan únicamente 3 contadores para el
+    // técnico ("asignados sin atraso", "asignados con atraso" y el vale en
+    // proceso) — no está en la lista de roles con el "Atrasados en general"
+    // combinable, así que "asignadosAtrasados" sigue siendo su propio filtro
+    // normal (mutuamente excluyente), no el mecanismo global de soloAtrasados.
     const contadores = {
       asignados: vales.filter(v => v.estado_taller === ESTADOS_TALLER.ASIGNADO && !v.atrasado).length,
       asignadosAtrasados: vales.filter(v => v.estado_taller === ESTADOS_TALLER.ASIGNADO && v.atrasado).length,
-      modificacionPendiente: vales.filter(v => v.correlativo.startsWith('MOD-') && !v.atrasado).length,
-      modificacionPendienteAtrasados: vales.filter(v => v.correlativo.startsWith('MOD-') && v.atrasado).length,
       enProceso: vales.find(v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO)?.correlativo || null
     };
     const predicados = {
       asignados: v => v.estado_taller === ESTADOS_TALLER.ASIGNADO && !v.atrasado,
-      asignadosAtrasados: v => v.estado_taller === ESTADOS_TALLER.ASIGNADO && v.atrasado,
-      modificacionPendiente: v => v.correlativo.startsWith('MOD-') && !v.atrasado,
-      modificacionPendienteAtrasados: v => v.correlativo.startsWith('MOD-') && v.atrasado
+      asignadosAtrasados: v => v.estado_taller === ESTADOS_TALLER.ASIGNADO && v.atrasado
     };
     const filtrados = this._aplicarFiltroContador(vales, filtroContador, predicados);
     const listaOrdenada = ordenarPorGrupos(filtrados, [
@@ -1121,13 +1127,20 @@ class ValeService {
     if (!todosAprobados) return;
 
     const vale = await valeRepository.obtenerPorId(valeId);
-    const nuevoEstado = filas.length > 1 ? ESTADOS.APROBADO_DEPARTAMENTO : ESTADOS.PENDIENTE_CONFIRMACION;
+    // Un vale de modificación (MOD-...) SIEMPRE debe retornar al Encargado General
+    // para que apruebe/fusione la corrección — sin importar si se envió a uno o
+    // varios talleres — porque esa corrección sobrescribe la propuesta original
+    // del taller que cometió el error (analisis_correcciones_6.md #2). Solo un
+    // vale "normal" con un único taller puede saltarse al Encargado General.
+    const requiereEncargadoGeneral = filas.length > 1 || esValeDeModificacion(vale);
+    const nuevoEstado = requiereEncargadoGeneral ? ESTADOS.APROBADO_DEPARTAMENTO : ESTADOS.PENDIENTE_CONFIRMACION;
     if (vale.estado === nuevoEstado) return;
 
-    // Con un solo taller no hay fusión que hacer (el Encargado General nunca
-    // interviene en el camino feliz) — la propuesta de ese único taller pasa a ser
-    // directamente el "documento oficial" del vale (analisis_correcciones_4.md #1).
-    if (filas.length === 1) {
+    // Con un solo taller y sin ser modificación no hay fusión que hacer (el
+    // Encargado General nunca interviene en el camino feliz) — la propuesta de
+    // ese único taller pasa a ser directamente el "documento oficial" del vale
+    // (analisis_correcciones_4.md #1).
+    if (filas.length === 1 && nuevoEstado === ESTADOS.PENDIENTE_CONFIRMACION) {
       const propuesta = await propuestaRepository.obtenerUltimaPorValeYTecnico(valeId, filas[0].tecnico_id);
       if (propuesta && propuesta.url) {
         await valeRepository.actualizarPropuestaGeneral(valeId, propuesta.url);

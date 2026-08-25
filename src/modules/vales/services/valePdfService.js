@@ -316,16 +316,16 @@ class ValePdfService {
   // el total de un recibo (etiqueta a la izquierda, cifra grande a la
   // derecha, dentro de un marco simple) en vez de un campo más de la grilla.
   _dibujarCajaDestacada(ctx, etiqueta, valor) {
-    const alto = 34;
+    const alto = 17; // reducido ~50% (antes 34) para liberar espacio vertical hacia BOCETO Y DESCRIPCIÓN
     this._asegurarEspacio(ctx, alto + 18);
     const y = ctx.y - alto;
 
     ctx.page.drawRectangle({ x: MARGIN, y, width: CONTENT_WIDTH, height: alto, borderColor: COLOR_DIVISOR_FUERTE, borderWidth: 1 });
-    this._texto(ctx, etiqueta, MARGIN + 14, y + alto / 2 - 5, { size: 11, bold: true });
-    const anchoValor = ctx.fontBold.widthOfTextAtSize(valor, 16);
-    this._texto(ctx, valor, MARGIN + CONTENT_WIDTH - 14 - anchoValor, y + alto / 2 - 6, { size: 16, bold: true });
+    this._texto(ctx, etiqueta, MARGIN + 14, y + alto / 2 - 3, { size: 8, bold: true });
+    const anchoValor = ctx.fontBold.widthOfTextAtSize(valor, 11);
+    this._texto(ctx, valor, MARGIN + CONTENT_WIDTH - 14 - anchoValor, y + alto / 2 - 4, { size: 11, bold: true });
 
-    ctx.y = y - 18;
+    ctx.y = y - 18; // margen hacia la firma sin cambios
   }
 
   // Línea de firma independiente (ya no es un campo más dentro de la grilla)
@@ -346,11 +346,9 @@ class ValePdfService {
   _dibujarSeccionAsesor(ctx, vale) {
     this._dibujarSeccionCampos(ctx, 'INFORMACIÓN DE ASESOR DE VENTAS', [
       [
-        { etiqueta: 'NOMBRE', valor: vale.__asesorNombre || `Asesor #${vale.asesor_id}`, proporcion: 0.5 },
-        { etiqueta: 'CORREO', valor: vale.__asesorCorreo || '-', proporcion: 0.5 }
-      ],
-      [
-        { etiqueta: 'TELÉFONO', valor: vale.__asesorTelefono || '-', proporcion: 1 }
+        { etiqueta: 'NOMBRE', valor: vale.__asesorNombre || `Asesor #${vale.asesor_id}`, proporcion: 0.4 },
+        { etiqueta: 'CORREO', valor: vale.__asesorCorreo || '-', proporcion: 0.35 },
+        { etiqueta: 'TELÉFONO', valor: vale.__asesorTelefono || '-', proporcion: 0.25 }
       ]
     ]);
   }

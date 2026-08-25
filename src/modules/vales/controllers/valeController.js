@@ -75,7 +75,8 @@ class ValeController {
         vista: req.query.vista,
         offset: req.query.offset,
         filtroContador: req.query.filtroContador,
-        busqueda: req.query.busqueda
+        busqueda: req.query.busqueda,
+        soloAtrasados: req.query.soloAtrasados
       };
       const data = await valeService.obtenerBuzon(req.user, filtros);
       return res.json(data);

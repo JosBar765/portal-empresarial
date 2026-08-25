@@ -34,13 +34,19 @@
   // Encargado General/Asistente — analisis_correcciones_5.md #1).
   const ROLES_CON_SIDEBAR = [3, 4, 7, 8, 9];
 
+  // "Atrasados" (analisis_correcciones_6.md #3): para asesor, supervisor y
+  // encargados (de taller y general) es un contador COMBINABLE — se marca
+  // con `atrasadosGlobal: true` en vez de `filtro`, así renderContadores()
+  // lo trata como un interruptor aparte (state.soloAtrasados) que se puede
+  // activar junto con cualquier otro filtro de contador. El técnico queda
+  // afuera de esta lista: su "Asignados con atraso" es su propio filtro fijo.
   const CONTADORES_CONFIG = {
     3: { // Asesor
       buzon: [
         { key: 'valesRestantesHoy', label: 'Vales restantes hoy' },
         { key: 'valesPorRevisar', label: 'Pend. confirmación', filtro: 'valesPorRevisar' },
         { key: 'valesPendientesModificacion', label: 'Solicitando modificación', filtro: 'valesPendientesModificacion' },
-        { key: 'valesAtrasados', label: 'Atrasados', alerta: true, filtro: 'valesAtrasados' }
+        { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
       ],
       trabajo: [
         { key: 'recibidosHoy', label: 'Recibidos hoy', filtro: 'recibidosHoy' },
@@ -51,8 +57,8 @@
       buzon: [
         { key: 'pendientesConfirmarModificacion', label: 'Por autorizar modificación', filtro: 'pendientesConfirmarModificacion' },
         { key: 'modificados', label: 'Modificados', filtro: 'modificados' },
-        { key: 'enCorreccion', label: 'En corrección', filtro: 'enCorreccion' },
-        { key: 'pendientesConfirmacion', label: 'Pend. confirmación asesor', filtro: 'pendientesConfirmacion' }
+        { key: 'pendientesConfirmacion', label: 'Pend. confirmación asesor', filtro: 'pendientesConfirmacion' },
+        { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
       ],
       trabajo: [
         { key: 'valesRecibidosHoy', label: 'Recibidos hoy', filtro: 'valesRecibidosHoy' },
@@ -61,22 +67,16 @@
     },
     5: [ // Encargado de un taller
       { key: 'pendientesAsignacion', label: 'Pend. asignación', filtro: 'pendientesAsignacion' },
-      { key: 'pendientesAsignacionAtrasados', label: 'Pend. asignación atrasados', alerta: true, filtro: 'pendientesAsignacionAtrasados' },
       { key: 'asignados', label: 'Asignados', filtro: 'asignados' },
-      { key: 'asignadosAtrasados', label: 'Asignados atrasados', alerta: true, filtro: 'asignadosAtrasados' },
       { key: 'enProceso', label: 'En proceso', filtro: 'enProceso' },
-      { key: 'enProcesoAtrasados', label: 'En proceso atrasados', alerta: true, filtro: 'enProcesoAtrasados' },
       { key: 'enRevision', label: 'En revisión', filtro: 'enRevision' },
-      { key: 'enRevisionAtrasados', label: 'En revisión atrasados', alerta: true, filtro: 'enRevisionAtrasados' },
-      { key: 'aprobados', label: 'Aprobados hoy', filtro: 'aprobados' },
-      { key: 'aprobadosAtrasados', label: 'Aprobados hoy (atrasados)', alerta: true, filtro: 'aprobadosAtrasados' }
+      { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' },
+      { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
     ],
     7: { // Técnico
       buzon: [
-        { key: 'asignados', label: 'Vales asignados', filtro: 'asignados' },
-        { key: 'asignadosAtrasados', label: 'Asignados atrasados', alerta: true, filtro: 'asignadosAtrasados' },
-        { key: 'modificacionPendiente', label: 'Con modificación', filtro: 'modificacionPendiente' },
-        { key: 'modificacionPendienteAtrasados', label: 'Modificación atrasados', alerta: true, filtro: 'modificacionPendienteAtrasados' },
+        { key: 'asignados', label: 'Asignados sin atraso', filtro: 'asignados' },
+        { key: 'asignadosAtrasados', label: 'Asignados con atraso', alerta: true, filtro: 'asignadosAtrasados' },
         { key: 'enProceso', label: 'Vale en proceso', esTexto: true }
       ],
       trabajo: [
@@ -86,9 +86,8 @@
     },
     8: { // Encargado General
       buzon: [
-        { key: 'pendientesFusion', label: 'Vales por fusionar' },
-        { key: 'pendientesReenvio', label: 'Pend. reenvío a taller' },
-        { key: 'atrasados', label: 'Atrasados', alerta: true, filtro: 'atrasados' }
+        { key: 'pendientesFusion', label: 'Vales por fusionar', filtro: 'pendientesFusion' },
+        { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
       ],
       trabajo: [
         { key: 'fusionadosHoy', label: 'Fusionados hoy', filtro: 'fusionadosHoy' },
@@ -113,6 +112,7 @@
     vista: 'buzon', // solo aplica a roles con sidebar
     ventana: { tipo: 'todo', desde: null, hasta: null },
     filtroContador: null,
+    soloAtrasados: false, // combinable con filtroContador (analisis_correcciones_6.md #3)
     busqueda: '',
     sort: { key: null, dir: null },
     socket: null,
@@ -295,6 +295,7 @@
         state.vista = btn.dataset.vista;
         state.sort = { key: null, dir: null };
         state.filtroContador = null; // un filtro de contador es propio de la vista activa
+        state.soloAtrasados = false;
         actualizarIndicadoresOrden();
         $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
         cargarBuzon();
@@ -504,6 +505,7 @@
     }
     if (ROLES_CON_SIDEBAR.includes(state.user.rolId)) qs.set('vista', state.vista);
     if (state.filtroContador) qs.set('filtroContador', state.filtroContador);
+    if (state.soloAtrasados) qs.set('soloAtrasados', '1');
     if (state.busqueda) qs.set('busqueda', state.busqueda);
     return qs;
   }
@@ -580,13 +582,18 @@
       const valor = state.contadores[c.key];
       const mostrado = c.esTexto ? (valor || '—') : (valor ?? 0);
       const alerta = c.alerta && Number(valor) > 0;
-      const activo = c.filtro && state.filtroContador === c.filtro;
+      const esClickeable = !!c.filtro || !!c.atrasadosGlobal;
+      // "Atrasados en general" (analisis_correcciones_6.md #3) es el único
+      // contador combinable: se activa/desactiva con su propio interruptor
+      // (state.soloAtrasados) en vez de competir por state.filtroContador con
+      // el resto de las tarjetas, que siguen siendo mutuamente excluyentes.
+      const activo = c.atrasadosGlobal ? state.soloAtrasados : (c.filtro && state.filtroContador === c.filtro);
       const clases = ['contador-card'];
       if (alerta) clases.push('contador-alerta');
-      if (c.filtro) clases.push('contador-clickeable');
+      if (esClickeable) clases.push('contador-clickeable');
       if (activo) clases.push('contador-activo');
       return `
-        <div class="${clases.join(' ')}" data-filtro="${c.filtro || ''}">
+        <div class="${clases.join(' ')}" data-filtro="${c.filtro || ''}" data-atrasados-global="${c.atrasadosGlobal ? '1' : ''}">
           <div class="valor">${mostrado}</div>
           <div class="etiqueta">${c.label}</div>
         </div>`;
@@ -594,9 +601,14 @@
 
     $$('.contador-card', grid).forEach(card => {
       const filtro = card.dataset.filtro;
-      if (!filtro) return;
+      const esAtrasadosGlobal = card.dataset.atrasadosGlobal === '1';
+      if (!filtro && !esAtrasadosGlobal) return;
       card.addEventListener('click', () => {
-        state.filtroContador = state.filtroContador === filtro ? null : filtro;
+        if (esAtrasadosGlobal) {
+          state.soloAtrasados = !state.soloAtrasados;
+        } else {
+          state.filtroContador = state.filtroContador === filtro ? null : filtro;
+        }
         cargarBuzon();
       });
     });
