@@ -295,6 +295,7 @@ CREATE TABLE IF NOT EXISTS `vales` (
   -- Control de Modificaciones
   `modificado`                   INT NOT NULL DEFAULT 0 COMMENT 'Máx 1 permitida',
   `justificacion_modificacion`   TEXT DEFAULT NULL,
+  `atraso_congelado_en`          DATETIME DEFAULT NULL COMMENT 'Snapshot fijado la primera vez que el vale se confirma de recibido o se aprueba su modificación; el atraso deja de recalcularse en vivo aunque el estado luego cambie (ej. SOLICITANDO_MODIFICACION) — analisis_correcciones_8.md #7',
   -- No existe una acción de "rechazar" separada (analisis_correcciones_5.md #5): un
   -- vale PENDIENTE_CONFIRMACION que el asesor no acepta solicita modificación, igual
   -- que cualquier otra corrección — no hay un estado EN_CORRECCION.

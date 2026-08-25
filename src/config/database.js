@@ -336,7 +336,7 @@ const taggedHandlers = {
       material_id: materialId || null, tecnica, acabado,
       cantidad: Number(cantidad), cotizacion: Number(cotizacion), descripcion: descripcion || null,
       descripcion_original: null, pdf_url: null, propuesta_general_url: null, modificado: 0, tiene_adjuntos: 0,
-      justificacion_modificacion: null, estado: estado || 'CREADO', creado_en: now, actualizado_en: now
+      justificacion_modificacion: null, atraso_congelado_en: null, estado: estado || 'CREADO', creado_en: now, actualizado_en: now
     };
     mockDatabase.vales.push(row);
     return { insertId: row.id };
@@ -390,6 +390,13 @@ const taggedHandlers = {
     const v = mockDatabase.vales.find(x => x.id === id);
     if (v) v.modificado = 1;
     return { affectedRows: v ? 1 : 0 };
+  },
+  'vale:congelar_atraso': (params) => {
+    const [fechaHora, id] = params;
+    const v = mockDatabase.vales.find(x => x.id === Number(id));
+    const yaEstabaCongelado = !v || !!v.atraso_congelado_en;
+    if (v && !v.atraso_congelado_en) v.atraso_congelado_en = fechaHora;
+    return { affectedRows: yaEstabaCongelado ? 0 : 1 };
   },
   'vale:update_propuesta_general': (params) => {
     const [url, id] = params;

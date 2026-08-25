@@ -85,6 +85,19 @@ class ValeRepository {
     await db.query('UPDATE vales SET modificado = 1 WHERE id = ?', [id], 'vale:marcar_modificado');
   }
 
+  // Congela el atraso de forma permanente (analisis_correcciones_8.md #7) —
+  // se llama exactamente en los dos puntos donde un vale queda "entregado":
+  // confirmarRecibido() y aprobarModificacion() (al devolver el original a
+  // RECIBIDO). El `IS NULL` evita pisar el primer congelamiento si por
+  // cualquier motivo se volviera a llamar sobre el mismo vale.
+  async congelarAtraso(id, fechaHora) {
+    await db.query(
+      'UPDATE vales SET atraso_congelado_en = ? WHERE id = ? AND atraso_congelado_en IS NULL',
+      [fechaHora, id],
+      'vale:congelar_atraso'
+    );
+  }
+
   async actualizarPropuestaGeneral(id, url) {
     await db.query('UPDATE vales SET propuesta_general_url = ? WHERE id = ?', [url, id], 'vale:update_propuesta_general');
   }

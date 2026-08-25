@@ -337,7 +337,13 @@ class ValePdfService {
     ctx.page.drawRectangle({ x: xFirma, y, width: anchoFirma, height: alto, borderColor: COLOR_DIVISOR_FUERTE, borderWidth: 1 });
     const lineasFirma = wrapText(etiquetaFirma, ctx.fontBold, 6, anchoFirma - 8);
     const altoLinea = 6.5;
-    const inicioY = y + alto / 2 + ((lineasFirma.length - 1) * altoLinea) / 2 - 1.5;
+    // Corrección #8.1: la etiqueta se ancla cerca del borde INFERIOR de la caja
+    // (antes quedaba centrada verticalmente) para dejar la parte de arriba
+    // vacía y lista para la firma a mano. No se toca `alto` (la caja sigue
+    // midiendo lo mismo) ni el `ctx.y` de salida, así que el espacio de BOCETO
+    // Y DESCRIPCIÓN no se ve afectado.
+    const paddingInferior = 3;
+    const inicioY = y + paddingInferior + (lineasFirma.length - 1) * altoLinea;
     lineasFirma.forEach((linea, i) => {
       const anchoLinea = ctx.fontBold.widthOfTextAtSize(linea, 6);
       this._texto(ctx, linea, xFirma + (anchoFirma - anchoLinea) / 2, inicioY - i * altoLinea, { size: 6, bold: true });

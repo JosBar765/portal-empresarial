@@ -1,4 +1,4 @@
-# Flujo del módulo "Vales de Arte" (estado actual, post `analisis_correcciones_7.md`)
+# Flujo del módulo "Vales de Arte" (estado actual, post `analisis_correcciones_8.md`)
 
 Diagrama de referencia rápida. La especificación funcional completa sigue
 siendo `analisis_modulo.md` + los `analisis_correcciones_N.md`; este archivo
@@ -168,8 +168,15 @@ propio punto de este diagrama:
 
 El atraso (columna "ATRASO" en la tabla, contador "Atrasados" en cada
 buzón) es una condición **derivada** de `fecha_entrega`, calculada al vuelo
-en cada consulta — no se guarda en la base de datos. Se congela en el
-momento en que el vale llega a `RECIBIDO` (deja de recalcularse); mientras
-el vale sigue activo, se recalcula en cada carga del buzón. Por eso puede
+en cada consulta — no se guarda en la base de datos como tal. Mientras el
+vale sigue activo, se recalcula en cada carga del buzón. Por eso puede
 combinarse como filtro con cualquier otro contador de estado: es
 independiente del estado del vale.
+
+Lo que sí se guarda es el MOMENTO del congelamiento (`atraso_congelado_en`),
+fijado una única vez cuando el vale se confirma de recibido o se aprueba su
+modificación — y se queda fijo para siempre desde ahí, aunque el vale
+después pase a `SOLICITANDO_MODIFICACION` (analisis_correcciones_8.md #7):
+antes solo se congelaba mientras el estado seguía siendo `RECIBIDO`, así que
+pedir una modificación sobre un vale ya entregado hacía que su atraso
+volviera a correr en vivo, cosa que ya no pasa.

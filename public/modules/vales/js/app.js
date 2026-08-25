@@ -1841,12 +1841,20 @@
     }
     const justificacion = detalle.solicitudModificacion && detalle.solicitudModificacion.justificacion;
 
+    // analisis_correcciones_8.md #2: mismos dos hipervínculos que ya usa el modal
+    // de decisión del asesor (Ver vale de arte / Ver propuesta) — el supervisor no
+    // debería tener que cerrar este modal y usar los íconos de la fila para revisar
+    // el vale antes de decidir si autoriza.
     const { overlay, cerrar } = abrirModal({
       title: `Autorizar modificación — ${vale.correlativo}`,
       bodyHtml: `
         <div class="form-field full" style="margin-bottom:14px;">
           <label>Justificación de la modificación</label>
           <p style="font-size:13px;white-space:pre-wrap;">${justificacion || 'Sin justificación registrada.'}</p>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale de arte (PDF)</a>
+          ${vale.propuesta_general_url ? `<a href="/${vale.propuesta_general_url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
         </div>
         <p style="font-size:13px;">¿Confirmas autorizar la modificación solicitada para este vale de arte? Se creará un vale de arte nuevo con el prefijo MOD-, que quedará en el buzón del Encargado General para que decida a qué taller enviarlo.</p>
       `,

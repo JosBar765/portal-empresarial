@@ -64,13 +64,23 @@ function sumarDias(fechaISO, dias) {
 }
 
 /**
- * El atraso es una CONDICIÓN calculada, nunca un estado persistido.
- * Para vales cerrados (RECIBIDO) se congela al momento del cierre
- * (`actualizado_en`) para que el histórico siga mostrando cuánto se atrasó;
- * para el resto se calcula contra la hora actual porque el atraso sigue corriendo.
+ * El atraso es una CONDICIÓN calculada, nunca un estado persistido. Se congela
+ * de forma PERMANENTE la primera vez que el vale es confirmado de recibido o
+ * se aprueba su modificación (columna `atraso_congelado_en`, fijada por
+ * congelarAtraso() en esos dos puntos exactos) — antes solo se congelaba
+ * mientras el vale seguía en estado RECIBIDO, así que solicitar una
+ * modificación sobre un vale ya recibido (que lo mueve a
+ * SOLICITANDO_MODIFICACION) hacía que el atraso se "descongelara" y
+ * volviera a correr en vivo, aunque el vale ya hubiese sido entregado
+ * (analisis_correcciones_8.md #7). `ESTADOS_TERMINALES`/`actualizado_en`
+ * quedan solo como respaldo para datos de semilla/histórico sin la columna
+ * nueva poblada. Para el resto de vales (nunca entregados) se calcula
+ * contra la hora actual porque el atraso sigue corriendo de verdad.
  */
 function calcularAtraso(vale) {
-  const referencia = ESTADOS_TERMINALES.includes(vale.estado) ? new Date(vale.actualizado_en.replace(' ', 'T')) : new Date();
+  const congelamiento = vale.atraso_congelado_en
+    || (ESTADOS_TERMINALES.includes(vale.estado) ? vale.actualizado_en : null);
+  const referencia = congelamiento ? new Date(congelamiento.replace(' ', 'T')) : new Date();
   const entrega = new Date(vale.fecha_entrega.replace(' ', 'T'));
   const diffMs = referencia - entrega;
   const atrasado = diffMs > 0;
@@ -162,8 +172,16 @@ function ordenarPorGrupos(vales, predicados) {
     }
   });
 
+  // Las agrupaciones (predicados, arriba) son solo eso — agrupaciones. El
+  // ordenamiento PRINCIPAL dentro de cada una sigue siendo la fecha de entrega
+  // (analisis_correcciones_8.md #3): entre atrasados, el que acumula MÁS
+  // atraso (fecha de entrega más antigua) siempre va primero, sin que la
+  // urgencia pueda alterar ese orden — antes un vale urgente con poco atraso
+  // se colaba delante de uno no urgente con mucho más atraso. La urgencia
+  // solo sigue desempatando entre vales que NO están atrasados.
   const comparador = (a, b) => {
     if (a.atrasado !== b.atrasado) return a.atrasado ? -1 : 1;
+    if (a.atrasado) return new Date(a.fecha_entrega) - new Date(b.fecha_entrega);
     if (!!a.urgente !== !!b.urgente) return a.urgente ? -1 : 1;
     return new Date(a.fecha_entrega) - new Date(b.fecha_entrega);
   };
@@ -235,6 +253,16 @@ class ValeService {
     // a nivel de core (no solo de frontend). Válido porque el sistema corre como un
     // único proceso Node (monolito modular, sin infraestructura distribuida).
     this._locksEnVale = new Set();
+    // Cola de creación por asesor (analisis_correcciones_8.md #6): el correlativo
+    // se arma leyendo "cuántos vales tiene ya este asesor" e insertando con ese
+    // número — dos creaciones casi simultáneas del MISMO asesor podían leer el
+    // mismo conteo antes de que la primera terminara de insertar, y generar un
+    // correlativo duplicado. A diferencia de _conLockDeVale (que RECHAZA la
+    // segunda operación porque es un conflicto de edición sobre el mismo vale),
+    // aquí la segunda solicitud debe simplemente ESPERAR su turno — crear dos
+    // vales en paralelo para el mismo asesor es un flujo normal, no un error.
+    // Válido por el mismo motivo que _locksEnVale: un único proceso Node.
+    this._colaCreacionPorAsesor = new Map();
   }
 
   async _conLockDeVale(valeId, fn) {
@@ -248,6 +276,17 @@ class ValeService {
     } finally {
       this._locksEnVale.delete(key);
     }
+  }
+
+  _conColaDeCreacion(asesorId, fn) {
+    const key = Number(asesorId);
+    const anterior = this._colaCreacionPorAsesor.get(key) || Promise.resolve();
+    const actual = anterior.then(fn, fn);
+    // La cola interna nunca debe quedar "envenenada" por un rechazo — el siguiente
+    // en la fila debe poder correr igual; el error real lo sigue recibiendo quien
+    // llamó a esta creación en particular a través de `actual`.
+    this._colaCreacionPorAsesor.set(key, actual.catch(() => {}));
+    return actual;
   }
 
   // -----------------------------------------------------------------------
@@ -283,41 +322,49 @@ class ValeService {
       throw new Error('Localidad del asesor no encontrada.');
     }
 
-    // Límite diario: si ya se alcanzó, el vale se registra con fecha de creación del día siguiente
-    const limite = await valeRepository.obtenerLimiteDiario(usuario.id);
-    const hoy = hoyISO();
-    const usadosHoy = await valeRepository.contarValesPorAsesorYFecha(usuario.id, hoy);
-    const fechaCreacion = usadosHoy >= limite ? sumarDias(hoy, 1) : hoy;
+    // Corrección #8.6: el conteo "cuántos vales tiene ya este asesor" (para el
+    // correlativo) y "cuántos lleva hoy" (para el límite diario) + el insert que
+    // depende de ambos se serializan por asesor — dos creaciones casi simultáneas
+    // del mismo asesor antes leían el mismo conteo y podían generar un correlativo
+    // duplicado. El servidor sigue siendo la única fuente del conteo (nunca el
+    // cliente); esto solo cierra la ventana de carrera entre leer y escribir.
+    const valeId = await this._conColaDeCreacion(usuario.id, async () => {
+      // Límite diario: si ya se alcanzó, el vale se registra con fecha de creación del día siguiente
+      const limite = await valeRepository.obtenerLimiteDiario(usuario.id);
+      const hoy = hoyISO();
+      const usadosHoy = await valeRepository.contarValesPorAsesorYFecha(usuario.id, hoy);
+      const fechaCreacion = usadosHoy >= limite ? sumarDias(hoy, 1) : hoy;
 
-    const fechaCreacionDate = new Date(`${fechaCreacion}T00:00:00`);
-    if (!(datos.fechaEventoDate > datos.fechaEntregaDate && datos.fechaEntregaDate >= fechaCreacionDate)) {
-      throw new Error('Las fechas no son válidas: el evento debe ser posterior a la entrega, y la entrega igual o posterior a la creación.');
-    }
+      const fechaCreacionDate = new Date(`${fechaCreacion}T00:00:00`);
+      if (!(datos.fechaEventoDate > datos.fechaEntregaDate && datos.fechaEntregaDate >= fechaCreacionDate)) {
+        throw new Error('Las fechas no son válidas: el evento debe ser posterior a la entrega, y la entrega igual o posterior a la creación.');
+      }
 
-    const secuencia = (await valeRepository.contarValesPorAsesor(usuario.id)) + 1;
-    const correlativo = `${localidad.codigo}-${usuario.id}-${pad4(secuencia)}`;
+      const secuencia = (await valeRepository.contarValesPorAsesor(usuario.id)) + 1;
+      const correlativo = `${localidad.codigo}-${usuario.id}-${pad4(secuencia)}`;
 
-    const valeId = await valeRepository.crear({
-      correlativo,
-      asesorId: usuario.id,
-      localidadId: localidad.id,
-      fechaCreacion,
-      horaCreacion: horaActual(),
-      fechaEntrega: datos.fechaEntregaNorm,
-      fechaEvento: datos.fechaEventoNorm,
-      urgente: datos.urgente,
-      clienteEmpresa: datos.clienteEmpresa,
-      clienteNombre: datos.clienteNombre,
-      clienteTelefono: datos.clienteTelefono,
-      clienteCorreo: datos.clienteCorreo,
-      productoId: datos.productoId,
-      materialId: datos.materialId,
-      tecnica: datos.tecnica,
-      acabado: datos.acabado,
-      cantidad: datos.cantidad,
-      cotizacion: datos.cotizacion,
-      descripcion: datos.descripcion,
-      estado: ESTADOS.CREADO
+      return valeRepository.crear({
+        correlativo,
+        asesorId: usuario.id,
+        localidadId: localidad.id,
+        fechaCreacion,
+        horaCreacion: horaActual(),
+        fechaEntrega: datos.fechaEntregaNorm,
+        fechaEvento: datos.fechaEventoNorm,
+        urgente: datos.urgente,
+        clienteEmpresa: datos.clienteEmpresa,
+        clienteNombre: datos.clienteNombre,
+        clienteTelefono: datos.clienteTelefono,
+        clienteCorreo: datos.clienteCorreo,
+        productoId: datos.productoId,
+        materialId: datos.materialId,
+        tecnica: datos.tecnica,
+        acabado: datos.acabado,
+        cantidad: datos.cantidad,
+        cotizacion: datos.cotizacion,
+        descripcion: datos.descripcion,
+        estado: ESTADOS.CREADO
+      });
     });
 
     await this._fanOutTalleres(valeId, datos.talleresIds);
@@ -1296,6 +1343,9 @@ class ValeService {
         throw new Error('Solo se puede confirmar de recibido un vale PENDIENTE_CONFIRMACION.');
       }
       await valeRepository.actualizarEstado(valeId, ESTADOS.RECIBIDO);
+      // Congela el atraso de forma permanente — ya no debe seguir corriendo aunque
+      // más adelante se solicite una modificación sobre este vale (analisis_correcciones_8.md #7).
+      await valeRepository.congelarAtraso(valeId, `${hoyISO()} ${horaActual()}`);
       await registrarHistorial(valeId, usuario.id, null, vale.estado, ESTADOS.RECIBIDO, 'Asesor confirmó de recibido el vale de arte');
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificarCambioEstado(actualizado, ['vales:supervisores']);
@@ -1316,7 +1366,13 @@ class ValeService {
       if (![ESTADOS.RECIBIDO, ESTADOS.PENDIENTE_CONFIRMACION].includes(vale.estado)) {
         throw new Error('Solo se puede solicitar modificación sobre un vale RECIBIDO o PENDIENTE_CONFIRMACION.');
       }
-      if (vale.modificado) {
+      // Un vale ya no puede modificarse si YA utilizó su única modificación
+      // (`vale.modificado`) NI si él mismo es el resultado de una modificación
+      // (`vale.vale_original_id`, es decir su correlativo ya lleva el prefijo
+      // MOD-) — antes solo se chequeaba `modificado`, así que un vale MOD-...
+      // que llegaba a RECIBIDO podía encadenar una segunda modificación
+      // (analisis_correcciones_8.md #5).
+      if (esValeDeModificacion(vale)) {
         throw new Error('Este vale de arte ya utilizó su única modificación permitida.');
       }
       if (!payload.justificacion) {
@@ -1417,6 +1473,13 @@ class ValeService {
 
       await valeRepository.marcarModificado(original.id);
       await valeRepository.actualizarEstado(original.id, ESTADOS.RECIBIDO);
+      // El original puede llegar aquí sin haber pasado nunca por confirmarRecibido()
+      // (ej. se solicitó modificación directo desde PENDIENTE_CONFIRMACION, el
+      // camino de "rechazo" — analisis_correcciones_5.md #5); en ese caso este es
+      // el primer y único momento en que su atraso debe congelarse
+      // (analisis_correcciones_8.md #7). Si ya estaba congelado (venía de RECIBIDO),
+      // congelarAtraso() no hace nada (WHERE atraso_congelado_en IS NULL).
+      await valeRepository.congelarAtraso(original.id, `${hoyISO()} ${horaActual()}`);
       await solicitudModificacionRepository.marcarEstado(solicitud.id, 'APROBADA');
 
       await registrarHistorial(original.id, usuario.id, null, ESTADOS.SOLICITANDO_MODIFICACION, ESTADOS.RECIBIDO,
