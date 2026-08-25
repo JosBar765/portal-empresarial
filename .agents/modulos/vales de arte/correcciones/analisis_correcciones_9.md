@@ -1,4 +1,4 @@
-# ARCHIVO DE ARREGLO No. 8 AL MÓDULO DE: VALES DE ARTE
+# ARCHIVO DE ARREGLO No. 9 AL MÓDULO DE: VALES DE ARTE
 
 1. Para el asesor, añadiremos un contador para vales de arte restantes. El formato de este contador será: restantes/total
 
