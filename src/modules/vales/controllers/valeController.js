@@ -46,10 +46,12 @@ class ValeController {
     }
   }
 
-  async limiteRestante(req, res) {
+  // analisis_correcciones_10.md #11: límite diario colectivo del Supervisor
+  // (antes era individual del asesor, /limite-restante).
+  async limiteColectivo(req, res) {
     try {
-      const { restantes, limite } = await valeService.obtenerLimiteRestanteAsesor(req.user.id);
-      return res.json({ restantes, limite });
+      const { autorizados, limite } = await valeService.obtenerLimiteColectivoSupervisor(req.user.id);
+      return res.json({ autorizados, limite });
     } catch (error) {
       return res.status(500).json({ error: error.message });
     }
@@ -218,6 +220,15 @@ class ValeController {
   async aprobarModificacion(req, res) {
     try {
       const vale = await valeService.aprobarModificacion(req.user, Number(req.params.id));
+      return res.json(vale);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
+  async autorizarCreacion(req, res) {
+    try {
+      const vale = await valeService.autorizarCreacion(req.user, Number(req.params.id));
       return res.json(vale);
     } catch (error) {
       return res.status(400).json({ error: error.message });

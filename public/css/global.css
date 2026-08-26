@@ -71,6 +71,8 @@
   --vale-estado-en-revision-bg: #FFF3B2;                --vale-estado-en-revision-fg: #5C4B00;
   --vale-estado-aprobado-bg: #C8F5D0;                  --vale-estado-aprobado-fg: #0B5E1F;
   /* Generales (vales.estado) */
+  /* analisis_correcciones_10.md #5: nuevo primer estado, antes del fan-out a talleres */
+  --vale-estado-espera-autorizacion-bg: #E4D9F8;       --vale-estado-espera-autorizacion-fg: #3F2A5C;
   --vale-estado-aprobado-departamento-bg: #B2EBE0;     --vale-estado-aprobado-departamento-fg: #00695C;
   --vale-estado-pendiente-confirmacion-bg: #FFE8A3;    --vale-estado-pendiente-confirmacion-fg: #6B4E00;
   --vale-estado-recibido-bg: #022448;                  --vale-estado-recibido-fg: #FFFFFF;

@@ -7,6 +7,7 @@ const authRoutes = require('./core/auth/authRoutes');
 const jwtHelper = require('./core/auth/jwtHelper');
 const { authenticateJWT, requireAuth } = require('./core/permissions/permissionMiddleware');
 const valeRoutes = require('./modules/vales/routes');
+const atrasoWatcher = require('./modules/vales/atrasoWatcher');
 
 const app = express();
 
@@ -21,6 +22,21 @@ app.use(cookieParser());
 app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
 app.use('/css', express.static(path.join(__dirname, '../public/css')));
 app.use('/js', express.static(path.join(__dirname, '../public/js')));
+
+// analisis_correcciones_10.md #2: si ya hay una sesión válida, /login redirige
+// al dashboard en vez de mostrar el formulario — antes esto solo lo decidía un
+// fetch de session_check en el cliente (public/login/index.html), así que la
+// página de login se entregaba igual y el redirect llegaba tarde. Mismo patrón
+// que GET '/' más abajo (jwtHelper.verifyToken sobre la cookie), pero antes del
+// estático para cubrir también /login/index.html servido directo.
+app.use('/login', (req, res, next) => {
+  const token = req.cookies ? req.cookies.token : null;
+  const decoded = token ? jwtHelper.verifyToken(token) : null;
+  if (decoded) {
+    return res.redirect('/dashboard/');
+  }
+  next();
+});
 app.use('/login', express.static(path.join(__dirname, '../public/login')));
 
 // Rutas de API de autenticación (los endpoints internos deciden si requieren token)
@@ -61,6 +77,11 @@ app.use('/modules', express.static(path.join(__dirname, '../public/modules')));
 
 // Rutas de API del módulo Vales de Arte
 app.use('/api/vales', requireAuth, valeRoutes);
+
+// analisis_correcciones_10.md #10: vigilante de atraso — corre en el mismo
+// proceso (monolito modular), revisa cada 60s qué vales acaban de cruzar su
+// fecha_entrega y dispara la alerta roja una sola vez por vale.
+atrasoWatcher.iniciar();
 
 // Endpoint dinámico de Módulos del Dashboard
 app.get('/api/modules', requireAuth, (req, res) => {

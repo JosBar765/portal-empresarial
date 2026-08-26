@@ -25,6 +25,8 @@ const COLOR_TEXTO = rgb(0, 0, 0);
 const COLOR_ETIQUETA = rgb(0.45, 0.48, 0.52);
 const COLOR_DIVISOR = rgb(0.85, 0.85, 0.85);
 const COLOR_DIVISOR_FUERTE = rgb(0.15, 0.15, 0.15);
+// analisis_correcciones_10.md #6: firma de autorización del Supervisor, en rojo.
+const COLOR_FIRMA = rgb(0.8, 0.1, 0.1);
 
 // Fechas siempre dd/mm/aaaa; solo la fecha de ingreso muestra también hora (dd/mm/aaaa hh:mm).
 function formatFechaSolo(valor) {
@@ -62,10 +64,14 @@ function wrapText(text, font, size, maxWidth) {
 }
 
 class ValePdfService {
-  // `propuestasParaFusionar`: rutas de propuestas PDF a fusionar al final (solo
-  // usado por el Encargado General al fusionar un vale multi-taller, ver
-  // valeService.aprobarGeneral()).
-  async generarPdfVale(vale, documentos = [], propuestasParaFusionar = []) {
+  // Nota (analisis_correcciones_10.md #3): este PDF es el documento
+  // ADMINISTRATIVO del vale (encabezado, cliente, venta, firma) — nunca lleva
+  // fusionada la propuesta/diseño de ningún taller. Esa propuesta vive en su
+  // propio enlace ("Ver propuesta", `propuesta_general_url`) precisamente para
+  // que el supervisor pueda ver una cosa sin la otra al autorizar una
+  // modificación. Antes `aprobarGeneral` sí la fusionaba aquí para un vale
+  // normal (no así para uno de modificación) — era la causa del bug.
+  async generarPdfVale(vale, documentos = []) {
     const pdfDoc = await PDFDocument.create();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -123,12 +129,6 @@ class ValePdfService {
     for (const doc of docsAdjuntos) {
       if (doc.mime_type !== 'application/pdf') continue;
       await this._fusionarPdfExterno(pdfDoc, path.join(UPLOADS_DIR, path.basename(doc.ruta)), doc.nombre_original);
-    }
-
-    // Fusionar las propuestas de cada taller (solo cuando el Encargado General
-    // fusiona un vale multi-taller — ver valeService.aprobarGeneral()).
-    for (const rutaPropuesta of propuestasParaFusionar) {
-      await this._fusionarPdfExterno(pdfDoc, path.join(UPLOADS_DIR, path.basename(rutaPropuesta)), 'propuesta de taller');
     }
 
     // El checkbox de "ADJUNTOS" ya no se calcula: lo marca a mano el técnico al
@@ -322,7 +322,11 @@ class ValePdfService {
   // simple) para la cotización; la caja de firma queda completamente vacía
   // (sin etiqueta adentro) para firmarse a mano, con "FIRMA Y AUTORIZACIÓN"
   // impreso justo debajo de su borde, fuera de la caja.
-  _dibujarFilaCotizacionYFirma(ctx, valorCotizacion, etiquetaFirma) {
+  // `firma`, cuando viene (analisis_correcciones_10.md #6), es el texto
+  // "<Supervisor> CREACIÓN"/"<Supervisor> MODIFICACIÓN" que se dibuja EN ROJO
+  // dentro de la caja — antes quedaba siempre vacía a propósito, para firmarse
+  // a mano; ahora, si el vale ya fue autorizado, la firma queda impresa ahí.
+  _dibujarFilaCotizacionYFirma(ctx, valorCotizacion, etiquetaFirma, firma) {
     const alto = 17; // reducido ~50% (antes 34) para liberar espacio vertical hacia BOCETO Y DESCRIPCIÓN
     this._asegurarEspacio(ctx, alto + 18);
     const y = ctx.y - alto;
@@ -335,14 +339,23 @@ class ValePdfService {
     const anchoValor = ctx.fontBold.widthOfTextAtSize(valorCotizacion, 11);
     this._texto(ctx, valorCotizacion, MARGIN + anchoCotizacion - 14 - anchoValor, y + alto / 2 - 4, { size: 11, bold: true });
 
-    // La caja de firma queda completamente VACÍA para firmar a mano — la
-    // etiqueta ya NO va adentro (corrección anterior la había bajado al fondo
-    // de la caja; ahora se saca por completo), sino justo DEBAJO de su borde
-    // inferior, igual que en el documento de referencia
-    // Pruebas/MUESTRA PDF.pdf. Se dibuja dentro del mismo margen de 18pt que
-    // ya se reservaba hacia el siguiente bloque, así que ni `alto` ni el
-    // `ctx.y` de salida cambian — BOCETO Y DESCRIPCIÓN no se ve afectado.
+    // Sin autorización todavía, la caja de firma sigue vacía para firmarse a
+    // mano; la etiqueta va justo DEBAJO de su borde inferior, igual que en el
+    // documento de referencia Pruebas/MUESTRA PDF.pdf. Se dibuja dentro del
+    // mismo margen de 18pt que ya se reservaba hacia el siguiente bloque, así
+    // que ni `alto` ni el `ctx.y` de salida cambian.
     ctx.page.drawRectangle({ x: xFirma, y, width: anchoFirma, height: alto, borderColor: COLOR_DIVISOR_FUERTE, borderWidth: 1 });
+    if (firma) {
+      // La caja es angosta (1/5 del ancho de contenido) — el tamaño de fuente
+      // se calcula para que el texto quepa en vez de fijarlo, bajando hasta 5pt.
+      const margenInterno = 6;
+      let size = 8;
+      while (size > 5 && ctx.fontBold.widthOfTextAtSize(firma, size) > anchoFirma - margenInterno * 2) {
+        size -= 0.5;
+      }
+      const anchoTexto = ctx.fontBold.widthOfTextAtSize(firma, size);
+      this._texto(ctx, firma, xFirma + (anchoFirma - anchoTexto) / 2, y + alto / 2 - size / 2 + 1, { size, bold: true, color: COLOR_FIRMA });
+    }
     const anchoEtiqueta = ctx.fontBold.widthOfTextAtSize(etiquetaFirma, 6);
     this._texto(ctx, etiquetaFirma, xFirma + anchoFirma - anchoEtiqueta, y - 9, { size: 6, bold: true });
 
@@ -393,7 +406,7 @@ class ValePdfService {
     // cotización es el dato económico principal del vale (recuadro
     // destacado, como el total de un recibo), y ahora comparten fila con la
     // caja de firma y autorización (analisis_correcciones_7.md #5).
-    this._dibujarFilaCotizacionYFirma(ctx, `Q ${Number(vale.cotizacion).toFixed(2)}`, 'FIRMA Y AUTORIZACIÓN');
+    this._dibujarFilaCotizacionYFirma(ctx, `Q ${Number(vale.cotizacion).toFixed(2)}`, 'FIRMA Y AUTORIZACIÓN', vale.__firmaAutorizacion || null);
   }
 
   /**

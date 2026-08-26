@@ -13,7 +13,7 @@ const mockDatabase = {
   usuarios: [
     { id: 1, nombre: 'Administrador General', email: 'admin@munditrofeos.com', telefono: '+502 5555-0001', password_hash: '$2a$10$0.B9xk21MYppfOd4XbtP3u5mJ6NzlaA6eqlu65Fy5G7xb2VnN2Lwu', rol_id: 1, localidad_id: 1, encargado_id: null, activo: 1 },
     { id: 2, nombre: 'Diseñador Creativo', email: 'diseno@munditrofeos.com', telefono: '+502 5555-0002', password_hash: '$2a$10$SXZEYhhebLnagsNMyFiqFOIn3m4Uwwf45PKHBvEIooMvzfqLXBpaC', rol_id: 2, localidad_id: 1, encargado_id: null, activo: 1 },
-    { id: 3, nombre: 'Asesor Comercial', email: 'ventas@munditrofeos.com', telefono: '+502 5555-0003', password_hash: '$2a$10$KrYwD5jW2ApvSCzeE8r75O4OJViry2yLLHnujyPX4ZGw58IJpSnmW', rol_id: 3, localidad_id: 1, encargado_id: null, activo: 1 },
+    { id: 3, nombre: 'Asesor Comercial', email: 'ventas@munditrofeos.com', telefono: '+502 5555-0003', password_hash: '$2a$10$KrYwD5jW2ApvSCzeE8r75O4OJViry2yLLHnujyPX4ZGw58IJpSnmW', rol_id: 3, localidad_id: 1, encargado_id: 4, activo: 1 },
     { id: 4, nombre: 'Supervisor de Ventas', email: 'supervisor@munditrofeos.com', telefono: '+502 5555-0004', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, localidad_id: 1, encargado_id: null, activo: 1 },
     { id: 5, nombre: 'Encargado de Diseño', email: 'encargado.diseno@munditrofeos.com', telefono: '+502 5555-0005', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 5, localidad_id: 1, encargado_id: null, activo: 1 },
     { id: 6, nombre: 'Encargado de Diseño UV/3D', email: 'encargado.uv3d@munditrofeos.com', telefono: '+502 5555-0006', password_hash: '$2a$10$DEPhj4Vnp.cgA6u3w3Leg.FVQ9O3JgKDXizOYCXEbGFlSgEBcb6F6', rol_id: 6, localidad_id: 1, encargado_id: null, activo: 1 },
@@ -53,18 +53,19 @@ const mockDatabase = {
     { id: 14, codigo: 'vales.aprobar_modificacion', nombre: 'Aprobar Modificación', modulo: 'vales' },
     { id: 15, codigo: 'vales.supervisar', nombre: 'Supervisar Vales', modulo: 'vales' },
     { id: 16, codigo: 'vales.aprobar_general', nombre: 'Aprobar y Fusionar (Multi-taller)', modulo: 'vales' },
-    { id: 17, codigo: 'vales.ver_gerencia', nombre: 'Ver Panel de Gerencia', modulo: 'vales' }
+    { id: 17, codigo: 'vales.ver_gerencia', nombre: 'Ver Panel de Gerencia', modulo: 'vales' },
+    { id: 18, codigo: 'vales.autorizar_creacion', nombre: 'Autorizar Creación', modulo: 'vales' }
   ],
   rol_permisos: [
     { rol_id: 1, permiso_id: 1 }, { rol_id: 1, permiso_id: 2 }, { rol_id: 1, permiso_id: 3 },
     { rol_id: 1, permiso_id: 4 }, { rol_id: 1, permiso_id: 5 }, { rol_id: 1, permiso_id: 6 },
     { rol_id: 1, permiso_id: 7 }, { rol_id: 1, permiso_id: 8 }, { rol_id: 1, permiso_id: 9 },
     { rol_id: 1, permiso_id: 10 }, { rol_id: 1, permiso_id: 11 }, { rol_id: 1, permiso_id: 12 },
-    { rol_id: 1, permiso_id: 13 }, { rol_id: 1, permiso_id: 14 }, { rol_id: 1, permiso_id: 15 }, { rol_id: 1, permiso_id: 16 }, { rol_id: 1, permiso_id: 17 },
+    { rol_id: 1, permiso_id: 13 }, { rol_id: 1, permiso_id: 14 }, { rol_id: 1, permiso_id: 15 }, { rol_id: 1, permiso_id: 16 }, { rol_id: 1, permiso_id: 17 }, { rol_id: 1, permiso_id: 18 },
     { rol_id: 2, permiso_id: 1 }, { rol_id: 2, permiso_id: 3 }, { rol_id: 2, permiso_id: 4 }, { rol_id: 2, permiso_id: 5 },
     { rol_id: 3, permiso_id: 1 }, { rol_id: 3, permiso_id: 2 }, { rol_id: 3, permiso_id: 3 },
     { rol_id: 3, permiso_id: 12 }, { rol_id: 3, permiso_id: 13 }, { rol_id: 3, permiso_id: 6 }, { rol_id: 3, permiso_id: 7 },
-    { rol_id: 4, permiso_id: 1 }, { rol_id: 4, permiso_id: 15 }, { rol_id: 4, permiso_id: 14 },
+    { rol_id: 4, permiso_id: 1 }, { rol_id: 4, permiso_id: 15 }, { rol_id: 4, permiso_id: 14 }, { rol_id: 4, permiso_id: 18 },
     { rol_id: 5, permiso_id: 1 }, { rol_id: 5, permiso_id: 9 }, { rol_id: 5, permiso_id: 10 },
     { rol_id: 6, permiso_id: 1 }, { rol_id: 6, permiso_id: 9 }, { rol_id: 6, permiso_id: 10 },
     { rol_id: 7, permiso_id: 1 }, { rol_id: 7, permiso_id: 11 },
@@ -111,9 +112,8 @@ const mockDatabase = {
     { id: 2, nombre: 'Mate', activo: 1 },
     { id: 3, nombre: 'Satinado', activo: 1 }
   ],
-  asesorLimites: [
-    { id: 1, asesor_id: 3, limite_diario: 6, activo: 1 }
-  ],
+  // analisis_correcciones_10.md #11: el límite diario dejó de ser individual del
+  // asesor (esta tabla) — ahora es colectivo del Supervisor (usuarios.encargado_id).
   // Talleres/departamentos — cada uno con su propio encargado dueño.
   talleres: [
     { id: 1, nombre: 'Diseño', encargado_id: 5, activo: 1 },
@@ -127,12 +127,24 @@ const mockDatabase = {
     { id: 5, correlativo: 'GUA-3-0005', asesor_id: 3, localidad_id: 1, vale_original_id: null, fecha_creacion: '2026-08-13', hora_creacion: '08:45:00', fecha_entrega: '2026-08-17 17:00:00', fecha_evento: '2026-08-19 09:00:00', urgente: 0, cliente_empresa: 'Federación Nacional', cliente_nombre: 'Luis Herrera', cliente_telefono: '+502 5555-5555', cliente_correo: 'luis.herrera@fednacional.org', producto_id: 4, material_id: 1, tecnica: 'Impresión UV', acabado: 'Mate', cantidad: 5, cotizacion: 600.00, descripcion: 'Banners UV + trofeos para evento deportivo (dos talleres).', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'CREADO', creado_en: '2026-08-13 08:45:00', actualizado_en: '2026-08-15 12:00:00' },
     { id: 6, correlativo: 'GUA-3-0006', asesor_id: 3, localidad_id: 1, vale_original_id: null, fecha_creacion: '2026-08-10', hora_creacion: '13:00:00', fecha_entrega: '2026-08-15 17:00:00', fecha_evento: '2026-08-16 09:00:00', urgente: 0, cliente_empresa: 'Copa MundiTrofeos', cliente_nombre: 'Diego Alvarado', cliente_telefono: '+502 5555-6666', cliente_correo: 'diego.alvarado@copamt.com', producto_id: 1, material_id: 2, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 100, cotizacion: 3200.00, descripcion: 'Trofeos + banners UV de premiación Copa MundiTrofeos.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'APROBADO_DEPARTAMENTO', creado_en: '2026-08-10 13:00:00', actualizado_en: '2026-08-12 10:30:00' },
     { id: 7, correlativo: 'GUA-3-0007', asesor_id: 3, localidad_id: 1, vale_original_id: null, fecha_creacion: '2026-08-09', hora_creacion: '15:30:00', fecha_entrega: '2026-08-16 17:00:00', fecha_evento: '2026-08-17 09:00:00', urgente: 0, cliente_empresa: 'Cliente particular', cliente_nombre: 'Sofía Ramírez', cliente_telefono: '+502 5555-7777', cliente_correo: 'sofia.ramirez@correo.com', producto_id: 2, material_id: 1, tecnica: 'Sublimación', acabado: 'Mate', cantidad: 40, cotizacion: 450.00, descripcion: 'Medallas para evento escolar.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'PENDIENTE_CONFIRMACION', creado_en: '2026-08-09 15:30:00', actualizado_en: '2026-08-15 10:30:00' },
-    { id: 8, correlativo: 'GUA-3-0008', asesor_id: 3, localidad_id: 1, vale_original_id: null, fecha_creacion: '2026-08-05', hora_creacion: '10:00:00', fecha_entrega: '2026-08-12 17:00:00', fecha_evento: '2026-08-13 09:00:00', urgente: 0, cliente_empresa: 'Torneo Regional', cliente_nombre: 'Pedro Sandoval', cliente_telefono: '+502 5555-8888', cliente_correo: 'pedro.sandoval@torneoreg.com', producto_id: 1, material_id: 3, tecnica: 'Grabado Láser', acabado: 'Satinado', cantidad: 60, cotizacion: 1800.00, descripcion: 'Trofeos de torneo regional, entregados.', descripcion_original: null, pdf_url: null, modificado: 1, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'RECIBIDO', creado_en: '2026-08-05 10:00:00', actualizado_en: '2026-08-11 12:00:00' },
+    { id: 8, correlativo: 'GUA-3-0008', asesor_id: 3, localidad_id: 1, vale_original_id: null, fecha_creacion: '2026-08-05', hora_creacion: '10:00:00', fecha_entrega: '2026-08-12 17:00:00', fecha_evento: '2026-08-13 09:00:00', urgente: 0, cliente_empresa: 'Torneo Regional', cliente_nombre: 'Pedro Sandoval', cliente_telefono: '+502 5555-8888', cliente_correo: 'pedro.sandoval@torneoreg.com', producto_id: 1, material_id: 3, tecnica: 'Grabado Láser', acabado: 'Satinado', cantidad: 60, cotizacion: 1800.00, descripcion: 'Trofeos de torneo regional, entregados.', descripcion_original: null, pdf_url: null, modificado: 1, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'RECIBIDO', creado_en: '2026-08-05 10:00:00', actualizado_en: '2026-08-11 12:00:00', autorizado_por: 4, autorizado_en: '2026-08-05 09:30:00', autorizacion_tipo: 'CREACION', confirmado_en: '2026-08-11 12:00:00' },
     { id: 9, correlativo: 'GUA-3-0009', asesor_id: 3, localidad_id: 1, vale_original_id: null, fecha_creacion: '2026-08-04', hora_creacion: '14:00:00', fecha_entrega: '2026-08-11 17:00:00', fecha_evento: '2026-08-12 09:00:00', urgente: 0, cliente_empresa: 'Cliente particular', cliente_nombre: 'Elena Castillo', cliente_telefono: '+502 5555-9999', cliente_correo: 'elena.castillo@correo.com', producto_id: 3, material_id: 2, tecnica: 'Impresión UV', acabado: 'Mate', cantidad: 20, cotizacion: 700.00, descripcion: 'Placas — el cliente pidió ajustar el grabado, asesor solicitó modificación.', descripcion_original: null, pdf_url: null, propuesta_general_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'SOLICITANDO_MODIFICACION', creado_en: '2026-08-04 14:00:00', actualizado_en: '2026-08-10 09:30:00' },
     { id: 10, correlativo: 'GUA-3-0010', asesor_id: 3, localidad_id: 1, vale_original_id: null, fecha_creacion: '2026-07-30', hora_creacion: '09:00:00', fecha_entrega: '2026-08-08 17:00:00', fecha_evento: '2026-08-09 09:00:00', urgente: 0, cliente_empresa: 'Club Deportivo Antigua', cliente_nombre: 'Roberto Mejía', cliente_telefono: '+502 5555-1010', cliente_correo: 'roberto.mejia@cdantigua.com', producto_id: 1, material_id: 1, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 80, cotizacion: 2500.00, descripcion: 'Trofeos de campeonato — modificación de acabado en curso.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'SOLICITANDO_MODIFICACION', creado_en: '2026-07-30 09:00:00', actualizado_en: '2026-08-13 09:00:00' },
     { id: 11, correlativo: 'GUA-3-0011', asesor_id: 3, localidad_id: 1, vale_original_id: null, fecha_creacion: '2026-08-06', hora_creacion: '16:00:00', fecha_entrega: '2026-08-14 17:00:00', fecha_evento: '2026-08-15 09:00:00', urgente: 0, cliente_empresa: 'Asociación Escolar', cliente_nombre: 'Marta Solís', cliente_telefono: '+502 5555-1111', cliente_correo: 'marta.solis@asocescolar.edu', producto_id: 2, material_id: 4, tecnica: 'Sublimación', acabado: 'Satinado', cantidad: 25, cotizacion: 620.00, descripcion: 'Medallas — el logo quedó descentrado, asesor solicitó modificación.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'SOLICITANDO_MODIFICACION', creado_en: '2026-08-06 16:00:00', actualizado_en: '2026-08-14 09:00:00' },
-    { id: 12, correlativo: 'MOD-GUA-3-0008', asesor_id: 3, localidad_id: 1, vale_original_id: 8, fecha_creacion: '2026-08-20', hora_creacion: '11:00:00', fecha_entrega: '2026-08-27 17:00:00', fecha_evento: '2026-08-28 09:00:00', urgente: 0, cliente_empresa: 'Torneo Regional', cliente_nombre: 'Pedro Sandoval', cliente_telefono: '+502 5555-8888', cliente_correo: 'pedro.sandoval@torneoreg.com', producto_id: 1, material_id: 3, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 60, cotizacion: 1800.00, descripcion: 'El cliente solicitó cambiar el acabado de satinado a brillante para hacer juego con el resto del set de premiación.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'MODIFICADO', creado_en: '2026-08-20 11:00:00', actualizado_en: '2026-08-20 11:00:00' }
-  ].map(v => ({ ...v, propuesta_general_url: v.propuesta_general_url ?? null })),
+    { id: 12, correlativo: 'MOD-GUA-3-0008', asesor_id: 3, localidad_id: 1, vale_original_id: 8, fecha_creacion: '2026-08-20', hora_creacion: '11:00:00', fecha_entrega: '2026-08-27 17:00:00', fecha_evento: '2026-08-28 09:00:00', urgente: 0, cliente_empresa: 'Torneo Regional', cliente_nombre: 'Pedro Sandoval', cliente_telefono: '+502 5555-8888', cliente_correo: 'pedro.sandoval@torneoreg.com', producto_id: 1, material_id: 3, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 60, cotizacion: 1800.00, descripcion: 'El cliente solicitó cambiar el acabado de satinado a brillante para hacer juego con el resto del set de premiación.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'MODIFICADO', creado_en: '2026-08-20 11:00:00', actualizado_en: '2026-08-20 11:00:00', autorizado_por: 4, autorizado_en: '2026-08-20 11:00:00', autorizacion_tipo: 'MODIFICACION' },
+    // analisis_correcciones_10.md #5: vale de demostración recién creado,
+    // esperando que el Supervisor lo autorice — sin filas en valeTalleres todavía.
+    { id: 13, correlativo: 'GUA-3-0012', asesor_id: 3, localidad_id: 1, vale_original_id: null, fecha_creacion: '2026-08-26', hora_creacion: '08:00:00', fecha_entrega: '2026-08-30 17:00:00', fecha_evento: '2026-08-31 09:00:00', urgente: 0, cliente_empresa: 'Cliente particular', cliente_nombre: 'Fernando Ixchop', cliente_telefono: '+502 5555-1212', cliente_correo: 'fernando.ixchop@correo.com', producto_id: 1, material_id: 1, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 10, cotizacion: 900.00, descripcion: 'Trofeos recién creados, esperando autorización del Supervisor.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, talleres_solicitados: '1', estado: 'ESPERANDO_AUTORIZACION', creado_en: '2026-08-26 08:00:00', actualizado_en: '2026-08-26 08:00:00' }
+  ].map(v => ({
+    ...v,
+    propuesta_general_url: v.propuesta_general_url ?? null,
+    talleres_solicitados: v.talleres_solicitados ?? null,
+    autorizado_por: v.autorizado_por ?? null,
+    autorizado_en: v.autorizado_en ?? null,
+    autorizacion_tipo: v.autorizacion_tipo ?? null,
+    confirmado_en: v.confirmado_en ?? null,
+    atraso_notificado_en: v.atraso_notificado_en ?? null
+  })),
   // vale_talleres reemplaza a la vieja vale_asignaciones: una fila por
   // (vale, taller), es el progreso real de cada taller dentro de un vale.
   valeTalleres: [
@@ -214,7 +226,8 @@ const mockDatabase = {
     { id: 35, vale_id: 11, usuario_id: 5, taller_id: 1, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado de Diseño aprobó la propuesta', creado_en: '2026-08-13 15:00:00' },
     { id: 36, vale_id: 11, usuario_id: 3, taller_id: null, estado_anterior: 'CREADO', estado_nuevo: 'PENDIENTE_CONFIRMACION', accion: 'Único taller aprobado — pasa directo a confirmación del asesor', creado_en: '2026-08-13 15:30:00' },
     { id: 37, vale_id: 11, usuario_id: 3, taller_id: null, estado_anterior: 'PENDIENTE_CONFIRMACION', estado_nuevo: 'SOLICITANDO_MODIFICACION', accion: 'Asesor solicitó modificación', creado_en: '2026-08-14 08:00:00' },
-    { id: 38, vale_id: 12, usuario_id: 4, taller_id: null, estado_anterior: null, estado_nuevo: 'MODIFICADO', accion: 'Supervisor aprobó la solicitud de modificación — se creó el vale MOD-GUA-3-0008', creado_en: '2026-08-20 11:00:00' }
+    { id: 38, vale_id: 12, usuario_id: 4, taller_id: null, estado_anterior: null, estado_nuevo: 'MODIFICADO', accion: 'Supervisor aprobó la solicitud de modificación — se creó el vale MOD-GUA-3-0008', creado_en: '2026-08-20 11:00:00' },
+    { id: 39, vale_id: 13, usuario_id: 3, taller_id: null, estado_anterior: null, estado_nuevo: 'ESPERANDO_AUTORIZACION', accion: 'Vale de arte creado por el asesor — esperando autorización del Supervisor (taller solicitado: Diseño)', creado_en: '2026-08-26 08:00:00' }
   ]
 };
 
@@ -309,10 +322,11 @@ const taggedHandlers = {
   'usuario:find_by_rol': (params) => {
     return mockDatabase.usuarios.filter(u => u.rol_id === Number(params[0]) && u.activo).map(sinPasswordHash);
   },
-
-  'asesor_limite:get': (params) => {
-    const limite = mockDatabase.asesorLimites.find(l => l.asesor_id === Number(params[0]) && l.activo);
-    return limite ? [limite] : [];
+  // analisis_correcciones_10.md #11: asesores (rol 3) a cargo de un Supervisor.
+  'usuario:find_asesores_by_supervisor': (params) => {
+    return mockDatabase.usuarios
+      .filter(u => u.rol_id === 3 && u.encargado_id === Number(params[0]) && u.activo)
+      .map(sinPasswordHash);
   },
 
   // Talleres — catálogo simple usado por el selector de tags de creación.
@@ -325,7 +339,7 @@ const taggedHandlers = {
   'vale:insert': (params) => {
     const [correlativo, asesorId, localidadId, valeOriginalId, fechaCreacion, horaCreacion, fechaEntrega, fechaEvento,
       urgente, clienteEmpresa, clienteNombre, clienteTelefono, clienteCorreo, productoId, materialId, tecnica, acabado,
-      cantidad, cotizacion, descripcion, estado] = params;
+      cantidad, cotizacion, descripcion, estado, talleresSolicitados, autorizadoPor, autorizadoEn, autorizacionTipo] = params;
     const now = ahoraLocal();
     const row = {
       id: nextId(mockDatabase.vales), correlativo, asesor_id: Number(asesorId), localidad_id: Number(localidadId),
@@ -336,7 +350,13 @@ const taggedHandlers = {
       material_id: materialId || null, tecnica, acabado,
       cantidad: Number(cantidad), cotizacion: Number(cotizacion), descripcion: descripcion || null,
       descripcion_original: null, pdf_url: null, propuesta_general_url: null, modificado: 0, tiene_adjuntos: 0,
-      justificacion_modificacion: null, atraso_congelado_en: null, estado: estado || 'CREADO', creado_en: now, actualizado_en: now
+      justificacion_modificacion: null, atraso_congelado_en: null, atraso_notificado_en: null,
+      talleres_solicitados: talleresSolicitados || null,
+      autorizado_por: autorizadoPor ? Number(autorizadoPor) : null,
+      autorizado_en: autorizadoEn || null,
+      autorizacion_tipo: autorizacionTipo || null,
+      confirmado_en: null,
+      estado: estado || 'CREADO', creado_en: now, actualizado_en: now
     };
     mockDatabase.vales.push(row);
     return { insertId: row.id };
@@ -357,11 +377,6 @@ const taggedHandlers = {
   },
   'vale:count_por_asesor': (params) => {
     const count = mockDatabase.vales.filter(v => v.asesor_id === Number(params[0])).length;
-    return [{ total: count }];
-  },
-  'vale:count_por_fecha': (params) => {
-    const [asesorId, fecha] = params;
-    const count = mockDatabase.vales.filter(v => v.asesor_id === Number(asesorId) && v.fecha_creacion === fecha).length;
     return [{ total: count }];
   },
   'vale:update_estado': (params) => {
@@ -402,6 +417,50 @@ const taggedHandlers = {
     const [url, id] = params;
     const v = mockDatabase.vales.find(x => x.id === Number(id));
     if (v) v.propuesta_general_url = url;
+    return { affectedRows: v ? 1 : 0 };
+  },
+  // analisis_correcciones_10.md #5/#6: sella quién/cuándo autorizó.
+  'vale:sellar_autorizacion': (params) => {
+    const [autorizadoPor, autorizadoEn, autorizacionTipo, id] = params;
+    const v = mockDatabase.vales.find(x => x.id === Number(id));
+    if (v) {
+      v.autorizado_por = autorizadoPor ? Number(autorizadoPor) : null;
+      v.autorizado_en = autorizadoEn || null;
+      v.autorizacion_tipo = autorizacionTipo || null;
+    }
+    return { affectedRows: v ? 1 : 0 };
+  },
+  // analisis_correcciones_10.md #7: sella cuándo se confirmó de recibido.
+  'vale:sellar_confirmacion': (params) => {
+    const [fechaHora, id] = params;
+    const v = mockDatabase.vales.find(x => x.id === Number(id));
+    if (v) v.confirmado_en = fechaHora;
+    return { affectedRows: v ? 1 : 0 };
+  },
+  // analisis_correcciones_10.md #11: cuenta autorizaciones de CREACIÓN de este
+  // Supervisor en el día indicado (comparando solo la parte de fecha, como haría
+  // DATE(autorizado_en) en MySQL real).
+  'vale:count_autorizaciones_creacion_por_supervisor': (params) => {
+    const [supervisorId, fecha] = params;
+    const count = mockDatabase.vales.filter(v =>
+      v.autorizado_por === Number(supervisorId) &&
+      v.autorizacion_tipo === 'CREACION' &&
+      String(v.autorizado_en || '').slice(0, 10) === fecha
+    ).length;
+    return [{ total: count }];
+  },
+  // analisis_correcciones_10.md #10: vigilante de atraso.
+  'vale:list_atrasados_sin_notificar': () => {
+    const ahora = new Date();
+    return mockDatabase.vales.filter(v =>
+      !v.atraso_notificado_en && !v.atraso_congelado_en && v.estado !== 'RECIBIDO' &&
+      new Date(String(v.fecha_entrega).replace(' ', 'T')) < ahora
+    );
+  },
+  'vale:marcar_atraso_notificado': (params) => {
+    const [fechaHora, id] = params;
+    const v = mockDatabase.vales.find(x => x.id === Number(id));
+    if (v) v.atraso_notificado_en = fechaHora;
     return { affectedRows: v ? 1 : 0 };
   },
 

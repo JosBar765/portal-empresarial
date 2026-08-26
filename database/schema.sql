@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS `usuarios` (
   `password_hash`     VARCHAR(255) NOT NULL,
   `rol_id`            INT NOT NULL,
   `localidad_id`      INT          DEFAULT NULL COMMENT 'Localidad base del usuario (usada para el correlativo de vales)',
-  `encargado_id`      INT          DEFAULT NULL COMMENT 'Auto-referencia: encargado/supervisor al mando de este usuario (ej. técnico -> encargado)',
+  `encargado_id`      INT          DEFAULT NULL COMMENT 'Auto-referencia: encargado/supervisor al mando de este usuario (técnico -> encargado de taller, asesor -> supervisor — analisis_correcciones_10.md #11)',
   `activo`            TINYINT(1)   NOT NULL DEFAULT 1,
   `intentos_fallidos` INT          NOT NULL DEFAULT 0,
   `bloqueado_hasta`   DATETIME     DEFAULT NULL,
@@ -126,6 +126,7 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (15, 'vales.supervisar', 'Supervisar Vales de Arte', 'vales', 'Acceso de solo lectura al panel de supervisión de vales de arte'),
 (16, 'vales.aprobar_general', 'Aprobar y Fusionar (Multi-taller)', 'vales', 'Permite al encargado general fusionar y aprobar un vale enviado a más de un taller'),
 (17, 'vales.ver_gerencia', 'Ver Panel de Gerencia', 'vales', 'Acceso de solo lectura al dashboard de métricas y al listado de vales de arte de todas las tiendas'),
+(18, 'vales.autorizar_creacion', 'Autorizar Creación', 'vales', 'Permite al supervisor autorizar el envío a talleres de un vale recién creado por sus asesores (analisis_correcciones_10.md #5)'),
 -- Prompts
 (4, 'prompts.ver', 'Ver Generador de Prompts', 'prompts', 'Permite acceder al generador de prompts'),
 (5, 'prompts.crear', 'Crear Prompts', 'prompts', 'Permite crear nuevos prompts para IA'),
@@ -138,13 +139,13 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 -- Asignación de Permisos a Roles (rol_permisos)
 -- Administrador: todos
 INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17),
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18),
 -- Diseñador (legacy, no ligado al flujo de actores de vales): Vales (ver, editar) + Prompts (ver, crear)
 (2, 1), (2, 3), (2, 4), (2, 5),
 -- Asesor de Ventas: Vales (ver, crear, editar en modificación, confirmar, solicitar modificación) + Eventos (ver, crear)
 (3, 1), (3, 2), (3, 3), (3, 12), (3, 13), (3, 6), (3, 7),
--- Supervisor de Ventas: Vales (ver, supervisar, aprobar modificación)
-(4, 1), (4, 15), (4, 14),
+-- Supervisor de Ventas: Vales (ver, supervisar, aprobar modificación, autorizar creación)
+(4, 1), (4, 15), (4, 14), (4, 18),
 -- Encargado de Diseño: Vales (ver, asignar, revisar) — dueño del taller "Diseño"
 (5, 1), (5, 9), (5, 10),
 -- Encargado de Diseño UV/3D: Vales (ver, asignar, revisar) — dueño del taller "Diseño UV/3D"
@@ -173,7 +174,7 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 INSERT INTO `usuarios` (`id`, `nombre`, `email`, `telefono`, `password_hash`, `rol_id`, `localidad_id`, `encargado_id`) VALUES
 (1, 'Administrador General', 'admin@munditrofeos.com', '+502 5555-0001', '$2a$10$0.B9xk21MYppfOd4XbtP3u5mJ6NzlaA6eqlu65Fy5G7xb2VnN2Lwu', 1, 1, NULL),
 (2, 'Diseñador Creativo', 'diseno@munditrofeos.com', '+502 5555-0002', '$2a$10$SXZEYhhebLnagsNMyFiqFOIn3m4Uwwf45PKHBvEIooMvzfqLXBpaC', 2, 1, NULL),
-(3, 'Asesor Comercial', 'ventas@munditrofeos.com', '+502 5555-0003', '$2a$10$KrYwD5jW2ApvSCzeE8r75O4OJViry2yLLHnujyPX4ZGw58IJpSnmW', 3, 1, NULL),
+(3, 'Asesor Comercial', 'ventas@munditrofeos.com', '+502 5555-0003', '$2a$10$KrYwD5jW2ApvSCzeE8r75O4OJViry2yLLHnujyPX4ZGw58IJpSnmW', 3, 1, 4),
 (4, 'Supervisor de Ventas', 'supervisor@munditrofeos.com', '+502 5555-0004', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, 1, NULL),
 (5, 'Encargado de Diseño', 'encargado.diseno@munditrofeos.com', '+502 5555-0005', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 5, 1, NULL),
 (6, 'Encargado de Diseño UV/3D', 'encargado.uv3d@munditrofeos.com', '+502 5555-0006', '$2a$10$DEPhj4Vnp.cgA6u3w3Leg.FVQ9O3JgKDXizOYCXEbGFlSgEBcb6F6', 6, 1, NULL),
@@ -254,12 +255,16 @@ CREATE TABLE IF NOT EXISTS `talleres` (
   FOREIGN KEY (`encargado_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Enum de estados del vale de arte (nivel general, ver analisis_correcciones_3.md
--- y analisis_correcciones_5.md #5): CREADO, APROBADO_DEPARTAMENTO,
--- PENDIENTE_CONFIRMACION, RECIBIDO, SOLICITANDO_MODIFICACION, MODIFICADO. Ya no
--- existe el estado EN_CORRECCION ni una acción de "rechazar" separada — un vale
--- PENDIENTE_CONFIRMACION que el asesor no acepta usa el mismo camino que cualquier
--- otra corrección: solicitar modificación.
+-- Enum de estados del vale de arte (nivel general, ver analisis_correcciones_3.md,
+-- analisis_correcciones_5.md #5 y analisis_correcciones_10.md #5): ESPERANDO_AUTORIZACION,
+-- CREADO, APROBADO_DEPARTAMENTO, PENDIENTE_CONFIRMACION, RECIBIDO,
+-- SOLICITANDO_MODIFICACION, MODIFICADO. Ya no existe el estado EN_CORRECCION ni una
+-- acción de "rechazar" separada — un vale PENDIENTE_CONFIRMACION que el asesor no
+-- acepta usa el mismo camino que cualquier otra corrección: solicitar modificación.
+-- Desde analisis_correcciones_10.md #5, un vale recién creado NO se reparte a los
+-- talleres de inmediato: nace en ESPERANDO_AUTORIZACION y el Supervisor de Ventas
+-- (dueño de los asesores que lo crearon) debe autorizarlo antes de que exista
+-- ninguna fila en `vale_talleres` (ver `talleres_solicitados` más abajo).
 -- El progreso interno por taller (asignación/proceso/revisión) vive en `vale_talleres`,
 -- no aquí — un vale con 2+ talleres puede tener uno EN_PROCESO y otro recién CREADO
 -- a la vez, algo que una sola columna de estado no puede representar.
@@ -296,10 +301,22 @@ CREATE TABLE IF NOT EXISTS `vales` (
   `modificado`                   INT NOT NULL DEFAULT 0 COMMENT 'Máx 1 permitida',
   `justificacion_modificacion`   TEXT DEFAULT NULL,
   `atraso_congelado_en`          DATETIME DEFAULT NULL COMMENT 'Snapshot fijado la primera vez que el vale se confirma de recibido o se aprueba su modificación; el atraso deja de recalcularse en vivo aunque el estado luego cambie (ej. SOLICITANDO_MODIFICACION) — analisis_correcciones_8.md #7',
+  `atraso_notificado_en`         DATETIME DEFAULT NULL COMMENT 'Sellado por el vigilante de atraso (atrasoWatcher) la primera vez que notifica el atraso de este vale, para no repetir la alerta (analisis_correcciones_10.md #10)',
+  -- analisis_correcciones_10.md #5: talleres elegidos por el asesor al crear, en
+  -- espera de que el Supervisor autorice el envío (no hay filas en `vale_talleres`
+  -- todavía mientras el vale está en ESPERANDO_AUTORIZACION).
+  `talleres_solicitados`         VARCHAR(100) DEFAULT NULL COMMENT 'CSV de talleres.id elegidos al crear, pendientes de autorización del Supervisor',
+  -- analisis_correcciones_10.md #6/#7: quién y cuándo autorizó este vale (creación,
+  -- o si este vale ES un MOD-, su propia modificación) — usado para la firma roja
+  -- del PDF y para "Trabajo Realizado" del Supervisor.
+  `autorizado_por`               INT DEFAULT NULL COMMENT 'usuarios.id del Supervisor que autorizó la creación/modificación de este vale',
+  `autorizado_en`                DATETIME DEFAULT NULL,
+  `autorizacion_tipo`            ENUM('CREACION','MODIFICACION') DEFAULT NULL,
+  `confirmado_en`                DATETIME DEFAULT NULL COMMENT 'Sellado cuando el asesor confirma de recibido (analisis_correcciones_10.md #7)',
   -- No existe una acción de "rechazar" separada (analisis_correcciones_5.md #5): un
   -- vale PENDIENTE_CONFIRMACION que el asesor no acepta solicita modificación, igual
   -- que cualquier otra corrección — no hay un estado EN_CORRECCION.
-  `estado` ENUM('CREADO','APROBADO_DEPARTAMENTO','PENDIENTE_CONFIRMACION','RECIBIDO','SOLICITANDO_MODIFICACION','MODIFICADO') NOT NULL DEFAULT 'CREADO',
+  `estado` ENUM('ESPERANDO_AUTORIZACION','CREADO','APROBADO_DEPARTAMENTO','PENDIENTE_CONFIRMACION','RECIBIDO','SOLICITANDO_MODIFICACION','MODIFICADO') NOT NULL DEFAULT 'ESPERANDO_AUTORIZACION',
   `creado_en`                    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `actualizado_en`               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`asesor_id`)         REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -307,6 +324,7 @@ CREATE TABLE IF NOT EXISTS `vales` (
   FOREIGN KEY (`vale_original_id`)  REFERENCES `vales` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   FOREIGN KEY (`producto_id`)  REFERENCES `vale_productos` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   FOREIGN KEY (`material_id`)  REFERENCES `vale_materiales` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  FOREIGN KEY (`autorizado_por`)  REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   INDEX `idx_vales_estado` (`estado`),
   INDEX `idx_vales_asesor` (`asesor_id`),
   INDEX `idx_vales_fecha_entrega` (`fecha_entrega`)
@@ -545,5 +563,19 @@ INSERT INTO `vale_historial` (`vale_id`, `usuario_id`, `taller_id`, `estado_ante
 (11, 3, NULL, 'CREADO', 'PENDIENTE_CONFIRMACION', 'Único taller aprobado — pasa directo a confirmación del asesor'),
 (11, 3, NULL, 'PENDIENTE_CONFIRMACION', 'SOLICITANDO_MODIFICACION', 'Asesor solicitó modificación'),
 (12, 4, NULL, NULL, 'MODIFICADO', 'Supervisor aprobó la solicitud de modificación — se creó el vale MOD-GUA-3-0008');
+
+-- analisis_correcciones_10.md #5: vale de demostración recién creado, esperando
+-- que el Supervisor lo autorice — sin filas en vale_talleres todavía.
+INSERT INTO `vales` (`id`, `correlativo`, `asesor_id`, `localidad_id`, `vale_original_id`, `fecha_creacion`, `hora_creacion`, `fecha_entrega`, `fecha_evento`, `urgente`, `cliente_empresa`, `cliente_nombre`, `cliente_telefono`, `cliente_correo`, `producto_id`, `material_id`, `tecnica`, `acabado`, `cantidad`, `cotizacion`, `descripcion`, `talleres_solicitados`, `modificado`, `estado`) VALUES
+(13, 'GUA-3-0012', 3, 1, NULL, '2026-08-26', '08:00:00', '2026-08-30 17:00:00', '2026-08-31 09:00:00', 0, 'Cliente particular', 'Fernando Ixchop', '+502 5555-1212', 'fernando.ixchop@correo.com', 1, 1, 'Grabado Láser', 'Brillante', 10, 900.00, 'Trofeos recién creados, esperando autorización del Supervisor.', '1', 0, 'ESPERANDO_AUTORIZACION');
+
+INSERT INTO `vale_historial` (`vale_id`, `usuario_id`, `taller_id`, `estado_anterior`, `estado_nuevo`, `accion`) VALUES
+(13, 3, NULL, NULL, 'ESPERANDO_AUTORIZACION', 'Vale de arte creado por el asesor — esperando autorización del Supervisor (taller solicitado: Diseño)');
+
+-- Backfill de demostración: sella la autorización/confirmación de un par de vales
+-- ya cerrados para poblar "Trabajo Realizado" del Supervisor (analisis_correcciones_10.md #7).
+UPDATE `vales` SET `autorizado_por` = 4, `autorizado_en` = '2026-08-05 09:30:00', `autorizacion_tipo` = 'CREACION' WHERE `id` = 8;
+UPDATE `vales` SET `confirmado_en` = '2026-08-12 17:00:00' WHERE `id` = 8;
+UPDATE `vales` SET `autorizado_por` = 4, `autorizado_en` = '2026-08-20 11:00:00', `autorizacion_tipo` = 'MODIFICACION' WHERE `id` = 12;
 
 SET FOREIGN_KEY_CHECKS = 1;

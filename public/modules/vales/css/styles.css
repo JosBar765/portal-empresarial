@@ -604,6 +604,11 @@
 }
 
 /* Estado general del vale (vales.estado) */
+.estado-ESPERANDO_AUTORIZACION {
+  background: var(--vale-estado-espera-autorizacion-bg);
+  color: var(--vale-estado-espera-autorizacion-fg);
+}
+
 .estado-APROBADO_DEPARTAMENTO {
   background: var(--vale-estado-aprobado-departamento-bg);
   color: var(--vale-estado-aprobado-departamento-fg);

@@ -2,6 +2,7 @@
 const fs = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
+const imageOptimizer = require('./imageOptimizer');
 
 // Directorio local de subidas
 const UPLOADS_DIR = path.join(__dirname, '../../../uploads');
@@ -38,13 +39,20 @@ class FileStorage {
     const randomName = crypto.randomBytes(16).toString('hex') + fileExt;
     const targetPath = path.join(UPLOADS_DIR, randomName);
 
+    // analisis_correcciones_10.md #1: recompresión lossless de imágenes antes de
+    // escribir a disco — único punto por el que pasan TODAS las subidas del
+    // módulo (adjuntos de creación, propuestas de técnicos, fusión del
+    // Encargado General), así que no hace falta tocar cada llamador. No
+    // interviene con pdf-lib: sigue siendo PNG/JPEG normal, solo más liviano.
+    const bufferOptimizado = await imageOptimizer.optimizar(fileBuffer, mimeType);
+
     // Escribir archivo al disco local
-    await fs.writeFile(targetPath, fileBuffer);
-    
+    await fs.writeFile(targetPath, bufferOptimizado);
+
     return {
       filename: randomName,
       path: `uploads/${randomName}`,
-      size: fileBuffer.length
+      size: bufferOptimizado.length
     };
   }
 

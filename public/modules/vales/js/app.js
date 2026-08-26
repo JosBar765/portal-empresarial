@@ -5,6 +5,8 @@
   // sí, así que comparten un solo diccionario de etiquetas.
   const ESTADOS_LABEL = {
     // Generales (RECHAZADO/EN_CORRECCION ya no existen — ver analisis_correcciones_5.md #5)
+    // analisis_correcciones_10.md #5: nuevo primer estado, antes del fan-out a talleres.
+    ESPERANDO_AUTORIZACION: 'Esperando Autorización',
     CREADO: 'Creado',
     APROBADO_DEPARTAMENTO: 'Aprobado por Talleres',
     PENDIENTE_CONFIRMACION: 'Pendiente Confirmación',
@@ -23,6 +25,7 @@
   // colapsada (analisis_correcciones_3.md #11, redefinida en #4/#5 sin RECHAZADO ni
   // EN_CORRECCION). Nunca se usa para autorización.
   const ESTADOS_VISIBLES_LABEL = {
+    ESPERANDO_AUTORIZACION: 'Esperando Autorización',
     CREADO: 'Creado',
     SOLICITANDO_MODIFICACION: 'Solicitando Modificación',
     MODIFICADO: 'Modificado',
@@ -35,14 +38,15 @@
   // opción A) — reflejan exactamente qué rama de `estadoActivo()` aplica a
   // cada rol, para no ofrecer una opción que nunca puede matchear nada.
   const CLAVES_ESTADOS_TALLER = ['PENDIENTE_ASIGNACION', 'ASIGNADO', 'EN_PROCESO', 'EN_REVISION', 'APROBADO'];
-  const CLAVES_ESTADOS_GENERAL = ['CREADO', 'APROBADO_DEPARTAMENTO', 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'SOLICITANDO_MODIFICACION', 'MODIFICADO'];
+  const CLAVES_ESTADOS_GENERAL = ['ESPERANDO_AUTORIZACION', 'CREADO', 'APROBADO_DEPARTAMENTO', 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'SOLICITANDO_MODIFICACION', 'MODIFICADO'];
 
   // Roles con sidebar Buzón / Trabajo realizado (Asesor, Supervisor, Técnico,
-  // Encargado General/Asistente — analisis_correcciones_5.md #1). El Gerente
+  // Encargado General/Asistente, Encargado de un taller — analisis_correcciones_5.md
+  // #1, ampliado a los roles 5/6 en analisis_correcciones_10.md #8). El Gerente
   // (10) también tiene sidebar, pero con su propio par Dashboard/Vales de Arte
   // en vez de Buzón/Trabajo realizado (analisis_correcciones_7.md, Vista
   // Gerencia) — ver wireSidebar().
-  const ROLES_CON_SIDEBAR = [3, 4, 7, 8, 9, 10];
+  const ROLES_CON_SIDEBAR = [3, 4, 5, 6, 7, 8, 9, 10];
 
   // "Atrasados" (analisis_correcciones_6.md #3): para asesor, supervisor y
   // encargados (de taller y general) es un contador COMBINABLE — se marca
@@ -53,7 +57,9 @@
   const CONTADORES_CONFIG = {
     3: { // Asesor
       buzon: [
-        { key: 'valesRestantesHoy', label: 'Vales restantes hoy', esTexto: true }, // formato "restantes/total" (analisis_correcciones_9.md #1)
+        // analisis_correcciones_10.md #11: el límite diario ya no es del asesor
+        // (era "vales restantes hoy") — pasó a ser colectivo, del Supervisor.
+        { key: 'esperandoAutorizacion', label: 'Esperando autorización', filtro: 'esperandoAutorizacion' },
         { key: 'valesPorRevisar', label: 'Pend. confirmación', filtro: 'valesPorRevisar' },
         { key: 'valesPendientesModificacion', label: 'Solicitando modificación', filtro: 'valesPendientesModificacion' },
         { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
@@ -65,24 +71,38 @@
     },
     4: { // Supervisor
       buzon: [
+        // analisis_correcciones_10.md #11: contador colectivo ascendente
+        // "autorizados/asesores" — se calcula aparte, ver cargarBuzon().
+        { key: 'valesAutorizadosHoy', label: 'Autorizados hoy (equipo)', esTexto: true },
+        { key: 'pendientesAutorizacion', label: 'Por autorizar creación', filtro: 'pendientesAutorizacion' },
         { key: 'pendientesConfirmarModificacion', label: 'Por autorizar modificación', filtro: 'pendientesConfirmarModificacion' },
         { key: 'modificados', label: 'Modificados', filtro: 'modificados' },
         { key: 'pendientesConfirmacion', label: 'Pend. confirmación asesor', filtro: 'pendientesConfirmacion' },
         { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
       ],
+      // analisis_correcciones_10.md #7: dos grupos — lo que él autorizó, y lo
+      // que sus asesores confirmaron de recibido.
       trabajo: [
-        { key: 'valesRecibidosHoy', label: 'Recibidos hoy', filtro: 'valesRecibidosHoy' },
-        { key: 'totalRecibidos', label: 'Total recibidos', filtro: 'totalRecibidos' }
+        { key: 'autorizadosHoy', label: 'Autorizados hoy', filtro: 'autorizadosHoy' },
+        { key: 'totalAutorizados', label: 'Total autorizados', filtro: 'totalAutorizados' },
+        { key: 'confirmadosHoy', label: 'Confirmados hoy', filtro: 'confirmadosHoy' },
+        { key: 'totalConfirmados', label: 'Total confirmados', filtro: 'totalConfirmados' }
       ]
     },
-    5: [ // Encargado de un taller
-      { key: 'pendientesAsignacion', label: 'Pend. asignación', filtro: 'pendientesAsignacion' },
-      { key: 'asignados', label: 'Asignados', filtro: 'asignados' },
-      { key: 'enProceso', label: 'En proceso', filtro: 'enProceso' },
-      { key: 'enRevision', label: 'En revisión', filtro: 'enRevision' },
-      { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' },
-      { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
-    ],
+    5: { // Encargado de un taller (analisis_correcciones_10.md #8: ahora con sidebar)
+      buzon: [
+        { key: 'pendientesAsignacion', label: 'Pend. asignación', filtro: 'pendientesAsignacion' },
+        { key: 'asignados', label: 'Asignados', filtro: 'asignados' },
+        { key: 'enProceso', label: 'En proceso', filtro: 'enProceso' },
+        { key: 'enRevision', label: 'En revisión', filtro: 'enRevision' },
+        { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' },
+        { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
+      ],
+      trabajo: [
+        { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' },
+        { key: 'totalAprobados', label: 'Total aprobados', filtro: 'totalAprobados' }
+      ]
+    },
     7: { // Técnico
       buzon: [
         { key: 'asignados', label: 'Asignados sin atraso', filtro: 'asignados' },
@@ -166,6 +186,7 @@
       case 'confirmar': return admin || r === 3;
       case 'solicitarModificacion': return admin || r === 3;
       case 'aprobarModificacion': return admin || r === 4;
+      case 'autorizarCreacion': return admin || r === 4;
       case 'aprobarGeneral': return admin || r === 8 || r === 9;
       case 'reenviarModificacion': return admin || r === 8 || r === 9;
       default: return false;
@@ -520,7 +541,10 @@
     switch (user.rolId) {
       case 1: return ['vales:admin'];
       case 3: return [`asesor:${user.id}`];
-      case 4: return ['vales:supervisores'];
+      // analisis_correcciones_10.md #11: ya no hay una sala global de
+      // supervisores — cada tienda tiene su propio Supervisor, así que cada
+      // uno se une solo a su propia sala.
+      case 4: return [`supervisor:${user.id}`];
       case 5:
       case 6: {
         const taller = miTaller();
@@ -548,12 +572,15 @@
       state.socket.emit('register_module', roomsParaUsuario(state.user));
     });
     state.socket.on('vale_evento', (data) => {
-      const esCreacion = data.tipo === 'creado';
-      window.toast.info(
-        esCreacion ? 'Nuevo vale de arte' : 'Vale actualizado',
-        esCreacion ? data.correlativo : `${data.correlativo} → ${ESTADOS_LABEL[data.estado] || data.estado}`
-      );
-      reproducirBeep();
+      // analisis_correcciones_10.md #10: el mensaje ya viene formateado y
+      // listo del servidor ("{fecha} – Vale: {correlativo} fue {acción} por
+      // {actor}[ a {destino}]"); `nivel: 'alerta'` (atrasos, propuesta vacía)
+      // pinta el toast en rojo; `beep: false` permite un evento silencioso
+      // (reenvío a varios talleres del Encargado General: un solo emit, un
+      // solo beep, aunque el mensaje mencione a más de un destino).
+      const esAlerta = data.nivel === 'alerta';
+      window.toast[esAlerta ? 'error' : 'info'](esAlerta ? 'Atención' : 'Vale de arte', data.mensaje);
+      if (data.beep !== false) reproducirBeep();
       cargarBuzon();
       if (state.cargaTrabajoModal) {
         if (state.cargaTrabajoModal.overlay.isConnected) {
@@ -629,12 +656,13 @@
       return;
     }
 
-    if (puede('crear') && state.vista !== 'trabajo') {
+    // analisis_correcciones_10.md #11: el límite diario pasó del asesor al
+    // Supervisor, como contador colectivo ascendente "autorizados/asesores".
+    if (state.user.rolId === 4 && state.vista !== 'trabajo') {
       try {
-        const r = await fetch('/api/vales/limite-restante');
+        const r = await fetch('/api/vales/limite-colectivo');
         const d = await r.json();
-        // analisis_correcciones_9.md #1: formato "restantes/total" en vez de solo el número.
-        state.contadores.valesRestantesHoy = `${d.restantes}/${d.limite}`;
+        state.contadores.valesAutorizadosHoy = `${d.autorizados}/${d.limite}`;
       } catch { /* no bloquea el render del buzón */ }
     }
 
@@ -707,7 +735,8 @@
       return valor || fallback;
     };
     const CLAVE_CSS_ESTADO = {
-      CREADO: 'creado', APROBADO_DEPARTAMENTO: 'aprobado-departamento', PENDIENTE_CONFIRMACION: 'pendiente-confirmacion',
+      ESPERANDO_AUTORIZACION: 'espera-autorizacion', CREADO: 'creado', APROBADO_DEPARTAMENTO: 'aprobado-departamento',
+      PENDIENTE_CONFIRMACION: 'pendiente-confirmacion',
       RECIBIDO: 'recibido', SOLICITANDO_MODIFICACION: 'solicitando-modificacion', MODIFICADO: 'modificado'
     };
     const estadosPresentes = Object.keys(data.porEstado);
@@ -933,6 +962,11 @@
       acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(`/${v.propuesta_general_url}`, '_blank') });
     }
 
+    // analisis_correcciones_10.md #5: el Supervisor autoriza el envío a talleres
+    // de un vale recién creado por uno de sus asesores.
+    if (puede('autorizarCreacion') && v.estado === 'ESPERANDO_AUTORIZACION') {
+      acciones.push({ icono: 'checkmark-done-outline', titulo: 'Autorizar creación', clase: 'icon-success', onClick: abrirModalAutorizarCreacion });
+    }
     if (puede('asignar') && v.estado_taller === 'PENDIENTE_ASIGNACION') {
       acciones.push({ icono: 'person-add-outline', titulo: 'Asignar a técnico', onClick: abrirModalAsignar });
     }
@@ -1852,6 +1886,42 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         window.toast.success('Modificación solicitada', `Modificación solicitada para ${vale.correlativo}.`);
+        cerrar();
+        cargarBuzon();
+      } catch (error) {
+        mostrarErrorModal(overlay, error.message);
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Supervisor: autorizar el envío a talleres de un vale recién creado
+  // (analisis_correcciones_10.md #5) — el asesor eligió los talleres al crear
+  // (vale.talleres_solicitados, CSV de ids); recién aquí se reparten de verdad.
+  // -------------------------------------------------------------------------
+  function abrirModalAutorizarCreacion(vale) {
+    const talleresIds = String(vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
+    const nombresTalleres = talleresIds
+      .map(id => ((state.catalogos.talleres || []).find(t => t.id === id) || {}).nombre || `#${id}`)
+      .join(', ');
+    const { overlay, cerrar } = abrirModal({
+      title: `Autorizar creación — ${vale.correlativo}`,
+      bodyHtml: `
+        <p style="font-size:13px;margin-bottom:10px;">Taller${talleresIds.length > 1 ? 'es' : ''} solicitado${talleresIds.length > 1 ? 's' : ''}: <strong>${nombresTalleres || 'Ninguno'}</strong></p>
+        <p style="font-size:13px;">¿Confirmas autorizar este vale de arte? Se enviará de inmediato a ese/esos taller(es) y quedará firmado con tu nombre en el documento.</p>
+      `,
+      footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Autorizar</button>`
+    });
+    overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
+    overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
+      const btn = overlay.querySelector('#btn-confirmar');
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/vales/${vale.id}/autorizar-creacion`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        window.toast.success('Creación autorizada', `${vale.correlativo} fue enviado a taller.`);
         cerrar();
         cargarBuzon();
       } catch (error) {

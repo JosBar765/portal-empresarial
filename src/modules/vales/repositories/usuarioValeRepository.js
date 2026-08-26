@@ -29,6 +29,16 @@ class UsuarioValeRepository {
     );
   }
 
+  // analisis_correcciones_10.md #11: asesores (rol 3) bajo el mando de un
+  // Supervisor — reusa usuarios.encargado_id, calcado de listarTecnicosPorEncargado.
+  async listarAsesoresPorSupervisor(supervisorId) {
+    return db.query(
+      'SELECT id, nombre, email, encargado_id FROM usuarios WHERE rol_id = 3 AND encargado_id = ? AND activo = 1 ORDER BY nombre',
+      [supervisorId],
+      'usuario:find_asesores_by_supervisor'
+    );
+  }
+
   async listarEncargados() {
     return db.query(
       "SELECT id, nombre, email, rol_id FROM usuarios WHERE rol_id IN (5, 6) AND activo = 1 ORDER BY nombre",
