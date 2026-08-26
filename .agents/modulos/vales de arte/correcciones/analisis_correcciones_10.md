@@ -58,3 +58,7 @@ La parte de corchetes es opcional, para las notificaciones que lo requieran
 
 11. Te explico, actualmente los asesores tienen un límite diario que es arbitrario. Acabo de preguntar a mi jefe, y esta regla cambia. Cómo funciona el límite de vales de arte en realidad es colectivo. Lo que quiere decir, que si un supervisor tiene a su cargo 6 asesores y cada asesor puede subir 1 vale de arte por día, el supervisor puede autorizar 6 vales de arte diarios. De lo contario, que no le permita autorizar, si no es hasta el día siguiente que se resetea este conteo diario.
 Entonces, vamos a quitar el contador de vales restantes para los asesores, y se lo colocaremos al supervisor. Él tendrá ese contador el cuál contará de manera ascendente de la siguiente forma: vales_autorizados_crear/asesores.
+
+## DOCUMENTACIÓN
+
+Recuerda documentar estos cambios en la carpeta: `..\documentación` con la nomenclatura adecuada
