@@ -90,12 +90,13 @@
       ]
     },
     5: { // Encargado de un taller (analisis_correcciones_10.md #8: ahora con sidebar)
+      // analisis_correcciones_11.md #2: "Aprobados hoy" sale del buzón — un vale
+      // ya aprobado por este taller sale del buzón y pasa a Trabajo Realizado.
       buzon: [
         { key: 'pendientesAsignacion', label: 'Pend. asignación', filtro: 'pendientesAsignacion' },
         { key: 'asignados', label: 'Asignados', filtro: 'asignados' },
         { key: 'enProceso', label: 'En proceso', filtro: 'enProceso' },
         { key: 'enRevision', label: 'En revisión', filtro: 'enRevision' },
-        { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' },
         { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
       ],
       trabajo: [
@@ -960,6 +961,13 @@
     // supervisor también la necesita en Trabajo realizado (analisis_correcciones_5.md #2).
     if ((usaEstadosVisibles() || state.user.rolId === 4) && v.propuesta_general_url) {
       acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(`/${v.propuesta_general_url}`, '_blank') });
+    }
+    // analisis_correcciones_11.md #2: en "Trabajo realizado" el encargado de un
+    // taller ve la propuesta REAL que aprobó en su taller (`propuesta_taller_url`,
+    // solo viene poblado en esa vista) — no `propuesta_general_url`, que en un
+    // vale multi-taller es la fusión del Encargado General, no su propio trabajo.
+    if ([5, 6].includes(state.user.rolId) && v.propuesta_taller_url) {
+      acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(`/${v.propuesta_taller_url}`, '_blank') });
     }
 
     // analisis_correcciones_10.md #5: el Supervisor autoriza el envío a talleres

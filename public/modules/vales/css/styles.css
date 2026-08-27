@@ -536,6 +536,50 @@
   white-space: nowrap;
 }
 
+/* analisis_correcciones_11.md #4: en anchos intermedios (pantalla dividida,
+   tablet en horizontal) la tabla no cabe completa y se scrollea
+   horizontalmente dentro de `.tabla-wrapper` — sin esto, la columna de
+   Acciones (la que más hace falta tener siempre a la vista) desaparecía
+   detrás del scroll. Correlativo (para saber a qué vale corresponde cada
+   acción) y Acciones quedan fijas a los costados; el resto de columnas es lo
+   que se desplaza debajo. Reemplaza el enfoque de "adelantar el breakpoint de
+   tarjetas": no ataca el síntoma real (la columna de acciones saliéndose del
+   viewport) y renunciaría a la tabla en anchos donde SÍ cabría con estas dos
+   columnas fijas. Solo aplica en modo tabla — el modo tarjeta (≤640px, más
+   abajo) lo desactiva explícitamente. */
+.buzon-table th:first-child,
+.buzon-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--color-surface);
+  box-shadow: 1px 0 0 var(--color-border);
+}
+
+.buzon-table th:last-child,
+.buzon-table td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--color-surface);
+  box-shadow: -1px 0 0 var(--color-border);
+}
+
+/* Las celdas de encabezado fijas van por encima de las demás (que también son
+   sticky top:0, z-index 1 vía .data-table.sticky-header thead th en
+   global.css) para que no se vean tapadas por las columnas del medio al
+   scrollear horizontalmente — con empate de z-index, el orden en el DOM
+   decide, y una columna del medio (posterior en el <tr>) pintaba ENCIMA de
+   Correlativo. El selector repite `.sticky-header` a propósito: por
+   especificidad, `.buzon-table th:first-child` (2 clases) perdía contra
+   `.data-table.sticky-header thead th` (2 clases + 2 tipos) y el z-index:2
+   nunca llegaba a aplicarse. */
+.buzon-table.sticky-header th:first-child,
+.buzon-table.sticky-header th:last-child {
+  background: var(--color-bg);
+  z-index: 2;
+}
+
 .tabla-vacia {
   text-align: center;
   color: var(--color-text-muted);
@@ -1390,5 +1434,16 @@
 
   .buzon-table td.tabla-vacia::before {
     content: none;
+  }
+
+  /* El modo tarjeta no scrollea horizontalmente — se desactivan los sticky de
+     Correlativo/Acciones (analisis_correcciones_11.md #4) para que no dejen
+     ningún resto visual (sombra/fondo) en este layout. */
+  .buzon-table th:first-child,
+  .buzon-table td:first-child,
+  .buzon-table th:last-child,
+  .buzon-table td:last-child {
+    position: static;
+    box-shadow: none;
   }
 }

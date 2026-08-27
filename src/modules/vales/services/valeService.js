@@ -709,7 +709,7 @@ class ValeService {
       case 5:
       case 6: // Encargado de un taller — buzón individual, scoped a su propio taller
         resultado = vista === 'trabajo'
-          ? this._trabajoEncargadoTaller(usuario, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador)
+          ? await this._trabajoEncargadoTaller(usuario, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador)
           : this._buzonEncargado(usuario, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador);
         break;
       case 8:
@@ -1110,12 +1110,16 @@ class ValeService {
   }
 
   // ---- Encargado de un taller: buzón INDIVIDUAL, scoped a las filas de su propio taller ----
+  // analisis_correcciones_11.md #2: los vales ya APROBADOS por este taller salen
+  // del buzón — ese es justo el contenido de "Trabajo Realizado"
+  // (_trabajoEncargadoTaller, más abajo), verlos en ambos lados era redundante.
   _buzonEncargado(usuario, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador) {
     const miTaller = esAdministrador(usuario) ? null : talleresTodos.find(t => t.encargado_id === usuario.id);
     if (!esAdministrador(usuario) && !miTaller) {
       return { vales: [], contadores: this._contadoresVaciosEncargado() };
     }
-    const misFilas = esAdministrador(usuario) ? valeTalleresTodos : valeTalleresTodos.filter(f => f.taller_id === miTaller.id);
+    const misFilas = (esAdministrador(usuario) ? valeTalleresTodos : valeTalleresTodos.filter(f => f.taller_id === miTaller.id))
+      .filter(f => f.estado !== ESTADOS_TALLER.APROBADO);
     const valeIdsVisibles = new Set(misFilas.map(f => f.vale_id));
 
     // Cada vale se muestra con el estado DE SU FILA en este taller, no el estado
@@ -1132,65 +1136,73 @@ class ValeService {
     const asignados = enVentana.filter(v => v.estado_taller === ESTADOS_TALLER.ASIGNADO);
     const enProceso = enVentana.filter(v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO);
     const enRevision = enVentana.filter(v => v.estado_taller === ESTADOS_TALLER.EN_REVISION);
-    const aprobadosHoy = enVentana.filter(v => v.estado_taller === ESTADOS_TALLER.APROBADO && esHoy(v.actualizado_en));
 
-    // analisis_correcciones_6.md #3: se dejan únicamente los 5 contadores por
-    // estado (conteo completo, sin desglosar atrasado/no atrasado) + el
-    // "Atrasados en general" combinable que maneja obtenerBuzon() aparte.
+    // analisis_correcciones_6.md #3: contadores por estado (conteo completo, sin
+    // desglosar atrasado/no atrasado) + el "Atrasados en general" combinable que
+    // maneja obtenerBuzon() aparte. Ya no incluye "Aprobados hoy" (ver arriba).
     const contadores = {
       pendientesAsignacion: pendientesAsignacion.length,
       asignados: asignados.length,
       enProceso: enProceso.length,
       enRevision: enRevision.length,
-      aprobadosHoy: aprobadosHoy.length,
       atrasados: enVentana.filter(v => v.atrasado).length
     };
     const predicados = {
       pendientesAsignacion: v => v.estado_taller === ESTADOS_TALLER.PENDIENTE_ASIGNACION,
       asignados: v => v.estado_taller === ESTADOS_TALLER.ASIGNADO,
       enProceso: v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO,
-      enRevision: v => v.estado_taller === ESTADOS_TALLER.EN_REVISION,
-      aprobadosHoy: v => v.estado_taller === ESTADOS_TALLER.APROBADO && esHoy(v.actualizado_en)
+      enRevision: v => v.estado_taller === ESTADOS_TALLER.EN_REVISION
     };
     const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, predicados);
     const vales = ordenarPorGrupos(filtrados, [
       v => v.estado_taller === ESTADOS_TALLER.EN_REVISION,
       v => v.estado_taller === ESTADOS_TALLER.PENDIENTE_ASIGNACION,
       v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO,
-      v => v.estado_taller === ESTADOS_TALLER.ASIGNADO,
-      v => v.estado_taller === ESTADOS_TALLER.APROBADO
+      v => v.estado_taller === ESTADOS_TALLER.ASIGNADO
     ]);
     return { vales, contadores };
   }
 
   _contadoresVaciosEncargado() {
-    return { pendientesAsignacion: 0, asignados: 0, enProceso: 0, enRevision: 0, aprobadosHoy: 0, atrasados: 0 };
+    return { pendientesAsignacion: 0, asignados: 0, enProceso: 0, enRevision: 0, atrasados: 0 };
   }
 
   // ---- Encargado de un taller: sidebar Trabajo realizado (analisis_correcciones_10.md
   // #8) — vales con una fila APROBADA en SU taller, orden por fecha (mismo criterio
   // de ordenarPorFecha que usan las demás vistas de "trabajo realizado": la fecha
   // de aprobación real vive en vale_talleres.actualizado_en, pero se ordena por la
-  // del vale para ser consistente con _trabajoAsesor/_trabajoEncargadoGeneral). ----
-  _trabajoEncargadoTaller(usuario, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador) {
+  // del vale para ser consistente con _trabajoAsesor/_trabajoEncargadoGeneral).
+  // analisis_correcciones_11.md #2: cada fila trae también `propuesta_taller_url`
+  // — la propuesta REAL que este taller aprobó (vale_propuestas, por técnico),
+  // no `vale.propuesta_general_url` (que en un vale multi-taller es la fusión
+  // del Encargado General, no el trabajo de este taller en particular). ----
+  async _trabajoEncargadoTaller(usuario, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador) {
     const miTaller = esAdministrador(usuario) ? null : talleresTodos.find(t => t.encargado_id === usuario.id);
     if (!esAdministrador(usuario) && !miTaller) {
       return { vales: [], contadores: { aprobadosHoy: 0, totalAprobados: 0 } };
     }
     const filasDeMiTaller = esAdministrador(usuario) ? valeTalleresTodos : valeTalleresTodos.filter(f => f.taller_id === miTaller.id);
-    const valeIdsAprobados = new Set(filasDeMiTaller.filter(f => f.estado === ESTADOS_TALLER.APROBADO).map(f => f.vale_id));
+    const filasAprobadas = filasDeMiTaller.filter(f => f.estado === ESTADOS_TALLER.APROBADO);
+    const mapaFilaPorVale = new Map(filasAprobadas.map(f => [f.vale_id, f]));
+    const vistos = todosConTaller.filter(v => mapaFilaPorVale.has(v.id));
+    const enVentana = vistos.filter(v => dentroDeVentana(v, ventana));
+
     // `estado_taller` fijo en 'APROBADO' (igual que _buzonEncargado) para que la
     // píldora de la tabla muestre el estado DE SU taller, no el general del vale
     // (que puede seguir cambiando si hay otros talleres involucrados).
-    const vistos = todosConTaller.filter(v => valeIdsAprobados.has(v.id)).map(v => ({ ...v, estado_taller: ESTADOS_TALLER.APROBADO }));
-    const enVentana = vistos.filter(v => dentroDeVentana(v, ventana));
+    const conPropuesta = await Promise.all(enVentana.map(async v => {
+      const fila = mapaFilaPorVale.get(v.id);
+      const propuesta = fila.tecnico_id ? await propuestaRepository.obtenerUltimaPorValeYTecnico(v.id, fila.tecnico_id) : null;
+      const propuestaTallerUrl = propuesta && !propuesta.es_cancelacion ? propuesta.url : null;
+      return { ...v, estado_taller: ESTADOS_TALLER.APROBADO, propuesta_taller_url: propuestaTallerUrl };
+    }));
 
     const contadores = {
-      aprobadosHoy: enVentana.filter(v => esHoy(v.actualizado_en)).length,
-      totalAprobados: enVentana.length
+      aprobadosHoy: conPropuesta.filter(v => esHoy(v.actualizado_en)).length,
+      totalAprobados: conPropuesta.length
     };
     const predicados = { aprobadosHoy: v => esHoy(v.actualizado_en) };
-    const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, predicados);
+    const filtrados = this._aplicarFiltroContador(conPropuesta, filtroContador, predicados);
     return { vales: ordenarPorFecha(filtrados), contadores };
   }
 
