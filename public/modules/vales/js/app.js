@@ -437,19 +437,33 @@
   }
 
   function wireToolbar() {
+    // El rango de fechas reusa el mismo componente de calendario propio de los
+    // modales (antes eran <input type="date"> nativos, cuyo ícono/calendario de
+    // fábrica del navegador desentonaba junto a los chips de la barra) — ver
+    // htmlCampoFechaCompacto/wireCampoFecha. Aquí sí necesita ser limpiable
+    // (filtro opcional, a diferencia de un campo de formulario requerido), de
+    // ahí el botón "×" propio de la variante compacta.
+    const rangoRoot = $('#ventana-rango');
+    rangoRoot.innerHTML = htmlCampoFechaCompacto('ventana-desde', 'Desde') +
+      '<span class="ventana-rango-sep">—</span>' +
+      htmlCampoFechaCompacto('ventana-hasta', 'Hasta');
+    const apiDesde = wireCampoFecha(rangoRoot, 'ventana-desde', { placeholder: 'Desde' });
+    const apiHasta = wireCampoFecha(rangoRoot, 'ventana-hasta', { placeholder: 'Hasta' });
+
     $$('#ventana-selector .chip').forEach(btn => {
       btn.addEventListener('click', () => {
         $$('#ventana-selector .chip').forEach(b => b.classList.remove('chip-active'));
         btn.classList.add('chip-active');
         state.ventana = { tipo: btn.dataset.ventana, desde: null, hasta: null };
-        $('#ventana-desde').value = '';
-        $('#ventana-hasta').value = '';
+        apiDesde.clear({ silent: true });
+        apiHasta.clear({ silent: true });
+        apiHasta.setMinDate(null);
         cargarBuzon();
       });
     });
     const onRangoChange = () => {
-      const desde = $('#ventana-desde').value || null;
-      const hasta = $('#ventana-hasta').value || null;
+      const desde = apiDesde.getDate() ? isoLocal(apiDesde.getDate()) : null;
+      const hasta = apiHasta.getDate() ? isoLocal(apiHasta.getDate()) : null;
       if (!desde && !hasta) {
         // Al borrar ambas fechas del rango, vuelve automáticamente a "Todo".
         $$('#ventana-selector .chip').forEach(b => b.classList.remove('chip-active'));
@@ -462,8 +476,11 @@
       state.ventana = { tipo: 'rango', desde, hasta };
       cargarBuzon();
     };
-    $('#ventana-desde').addEventListener('change', onRangoChange);
-    $('#ventana-hasta').addEventListener('change', onRangoChange);
+    rangoRoot.querySelector('[data-date-field="ventana-desde"] input[type="hidden"]').addEventListener('change', () => {
+      apiHasta.setMinDate(apiDesde.getDate());
+      onRangoChange();
+    });
+    rangoRoot.querySelector('[data-date-field="ventana-hasta"] input[type="hidden"]').addEventListener('change', onRangoChange);
     // Búsqueda contra el servidor (analisis_correcciones_5.md #12) — corre sobre
     // TODOS los vales del buzón, no solo la página ya cargada; debounced para no
     // disparar una petición por cada tecla.
@@ -653,7 +670,14 @@
       state.paginacion.hasMore = !!data.hasMore;
       state.paginacion.cursor = data.nextCursor ?? null;
     } catch (error) {
-      $('#buzon-tbody').innerHTML = `<tr><td colspan="${columnasVisibles()}" class="tabla-vacia">Error al cargar el buzón: ${error.message}</td></tr>`;
+      $('#buzon-tbody').innerHTML = `
+        <tr><td colspan="${columnasVisibles()}" class="tabla-vacia">
+          <div class="buzon-vacio buzon-vacio-error">
+            <ion-icon name="alert-circle-outline"></ion-icon>
+            <h3>No se pudo cargar el buzón</h3>
+            <p>${error.message}</p>
+          </div>
+        </td></tr>`;
       return;
     }
 
@@ -834,9 +858,14 @@
       if (alerta) clases.push('contador-alerta');
       if (esClickeable) clases.push('contador-clickeable');
       if (activo) clases.push('contador-activo');
+      // Un valor largo (p. ej. el correlativo del vale en proceso del técnico,
+      // "GUA-3-0003") no se lee bien con el mismo tamaño pensado para un
+      // número — .valor-compacto lo reduce sin tocar los contadores numéricos
+      // ni los "N/M" cortos (p. ej. el límite colectivo del supervisor).
+      const valorLargo = String(mostrado).length > 6;
       return `
         <div class="${clases.join(' ')}" data-filtro="${c.filtro || ''}" data-atrasados-global="${c.atrasadosGlobal ? '1' : ''}">
-          <div class="valor">${mostrado}</div>
+          <div class="valor${valorLargo ? ' valor-compacto' : ''}">${mostrado}</div>
           <div class="etiqueta">${c.label}</div>
         </div>`;
     }).join('');
@@ -877,6 +906,16 @@
     select.value = state.estadoFiltro || '';
   }
 
+  // "Diseño, Diseño UV/3D" en texto plano se leía como una sola frase larga en
+  // vez de dos talleres distintos, sobre todo en vales multi-taller — reusa el
+  // mismo chip .taller-tag del selector de talleres del formulario de creación
+  // (solo lectura, sin botón de quitar) en vez de inventar un componente nuevo.
+  function celdaTaller(v) {
+    const texto = v.taller || '-';
+    if (texto === '-') return '-';
+    return `<div class="taller-tags-cell">${texto.split(', ').map(t => `<span class="taller-tag">${t}</span>`).join('')}</div>`;
+  }
+
   function nombreCatalogo(lista, id) {
     if (!state.catalogos || !id) return '-';
     const item = (state.catalogos[lista] || []).find(x => x.id === Number(id));
@@ -892,10 +931,20 @@
 
     const tbody = $('#buzon-tbody');
     if (filas.length === 0) {
-      const mensaje = state.busqueda
-        ? `No se encontraron vales de arte para «${state.busqueda}».`
-        : 'No hay vales de arte para mostrar.';
-      tbody.innerHTML = `<tr><td colspan="${columnasVisibles()}" class="tabla-vacia">${mensaje}</td></tr>`;
+      const esBusqueda = !!state.busqueda;
+      const icono = esBusqueda ? 'search-outline' : 'file-tray-outline';
+      const titulo = esBusqueda ? 'Sin resultados' : 'Buzón vacío';
+      const mensaje = esBusqueda
+        ? `No encontramos vales de arte para «${state.busqueda}».`
+        : 'No hay vales de arte para mostrar con los filtros actuales.';
+      tbody.innerHTML = `
+        <tr><td colspan="${columnasVisibles()}" class="tabla-vacia">
+          <div class="buzon-vacio">
+            <ion-icon name="${icono}"></ion-icon>
+            <h3>${titulo}</h3>
+            <p>${mensaje}</p>
+          </div>
+        </td></tr>`;
       return;
     }
 
@@ -906,7 +955,7 @@
         <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
         <td data-label="Atraso">${v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`}</td>
         <td data-label="Fecha Evento">${formatearFecha(v.fecha_evento)}</td>
-        <td data-label="Taller" class="col-taller">${v.taller || '-'}</td>
+        <td data-label="Taller" class="col-taller">${celdaTaller(v)}</td>
         <td data-label="Estado"><span class="estado-pill ${claseEstado(v)}">${etiquetaEstado(v)}</span></td>
         <td data-label="Acciones" class="acciones-cell" data-vale-id="${v.id}"></td>
       </tr>
@@ -1064,6 +1113,120 @@
   }
 
   // -------------------------------------------------------------------------
+  // Validación inline de formularios — reemplaza los globos nativos del
+  // navegador (form.reportValidity()) por un mensaje propio junto a cada
+  // campo, con el mismo lenguaje visual del resto de la UI. Se apoya en la
+  // Constraint Validation API nativa (required/type/min/max) para no
+  // reinventar las reglas, solo su presentación; los campos de fecha (un
+  // <input type="hidden"> por debajo del calendario propio) quedan fuera de
+  // esa API porque el navegador excluye los hidden de la validación, así que
+  // se valida su .value a mano con la misma pareja de helpers.
+  // -------------------------------------------------------------------------
+  function limpiarErrorCampo(campo) {
+    const wrapper = campo.closest('.form-field');
+    if (!wrapper) return;
+    wrapper.classList.remove('is-invalid');
+    const msg = wrapper.querySelector('.field-error');
+    if (msg) msg.remove();
+  }
+
+  function marcarErrorCampo(campo, mensaje) {
+    const wrapper = campo.closest('.form-field');
+    if (!wrapper) return;
+    wrapper.classList.add('is-invalid');
+    let msg = wrapper.querySelector('.field-error');
+    if (!msg) {
+      msg = document.createElement('span');
+      msg.className = 'field-error';
+      msg.innerHTML = '<ion-icon name="alert-circle-outline"></ion-icon><span></span>';
+      wrapper.appendChild(msg);
+    }
+    msg.querySelector('span').textContent = mensaje;
+  }
+
+  function mensajeValidezCampo(campo) {
+    const v = campo.validity;
+    if (v.valueMissing) return campo.tagName === 'SELECT' ? 'Selecciona una opción.' : 'Este campo es obligatorio.';
+    if (v.typeMismatch) return campo.type === 'email' ? 'Ingresa un correo válido.' : 'El valor no tiene un formato válido.';
+    if (v.rangeUnderflow) return `El valor mínimo permitido es ${campo.min}.`;
+    if (v.rangeOverflow) return `El valor máximo permitido es ${campo.max}.`;
+    if (v.badInput) return 'Ingresa un valor numérico válido.';
+    if (v.tooLong) return `Escribe como máximo ${campo.maxLength} caracteres.`;
+    return 'Revisa este campo.';
+  }
+
+  // Un campo de fecha "válido" es simplemente uno con .value; los normales
+  // usan la Constraint Validation API tal cual.
+  function campoEsValido(campo) {
+    return campo.type === 'hidden' ? !!campo.value : campo.checkValidity();
+  }
+
+  // Recorre los campos nativos del formulario (sin tocar los <input hidden>
+  // de fecha ni los <input type=file>, que tienen su propio validador) y
+  // marca cada uno inválido con su mensaje. Devuelve true si todos pasan.
+  function validarCamposNativos(form) {
+    let ok = true;
+    form.querySelectorAll('input, select, textarea').forEach(campo => {
+      if (campo.type === 'hidden' || campo.type === 'file') return;
+      limpiarErrorCampo(campo);
+      if (campo.checkValidity()) return;
+      marcarErrorCampo(campo, mensajeValidezCampo(campo));
+      ok = false;
+    });
+    return ok;
+  }
+
+  function validarCampoFecha(overlay, name) {
+    const hidden = overlay.querySelector(`[data-date-field="${name}"] input[type="hidden"]`);
+    if (hidden.value) { limpiarErrorCampo(hidden); return true; }
+    marcarErrorCampo(hidden, 'Selecciona una fecha.');
+    return false;
+  }
+
+  function validarTalleresSeleccionados(overlay, seleccionados) {
+    const campo = overlay.querySelector('.select-agregar-taller');
+    if (seleccionados.size > 0) { limpiarErrorCampo(campo); return true; }
+    marcarErrorCampo(campo, 'Selecciona al menos un taller.');
+    return false;
+  }
+
+  // Al primer intento de envío fallido, cada campo se limpia apenas el
+  // usuario lo corrige, en vez de esperar a que vuelva a hacer clic en
+  // guardar — el input/change del hidden de fecha también dispara 'change'
+  // (ver wireCampoFecha), así que un solo listener delegado cubre todo.
+  function wireLimpiezaValidacionInline(form) {
+    const onCambio = (e) => {
+      const campo = e.target.closest('input, select, textarea');
+      if (!campo) return;
+      const wrapper = campo.closest('.form-field');
+      // Solo re-evalúa un campo que ya tenía un error visible; uno "virgen"
+      // no se marca hasta el próximo intento de envío.
+      if (!wrapper || !wrapper.classList.contains('is-invalid')) return;
+      if (campoEsValido(campo)) { limpiarErrorCampo(campo); return; }
+      // Sigue inválido, pero puede que ahora sea por otra razón (p. ej. pasó
+      // de "obligatorio" a "mínimo 2") — se refresca el mensaje en vivo en
+      // vez de dejar el de la última vez.
+      if (campo.type !== 'hidden') marcarErrorCampo(campo, mensajeValidezCampo(campo));
+    };
+    form.addEventListener('input', onCambio);
+    form.addEventListener('change', onCambio);
+  }
+
+  // Al fallar el envío, se hace scroll + foco al primer campo marcado
+  // inválido en orden de documento — sea cual sea el validador que lo marcó
+  // (nativo, fecha o talleres). Los campos de fecha no son enfocables (son un
+  // <input hidden>), así que se enfoca su botón visible; lo mismo iría para
+  // cualquier otro campo "de vitrina" que se agregue a futuro.
+  function enfocarPrimerCampoInvalido(root) {
+    const wrapper = root.querySelector('.form-field.is-invalid');
+    if (!wrapper) return;
+    wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const foco = wrapper.querySelector('.date-field-trigger')
+      || wrapper.querySelector('input:not([type="hidden"]), select, textarea');
+    if (foco) foco.focus({ preventScroll: true });
+  }
+
+  // -------------------------------------------------------------------------
   // Selector de tags de talleres (corrección #4) — compartido entre el
   // formulario de creación y el de solicitud de modificación.
   // -------------------------------------------------------------------------
@@ -1090,6 +1253,7 @@
         const t = (state.catalogos.talleres || []).find(x => x.id === id);
         return `<span class="taller-tag" data-taller-id="${id}">${t ? t.nombre : id}<button type="button" class="taller-tag-quitar" data-taller-id="${id}">&times;</button></span>`;
       }).join('') || '<span class="taller-tags-vacio">Ningún taller seleccionado</span>';
+      if (seleccionados.size > 0) limpiarErrorCampo(select);
     };
     render();
     select.addEventListener('change', () => {
@@ -1159,13 +1323,33 @@
     `;
   }
 
+  // Variante compacta del mismo componente, sin envoltorio .form-field/label —
+  // pensada para filtros de barra de herramientas (ver wireToolbar) en vez de
+  // campos de formulario. A diferencia de htmlCampoFecha, es limpiable (trae su
+  // propio botón "×", oculto hasta que hay una fecha elegida — ver .has-value
+  // en wireCampoFecha/styles.css) porque un filtro, a diferencia de un dato
+  // requerido del vale, siempre debe poder volver a "sin fecha".
+  function htmlCampoFechaCompacto(name, etiqueta) {
+    return `
+      <div class="date-field date-field-compact" data-date-field="${name}">
+        <button type="button" class="date-field-trigger" title="${etiqueta}">
+          <span class="date-field-value is-placeholder">${etiqueta}</span>
+          <ion-icon name="calendar-outline"></ion-icon>
+        </button>
+        <button type="button" class="date-field-clear" title="Quitar filtro" aria-label="Quitar filtro de ${etiqueta.toLowerCase()}">&times;</button>
+        <input type="hidden" name="${name}" />
+      </div>
+    `;
+  }
+
   // minDate se puede ajustar después con api.setMinDate() — lo usa, por ejemplo,
   // la fecha del evento, que se recalcula cuando cambia la fecha de entrega.
-  function wireCampoFecha(overlay, name, { minDate = null } = {}) {
+  function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'Seleccionar fecha' } = {}) {
     const wrapper = overlay.querySelector(`[data-date-field="${name}"]`);
     const trigger = wrapper.querySelector('.date-field-trigger');
     const valueEl = wrapper.querySelector('.date-field-value');
     const hidden = wrapper.querySelector('input[type="hidden"]');
+    const clearBtn = wrapper.querySelector('.date-field-clear');
     let seleccionado = null;
     let minActual = minDate;
     let mesVisible = new Date();
@@ -1182,15 +1366,29 @@
           refrescarLabel();
           hidden.dispatchEvent(new Event('change', { bubbles: true }));
         }
+      },
+      clear(opts = {}) {
+        seleccionado = null;
+        hidden.value = '';
+        refrescarLabel();
+        if (!opts.silent) hidden.dispatchEvent(new Event('change', { bubbles: true }));
       }
     };
 
+    if (clearBtn) {
+      clearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        api.clear();
+      });
+    }
+
     function refrescarLabel() {
+      wrapper.classList.toggle('has-value', !!seleccionado);
       if (seleccionado) {
         valueEl.textContent = formatearFecha(isoLocal(seleccionado));
         valueEl.classList.remove('is-placeholder');
       } else {
-        valueEl.textContent = 'Seleccionar fecha';
+        valueEl.textContent = placeholder;
         valueEl.classList.add('is-placeholder');
       }
     }
@@ -1453,16 +1651,23 @@
     const getImagenes = wireDropzone(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista');
     const getDocumentos = wireDropzone(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista');
 
+    const formCrear = overlay.querySelector('#form-crear-vale');
+    wireLimpiezaValidacionInline(formCrear);
+
     overlay.querySelector('#btn-cancelar-crear').addEventListener('click', cerrar);
     overlay.querySelector('#btn-guardar-crear').addEventListener('click', () => {
-      const form = overlay.querySelector('#form-crear-vale');
-      if (!form.reportValidity()) return;
-      if (!form.querySelector('[name="fechaEntrega"]').value || !form.querySelector('[name="fechaEvento"]').value) {
-        mostrarErrorModal(overlay, 'Debe seleccionar la fecha de entrega y la fecha del evento.');
-        return;
-      }
-      if (tallerSeleccionados.size === 0) {
-        mostrarErrorModal(overlay, 'Debe seleccionar al menos un taller.');
+      const form = formCrear;
+      // validarCamposNativos limpia el estado de TODOS los campos nativos del
+      // formulario antes de revisarlos (incluido el <select> de agregar
+      // taller, que no tiene `required`) — por eso corre primero, y los
+      // validadores manuales (que no son constraint-validation nativa) van
+      // después, para que no les borre el error recién marcado.
+      const camposOk = validarCamposNativos(form);
+      const tallerOk = validarTalleresSeleccionados(overlay, tallerSeleccionados);
+      const entregaOk = validarCampoFecha(overlay, 'fechaEntrega');
+      const eventoOk = validarCampoFecha(overlay, 'fechaEvento');
+      if (!tallerOk || !entregaOk || !eventoOk || !camposOk) {
+        enfocarPrimerCampoInvalido(overlay);
         return;
       }
       const formData = new FormData(form);
@@ -1589,6 +1794,12 @@
       tecnicos = await (await fetch('/api/vales/tecnicos')).json();
     } catch { /* select se mostrará vacío */ }
 
+    // El backend rechaza aprobar sin un documento adjunto real (ver
+    // valeService.revisarPropuesta) — se refleja aquí deshabilitando el botón
+    // en vez de dejar que el usuario reciba el error recién después de hacer
+    // clic, cuando el propio mensaje de arriba ya adelanta que no se puede.
+    const puedeAprobar = !!(ultima && ultima.url);
+
     const { overlay, cerrar } = abrirModal({
       title: `Revisar propuesta — ${vale.correlativo}`,
       bodyHtml: `
@@ -1608,7 +1819,7 @@
       `,
       footerHtml: `
         <button class="btn btn--danger" id="btn-desaprobar">Desaprobar y reasignar</button>
-        <button class="btn btn--primary" id="btn-aprobar">Aprobar</button>
+        <button class="btn btn--primary" id="btn-aprobar" ${puedeAprobar ? '' : 'disabled title="No hay una propuesta adjunta que aprobar"'}>Aprobar</button>
       `
     });
 
@@ -1856,12 +2067,17 @@
     overlay.querySelector('[name="productoId"]').value = vale.producto_id || '';
     overlay.querySelector('[name="materialId"]').value = vale.material_id || '';
 
+    const formModificacion = overlay.querySelector('#form-modificacion');
+    wireLimpiezaValidacionInline(formModificacion);
+
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-enviar').addEventListener('click', async () => {
-      const form = overlay.querySelector('#form-modificacion');
-      if (!form.reportValidity()) return;
-      if (!form.querySelector('[name="fechaEntrega"]').value || !form.querySelector('[name="fechaEvento"]').value) {
-        mostrarErrorModal(overlay, 'Debe seleccionar la fecha de entrega y la fecha del evento.');
+      const form = formModificacion;
+      const entregaOk = validarCampoFecha(overlay, 'fechaEntrega');
+      const eventoOk = validarCampoFecha(overlay, 'fechaEvento');
+      const camposOk = validarCamposNativos(form);
+      if (!entregaOk || !eventoOk || !camposOk) {
+        enfocarPrimerCampoInvalido(overlay);
         return;
       }
       const fd = new FormData(form);
@@ -2026,8 +2242,8 @@
     wireSelectorTalleres(overlay, tallerSeleccionados);
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
-      if (tallerSeleccionados.size === 0) {
-        mostrarErrorModal(overlay, 'Debe seleccionar al menos un taller.');
+      if (!validarTalleresSeleccionados(overlay, tallerSeleccionados)) {
+        enfocarPrimerCampoInvalido(overlay);
         return;
       }
       const btn = overlay.querySelector('#btn-confirmar');
