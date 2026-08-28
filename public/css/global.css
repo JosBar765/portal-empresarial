@@ -45,7 +45,7 @@
   /* Estados semánticos (cada uno con su fondo tenue a juego) */
   --color-success: #16A34A;  --color-success-bg: #F0FDF4;
   --color-warning: #D97706;  --color-warning-bg: #FFFBEB;
-  --color-danger:  #DC2626;  --color-danger-bg:  #FEF2F2;
+  --color-danger:  #DC2626;  --color-danger-bg:  #FEF2F2;  --color-danger-rgb: 220, 38, 38;
   --color-info:    #3B82F6;  --color-info-bg:    #EFF6FF;  --color-info-text: #1D4ED8;
 
   /* Superficies */
