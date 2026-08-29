@@ -37,40 +37,40 @@ Sin embargo, hice la prueba de aprobar ambas propuestas (aunque visualmente eran
 
 10. Analizando la base de datos, hay confusión todavía con las relaciones y la estructura de la empresa, no están alineados. Te lo explicaré de manera más detallada la estructura de la empresa, y cómo van los actores que interactuarán con el sistema:
     - La empresa tiene varias tiendas (localidades; de preferencia cambiemos el nombre de esta tabla a "tiendas") que pertenecen a un departamento, una subdivisión de ese departamento y un país:
-        TIENDA||DEPARTAMENTO|SUBDIVISIÓN|PAÍS
-        * Munditrofeos, S.A.|Ventas Munditrofeos|Comercialización|Guatemala
-        * Munditrofeos, S.A.|Ventas Munditrofeos|Sala de Ventas|Guatemala
-        * Premia, S.A.|Ventas Premia Z13||Guatemala <- Premia no tiene una subdivisión
+        CÓDIGO|TIENDA|DEPARTAMENTO|SUBDIVISIÓN|PAÍS
+        * MTC|Munditrofeos, S.A.|Ventas Munditrofeos|Comercialización|Guatemala
+        * MTS|Munditrofeos, S.A.|Ventas Munditrofeos|Sala de Ventas|Guatemala
+        * P13|Premia, S.A.|Ventas Premia Z13||Guatemala <- Premia no tiene una subdivisión
 
-        * Premia San Salvador|Ventas Centroamérica|Ventas San Salvador|Salvador
-        * Premia Express Santa Ana|Ventas Centroamérica|Ventas Santa Ana|Salvador
-        * Premia Express San Miguel|Ventas Centroamérica|Ventas San Miguel|Salvador
-        * Premia Express Escalón|Ventas Centroamérica|Ventas Escalón|Salvador
+        * SSV|Premia San Salvador|Ventas Centroamérica|Ventas San Salvador|Salvador
+        * SAA|Premia Express Santa Ana|Ventas Centroamérica|Ventas Santa Ana|Salvador
+        * SMG|Premia Express San Miguel|Ventas Centroamérica|Ventas San Miguel|Salvador
+        * ECL|Premia Express Escalón|Ventas Centroamérica|Ventas Escalón|Salvador
 
-        * Premia Express Comayagua|Ventas Centroamérica|Ventas Comayagua|Honduras
-        * Premia Tegucigalpa|Ventas Centroamérica|Ventas Tegucigalpa|Honduras
-        * Premia San Pedro Sula|Ventas Centroamérica|Ventas San Pedro Sula|Honduras
+        * CMY|Premia Express Comayagua|Ventas Centroamérica|Ventas Comayagua|Honduras
+        * TEG|Premia Tegucigalpa|Ventas Centroamérica|Ventas Tegucigalpa|Honduras
+        * SPS|Premia San Pedro Sula|Ventas Centroamérica|Ventas San Pedro Sula|Honduras
 
-        * Premia Express Managua|Ventas Centroamérica|Ventas Managua|Nicaragua
-        * Premia Express León|Ventas Centroamérica|Ventas León|Nicaragua
+        * MAN|Premia Express Managua|Ventas Centroamérica|Ventas Managua|Nicaragua
+        * LEO|Premia Express León|Ventas Centroamérica|Ventas León|Nicaragua
 
-        * Premia San Jose|Ventas Centroamérica|Costa Rica
+        * SJO|Premia San Jose|Ventas Centroamérica|Costa Rica
 
-        * Trofex San Juan|Ventas Trofex R1|Ventas San Juan|Guatemala
-        * Trofex Zona 3|Ventas Trofex R1|Ventas Zona 3|Guatemala
-        * Trofex Coban|Ventas Trofex R1|Ventas Cobán|Guatemala
-        * Trofex Petén|Ventas Trofex R1|Ventas Petén|Guatemala
-        * Trofex Puerto Barrios|Ventas R1 Trofex|Ventas Puerto Barrios|Guatemala
-        * Trofex Chiquimula|Ventas Trofex R1|Ventas Chiquimula|Guatemala
-        * Trofex Jutiapa|Ventas Trofex R1|Ventas Jutiapa|Guatemala
+        * SJN|Trofex San Juan|Ventas Trofex R1|Ventas San Juan|Guatemala
+        * ZN3|Trofex Zona 3|Ventas Trofex R1|Ventas Zona 3|Guatemala
+        * COB|Trofex Coban|Ventas Trofex R1|Ventas Cobán|Guatemala
+        * PET|Trofex Petén|Ventas Trofex R1|Ventas Petén|Guatemala
+        * PTB|Trofex Puerto Barrios|Ventas R1 Trofex|Ventas Puerto Barrios|Guatemala
+        * CHQ|Trofex Chiquimula|Ventas Trofex R1|Ventas Chiquimula|Guatemala
+        * JTP|Trofex Jutiapa|Ventas Trofex R1|Ventas Jutiapa|Guatemala
 
-        * Trofex San Marcos|Ventas Trofex R2|Ventas San Marcos|Guatemala
-        * Trofex Chimaltenango|Ventas Trofex R2|Ventas Chimaltenango|Guatemala
-        * Trofex Escuintla|Ventas Trofex R2|Ventas Escuintla|Guatemala
-        * Trofex Huehuetenango|Ventas Trofex R2|Ventas Huhuetenango|Guatemala
-        * Trofex Mazatenango|Ventas Trofex R2|Ventas Mazatenango|Guatemala
-        * Trofex Villa Nueva|Ventas Trofex R2|Ventas Villa Nueva|Guatemala
-        * Trofex Xela|Ventas Trofex R2|Ventas Xela|Guatemala
+        * SMS|Trofex San Marcos|Ventas Trofex R2|Ventas San Marcos|Guatemala
+        * CHM|Trofex Chimaltenango|Ventas Trofex R2|Ventas Chimaltenango|Guatemala
+        * ESC|Trofex Escuintla|Ventas Trofex R2|Ventas Escuintla|Guatemala
+        * HUE|Trofex Huehuetenango|Ventas Trofex R2|Ventas Huhuetenango|Guatemala
+        * MAZ|Trofex Mazatenango|Ventas Trofex R2|Ventas Mazatenango|Guatemala
+        * VLN|Trofex Villa Nueva|Ventas Trofex R2|Ventas Villa Nueva|Guatemala
+        * XEL|Trofex Xela|Ventas Trofex R2|Ventas Xela|Guatemala
 
     - Cada departamento tendrá su supervisor/gerente. Cuando digo supervisor/gerente, me refiero a:
         - Su rol principal es el de supervisor:
@@ -126,13 +126,29 @@ Sin embargo, hice la prueba de aprobar ambas propuestas (aunque visualmente eran
 
         * Victor Tobar|costarica@grupopremia.com|Ventas Centroamérica|Ventas San Jose|Supervisor
 
-    - De momento, no tengo el personal de diseño, sus encargados y los técnicos. Mantegamos los que tenemos, pero ya te expliqué como funciona la estructura de las tiendas y sus supervisores.
+11. Cambia una regla de negocio IMPORTANTÍSIMA. Actualmente habíamos dicho que hay 3 talleres (diseño, uv3d y protextil) y que estos tienen un encargado general. Esto va a desaparecer. Resulta, que el encargado general no es lo que pensabamos que era y todo el maldito sistema funcionará diferente. Lo que debería suceder:
+    - El asesor sigue eligiendo los talleres a los que necesita mandar el vale de arte (diseño local, diseño, diseño 3d y protextil)
+        * Diseño local son los diseñadores que trabajan en la tienda. Diseño local puede existir para todas las tiendas menos para MTC y MTS.
+        * Si el asesor elige diseño local, no puede elegir los demás talleres de Munditrofeos. Y viceversa, si necesita enviarlo a uno o más talleres de munditrofeos no podrá seleccionar diseño local
+    - El vale de arte le cae al(os) taller(es) que seleccionó el asesor
+Hasta acá todo normal, a excepción de la agregación de diseño local para las tiendas, que por cierto, solo algunas tiendas lo tienen (todas, excepto: MTC, MTS y todas las Trofex; crea usuarios mockup para esto). Siguiendo esta lógica entonces: 
+    - Una tienda si tiene diseño local, puede seleccionar o diseño local o alguno de los talleres de munditrofeos
+    - Si una tienda no tiene diseño local, los únicos talleres a los que peude enviar el vale de arte es a los de munditrofeos
+¿Qué es lo que se ve afectado, entonces? Lo que se ve afectado es el proceso de modificación y fusión. Actualmente, cuando se aprueba una modificación, el vale de arte pasa por el encargado general para que haga el reenvío al(os) taller(es) correspondite(s). Eso ya no existe, lo que en realidad debería suceder, es que el asesor puede decir a donde quiere mandar el vale para modificación. Cabe mencionar: 
+    - Que si el vale se trabajo en diseño local, la modificación SOLO se puede mandar a diseño local (ya ni es necesario preguntar)
+    - Si el vale se trabajo EN SOLO UN taller de los tres talleres de Munditrofeos, el vale se reenvía a ese taller (ya ni es necesario preguntar)
+    - Si el vale se trabajo en más de un taller de los tres talleres de munditrofeos, el asesor puede escoger a qué taller(es) es al(os) que quiere enviar la(s) modificación(es) (aquí si es necesario preguntar)
+Y aquí sale otra duda ¿quién es el que junta todo el trabajo que se realize en un vale de arte que involucre a los tres talleres? Actualmente lo hace el encargado general y en su defecto el asistente. Dejemos que esto permanezca así, te explico. Esos permisos de fusionar (ya no reenviar, eso ya no existirá) un trabajo de varios talleres o una modificación de varios talleres la seguirá haciendo el encargado general y su asistente. Sin embargo, no quiero un rol exclusivo para el encargado general. Esto sucede ya que esta persona no existe, más bién, vamos a darle estos mismo permisos de fusión al encargado de diseño.
+Hablando con gerencia, resultó que entre los encargados llegaron a un acuerdo, el encargado de diseño es el que fusiona todo. Entonces, vamos a trasladar estos permisos de fusión al encargado de diseño. Quiere decir que si hay un vale de arte que le llegó al taller de protextil y al taller de diseño, la fusión la hará el encargado de diseño.
+Quiero que se haga la dinstinción correcta de los permisos de fusión, ya que, si en algún momento estos cabrones llegan a algún otro acuerdo de quién será el encargado de fusionar los vales de arte, tengo que poder cambiar los permisos. Actualmente eso no es posible, pero en el siguiente ciclo de correcciones te daré las instrucciones para la vista de administrador, de momento es importante que **TODOS LOS PERMISOS SEAN BIEN ATÓMICOS**, en caso de no serlo, atomizalos.
+Altera el flujo y remueve/cambia estados a como sea necesario. Recorda que todo lo demás no cambia (generación de vale de arte, generación de modificación, flujo anterior y posterior a la fusión de vales de arte), solo estará este cambio relacionado con que ya no existirá el usuario de encargado general. Sin embargo, el asistente si existe, y los roles de este se podrán modificar. De momento, dejemoslo como un clon del encargado de diseño. Solo que se llame asistene@munditrofeos.com
 
-11. Normalizemos la base de datos. Actualmente hay tablas que incluso ni se usan, campos que son inútiles, tal y como es el caso del campo: `es_cancelación` de la tabla `vale_propuesta`. Esto permite que cada vez que hay una cancelación se hace un registro en la base de datos, esto me es inútil, el sistema debería se capaz de manejar esa excepción y no andar llenando la DB de registros "en blanco". Necesito que identifiques los campos de la DB que no se estén usando, que no aporten nada, que generen una dependencia transitiva, etc. Necesitamos normalizar esa base de datos. Quiero que sea interactivo, tú me das diciendo:
+12. Normalizemos la base de datos. Actualmente hay tablas que incluso ni se usan, campos que son inútiles, tal y como es el caso del campo: `es_cancelación` de la tabla `vale_propuesta`. Esto permite que cada vez que hay una cancelación se hace un registro en la base de datos, esto me es inútil, el sistema debería se capaz de manejar esa excepción y no andar llenando la DB de registros "en blanco". Necesito que identifiques los campos de la DB que no se estén usando, que no aporten nada, que generen una dependencia transitiva, etc. Necesitamos normalizar esa base de datos. Quiero que sea interactivo, tú me das diciendo:
     - Porqué consideras que es inútil ese campo/tabla/relación
     - Qué caso podría llegar a ser útil ese campo/tabla/relación 
     - Cómo se está utilizando actualmente ese campo/tabla/relación (si es que lo hace)
     - Cómo proceder se te ocurre proceder con él
 Yo te daré mi aprobación para los campos necesarios en base a lo que yo también analize
 
-12. Atomiza los permisos, a modo que un solo permiso sea una descripción atómica. Ya que, posteriormente haremos un panel administrativo donde podremos administrar los permisos que tiene cada rol.
+13. Ahora que ya te di los correlativos de las tiendas (localidades) ya podes generar los correlativos de la siguiente manera: {CÓDIGO_TIENDA}-{PRIMER_LETRA_PRIMER_NOMBRE}{PRIMER_LETRA_PRIMER_APELLIDO}-{NÚMERO}. Gerencia me indica que les gustaría los números de 5 dígitos. Si es un solo dígito, rellenar con ceros. Tipo: MTC-MP-0001.
+Siempre mantenemos lo que hace actualmente las modificaciones, ponene prefijo MOD... Ej: MOD-MTC-MP-0001
