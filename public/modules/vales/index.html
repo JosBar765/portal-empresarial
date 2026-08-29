@@ -89,11 +89,7 @@
             <button data-ventana="semana" class="chip">Semana</button>
             <button data-ventana="mes" class="chip">Mes</button>
             <button data-ventana="todo" class="chip chip-active">Todo</button>
-            <div class="ventana-rango">
-              <input type="date" id="ventana-desde" class="ventana-fecha" title="Desde" />
-              <span class="ventana-rango-sep">—</span>
-              <input type="date" id="ventana-hasta" class="ventana-fecha" title="Hasta" />
-            </div>
+            <div class="ventana-rango" id="ventana-rango"></div>
           </div>
           <!-- Solo Gerencia: filtra por tienda tanto el Dashboard como la lista de
                Vales de Arte (analisis_correcciones_7.md, Vista Gerencia). -->
@@ -138,7 +134,12 @@
                 </tr>
               </thead>
               <tbody id="buzon-tbody">
-                <tr><td colspan="8" class="tabla-vacia">Cargando vales de arte...</td></tr>
+                <tr><td colspan="8" class="tabla-vacia">
+                  <div class="buzon-vacio">
+                    <ion-icon name="sync-outline" class="spin-animation"></ion-icon>
+                    <p>Cargando vales de arte...</p>
+                  </div>
+                </td></tr>
               </tbody>
             </table>
           </div>

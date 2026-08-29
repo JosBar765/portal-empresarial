@@ -314,16 +314,6 @@
   color: #FFFFFF;
 }
 
-.ventana-fecha {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 7px 10px;
-  font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--color-text);
-  background: var(--color-surface);
-}
-
 .ventana-rango {
   display: flex;
   align-items: center;
@@ -359,6 +349,14 @@
   line-height: 1;
 }
 
+/* Ver JS (renderContadores): un valor largo (correlativo) en vez de un número
+   corto o un "N/M" — mismo peso tipográfico, tamaño reducido para que un
+   identificador no se lea como si fuera el número destacado de la tarjeta. */
+.contador-card .valor.valor-compacto {
+  font-size: 19px;
+  letter-spacing: -0.01em;
+}
+
 .contador-card.contador-alerta .valor {
   color: var(--color-danger);
 }
@@ -383,6 +381,21 @@
    tabla en vez de duplicar el <thead>/<tbody> por rol. */
 .buzon-table.oculta-taller .col-taller {
   display: none;
+}
+
+/* Chips de taller en el buzón — reusa .taller-tag (selector de talleres del
+   formulario de creación) en modo solo lectura, sin el botón "×" de quitar:
+   un vale multi-taller ("Diseño, Diseño UV/3D") se leía como una sola frase en
+   vez de dos talleres distintos con texto plano. */
+.taller-tags-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.col-taller .taller-tag {
+  padding: 3px 10px;
+  white-space: nowrap;
 }
 
 .contador-card .etiqueta {
@@ -587,6 +600,44 @@
   white-space: normal !important;
 }
 
+/* Estado vacío/error del buzón — mismo lenguaje visual (ícono + título +
+   descripción) que .empty-state del dashboard principal (public/css/
+   dashboard.css), en vez de una sola línea de texto suelta, para que un "sin
+   resultados" se lea como un estado real y no como un texto de relleno. */
+.buzon-vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.buzon-vacio ion-icon {
+  font-size: 32px;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+.buzon-vacio h3 {
+  font-family: var(--font-title);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.buzon-vacio p {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  max-width: 360px;
+}
+
+.buzon-vacio-error ion-icon {
+  color: var(--color-danger);
+}
+
+.buzon-vacio-error h3 {
+  color: var(--color-danger);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -782,6 +833,43 @@
 .form-field textarea {
   resize: vertical;
   min-height: 80px;
+}
+
+/* Validación inline — reemplaza los globos nativos del navegador (ver
+   validarCamposNativos/validarCampoFecha/validarTalleresSeleccionados en
+   app.js). El borde rojo marca el campo real, incluido el botón del
+   selector de fecha y el "+ Agregar taller..."; el mensaje aparece debajo
+   con el mismo tono que .form-error, pero puntual al campo. */
+.form-field.is-invalid input,
+.form-field.is-invalid select,
+.form-field.is-invalid textarea,
+.form-field.is-invalid .date-field-trigger {
+  border-color: var(--color-danger);
+}
+
+.form-field.is-invalid input:focus,
+.form-field.is-invalid select:focus,
+.form-field.is-invalid textarea:focus,
+.form-field.is-invalid .date-field-trigger:focus {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px rgba(var(--color-danger-rgb), 0.12);
+}
+
+@keyframes fieldErrorIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+
+.field-error {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-danger);
+  animation: fieldErrorIn 0.15s var(--ease-out) both;
+}
+
+.field-error ion-icon {
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
 /* Desplegables: se quita la flecha nativa del sistema operativo (inconsistente
@@ -1038,6 +1126,57 @@
   font-weight: 400;
 }
 
+/* Variante compacta (analisis_correcciones — mejora de diseño del dashboard):
+   usada en el rango de fechas de la barra de herramientas del buzón en vez de
+   <input type="date"> nativos, que traían el calendario/ícono de fábrica del
+   navegador y desentonaban junto a los chips Día/Semana/Mes/Todo. Ancho al
+   contenido en vez de 100% (aquí conviven varios campos en una fila, no uno
+   solo ocupando todo un form-field) y con su propio botón para limpiar el
+   filtro, ver .date-field-clear — un dato de formulario requerido nunca
+   necesita "volver a vacío", pero un filtro sí. */
+.date-field-compact {
+  width: auto;
+}
+
+.date-field-compact .date-field-trigger {
+  width: auto;
+  min-width: 132px;
+  padding: 7px 12px;
+  font-size: 13px;
+}
+
+/* Vive como hermano del trigger (nunca anidado en el <button>, que sería HTML
+   inválido) y se superpone visualmente sobre el ícono de calendario cuando hay
+   una fecha elegida — mismo tratamiento que .archivo-chip-quitar. */
+.date-field-clear {
+  display: none;
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.date-field-clear:hover {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.date-field-compact.has-value .date-field-clear {
+  display: flex;
+}
+
 .date-picker-panel {
   position: fixed;
   z-index: 200;
@@ -1287,9 +1426,12 @@
     width: 100%;
   }
 
-  .ventana-fecha {
+  .ventana-rango .date-field-compact {
     flex: 1;
     min-width: 0;
+  }
+
+  .ventana-rango .date-field-compact .date-field-trigger {
     width: 100%;
   }
 
@@ -1329,6 +1471,10 @@
 
   .contador-card .valor {
     font-size: 20px;
+  }
+
+  .contador-card .valor.valor-compacto {
+    font-size: 14px;
   }
 
   .contador-card .etiqueta {
@@ -1421,6 +1567,10 @@
   .buzon-table td.acciones-cell {
     justify-content: flex-end;
     flex-wrap: wrap;
+  }
+
+  .buzon-table .taller-tags-cell {
+    justify-content: flex-end;
   }
 
   .buzon-table td.acciones-cell::before {
