@@ -61,8 +61,8 @@ CREATE TABLE IF NOT EXISTS `usuarios` (
   `telefono`          VARCHAR(30)  DEFAULT NULL,
   `password_hash`     VARCHAR(255) NOT NULL,
   `rol_id`            INT NOT NULL,
-  `localidad_id`      INT          DEFAULT NULL COMMENT 'Localidad base del usuario (usada para el correlativo de vales)',
-  `encargado_id`      INT          DEFAULT NULL COMMENT 'Auto-referencia: encargado/supervisor al mando de este usuario (técnico -> encargado de taller, asesor -> supervisor — analisis_correcciones_10.md #11)',
+  `tienda_id`         INT          DEFAULT NULL COMMENT 'Tienda base del usuario (usada para el correlativo de vales y, para un asesor, para resolver su(s) supervisor(es) vía departamento/subdivisión — analisis_correcciones_12.md #10)',
+  `encargado_id`      INT          DEFAULT NULL COMMENT 'Auto-referencia: encargado de taller al mando de este técnico. Desde analisis_correcciones_12.md #10, YA NO se usa para asesor -> supervisor (esa relación es dinámica, vía tienda_id + supervisor_asignaciones); en asesores queda NULL.',
   `activo`            TINYINT(1)   NOT NULL DEFAULT 1,
   `intentos_fallidos` INT          NOT NULL DEFAULT 0,
   `bloqueado_hasta`   DATETIME     DEFAULT NULL,
@@ -99,17 +99,32 @@ INSERT INTO `paises` (`codigo`, `nombre`, `codigo_telefono`, `moneda_codigo`, `m
 ('BZ', 'Belice', '+501', 'BZD', 'BZ$');
 
 -- Roles
+-- analisis_correcciones_12.md #3: descripciones en términos de la FUNCIÓN de la
+-- persona, no del flujo de un módulo en particular — antes narraban el flujo de
+-- Vales de Arte ("Asigna vales de arte a técnicos..."), lo que envejece mal al
+-- sumar más módulos al portal.
 INSERT INTO `roles` (`id`, `nombre`, `descripcion`) VALUES
 (1, 'Administrador', 'Acceso total a todos los módulos y configuraciones del portal'),
-(2, 'Diseñador', 'Acceso a vales de arte y generador de prompts'),
-(3, 'Asesor de Ventas', 'Crea vales de arte, confirma o cancela ventas y solicita modificaciones'),
-(4, 'Supervisor de Ventas', 'Supervisa el flujo de vales de arte y autoriza modificaciones'),
-(5, 'Encargado de Diseño', 'Asigna vales de arte a técnicos y revisa sus propuestas'),
-(6, 'Encargado de Diseño UV/3D', 'Asigna vales de arte a técnicos UV/3D y revisa sus propuestas'),
-(7, 'Técnico de Diseño', 'Ejecuta los vales de arte que le asigna su encargado'),
-(8, 'Encargado General', 'Fusiona y aprueba vales de arte enviados a más de un taller'),
-(9, 'Asistente Encargado General', 'Mismas funciones que el Encargado General para este módulo'),
-(10, 'Gerente', 'Visualiza reportes, métricas y el listado de vales de arte de todas las tiendas, sin poder ejecutar ninguna acción sobre ellos');
+(2, 'Diseñador', 'Diseñador gráfico, encargado de crear piezas creativas y prompts de diseño'),
+(3, 'Asesor de Ventas', 'Asesor de ventas, encargado de atender clientes y gestionar ventas'),
+(4, 'Supervisor de Ventas', 'Supervisor de ventas, encargado de supervisar al equipo comercial'),
+(5, 'Encargado de Diseño', 'Encargado de diseño, responsable de coordinar y fusionar el trabajo del equipo de diseño'),
+(6, 'Encargado de Diseño UV/3D', 'Encargado de diseño UV/3D, responsable de coordinar al equipo de diseño UV/3D'),
+(7, 'Técnico de Diseño', 'Técnico de diseño, encargado de ejecutar el trabajo de diseño y producción asignado'),
+-- analisis_correcciones_12.md #11: rol DESCONTINUADO — "el encargado general no
+-- existe" (regla de negocio explícita). Se conserva la fila (nunca se borra un
+-- rol/usuario con historial referenciado, mismo criterio que usuarios.encargado_id
+-- en la Fase 2a) pero sin permisos (ver rol_permisos) y con su usuario semilla
+-- desactivado (usuarios.activo = 0, id 10) — no debe poder asignarse a nadie más.
+(8, 'Encargado General', 'ROL DESCONTINUADO (analisis_correcciones_12.md #11) — la fusión de vales multi-taller ahora es un permiso atómico del Encargado de Diseño'),
+-- Recicla el rol 9: clon operativo completo del Encargado de Diseño (mismos
+-- permisos atómicos), en vez de un rol propio de "encargado general".
+(9, 'Asistente de Diseño', 'Asistente del Encargado de Diseño, con las mismas responsabilidades de coordinación y fusión'),
+(10, 'Gerente', 'Gerente, encargado de supervisar la operación general y sus métricas'),
+-- analisis_correcciones_12.md #11: rol genérico para no crear un rol por cada
+-- taller nuevo (Protextil + un Diseño Local por tienda) — cada encargado se
+-- distingue por CUÁL taller es su `talleres.encargado_id`, no por su rol.
+(11, 'Encargado de Taller', 'Encargado de un taller de producción, responsable de asignar técnicos y revisar sus propuestas');
 
 -- Permisos (basado en los módulos descritos en arquitectura_reglas.md)
 INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUES
@@ -145,19 +160,25 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 -- Asesor de Ventas: Vales (ver, crear, editar en modificación, confirmar, solicitar modificación) + Eventos (ver, crear)
 (3, 1), (3, 2), (3, 3), (3, 12), (3, 13), (3, 6), (3, 7),
 -- Supervisor de Ventas: Vales (ver, supervisar, aprobar modificación, autorizar creación)
-(4, 1), (4, 15), (4, 14), (4, 18),
--- Encargado de Diseño: Vales (ver, asignar, revisar) — dueño del taller "Diseño"
-(5, 1), (5, 9), (5, 10),
+-- + Panel de Gerencia (analisis_correcciones_12.md #10: comparte el dashboard con el Gerente)
+(4, 1), (4, 15), (4, 14), (4, 18), (4, 17),
+-- Encargado de Diseño: Vales (ver, asignar, revisar) — dueño del taller "Diseño".
+-- analisis_correcciones_12.md #11: gana la fusión multi-taller (16) — gerencia
+-- decidió que la persona real que fusiona es el Encargado de Diseño, ya no un
+-- rol aparte de "encargado general".
+(5, 1), (5, 9), (5, 10), (5, 16),
 -- Encargado de Diseño UV/3D: Vales (ver, asignar, revisar) — dueño del taller "Diseño UV/3D"
 (6, 1), (6, 9), (6, 10),
 -- Técnico de Diseño: Vales (ver, trabajar)
 (7, 1), (7, 11),
--- Encargado General: Vales (ver, aprobar y fusionar multi-taller)
-(8, 1), (8, 16),
--- Asistente Encargado General: mismos permisos que el Encargado General
-(9, 1), (9, 16),
+-- Rol 8 (Encargado General): DESCONTINUADO — sin permisos (ver comentario en `roles`).
+-- Asistente de Diseño (antes "Asistente Encargado General"): clon operativo
+-- COMPLETO del Encargado de Diseño — mismos permisos atómicos.
+(9, 1), (9, 9), (9, 10), (9, 16),
 -- Gerente: solo lectura — ver vales + panel de gerencia (analisis_correcciones_7.md, Vista Gerencia)
-(10, 1), (10, 17);
+(10, 1), (10, 17),
+-- Encargado de Taller (genérico: Protextil + cada Diseño Local): Vales (ver, asignar, revisar) — SIN fusión.
+(11, 1), (11, 9), (11, 10);
 
 -- Usuarios (contraseñas hasheadas con bcrypt, 10 rondas)
 -- admin@munditrofeos.com          -> admin123
@@ -167,23 +188,48 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 -- encargado.diseno@munditrofeos.com -> disenoenc123
 -- encargado.uv3d@munditrofeos.com   -> uv3denc123
 -- tecnico.a@munditrofeos.com / tecnico.b@munditrofeos.com / tecnico.c@munditrofeos.com -> tecnico123
--- encargado.general@munditrofeos.com -> encgeneral123
--- asistente.general@munditrofeos.com -> asisgeneral123
+-- encargado.general@munditrofeos.com -> encgeneral123 (DESACTIVADO, analisis_correcciones_12.md #11)
+-- asistente@munditrofeos.com -> asisgeneral123
 -- gerente@munditrofeos.com -> gerente123
+-- Supervisores/gerentes reales (analisis_correcciones_12.md #10, ids 13-24) reusan
+-- la misma contraseña que la cuenta de prueba original de Supervisor: supervisor123
+-- Encargados de taller nuevos (Protextil + Diseño Local, ids 25-48, analisis_correcciones_12.md
+-- #11) son usuarios mockup: los encargados (rol 11) reusan el hash de
+-- encargado.diseno@... (disenoenc123) y los técnicos (rol 7) el de tecnico.a@... (tecnico123).
 
-INSERT INTO `usuarios` (`id`, `nombre`, `email`, `telefono`, `password_hash`, `rol_id`, `localidad_id`, `encargado_id`) VALUES
+INSERT INTO `usuarios` (`id`, `nombre`, `email`, `telefono`, `password_hash`, `rol_id`, `tienda_id`, `encargado_id`) VALUES
 (1, 'Administrador General', 'admin@munditrofeos.com', '+502 5555-0001', '$2a$10$0.B9xk21MYppfOd4XbtP3u5mJ6NzlaA6eqlu65Fy5G7xb2VnN2Lwu', 1, 1, NULL),
 (2, 'Diseñador Creativo', 'diseno@munditrofeos.com', '+502 5555-0002', '$2a$10$SXZEYhhebLnagsNMyFiqFOIn3m4Uwwf45PKHBvEIooMvzfqLXBpaC', 2, 1, NULL),
-(3, 'Asesor Comercial', 'ventas@munditrofeos.com', '+502 5555-0003', '$2a$10$KrYwD5jW2ApvSCzeE8r75O4OJViry2yLLHnujyPX4ZGw58IJpSnmW', 3, 1, 4),
-(4, 'Supervisor de Ventas', 'supervisor@munditrofeos.com', '+502 5555-0004', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, 1, NULL),
+-- analisis_correcciones_12.md #10: encargado_id ya no es "su supervisor" (ver
+-- comentario en la definición de la columna) — queda NULL, su(s) supervisor(es)
+-- se resuelven dinámicamente vía tienda_id (1 = MTC) + supervisor_asignaciones.
+(3, 'Asesor Comercial', 'ventas@munditrofeos.com', '+502 5555-0003', '$2a$10$KrYwD5jW2ApvSCzeE8r75O4OJViry2yLLHnujyPX4ZGw58IJpSnmW', 3, 1, NULL),
+(4, 'Supervisor de Ventas', 'supervisor@munditrofeos.com', '+502 5555-0004', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, NULL, NULL),
 (5, 'Encargado de Diseño', 'encargado.diseno@munditrofeos.com', '+502 5555-0005', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 5, 1, NULL),
 (6, 'Encargado de Diseño UV/3D', 'encargado.uv3d@munditrofeos.com', '+502 5555-0006', '$2a$10$DEPhj4Vnp.cgA6u3w3Leg.FVQ9O3JgKDXizOYCXEbGFlSgEBcb6F6', 6, 1, NULL),
 (7, 'Técnico Diseño A', 'tecnico.a@munditrofeos.com', '+502 5555-0007', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 1, 5),
 (8, 'Técnico Diseño B', 'tecnico.b@munditrofeos.com', '+502 5555-0008', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 1, 5),
 (9, 'Técnico UV/3D C', 'tecnico.c@munditrofeos.com', '+502 5555-0009', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 1, 6),
 (10, 'Encargado General', 'encargado.general@munditrofeos.com', '+502 5555-0010', '$2a$10$gxksPVl9V44kqmjlUY3y0uvvnhtzSNX1M7Z1Lbpfy5wzHaQ5Yp6xy', 8, 1, NULL),
-(11, 'Asistente Encargado General', 'asistente.general@munditrofeos.com', '+502 5555-0011', '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', 9, 1, NULL),
-(12, 'Gerente General', 'gerente@munditrofeos.com', '+502 5555-0012', '$2a$10$yazyTlRjxvs0e/hn5B/UEOoUr6b06lBThNpvUlSOmJr0y1vB8tVXy', 10, 1, NULL);
+(11, 'Asistente de Diseño', 'asistente@munditrofeos.com', '+502 5555-0011', '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', 9, 1, NULL),
+(12, 'Gerente General', 'gerente@munditrofeos.com', '+502 5555-0012', '$2a$10$yazyTlRjxvs0e/hn5B/UEOoUr6b06lBThNpvUlSOmJr0y1vB8tVXy', 10, NULL, NULL),
+-- Supervisores/gerentes reales de la organización (analisis_correcciones_12.md #10).
+-- No tienen una tienda "propia" (son regionales/rotativos) — su cobertura vive
+-- en `supervisor_asignaciones`, no en `tienda_id`.
+(13, 'Carlos Cornejo', 'ventas1@grupopremia.com', NULL, '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, NULL, NULL),
+(14, 'Milvia Esquivel', 'gerentesala@grupopremia.com', NULL, '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, NULL, NULL),
+(15, 'Benjamin Per', 'gerentezona13@grupopremia.com', NULL, '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, NULL, NULL),
+(16, 'Juan Carlos Paniagua', 'regional@grupopremia.com', NULL, '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, NULL, NULL),
+(17, 'Victor Tobar', 'regional.ca@grupopremia.com', NULL, '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, NULL, NULL),
+(18, 'Emilio Morales', 'supervisor1@trofex.com', NULL, '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, NULL, NULL),
+(19, 'Pablo Orellana', 'supervisor@trofex.com', NULL, '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, NULL, NULL),
+(20, 'Carla Gonzáles', 'ventassv3@grupopremia.com', NULL, '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, NULL, NULL),
+(21, 'Brian Medina', 'honduras@grupopremia.com', NULL, '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, NULL, NULL),
+(22, 'Velky Cuevas', 'tegus@grupopremia.com', NULL, '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, NULL, NULL),
+(23, 'Stefany Luna', 'gerencianic@grupopremia.com', NULL, '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, NULL, NULL),
+-- Mismo nombre que el id 17, pero es una cuenta distinta (correo distinto) —
+-- así lo lista el documento fuente, cubriendo un alcance más puntual.
+(24, 'Victor Tobar', 'costarica@grupopremia.com', NULL, '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, NULL, NULL);
 
 -- Asignación de países a usuarios
 INSERT INTO `usuario_paises` (`usuario_id`, `pais_id`) VALUES
@@ -191,21 +237,83 @@ INSERT INTO `usuario_paises` (`usuario_id`, `pais_id`) VALUES
 (2, 1), -- Diseñador opera en GT
 (3, 1), (3, 2), -- Ventas opera en GT y SV
 (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1), (10, 1), (11, 1),
-(12, 1), (12, 2), (12, 3), (12, 4), (12, 5), (12, 6); -- Gerente ve métricas de todas las tiendas/países
+(12, 1), (12, 2), (12, 3), (12, 4), (12, 5), (12, 6), -- Gerente ve métricas de todas las tiendas/países
+-- Supervisores/gerentes reales (analisis_correcciones_12.md #10), según los países
+-- de las tiendas que cubren
+(13, 1), (14, 1), (15, 1), -- Munditrofeos / Premia Z13: Guatemala
+(16, 2), (16, 3), (16, 4), (16, 5), -- Juan Carlos Paniagua: toda Centroamérica
+(17, 2), (17, 3), (17, 4), (17, 5), -- Victor Tobar (regional): toda Centroamérica
+(18, 1), (19, 1), -- Emilio Morales / Pablo Orellana: Trofex, Guatemala
+(20, 2), -- Carla Gonzáles: El Salvador
+(21, 3), -- Brian Medina: Honduras
+(22, 3), -- Velky Cuevas: Honduras
+(23, 4), -- Stefany Luna: Nicaragua
+(24, 5); -- Victor Tobar (Costa Rica)
 
 -- -------------------------------------------------------------------------
--- 8. Módulo Vales de Arte
+-- 8. Estructura organizacional (analisis_correcciones_12.md #10)
 -- -------------------------------------------------------------------------
+-- Jerarquía real de la empresa: departamento -> subdivisión (opcional) -> tienda.
+-- Reemplaza la antigua tabla plana `localidades` (3 filas de demostración,
+-- "GUA"/"SAN"/"TEG") por las tiendas reales de la organización, normalizadas
+-- en vez de repetir el nombre del departamento/subdivisión en cada fila.
 
--- Localidades (tiendas/sucursales) usadas para el correlativo de vales
-CREATE TABLE IF NOT EXISTS `localidades` (
-  `id`      INT AUTO_INCREMENT PRIMARY KEY,
-  `codigo`  VARCHAR(10)  NOT NULL UNIQUE COMMENT 'Ej: GUA',
-  `nombre`  VARCHAR(100) NOT NULL,
-  `pais_id` INT DEFAULT NULL,
-  `activo`  TINYINT(1) NOT NULL DEFAULT 1,
-  FOREIGN KEY (`pais_id`) REFERENCES `paises` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+CREATE TABLE IF NOT EXISTS `departamentos` (
+  `id`     INT AUTO_INCREMENT PRIMARY KEY,
+  `nombre` VARCHAR(100) NOT NULL UNIQUE,
+  `activo` TINYINT(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- No todo departamento tiene subdivisiones (Premia Z13 no tiene ninguna) — por
+-- eso `tiendas.subdivision_id` es NULL-able en vez de exigir una fila aquí.
+CREATE TABLE IF NOT EXISTS `subdivisiones` (
+  `id`              INT AUTO_INCREMENT PRIMARY KEY,
+  `departamento_id` INT NOT NULL,
+  `nombre`          VARCHAR(100) NOT NULL,
+  `activo`          TINYINT(1) NOT NULL DEFAULT 1,
+  FOREIGN KEY (`departamento_id`) REFERENCES `departamentos` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  UNIQUE KEY `uq_subdivision` (`departamento_id`, `nombre`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tiendas/sucursales (antes `localidades`) usadas para el correlativo de vales
+-- y para resolver, vía departamento/subdivisión, cuál(es) supervisor(es)
+-- cubren a un asesor (ver `supervisor_asignaciones` más abajo).
+CREATE TABLE IF NOT EXISTS `tiendas` (
+  `id`              INT AUTO_INCREMENT PRIMARY KEY,
+  `codigo`          VARCHAR(10)  NOT NULL UNIQUE COMMENT 'Ej: MTC, SSV, XEL',
+  `nombre`          VARCHAR(100) NOT NULL,
+  `pais_id`         INT DEFAULT NULL,
+  `departamento_id` INT NOT NULL,
+  `subdivision_id`  INT DEFAULT NULL COMMENT 'NULL si el departamento no tiene subdivisiones (ej. Premia Z13)',
+  `activo`          TINYINT(1) NOT NULL DEFAULT 1,
+  FOREIGN KEY (`pais_id`) REFERENCES `paises` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  FOREIGN KEY (`departamento_id`) REFERENCES `departamentos` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`subdivision_id`) REFERENCES `subdivisiones` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Cobertura de un Supervisor de Ventas sobre la organización — reemplaza la
+-- relación 1:1 `usuarios.encargado_id` que usaba un asesor para apuntar a "su"
+-- supervisor (analisis_correcciones_10.md #11). Un supervisor puede cubrir un
+-- departamento ENTERO (`subdivision_id NULL`) o solo una subdivisión puntual;
+-- los supervisores son rotativos, así que MÁS DE UN supervisor puede cubrir la
+-- misma tienda a la vez (ver dos filas para "Ventas Centroamérica, todas las
+-- subdivisiones" en la semilla) — todo lo que antes asumía "el supervisor" de
+-- un asesor ahora opera sobre el CONJUNTO de supervisores que lo cubren.
+CREATE TABLE IF NOT EXISTS `supervisor_asignaciones` (
+  `id`              INT AUTO_INCREMENT PRIMARY KEY,
+  `usuario_id`      INT NOT NULL,
+  `departamento_id` INT NOT NULL,
+  `subdivision_id`  INT DEFAULT NULL COMMENT 'NULL = cubre todas las subdivisiones de este departamento',
+  `activo`          TINYINT(1) NOT NULL DEFAULT 1,
+  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`departamento_id`) REFERENCES `departamentos` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`subdivision_id`) REFERENCES `subdivisiones` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  UNIQUE KEY `uq_supervisor_scope` (`usuario_id`, `departamento_id`, `subdivision_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------------
+-- 9. Módulo Vales de Arte
+-- -------------------------------------------------------------------------
 
 -- Catálogos del formulario de vale de arte (combobox)
 CREATE TABLE IF NOT EXISTS `vale_productos` (
@@ -247,12 +355,19 @@ CREATE TABLE IF NOT EXISTS `asesor_limites` (
 -- Talleres/departamentos a los que un asesor puede dirigir un vale de arte.
 -- Cada taller tiene un único encargado dueño (el que asigna técnicos y revisa
 -- propuestas de ESE taller — reemplaza el buzón compartido de encargados).
+-- analisis_correcciones_12.md #11: `tienda_id` distingue un taller de TODA la
+-- empresa (Diseño, Diseño UV/3D, Protextil — NULL) de un "Diseño Local" que
+-- solo existe para una tienda puntual (apunta a esa tienda). Un solo campo
+-- cubre tanto "¿es local?" (tienda_id IS NOT NULL) como "¿de cuál tienda?" —
+-- evita un booleano `es_local` redundante.
 CREATE TABLE IF NOT EXISTS `talleres` (
   `id`           INT AUTO_INCREMENT PRIMARY KEY,
   `nombre`       VARCHAR(100) NOT NULL UNIQUE,
   `encargado_id` INT NOT NULL,
+  `tienda_id`    INT DEFAULT NULL COMMENT 'NULL = taller de toda la empresa; NOT NULL = Diseño Local de esa tienda',
   `activo`       TINYINT(1) NOT NULL DEFAULT 1,
-  FOREIGN KEY (`encargado_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+  FOREIGN KEY (`encargado_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`tienda_id`) REFERENCES `tiendas` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Enum de estados del vale de arte (nivel general, ver analisis_correcciones_3.md,
@@ -270,9 +385,9 @@ CREATE TABLE IF NOT EXISTS `talleres` (
 -- a la vez, algo que una sola columna de estado no puede representar.
 CREATE TABLE IF NOT EXISTS `vales` (
   `id`                          INT AUTO_INCREMENT PRIMARY KEY,
-  `correlativo`                 VARCHAR(60) NOT NULL UNIQUE COMMENT 'Estructura: [MOD-]LOCALIDAD-ASESOR-0001',
+  `correlativo`                 VARCHAR(60) NOT NULL UNIQUE COMMENT 'Estructura: [MOD-]TIENDA-INICIALES-00001 (código de tienda + iniciales del asesor + 5 dígitos: analisis_correcciones_12.md #13). Los correlativos históricos previos a esta fase (ej. GUA-3-0001) no se renumeran.',
   `asesor_id`                   INT NOT NULL,
-  `localidad_id`                INT NOT NULL,
+  `tienda_id`                   INT NOT NULL,
   `vale_original_id`            INT DEFAULT NULL COMMENT 'Solo en vales MODIFICADO: apunta al vale original que se modificó',
   `fecha_creacion`               DATE NOT NULL,
   `hora_creacion`                TIME NOT NULL,
@@ -320,7 +435,7 @@ CREATE TABLE IF NOT EXISTS `vales` (
   `creado_en`                    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `actualizado_en`               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`asesor_id`)         REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  FOREIGN KEY (`localidad_id`)      REFERENCES `localidades` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`tienda_id`)         REFERENCES `tiendas` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (`vale_original_id`)  REFERENCES `vales` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   FOREIGN KEY (`producto_id`)  REFERENCES `vale_productos` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   FOREIGN KEY (`material_id`)  REFERENCES `vale_materiales` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -438,13 +553,109 @@ CREATE TABLE IF NOT EXISTS `vale_historial` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------------------------------------------------------------
--- 9. Semillas del Módulo Vales de Arte
+-- 10. Semillas del Módulo Vales de Arte
 -- -------------------------------------------------------------------------
 
-INSERT INTO `localidades` (`id`, `codigo`, `nombre`, `pais_id`) VALUES
-(1, 'GUA', 'Guatemala', 1),
-(2, 'SAN', 'San Salvador', 2),
-(3, 'TEG', 'Tegucigalpa', 3);
+-- Departamentos y subdivisiones (analisis_correcciones_12.md #10) — jerarquía
+-- real de la organización, antes de las tiendas que dependen de ellos.
+INSERT INTO `departamentos` (`id`, `nombre`) VALUES
+(1, 'Ventas Munditrofeos'),
+(2, 'Ventas Premia Z13'),
+(3, 'Ventas Centroamérica'),
+(4, 'Ventas Trofex R1'),
+(5, 'Ventas Trofex R2');
+
+-- Ventas Premia Z13 no tiene subdivisiones (dept 2 no aparece aquí).
+INSERT INTO `subdivisiones` (`id`, `departamento_id`, `nombre`) VALUES
+(1, 1, 'Comercialización'),
+(2, 1, 'Sala de Ventas'),
+(3, 3, 'Ventas San Salvador'),
+(4, 3, 'Ventas Santa Ana'),
+(5, 3, 'Ventas San Miguel'),
+(6, 3, 'Ventas Escalón'),
+(7, 3, 'Ventas Comayagua'),
+(8, 3, 'Ventas Tegucigalpa'),
+(9, 3, 'Ventas San Pedro Sula'),
+(10, 3, 'Ventas Managua'),
+(11, 3, 'Ventas León'),
+-- La fila de SJO en el documento fuente vino sin el campo PAÍS (solo 4
+-- columnas en vez de 5) y "Costa Rica" ocupaba el lugar de SUBDIVISIÓN; pero
+-- la propia tabla de supervisores sí nombra una subdivisión "Ventas San Jose"
+-- para esa tienda — se crea aquí para que ambas tablas casen, y "Costa Rica"
+-- se interpreta como el país faltante de esa fila.
+(12, 3, 'Ventas San José'),
+(13, 4, 'Ventas San Juan'),
+(14, 4, 'Ventas Zona 3'),
+(15, 4, 'Ventas Cobán'),
+(16, 4, 'Ventas Petén'),
+(17, 4, 'Ventas Puerto Barrios'),
+(18, 4, 'Ventas Chiquimula'),
+(19, 4, 'Ventas Jutiapa'),
+(20, 5, 'Ventas San Marcos'),
+(21, 5, 'Ventas Chimaltenango'),
+(22, 5, 'Ventas Escuintla'),
+(23, 5, 'Ventas Huehuetenango'),
+(24, 5, 'Ventas Mazatenango'),
+(25, 5, 'Ventas Villa Nueva'),
+(26, 5, 'Ventas Xela');
+
+-- Tiendas reales (antes `localidades`, id 1 = MTC hereda el rol de la vieja
+-- fila "GUA" para no romper los `tienda_id = 1` de la semilla de vales/usuarios
+-- de demostración). `pais_id`: 1=GT, 2=SV, 3=HN, 4=NI, 5=CR (ver `paises`).
+INSERT INTO `tiendas` (`id`, `codigo`, `nombre`, `pais_id`, `departamento_id`, `subdivision_id`) VALUES
+(1,  'MTC', 'Munditrofeos, S.A.', 1, 1, 1),
+(2,  'MTS', 'Munditrofeos, S.A.', 1, 1, 2),
+(3,  'P13', 'Premia, S.A.', 1, 2, NULL),
+(4,  'SSV', 'Premia San Salvador', 2, 3, 3),
+(5,  'SAA', 'Premia Express Santa Ana', 2, 3, 4),
+(6,  'SMG', 'Premia Express San Miguel', 2, 3, 5),
+(7,  'ECL', 'Premia Express Escalón', 2, 3, 6),
+(8,  'CMY', 'Premia Express Comayagua', 3, 3, 7),
+(9,  'TEG', 'Premia Tegucigalpa', 3, 3, 8),
+(10, 'SPS', 'Premia San Pedro Sula', 3, 3, 9),
+(11, 'MAN', 'Premia Express Managua', 4, 3, 10),
+(12, 'LEO', 'Premia Express León', 4, 3, 11),
+(13, 'SJO', 'Premia San Jose', 5, 3, 12),
+(14, 'SJN', 'Trofex San Juan', 1, 4, 13),
+(15, 'ZN3', 'Trofex Zona 3', 1, 4, 14),
+(16, 'COB', 'Trofex Coban', 1, 4, 15),
+(17, 'PET', 'Trofex Petén', 1, 4, 16),
+(18, 'PTB', 'Trofex Puerto Barrios', 1, 4, 17),
+(19, 'CHQ', 'Trofex Chiquimula', 1, 4, 18),
+(20, 'JTP', 'Trofex Jutiapa', 1, 4, 19),
+(21, 'SMS', 'Trofex San Marcos', 1, 5, 20),
+(22, 'CHM', 'Trofex Chimaltenango', 1, 5, 21),
+(23, 'ESC', 'Trofex Escuintla', 1, 5, 22),
+(24, 'HUE', 'Trofex Huehuetenango', 1, 5, 23),
+(25, 'MAZ', 'Trofex Mazatenango', 1, 5, 24),
+(26, 'VLN', 'Trofex Villa Nueva', 1, 5, 25),
+(27, 'XEL', 'Trofex Xela', 1, 5, 26);
+
+-- Cobertura de supervisores (analisis_correcciones_12.md #10). El id 4
+-- (cuenta de prueba original "Supervisor de Ventas") cubre todo Munditrofeos
+-- para seguir supervisando al asesor de demostración (tienda 1 = MTC). Emilio
+-- Morales y Pablo Orellana cubren Trofex R2 al mismo tiempo (supervisores
+-- rotativos) — el documento fuente repetía a Pablo Orellana en dos filas
+-- idénticas, se colapsa a una sola.
+INSERT INTO `supervisor_asignaciones` (`usuario_id`, `departamento_id`, `subdivision_id`) VALUES
+(4, 1, NULL),
+(13, 1, NULL),
+(14, 1, 2),
+(15, 2, NULL),
+(16, 3, NULL),
+(17, 3, NULL),
+(18, 4, NULL),
+(18, 5, NULL),
+(19, 5, NULL),
+(20, 3, 3),
+(20, 3, 4),
+(20, 3, 5),
+(21, 3, 9),
+(22, 3, 8),
+(22, 3, 7),
+(23, 3, 10),
+(23, 3, 11),
+(24, 3, 12);
 
 INSERT INTO `vale_productos` (`id`, `codigo`, `nombre`) VALUES
 (1, 'PRD-TROF', 'Trofeo'),
@@ -464,15 +675,62 @@ INSERT INTO `vale_acabados` (`id`, `nombre`) VALUES
 INSERT INTO `asesor_limites` (`asesor_id`, `limite_diario`) VALUES
 (3, 6);
 
--- Talleres/departamentos — uno por cada encargado existente
-INSERT INTO `talleres` (`id`, `nombre`, `encargado_id`) VALUES
-(1, 'Diseño', 5),
-(2, 'Diseño UV/3D', 6);
+-- Encargados y técnicos mockup de los talleres nuevos (analisis_correcciones_12.md
+-- #11): Protextil (toda la empresa) + un Diseño Local por cada tienda que lo
+-- tiene (todas menos MTC, MTS y las 14 tiendas Trofex — quedan 11: ids de
+-- tienda 3 a 13). Los encargados usan el rol genérico 11 "Encargado de Taller"
+-- (evita un rol por cada taller); cada uno tiene al menos un técnico (rol 7)
+-- para que el flujo asignar/trabajar/revisar se pueda probar de punta a punta,
+-- igual que ya existe para Diseño/Diseño UV3D.
+INSERT INTO `usuarios` (`id`, `nombre`, `email`, `telefono`, `password_hash`, `rol_id`, `tienda_id`, `encargado_id`) VALUES
+(25, 'Encargado Protextil', 'encargado.protextil@munditrofeos.com', NULL, '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 11, NULL, NULL),
+(26, 'Técnico Protextil', 'tecnico.protextil@munditrofeos.com', NULL, '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, NULL, 25),
+(27, 'Encargado Diseño Local P13', 'disenolocal.p13@munditrofeos.com', NULL, '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 11, 3, NULL),
+(28, 'Técnico Diseño Local P13', 'tecnico.disenolocal.p13@munditrofeos.com', NULL, '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 3, 27),
+(29, 'Encargado Diseño Local SSV', 'disenolocal.ssv@munditrofeos.com', NULL, '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 11, 4, NULL),
+(30, 'Técnico Diseño Local SSV', 'tecnico.disenolocal.ssv@munditrofeos.com', NULL, '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 4, 29),
+(31, 'Encargado Diseño Local SAA', 'disenolocal.saa@munditrofeos.com', NULL, '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 11, 5, NULL),
+(32, 'Técnico Diseño Local SAA', 'tecnico.disenolocal.saa@munditrofeos.com', NULL, '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 5, 31),
+(33, 'Encargado Diseño Local SMG', 'disenolocal.smg@munditrofeos.com', NULL, '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 11, 6, NULL),
+(34, 'Técnico Diseño Local SMG', 'tecnico.disenolocal.smg@munditrofeos.com', NULL, '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 6, 33),
+(35, 'Encargado Diseño Local ECL', 'disenolocal.ecl@munditrofeos.com', NULL, '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 11, 7, NULL),
+(36, 'Técnico Diseño Local ECL', 'tecnico.disenolocal.ecl@munditrofeos.com', NULL, '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 7, 35),
+(37, 'Encargado Diseño Local CMY', 'disenolocal.cmy@munditrofeos.com', NULL, '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 11, 8, NULL),
+(38, 'Técnico Diseño Local CMY', 'tecnico.disenolocal.cmy@munditrofeos.com', NULL, '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 8, 37),
+(39, 'Encargado Diseño Local TEG', 'disenolocal.teg@munditrofeos.com', NULL, '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 11, 9, NULL),
+(40, 'Técnico Diseño Local TEG', 'tecnico.disenolocal.teg@munditrofeos.com', NULL, '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 9, 39),
+(41, 'Encargado Diseño Local SPS', 'disenolocal.sps@munditrofeos.com', NULL, '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 11, 10, NULL),
+(42, 'Técnico Diseño Local SPS', 'tecnico.disenolocal.sps@munditrofeos.com', NULL, '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 10, 41),
+(43, 'Encargado Diseño Local MAN', 'disenolocal.man@munditrofeos.com', NULL, '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 11, 11, NULL),
+(44, 'Técnico Diseño Local MAN', 'tecnico.disenolocal.man@munditrofeos.com', NULL, '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 11, 43),
+(45, 'Encargado Diseño Local LEO', 'disenolocal.leo@munditrofeos.com', NULL, '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 11, 12, NULL),
+(46, 'Técnico Diseño Local LEO', 'tecnico.disenolocal.leo@munditrofeos.com', NULL, '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 12, 45),
+(47, 'Encargado Diseño Local SJO', 'disenolocal.sjo@munditrofeos.com', NULL, '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 11, 13, NULL),
+(48, 'Técnico Diseño Local SJO', 'tecnico.disenolocal.sjo@munditrofeos.com', NULL, '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 13, 47);
+
+-- Talleres/departamentos — uno por cada encargado existente. `tienda_id NULL`
+-- = taller de toda la empresa; los "Diseño Local" (analisis_correcciones_12.md
+-- #11) están acotados a la tienda que los tiene.
+INSERT INTO `talleres` (`id`, `nombre`, `encargado_id`, `tienda_id`) VALUES
+(1, 'Diseño', 5, NULL),
+(2, 'Diseño UV/3D', 6, NULL),
+(3, 'Protextil', 25, NULL),
+(4, 'Diseño Local - P13', 27, 3),
+(5, 'Diseño Local - SSV', 29, 4),
+(6, 'Diseño Local - SAA', 31, 5),
+(7, 'Diseño Local - SMG', 33, 6),
+(8, 'Diseño Local - ECL', 35, 7),
+(9, 'Diseño Local - CMY', 37, 8),
+(10, 'Diseño Local - TEG', 39, 9),
+(11, 'Diseño Local - SPS', 41, 10),
+(12, 'Diseño Local - MAN', 43, 11),
+(13, 'Diseño Local - LEO', 45, 12),
+(14, 'Diseño Local - SJO', 47, 13);
 
 -- Vales de demostración cubriendo el flujo completo nuevo (usados solo si se
 -- corre este schema contra MySQL real; el mock en src/config/database.js
 -- tiene su propio seed equivalente).
-INSERT INTO `vales` (`id`, `correlativo`, `asesor_id`, `localidad_id`, `vale_original_id`, `fecha_creacion`, `hora_creacion`, `fecha_entrega`, `fecha_evento`, `urgente`, `cliente_empresa`, `cliente_nombre`, `cliente_telefono`, `cliente_correo`, `producto_id`, `material_id`, `tecnica`, `acabado`, `cantidad`, `cotizacion`, `descripcion`, `modificado`, `estado`) VALUES
+INSERT INTO `vales` (`id`, `correlativo`, `asesor_id`, `tienda_id`, `vale_original_id`, `fecha_creacion`, `hora_creacion`, `fecha_entrega`, `fecha_evento`, `urgente`, `cliente_empresa`, `cliente_nombre`, `cliente_telefono`, `cliente_correo`, `producto_id`, `material_id`, `tecnica`, `acabado`, `cantidad`, `cotizacion`, `descripcion`, `modificado`, `estado`) VALUES
 (1,  'GUA-3-0001', 3, 1, NULL, '2026-08-19', '08:30:00', '2026-08-22 17:00:00', '2026-08-25 09:00:00', 0, 'Corporación Deportiva S.A.', 'Juan Pérez', '+502 5555-1111', 'juan.perez@corpdeportiva.com', 1, 2, 'Grabado Láser', 'Brillante', 50, 1500.00, 'Trofeos para premiación anual de ventas.', 0, 'CREADO'),
 (2,  'GUA-3-0002', 3, 1, NULL, '2026-08-18', '09:15:00', '2026-08-20 17:00:00', '2026-08-23 09:00:00', 0, 'Liga Guatemalteca', 'María López', '+502 5555-2222', 'maria.lopez@liga.gt', 2, 1, 'Sublimación', 'Mate', 200, 800.00, 'Medallas para maratón centroamericano.', 0, 'CREADO'),
 (3,  'GUA-3-0003', 3, 1, NULL, '2026-08-17', '10:00:00', '2026-08-21 17:00:00', '2026-08-24 09:00:00', 1, 'Club Atlético GUA', 'Carlos Ruiz', '+502 5555-3333', 'carlos.ruiz@clubgua.com', 3, 3, 'Impresión UV', 'Satinado', 30, 950.00, 'Placas conmemorativas grabadas en madera.', 0, 'CREADO'),
@@ -500,10 +758,11 @@ INSERT INTO `vale_talleres` (`vale_id`, `taller_id`, `tecnico_id`, `estado`, `fe
 (8,  1, 7,    'APROBADO',    '2026-08-05 12:00:00', 1),
 (9,  1, 8,    'APROBADO',    '2026-08-04 15:00:00', 1),
 (10, 1, 7,    'APROBADO',    '2026-07-30 10:00:00', 1),
-(11, 1, 8,    'APROBADO',    '2026-08-13 15:00:00', 1);   -- GUA-3-0011: el taller no se reabre al solicitar modificación, solo el vale vuelve a SOLICITANDO_MODIFICACION
--- vale 12 (MOD-GUA-3-0008, MODIFICADO) queda a propósito sin fila aquí — caso demo
--- de "pendiente de reenvío" del Encargado General (analisis_correcciones_5.md #6):
--- antes se repartía solo al crearse.
+(11, 1, 8,    'APROBADO',    '2026-08-13 15:00:00', 1),   -- GUA-3-0011: el taller no se reabre al solicitar modificación, solo el vale vuelve a SOLICITANDO_MODIFICACION
+-- vale 12 (MOD-GUA-3-0008, MODIFICADO): desde analisis_correcciones_12.md #11 el
+-- fan-out a talleres es INMEDIATO al aprobar la modificación (ya no hay un paso
+-- de "reenvío" aparte) — nace con su fila igual que un vale nuevo autorizado.
+(12, 1, NULL, 'PENDIENTE_ASIGNACION', NULL, 1);
 
 INSERT INTO `vale_propuestas` (`vale_id`, `tecnico_id`, `url`, `es_cancelacion`, `fecha_subida`) VALUES
 (4, 8, NULL, 0, '2026-08-17 16:00:00'),
@@ -566,7 +825,7 @@ INSERT INTO `vale_historial` (`vale_id`, `usuario_id`, `taller_id`, `estado_ante
 
 -- analisis_correcciones_10.md #5: vale de demostración recién creado, esperando
 -- que el Supervisor lo autorice — sin filas en vale_talleres todavía.
-INSERT INTO `vales` (`id`, `correlativo`, `asesor_id`, `localidad_id`, `vale_original_id`, `fecha_creacion`, `hora_creacion`, `fecha_entrega`, `fecha_evento`, `urgente`, `cliente_empresa`, `cliente_nombre`, `cliente_telefono`, `cliente_correo`, `producto_id`, `material_id`, `tecnica`, `acabado`, `cantidad`, `cotizacion`, `descripcion`, `talleres_solicitados`, `modificado`, `estado`) VALUES
+INSERT INTO `vales` (`id`, `correlativo`, `asesor_id`, `tienda_id`, `vale_original_id`, `fecha_creacion`, `hora_creacion`, `fecha_entrega`, `fecha_evento`, `urgente`, `cliente_empresa`, `cliente_nombre`, `cliente_telefono`, `cliente_correo`, `producto_id`, `material_id`, `tecnica`, `acabado`, `cantidad`, `cotizacion`, `descripcion`, `talleres_solicitados`, `modificado`, `estado`) VALUES
 (13, 'GUA-3-0012', 3, 1, NULL, '2026-08-26', '08:00:00', '2026-08-30 17:00:00', '2026-08-31 09:00:00', 0, 'Cliente particular', 'Fernando Ixchop', '+502 5555-1212', 'fernando.ixchop@correo.com', 1, 1, 'Grabado Láser', 'Brillante', 10, 900.00, 'Trofeos recién creados, esperando autorización del Supervisor.', '1', 0, 'ESPERANDO_AUTORIZACION');
 
 INSERT INTO `vale_historial` (`vale_id`, `usuario_id`, `taller_id`, `estado_anterior`, `estado_nuevo`, `accion`) VALUES
@@ -577,5 +836,10 @@ INSERT INTO `vale_historial` (`vale_id`, `usuario_id`, `taller_id`, `estado_ante
 UPDATE `vales` SET `autorizado_por` = 4, `autorizado_en` = '2026-08-05 09:30:00', `autorizacion_tipo` = 'CREACION' WHERE `id` = 8;
 UPDATE `vales` SET `confirmado_en` = '2026-08-12 17:00:00' WHERE `id` = 8;
 UPDATE `vales` SET `autorizado_por` = 4, `autorizado_en` = '2026-08-20 11:00:00', `autorizacion_tipo` = 'MODIFICACION' WHERE `id` = 12;
+
+-- analisis_correcciones_12.md #11: "el encargado general no existe" — se
+-- desactiva el usuario semilla (rol 8, ya sin permisos) en vez de borrarlo,
+-- para no romper las FKs de `vale_historial` que ya lo referencian.
+UPDATE `usuarios` SET `activo` = 0 WHERE `id` = 10;
 
 SET FOREIGN_KEY_CHECKS = 1;

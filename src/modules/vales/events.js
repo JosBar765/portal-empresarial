@@ -27,12 +27,16 @@ function fechaHoraLocal() {
  * @param {object} vale El vale de arte afectado (necesita al menos id/correlativo/estado/asesor_id).
  * @param {string} accion Verbo/frase en participio: "creado, esperando autorización", "autorizado (creación)", etc.
  * @param {string|null} actor Nombre de quien ejecutó la acción (o null si no aplica).
+ * @param {number|null} actorId usuarios.id de quien ejecutó la acción (o null si no aplica, ej.
+ *   el vigilante de atraso). analisis_correcciones_12.md #2: el cliente lo compara contra su
+ *   propio usuario para no duplicar la notificación de quien acaba de hacer la acción — ya
+ *   recibió su propio toast optimista local al completarse el fetch.
  * @param {string|null} destino Complemento opcional ("a Diseño, Diseño UV/3D") — se agrega solo si viene.
  * @param {string[]} salas Salas objetivo (sin incluir vales:admin, que siempre se agrega).
  * @param {'info'|'alerta'} nivel 'alerta' pinta el toast en rojo en el cliente.
  * @param {boolean} beep Si debe sonar; false para notificaciones silenciosas.
  */
-function notificar({ vale, accion, actor = null, destino = null, salas = [], nivel = 'info', beep = true }) {
+function notificar({ vale, accion, actor = null, actorId = null, destino = null, salas = [], nivel = 'info', beep = true }) {
   const mensaje = `${fechaHoraLocal()} – Vale: ${vale.correlativo} fue ${accion}${actor ? ` por ${actor}` : ''}${destino ? ` a ${destino}` : ''}`;
   const salasFinal = [...new Set([...(salas || []), SALA_ADMIN])];
   socketManager.sendToRooms(salasFinal, 'vale_evento', {
@@ -40,6 +44,7 @@ function notificar({ vale, accion, actor = null, destino = null, salas = [], niv
     correlativo: vale.correlativo,
     estado: vale.estado,
     asesorId: vale.asesor_id,
+    actorId,
     mensaje,
     nivel,
     beep

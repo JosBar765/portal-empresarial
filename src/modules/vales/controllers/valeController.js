@@ -30,7 +30,7 @@ function validarArchivos(files) {
 class ValeController {
   async catalogos(req, res) {
     try {
-      const data = await valeService.obtenerCatalogos();
+      const data = await valeService.obtenerCatalogos(req.user);
       return res.json(data);
     } catch (error) {
       return res.status(500).json({ error: error.message });
@@ -80,7 +80,7 @@ class ValeController {
         filtroContador: req.query.filtroContador,
         busqueda: req.query.busqueda,
         soloAtrasados: req.query.soloAtrasados,
-        localidadId: req.query.localidadId,
+        tiendaId: req.query.tiendaId,
         estado: req.query.estado,
         sortKey: req.query.sortKey,
         sortDir: req.query.sortDir
@@ -100,7 +100,7 @@ class ValeController {
         fecha: req.query.fecha,
         desde: req.query.desde,
         hasta: req.query.hasta,
-        localidadId: req.query.localidadId
+        tiendaId: req.query.tiendaId
       };
       const data = await valeService.obtenerDashboardGerencia(req.user, filtros);
       return res.json(data);
@@ -235,18 +235,9 @@ class ValeController {
     }
   }
 
-  async reenviarModificacion(req, res) {
-    try {
-      const vale = await valeService.reenviarModificacion(req.user, Number(req.params.id), req.body.talleresIds);
-      return res.json(vale);
-    } catch (error) {
-      return res.status(400).json({ error: error.message });
-    }
-  }
-
   async cargaTrabajo(req, res) {
     try {
-      const data = await valeService.obtenerCargaTrabajo(req.user.id);
+      const data = await valeService.obtenerCargaTrabajo(req.user);
       return res.json(data);
     } catch (error) {
       return res.status(500).json({ error: error.message });

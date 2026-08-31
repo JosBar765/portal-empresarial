@@ -18,13 +18,13 @@ class ValeRepository {
   async crear(data) {
     const result = await db.query(
       `INSERT INTO vales (
-        correlativo, asesor_id, localidad_id, vale_original_id, fecha_creacion, hora_creacion, fecha_entrega, fecha_evento, urgente,
+        correlativo, asesor_id, tienda_id, vale_original_id, fecha_creacion, hora_creacion, fecha_entrega, fecha_evento, urgente,
         cliente_empresa, cliente_nombre, cliente_telefono, cliente_correo,
         producto_id, material_id, tecnica, acabado, cantidad, cotizacion, descripcion, estado,
         talleres_solicitados, autorizado_por, autorizado_en, autorizacion_tipo
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        data.correlativo, data.asesorId, data.localidadId, data.valeOriginalId || null, data.fechaCreacion, data.horaCreacion,
+        data.correlativo, data.asesorId, data.tiendaId, data.valeOriginalId || null, data.fechaCreacion, data.horaCreacion,
         data.fechaEntrega, data.fechaEvento, data.urgente ? 1 : 0,
         data.clienteEmpresa || null, data.clienteNombre, data.clienteTelefono, data.clienteCorreo,
         data.productoId || null, data.materialId || null, data.tecnica, data.acabado,
@@ -126,9 +126,13 @@ class ValeRepository {
   // y todavía no fueron notificados — usado por atrasoWatcher. Excluye vales con
   // el atraso ya congelado (RECIBIDO/etc. — ver calcularAtraso en valeService):
   // su atraso ya no corre en vivo, así que "acaban de atrasarse" no aplica.
+  // analisis_correcciones_12.md #1/#7: "atraso" real empieza a las 24h de cruzar
+  // fecha_entrega, no en el instante mismo (eso es "vence hoy", diasAtraso === 0
+  // en valeService.calcularAtraso) — la alerta roja solo debe sonar una vez que
+  // el vale cumple >= 1 día de atraso.
   async listarAtrasadosSinNotificar() {
     return db.query(
-      "SELECT * FROM vales WHERE atraso_notificado_en IS NULL AND atraso_congelado_en IS NULL AND estado <> 'RECIBIDO' AND fecha_entrega < NOW()",
+      "SELECT * FROM vales WHERE atraso_notificado_en IS NULL AND atraso_congelado_en IS NULL AND estado <> 'RECIBIDO' AND fecha_entrega < NOW() - INTERVAL 1 DAY",
       [],
       'vale:list_atrasados_sin_notificar'
     );

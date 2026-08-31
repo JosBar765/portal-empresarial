@@ -39,14 +39,18 @@
   // cada rol, para no ofrecer una opción que nunca puede matchear nada.
   const CLAVES_ESTADOS_TALLER = ['PENDIENTE_ASIGNACION', 'ASIGNADO', 'EN_PROCESO', 'EN_REVISION', 'APROBADO'];
   const CLAVES_ESTADOS_GENERAL = ['ESPERANDO_AUTORIZACION', 'CREADO', 'APROBADO_DEPARTAMENTO', 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'SOLICITANDO_MODIFICACION', 'MODIFICADO'];
+  // analisis_correcciones_12.md #5: el técnico nunca ve PENDIENTE_ASIGNACION —
+  // un vale sin asignar no está en su buzón — así que no debe ofrecerse como
+  // opción de filtro tampoco.
+  const CLAVES_ESTADOS_TECNICO = ['ASIGNADO', 'EN_PROCESO', 'EN_REVISION', 'APROBADO'];
 
   // Roles con sidebar Buzón / Trabajo realizado (Asesor, Supervisor, Técnico,
-  // Encargado General/Asistente, Encargado de un taller — analisis_correcciones_5.md
-  // #1, ampliado a los roles 5/6 en analisis_correcciones_10.md #8). El Gerente
-  // (10) también tiene sidebar, pero con su propio par Dashboard/Vales de Arte
-  // en vez de Buzón/Trabajo realizado (analisis_correcciones_7.md, Vista
-  // Gerencia) — ver wireSidebar().
-  const ROLES_CON_SIDEBAR = [3, 4, 5, 6, 7, 8, 9, 10];
+  // Encargado de un taller — analisis_correcciones_5.md #1, ampliado a los
+  // roles 5/6 en analisis_correcciones_10.md #8, y a 9/11 en
+  // analisis_correcciones_12.md #11). El Gerente (10) también tiene sidebar,
+  // pero con su propio par Dashboard/Vales de Arte en vez de Buzón/Trabajo
+  // realizado (analisis_correcciones_7.md, Vista Gerencia) — ver wireSidebar().
+  const ROLES_CON_SIDEBAR = [3, 4, 5, 6, 7, 9, 10, 11];
 
   // "Atrasados" (analisis_correcciones_6.md #3): para asesor, supervisor y
   // encargados (de taller y general) es un contador COMBINABLE — se marca
@@ -92,6 +96,29 @@
     5: { // Encargado de un taller (analisis_correcciones_10.md #8: ahora con sidebar)
       // analisis_correcciones_11.md #2: "Aprobados hoy" sale del buzón — un vale
       // ya aprobado por este taller sale del buzón y pasa a Trabajo Realizado.
+      // analisis_correcciones_12.md #6/#11: como este rol ahora también fusiona
+      // (vales.aprobar_general), su buzón/trabajo mezclan la cola de fusión —
+      // ver `pendientesFusion`/`fusionadosHoy`/`totalFusionados` más abajo.
+      buzon: [
+        { key: 'pendientesAsignacion', label: 'Pend. asignación', filtro: 'pendientesAsignacion' },
+        { key: 'asignados', label: 'Asignados', filtro: 'asignados' },
+        { key: 'enProceso', label: 'En proceso', filtro: 'enProceso' },
+        { key: 'enRevision', label: 'En revisión', filtro: 'enRevision' },
+        { key: 'pendientesFusion', label: 'Vales por fusionar', filtro: 'pendientesFusion' },
+        { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
+      ],
+      trabajo: [
+        { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' },
+        { key: 'totalAprobados', label: 'Total aprobados', filtro: 'totalAprobados' },
+        { key: 'fusionadosHoy', label: 'Fusionados hoy', filtro: 'fusionadosHoy' },
+        { key: 'totalFusionados', label: 'Total fusionados', filtro: 'totalFusionados' }
+      ]
+    },
+    // Encargado de un taller SIN fusión (Diseño UV/3D, y el rol genérico
+    // "Encargado de Taller" — Protextil / Diseño Local): misma forma que el
+    // rol 5 pero sin las tarjetas de fusión (el backend nunca les manda esas
+    // claves porque no tienen vales.aprobar_general).
+    6: {
       buzon: [
         { key: 'pendientesAsignacion', label: 'Pend. asignación', filtro: 'pendientesAsignacion' },
         { key: 'asignados', label: 'Asignados', filtro: 'asignados' },
@@ -114,21 +141,14 @@
         { key: 'totalAprobados', label: 'Total aprobados' },
         { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' }
       ]
-    },
-    8: { // Encargado General
-      buzon: [
-        { key: 'pendientesFusion', label: 'Vales por fusionar', filtro: 'pendientesFusion' },
-        { key: 'valesModificados', label: 'Vales Modificados', filtro: 'valesModificados' },
-        { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
-      ],
-      trabajo: [
-        { key: 'fusionadosHoy', label: 'Fusionados hoy', filtro: 'fusionadosHoy' },
-        { key: 'totalFusionados', label: 'Total fusionados', filtro: 'totalFusionados' }
-      ]
     }
   };
-  CONTADORES_CONFIG[6] = CONTADORES_CONFIG[5];
-  CONTADORES_CONFIG[9] = CONTADORES_CONFIG[8];
+  // Asistente de Diseño: clon operativo COMPLETO del Encargado de Diseño
+  // (analisis_correcciones_12.md #11) — mismas tarjetas, incluida la fusión.
+  CONTADORES_CONFIG[9] = CONTADORES_CONFIG[5];
+  // Encargado de Taller genérico (Protextil / Diseño Local): misma forma que
+  // Diseño UV/3D — sin fusión.
+  CONTADORES_CONFIG[11] = CONTADORES_CONFIG[6];
   CONTADORES_CONFIG[1] = [ // Administrador: vista de control general
     { key: 'total', label: 'Total vales' },
     { key: 'pendientesConfirmacion', label: 'Pend. confirmación', filtro: 'pendientesConfirmacion' },
@@ -147,7 +167,7 @@
     contadores: {},
     vista: 'buzon', // solo aplica a roles con sidebar
     ventana: { tipo: 'todo', desde: null, hasta: null },
-    localidadId: null, // Vista Gerencia: filtro de tienda (analisis_correcciones_7.md)
+    tiendaId: null, // Vista Gerencia: filtro de tienda (analisis_correcciones_7.md)
     filtroContador: null,
     soloAtrasados: false, // combinable con filtroContador (analisis_correcciones_6.md #3)
     busqueda: '',
@@ -181,15 +201,17 @@
     const admin = r === 1;
     switch (accion) {
       case 'crear': return admin || r === 3;
-      case 'asignar': return admin || r === 5 || r === 6;
-      case 'revisar': return admin || r === 5 || r === 6;
+      case 'asignar': return admin || r === 5 || r === 6 || r === 9 || r === 11;
+      case 'revisar': return admin || r === 5 || r === 6 || r === 9 || r === 11;
       case 'trabajar': return admin || r === 7;
       case 'confirmar': return admin || r === 3;
       case 'solicitarModificacion': return admin || r === 3;
       case 'aprobarModificacion': return admin || r === 4;
       case 'autorizarCreacion': return admin || r === 4;
-      case 'aprobarGeneral': return admin || r === 8 || r === 9;
-      case 'reenviarModificacion': return admin || r === 8 || r === 9;
+      // analisis_correcciones_12.md #11: la fusión ahora es del Encargado de
+      // Diseño (5) y su clon operativo, el Asistente de Diseño (9) — ya no un
+      // rol aparte de "encargado general".
+      case 'aprobarGeneral': return admin || r === 5 || r === 9;
       default: return false;
     }
   }
@@ -210,7 +232,7 @@
   // (v.estado_taller); el resto ve el estado general del vale (v.estado).
   function estadoActivo(v) {
     if (usaEstadosVisibles()) return v.estado_visible;
-    if ([5, 6, 7].includes(state.user.rolId)) return v.estado_taller || v.estado;
+    if ([5, 6, 7, 9, 11].includes(state.user.rolId)) return v.estado_taller || v.estado;
     return v.estado;
   }
 
@@ -253,19 +275,20 @@
 
     // Corrección #9: encargados y técnicos ya trabajan scoped a su propio taller —
     // la columna "Taller" (pensada para el asesor y roles de supervisión) sobra ahí.
-    $('.buzon-table').classList.toggle('oculta-taller', [5, 6, 7].includes(state.user.rolId));
+    $('.buzon-table').classList.toggle('oculta-taller', [5, 6, 7, 9, 11].includes(state.user.rolId));
 
     $('#btn-nuevo-vale').style.display = puede('crear') ? 'flex' : 'none';
-    // La carga de trabajo es una herramienta de gestión del propio equipo del encargado
-    // de UN taller; el Encargado General no tiene técnicos propios y el administrador
-    // ya ve todo desde el buzón general, por lo que no aplica en ninguno de los dos.
-    $('#btn-carga-trabajo').style.display = (state.user.rolId === 5 || state.user.rolId === 6) ? 'flex' : 'none';
+    // La carga de trabajo es una herramienta de gestión del propio equipo del
+    // encargado de UN taller (incluye al clon del Asistente de Diseño y a los
+    // encargados del rol genérico "Encargado de Taller"); el administrador ya
+    // ve todo desde el buzón general, por lo que no aplica para él.
+    $('#btn-carga-trabajo').style.display = [5, 6, 9, 11].includes(state.user.rolId) ? 'flex' : 'none';
 
     try {
       const catalogosRes = await fetch('/api/vales/catalogos');
       state.catalogos = await catalogosRes.json();
     } catch (error) {
-      state.catalogos = { localidades: [], productos: [], materiales: [], paises: [], talleres: [] };
+      state.catalogos = { tiendas: [], productos: [], materiales: [], paises: [], talleres: [], miTiendaId: null };
     }
 
     wireSidebar();
@@ -496,17 +519,20 @@
     });
 
     // Filtro de tienda — solo Gerencia (analisis_correcciones_7.md, Vista Gerencia).
+    // analisis_correcciones_12.md #10: el Supervisor también recibió el permiso
+    // vales.ver_gerencia en el backend (fase 2a), pero extender este filtro/la
+    // vista a su rol es trabajo de la fase 2c (rediseño del dashboard).
     if (state.user.rolId === 10) {
-      const selectLocalidad = $('#filtro-localidad');
-      selectLocalidad.style.display = '';
-      (state.catalogos.localidades || []).forEach(loc => {
+      const selectTienda = $('#filtro-tienda');
+      selectTienda.style.display = '';
+      (state.catalogos.tiendas || []).forEach(t => {
         const opt = document.createElement('option');
-        opt.value = loc.id;
-        opt.textContent = loc.nombre;
-        selectLocalidad.appendChild(opt);
+        opt.value = t.id;
+        opt.textContent = t.nombre;
+        selectTienda.appendChild(opt);
       });
-      selectLocalidad.addEventListener('change', () => {
-        state.localidadId = selectLocalidad.value || null;
+      selectTienda.addEventListener('change', () => {
+        state.tiendaId = selectTienda.value || null;
         cargarBuzon();
       });
     }
@@ -551,8 +577,13 @@
     return visibles.length || todas.length;
   }
 
+  // analisis_correcciones_12.md #11: el Asistente de Diseño (rol 9) opera el
+  // taller "Diseño" como si fuera su propio encargado_id, sin serlo — mismo
+  // clon operativo que ya resuelve el backend (_idEncargadoEfectivo).
   function miTaller() {
-    return (state.catalogos.talleres || []).find(t => t.encargado_id === state.user.id) || null;
+    const talleres = state.catalogos.talleres || [];
+    if (state.user.rolId === 9) return talleres.find(t => t.nombre === 'Diseño') || null;
+    return talleres.find(t => t.encargado_id === state.user.id) || null;
   }
 
   function roomsParaUsuario(user) {
@@ -564,13 +595,13 @@
       // uno se une solo a su propia sala.
       case 4: return [`supervisor:${user.id}`];
       case 5:
-      case 6: {
+      case 6:
+      case 9: // Asistente de Diseño — se une a la sala del taller "Diseño"
+      case 11: { // Encargado de Taller genérico (Protextil / Diseño Local)
         const taller = miTaller();
         return taller ? [`taller:${taller.id}`] : [];
       }
       case 7: return [`tecnico:${user.id}`];
-      case 8:
-      case 9: return ['vales:encargado_general'];
       // Gerente (Vista Gerencia): rol de solo lectura sin ninguna acción sobre
       // los vales — no debe recibir ninguna notificación en tiempo real
       // (toast + beep de `vale_evento`), ni siquiera las que ve Administrador
@@ -596,9 +627,18 @@
       // pinta el toast en rojo; `beep: false` permite un evento silencioso
       // (reenvío a varios talleres del Encargado General: un solo emit, un
       // solo beep, aunque el mensaje mencione a más de un destino).
-      const esAlerta = data.nivel === 'alerta';
-      window.toast[esAlerta ? 'error' : 'info'](esAlerta ? 'Atención' : 'Vale de arte', data.mensaje);
-      if (data.beep !== false) reproducirBeep();
+      // analisis_correcciones_12.md #2: quien ejecutó la acción ya recibió su
+      // propio toast optimista local al completarse el fetch — este evento le
+      // llega también a él (auto-broadcast deliberado, para que el buzón se
+      // refresque), pero mostrarle un SEGUNDO toast/beep por lo mismo que él
+      // mismo acaba de hacer es la notificación duplicada que reporta el
+      // usuario. Se sigue refrescando el buzón igual, solo se omite el aviso.
+      const esPropiaAccion = data.actorId != null && data.actorId === state.user.id;
+      if (!esPropiaAccion) {
+        const esAlerta = data.nivel === 'alerta';
+        window.toast[esAlerta ? 'error' : 'info'](esAlerta ? 'Atención' : 'Vale de arte', data.mensaje);
+        if (data.beep !== false) reproducirBeep();
+      }
       cargarBuzon();
       if (state.cargaTrabajoModal) {
         if (state.cargaTrabajoModal.overlay.isConnected) {
@@ -642,7 +682,7 @@
     if (state.filtroContador) qs.set('filtroContador', state.filtroContador);
     if (state.soloAtrasados) qs.set('soloAtrasados', '1');
     if (state.busqueda) qs.set('busqueda', state.busqueda);
-    if (state.localidadId) qs.set('localidadId', state.localidadId);
+    if (state.tiendaId) qs.set('tiendaId', state.tiendaId);
     if (state.estadoFiltro) qs.set('estado', state.estadoFiltro);
     if (state.sort.key && state.sort.dir) {
       qs.set('sortKey', state.sort.key);
@@ -701,7 +741,7 @@
   // la ventana de tiempo y el filtro de tienda del resto del módulo, pero pide
   // agregados en vez del listado de vales.
   // -------------------------------------------------------------------------
-  const chartsGerencia = { estado: null, localidad: null };
+  const chartsGerencia = { estado: null, tienda: null };
 
   async function cargarDashboardGerencia() {
     const qs = new URLSearchParams();
@@ -710,7 +750,7 @@
       if (state.ventana.desde) qs.set('desde', state.ventana.desde);
       if (state.ventana.hasta) qs.set('hasta', state.ventana.hasta);
     }
-    if (state.localidadId) qs.set('localidadId', state.localidadId);
+    if (state.tiendaId) qs.set('tiendaId', state.tiendaId);
     try {
       const res = await fetch(`/api/vales/dashboard-gerencia?${qs.toString()}`);
       if (!res.ok) throw new Error('No se pudo cargar el dashboard.');
@@ -748,7 +788,7 @@
         </div>
         <div class="chart-card">
           <h3>Vales por tienda</h3>
-          <canvas id="chart-por-localidad"></canvas>
+          <canvas id="chart-por-tienda"></canvas>
         </div>
       </div>
     `;
@@ -781,19 +821,19 @@
       options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
     });
 
-    chartsGerencia.localidad?.destroy();
-    chartsGerencia.localidad = new Chart($('#chart-por-localidad'), {
+    chartsGerencia.tienda?.destroy();
+    chartsGerencia.tienda = new Chart($('#chart-por-tienda'), {
       type: 'bar',
       data: {
-        labels: data.porLocalidad.map(l => l.nombre),
+        labels: data.porTienda.map(t => t.nombre),
         datasets: [
           {
-            label: 'Total', data: data.porLocalidad.map(l => l.total),
+            label: 'Total', data: data.porTienda.map(t => t.total),
             backgroundColor: tokenColor('--color-primary-light', '#EFF6FF'), borderColor: tokenColor('--color-primary', '#2563EB'),
             borderWidth: 1.5, borderRadius: 4
           },
           {
-            label: 'Atrasados', data: data.porLocalidad.map(l => l.atrasados),
+            label: 'Atrasados', data: data.porTienda.map(t => t.atrasados),
             backgroundColor: tokenColor('--color-danger-bg', '#FEF2F2'), borderColor: tokenColor('--color-danger', '#DC2626'),
             borderWidth: 1.5, borderRadius: 4
           }
@@ -898,7 +938,21 @@
     if (usaEstadosVisibles()) {
       labelMap = ESTADOS_VISIBLES_LABEL;
     } else {
-      const claves = [5, 6, 7].includes(state.user.rolId) ? CLAVES_ESTADOS_TALLER : CLAVES_ESTADOS_GENERAL;
+      // analisis_correcciones_12.md #5/#6/#11: cada rol solo debe poder filtrar
+      // por estados que realmente puede llegar a ver, no la familia completa.
+      // Quien fusiona (vales.aprobar_general) ve, mezclados en su propio buzón/
+      // trabajo, los estados de la cola de fusión — ver _buzonEncargado/
+      // _trabajoEncargadoTaller en el backend.
+      let claves;
+      if (state.user.rolId === 7) claves = CLAVES_ESTADOS_TECNICO;
+      else if ([5, 6, 9, 11].includes(state.user.rolId)) {
+        claves = [...CLAVES_ESTADOS_TALLER];
+        if (puede('aprobarGeneral')) {
+          claves = state.vista === 'trabajo'
+            ? [...claves, 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'SOLICITANDO_MODIFICACION']
+            : [...claves, 'APROBADO_DEPARTAMENTO'];
+        }
+      } else claves = CLAVES_ESTADOS_GENERAL;
       labelMap = Object.fromEntries(claves.map(k => [k, ESTADOS_LABEL[k]]));
     }
     select.innerHTML = '<option value="">Todos los estados</option>' +
@@ -953,7 +1007,7 @@
         <td data-label="Correlativo"><strong>${v.correlativo}</strong>${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}</td>
         <td data-label="Fecha Ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
         <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
-        <td data-label="Atraso">${v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`}</td>
+        <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
         <td data-label="Fecha Evento">${formatearFecha(v.fecha_evento)}</td>
         <td data-label="Taller" class="col-taller">${celdaTaller(v)}</td>
         <td data-label="Estado"><span class="estado-pill ${claseEstado(v)}">${etiquetaEstado(v)}</span></td>
@@ -1008,14 +1062,18 @@
     // al documento de propuesta real — disponible tanto en el buzón (trabajo realizado)
     // como en cualquier vista donde ya exista una propuesta oficial para el vale. El
     // supervisor también la necesita en Trabajo realizado (analisis_correcciones_5.md #2).
-    if ((usaEstadosVisibles() || state.user.rolId === 4) && v.propuesta_general_url) {
+    // analisis_correcciones_12.md #6/#11: quien fusiona (Encargado/Asistente de
+    // Diseño) también ve "Ver propuesta" con SU documento de fusión
+    // (propuesta_general_url) en Trabajo Realizado.
+    if ((usaEstadosVisibles() || state.user.rolId === 4 || puede('aprobarGeneral')) && v.propuesta_general_url) {
       acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(`/${v.propuesta_general_url}`, '_blank') });
     }
-    // analisis_correcciones_11.md #2: en "Trabajo realizado" el encargado de un
-    // taller ve la propuesta REAL que aprobó en su taller (`propuesta_taller_url`,
-    // solo viene poblado en esa vista) — no `propuesta_general_url`, que en un
-    // vale multi-taller es la fusión del Encargado General, no su propio trabajo.
-    if ([5, 6].includes(state.user.rolId) && v.propuesta_taller_url) {
+    // analisis_correcciones_11.md #2 + analisis_correcciones_12.md #5: en
+    // "Trabajo realizado" el encargado de un taller (y ahora también el propio
+    // técnico) ve la propuesta REAL que se aprobó (`propuesta_taller_url`, solo
+    // viene poblado en esa vista) — no `propuesta_general_url`, que en un vale
+    // multi-taller es la fusión, no el trabajo propio de este taller.
+    if ([5, 6, 7, 9, 11].includes(state.user.rolId) && v.propuesta_taller_url) {
       acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(`/${v.propuesta_taller_url}`, '_blank') });
     }
 
@@ -1039,11 +1097,6 @@
     }
     if (puede('aprobarGeneral') && v.estado === 'APROBADO_DEPARTAMENTO') {
       acciones.push({ icono: 'checkmark-done-circle-outline', titulo: 'Aprobar y fusionar', clase: 'icon-success', onClick: abrirModalAprobarGeneral });
-    }
-    // Vale MODIFICADO recién aprobado, todavía sin taller — el Encargado General
-    // decide a cuál va (analisis_correcciones_5.md #6).
-    if (puede('reenviarModificacion') && v.estado === 'MODIFICADO' && (v._filasTaller || []).length === 0) {
-      acciones.push({ icono: 'send-outline', titulo: 'Reenviar a taller', clase: 'icon-success', onClick: abrirModalReenviarModificacion });
     }
     if (puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION') {
       acciones.push({ icono: 'document-text-outline', titulo: 'Confirmar o solicitar modificación', clase: 'icon-success', onClick: abrirModalDecisionAsesor });
@@ -1228,10 +1281,21 @@
 
   // -------------------------------------------------------------------------
   // Selector de tags de talleres (corrección #4) — compartido entre el
-  // formulario de creación y el de solicitud de modificación.
+  // formulario de creación y el de solicitud de modificación (este último con
+  // un `opcionesTalleres` restringido a los talleres del vale original, ver
+  // abrirModalSolicitarModificacion). `opcionesTalleres` por defecto es el
+  // catálogo completo filtrado a lo que el asesor puede elegir: talleres de
+  // toda la empresa + el Diseño Local de SU propia tienda, si tiene uno
+  // (analisis_correcciones_12.md #11) — la validación real e inapelable sigue
+  // siendo la del backend (_validarTalleresIds).
   // -------------------------------------------------------------------------
-  function htmlSelectorTalleres(seleccionadosIniciales) {
-    const opciones = (state.catalogos.talleres || [])
+  function talleresSeleccionablesAsesor() {
+    const miTiendaId = state.catalogos.miTiendaId ?? null;
+    return (state.catalogos.talleres || []).filter(t => t.tienda_id == null || t.tienda_id === miTiendaId);
+  }
+
+  function htmlSelectorTalleres(opcionesTalleres) {
+    const opciones = (opcionesTalleres || talleresSeleccionablesAsesor())
       .map(t => `<option value="${t.id}">${t.nombre}</option>`).join('');
     return `
       <div class="form-field full">
@@ -1245,15 +1309,28 @@
     `;
   }
 
-  function wireSelectorTalleres(overlay, seleccionados) {
+  function wireSelectorTalleres(overlay, seleccionados, opcionesTalleres) {
+    const talleres = opcionesTalleres || talleresSeleccionablesAsesor();
     const container = overlay.querySelector('.taller-tags');
     const select = overlay.querySelector('.select-agregar-taller');
+    const buscarTaller = (id) => talleres.find(x => x.id === id);
     const render = () => {
       container.innerHTML = [...seleccionados].map(id => {
-        const t = (state.catalogos.talleres || []).find(x => x.id === id);
+        const t = buscarTaller(id);
         return `<span class="taller-tag" data-taller-id="${id}">${t ? t.nombre : id}<button type="button" class="taller-tag-quitar" data-taller-id="${id}">&times;</button></span>`;
       }).join('') || '<span class="taller-tags-vacio">Ningún taller seleccionado</span>';
       if (seleccionados.size > 0) limpiarErrorCampo(select);
+      // Exclusividad Diseño Local ↔ talleres de toda la empresa
+      // (analisis_correcciones_12.md #11) — ayuda de UX; el backend rechaza
+      // igual una combinación inválida si esto se saltara de algún modo.
+      const yaTieneLocal = [...seleccionados].some(id => (buscarTaller(id) || {}).tienda_id != null);
+      const yaTieneGeneral = [...seleccionados].some(id => (buscarTaller(id) || {}).tienda_id == null);
+      Array.from(select.options).forEach(opt => {
+        if (!opt.value) return;
+        const t = buscarTaller(Number(opt.value));
+        if (!t) return;
+        opt.disabled = seleccionados.has(t.id) || (t.tienda_id != null ? yaTieneGeneral : yaTieneLocal);
+      });
     };
     render();
     select.addEventListener('change', () => {
@@ -1720,7 +1797,8 @@
         const res = await fetch('/api/vales', { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'No se pudo crear el vale de arte.');
-        window.toast.success('Vale de arte creado', `${data.correlativo} se creó correctamente.`);
+        // analisis_correcciones_12.md #2: un solo toast para todo lo que pasó en esta acción.
+        window.toast.success('Vale de arte creado', `${data.correlativo} se creó correctamente, en espera de autorización.`);
         cerrar();
         // El modal de creación original sigue debajo — se cierra también.
         $$('.modal-overlay').forEach(o => o.remove());
@@ -1768,7 +1846,9 @@
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        window.toast.success('Vale asignado', `${vale.correlativo} se asignó correctamente.`);
+        // analisis_correcciones_12.md #2: un solo toast, con el nombre del técnico.
+        const tecnico = tecnicos.find(t => t.id === Number(tecnicoId));
+        window.toast.success('Vale asignado', `Se asignó correctamente al técnico ${tecnico ? tecnico.nombre : tecnicoId}.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
@@ -1788,7 +1868,14 @@
     } catch {
       detalle = { propuestas: [] };
     }
-    const ultima = (detalle.propuestas || [])[detalle.propuestas.length - 1];
+    // analisis_correcciones_12.md #4: bug confirmado — en un vale multi-taller
+    // `detalle.propuestas` trae una fila por CADA técnico (una por taller), así
+    // que tomar sin filtrar la última del arreglo mostraba la propuesta de
+    // cualquier taller, no la del propio (`vale.tecnico_id`, que ya viene
+    // adjunto por _buzonEncargado). Mismo criterio que ya usa correctamente
+    // abrirModalAprobarGeneral (filtra por tecnico_id de cada fila de taller).
+    const propias = (detalle.propuestas || []).filter(p => p.tecnico_id === vale.tecnico_id);
+    const ultima = propias[propias.length - 1];
     let tecnicos = [];
     try {
       tecnicos = await (await fetch('/api/vales/tecnicos')).json();
@@ -1906,12 +1993,13 @@
   }
 
   // -------------------------------------------------------------------------
-  // Encargado General: aprobar y fusionar un vale multi-taller
+  // Quien tenga permiso de fusión (Encargado/Asistente de Diseño, analisis_correcciones_12.md
+  // #11): aprobar y fusionar un vale multi-taller
   // -------------------------------------------------------------------------
-  // Encargado General: la fusión NO la hace el sistema — el propio encargado revisa la
-  // propuesta de cada taller (analisis_correcciones_4.md #10) y adjunta manualmente su
-  // documento final ya fusionado antes de aprobar (#11), sea un vale multi-taller o uno
-  // que cayó aquí por haber sido rechazado por el asesor.
+  // La fusión NO la hace el sistema — el propio encargado revisa la propuesta de
+  // cada taller (analisis_correcciones_4.md #10) y adjunta manualmente su
+  // documento final ya fusionado antes de aprobar (#11), sea un vale multi-taller
+  // o uno de modificación.
   async function abrirModalAprobarGeneral(vale) {
     let detalle;
     try {
@@ -1929,6 +2017,9 @@
     const { overlay, cerrar } = abrirModal({
       title: `Aprobar y fusionar — ${vale.correlativo}`,
       bodyHtml: `
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+          <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale de arte (PDF)</a>
+        </div>
         <p style="font-size:13px;margin-bottom:10px;">Revisa la propuesta de cada taller y adjunta el documento final ya fusionado por ti.</p>
         <ul class="historial-list" style="margin-bottom:14px;">${filasPropuesta || '<li>Este vale no tiene talleres asociados.</li>'}</ul>
         <div class="form-field">
@@ -2015,6 +2106,14 @@
   function abrirModalSolicitarModificacion(vale) {
     const [paisCodigoActual, ...resto] = (vale.cliente_telefono || '').split(' ');
     const telefonoActual = resto.join(' ');
+    // analisis_correcciones_12.md #11: si el vale original fue a un solo
+    // taller (Munditrofeos o Diseño Local, da igual) el destino es obvio y no
+    // se pregunta nada; si fue a 2+ talleres de Munditrofeos, el asesor debe
+    // elegir a cuál(es) de esos MISMOS talleres va la modificación.
+    const talleresOriginal = (vale._filasTaller || [])
+      .map(f => (state.catalogos.talleres || []).find(t => t.id === f.taller_id))
+      .filter(Boolean);
+    const requiereEleccionTaller = talleresOriginal.length > 1;
 
     const { overlay, cerrar } = abrirModal({
       title: `Solicitar modificación — ${vale.correlativo}`,
@@ -2048,6 +2147,12 @@
             <div class="form-field form-checkbox full"><input type="checkbox" name="urgente" id="chk-urgente-mod" /><label for="chk-urgente-mod">Urgente</label></div>
           </div>
 
+          ${requiereEleccionTaller ? `
+          <div class="section-title">Destino de la modificación</div>
+          <p style="font-size:13px;margin-bottom:10px;">Este vale se trabajó en más de un taller — elige a cuál(es) enviar la modificación:</p>
+          ${htmlSelectorTalleres(talleresOriginal)}
+          ` : ''}
+
           <div class="form-field full">
             <label>Justificación de la modificación *</label>
             <textarea name="justificacion" required></textarea>
@@ -2057,6 +2162,8 @@
       footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-enviar">Solicitar Modificación</button>`
     });
 
+    const tallerSeleccionadosMod = new Set();
+    if (requiereEleccionTaller) wireSelectorTalleres(overlay, tallerSeleccionadosMod, talleresOriginal);
     wireUrgenteAutoLock(overlay);
     const apiFechaEntregaMod = wireCampoFecha(overlay, 'fechaEntrega', { minDate: hoyMedianoche() });
     const apiFechaEventoMod = wireCampoFecha(overlay, 'fechaEvento', { minDate: sumarDiaLocal(hoyMedianoche(), 1) });
@@ -2076,7 +2183,8 @@
       const entregaOk = validarCampoFecha(overlay, 'fechaEntrega');
       const eventoOk = validarCampoFecha(overlay, 'fechaEvento');
       const camposOk = validarCamposNativos(form);
-      if (!entregaOk || !eventoOk || !camposOk) {
+      const tallerOk = !requiereEleccionTaller || validarTalleresSeleccionados(overlay, tallerSeleccionadosMod);
+      if (!entregaOk || !eventoOk || !camposOk || !tallerOk) {
         enfocarPrimerCampoInvalido(overlay);
         return;
       }
@@ -2097,8 +2205,10 @@
         acabado: fd.get('acabado'),
         cantidad: fd.get('cantidad'),
         cotizacion: fd.get('cotizacion'),
-        // Ya no elige taller el asesor — eso es trabajo exclusivo del Encargado
-        // General al reenviar la modificación (analisis_correcciones_7.md #3).
+        // analisis_correcciones_12.md #11: solo se manda cuando el vale
+        // original fue a 2+ talleres — si fue a uno solo, el backend lo
+        // resuelve automáticamente sin necesidad de elegir nada.
+        ...(requiereEleccionTaller ? { talleresIds: JSON.stringify([...tallerSeleccionadosMod]) } : {}),
         justificacion: fd.get('justificacion')
       };
       const btn = overlay.querySelector('#btn-enviar');
@@ -2145,7 +2255,8 @@
         const res = await fetch(`/api/vales/${vale.id}/autorizar-creacion`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        window.toast.success('Creación autorizada', `${vale.correlativo} fue enviado a taller.`);
+        // analisis_correcciones_12.md #2: un solo toast para creación + envío a talleres.
+        window.toast.success('Creación autorizada', `${vale.correlativo} se creó correctamente, enviado ${talleresIds.length > 1 ? 'a los talleres' : 'al taller'} seleccionado${talleresIds.length > 1 ? 's' : ''}.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
@@ -2190,7 +2301,7 @@
           <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale de arte (PDF)</a>
           ${propuestaUrl ? `<a href="/${propuestaUrl}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
         </div>
-        <p style="font-size:13px;">¿Confirmas autorizar la modificación solicitada para este vale de arte? Se creará un vale de arte nuevo con el prefijo MOD-, que quedará en el buzón del Encargado General para que decida a qué taller enviarlo.</p>
+        <p style="font-size:13px;">¿Confirmas autorizar la modificación solicitada para este vale de arte? Se creará un vale de arte nuevo con el prefijo MOD-, enviado de inmediato al taller que el asesor indicó (o al mismo de siempre, si solo hay uno).</p>
       `,
       footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Autorizar</button>`
     });
@@ -2203,59 +2314,6 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         window.toast.success('Modificación autorizada', `Se creó el vale ${data.correlativo}.`);
-        cerrar();
-        cargarBuzon();
-      } catch (error) {
-        mostrarErrorModal(overlay, error.message);
-        btn.disabled = false;
-      }
-    });
-  }
-
-  // -------------------------------------------------------------------------
-  // Encargado General: reenviar un vale MODIFICADO al taller correcto, viendo la
-  // justificación (analisis_correcciones_5.md #6) — reusa el mismo selector de
-  // talleres de creación/solicitud de modificación.
-  // -------------------------------------------------------------------------
-  async function abrirModalReenviarModificacion(vale) {
-    let detalle;
-    try {
-      detalle = await (await fetch(`/api/vales/${vale.id}`)).json();
-    } catch {
-      detalle = { descripcion: '' };
-    }
-    const tallerSeleccionados = new Set();
-    const { overlay, cerrar } = abrirModal({
-      title: `Reenviar modificación — ${vale.correlativo}`,
-      bodyHtml: `
-        <div class="form-field full" style="margin-bottom:14px;">
-          <label>Justificación de la modificación</label>
-          <p style="font-size:13px;white-space:pre-wrap;">${detalle.descripcion || 'Sin justificación registrada.'}</p>
-        </div>
-        <p style="font-size:13px;margin-bottom:10px;">Elige el/los taller(es) al que debe ir este vale de arte modificado.</p>
-        <div class="form-grid">
-          ${htmlSelectorTalleres()}
-        </div>
-      `,
-      footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Reenviar</button>`
-    });
-    wireSelectorTalleres(overlay, tallerSeleccionados);
-    overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
-    overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
-      if (!validarTalleresSeleccionados(overlay, tallerSeleccionados)) {
-        enfocarPrimerCampoInvalido(overlay);
-        return;
-      }
-      const btn = overlay.querySelector('#btn-confirmar');
-      btn.disabled = true;
-      try {
-        const res = await fetch(`/api/vales/${vale.id}/reenviar-modificacion`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ talleresIds: [...tallerSeleccionados] })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        window.toast.success('Vale reenviado', `${vale.correlativo} se envió al taller seleccionado.`);
         cerrar();
         cargarBuzon();
       } catch (error) {

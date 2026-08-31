@@ -2,13 +2,15 @@
 const db = require('../../../config/database');
 
 class CatalogoRepository {
-  async listarLocalidades() {
-    return db.query('SELECT id, codigo, nombre, pais_id FROM localidades WHERE activo = 1 ORDER BY nombre', [], 'catalog:localidades');
+  // analisis_correcciones_12.md #10: `localidades` -> `tiendas`, con
+  // departamento_id/subdivision_id además del código/nombre/país de siempre.
+  async listarTiendas() {
+    return db.query('SELECT id, codigo, nombre, pais_id, departamento_id, subdivision_id FROM tiendas WHERE activo = 1 ORDER BY nombre', [], 'catalog:tiendas');
   }
 
-  async obtenerLocalidadPorId(id) {
-    const rows = await db.query('SELECT id, codigo, nombre, pais_id FROM localidades WHERE id = ?', [id], 'catalog:localidades');
-    return rows.find(l => l.id === Number(id)) || null;
+  async obtenerTiendaPorId(id) {
+    const rows = await db.query('SELECT id, codigo, nombre, pais_id, departamento_id, subdivision_id FROM tiendas WHERE id = ?', [id], 'catalog:tiendas');
+    return rows.find(t => t.id === Number(id)) || null;
   }
 
   async listarProductos() {

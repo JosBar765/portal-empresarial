@@ -9,6 +9,7 @@
 const valeRepository = require('./repositories/valeRepository');
 const valeTallerRepository = require('./repositories/valeTallerRepository');
 const usuarioValeRepository = require('./repositories/usuarioValeRepository');
+const tallerRepository = require('./repositories/tallerRepository');
 const valeEvents = require('./events');
 const { ESTADOS_TALLER } = require('./services/valeService');
 
@@ -23,12 +24,14 @@ function ahoraLocal() {
 }
 
 // Solo se avisa a quien actualmente tiene este vale "en su vista" — un vale que
-// todavía está siendo trabajado por un taller no aparece en el buzón del
-// Encargado General, por ejemplo, así que tampoco debe sonarle a él.
+// todavía está siendo trabajado por un taller no aparece en la cola de fusión,
+// por ejemplo, así que tampoco debe sonarle a quien fusiona.
 async function salasParaVale(vale) {
   const salas = [`asesor:${vale.asesor_id}`];
-  const asesor = await usuarioValeRepository.obtenerPorId(vale.asesor_id);
-  if (asesor && asesor.encargado_id) salas.push(`supervisor:${asesor.encargado_id}`);
+  // analisis_correcciones_12.md #10: puede haber más de un supervisor cubriendo
+  // la tienda de este asesor (rotativos) — se avisa a todos.
+  const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
+  supervisores.forEach(s => salas.push(`supervisor:${s.id}`));
 
   const filas = await valeTallerRepository.listarPorVale(vale.id);
   filas.forEach(f => {
@@ -36,8 +39,16 @@ async function salasParaVale(vale) {
     if (f.tecnico_id && ESTADOS_TALLER_CON_TECNICO.includes(f.estado)) salas.push(`tecnico:${f.tecnico_id}`);
   });
 
-  const enBuzonEncargadoGeneral = vale.estado === 'APROBADO_DEPARTAMENTO' || (vale.estado === 'MODIFICADO' && filas.length === 0);
-  if (enBuzonEncargadoGeneral) salas.push('vales:encargado_general');
+  // analisis_correcciones_12.md #11: ya no hay una sala fija de "encargado
+  // general" — un vale APROBADO_DEPARTAMENTO espera fusión en el buzón de
+  // quien tenga vales.aprobar_general (hoy, el taller "Diseño": su encargado
+  // Y su clon, el Asistente de Diseño, ya están en esa misma sala `taller:<id>`
+  // vía roomsParaUsuario en el frontend).
+  if (vale.estado === 'APROBADO_DEPARTAMENTO') {
+    const talleres = await tallerRepository.listarActivos();
+    const diseno = talleres.find(t => t.nombre === 'Diseño');
+    if (diseno) salas.push(`taller:${diseno.id}`);
+  }
 
   return salas;
 }

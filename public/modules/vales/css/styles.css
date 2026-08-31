@@ -407,7 +407,7 @@
 
 /* Filtro de tienda del Gerente (analisis_correcciones_7.md, Vista Gerencia) —
    mismo tratamiento visual que los selects del buzón. */
-.filtro-localidad {
+.filtro-tienda {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 8px 32px 8px 12px;
@@ -425,11 +425,11 @@
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.filtro-localidad:hover {
+.filtro-tienda:hover {
   border-color: var(--color-text-muted);
 }
 
-.filtro-localidad:focus {
+.filtro-tienda:focus {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
@@ -656,6 +656,14 @@
 .badge-atraso {
   background: var(--color-danger-bg);
   color: var(--color-danger);
+}
+
+/* analisis_correcciones_12.md #7: un vale que apenas cruzó su fecha de entrega
+   (menos de 1 día) no está "atrasado" todavía — muestra "Hoy" en amarillo en
+   vez de un engañoso "0d" en rojo. */
+.badge-hoy {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
 }
 
 .badge-ok {

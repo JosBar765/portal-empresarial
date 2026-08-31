@@ -17,8 +17,9 @@ const camposAdjuntos = upload.fields([
   { name: 'documentos', maxCount: 5 }
 ]);
 const campoPropuesta = upload.fields([{ name: 'propuesta', maxCount: 1 }]);
-// El Encargado General adjunta manualmente su propio documento de fusión al aprobar
-// (analisis_correcciones_4.md #11: la fusión no la hace el sistema).
+// Quien fusiona (Encargado de Diseño / Asistente de Diseño, analisis_correcciones_12.md
+// #11) adjunta manualmente su propio documento de fusión al aprobar (analisis_correcciones_4.md
+// #11: la fusión no la hace el sistema).
 const campoFusion = upload.fields([{ name: 'fusion', maxCount: 1 }]);
 
 router.get('/catalogos', requirePermission('vales.ver'), (req, res) => valeController.catalogos(req, res));
@@ -56,8 +57,5 @@ router.post('/:id/aprobar-modificacion', requirePermission('vales.aprobar_modifi
 // analisis_correcciones_10.md #5: Supervisor autoriza el envío a talleres de un
 // vale recién creado (nace ESPERANDO_AUTORIZACION, sin filas en vale_talleres).
 router.post('/:id/autorizar-creacion', requirePermission('vales.autorizar_creacion'), (req, res) => valeController.autorizarCreacion(req, res));
-// Encargado General: elige a qué taller reenviar un vale MODIFICADO recién aprobado
-// (analisis_correcciones_5.md #6). Mismo permiso que ya tiene el rol 8/9 para fusionar.
-router.post('/:id/reenviar-modificacion', requirePermission('vales.aprobar_general'), (req, res) => valeController.reenviarModificacion(req, res));
 
 module.exports = router;
