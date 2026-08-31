@@ -123,16 +123,22 @@ function esValeDeModificacion(vale) {
 }
 
 // Reusada tanto por el asesor (buzón/trabajo) como por el supervisor (trabajo
-// realizado, ver estadoVisibleSupervisor más abajo) — analisis_correcciones_7.md #2.
+// realizado, vía _trabajoSupervisor más abajo — no hay una función aparte
+// para el supervisor, ambos comparten esta misma) — analisis_correcciones_7.md #2.
 function estadoVisibleAsesor(vale) {
   if (esValeDeModificacion(vale)) {
     switch (vale.estado) {
       case ESTADOS.MODIFICADO: return 'MODIFICADO';
       case ESTADOS.PENDIENTE_CONFIRMACION: return 'PENDIENTE_CONFIRMACION';
-      // El vale ORIGINAL que ya usó su modificación queda RECIBIDO para siempre
-      // (nunca vuelve a pasar por aquí) — se muestra como MODIFICADO, no
-      // CONFIRMADO, porque a partir de él se creó un vale nuevo.
-      case ESTADOS.RECIBIDO: return 'MODIFICADO';
+      // analisis_correcciones_13.md #3: esta rama sirve a DOS valeS distintos.
+      // El vale ORIGINAL que ya usó su modificación queda RECIBIDO para
+      // siempre (nunca `vale_original_id` propio) — sigue mostrándose como
+      // MODIFICADO, porque a partir de él se creó un vale nuevo. El vale
+      // MOD- NUEVO (sí tiene `vale_original_id`) tiene su propio ciclo de
+      // vida: una vez que el asesor lo confirma de recibido, es un RECIBIDO
+      // real y debe mostrarse como CONFIRMADO igual que cualquier otro vale
+      // — antes esta rama lo dejaba disfrazado de "Modificado" para siempre.
+      case ESTADOS.RECIBIDO: return vale.vale_original_id ? 'CONFIRMADO' : 'MODIFICADO';
       default: return 'MODIFICADO'; // CREADO / APROBADO_DEPARTAMENTO de un vale MOD-
     }
   }
@@ -768,7 +774,15 @@ class ValeService {
     const nombreTaller = (id) => (talleresTodos.find(t => t.id === id) || {}).nombre || `#${id}`;
     return vales.map(v => {
       const filas = mapaTalleresPorVale.get(v.id) || [];
-      return { ...v, taller: filas.map(f => nombreTaller(f.taller_id)).join(', '), _filasTaller: filas };
+      // analisis_correcciones_13.md #4: un vale en ESPERANDO_AUTORIZACION
+      // todavía no tiene filas reales en vale_talleres (el fan-out ocurre
+      // recién al autorizar) — sin este respaldo, `taller` quedaba '' y el
+      // Supervisor no podía ver qué talleres pidió el asesor antes de
+      // autorizar (justo cuando más lo necesita).
+      const idsTaller = filas.length > 0
+        ? filas.map(f => f.taller_id)
+        : String(v.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
+      return { ...v, taller: idsTaller.map(nombreTaller).join(', '), _filasTaller: filas };
     });
   }
 
@@ -964,8 +978,7 @@ class ValeService {
     const modificados = contarClase('modificados');
     const recibidos = contarClase('recibidos');
     const enProgreso = contarClase('enProgreso');
-    const atrasados = enVentana.filter(v => v.atrasado).length;
-    const pct = (n) => total ? Math.round((n / total) * 100) : 0;
+    const pct = (n, deTotal) => deTotal ? Math.round((n / deTotal) * 100) : 0;
 
     // Drill-down: la lista solo se arma si hay algo activo (contador, atraso
     // combinable, o búsqueda) — nunca por defecto. No se actualiza en tiempo
@@ -973,6 +986,17 @@ class ValeService {
     const filtroContador = ['modificados', 'recibidos', 'enProgreso'].includes(filtros.filtroContador) ? filtros.filtroContador : null;
     const soloAtrasados = ['1', 'true', true].includes(filtros.soloAtrasados);
     const busqueda = String(filtros.busqueda || '').trim().toLowerCase();
+
+    // analisis_correcciones_13.md #1: "Atrasados" es la ÚNICA tarjeta reactiva
+    // al contador combinado — si hay un filtroContador activo (Modificados/
+    // Recibidos/En Progreso), pasa a mostrar los atrasados DENTRO de ese
+    // subconjunto (y su % es sobre ese subconjunto, no sobre el gran total:
+    // "de mis vales modificados, qué % está atrasado"). Sin selección, vuelve
+    // al total global. Los otros 3 contadores nunca cambian con la selección.
+    const baseAtrasados = filtroContador ? enVentana.filter(v => clasificar(v) === filtroContador) : enVentana;
+    const atrasados = baseAtrasados.filter(v => v.atrasado).length;
+    const porcentajeAtrasados = pct(atrasados, baseAtrasados.length);
+
     let vales = [];
     if (filtroContador || soloAtrasados || busqueda) {
       let lista = enVentana;
@@ -984,10 +1008,10 @@ class ValeService {
 
     return {
       total, modificados, recibidos, enProgreso, atrasados,
-      porcentajeModificados: pct(modificados),
-      porcentajeRecibidos: pct(recibidos),
-      porcentajeEnProgreso: pct(enProgreso),
-      porcentajeAtrasados: pct(atrasados),
+      porcentajeModificados: pct(modificados, total),
+      porcentajeRecibidos: pct(recibidos, total),
+      porcentajeEnProgreso: pct(enProgreso, total),
+      porcentajeAtrasados,
       vales
     };
   }

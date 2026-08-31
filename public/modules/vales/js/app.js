@@ -41,8 +41,11 @@
   const CLAVES_ESTADOS_GENERAL = ['ESPERANDO_AUTORIZACION', 'CREADO', 'APROBADO_DEPARTAMENTO', 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'SOLICITANDO_MODIFICACION', 'MODIFICADO'];
   // analisis_correcciones_12.md #5: el técnico nunca ve PENDIENTE_ASIGNACION —
   // un vale sin asignar no está en su buzón — así que no debe ofrecerse como
-  // opción de filtro tampoco.
-  const CLAVES_ESTADOS_TECNICO = ['ASIGNADO', 'EN_PROCESO', 'EN_REVISION', 'APROBADO'];
+  // opción de filtro tampoco. analisis_correcciones_13.md #5: APROBADO
+  // tampoco debe ofrecerse en el Buzón (un vale aprobado se muda a Trabajo
+  // realizado, nunca aparece ahí) — se separa por vista en poblarFiltroEstado.
+  const CLAVES_ESTADOS_TECNICO_BUZON = ['ASIGNADO', 'EN_PROCESO', 'EN_REVISION'];
+  const CLAVES_ESTADOS_TECNICO_TRABAJO = ['APROBADO'];
 
   // Roles con sidebar Buzón / Trabajo realizado (Asesor, Supervisor, Técnico,
   // Encargado de un taller — analisis_correcciones_5.md #1, ampliado a los
@@ -1022,7 +1025,7 @@
       // trabajo, los estados de la cola de fusión — ver _buzonEncargado/
       // _trabajoEncargadoTaller en el backend.
       let claves;
-      if (state.user.rolId === 7) claves = CLAVES_ESTADOS_TECNICO;
+      if (state.user.rolId === 7) claves = state.vista === 'trabajo' ? CLAVES_ESTADOS_TECNICO_TRABAJO : CLAVES_ESTADOS_TECNICO_BUZON;
       else if ([5, 6, 9, 11].includes(state.user.rolId)) {
         claves = [...CLAVES_ESTADOS_TALLER];
         if (puede('aprobarGeneral')) {
@@ -2085,12 +2088,41 @@
     } catch {
       detalle = { talleres: [], propuestas: [] };
     }
-    const filasPropuesta = (detalle.talleres || []).map(t => {
-      const delTecnico = (detalle.propuestas || []).filter(p => p.tecnico_id === t.tecnico_id);
-      const ultima = delTecnico[delTecnico.length - 1];
-      const url = ultima ? ultima.url : null;
-      return `<li><strong>${t.taller_nombre}:</strong> ${url ? `<a href="/${url}" target="_blank">Ver propuesta</a>` : 'Sin propuesta'}</li>`;
-    }).join('');
+
+    // analisis_correcciones_13.md #2: si este vale es una CORRECCIÓN (tiene
+    // vale_original_id), quien fusiona necesita ver TODAS las propuestas
+    // originales — no solo las del/los taller(es) al que se mandó la
+    // corrección — para poder fusionar cómodamente. Se pide también el
+    // detalle del vale ORIGINAL y se arma la lista a partir de SUS talleres,
+    // sobreescribiendo con la propuesta de la corrección donde aplique
+    // (marcada con un "*" junto al nombre del taller).
+    let detalleOriginal = null;
+    if (vale.vale_original_id) {
+      try {
+        detalleOriginal = await (await fetch(`/api/vales/${vale.vale_original_id}`)).json();
+      } catch {
+        detalleOriginal = null;
+      }
+    }
+    const urlDePropuesta = (det, tecnicoId) => {
+      const propias = (det.propuestas || []).filter(p => p.tecnico_id === tecnicoId);
+      const ultima = propias[propias.length - 1];
+      return ultima ? ultima.url : null;
+    };
+    const filaPropuesta = (nombre, url, corregido) =>
+      `<li><strong>${nombre}${corregido ? '*' : ''}:</strong> ${url ? `<a href="/${url}" target="_blank">Ver propuesta</a>` : 'Sin propuesta'}</li>`;
+
+    let filasPropuesta;
+    if (detalleOriginal) {
+      const corregidosPorTaller = new Map((detalle.talleres || []).map(t => [t.taller_id, t]));
+      filasPropuesta = (detalleOriginal.talleres || []).map(tOriginal => {
+        const corregido = corregidosPorTaller.get(tOriginal.taller_id);
+        const url = corregido ? urlDePropuesta(detalle, corregido.tecnico_id) : urlDePropuesta(detalleOriginal, tOriginal.tecnico_id);
+        return filaPropuesta(tOriginal.taller_nombre, url, !!corregido);
+      }).join('');
+    } else {
+      filasPropuesta = (detalle.talleres || []).map(t => filaPropuesta(t.taller_nombre, urlDePropuesta(detalle, t.tecnico_id), false)).join('');
+    }
 
     const { overlay, cerrar } = abrirModal({
       title: `Aprobar y fusionar — ${vale.correlativo}`,
@@ -2100,6 +2132,7 @@
         </div>
         <p style="font-size:13px;margin-bottom:10px;">Revisa la propuesta de cada taller y adjunta el documento final ya fusionado por ti.</p>
         <ul class="historial-list" style="margin-bottom:14px;">${filasPropuesta || '<li>Este vale no tiene talleres asociados.</li>'}</ul>
+        ${detalleOriginal ? '<p style="font-size:12px;color:var(--color-text-secondary);margin-top:-10px;margin-bottom:14px;">* Corregido en esta modificación.</p>' : ''}
         <div class="form-field">
           <label>Documento de fusión final *</label>
           ${htmlDropzone({ id: 'input-fusion', accept: 'application/pdf', hint: 'PDF' })}
