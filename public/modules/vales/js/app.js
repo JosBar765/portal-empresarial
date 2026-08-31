@@ -2160,7 +2160,7 @@
         const res = await fetch(`/api/vales/${vale.id}/confirmar`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        window.toast.success('Venta confirmada', `${vale.correlativo} confirmado como recibido.`);
+        window.toast.success('Recibido', `${vale.correlativo} confirmado como recibido.`);
         cerrar();
         cargarBuzon();
       } catch (error) {
