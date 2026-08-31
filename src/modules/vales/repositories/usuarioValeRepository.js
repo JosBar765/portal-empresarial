@@ -38,7 +38,7 @@ class UsuarioValeRepository {
   // ej. Premia Z13) o cualquier subdivisión puntual.
   async listarAsesoresPorSupervisor(supervisorId) {
     return db.query(
-      `SELECT DISTINCT u.id, u.nombre, u.email, u.encargado_id
+      `SELECT DISTINCT u.id, u.nombre, u.email, u.encargado_id, u.tienda_id
        FROM usuarios u
        JOIN tiendas t ON t.id = u.tienda_id
        JOIN supervisor_asignaciones sa ON sa.departamento_id = t.departamento_id

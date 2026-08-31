@@ -235,13 +235,15 @@ const mockDatabase = {
     { id: 17, usuario_id: 23, departamento_id: 3, subdivision_id: 11, activo: 1 },
     { id: 18, usuario_id: 24, departamento_id: 3, subdivision_id: 12, activo: 1 }
   ],
+  // analisis_correcciones_12.md #12: se quitaron moneda_codigo/moneda_simbolo
+  // — se sembraban pero ninguna consulta los seleccionaba jamás.
   paises: [
-    { id: 1, codigo: 'GT', nombre: 'Guatemala', codigo_telefono: '+502', moneda_codigo: 'GTQ', moneda_simbolo: 'Q' },
-    { id: 2, codigo: 'SV', nombre: 'El Salvador', codigo_telefono: '+503', moneda_codigo: 'USD', moneda_simbolo: '$' },
-    { id: 3, codigo: 'HN', nombre: 'Honduras', codigo_telefono: '+504', moneda_codigo: 'HNL', moneda_simbolo: 'L' },
-    { id: 4, codigo: 'NI', nombre: 'Nicaragua', codigo_telefono: '+505', moneda_codigo: 'NIO', moneda_simbolo: 'C$' },
-    { id: 5, codigo: 'CR', nombre: 'Costa Rica', codigo_telefono: '+506', moneda_codigo: 'CRC', moneda_simbolo: '₡' },
-    { id: 6, codigo: 'BZ', nombre: 'Belice', codigo_telefono: '+501', moneda_codigo: 'BZD', moneda_simbolo: 'BZ$' }
+    { id: 1, codigo: 'GT', nombre: 'Guatemala', codigo_telefono: '+502' },
+    { id: 2, codigo: 'SV', nombre: 'El Salvador', codigo_telefono: '+503' },
+    { id: 3, codigo: 'HN', nombre: 'Honduras', codigo_telefono: '+504' },
+    { id: 4, codigo: 'NI', nombre: 'Nicaragua', codigo_telefono: '+505' },
+    { id: 5, codigo: 'CR', nombre: 'Costa Rica', codigo_telefono: '+506' },
+    { id: 6, codigo: 'BZ', nombre: 'Belice', codigo_telefono: '+501' }
   ],
   valeProductos: [
     { id: 1, codigo: 'PRD-TROF', nombre: 'Trofeo', activo: 1 },
@@ -255,22 +257,10 @@ const mockDatabase = {
     { id: 3, nombre: 'Madera', activo: 1 },
     { id: 4, nombre: 'Cristal', activo: 1 }
   ],
-  // vale_tecnicas / vale_acabados quedan solo como referencia histórica —
-  // desde analisis_correcciones_3.md #1 el formulario usa textbox libre para
-  // Técnica y Acabado, ya no combobox contra estos catálogos.
-  valeTecnicas: [
-    { id: 1, nombre: 'Grabado Láser', activo: 1 },
-    { id: 2, nombre: 'Sublimación', activo: 1 },
-    { id: 3, nombre: 'Impresión UV', activo: 1 },
-    { id: 4, nombre: 'Vinil de Corte', activo: 1 }
-  ],
-  valeAcabados: [
-    { id: 1, nombre: 'Brillante', activo: 1 },
-    { id: 2, nombre: 'Mate', activo: 1 },
-    { id: 3, nombre: 'Satinado', activo: 1 }
-  ],
-  // analisis_correcciones_10.md #11: el límite diario dejó de ser individual del
-  // asesor (esta tabla) — ahora es colectivo del Supervisor (usuarios.encargado_id).
+  // analisis_correcciones_12.md #12: se quitaron vale_tecnicas/vale_acabados
+  // (huérfanas desde analisis_correcciones_3.md #1: Técnica/Acabado son
+  // textbox libre, ningún código las volvía a consultar) y asesor_limites
+  // (el límite diario es colectivo del Supervisor, calculado en vivo).
   // Talleres/departamentos — cada uno con su propio encargado dueño. `tienda_id
   // NULL` = taller de toda la empresa; los "Diseño Local" (analisis_correcciones_12.md
   // #11) están acotados a la tienda que los tiene.
@@ -291,21 +281,21 @@ const mockDatabase = {
     { id: 14, nombre: 'Diseño Local - SJO', encargado_id: 47, tienda_id: 13, activo: 1 }
   ],
   vales: [
-    { id: 1, correlativo: 'GUA-3-0001', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-19', hora_creacion: '08:30:00', fecha_entrega: '2026-08-22 17:00:00', fecha_evento: '2026-08-25 09:00:00', urgente: 0, cliente_empresa: 'Corporación Deportiva S.A.', cliente_nombre: 'Juan Pérez', cliente_telefono: '+502 5555-1111', cliente_correo: 'juan.perez@corpdeportiva.com', producto_id: 1, material_id: 2, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 50, cotizacion: 1500.00, descripcion: 'Trofeos para premiación anual de ventas.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'CREADO', creado_en: '2026-08-19 08:30:00', actualizado_en: '2026-08-19 08:30:00' },
-    { id: 2, correlativo: 'GUA-3-0002', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-18', hora_creacion: '09:15:00', fecha_entrega: '2026-08-20 17:00:00', fecha_evento: '2026-08-23 09:00:00', urgente: 0, cliente_empresa: 'Liga Guatemalteca', cliente_nombre: 'María López', cliente_telefono: '+502 5555-2222', cliente_correo: 'maria.lopez@liga.gt', producto_id: 2, material_id: 1, tecnica: 'Sublimación', acabado: 'Mate', cantidad: 200, cotizacion: 800.00, descripcion: 'Medallas para maratón centroamericano.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'CREADO', creado_en: '2026-08-18 09:15:00', actualizado_en: '2026-08-18 09:30:00' },
-    { id: 3, correlativo: 'GUA-3-0003', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-17', hora_creacion: '10:00:00', fecha_entrega: '2026-08-21 17:00:00', fecha_evento: '2026-08-24 09:00:00', urgente: 1, cliente_empresa: 'Club Atlético GUA', cliente_nombre: 'Carlos Ruiz', cliente_telefono: '+502 5555-3333', cliente_correo: 'carlos.ruiz@clubgua.com', producto_id: 3, material_id: 3, tecnica: 'Impresión UV', acabado: 'Satinado', cantidad: 30, cotizacion: 950.00, descripcion: 'Placas conmemorativas grabadas en madera.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'CREADO', creado_en: '2026-08-17 10:00:00', actualizado_en: '2026-08-17 10:30:00' },
-    { id: 4, correlativo: 'GUA-3-0004', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-14', hora_creacion: '11:20:00', fecha_entrega: '2026-08-18 17:00:00', fecha_evento: '2026-08-20 09:00:00', urgente: 1, cliente_empresa: 'MundiEventos', cliente_nombre: 'Ana Gómez', cliente_telefono: '+502 5555-4444', cliente_correo: 'ana.gomez@mundieventos.com', producto_id: 1, material_id: 4, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 15, cotizacion: 2200.00, descripcion: 'Trofeos de cristal para gala anual.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'CREADO', creado_en: '2026-08-14 11:20:00', actualizado_en: '2026-08-17 16:00:00' },
-    { id: 5, correlativo: 'GUA-3-0005', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-13', hora_creacion: '08:45:00', fecha_entrega: '2026-08-17 17:00:00', fecha_evento: '2026-08-19 09:00:00', urgente: 0, cliente_empresa: 'Federación Nacional', cliente_nombre: 'Luis Herrera', cliente_telefono: '+502 5555-5555', cliente_correo: 'luis.herrera@fednacional.org', producto_id: 4, material_id: 1, tecnica: 'Impresión UV', acabado: 'Mate', cantidad: 5, cotizacion: 600.00, descripcion: 'Banners UV + trofeos para evento deportivo (dos talleres).', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'CREADO', creado_en: '2026-08-13 08:45:00', actualizado_en: '2026-08-15 12:00:00' },
-    { id: 6, correlativo: 'GUA-3-0006', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-10', hora_creacion: '13:00:00', fecha_entrega: '2026-08-15 17:00:00', fecha_evento: '2026-08-16 09:00:00', urgente: 0, cliente_empresa: 'Copa MundiTrofeos', cliente_nombre: 'Diego Alvarado', cliente_telefono: '+502 5555-6666', cliente_correo: 'diego.alvarado@copamt.com', producto_id: 1, material_id: 2, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 100, cotizacion: 3200.00, descripcion: 'Trofeos + banners UV de premiación Copa MundiTrofeos.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'APROBADO_DEPARTAMENTO', creado_en: '2026-08-10 13:00:00', actualizado_en: '2026-08-12 10:30:00' },
-    { id: 7, correlativo: 'GUA-3-0007', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-09', hora_creacion: '15:30:00', fecha_entrega: '2026-08-16 17:00:00', fecha_evento: '2026-08-17 09:00:00', urgente: 0, cliente_empresa: 'Cliente particular', cliente_nombre: 'Sofía Ramírez', cliente_telefono: '+502 5555-7777', cliente_correo: 'sofia.ramirez@correo.com', producto_id: 2, material_id: 1, tecnica: 'Sublimación', acabado: 'Mate', cantidad: 40, cotizacion: 450.00, descripcion: 'Medallas para evento escolar.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'PENDIENTE_CONFIRMACION', creado_en: '2026-08-09 15:30:00', actualizado_en: '2026-08-15 10:30:00' },
-    { id: 8, correlativo: 'GUA-3-0008', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-05', hora_creacion: '10:00:00', fecha_entrega: '2026-08-12 17:00:00', fecha_evento: '2026-08-13 09:00:00', urgente: 0, cliente_empresa: 'Torneo Regional', cliente_nombre: 'Pedro Sandoval', cliente_telefono: '+502 5555-8888', cliente_correo: 'pedro.sandoval@torneoreg.com', producto_id: 1, material_id: 3, tecnica: 'Grabado Láser', acabado: 'Satinado', cantidad: 60, cotizacion: 1800.00, descripcion: 'Trofeos de torneo regional, entregados.', descripcion_original: null, pdf_url: null, modificado: 1, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'RECIBIDO', creado_en: '2026-08-05 10:00:00', actualizado_en: '2026-08-11 12:00:00', autorizado_por: 4, autorizado_en: '2026-08-05 09:30:00', autorizacion_tipo: 'CREACION', confirmado_en: '2026-08-11 12:00:00' },
-    { id: 9, correlativo: 'GUA-3-0009', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-04', hora_creacion: '14:00:00', fecha_entrega: '2026-08-11 17:00:00', fecha_evento: '2026-08-12 09:00:00', urgente: 0, cliente_empresa: 'Cliente particular', cliente_nombre: 'Elena Castillo', cliente_telefono: '+502 5555-9999', cliente_correo: 'elena.castillo@correo.com', producto_id: 3, material_id: 2, tecnica: 'Impresión UV', acabado: 'Mate', cantidad: 20, cotizacion: 700.00, descripcion: 'Placas — el cliente pidió ajustar el grabado, asesor solicitó modificación.', descripcion_original: null, pdf_url: null, propuesta_general_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'SOLICITANDO_MODIFICACION', creado_en: '2026-08-04 14:00:00', actualizado_en: '2026-08-10 09:30:00' },
-    { id: 10, correlativo: 'GUA-3-0010', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-07-30', hora_creacion: '09:00:00', fecha_entrega: '2026-08-08 17:00:00', fecha_evento: '2026-08-09 09:00:00', urgente: 0, cliente_empresa: 'Club Deportivo Antigua', cliente_nombre: 'Roberto Mejía', cliente_telefono: '+502 5555-1010', cliente_correo: 'roberto.mejia@cdantigua.com', producto_id: 1, material_id: 1, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 80, cotizacion: 2500.00, descripcion: 'Trofeos de campeonato — modificación de acabado en curso.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'SOLICITANDO_MODIFICACION', creado_en: '2026-07-30 09:00:00', actualizado_en: '2026-08-13 09:00:00' },
-    { id: 11, correlativo: 'GUA-3-0011', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-06', hora_creacion: '16:00:00', fecha_entrega: '2026-08-14 17:00:00', fecha_evento: '2026-08-15 09:00:00', urgente: 0, cliente_empresa: 'Asociación Escolar', cliente_nombre: 'Marta Solís', cliente_telefono: '+502 5555-1111', cliente_correo: 'marta.solis@asocescolar.edu', producto_id: 2, material_id: 4, tecnica: 'Sublimación', acabado: 'Satinado', cantidad: 25, cotizacion: 620.00, descripcion: 'Medallas — el logo quedó descentrado, asesor solicitó modificación.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'SOLICITANDO_MODIFICACION', creado_en: '2026-08-06 16:00:00', actualizado_en: '2026-08-14 09:00:00' },
-    { id: 12, correlativo: 'MOD-GUA-3-0008', asesor_id: 3, tienda_id: 1, vale_original_id: 8, fecha_creacion: '2026-08-20', hora_creacion: '11:00:00', fecha_entrega: '2026-08-27 17:00:00', fecha_evento: '2026-08-28 09:00:00', urgente: 0, cliente_empresa: 'Torneo Regional', cliente_nombre: 'Pedro Sandoval', cliente_telefono: '+502 5555-8888', cliente_correo: 'pedro.sandoval@torneoreg.com', producto_id: 1, material_id: 3, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 60, cotizacion: 1800.00, descripcion: 'El cliente solicitó cambiar el acabado de satinado a brillante para hacer juego con el resto del set de premiación.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, estado: 'MODIFICADO', creado_en: '2026-08-20 11:00:00', actualizado_en: '2026-08-20 11:00:00', autorizado_por: 4, autorizado_en: '2026-08-20 11:00:00', autorizacion_tipo: 'MODIFICACION' },
+    { id: 1, correlativo: 'GUA-3-0001', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-19', hora_creacion: '08:30:00', fecha_entrega: '2026-08-22 17:00:00', fecha_evento: '2026-08-25 09:00:00', urgente: 0, cliente_empresa: 'Corporación Deportiva S.A.', cliente_nombre: 'Juan Pérez', cliente_telefono: '+502 5555-1111', cliente_correo: 'juan.perez@corpdeportiva.com', producto_id: 1, material_id: 2, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 50, cotizacion: 1500.00, descripcion: 'Trofeos para premiación anual de ventas.', pdf_url: null, modificado: 0, estado: 'CREADO', creado_en: '2026-08-19 08:30:00', actualizado_en: '2026-08-19 08:30:00' },
+    { id: 2, correlativo: 'GUA-3-0002', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-18', hora_creacion: '09:15:00', fecha_entrega: '2026-08-20 17:00:00', fecha_evento: '2026-08-23 09:00:00', urgente: 0, cliente_empresa: 'Liga Guatemalteca', cliente_nombre: 'María López', cliente_telefono: '+502 5555-2222', cliente_correo: 'maria.lopez@liga.gt', producto_id: 2, material_id: 1, tecnica: 'Sublimación', acabado: 'Mate', cantidad: 200, cotizacion: 800.00, descripcion: 'Medallas para maratón centroamericano.', pdf_url: null, modificado: 0, estado: 'CREADO', creado_en: '2026-08-18 09:15:00', actualizado_en: '2026-08-18 09:30:00' },
+    { id: 3, correlativo: 'GUA-3-0003', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-17', hora_creacion: '10:00:00', fecha_entrega: '2026-08-21 17:00:00', fecha_evento: '2026-08-24 09:00:00', urgente: 1, cliente_empresa: 'Club Atlético GUA', cliente_nombre: 'Carlos Ruiz', cliente_telefono: '+502 5555-3333', cliente_correo: 'carlos.ruiz@clubgua.com', producto_id: 3, material_id: 3, tecnica: 'Impresión UV', acabado: 'Satinado', cantidad: 30, cotizacion: 950.00, descripcion: 'Placas conmemorativas grabadas en madera.', pdf_url: null, modificado: 0, estado: 'CREADO', creado_en: '2026-08-17 10:00:00', actualizado_en: '2026-08-17 10:30:00' },
+    { id: 4, correlativo: 'GUA-3-0004', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-14', hora_creacion: '11:20:00', fecha_entrega: '2026-08-18 17:00:00', fecha_evento: '2026-08-20 09:00:00', urgente: 1, cliente_empresa: 'MundiEventos', cliente_nombre: 'Ana Gómez', cliente_telefono: '+502 5555-4444', cliente_correo: 'ana.gomez@mundieventos.com', producto_id: 1, material_id: 4, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 15, cotizacion: 2200.00, descripcion: 'Trofeos de cristal para gala anual.', pdf_url: null, modificado: 0, estado: 'CREADO', creado_en: '2026-08-14 11:20:00', actualizado_en: '2026-08-17 16:00:00' },
+    { id: 5, correlativo: 'GUA-3-0005', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-13', hora_creacion: '08:45:00', fecha_entrega: '2026-08-17 17:00:00', fecha_evento: '2026-08-19 09:00:00', urgente: 0, cliente_empresa: 'Federación Nacional', cliente_nombre: 'Luis Herrera', cliente_telefono: '+502 5555-5555', cliente_correo: 'luis.herrera@fednacional.org', producto_id: 4, material_id: 1, tecnica: 'Impresión UV', acabado: 'Mate', cantidad: 5, cotizacion: 600.00, descripcion: 'Banners UV + trofeos para evento deportivo (dos talleres).', pdf_url: null, modificado: 0, estado: 'CREADO', creado_en: '2026-08-13 08:45:00', actualizado_en: '2026-08-15 12:00:00' },
+    { id: 6, correlativo: 'GUA-3-0006', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-10', hora_creacion: '13:00:00', fecha_entrega: '2026-08-15 17:00:00', fecha_evento: '2026-08-16 09:00:00', urgente: 0, cliente_empresa: 'Copa MundiTrofeos', cliente_nombre: 'Diego Alvarado', cliente_telefono: '+502 5555-6666', cliente_correo: 'diego.alvarado@copamt.com', producto_id: 1, material_id: 2, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 100, cotizacion: 3200.00, descripcion: 'Trofeos + banners UV de premiación Copa MundiTrofeos.', pdf_url: null, modificado: 0, estado: 'APROBADO_DEPARTAMENTO', creado_en: '2026-08-10 13:00:00', actualizado_en: '2026-08-12 10:30:00' },
+    { id: 7, correlativo: 'GUA-3-0007', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-09', hora_creacion: '15:30:00', fecha_entrega: '2026-08-16 17:00:00', fecha_evento: '2026-08-17 09:00:00', urgente: 0, cliente_empresa: 'Cliente particular', cliente_nombre: 'Sofía Ramírez', cliente_telefono: '+502 5555-7777', cliente_correo: 'sofia.ramirez@correo.com', producto_id: 2, material_id: 1, tecnica: 'Sublimación', acabado: 'Mate', cantidad: 40, cotizacion: 450.00, descripcion: 'Medallas para evento escolar.', pdf_url: null, modificado: 0, estado: 'PENDIENTE_CONFIRMACION', creado_en: '2026-08-09 15:30:00', actualizado_en: '2026-08-15 10:30:00' },
+    { id: 8, correlativo: 'GUA-3-0008', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-05', hora_creacion: '10:00:00', fecha_entrega: '2026-08-12 17:00:00', fecha_evento: '2026-08-13 09:00:00', urgente: 0, cliente_empresa: 'Torneo Regional', cliente_nombre: 'Pedro Sandoval', cliente_telefono: '+502 5555-8888', cliente_correo: 'pedro.sandoval@torneoreg.com', producto_id: 1, material_id: 3, tecnica: 'Grabado Láser', acabado: 'Satinado', cantidad: 60, cotizacion: 1800.00, descripcion: 'Trofeos de torneo regional, entregados.', pdf_url: null, modificado: 1, estado: 'RECIBIDO', creado_en: '2026-08-05 10:00:00', actualizado_en: '2026-08-11 12:00:00', autorizado_por: 4, autorizado_en: '2026-08-05 09:30:00', autorizacion_tipo: 'CREACION', confirmado_en: '2026-08-11 12:00:00' },
+    { id: 9, correlativo: 'GUA-3-0009', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-04', hora_creacion: '14:00:00', fecha_entrega: '2026-08-11 17:00:00', fecha_evento: '2026-08-12 09:00:00', urgente: 0, cliente_empresa: 'Cliente particular', cliente_nombre: 'Elena Castillo', cliente_telefono: '+502 5555-9999', cliente_correo: 'elena.castillo@correo.com', producto_id: 3, material_id: 2, tecnica: 'Impresión UV', acabado: 'Mate', cantidad: 20, cotizacion: 700.00, descripcion: 'Placas — el cliente pidió ajustar el grabado, asesor solicitó modificación.', pdf_url: null, propuesta_general_url: null, modificado: 0, estado: 'SOLICITANDO_MODIFICACION', creado_en: '2026-08-04 14:00:00', actualizado_en: '2026-08-10 09:30:00' },
+    { id: 10, correlativo: 'GUA-3-0010', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-07-30', hora_creacion: '09:00:00', fecha_entrega: '2026-08-08 17:00:00', fecha_evento: '2026-08-09 09:00:00', urgente: 0, cliente_empresa: 'Club Deportivo Antigua', cliente_nombre: 'Roberto Mejía', cliente_telefono: '+502 5555-1010', cliente_correo: 'roberto.mejia@cdantigua.com', producto_id: 1, material_id: 1, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 80, cotizacion: 2500.00, descripcion: 'Trofeos de campeonato — modificación de acabado en curso.', pdf_url: null, modificado: 0, estado: 'SOLICITANDO_MODIFICACION', creado_en: '2026-07-30 09:00:00', actualizado_en: '2026-08-13 09:00:00' },
+    { id: 11, correlativo: 'GUA-3-0011', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-06', hora_creacion: '16:00:00', fecha_entrega: '2026-08-14 17:00:00', fecha_evento: '2026-08-15 09:00:00', urgente: 0, cliente_empresa: 'Asociación Escolar', cliente_nombre: 'Marta Solís', cliente_telefono: '+502 5555-1111', cliente_correo: 'marta.solis@asocescolar.edu', producto_id: 2, material_id: 4, tecnica: 'Sublimación', acabado: 'Satinado', cantidad: 25, cotizacion: 620.00, descripcion: 'Medallas — el logo quedó descentrado, asesor solicitó modificación.', pdf_url: null, modificado: 0, estado: 'SOLICITANDO_MODIFICACION', creado_en: '2026-08-06 16:00:00', actualizado_en: '2026-08-14 09:00:00' },
+    { id: 12, correlativo: 'MOD-GUA-3-0008', asesor_id: 3, tienda_id: 1, vale_original_id: 8, fecha_creacion: '2026-08-20', hora_creacion: '11:00:00', fecha_entrega: '2026-08-27 17:00:00', fecha_evento: '2026-08-28 09:00:00', urgente: 0, cliente_empresa: 'Torneo Regional', cliente_nombre: 'Pedro Sandoval', cliente_telefono: '+502 5555-8888', cliente_correo: 'pedro.sandoval@torneoreg.com', producto_id: 1, material_id: 3, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 60, cotizacion: 1800.00, descripcion: 'El cliente solicitó cambiar el acabado de satinado a brillante para hacer juego con el resto del set de premiación.', pdf_url: null, modificado: 0, estado: 'MODIFICADO', creado_en: '2026-08-20 11:00:00', actualizado_en: '2026-08-20 11:00:00', autorizado_por: 4, autorizado_en: '2026-08-20 11:00:00', autorizacion_tipo: 'MODIFICACION' },
     // analisis_correcciones_10.md #5: vale de demostración recién creado,
     // esperando que el Supervisor lo autorice — sin filas en valeTalleres todavía.
-    { id: 13, correlativo: 'GUA-3-0012', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-26', hora_creacion: '08:00:00', fecha_entrega: '2026-08-30 17:00:00', fecha_evento: '2026-08-31 09:00:00', urgente: 0, cliente_empresa: 'Cliente particular', cliente_nombre: 'Fernando Ixchop', cliente_telefono: '+502 5555-1212', cliente_correo: 'fernando.ixchop@correo.com', producto_id: 1, material_id: 1, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 10, cotizacion: 900.00, descripcion: 'Trofeos recién creados, esperando autorización del Supervisor.', descripcion_original: null, pdf_url: null, modificado: 0, tiene_adjuntos: 0, justificacion_modificacion: null, talleres_solicitados: '1', estado: 'ESPERANDO_AUTORIZACION', creado_en: '2026-08-26 08:00:00', actualizado_en: '2026-08-26 08:00:00' }
+    { id: 13, correlativo: 'GUA-3-0012', asesor_id: 3, tienda_id: 1, vale_original_id: null, fecha_creacion: '2026-08-26', hora_creacion: '08:00:00', fecha_entrega: '2026-08-30 17:00:00', fecha_evento: '2026-08-31 09:00:00', urgente: 0, cliente_empresa: 'Cliente particular', cliente_nombre: 'Fernando Ixchop', cliente_telefono: '+502 5555-1212', cliente_correo: 'fernando.ixchop@correo.com', producto_id: 1, material_id: 1, tecnica: 'Grabado Láser', acabado: 'Brillante', cantidad: 10, cotizacion: 900.00, descripcion: 'Trofeos recién creados, esperando autorización del Supervisor.', pdf_url: null, modificado: 0, talleres_solicitados: '1', estado: 'ESPERANDO_AUTORIZACION', creado_en: '2026-08-26 08:00:00', actualizado_en: '2026-08-26 08:00:00' }
   ].map(v => ({
     ...v,
     propuesta_general_url: v.propuesta_general_url ?? null,
@@ -338,15 +328,18 @@ const mockDatabase = {
     // nuevo autorizado.
     { id: 14, vale_id: 12, taller_id: 1, tecnico_id: null, estado: 'PENDIENTE_ASIGNACION', fecha_asignacion: null, activo: 1 }
   ],
+  // analisis_correcciones_12.md #12: se quitaron es_cancelacion (la cancelación
+  // ahora solo se registra en valeHistorial, sin fila "en blanco" en esta tabla)
+  // y fecha_subida (redundante con creado_en).
   valePropuestas: [
-    { id: 1, vale_id: 4, tecnico_id: 8, url: null, es_cancelacion: 0, fecha_subida: '2026-08-17 16:00:00' },
-    { id: 2, vale_id: 5, tecnico_id: 9, url: null, es_cancelacion: 0, fecha_subida: '2026-08-15 12:00:00' },
-    { id: 3, vale_id: 6, tecnico_id: 7, url: null, es_cancelacion: 0, fecha_subida: '2026-08-12 09:00:00' },
-    { id: 4, vale_id: 6, tecnico_id: 9, url: null, es_cancelacion: 0, fecha_subida: '2026-08-12 10:00:00' },
-    { id: 5, vale_id: 7, tecnico_id: 8, url: null, es_cancelacion: 0, fecha_subida: '2026-08-15 10:00:00' },
-    { id: 6, vale_id: 8, tecnico_id: 7, url: null, es_cancelacion: 0, fecha_subida: '2026-08-11 09:00:00' },
-    { id: 7, vale_id: 9, tecnico_id: 8, url: null, es_cancelacion: 0, fecha_subida: '2026-08-10 09:00:00' },
-    { id: 8, vale_id: 10, tecnico_id: 7, url: null, es_cancelacion: 0, fecha_subida: '2026-08-06 09:00:00' }
+    { id: 1, vale_id: 4, tecnico_id: 8, url: null },
+    { id: 2, vale_id: 5, tecnico_id: 9, url: null },
+    { id: 3, vale_id: 6, tecnico_id: 7, url: null },
+    { id: 4, vale_id: 6, tecnico_id: 9, url: null },
+    { id: 5, vale_id: 7, tecnico_id: 8, url: null },
+    { id: 6, vale_id: 8, tecnico_id: 7, url: null },
+    { id: 7, vale_id: 9, tecnico_id: 8, url: null },
+    { id: 8, vale_id: 10, tecnico_id: 7, url: null }
   ],
   valeDocumentos: [],
   valeSolicitudesModificacion: [
@@ -472,10 +465,7 @@ const taggedHandlers = {
   'catalog:tiendas': () => mockDatabase.tiendas.filter(t => t.activo),
   'catalog:productos': () => mockDatabase.valeProductos.filter(p => p.activo),
   'catalog:materiales': () => mockDatabase.valeMateriales.filter(m => m.activo),
-  'catalog:tecnicas': () => mockDatabase.valeTecnicas.filter(t => t.activo),
-  'catalog:acabados': () => mockDatabase.valeAcabados.filter(a => a.activo),
   'catalog:paises': () => mockDatabase.paises,
-  'catalog:talleres': () => mockDatabase.talleres.filter(t => t.activo),
 
   // Estas consultas nunca deben exponer password_hash: a diferencia de MySQL real (que
   // solo devuelve las columnas listadas en el SELECT), el mock ignora el SQL, así que
@@ -550,8 +540,8 @@ const taggedHandlers = {
       cliente_telefono: clienteTelefono, cliente_correo: clienteCorreo, producto_id: productoId || null,
       material_id: materialId || null, tecnica, acabado,
       cantidad: Number(cantidad), cotizacion: Number(cotizacion), descripcion: descripcion || null,
-      descripcion_original: null, pdf_url: null, propuesta_general_url: null, modificado: 0, tiene_adjuntos: 0,
-      justificacion_modificacion: null, atraso_congelado_en: null, atraso_notificado_en: null,
+      pdf_url: null, propuesta_general_url: null, modificado: 0,
+      atraso_congelado_en: null, atraso_notificado_en: null,
       talleres_solicitados: talleresSolicitados || null,
       autorizado_por: autorizadoPor ? Number(autorizadoPor) : null,
       autorizado_en: autorizadoEn || null,
@@ -593,12 +583,6 @@ const taggedHandlers = {
     const [pdfUrl, id] = params;
     const v = mockDatabase.vales.find(x => x.id === Number(id));
     if (v) v.pdf_url = pdfUrl;
-    return { affectedRows: v ? 1 : 0 };
-  },
-  'vale:update_tiene_adjuntos': (params) => {
-    const [valor, id] = params;
-    const v = mockDatabase.vales.find(x => x.id === Number(id));
-    if (v) v.tiene_adjuntos = valor ? 1 : 0;
     return { affectedRows: v ? 1 : 0 };
   },
   'vale:marcar_modificado': (params) => {
@@ -712,10 +696,10 @@ const taggedHandlers = {
     return { affectedRows: t ? 1 : 0 };
   },
   'propuesta:insert': (params) => {
-    const [valeId, tecnicoId, url, esCancelacion, fechaSubida] = params;
+    const [valeId, tecnicoId, url] = params;
     const row = {
       id: nextId(mockDatabase.valePropuestas), vale_id: Number(valeId), tecnico_id: Number(tecnicoId),
-      url: url || null, es_cancelacion: esCancelacion ? 1 : 0, fecha_subida: fechaSubida
+      url: url || null, creado_en: ahoraLocal()
     };
     mockDatabase.valePropuestas.push(row);
     return { insertId: row.id };

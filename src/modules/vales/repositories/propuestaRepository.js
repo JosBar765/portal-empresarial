@@ -2,10 +2,10 @@
 const db = require('../../../config/database');
 
 class PropuestaRepository {
-  async crear(valeId, tecnicoId, url, esCancelacion, fechaSubida) {
+  async crear(valeId, tecnicoId, url) {
     const result = await db.query(
-      'INSERT INTO vale_propuestas (vale_id, tecnico_id, url, es_cancelacion, fecha_subida) VALUES (?, ?, ?, ?, ?)',
-      [valeId, tecnicoId, url || null, esCancelacion ? 1 : 0, fechaSubida],
+      'INSERT INTO vale_propuestas (vale_id, tecnico_id, url) VALUES (?, ?, ?)',
+      [valeId, tecnicoId, url || null],
       'propuesta:insert'
     );
     return result.insertId;

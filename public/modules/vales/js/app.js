@@ -346,12 +346,14 @@
   }
 
   // El Gerente reemplaza contadores-grid + buzon-section por su propio
-  // dashboard-gerencia mientras esté en la vista "dashboard" — el resto de
-  // roles solo cambian el título (analisis_correcciones_7.md, Vista Gerencia).
+  // dashboard-gerencia mientras esté en la vista "dashboard"; el Supervisor
+  // (analisis_correcciones_12.md #10, Fase 2c) hace lo mismo pero solo
+  // cuando entra a SU tercer botón — sus otras dos vistas (Buzón/Trabajo
+  // realizado) siguen normales. El resto de roles solo cambian el título.
   function actualizarTituloYSeccionesVista() {
-    if (state.user.rolId === 10) {
-      const enDashboard = state.vista === 'dashboard';
-      $('#buzon-titulo').textContent = enDashboard ? 'Dashboard' : 'Vales de Arte';
+    const enDashboard = state.vista === 'dashboard';
+    if ([4, 10].includes(state.user.rolId)) {
+      $('#buzon-titulo').textContent = enDashboard ? 'Dashboard' : (state.user.rolId === 10 ? 'Vales de Arte' : (state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte'));
       $('#dashboard-gerencia').style.display = enDashboard ? 'block' : 'none';
       $('#contadores-grid').style.display = enDashboard ? 'none' : '';
       $('.buzon-section').style.display = enDashboard ? 'none' : '';
@@ -387,6 +389,12 @@
       secundario.querySelector('ion-icon').setAttribute('name', 'file-tray-full-outline');
       secundario.querySelector('span').textContent = 'Vales de Arte';
       state.vista = 'dashboard';
+    }
+    // Supervisor de Ventas (analisis_correcciones_12.md #10, Fase 2c): conserva
+    // sus dos botones normales y gana un tercero al mismo dashboard que ve el
+    // Gerente, acotado a las tiendas que cubre (ver obtenerDashboardGerencia).
+    if (state.user.rolId === 4) {
+      $('#sidebar-item-terciario', sidebar).style.display = '';
     }
     actualizarTituloYSeccionesVista();
 
@@ -518,14 +526,14 @@
       cargarBuzon();
     });
 
-    // Filtro de tienda — solo Gerencia (analisis_correcciones_7.md, Vista Gerencia).
-    // analisis_correcciones_12.md #10: el Supervisor también recibió el permiso
-    // vales.ver_gerencia en el backend (fase 2a), pero extender este filtro/la
-    // vista a su rol es trabajo de la fase 2c (rediseño del dashboard).
-    if (state.user.rolId === 10) {
+    // Filtro de tienda — Gerencia y, desde la Fase 2c (analisis_correcciones_12.md
+    // #10), también el Supervisor de Ventas. `tiendasGerencia` (catalogos)
+    // ya viene acotado a lo que cada uno puede filtrar: el catálogo completo
+    // para Gerente/Administrador, solo sus tiendas cubiertas para Supervisor.
+    if ([4, 10].includes(state.user.rolId)) {
       const selectTienda = $('#filtro-tienda');
       selectTienda.style.display = '';
-      (state.catalogos.tiendas || []).forEach(t => {
+      (state.catalogos.tiendasGerencia || state.catalogos.tiendas || []).forEach(t => {
         const opt = document.createElement('option');
         opt.value = t.id;
         opt.textContent = t.nombre;
@@ -639,7 +647,12 @@
         window.toast[esAlerta ? 'error' : 'info'](esAlerta ? 'Atención' : 'Vale de arte', data.mensaje);
         if (data.beep !== false) reproducirBeep();
       }
-      cargarBuzon();
+      // analisis_correcciones_12.md #10 (Fase 2c): el dashboard de Gerencia/
+      // Supervisor NUNCA se actualiza en tiempo real (a diferencia del
+      // buzón) — el toast/beep de arriba se sigue mostrando igual, solo se
+      // omite el refetch mientras el usuario está parado en esa vista.
+      const enVistaGerencia = [4, 10].includes(state.user.rolId) && state.vista === 'dashboard';
+      if (!enVistaGerencia) cargarBuzon();
       if (state.cargaTrabajoModal) {
         if (state.cargaTrabajoModal.overlay.isConnected) {
           state.cargaTrabajoModal.actualizar();
@@ -694,7 +707,7 @@
   async function cargarBuzon() {
     // El Gerente en su vista "Dashboard" no pide el buzón de vales — pide las
     // métricas agregadas (analisis_correcciones_7.md, Vista Gerencia).
-    if (state.user.rolId === 10 && state.vista === 'dashboard') {
+    if ([4, 10].includes(state.user.rolId) && state.vista === 'dashboard') {
       return cargarDashboardGerencia();
     }
     state.paginacion = { limit: 50, cursor: null, total: 0, hasMore: false, cargandoMas: false };
@@ -737,11 +750,21 @@
   }
 
   // -------------------------------------------------------------------------
-  // Vista Gerencia: Dashboard de métricas (analisis_correcciones_7.md) — reusa
-  // la ventana de tiempo y el filtro de tienda del resto del módulo, pero pide
-  // agregados en vez del listado de vales.
+  // Dashboard de Gerencia/Supervisor (analisis_correcciones_12.md #10, Fase
+  // 2c) — 4 contadores con drill-down (Modificados/Recibidos/En Progreso/
+  // Atrasados, el último combinable con cualquiera de los otros tres, mismo
+  // mecanismo que `soloAtrasados` en el buzón normal) + Total sin lista. Sin
+  // gráficas. Reusa `state.filtroContador`/`state.soloAtrasados`/
+  // `state.busqueda` — la vista sidebar ya los resetea al cambiar (ver
+  // wireSidebar), así que no se contaminan entre vistas.
   // -------------------------------------------------------------------------
-  const chartsGerencia = { estado: null, tienda: null };
+  const DASHBOARD_CONTADORES = [
+    { key: 'total', label: 'Total de vales' },
+    { key: 'modificados', label: 'Modificados', filtro: 'modificados', pctKey: 'porcentajeModificados' },
+    { key: 'recibidos', label: 'Recibidos', filtro: 'recibidos', pctKey: 'porcentajeRecibidos' },
+    { key: 'enProgreso', label: 'En progreso', filtro: 'enProgreso', pctKey: 'porcentajeEnProgreso' },
+    { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true, pctKey: 'porcentajeAtrasados' }
+  ];
 
   async function cargarDashboardGerencia() {
     const qs = new URLSearchParams();
@@ -751,6 +774,9 @@
       if (state.ventana.hasta) qs.set('hasta', state.ventana.hasta);
     }
     if (state.tiendaId) qs.set('tiendaId', state.tiendaId);
+    if (state.filtroContador) qs.set('filtroContador', state.filtroContador);
+    if (state.soloAtrasados) qs.set('soloAtrasados', '1');
+    if (state.busqueda) qs.set('busqueda', state.busqueda);
     try {
       const res = await fetch(`/api/vales/dashboard-gerencia?${qs.toString()}`);
       if (!res.ok) throw new Error('No se pudo cargar el dashboard.');
@@ -760,86 +786,138 @@
     }
   }
 
+  // El esqueleto (grid de contadores + sección de lista con su buscador) se
+  // construye UNA sola vez (`cont.dataset.wired`) — reconstruirlo en cada
+  // recarga destruiría el <input> de búsqueda y le haría perder el foco a
+  // cada tecleo. Los re-renders posteriores solo tocan los contadores y el
+  // <tbody> de la lista.
   function renderDashboardGerencia(data) {
     const cont = $('#dashboard-gerencia');
-    cont.innerHTML = `
-      <div class="contadores-grid">
-        <div class="contador-card">
-          <div class="valor">${data.total}</div>
-          <div class="etiqueta">Total vales</div>
+    if (!cont.dataset.wired) {
+      cont.innerHTML = `
+        <div class="contadores-grid" id="dashboard-contadores"></div>
+        <div class="dashboard-lista" id="dashboard-lista" style="display:none;">
+          <div class="buzon-toolbar">
+            <h2>Resultados</h2>
+            <div class="buzon-filtros">
+              <input type="text" id="dashboard-busqueda" placeholder="Buscar por correlativo o cliente..." />
+            </div>
+          </div>
+          <div class="tabla-wrapper">
+            <table class="buzon-table data-table sticky-header">
+              <thead>
+                <tr>
+                  <th>Correlativo</th>
+                  <th>Fecha Ingreso</th>
+                  <th>Fecha Entrega</th>
+                  <th>Atraso</th>
+                  <th>Fecha Evento</th>
+                  <th class="col-taller">Taller</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="dashboard-lista-tbody"></tbody>
+            </table>
+          </div>
         </div>
-        <div class="contador-card contador-alerta">
-          <div class="valor">${data.atrasados}</div>
-          <div class="etiqueta">Atrasados (${data.porcentajeAtrasados}%)</div>
-        </div>
-        <div class="contador-card">
-          <div class="valor">${data.entregadosATiempo}</div>
-          <div class="etiqueta">Entregados a tiempo</div>
-        </div>
-        <div class="contador-card">
-          <div class="valor">${data.porcentajeEntregadosATiempo}%</div>
-          <div class="etiqueta">% a tiempo (de ${data.terminados} recibidos)</div>
-        </div>
-      </div>
-      <div class="dashboard-charts">
-        <div class="chart-card">
-          <h3>Vales por estado</h3>
-          <canvas id="chart-por-estado"></canvas>
-        </div>
-        <div class="chart-card">
-          <h3>Vales por tienda</h3>
-          <canvas id="chart-por-tienda"></canvas>
-        </div>
-      </div>
-    `;
+      `;
+      let debounceBusquedaDash;
+      $('#dashboard-busqueda', cont).addEventListener('input', (e) => {
+        clearTimeout(debounceBusquedaDash);
+        const valor = e.target.value.trim();
+        debounceBusquedaDash = setTimeout(() => { state.busqueda = valor; cargarDashboardGerencia(); }, 300);
+      });
+      cont.dataset.wired = '1';
+    }
 
-    if (typeof Chart === 'undefined') return; // Chart.js no cargó (sin conexión, etc.) — las tarjetas ya se ven
+    renderDashboardContadores(data);
+    const hayListaActiva = !!state.filtroContador || state.soloAtrasados || !!state.busqueda;
+    $('#dashboard-lista', cont).style.display = hayListaActiva ? 'block' : 'none';
+    renderTablaDashboard(data.vales || []);
+  }
 
-    const tokenColor = (nombre, fallback) => {
-      const valor = getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
-      return valor || fallback;
-    };
-    const CLAVE_CSS_ESTADO = {
-      ESPERANDO_AUTORIZACION: 'espera-autorizacion', CREADO: 'creado', APROBADO_DEPARTAMENTO: 'aprobado-departamento',
-      PENDIENTE_CONFIRMACION: 'pendiente-confirmacion',
-      RECIBIDO: 'recibido', SOLICITANDO_MODIFICACION: 'solicitando-modificacion', MODIFICADO: 'modificado'
-    };
-    const estadosPresentes = Object.keys(data.porEstado);
+  function renderDashboardContadores(data) {
+    const grid = $('#dashboard-contadores');
+    grid.innerHTML = DASHBOARD_CONTADORES.map(c => {
+      const valor = data[c.key] ?? 0;
+      const pct = c.pctKey ? ` (${data[c.pctKey]}%)` : '';
+      const esClickeable = !!c.filtro || !!c.atrasadosGlobal;
+      const activo = c.atrasadosGlobal ? state.soloAtrasados : (c.filtro && state.filtroContador === c.filtro);
+      const clases = ['contador-card'];
+      if (c.alerta) clases.push('contador-alerta');
+      if (esClickeable) clases.push('contador-clickeable');
+      if (activo) clases.push('contador-activo');
+      return `
+        <div class="${clases.join(' ')}" data-filtro="${c.filtro || ''}" data-atrasados-global="${c.atrasadosGlobal ? '1' : ''}">
+          <div class="valor">${valor}</div>
+          <div class="etiqueta">${c.label}${pct}</div>
+        </div>`;
+    }).join('');
 
-    chartsGerencia.estado?.destroy();
-    chartsGerencia.estado = new Chart($('#chart-por-estado'), {
-      type: 'bar',
-      data: {
-        labels: estadosPresentes.map(e => ESTADOS_LABEL[e] || e),
-        datasets: [{
-          data: estadosPresentes.map(e => data.porEstado[e]),
-          backgroundColor: estadosPresentes.map(e => tokenColor(`--vale-estado-${CLAVE_CSS_ESTADO[e]}-bg`, '#E9E7EB')),
-          borderColor: estadosPresentes.map(e => tokenColor(`--vale-estado-${CLAVE_CSS_ESTADO[e]}-fg`, '#43474E')),
-          borderWidth: 1.5, borderRadius: 4
-        }]
-      },
-      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    $$('.contador-card', grid).forEach(card => {
+      const filtro = card.dataset.filtro;
+      const esAtrasadosGlobal = card.dataset.atrasadosGlobal === '1';
+      if (!filtro && !esAtrasadosGlobal) return;
+      card.addEventListener('click', () => {
+        if (esAtrasadosGlobal) {
+          state.soloAtrasados = !state.soloAtrasados;
+        } else {
+          state.filtroContador = state.filtroContador === filtro ? null : filtro;
+        }
+        cargarDashboardGerencia();
+      });
     });
+  }
 
-    chartsGerencia.tienda?.destroy();
-    chartsGerencia.tienda = new Chart($('#chart-por-tienda'), {
-      type: 'bar',
-      data: {
-        labels: data.porTienda.map(t => t.nombre),
-        datasets: [
-          {
-            label: 'Total', data: data.porTienda.map(t => t.total),
-            backgroundColor: tokenColor('--color-primary-light', '#EFF6FF'), borderColor: tokenColor('--color-primary', '#2563EB'),
-            borderWidth: 1.5, borderRadius: 4
-          },
-          {
-            label: 'Atrasados', data: data.porTienda.map(t => t.atrasados),
-            backgroundColor: tokenColor('--color-danger-bg', '#FEF2F2'), borderColor: tokenColor('--color-danger', '#DC2626'),
-            borderWidth: 1.5, borderRadius: 4
-          }
-        ]
-      },
-      options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  // Lista de drill-down: mismas columnas que el buzón normal, pero con un set
+  // de acciones FIJO (ver vale, ver propuesta si existe, ver historial) sin
+  // pasar por construirAcciones (que es por-rol y trae acciones de negocio
+  // que no aplican acá — esta lista es de solo lectura).
+  function renderTablaDashboard(vales) {
+    const tbody = $('#dashboard-lista-tbody');
+    if (!tbody) return;
+    if (vales.length === 0) {
+      tbody.innerHTML = `
+        <tr><td colspan="8" class="tabla-vacia">
+          <div class="buzon-vacio">
+            <ion-icon name="file-tray-outline"></ion-icon>
+            <h3>Sin resultados</h3>
+            <p>No hay vales de arte para este filtro en la ventana de tiempo actual.</p>
+          </div>
+        </td></tr>`;
+      return;
+    }
+    tbody.innerHTML = vales.map(v => `
+      <tr>
+        <td data-label="Correlativo"><strong>${v.correlativo}</strong>${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}</td>
+        <td data-label="Fecha Ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
+        <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
+        <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
+        <td data-label="Fecha Evento">${formatearFecha(v.fecha_evento)}</td>
+        <td data-label="Taller" class="col-taller">${celdaTaller(v)}</td>
+        <td data-label="Estado"><span class="estado-pill ${claseEstado(v)}">${etiquetaEstado(v)}</span></td>
+        <td data-label="Acciones" class="acciones-cell" data-vale-id="${v.id}"></td>
+      </tr>
+    `).join('');
+
+    vales.forEach(v => {
+      const cell = tbody.querySelector(`.acciones-cell[data-vale-id="${v.id}"]`);
+      const acciones = [
+        { icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') }
+      ];
+      if (v.propuesta_general_url) {
+        acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(`/${v.propuesta_general_url}`, '_blank') });
+      }
+      acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
+      acciones.forEach(accion => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-icon';
+        btn.title = accion.titulo;
+        btn.innerHTML = `<ion-icon name="${accion.icono}"></ion-icon>`;
+        btn.addEventListener('click', () => accion.onClick(v));
+        cell.appendChild(btn);
+      });
     });
   }
 
@@ -1891,9 +1969,9 @@
       title: `Revisar propuesta — ${vale.correlativo}`,
       bodyHtml: `
         <p style="margin-bottom:14px;font-size:13px;">
-          ${ultima && ultima.es_cancelacion
-            ? 'El técnico canceló el proceso y entregó una propuesta en blanco.'
-            : (ultima && ultima.url
+          ${!ultima
+            ? 'El técnico canceló el proceso — no hay propuesta que revisar.'
+            : (ultima.url
                 ? `<a href="/${ultima.url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta adjunta</a>`
                 : 'El técnico no adjuntó documento de propuesta (no se puede aprobar en blanco).')}
         </p>
@@ -2010,7 +2088,7 @@
     const filasPropuesta = (detalle.talleres || []).map(t => {
       const delTecnico = (detalle.propuestas || []).filter(p => p.tecnico_id === t.tecnico_id);
       const ultima = delTecnico[delTecnico.length - 1];
-      const url = ultima && !ultima.es_cancelacion ? ultima.url : null;
+      const url = ultima ? ultima.url : null;
       return `<li><strong>${t.taller_nombre}:</strong> ${url ? `<a href="/${url}" target="_blank">Ver propuesta</a>` : 'Sin propuesta'}</li>`;
     }).join('');
 

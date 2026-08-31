@@ -107,23 +107,14 @@ class ValePdfService {
     const imagenes = documentos.filter(d => d.tipo === 'imagen');
     const docsAdjuntos = documentos.filter(d => d.tipo === 'documento');
 
-    if (vale.modificado && vale.descripcion_original) {
-      // Orden: contenido original primero, bloque de modificación después (envuelto en
-      // marcadores al inicio y al final), documentos adjuntos al final de todo.
-      this._dibujarTituloBloque(ctx, 'BOCETO Y DESCRIPCIÓN');
-      this._dibujarTextoLargo(ctx, vale.descripcion_original);
-      await this._dibujarGridImagenes(ctx, imagenes.filter(i => !i.es_modificacion));
-
-      this._escribirLinea(ctx, '********** MODIFICACION **********', ctx.fontBold, 10);
-      this._dibujarTituloBloque(ctx, 'BOCETO Y DESCRIPCIÓN (MODIFICACIÓN)');
-      this._dibujarTextoLargo(ctx, vale.descripcion);
-      await this._dibujarGridImagenes(ctx, imagenes.filter(i => i.es_modificacion));
-      this._escribirLinea(ctx, '********** MODIFICACION **********', ctx.fontBold, 10);
-    } else {
-      this._dibujarTituloBloque(ctx, 'BOCETO Y DESCRIPCIÓN');
-      this._dibujarTextoLargo(ctx, vale.descripcion);
-      await this._dibujarGridImagenes(ctx, imagenes);
-    }
+    // analisis_correcciones_12.md #12: se quitó la rama "antes/después" que
+    // dependía de `vales.descripcion_original` — esa columna nunca se llegó a
+    // escribir en ningún flujo de modificación (código muerto: tenía lector
+    // acá pero ningún escritor), así que en la práctica esta función siempre
+    // terminaba corriendo este mismo camino.
+    this._dibujarTituloBloque(ctx, 'BOCETO Y DESCRIPCIÓN');
+    this._dibujarTextoLargo(ctx, vale.descripcion);
+    await this._dibujarGridImagenes(ctx, imagenes);
 
     // Fusionar documentos PDF adjuntos al final (nunca se re-almacenan, solo se copian sus páginas)
     for (const doc of docsAdjuntos) {

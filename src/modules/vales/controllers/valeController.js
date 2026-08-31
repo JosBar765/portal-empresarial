@@ -100,7 +100,10 @@ class ValeController {
         fecha: req.query.fecha,
         desde: req.query.desde,
         hasta: req.query.hasta,
-        tiendaId: req.query.tiendaId
+        tiendaId: req.query.tiendaId,
+        filtroContador: req.query.filtroContador,
+        soloAtrasados: req.query.soloAtrasados,
+        busqueda: req.query.busqueda
       };
       const data = await valeService.obtenerDashboardGerencia(req.user, filtros);
       return res.json(data);

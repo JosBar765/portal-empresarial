@@ -335,8 +335,18 @@ class ValeService {
       tallerRepository.listarActivos()
     ]);
     const solicitante = usuario ? await usuarioValeRepository.obtenerPorId(usuario.id) : null;
+    // analisis_correcciones_12.md #10 (Fase 2c): `tiendasGerencia` es el
+    // conjunto de tiendas que el filtro del dashboard le puede ofrecer a ESTE
+    // usuario — el catálogo completo para Administrador/Gerente, solo las de
+    // sus asesores cubiertos para el Supervisor (mismo alcance que su buzón).
+    let tiendasGerencia = tiendas;
+    if (usuario && usuario.rolId === 4) {
+      const asesores = await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id);
+      const idsTienda = new Set(asesores.map(a => a.tienda_id).filter(Boolean));
+      tiendasGerencia = tiendas.filter(t => idsTienda.has(t.id));
+    }
     // tecnicas/acabados ya no son catálogo (corrección #1: ahora son textbox libre).
-    return { tiendas, productos, materiales, paises, talleres, miTiendaId: (solicitante && solicitante.tienda_id) || null };
+    return { tiendas, productos, materiales, paises, talleres, miTiendaId: (solicitante && solicitante.tienda_id) || null, tiendasGerencia };
   }
 
   async obtenerTalleres() {
@@ -434,9 +444,6 @@ class ValeService {
     });
 
     await this._guardarAdjuntos(valeId, archivos, usuario.id, false);
-    if (archivos && archivos.documentos && archivos.documentos.length > 0) {
-      await valeRepository.actualizarTieneAdjuntos(valeId, true);
-    }
     const nombresTalleres = await this._nombresDeTalleres(datos.talleresIds);
     await registrarHistorial(valeId, usuario.id, null, null, ESTADOS.ESPERANDO_AUTORIZACION,
       `Vale de arte creado por el asesor — esperando autorización del Supervisor (taller${datos.talleresIds.length > 1 ? 'es' : ''} solicitado${datos.talleresIds.length > 1 ? 's' : ''}: ${nombresTalleres})`);
@@ -745,16 +752,13 @@ class ValeService {
     return { tipo: filtros.ventana || 'todo', fecha: filtros.fecha };
   }
 
-  async obtenerBuzon(usuario, filtros = {}) {
-    const ventana = this._resolverVentana(filtros);
-    const vista = filtros.vista === 'trabajo' ? 'trabajo' : 'buzon';
-    const filtroContador = filtros.filtroContador || null;
-    const todos = (await valeRepository.listarTodos()).map(enriquecer);
+  // Adjunta a cada vale el nombre legible de sus talleres (columna "Taller"
+  // del buzón, corrección #7) y sus filas crudas de `vale_talleres`
+  // (`_filasTaller`, usado por varias vistas para saber en cuántos talleres
+  // trabajó un vale). Compartido por `obtenerBuzon` y `obtenerDashboardGerencia`.
+  async _enriquecerConTaller(vales) {
     const talleresTodos = await tallerRepository.listarActivos();
     const valeTalleresTodos = await valeTallerRepository.listarTodos();
-
-    // Todos los roles con vista de taller necesitan el nombre de los talleres de
-    // cada vale (columna "Taller" del asesor, corrección #7); se adjunta una vez.
     const mapaTalleresPorVale = new Map();
     valeTalleresTodos.forEach(vt => {
       const lista = mapaTalleresPorVale.get(vt.vale_id) || [];
@@ -762,10 +766,20 @@ class ValeService {
       mapaTalleresPorVale.set(vt.vale_id, lista);
     });
     const nombreTaller = (id) => (talleresTodos.find(t => t.id === id) || {}).nombre || `#${id}`;
-    let todosConTaller = todos.map(v => {
+    return vales.map(v => {
       const filas = mapaTalleresPorVale.get(v.id) || [];
       return { ...v, taller: filas.map(f => nombreTaller(f.taller_id)).join(', '), _filasTaller: filas };
     });
+  }
+
+  async obtenerBuzon(usuario, filtros = {}) {
+    const ventana = this._resolverVentana(filtros);
+    const vista = filtros.vista === 'trabajo' ? 'trabajo' : 'buzon';
+    const filtroContador = filtros.filtroContador || null;
+    const todos = (await valeRepository.listarTodos()).map(enriquecer);
+    const talleresTodos = await tallerRepository.listarActivos();
+    const valeTalleresTodos = await valeTallerRepository.listarTodos();
+    let todosConTaller = await this._enriquecerConTaller(todos);
 
     // Filtro por tienda (analisis_correcciones_7.md, Vista Gerencia): solo lo
     // manda el frontend de Gerencia (y, opcionalmente, Administrador) para acotar
@@ -915,50 +929,66 @@ class ValeService {
   // acota por las tiendas que cubre un Supervisor — eso y el rediseño de
   // contadores/listas de drill-down son la fase 2c.
   // -----------------------------------------------------------------------
+  // analisis_correcciones_12.md #10: rediseño completo (Fase 2c) — 4
+  // contadores con drill-down (Modificados/Recibidos/En Progreso/Atrasados,
+  // el último combinable con cualquiera de los otros tres, mismo patrón que
+  // `soloAtrasados` en `obtenerBuzon`) + Total sin función de lista. Sin
+  // gráficas ni desglose por tienda: se quitan `porEstado`/`porTienda`. El
+  // Supervisor comparte este dashboard con el Gerente, acotado a los
+  // asesores que cubre (mismo alcance que su propio buzón).
   async obtenerDashboardGerencia(usuario, filtros = {}) {
     const ventana = this._resolverVentana(filtros);
-    const todos = (await valeRepository.listarTodos()).map(enriquecer);
-    const tiendas = await catalogoRepository.listarTiendas();
+    let todos = (await valeRepository.listarTodos()).map(enriquecer);
+
+    if (usuario.rolId === 4) {
+      const asesorIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
+      todos = todos.filter(v => asesorIds.has(v.asesor_id));
+    }
+    todos = await this._enriquecerConTaller(todos);
 
     const base = filtros.tiendaId
       ? todos.filter(v => v.tienda_id === Number(filtros.tiendaId))
       : todos;
     const enVentana = base.filter(v => dentroDeVentana(v, ventana));
 
+    // Estados lógicos del punto 10: un vale de modificación
+    // (esValeDeModificacion, ya usado por estadoVisibleAsesor) manda sobre
+    // "recibido" — el original que ya usó su modificación se cuenta como
+    // Modificado, no Recibido, aunque su estado real siga siendo RECIBIDO.
+    const clasificar = (v) => esValeDeModificacion(v) ? 'modificados'
+      : v.estado === ESTADOS.RECIBIDO ? 'recibidos'
+      : 'enProgreso';
+
     const total = enVentana.length;
+    const contarClase = (clave) => enVentana.filter(v => clasificar(v) === clave).length;
+    const modificados = contarClase('modificados');
+    const recibidos = contarClase('recibidos');
+    const enProgreso = contarClase('enProgreso');
     const atrasados = enVentana.filter(v => v.atrasado).length;
-    // El atraso de un vale ya RECIBIDO queda congelado (ver calcularAtraso) — por
-    // eso "entregados a tiempo/con atraso" se mide solo sobre los ya terminados,
-    // no sobre los que todavía están en proceso (esos cuentan en "atrasados" arriba,
-    // pero su atraso sigue corriendo, no es un resultado final todavía).
-    const terminados = enVentana.filter(v => ESTADOS_TERMINALES.includes(v.estado));
-    const entregadosATiempo = terminados.filter(v => !v.atrasado).length;
-    const entregadosAtrasados = terminados.filter(v => v.atrasado).length;
+    const pct = (n) => total ? Math.round((n / total) * 100) : 0;
 
-    const porEstado = {};
-    enVentana.forEach(v => { porEstado[v.estado] = (porEstado[v.estado] || 0) + 1; });
-
-    const porTienda = tiendas.map(t => {
-      const delGrupo = enVentana.filter(v => v.tienda_id === t.id);
-      return {
-        tiendaId: t.id,
-        nombre: t.nombre,
-        codigo: t.codigo,
-        total: delGrupo.length,
-        atrasados: delGrupo.filter(v => v.atrasado).length
-      };
-    });
+    // Drill-down: la lista solo se arma si hay algo activo (contador, atraso
+    // combinable, o búsqueda) — nunca por defecto. No se actualiza en tiempo
+    // real (eso es exclusivo del buzón, ver initSocket en el frontend).
+    const filtroContador = ['modificados', 'recibidos', 'enProgreso'].includes(filtros.filtroContador) ? filtros.filtroContador : null;
+    const soloAtrasados = ['1', 'true', true].includes(filtros.soloAtrasados);
+    const busqueda = String(filtros.busqueda || '').trim().toLowerCase();
+    let vales = [];
+    if (filtroContador || soloAtrasados || busqueda) {
+      let lista = enVentana;
+      if (filtroContador) lista = lista.filter(v => clasificar(v) === filtroContador);
+      if (soloAtrasados) lista = lista.filter(v => v.atrasado);
+      if (busqueda) lista = lista.filter(v => `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase().includes(busqueda));
+      vales = ordenarPorGrupos(lista, [v => v.atrasado]);
+    }
 
     return {
-      total,
-      atrasados,
-      porcentajeAtrasados: total ? Math.round((atrasados / total) * 100) : 0,
-      terminados: terminados.length,
-      entregadosATiempo,
-      entregadosAtrasados,
-      porcentajeEntregadosATiempo: terminados.length ? Math.round((entregadosATiempo / terminados.length) * 100) : 0,
-      porEstado,
-      porTienda
+      total, modificados, recibidos, enProgreso, atrasados,
+      porcentajeModificados: pct(modificados),
+      porcentajeRecibidos: pct(recibidos),
+      porcentajeEnProgreso: pct(enProgreso),
+      porcentajeAtrasados: pct(atrasados),
+      vales
     };
   }
 
@@ -1257,7 +1287,7 @@ class ValeService {
     const conPropuesta = await Promise.all(enVentana.map(async v => {
       const fila = mapaFilaPorVale.get(v.id);
       const propuesta = fila.tecnico_id ? await propuestaRepository.obtenerUltimaPorValeYTecnico(v.id, fila.tecnico_id) : null;
-      const propuestaTallerUrl = propuesta && !propuesta.es_cancelacion ? propuesta.url : null;
+      const propuestaTallerUrl = propuesta ? propuesta.url : null;
       return { ...v, estado_taller: ESTADOS_TALLER.APROBADO, propuesta_taller_url: propuestaTallerUrl };
     }));
 
@@ -1395,7 +1425,7 @@ class ValeService {
       const vale = await valeRepository.obtenerPorId(a.vale_id);
       if (!vale) return null;
       const propuesta = await propuestaRepository.obtenerUltimaPorValeYTecnico(a.vale_id, usuario.id);
-      const propuestaTallerUrl = propuesta && !propuesta.es_cancelacion ? propuesta.url : null;
+      const propuestaTallerUrl = propuesta ? propuesta.url : null;
       return { ...enriquecer(vale), propuesta_taller_url: propuestaTallerUrl };
     })))
       .filter(Boolean)
@@ -1511,7 +1541,7 @@ class ValeService {
         const saved = await fileStorage.saveFile(archivoPropuesta.buffer, archivoPropuesta.originalname, archivoPropuesta.mimetype);
         url = saved.path;
       }
-      await propuestaRepository.crear(valeId, usuario.id, url, false, `${hoyISO()} ${horaActual()}`);
+      await propuestaRepository.crear(valeId, usuario.id, url);
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_REVISION);
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, 'Técnico entregó propuesta');
       const actualizado = await valeRepository.obtenerPorId(valeId);
@@ -1531,12 +1561,15 @@ class ValeService {
       if (fila.estado !== ESTADOS_TALLER.EN_PROCESO) {
         throw new Error('Solo se puede cancelar un vale que esté EN_PROCESO en su taller.');
       }
-      await propuestaRepository.crear(valeId, usuario.id, null, true, `${hoyISO()} ${horaActual()}`);
+      // analisis_correcciones_12.md #12: la cancelación ya no crea una fila
+      // "en blanco" en vale_propuestas — el registro de auditoría de este
+      // evento vive únicamente en vale_historial, igual que cualquier otra
+      // transición de estado.
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_REVISION);
-      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, 'Técnico canceló el proceso (propuesta en blanco)');
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, 'Técnico canceló el proceso');
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
-        vale: actualizado, accion: 'entregado (propuesta en blanco)', actor: usuario.nombre, actorId: usuario.id,
+        vale: actualizado, accion: 'canceló su proceso', actor: usuario.nombre, actorId: usuario.id,
         salas: [`taller:${fila.taller_id}`, `tecnico:${usuario.id}`], nivel: 'alerta'
       });
       return enriquecer(actualizado);
@@ -1552,7 +1585,7 @@ class ValeService {
       }
       if (aprobar) {
         const ultimaPropuesta = await propuestaRepository.obtenerUltimaPorValeYTecnico(valeId, fila.tecnico_id);
-        if (!ultimaPropuesta || ultimaPropuesta.es_cancelacion || !ultimaPropuesta.url) {
+        if (!ultimaPropuesta || !ultimaPropuesta.url) {
           throw new Error('No se puede aprobar una propuesta en blanco: el técnico debe adjuntar el documento de propuesta.');
         }
         await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.APROBADO);

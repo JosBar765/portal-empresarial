@@ -21,14 +21,6 @@ class CatalogoRepository {
     return db.query('SELECT id, nombre FROM vale_materiales WHERE activo = 1 ORDER BY nombre', [], 'catalog:materiales');
   }
 
-  async listarTecnicas() {
-    return db.query('SELECT id, nombre FROM vale_tecnicas WHERE activo = 1 ORDER BY nombre', [], 'catalog:tecnicas');
-  }
-
-  async listarAcabados() {
-    return db.query('SELECT id, nombre FROM vale_acabados WHERE activo = 1 ORDER BY nombre', [], 'catalog:acabados');
-  }
-
   async listarPaises() {
     return db.query('SELECT id, codigo, nombre, codigo_telefono FROM paises ORDER BY nombre', [], 'catalog:paises');
   }

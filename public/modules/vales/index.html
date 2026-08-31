@@ -9,8 +9,6 @@
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
   <script src="/socket.io/socket.io.js"></script>
-  <!-- Solo usado por el Dashboard de Gerencia (analisis_correcciones_7.md) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -70,6 +68,13 @@
     <button class="sidebar-item" id="sidebar-item-secundario" data-vista="trabajo">
       <ion-icon name="checkmark-done-circle-outline"></ion-icon>
       <span>Trabajo realizado</span>
+    </button>
+    <!-- Solo Supervisor de Ventas (analisis_correcciones_12.md #10, Fase 2c):
+         entrada extra al dashboard de Gerencia, además de sus otros dos
+         botones — a diferencia del Gerente, que los reemplaza. -->
+    <button class="sidebar-item" id="sidebar-item-terciario" data-vista="dashboard" style="display:none;">
+      <ion-icon name="bar-chart-outline"></ion-icon>
+      <span>Dashboard</span>
     </button>
     <button class="sidebar-collapse-toggle" id="sidebar-collapse-toggle" type="button" title="Colapsar menú">
       <ion-icon name="chevron-back-outline"></ion-icon>

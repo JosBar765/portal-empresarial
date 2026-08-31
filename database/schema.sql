@@ -9,13 +9,14 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- -------------------------------------------------------------------------
 -- 1. Catálogo de Países
 -- -------------------------------------------------------------------------
+-- analisis_correcciones_12.md #12: se quitaron `moneda_codigo`/`moneda_simbolo`
+-- — se sembraban pero ninguna consulta los seleccionaba jamás (la cotización
+-- del vale siempre se muestra en Quetzales, sin importar el país de la tienda).
 CREATE TABLE IF NOT EXISTS `paises` (
   `id`              INT AUTO_INCREMENT PRIMARY KEY,
   `codigo`          VARCHAR(2)   NOT NULL UNIQUE COMMENT 'Código ISO (GT, SV, HN, NI, CR, BZ)',
   `nombre`          VARCHAR(100) NOT NULL,
-  `codigo_telefono` VARCHAR(5)  DEFAULT NULL,
-  `moneda_codigo`   VARCHAR(3)  DEFAULT NULL,
-  `moneda_simbolo`  VARCHAR(5)  DEFAULT NULL
+  `codigo_telefono` VARCHAR(5)  DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------------------------------------------------------------
@@ -75,28 +76,17 @@ CREATE TABLE IF NOT EXISTS `usuarios` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------------------------------------------------------------
--- 6. Pivot Usuario ↔ País (Filtro geográfico de operación)
--- -------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `usuario_paises` (
-  `usuario_id` INT NOT NULL,
-  `pais_id`    INT NOT NULL,
-  PRIMARY KEY (`usuario_id`, `pais_id`),
-  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  FOREIGN KEY (`pais_id`)    REFERENCES `paises`   (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- -------------------------------------------------------------------------
--- 7. Datos de Semilla (Seeds iniciales)
+-- 6. Datos de Semilla (Seeds iniciales)
 -- -------------------------------------------------------------------------
 
 -- Países
-INSERT INTO `paises` (`codigo`, `nombre`, `codigo_telefono`, `moneda_codigo`, `moneda_simbolo`) VALUES
-('GT', 'Guatemala', '+502', 'GTQ', 'Q'),
-('SV', 'El Salvador', '+503', 'USD', '$'),
-('HN', 'Honduras', '+504', 'HNL', 'L'),
-('NI', 'Nicaragua', '+505', 'NIO', 'C$'),
-('CR', 'Costa Rica', '+506', 'CRC', '₡'),
-('BZ', 'Belice', '+501', 'BZD', 'BZ$');
+INSERT INTO `paises` (`codigo`, `nombre`, `codigo_telefono`) VALUES
+('GT', 'Guatemala', '+502'),
+('SV', 'El Salvador', '+503'),
+('HN', 'Honduras', '+504'),
+('NI', 'Nicaragua', '+505'),
+('CR', 'Costa Rica', '+506'),
+('BZ', 'Belice', '+501');
 
 -- Roles
 -- analisis_correcciones_12.md #3: descripciones en términos de la FUNCIÓN de la
@@ -231,27 +221,8 @@ INSERT INTO `usuarios` (`id`, `nombre`, `email`, `telefono`, `password_hash`, `r
 -- así lo lista el documento fuente, cubriendo un alcance más puntual.
 (24, 'Victor Tobar', 'costarica@grupopremia.com', NULL, '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 4, NULL, NULL);
 
--- Asignación de países a usuarios
-INSERT INTO `usuario_paises` (`usuario_id`, `pais_id`) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), -- Admin opera en todos
-(2, 1), -- Diseñador opera en GT
-(3, 1), (3, 2), -- Ventas opera en GT y SV
-(4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1), (10, 1), (11, 1),
-(12, 1), (12, 2), (12, 3), (12, 4), (12, 5), (12, 6), -- Gerente ve métricas de todas las tiendas/países
--- Supervisores/gerentes reales (analisis_correcciones_12.md #10), según los países
--- de las tiendas que cubren
-(13, 1), (14, 1), (15, 1), -- Munditrofeos / Premia Z13: Guatemala
-(16, 2), (16, 3), (16, 4), (16, 5), -- Juan Carlos Paniagua: toda Centroamérica
-(17, 2), (17, 3), (17, 4), (17, 5), -- Victor Tobar (regional): toda Centroamérica
-(18, 1), (19, 1), -- Emilio Morales / Pablo Orellana: Trofex, Guatemala
-(20, 2), -- Carla Gonzáles: El Salvador
-(21, 3), -- Brian Medina: Honduras
-(22, 3), -- Velky Cuevas: Honduras
-(23, 4), -- Stefany Luna: Nicaragua
-(24, 5); -- Victor Tobar (Costa Rica)
-
 -- -------------------------------------------------------------------------
--- 8. Estructura organizacional (analisis_correcciones_12.md #10)
+-- 7. Estructura organizacional (analisis_correcciones_12.md #10)
 -- -------------------------------------------------------------------------
 -- Jerarquía real de la empresa: departamento -> subdivisión (opcional) -> tienda.
 -- Reemplaza la antigua tabla plana `localidades` (3 filas de demostración,
@@ -312,7 +283,7 @@ CREATE TABLE IF NOT EXISTS `supervisor_asignaciones` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------------------------------------------------------------
--- 9. Módulo Vales de Arte
+-- 8. Módulo Vales de Arte
 -- -------------------------------------------------------------------------
 
 -- Catálogos del formulario de vale de arte (combobox)
@@ -329,28 +300,12 @@ CREATE TABLE IF NOT EXISTS `vale_materiales` (
   `activo` TINYINT(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `vale_tecnicas` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `nombre` VARCHAR(100) NOT NULL,
-  `activo` TINYINT(1) NOT NULL DEFAULT 1
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `vale_acabados` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `nombre` VARCHAR(100) NOT NULL,
-  `activo` TINYINT(1) NOT NULL DEFAULT 1
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Límite diario de vales por asesor
-CREATE TABLE IF NOT EXISTS `asesor_limites` (
-  `id`              INT AUTO_INCREMENT PRIMARY KEY,
-  `asesor_id`       INT NOT NULL,
-  `limite_diario`   INT NOT NULL DEFAULT 6,
-  `activo`          TINYINT(1) NOT NULL DEFAULT 1,
-  `creado_en`       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `actualizado_en`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (`asesor_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- analisis_correcciones_12.md #12: se quitaron `vale_tecnicas`/`vale_acabados`
+-- (desde analisis_correcciones_3.md, "técnica"/"acabado" del formulario son
+-- texto libre — ningún código las volvía a consultar, ver
+-- catalogoRepository.js) y `asesor_limites` (desde analisis_correcciones_10.md
+-- #11 el límite diario es colectivo del Supervisor, calculado en vivo — esta
+-- tabla quedó huérfana, ni se lee ni se escribe).
 
 -- Talleres/departamentos a los que un asesor puede dirigir un vale de arte.
 -- Cada taller tiene un único encargado dueño (el que asigna técnicos y revisa
@@ -383,6 +338,13 @@ CREATE TABLE IF NOT EXISTS `talleres` (
 -- El progreso interno por taller (asignación/proceso/revisión) vive en `vale_talleres`,
 -- no aquí — un vale con 2+ talleres puede tener uno EN_PROCESO y otro recién CREADO
 -- a la vez, algo que una sola columna de estado no puede representar.
+-- analisis_correcciones_12.md #12: se quitaron 3 columnas muertas —
+-- `descripcion_original` (tenía lector en valePdfService.js pero ningún
+-- escritor: nunca se implementó realmente el snapshot "antes/después" en el
+-- PDF de una modificación), `tiene_adjuntos` (se escribía al crear pero nunca
+-- se leía en ningún lado) y `justificacion_modificacion` (siempre quedaba
+-- NULL — la justificación real vive en `vale_solicitudes_modificacion.justificacion`
+-- y se copia a `descripcion` del vale MOD- nuevo).
 CREATE TABLE IF NOT EXISTS `vales` (
   `id`                          INT AUTO_INCREMENT PRIMARY KEY,
   `correlativo`                 VARCHAR(60) NOT NULL UNIQUE COMMENT 'Estructura: [MOD-]TIENDA-INICIALES-00001 (código de tienda + iniciales del asesor + 5 dígitos: analisis_correcciones_12.md #13). Los correlativos históricos previos a esta fase (ej. GUA-3-0001) no se renumeran.',
@@ -408,13 +370,10 @@ CREATE TABLE IF NOT EXISTS `vales` (
   `cotizacion`                   DECIMAL(10,2) NOT NULL,
   -- Boceto y descripción
   `descripcion`                  TEXT,
-  `descripcion_original`         TEXT DEFAULT NULL COMMENT 'Snapshot de la descripción previa a la única modificación permitida',
   `pdf_url`                      TEXT DEFAULT NULL COMMENT 'URL del PDF generado, nunca se guarda el binario en BD',
-  `tiene_adjuntos`               TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Marcado manualmente por el técnico al imprimir; ya no se calcula',
   `propuesta_general_url`        TEXT DEFAULT NULL COMMENT 'Documento final "oficial" del vale: la propuesta del único taller si hubo uno solo, o el documento de fusión subido por el Encargado General si hubo varios (analisis_correcciones_4.md #1/#11)',
   -- Control de Modificaciones
   `modificado`                   INT NOT NULL DEFAULT 0 COMMENT 'Máx 1 permitida',
-  `justificacion_modificacion`   TEXT DEFAULT NULL,
   `atraso_congelado_en`          DATETIME DEFAULT NULL COMMENT 'Snapshot fijado la primera vez que el vale se confirma de recibido o se aprueba su modificación; el atraso deja de recalcularse en vivo aunque el estado luego cambie (ej. SOLICITANDO_MODIFICACION) — analisis_correcciones_8.md #7',
   `atraso_notificado_en`         DATETIME DEFAULT NULL COMMENT 'Sellado por el vigilante de atraso (atrasoWatcher) la primera vez que notifica el atraso de este vale, para no repetir la alerta (analisis_correcciones_10.md #10)',
   -- analisis_correcciones_10.md #5: talleres elegidos por el asesor al crear, en
@@ -501,13 +460,18 @@ CREATE TABLE IF NOT EXISTS `vale_solicitudes_modificacion` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Propuestas entregadas por un técnico para revisión del encargado
+-- analisis_correcciones_12.md #12: se quitó `es_cancelacion` — cada cancelación
+-- de un técnico (cancelarProcesoTecnico) insertaba una fila "en blanco" solo
+-- para dejar constancia, cuando ese evento ya se registra en `vale_historial`
+-- (que es justo la tabla de auditoría, no esta). Esta tabla queda reservada
+-- solo para propuestas reales con documento. También se quitó `fecha_subida`
+-- — la app siempre la llenaba con "ahora mismo" en el momento del INSERT,
+-- exactamente lo que ya captura `creado_en` (dependencia transitiva).
 CREATE TABLE IF NOT EXISTS `vale_propuestas` (
   `id`             INT AUTO_INCREMENT PRIMARY KEY,
   `vale_id`        INT NOT NULL,
   `tecnico_id`     INT NOT NULL,
-  `url`            TEXT DEFAULT NULL COMMENT 'URL del documento de propuesta; NULL si fue una cancelación en blanco',
-  `es_cancelacion` TINYINT(1) NOT NULL DEFAULT 0,
-  `fecha_subida`   DATETIME NOT NULL,
+  `url`            TEXT DEFAULT NULL COMMENT 'URL del documento de propuesta',
   `creado_en`      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`tecnico_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -553,7 +517,7 @@ CREATE TABLE IF NOT EXISTS `vale_historial` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------------------------------------------------------------
--- 10. Semillas del Módulo Vales de Arte
+-- 9. Semillas del Módulo Vales de Arte
 -- -------------------------------------------------------------------------
 
 -- Departamentos y subdivisiones (analisis_correcciones_12.md #10) — jerarquía
@@ -666,15 +630,6 @@ INSERT INTO `vale_productos` (`id`, `codigo`, `nombre`) VALUES
 INSERT INTO `vale_materiales` (`id`, `nombre`) VALUES
 (1, 'Acrílico'), (2, 'Metal'), (3, 'Madera'), (4, 'Cristal');
 
-INSERT INTO `vale_tecnicas` (`id`, `nombre`) VALUES
-(1, 'Grabado Láser'), (2, 'Sublimación'), (3, 'Impresión UV'), (4, 'Vinil de Corte');
-
-INSERT INTO `vale_acabados` (`id`, `nombre`) VALUES
-(1, 'Brillante'), (2, 'Mate'), (3, 'Satinado');
-
-INSERT INTO `asesor_limites` (`asesor_id`, `limite_diario`) VALUES
-(3, 6);
-
 -- Encargados y técnicos mockup de los talleres nuevos (analisis_correcciones_12.md
 -- #11): Protextil (toda la empresa) + un Diseño Local por cada tienda que lo
 -- tiene (todas menos MTC, MTS y las 14 tiendas Trofex — quedan 11: ids de
@@ -764,15 +719,15 @@ INSERT INTO `vale_talleres` (`vale_id`, `taller_id`, `tecnico_id`, `estado`, `fe
 -- de "reenvío" aparte) — nace con su fila igual que un vale nuevo autorizado.
 (12, 1, NULL, 'PENDIENTE_ASIGNACION', NULL, 1);
 
-INSERT INTO `vale_propuestas` (`vale_id`, `tecnico_id`, `url`, `es_cancelacion`, `fecha_subida`) VALUES
-(4, 8, NULL, 0, '2026-08-17 16:00:00'),
-(5, 9, NULL, 0, '2026-08-15 12:00:00'),
-(6, 7, NULL, 0, '2026-08-12 09:00:00'),
-(6, 9, NULL, 0, '2026-08-12 10:00:00'),
-(7, 8, NULL, 0, '2026-08-15 10:00:00'),
-(8, 7, NULL, 0, '2026-08-11 09:00:00'),
-(9, 8, NULL, 0, '2026-08-10 09:00:00'),
-(10, 7, NULL, 0, '2026-08-06 09:00:00');
+INSERT INTO `vale_propuestas` (`vale_id`, `tecnico_id`, `url`) VALUES
+(4, 8, NULL),
+(5, 9, NULL),
+(6, 7, NULL),
+(6, 9, NULL),
+(7, 8, NULL),
+(8, 7, NULL),
+(9, 8, NULL),
+(10, 7, NULL);
 
 INSERT INTO `vale_solicitudes_modificacion` (`vale_original_id`, `asesor_id`, `fecha_entrega`, `fecha_evento`, `urgente`, `cliente_empresa`, `cliente_nombre`, `cliente_telefono`, `cliente_correo`, `producto_id`, `material_id`, `tecnica`, `acabado`, `cantidad`, `cotizacion`, `talleres_ids`, `justificacion`, `estado`) VALUES
 (10, 3, '2026-08-08 17:00:00', '2026-08-09 09:00:00', 0, 'Club Deportivo Antigua', 'Roberto Mejía', '+502 5555-1010', 'roberto.mejia@cdantigua.com', 1, 1, 'Grabado Láser', 'Mate', 80, 2500.00, '1', 'El cliente pidió cambiar el acabado de brillante a mate.', 'PENDIENTE'),
