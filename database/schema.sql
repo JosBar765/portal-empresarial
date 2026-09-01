@@ -67,6 +67,14 @@ CREATE TABLE IF NOT EXISTS `usuarios` (
   `activo`            TINYINT(1)   NOT NULL DEFAULT 1,
   `intentos_fallidos` INT          NOT NULL DEFAULT 0,
   `bloqueado_hasta`   DATETIME     DEFAULT NULL,
+  -- analisis_correcciones_13.md #6 (Vista Administrador, pestaña "Actividad de
+  -- Usuarios"): rastro de presencia. `sesion_iniciada_en` se sella en el login
+  -- y se limpia en el logout; `ultima_actividad_en` se refresca desde un
+  -- middleware liviano (throttleado) en cada request autenticado.
+  `sesion_iniciada_en`  DATETIME     DEFAULT NULL,
+  `ultima_actividad_en` DATETIME     DEFAULT NULL,
+  `ultima_ip`           VARCHAR(45)  DEFAULT NULL,
+  `ultima_ciudad`       VARCHAR(100) DEFAULT NULL,
   `creado_en`         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `actualizado_en`    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`rol_id`) REFERENCES `roles` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -256,6 +264,9 @@ CREATE TABLE IF NOT EXISTS `tiendas` (
   `pais_id`         INT DEFAULT NULL,
   `departamento_id` INT NOT NULL,
   `subdivision_id`  INT DEFAULT NULL COMMENT 'NULL si el departamento no tiene subdivisiones (ej. Premia Z13)',
+  -- analisis_correcciones_13.md #6: orden manual del catálogo, editable desde
+  -- el modal "Ordenar" de la Vista Administrador.
+  `orden`           INT NOT NULL DEFAULT 0,
   `activo`          TINYINT(1) NOT NULL DEFAULT 1,
   FOREIGN KEY (`pais_id`) REFERENCES `paises` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   FOREIGN KEY (`departamento_id`) REFERENCES `departamentos` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -270,16 +281,25 @@ CREATE TABLE IF NOT EXISTS `tiendas` (
 -- misma tienda a la vez (ver dos filas para "Ventas Centroamérica, todas las
 -- subdivisiones" en la semilla) — todo lo que antes asumía "el supervisor" de
 -- un asesor ahora opera sobre el CONJUNTO de supervisores que lo cubren.
+-- analisis_correcciones_13.md #6: la Vista Administrador pide asignar un
+-- supervisor a "varias tiendas" puntuales, un nivel más fino que
+-- departamento/subdivisión. Se agrega `tienda_id` (nullable): una fila cubre
+-- POR DEPARTAMENTO (`departamento_id` seteado, `tienda_id` NULL) o POR TIENDA
+-- PUNTUAL (`tienda_id` seteado, `departamento_id`/`subdivision_id` NULL) —
+-- nunca ambas cosas a la vez. Las filas existentes (todas por departamento)
+-- siguen funcionando igual.
 CREATE TABLE IF NOT EXISTS `supervisor_asignaciones` (
   `id`              INT AUTO_INCREMENT PRIMARY KEY,
   `usuario_id`      INT NOT NULL,
-  `departamento_id` INT NOT NULL,
+  `departamento_id` INT DEFAULT NULL COMMENT 'NULL cuando la cobertura es por tienda puntual (ver tienda_id)',
   `subdivision_id`  INT DEFAULT NULL COMMENT 'NULL = cubre todas las subdivisiones de este departamento',
+  `tienda_id`       INT DEFAULT NULL COMMENT 'Cobertura de UNA tienda puntual, alternativa a departamento_id/subdivision_id',
   `activo`          TINYINT(1) NOT NULL DEFAULT 1,
   FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`departamento_id`) REFERENCES `departamentos` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`subdivision_id`) REFERENCES `subdivisiones` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  UNIQUE KEY `uq_supervisor_scope` (`usuario_id`, `departamento_id`, `subdivision_id`)
+  FOREIGN KEY (`tienda_id`) REFERENCES `tiendas` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  UNIQUE KEY `uq_supervisor_scope` (`usuario_id`, `departamento_id`, `subdivision_id`, `tienda_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------------------------------------------------------------
@@ -796,5 +816,23 @@ UPDATE `vales` SET `autorizado_por` = 4, `autorizado_en` = '2026-08-20 11:00:00'
 -- desactiva el usuario semilla (rol 8, ya sin permisos) en vez de borrarlo,
 -- para no romper las FKs de `vale_historial` que ya lo referencian.
 UPDATE `usuarios` SET `activo` = 0 WHERE `id` = 10;
+
+-- Orden inicial del catálogo de tiendas = orden de sus ids (analisis_correcciones_13.md #6).
+UPDATE `tiendas` SET `orden` = `id`;
+
+-- -------------------------------------------------------------------------
+-- 10. Vista Administrador (analisis_correcciones_13.md #6)
+-- -------------------------------------------------------------------------
+-- Fila única (id fijo = 1) con el estado del Modo Mantenimiento del portal.
+CREATE TABLE IF NOT EXISTS `mantenimiento_config` (
+  `id`           TINYINT PRIMARY KEY DEFAULT 1,
+  `activo`       TINYINT(1) NOT NULL DEFAULT 0,
+  `mensaje`      VARCHAR(500) DEFAULT NULL,
+  `activado_por` INT DEFAULT NULL,
+  `activado_en`  DATETIME DEFAULT NULL,
+  FOREIGN KEY (`activado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `mantenimiento_config` (`id`, `activo`, `mensaje`) VALUES (1, 0, NULL);
 
 SET FOREIGN_KEY_CHECKS = 1;

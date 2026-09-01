@@ -6,8 +6,10 @@ const config = require('./config/env');
 const authRoutes = require('./core/auth/authRoutes');
 const jwtHelper = require('./core/auth/jwtHelper');
 const { authenticateJWT, requireAuth } = require('./core/permissions/permissionMiddleware');
+const maintenanceGate = require('./core/permissions/maintenanceMiddleware');
 const valeRoutes = require('./modules/vales/routes');
 const atrasoWatcher = require('./modules/vales/atrasoWatcher');
+const adminRoutes = require('./modules/admin/routes');
 
 const app = express();
 
@@ -33,7 +35,9 @@ app.use('/login', (req, res, next) => {
   const token = req.cookies ? req.cookies.token : null;
   const decoded = token ? jwtHelper.verifyToken(token) : null;
   if (decoded) {
-    return res.redirect('/dashboard/');
+    // analisis_correcciones_13.md #6: la Vista Administrador reemplaza al
+    // dashboard de módulos SOLO para el Administrador — su "inicio" es el panel.
+    return res.redirect(decoded.rolId === 1 ? '/modules/admin/' : '/dashboard/');
   }
   next();
 });
@@ -47,9 +51,10 @@ app.use('/api/auth', authRoutes);
 app.get('/', (req, res) => {
   const token = req.cookies ? req.cookies.token : null;
   const decoded = token ? jwtHelper.verifyToken(token) : null;
-  
+
   if (decoded) {
-    return res.redirect('/dashboard/');
+    // analisis_correcciones_13.md #6: el Administrador cae directo al panel.
+    return res.redirect(decoded.rolId === 1 ? '/modules/admin/' : '/dashboard/');
   }
   return res.redirect('/login/');
 });
@@ -64,10 +69,24 @@ app.get('/login', (req, res) => {
 // -------------------------------------------------------------------------
 app.use(authenticateJWT);
 
+// analisis_correcciones_13.md #6: gate de Modo Mantenimiento — corre justo
+// después de establecerse req.user, antes de cualquier recurso protegido.
+app.use(maintenanceGate);
+
 // -------------------------------------------------------------------------
 // 3. Recursos Protegidos (Requieren JWT válido, interceptados por authenticateJWT)
 // -------------------------------------------------------------------------
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// analisis_correcciones_13.md #6: el Administrador tiene su propio panel en
+// vez del dashboard de módulos — si escribe /dashboard/ a mano, se le
+// redirige al panel salvo que pida explícitamente ver los módulos.
+app.use('/dashboard', (req, res, next) => {
+  if (req.user.rolId === 1 && req.query.vista !== 'modulos') {
+    return res.redirect('/modules/admin/');
+  }
+  next();
+});
 
 // Servir la carpeta de vistas protegidas del dashboard
 app.use('/dashboard', express.static(path.join(__dirname, '../public/dashboard')));
@@ -77,6 +96,9 @@ app.use('/modules', express.static(path.join(__dirname, '../public/modules')));
 
 // Rutas de API del módulo Vales de Arte
 app.use('/api/vales', requireAuth, valeRoutes);
+
+// Rutas de API del panel de Administrador (analisis_correcciones_13.md #6)
+app.use('/api/admin', requireAuth, adminRoutes);
 
 // analisis_correcciones_10.md #10: vigilante de atraso — corre en el mismo
 // proceso (monolito modular), revisa cada 60s qué vales acaban de cruzar su

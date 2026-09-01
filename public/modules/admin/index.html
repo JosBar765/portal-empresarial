@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administración | Portal Empresarial</title>
+  <link rel="icon" type="image/png" href="/assets/logos/LOGO_GP_isotipo.png">
+  <link rel="stylesheet" href="/modules/admin/css/styles.css">
+  <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-brand">
+      <button class="sidebar-toggle-mobile" id="sidebar-toggle-mobile" type="button" title="Menú">
+        <ion-icon name="menu-outline"></ion-icon>
+      </button>
+      <!-- analisis_correcciones_13.md #6: el Administrador no "vuelve" al
+           dashboard normal (/dashboard/ lo devuelve aquí mismo) — este enlace
+           pide explícitamente la vista de módulos. -->
+      <a href="/dashboard/?vista=modulos" class="header-back" title="Ver dashboard de módulos">
+        <ion-icon name="arrow-back-outline"></ion-icon>
+      </a>
+      <div class="header-logo-container">
+        <img src="/assets/logos/LOGO_GP_isotipo.png" alt="MundiTrofeos Isotipo" class="header-logo">
+      </div>
+      <div class="header-title-wrapper">
+        <span class="header-title">Administración Central</span>
+        <span class="header-company">MundiTrofeos S.A.</span>
+      </div>
+    </div>
+
+    <div class="header-user-menu">
+      <button class="account-widget" id="account-widget" type="button" aria-haspopup="true" aria-expanded="false">
+        <span class="account-avatar" id="account-avatar">--</span>
+        <div class="user-profile">
+          <span class="user-name" id="user-display-name">Cargando usuario...</span>
+          <span class="user-role" id="user-display-role">Cargando rol...</span>
+        </div>
+        <ion-icon name="chevron-down-outline" class="account-chevron"></ion-icon>
+      </button>
+      <div class="account-dropdown" id="account-dropdown">
+        <div class="account-dropdown-header">
+          <span class="account-dropdown-name" id="account-dropdown-name">Cargando usuario...</span>
+          <span class="account-dropdown-role" id="account-dropdown-role">Cargando rol...</span>
+        </div>
+        <button class="account-dropdown-item" id="logout-btn" type="button">
+          <ion-icon name="log-out-outline"></ion-icon>
+          <span>Cerrar sesión</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <aside class="sidebar-vales" id="sidebar-admin">
+    <button class="sidebar-item sidebar-item-active" data-tab="usuarios">
+      <ion-icon name="people-outline"></ion-icon>
+      <span>Gestionar Usuarios</span>
+    </button>
+    <button class="sidebar-item" data-tab="roles">
+      <ion-icon name="shield-checkmark-outline"></ion-icon>
+      <span>Roles y Permisos</span>
+    </button>
+    <button class="sidebar-item" data-tab="actividad">
+      <ion-icon name="pulse-outline"></ion-icon>
+      <span>Actividad de Usuarios</span>
+    </button>
+    <button class="sidebar-item" data-tab="tiendas">
+      <ion-icon name="storefront-outline"></ion-icon>
+      <span>Gestionar Tiendas</span>
+    </button>
+    <button class="sidebar-item" data-tab="mantenimiento">
+      <ion-icon name="construct-outline"></ion-icon>
+      <span>Modo Mantenimiento</span>
+    </button>
+    <button class="sidebar-collapse-toggle" id="sidebar-collapse-toggle" type="button" title="Colapsar menú">
+      <ion-icon name="chevron-back-outline"></ion-icon>
+      <span>Colapsar</span>
+    </button>
+  </aside>
+
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="app-shell">
+    <div class="app-layout">
+      <main class="main-container">
+        <section id="panel-content" class="panel-content">
+          <div class="buzon-vacio">
+            <ion-icon name="sync-outline" class="spin-animation"></ion-icon>
+            <p>Cargando panel de administración...</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <footer class="app-footer">
+      <span class="footer-text">© 2026 MundiTrofeos S.A. | Portal de Herramientas Corporativo Interno</span>
+    </footer>
+  </div>
+
+  <div id="modals-root"></div>
+  <div id="toast-root" class="toast-root"></div>
+
+  <script src="/js/toast.js"></script>
+  <script src="/modules/admin/js/app.js"></script>
+</body>
+</html>

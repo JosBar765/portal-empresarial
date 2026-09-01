@@ -36,13 +36,18 @@ class UsuarioValeRepository {
   // subdivisiones de ese departamento", así que también matchea una tienda
   // cuyo propio `subdivision_id` sea NULL (departamentos sin subdivisiones,
   // ej. Premia Z13) o cualquier subdivisión puntual.
+  // analisis_correcciones_13.md #6: una fila de `supervisor_asignaciones`
+  // ahora cubre POR DEPARTAMENTO (`tienda_id IS NULL`) o POR TIENDA PUNTUAL
+  // (`tienda_id` seteado) — nunca ambas cosas — así que se matchea cualquiera
+  // de las dos variantes.
   async listarAsesoresPorSupervisor(supervisorId) {
     return db.query(
       `SELECT DISTINCT u.id, u.nombre, u.email, u.encargado_id, u.tienda_id
        FROM usuarios u
        JOIN tiendas t ON t.id = u.tienda_id
-       JOIN supervisor_asignaciones sa ON sa.departamento_id = t.departamento_id
-         AND (sa.subdivision_id IS NULL OR sa.subdivision_id = t.subdivision_id)
+       JOIN supervisor_asignaciones sa ON sa.tienda_id = t.id
+         OR (sa.tienda_id IS NULL AND sa.departamento_id = t.departamento_id
+             AND (sa.subdivision_id IS NULL OR sa.subdivision_id = t.subdivision_id))
        WHERE u.rol_id = 3 AND u.activo = 1 AND sa.usuario_id = ? AND sa.activo = 1
        ORDER BY u.nombre`,
       [supervisorId],
@@ -58,9 +63,11 @@ class UsuarioValeRepository {
       `SELECT DISTINCT u.id, u.nombre, u.email
        FROM usuarios u
        JOIN supervisor_asignaciones sa ON sa.usuario_id = u.id AND sa.activo = 1
-       JOIN tiendas t ON t.departamento_id = sa.departamento_id
-         AND (sa.subdivision_id IS NULL OR sa.subdivision_id = t.subdivision_id)
-       JOIN usuarios asesor ON asesor.tienda_id = t.id
+       JOIN usuarios asesor ON 1 = 1
+       JOIN tiendas t ON t.id = asesor.tienda_id
+         AND (sa.tienda_id = t.id
+              OR (sa.tienda_id IS NULL AND sa.departamento_id = t.departamento_id
+                  AND (sa.subdivision_id IS NULL OR sa.subdivision_id = t.subdivision_id)))
        WHERE u.rol_id = 4 AND u.activo = 1 AND asesor.id = ?
        ORDER BY u.nombre`,
       [asesorId],

@@ -11,70 +11,70 @@ let useMock = false;
 // -------------------------------------------------------------------------
 const mockDatabase = {
   usuarios: [
-    { id: 1, nombre: 'Administrador General', email: 'admin@munditrofeos.com', telefono: '+502 5555-0001', password_hash: '$2a$10$0.B9xk21MYppfOd4XbtP3u5mJ6NzlaA6eqlu65Fy5G7xb2VnN2Lwu', rol_id: 1, tienda_id: 1, encargado_id: null, activo: 1 },
-    { id: 2, nombre: 'Diseñador Creativo', email: 'diseno@munditrofeos.com', telefono: '+502 5555-0002', password_hash: '$2a$10$SXZEYhhebLnagsNMyFiqFOIn3m4Uwwf45PKHBvEIooMvzfqLXBpaC', rol_id: 2, tienda_id: 1, encargado_id: null, activo: 1 },
+    { id: 1, nombre: 'Administrador General', email: 'admin@munditrofeos.com', telefono: '+502 5555-0001', password_hash: '$2a$10$0.B9xk21MYppfOd4XbtP3u5mJ6NzlaA6eqlu65Fy5G7xb2VnN2Lwu', rol_id: 1, tienda_id: 1, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 2, nombre: 'Diseñador Creativo', email: 'diseno@munditrofeos.com', telefono: '+502 5555-0002', password_hash: '$2a$10$SXZEYhhebLnagsNMyFiqFOIn3m4Uwwf45PKHBvEIooMvzfqLXBpaC', rol_id: 2, tienda_id: 1, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     // analisis_correcciones_12.md #10: encargado_id ya no es "su supervisor" —
     // su(s) supervisor(es) se resuelven dinámicamente vía tienda_id (1 = MTC) +
     // supervisorAsignaciones.
-    { id: 3, nombre: 'Asesor Comercial', email: 'ventas@munditrofeos.com', telefono: '+502 5555-0003', password_hash: '$2a$10$KrYwD5jW2ApvSCzeE8r75O4OJViry2yLLHnujyPX4ZGw58IJpSnmW', rol_id: 3, tienda_id: 1, encargado_id: null, activo: 1 },
-    { id: 4, nombre: 'Supervisor de Ventas', email: 'supervisor@munditrofeos.com', telefono: '+502 5555-0004', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1 },
-    { id: 5, nombre: 'Encargado de Diseño', email: 'encargado.diseno@munditrofeos.com', telefono: '+502 5555-0005', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 5, tienda_id: 1, encargado_id: null, activo: 1 },
-    { id: 6, nombre: 'Encargado de Diseño UV/3D', email: 'encargado.uv3d@munditrofeos.com', telefono: '+502 5555-0006', password_hash: '$2a$10$DEPhj4Vnp.cgA6u3w3Leg.FVQ9O3JgKDXizOYCXEbGFlSgEBcb6F6', rol_id: 6, tienda_id: 1, encargado_id: null, activo: 1 },
-    { id: 7, nombre: 'Técnico Diseño A', email: 'tecnico.a@munditrofeos.com', telefono: '+502 5555-0007', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 1, encargado_id: 5, activo: 1 },
-    { id: 8, nombre: 'Técnico Diseño B', email: 'tecnico.b@munditrofeos.com', telefono: '+502 5555-0008', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 1, encargado_id: 5, activo: 1 },
-    { id: 9, nombre: 'Técnico UV/3D C', email: 'tecnico.c@munditrofeos.com', telefono: '+502 5555-0009', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 1, encargado_id: 6, activo: 1 },
+    { id: 3, nombre: 'Asesor Comercial', email: 'ventas@munditrofeos.com', telefono: '+502 5555-0003', password_hash: '$2a$10$KrYwD5jW2ApvSCzeE8r75O4OJViry2yLLHnujyPX4ZGw58IJpSnmW', rol_id: 3, tienda_id: 1, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 4, nombre: 'Supervisor de Ventas', email: 'supervisor@munditrofeos.com', telefono: '+502 5555-0004', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 5, nombre: 'Encargado de Diseño', email: 'encargado.diseno@munditrofeos.com', telefono: '+502 5555-0005', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 5, tienda_id: 1, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 6, nombre: 'Encargado de Diseño UV/3D', email: 'encargado.uv3d@munditrofeos.com', telefono: '+502 5555-0006', password_hash: '$2a$10$DEPhj4Vnp.cgA6u3w3Leg.FVQ9O3JgKDXizOYCXEbGFlSgEBcb6F6', rol_id: 6, tienda_id: 1, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 7, nombre: 'Técnico Diseño A', email: 'tecnico.a@munditrofeos.com', telefono: '+502 5555-0007', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 1, encargado_id: 5, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 8, nombre: 'Técnico Diseño B', email: 'tecnico.b@munditrofeos.com', telefono: '+502 5555-0008', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 1, encargado_id: 5, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 9, nombre: 'Técnico UV/3D C', email: 'tecnico.c@munditrofeos.com', telefono: '+502 5555-0009', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 1, encargado_id: 6, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     // analisis_correcciones_12.md #11: "el encargado general no existe" — usuario
     // desactivado en vez de borrado (preserva vale_historial ya referenciado).
-    { id: 10, nombre: 'Encargado General', email: 'encargado.general@munditrofeos.com', telefono: '+502 5555-0010', password_hash: '$2a$10$gxksPVl9V44kqmjlUY3y0uvvnhtzSNX1M7Z1Lbpfy5wzHaQ5Yp6xy', rol_id: 8, tienda_id: 1, encargado_id: null, activo: 0 },
-    { id: 11, nombre: 'Asistente de Diseño', email: 'asistente@munditrofeos.com', telefono: '+502 5555-0011', password_hash: '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', rol_id: 9, tienda_id: 1, encargado_id: null, activo: 1 },
-    { id: 12, nombre: 'Gerente General', email: 'gerente@munditrofeos.com', telefono: '+502 5555-0012', password_hash: '$2a$10$yazyTlRjxvs0e/hn5B/UEOoUr6b06lBThNpvUlSOmJr0y1vB8tVXy', rol_id: 10, tienda_id: null, encargado_id: null, activo: 1 },
+    { id: 10, nombre: 'Encargado General', email: 'encargado.general@munditrofeos.com', telefono: '+502 5555-0010', password_hash: '$2a$10$gxksPVl9V44kqmjlUY3y0uvvnhtzSNX1M7Z1Lbpfy5wzHaQ5Yp6xy', rol_id: 8, tienda_id: 1, encargado_id: null, activo: 0, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 11, nombre: 'Asistente de Diseño', email: 'asistente@munditrofeos.com', telefono: '+502 5555-0011', password_hash: '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', rol_id: 9, tienda_id: 1, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 12, nombre: 'Gerente General', email: 'gerente@munditrofeos.com', telefono: '+502 5555-0012', password_hash: '$2a$10$yazyTlRjxvs0e/hn5B/UEOoUr6b06lBThNpvUlSOmJr0y1vB8tVXy', rol_id: 10, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     // Supervisores/gerentes reales de la organización (analisis_correcciones_12.md
     // #10) — regionales/rotativos, sin tienda propia; su cobertura vive en
     // `supervisorAsignaciones`. Reusan la contraseña de la cuenta de prueba
     // original de Supervisor (supervisor123).
-    { id: 13, nombre: 'Carlos Cornejo', email: 'ventas1@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1 },
-    { id: 14, nombre: 'Milvia Esquivel', email: 'gerentesala@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1 },
-    { id: 15, nombre: 'Benjamin Per', email: 'gerentezona13@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1 },
-    { id: 16, nombre: 'Juan Carlos Paniagua', email: 'regional@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1 },
-    { id: 17, nombre: 'Victor Tobar', email: 'regional.ca@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1 },
-    { id: 18, nombre: 'Emilio Morales', email: 'supervisor1@trofex.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1 },
-    { id: 19, nombre: 'Pablo Orellana', email: 'supervisor@trofex.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1 },
-    { id: 20, nombre: 'Carla Gonzáles', email: 'ventassv3@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1 },
-    { id: 21, nombre: 'Brian Medina', email: 'honduras@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1 },
-    { id: 22, nombre: 'Velky Cuevas', email: 'tegus@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1 },
-    { id: 23, nombre: 'Stefany Luna', email: 'gerencianic@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1 },
+    { id: 13, nombre: 'Carlos Cornejo', email: 'ventas1@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 14, nombre: 'Milvia Esquivel', email: 'gerentesala@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 15, nombre: 'Benjamin Per', email: 'gerentezona13@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 16, nombre: 'Juan Carlos Paniagua', email: 'regional@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 17, nombre: 'Victor Tobar', email: 'regional.ca@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 18, nombre: 'Emilio Morales', email: 'supervisor1@trofex.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 19, nombre: 'Pablo Orellana', email: 'supervisor@trofex.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 20, nombre: 'Carla Gonzáles', email: 'ventassv3@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 21, nombre: 'Brian Medina', email: 'honduras@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 22, nombre: 'Velky Cuevas', email: 'tegus@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 23, nombre: 'Stefany Luna', email: 'gerencianic@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     // Mismo nombre que el id 17, pero es una cuenta distinta (correo distinto)
     // — así lo lista el documento fuente, cubriendo un alcance más puntual.
-    { id: 24, nombre: 'Victor Tobar', email: 'costarica@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1 },
+    { id: 24, nombre: 'Victor Tobar', email: 'costarica@grupopremia.com', telefono: null, password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 4, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     // Encargados/técnicos mockup de los talleres nuevos (analisis_correcciones_12.md
     // #11): Protextil (toda la empresa) + un Diseño Local por cada una de las 11
     // tiendas que lo tienen. Encargados con el rol genérico 11 "Encargado de
     // Taller" (reusan el hash de encargado.diseno@..., disenoenc123); técnicos
     // con rol 7 (reusan el hash de tecnico.a@..., tecnico123).
-    { id: 25, nombre: 'Encargado Protextil', email: 'encargado.protextil@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: null, encargado_id: null, activo: 1 },
-    { id: 26, nombre: 'Técnico Protextil', email: 'tecnico.protextil@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: null, encargado_id: 25, activo: 1 },
-    { id: 27, nombre: 'Encargado Diseño Local P13', email: 'disenolocal.p13@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 3, encargado_id: null, activo: 1 },
-    { id: 28, nombre: 'Técnico Diseño Local P13', email: 'tecnico.disenolocal.p13@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 3, encargado_id: 27, activo: 1 },
-    { id: 29, nombre: 'Encargado Diseño Local SSV', email: 'disenolocal.ssv@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 4, encargado_id: null, activo: 1 },
-    { id: 30, nombre: 'Técnico Diseño Local SSV', email: 'tecnico.disenolocal.ssv@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 4, encargado_id: 29, activo: 1 },
-    { id: 31, nombre: 'Encargado Diseño Local SAA', email: 'disenolocal.saa@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 5, encargado_id: null, activo: 1 },
-    { id: 32, nombre: 'Técnico Diseño Local SAA', email: 'tecnico.disenolocal.saa@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 5, encargado_id: 31, activo: 1 },
-    { id: 33, nombre: 'Encargado Diseño Local SMG', email: 'disenolocal.smg@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 6, encargado_id: null, activo: 1 },
-    { id: 34, nombre: 'Técnico Diseño Local SMG', email: 'tecnico.disenolocal.smg@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 6, encargado_id: 33, activo: 1 },
-    { id: 35, nombre: 'Encargado Diseño Local ECL', email: 'disenolocal.ecl@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 7, encargado_id: null, activo: 1 },
-    { id: 36, nombre: 'Técnico Diseño Local ECL', email: 'tecnico.disenolocal.ecl@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 7, encargado_id: 35, activo: 1 },
-    { id: 37, nombre: 'Encargado Diseño Local CMY', email: 'disenolocal.cmy@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 8, encargado_id: null, activo: 1 },
-    { id: 38, nombre: 'Técnico Diseño Local CMY', email: 'tecnico.disenolocal.cmy@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 8, encargado_id: 37, activo: 1 },
-    { id: 39, nombre: 'Encargado Diseño Local TEG', email: 'disenolocal.teg@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 9, encargado_id: null, activo: 1 },
-    { id: 40, nombre: 'Técnico Diseño Local TEG', email: 'tecnico.disenolocal.teg@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 9, encargado_id: 39, activo: 1 },
-    { id: 41, nombre: 'Encargado Diseño Local SPS', email: 'disenolocal.sps@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 10, encargado_id: null, activo: 1 },
-    { id: 42, nombre: 'Técnico Diseño Local SPS', email: 'tecnico.disenolocal.sps@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 10, encargado_id: 41, activo: 1 },
-    { id: 43, nombre: 'Encargado Diseño Local MAN', email: 'disenolocal.man@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 11, encargado_id: null, activo: 1 },
-    { id: 44, nombre: 'Técnico Diseño Local MAN', email: 'tecnico.disenolocal.man@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 11, encargado_id: 43, activo: 1 },
-    { id: 45, nombre: 'Encargado Diseño Local LEO', email: 'disenolocal.leo@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 12, encargado_id: null, activo: 1 },
-    { id: 46, nombre: 'Técnico Diseño Local LEO', email: 'tecnico.disenolocal.leo@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 12, encargado_id: 45, activo: 1 },
-    { id: 47, nombre: 'Encargado Diseño Local SJO', email: 'disenolocal.sjo@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 13, encargado_id: null, activo: 1 },
-    { id: 48, nombre: 'Técnico Diseño Local SJO', email: 'tecnico.disenolocal.sjo@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 13, encargado_id: 47, activo: 1 }
+    { id: 25, nombre: 'Encargado Protextil', email: 'encargado.protextil@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 26, nombre: 'Técnico Protextil', email: 'tecnico.protextil@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: null, encargado_id: 25, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 27, nombre: 'Encargado Diseño Local P13', email: 'disenolocal.p13@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 3, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 28, nombre: 'Técnico Diseño Local P13', email: 'tecnico.disenolocal.p13@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 3, encargado_id: 27, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 29, nombre: 'Encargado Diseño Local SSV', email: 'disenolocal.ssv@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 4, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 30, nombre: 'Técnico Diseño Local SSV', email: 'tecnico.disenolocal.ssv@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 4, encargado_id: 29, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 31, nombre: 'Encargado Diseño Local SAA', email: 'disenolocal.saa@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 5, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 32, nombre: 'Técnico Diseño Local SAA', email: 'tecnico.disenolocal.saa@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 5, encargado_id: 31, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 33, nombre: 'Encargado Diseño Local SMG', email: 'disenolocal.smg@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 6, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 34, nombre: 'Técnico Diseño Local SMG', email: 'tecnico.disenolocal.smg@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 6, encargado_id: 33, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 35, nombre: 'Encargado Diseño Local ECL', email: 'disenolocal.ecl@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 7, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 36, nombre: 'Técnico Diseño Local ECL', email: 'tecnico.disenolocal.ecl@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 7, encargado_id: 35, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 37, nombre: 'Encargado Diseño Local CMY', email: 'disenolocal.cmy@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 8, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 38, nombre: 'Técnico Diseño Local CMY', email: 'tecnico.disenolocal.cmy@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 8, encargado_id: 37, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 39, nombre: 'Encargado Diseño Local TEG', email: 'disenolocal.teg@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 9, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 40, nombre: 'Técnico Diseño Local TEG', email: 'tecnico.disenolocal.teg@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 9, encargado_id: 39, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 41, nombre: 'Encargado Diseño Local SPS', email: 'disenolocal.sps@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 10, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 42, nombre: 'Técnico Diseño Local SPS', email: 'tecnico.disenolocal.sps@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 10, encargado_id: 41, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 43, nombre: 'Encargado Diseño Local MAN', email: 'disenolocal.man@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 11, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 44, nombre: 'Técnico Diseño Local MAN', email: 'tecnico.disenolocal.man@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 11, encargado_id: 43, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 45, nombre: 'Encargado Diseño Local LEO', email: 'disenolocal.leo@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 12, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 46, nombre: 'Técnico Diseño Local LEO', email: 'tecnico.disenolocal.leo@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 12, encargado_id: 45, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 47, nombre: 'Encargado Diseño Local SJO', email: 'disenolocal.sjo@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 13, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 48, nombre: 'Técnico Diseño Local SJO', email: 'tecnico.disenolocal.sjo@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 13, encargado_id: 47, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null }
   ],
   // analisis_correcciones_12.md #3: descripciones por función, no por flujo de
   // Vales de Arte — deben quedar idénticas a las de database/schema.sql.
@@ -182,33 +182,33 @@ const mockDatabase = {
   ],
   // `pais_id`: 1=GT, 2=SV, 3=HN, 4=NI, 5=CR (ver `paises` abajo).
   tiendas: [
-    { id: 1, codigo: 'MTC', nombre: 'Munditrofeos, S.A.', pais_id: 1, departamento_id: 1, subdivision_id: 1, activo: 1 },
-    { id: 2, codigo: 'MTS', nombre: 'Munditrofeos, S.A.', pais_id: 1, departamento_id: 1, subdivision_id: 2, activo: 1 },
-    { id: 3, codigo: 'P13', nombre: 'Premia, S.A.', pais_id: 1, departamento_id: 2, subdivision_id: null, activo: 1 },
-    { id: 4, codigo: 'SSV', nombre: 'Premia San Salvador', pais_id: 2, departamento_id: 3, subdivision_id: 3, activo: 1 },
-    { id: 5, codigo: 'SAA', nombre: 'Premia Express Santa Ana', pais_id: 2, departamento_id: 3, subdivision_id: 4, activo: 1 },
-    { id: 6, codigo: 'SMG', nombre: 'Premia Express San Miguel', pais_id: 2, departamento_id: 3, subdivision_id: 5, activo: 1 },
-    { id: 7, codigo: 'ECL', nombre: 'Premia Express Escalón', pais_id: 2, departamento_id: 3, subdivision_id: 6, activo: 1 },
-    { id: 8, codigo: 'CMY', nombre: 'Premia Express Comayagua', pais_id: 3, departamento_id: 3, subdivision_id: 7, activo: 1 },
-    { id: 9, codigo: 'TEG', nombre: 'Premia Tegucigalpa', pais_id: 3, departamento_id: 3, subdivision_id: 8, activo: 1 },
-    { id: 10, codigo: 'SPS', nombre: 'Premia San Pedro Sula', pais_id: 3, departamento_id: 3, subdivision_id: 9, activo: 1 },
-    { id: 11, codigo: 'MAN', nombre: 'Premia Express Managua', pais_id: 4, departamento_id: 3, subdivision_id: 10, activo: 1 },
-    { id: 12, codigo: 'LEO', nombre: 'Premia Express León', pais_id: 4, departamento_id: 3, subdivision_id: 11, activo: 1 },
-    { id: 13, codigo: 'SJO', nombre: 'Premia San Jose', pais_id: 5, departamento_id: 3, subdivision_id: 12, activo: 1 },
-    { id: 14, codigo: 'SJN', nombre: 'Trofex San Juan', pais_id: 1, departamento_id: 4, subdivision_id: 13, activo: 1 },
-    { id: 15, codigo: 'ZN3', nombre: 'Trofex Zona 3', pais_id: 1, departamento_id: 4, subdivision_id: 14, activo: 1 },
-    { id: 16, codigo: 'COB', nombre: 'Trofex Coban', pais_id: 1, departamento_id: 4, subdivision_id: 15, activo: 1 },
-    { id: 17, codigo: 'PET', nombre: 'Trofex Petén', pais_id: 1, departamento_id: 4, subdivision_id: 16, activo: 1 },
-    { id: 18, codigo: 'PTB', nombre: 'Trofex Puerto Barrios', pais_id: 1, departamento_id: 4, subdivision_id: 17, activo: 1 },
-    { id: 19, codigo: 'CHQ', nombre: 'Trofex Chiquimula', pais_id: 1, departamento_id: 4, subdivision_id: 18, activo: 1 },
-    { id: 20, codigo: 'JTP', nombre: 'Trofex Jutiapa', pais_id: 1, departamento_id: 4, subdivision_id: 19, activo: 1 },
-    { id: 21, codigo: 'SMS', nombre: 'Trofex San Marcos', pais_id: 1, departamento_id: 5, subdivision_id: 20, activo: 1 },
-    { id: 22, codigo: 'CHM', nombre: 'Trofex Chimaltenango', pais_id: 1, departamento_id: 5, subdivision_id: 21, activo: 1 },
-    { id: 23, codigo: 'ESC', nombre: 'Trofex Escuintla', pais_id: 1, departamento_id: 5, subdivision_id: 22, activo: 1 },
-    { id: 24, codigo: 'HUE', nombre: 'Trofex Huehuetenango', pais_id: 1, departamento_id: 5, subdivision_id: 23, activo: 1 },
-    { id: 25, codigo: 'MAZ', nombre: 'Trofex Mazatenango', pais_id: 1, departamento_id: 5, subdivision_id: 24, activo: 1 },
-    { id: 26, codigo: 'VLN', nombre: 'Trofex Villa Nueva', pais_id: 1, departamento_id: 5, subdivision_id: 25, activo: 1 },
-    { id: 27, codigo: 'XEL', nombre: 'Trofex Xela', pais_id: 1, departamento_id: 5, subdivision_id: 26, activo: 1 }
+    { id: 1, codigo: 'MTC', nombre: 'Munditrofeos, S.A.', pais_id: 1, departamento_id: 1, subdivision_id: 1, orden: 1, activo: 1 },
+    { id: 2, codigo: 'MTS', nombre: 'Munditrofeos, S.A.', pais_id: 1, departamento_id: 1, subdivision_id: 2, orden: 2, activo: 1 },
+    { id: 3, codigo: 'P13', nombre: 'Premia, S.A.', pais_id: 1, departamento_id: 2, subdivision_id: null, orden: 3, activo: 1 },
+    { id: 4, codigo: 'SSV', nombre: 'Premia San Salvador', pais_id: 2, departamento_id: 3, subdivision_id: 3, orden: 4, activo: 1 },
+    { id: 5, codigo: 'SAA', nombre: 'Premia Express Santa Ana', pais_id: 2, departamento_id: 3, subdivision_id: 4, orden: 5, activo: 1 },
+    { id: 6, codigo: 'SMG', nombre: 'Premia Express San Miguel', pais_id: 2, departamento_id: 3, subdivision_id: 5, orden: 6, activo: 1 },
+    { id: 7, codigo: 'ECL', nombre: 'Premia Express Escalón', pais_id: 2, departamento_id: 3, subdivision_id: 6, orden: 7, activo: 1 },
+    { id: 8, codigo: 'CMY', nombre: 'Premia Express Comayagua', pais_id: 3, departamento_id: 3, subdivision_id: 7, orden: 8, activo: 1 },
+    { id: 9, codigo: 'TEG', nombre: 'Premia Tegucigalpa', pais_id: 3, departamento_id: 3, subdivision_id: 8, orden: 9, activo: 1 },
+    { id: 10, codigo: 'SPS', nombre: 'Premia San Pedro Sula', pais_id: 3, departamento_id: 3, subdivision_id: 9, orden: 10, activo: 1 },
+    { id: 11, codigo: 'MAN', nombre: 'Premia Express Managua', pais_id: 4, departamento_id: 3, subdivision_id: 10, orden: 11, activo: 1 },
+    { id: 12, codigo: 'LEO', nombre: 'Premia Express León', pais_id: 4, departamento_id: 3, subdivision_id: 11, orden: 12, activo: 1 },
+    { id: 13, codigo: 'SJO', nombre: 'Premia San Jose', pais_id: 5, departamento_id: 3, subdivision_id: 12, orden: 13, activo: 1 },
+    { id: 14, codigo: 'SJN', nombre: 'Trofex San Juan', pais_id: 1, departamento_id: 4, subdivision_id: 13, orden: 14, activo: 1 },
+    { id: 15, codigo: 'ZN3', nombre: 'Trofex Zona 3', pais_id: 1, departamento_id: 4, subdivision_id: 14, orden: 15, activo: 1 },
+    { id: 16, codigo: 'COB', nombre: 'Trofex Coban', pais_id: 1, departamento_id: 4, subdivision_id: 15, orden: 16, activo: 1 },
+    { id: 17, codigo: 'PET', nombre: 'Trofex Petén', pais_id: 1, departamento_id: 4, subdivision_id: 16, orden: 17, activo: 1 },
+    { id: 18, codigo: 'PTB', nombre: 'Trofex Puerto Barrios', pais_id: 1, departamento_id: 4, subdivision_id: 17, orden: 18, activo: 1 },
+    { id: 19, codigo: 'CHQ', nombre: 'Trofex Chiquimula', pais_id: 1, departamento_id: 4, subdivision_id: 18, orden: 19, activo: 1 },
+    { id: 20, codigo: 'JTP', nombre: 'Trofex Jutiapa', pais_id: 1, departamento_id: 4, subdivision_id: 19, orden: 20, activo: 1 },
+    { id: 21, codigo: 'SMS', nombre: 'Trofex San Marcos', pais_id: 1, departamento_id: 5, subdivision_id: 20, orden: 21, activo: 1 },
+    { id: 22, codigo: 'CHM', nombre: 'Trofex Chimaltenango', pais_id: 1, departamento_id: 5, subdivision_id: 21, orden: 22, activo: 1 },
+    { id: 23, codigo: 'ESC', nombre: 'Trofex Escuintla', pais_id: 1, departamento_id: 5, subdivision_id: 22, orden: 23, activo: 1 },
+    { id: 24, codigo: 'HUE', nombre: 'Trofex Huehuetenango', pais_id: 1, departamento_id: 5, subdivision_id: 23, orden: 24, activo: 1 },
+    { id: 25, codigo: 'MAZ', nombre: 'Trofex Mazatenango', pais_id: 1, departamento_id: 5, subdivision_id: 24, orden: 25, activo: 1 },
+    { id: 26, codigo: 'VLN', nombre: 'Trofex Villa Nueva', pais_id: 1, departamento_id: 5, subdivision_id: 25, orden: 26, activo: 1 },
+    { id: 27, codigo: 'XEL', nombre: 'Trofex Xela', pais_id: 1, departamento_id: 5, subdivision_id: 26, orden: 27, activo: 1 }
   ],
   // Cobertura de supervisores. El id 4 (cuenta de prueba original) cubre todo
   // Munditrofeos para seguir supervisando al asesor de demostración (tienda 1 =
@@ -216,24 +216,24 @@ const mockDatabase = {
   // (supervisores rotativos) — el documento fuente repetía a Pablo Orellana en
   // dos filas idénticas, se colapsa a una sola.
   supervisorAsignaciones: [
-    { id: 1, usuario_id: 4, departamento_id: 1, subdivision_id: null, activo: 1 },
-    { id: 2, usuario_id: 13, departamento_id: 1, subdivision_id: null, activo: 1 },
-    { id: 3, usuario_id: 14, departamento_id: 1, subdivision_id: 2, activo: 1 },
-    { id: 4, usuario_id: 15, departamento_id: 2, subdivision_id: null, activo: 1 },
-    { id: 5, usuario_id: 16, departamento_id: 3, subdivision_id: null, activo: 1 },
-    { id: 6, usuario_id: 17, departamento_id: 3, subdivision_id: null, activo: 1 },
-    { id: 7, usuario_id: 18, departamento_id: 4, subdivision_id: null, activo: 1 },
-    { id: 8, usuario_id: 18, departamento_id: 5, subdivision_id: null, activo: 1 },
-    { id: 9, usuario_id: 19, departamento_id: 5, subdivision_id: null, activo: 1 },
-    { id: 10, usuario_id: 20, departamento_id: 3, subdivision_id: 3, activo: 1 },
-    { id: 11, usuario_id: 20, departamento_id: 3, subdivision_id: 4, activo: 1 },
-    { id: 12, usuario_id: 20, departamento_id: 3, subdivision_id: 5, activo: 1 },
-    { id: 13, usuario_id: 21, departamento_id: 3, subdivision_id: 9, activo: 1 },
-    { id: 14, usuario_id: 22, departamento_id: 3, subdivision_id: 8, activo: 1 },
-    { id: 15, usuario_id: 22, departamento_id: 3, subdivision_id: 7, activo: 1 },
-    { id: 16, usuario_id: 23, departamento_id: 3, subdivision_id: 10, activo: 1 },
-    { id: 17, usuario_id: 23, departamento_id: 3, subdivision_id: 11, activo: 1 },
-    { id: 18, usuario_id: 24, departamento_id: 3, subdivision_id: 12, activo: 1 }
+    { id: 1, usuario_id: 4, departamento_id: 1, subdivision_id: null, tienda_id: null, activo: 1 },
+    { id: 2, usuario_id: 13, departamento_id: 1, subdivision_id: null, tienda_id: null, activo: 1 },
+    { id: 3, usuario_id: 14, departamento_id: 1, subdivision_id: 2, tienda_id: null, activo: 1 },
+    { id: 4, usuario_id: 15, departamento_id: 2, subdivision_id: null, tienda_id: null, activo: 1 },
+    { id: 5, usuario_id: 16, departamento_id: 3, subdivision_id: null, tienda_id: null, activo: 1 },
+    { id: 6, usuario_id: 17, departamento_id: 3, subdivision_id: null, tienda_id: null, activo: 1 },
+    { id: 7, usuario_id: 18, departamento_id: 4, subdivision_id: null, tienda_id: null, activo: 1 },
+    { id: 8, usuario_id: 18, departamento_id: 5, subdivision_id: null, tienda_id: null, activo: 1 },
+    { id: 9, usuario_id: 19, departamento_id: 5, subdivision_id: null, tienda_id: null, activo: 1 },
+    { id: 10, usuario_id: 20, departamento_id: 3, subdivision_id: 3, tienda_id: null, activo: 1 },
+    { id: 11, usuario_id: 20, departamento_id: 3, subdivision_id: 4, tienda_id: null, activo: 1 },
+    { id: 12, usuario_id: 20, departamento_id: 3, subdivision_id: 5, tienda_id: null, activo: 1 },
+    { id: 13, usuario_id: 21, departamento_id: 3, subdivision_id: 9, tienda_id: null, activo: 1 },
+    { id: 14, usuario_id: 22, departamento_id: 3, subdivision_id: 8, tienda_id: null, activo: 1 },
+    { id: 15, usuario_id: 22, departamento_id: 3, subdivision_id: 7, tienda_id: null, activo: 1 },
+    { id: 16, usuario_id: 23, departamento_id: 3, subdivision_id: 10, tienda_id: null, activo: 1 },
+    { id: 17, usuario_id: 23, departamento_id: 3, subdivision_id: 11, tienda_id: null, activo: 1 },
+    { id: 18, usuario_id: 24, departamento_id: 3, subdivision_id: 12, tienda_id: null, activo: 1 }
   ],
   // analisis_correcciones_12.md #12: se quitaron moneda_codigo/moneda_simbolo
   // — se sembraban pero ninguna consulta los seleccionaba jamás.
@@ -394,6 +394,11 @@ const mockDatabase = {
     { id: 37, vale_id: 11, usuario_id: 3, taller_id: null, estado_anterior: 'PENDIENTE_CONFIRMACION', estado_nuevo: 'SOLICITANDO_MODIFICACION', accion: 'Asesor solicitó modificación', creado_en: '2026-08-14 08:00:00' },
     { id: 38, vale_id: 12, usuario_id: 4, taller_id: null, estado_anterior: null, estado_nuevo: 'MODIFICADO', accion: 'Supervisor aprobó la solicitud de modificación — se creó el vale MOD-GUA-3-0008', creado_en: '2026-08-20 11:00:00' },
     { id: 39, vale_id: 13, usuario_id: 3, taller_id: null, estado_anterior: null, estado_nuevo: 'ESPERANDO_AUTORIZACION', accion: 'Vale de arte creado por el asesor — esperando autorización del Supervisor (taller solicitado: Diseño)', creado_en: '2026-08-26 08:00:00' }
+  ],
+  // analisis_correcciones_13.md #6: fila única (id fijo = 1) con el estado del
+  // Modo Mantenimiento del panel de Administrador.
+  mantenimientoConfig: [
+    { id: 1, activo: 0, mensaje: null, activado_por: null, activado_en: null }
   ]
 };
 
@@ -406,6 +411,19 @@ function nextId(collection) {
 function sinPasswordHash(usuario) {
   const { password_hash, ...resto } = usuario;
   return resto;
+}
+
+// analisis_correcciones_13.md #6: tiendas que cubre un supervisor, ya sea por
+// asignación puntual (`tienda_id`) o por departamento/subdivisión — misma
+// regla que los handlers `usuario:find_*_by_supervisor`, factorizada porque el
+// panel de Administrador la necesita también (personal de una tienda, países
+// asignados de un supervisor).
+function tiendasCubiertasPorSupervisor(supervisorId) {
+  const asignaciones = mockDatabase.supervisorAsignaciones.filter(sa => sa.usuario_id === supervisorId && sa.activo);
+  return mockDatabase.tiendas.filter(t => asignaciones.some(sa =>
+    sa.tienda_id === t.id ||
+    (sa.tienda_id == null && sa.departamento_id === t.departamento_id && (sa.subdivision_id === null || sa.subdivision_id === t.subdivision_id))
+  ));
 }
 
 function ahoraLocal() {
@@ -462,7 +480,7 @@ async function query(sql, params = [], tag = null) {
 // Handlers de operaciones "taggeadas" (módulo Vales de Arte y catálogos)
 // -------------------------------------------------------------------------
 const taggedHandlers = {
-  'catalog:tiendas': () => mockDatabase.tiendas.filter(t => t.activo),
+  'catalog:tiendas': () => mockDatabase.tiendas.filter(t => t.activo).sort((a, b) => a.orden - b.orden),
   'catalog:productos': () => mockDatabase.valeProductos.filter(p => p.activo),
   'catalog:materiales': () => mockDatabase.valeMateriales.filter(m => m.activo),
   'catalog:paises': () => mockDatabase.paises,
@@ -490,11 +508,15 @@ const taggedHandlers = {
   // si la tienda del asesor cae en un departamento (y, si aplica, subdivisión)
   // que ese supervisor tiene asignado — reemplaza el filtro directo por
   // `encargado_id` de `correcciones_10.md #11`.
+  // analisis_correcciones_13.md #6: una asignación cubre una tienda O BIEN por
+  // `tienda_id` puntual, O BIEN por `departamento_id`/`subdivision_id` — nunca
+  // ambas. Se prueba primero la variante puntual.
   'usuario:find_asesores_by_supervisor': (params) => {
     const supervisorId = Number(params[0]);
     const asignaciones = mockDatabase.supervisorAsignaciones.filter(sa => sa.usuario_id === supervisorId && sa.activo);
     const cubre = (tienda) => asignaciones.some(sa =>
-      sa.departamento_id === tienda.departamento_id && (sa.subdivision_id === null || sa.subdivision_id === tienda.subdivision_id)
+      sa.tienda_id === tienda.id ||
+      (sa.tienda_id == null && sa.departamento_id === tienda.departamento_id && (sa.subdivision_id === null || sa.subdivision_id === tienda.subdivision_id))
     );
     return mockDatabase.usuarios
       .filter(u => u.rol_id === 3 && u.activo && u.tienda_id != null)
@@ -513,9 +535,11 @@ const taggedHandlers = {
     return mockDatabase.usuarios
       .filter(u => u.rol_id === 4 && u.activo)
       .filter(u => mockDatabase.supervisorAsignaciones.some(sa =>
-        sa.usuario_id === u.id && sa.activo &&
-        sa.departamento_id === tienda.departamento_id &&
-        (sa.subdivision_id === null || sa.subdivision_id === tienda.subdivision_id)
+        sa.usuario_id === u.id && sa.activo && (
+          sa.tienda_id === tienda.id ||
+          (sa.tienda_id == null && sa.departamento_id === tienda.departamento_id &&
+            (sa.subdivision_id === null || sa.subdivision_id === tienda.subdivision_id))
+        )
       ))
       .map(sinPasswordHash);
   },
@@ -788,6 +812,262 @@ const taggedHandlers = {
     return mockDatabase.valeHistorial
       .filter(h => h.vale_id === Number(params[0]))
       .sort((a, b) => a.id - b.id);
+  },
+
+  // -----------------------------------------------------------------------
+  // Vista Administrador (analisis_correcciones_13.md #6)
+  // -----------------------------------------------------------------------
+
+  // Pestaña "Gestionar Usuarios".
+  'usuario_admin:list': () => {
+    return mockDatabase.usuarios.map(u => {
+      const rol = mockDatabase.roles.find(r => r.id === u.rol_id);
+      const tienda = u.tienda_id ? mockDatabase.tiendas.find(t => t.id === u.tienda_id) : null;
+      let paises = null;
+      if (u.rol_id === 4) {
+        const nombresPaises = [...new Set(
+          tiendasCubiertasPorSupervisor(u.id)
+            .map(t => { const p = mockDatabase.paises.find(pa => pa.id === t.pais_id); return p ? p.nombre : null; })
+            .filter(Boolean)
+        )];
+        paises = nombresPaises.join(', ') || null;
+      } else if (tienda) {
+        const p = mockDatabase.paises.find(pa => pa.id === tienda.pais_id);
+        paises = p ? p.nombre : null;
+      }
+      return { ...sinPasswordHash(u), rol_nombre: rol ? rol.nombre : null, tienda_nombre: tienda ? tienda.nombre : null, paises_asignados: paises };
+    });
+  },
+  'usuario_admin:find_by_email': (params) => {
+    const u = mockDatabase.usuarios.find(x => x.email === params[0]);
+    return u ? [sinPasswordHash(u)] : [];
+  },
+  'usuario_admin:insert': (params) => {
+    const [nombre, email, telefono, passwordHash, rolId, tiendaId] = params;
+    const row = {
+      id: nextId(mockDatabase.usuarios), nombre, email, telefono: telefono || null, password_hash: passwordHash,
+      rol_id: Number(rolId), tienda_id: tiendaId ? Number(tiendaId) : null, encargado_id: null, activo: 1,
+      sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null
+    };
+    mockDatabase.usuarios.push(row);
+    return { insertId: row.id };
+  },
+  'usuario_admin:update': (params) => {
+    const [nombre, email, telefono, rolId, tiendaId, id] = params;
+    const u = mockDatabase.usuarios.find(x => x.id === Number(id));
+    if (!u) return { affectedRows: 0 };
+    u.nombre = nombre; u.email = email; u.telefono = telefono || null;
+    u.rol_id = Number(rolId); u.tienda_id = tiendaId ? Number(tiendaId) : null;
+    return { affectedRows: 1 };
+  },
+  'usuario_admin:update_password': (params) => {
+    const [passwordHash, id] = params;
+    const u = mockDatabase.usuarios.find(x => x.id === Number(id));
+    if (!u) return { affectedRows: 0 };
+    u.password_hash = passwordHash;
+    return { affectedRows: 1 };
+  },
+  'usuario_admin:set_activo': (params) => {
+    const [activo, id] = params;
+    const u = mockDatabase.usuarios.find(x => x.id === Number(id));
+    if (!u) return { affectedRows: 0 };
+    u.activo = activo ? 1 : 0;
+    return { affectedRows: 1 };
+  },
+
+  // Pestaña "Roles y Permisos".
+  'rol:list': () => mockDatabase.roles.map(r => ({
+    ...r,
+    usuarios_count: mockDatabase.usuarios.filter(u => u.rol_id === r.id && u.activo).length,
+    permisos_count: mockDatabase.rol_permisos.filter(rp => rp.rol_id === r.id).length
+  })),
+  'rol:insert': (params) => {
+    const [nombre, descripcion] = params;
+    const row = { id: nextId(mockDatabase.roles), nombre, descripcion: descripcion || null };
+    mockDatabase.roles.push(row);
+    return { insertId: row.id };
+  },
+  'rol:update': (params) => {
+    const [nombre, descripcion, id] = params;
+    const r = mockDatabase.roles.find(x => x.id === Number(id));
+    if (!r) return { affectedRows: 0 };
+    r.nombre = nombre; r.descripcion = descripcion || null;
+    return { affectedRows: 1 };
+  },
+  'rol:delete': (params) => {
+    const id = Number(params[0]);
+    const idx = mockDatabase.roles.findIndex(x => x.id === id);
+    if (idx === -1) return { affectedRows: 0 };
+    mockDatabase.roles.splice(idx, 1);
+    mockDatabase.rol_permisos = mockDatabase.rol_permisos.filter(rp => rp.rol_id !== id);
+    return { affectedRows: 1 };
+  },
+  'rol:count_usuarios': (params) => [{ total: mockDatabase.usuarios.filter(u => u.rol_id === Number(params[0])).length }],
+  'rol_permiso:list_by_rol': (params) => mockDatabase.rol_permisos.filter(rp => rp.rol_id === Number(params[0])).map(rp => ({ permiso_id: rp.permiso_id })),
+  'rol_permiso:set': (params) => {
+    const [rolId, permisoIds] = params;
+    const id = Number(rolId);
+    mockDatabase.rol_permisos = mockDatabase.rol_permisos.filter(rp => rp.rol_id !== id);
+    (permisoIds || []).forEach(pid => mockDatabase.rol_permisos.push({ rol_id: id, permiso_id: Number(pid) }));
+    return { affectedRows: (permisoIds || []).length };
+  },
+  'permiso:list': () => mockDatabase.permisos,
+
+  // Pestaña "Gestionar Tiendas".
+  'tienda_admin:list': () => {
+    return mockDatabase.tiendas.slice().sort((a, b) => a.orden - b.orden).map(t => {
+      const pais = mockDatabase.paises.find(p => p.id === t.pais_id);
+      const depto = mockDatabase.departamentos.find(d => d.id === t.departamento_id);
+      const subdivision = t.subdivision_id ? mockDatabase.subdivisiones.find(s => s.id === t.subdivision_id) : null;
+      const personalDirecto = mockDatabase.usuarios.filter(u => u.tienda_id === t.id && u.activo).map(u => u.nombre);
+      const supervisores = mockDatabase.usuarios.filter(u => u.rol_id === 4 && u.activo &&
+        mockDatabase.supervisorAsignaciones.some(sa => sa.usuario_id === u.id && sa.activo && (
+          sa.tienda_id === t.id ||
+          (sa.tienda_id == null && sa.departamento_id === t.departamento_id && (sa.subdivision_id === null || sa.subdivision_id === t.subdivision_id))
+        ))
+      ).map(u => u.nombre);
+      return { ...t, pais_nombre: pais ? pais.nombre : null, departamento_nombre: depto ? depto.nombre : null, subdivision_nombre: subdivision ? subdivision.nombre : null, personal: [...personalDirecto, ...supervisores] };
+    });
+  },
+  'tienda_admin:find_by_id': (params) => {
+    const t = mockDatabase.tiendas.find(x => x.id === Number(params[0]));
+    return t ? [t] : [];
+  },
+  'tienda_admin:find_by_codigo': (params) => {
+    const t = mockDatabase.tiendas.find(x => x.codigo === params[0]);
+    return t ? [t] : [];
+  },
+  'tienda_admin:insert': (params) => {
+    const [codigo, nombre, paisId, departamentoId, subdivisionId] = params;
+    const maxOrden = mockDatabase.tiendas.reduce((max, t) => Math.max(max, t.orden), 0);
+    const row = {
+      id: nextId(mockDatabase.tiendas), codigo, nombre, pais_id: paisId ? Number(paisId) : null,
+      departamento_id: Number(departamentoId), subdivision_id: subdivisionId ? Number(subdivisionId) : null,
+      orden: maxOrden + 1, activo: 1
+    };
+    mockDatabase.tiendas.push(row);
+    return { insertId: row.id };
+  },
+  'tienda_admin:update': (params) => {
+    const [codigo, nombre, paisId, departamentoId, subdivisionId, activo, id] = params;
+    const t = mockDatabase.tiendas.find(x => x.id === Number(id));
+    if (!t) return { affectedRows: 0 };
+    t.codigo = codigo; t.nombre = nombre; t.pais_id = paisId ? Number(paisId) : null;
+    t.departamento_id = Number(departamentoId); t.subdivision_id = subdivisionId ? Number(subdivisionId) : null;
+    t.activo = activo ? 1 : 0;
+    return { affectedRows: 1 };
+  },
+  'tienda_admin:set_orden': (params) => {
+    const [ordenes] = params;
+    (ordenes || []).forEach(({ id, orden }) => {
+      const t = mockDatabase.tiendas.find(x => x.id === Number(id));
+      if (t) t.orden = Number(orden);
+    });
+    return { affectedRows: (ordenes || []).length };
+  },
+  'tienda_admin:asignar_usuario': (params) => {
+    const [tiendaId, usuarioId] = params;
+    const u = mockDatabase.usuarios.find(x => x.id === Number(usuarioId));
+    if (!u) return { affectedRows: 0 };
+    u.tienda_id = Number(tiendaId);
+    return { affectedRows: 1 };
+  },
+  'tienda_admin:quitar_usuario': (params) => {
+    const u = mockDatabase.usuarios.find(x => x.id === Number(params[0]));
+    if (!u) return { affectedRows: 0 };
+    u.tienda_id = null;
+    return { affectedRows: 1 };
+  },
+  'tienda_admin:personal_detalle': (params) => {
+    const tiendaId = Number(params[0]);
+    const t = mockDatabase.tiendas.find(x => x.id === tiendaId);
+    if (!t) return [];
+    const directo = mockDatabase.usuarios.filter(u => u.tienda_id === tiendaId && u.activo).map(u => {
+      const rol = mockDatabase.roles.find(r => r.id === u.rol_id);
+      return { id: u.id, nombre: u.nombre, email: u.email, rol_nombre: rol ? rol.nombre : null, rol_id: u.rol_id, tipo_vinculo: 'directo' };
+    });
+    const supervisores = mockDatabase.usuarios.filter(u => u.rol_id === 4 && u.activo &&
+      mockDatabase.supervisorAsignaciones.some(sa => sa.usuario_id === u.id && sa.activo && (
+        sa.tienda_id === t.id ||
+        (sa.tienda_id == null && sa.departamento_id === t.departamento_id && (sa.subdivision_id === null || sa.subdivision_id === t.subdivision_id))
+      ))
+    ).map(u => ({ id: u.id, nombre: u.nombre, email: u.email, rol_nombre: 'Supervisor de Ventas', rol_id: u.rol_id, tipo_vinculo: 'supervisor' }));
+    return [...directo, ...supervisores];
+  },
+  'supervisor_asignacion:insert_tienda': (params) => {
+    const [usuarioId, tiendaId] = params;
+    const yaExiste = mockDatabase.supervisorAsignaciones.some(sa => sa.usuario_id === Number(usuarioId) && sa.tienda_id === Number(tiendaId) && sa.activo);
+    if (yaExiste) return { insertId: null };
+    const row = { id: nextId(mockDatabase.supervisorAsignaciones), usuario_id: Number(usuarioId), departamento_id: null, subdivision_id: null, tienda_id: Number(tiendaId), activo: 1 };
+    mockDatabase.supervisorAsignaciones.push(row);
+    return { insertId: row.id };
+  },
+  'supervisor_asignacion:delete_tienda': (params) => {
+    const [usuarioId, tiendaId] = params;
+    const antes = mockDatabase.supervisorAsignaciones.length;
+    mockDatabase.supervisorAsignaciones = mockDatabase.supervisorAsignaciones.filter(sa =>
+      !(sa.usuario_id === Number(usuarioId) && sa.tienda_id === Number(tiendaId))
+    );
+    return { affectedRows: antes - mockDatabase.supervisorAsignaciones.length };
+  },
+  'supervisor_asignacion:list_tiendas_directas': (params) => {
+    const usuarioId = Number(params[0]);
+    return mockDatabase.supervisorAsignaciones
+      .filter(sa => sa.usuario_id === usuarioId && sa.activo && sa.tienda_id != null)
+      .map(sa => ({ tienda_id: sa.tienda_id }));
+  },
+  'supervisor_asignacion:list_heredada': (params) => {
+    const usuarioId = Number(params[0]);
+    return mockDatabase.supervisorAsignaciones
+      .filter(sa => sa.usuario_id === usuarioId && sa.activo && sa.tienda_id == null)
+      .map(sa => {
+        const depto = mockDatabase.departamentos.find(d => d.id === sa.departamento_id);
+        const subdivision = sa.subdivision_id ? mockDatabase.subdivisiones.find(s => s.id === sa.subdivision_id) : null;
+        return { departamento_nombre: depto ? depto.nombre : null, subdivision_nombre: subdivision ? subdivision.nombre : null };
+      });
+  },
+  'organizacion:departamentos': () => mockDatabase.departamentos.filter(d => d.activo),
+  'organizacion:subdivisiones': () => mockDatabase.subdivisiones.filter(s => s.activo),
+
+  // Pestaña "Actividad de Usuarios".
+  'actividad:list': () => mockDatabase.usuarios.filter(u => u.activo).map(u => {
+    const rol = mockDatabase.roles.find(r => r.id === u.rol_id);
+    return { id: u.id, nombre: u.nombre, rol_nombre: rol ? rol.nombre : null, ultima_ciudad: u.ultima_ciudad, sesion_iniciada_en: u.sesion_iniciada_en, ultima_actividad_en: u.ultima_actividad_en };
+  }),
+
+  // Rastro de presencia (sellado desde src/core/auth, leído por la pestaña de Actividad).
+  'usuario:sellar_login': (params) => {
+    // Orden posicional igual al de la SQL real (ultima_ip, ultima_ciudad, id) —
+    // ver presenciaTracker.sellarLogin, que arma los params en ese orden.
+    const [ip, ciudad, usuarioId] = params;
+    const u = mockDatabase.usuarios.find(x => x.id === Number(usuarioId));
+    if (!u) return { affectedRows: 0 };
+    const ahora = ahoraLocal();
+    u.sesion_iniciada_en = ahora; u.ultima_actividad_en = ahora; u.ultima_ip = ip || null; u.ultima_ciudad = ciudad || null;
+    return { affectedRows: 1 };
+  },
+  'usuario:limpiar_sesion': (params) => {
+    const u = mockDatabase.usuarios.find(x => x.id === Number(params[0]));
+    if (!u) return { affectedRows: 0 };
+    u.sesion_iniciada_en = null;
+    return { affectedRows: 1 };
+  },
+  'usuario:refrescar_actividad': (params) => {
+    const u = mockDatabase.usuarios.find(x => x.id === Number(params[0]));
+    if (!u) return { affectedRows: 0 };
+    u.ultima_actividad_en = ahoraLocal();
+    return { affectedRows: 1 };
+  },
+
+  // Pestaña "Modo Mantenimiento".
+  'mantenimiento:get': () => mockDatabase.mantenimientoConfig,
+  'mantenimiento:set': (params) => {
+    const [activo, mensaje, activadoPor] = params;
+    const fila = mockDatabase.mantenimientoConfig[0];
+    fila.activo = activo ? 1 : 0;
+    fila.mensaje = mensaje || null;
+    if (activo) { fila.activado_por = activadoPor ? Number(activadoPor) : null; fila.activado_en = ahoraLocal(); }
+    return { affectedRows: 1 };
   }
 };
 
@@ -831,10 +1111,16 @@ function handleMockQuery(sql, params, tag) {
   return [];
 }
 
-initializeDatabase();
+const listo = initializeDatabase();
 
 module.exports = {
   query,
   getUseMock: () => useMock,
-  isReady: () => pool !== null || useMock
+  isReady: () => pool !== null || useMock,
+  // Promesa que resuelve una vez decidido si se usa MySQL real o el mock —
+  // para el código que necesita consultar la BD en el mismo tick en que se
+  // hace `require()` (p. ej. maintenanceMiddleware, que precarga el estado de
+  // mantenimiento al arrancar) y de otro modo correría antes de que
+  // `useMock` se determine.
+  listo
 };
