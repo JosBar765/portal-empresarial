@@ -26,3 +26,26 @@
     Esto sucede ya que me contaban que aveces los técnicos andan trabajando algo complicado, pero llega algo más fácil y pausan el trabajo para continuar con otro vale de arte y sacarlo, luego reanudan su trabajo
 
 11. Actualmente hay un bug, no sé si pasa debido a algún permiso o por culpa de un rol, pero en la vista de `Trabajo Realizado` del `Encargado de Taller` me pasa que el encargado puede ver los vales recibidos, èl solo deberìa poder ver los aprobados, recordemos que en trabajo realizado ve sus aprobaciones o en su defecto los vales que èl realiza.
+
+12. El rol de `Técnico` **SOLO** puede ver sus aprobaciones en trabajo realizado, no puede ver los demás . Actualmente mira los que se solicitan modificación, los aprobados por talleres y los recibidos
+
+13. Cambiemos el diseño de la columna de acciones, que solo incluya máximo 3 acciones por fila. En caso, llegue a haber dos filas de acciones, que el alto de **TODA** la fila sea del alto de la columna de acciones
+
+14. Atomizemos roles:
+    * Para los encargados actualmente hay
+        - Encargado de diseño
+        - Encargado de diseño uv/3d
+        - Encargado General
+        - Encargado taller
+    Reescribamoslo a:
+        - Encargado de taller de diseño
+        - Encargado de taller de diseño 3d
+        - Encargado de taller de protextil
+        - Encargado de taller de diseño local
+    * Quitemos el rol de encargado general y diseñador
+    * A los técnicos, dejemolos solo como: Técnicos
+    * Dejemos intactos al supervisor y asesor
+    * Cambiémosle el nombre al "Asistente de diseño" a "Asistente"
+    
+
+15. Generame una documentación de qué tan viable es implementar el servicio de notificaciones de windows, o algo para que las notificaciones no solo hagan ruido. Me gustaría que salgan en pantalla.
