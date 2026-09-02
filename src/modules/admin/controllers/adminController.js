@@ -23,7 +23,7 @@ class AdminController {
 
   async actualizarUsuario(req, res) {
     try {
-      const usuario = await adminService.actualizarUsuario(Number(req.params.id), req.body);
+      const usuario = await adminService.actualizarUsuario(Number(req.params.id), req.body, req.user.id);
       return res.json(usuario);
     } catch (error) {
       return res.status(400).json({ error: error.message });
@@ -112,9 +112,9 @@ class AdminController {
     }
   }
 
-  async eliminarRol(req, res) {
+  async establecerActivoRol(req, res) {
     try {
-      await adminService.eliminarRol(Number(req.params.id));
+      await adminService.establecerActivoRol(Number(req.params.id), !!req.body.activo);
       return res.json({ ok: true });
     } catch (error) {
       return res.status(400).json({ error: error.message });

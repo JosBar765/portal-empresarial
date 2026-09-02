@@ -46,6 +46,9 @@ const ESTADOS_TALLER = {
   PENDIENTE_ASIGNACION: 'PENDIENTE_ASIGNACION',
   ASIGNADO: 'ASIGNADO',
   EN_PROCESO: 'EN_PROCESO',
+  // analisis_correcciones_14.md #10: el técnico puede pausar su trabajo sin
+  // entregar propuesta, para tomar otro vale, y luego reanudarlo.
+  EN_PAUSA: 'EN_PAUSA',
   EN_REVISION: 'EN_REVISION',
   APROBADO: 'APROBADO'
 };
@@ -703,7 +706,7 @@ class ValeService {
     if (usuario.rolId === 3) {
       return historial.filter(h => !ESTADOS_TALLER[h.estado_nuevo]);
     }
-    if ([5, 6, 7, 9, 11].includes(usuario.rolId)) {
+    if ([5, 6, 7, 9, 11, 12].includes(usuario.rolId)) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
       if (!tallerVisible) return [];
       return historial.filter(h => h.taller_id === null || h.taller_id === tallerVisible);
@@ -713,7 +716,7 @@ class ValeService {
 
   async _tallerIdVisiblePara(usuario) {
     const talleres = await tallerRepository.listarActivos();
-    if ([5, 6, 9, 11].includes(usuario.rolId)) {
+    if ([5, 6, 9, 11, 12].includes(usuario.rolId)) {
       const idEfectivo = await this._idEncargadoEfectivo(usuario);
       const propio = talleres.find(t => t.encargado_id === idEfectivo);
       return propio ? propio.id : null;
@@ -823,8 +826,9 @@ class ValeService {
         break;
       case 5:
       case 6:
-      case 9: // Asistente de Diseño — clon operativo del taller "Diseño"
-      case 11: // Encargado de un taller — buzón individual, scoped a su propio taller
+      case 9: // Asistente — clon operativo del taller "Diseño"
+      case 11: // Encargado de taller de protextil
+      case 12: // Encargado de taller de diseño local — buzón individual, scoped a su propio taller
         // analisis_correcciones_12.md #11: quien tenga vales.aprobar_general
         // (hoy roles 5 y 9) ve también, mezclada, la cola de fusión — ya no es
         // un buzón de rol aparte (ver §3 del plan / _buzonEncargado).
@@ -862,7 +866,7 @@ class ValeService {
     const usaEstadosVisiblesParaFiltro = usuario.rolId === 3 || (usuario.rolId === 4 && vista === 'trabajo');
     const estadoActivoDe = (v) => {
       if (usaEstadosVisiblesParaFiltro) return v.estado_visible;
-      if ([5, 6, 7, 9, 11].includes(usuario.rolId)) return v.estado_taller || v.estado;
+      if ([5, 6, 7, 9, 11, 12].includes(usuario.rolId)) return v.estado_taller || v.estado;
       return v.estado;
     };
     const estadoFiltro = filtros.estado || null;
@@ -1302,7 +1306,12 @@ class ValeService {
       : (esAdministrador(usuario) ? valeTalleresTodos : []);
     const filasAprobadas = filasDeMiTaller.filter(f => f.estado === ESTADOS_TALLER.APROBADO);
     const mapaFilaPorVale = new Map(filasAprobadas.map(f => [f.vale_id, f]));
-    const vistos = todosConTaller.filter(v => mapaFilaPorVale.has(v.id));
+    // analisis_correcciones_14.md #11: un vale ya RECIBIDO ya no es "trabajo
+    // vigente" del encargado — su fila de taller queda en APROBADO para siempre,
+    // pero Trabajo Realizado debe mostrar solo lo que sigue "vivo" (esperando
+    // confirmación/fusión), no el historial completo de todo lo que alguna vez
+    // aprobó.
+    const vistos = todosConTaller.filter(v => mapaFilaPorVale.has(v.id) && v.estado !== ESTADOS.RECIBIDO);
     const enVentana = vistos.filter(v => dentroDeVentana(v, ventana));
 
     // `estado_taller` fijo en 'APROBADO' (igual que _buzonEncargado) para que la
@@ -1324,7 +1333,7 @@ class ValeService {
           .filter(v =>
             v.propuesta_general_url &&
             (v._filasTaller.length > 1 || esValeDeModificacion(v)) &&
-            [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.SOLICITANDO_MODIFICACION].includes(v.estado) &&
+            [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.SOLICITANDO_MODIFICACION].includes(v.estado) &&
             dentroDeVentana(v, ventana)
           )
           .map(v => ({ ...v, _esFusion: true }))
@@ -1365,7 +1374,7 @@ class ValeService {
       const vales = (await Promise.all(activas.map(a => valeRepository.obtenerPorId(a.vale_id)))).filter(Boolean);
       const filaEnProceso = activas.find(a => a.estado === ESTADOS_TALLER.EN_PROCESO);
       const valeEnProceso = filaEnProceso ? vales.find(v => v.id === filaEnProceso.vale_id) : null;
-      const vigentes = activas.filter(a => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION].includes(a.estado));
+      const vigentes = activas.filter(a => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION].includes(a.estado));
       const fechasEntrega = vigentes
         .map(a => vales.find(v => v.id === a.vale_id))
         .filter(Boolean)
@@ -1395,7 +1404,7 @@ class ValeService {
       }
     }
     const activas = await valeTallerRepository.listarActivasPorTecnico(tecnicoId);
-    const activasVigentes = activas.filter(a => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION].includes(a.estado));
+    const activasVigentes = activas.filter(a => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION].includes(a.estado));
     const vales = await Promise.all(activasVigentes.map(async a => {
       const vale = await valeRepository.obtenerPorId(a.vale_id);
       return vale ? { ...enriquecer(vale), estado_taller: a.estado } : null;
@@ -1407,7 +1416,7 @@ class ValeService {
   // ---- Técnico: sidebar Buzón (asignaciones activas, sin aprobados/desaprobados) ----
   async obtenerBuzonTecnico(usuario, ventana, filtroContador) {
     const activas = (await valeTallerRepository.listarActivasPorTecnico(usuario.id))
-      .filter(a => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION].includes(a.estado));
+      .filter(a => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION].includes(a.estado));
     const vales = (await Promise.all(activas.map(async a => {
       const vale = await valeRepository.obtenerPorId(a.vale_id);
       return vale ? { ...enriquecer(vale), estado_taller: a.estado } : null;
@@ -1432,6 +1441,7 @@ class ValeService {
     const filtrados = this._aplicarFiltroContador(vales, filtroContador, predicados);
     const listaOrdenada = ordenarPorGrupos(filtrados, [
       v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO,
+      v => v.estado_taller === ESTADOS_TALLER.EN_PAUSA,
       v => v.estado_taller === ESTADOS_TALLER.ASIGNADO,
       v => v.estado_taller === ESTADOS_TALLER.EN_REVISION
     ]);
@@ -1498,8 +1508,12 @@ class ValeService {
       if (fila.estado !== ESTADOS_TALLER.PENDIENTE_ASIGNACION) {
         throw new Error('Este taller ya tiene un técnico asignado para este vale.');
       }
+      // analisis_correcciones_14.md #1: un encargado puede asignarse el vale a
+      // SÍ MISMO — la fila ya está acotada a su propio taller por
+      // _resolverFilaTallerParaEncargado, así que nunca cruza a un taller ajeno.
+      const esAutoasignacion = !esAdministrador(usuario) && Number(tecnicoId) === Number(usuario.id);
       const tecnicos = await usuarioValeRepository.listarTecnicosPorEncargado(await this._idEncargadoEfectivo(usuario));
-      if (!esAdministrador(usuario) && !tecnicos.some(t => t.id === Number(tecnicoId))) {
+      if (!esAdministrador(usuario) && !esAutoasignacion && !tecnicos.some(t => t.id === Number(tecnicoId))) {
         throw new Error('El técnico indicado no está bajo su mando.');
       }
       await valeTallerRepository.asignar(fila.id, tecnicoId, `${hoyISO()} ${horaActual()}`);
@@ -1567,12 +1581,72 @@ class ValeService {
       }
       await propuestaRepository.crear(valeId, usuario.id, url);
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_REVISION);
+      fila.estado = ESTADOS_TALLER.EN_REVISION;
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, 'Técnico entregó propuesta');
       const actualizado = await valeRepository.obtenerPorId(valeId);
       // analisis_correcciones_10.md #10: alerta roja si la propuesta va vacía (sin archivo).
       valeEvents.notificar({
         vale: actualizado, accion: 'entregado (propuesta)', actor: usuario.nombre, actorId: usuario.id,
         salas: [`taller:${fila.taller_id}`, `tecnico:${usuario.id}`], nivel: url ? 'info' : 'alerta'
+      });
+
+      // analisis_correcciones_14.md #1: si quien entrega es el ENCARGADO de este
+      // mismo taller (se autoasignó el vale), su trabajo se autoaprueba — no pasa
+      // por un período de revisión de sí mismo.
+      if (url) {
+        const taller = await tallerRepository.obtenerPorId(fila.taller_id);
+        const idEfectivo = await this._idEncargadoEfectivo(usuario);
+        if (taller && taller.encargado_id === idEfectivo) {
+          return this._revisarPropuestaInterno(usuario, valeId, fila, { aprobar: true, esAutoaprobacion: true });
+        }
+      }
+      return enriquecer(actualizado);
+    });
+  }
+
+  // analisis_correcciones_14.md #10: el técnico puede pausar un vale EN_PROCESO
+  // (sin propuesta) para tomar otro más urgente, y reanudarlo después. Mismo
+  // patrón que cancelarProcesoTecnico, pero queda en EN_PAUSA en vez de volver
+  // a EN_REVISION (la pausa no es una entrega).
+  async pausarProceso(usuario, valeId) {
+    return this._conLockDeVale(valeId, async () => {
+      await this._requerirVale(valeId);
+      const fila = await this._filaDelTecnico(usuario, valeId);
+      if (fila.estado !== ESTADOS_TALLER.EN_PROCESO) {
+        throw new Error('Solo se puede pausar un vale que esté EN_PROCESO en su taller.');
+      }
+      await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PAUSA);
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, 'Técnico pausó el proceso');
+      const actualizado = await valeRepository.obtenerPorId(valeId);
+      valeEvents.notificar({
+        vale: actualizado, accion: 'pausó el proceso', actor: usuario.nombre, actorId: usuario.id,
+        salas: [`taller:${fila.taller_id}`, `tecnico:${usuario.id}`]
+      });
+      return enriquecer(actualizado);
+    });
+  }
+
+  async reanudarProceso(usuario, valeId) {
+    return this._conLockDeVale(valeId, async () => {
+      await this._requerirVale(valeId);
+      const fila = await this._filaDelTecnico(usuario, valeId);
+      if (fila.estado !== ESTADOS_TALLER.EN_PAUSA) {
+        throw new Error('Solo se puede reanudar un vale que esté EN_PAUSA en su taller.');
+      }
+      // Misma regla que comenzar(): un técnico solo puede tener un vale EN_PROCESO a la vez.
+      const activasDelTecnico = await valeTallerRepository.listarActivasPorTecnico(usuario.id);
+      for (const a of activasDelTecnico) {
+        if (a.estado === ESTADOS_TALLER.EN_PROCESO) {
+          const v = await valeRepository.obtenerPorId(a.vale_id);
+          throw new Error(`Ya tienes un vale en proceso (${v ? v.correlativo : a.vale_id}). Debes entregarlo, cancelarlo o pausarlo antes de reanudar otro.`);
+        }
+      }
+      await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PROCESO);
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_PROCESO, 'Técnico reanudó el proceso');
+      const actualizado = await valeRepository.obtenerPorId(valeId);
+      valeEvents.notificar({
+        vale: actualizado, accion: 'reanudó el proceso', actor: usuario.nombre, actorId: usuario.id,
+        salas: [`taller:${fila.taller_id}`, `tecnico:${usuario.id}`]
       });
       return enriquecer(actualizado);
     });
@@ -1602,52 +1676,63 @@ class ValeService {
 
   async revisarPropuesta(usuario, valeId, { aprobar, tecnicoReasignadoId, tallerId }) {
     return this._conLockDeVale(valeId, async () => {
-      const vale = await this._requerirVale(valeId);
       const fila = await this._resolverFilaTallerParaEncargado(usuario, valeId, tallerId);
-      if (fila.estado !== ESTADOS_TALLER.EN_REVISION) {
-        throw new Error('Solo se pueden revisar talleres en estado EN_REVISION.');
-      }
-      if (aprobar) {
-        const ultimaPropuesta = await propuestaRepository.obtenerUltimaPorValeYTecnico(valeId, fila.tecnico_id);
-        if (!ultimaPropuesta || !ultimaPropuesta.url) {
-          throw new Error('No se puede aprobar una propuesta en blanco: el técnico debe adjuntar el documento de propuesta.');
-        }
-        await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.APROBADO);
-        const taller = await tallerRepository.obtenerPorId(fila.taller_id);
-        await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO,
-          `Encargado de ${taller ? taller.nombre : fila.taller_id} aprobó la propuesta de su taller`);
-        await this._recalcularEstadoVale(valeId, usuario.id);
-        const actualizado = await valeRepository.obtenerPorId(valeId);
-        // analisis_correcciones_10.md #10: el encargado que aprobó también se
-        // entera (self-broadcast, igual que el resto de acciones del módulo),
-        // además de a quien le toca seguir el flujo (asesor o quien fusiona).
-        const targets = actualizado.estado === ESTADOS.PENDIENTE_CONFIRMACION
-          ? [`asesor:${vale.asesor_id}`, `taller:${fila.taller_id}`]
-          : actualizado.estado === ESTADOS.APROBADO_DEPARTAMENTO
-            ? [await this._salaFusion(), `taller:${fila.taller_id}`]
-            : [`taller:${fila.taller_id}`];
-        valeEvents.notificar({ vale: actualizado, accion: 'aprobado (taller)', actor: usuario.nombre, actorId: usuario.id, salas: targets });
-        return enriquecer(actualizado);
-      }
-
-      if (!tecnicoReasignadoId) {
-        throw new Error('Debe indicar a qué técnico reasignar el vale desaprobado.');
-      }
-      const tecnicos = await usuarioValeRepository.listarTecnicosPorEncargado(await this._idEncargadoEfectivo(usuario));
-      if (!esAdministrador(usuario) && !tecnicos.some(t => t.id === Number(tecnicoReasignadoId))) {
-        throw new Error('El técnico indicado no está bajo su mando.');
-      }
-      await valeTallerRepository.asignar(fila.id, tecnicoReasignadoId, `${hoyISO()} ${horaActual()}`);
-      const tecnico = await usuarioValeRepository.obtenerPorId(tecnicoReasignadoId);
-      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.ASIGNADO,
-        `Encargado desaprobó la propuesta y reasignó a ${tecnico ? tecnico.nombre : tecnicoReasignadoId}`);
-      const actualizado = await valeRepository.obtenerPorId(valeId);
-      valeEvents.notificar({
-        vale: actualizado, accion: 'desaprobado y reasignado', actor: usuario.nombre, actorId: usuario.id, destino: tecnico ? tecnico.nombre : null,
-        salas: [`tecnico:${tecnicoReasignadoId}`, `taller:${fila.taller_id}`]
-      });
-      return enriquecer(actualizado);
+      return this._revisarPropuestaInterno(usuario, valeId, fila, { aprobar, tecnicoReasignadoId });
     });
+  }
+
+  // Extraído de revisarPropuesta (analisis_correcciones_14.md #1) para que
+  // entregar() pueda encadenar la autoaprobación de un encargado sin volver a
+  // pedir el lock de _conLockDeVale (no es reentrante — ya se sostiene desde
+  // entregar()).
+  async _revisarPropuestaInterno(usuario, valeId, fila, { aprobar, tecnicoReasignadoId, esAutoaprobacion }) {
+    const vale = await this._requerirVale(valeId);
+    if (fila.estado !== ESTADOS_TALLER.EN_REVISION) {
+      throw new Error('Solo se pueden revisar talleres en estado EN_REVISION.');
+    }
+    if (aprobar) {
+      const ultimaPropuesta = await propuestaRepository.obtenerUltimaPorValeYTecnico(valeId, fila.tecnico_id);
+      if (!ultimaPropuesta || !ultimaPropuesta.url) {
+        throw new Error('No se puede aprobar una propuesta en blanco: el técnico debe adjuntar el documento de propuesta.');
+      }
+      await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.APROBADO);
+      fila.estado = ESTADOS_TALLER.APROBADO;
+      const taller = await tallerRepository.obtenerPorId(fila.taller_id);
+      const accionHistorial = esAutoaprobacion
+        ? 'Encargado aprobó su propio trabajo (autoasignación)'
+        : `Encargado de ${taller ? taller.nombre : fila.taller_id} aprobó la propuesta de su taller`;
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO, accionHistorial);
+      await this._recalcularEstadoVale(valeId, usuario.id);
+      const actualizado = await valeRepository.obtenerPorId(valeId);
+      // analisis_correcciones_10.md #10: el encargado que aprobó también se
+      // entera (self-broadcast, igual que el resto de acciones del módulo),
+      // además de a quien le toca seguir el flujo (asesor o quien fusiona).
+      const targets = actualizado.estado === ESTADOS.PENDIENTE_CONFIRMACION
+        ? [`asesor:${vale.asesor_id}`, `taller:${fila.taller_id}`]
+        : actualizado.estado === ESTADOS.APROBADO_DEPARTAMENTO
+          ? [await this._salaFusion(), `taller:${fila.taller_id}`]
+          : [`taller:${fila.taller_id}`];
+      valeEvents.notificar({ vale: actualizado, accion: 'aprobado (taller)', actor: usuario.nombre, actorId: usuario.id, salas: targets });
+      return enriquecer(actualizado);
+    }
+
+    if (!tecnicoReasignadoId) {
+      throw new Error('Debe indicar a qué técnico reasignar el vale desaprobado.');
+    }
+    const tecnicos = await usuarioValeRepository.listarTecnicosPorEncargado(await this._idEncargadoEfectivo(usuario));
+    if (!esAdministrador(usuario) && !tecnicos.some(t => t.id === Number(tecnicoReasignadoId))) {
+      throw new Error('El técnico indicado no está bajo su mando.');
+    }
+    await valeTallerRepository.asignar(fila.id, tecnicoReasignadoId, `${hoyISO()} ${horaActual()}`);
+    const tecnico = await usuarioValeRepository.obtenerPorId(tecnicoReasignadoId);
+    await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.ASIGNADO,
+      `Encargado desaprobó la propuesta y reasignó a ${tecnico ? tecnico.nombre : tecnicoReasignadoId}`);
+    const actualizado = await valeRepository.obtenerPorId(valeId);
+    valeEvents.notificar({
+      vale: actualizado, accion: 'desaprobado y reasignado', actor: usuario.nombre, actorId: usuario.id, destino: tecnico ? tecnico.nombre : null,
+      salas: [`tecnico:${tecnicoReasignadoId}`, `taller:${fila.taller_id}`]
+    });
+    return enriquecer(actualizado);
   }
 
   // Recalcula el estado GENERAL del vale a partir del progreso de sus talleres.

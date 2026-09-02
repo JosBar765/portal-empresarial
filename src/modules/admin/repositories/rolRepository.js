@@ -24,8 +24,8 @@ class RolRepository {
     return db.query('UPDATE roles SET nombre = ?, descripcion = ? WHERE id = ?', [nombre, descripcion || null, id], 'rol:update');
   }
 
-  async eliminar(id) {
-    return db.query('DELETE FROM roles WHERE id = ?', [id], 'rol:delete');
+  async establecerActivo(id, activo) {
+    return db.query('UPDATE roles SET activo = ? WHERE id = ?', [activo ? 1 : 0, id], 'rol:set_activo');
   }
 
   async listarPermisoIds(rolId) {

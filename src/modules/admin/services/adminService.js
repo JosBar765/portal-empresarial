@@ -11,8 +11,12 @@ const maintenanceGate = require('../../../core/permissions/maintenanceMiddleware
 
 // Roles base protegidos (analisis_correcciones_13.md #6): no se pueden
 // eliminar ni renombrar, pero sus permisos sí se pueden editar.
-const ROLES_BASE = [1, 3];
+// analisis_correcciones_14.md #9: Asesor de Ventas (3) deja de ser "base" —
+// la protección real contra desactivarlo ya la da "no se puede desactivar un
+// rol con usuarios activos", que en la práctica lo sigue cubriendo.
+const ROLES_BASE = [1];
 const ROL_SUPERVISOR = 4;
+const ROL_ADMINISTRADOR = 1;
 
 function minutosDesde(fecha) {
   if (!fecha) return Infinity;
@@ -69,7 +73,7 @@ class AdminService {
     return usuarioAdminRepository.obtenerPorId(id);
   }
 
-  async actualizarUsuario(id, datos) {
+  async actualizarUsuario(id, datos, actorId) {
     const { nombre, email, password, rolId, tiendaId, telefono, tiendasSupervisadas } = datos;
     const usuario = await usuarioAdminRepository.obtenerPorId(id);
     if (!usuario) throw new Error('Usuario no encontrado.');
@@ -79,6 +83,11 @@ class AdminService {
     const existente = await usuarioAdminRepository.obtenerPorEmail(email);
     if (existente && existente.id !== Number(id)) {
       throw new Error('Ya existe otro usuario con ese correo electrónico.');
+    }
+    // analisis_correcciones_14.md #2: un Administrador no puede cambiar su
+    // propia contraseña desde el panel (autoedición bloqueada).
+    if (password && Number(id) === Number(actorId) && Number(usuario.rol_id) === ROL_ADMINISTRADOR) {
+      throw new Error('No puedes cambiar tu propia contraseña de administrador.');
     }
     const esSupervisor = Number(rolId) === ROL_SUPERVISOR;
     await usuarioAdminRepository.actualizar(id, {
@@ -170,15 +179,17 @@ class AdminService {
     return rolRepository.establecerPermisos(id, permisoIds);
   }
 
-  async eliminarRol(id) {
-    if (ROLES_BASE.includes(Number(id))) {
-      throw new Error('No se puede eliminar un rol base del sistema.');
+  async establecerActivoRol(id, activo) {
+    if (!activo) {
+      if (ROLES_BASE.includes(Number(id))) {
+        throw new Error('No se puede desactivar un rol base del sistema.');
+      }
+      const totalUsuarios = await rolRepository.contarUsuarios(id);
+      if (totalUsuarios > 0) {
+        throw new Error(`No se puede desactivar: hay ${totalUsuarios} usuario(s) con este rol. Reasígnalos primero.`);
+      }
     }
-    const totalUsuarios = await rolRepository.contarUsuarios(id);
-    if (totalUsuarios > 0) {
-      throw new Error(`No se puede eliminar: hay ${totalUsuarios} usuario(s) con este rol. Reasígnalos primero.`);
-    }
-    return rolRepository.eliminar(id);
+    return rolRepository.establecerActivo(id, activo);
   }
 
   // ---------------------------------------------------------------------

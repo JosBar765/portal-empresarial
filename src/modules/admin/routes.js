@@ -21,7 +21,7 @@ router.post('/roles', soloAdmin, (req, res) => adminController.crearRol(req, res
 router.put('/roles/:id', soloAdmin, (req, res) => adminController.actualizarRol(req, res));
 router.get('/roles/:id/permisos', soloAdmin, (req, res) => adminController.obtenerPermisosDeRol(req, res));
 router.put('/roles/:id/permisos', soloAdmin, (req, res) => adminController.actualizarPermisosRol(req, res));
-router.delete('/roles/:id', soloAdmin, (req, res) => adminController.eliminarRol(req, res));
+router.patch('/roles/:id/activo', soloAdmin, (req, res) => adminController.establecerActivoRol(req, res));
 
 // Actividad
 router.get('/actividad', soloAdmin, (req, res) => adminController.listarActividad(req, res));

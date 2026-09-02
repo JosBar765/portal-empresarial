@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS `roles` (
   `id`             INT AUTO_INCREMENT PRIMARY KEY,
   `nombre`         VARCHAR(50)  NOT NULL UNIQUE,
   `descripcion`    VARCHAR(255) DEFAULT NULL,
+  -- analisis_correcciones_14.md #5: "eliminar" un rol ahora es desactivarlo,
+  -- nunca un DELETE físico (mismo criterio que `usuarios.activo`) — un rol
+  -- desactivado se sigue listando (en gris) para poder reactivarlo.
+  `activo`         TINYINT(1) NOT NULL DEFAULT 1,
   `creado_en`      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `actualizado_en` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -101,28 +105,34 @@ INSERT INTO `paises` (`codigo`, `nombre`, `codigo_telefono`) VALUES
 -- persona, no del flujo de un módulo en particular — antes narraban el flujo de
 -- Vales de Arte ("Asigna vales de arte a técnicos..."), lo que envejece mal al
 -- sumar más módulos al portal.
-INSERT INTO `roles` (`id`, `nombre`, `descripcion`) VALUES
-(1, 'Administrador', 'Acceso total a todos los módulos y configuraciones del portal'),
-(2, 'Diseñador', 'Diseñador gráfico, encargado de crear piezas creativas y prompts de diseño'),
-(3, 'Asesor de Ventas', 'Asesor de ventas, encargado de atender clientes y gestionar ventas'),
-(4, 'Supervisor de Ventas', 'Supervisor de ventas, encargado de supervisar al equipo comercial'),
-(5, 'Encargado de Diseño', 'Encargado de diseño, responsable de coordinar y fusionar el trabajo del equipo de diseño'),
-(6, 'Encargado de Diseño UV/3D', 'Encargado de diseño UV/3D, responsable de coordinar al equipo de diseño UV/3D'),
-(7, 'Técnico de Diseño', 'Técnico de diseño, encargado de ejecutar el trabajo de diseño y producción asignado'),
+-- analisis_correcciones_14.md #14: atomización de roles de encargado — se
+-- retiran "Diseñador" (2, legacy) y "Encargado General" (8, ya descontinuado
+-- desde correcciones #12 #11) desactivándolos (activo = 0), nunca borrándolos
+-- (usuarios con historial los referencian). Los encargados 5/6/9/11 se
+-- renombran para reflejar mejor su taller; se agrega el rol 12 nuevo para
+-- separar "Diseño Local" (antes compartía el 11 genérico con Protextil).
+INSERT INTO `roles` (`id`, `nombre`, `descripcion`, `activo`) VALUES
+(1, 'Administrador', 'Acceso total a todos los módulos y configuraciones del portal', 1),
+(2, 'Diseñador', 'ROL DESCONTINUADO (analisis_correcciones_14.md #14) — Diseñador gráfico legacy, reemplazado por los roles atomizados de encargado/técnico', 0),
+(3, 'Asesor de Ventas', 'Asesor de ventas, encargado de atender clientes y gestionar ventas', 1),
+(4, 'Supervisor de Ventas', 'Supervisor de ventas, encargado de supervisar al equipo comercial', 1),
+(5, 'Encargado de taller de diseño', 'Encargado del taller de Diseño, responsable de coordinar y fusionar el trabajo del equipo de diseño', 1),
+(6, 'Encargado de taller de diseño 3d', 'Encargado del taller de Diseño UV/3D, responsable de coordinar al equipo de diseño UV/3D', 1),
+(7, 'Técnicos', 'Técnico, encargado de ejecutar el trabajo de diseño y producción asignado', 1),
 -- analisis_correcciones_12.md #11: rol DESCONTINUADO — "el encargado general no
 -- existe" (regla de negocio explícita). Se conserva la fila (nunca se borra un
 -- rol/usuario con historial referenciado, mismo criterio que usuarios.encargado_id
 -- en la Fase 2a) pero sin permisos (ver rol_permisos) y con su usuario semilla
 -- desactivado (usuarios.activo = 0, id 10) — no debe poder asignarse a nadie más.
-(8, 'Encargado General', 'ROL DESCONTINUADO (analisis_correcciones_12.md #11) — la fusión de vales multi-taller ahora es un permiso atómico del Encargado de Diseño'),
+(8, 'Encargado General', 'ROL DESCONTINUADO (analisis_correcciones_12.md #11) — la fusión de vales multi-taller ahora es un permiso atómico del Encargado de Diseño', 0),
 -- Recicla el rol 9: clon operativo completo del Encargado de Diseño (mismos
 -- permisos atómicos), en vez de un rol propio de "encargado general".
-(9, 'Asistente de Diseño', 'Asistente del Encargado de Diseño, con las mismas responsabilidades de coordinación y fusión'),
-(10, 'Gerente', 'Gerente, encargado de supervisar la operación general y sus métricas'),
--- analisis_correcciones_12.md #11: rol genérico para no crear un rol por cada
--- taller nuevo (Protextil + un Diseño Local por tienda) — cada encargado se
--- distingue por CUÁL taller es su `talleres.encargado_id`, no por su rol.
-(11, 'Encargado de Taller', 'Encargado de un taller de producción, responsable de asignar técnicos y revisar sus propuestas');
+(9, 'Asistente', 'Asistente del Encargado de taller de diseño, con las mismas responsabilidades de coordinación y fusión', 1),
+(10, 'Gerente', 'Gerente, encargado de supervisar la operación general y sus métricas', 1),
+-- analisis_correcciones_14.md #14: pasa a significar SOLO Protextil — "Diseño
+-- Local" se separa al rol 12 nuevo.
+(11, 'Encargado de taller de protextil', 'Encargado del taller de Protextil, responsable de asignar técnicos y revisar sus propuestas', 1),
+(12, 'Encargado de taller de diseño local', 'Encargado de un taller de Diseño Local (por tienda), responsable de asignar técnicos y revisar sus propuestas', 1);
 
 -- Permisos (basado en los módulos descritos en arquitectura_reglas.md)
 INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUES
@@ -160,23 +170,28 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 -- Supervisor de Ventas: Vales (ver, supervisar, aprobar modificación, autorizar creación)
 -- + Panel de Gerencia (analisis_correcciones_12.md #10: comparte el dashboard con el Gerente)
 (4, 1), (4, 15), (4, 14), (4, 18), (4, 17),
--- Encargado de Diseño: Vales (ver, asignar, revisar) — dueño del taller "Diseño".
+-- Encargado de taller de diseño: Vales (ver, asignar, revisar) — dueño del taller "Diseño".
 -- analisis_correcciones_12.md #11: gana la fusión multi-taller (16) — gerencia
 -- decidió que la persona real que fusiona es el Encargado de Diseño, ya no un
 -- rol aparte de "encargado general".
-(5, 1), (5, 9), (5, 10), (5, 16),
--- Encargado de Diseño UV/3D: Vales (ver, asignar, revisar) — dueño del taller "Diseño UV/3D"
-(6, 1), (6, 9), (6, 10),
--- Técnico de Diseño: Vales (ver, trabajar)
+-- analisis_correcciones_14.md #1: gana también "trabajar" (11) — un encargado
+-- puede autoasignarse un vale de su propio taller y trabajarlo él mismo.
+(5, 1), (5, 9), (5, 10), (5, 16), (5, 11),
+-- Encargado de taller de diseño 3d: Vales (ver, asignar, revisar, trabajar) — dueño del taller "Diseño UV/3D"
+(6, 1), (6, 9), (6, 10), (6, 11),
+-- Técnicos: Vales (ver, trabajar)
 (7, 1), (7, 11),
 -- Rol 8 (Encargado General): DESCONTINUADO — sin permisos (ver comentario en `roles`).
--- Asistente de Diseño (antes "Asistente Encargado General"): clon operativo
--- COMPLETO del Encargado de Diseño — mismos permisos atómicos.
-(9, 1), (9, 9), (9, 10), (9, 16),
+-- Asistente (antes "Asistente de Diseño"/"Asistente Encargado General"): clon
+-- operativo COMPLETO del Encargado de taller de diseño — mismos permisos atómicos.
+(9, 1), (9, 9), (9, 10), (9, 16), (9, 11),
 -- Gerente: solo lectura — ver vales + panel de gerencia (analisis_correcciones_7.md, Vista Gerencia)
 (10, 1), (10, 17),
--- Encargado de Taller (genérico: Protextil + cada Diseño Local): Vales (ver, asignar, revisar) — SIN fusión.
-(11, 1), (11, 9), (11, 10);
+-- Encargado de taller de protextil: Vales (ver, asignar, revisar, trabajar) — SIN fusión.
+(11, 1), (11, 9), (11, 10), (11, 11),
+-- Encargado de taller de diseño local (analisis_correcciones_14.md #14): mismos
+-- permisos atómicos que el 11 (Protextil) — solo cambia CUÁL taller es suyo.
+(12, 1), (12, 9), (12, 10), (12, 11);
 
 -- Usuarios (contraseñas hasheadas con bcrypt, 10 rondas)
 -- admin@munditrofeos.com          -> admin123
@@ -433,7 +448,9 @@ CREATE TABLE IF NOT EXISTS `vale_talleres` (
   `vale_id`           INT NOT NULL,
   `taller_id`         INT NOT NULL,
   `tecnico_id`        INT DEFAULT NULL,
-  `estado`            ENUM('PENDIENTE_ASIGNACION','ASIGNADO','EN_PROCESO','EN_REVISION','APROBADO') NOT NULL DEFAULT 'PENDIENTE_ASIGNACION',
+  -- analisis_correcciones_14.md #10: EN_PAUSA permite a un técnico pausar su
+  -- trabajo en un taller sin entregar propuesta, para tomar otro vale.
+  `estado`            ENUM('PENDIENTE_ASIGNACION','ASIGNADO','EN_PROCESO','EN_PAUSA','EN_REVISION','APROBADO') NOT NULL DEFAULT 'PENDIENTE_ASIGNACION',
   `fecha_asignacion`  DATETIME DEFAULT NULL,
   `activo`            TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Determina la asignación vigente para este taller',
   `creado_en`         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -816,6 +833,15 @@ UPDATE `vales` SET `autorizado_por` = 4, `autorizado_en` = '2026-08-20 11:00:00'
 -- desactiva el usuario semilla (rol 8, ya sin permisos) en vez de borrarlo,
 -- para no romper las FKs de `vale_historial` que ya lo referencian.
 UPDATE `usuarios` SET `activo` = 0 WHERE `id` = 10;
+
+-- analisis_correcciones_14.md #14: el rol 2 "Diseñador" (legacy) se
+-- desactiva junto con su único usuario semilla — mismo criterio de arriba.
+UPDATE `usuarios` SET `activo` = 0 WHERE `id` = 2;
+
+-- analisis_correcciones_14.md #14: los encargados de "Diseño Local" migran
+-- del rol genérico 11 (ahora solo Protextil) al rol 12 nuevo. `talleres.encargado_id`
+-- no cambia (sigue siendo el mismo usuario) — solo su rol.
+UPDATE `usuarios` SET `rol_id` = 12 WHERE `id` IN (27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47);
 
 -- Orden inicial del catálogo de tiendas = orden de sus ids (analisis_correcciones_13.md #6).
 UPDATE `tiendas` SET `orden` = `id`;

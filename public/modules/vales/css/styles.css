@@ -722,9 +722,14 @@
   color: var(--vale-estado-modificado-fg);
 }
 
+/* analisis_correcciones_14.md #13: máximo 3 acciones por fila visual — si hay
+   una segunda fila de íconos, el alto de TODA la fila de la tabla ya se ajusta
+   solo (comportamiento nativo de <table>, la celda más alta manda). */
 .acciones-cell {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+  max-width: 112px;
 }
 
 .btn-icon {

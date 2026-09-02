@@ -12,7 +12,9 @@ let useMock = false;
 const mockDatabase = {
   usuarios: [
     { id: 1, nombre: 'Administrador General', email: 'admin@munditrofeos.com', telefono: '+502 5555-0001', password_hash: '$2a$10$0.B9xk21MYppfOd4XbtP3u5mJ6NzlaA6eqlu65Fy5G7xb2VnN2Lwu', rol_id: 1, tienda_id: 1, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
-    { id: 2, nombre: 'Diseñador Creativo', email: 'diseno@munditrofeos.com', telefono: '+502 5555-0002', password_hash: '$2a$10$SXZEYhhebLnagsNMyFiqFOIn3m4Uwwf45PKHBvEIooMvzfqLXBpaC', rol_id: 2, tienda_id: 1, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    // analisis_correcciones_14.md #14: el rol 2 "Diseñador" se desactivó — su
+    // único usuario semilla se desactiva también (mismo criterio que el id 10).
+    { id: 2, nombre: 'Diseñador Creativo', email: 'diseno@munditrofeos.com', telefono: '+502 5555-0002', password_hash: '$2a$10$SXZEYhhebLnagsNMyFiqFOIn3m4Uwwf45PKHBvEIooMvzfqLXBpaC', rol_id: 2, tienda_id: 1, encargado_id: null, activo: 0, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     // analisis_correcciones_12.md #10: encargado_id ya no es "su supervisor" —
     // su(s) supervisor(es) se resuelven dinámicamente vía tienda_id (1 = MTC) +
     // supervisorAsignaciones.
@@ -53,47 +55,51 @@ const mockDatabase = {
     // con rol 7 (reusan el hash de tecnico.a@..., tecnico123).
     { id: 25, nombre: 'Encargado Protextil', email: 'encargado.protextil@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: null, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     { id: 26, nombre: 'Técnico Protextil', email: 'tecnico.protextil@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: null, encargado_id: 25, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
-    { id: 27, nombre: 'Encargado Diseño Local P13', email: 'disenolocal.p13@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 3, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 27, nombre: 'Encargado Diseño Local P13', email: 'disenolocal.p13@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 12, tienda_id: 3, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     { id: 28, nombre: 'Técnico Diseño Local P13', email: 'tecnico.disenolocal.p13@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 3, encargado_id: 27, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
-    { id: 29, nombre: 'Encargado Diseño Local SSV', email: 'disenolocal.ssv@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 4, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 29, nombre: 'Encargado Diseño Local SSV', email: 'disenolocal.ssv@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 12, tienda_id: 4, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     { id: 30, nombre: 'Técnico Diseño Local SSV', email: 'tecnico.disenolocal.ssv@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 4, encargado_id: 29, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
-    { id: 31, nombre: 'Encargado Diseño Local SAA', email: 'disenolocal.saa@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 5, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 31, nombre: 'Encargado Diseño Local SAA', email: 'disenolocal.saa@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 12, tienda_id: 5, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     { id: 32, nombre: 'Técnico Diseño Local SAA', email: 'tecnico.disenolocal.saa@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 5, encargado_id: 31, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
-    { id: 33, nombre: 'Encargado Diseño Local SMG', email: 'disenolocal.smg@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 6, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 33, nombre: 'Encargado Diseño Local SMG', email: 'disenolocal.smg@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 12, tienda_id: 6, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     { id: 34, nombre: 'Técnico Diseño Local SMG', email: 'tecnico.disenolocal.smg@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 6, encargado_id: 33, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
-    { id: 35, nombre: 'Encargado Diseño Local ECL', email: 'disenolocal.ecl@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 7, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 35, nombre: 'Encargado Diseño Local ECL', email: 'disenolocal.ecl@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 12, tienda_id: 7, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     { id: 36, nombre: 'Técnico Diseño Local ECL', email: 'tecnico.disenolocal.ecl@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 7, encargado_id: 35, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
-    { id: 37, nombre: 'Encargado Diseño Local CMY', email: 'disenolocal.cmy@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 8, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 37, nombre: 'Encargado Diseño Local CMY', email: 'disenolocal.cmy@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 12, tienda_id: 8, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     { id: 38, nombre: 'Técnico Diseño Local CMY', email: 'tecnico.disenolocal.cmy@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 8, encargado_id: 37, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
-    { id: 39, nombre: 'Encargado Diseño Local TEG', email: 'disenolocal.teg@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 9, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 39, nombre: 'Encargado Diseño Local TEG', email: 'disenolocal.teg@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 12, tienda_id: 9, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     { id: 40, nombre: 'Técnico Diseño Local TEG', email: 'tecnico.disenolocal.teg@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 9, encargado_id: 39, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
-    { id: 41, nombre: 'Encargado Diseño Local SPS', email: 'disenolocal.sps@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 10, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 41, nombre: 'Encargado Diseño Local SPS', email: 'disenolocal.sps@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 12, tienda_id: 10, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     { id: 42, nombre: 'Técnico Diseño Local SPS', email: 'tecnico.disenolocal.sps@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 10, encargado_id: 41, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
-    { id: 43, nombre: 'Encargado Diseño Local MAN', email: 'disenolocal.man@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 11, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 43, nombre: 'Encargado Diseño Local MAN', email: 'disenolocal.man@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 12, tienda_id: 11, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     { id: 44, nombre: 'Técnico Diseño Local MAN', email: 'tecnico.disenolocal.man@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 11, encargado_id: 43, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
-    { id: 45, nombre: 'Encargado Diseño Local LEO', email: 'disenolocal.leo@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 12, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 45, nombre: 'Encargado Diseño Local LEO', email: 'disenolocal.leo@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 12, tienda_id: 12, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     { id: 46, nombre: 'Técnico Diseño Local LEO', email: 'tecnico.disenolocal.leo@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 12, encargado_id: 45, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
-    { id: 47, nombre: 'Encargado Diseño Local SJO', email: 'disenolocal.sjo@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 11, tienda_id: 13, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 47, nombre: 'Encargado Diseño Local SJO', email: 'disenolocal.sjo@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 12, tienda_id: 13, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     { id: 48, nombre: 'Técnico Diseño Local SJO', email: 'tecnico.disenolocal.sjo@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 13, encargado_id: 47, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null }
   ],
   // analisis_correcciones_12.md #3: descripciones por función, no por flujo de
   // Vales de Arte — deben quedar idénticas a las de database/schema.sql.
   roles: [
-    { id: 1, nombre: 'Administrador', descripcion: 'Acceso total a todos los módulos y configuraciones del portal' },
-    { id: 2, nombre: 'Diseñador', descripcion: 'Diseñador gráfico, encargado de crear piezas creativas y prompts de diseño' },
-    { id: 3, nombre: 'Asesor de Ventas', descripcion: 'Asesor de ventas, encargado de atender clientes y gestionar ventas' },
-    { id: 4, nombre: 'Supervisor de Ventas', descripcion: 'Supervisor de ventas, encargado de supervisar al equipo comercial' },
-    { id: 5, nombre: 'Encargado de Diseño', descripcion: 'Encargado de diseño, responsable de coordinar y fusionar el trabajo del equipo de diseño' },
-    { id: 6, nombre: 'Encargado de Diseño UV/3D', descripcion: 'Encargado de diseño UV/3D, responsable de coordinar al equipo de diseño UV/3D' },
-    { id: 7, nombre: 'Técnico de Diseño', descripcion: 'Técnico de diseño, encargado de ejecutar el trabajo de diseño y producción asignado' },
+    { id: 1, nombre: 'Administrador', descripcion: 'Acceso total a todos los módulos y configuraciones del portal', activo: 1 },
+    // analisis_correcciones_14.md #14: legacy, reemplazado por los roles
+    // atomizados de encargado/técnico — desactivado, nunca borrado.
+    { id: 2, nombre: 'Diseñador', descripcion: 'ROL DESCONTINUADO (analisis_correcciones_14.md #14) — Diseñador gráfico legacy, reemplazado por los roles atomizados de encargado/técnico', activo: 0 },
+    { id: 3, nombre: 'Asesor de Ventas', descripcion: 'Asesor de ventas, encargado de atender clientes y gestionar ventas', activo: 1 },
+    { id: 4, nombre: 'Supervisor de Ventas', descripcion: 'Supervisor de ventas, encargado de supervisar al equipo comercial', activo: 1 },
+    { id: 5, nombre: 'Encargado de taller de diseño', descripcion: 'Encargado del taller de Diseño, responsable de coordinar y fusionar el trabajo del equipo de diseño', activo: 1 },
+    { id: 6, nombre: 'Encargado de taller de diseño 3d', descripcion: 'Encargado del taller de Diseño UV/3D, responsable de coordinar al equipo de diseño UV/3D', activo: 1 },
+    { id: 7, nombre: 'Técnicos', descripcion: 'Técnico, encargado de ejecutar el trabajo de diseño y producción asignado', activo: 1 },
     // analisis_correcciones_12.md #11: rol DESCONTINUADO — sin permisos, usuario
     // semilla desactivado. Nunca se borra el rol (preserva vale_historial).
-    { id: 8, nombre: 'Encargado General', descripcion: 'ROL DESCONTINUADO (analisis_correcciones_12.md #11) — la fusión de vales multi-taller ahora es un permiso atómico del Encargado de Diseño' },
-    { id: 9, nombre: 'Asistente de Diseño', descripcion: 'Asistente del Encargado de Diseño, con las mismas responsabilidades de coordinación y fusión' },
-    { id: 10, nombre: 'Gerente', descripcion: 'Gerente, encargado de supervisar la operación general y sus métricas' },
-    // Rol genérico: lo comparten los encargados de Protextil y de cada Diseño
-    // Local — se distinguen por CUÁL taller es su encargado_id, no por su rol.
-    { id: 11, nombre: 'Encargado de Taller', descripcion: 'Encargado de un taller de producción, responsable de asignar técnicos y revisar sus propuestas' }
+    { id: 8, nombre: 'Encargado General', descripcion: 'ROL DESCONTINUADO (analisis_correcciones_12.md #11) — la fusión de vales multi-taller ahora es un permiso atómico del Encargado de Diseño', activo: 0 },
+    { id: 9, nombre: 'Asistente', descripcion: 'Asistente del Encargado de taller de diseño, con las mismas responsabilidades de coordinación y fusión', activo: 1 },
+    { id: 10, nombre: 'Gerente', descripcion: 'Gerente, encargado de supervisar la operación general y sus métricas', activo: 1 },
+    // analisis_correcciones_14.md #14: pasa a significar SOLO Protextil.
+    { id: 11, nombre: 'Encargado de taller de protextil', descripcion: 'Encargado del taller de Protextil, responsable de asignar técnicos y revisar sus propuestas', activo: 1 },
+    // Rol nuevo: separa "Diseño Local" del genérico 11 — se distinguen por CUÁL
+    // taller es su encargado_id, no por su rol.
+    { id: 12, nombre: 'Encargado de taller de diseño local', descripcion: 'Encargado de un taller de Diseño Local (por tienda), responsable de asignar técnicos y revisar sus propuestas', activo: 1 }
   ],
   permisos: [
     { id: 1, codigo: 'vales.ver', nombre: 'Ver Vales', modulo: 'vales' },
@@ -126,15 +132,19 @@ const mockDatabase = {
     { rol_id: 3, permiso_id: 12 }, { rol_id: 3, permiso_id: 13 }, { rol_id: 3, permiso_id: 6 }, { rol_id: 3, permiso_id: 7 },
     { rol_id: 4, permiso_id: 1 }, { rol_id: 4, permiso_id: 15 }, { rol_id: 4, permiso_id: 14 }, { rol_id: 4, permiso_id: 18 }, { rol_id: 4, permiso_id: 17 },
     // analisis_correcciones_12.md #11: Encargado de Diseño gana la fusión (16).
-    { rol_id: 5, permiso_id: 1 }, { rol_id: 5, permiso_id: 9 }, { rol_id: 5, permiso_id: 10 }, { rol_id: 5, permiso_id: 16 },
-    { rol_id: 6, permiso_id: 1 }, { rol_id: 6, permiso_id: 9 }, { rol_id: 6, permiso_id: 10 },
+    // analisis_correcciones_14.md #1: gana también "trabajar" (11) — autoasignación.
+    { rol_id: 5, permiso_id: 1 }, { rol_id: 5, permiso_id: 9 }, { rol_id: 5, permiso_id: 10 }, { rol_id: 5, permiso_id: 16 }, { rol_id: 5, permiso_id: 11 },
+    { rol_id: 6, permiso_id: 1 }, { rol_id: 6, permiso_id: 9 }, { rol_id: 6, permiso_id: 10 }, { rol_id: 6, permiso_id: 11 },
     { rol_id: 7, permiso_id: 1 }, { rol_id: 7, permiso_id: 11 },
     // Rol 8 (Encargado General): DESCONTINUADO, sin permisos.
-    // Asistente de Diseño: clon operativo COMPLETO del Encargado de Diseño.
-    { rol_id: 9, permiso_id: 1 }, { rol_id: 9, permiso_id: 9 }, { rol_id: 9, permiso_id: 10 }, { rol_id: 9, permiso_id: 16 },
+    // Asistente: clon operativo COMPLETO del Encargado de taller de diseño.
+    { rol_id: 9, permiso_id: 1 }, { rol_id: 9, permiso_id: 9 }, { rol_id: 9, permiso_id: 10 }, { rol_id: 9, permiso_id: 16 }, { rol_id: 9, permiso_id: 11 },
     { rol_id: 10, permiso_id: 1 }, { rol_id: 10, permiso_id: 17 },
-    // Encargado de Taller (genérico: Protextil + cada Diseño Local) — sin fusión.
-    { rol_id: 11, permiso_id: 1 }, { rol_id: 11, permiso_id: 9 }, { rol_id: 11, permiso_id: 10 }
+    // Encargado de taller de protextil — sin fusión.
+    { rol_id: 11, permiso_id: 1 }, { rol_id: 11, permiso_id: 9 }, { rol_id: 11, permiso_id: 10 }, { rol_id: 11, permiso_id: 11 },
+    // Encargado de taller de diseño local (analisis_correcciones_14.md #14):
+    // mismos permisos atómicos que el 11 — solo cambia CUÁL taller es suyo.
+    { rol_id: 12, permiso_id: 1 }, { rol_id: 12, permiso_id: 9 }, { rol_id: 12, permiso_id: 10 }, { rol_id: 12, permiso_id: 11 }
   ],
   // Estructura organizacional (analisis_correcciones_12.md #10) — reemplaza la
   // vieja `localidades` (3 filas placeholder "GUA"/"SAN"/"TEG") por la
@@ -883,7 +893,7 @@ const taggedHandlers = {
   })),
   'rol:insert': (params) => {
     const [nombre, descripcion] = params;
-    const row = { id: nextId(mockDatabase.roles), nombre, descripcion: descripcion || null };
+    const row = { id: nextId(mockDatabase.roles), nombre, descripcion: descripcion || null, activo: 1 };
     mockDatabase.roles.push(row);
     return { insertId: row.id };
   },
@@ -894,12 +904,12 @@ const taggedHandlers = {
     r.nombre = nombre; r.descripcion = descripcion || null;
     return { affectedRows: 1 };
   },
-  'rol:delete': (params) => {
-    const id = Number(params[0]);
-    const idx = mockDatabase.roles.findIndex(x => x.id === id);
-    if (idx === -1) return { affectedRows: 0 };
-    mockDatabase.roles.splice(idx, 1);
-    mockDatabase.rol_permisos = mockDatabase.rol_permisos.filter(rp => rp.rol_id !== id);
+  // analisis_correcciones_14.md #5: ya no se borra físicamente un rol, se desactiva.
+  'rol:set_activo': (params) => {
+    const [activo, id] = params;
+    const r = mockDatabase.roles.find(x => x.id === Number(id));
+    if (!r) return { affectedRows: 0 };
+    r.activo = activo ? 1 : 0;
     return { affectedRows: 1 };
   },
   'rol:count_usuarios': (params) => [{ total: mockDatabase.usuarios.filter(u => u.rol_id === Number(params[0])).length }],
@@ -1032,7 +1042,7 @@ const taggedHandlers = {
   // Pestaña "Actividad de Usuarios".
   'actividad:list': () => mockDatabase.usuarios.filter(u => u.activo).map(u => {
     const rol = mockDatabase.roles.find(r => r.id === u.rol_id);
-    return { id: u.id, nombre: u.nombre, rol_nombre: rol ? rol.nombre : null, ultima_ciudad: u.ultima_ciudad, sesion_iniciada_en: u.sesion_iniciada_en, ultima_actividad_en: u.ultima_actividad_en };
+    return { id: u.id, nombre: u.nombre, rol_id: u.rol_id, tienda_id: u.tienda_id, rol_nombre: rol ? rol.nombre : null, ultima_ciudad: u.ultima_ciudad, sesion_iniciada_en: u.sesion_iniciada_en, ultima_actividad_en: u.ultima_actividad_en };
   }),
 
   // Rastro de presencia (sellado desde src/core/auth, leído por la pestaña de Actividad).

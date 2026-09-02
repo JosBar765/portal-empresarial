@@ -9,9 +9,16 @@
     user: null,
     tab: 'usuarios',
     usuarios: [], usuariosResumen: { total: 0, activos: 0, inactivos: 0, rolesEnUso: 0 }, busquedaUsuarios: '',
+    // analisis_correcciones_14.md #6/#7: filtros de tienda/rol, compartidos por
+    // Gestión de Usuarios y Actividad de Usuarios.
+    filtroTiendaUsuarios: '', filtroRolUsuarios: '',
+    filtroTiendaActividad: '', filtroRolActividad: '',
     roles: [], rolesResumen: { rolesConfigurados: 0, permisosDisponibles: 0 },
     actividad: [], actividadResumen: { enLinea: 0, inactivos: 0, totalActivos: 0 },
     tiendas: [], tiendasResumen: { activas: 0, inactivas: 0 },
+    // Catálogos livianos (id + nombre) para poblar los <select> de filtro,
+    // cargados una vez y reusados por ambas pestañas.
+    catalogoTiendas: [], catalogoRoles: [],
     mantenimiento: null
   };
 
@@ -208,8 +215,31 @@
   // =======================================================================
   // 1. Gestionar Usuarios
   // =======================================================================
+  // analisis_correcciones_14.md #6/#7: catálogos livianos para los filtros de
+  // tienda/rol — se cargan una sola vez (independiente de qué pestaña los pida
+  // primero) y se reusan.
+  async function asegurarCatalogosFiltro() {
+    if (state.catalogoTiendas.length && state.catalogoRoles.length) return;
+    const [tiendasData, rolesData] = await Promise.all([
+      fetch('/api/admin/tiendas').then(r => r.json()),
+      fetch('/api/admin/roles').then(r => r.json())
+    ]);
+    state.catalogoTiendas = tiendasData.tiendas;
+    state.catalogoRoles = rolesData.roles;
+  }
+
+  function opcionesFiltroTienda(seleccionada) {
+    return '<option value="">Todas las tiendas</option>' +
+      state.catalogoTiendas.map(t => `<option value="${t.id}" ${String(seleccionada) === String(t.id) ? 'selected' : ''}>${escapeHtml(t.nombre)} (${escapeHtml(t.codigo)})</option>`).join('');
+  }
+
+  function opcionesFiltroRol(seleccionada) {
+    return '<option value="">Todos los roles</option>' +
+      state.catalogoRoles.map(r => `<option value="${r.id}" ${String(seleccionada) === String(r.id) ? 'selected' : ''}>${escapeHtml(r.nombre)}</option>`).join('');
+  }
+
   async function cargarUsuarios() {
-    const res = await fetch('/api/admin/usuarios');
+    const [res] = await Promise.all([fetch('/api/admin/usuarios'), asegurarCatalogosFiltro()]);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     state.usuariosResumen = data.resumen;
@@ -229,6 +259,8 @@
         <h2>Gestionar Usuarios</h2>
         <div class="panel-toolbar-acciones">
           <input type="text" id="buscar-usuarios" placeholder="Buscar por nombre, correo o rol..." value="${escapeHtml(state.busquedaUsuarios)}">
+          <select id="filtro-tienda-usuarios">${opcionesFiltroTienda(state.filtroTiendaUsuarios)}</select>
+          <select id="filtro-rol-usuarios">${opcionesFiltroRol(state.filtroRolUsuarios)}</select>
           <button class="btn btn--primary" id="btn-nuevo-usuario"><ion-icon name="add-outline"></ion-icon> Nuevo Usuario</button>
         </div>
       </div>
@@ -247,15 +279,22 @@
     `;
     renderFilasUsuarios();
     $('#buscar-usuarios').addEventListener('input', (e) => { state.busquedaUsuarios = e.target.value; renderFilasUsuarios(); });
+    $('#filtro-tienda-usuarios').addEventListener('change', (e) => { state.filtroTiendaUsuarios = e.target.value; renderFilasUsuarios(); });
+    $('#filtro-rol-usuarios').addEventListener('change', (e) => { state.filtroRolUsuarios = e.target.value; renderFilasUsuarios(); });
     $('#btn-nuevo-usuario').addEventListener('click', () => abrirModalUsuario(null));
   }
 
   function renderFilasUsuarios() {
     const filtro = state.busquedaUsuarios.trim().toLowerCase();
-    const filas = state.usuarios.filter(u => !filtro ||
-      u.nombre.toLowerCase().includes(filtro) ||
-      u.email.toLowerCase().includes(filtro) ||
-      (u.rol_nombre || '').toLowerCase().includes(filtro));
+    const filas = state.usuarios.filter(u => {
+      const coincideBusqueda = !filtro ||
+        u.nombre.toLowerCase().includes(filtro) ||
+        u.email.toLowerCase().includes(filtro) ||
+        (u.rol_nombre || '').toLowerCase().includes(filtro);
+      const coincideTienda = !state.filtroTiendaUsuarios || String(u.tienda_id) === state.filtroTiendaUsuarios;
+      const coincideRol = !state.filtroRolUsuarios || String(u.rol_id) === state.filtroRolUsuarios;
+      return coincideBusqueda && coincideTienda && coincideRol;
+    });
 
     const tbody = $('#usuarios-tbody');
     if (!filas.length) {
@@ -327,7 +366,21 @@
       ]);
     }
 
-    const opcionesRol = roles.map(r => `<option value="${r.id}" ${esEdicion && Number(usuario.rol_id) === r.id ? 'selected' : ''}>${escapeHtml(r.nombre)}</option>`).join('');
+    // analisis_correcciones_14.md #5: solo roles activos son asignables — salvo
+    // el rol actual del usuario en edición, para no corromper su valor al
+    // guardar sin tocarlo.
+    const rolesAsignables = roles.filter(r => r.activo || (esEdicion && Number(usuario.rol_id) === r.id));
+    const opcionesRol = rolesAsignables.map(r => `<option value="${r.id}" ${esEdicion && Number(usuario.rol_id) === r.id ? 'selected' : ''}>${escapeHtml(r.nombre)}</option>`).join('');
+
+    // analisis_correcciones_14.md #2: un Administrador no puede cambiar su
+    // propia contraseña desde el panel — el campo ni siquiera se renderiza.
+    const esPropioAdmin = esEdicion && Number(usuario.id) === Number(state.user.id) && Number(usuario.rol_id) === 1;
+    const campoPassword = esPropioAdmin
+      ? `<div class="form-field"><label>Contraseña</label><p class="form-nota">No puedes cambiar tu propia contraseña de administrador.</p></div>`
+      : `<div class="form-field">
+          <label>Contraseña${esEdicion ? ' (dejar vacío para no cambiar)' : ''}</label>
+          <input type="password" id="input-password" autocomplete="new-password">
+        </div>`;
 
     const bodyHtml = `
       <div class="form-grid">
@@ -343,10 +396,7 @@
           <label>Teléfono</label>
           <input type="text" id="input-telefono">
         </div>
-        <div class="form-field">
-          <label>Contraseña${esEdicion ? ' (dejar vacío para no cambiar)' : ''}</label>
-          <input type="password" id="input-password" autocomplete="new-password">
-        </div>
+        ${campoPassword}
         <div class="form-field">
           <label>Rol</label>
           <select id="input-rol">${opcionesRol}</select>
@@ -377,7 +427,18 @@
           ${coberturaHeredada.length ? `<p class="form-hint">También cubre por asignación heredada (departamento/subdivisión), no editable aquí: ${coberturaHeredada.map(c => escapeHtml(c.subdivision_nombre || c.departamento_nombre)).join(', ')}.</p>` : ''}
         `;
       } else {
-        const opcionesTienda = tiendas.map(t => `<option value="${t.id}" ${esEdicion && usuario.tienda_id === t.id ? 'selected' : ''}>${escapeHtml(t.nombre)} (${escapeHtml(t.codigo)})</option>`).join('');
+        // analisis_correcciones_14.md #8: el combobox se agrupa por país.
+        const gruposTienda = {};
+        tiendas.forEach(t => {
+          const clave = t.pais_nombre || 'Sin país';
+          if (!gruposTienda[clave]) gruposTienda[clave] = [];
+          gruposTienda[clave].push(t);
+        });
+        const opcionesTienda = Object.keys(gruposTienda).sort().map(pais => `
+          <optgroup label="${escapeHtml(pais)}">
+            ${gruposTienda[pais].map(t => `<option value="${t.id}" ${esEdicion && usuario.tienda_id === t.id ? 'selected' : ''}>${escapeHtml(t.nombre)} (${escapeHtml(t.codigo)})</option>`).join('')}
+          </optgroup>
+        `).join('');
         zona.innerHTML = `
           <label>Tienda</label>
           <select id="input-tienda">
@@ -398,7 +459,7 @@
         nombre: overlay.querySelector('#input-nombre').value.trim(),
         email: overlay.querySelector('#input-email').value.trim(),
         telefono: overlay.querySelector('#input-telefono').value.trim(),
-        password: overlay.querySelector('#input-password').value,
+        password: overlay.querySelector('#input-password') ? overlay.querySelector('#input-password').value : '',
         rolId
       };
       if (rolId === ROL_SUPERVISOR) {
@@ -462,7 +523,7 @@
     const grid = $('#roles-grid');
     grid.innerHTML = state.roles.map(rol => `
       <div class="rol-card" data-rol-id="${rol.id}">
-        <div class="rol-card-titulo">${escapeHtml(rol.nombre)}${rol.base ? '<span class="badge badge-base">Base</span>' : ''}</div>
+        <div class="rol-card-titulo">${escapeHtml(rol.nombre)}${rol.base ? '<span class="badge badge-base">Base</span>' : ''} <span class="badge ${rol.activo ? 'badge-activo' : 'badge-inactivo'}">${rol.activo ? 'Activo' : 'Inactivo'}</span></div>
         <div class="rol-card-descripcion">${escapeHtml(rol.descripcion || '')}</div>
         <div class="rol-card-meta"><span>${rol.usuarios_count} usuario(s)</span><span>${rol.permisos_count} permiso(s)</span></div>
         <div class="rol-card-acciones"></div>
@@ -485,28 +546,30 @@
         btnEditar.addEventListener('click', () => abrirModalRol(rol));
         acciones.appendChild(btnEditar);
 
-        const btnEliminar = document.createElement('button');
-        btnEliminar.className = 'btn-icon icon-danger';
-        btnEliminar.title = 'Eliminar';
-        btnEliminar.innerHTML = '<ion-icon name="trash-outline"></ion-icon>';
-        btnEliminar.addEventListener('click', () => eliminarRol(rol));
-        acciones.appendChild(btnEliminar);
+        const btnToggle = document.createElement('button');
+        btnToggle.className = `btn-icon ${rol.activo ? 'icon-danger' : ''}`;
+        btnToggle.title = rol.activo ? 'Desactivar' : 'Activar';
+        btnToggle.innerHTML = `<ion-icon name="${rol.activo ? 'lock-closed-outline' : 'lock-open-outline'}"></ion-icon>`;
+        btnToggle.addEventListener('click', () => toggleActivoRol(rol));
+        acciones.appendChild(btnToggle);
       }
     });
 
     $('#btn-nuevo-rol').addEventListener('click', () => abrirModalRol(null));
   }
 
-  async function eliminarRol(rol) {
-    if (!confirm(`¿Eliminar el rol "${rol.nombre}"? Esta acción no se puede deshacer.`)) return;
+  async function toggleActivoRol(rol) {
+    if (rol.activo && !confirm(`¿Desactivar el rol "${rol.nombre}"?`)) return;
     try {
-      const res = await fetch(`/api/admin/roles/${rol.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/roles/${rol.id}/activo`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activo: !rol.activo })
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      window.toast.success('Rol eliminado', rol.nombre);
+      window.toast.success(rol.activo ? 'Rol desactivado' : 'Rol activado', rol.nombre);
       cargarRoles();
     } catch (error) {
-      window.toast.error('No se pudo eliminar', error.message);
+      window.toast.error('No se pudo actualizar el rol', error.message);
     }
   }
 
@@ -625,7 +688,7 @@
   const ACTIVIDAD_ESTADO_CLASE = { EN_LINEA: 'badge-en-linea', INACTIVO: 'badge-presencia-inactivo', SIN_DATOS: 'badge-sin-datos' };
 
   async function cargarActividad() {
-    const res = await fetch('/api/admin/actividad');
+    const [res] = await Promise.all([fetch('/api/admin/actividad'), asegurarCatalogosFiltro()]);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     state.actividadResumen = data.resumen;
@@ -638,6 +701,10 @@
     $('#panel-content').innerHTML = `
       <div class="panel-toolbar">
         <h2>Actividad de Usuarios</h2>
+        <div class="panel-toolbar-acciones">
+          <select id="filtro-tienda-actividad">${opcionesFiltroTienda(state.filtroTiendaActividad)}</select>
+          <select id="filtro-rol-actividad">${opcionesFiltroRol(state.filtroRolActividad)}</select>
+        </div>
       </div>
       <div class="resumen-grid">
         <div class="resumen-card"><div class="valor">${r.enLinea}</div><div class="etiqueta">En línea ahora</div></div>
@@ -651,12 +718,21 @@
         </table>
       </div>
     `;
+    $('#filtro-tienda-actividad').addEventListener('change', (e) => { state.filtroTiendaActividad = e.target.value; renderActividad(); });
+    $('#filtro-rol-actividad').addEventListener('change', (e) => { state.filtroRolActividad = e.target.value; renderActividad(); });
+
+    const filas = state.actividad.filter(a => {
+      const coincideTienda = !state.filtroTiendaActividad || String(a.tienda_id) === state.filtroTiendaActividad;
+      const coincideRol = !state.filtroRolActividad || String(a.rol_id) === state.filtroRolActividad;
+      return coincideTienda && coincideRol;
+    });
+
     const tbody = $('#actividad-tbody');
-    if (!state.actividad.length) {
-      tbody.innerHTML = `<tr><td colspan="6" class="tabla-vacia"><div class="buzon-vacio"><ion-icon name="pulse-outline"></ion-icon><p>No hay usuarios activos.</p></div></td></tr>`;
+    if (!filas.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="tabla-vacia"><div class="buzon-vacio"><ion-icon name="pulse-outline"></ion-icon><p>No hay usuarios que coincidan con el filtro.</p></div></td></tr>`;
       return;
     }
-    tbody.innerHTML = state.actividad.map(a => `
+    tbody.innerHTML = filas.map(a => `
       <tr>
         <td data-label="Nombre">${escapeHtml(a.nombre)}</td>
         <td data-label="Rol">${escapeHtml(a.rol_nombre)}</td>
@@ -718,6 +794,16 @@
 
     state.tiendas.forEach(t => {
       const celda = tbody.querySelector(`[data-tienda-id="${t.id}"]`);
+      // analisis_correcciones_14.md #3: acción de solo lectura, separada de
+      // "Gestionar personal", para ver el personal agrupado por categoría sin
+      // tener que listar todo de corrido.
+      const btnVer = document.createElement('button');
+      btnVer.className = 'btn-icon';
+      btnVer.title = 'Ver personal';
+      btnVer.innerHTML = '<ion-icon name="eye-outline"></ion-icon>';
+      btnVer.addEventListener('click', () => abrirModalVerPersonal(t));
+      celda.appendChild(btnVer);
+
       const btnPersonal = document.createElement('button');
       btnPersonal.className = 'btn-icon';
       btnPersonal.title = 'Gestionar personal';
@@ -830,6 +916,39 @@
     });
   }
 
+  // analisis_correcciones_14.md #3: modal de solo lectura, personal agrupado
+  // por rol (en vez de la lista plana que ya usaba "Gestionar personal").
+  async function abrirModalVerPersonal(tienda) {
+    const personal = await fetch(`/api/admin/tiendas/${tienda.id}/personal`).then(r => r.json());
+    const grupos = {};
+    personal.forEach(p => {
+      const clave = p.rol_nombre || 'Sin rol';
+      if (!grupos[clave]) grupos[clave] = [];
+      grupos[clave].push(p);
+    });
+    const categorias = Object.keys(grupos).sort();
+
+    const bodyHtml = categorias.length
+      ? categorias.map(rol => `
+          <p class="section-title">${escapeHtml(rol)} (${grupos[rol].length})</p>
+          <div class="personal-lista">
+            ${grupos[rol].map(p => `
+              <div class="personal-item">
+                <div class="personal-item-info"><span>${escapeHtml(p.nombre)}</span>${p.tipo_vinculo === 'supervisor' ? '<span class="rol">Cobertura de supervisor</span>' : ''}</div>
+              </div>
+            `).join('')}
+          </div>
+        `).join('')
+      : '<p class="form-hint">Sin personal ligado todavía.</p>';
+
+    const { overlay, cerrar } = abrirModal({
+      title: `Personal — ${tienda.nombre}`,
+      bodyHtml,
+      footerHtml: `<button class="btn btn--primary" id="btn-cerrar-ver-personal">Cerrar</button>`
+    });
+    overlay.querySelector('#btn-cerrar-ver-personal').addEventListener('click', cerrar);
+  }
+
   async function abrirModalPersonal(tienda) {
     const [personal, todosUsuarios] = await Promise.all([
       fetch(`/api/admin/tiendas/${tienda.id}/personal`).then(r => r.json()),
@@ -837,6 +956,20 @@
     ]);
     const idsActuales = new Set(personal.map(p => p.id));
     const disponibles = todosUsuarios.filter(u => u.activo && !idsActuales.has(u.id));
+
+    // analisis_correcciones_14.md #4: el combobox se agrupa por rol en vez de
+    // listar a todo el personal disponible de corrido.
+    const gruposDisponibles = {};
+    disponibles.forEach(u => {
+      const clave = u.rol_nombre || 'Sin rol';
+      if (!gruposDisponibles[clave]) gruposDisponibles[clave] = [];
+      gruposDisponibles[clave].push(u);
+    });
+    const opcionesAgregar = Object.keys(gruposDisponibles).sort().map(rol => `
+      <optgroup label="${escapeHtml(rol)}">
+        ${gruposDisponibles[rol].map(u => `<option value="${u.id}">${escapeHtml(u.nombre)}</option>`).join('')}
+      </optgroup>
+    `).join('');
 
     const bodyHtml = `
       <p class="section-title">Personal ligado a esta tienda</p>
@@ -852,7 +985,7 @@
         <div class="form-field full">
           <select id="input-agregar-personal">
             <option value="">Seleccionar persona...</option>
-            ${disponibles.map(u => `<option value="${u.id}">${escapeHtml(u.nombre)} — ${escapeHtml(u.rol_nombre)}</option>`).join('')}
+            ${opcionesAgregar}
           </select>
         </div>
       </div>

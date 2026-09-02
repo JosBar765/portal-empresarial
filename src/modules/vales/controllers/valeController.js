@@ -175,6 +175,24 @@ class ValeController {
     }
   }
 
+  async pausar(req, res) {
+    try {
+      const vale = await valeService.pausarProceso(req.user, Number(req.params.id));
+      return res.json(vale);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
+  async reanudar(req, res) {
+    try {
+      const vale = await valeService.reanudarProceso(req.user, Number(req.params.id));
+      return res.json(vale);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
   async revisar(req, res) {
     try {
       const { aprobar, tecnicoReasignadoId, tallerId } = req.body;
