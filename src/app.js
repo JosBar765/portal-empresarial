@@ -110,7 +110,11 @@ app.get('/api/modules', requireAuth, (req, res) => {
   const user = req.user;
   const permissions = req.user.permissions || [];
 
-  // Catálogo completo de módulos empresariales definidos en el portal
+  // Catálogo completo de módulos empresariales definidos en el portal.
+  // analisis_correcciones_15.md #9: se quitaron "prompts"/"eventos" — eran
+  // datos MOCK de ejemplo, sin ningún módulo real detrás (no existe
+  // src/modules/prompts|eventos ni public/modules/prompts|eventos); sus
+  // rutas ya apuntaban a un 404. Solo quedan los dos módulos reales.
   const catalog = [
     {
       id: 'vales',
@@ -120,24 +124,6 @@ app.get('/api/modules', requireAuth, (req, res) => {
       path: '/modules/vales',
       permission: 'vales.ver',
       color: '#3B4C8C'
-    },
-    {
-      id: 'prompts',
-      nombre: 'Generador de Prompts',
-      descripcion: 'Creación y optimización de prompts estructurados para modelos de IA.',
-      icono: 'chatbubbles-outline',
-      path: '/modules/prompts',
-      permission: 'prompts.ver',
-      color: '#0E7C7B'
-    },
-    {
-      id: 'eventos',
-      nombre: 'Eventos y Carreras',
-      descripcion: 'Logística, asignación y seguimiento de carreras deportivas en Centroamérica.',
-      icono: 'flag-outline',
-      path: '/modules/eventos',
-      permission: 'eventos.ver',
-      color: '#B5541A'
     },
     {
       id: 'admin',

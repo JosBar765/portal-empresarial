@@ -13,6 +13,9 @@
     RECIBIDO: 'Recibido',
     SOLICITANDO_MODIFICACION: 'Solicitando Modificación',
     MODIFICADO: 'Modificado',
+    // analisis_correcciones_15.md #1: estado final del vale ORIGINAL una vez
+    // aprobada su modificación (antes reciclaba RECIBIDO).
+    CONFIRMADO: 'Confirmado',
     // Por taller
     PENDIENTE_ASIGNACION: 'Pendiente Asignación',
     ASIGNADO: 'Asignado',
@@ -40,7 +43,7 @@
   // opción A) — reflejan exactamente qué rama de `estadoActivo()` aplica a
   // cada rol, para no ofrecer una opción que nunca puede matchear nada.
   const CLAVES_ESTADOS_TALLER = ['PENDIENTE_ASIGNACION', 'ASIGNADO', 'EN_PROCESO', 'EN_PAUSA', 'EN_REVISION', 'APROBADO'];
-  const CLAVES_ESTADOS_GENERAL = ['ESPERANDO_AUTORIZACION', 'CREADO', 'APROBADO_DEPARTAMENTO', 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'SOLICITANDO_MODIFICACION', 'MODIFICADO'];
+  const CLAVES_ESTADOS_GENERAL = ['ESPERANDO_AUTORIZACION', 'CREADO', 'APROBADO_DEPARTAMENTO', 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'SOLICITANDO_MODIFICACION', 'MODIFICADO', 'CONFIRMADO'];
   // analisis_correcciones_12.md #5: el técnico nunca ve PENDIENTE_ASIGNACION —
   // un vale sin asignar no está en su buzón — así que no debe ofrecerse como
   // opción de filtro tampoco. analisis_correcciones_13.md #5: APROBADO
@@ -922,6 +925,11 @@
 
     vales.forEach(v => {
       const cell = tbody.querySelector(`.acciones-cell[data-vale-id="${v.id}"]`);
+      // analisis_correcciones_15.md #5: los botones van en un <div> interno
+      // (.acciones-wrap), no directo en la <td> — ver comentario en styles.css.
+      const wrap = document.createElement('div');
+      wrap.className = 'acciones-wrap';
+      cell.appendChild(wrap);
       const acciones = [
         { icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') }
       ];
@@ -935,7 +943,7 @@
         btn.title = accion.titulo;
         btn.innerHTML = `<ion-icon name="${accion.icono}"></ion-icon>`;
         btn.addEventListener('click', () => accion.onClick(v));
-        cell.appendChild(btn);
+        wrap.appendChild(btn);
       });
     });
   }
@@ -1046,10 +1054,10 @@
         claves = [...CLAVES_ESTADOS_TALLER];
         if (puede('aprobarGeneral')) {
           claves = state.vista === 'trabajo'
-            // analisis_correcciones_14.md #11: RECIBIDO ya no aparece en Trabajo
-            // Realizado del encargado (deja de ser "trabajo vigente") — ofrecerlo
-            // como filtro nunca matchearía nada.
-            ? [...claves, 'PENDIENTE_CONFIRMACION', 'SOLICITANDO_MODIFICACION']
+            // analisis_correcciones_15.md #3: RECIBIDO/CONFIRMADO vuelven a
+            // aparecer — un vale fusionado puede llegar a cualquiera de los dos
+            // y sigue siendo "trabajo realizado" del encargado (estado congelado).
+            ? [...claves, 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'CONFIRMADO', 'SOLICITANDO_MODIFICACION']
             : [...claves, 'APROBADO_DEPARTAMENTO'];
         }
       } else claves = CLAVES_ESTADOS_GENERAL;
@@ -1117,6 +1125,11 @@
 
     filas.forEach(v => {
       const cell = tbody.querySelector(`.acciones-cell[data-vale-id="${v.id}"]`);
+      // analisis_correcciones_15.md #5: los botones van en un <div> interno
+      // (.acciones-wrap), no directo en la <td> — ver comentario en styles.css.
+      const wrap = document.createElement('div');
+      wrap.className = 'acciones-wrap';
+      cell.appendChild(wrap);
       construirAcciones(v).forEach(accion => {
         const btn = document.createElement('button');
         btn.className = `btn-icon ${accion.clase || ''}`;
@@ -1127,7 +1140,7 @@
           state.accionesEnCurso.add(v.id);
           Promise.resolve(accion.onClick(v)).finally(() => state.accionesEnCurso.delete(v.id));
         });
-        cell.appendChild(btn);
+        wrap.appendChild(btn);
       });
     });
   }

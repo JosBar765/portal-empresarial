@@ -39,9 +39,9 @@ CREATE TABLE IF NOT EXISTS `roles` (
 -- -------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `permisos` (
   `id`          INT AUTO_INCREMENT PRIMARY KEY,
-  `codigo`      VARCHAR(100) NOT NULL UNIQUE COMMENT 'Ej: vales.ver, eventos.ver',
+  `codigo`      VARCHAR(100) NOT NULL UNIQUE COMMENT 'Ej: vales.ver, admin.ver',
   `nombre`      VARCHAR(100) NOT NULL,
-  `modulo`      VARCHAR(50)  NOT NULL COMMENT 'Asociado al módulo (vales, prompts, eventos, etc.)',
+  `modulo`      VARCHAR(50)  NOT NULL COMMENT 'Asociado al módulo (vales, admin)',
   `descripcion` VARCHAR(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -134,7 +134,10 @@ INSERT INTO `roles` (`id`, `nombre`, `descripcion`, `activo`) VALUES
 (11, 'Encargado de taller de protextil', 'Encargado del taller de Protextil, responsable de asignar técnicos y revisar sus propuestas', 1),
 (12, 'Encargado de taller de diseño local', 'Encargado de un taller de Diseño Local (por tienda), responsable de asignar técnicos y revisar sus propuestas', 1);
 
--- Permisos (basado en los módulos descritos en arquitectura_reglas.md)
+-- Permisos. analisis_correcciones_15.md #9: se eliminaron los permisos MOCK de
+-- los módulos "prompts"/"eventos" (ids 4-7) — no existe ningún
+-- src/modules/prompts|eventos ni public/modules/prompts|eventos, eran datos de
+-- ejemplo sin módulo real detrás. Solo quedan los dos módulos reales: vales y admin.
 INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUES
 -- Vales
 (1, 'vales.ver', 'Ver Vales de Arte', 'vales', 'Permite visualizar la lista/buzón de vales de arte'),
@@ -150,23 +153,17 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (16, 'vales.aprobar_general', 'Aprobar y Fusionar (Multi-taller)', 'vales', 'Permite al encargado general fusionar y aprobar un vale enviado a más de un taller'),
 (17, 'vales.ver_gerencia', 'Ver Panel de Gerencia', 'vales', 'Acceso de solo lectura al dashboard de métricas y al listado de vales de arte de todas las tiendas'),
 (18, 'vales.autorizar_creacion', 'Autorizar Creación', 'vales', 'Permite al supervisor autorizar el envío a talleres de un vale recién creado por sus asesores (analisis_correcciones_10.md #5)'),
--- Prompts
-(4, 'prompts.ver', 'Ver Generador de Prompts', 'prompts', 'Permite acceder al generador de prompts'),
-(5, 'prompts.crear', 'Crear Prompts', 'prompts', 'Permite crear nuevos prompts para IA'),
--- Eventos
-(6, 'eventos.ver', 'Ver Eventos', 'eventos', 'Permite ver y listar los eventos de carreras'),
-(7, 'eventos.crear', 'Crear Eventos', 'eventos', 'Permite registrar nuevos eventos de carreras'),
 -- Administración
 (8, 'admin.ver', 'Ver Panel de Administración', 'admin', 'Permite acceder al módulo de administración central');
 
 -- Asignación de Permisos a Roles (rol_permisos)
 -- Administrador: todos
 INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18),
--- Diseñador (legacy, no ligado al flujo de actores de vales): Vales (ver, editar) + Prompts (ver, crear)
-(2, 1), (2, 3), (2, 4), (2, 5),
--- Asesor de Ventas: Vales (ver, crear, editar en modificación, confirmar, solicitar modificación) + Eventos (ver, crear)
-(3, 1), (3, 2), (3, 3), (3, 12), (3, 13), (3, 6), (3, 7),
+(1, 1), (1, 2), (1, 3), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18),
+-- Diseñador (legacy, no ligado al flujo de actores de vales): Vales (ver, editar)
+(2, 1), (2, 3),
+-- Asesor de Ventas: Vales (ver, crear, editar en modificación, confirmar, solicitar modificación)
+(3, 1), (3, 2), (3, 3), (3, 12), (3, 13),
 -- Supervisor de Ventas: Vales (ver, supervisar, aprobar modificación, autorizar creación)
 -- + Panel de Gerencia (analisis_correcciones_12.md #10: comparte el dashboard con el Gerente)
 (4, 1), (4, 15), (4, 14), (4, 18), (4, 17),
@@ -425,7 +422,9 @@ CREATE TABLE IF NOT EXISTS `vales` (
   -- No existe una acción de "rechazar" separada (analisis_correcciones_5.md #5): un
   -- vale PENDIENTE_CONFIRMACION que el asesor no acepta solicita modificación, igual
   -- que cualquier otra corrección — no hay un estado EN_CORRECCION.
-  `estado` ENUM('ESPERANDO_AUTORIZACION','CREADO','APROBADO_DEPARTAMENTO','PENDIENTE_CONFIRMACION','RECIBIDO','SOLICITANDO_MODIFICACION','MODIFICADO') NOT NULL DEFAULT 'ESPERANDO_AUTORIZACION',
+  -- analisis_correcciones_15.md #1: CONFIRMADO es el estado final del vale
+  -- ORIGINAL una vez aprobada su modificación (antes reciclaba RECIBIDO).
+  `estado` ENUM('ESPERANDO_AUTORIZACION','CREADO','APROBADO_DEPARTAMENTO','PENDIENTE_CONFIRMACION','RECIBIDO','SOLICITANDO_MODIFICACION','MODIFICADO','CONFIRMADO') NOT NULL DEFAULT 'ESPERANDO_AUTORIZACION',
   `creado_en`                    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `actualizado_en`               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`asesor_id`)         REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -543,6 +542,13 @@ CREATE TABLE IF NOT EXISTS `vale_historial` (
   `vale_id`         INT NOT NULL,
   `usuario_id`      INT NOT NULL,
   `taller_id`       INT DEFAULT NULL,
+  -- analisis_correcciones_15.md #7: a qué técnico corresponde el evento, para
+  -- que un técnico pueda filtrar SU historial sin depender de parsear el
+  -- texto de `accion`. Se llena solo en los eventos donde el actor NO es el
+  -- propio técnico (asignación/reasignación/aprobación por el encargado) —
+  -- en los eventos que el técnico ejecuta él mismo (comenzar/pausar/entregar/
+  -- cancelar) ya es identificable por `usuario_id`.
+  `tecnico_id`      INT DEFAULT NULL,
   `estado_anterior` VARCHAR(50) DEFAULT NULL,
   `estado_nuevo`    VARCHAR(50) NOT NULL,
   `accion`          VARCHAR(150) NOT NULL,
@@ -550,6 +556,7 @@ CREATE TABLE IF NOT EXISTS `vale_historial` (
   FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (`taller_id`)  REFERENCES `talleres` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  FOREIGN KEY (`tecnico_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   INDEX `idx_historial_vale` (`vale_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -699,6 +706,60 @@ INSERT INTO `usuarios` (`id`, `nombre`, `email`, `telefono`, `password_hash`, `r
 (46, 'Técnico Diseño Local LEO', 'tecnico.disenolocal.leo@munditrofeos.com', NULL, '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 12, 45),
 (47, 'Encargado Diseño Local SJO', 'disenolocal.sjo@munditrofeos.com', NULL, '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 11, 13, NULL),
 (48, 'Técnico Diseño Local SJO', 'tecnico.disenolocal.sjo@munditrofeos.com', NULL, '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 7, 13, 47);
+
+-- analisis_correcciones_15.md: nuevos asesores de ventas (rol 3), uno por
+-- tienda según el documento fuente. Todos comparten un hash de prueba
+-- (contraseña: AsesorNuevo15) — son datos de asesores reales, no tiene
+-- sentido hashear 48 contraseñas de producción para un entorno mock.
+INSERT INTO `usuarios` (`id`, `nombre`, `email`, `telefono`, `password_hash`, `rol_id`, `tienda_id`, `encargado_id`) VALUES
+(49, 'Alejandra Luna', 'ventas2@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 1, NULL),
+(50, 'Karla Ordoñez', 'ventas3@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 1, NULL),
+(51, 'Melanie Perez', 'ventas4@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 1, NULL),
+(52, 'Rosa Ramírez', 'ventas5@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 1, NULL),
+(53, 'Luz Carmen Pérez', 'ventas6@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 1, NULL),
+(54, 'Alexander Jolón', 'ventas9@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 1, NULL),
+(55, 'Lilian Sapon', 'vtsala1@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 2, NULL),
+(56, 'Gema Cruz', 'serviciovip2@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 2, NULL),
+(57, 'Jamelette Villatoro', 'ventas@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 2, NULL),
+(58, 'Maylin Escobar', 'tmk2@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 2, NULL),
+(59, 'Nicolle Monterroso', 'vtsala4@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 2, NULL),
+(60, 'Carolina Rosales', 'ventasgt1@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 3, NULL),
+(61, 'Diana Castaneda', 'tmkpremia1@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 3, NULL),
+(62, 'Mary Posada', 'tmkpremia3@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 3, NULL),
+(63, 'Eliza Sales', 'tmkpremia13@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 3, NULL),
+(64, 'Astrid Ochoa', 'ventas13@grupropremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 3, NULL),
+(65, 'Sarah Aleman', 'ventas.premia13@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 3, NULL),
+(66, 'Wendy Ramirez', 'sanjuan@trofex.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 14, NULL),
+(67, 'Angel Gomez', 'zona3@trofex.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 15, NULL),
+(68, 'Margarita Yoj', 'coban@trofex.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 16, NULL),
+(69, 'Wendy Recinos', 'peten@trofex.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 17, NULL),
+(70, 'Yasmin Porras', 'ptobarrios@trofex.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 18, NULL),
+(71, 'Ingrid Gutierrez', 'chiquimula@trofex.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 19, NULL),
+(72, 'Yesica Hernandez', 'jutiapa@trofex.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 20, NULL),
+(73, 'Beberly Santos', 'villanueva@trofex.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 26, NULL),
+(74, 'Rocio Giron', 'escuintla@trofex.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 23, NULL),
+(75, 'Sucely Poou', 'chimaltenango@trofex.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 22, NULL),
+(76, 'Blanca Argueta', 'mazate@trofex.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 25, NULL),
+(77, 'Dalia Ramirez', 'xela@trofex.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 27, NULL),
+(78, 'Jose Gonzalez', 'huehue@trofex.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 24, NULL),
+(79, 'Anderson Cardona', 'sanmarcos@trofex.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 21, NULL),
+(80, 'Julio Barahona', 'mercadeosv@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 4, NULL),
+(81, 'Sandra Onofre', 'tkmsv@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 4, NULL),
+(82, 'Carlos Martinez', 'premiateleventassv@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 4, NULL),
+(83, 'Kevin Mendoza', 'ventassv1@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 4, NULL),
+(84, 'Karen Herrera', 'ventassv@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 4, NULL),
+(85, 'Tania Melara', 'santaana@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 5, NULL),
+(86, 'Patricia Diaz', 'sanmiguel@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 6, NULL),
+(87, 'Pradi Vareal', 'cobrossps@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 10, NULL),
+(88, 'Alexis Martínez', 'ventasps2@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 10, NULL),
+(89, 'Jaqueline Sosa', 'comertegus@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 9, NULL),
+(90, 'Karen Martinez', 'cobrostg@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 9, NULL),
+(91, 'Merary Zavala', 'comayagua@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 8, NULL),
+(92, 'Alexander Selva', 'mercadeonic2@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 11, NULL),
+(93, 'Magaly Ruiz', 'ventasnic2@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 11, NULL),
+(94, 'Alejandra Salazar', 'leon@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 12, NULL),
+(95, 'Francisco Zamora', 'costarica@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 13, NULL),
+(96, 'Luis Elizondo', 'ventas2cr@grupopremia.com', NULL, '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 3, 13, NULL);
 
 -- Talleres/departamentos — uno por cada encargado existente. `tienda_id NULL`
 -- = taller de toda la empresa; los "Diseño Local" (analisis_correcciones_12.md

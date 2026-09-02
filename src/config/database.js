@@ -76,7 +76,57 @@ const mockDatabase = {
     { id: 45, nombre: 'Encargado Diseño Local LEO', email: 'disenolocal.leo@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 12, tienda_id: 12, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     { id: 46, nombre: 'Técnico Diseño Local LEO', email: 'tecnico.disenolocal.leo@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 12, encargado_id: 45, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
     { id: 47, nombre: 'Encargado Diseño Local SJO', email: 'disenolocal.sjo@munditrofeos.com', telefono: null, password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 12, tienda_id: 13, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
-    { id: 48, nombre: 'Técnico Diseño Local SJO', email: 'tecnico.disenolocal.sjo@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 13, encargado_id: 47, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null }
+    { id: 48, nombre: 'Técnico Diseño Local SJO', email: 'tecnico.disenolocal.sjo@munditrofeos.com', telefono: null, password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 7, tienda_id: 13, encargado_id: 47, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    // analisis_correcciones_15.md: nuevos asesores de ventas, uno por tienda,
+    // según el documento fuente (todos comparten un hash de prueba: AsesorNuevo15).
+    { id: 49, nombre: 'Alejandra Luna', email: 'ventas2@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 1, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 50, nombre: 'Karla Ordoñez', email: 'ventas3@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 1, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 51, nombre: 'Melanie Perez', email: 'ventas4@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 1, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 52, nombre: 'Rosa Ramírez', email: 'ventas5@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 1, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 53, nombre: 'Luz Carmen Pérez', email: 'ventas6@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 1, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 54, nombre: 'Alexander Jolón', email: 'ventas9@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 1, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 55, nombre: 'Lilian Sapon', email: 'vtsala1@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 2, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 56, nombre: 'Gema Cruz', email: 'serviciovip2@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 2, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 57, nombre: 'Jamelette Villatoro', email: 'ventas@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 2, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 58, nombre: 'Maylin Escobar', email: 'tmk2@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 2, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 59, nombre: 'Nicolle Monterroso', email: 'vtsala4@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 2, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 60, nombre: 'Carolina Rosales', email: 'ventasgt1@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 3, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 61, nombre: 'Diana Castaneda', email: 'tmkpremia1@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 3, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 62, nombre: 'Mary Posada', email: 'tmkpremia3@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 3, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 63, nombre: 'Eliza Sales', email: 'tmkpremia13@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 3, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 64, nombre: 'Astrid Ochoa', email: 'ventas13@grupropremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 3, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 65, nombre: 'Sarah Aleman', email: 'ventas.premia13@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 3, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 66, nombre: 'Wendy Ramirez', email: 'sanjuan@trofex.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 14, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 67, nombre: 'Angel Gomez', email: 'zona3@trofex.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 15, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 68, nombre: 'Margarita Yoj', email: 'coban@trofex.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 16, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 69, nombre: 'Wendy Recinos', email: 'peten@trofex.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 17, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 70, nombre: 'Yasmin Porras', email: 'ptobarrios@trofex.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 18, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 71, nombre: 'Ingrid Gutierrez', email: 'chiquimula@trofex.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 19, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 72, nombre: 'Yesica Hernandez', email: 'jutiapa@trofex.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 20, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 73, nombre: 'Beberly Santos', email: 'villanueva@trofex.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 26, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 74, nombre: 'Rocio Giron', email: 'escuintla@trofex.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 23, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 75, nombre: 'Sucely Poou', email: 'chimaltenango@trofex.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 22, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 76, nombre: 'Blanca Argueta', email: 'mazate@trofex.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 25, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 77, nombre: 'Dalia Ramirez', email: 'xela@trofex.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 27, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 78, nombre: 'Jose Gonzalez', email: 'huehue@trofex.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 24, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 79, nombre: 'Anderson Cardona', email: 'sanmarcos@trofex.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 21, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 80, nombre: 'Julio Barahona', email: 'mercadeosv@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 4, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 81, nombre: 'Sandra Onofre', email: 'tkmsv@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 4, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 82, nombre: 'Carlos Martinez', email: 'premiateleventassv@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 4, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 83, nombre: 'Kevin Mendoza', email: 'ventassv1@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 4, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 84, nombre: 'Karen Herrera', email: 'ventassv@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 4, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 85, nombre: 'Tania Melara', email: 'santaana@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 5, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 86, nombre: 'Patricia Diaz', email: 'sanmiguel@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 6, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 87, nombre: 'Pradi Vareal', email: 'cobrossps@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 10, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 88, nombre: 'Alexis Martínez', email: 'ventasps2@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 10, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 89, nombre: 'Jaqueline Sosa', email: 'comertegus@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 9, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 90, nombre: 'Karen Martinez', email: 'cobrostg@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 9, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 91, nombre: 'Merary Zavala', email: 'comayagua@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 8, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 92, nombre: 'Alexander Selva', email: 'mercadeonic2@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 11, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 93, nombre: 'Magaly Ruiz', email: 'ventasnic2@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 11, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 94, nombre: 'Alejandra Salazar', email: 'leon@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 12, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 95, nombre: 'Francisco Zamora', email: 'costarica@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 13, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
+    { id: 96, nombre: 'Luis Elizondo', email: 'ventas2cr@grupopremia.com', telefono: null, password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 3, tienda_id: 13, encargado_id: null, activo: 1, sesion_iniciada_en: null, ultima_actividad_en: null, ultima_ip: null, ultima_ciudad: null },
   ],
   // analisis_correcciones_12.md #3: descripciones por función, no por flujo de
   // Vales de Arte — deben quedar idénticas a las de database/schema.sql.
@@ -101,14 +151,14 @@ const mockDatabase = {
     // taller es su encargado_id, no por su rol.
     { id: 12, nombre: 'Encargado de taller de diseño local', descripcion: 'Encargado de un taller de Diseño Local (por tienda), responsable de asignar técnicos y revisar sus propuestas', activo: 1 }
   ],
+  // analisis_correcciones_15.md #9: se eliminaron los permisos MOCK de los
+  // módulos "prompts"/"eventos" (antes ids 4-7) — no existe ningún
+  // src/modules/prompts|eventos ni public/modules/prompts|eventos detrás,
+  // eran datos de ejemplo sin módulo real. Solo quedan vales y admin.
   permisos: [
     { id: 1, codigo: 'vales.ver', nombre: 'Ver Vales', modulo: 'vales' },
     { id: 2, codigo: 'vales.crear', nombre: 'Crear Vales', modulo: 'vales' },
     { id: 3, codigo: 'vales.editar', nombre: 'Editar Vales', modulo: 'vales' },
-    { id: 4, codigo: 'prompts.ver', nombre: 'Ver Prompts', modulo: 'prompts' },
-    { id: 5, codigo: 'prompts.crear', nombre: 'Crear Prompts', modulo: 'prompts' },
-    { id: 6, codigo: 'eventos.ver', nombre: 'Ver Eventos', modulo: 'eventos' },
-    { id: 7, codigo: 'eventos.crear', nombre: 'Crear Eventos', modulo: 'eventos' },
     { id: 8, codigo: 'admin.ver', nombre: 'Ver Admin', modulo: 'admin' },
     { id: 9, codigo: 'vales.asignar', nombre: 'Asignar Vales', modulo: 'vales' },
     { id: 10, codigo: 'vales.revisar', nombre: 'Revisar Propuestas', modulo: 'vales' },
@@ -123,13 +173,12 @@ const mockDatabase = {
   ],
   rol_permisos: [
     { rol_id: 1, permiso_id: 1 }, { rol_id: 1, permiso_id: 2 }, { rol_id: 1, permiso_id: 3 },
-    { rol_id: 1, permiso_id: 4 }, { rol_id: 1, permiso_id: 5 }, { rol_id: 1, permiso_id: 6 },
-    { rol_id: 1, permiso_id: 7 }, { rol_id: 1, permiso_id: 8 }, { rol_id: 1, permiso_id: 9 },
+    { rol_id: 1, permiso_id: 8 }, { rol_id: 1, permiso_id: 9 },
     { rol_id: 1, permiso_id: 10 }, { rol_id: 1, permiso_id: 11 }, { rol_id: 1, permiso_id: 12 },
     { rol_id: 1, permiso_id: 13 }, { rol_id: 1, permiso_id: 14 }, { rol_id: 1, permiso_id: 15 }, { rol_id: 1, permiso_id: 16 }, { rol_id: 1, permiso_id: 17 }, { rol_id: 1, permiso_id: 18 },
-    { rol_id: 2, permiso_id: 1 }, { rol_id: 2, permiso_id: 3 }, { rol_id: 2, permiso_id: 4 }, { rol_id: 2, permiso_id: 5 },
+    { rol_id: 2, permiso_id: 1 }, { rol_id: 2, permiso_id: 3 },
     { rol_id: 3, permiso_id: 1 }, { rol_id: 3, permiso_id: 2 }, { rol_id: 3, permiso_id: 3 },
-    { rol_id: 3, permiso_id: 12 }, { rol_id: 3, permiso_id: 13 }, { rol_id: 3, permiso_id: 6 }, { rol_id: 3, permiso_id: 7 },
+    { rol_id: 3, permiso_id: 12 }, { rol_id: 3, permiso_id: 13 },
     { rol_id: 4, permiso_id: 1 }, { rol_id: 4, permiso_id: 15 }, { rol_id: 4, permiso_id: 14 }, { rol_id: 4, permiso_id: 18 }, { rol_id: 4, permiso_id: 17 },
     // analisis_correcciones_12.md #11: Encargado de Diseño gana la fusión (16).
     // analisis_correcciones_14.md #1: gana también "trabajar" (11) — autoasignación.
@@ -365,45 +414,45 @@ const mockDatabase = {
   // un taller (analisis_correcciones_4.md #12: un encargado/técnico de OTRO taller
   // no debe ver estos últimos).
   valeHistorial: [
-    { id: 1, vale_id: 1, usuario_id: 3, taller_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-19 08:30:00' },
-    { id: 2, vale_id: 2, usuario_id: 3, taller_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-18 09:15:00' },
-    { id: 3, vale_id: 2, usuario_id: 5, taller_id: 1, estado_anterior: 'PENDIENTE_ASIGNACION', estado_nuevo: 'ASIGNADO', accion: 'Encargado de Diseño asignó a Técnico Diseño A', creado_en: '2026-08-18 09:30:00' },
-    { id: 4, vale_id: 3, usuario_id: 3, taller_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-17 10:00:00' },
-    { id: 5, vale_id: 3, usuario_id: 5, taller_id: 1, estado_anterior: 'PENDIENTE_ASIGNACION', estado_nuevo: 'ASIGNADO', accion: 'Encargado de Diseño asignó a Técnico Diseño A', creado_en: '2026-08-17 10:30:00' },
-    { id: 6, vale_id: 3, usuario_id: 7, taller_id: 1, estado_anterior: 'ASIGNADO', estado_nuevo: 'EN_PROCESO', accion: 'Técnico marcó el vale como en proceso', creado_en: '2026-08-17 11:00:00' },
-    { id: 7, vale_id: 4, usuario_id: 3, taller_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-14 11:20:00' },
-    { id: 8, vale_id: 4, usuario_id: 5, taller_id: 1, estado_anterior: 'PENDIENTE_ASIGNACION', estado_nuevo: 'ASIGNADO', accion: 'Encargado de Diseño asignó a Técnico Diseño B', creado_en: '2026-08-14 11:45:00' },
-    { id: 9, vale_id: 4, usuario_id: 8, taller_id: 1, estado_anterior: 'ASIGNADO', estado_nuevo: 'EN_REVISION', accion: 'Técnico entregó propuesta', creado_en: '2026-08-17 16:00:00' },
-    { id: 10, vale_id: 5, usuario_id: 3, taller_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (talleres: Diseño, Diseño UV/3D)', creado_en: '2026-08-13 08:45:00' },
-    { id: 11, vale_id: 5, usuario_id: 6, taller_id: 2, estado_anterior: 'PENDIENTE_ASIGNACION', estado_nuevo: 'ASIGNADO', accion: 'Encargado UV/3D asignó a Técnico UV/3D C', creado_en: '2026-08-13 09:00:00' },
-    { id: 12, vale_id: 5, usuario_id: 9, taller_id: 2, estado_anterior: 'EN_PROCESO', estado_nuevo: 'EN_REVISION', accion: 'Técnico UV/3D entregó propuesta', creado_en: '2026-08-15 12:00:00' },
-    { id: 13, vale_id: 5, usuario_id: 6, taller_id: 2, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado UV/3D aprobó la propuesta de su taller', creado_en: '2026-08-15 12:30:00' },
-    { id: 14, vale_id: 6, usuario_id: 3, taller_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (talleres: Diseño, Diseño UV/3D)', creado_en: '2026-08-10 13:00:00' },
-    { id: 15, vale_id: 6, usuario_id: 5, taller_id: 1, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado de Diseño aprobó la propuesta de su taller', creado_en: '2026-08-12 10:00:00' },
-    { id: 16, vale_id: 6, usuario_id: 6, taller_id: 2, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado UV/3D aprobó la propuesta de su taller', creado_en: '2026-08-12 10:20:00' },
-    { id: 17, vale_id: 6, usuario_id: 3, taller_id: null, estado_anterior: 'CREADO', estado_nuevo: 'APROBADO_DEPARTAMENTO', accion: 'Ambos talleres aprobaron — pendiente de fusión por Encargado General', creado_en: '2026-08-12 10:30:00' },
-    { id: 18, vale_id: 7, usuario_id: 3, taller_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-09 15:30:00' },
-    { id: 19, vale_id: 7, usuario_id: 5, taller_id: 1, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado de Diseño aprobó la propuesta', creado_en: '2026-08-15 10:00:00' },
-    { id: 20, vale_id: 7, usuario_id: 3, taller_id: null, estado_anterior: 'CREADO', estado_nuevo: 'PENDIENTE_CONFIRMACION', accion: 'Único taller aprobado — pasa directo a confirmación del asesor', creado_en: '2026-08-15 10:30:00' },
-    { id: 21, vale_id: 8, usuario_id: 3, taller_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-05 10:00:00' },
-    { id: 22, vale_id: 8, usuario_id: 5, taller_id: 1, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado de Diseño aprobó la propuesta', creado_en: '2026-08-11 09:00:00' },
-    { id: 23, vale_id: 8, usuario_id: 3, taller_id: null, estado_anterior: 'CREADO', estado_nuevo: 'PENDIENTE_CONFIRMACION', accion: 'Único taller aprobado — pasa directo a confirmación del asesor', creado_en: '2026-08-11 09:30:00' },
-    { id: 24, vale_id: 8, usuario_id: 3, taller_id: null, estado_anterior: 'PENDIENTE_CONFIRMACION', estado_nuevo: 'RECIBIDO', accion: 'Asesor confirmó de recibido el vale de arte', creado_en: '2026-08-11 12:00:00' },
-    { id: 25, vale_id: 9, usuario_id: 3, taller_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-04 14:00:00' },
-    { id: 26, vale_id: 9, usuario_id: 5, taller_id: 1, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado de Diseño aprobó la propuesta', creado_en: '2026-08-10 09:00:00' },
-    { id: 27, vale_id: 9, usuario_id: 3, taller_id: null, estado_anterior: 'CREADO', estado_nuevo: 'PENDIENTE_CONFIRMACION', accion: 'Único taller aprobado — pasa directo a confirmación del asesor', creado_en: '2026-08-10 09:15:00' },
-    { id: 28, vale_id: 9, usuario_id: 3, taller_id: null, estado_anterior: 'PENDIENTE_CONFIRMACION', estado_nuevo: 'SOLICITANDO_MODIFICACION', accion: 'Asesor solicitó modificación', creado_en: '2026-08-10 09:30:00' },
-    { id: 29, vale_id: 10, usuario_id: 3, taller_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-07-30 09:00:00' },
-    { id: 30, vale_id: 10, usuario_id: 5, taller_id: 1, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado de Diseño aprobó la propuesta', creado_en: '2026-08-06 09:00:00' },
-    { id: 31, vale_id: 10, usuario_id: 3, taller_id: null, estado_anterior: 'CREADO', estado_nuevo: 'PENDIENTE_CONFIRMACION', accion: 'Único taller aprobado — pasa directo a confirmación del asesor', creado_en: '2026-08-06 09:30:00' },
-    { id: 32, vale_id: 10, usuario_id: 3, taller_id: null, estado_anterior: 'PENDIENTE_CONFIRMACION', estado_nuevo: 'RECIBIDO', accion: 'Asesor confirmó de recibido el vale de arte', creado_en: '2026-08-06 10:00:00' },
-    { id: 33, vale_id: 10, usuario_id: 3, taller_id: null, estado_anterior: 'RECIBIDO', estado_nuevo: 'SOLICITANDO_MODIFICACION', accion: 'Asesor solicitó modificación de acabado', creado_en: '2026-08-13 09:00:00' },
-    { id: 34, vale_id: 11, usuario_id: 3, taller_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-06 16:00:00' },
-    { id: 35, vale_id: 11, usuario_id: 5, taller_id: 1, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado de Diseño aprobó la propuesta', creado_en: '2026-08-13 15:00:00' },
-    { id: 36, vale_id: 11, usuario_id: 3, taller_id: null, estado_anterior: 'CREADO', estado_nuevo: 'PENDIENTE_CONFIRMACION', accion: 'Único taller aprobado — pasa directo a confirmación del asesor', creado_en: '2026-08-13 15:30:00' },
-    { id: 37, vale_id: 11, usuario_id: 3, taller_id: null, estado_anterior: 'PENDIENTE_CONFIRMACION', estado_nuevo: 'SOLICITANDO_MODIFICACION', accion: 'Asesor solicitó modificación', creado_en: '2026-08-14 08:00:00' },
-    { id: 38, vale_id: 12, usuario_id: 4, taller_id: null, estado_anterior: null, estado_nuevo: 'MODIFICADO', accion: 'Supervisor aprobó la solicitud de modificación — se creó el vale MOD-GUA-3-0008', creado_en: '2026-08-20 11:00:00' },
-    { id: 39, vale_id: 13, usuario_id: 3, taller_id: null, estado_anterior: null, estado_nuevo: 'ESPERANDO_AUTORIZACION', accion: 'Vale de arte creado por el asesor — esperando autorización del Supervisor (taller solicitado: Diseño)', creado_en: '2026-08-26 08:00:00' }
+    { id: 1, vale_id: 1, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-19 08:30:00' },
+    { id: 2, vale_id: 2, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-18 09:15:00' },
+    { id: 3, vale_id: 2, usuario_id: 5, taller_id: 1, tecnico_id: null, estado_anterior: 'PENDIENTE_ASIGNACION', estado_nuevo: 'ASIGNADO', accion: 'Encargado de Diseño asignó a Técnico Diseño A', creado_en: '2026-08-18 09:30:00' },
+    { id: 4, vale_id: 3, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-17 10:00:00' },
+    { id: 5, vale_id: 3, usuario_id: 5, taller_id: 1, tecnico_id: null, estado_anterior: 'PENDIENTE_ASIGNACION', estado_nuevo: 'ASIGNADO', accion: 'Encargado de Diseño asignó a Técnico Diseño A', creado_en: '2026-08-17 10:30:00' },
+    { id: 6, vale_id: 3, usuario_id: 7, taller_id: 1, tecnico_id: null, estado_anterior: 'ASIGNADO', estado_nuevo: 'EN_PROCESO', accion: 'Técnico marcó el vale como en proceso', creado_en: '2026-08-17 11:00:00' },
+    { id: 7, vale_id: 4, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-14 11:20:00' },
+    { id: 8, vale_id: 4, usuario_id: 5, taller_id: 1, tecnico_id: null, estado_anterior: 'PENDIENTE_ASIGNACION', estado_nuevo: 'ASIGNADO', accion: 'Encargado de Diseño asignó a Técnico Diseño B', creado_en: '2026-08-14 11:45:00' },
+    { id: 9, vale_id: 4, usuario_id: 8, taller_id: 1, tecnico_id: null, estado_anterior: 'ASIGNADO', estado_nuevo: 'EN_REVISION', accion: 'Técnico entregó propuesta', creado_en: '2026-08-17 16:00:00' },
+    { id: 10, vale_id: 5, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (talleres: Diseño, Diseño UV/3D)', creado_en: '2026-08-13 08:45:00' },
+    { id: 11, vale_id: 5, usuario_id: 6, taller_id: 2, tecnico_id: null, estado_anterior: 'PENDIENTE_ASIGNACION', estado_nuevo: 'ASIGNADO', accion: 'Encargado UV/3D asignó a Técnico UV/3D C', creado_en: '2026-08-13 09:00:00' },
+    { id: 12, vale_id: 5, usuario_id: 9, taller_id: 2, tecnico_id: null, estado_anterior: 'EN_PROCESO', estado_nuevo: 'EN_REVISION', accion: 'Técnico UV/3D entregó propuesta', creado_en: '2026-08-15 12:00:00' },
+    { id: 13, vale_id: 5, usuario_id: 6, taller_id: 2, tecnico_id: null, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado UV/3D aprobó la propuesta de su taller', creado_en: '2026-08-15 12:30:00' },
+    { id: 14, vale_id: 6, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (talleres: Diseño, Diseño UV/3D)', creado_en: '2026-08-10 13:00:00' },
+    { id: 15, vale_id: 6, usuario_id: 5, taller_id: 1, tecnico_id: null, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado de Diseño aprobó la propuesta de su taller', creado_en: '2026-08-12 10:00:00' },
+    { id: 16, vale_id: 6, usuario_id: 6, taller_id: 2, tecnico_id: null, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado UV/3D aprobó la propuesta de su taller', creado_en: '2026-08-12 10:20:00' },
+    { id: 17, vale_id: 6, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: 'CREADO', estado_nuevo: 'APROBADO_DEPARTAMENTO', accion: 'Ambos talleres aprobaron — pendiente de fusión por Encargado General', creado_en: '2026-08-12 10:30:00' },
+    { id: 18, vale_id: 7, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-09 15:30:00' },
+    { id: 19, vale_id: 7, usuario_id: 5, taller_id: 1, tecnico_id: null, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado de Diseño aprobó la propuesta', creado_en: '2026-08-15 10:00:00' },
+    { id: 20, vale_id: 7, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: 'CREADO', estado_nuevo: 'PENDIENTE_CONFIRMACION', accion: 'Único taller aprobado — pasa directo a confirmación del asesor', creado_en: '2026-08-15 10:30:00' },
+    { id: 21, vale_id: 8, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-05 10:00:00' },
+    { id: 22, vale_id: 8, usuario_id: 5, taller_id: 1, tecnico_id: null, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado de Diseño aprobó la propuesta', creado_en: '2026-08-11 09:00:00' },
+    { id: 23, vale_id: 8, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: 'CREADO', estado_nuevo: 'PENDIENTE_CONFIRMACION', accion: 'Único taller aprobado — pasa directo a confirmación del asesor', creado_en: '2026-08-11 09:30:00' },
+    { id: 24, vale_id: 8, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: 'PENDIENTE_CONFIRMACION', estado_nuevo: 'RECIBIDO', accion: 'Asesor confirmó de recibido el vale de arte', creado_en: '2026-08-11 12:00:00' },
+    { id: 25, vale_id: 9, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-04 14:00:00' },
+    { id: 26, vale_id: 9, usuario_id: 5, taller_id: 1, tecnico_id: null, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado de Diseño aprobó la propuesta', creado_en: '2026-08-10 09:00:00' },
+    { id: 27, vale_id: 9, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: 'CREADO', estado_nuevo: 'PENDIENTE_CONFIRMACION', accion: 'Único taller aprobado — pasa directo a confirmación del asesor', creado_en: '2026-08-10 09:15:00' },
+    { id: 28, vale_id: 9, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: 'PENDIENTE_CONFIRMACION', estado_nuevo: 'SOLICITANDO_MODIFICACION', accion: 'Asesor solicitó modificación', creado_en: '2026-08-10 09:30:00' },
+    { id: 29, vale_id: 10, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-07-30 09:00:00' },
+    { id: 30, vale_id: 10, usuario_id: 5, taller_id: 1, tecnico_id: null, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado de Diseño aprobó la propuesta', creado_en: '2026-08-06 09:00:00' },
+    { id: 31, vale_id: 10, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: 'CREADO', estado_nuevo: 'PENDIENTE_CONFIRMACION', accion: 'Único taller aprobado — pasa directo a confirmación del asesor', creado_en: '2026-08-06 09:30:00' },
+    { id: 32, vale_id: 10, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: 'PENDIENTE_CONFIRMACION', estado_nuevo: 'RECIBIDO', accion: 'Asesor confirmó de recibido el vale de arte', creado_en: '2026-08-06 10:00:00' },
+    { id: 33, vale_id: 10, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: 'RECIBIDO', estado_nuevo: 'SOLICITANDO_MODIFICACION', accion: 'Asesor solicitó modificación de acabado', creado_en: '2026-08-13 09:00:00' },
+    { id: 34, vale_id: 11, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: null, estado_nuevo: 'CREADO', accion: 'Vale de arte creado por el asesor (taller: Diseño)', creado_en: '2026-08-06 16:00:00' },
+    { id: 35, vale_id: 11, usuario_id: 5, taller_id: 1, tecnico_id: null, estado_anterior: 'EN_REVISION', estado_nuevo: 'APROBADO', accion: 'Encargado de Diseño aprobó la propuesta', creado_en: '2026-08-13 15:00:00' },
+    { id: 36, vale_id: 11, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: 'CREADO', estado_nuevo: 'PENDIENTE_CONFIRMACION', accion: 'Único taller aprobado — pasa directo a confirmación del asesor', creado_en: '2026-08-13 15:30:00' },
+    { id: 37, vale_id: 11, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: 'PENDIENTE_CONFIRMACION', estado_nuevo: 'SOLICITANDO_MODIFICACION', accion: 'Asesor solicitó modificación', creado_en: '2026-08-14 08:00:00' },
+    { id: 38, vale_id: 12, usuario_id: 4, taller_id: null, tecnico_id: null, estado_anterior: null, estado_nuevo: 'MODIFICADO', accion: 'Supervisor aprobó la solicitud de modificación — se creó el vale MOD-GUA-3-0008', creado_en: '2026-08-20 11:00:00' },
+    { id: 39, vale_id: 13, usuario_id: 3, taller_id: null, tecnico_id: null, estado_anterior: null, estado_nuevo: 'ESPERANDO_AUTORIZACION', accion: 'Vale de arte creado por el asesor — esperando autorización del Supervisor (taller solicitado: Diseño)', creado_en: '2026-08-26 08:00:00' }
   ],
   // analisis_correcciones_13.md #6: fila única (id fijo = 1) con el estado del
   // Modo Mantenimiento del panel de Administrador.
@@ -673,7 +722,7 @@ const taggedHandlers = {
   'vale:list_atrasados_sin_notificar': () => {
     const haceUnDia = new Date(Date.now() - 24 * 60 * 60 * 1000);
     return mockDatabase.vales.filter(v =>
-      !v.atraso_notificado_en && !v.atraso_congelado_en && v.estado !== 'RECIBIDO' &&
+      !v.atraso_notificado_en && !v.atraso_congelado_en && v.estado !== 'RECIBIDO' && v.estado !== 'CONFIRMADO' &&
       new Date(String(v.fecha_entrega).replace(' ', 'T')) < haceUnDia
     );
   },
@@ -807,11 +856,14 @@ const taggedHandlers = {
     return { affectedRows: s ? 1 : 0 };
   },
 
+  // analisis_correcciones_15.md #7: tecnicoId es el último parámetro (nuevo)
+  // — se agrega al final a propósito para no reordenar los ya existentes.
   'historial:insert': (params) => {
-    const [valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion] = params;
+    const [valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion, tecnicoId] = params;
     const row = {
       id: nextId(mockDatabase.valeHistorial), vale_id: Number(valeId), usuario_id: Number(usuarioId),
       taller_id: tallerId ? Number(tallerId) : null,
+      tecnico_id: tecnicoId ? Number(tecnicoId) : null,
       estado_anterior: estadoAnterior || null, estado_nuevo: estadoNuevo, accion,
       creado_en: ahoraLocal()
     };
@@ -924,19 +976,17 @@ const taggedHandlers = {
   'permiso:list': () => mockDatabase.permisos,
 
   // Pestaña "Gestionar Tiendas".
+  // analisis_correcciones_15.md #6: se quitó el campo `personal` (ya no se
+  // muestra en la tabla — reemplazado por la columna Departamento/Subdivisión;
+  // el detalle de personal vive en las acciones "Ver personal"/"Gestionar
+  // personal", que consultan `tienda_admin:personal_detalle` aparte). El SQL real
+  // nunca lo tuvo tampoco.
   'tienda_admin:list': () => {
     return mockDatabase.tiendas.slice().sort((a, b) => a.orden - b.orden).map(t => {
       const pais = mockDatabase.paises.find(p => p.id === t.pais_id);
       const depto = mockDatabase.departamentos.find(d => d.id === t.departamento_id);
       const subdivision = t.subdivision_id ? mockDatabase.subdivisiones.find(s => s.id === t.subdivision_id) : null;
-      const personalDirecto = mockDatabase.usuarios.filter(u => u.tienda_id === t.id && u.activo).map(u => u.nombre);
-      const supervisores = mockDatabase.usuarios.filter(u => u.rol_id === 4 && u.activo &&
-        mockDatabase.supervisorAsignaciones.some(sa => sa.usuario_id === u.id && sa.activo && (
-          sa.tienda_id === t.id ||
-          (sa.tienda_id == null && sa.departamento_id === t.departamento_id && (sa.subdivision_id === null || sa.subdivision_id === t.subdivision_id))
-        ))
-      ).map(u => u.nombre);
-      return { ...t, pais_nombre: pais ? pais.nombre : null, departamento_nombre: depto ? depto.nombre : null, subdivision_nombre: subdivision ? subdivision.nombre : null, personal: [...personalDirecto, ...supervisores] };
+      return { ...t, pais_nombre: pais ? pais.nombre : null, departamento_nombre: depto ? depto.nombre : null, subdivision_nombre: subdivision ? subdivision.nombre : null };
     });
   },
   'tienda_admin:find_by_id': (params) => {
@@ -1033,7 +1083,10 @@ const taggedHandlers = {
       .map(sa => {
         const depto = mockDatabase.departamentos.find(d => d.id === sa.departamento_id);
         const subdivision = sa.subdivision_id ? mockDatabase.subdivisiones.find(s => s.id === sa.subdivision_id) : null;
-        return { departamento_nombre: depto ? depto.nombre : null, subdivision_nombre: subdivision ? subdivision.nombre : null };
+        return {
+          departamento_id: sa.departamento_id, subdivision_id: sa.subdivision_id,
+          departamento_nombre: depto ? depto.nombre : null, subdivision_nombre: subdivision ? subdivision.nombre : null
+        };
       });
   },
   'organizacion:departamentos': () => mockDatabase.departamentos.filter(d => d.activo),

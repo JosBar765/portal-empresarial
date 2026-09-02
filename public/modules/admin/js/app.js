@@ -415,37 +415,90 @@
     overlay.querySelector('#input-email').value = esEdicion ? usuario.email : '';
     overlay.querySelector('#input-telefono').value = (esEdicion && usuario.telefono) ? usuario.telefono : '';
 
+    // analisis_correcciones_15.md #10/#11: agrupa las tiendas por país una
+    // sola vez — ambas ramas de renderZonaAsignacion arman un cascada país→tienda.
+    const paisesConTienda = [...new Set(tiendas.map(t => t.pais_nombre || 'Sin país'))].sort();
+    // País actualmente elegido en el selector de "Tiendas supervisadas" —
+    // vive fuera de renderZonaAsignacion para sobrevivir sus propios re-renders
+    // (cambiar de país no debe perder las tiendas ya marcadas de otro país).
+    let paisSupervisorActual = null;
+
+    // Una tienda queda cubierta por herencia si su departamento/subdivisión
+    // coincide con alguna fila de coberturaHeredada (subdivision_id null =
+    // cubre TODAS las subdivisiones de ese departamento).
+    function esHeredada(tienda) {
+      return coberturaHeredada.some(c =>
+        c.departamento_id === tienda.departamento_id &&
+        (c.subdivision_id === null || c.subdivision_id === tienda.subdivision_id)
+      );
+    }
+
+    // Vuelca en `tiendasSupervisadas` lo que esté marcado/desmarcado AHORA
+    // MISMO en el país visible (las heredadas no se tocan, viven aparte) —
+    // hace falta antes de cambiar de país (para no perder la selección) y
+    // antes de guardar (el país visible al momento de guardar nunca se
+    // había sincronizado todavía).
+    function sincronizarTiendasSupervisadasVisibles() {
+      $$('.chk-tienda-supervisada', overlay).forEach(chk => {
+        if (chk.disabled) return;
+        const id = Number(chk.value);
+        tiendasSupervisadas = chk.checked
+          ? [...new Set([...tiendasSupervisadas, id])]
+          : tiendasSupervisadas.filter(x => x !== id);
+      });
+    }
+
     function renderZonaAsignacion() {
       const rolId = Number(overlay.querySelector('#input-rol').value);
       const zona = overlay.querySelector('#zona-asignacion');
       if (rolId === ROL_SUPERVISOR) {
+        if (!paisSupervisorActual) {
+          // Al abrir por primera vez, arranca en el país de la primera tienda
+          // ya supervisada (si la hay) para que el admin la vea de una vez.
+          const tiendaYaMarcada = tiendas.find(t => tiendasSupervisadas.includes(t.id));
+          paisSupervisorActual = (tiendaYaMarcada ? tiendaYaMarcada.pais_nombre : null) || paisesConTienda[0] || '';
+        }
+        const opcionesPais = paisesConTienda.map(p => `<option value="${escapeHtml(p)}" ${p === paisSupervisorActual ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('');
         zona.innerHTML = `
           <label>Tiendas supervisadas</label>
-          <div class="personal-lista">
-            ${tiendas.map(t => `<label class="form-checkbox"><input type="checkbox" class="chk-tienda-supervisada" value="${t.id}" ${tiendasSupervisadas.includes(t.id) ? 'checked' : ''}> ${escapeHtml(t.nombre)} (${escapeHtml(t.codigo)})</label>`).join('')}
-          </div>
-          ${coberturaHeredada.length ? `<p class="form-hint">También cubre por asignación heredada (departamento/subdivisión), no editable aquí: ${coberturaHeredada.map(c => escapeHtml(c.subdivision_nombre || c.departamento_nombre)).join(', ')}.</p>` : ''}
+          <select id="input-pais-supervisor">${opcionesPais}</select>
+          <div class="personal-lista" id="lista-tiendas-supervisadas"></div>
+          ${coberturaHeredada.length ? `<p class="form-hint">Las tiendas marcadas y bloqueadas ya vienen cubiertas por asignación heredada (departamento/subdivisión: ${coberturaHeredada.map(c => escapeHtml(c.subdivision_nombre || c.departamento_nombre)).join(', ')}) — no se pueden desmarcar aquí.</p>` : ''}
         `;
-      } else {
-        // analisis_correcciones_14.md #8: el combobox se agrupa por país.
-        const gruposTienda = {};
-        tiendas.forEach(t => {
-          const clave = t.pais_nombre || 'Sin país';
-          if (!gruposTienda[clave]) gruposTienda[clave] = [];
-          gruposTienda[clave].push(t);
+        function renderListaTiendasDelPais() {
+          const tiendasDelPais = tiendas.filter(t => (t.pais_nombre || 'Sin país') === paisSupervisorActual);
+          overlay.querySelector('#lista-tiendas-supervisadas').innerHTML = tiendasDelPais.map(t => {
+            const heredada = esHeredada(t);
+            const marcada = heredada || tiendasSupervisadas.includes(t.id);
+            return `<label class="form-checkbox"><input type="checkbox" class="chk-tienda-supervisada" value="${t.id}" ${marcada ? 'checked' : ''} ${heredada ? 'disabled' : ''}> ${escapeHtml(t.nombre)} (${escapeHtml(t.codigo)})${heredada ? ' — heredada' : ''}</label>`;
+          }).join('') || '<p class="form-hint">No hay tiendas en este país.</p>';
+        }
+        renderListaTiendasDelPais();
+        overlay.querySelector('#input-pais-supervisor').addEventListener('change', (e) => {
+          sincronizarTiendasSupervisadasVisibles();
+          paisSupervisorActual = e.target.value;
+          renderListaTiendasDelPais();
         });
-        const opcionesTienda = Object.keys(gruposTienda).sort().map(pais => `
-          <optgroup label="${escapeHtml(pais)}">
-            ${gruposTienda[pais].map(t => `<option value="${t.id}" ${esEdicion && usuario.tienda_id === t.id ? 'selected' : ''}>${escapeHtml(t.nombre)} (${escapeHtml(t.codigo)})</option>`).join('')}
-          </optgroup>
-        `).join('');
+      } else {
+        // analisis_correcciones_15.md #11: cascada país -> tienda (dos selects
+        // dependientes, mismo patrón que departamento->subdivisión en abrirModalTienda).
+        const tiendaActual = esEdicion && usuario.tienda_id ? tiendas.find(t => t.id === usuario.tienda_id) : null;
+        const paisActual = tiendaActual ? (tiendaActual.pais_nombre || 'Sin país') : (paisesConTienda[0] || '');
+        const opcionesPais = paisesConTienda.map(p => `<option value="${escapeHtml(p)}" ${p === paisActual ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('');
         zona.innerHTML = `
+          <label>País</label>
+          <select id="input-pais-tienda">${opcionesPais}</select>
           <label>Tienda</label>
-          <select id="input-tienda">
-            <option value="">Sin tienda asignada</option>
-            ${opcionesTienda}
-          </select>
+          <select id="input-tienda"></select>
         `;
+        function actualizarTiendasDelPais() {
+          const pais = overlay.querySelector('#input-pais-tienda').value;
+          const disponibles = tiendas.filter(t => (t.pais_nombre || 'Sin país') === pais);
+          overlay.querySelector('#input-tienda').innerHTML = '<option value="">Sin tienda asignada</option>' +
+            disponibles.map(t => `<option value="${t.id}" ${esEdicion && usuario.tienda_id === t.id ? 'selected' : ''}>${escapeHtml(t.nombre)} (${escapeHtml(t.codigo)})</option>`).join('');
+        }
+        actualizarTiendasDelPais();
+        overlay.querySelector('#input-pais-tienda').addEventListener('change', actualizarTiendasDelPais);
       }
     }
     renderZonaAsignacion();
@@ -463,7 +516,8 @@
         rolId
       };
       if (rolId === ROL_SUPERVISOR) {
-        payload.tiendasSupervisadas = $$('.chk-tienda-supervisada', overlay).filter(c => c.checked).map(c => Number(c.value));
+        sincronizarTiendasSupervisadasVisibles();
+        payload.tiendasSupervisadas = tiendasSupervisadas;
       } else {
         const valorTienda = overlay.querySelector('#input-tienda').value;
         payload.tiendaId = valorTienda ? Number(valorTienda) : null;
@@ -774,7 +828,7 @@
       </div>
       <div class="tabla-wrapper">
         <table class="data-table sticky-header">
-          <thead><tr><th>Orden</th><th>Tienda</th><th>País</th><th>Personal</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Orden</th><th>Tienda</th><th>País</th><th>Departamento/Subdivisión</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody id="tiendas-tbody"></tbody>
         </table>
       </div>
@@ -784,9 +838,9 @@
     tbody.innerHTML = state.tiendas.map(t => `
       <tr>
         <td data-label="Orden">${t.orden}</td>
-        <td data-label="Tienda">${escapeHtml(t.nombre)}<div class="tabla-secundaria">${escapeHtml(t.codigo)}${t.subdivision_nombre ? ' · ' + escapeHtml(t.subdivision_nombre) : ''} · ${escapeHtml(t.departamento_nombre)}</div></td>
+        <td data-label="Tienda">${escapeHtml(t.nombre)}<div class="tabla-secundaria">${escapeHtml(t.codigo)}</div></td>
         <td data-label="País">${t.pais_nombre ? escapeHtml(t.pais_nombre) : '-'}</td>
-        <td data-label="Personal">${t.personal.length ? escapeHtml(t.personal.join(', ')) : '<span class="tabla-secundaria">Sin personal</span>'}</td>
+        <td data-label="Departamento/Subdivisión">${escapeHtml(t.departamento_nombre)}${t.subdivision_nombre ? '<div class="tabla-secundaria">' + escapeHtml(t.subdivision_nombre) + '</div>' : ''}</td>
         <td data-label="Estado"><span class="badge ${t.activo ? 'badge-activo' : 'badge-inactivo'}">${t.activo ? 'Activa' : 'Inactiva'}</span></td>
         <td data-label="Acciones" class="acciones-cell" data-tienda-id="${t.id}"></td>
       </tr>
@@ -957,19 +1011,17 @@
     const idsActuales = new Set(personal.map(p => p.id));
     const disponibles = todosUsuarios.filter(u => u.activo && !idsActuales.has(u.id));
 
-    // analisis_correcciones_14.md #4: el combobox se agrupa por rol en vez de
-    // listar a todo el personal disponible de corrido.
+    // analisis_correcciones_15.md #12: cascada rol -> persona (dos selects
+    // dependientes) en vez del combobox agrupado por <optgroup> de la
+    // corrección anterior.
     const gruposDisponibles = {};
     disponibles.forEach(u => {
       const clave = u.rol_nombre || 'Sin rol';
       if (!gruposDisponibles[clave]) gruposDisponibles[clave] = [];
       gruposDisponibles[clave].push(u);
     });
-    const opcionesAgregar = Object.keys(gruposDisponibles).sort().map(rol => `
-      <optgroup label="${escapeHtml(rol)}">
-        ${gruposDisponibles[rol].map(u => `<option value="${u.id}">${escapeHtml(u.nombre)}</option>`).join('')}
-      </optgroup>
-    `).join('');
+    const rolesDisponibles = Object.keys(gruposDisponibles).sort();
+    const opcionesRol = rolesDisponibles.map(rol => `<option value="${escapeHtml(rol)}">${escapeHtml(rol)}</option>`).join('');
 
     const bodyHtml = `
       <p class="section-title">Personal ligado a esta tienda</p>
@@ -982,10 +1034,17 @@
       </div>
       <p class="section-title">Agregar personal</p>
       <div class="form-grid">
-        <div class="form-field full">
-          <select id="input-agregar-personal">
-            <option value="">Seleccionar persona...</option>
-            ${opcionesAgregar}
+        <div class="form-field">
+          <label>Categoría</label>
+          <select id="input-categoria-personal">
+            <option value="">Seleccionar categoría...</option>
+            ${opcionesRol}
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Persona</label>
+          <select id="input-agregar-personal" disabled>
+            <option value="">Elige una categoría primero...</option>
           </select>
         </div>
       </div>
@@ -994,6 +1053,20 @@
       title: `Personal — ${tienda.nombre}`,
       bodyHtml,
       footerHtml: `<button class="btn btn--primary" id="btn-agregar">Agregar</button>`
+    });
+
+    overlay.querySelector('#input-categoria-personal').addEventListener('change', (e) => {
+      const selectPersona = overlay.querySelector('#input-agregar-personal');
+      const rol = e.target.value;
+      const personas = gruposDisponibles[rol] || [];
+      if (!rol) {
+        selectPersona.innerHTML = '<option value="">Elige una categoría primero...</option>';
+        selectPersona.disabled = true;
+        return;
+      }
+      selectPersona.disabled = false;
+      selectPersona.innerHTML = '<option value="">Seleccionar persona...</option>' +
+        personas.map(u => `<option value="${u.id}">${escapeHtml(u.nombre)}</option>`).join('');
     });
 
     $$('.personal-item', overlay).forEach(item => {

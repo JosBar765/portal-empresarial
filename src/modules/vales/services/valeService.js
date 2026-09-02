@@ -31,15 +31,21 @@ const ESTADOS = {
   PENDIENTE_CONFIRMACION: 'PENDIENTE_CONFIRMACION',
   RECIBIDO: 'RECIBIDO',
   SOLICITANDO_MODIFICACION: 'SOLICITANDO_MODIFICACION',
-  MODIFICADO: 'MODIFICADO'
+  MODIFICADO: 'MODIFICADO',
+  // analisis_correcciones_15.md #1: estado final del vale ORIGINAL una vez que
+  // su solicitud de modificación fue aprobada (antes volvía a RECIBIDO, un
+  // estado indistinguible de un vale que nunca tuvo modificación — eso hacía
+  // que el vale original desapareciera de vistas que excluyen RECIBIDO
+  // explícitamente, como Trabajo Realizado de los encargados).
+  CONFIRMADO: 'CONFIRMADO'
 };
-const ESTADOS_TERMINALES = [ESTADOS.RECIBIDO];
+const ESTADOS_TERMINALES = [ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
 // El asesor no debe "perder" un vale de la vista de trabajo realizado solo porque
 // solicitó una modificación sobre él (analisis_correcciones_4.md #13): el vale ya fue
 // confirmado y ese hecho se conserva mientras la solicitud está en curso — la tabla de
 // auditoría (vale_historial) nunca se toca, pero además la UI no debe "esconder" el
 // registro de confirmación mientras tanto.
-const ESTADOS_CONFIRMADOS = [ESTADOS.RECIBIDO, ESTADOS.SOLICITANDO_MODIFICACION];
+const ESTADOS_CONFIRMADOS = [ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO, ESTADOS.SOLICITANDO_MODIFICACION];
 
 // Estado de un vale DENTRO de un taller específico (tabla vale_talleres).
 const ESTADOS_TALLER = {
@@ -114,6 +120,32 @@ function enriquecer(vale) {
   return { ...vale, atrasado, diasAtraso, venceHoy };
 }
 
+// analisis_correcciones_15.md #7: clasifica cada fila de vale_historial en una
+// categoría estable, a partir de (estado_anterior, estado_nuevo, accion) — el
+// mismo par de estados nunca se reutiliza con un significado distinto salvo
+// el caso EN_PROCESO→EN_REVISION (entrega vs. cancelación), donde el texto de
+// `accion` sí distingue. `_filtrarHistorialPorRol` arma sus listas blancas por
+// rol sobre estas categorías en vez de comparar estados sueltos a mano.
+function categoriaHistorial(h) {
+  const ea = h.estado_anterior;
+  const en = h.estado_nuevo;
+  if (ea === null) return 'CREACION'; // crearVale() y la creación del vale MOD- nuevo
+  if (ea === 'ESPERANDO_AUTORIZACION' && en === 'CREADO') return 'AUTORIZACION_CREACION';
+  if (ea === 'PENDIENTE_ASIGNACION' && en === 'ASIGNADO') return 'ASIGNACION';
+  if (ea === 'ASIGNADO' && en === 'EN_PROCESO') return 'EN_PROCESO';
+  if (ea === 'EN_PROCESO' && en === 'EN_PAUSA') return 'PAUSA';
+  if (ea === 'EN_PAUSA' && en === 'EN_PROCESO') return 'REANUDACION';
+  if (ea === 'EN_PROCESO' && en === 'EN_REVISION') return /cancel/i.test(h.accion) ? 'CANCELACION_PROCESO' : 'ENTREGA_PROPUESTA';
+  if (ea === 'EN_REVISION' && en === 'APROBADO') return 'APROBACION_TALLER';
+  if (ea === 'EN_REVISION' && en === 'ASIGNADO') return 'DESAPROBACION_REASIGNACION';
+  if (en === 'PENDIENTE_CONFIRMACION') return 'RETORNO_ASESOR'; // directo o por fusión — el vale "vuelve" al asesor
+  if (en === 'APROBADO_DEPARTAMENTO') return 'PENDIENTE_FUSION'; // bookkeeping interno, nadie lo pidió ver
+  if (ea === 'PENDIENTE_CONFIRMACION' && en === 'RECIBIDO') return 'CONFIRMACION_RECIBIDO';
+  if (ea === 'SOLICITANDO_MODIFICACION' && en === 'CONFIRMADO') return 'APROBACION_MODIFICACION_ORIGINAL';
+  if (en === 'SOLICITANDO_MODIFICACION') return 'SOLICITUD_MODIFICACION';
+  return 'OTRO';
+}
+
 // El estado LÓGICO que ve el asesor no es el estado real de la máquina de estados:
 // colapsa varios estados internos en un puñado de "cubetas" de negocio (ver
 // analisis_correcciones_3.md #11). Nunca se usa para autorización, solo para lo
@@ -133,15 +165,15 @@ function estadoVisibleAsesor(vale) {
     switch (vale.estado) {
       case ESTADOS.MODIFICADO: return 'MODIFICADO';
       case ESTADOS.PENDIENTE_CONFIRMACION: return 'PENDIENTE_CONFIRMACION';
-      // analisis_correcciones_13.md #3: esta rama sirve a DOS valeS distintos.
-      // El vale ORIGINAL que ya usó su modificación queda RECIBIDO para
-      // siempre (nunca `vale_original_id` propio) — sigue mostrándose como
-      // MODIFICADO, porque a partir de él se creó un vale nuevo. El vale
-      // MOD- NUEVO (sí tiene `vale_original_id`) tiene su propio ciclo de
-      // vida: una vez que el asesor lo confirma de recibido, es un RECIBIDO
-      // real y debe mostrarse como CONFIRMADO igual que cualquier otro vale
-      // — antes esta rama lo dejaba disfrazado de "Modificado" para siempre.
-      case ESTADOS.RECIBIDO: return vale.vale_original_id ? 'CONFIRMADO' : 'MODIFICADO';
+      // El vale MOD- NUEVO (tiene `vale_original_id`) sigue su propio ciclo de
+      // vida normal: una vez que el asesor lo confirma de recibido, es un
+      // RECIBIDO real y se muestra como CONFIRMADO igual que cualquier otro.
+      case ESTADOS.RECIBIDO: return 'CONFIRMADO';
+      // analisis_correcciones_15.md #1: el vale ORIGINAL, al aprobarse su
+      // modificación, pasa a un estado real propio (CONFIRMADO, ver
+      // aprobarModificacion) en vez de reciclar RECIBIDO — ya no hace falta
+      // distinguirlo por `vale_original_id` como antes.
+      case ESTADOS.CONFIRMADO: return 'CONFIRMADO';
       default: return 'MODIFICADO'; // CREADO / APROBADO_DEPARTAMENTO de un vale MOD-
     }
   }
@@ -261,8 +293,8 @@ function calcularUrgente(fechaEntregaNorm, urgentePayload) {
 // `tallerId` es NULL para eventos de nivel de vale (visibles para todos los roles con
 // acceso al vale); se pasa cuando el evento es interno de UN taller específico
 // (asignar/comenzar/entregar/revisar) — ver analisis_correcciones_4.md #12.
-async function registrarHistorial(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion) {
-  await historialRepository.registrar(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion);
+async function registrarHistorial(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion, tecnicoId) {
+  await historialRepository.registrar(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion, tecnicoId);
 }
 
 function esAdministrador(usuario) {
@@ -674,8 +706,11 @@ class ValeService {
   async obtenerDetalle(usuario, valeId) {
     const vale = await valeRepository.obtenerPorId(valeId);
     if (!vale) throw new Error('Vale de arte no encontrado.');
-    const [talleres, propuestas, documentos, historial] = await Promise.all([
-      valeTallerRepository.listarPorVale(valeId),
+    const talleres = await valeTallerRepository.listarPorVale(valeId);
+    if (!(await this._puedeVerVale(usuario, vale, talleres))) {
+      throw new Error('No tienes acceso a este vale de arte.');
+    }
+    const [propuestas, documentos, historial] = await Promise.all([
       propuestaRepository.listarPorVale(valeId),
       documentoRepository.listarPorVale(valeId),
       historialRepository.listarPorVale(valeId)
@@ -696,21 +731,102 @@ class ValeService {
     return { ...enriquecer(vale), talleres: talleresConNombre, propuestas, documentos, historial: historialVisible, solicitudModificacion };
   }
 
-  // El asesor solo ve sus 4/5 estados lógicos, nunca el detalle interno de cada taller
-  // (analisis_correcciones_4.md #4); un encargado o técnico solo ve lo que pasó DENTRO
-  // de su propio taller, no lo que hicieron otros talleres del mismo vale (#12).
-  // Administrador, Supervisor y Gerente siguen viendo todo. Roles 5/6/9/11: dueños
-  // (o clon operativo) de un taller específico (analisis_correcciones_12.md #11).
-  async _filtrarHistorialPorRol(usuario, historial) {
-    if (!usuario) return historial;
-    if (usuario.rolId === 3) {
-      return historial.filter(h => !ESTADOS_TALLER[h.estado_nuevo]);
+  // analisis_correcciones_15.md #8: obtenerDetalle no tenía NINGÚN control de
+  // propiedad — cualquier usuario con `vales.ver` podía pedir el detalle
+  // completo de CUALQUIER vale por id, sin importar su rol/cobertura (un
+  // supervisor de Costa Rica podía ver por API un vale de Guatemala aunque
+  // nunca apareciera en su buzón). Mismo criterio de cobertura que ya usan
+  // _buzonSupervisor (asesores cubiertos) y _tallerIdVisiblePara (taller propio).
+  async _puedeVerVale(usuario, vale, talleres) {
+    if (esAdministrador(usuario) || usuario.rolId === 10) return true; // Gerente: solo lectura de todo
+    if (usuario.rolId === 3) return vale.asesor_id === usuario.id;
+    if (usuario.rolId === 4) {
+      const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
+      return misAsesoresIds.has(vale.asesor_id);
     }
     if ([5, 6, 7, 9, 11, 12].includes(usuario.rolId)) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
-      if (!tallerVisible) return [];
-      return historial.filter(h => h.taller_id === null || h.taller_id === tallerVisible);
+      return !!tallerVisible && talleres.some(t => t.taller_id === tallerVisible);
     }
+    return true; // rol desconocido: no restringir de más, mismo criterio que _filtrarHistorialPorRol
+  }
+
+  // analisis_correcciones_15.md #7: rediseño completo, por categoría en vez de
+  // comparar estados sueltos. Cada rol tiene una lista blanca de categorías
+  // (ver categoriaHistorial) — documentado tal cual en el propio archivo de
+  // correcciones, rol por rol:
+  // - Asesor y Supervisor: creación, autorización de creación, retorno al
+  //   asesor (directo o por fusión), confirmación de recibido, y — si hubo
+  //   modificación — solicitud/aprobación de la modificación. Ambos ven
+  //   exactamente lo mismo (el supervisor es quien autoriza y aprueba, pero
+  //   nunca el detalle interno de un taller).
+  // - Gerente: lo mismo que el asesor, más "cuándo se asignó" y "cuándo se
+  //   aprobó" a nivel de TODOS los talleres, sin importar a quién ni cuál
+  //   taller ("no me importa a quién" — el propio documento).
+  // - Encargados de taller (5/6/9/11/12): autorización de creación (sin scope
+  //   de taller) + su propio ciclo de asignación/proceso/pausa/reanudación/
+  //   entrega-o-cancelación/aprobación/reasignación, acotado a SU taller
+  //   (analisis_correcciones_4.md #12) — nunca lo que pasó en otro taller del
+  //   mismo vale, ni los eventos de nivel de vale (creación, retorno,
+  //   confirmación, modificación) que antes se colaban por tener taller_id null.
+  // - Técnico: el mismo ciclo, pero acotado ADEMÁS a que el evento sea suyo —
+  //   `usuario_id` para lo que él mismo ejecuta, `tecnico_id` para lo que un
+  //   encargado hizo SOBRE él (asignación/aprobación/reasignación). Las filas
+  //   sembradas antes de que existiera la columna `tecnico_id` caen a un
+  //   respaldo por nombre en el texto de `accion` (best-effort, solo para
+  //   datos históricos previos a esta corrección).
+  async _filtrarHistorialPorRol(usuario, historial) {
+    if (!usuario || usuario.rolId === 1) return historial; // Administrador: todo, sin filtrar
+
+    const conCategoria = historial.map(h => ({ ...h, _categoria: categoriaHistorial(h) }));
+    const sinCategoria = (h) => { const { _categoria, ...resto } = h; return resto; };
+
+    if (usuario.rolId === 3 || usuario.rolId === 4) {
+      const permitidas = new Set([
+        'CREACION', 'AUTORIZACION_CREACION', 'RETORNO_ASESOR',
+        'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
+      ]);
+      return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
+    }
+
+    if (usuario.rolId === 10) {
+      const permitidas = new Set([
+        'CREACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER',
+        'RETORNO_ASESOR', 'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
+      ]);
+      return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
+    }
+
+    if ([5, 6, 9, 11, 12].includes(usuario.rolId)) {
+      const tallerVisible = await this._tallerIdVisiblePara(usuario);
+      if (!tallerVisible) return [];
+      const cicloTaller = new Set([
+        'ASIGNACION', 'EN_PROCESO', 'PAUSA', 'REANUDACION',
+        'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO', 'APROBACION_TALLER', 'DESAPROBACION_REASIGNACION'
+      ]);
+      return conCategoria
+        .filter(h => h._categoria === 'AUTORIZACION_CREACION' || (cicloTaller.has(h._categoria) && h.taller_id === tallerVisible))
+        .map(sinCategoria);
+    }
+
+    if (usuario.rolId === 7) {
+      const tallerVisible = await this._tallerIdVisiblePara(usuario);
+      if (!tallerVisible) return [];
+      const propias = new Set(['EN_PROCESO', 'PAUSA', 'REANUDACION', 'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO']);
+      const deUnEncargado = new Set(['ASIGNACION', 'APROBACION_TALLER', 'DESAPROBACION_REASIGNACION']);
+      return conCategoria
+        .filter(h => {
+          if (h.taller_id !== tallerVisible) return false;
+          if (propias.has(h._categoria)) return h.usuario_id === usuario.id;
+          if (deUnEncargado.has(h._categoria)) {
+            if (h.tecnico_id != null) return h.tecnico_id === usuario.id;
+            return !!(usuario.nombre && h.accion && h.accion.includes(usuario.nombre));
+          }
+          return false;
+        })
+        .map(sinCategoria);
+    }
+
     return historial;
   }
 
@@ -1047,7 +1163,7 @@ class ValeService {
     return {
       total: vales.length,
       atrasados: vales.filter(v => v.atrasado).length,
-      recibidosHoy: vales.filter(v => v.estado === ESTADOS.RECIBIDO && esHoy(v.actualizado_en)).length,
+      recibidosHoy: vales.filter(v => (v.estado === ESTADOS.RECIBIDO || v.estado === ESTADOS.CONFIRMADO) && esHoy(v.actualizado_en)).length,
       pendientesConfirmacion: vales.filter(v => v.estado === ESTADOS.PENDIENTE_CONFIRMACION).length,
       aprobadoDepartamento: vales.filter(v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO).length
     };
@@ -1306,12 +1422,12 @@ class ValeService {
       : (esAdministrador(usuario) ? valeTalleresTodos : []);
     const filasAprobadas = filasDeMiTaller.filter(f => f.estado === ESTADOS_TALLER.APROBADO);
     const mapaFilaPorVale = new Map(filasAprobadas.map(f => [f.vale_id, f]));
-    // analisis_correcciones_14.md #11: un vale ya RECIBIDO ya no es "trabajo
-    // vigente" del encargado — su fila de taller queda en APROBADO para siempre,
-    // pero Trabajo Realizado debe mostrar solo lo que sigue "vivo" (esperando
-    // confirmación/fusión), no el historial completo de todo lo que alguna vez
-    // aprobó.
-    const vistos = todosConTaller.filter(v => mapaFilaPorVale.has(v.id) && v.estado !== ESTADOS.RECIBIDO);
+    // analisis_correcciones_15.md #3: es un estado LÓGICO congelado — desde que
+    // el taller aprueba, Trabajo Realizado lo muestra como "Aprobado" para
+    // siempre, sin importar qué le pase al vale después (RECIBIDO, CONFIRMADO,
+    // fusión, modificación). analisis_correcciones_14.md #11 excluía RECIBIDO
+    // explícitamente; se revierte esa exclusión (contradecía este mismo punto).
+    const vistos = todosConTaller.filter(v => mapaFilaPorVale.has(v.id));
     const enVentana = vistos.filter(v => dentroDeVentana(v, ventana));
 
     // `estado_taller` fijo en 'APROBADO' (igual que _buzonEncargado) para que la
@@ -1321,7 +1437,12 @@ class ValeService {
       const fila = mapaFilaPorVale.get(v.id);
       const propuesta = fila.tecnico_id ? await propuestaRepository.obtenerUltimaPorValeYTecnico(v.id, fila.tecnico_id) : null;
       const propuestaTallerUrl = propuesta ? propuesta.url : null;
-      return { ...v, estado_taller: ESTADOS_TALLER.APROBADO, propuesta_taller_url: propuestaTallerUrl };
+      // analisis_correcciones_15.md #2: la fecha de "aprobado hoy" debe ser la
+      // de ESTA fila de taller (fila.actualizado_en), no la del vale general
+      // (v.actualizado_en) — esa última se pisa con cualquier transición
+      // posterior del vale (fusión, confirmación, etc.), lo que antes hacía
+      // que "aprobados hoy" contara aprobaciones viejas cuyo vale cambió hoy.
+      return { ...v, estado_taller: ESTADOS_TALLER.APROBADO, propuesta_taller_url: propuestaTallerUrl, aprobado_en: fila.actualizado_en };
     }));
 
     // `_esFusion` distingue esta lista de `conPropuesta`: un vale de UN solo
@@ -1333,21 +1454,27 @@ class ValeService {
           .filter(v =>
             v.propuesta_general_url &&
             (v._filasTaller.length > 1 || esValeDeModificacion(v)) &&
-            [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.SOLICITANDO_MODIFICACION].includes(v.estado) &&
+            [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO, ESTADOS.SOLICITANDO_MODIFICACION].includes(v.estado) &&
             dentroDeVentana(v, ventana)
           )
           .map(v => ({ ...v, _esFusion: true }))
       : [];
 
     const contadores = {
-      aprobadosHoy: conPropuesta.filter(v => esHoy(v.actualizado_en)).length,
+      aprobadosHoy: conPropuesta.filter(v => esHoy(v.aprobado_en)).length,
       totalAprobados: conPropuesta.length
     };
     if (puedeFusionar) {
       contadores.fusionadosHoy = fusionados.filter(v => esHoy(v.actualizado_en)).length;
       contadores.totalFusionados = fusionados.length;
     }
-    const predicados = { aprobadosHoy: v => esHoy(v.actualizado_en) && !v._esFusion };
+    // analisis_correcciones_15.md #2: "Total aprobados" no tenía predicado —
+    // al filtrar por esa tarjeta, _aplicarFiltroContador devolvía la lista sin
+    // filtrar y mezclaba fusionados con aprobados propios.
+    const predicados = {
+      aprobadosHoy: v => esHoy(v.aprobado_en) && !v._esFusion,
+      totalAprobados: v => !v._esFusion
+    };
     if (puedeFusionar) {
       predicados.fusionadosHoy = v => !!v._esFusion && esHoy(v.actualizado_en);
       predicados.totalFusionados = v => !!v._esFusion;
@@ -1460,7 +1587,12 @@ class ValeService {
       if (!vale) return null;
       const propuesta = await propuestaRepository.obtenerUltimaPorValeYTecnico(a.vale_id, usuario.id);
       const propuestaTallerUrl = propuesta ? propuesta.url : null;
-      return { ...enriquecer(vale), propuesta_taller_url: propuestaTallerUrl };
+      // analisis_correcciones_15.md #4: estado lógico fijo — al técnico no le
+      // importa qué pase con el vale después de que le aprueben su trabajo
+      // (mismo criterio que _trabajoEncargadoTaller). Antes no se seteaba
+      // `estado_taller` aquí, así que el frontend caía al `v.estado` general
+      // y la píldora mostraba "Pendiente Confirmación"/"Recibido"/etc.
+      return { ...enriquecer(vale), propuesta_taller_url: propuestaTallerUrl, estado_taller: ESTADOS_TALLER.APROBADO };
     })))
       .filter(Boolean)
       .filter(v => dentroDeVentana(v, ventana));
@@ -1520,7 +1652,7 @@ class ValeService {
       const tecnico = await usuarioValeRepository.obtenerPorId(tecnicoId);
       const taller = await tallerRepository.obtenerPorId(fila.taller_id);
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.PENDIENTE_ASIGNACION, ESTADOS_TALLER.ASIGNADO,
-        `Asignado al técnico ${tecnico ? tecnico.nombre : tecnicoId} (taller ${taller ? taller.nombre : fila.taller_id})`);
+        `Asignado al técnico ${tecnico ? tecnico.nombre : tecnicoId} (taller ${taller ? taller.nombre : fila.taller_id})`, tecnicoId);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: 'asignado', actor: usuario.nombre, actorId: usuario.id, destino: tecnico ? tecnico.nombre : null,
@@ -1701,7 +1833,7 @@ class ValeService {
       const accionHistorial = esAutoaprobacion
         ? 'Encargado aprobó su propio trabajo (autoasignación)'
         : `Encargado de ${taller ? taller.nombre : fila.taller_id} aprobó la propuesta de su taller`;
-      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO, accionHistorial);
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO, accionHistorial, fila.tecnico_id);
       await this._recalcularEstadoVale(valeId, usuario.id);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       // analisis_correcciones_10.md #10: el encargado que aprobó también se
@@ -1726,7 +1858,7 @@ class ValeService {
     await valeTallerRepository.asignar(fila.id, tecnicoReasignadoId, `${hoyISO()} ${horaActual()}`);
     const tecnico = await usuarioValeRepository.obtenerPorId(tecnicoReasignadoId);
     await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.ASIGNADO,
-      `Encargado desaprobó la propuesta y reasignó a ${tecnico ? tecnico.nombre : tecnicoReasignadoId}`);
+      `Encargado desaprobó la propuesta y reasignó a ${tecnico ? tecnico.nombre : tecnicoReasignadoId}`, tecnicoReasignadoId);
     const actualizado = await valeRepository.obtenerPorId(valeId);
     valeEvents.notificar({
       vale: actualizado, accion: 'desaprobado y reasignado', actor: usuario.nombre, actorId: usuario.id, destino: tecnico ? tecnico.nombre : null,
@@ -2003,7 +2135,10 @@ class ValeService {
       }
 
       await valeRepository.marcarModificado(original.id);
-      await valeRepository.actualizarEstado(original.id, ESTADOS.RECIBIDO);
+      // analisis_correcciones_15.md #1: el original pasa a CONFIRMADO (estado
+      // final propio), no a RECIBIDO — antes era indistinguible de un vale sin
+      // modificación y desaparecía de vistas que excluyen RECIBIDO a propósito.
+      await valeRepository.actualizarEstado(original.id, ESTADOS.CONFIRMADO);
       // El original puede llegar aquí sin haber pasado nunca por confirmarRecibido()
       // (ej. se solicitó modificación directo desde PENDIENTE_CONFIRMACION, el
       // camino de "rechazo" — analisis_correcciones_5.md #5); en ese caso este es
@@ -2013,7 +2148,7 @@ class ValeService {
       await valeRepository.congelarAtraso(original.id, `${hoyISO()} ${horaActual()}`);
       await solicitudModificacionRepository.marcarEstado(solicitud.id, 'APROBADA');
 
-      await registrarHistorial(original.id, usuario.id, null, ESTADOS.SOLICITANDO_MODIFICACION, ESTADOS.RECIBIDO,
+      await registrarHistorial(original.id, usuario.id, null, ESTADOS.SOLICITANDO_MODIFICACION, ESTADOS.CONFIRMADO,
         `Supervisor aprobó la solicitud de modificación — se creó el vale ${correlativoNuevo}`);
       await registrarHistorial(nuevoValeId, usuario.id, null, null, ESTADOS.MODIFICADO,
         `Vale creado a partir de la modificación aprobada de ${original.correlativo} — enviado a taller${talleresIdsModificacion.length > 1 ? 'es' : ''}: ${nombresTalleresModificacion}`);

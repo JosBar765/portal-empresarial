@@ -128,7 +128,7 @@ class ValeRepository {
   // el vale cumple >= 1 día de atraso.
   async listarAtrasadosSinNotificar() {
     return db.query(
-      "SELECT * FROM vales WHERE atraso_notificado_en IS NULL AND atraso_congelado_en IS NULL AND estado <> 'RECIBIDO' AND fecha_entrega < NOW() - INTERVAL 1 DAY",
+      "SELECT * FROM vales WHERE atraso_notificado_en IS NULL AND atraso_congelado_en IS NULL AND estado NOT IN ('RECIBIDO', 'CONFIRMADO') AND fecha_entrega < NOW() - INTERVAL 1 DAY",
       [],
       'vale:list_atrasados_sin_notificar'
     );

@@ -103,9 +103,13 @@ class TiendaAdminRepository {
     return rows.map(r => r.tienda_id);
   }
 
+  // analisis_correcciones_15.md #10: además de los nombres (para el texto de
+  // ayuda), se devuelven los ids — el selector en cascada de "Tiendas
+  // supervisadas" los necesita para saber CUÁLES tiendas concretas quedan
+  // pre-marcadas (y bloqueadas) por venir de una cobertura heredada.
   async listarCoberturaHeredada(usuarioId) {
     return db.query(
-      `SELECT d.nombre AS departamento_nombre, s.nombre AS subdivision_nombre
+      `SELECT sa.departamento_id, sa.subdivision_id, d.nombre AS departamento_nombre, s.nombre AS subdivision_nombre
        FROM supervisor_asignaciones sa
        JOIN departamentos d ON d.id = sa.departamento_id
        LEFT JOIN subdivisiones s ON s.id = sa.subdivision_id

@@ -722,14 +722,20 @@
   color: var(--vale-estado-modificado-fg);
 }
 
-/* analisis_correcciones_14.md #13: máximo 3 acciones por fila visual — si hay
-   una segunda fila de íconos, el alto de TODA la fila de la tabla ya se ajusta
-   solo (comportamiento nativo de <table>, la celda más alta manda). */
-.acciones-cell {
+/* analisis_correcciones_15.md #5: revierte el fix de analisis_correcciones_14.md
+   #13. `display: flex` directo en la <td> le rompía el tipo de caja
+   table-cell (el navegador la envuelve en una celda anónima y deja de
+   aplicar vertical-align/padding de .data-table td — la causa real del
+   desalineamiento). La tabla YA es un <table> nativo sin ningún
+   display:grid/flex en la cadena, así que el alto-de-fila-igual-a-la-celda-
+   más-alta ya es gratis con HTML nativo. El wrap de 3-por-fila vive en
+   `.acciones-wrap`, un <div> DENTRO de la celda (mismo patrón que
+   `.taller-tags-cell`, que nunca tuvo este problema). */
+.acciones-wrap {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  max-width: 112px;
+  width: 108px; /* 3 íconos de 32px + 2 gaps de 6px */
 }
 
 .btn-icon {
@@ -1560,6 +1566,14 @@
   .buzon-table td.acciones-cell {
     justify-content: flex-end;
     flex-wrap: wrap;
+  }
+
+  /* analisis_correcciones_15.md #5: en modo tarjeta el ancho fijo de escritorio
+     (108px, para forzar 3 por fila) no aplica — aquí ya no hace falta forzar
+     el wrap a 3, el td entero ya es flex y se acomoda a lo ancho disponible. */
+  .buzon-table .acciones-wrap {
+    width: auto;
+    justify-content: flex-end;
   }
 
   .buzon-table .taller-tags-cell {
