@@ -633,6 +633,16 @@
   margin-left: 6px;
 }
 
+/* analisis_correcciones_16.md #4/#5: marca (F)/(P) junto al correlativo en
+   Trabajo Realizado, cuando un mismo vale trae fila de fusión y de propuesta
+   propia — el tooltip real va en el atributo title del span. */
+.tag-tipo-registro {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: help;
+}
+
 .badge-atraso {
   background: var(--color-danger-bg);
   color: var(--color-danger);

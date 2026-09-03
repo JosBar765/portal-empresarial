@@ -52,13 +52,31 @@
   const CLAVES_ESTADOS_TECNICO_BUZON = ['ASIGNADO', 'EN_PROCESO', 'EN_PAUSA', 'EN_REVISION'];
   const CLAVES_ESTADOS_TECNICO_TRABAJO = ['APROBADO'];
 
+  // analisis_correcciones_16.md #7: numeración de roles tras eliminar
+  // "Diseñador" y "Encargado General" y renumerar sin huecos — debe reflejar
+  // exactamente `database/schema.sql` / mockDatabase.roles.
+  const ROL = {
+    ADMINISTRADOR: 1,
+    ASESOR: 2,
+    SUPERVISOR: 3,
+    ENCARGADO_DISENO: 4,
+    ENCARGADO_UV3D: 5,
+    TECNICO: 6,
+    ASISTENTE_DISENO: 7,
+    GERENTE: 8,
+    ENCARGADO_PROTEXTIL: 9,
+    ENCARGADO_DISENO_LOCAL: 10
+  };
+  const ROLES_ENCARGADO_TALLER = [ROL.ENCARGADO_DISENO, ROL.ENCARGADO_UV3D, ROL.ASISTENTE_DISENO, ROL.ENCARGADO_PROTEXTIL, ROL.ENCARGADO_DISENO_LOCAL];
+  const ROLES_TALLER_Y_TECNICO = [...ROLES_ENCARGADO_TALLER, ROL.TECNICO];
+
   // Roles con sidebar Buzón / Trabajo realizado (Asesor, Supervisor, Técnico,
   // Encargado de un taller — analisis_correcciones_5.md #1, ampliado a los
-  // roles 5/6 en analisis_correcciones_10.md #8, y a 9/11 en
-  // analisis_correcciones_12.md #11). El Gerente (10) también tiene sidebar,
-  // pero con su propio par Dashboard/Vales de Arte en vez de Buzón/Trabajo
-  // realizado (analisis_correcciones_7.md, Vista Gerencia) — ver wireSidebar().
-  const ROLES_CON_SIDEBAR = [3, 4, 5, 6, 7, 9, 10, 11, 12];
+  // encargados de taller en analisis_correcciones_10.md #8 y #12.md #11). El
+  // Gerente también tiene sidebar, pero con su propio par Dashboard/Vales de
+  // Arte en vez de Buzón/Trabajo realizado (analisis_correcciones_7.md, Vista
+  // Gerencia) — ver wireSidebar().
+  const ROLES_CON_SIDEBAR = [ROL.ASESOR, ROL.SUPERVISOR, ...ROLES_TALLER_Y_TECNICO, ROL.GERENTE];
 
   // "Atrasados" (analisis_correcciones_6.md #3): para asesor, supervisor y
   // encargados (de taller y general) es un contador COMBINABLE — se marca
@@ -67,7 +85,7 @@
   // activar junto con cualquier otro filtro de contador. El técnico queda
   // afuera de esta lista: su "Asignados con atraso" es su propio filtro fijo.
   const CONTADORES_CONFIG = {
-    3: { // Asesor
+    [ROL.ASESOR]: {
       buzon: [
         // analisis_correcciones_10.md #11: el límite diario ya no es del asesor
         // (era "vales restantes hoy") — pasó a ser colectivo, del Supervisor.
@@ -81,7 +99,7 @@
         { key: 'totalRecibidos', label: 'Total recibidos', filtro: 'totalRecibidos' }
       ]
     },
-    4: { // Supervisor
+    [ROL.SUPERVISOR]: {
       buzon: [
         // analisis_correcciones_10.md #11: contador colectivo ascendente
         // "autorizados/asesores" — se calcula aparte, ver cargarBuzon().
@@ -101,7 +119,7 @@
         { key: 'totalConfirmados', label: 'Total confirmados', filtro: 'totalConfirmados' }
       ]
     },
-    5: { // Encargado de un taller (analisis_correcciones_10.md #8: ahora con sidebar)
+    [ROL.ENCARGADO_DISENO]: { // Encargado de un taller (analisis_correcciones_10.md #8: ahora con sidebar)
       // analisis_correcciones_11.md #2: "Aprobados hoy" sale del buzón — un vale
       // ya aprobado por este taller sale del buzón y pasa a Trabajo Realizado.
       // analisis_correcciones_12.md #6/#11: como este rol ahora también fusiona
@@ -111,6 +129,9 @@
         { key: 'pendientesAsignacion', label: 'Pend. asignación', filtro: 'pendientesAsignacion' },
         { key: 'asignados', label: 'Asignados', filtro: 'asignados' },
         { key: 'enProceso', label: 'En proceso', filtro: 'enProceso' },
+        // analisis_correcciones_16.md #2: sin esta tarjeta, un vale recién
+        // pausado quedaba inalcanzable desde cualquier filtro activo.
+        { key: 'enPausa', label: 'En pausa', filtro: 'enPausa' },
         { key: 'enRevision', label: 'En revisión', filtro: 'enRevision' },
         { key: 'pendientesFusion', label: 'Vales por fusionar', filtro: 'pendientesFusion' },
         { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
@@ -124,13 +145,14 @@
     },
     // Encargado de un taller SIN fusión (Diseño UV/3D, y el rol genérico
     // "Encargado de Taller" — Protextil / Diseño Local): misma forma que el
-    // rol 5 pero sin las tarjetas de fusión (el backend nunca les manda esas
-    // claves porque no tienen vales.aprobar_general).
-    6: {
+    // Encargado de Diseño pero sin las tarjetas de fusión (el backend nunca
+    // les manda esas claves porque no tienen vales.aprobar_general).
+    [ROL.ENCARGADO_UV3D]: {
       buzon: [
         { key: 'pendientesAsignacion', label: 'Pend. asignación', filtro: 'pendientesAsignacion' },
         { key: 'asignados', label: 'Asignados', filtro: 'asignados' },
         { key: 'enProceso', label: 'En proceso', filtro: 'enProceso' },
+        { key: 'enPausa', label: 'En pausa', filtro: 'enPausa' },
         { key: 'enRevision', label: 'En revisión', filtro: 'enRevision' },
         { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
       ],
@@ -139,7 +161,7 @@
         { key: 'totalAprobados', label: 'Total aprobados', filtro: 'totalAprobados' }
       ]
     },
-    7: { // Técnico
+    [ROL.TECNICO]: {
       buzon: [
         { key: 'asignados', label: 'Asignados sin atraso', filtro: 'asignados' },
         { key: 'asignadosAtrasados', label: 'Asignados con atraso', alerta: true, filtro: 'asignadosAtrasados' },
@@ -153,12 +175,12 @@
   };
   // Asistente de Diseño: clon operativo COMPLETO del Encargado de Diseño
   // (analisis_correcciones_12.md #11) — mismas tarjetas, incluida la fusión.
-  CONTADORES_CONFIG[9] = CONTADORES_CONFIG[5];
+  CONTADORES_CONFIG[ROL.ASISTENTE_DISENO] = CONTADORES_CONFIG[ROL.ENCARGADO_DISENO];
   // Encargado de taller de protextil / diseño local: misma forma que
   // Diseño UV/3D — sin fusión.
-  CONTADORES_CONFIG[11] = CONTADORES_CONFIG[6];
-  CONTADORES_CONFIG[12] = CONTADORES_CONFIG[6];
-  CONTADORES_CONFIG[1] = [ // Administrador: vista de control general
+  CONTADORES_CONFIG[ROL.ENCARGADO_PROTEXTIL] = CONTADORES_CONFIG[ROL.ENCARGADO_UV3D];
+  CONTADORES_CONFIG[ROL.ENCARGADO_DISENO_LOCAL] = CONTADORES_CONFIG[ROL.ENCARGADO_UV3D];
+  CONTADORES_CONFIG[ROL.ADMINISTRADOR] = [ // vista de control general
     { key: 'total', label: 'Total vales' },
     { key: 'pendientesConfirmacion', label: 'Pend. confirmación', filtro: 'pendientesConfirmacion' },
     { key: 'aprobadoDepartamento', label: 'Por fusionar', filtro: 'aprobadoDepartamento' },
@@ -167,7 +189,7 @@
   // Gerente (Vista Gerencia, analisis_correcciones_7.md): mismo resumen que el
   // administrador para su vista "Vales de Arte" — es de solo lectura, respeta la
   // misma jerarquía que ya ve el administrador.
-  CONTADORES_CONFIG[10] = CONTADORES_CONFIG[1];
+  CONTADORES_CONFIG[ROL.GERENTE] = CONTADORES_CONFIG[ROL.ADMINISTRADOR];
 
   const state = {
     user: null,
@@ -207,33 +229,33 @@
 
   function puede(accion) {
     const r = state.user.rolId;
-    const admin = r === 1;
+    const admin = r === ROL.ADMINISTRADOR;
     switch (accion) {
-      case 'crear': return admin || r === 3;
-      case 'asignar': return admin || r === 5 || r === 6 || r === 9 || r === 11 || r === 12;
-      case 'revisar': return admin || r === 5 || r === 6 || r === 9 || r === 11 || r === 12;
+      case 'crear': return admin || r === ROL.ASESOR;
+      case 'asignar': return admin || ROLES_ENCARGADO_TALLER.includes(r);
+      case 'revisar': return admin || ROLES_ENCARGADO_TALLER.includes(r);
       // analisis_correcciones_14.md #1: un encargado de taller también puede
       // trabajar un vale — pero SOLO si se lo autoasignó (ver esAccionDeTrabajoVisible).
-      case 'trabajar': return admin || r === 7 || r === 5 || r === 6 || r === 9 || r === 11 || r === 12;
-      case 'confirmar': return admin || r === 3;
-      case 'solicitarModificacion': return admin || r === 3;
-      case 'aprobarModificacion': return admin || r === 4;
-      case 'autorizarCreacion': return admin || r === 4;
+      case 'trabajar': return admin || ROLES_TALLER_Y_TECNICO.includes(r);
+      case 'confirmar': return admin || r === ROL.ASESOR;
+      case 'solicitarModificacion': return admin || r === ROL.ASESOR;
+      case 'aprobarModificacion': return admin || r === ROL.SUPERVISOR;
+      case 'autorizarCreacion': return admin || r === ROL.SUPERVISOR;
       // analisis_correcciones_12.md #11: la fusión ahora es del Encargado de
-      // Diseño (5) y su clon operativo, el Asistente de Diseño (9) — ya no un
-      // rol aparte de "encargado general".
-      case 'aprobarGeneral': return admin || r === 5 || r === 9;
+      // Diseño y su clon operativo, el Asistente de Diseño — ya no un rol
+      // aparte de "encargado general".
+      case 'aprobarGeneral': return admin || r === ROL.ENCARGADO_DISENO || r === ROL.ASISTENTE_DISENO;
       default: return false;
     }
   }
 
-  // analisis_correcciones_14.md #1: un encargado (roles 5/6/9/11/12) ve en su
-  // buzón TODOS los vales de su taller, incluidos los asignados a sus propios
+  // analisis_correcciones_14.md #1: un encargado de taller ve en su buzón
+  // TODOS los vales de su taller, incluidos los asignados a sus propios
   // técnicos — las acciones de técnico (Comenzar/Entregar/Pausar/Cancelar) solo
-  // deben mostrarse cuando el vale es el que ÉL MISMO se autoasignó. El técnico
-  // (rol 7) y el Administrador siempre ven su/cualquier vale asignado, sin este filtro.
+  // deben mostrarse cuando el vale es el que ÉL MISMO se autoasignó. El
+  // Técnico y el Administrador siempre ven su/cualquier vale asignado, sin este filtro.
   function esAccionDeTrabajoVisible(v) {
-    if (state.user.rolId === 7 || state.user.rolId === 1) return true;
+    if (state.user.rolId === ROL.TECNICO || state.user.rolId === ROL.ADMINISTRADOR) return true;
     return Number(v.tecnico_id) === Number(state.user.id);
   }
 
@@ -245,7 +267,7 @@
   // en pantalla; se corrige acá, detectado al tocar esta misma función para
   // analisis_correcciones_9.md #3).
   function usaEstadosVisibles() {
-    return state.user.rolId === 3 || (state.user.rolId === 4 && state.vista === 'trabajo');
+    return state.user.rolId === ROL.ASESOR || (state.user.rolId === ROL.SUPERVISOR && state.vista === 'trabajo');
   }
 
   // El estado que corresponde MOSTRAR depende del rol: el asesor ve su versión
@@ -253,7 +275,7 @@
   // (v.estado_taller); el resto ve el estado general del vale (v.estado).
   function estadoActivo(v) {
     if (usaEstadosVisibles()) return v.estado_visible;
-    if ([5, 6, 7, 9, 11, 12].includes(state.user.rolId)) return v.estado_taller || v.estado;
+    if (ROLES_TALLER_Y_TECNICO.includes(state.user.rolId)) return v.estado_taller || v.estado;
     return v.estado;
   }
 
@@ -279,7 +301,7 @@
         return;
       }
       state.user = sessionData.user;
-      if (!(state.user.modulosPermitidos || []).includes('vales') && state.user.rolId !== 1) {
+      if (!(state.user.modulosPermitidos || []).includes('vales') && state.user.rolId !== ROL.ADMINISTRADOR) {
         window.location.href = '/dashboard/';
         return;
       }
@@ -296,14 +318,14 @@
 
     // Corrección #9: encargados y técnicos ya trabajan scoped a su propio taller —
     // la columna "Taller" (pensada para el asesor y roles de supervisión) sobra ahí.
-    $('.buzon-table').classList.toggle('oculta-taller', [5, 6, 7, 9, 11, 12].includes(state.user.rolId));
+    $('.buzon-table').classList.toggle('oculta-taller', ROLES_TALLER_Y_TECNICO.includes(state.user.rolId));
 
     $('#btn-nuevo-vale').style.display = puede('crear') ? 'flex' : 'none';
     // La carga de trabajo es una herramienta de gestión del propio equipo del
     // encargado de UN taller (incluye al clon del Asistente de Diseño y a los
     // encargados del rol genérico "Encargado de Taller"); el administrador ya
     // ve todo desde el buzón general, por lo que no aplica para él.
-    $('#btn-carga-trabajo').style.display = [5, 6, 9, 11, 12].includes(state.user.rolId) ? 'flex' : 'none';
+    $('#btn-carga-trabajo').style.display = ROLES_ENCARGADO_TALLER.includes(state.user.rolId) ? 'flex' : 'none';
 
     try {
       const catalogosRes = await fetch('/api/vales/catalogos');
@@ -373,8 +395,8 @@
   // realizado) siguen normales. El resto de roles solo cambian el título.
   function actualizarTituloYSeccionesVista() {
     const enDashboard = state.vista === 'dashboard';
-    if ([4, 10].includes(state.user.rolId)) {
-      $('#buzon-titulo').textContent = enDashboard ? 'Dashboard' : (state.user.rolId === 10 ? 'Vales de Arte' : (state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte'));
+    if ([ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId)) {
+      $('#buzon-titulo').textContent = enDashboard ? 'Dashboard' : (state.user.rolId === ROL.GERENTE ? 'Vales de Arte' : (state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte'));
       $('#dashboard-gerencia').style.display = enDashboard ? 'block' : 'none';
       $('#contadores-grid').style.display = enDashboard ? 'none' : '';
       $('.buzon-section').style.display = enDashboard ? 'none' : '';
@@ -400,7 +422,7 @@
     // El Gerente reusa los mismos dos botones del sidebar, pero con su propio
     // par de vistas — Dashboard / Vales de Arte — en vez de Buzón/Trabajo
     // realizado (analisis_correcciones_7.md, Vista Gerencia).
-    if (state.user.rolId === 10) {
+    if (state.user.rolId === ROL.GERENTE) {
       const primario = $('#sidebar-item-primario', sidebar);
       const secundario = $('#sidebar-item-secundario', sidebar);
       primario.dataset.vista = 'dashboard';
@@ -414,7 +436,7 @@
     // Supervisor de Ventas (analisis_correcciones_12.md #10, Fase 2c): conserva
     // sus dos botones normales y gana un tercero al mismo dashboard que ve el
     // Gerente, acotado a las tiendas que cubre (ver obtenerDashboardGerencia).
-    if (state.user.rolId === 4) {
+    if (state.user.rolId === ROL.SUPERVISOR) {
       $('#sidebar-item-terciario', sidebar).style.display = '';
     }
     actualizarTituloYSeccionesVista();
@@ -551,7 +573,7 @@
     // #10), también el Supervisor de Ventas. `tiendasGerencia` (catalogos)
     // ya viene acotado a lo que cada uno puede filtrar: el catálogo completo
     // para Gerente/Administrador, solo sus tiendas cubiertas para Supervisor.
-    if ([4, 10].includes(state.user.rolId)) {
+    if ([ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId)) {
       const selectTienda = $('#filtro-tienda');
       selectTienda.style.display = '';
       (state.catalogos.tiendasGerencia || state.catalogos.tiendas || []).forEach(t => {
@@ -606,32 +628,32 @@
     return visibles.length || todas.length;
   }
 
-  // analisis_correcciones_12.md #11: el Asistente de Diseño (rol 9) opera el
-  // taller "Diseño" como si fuera su propio encargado_id, sin serlo — mismo
-  // clon operativo que ya resuelve el backend (_idEncargadoEfectivo).
+  // analisis_correcciones_12.md #11: el Asistente de Diseño opera el taller
+  // "Diseño" como si fuera su propio encargado_id, sin serlo — mismo clon
+  // operativo que ya resuelve el backend (_idEncargadoEfectivo).
   function miTaller() {
     const talleres = state.catalogos.talleres || [];
-    if (state.user.rolId === 9) return talleres.find(t => t.nombre === 'Diseño') || null;
+    if (state.user.rolId === ROL.ASISTENTE_DISENO) return talleres.find(t => t.nombre === 'Diseño') || null;
     return talleres.find(t => t.encargado_id === state.user.id) || null;
   }
 
   function roomsParaUsuario(user) {
     switch (user.rolId) {
-      case 1: return ['vales:admin'];
-      case 3: return [`asesor:${user.id}`];
+      case ROL.ADMINISTRADOR: return ['vales:admin'];
+      case ROL.ASESOR: return [`asesor:${user.id}`];
       // analisis_correcciones_10.md #11: ya no hay una sala global de
       // supervisores — cada tienda tiene su propio Supervisor, así que cada
       // uno se une solo a su propia sala.
-      case 4: return [`supervisor:${user.id}`];
-      case 5:
-      case 6:
-      case 9: // Asistente — se une a la sala del taller "Diseño"
-      case 11: // Encargado de taller de protextil
-      case 12: { // Encargado de taller de diseño local
+      case ROL.SUPERVISOR: return [`supervisor:${user.id}`];
+      case ROL.ENCARGADO_DISENO:
+      case ROL.ENCARGADO_UV3D:
+      case ROL.ASISTENTE_DISENO: // se une a la sala del taller "Diseño"
+      case ROL.ENCARGADO_PROTEXTIL:
+      case ROL.ENCARGADO_DISENO_LOCAL: {
         const taller = miTaller();
         return taller ? [`taller:${taller.id}`] : [];
       }
-      case 7: return [`tecnico:${user.id}`];
+      case ROL.TECNICO: return [`tecnico:${user.id}`];
       // Gerente (Vista Gerencia): rol de solo lectura sin ninguna acción sobre
       // los vales — no debe recibir ninguna notificación en tiempo real
       // (toast + beep de `vale_evento`), ni siquiera las que ve Administrador
@@ -639,7 +661,7 @@
       // `default` de abajo (nunca se unía a ninguna sala), pero se deja
       // explícito para que la ausencia de notificaciones sea intencional y no
       // un efecto colateral de un `switch` sin `case`.
-      case 10: return [];
+      case ROL.GERENTE: return [];
       default: return [];
     }
   }
@@ -673,7 +695,7 @@
       // Supervisor NUNCA se actualiza en tiempo real (a diferencia del
       // buzón) — el toast/beep de arriba se sigue mostrando igual, solo se
       // omite el refetch mientras el usuario está parado en esa vista.
-      const enVistaGerencia = [4, 10].includes(state.user.rolId) && state.vista === 'dashboard';
+      const enVistaGerencia = [ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'dashboard';
       if (!enVistaGerencia) cargarBuzon();
       if (state.cargaTrabajoModal) {
         if (state.cargaTrabajoModal.overlay.isConnected) {
@@ -729,7 +751,7 @@
   async function cargarBuzon() {
     // El Gerente en su vista "Dashboard" no pide el buzón de vales — pide las
     // métricas agregadas (analisis_correcciones_7.md, Vista Gerencia).
-    if ([4, 10].includes(state.user.rolId) && state.vista === 'dashboard') {
+    if ([ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'dashboard') {
       return cargarDashboardGerencia();
     }
     state.paginacion = { limit: 50, cursor: null, total: 0, hasMore: false, cargandoMas: false };
@@ -758,7 +780,7 @@
 
     // analisis_correcciones_10.md #11: el límite diario pasó del asesor al
     // Supervisor, como contador colectivo ascendente "autorizados/asesores".
-    if (state.user.rolId === 4 && state.vista !== 'trabajo') {
+    if (state.user.rolId === ROL.SUPERVISOR && state.vista !== 'trabajo') {
       try {
         const r = await fetch('/api/vales/limite-colectivo');
         const d = await r.json();
@@ -960,10 +982,13 @@
       const data = await res.json();
       // Si el cursor ya no aparece en el conjunto recalculado del servidor, este
       // cae a un respaldo por posición (ver obtenerBuzon) que en teoría podría
-      // repetir filas ya mostradas — se descartan acá por id, nunca duplicando
-      // una fila en pantalla (analisis_correcciones_9.md #3, opción B).
-      const yaCargados = new Set(state.vales.map(v => v.id));
-      const nuevos = (data.vales || []).filter(v => !yaCargados.has(v.id));
+      // repetir filas ya mostradas — se descartan acá por clave de fila, nunca
+      // duplicando una fila en pantalla (analisis_correcciones_9.md #3, opción
+      // B). Se usa `claveFila` (no `id`) porque en Trabajo Realizado un mismo
+      // vale puede traer 2 filas —fusión y propuesta propia— con el mismo id
+      // (analisis_correcciones_16.md #4/#5).
+      const yaCargados = new Set(state.vales.map(claveFila));
+      const nuevos = (data.vales || []).filter(v => !yaCargados.has(claveFila(v)));
       state.vales = state.vales.concat(nuevos);
       state.paginacion.cursor = data.nextCursor ?? state.paginacion.cursor;
       state.paginacion.total = data.total ?? state.paginacion.total;
@@ -1049,16 +1074,17 @@
       // trabajo, los estados de la cola de fusión — ver _buzonEncargado/
       // _trabajoEncargadoTaller en el backend.
       let claves;
-      if (state.user.rolId === 7) claves = state.vista === 'trabajo' ? CLAVES_ESTADOS_TECNICO_TRABAJO : CLAVES_ESTADOS_TECNICO_BUZON;
-      else if ([5, 6, 9, 11, 12].includes(state.user.rolId)) {
-        claves = [...CLAVES_ESTADOS_TALLER];
-        if (puede('aprobarGeneral')) {
-          claves = state.vista === 'trabajo'
-            // analisis_correcciones_15.md #3: RECIBIDO/CONFIRMADO vuelven a
-            // aparecer — un vale fusionado puede llegar a cualquiera de los dos
-            // y sigue siendo "trabajo realizado" del encargado (estado congelado).
-            ? [...claves, 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'CONFIRMADO', 'SOLICITANDO_MODIFICACION']
-            : [...claves, 'APROBADO_DEPARTAMENTO'];
+      if (state.user.rolId === ROL.TECNICO) claves = state.vista === 'trabajo' ? CLAVES_ESTADOS_TECNICO_TRABAJO : CLAVES_ESTADOS_TECNICO_BUZON;
+      else if (ROLES_ENCARGADO_TALLER.includes(state.user.rolId)) {
+        // analisis_correcciones_16.md #5: Trabajo Realizado siempre muestra
+        // APROBADO (estado congelado, tanto la fila de propuesta propia como
+        // la de fusión) — los estados generales ya no pueden ocurrir ahí, así
+        // que el desplegable colapsa igual que el del técnico.
+        if (state.vista === 'trabajo') {
+          claves = [...CLAVES_ESTADOS_TECNICO_TRABAJO];
+        } else {
+          claves = [...CLAVES_ESTADOS_TALLER];
+          if (puede('aprobarGeneral')) claves = [...claves, 'APROBADO_DEPARTAMENTO'];
         }
       } else claves = CLAVES_ESTADOS_GENERAL;
       labelMap = Object.fromEntries(claves.map(k => [k, ESTADOS_LABEL[k]]));
@@ -1112,19 +1138,19 @@
 
     tbody.innerHTML = filas.map(v => `
       <tr>
-        <td data-label="Correlativo"><strong>${v.correlativo}</strong>${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}</td>
+        <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}</td>
         <td data-label="Fecha Ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
         <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
         <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
         <td data-label="Fecha Evento">${formatearFecha(v.fecha_evento)}</td>
         <td data-label="Taller" class="col-taller">${celdaTaller(v)}</td>
         <td data-label="Estado"><span class="estado-pill ${claseEstado(v)}">${etiquetaEstado(v)}</span></td>
-        <td data-label="Acciones" class="acciones-cell" data-vale-id="${v.id}"></td>
+        <td data-label="Acciones" class="acciones-cell" data-row-key="${claveFila(v)}"></td>
       </tr>
     `).join('');
 
     filas.forEach(v => {
-      const cell = tbody.querySelector(`.acciones-cell[data-vale-id="${v.id}"]`);
+      const cell = tbody.querySelector(`.acciones-cell[data-row-key="${CSS.escape(claveFila(v))}"]`);
       // analisis_correcciones_15.md #5: los botones van en un <div> interno
       // (.acciones-wrap), no directo en la <td> — ver comentario en styles.css.
       const wrap = document.createElement('div');
@@ -1136,13 +1162,32 @@
         btn.title = accion.titulo;
         btn.innerHTML = `<ion-icon name="${accion.icono}"></ion-icon>`;
         btn.addEventListener('click', () => {
-          if (state.accionesEnCurso.has(v.id)) return;
-          state.accionesEnCurso.add(v.id);
-          Promise.resolve(accion.onClick(v)).finally(() => state.accionesEnCurso.delete(v.id));
+          const clave = claveFila(v);
+          if (state.accionesEnCurso.has(clave)) return;
+          state.accionesEnCurso.add(clave);
+          Promise.resolve(accion.onClick(v)).finally(() => state.accionesEnCurso.delete(clave));
         });
         wrap.appendChild(btn);
       });
     });
+  }
+
+  // analisis_correcciones_16.md #4/#5: en Trabajo Realizado un mismo vale
+  // puede traer 2 filas (fusión + propuesta propia) con el mismo `id` — una
+  // clave por fila evita que ambas colisionen en el DOM/estado de acciones
+  // en curso, y el marcador (F)/(P) le dice al usuario cuál es cuál.
+  function claveFila(v) {
+    return v._rowKey || String(v.id);
+  }
+
+  function marcadorTipoRegistro(v) {
+    if (v._tipoRegistro === 'FUSION') {
+      return ' <span class="tag-tipo-registro" title="Fusión final de las propuestas de los talleres">(F)</span>';
+    }
+    if (v._tipoRegistro === 'PROPUESTA') {
+      return ' <span class="tag-tipo-registro" title="Propuesta realizada por su taller">(P)</span>';
+    }
+    return '';
   }
 
   // Fechas siempre dd/mm/aaaa; solo la fecha de ingreso (y los logs de historial)
@@ -1168,7 +1213,7 @@
     // El supervisor abre un modal de elección (Ver info / Ver vale) en vez de ir
     // directo al PDF — a veces solo necesita los datos de encabezado
     // (analisis_correcciones_5.md #7).
-    const acciones = state.user.rolId === 4
+    const acciones = state.user.rolId === ROL.SUPERVISOR
       ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
       : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') }];
     // Corrección #1/#6: el hipervínculo de la propuesta ya no apunta al vale (PDF) sino
@@ -1178,15 +1223,19 @@
     // analisis_correcciones_12.md #6/#11: quien fusiona (Encargado/Asistente de
     // Diseño) también ve "Ver propuesta" con SU documento de fusión
     // (propuesta_general_url) en Trabajo Realizado.
-    if ((usaEstadosVisibles() || state.user.rolId === 4 || puede('aprobarGeneral')) && v.propuesta_general_url) {
-      acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(`/${v.propuesta_general_url}`, '_blank') });
+    // analisis_correcciones_16.md #4/#5: en Trabajo Realizado del encargado, la
+    // fila de PROPUESTA propia también trae `propuesta_general_url` (hereda
+    // todos los campos del vale) — sin excluirla acá terminaba mostrando el
+    // botón de la fusión en las dos filas del mismo vale.
+    if ((usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || puede('aprobarGeneral')) && v.propuesta_general_url && v._tipoRegistro !== 'PROPUESTA') {
+      acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta de fusión', onClick: () => window.open(`/${v.propuesta_general_url}`, '_blank') });
     }
     // analisis_correcciones_11.md #2 + analisis_correcciones_12.md #5: en
     // "Trabajo realizado" el encargado de un taller (y ahora también el propio
     // técnico) ve la propuesta REAL que se aprobó (`propuesta_taller_url`, solo
     // viene poblado en esa vista) — no `propuesta_general_url`, que en un vale
     // multi-taller es la fusión, no el trabajo propio de este taller.
-    if ([5, 6, 7, 9, 11, 12].includes(state.user.rolId) && v.propuesta_taller_url) {
+    if (ROLES_TALLER_Y_TECNICO.includes(state.user.rolId) && v.propuesta_taller_url) {
       acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(`/${v.propuesta_taller_url}`, '_blank') });
     }
 
@@ -1934,21 +1983,29 @@
   }
 
   // -------------------------------------------------------------------------
-  // Modal: Asignar a técnico
+  // Lista de técnicos asignables, con la opción "(yo mismo)" para un
+  // encargado — analisis_correcciones_14.md #1 (asignar) y
+  // analisis_correcciones_16.md #1 (reasignar, mismo criterio: el encargado
+  // que revisa una propuesta también puede reasignarse el trabajo a sí mismo).
   // -------------------------------------------------------------------------
-  async function abrirModalAsignar(vale) {
+  async function cargarTecnicosAsignables() {
     let tecnicos = [];
     try {
       const res = await fetch('/api/vales/tecnicos');
       tecnicos = await res.json();
     } catch { /* se muestra select vacío si falla */ }
 
-    // analisis_correcciones_14.md #1: un encargado puede asignarse el vale a sí
-    // mismo — no viene en /api/vales/tecnicos (esa lista es "mis técnicos", no
-    // "yo mismo"), así que se agrega como una opción más del selector.
-    if ([5, 6, 9, 11, 12].includes(state.user.rolId) && !tecnicos.some(t => t.id === state.user.id)) {
+    if (ROLES_ENCARGADO_TALLER.includes(state.user.rolId) && !tecnicos.some(t => t.id === state.user.id)) {
       tecnicos = [{ id: state.user.id, nombre: `${state.user.nombre} (yo mismo)` }, ...tecnicos];
     }
+    return tecnicos;
+  }
+
+  // -------------------------------------------------------------------------
+  // Modal: Asignar a técnico
+  // -------------------------------------------------------------------------
+  async function abrirModalAsignar(vale) {
+    const tecnicos = await cargarTecnicosAsignables();
 
     const { overlay, cerrar } = abrirModal({
       title: `Asignar ${vale.correlativo}`,
@@ -2005,10 +2062,7 @@
     // abrirModalAprobarGeneral (filtra por tecnico_id de cada fila de taller).
     const propias = (detalle.propuestas || []).filter(p => p.tecnico_id === vale.tecnico_id);
     const ultima = propias[propias.length - 1];
-    let tecnicos = [];
-    try {
-      tecnicos = await (await fetch('/api/vales/tecnicos')).json();
-    } catch { /* select se mostrará vacío */ }
+    const tecnicos = await cargarTecnicosAsignables();
 
     // El backend rechaza aprobar sin un documento adjunto real (ver
     // valeService.revisarPropuesta) — se refleja aquí deshabilitando el botón

@@ -3,7 +3,9 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  const ROL_SUPERVISOR = 4;
+  // analisis_correcciones_16.md #7: renumeración de roles tras eliminar los
+  // roles descontinuados (Supervisor de Ventas pasa de id 4 a id 3).
+  const ROL_SUPERVISOR = 3;
 
   const state = {
     user: null,

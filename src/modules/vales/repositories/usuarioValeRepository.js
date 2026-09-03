@@ -15,15 +15,15 @@ class UsuarioValeRepository {
 
   async listarTodosLosTecnicos() {
     return db.query(
-      'SELECT id, nombre, email, encargado_id FROM usuarios WHERE rol_id = 7 AND activo = 1 ORDER BY nombre',
-      [7],
+      'SELECT id, nombre, email, encargado_id FROM usuarios WHERE rol_id = 6 AND activo = 1 ORDER BY nombre',
+      [6],
       'usuario:find_by_rol'
     );
   }
 
   async listarTecnicosPorEncargado(encargadoId) {
     return db.query(
-      'SELECT id, nombre, email, encargado_id FROM usuarios WHERE rol_id = 7 AND encargado_id = ? AND activo = 1 ORDER BY nombre',
+      'SELECT id, nombre, email, encargado_id FROM usuarios WHERE rol_id = 6 AND encargado_id = ? AND activo = 1 ORDER BY nombre',
       [encargadoId],
       'usuario:find_tecnicos_by_encargado'
     );
@@ -48,14 +48,14 @@ class UsuarioValeRepository {
        JOIN supervisor_asignaciones sa ON sa.tienda_id = t.id
          OR (sa.tienda_id IS NULL AND sa.departamento_id = t.departamento_id
              AND (sa.subdivision_id IS NULL OR sa.subdivision_id = t.subdivision_id))
-       WHERE u.rol_id = 3 AND u.activo = 1 AND sa.usuario_id = ? AND sa.activo = 1
+       WHERE u.rol_id = 2 AND u.activo = 1 AND sa.usuario_id = ? AND sa.activo = 1
        ORDER BY u.nombre`,
       [supervisorId],
       'usuario:find_asesores_by_supervisor'
     );
   }
 
-  // Inverso de la anterior: todos los supervisores (rol 4) que cubren la
+  // Inverso de la anterior: todos los supervisores (rol 3) que cubren la
   // tienda de un asesor dado — puede haber MÁS de uno (supervisores rotativos,
   // analisis_correcciones_12.md #10).
   async obtenerSupervisoresDeAsesor(asesorId) {
@@ -68,7 +68,7 @@ class UsuarioValeRepository {
          AND (sa.tienda_id = t.id
               OR (sa.tienda_id IS NULL AND sa.departamento_id = t.departamento_id
                   AND (sa.subdivision_id IS NULL OR sa.subdivision_id = t.subdivision_id)))
-       WHERE u.rol_id = 4 AND u.activo = 1 AND asesor.id = ?
+       WHERE u.rol_id = 3 AND u.activo = 1 AND asesor.id = ?
        ORDER BY u.nombre`,
       [asesorId],
       'usuario:find_supervisores_by_asesor'
@@ -77,7 +77,7 @@ class UsuarioValeRepository {
 
   async listarEncargados() {
     return db.query(
-      "SELECT id, nombre, email, rol_id FROM usuarios WHERE rol_id IN (5, 6) AND activo = 1 ORDER BY nombre",
+      "SELECT id, nombre, email, rol_id FROM usuarios WHERE rol_id IN (4, 5) AND activo = 1 ORDER BY nombre",
       [],
       'usuario:find_encargados'
     );

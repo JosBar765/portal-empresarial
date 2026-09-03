@@ -79,7 +79,7 @@ class TiendaAdminRepository {
        JOIN roles r ON r.id = u.rol_id
        WHERE u.activo = 1 AND (
          u.tienda_id = ? OR
-         (u.rol_id = 4 AND EXISTS (
+         (u.rol_id = 3 AND EXISTS (
            SELECT 1 FROM supervisor_asignaciones sa
            JOIN tiendas t ON t.id = ?
            WHERE sa.usuario_id = u.id AND sa.activo = 1 AND (

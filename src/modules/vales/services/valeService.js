@@ -157,6 +157,16 @@ function esValeDeModificacion(vale) {
   return vale.estado === ESTADOS.MODIFICADO || !!vale.vale_original_id || !!vale.modificado;
 }
 
+// analisis_correcciones_16.md #3: comenzar/entregar/pausarProceso/reanudarProceso/
+// cancelarProcesoTecnico resuelven la fila vía _filaDelTecnico, que solo la
+// devuelve si fila.tecnico_id === usuario.id — eso sucede tanto para un técnico
+// real (rol 7) como para un encargado autoasignado (analisis_correcciones_14.md
+// #1). El texto de la acción debe reflejar quién es el actor, no asumir
+// siempre "Técnico".
+function etiquetaActorTaller(usuario) {
+  return usuario.rolId === ROL.TECNICO ? 'Técnico' : 'Encargado';
+}
+
 // Reusada tanto por el asesor (buzón/trabajo) como por el supervisor (trabajo
 // realizado, vía _trabajoSupervisor más abajo — no hay una función aparte
 // para el supervisor, ambos comparten esta misma) — analisis_correcciones_7.md #2.
@@ -297,22 +307,44 @@ async function registrarHistorial(valeId, usuarioId, tallerId, estadoAnterior, e
   await historialRepository.registrar(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion, tecnicoId);
 }
 
+// analisis_correcciones_16.md #7: numeración de roles (database/schema.sql
+// `roles`) tras eliminar "Diseñador" y "Encargado General" y renumerar sin
+// huecos — único punto de verdad para cada rolId usado en este archivo, en
+// vez de literales sueltos que habría que volver a rastrear si la numeración
+// cambia de nuevo.
+const ROL = {
+  ADMINISTRADOR: 1,
+  ASESOR: 2,
+  SUPERVISOR: 3,
+  ENCARGADO_DISENO: 4,
+  ENCARGADO_UV3D: 5,
+  TECNICO: 6,
+  ASISTENTE_DISENO: 7,
+  GERENTE: 8,
+  ENCARGADO_PROTEXTIL: 9,
+  ENCARGADO_DISENO_LOCAL: 10
+};
+// Encargados de taller (con o sin permiso de fusión) — comparten el ciclo
+// asignar/revisar de su propio taller.
+const ROLES_ENCARGADO_TALLER = [ROL.ENCARGADO_DISENO, ROL.ENCARGADO_UV3D, ROL.ASISTENTE_DISENO, ROL.ENCARGADO_PROTEXTIL, ROL.ENCARGADO_DISENO_LOCAL];
+// Lo mismo + el propio Técnico — "cualquiera que trabaje dentro de un taller".
+const ROLES_TALLER_Y_TECNICO = [...ROLES_ENCARGADO_TALLER, ROL.TECNICO];
+
 function esAdministrador(usuario) {
-  return usuario.rolId === 1;
+  return usuario.rolId === ROL.ADMINISTRADOR;
 }
 
-// analisis_correcciones_12.md #11: el rol 8 (Encargado General) desaparece. El
-// Asistente de Diseño (rol 9) es un clon operativo COMPLETO del Encargado de
-// Diseño (decisión confirmada explícitamente por el usuario) — actúa como si
-// fuera el `encargado_id` del taller "Diseño" sin serlo literalmente (una fila
-// de `talleres` solo admite un encargado_id). `ROL_ASISTENTE_DISENO` está
-// hardcodeado a propósito, igual que `esAdministrador`: el documento fuente
-// avisa que la asignación de "quién fusiona" podría volver a cambiar en un
-// ciclo futuro con una vista de administrador — hasta entonces es la única
-// excepción de este tipo en todo el módulo.
-const ROL_ASISTENTE_DISENO = 9;
+// analisis_correcciones_12.md #11: el rol Encargado General desaparece. El
+// Asistente de Diseño es un clon operativo COMPLETO del Encargado de Diseño
+// (decisión confirmada explícitamente por el usuario) — actúa como si fuera
+// el `encargado_id` del taller "Diseño" sin serlo literalmente (una fila de
+// `talleres` solo admite un encargado_id). Esta excepción está hardcodeada a
+// propósito, igual que `esAdministrador`: el documento fuente avisa que la
+// asignación de "quién fusiona" podría volver a cambiar en un ciclo futuro
+// con una vista de administrador — hasta entonces es la única excepción de
+// este tipo en todo el módulo.
 function esAsistenteDeDiseno(usuario) {
-  return usuario.rolId === ROL_ASISTENTE_DISENO;
+  return usuario.rolId === ROL.ASISTENTE_DISENO;
 }
 
 class ValeService {
@@ -381,7 +413,7 @@ class ValeService {
     // usuario — el catálogo completo para Administrador/Gerente, solo las de
     // sus asesores cubiertos para el Supervisor (mismo alcance que su buzón).
     let tiendasGerencia = tiendas;
-    if (usuario && usuario.rolId === 4) {
+    if (usuario && usuario.rolId === ROL.SUPERVISOR) {
       const asesores = await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id);
       const idsTienda = new Set(asesores.map(a => a.tienda_id).filter(Boolean));
       tiendasGerencia = tiendas.filter(t => idsTienda.has(t.id));
@@ -738,13 +770,13 @@ class ValeService {
   // nunca apareciera en su buzón). Mismo criterio de cobertura que ya usan
   // _buzonSupervisor (asesores cubiertos) y _tallerIdVisiblePara (taller propio).
   async _puedeVerVale(usuario, vale, talleres) {
-    if (esAdministrador(usuario) || usuario.rolId === 10) return true; // Gerente: solo lectura de todo
-    if (usuario.rolId === 3) return vale.asesor_id === usuario.id;
-    if (usuario.rolId === 4) {
+    if (esAdministrador(usuario) || usuario.rolId === ROL.GERENTE) return true; // Gerente: solo lectura de todo
+    if (usuario.rolId === ROL.ASESOR) return vale.asesor_id === usuario.id;
+    if (usuario.rolId === ROL.SUPERVISOR) {
       const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
       return misAsesoresIds.has(vale.asesor_id);
     }
-    if ([5, 6, 7, 9, 11, 12].includes(usuario.rolId)) {
+    if (ROLES_TALLER_Y_TECNICO.includes(usuario.rolId)) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
       return !!tallerVisible && talleres.some(t => t.taller_id === tallerVisible);
     }
@@ -776,12 +808,12 @@ class ValeService {
   //   respaldo por nombre en el texto de `accion` (best-effort, solo para
   //   datos históricos previos a esta corrección).
   async _filtrarHistorialPorRol(usuario, historial) {
-    if (!usuario || usuario.rolId === 1) return historial; // Administrador: todo, sin filtrar
+    if (!usuario || usuario.rolId === ROL.ADMINISTRADOR) return historial; // Administrador: todo, sin filtrar
 
     const conCategoria = historial.map(h => ({ ...h, _categoria: categoriaHistorial(h) }));
     const sinCategoria = (h) => { const { _categoria, ...resto } = h; return resto; };
 
-    if (usuario.rolId === 3 || usuario.rolId === 4) {
+    if (usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR) {
       const permitidas = new Set([
         'CREACION', 'AUTORIZACION_CREACION', 'RETORNO_ASESOR',
         'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
@@ -789,7 +821,7 @@ class ValeService {
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
     }
 
-    if (usuario.rolId === 10) {
+    if (usuario.rolId === ROL.GERENTE) {
       const permitidas = new Set([
         'CREACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER',
         'RETORNO_ASESOR', 'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
@@ -797,7 +829,7 @@ class ValeService {
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
     }
 
-    if ([5, 6, 9, 11, 12].includes(usuario.rolId)) {
+    if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId)) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
       if (!tallerVisible) return [];
       const cicloTaller = new Set([
@@ -809,7 +841,7 @@ class ValeService {
         .map(sinCategoria);
     }
 
-    if (usuario.rolId === 7) {
+    if (usuario.rolId === ROL.TECNICO) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
       if (!tallerVisible) return [];
       const propias = new Set(['EN_PROCESO', 'PAUSA', 'REANUDACION', 'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO']);
@@ -832,12 +864,12 @@ class ValeService {
 
   async _tallerIdVisiblePara(usuario) {
     const talleres = await tallerRepository.listarActivos();
-    if ([5, 6, 9, 11, 12].includes(usuario.rolId)) {
+    if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId)) {
       const idEfectivo = await this._idEncargadoEfectivo(usuario);
       const propio = talleres.find(t => t.encargado_id === idEfectivo);
       return propio ? propio.id : null;
     }
-    if (usuario.rolId === 7) {
+    if (usuario.rolId === ROL.TECNICO) {
       const tecnico = await usuarioValeRepository.obtenerPorId(usuario.id);
       const propio = tecnico && tecnico.encargado_id ? talleres.find(t => t.encargado_id === tecnico.encargado_id) : null;
       return propio ? propio.id : null;
@@ -854,16 +886,16 @@ class ValeService {
     }));
   }
 
-  // El historial solo guarda usuario_id; aquí se resuelve a un nombre corto (nombre +
-  // primer apellido) para mostrar quién hizo la acción, no solo su rol/qué pasó.
+  // El historial solo guarda usuario_id; aquí se resuelve al nombre completo
+  // del actor para mostrar quién hizo la acción, no solo su rol/qué pasó.
+  // analisis_correcciones_16.md #3: antes se truncaba a "nombre + primer
+  // apellido" (asumiendo un nombre de persona) — con usuarios sembrados cuyo
+  // `nombre` es un cargo ("Encargado de Diseño"), el truncado producía
+  // "Encargado de" a secas. Se muestra el nombre completo tal cual.
   async _enriquecerHistorialConActor(historial) {
     const idsUnicos = [...new Set(historial.map(h => h.usuario_id))];
     const usuarios = await Promise.all(idsUnicos.map(id => usuarioValeRepository.obtenerPorId(id)));
-    const mapaNombres = new Map(idsUnicos.map((id, idx) => {
-      const nombreCompleto = usuarios[idx] ? usuarios[idx].nombre : null;
-      const nombreCorto = nombreCompleto ? nombreCompleto.split(' ').slice(0, 2).join(' ') : null;
-      return [id, nombreCorto];
-    }));
+    const mapaNombres = new Map(idsUnicos.map((id, idx) => [id, usuarios[idx] ? usuarios[idx].nombre : null]));
     return historial.map(h => ({ ...h, actor_nombre: mapaNombres.get(h.usuario_id) || null }));
   }
 
@@ -924,35 +956,35 @@ class ValeService {
 
     let resultado;
     switch (usuario.rolId) {
-      case 1: // Administrador: ve todo
+      case ROL.ADMINISTRADOR: // ve todo
         resultado = this._buzonAdministrador(todosConTaller, ventana, filtroContador);
         break;
-      case 10: // Gerente: mismo listado de solo lectura que el administrador (Vista Gerencia)
+      case ROL.GERENTE: // mismo listado de solo lectura que el administrador (Vista Gerencia)
         resultado = this._buzonAdministrador(todosConTaller, ventana, filtroContador);
         break;
-      case 3: // Asesor de Ventas
+      case ROL.ASESOR:
         resultado = vista === 'trabajo'
           ? this._trabajoAsesor(usuario, todosConTaller, ventana, filtroContador)
           : this._buzonAsesor(usuario, todosConTaller, ventana, filtroContador);
         break;
-      case 4: // Supervisor de Ventas — scoped a los asesores bajo su mando (analisis_correcciones_10.md #11)
+      case ROL.SUPERVISOR: // scoped a los asesores bajo su mando (analisis_correcciones_10.md #11)
         resultado = vista === 'trabajo'
           ? await this._trabajoSupervisor(usuario, todosConTaller, ventana, filtroContador)
           : await this._buzonSupervisor(usuario, todosConTaller, ventana, filtroContador);
         break;
-      case 5:
-      case 6:
-      case 9: // Asistente — clon operativo del taller "Diseño"
-      case 11: // Encargado de taller de protextil
-      case 12: // Encargado de taller de diseño local — buzón individual, scoped a su propio taller
+      case ROL.ENCARGADO_DISENO:
+      case ROL.ENCARGADO_UV3D:
+      case ROL.ASISTENTE_DISENO: // clon operativo del taller "Diseño"
+      case ROL.ENCARGADO_PROTEXTIL:
+      case ROL.ENCARGADO_DISENO_LOCAL: // buzón individual, scoped a su propio taller
         // analisis_correcciones_12.md #11: quien tenga vales.aprobar_general
-        // (hoy roles 5 y 9) ve también, mezclada, la cola de fusión — ya no es
-        // un buzón de rol aparte (ver §3 del plan / _buzonEncargado).
+        // (Encargado de Diseño y Asistente) ve también, mezclada, la cola de
+        // fusión — ya no es un buzón de rol aparte (ver §3 del plan / _buzonEncargado).
         resultado = vista === 'trabajo'
           ? await this._trabajoEncargadoTaller(usuario, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador)
           : await this._buzonEncargado(usuario, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador);
         break;
-      case 7: // Técnico
+      case ROL.TECNICO:
         resultado = vista === 'trabajo'
           ? await this.obtenerTrabajoTecnico(usuario, ventana, filtroContador)
           : await this.obtenerBuzonTecnico(usuario, ventana, filtroContador);
@@ -979,10 +1011,10 @@ class ValeService {
     // verdad divergentes: estado_visible para el asesor (y el supervisor en su
     // vista de trabajo), estado_taller para encargados/técnico, estado general
     // para el resto.
-    const usaEstadosVisiblesParaFiltro = usuario.rolId === 3 || (usuario.rolId === 4 && vista === 'trabajo');
+    const usaEstadosVisiblesParaFiltro = usuario.rolId === ROL.ASESOR || (usuario.rolId === ROL.SUPERVISOR && vista === 'trabajo');
     const estadoActivoDe = (v) => {
       if (usaEstadosVisiblesParaFiltro) return v.estado_visible;
-      if ([5, 6, 7, 9, 11, 12].includes(usuario.rolId)) return v.estado_taller || v.estado;
+      if (ROLES_TALLER_Y_TECNICO.includes(usuario.rolId)) return v.estado_taller || v.estado;
       return v.estado;
     };
     const estadoFiltro = filtros.estado || null;
@@ -1034,15 +1066,20 @@ class ValeService {
     // páginas, así que este respaldo nunca produce filas repetidas en pantalla.
     const limit = 50;
     const total = valesOrdenados.length;
+    // analisis_correcciones_16.md #4/#5: en Trabajo Realizado un mismo vale
+    // puede producir 2 filas (fusión + propuesta propia, ver
+    // _trabajoEncargadoTaller) que comparten `id` — el cursor usa `_rowKey`
+    // cuando existe para no confundir ambas filas entre páginas.
+    const claveFila = v => String(v._rowKey || v.id);
     let indiceInicio;
     if (filtros.cursor) {
-      const idx = valesOrdenados.findIndex(v => v.id === Number(filtros.cursor));
+      const idx = valesOrdenados.findIndex(v => claveFila(v) === String(filtros.cursor));
       indiceInicio = idx === -1 ? Math.max(0, Number(filtros.offset) || 0) : idx + 1;
     } else {
       indiceInicio = Math.max(0, Number(filtros.offset) || 0);
     }
     const pagina = valesOrdenados.slice(indiceInicio, indiceInicio + limit);
-    const nextCursor = pagina.length ? pagina[pagina.length - 1].id : null;
+    const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
     return {
       vales: pagina,
       contadores: resultado.contadores,
@@ -1074,7 +1111,7 @@ class ValeService {
     const ventana = this._resolverVentana(filtros);
     let todos = (await valeRepository.listarTodos()).map(enriquecer);
 
-    if (usuario.rolId === 4) {
+    if (usuario.rolId === ROL.SUPERVISOR) {
       const asesorIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
       todos = todos.filter(v => asesorIds.has(v.asesor_id));
     }
@@ -1354,6 +1391,12 @@ class ValeService {
     const pendientesAsignacion = enVentana.filter(v => v.estado_taller === ESTADOS_TALLER.PENDIENTE_ASIGNACION);
     const asignados = enVentana.filter(v => v.estado_taller === ESTADOS_TALLER.ASIGNADO);
     const enProceso = enVentana.filter(v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO);
+    // analisis_correcciones_16.md #2: faltaba contar/ordenar EN_PAUSA para el
+    // encargado (el buzón del técnico sí lo hacía) — un vale recién pausado
+    // dejaba de matchear cualquier tarjeta/filtro activo y, al no tener grupo
+    // de orden, caía hasta el final de la lista y podía quedar fuera de la
+    // página (por eso "desaparecía" hasta recargar, que resetea los filtros).
+    const enPausa = enVentana.filter(v => v.estado_taller === ESTADOS_TALLER.EN_PAUSA);
     const enRevision = enVentana.filter(v => v.estado_taller === ESTADOS_TALLER.EN_REVISION);
 
     // Cola de fusión (analisis_correcciones_12.md #6/#11): vales multi-taller (o
@@ -1370,6 +1413,7 @@ class ValeService {
       pendientesAsignacion: pendientesAsignacion.length,
       asignados: asignados.length,
       enProceso: enProceso.length,
+      enPausa: enPausa.length,
       enRevision: enRevision.length,
       atrasados: enVentana.filter(v => v.atrasado).length
     };
@@ -1378,6 +1422,7 @@ class ValeService {
       pendientesAsignacion: v => v.estado_taller === ESTADOS_TALLER.PENDIENTE_ASIGNACION,
       asignados: v => v.estado_taller === ESTADOS_TALLER.ASIGNADO,
       enProceso: v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO,
+      enPausa: v => v.estado_taller === ESTADOS_TALLER.EN_PAUSA,
       enRevision: v => v.estado_taller === ESTADOS_TALLER.EN_REVISION
     };
     if (puedeFusionar) predicados.pendientesFusion = v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO;
@@ -1386,6 +1431,7 @@ class ValeService {
       v => v.estado_taller === ESTADOS_TALLER.EN_REVISION,
       v => v.estado_taller === ESTADOS_TALLER.PENDIENTE_ASIGNACION,
       v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO,
+      v => v.estado_taller === ESTADOS_TALLER.EN_PAUSA,
       v => v.estado_taller === ESTADOS_TALLER.ASIGNADO,
       v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO
     ]);
@@ -1393,7 +1439,7 @@ class ValeService {
   }
 
   _contadoresVaciosEncargado() {
-    return { pendientesAsignacion: 0, asignados: 0, enProceso: 0, enRevision: 0, atrasados: 0 };
+    return { pendientesAsignacion: 0, asignados: 0, enProceso: 0, enPausa: 0, enRevision: 0, atrasados: 0 };
   }
 
   // ---- Encargado de un taller: sidebar Trabajo realizado (analisis_correcciones_10.md
@@ -1433,6 +1479,10 @@ class ValeService {
     // `estado_taller` fijo en 'APROBADO' (igual que _buzonEncargado) para que la
     // píldora de la tabla muestre el estado DE SU taller, no el general del vale
     // (que puede seguir cambiando si hay otros talleres involucrados).
+    // analisis_correcciones_16.md #4/#5: `_rowKey`/`_tipoRegistro` identifican
+    // esta fila como la PROPUESTA propia del taller — necesario porque un
+    // mismo vale puede además traer una fila de FUSIÓN (ver `fusionados` abajo)
+    // con el mismo `v.id`.
     const conPropuesta = await Promise.all(enVentana.map(async v => {
       const fila = mapaFilaPorVale.get(v.id);
       const propuesta = fila.tecnico_id ? await propuestaRepository.obtenerUltimaPorValeYTecnico(v.id, fila.tecnico_id) : null;
@@ -1442,22 +1492,32 @@ class ValeService {
       // (v.actualizado_en) — esa última se pisa con cualquier transición
       // posterior del vale (fusión, confirmación, etc.), lo que antes hacía
       // que "aprobados hoy" contara aprobaciones viejas cuyo vale cambió hoy.
-      return { ...v, estado_taller: ESTADOS_TALLER.APROBADO, propuesta_taller_url: propuestaTallerUrl, aprobado_en: fila.actualizado_en };
+      return {
+        ...v, estado_taller: ESTADOS_TALLER.APROBADO, propuesta_taller_url: propuestaTallerUrl, aprobado_en: fila.actualizado_en,
+        _rowKey: `${v.id}-P`, _tipoRegistro: 'PROPUESTA'
+      };
     }));
 
-    // `_esFusion` distingue esta lista de `conPropuesta`: un vale de UN solo
-    // taller sin modificación también trae `propuesta_general_url` poblado
-    // (_recalcularEstadoVale la llena con la propuesta del propio técnico), así
-    // que no basta con mirar ese campo para separar "mi trabajo" de "mis fusiones".
+    // analisis_correcciones_16.md #4/#5: antes se adivinaba quién fusionó a
+    // partir del estado/forma del vale (multi-taller o modificación +
+    // propuesta_general_url poblado) — eso producía falsos positivos (p. ej.
+    // un vale de UN solo taller que luego se modificó, sin que nadie lo
+    // fusionara nunca) y no distinguía QUIÉN fusionó. Ahora se filtra por la
+    // identidad real que dejó `aprobarGeneral` (`vales.fusionado_por`).
+    // También lleva `estado_taller`/`aprobado_en` congelados, igual que
+    // `conPropuesta` — antes esta lista no los tenía y la píldora caía al
+    // estado general del vale (RECIBIDO/PENDIENTE_CONFIRMACION/...).
     const fusionados = puedeFusionar
       ? todosConTaller
           .filter(v =>
-            v.propuesta_general_url &&
-            (v._filasTaller.length > 1 || esValeDeModificacion(v)) &&
-            [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO, ESTADOS.SOLICITANDO_MODIFICACION].includes(v.estado) &&
+            v.fusionado_por &&
+            (esAdministrador(usuario) || v.fusionado_por === idEfectivo) &&
             dentroDeVentana(v, ventana)
           )
-          .map(v => ({ ...v, _esFusion: true }))
+          .map(v => ({
+            ...v, _esFusion: true, estado_taller: ESTADOS_TALLER.APROBADO, aprobado_en: v.fusionado_en,
+            _rowKey: `${v.id}-F`, _tipoRegistro: 'FUSION'
+          }))
       : [];
 
     const contadores = {
@@ -1465,7 +1525,7 @@ class ValeService {
       totalAprobados: conPropuesta.length
     };
     if (puedeFusionar) {
-      contadores.fusionadosHoy = fusionados.filter(v => esHoy(v.actualizado_en)).length;
+      contadores.fusionadosHoy = fusionados.filter(v => esHoy(v.fusionado_en)).length;
       contadores.totalFusionados = fusionados.length;
     }
     // analisis_correcciones_15.md #2: "Total aprobados" no tenía predicado —
@@ -1476,7 +1536,7 @@ class ValeService {
       totalAprobados: v => !v._esFusion
     };
     if (puedeFusionar) {
-      predicados.fusionadosHoy = v => !!v._esFusion && esHoy(v.actualizado_en);
+      predicados.fusionadosHoy = v => !!v._esFusion && esHoy(v.fusionado_en);
       predicados.totalFusionados = v => !!v._esFusion;
     }
     const filtrados = this._aplicarFiltroContador([...conPropuesta, ...fusionados], filtroContador, predicados);
@@ -1592,16 +1652,26 @@ class ValeService {
       // (mismo criterio que _trabajoEncargadoTaller). Antes no se seteaba
       // `estado_taller` aquí, así que el frontend caía al `v.estado` general
       // y la píldora mostraba "Pendiente Confirmación"/"Recibido"/etc.
-      return { ...enriquecer(vale), propuesta_taller_url: propuestaTallerUrl, estado_taller: ESTADOS_TALLER.APROBADO };
+      // analisis_correcciones_16.md #6: `aprobado_en` toma la fecha de ESTA
+      // fila de taller (`a.actualizado_en`), no la del vale general — mismo
+      // arreglo que ya se hizo para el encargado en #15.2 y que nunca se
+      // propagó acá (por eso "Aprobados hoy" del técnico podía no contar una
+      // aprobación de hoy si el vale cambió de estado después). `_rowKey`/
+      // `_tipoRegistro` por consistencia con _trabajoEncargadoTaller — el
+      // técnico nunca fusiona, siempre una sola fila por correlativo.
+      return {
+        ...enriquecer(vale), propuesta_taller_url: propuestaTallerUrl, estado_taller: ESTADOS_TALLER.APROBADO,
+        aprobado_en: a.actualizado_en, _rowKey: `${vale.id}-P`, _tipoRegistro: 'PROPUESTA'
+      };
     })))
       .filter(Boolean)
       .filter(v => dentroDeVentana(v, ventana));
 
     const contadores = {
       totalAprobados: vales.length,
-      aprobadosHoy: vales.filter(v => esHoy(v.actualizado_en)).length
+      aprobadosHoy: vales.filter(v => esHoy(v.aprobado_en)).length
     };
-    const predicados = { aprobadosHoy: v => esHoy(v.actualizado_en) };
+    const predicados = { aprobadosHoy: v => esHoy(v.aprobado_en), totalAprobados: () => true };
     const filtrados = this._aplicarFiltroContador(vales, filtroContador, predicados);
     return { vales: ordenarPorFecha(filtrados), contadores };
   }
@@ -1677,7 +1747,7 @@ class ValeService {
         }
       }
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PROCESO);
-      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, 'Técnico marcó el vale como en proceso');
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, `${etiquetaActorTaller(usuario)} marcó el vale como en proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       // analisis_correcciones_10.md #10: el encargado del taller sí debe enterarse
       // cuando su técnico empieza a trabajar un vale (antes no sonaba para nadie).
@@ -1714,7 +1784,7 @@ class ValeService {
       await propuestaRepository.crear(valeId, usuario.id, url);
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_REVISION);
       fila.estado = ESTADOS_TALLER.EN_REVISION;
-      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, 'Técnico entregó propuesta');
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, `${etiquetaActorTaller(usuario)} entregó propuesta`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       // analisis_correcciones_10.md #10: alerta roja si la propuesta va vacía (sin archivo).
       valeEvents.notificar({
@@ -1748,7 +1818,7 @@ class ValeService {
         throw new Error('Solo se puede pausar un vale que esté EN_PROCESO en su taller.');
       }
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PAUSA);
-      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, 'Técnico pausó el proceso');
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, `${etiquetaActorTaller(usuario)} pausó el proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: 'pausó el proceso', actor: usuario.nombre, actorId: usuario.id,
@@ -1774,7 +1844,7 @@ class ValeService {
         }
       }
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PROCESO);
-      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_PROCESO, 'Técnico reanudó el proceso');
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_PROCESO, `${etiquetaActorTaller(usuario)} reanudó el proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: 'reanudó el proceso', actor: usuario.nombre, actorId: usuario.id,
@@ -1796,7 +1866,7 @@ class ValeService {
       // evento vive únicamente en vale_historial, igual que cualquier otra
       // transición de estado.
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_REVISION);
-      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, 'Técnico canceló el proceso');
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, `${etiquetaActorTaller(usuario)} canceló el proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: 'canceló su proceso', actor: usuario.nombre, actorId: usuario.id,
@@ -1851,14 +1921,20 @@ class ValeService {
     if (!tecnicoReasignadoId) {
       throw new Error('Debe indicar a qué técnico reasignar el vale desaprobado.');
     }
+    // analisis_correcciones_16.md #1: igual que asignar(), el encargado puede
+    // reasignarse el trabajo desaprobado a sí mismo.
+    const esAutoasignacion = !esAdministrador(usuario) && Number(tecnicoReasignadoId) === Number(usuario.id);
     const tecnicos = await usuarioValeRepository.listarTecnicosPorEncargado(await this._idEncargadoEfectivo(usuario));
-    if (!esAdministrador(usuario) && !tecnicos.some(t => t.id === Number(tecnicoReasignadoId))) {
+    if (!esAdministrador(usuario) && !esAutoasignacion && !tecnicos.some(t => t.id === Number(tecnicoReasignadoId))) {
       throw new Error('El técnico indicado no está bajo su mando.');
     }
     await valeTallerRepository.asignar(fila.id, tecnicoReasignadoId, `${hoyISO()} ${horaActual()}`);
     const tecnico = await usuarioValeRepository.obtenerPorId(tecnicoReasignadoId);
+    const accionReasignacion = esAutoasignacion
+      ? 'Encargado desaprobó la propuesta y se reasignó el trabajo a sí mismo'
+      : `Encargado desaprobó la propuesta y reasignó a ${tecnico ? tecnico.nombre : tecnicoReasignadoId}`;
     await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.ASIGNADO,
-      `Encargado desaprobó la propuesta y reasignó a ${tecnico ? tecnico.nombre : tecnicoReasignadoId}`, tecnicoReasignadoId);
+      accionReasignacion, tecnicoReasignadoId);
     const actualizado = await valeRepository.obtenerPorId(valeId);
     valeEvents.notificar({
       vale: actualizado, accion: 'desaprobado y reasignado', actor: usuario.nombre, actorId: usuario.id, destino: tecnico ? tecnico.nombre : null,
@@ -1932,6 +2008,11 @@ class ValeService {
       // (analisis_correcciones_10.md #3).
       await this._regenerarPdf(valeId);
       await valeRepository.actualizarPropuestaGeneral(valeId, saved.path);
+      // analisis_correcciones_16.md #4/#5: sella quién fusionó y cuándo — es lo
+      // que le permite a _trabajoEncargadoTaller mostrarle a ESE encargado (y
+      // solo a él) una fila de fusión con fecha propia, sin depender del
+      // estado del vale (que sigue cambiando después).
+      await valeRepository.sellarFusion(valeId, { fusionadoPor: usuario.id, fusionadoEn: `${hoyISO()} ${horaActual()}` });
       await valeRepository.actualizarEstado(valeId, ESTADOS.PENDIENTE_CONFIRMACION);
       await registrarHistorial(valeId, usuario.id, null, vale.estado, ESTADOS.PENDIENTE_CONFIRMACION,
         'Encargado General adjuntó la fusión final del trabajo de los talleres y aprobó el vale');

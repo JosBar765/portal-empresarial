@@ -15,7 +15,9 @@ const maintenanceGate = require('../../../core/permissions/maintenanceMiddleware
 // la protección real contra desactivarlo ya la da "no se puede desactivar un
 // rol con usuarios activos", que en la práctica lo sigue cubriendo.
 const ROLES_BASE = [1];
-const ROL_SUPERVISOR = 4;
+// analisis_correcciones_16.md #7: renumeración de roles (Supervisor de
+// Ventas pasa de id 4 a id 3) tras eliminar los roles descontinuados.
+const ROL_SUPERVISOR = 3;
 const ROL_ADMINISTRADOR = 1;
 
 function minutosDesde(fecha) {

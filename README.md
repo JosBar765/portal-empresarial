@@ -49,7 +49,9 @@ El código está organizado de la siguiente manera:
 portal-empresarial/
 ├── .agents/                      # Reglas de arquitectura y diseño para agentes de IA
 ├── database/
-│   └── schema.sql                # Estructura e inserciones base (semilla) de base de datos
+│   ├── schema.sql                # Estructura (CREATE TABLE, claves, índices)
+│   ├── seed.sql                  # Datos reales mínimos para una instalación funcional
+│   └── mock.sql                  # Datos de demostración/prueba (opcional)
 ├── public/                       # Contenido estático del Frontend
 │   ├── assets/
 │   │   └── logos/                # Logos corporativos e isotipos de MundiTrofeos
@@ -97,7 +99,7 @@ npm install
 
 ### Paso 2: Configurar Base de Datos MySQL
 1. Crea una base de datos en tu servidor MySQL (local o hosting) llamada `portal_empresarial`.
-2. Importa el archivo de migración y semillas ubicado en [database/schema.sql](file:///c:/Users/Usuario-PC/Desktop/Proyectos/portal-empresarial/database/schema.sql).
+2. Importa, en este orden, los tres archivos de `database/`: `schema.sql` (estructura), `seed.sql` (datos reales mínimos) y `mock.sql` (datos de demostración, opcional).
 3. Duplica el archivo `.env.example`, renombrándolo a `.env`, y edita las credenciales de conexión correspondientes (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, etc.).
 
 > [!NOTE]
@@ -116,8 +118,8 @@ El portal estará disponible en la URL local: **`http://localhost:3000`**
 | Correo Electrónico | Contraseña | Rol Asignado | Módulos Autorizados |
 | :--- | :--- | :--- | :--- |
 | `admin@munditrofeos.com` | `admin123` | Administrador | Todos los módulos + Administración |
-| `diseno@munditrofeos.com` | `diseno123` | Diseñador | Vales de Arte, Generador de Prompts |
-| `ventas@munditrofeos.com` | `ventas123` | Asesor de Ventas | Vales de Arte, Eventos y Carreras |
+| `encargado.diseno@munditrofeos.com` | `disenoenc123` | Encargado de taller de diseño | Vales de Arte |
+| `tecnico.a@munditrofeos.com` | `tecnico123` | Técnicos | Vales de Arte |
 
 ---
 

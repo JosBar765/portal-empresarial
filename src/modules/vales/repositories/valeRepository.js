@@ -89,6 +89,18 @@ class ValeRepository {
     await db.query('UPDATE vales SET propuesta_general_url = ? WHERE id = ?', [url, id], 'vale:update_propuesta_general');
   }
 
+  // analisis_correcciones_16.md #4/#5: la fusión antes no dejaba más rastro
+  // que la URL de arriba — sin dueño ni fecha propia era imposible acotar
+  // "Trabajo Realizado" a quien realmente fusionó, ni fecharlo sin pisarse
+  // con transiciones posteriores del vale (RECIBIDO, CONFIRMADO...).
+  async sellarFusion(id, { fusionadoPor, fusionadoEn }) {
+    await db.query(
+      'UPDATE vales SET fusionado_por = ?, fusionado_en = ? WHERE id = ?',
+      [fusionadoPor, fusionadoEn, id],
+      'vale:sellar_fusion'
+    );
+  }
+
   // analisis_correcciones_10.md #5/#6: sella quién y cuándo autorizó (creación o
   // modificación) — usado por la firma roja del PDF y por el cupo colectivo del
   // Supervisor (#11) y su "Trabajo Realizado" (#7).
