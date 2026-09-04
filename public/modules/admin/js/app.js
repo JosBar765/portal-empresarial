@@ -830,7 +830,7 @@
       </div>
       <div class="tabla-wrapper">
         <table class="data-table sticky-header">
-          <thead><tr><th>Orden</th><th>Tienda</th><th>País</th><th>Departamento/Subdivisión</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Orden</th><th>Tienda</th><th>País</th><th>Departamento</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody id="tiendas-tbody"></tbody>
         </table>
       </div>
@@ -990,7 +990,9 @@
           <div class="personal-lista">
             ${grupos[rol].map(p => `
               <div class="personal-item">
-                <div class="personal-item-info"><span>${escapeHtml(p.nombre)}</span>${p.tipo_vinculo === 'supervisor' ? '<span class="rol">Cobertura de supervisor</span>' : ''}</div>
+                <div class="personal-item-info">
+                  <span>${escapeHtml(p.nombre)}</span>${p.tipo_vinculo === 'supervisor' ? '<span class="rol">Cobertura de supervisor</span>' : ''}
+                </div>
               </div>
             `).join('')}
           </div>
@@ -1030,7 +1032,10 @@
       <div class="personal-lista" id="personal-actual">
         ${personal.length ? personal.map(p => `
           <div class="personal-item" data-usuario-id="${p.id}">
-            <div class="personal-item-info"><span>${escapeHtml(p.nombre)}</span><span class="rol">${escapeHtml(p.rol_nombre)}${p.tipo_vinculo === 'supervisor' ? ' · cobertura de supervisor' : ''}</span></div>
+            <div class="personal-item-info">
+              <span>${escapeHtml(p.nombre)}</span>
+              <span class="rol">${escapeHtml(p.rol_nombre)}${p.tipo_vinculo === 'supervisor' ? ' · cobertura de supervisor' : ''}</span>
+            </div>
           </div>
         `).join('') : '<p class="form-hint">Sin personal ligado todavía.</p>'}
       </div>
