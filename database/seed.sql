@@ -33,7 +33,7 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (9, 'vales.asignar', 'Asignar Vales de Arte', 'vales', 'Permite asignar/reasignar un vale de arte a un técnico'),
 (10, 'vales.revisar', 'Revisar Propuestas', 'vales', 'Permite aprobar o desaprobar la propuesta de un técnico'),
 (11, 'vales.trabajar', 'Trabajar Vales de Arte', 'vales', 'Permite a un técnico comenzar, entregar o cancelar un vale asignado'),
-(12, 'vales.confirmar', 'Confirmar o Cancelar Venta', 'vales', 'Permite al asesor confirmar la venta o cancelar un vale de arte'),
+(12, 'vales.confirmar', 'Confirmar de Recibido', 'vales', 'Permite al asesor confirmarde recibido un vale de arte'),
 (13, 'vales.solicitar_modificacion', 'Solicitar Modificación', 'vales', 'Permite al asesor solicitar la modificación de un vale de arte'),
 (14, 'vales.aprobar_modificacion', 'Aprobar Modificación', 'vales', 'Permite al supervisor autorizar una modificación solicitada'),
 (15, 'vales.supervisar', 'Supervisar Vales de Arte', 'vales', 'Acceso de solo lectura al panel de supervisión de vales de arte'),
@@ -42,8 +42,8 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (18, 'vales.autorizar_creacion', 'Autorizar Creación', 'vales', 'Permite al supervisor autorizar el envío a talleres de un vale recién creado por sus asesores');
 
 INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
--- Administrador: todos
-(1, 1), (1, 2), (1, 3), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18),
+-- Administrador: admin
+(1, 1),
 -- Asesor de Ventas
 (2, 1), (2, 2), (2, 3), (2, 12), (2, 13),
 -- Supervisor de Ventas
@@ -59,8 +59,8 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 -- Gerente: solo lectura
 (8, 1), (8, 17),
 -- Encargado de taller de protextil: sin fusión
-(9, 1), (9, 9), (9, 10), (9, 11),
--- Encargado de taller de diseño local: mismos permisos atómicos que Protextil
+(9, 1), (9, 9), (9, 10),
+-- Encargado de taller de diseño local: mismos permisos atómicos que Diseño
 (10, 1), (10, 9), (10, 10), (10, 11);
 
 -- Usuarios. Contraseñas hasheadas con bcrypt (10 rondas):
@@ -214,8 +214,8 @@ INSERT INTO `subdivisiones` (`id`, `departamento_id`, `nombre`) VALUES
 -- `orden` = id (orden inicial del catálogo, editable luego desde la Vista
 -- Administrador). `pais_id`: 1=GT, 2=SV, 3=HN, 4=NI, 5=CR (ver `paises`).
 INSERT INTO `tiendas` (`id`, `codigo`, `nombre`, `pais_id`, `departamento_id`, `subdivision_id`, `orden`) VALUES
-(1,  'MTC', 'Munditrofeos, S.A.', 1, 1, 1, 1),
-(2,  'MTS', 'Munditrofeos, S.A.', 1, 1, 2, 2),
+(1,  'MTC', 'Munditrofeos, S.A. Comercialización', 1, 1, 1, 1),
+(2,  'MTS', 'Munditrofeos, S.A. Sala de Ventas', 1, 1, 2, 2),
 (3,  'P13', 'Premia, S.A.', 1, 2, NULL, 3),
 (4,  'SSV', 'Premia San Salvador', 2, 3, 3, 4),
 (5,  'SAA', 'Premia Express Santa Ana', 2, 3, 4, 5),
