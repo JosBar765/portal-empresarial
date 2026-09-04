@@ -106,6 +106,55 @@ class AuthController {
     }
   }
 
+  // analisis_correcciones_17.md #2: reemite la cookie con el rol/permisos
+  // vigentes de un usuario ya autenticado — se dispara cuando el socket le
+  // avisa que los permisos de su rol cambiaron, sin pedirle credenciales.
+  async refreshToken(req, res) {
+    const token = req.cookies ? req.cookies.token : null;
+    const decoded = token ? jwtHelper.verifyToken(token) : null;
+    if (!decoded) {
+      return res.status(401).json({ error: 'Sesión no válida.' });
+    }
+
+    try {
+      const authData = await authService.reautorizar(decoded.id);
+      const payload = {
+        id: authData.user.id,
+        nombre: authData.user.nombre,
+        email: authData.user.email,
+        rolId: authData.user.rolId,
+        rolNombre: authData.user.rolNombre,
+        modulosPermitidos: authData.user.modulosPermitidos,
+        permissions: authData.permissions
+      };
+      const newToken = jwtHelper.generateToken(payload);
+      res.cookie('token', newToken, {
+        httpOnly: true,
+        secure: config.nodeEnv === 'production',
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000
+      });
+      return res.json({ ok: true, user: authData.user });
+    } catch (error) {
+      return res.status(401).json({ error: error.message || 'No se pudo renovar la sesión.' });
+    }
+  }
+
+  // analisis_correcciones_17.md #3: latido liviano para que "última
+  // actividad" refleje al usuario sentado frente a la pantalla, no solo
+  // sus clics — el cliente lo llama cada minuto y al recuperar el foco.
+  // Corre antes del gate global (rutas de /api/auth montadas antes de
+  // authenticateJWT), así que resuelve la identidad directo de la cookie.
+  async heartbeat(req, res) {
+    const token = req.cookies ? req.cookies.token : null;
+    const decoded = token ? jwtHelper.verifyToken(token) : null;
+    if (!decoded) {
+      return res.sendStatus(204);
+    }
+    presenciaTracker.refrescarActividad(decoded.id).catch(err => console.error('[Presencia] No se pudo refrescar el latido:', err));
+    return res.sendStatus(204);
+  }
+
   async logout(req, res) {
     // analisis_correcciones_13.md #6: limpia "conectado desde" — logout corre
     // antes de authenticateJWT (rutas de /api/auth montadas antes del gate

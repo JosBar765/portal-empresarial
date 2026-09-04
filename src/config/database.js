@@ -169,10 +169,8 @@ const mockDatabase = {
   // Numeración de rol_id renumerada tras analisis_correcciones_16.md #7
   // (roles "Diseñador" y "Encargado General" eliminados).
   rol_permisos: [
-    { rol_id: 1, permiso_id: 1 }, { rol_id: 1, permiso_id: 2 }, { rol_id: 1, permiso_id: 3 },
-    { rol_id: 1, permiso_id: 8 }, { rol_id: 1, permiso_id: 9 },
-    { rol_id: 1, permiso_id: 10 }, { rol_id: 1, permiso_id: 11 }, { rol_id: 1, permiso_id: 12 },
-    { rol_id: 1, permiso_id: 13 }, { rol_id: 1, permiso_id: 14 }, { rol_id: 1, permiso_id: 15 }, { rol_id: 1, permiso_id: 16 }, { rol_id: 1, permiso_id: 17 }, { rol_id: 1, permiso_id: 18 },
+    // Administrador: acceso al panel + ver vales (analisis_correcciones_17.md #0)
+    { rol_id: 1, permiso_id: 1 }, { rol_id: 1, permiso_id: 8 },
     // Asesor de Ventas (2)
     { rol_id: 2, permiso_id: 1 }, { rol_id: 2, permiso_id: 2 }, { rol_id: 2, permiso_id: 3 },
     { rol_id: 2, permiso_id: 12 }, { rol_id: 2, permiso_id: 13 },
@@ -188,9 +186,9 @@ const mockDatabase = {
     { rol_id: 7, permiso_id: 1 }, { rol_id: 7, permiso_id: 9 }, { rol_id: 7, permiso_id: 10 }, { rol_id: 7, permiso_id: 16 }, { rol_id: 7, permiso_id: 11 },
     // Gerente (8)
     { rol_id: 8, permiso_id: 1 }, { rol_id: 8, permiso_id: 17 },
-    // Encargado de taller de protextil (9) — sin fusión.
-    { rol_id: 9, permiso_id: 1 }, { rol_id: 9, permiso_id: 9 }, { rol_id: 9, permiso_id: 10 }, { rol_id: 9, permiso_id: 11 },
-    // Encargado de taller de diseño local (10): mismos permisos atómicos que el 9 — solo cambia CUÁL taller es suyo.
+    // Encargado de taller de protextil (9) — sin fusión, sin "trabajar" (analisis_correcciones_17.md #0).
+    { rol_id: 9, permiso_id: 1 }, { rol_id: 9, permiso_id: 9 }, { rol_id: 9, permiso_id: 10 },
+    // Encargado de taller de diseño local (10): mismos permisos atómicos que Diseño (4), incluye "trabajar" (11).
     { rol_id: 10, permiso_id: 1 }, { rol_id: 10, permiso_id: 9 }, { rol_id: 10, permiso_id: 10 }, { rol_id: 10, permiso_id: 11 }
   ],
   // Estructura organizacional (analisis_correcciones_12.md #10) — reemplaza la

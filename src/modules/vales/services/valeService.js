@@ -1427,12 +1427,16 @@ class ValeService {
     };
     if (puedeFusionar) predicados.pendientesFusion = v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO;
     const filtrados = this._aplicarFiltroContador([...enVentana, ...pendientesFusion], filtroContador, predicados);
+    // analisis_correcciones_17.md #1: el trabajo activo de los técnicos
+    // (en proceso/en pausa) y lo ya asignado suben por encima de lo que
+    // requiere acción del propio encargado (revisar/asignar) — antes iba al
+    // revés. La cola de fusión se queda al final, sin cambios.
     const vales = ordenarPorGrupos(filtrados, [
-      v => v.estado_taller === ESTADOS_TALLER.EN_REVISION,
-      v => v.estado_taller === ESTADOS_TALLER.PENDIENTE_ASIGNACION,
       v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO,
       v => v.estado_taller === ESTADOS_TALLER.EN_PAUSA,
       v => v.estado_taller === ESTADOS_TALLER.ASIGNADO,
+      v => v.estado_taller === ESTADOS_TALLER.EN_REVISION,
+      v => v.estado_taller === ESTADOS_TALLER.PENDIENTE_ASIGNACION,
       v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO
     ]);
     return { vales, contadores };

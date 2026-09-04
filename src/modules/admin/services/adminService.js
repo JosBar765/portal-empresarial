@@ -8,6 +8,7 @@ const actividadRepository = require('../repositories/actividadRepository');
 const mantenimientoRepository = require('../repositories/mantenimientoRepository');
 const authService = require('../../../core/auth/authService');
 const maintenanceGate = require('../../../core/permissions/maintenanceMiddleware');
+const socketManager = require('../../../core/websocket/socketManager');
 
 // Roles base protegidos (analisis_correcciones_13.md #6): no se pueden
 // eliminar ni renombrar, pero sus permisos sí se pueden editar.
@@ -19,6 +20,12 @@ const ROLES_BASE = [1];
 // Ventas pasa de id 4 a id 3) tras eliminar los roles descontinuados.
 const ROL_SUPERVISOR = 3;
 const ROL_ADMINISTRADOR = 1;
+// analisis_correcciones_17.md #12/#13: Diseño, Diseño 3D y Protextil son
+// talleres únicos a nivel de toda la empresa (a diferencia de Diseño Local,
+// que tiene uno por tienda) — un solo encargado activo a la vez, y solo en
+// MTC (1) o MTS (2).
+const ROLES_ENCARGADO_UNICO = [4, 5, 9];
+const TIENDAS_ENCARGADO_TALLER = [1, 2];
 
 function minutosDesde(fecha) {
   if (!fecha) return Infinity;
@@ -34,6 +41,22 @@ function estadoPresencia(usuario) {
 }
 
 class AdminService {
+  // analisis_correcciones_17.md #12/#13: valida al crear/editar un usuario
+  // con rol de encargado único. `excluirId` es el propio usuario en edición
+  // (para no chocar consigo mismo) o null al crear. Solo bloquea altas o
+  // cambios nuevos — no toca datos ya existentes.
+  async _validarEncargadoUnico(rolId, tiendaId, excluirId) {
+    if (!ROLES_ENCARGADO_UNICO.includes(Number(rolId))) return;
+    if (tiendaId != null && !TIENDAS_ENCARGADO_TALLER.includes(Number(tiendaId))) {
+      throw new Error('Los encargados de taller de Diseño, Diseño 3D y Protextil solo pueden asignarse a MTC o MTS.');
+    }
+    const usuarios = await usuarioAdminRepository.listarConDetalle();
+    const ocupante = usuarios.find(u => u.activo && Number(u.rol_id) === Number(rolId) && Number(u.id) !== Number(excluirId));
+    if (ocupante) {
+      throw new Error(`Ya existe un encargado activo para este rol: ${ocupante.nombre}.`);
+    }
+  }
+
   // ---------------------------------------------------------------------
   // Gestionar Usuarios
   // ---------------------------------------------------------------------
@@ -59,6 +82,7 @@ class AdminService {
     if (existente) {
       throw new Error('Ya existe un usuario con ese correo electrónico.');
     }
+    await this._validarEncargadoUnico(rolId, tiendaId, null);
     const passwordHash = await bcrypt.hash(password, 10);
     const esSupervisor = Number(rolId) === ROL_SUPERVISOR;
     const id = await usuarioAdminRepository.crear({
@@ -79,6 +103,11 @@ class AdminService {
     const { nombre, email, password, rolId, tiendaId, telefono, tiendasSupervisadas } = datos;
     const usuario = await usuarioAdminRepository.obtenerPorId(id);
     if (!usuario) throw new Error('Usuario no encontrado.');
+    // analisis_correcciones_17.md #11: el rol Administrador es intocable
+    // desde este panel — ni siquiera otro administrador puede modificarlo.
+    if (Number(usuario.rol_id) === ROL_ADMINISTRADOR) {
+      throw new Error('El usuario Administrador no se puede modificar desde este panel.');
+    }
     if (!nombre || !email || !rolId) {
       throw new Error('Nombre, correo y rol son obligatorios.');
     }
@@ -86,6 +115,7 @@ class AdminService {
     if (existente && existente.id !== Number(id)) {
       throw new Error('Ya existe otro usuario con ese correo electrónico.');
     }
+    await this._validarEncargadoUnico(rolId, tiendaId, id);
     // analisis_correcciones_14.md #2: un Administrador no puede cambiar su
     // propia contraseña desde el panel (autoedición bloqueada).
     if (password && Number(id) === Number(actorId) && Number(usuario.rol_id) === ROL_ADMINISTRADOR) {
@@ -119,6 +149,12 @@ class AdminService {
   }
 
   async establecerActivoUsuario(id, activo, usuarioActualId) {
+    const usuario = await usuarioAdminRepository.obtenerPorId(id);
+    // analisis_correcciones_17.md #11: el rol Administrador tampoco se
+    // puede desactivar desde este panel.
+    if (usuario && Number(usuario.rol_id) === ROL_ADMINISTRADOR) {
+      throw new Error('El usuario Administrador no se puede desactivar.');
+    }
     if (Number(id) === Number(usuarioActualId) && !activo) {
       throw new Error('No puedes desactivar tu propia cuenta.');
     }
@@ -178,7 +214,11 @@ class AdminService {
 
   async actualizarPermisosRol(id, permisoIds) {
     if (!Array.isArray(permisoIds)) throw new Error('La lista de permisos debe ser un arreglo.');
-    return rolRepository.establecerPermisos(id, permisoIds);
+    const resultado = await rolRepository.establecerPermisos(id, permisoIds);
+    // analisis_correcciones_17.md #2: avisa a los usuarios de ese rol
+    // conectados ahora mismo para que renueven su JWT sin cerrar sesión.
+    socketManager.sendToRooms([`role_${id}`], 'permisos_actualizados', {});
+    return resultado;
   }
 
   async establecerActivoRol(id, activo) {

@@ -6,6 +6,10 @@
   // analisis_correcciones_16.md #7: renumeración de roles tras eliminar los
   // roles descontinuados (Supervisor de Ventas pasa de id 4 a id 3).
   const ROL_SUPERVISOR = 3;
+  const ROL_ADMINISTRADOR = 1;
+  // analisis_correcciones_17.md #12/#13: mismos roles/tiendas que valida el backend.
+  const ROLES_ENCARGADO_UNICO = [4, 5, 9];
+  const TIENDAS_ENCARGADO_TALLER = [1, 2];
 
   const state = {
     user: null,
@@ -17,11 +21,14 @@
     filtroTiendaActividad: '', filtroRolActividad: '',
     roles: [], rolesResumen: { rolesConfigurados: 0, permisosDisponibles: 0 },
     actividad: [], actividadResumen: { enLinea: 0, inactivos: 0, totalActivos: 0 },
-    tiendas: [], tiendasResumen: { activas: 0, inactivas: 0 },
+    tiendas: [], tiendasResumen: { activas: 0, inactivas: 0 }, filtroTiendaTiendas: '',
     // Catálogos livianos (id + nombre) para poblar los <select> de filtro,
     // cargados una vez y reusados por ambas pestañas.
     catalogoTiendas: [], catalogoRoles: [],
-    mantenimiento: null
+    mantenimiento: null,
+    socket: null,
+    intervaloActividad: null,
+    filtroActividad: ''
   };
 
   document.addEventListener('DOMContentLoaded', async () => {
@@ -44,6 +51,7 @@
 
     wireAccountMenu();
     wireSidebar();
+    initSocket();
     $('#logout-btn').addEventListener('click', async () => {
       try { await fetch('/api/auth.php?action=logout'); } catch (error) { /* redirige de todas formas */ }
       window.location.href = '/login/';
@@ -51,6 +59,21 @@
 
     await cargarTab();
   });
+
+  // analisis_correcciones_17.md #2: para enterarse si el propio admin.ver
+  // le fue revocado a su rol (u otro cambio de permisos) mientras está
+  // parado en el panel.
+  function initSocket() {
+    if (typeof io === 'undefined') return;
+    state.socket = io({ query: { userId: state.user.id } });
+    state.socket.on('connect', () => {
+      state.socket.emit('register_module', [`role_${state.user.rolId}`]);
+    });
+    state.socket.on('permisos_actualizados', async () => {
+      await fetch('/api/auth/refresh', { method: 'POST' });
+      window.location.reload();
+    });
+  }
 
   function inicialesAvatar(nombreCompleto) {
     const partes = (nombreCompleto || '').trim().split(/\s+/);
@@ -106,9 +129,20 @@
     document.documentElement.style.setProperty('--sidebar-offset', offset);
   }
 
+  // analisis_correcciones_17.md #10: no perder la pestaña activa al
+  // recargar la página (antes siempre volvía a "usuarios").
+  const TAB_ACTIVA_KEY = 'admin:tabActiva';
+  const TABS_VALIDOS = ['usuarios', 'roles', 'actividad', 'tiendas', 'mantenimiento'];
+
   function wireSidebar() {
     const sidebar = $('#sidebar-admin');
     const toggleMovil = $('#sidebar-toggle-mobile');
+
+    const tabGuardada = localStorage.getItem(TAB_ACTIVA_KEY);
+    if (TABS_VALIDOS.includes(tabGuardada)) {
+      state.tab = tabGuardada;
+      $$('.sidebar-item', sidebar).forEach(b => b.classList.toggle('sidebar-item-active', b.dataset.tab === tabGuardada));
+    }
 
     $$('.sidebar-item', sidebar).forEach(btn => {
       btn.addEventListener('click', () => {
@@ -117,6 +151,7 @@
         $$('.sidebar-item', sidebar).forEach(b => b.classList.remove('sidebar-item-active'));
         btn.classList.add('sidebar-item-active');
         state.tab = btn.dataset.tab;
+        localStorage.setItem(TAB_ACTIVA_KEY, state.tab);
         cargarTab();
       });
     });
@@ -156,12 +191,22 @@
   }
 
   async function cargarTab() {
+    // analisis_correcciones_17.md #3: la pestaña de Actividad se refresca
+    // sola mientras está a la vista; cualquier otra pestaña no debe seguir
+    // pidiendo datos de fondo.
+    if (state.intervaloActividad) {
+      clearInterval(state.intervaloActividad);
+      state.intervaloActividad = null;
+    }
     const cont = $('#panel-content');
     cont.innerHTML = `<div class="buzon-vacio"><ion-icon name="sync-outline" class="spin-animation"></ion-icon><p>Cargando...</p></div>`;
     try {
       if (state.tab === 'usuarios') await cargarUsuarios();
       else if (state.tab === 'roles') await cargarRoles();
-      else if (state.tab === 'actividad') await cargarActividad();
+      else if (state.tab === 'actividad') {
+        await cargarActividad();
+        state.intervaloActividad = setInterval(cargarActividad, 15000);
+      }
       else if (state.tab === 'tiendas') await cargarTiendas();
       else if (state.tab === 'mantenimiento') await cargarMantenimiento();
     } catch (error) {
@@ -230,14 +275,257 @@
     state.catalogoRoles = rolesData.roles;
   }
 
-  function opcionesFiltroTienda(seleccionada) {
-    return '<option value="">Todas las tiendas</option>' +
-      state.catalogoTiendas.map(t => `<option value="${t.id}" ${String(seleccionada) === String(t.id) ? 'selected' : ''}>${escapeHtml(t.nombre)} (${escapeHtml(t.codigo)})</option>`).join('');
+  // =======================================================================
+  // Menú cascada (analisis_correcciones_17.md #4/#5/#6/#7/#15) — desplegable
+  // vertical con submenús de nivel 2 hacia la derecha. Reemplaza los <select>
+  // de Tienda/Rol en Gestionar Usuarios, Actividad de Usuarios, el modal de
+  // Nuevo Usuario y el filtro de Gestionar Tiendas. Un nodo del árbol es uno
+  // de tres tipos:
+  //   - hoja:    { tipo:'hoja', valor, etiqueta }         — seleccionable.
+  //   - grupo:   { tipo:'grupo', etiqueta, hijos }        — abre un submenú
+  //              flotante hacia la derecha (ej. "Trofex R1").
+  //   - seccion: { tipo:'seccion', etiqueta, hijos }      — encabezado no
+  //              clickeable, sus hijos se listan debajo en línea (ej. un país).
+  function construirArbolTiendas(tiendas) {
+    const porPais = {};
+    tiendas.forEach(t => {
+      const pais = t.pais_nombre || 'Sin país';
+      (porPais[pais] = porPais[pais] || []).push(t);
+    });
+    const etiquetaTienda = t => `${t.codigo} - ${t.nombre}`;
+    return Object.keys(porPais).sort().map(pais => {
+      const sueltas = [];
+      const gruposPorDepto = {};
+      porPais[pais].slice().sort((a, b) => a.orden - b.orden).forEach(t => {
+        const depto = t.departamento_nombre || '';
+        // Agrupación elegida: los departamentos "Trofex" (Ruta 1/Ruta 2) van
+        // en submenú; el resto de tiendas del país quedan sueltas.
+        if (/trofex/i.test(depto)) {
+          const etiquetaGrupo = depto.replace(/^Ventas\s+/i, '');
+          (gruposPorDepto[etiquetaGrupo] = gruposPorDepto[etiquetaGrupo] || []).push(t);
+        } else {
+          sueltas.push(t);
+        }
+      });
+      const hijos = [
+        ...sueltas.map(t => ({ tipo: 'hoja', valor: t.id, etiqueta: etiquetaTienda(t) })),
+        ...Object.keys(gruposPorDepto).sort().map(etiqueta => ({
+          tipo: 'grupo',
+          etiqueta,
+          hijos: gruposPorDepto[etiqueta].map(t => ({ tipo: 'hoja', valor: t.id, etiqueta: etiquetaTienda(t) }))
+        }))
+      ];
+      return { tipo: 'seccion', etiqueta: pais, hijos };
+    });
   }
 
-  function opcionesFiltroRol(seleccionada) {
-    return '<option value="">Todos los roles</option>' +
-      state.catalogoRoles.map(r => `<option value="${r.id}" ${String(seleccionada) === String(r.id) ? 'selected' : ''}>${escapeHtml(r.nombre)}</option>`).join('');
+  // Orden y agrupación fijos del punto 5 — no se derivan genéricamente de la
+  // tabla de roles porque el propio documento define esta jerarquía puntual.
+  function construirArbolRoles(roles) {
+    const porId = new Map(roles.map(r => [r.id, r]));
+    const hoja = (id) => porId.has(id) ? { tipo: 'hoja', valor: id, etiqueta: porId.get(id).nombre } : null;
+    const grupoEncargados = { tipo: 'grupo', etiqueta: 'Encargados de taller', hijos: [4, 5, 9, 10].map(hoja).filter(Boolean) };
+    return [hoja(1), hoja(8), hoja(3), hoja(2), grupoEncargados, hoja(7), hoja(6)].filter(Boolean);
+  }
+
+  // El panel principal y los submenús de nivel 2 viven sueltos en
+  // document.body (no como descendientes del trigger): un ancestro con
+  // overflow (un modal scrolleable) o con transform (incluida una animación
+  // de apertura con scale/translate) recortaría o desubicaría un panel
+  // anidado ahí. Cada uno queda marcado con `_dueno` (el elemento del que
+  // depende su ciclo de vida) para poder barrer los que ya quedaron
+  // huérfanos de un render anterior.
+  function limpiarMenusCascadaHuerfanos() {
+    $$('.menu-cascada-panel, .menu-cascada-panel-nivel2').forEach(el => {
+      if (el._dueno && !el._dueno.isConnected) el.remove();
+    });
+  }
+
+  // `deshabilitar(nodoHoja)` opcional: devuelve { disabled, motivo } para
+  // bloquear una hoja puntual (rol ya ocupado, tienda fuera de MTC/MTS) sin
+  // sacarla del árbol, con el motivo visible como title.
+  function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilitar, onSeleccionar }) {
+    let actual = valorActual;
+    const cont = document.createElement('div');
+    cont.className = 'menu-cascada';
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'menu-cascada-trigger';
+    trigger.setAttribute('aria-haspopup', 'true');
+    trigger.setAttribute('aria-expanded', 'false');
+    const etiquetaSpan = document.createElement('span');
+    etiquetaSpan.className = 'menu-cascada-valor';
+    trigger.appendChild(etiquetaSpan);
+    trigger.insertAdjacentHTML('beforeend', '<ion-icon name="chevron-down-outline"></ion-icon>');
+    cont.appendChild(trigger);
+
+    // El panel vive en document.body (no como hijo de cont): triggers dentro
+    // de un modal (overflow-y: auto) recortarían un panel absoluto/anidado —
+    // mismo problema que el submenú de nivel 2, misma solución.
+    const nav = document.createElement('nav');
+    nav.className = 'menu-cascada-panel';
+    nav.setAttribute('aria-label', 'Menú de selección');
+    nav._dueno = cont;
+    document.body.appendChild(nav);
+
+    function buscarEtiqueta(valor, nodos) {
+      for (const nodo of nodos) {
+        if (nodo.tipo === 'hoja' && String(nodo.valor) === String(valor)) return nodo.etiqueta;
+        if (nodo.hijos) {
+          const enHijos = buscarEtiqueta(valor, nodo.hijos);
+          if (enHijos) return enHijos;
+        }
+      }
+      return null;
+    }
+
+    function actualizarTrigger() {
+      etiquetaSpan.textContent = (actual === '' || actual == null) ? etiquetaVacio : (buscarEtiqueta(actual, arbol) || etiquetaVacio);
+    }
+
+    function marcarActivos() {
+      $$('.menu-cascada-item[data-valor]', nav).forEach(btn => {
+        btn.classList.toggle('menu-cascada-item-activo', String(btn.dataset.valor) === String(actual));
+      });
+    }
+
+    const misFlyouts = [];
+    function cerrarTodo() {
+      trigger.setAttribute('aria-expanded', 'false');
+      nav.classList.remove('visible');
+      misFlyouts.forEach(f => { f.style.display = 'none'; });
+      $$('.menu-cascada-item-padre', nav).forEach(b => b.setAttribute('aria-expanded', 'false'));
+    }
+
+    function renderNodo(nodo) {
+      const li = document.createElement('li');
+      if (nodo.tipo === 'hoja') {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'menu-cascada-item';
+        btn.dataset.valor = nodo.valor;
+        btn.textContent = nodo.etiqueta;
+        const estado = deshabilitar ? deshabilitar(nodo) : null;
+        if (estado && estado.disabled) {
+          btn.disabled = true;
+          if (estado.motivo) btn.title = estado.motivo;
+        } else {
+          btn.addEventListener('click', () => {
+            actual = nodo.valor;
+            actualizarTrigger();
+            marcarActivos();
+            cerrarTodo();
+            onSeleccionar(nodo.valor);
+          });
+        }
+        li.appendChild(btn);
+      } else if (nodo.tipo === 'grupo') {
+        li.className = 'menu-cascada-submenu';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'menu-cascada-item menu-cascada-item-padre';
+        btn.setAttribute('aria-haspopup', 'true');
+        btn.setAttribute('aria-expanded', 'false');
+        btn.innerHTML = `<span>${escapeHtml(nodo.etiqueta)}</span><ion-icon name="chevron-forward-outline"></ion-icon>`;
+        const subUl = document.createElement('ul');
+        subUl.className = 'menu-cascada-panel-nivel2';
+        subUl._dueno = li;
+        nodo.hijos.forEach(hijo => subUl.appendChild(renderNodo(hijo)));
+        document.body.appendChild(subUl);
+        misFlyouts.push(subUl);
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const yaAbierto = subUl.style.display === 'block';
+          misFlyouts.forEach(f => { f.style.display = 'none'; });
+          $$('.menu-cascada-item-padre', nav).forEach(b => b.setAttribute('aria-expanded', 'false'));
+          if (!yaAbierto) {
+            const rect = li.getBoundingClientRect();
+            subUl.style.top = `${rect.top}px`;
+            const cabeEnDerecha = rect.right + 220 <= window.innerWidth;
+            if (cabeEnDerecha) {
+              subUl.style.left = `${rect.right + 4}px`;
+              subUl.style.right = '';
+            } else {
+              subUl.style.left = '';
+              subUl.style.right = `${window.innerWidth - rect.left + 4}px`;
+            }
+            subUl.style.display = 'block';
+            btn.setAttribute('aria-expanded', 'true');
+          }
+        });
+        li.appendChild(btn);
+      } else if (nodo.tipo === 'seccion') {
+        li.className = 'menu-cascada-seccion';
+        const titulo = document.createElement('span');
+        titulo.className = 'menu-cascada-seccion-titulo';
+        titulo.textContent = nodo.etiqueta;
+        const subUl = document.createElement('ul');
+        nodo.hijos.forEach(hijo => subUl.appendChild(renderNodo(hijo)));
+        li.appendChild(titulo);
+        li.appendChild(subUl);
+      }
+      return li;
+    }
+
+    const raiz = document.createElement('ul');
+    arbol.forEach(nodo => raiz.appendChild(renderNodo(nodo)));
+    nav.appendChild(raiz);
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const abrir = !nav.classList.contains('visible');
+      if (abrir) {
+        // Barre paneles/flyouts huérfanos de renders anteriores AQUÍ (no
+        // durante la construcción del árbol, cuando los propios <li>/cont
+        // todavía no están conectados al documento y `isConnected` daría un
+        // falso "huérfano").
+        limpiarMenusCascadaHuerfanos();
+        const rect = trigger.getBoundingClientRect();
+        nav.style.top = `${rect.bottom + 6}px`;
+        nav.style.left = `${rect.left}px`;
+        nav.classList.add('visible');
+        trigger.setAttribute('aria-expanded', 'true');
+      } else {
+        cerrarTodo();
+      }
+    });
+    // Listeners globales con auto-limpieza: si `cont` ya no está en el
+    // documento (este menú quedó obsoleto por un re-render, o su modal
+    // contenedor se cerró) se desregistran solos Y retiran de inmediato el
+    // panel/flyouts que hubieran quedado sueltos y visibles en <body> — no
+    // basta con dejar de escuchar, porque un modal puede cerrarse (Escape,
+    // Cancelar, click en el fondo) con el menú todavía abierto.
+    const limpiarSiObsoleto = () => {
+      if (cont.isConnected) return false;
+      document.removeEventListener('click', onDocumentClick);
+      document.removeEventListener('keydown', onDocumentKeydown);
+      nav.remove();
+      misFlyouts.forEach(f => f.remove());
+      return true;
+    };
+    const onDocumentClick = (e) => {
+      if (limpiarSiObsoleto()) return;
+      if (!cont.contains(e.target) && !nav.contains(e.target) && !misFlyouts.some(f => f.contains(e.target))) cerrarTodo();
+    };
+    const onDocumentKeydown = (e) => {
+      if (limpiarSiObsoleto()) return;
+      if (e.key === 'Escape') cerrarTodo();
+    };
+    document.addEventListener('click', onDocumentClick);
+    document.addEventListener('keydown', onDocumentKeydown);
+
+    actualizarTrigger();
+    marcarActivos();
+
+    return {
+      elemento: cont,
+      actualizar(nuevoValor) {
+        actual = nuevoValor;
+        actualizarTrigger();
+        marcarActivos();
+      }
+    };
   }
 
   async function cargarUsuarios() {
@@ -261,8 +549,8 @@
         <h2>Gestionar Usuarios</h2>
         <div class="panel-toolbar-acciones">
           <input type="text" id="buscar-usuarios" placeholder="Buscar por nombre, correo o rol..." value="${escapeHtml(state.busquedaUsuarios)}">
-          <select id="filtro-tienda-usuarios">${opcionesFiltroTienda(state.filtroTiendaUsuarios)}</select>
-          <select id="filtro-rol-usuarios">${opcionesFiltroRol(state.filtroRolUsuarios)}</select>
+          <div id="filtro-tienda-usuarios-cont"></div>
+          <div id="filtro-rol-usuarios-cont"></div>
           <button class="btn btn--primary" id="btn-nuevo-usuario"><ion-icon name="add-outline"></ion-icon> Nuevo Usuario</button>
         </div>
       </div>
@@ -280,9 +568,19 @@
       </div>
     `;
     renderFilasUsuarios();
+    $('#filtro-tienda-usuarios-cont').appendChild(crearMenuCascada({
+      arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' }, ...construirArbolTiendas(state.catalogoTiendas)],
+      valorActual: state.filtroTiendaUsuarios,
+      etiquetaVacio: 'Todas las tiendas',
+      onSeleccionar: (valor) => { state.filtroTiendaUsuarios = String(valor); renderFilasUsuarios(); }
+    }).elemento);
+    $('#filtro-rol-usuarios-cont').appendChild(crearMenuCascada({
+      arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todos los roles' }, ...construirArbolRoles(state.catalogoRoles)],
+      valorActual: state.filtroRolUsuarios,
+      etiquetaVacio: 'Todos los roles',
+      onSeleccionar: (valor) => { state.filtroRolUsuarios = String(valor); renderFilasUsuarios(); }
+    }).elemento);
     $('#buscar-usuarios').addEventListener('input', (e) => { state.busquedaUsuarios = e.target.value; renderFilasUsuarios(); });
-    $('#filtro-tienda-usuarios').addEventListener('change', (e) => { state.filtroTiendaUsuarios = e.target.value; renderFilasUsuarios(); });
-    $('#filtro-rol-usuarios').addEventListener('change', (e) => { state.filtroRolUsuarios = e.target.value; renderFilasUsuarios(); });
     $('#btn-nuevo-usuario').addEventListener('click', () => abrirModalUsuario(null));
   }
 
@@ -313,6 +611,9 @@
         </tr>
       `).join('');
       filas.forEach(u => {
+        // analisis_correcciones_17.md #11: el Administrador aparece en la
+        // lista pero sin ninguna acción disponible sobre él.
+        if (Number(u.rol_id) === ROL_ADMINISTRADOR) return;
         const celda = tbody.querySelector(`[data-usuario-id="${u.id}"]`);
         const btnEditar = document.createElement('button');
         btnEditar.className = 'btn-icon';
@@ -351,12 +652,14 @@
   }
 
   async function abrirModalUsuario(usuario) {
-    const [rolesData, tiendasData] = await Promise.all([
+    const [rolesData, tiendasData, usuariosData] = await Promise.all([
       fetch('/api/admin/roles').then(r => r.json()),
-      fetch('/api/admin/tiendas').then(r => r.json())
+      fetch('/api/admin/tiendas').then(r => r.json()),
+      fetch('/api/admin/usuarios').then(r => r.json())
     ]);
     const roles = rolesData.roles;
     const tiendas = tiendasData.tiendas.filter(t => t.activo);
+    const todosUsuarios = usuariosData.usuarios;
     const esEdicion = !!usuario;
 
     let tiendasSupervisadas = [];
@@ -372,7 +675,23 @@
     // el rol actual del usuario en edición, para no corromper su valor al
     // guardar sin tocarlo.
     const rolesAsignables = roles.filter(r => r.activo || (esEdicion && Number(usuario.rol_id) === r.id));
-    const opcionesRol = rolesAsignables.map(r => `<option value="${r.id}" ${esEdicion && Number(usuario.rol_id) === r.id ? 'selected' : ''}>${escapeHtml(r.nombre)}</option>`).join('');
+    let rolIdActual = esEdicion ? Number(usuario.rol_id) : (rolesAsignables[0] ? rolesAsignables[0].id : null);
+    let tiendaIdActual = (esEdicion && usuario.tienda_id) ? usuario.tienda_id : '';
+
+    // analisis_correcciones_17.md #12: un rol de encargado único (Diseño,
+    // Diseño 3D, Protextil) se deshabilita en el menú si ya tiene un titular
+    // activo distinto del usuario en edición.
+    function deshabilitarRol(nodo) {
+      if (!ROLES_ENCARGADO_UNICO.includes(Number(nodo.valor))) return null;
+      const ocupante = todosUsuarios.find(u => u.activo && Number(u.rol_id) === Number(nodo.valor) && (!esEdicion || Number(u.id) !== Number(usuario.id)));
+      return ocupante ? { disabled: true, motivo: `Ya asignado a ${ocupante.nombre}` } : null;
+    }
+    // analisis_correcciones_17.md #13: esos mismos roles solo pueden ir a MTC o MTS.
+    function deshabilitarTienda(nodo) {
+      if (nodo.valor === '' || nodo.valor == null) return null;
+      if (!ROLES_ENCARGADO_UNICO.includes(Number(rolIdActual))) return null;
+      return TIENDAS_ENCARGADO_TALLER.includes(Number(nodo.valor)) ? null : { disabled: true, motivo: 'Solo disponible para MTC o MTS' };
+    }
 
     // analisis_correcciones_14.md #2: un Administrador no puede cambiar su
     // propia contraseña desde el panel — el campo ni siquiera se renderiza.
@@ -401,7 +720,7 @@
         ${campoPassword}
         <div class="form-field">
           <label>Rol</label>
-          <select id="input-rol">${opcionesRol}</select>
+          <div id="rol-menu-cont"></div>
         </div>
         <div class="form-field full" id="zona-asignacion"></div>
       </div>
@@ -451,7 +770,7 @@
     }
 
     function renderZonaAsignacion() {
-      const rolId = Number(overlay.querySelector('#input-rol').value);
+      const rolId = rolIdActual;
       const zona = overlay.querySelector('#zona-asignacion');
       if (rolId === ROL_SUPERVISOR) {
         if (!paisSupervisorActual) {
@@ -482,34 +801,35 @@
           renderListaTiendasDelPais();
         });
       } else {
-        // analisis_correcciones_15.md #11: cascada país -> tienda (dos selects
-        // dependientes, mismo patrón que departamento->subdivisión en abrirModalTienda).
-        const tiendaActual = esEdicion && usuario.tienda_id ? tiendas.find(t => t.id === usuario.tienda_id) : null;
-        const paisActual = tiendaActual ? (tiendaActual.pais_nombre || 'Sin país') : (paisesConTienda[0] || '');
-        const opcionesPais = paisesConTienda.map(p => `<option value="${escapeHtml(p)}" ${p === paisActual ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('');
-        zona.innerHTML = `
-          <label>País</label>
-          <select id="input-pais-tienda">${opcionesPais}</select>
-          <label>Tienda</label>
-          <select id="input-tienda"></select>
-        `;
-        function actualizarTiendasDelPais() {
-          const pais = overlay.querySelector('#input-pais-tienda').value;
-          const disponibles = tiendas.filter(t => (t.pais_nombre || 'Sin país') === pais);
-          overlay.querySelector('#input-tienda').innerHTML = '<option value="">Sin tienda asignada</option>' +
-            disponibles.map(t => `<option value="${t.id}" ${esEdicion && usuario.tienda_id === t.id ? 'selected' : ''}>${escapeHtml(t.nombre)} (${escapeHtml(t.codigo)})</option>`).join('');
-        }
-        actualizarTiendasDelPais();
-        overlay.querySelector('#input-pais-tienda').addEventListener('change', actualizarTiendasDelPais);
+        // analisis_correcciones_17.md #6: el combobox de país + tienda se
+        // reemplaza por un único menú cascada (mismo árbol del punto 4).
+        zona.innerHTML = `<label>Tienda</label><div id="tienda-menu-cont"></div>`;
+        overlay.querySelector('#tienda-menu-cont').appendChild(crearMenuCascada({
+          arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Sin tienda asignada' }, ...construirArbolTiendas(tiendas)],
+          valorActual: tiendaIdActual,
+          etiquetaVacio: 'Sin tienda asignada',
+          deshabilitar: deshabilitarTienda,
+          onSeleccionar: (valor) => { tiendaIdActual = valor === '' ? '' : Number(valor); }
+        }).elemento);
       }
     }
     renderZonaAsignacion();
-    overlay.querySelector('#input-rol').addEventListener('change', renderZonaAsignacion);
+    overlay.querySelector('#rol-menu-cont').appendChild(crearMenuCascada({
+      arbol: construirArbolRoles(rolesAsignables),
+      valorActual: rolIdActual,
+      etiquetaVacio: 'Selecciona un rol',
+      deshabilitar: deshabilitarRol,
+      onSeleccionar: (valor) => {
+        rolIdActual = Number(valor);
+        tiendaIdActual = ''; // cambiar de rol invalida la tienda elegida bajo el rol anterior
+        renderZonaAsignacion();
+      }
+    }).elemento);
 
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-guardar').addEventListener('click', async () => {
       const btn = overlay.querySelector('#btn-guardar');
-      const rolId = Number(overlay.querySelector('#input-rol').value);
+      const rolId = rolIdActual;
       const payload = {
         nombre: overlay.querySelector('#input-nombre').value.trim(),
         email: overlay.querySelector('#input-email').value.trim(),
@@ -521,8 +841,7 @@
         sincronizarTiendasSupervisadasVisibles();
         payload.tiendasSupervisadas = tiendasSupervisadas;
       } else {
-        const valorTienda = overlay.querySelector('#input-tienda').value;
-        payload.tiendaId = valorTienda ? Number(valorTienda) : null;
+        payload.tiendaId = tiendaIdActual ? Number(tiendaIdActual) : null;
       }
       if (!payload.nombre || !payload.email) {
         mostrarErrorModal(overlay, 'Nombre y correo son obligatorios.');
@@ -758,13 +1077,13 @@
       <div class="panel-toolbar">
         <h2>Actividad de Usuarios</h2>
         <div class="panel-toolbar-acciones">
-          <select id="filtro-tienda-actividad">${opcionesFiltroTienda(state.filtroTiendaActividad)}</select>
-          <select id="filtro-rol-actividad">${opcionesFiltroRol(state.filtroRolActividad)}</select>
+          <div id="filtro-tienda-actividad-cont"></div>
+          <div id="filtro-rol-actividad-cont"></div>
         </div>
       </div>
       <div class="resumen-grid">
-        <div class="resumen-card"><div class="valor">${r.enLinea}</div><div class="etiqueta">En línea ahora</div></div>
-        <div class="resumen-card"><div class="valor">${r.inactivos}</div><div class="etiqueta">Inactivos</div></div>
+        <div class="resumen-card resumen-card-clickeable ${state.filtroActividad === 'EN_LINEA' ? 'resumen-card-activo' : ''}" data-filtro="EN_LINEA"><div class="valor">${r.enLinea}</div><div class="etiqueta">En línea ahora</div></div>
+        <div class="resumen-card resumen-card-clickeable ${state.filtroActividad === 'INACTIVO' ? 'resumen-card-activo' : ''}" data-filtro="INACTIVO"><div class="valor">${r.inactivos}</div><div class="etiqueta">Inactivos</div></div>
         <div class="resumen-card"><div class="valor">${r.totalActivos}</div><div class="etiqueta">Total de usuarios activos</div></div>
       </div>
       <div class="tabla-wrapper">
@@ -774,13 +1093,33 @@
         </table>
       </div>
     `;
-    $('#filtro-tienda-actividad').addEventListener('change', (e) => { state.filtroTiendaActividad = e.target.value; renderActividad(); });
-    $('#filtro-rol-actividad').addEventListener('change', (e) => { state.filtroRolActividad = e.target.value; renderActividad(); });
+    $('#filtro-tienda-actividad-cont').appendChild(crearMenuCascada({
+      arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' }, ...construirArbolTiendas(state.catalogoTiendas)],
+      valorActual: state.filtroTiendaActividad,
+      etiquetaVacio: 'Todas las tiendas',
+      onSeleccionar: (valor) => { state.filtroTiendaActividad = String(valor); renderActividad(); }
+    }).elemento);
+    $('#filtro-rol-actividad-cont').appendChild(crearMenuCascada({
+      arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todos los roles' }, ...construirArbolRoles(state.catalogoRoles)],
+      valorActual: state.filtroRolActividad,
+      etiquetaVacio: 'Todos los roles',
+      onSeleccionar: (valor) => { state.filtroRolActividad = String(valor); renderActividad(); }
+    }).elemento);
+    // analisis_correcciones_17.md #8: los contadores de En línea/Inactivos
+    // también filtran la tabla, igual que en el buzón de Vales de Arte.
+    $$('.resumen-card-clickeable', $('#panel-content')).forEach(card => {
+      card.addEventListener('click', () => {
+        const filtro = card.dataset.filtro;
+        state.filtroActividad = state.filtroActividad === filtro ? '' : filtro;
+        renderActividad();
+      });
+    });
 
     const filas = state.actividad.filter(a => {
       const coincideTienda = !state.filtroTiendaActividad || String(a.tienda_id) === state.filtroTiendaActividad;
       const coincideRol = !state.filtroRolActividad || String(a.rol_id) === state.filtroRolActividad;
-      return coincideTienda && coincideRol;
+      const coincideEstado = !state.filtroActividad || a.estado === state.filtroActividad;
+      return coincideTienda && coincideRol && coincideEstado;
     });
 
     const tbody = $('#actividad-tbody');
@@ -820,7 +1159,7 @@
       <div class="panel-toolbar">
         <h2>Gestionar Tiendas</h2>
         <div class="panel-toolbar-acciones">
-          <button class="btn btn--ghost" id="btn-ordenar-tiendas"><ion-icon name="swap-vertical-outline"></ion-icon> Ordenar</button>
+          <div id="filtro-tienda-tiendas-cont"></div>
           <button class="btn btn--primary" id="btn-nueva-tienda"><ion-icon name="add-outline"></ion-icon> Nueva Tienda</button>
         </div>
       </div>
@@ -835,9 +1174,18 @@
         </table>
       </div>
     `;
+    $('#filtro-tienda-tiendas-cont').appendChild(crearMenuCascada({
+      arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' }, ...construirArbolTiendas(state.tiendas)],
+      valorActual: state.filtroTiendaTiendas,
+      etiquetaVacio: 'Todas las tiendas',
+      onSeleccionar: (valor) => { state.filtroTiendaTiendas = String(valor); renderTiendas(); }
+    }).elemento);
 
+    // analisis_correcciones_17.md #15: filtro por tienda en vez de reordenar
+    // manualmente el catálogo.
+    const tiendasFiltradas = state.tiendas.filter(t => !state.filtroTiendaTiendas || String(t.id) === state.filtroTiendaTiendas);
     const tbody = $('#tiendas-tbody');
-    tbody.innerHTML = state.tiendas.map(t => `
+    tbody.innerHTML = tiendasFiltradas.map(t => `
       <tr>
         <td data-label="Orden">${t.orden}</td>
         <td data-label="Tienda">${escapeHtml(t.nombre)}<div class="tabla-secundaria">${escapeHtml(t.codigo)}</div></td>
@@ -848,7 +1196,7 @@
       </tr>
     `).join('');
 
-    state.tiendas.forEach(t => {
+    tiendasFiltradas.forEach(t => {
       const celda = tbody.querySelector(`[data-tienda-id="${t.id}"]`);
       // analisis_correcciones_14.md #3: acción de solo lectura, separada de
       // "Gestionar personal", para ver el personal agrupado por categoría sin
@@ -876,7 +1224,6 @@
     });
 
     $('#btn-nueva-tienda').addEventListener('click', () => abrirModalTienda(null));
-    $('#btn-ordenar-tiendas').addEventListener('click', () => abrirModalOrdenar());
   }
 
   function opcionesSubdivisiones(departamentoId, seleccionada) {
@@ -974,15 +1321,35 @@
 
   // analisis_correcciones_14.md #3: modal de solo lectura, personal agrupado
   // por rol (en vez de la lista plana que ya usaba "Gestionar personal").
+  // analisis_correcciones_17.md #14: orden de negocio fijo para agrupar al
+  // personal de una tienda — los 4 roles de encargado de taller se colapsan
+  // en un solo bucket ("Encargado(s) de taller"), el resto conserva su
+  // nombre de rol tal cual.
+  const ORDEN_CATEGORIAS_PERSONAL = ['Gerente', 'Supervisor de Ventas', 'Asesor de Ventas', 'Encargado(s) de taller', 'Asistente', 'Técnicos'];
+  const ROLES_ENCARGADO_TALLER_NOMBRES = ['Encargado de taller de diseño', 'Encargado de taller de diseño 3d', 'Encargado de taller de protextil', 'Encargado de taller de diseño local'];
+  function categoriaDePersonal(rolNombre) {
+    return ROLES_ENCARGADO_TALLER_NOMBRES.includes(rolNombre) ? 'Encargado(s) de taller' : (rolNombre || 'Sin rol');
+  }
+  function ordenarCategorias(categorias) {
+    return categorias.sort((a, b) => {
+      const ia = ORDEN_CATEGORIAS_PERSONAL.indexOf(a);
+      const ib = ORDEN_CATEGORIAS_PERSONAL.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  }
+
   async function abrirModalVerPersonal(tienda) {
     const personal = await fetch(`/api/admin/tiendas/${tienda.id}/personal`).then(r => r.json());
     const grupos = {};
     personal.forEach(p => {
-      const clave = p.rol_nombre || 'Sin rol';
+      const clave = categoriaDePersonal(p.rol_nombre);
       if (!grupos[clave]) grupos[clave] = [];
       grupos[clave].push(p);
     });
-    const categorias = Object.keys(grupos).sort();
+    const categorias = ordenarCategorias(Object.keys(grupos));
 
     const bodyHtml = categorias.length
       ? categorias.map(rol => `
@@ -1027,22 +1394,36 @@
     const rolesDisponibles = Object.keys(gruposDisponibles).sort();
     const opcionesRol = rolesDisponibles.map(rol => `<option value="${escapeHtml(rol)}">${escapeHtml(rol)}</option>`).join('');
 
+    // analisis_correcciones_17.md #14: el personal ya ligado se agrupa con
+    // el mismo criterio y orden que "Ver personal", en vez de listarse plano.
+    const gruposActuales = {};
+    personal.forEach(p => {
+      const clave = categoriaDePersonal(p.rol_nombre);
+      (gruposActuales[clave] = gruposActuales[clave] || []).push(p);
+    });
+    const categoriasActuales = ordenarCategorias(Object.keys(gruposActuales));
+
     const bodyHtml = `
       <p class="section-title">Personal ligado a esta tienda</p>
-      <div class="personal-lista" id="personal-actual">
-        ${personal.length ? personal.map(p => `
-          <div class="personal-item" data-usuario-id="${p.id}">
-            <div class="personal-item-info">
-              <span>${escapeHtml(p.nombre)}</span>
-              <span class="rol">${escapeHtml(p.rol_nombre)}${p.tipo_vinculo === 'supervisor' ? ' · cobertura de supervisor' : ''}</span>
-            </div>
+      <div id="personal-actual">
+        ${personal.length ? categoriasActuales.map(cat => `
+          <p class="section-title">${escapeHtml(cat)} (${gruposActuales[cat].length})</p>
+          <div class="personal-lista">
+            ${gruposActuales[cat].map(p => `
+              <div class="personal-item" data-usuario-id="${p.id}">
+                <div class="personal-item-info">
+                  <span>${escapeHtml(p.nombre)}</span>
+                  <span class="rol">${escapeHtml(p.rol_nombre)}${p.tipo_vinculo === 'supervisor' ? ' · cobertura de supervisor' : ''}</span>
+                </div>
+              </div>
+            `).join('')}
           </div>
         `).join('') : '<p class="form-hint">Sin personal ligado todavía.</p>'}
       </div>
       <p class="section-title">Agregar personal</p>
       <div class="form-grid">
         <div class="form-field">
-          <label>Categoría</label>
+          <label>Tipo personal</label>
           <select id="input-categoria-personal">
             <option value="">Seleccionar categoría...</option>
             ${opcionesRol}
@@ -1109,50 +1490,6 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
         window.toast.success('Personal actualizado', 'Se agregó a la tienda.');
-        cerrar();
-        cargarTiendas();
-      } catch (error) {
-        mostrarErrorModal(overlay, error.message);
-        btn.disabled = false;
-      }
-    });
-  }
-
-  function abrirModalOrdenar() {
-    const ordenLocal = state.tiendas.slice().sort((a, b) => a.orden - b.orden);
-
-    function render(overlay) {
-      const lista = overlay.querySelector('#orden-lista');
-      lista.innerHTML = ordenLocal.map((t, i) => `
-        <div class="orden-item" data-tienda-id="${t.id}">
-          <span class="nombre">${escapeHtml(t.nombre)} (${escapeHtml(t.codigo)})</span>
-          <div class="orden-item-flechas">
-            <button type="button" class="btn-icon btn-subir" ${i === 0 ? 'disabled' : ''}><ion-icon name="chevron-up-outline"></ion-icon></button>
-            <button type="button" class="btn-icon btn-bajar" ${i === ordenLocal.length - 1 ? 'disabled' : ''}><ion-icon name="chevron-down-outline"></ion-icon></button>
-          </div>
-        </div>
-      `).join('');
-      $$('.btn-subir', lista).forEach((btn, i) => btn.addEventListener('click', () => { [ordenLocal[i - 1], ordenLocal[i]] = [ordenLocal[i], ordenLocal[i - 1]]; render(overlay); }));
-      $$('.btn-bajar', lista).forEach((btn, i) => btn.addEventListener('click', () => { [ordenLocal[i + 1], ordenLocal[i]] = [ordenLocal[i], ordenLocal[i + 1]]; render(overlay); }));
-    }
-
-    const { overlay, cerrar } = abrirModal({
-      title: 'Ordenar tiendas',
-      bodyHtml: `<div class="orden-lista" id="orden-lista"></div>`,
-      footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-guardar">Guardar orden</button>`
-    });
-    render(overlay);
-
-    overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
-    overlay.querySelector('#btn-guardar').addEventListener('click', async () => {
-      const btn = overlay.querySelector('#btn-guardar');
-      const ordenes = ordenLocal.map((t, i) => ({ id: t.id, orden: i + 1 }));
-      btn.disabled = true;
-      try {
-        const res = await fetch('/api/admin/tiendas/orden', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ordenes }) });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        window.toast.success('Orden actualizado', 'El catálogo de tiendas se reordenó.');
         cerrar();
         cargarTiendas();
       } catch (error) {

@@ -409,6 +409,157 @@
   min-width: 220px;
 }
 
+/* ------------------------------------------------------------------ */
+/* Menú cascada (analisis_correcciones_17.md #4/#5/#6/#7/#15) */
+/* ------------------------------------------------------------------ */
+.menu-cascada {
+  position: relative;
+}
+
+.menu-cascada-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 200px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: 9px 10px 9px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.menu-cascada-trigger:hover {
+  border-color: var(--color-primary);
+}
+
+.menu-cascada-trigger[aria-expanded="true"] {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.menu-cascada-trigger[aria-expanded="true"] ion-icon {
+  transform: rotate(180deg);
+}
+
+.menu-cascada-trigger ion-icon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: transform var(--transition-fast);
+}
+
+.menu-cascada-valor {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-cascada-panel {
+  /* Vive suelto en document.body (ver crearMenuCascada) — top/left los
+     calcula JS al abrir, relativo al trigger. */
+  position: fixed;
+  min-width: 260px;
+  max-height: 360px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  z-index: 200; /* por encima de .modal-overlay (100) — el menú también se usa dentro de modales */
+  opacity: 0;
+  /* Sin transform: cualquier transform (incluso identidad) en este panel
+     crearía un containing block nuevo y el submenú de nivel 2 (position:
+     fixed, para no quedar recortado por el overflow-y de arriba) quedaría
+     posicionado relativo a ESTE panel en vez del viewport. */
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+}
+
+.menu-cascada-panel.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.menu-cascada-panel ul {
+  list-style: none;
+}
+
+.menu-cascada-seccion {
+  padding: 6px 4px 2px;
+}
+
+.menu-cascada-seccion-titulo {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--color-text-muted);
+  padding: 4px 8px;
+}
+
+.menu-cascada-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.menu-cascada-item:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+  color: var(--color-primary);
+}
+
+.menu-cascada-item:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+.menu-cascada-item-activo {
+  color: var(--color-primary);
+  font-weight: 700;
+  background: var(--color-primary-light);
+}
+
+.menu-cascada-item-padre ion-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.menu-cascada-panel-nivel2 {
+  /* Vive suelto en document.body (ver crearMenuCascada) — la posición real
+     (top/left o right) la calcula JS al abrir con position:fixed, para no
+     depender de que ningún ancestro se mantenga "transform: none". */
+  position: fixed;
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  z-index: 201;
+  display: none;
+}
+
 .resumen-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -435,6 +586,22 @@
   font-weight: 600;
   color: var(--color-text-secondary);
   margin-top: 4px;
+}
+
+/* analisis_correcciones_17.md #8: contadores de Actividad de Usuarios que
+   también filtran la tabla al hacer clic — mismo patrón que
+   .contador-card.contador-clickeable en Vales de Arte. */
+.resumen-card-clickeable {
+  cursor: pointer;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.resumen-card-clickeable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.resumen-card-activo {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
 }
 
 .badge-activo { background: var(--color-success-bg); color: var(--color-success); }
@@ -588,33 +755,6 @@
 .personal-item-info .rol {
   font-size: 11px;
   color: var(--color-text-muted);
-}
-
-.orden-lista {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.orden-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-}
-
-.orden-item .nombre {
-  flex: 1;
-}
-
-.orden-item-flechas {
-  display: flex;
-  gap: 4px;
 }
 
 /* ------------------------------------------------------------------ */

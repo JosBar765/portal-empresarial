@@ -42,8 +42,8 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (18, 'vales.autorizar_creacion', 'Autorizar Creación', 'vales', 'Permite al supervisor autorizar el envío a talleres de un vale recién creado por sus asesores');
 
 INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
--- Administrador: admin
-(1, 1),
+-- Administrador: acceso al panel + ver vales (analisis_correcciones_17.md #0)
+(1, 1), (1, 8),
 -- Asesor de Ventas
 (2, 1), (2, 2), (2, 3), (2, 12), (2, 13),
 -- Supervisor de Ventas

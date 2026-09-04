@@ -121,6 +121,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log('[WebSocket] Notificación del portal recibida:', data);
       // Aquí se podrían renderizar popups, alertas flotantes o badges de actualización
     });
+
+    // analisis_correcciones_17.md #2: el admin cambió los permisos de mi
+    // rol — renuevo el JWT (sin pedir credenciales) y recargo para que el
+    // catálogo de módulos refleje los permisos vigentes.
+    socket.on('permisos_actualizados', async () => {
+      await fetch('/api/auth/refresh', { method: 'POST' });
+      window.location.reload();
+    });
   }
 
   // Función para renderizar tarjetas de módulos en la cuadrícula

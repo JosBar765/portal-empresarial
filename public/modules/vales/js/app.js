@@ -206,6 +206,7 @@
     sort: { key: null, dir: null }, // ídem — el orden por columna también corre en el servidor
     socket: null,
     cargaTrabajoModal: null,
+    historialModal: null,
     accionesEnCurso: new Set(),
     // `cursor` reemplaza a `offset` para el scroll infinito (analisis_correcciones_9.md
     // #3, opción B): es el id del último vale ya cargado, no una posición numérica —
@@ -439,6 +440,17 @@
     if (state.user.rolId === ROL.SUPERVISOR) {
       $('#sidebar-item-terciario', sidebar).style.display = '';
     }
+
+    // analisis_correcciones_17.md #10: no perder la vista activa al
+    // recargar — se valida contra las vistas que este rol realmente tiene
+    // (los botones ya quedaron reescritos arriba para Gerente/Supervisor).
+    const VISTA_ACTIVA_KEY = 'vales:vistaActiva';
+    const vistasValidas = $$('.sidebar-item', sidebar).map(b => b.dataset.vista);
+    const vistaGuardada = localStorage.getItem(VISTA_ACTIVA_KEY);
+    if (vistasValidas.includes(vistaGuardada)) {
+      state.vista = vistaGuardada;
+    }
+    $$('.sidebar-item', sidebar).forEach(b => b.classList.toggle('sidebar-item-active', b.dataset.vista === state.vista));
     actualizarTituloYSeccionesVista();
 
     $$('.sidebar-item', sidebar).forEach(btn => {
@@ -448,6 +460,7 @@
         $$('.sidebar-item', sidebar).forEach(b => b.classList.remove('sidebar-item-active'));
         btn.classList.add('sidebar-item-active');
         state.vista = btn.dataset.vista;
+        localStorage.setItem(VISTA_ACTIVA_KEY, state.vista);
         state.sort = { key: null, dir: null };
         state.filtroContador = null; // un filtro de contador es propio de la vista activa
         state.soloAtrasados = false;
@@ -670,7 +683,14 @@
     if (typeof io === 'undefined') return;
     state.socket = io({ query: { userId: state.user.id } });
     state.socket.on('connect', () => {
-      state.socket.emit('register_module', roomsParaUsuario(state.user));
+      // `role_X` es independiente de las salas de notificación de vales
+      // (roomsParaUsuario) — todo rol la necesita para enterarse de cambios
+      // de permisos (analisis_correcciones_17.md #2), incluido Gerente.
+      state.socket.emit('register_module', [...roomsParaUsuario(state.user), `role_${state.user.rolId}`]);
+    });
+    state.socket.on('permisos_actualizados', async () => {
+      await fetch('/api/auth/refresh', { method: 'POST' });
+      window.location.reload();
     });
     state.socket.on('vale_evento', (data) => {
       // analisis_correcciones_10.md #10: el mensaje ya viene formateado y
@@ -702,6 +722,13 @@
           state.cargaTrabajoModal.actualizar();
         } else {
           state.cargaTrabajoModal = null;
+        }
+      }
+      if (state.historialModal) {
+        if (state.historialModal.overlay.isConnected) {
+          state.historialModal.actualizar();
+        } else {
+          state.historialModal = null;
         }
       }
     });
@@ -2620,22 +2647,30 @@
   // -------------------------------------------------------------------------
   // Historial / trazabilidad
   // -------------------------------------------------------------------------
-  async function abrirModalHistorial(vale) {
+  // analisis_correcciones_17.md #9: se mantiene actualizado en tiempo real
+  // mientras está abierto — mismo patrón que state.cargaTrabajoModal (ver
+  // el handler de vale_evento).
+  async function renderContenidoHistorial(overlay, valeId) {
     let detalle;
     try {
-      detalle = await (await fetch(`/api/vales/${vale.id}`)).json();
+      detalle = await (await fetch(`/api/vales/${valeId}`)).json();
     } catch {
       detalle = { historial: [] };
     }
+    overlay.querySelector('.modal-body').innerHTML = `
+      <ul class="historial-list">
+        ${(detalle.historial || []).map(h => `<li><span class="fecha">${formatearFechaHora(h.creado_en)}</span>${h.actor_nombre ? `<strong>${h.actor_nombre}:</strong> ` : ''}${h.accion}</li>`).join('') || '<li>Sin movimientos registrados.</li>'}
+      </ul>
+    `;
+  }
+
+  async function abrirModalHistorial(vale) {
     const { overlay } = abrirModal({
       title: `Historial — ${vale.correlativo}`,
-      bodyHtml: `
-        <ul class="historial-list">
-          ${(detalle.historial || []).map(h => `<li><span class="fecha">${formatearFechaHora(h.creado_en)}</span>${h.actor_nombre ? `<strong>${h.actor_nombre}:</strong> ` : ''}${h.accion}</li>`).join('') || '<li>Sin movimientos registrados.</li>'}
-        </ul>
-      `
+      bodyHtml: `<ul class="historial-list"></ul>`
     });
-    void overlay;
+    state.historialModal = { overlay, actualizar: () => renderContenidoHistorial(overlay, vale.id) };
+    await renderContenidoHistorial(overlay, vale.id);
   }
 
   // -------------------------------------------------------------------------

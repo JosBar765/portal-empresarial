@@ -17,5 +17,8 @@ router.route('/')
 router.get('/session', (req, res) => authController.sessionCheck(req, res));
 router.post('/login', (req, res) => authController.loginPost(req, res));
 router.post('/logout', (req, res) => authController.logout(req, res));
+// analisis_correcciones_17.md #2/#3: refresco de JWT en caliente y latido de presencia.
+router.post('/refresh', (req, res) => authController.refreshToken(req, res));
+router.get('/heartbeat', (req, res) => authController.heartbeat(req, res));
 
 module.exports = router;
