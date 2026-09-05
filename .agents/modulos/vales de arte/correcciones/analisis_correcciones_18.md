@@ -79,3 +79,5 @@ Para este punto surgirá la duda que pasa con el rol de `asistente`. Para este, 
 Los `técnicos` no tiene que ser una entidad por aparte, usaremos la misma tabla de usuario. Pero, creemos una tabla para relacionar *el taller con sus técnicos*. Actualmente un técnico puede trabajar en dos tallares diferentes y esto no es así, porque el técnico trabaja físicamente en la tienda. Con esta nueva tabla nor ahorramos ese error
 
 Lo administradores solo tienen que ver con el sistema, no tienen nada que ver con las tiendas. Actualmente, el sistema me muestra al administrador como empleado de la tienda, eso no tiene ninguna relación. El administrador ADMINISTRA el sistema en general.
+
+**IMPORTANTE DAME UN PLAN PARA IMPLEMENTAR ESTO, YA QUE, NECESITAMOS PRIORIZAR LA FUNCIONALIDAD ACTUAL DEL SISTEMA. SI NECESITAS ACLARACIONES ANDAMELO PREGUNTANDO**
