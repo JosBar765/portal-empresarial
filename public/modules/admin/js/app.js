@@ -1358,7 +1358,8 @@
             ${grupos[rol].map(p => `
               <div class="personal-item">
                 <div class="personal-item-info">
-                  <span>${escapeHtml(p.nombre)}</span>${p.tipo_vinculo === 'supervisor' ? '<span class="rol">Cobertura de supervisor</span>' : ''}
+                  <span>${escapeHtml(p.nombre)}</span>
+                  ${p.tipo_vinculo === 'supervisor' ? '<span class="rol">Cobertura de supervisor</span>' : ''}
                 </div>
               </div>
             `).join('')}
@@ -1413,7 +1414,6 @@
               <div class="personal-item" data-usuario-id="${p.id}">
                 <div class="personal-item-info">
                   <span>${escapeHtml(p.nombre)}</span>
-                  <span class="rol">${escapeHtml(p.rol_nombre)}${p.tipo_vinculo === 'supervisor' ? ' · cobertura de supervisor' : ''}</span>
                 </div>
               </div>
             `).join('')}
