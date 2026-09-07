@@ -22,9 +22,16 @@ router.get('/roles/:id/permisos', soloAdmin, (req, res) => adminController.obten
 router.put('/roles/:id/permisos', soloAdmin, (req, res) => adminController.actualizarPermisosRol(req, res));
 router.patch('/roles/:id/activo', soloAdmin, (req, res) => adminController.establecerActivoRol(req, res));
 
+// Talleres
+router.get('/talleres', soloAdmin, (req, res) => adminController.listarTalleres(req, res));
+router.get('/talleres/:id/personal', soloAdmin, (req, res) => adminController.listarPersonalTaller(req, res));
+router.post('/talleres/:id/encargado', soloAdmin, (req, res) => adminController.asignarEncargadoDeTaller(req, res));
+router.delete('/talleres/:id/encargado', soloAdmin, (req, res) => adminController.quitarEncargadoDeTaller(req, res));
+router.post('/talleres/:id/tecnicos', soloAdmin, (req, res) => adminController.asignarTecnicoATaller(req, res));
+router.delete('/talleres/:id/tecnicos/:usuarioId', soloAdmin, (req, res) => adminController.quitarTecnicoDeTaller(req, res));
+
 // Tiendas
 router.get('/organizacion', soloAdmin, (req, res) => adminController.obtenerOrganizacion(req, res));
-router.get('/talleres', soloAdmin, (req, res) => adminController.listarTalleres(req, res));
 router.get('/tiendas', soloAdmin, (req, res) => adminController.listarTiendas(req, res));
 router.post('/tiendas', soloAdmin, (req, res) => adminController.crearTienda(req, res));
 router.put('/tiendas/orden', soloAdmin, (req, res) => adminController.actualizarOrdenTiendas(req, res));

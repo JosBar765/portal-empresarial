@@ -2,17 +2,6 @@
 const db = require('../../../config/database');
 
 class UsuarioAdminRepository {
-  // analisis_correcciones_18.md #5: la tienda de un Asesor vive en
-  // `asesores.tienda_id` (no en `usuarios.tienda_id`); el nombre a mostrar se
-  // deriva vía `empresas`/`subdivisiones` igual que en `tiendaAdminRepository`.
-  // `paises_asignados` de un Supervisor puede abarcar VARIAS tiendas/países
-  // (`supervisor_tiendas`) — este JOIN plano solo alcanza a mostrar uno; el
-  // mock (`usuario_admin:list`) sí calcula la lista completa vía
-  // `tiendasCubiertasPorSupervisor`.
-  // analisis_correcciones_19.md #8/#10/#12: `taller_id` — de `taller_tecnicos`
-  // para Técnico/Asistente (6/7), o de `talleres.encargado_id` para los
-  // encargados de taller (4/5/9/10) — para que "Editar usuario" pueda
-  // preseleccionar/mostrar el taller actual.
   async listarConDetalle() {
     return db.query(
       `SELECT u.*, r.nombre AS rol_nombre,
@@ -22,7 +11,7 @@ class UsuarioAdminRepository {
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
        LEFT JOIN asesores a ON a.usuario_id = u.id
-       LEFT JOIN tiendas t ON t.id = COALESCE(a.tienda_id, u.tienda_id)
+       LEFT JOIN tiendas t ON t.id = a.tienda_id
        LEFT JOIN empresas e ON e.id = t.empresa_id
        LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
        LEFT JOIN paises p ON p.id = e.pais_id
@@ -44,22 +33,19 @@ class UsuarioAdminRepository {
     return rows[0] || null;
   }
 
-  // analisis_correcciones_18.md #5: `usuarios` ya no tiene `telefono` —
-  // Asesor/Supervisor lo guardan en su tabla satélite; el resto de roles no
-  // lo tienen en el sistema.
-  async crear({ nombre, email, passwordHash, rolId, tiendaId }) {
+  async crear({ nombre, email, passwordHash, rolId }) {
     const result = await db.query(
-      'INSERT INTO usuarios (nombre, email, password_hash, rol_id, tienda_id) VALUES (?, ?, ?, ?, ?)',
-      [nombre, email, passwordHash, rolId, tiendaId || null],
+      'INSERT INTO usuarios (nombre, email, password_hash, rol_id) VALUES (?, ?, ?, ?)',
+      [nombre, email, passwordHash, rolId],
       'usuario_admin:insert'
     );
     return result.insertId;
   }
 
-  async actualizar(id, { nombre, email, rolId, tiendaId }) {
+  async actualizar(id, { nombre, email, rolId }) {
     return db.query(
-      'UPDATE usuarios SET nombre = ?, email = ?, rol_id = ?, tienda_id = ? WHERE id = ?',
-      [nombre, email, rolId, tiendaId || null, id],
+      'UPDATE usuarios SET nombre = ?, email = ?, rol_id = ? WHERE id = ?',
+      [nombre, email, rolId, id],
       'usuario_admin:update'
     );
   }

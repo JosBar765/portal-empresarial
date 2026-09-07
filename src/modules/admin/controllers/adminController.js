@@ -194,6 +194,51 @@ class AdminController {
     }
   }
 
+  async listarPersonalTaller(req, res) {
+    try {
+      const personal = await adminService.listarPersonalTaller(Number(req.params.id));
+      return res.json(personal);
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  async asignarEncargadoDeTaller(req, res) {
+    try {
+      await adminService.asignarEncargadoDeTaller(Number(req.params.id), Number(req.body.usuarioId));
+      return res.json({ ok: true });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
+  async quitarEncargadoDeTaller(req, res) {
+    try {
+      await adminService.quitarEncargadoDeTaller(Number(req.params.id));
+      return res.json({ ok: true });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
+  async asignarTecnicoATaller(req, res) {
+    try {
+      await adminService.asignarTecnicoATaller(Number(req.params.id), Number(req.body.usuarioId));
+      return res.status(201).json({ ok: true });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
+  async quitarTecnicoDeTaller(req, res) {
+    try {
+      await adminService.quitarTecnicoDeTaller(Number(req.params.usuarioId));
+      return res.json({ ok: true });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
   // ---- Mantenimiento ----
   async obtenerMantenimiento(req, res) {
     try {

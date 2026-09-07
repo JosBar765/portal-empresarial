@@ -4,16 +4,11 @@
 const db = require('../../../config/database');
 
 class UsuarioValeRepository {
-  // analisis_correcciones_18.md #5: `usuarios` ya no tiene columna `telefono`
-  // en absoluto (solo Asesor/Supervisor lo tienen, en su tabla satélite) ni
-  // guarda tienda de Asesor/Supervisor, ni el taller del técnico (sale de
-  // `taller_tecnicos`, reemplaza `usuarios.encargado_id`). Encargado de
-  // taller sigue leyendo `usuarios.tienda_id` directo (sin cambios).
   async obtenerPorId(id) {
     const rows = await db.query(
       `SELECT u.id, u.nombre, u.email, u.rol_id, u.activo,
               COALESCE(a.telefono, s.telefono) AS telefono,
-              COALESCE(a.tienda_id, u.tienda_id) AS tienda_id,
+              a.tienda_id AS tienda_id,
               tt.taller_id AS taller_id
        FROM usuarios u
        LEFT JOIN asesores a ON a.usuario_id = u.id

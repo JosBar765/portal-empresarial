@@ -26,112 +26,21 @@ const ROL_ADMINISTRADOR = 1;
 // que tiene uno por tienda) — un solo encargado activo a la vez, y solo en
 // MTC (1) o MTS (2).
 const ROLES_ENCARGADO_UNICO = [4, 5, 9];
-const TIENDAS_ENCARGADO_TALLER = [1, 2];
-// analisis_correcciones_19.md #8/#10/#12: roles con asignación de taller.
 const ROL_TECNICO = 6;
 const ROL_ASISTENTE = 7;
 const ROL_ENCARGADO_DISENO_LOCAL = 10;
 // Diseño/Diseño UV-3D/Protextil son de toda la empresa — cada uno mapea a
-// EXACTAMENTE un taller, así que asignar el rol ya implica cuál taller es
-// (sin selector en el frontend); Encargado de taller local sí necesita
-// elegir CUÁL de los N "Diseño Local" (uno por tienda).
+// exactamente un taller.
 const TALLER_FIJO_POR_ROL = { 4: 'Diseño', 5: 'Diseño UV/3D', 9: 'Protextil' };
-// analisis_correcciones_19.md #10: el Asistente solo puede "clonar" uno de
-// estos tres — nunca un Diseño Local (él trabaja para Munditrofeos).
 const TALLERES_CLONABLES_ASISTENTE = ['Diseño', 'Diseño UV/3D', 'Protextil'];
-// Todos los roles cuya asignación de taller orquesta `_sincronizarAsignacionTaller`.
-const ROLES_CON_TALLER = [4, 5, 6, 7, 9, 10];
 
 class AdminService {
-  // analisis_correcciones_17.md #12/#13: valida al crear/editar un usuario
-  // con rol de encargado único. `excluirId` es el propio usuario en edición
-  // (para no chocar consigo mismo) o null al crear. Solo bloquea altas o
-  // cambios nuevos — no toca datos ya existentes.
-  async _validarEncargadoUnico(rolId, tiendaId, excluirId) {
+  async _validarEncargadoUnico(rolId, excluirId) {
     if (!ROLES_ENCARGADO_UNICO.includes(Number(rolId))) return;
-    if (tiendaId != null && !TIENDAS_ENCARGADO_TALLER.includes(Number(tiendaId))) {
-      throw new Error('Los encargados de taller de Diseño, Diseño 3D y Protextil solo pueden asignarse a MTC o MTS.');
-    }
     const usuarios = await usuarioAdminRepository.listarConDetalle();
     const ocupante = usuarios.find(u => u.activo && Number(u.rol_id) === Number(rolId) && Number(u.id) !== Number(excluirId));
     if (ocupante) {
       throw new Error(`Ya existe un encargado activo para este rol: ${ocupante.nombre}.`);
-    }
-  }
-
-  // analisis_correcciones_19.md #8/#10/#12: asigna/desasigna el taller de un
-  // Técnico, Encargado de taller local o Asistente, según el rol.
-  // Para roles 6 (Técnico) y 10 (Encargado de taller local) devuelve la
-  // `tienda_id` final que debe QUEDAR en `usuarios` (siempre un valor
-  // concreto, derivado del taller o de la elección MTC/MTS) — el llamador
-  // la usa para sobreescribir la fila recién creada/actualizada. Para 4/5/9
-  // (taller fijo por rol, sin selector) y 7 (Asistente, sin tienda propia)
-  // no toca `usuarios.tienda_id` en absoluto.
-  async _sincronizarAsignacionTaller(rolNum, usuarioId, tallerIdSolicitado, tiendaIdPropuesta) {
-    const tallerFijoNombre = TALLER_FIJO_POR_ROL[rolNum];
-    if (tallerFijoNombre) {
-      // Roles 4/5/9: un solo taller posible en todo el sistema. La unicidad
-      // ya la garantizó `_validarEncargadoUnico` (candado por rol) antes de
-      // llegar aquí — esto solo sincroniza `talleres.encargado_id`, invisible
-      // para el admin (sin selector en el frontend).
-      const talleres = await tallerAdminRepository.listarTalleres();
-      const taller = talleres.find(t => t.nombre === tallerFijoNombre);
-      if (taller) await tallerAdminRepository.asignarEncargado(taller.id, usuarioId);
-      return { tocaTienda: false };
-    }
-
-    if (rolNum === ROL_ENCARGADO_DISENO_LOCAL) {
-      await tallerAdminRepository.quitarEncargadoDe(usuarioId);
-      if (!tallerIdSolicitado) return { tocaTienda: true, tiendaId: null }; // "Sin taller asignado"
-      const taller = await tallerAdminRepository.obtenerPorId(Number(tallerIdSolicitado));
-      if (!taller) throw new Error('El taller seleccionado no es válido.');
-      if (taller.encargado_id != null && Number(taller.encargado_id) !== Number(usuarioId)) {
-        const ocupante = await usuarioAdminRepository.obtenerPorId(taller.encargado_id);
-        if (ocupante && ocupante.activo) {
-          throw new Error(`Ya existe un encargado activo para ${taller.nombre}: ${ocupante.nombre}. Desasígnalo primero.`);
-        }
-      }
-      await tallerAdminRepository.asignarEncargado(taller.id, usuarioId);
-      // analisis_correcciones_19.md #12: la tienda de un Diseño Local es
-      // siempre la de su taller — un solo selector (Taller), no dos que se
-      // puedan desincronizar.
-      return { tocaTienda: true, tiendaId: taller.tienda_id };
-    }
-
-    if (rolNum === ROL_TECNICO || rolNum === ROL_ASISTENTE) {
-      if (!tallerIdSolicitado) {
-        await tallerAdminRepository.quitarTecnico(usuarioId);
-        return rolNum === ROL_TECNICO ? { tocaTienda: true, tiendaId: null } : { tocaTienda: false };
-      }
-      const taller = await tallerAdminRepository.obtenerPorId(Number(tallerIdSolicitado));
-      if (!taller) throw new Error('El taller seleccionado no es válido.');
-      // analisis_correcciones_19.md #10: el Asistente nunca clona un Diseño Local.
-      if (rolNum === ROL_ASISTENTE && !TALLERES_CLONABLES_ASISTENTE.includes(taller.nombre)) {
-        throw new Error('El Asistente solo puede clonar Diseño, Diseño UV/3D o Protextil.');
-      }
-      await tallerAdminRepository.asignarTecnico(usuarioId, taller.id);
-      if (rolNum === ROL_ASISTENTE) return { tocaTienda: false }; // el Asistente no tiene selector de tienda propio
-      // Diseño Local: la tienda se deriva del taller. Taller compartido
-      // (Diseño/UV-3D/Protextil): el técnico SÍ elige MTC o MTS (punto 6),
-      // a diferencia del encargado de ese mismo taller.
-      if (taller.tienda_id != null) return { tocaTienda: true, tiendaId: taller.tienda_id };
-      if (!TIENDAS_ENCARGADO_TALLER.includes(Number(tiendaIdPropuesta))) {
-        throw new Error('Un técnico de un taller de Munditrofeos debe indicar si trabaja en MTC o MTS.');
-      }
-      return { tocaTienda: true, tiendaId: Number(tiendaIdPropuesta) };
-    }
-
-    return { tocaTienda: false };
-  }
-
-  // Libera la asignación de taller al cambiar de rol A uno que ya no la usa
-  // — mismo patrón que ya existe para asesor/supervisor.
-  async _liberarAsignacionTaller(rolAnterior, usuarioId) {
-    if (TALLER_FIJO_POR_ROL[rolAnterior] || rolAnterior === ROL_ENCARGADO_DISENO_LOCAL) {
-      await tallerAdminRepository.quitarEncargadoDe(usuarioId);
-    }
-    if (rolAnterior === ROL_TECNICO || rolAnterior === ROL_ASISTENTE) {
-      await tallerAdminRepository.quitarTecnico(usuarioId);
     }
   }
 
@@ -151,14 +60,13 @@ class AdminService {
     };
   }
 
-  // analisis_correcciones_18.md #5: Asesor de Ventas y Supervisor de Ventas
-  // ya no guardan tienda/teléfono en `usuarios` — viven en sus filas
-  // satélite (`asesores`/`supervisores`), que esta clase orquesta según el
-  // rol elegido en el formulario. `usuarios.tienda_id`/`telefono` quedan
-  // reservados para los roles sin entidad propia (Encargados de taller,
-  // Técnico, Asistente, Gerente).
+  // "Gestionar Usuarios" solo crea usuarios y edita su información personal
+  // (nombre/correo/contraseña/teléfono) — ninguna asignación de tienda o
+  // taller pasa por aquí; esa vive en "Gestionar Tiendas"/"Gestionar
+  // Talleres". Como no queda ningún paso fallible después del insert base,
+  // no puede quedar un usuario huérfano a medio crear.
   async crearUsuario(datos) {
-    const { nombre, email, password, rolId, tiendaId, tallerId, telefono, tiendasSupervisadas } = datos;
+    const { nombre, email, password, rolId, telefono } = datos;
     if (!nombre || !email || !password || !rolId) {
       throw new Error('Nombre, correo, contraseña y rol son obligatorios.');
     }
@@ -166,128 +74,49 @@ class AdminService {
     if (existente) {
       throw new Error('Ya existe un usuario con ese correo electrónico.');
     }
-    await this._validarEncargadoUnico(rolId, tiendaId, null);
+    await this._validarEncargadoUnico(rolId, null);
     const passwordHash = await bcrypt.hash(password, 10);
     const rolNum = Number(rolId);
     const esSupervisor = rolNum === ROL_SUPERVISOR;
     const esAsesor = rolNum === ROL_ASESOR;
-    // analisis_correcciones_18.md #1: el Administrador administra el sistema
-    // completo — nunca pertenece a ninguna tienda, tampoco al crearlo.
-    const esAdministrador = rolNum === ROL_ADMINISTRADOR;
-    const id = await usuarioAdminRepository.crear({
-      nombre, email,
-      passwordHash,
-      rolId: rolNum,
-      tiendaId: (esSupervisor || esAsesor || esAdministrador) ? null : (tiendaId || null)
-    });
+    const id = await usuarioAdminRepository.crear({ nombre, email, passwordHash, rolId: rolNum });
     if (esAsesor) {
-      await usuarioAdminRepository.crearAsesor(id, tiendaId || null, telefono || null);
+      await usuarioAdminRepository.crearAsesor(id, null, telefono || null);
     } else if (esSupervisor) {
       await usuarioAdminRepository.crearSupervisor(id, telefono || null);
-      if (Array.isArray(tiendasSupervisadas)) {
-        for (const tId of tiendasSupervisadas) {
-          await tiendaAdminRepository.agregarSupervisorATienda(id, Number(tId));
-        }
-      }
-    } else if (ROLES_CON_TALLER.includes(rolNum)) {
-      // analisis_correcciones_19.md #8/#10/#12: la tienda final de un
-      // Técnico/Encargado de taller local puede depender del taller recién
-      // asignado — el insert de arriba ya guardó la que vino del formulario,
-      // aquí se corrige si corresponde (necesita el id ya creado).
-      const resultado = await this._sincronizarAsignacionTaller(rolNum, id, tallerId, tiendaId);
-      if (resultado.tocaTienda) {
-        await usuarioAdminRepository.actualizar(id, { nombre, email, rolId: rolNum, tiendaId: resultado.tiendaId });
-      }
     }
     return usuarioAdminRepository.obtenerPorId(id);
   }
 
+  // El rol nunca cambia al editar — se fija en la creación.
   async actualizarUsuario(id, datos, actorId) {
-    const { nombre, email, password, rolId, tiendaId, tallerId, telefono, tiendasSupervisadas } = datos;
+    const { nombre, email, password, telefono } = datos;
     const usuario = await usuarioAdminRepository.obtenerPorId(id);
     if (!usuario) throw new Error('Usuario no encontrado.');
-    // analisis_correcciones_17.md #11: el rol Administrador es intocable
-    // desde este panel — ni siquiera otro administrador puede modificarlo.
     if (Number(usuario.rol_id) === ROL_ADMINISTRADOR) {
       throw new Error('El usuario Administrador no se puede modificar desde este panel.');
     }
-    if (!nombre || !email || !rolId) {
-      throw new Error('Nombre, correo y rol son obligatorios.');
+    if (!nombre || !email) {
+      throw new Error('Nombre y correo son obligatorios.');
     }
     const existente = await usuarioAdminRepository.obtenerPorEmail(email);
     if (existente && existente.id !== Number(id)) {
       throw new Error('Ya existe otro usuario con ese correo electrónico.');
     }
-    await this._validarEncargadoUnico(rolId, tiendaId, id);
-    // analisis_correcciones_14.md #2: un Administrador no puede cambiar su
-    // propia contraseña desde el panel (autoedición bloqueada).
     if (password && Number(id) === Number(actorId) && Number(usuario.rol_id) === ROL_ADMINISTRADOR) {
       throw new Error('No puedes cambiar tu propia contraseña de administrador.');
     }
-    const rolAnterior = Number(usuario.rol_id);
-    const rolNuevo = Number(rolId);
-    const esSupervisor = rolNuevo === ROL_SUPERVISOR;
-    const esAsesor = rolNuevo === ROL_ASESOR;
-    // El rol cambió y dejó de usar taller: libera la asignación previa PRIMERO
-    // — roles 6/7 comparten `taller_tecnicos` (misma PK en usuario_id), así
-    // que si esto corriera después de sincronizar el rol nuevo borraría la
-    // asignación recién hecha.
-    if (rolAnterior !== rolNuevo && ROLES_CON_TALLER.includes(rolAnterior)) {
-      await this._liberarAsignacionTaller(rolAnterior, id);
-    }
-    // analisis_correcciones_19.md #8/#10/#12: para los roles con taller, la
-    // tienda final puede depender del taller elegido — se resuelve ANTES de
-    // guardar (a diferencia de crearUsuario, aquí el id ya existe).
-    let tiendaFinal = (esSupervisor || esAsesor) ? null : (tiendaId || null);
-    if (ROLES_CON_TALLER.includes(rolNuevo)) {
-      const resultado = await this._sincronizarAsignacionTaller(rolNuevo, id, tallerId, tiendaId);
-      if (resultado.tocaTienda) tiendaFinal = resultado.tiendaId;
-    }
-    await usuarioAdminRepository.actualizar(id, {
-      nombre, email,
-      rolId: rolNuevo,
-      tiendaId: tiendaFinal
-    });
+    const rolNum = Number(usuario.rol_id);
+    await usuarioAdminRepository.actualizar(id, { nombre, email, rolId: rolNum });
     if (password) {
       const passwordHash = await bcrypt.hash(password, 10);
       await usuarioAdminRepository.actualizarPassword(id, passwordHash);
     }
-    // El rol cambió y dejó de ser Asesor/Supervisor: limpia la fila satélite huérfana.
-    if (rolAnterior === ROL_ASESOR && !esAsesor) await usuarioAdminRepository.eliminarAsesor(id);
-    if (rolAnterior === ROL_SUPERVISOR && !esSupervisor) await usuarioAdminRepository.eliminarSupervisor(id);
-
-    if (esAsesor) {
-      // analisis_correcciones_18.md #5: este modal general NO reasigna la
-      // tienda de un asesor (regla de negocio: primero hay que desasignarlo
-      // y luego asignarlo desde Gestionar Tiendas → Gestionar personal) —
-      // aquí solo se actualiza el teléfono, conservando la tienda que ya
-      // tuviera (o sin tienda, si el rol acaba de cambiar A asesor).
+    if (rolNum === ROL_ASESOR) {
       const asesorExistente = await usuarioAdminRepository.obtenerAsesorPorUsuarioId(id);
-      if (asesorExistente) {
-        await usuarioAdminRepository.actualizarAsesor(id, asesorExistente.tienda_id, telefono || null);
-      } else {
-        await usuarioAdminRepository.crearAsesor(id, null, telefono || null);
-      }
-    } else if (esSupervisor) {
-      const supervisorExistente = await usuarioAdminRepository.obtenerSupervisorPorUsuarioId(id);
-      if (supervisorExistente) {
-        await usuarioAdminRepository.actualizarSupervisor(id, telefono || null);
-      } else {
-        await usuarioAdminRepository.crearSupervisor(id, telefono || null);
-      }
-      if (Array.isArray(tiendasSupervisadas)) {
-        // Reemplaza la cobertura por tienda: quita las que ya no están, agrega las nuevas.
-        const cubiertasAntes = await tiendaAdminRepository.listarTiendaIdsCubiertasDirectamente(id);
-        const nuevas = tiendasSupervisadas.map(Number);
-        for (const tId of cubiertasAntes) {
-          if (!nuevas.includes(tId)) {
-            await tiendaAdminRepository.quitarSupervisorDeTienda(id, tId);
-          }
-        }
-        for (const tId of nuevas) {
-          await tiendaAdminRepository.agregarSupervisorATienda(id, tId);
-        }
-      }
+      await usuarioAdminRepository.actualizarAsesor(id, asesorExistente ? asesorExistente.tienda_id : null, telefono || null);
+    } else if (rolNum === ROL_SUPERVISOR) {
+      await usuarioAdminRepository.actualizarSupervisor(id, telefono || null);
     }
     return usuarioAdminRepository.obtenerPorId(id);
   }
@@ -440,43 +269,25 @@ class AdminService {
     return tiendaAdminRepository.listarPersonalDetalle(tiendaId);
   }
 
-  // analisis_correcciones_18.md #1: el Administrador administra el sistema
-  // en general, no pertenece a ninguna tienda — nunca es asignable como
-  // personal.
   async agregarPersonalATienda(tiendaId, usuarioId) {
     const usuario = await usuarioAdminRepository.obtenerPorId(usuarioId);
     if (!usuario) throw new Error('Usuario no encontrado.');
-    if (Number(usuario.rol_id) === ROL_ADMINISTRADOR) {
-      throw new Error('El Administrador no pertenece a ninguna tienda.');
-    }
-    // analisis_correcciones_18.md #5: el encargado de Diseño/Diseño 3D/
-    // Protextil pertenece a MTC y MTS por ser dueño de un taller compartido
-    // (`encargado_tienda`), no por una asignación de personal directa — no
-    // se puede tocar desde aquí.
-    if (ROLES_ENCARGADO_UNICO.includes(Number(usuario.rol_id))) {
-      throw new Error('Este encargado pertenece a MTC y MTS por ser dueño de un taller compartido — no se asigna desde aquí.');
-    }
     if (Number(usuario.rol_id) === ROL_SUPERVISOR) {
       return tiendaAdminRepository.agregarSupervisorATienda(usuarioId, tiendaId);
     }
     if (Number(usuario.rol_id) === ROL_ASESOR) {
-      // analisis_correcciones_18.md #5: un asesor trabaja para UNA tienda a
-      // la vez — hay que desasignarlo primero para poder reasignarlo.
       const asesor = await usuarioAdminRepository.obtenerAsesorPorUsuarioId(usuarioId);
       if (asesor && asesor.tienda_id != null && Number(asesor.tienda_id) !== Number(tiendaId)) {
         throw new Error('Este asesor ya está asignado a otra tienda. Desasígnalo primero antes de asignarlo a una nueva.');
       }
       return usuarioAdminRepository.actualizarAsesor(usuarioId, tiendaId, asesor ? asesor.telefono : null);
     }
-    return tiendaAdminRepository.asignarTiendaAUsuario(usuarioId, tiendaId);
+    throw new Error('Este rol no se asigna a una tienda desde aquí — su ubicación depende de su taller (ver Gestionar Talleres).');
   }
 
   async quitarPersonalDeTienda(tiendaId, usuarioId) {
     const usuario = await usuarioAdminRepository.obtenerPorId(usuarioId);
     if (!usuario) throw new Error('Usuario no encontrado.');
-    if (ROLES_ENCARGADO_UNICO.includes(Number(usuario.rol_id))) {
-      throw new Error('Este encargado pertenece a MTC y MTS por ser dueño de un taller compartido — no se puede quitar desde aquí.');
-    }
     if (Number(usuario.rol_id) === ROL_SUPERVISOR) {
       return tiendaAdminRepository.quitarSupervisorDeTienda(usuarioId, tiendaId);
     }
@@ -484,14 +295,15 @@ class AdminService {
       const asesor = await usuarioAdminRepository.obtenerAsesorPorUsuarioId(usuarioId);
       return usuarioAdminRepository.actualizarAsesor(usuarioId, null, asesor ? asesor.telefono : null);
     }
-    return tiendaAdminRepository.quitarTiendaDeUsuario(usuarioId);
+    throw new Error('Este rol no se asigna a una tienda desde aquí — su ubicación depende de su taller (ver Gestionar Talleres).');
   }
 
   async obtenerOrganizacion() {
     return {
       empresas: await tiendaAdminRepository.listarEmpresas(),
       departamentos: await tiendaAdminRepository.listarDepartamentos(),
-      subdivisiones: await tiendaAdminRepository.listarSubdivisiones()
+      subdivisiones: await tiendaAdminRepository.listarSubdivisiones(),
+      paises: await tiendaAdminRepository.listarPaises()
     };
   }
 
@@ -499,7 +311,58 @@ class AdminService {
   // el selector "Taller" del modal "Editar usuario" (Técnico, Encargado de
   // taller local y Asistente).
   async listarTalleres() {
-    return { talleres: await tallerAdminRepository.listarTalleres() };
+    return { talleres: await tallerAdminRepository.listarConDetalle() };
+  }
+
+  async listarPersonalTaller(tallerId) {
+    return tallerAdminRepository.listarPersonalDetalle(tallerId);
+  }
+
+  // Diseño/UV-3D/Protextil solo aceptan su rol fijo; cualquier otro taller
+  // (un "Diseño Local - X") solo acepta rol 10.
+  _rolEsperadoDeTaller(taller) {
+    const fijo = Object.entries(TALLER_FIJO_POR_ROL).find(([, nombre]) => nombre === taller.nombre);
+    return fijo ? Number(fijo[0]) : ROL_ENCARGADO_DISENO_LOCAL;
+  }
+
+  async asignarEncargadoDeTaller(tallerId, usuarioId) {
+    const taller = await tallerAdminRepository.obtenerPorId(tallerId);
+    if (!taller) throw new Error('Taller no encontrado.');
+    const usuario = await usuarioAdminRepository.obtenerPorId(usuarioId);
+    if (!usuario) throw new Error('Usuario no encontrado.');
+    if (Number(usuario.rol_id) !== this._rolEsperadoDeTaller(taller)) {
+      throw new Error('Este usuario no tiene el rol correcto para ser encargado de este taller.');
+    }
+    if (taller.encargado_id != null && Number(taller.encargado_id) !== Number(usuarioId)) {
+      const ocupante = await usuarioAdminRepository.obtenerPorId(taller.encargado_id);
+      if (ocupante && ocupante.activo) {
+        throw new Error(`Ya existe un encargado activo para ${taller.nombre}: ${ocupante.nombre}. Desasígnalo primero.`);
+      }
+    }
+    return tallerAdminRepository.asignarEncargado(tallerId, usuarioId);
+  }
+
+  async quitarEncargadoDeTaller(tallerId) {
+    return tallerAdminRepository.asignarEncargado(tallerId, null);
+  }
+
+  async asignarTecnicoATaller(tallerId, usuarioId) {
+    const taller = await tallerAdminRepository.obtenerPorId(tallerId);
+    if (!taller) throw new Error('Taller no encontrado.');
+    const usuario = await usuarioAdminRepository.obtenerPorId(usuarioId);
+    if (!usuario) throw new Error('Usuario no encontrado.');
+    const rolNum = Number(usuario.rol_id);
+    if (rolNum !== ROL_TECNICO && rolNum !== ROL_ASISTENTE) {
+      throw new Error('Solo un Técnico o el Asistente pueden agregarse como personal de un taller.');
+    }
+    if (rolNum === ROL_ASISTENTE && !TALLERES_CLONABLES_ASISTENTE.includes(taller.nombre)) {
+      throw new Error('El Asistente solo puede clonar Diseño, Diseño UV/3D o Protextil.');
+    }
+    return tallerAdminRepository.asignarTecnico(usuarioId, tallerId);
+  }
+
+  async quitarTecnicoDeTaller(usuarioId) {
+    return tallerAdminRepository.quitarTecnico(usuarioId);
   }
 
   // ---------------------------------------------------------------------

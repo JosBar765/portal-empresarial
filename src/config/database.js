@@ -12,9 +12,7 @@ let useMock = false;
 // -------------------------------------------------------------------------
 const mockDatabase = {
   usuarios: [
-    // analisis_correcciones_18.md #1: el Administrador administra el sistema
-    // completo, no una tienda puntual — tienda_id siempre null para este rol.
-    { id: 1, nombre: 'Administrador General', email: 'admin@munditrofeos.com', password_hash: '$2a$10$0.B9xk21MYppfOd4XbtP3u5mJ6NzlaA6eqlu65Fy5G7xb2VnN2Lwu', rol_id: 1, tienda_id: null, activo: 1 },
+    { id: 1, nombre: 'Administrador General', email: 'admin@munditrofeos.com', password_hash: '$2a$10$0.B9xk21MYppfOd4XbtP3u5mJ6NzlaA6eqlu65Fy5G7xb2VnN2Lwu', rol_id: 1, activo: 1 },
     // analisis_correcciones_16.md #8: se eliminaron los usuarios de prueba
     // "Diseñador Creativo" (id 2), "Asesor Comercial" (id 3), "Supervisor de
     // Ventas" (id 4) y "Encargado General" (id 10) — ya no son necesarios con
@@ -22,110 +20,110 @@ const mockDatabase = {
     // referenciaban al id 3 pasaron a la asesora real de su misma tienda
     // (id 49) y los del id 4 al supervisor real de su mismo departamento
     // (id 13) — ver `vales`/`valeHistorial`/`supervisorTiendas` abajo.
-    { id: 5, nombre: 'Encargado de Diseño', email: 'encargado.diseno@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 4, tienda_id: 1, activo: 1 },
-    { id: 6, nombre: 'Encargado de Diseño UV/3D', email: 'encargado.uv3d@munditrofeos.com', password_hash: '$2a$10$DEPhj4Vnp.cgA6u3w3Leg.FVQ9O3JgKDXizOYCXEbGFlSgEBcb6F6', rol_id: 5, tienda_id: 1, activo: 1 },
-    { id: 7, nombre: 'Técnico Diseño A', email: 'tecnico.a@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: 1, activo: 1 },
-    { id: 8, nombre: 'Técnico Diseño B', email: 'tecnico.b@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: 1, activo: 1 },
-    { id: 9, nombre: 'Técnico UV/3D C', email: 'tecnico.c@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: 1, activo: 1 },
-    { id: 11, nombre: 'Asistente de Diseño', email: 'asistente@munditrofeos.com', password_hash: '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', rol_id: 7, tienda_id: 1, activo: 1 },
-    { id: 12, nombre: 'Gerente General', email: 'gerente@munditrofeos.com', password_hash: '$2a$10$yazyTlRjxvs0e/hn5B/UEOoUr6b06lBThNpvUlSOmJr0y1vB8tVXy', rol_id: 8, tienda_id: null, activo: 1 },
+    { id: 5, nombre: 'Encargado de Diseño', email: 'encargado.diseno@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 4, activo: 1 },
+    { id: 6, nombre: 'Encargado de Diseño UV/3D', email: 'encargado.uv3d@munditrofeos.com', password_hash: '$2a$10$DEPhj4Vnp.cgA6u3w3Leg.FVQ9O3JgKDXizOYCXEbGFlSgEBcb6F6', rol_id: 5, activo: 1 },
+    { id: 7, nombre: 'Técnico Diseño A', email: 'tecnico.a@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
+    { id: 8, nombre: 'Técnico Diseño B', email: 'tecnico.b@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
+    { id: 9, nombre: 'Técnico UV/3D C', email: 'tecnico.c@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
+    { id: 11, nombre: 'Asistente de Diseño', email: 'asistente@munditrofeos.com', password_hash: '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', rol_id: 7, activo: 1 },
+    { id: 12, nombre: 'Gerente General', email: 'gerente@munditrofeos.com', password_hash: '$2a$10$yazyTlRjxvs0e/hn5B/UEOoUr6b06lBThNpvUlSOmJr0y1vB8tVXy', rol_id: 8, activo: 1 },
     // Supervisores/gerentes reales de la organización (analisis_correcciones_12.md
     // #10) — regionales/rotativos, sin tienda propia; su cobertura vive en
     // `supervisorTiendas` (analisis_correcciones_18.md #5). Reusan la
     // contraseña de la cuenta de prueba original de Supervisor (supervisor123).
-    { id: 13, nombre: 'Carlos Cornejo', email: 'ventas1@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, tienda_id: null, activo: 1 },
-    { id: 14, nombre: 'Milvia Esquivel', email: 'gerentesala@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, tienda_id: null, activo: 1 },
-    { id: 15, nombre: 'Benjamin Per', email: 'gerentezona13@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, tienda_id: null, activo: 1 },
-    { id: 16, nombre: 'Juan Carlos Paniagua', email: 'regional@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, tienda_id: null, activo: 1 },
-    { id: 17, nombre: 'Victor Tobar', email: 'regional.ca@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, tienda_id: null, activo: 1 },
-    { id: 18, nombre: 'Emilio Morales', email: 'supervisor1@trofex.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, tienda_id: null, activo: 1 },
-    { id: 19, nombre: 'Pablo Orellana', email: 'supervisor@trofex.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, tienda_id: null, activo: 1 },
-    { id: 20, nombre: 'Carla Gonzáles', email: 'ventassv3@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, tienda_id: null, activo: 1 },
-    { id: 21, nombre: 'Brian Medina', email: 'honduras@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, tienda_id: null, activo: 1 },
-    { id: 22, nombre: 'Velky Cuevas', email: 'tegus@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, tienda_id: null, activo: 1 },
-    { id: 23, nombre: 'Stefany Luna', email: 'gerencianic@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, tienda_id: null, activo: 1 },
+    { id: 13, nombre: 'Carlos Cornejo', email: 'ventas1@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, activo: 1 },
+    { id: 14, nombre: 'Milvia Esquivel', email: 'gerentesala@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, activo: 1 },
+    { id: 15, nombre: 'Benjamin Per', email: 'gerentezona13@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, activo: 1 },
+    { id: 16, nombre: 'Juan Carlos Paniagua', email: 'regional@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, activo: 1 },
+    { id: 17, nombre: 'Victor Tobar', email: 'regional.ca@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, activo: 1 },
+    { id: 18, nombre: 'Emilio Morales', email: 'supervisor1@trofex.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, activo: 1 },
+    { id: 19, nombre: 'Pablo Orellana', email: 'supervisor@trofex.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, activo: 1 },
+    { id: 20, nombre: 'Carla Gonzáles', email: 'ventassv3@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, activo: 1 },
+    { id: 21, nombre: 'Brian Medina', email: 'honduras@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, activo: 1 },
+    { id: 22, nombre: 'Velky Cuevas', email: 'tegus@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, activo: 1 },
+    { id: 23, nombre: 'Stefany Luna', email: 'gerencianic@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, activo: 1 },
     // Mismo nombre que el id 17, pero es una cuenta distinta (correo distinto)
     // — así lo lista el documento fuente, cubriendo un alcance más puntual.
-    { id: 24, nombre: 'Victor Tobar', email: 'costarica@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, tienda_id: null, activo: 1 },
+    { id: 24, nombre: 'Victor Tobar', email: 'costarica@grupopremia.com', password_hash: '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', rol_id: 3, activo: 1 },
     // Encargados/técnicos mockup de los talleres nuevos (analisis_correcciones_12.md
     // #11): Protextil (toda la empresa) + un Diseño Local por cada una de las 11
     // tiendas que lo tienen. Encargados con el rol genérico 11 "Encargado de
     // Taller" (reusan el hash de encargado.diseno@..., disenoenc123); técnicos
     // con rol 7 (reusan el hash de tecnico.a@..., tecnico123).
-    { id: 25, nombre: 'Encargado Protextil', email: 'encargado.protextil@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 9, tienda_id: null, activo: 1 },
-    { id: 26, nombre: 'Técnico Protextil', email: 'tecnico.protextil@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: null, activo: 1 },
-    { id: 27, nombre: 'Encargado Diseño Local P13', email: 'disenolocal.p13@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, tienda_id: 3, activo: 1 },
-    { id: 28, nombre: 'Técnico Diseño Local P13', email: 'tecnico.disenolocal.p13@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: 3, activo: 1 },
-    { id: 29, nombre: 'Encargado Diseño Local SSV', email: 'disenolocal.ssv@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, tienda_id: 4, activo: 1 },
-    { id: 30, nombre: 'Técnico Diseño Local SSV', email: 'tecnico.disenolocal.ssv@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: 4, activo: 1 },
-    { id: 31, nombre: 'Encargado Diseño Local SAA', email: 'disenolocal.saa@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, tienda_id: 5, activo: 1 },
-    { id: 32, nombre: 'Técnico Diseño Local SAA', email: 'tecnico.disenolocal.saa@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: 5, activo: 1 },
-    { id: 33, nombre: 'Encargado Diseño Local SMG', email: 'disenolocal.smg@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, tienda_id: 6, activo: 1 },
-    { id: 34, nombre: 'Técnico Diseño Local SMG', email: 'tecnico.disenolocal.smg@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: 6, activo: 1 },
-    { id: 35, nombre: 'Encargado Diseño Local ECL', email: 'disenolocal.ecl@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, tienda_id: 7, activo: 1 },
-    { id: 36, nombre: 'Técnico Diseño Local ECL', email: 'tecnico.disenolocal.ecl@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: 7, activo: 1 },
-    { id: 37, nombre: 'Encargado Diseño Local CMY', email: 'disenolocal.cmy@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, tienda_id: 8, activo: 1 },
-    { id: 38, nombre: 'Técnico Diseño Local CMY', email: 'tecnico.disenolocal.cmy@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: 8, activo: 1 },
-    { id: 39, nombre: 'Encargado Diseño Local TEG', email: 'disenolocal.teg@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, tienda_id: 9, activo: 1 },
-    { id: 40, nombre: 'Técnico Diseño Local TEG', email: 'tecnico.disenolocal.teg@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: 9, activo: 1 },
-    { id: 41, nombre: 'Encargado Diseño Local SPS', email: 'disenolocal.sps@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, tienda_id: 10, activo: 1 },
-    { id: 42, nombre: 'Técnico Diseño Local SPS', email: 'tecnico.disenolocal.sps@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: 10, activo: 1 },
-    { id: 43, nombre: 'Encargado Diseño Local MAN', email: 'disenolocal.man@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, tienda_id: 11, activo: 1 },
-    { id: 44, nombre: 'Técnico Diseño Local MAN', email: 'tecnico.disenolocal.man@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: 11, activo: 1 },
-    { id: 45, nombre: 'Encargado Diseño Local LEO', email: 'disenolocal.leo@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, tienda_id: 12, activo: 1 },
-    { id: 46, nombre: 'Técnico Diseño Local LEO', email: 'tecnico.disenolocal.leo@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: 12, activo: 1 },
-    { id: 47, nombre: 'Encargado Diseño Local SJO', email: 'disenolocal.sjo@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, tienda_id: 13, activo: 1 },
-    { id: 48, nombre: 'Técnico Diseño Local SJO', email: 'tecnico.disenolocal.sjo@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, tienda_id: 13, activo: 1 },
+    { id: 25, nombre: 'Encargado Protextil', email: 'encargado.protextil@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 9, activo: 1 },
+    { id: 26, nombre: 'Técnico Protextil', email: 'tecnico.protextil@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
+    { id: 27, nombre: 'Encargado Diseño Local P13', email: 'disenolocal.p13@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, activo: 1 },
+    { id: 28, nombre: 'Técnico Diseño Local P13', email: 'tecnico.disenolocal.p13@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
+    { id: 29, nombre: 'Encargado Diseño Local SSV', email: 'disenolocal.ssv@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, activo: 1 },
+    { id: 30, nombre: 'Técnico Diseño Local SSV', email: 'tecnico.disenolocal.ssv@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
+    { id: 31, nombre: 'Encargado Diseño Local SAA', email: 'disenolocal.saa@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, activo: 1 },
+    { id: 32, nombre: 'Técnico Diseño Local SAA', email: 'tecnico.disenolocal.saa@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
+    { id: 33, nombre: 'Encargado Diseño Local SMG', email: 'disenolocal.smg@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, activo: 1 },
+    { id: 34, nombre: 'Técnico Diseño Local SMG', email: 'tecnico.disenolocal.smg@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
+    { id: 35, nombre: 'Encargado Diseño Local ECL', email: 'disenolocal.ecl@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, activo: 1 },
+    { id: 36, nombre: 'Técnico Diseño Local ECL', email: 'tecnico.disenolocal.ecl@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
+    { id: 37, nombre: 'Encargado Diseño Local CMY', email: 'disenolocal.cmy@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, activo: 1 },
+    { id: 38, nombre: 'Técnico Diseño Local CMY', email: 'tecnico.disenolocal.cmy@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
+    { id: 39, nombre: 'Encargado Diseño Local TEG', email: 'disenolocal.teg@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, activo: 1 },
+    { id: 40, nombre: 'Técnico Diseño Local TEG', email: 'tecnico.disenolocal.teg@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
+    { id: 41, nombre: 'Encargado Diseño Local SPS', email: 'disenolocal.sps@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, activo: 1 },
+    { id: 42, nombre: 'Técnico Diseño Local SPS', email: 'tecnico.disenolocal.sps@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
+    { id: 43, nombre: 'Encargado Diseño Local MAN', email: 'disenolocal.man@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, activo: 1 },
+    { id: 44, nombre: 'Técnico Diseño Local MAN', email: 'tecnico.disenolocal.man@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
+    { id: 45, nombre: 'Encargado Diseño Local LEO', email: 'disenolocal.leo@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, activo: 1 },
+    { id: 46, nombre: 'Técnico Diseño Local LEO', email: 'tecnico.disenolocal.leo@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
+    { id: 47, nombre: 'Encargado Diseño Local SJO', email: 'disenolocal.sjo@munditrofeos.com', password_hash: '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', rol_id: 10, activo: 1 },
+    { id: 48, nombre: 'Técnico Diseño Local SJO', email: 'tecnico.disenolocal.sjo@munditrofeos.com', password_hash: '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', rol_id: 6, activo: 1 },
     // analisis_correcciones_15.md: nuevos asesores de ventas, uno por tienda,
     // según el documento fuente (todos comparten un hash de prueba: AsesorNuevo15).
-    { id: 49, nombre: 'Alejandra Luna', email: 'ventas2@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 1, activo: 1 },
-    { id: 50, nombre: 'Karla Ordoñez', email: 'ventas3@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 1, activo: 1 },
-    { id: 51, nombre: 'Melanie Perez', email: 'ventas4@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 1, activo: 1 },
-    { id: 52, nombre: 'Rosa Ramírez', email: 'ventas5@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 1, activo: 1 },
-    { id: 53, nombre: 'Luz Carmen Pérez', email: 'ventas6@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 1, activo: 1 },
-    { id: 54, nombre: 'Alexander Jolón', email: 'ventas9@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 1, activo: 1 },
-    { id: 55, nombre: 'Lilian Sapon', email: 'vtsala1@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 2, activo: 1 },
-    { id: 56, nombre: 'Gema Cruz', email: 'serviciovip2@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 2, activo: 1 },
-    { id: 57, nombre: 'Jamelette Villatoro', email: 'ventas@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 2, activo: 1 },
-    { id: 58, nombre: 'Maylin Escobar', email: 'tmk2@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 2, activo: 1 },
-    { id: 59, nombre: 'Nicolle Monterroso', email: 'vtsala4@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 2, activo: 1 },
-    { id: 60, nombre: 'Carolina Rosales', email: 'ventasgt1@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 3, activo: 1 },
-    { id: 61, nombre: 'Diana Castaneda', email: 'tmkpremia1@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 3, activo: 1 },
-    { id: 62, nombre: 'Mary Posada', email: 'tmkpremia3@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 3, activo: 1 },
-    { id: 63, nombre: 'Eliza Sales', email: 'tmkpremia13@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 3, activo: 1 },
-    { id: 64, nombre: 'Astrid Ochoa', email: 'ventas13@grupropremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 3, activo: 1 },
-    { id: 65, nombre: 'Sarah Aleman', email: 'ventas.premia13@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 3, activo: 1 },
-    { id: 66, nombre: 'Wendy Ramirez', email: 'sanjuan@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 14, activo: 1 },
-    { id: 67, nombre: 'Angel Gomez', email: 'zona3@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 15, activo: 1 },
-    { id: 68, nombre: 'Margarita Yoj', email: 'coban@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 16, activo: 1 },
-    { id: 69, nombre: 'Wendy Recinos', email: 'peten@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 17, activo: 1 },
-    { id: 70, nombre: 'Yasmin Porras', email: 'ptobarrios@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 18, activo: 1 },
-    { id: 71, nombre: 'Ingrid Gutierrez', email: 'chiquimula@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 19, activo: 1 },
-    { id: 72, nombre: 'Yesica Hernandez', email: 'jutiapa@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 20, activo: 1 },
-    { id: 73, nombre: 'Beberly Santos', email: 'villanueva@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 26, activo: 1 },
-    { id: 74, nombre: 'Rocio Giron', email: 'escuintla@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 23, activo: 1 },
-    { id: 75, nombre: 'Sucely Poou', email: 'chimaltenango@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 22, activo: 1 },
-    { id: 76, nombre: 'Blanca Argueta', email: 'mazate@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 25, activo: 1 },
-    { id: 77, nombre: 'Dalia Ramirez', email: 'xela@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 27, activo: 1 },
-    { id: 78, nombre: 'Jose Gonzalez', email: 'huehue@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 24, activo: 1 },
-    { id: 79, nombre: 'Anderson Cardona', email: 'sanmarcos@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 21, activo: 1 },
-    { id: 80, nombre: 'Julio Barahona', email: 'mercadeosv@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 4, activo: 1 },
-    { id: 81, nombre: 'Sandra Onofre', email: 'tkmsv@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 4, activo: 1 },
-    { id: 82, nombre: 'Carlos Martinez', email: 'premiateleventassv@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 4, activo: 1 },
-    { id: 83, nombre: 'Kevin Mendoza', email: 'ventassv1@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 4, activo: 1 },
-    { id: 84, nombre: 'Karen Herrera', email: 'ventassv@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 4, activo: 1 },
-    { id: 85, nombre: 'Tania Melara', email: 'santaana@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 5, activo: 1 },
-    { id: 86, nombre: 'Patricia Diaz', email: 'sanmiguel@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 6, activo: 1 },
-    { id: 87, nombre: 'Pradi Vareal', email: 'cobrossps@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 10, activo: 1 },
-    { id: 88, nombre: 'Alexis Martínez', email: 'ventasps2@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 10, activo: 1 },
-    { id: 89, nombre: 'Jaqueline Sosa', email: 'comertegus@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 9, activo: 1 },
-    { id: 90, nombre: 'Karen Martinez', email: 'cobrostg@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 9, activo: 1 },
-    { id: 91, nombre: 'Merary Zavala', email: 'comayagua@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 8, activo: 1 },
-    { id: 92, nombre: 'Alexander Selva', email: 'mercadeonic2@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 11, activo: 1 },
-    { id: 93, nombre: 'Magaly Ruiz', email: 'ventasnic2@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 11, activo: 1 },
-    { id: 94, nombre: 'Alejandra Salazar', email: 'leon@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 12, activo: 1 },
-    { id: 95, nombre: 'Francisco Zamora', email: 'costarica@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 13, activo: 1 },
-    { id: 96, nombre: 'Luis Elizondo', email: 'ventas2cr@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, tienda_id: 13, activo: 1 },
+    { id: 49, nombre: 'Alejandra Luna', email: 'ventas2@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 50, nombre: 'Karla Ordoñez', email: 'ventas3@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 51, nombre: 'Melanie Perez', email: 'ventas4@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 52, nombre: 'Rosa Ramírez', email: 'ventas5@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 53, nombre: 'Luz Carmen Pérez', email: 'ventas6@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 54, nombre: 'Alexander Jolón', email: 'ventas9@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 55, nombre: 'Lilian Sapon', email: 'vtsala1@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 56, nombre: 'Gema Cruz', email: 'serviciovip2@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 57, nombre: 'Jamelette Villatoro', email: 'ventas@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 58, nombre: 'Maylin Escobar', email: 'tmk2@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 59, nombre: 'Nicolle Monterroso', email: 'vtsala4@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 60, nombre: 'Carolina Rosales', email: 'ventasgt1@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 61, nombre: 'Diana Castaneda', email: 'tmkpremia1@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 62, nombre: 'Mary Posada', email: 'tmkpremia3@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 63, nombre: 'Eliza Sales', email: 'tmkpremia13@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 64, nombre: 'Astrid Ochoa', email: 'ventas13@grupropremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 65, nombre: 'Sarah Aleman', email: 'ventas.premia13@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 66, nombre: 'Wendy Ramirez', email: 'sanjuan@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 67, nombre: 'Angel Gomez', email: 'zona3@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 68, nombre: 'Margarita Yoj', email: 'coban@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 69, nombre: 'Wendy Recinos', email: 'peten@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 70, nombre: 'Yasmin Porras', email: 'ptobarrios@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 71, nombre: 'Ingrid Gutierrez', email: 'chiquimula@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 72, nombre: 'Yesica Hernandez', email: 'jutiapa@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 73, nombre: 'Beberly Santos', email: 'villanueva@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 74, nombre: 'Rocio Giron', email: 'escuintla@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 75, nombre: 'Sucely Poou', email: 'chimaltenango@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 76, nombre: 'Blanca Argueta', email: 'mazate@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 77, nombre: 'Dalia Ramirez', email: 'xela@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 78, nombre: 'Jose Gonzalez', email: 'huehue@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 79, nombre: 'Anderson Cardona', email: 'sanmarcos@trofex.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 80, nombre: 'Julio Barahona', email: 'mercadeosv@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 81, nombre: 'Sandra Onofre', email: 'tkmsv@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 82, nombre: 'Carlos Martinez', email: 'premiateleventassv@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 83, nombre: 'Kevin Mendoza', email: 'ventassv1@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 84, nombre: 'Karen Herrera', email: 'ventassv@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 85, nombre: 'Tania Melara', email: 'santaana@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 86, nombre: 'Patricia Diaz', email: 'sanmiguel@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 87, nombre: 'Pradi Vareal', email: 'cobrossps@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 88, nombre: 'Alexis Martínez', email: 'ventasps2@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 89, nombre: 'Jaqueline Sosa', email: 'comertegus@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 90, nombre: 'Karen Martinez', email: 'cobrostg@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 91, nombre: 'Merary Zavala', email: 'comayagua@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 92, nombre: 'Alexander Selva', email: 'mercadeonic2@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 93, nombre: 'Magaly Ruiz', email: 'ventasnic2@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 94, nombre: 'Alejandra Salazar', email: 'leon@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 95, nombre: 'Francisco Zamora', email: 'costarica@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
+    { id: 96, nombre: 'Luis Elizondo', email: 'ventas2cr@grupopremia.com', password_hash: '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', rol_id: 2, activo: 1 },
   ],
   // Descripciones por función, no por flujo de Vales de Arte — deben quedar
   // idénticas a las de database/seed.sql.
@@ -822,28 +820,34 @@ const taggedHandlers = {
     return t ? [t] : [];
   },
 
-  // analisis_correcciones_19.md #8/#10/#12: asignación de talleres desde
-  // "Editar usuario" — antes nada escribía encargado_id/taller_tecnicos
-  // fuera del seed.
-  'taller_admin:list': () => mockDatabase.talleres.filter(t => t.activo),
+  'taller_admin:list': () => mockDatabase.talleres.filter(t => t.activo).map(t => ({
+    id: t.id, nombre: t.nombre, encargado_id: t.encargado_id, tienda_id: t.tienda_id,
+    encargado_nombre: t.encargado_id ? ((mockDatabase.usuarios.find(u => u.id === t.encargado_id) || {}).nombre || null) : null,
+    tecnicos_count: mockDatabase.tallerTecnicos.filter(tt => tt.taller_id === t.id).length
+  })),
   'taller_admin:find_by_id': (params) => {
     const t = mockDatabase.talleres.find(x => x.id === Number(params[0]));
     return t ? [t] : [];
+  },
+  'taller_admin:personal_detalle': (params) => {
+    const tallerId = Number(params[0]);
+    const nombreRol = (rolId) => (mockDatabase.roles.find(r => r.id === rolId) || {}).nombre || null;
+    const taller = mockDatabase.talleres.find(t => t.id === tallerId);
+    const encargado = taller && taller.encargado_id
+      ? mockDatabase.usuarios.filter(u => u.activo && u.id === taller.encargado_id)
+        .map(u => ({ id: u.id, nombre: u.nombre, email: u.email, rol_nombre: nombreRol(u.rol_id), rol_id: u.rol_id, tipo_vinculo: 'encargado' }))
+      : [];
+    const tecnicoIds = new Set(mockDatabase.tallerTecnicos.filter(tt => tt.taller_id === tallerId).map(tt => tt.usuario_id));
+    const tecnicos = mockDatabase.usuarios.filter(u => u.activo && tecnicoIds.has(u.id))
+      .map(u => ({ id: u.id, nombre: u.nombre, email: u.email, rol_nombre: nombreRol(u.rol_id), rol_id: u.rol_id, tipo_vinculo: 'tecnico' }));
+    return [...encargado, ...tecnicos];
   },
   'taller_admin:asignar_encargado': (params) => {
     const [usuarioId, tallerId] = params;
     const t = mockDatabase.talleres.find(x => x.id === Number(tallerId));
     if (!t) return { affectedRows: 0 };
-    t.encargado_id = Number(usuarioId);
+    t.encargado_id = usuarioId == null ? null : Number(usuarioId);
     return { affectedRows: 1 };
-  },
-  'taller_admin:quitar_encargado_de': (params) => {
-    const usuarioId = Number(params[0]);
-    let afectados = 0;
-    mockDatabase.talleres.forEach(t => {
-      if (t.encargado_id === usuarioId) { t.encargado_id = null; afectados++; }
-    });
-    return { affectedRows: afectados };
   },
   'taller_tecnico:asignar': (params) => {
     const [usuarioId, tallerId] = params;
@@ -1169,20 +1173,20 @@ const taggedHandlers = {
   // analisis_correcciones_18.md #5: sin `telefono` — Asesor/Supervisor lo
   // guardan en su fila satélite (ver `asesor:insert`/`supervisor:insert`).
   'usuario_admin:insert': (params) => {
-    const [nombre, email, passwordHash, rolId, tiendaId] = params;
+    const [nombre, email, passwordHash, rolId] = params;
     const row = {
       id: nextId(mockDatabase.usuarios), nombre, email, password_hash: passwordHash,
-      rol_id: Number(rolId), tienda_id: tiendaId ? Number(tiendaId) : null, activo: 1
+      rol_id: Number(rolId), activo: 1
     };
     mockDatabase.usuarios.push(row);
     return { insertId: row.id };
   },
   'usuario_admin:update': (params) => {
-    const [nombre, email, rolId, tiendaId, id] = params;
+    const [nombre, email, rolId, id] = params;
     const u = mockDatabase.usuarios.find(x => x.id === Number(id));
     if (!u) return { affectedRows: 0 };
     u.nombre = nombre; u.email = email;
-    u.rol_id = Number(rolId); u.tienda_id = tiendaId ? Number(tiendaId) : null;
+    u.rol_id = Number(rolId);
     return { affectedRows: 1 };
   },
   'usuario_admin:update_password': (params) => {
@@ -1310,46 +1314,29 @@ const taggedHandlers = {
     });
     return { affectedRows: (ordenes || []).length };
   },
-  'tienda_admin:asignar_usuario': (params) => {
-    const [tiendaId, usuarioId] = params;
-    const u = mockDatabase.usuarios.find(x => x.id === Number(usuarioId));
-    if (!u) return { affectedRows: 0 };
-    u.tienda_id = Number(tiendaId);
-    return { affectedRows: 1 };
-  },
-  'tienda_admin:quitar_usuario': (params) => {
-    const u = mockDatabase.usuarios.find(x => x.id === Number(params[0]));
-    if (!u) return { affectedRows: 0 };
-    u.tienda_id = null;
-    return { affectedRows: 1 };
-  },
   // analisis_correcciones_18.md #1/#5: un Asesor cuenta como personal "directo"
-  // vía `asesores.tienda_id`; Técnico/Encargado de Diseño Local siguen vía
-  // `usuarios.tienda_id`; el encargado de un taller COMPARTIDO (Diseño,
-  // Diseño UV/3D, Protextil — roles 4/5/9) cuenta vía `encargadoTienda`, así
-  // que aparece en MTC y en MTS a la vez; un Supervisor cuenta si tiene esa
-  // tienda en `supervisorTiendas` (ya no hay cobertura "heredada" por
-  // departamento). El Administrador nunca pertenece a ninguna tienda.
+  // Personal de una tienda: Asesor vía `asesores.tienda_id`; cualquier
+  // usuario ligado a un taller (encargado vía `talleres.encargado_id`, o
+  // técnico/asistente vía `tallerTecnicos`) cuenta si su taller cubre esta
+  // tienda en `encargadoTienda`; Supervisor vía `supervisorTiendas`.
   'tienda_admin:personal_detalle': (params) => {
     const tiendaId = Number(params[0]);
     const t = mockDatabase.tiendas.find(x => x.id === tiendaId);
     if (!t) return [];
-    const ROLES_ENCARGADO_TALLER_COMPARTIDO = [4, 5, 9];
-    const asesorUsuarioIds = new Set(mockDatabase.asesores.filter(a => a.tienda_id === tiendaId).map(a => a.usuario_id));
+    const nombreRol = (rolId) => (mockDatabase.roles.find(r => r.id === rolId) || {}).nombre || null;
     const tallerIdsDeEstaTienda = new Set(mockDatabase.encargadoTienda.filter(et => et.tienda_id === tiendaId).map(et => et.taller_id));
-    const encargadoCompartidoUsuarioIds = new Set(
-      mockDatabase.talleres.filter(tal => tallerIdsDeEstaTienda.has(tal.id)).map(tal => tal.encargado_id)
+
+    const asesorUsuarioIds = new Set(mockDatabase.asesores.filter(a => a.tienda_id === tiendaId).map(a => a.usuario_id));
+    const encargadoUsuarioIds = new Set(
+      mockDatabase.talleres.filter(tal => tallerIdsDeEstaTienda.has(tal.id) && tal.encargado_id != null).map(tal => tal.encargado_id)
     );
-    const directo = mockDatabase.usuarios.filter(u =>
-      u.activo && u.rol_id !== 1 && (
-        asesorUsuarioIds.has(u.id) ||
-        encargadoCompartidoUsuarioIds.has(u.id) ||
-        (u.rol_id !== 2 && u.rol_id !== 3 && !ROLES_ENCARGADO_TALLER_COMPARTIDO.includes(u.rol_id) && u.tienda_id === tiendaId)
-      )
-    ).map(u => {
-      const rol = mockDatabase.roles.find(r => r.id === u.rol_id);
-      return { id: u.id, nombre: u.nombre, email: u.email, rol_nombre: rol ? rol.nombre : null, rol_id: u.rol_id, tipo_vinculo: 'directo' };
-    });
+    const tecnicoUsuarioIds = new Set(
+      mockDatabase.tallerTecnicos.filter(tt => tallerIdsDeEstaTienda.has(tt.taller_id)).map(tt => tt.usuario_id)
+    );
+    const directo = mockDatabase.usuarios
+      .filter(u => u.activo && (asesorUsuarioIds.has(u.id) || encargadoUsuarioIds.has(u.id) || tecnicoUsuarioIds.has(u.id)))
+      .map(u => ({ id: u.id, nombre: u.nombre, email: u.email, rol_nombre: nombreRol(u.rol_id), rol_id: u.rol_id, tipo_vinculo: 'directo' }));
+
     const supervisorUsuarioIds = new Set(mockDatabase.supervisorTiendas.filter(st => st.tienda_id === tiendaId).map(st => st.usuario_id));
     const supervisores = mockDatabase.usuarios.filter(u => u.rol_id === 3 && u.activo && supervisorUsuarioIds.has(u.id))
       .map(u => ({ id: u.id, nombre: u.nombre, email: u.email, rol_nombre: 'Supervisor de Ventas', rol_id: u.rol_id, tipo_vinculo: 'supervisor' }));

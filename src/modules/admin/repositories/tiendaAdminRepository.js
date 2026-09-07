@@ -65,17 +65,6 @@ class TiendaAdminRepository {
     return db.query('UPDATE tiendas SET orden = ? WHERE id = ? -- (batch)', [ordenes], 'tienda_admin:set_orden');
   }
 
-  // analisis_correcciones_18.md #5: solo para Técnico/Encargado de taller —
-  // un Asesor de Ventas se asigna vía `usuarioAdminRepository.actualizarAsesor`
-  // (su tienda vive en `asesores.tienda_id`, no en `usuarios.tienda_id`).
-  async asignarTiendaAUsuario(usuarioId, tiendaId) {
-    return db.query('UPDATE usuarios SET tienda_id = ? WHERE id = ?', [tiendaId, usuarioId], 'tienda_admin:asignar_usuario');
-  }
-
-  async quitarTiendaDeUsuario(usuarioId) {
-    return db.query('UPDATE usuarios SET tienda_id = NULL WHERE id = ?', [usuarioId], 'tienda_admin:quitar_usuario');
-  }
-
   // analisis_correcciones_18.md #5: reemplaza `supervisor_asignaciones` — un
   // supervisor cubre tiendas concretas, sin cobertura "heredada" por
   // departamento/subdivisión.
@@ -96,11 +85,6 @@ class TiendaAdminRepository {
     );
   }
 
-  // analisis_correcciones_18.md #1/#5: un Asesor cuenta como personal
-  // "directo" vía `asesores.tienda_id`; Técnico/Encargado de taller siguen
-  // vía `usuarios.tienda_id` (hasta que #6 los mueva a sus propias tablas);
-  // un Supervisor cuenta si tiene esa tienda en `supervisor_tiendas`. El
-  // Administrador nunca pertenece a ninguna tienda.
   async listarPersonalDetalle(tiendaId) {
     return db.query(
       `SELECT u.id, u.nombre, u.email, r.nombre AS rol_nombre, u.rol_id, 'directo' AS tipo_vinculo
@@ -112,7 +96,16 @@ class TiendaAdminRepository {
        SELECT u.id, u.nombre, u.email, r.nombre AS rol_nombre, u.rol_id, 'directo' AS tipo_vinculo
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
-       WHERE u.activo = 1 AND u.rol_id NOT IN (1, 2, 3) AND u.tienda_id = ?
+       JOIN talleres tal ON tal.encargado_id = u.id
+       JOIN encargado_tienda et ON et.taller_id = tal.id AND et.tienda_id = ?
+       WHERE u.activo = 1
+       UNION ALL
+       SELECT u.id, u.nombre, u.email, r.nombre AS rol_nombre, u.rol_id, 'directo' AS tipo_vinculo
+       FROM usuarios u
+       JOIN roles r ON r.id = u.rol_id
+       JOIN taller_tecnicos tt ON tt.usuario_id = u.id
+       JOIN encargado_tienda et ON et.taller_id = tt.taller_id AND et.tienda_id = ?
+       WHERE u.activo = 1
        UNION ALL
        SELECT u.id, u.nombre, u.email, r.nombre AS rol_nombre, u.rol_id, 'supervisor' AS tipo_vinculo
        FROM usuarios u
@@ -120,7 +113,7 @@ class TiendaAdminRepository {
        JOIN supervisor_tiendas st ON st.usuario_id = u.id AND st.tienda_id = ?
        WHERE u.activo = 1 AND u.rol_id = 3
        ORDER BY nombre`,
-      [tiendaId, tiendaId, tiendaId],
+      [tiendaId, tiendaId, tiendaId, tiendaId],
       'tienda_admin:personal_detalle'
     );
   }
@@ -136,6 +129,10 @@ class TiendaAdminRepository {
 
   async listarDepartamentos() {
     return db.query('SELECT * FROM departamentos WHERE activo = 1 ORDER BY nombre', [], 'organizacion:departamentos');
+  }
+
+  async listarPaises() {
+    return db.query('SELECT id, codigo, nombre, codigo_telefono FROM paises ORDER BY nombre', [], 'catalog:paises');
   }
 
   // analisis_correcciones_19.md #9: crea un departamento nuevo desde el modal

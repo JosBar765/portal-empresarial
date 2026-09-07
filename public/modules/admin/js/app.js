@@ -10,8 +10,6 @@
   const ROL_ADMINISTRADOR = 1;
   // analisis_correcciones_17.md #12/#13: mismos roles/tiendas que valida el backend.
   const ROLES_ENCARGADO_UNICO = [4, 5, 9];
-  const TIENDAS_ENCARGADO_TALLER = [1, 2];
-  // analisis_correcciones_19.md #8/#10/#12: roles con asignación de taller.
   const ROL_TECNICO = 6;
   const ROL_ASISTENTE = 7;
   const ROL_ENCARGADO_DISENO_LOCAL = 10;
@@ -121,7 +119,7 @@
   // analisis_correcciones_17.md #10: no perder la pestaña activa al
   // recargar la página (antes siempre volvía a "usuarios").
   const TAB_ACTIVA_KEY = 'admin:tabActiva';
-  const TABS_VALIDOS = ['usuarios', 'roles', 'tiendas', 'mantenimiento'];
+  const TABS_VALIDOS = ['usuarios', 'roles', 'tiendas', 'talleres', 'mantenimiento'];
 
   function wireSidebar() {
     const sidebar = $('#sidebar-admin');
@@ -186,6 +184,7 @@
       if (state.tab === 'usuarios') await cargarUsuarios();
       else if (state.tab === 'roles') await cargarRoles();
       else if (state.tab === 'tiendas') await cargarTiendas();
+      else if (state.tab === 'talleres') await cargarTalleres();
       else if (state.tab === 'mantenimiento') await cargarMantenimiento();
     } catch (error) {
       cont.innerHTML = `<div class="buzon-vacio buzon-vacio-error"><ion-icon name="alert-circle-outline"></ion-icon><h3>No se pudo cargar</h3><p>${escapeHtml(error.message)}</p></div>`;
@@ -319,6 +318,12 @@
     });
   }
 
+  // Cada trigger detiene la propagación de su propio click, así que el
+  // listener "click afuera" de cualquier OTRO menú abierto nunca se entera
+  // de ese click y no se cierra — este registro deja que abrir uno cierre
+  // explícitamente a todos los demás.
+  const menusCascadaAbiertos = new Set();
+
   // `deshabilitar(nodoHoja)` opcional: devuelve { disabled, motivo } para
   // bloquear una hoja puntual (rol ya ocupado, tienda fuera de MTC/MTS) sin
   // sacarla del árbol, con el motivo visible como title.
@@ -374,6 +379,7 @@
       nav.classList.remove('visible');
       misFlyouts.forEach(f => { f.style.display = 'none'; });
       $$('.menu-cascada-item-padre', nav).forEach(b => b.setAttribute('aria-expanded', 'false'));
+      menusCascadaAbiertos.delete(cerrarTodo);
     }
 
     function renderNodo(nodo) {
@@ -454,6 +460,8 @@
       e.stopPropagation();
       const abrir = !nav.classList.contains('visible');
       if (abrir) {
+        // Cierra cualquier otro combobox ya abierto antes de abrir este.
+        menusCascadaAbiertos.forEach(cerrar => { if (cerrar !== cerrarTodo) cerrar(); });
         // Barre paneles/flyouts huérfanos de renders anteriores AQUÍ (no
         // durante la construcción del árbol, cuando los propios <li>/cont
         // todavía no están conectados al documento y `isConnected` daría un
@@ -464,6 +472,7 @@
         nav.style.left = `${rect.left}px`;
         nav.classList.add('visible');
         trigger.setAttribute('aria-expanded', 'true');
+        menusCascadaAbiertos.add(cerrarTodo);
       } else {
         cerrarTodo();
       }
@@ -480,6 +489,7 @@
       document.removeEventListener('keydown', onDocumentKeydown);
       nav.remove();
       misFlyouts.forEach(f => f.remove());
+      menusCascadaAbiertos.delete(cerrarTodo);
       return true;
     };
     const onDocumentClick = (e) => {
@@ -601,9 +611,10 @@
         celda.appendChild(btnEditar);
 
         const btnToggle = document.createElement('button');
-        btnToggle.className = `btn-icon ${u.activo ? 'icon-danger' : ''}`;
-        btnToggle.title = u.activo ? 'Desactivar' : 'Activar';
-        btnToggle.innerHTML = `<ion-icon name="${u.activo ? 'lock-closed-outline' : 'lock-open-outline'}"></ion-icon>`;
+        btnToggle.className = `btn-icon candado-estado ${u.activo ? 'candado-activo' : 'candado-inactivo'}`;
+        btnToggle.title = u.activo ? 'Usuario activo — clic para bloquear' : 'Usuario bloqueado — clic para activar';
+        btnToggle.setAttribute('aria-label', btnToggle.title);
+        btnToggle.innerHTML = `<ion-icon name="${u.activo ? 'lock-open-outline' : 'lock-closed-outline'}"></ion-icon>`;
         btnToggle.addEventListener('click', () => toggleActivoUsuario(u));
         celda.appendChild(btnToggle);
       });
@@ -629,51 +640,30 @@
     }
   }
 
+  // "Gestionar Usuarios" solo crea usuarios y edita su información personal
+  // — ninguna asignación de tienda o taller vive aquí (eso es "Gestionar
+  // Tiendas"/"Gestionar Talleres"). El rol se elige al crear y ya no se
+  // puede cambiar al editar.
   async function abrirModalUsuario(usuario) {
-    const [rolesData, tiendasData, usuariosData, talleresData] = await Promise.all([
+    const [rolesData, usuariosData, orgData] = await Promise.all([
       fetch('/api/admin/roles').then(r => r.json()),
-      fetch('/api/admin/tiendas').then(r => r.json()),
       fetch('/api/admin/usuarios').then(r => r.json()),
-      fetch('/api/admin/talleres').then(r => r.json())
+      fetch('/api/admin/organizacion').then(r => r.json())
     ]);
     const roles = rolesData.roles;
-    const tiendas = tiendasData.tiendas.filter(t => t.activo);
     const todosUsuarios = usuariosData.usuarios;
-    const talleres = talleresData.talleres;
+    const paises = orgData.paises || [];
     const esEdicion = !!usuario;
 
-    let tiendasSupervisadas = [];
-    if (esEdicion && Number(usuario.rol_id) === ROL_SUPERVISOR) {
-      tiendasSupervisadas = await fetch(`/api/admin/usuarios/${usuario.id}/tiendas-supervisadas`).then(r => r.json());
-    }
-
-    // analisis_correcciones_14.md #5: solo roles activos son asignables — salvo
-    // el rol actual del usuario en edición, para no corromper su valor al
-    // guardar sin tocarlo.
-    const rolesAsignables = roles.filter(r => r.activo || (esEdicion && Number(usuario.rol_id) === r.id));
+    const rolesAsignables = roles.filter(r => r.activo);
     let rolIdActual = esEdicion ? Number(usuario.rol_id) : (rolesAsignables[0] ? rolesAsignables[0].id : null);
-    let tiendaIdActual = (esEdicion && usuario.tienda_id) ? usuario.tienda_id : '';
-    // analisis_correcciones_19.md #8/#10/#12: taller de Técnico/Encargado de
-    // taller local/Asistente — sale de `usuario.taller_id` (ver `enriquecerUsuario`).
-    let tallerIdActual = (esEdicion && usuario.taller_id) ? usuario.taller_id : '';
 
-    // analisis_correcciones_17.md #12: un rol de encargado único (Diseño,
-    // Diseño 3D, Protextil) se deshabilita en el menú si ya tiene un titular
-    // activo distinto del usuario en edición.
     function deshabilitarRol(nodo) {
       if (!ROLES_ENCARGADO_UNICO.includes(Number(nodo.valor))) return null;
-      const ocupante = todosUsuarios.find(u => u.activo && Number(u.rol_id) === Number(nodo.valor) && (!esEdicion || Number(u.id) !== Number(usuario.id)));
+      const ocupante = todosUsuarios.find(u => u.activo && Number(u.rol_id) === Number(nodo.valor));
       return ocupante ? { disabled: true, motivo: `Ya asignado a ${ocupante.nombre}` } : null;
     }
-    // analisis_correcciones_17.md #13: esos mismos roles solo pueden ir a MTC o MTS.
-    function deshabilitarTienda(nodo) {
-      if (nodo.valor === '' || nodo.valor == null) return null;
-      if (!ROLES_ENCARGADO_UNICO.includes(Number(rolIdActual))) return null;
-      return TIENDAS_ENCARGADO_TALLER.includes(Number(nodo.valor)) ? null : { disabled: true, motivo: 'Solo disponible para MTC o MTS' };
-    }
 
-    // analisis_correcciones_14.md #2: un Administrador no puede cambiar su
-    // propia contraseña desde el panel — el campo ni siquiera se renderiza.
     const esPropioAdmin = esEdicion && Number(usuario.id) === Number(state.user.id) && Number(usuario.rol_id) === 1;
     const campoPassword = esPropioAdmin
       ? `<div class="form-field"><label>Contraseña</label><p class="form-nota">No puedes cambiar tu propia contraseña de administrador.</p></div>`
@@ -681,6 +671,10 @@
           <label>Contraseña${esEdicion ? ' (dejar vacío para no cambiar)' : ''}</label>
           <input type="password" id="input-password" autocomplete="new-password">
         </div>`;
+
+    const campoRol = esEdicion
+      ? `<div class="form-field"><label>Rol</label><p class="form-nota">${escapeHtml(usuario.rol_nombre)} — no se puede cambiar una vez creado el usuario.</p></div>`
+      : `<div class="form-field"><label>Rol</label><div id="rol-menu-cont"></div></div>`;
 
     const bodyHtml = `
       <div class="form-grid">
@@ -694,17 +688,12 @@
         </div>
         <div class="form-field" id="zona-telefono"></div>
         ${campoPassword}
-        <div class="form-field">
-          <label>Rol</label>
-          <div id="rol-menu-cont"></div>
-        </div>
-        <div class="form-field full" id="zona-asignacion"></div>
-        <div class="form-field full" id="zona-taller"></div>
+        ${campoRol}
       </div>
     `;
 
     const { overlay, cerrar } = abrirModal({
-      title: esEdicion ? `Editar usuario — ${usuario.nombre}` : 'Nuevo usuario',
+      title: esEdicion ? `Editar información — ${usuario.nombre}` : 'Nuevo usuario',
       bodyHtml,
       footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-guardar">Guardar</button>`
     });
@@ -712,224 +701,57 @@
     overlay.querySelector('#input-nombre').value = esEdicion ? usuario.nombre : '';
     overlay.querySelector('#input-email').value = esEdicion ? usuario.email : '';
 
-    // analisis_correcciones_18.md #5: `usuarios` ya no tiene teléfono propio —
-    // solo Asesor y Supervisor lo tienen (en su tabla satélite), así que el
-    // campo solo se muestra para esos dos roles.
-    let telefonoActual = (esEdicion && usuario.telefono) ? usuario.telefono : '';
+    // Teléfono con código de país (punto 5) — solo Asesor/Supervisor lo
+    // tienen; mismo patrón que public/modules/vales/js/app.js.
+    const [paisTelActual, ...restoTel] = ((esEdicion && usuario.telefono) || '').split(' ');
+    const numeroTelActual = restoTel.join(' ');
     function renderTelefono() {
       const zona = overlay.querySelector('#zona-telefono');
-      if (rolIdActual === ROL_ASESOR || rolIdActual === ROL_SUPERVISOR) {
-        zona.innerHTML = `<label>Teléfono</label><input type="text" id="input-telefono">`;
-        zona.querySelector('#input-telefono').value = telefonoActual;
-        zona.querySelector('#input-telefono').addEventListener('input', (e) => { telefonoActual = e.target.value; });
-      } else {
+      if (rolIdActual !== ROL_ASESOR && rolIdActual !== ROL_SUPERVISOR) {
         zona.innerHTML = '';
+        return;
       }
+      const opciones = paises.map(p => {
+        const seleccionado = paisTelActual ? p.codigo_telefono === paisTelActual : p.codigo === 'GT';
+        return `<option value="${p.codigo_telefono}" ${seleccionado ? 'selected' : ''}>${p.codigo_telefono} ${p.codigo}</option>`;
+      }).join('');
+      zona.innerHTML = `
+        <label>Teléfono</label>
+        <div class="form-field-phone">
+          <select id="input-telefono-pais">${opciones}</select>
+          <input type="text" id="input-telefono" placeholder="0000-0000">
+        </div>
+      `;
+      zona.querySelector('#input-telefono').value = numeroTelActual;
     }
     renderTelefono();
 
-    // analisis_correcciones_15.md #10/#11: agrupa las tiendas por país una
-    // sola vez — ambas ramas de renderZonaAsignacion arman un cascada país→tienda.
-    const paisesConTienda = [...new Set(tiendas.map(t => t.pais_nombre || 'Sin país'))].sort();
-    // País actualmente elegido en el selector de "Tiendas supervisadas" —
-    // vive fuera de renderZonaAsignacion para sobrevivir sus propios re-renders
-    // (cambiar de país no debe perder las tiendas ya marcadas de otro país).
-    let paisSupervisorActual = null;
-
-    // Vuelca en `tiendasSupervisadas` lo que esté marcado/desmarcado AHORA
-    // MISMO en el país visible (las heredadas no se tocan, viven aparte) —
-    // hace falta antes de cambiar de país (para no perder la selección) y
-    // antes de guardar (el país visible al momento de guardar nunca se
-    // había sincronizado todavía).
-    function sincronizarTiendasSupervisadasVisibles() {
-      $$('.chk-tienda-supervisada', overlay).forEach(chk => {
-        if (chk.disabled) return;
-        const id = Number(chk.value);
-        tiendasSupervisadas = chk.checked
-          ? [...new Set([...tiendasSupervisadas, id])]
-          : tiendasSupervisadas.filter(x => x !== id);
-      });
-    }
-
-    function renderZonaAsignacion() {
-      const rolId = rolIdActual;
-      const zona = overlay.querySelector('#zona-asignacion');
-      if (rolId === ROL_SUPERVISOR) {
-        if (!paisSupervisorActual) {
-          // Al abrir por primera vez, arranca en el país de la primera tienda
-          // ya supervisada (si la hay) para que el admin la vea de una vez.
-          const tiendaYaMarcada = tiendas.find(t => tiendasSupervisadas.includes(t.id));
-          paisSupervisorActual = (tiendaYaMarcada ? tiendaYaMarcada.pais_nombre : null) || paisesConTienda[0] || '';
+    if (!esEdicion) {
+      overlay.querySelector('#rol-menu-cont').appendChild(crearMenuCascada({
+        arbol: construirArbolRoles(rolesAsignables),
+        valorActual: rolIdActual,
+        etiquetaVacio: 'Selecciona un rol',
+        deshabilitar: deshabilitarRol,
+        onSeleccionar: (valor) => {
+          rolIdActual = Number(valor);
+          renderTelefono();
         }
-        const opcionesPais = paisesConTienda.map(p => `<option value="${escapeHtml(p)}" ${p === paisSupervisorActual ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('');
-        zona.innerHTML = `
-          <label>Tiendas supervisadas</label>
-          <select id="input-pais-supervisor">${opcionesPais}</select>
-          <div class="personal-lista" id="lista-tiendas-supervisadas"></div>
-        `;
-        function renderListaTiendasDelPais() {
-          const tiendasDelPais = tiendas.filter(t => (t.pais_nombre || 'Sin país') === paisSupervisorActual);
-          overlay.querySelector('#lista-tiendas-supervisadas').innerHTML = tiendasDelPais.map(t => {
-            const marcada = tiendasSupervisadas.includes(t.id);
-            return `<label class="form-checkbox"><input type="checkbox" class="chk-tienda-supervisada" value="${t.id}" ${marcada ? 'checked' : ''}> ${escapeHtml(t.nombre)} (${escapeHtml(t.codigo)})</label>`;
-          }).join('') || '<p class="form-hint">No hay tiendas en este país.</p>';
-        }
-        renderListaTiendasDelPais();
-        overlay.querySelector('#input-pais-supervisor').addEventListener('change', (e) => {
-          sincronizarTiendasSupervisadasVisibles();
-          paisSupervisorActual = e.target.value;
-          renderListaTiendasDelPais();
-        });
-      } else if (rolId === ROL_ADMINISTRADOR) {
-        // analisis_correcciones_18.md #1: el Administrador administra el
-        // sistema completo — no pertenece a ninguna tienda, ni al crearlo.
-        zona.innerHTML = `<label>Tienda</label><p class="form-nota">El Administrador no pertenece a ninguna tienda.</p>`;
-      } else if (rolId === ROL_ASESOR && esEdicion) {
-        // analisis_correcciones_18.md #5: un Asesor de Ventas trabaja para una
-        // sola tienda a la vez; una vez creado, este modal ya no permite
-        // cambiarla — ese flujo queda limitado a Gestionar Tiendas →
-        // Gestionar personal (que exige desasignar antes de reasignar). Al
-        // crear un asesor nuevo sí se puede elegir su tienda inicial (rama
-        // de abajo, igual que cualquier otro rol).
-        const tiendaActual = tiendas.find(t => t.id === tiendaIdActual);
-        zona.innerHTML = `
-          <label>Tienda</label>
-          <p class="form-nota">${tiendaActual ? `${escapeHtml(tiendaActual.nombre)} (${escapeHtml(tiendaActual.codigo)})` : 'Sin tienda asignada'} — para cambiar la tienda de un asesor, usá Gestionar Tiendas → Gestionar personal.</p>
-        `;
-      } else if (rolId === ROL_TECNICO || rolId === ROL_ENCARGADO_DISENO_LOCAL) {
-        // analisis_correcciones_19.md #8/#12: su tienda ya no se elige aquí —
-        // se deriva del taller (o, para un técnico en un taller compartido, se
-        // elige junto con el taller mismo) — ver renderTaller().
-        zona.innerHTML = '';
-      } else {
-        // analisis_correcciones_17.md #6: el combobox de país + tienda se
-        // reemplaza por un único menú cascada (mismo árbol del punto 4).
-        zona.innerHTML = `<label>Tienda</label><div id="tienda-menu-cont"></div>`;
-        overlay.querySelector('#tienda-menu-cont').appendChild(crearMenuCascada({
-          arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Sin tienda asignada' }, ...construirArbolTiendas(tiendas)],
-          valorActual: tiendaIdActual,
-          etiquetaVacio: 'Sin tienda asignada',
-          deshabilitar: deshabilitarTienda,
-          onSeleccionar: (valor) => { tiendaIdActual = valor === '' ? '' : Number(valor); }
-        }).elemento);
-      }
+      }).elemento);
     }
-
-    // analisis_correcciones_19.md #8/#10/#12: campo "Taller" — Encargado de
-    // taller local elige CUÁL Diseño Local; Técnico elige cualquier taller (y,
-    // si es uno compartido, también MTC o MTS); Asistente elige a cuál de los
-    // 3 talleres de Munditrofeos "clona"; 4/5/9 solo ven una nota (su taller
-    // es fijo y se sincroniza automáticamente al elegir el rol).
-    function renderTaller() {
-      const rolId = rolIdActual;
-      const zona = overlay.querySelector('#zona-taller');
-      if (rolId === ROL_ENCARGADO_DISENO_LOCAL) {
-        const opciones = talleres.filter(t => t.nombre.startsWith('Diseño Local'));
-        zona.innerHTML = `
-          <label>Taller</label>
-          <select id="input-taller">
-            <option value="">Sin taller asignado</option>
-            ${opciones.map(t => `<option value="${t.id}" ${Number(tallerIdActual) === t.id ? 'selected' : ''}>${escapeHtml(t.nombre)}</option>`).join('')}
-          </select>
-        `;
-        overlay.querySelector('#input-taller').addEventListener('change', (e) => {
-          tallerIdActual = e.target.value ? Number(e.target.value) : '';
-        });
-      } else if (rolId === ROL_TECNICO) {
-        zona.innerHTML = `
-          <label>Taller</label>
-          <select id="input-taller">
-            <option value="">Sin taller asignado</option>
-            ${talleres.map(t => `<option value="${t.id}" ${Number(tallerIdActual) === t.id ? 'selected' : ''}>${escapeHtml(t.nombre)}</option>`).join('')}
-          </select>
-          <div id="zona-tienda-tecnico"></div>
-        `;
-        // Un taller compartido (Diseño/UV-3D/Protextil) no dice por sí solo si
-        // el técnico trabaja en MTC o en MTS (punto 6) — a diferencia de un
-        // Diseño Local, donde la tienda ya viene implícita en el taller.
-        function renderTiendaTecnico() {
-          const taller = talleres.find(t => t.id === Number(tallerIdActual));
-          const cont = overlay.querySelector('#zona-tienda-tecnico');
-          if (taller && taller.tienda_id == null) {
-            const opcionesTienda = tiendas.filter(t => TIENDAS_ENCARGADO_TALLER.includes(t.id));
-            cont.innerHTML = `
-              <label style="display:block;margin-top:10px;">Tienda</label>
-              <select id="input-tienda-tecnico">
-                <option value="">Selecciona MTC o MTS</option>
-                ${opcionesTienda.map(t => `<option value="${t.id}" ${Number(tiendaIdActual) === t.id ? 'selected' : ''}>${escapeHtml(t.nombre)}</option>`).join('')}
-              </select>
-            `;
-            overlay.querySelector('#input-tienda-tecnico').addEventListener('change', (e) => {
-              tiendaIdActual = e.target.value ? Number(e.target.value) : '';
-            });
-          } else {
-            cont.innerHTML = '';
-          }
-        }
-        renderTiendaTecnico();
-        overlay.querySelector('#input-taller').addEventListener('change', (e) => {
-          tallerIdActual = e.target.value ? Number(e.target.value) : '';
-          renderTiendaTecnico();
-        });
-      } else if (rolId === ROL_ASISTENTE) {
-        const opciones = talleres.filter(t => TALLERES_CLONABLES_ASISTENTE.includes(t.nombre));
-        zona.innerHTML = `
-          <label>Clona a (taller)</label>
-          <select id="input-taller">
-            ${opciones.map(t => `<option value="${t.id}" ${Number(tallerIdActual) === t.id ? 'selected' : ''}>${escapeHtml(t.nombre)}</option>`).join('')}
-          </select>
-          <p class="form-hint">El Asistente administra el buzón de este taller como si fuera su encargado.</p>
-        `;
-        overlay.querySelector('#input-taller').addEventListener('change', (e) => {
-          tallerIdActual = Number(e.target.value);
-        });
-      } else if (ROLES_ENCARGADO_UNICO.includes(rolId)) {
-        const nombreTallerFijo = { 4: 'Diseño', 5: 'Diseño UV/3D', 9: 'Protextil' }[rolId];
-        zona.innerHTML = `<label>Taller</label><p class="form-nota">${escapeHtml(nombreTallerFijo)} — asignado automáticamente al elegir este rol.</p>`;
-      } else {
-        zona.innerHTML = '';
-      }
-    }
-
-    renderZonaAsignacion();
-    renderTaller();
-    overlay.querySelector('#rol-menu-cont').appendChild(crearMenuCascada({
-      arbol: construirArbolRoles(rolesAsignables),
-      valorActual: rolIdActual,
-      etiquetaVacio: 'Selecciona un rol',
-      deshabilitar: deshabilitarRol,
-      onSeleccionar: (valor) => {
-        rolIdActual = Number(valor);
-        tiendaIdActual = ''; // cambiar de rol invalida la tienda elegida bajo el rol anterior
-        tallerIdActual = ''; // ídem para el taller
-        renderZonaAsignacion();
-        renderTelefono();
-        renderTaller();
-      }
-    }).elemento);
 
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-guardar').addEventListener('click', async () => {
       const btn = overlay.querySelector('#btn-guardar');
-      const rolId = rolIdActual;
       const payload = {
         nombre: overlay.querySelector('#input-nombre').value.trim(),
         email: overlay.querySelector('#input-email').value.trim(),
-        telefono: telefonoActual.trim(),
         password: overlay.querySelector('#input-password') ? overlay.querySelector('#input-password').value : '',
-        rolId
+        rolId: rolIdActual
       };
-      if (rolId === ROL_SUPERVISOR) {
-        sincronizarTiendasSupervisadasVisibles();
-        payload.tiendasSupervisadas = tiendasSupervisadas;
-      } else {
-        payload.tiendaId = tiendaIdActual ? Number(tiendaIdActual) : null;
-      }
-      // analisis_correcciones_19.md #8/#10/#12: taller de Técnico/Encargado de
-      // taller local/Asistente — 4/5/9 no mandan tallerId (su taller es fijo
-      // por rol, lo sincroniza el backend solo).
-      if (rolId === ROL_TECNICO || rolId === ROL_ENCARGADO_DISENO_LOCAL || rolId === ROL_ASISTENTE) {
-        payload.tallerId = tallerIdActual ? Number(tallerIdActual) : null;
+      if (rolIdActual === ROL_ASESOR || rolIdActual === ROL_SUPERVISOR) {
+        const paisTel = overlay.querySelector('#input-telefono-pais').value;
+        const numTel = overlay.querySelector('#input-telefono').value.trim();
+        payload.telefono = numTel ? `${paisTel} ${numTel}` : '';
       }
       if (!payload.nombre || !payload.email) {
         mostrarErrorModal(overlay, 'Nombre y correo son obligatorios.');
@@ -937,6 +759,10 @@
       }
       if (!esEdicion && !payload.password) {
         mostrarErrorModal(overlay, 'La contraseña es obligatoria para un usuario nuevo.');
+        return;
+      }
+      if (!esEdicion && !payload.rolId) {
+        mostrarErrorModal(overlay, 'Selecciona un rol.');
         return;
       }
       btn.disabled = true;
@@ -1007,7 +833,7 @@
         // estado (ya no hay badge "Activo"/"Inactivo" aparte) — desbloqueado
         // y verde cuando el rol está activo, bloqueado y rojo cuando no.
         const btnToggle = document.createElement('button');
-        btnToggle.className = `btn-icon rol-candado ${rol.activo ? 'candado-activo' : 'candado-inactivo'}`;
+        btnToggle.className = `btn-icon candado-estado ${rol.activo ? 'candado-activo' : 'candado-inactivo'}`;
         btnToggle.title = rol.activo ? 'Rol activo — clic para desactivar' : 'Rol inactivo — clic para activar';
         btnToggle.setAttribute('aria-label', btnToggle.title);
         btnToggle.innerHTML = `<ion-icon name="${rol.activo ? 'lock-open-outline' : 'lock-closed-outline'}"></ion-icon>`;
@@ -1489,7 +1315,16 @@
       fetch('/api/admin/usuarios').then(r => r.json()).then(d => d.usuarios)
     ]);
     const idsActuales = new Set(personal.map(p => p.id));
-    const disponibles = todosUsuarios.filter(u => u.activo && !idsActuales.has(u.id));
+    // Solo Asesor/Supervisor se asignan a una tienda desde aquí — el resto
+    // depende de su taller (Gestionar Talleres). Un Asesor ya asignado a
+    // OTRA tienda no debe aparecer (una sola tienda a la vez); un Supervisor
+    // sí, porque puede cubrir varias.
+    const disponibles = todosUsuarios.filter(u =>
+      u.activo && !idsActuales.has(u.id) && (
+        (u.rol_id === ROL_ASESOR && u.tienda_id == null) ||
+        u.rol_id === ROL_SUPERVISOR
+      )
+    );
 
     // analisis_correcciones_15.md #12: cascada rol -> persona (dos selects
     // dependientes) en vez del combobox agrupado por <optgroup> de la
@@ -1608,7 +1443,244 @@
   }
 
   // =======================================================================
-  // 4. Modo Mantenimiento
+  // 4. Gestionar Talleres
+  // =======================================================================
+  function rolEsperadoDeTaller(taller) {
+    if (taller.nombre === 'Diseño') return 4;
+    if (taller.nombre === 'Diseño UV/3D') return 5;
+    if (taller.nombre === 'Protextil') return 9;
+    return ROL_ENCARGADO_DISENO_LOCAL;
+  }
+
+  async function cargarTalleres() {
+    const { talleres } = await fetch('/api/admin/talleres').then(r => r.json());
+    state.talleres = talleres;
+    renderTalleres();
+  }
+
+  function renderTalleres() {
+    $('#panel-content').innerHTML = `
+      <div class="panel-toolbar">
+        <h2>Gestionar Talleres</h2>
+      </div>
+      <div class="tabla-wrapper">
+        <table class="data-table sticky-header">
+          <thead><tr><th>Taller</th><th>Encargado</th><th>Técnicos</th><th>Acciones</th></tr></thead>
+          <tbody id="talleres-tbody"></tbody>
+        </table>
+      </div>
+    `;
+    const tbody = $('#talleres-tbody');
+    tbody.innerHTML = state.talleres.map(t => `
+      <tr>
+        <td data-label="Taller">${escapeHtml(t.nombre)}</td>
+        <td data-label="Encargado">${t.encargado_nombre ? escapeHtml(t.encargado_nombre) : '<span class="form-hint">Sin encargado</span>'}</td>
+        <td data-label="Técnicos">${t.tecnicos_count}</td>
+        <td data-label="Acciones" class="acciones-cell" data-taller-id="${t.id}"></td>
+      </tr>
+    `).join('');
+    state.talleres.forEach(t => {
+      const celda = tbody.querySelector(`[data-taller-id="${t.id}"]`);
+      const btnVer = document.createElement('button');
+      btnVer.className = 'btn-icon';
+      btnVer.title = 'Ver personal';
+      btnVer.innerHTML = '<ion-icon name="eye-outline"></ion-icon>';
+      btnVer.addEventListener('click', () => abrirModalVerPersonalTaller(t));
+      celda.appendChild(btnVer);
+
+      const btnGestionar = document.createElement('button');
+      btnGestionar.className = 'btn-icon';
+      btnGestionar.title = 'Gestionar personal';
+      btnGestionar.innerHTML = '<ion-icon name="people-outline"></ion-icon>';
+      btnGestionar.addEventListener('click', () => abrirModalPersonalTaller(t));
+      celda.appendChild(btnGestionar);
+    });
+  }
+
+  async function abrirModalVerPersonalTaller(taller) {
+    const personal = await fetch(`/api/admin/talleres/${taller.id}/personal`).then(r => r.json());
+    const encargado = personal.find(p => p.tipo_vinculo === 'encargado');
+    const tecnicos = personal.filter(p => p.tipo_vinculo === 'tecnico');
+    const bodyHtml = `
+      <p class="section-title">Encargado</p>
+      <div class="personal-lista">
+        ${encargado
+          ? `<div class="personal-item"><div class="personal-item-info"><span>${escapeHtml(encargado.nombre)}</span></div></div>`
+          : '<p class="form-hint">Sin encargado asignado.</p>'}
+      </div>
+      <p class="section-title">Técnicos (${tecnicos.length})</p>
+      <div class="personal-lista">
+        ${tecnicos.map(p => `
+          <div class="personal-item">
+            <div class="personal-item-info">
+              <span>${escapeHtml(p.nombre)}</span>
+              ${p.rol_id === ROL_ASISTENTE ? '<span class="rol">Asistente</span>' : ''}
+            </div>
+          </div>
+        `).join('') || '<p class="form-hint">Sin técnicos asignados.</p>'}
+      </div>
+    `;
+    const { overlay, cerrar } = abrirModal({
+      title: `Personal — ${taller.nombre}`,
+      bodyHtml,
+      footerHtml: `<button class="btn btn--primary" id="btn-cerrar-ver-personal-taller">Cerrar</button>`
+    });
+    overlay.querySelector('#btn-cerrar-ver-personal-taller').addEventListener('click', cerrar);
+  }
+
+  async function abrirModalPersonalTaller(taller) {
+    const [personal, todosUsuarios] = await Promise.all([
+      fetch(`/api/admin/talleres/${taller.id}/personal`).then(r => r.json()),
+      fetch('/api/admin/usuarios').then(r => r.json()).then(d => d.usuarios)
+    ]);
+    const encargadoActual = personal.find(p => p.tipo_vinculo === 'encargado');
+    const tecnicosActuales = personal.filter(p => p.tipo_vinculo === 'tecnico');
+    const idsActuales = new Set(personal.map(p => p.id));
+
+    const rolEsperado = rolEsperadoDeTaller(taller);
+    const encargadosDisponibles = todosUsuarios.filter(u => u.activo && u.rol_id === rolEsperado && !u.taller_id);
+    const tecnicosClonables = TALLERES_CLONABLES_ASISTENTE.includes(taller.nombre);
+    const tecnicosDisponibles = todosUsuarios.filter(u =>
+      u.activo && !idsActuales.has(u.id) && !u.taller_id &&
+      (u.rol_id === ROL_TECNICO || (u.rol_id === ROL_ASISTENTE && tecnicosClonables))
+    );
+
+    const bodyHtml = `
+      <p class="section-title">Encargado</p>
+      <div id="zona-encargado-taller" class="form-grid"></div>
+      <p class="section-title">Técnicos</p>
+      <div id="tecnicos-actual">
+        ${tecnicosActuales.map(p => `
+          <div class="personal-item" data-usuario-id="${p.id}">
+            <div class="personal-item-info">
+              <span>${escapeHtml(p.nombre)}</span>
+              ${p.rol_id === ROL_ASISTENTE ? '<span class="rol">Asistente</span>' : ''}
+            </div>
+          </div>
+        `).join('') || '<p class="form-hint">Sin técnicos asignados.</p>'}
+      </div>
+      <p class="section-title">Agregar técnico</p>
+      <div class="form-grid">
+        <div class="form-field">
+          <label>Persona</label>
+          <select id="input-agregar-tecnico">
+            <option value="">Seleccionar...</option>
+            ${tecnicosDisponibles.map(u => `<option value="${u.id}">${escapeHtml(u.nombre)}${u.rol_id === ROL_ASISTENTE ? ' (Asistente)' : ''}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    `;
+    const { overlay, cerrar } = abrirModal({
+      title: `Personal — ${taller.nombre}`,
+      bodyHtml,
+      footerHtml: `<button class="btn btn--ghost" id="btn-cerrar-taller">Cerrar</button><button class="btn btn--primary" id="btn-agregar-tecnico">Agregar técnico</button>`
+    });
+
+    function renderZonaEncargado() {
+      const zona = overlay.querySelector('#zona-encargado-taller');
+      if (encargadoActual) {
+        zona.innerHTML = `
+          <div class="personal-item">
+            <div class="personal-item-info"><span>${escapeHtml(encargadoActual.nombre)}</span></div>
+          </div>
+        `;
+        const item = zona.querySelector('.personal-item');
+        const btnQuitar = document.createElement('button');
+        btnQuitar.className = 'btn-icon icon-danger';
+        btnQuitar.title = 'Quitar';
+        btnQuitar.innerHTML = '<ion-icon name="close-outline"></ion-icon>';
+        btnQuitar.addEventListener('click', async () => {
+          try {
+            const res = await fetch(`/api/admin/talleres/${taller.id}/encargado`, { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            window.toast.success('Encargado actualizado', 'Se quitó al encargado del taller.');
+            cerrar();
+            cargarTalleres();
+          } catch (error) {
+            window.toast.error('No se pudo quitar', error.message);
+          }
+        });
+        item.appendChild(btnQuitar);
+      } else {
+        zona.innerHTML = `
+          <div class="form-field">
+            <select id="input-asignar-encargado">
+              <option value="">Seleccionar...</option>
+              ${encargadosDisponibles.map(u => `<option value="${u.id}">${escapeHtml(u.nombre)}</option>`).join('') || ''}
+            </select>
+          </div>
+          <button class="btn btn--primary" id="btn-asignar-encargado" type="button">Asignar</button>
+        `;
+        if (!encargadosDisponibles.length) {
+          zona.innerHTML = '<p class="form-hint">No hay usuarios disponibles con el rol correcto para este taller.</p>';
+          return;
+        }
+        overlay.querySelector('#btn-asignar-encargado').addEventListener('click', async () => {
+          const usuarioId = overlay.querySelector('#input-asignar-encargado').value;
+          if (!usuarioId) return;
+          try {
+            const res = await fetch(`/api/admin/talleres/${taller.id}/encargado`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuarioId: Number(usuarioId) })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            window.toast.success('Encargado actualizado', 'Se asignó el encargado del taller.');
+            cerrar();
+            cargarTalleres();
+          } catch (error) {
+            mostrarErrorModal(overlay, error.message);
+          }
+        });
+      }
+    }
+    renderZonaEncargado();
+
+    $$('#tecnicos-actual .personal-item', overlay).forEach(item => {
+      const btnQuitar = document.createElement('button');
+      btnQuitar.className = 'btn-icon icon-danger';
+      btnQuitar.title = 'Quitar';
+      btnQuitar.innerHTML = '<ion-icon name="close-outline"></ion-icon>';
+      btnQuitar.addEventListener('click', async () => {
+        const usuarioId = item.dataset.usuarioId;
+        try {
+          const res = await fetch(`/api/admin/talleres/${taller.id}/tecnicos/${usuarioId}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          window.toast.success('Personal actualizado', 'Se quitó del taller.');
+          cerrar();
+          cargarTalleres();
+        } catch (error) {
+          window.toast.error('No se pudo quitar', error.message);
+        }
+      });
+      item.appendChild(btnQuitar);
+    });
+
+    overlay.querySelector('#btn-cerrar-taller').addEventListener('click', cerrar);
+    overlay.querySelector('#btn-agregar-tecnico').addEventListener('click', async () => {
+      const usuarioId = overlay.querySelector('#input-agregar-tecnico').value;
+      if (!usuarioId) return;
+      const btn = overlay.querySelector('#btn-agregar-tecnico');
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/admin/talleres/${taller.id}/tecnicos`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuarioId: Number(usuarioId) })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        window.toast.success('Personal actualizado', 'Se agregó al taller.');
+        cerrar();
+        cargarTalleres();
+      } catch (error) {
+        mostrarErrorModal(overlay, error.message);
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // =======================================================================
+  // 5. Modo Mantenimiento
   // =======================================================================
   async function cargarMantenimiento() {
     const res = await fetch('/api/admin/mantenimiento');

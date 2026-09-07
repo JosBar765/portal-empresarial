@@ -52,7 +52,6 @@ CREATE TABLE IF NOT EXISTS `usuarios` (
   `email`               VARCHAR(150) NOT NULL UNIQUE,
   `password_hash`       VARCHAR(255) NOT NULL,
   `rol_id`              INT NOT NULL,
-  `tienda_id`           INT DEFAULT NULL,
   `activo`              TINYINT(1) NOT NULL DEFAULT 1,
   `intentos_fallidos`   INT NOT NULL DEFAULT 0,
   `bloqueado_hasta`     DATETIME DEFAULT NULL,

@@ -255,6 +255,20 @@
   color: var(--color-text-secondary);
 }
 
+.form-field-phone {
+  display: flex;
+  gap: 6px;
+}
+
+.form-field-phone select {
+  flex: 0 0 96px;
+}
+
+.form-field-phone input {
+  flex: 1;
+  min-width: 0;
+}
+
 .form-nota {
   margin: 0;
   font-size: 12px;
@@ -635,17 +649,17 @@
 /* analisis_correcciones_18.md #4: el candado de Roles y Permisos es el
    único indicador de estado (ya no hay badge "Activo"/"Inactivo" aparte) —
    desbloqueado/verde = activo, bloqueado/rojo = inactivo. */
-.btn-icon.rol-candado.candado-activo {
+.btn-icon.candado-estado.candado-activo {
   color: var(--color-success);
 }
-.btn-icon.rol-candado.candado-activo:hover {
+.btn-icon.candado-estado.candado-activo:hover {
   background: var(--color-success-bg);
   color: var(--color-success);
 }
-.btn-icon.rol-candado.candado-inactivo {
+.btn-icon.candado-estado.candado-inactivo {
   color: var(--color-danger);
 }
-.btn-icon.rol-candado.candado-inactivo:hover {
+.btn-icon.candado-estado.candado-inactivo:hover {
   background: var(--color-danger-bg);
   color: var(--color-danger);
 }
