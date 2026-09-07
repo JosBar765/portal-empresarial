@@ -13,10 +13,6 @@ INSERT INTO `paises` (`codigo`, `nombre`, `codigo_telefono`) VALUES
 ('CR', 'Costa Rica', '+506'),
 ('BZ', 'Belice', '+501');
 
--- analisis_correcciones_18.md #5: empresas dueñas de las tiendas. MTC y MTS
--- (ids 1 y 2 de `tiendas`) son ambas de "Munditrofeos, S.A." (empresa 1); el
--- resto de tiendas tiene una empresa propia, en el mismo orden que el
--- documento de correcciones. `pais_id`: 1=GT, 2=SV, 3=HN, 4=NI, 5=CR.
 INSERT INTO `empresas` (`id`, `nombre`, `pais_id`) VALUES
 (1,  'Munditrofeos, S.A.', 1),
 (2,  'Premia, S.A.', 1),
@@ -105,8 +101,6 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 --   supervisores/gerentes reales (ids 13-24)                 -> supervisor123
 --   encargados/técnicos de Protextil y Diseño Local (25-48)  -> disenoenc123 / tecnico123
 --   asesores de ventas reales (ids 49-96)                    -> AsesorNuevo15
--- analisis_correcciones_18.md #1: el Administrador administra el sistema
--- completo, no una tienda puntual — `tienda_id` siempre NULL para este rol.
 INSERT INTO `usuarios` (`id`, `nombre`, `email`, `password_hash`, `rol_id`, `tienda_id`) VALUES
 (1, 'Administrador General', 'admin@munditrofeos.com', '$2a$10$0.B9xk21MYppfOd4XbtP3u5mJ6NzlaA6eqlu65Fy5G7xb2VnN2Lwu', 1, NULL),
 (5, 'Encargado de Diseño', 'encargado.diseno@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 4, 1),
@@ -208,11 +202,6 @@ INSERT INTO `usuarios` (`id`, `nombre`, `email`, `password_hash`, `rol_id`, `tie
 (95, 'Francisco Zamora', 'costarica@grupopremia.com', '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 2, 13),
 (96, 'Luis Elizondo', 'ventas2cr@grupopremia.com', '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 2, 13);
 
--- Estructura organizacional: departamento -> subdivisión (opcional) -> tienda.
--- analisis_correcciones_18.md #3: `pais_id` en el departamento solo se usa
--- cuando no tiene subdivisiones propias (Ventas Munditrofeos y Ventas Premia
--- Z13, ambos exclusivos de Guatemala); "Ventas Centroamérica" y los Trofex
--- quedan en NULL porque el país real vive en cada subdivisión.
 INSERT INTO `departamentos` (`id`, `nombre`, `pais_id`) VALUES
 (1, 'Ventas Munditrofeos', 1),
 (2, 'Ventas Premia Z13', 1),
@@ -220,8 +209,6 @@ INSERT INTO `departamentos` (`id`, `nombre`, `pais_id`) VALUES
 (4, 'Ventas Trofex R1', NULL),
 (5, 'Ventas Trofex R2', NULL);
 
--- Ventas Premia Z13 no tiene subdivisiones (dept 2 no aparece aquí).
--- `pais_id`: 1=GT, 2=SV, 3=HN, 4=NI, 5=CR (ver `paises`).
 INSERT INTO `subdivisiones` (`id`, `departamento_id`, `nombre`, `pais_id`) VALUES
 (1, 1, 'Comercialización', 1),
 (2, 1, 'Sala de Ventas', 1),
@@ -250,8 +237,6 @@ INSERT INTO `subdivisiones` (`id`, `departamento_id`, `nombre`, `pais_id`) VALUE
 (25, 5, 'Ventas Villa Nueva', 1),
 (26, 5, 'Ventas Xela', 1);
 
--- `empresa_id` referencia `empresas` de arriba (MTC y MTS comparten la 1,
--- "Munditrofeos, S.A."; el resto es 1:1 en el mismo orden del documento).
 INSERT INTO `tiendas` (`id`, `codigo`, `empresa_id`, `departamento_id`, `subdivision_id`) VALUES
 (1,  'MTC', 1,  1, 1),
 (2,  'MTS', 1,  1, 2),
@@ -281,9 +266,6 @@ INSERT INTO `tiendas` (`id`, `codigo`, `empresa_id`, `departamento_id`, `subdivi
 (26, 'VLN', 25, 5, 25),
 (27, 'XEL', 26, 5, 26);
 
--- analisis_correcciones_18.md #5: un Asesor de Ventas es su propia entidad
--- — su tienda deja de vivir en `usuarios.tienda_id` (columna deprecada) y
--- pasa a `asesores.tienda_id`, migrada 1:1 desde los valores ya sembrados.
 INSERT INTO `asesores` (`usuario_id`, `tienda_id`) VALUES
 (49, 1), (50, 1), (51, 1), (52, 1), (53, 1), (54, 1),
 (55, 2), (56, 2), (57, 2), (58, 2), (59, 2),
@@ -294,19 +276,9 @@ INSERT INTO `asesores` (`usuario_id`, `tienda_id`) VALUES
 (85, 5), (86, 6), (87, 10), (88, 10), (89, 9), (90, 9), (91, 8),
 (92, 11), (93, 11), (94, 12), (95, 13), (96, 13);
 
--- Un Supervisor de Ventas también es su propia entidad (sin tienda propia:
--- su cobertura vive en `supervisor_tiendas`, tabla siguiente).
 INSERT INTO `supervisores` (`usuario_id`) VALUES
 (13), (14), (15), (16), (17), (18), (19), (20), (21), (22), (23), (24);
 
--- Cobertura de supervisores, por TIENDA (ya no por departamento/subdivisión
--- — analisis_correcciones_18.md #5: "el supervisor supervisa la tienda, no
--- el departamento ni la subdivisión"). Esta es la expansión, congelada a hoy,
--- de la vieja cobertura por departamento/subdivisión: cada fila de abajo es
--- una tienda concreta que caía dentro del alcance de esa cobertura. Una
--- tienda que se agregue después a un departamento YA NO se hereda
--- automáticamente — hay que asignarla explícitamente. Emilio Morales y Pablo
--- Orellana cubren Trofex R2 al mismo tiempo (supervisores rotativos).
 INSERT INTO `supervisor_tiendas` (`usuario_id`, `tienda_id`) VALUES
 (13, 1), (13, 2),
 (14, 2),
@@ -331,8 +303,6 @@ INSERT INTO `vale_productos` (`id`, `codigo`, `nombre`) VALUES
 INSERT INTO `vale_materiales` (`id`, `nombre`) VALUES
 (1, 'Acrílico'), (2, 'Metal'), (3, 'Madera'), (4, 'Cristal');
 
--- Un taller por cada encargado existente. `tienda_id` NULL = taller de toda
--- la empresa; los "Diseño Local" están acotados a la tienda que los tiene.
 INSERT INTO `talleres` (`id`, `nombre`, `encargado_id`, `tienda_id`) VALUES
 (1, 'Diseño', 5, NULL),
 (2, 'Diseño UV/3D', 6, NULL),
@@ -349,21 +319,12 @@ INSERT INTO `talleres` (`id`, `nombre`, `encargado_id`, `tienda_id`) VALUES
 (13, 'Diseño Local - LEO', 45, 12),
 (14, 'Diseño Local - SJO', 47, 13);
 
--- analisis_correcciones_18.md #5: solo para "Gestionar personal" — Diseño,
--- Diseño UV/3D y Protextil son talleres compartidos por MTC (1) y MTS (2);
--- cada Diseño Local cubre únicamente su propia tienda. No afecta a qué
--- talleres puede enviar un vale un asesor (eso lo sigue gobernando
--- `talleres.tienda_id`, sin cambios).
 INSERT INTO `encargado_tienda` (`taller_id`, `tienda_id`) VALUES
 (1, 1), (1, 2),
 (2, 1), (2, 2),
 (3, 1), (3, 2),
 (4, 3), (5, 4), (6, 5), (7, 6), (8, 7), (9, 8), (10, 9), (11, 10), (12, 11), (13, 12), (14, 13);
 
--- Reemplaza `usuarios.encargado_id` — mismo mapeo técnico→taller de antes,
--- ahora expresado como relación directa en vez de "mismo encargado que...".
--- analisis_correcciones_19.md #10: la fila (11, 1) es el Asistente (id 11) —
--- hoy "clona" el taller Diseño (id 1), configurable desde Editar usuario.
 INSERT INTO `taller_tecnicos` (`usuario_id`, `taller_id`) VALUES
 (11, 1),
 (7, 1), (8, 1), (9, 2), (26, 3),
