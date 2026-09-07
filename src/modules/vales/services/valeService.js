@@ -429,23 +429,31 @@ class ValeService {
   // -----------------------------------------------------------------------
   // Resolución de "mi taller" (clon operativo del Asistente de Diseño)
   // -----------------------------------------------------------------------
-  // analisis_correcciones_12.md #11: el Asistente de Diseño (rol 9) opera el
-  // taller "Diseño" como si fuera su propio encargado_id, sin serlo. Todo sitio
-  // que hoy compara `talleres.encargado_id === usuario.id` para resolver "mi
+  // analisis_correcciones_12.md #11: el Asistente de Diseño opera un taller
+  // como si fuera su propio encargado_id, sin serlo. Todo sitio que hoy
+  // compara `talleres.encargado_id === usuario.id` para resolver "mi
   // taller"/"mis técnicos" pasa por AQUÍ en su lugar, para que la excepción
   // viva en un solo punto en vez de repetirse en cada función.
+  // analisis_correcciones_19.md #10: a QUÉ taller "clona" el Asistente ya no
+  // está hardcodeado a 'Diseño' — sale de `taller_tecnicos` (mismo mecanismo
+  // que usa un Técnico), asignable desde "Editar usuario".
   async _idEncargadoEfectivo(usuario) {
     if (!esAsistenteDeDiseno(usuario)) return usuario.id;
+    const asistente = await usuarioValeRepository.obtenerPorId(usuario.id);
+    if (!asistente || !asistente.taller_id) return usuario.id;
     const talleres = await tallerRepository.listarActivos();
-    const diseno = talleres.find(t => t.nombre === 'Diseño');
-    return diseno ? diseno.encargado_id : usuario.id;
+    const taller = talleres.find(t => t.id === asistente.taller_id);
+    return taller ? taller.encargado_id : usuario.id;
   }
 
-  // Sala de socket a notificar cuando un vale queda listo para fusión. Ya no
-  // existe una sala fija de "encargado general" — el Encargado de Diseño y su
-  // clon, el Asistente de Diseño, ya están unidos a `taller:<id>` del taller
-  // "Diseño" (ver roomsParaUsuario en el frontend), así que reusar esa sala
-  // alcanza sin inventar un canal nuevo.
+  // Sala de socket a notificar cuando un vale queda listo para fusión. Se
+  // ancla al taller "Diseño" (el único con `vales.aprobar_general` fijo por
+  // rol — el Encargado de Diseño y su clon, el Asistente, ya están unidos a
+  // `taller:<id>` de ese taller, sin importar qué taller disparó la
+  // transición a APROBADO_DEPARTAMENTO). analisis_correcciones_19.md #10 solo
+  // hace configurable A QUÉ taller clona el Asistente su BUZÓN — si el
+  // negocio algún día reasigna también la fusión a otro taller, esta sala fija
+  // tendría que revisarse aparte.
   async _salaFusion() {
     const talleres = await tallerRepository.listarActivos();
     const diseno = talleres.find(t => t.nombre === 'Diseño');

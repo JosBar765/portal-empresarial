@@ -138,6 +138,18 @@ class TiendaAdminRepository {
     return db.query('SELECT * FROM departamentos WHERE activo = 1 ORDER BY nombre', [], 'organizacion:departamentos');
   }
 
+  // analisis_correcciones_19.md #9: crea un departamento nuevo desde el modal
+  // "Nueva tienda" (radio "crear nuevo") — siempre de un solo país (el caso
+  // multi-país como "Ventas Centroamérica" sigue siendo exclusivo del seed).
+  async crearDepartamento(nombre, paisId) {
+    const result = await db.query(
+      'INSERT INTO departamentos (nombre, pais_id) VALUES (?, ?)',
+      [nombre, paisId],
+      'departamento:insert'
+    );
+    return result.insertId;
+  }
+
   async listarSubdivisiones() {
     return db.query('SELECT * FROM subdivisiones WHERE activo = 1 ORDER BY nombre', [], 'organizacion:subdivisiones');
   }

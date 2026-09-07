@@ -494,6 +494,9 @@ const mockDatabase = {
   ],
   // Reemplaza `usuarios.encargado_id` — mismo mapeo técnico→taller de antes.
   tallerTecnicos: [
+    // analisis_correcciones_19.md #10: el Asistente (id 11) "clona" Diseño
+    // (taller 1) por defecto — configurable desde Editar usuario.
+    { usuario_id: 11, taller_id: 1 },
     { usuario_id: 7, taller_id: 1 }, { usuario_id: 8, taller_id: 1 }, { usuario_id: 9, taller_id: 2 },
     { usuario_id: 26, taller_id: 3 },
     { usuario_id: 28, taller_id: 4 }, { usuario_id: 30, taller_id: 5 }, { usuario_id: 32, taller_id: 6 },
@@ -673,9 +676,18 @@ function enriquecerUsuario(u) {
     const supervisor = mockDatabase.supervisores.find(s => s.usuario_id === u.id);
     return { ...u, tienda_id: null, telefono: supervisor ? supervisor.telefono : null };
   }
-  if (u.rol_id === 6) {
+  // analisis_correcciones_19.md #10: el Asistente (rol 7) reutiliza la misma
+  // relación usuario→taller que un Técnico — el suyo es el taller que "clona".
+  if (u.rol_id === 6 || u.rol_id === 7) {
     const rel = mockDatabase.tallerTecnicos.find(tt => tt.usuario_id === u.id);
     return { ...u, taller_id: rel ? rel.taller_id : null };
+  }
+  // analisis_correcciones_19.md #8/#12: encargados de taller (fijo por rol en
+  // 4/5/9, elegible en 10) — su taller sale de `talleres.encargado_id`, para
+  // que "Editar usuario" pueda preseleccionarlo/mostrarlo.
+  if ([4, 5, 9, 10].includes(u.rol_id)) {
+    const taller = mockDatabase.talleres.find(t => t.encargado_id === u.id);
+    return { ...u, taller_id: taller ? taller.id : null };
   }
   return u;
 }
@@ -808,6 +820,44 @@ const taggedHandlers = {
   'taller:find_by_id': (params) => {
     const t = mockDatabase.talleres.find(x => x.id === Number(params[0]));
     return t ? [t] : [];
+  },
+
+  // analisis_correcciones_19.md #8/#10/#12: asignación de talleres desde
+  // "Editar usuario" — antes nada escribía encargado_id/taller_tecnicos
+  // fuera del seed.
+  'taller_admin:list': () => mockDatabase.talleres.filter(t => t.activo),
+  'taller_admin:find_by_id': (params) => {
+    const t = mockDatabase.talleres.find(x => x.id === Number(params[0]));
+    return t ? [t] : [];
+  },
+  'taller_admin:asignar_encargado': (params) => {
+    const [usuarioId, tallerId] = params;
+    const t = mockDatabase.talleres.find(x => x.id === Number(tallerId));
+    if (!t) return { affectedRows: 0 };
+    t.encargado_id = Number(usuarioId);
+    return { affectedRows: 1 };
+  },
+  'taller_admin:quitar_encargado_de': (params) => {
+    const usuarioId = Number(params[0]);
+    let afectados = 0;
+    mockDatabase.talleres.forEach(t => {
+      if (t.encargado_id === usuarioId) { t.encargado_id = null; afectados++; }
+    });
+    return { affectedRows: afectados };
+  },
+  'taller_tecnico:asignar': (params) => {
+    const [usuarioId, tallerId] = params;
+    const uId = Number(usuarioId);
+    const existente = mockDatabase.tallerTecnicos.find(tt => tt.usuario_id === uId);
+    if (existente) { existente.taller_id = Number(tallerId); }
+    else { mockDatabase.tallerTecnicos.push({ usuario_id: uId, taller_id: Number(tallerId) }); }
+    return { affectedRows: 1 };
+  },
+  'taller_tecnico:quitar': (params) => {
+    const uId = Number(params[0]);
+    const antes = mockDatabase.tallerTecnicos.length;
+    mockDatabase.tallerTecnicos = mockDatabase.tallerTecnicos.filter(tt => tt.usuario_id !== uId);
+    return { affectedRows: antes - mockDatabase.tallerTecnicos.length };
   },
 
   'vale:insert': (params) => {
@@ -1243,6 +1293,13 @@ const taggedHandlers = {
     const [departamentoId, nombre, paisId] = params;
     const row = { id: nextId(mockDatabase.subdivisiones), departamento_id: Number(departamentoId), nombre, pais_id: Number(paisId), activo: 1 };
     mockDatabase.subdivisiones.push(row);
+    return { insertId: row.id };
+  },
+  // analisis_correcciones_19.md #9: departamento nuevo, siempre de un solo país.
+  'departamento:insert': (params) => {
+    const [nombre, paisId] = params;
+    const row = { id: nextId(mockDatabase.departamentos), nombre, pais_id: paisId != null ? Number(paisId) : null, activo: 1 };
+    mockDatabase.departamentos.push(row);
     return { insertId: row.id };
   },
   'tienda_admin:set_orden': (params) => {

@@ -185,6 +185,15 @@ class AdminController {
     }
   }
 
+  async listarTalleres(req, res) {
+    try {
+      const data = await adminService.listarTalleres();
+      return res.json(data);
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
   // ---- Mantenimiento ----
   async obtenerMantenimiento(req, res) {
     try {

@@ -9,11 +9,16 @@ class UsuarioAdminRepository {
   // (`supervisor_tiendas`) — este JOIN plano solo alcanza a mostrar uno; el
   // mock (`usuario_admin:list`) sí calcula la lista completa vía
   // `tiendasCubiertasPorSupervisor`.
+  // analisis_correcciones_19.md #8/#10/#12: `taller_id` — de `taller_tecnicos`
+  // para Técnico/Asistente (6/7), o de `talleres.encargado_id` para los
+  // encargados de taller (4/5/9/10) — para que "Editar usuario" pueda
+  // preseleccionar/mostrar el taller actual.
   async listarConDetalle() {
     return db.query(
       `SELECT u.*, r.nombre AS rol_nombre,
               CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS tienda_nombre,
-              p.nombre AS paises_asignados
+              p.nombre AS paises_asignados,
+              COALESCE(tt.taller_id, td.id) AS taller_id
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
        LEFT JOIN asesores a ON a.usuario_id = u.id
@@ -21,6 +26,8 @@ class UsuarioAdminRepository {
        LEFT JOIN empresas e ON e.id = t.empresa_id
        LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
        LEFT JOIN paises p ON p.id = e.pais_id
+       LEFT JOIN taller_tecnicos tt ON tt.usuario_id = u.id
+       LEFT JOIN talleres td ON td.encargado_id = u.id
        ORDER BY u.nombre`,
       [],
       'usuario_admin:list'

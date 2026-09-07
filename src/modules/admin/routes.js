@@ -24,6 +24,7 @@ router.patch('/roles/:id/activo', soloAdmin, (req, res) => adminController.estab
 
 // Tiendas
 router.get('/organizacion', soloAdmin, (req, res) => adminController.obtenerOrganizacion(req, res));
+router.get('/talleres', soloAdmin, (req, res) => adminController.listarTalleres(req, res));
 router.get('/tiendas', soloAdmin, (req, res) => adminController.listarTiendas(req, res));
 router.post('/tiendas', soloAdmin, (req, res) => adminController.crearTienda(req, res));
 router.put('/tiendas/orden', soloAdmin, (req, res) => adminController.actualizarOrdenTiendas(req, res));

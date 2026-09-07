@@ -168,13 +168,16 @@ CREATE TABLE IF NOT EXISTS `vale_materiales` (
 -- propuestas de ESE taller). `tienda_id` distingue un taller de TODA la
 -- empresa (NULL) de un "Diseño Local" que solo existe para una tienda
 -- puntual (apunta a esa tienda).
+-- analisis_correcciones_19.md #8/#11/#12: `encargado_id` es NULL-able — un
+-- taller puede quedar momentáneamente sin encargado (se desasigna al
+-- titular antes de asignar un reemplazo, igual que `asesores.tienda_id`).
 CREATE TABLE IF NOT EXISTS `talleres` (
   `id`           INT AUTO_INCREMENT PRIMARY KEY,
   `nombre`       VARCHAR(100) NOT NULL UNIQUE,
-  `encargado_id` INT NOT NULL,
+  `encargado_id` INT DEFAULT NULL,
   `tienda_id`    INT DEFAULT NULL COMMENT 'NULL = taller de toda la empresa; NOT NULL = Diseño Local de esa tienda. Gobierna a qué talleres puede enviar un vale cada asesor (ver _validarTalleresIds) — no confundir con `encargado_tienda`, que es solo para "Gestionar personal".',
   `activo`       TINYINT(1) NOT NULL DEFAULT 1,
-  FOREIGN KEY (`encargado_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`encargado_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   FOREIGN KEY (`tienda_id`) REFERENCES `tiendas` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -196,6 +199,9 @@ CREATE TABLE IF NOT EXISTS `encargado_tienda` (
 -- analisis_correcciones_18.md #5: reemplaza `usuarios.encargado_id` — un
 -- técnico trabaja físicamente en un solo taller (PK sobre `usuario_id`, no
 -- compuesta, para que sea imposible tener dos filas del mismo técnico).
+-- analisis_correcciones_19.md #10: también guarda a qué taller "clona" el
+-- Asistente (rol 7) — mismo shape (usuario→taller), nunca colisiona con un
+-- técnico porque un usuario nunca tiene ambos roles a la vez.
 CREATE TABLE IF NOT EXISTS `taller_tecnicos` (
   `usuario_id` INT NOT NULL PRIMARY KEY,
   `taller_id`  INT NOT NULL,

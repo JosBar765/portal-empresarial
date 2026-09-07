@@ -362,7 +362,10 @@ INSERT INTO `encargado_tienda` (`taller_id`, `tienda_id`) VALUES
 
 -- Reemplaza `usuarios.encargado_id` — mismo mapeo técnico→taller de antes,
 -- ahora expresado como relación directa en vez de "mismo encargado que...".
+-- analisis_correcciones_19.md #10: la fila (11, 1) es el Asistente (id 11) —
+-- hoy "clona" el taller Diseño (id 1), configurable desde Editar usuario.
 INSERT INTO `taller_tecnicos` (`usuario_id`, `taller_id`) VALUES
+(11, 1),
 (7, 1), (8, 1), (9, 2), (26, 3),
 (28, 4), (30, 5), (32, 6), (34, 7), (36, 8), (38, 9), (40, 10), (42, 11), (44, 12), (46, 13), (48, 14);
 

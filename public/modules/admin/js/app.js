@@ -11,6 +11,11 @@
   // analisis_correcciones_17.md #12/#13: mismos roles/tiendas que valida el backend.
   const ROLES_ENCARGADO_UNICO = [4, 5, 9];
   const TIENDAS_ENCARGADO_TALLER = [1, 2];
+  // analisis_correcciones_19.md #8/#10/#12: roles con asignación de taller.
+  const ROL_TECNICO = 6;
+  const ROL_ASISTENTE = 7;
+  const ROL_ENCARGADO_DISENO_LOCAL = 10;
+  const TALLERES_CLONABLES_ASISTENTE = ['Diseño', 'Diseño UV/3D', 'Protextil'];
 
   const state = {
     user: null,
@@ -625,14 +630,16 @@
   }
 
   async function abrirModalUsuario(usuario) {
-    const [rolesData, tiendasData, usuariosData] = await Promise.all([
+    const [rolesData, tiendasData, usuariosData, talleresData] = await Promise.all([
       fetch('/api/admin/roles').then(r => r.json()),
       fetch('/api/admin/tiendas').then(r => r.json()),
-      fetch('/api/admin/usuarios').then(r => r.json())
+      fetch('/api/admin/usuarios').then(r => r.json()),
+      fetch('/api/admin/talleres').then(r => r.json())
     ]);
     const roles = rolesData.roles;
     const tiendas = tiendasData.tiendas.filter(t => t.activo);
     const todosUsuarios = usuariosData.usuarios;
+    const talleres = talleresData.talleres;
     const esEdicion = !!usuario;
 
     let tiendasSupervisadas = [];
@@ -646,6 +653,9 @@
     const rolesAsignables = roles.filter(r => r.activo || (esEdicion && Number(usuario.rol_id) === r.id));
     let rolIdActual = esEdicion ? Number(usuario.rol_id) : (rolesAsignables[0] ? rolesAsignables[0].id : null);
     let tiendaIdActual = (esEdicion && usuario.tienda_id) ? usuario.tienda_id : '';
+    // analisis_correcciones_19.md #8/#10/#12: taller de Técnico/Encargado de
+    // taller local/Asistente — sale de `usuario.taller_id` (ver `enriquecerUsuario`).
+    let tallerIdActual = (esEdicion && usuario.taller_id) ? usuario.taller_id : '';
 
     // analisis_correcciones_17.md #12: un rol de encargado único (Diseño,
     // Diseño 3D, Protextil) se deshabilita en el menú si ya tiene un titular
@@ -689,6 +699,7 @@
           <div id="rol-menu-cont"></div>
         </div>
         <div class="form-field full" id="zona-asignacion"></div>
+        <div class="form-field full" id="zona-taller"></div>
       </div>
     `;
 
@@ -785,6 +796,11 @@
           <label>Tienda</label>
           <p class="form-nota">${tiendaActual ? `${escapeHtml(tiendaActual.nombre)} (${escapeHtml(tiendaActual.codigo)})` : 'Sin tienda asignada'} — para cambiar la tienda de un asesor, usá Gestionar Tiendas → Gestionar personal.</p>
         `;
+      } else if (rolId === ROL_TECNICO || rolId === ROL_ENCARGADO_DISENO_LOCAL) {
+        // analisis_correcciones_19.md #8/#12: su tienda ya no se elige aquí —
+        // se deriva del taller (o, para un técnico en un taller compartido, se
+        // elige junto con el taller mismo) — ver renderTaller().
+        zona.innerHTML = '';
       } else {
         // analisis_correcciones_17.md #6: el combobox de país + tienda se
         // reemplaza por un único menú cascada (mismo árbol del punto 4).
@@ -798,7 +814,85 @@
         }).elemento);
       }
     }
+
+    // analisis_correcciones_19.md #8/#10/#12: campo "Taller" — Encargado de
+    // taller local elige CUÁL Diseño Local; Técnico elige cualquier taller (y,
+    // si es uno compartido, también MTC o MTS); Asistente elige a cuál de los
+    // 3 talleres de Munditrofeos "clona"; 4/5/9 solo ven una nota (su taller
+    // es fijo y se sincroniza automáticamente al elegir el rol).
+    function renderTaller() {
+      const rolId = rolIdActual;
+      const zona = overlay.querySelector('#zona-taller');
+      if (rolId === ROL_ENCARGADO_DISENO_LOCAL) {
+        const opciones = talleres.filter(t => t.nombre.startsWith('Diseño Local'));
+        zona.innerHTML = `
+          <label>Taller</label>
+          <select id="input-taller">
+            <option value="">Sin taller asignado</option>
+            ${opciones.map(t => `<option value="${t.id}" ${Number(tallerIdActual) === t.id ? 'selected' : ''}>${escapeHtml(t.nombre)}</option>`).join('')}
+          </select>
+        `;
+        overlay.querySelector('#input-taller').addEventListener('change', (e) => {
+          tallerIdActual = e.target.value ? Number(e.target.value) : '';
+        });
+      } else if (rolId === ROL_TECNICO) {
+        zona.innerHTML = `
+          <label>Taller</label>
+          <select id="input-taller">
+            <option value="">Sin taller asignado</option>
+            ${talleres.map(t => `<option value="${t.id}" ${Number(tallerIdActual) === t.id ? 'selected' : ''}>${escapeHtml(t.nombre)}</option>`).join('')}
+          </select>
+          <div id="zona-tienda-tecnico"></div>
+        `;
+        // Un taller compartido (Diseño/UV-3D/Protextil) no dice por sí solo si
+        // el técnico trabaja en MTC o en MTS (punto 6) — a diferencia de un
+        // Diseño Local, donde la tienda ya viene implícita en el taller.
+        function renderTiendaTecnico() {
+          const taller = talleres.find(t => t.id === Number(tallerIdActual));
+          const cont = overlay.querySelector('#zona-tienda-tecnico');
+          if (taller && taller.tienda_id == null) {
+            const opcionesTienda = tiendas.filter(t => TIENDAS_ENCARGADO_TALLER.includes(t.id));
+            cont.innerHTML = `
+              <label style="display:block;margin-top:10px;">Tienda</label>
+              <select id="input-tienda-tecnico">
+                <option value="">Selecciona MTC o MTS</option>
+                ${opcionesTienda.map(t => `<option value="${t.id}" ${Number(tiendaIdActual) === t.id ? 'selected' : ''}>${escapeHtml(t.nombre)}</option>`).join('')}
+              </select>
+            `;
+            overlay.querySelector('#input-tienda-tecnico').addEventListener('change', (e) => {
+              tiendaIdActual = e.target.value ? Number(e.target.value) : '';
+            });
+          } else {
+            cont.innerHTML = '';
+          }
+        }
+        renderTiendaTecnico();
+        overlay.querySelector('#input-taller').addEventListener('change', (e) => {
+          tallerIdActual = e.target.value ? Number(e.target.value) : '';
+          renderTiendaTecnico();
+        });
+      } else if (rolId === ROL_ASISTENTE) {
+        const opciones = talleres.filter(t => TALLERES_CLONABLES_ASISTENTE.includes(t.nombre));
+        zona.innerHTML = `
+          <label>Clona a (taller)</label>
+          <select id="input-taller">
+            ${opciones.map(t => `<option value="${t.id}" ${Number(tallerIdActual) === t.id ? 'selected' : ''}>${escapeHtml(t.nombre)}</option>`).join('')}
+          </select>
+          <p class="form-hint">El Asistente administra el buzón de este taller como si fuera su encargado.</p>
+        `;
+        overlay.querySelector('#input-taller').addEventListener('change', (e) => {
+          tallerIdActual = Number(e.target.value);
+        });
+      } else if (ROLES_ENCARGADO_UNICO.includes(rolId)) {
+        const nombreTallerFijo = { 4: 'Diseño', 5: 'Diseño UV/3D', 9: 'Protextil' }[rolId];
+        zona.innerHTML = `<label>Taller</label><p class="form-nota">${escapeHtml(nombreTallerFijo)} — asignado automáticamente al elegir este rol.</p>`;
+      } else {
+        zona.innerHTML = '';
+      }
+    }
+
     renderZonaAsignacion();
+    renderTaller();
     overlay.querySelector('#rol-menu-cont').appendChild(crearMenuCascada({
       arbol: construirArbolRoles(rolesAsignables),
       valorActual: rolIdActual,
@@ -807,8 +901,10 @@
       onSeleccionar: (valor) => {
         rolIdActual = Number(valor);
         tiendaIdActual = ''; // cambiar de rol invalida la tienda elegida bajo el rol anterior
+        tallerIdActual = ''; // ídem para el taller
         renderZonaAsignacion();
         renderTelefono();
+        renderTaller();
       }
     }).elemento);
 
@@ -828,6 +924,12 @@
         payload.tiendasSupervisadas = tiendasSupervisadas;
       } else {
         payload.tiendaId = tiendaIdActual ? Number(tiendaIdActual) : null;
+      }
+      // analisis_correcciones_19.md #8/#10/#12: taller de Técnico/Encargado de
+      // taller local/Asistente — 4/5/9 no mandan tallerId (su taller es fijo
+      // por rol, lo sincroniza el backend solo).
+      if (rolId === ROL_TECNICO || rolId === ROL_ENCARGADO_DISENO_LOCAL || rolId === ROL_ASISTENTE) {
+        payload.tallerId = tallerIdActual ? Number(tallerIdActual) : null;
       }
       if (!payload.nombre || !payload.email) {
         mostrarErrorModal(overlay, 'Nombre y correo son obligatorios.');
@@ -1167,10 +1269,7 @@
           <label>Empresa</label>
           <select id="input-empresa"></select>
         </div>
-        <div class="form-field">
-          <label>Departamento</label>
-          <select id="input-departamento"></select>
-        </div>
+        <div class="form-field full" id="zona-departamento"></div>
         <div class="form-field full" id="zona-subdivision"></div>
         ${esEdicion ? `<div class="form-field"><label class="form-checkbox" style="margin-top:8px;"><input type="checkbox" id="input-activo-tienda" ${tienda.activo ? 'checked' : ''}> Tienda activa</label></div>` : ''}
       </div>
@@ -1182,17 +1281,29 @@
     });
     overlay.querySelector('#input-codigo').value = esEdicion ? tienda.codigo : '';
 
+    let departamentoModo = 'existente'; // 'existente' | 'nueva'
     let subdivisionModo = 'existente'; // 'existente' | 'nueva'
 
+    // analisis_correcciones_19.md #9: mientras el departamento esté en modo
+    // "crear nuevo" no hay ningún departamento real todavía, así que no hay
+    // subdivisiones existentes que listar — la única opción posible es crear
+    // una subdivisión nueva también.
+    function departamentoIdActual() {
+      if (departamentoModo === 'nueva') return null;
+      const sel = overlay.querySelector('#input-departamento-existente');
+      return sel ? sel.value : '';
+    }
+
     function renderZonaSubdivision() {
-      const departamentoId = overlay.querySelector('#input-departamento').value;
+      const departamentoId = departamentoIdActual();
       const paisId = overlay.querySelector('#input-pais').value;
       const subs = departamentoId ? subdivisionesDelDepartamento(departamentoId, paisId) : [];
       const zona = overlay.querySelector('#zona-subdivision');
+      const puedeUsarExistente = departamentoModo === 'existente';
       zona.innerHTML = `
         <label>Subdivisión</label>
         <div class="form-radio-group">
-          <label class="form-checkbox"><input type="radio" name="modo-subdivision" value="existente" ${subdivisionModo === 'existente' ? 'checked' : ''}> Usar existente</label>
+          ${puedeUsarExistente ? `<label class="form-checkbox"><input type="radio" name="modo-subdivision" value="existente" ${subdivisionModo === 'existente' ? 'checked' : ''}> Usar existente</label>` : ''}
           <label class="form-checkbox"><input type="radio" name="modo-subdivision" value="nueva" ${subdivisionModo === 'nueva' ? 'checked' : ''}> Crear nueva</label>
         </div>
         <div id="zona-subdivision-input"></div>
@@ -1217,6 +1328,41 @@
       });
     }
 
+    function renderZonaDepartamento() {
+      const paisId = overlay.querySelector('#input-pais').value;
+      const departamentos = departamentosDelPais(paisId);
+      const zona = overlay.querySelector('#zona-departamento');
+      zona.innerHTML = `
+        <label>Departamento</label>
+        <div class="form-radio-group">
+          <label class="form-checkbox"><input type="radio" name="modo-departamento" value="existente" ${departamentoModo === 'existente' ? 'checked' : ''}> Usar existente</label>
+          <label class="form-checkbox"><input type="radio" name="modo-departamento" value="nueva" ${departamentoModo === 'nueva' ? 'checked' : ''}> Crear nuevo</label>
+        </div>
+        <div id="zona-departamento-input"></div>
+      `;
+      function renderInput() {
+        const cont = zona.querySelector('#zona-departamento-input');
+        if (departamentoModo === 'nueva') {
+          cont.innerHTML = `<input type="text" id="input-departamento-nombre" placeholder="Nombre del nuevo departamento">`;
+        } else {
+          const departamentoSel = esEdicion ? tienda.departamento_id : null;
+          cont.innerHTML = departamentos.length
+            ? `<select id="input-departamento-existente">${departamentos.map(d => `<option value="${d.id}" ${departamentoSel === d.id ? 'selected' : ''}>${escapeHtml(d.nombre)}</option>`).join('')}</select>`
+            : `<select id="input-departamento-existente"><option value="">Sin departamentos para este país</option></select>`;
+          overlay.querySelector('#input-departamento-existente').addEventListener('change', renderZonaSubdivision);
+        }
+      }
+      renderInput();
+      zona.querySelectorAll('input[name="modo-departamento"]').forEach(r => {
+        r.addEventListener('change', (e) => {
+          departamentoModo = e.target.value;
+          renderInput();
+          if (departamentoModo === 'nueva') subdivisionModo = 'nueva';
+          renderZonaSubdivision();
+        });
+      });
+    }
+
     function renderEmpresasYDepartamentos() {
       const paisId = overlay.querySelector('#input-pais').value;
       const empresas = empresasDelPais(paisId);
@@ -1224,29 +1370,28 @@
       overlay.querySelector('#input-empresa').innerHTML = empresas.length
         ? empresas.map(e => `<option value="${e.id}" ${empresaSel === e.id ? 'selected' : ''}>${escapeHtml(e.nombre)}</option>`).join('')
         : `<option value="">Sin empresas para este país</option>`;
-      const departamentos = departamentosDelPais(paisId);
-      const departamentoSel = esEdicion ? tienda.departamento_id : null;
-      overlay.querySelector('#input-departamento').innerHTML = departamentos.length
-        ? departamentos.map(d => `<option value="${d.id}" ${departamentoSel === d.id ? 'selected' : ''}>${escapeHtml(d.nombre)}</option>`).join('')
-        : `<option value="">Sin departamentos para este país</option>`;
+      renderZonaDepartamento();
       renderZonaSubdivision();
     }
     renderEmpresasYDepartamentos();
     overlay.querySelector('#input-pais').addEventListener('change', renderEmpresasYDepartamentos);
-    overlay.querySelector('#input-departamento').addEventListener('change', renderZonaSubdivision);
 
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-guardar').addEventListener('click', async () => {
       const btn = overlay.querySelector('#btn-guardar');
       const paisId = overlay.querySelector('#input-pais').value;
       const empresaId = overlay.querySelector('#input-empresa').value;
-      const departamentoId = overlay.querySelector('#input-departamento').value;
       const payload = {
         codigo: overlay.querySelector('#input-codigo').value.trim().toUpperCase(),
         empresaId: empresaId ? Number(empresaId) : null,
-        departamentoId: departamentoId ? Number(departamentoId) : null,
         paisId: paisId ? Number(paisId) : null
       };
+      if (departamentoModo === 'nueva') {
+        payload.departamentoNombre = overlay.querySelector('#input-departamento-nombre').value.trim();
+      } else {
+        const depVal = overlay.querySelector('#input-departamento-existente').value;
+        payload.departamentoId = depVal ? Number(depVal) : null;
+      }
       if (subdivisionModo === 'nueva') {
         payload.subdivisionNombre = overlay.querySelector('#input-subdivision-nombre').value.trim();
       } else {
@@ -1254,8 +1399,12 @@
         payload.subdivisionId = subVal ? Number(subVal) : null;
       }
       if (esEdicion) payload.activo = overlay.querySelector('#input-activo-tienda').checked;
-      if (!payload.codigo || !payload.empresaId || !payload.departamentoId) {
+      if (!payload.codigo || !payload.empresaId || !(payload.departamentoId || payload.departamentoNombre)) {
         mostrarErrorModal(overlay, 'Código, empresa y departamento son obligatorios.');
+        return;
+      }
+      if (departamentoModo === 'nueva' && !payload.departamentoNombre) {
+        mostrarErrorModal(overlay, 'Escribe el nombre del nuevo departamento, o elegí "Usar existente".');
         return;
       }
       if (subdivisionModo === 'nueva' && !payload.subdivisionNombre) {

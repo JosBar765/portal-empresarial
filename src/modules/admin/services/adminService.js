@@ -4,6 +4,7 @@ const usuarioAdminRepository = require('../repositories/usuarioAdminRepository')
 const rolRepository = require('../repositories/rolRepository');
 const permisoRepository = require('../repositories/permisoRepository');
 const tiendaAdminRepository = require('../repositories/tiendaAdminRepository');
+const tallerAdminRepository = require('../repositories/tallerAdminRepository');
 const mantenimientoRepository = require('../repositories/mantenimientoRepository');
 const authService = require('../../../core/auth/authService');
 const maintenanceGate = require('../../../core/permissions/maintenanceMiddleware');
@@ -26,6 +27,20 @@ const ROL_ADMINISTRADOR = 1;
 // MTC (1) o MTS (2).
 const ROLES_ENCARGADO_UNICO = [4, 5, 9];
 const TIENDAS_ENCARGADO_TALLER = [1, 2];
+// analisis_correcciones_19.md #8/#10/#12: roles con asignación de taller.
+const ROL_TECNICO = 6;
+const ROL_ASISTENTE = 7;
+const ROL_ENCARGADO_DISENO_LOCAL = 10;
+// Diseño/Diseño UV-3D/Protextil son de toda la empresa — cada uno mapea a
+// EXACTAMENTE un taller, así que asignar el rol ya implica cuál taller es
+// (sin selector en el frontend); Encargado de taller local sí necesita
+// elegir CUÁL de los N "Diseño Local" (uno por tienda).
+const TALLER_FIJO_POR_ROL = { 4: 'Diseño', 5: 'Diseño UV/3D', 9: 'Protextil' };
+// analisis_correcciones_19.md #10: el Asistente solo puede "clonar" uno de
+// estos tres — nunca un Diseño Local (él trabaja para Munditrofeos).
+const TALLERES_CLONABLES_ASISTENTE = ['Diseño', 'Diseño UV/3D', 'Protextil'];
+// Todos los roles cuya asignación de taller orquesta `_sincronizarAsignacionTaller`.
+const ROLES_CON_TALLER = [4, 5, 6, 7, 9, 10];
 
 class AdminService {
   // analisis_correcciones_17.md #12/#13: valida al crear/editar un usuario
@@ -41,6 +56,82 @@ class AdminService {
     const ocupante = usuarios.find(u => u.activo && Number(u.rol_id) === Number(rolId) && Number(u.id) !== Number(excluirId));
     if (ocupante) {
       throw new Error(`Ya existe un encargado activo para este rol: ${ocupante.nombre}.`);
+    }
+  }
+
+  // analisis_correcciones_19.md #8/#10/#12: asigna/desasigna el taller de un
+  // Técnico, Encargado de taller local o Asistente, según el rol.
+  // Para roles 6 (Técnico) y 10 (Encargado de taller local) devuelve la
+  // `tienda_id` final que debe QUEDAR en `usuarios` (siempre un valor
+  // concreto, derivado del taller o de la elección MTC/MTS) — el llamador
+  // la usa para sobreescribir la fila recién creada/actualizada. Para 4/5/9
+  // (taller fijo por rol, sin selector) y 7 (Asistente, sin tienda propia)
+  // no toca `usuarios.tienda_id` en absoluto.
+  async _sincronizarAsignacionTaller(rolNum, usuarioId, tallerIdSolicitado, tiendaIdPropuesta) {
+    const tallerFijoNombre = TALLER_FIJO_POR_ROL[rolNum];
+    if (tallerFijoNombre) {
+      // Roles 4/5/9: un solo taller posible en todo el sistema. La unicidad
+      // ya la garantizó `_validarEncargadoUnico` (candado por rol) antes de
+      // llegar aquí — esto solo sincroniza `talleres.encargado_id`, invisible
+      // para el admin (sin selector en el frontend).
+      const talleres = await tallerAdminRepository.listarTalleres();
+      const taller = talleres.find(t => t.nombre === tallerFijoNombre);
+      if (taller) await tallerAdminRepository.asignarEncargado(taller.id, usuarioId);
+      return { tocaTienda: false };
+    }
+
+    if (rolNum === ROL_ENCARGADO_DISENO_LOCAL) {
+      await tallerAdminRepository.quitarEncargadoDe(usuarioId);
+      if (!tallerIdSolicitado) return { tocaTienda: true, tiendaId: null }; // "Sin taller asignado"
+      const taller = await tallerAdminRepository.obtenerPorId(Number(tallerIdSolicitado));
+      if (!taller) throw new Error('El taller seleccionado no es válido.');
+      if (taller.encargado_id != null && Number(taller.encargado_id) !== Number(usuarioId)) {
+        const ocupante = await usuarioAdminRepository.obtenerPorId(taller.encargado_id);
+        if (ocupante && ocupante.activo) {
+          throw new Error(`Ya existe un encargado activo para ${taller.nombre}: ${ocupante.nombre}. Desasígnalo primero.`);
+        }
+      }
+      await tallerAdminRepository.asignarEncargado(taller.id, usuarioId);
+      // analisis_correcciones_19.md #12: la tienda de un Diseño Local es
+      // siempre la de su taller — un solo selector (Taller), no dos que se
+      // puedan desincronizar.
+      return { tocaTienda: true, tiendaId: taller.tienda_id };
+    }
+
+    if (rolNum === ROL_TECNICO || rolNum === ROL_ASISTENTE) {
+      if (!tallerIdSolicitado) {
+        await tallerAdminRepository.quitarTecnico(usuarioId);
+        return rolNum === ROL_TECNICO ? { tocaTienda: true, tiendaId: null } : { tocaTienda: false };
+      }
+      const taller = await tallerAdminRepository.obtenerPorId(Number(tallerIdSolicitado));
+      if (!taller) throw new Error('El taller seleccionado no es válido.');
+      // analisis_correcciones_19.md #10: el Asistente nunca clona un Diseño Local.
+      if (rolNum === ROL_ASISTENTE && !TALLERES_CLONABLES_ASISTENTE.includes(taller.nombre)) {
+        throw new Error('El Asistente solo puede clonar Diseño, Diseño UV/3D o Protextil.');
+      }
+      await tallerAdminRepository.asignarTecnico(usuarioId, taller.id);
+      if (rolNum === ROL_ASISTENTE) return { tocaTienda: false }; // el Asistente no tiene selector de tienda propio
+      // Diseño Local: la tienda se deriva del taller. Taller compartido
+      // (Diseño/UV-3D/Protextil): el técnico SÍ elige MTC o MTS (punto 6),
+      // a diferencia del encargado de ese mismo taller.
+      if (taller.tienda_id != null) return { tocaTienda: true, tiendaId: taller.tienda_id };
+      if (!TIENDAS_ENCARGADO_TALLER.includes(Number(tiendaIdPropuesta))) {
+        throw new Error('Un técnico de un taller de Munditrofeos debe indicar si trabaja en MTC o MTS.');
+      }
+      return { tocaTienda: true, tiendaId: Number(tiendaIdPropuesta) };
+    }
+
+    return { tocaTienda: false };
+  }
+
+  // Libera la asignación de taller al cambiar de rol A uno que ya no la usa
+  // — mismo patrón que ya existe para asesor/supervisor.
+  async _liberarAsignacionTaller(rolAnterior, usuarioId) {
+    if (TALLER_FIJO_POR_ROL[rolAnterior] || rolAnterior === ROL_ENCARGADO_DISENO_LOCAL) {
+      await tallerAdminRepository.quitarEncargadoDe(usuarioId);
+    }
+    if (rolAnterior === ROL_TECNICO || rolAnterior === ROL_ASISTENTE) {
+      await tallerAdminRepository.quitarTecnico(usuarioId);
     }
   }
 
@@ -67,7 +158,7 @@ class AdminService {
   // reservados para los roles sin entidad propia (Encargados de taller,
   // Técnico, Asistente, Gerente).
   async crearUsuario(datos) {
-    const { nombre, email, password, rolId, tiendaId, telefono, tiendasSupervisadas } = datos;
+    const { nombre, email, password, rolId, tiendaId, tallerId, telefono, tiendasSupervisadas } = datos;
     if (!nombre || !email || !password || !rolId) {
       throw new Error('Nombre, correo, contraseña y rol son obligatorios.');
     }
@@ -98,12 +189,21 @@ class AdminService {
           await tiendaAdminRepository.agregarSupervisorATienda(id, Number(tId));
         }
       }
+    } else if (ROLES_CON_TALLER.includes(rolNum)) {
+      // analisis_correcciones_19.md #8/#10/#12: la tienda final de un
+      // Técnico/Encargado de taller local puede depender del taller recién
+      // asignado — el insert de arriba ya guardó la que vino del formulario,
+      // aquí se corrige si corresponde (necesita el id ya creado).
+      const resultado = await this._sincronizarAsignacionTaller(rolNum, id, tallerId, tiendaId);
+      if (resultado.tocaTienda) {
+        await usuarioAdminRepository.actualizar(id, { nombre, email, rolId: rolNum, tiendaId: resultado.tiendaId });
+      }
     }
     return usuarioAdminRepository.obtenerPorId(id);
   }
 
   async actualizarUsuario(id, datos, actorId) {
-    const { nombre, email, password, rolId, tiendaId, telefono, tiendasSupervisadas } = datos;
+    const { nombre, email, password, rolId, tiendaId, tallerId, telefono, tiendasSupervisadas } = datos;
     const usuario = await usuarioAdminRepository.obtenerPorId(id);
     if (!usuario) throw new Error('Usuario no encontrado.');
     // analisis_correcciones_17.md #11: el rol Administrador es intocable
@@ -128,10 +228,25 @@ class AdminService {
     const rolNuevo = Number(rolId);
     const esSupervisor = rolNuevo === ROL_SUPERVISOR;
     const esAsesor = rolNuevo === ROL_ASESOR;
+    // El rol cambió y dejó de usar taller: libera la asignación previa PRIMERO
+    // — roles 6/7 comparten `taller_tecnicos` (misma PK en usuario_id), así
+    // que si esto corriera después de sincronizar el rol nuevo borraría la
+    // asignación recién hecha.
+    if (rolAnterior !== rolNuevo && ROLES_CON_TALLER.includes(rolAnterior)) {
+      await this._liberarAsignacionTaller(rolAnterior, id);
+    }
+    // analisis_correcciones_19.md #8/#10/#12: para los roles con taller, la
+    // tienda final puede depender del taller elegido — se resuelve ANTES de
+    // guardar (a diferencia de crearUsuario, aquí el id ya existe).
+    let tiendaFinal = (esSupervisor || esAsesor) ? null : (tiendaId || null);
+    if (ROLES_CON_TALLER.includes(rolNuevo)) {
+      const resultado = await this._sincronizarAsignacionTaller(rolNuevo, id, tallerId, tiendaId);
+      if (resultado.tocaTienda) tiendaFinal = resultado.tiendaId;
+    }
     await usuarioAdminRepository.actualizar(id, {
       nombre, email,
       rolId: rolNuevo,
-      tiendaId: (esSupervisor || esAsesor) ? null : (tiendaId || null)
+      tiendaId: tiendaFinal
     });
     if (password) {
       const passwordHash = await bcrypt.hash(password, 10);
@@ -271,6 +386,18 @@ class AdminService {
   // subdivisión puede ser una existente (`subdivisionId`) o una nueva a
   // crear al vuelo (`subdivisionNombre` + `paisId`, ya que un departamento
   // puede agrupar subdivisiones de varios países).
+  // analisis_correcciones_19.md #9: un departamento nuevo creado desde aquí
+  // es siempre de UN solo país (pais_id fijo) — el caso multi-país ("Ventas
+  // Centroamérica") sigue siendo exclusivo del seed.
+  async _resolverDepartamento({ departamentoId, departamentoNombre, paisId }) {
+    if (departamentoId) return Number(departamentoId);
+    if (departamentoNombre) {
+      if (!paisId) throw new Error('El país es obligatorio para crear un departamento nuevo.');
+      return tiendaAdminRepository.crearDepartamento(departamentoNombre, Number(paisId));
+    }
+    throw new Error('Debe seleccionar o crear un departamento.');
+  }
+
   async _resolverSubdivision({ departamentoId, subdivisionId, subdivisionNombre, paisId }) {
     if (subdivisionId) return Number(subdivisionId);
     if (subdivisionNombre) {
@@ -280,26 +407,28 @@ class AdminService {
     return null;
   }
 
-  async crearTienda({ codigo, empresaId, departamentoId, subdivisionId, subdivisionNombre, paisId }) {
-    if (!codigo || !empresaId || !departamentoId) {
-      throw new Error('Código, empresa y departamento son obligatorios.');
+  async crearTienda({ codigo, empresaId, departamentoId, departamentoNombre, subdivisionId, subdivisionNombre, paisId }) {
+    if (!codigo || !empresaId) {
+      throw new Error('Código y empresa son obligatorios.');
     }
     const existente = await tiendaAdminRepository.obtenerPorCodigo(codigo);
     if (existente) throw new Error('Ya existe una tienda con ese código.');
-    const subId = await this._resolverSubdivision({ departamentoId, subdivisionId, subdivisionNombre, paisId });
-    return tiendaAdminRepository.crear({ codigo, empresaId: Number(empresaId), departamentoId: Number(departamentoId), subdivisionId: subId });
+    const depId = await this._resolverDepartamento({ departamentoId, departamentoNombre, paisId });
+    const subId = await this._resolverSubdivision({ departamentoId: depId, subdivisionId, subdivisionNombre, paisId });
+    return tiendaAdminRepository.crear({ codigo, empresaId: Number(empresaId), departamentoId: depId, subdivisionId: subId });
   }
 
-  async actualizarTienda(id, { codigo, empresaId, departamentoId, subdivisionId, subdivisionNombre, paisId, activo }) {
-    if (!codigo || !empresaId || !departamentoId) {
-      throw new Error('Código, empresa y departamento son obligatorios.');
+  async actualizarTienda(id, { codigo, empresaId, departamentoId, departamentoNombre, subdivisionId, subdivisionNombre, paisId, activo }) {
+    if (!codigo || !empresaId) {
+      throw new Error('Código y empresa son obligatorios.');
     }
     const existente = await tiendaAdminRepository.obtenerPorCodigo(codigo);
     if (existente && existente.id !== Number(id)) {
       throw new Error('Ya existe otra tienda con ese código.');
     }
-    const subId = await this._resolverSubdivision({ departamentoId, subdivisionId, subdivisionNombre, paisId });
-    return tiendaAdminRepository.actualizar(id, { codigo, empresaId: Number(empresaId), departamentoId: Number(departamentoId), subdivisionId: subId, activo });
+    const depId = await this._resolverDepartamento({ departamentoId, departamentoNombre, paisId });
+    const subId = await this._resolverSubdivision({ departamentoId: depId, subdivisionId, subdivisionNombre, paisId });
+    return tiendaAdminRepository.actualizar(id, { codigo, empresaId: Number(empresaId), departamentoId: depId, subdivisionId: subId, activo });
   }
 
   async actualizarOrdenTiendas(ordenes) {
@@ -364,6 +493,13 @@ class AdminService {
       departamentos: await tiendaAdminRepository.listarDepartamentos(),
       subdivisiones: await tiendaAdminRepository.listarSubdivisiones()
     };
+  }
+
+  // analisis_correcciones_19.md #8/#10/#12: catálogo de talleres para poblar
+  // el selector "Taller" del modal "Editar usuario" (Técnico, Encargado de
+  // taller local y Asistente).
+  async listarTalleres() {
+    return { talleres: await tallerAdminRepository.listarTalleres() };
   }
 
   // ---------------------------------------------------------------------
