@@ -2,7 +2,6 @@
 const authService = require('./authService');
 const jwtHelper = require('./jwtHelper');
 const config = require('../../config/env');
-const presenciaTracker = require('./presenciaTracker');
 
 class AuthController {
   async handleQueryAction(req, res) {
@@ -81,10 +80,6 @@ class AuthController {
       // Generar JWT
       const token = jwtHelper.generateToken(payload);
 
-      // analisis_correcciones_13.md #6: sella el inicio de sesión para la
-      // pestaña "Actividad de Usuarios" — no bloquea el login si falla.
-      presenciaTracker.sellarLogin(authData.user.id, req.ip).catch(err => console.error('[Presencia] No se pudo sellar el login:', err));
-
       // Guardar token en cookie segura HttpOnly
       res.cookie('token', token, {
         httpOnly: true,                               // Protege contra ataques XSS
@@ -140,31 +135,7 @@ class AuthController {
     }
   }
 
-  // analisis_correcciones_17.md #3: latido liviano para que "última
-  // actividad" refleje al usuario sentado frente a la pantalla, no solo
-  // sus clics — el cliente lo llama cada minuto y al recuperar el foco.
-  // Corre antes del gate global (rutas de /api/auth montadas antes de
-  // authenticateJWT), así que resuelve la identidad directo de la cookie.
-  async heartbeat(req, res) {
-    const token = req.cookies ? req.cookies.token : null;
-    const decoded = token ? jwtHelper.verifyToken(token) : null;
-    if (!decoded) {
-      return res.sendStatus(204);
-    }
-    presenciaTracker.refrescarActividad(decoded.id).catch(err => console.error('[Presencia] No se pudo refrescar el latido:', err));
-    return res.sendStatus(204);
-  }
-
   async logout(req, res) {
-    // analisis_correcciones_13.md #6: limpia "conectado desde" — logout corre
-    // antes de authenticateJWT (rutas de /api/auth montadas antes del gate
-    // global), así que la identidad se lee directo de la cookie.
-    const token = req.cookies ? req.cookies.token : null;
-    const decoded = token ? jwtHelper.verifyToken(token) : null;
-    if (decoded) {
-      presenciaTracker.limpiarSesion(decoded.id).catch(err => console.error('[Presencia] No se pudo limpiar la sesión:', err));
-    }
-
     // Eliminar la cookie limpiando su valor y estableciendo expiración inmediata
     res.cookie('token', '', {
       httpOnly: true,

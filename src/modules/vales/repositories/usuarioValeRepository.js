@@ -4,9 +4,22 @@
 const db = require('../../../config/database');
 
 class UsuarioValeRepository {
+  // analisis_correcciones_18.md #5: `usuarios` ya no tiene columna `telefono`
+  // en absoluto (solo Asesor/Supervisor lo tienen, en su tabla satélite) ni
+  // guarda tienda de Asesor/Supervisor, ni el taller del técnico (sale de
+  // `taller_tecnicos`, reemplaza `usuarios.encargado_id`). Encargado de
+  // taller sigue leyendo `usuarios.tienda_id` directo (sin cambios).
   async obtenerPorId(id) {
     const rows = await db.query(
-      'SELECT id, nombre, email, telefono, rol_id, tienda_id, encargado_id, activo FROM usuarios WHERE id = ?',
+      `SELECT u.id, u.nombre, u.email, u.rol_id, u.activo,
+              COALESCE(a.telefono, s.telefono) AS telefono,
+              COALESCE(a.tienda_id, u.tienda_id) AS tienda_id,
+              tt.taller_id AS taller_id
+       FROM usuarios u
+       LEFT JOIN asesores a ON a.usuario_id = u.id
+       LEFT JOIN supervisores s ON s.usuario_id = u.id
+       LEFT JOIN taller_tecnicos tt ON tt.usuario_id = u.id
+       WHERE u.id = ?`,
       [id],
       'usuario:find_by_id'
     );
@@ -15,40 +28,41 @@ class UsuarioValeRepository {
 
   async listarTodosLosTecnicos() {
     return db.query(
-      'SELECT id, nombre, email, encargado_id FROM usuarios WHERE rol_id = 6 AND activo = 1 ORDER BY nombre',
+      `SELECT u.id, u.nombre, u.email, tt.taller_id
+       FROM usuarios u
+       LEFT JOIN taller_tecnicos tt ON tt.usuario_id = u.id
+       WHERE u.rol_id = 6 AND u.activo = 1 ORDER BY u.nombre`,
       [6],
       'usuario:find_by_rol'
     );
   }
 
+  // analisis_correcciones_18.md #5: reemplaza `usuarios.encargado_id` — el
+  // taller de este encargado sale de `talleres.encargado_id` (sin cambios) y
+  // sus técnicos, de `taller_tecnicos`.
   async listarTecnicosPorEncargado(encargadoId) {
     return db.query(
-      'SELECT id, nombre, email, encargado_id FROM usuarios WHERE rol_id = 6 AND encargado_id = ? AND activo = 1 ORDER BY nombre',
+      `SELECT u.id, u.nombre, u.email, tt.taller_id
+       FROM usuarios u
+       JOIN taller_tecnicos tt ON tt.usuario_id = u.id
+       JOIN talleres t ON t.id = tt.taller_id AND t.encargado_id = ?
+       WHERE u.rol_id = 6 AND u.activo = 1 ORDER BY u.nombre`,
       [encargadoId],
       'usuario:find_tecnicos_by_encargado'
     );
   }
 
-  // analisis_correcciones_12.md #10: reemplaza la relación 1:1 `encargado_id`
-  // (correcciones_10.md #11) — un supervisor cubre asesores a través de la
-  // tienda de estos, resuelta vía departamento/subdivisión. `subdivision_id IS
-  // NULL` en `supervisor_asignaciones` significa "cubre todas las
-  // subdivisiones de ese departamento", así que también matchea una tienda
-  // cuyo propio `subdivision_id` sea NULL (departamentos sin subdivisiones,
-  // ej. Premia Z13) o cualquier subdivisión puntual.
-  // analisis_correcciones_13.md #6: una fila de `supervisor_asignaciones`
-  // ahora cubre POR DEPARTAMENTO (`tienda_id IS NULL`) o POR TIENDA PUNTUAL
-  // (`tienda_id` seteado) — nunca ambas cosas — así que se matchea cualquiera
-  // de las dos variantes.
+  // analisis_correcciones_18.md #5: reemplaza la cobertura heredada por
+  // departamento/subdivisión (`supervisor_asignaciones`, eliminada) — un
+  // supervisor cubre asesores por tienda puntual vía `supervisor_tiendas`,
+  // cruzada con la tienda de cada asesor en `asesores.tienda_id`.
   async listarAsesoresPorSupervisor(supervisorId) {
     return db.query(
-      `SELECT DISTINCT u.id, u.nombre, u.email, u.encargado_id, u.tienda_id
+      `SELECT DISTINCT u.id, u.nombre, u.email, a.tienda_id
        FROM usuarios u
-       JOIN tiendas t ON t.id = u.tienda_id
-       JOIN supervisor_asignaciones sa ON sa.tienda_id = t.id
-         OR (sa.tienda_id IS NULL AND sa.departamento_id = t.departamento_id
-             AND (sa.subdivision_id IS NULL OR sa.subdivision_id = t.subdivision_id))
-       WHERE u.rol_id = 2 AND u.activo = 1 AND sa.usuario_id = ? AND sa.activo = 1
+       JOIN asesores a ON a.usuario_id = u.id
+       JOIN supervisor_tiendas st ON st.tienda_id = a.tienda_id
+       WHERE u.rol_id = 2 AND u.activo = 1 AND st.usuario_id = ?
        ORDER BY u.nombre`,
       [supervisorId],
       'usuario:find_asesores_by_supervisor'
@@ -62,13 +76,9 @@ class UsuarioValeRepository {
     return db.query(
       `SELECT DISTINCT u.id, u.nombre, u.email
        FROM usuarios u
-       JOIN supervisor_asignaciones sa ON sa.usuario_id = u.id AND sa.activo = 1
-       JOIN usuarios asesor ON 1 = 1
-       JOIN tiendas t ON t.id = asesor.tienda_id
-         AND (sa.tienda_id = t.id
-              OR (sa.tienda_id IS NULL AND sa.departamento_id = t.departamento_id
-                  AND (sa.subdivision_id IS NULL OR sa.subdivision_id = t.subdivision_id)))
-       WHERE u.rol_id = 3 AND u.activo = 1 AND asesor.id = ?
+       JOIN supervisor_tiendas st ON st.usuario_id = u.id
+       JOIN asesores a ON a.tienda_id = st.tienda_id
+       WHERE u.rol_id = 3 AND u.activo = 1 AND a.usuario_id = ?
        ORDER BY u.nombre`,
       [asesorId],
       'usuario:find_supervisores_by_asesor'

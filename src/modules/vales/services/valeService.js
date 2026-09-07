@@ -870,9 +870,11 @@ class ValeService {
       return propio ? propio.id : null;
     }
     if (usuario.rolId === ROL.TECNICO) {
+      // analisis_correcciones_18.md #5: reemplaza `usuarios.encargado_id` —
+      // el taller del técnico sale directo de `taller_tecnicos`, sin pasar
+      // por el id del encargado.
       const tecnico = await usuarioValeRepository.obtenerPorId(usuario.id);
-      const propio = tecnico && tecnico.encargado_id ? talleres.find(t => t.encargado_id === tecnico.encargado_id) : null;
-      return propio ? propio.id : null;
+      return tecnico && tecnico.taller_id ? tecnico.taller_id : null;
     }
     return null;
   }
@@ -1265,7 +1267,8 @@ class ValeService {
   // analisis_correcciones_10.md #11: el límite diario deja de ser individual del
   // asesor y pasa a ser COLECTIVO del Supervisor — "vales_autorizados_crear/asesores",
   // ascendente. El denominador es la cantidad de asesores activos bajo su mando
-  // (usuarios.encargado_id, reusado — ver schema). Administrador no tiene límite.
+  // (analisis_correcciones_18.md #5: `listarAsesoresPorSupervisor`, vía
+  // `supervisor_tiendas`/`asesores.tienda_id`). Administrador no tiene límite.
   async obtenerLimiteColectivoSupervisor(supervisorId) {
     const asesores = await usuarioValeRepository.listarAsesoresPorSupervisor(supervisorId);
     const limite = asesores.length;

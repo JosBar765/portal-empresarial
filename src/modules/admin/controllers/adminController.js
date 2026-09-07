@@ -39,15 +39,6 @@ class AdminController {
     }
   }
 
-  async obtenerCoberturaHeredada(req, res) {
-    try {
-      const cobertura = await adminService.obtenerCoberturaHeredada(Number(req.params.id));
-      return res.json(cobertura);
-    } catch (error) {
-      return res.status(500).json({ error: error.message });
-    }
-  }
-
   async obtenerTiendasSupervisadas(req, res) {
     try {
       const tiendaIds = await adminService.obtenerTiendasSupervisadas(Number(req.params.id));
@@ -118,16 +109,6 @@ class AdminController {
       return res.json({ ok: true });
     } catch (error) {
       return res.status(400).json({ error: error.message });
-    }
-  }
-
-  // ---- Actividad ----
-  async listarActividad(req, res) {
-    try {
-      const data = await adminService.listarActividad();
-      return res.json(data);
-    } catch (error) {
-      return res.status(500).json({ error: error.message });
     }
   }
 

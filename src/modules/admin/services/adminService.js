@@ -4,7 +4,6 @@ const usuarioAdminRepository = require('../repositories/usuarioAdminRepository')
 const rolRepository = require('../repositories/rolRepository');
 const permisoRepository = require('../repositories/permisoRepository');
 const tiendaAdminRepository = require('../repositories/tiendaAdminRepository');
-const actividadRepository = require('../repositories/actividadRepository');
 const mantenimientoRepository = require('../repositories/mantenimientoRepository');
 const authService = require('../../../core/auth/authService');
 const maintenanceGate = require('../../../core/permissions/maintenanceMiddleware');
@@ -18,6 +17,7 @@ const socketManager = require('../../../core/websocket/socketManager');
 const ROLES_BASE = [1];
 // analisis_correcciones_16.md #7: renumeración de roles (Supervisor de
 // Ventas pasa de id 4 a id 3) tras eliminar los roles descontinuados.
+const ROL_ASESOR = 2;
 const ROL_SUPERVISOR = 3;
 const ROL_ADMINISTRADOR = 1;
 // analisis_correcciones_17.md #12/#13: Diseño, Diseño 3D y Protextil son
@@ -26,19 +26,6 @@ const ROL_ADMINISTRADOR = 1;
 // MTC (1) o MTS (2).
 const ROLES_ENCARGADO_UNICO = [4, 5, 9];
 const TIENDAS_ENCARGADO_TALLER = [1, 2];
-
-function minutosDesde(fecha) {
-  if (!fecha) return Infinity;
-  return (Date.now() - new Date(fecha.replace(' ', 'T')).getTime()) / 60000;
-}
-
-function estadoPresencia(usuario) {
-  if (!usuario.sesion_iniciada_en) return 'SIN_DATOS';
-  const minutos = minutosDesde(usuario.ultima_actividad_en);
-  if (minutos < 5) return 'EN_LINEA';
-  if (minutos < 8 * 60) return 'INACTIVO';
-  return 'SIN_DATOS';
-}
 
 class AdminService {
   // analisis_correcciones_17.md #12/#13: valida al crear/editar un usuario
@@ -73,6 +60,12 @@ class AdminService {
     };
   }
 
+  // analisis_correcciones_18.md #5: Asesor de Ventas y Supervisor de Ventas
+  // ya no guardan tienda/teléfono en `usuarios` — viven en sus filas
+  // satélite (`asesores`/`supervisores`), que esta clase orquesta según el
+  // rol elegido en el formulario. `usuarios.tienda_id`/`telefono` quedan
+  // reservados para los roles sin entidad propia (Encargados de taller,
+  // Técnico, Asistente, Gerente).
   async crearUsuario(datos) {
     const { nombre, email, password, rolId, tiendaId, telefono, tiendasSupervisadas } = datos;
     if (!nombre || !email || !password || !rolId) {
@@ -84,16 +77,26 @@ class AdminService {
     }
     await this._validarEncargadoUnico(rolId, tiendaId, null);
     const passwordHash = await bcrypt.hash(password, 10);
-    const esSupervisor = Number(rolId) === ROL_SUPERVISOR;
+    const rolNum = Number(rolId);
+    const esSupervisor = rolNum === ROL_SUPERVISOR;
+    const esAsesor = rolNum === ROL_ASESOR;
+    // analisis_correcciones_18.md #1: el Administrador administra el sistema
+    // completo — nunca pertenece a ninguna tienda, tampoco al crearlo.
+    const esAdministrador = rolNum === ROL_ADMINISTRADOR;
     const id = await usuarioAdminRepository.crear({
-      nombre, email, telefono,
+      nombre, email,
       passwordHash,
-      rolId: Number(rolId),
-      tiendaId: esSupervisor ? null : (tiendaId || null)
+      rolId: rolNum,
+      tiendaId: (esSupervisor || esAsesor || esAdministrador) ? null : (tiendaId || null)
     });
-    if (esSupervisor && Array.isArray(tiendasSupervisadas)) {
-      for (const tId of tiendasSupervisadas) {
-        await tiendaAdminRepository.agregarSupervisorATienda(id, Number(tId));
+    if (esAsesor) {
+      await usuarioAdminRepository.crearAsesor(id, tiendaId || null, telefono || null);
+    } else if (esSupervisor) {
+      await usuarioAdminRepository.crearSupervisor(id, telefono || null);
+      if (Array.isArray(tiendasSupervisadas)) {
+        for (const tId of tiendasSupervisadas) {
+          await tiendaAdminRepository.agregarSupervisorATienda(id, Number(tId));
+        }
       }
     }
     return usuarioAdminRepository.obtenerPorId(id);
@@ -121,28 +124,54 @@ class AdminService {
     if (password && Number(id) === Number(actorId) && Number(usuario.rol_id) === ROL_ADMINISTRADOR) {
       throw new Error('No puedes cambiar tu propia contraseña de administrador.');
     }
-    const esSupervisor = Number(rolId) === ROL_SUPERVISOR;
+    const rolAnterior = Number(usuario.rol_id);
+    const rolNuevo = Number(rolId);
+    const esSupervisor = rolNuevo === ROL_SUPERVISOR;
+    const esAsesor = rolNuevo === ROL_ASESOR;
     await usuarioAdminRepository.actualizar(id, {
-      nombre, email, telefono,
-      rolId: Number(rolId),
-      tiendaId: esSupervisor ? null : (tiendaId || null)
+      nombre, email,
+      rolId: rolNuevo,
+      tiendaId: (esSupervisor || esAsesor) ? null : (tiendaId || null)
     });
     if (password) {
       const passwordHash = await bcrypt.hash(password, 10);
       await usuarioAdminRepository.actualizarPassword(id, passwordHash);
     }
-    if (esSupervisor && Array.isArray(tiendasSupervisadas)) {
-      // Reemplaza la cobertura puntual por tienda: quita las que ya no están, agrega las nuevas.
-      // La cobertura heredada por departamento/subdivisión no se toca aquí.
-      const cubiertasAntes = await tiendaAdminRepository.listarTiendaIdsCubiertasDirectamente(id);
-      const nuevas = tiendasSupervisadas.map(Number);
-      for (const tId of cubiertasAntes) {
-        if (!nuevas.includes(tId)) {
-          await tiendaAdminRepository.quitarSupervisorDeTienda(id, tId);
-        }
+    // El rol cambió y dejó de ser Asesor/Supervisor: limpia la fila satélite huérfana.
+    if (rolAnterior === ROL_ASESOR && !esAsesor) await usuarioAdminRepository.eliminarAsesor(id);
+    if (rolAnterior === ROL_SUPERVISOR && !esSupervisor) await usuarioAdminRepository.eliminarSupervisor(id);
+
+    if (esAsesor) {
+      // analisis_correcciones_18.md #5: este modal general NO reasigna la
+      // tienda de un asesor (regla de negocio: primero hay que desasignarlo
+      // y luego asignarlo desde Gestionar Tiendas → Gestionar personal) —
+      // aquí solo se actualiza el teléfono, conservando la tienda que ya
+      // tuviera (o sin tienda, si el rol acaba de cambiar A asesor).
+      const asesorExistente = await usuarioAdminRepository.obtenerAsesorPorUsuarioId(id);
+      if (asesorExistente) {
+        await usuarioAdminRepository.actualizarAsesor(id, asesorExistente.tienda_id, telefono || null);
+      } else {
+        await usuarioAdminRepository.crearAsesor(id, null, telefono || null);
       }
-      for (const tId of nuevas) {
-        await tiendaAdminRepository.agregarSupervisorATienda(id, tId);
+    } else if (esSupervisor) {
+      const supervisorExistente = await usuarioAdminRepository.obtenerSupervisorPorUsuarioId(id);
+      if (supervisorExistente) {
+        await usuarioAdminRepository.actualizarSupervisor(id, telefono || null);
+      } else {
+        await usuarioAdminRepository.crearSupervisor(id, telefono || null);
+      }
+      if (Array.isArray(tiendasSupervisadas)) {
+        // Reemplaza la cobertura por tienda: quita las que ya no están, agrega las nuevas.
+        const cubiertasAntes = await tiendaAdminRepository.listarTiendaIdsCubiertasDirectamente(id);
+        const nuevas = tiendasSupervisadas.map(Number);
+        for (const tId of cubiertasAntes) {
+          if (!nuevas.includes(tId)) {
+            await tiendaAdminRepository.quitarSupervisorDeTienda(id, tId);
+          }
+        }
+        for (const tId of nuevas) {
+          await tiendaAdminRepository.agregarSupervisorATienda(id, tId);
+        }
       }
     }
     return usuarioAdminRepository.obtenerPorId(id);
@@ -161,10 +190,6 @@ class AdminService {
     return usuarioAdminRepository.establecerActivo(id, activo);
   }
 
-  async obtenerCoberturaHeredada(usuarioId) {
-    return tiendaAdminRepository.listarCoberturaHeredada(usuarioId);
-  }
-
   async obtenerTiendasSupervisadas(usuarioId) {
     return tiendaAdminRepository.listarTiendaIdsCubiertasDirectamente(usuarioId);
   }
@@ -174,9 +199,7 @@ class AdminService {
   // ---------------------------------------------------------------------
   async listarRoles() {
     const roles = await rolRepository.listarConConteo();
-    const permisos = await permisoRepository.listarTodos();
     return {
-      resumen: { rolesConfigurados: roles.length, permisosDisponibles: permisos.length },
       roles: roles.map(r => ({ ...r, base: ROLES_BASE.includes(r.id) }))
     };
   }
@@ -235,53 +258,48 @@ class AdminService {
   }
 
   // ---------------------------------------------------------------------
-  // Actividad de Usuarios
-  // ---------------------------------------------------------------------
-  async listarActividad() {
-    const filas = await actividadRepository.listar();
-    const enriquecidas = filas.map(u => ({ ...u, estado: estadoPresencia(u) }));
-    return {
-      resumen: {
-        enLinea: enriquecidas.filter(u => u.estado === 'EN_LINEA').length,
-        inactivos: enriquecidas.filter(u => u.estado === 'INACTIVO').length,
-        totalActivos: enriquecidas.length
-      },
-      actividad: enriquecidas
-    };
-  }
-
-  // ---------------------------------------------------------------------
   // Gestionar Tiendas
   // ---------------------------------------------------------------------
   async listarTiendas() {
     const tiendas = await tiendaAdminRepository.listarConDetalle();
-    return {
-      resumen: {
-        activas: tiendas.filter(t => t.activo).length,
-        inactivas: tiendas.filter(t => !t.activo).length
-      },
-      tiendas
-    };
+    return { tiendas };
   }
 
-  async crearTienda({ codigo, nombre, paisId, departamentoId, subdivisionId }) {
-    if (!codigo || !nombre || !departamentoId) {
-      throw new Error('Código, nombre y departamento son obligatorios.');
+  // analisis_correcciones_18.md #3/#5: la tienda ya no tiene "nombre" propio
+  // (se deriva de la empresa) ni "país" propio (viene de `empresas.pais_id`)
+  // — el formulario elige Empresa + Departamento + Subdivisión. La
+  // subdivisión puede ser una existente (`subdivisionId`) o una nueva a
+  // crear al vuelo (`subdivisionNombre` + `paisId`, ya que un departamento
+  // puede agrupar subdivisiones de varios países).
+  async _resolverSubdivision({ departamentoId, subdivisionId, subdivisionNombre, paisId }) {
+    if (subdivisionId) return Number(subdivisionId);
+    if (subdivisionNombre) {
+      if (!paisId) throw new Error('El país es obligatorio para crear una subdivisión nueva.');
+      return tiendaAdminRepository.crearSubdivision(Number(departamentoId), subdivisionNombre, Number(paisId));
+    }
+    return null;
+  }
+
+  async crearTienda({ codigo, empresaId, departamentoId, subdivisionId, subdivisionNombre, paisId }) {
+    if (!codigo || !empresaId || !departamentoId) {
+      throw new Error('Código, empresa y departamento son obligatorios.');
     }
     const existente = await tiendaAdminRepository.obtenerPorCodigo(codigo);
     if (existente) throw new Error('Ya existe una tienda con ese código.');
-    return tiendaAdminRepository.crear({ codigo, nombre, paisId, departamentoId, subdivisionId });
+    const subId = await this._resolverSubdivision({ departamentoId, subdivisionId, subdivisionNombre, paisId });
+    return tiendaAdminRepository.crear({ codigo, empresaId: Number(empresaId), departamentoId: Number(departamentoId), subdivisionId: subId });
   }
 
-  async actualizarTienda(id, { codigo, nombre, paisId, departamentoId, subdivisionId, activo }) {
-    if (!codigo || !nombre || !departamentoId) {
-      throw new Error('Código, nombre y departamento son obligatorios.');
+  async actualizarTienda(id, { codigo, empresaId, departamentoId, subdivisionId, subdivisionNombre, paisId, activo }) {
+    if (!codigo || !empresaId || !departamentoId) {
+      throw new Error('Código, empresa y departamento son obligatorios.');
     }
     const existente = await tiendaAdminRepository.obtenerPorCodigo(codigo);
     if (existente && existente.id !== Number(id)) {
       throw new Error('Ya existe otra tienda con ese código.');
     }
-    return tiendaAdminRepository.actualizar(id, { codigo, nombre, paisId, departamentoId, subdivisionId, activo });
+    const subId = await this._resolverSubdivision({ departamentoId, subdivisionId, subdivisionNombre, paisId });
+    return tiendaAdminRepository.actualizar(id, { codigo, empresaId: Number(empresaId), departamentoId: Number(departamentoId), subdivisionId: subId, activo });
   }
 
   async actualizarOrdenTiendas(ordenes) {
@@ -293,11 +311,33 @@ class AdminService {
     return tiendaAdminRepository.listarPersonalDetalle(tiendaId);
   }
 
+  // analisis_correcciones_18.md #1: el Administrador administra el sistema
+  // en general, no pertenece a ninguna tienda — nunca es asignable como
+  // personal.
   async agregarPersonalATienda(tiendaId, usuarioId) {
     const usuario = await usuarioAdminRepository.obtenerPorId(usuarioId);
     if (!usuario) throw new Error('Usuario no encontrado.');
+    if (Number(usuario.rol_id) === ROL_ADMINISTRADOR) {
+      throw new Error('El Administrador no pertenece a ninguna tienda.');
+    }
+    // analisis_correcciones_18.md #5: el encargado de Diseño/Diseño 3D/
+    // Protextil pertenece a MTC y MTS por ser dueño de un taller compartido
+    // (`encargado_tienda`), no por una asignación de personal directa — no
+    // se puede tocar desde aquí.
+    if (ROLES_ENCARGADO_UNICO.includes(Number(usuario.rol_id))) {
+      throw new Error('Este encargado pertenece a MTC y MTS por ser dueño de un taller compartido — no se asigna desde aquí.');
+    }
     if (Number(usuario.rol_id) === ROL_SUPERVISOR) {
       return tiendaAdminRepository.agregarSupervisorATienda(usuarioId, tiendaId);
+    }
+    if (Number(usuario.rol_id) === ROL_ASESOR) {
+      // analisis_correcciones_18.md #5: un asesor trabaja para UNA tienda a
+      // la vez — hay que desasignarlo primero para poder reasignarlo.
+      const asesor = await usuarioAdminRepository.obtenerAsesorPorUsuarioId(usuarioId);
+      if (asesor && asesor.tienda_id != null && Number(asesor.tienda_id) !== Number(tiendaId)) {
+        throw new Error('Este asesor ya está asignado a otra tienda. Desasígnalo primero antes de asignarlo a una nueva.');
+      }
+      return usuarioAdminRepository.actualizarAsesor(usuarioId, tiendaId, asesor ? asesor.telefono : null);
     }
     return tiendaAdminRepository.asignarTiendaAUsuario(usuarioId, tiendaId);
   }
@@ -305,14 +345,22 @@ class AdminService {
   async quitarPersonalDeTienda(tiendaId, usuarioId) {
     const usuario = await usuarioAdminRepository.obtenerPorId(usuarioId);
     if (!usuario) throw new Error('Usuario no encontrado.');
+    if (ROLES_ENCARGADO_UNICO.includes(Number(usuario.rol_id))) {
+      throw new Error('Este encargado pertenece a MTC y MTS por ser dueño de un taller compartido — no se puede quitar desde aquí.');
+    }
     if (Number(usuario.rol_id) === ROL_SUPERVISOR) {
       return tiendaAdminRepository.quitarSupervisorDeTienda(usuarioId, tiendaId);
+    }
+    if (Number(usuario.rol_id) === ROL_ASESOR) {
+      const asesor = await usuarioAdminRepository.obtenerAsesorPorUsuarioId(usuarioId);
+      return usuarioAdminRepository.actualizarAsesor(usuarioId, null, asesor ? asesor.telefono : null);
     }
     return tiendaAdminRepository.quitarTiendaDeUsuario(usuarioId);
   }
 
   async obtenerOrganizacion() {
     return {
+      empresas: await tiendaAdminRepository.listarEmpresas(),
       departamentos: await tiendaAdminRepository.listarDepartamentos(),
       subdivisiones: await tiendaAdminRepository.listarSubdivisiones()
     };

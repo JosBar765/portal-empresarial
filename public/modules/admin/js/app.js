@@ -5,6 +5,7 @@
 
   // analisis_correcciones_16.md #7: renumeración de roles tras eliminar los
   // roles descontinuados (Supervisor de Ventas pasa de id 4 a id 3).
+  const ROL_ASESOR = 2;
   const ROL_SUPERVISOR = 3;
   const ROL_ADMINISTRADOR = 1;
   // analisis_correcciones_17.md #12/#13: mismos roles/tiendas que valida el backend.
@@ -15,20 +16,15 @@
     user: null,
     tab: 'usuarios',
     usuarios: [], usuariosResumen: { total: 0, activos: 0, inactivos: 0, rolesEnUso: 0 }, busquedaUsuarios: '',
-    // analisis_correcciones_14.md #6/#7: filtros de tienda/rol, compartidos por
-    // Gestión de Usuarios y Actividad de Usuarios.
+    // analisis_correcciones_14.md #6/#7: filtros de tienda/rol para Gestión de Usuarios.
     filtroTiendaUsuarios: '', filtroRolUsuarios: '',
-    filtroTiendaActividad: '', filtroRolActividad: '',
-    roles: [], rolesResumen: { rolesConfigurados: 0, permisosDisponibles: 0 },
-    actividad: [], actividadResumen: { enLinea: 0, inactivos: 0, totalActivos: 0 },
-    tiendas: [], tiendasResumen: { activas: 0, inactivas: 0 }, filtroTiendaTiendas: '',
+    roles: [],
+    tiendas: [], filtroTiendaTiendas: '',
     // Catálogos livianos (id + nombre) para poblar los <select> de filtro,
-    // cargados una vez y reusados por ambas pestañas.
+    // cargados una vez y reusados por las distintas pestañas.
     catalogoTiendas: [], catalogoRoles: [],
     mantenimiento: null,
-    socket: null,
-    intervaloActividad: null,
-    filtroActividad: ''
+    socket: null
   };
 
   document.addEventListener('DOMContentLoaded', async () => {
@@ -85,18 +81,6 @@
     return String(texto == null ? '' : texto).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-  function haceTiempo(fechaStr) {
-    if (!fechaStr) return '-';
-    const fecha = new Date(String(fechaStr).replace(' ', 'T'));
-    const minutos = Math.floor((Date.now() - fecha.getTime()) / 60000);
-    if (minutos < 1) return 'Justo ahora';
-    if (minutos < 60) return `Hace ${minutos} min`;
-    const horas = Math.floor(minutos / 60);
-    if (horas < 24) return `Hace ${horas} h`;
-    const dias = Math.floor(horas / 24);
-    return `Hace ${dias} d`;
-  }
-
   // Menú desplegable de cuenta — mismo patrón que public/js/dashboard.js y
   // public/modules/vales/js/app.js.
   function wireAccountMenu() {
@@ -132,7 +116,7 @@
   // analisis_correcciones_17.md #10: no perder la pestaña activa al
   // recargar la página (antes siempre volvía a "usuarios").
   const TAB_ACTIVA_KEY = 'admin:tabActiva';
-  const TABS_VALIDOS = ['usuarios', 'roles', 'actividad', 'tiendas', 'mantenimiento'];
+  const TABS_VALIDOS = ['usuarios', 'roles', 'tiendas', 'mantenimiento'];
 
   function wireSidebar() {
     const sidebar = $('#sidebar-admin');
@@ -191,22 +175,11 @@
   }
 
   async function cargarTab() {
-    // analisis_correcciones_17.md #3: la pestaña de Actividad se refresca
-    // sola mientras está a la vista; cualquier otra pestaña no debe seguir
-    // pidiendo datos de fondo.
-    if (state.intervaloActividad) {
-      clearInterval(state.intervaloActividad);
-      state.intervaloActividad = null;
-    }
     const cont = $('#panel-content');
     cont.innerHTML = `<div class="buzon-vacio"><ion-icon name="sync-outline" class="spin-animation"></ion-icon><p>Cargando...</p></div>`;
     try {
       if (state.tab === 'usuarios') await cargarUsuarios();
       else if (state.tab === 'roles') await cargarRoles();
-      else if (state.tab === 'actividad') {
-        await cargarActividad();
-        state.intervaloActividad = setInterval(cargarActividad, 15000);
-      }
       else if (state.tab === 'tiendas') await cargarTiendas();
       else if (state.tab === 'mantenimiento') await cargarMantenimiento();
     } catch (error) {
@@ -278,8 +251,8 @@
   // =======================================================================
   // Menú cascada (analisis_correcciones_17.md #4/#5/#6/#7/#15) — desplegable
   // vertical con submenús de nivel 2 hacia la derecha. Reemplaza los <select>
-  // de Tienda/Rol en Gestionar Usuarios, Actividad de Usuarios, el modal de
-  // Nuevo Usuario y el filtro de Gestionar Tiendas. Un nodo del árbol es uno
+  // de Tienda/Rol en Gestionar Usuarios, el modal de Nuevo Usuario y el
+  // filtro de Gestionar Tiendas. Un nodo del árbol es uno
   // de tres tipos:
   //   - hoja:    { tipo:'hoja', valor, etiqueta }         — seleccionable.
   //   - grupo:   { tipo:'grupo', etiqueta, hijos }        — abre un submenú
@@ -663,12 +636,8 @@
     const esEdicion = !!usuario;
 
     let tiendasSupervisadas = [];
-    let coberturaHeredada = [];
     if (esEdicion && Number(usuario.rol_id) === ROL_SUPERVISOR) {
-      [tiendasSupervisadas, coberturaHeredada] = await Promise.all([
-        fetch(`/api/admin/usuarios/${usuario.id}/tiendas-supervisadas`).then(r => r.json()),
-        fetch(`/api/admin/usuarios/${usuario.id}/cobertura-heredada`).then(r => r.json())
-      ]);
+      tiendasSupervisadas = await fetch(`/api/admin/usuarios/${usuario.id}/tiendas-supervisadas`).then(r => r.json());
     }
 
     // analisis_correcciones_14.md #5: solo roles activos son asignables — salvo
@@ -713,10 +682,7 @@
           <label>Correo electrónico</label>
           <input type="email" id="input-email">
         </div>
-        <div class="form-field">
-          <label>Teléfono</label>
-          <input type="text" id="input-telefono">
-        </div>
+        <div class="form-field" id="zona-telefono"></div>
         ${campoPassword}
         <div class="form-field">
           <label>Rol</label>
@@ -734,7 +700,22 @@
 
     overlay.querySelector('#input-nombre').value = esEdicion ? usuario.nombre : '';
     overlay.querySelector('#input-email').value = esEdicion ? usuario.email : '';
-    overlay.querySelector('#input-telefono').value = (esEdicion && usuario.telefono) ? usuario.telefono : '';
+
+    // analisis_correcciones_18.md #5: `usuarios` ya no tiene teléfono propio —
+    // solo Asesor y Supervisor lo tienen (en su tabla satélite), así que el
+    // campo solo se muestra para esos dos roles.
+    let telefonoActual = (esEdicion && usuario.telefono) ? usuario.telefono : '';
+    function renderTelefono() {
+      const zona = overlay.querySelector('#zona-telefono');
+      if (rolIdActual === ROL_ASESOR || rolIdActual === ROL_SUPERVISOR) {
+        zona.innerHTML = `<label>Teléfono</label><input type="text" id="input-telefono">`;
+        zona.querySelector('#input-telefono').value = telefonoActual;
+        zona.querySelector('#input-telefono').addEventListener('input', (e) => { telefonoActual = e.target.value; });
+      } else {
+        zona.innerHTML = '';
+      }
+    }
+    renderTelefono();
 
     // analisis_correcciones_15.md #10/#11: agrupa las tiendas por país una
     // sola vez — ambas ramas de renderZonaAsignacion arman un cascada país→tienda.
@@ -743,16 +724,6 @@
     // vive fuera de renderZonaAsignacion para sobrevivir sus propios re-renders
     // (cambiar de país no debe perder las tiendas ya marcadas de otro país).
     let paisSupervisorActual = null;
-
-    // Una tienda queda cubierta por herencia si su departamento/subdivisión
-    // coincide con alguna fila de coberturaHeredada (subdivision_id null =
-    // cubre TODAS las subdivisiones de ese departamento).
-    function esHeredada(tienda) {
-      return coberturaHeredada.some(c =>
-        c.departamento_id === tienda.departamento_id &&
-        (c.subdivision_id === null || c.subdivision_id === tienda.subdivision_id)
-      );
-    }
 
     // Vuelca en `tiendasSupervisadas` lo que esté marcado/desmarcado AHORA
     // MISMO en el país visible (las heredadas no se tocan, viven aparte) —
@@ -784,14 +755,12 @@
           <label>Tiendas supervisadas</label>
           <select id="input-pais-supervisor">${opcionesPais}</select>
           <div class="personal-lista" id="lista-tiendas-supervisadas"></div>
-          ${coberturaHeredada.length ? `<p class="form-hint">Las tiendas marcadas y bloqueadas ya vienen cubiertas por asignación heredada (departamento/subdivisión: ${coberturaHeredada.map(c => escapeHtml(c.subdivision_nombre || c.departamento_nombre)).join(', ')}) — no se pueden desmarcar aquí.</p>` : ''}
         `;
         function renderListaTiendasDelPais() {
           const tiendasDelPais = tiendas.filter(t => (t.pais_nombre || 'Sin país') === paisSupervisorActual);
           overlay.querySelector('#lista-tiendas-supervisadas').innerHTML = tiendasDelPais.map(t => {
-            const heredada = esHeredada(t);
-            const marcada = heredada || tiendasSupervisadas.includes(t.id);
-            return `<label class="form-checkbox"><input type="checkbox" class="chk-tienda-supervisada" value="${t.id}" ${marcada ? 'checked' : ''} ${heredada ? 'disabled' : ''}> ${escapeHtml(t.nombre)} (${escapeHtml(t.codigo)})${heredada ? ' — heredada' : ''}</label>`;
+            const marcada = tiendasSupervisadas.includes(t.id);
+            return `<label class="form-checkbox"><input type="checkbox" class="chk-tienda-supervisada" value="${t.id}" ${marcada ? 'checked' : ''}> ${escapeHtml(t.nombre)} (${escapeHtml(t.codigo)})</label>`;
           }).join('') || '<p class="form-hint">No hay tiendas en este país.</p>';
         }
         renderListaTiendasDelPais();
@@ -800,6 +769,22 @@
           paisSupervisorActual = e.target.value;
           renderListaTiendasDelPais();
         });
+      } else if (rolId === ROL_ADMINISTRADOR) {
+        // analisis_correcciones_18.md #1: el Administrador administra el
+        // sistema completo — no pertenece a ninguna tienda, ni al crearlo.
+        zona.innerHTML = `<label>Tienda</label><p class="form-nota">El Administrador no pertenece a ninguna tienda.</p>`;
+      } else if (rolId === ROL_ASESOR && esEdicion) {
+        // analisis_correcciones_18.md #5: un Asesor de Ventas trabaja para una
+        // sola tienda a la vez; una vez creado, este modal ya no permite
+        // cambiarla — ese flujo queda limitado a Gestionar Tiendas →
+        // Gestionar personal (que exige desasignar antes de reasignar). Al
+        // crear un asesor nuevo sí se puede elegir su tienda inicial (rama
+        // de abajo, igual que cualquier otro rol).
+        const tiendaActual = tiendas.find(t => t.id === tiendaIdActual);
+        zona.innerHTML = `
+          <label>Tienda</label>
+          <p class="form-nota">${tiendaActual ? `${escapeHtml(tiendaActual.nombre)} (${escapeHtml(tiendaActual.codigo)})` : 'Sin tienda asignada'} — para cambiar la tienda de un asesor, usá Gestionar Tiendas → Gestionar personal.</p>
+        `;
       } else {
         // analisis_correcciones_17.md #6: el combobox de país + tienda se
         // reemplaza por un único menú cascada (mismo árbol del punto 4).
@@ -823,6 +808,7 @@
         rolIdActual = Number(valor);
         tiendaIdActual = ''; // cambiar de rol invalida la tienda elegida bajo el rol anterior
         renderZonaAsignacion();
+        renderTelefono();
       }
     }).elemento);
 
@@ -833,7 +819,7 @@
       const payload = {
         nombre: overlay.querySelector('#input-nombre').value.trim(),
         email: overlay.querySelector('#input-email').value.trim(),
-        telefono: overlay.querySelector('#input-telefono').value.trim(),
+        telefono: telefonoActual.trim(),
         password: overlay.querySelector('#input-password') ? overlay.querySelector('#input-password').value : '',
         rolId
       };
@@ -874,13 +860,11 @@
     const res = await fetch('/api/admin/roles');
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    state.rolesResumen = data.resumen;
     state.roles = data.roles;
     renderRoles();
   }
 
   function renderRoles() {
-    const r = state.rolesResumen;
     $('#panel-content').innerHTML = `
       <div class="panel-toolbar">
         <h2>Roles y Permisos</h2>
@@ -888,17 +872,13 @@
           <button class="btn btn--primary" id="btn-nuevo-rol"><ion-icon name="add-outline"></ion-icon> Nuevo Rol</button>
         </div>
       </div>
-      <div class="resumen-grid">
-        <div class="resumen-card"><div class="valor">${r.rolesConfigurados}</div><div class="etiqueta">Roles Configurados</div></div>
-        <div class="resumen-card"><div class="valor">${r.permisosDisponibles}</div><div class="etiqueta">Permisos Disponibles</div></div>
-      </div>
       <div class="roles-grid" id="roles-grid"></div>
     `;
 
     const grid = $('#roles-grid');
     grid.innerHTML = state.roles.map(rol => `
       <div class="rol-card" data-rol-id="${rol.id}">
-        <div class="rol-card-titulo">${escapeHtml(rol.nombre)}${rol.base ? '<span class="badge badge-base">Base</span>' : ''} <span class="badge ${rol.activo ? 'badge-activo' : 'badge-inactivo'}">${rol.activo ? 'Activo' : 'Inactivo'}</span></div>
+        <div class="rol-card-titulo">${escapeHtml(rol.nombre)}${rol.base ? '<span class="badge badge-base">Base</span>' : ''}</div>
         <div class="rol-card-descripcion">${escapeHtml(rol.descripcion || '')}</div>
         <div class="rol-card-meta"><span>${rol.usuarios_count} usuario(s)</span><span>${rol.permisos_count} permiso(s)</span></div>
         <div class="rol-card-acciones"></div>
@@ -921,10 +901,14 @@
         btnEditar.addEventListener('click', () => abrirModalRol(rol));
         acciones.appendChild(btnEditar);
 
+        // analisis_correcciones_18.md #4: el candado ES el indicador de
+        // estado (ya no hay badge "Activo"/"Inactivo" aparte) — desbloqueado
+        // y verde cuando el rol está activo, bloqueado y rojo cuando no.
         const btnToggle = document.createElement('button');
-        btnToggle.className = `btn-icon ${rol.activo ? 'icon-danger' : ''}`;
-        btnToggle.title = rol.activo ? 'Desactivar' : 'Activar';
-        btnToggle.innerHTML = `<ion-icon name="${rol.activo ? 'lock-closed-outline' : 'lock-open-outline'}"></ion-icon>`;
+        btnToggle.className = `btn-icon rol-candado ${rol.activo ? 'candado-activo' : 'candado-inactivo'}`;
+        btnToggle.title = rol.activo ? 'Rol activo — clic para desactivar' : 'Rol inactivo — clic para activar';
+        btnToggle.setAttribute('aria-label', btnToggle.title);
+        btnToggle.innerHTML = `<ion-icon name="${rol.activo ? 'lock-open-outline' : 'lock-closed-outline'}"></ion-icon>`;
         btnToggle.addEventListener('click', () => toggleActivoRol(rol));
         acciones.appendChild(btnToggle);
       }
@@ -1057,104 +1041,19 @@
   }
 
   // =======================================================================
-  // 3. Actividad de Usuarios
-  // =======================================================================
-  const ACTIVIDAD_ESTADO_LABEL = { EN_LINEA: 'En línea', INACTIVO: 'Inactivo', SIN_DATOS: 'Sin datos' };
-  const ACTIVIDAD_ESTADO_CLASE = { EN_LINEA: 'badge-en-linea', INACTIVO: 'badge-presencia-inactivo', SIN_DATOS: 'badge-sin-datos' };
-
-  async function cargarActividad() {
-    const [res] = await Promise.all([fetch('/api/admin/actividad'), asegurarCatalogosFiltro()]);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-    state.actividadResumen = data.resumen;
-    state.actividad = data.actividad;
-    renderActividad();
-  }
-
-  function renderActividad() {
-    const r = state.actividadResumen;
-    $('#panel-content').innerHTML = `
-      <div class="panel-toolbar">
-        <h2>Actividad de Usuarios</h2>
-        <div class="panel-toolbar-acciones">
-          <div id="filtro-tienda-actividad-cont"></div>
-          <div id="filtro-rol-actividad-cont"></div>
-        </div>
-      </div>
-      <div class="resumen-grid">
-        <div class="resumen-card resumen-card-clickeable ${state.filtroActividad === 'EN_LINEA' ? 'resumen-card-activo' : ''}" data-filtro="EN_LINEA"><div class="valor">${r.enLinea}</div><div class="etiqueta">En línea ahora</div></div>
-        <div class="resumen-card resumen-card-clickeable ${state.filtroActividad === 'INACTIVO' ? 'resumen-card-activo' : ''}" data-filtro="INACTIVO"><div class="valor">${r.inactivos}</div><div class="etiqueta">Inactivos</div></div>
-        <div class="resumen-card"><div class="valor">${r.totalActivos}</div><div class="etiqueta">Total de usuarios activos</div></div>
-      </div>
-      <div class="tabla-wrapper">
-        <table class="data-table sticky-header">
-          <thead><tr><th>Nombre</th><th>Rol</th><th>Ciudad</th><th>Estado</th><th>Conectado desde</th><th>Última actividad</th></tr></thead>
-          <tbody id="actividad-tbody"></tbody>
-        </table>
-      </div>
-    `;
-    $('#filtro-tienda-actividad-cont').appendChild(crearMenuCascada({
-      arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' }, ...construirArbolTiendas(state.catalogoTiendas)],
-      valorActual: state.filtroTiendaActividad,
-      etiquetaVacio: 'Todas las tiendas',
-      onSeleccionar: (valor) => { state.filtroTiendaActividad = String(valor); renderActividad(); }
-    }).elemento);
-    $('#filtro-rol-actividad-cont').appendChild(crearMenuCascada({
-      arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todos los roles' }, ...construirArbolRoles(state.catalogoRoles)],
-      valorActual: state.filtroRolActividad,
-      etiquetaVacio: 'Todos los roles',
-      onSeleccionar: (valor) => { state.filtroRolActividad = String(valor); renderActividad(); }
-    }).elemento);
-    // analisis_correcciones_17.md #8: los contadores de En línea/Inactivos
-    // también filtran la tabla, igual que en el buzón de Vales de Arte.
-    $$('.resumen-card-clickeable', $('#panel-content')).forEach(card => {
-      card.addEventListener('click', () => {
-        const filtro = card.dataset.filtro;
-        state.filtroActividad = state.filtroActividad === filtro ? '' : filtro;
-        renderActividad();
-      });
-    });
-
-    const filas = state.actividad.filter(a => {
-      const coincideTienda = !state.filtroTiendaActividad || String(a.tienda_id) === state.filtroTiendaActividad;
-      const coincideRol = !state.filtroRolActividad || String(a.rol_id) === state.filtroRolActividad;
-      const coincideEstado = !state.filtroActividad || a.estado === state.filtroActividad;
-      return coincideTienda && coincideRol && coincideEstado;
-    });
-
-    const tbody = $('#actividad-tbody');
-    if (!filas.length) {
-      tbody.innerHTML = `<tr><td colspan="6" class="tabla-vacia"><div class="buzon-vacio"><ion-icon name="pulse-outline"></ion-icon><p>No hay usuarios que coincidan con el filtro.</p></div></td></tr>`;
-      return;
-    }
-    tbody.innerHTML = filas.map(a => `
-      <tr>
-        <td data-label="Nombre">${escapeHtml(a.nombre)}</td>
-        <td data-label="Rol">${escapeHtml(a.rol_nombre)}</td>
-        <td data-label="Ciudad">${a.ultima_ciudad ? escapeHtml(a.ultima_ciudad) : '-'}</td>
-        <td data-label="Estado"><span class="badge ${ACTIVIDAD_ESTADO_CLASE[a.estado]}">${ACTIVIDAD_ESTADO_LABEL[a.estado]}</span></td>
-        <td data-label="Conectado desde">${haceTiempo(a.sesion_iniciada_en)}</td>
-        <td data-label="Última actividad">${haceTiempo(a.ultima_actividad_en)}</td>
-      </tr>
-    `).join('');
-  }
-
-  // =======================================================================
-  // 4. Gestionar Tiendas
+  // 3. Gestionar Tiendas
   // =======================================================================
   async function cargarTiendas() {
     const [tiendasRes, orgRes] = await Promise.all([
       fetch('/api/admin/tiendas').then(r => r.json()),
       fetch('/api/admin/organizacion').then(r => r.json())
     ]);
-    state.tiendasResumen = tiendasRes.resumen;
     state.tiendas = tiendasRes.tiendas;
     state.organizacion = orgRes;
     renderTiendas();
   }
 
   function renderTiendas() {
-    const r = state.tiendasResumen;
     $('#panel-content').innerHTML = `
       <div class="panel-toolbar">
         <h2>Gestionar Tiendas</h2>
@@ -1162,10 +1061,6 @@
           <div id="filtro-tienda-tiendas-cont"></div>
           <button class="btn btn--primary" id="btn-nueva-tienda"><ion-icon name="add-outline"></ion-icon> Nueva Tienda</button>
         </div>
-      </div>
-      <div class="resumen-grid">
-        <div class="resumen-card"><div class="valor">${r.activas}</div><div class="etiqueta">Tiendas Activas</div></div>
-        <div class="resumen-card"><div class="valor">${r.inactivas}</div><div class="etiqueta">Tiendas Inactivas</div></div>
       </div>
       <div class="tabla-wrapper">
         <table class="data-table sticky-header">
@@ -1226,21 +1121,36 @@
     $('#btn-nueva-tienda').addEventListener('click', () => abrirModalTienda(null));
   }
 
-  function opcionesSubdivisiones(departamentoId, seleccionada) {
-    const subs = state.organizacion.subdivisiones.filter(s => s.departamento_id === Number(departamentoId));
-    return [`<option value="">Sin subdivisión</option>`]
-      .concat(subs.map(s => `<option value="${s.id}" ${seleccionada === s.id ? 'selected' : ''}>${escapeHtml(s.nombre)}</option>`))
-      .join('');
-  }
-
   const PAISES_TIENDA = [
     { id: 1, nombre: 'Guatemala' }, { id: 2, nombre: 'El Salvador' }, { id: 3, nombre: 'Honduras' },
     { id: 4, nombre: 'Nicaragua' }, { id: 5, nombre: 'Costa Rica' }, { id: 6, nombre: 'Belice' }
   ];
 
+  // analisis_correcciones_18.md #3: el nombre de la tienda ya no se escribe a
+  // mano (se deriva de {EMPRESA}, {SUBDIVISIÓN} en el backend) — este modal
+  // solo captura los IDs de los que depende: Empresa y Departamento quedan
+  // filtrados por el País elegido, y la Subdivisión se elige de las
+  // existentes de ese departamento/país o se crea una nueva.
+  function empresasDelPais(paisId) {
+    return state.organizacion.empresas.filter(e => Number(e.pais_id) === Number(paisId));
+  }
+  // Un departamento aparece para un país si tiene alguna subdivisión de ese
+  // país, o si no tiene subdivisiones propias y su propio país coincide
+  // (caso "Ventas Premia Z13", exclusivo de Guatemala).
+  function departamentosDelPais(paisId) {
+    const pid = Number(paisId);
+    return state.organizacion.departamentos.filter(d => {
+      const subs = state.organizacion.subdivisiones.filter(s => s.departamento_id === d.id);
+      return subs.length > 0 ? subs.some(s => Number(s.pais_id) === pid) : Number(d.pais_id) === pid;
+    });
+  }
+  function subdivisionesDelDepartamento(departamentoId, paisId) {
+    return state.organizacion.subdivisiones.filter(s => s.departamento_id === Number(departamentoId) && Number(s.pais_id) === Number(paisId));
+  }
+
   function abrirModalTienda(tienda) {
     const esEdicion = !!tienda;
-    const departamentos = state.organizacion.departamentos;
+    const paisInicial = esEdicion ? tienda.pais_id : (PAISES_TIENDA[0] && PAISES_TIENDA[0].id);
     const bodyHtml = `
       <div class="form-grid">
         <div class="form-field">
@@ -1248,26 +1158,20 @@
           <input type="text" id="input-codigo" maxlength="10">
         </div>
         <div class="form-field">
-          <label>Nombre</label>
-          <input type="text" id="input-nombre-tienda">
-        </div>
-        <div class="form-field">
           <label>País</label>
           <select id="input-pais">
-            <option value="">Sin país</option>
-            ${PAISES_TIENDA.map(p => `<option value="${p.id}" ${esEdicion && tienda.pais_id === p.id ? 'selected' : ''}>${p.nombre}</option>`).join('')}
+            ${PAISES_TIENDA.map(p => `<option value="${p.id}" ${paisInicial === p.id ? 'selected' : ''}>${p.nombre}</option>`).join('')}
           </select>
+        </div>
+        <div class="form-field">
+          <label>Empresa</label>
+          <select id="input-empresa"></select>
         </div>
         <div class="form-field">
           <label>Departamento</label>
-          <select id="input-departamento">
-            ${departamentos.map(d => `<option value="${d.id}" ${esEdicion ? (tienda.departamento_id === d.id ? 'selected' : '') : ''}>${escapeHtml(d.nombre)}</option>`).join('')}
-          </select>
+          <select id="input-departamento"></select>
         </div>
-        <div class="form-field">
-          <label>Subdivisión</label>
-          <select id="input-subdivision"></select>
-        </div>
+        <div class="form-field full" id="zona-subdivision"></div>
         ${esEdicion ? `<div class="form-field"><label class="form-checkbox" style="margin-top:8px;"><input type="checkbox" id="input-activo-tienda" ${tienda.activo ? 'checked' : ''}> Tienda activa</label></div>` : ''}
       </div>
     `;
@@ -1277,30 +1181,85 @@
       footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-guardar">Guardar</button>`
     });
     overlay.querySelector('#input-codigo').value = esEdicion ? tienda.codigo : '';
-    overlay.querySelector('#input-nombre-tienda').value = esEdicion ? tienda.nombre : '';
 
-    function actualizarSubdivisiones() {
+    let subdivisionModo = 'existente'; // 'existente' | 'nueva'
+
+    function renderZonaSubdivision() {
       const departamentoId = overlay.querySelector('#input-departamento').value;
-      overlay.querySelector('#input-subdivision').innerHTML = opcionesSubdivisiones(departamentoId, esEdicion ? tienda.subdivision_id : null);
+      const paisId = overlay.querySelector('#input-pais').value;
+      const subs = departamentoId ? subdivisionesDelDepartamento(departamentoId, paisId) : [];
+      const zona = overlay.querySelector('#zona-subdivision');
+      zona.innerHTML = `
+        <label>Subdivisión</label>
+        <div class="form-radio-group">
+          <label class="form-checkbox"><input type="radio" name="modo-subdivision" value="existente" ${subdivisionModo === 'existente' ? 'checked' : ''}> Usar existente</label>
+          <label class="form-checkbox"><input type="radio" name="modo-subdivision" value="nueva" ${subdivisionModo === 'nueva' ? 'checked' : ''}> Crear nueva</label>
+        </div>
+        <div id="zona-subdivision-input"></div>
+      `;
+      function renderInput() {
+        const cont = zona.querySelector('#zona-subdivision-input');
+        if (subdivisionModo === 'nueva') {
+          cont.innerHTML = `<input type="text" id="input-subdivision-nombre" placeholder="Nombre de la nueva subdivisión">`;
+        } else {
+          const seleccionada = esEdicion && Number(tienda.departamento_id) === Number(departamentoId) ? tienda.subdivision_id : null;
+          cont.innerHTML = `
+            <select id="input-subdivision-existente">
+              <option value="">Sin subdivisión</option>
+              ${subs.map(s => `<option value="${s.id}" ${seleccionada === s.id ? 'selected' : ''}>${escapeHtml(s.nombre)}</option>`).join('')}
+            </select>
+          `;
+        }
+      }
+      renderInput();
+      zona.querySelectorAll('input[name="modo-subdivision"]').forEach(r => {
+        r.addEventListener('change', (e) => { subdivisionModo = e.target.value; renderInput(); });
+      });
     }
-    actualizarSubdivisiones();
-    overlay.querySelector('#input-departamento').addEventListener('change', actualizarSubdivisiones);
+
+    function renderEmpresasYDepartamentos() {
+      const paisId = overlay.querySelector('#input-pais').value;
+      const empresas = empresasDelPais(paisId);
+      const empresaSel = esEdicion ? tienda.empresa_id : null;
+      overlay.querySelector('#input-empresa').innerHTML = empresas.length
+        ? empresas.map(e => `<option value="${e.id}" ${empresaSel === e.id ? 'selected' : ''}>${escapeHtml(e.nombre)}</option>`).join('')
+        : `<option value="">Sin empresas para este país</option>`;
+      const departamentos = departamentosDelPais(paisId);
+      const departamentoSel = esEdicion ? tienda.departamento_id : null;
+      overlay.querySelector('#input-departamento').innerHTML = departamentos.length
+        ? departamentos.map(d => `<option value="${d.id}" ${departamentoSel === d.id ? 'selected' : ''}>${escapeHtml(d.nombre)}</option>`).join('')
+        : `<option value="">Sin departamentos para este país</option>`;
+      renderZonaSubdivision();
+    }
+    renderEmpresasYDepartamentos();
+    overlay.querySelector('#input-pais').addEventListener('change', renderEmpresasYDepartamentos);
+    overlay.querySelector('#input-departamento').addEventListener('change', renderZonaSubdivision);
 
     overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
     overlay.querySelector('#btn-guardar').addEventListener('click', async () => {
       const btn = overlay.querySelector('#btn-guardar');
-      const subdivisionValor = overlay.querySelector('#input-subdivision').value;
-      const paisValor = overlay.querySelector('#input-pais').value;
+      const paisId = overlay.querySelector('#input-pais').value;
+      const empresaId = overlay.querySelector('#input-empresa').value;
+      const departamentoId = overlay.querySelector('#input-departamento').value;
       const payload = {
         codigo: overlay.querySelector('#input-codigo').value.trim().toUpperCase(),
-        nombre: overlay.querySelector('#input-nombre-tienda').value.trim(),
-        paisId: paisValor ? Number(paisValor) : null,
-        departamentoId: Number(overlay.querySelector('#input-departamento').value),
-        subdivisionId: subdivisionValor ? Number(subdivisionValor) : null
+        empresaId: empresaId ? Number(empresaId) : null,
+        departamentoId: departamentoId ? Number(departamentoId) : null,
+        paisId: paisId ? Number(paisId) : null
       };
+      if (subdivisionModo === 'nueva') {
+        payload.subdivisionNombre = overlay.querySelector('#input-subdivision-nombre').value.trim();
+      } else {
+        const subVal = overlay.querySelector('#input-subdivision-existente').value;
+        payload.subdivisionId = subVal ? Number(subVal) : null;
+      }
       if (esEdicion) payload.activo = overlay.querySelector('#input-activo-tienda').checked;
-      if (!payload.codigo || !payload.nombre) {
-        mostrarErrorModal(overlay, 'Código y nombre son obligatorios.');
+      if (!payload.codigo || !payload.empresaId || !payload.departamentoId) {
+        mostrarErrorModal(overlay, 'Código, empresa y departamento son obligatorios.');
+        return;
+      }
+      if (subdivisionModo === 'nueva' && !payload.subdivisionNombre) {
+        mostrarErrorModal(overlay, 'Escribe el nombre de la nueva subdivisión, o elegí "Usar existente".');
         return;
       }
       btn.disabled = true;
@@ -1309,7 +1268,7 @@
         const res = await fetch(url, { method: esEdicion ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        window.toast.success(esEdicion ? 'Tienda actualizada' : 'Tienda creada', payload.nombre);
+        window.toast.success(esEdicion ? 'Tienda actualizada' : 'Tienda creada', payload.codigo);
         cerrar();
         cargarTiendas();
       } catch (error) {
@@ -1500,7 +1459,7 @@
   }
 
   // =======================================================================
-  // 5. Modo Mantenimiento
+  // 4. Modo Mantenimiento
   // =======================================================================
   async function cargarMantenimiento() {
     const res = await fetch('/api/admin/mantenimiento');

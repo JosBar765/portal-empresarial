@@ -2,11 +2,18 @@
 const db = require('../../../config/database');
 
 class TiendaAdminRepository {
+  // analisis_correcciones_18.md #5: `tiendas` ya no tiene `pais_id`/`nombre`
+  // propios — el país sale de la empresa dueña y el nombre a mostrar se
+  // deriva como "{EMPRESA}, {SUBDIVISIÓN}" (o solo "{EMPRESA}" sin
+  // subdivisión).
   async listarConDetalle() {
     return db.query(
-      `SELECT t.*, p.nombre AS pais_nombre, d.nombre AS departamento_nombre, s.nombre AS subdivision_nombre
+      `SELECT t.*, e.nombre AS empresa_nombre, e.pais_id AS pais_id, p.nombre AS pais_nombre,
+              d.nombre AS departamento_nombre, s.nombre AS subdivision_nombre,
+              CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS nombre
        FROM tiendas t
-       LEFT JOIN paises p ON p.id = t.pais_id
+       JOIN empresas e ON e.id = t.empresa_id
+       LEFT JOIN paises p ON p.id = e.pais_id
        JOIN departamentos d ON d.id = t.departamento_id
        LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
        ORDER BY t.orden`,
@@ -25,27 +32,42 @@ class TiendaAdminRepository {
     return rows[0] || null;
   }
 
-  async crear({ codigo, nombre, paisId, departamentoId, subdivisionId }) {
+  async crear({ codigo, empresaId, departamentoId, subdivisionId }) {
     const result = await db.query(
-      'INSERT INTO tiendas (codigo, nombre, pais_id, departamento_id, subdivision_id) VALUES (?, ?, ?, ?, ?)',
-      [codigo, nombre, paisId || null, departamentoId, subdivisionId || null],
+      'INSERT INTO tiendas (codigo, empresa_id, departamento_id, subdivision_id) VALUES (?, ?, ?, ?)',
+      [codigo, empresaId, departamentoId, subdivisionId || null],
       'tienda_admin:insert'
     );
     return result.insertId;
   }
 
-  async actualizar(id, { codigo, nombre, paisId, departamentoId, subdivisionId, activo }) {
+  async actualizar(id, { codigo, empresaId, departamentoId, subdivisionId, activo }) {
     return db.query(
-      'UPDATE tiendas SET codigo = ?, nombre = ?, pais_id = ?, departamento_id = ?, subdivision_id = ?, activo = ? WHERE id = ?',
-      [codigo, nombre, paisId || null, departamentoId, subdivisionId || null, activo ? 1 : 0, id],
+      'UPDATE tiendas SET codigo = ?, empresa_id = ?, departamento_id = ?, subdivision_id = ?, activo = ? WHERE id = ?',
+      [codigo, empresaId, departamentoId, subdivisionId || null, activo ? 1 : 0, id],
       'tienda_admin:update'
     );
+  }
+
+  // analisis_correcciones_18.md #3: crea una subdivisión nueva desde el modal
+  // "Nueva tienda" (radio "crear nueva") — con su propio país, ya que un
+  // departamento puede agrupar subdivisiones de varios países.
+  async crearSubdivision(departamentoId, nombre, paisId) {
+    const result = await db.query(
+      'INSERT INTO subdivisiones (departamento_id, nombre, pais_id) VALUES (?, ?, ?)',
+      [departamentoId, nombre, paisId],
+      'subdivision:insert'
+    );
+    return result.insertId;
   }
 
   async actualizarOrden(ordenes) {
     return db.query('UPDATE tiendas SET orden = ? WHERE id = ? -- (batch)', [ordenes], 'tienda_admin:set_orden');
   }
 
+  // analisis_correcciones_18.md #5: solo para Técnico/Encargado de taller —
+  // un Asesor de Ventas se asigna vía `usuarioAdminRepository.actualizarAsesor`
+  // (su tienda vive en `asesores.tienda_id`, no en `usuarios.tienda_id`).
   async asignarTiendaAUsuario(usuarioId, tiendaId) {
     return db.query('UPDATE usuarios SET tienda_id = ? WHERE id = ?', [tiendaId, usuarioId], 'tienda_admin:asignar_usuario');
   }
@@ -54,41 +76,50 @@ class TiendaAdminRepository {
     return db.query('UPDATE usuarios SET tienda_id = NULL WHERE id = ?', [usuarioId], 'tienda_admin:quitar_usuario');
   }
 
+  // analisis_correcciones_18.md #5: reemplaza `supervisor_asignaciones` — un
+  // supervisor cubre tiendas concretas, sin cobertura "heredada" por
+  // departamento/subdivisión.
   async agregarSupervisorATienda(usuarioId, tiendaId) {
     const result = await db.query(
-      'INSERT INTO supervisor_asignaciones (usuario_id, tienda_id) VALUES (?, ?)',
+      'INSERT INTO supervisor_tiendas (usuario_id, tienda_id) VALUES (?, ?)',
       [usuarioId, tiendaId],
-      'supervisor_asignacion:insert_tienda'
+      'supervisor_tienda:insert'
     );
     return result.insertId;
   }
 
   async quitarSupervisorDeTienda(usuarioId, tiendaId) {
     return db.query(
-      'DELETE FROM supervisor_asignaciones WHERE usuario_id = ? AND tienda_id = ?',
+      'DELETE FROM supervisor_tiendas WHERE usuario_id = ? AND tienda_id = ?',
       [usuarioId, tiendaId],
-      'supervisor_asignacion:delete_tienda'
+      'supervisor_tienda:delete'
     );
   }
 
+  // analisis_correcciones_18.md #1/#5: un Asesor cuenta como personal
+  // "directo" vía `asesores.tienda_id`; Técnico/Encargado de taller siguen
+  // vía `usuarios.tienda_id` (hasta que #6 los mueva a sus propias tablas);
+  // un Supervisor cuenta si tiene esa tienda en `supervisor_tiendas`. El
+  // Administrador nunca pertenece a ninguna tienda.
   async listarPersonalDetalle(tiendaId) {
     return db.query(
-      `SELECT u.id, u.nombre, u.email, r.nombre AS rol_nombre, u.rol_id,
-              CASE WHEN u.tienda_id = ? THEN 'directo' ELSE 'supervisor' END AS tipo_vinculo
+      `SELECT u.id, u.nombre, u.email, r.nombre AS rol_nombre, u.rol_id, 'directo' AS tipo_vinculo
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
-       WHERE u.activo = 1 AND (
-         u.tienda_id = ? OR
-         (u.rol_id = 3 AND EXISTS (
-           SELECT 1 FROM supervisor_asignaciones sa
-           JOIN tiendas t ON t.id = ?
-           WHERE sa.usuario_id = u.id AND sa.activo = 1 AND (
-             sa.tienda_id = t.id OR
-             (sa.tienda_id IS NULL AND sa.departamento_id = t.departamento_id AND (sa.subdivision_id IS NULL OR sa.subdivision_id = t.subdivision_id))
-           )
-         ))
-       )
-       ORDER BY u.nombre`,
+       JOIN asesores a ON a.usuario_id = u.id AND a.tienda_id = ?
+       WHERE u.activo = 1
+       UNION ALL
+       SELECT u.id, u.nombre, u.email, r.nombre AS rol_nombre, u.rol_id, 'directo' AS tipo_vinculo
+       FROM usuarios u
+       JOIN roles r ON r.id = u.rol_id
+       WHERE u.activo = 1 AND u.rol_id NOT IN (1, 2, 3) AND u.tienda_id = ?
+       UNION ALL
+       SELECT u.id, u.nombre, u.email, r.nombre AS rol_nombre, u.rol_id, 'supervisor' AS tipo_vinculo
+       FROM usuarios u
+       JOIN roles r ON r.id = u.rol_id
+       JOIN supervisor_tiendas st ON st.usuario_id = u.id AND st.tienda_id = ?
+       WHERE u.activo = 1 AND u.rol_id = 3
+       ORDER BY nombre`,
       [tiendaId, tiendaId, tiendaId],
       'tienda_admin:personal_detalle'
     );
@@ -96,27 +127,11 @@ class TiendaAdminRepository {
 
   async listarTiendaIdsCubiertasDirectamente(usuarioId) {
     const rows = await db.query(
-      'SELECT tienda_id FROM supervisor_asignaciones WHERE usuario_id = ? AND activo = 1 AND tienda_id IS NOT NULL',
+      'SELECT tienda_id FROM supervisor_tiendas WHERE usuario_id = ?',
       [usuarioId],
-      'supervisor_asignacion:list_tiendas_directas'
+      'supervisor_tienda:list_by_usuario'
     );
     return rows.map(r => r.tienda_id);
-  }
-
-  // analisis_correcciones_15.md #10: además de los nombres (para el texto de
-  // ayuda), se devuelven los ids — el selector en cascada de "Tiendas
-  // supervisadas" los necesita para saber CUÁLES tiendas concretas quedan
-  // pre-marcadas (y bloqueadas) por venir de una cobertura heredada.
-  async listarCoberturaHeredada(usuarioId) {
-    return db.query(
-      `SELECT sa.departamento_id, sa.subdivision_id, d.nombre AS departamento_nombre, s.nombre AS subdivision_nombre
-       FROM supervisor_asignaciones sa
-       JOIN departamentos d ON d.id = sa.departamento_id
-       LEFT JOIN subdivisiones s ON s.id = sa.subdivision_id
-       WHERE sa.usuario_id = ? AND sa.activo = 1 AND sa.tienda_id IS NULL`,
-      [usuarioId],
-      'supervisor_asignacion:list_heredada'
-    );
   }
 
   async listarDepartamentos() {
@@ -125,6 +140,12 @@ class TiendaAdminRepository {
 
   async listarSubdivisiones() {
     return db.query('SELECT * FROM subdivisiones WHERE activo = 1 ORDER BY nombre', [], 'organizacion:subdivisiones');
+  }
+
+  // analisis_correcciones_18.md #5: catálogo de empresas para el selector de
+  // "Nueva tienda" (reemplaza al viejo selector de País).
+  async listarEmpresas() {
+    return db.query('SELECT * FROM empresas ORDER BY nombre', [], 'organizacion:empresas');
   }
 }
 

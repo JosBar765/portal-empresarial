@@ -11,7 +11,6 @@ router.get('/usuarios', soloAdmin, (req, res) => adminController.listarUsuarios(
 router.post('/usuarios', soloAdmin, (req, res) => adminController.crearUsuario(req, res));
 router.put('/usuarios/:id', soloAdmin, (req, res) => adminController.actualizarUsuario(req, res));
 router.patch('/usuarios/:id/activo', soloAdmin, (req, res) => adminController.establecerActivoUsuario(req, res));
-router.get('/usuarios/:id/cobertura-heredada', soloAdmin, (req, res) => adminController.obtenerCoberturaHeredada(req, res));
 router.get('/usuarios/:id/tiendas-supervisadas', soloAdmin, (req, res) => adminController.obtenerTiendasSupervisadas(req, res));
 
 // Roles y permisos
@@ -22,9 +21,6 @@ router.put('/roles/:id', soloAdmin, (req, res) => adminController.actualizarRol(
 router.get('/roles/:id/permisos', soloAdmin, (req, res) => adminController.obtenerPermisosDeRol(req, res));
 router.put('/roles/:id/permisos', soloAdmin, (req, res) => adminController.actualizarPermisosRol(req, res));
 router.patch('/roles/:id/activo', soloAdmin, (req, res) => adminController.establecerActivoRol(req, res));
-
-// Actividad
-router.get('/actividad', soloAdmin, (req, res) => adminController.listarActividad(req, res));
 
 // Tiendas
 router.get('/organizacion', soloAdmin, (req, res) => adminController.obtenerOrganizacion(req, res));

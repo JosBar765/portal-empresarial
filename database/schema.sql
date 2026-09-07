@@ -14,6 +14,16 @@ CREATE TABLE IF NOT EXISTS `paises` (
   `codigo_telefono` VARCHAR(5)   DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- analisis_correcciones_18.md #5: entidad jurídica dueña de una o más
+-- tiendas (ej. "Munditrofeos, S.A." es dueña de MTC y MTS). El país de una
+-- tienda se resuelve a través de su empresa, ya no de `tiendas.pais_id`.
+CREATE TABLE IF NOT EXISTS `empresas` (
+  `id`      INT AUTO_INCREMENT PRIMARY KEY,
+  `nombre`  VARCHAR(150) NOT NULL,
+  `pais_id` INT NOT NULL,
+  FOREIGN KEY (`pais_id`) REFERENCES `paises` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `roles` (
   `id`             INT AUTO_INCREMENT PRIMARY KEY,
   `nombre`         VARCHAR(50)  NOT NULL UNIQUE,
@@ -41,38 +51,70 @@ CREATE TABLE IF NOT EXISTS `rol_permisos` (
   FOREIGN KEY (`permiso_id`) REFERENCES `permisos` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- analisis_correcciones_18.md #5: `telefono` sale de aquí — Asesor/Supervisor
+-- lo guardan en su tabla satélite; el resto de roles (Administrador,
+-- Encargados, Técnicos, Asistente, Gerente) no lo tienen en el sistema.
 CREATE TABLE IF NOT EXISTS `usuarios` (
   `id`                  INT AUTO_INCREMENT PRIMARY KEY,
   `nombre`              VARCHAR(150) NOT NULL,
   `email`               VARCHAR(150) NOT NULL UNIQUE,
-  `telefono`            VARCHAR(30)  DEFAULT NULL,
   `password_hash`       VARCHAR(255) NOT NULL,
   `rol_id`              INT NOT NULL,
-  `tienda_id`           INT DEFAULT NULL COMMENT 'Tienda base del usuario: usada para el correlativo de vales y, para un asesor, para resolver su(s) supervisor(es) vía departamento/subdivisión',
-  `encargado_id`        INT DEFAULT NULL COMMENT 'Auto-referencia: encargado de taller al mando de este técnico (NULL en asesores/supervisores, cuya cobertura es dinámica vía tienda_id + supervisor_asignaciones)',
+  `tienda_id`           INT DEFAULT NULL COMMENT 'DEPRECATED (analisis_correcciones_18.md #5): en desuso para Asesor/Supervisor (ver `asesores`/`supervisor_tiendas`); todavía en uso para Técnico/Encargado (su propia tienda física — no confundir con `encargado_tienda`, que cubre el caso de un taller compartido por dos tiendas)',
   `activo`              TINYINT(1) NOT NULL DEFAULT 1,
   `intentos_fallidos`   INT NOT NULL DEFAULT 0,
   `bloqueado_hasta`     DATETIME DEFAULT NULL,
-  -- Rastro de presencia (Vista Administrador, pestaña "Actividad de
-  -- Usuarios"). `sesion_iniciada_en` se sella en el login y se limpia en el
-  -- logout; `ultima_actividad_en` se refresca desde un middleware liviano en
-  -- cada request autenticado.
-  `sesion_iniciada_en`  DATETIME DEFAULT NULL,
-  `ultima_actividad_en` DATETIME DEFAULT NULL,
-  `ultima_ip`           VARCHAR(45)  DEFAULT NULL,
-  `ultima_ciudad`       VARCHAR(100) DEFAULT NULL,
   `creado_en`           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `actualizado_en`      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`rol_id`) REFERENCES `roles` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  FOREIGN KEY (`encargado_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  INDEX `idx_usuarios_email` (`email`),
-  INDEX `idx_usuarios_encargado` (`encargado_id`)
+  INDEX `idx_usuarios_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- analisis_correcciones_18.md #5: un Asesor de Ventas trabaja para EXACTAMENTE
+-- una tienda a la vez (`tienda_id` NULL = sin asignar). Para reasignarlo hay
+-- que desasignarlo primero (`tienda_id` a NULL) y luego asignarlo a la nueva
+-- — no se permite saltar directo de una tienda a otra (ver adminService).
+CREATE TABLE IF NOT EXISTS `asesores` (
+  `id`         INT AUTO_INCREMENT PRIMARY KEY,
+  `usuario_id` INT NOT NULL UNIQUE,
+  `tienda_id`  INT DEFAULT NULL,
+  `telefono`   VARCHAR(30) DEFAULT NULL,
+  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`tienda_id`)  REFERENCES `tiendas`  (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `supervisores` (
+  `id`         INT AUTO_INCREMENT PRIMARY KEY,
+  `usuario_id` INT NOT NULL UNIQUE,
+  `telefono`   VARCHAR(30) DEFAULT NULL,
+  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- analisis_correcciones_18.md #5: reemplaza `supervisor_asignaciones`. Un
+-- supervisor supervisa TIENDAS, no departamentos ni subdivisiones — relación
+-- muchos a muchos explícita, asignable/desasignable una por una, sin
+-- cobertura "heredada" implícita.
+CREATE TABLE IF NOT EXISTS `supervisor_tiendas` (
+  `usuario_id` INT NOT NULL,
+  `tienda_id`  INT NOT NULL,
+  PRIMARY KEY (`usuario_id`, `tienda_id`),
+  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`tienda_id`)  REFERENCES `tiendas`  (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- analisis_correcciones_18.md #3: `pais_id` es NULL-able porque un
+-- departamento como "Ventas Centroamérica" agrupa subdivisiones de VARIOS
+-- países a la vez — en ese caso el país vive en cada `subdivisiones.pais_id`
+-- y este campo se ignora. Solo se usa cuando el departamento NO tiene
+-- subdivisiones propias (ej. "Ventas Premia Z13", exclusivo de Guatemala),
+-- que es el único caso donde hace falta para el filtro País → Departamento
+-- del modal "Nueva tienda".
 CREATE TABLE IF NOT EXISTS `departamentos` (
-  `id`     INT AUTO_INCREMENT PRIMARY KEY,
-  `nombre` VARCHAR(100) NOT NULL UNIQUE,
-  `activo` TINYINT(1) NOT NULL DEFAULT 1
+  `id`      INT AUTO_INCREMENT PRIMARY KEY,
+  `nombre`  VARCHAR(100) NOT NULL UNIQUE,
+  `pais_id` INT DEFAULT NULL,
+  `activo`  TINYINT(1) NOT NULL DEFAULT 1,
+  FOREIGN KEY (`pais_id`) REFERENCES `paises` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- No todo departamento tiene subdivisiones (ej. Premia Z13) — por eso
@@ -81,47 +123,30 @@ CREATE TABLE IF NOT EXISTS `subdivisiones` (
   `id`              INT AUTO_INCREMENT PRIMARY KEY,
   `departamento_id` INT NOT NULL,
   `nombre`          VARCHAR(100) NOT NULL,
+  `pais_id`         INT NOT NULL COMMENT 'analisis_correcciones_18.md #3: país real de esta subdivisión — un departamento puede agrupar subdivisiones de varios países',
   `activo`          TINYINT(1) NOT NULL DEFAULT 1,
   FOREIGN KEY (`departamento_id`) REFERENCES `departamentos` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`pais_id`) REFERENCES `paises` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   UNIQUE KEY `uq_subdivision` (`departamento_id`, `nombre`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tiendas/sucursales, usadas para el correlativo de vales y para resolver,
 -- vía departamento/subdivisión, cuál(es) supervisor(es) cubren a un asesor
--- (ver `supervisor_asignaciones`).
+-- (ver `supervisor_tiendas`). analisis_correcciones_18.md #5: ya no tienen
+-- `pais_id` propio (se resuelve vía `empresa_id` → `empresas.pais_id`) ni
+-- `nombre` propio (se deriva como "{EMPRESA}, {SUBDIVISIÓN}", o solo
+-- "{EMPRESA}" si no tiene subdivisión — ver `tiendaAdminRepository`).
 CREATE TABLE IF NOT EXISTS `tiendas` (
   `id`              INT AUTO_INCREMENT PRIMARY KEY,
   `codigo`          VARCHAR(10)  NOT NULL UNIQUE COMMENT 'Ej: MTC, SSV, XEL',
-  `nombre`          VARCHAR(100) NOT NULL,
-  `pais_id`         INT DEFAULT NULL,
+  `empresa_id`      INT NOT NULL,
   `departamento_id` INT NOT NULL,
   `subdivision_id`  INT DEFAULT NULL COMMENT 'NULL si el departamento no tiene subdivisiones',
   `orden`           INT NOT NULL DEFAULT 0 COMMENT 'Orden manual del catálogo, editable desde la Vista Administrador',
   `activo`          TINYINT(1) NOT NULL DEFAULT 1,
-  FOREIGN KEY (`pais_id`) REFERENCES `paises` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (`departamento_id`) REFERENCES `departamentos` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (`subdivision_id`) REFERENCES `subdivisiones` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Cobertura de un Supervisor de Ventas sobre la organización. Un supervisor
--- puede cubrir un departamento ENTERO (`subdivision_id` NULL) o solo una
--- subdivisión puntual, y los supervisores son rotativos: más de uno puede
--- cubrir la misma tienda a la vez. Una fila cubre POR DEPARTAMENTO
--- (`departamento_id` seteado, `tienda_id` NULL) o POR TIENDA PUNTUAL
--- (`tienda_id` seteado, `departamento_id`/`subdivision_id` NULL) — nunca
--- ambas cosas a la vez.
-CREATE TABLE IF NOT EXISTS `supervisor_asignaciones` (
-  `id`              INT AUTO_INCREMENT PRIMARY KEY,
-  `usuario_id`      INT NOT NULL,
-  `departamento_id` INT DEFAULT NULL COMMENT 'NULL cuando la cobertura es por tienda puntual (ver tienda_id)',
-  `subdivision_id`  INT DEFAULT NULL COMMENT 'NULL = cubre todas las subdivisiones de este departamento',
-  `tienda_id`       INT DEFAULT NULL COMMENT 'Cobertura de UNA tienda puntual, alternativa a departamento_id/subdivision_id',
-  `activo`          TINYINT(1) NOT NULL DEFAULT 1,
-  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  FOREIGN KEY (`departamento_id`) REFERENCES `departamentos` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  FOREIGN KEY (`subdivision_id`) REFERENCES `subdivisiones` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  FOREIGN KEY (`tienda_id`) REFERENCES `tiendas` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  UNIQUE KEY `uq_supervisor_scope` (`usuario_id`, `departamento_id`, `subdivision_id`, `tienda_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Catálogos del formulario de vale de arte (combobox).
@@ -147,10 +172,36 @@ CREATE TABLE IF NOT EXISTS `talleres` (
   `id`           INT AUTO_INCREMENT PRIMARY KEY,
   `nombre`       VARCHAR(100) NOT NULL UNIQUE,
   `encargado_id` INT NOT NULL,
-  `tienda_id`    INT DEFAULT NULL COMMENT 'NULL = taller de toda la empresa; NOT NULL = Diseño Local de esa tienda',
+  `tienda_id`    INT DEFAULT NULL COMMENT 'NULL = taller de toda la empresa; NOT NULL = Diseño Local de esa tienda. Gobierna a qué talleres puede enviar un vale cada asesor (ver _validarTalleresIds) — no confundir con `encargado_tienda`, que es solo para "Gestionar personal".',
   `activo`       TINYINT(1) NOT NULL DEFAULT 1,
   FOREIGN KEY (`encargado_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (`tienda_id`) REFERENCES `tiendas` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- analisis_correcciones_18.md #5: el encargado de un taller compartido por
+-- MTC y MTS (Diseño, Diseño UV/3D, Protextil) debe aparecer como personal de
+-- AMBAS tiendas en "Gestionar personal" — algo que `talleres.encargado_id`
+-- (un solo dueño) no puede expresar por sí solo. Esta tabla es EXCLUSIVA para
+-- ese listado; el enrutamiento de vales (qué taller puede elegir un asesor)
+-- sigue gobernado enteramente por `talleres.tienda_id`, sin cambios de
+-- comportamiento para las tiendas Premia/Trofex.
+CREATE TABLE IF NOT EXISTS `encargado_tienda` (
+  `taller_id` INT NOT NULL,
+  `tienda_id` INT NOT NULL,
+  PRIMARY KEY (`taller_id`, `tienda_id`),
+  FOREIGN KEY (`taller_id`) REFERENCES `talleres` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`tienda_id`) REFERENCES `tiendas` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- analisis_correcciones_18.md #5: reemplaza `usuarios.encargado_id` — un
+-- técnico trabaja físicamente en un solo taller (PK sobre `usuario_id`, no
+-- compuesta, para que sea imposible tener dos filas del mismo técnico).
+CREATE TABLE IF NOT EXISTS `taller_tecnicos` (
+  `usuario_id` INT NOT NULL PRIMARY KEY,
+  `taller_id`  INT NOT NULL,
+  FOREIGN KEY (`taller_id`)  REFERENCES `talleres` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  INDEX `idx_taller_tecnicos_taller` (`taller_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Estado GENERAL de un vale de arte. El progreso DENTRO de cada taller

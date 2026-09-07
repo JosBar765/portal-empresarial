@@ -2,13 +2,25 @@
 const db = require('../../../config/database');
 
 class UsuarioAdminRepository {
+  // analisis_correcciones_18.md #5: la tienda de un Asesor vive en
+  // `asesores.tienda_id` (no en `usuarios.tienda_id`); el nombre a mostrar se
+  // deriva vía `empresas`/`subdivisiones` igual que en `tiendaAdminRepository`.
+  // `paises_asignados` de un Supervisor puede abarcar VARIAS tiendas/países
+  // (`supervisor_tiendas`) — este JOIN plano solo alcanza a mostrar uno; el
+  // mock (`usuario_admin:list`) sí calcula la lista completa vía
+  // `tiendasCubiertasPorSupervisor`.
   async listarConDetalle() {
     return db.query(
-      `SELECT u.*, r.nombre AS rol_nombre, t.nombre AS tienda_nombre, p.nombre AS paises_asignados
+      `SELECT u.*, r.nombre AS rol_nombre,
+              CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS tienda_nombre,
+              p.nombre AS paises_asignados
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
-       LEFT JOIN tiendas t ON t.id = u.tienda_id
-       LEFT JOIN paises p ON p.id = t.pais_id
+       LEFT JOIN asesores a ON a.usuario_id = u.id
+       LEFT JOIN tiendas t ON t.id = COALESCE(a.tienda_id, u.tienda_id)
+       LEFT JOIN empresas e ON e.id = t.empresa_id
+       LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
+       LEFT JOIN paises p ON p.id = e.pais_id
        ORDER BY u.nombre`,
       [],
       'usuario_admin:list'
@@ -25,19 +37,22 @@ class UsuarioAdminRepository {
     return rows[0] || null;
   }
 
-  async crear({ nombre, email, telefono, passwordHash, rolId, tiendaId }) {
+  // analisis_correcciones_18.md #5: `usuarios` ya no tiene `telefono` —
+  // Asesor/Supervisor lo guardan en su tabla satélite; el resto de roles no
+  // lo tienen en el sistema.
+  async crear({ nombre, email, passwordHash, rolId, tiendaId }) {
     const result = await db.query(
-      'INSERT INTO usuarios (nombre, email, telefono, password_hash, rol_id, tienda_id) VALUES (?, ?, ?, ?, ?, ?)',
-      [nombre, email, telefono || null, passwordHash, rolId, tiendaId || null],
+      'INSERT INTO usuarios (nombre, email, password_hash, rol_id, tienda_id) VALUES (?, ?, ?, ?, ?)',
+      [nombre, email, passwordHash, rolId, tiendaId || null],
       'usuario_admin:insert'
     );
     return result.insertId;
   }
 
-  async actualizar(id, { nombre, email, telefono, rolId, tiendaId }) {
+  async actualizar(id, { nombre, email, rolId, tiendaId }) {
     return db.query(
-      'UPDATE usuarios SET nombre = ?, email = ?, telefono = ?, rol_id = ?, tienda_id = ? WHERE id = ?',
-      [nombre, email, telefono || null, rolId, tiendaId || null, id],
+      'UPDATE usuarios SET nombre = ?, email = ?, rol_id = ?, tienda_id = ? WHERE id = ?',
+      [nombre, email, rolId, tiendaId || null, id],
       'usuario_admin:update'
     );
   }
@@ -48,6 +63,58 @@ class UsuarioAdminRepository {
 
   async establecerActivo(id, activo) {
     return db.query('UPDATE usuarios SET activo = ? WHERE id = ?', [activo ? 1 : 0, id], 'usuario_admin:set_activo');
+  }
+
+  // -------------------------------------------------------------------
+  // analisis_correcciones_18.md #5: filas satélite de Asesor de Ventas /
+  // Supervisor de Ventas — `usuarios` ya no guarda su tienda/teléfono.
+  // -------------------------------------------------------------------
+  async obtenerAsesorPorUsuarioId(usuarioId) {
+    const rows = await db.query('SELECT * FROM asesores WHERE usuario_id = ?', [usuarioId], 'asesor:find_by_usuario');
+    return rows[0] || null;
+  }
+
+  async crearAsesor(usuarioId, tiendaId, telefono) {
+    const result = await db.query(
+      'INSERT INTO asesores (usuario_id, tienda_id, telefono) VALUES (?, ?, ?)',
+      [usuarioId, tiendaId || null, telefono || null],
+      'asesor:insert'
+    );
+    return result.insertId;
+  }
+
+  async actualizarAsesor(usuarioId, tiendaId, telefono) {
+    return db.query(
+      'UPDATE asesores SET tienda_id = ?, telefono = ? WHERE usuario_id = ?',
+      [tiendaId || null, telefono || null, usuarioId],
+      'asesor:update'
+    );
+  }
+
+  async eliminarAsesor(usuarioId) {
+    return db.query('DELETE FROM asesores WHERE usuario_id = ?', [usuarioId], 'asesor:delete');
+  }
+
+  async obtenerSupervisorPorUsuarioId(usuarioId) {
+    const rows = await db.query('SELECT * FROM supervisores WHERE usuario_id = ?', [usuarioId], 'supervisor:find_by_usuario');
+    return rows[0] || null;
+  }
+
+  async crearSupervisor(usuarioId, telefono) {
+    const result = await db.query(
+      'INSERT INTO supervisores (usuario_id, telefono) VALUES (?, ?)',
+      [usuarioId, telefono || null],
+      'supervisor:insert'
+    );
+    return result.insertId;
+  }
+
+  async actualizarSupervisor(usuarioId, telefono) {
+    return db.query('UPDATE supervisores SET telefono = ? WHERE usuario_id = ?', [telefono || null, usuarioId], 'supervisor:update');
+  }
+
+  async eliminarSupervisor(usuarioId) {
+    return db.query('DELETE FROM supervisores WHERE usuario_id = ?', [usuarioId], 'supervisor:delete');
   }
 }
 

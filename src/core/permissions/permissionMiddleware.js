@@ -1,6 +1,5 @@
 // src/core/permissions/permissionMiddleware.js
 const jwtHelper = require('../auth/jwtHelper');
-const presenciaTracker = require('../auth/presenciaTracker');
 
 /**
  * Middleware global para interceptar y verificar el token JWT.
@@ -34,11 +33,6 @@ function authenticateJWT(req, res, next) {
   // Adjuntar el usuario decodificado al objeto req.
   // Esto es la ÚNICA fuente de verdad, impidiendo suplantación.
   req.user = decoded;
-
-  // analisis_correcciones_13.md #6: refresca "última actividad" para la
-  // pestaña de Actividad de Usuarios — throttleado internamente, no bloquea
-  // el request ni lo retrasa (fire-and-forget).
-  presenciaTracker.refrescarActividad(decoded.id).catch(err => console.error('[Presencia] No se pudo refrescar la actividad:', err));
 
   next();
 }
