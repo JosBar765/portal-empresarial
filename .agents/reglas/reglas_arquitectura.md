@@ -176,8 +176,8 @@ public/
 
 database/
 │
-├── migrations/
-└── seeds/
+├── schema.sql
+└── seed.sql
 
 
 uploads/

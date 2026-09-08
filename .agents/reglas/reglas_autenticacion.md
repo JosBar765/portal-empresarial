@@ -51,7 +51,7 @@ La vulnerabilidad de "Sesión Cómplice" ocurre si un usuario cierra sesión e i
 
 ### Solución Implementada:
 1. **División de Estáticos en Express**:
-   En [`src/app.js`](file:///c:/Users/Usuario-PC/Desktop/Proyectos/portal-empresarial/src/app.js), los recursos públicos se sirven en la sección superior mediante middlewares estáticos estándar:
+   En [`src/app.js`], los recursos públicos se sirven en la sección superior mediante middlewares estáticos estándar:
    ```javascript
    app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
    app.use('/css', express.static(path.join(__dirname, '../public/css')));
@@ -60,7 +60,7 @@ La vulnerabilidad de "Sesión Cómplice" ocurre si un usuario cierra sesión e i
    ```
    Cualquier otra ruta confidencial (`/dashboard`, `/modules`) se define **después** de inyectar el middleware interceptor global `authenticateJWT`.
 2. **Deshabilitación de Caché**:
-   El middleware [`authenticateJWT`](file:///c:/Users/Usuario-PC/Desktop/Proyectos/portal-empresarial/src/core/permissions/permissionMiddleware.js) fuerza al navegador a no cachear las respuestas protegidas inyectando cabeceras HTTP específicas antes de evaluar el token:
+   El middleware [`authenticateJWT`] fuerza al navegador a no cachear las respuestas protegidas inyectando cabeceras HTTP específicas antes de evaluar el token:
    ```javascript
    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
    ```
@@ -76,19 +76,19 @@ La vulnerabilidad de "Sesión Cómplice" ocurre si un usuario cierra sesión e i
 
 Cualquier agente de IA que trabaje sobre este repositorio debe revisar y mantener los siguientes archivos:
 
-### A. Helper JWT: [`src/core/auth/jwtHelper.js`](file:///c:/Users/Usuario-PC/Desktop/Proyectos/portal-empresarial/src/core/auth/jwtHelper.js)
+### A. Helper JWT: [`src/core/auth/jwtHelper.js`]
 Abstrae la librería `jsonwebtoken` utilizando variables de entorno de seguridad:
 *   `generateToken(payload)`: Firma el payload conteniendo `{ id, nombre, email, rolId, rolNombre, modulosPermitidos, permissions }` con `JWT_SECRET` y una expiración definida (ej. `24h`).
 *   `verifyToken(token)`: Verifica y descodifica el token. Retorna el payload si es válido, o `null` si está corrompido o expiró.
 
-### B. Middleware de Seguridad: [`src/core/permissions/permissionMiddleware.js`](file:///c:/Users/Usuario-PC/Desktop/Proyectos/portal-empresarial/src/core/permissions/permissionMiddleware.js)
+### B. Middleware de Seguridad: [`src/core/permissions/permissionMiddleware.js`]
 Define las políticas y guards de rutas:
 *   `authenticateJWT`: Interceptor global. Lee la cookie `token`, valida, inyecta `Cache-Control` y adjunta el payload decodificado a `req.user`. Si falla, delega a `handleUnauthorized`.
 *   `requireAuth`: Asegura que el flujo cuenta con `req.user` inicializado por el interceptor global.
 *   `requirePermission(permissionCode)`: Valida que `req.user.permissions` incluya el código solicitado (ej. `vales.crear`). Si no, responde con un HTTP 403.
 *   `requireModule(moduleName)`: Valida que `req.user.modulosPermitidos` incluya el nombre del módulo. Los administradores (`rolId === 1`) se saltan esta comprobación automáticamente.
 
-### C. Controlador de Autenticación: [`src/core/auth/authController.js`](file:///c:/Users/Usuario-PC/Desktop/Proyectos/portal-empresarial/src/core/auth/authController.js)
+### C. Controlador de Autenticación: [`src/core/auth/authController.js`]
 Gestiona la creación y destrucción de las cookies seguras:
 *   `loginPost`: Autentica credenciales vía base de datos, construye el payload del JWT, lo firma y lo inyecta como cookie HttpOnly segura:
     ```javascript
@@ -110,7 +110,7 @@ Gestiona la creación y destrucción de las cookies seguras:
 ## 4. Guía para Extender Módulos Protegidos
 
 Si como agente necesitas crear un nuevo módulo (ej. `inventario`):
-1. **Crear vistas en Frontend**: Coloca tu código HTML y recursos bajo [`public/modules/inventario/`](file:///c:/Users/Usuario-PC/Desktop/Proyectos/portal-empresarial/public/modules/).
+1. **Crear vistas en Frontend**: Coloca tu código HTML y recursos bajo [`public/modules/inventario/`].
 2. **Definir Rutas del Módulo en Backend**: En `src/modules/inventario/routes.js`, aplica los guards específicos utilizando los middlewares de permisos centralizados:
    ```javascript
    const { requirePermission } = require('../../core/permissions/permissionMiddleware');
@@ -125,4 +125,4 @@ Si como agente necesitas crear un nuevo módulo (ej. `inventario`):
    // ... Rutas protegidas ...
    app.use('/api/inventario', requireAuth, require('./modules/inventario/routes'));
    ```
-4. **Agregar permisos a la semilla**: Añade los permisos correspondientes (ej. `inventario.ver`) en [`database/schema.sql`](file:///c:/Users/Usuario-PC/Desktop/Proyectos/portal-empresarial/database/schema.sql) y asígnalos a los roles autorizados.
+4. **Agregar permisos a la semilla**: Añade los permisos correspondientes (ej. `inventario.ver`) en [`database/seed.sql`] y asígnalos a los roles autorizados.

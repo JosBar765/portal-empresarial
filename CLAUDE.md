@@ -44,7 +44,7 @@ Despite `express-session` conventions elsewhere, this app uses **stateless JWT i
 
 ### Adding a new business module
 
-Follow `.agents/reglas/reglas_modulo.md` exactly (the README's pointer to `src/modules/readme_modulo.md` is stale — the guide lives under `.agents/reglas/`) — it has full code templates, and `src/modules/vales/` is now a concrete example of the pattern applied end-to-end. Summary:
+Follow `.agents/reglas/reglas_modulo.md` exactly (the README's pointer to `src/modules/reglas_modulo.md` is stale — the guide lives under `.agents/reglas/`) — it has full code templates, and `src/modules/vales/` is now a concrete example of the pattern applied end-to-end. Summary:
 
 1. Backend: `src/modules/<name>/{controllers,services,repositories}/`, plus `routes.js` and `events.js`. Controllers stay thin (HTTP in/out only), services hold business rules, repositories hold all SQL.
 2. Frontend: `public/modules/<name>/{index.html, css/styles.css, js/app.js}`, styled to match `public/css/global.css` (shared design tokens) — same typography/colors/proportions as login and dashboard.

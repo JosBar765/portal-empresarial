@@ -246,7 +246,7 @@ un tono de marca distinto (marketing/consumer) al de este proyecto.
 
 ## 7. Referencias cruzadas
 
-- `.agents/autenticacion_jwt.md` — arquitectura de auth (no relacionado a
+- `.agents/reglas_autenticacion.md` — arquitectura de auth (no relacionado a
   diseño, pero mismo criterio de "un agente debe poder leer esto y no
   romper el sistema").
 - `.agents/readme_modulo.md` — plantilla para módulos nuevos; su paso 2
