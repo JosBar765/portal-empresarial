@@ -102,10 +102,6 @@ npm install
 2. Importa, en este orden, los tres archivos de `database/`: `schema.sql` (estructura), `seed.sql` (datos reales mínimos) y `mock.sql` (datos de demostración, opcional).
 3. Duplica el archivo `.env.example`, renombrándolo a `.env`, y edita las credenciales de conexión correspondientes (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, etc.).
 
-> [!NOTE]
-> **Modo Fallback Integrado (Mock)**:
-> Si la conexión al servidor MySQL local falla o no se configura en el archivo `.env`, la aplicación **no fallará**. Se activará automáticamente un repositorio en memoria cargado con los datos de prueba iniciales de forma que podrás probar el login y explorar el dashboard inmediatamente.
-
 ### Paso 3: Arrancar en desarrollo
 Para levantar el servidor web local con recarga en caliente automática (modo watch de Node.js):
 ```bash
@@ -113,13 +109,6 @@ npm run dev
 ```
 
 El portal estará disponible en la URL local: **`http://localhost:3000`**
-
-### Usuarios de Prueba Predeterminados (Base de datos Semilla / Mock)
-| Correo Electrónico | Contraseña | Rol Asignado | Módulos Autorizados |
-| :--- | :--- | :--- | :--- |
-| `admin@munditrofeos.com` | `admin123` | Administrador | Todos los módulos + Administración |
-| `encargado.diseno@munditrofeos.com` | `disenoenc123` | Encargado de taller de diseño | Vales de Arte |
-| `tecnico.a@munditrofeos.com` | `tecnico123` | Técnicos | Vales de Arte |
 
 ---
 
