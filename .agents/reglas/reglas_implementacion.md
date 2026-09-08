@@ -221,3 +221,69 @@ tres primeros puntos no vale la pena.
   del proyecto usa, solo para este refactor.
 - No optimices prematuramente ni agregues funcionalidad nueva aprovechando
   que ya estás tocando el archivo.
+
+## Aplicación de principios
+
+Toda implementación debe priorizar los siguientes principios:
+
+1. **SOLID**
+2. **DRY — Don't Repeat Yourself**
+3. **KISS — Keep It Simple, Stupid**
+4. **Alta cohesión**
+5. **Bajo acoplamiento**
+6. **Separación de responsabilidades**
+7. **Legibilidad y mantenibilidad**
+
+Estos principios deben aplicarse de manera práctica y no deben utilizarse como justificación para sobrearquitecturar el sistema.
+
+La solución más compleja no es necesariamente la mejor solución.
+
+## Errores
+
+Los errores deben manejarse de manera consistente.
+
+Evitar:
+
+```java
+try {
+    ...
+} catch (Exception e) {
+    e.printStackTrace();
+}
+```
+
+sin una estrategia clara de manejo.
+
+El Backend debe utilizar el mecanismo de manejo global de excepciones definido para el proyecto.
+
+Los errores enviados al Frontend deben ser claros y apropiados para el contexto de la API.
+
+No exponer información sensible como:
+
+* Contraseñas.
+* Tokens.
+* Credenciales.
+* Stack traces.
+* Información interna de la base de datos.
+
+## Validaciones
+
+Toda implementación nueva debe poder responder afirmativamente a las siguientes preguntas:
+
+* ¿Respeta SOLID?
+* ¿Evita duplicación innecesaria?
+* ¿Aplica DRY cuando existe repetición significativa?
+* ¿Utiliza KISS?
+* ¿Mantiene alta cohesión?
+* ¿Mantiene bajo acoplamiento?
+* ¿Tiene responsabilidades claramente separadas?
+* ¿Evita sobrearquitectura?
+* ¿Es fácil de entender y mantener?
+* ¿Respeta el análisis funcional?
+* ¿Respeta la arquitectura existente?
+
+La prioridad es:
+
+> **Código simple, correcto, cohesivo, poco acoplado y mantenible.**
+
+No se debe agregar complejidad técnica si una solución más sencilla cumple correctamente con los requisitos.
