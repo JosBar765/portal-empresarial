@@ -45,13 +45,13 @@ INSERT INTO `roles` (`id`, `nombre`, `descripcion`, `activo`) VALUES
 (1, 'Administrador', 'Acceso total a todos los módulos y configuraciones del portal', 1),
 (2, 'Asesor de Ventas', 'Asesor de ventas, encargado de atender clientes y gestionar ventas', 1),
 (3, 'Supervisor de Ventas', 'Supervisor de ventas, encargado de supervisar al equipo comercial', 1),
-(4, 'Encargado de taller de diseño', 'Encargado del taller de Diseño, responsable de coordinar y fusionar el trabajo del equipo de diseño', 1),
-(5, 'Encargado de taller de diseño 3d', 'Encargado del taller de Diseño UV/3D, responsable de coordinar al equipo de diseño UV/3D', 1),
+(4, 'Encargado de taller de Diseño', 'Encargado del taller de Diseño, responsable de coordinar y fusionar el trabajo del equipo de diseño', 1),
+(5, 'Encargado de taller de Diseño 3d', 'Encargado del taller de Diseño UV/3D, responsable de coordinar al equipo de diseño UV/3D', 1),
 (6, 'Técnicos', 'Técnico, encargado de ejecutar el trabajo de diseño y producción asignado', 1),
 (7, 'Asistente', 'Asistente del Encargado de taller de diseño, con las mismas responsabilidades de coordinación y fusión', 1),
 (8, 'Gerente', 'Gerente, encargado de supervisar la operación general y sus métricas', 1),
-(9, 'Encargado de taller de protextil', 'Encargado del taller de Protextil, responsable de asignar técnicos y revisar sus propuestas', 1),
-(10, 'Encargado de taller de diseño local', 'Encargado de un taller de Diseño Local (por tienda), responsable de asignar técnicos y revisar sus propuestas', 1);
+(9, 'Encargado de taller de Protextil', 'Encargado del taller de Protextil, responsable de asignar técnicos y revisar sus propuestas', 1),
+(10, 'Encargado de taller de Diseño Local', 'Encargado de un taller de Diseño Local (por tienda), responsable de asignar técnicos y revisar sus propuestas', 1);
 
 INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUES
 (1, 'vales.ver', 'Ver Vales de Arte', 'vales', 'Permite visualizar la lista/buzón de vales de arte'),
@@ -92,26 +92,22 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 (10, 1), (10, 9), (10, 10), (10, 11);
 
 -- Usuarios. Contraseñas hasheadas con bcrypt (10 rondas):
---   admin@munditrofeos.com            -> admin123
---   encargado.diseno@munditrofeos.com -> disenoenc123
---   encargado.uv3d@munditrofeos.com   -> uv3denc123
---   tecnico.a / tecnico.b / tecnico.c @munditrofeos.com -> tecnico123
---   asistente@munditrofeos.com        -> asisgeneral123
---   gerente@munditrofeos.com          -> gerente123
---   supervisores/gerentes reales (ids 13-24)                 -> supervisor123
---   encargados/técnicos de Protextil y Diseño Local (25-48)  -> disenoenc123 / tecnico123
---   asesores de ventas reales (ids 49-96)                    -> AsesorNuevo15
+--   admin@munditrofeos.com                -> admin123
+--   encargado.diseno@munditrofeos.com     -> disenoenc123
+--   encargado.uv3d@munditrofeos.com       -> uv3denc123
+--   encargado.protextil@munditrofeos.com  -> disenoenc123
+--   asistente@munditrofeos.com            -> asisgeneral123
+--   gerente@munditrofeos.com              -> gerente123
+--   supervisores                          -> supervisor123
+--   asesores de ventas                    -> AsesorNuevo15
 INSERT INTO `usuarios` (`id`, `nombre`, `email`, `password_hash`, `rol_id`) VALUES
 (1, 'Administrador General', 'admin@munditrofeos.com', '$2a$10$0.B9xk21MYppfOd4XbtP3u5mJ6NzlaA6eqlu65Fy5G7xb2VnN2Lwu', 1),
-(5, 'Encargado de Diseño', 'encargado.diseno@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 4),
-(6, 'Encargado de Diseño UV/3D', 'encargado.uv3d@munditrofeos.com', '$2a$10$DEPhj4Vnp.cgA6u3w3Leg.FVQ9O3JgKDXizOYCXEbGFlSgEBcb6F6', 5),
-(7, 'Técnico Diseño A', 'tecnico.a@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
-(8, 'Técnico Diseño B', 'tecnico.b@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
-(9, 'Técnico UV/3D C', 'tecnico.c@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
-(11, 'Asistente de Diseño', 'asistente@munditrofeos.com', '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', 7),
+(5, 'Jesus Ramirez', 'encargado.diseno@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 4),
+(6, 'Josue Gomez', 'encargado.uv3d@munditrofeos.com', '$2a$10$DEPhj4Vnp.cgA6u3w3Leg.FVQ9O3JgKDXizOYCXEbGFlSgEBcb6F6', 5),
+(25, 'Leticia Tzún', 'encargado.protextil@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 9),
+(11, 'Giancarlo Lopez', 'asistente@munditrofeos.com', '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', 7),
 (12, 'Gerente General', 'gerente@munditrofeos.com', '$2a$10$yazyTlRjxvs0e/hn5B/UEOoUr6b06lBThNpvUlSOmJr0y1vB8tVXy', 8),
--- Supervisores/gerentes reales de la organización — regionales/rotativos,
--- sin tienda propia; su cobertura vive en `supervisor_tiendas` (ver abajo).
+-- Su cobertura vive en `supervisor_tiendas` (ver abajo)
 (13, 'Carlos Cornejo', 'ventas1@grupopremia.com', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 3),
 (14, 'Milvia Esquivel', 'gerentesala@grupopremia.com', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 3),
 (15, 'Benjamin Per', 'gerentezona13@grupopremia.com', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 3),
@@ -123,36 +119,17 @@ INSERT INTO `usuarios` (`id`, `nombre`, `email`, `password_hash`, `rol_id`) VALU
 (21, 'Brian Medina', 'honduras@grupopremia.com', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 3),
 (22, 'Velky Cuevas', 'tegus@grupopremia.com', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 3),
 (23, 'Stefany Luna', 'gerencianic@grupopremia.com', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 3),
--- Mismo nombre que el id 17, pero es una cuenta distinta (correo distinto),
--- cubriendo un alcance más puntual.
+-- Mismo nombre que el id 17, pero es una cuenta distinta (correo distinto)
 (24, 'Victor Tobar', 'costarica@grupopremia.com', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 3),
--- Encargados y técnicos de Protextil (toda la empresa) y de un Diseño Local
--- por cada tienda que lo tiene — FK obligatoria de `talleres.encargado_id`.
-(25, 'Encargado Protextil', 'encargado.protextil@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 9),
-(26, 'Técnico Protextil', 'tecnico.protextil@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
-(27, 'Encargado Diseño Local P13', 'disenolocal.p13@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
-(28, 'Técnico Diseño Local P13', 'tecnico.disenolocal.p13@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
-(29, 'Encargado Diseño Local SSV', 'disenolocal.ssv@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
-(30, 'Técnico Diseño Local SSV', 'tecnico.disenolocal.ssv@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
-(31, 'Encargado Diseño Local SAA', 'disenolocal.saa@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
-(32, 'Técnico Diseño Local SAA', 'tecnico.disenolocal.saa@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
-(33, 'Encargado Diseño Local SMG', 'disenolocal.smg@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
-(34, 'Técnico Diseño Local SMG', 'tecnico.disenolocal.smg@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
-(35, 'Encargado Diseño Local ECL', 'disenolocal.ecl@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
-(36, 'Técnico Diseño Local ECL', 'tecnico.disenolocal.ecl@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
-(37, 'Encargado Diseño Local CMY', 'disenolocal.cmy@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
-(38, 'Técnico Diseño Local CMY', 'tecnico.disenolocal.cmy@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
-(39, 'Encargado Diseño Local TEG', 'disenolocal.teg@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
-(40, 'Técnico Diseño Local TEG', 'tecnico.disenolocal.teg@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
-(41, 'Encargado Diseño Local SPS', 'disenolocal.sps@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
-(42, 'Técnico Diseño Local SPS', 'tecnico.disenolocal.sps@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
-(43, 'Encargado Diseño Local MAN', 'disenolocal.man@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
-(44, 'Técnico Diseño Local MAN', 'tecnico.disenolocal.man@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
-(45, 'Encargado Diseño Local LEO', 'disenolocal.leo@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
-(46, 'Técnico Diseño Local LEO', 'tecnico.disenolocal.leo@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
-(47, 'Encargado Diseño Local SJO', 'disenolocal.sjo@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
-(48, 'Técnico Diseño Local SJO', 'tecnico.disenolocal.sjo@munditrofeos.com', '$2a$10$cgVsRZgXXFOGwNOH7znc0u.CSfMqcIn4jS3tyhhNPGOCsilb2RfrS', 6),
--- Asesores de ventas reales, uno por tienda.
+-- Encargados de diseño local
+(27, 'Jonnathan Aquino', 'disenopremiagt2@grupopremia.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
+(29, 'Rodrigo Hernandez', 'disenosalvador@grupopremia.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
+(35, 'Oscar Martinez', 'disenolocal.ecl@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
+(39, 'Juan Velazquez', 'disenosps@grupopremia.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
+(41, 'Siham Morales', 'disenotegus3@grupopremia.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
+(43, 'Álvaro Chamorro', 'disenolocal.man@munditrofeos.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
+(47, 'Genesis Ballesteros', 'disenocr@grupopremia.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
+-- Asesores de ventas
 (49, 'Alejandra Luna', 'ventas2@grupopremia.com', '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 2),
 (50, 'Karla Ordoñez', 'ventas3@grupopremia.com', '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 2),
 (51, 'Melanie Perez', 'ventas4@grupopremia.com', '$2a$10$21B6L04MpNZC6SSbPu4Rg.idst9ZyVS.u84Y/JDZppSV7ukb6FSUW', 2),
@@ -309,14 +286,10 @@ INSERT INTO `talleres` (`id`, `nombre`, `encargado_id`, `tienda_id`) VALUES
 (3, 'Protextil', 25, NULL),
 (4, 'Diseño Local - P13', 27, 3),
 (5, 'Diseño Local - SSV', 29, 4),
-(6, 'Diseño Local - SAA', 31, 5),
-(7, 'Diseño Local - SMG', 33, 6),
 (8, 'Diseño Local - ECL', 35, 7),
-(9, 'Diseño Local - CMY', 37, 8),
 (10, 'Diseño Local - TEG', 39, 9),
 (11, 'Diseño Local - SPS', 41, 10),
 (12, 'Diseño Local - MAN', 43, 11),
-(13, 'Diseño Local - LEO', 45, 12),
 (14, 'Diseño Local - SJO', 47, 13);
 
 INSERT INTO `encargado_tienda` (`taller_id`, `tienda_id`) VALUES
