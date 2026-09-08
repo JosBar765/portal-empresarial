@@ -81,29 +81,6 @@ function horaActual() {
   return new Date().toTimeString().slice(0, 8);
 }
 
-/**
- * El atraso es una CONDICIÓN calculada, nunca un estado persistido. Se congela
- * de forma PERMANENTE la primera vez que el vale es confirmado de recibido o
- * se aprueba su modificación (columna `atraso_congelado_en`, fijada por
- * congelarAtraso() en esos dos puntos exactos) — antes solo se congelaba
- * mientras el vale seguía en estado RECIBIDO, así que solicitar una
- * modificación sobre un vale ya recibido (que lo mueve a
- * SOLICITANDO_MODIFICACION) hacía que el atraso se "descongelara" y
- * volviera a correr en vivo, aunque el vale ya hubiese sido entregado
- * (analisis_correcciones_8.md #7). `ESTADOS_TERMINALES`/`actualizado_en`
- * quedan solo como respaldo para datos de semilla/histórico sin la columna
- * nueva poblada. Para el resto de vales (nunca entregados) se calcula
- * contra la hora actual porque el atraso sigue corriendo de verdad.
- *
- * analisis_correcciones_12.md #1/#7: "atraso" ya no es simplemente "pasó la
- * fecha de entrega" — un vale que cruzó su fecha_entrega hace menos de 24h
- * está en diasAtraso === 0, y eso NO cuenta como atraso todavía ("no hay
- * atrasado de 0 días"). Ese caso pasa a ser su propio flag `venceHoy` (badge
- * amarillo "Hoy" en el frontend); `atrasado` sigue significando "pasó la
- * fecha" para no romper los contadores/filtros que ya lo usan así, pero el
- * vigilante de atraso (atrasoWatcher) y la lectura visual del badge se basan
- * en `diasAtraso >= 1`, no en `atrasado`.
- */
 function calcularAtraso(vale) {
   const congelamiento = vale.atraso_congelado_en
     || (ESTADOS_TERMINALES.includes(vale.estado) ? vale.actualizado_en : null);
@@ -550,7 +527,9 @@ class ValeService {
   async autorizarCreacion(usuario, valeId) {
     return this._conLockDeVale(valeId, async () => {
       const vale = await this._requerirVale(valeId);
-      if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
+      if (vale.estado === ESTADOS.CREADO) {
+        throw new Error('Este vale ya fue aprobado para su creación.');
+      } else if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
         throw new Error('Solo se puede autorizar un vale en estado ESPERANDO_AUTORIZACION.');
       }
       if (!esAdministrador(usuario)) {
@@ -2161,9 +2140,12 @@ class ValeService {
   async aprobarModificacion(usuario, valeId) {
     return this._conLockDeVale(valeId, async () => {
       const original = await this._requerirVale(valeId);
-      if (original.estado !== ESTADOS.SOLICITANDO_MODIFICACION) {
+      if (original.estado === ESTADOS.MODIFICADO) {
+        throw new Error('Este vale ya fue aprobado para su modificación.');
+      } else if (original.estado !== ESTADOS.SOLICITANDO_MODIFICACION)  {
         throw new Error('Solo se pueden aprobar vales en estado SOLICITANDO_MODIFICACION.');
       }
+
       const solicitud = await solicitudModificacionRepository.obtenerPendientePorValeOriginal(valeId);
       if (!solicitud) {
         throw new Error('No se encontró una solicitud de modificación pendiente para este vale.');
@@ -2190,33 +2172,22 @@ class ValeService {
         acabado: solicitud.acabado,
         cantidad: solicitud.cantidad,
         cotizacion: solicitud.cotizacion,
-        // La justificación de la modificación ES el nuevo "Boceto y Descripción" del
-        // vale de arte de la modificación — no se precarga la descripción original
-        // (analisis_correcciones_4.md #7).
+        // La justificación de la modificación ES el nuevo "Boceto y Descripción" del vale de arte
         descripcion: solicitud.justificacion,
         estado: ESTADOS.MODIFICADO,
-        // analisis_correcciones_10.md #6: el vale MOD- nace YA autorizado — la
-        // acción de aprobarModificacion ES la autorización (a diferencia del vale
-        // normal, que necesita un paso aparte, autorizarCreacion) — así la firma
-        // roja aparece en su PDF desde el primer _regenerarPdf.
         autorizadoPor: usuario.id,
         autorizadoEn: `${hoyISO()} ${horaActual()}`,
         autorizacionTipo: 'MODIFICACION'
       });
 
-      // analisis_correcciones_12.md #11: el destino ya lo eligió el asesor (o se
-      // resolvió automáticamente) al solicitar la modificación — el fan-out
-      // ocurre AQUÍ, de inmediato, igual que un vale nuevo autorizado. Ya no
-      // existe un paso intermedio de "reenvío" a cargo de un Encargado General.
       const talleresIdsModificacion = (solicitud.talleres_ids || '').split(',').map(Number).filter(Number.isFinite);
       await this._fanOutTalleres(nuevoValeId, talleresIdsModificacion);
       const nombresTalleresModificacion = await this._nombresDeTalleres(talleresIdsModificacion);
 
-      // El documento adjunto al nuevo vale es la propuesta ya aprobada del vale
-      // original (no se precargan imágenes ni el documento adjunto original) —
-      // analisis_correcciones_4.md #7. Se fusiona automáticamente al regenerar el PDF.
+      // El documento adjunto al nuevo vale es la propuesta ya aprobada del vale original
       const propuestaOriginal = original.propuesta_general_url
         || (await propuestaRepository.obtenerUltimaPorVale(original.id))?.url;
+
       if (propuestaOriginal) {
         await documentoRepository.crear({
           valeId: nuevoValeId,
@@ -2234,7 +2205,7 @@ class ValeService {
       // analisis_correcciones_15.md #1: el original pasa a CONFIRMADO (estado
       // final propio), no a RECIBIDO — antes era indistinguible de un vale sin
       // modificación y desaparecía de vistas que excluyen RECIBIDO a propósito.
-      await valeRepository.actualizarEstado(original.id, ESTADOS.CONFIRMADO);
+      await valeRepository.actualizarEstado(original.id, ESTADOS.RECIBIDO);
       // El original puede llegar aquí sin haber pasado nunca por confirmarRecibido()
       // (ej. se solicitó modificación directo desde PENDIENTE_CONFIRMACION, el
       // camino de "rechazo" — analisis_correcciones_5.md #5); en ese caso este es

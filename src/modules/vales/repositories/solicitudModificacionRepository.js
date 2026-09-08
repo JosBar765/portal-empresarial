@@ -13,10 +13,22 @@ class SolicitudModificacionRepository {
         producto_id, material_id, tecnica, acabado, cantidad, cotizacion, talleres_ids, justificacion
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        data.valeOriginalId, data.asesorId, data.fechaEntrega, data.fechaEvento, data.urgente ? 1 : 0,
-        data.clienteEmpresa || null, data.clienteNombre, data.clienteTelefono, data.clienteCorreo,
-        data.productoId || null, data.materialId || null, data.tecnica, data.acabado,
-        data.cantidad, data.cotizacion, data.talleresIds, data.justificacion
+        data.valeOriginalId, 
+        data.asesorId, 
+        data.fechaEntrega, 
+        data.fechaEvento,
+        data.urgente ? 1 : 0,
+        data.clienteEmpresa || null, 
+        data.clienteNombre, 
+        data.clienteTelefono, 
+        data.clienteCorreo,
+        data.productoId || null, 
+        data.materialId || null, 
+        data.tecnica, data.acabado,
+        data.cantidad, 
+        data.cotizacion, 
+        data.talleresIds, 
+        data.justificacion
       ],
       'solicitud_modificacion:insert'
     );
