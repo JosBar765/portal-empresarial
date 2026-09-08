@@ -9,4 +9,4 @@
 
 2. Gerencia me acaba de avisar que no existe catálogo de productos ni de material. Quita la tabla de la DB, las columnas que las referencien y cambia los campos del formulario de crear vale de arte a que sean de texto y no combobox.
 
-3. 
+3. Quitemos los datos MOCK, vamos a levantar ahora una base de datos que tengo localmente. Ya puse las credenciales en el .env. Quiero, que me quites el fallback y mejor que lance una excepción o algún modal que me indique que hubo un fallo al levantar la base de datos.
