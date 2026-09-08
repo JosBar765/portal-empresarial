@@ -1,8 +1,8 @@
 -- Schema: Portal Web de Herramientas Empresariales — MundiTrofeos S.A.
 -- Motor: InnoDB | Charset: utf8mb4 | Collation: utf8mb4_unicode_ci
 --
--- Solo estructura (tablas, claves, índices). Sin datos — ver seed.sql y
--- mock.sql. Orden de importación: schema.sql -> seed.sql -> mock.sql.
+-- Solo estructura (tablas, claves, índices). Sin datos — ver seed.sql.
+-- Orden de importación: schema.sql -> seed.sql.
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -117,19 +117,6 @@ CREATE TABLE IF NOT EXISTS `tiendas` (
   FOREIGN KEY (`subdivision_id`) REFERENCES `subdivisiones` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `vale_productos` (
-  `id`     INT AUTO_INCREMENT PRIMARY KEY,
-  `codigo` VARCHAR(20)  NOT NULL UNIQUE,
-  `nombre` VARCHAR(100) NOT NULL,
-  `activo` TINYINT(1) NOT NULL DEFAULT 1
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `vale_materiales` (
-  `id`     INT AUTO_INCREMENT PRIMARY KEY,
-  `nombre` VARCHAR(100) NOT NULL,
-  `activo` TINYINT(1) NOT NULL DEFAULT 1
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 CREATE TABLE IF NOT EXISTS `talleres` (
   `id`           INT AUTO_INCREMENT PRIMARY KEY,
   `nombre`       VARCHAR(100) NOT NULL UNIQUE,
@@ -173,8 +160,8 @@ CREATE TABLE IF NOT EXISTS `vales` (
   `cliente_telefono`      VARCHAR(30)  NOT NULL,
   `cliente_correo`        VARCHAR(150) NOT NULL,
   -- Información de venta
-  `producto_id`           INT DEFAULT NULL,
-  `material_id`           INT DEFAULT NULL,
+  `producto`              VARCHAR(150) NOT NULL,
+  `material`              VARCHAR(150) NOT NULL,
   `tecnica`               VARCHAR(150) DEFAULT NULL,
   `acabado`               VARCHAR(150) DEFAULT NULL,
   `cantidad`              INT NOT NULL,
@@ -200,8 +187,6 @@ CREATE TABLE IF NOT EXISTS `vales` (
   FOREIGN KEY (`asesor_id`)        REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (`tienda_id`)        REFERENCES `tiendas` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (`vale_original_id`) REFERENCES `vales` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  FOREIGN KEY (`producto_id`)      REFERENCES `vale_productos` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  FOREIGN KEY (`material_id`)      REFERENCES `vale_materiales` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   FOREIGN KEY (`autorizado_por`)   REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   FOREIGN KEY (`fusionado_por`)    REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   INDEX `idx_vales_estado` (`estado`),
@@ -238,8 +223,8 @@ CREATE TABLE IF NOT EXISTS `vale_solicitudes_modificacion` (
   `cliente_nombre`   VARCHAR(150) NOT NULL,
   `cliente_telefono` VARCHAR(30)  NOT NULL,
   `cliente_correo`   VARCHAR(150) NOT NULL,
-  `producto_id`      INT DEFAULT NULL,
-  `material_id`      INT DEFAULT NULL,
+  `producto`         VARCHAR(150) NOT NULL,
+  `material`         VARCHAR(150) NOT NULL,
   `tecnica`          VARCHAR(150) DEFAULT NULL,
   `acabado`          VARCHAR(150) DEFAULT NULL,
   `cantidad`         INT NOT NULL,
@@ -251,8 +236,6 @@ CREATE TABLE IF NOT EXISTS `vale_solicitudes_modificacion` (
   `actualizado_en`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`vale_original_id`) REFERENCES `vales` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`asesor_id`)        REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  FOREIGN KEY (`producto_id`)      REFERENCES `vale_productos` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  FOREIGN KEY (`material_id`)      REFERENCES `vale_materiales` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   INDEX `idx_solicitudes_vale_original` (`vale_original_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

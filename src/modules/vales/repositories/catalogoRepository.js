@@ -35,14 +35,6 @@ class CatalogoRepository {
     return rows.find(t => t.id === Number(id)) || null;
   }
 
-  async listarProductos() {
-    return db.query('SELECT id, codigo, nombre FROM vale_productos WHERE activo = 1 ORDER BY nombre', [], 'catalog:productos');
-  }
-
-  async listarMateriales() {
-    return db.query('SELECT id, nombre FROM vale_materiales WHERE activo = 1 ORDER BY nombre', [], 'catalog:materiales');
-  }
-
   async listarPaises() {
     return db.query('SELECT id, codigo, nombre, codigo_telefono FROM paises ORDER BY nombre', [], 'catalog:paises');
   }

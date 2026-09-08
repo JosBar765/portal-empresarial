@@ -1,6 +1,6 @@
 -- Datos semilla: catálogos y estructura organizacional reales. Deja la base
 -- de datos en un estado inicial funcional sobre un schema.sql recién creado.
--- No contiene datos de demostración — ver mock.sql.
+-- No contiene datos de demostración.
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -270,15 +270,6 @@ INSERT INTO `supervisor_tiendas` (`usuario_id`, `tienda_id`) VALUES
 (22, 9), (22, 8),
 (23, 11), (23, 12),
 (24, 13);
-
-INSERT INTO `vale_productos` (`id`, `codigo`, `nombre`) VALUES
-(1, 'PRD-TROF', 'Trofeo'),
-(2, 'PRD-MED', 'Medalla'),
-(3, 'PRD-PLA', 'Placa'),
-(4, 'PRD-BAN', 'Banner');
-
-INSERT INTO `vale_materiales` (`id`, `nombre`) VALUES
-(1, 'Acrílico'), (2, 'Metal'), (3, 'Madera'), (4, 'Cristal');
 
 INSERT INTO `talleres` (`id`, `nombre`, `encargado_id`, `tienda_id`) VALUES
 (1, 'Diseño', 5, NULL),

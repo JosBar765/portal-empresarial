@@ -10,7 +10,7 @@ class SolicitudModificacionRepository {
       `INSERT INTO vale_solicitudes_modificacion (
         vale_original_id, asesor_id, fecha_entrega, fecha_evento, urgente,
         cliente_empresa, cliente_nombre, cliente_telefono, cliente_correo,
-        producto_id, material_id, tecnica, acabado, cantidad, cotizacion, talleres_ids, justificacion
+        producto, material, tecnica, acabado, cantidad, cotizacion, talleres_ids, justificacion
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.valeOriginalId, 
@@ -22,8 +22,8 @@ class SolicitudModificacionRepository {
         data.clienteNombre, 
         data.clienteTelefono, 
         data.clienteCorreo,
-        data.productoId || null, 
-        data.materialId || null, 
+        data.producto,
+        data.material,
         data.tecnica, data.acabado,
         data.cantidad, 
         data.cotizacion, 

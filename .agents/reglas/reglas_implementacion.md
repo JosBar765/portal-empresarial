@@ -99,8 +99,8 @@ forzarlas todas:
   roles), esa dependencia se declara con un `import`, nunca duplicando el
   valor.
 - **`utils/`** — funciones puras sin efectos secundarios ni dependencia de
-  `state` salvo lectura de catálogos ya cargados (p. ej. `nombreCatalogo`).
-  Formateo de fechas/números, helpers de DOM genéricos (`$`/`$$`).
+  `state` salvo lectura de catálogos ya cargados. Formateo de
+  fechas/números, helpers de DOM genéricos (`$`/`$$`).
 - **`permisos.js`** (o equivalente) — un único lugar para "¿este rol puede
   hacer X?" y "¿qué debo mostrarle a este rol?". Si esta lógica se separara
   por archivo, se volvería difícil auditar qué puede hacer cada rol.

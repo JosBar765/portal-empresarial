@@ -8,7 +8,6 @@
 const fs = require('fs/promises');
 const path = require('path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
-const catalogoRepository = require('../repositories/catalogoRepository');
 
 const PAGE_WIDTH = 612; // Carta
 const PAGE_HEIGHT = 792;
@@ -84,12 +83,6 @@ class ValePdfService {
       logoImage = null; // El logo es decorativo; su ausencia no debe romper la generación del PDF
     }
 
-    const [productos, materiales] = await Promise.all([
-      catalogoRepository.listarProductos(),
-      catalogoRepository.listarMateriales()
-    ]);
-    const nombreCatalogo = (lista, id) => (lista.find(x => x.id === id) || {}).nombre || (lista.find(x => x.id === id) || {}).codigo || '-';
-
     const ctx = { pdfDoc, font, fontBold, logoImage, page: null, y: 0 };
     this._nuevaPagina(ctx);
 
@@ -97,9 +90,8 @@ class ValePdfService {
     this._dibujarSeccionAsesor(ctx, vale);
     this._dibujarSeccionCliente(ctx, vale);
     this._dibujarSeccionVenta(ctx, vale, {
-      producto: nombreCatalogo(productos, vale.producto_id),
-      material: nombreCatalogo(materiales, vale.material_id),
-      // Corrección #1: técnica y acabado ya no son catálogo, son texto libre en el vale.
+      producto: vale.producto || '-',
+      material: vale.material || '-',
       tecnica: vale.tecnica || '-',
       acabado: vale.acabado || '-'
     });

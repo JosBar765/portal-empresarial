@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     state.catalogos = await obtenerCatalogos();
   } catch (error) {
-    state.catalogos = { tiendas: [], productos: [], materiales: [], paises: [], talleres: [], miTiendaId: null };
+    state.catalogos = { tiendas: [], paises: [], talleres: [], miTiendaId: null };
   }
 
   wireSidebar();

@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { etiquetaEstado } from '../permisos.js';
-import { formatearFecha, nombreCatalogo } from '../utils/formato.js';
+import { formatearFecha } from '../utils/formato.js';
 import { autorizarCreacion, obtenerDetalleVale, aprobarModificacion } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 
@@ -35,6 +35,10 @@ export function abrirModalAutorizarCreacion(vale) {
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
       btn.disabled = false;
+      // Otro supervisor pudo haberlo autorizado un instante antes — refresca
+      // el buzón para que este vale deje de aparecer accionable de inmediato,
+      // sin esperar a que el evento de socket llegue o a un refresco manual.
+      cargarBuzon();
     }
   });
 }
@@ -83,6 +87,9 @@ export async function abrirModalAprobarModificacion(vale) {
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
       btn.disabled = false;
+      // Otro supervisor pudo haberlo aprobado un instante antes — refresca el
+      // buzón para que este vale deje de aparecer accionable de inmediato.
+      cargarBuzon();
     }
   });
 }
@@ -128,8 +135,8 @@ export function abrirModalInfoVale(v) {
         ${campo('Fecha entrega', formatearFecha(v.fecha_entrega))}
         ${campo('Fecha evento', formatearFecha(v.fecha_evento))}
         ${campo('Taller(es)', v.taller)}
-        ${campo('Código de producto', nombreCatalogo('productos', v.producto_id))}
-        ${campo('Material', nombreCatalogo('materiales', v.material_id))}
+        ${campo('Código de producto', v.producto)}
+        ${campo('Material', v.material)}
         ${campo('Técnica', v.tecnica)}
         ${campo('Acabado', v.acabado)}
         ${campo('Cantidad', v.cantidad)}

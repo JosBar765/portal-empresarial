@@ -67,13 +67,11 @@ async function revisarAtrasos() {
 }
 
 function iniciar() {
-  // No se revisa de inmediato: `database.js` decide de forma ASÍNCRONA (intenta
-  // conectar a MySQL real y cae al mock si falla) si usa el mock o no, justo al
-  // cargarse — y esto se llama desde el nivel superior de app.js, antes de que
-  // esa decisión se asiente. Revisar de una vez aquí alcanzaba a correr con
-  // `useMock` todavía en `false`, disparando un intento real de conexión y un
-  // error ruidoso en el arranque. Con el primer chequeo recién a los 60s, para
-  // entonces la conexión (real o el fallback) ya está resuelta con certeza.
+  // No se revisa de inmediato: `database.js` conecta a MySQL de forma
+  // ASÍNCRONA justo al cargarse, y esto se llama desde el nivel superior de
+  // app.js, antes de que esa conexión termine de establecerse. Con el primer
+  // chequeo recién a los 60s, para entonces el pool ya está listo (si la
+  // conexión hubiera fallado, el proceso ya habría terminado).
   setInterval(revisarAtrasos, INTERVALO_MS);
 }
 

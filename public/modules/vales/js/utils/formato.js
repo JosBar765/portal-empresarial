@@ -1,5 +1,3 @@
-import { state } from '../state.js';
-
 // Fechas siempre dd/mm/aaaa; solo la fecha de ingreso (y los logs de
 // historial) muestran también la hora, como dd/mm/aaaa hh:mm.
 export function formatearFecha(valor) {
@@ -29,12 +27,6 @@ export function iconoParaArchivo(file) {
   if (file.type.startsWith('image/')) return 'image-outline';
   if (file.type === 'application/pdf') return 'document-text-outline';
   return 'document-outline';
-}
-
-export function nombreCatalogo(lista, id) {
-  if (!state.catalogos || !id) return '-';
-  const item = (state.catalogos[lista] || []).find(x => x.id === Number(id));
-  return item ? (item.nombre || item.codigo) : '-';
 }
 
 // Iniciales del avatar de cuenta (p. ej. "Asesor Comercial" -> "AC") — misma

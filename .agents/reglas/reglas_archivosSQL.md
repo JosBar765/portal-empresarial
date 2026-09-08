@@ -1,29 +1,30 @@
 # Reglas de los Scripts SQL (`database/`)
 
-Esta guía explica cómo está organizado `database/` y qué criterio seguir al agregar o modificar estructura, catálogos o datos de prueba, para que el SQL del proyecto se mantenga legible y mantenible en vez de convertirse en un solo archivo con comentarios ilegibles.
+Esta guía explica cómo está organizado `database/` y qué criterio seguir al agregar o modificar estructura o catálogos, para que el SQL del proyecto se mantenga legible y mantenible en vez de convertirse en un solo archivo con comentarios ilegibles.
 
 ---
 
-## Los tres archivos
+## Los dos archivos
 
 ```text
 database/
 ├── schema.sql   # Estructura: CREATE TABLE, claves, índices. Cero datos.
-├── seed.sql     # Datos reales mínimos para una instalación funcional.
-└── mock.sql     # Datos de demostración/prueba (vales ficticios y su rastro).
+└── seed.sql     # Datos reales mínimos para una instalación funcional.
 ```
 
 Orden de importación sobre una base de datos vacía:
 
 ```text
 1. schema.sql   -> crea únicamente la estructura
-2. seed.sql     -> deja la BD en un estado inicial funcional
-3. mock.sql     -> agrega datos ficticios para desarrollo/demostración
+2. seed.sql     -> deja la BD en un estado inicial funcional (login de
+                   Administrador, catálogos, estructura organizacional)
 ```
 
-`seed.sql` puede ejecutarse solo sobre `schema.sql` y arrancar el portal (login de Administrador, catálogos, estructura organizacional). `mock.sql` solo tiene sentido después de los dos anteriores — depende de sus IDs de usuarios, tiendas y talleres.
-
-**Importante:** en este proyecto el camino que de verdad se ejecuta es `src/config/database.js` (el mock en memoria que reemplaza a MySQL cuando no hay conexión — ver `CLAUDE.md`). Estos tres archivos SQL son el equivalente para una base de datos real; cualquier cambio de estructura, catálogo o dato de demostración debe reflejarse en **ambos lados**.
+No existen datos de demostración/mock en el repositorio: el proyecto no tiene
+fallback de base de datos (`src/config/database.js` requiere una conexión
+MySQL real — si falla, el proceso termina en el arranque) ni un archivo SQL
+de datos ficticios. Cualquier vale/propuesta/historial de prueba que se
+necesite para probar el flujo se crea a mano contra una base real.
 
 ## Qué va en cada archivo
 
@@ -35,20 +36,12 @@ Solo `CREATE TABLE`, `PRIMARY KEY`, `FOREIGN KEY`, `UNIQUE`, `INDEX`, `ENUM`, `D
 
 Todo lo que la aplicación necesita para arrancar desde una instalación limpia:
 
-- Catálogos (`paises`, `roles`, `permisos`, `rol_permisos`, `vale_productos`, `vale_materiales`).
+- Catálogos (`paises`, `roles`, `permisos`, `rol_permisos`).
 - Estructura organizacional real (`departamentos`, `subdivisiones`, `tiendas`, `supervisor_asignaciones`).
 - Usuarios que son **necesarios**, no solo "reales": el Administrador (para el primer login), y cualquier usuario que sea `FOREIGN KEY` obligatoria de otra fila del seed (ej. `talleres.encargado_id` — sin ese usuario, el propio `INSERT` de `talleres` falla).
 - La fila singleton de `mantenimiento_config`.
 
-Nunca datos que simulen un flujo de negocio (un vale, una propuesta, un historial). Si dudás si algo es seed o mock, preguntate: *¿la aplicación deja de arrancar o de tener sentido sin esto?* Si la respuesta es sí, es seed.
-
-### `mock.sql` — datos de demostración
-
-Todo lo que existe únicamente para probar el flujo de la aplicación de punta a punta: vales ficticios, sus propuestas, su historial, solicitudes de modificación, backfills. Se puede borrar por completo y la aplicación sigue siendo instalable y funcional (solo que sin datos que mostrar).
-
-## Reasignar en vez de borrar
-
-Cuando un usuario o rol de prueba se elimina (ver el propio `CLAUDE.md` — pasa en cada ciclo de correcciones), los datos de `mock.sql` que lo referenciaban **se reasignan a un usuario real que sobreviva**, nunca se eliminan junto con él. El comentario de cabecera de `mock.sql` documenta cualquier reasignación de este tipo.
+Nunca datos que simulen un flujo de negocio (un vale, una propuesta, un historial) — eso no tiene lugar en este repositorio en absoluto (ver arriba).
 
 ## Comentarios
 
@@ -68,6 +61,5 @@ Cuando un usuario o rol de prueba se elimina (ver el propio `CLAUDE.md` — pasa
 ## Antes de dar por terminado un cambio
 
 1. Verificar que cada `FOREIGN KEY` de `schema.sql` sigue teniendo del otro lado una tabla ya creada antes.
-2. Verificar que `seed.sql` no depende de ninguna fila de `mock.sql` (debe poder ejecutarse solo, sobre una base limpia).
-3. Verificar que `mock.sql` no reintroduce ningún ID de usuario/rol que ya no exista en `seed.sql`.
-4. Reflejar el mismo cambio en `src/config/database.js` (roles/permisos/usuarios/talleres/etc. y, si aplica, los `taggedHandlers` que dependen de esos IDs) — es la única ruta que de verdad se ejecuta en desarrollo.
+2. Verificar que `seed.sql` corre de punta a punta sobre una base limpia recién creada con `schema.sql` (sin depender de ninguna fila que no inserte él mismo).
+3. Reflejar cualquier cambio de estructura o catálogo también en los repositorios (`src/modules/*/repositories/`) que consultan esas tablas/columnas.

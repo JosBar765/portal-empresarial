@@ -377,10 +377,8 @@ class ValeService {
   // meter tienda_id en el JWT — la validación real e inapelable sigue siendo
   // server-side, en `_validarTalleresIds` (analisis_correcciones_12.md #11).
   async obtenerCatalogos(usuario) {
-    const [tiendas, productos, materiales, paises, talleres] = await Promise.all([
+    const [tiendas, paises, talleres] = await Promise.all([
       catalogoRepository.listarTiendas(),
-      catalogoRepository.listarProductos(),
-      catalogoRepository.listarMateriales(),
       catalogoRepository.listarPaises(),
       tallerRepository.listarActivos()
     ]);
@@ -395,8 +393,8 @@ class ValeService {
       const idsTienda = new Set(asesores.map(a => a.tienda_id).filter(Boolean));
       tiendasGerencia = tiendas.filter(t => idsTienda.has(t.id));
     }
-    // tecnicas/acabados ya no son catálogo (corrección #1: ahora son textbox libre).
-    return { tiendas, productos, materiales, paises, talleres, miTiendaId: (solicitante && solicitante.tienda_id) || null, tiendasGerencia };
+    // producto/material/tecnica/acabado no son catálogo — son texto libre.
+    return { tiendas, paises, talleres, miTiendaId: (solicitante && solicitante.tienda_id) || null, tiendasGerencia };
   }
 
   async obtenerTalleres() {
@@ -489,8 +487,8 @@ class ValeService {
         clienteNombre: datos.clienteNombre,
         clienteTelefono: datos.clienteTelefono,
         clienteCorreo: datos.clienteCorreo,
-        productoId: datos.productoId,
-        materialId: datos.materialId,
+        producto: datos.producto,
+        material: datos.material,
         tecnica: datos.tecnica,
         acabado: datos.acabado,
         cantidad: datos.cantidad,
@@ -532,11 +530,14 @@ class ValeService {
       } else if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
         throw new Error('Solo se puede autorizar un vale en estado ESPERANDO_AUTORIZACION.');
       }
+      // Un asesor puede tener más de un supervisor cubriéndolo a la vez
+      // (supervisores rotativos) — se necesita la lista completa tanto para
+      // el chequeo de pertenencia como para notificar a todos, no solo al
+      // que ejecuta la acción (si no, el resto se queda con el vale
+      // apareciendo accionable en su buzón hasta que recargan a mano).
+      const supervisoresDelAsesor = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       if (!esAdministrador(usuario)) {
-        // analisis_correcciones_12.md #10: "bajo su mando" ya no es
-        // encargado_id — es pertenecer a una tienda que este supervisor cubre.
-        const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
-        if (!supervisores.some(s => s.id === usuario.id)) {
+        if (!supervisoresDelAsesor.some(s => s.id === usuario.id)) {
           throw new Error('Este vale de arte no pertenece a un asesor bajo su mando.');
         }
         const { autorizados, limite } = await this.obtenerLimiteColectivoSupervisor(usuario.id);
@@ -556,13 +557,13 @@ class ValeService {
       const nombresTalleres = await this._nombresDeTalleres(talleresIds);
       await registrarHistorial(valeId, usuario.id, null, ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.CREADO,
         `Supervisor autorizó la creación — enviado a taller${talleresIds.length > 1 ? 'es' : ''}: ${nombresTalleres}`);
-      // Regenera el PDF para que la firma de autorización (analisis_correcciones_10.md #6) aparezca.
+      // Regenera el PDF para que la firma de autorización aparezca.
       await this._regenerarPdf(valeId);
 
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: 'autorizado (creación)', actor: usuario.nombre, actorId: usuario.id,
-        salas: [`asesor:${vale.asesor_id}`, `supervisor:${usuario.id}`, ...talleresIds.map(id => `taller:${id}`)]
+        salas: [`asesor:${vale.asesor_id}`, ...supervisoresDelAsesor.map(s => `supervisor:${s.id}`), ...talleresIds.map(id => `taller:${id}`)]
       });
       return enriquecer(actualizado);
     });
@@ -577,12 +578,15 @@ class ValeService {
   async _validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null } = {}) {
     const {
       clienteEmpresa, clienteNombre, clienteTelefono, clienteCorreo,
-      fechaEntrega, fechaEvento, urgente, productoId, materialId, tecnica, acabado,
+      fechaEntrega, fechaEvento, urgente, producto, material, tecnica, acabado,
       cantidad, cotizacion, descripcion
     } = payload;
 
     if (!clienteNombre || !clienteTelefono || !clienteCorreo) {
       throw new Error('Los datos del cliente (nombre, teléfono, correo) son obligatorios.');
+    }
+    if (!producto || !material) {
+      throw new Error('El producto y el material son obligatorios.');
     }
     if (!fechaEntrega || !fechaEvento) {
       throw new Error('Las fechas de entrega y de evento son obligatorias.');
@@ -612,8 +616,7 @@ class ValeService {
       fechaEntregaDate: new Date(fechaEntregaNorm.replace(' ', 'T')),
       fechaEventoDate: new Date(fechaEventoNorm.replace(' ', 'T')),
       urgente: calcularUrgente(fechaEntregaNorm, urgente),
-      productoId: productoId ? Number(productoId) : null,
-      materialId: materialId ? Number(materialId) : null,
+      producto: producto.trim(), material: material.trim(),
       tecnica: (tecnica || '').trim(), acabado: (acabado || '').trim(),
       cantidad: cantidadNum, cotizacion: cotizacionNum, descripcion,
       talleresIds
@@ -2113,8 +2116,8 @@ class ValeService {
         clienteNombre: datos.clienteNombre,
         clienteTelefono: datos.clienteTelefono,
         clienteCorreo: datos.clienteCorreo,
-        productoId: datos.productoId,
-        materialId: datos.materialId,
+        producto: datos.producto,
+        material: datos.material,
         tecnica: datos.tecnica,
         acabado: datos.acabado,
         cantidad: datos.cantidad,
@@ -2166,8 +2169,8 @@ class ValeService {
         clienteNombre: solicitud.cliente_nombre,
         clienteTelefono: solicitud.cliente_telefono,
         clienteCorreo: solicitud.cliente_correo,
-        productoId: solicitud.producto_id,
-        materialId: solicitud.material_id,
+        producto: solicitud.producto,
+        material: solicitud.material,
         tecnica: solicitud.tecnica,
         acabado: solicitud.acabado,
         cantidad: solicitud.cantidad,
@@ -2222,9 +2225,14 @@ class ValeService {
       await this._regenerarPdf(nuevoValeId);
 
       const nuevoVale = await valeRepository.obtenerPorId(nuevoValeId);
+      // Mismo criterio que autorizarCreacion: notificar a TODOS los
+      // supervisores que cubren a este asesor, no solo a quien ejecutó la
+      // acción — si no, el resto se queda con el vale apareciendo
+      // accionable en su buzón hasta que recargan la página a mano.
+      const supervisoresDelAsesor = await usuarioValeRepository.obtenerSupervisoresDeAsesor(solicitud.asesor_id);
       valeEvents.notificar({
         vale: nuevoVale, accion: 'autorizado (modificación)', actor: usuario.nombre, actorId: usuario.id,
-        salas: [`asesor:${solicitud.asesor_id}`, `supervisor:${usuario.id}`, ...talleresIdsModificacion.map(id => `taller:${id}`)]
+        salas: [`asesor:${solicitud.asesor_id}`, ...supervisoresDelAsesor.map(s => `supervisor:${s.id}`), ...talleresIdsModificacion.map(id => `taller:${id}`)]
       });
       return enriquecer(nuevoVale);
     });

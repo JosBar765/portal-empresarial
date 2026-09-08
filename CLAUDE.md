@@ -12,25 +12,25 @@ npm start          # start without watch mode
 
 There is no test suite, linter, or build step configured in `package.json`.
 
-Database: create a MySQL database named `portal_empresarial`, then import `database/schema.sql` (structure only), `database/seed.sql` (real catalogs/org data), and `database/mock.sql` (demo vales, optional) in that order — see `.agents/reglas/reglas_archivosSQL.md` for the split's rationale. Then copy `.env.example` to `.env` and set `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, etc. **If MySQL is unreachable, the app does not crash** — `src/config/database.js` automatically falls back to an in-memory mock database seeded with the same test users/roles/vales, so the whole app (including the Vales de Arte pipeline) works without any DB setup. This is the path actually exercised in this environment; there is no local MySQL.
+Database: create a MySQL database named `portal_empresarial`, then import `database/schema.sql` (structure only) and `database/seed.sql` (real catalogs/org data) in that order — see `.agents/reglas/reglas_archivosSQL.md` for the split's rationale. Then copy `.env.example` to `.env` and set `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, etc. **MySQL is a hard requirement, not an optional dependency** — `src/config/database.js` has no fallback; if the initial connection fails, the process logs a fatal error and exits (`process.exit(1)`) instead of starting in a degraded state.
 
-Query code (repositories) always goes through `db.query(sql, params, tag)`. The 3rd `tag` argument (e.g. `'vale:insert'`, `'usuario:find_by_id'`) is **required for any new query** — real MySQL ignores it and runs the parameterized SQL as-is, but the mock dispatches on it via `taggedHandlers` in `database.js` instead of trying to parse the SQL string. A few legacy auth queries (in `authService.js`) still work via substring-matching on the SQL text with no tag, kept only for backward compatibility — don't add new untagged queries. When adding a tagged handler, double-check the params array your repository passes matches positionally what the handler destructures — a mismatched extra/missing param (e.g. an inline SQL literal like `'CONFIRMACION_MODIFICACION'` that's *also* a bound param) silently corrupts the mock write with no error. Any mock handler returning `usuarios` rows must strip `password_hash` explicitly (`sinPasswordHash()`) since the mock ignores the SQL's column list and would otherwise leak the hash to the client.
+Query code (repositories) always goes through `db.query(sql, params, tag)`. The 3rd `tag` argument (e.g. `'vale:insert'`, `'usuario:find_by_id'`) is passed through to every call for consistency/documentation, but MySQL itself ignores it and just runs the parameterized SQL as-is.
 
-Test accounts (seeded in both real DB and mock, all passwords match the pattern `<role>123`): `admin@munditrofeos.com` / `admin123` (rol_id 1, Administrador, all permissions), `encargado.diseno@munditrofeos.com` / `disenoenc123` (rol_id 4), `encargado.uv3d@munditrofeos.com` / `uv3denc123` (rol_id 5), `tecnico.a@munditrofeos.com` / `tecnico.b@...` / `tecnico.c@...` / `tecnico123` (rol_id 6, `a`/`b` report to encargado 4, `c` to encargado 5), `asistente@munditrofeos.com` / `asisgeneral123` (rol_id 7), `gerente@munditrofeos.com` / `gerente123` (rol_id 8). Real asesores/supervisores (not `@munditrofeos.com` test accounts) are seeded in `database/seed.sql` — roles were renumbered and the old generic "Diseñador"/"Asesor Comercial"/"Supervisor de Ventas"/"Encargado General" test accounts and roles were removed (analisis_correcciones_16.md #7/#8) since real accounts now cover asesor/supervisor roles.
+Test accounts (seeded in `database/seed.sql`, all passwords match the pattern `<role>123`): `admin@munditrofeos.com` / `admin123` (rol_id 1, Administrador, all permissions), `encargado.diseno@munditrofeos.com` / `disenoenc123` (rol_id 4), `encargado.uv3d@munditrofeos.com` / `uv3denc123` (rol_id 5), `tecnico.a@munditrofeos.com` / `tecnico.b@...` / `tecnico.c@...` / `tecnico123` (rol_id 6, `a`/`b` report to encargado 4, `c` to encargado 5), `asistente@munditrofeos.com` / `asisgeneral123` (rol_id 7), `gerente@munditrofeos.com` / `gerente123` (rol_id 8). Real asesores/supervisores (not `@munditrofeos.com` test accounts) are seeded in `database/seed.sql` — roles were renumbered and the old generic "Diseñador"/"Asesor Comercial"/"Supervisor de Ventas"/"Encargado General" test accounts and roles were removed (analisis_correcciones_16.md #7/#8) since real accounts now cover asesor/supervisor roles.
 
 ## Architecture
 
 Single Node/Express **modular monolith** — never split modules into separate services/servers. This constraint is intentional: the target hosting is a managed Node host with MySQL, no Docker/VPS/root access. Do not introduce infrastructure that requires that.
 
 ```
-Browser → Express (src/app.js) → authenticateJWT (global) → Core layers (auth/permissions/websocket/files) → Business modules (src/modules/*) → Repositories → MySQL (or in-memory mock)
+Browser → Express (src/app.js) → authenticateJWT (global) → Core layers (auth/permissions/websocket/files) → Business modules (src/modules/*) → Repositories → MySQL
 ```
 
 Socket.IO (`src/core/websocket/socketManager.js`) is a cross-cutting real-time layer available to every module, not tied to any one feature.
 
 ### Auth is JWT, not sessions
 
-Despite `express-session` conventions elsewhere, this app uses **stateless JWT in an httpOnly cookie** (`README.md`'s architecture diagram is stale on this point — `.agents/autenticacion_jwt.md` is the authoritative spec). Key points:
+Despite `express-session` conventions elsewhere, this app uses **stateless JWT in an httpOnly cookie** (`README.md`'s architecture diagram is stale on this point — `.agents/reglas/reglas_autenticacion.md` is the authoritative spec). Key points:
 
 - The JWT payload (`{ id, nombre, email, rolId, rolNombre, modulosPermitidos, permissions }`) is the single source of truth for identity — never trust `req.body`/`req.query` for who the current user is.
 - `src/core/auth/jwtHelper.js` signs/verifies tokens with `JWT_SECRET`.
@@ -44,7 +44,7 @@ Despite `express-session` conventions elsewhere, this app uses **stateless JWT i
 
 ### Adding a new business module
 
-Follow `.agents/readme_modulo.md` exactly (the README's pointer to `src/modules/readme_modulo.md` is stale — the guide only lives under `.agents/`) — it has full code templates, and `src/modules/vales/` is now a concrete example of the pattern applied end-to-end. Summary:
+Follow `.agents/reglas/reglas_modulo.md` exactly (the README's pointer to `src/modules/readme_modulo.md` is stale — the guide lives under `.agents/reglas/`) — it has full code templates, and `src/modules/vales/` is now a concrete example of the pattern applied end-to-end. Summary:
 
 1. Backend: `src/modules/<name>/{controllers,services,repositories}/`, plus `routes.js` and `events.js`. Controllers stay thin (HTTP in/out only), services hold business rules, repositories hold all SQL.
 2. Frontend: `public/modules/<name>/{index.html, css/styles.css, js/app.js}`, styled to match `public/css/global.css` (shared design tokens) — same typography/colors/proportions as login and dashboard.

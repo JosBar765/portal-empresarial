@@ -50,8 +50,7 @@ portal-empresarial/
 ├── .agents/                      # Reglas de arquitectura y diseño para agentes de IA
 ├── database/
 │   ├── schema.sql                # Estructura (CREATE TABLE, claves, índices)
-│   ├── seed.sql                  # Datos reales mínimos para una instalación funcional
-│   └── mock.sql                  # Datos de demostración/prueba (opcional)
+│   └── seed.sql                  # Datos reales mínimos para una instalación funcional
 ├── public/                       # Contenido estático del Frontend
 │   ├── assets/
 │   │   └── logos/                # Logos corporativos e isotipos de MundiTrofeos
@@ -69,7 +68,7 @@ portal-empresarial/
 ├── src/                          # Backend de la Aplicación
 │   ├── config/
 │   │   ├── env.js                # Validación de variables de entorno
-│   │   └── database.js           # Pool de conexiones MySQL y base de datos Mock en memoria
+│   │   └── database.js           # Pool de conexiones MySQL
 │   ├── core/                     # Capas nucleares transversales
 │   │   ├── auth/                 # Servicios, controladores y rutas de sesión
 │   │   ├── permissions/          # Middleware de validación de permisos
@@ -99,7 +98,7 @@ npm install
 
 ### Paso 2: Configurar Base de Datos MySQL
 1. Crea una base de datos en tu servidor MySQL (local o hosting) llamada `portal_empresarial`.
-2. Importa, en este orden, los tres archivos de `database/`: `schema.sql` (estructura), `seed.sql` (datos reales mínimos) y `mock.sql` (datos de demostración, opcional).
+2. Importa, en este orden, los dos archivos de `database/`: `schema.sql` (estructura) y `seed.sql` (datos reales mínimos). No hay fallback: si MySQL no está disponible, el servidor no arranca.
 3. Duplica el archivo `.env.example`, renombrándolo a `.env`, y edita las credenciales de conexión correspondientes (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, etc.).
 
 ### Paso 3: Arrancar en desarrollo

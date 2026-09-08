@@ -8,10 +8,6 @@ import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js'
 import { crearVale, solicitarModificacion } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 
-export function opcionesSelect(lista, campo = 'nombre') {
-  return (state.catalogos[lista] || []).map(item => `<option value="${item.id}">${item[campo] || item.nombre}</option>`).join('');
-}
-
 export function opcionesPaises() {
   return (state.catalogos.paises || []).map(p =>
     `<option value="${p.codigo_telefono}" ${p.codigo === 'GT' ? 'selected' : ''}>${p.codigo_telefono} ${p.codigo}</option>`
@@ -70,8 +66,8 @@ export function abrirModalCrearVale() {
         <div class="form-grid">
           ${htmlCampoFecha('Fecha de entrega', 'fechaEntrega')}
           ${htmlCampoFecha('Fecha del evento', 'fechaEvento')}
-          <div class="form-field"><label>Código de producto *</label><select name="productoId" required>${opcionesSelect('productos')}</select></div>
-          <div class="form-field"><label>Material *</label><select name="materialId" required>${opcionesSelect('materiales')}</select></div>
+          <div class="form-field"><label>Código de producto *</label><input type="text" name="producto" required maxlength="150" placeholder="Ej. Trofeo" /></div>
+          <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="150" placeholder="Ej. Acrílico" /></div>
           <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" /></div>
           <div class="form-field"><label>Acabado</label><input type="text" name="acabado" /></div>
           <div class="form-field"><label>Cantidad * (mayor a 1)</label><input type="number" name="cantidad" min="2" required /></div>
@@ -228,8 +224,8 @@ export function abrirModalSolicitarModificacion(vale) {
         <div class="form-grid">
           ${htmlCampoFecha('Fecha de entrega', 'fechaEntrega')}
           ${htmlCampoFecha('Fecha del evento', 'fechaEvento')}
-          <div class="form-field"><label>Código de producto *</label><select name="productoId" required>${opcionesSelect('productos')}</select></div>
-          <div class="form-field"><label>Material *</label><select name="materialId" required>${opcionesSelect('materiales')}</select></div>
+          <div class="form-field"><label>Código de producto *</label><input type="text" name="producto" required maxlength="150" value="${vale.producto || ''}" /></div>
+          <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="150" value="${vale.material || ''}" /></div>
           <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" value="${vale.tecnica || ''}" /></div>
           <div class="form-field"><label>Acabado</label><input type="text" name="acabado" value="${vale.acabado || ''}" /></div>
           <div class="form-field"><label>Cantidad * (mayor a 1)</label><input type="number" name="cantidad" min="2" value="${vale.cantidad || ''}" required /></div>
@@ -261,8 +257,6 @@ export function abrirModalSolicitarModificacion(vale) {
     apiFechaEventoMod.setMinDate(sumarDiaLocal(apiFechaEntregaMod.getDate() || hoyMedianoche(), 1));
   });
   if (paisCodigoActual) overlay.querySelector('[name="clienteTelefonoPais"]').value = paisCodigoActual;
-  overlay.querySelector('[name="productoId"]').value = vale.producto_id || '';
-  overlay.querySelector('[name="materialId"]').value = vale.material_id || '';
 
   const formModificacion = overlay.querySelector('#form-modificacion');
   wireLimpiezaValidacionInline(formModificacion);
@@ -289,8 +283,8 @@ export function abrirModalSolicitarModificacion(vale) {
       fechaEntrega: fd.get('fechaEntrega'),
       fechaEvento: fd.get('fechaEvento'),
       urgente: form.querySelector('[name="urgente"]').checked,
-      productoId: fd.get('productoId'),
-      materialId: fd.get('materialId'),
+      producto: fd.get('producto'),
+      material: fd.get('material'),
       tecnica: fd.get('tecnica'),
       acabado: fd.get('acabado'),
       cantidad: fd.get('cantidad'),

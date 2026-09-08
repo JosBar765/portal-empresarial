@@ -20,14 +20,14 @@ class ValeRepository {
       `INSERT INTO vales (
         correlativo, asesor_id, tienda_id, vale_original_id, fecha_creacion, hora_creacion, fecha_entrega, fecha_evento, urgente,
         cliente_empresa, cliente_nombre, cliente_telefono, cliente_correo,
-        producto_id, material_id, tecnica, acabado, cantidad, cotizacion, descripcion, estado,
+        producto, material, tecnica, acabado, cantidad, cotizacion, descripcion, estado,
         talleres_solicitados, autorizado_por, autorizado_en, autorizacion_tipo
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.correlativo, data.asesorId, data.tiendaId, data.valeOriginalId || null, data.fechaCreacion, data.horaCreacion,
         data.fechaEntrega, data.fechaEvento, data.urgente ? 1 : 0,
         data.clienteEmpresa || null, data.clienteNombre, data.clienteTelefono, data.clienteCorreo,
-        data.productoId || null, data.materialId || null, data.tecnica, data.acabado,
+        data.producto, data.material, data.tecnica, data.acabado,
         data.cantidad, data.cotizacion, data.descripcion || null, data.estado || 'CREADO',
         // analisis_correcciones_10.md #5/#6: talleres solicitados por el asesor (en
         // espera de autorización) y, cuando el vale ya nace autorizado (el MOD- que
