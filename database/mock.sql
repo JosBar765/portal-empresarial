@@ -1,12 +1,4 @@
--- Datos de demostración: vales de arte ficticios que ejercitan el flujo
--- completo (creación, asignación, propuesta, aprobación, fusión,
--- confirmación, modificación). Se ejecuta DESPUÉS de schema.sql + seed.sql.
---
--- Los vales originalmente creados por la cuenta de prueba "Asesor Comercial"
--- (eliminada) se reasignaron a Alejandra Luna (id 49, misma tienda); los
--- eventos originalmente atribuidos a "Supervisor de Ventas" (id 4, eliminada)
--- se reasignaron a Carlos Cornejo (id 13, mismo departamento). Los
--- correlativos históricos (ej. GUA-3-0001) no se renumeran.
+-- Datos de demostración
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -30,17 +22,15 @@ INSERT INTO `vale_talleres` (`vale_id`, `taller_id`, `tecnico_id`, `estado`, `fe
 (2,  1, 7,    'ASIGNADO',    '2026-08-18 09:30:00', 1),
 (3,  1, 7,    'EN_PROCESO',  '2026-08-17 10:30:00', 1),
 (4,  1, 8,    'EN_REVISION', '2026-08-14 11:45:00', 1),
-(5,  1, 7,    'EN_PROCESO',  '2026-08-13 09:15:00', 1),   -- GUA-3-0005, taller Diseño: aún trabajando
-(5,  2, 9,    'APROBADO',    '2026-08-13 09:00:00', 1),   -- GUA-3-0005, taller UV/3D: ya aprobado
-(6,  1, 7,    'APROBADO',    '2026-08-10 13:20:00', 1),   -- GUA-3-0006, ambos talleres aprobados -> APROBADO_DEPARTAMENTO
+(5,  1, 7,    'EN_PROCESO',  '2026-08-13 09:15:00', 1),   
+(5,  2, 9,    'APROBADO',    '2026-08-13 09:00:00', 1),   
+(6,  1, 7,    'APROBADO',    '2026-08-10 13:20:00', 1),   
 (6,  2, 9,    'APROBADO',    '2026-08-10 13:25:00', 1),
 (7,  1, 8,    'APROBADO',    '2026-08-09 16:00:00', 1),
 (8,  1, 7,    'APROBADO',    '2026-08-05 12:00:00', 1),
 (9,  1, 8,    'APROBADO',    '2026-08-04 15:00:00', 1),
 (10, 1, 7,    'APROBADO',    '2026-07-30 10:00:00', 1),
-(11, 1, 8,    'APROBADO',    '2026-08-13 15:00:00', 1),   -- GUA-3-0011: el taller no se reabre al solicitar modificación, solo el vale vuelve a SOLICITANDO_MODIFICACION
--- Vale 12 (MOD-GUA-3-0008, MODIFICADO): el fan-out a talleres es inmediato al
--- aprobar la modificación — nace con su fila igual que un vale nuevo autorizado.
+(11, 1, 8,    'APROBADO',    '2026-08-13 15:00:00', 1),   
 (12, 1, NULL, 'PENDIENTE_ASIGNACION', NULL, 1);
 
 INSERT INTO `vale_propuestas` (`vale_id`, `tecnico_id`, `url`) VALUES
@@ -99,16 +89,12 @@ INSERT INTO `vale_historial` (`vale_id`, `usuario_id`, `taller_id`, `estado_ante
 (11, 49, NULL, 'PENDIENTE_CONFIRMACION', 'SOLICITANDO_MODIFICACION', 'Asesor solicitó modificación'),
 (12, 13, NULL, NULL, 'MODIFICADO', 'Supervisor aprobó la solicitud de modificación — se creó el vale MOD-GUA-3-0008');
 
--- Vale de demostración recién creado, esperando que el Supervisor lo
--- autorice — sin filas en vale_talleres todavía.
 INSERT INTO `vales` (`id`, `correlativo`, `asesor_id`, `tienda_id`, `vale_original_id`, `fecha_creacion`, `hora_creacion`, `fecha_entrega`, `fecha_evento`, `urgente`, `cliente_empresa`, `cliente_nombre`, `cliente_telefono`, `cliente_correo`, `producto_id`, `material_id`, `tecnica`, `acabado`, `cantidad`, `cotizacion`, `descripcion`, `talleres_solicitados`, `modificado`, `estado`) VALUES
 (13, 'GUA-3-0012', 49, 1, NULL, '2026-08-26', '08:00:00', '2026-08-30 17:00:00', '2026-08-31 09:00:00', 0, 'Cliente particular', 'Fernando Ixchop', '+502 5555-1212', 'fernando.ixchop@correo.com', 1, 1, 'Grabado Láser', 'Brillante', 10, 900.00, 'Trofeos recién creados, esperando autorización del Supervisor.', '1', 0, 'ESPERANDO_AUTORIZACION');
 
 INSERT INTO `vale_historial` (`vale_id`, `usuario_id`, `taller_id`, `estado_anterior`, `estado_nuevo`, `accion`) VALUES
 (13, 49, NULL, NULL, 'ESPERANDO_AUTORIZACION', 'Vale de arte creado por el asesor — esperando autorización del Supervisor (taller solicitado: Diseño)');
 
--- Backfill: sella la autorización/confirmación de un par de vales ya
--- cerrados, para poblar "Trabajo Realizado" del Supervisor.
 UPDATE `vales` SET `autorizado_por` = 13, `autorizado_en` = '2026-08-05 09:30:00', `autorizacion_tipo` = 'CREACION' WHERE `id` = 8;
 UPDATE `vales` SET `confirmado_en` = '2026-08-12 17:00:00' WHERE `id` = 8;
 UPDATE `vales` SET `autorizado_por` = 13, `autorizado_en` = '2026-08-20 11:00:00', `autorizacion_tipo` = 'MODIFICACION' WHERE `id` = 12;
