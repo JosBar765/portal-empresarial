@@ -10,21 +10,17 @@ const authService = require('../../../core/auth/authService');
 const maintenanceGate = require('../../../core/permissions/maintenanceMiddleware');
 const socketManager = require('../../../core/websocket/socketManager');
 
-// Roles base protegidos (analisis_correcciones_13.md #6): no se pueden
-// eliminar ni renombrar, pero sus permisos sí se pueden editar.
-// analisis_correcciones_14.md #9: Asesor de Ventas (3) deja de ser "base" —
-// la protección real contra desactivarlo ya la da "no se puede desactivar un
+// Roles base protegidos: no se pueden eliminar ni renombrar, pero sus
+// permisos sí se pueden editar. Asesor de Ventas no está en esta lista — la
+// protección real contra desactivarlo ya la da "no se puede desactivar un
 // rol con usuarios activos", que en la práctica lo sigue cubriendo.
 const ROLES_BASE = [1];
-// analisis_correcciones_16.md #7: renumeración de roles (Supervisor de
-// Ventas pasa de id 4 a id 3) tras eliminar los roles descontinuados.
 const ROL_ASESOR = 2;
 const ROL_SUPERVISOR = 3;
 const ROL_ADMINISTRADOR = 1;
-// analisis_correcciones_17.md #12/#13: Diseño, Diseño 3D y Protextil son
-// talleres únicos a nivel de toda la empresa (a diferencia de Diseño Local,
-// que tiene uno por tienda) — un solo encargado activo a la vez, y solo en
-// MTC (1) o MTS (2).
+// Diseño, Diseño 3D y Protextil son talleres únicos a nivel de toda la
+// empresa (a diferencia de Diseño Local, que tiene uno por tienda) — un solo
+// encargado activo a la vez.
 const ROLES_ENCARGADO_UNICO = [4, 5, 9];
 const ROL_TECNICO = 6;
 const ROL_ASISTENTE = 7;
@@ -123,8 +119,7 @@ class AdminService {
 
   async establecerActivoUsuario(id, activo, usuarioActualId) {
     const usuario = await usuarioAdminRepository.obtenerPorId(id);
-    // analisis_correcciones_17.md #11: el rol Administrador tampoco se
-    // puede desactivar desde este panel.
+    // El rol Administrador tampoco se puede desactivar desde este panel.
     if (usuario && Number(usuario.rol_id) === ROL_ADMINISTRADOR) {
       throw new Error('El usuario Administrador no se puede desactivar.');
     }
@@ -182,8 +177,8 @@ class AdminService {
   async actualizarPermisosRol(id, permisoIds) {
     if (!Array.isArray(permisoIds)) throw new Error('La lista de permisos debe ser un arreglo.');
     const resultado = await rolRepository.establecerPermisos(id, permisoIds);
-    // analisis_correcciones_17.md #2: avisa a los usuarios de ese rol
-    // conectados ahora mismo para que renueven su JWT sin cerrar sesión.
+    // Avisa a los usuarios de ese rol conectados ahora mismo para que
+    // renueven su JWT sin cerrar sesión.
     socketManager.sendToRooms([`role_${id}`], 'permisos_actualizados', {});
     return resultado;
   }
@@ -209,15 +204,14 @@ class AdminService {
     return { tiendas };
   }
 
-  // analisis_correcciones_18.md #3/#5: la tienda ya no tiene "nombre" propio
-  // (se deriva de la empresa) ni "país" propio (viene de `empresas.pais_id`)
-  // — el formulario elige Empresa + Departamento + Subdivisión. La
-  // subdivisión puede ser una existente (`subdivisionId`) o una nueva a
-  // crear al vuelo (`subdivisionNombre` + `paisId`, ya que un departamento
-  // puede agrupar subdivisiones de varios países).
-  // analisis_correcciones_19.md #9: un departamento nuevo creado desde aquí
-  // es siempre de UN solo país (pais_id fijo) — el caso multi-país ("Ventas
-  // Centroamérica") sigue siendo exclusivo del seed.
+  // La tienda no tiene "nombre" propio (se deriva de la empresa) ni "país"
+  // propio (viene de `empresas.pais_id`) — el formulario elige Empresa +
+  // Departamento + Subdivisión. La subdivisión puede ser una existente
+  // (`subdivisionId`) o una nueva a crear al vuelo (`subdivisionNombre` +
+  // `paisId`, ya que un departamento puede agrupar subdivisiones de varios
+  // países). Un departamento nuevo creado desde aquí es siempre de UN solo
+  // país (pais_id fijo) — el caso multi-país ("Ventas Centroamérica") sigue
+  // siendo exclusivo del seed.
   async _resolverDepartamento({ departamentoId, departamentoNombre, paisId }) {
     if (departamentoId) return Number(departamentoId);
     if (departamentoNombre) {
@@ -307,9 +301,8 @@ class AdminService {
     };
   }
 
-  // analisis_correcciones_19.md #8/#10/#12: catálogo de talleres para poblar
-  // el selector "Taller" del modal "Editar usuario" (Técnico, Encargado de
-  // taller local y Asistente).
+  // Catálogo de talleres para poblar el selector "Taller" del modal "Editar
+  // usuario" (Técnico, Encargado de taller local y Asistente).
   async listarTalleres() {
     return { talleres: await tallerAdminRepository.listarConDetalle() };
   }

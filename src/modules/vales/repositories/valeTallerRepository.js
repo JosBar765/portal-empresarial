@@ -1,8 +1,8 @@
 // src/modules/vales/repositories/valeTallerRepository.js
-// Progreso de un vale de arte DENTRO de cada taller al que fue enviado.
-// Reemplaza a la antigua asignacionRepository: una fila por (vale, taller),
-// con su propio estado (PENDIENTE_ASIGNACION/ASIGNADO/EN_PROCESO/EN_REVISION/APROBADO)
-// independiente del estado general del vale (ver analisis_correcciones_3.md).
+// Progreso de un vale de arte DENTRO de cada taller al que fue enviado: una
+// fila por (vale, taller), con su propio estado
+// (PENDIENTE_ASIGNACION/ASIGNADO/EN_PROCESO/EN_REVISION/APROBADO)
+// independiente del estado general del vale.
 const db = require('../../../config/database');
 
 class ValeTallerRepository {

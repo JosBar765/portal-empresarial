@@ -17,7 +17,7 @@ router.route('/')
 router.get('/session', (req, res) => authController.sessionCheck(req, res));
 router.post('/login', (req, res) => authController.loginPost(req, res));
 router.post('/logout', (req, res) => authController.logout(req, res));
-// analisis_correcciones_17.md #2: refresco de JWT en caliente cuando cambian los permisos del rol.
+// Refresco de JWT en caliente cuando cambian los permisos del rol.
 router.post('/refresh', (req, res) => authController.refreshToken(req, res));
 
 module.exports = router;

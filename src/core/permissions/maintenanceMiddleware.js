@@ -1,8 +1,8 @@
 // src/core/permissions/maintenanceMiddleware.js
-// Gate global de Modo Mantenimiento (analisis_correcciones_13.md #6). Se monta
-// en app.js justo después de authenticateJWT: bloquea a todo usuario que no
-// sea Administrador mientras el mantenimiento está activo. Lee de una caché en
-// memoria del proceso (monolito de un solo proceso) para no pagar una consulta
+// Gate global de Modo Mantenimiento. Se monta en app.js justo después de
+// authenticateJWT: bloquea a todo usuario que no sea Administrador mientras
+// el mantenimiento está activo. Lee de una caché en memoria del proceso
+// (monolito de un solo proceso) para no pagar una consulta
 // por request — la caché se refresca al arrancar y cada vez que el panel de
 // Administrador cambia el estado (ver adminService.actualizarMantenimiento).
 const db = require('../../config/database');

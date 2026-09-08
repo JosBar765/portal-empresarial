@@ -2,10 +2,9 @@
 const db = require('../../../config/database');
 
 class TiendaAdminRepository {
-  // analisis_correcciones_18.md #5: `tiendas` ya no tiene `pais_id`/`nombre`
-  // propios — el país sale de la empresa dueña y el nombre a mostrar se
-  // deriva como "{EMPRESA}, {SUBDIVISIÓN}" (o solo "{EMPRESA}" sin
-  // subdivisión).
+  // `tiendas` no tiene `pais_id`/`nombre` propios — el país sale de la
+  // empresa dueña y el nombre a mostrar se deriva como "{EMPRESA},
+  // {SUBDIVISIÓN}" (o solo "{EMPRESA}" sin subdivisión).
   async listarConDetalle() {
     return db.query(
       `SELECT t.*, e.nombre AS empresa_nombre, e.pais_id AS pais_id, p.nombre AS pais_nombre,
@@ -49,9 +48,9 @@ class TiendaAdminRepository {
     );
   }
 
-  // analisis_correcciones_18.md #3: crea una subdivisión nueva desde el modal
-  // "Nueva tienda" (radio "crear nueva") — con su propio país, ya que un
-  // departamento puede agrupar subdivisiones de varios países.
+  // Crea una subdivisión nueva desde el modal "Nueva tienda" (radio "crear
+  // nueva") — con su propio país, ya que un departamento puede agrupar
+  // subdivisiones de varios países.
   async crearSubdivision(departamentoId, nombre, paisId) {
     const result = await db.query(
       'INSERT INTO subdivisiones (departamento_id, nombre, pais_id) VALUES (?, ?, ?)',
@@ -65,8 +64,7 @@ class TiendaAdminRepository {
     return db.query('UPDATE tiendas SET orden = ? WHERE id = ? -- (batch)', [ordenes], 'tienda_admin:set_orden');
   }
 
-  // analisis_correcciones_18.md #5: reemplaza `supervisor_asignaciones` — un
-  // supervisor cubre tiendas concretas, sin cobertura "heredada" por
+  // Un supervisor cubre tiendas concretas, sin cobertura "heredada" por
   // departamento/subdivisión.
   async agregarSupervisorATienda(usuarioId, tiendaId) {
     const result = await db.query(
@@ -135,9 +133,9 @@ class TiendaAdminRepository {
     return db.query('SELECT id, codigo, nombre, codigo_telefono FROM paises ORDER BY nombre', [], 'catalog:paises');
   }
 
-  // analisis_correcciones_19.md #9: crea un departamento nuevo desde el modal
-  // "Nueva tienda" (radio "crear nuevo") — siempre de un solo país (el caso
-  // multi-país como "Ventas Centroamérica" sigue siendo exclusivo del seed).
+  // Crea un departamento nuevo desde el modal "Nueva tienda" (radio "crear
+  // nuevo") — siempre de un solo país (el caso multi-país como "Ventas
+  // Centroamérica" sigue siendo exclusivo del seed).
   async crearDepartamento(nombre, paisId) {
     const result = await db.query(
       'INSERT INTO departamentos (nombre, pais_id) VALUES (?, ?)',
@@ -151,8 +149,7 @@ class TiendaAdminRepository {
     return db.query('SELECT * FROM subdivisiones WHERE activo = 1 ORDER BY nombre', [], 'organizacion:subdivisiones');
   }
 
-  // analisis_correcciones_18.md #5: catálogo de empresas para el selector de
-  // "Nueva tienda" (reemplaza al viejo selector de País).
+  // Catálogo de empresas para el selector de "Nueva tienda".
   async listarEmpresas() {
     return db.query('SELECT * FROM empresas ORDER BY nombre', [], 'organizacion:empresas');
   }

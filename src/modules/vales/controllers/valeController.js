@@ -46,8 +46,7 @@ class ValeController {
     }
   }
 
-  // analisis_correcciones_10.md #11: límite diario colectivo del Supervisor
-  // (antes era individual del asesor, /limite-restante).
+  // Límite diario colectivo del Supervisor (no individual del asesor).
   async limiteColectivo(req, res) {
     try {
       const { autorizados, limite } = await valeService.obtenerLimiteColectivoSupervisor(req.user.id);
@@ -92,7 +91,7 @@ class ValeController {
     }
   }
 
-  // Vista Gerencia (analisis_correcciones_7.md): métricas agregadas, solo lectura.
+  // Vista Gerencia: métricas agregadas, solo lectura.
   async dashboardGerencia(req, res) {
     try {
       const filtros = {
@@ -124,7 +123,7 @@ class ValeController {
   async descargarPdf(req, res) {
     try {
       // Si el vale pedido ya fue modificado, sirve el PDF del vale MOD- vigente en
-      // vez del original congelado (analisis_correcciones_5.md #4).
+      // vez del original congelado.
       const vale = await valeService.obtenerValeParaPdf(req.user, Number(req.params.id));
       if (!vale.pdf_url) {
         return res.status(404).json({ error: 'El PDF de este vale aún no ha sido generado.' });

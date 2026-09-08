@@ -1,11 +1,11 @@
 // src/modules/vales/atrasoWatcher.js
-// analisis_correcciones_10.md #10: "alerta roja" de atraso — el atraso es una
-// condición calculada al vuelo (calcularAtraso en valeService), nunca un estado
-// persistido, así que no hay ningún punto de escritura donde "enganchar" este
-// aviso. Un vigilante periódico (60s, vive en el mismo proceso Node — monolito
-// modular, sin infraestructura nueva) es lo mínimo necesario para detectar el
-// MOMENTO en que un vale cruza su fecha_entrega y avisar una sola vez por vale
-// (columna `vales.atraso_notificado_en`, sellada aquí mismo).
+// El atraso es una condición calculada al vuelo (calcularAtraso en
+// valeService), nunca un estado persistido, así que no hay ningún punto de
+// escritura donde "enganchar" la alerta roja. Un vigilante periódico (60s,
+// vive en el mismo proceso Node — monolito modular, sin infraestructura
+// nueva) es lo mínimo necesario para detectar el MOMENTO en que un vale
+// cruza su fecha_entrega y avisar una sola vez por vale (columna
+// `vales.atraso_notificado_en`, sellada aquí mismo).
 const valeRepository = require('./repositories/valeRepository');
 const valeTallerRepository = require('./repositories/valeTallerRepository');
 const usuarioValeRepository = require('./repositories/usuarioValeRepository');
@@ -28,8 +28,8 @@ function ahoraLocal() {
 // por ejemplo, así que tampoco debe sonarle a quien fusiona.
 async function salasParaVale(vale) {
   const salas = [`asesor:${vale.asesor_id}`];
-  // analisis_correcciones_12.md #10: puede haber más de un supervisor cubriendo
-  // la tienda de este asesor (rotativos) — se avisa a todos.
+  // Puede haber más de un supervisor cubriendo la tienda de este asesor
+  // (rotativos) — se avisa a todos.
   const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
   supervisores.forEach(s => salas.push(`supervisor:${s.id}`));
 
@@ -39,11 +39,10 @@ async function salasParaVale(vale) {
     if (f.tecnico_id && ESTADOS_TALLER_CON_TECNICO.includes(f.estado)) salas.push(`tecnico:${f.tecnico_id}`);
   });
 
-  // analisis_correcciones_12.md #11: ya no hay una sala fija de "encargado
-  // general" — un vale APROBADO_DEPARTAMENTO espera fusión en el buzón de
-  // quien tenga vales.aprobar_general (hoy, el taller "Diseño": su encargado
-  // Y su clon, el Asistente de Diseño, ya están en esa misma sala `taller:<id>`
-  // vía roomsParaUsuario en el frontend).
+  // Un vale APROBADO_DEPARTAMENTO espera fusión en el buzón de quien tenga
+  // vales.aprobar_general (hoy, el taller "Diseño": su encargado y su clon,
+  // el Asistente de Diseño, ya están en esa misma sala `taller:<id>` vía
+  // roomsParaUsuario en el frontend).
   if (vale.estado === 'APROBADO_DEPARTAMENTO') {
     const talleres = await tallerRepository.listarActivos();
     const diseno = talleres.find(t => t.nombre === 'Diseño');

@@ -101,9 +101,9 @@ class AuthController {
     }
   }
 
-  // analisis_correcciones_17.md #2: reemite la cookie con el rol/permisos
-  // vigentes de un usuario ya autenticado — se dispara cuando el socket le
-  // avisa que los permisos de su rol cambiaron, sin pedirle credenciales.
+  // Reemite la cookie con el rol/permisos vigentes de un usuario ya
+  // autenticado — se dispara cuando el socket le avisa que los permisos de
+  // su rol cambiaron, sin pedirle credenciales.
   async refreshToken(req, res) {
     const token = req.cookies ? req.cookies.token : null;
     const decoded = token ? jwtHelper.verifyToken(token) : null;

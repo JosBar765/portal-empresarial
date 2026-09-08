@@ -25,18 +25,15 @@ app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
 app.use('/css', express.static(path.join(__dirname, '../public/css')));
 app.use('/js', express.static(path.join(__dirname, '../public/js')));
 
-// analisis_correcciones_10.md #2: si ya hay una sesión válida, /login redirige
-// al dashboard en vez de mostrar el formulario — antes esto solo lo decidía un
-// fetch de session_check en el cliente (public/login/index.html), así que la
-// página de login se entregaba igual y el redirect llegaba tarde. Mismo patrón
-// que GET '/' más abajo (jwtHelper.verifyToken sobre la cookie), pero antes del
-// estático para cubrir también /login/index.html servido directo.
+// Si ya hay una sesión válida, /login redirige al dashboard en vez de
+// mostrar el formulario — corre antes del estático para cubrir también
+// /login/index.html servido directo (mismo patrón que GET '/' más abajo).
+// El Administrador cae al panel en vez del dashboard de módulos — es su
+// "inicio".
 app.use('/login', (req, res, next) => {
   const token = req.cookies ? req.cookies.token : null;
   const decoded = token ? jwtHelper.verifyToken(token) : null;
   if (decoded) {
-    // analisis_correcciones_13.md #6: la Vista Administrador reemplaza al
-    // dashboard de módulos SOLO para el Administrador — su "inicio" es el panel.
     return res.redirect(decoded.rolId === 1 ? '/modules/admin/' : '/dashboard/');
   }
   next();
@@ -53,7 +50,6 @@ app.get('/', (req, res) => {
   const decoded = token ? jwtHelper.verifyToken(token) : null;
 
   if (decoded) {
-    // analisis_correcciones_13.md #6: el Administrador cae directo al panel.
     return res.redirect(decoded.rolId === 1 ? '/modules/admin/' : '/dashboard/');
   }
   return res.redirect('/login/');
@@ -69,8 +65,8 @@ app.get('/login', (req, res) => {
 // -------------------------------------------------------------------------
 app.use(authenticateJWT);
 
-// analisis_correcciones_13.md #6: gate de Modo Mantenimiento — corre justo
-// después de establecerse req.user, antes de cualquier recurso protegido.
+// Gate de Modo Mantenimiento — corre justo después de establecerse req.user,
+// antes de cualquier recurso protegido.
 app.use(maintenanceGate);
 
 // -------------------------------------------------------------------------
@@ -78,9 +74,9 @@ app.use(maintenanceGate);
 // -------------------------------------------------------------------------
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// analisis_correcciones_13.md #6: el Administrador tiene su propio panel en
-// vez del dashboard de módulos — si escribe /dashboard/ a mano, se le
-// redirige al panel salvo que pida explícitamente ver los módulos.
+// El Administrador tiene su propio panel en vez del dashboard de módulos —
+// si escribe /dashboard/ a mano, se le redirige al panel salvo que pida
+// explícitamente ver los módulos.
 app.use('/dashboard', (req, res, next) => {
   if (req.user.rolId === 1 && req.query.vista !== 'modulos') {
     return res.redirect('/modules/admin/');
@@ -97,12 +93,12 @@ app.use('/modules', express.static(path.join(__dirname, '../public/modules')));
 // Rutas de API del módulo Vales de Arte
 app.use('/api/vales', requireAuth, valeRoutes);
 
-// Rutas de API del panel de Administrador (analisis_correcciones_13.md #6)
+// Rutas de API del panel de Administrador
 app.use('/api/admin', requireAuth, adminRoutes);
 
-// analisis_correcciones_10.md #10: vigilante de atraso — corre en el mismo
-// proceso (monolito modular), revisa cada 60s qué vales acaban de cruzar su
-// fecha_entrega y dispara la alerta roja una sola vez por vale.
+// Vigilante de atraso — corre en el mismo proceso (monolito modular), revisa
+// cada 60s qué vales acaban de cruzar su fecha_entrega y dispara la alerta
+// roja una sola vez por vale.
 atrasoWatcher.iniciar();
 
 // Endpoint dinámico de Módulos del Dashboard
@@ -111,10 +107,6 @@ app.get('/api/modules', requireAuth, (req, res) => {
   const permissions = req.user.permissions || [];
 
   // Catálogo completo de módulos empresariales definidos en el portal.
-  // analisis_correcciones_15.md #9: se quitaron "prompts"/"eventos" — eran
-  // datos MOCK de ejemplo, sin ningún módulo real detrás (no existe
-  // src/modules/prompts|eventos ni public/modules/prompts|eventos); sus
-  // rutas ya apuntaban a un 404. Solo quedan los dos módulos reales.
   const catalog = [
     {
       id: 'vales',

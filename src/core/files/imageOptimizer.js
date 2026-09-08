@@ -1,8 +1,8 @@
 // src/core/files/imageOptimizer.js
-// analisis_correcciones_10.md #1: recomprimir imágenes SIN afectar pdf-lib (que
-// sigue recibiendo PNG/JPEG normales vía embedPng/embedJpg, sin cambios) ni
-// requerir infraestructura nueva — el hosting destino es un host Node
-// administrado (sin Docker/root, ver CLAUDE.md), así que `sharp` (módulo
+// Recomprime imágenes SIN afectar pdf-lib (que sigue recibiendo PNG/JPEG
+// normales vía embedPng/embedJpg, sin cambios) ni requerir infraestructura
+// nueva — el hosting destino es un host Node administrado (sin Docker/root,
+// ver CLAUDE.md), así que `sharp` (módulo
 // nativo) se carga de forma TOLERANTE: si el binario no está disponible ahí,
 // esto no debe romper el deploy ni la subida de archivos, solo dejar de
 // optimizar.

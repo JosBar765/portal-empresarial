@@ -1,7 +1,7 @@
 // src/modules/vales/repositories/solicitudModificacionRepository.js
 // Staging de una solicitud de modificación: se llena cuando el asesor la pide,
 // se materializa en un vale de arte nuevo (MOD-...) solo cuando el supervisor
-// la aprueba (ver analisis_correcciones_3.md, "Notas generales").
+// la aprueba.
 const db = require('../../../config/database');
 
 class SolicitudModificacionRepository {

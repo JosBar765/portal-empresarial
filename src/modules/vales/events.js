@@ -1,18 +1,13 @@
 // src/modules/vales/events.js
-// Cada evento se envía SOLO a las salas del rol/usuario a quien concierne (más la
-// sala del administrador, que ve todo). Esto es lo que hace que el sonido de
-// notificación en el cliente suene únicamente "del lado que cae la notificación"
-// (ver .agents/correciones_mod_vales_de_arte_1.md, Cambios generales #1): si un
-// cliente no está en ninguna de las salas objetivo, simplemente no recibe el evento.
-//
-// analisis_correcciones_10.md #10: rediseño completo — antes solo existían dos
-// tipos genéricos ('creado'/'estado') y el cliente armaba un texto fijo sin actor
-// ni fecha. Ahora el mensaje llega YA FORMATEADO desde el servidor:
+// Cada evento se envía SOLO a las salas del rol/usuario a quien concierne
+// (más la sala del administrador, que ve todo) — si un cliente no está en
+// ninguna de las salas objetivo, simplemente no recibe el evento. El mensaje
+// llega ya formateado desde el servidor:
 //   {dd/mm/aaaa hh:mm} – Vale: {correlativo} fue {qué pasó} por {actor}[ a {destino}]
 // `nivel: 'alerta'` pinta el toast en rojo en el cliente (atrasos, propuesta
-// vacía); `beep: false` permite emitir un evento sin sonido (usado por el
-// reenvío a varios talleres del Encargado General: un solo emit, un solo beep,
-// aunque el mensaje mencione a más de un destino).
+// vacía); `beep: false` permite emitir un evento sin sonido (usado por un
+// reenvío a varios talleres a la vez: un solo emit, un solo beep, aunque el
+// mensaje mencione a más de un destino).
 const socketManager = require('../../core/websocket/socketManager');
 
 const SALA_ADMIN = 'vales:admin';
@@ -28,9 +23,9 @@ function fechaHoraLocal() {
  * @param {string} accion Verbo/frase en participio: "creado, esperando autorización", "autorizado (creación)", etc.
  * @param {string|null} actor Nombre de quien ejecutó la acción (o null si no aplica).
  * @param {number|null} actorId usuarios.id de quien ejecutó la acción (o null si no aplica, ej.
- *   el vigilante de atraso). analisis_correcciones_12.md #2: el cliente lo compara contra su
- *   propio usuario para no duplicar la notificación de quien acaba de hacer la acción — ya
- *   recibió su propio toast optimista local al completarse el fetch.
+ *   el vigilante de atraso). El cliente lo compara contra su propio usuario para no duplicar
+ *   la notificación de quien acaba de hacer la acción — ya recibió su propio toast optimista
+ *   local al completarse el fetch.
  * @param {string|null} destino Complemento opcional ("a Diseño, Diseño UV/3D") — se agrega solo si viene.
  * @param {string[]} salas Salas objetivo (sin incluir vales:admin, que siempre se agrega).
  * @param {'info'|'alerta'} nivel 'alerta' pinta el toast en rojo en el cliente.

@@ -24,7 +24,7 @@ const COLOR_TEXTO = rgb(0, 0, 0);
 const COLOR_ETIQUETA = rgb(0.45, 0.48, 0.52);
 const COLOR_DIVISOR = rgb(0.85, 0.85, 0.85);
 const COLOR_DIVISOR_FUERTE = rgb(0.15, 0.15, 0.15);
-// analisis_correcciones_10.md #6: firma de autorización del Supervisor, en rojo.
+// Firma de autorización del Supervisor, en rojo.
 const COLOR_FIRMA = rgb(0.8, 0.1, 0.1);
 
 // Fechas siempre dd/mm/aaaa; solo la fecha de ingreso muestra también hora (dd/mm/aaaa hh:mm).
@@ -63,13 +63,11 @@ function wrapText(text, font, size, maxWidth) {
 }
 
 class ValePdfService {
-  // Nota (analisis_correcciones_10.md #3): este PDF es el documento
-  // ADMINISTRATIVO del vale (encabezado, cliente, venta, firma) — nunca lleva
-  // fusionada la propuesta/diseño de ningún taller. Esa propuesta vive en su
-  // propio enlace ("Ver propuesta", `propuesta_general_url`) precisamente para
-  // que el supervisor pueda ver una cosa sin la otra al autorizar una
-  // modificación. Antes `aprobarGeneral` sí la fusionaba aquí para un vale
-  // normal (no así para uno de modificación) — era la causa del bug.
+  // Este PDF es el documento ADMINISTRATIVO del vale (encabezado, cliente,
+  // venta, firma) — nunca lleva fusionada la propuesta/diseño de ningún
+  // taller. Esa propuesta vive en su propio enlace ("Ver propuesta",
+  // `propuesta_general_url`) precisamente para que el supervisor pueda ver
+  // una cosa sin la otra al autorizar una modificación.
   async generarPdfVale(vale, documentos = []) {
     const pdfDoc = await PDFDocument.create();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -99,11 +97,6 @@ class ValePdfService {
     const imagenes = documentos.filter(d => d.tipo === 'imagen');
     const docsAdjuntos = documentos.filter(d => d.tipo === 'documento');
 
-    // analisis_correcciones_12.md #12: se quitó la rama "antes/después" que
-    // dependía de `vales.descripcion_original` — esa columna nunca se llegó a
-    // escribir en ningún flujo de modificación (código muerto: tenía lector
-    // acá pero ningún escritor), así que en la práctica esta función siempre
-    // terminaba corriendo este mismo camino.
     this._dibujarTituloBloque(ctx, 'BOCETO Y DESCRIPCIÓN');
     this._dibujarTextoLargo(ctx, vale.descripcion);
     await this._dibujarGridImagenes(ctx, imagenes);
@@ -296,21 +289,17 @@ class ValePdfService {
   }
 
   // Recuadro destacado para el monto de la cotización + caja de firma y
-  // autorización, lado a lado en una sola fila (analisis_correcciones_7.md #5)
-  // — antes la firma vivía en su propia línea DEBAJO, ocupando espacio vertical
-  // aparte; ahora la cotización cede 1/5 de su ancho horizontal a la firma, y
-  // todo ese espacio vertical que antes usaba la línea de firma queda libre
-  // para BOCETO Y DESCRIPCIÓN. Mismo tratamiento que el total de un recibo
+  // autorización, lado a lado en una sola fila — la cotización cede 1/5 de su
+  // ancho horizontal a la firma. Mismo tratamiento que el total de un recibo
   // (etiqueta a la izquierda, cifra grande a la derecha, dentro de un marco
   // simple) para la cotización; la caja de firma queda completamente vacía
   // (sin etiqueta adentro) para firmarse a mano, con "FIRMA Y AUTORIZACIÓN"
-  // impreso justo debajo de su borde, fuera de la caja.
-  // `firma`, cuando viene (analisis_correcciones_10.md #6), es el texto
-  // "<Supervisor> CREACIÓN"/"<Supervisor> MODIFICACIÓN" que se dibuja EN ROJO
-  // dentro de la caja — antes quedaba siempre vacía a propósito, para firmarse
-  // a mano; ahora, si el vale ya fue autorizado, la firma queda impresa ahí.
+  // impreso justo debajo de su borde, fuera de la caja. `firma`, cuando
+  // viene, es el texto "<Supervisor> CREACIÓN"/"<Supervisor> MODIFICACIÓN"
+  // que se dibuja EN ROJO dentro de la caja si el vale ya fue autorizado —
+  // si no, la caja queda vacía para firmarse a mano.
   _dibujarFilaCotizacionYFirma(ctx, valorCotizacion, etiquetaFirma, firma) {
-    const alto = 17; // reducido ~50% (antes 34) para liberar espacio vertical hacia BOCETO Y DESCRIPCIÓN
+    const alto = 17; // altura reducida para liberar espacio vertical hacia BOCETO Y DESCRIPCIÓN
     this._asegurarEspacio(ctx, alto + 18);
     const y = ctx.y - alto;
     const anchoCotizacion = (CONTENT_WIDTH * 4) / 5;
@@ -385,17 +374,17 @@ class ValePdfService {
       ]
     ]);
 
-    // La cotización y la firma dejan de ser un campo más de la grilla: la
+    // La cotización y la firma no son un campo más de la grilla: la
     // cotización es el dato económico principal del vale (recuadro
-    // destacado, como el total de un recibo), y ahora comparten fila con la
-    // caja de firma y autorización (analisis_correcciones_7.md #5).
+    // destacado, como el total de un recibo), y comparten fila con la caja
+    // de firma y autorización.
     this._dibujarFilaCotizacionYFirma(ctx, `Q ${Number(vale.cotizacion).toFixed(2)}`, 'FIRMA Y AUTORIZACIÓN', vale.__firmaAutorizacion || null);
   }
 
   /**
    * Dibuja el pie de página en TODAS las páginas del documento final (incluidas las de
    * documentos/propuestas fusionados): numeración actual/total, el checkbox de
-   * "ADJUNTOS" (corrección #8: siempre vacío, lo marca a mano el técnico al imprimir),
+   * "ADJUNTOS" (siempre vacío, lo marca a mano el técnico al imprimir),
    * y el indicador "MODIFICAR" abajo-izquierda si aplica.
    */
   _dibujarPiesDePagina(pdfDoc, font, fontBold, { modificado }) {

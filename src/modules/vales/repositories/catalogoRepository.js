@@ -2,11 +2,9 @@
 const db = require('../../../config/database');
 
 class CatalogoRepository {
-  // analisis_correcciones_12.md #10: `localidades` -> `tiendas`, con
-  // departamento_id/subdivision_id además del código/nombre/país de siempre.
-  // analisis_correcciones_18.md #5: `tiendas` ya no tiene `nombre`/`pais_id`
-  // propios — se derivan vía `empresas` (nombre = "{EMPRESA}, {SUBDIVISIÓN}",
-  // o solo "{EMPRESA}" sin subdivisión; país = el de la empresa).
+  // `tiendas` no tiene `nombre`/`pais_id` propios — se derivan vía `empresas`
+  // (nombre = "{EMPRESA}, {SUBDIVISIÓN}", o solo "{EMPRESA}" sin
+  // subdivisión; país = el de la empresa).
   async listarTiendas() {
     return db.query(
       `SELECT t.id, t.codigo, e.pais_id, t.departamento_id, t.subdivision_id,

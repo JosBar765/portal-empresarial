@@ -32,9 +32,8 @@ class UsuarioValeRepository {
     );
   }
 
-  // analisis_correcciones_18.md #5: reemplaza `usuarios.encargado_id` — el
-  // taller de este encargado sale de `talleres.encargado_id` (sin cambios) y
-  // sus técnicos, de `taller_tecnicos`.
+  // El taller de este encargado sale de `talleres.encargado_id` y sus
+  // técnicos, de `taller_tecnicos`.
   async listarTecnicosPorEncargado(encargadoId) {
     return db.query(
       `SELECT u.id, u.nombre, u.email, tt.taller_id
@@ -47,10 +46,9 @@ class UsuarioValeRepository {
     );
   }
 
-  // analisis_correcciones_18.md #5: reemplaza la cobertura heredada por
-  // departamento/subdivisión (`supervisor_asignaciones`, eliminada) — un
-  // supervisor cubre asesores por tienda puntual vía `supervisor_tiendas`,
-  // cruzada con la tienda de cada asesor en `asesores.tienda_id`.
+  // Un supervisor cubre asesores por tienda puntual vía `supervisor_tiendas`,
+  // cruzada con la tienda de cada asesor en `asesores.tienda_id` — sin
+  // cobertura heredada por departamento/subdivisión.
   async listarAsesoresPorSupervisor(supervisorId) {
     return db.query(
       `SELECT DISTINCT u.id, u.nombre, u.email, a.tienda_id
@@ -65,8 +63,8 @@ class UsuarioValeRepository {
   }
 
   // Inverso de la anterior: todos los supervisores (rol 3) que cubren la
-  // tienda de un asesor dado — puede haber MÁS de uno (supervisores rotativos,
-  // analisis_correcciones_12.md #10).
+  // tienda de un asesor dado — puede haber MÁS de uno (supervisores
+  // rotativos).
   async obtenerSupervisoresDeAsesor(asesorId) {
     return db.query(
       `SELECT DISTINCT u.id, u.nombre, u.email

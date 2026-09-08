@@ -1,8 +1,6 @@
 // src/modules/admin/repositories/tallerAdminRepository.js
-// analisis_correcciones_19.md #8/#10/#12: asignación de talleres desde el
-// panel de administración — hasta ahora `talleres.encargado_id` y
-// `taller_tecnicos` solo los poblaba el seed, sin ninguna acción del panel
-// que los volviera a tocar.
+// Asignación de talleres desde el panel de administración —
+// `talleres.encargado_id` y `taller_tecnicos` se actualizan desde aquí.
 const db = require('../../../config/database');
 
 class TallerAdminRepository {
@@ -55,9 +53,9 @@ class TallerAdminRepository {
     );
   }
 
-  // analisis_correcciones_19.md #10: mismo mecanismo para Técnico (rol 6) y
-  // Asistente (rol 7, "clona" el taller elegido) — PK en usuario_id, así que
-  // reasignar es un upsert simple (nunca puede quedar en dos talleres).
+  // Mismo mecanismo para Técnico (rol 6) y Asistente (rol 7, "clona" el
+  // taller elegido) — PK en usuario_id, así que reasignar es un upsert
+  // simple (nunca puede quedar en dos talleres).
   async asignarTecnico(usuarioId, tallerId) {
     return db.query(
       'INSERT INTO taller_tecnicos (usuario_id, taller_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE taller_id = VALUES(taller_id)',

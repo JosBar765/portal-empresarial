@@ -2,10 +2,6 @@
 const db = require('../../../config/database');
 
 class ValeRepository {
-  // Nota (analisis_correcciones_10.md #11): el límite diario dejó de ser
-  // individual del asesor (`asesor_limites`) — ahora es colectivo del
-  // Supervisor, ver contarAutorizacionesCreacionPorSupervisorYFecha más abajo.
-
   async contarValesPorAsesor(asesorId) {
     const rows = await db.query(
       'SELECT COUNT(*) AS total FROM vales WHERE asesor_id = ?',
@@ -29,9 +25,10 @@ class ValeRepository {
         data.clienteEmpresa || null, data.clienteNombre, data.clienteTelefono, data.clienteCorreo,
         data.producto, data.material, data.tecnica, data.acabado,
         data.cantidad, data.cotizacion, data.descripcion || null, data.estado || 'CREADO',
-        // analisis_correcciones_10.md #5/#6: talleres solicitados por el asesor (en
-        // espera de autorización) y, cuando el vale ya nace autorizado (el MOD- que
-        // crea aprobarModificacion), quién y cuándo lo autorizó.
+        // `talleresSolicitados` es el CSV que eligió el asesor mientras el vale
+        // espera autorización; `autorizadoPor`/`autorizadoEn`/`autorizacionTipo`
+        // solo vienen poblados cuando el vale nace ya autorizado (el MOD- que
+        // crea aprobarModificacion).
         data.talleresSolicitados || null, data.autorizadoPor || null, data.autorizadoEn || null, data.autorizacionTipo || null
       ],
       'vale:insert'
@@ -50,7 +47,7 @@ class ValeRepository {
 
   // El vale MOD- que reemplaza a este (a lo sumo uno, solo se permite una
   // modificación por vale) — usado para resolver "Ver PDF" al vale vigente
-  // cuando el original ya fue modificado (analisis_correcciones_5.md #4).
+  // cuando el original ya fue modificado.
   async obtenerPorValeOriginalId(valeOriginalId) {
     const rows = await db.query(
       'SELECT * FROM vales WHERE vale_original_id = ? LIMIT 1',
@@ -72,11 +69,11 @@ class ValeRepository {
     await db.query('UPDATE vales SET modificado = 1 WHERE id = ?', [id], 'vale:marcar_modificado');
   }
 
-  // Congela el atraso de forma permanente (analisis_correcciones_8.md #7) —
-  // se llama exactamente en los dos puntos donde un vale queda "entregado":
-  // confirmarRecibido() y aprobarModificacion() (al devolver el original a
-  // RECIBIDO). El `IS NULL` evita pisar el primer congelamiento si por
-  // cualquier motivo se volviera a llamar sobre el mismo vale.
+  // Congela el atraso de forma permanente — se llama exactamente en los dos
+  // puntos donde un vale queda "entregado": confirmarRecibido() y
+  // aprobarModificacion() (al devolver el original a RECIBIDO). El `IS NULL`
+  // evita pisar el primer congelamiento si por cualquier motivo se volviera a
+  // llamar sobre el mismo vale.
   async congelarAtraso(id, fechaHora) {
     await db.query(
       'UPDATE vales SET atraso_congelado_en = ? WHERE id = ? AND atraso_congelado_en IS NULL',
@@ -89,10 +86,9 @@ class ValeRepository {
     await db.query('UPDATE vales SET propuesta_general_url = ? WHERE id = ?', [url, id], 'vale:update_propuesta_general');
   }
 
-  // analisis_correcciones_16.md #4/#5: la fusión antes no dejaba más rastro
-  // que la URL de arriba — sin dueño ni fecha propia era imposible acotar
-  // "Trabajo Realizado" a quien realmente fusionó, ni fecharlo sin pisarse
-  // con transiciones posteriores del vale (RECIBIDO, CONFIRMADO...).
+  // Deja rastro de quién fusionó y cuándo — sin esto sería imposible acotar
+  // "Trabajo Realizado" a quien realmente fusionó, ni fecharlo sin pisarse con
+  // transiciones posteriores del vale (RECIBIDO, CONFIRMADO...).
   async sellarFusion(id, { fusionadoPor, fusionadoEn }) {
     await db.query(
       'UPDATE vales SET fusionado_por = ?, fusionado_en = ? WHERE id = ?',
@@ -101,9 +97,9 @@ class ValeRepository {
     );
   }
 
-  // analisis_correcciones_10.md #5/#6: sella quién y cuándo autorizó (creación o
-  // modificación) — usado por la firma roja del PDF y por el cupo colectivo del
-  // Supervisor (#11) y su "Trabajo Realizado" (#7).
+  // Sella quién y cuándo autorizó (creación o modificación) — usado por la
+  // firma roja del PDF y por el cupo colectivo del Supervisor y su
+  // "Trabajo Realizado".
   async sellarAutorizacion(id, { autorizadoPor, autorizadoEn, autorizacionTipo }) {
     await db.query(
       'UPDATE vales SET autorizado_por = ?, autorizado_en = ?, autorizacion_tipo = ? WHERE id = ?',
@@ -112,15 +108,15 @@ class ValeRepository {
     );
   }
 
-  // analisis_correcciones_10.md #7: sella cuándo el asesor confirmó de recibido
-  // — el Supervisor ordena por esta fecha en su "Trabajo Realizado".
+  // Sella cuándo el asesor confirmó de recibido — el Supervisor ordena por
+  // esta fecha en su "Trabajo Realizado".
   async sellarConfirmacion(id, fechaHora) {
     await db.query('UPDATE vales SET confirmado_en = ? WHERE id = ?', [fechaHora, id], 'vale:sellar_confirmacion');
   }
 
-  // analisis_correcciones_10.md #11: cuenta cuántas autorizaciones de CREACIÓN
-  // hizo este Supervisor hoy — el denominador (cantidad de asesores a su cargo)
-  // se resuelve aparte, vía usuarioValeRepository.listarAsesoresPorSupervisor.
+  // Cuenta cuántas autorizaciones de CREACIÓN hizo este Supervisor hoy — el
+  // denominador (cantidad de asesores a su cargo) se resuelve aparte, vía
+  // usuarioValeRepository.listarAsesoresPorSupervisor.
   async contarAutorizacionesCreacionPorSupervisorYFecha(supervisorId, fecha) {
     const rows = await db.query(
       "SELECT COUNT(*) AS total FROM vales WHERE autorizado_por = ? AND autorizacion_tipo = 'CREACION' AND DATE(autorizado_en) = ?",
@@ -130,14 +126,14 @@ class ValeRepository {
     return rows[0] ? Number(rows[0].total) : 0;
   }
 
-  // analisis_correcciones_10.md #10: vales que acaban de cruzar su fecha_entrega
-  // y todavía no fueron notificados — usado por atrasoWatcher. Excluye vales con
-  // el atraso ya congelado (RECIBIDO/etc. — ver calcularAtraso en valeService):
-  // su atraso ya no corre en vivo, así que "acaban de atrasarse" no aplica.
-  // analisis_correcciones_12.md #1/#7: "atraso" real empieza a las 24h de cruzar
-  // fecha_entrega, no en el instante mismo (eso es "vence hoy", diasAtraso === 0
-  // en valeService.calcularAtraso) — la alerta roja solo debe sonar una vez que
-  // el vale cumple >= 1 día de atraso.
+  // Vales que acaban de cruzar su fecha_entrega y todavía no fueron
+  // notificados — usado por atrasoWatcher. Excluye vales con el atraso ya
+  // congelado (RECIBIDO/etc. — ver calcularAtraso en valeService): su atraso
+  // ya no corre en vivo, así que "acaban de atrasarse" no aplica. El margen de
+  // 1 día es intencional: "atraso" real empieza a las 24h de cruzar
+  // fecha_entrega, no en el instante mismo (eso es "vence hoy", diasAtraso
+  // === 0 en valeService.calcularAtraso) — la alerta roja solo debe sonar una
+  // vez que el vale cumple >= 1 día de atraso.
   async listarAtrasadosSinNotificar() {
     return db.query(
       "SELECT * FROM vales WHERE atraso_notificado_en IS NULL AND atraso_congelado_en IS NULL AND estado NOT IN ('RECIBIDO', 'CONFIRMADO') AND fecha_entrega < NOW() - INTERVAL 1 DAY",

@@ -59,8 +59,8 @@ class UsuarioAdminRepository {
   }
 
   // -------------------------------------------------------------------
-  // analisis_correcciones_18.md #5: filas satélite de Asesor de Ventas /
-  // Supervisor de Ventas — `usuarios` ya no guarda su tienda/teléfono.
+  // Filas satélite de Asesor de Ventas / Supervisor de Ventas — `usuarios`
+  // no guarda su tienda/teléfono.
   // -------------------------------------------------------------------
   async obtenerAsesorPorUsuarioId(usuarioId) {
     const rows = await db.query('SELECT * FROM asesores WHERE usuario_id = ?', [usuarioId], 'asesor:find_by_usuario');

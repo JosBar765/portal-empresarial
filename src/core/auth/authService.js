@@ -4,8 +4,8 @@ const db = require('../../config/database');
 
 class AuthService {
   // Carga permisos + nombre del rol para un rol_id — compartido entre
-  // authenticate (login) y reautorizar (analisis_correcciones_17.md #2,
-  // refresco de JWT en caliente cuando cambian los permisos de un rol).
+  // authenticate (login) y reautorizar (refresco de JWT en caliente cuando
+  // cambian los permisos de un rol).
   async _cargarPermisosYRol(rolId) {
     const permissionsRows = await db.query(
       `SELECT p.codigo, p.modulo
@@ -75,10 +75,10 @@ class AuthService {
     };
   }
 
-  // analisis_correcciones_17.md #2: relee rol/permisos vigentes de un
-  // usuario YA autenticado (sin contraseña) para reemitir su JWT cuando el
-  // admin cambia los permisos de su rol. Si lo desactivaron mientras tenía
-  // sesión abierta, la sesión cae en el próximo refresco.
+  // Relee rol/permisos vigentes de un usuario YA autenticado (sin
+  // contraseña) para reemitir su JWT cuando el admin cambia los permisos de
+  // su rol. Si lo desactivaron mientras tenía sesión abierta, la sesión cae
+  // en el próximo refresco.
   async reautorizar(usuarioId) {
     const users = await db.query(
       'SELECT id, nombre, email, rol_id, activo FROM usuarios WHERE id = ?',
