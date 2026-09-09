@@ -291,10 +291,6 @@ CREATE TABLE IF NOT EXISTS `mantenimiento_config` (
   FOREIGN KEY (`activado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Genérica y reutilizable: registra el resultado ya calculado de una
--- operación identificada por su idempotency key, para que un reintento del
--- mismo request (ej. tras un corte de red) devuelva el mismo resultado sin
--- repetir la subida a Storage ni la escritura en la base de datos.
 CREATE TABLE IF NOT EXISTS `idempotency_keys` (
   `idempotency_key` VARCHAR(100) NOT NULL PRIMARY KEY,
   `endpoint`         VARCHAR(100) NOT NULL,
