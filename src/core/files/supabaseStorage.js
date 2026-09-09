@@ -3,7 +3,6 @@ const crypto = require('crypto');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const config = require('../../config/env');
-const { StorageUploadError } = require('./errores');
 
 const bucket = config.supabase.bucket;
 
@@ -20,6 +19,19 @@ function obtenerCliente() {
   return client;
 }
 
+// `error.message` de storage-js suele venir genérico ("Forbidden",
+// "Bucket not found") sin decir POR QUÉ — la respuesta real de la API de
+// Storage trae más contexto en `status`/`statusCode`/`error` (el nombre
+// corto del error, ej. "InvalidJWT", "AccessDenied", "NoSuchBucket").
+// Se arma un mensaje con todo lo disponible para no tener que adivinar.
+function detalleError(error, bucketUsado) {
+  const partes = [error.message];
+  if (error.status || error.statusCode) partes.push(`HTTP ${error.status || error.statusCode}`);
+  if (error.error && error.error !== error.message) partes.push(`código: ${error.error}`);
+  partes.push(`bucket: "${bucketUsado}"`);
+  return partes.join(' | ');
+}
+
 function prefijoUrlPublica() {
   const { data } = obtenerCliente().storage.from(bucket).getPublicUrl('');
   return data.publicUrl;
@@ -28,7 +40,10 @@ function prefijoUrlPublica() {
 class SupabaseStorage {
   /**
    * Sube un archivo ya optimizado (ver imageOptimizer, aplicado por
-   * subirYRegistrarArchivo antes de llegar aquí) al bucket.
+   * subirYRegistrarArchivo antes de llegar aquí) al bucket. Lanza un Error
+   * genérico con el mensaje crudo de Supabase — es subirYRegistrarArchivo
+   * quien lo reclasifica como StorageUploadError (evita el doble prefijo
+   * "No se pudo subir..." que salía cuando esta función también clasificaba).
    * @returns {Promise<{path: string, url: string, size: number}>}
    */
   async subir(buffer, nombreOriginal, mimeType) {
@@ -39,7 +54,7 @@ class SupabaseStorage {
       upsert: false
     });
     if (error) {
-      throw new StorageUploadError(`No se pudo subir "${nombreOriginal}" a Supabase Storage: ${error.message}`);
+      throw new Error(detalleError(error, bucket));
     }
     const { data } = obtenerCliente().storage.from(bucket).getPublicUrl(objectPath);
     return { path: objectPath, url: data.publicUrl, size: buffer.length };
@@ -56,7 +71,7 @@ class SupabaseStorage {
     const objectPath = url.startsWith(prefijo) ? url.slice(prefijo.length) : path.basename(url);
     const { error } = await obtenerCliente().storage.from(bucket).remove([objectPath]);
     if (error) {
-      throw new Error(`No se pudo eliminar "${objectPath}" de Supabase Storage: ${error.message}`);
+      throw new Error(`No se pudo eliminar "${objectPath}" de Supabase Storage: ${detalleError(error, bucket)}`);
     }
     return true;
   }
