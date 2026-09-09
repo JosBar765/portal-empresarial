@@ -134,12 +134,7 @@ export async function abrirModalAprobarGeneral(vale) {
     detalle = { talleres: [], propuestas: [] };
   }
 
-  // Si este vale es una CORRECCIÓN (tiene vale_original_id), quien fusiona
-  // necesita ver TODAS las propuestas originales — no solo las del/los
-  // taller(es) al que se mandó la corrección — para poder fusionar
-  // cómodamente. Se pide también el detalle del vale ORIGINAL y se arma la
-  // lista a partir de SUS talleres, sobreescribiendo con la propuesta de la
-  // corrección donde aplique (marcada con un "*" junto al nombre del taller).
+  // Muestra todas las propuestas originales y marca las modificadas con un asterisco (*)
   let detalleOriginal = null;
   if (vale.vale_original_id) {
     try {
@@ -154,7 +149,7 @@ export async function abrirModalAprobarGeneral(vale) {
     return ultima ? ultima.url : null;
   };
   const filaPropuesta = (nombre, url, corregido) =>
-    `<li><strong>${nombre}${corregido ? '*' : ''}:</strong> ${url ? `<a href="/${url}" target="_blank">Ver propuesta</a>` : 'Sin propuesta'}</li>`;
+    `<li><strong>${nombre}${corregido ? '*' : ''}:</strong> ${url ? `<a href="${url}" target="_blank">Ver propuesta</a>` : 'Sin propuesta'}</li>`;
 
   let filasPropuesta;
   if (detalleOriginal) {
@@ -176,7 +171,7 @@ export async function abrirModalAprobarGeneral(vale) {
       </div>
       <p style="font-size:13px;margin-bottom:10px;">Revisa la propuesta de cada taller y adjunta el documento final ya fusionado por ti.</p>
       <ul class="historial-list" style="margin-bottom:14px;">${filasPropuesta || '<li>Este vale no tiene talleres asociados.</li>'}</ul>
-      ${detalleOriginal ? '<p style="font-size:12px;color:var(--color-text-secondary);margin-top:-10px;margin-bottom:14px;">* Corregido en esta modificación.</p>' : ''}
+      ${detalleOriginal ? '<p style="font-size:12px;color:var(--color-text-secondary);margin-top:-10px;margin-bottom:14px;">* Modificado.</p>' : ''}
       <div class="form-field">
         <label>Documento de fusión final *</label>
         ${htmlDropzone({ id: 'input-fusion', accept: 'application/pdf', hint: 'PDF' })}
