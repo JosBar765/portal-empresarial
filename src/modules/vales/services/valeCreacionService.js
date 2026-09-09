@@ -6,13 +6,16 @@
 // valeTallerService (aprobarGeneral, solo regenerarPdf) — ver el comentario
 // original de _validarDatosVale, que ya documentaba esta dependencia
 // compartida entre crearVale() y solicitarModificacion().
+const crypto = require('crypto');
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const documentoRepository = require('../repositories/documentoRepository');
 const catalogoRepository = require('../repositories/catalogoRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
-const fileStorage = require('../../../core/files/fileStorage');
+const supabaseStorage = require('../../../core/files/supabaseStorage');
+const subirYRegistrarArchivo = require('../../../core/files/subirYRegistrarArchivo');
+const idempotencyRepository = require('../../../core/idempotency/idempotencyRepository');
 const valePdfService = require('./valePdfService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
@@ -23,7 +26,18 @@ const {
 } = require('./valeHelpers');
 
 class ValeCreacionService {
+  // La idempotency key viaja como campo del propio FormData (junto a los
+  // adjuntos) — nunca solo se confía en que el frontend evite el doble
+  // envío: un reintento con la MISMA key devuelve el resultado ya calculado
+  // sin volver a subir archivos ni volver a escribir en la base de datos.
+  // Si no llega ninguna (compatibilidad hacia atrás), se genera una interna
+  // solo para tener un valor que guardar — no protege un reintento real
+  // porque el cliente nunca la reutilizaría.
   async crearVale(usuario, payload, archivos) {
+    const idempotencyKey = payload.idempotencyKey || crypto.randomUUID();
+    const previo = await idempotencyRepository.buscar(idempotencyKey);
+    if (previo) return previo.resultado;
+
     const solicitante = await usuarioValeRepository.obtenerPorId(usuario.id);
     if (!solicitante || !solicitante.tienda_id) {
       throw new Error('El asesor no tiene una tienda asignada, no se puede generar el correlativo.');
@@ -96,7 +110,9 @@ class ValeCreacionService {
       vale, accion: 'creado, esperando autorización', actor: solicitante.nombre, actorId: usuario.id,
       salas: [`asesor:${usuario.id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
     });
-    return enriquecer(vale);
+    const resultado = enriquecer(vale);
+    await idempotencyRepository.registrar(idempotencyKey, 'vales.crear', resultado);
+    return resultado;
   }
 
   // El Supervisor de Ventas autoriza el envío a talleres de un vale creado
@@ -268,17 +284,21 @@ class ValeCreacionService {
     const documentos = archivos.documentos || [];
 
     for (const file of imagenes) {
-      const saved = await fileStorage.saveFile(file.buffer, file.originalname, file.mimetype);
-      await documentoRepository.crear({
-        valeId, nombreOriginal: file.originalname, ruta: saved.path, tipo: 'imagen',
-        mimeType: file.mimetype, tamano: saved.size, esModificacion, subidoPor
+      await subirYRegistrarArchivo({
+        buffer: file.buffer, nombreOriginal: file.originalname, mimeType: file.mimetype,
+        registrar: (subida) => documentoRepository.crear({
+          valeId, nombreOriginal: file.originalname, ruta: subida.url, tipo: 'imagen',
+          mimeType: file.mimetype, tamano: subida.size, esModificacion, subidoPor
+        })
       });
     }
     for (const file of documentos) {
-      const saved = await fileStorage.saveFile(file.buffer, file.originalname, file.mimetype);
-      await documentoRepository.crear({
-        valeId, nombreOriginal: file.originalname, ruta: saved.path, tipo: 'documento',
-        mimeType: file.mimetype, tamano: saved.size, esModificacion, subidoPor
+      await subirYRegistrarArchivo({
+        buffer: file.buffer, nombreOriginal: file.originalname, mimeType: file.mimetype,
+        registrar: (subida) => documentoRepository.crear({
+          valeId, nombreOriginal: file.originalname, ruta: subida.url, tipo: 'documento',
+          mimeType: file.mimetype, tamano: subida.size, esModificacion, subidoPor
+        })
       });
     }
   }
@@ -307,10 +327,12 @@ class ValeCreacionService {
     const documentos = await documentoRepository.listarPorVale(valeId);
     const pdfBuffer = await valePdfService.generarPdfVale(valeConAsesor, documentos);
     const pdfUrlAnterior = vale.pdf_url;
-    const saved = await fileStorage.saveFile(pdfBuffer, `${vale.correlativo}.pdf`, 'application/pdf');
-    await valeRepository.actualizarPdfUrl(valeId, saved.path);
+    await subirYRegistrarArchivo({
+      buffer: pdfBuffer, nombreOriginal: `${vale.correlativo}.pdf`, mimeType: 'application/pdf',
+      registrar: (subida) => valeRepository.actualizarPdfUrl(valeId, subida.url)
+    });
     if (pdfUrlAnterior) {
-      await fileStorage.deleteFile(pdfUrlAnterior);
+      await supabaseStorage.eliminar(pdfUrlAnterior);
     }
   }
 }

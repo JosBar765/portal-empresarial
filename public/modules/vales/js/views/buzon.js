@@ -285,14 +285,14 @@ export function construirAcciones(v) {
   // hereda todos los campos del vale) para no mostrar el botón de la fusión
   // en las dos filas del mismo vale.
   if ((usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || puede('aprobarGeneral')) && v.propuesta_general_url && v._tipoRegistro !== 'PROPUESTA') {
-    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta de fusión', onClick: () => window.open(`/${v.propuesta_general_url}`, '_blank') });
+    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta de fusión', onClick: () => window.open(v.propuesta_general_url, '_blank') });
   }
   // En "Trabajo realizado" el encargado de un taller (y el propio técnico) ve
   // la propuesta REAL que se aprobó (`propuesta_taller_url`, solo viene
   // poblado en esa vista) — no `propuesta_general_url`, que en un vale
   // multi-taller es la fusión, no el trabajo propio de este taller.
   if (ROLES_TALLER_Y_TECNICO.includes(state.user.rolId) && v.propuesta_taller_url) {
-    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(`/${v.propuesta_taller_url}`, '_blank') });
+    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_taller_url, '_blank') });
   }
 
   // El Supervisor autoriza el envío a talleres de un vale recién creado por

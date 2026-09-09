@@ -62,10 +62,6 @@ class TiendaAdminRepository {
     return result.insertId;
   }
 
-  async actualizarOrden(ordenes) {
-    return db.query('UPDATE tiendas SET orden = ? WHERE id = ? -- (batch)', [ordenes], 'tienda_admin:set_orden');
-  }
-
   // Un supervisor cubre tiendas concretas, sin cobertura "heredada" por
   // departamento/subdivisión.
   async agregarSupervisorATienda(usuarioId, tiendaId) {

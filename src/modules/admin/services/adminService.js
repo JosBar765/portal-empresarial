@@ -254,11 +254,6 @@ class AdminService {
     return tiendaAdminRepository.actualizar(id, { codigo, empresaId: Number(empresaId), departamentoId: depId, subdivisionId: subId, activo });
   }
 
-  async actualizarOrdenTiendas(ordenes) {
-    if (!Array.isArray(ordenes)) throw new Error('El nuevo orden debe ser un arreglo.');
-    return tiendaAdminRepository.actualizarOrden(ordenes);
-  }
-
   async listarPersonalTienda(tiendaId) {
     return tiendaAdminRepository.listarPersonalDetalle(tiendaId);
   }

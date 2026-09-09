@@ -12,10 +12,6 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
-# Subidas de archivos
-uploads/*
-!uploads/.gitkeep
-
 # IDEs y Editores
 .vscode/
 .idea/

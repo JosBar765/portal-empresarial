@@ -128,7 +128,7 @@ class ValeController {
       if (!vale.pdf_url) {
         return res.status(404).json({ error: 'El PDF de este vale aún no ha sido generado.' });
       }
-      return res.redirect(`/${vale.pdf_url}`);
+      return res.redirect(vale.pdf_url);
     } catch (error) {
       return res.status(404).json({ error: error.message });
     }
@@ -158,7 +158,7 @@ class ValeController {
       if (propuesta && propuesta.mimetype !== 'application/pdf') {
         throw new Error('La propuesta debe adjuntarse en formato PDF.');
       }
-      const vale = await valeService.entregar(req.user, Number(req.params.id), propuesta);
+      const vale = await valeService.entregar(req.user, Number(req.params.id), propuesta, req.body.idempotencyKey);
       return res.json(vale);
     } catch (error) {
       return res.status(400).json({ error: error.message });
@@ -212,7 +212,7 @@ class ValeController {
       if (archivo && archivo.mimetype !== 'application/pdf') {
         throw new Error('El documento de fusión debe adjuntarse en formato PDF.');
       }
-      const vale = await valeService.aprobarGeneral(req.user, Number(req.params.id), archivo);
+      const vale = await valeService.aprobarGeneral(req.user, Number(req.params.id), archivo, req.body.idempotencyKey);
       return res.json(vale);
     } catch (error) {
       return res.status(400).json({ error: error.message });

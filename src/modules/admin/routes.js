@@ -34,7 +34,6 @@ router.delete('/talleres/:id/tecnicos/:usuarioId', soloAdmin, (req, res) => admi
 router.get('/organizacion', soloAdmin, (req, res) => adminController.obtenerOrganizacion(req, res));
 router.get('/tiendas', soloAdmin, (req, res) => adminController.listarTiendas(req, res));
 router.post('/tiendas', soloAdmin, (req, res) => adminController.crearTienda(req, res));
-router.put('/tiendas/orden', soloAdmin, (req, res) => adminController.actualizarOrdenTiendas(req, res));
 router.put('/tiendas/:id', soloAdmin, (req, res) => adminController.actualizarTienda(req, res));
 router.get('/tiendas/:id/personal', soloAdmin, (req, res) => adminController.listarPersonalTienda(req, res));
 router.post('/tiendas/:id/personal', soloAdmin, (req, res) => adminController.agregarPersonalATienda(req, res));

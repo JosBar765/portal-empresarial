@@ -39,11 +39,11 @@ class RolRepository {
   }
 
   async establecerPermisos(rolId, permisoIds) {
-    return db.query(
-      'DELETE FROM rol_permisos WHERE rol_id = ?; INSERT INTO rol_permisos (rol_id, permiso_id) VALUES ...',
-      [rolId, permisoIds],
-      'rol_permiso:set'
-    );
+    await db.query('DELETE FROM rol_permisos WHERE rol_id = ?', [rolId], 'rol_permiso:delete_todos');
+    if (!permisoIds.length) return;
+    const placeholders = permisoIds.map(() => '(?, ?)').join(', ');
+    const params = permisoIds.flatMap(id => [rolId, id]);
+    return db.query(`INSERT INTO rol_permisos (rol_id, permiso_id) VALUES ${placeholders}`, params, 'rol_permiso:insertar_todos');
   }
 }
 

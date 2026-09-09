@@ -5,6 +5,7 @@ class UsuarioAdminRepository {
   async listarConDetalle() {
     return db.query(
       `SELECT u.*, r.nombre AS rol_nombre,
+              a.tienda_id AS tienda_id,
               CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS tienda_nombre,
               p.nombre AS paises_asignados,
               COALESCE(tt.taller_id, td.id) AS taller_id

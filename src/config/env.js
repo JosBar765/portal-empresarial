@@ -16,6 +16,13 @@ const config = {
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'portal_empresarial'
+  },
+  // Solo almacenamiento (PDFs/imágenes de Vales de Arte) — la base de datos
+  // de negocio del portal sigue siendo MySQL, nunca Supabase/Postgres.
+  supabase: {
+    url: process.env.SUPABASE_URL || '',
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    bucket: process.env.SUPABASE_STORAGE_BUCKET || 'vales_de-arte'
   }
 };
 

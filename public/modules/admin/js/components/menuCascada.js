@@ -20,7 +20,7 @@ export function construirArbolTiendas(tiendas) {
   return Object.keys(porPais).sort().map(pais => {
     const sueltas = [];
     const gruposPorDepto = {};
-    porPais[pais].slice().sort((a, b) => a.orden - b.orden).forEach(t => {
+    porPais[pais].slice().sort((a, b) => etiquetaTienda(a).localeCompare(etiquetaTienda(b))).forEach(t => {
       const depto = t.departamento_nombre || '';
       // Agrupación elegida: los departamentos "Trofex" (Ruta 1/Ruta 2) van
       // en submenú; el resto de tiendas del país quedan sueltas.

@@ -72,7 +72,8 @@ app.use(maintenanceGate);
 // -------------------------------------------------------------------------
 // 3. Recursos Protegidos (Requieren JWT válido, interceptados por authenticateJWT)
 // -------------------------------------------------------------------------
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Los adjuntos/PDFs de Vales de Arte ya no se sirven desde aquí — viven en
+// Supabase Storage (bucket público), ver src/core/files/supabaseStorage.js.
 
 // El Administrador tiene su propio panel en vez del dashboard de módulos —
 // si escribe /dashboard/ a mano, se le redirige al panel salvo que pida

@@ -137,6 +137,11 @@ export function abrirModalCrearVale() {
     formData.delete('documentos');
     getImagenes().forEach(f => formData.append('imagenes', f));
     getDocumentos().forEach(f => formData.append('documentos', f));
+    // Una sola key por intento de creación — si el envío falla (ej. corte de
+    // red) y el usuario reintenta desde el mismo modal de confirmación, se
+    // reenvía el mismo FormData con la misma key, para que el backend pueda
+    // detectar el reintento y no duplicar el vale.
+    formData.set('idempotencyKey', crypto.randomUUID());
 
     // Antes de crear el vale de verdad, se confirma con un modal resumen (el
     // modal de creación queda debajo, intacto, por si se cancela).

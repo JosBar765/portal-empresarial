@@ -2,9 +2,10 @@
 // Genera el PDF de un vale de arte y fusiona al final los documentos PDF adjuntos
 // (y, cuando el Encargado General fusiona un vale multi-taller, también las
 // propuestas de cada taller). El binario nunca se persiste en BD: solo se sube
-// vía fileStorage y se guarda su URL. Se regenera por completo en cada cambio
-// relevante (no se anexa sobre el PDF existente) para poder mantener el orden:
-// contenido -> bloque de modificación (si aplica) -> adjuntos -> propuestas fusionadas.
+// a Supabase Storage y se guarda su URL pública. Se regenera por completo en
+// cada cambio relevante (no se anexa sobre el PDF existente) para poder
+// mantener el orden: contenido -> bloque de modificación (si aplica) ->
+// adjuntos -> propuestas fusionadas.
 const fs = require('fs/promises');
 const path = require('path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
@@ -14,7 +15,6 @@ const PAGE_HEIGHT = 792;
 const MARGIN = 40;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const FOOTER_HEIGHT = 30;
-const UPLOADS_DIR = path.join(__dirname, '../../../../uploads');
 const LOGO_PATH = path.join(__dirname, '../../../../public/assets/logos/LOGO_GP_isotipo.png');
 
 // Paleta del layout tipo "recibo" (etiqueta gris pequeña sobre valor en negro,
@@ -104,7 +104,7 @@ class ValePdfService {
     // Fusionar documentos PDF adjuntos al final (nunca se re-almacenan, solo se copian sus páginas)
     for (const doc of docsAdjuntos) {
       if (doc.mime_type !== 'application/pdf') continue;
-      await this._fusionarPdfExterno(pdfDoc, path.join(UPLOADS_DIR, path.basename(doc.ruta)), doc.nombre_original);
+      await this._fusionarPdfExterno(pdfDoc, doc.ruta, doc.nombre_original);
     }
 
     // El checkbox de "ADJUNTOS" ya no se calcula: lo marca a mano el técnico al
@@ -115,9 +115,9 @@ class ValePdfService {
     return Buffer.from(bytes);
   }
 
-  async _fusionarPdfExterno(pdfDoc, rutaAbsoluta, nombreParaLog) {
+  async _fusionarPdfExterno(pdfDoc, url, nombreParaLog) {
     try {
-      const bytes = await fs.readFile(rutaAbsoluta);
+      const bytes = Buffer.from(await (await fetch(url)).arrayBuffer());
       const externo = await PDFDocument.load(bytes);
       const paginas = await pdfDoc.copyPages(externo, externo.getPageIndices());
       paginas.forEach(p => pdfDoc.addPage(p));
@@ -189,7 +189,7 @@ class ValePdfService {
         const doc = fila[j];
         const x = MARGIN + j * (anchoImg + gap);
         try {
-          const bytes = await fs.readFile(path.join(UPLOADS_DIR, path.basename(doc.ruta)));
+          const bytes = Buffer.from(await (await fetch(doc.ruta)).arrayBuffer());
           let embedded;
           if (doc.mime_type === 'image/png') {
             embedded = await ctx.pdfDoc.embedPng(bytes);

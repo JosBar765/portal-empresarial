@@ -140,15 +140,6 @@ class AdminController {
     }
   }
 
-  async actualizarOrdenTiendas(req, res) {
-    try {
-      await adminService.actualizarOrdenTiendas(req.body.ordenes);
-      return res.json({ ok: true });
-    } catch (error) {
-      return res.status(400).json({ error: error.message });
-    }
-  }
-
   async listarPersonalTienda(req, res) {
     try {
       const personal = await adminService.listarPersonalTienda(Number(req.params.id));

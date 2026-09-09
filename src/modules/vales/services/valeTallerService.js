@@ -3,12 +3,14 @@
 // reanudar / cancelar / revisar) y la fusión final del Encargado General
 // (aprobarGeneral) — el paso terminal del ciclo de un taller, no una feature
 // aparte, por eso vive aquí en vez de en un archivo propio.
+const crypto = require('crypto');
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
-const fileStorage = require('../../../core/files/fileStorage');
+const subirYRegistrarArchivo = require('../../../core/files/subirYRegistrarArchivo');
+const idempotencyRepository = require('../../../core/idempotency/idempotencyRepository');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
 const valeCatalogoService = require('./valeCatalogoService');
@@ -110,8 +112,18 @@ class ValeTallerService {
     return filas[0];
   }
 
-  async entregar(usuario, valeId, archivoPropuesta) {
+  // La idempotency key (campo del FormData, junto al archivo de propuesta)
+  // evita que un reintento de red vuelva a subir la propuesta y a escribir
+  // una segunda fila en vale_propuestas — se valida aquí en el backend, no
+  // solo confiando en que el frontend evite el doble envío. El chequeo vive
+  // DENTRO del lock de valeMutex (no antes) para que dos requests casi
+  // simultáneos con la misma key nunca lo evalúen en paralelo.
+  async entregar(usuario, valeId, archivoPropuesta, idempotencyKey) {
     return valeMutex.conLockDeVale(valeId, async () => {
+      const key = idempotencyKey || crypto.randomUUID();
+      const previo = await idempotencyRepository.buscar(key);
+      if (previo) return previo.resultado;
+
       await requerirVale(valeId);
       const fila = await this._filaDelTecnico(usuario, valeId);
       if (fila.estado !== ESTADOS_TALLER.EN_PROCESO) {
@@ -119,10 +131,13 @@ class ValeTallerService {
       }
       let url = null;
       if (archivoPropuesta) {
-        const saved = await fileStorage.saveFile(archivoPropuesta.buffer, archivoPropuesta.originalname, archivoPropuesta.mimetype);
-        url = saved.path;
+        await subirYRegistrarArchivo({
+          buffer: archivoPropuesta.buffer, nombreOriginal: archivoPropuesta.originalname, mimeType: archivoPropuesta.mimetype,
+          registrar: async (subida) => { url = subida.url; return propuestaRepository.crear(valeId, usuario.id, url); }
+        });
+      } else {
+        await propuestaRepository.crear(valeId, usuario.id, null);
       }
-      await propuestaRepository.crear(valeId, usuario.id, url);
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_REVISION);
       fila.estado = ESTADOS_TALLER.EN_REVISION;
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, `${etiquetaActorTaller(usuario)} entregó propuesta`);
@@ -136,14 +151,17 @@ class ValeTallerService {
       // Si quien entrega es el ENCARGADO de este mismo taller (se autoasignó
       // el vale), su trabajo se autoaprueba — no pasa por un período de
       // revisión de sí mismo.
+      let resultado;
       if (url) {
         const taller = await tallerRepository.obtenerPorId(fila.taller_id);
         const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
         if (taller && taller.encargado_id === idEfectivo) {
-          return this._revisarPropuestaInterno(usuario, valeId, fila, { aprobar: true, esAutoaprobacion: true });
+          resultado = await this._revisarPropuestaInterno(usuario, valeId, fila, { aprobar: true, esAutoaprobacion: true });
         }
       }
-      return enriquecer(actualizado);
+      if (!resultado) resultado = enriquecer(actualizado);
+      await idempotencyRepository.registrar(key, 'vales.entregar', resultado);
+      return resultado;
     });
   }
 
@@ -321,8 +339,15 @@ class ValeTallerService {
   // Encargado General: fusiona y aprueba vales multi-taller (también el
   // punto de reentrada cuando el asesor rechaza un vale)
   // -----------------------------------------------------------------------
-  async aprobarGeneral(usuario, valeId, archivoFusion) {
+  // Misma idempotency key por FormData que entregar() — un reintento de red
+  // sobre esta fusión no debe volver a subir el documento ni volver a sellar
+  // fusionado_por/fusionado_en con una fecha distinta.
+  async aprobarGeneral(usuario, valeId, archivoFusion, idempotencyKey) {
     return valeMutex.conLockDeVale(valeId, async () => {
+      const key = idempotencyKey || crypto.randomUUID();
+      const previo = await idempotencyRepository.buscar(key);
+      if (previo) return previo.resultado;
+
       const vale = await requerirVale(valeId);
       if (vale.estado !== ESTADOS.APROBADO_DEPARTAMENTO) {
         throw new Error('Solo se pueden fusionar y aprobar vales en estado APROBADO_DEPARTAMENTO.');
@@ -333,7 +358,6 @@ class ValeTallerService {
       if (!archivoFusion) {
         throw new Error('Debe adjuntar el documento de fusión antes de aprobar.');
       }
-      const saved = await fileStorage.saveFile(archivoFusion.buffer, archivoFusion.originalname, archivoFusion.mimetype);
 
       // El documento que sube aquí el Encargado General queda disponible
       // como propuesta (enlace "Ver propuesta"), pero NUNCA se fusiona
@@ -341,7 +365,10 @@ class ValeTallerService {
       // documento ADMINISTRATIVO del vale (encabezado, cliente, venta,
       // firma), no el lugar donde vive el diseño/propuesta.
       await valeCreacionService.regenerarPdf(valeId);
-      await valeRepository.actualizarPropuestaGeneral(valeId, saved.path);
+      await subirYRegistrarArchivo({
+        buffer: archivoFusion.buffer, nombreOriginal: archivoFusion.originalname, mimeType: archivoFusion.mimetype,
+        registrar: (subida) => valeRepository.actualizarPropuestaGeneral(valeId, subida.url)
+      });
       // Sella quién fusionó y cuándo — es lo que le permite a
       // _trabajoEncargadoTaller mostrarle a ESE encargado (y solo a él) una
       // fila de fusión con fecha propia, sin depender del estado del vale
@@ -352,7 +379,9 @@ class ValeTallerService {
         'Encargado General adjuntó la fusión final del trabajo de los talleres y aprobó el vale');
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({ vale: actualizado, accion: 'aprobado (fusión general)', actor: usuario.nombre, actorId: usuario.id, salas: [`asesor:${vale.asesor_id}`] });
-      return enriquecer(actualizado);
+      const resultado = enriquecer(actualizado);
+      await idempotencyRepository.registrar(key, 'vales.aprobarGeneral', resultado);
+      return resultado;
     });
   }
 }

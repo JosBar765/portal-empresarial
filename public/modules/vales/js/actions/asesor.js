@@ -16,7 +16,7 @@ export function abrirModalDecisionAsesor(vale) {
       <p style="font-size:13px;margin-bottom:14px;">Revisa el vale de arte final y decide qué hacer.</p>
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
         <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale de arte (PDF)</a>
-        ${vale.propuesta_general_url ? `<a href="/${vale.propuesta_general_url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
+        ${vale.propuesta_general_url ? `<a href="${vale.propuesta_general_url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
       </div>
     `,
     footerHtml: `

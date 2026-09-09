@@ -87,7 +87,7 @@ export async function abrirModalRevisar(vale) {
         ${!ultima
           ? 'El técnico canceló el proceso — no hay propuesta que revisar.'
           : (ultima.url
-              ? `<a href="/${ultima.url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta adjunta</a>`
+              ? `<a href="${ultima.url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta adjunta</a>`
               : 'El técnico no adjuntó documento de propuesta (no se puede aprobar en blanco).')}
       </p>
       <div class="form-field">
@@ -185,6 +185,10 @@ export async function abrirModalAprobarGeneral(vale) {
     footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Aprobar y Fusionar</button>`
   });
   const getFusion = wireDropzone(overlay, '#input-fusion', '.archivo-lista');
+  // Una sola key por apertura del modal — si el envío falla y el usuario
+  // reintenta con "Aprobar y Fusionar" de nuevo, se reenvía con la misma key
+  // para que el backend detecte el reintento y no duplique la fusión.
+  const idempotencyKey = crypto.randomUUID();
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
   overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
     const file = getFusion()[0];
@@ -194,6 +198,7 @@ export async function abrirModalAprobarGeneral(vale) {
     }
     const formData = new FormData();
     formData.append('fusion', file);
+    formData.append('idempotencyKey', idempotencyKey);
     const btn = overlay.querySelector('#btn-confirmar');
     btn.disabled = true;
     try {

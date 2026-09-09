@@ -5,8 +5,8 @@ const router = express.Router();
 const valeController = require('./controllers/valeController');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
-// Buffer en memoria: fileStorage.saveFile() escribe a disco desde el buffer;
-// el binario nunca se guarda en la base de datos, solo la ruta resultante.
+// Buffer en memoria: subirYRegistrarArchivo() sube el buffer a Supabase
+// Storage; el binario nunca se guarda en la base de datos, solo la URL resultante.
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 3 * 1024 * 1024 }

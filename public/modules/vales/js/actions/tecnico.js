@@ -28,11 +28,16 @@ export function abrirModalEntregar(vale) {
     footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-enviar">Entregar</button>`
   });
   const getPropuesta = wireDropzone(overlay, '#input-propuesta', '.archivo-lista');
+  // Una sola key por apertura del modal — si el envío falla y el usuario
+  // reintenta con "Entregar" de nuevo, se reenvía con la misma key para que
+  // el backend detecte el reintento y no duplique la propuesta.
+  const idempotencyKey = crypto.randomUUID();
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
   overlay.querySelector('#btn-enviar').addEventListener('click', async () => {
     const file = getPropuesta()[0];
     const formData = new FormData();
     if (file) formData.append('propuesta', file);
+    formData.append('idempotencyKey', idempotencyKey);
     const btn = overlay.querySelector('#btn-enviar');
     btn.disabled = true;
     try {

@@ -160,7 +160,7 @@ function renderTablaDashboard(vales) {
       { icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') }
     ];
     if (v.propuesta_general_url) {
-      acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(`/${v.propuesta_general_url}`, '_blank') });
+      acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_general_url, '_blank') });
     }
     acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
     acciones.forEach(accion => {
