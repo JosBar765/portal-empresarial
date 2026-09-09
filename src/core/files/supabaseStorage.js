@@ -19,11 +19,6 @@ function obtenerCliente() {
   return client;
 }
 
-// `error.message` de storage-js suele venir genérico ("Forbidden",
-// "Bucket not found") sin decir POR QUÉ — la respuesta real de la API de
-// Storage trae más contexto en `status`/`statusCode`/`error` (el nombre
-// corto del error, ej. "InvalidJWT", "AccessDenied", "NoSuchBucket").
-// Se arma un mensaje con todo lo disponible para no tener que adivinar.
 function detalleError(error, bucketUsado) {
   const partes = [error.message];
   if (error.status || error.statusCode) partes.push(`HTTP ${error.status || error.statusCode}`);
