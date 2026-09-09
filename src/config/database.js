@@ -14,7 +14,8 @@ async function initializeDatabase() {
       database: config.db.database,
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0
+      queueLimit: 0,
+      dateStrings: true
     });
 
     // Probar conexión rápida
@@ -28,12 +29,6 @@ async function initializeDatabase() {
   }
 }
 
-/**
- * Método de consulta único hacia MySQL. `tag` es un identificador corto de la
- * operación (ej. 'vale:insert') que MySQL ignora por completo — el SQL
- * parametrizado corre tal cual; existe solo para que las llamadas queden
- * documentadas de forma consistente en cada repositorio.
- */
 async function query(sql, params = [], tag = null) {
   try {
     const [rows] = await pool.query(sql, params);
@@ -49,9 +44,5 @@ const listo = initializeDatabase();
 module.exports = {
   query,
   isReady: () => pool !== null,
-  // Promesa que resuelve una vez establecida la conexión — para el código que
-  // necesita consultar la BD en el mismo tick en que se hace `require()`
-  // (p. ej. maintenanceMiddleware, que precarga el estado de mantenimiento al
-  // arrancar) y de otro modo correría antes de que el pool exista.
   listo
 };
