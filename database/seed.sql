@@ -120,7 +120,7 @@ INSERT INTO `usuarios` (`id`, `nombre`, `email`, `password_hash`, `rol_id`) VALU
 (22, 'Velky Cuevas', 'tegus@grupopremia.com', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 3),
 (23, 'Stefany Luna', 'gerencianic@grupopremia.com', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 3),
 -- Mismo nombre que el id 17, pero es una cuenta distinta (correo distinto)
-(24, 'Victor Tobar', 'costarica@grupopremia.com', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 3),
+(24, 'Victor Tobar', 'costarica1@grupopremia.com', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 3),
 -- Encargados de diseño local
 (27, 'Jonnathan Aquino', 'disenopremiagt2@grupopremia.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),
 (29, 'Rodrigo Hernandez', 'disenosalvador@grupopremia.com', '$2a$10$DsZ1CMbgsndw990I4xBOLOJ8MmKTcaH8PM4468adlORmh4O8dVlva', 10),

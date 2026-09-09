@@ -2,20 +2,22 @@
 const db = require('../../../config/database');
 
 class TiendaAdminRepository {
-  // `tiendas` no tiene `pais_id`/`nombre` propios — el país sale de la
-  // empresa dueña y el nombre a mostrar se deriva como "{EMPRESA},
-  // {SUBDIVISIÓN}" (o solo "{EMPRESA}" sin subdivisión).
   async listarConDetalle() {
     return db.query(
-      `SELECT t.*, e.nombre AS empresa_nombre, e.pais_id AS pais_id, p.nombre AS pais_nombre,
-              d.nombre AS departamento_nombre, s.nombre AS subdivision_nombre,
-              CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS nombre
+      `SELECT 
+        t.*, 
+        e.nombre AS empresa_nombre, 
+        e.pais_id AS pais_id, 
+        p.nombre AS pais_nombre,
+        d.nombre AS departamento_nombre, 
+        s.nombre AS subdivision_nombre,
+        CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS nombre
        FROM tiendas t
        JOIN empresas e ON e.id = t.empresa_id
        LEFT JOIN paises p ON p.id = e.pais_id
        JOIN departamentos d ON d.id = t.departamento_id
        LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
-       ORDER BY t.orden`,
+       ORDER BY nombre`,
       [],
       'tienda_admin:list'
     );
@@ -85,7 +87,12 @@ class TiendaAdminRepository {
 
   async listarPersonalDetalle(tiendaId) {
     return db.query(
-      `SELECT u.id, u.nombre, u.email, r.nombre AS rol_nombre, u.rol_id, 'directo' AS tipo_vinculo
+      `SELECT 
+        u.id, u.nombre, 
+        u.email, 
+        r.nombre AS rol_nombre,
+        u.rol_id, 
+        'directo' AS tipo_vinculo
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
        JOIN asesores a ON a.usuario_id = u.id AND a.tienda_id = ?

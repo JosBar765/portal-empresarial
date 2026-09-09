@@ -110,7 +110,6 @@ CREATE TABLE IF NOT EXISTS `tiendas` (
   `empresa_id`      INT NOT NULL,
   `departamento_id` INT NOT NULL,
   `subdivision_id`  INT DEFAULT NULL,
-  `orden`           INT NOT NULL DEFAULT 0,
   `activo`          TINYINT(1) NOT NULL DEFAULT 1,
   FOREIGN KEY (`empresa_id`) REFERENCES `empresas` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (`departamento_id`) REFERENCES `departamentos` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,

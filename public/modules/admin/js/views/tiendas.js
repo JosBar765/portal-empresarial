@@ -27,7 +27,15 @@ export function renderTiendas() {
     </div>
     <div class="tabla-wrapper">
       <table class="data-table sticky-header">
-        <thead><tr><th>Orden</th><th>Tienda</th><th>País</th><th>Departamento</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Tienda</th>
+            <th>País</th>
+            <th>Departamento</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
         <tbody id="tiendas-tbody"></tbody>
       </table>
     </div>
@@ -44,7 +52,6 @@ export function renderTiendas() {
   const tbody = $('#tiendas-tbody');
   tbody.innerHTML = tiendasFiltradas.map(t => `
     <tr>
-      <td data-label="Orden">${t.orden}</td>
       <td data-label="Tienda">${escapeHtml(t.nombre)}<div class="tabla-secundaria">${escapeHtml(t.codigo)}</div></td>
       <td data-label="País">${t.pais_nombre ? escapeHtml(t.pais_nombre) : '-'}</td>
       <td data-label="Departamento/Subdivisión">${escapeHtml(t.departamento_nombre)}${t.subdivision_nombre ? '<div class="tabla-secundaria">' + escapeHtml(t.subdivision_nombre) + '</div>' : ''}</td>
