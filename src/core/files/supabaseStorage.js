@@ -1,11 +1,4 @@
 // src/core/files/supabaseStorage.js
-// Almacenamiento de los PDFs/imágenes de Vales de Arte en Supabase Storage
-// — exclusivamente eso, la base de datos de negocio del portal sigue siendo
-// MySQL. Reemplaza al extinto src/core/files/fileStorage.js (disco local,
-// servido bajo /uploads con JWT requerido vía authenticateJWT) para ese
-// módulo. El bucket es público por decisión explícita del usuario — a
-// diferencia de /uploads, un adjunto ya no exige sesión iniciada para
-// verse, solo conocer su URL (nombre de archivo aleatorio, no listable).
 const crypto = require('crypto');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
@@ -14,29 +7,19 @@ const { StorageUploadError } = require('./errores');
 
 const bucket = config.supabase.bucket;
 
-// Cliente perezoso: a diferencia de MySQL (imprescindible para todo el
-// portal, ver src/config/database.js), Supabase solo hace falta para el
-// módulo de Vales de Arte — construirlo al cargar este archivo tumbaría el
-// servidor entero si SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY todavía no
-// están configuradas, aunque nadie esté subiendo un archivo. Se construye
-// una sola vez, en el primer uso real.
+// Supabase se construye una sola vez, en el primer uso real.
 let client = null;
 function obtenerCliente() {
   if (client) return client;
-  if (!config.supabase.url || !config.supabase.serviceRoleKey) {
-    // Error genérico a propósito: tanto subir() como eliminar() lo dejan
-    // subir sin atrapar, y es subirYRegistrarArchivo quien lo reclasifica
-    // como StorageUploadError o StorageRollbackError según en cuál de los
-    // dos pasos ocurrió.
-    throw new Error('Supabase Storage no está configurado (faltan SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY en .env).');
+  if (!config.supabase.url) {
+    throw new Error('Supabase Storage no está configurado (faltan SUPABASE_URL en .env).');
+  } else if (!config.supabase.secretKey) {
+    throw new Error('Supabase Storage no está configurado (faltan SUPABASE_SERVICE_ROLE_KEY en .env).');
   }
-  client = createClient(config.supabase.url, config.supabase.serviceRoleKey);
+  client = createClient(config.supabase.url, config.supabase.secretKey);
   return client;
 }
 
-// Prefijo exacto que arma getPublicUrl() para este bucket — se usa para
-// recuperar el path dentro del bucket a partir de la URL guardada en BD,
-// sin tener que guardar ambos valores por separado.
 function prefijoUrlPublica() {
   const { data } = obtenerCliente().storage.from(bucket).getPublicUrl('');
   return data.publicUrl;

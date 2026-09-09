@@ -11,18 +11,16 @@ const config = {
   jwtSecret: process.env.JWT_SECRET || 'fallback_development_jwt_secret_123456_987654321',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
   db: {
-    host: process.env.DB_HOST || '127.0.0.1',
+    host: process.env.DB_HOST || '',
     port: parseInt(process.env.DB_PORT, 10) || 3306,
-    user: process.env.DB_USER || 'root',
+    user: process.env.DB_USER || '',
     password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'portal_empresarial'
+    database: process.env.DB_NAME || ''
   },
-  // Solo almacenamiento (PDFs/imágenes de Vales de Arte) — la base de datos
-  // de negocio del portal sigue siendo MySQL, nunca Supabase/Postgres.
   supabase: {
     url: process.env.SUPABASE_URL || '',
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-    bucket: process.env.SUPABASE_STORAGE_BUCKET || 'vales_de-arte'
+    secretKey: process.env.SUPABASE_SECRET_KEY || '',
+    bucket: process.env.SUPABASE_STORAGE_BUCKET || ''
   }
 };
 
