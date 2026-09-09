@@ -41,6 +41,14 @@ class ValeRepository {
     return rows[0] || null;
   }
 
+  // Solo para revertir una creación fallida (ver valeCreacionService.
+  // revertirCreacionFallida) — el resto del ciclo de vida del vale nunca
+  // borra filas, solo cambia estado. El cascade de FKs (vale_talleres,
+  // vale_documentos, vale_historial, etc.) se encarga del resto.
+  async eliminar(id) {
+    await db.query('DELETE FROM vales WHERE id = ?', [id], 'vale:delete');
+  }
+
   async listarTodos() {
     return db.query('SELECT * FROM vales', [], 'vale:list_all');
   }

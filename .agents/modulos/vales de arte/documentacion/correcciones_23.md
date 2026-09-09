@@ -199,3 +199,39 @@ mantuvieron iguales salvo donde el propio punto 2 pedía el arreglo.
 (diseño del PDF) no cambiaron, solo su forma de leer bytes de adjuntos.
 
 No se commiteó ni se subió nada — queda pendiente de pedido explícito.
+
+## Adenda: `crearVale()` dejaba un vale huérfano si Supabase fallaba
+
+Ya en producción, el usuario reportó que un 403 "Forbidden" de Supabase
+Storage (políticas del bucket sin configurar) sí bloqueaba la subida del
+adjunto, pero el vale se guardaba igual en MySQL. Se reprodujo en local
+(sin `SUPABASE_URL`/`SUPABASE_SECRET_KEY` configuradas, mismo efecto que un
+403) creando un vale real con una imagen adjunta: el formulario mostró el
+error esperado, pero quedó una fila real en `vales` (sin PDF, sin
+adjuntos, sin historial, sin notificación al supervisor).
+
+**Causa**: en `valeCreacionService.crearVale()`, el INSERT principal
+(`valeRepository.crear`, dentro de `valeMutex.conColaDeCreacion`) ocurre
+ANTES de `guardarAdjuntos()` — el primer punto que toca Supabase. La
+garantía de `subirYRegistrarArchivo` (punto 4 de esta misma corrección)
+solo cubre la subida+registro de UN archivo; no sabe nada del vale que la
+originó, así que no revertía el INSERT si `guardarAdjuntos`/
+`regenerarPdf` fallaban después.
+
+**Arreglo**: `guardarAdjuntos()`, el registro de historial y
+`regenerarPdf()` ahora corren dentro de un `try/catch` en `crearVale()`.
+Si cualquiera falla, `revertirCreacionFallida(valeId)` (nuevo método)
+borra del bucket lo que sí llegó a subirse (adjuntos ya registrados en
+`vale_documentos`, PDF si ya se generó — best-effort, no bloquea el
+rollback si Supabase sigue caído) y luego borra la fila de `vales` — el
+`ON DELETE CASCADE` ya existente en el esquema se lleva
+`vale_documentos`/`vale_talleres`/`vale_historial` sin necesitar borrarlos
+a mano. Se agregó `valeRepository.eliminar(id)` (no existía; el resto del
+ciclo de vida del vale nunca borra filas, solo cambia estado). Con esto,
+`crearVale()` vuelve a ser todo-o-nada: o el vale queda completo (fila +
+adjuntos + PDF + historial), o no queda nada.
+
+**Verificado en vivo**: se repitió la reproducción exacta después del
+arreglo (mismo asesor, mismo adjunto, Supabase sin configurar) — el
+formulario mostró el mismo error al usuario, pero esta vez `SELECT COUNT(*)
+FROM vales` volvió a 0 filas — nada quedó huérfano.

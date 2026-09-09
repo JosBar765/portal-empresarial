@@ -96,11 +96,23 @@ class ValeCreacionService {
       });
     });
 
-    await this.guardarAdjuntos(valeId, archivos, usuario.id, false);
-    const nombresTalleres = await this.nombresDeTalleres(datos.talleresIds);
-    await registrarHistorial(valeId, usuario.id, null, null, ESTADOS.ESPERANDO_AUTORIZACION,
-      `Vale de arte creado por el asesor — esperando autorización del Supervisor (taller${datos.talleresIds.length > 1 ? 'es' : ''} solicitado${datos.talleresIds.length > 1 ? 's' : ''}: ${nombresTalleres})`);
-    await this.regenerarPdf(valeId);
+    // El INSERT de arriba ya dejó la fila en `vales` — de aquí en adelante
+    // todo lo que puede fallar (subir adjuntos, generar el PDF) toca
+    // Supabase. subirYRegistrarArchivo ya revierte SU PROPIA subida si el
+    // registro en BD falla, pero no sabe nada del vale que lo originó —
+    // por eso, si cualquier paso de este bloque falla, se revierte la
+    // creación completa (revertirCreacionFallida) en vez de dejar un vale
+    // huérfano sin PDF ni adjuntos.
+    try {
+      await this.guardarAdjuntos(valeId, archivos, usuario.id, false);
+      const nombresTalleres = await this.nombresDeTalleres(datos.talleresIds);
+      await registrarHistorial(valeId, usuario.id, null, null, ESTADOS.ESPERANDO_AUTORIZACION,
+        `Vale de arte creado por el asesor — esperando autorización del Supervisor (taller${datos.talleresIds.length > 1 ? 'es' : ''} solicitado${datos.talleresIds.length > 1 ? 's' : ''}: ${nombresTalleres})`);
+      await this.regenerarPdf(valeId);
+    } catch (error) {
+      await this.revertirCreacionFallida(valeId);
+      throw error;
+    }
 
     const vale = await valeRepository.obtenerPorId(valeId);
     // Un asesor puede tener MÁS de un supervisor cubriéndolo a la vez
@@ -276,6 +288,31 @@ class ValeCreacionService {
   async nombresDeTalleres(talleresIds) {
     const talleres = await tallerRepository.listarActivos();
     return talleresIds.map(id => (talleres.find(t => t.id === id) || {}).nombre || `#${id}`).join(', ');
+  }
+
+  // Deshace un vale a medio crear cuando falla algo después del INSERT
+  // principal (ver el try/catch en crearVale). Borra del bucket lo que sí
+  // llegó a subirse y registrarse (adjuntos, PDF) y luego la fila de
+  // `vales` — el cascade de FKs se lleva vale_documentos/vale_talleres/
+  // vale_historial. La limpieza de Storage es best-effort: si Supabase
+  // sigue caído no hay forma de borrar ahí, pero igual se borra el vale de
+  // MySQL (no vale la pena bloquear el rollback completo por un archivo
+  // que de todas formas nunca se registró en ningún lado).
+  async revertirCreacionFallida(valeId) {
+    const vale = await valeRepository.obtenerPorId(valeId);
+    if (!vale) return;
+    const documentos = await documentoRepository.listarPorVale(valeId);
+    for (const doc of documentos) {
+      try {
+        await supabaseStorage.eliminar(doc.ruta);
+      } catch { /* best-effort — el vale se borra de todas formas */ }
+    }
+    if (vale.pdf_url) {
+      try {
+        await supabaseStorage.eliminar(vale.pdf_url);
+      } catch { /* best-effort */ }
+    }
+    await valeRepository.eliminar(valeId);
   }
 
   async guardarAdjuntos(valeId, archivos, subidoPor, esModificacion) {
