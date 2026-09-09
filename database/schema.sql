@@ -271,7 +271,7 @@ CREATE TABLE IF NOT EXISTS `vale_historial` (
   `vale_id`         INT NOT NULL,
   `usuario_id`      INT NOT NULL,
   `taller_id`       INT DEFAULT NULL,
-  `tecnico_id`      INT DEFAULT NULL COMMENT,
+  `tecnico_id`      INT DEFAULT NULL,
   `estado_anterior` VARCHAR(50) DEFAULT NULL,
   `estado_nuevo`    VARCHAR(50) NOT NULL,
   `accion`          VARCHAR(150) NOT NULL,
