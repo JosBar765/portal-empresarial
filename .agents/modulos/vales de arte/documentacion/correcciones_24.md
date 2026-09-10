@@ -265,6 +265,9 @@ sin ninguna columna de encargado. Se recomienda renombrarla a
 no mezclar una migración de nombre adicional, no pedida explícitamente, con
 el resto de los cambios.
 
+> **Actualización (correcciones #25)**: renombrada a `taller_tiendas` — ver
+> `correcciones_25.md`.
+
 ## Hallazgo aparte (no corregido en esta ronda): datos faltantes en `database/users.sql`
 
 Al reimportar la base de datos desde cero para las pruebas, el `INSERT INTO

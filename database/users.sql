@@ -165,7 +165,7 @@ INSERT INTO `talleres` (`id`, `nombre`, `encargado_id`, `tienda_id`) VALUES
 (12, 'Diseño Local - MAN', 43, 11),
 (14, 'Diseño Local - SJO', 47, 13);
 
-INSERT INTO `encargado_tienda` (`taller_id`, `tienda_id`) VALUES
+INSERT INTO `taller_tiendas` (`taller_id`, `tienda_id`) VALUES
 (1, 1), (1, 2),
 (2, 1), (2, 2),
 (3, 1), (3, 2),

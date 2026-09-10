@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS `talleres` (
   FOREIGN KEY (`tienda_id`) REFERENCES `tiendas` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `encargado_tienda` (
+CREATE TABLE IF NOT EXISTS `taller_tiendas` (
   `taller_id` INT NOT NULL,
   `tienda_id` INT NOT NULL,
   PRIMARY KEY (`taller_id`, `tienda_id`),
