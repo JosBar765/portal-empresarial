@@ -91,6 +91,28 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 -- Encargado de taller de diseño local: mismos permisos atómicos que Diseño
 (10, 1), (10, 9), (10, 10), (10, 11);
 
+-- Catálogos del módulo de Vales de Arte (antes ENUM en línea en schema.sql,
+-- ver analisis_correcciones_24.md #5) — mismos strings que usaban los ENUM,
+-- para que el resto del código (que sigue trabajando con estos nombres, no
+-- con los ids) no note el cambio.
+INSERT INTO `estados_vale` (`id`, `nombre`) VALUES
+(1, 'ESPERANDO_AUTORIZACION'), (2, 'CREADO'), (3, 'APROBADO_DEPARTAMENTO'),
+(4, 'PENDIENTE_CONFIRMACION'), (5, 'RECIBIDO'), (6, 'SOLICITANDO_MODIFICACION'),
+(7, 'MODIFICADO'), (8, 'CONFIRMADO');
+
+INSERT INTO `tipos_autorizacion` (`id`, `nombre`) VALUES
+(1, 'CREACION'), (2, 'MODIFICACION');
+
+INSERT INTO `estados_taller` (`id`, `nombre`) VALUES
+(1, 'PENDIENTE_ASIGNACION'), (2, 'ASIGNADO'), (3, 'EN_PROCESO'),
+(4, 'EN_PAUSA'), (5, 'EN_REVISION'), (6, 'APROBADO');
+
+INSERT INTO `estados_solicitud_modificacion` (`id`, `nombre`) VALUES
+(1, 'PENDIENTE'), (2, 'APROBADA'), (3, 'RECHAZADA');
+
+INSERT INTO `tipos_documento` (`id`, `nombre`) VALUES
+(1, 'imagen'), (2, 'documento');
+
 INSERT INTO `departamentos` (`id`, `nombre`, `pais_id`) VALUES
 (1, 'Ventas Munditrofeos', 1),
 (2, 'Ventas Premia Z13', 1),

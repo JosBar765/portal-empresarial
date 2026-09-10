@@ -20,8 +20,9 @@ const ROL_SUPERVISOR = 3;
 const ROL_ADMINISTRADOR = 1;
 // Diseño, Diseño 3D y Protextil son talleres únicos a nivel de toda la
 // empresa (a diferencia de Diseño Local, que tiene uno por tienda) — un solo
-// encargado activo a la vez.
-const ROLES_ENCARGADO_UNICO = [4, 5, 9];
+// encargado activo a la vez. El Asistente de Diseño es igual de único (un
+// solo clon comodín para los 3 talleres, no uno por taller).
+const ROLES_ENCARGADO_UNICO = [4, 5, 9, 7];
 const ROL_TECNICO = 6;
 const ROL_ASISTENTE = 7;
 const ROL_ENCARGADO_DISENO_LOCAL = 10;
@@ -125,6 +126,9 @@ class AdminService {
     }
     if (Number(id) === Number(usuarioActualId) && !activo) {
       throw new Error('No puedes desactivar tu propia cuenta.');
+    }
+    if (activo && usuario) {
+      await this._validarEncargadoUnico(usuario.rol_id, id);
     }
     return usuarioAdminRepository.establecerActivo(id, activo);
   }

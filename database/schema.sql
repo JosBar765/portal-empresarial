@@ -141,6 +141,33 @@ CREATE TABLE IF NOT EXISTS `taller_tecnicos` (
   INDEX `idx_taller_tecnicos_taller` (`taller_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Catálogos de estados/tipos (antes ENUM en línea) — mismo patrón id/nombre
+-- que `roles`/`permisos`, para no hardcodear los valores en el esquema.
+CREATE TABLE IF NOT EXISTS `estados_vale` (
+  `id`     INT AUTO_INCREMENT PRIMARY KEY,
+  `nombre` VARCHAR(50) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `tipos_autorizacion` (
+  `id`     INT AUTO_INCREMENT PRIMARY KEY,
+  `nombre` VARCHAR(50) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `estados_taller` (
+  `id`     INT AUTO_INCREMENT PRIMARY KEY,
+  `nombre` VARCHAR(50) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `estados_solicitud_modificacion` (
+  `id`     INT AUTO_INCREMENT PRIMARY KEY,
+  `nombre` VARCHAR(50) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `tipos_documento` (
+  `id`     INT AUTO_INCREMENT PRIMARY KEY,
+  `nombre` VARCHAR(50) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `vales` (
   `id`                    INT AUTO_INCREMENT PRIMARY KEY,
   `correlativo`           VARCHAR(60) NOT NULL UNIQUE,
@@ -177,17 +204,19 @@ CREATE TABLE IF NOT EXISTS `vales` (
   `talleres_solicitados`  VARCHAR(100) DEFAULT NULL,
   `autorizado_por`        INT DEFAULT NULL,
   `autorizado_en`         DATETIME DEFAULT NULL,
-  `autorizacion_tipo`     ENUM('CREACION','MODIFICACION') DEFAULT NULL,
+  `autorizacion_tipo_id`  INT DEFAULT NULL,
   `confirmado_en`         DATETIME DEFAULT NULL,
-  `estado` ENUM('ESPERANDO_AUTORIZACION','CREADO','APROBADO_DEPARTAMENTO','PENDIENTE_CONFIRMACION','RECIBIDO','SOLICITANDO_MODIFICACION','MODIFICADO','CONFIRMADO') NOT NULL DEFAULT 'ESPERANDO_AUTORIZACION',
+  `estado_id`             INT NOT NULL,
   `creado_en`             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `actualizado_en`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (`asesor_id`)        REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  FOREIGN KEY (`tienda_id`)        REFERENCES `tiendas` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  FOREIGN KEY (`vale_original_id`) REFERENCES `vales` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  FOREIGN KEY (`autorizado_por`)   REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  FOREIGN KEY (`fusionado_por`)    REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  INDEX `idx_vales_estado` (`estado`),
+  FOREIGN KEY (`asesor_id`)          REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`tienda_id`)          REFERENCES `tiendas` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`vale_original_id`)   REFERENCES `vales` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  FOREIGN KEY (`autorizado_por`)     REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  FOREIGN KEY (`fusionado_por`)      REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  FOREIGN KEY (`autorizacion_tipo_id`) REFERENCES `tipos_autorizacion` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`estado_id`)          REFERENCES `estados_vale` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  INDEX `idx_vales_estado` (`estado_id`),
   INDEX `idx_vales_asesor` (`asesor_id`),
   INDEX `idx_vales_fecha_entrega` (`fecha_entrega`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -197,7 +226,7 @@ CREATE TABLE IF NOT EXISTS `vale_talleres` (
   `vale_id`          INT NOT NULL,
   `taller_id`        INT NOT NULL,
   `tecnico_id`       INT DEFAULT NULL,
-  `estado`           ENUM('PENDIENTE_ASIGNACION','ASIGNADO','EN_PROCESO','EN_PAUSA','EN_REVISION','APROBADO') NOT NULL DEFAULT 'PENDIENTE_ASIGNACION',
+  `estado_id`        INT NOT NULL,
   `fecha_asignacion` DATETIME DEFAULT NULL,
   `activo`           TINYINT(1) NOT NULL DEFAULT 1,
   `creado_en`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -205,6 +234,7 @@ CREATE TABLE IF NOT EXISTS `vale_talleres` (
   FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`taller_id`)  REFERENCES `talleres` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (`tecnico_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`estado_id`)  REFERENCES `estados_taller` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   INDEX `idx_vale_talleres_vale` (`vale_id`),
   INDEX `idx_vale_talleres_tecnico` (`tecnico_id`, `activo`),
   INDEX `idx_vale_talleres_taller` (`taller_id`, `activo`)
@@ -229,11 +259,12 @@ CREATE TABLE IF NOT EXISTS `vale_solicitudes_modificacion` (
   `cotizacion`       DECIMAL(10,2) NOT NULL,
   `talleres_ids`     VARCHAR(100) NOT NULL,
   `justificacion`    TEXT NOT NULL,
-  `estado`           ENUM('PENDIENTE','APROBADA','RECHAZADA') NOT NULL DEFAULT 'PENDIENTE',
+  `estado_id`        INT NOT NULL,
   `creado_en`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `actualizado_en`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`vale_original_id`) REFERENCES `vales` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`asesor_id`)        REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`estado_id`)        REFERENCES `estados_solicitud_modificacion` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   INDEX `idx_solicitudes_vale_original` (`vale_original_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -253,7 +284,7 @@ CREATE TABLE IF NOT EXISTS `vale_documentos` (
   `vale_id`         INT NOT NULL,
   `nombre_original` VARCHAR(255) NOT NULL,
   `ruta`            VARCHAR(500) NOT NULL,
-  `tipo`            ENUM('imagen','documento') NOT NULL,
+  `tipo_id`         INT NOT NULL,
   `mime_type`       VARCHAR(100) NOT NULL,
   `tamano`          INT NOT NULL,
   `es_modificacion` TINYINT(1) NOT NULL DEFAULT 0,
@@ -261,6 +292,7 @@ CREATE TABLE IF NOT EXISTS `vale_documentos` (
   `creado_en`       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`subido_por`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`tipo_id`)    REFERENCES `tipos_documento` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   INDEX `idx_documentos_vale` (`vale_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

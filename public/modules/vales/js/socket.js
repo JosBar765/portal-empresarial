@@ -63,12 +63,24 @@ export function initSocket() {
         state.cargaTrabajoModal = null;
       }
     }
-    if (state.historialModal) {
-      if (state.historialModal.overlay.isConnected) {
-        state.historialModal.actualizar();
-      } else {
-        state.historialModal = null;
-      }
+    actualizarHistorialModalSiAplica();
+  });
+  // Canal aparte de `vale_evento` (ver events.js) — llega a CUALQUIER vista
+  // que tenga abierto el historial de ESTE vale, sin importar el rol ni si
+  // esa vista está en alguna de las salas por rol de `vale_evento`. Nunca
+  // dispara toast/beep, solo refresca el modal si sigue abierto.
+  state.socket.on('vale_actualizado', (data) => {
+    if (state.historialModal && state.historialModal.valeId === data.valeId) {
+      actualizarHistorialModalSiAplica();
     }
   });
+}
+
+function actualizarHistorialModalSiAplica() {
+  if (!state.historialModal) return;
+  if (state.historialModal.overlay.isConnected) {
+    state.historialModal.actualizar();
+  } else {
+    state.historialModal = null;
+  }
 }

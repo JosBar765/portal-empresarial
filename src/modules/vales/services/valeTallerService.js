@@ -18,7 +18,7 @@ const valeCreacionService = require('./valeCreacionService');
 const {
   ESTADOS, ESTADOS_TALLER, hoyISO, horaActual, enriquecer,
   etiquetaActorTaller, registrarHistorial, esAdministrador,
-  esValeDeModificacion, requerirVale
+  requerirVale
 } = require('./valeHelpers');
 
 class ValeTallerService {
@@ -309,12 +309,10 @@ class ValeTallerService {
     if (!todosAprobados) return;
 
     const vale = await valeRepository.obtenerPorId(valeId);
-    // Un vale de modificación (MOD-...) SIEMPRE debe retornar al Encargado
-    // General para que apruebe/fusione la corrección — sin importar si se
-    // envió a uno o varios talleres — porque esa corrección sobrescribe la
-    // propuesta original del taller que cometió el error. Solo un vale
-    // "normal" con un único taller puede saltarse al Encargado General.
-    const requiereEncargadoGeneral = filas.length > 1 || esValeDeModificacion(vale);
+    // Solo hay fusión que hacer cuando de verdad hay 2+ talleres
+    // involucrados — una modificación a un único taller no tiene nada que
+    // fusionar, así que sigue el mismo camino directo que un vale normal.
+    const requiereEncargadoGeneral = filas.length > 1;
     const nuevoEstado = requiereEncargadoGeneral ? ESTADOS.APROBADO_DEPARTAMENTO : ESTADOS.PENDIENTE_CONFIRMACION;
     if (vale.estado === nuevoEstado) return;
 

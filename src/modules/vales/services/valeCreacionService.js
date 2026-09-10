@@ -20,7 +20,7 @@ const valePdfService = require('./valePdfService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
 const {
-  ESTADOS, pad5, inicialesAsesor, hoyISO, horaActual, enriquecer,
+  ESTADOS, inicialesAsesor, hoyISO, horaActual, enriquecer,
   normalizarDatetime, calcularUrgente, registrarHistorial,
   esAdministrador, requerirVale
 } = require('./valeHelpers');
@@ -50,14 +50,10 @@ class ValeCreacionService {
     // asesor — se resuelve ANTES de validar.
     const datos = await this.validarDatosVale(payload, { tiendaIdAsesor: tienda.id });
 
-    // El conteo "cuántos vales tiene ya este asesor" (para el correlativo) +
-    // el insert que depende de él se serializan por asesor — dos creaciones
-    // casi simultáneas del mismo asesor antes leían el mismo conteo y podían
-    // generar un correlativo duplicado. El servidor sigue siendo la única
-    // fuente del conteo (nunca el cliente); esto solo cierra la ventana de
-    // carrera entre leer y escribir. El límite diario es colectivo por
-    // Supervisor y se valida al AUTORIZAR (autorizarCreacion), no al crear —
-    // crear un vale nunca se pospone ni se bloquea.
+    // El límite diario es colectivo por Supervisor y se valida al AUTORIZAR
+    // (autorizarCreacion), no al crear — crear un vale nunca se pospone ni
+    // se bloquea. El lock por asesor se conserva para serializar la
+    // creación en sí (mismo mutex que usan el resto de transiciones).
     const valeId = await valeMutex.conColaDeCreacion(usuario.id, async () => {
       const hoy = hoyISO();
       const fechaCreacionDate = new Date(`${hoy}T00:00:00`);
@@ -65,14 +61,15 @@ class ValeCreacionService {
         throw new Error('Las fechas no son válidas: el evento debe ser posterior a la entrega, y la entrega igual o posterior a la creación.');
       }
 
-      const secuencia = (await valeRepository.contarValesPorAsesor(usuario.id)) + 1;
-      // {TIENDA}-{INICIALES}-{00001}. El contador (vales de este asesor) no
-      // cambia, solo el formato impreso — los correlativos históricos
-      // (GUA-3-0001, etc.) no se renumeran.
-      const correlativo = `${tienda.codigo}-${inicialesAsesor(solicitante.nombre)}-${pad5(secuencia)}`;
+      // {TIENDA}-{INICIALES}-{ID}. El número es el id autoincremental de
+      // MySQL (asignado por valeRepository.crear DESPUÉS del insert) —
+      // nunca se reutiliza ni retrocede sin importar cuántos vales se
+      // borren después (a diferencia de un contador en vivo). Los
+      // correlativos históricos (GUA-3-0001, etc.) no se renumeran.
+      const correlativoPrefijo = `${tienda.codigo}-${inicialesAsesor(solicitante.nombre)}`;
 
       return valeRepository.crear({
-        correlativo,
+        correlativoPrefijo,
         asesorId: usuario.id,
         tiendaId: tienda.id,
         fechaCreacion: hoy,
@@ -101,7 +98,7 @@ class ValeCreacionService {
     // Supabase. subirYRegistrarArchivo ya revierte SU PROPIA subida si el
     // registro en BD falla, pero no sabe nada del vale que lo originó —
     // por eso, si cualquier paso de este bloque falla, se revierte la
-    // creación completa (revertirCreacionFallida) en vez de dejar un vale
+    // creación completa (eliminarValeConArchivos) en vez de dejar un vale
     // huérfano sin PDF ni adjuntos.
     try {
       await this.guardarAdjuntos(valeId, archivos, usuario.id, false);
@@ -110,7 +107,7 @@ class ValeCreacionService {
         `Vale de arte creado por el asesor — esperando autorización del Supervisor (taller${datos.talleresIds.length > 1 ? 'es' : ''} solicitado${datos.talleresIds.length > 1 ? 's' : ''}: ${nombresTalleres})`);
       await this.regenerarPdf(valeId);
     } catch (error) {
-      await this.revertirCreacionFallida(valeId);
+      await this.eliminarValeConArchivos(valeId);
       throw error;
     }
 
@@ -175,6 +172,31 @@ class ValeCreacionService {
         salas: [`asesor:${vale.asesor_id}`, ...supervisoresDelAsesor.map(s => `supervisor:${s.id}`), ...talleresIds.map(id => `taller:${id}`)]
       });
       return enriquecer(actualizado);
+    });
+  }
+
+  // El Supervisor rechaza un vale ESPERANDO_AUTORIZACION que el asesor no
+  // debió enviar (error de captura, cliente que se arrepintió, etc.) — a
+  // diferencia de autorizarCreacion, esto BORRA el vale por completo (fila,
+  // adjuntos y PDF ya generado) en vez de cambiarle el estado. Mismas
+  // reglas de pertenencia que autorizarCreacion (supervisor del asesor, o
+  // Administrador).
+  async rechazarCreacion(usuario, valeId) {
+    return valeMutex.conLockDeVale(valeId, async () => {
+      const vale = await requerirVale(valeId);
+      if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
+        throw new Error('Solo se puede rechazar un vale en estado ESPERANDO_AUTORIZACION.');
+      }
+      const supervisoresDelAsesor = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
+      if (!esAdministrador(usuario) && !supervisoresDelAsesor.some(s => s.id === usuario.id)) {
+        throw new Error('Este vale de arte no pertenece a un asesor bajo su mando.');
+      }
+      await this.eliminarValeConArchivos(valeId);
+      valeEvents.notificar({
+        vale, accion: 'rechazado por el Supervisor', actor: usuario.nombre, actorId: usuario.id,
+        salas: [`asesor:${vale.asesor_id}`, ...supervisoresDelAsesor.map(s => `supervisor:${s.id}`)]
+      });
+      return { valeId: vale.id, correlativo: vale.correlativo };
     });
   }
 
@@ -290,15 +312,16 @@ class ValeCreacionService {
     return talleresIds.map(id => (talleres.find(t => t.id === id) || {}).nombre || `#${id}`).join(', ');
   }
 
-  // Deshace un vale a medio crear cuando falla algo después del INSERT
-  // principal (ver el try/catch en crearVale). Borra del bucket lo que sí
-  // llegó a subirse y registrarse (adjuntos, PDF) y luego la fila de
-  // `vales` — el cascade de FKs se lleva vale_documentos/vale_talleres/
-  // vale_historial. La limpieza de Storage es best-effort: si Supabase
-  // sigue caído no hay forma de borrar ahí, pero igual se borra el vale de
-  // MySQL (no vale la pena bloquear el rollback completo por un archivo
-  // que de todas formas nunca se registró en ningún lado).
-  async revertirCreacionFallida(valeId) {
+  // Borra un vale por completo: del bucket lo que sí llegó a subirse y
+  // registrarse (adjuntos, PDF) y luego la fila de `vales` — el cascade de
+  // FKs se lleva vale_documentos/vale_talleres/vale_historial. Usado en dos
+  // casos: revertir una creación a medias cuando falla algo después del
+  // INSERT principal (ver el try/catch en crearVale), y el rechazo
+  // explícito del Supervisor (rechazarCreacion). La limpieza de Storage es
+  // best-effort: si Supabase sigue caído no hay forma de borrar ahí, pero
+  // igual se borra el vale de MySQL (no vale la pena bloquear el borrado
+  // completo por un archivo que de todas formas queda inalcanzable).
+  async eliminarValeConArchivos(valeId) {
     const vale = await valeRepository.obtenerPorId(valeId);
     if (!vale) return;
     const documentos = await documentoRepository.listarPorVale(valeId);

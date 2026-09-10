@@ -18,6 +18,15 @@ async function initializeDatabase() {
       dateStrings: true
     });
 
+    // Fija la sesión de cada conexión del pool a UTC-6, sin importar qué
+    // time_zone tenga configurado el servidor MySQL — necesario para que
+    // CURRENT_TIMESTAMP/NOW() den la hora de Guatemala igual en XAMPP local
+    // que en un host administrado (Hostinger) donde no se controla la
+    // configuración global de MySQL.
+    pool.on('connection', (conn) => {
+      conn.query("SET time_zone = '-06:00'");
+    });
+
     // Probar conexión rápida
     const conn = await pool.getConnection();
     console.log(`[Database] Conectado exitosamente a la base de datos MySQL en ${config.db.host}:${config.db.port}`);

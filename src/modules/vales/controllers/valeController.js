@@ -255,6 +255,15 @@ class ValeController {
     }
   }
 
+  async rechazarCreacion(req, res) {
+    try {
+      const resultado = await valeService.rechazarCreacion(req.user, Number(req.params.id));
+      return res.json(resultado);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
   async cargaTrabajo(req, res) {
     try {
       const data = await valeService.obtenerCargaTrabajo(req.user);

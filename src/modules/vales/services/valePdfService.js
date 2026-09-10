@@ -225,8 +225,11 @@ class ValePdfService {
     const alto = 46;
     this._asegurarEspacio(ctx, alto + 20);
     const yTop = ctx.y;
-    const hoy = new Date();
-    const fechaHoy = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
+    // Offset fijo UTC-6 — no depender de la zona horaria del sistema
+    // operativo del proceso Node (mismo criterio que valeHelpers.js).
+    const hoy = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    const [anioHoy, mesHoy, diaHoy] = hoy.toISOString().slice(0, 10).split('-');
+    const fechaHoy = `${diaHoy}/${mesHoy}/${anioHoy}`;
 
     this._texto(ctx, 'VALE DE ARTE', MARGIN, yTop - 16, { size: 18, bold: true });
     this._texto(ctx, `MundiTrofeos S.A. · Generado ${fechaHoy}`, MARGIN, yTop - 30, { size: 8, color: COLOR_ETIQUETA });

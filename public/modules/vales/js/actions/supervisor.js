@@ -2,7 +2,7 @@ import { state } from '../state.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { etiquetaEstado } from '../permisos.js';
 import { formatearFecha } from '../utils/formato.js';
-import { autorizarCreacion, obtenerDetalleVale, aprobarModificacion } from '../api/valesApi.js';
+import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, aprobarModificacion } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 
 // -----------------------------------------------------------------------
@@ -21,7 +21,11 @@ export function abrirModalAutorizarCreacion(vale) {
       <p style="font-size:13px;margin-bottom:10px;">Taller${talleresIds.length > 1 ? 'es' : ''} solicitado${talleresIds.length > 1 ? 's' : ''}: <strong>${nombresTalleres || 'Ninguno'}</strong></p>
       <p style="font-size:13px;">¿Confirmas autorizar este vale de arte? Se enviará de inmediato a ese/esos taller(es) y quedará firmado con tu nombre en el documento.</p>
     `,
-    footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Autorizar</button>`
+    footerHtml: `
+      <button class="btn btn--danger" id="btn-rechazar" style="margin-right:auto;">Rechazar</button>
+      <button class="btn btn--ghost" id="btn-cerrar">Cancelar</button>
+      <button class="btn btn--primary" id="btn-confirmar">Autorizar</button>
+    `
   });
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
   overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
@@ -38,6 +42,21 @@ export function abrirModalAutorizarCreacion(vale) {
       // Otro supervisor pudo haberlo autorizado un instante antes — refresca
       // el buzón para que este vale deje de aparecer accionable de inmediato,
       // sin esperar a que el evento de socket llegue o a un refresco manual.
+      cargarBuzon();
+    }
+  });
+  overlay.querySelector('#btn-rechazar').addEventListener('click', async () => {
+    if (!confirm(`¿Rechazar el vale ${vale.correlativo}? Esto lo borra PERMANENTEMENTE junto con sus imágenes y PDF — no se puede deshacer.`)) return;
+    const btn = overlay.querySelector('#btn-rechazar');
+    btn.disabled = true;
+    try {
+      await rechazarCreacion(vale.id);
+      window.toast.success('Vale rechazado', `${vale.correlativo} fue rechazado y eliminado.`);
+      cerrar();
+      cargarBuzon();
+    } catch (error) {
+      mostrarErrorModal(overlay, error.message);
+      btn.disabled = false;
       cargarBuzon();
     }
   });

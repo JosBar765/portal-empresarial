@@ -57,5 +57,6 @@ router.post('/:id/aprobar-modificacion', requirePermission('vales.aprobar_modifi
 // Supervisor autoriza el envío a talleres de un vale recién creado (nace
 // ESPERANDO_AUTORIZACION, sin filas en vale_talleres).
 router.post('/:id/autorizar-creacion', requirePermission('vales.autorizar_creacion'), (req, res) => valeController.autorizarCreacion(req, res));
+router.post('/:id/rechazar-creacion', requirePermission('vales.autorizar_creacion'), (req, res) => valeController.rechazarCreacion(req, res));
 
 module.exports = router;

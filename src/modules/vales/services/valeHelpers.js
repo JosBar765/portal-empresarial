@@ -51,10 +51,6 @@ function esAsistenteDeDiseno(usuario) {
   return usuario.rolId === ROL.ASISTENTE_DISENO;
 }
 
-function pad5(n) {
-  return String(n).padStart(5, '0');
-}
-
 function inicialesAsesor(nombreCompleto) {
   const partes = String(nombreCompleto || '').trim().split(/\s+/);
   const p1 = (partes[0] || '?')[0];
@@ -62,19 +58,42 @@ function inicialesAsesor(nombreCompleto) {
   return `${p1}${p2}`.toUpperCase();
 }
 
+// Centroamérica (salvo Belice y Panamá) usa UTC-6 sin horario de verano —
+// se calcula por aritmética de offset fijo en vez de depender de la zona
+// horaria del sistema operativo del proceso Node, que en un host
+// administrado (Hostinger) no se controla.
+const OFFSET_UTC6_MS = 6 * 60 * 60 * 1000;
+
+// Para generar STRINGS de hora de pared (hoyISO/horaActual): recorta el
+// epoch real 6h hacia atrás antes de pedirle a toISOString() (que siempre
+// renderiza en UTC) que dibuje los dígitos — el resultado son los dígitos
+// de la hora de Guatemala. Nunca usar este valor para restar contra un
+// instante real (parsearUTC6/new Date()) — para eso, ver más abajo.
+function ahoraUTC6() {
+  return new Date(Date.now() - OFFSET_UTC6_MS);
+}
+
+// Convierte un string de fecha/hora "naive" guardado en BD (se asume que
+// ya representa la hora de pared en UTC-6) a un Date real, anclándolo
+// explícitamente a ese offset — nunca a la zona horaria del proceso. El
+// Date resultante SÍ es un instante real, comparable con `new Date()`.
+function parsearUTC6(fechaHoraNaive) {
+  return new Date(String(fechaHoraNaive).replace(' ', 'T') + '-06:00');
+}
+
 function hoyISO() {
-  return new Date().toISOString().slice(0, 10);
+  return ahoraUTC6().toISOString().slice(0, 10);
 }
 
 function horaActual() {
-  return new Date().toTimeString().slice(0, 8);
+  return ahoraUTC6().toISOString().slice(11, 19);
 }
 
 function calcularAtraso(vale) {
   const congelamiento = vale.atraso_congelado_en
     || (ESTADOS_TERMINALES.includes(vale.estado) ? vale.actualizado_en : null);
-  const referencia = congelamiento ? new Date(congelamiento.replace(' ', 'T')) : new Date();
-  const entrega = new Date(vale.fecha_entrega.replace(' ', 'T'));
+  const referencia = congelamiento ? parsearUTC6(congelamiento) : new Date();
+  const entrega = parsearUTC6(vale.fecha_entrega);
   const diffMs = referencia - entrega;
   const atrasado = diffMs > 0;
   const dias = atrasado ? Math.floor(diffMs / (1000 * 60 * 60 * 24)) : 0;
@@ -194,7 +213,7 @@ function normalizarDatetime(valor, finDelDia = false) {
 }
 
 function calcularUrgente(fechaEntregaNorm, urgentePayload) {
-  const entrega = new Date(fechaEntregaNorm.replace(' ', 'T'));
+  const entrega = parsearUTC6(fechaEntregaNorm);
   const diffDias = (entrega - new Date()) / (1000 * 60 * 60 * 24);
   if (diffDias < 3) return true;
   return esVerdadero(urgentePayload);
@@ -221,7 +240,7 @@ module.exports = {
   ESTADOS, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO,
   esAdministrador, esAsistenteDeDiseno,
-  pad5, inicialesAsesor, hoyISO, horaActual, calcularAtraso, enriquecer,
+  inicialesAsesor, hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy, esVerdadero,
   normalizarDatetime, calcularUrgente, registrarHistorial,

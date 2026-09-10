@@ -17,10 +17,11 @@ const INTERVALO_MS = 60 * 1000;
 const ESTADOS_TALLER_ACTIVOS = [ESTADOS_TALLER.PENDIENTE_ASIGNACION, ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION];
 const ESTADOS_TALLER_CON_TECNICO = [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION];
 
+// Mismo offset fijo UTC-6 que valeHelpers.js (hoyISO/horaActual) — no
+// depender de la zona horaria del sistema operativo del proceso Node.
 function ahoraLocal() {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  const d = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  return d.toISOString().slice(0, 19).replace('T', ' ');
 }
 
 // Solo se avisa a quien actualmente tiene este vale "en su vista" — un vale que

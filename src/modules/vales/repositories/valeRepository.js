@@ -1,26 +1,44 @@
 // src/modules/vales/repositories/valeRepository.js
+const crypto = require('crypto');
 const db = require('../../../config/database');
 
-class ValeRepository {
-  async contarValesPorAsesor(asesorId) {
-    const rows = await db.query(
-      'SELECT COUNT(*) AS total FROM vales WHERE asesor_id = ?',
-      [asesorId],
-      'vale:count_por_asesor'
-    );
-    return rows[0] ? Number(rows[0].total) : 0;
-  }
+// `estado`/`autorizacion_tipo` viven en catálogos (estados_vale,
+// tipos_autorizacion — ver analisis_correcciones_24.md #5) en vez de ENUM en
+// línea. Todo SELECT hace JOIN a estos catálogos y alias su `nombre` de
+// vuelta a `estado`/`autorizacion_tipo`, para que el resto del código (que
+// nunca ve `estado_id`) no note el cambio. Todo INSERT/UPDATE resuelve el id
+// con una subconsulta inline a partir del mismo string de siempre.
+const SELECT_VALE = `
+  SELECT v.*, ev.nombre AS estado, ta.nombre AS autorizacion_tipo
+  FROM vales v
+  LEFT JOIN estados_vale ev ON ev.id = v.estado_id
+  LEFT JOIN tipos_autorizacion ta ON ta.id = v.autorizacion_tipo_id
+`;
 
+class ValeRepository {
+  // `data.correlativo` explícito (el MOD-... de aprobarModificacion, que
+  // reutiliza el número del vale original) se inserta tal cual. Sin eso,
+  // `data.correlativoPrefijo` ("{TIENDA}-{INICIALES}") arma el correlativo
+  // final DESPUÉS del insert, usando el propio `id` autoincremental de
+  // MySQL como número — nunca se reutiliza ni retrocede sin importar
+  // cuántos vales se borren después (a diferencia de un conteo en vivo).
   async crear(data) {
+    const correlativoExplicito = data.correlativo || null;
+    const placeholder = correlativoExplicito || `TEMP-${crypto.randomBytes(8).toString('hex')}`;
     const result = await db.query(
       `INSERT INTO vales (
         correlativo, asesor_id, tienda_id, vale_original_id, fecha_creacion, hora_creacion, fecha_entrega, fecha_evento, urgente,
         cliente_empresa, cliente_nombre, cliente_telefono, cliente_correo,
-        producto, material, tecnica, acabado, cantidad, cotizacion, descripcion, estado,
-        talleres_solicitados, autorizado_por, autorizado_en, autorizacion_tipo
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        producto, material, tecnica, acabado, cantidad, cotizacion, descripcion, estado_id,
+        talleres_solicitados, autorizado_por, autorizado_en, autorizacion_tipo_id
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        (SELECT id FROM estados_vale WHERE nombre = ?),
+        ?, ?, ?,
+        (SELECT id FROM tipos_autorizacion WHERE nombre = ?)
+      )`,
       [
-        data.correlativo, data.asesorId, data.tiendaId, data.valeOriginalId || null, data.fechaCreacion, data.horaCreacion,
+        placeholder, data.asesorId, data.tiendaId, data.valeOriginalId || null, data.fechaCreacion, data.horaCreacion,
         data.fechaEntrega, data.fechaEvento, data.urgente ? 1 : 0,
         data.clienteEmpresa || null, data.clienteNombre, data.clienteTelefono, data.clienteCorreo,
         data.producto, data.material, data.tecnica, data.acabado,
@@ -33,24 +51,33 @@ class ValeRepository {
       ],
       'vale:insert'
     );
-    return result.insertId;
+    const id = result.insertId;
+    if (!correlativoExplicito) {
+      await db.query(
+        'UPDATE vales SET correlativo = ? WHERE id = ?',
+        [`${data.correlativoPrefijo}-${id}`, id],
+        'vale:asignar_correlativo_generado'
+      );
+    }
+    return id;
   }
 
   async obtenerPorId(id) {
-    const rows = await db.query('SELECT * FROM vales WHERE id = ?', [id], 'vale:find_by_id');
+    const rows = await db.query(`${SELECT_VALE} WHERE v.id = ?`, [id], 'vale:find_by_id');
     return rows[0] || null;
   }
 
-  // Solo para revertir una creación fallida (ver valeCreacionService.
-  // revertirCreacionFallida) — el resto del ciclo de vida del vale nunca
-  // borra filas, solo cambia estado. El cascade de FKs (vale_talleres,
-  // vale_documentos, vale_historial, etc.) se encarga del resto.
+  // Solo para revertir una creación fallida o un rechazo explícito del
+  // Supervisor (ver valeCreacionService.eliminarValeConArchivos) — el
+  // resto del ciclo de vida del vale nunca borra filas, solo cambia
+  // estado. El cascade de FKs (vale_talleres, vale_documentos,
+  // vale_historial, etc.) se encarga del resto.
   async eliminar(id) {
     await db.query('DELETE FROM vales WHERE id = ?', [id], 'vale:delete');
   }
 
   async listarTodos() {
-    return db.query('SELECT * FROM vales', [], 'vale:list_all');
+    return db.query(SELECT_VALE, [], 'vale:list_all');
   }
 
   // El vale MOD- que reemplaza a este (a lo sumo uno, solo se permite una
@@ -58,7 +85,7 @@ class ValeRepository {
   // cuando el original ya fue modificado.
   async obtenerPorValeOriginalId(valeOriginalId) {
     const rows = await db.query(
-      'SELECT * FROM vales WHERE vale_original_id = ? LIMIT 1',
+      `${SELECT_VALE} WHERE v.vale_original_id = ? LIMIT 1`,
       [valeOriginalId],
       'vale:find_by_original_id'
     );
@@ -66,7 +93,11 @@ class ValeRepository {
   }
 
   async actualizarEstado(id, estado) {
-    await db.query('UPDATE vales SET estado = ? WHERE id = ?', [estado, id], 'vale:update_estado');
+    await db.query(
+      'UPDATE vales SET estado_id = (SELECT id FROM estados_vale WHERE nombre = ?) WHERE id = ?',
+      [estado, id],
+      'vale:update_estado'
+    );
   }
 
   async actualizarPdfUrl(id, pdfUrl) {
@@ -110,7 +141,7 @@ class ValeRepository {
   // "Trabajo Realizado".
   async sellarAutorizacion(id, { autorizadoPor, autorizadoEn, autorizacionTipo }) {
     await db.query(
-      'UPDATE vales SET autorizado_por = ?, autorizado_en = ?, autorizacion_tipo = ? WHERE id = ?',
+      'UPDATE vales SET autorizado_por = ?, autorizado_en = ?, autorizacion_tipo_id = (SELECT id FROM tipos_autorizacion WHERE nombre = ?) WHERE id = ?',
       [autorizadoPor, autorizadoEn, autorizacionTipo, id],
       'vale:sellar_autorizacion'
     );
@@ -127,7 +158,10 @@ class ValeRepository {
   // usuarioValeRepository.listarAsesoresPorSupervisor.
   async contarAutorizacionesCreacionPorSupervisorYFecha(supervisorId, fecha) {
     const rows = await db.query(
-      "SELECT COUNT(*) AS total FROM vales WHERE autorizado_por = ? AND autorizacion_tipo = 'CREACION' AND DATE(autorizado_en) = ?",
+      `SELECT COUNT(*) AS total FROM vales
+       WHERE autorizado_por = ?
+         AND autorizacion_tipo_id = (SELECT id FROM tipos_autorizacion WHERE nombre = 'CREACION')
+         AND DATE(autorizado_en) = ?`,
       [supervisorId, fecha],
       'vale:count_autorizaciones_creacion_por_supervisor'
     );
@@ -144,7 +178,10 @@ class ValeRepository {
   // vez que el vale cumple >= 1 día de atraso.
   async listarAtrasadosSinNotificar() {
     return db.query(
-      "SELECT * FROM vales WHERE atraso_notificado_en IS NULL AND atraso_congelado_en IS NULL AND estado NOT IN ('RECIBIDO', 'CONFIRMADO') AND fecha_entrega < NOW() - INTERVAL 1 DAY",
+      `${SELECT_VALE}
+       WHERE v.atraso_notificado_en IS NULL AND v.atraso_congelado_en IS NULL
+         AND ev.nombre NOT IN ('RECIBIDO', 'CONFIRMADO')
+         AND v.fecha_entrega < NOW() - INTERVAL 1 DAY`,
       [],
       'vale:list_atrasados_sin_notificar'
     );

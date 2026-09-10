@@ -119,6 +119,10 @@ export function autorizarCreacion(valeId) {
   return enviarPost(`/api/vales/${valeId}/autorizar-creacion`);
 }
 
+export function rechazarCreacion(valeId) {
+  return enviarPost(`/api/vales/${valeId}/rechazar-creacion`);
+}
+
 export function aprobarModificacion(valeId) {
   return enviarPost(`/api/vales/${valeId}/aprobar-modificacion`);
 }

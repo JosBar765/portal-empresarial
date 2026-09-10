@@ -12,10 +12,14 @@ const socketManager = require('../../core/websocket/socketManager');
 
 const SALA_ADMIN = 'vales:admin';
 
+// Offset fijo UTC-6 (Centroamérica, sin horario de verano) — no depender de
+// la zona horaria del sistema operativo del proceso Node (mismo criterio
+// que valeHelpers.js hoyISO/horaActual).
 function fechaHoraLocal() {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const d = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  const [fecha, hora] = d.toISOString().slice(0, 16).split('T');
+  const [anio, mes, dia] = fecha.split('-');
+  return `${dia}/${mes}/${anio} ${hora}`;
 }
 
 /**
@@ -44,6 +48,14 @@ function notificar({ vale, accion, actor = null, actorId = null, destino = null,
     nivel,
     beep
   });
+  // Canal aparte, uno por vale, independiente de `salas` (que decide quién
+  // oye el beep/toast de cada acción — un rol sin visibilidad "de oficio"
+  // sobre esta transición no debe recibir esa alerta). Cualquier vista con
+  // el historial de ESTE vale abierto se une a esta sala mientras el modal
+  // está abierto (ver actions/historial.js) y así se refresca en vivo sin
+  // importar el rol — antes solo pasaba por casualidad para los roles que
+  // ya estaban en `salas`.
+  socketManager.sendToRooms([`vale:${vale.id}`], 'vale_actualizado', { valeId: vale.id });
 }
 
 module.exports = { notificar };
