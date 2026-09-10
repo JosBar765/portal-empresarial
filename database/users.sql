@@ -171,14 +171,10 @@ INSERT INTO `encargado_tienda` (`taller_id`, `tienda_id`) VALUES
 (3, 1), (3, 2),
 (4, 3), 
 (5, 4), 
-(6, 5), 
-(7, 6), 
 (8, 7), 
-(9, 8), 
 (10, 9), 
 (11, 10), 
 (12, 11), 
-(13, 12), 
 (14, 13);
 
 INSERT INTO `taller_tecnicos` (`taller_id`, `usuario_id`) VALUES

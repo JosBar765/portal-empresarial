@@ -141,8 +141,6 @@ CREATE TABLE IF NOT EXISTS `taller_tecnicos` (
   INDEX `idx_taller_tecnicos_taller` (`taller_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Catálogos de estados/tipos (antes ENUM en línea) — mismo patrón id/nombre
--- que `roles`/`permisos`, para no hardcodear los valores en el esquema.
 CREATE TABLE IF NOT EXISTS `estados_vale` (
   `id`     INT AUTO_INCREMENT PRIMARY KEY,
   `nombre` VARCHAR(50) NOT NULL UNIQUE
