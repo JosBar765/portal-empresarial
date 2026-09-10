@@ -1,8 +1,7 @@
 -- Schema: Portal Web de Herramientas Empresariales — MundiTrofeos S.A.
 -- Motor: InnoDB | Charset: utf8mb4 | Collation: utf8mb4_unicode_ci
 --
--- Solo estructura (tablas, claves, índices). Sin datos — ver seed.sql.
--- Orden de importación: schema.sql -> seed.sql.
+-- Solo estructura (tablas, claves, índices).
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
