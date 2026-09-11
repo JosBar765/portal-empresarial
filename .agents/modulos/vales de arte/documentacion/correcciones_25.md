@@ -446,3 +446,95 @@ plan de remediación aplicada" ya se cumplen.
 
 Ver sección "Riesgos que permanecerán después de aplicar todas las medidas
 de este plan" arriba, actualizada con el resultado real de cada decisión.
+
+## Re-auditoría (2026-09-11)
+
+Se repitió la revisión de este documento contra el estado actual del
+repositorio, siguiendo la metodología de
+`correcciones/analisis_correcciones_25.md`, para detectar regresiones en lo
+ya corregido o hallazgos nuevos surgidos desde la implementación.
+
+### Regresiones
+
+**Ninguna.** El único commit posterior a la implementación completa
+(`31c1c7e`) es `5236c91` ("ocultando el docker compose, para que sirva para
+varias pcs"), que solo modifica `.gitignore` (agrega
+`docker-compose.override.yml` a la lista de ignorados). No se tocó ningún
+archivo de `src/`, `database/` ni `package.json` desde la implementación —
+`git diff 31c1c7e HEAD --stat` lo confirma, así como `git status` (árbol de
+trabajo limpio). Las 21 correcciones de las 3 fases siguen íntegras.
+
+Se re-corrió también `npm audit --omit=dev`: sigue en **0 vulnerabilidades**
+(no han surgido CVEs nuevos en las dependencias declaradas desde la
+implementación).
+
+### Hallazgo nuevo — no cubierto por la auditoría original
+
+**Credenciales hardcodeadas en `docker-compose.yml` (raíz del repo,
+commit `1322e4f`).**
+
+- **Archivo/línea**: `docker-compose.yml:8-11`.
+- **Qué se encontró**: el archivo, usado para levantar un MySQL local de
+  pruebas, tiene hardcodeado en texto plano y committeado al repositorio:
+  `MYSQL_ROOT_PASSWORD: root`, `MYSQL_USER: user`, `MYSQL_PASSWORD:
+  password`, además de mapear el puerto `3306:3306` (mismo puerto que usa
+  la instancia XAMPP local, lo que motivó el override por máquina).
+- **Por qué no se detectó en la auditoría original**: el archivo ya
+  existía en el repo al momento de la auditoría (fue añadido en `1322e4f`,
+  antes de `845069b`), pero el alcance de las 28 secciones de
+  `analisis_correcciones_25.md` se centró en el código de la aplicación
+  (`src/`, `public/`) y su configuración de producción/Hostinger — no en
+  archivos de infraestructura de desarrollo local, que no se contemplaron
+  como superficie de auditoría en ese momento.
+- **Riesgo real**: **bajo**, con matices — este contenedor es
+  exclusivamente para desarrollo/testing local (el proyecto en producción
+  corre en Hostinger sin Docker, per CLAUDE.md — "target hosting es un
+  managed Node host... no Docker/VPS/root access"), y hoy no contiene datos
+  reales (nunca se importó `schema.sql`/`seed.sql` en él). El riesgo
+  concreto es: (1) cualquiera con acceso de lectura al repo ve credenciales
+  reales de un servicio que corre en las máquinas del equipo — malo como
+  higiene aunque el servicio esté vacío; (2) si en el futuro alguien
+  importa datos reales a este contenedor para probar con datos productivos
+  (algo que se ofreció como siguiente paso opcional en esta misma sesión y
+  no se ha hecho), esas credenciales débiles quedarían protegiendo datos
+  reales; (3) en una máquina con el firewall menos restrictivo o expuesta a
+  una red compartida, el puerto 3306 (o el 3307 del override) quedaría
+  accesible a otros equipos de la misma red con `root/root`.
+- **Cómo se explotaría**: alguien en la misma red local (o con acceso al
+  repo) se conecta directamente con un cliente MySQL a `localhost:3306` (o
+  a la IP de la máquina si el firewall lo permite) usando `root`/`root`.
+- **Impacto**: acceso root al MySQL de desarrollo de quien tenga el
+  contenedor corriendo — hoy sin datos reales, pero sin garantía de que
+  siga así.
+- **Solución recomendada**: mover las credenciales a variables de entorno
+  vía un `.env` (ya gitignorado en este proyecto) leído con `env_file:` o
+  `${VAR}` en el `docker-compose.yml`, dejando solo un
+  `docker-compose.yml.example` o valores de ejemplo documentados en el
+  README/CLAUDE.md — mismo patrón que ya usa el proyecto para
+  `.env`/`.env.example`. Alternativamente, ya que el propósito declarado
+  del commit `5236c91` es justamente "que sirva para varias PCs", esto
+  encaja de forma natural con el mecanismo de `docker-compose.override.yml`
+  que ya existe (gitignorado): las credenciales podrían vivir solo en el
+  override local de cada desarrollador, y el `docker-compose.yml` base
+  quedar sin valores reales (usando `${MYSQL_ROOT_PASSWORD:?}` sin default,
+  por ejemplo, para forzar que cada quien las provea).
+- **¿Rompe funcionalidad existente?**: No — es un archivo de uso puramente
+  local/manual (`docker compose up`), no lo consume el servidor Node ni
+  ningún pipeline automatizado. Cualquier desarrollador que ya tenga el
+  contenedor corriendo simplemente necesitaría un `.env` (o su propio
+  override) con las mismas variables antes de volver a levantarlo.
+- **Estado**: **REQUIERE DECISIÓN DEL DESARROLLADOR** — no se modificó
+  `docker-compose.yml` en esta re-auditoría (es un archivo compartido que
+  otro desarrollador tocó recientemente con un propósito específico en
+  mente); se documenta el hallazgo y la solución propuesta para que se
+  implemente si el equipo está de acuerdo.
+
+### Otras observaciones (no son hallazgos nuevos, quedan como nota)
+
+- `docker-compose.override.yml` (creado en esta sesión para el remapeo de
+  puerto local a 3307) no tiene el problema anterior — solo define el
+  puerto, sin credenciales, y está correctamente gitignorado.
+- La instalación de Docker Desktop y el contenedor de MySQL local no
+  introducen superficie de ataque nueva en producción — Hostinger no usa
+  Docker; esto es exclusivamente infraestructura de desarrollo en la
+  máquina local.
