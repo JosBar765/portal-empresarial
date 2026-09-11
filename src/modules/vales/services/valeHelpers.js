@@ -106,7 +106,7 @@ function enriquecer(vale) {
 }
 
 function esValeDeModificacion(vale) {
-  return vale.estado === ESTADOS.MODIFICADO || !!vale.vale_original_id || !!vale.modificado;
+  return vale.estado === ESTADOS.MODIFICADO;
 }
 
 function etiquetaActorTaller(usuario) {
