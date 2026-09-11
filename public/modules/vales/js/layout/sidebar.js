@@ -93,6 +93,7 @@ export function wireSidebar() {
       state.sort = { key: null, dir: null };
       state.filtroContador = null; // un filtro de contador es propio de la vista activa
       state.soloAtrasados = false;
+      state.soloModificados = false;
       state.estadoFiltro = ''; // el conjunto de estados válidos cambia entre Buzón/Trabajo realizado
       actualizarIndicadoresOrden();
       actualizarTituloYSeccionesVista();

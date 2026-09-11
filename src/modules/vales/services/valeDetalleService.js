@@ -93,7 +93,20 @@ class ValeDetalleService {
     }
     if (ROLES_TALLER_Y_TECNICO.includes(usuario.rolId)) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
-      return !!tallerVisible && talleres.some(t => t.taller_id === tallerVisible);
+      if (tallerVisible && talleres.some(t => t.taller_id === tallerVisible)) return true;
+      // Quien fusiona (vales.aprobar_general) necesita poder ver CUALQUIER
+      // vale que le toque fusionar (o que ya haya fusionado), sin importar
+      // si su propio taller participó — mismo criterio "sin scope de
+      // taller" que ya usa _buzonEncargado.pendientesFusion. Sin esto, un
+      // vale de modificación cuyo único taller no es el del encargado que
+      // fusiona (correcciones_26 #3: original multi-taller, modificación a
+      // un solo taller distinto) llegaba correctamente a
+      // APROBADO_DEPARTAMENTO pero el modal de fusión no podía cargar su
+      // detalle ("No tienes acceso a este vale de arte").
+      if ((usuario.permissions || []).includes('vales.aprobar_general')) {
+        return vale.estado === ESTADOS.APROBADO_DEPARTAMENTO || vale.fusionado_por === usuario.id;
+      }
+      return false;
     }
     // Rol no contemplado explícitamente arriba: fail-closed. No explotable
     // con los roles actuales (todos caen en alguna rama de arriba) — es una

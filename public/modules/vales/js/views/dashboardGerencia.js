@@ -7,15 +7,16 @@ import { obtenerDashboardGerencia } from '../api/valesApi.js';
 import { abrirModalHistorial } from '../actions/historial.js';
 
 // -----------------------------------------------------------------------
-// Dashboard de Gerencia/Supervisor — 4 contadores con drill-down
-// (Modificados/Recibidos/En Progreso/Atrasados, el último combinable con
-// cualquiera de los otros tres, mismo mecanismo que `soloAtrasados` en el
-// buzón normal) + Total sin lista. Sin gráficas. Reusa
-// `state.filtroContador`/`state.soloAtrasados`/`state.busqueda` — la vista
-// sidebar ya los resetea al cambiar (ver layout/sidebar.js), así que no se
-// contaminan entre vistas.
+// Dashboard de Gerencia/Supervisor — 5 contadores con drill-down (Total,
+// Recibidos, En Progreso, Modificados, Atrasados). Modificados y Atrasados
+// son interruptores combinables con Recibidos/En Progreso (mismo mecanismo
+// que `soloAtrasados` en el buzón normal) en vez de una categoría propia.
+// Sin gráficas. Reusa `state.filtroContador`/`state.soloAtrasados`/
+// `state.soloModificados`/`state.busqueda` — la vista sidebar ya los
+// resetea al cambiar (ver layout/sidebar.js), así que no se contaminan
+// entre vistas.
 // -----------------------------------------------------------------------
-export async function cargarDashboardGerencia() {
+function construirQueryDashboard() {
   const qs = new URLSearchParams();
   if (state.ventana.tipo) qs.set('ventana', state.ventana.tipo);
   if (state.ventana.tipo === 'rango') {
@@ -25,13 +26,36 @@ export async function cargarDashboardGerencia() {
   if (state.tiendaId) qs.set('tiendaId', state.tiendaId);
   if (state.filtroContador) qs.set('filtroContador', state.filtroContador);
   if (state.soloAtrasados) qs.set('soloAtrasados', '1');
+  if (state.soloModificados) qs.set('soloModificados', '1');
   if (state.busqueda) qs.set('busqueda', state.busqueda);
+  return qs;
+}
+
+export async function cargarDashboardGerencia() {
   try {
-    const data = await obtenerDashboardGerencia(qs);
+    const data = await obtenerDashboardGerencia(construirQueryDashboard());
     renderDashboardGerencia(data);
   } catch (error) {
     $('#dashboard-gerencia').innerHTML = `<p class="tabla-vacia">Error al cargar el dashboard: ${error.message}</p>`;
   }
+}
+
+// Actualización en tiempo real (ver socket.js, handler de vale_evento): a
+// diferencia de cargarDashboardGerencia, NO reconstruye la grilla de
+// tarjetas — solo toca los números que deben quedar vivos (Total y
+// Atrasados siempre; Recibidos/En Progreso y Modificados solo cuando la
+// selección activa depende de ellos), para no hacer parpadear tarjetas que
+// gerencia no está mirando en ese momento. Si hay una lista de resultados
+// abierta, también se refresca.
+export async function actualizarDashboardGerenciaEnVivo() {
+  const cont = $('#dashboard-gerencia');
+  if (!cont || !cont.dataset.wired) return; // esta vista nunca se ha renderizado, nada que actualizar
+  try {
+    const data = await obtenerDashboardGerencia(construirQueryDashboard());
+    actualizarContadoresEnVivo(data);
+    const hayListaActiva = !!state.filtroContador || state.soloAtrasados || state.soloModificados || !!state.busqueda;
+    if (hayListaActiva) renderTablaDashboard(data.vales || []);
+  } catch { /* best-effort: un fallo de red aquí no debe interrumpir la vista, la próxima recarga normal ya lo cubre */ }
 }
 
 // El esqueleto (grid de contadores + sección de lista con su buscador) se
@@ -80,7 +104,7 @@ function renderDashboardGerencia(data) {
   }
 
   renderDashboardContadores(data);
-  const hayListaActiva = !!state.filtroContador || state.soloAtrasados || !!state.busqueda;
+  const hayListaActiva = !!state.filtroContador || state.soloAtrasados || state.soloModificados || !!state.busqueda;
   $('#dashboard-lista', cont).style.display = hayListaActiva ? 'block' : 'none';
   renderTablaDashboard(data.vales || []);
 }
@@ -90,14 +114,16 @@ function renderDashboardContadores(data) {
   grid.innerHTML = DASHBOARD_CONTADORES.map(c => {
     const valor = data[c.key] ?? 0;
     const pct = c.pctKey ? ` (${data[c.pctKey]}%)` : '';
-    const esClickeable = !!c.filtro || !!c.atrasadosGlobal;
-    const activo = c.atrasadosGlobal ? state.soloAtrasados : (c.filtro && state.filtroContador === c.filtro);
+    const esClickeable = !!c.filtro || !!c.atrasadosGlobal || !!c.modificadosGlobal;
+    const activo = c.atrasadosGlobal ? state.soloAtrasados
+      : c.modificadosGlobal ? state.soloModificados
+      : (c.filtro && state.filtroContador === c.filtro);
     const clases = ['contador-card'];
     if (c.alerta) clases.push('contador-alerta');
     if (esClickeable) clases.push('contador-clickeable');
     if (activo) clases.push('contador-activo');
     return `
-      <div class="${clases.join(' ')}" data-filtro="${c.filtro || ''}" data-atrasados-global="${c.atrasadosGlobal ? '1' : ''}">
+      <div class="${clases.join(' ')}" data-key="${c.key}" data-filtro="${c.filtro || ''}" data-atrasados-global="${c.atrasadosGlobal ? '1' : ''}" data-modificados-global="${c.modificadosGlobal ? '1' : ''}">
         <div class="valor">${valor}</div>
         <div class="etiqueta">${c.label}${pct}</div>
       </div>`;
@@ -106,15 +132,38 @@ function renderDashboardContadores(data) {
   $$('.contador-card', grid).forEach(card => {
     const filtro = card.dataset.filtro;
     const esAtrasadosGlobal = card.dataset.atrasadosGlobal === '1';
-    if (!filtro && !esAtrasadosGlobal) return;
+    const esModificadosGlobal = card.dataset.modificadosGlobal === '1';
+    if (!filtro && !esAtrasadosGlobal && !esModificadosGlobal) return;
     card.addEventListener('click', () => {
       if (esAtrasadosGlobal) {
         state.soloAtrasados = !state.soloAtrasados;
+      } else if (esModificadosGlobal) {
+        state.soloModificados = !state.soloModificados;
       } else {
         state.filtroContador = state.filtroContador === filtro ? null : filtro;
       }
       cargarDashboardGerencia();
     });
+  });
+}
+
+// Actualización parcial para vale_evento (ver actualizarDashboardGerenciaEnVivo):
+// Total y Atrasados siempre; Recibidos/En Progreso (el que esté seleccionado)
+// y Modificados solo cuando dependen de esa selección — mismo criterio que ya
+// calcula el backend para las tarjetas reactivas.
+function actualizarContadoresEnVivo(data) {
+  const grid = $('#dashboard-contadores');
+  if (!grid) return;
+  const clavesVivas = new Set(['total', 'atrasados']);
+  if (state.filtroContador) { clavesVivas.add(state.filtroContador); clavesVivas.add('modificados'); }
+  DASHBOARD_CONTADORES.forEach(c => {
+    if (!clavesVivas.has(c.key)) return;
+    const card = grid.querySelector(`[data-key="${c.key}"]`);
+    if (!card) return;
+    const valor = data[c.key] ?? 0;
+    const pct = c.pctKey ? ` (${data[c.pctKey]}%)` : '';
+    $('.valor', card).textContent = valor;
+    $('.etiqueta', card).textContent = `${c.label}${pct}`;
   });
 }
 

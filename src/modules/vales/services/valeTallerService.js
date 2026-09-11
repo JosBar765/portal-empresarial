@@ -310,9 +310,20 @@ class ValeTallerService {
 
     const vale = await valeRepository.obtenerPorId(valeId);
     // Solo hay fusión que hacer cuando de verdad hay 2+ talleres
-    // involucrados — una modificación a un único taller no tiene nada que
-    // fusionar, así que sigue el mismo camino directo que un vale normal.
-    const requiereEncargadoGeneral = filas.length > 1;
+    // involucrados — pero en un vale de modificación (`vale_original_id`)
+    // eso no se decide solo por los talleres de ESTE vale (la modificación
+    // puede tocar un único taller), sino por cuántos talleres tuvo el vale
+    // ORIGINAL desde su creación: si el original nació para 2+ talleres, el
+    // Encargado General debe volver a fusionar — combinando las propuestas
+    // originales ya aprobadas de los demás talleres con la(s) corregida(s)
+    // — aunque la modificación en sí solo haya tocado uno (correcciones_26
+    // #3). Si el original nació para un único taller, su modificación
+    // tampoco tiene nada que fusionar y sigue el camino directo de siempre.
+    let talleresOriginales = filas.length;
+    if (vale.vale_original_id) {
+      talleresOriginales = (await valeTallerRepository.listarPorVale(vale.vale_original_id)).length;
+    }
+    const requiereEncargadoGeneral = filas.length > 1 || talleresOriginales > 1;
     const nuevoEstado = requiereEncargadoGeneral ? ESTADOS.APROBADO_DEPARTAMENTO : ESTADOS.PENDIENTE_CONFIRMACION;
     if (vale.estado === nuevoEstado) return;
 

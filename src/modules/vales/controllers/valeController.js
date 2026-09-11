@@ -108,6 +108,7 @@ class ValeController {
         tiendaId: req.query.tiendaId,
         filtroContador: req.query.filtroContador,
         soloAtrasados: req.query.soloAtrasados,
+        soloModificados: req.query.soloModificados,
         busqueda: req.query.busqueda
       };
       const data = await valeService.obtenerDashboardGerencia(req.user, filtros);

@@ -14,7 +14,7 @@ const valeCatalogoService = require('./valeCatalogoService');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
   esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
-  ordenarPorFecha, esHoy, estadoVisibleAsesor, esValeDeModificacion,
+  ordenarPorFecha, esHoy, estadoVisibleAsesor,
   ROLES_TALLER_Y_TECNICO
 } = require('./valeHelpers');
 
@@ -222,52 +222,61 @@ class ValeBuzonService {
       : todos;
     const enVentana = base.filter(v => dentroDeVentana(v, ventana));
 
-    // Un vale de modificación (esValeDeModificacion, ya usado por
-    // estadoVisibleAsesor) manda sobre "recibido" — el original que ya usó
-    // su modificación se cuenta como Modificado, no Recibido, aunque su
-    // estado real siga siendo RECIBIDO.
-    const clasificar = (v) => esValeDeModificacion(v) ? 'modificados'
-      : v.estado === ESTADOS.RECIBIDO ? 'recibidos'
-      : 'enProgreso';
+    // Recibidos/En Progreso: partición por estado REAL, sin excluir a los
+    // vales que hayan pasado por una modificación — "Modificados" ya no es
+    // una tercera categoría mutuamente excluyente (correcciones_26 #1), es
+    // un indicador combinable igual que "Atrasado": un vale puede estar
+    // Recibido/En Progreso Y además ser modificado a la vez.
+    const clasificar = (v) => v.estado === ESTADOS.RECIBIDO ? 'recibidos' : 'enProgreso';
+    // Un vale "de modificación": el original que ya generó su reemplazo
+    // (`vale.modificado`) o el propio reemplazo (`vale.vale_original_id`) —
+    // esto persiste sin importar en qué estado real esté hoy (a diferencia
+    // de esValeDeModificacion, que solo detecta el estado transitorio
+    // MODIFICADO y no sirve para esta clasificación combinable).
+    const esModificado = (v) => !!v.modificado || !!v.vale_original_id;
 
     const total = enVentana.length;
-    const contarClase = (clave) => enVentana.filter(v => clasificar(v) === clave).length;
-    const modificados = contarClase('modificados');
-    const recibidos = contarClase('recibidos');
-    const enProgreso = contarClase('enProgreso');
+    const recibidos = enVentana.filter(v => clasificar(v) === 'recibidos').length;
+    const enProgreso = enVentana.filter(v => clasificar(v) === 'enProgreso').length;
     const pct = (n, deTotal) => deTotal ? Math.round((n / deTotal) * 100) : 0;
 
     // Drill-down: la lista solo se arma si hay algo activo (contador, atraso
-    // combinable, o búsqueda) — nunca por defecto. No se actualiza en tiempo
-    // real (eso es exclusivo del buzón, ver initSocket en el frontend).
-    const filtroContador = ['modificados', 'recibidos', 'enProgreso'].includes(filtros.filtroContador) ? filtros.filtroContador : null;
+    // o modificados combinables, o búsqueda) — nunca por defecto. Sí se
+    // actualiza en tiempo real (ver actualizarDashboardGerenciaEnVivo en el
+    // frontend), de forma selectiva para no hacer parpadear tarjetas que el
+    // usuario no está mirando.
+    const filtroContador = ['recibidos', 'enProgreso'].includes(filtros.filtroContador) ? filtros.filtroContador : null;
     const soloAtrasados = ['1', 'true', true].includes(filtros.soloAtrasados);
+    const soloModificados = ['1', 'true', true].includes(filtros.soloModificados);
     const busqueda = String(filtros.busqueda || '').trim().toLowerCase();
 
-    // "Atrasados" es la ÚNICA tarjeta reactiva al contador combinado — si
-    // hay un filtroContador activo (Modificados/Recibidos/En Progreso), pasa
-    // a mostrar los atrasados DENTRO de ese subconjunto (y su % es sobre ese
-    // subconjunto, no sobre el gran total: "de mis vales modificados, qué %
-    // está atrasado"). Sin selección, vuelve al total global. Los otros 3
-    // contadores nunca cambian con la selección.
-    const baseAtrasados = filtroContador ? enVentana.filter(v => clasificar(v) === filtroContador) : enVentana;
-    const atrasados = baseAtrasados.filter(v => v.atrasado).length;
-    const porcentajeAtrasados = pct(atrasados, baseAtrasados.length);
+    // "Modificados" y "Atrasados" son las tarjetas reactivas al contador
+    // combinado — si hay un filtroContador activo (Recibidos/En Progreso),
+    // pasan a mostrar su número DENTRO de ese subconjunto (y su % es sobre
+    // ese subconjunto, no sobre el gran total: "de mis vales recibidos, qué
+    // % fue modificado / está atrasado"). Sin selección, vuelven al total
+    // global. Total/Recibidos/En Progreso nunca cambian con la selección.
+    const baseReactiva = filtroContador ? enVentana.filter(v => clasificar(v) === filtroContador) : enVentana;
+    const modificados = baseReactiva.filter(esModificado).length;
+    const atrasados = baseReactiva.filter(v => v.atrasado).length;
+    const porcentajeModificados = pct(modificados, baseReactiva.length);
+    const porcentajeAtrasados = pct(atrasados, baseReactiva.length);
 
     let vales = [];
-    if (filtroContador || soloAtrasados || busqueda) {
+    if (filtroContador || soloAtrasados || soloModificados || busqueda) {
       let lista = enVentana;
       if (filtroContador) lista = lista.filter(v => clasificar(v) === filtroContador);
+      if (soloModificados) lista = lista.filter(esModificado);
       if (soloAtrasados) lista = lista.filter(v => v.atrasado);
       if (busqueda) lista = lista.filter(v => `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase().includes(busqueda));
       vales = ordenarPorGrupos(lista, [v => v.atrasado]);
     }
 
     return {
-      total, modificados, recibidos, enProgreso, atrasados,
-      porcentajeModificados: pct(modificados, total),
+      total, recibidos, enProgreso, modificados, atrasados,
       porcentajeRecibidos: pct(recibidos, total),
       porcentajeEnProgreso: pct(enProgreso, total),
+      porcentajeModificados,
       porcentajeAtrasados,
       vales
     };

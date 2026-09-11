@@ -103,10 +103,14 @@ CONTADORES_CONFIG[ROL.ADMINISTRADOR] = [ // vista de control general
 // "Vales de Arte" — es de solo lectura, respeta la misma jerarquía.
 CONTADORES_CONFIG[ROL.GERENTE] = CONTADORES_CONFIG[ROL.ADMINISTRADOR];
 
+// "Modificados" funciona igual que "Atrasados" — un interruptor combinable
+// (`modificadosGlobal`, ver state.soloModificados) que se puede activar
+// junto con "Recibidos" o "En Progreso", no una cuarta categoría mutuamente
+// excluyente — de ahí que ninguno de los dos tenga `filtro` propio.
 export const DASHBOARD_CONTADORES = [
   { key: 'total', label: 'Total de vales' },
-  { key: 'modificados', label: 'Modificados', filtro: 'modificados', pctKey: 'porcentajeModificados' },
   { key: 'recibidos', label: 'Recibidos', filtro: 'recibidos', pctKey: 'porcentajeRecibidos' },
   { key: 'enProgreso', label: 'En progreso', filtro: 'enProgreso', pctKey: 'porcentajeEnProgreso' },
+  { key: 'modificados', label: 'Modificados', modificadosGlobal: true, pctKey: 'porcentajeModificados' },
   { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true, pctKey: 'porcentajeAtrasados' }
 ];
