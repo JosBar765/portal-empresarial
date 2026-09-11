@@ -30,6 +30,9 @@ yarn-error.log*
 logs/
 *.log
 
+# Docker Compose (override local, ej. remapeo de puertos por máquina)
+docker-compose.override.yml
+
 # Sistema
 Thumbs.db
 ehthumbs.db
