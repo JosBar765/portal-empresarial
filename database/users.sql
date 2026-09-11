@@ -15,7 +15,7 @@ INSERT INTO `usuarios` (`id`, `nombre`, `email`, `password_hash`, `rol_id`) VALU
 (1, 'Administrador General', 'admin@munditrofeos.com', '$2a$10$x8YdSB2Dyb/NpGQaHkNCDe0K.tv5z4QRWBPQlCsXJpsrfqWpX17Ia', 1),
 -- Encargados de talleres de Munditrofeos
 (5, 'Jesus Ramirez', 'encargado.diseno@munditrofeos.com', '$2a$10$Jz0Y4ZY88ys6jFWhAYDfVOSGQwT1Df7.4NmLcDpA.vv1pr17/wxqu', 4),
-(6, 'Josue Gomez', 'encargado.uv3d@munditrofeos.com', '$2a$10$GBj8aWQZxf.a6o.eF9k/au46.iNEQdlXN5mlKsDrNVd4FWh.f8uQ2', 5),
+(6, 'Josue Gomez', 'encargado.uv3d@munditrofeos.com', '$2a$10$HVFtRiPkCLQQGvEmCwNXleJpK3byoeAJs39ACEwP.e1Yh1EMktj7m', 5),
 (25, 'Leticia Tzún', 'encargado.protextil@munditrofeos.com', '$2a$10$sH7si8ioloM3rOyHiR8uRunHUeMuehv90BJqrvx4VVBPyqWncshqK', 9),
 -- Asistente
 (11, 'Giancarlo Hernández', 'asistente@munditrofeos.com', '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', 7),
