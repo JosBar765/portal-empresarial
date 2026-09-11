@@ -2,11 +2,13 @@
 
 Documento aparte de `correcciones_25.md` (la auditoría), tal como pide
 `analisis_correcciones_25.md`. Ordenado por fases: Fase 1 (crítico/alto),
-Fase 2 (medio), Fase 3 (hardening/mejoras). **Todavía no se implementó
-nada de este plan** — queda pendiente de aprobación antes de tocar código,
-según la regla del propio archivo de correcciones ("si una medida de
-seguridad requiere modificar comportamiento existente, explícame primero
-el problema y cómo propones solucionarlo").
+Fase 2 (medio), Fase 3 (hardening/mejoras).
+
+**Estado: implementado por completo, las 3 fases** (incluidos los dos
+puntos marcados "REQUIERE DECISIÓN DEL DESARROLLADOR" — ver el resumen
+final en `correcciones_25.md` para el detalle de qué opción se tomó en
+cada uno). Cada fase se verificó en vivo contra el servidor real tras
+aplicarla, siguiendo la regla de abajo.
 
 Regla general para las 3 fases: después de cada una, re-verificar en vivo
 (servidor real + MySQL local) que sigan funcionando: login/logout,

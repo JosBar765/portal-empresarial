@@ -9,7 +9,8 @@ const config = require('../../config/env');
  */
 function generateToken(payload) {
   return jwt.sign(payload, config.jwtSecret, {
-    expiresIn: config.jwtExpiresIn
+    expiresIn: config.jwtExpiresIn,
+    algorithm: 'HS256'
   });
 }
 
@@ -20,7 +21,7 @@ function generateToken(payload) {
  */
 function verifyToken(token) {
   try {
-    return jwt.verify(token, config.jwtSecret);
+    return jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] });
   } catch (error) {
     // Si expira o la firma es inválida, se captura aquí
     return null;

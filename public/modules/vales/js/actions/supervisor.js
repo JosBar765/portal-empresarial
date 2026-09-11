@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { etiquetaEstado } from '../permisos.js';
-import { formatearFecha } from '../utils/formato.js';
+import { formatearFecha, escapeHtml } from '../utils/formato.js';
 import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, aprobarModificacion } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 
@@ -84,7 +84,7 @@ export async function abrirModalAprobarModificacion(vale) {
     bodyHtml: `
       <div class="form-field full" style="margin-bottom:14px;">
         <label>Justificación de la modificación</label>
-        <p style="font-size:13px;white-space:pre-wrap;">${justificacion || 'Sin justificación registrada.'}</p>
+        <p style="font-size:13px;white-space:pre-wrap;">${justificacion ? escapeHtml(justificacion) : 'Sin justificación registrada.'}</p>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
         <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale de arte (PDF)</a>
@@ -138,7 +138,7 @@ export function abrirModalVerSupervisor(v) {
 
 export function abrirModalInfoVale(v) {
   const campo = (etiqueta, valor) => `
-    <div class="form-field"><label>${etiqueta}</label><p style="font-size:13px;margin:0;">${valor || '-'}</p></div>
+    <div class="form-field"><label>${etiqueta}</label><p style="font-size:13px;margin:0;">${valor ? escapeHtml(String(valor)) : '-'}</p></div>
   `;
   const { overlay, cerrar } = abrirModal({
     title: `Información — ${v.correlativo}`,

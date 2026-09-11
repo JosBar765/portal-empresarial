@@ -3,6 +3,20 @@ const authService = require('./authService');
 const jwtHelper = require('./jwtHelper');
 const config = require('../../config/env');
 
+// La cookie debe durar lo mismo que el JWT real que contiene — antes
+// quedaba fija en 24h sin importar JWT_EXPIRES_IN, así que con un valor más
+// corto (ej. las 12h actuales) el navegador seguía mandando un token ya
+// vencido durante horas de más (rechazado igual por verifyToken, pero
+// confuso: el usuario "parece" seguir logueado hasta que hace una acción).
+function duracionEnMs(expresion) {
+  if (typeof expresion === 'number') return expresion * 1000;
+  const match = /^(\d+)(s|m|h|d)$/.exec(String(expresion).trim());
+  if (!match) return 24 * 60 * 60 * 1000; // formato no reconocido: fallback conservador
+  const unidadEnMs = { s: 1000, m: 60000, h: 3600000, d: 86400000 };
+  return Number(match[1]) * unidadEnMs[match[2]];
+}
+const COOKIE_MAX_AGE = duracionEnMs(config.jwtExpiresIn);
+
 class AuthController {
   async handleQueryAction(req, res) {
     const action = req.query.action;
@@ -54,8 +68,14 @@ class AuthController {
     });
   }
 
+  // Este endpoint y el `csrf_token` que el login manda en su body son
+  // decorativos — ningún middleware lo valida en ningún lado (el valor es
+  // el mismo string fijo para cualquiera). Se conserva sin tocar porque
+  // `public/login/index.html` todavía lo consume, pero la protección CSRF
+  // REAL de este proyecto es `sameSite: 'strict'` en la cookie del JWT
+  // (ver loginPost/refreshToken) — suficiente dado que la app solo usa esa
+  // cookie, sin formularios cross-site relevantes que dependan de ella.
   async getCsrfToken(req, res) {
-    // Retornar un token CSRF estático en desarrollo para compatibilidad con la interfaz
     return res.json({ csrf_token: 'munditrofeos_csrf_token_jwt_secure' });
   }
 
@@ -85,7 +105,7 @@ class AuthController {
         httpOnly: true,                               // Protege contra ataques XSS
         secure: config.nodeEnv === 'production',      // Requiere HTTPS en producción
         sameSite: 'strict',                           // Protege contra ataques CSRF
-        maxAge: 24 * 60 * 60 * 1000                   // 24 horas de expiración
+        maxAge: COOKIE_MAX_AGE,
       });
 
       return res.json({
@@ -127,7 +147,7 @@ class AuthController {
         httpOnly: true,
         secure: config.nodeEnv === 'production',
         sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000
+        maxAge: COOKIE_MAX_AGE,
       });
       return res.json({ ok: true, user: authData.user });
     } catch (error) {

@@ -23,14 +23,21 @@ try {
  * Ante cualquier error, o si el resultado no queda más liviano que el
  * original, se conserva el buffer original — nunca debe romper una subida.
  */
+// Techo explícito de píxeles de entrada — sin esto, una imagen con
+// dimensiones declaradas enormes (aunque el archivo comprimido sea
+// pequeño, "decompression bomb") podría consumir CPU/memoria del proceso
+// al decodificarla. 40 megapíxeles es muy por encima de cualquier foto de
+// trofeo real (una foto de 8000x5000 ya son 40MP).
+const LIMITE_PIXELES = 40_000_000;
+
 async function optimizar(buffer, mimetype) {
   if (!sharp) return buffer;
   try {
     let optimizado;
     if (mimetype === 'image/png') {
-      optimizado = await sharp(buffer).png({ compressionLevel: 9, effort: 10 }).toBuffer();
+      optimizado = await sharp(buffer, { limitInputPixels: LIMITE_PIXELES }).png({ compressionLevel: 9, effort: 10 }).toBuffer();
     } else if (mimetype === 'image/jpeg' || mimetype === 'image/jpg') {
-      optimizado = await sharp(buffer).jpeg({ mozjpeg: true, quality: 100, chromaSubsampling: '4:4:4' }).toBuffer();
+      optimizado = await sharp(buffer, { limitInputPixels: LIMITE_PIXELES }).jpeg({ mozjpeg: true, quality: 100, chromaSubsampling: '4:4:4' }).toBuffer();
     } else {
       return buffer;
     }

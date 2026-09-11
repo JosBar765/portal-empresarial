@@ -1,3 +1,13 @@
+// Mismo código que public/modules/admin/js/utils/formato.js — no hay
+// sistema de módulos compartido entre módulos en este proyecto. Necesario
+// para cualquier interpolación en innerHTML de texto libre que venga de
+// OTRO usuario (nombre de cliente, justificación, nombre de actor en el
+// historial, etc.) — sin esto, un <img src=x onerror=...> guardado en un
+// campo de texto corre en el navegador de quien lo ve, no de quien lo escribió.
+export function escapeHtml(texto) {
+  return String(texto == null ? '' : texto).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 // Fechas siempre dd/mm/aaaa; solo la fecha de ingreso (y los logs de
 // historial) muestran también la hora, como dd/mm/aaaa hh:mm.
 export function formatearFecha(valor) {

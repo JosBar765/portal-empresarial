@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
 import { abrirModal } from '../components/modal.js';
-import { formatearFecha } from '../utils/formato.js';
+import { formatearFecha, escapeHtml } from '../utils/formato.js';
 import { ESTADOS_LABEL } from '../config/estados.js';
 import { obtenerCargaTrabajo, obtenerAsignacionesTecnico } from '../api/valesApi.js';
 
@@ -20,7 +20,7 @@ async function renderContenidoCargaTrabajo(overlay) {
   const body = overlay.querySelector('.modal-body');
   body.innerHTML = data.length ? data.map(t => `
     <div class="carga-tecnico" data-tecnico-id="${t.tecnicoId}">
-      <div class="nombre">${t.nombre}</div>
+      <div class="nombre">${escapeHtml(t.nombre)}</div>
       <div class="carga-barra"><div class="carga-barra-fill" style="transform:scaleX(${t.asignaciones / maxAsignaciones})"></div></div>
       <div style="font-size:12px;color:var(--color-text-secondary);">
         Asignaciones: ${t.asignaciones} · En proceso: ${t.enProceso || 'Ninguno'}

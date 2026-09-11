@@ -42,6 +42,17 @@ function categoriaHistorial(h) {
 }
 
 class ValeDetalleService {
+  // Wrapper de _puedeVerVale que resuelve el vale y sus talleres a partir
+  // del id — reusado por obtenerValeParaPdf (cierre del IDOR de descarga de
+  // PDF) y por la validación de la sala `vale:<id>` en el WebSocket (ver
+  // events.js), para no duplicar el criterio de pertenencia en 3 lugares.
+  async puedeVerValePorId(usuario, valeId) {
+    const vale = await valeRepository.obtenerPorId(valeId);
+    if (!vale) return false;
+    const talleres = await valeTallerRepository.listarPorVale(valeId);
+    return this._puedeVerVale(usuario, vale, talleres);
+  }
+
   async obtenerDetalle(usuario, valeId) {
     const vale = await valeRepository.obtenerPorId(valeId);
     if (!vale) throw new Error('Vale de arte no encontrado.');
@@ -84,7 +95,11 @@ class ValeDetalleService {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
       return !!tallerVisible && talleres.some(t => t.taller_id === tallerVisible);
     }
-    return true; // rol desconocido: no restringir de más, mismo criterio que _filtrarHistorialPorRol
+    // Rol no contemplado explícitamente arriba: fail-closed. No explotable
+    // con los roles actuales (todos caen en alguna rama de arriba) — es una
+    // salvaguarda para si se agrega un rol nuevo sin actualizar esta
+    // función, que antes fallaba abierto (veía TODOS los vales).
+    return false;
   }
 
   // Cada rol tiene una lista blanca de categorías (ver categoriaHistorial):
@@ -159,7 +174,10 @@ class ValeDetalleService {
         .map(sinCategoria);
     }
 
-    return historial;
+    // Rol no contemplado explícitamente arriba: fail-closed (mismo criterio
+    // que _puedeVerVale) — sin esto, un rol nuevo sin regla propia vería
+    // TODO el historial de auditoría sin restricción.
+    return [];
   }
 
   async _tallerIdVisiblePara(usuario) {

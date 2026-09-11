@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { abrirModal } from '../components/modal.js';
-import { formatearFechaHora } from '../utils/formato.js';
+import { formatearFechaHora, escapeHtml } from '../utils/formato.js';
 import { obtenerDetalleVale } from '../api/valesApi.js';
 
 // Se mantiene actualizado en tiempo real mientras está abierto — mismo patrón
@@ -14,7 +14,7 @@ async function renderContenidoHistorial(overlay, valeId) {
   }
   overlay.querySelector('.modal-body').innerHTML = `
     <ul class="historial-list">
-      ${(detalle.historial || []).map(h => `<li><span class="fecha">${formatearFechaHora(h.creado_en)}</span>${h.actor_nombre ? `<strong>${h.actor_nombre}:</strong> ` : ''}${h.accion}</li>`).join('') || '<li>Sin movimientos registrados.</li>'}
+      ${(detalle.historial || []).map(h => `<li><span class="fecha">${formatearFechaHora(h.creado_en)}</span>${h.actor_nombre ? `<strong>${escapeHtml(h.actor_nombre)}:</strong> ` : ''}${escapeHtml(h.accion)}</li>`).join('') || '<li>Sin movimientos registrados.</li>'}
     </ul>
   `;
 }

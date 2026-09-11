@@ -4,43 +4,54 @@ const router = express.Router();
 const adminController = require('./controllers/adminController');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
-const soloAdmin = requirePermission('admin.ver');
+// `admin.ver` sigue siendo el único requisito para entrar al panel y ver
+// sus listados (comportamiento sin cambios). Los 5 permisos "gestionar"
+// (correcciones_25, principio de mínimo privilegio) solo gatean crear/
+// editar/activar/eliminar dentro de cada sección — hoy los tiene únicamente
+// Administrador (mismo acceso de siempre, ver seed.sql), pero las rutas ya
+// quedan preparadas para el día que se necesite dar acceso parcial a otro rol.
+const verAdmin = requirePermission('admin.ver');
+const gestionarUsuarios = requirePermission('admin.usuarios.gestionar');
+const gestionarRoles = requirePermission('admin.roles.gestionar');
+const gestionarTalleres = requirePermission('admin.talleres.gestionar');
+const gestionarTiendas = requirePermission('admin.tiendas.gestionar');
+const gestionarMantenimiento = requirePermission('admin.mantenimiento.gestionar');
 
 // Usuarios
-router.get('/usuarios', soloAdmin, (req, res) => adminController.listarUsuarios(req, res));
-router.post('/usuarios', soloAdmin, (req, res) => adminController.crearUsuario(req, res));
-router.put('/usuarios/:id', soloAdmin, (req, res) => adminController.actualizarUsuario(req, res));
-router.patch('/usuarios/:id/activo', soloAdmin, (req, res) => adminController.establecerActivoUsuario(req, res));
-router.get('/usuarios/:id/tiendas-supervisadas', soloAdmin, (req, res) => adminController.obtenerTiendasSupervisadas(req, res));
+router.get('/usuarios', verAdmin, (req, res) => adminController.listarUsuarios(req, res));
+router.post('/usuarios', gestionarUsuarios, (req, res) => adminController.crearUsuario(req, res));
+router.put('/usuarios/:id', gestionarUsuarios, (req, res) => adminController.actualizarUsuario(req, res));
+router.patch('/usuarios/:id/activo', gestionarUsuarios, (req, res) => adminController.establecerActivoUsuario(req, res));
+router.get('/usuarios/:id/tiendas-supervisadas', verAdmin, (req, res) => adminController.obtenerTiendasSupervisadas(req, res));
 
 // Roles y permisos
-router.get('/roles', soloAdmin, (req, res) => adminController.listarRoles(req, res));
-router.get('/permisos', soloAdmin, (req, res) => adminController.listarPermisos(req, res));
-router.post('/roles', soloAdmin, (req, res) => adminController.crearRol(req, res));
-router.put('/roles/:id', soloAdmin, (req, res) => adminController.actualizarRol(req, res));
-router.get('/roles/:id/permisos', soloAdmin, (req, res) => adminController.obtenerPermisosDeRol(req, res));
-router.put('/roles/:id/permisos', soloAdmin, (req, res) => adminController.actualizarPermisosRol(req, res));
-router.patch('/roles/:id/activo', soloAdmin, (req, res) => adminController.establecerActivoRol(req, res));
+router.get('/roles', verAdmin, (req, res) => adminController.listarRoles(req, res));
+router.get('/permisos', verAdmin, (req, res) => adminController.listarPermisos(req, res));
+router.post('/roles', gestionarRoles, (req, res) => adminController.crearRol(req, res));
+router.put('/roles/:id', gestionarRoles, (req, res) => adminController.actualizarRol(req, res));
+router.get('/roles/:id/permisos', verAdmin, (req, res) => adminController.obtenerPermisosDeRol(req, res));
+router.put('/roles/:id/permisos', gestionarRoles, (req, res) => adminController.actualizarPermisosRol(req, res));
+router.patch('/roles/:id/activo', gestionarRoles, (req, res) => adminController.establecerActivoRol(req, res));
 
 // Talleres
-router.get('/talleres', soloAdmin, (req, res) => adminController.listarTalleres(req, res));
-router.get('/talleres/:id/personal', soloAdmin, (req, res) => adminController.listarPersonalTaller(req, res));
-router.post('/talleres/:id/encargado', soloAdmin, (req, res) => adminController.asignarEncargadoDeTaller(req, res));
-router.delete('/talleres/:id/encargado', soloAdmin, (req, res) => adminController.quitarEncargadoDeTaller(req, res));
-router.post('/talleres/:id/tecnicos', soloAdmin, (req, res) => adminController.asignarTecnicoATaller(req, res));
-router.delete('/talleres/:id/tecnicos/:usuarioId', soloAdmin, (req, res) => adminController.quitarTecnicoDeTaller(req, res));
+router.get('/talleres', verAdmin, (req, res) => adminController.listarTalleres(req, res));
+router.get('/talleres/:id/personal', verAdmin, (req, res) => adminController.listarPersonalTaller(req, res));
+router.post('/talleres/:id/encargado', gestionarTalleres, (req, res) => adminController.asignarEncargadoDeTaller(req, res));
+router.delete('/talleres/:id/encargado', gestionarTalleres, (req, res) => adminController.quitarEncargadoDeTaller(req, res));
+router.post('/talleres/:id/tecnicos', gestionarTalleres, (req, res) => adminController.asignarTecnicoATaller(req, res));
+router.delete('/talleres/:id/tecnicos/:usuarioId', gestionarTalleres, (req, res) => adminController.quitarTecnicoDeTaller(req, res));
 
 // Tiendas
-router.get('/organizacion', soloAdmin, (req, res) => adminController.obtenerOrganizacion(req, res));
-router.get('/tiendas', soloAdmin, (req, res) => adminController.listarTiendas(req, res));
-router.post('/tiendas', soloAdmin, (req, res) => adminController.crearTienda(req, res));
-router.put('/tiendas/:id', soloAdmin, (req, res) => adminController.actualizarTienda(req, res));
-router.get('/tiendas/:id/personal', soloAdmin, (req, res) => adminController.listarPersonalTienda(req, res));
-router.post('/tiendas/:id/personal', soloAdmin, (req, res) => adminController.agregarPersonalATienda(req, res));
-router.delete('/tiendas/:id/personal/:usuarioId', soloAdmin, (req, res) => adminController.quitarPersonalDeTienda(req, res));
+router.get('/organizacion', verAdmin, (req, res) => adminController.obtenerOrganizacion(req, res));
+router.get('/tiendas', verAdmin, (req, res) => adminController.listarTiendas(req, res));
+router.post('/tiendas', gestionarTiendas, (req, res) => adminController.crearTienda(req, res));
+router.put('/tiendas/:id', gestionarTiendas, (req, res) => adminController.actualizarTienda(req, res));
+router.get('/tiendas/:id/personal', verAdmin, (req, res) => adminController.listarPersonalTienda(req, res));
+router.post('/tiendas/:id/personal', gestionarTiendas, (req, res) => adminController.agregarPersonalATienda(req, res));
+router.delete('/tiendas/:id/personal/:usuarioId', gestionarTiendas, (req, res) => adminController.quitarPersonalDeTienda(req, res));
 
 // Mantenimiento
-router.get('/mantenimiento', soloAdmin, (req, res) => adminController.obtenerMantenimiento(req, res));
-router.put('/mantenimiento', soloAdmin, (req, res) => adminController.actualizarMantenimiento(req, res));
+router.get('/mantenimiento', verAdmin, (req, res) => adminController.obtenerMantenimiento(req, res));
+router.put('/mantenimiento', gestionarMantenimiento, (req, res) => adminController.actualizarMantenimiento(req, res));
 
 module.exports = router;

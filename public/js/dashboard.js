@@ -129,6 +129,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       await fetch('/api/auth/refresh', { method: 'POST' });
       window.location.reload();
     });
+
+    // El admin desactivó esta cuenta mientras seguía conectada — su JWT ya
+    // emitido seguiría siendo válido hasta expirar por su cuenta si no se
+    // fuerza el logout aquí (authenticateJWT nunca reconsulta `activo`).
+    socket.on('sesion_revocada', async () => {
+      await fetch('/api/auth.php?action=logout');
+      window.location.href = '/login/?expired=true';
+    });
   }
 
   // Función para renderizar tarjetas de módulos en la cuadrícula

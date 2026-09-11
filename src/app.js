@@ -1,5 +1,6 @@
 // src/app.js
 const express = require('express');
+const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const config = require('./config/env');
@@ -13,9 +14,19 @@ const adminRoutes = require('./modules/admin/routes');
 
 const app = express();
 
-// Middlewares para parsear cuerpos de solicitudes y cookies
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Cabeceras de seguridad HTTP (X-Frame-Options, X-Content-Type-Options,
+// etc.) — CSP desactivada por ahora: el frontend carga Ionicons y
+// Socket.IO client desde rutas propias/CDN sin una política ya definida
+// para ellas, y activar CSP con los defaults de Helmet sin esa revisión
+// aparte podría bloquearlos.
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// Middlewares para parsear cuerpos de solicitudes y cookies. Límite
+// explícito de tamaño de body (el default de Express ya es 100kb, esto
+// solo lo deja documentado) — los uploads de archivos van aparte, por
+// multer, con su propio límite.
+app.use(express.json({ limit: '200kb' }));
+app.use(express.urlencoded({ extended: true, limit: '200kb' }));
 app.use(cookieParser());
 
 // -------------------------------------------------------------------------
@@ -138,12 +149,16 @@ app.get('/api/modules', requireAuth, (req, res) => {
   return res.json(userModules);
 });
 
-// Manejo de errores global
+// Manejo de errores global — el detalle completo (SQL, stack, nombres de
+// tablas/columnas) solo va al log del servidor. Un error 4xx conocido (los
+// `throw new Error('mensaje amigable')` deliberados de la capa de servicio,
+// ya pensados para mostrarse) conserva su mensaje; un 500 no anticipado
+// nunca expone su `message` real al cliente.
 app.use((err, req, res, next) => {
   console.error('[Global Error Handler]', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Ocurrió un error interno en el servidor.'
-  });
+  const status = err.status || 500;
+  const mensaje = status < 500 ? (err.message || 'Solicitud inválida.') : 'Ocurrió un error interno en el servidor.';
+  res.status(status).json({ error: mensaje });
 });
 
 module.exports = app;

@@ -1,5 +1,6 @@
 // src/modules/admin/controllers/adminController.js
 const adminService = require('../services/adminService');
+const { responderErrorInterno } = require('../../../core/utils/erroresHttp');
 
 class AdminController {
   // ---- Usuarios ----
@@ -8,7 +9,7 @@ class AdminController {
       const data = await adminService.listarUsuarios();
       return res.json(data);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -44,7 +45,7 @@ class AdminController {
       const tiendaIds = await adminService.obtenerTiendasSupervisadas(Number(req.params.id));
       return res.json(tiendaIds);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -54,7 +55,7 @@ class AdminController {
       const data = await adminService.listarRoles();
       return res.json(data);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -63,7 +64,7 @@ class AdminController {
       const permisoIds = await adminService.obtenerPermisosDeRol(Number(req.params.id));
       return res.json(permisoIds);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -72,7 +73,7 @@ class AdminController {
       const data = await adminService.listarPermisosAgrupados();
       return res.json(data);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -118,7 +119,7 @@ class AdminController {
       const data = await adminService.listarTiendas();
       return res.json(data);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -145,7 +146,7 @@ class AdminController {
       const personal = await adminService.listarPersonalTienda(Number(req.params.id));
       return res.json(personal);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -172,7 +173,7 @@ class AdminController {
       const data = await adminService.obtenerOrganizacion();
       return res.json(data);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -181,7 +182,7 @@ class AdminController {
       const data = await adminService.listarTalleres();
       return res.json(data);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -190,7 +191,7 @@ class AdminController {
       const personal = await adminService.listarPersonalTaller(Number(req.params.id));
       return res.json(personal);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -236,7 +237,7 @@ class AdminController {
       const data = await adminService.obtenerMantenimiento();
       return res.json(data);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 

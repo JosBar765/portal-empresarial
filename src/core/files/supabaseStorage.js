@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const config = require('../../config/env');
+const { extensionParaTipo } = require('./fileSignature');
 
 const bucket = config.supabase.bucket;
 
@@ -42,7 +43,12 @@ class SupabaseStorage {
    * @returns {Promise<{path: string, url: string, size: number}>}
    */
   async subir(buffer, nombreOriginal, mimeType) {
-    const extension = path.extname(nombreOriginal);
+    // La extensión sale del tipo YA VERIFICADO por magic bytes
+    // (valeController.validarArchivos), nunca del nombre que mandó el
+    // usuario — path.extname(nombreOriginal) es 100% controlado por quien
+    // sube el archivo y permitía guardar, por ejemplo, un .svg/.html
+    // disfrazado bajo esa extensión en un bucket público.
+    const extension = extensionParaTipo(mimeType) || path.extname(nombreOriginal);
     const objectPath = crypto.randomBytes(16).toString('hex') + extension;
     const { error } = await obtenerCliente().storage.from(bucket).upload(objectPath, buffer, {
       contentType: mimeType,

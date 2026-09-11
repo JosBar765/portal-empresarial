@@ -31,8 +31,14 @@ class AuthService {
    * @returns {Promise<{user: object, permissions: Array}>}
    */
   async authenticate(email, password) {
+    // Un solo mensaje genérico para los 3 casos de rechazo (correo
+    // inexistente, contraseña incorrecta, cuenta desactivada) — mensajes
+    // distintos permitían confirmar qué correos existen y cuáles están
+    // desactivados, facilitando credential stuffing dirigido. El motivo
+    // real queda solo en el log del servidor para diagnóstico.
+    const MENSAJE_GENERICO = 'Correo o contraseña incorrectos.';
     if (!email || !password) {
-      throw new Error('Email y contraseña son requeridos.');
+      throw new Error(MENSAJE_GENERICO);
     }
 
     // Obtener usuario
@@ -42,19 +48,22 @@ class AuthService {
     );
 
     if (users.length === 0) {
-      throw new Error('Usuario no encontrado.');
+      console.log(`[Auth] Intento de login con correo inexistente: ${email}`);
+      throw new Error(MENSAJE_GENERICO);
     }
 
     const user = users[0];
 
     if (!user.activo) {
-      throw new Error('Esta cuenta de usuario está desactivada.');
+      console.log(`[Auth] Intento de login de cuenta desactivada: ${email}`);
+      throw new Error(MENSAJE_GENERICO);
     }
 
     // Validar contraseña
     const isValid = await bcrypt.compare(password, user.password_hash);
     if (!isValid) {
-      throw new Error('Contraseña incorrecta.');
+      console.log(`[Auth] Intento de login con contraseña incorrecta: ${email}`);
+      throw new Error(MENSAJE_GENERICO);
     }
 
     const { rolNombre, permissions, modules } = await this._cargarPermisosYRol(user.rol_id);

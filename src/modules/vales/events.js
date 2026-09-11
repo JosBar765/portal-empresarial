@@ -9,8 +9,40 @@
 // reenvío a varios talleres a la vez: un solo emit, un solo beep, aunque el
 // mensaje mencione a más de un destino).
 const socketManager = require('../../core/websocket/socketManager');
+const tallerRepository = require('./repositories/tallerRepository');
+const valeCatalogoService = require('./services/valeCatalogoService');
+const valeDetalleService = require('./services/valeDetalleService');
+const { ROL, ROLES_ENCARGADO_TALLER, esAdministrador } = require('./services/valeHelpers');
 
 const SALA_ADMIN = 'vales:admin';
+
+// Valida, EN EL SERVIDOR, que el usuario ya autenticado del socket
+// (ver socketManager.js) tenga derecho real a la sala que está pidiendo —
+// nunca se confía en que el cliente arme la lista correcta por su cuenta,
+// aunque el frontend (permisos.js:roomsParaUsuario) ya lo haga bien. Mismo
+// criterio que esa función, pero recalculado del lado del servidor.
+async function puedeUnirseASala(socket, sala) {
+  const usuario = socket.user;
+  if (sala === SALA_ADMIN) return esAdministrador(usuario);
+  if (usuario.rolId === ROL.ASESOR) return sala === `asesor:${usuario.id}`;
+  if (usuario.rolId === ROL.SUPERVISOR) return sala === `supervisor:${usuario.id}`;
+  if (usuario.rolId === ROL.TECNICO) return sala === `tecnico:${usuario.id}`;
+  if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId) && sala.startsWith('taller:')) {
+    const tallerId = Number(sala.slice('taller:'.length));
+    if (!Number.isFinite(tallerId)) return false;
+    const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
+    const talleres = await tallerRepository.listarActivos();
+    const miTaller = talleres.find(t => t.encargado_id === idEfectivo);
+    return !!miTaller && miTaller.id === tallerId;
+  }
+  if (sala.startsWith('vale:')) {
+    const valeId = Number(sala.slice('vale:'.length));
+    if (!Number.isFinite(valeId)) return false;
+    return valeDetalleService.puedeVerValePorId(usuario, valeId);
+  }
+  return false;
+}
+socketManager.registrarValidadorSala(puedeUnirseASala);
 
 // Offset fijo UTC-6 (Centroamérica, sin horario de verano) — no depender de
 // la zona horaria del sistema operativo del proceso Node (mismo criterio

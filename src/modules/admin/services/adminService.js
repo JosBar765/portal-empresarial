@@ -67,6 +67,9 @@ class AdminService {
     if (!nombre || !email || !password || !rolId) {
       throw new Error('Nombre, correo, contraseña y rol son obligatorios.');
     }
+    if (password.length < 8) {
+      throw new Error('La contraseña debe tener al menos 8 caracteres.');
+    }
     const existente = await usuarioAdminRepository.obtenerPorEmail(email);
     if (existente) {
       throw new Error('Ya existe un usuario con ese correo electrónico.');
@@ -106,6 +109,9 @@ class AdminService {
     const rolNum = Number(usuario.rol_id);
     await usuarioAdminRepository.actualizar(id, { nombre, email, rolId: rolNum });
     if (password) {
+      if (password.length < 8) {
+        throw new Error('La contraseña debe tener al menos 8 caracteres.');
+      }
       const passwordHash = await bcrypt.hash(password, 10);
       await usuarioAdminRepository.actualizarPassword(id, passwordHash);
     }
@@ -130,7 +136,17 @@ class AdminService {
     if (activo && usuario) {
       await this._validarEncargadoUnico(usuario.rol_id, id);
     }
-    return usuarioAdminRepository.establecerActivo(id, activo);
+    const resultado = await usuarioAdminRepository.establecerActivo(id, activo);
+    // Su JWT ya emitido sigue siendo válido (firma/expiración intactas)
+    // hasta que expire por su cuenta — authenticateJWT nunca reconsulta
+    // `usuarios.activo` en cada request. Si sigue con el socket conectado,
+    // esto lo desloguea de inmediato; si no, su sesión sigue viva hasta
+    // que el JWT expire por sí solo (documentado como límite conocido en
+    // correcciones_25 — ver "Riesgos que permanecerán").
+    if (!activo) {
+      socketManager.sendToUser(id, 'sesion_revocada', {});
+    }
+    return resultado;
   }
 
   async obtenerTiendasSupervisadas(usuarioId) {

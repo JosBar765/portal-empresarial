@@ -5,6 +5,7 @@ import { htmlCampoFecha, wireCampoFecha, validarCampoFecha } from '../components
 import { htmlDropzone, wireDropzone } from '../components/dropzone.js';
 import { validarCamposNativos, wireLimpiezaValidacionInline, enfocarPrimerCampoInvalido } from '../components/validacion.js';
 import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js';
+import { escapeHtml } from '../utils/formato.js';
 import { crearVale, solicitarModificacion } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 
@@ -213,26 +214,26 @@ export function abrirModalSolicitarModificacion(vale) {
       <form id="form-modificacion">
         <div class="section-title">Información de Cliente</div>
         <div class="form-grid">
-          <div class="form-field"><label>Empresa</label><input type="text" name="clienteEmpresa" value="${vale.cliente_empresa || ''}" /></div>
-          <div class="form-field"><label>Cliente *</label><input type="text" name="clienteNombre" value="${vale.cliente_nombre || ''}" required /></div>
+          <div class="form-field"><label>Empresa</label><input type="text" name="clienteEmpresa" value="${escapeHtml(vale.cliente_empresa || '')}" /></div>
+          <div class="form-field"><label>Cliente *</label><input type="text" name="clienteNombre" value="${escapeHtml(vale.cliente_nombre || '')}" required /></div>
           <div class="form-field">
             <label>Teléfono *</label>
             <div class="form-field-phone">
               <select name="clienteTelefonoPais">${opcionesPaises()}</select>
-              <input type="text" name="clienteTelefono" value="${telefonoActual}" required placeholder="0000-0000" />
+              <input type="text" name="clienteTelefono" value="${escapeHtml(telefonoActual)}" required placeholder="0000-0000" />
             </div>
           </div>
-          <div class="form-field"><label>Correo *</label><input type="email" name="clienteCorreo" value="${vale.cliente_correo || ''}" required /></div>
+          <div class="form-field"><label>Correo *</label><input type="email" name="clienteCorreo" value="${escapeHtml(vale.cliente_correo || '')}" required /></div>
         </div>
 
         <div class="section-title">Información de Venta</div>
         <div class="form-grid">
           ${htmlCampoFecha('Fecha de entrega', 'fechaEntrega')}
           ${htmlCampoFecha('Fecha del evento', 'fechaEvento')}
-          <div class="form-field"><label>Código de producto *</label><input type="text" name="producto" required maxlength="150" value="${vale.producto || ''}" /></div>
-          <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="150" value="${vale.material || ''}" /></div>
-          <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" value="${vale.tecnica || ''}" /></div>
-          <div class="form-field"><label>Acabado</label><input type="text" name="acabado" value="${vale.acabado || ''}" /></div>
+          <div class="form-field"><label>Código de producto *</label><input type="text" name="producto" required maxlength="150" value="${escapeHtml(vale.producto || '')}" /></div>
+          <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="150" value="${escapeHtml(vale.material || '')}" /></div>
+          <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" value="${escapeHtml(vale.tecnica || '')}" /></div>
+          <div class="form-field"><label>Acabado</label><input type="text" name="acabado" value="${escapeHtml(vale.acabado || '')}" /></div>
           <div class="form-field"><label>Cantidad * (mayor a 1)</label><input type="number" name="cantidad" min="2" value="${vale.cantidad || ''}" required /></div>
           <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" value="${vale.cotizacion || ''}" required /></div>
           <div class="form-field form-checkbox full"><input type="checkbox" name="urgente" id="chk-urgente-mod" /><label for="chk-urgente-mod">Urgente</label></div>

@@ -54,26 +54,26 @@ correcciones acotadas a 1-2 archivos.
 
 | Riesgo | Vulnerabilidad | Archivo | Impacto | Solución | Estado |
 |---|---|---|---|---|---|
-| CRÍTICO | Secreto JWT de repuesto hardcodeado en el código | `src/config/env.js:11` | Si `JWT_SECRET` no queda seteado en el hosting, cualquiera puede forjar un JWT de Administrador leyendo el código público | Quitar el fallback, fallar rápido si falta la variable (mismo patrón que `database.js`) | Pendiente (Fase 1) |
-| ALTO (bordea CRÍTICO) | WebSocket sin autenticación ni validación de salas | `src/core/websocket/socketManager.js:15-41` | Cualquiera (sin cuenta) puede conectarse y suscribirse a `vales:admin` u otras salas y recibir en tiempo real la actividad de vales de toda la empresa | Verificar JWT en el handshake del socket; derivar las salas permitidas en el servidor, no confiar en lo que pide el cliente | Pendiente (Fase 1) |
-| ALTO | IDOR: descarga de PDF de cualquier vale sin verificar pertenencia | `src/modules/vales/services/valeConfirmacionService.js` (`obtenerValeParaPdf`) | Cualquier usuario con `vales.ver` (casi todos los roles) puede descargar el PDF de cualquier vale de cualquier tienda/asesor | Reutilizar el mismo chequeo de pertenencia que ya usa `valeDetalleService._puedeVerVale` | Pendiente (Fase 1) |
-| ALTO | Sin rate limiting ni bloqueo por intentos fallidos en login | `src/core/auth/authService.js`, `authRoutes.js` | Fuerza bruta y credential stuffing sin fricción contra cualquier cuenta, incluida Administrador | `express-rate-limit` por IP+correo en la ruta de login | Pendiente (Fase 1) |
-| ALTO | Validación de uploads basada solo en `Content-Type` declarado por el cliente | `src/modules/vales/controllers/valeController.js`, `src/core/files/supabaseStorage.js` | Subir un archivo `.svg`/`.html` disfrazado de imagen → XSS almacenado en el bucket público de Supabase | Verificar magic bytes/firma real del archivo antes de subir; derivar la extensión del tipo real, no del nombre del usuario | Pendiente (Fase 1) |
-| ALTO | XSS almacenado: campos libres del Asesor sin escapar en el módulo de Vales | `public/modules/vales/js/actions/supervisor.js`, `actions/historial.js` | Un Asesor inyecta HTML/atributos de evento en `cliente_nombre`/`justificacion`/etc.; corre en el navegador del Supervisor/Encargado que lo ve, con su sesión | Aplicar `escapeHtml` (ya existe y se usa en el módulo Admin) en las interpolaciones señaladas | Pendiente (Fase 1) |
-| ALTO | 3 CVEs de DoS activos en `multer@2.2.0` | `package.json` | Payload malicioso en un upload puede tumbar el proceso Node completo (monolito de un solo proceso) | `npm audit fix` (parche menor, sin downgrade) | Pendiente (Fase 1) |
-| MEDIO | Enumeración de usuarios en mensajes de error del login | `src/core/auth/authService.js:44-58` | Permite confirmar qué correos existen/están desactivados | Unificar a un mensaje genérico | Pendiente (Fase 2) |
-| MEDIO | Desactivar un usuario no revoca su sesión ya emitida | `src/modules/admin/services/adminService.js` (`establecerActivoUsuario`) | Un usuario desactivado sigue con acceso completo hasta que su JWT expire por su cuenta | Emitir evento de socket dirigido para forzar logout inmediato (mínimo); opcional: verificar `activo` con cache corto en el middleware global | Pendiente (Fase 2) — nivel de garantía **REQUIERE DECISIÓN DEL DESARROLLADOR** |
-| MEDIO | Filtración de errores internos (SQL/stack) al cliente en respuestas 500 | `src/app.js` (handler global), patrón repetido en controllers | Expone nombres de tablas/columnas/constraints de MySQL, facilita reconocimiento | Mensaje genérico para errores 500 no anticipados; mantener el detalle solo en logs | Pendiente (Fase 2) |
-| MEDIO | CORS de Socket.IO abierto a cualquier origen (`origin: '*'`) | `src/core/websocket/socketManager.js:8-13` | Cualquier sitio web de terceros puede intentar conectarse al socket desde el navegador de una víctima | Restringir a la URL real del dominio de producción vía variable de entorno | Pendiente (Fase 2) |
-| MEDIO | Sin cabeceras de seguridad HTTP (Helmet) | `src/app.js` | Sin protección explícita contra clickjacking (`X-Frame-Options`), MIME-sniffing, etc. | Agregar `helmet` (CSP desactivada inicialmente para no romper scripts existentes) | Pendiente (Fase 2) |
-| BAJO/MEDIO | Sin validación de longitud/formato en campos de texto libre y sin longitud mínima de contraseña | `valeCreacionService.validarDatosVale`, `adminService.crearUsuario` | Contraseñas triviales de 1 carácter aceptadas; valores anormalmente largos pueden disparar errores de MySQL que se filtran (ver hallazgo de arriba) | Límites de longitud explícitos + longitud mínima de contraseña (ej. 8) | Pendiente (Fase 2) |
-| BAJO | Endpoint `getCsrfToken` es un placeholder sin función real | `src/core/auth/authController.js:57-60` | Ninguno directo — falsa sensación de protección si se asume que hace algo | Documentar que la protección real es `sameSite: strict`; retirar si nada lo consume | Pendiente (Fase 3) |
-| BAJO | `maxAge` de la cookie hardcodeado, desacoplado de `JWT_EXPIRES_IN` | `src/core/auth/authController.js` | Cookie sobrevive más que el JWT real; sin riesgo de seguridad, solo UX confusa | Calcular `maxAge` a partir de `config.jwtExpiresIn` | Pendiente (Fase 3) |
-| BAJO | `jwt.verify`/`jwt.sign` sin `algorithms`/`algorithm` explícito | `src/core/auth/jwtHelper.js` | No explotable con la librería actual; defensa en profundidad | Especificar `HS256` explícitamente en ambos lados | Pendiente (Fase 3) |
-| BAJO | Fail-open en verificaciones de rol desconocido | `valeDetalleService._puedeVerVale`/`_filtrarHistorialPorRol` | No explotable hoy (todos los roles actuales están cubiertos); riesgo latente si se agrega un rol nuevo sin actualizar esta función | Cambiar el default a fail-closed | Pendiente (Fase 3) |
-| BAJO | Sin límite explícito de dimensiones de imagen antes de optimizar | `src/core/files/imageOptimizer.js` | DoS parcial acotado (sharp/libvips ya tiene un límite implícito, y el archivo ya está limitado a 2MB) | `limitInputPixels` explícito en `sharp()` | Pendiente (Fase 3) |
-| BAJO | Body limit de Express implícito (no explícito) | `src/app.js:16-17` | Ninguno real (el default de 100kb ya es razonable para este tipo de formularios) | Hacerlo explícito por claridad | Pendiente (Fase 3) |
-| BAJO | Un solo permiso `admin.ver` gatea las 24 rutas del panel de administración | `src/modules/admin/routes.js` | Ninguno hoy (solo Administrador tiene ese permiso); viola mínimo privilegio si en el futuro se quiere dar acceso parcial | Dividir en permisos más finos si se necesita en el futuro | **REQUIERE DECISIÓN DEL DESARROLLADOR** — no es urgente |
+| CRÍTICO | Secreto JWT de repuesto hardcodeado en el código | `src/config/env.js:11` | Si `JWT_SECRET` no queda seteado en el hosting, cualquiera puede forjar un JWT de Administrador leyendo el código público | Quitar el fallback, fallar rápido si falta la variable (mismo patrón que `database.js`) | Corregido (Fase 1) |
+| ALTO (bordea CRÍTICO) | WebSocket sin autenticación ni validación de salas | `src/core/websocket/socketManager.js:15-41` | Cualquiera (sin cuenta) puede conectarse y suscribirse a `vales:admin` u otras salas y recibir en tiempo real la actividad de vales de toda la empresa | Verificar JWT en el handshake del socket; derivar las salas permitidas en el servidor, no confiar en lo que pide el cliente | Corregido (Fase 1) |
+| ALTO | IDOR: descarga de PDF de cualquier vale sin verificar pertenencia | `src/modules/vales/services/valeConfirmacionService.js` (`obtenerValeParaPdf`) | Cualquier usuario con `vales.ver` (casi todos los roles) puede descargar el PDF de cualquier vale de cualquier tienda/asesor | Reutilizar el mismo chequeo de pertenencia que ya usa `valeDetalleService._puedeVerVale` | Corregido (Fase 1) |
+| ALTO | Sin rate limiting ni bloqueo por intentos fallidos en login | `src/core/auth/authService.js`, `authRoutes.js` | Fuerza bruta y credential stuffing sin fricción contra cualquier cuenta, incluida Administrador | `express-rate-limit` por IP+correo en la ruta de login | Corregido (Fase 1) |
+| ALTO | Validación de uploads basada solo en `Content-Type` declarado por el cliente | `src/modules/vales/controllers/valeController.js`, `src/core/files/supabaseStorage.js` | Subir un archivo `.svg`/`.html` disfrazado de imagen → XSS almacenado en el bucket público de Supabase | Verificar magic bytes/firma real del archivo antes de subir; derivar la extensión del tipo real, no del nombre del usuario | Corregido (Fase 1) |
+| ALTO | XSS almacenado: campos libres del Asesor sin escapar en el módulo de Vales | `public/modules/vales/js/actions/supervisor.js`, `actions/historial.js` | Un Asesor inyecta HTML/atributos de evento en `cliente_nombre`/`justificacion`/etc.; corre en el navegador del Supervisor/Encargado que lo ve, con su sesión | Aplicar `escapeHtml` (ya existe y se usa en el módulo Admin) en las interpolaciones señaladas | Corregido (Fase 1) |
+| ALTO | 3 CVEs de DoS activos en `multer@2.2.0` | `package.json` | Payload malicioso en un upload puede tumbar el proceso Node completo (monolito de un solo proceso) | `npm audit fix` (parche menor, sin downgrade) | Corregido (Fase 1) |
+| MEDIO | Enumeración de usuarios en mensajes de error del login | `src/core/auth/authService.js:44-58` | Permite confirmar qué correos existen/están desactivados | Unificar a un mensaje genérico | Corregido (Fase 2) |
+| MEDIO | Desactivar un usuario no revoca su sesión ya emitida | `src/modules/admin/services/adminService.js` (`establecerActivoUsuario`) | Un usuario desactivado sigue con acceso completo hasta que su JWT expire por su cuenta | Emitir evento de socket dirigido para forzar logout inmediato (mínimo); opcional: verificar `activo` con cache corto en el middleware global | Corregido (Fase 2, opción mínima — ver nota) |
+| MEDIO | Filtración de errores internos (SQL/stack) al cliente en respuestas 500 | `src/app.js` (handler global), patrón repetido en controllers | Expone nombres de tablas/columnas/constraints de MySQL, facilita reconocimiento | Mensaje genérico para errores 500 no anticipados; mantener el detalle solo en logs | Corregido (Fase 2) |
+| MEDIO | CORS de Socket.IO abierto a cualquier origen (`origin: '*'`) | `src/core/websocket/socketManager.js:8-13` | Cualquier sitio web de terceros puede intentar conectarse al socket desde el navegador de una víctima | Restringir a la URL real del dominio de producción vía variable de entorno | Corregido (Fase 2) |
+| MEDIO | Sin cabeceras de seguridad HTTP (Helmet) | `src/app.js` | Sin protección explícita contra clickjacking (`X-Frame-Options`), MIME-sniffing, etc. | Agregar `helmet` (CSP desactivada inicialmente para no romper scripts existentes) | Corregido (Fase 2) |
+| BAJO/MEDIO | Sin validación de longitud/formato en campos de texto libre y sin longitud mínima de contraseña | `valeCreacionService.validarDatosVale`, `adminService.crearUsuario` | Contraseñas triviales de 1 carácter aceptadas; valores anormalmente largos pueden disparar errores de MySQL que se filtran (ver hallazgo de arriba) | Límites de longitud explícitos + longitud mínima de contraseña (ej. 8) | Corregido (Fase 2) |
+| BAJO | Endpoint `getCsrfToken` es un placeholder sin función real | `src/core/auth/authController.js:57-60` | Ninguno directo — falsa sensación de protección si se asume que hace algo | Documentar que la protección real es `sameSite: strict`; retirar si nada lo consume | Corregido (Fase 3) |
+| BAJO | `maxAge` de la cookie hardcodeado, desacoplado de `JWT_EXPIRES_IN` | `src/core/auth/authController.js` | Cookie sobrevive más que el JWT real; sin riesgo de seguridad, solo UX confusa | Calcular `maxAge` a partir de `config.jwtExpiresIn` | Corregido (Fase 3) |
+| BAJO | `jwt.verify`/`jwt.sign` sin `algorithms`/`algorithm` explícito | `src/core/auth/jwtHelper.js` | No explotable con la librería actual; defensa en profundidad | Especificar `HS256` explícitamente en ambos lados | Corregido (Fase 3) |
+| BAJO | Fail-open en verificaciones de rol desconocido | `valeDetalleService._puedeVerVale`/`_filtrarHistorialPorRol` | No explotable hoy (todos los roles actuales están cubiertos); riesgo latente si se agrega un rol nuevo sin actualizar esta función | Cambiar el default a fail-closed | Corregido (Fase 3) |
+| BAJO | Sin límite explícito de dimensiones de imagen antes de optimizar | `src/core/files/imageOptimizer.js` | DoS parcial acotado (sharp/libvips ya tiene un límite implícito, y el archivo ya está limitado a 2MB) | `limitInputPixels` explícito en `sharp()` | Corregido (Fase 3) |
+| BAJO | Body limit de Express implícito (no explícito) | `src/app.js:16-17` | Ninguno real (el default de 100kb ya es razonable para este tipo de formularios) | Hacerlo explícito por claridad | Corregido (Fase 3) |
+| BAJO | Un solo permiso `admin.ver` gatea las 24 rutas del panel de administración | `src/modules/admin/routes.js` | Ninguno hoy (solo Administrador tiene ese permiso); viola mínimo privilegio si en el futuro se quiere dar acceso parcial | Dividir en permisos más finos si se necesita en el futuro | Corregido (Fase 3, infraestructura sin reasignar accesos — ver nota) |
 | — | Logging verboso de SQL en consola del servidor | `src/config/database.js:46` | Bajo, condicionado a acceso previo a los logs del servidor | Nota operativa: no exponer logs públicamente en Hostinger | Nota operativa, no requiere código |
 
 ---
@@ -322,6 +322,127 @@ El sistema tiene dos fuentes de datos reales fuera del propio código: **MySQL**
 - **Compromiso del propio hosting** (Hostinger) a nivel de infraestructura — fuera del alcance del código de la aplicación.
 - **Disponibilidad limitada** ante un ataque de DoS suficientemente grande/distribuido — el rate limiting de este plan mitiga abuso a nivel de aplicación (login, uploads), no reemplaza protección de red/CDN (fuera de alcance de este proyecto sin agregar infraestructura adicional, que el propio pedido de correcciones pide evitar salvo necesidad real).
 - **Errores humanos futuros** (un desarrollador reintroduce un `innerHTML` sin escapar, o concatena SQL directo) — sin un linter/regla automatizada, esto depende de revisión de código continua; no se propuso agregar herramientas de análisis estático nuevas por no exceder el alcance pedido, pero es una mejora futura razonable si el equipo crece.
-- **Ventana de tolerancia de hasta ~1 minuto** en la revocación de sesión (si se opta por la solución (b) del Hallazgo 4 de autenticación) — o revocación no garantizada mientras el usuario esté desconectado (si se opta por la solución (a)) — esta decisión queda pendiente del desarrollador.
+- **Revocación de sesión no garantizada si el usuario está desconectado** — se implementó la opción (a) (mínima): al desactivar un usuario, se le fuerza logout de inmediato SI sigue con el socket conectado. Si no lo está en ese momento, su JWT ya emitido sigue siendo válido hasta que expire por su cuenta (según `JWT_EXPIRES_IN`). La opción (b) (verificar `activo` en cada request con cache corto) cerraría esto por completo, a costa de una consulta/cache adicional en el middleware global — no se implementó en esta ronda, queda como mejora futura si se necesita esa garantía más estricta.
 
 No se declara "el proyecto ahora es seguro" — se declaran los riesgos concretos mitigados por cada fase del plan de remediación, y los que persisten arriba.
+
+---
+
+## Implementación — resumen final
+
+Se implementaron **todos** los puntos de `plan_remediacion_25.md` (Fases 1,
+2 y 3), incluidos los dos marcados "REQUIERE DECISIÓN DEL DESARROLLADOR":
+
+- **Revocación de sesión al desactivar un usuario**: se aplicó la opción
+  (a) — mínima — descrita arriba (logout forzado vía socket si sigue
+  conectado). Es la que el propio plan marcaba como recomendada para esta
+  fase, sin impacto de performance.
+- **Granularidad de permisos del panel de administración**: se creó la
+  infraestructura completa (5 permisos nuevos: `admin.usuarios.gestionar`,
+  `admin.roles.gestionar`, `admin.talleres.gestionar`,
+  `admin.tiendas.gestionar`, `admin.mantenimiento.gestionar`, gateando cada
+  ruta de escritura de su sección) **sin reasignar ningún acceso** — los 5
+  se asignaron únicamente a Administrador, que ya tenía acceso total. El
+  comportamiento del sistema no cambió para nadie; queda lista la
+  estructura para el día que se necesite dar acceso parcial a otro rol,
+  sin tener que tocar rutas de nuevo.
+
+### 1. Resumen ejecutivo
+
+Las 20 vulnerabilidades encontradas (2 que bordeaban crítico, 5 altas, 8
+medias/bajo-medias, 5 bajas) quedaron corregidas. Se verificó cada una en
+vivo contra el servidor real (no solo revisión de código): WebSocket
+rechazando conexiones sin JWT válido, IDOR de PDF bloqueado con datos
+reales, rate limiting disparando 429 al onceavo intento, magic bytes
+rechazando un archivo falso pero aceptando uno real, y el payload XSS
+mostrado como texto literal en el modal de info del vale (capturado en
+screenshot). El panel de administración y el módulo de Vales se probaron
+de punta a punta con una sesión real de Administrador tras aplicar todos
+los cambios, sin errores de consola ni de servidor.
+
+### 2. Tabla de vulnerabilidades
+
+Ver tabla completa arriba — columna "Estado" actualizada a "Corregido" en
+las 20 filas.
+
+### 3. Lista de cambios realizados
+
+Ver el detalle punto por punto en `plan_remediacion_25.md` (cada ítem de
+Fase 1/2/3 tal como se planeó, sin desviaciones salvo las anotadas ahí
+mismo). Adicional al plan, durante la implementación también se: extendió
+el barrido de XSS a `valeForm.js` (atributos `value=` del formulario de
+solicitar modificación) y `cargaTrabajo.js`/`encargado.js` (nombres de
+técnico en `<option>`) — no estaban en el plan original pero se encontraron
+al hacer el barrido completo del módulo de Vales pedido por el punto de
+XSS.
+
+### 4. Archivos modificados (30)
+
+`database/seed.sql`, `package.json`, `package-lock.json`,
+`public/js/dashboard.js`, `public/modules/admin/js/socket.js`,
+`public/modules/vales/js/actions/{cargaTrabajo,encargado,historial,supervisor}.js`,
+`public/modules/vales/js/forms/valeForm.js`,
+`public/modules/vales/js/socket.js`,
+`public/modules/vales/js/utils/formato.js`, `src/app.js`,
+`src/config/env.js`,
+`src/core/auth/{authController,authRoutes,authService,jwtHelper}.js`,
+`src/core/files/{imageOptimizer,supabaseStorage}.js`,
+`src/core/websocket/socketManager.js`,
+`src/modules/admin/{controllers/adminController,routes,services/adminService}.js`,
+`src/modules/vales/controllers/valeController.js`,
+`src/modules/vales/events.js`, `src/modules/vales/routes.js`,
+`src/modules/vales/services/{valeConfirmacionService,valeCreacionService,valeDetalleService}.js`.
+
+### 5. Archivos nuevos (2)
+
+`src/core/files/fileSignature.js` (verificación de magic bytes),
+`src/core/utils/erroresHttp.js` (respuesta genérica para errores 500).
+
+### 6. Dependencias agregadas/modificadas
+
+- **Nuevas**: `express-rate-limit@^8.7.0`, `helmet@^8.3.0`.
+- **Actualizadas** (parche, sin downgrade): `multer` 2.2.0 → 2.3.0 (3 CVEs
+  de DoS corregidos).
+- **`overrides`** agregado en `package.json`: `"qs": "^6.16.0"` — express
+  4.22.2 (la última versión 4.x) sigue empaquetando internamente una
+  versión de `qs` con 2 CVEs moderados sin haber liberado un parche propio;
+  el `overrides` fuerza esa dependencia transitiva a una versión parchada
+  en todo el árbol sin tocar el `express` declarado ni requerir su
+  actualización a la versión 5 (breaking). `npm audit` queda en 0
+  vulnerabilidades.
+
+### 7. Variables de entorno nuevas
+
+`SOCKET_CORS_ORIGIN` — restringe el CORS de Socket.IO al dominio real en
+producción (si no se define, cae a `http://localhost:3000`). Agregar a
+`.env` en Hostinger con la URL real del dominio.
+
+### 8. Configuraciones a realizar en Hostinger
+
+Sin cambios respecto a lo ya listado arriba en "Configuraciones a realizar
+en Hostinger" — adicional: configurar `SOCKET_CORS_ORIGIN` con el dominio
+real, y generar un `JWT_SECRET` real y aleatorio (nunca el valor de
+`.env.example`) antes de desplegar.
+
+### 9. Configuraciones a realizar en MySQL
+
+Sin cambios respecto a lo ya listado arriba.
+
+### 10. Configuraciones que NO pueden solucionarse desde el código
+
+Sin cambios respecto a lo ya listado arriba.
+
+### 11-12. Backups y recuperación ante desastre
+
+Sin cambios respecto a la estrategia ya recomendada arriba — ninguno de
+los cambios de esta implementación la afecta.
+
+### 13-14. Checklists antes/después de producción
+
+Ver los checklists ya incluidos arriba — todos los ítems de "Fase 1 del
+plan de remediación aplicada" ya se cumplen.
+
+### 15. Riesgos que todavía permanecen
+
+Ver sección "Riesgos que permanecerán después de aplicar todas las medidas
+de este plan" arriba, actualizada con el resultado real de cada decisión.

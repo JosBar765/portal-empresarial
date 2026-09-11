@@ -6,10 +6,17 @@ const valeController = require('./controllers/valeController');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
 // Buffer en memoria: subirYRegistrarArchivo() sube el buffer a Supabase
-// Storage; el binario nunca se guarda en la base de datos, solo la URL resultante.
+// Storage; el binario nunca se guarda en la base de datos, solo la URL
+// resultante. `fileFilter` es solo la primera barrera (por Content-Type
+// declarado, rápida y barata) — la verificación real por magic bytes ocurre
+// después, en valeController.validarArchivos, sobre el buffer ya en memoria.
+const TIPOS_PERMITIDOS = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']);
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 3 * 1024 * 1024 }
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    cb(null, TIPOS_PERMITIDOS.has(file.mimetype));
+  }
 });
 
 const camposAdjuntos = upload.fields([

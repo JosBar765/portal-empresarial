@@ -10,6 +10,7 @@ const solicitudModificacionRepository = require('../repositories/solicitudModifi
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
 const valeCreacionService = require('./valeCreacionService');
+const valeDetalleService = require('./valeDetalleService');
 const {
   ESTADOS, hoyISO, horaActual, enriquecer, registrarHistorial,
   esAdministrador, esValeDeModificacion, requerirVale, assertPropioDelAsesor
@@ -64,6 +65,9 @@ class ValeConfirmacionService {
       }
       if (!payload.justificacion) {
         throw new Error('Debe justificar la modificación solicitada.');
+      }
+      if (String(payload.justificacion).length > 2000) {
+        throw new Error('La justificación supera el largo máximo permitido (2000 caracteres).');
       }
       const datos = await valeCreacionService.validarDatosVale(payload, { requiereTalleres: false });
 
@@ -229,9 +233,16 @@ class ValeConfirmacionService {
   // "Ver PDF" siempre sirve el PDF del vale que se pidió — nunca lo
   // sustituye por el de otro vale (el original y su MOD- quedan como dos
   // vales independientes y consultables, cada uno con su propio PDF;
-  // aprobarModificacion siempre hace un INSERT nuevo, no un UPDATE).
+  // aprobarModificacion siempre hace un INSERT nuevo, no un UPDATE). Mismo
+  // chequeo de pertenencia que ya usa valeDetalleService.obtenerDetalle —
+  // sin esto, cualquier usuario con vales.ver podía descargar el PDF de
+  // CUALQUIER vale con solo cambiar el id en la URL.
   async obtenerValeParaPdf(usuario, valeId) {
-    return requerirVale(valeId);
+    const vale = await requerirVale(valeId);
+    if (!(await valeDetalleService.puedeVerValePorId(usuario, valeId))) {
+      throw new Error('No tienes acceso a este vale de arte.');
+    }
+    return vale;
   }
 }
 

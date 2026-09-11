@@ -3,6 +3,7 @@ import { ROLES_ENCARGADO_TALLER } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { htmlDropzone, wireDropzone } from '../components/dropzone.js';
 import { obtenerTecnicosAsignables, asignarTecnico, obtenerDetalleVale, revisarPropuesta, aprobarGeneral } from '../api/valesApi.js';
+import { escapeHtml } from '../utils/formato.js';
 import { cargarBuzon } from '../views/buzon.js';
 
 // Lista de técnicos asignables, con la opción "(yo mismo)" para un encargado
@@ -32,7 +33,7 @@ export async function abrirModalAsignar(vale) {
       <div class="form-field">
         <label>Técnico a cargo</label>
         <select id="select-tecnico">
-          ${tecnicos.length ? tecnicos.map(t => `<option value="${t.id}">${t.nombre}</option>`).join('') : '<option value="">No hay técnicos bajo su mando</option>'}
+          ${tecnicos.length ? tecnicos.map(t => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('') : '<option value="">No hay técnicos bajo su mando</option>'}
         </select>
       </div>
     `,
@@ -93,7 +94,7 @@ export async function abrirModalRevisar(vale) {
       <div class="form-field">
         <label>Reasignar a (solo si desaprueba)</label>
         <select id="select-tecnico-reasignar">
-          ${tecnicos.map(t => `<option value="${t.id}">${t.nombre}</option>`).join('')}
+          ${tecnicos.map(t => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('')}
         </select>
       </div>
     `,

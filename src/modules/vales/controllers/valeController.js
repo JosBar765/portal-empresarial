@@ -1,5 +1,7 @@
 // src/modules/vales/controllers/valeController.js
 const valeService = require('../services/valeService');
+const { tipoRealCoincide } = require('../../../core/files/fileSignature');
+const { responderErrorInterno } = require('../../../core/utils/erroresHttp');
 
 const IMAGEN_MAX_BYTES = 2 * 1024 * 1024;
 const DOCUMENTO_MAX_BYTES = 3 * 1024 * 1024;
@@ -9,7 +11,11 @@ function validarArchivos(files) {
   const documentos = (files && files.documentos) || [];
 
   for (const img of imagenes) {
-    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(img.mimetype)) {
+    // El Content-Type del multipart lo declara el propio cliente — nunca es
+    // suficiente por sí solo (un .svg/.html renombrado podría pasarlo). Se
+    // exige además que los primeros bytes del archivo coincidan de verdad
+    // con ese tipo.
+    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(img.mimetype) || !tipoRealCoincide(img.buffer, img.mimetype)) {
       throw new Error(`Formato de imagen no soportado: ${img.originalname}`);
     }
     if (img.size > IMAGEN_MAX_BYTES) {
@@ -17,7 +23,7 @@ function validarArchivos(files) {
     }
   }
   for (const doc of documentos) {
-    if (doc.mimetype !== 'application/pdf') {
+    if (doc.mimetype !== 'application/pdf' || !tipoRealCoincide(doc.buffer, doc.mimetype)) {
       throw new Error(`Formato de documento no soportado: ${doc.originalname} (solo se permite PDF).`);
     }
     if (doc.size > DOCUMENTO_MAX_BYTES) {
@@ -33,7 +39,7 @@ class ValeController {
       const data = await valeService.obtenerCatalogos(req.user);
       return res.json(data);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -42,7 +48,7 @@ class ValeController {
       const data = await valeService.obtenerTalleres();
       return res.json(data);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -52,7 +58,7 @@ class ValeController {
       const { autorizados, limite } = await valeService.obtenerLimiteColectivoSupervisor(req.user.id);
       return res.json({ autorizados, limite });
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -87,7 +93,7 @@ class ValeController {
       const data = await valeService.obtenerBuzon(req.user, filtros);
       return res.json(data);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -107,7 +113,7 @@ class ValeController {
       const data = await valeService.obtenerDashboardGerencia(req.user, filtros);
       return res.json(data);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -155,7 +161,7 @@ class ValeController {
   async entregar(req, res) {
     try {
       const propuesta = req.files && req.files.propuesta ? req.files.propuesta[0] : null;
-      if (propuesta && propuesta.mimetype !== 'application/pdf') {
+      if (propuesta && (propuesta.mimetype !== 'application/pdf' || !tipoRealCoincide(propuesta.buffer, propuesta.mimetype))) {
         throw new Error('La propuesta debe adjuntarse en formato PDF.');
       }
       const vale = await valeService.entregar(req.user, Number(req.params.id), propuesta, req.body.idempotencyKey);
@@ -209,7 +215,7 @@ class ValeController {
   async aprobarGeneral(req, res) {
     try {
       const archivo = req.files && req.files.fusion ? req.files.fusion[0] : null;
-      if (archivo && archivo.mimetype !== 'application/pdf') {
+      if (archivo && (archivo.mimetype !== 'application/pdf' || !tipoRealCoincide(archivo.buffer, archivo.mimetype))) {
         throw new Error('El documento de fusión debe adjuntarse en formato PDF.');
       }
       const vale = await valeService.aprobarGeneral(req.user, Number(req.params.id), archivo, req.body.idempotencyKey);
@@ -269,7 +275,7 @@ class ValeController {
       const data = await valeService.obtenerCargaTrabajo(req.user);
       return res.json(data);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 
@@ -287,7 +293,7 @@ class ValeController {
       const data = await valeService.obtenerTecnicosAsignables(req.user);
       return res.json(data);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return responderErrorInterno(res, error);
     }
   }
 }

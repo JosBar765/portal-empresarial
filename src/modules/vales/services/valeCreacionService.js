@@ -232,6 +232,22 @@ class ValeCreacionService {
     if (!fechaEntrega || !fechaEvento) {
       throw new Error('Las fechas de entrega y de evento son obligatorias.');
     }
+    // Límites de longitud alineados a las columnas reales de `vales` — sin
+    // esto, un valor demasiado largo llega intacto hasta MySQL y el error
+    // de "Data too long for column" (con el nombre de la columna) podía
+    // filtrarse hasta el cliente.
+    const limitesLongitud = {
+      clienteNombre: 150, clienteEmpresa: 150, clienteTelefono: 30, clienteCorreo: 150,
+      producto: 150, material: 150, tecnica: 150, acabado: 150, descripcion: 600
+    };
+    for (const [campo, valor] of Object.entries({ clienteNombre, clienteEmpresa, clienteTelefono, clienteCorreo, producto, material, tecnica, acabado, descripcion })) {
+      if (valor && String(valor).length > limitesLongitud[campo]) {
+        throw new Error(`El campo "${campo}" supera el largo máximo permitido (${limitesLongitud[campo]} caracteres).`);
+      }
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clienteCorreo)) {
+      throw new Error('El correo del cliente no tiene un formato válido.');
+    }
     // Técnica y acabado son opcionales — se guardan en blanco si no se
     // indican, valePdfService ya maneja ese caso. Entrega se normaliza a fin
     // de día (es una fecha límite: vale durante todo ese día) y evento a
