@@ -1,6 +1,7 @@
 // src/core/websocket/socketManager.js
 const { Server } = require('socket.io');
 const jwtHelper = require('../auth/jwtHelper');
+const sesionRepository = require('../auth/sesionRepository');
 
 let io = null;
 const activeConnections = new Map(); // Guardar conexiones activas asociadas a usuarios
@@ -74,9 +75,19 @@ function init(server) {
     activeConnections.set(userId, socket.id);
     console.log(`[WebSocket] Usuario conectado: ${userId} (Socket: ${socket.id})`);
 
+    // Sesión única (ver sesionRepository/authController): cada pestaña
+    // abierta de la MISMA sesión suma una conexión; al cerrarse la última
+    // (tab cerrado, navegador/PC/servidor crasheado) la fila se borra sola,
+    // sin depender de que el cliente avise con un logout explícito. Un
+    // socket con un `sid` de una sesión ya reemplazada (token viejo que
+    // seguía conectado) simplemente no coincide con ninguna fila — el
+    // UPDATE no afecta filas y no hace daño.
+    if (socket.user.sid) sesionRepository.incrementarConexion(socket.user.id, socket.user.sid).catch(() => {});
+
     socket.on('disconnect', () => {
       activeConnections.delete(userId);
       console.log(`[WebSocket] Usuario desconectado: ${userId}`);
+      if (socket.user.sid) sesionRepository.decrementarConexion(socket.user.id, socket.user.sid).catch(() => {});
     });
 
     // Escuchar eventos globales o de registro de canal. Acepta un nombre único

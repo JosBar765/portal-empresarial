@@ -102,6 +102,24 @@
     </div>
   </div>
 
+  <!-- Sesión única: bloquea la pantalla ante ACTIVE_SESSION_EXISTS (ver
+       authController.loginPost). Sin cerrar-con-click-afuera ni Escape a
+       propósito — la única salida es el botón, para que de verdad "bloquee
+       la pantalla" como pide la especificación. -->
+  <div id="sesion-activa-overlay" class="modal-overlay" style="display:none;">
+    <div class="modal-box" style="max-width:420px;">
+      <div class="modal-header">
+        <h3>Sesión activa</h3>
+      </div>
+      <div class="modal-body">
+        <p>Ya tienes una sesión activa en otro dispositivo o navegador.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btn-cerrar-sesion-activa" class="btn btn--primary">Entendido</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     (async () => {
       const form = document.getElementById('login-form');
@@ -111,6 +129,15 @@
       const errorBox = document.getElementById('login-error');
       const togglePassBtn = document.getElementById('toggle-password');
       const eyeIcon = document.getElementById('eye-icon');
+      const sesionActivaOverlay = document.getElementById('sesion-activa-overlay');
+
+      function mostrarSesionActivaModal(mensaje) {
+        if (mensaje) sesionActivaOverlay.querySelector('.modal-body p').textContent = mensaje;
+        sesionActivaOverlay.style.display = 'flex';
+      }
+      document.getElementById('btn-cerrar-sesion-activa').addEventListener('click', () => {
+        sesionActivaOverlay.style.display = 'none';
+      });
 
       // Validar si hay sesión activa para redirigir directamente
       try {
@@ -181,6 +208,9 @@
 
           if (res.ok && data.ok) {
             window.location.href = '/dashboard/';
+          } else if (res.status === 409 && data.error === 'ACTIVE_SESSION_EXISTS') {
+            mostrarSesionActivaModal(data.message);
+            setLoading(false);
           } else {
             // Renovar CSRF token
             try {
