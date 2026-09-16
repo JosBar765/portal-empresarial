@@ -1,5 +1,6 @@
 // src/app.js
 const express = require('express');
+const multer = require('multer');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const path = require('path');
@@ -154,8 +155,21 @@ app.get('/api/modules', requireAuth, (req, res) => {
 // `throw new Error('mensaje amigable')` deliberados de la capa de servicio,
 // ya pensados para mostrarse) conserva su mensaje; un 500 no anticipado
 // nunca expone su `message` real al cliente.
+// Errores de Multer (límite de tamaño/cantidad de archivos) ocurren en el
+// middleware de upload, antes de llegar a ningún controlador — sin esto
+// caían al 500 genérico de abajo ("error interno del servidor"), un mensaje
+// engañoso para lo que en realidad es un archivo demasiado grande.
+const MENSAJES_MULTER = {
+  LIMIT_FILE_SIZE: 'El archivo adjunto supera el tamaño máximo permitido.',
+  LIMIT_FILE_COUNT: 'Se adjuntaron demasiados archivos.',
+  LIMIT_UNEXPECTED_FILE: 'Se recibió un archivo en un campo inesperado.'
+};
+
 app.use((err, req, res, next) => {
   console.error('[Global Error Handler]', err);
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ error: MENSAJES_MULTER[err.code] || 'No se pudo procesar el archivo adjunto.' });
+  }
   const status = err.status || 500;
   const mensaje = status < 500 ? (err.message || 'Solicitud inválida.') : 'Ocurrió un error interno en el servidor.';
   res.status(status).json({ error: mensaje });
