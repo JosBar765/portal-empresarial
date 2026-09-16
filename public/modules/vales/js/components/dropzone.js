@@ -19,7 +19,11 @@ export function htmlDropzone({ name, id, accept, multiple = false, hint }) {
   `;
 }
 
-export function wireDropzone(overlay, inputSelector, listaSelector) {
+// `maxBytes`: rechaza en el propio selector cualquier archivo que ya se sepa
+// que el backend va a rechazar por tamaño — antes se dejaba agregar al
+// formulario igual, y el error solo aparecía hasta que fallaba la subida a
+// Supabase (correcciones_27 #2).
+export function wireDropzone(overlay, inputSelector, listaSelector, { maxBytes } = {}) {
   const input = overlay.querySelector(inputSelector);
   const dropzone = input.closest('.dropzone');
   const lista = overlay.querySelector(listaSelector);
@@ -35,7 +39,15 @@ export function wireDropzone(overlay, inputSelector, listaSelector) {
     `).join('');
   };
   input.addEventListener('change', () => {
-    const nuevos = Array.from(input.files);
+    const seleccionados = Array.from(input.files);
+    const nuevos = [];
+    for (const f of seleccionados) {
+      if (maxBytes && f.size > maxBytes) {
+        window.toast.error('Archivo demasiado grande', `"${f.name}" (${formatearTamano(f.size)}) supera el máximo permitido de ${formatearTamano(maxBytes)}.`);
+        continue;
+      }
+      nuevos.push(f);
+    }
     archivos = input.multiple ? archivos.concat(nuevos) : nuevos;
     input.value = ''; // la lista real vive en `archivos`, no en el input nativo
     render();
