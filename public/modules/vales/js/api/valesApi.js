@@ -5,9 +5,25 @@
 // las envolvía en un try/catch con un valor de respaldo. Esa diferencia se
 // conserva a propósito.
 
+// Si el servidor (o un intermediario delante de él, ej. un límite de tamaño
+// de subida del hosting) responde con HTML en vez de JSON, `res.json()`
+// truena con un mensaje crudo de parseo ("Unexpected token '<', ... is not
+// valid JSON") que no le dice nada útil a quien está usando el formulario —
+// se homogeniza acá a un mensaje claro, sin cambiar la revisión de `res.ok`
+// que ya hace cada función.
+async function leerJSON(res) {
+  try {
+    return await res.json();
+  } catch {
+    throw new Error(res.ok
+      ? 'El servidor respondió en un formato inesperado.'
+      : `Error del servidor (${res.status}). Si adjuntaste un archivo, es posible que sea demasiado grande.`);
+  }
+}
+
 async function enviarPost(url) {
   const res = await fetch(url, { method: 'POST' });
-  const data = await res.json();
+  const data = await leerJSON(res);
   if (!res.ok) throw new Error(data.error);
   return data;
 }
@@ -18,54 +34,54 @@ async function enviarJSON(url, payload) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  const data = await res.json();
+  const data = await leerJSON(res);
   if (!res.ok) throw new Error(data.error);
   return data;
 }
 
 async function enviarFormData(url, formData) {
   const res = await fetch(url, { method: 'POST', body: formData });
-  const data = await res.json();
+  const data = await leerJSON(res);
   if (!res.ok) throw new Error(data.error);
   return data;
 }
 
 export async function obtenerCatalogos() {
   const res = await fetch('/api/vales/catalogos');
-  return res.json();
+  return leerJSON(res);
 }
 
 export async function obtenerBuzon(qs) {
   const res = await fetch(`/api/vales?${qs.toString()}`);
   if (!res.ok) throw new Error('No se pudo cargar el buzón.');
-  return res.json();
+  return leerJSON(res);
 }
 
 export async function obtenerMasVales(qs) {
   const res = await fetch(`/api/vales?${qs.toString()}`);
   if (!res.ok) throw new Error('No se pudo cargar más vales.');
-  return res.json();
+  return leerJSON(res);
 }
 
 export async function obtenerLimiteColectivo() {
   const res = await fetch('/api/vales/limite-colectivo');
-  return res.json();
+  return leerJSON(res);
 }
 
 export async function obtenerDashboardGerencia(qs) {
   const res = await fetch(`/api/vales/dashboard-gerencia?${qs.toString()}`);
   if (!res.ok) throw new Error('No se pudo cargar el dashboard.');
-  return res.json();
+  return leerJSON(res);
 }
 
 export async function obtenerTecnicosAsignables() {
   const res = await fetch('/api/vales/tecnicos');
-  return res.json();
+  return leerJSON(res);
 }
 
 export async function crearVale(formData) {
   const res = await fetch('/api/vales', { method: 'POST', body: formData });
-  const data = await res.json();
+  const data = await leerJSON(res);
   if (!res.ok) throw new Error(data.error || 'No se pudo crear el vale de arte.');
   return data;
 }
@@ -76,7 +92,7 @@ export function asignarTecnico(valeId, tecnicoId) {
 
 export async function obtenerDetalleVale(valeId) {
   const res = await fetch(`/api/vales/${valeId}`);
-  return res.json();
+  return leerJSON(res);
 }
 
 export function revisarPropuesta(valeId, payload) {
@@ -129,10 +145,10 @@ export function aprobarModificacion(valeId) {
 
 export async function obtenerCargaTrabajo() {
   const res = await fetch('/api/vales/carga-trabajo');
-  return res.json();
+  return leerJSON(res);
 }
 
 export async function obtenerAsignacionesTecnico(tecnicoId) {
   const res = await fetch(`/api/vales/carga-trabajo/${tecnicoId}`);
-  return res.json();
+  return leerJSON(res);
 }
