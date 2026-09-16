@@ -68,13 +68,6 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (16, 'vales.aprobar_general', 'Aprobar y Fusionar (Multi-taller)', 'vales', 'Permite fusionar y aprobar un vale enviado a más de un taller'),
 (17, 'vales.ver_gerencia', 'Ver Panel de Gerencia', 'vales', 'Acceso de solo lectura al dashboard de métricas y al listado de vales de arte de todas las tiendas'),
 (18, 'vales.autorizar_creacion', 'Autorizar Creación', 'vales', 'Permite al supervisor autorizar el envío a talleres de un vale recién creado por sus asesores'),
--- Permisos finos del panel de administración (correcciones_25, principio
--- de mínimo privilegio) — `admin.ver` sigue siendo el único requisito para
--- ENTRAR al panel y ver sus listados; estos 5 solo gatean las acciones que
--- CREAN/MODIFICAN/ELIMINAN algo dentro de cada sección. Hoy los tiene
--- únicamente Administrador (mismo comportamiento de siempre) — quedan
--- disponibles para el día que se necesite dar acceso parcial a otro rol,
--- sin tener que tocar rutas de nuevo.
 (19, 'admin.usuarios.gestionar', 'Gestionar Usuarios', 'admin', 'Permite crear, editar y activar/desactivar usuarios'),
 (20, 'admin.roles.gestionar', 'Gestionar Roles y Permisos', 'admin', 'Permite crear/editar roles y cambiar los permisos asignados a cada uno'),
 (21, 'admin.talleres.gestionar', 'Gestionar Talleres', 'admin', 'Permite asignar/quitar encargados y técnicos de un taller'),
@@ -82,9 +75,7 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (23, 'admin.mantenimiento.gestionar', 'Gestionar Mantenimiento', 'admin', 'Permite activar/desactivar el modo mantenimiento del portal');
 
 INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
--- Administrador: acceso al panel + ver vales (analisis_correcciones_17.md #0)
--- + los 5 permisos finos de gestión del panel (19-23, correcciones_25) —
--- todos en el Administrador por ahora, mismo acceso total de siempre.
+-- Administrador
 (1, 1), (1, 8), (1, 19), (1, 20), (1, 21), (1, 22), (1, 23),
 -- Asesor de Ventas
 (2, 1), (2, 2), (2, 3), (2, 12), (2, 13),
@@ -105,10 +96,6 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 -- Encargado de taller de diseño local: mismos permisos atómicos que Diseño
 (10, 1), (10, 9), (10, 10), (10, 11);
 
--- Catálogos del módulo de Vales de Arte (antes ENUM en línea en schema.sql,
--- ver analisis_correcciones_24.md #5) — mismos strings que usaban los ENUM,
--- para que el resto del código (que sigue trabajando con estos nombres, no
--- con los ids) no note el cambio.
 INSERT INTO `estados_vale` (`id`, `nombre`) VALUES
 (1, 'ESPERANDO_AUTORIZACION'), (2, 'CREADO'), (3, 'APROBADO_DEPARTAMENTO'),
 (4, 'PENDIENTE_CONFIRMACION'), (5, 'RECIBIDO'), (6, 'SOLICITANDO_MODIFICACION'),

@@ -60,16 +60,6 @@ CREATE TABLE IF NOT EXISTS `usuarios` (
   INDEX `idx_usuarios_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Sesión única por usuario: una fila = una sesión con login activo. `token_id`
--- (jti embebido en el JWT como `sid`) identifica CUÁL sesión es, para que un
--- socket o un logout de una sesión ya reemplazada nunca pisen la fila de una
--- sesión más nueva. `expira_en` es el techo absoluto (= duración real del JWT
--- emitido) — es la única garantía de que un crash de navegador/PC/servidor
--- que nunca dispare un logout ni un disconnect de socket no deje al usuario
--- bloqueado más allá de la vida del propio token. `conexiones_activas` cuenta
--- los sockets vivos de ESA sesión (varias pestañas del mismo login no la
--- cierran entre sí); llega a 0 -> la fila se borra (ver
--- src/core/auth/sesionRepository.js).
 CREATE TABLE IF NOT EXISTS `sesiones_activas` (
   `usuario_id`          INT NOT NULL PRIMARY KEY,
   `token_id`            VARCHAR(36) NOT NULL,
