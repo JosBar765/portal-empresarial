@@ -9,6 +9,13 @@ import { escapeHtml } from '../utils/formato.js';
 import { crearVale, solicitarModificacion } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 
+// Mismos límites que ya exige el backend (valeController.js:
+// IMAGEN_MAX_BYTES/DOCUMENTO_MAX_BYTES) — se repiten acá para poder
+// rechazar el archivo desde el selector, antes de intentar subirlo.
+const IMAGEN_MAX_BYTES = 2 * 1024 * 1024;
+const DOCUMENTO_MAX_BYTES = 3 * 1024 * 1024;
+const DESCRIPCION_MAX_CARACTERES = 600;
+
 export function opcionesPaises() {
   return (state.catalogos.paises || []).map(p =>
     `<option value="${p.codigo_telefono}" ${p.codigo === 'GT' ? 'selected' : ''}>${p.codigo_telefono} ${p.codigo}</option>`
@@ -32,6 +39,32 @@ export function wireUrgenteAutoLock(overlay) {
   };
   fechaInput.addEventListener('change', actualizar);
   actualizar();
+}
+
+// Contador "actual/máximo" del boceto y descripción — el límite en sí ya lo
+// impone el navegador vía `maxlength` (no deja escribir de más); esto es
+// solo la señal visual: el número sube mientras se escribe y, al llegar al
+// máximo, se resalta en rojo junto con un aviso puntual (mismo componente
+// `.field-error` que ya usa el resto de la validación inline del
+// formulario, pero fuera del mecanismo de `.is-invalid` — ese se limpia
+// solo en cuanto el campo vuelve a ser válido, y un textarea dentro de su
+// límite SIEMPRE es válido, así que borraría el aviso al instante).
+function wireContadorDescripcion(overlay) {
+  const textarea = overlay.querySelector('[name="descripcion"]');
+  const contador = overlay.querySelector('#descripcion-contador');
+  const alerta = overlay.querySelector('#descripcion-alerta-limite');
+  const actualizar = () => {
+    const longitud = textarea.value.length;
+    const enLimite = longitud >= DESCRIPCION_MAX_CARACTERES;
+    contador.textContent = `${longitud}/${DESCRIPCION_MAX_CARACTERES}`;
+    contador.classList.toggle('campo-contador-limite', enLimite);
+    // `.field-error` ya trae `display: flex` en el CSS, con más peso en la
+    // cascada que `[hidden]` — mismo criterio que el resto del código:
+    // alternar visibilidad con `style.display`.
+    alerta.style.display = enLimite ? '' : 'none';
+  };
+  alerta.style.display = 'none';
+  textarea.addEventListener('input', actualizar);
 }
 
 // -----------------------------------------------------------------------
@@ -78,7 +111,11 @@ export function abrirModalCrearVale() {
 
         <div class="section-title">Boceto y Descripción</div>
         <div class="form-grid">
-          <div class="form-field full"><label>Descripción (máx. 600 caracteres)</label><textarea name="descripcion" maxlength="600"></textarea></div>
+          <div class="form-field full">
+            <label>Descripción <span class="campo-contador" id="descripcion-contador">0/${DESCRIPCION_MAX_CARACTERES}</span></label>
+            <textarea name="descripcion" maxlength="${DESCRIPCION_MAX_CARACTERES}"></textarea>
+            <span class="field-error" id="descripcion-alerta-limite"><ion-icon name="alert-circle-outline"></ion-icon><span>Alcanzaste el límite de ${DESCRIPCION_MAX_CARACTERES} caracteres.</span></span>
+          </div>
           <div class="form-field">
             <label>Imágenes</label>
             ${htmlDropzone({ name: 'imagenes', accept: 'image/jpeg,image/png,image/webp', multiple: true, hint: 'JPG, PNG o WEBP · máx. 2MB c/u' })}
@@ -103,8 +140,9 @@ export function abrirModalCrearVale() {
   overlay.querySelector('[name="fechaEntrega"]').addEventListener('change', () => {
     apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || hoyMedianoche(), 1));
   });
-  const getImagenes = wireDropzone(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista');
-  const getDocumentos = wireDropzone(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista');
+  wireContadorDescripcion(overlay);
+  const getImagenes = wireDropzone(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista', { maxBytes: IMAGEN_MAX_BYTES });
+  const getDocumentos = wireDropzone(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista', { maxBytes: DOCUMENTO_MAX_BYTES });
 
   const formCrear = overlay.querySelector('#form-crear-vale');
   wireLimpiezaValidacionInline(formCrear);

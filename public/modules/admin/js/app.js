@@ -14,7 +14,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sessionData = await sessionCheck();
     if (!sessionData.autenticado) { window.location.href = '/login/?expired=true'; return; }
     state.user = sessionData.user;
-    if (state.user.rolId !== 1) { window.location.href = '/dashboard/'; return; }
+    const puedeVerPanel = state.user.rolId === 1 || (state.user.permissions || []).includes('admin.ver');
+    if (!puedeVerPanel) { window.location.href = '/dashboard/'; return; }
 
     $('#user-display-name').textContent = state.user.nombre;
     $('#user-display-role').textContent = state.user.rolNombre;
