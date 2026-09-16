@@ -881,6 +881,19 @@
   flex-shrink: 0;
 }
 
+/* Contador "actual/máximo" de un textarea con límite (ver
+   wireContadorDescripcion en valeForm.js) — neutral mientras hay margen,
+   mismo rojo que .field-error al llegar al límite. */
+.campo-contador {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.campo-contador-limite {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
 /* Desplegables: se quita la flecha nativa del sistema operativo (inconsistente
    entre navegadores) por una propia, en línea con el resto de la UI —
    mejora UI/UX pedida sobre analisis_correcciones_6.md. */

@@ -7,9 +7,11 @@ import { cargarTiendas } from '../views/tiendas.js';
 import { cargarTalleres } from '../views/talleres.js';
 import { cargarMantenimiento } from '../views/mantenimiento.js';
 
-// Sidebar: mismo patrón colapsable/cajón móvil que Vales de Arte, aquí con
-// 5 pestañas fijas (no hay reescritura dinámica por rol — solo el
-// Administrador ve este panel).
+// Sidebar: mismo patrón colapsable/cajón móvil que Vales de Arte. Las 5
+// pestañas ahora sí varían por usuario — quien entra al panel sin ser
+// Administrador (con solo `admin.ver` + alguno de los permisos
+// `admin.*.gestionar`) solo debe ver las secciones que puede gestionar
+// (correcciones_27 #1).
 const SIDEBAR_ANCHO = '224px';
 const SIDEBAR_ANCHO_COLAPSADO = '68px';
 function actualizarOffsetSidebar(sidebar) {
@@ -19,7 +21,22 @@ function actualizarOffsetSidebar(sidebar) {
 
 // No perder la pestaña activa al recargar la página.
 const TAB_ACTIVA_KEY = 'admin:tabActiva';
-const TABS_VALIDOS = ['usuarios', 'roles', 'tiendas', 'talleres', 'mantenimiento'];
+const PERMISO_POR_TAB = {
+  usuarios: 'admin.usuarios.gestionar',
+  roles: 'admin.roles.gestionar',
+  tiendas: 'admin.tiendas.gestionar',
+  talleres: 'admin.talleres.gestionar',
+  mantenimiento: 'admin.mantenimiento.gestionar'
+};
+const TABS_VALIDOS = Object.keys(PERMISO_POR_TAB);
+
+// El Administrador siempre tiene los 5 permisos `gestionar` en la práctica
+// (ver seed.sql), pero se revisa el permiso igual en vez de asumirlo — mismo
+// criterio de "no confiar en el rol, confiar en el permiso" que ya pidió
+// correcciones_27 para el guard de entrada al panel.
+function tienePermisoDeTab(tab) {
+  return state.user.rolId === 1 || (state.user.permissions || []).includes(PERMISO_POR_TAB[tab]);
+}
 
 // Dispatcher de las 5 pestañas — vive aquí (no en app.js) para que
 // `wireSidebar` pueda llamarlo directo en el click sin crear un ciclo de
@@ -27,6 +44,10 @@ const TABS_VALIDOS = ['usuarios', 'roles', 'tiendas', 'talleres', 'mantenimiento
 // carga inicial.
 export async function cargarTab() {
   const cont = $('#panel-content');
+  if (!state.tab) {
+    cont.innerHTML = `<div class="buzon-vacio"><ion-icon name="lock-closed-outline"></ion-icon><h3>Sin secciones asignadas</h3><p>Tu rol tiene acceso al panel, pero no tiene ningún permiso de gestión asignado todavía.</p></div>`;
+    return;
+  }
   cont.innerHTML = `<div class="buzon-vacio"><ion-icon name="sync-outline" class="spin-animation"></ion-icon><p>Cargando...</p></div>`;
   try {
     if (state.tab === 'usuarios') await cargarUsuarios();
@@ -43,13 +64,20 @@ export function wireSidebar() {
   const sidebar = $('#sidebar-admin');
   const toggleMovil = $('#sidebar-toggle-mobile');
 
-  const tabGuardada = localStorage.getItem(TAB_ACTIVA_KEY);
-  if (TABS_VALIDOS.includes(tabGuardada)) {
-    state.tab = tabGuardada;
-    $$('.sidebar-item', sidebar).forEach(b => b.classList.toggle('sidebar-item-active', b.dataset.tab === tabGuardada));
-  }
+  const botones = $$('.sidebar-item', sidebar);
+  const botonesVisibles = botones.filter(b => tienePermisoDeTab(b.dataset.tab));
+  // `.sidebar-item` ya trae `display: flex` en el CSS, con más peso en la
+  // cascada que el `[hidden]` del navegador (mismo criterio que ya usa el
+  // resto del código: alternar visibilidad con `style.display`, no con el
+  // atributo `hidden`).
+  botones.forEach(b => { b.style.display = botonesVisibles.includes(b) ? '' : 'none'; });
+  const tabsVisibles = botonesVisibles.map(b => b.dataset.tab);
 
-  $$('.sidebar-item', sidebar).forEach(btn => {
+  const tabGuardada = localStorage.getItem(TAB_ACTIVA_KEY);
+  state.tab = tabsVisibles.includes(tabGuardada) ? tabGuardada : (tabsVisibles[0] || null);
+  botones.forEach(b => b.classList.toggle('sidebar-item-active', b.dataset.tab === state.tab));
+
+  botonesVisibles.forEach(btn => {
     btn.addEventListener('click', () => {
       cerrarSidebarMovil();
       if (btn.dataset.tab === state.tab) return;

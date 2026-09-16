@@ -65,7 +65,8 @@ class AuthController {
         email: decoded.email,
         rolId: decoded.rolId,
         rolNombre: decoded.rolNombre,
-        modulosPermitidos: decoded.modulosPermitidos
+        modulosPermitidos: decoded.modulosPermitidos,
+        permissions: decoded.permissions
       }
     });
   }
