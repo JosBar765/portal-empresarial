@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
 const tallerRepository = require('../repositories/tallerRepository');
+const capacidadEntregaService = require('./capacidadEntregaService');
 const documentoRepository = require('../repositories/documentoRepository');
 const catalogoRepository = require('../repositories/catalogoRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
@@ -49,8 +50,13 @@ class ValeCreacionService {
     // Los talleres elegibles/exclusividad dependen de la tienda del propio
     // asesor — se resuelve ANTES de validar.
     const datos = await this.validarDatosVale(payload, { tiendaIdAsesor: tienda.id });
+    // Límite diario OPCIONAL por taller sobre la fecha de entrega
+    // (analisis_correcciones_28.md) — a diferencia del límite colectivo del
+    // Supervisor de abajo, este SÍ bloquea la creación en sí: es lo que
+    // impide que un asesor cree un vale para un día ya lleno.
+    await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, datos.fechaEntregaNorm.slice(0, 10));
 
-    // El límite diario es colectivo por Supervisor y se valida al AUTORIZAR
+    // El límite diario COLECTIVO DEL SUPERVISOR se valida al AUTORIZAR
     // (autorizarCreacion), no al crear — crear un vale nunca se pospone ni
     // se bloquea. El lock por asesor se conserva para serializar la
     // creación en sí (mismo mutex que usan el resto de transiciones).

@@ -354,6 +354,24 @@ class AdminService {
     return tallerAdminRepository.asignarEncargado(tallerId, null);
   }
 
+  // Límite diario opcional de vales de arte entrantes por fecha de ENTREGA
+  // (analisis_correcciones_28.md) — NULL/vacío quita el límite; si se
+  // define, debe ser >= 3. Esta es la validación real e inapelable — el
+  // formulario del panel de administración solo la repite para dar
+  // feedback inmediato.
+  async actualizarLimiteDiarioTaller(tallerId, limiteDiarioRaw) {
+    const taller = await tallerAdminRepository.obtenerPorId(tallerId);
+    if (!taller) throw new Error('Taller no encontrado.');
+    let limiteDiario = null;
+    if (limiteDiarioRaw !== null && limiteDiarioRaw !== undefined && limiteDiarioRaw !== '') {
+      limiteDiario = Number(limiteDiarioRaw);
+      if (!Number.isInteger(limiteDiario) || limiteDiario < 3) {
+        throw new Error('El límite diario debe ser un número entero mayor o igual a 3, o dejarse vacío para no limitar el taller.');
+      }
+    }
+    return tallerAdminRepository.actualizarLimiteDiario(tallerId, limiteDiario);
+  }
+
   async asignarTecnicoATaller(tallerId, usuarioId) {
     const taller = await tallerAdminRepository.obtenerPorId(tallerId);
     if (!taller) throw new Error('Taller no encontrado.');

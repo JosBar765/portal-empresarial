@@ -40,6 +40,7 @@ router.post('/talleres/:id/encargado', gestionarTalleres, (req, res) => adminCon
 router.delete('/talleres/:id/encargado', gestionarTalleres, (req, res) => adminController.quitarEncargadoDeTaller(req, res));
 router.post('/talleres/:id/tecnicos', gestionarTalleres, (req, res) => adminController.asignarTecnicoATaller(req, res));
 router.delete('/talleres/:id/tecnicos/:usuarioId', gestionarTalleres, (req, res) => adminController.quitarTecnicoDeTaller(req, res));
+router.put('/talleres/:id/limite-diario', gestionarTalleres, (req, res) => adminController.actualizarLimiteDiarioTaller(req, res));
 
 // Tiendas
 router.get('/organizacion', verAdmin, (req, res) => adminController.obtenerOrganizacion(req, res));
