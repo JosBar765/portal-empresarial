@@ -6,7 +6,7 @@ import { htmlDropzone, wireDropzone } from '../components/dropzone.js';
 import { validarCamposNativos, wireLimpiezaValidacionInline, enfocarPrimerCampoInvalido } from '../components/validacion.js';
 import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js';
 import { escapeHtml } from '../utils/formato.js';
-import { crearVale, solicitarModificacion } from '../api/valesApi.js';
+import { crearVale, solicitarModificacion, obtenerCapacidadEntrega } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 
 // Mismos límites que ya exige el backend (valeController.js:
@@ -135,7 +135,13 @@ export function abrirModalCrearVale() {
 
   wireSelectorTalleres(overlay, tallerSeleccionados);
   wireUrgenteAutoLock(overlay);
-  const apiFechaEntrega = wireCampoFecha(overlay, 'fechaEntrega', { minDate: hoyMedianoche() });
+  const apiFechaEntrega = wireCampoFecha(overlay, 'fechaEntrega', {
+    minDate: hoyMedianoche(),
+    capacidad: {
+      obtenerTalleresIds: () => [...tallerSeleccionados],
+      cargarMes: obtenerCapacidadEntrega
+    }
+  });
   const apiFechaEvento = wireCampoFecha(overlay, 'fechaEvento', { minDate: sumarDiaLocal(hoyMedianoche(), 1) });
   overlay.querySelector('[name="fechaEntrega"]').addEventListener('change', () => {
     apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || hoyMedianoche(), 1));
@@ -295,7 +301,13 @@ export function abrirModalSolicitarModificacion(vale) {
   const tallerSeleccionadosMod = new Set();
   if (requiereEleccionTaller) wireSelectorTalleres(overlay, tallerSeleccionadosMod, talleresOriginal);
   wireUrgenteAutoLock(overlay);
-  const apiFechaEntregaMod = wireCampoFecha(overlay, 'fechaEntrega', { minDate: hoyMedianoche() });
+  const apiFechaEntregaMod = wireCampoFecha(overlay, 'fechaEntrega', {
+    minDate: hoyMedianoche(),
+    capacidad: {
+      obtenerTalleresIds: () => requiereEleccionTaller ? [...tallerSeleccionadosMod] : talleresOriginal.map(t => t.id),
+      cargarMes: obtenerCapacidadEntrega
+    }
+  });
   const apiFechaEventoMod = wireCampoFecha(overlay, 'fechaEvento', { minDate: sumarDiaLocal(hoyMedianoche(), 1) });
   overlay.querySelector('[name="fechaEntrega"]').addEventListener('change', () => {
     apiFechaEventoMod.setMinDate(sumarDiaLocal(apiFechaEntregaMod.getDate() || hoyMedianoche(), 1));

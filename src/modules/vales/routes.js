@@ -33,6 +33,9 @@ router.get('/catalogos', requirePermission('vales.ver'), (req, res) => valeContr
 router.get('/talleres', requirePermission('vales.ver'), (req, res) => valeController.talleres(req, res));
 // El límite diario es colectivo del Supervisor, no individual del asesor.
 router.get('/limite-colectivo', requirePermission('vales.autorizar_creacion'), (req, res) => valeController.limiteColectivo(req, res));
+// Capacidad por día de los talleres elegidos, para el calendario de "Fecha
+// de entrega" al crear/modificar un vale (analisis_correcciones_28.md).
+router.get('/capacidad-entrega', requirePermission('vales.crear'), (req, res) => valeController.capacidadEntrega(req, res));
 router.get('/tecnicos', requirePermission('vales.asignar'), (req, res) => valeController.tecnicos(req, res));
 router.get('/carga-trabajo', requirePermission('vales.asignar'), (req, res) => valeController.cargaTrabajo(req, res));
 router.get('/carga-trabajo/:tecnicoId', requirePermission('vales.asignar'), (req, res) => valeController.cargaTrabajoTecnico(req, res));

@@ -11,6 +11,7 @@ const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
 const valeCreacionService = require('./valeCreacionService');
 const valeDetalleService = require('./valeDetalleService');
+const capacidadEntregaService = require('./capacidadEntregaService');
 const {
   ESTADOS, hoyISO, horaActual, enriquecer, registrarHistorial,
   esAdministrador, esValeDeModificacion, requerirVale, assertPropioDelAsesor
@@ -98,6 +99,10 @@ class ValeConfirmacionService {
         }
         talleresIdsModificacion = elegidos;
       }
+      // Mismo límite diario opcional por taller que en crearVale() — sin
+      // esto, la modificación era un camino sin vigilar para saltarse el
+      // límite (analisis_correcciones_28.md).
+      await capacidadEntregaService.validarLimiteDiario(talleresIdsModificacion, datos.fechaEntregaNorm.slice(0, 10));
 
       await solicitudModificacionRepository.crear({
         valeOriginalId: valeId,
@@ -145,6 +150,12 @@ class ValeConfirmacionService {
       if (!solicitud) {
         throw new Error('No se encontró una solicitud de modificación pendiente para este vale.');
       }
+      const talleresIdsModificacion = (solicitud.talleres_ids || '').split(',').map(Number).filter(Number.isFinite);
+      // Se revalida el límite diario aquí (no solo al solicitar la
+      // modificación): entre la solicitud y esta aprobación pudieron
+      // entrar otros vales que llenaran el día — este es el momento real en
+      // que el vale entra al buzón del taller (fanOutTalleres, más abajo).
+      await capacidadEntregaService.validarLimiteDiario(talleresIdsModificacion, String(solicitud.fecha_entrega).slice(0, 10));
 
       const correlativoNuevo = original.correlativo.startsWith('MOD-') ? original.correlativo : `MOD-${original.correlativo}`;
       const nuevoValeId = await valeRepository.crear({
@@ -175,7 +186,6 @@ class ValeConfirmacionService {
         autorizacionTipo: 'MODIFICACION'
       });
 
-      const talleresIdsModificacion = (solicitud.talleres_ids || '').split(',').map(Number).filter(Number.isFinite);
       await valeCreacionService.fanOutTalleres(nuevoValeId, talleresIdsModificacion);
       const nombresTalleresModificacion = await valeCreacionService.nombresDeTalleres(talleresIdsModificacion);
 

@@ -123,6 +123,10 @@ export function quitarTecnicoDeTaller(tallerId, usuarioId) {
   return enviarSinBody(`/api/admin/talleres/${tallerId}/tecnicos/${usuarioId}`, 'DELETE');
 }
 
+export function actualizarLimiteDiarioTaller(tallerId, limiteDiario) {
+  return enviarConBody(`/api/admin/talleres/${tallerId}/limite-diario`, 'PUT', { limiteDiario });
+}
+
 // ---- Mantenimiento ----
 export async function obtenerMantenimiento() {
   const res = await fetch('/api/admin/mantenimiento');
