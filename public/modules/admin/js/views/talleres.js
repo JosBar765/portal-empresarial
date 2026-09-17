@@ -3,6 +3,7 @@ import { $ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
 import { listarTalleres } from '../api/adminApi.js';
 import { abrirModalVerPersonalTaller, abrirModalPersonalTaller } from '../actions/tallerPersonal.js';
+import { abrirModalLimiteTaller } from '../actions/tallerLimite.js';
 
 export async function cargarTalleres() {
   const { talleres } = await listarTalleres();
@@ -17,7 +18,7 @@ export function renderTalleres() {
     </div>
     <div class="tabla-wrapper">
       <table class="data-table sticky-header">
-        <thead><tr><th>Taller</th><th>Encargado</th><th>Técnicos</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Taller</th><th>Encargado</th><th>Técnicos</th><th>Límite diario</th><th>Acciones</th></tr></thead>
         <tbody id="talleres-tbody"></tbody>
       </table>
     </div>
@@ -28,6 +29,7 @@ export function renderTalleres() {
       <td data-label="Taller">${escapeHtml(t.nombre)}</td>
       <td data-label="Encargado">${t.encargado_nombre ? escapeHtml(t.encargado_nombre) : '<span class="form-hint">Sin encargado</span>'}</td>
       <td data-label="Técnicos">${t.tecnicos_count}</td>
+      <td data-label="Límite diario">${t.limite_diario != null ? `${t.limite_diario} / día` : '<span class="form-hint">Sin límite</span>'}</td>
       <td data-label="Acciones" class="acciones-cell" data-taller-id="${t.id}"></td>
     </tr>
   `).join('');
@@ -46,5 +48,12 @@ export function renderTalleres() {
     btnGestionar.innerHTML = '<ion-icon name="people-outline"></ion-icon>';
     btnGestionar.addEventListener('click', () => abrirModalPersonalTaller(t));
     celda.appendChild(btnGestionar);
+
+    const btnLimite = document.createElement('button');
+    btnLimite.className = 'btn-icon';
+    btnLimite.title = 'Editar límite diario';
+    btnLimite.innerHTML = '<ion-icon name="speedometer-outline"></ion-icon>';
+    btnLimite.addEventListener('click', () => abrirModalLimiteTaller(t));
+    celda.appendChild(btnLimite);
   });
 }

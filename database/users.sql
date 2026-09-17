@@ -2,6 +2,8 @@
 -- contraseñas comúnes. CAMBIAR estas contraseñas una vez puesto en
 -- producción.
 
+SET NAMES utf8mb4;
+
 -- Usuarios. Contraseñas hasheadas con bcrypt (10 rondas):
 --   encargado.diseno@munditrofeos.com       -> disenoenc123
 --   encargado.uv3d@munditrofeos.com         -> uv3denc123

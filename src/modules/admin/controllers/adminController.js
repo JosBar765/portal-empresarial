@@ -213,6 +213,15 @@ class AdminController {
     }
   }
 
+  async actualizarLimiteDiarioTaller(req, res) {
+    try {
+      await adminService.actualizarLimiteDiarioTaller(Number(req.params.id), req.body.limiteDiario);
+      return res.json({ ok: true });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
   async asignarTecnicoATaller(req, res) {
     try {
       await adminService.asignarTecnicoATaller(Number(req.params.id), Number(req.body.usuarioId));

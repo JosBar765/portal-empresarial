@@ -52,6 +52,23 @@ class ValeController {
     }
   }
 
+  // Capacidad por día (mes visible) de los talleres elegidos, para el
+  // calendario de "Fecha de entrega" — analisis_correcciones_28.md.
+  async capacidadEntrega(req, res) {
+    try {
+      const talleresIds = String(req.query.talleres || '').split(',').map(Number).filter(Number.isFinite);
+      const anio = Number(req.query.anio);
+      const mes = Number(req.query.mes);
+      if (!talleresIds.length || !Number.isInteger(anio) || !Number.isInteger(mes) || mes < 1 || mes > 12) {
+        return res.status(400).json({ error: 'Parámetros inválidos: se requieren talleres, anio y mes.' });
+      }
+      const data = await valeService.obtenerCapacidadEntrega(talleresIds, anio, mes);
+      return res.json(data);
+    } catch (error) {
+      return responderErrorInterno(res, error);
+    }
+  }
+
   // Límite diario colectivo del Supervisor (no individual del asesor).
   async limiteColectivo(req, res) {
     try {

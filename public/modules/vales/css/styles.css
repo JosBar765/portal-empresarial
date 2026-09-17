@@ -1266,6 +1266,7 @@
 }
 
 .dp-day {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1302,6 +1303,85 @@
 
 .dp-day.is-outside {
   cursor: default;
+}
+
+/* -------------------------------------------------------------------------
+   Cupos por día (analisis_correcciones_28.md) — barra bajo el número que
+   resume el uso del taller (o el más ajustado, si hay varios) más
+   restrictivo, y tooltip con el detalle exacto al pasar el mouse/enfocar el
+   día. Únicamente el campo "Fecha de entrega" activa esto (ver
+   wireCampoFecha/capacidad en valeForm.js) — "Fecha del evento" nunca lo
+   recibe y queda exactamente igual que antes.
+   ------------------------------------------------------------------------- */
+.dp-day-cupos {
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  bottom: 4px;
+  height: 3px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.dp-day--vacio .dp-day-cupos { background: var(--color-border); }
+.dp-day--disponible .dp-day-cupos { background: var(--color-success); }
+.dp-day--moderado .dp-day-cupos { background: var(--color-warning); }
+.dp-day--critico .dp-day-cupos,
+.dp-day--agotado .dp-day-cupos { background: var(--color-danger); }
+
+.dp-day.is-selected .dp-day-cupos {
+  display: none;
+}
+
+.dp-day.is-agotado {
+  color: var(--color-danger);
+  font-weight: 700;
+  cursor: not-allowed;
+}
+
+.dp-tooltip {
+  display: none;
+  position: fixed;
+  z-index: 210;
+  width: 220px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--color-text);
+  pointer-events: none;
+}
+
+.dp-tooltip p {
+  margin: 2px 0;
+}
+
+.dp-tooltip-titulo {
+  font-weight: 700;
+  margin-bottom: 4px !important;
+}
+
+.dp-tooltip-taller + .dp-tooltip-taller {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--color-border);
+}
+
+.dp-tooltip-nombre {
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.dp-tooltip-restantes {
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.dp-tooltip-agotado {
+  color: var(--color-danger);
+  font-weight: 700;
 }
 
 .form-error {

@@ -6,7 +6,7 @@ const db = require('../../../config/database');
 class TallerAdminRepository {
   async listarConDetalle() {
     return db.query(
-      `SELECT t.id, t.nombre, t.encargado_id, t.tienda_id, u.nombre AS encargado_nombre,
+      `SELECT t.id, t.nombre, t.encargado_id, t.tienda_id, t.limite_diario, u.nombre AS encargado_nombre,
               (SELECT COUNT(*) FROM taller_tecnicos tt WHERE tt.taller_id = t.id) AS tecnicos_count
        FROM talleres t
        LEFT JOIN usuarios u ON u.id = t.encargado_id
@@ -19,11 +19,22 @@ class TallerAdminRepository {
 
   async obtenerPorId(id) {
     const rows = await db.query(
-      'SELECT id, nombre, encargado_id, tienda_id FROM talleres WHERE id = ?',
+      'SELECT id, nombre, encargado_id, tienda_id, limite_diario FROM talleres WHERE id = ?',
       [id],
       'taller_admin:find_by_id'
     );
     return rows[0] || null;
+  }
+
+  // El límite diario es opcional (NULL = sin límite) — la validación de que,
+  // si se define, sea >= 3, vive en adminService (esta capa solo hace el
+  // UPDATE, como el resto de este repositorio).
+  async actualizarLimiteDiario(tallerId, limiteDiario) {
+    return db.query(
+      'UPDATE talleres SET limite_diario = ? WHERE id = ?',
+      [limiteDiario, tallerId],
+      'taller_admin:actualizar_limite_diario'
+    );
   }
 
   async listarPersonalDetalle(tallerId) {

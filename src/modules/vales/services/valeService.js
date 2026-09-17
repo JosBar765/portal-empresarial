@@ -13,11 +13,13 @@ const valeDetalleService = require('./valeDetalleService');
 const valeBuzonService = require('./valeBuzonService');
 const valeTallerService = require('./valeTallerService');
 const valeConfirmacionService = require('./valeConfirmacionService');
+const capacidadEntregaService = require('./capacidadEntregaService');
 
 module.exports = {
   // Catálogo
   obtenerCatalogos: (...a) => valeCatalogoService.obtenerCatalogos(...a),
   obtenerTalleres: (...a) => valeCatalogoService.obtenerTalleres(...a),
+  obtenerCapacidadEntrega: (...a) => capacidadEntregaService.obtenerCapacidadMes(...a),
 
   // Creación
   crearVale: (...a) => valeCreacionService.crearVale(...a),

@@ -126,11 +126,12 @@ CREATE TABLE IF NOT EXISTS `tiendas` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `talleres` (
-  `id`           INT AUTO_INCREMENT PRIMARY KEY,
-  `nombre`       VARCHAR(100) NOT NULL UNIQUE,
-  `encargado_id` INT DEFAULT NULL,
-  `tienda_id`    INT DEFAULT NULL,
-  `activo`       TINYINT(1) NOT NULL DEFAULT 1,
+  `id`             INT AUTO_INCREMENT PRIMARY KEY,
+  `nombre`         VARCHAR(100) NOT NULL UNIQUE,
+  `encargado_id`   INT DEFAULT NULL,
+  `tienda_id`      INT DEFAULT NULL,
+  `activo`         TINYINT(1) NOT NULL DEFAULT 1,
+  `limite_diario`  INT DEFAULT NULL,
   FOREIGN KEY (`encargado_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   FOREIGN KEY (`tienda_id`) REFERENCES `tiendas` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
