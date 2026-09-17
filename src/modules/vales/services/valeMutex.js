@@ -20,6 +20,18 @@ class ValeMutex {
     // crear dos vales en paralelo para el mismo asesor es un flujo normal,
     // no un error. Válido por el mismo motivo: un único proceso Node.
     this._colaCreacionPorAsesor = new Map();
+    // Cola global para "verificar el límite diario de un taller y, si
+    // alcanza, consumir ese cupo" (crearVale, aprobarModificacion) —
+    // analisis_correcciones_28.md. Sin esto, dos asesores DISTINTOS podían
+    // leer el mismo conteo ("queda 1 cupo") al mismo tiempo y ambos
+    // insertar, superando el límite: `conColaDeCreacion` no sirve para este
+    // caso porque está indexada por asesor, no por taller/fecha. Una sola
+    // cola GLOBAL (no una por taller+fecha) a propósito: evita tener que
+    // adquirir locks de varios recursos en orden para no deadlockear
+    // cuando un vale pide 2+ talleres a la vez, y el volumen real de
+    // creación de vales no justifica esa complejidad — serializa toda
+    // creación con el resto, pero cada una tarda milisegundos.
+    this._colaCapacidad = Promise.resolve();
   }
 
   async conLockDeVale(valeId, fn) {
@@ -43,6 +55,12 @@ class ValeMutex {
     // siguiente en la fila debe poder correr igual; el error real lo sigue
     // recibiendo quien llamó a esta creación en particular a través de `actual`.
     this._colaCreacionPorAsesor.set(key, actual.catch(() => {}));
+    return actual;
+  }
+
+  conColaDeCapacidad(fn) {
+    const actual = this._colaCapacidad.then(fn, fn);
+    this._colaCapacidad = actual.catch(() => {});
     return actual;
   }
 }
