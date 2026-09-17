@@ -73,8 +73,12 @@ class CapacidadEntregaService {
   }
 
   // Validación real de backend — usada por crearVale, solicitarModificacion
-  // y aprobarModificacion. Lanza un error claro (nunca deja pasar en
-  // silencio) si algún taller seleccionado ya alcanzó su límite ese día.
+  // y aprobarModificacion, siempre dentro de valeMutex.conColaDeCapacidad
+  // en los dos primeros (ver esos archivos) para que el check y el
+  // consumo del cupo sean atómicos entre asesores distintos. El mensaje es
+  // deliberadamente amigable/no técnico: a quien pierde la carrera por el
+  // último cupo (o simplemente llega tarde a un día ya lleno) le llega
+  // igual, y no tiene por qué distinguirse de un error de validación común.
   async validarLimiteDiario(talleresIds, fechaEntregaISO) {
     const conLimite = await this._talleresConLimite(talleresIds);
     if (conLimite.length === 0) return;
@@ -83,7 +87,7 @@ class CapacidadEntregaService {
     for (const t of conLimite) {
       const programados = porTaller[t.id] || 0;
       if (programados >= t.limite_diario) {
-        throw new Error(`El taller "${t.nombre}" ya alcanzó su límite diario (${t.limite_diario}) de vales para el ${fechaEntregaISO}. Selecciona otra fecha de entrega.`);
+        throw new Error(`¡Uy! El taller "${t.nombre}" ya no tiene cupo para el ${fechaEntregaISO} — alguien más acaba de tomar el último lugar. Selecciona otra fecha de entrega e intenta de nuevo.`);
       }
     }
   }
