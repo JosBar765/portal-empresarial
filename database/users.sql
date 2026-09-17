@@ -2,12 +2,6 @@
 -- contraseñas comúnes. CAMBIAR estas contraseñas una vez puesto en
 -- producción.
 
--- Sin esto, un cliente `mysql` importando este archivo con su charset por
--- defecto (no necesariamente utf8mb4, ej. el entrypoint de Docker de la
--- imagen oficial de MySQL) reinterpreta los bytes UTF-8 de este archivo
--- como si fueran latin1 y los vuelve a codificar al guardarlos — la ñ y
--- tildes quedan duplicadas ("Ã±" en vez de "ñ"). Mismo fix ya aplicado en
--- schema.sql/seed.sql; users.sql se había quedado sin él.
 SET NAMES utf8mb4;
 
 -- Usuarios. Contraseñas hasheadas con bcrypt (10 rondas):
