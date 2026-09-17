@@ -50,52 +50,59 @@ class ValeCreacionService {
     // Los talleres elegibles/exclusividad dependen de la tienda del propio
     // asesor — se resuelve ANTES de validar.
     const datos = await this.validarDatosVale(payload, { tiendaIdAsesor: tienda.id });
-    // Límite diario OPCIONAL por taller sobre la fecha de entrega
-    // (analisis_correcciones_28.md) — a diferencia del límite colectivo del
-    // Supervisor de abajo, este SÍ bloquea la creación en sí: es lo que
-    // impide que un asesor cree un vale para un día ya lleno.
-    await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, datos.fechaEntregaNorm.slice(0, 10));
 
     // El límite diario COLECTIVO DEL SUPERVISOR se valida al AUTORIZAR
     // (autorizarCreacion), no al crear — crear un vale nunca se pospone ni
     // se bloquea. El lock por asesor se conserva para serializar la
     // creación en sí (mismo mutex que usan el resto de transiciones).
-    const valeId = await valeMutex.conColaDeCreacion(usuario.id, async () => {
-      const hoy = hoyISO();
-      const fechaCreacionDate = new Date(`${hoy}T00:00:00`);
-      if (!(datos.fechaEventoDate > datos.fechaEntregaDate && datos.fechaEntregaDate >= fechaCreacionDate)) {
-        throw new Error('Las fechas no son válidas: el evento debe ser posterior a la entrega, y la entrega igual o posterior a la creación.');
-      }
+    //
+    // El límite diario OPCIONAL POR TALLER (analisis_correcciones_28.md) SÍ
+    // bloquea la creación — y a diferencia del de arriba, verificarlo y
+    // luego insertar deben ser atómicos entre sí: `conColaDeCreacion` no
+    // alcanza porque está indexada por asesor, así que dos asesores
+    // DISTINTOS podían leer "queda 1 cupo" al mismo tiempo y ambos
+    // insertar. `conColaDeCapacidad` (global) serializa esto contra
+    // cualquier otra creación/aprobación que también consuma cupo.
+    const valeId = await valeMutex.conColaDeCapacidad(async () => {
+      await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, datos.fechaEntregaNorm.slice(0, 10));
 
-      // {TIENDA}-{INICIALES}-{ID}. El número es el id autoincremental de
-      // MySQL (asignado por valeRepository.crear DESPUÉS del insert) —
-      // nunca se reutiliza ni retrocede sin importar cuántos vales se
-      // borren después (a diferencia de un contador en vivo). Los
-      // correlativos históricos (GUA-3-0001, etc.) no se renumeran.
-      const correlativoPrefijo = `${tienda.codigo}-${inicialesAsesor(solicitante.nombre)}`;
+      return valeMutex.conColaDeCreacion(usuario.id, async () => {
+        const hoy = hoyISO();
+        const fechaCreacionDate = new Date(`${hoy}T00:00:00`);
+        if (!(datos.fechaEventoDate > datos.fechaEntregaDate && datos.fechaEntregaDate >= fechaCreacionDate)) {
+          throw new Error('Las fechas no son válidas: el evento debe ser posterior a la entrega, y la entrega igual o posterior a la creación.');
+        }
 
-      return valeRepository.crear({
-        correlativoPrefijo,
-        asesorId: usuario.id,
-        tiendaId: tienda.id,
-        fechaCreacion: hoy,
-        horaCreacion: horaActual(),
-        fechaEntrega: datos.fechaEntregaNorm,
-        fechaEvento: datos.fechaEventoNorm,
-        urgente: datos.urgente,
-        clienteEmpresa: datos.clienteEmpresa,
-        clienteNombre: datos.clienteNombre,
-        clienteTelefono: datos.clienteTelefono,
-        clienteCorreo: datos.clienteCorreo,
-        producto: datos.producto,
-        material: datos.material,
-        tecnica: datos.tecnica,
-        acabado: datos.acabado,
-        cantidad: datos.cantidad,
-        cotizacion: datos.cotizacion,
-        descripcion: datos.descripcion,
-        talleresSolicitados: datos.talleresIds.join(','),
-        estado: ESTADOS.ESPERANDO_AUTORIZACION
+        // {TIENDA}-{INICIALES}-{ID}. El número es el id autoincremental de
+        // MySQL (asignado por valeRepository.crear DESPUÉS del insert) —
+        // nunca se reutiliza ni retrocede sin importar cuántos vales se
+        // borren después (a diferencia de un contador en vivo). Los
+        // correlativos históricos (GUA-3-0001, etc.) no se renumeran.
+        const correlativoPrefijo = `${tienda.codigo}-${inicialesAsesor(solicitante.nombre)}`;
+
+        return valeRepository.crear({
+          correlativoPrefijo,
+          asesorId: usuario.id,
+          tiendaId: tienda.id,
+          fechaCreacion: hoy,
+          horaCreacion: horaActual(),
+          fechaEntrega: datos.fechaEntregaNorm,
+          fechaEvento: datos.fechaEventoNorm,
+          urgente: datos.urgente,
+          clienteEmpresa: datos.clienteEmpresa,
+          clienteNombre: datos.clienteNombre,
+          clienteTelefono: datos.clienteTelefono,
+          clienteCorreo: datos.clienteCorreo,
+          producto: datos.producto,
+          material: datos.material,
+          tecnica: datos.tecnica,
+          acabado: datos.acabado,
+          cantidad: datos.cantidad,
+          cotizacion: datos.cotizacion,
+          descripcion: datos.descripcion,
+          talleresSolicitados: datos.talleresIds.join(','),
+          estado: ESTADOS.ESPERANDO_AUTORIZACION
+        });
       });
     });
 
