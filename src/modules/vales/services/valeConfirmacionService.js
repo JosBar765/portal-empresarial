@@ -151,48 +151,42 @@ class ValeConfirmacionService {
         throw new Error('No se encontró una solicitud de modificación pendiente para este vale.');
       }
       const talleresIdsModificacion = (solicitud.talleres_ids || '').split(',').map(Number).filter(Number.isFinite);
-      const correlativoNuevo = original.correlativo.startsWith('MOD-') ? original.correlativo : `MOD-${original.correlativo}`;
       // Se revalida el límite diario aquí (no solo al solicitar la
       // modificación): entre la solicitud y esta aprobación pudieron
       // entrar otros vales que llenaran el día — este es el momento real en
-      // que el vale entra al buzón del taller (fanOutTalleres). La
-      // verificación y el consumo del cupo (INSERT + fanOut) van dentro de
-      // `conColaDeCapacidad` (misma cola global que usa crearVale) para que
-      // dos aprobaciones/creaciones distintas no puedan leer el mismo
-      // conteo al mismo tiempo y ambas colar un vale en el último cupo.
-      const nuevoValeId = await valeMutex.conColaDeCapacidad(async () => {
-        await capacidadEntregaService.validarLimiteDiario(talleresIdsModificacion, String(solicitud.fecha_entrega).slice(0, 10));
+      // que el vale entra al buzón del taller (fanOutTalleres, más abajo).
+      await capacidadEntregaService.validarLimiteDiario(talleresIdsModificacion, String(solicitud.fecha_entrega).slice(0, 10));
 
-        const id = await valeRepository.crear({
-          correlativo: correlativoNuevo,
-          asesorId: solicitud.asesor_id,
-          tiendaId: original.tienda_id,
-          valeOriginalId: original.id,
-          fechaCreacion: hoyISO(),
-          horaCreacion: horaActual(),
-          fechaEntrega: solicitud.fecha_entrega,
-          fechaEvento: solicitud.fecha_evento,
-          urgente: solicitud.urgente,
-          clienteEmpresa: solicitud.cliente_empresa,
-          clienteNombre: solicitud.cliente_nombre,
-          clienteTelefono: solicitud.cliente_telefono,
-          clienteCorreo: solicitud.cliente_correo,
-          producto: solicitud.producto,
-          material: solicitud.material,
-          tecnica: solicitud.tecnica,
-          acabado: solicitud.acabado,
-          cantidad: solicitud.cantidad,
-          cotizacion: solicitud.cotizacion,
-          // La justificación de la modificación ES el nuevo "Boceto y Descripción" del vale de arte
-          descripcion: solicitud.justificacion,
-          estado: ESTADOS.MODIFICADO,
-          autorizadoPor: usuario.id,
-          autorizadoEn: `${hoyISO()} ${horaActual()}`,
-          autorizacionTipo: 'MODIFICACION'
-        });
-        await valeCreacionService.fanOutTalleres(id, talleresIdsModificacion);
-        return id;
+      const correlativoNuevo = original.correlativo.startsWith('MOD-') ? original.correlativo : `MOD-${original.correlativo}`;
+      const nuevoValeId = await valeRepository.crear({
+        correlativo: correlativoNuevo,
+        asesorId: solicitud.asesor_id,
+        tiendaId: original.tienda_id,
+        valeOriginalId: original.id,
+        fechaCreacion: hoyISO(),
+        horaCreacion: horaActual(),
+        fechaEntrega: solicitud.fecha_entrega,
+        fechaEvento: solicitud.fecha_evento,
+        urgente: solicitud.urgente,
+        clienteEmpresa: solicitud.cliente_empresa,
+        clienteNombre: solicitud.cliente_nombre,
+        clienteTelefono: solicitud.cliente_telefono,
+        clienteCorreo: solicitud.cliente_correo,
+        producto: solicitud.producto,
+        material: solicitud.material,
+        tecnica: solicitud.tecnica,
+        acabado: solicitud.acabado,
+        cantidad: solicitud.cantidad,
+        cotizacion: solicitud.cotizacion,
+        // La justificación de la modificación ES el nuevo "Boceto y Descripción" del vale de arte
+        descripcion: solicitud.justificacion,
+        estado: ESTADOS.MODIFICADO,
+        autorizadoPor: usuario.id,
+        autorizadoEn: `${hoyISO()} ${horaActual()}`,
+        autorizacionTipo: 'MODIFICACION'
       });
+
+      await valeCreacionService.fanOutTalleres(nuevoValeId, talleresIdsModificacion);
       const nombresTalleresModificacion = await valeCreacionService.nombresDeTalleres(talleresIdsModificacion);
 
       // El documento adjunto al nuevo vale es la propuesta ya aprobada del vale original
