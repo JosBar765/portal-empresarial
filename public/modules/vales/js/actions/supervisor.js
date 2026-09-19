@@ -2,7 +2,7 @@ import { state } from '../state.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { etiquetaEstado } from '../permisos.js';
 import { formatearFecha, escapeHtml } from '../utils/formato.js';
-import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, aprobarModificacion } from '../api/valesApi.js';
+import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, aprobarModificacion, rechazarModificacion } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 
 // -----------------------------------------------------------------------
@@ -92,7 +92,11 @@ export async function abrirModalAprobarModificacion(vale) {
       </div>
       <p style="font-size:13px;">¿Confirmas autorizar la modificación solicitada para este vale de arte? Se creará un vale de arte nuevo con el prefijo MOD-, enviado de inmediato al taller que el asesor indicó (o al mismo de siempre, si solo hay uno).</p>
     `,
-    footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Autorizar</button>`
+    footerHtml: `
+      <button class="btn btn--danger" id="btn-rechazar" style="margin-right:auto;">Rechazar</button>
+      <button class="btn btn--ghost" id="btn-cerrar">Cancelar</button>
+      <button class="btn btn--primary" id="btn-confirmar">Autorizar</button>
+    `
   });
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
   overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
@@ -108,6 +112,21 @@ export async function abrirModalAprobarModificacion(vale) {
       btn.disabled = false;
       // Otro supervisor pudo haberlo aprobado un instante antes — refresca el
       // buzón para que este vale deje de aparecer accionable de inmediato.
+      cargarBuzon();
+    }
+  });
+  overlay.querySelector('#btn-rechazar').addEventListener('click', async () => {
+    if (!confirm(`¿Rechazar la modificación solicitada para ${vale.correlativo}? El vale no se borra: vuelve al estado en que estaba antes de la solicitud.`)) return;
+    const btn = overlay.querySelector('#btn-rechazar');
+    btn.disabled = true;
+    try {
+      await rechazarModificacion(vale.id);
+      window.toast.success('Modificación rechazada', `${vale.correlativo} volvió a su estado anterior.`);
+      cerrar();
+      cargarBuzon();
+    } catch (error) {
+      mostrarErrorModal(overlay, error.message);
+      btn.disabled = false;
       cargarBuzon();
     }
   });

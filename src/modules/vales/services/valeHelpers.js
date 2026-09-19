@@ -105,8 +105,13 @@ function enriquecer(vale) {
   return { ...vale, atrasado, diasAtraso, venceHoy };
 }
 
+// `vale_original_id` es permanente (se fija al crear el vale MOD- y nunca
+// cambia), a diferencia de `estado`, que solo vale MODIFICADO justo después
+// de aprobarModificacion y luego avanza (RECIBIDO, PENDIENTE_CONFIRMACION,
+// etc.) — comparar contra `estado` dejaba de detectar un vale MOD- apenas
+// avanzaba de estado (analisis_correcciones_29.md #3).
 function esValeDeModificacion(vale) {
-  return vale.estado === ESTADOS.MODIFICADO;
+  return vale.vale_original_id != null;
 }
 
 function etiquetaActorTaller(usuario) {
