@@ -7,6 +7,7 @@ const propuestaRepository = require('../repositories/propuestaRepository');
 const documentoRepository = require('../repositories/documentoRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const solicitudModificacionRepository = require('../repositories/solicitudModificacionRepository');
+const historialRepository = require('../repositories/historialRepository');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
 const valeCreacionService = require('./valeCreacionService');
@@ -57,11 +58,11 @@ class ValeConfirmacionService {
         throw new Error('Solo se puede solicitar modificación sobre un vale RECIBIDO o PENDIENTE_CONFIRMACION.');
       }
       // Un vale ya no puede modificarse si YA utilizó su única modificación
-      // (`vale.modificado`) NI si él mismo es el resultado de una
-      // modificación (`vale.vale_original_id`, es decir su correlativo ya
-      // lleva el prefijo MOD-) — chequear solo `modificado` permitía que un
-      // vale MOD-... que llegaba a RECIBIDO encadenara una segunda modificación.
-      if (esValeDeModificacion(vale)) {
+      // (`vale.modificado`, el original que ya generó su reemplazo) NI si él
+      // mismo es el resultado de una modificación (`vale.vale_original_id`,
+      // es decir su correlativo ya lleva el prefijo MOD-) — chequear solo uno
+      // de los dos dejaba un lado sin cubrir (analisis_correcciones_29.md #3).
+      if (esValeDeModificacion(vale) || vale.modificado) {
         throw new Error('Este vale de arte ya utilizó su única modificación permitida.');
       }
       if (!payload.justificacion) {
@@ -243,6 +244,40 @@ class ValeConfirmacionService {
         salas: [`asesor:${solicitud.asesor_id}`, ...supervisoresDelAsesor.map(s => `supervisor:${s.id}`), ...talleresIdsModificacion.map(id => `taller:${id}`)]
       });
       return enriquecer(nuevoVale);
+    });
+  }
+
+  // Rechazar la solicitud de modificación no borra el vale ni la solicitud —
+  // solo la marca RECHAZADA y regresa el vale al estado en que estaba justo
+  // antes de que el asesor la pidiera. Ese estado previo no se guarda en
+  // ninguna columna propia: se recupera del historial, leyendo el
+  // `estado_anterior` de la entrada que registró la transición HACIA
+  // SOLICITANDO_MODIFICACION (analisis_correcciones_29.md #2).
+  async rechazarModificacion(usuario, valeId) {
+    return valeMutex.conLockDeVale(valeId, async () => {
+      const vale = await requerirVale(valeId);
+      if (vale.estado !== ESTADOS.SOLICITANDO_MODIFICACION) {
+        throw new Error('Solo se pueden rechazar vales en estado SOLICITANDO_MODIFICACION.');
+      }
+      const solicitud = await solicitudModificacionRepository.obtenerPendientePorValeOriginal(valeId);
+      if (!solicitud) {
+        throw new Error('No se encontró una solicitud de modificación pendiente para este vale.');
+      }
+      const historial = await historialRepository.listarPorVale(valeId);
+      const entradaSolicitud = [...historial].reverse().find(h => h.estado_nuevo === ESTADOS.SOLICITANDO_MODIFICACION);
+      const estadoAnterior = entradaSolicitud ? entradaSolicitud.estado_anterior : ESTADOS.RECIBIDO;
+
+      await valeRepository.actualizarEstado(valeId, estadoAnterior);
+      await solicitudModificacionRepository.marcarEstado(solicitud.id, 'RECHAZADA');
+      await registrarHistorial(valeId, usuario.id, null, ESTADOS.SOLICITANDO_MODIFICACION, estadoAnterior, 'Supervisor rechazó la solicitud de modificación');
+
+      const actualizado = await valeRepository.obtenerPorId(valeId);
+      const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(solicitud.asesor_id);
+      valeEvents.notificar({
+        vale: actualizado, accion: 'modificación rechazada', actor: usuario.nombre, actorId: usuario.id,
+        salas: [`asesor:${solicitud.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
+      });
+      return enriquecer(actualizado);
     });
   }
 

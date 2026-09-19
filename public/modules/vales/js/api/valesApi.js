@@ -152,6 +152,10 @@ export function aprobarModificacion(valeId) {
   return enviarPost(`/api/vales/${valeId}/aprobar-modificacion`);
 }
 
+export function rechazarModificacion(valeId) {
+  return enviarPost(`/api/vales/${valeId}/rechazar-modificacion`);
+}
+
 export async function obtenerCargaTrabajo() {
   const res = await fetch('/api/vales/carga-trabajo');
   return leerJSON(res);

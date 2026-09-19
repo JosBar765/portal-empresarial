@@ -15,6 +15,10 @@ import { cargarBuzon } from '../views/buzon.js';
 const IMAGEN_MAX_BYTES = 2 * 1024 * 1024;
 const DOCUMENTO_MAX_BYTES = 3 * 1024 * 1024;
 const DESCRIPCION_MAX_CARACTERES = 600;
+// Mismo límite que exige el backend para `justificacion` en
+// valeConfirmacionService.solicitarModificacion — distinto del de
+// descripción, no es el mismo campo.
+const JUSTIFICACION_MAX_CARACTERES = 2000;
 
 export function opcionesPaises() {
   return (state.catalogos.paises || []).map(p =>
@@ -49,14 +53,14 @@ export function wireUrgenteAutoLock(overlay) {
 // formulario, pero fuera del mecanismo de `.is-invalid` — ese se limpia
 // solo en cuanto el campo vuelve a ser válido, y un textarea dentro de su
 // límite SIEMPRE es válido, así que borraría el aviso al instante).
-function wireContadorDescripcion(overlay) {
-  const textarea = overlay.querySelector('[name="descripcion"]');
-  const contador = overlay.querySelector('#descripcion-contador');
-  const alerta = overlay.querySelector('#descripcion-alerta-limite');
+function wireContadorCampo(overlay, nombreCampo, maxCaracteres) {
+  const textarea = overlay.querySelector(`[name="${nombreCampo}"]`);
+  const contador = overlay.querySelector(`#${nombreCampo}-contador`);
+  const alerta = overlay.querySelector(`#${nombreCampo}-alerta-limite`);
   const actualizar = () => {
     const longitud = textarea.value.length;
-    const enLimite = longitud >= DESCRIPCION_MAX_CARACTERES;
-    contador.textContent = `${longitud}/${DESCRIPCION_MAX_CARACTERES}`;
+    const enLimite = longitud >= maxCaracteres;
+    contador.textContent = `${longitud}/${maxCaracteres}`;
     contador.classList.toggle('campo-contador-limite', enLimite);
     // `.field-error` ya trae `display: flex` en el CSS, con más peso en la
     // cascada que `[hidden]` — mismo criterio que el resto del código:
@@ -146,7 +150,7 @@ export function abrirModalCrearVale() {
   overlay.querySelector('[name="fechaEntrega"]').addEventListener('change', () => {
     apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || hoyMedianoche(), 1));
   });
-  wireContadorDescripcion(overlay);
+  wireContadorCampo(overlay, 'descripcion', DESCRIPCION_MAX_CARACTERES);
   const getImagenes = wireDropzone(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista', { maxBytes: IMAGEN_MAX_BYTES });
   const getDocumentos = wireDropzone(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista', { maxBytes: DOCUMENTO_MAX_BYTES });
 
@@ -290,8 +294,9 @@ export function abrirModalSolicitarModificacion(vale) {
         ` : ''}
 
         <div class="form-field full">
-          <label>Justificación de la modificación *</label>
-          <textarea name="justificacion" required></textarea>
+          <label>Justificación de la modificación * <span class="campo-contador" id="justificacion-contador">0/${JUSTIFICACION_MAX_CARACTERES}</span></label>
+          <textarea name="justificacion" required maxlength="${JUSTIFICACION_MAX_CARACTERES}"></textarea>
+          <span class="field-error" id="justificacion-alerta-limite"><ion-icon name="alert-circle-outline"></ion-icon><span>Alcanzaste el límite de ${JUSTIFICACION_MAX_CARACTERES} caracteres.</span></span>
         </div>
       </form>
     `,
@@ -313,6 +318,7 @@ export function abrirModalSolicitarModificacion(vale) {
     apiFechaEventoMod.setMinDate(sumarDiaLocal(apiFechaEntregaMod.getDate() || hoyMedianoche(), 1));
   });
   if (paisCodigoActual) overlay.querySelector('[name="clienteTelefonoPais"]').value = paisCodigoActual;
+  wireContadorCampo(overlay, 'justificacion', JUSTIFICACION_MAX_CARACTERES);
 
   const formModificacion = overlay.querySelector('#form-modificacion');
   wireLimpiezaValidacionInline(formModificacion);

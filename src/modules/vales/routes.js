@@ -64,6 +64,7 @@ router.post('/:id/confirmar', requirePermission('vales.confirmar'), (req, res) =
 // que el asesor no acepta usa esta misma ruta de solicitar modificación.
 router.post('/:id/solicitar-modificacion', requirePermission('vales.solicitar_modificacion'), (req, res) => valeController.solicitarModificacion(req, res));
 router.post('/:id/aprobar-modificacion', requirePermission('vales.aprobar_modificacion'), (req, res) => valeController.aprobarModificacion(req, res));
+router.post('/:id/rechazar-modificacion', requirePermission('vales.aprobar_modificacion'), (req, res) => valeController.rechazarModificacion(req, res));
 // Supervisor autoriza el envío a talleres de un vale recién creado (nace
 // ESPERANDO_AUTORIZACION, sin filas en vale_talleres).
 router.post('/:id/autorizar-creacion', requirePermission('vales.autorizar_creacion'), (req, res) => valeController.autorizarCreacion(req, res));
