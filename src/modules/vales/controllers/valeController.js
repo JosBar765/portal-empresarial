@@ -270,6 +270,15 @@ class ValeController {
     }
   }
 
+  async rechazarModificacion(req, res) {
+    try {
+      const vale = await valeService.rechazarModificacion(req.user, Number(req.params.id));
+      return res.json(vale);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
   async autorizarCreacion(req, res) {
     try {
       const vale = await valeService.autorizarCreacion(req.user, Number(req.params.id));

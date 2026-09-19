@@ -285,7 +285,7 @@ export function construirAcciones(v) {
   // hereda todos los campos del vale) para no mostrar el botón de la fusión
   // en las dos filas del mismo vale.
   if ((usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || puede('aprobarGeneral')) && v.propuesta_general_url && v._tipoRegistro !== 'PROPUESTA') {
-    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta de fusión', onClick: () => window.open(v.propuesta_general_url, '_blank') });
+    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_general_url, '_blank') });
   }
   // En "Trabajo realizado" el encargado de un taller (y el propio técnico) ve
   // la propuesta REAL que se aprobó (`propuesta_taller_url`, solo viene
@@ -328,7 +328,10 @@ export function construirAcciones(v) {
   if (puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION') {
     acciones.push({ icono: 'document-text-outline', titulo: 'Confirmar o solicitar modificación', clase: 'icon-success', onClick: abrirModalDecisionAsesor });
   }
-  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado)) {
+  // Un vale MOD- (nacido de una modificación ya aprobada, `vale_original_id`
+  // seteado) nunca puede volver a solicitar modificación — solo se permite
+  // una por vale (analisis_correcciones_29.md #3).
+  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.vale_original_id) {
     acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirModalSolicitarModificacion });
   }
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {

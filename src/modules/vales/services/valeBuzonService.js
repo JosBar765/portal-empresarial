@@ -230,9 +230,8 @@ class ValeBuzonService {
     const clasificar = (v) => v.estado === ESTADOS.RECIBIDO ? 'recibidos' : 'enProgreso';
     // Un vale "de modificación": el original que ya generó su reemplazo
     // (`vale.modificado`) o el propio reemplazo (`vale.vale_original_id`) —
-    // esto persiste sin importar en qué estado real esté hoy (a diferencia
-    // de esValeDeModificacion, que solo detecta el estado transitorio
-    // MODIFICADO y no sirve para esta clasificación combinable).
+    // esto persiste sin importar en qué estado real esté hoy. Incluye ambos
+    // lados a propósito: esValeDeModificacion solo cubre el reemplazo.
     const esModificado = (v) => !!v.modificado || !!v.vale_original_id;
 
     const total = enVentana.length;

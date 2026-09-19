@@ -51,6 +51,7 @@ module.exports = {
   confirmarRecibido: (...a) => valeConfirmacionService.confirmarRecibido(...a),
   solicitarModificacion: (...a) => valeConfirmacionService.solicitarModificacion(...a),
   aprobarModificacion: (...a) => valeConfirmacionService.aprobarModificacion(...a),
+  rechazarModificacion: (...a) => valeConfirmacionService.rechazarModificacion(...a),
   obtenerValeParaPdf: (...a) => valeConfirmacionService.obtenerValeParaPdf(...a),
 
   ESTADOS,
