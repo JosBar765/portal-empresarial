@@ -18,7 +18,7 @@ const DESCRIPCION_MAX_CARACTERES = 600;
 // Mismo límite que exige el backend para `justificacion` en
 // valeConfirmacionService.solicitarModificacion — distinto del de
 // descripción, no es el mismo campo.
-const JUSTIFICACION_MAX_CARACTERES = 2000;
+const JUSTIFICACION_MAX_CARACTERES = 600;
 
 export function opcionesPaises() {
   return (state.catalogos.paises || []).map(p =>
