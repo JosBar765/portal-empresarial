@@ -228,6 +228,12 @@ class ValeRendimientoService {
     }
     todos = await valeBuzonService._enriquecerConTaller(todos);
 
+    // Desempeño por taller: el Supervisor solo ve los talleres de las tiendas
+    // que cubre; el resto de roles (Gerente) ven todos.
+    const talleresVisibles = usuario.rolId === ROL.SUPERVISOR
+      ? new Set((await tallerRepository.listarIdsPorSupervisor(usuario.id)).map(t => t.id))
+      : null;
+
     const base = filtros.tiendaId ? todos.filter(v => v.tienda_id === Number(filtros.tiendaId)) : todos;
     const enVentana = base.filter(v => dentroDeVentana(v, ventana));
 
@@ -254,7 +260,7 @@ class ValeRendimientoService {
       tendencia: this._tendencia(enVentana, desde, hasta, granularidad),
       etapasCiclo: this._etapasCiclo(enVentana),
       enCurso: this._enCurso(enVentana),
-      talleres: await this._porTaller(enVentana),
+      talleres: await this._porTaller(enVentana, talleresVisibles),
       tiendas: this._porTienda(enVentana),
       criticos: this._criticos(enVentana)
     };
@@ -325,12 +331,13 @@ class ValeRendimientoService {
     return [...acumulado.values()];
   }
 
-  async _porTaller(vales) {
+  async _porTaller(vales, idsVisibles) {
     const talleres = await tallerRepository.listarActivos();
     const nombres = new Map(talleres.map(t => [t.id, t.nombre]));
     const porTaller = new Map();
     vales.forEach(v => {
       new Set((v._filasTaller || []).map(f => f.taller_id)).forEach(tallerId => {
+        if (idsVisibles && !idsVisibles.has(tallerId)) return;
         if (!porTaller.has(tallerId)) porTaller.set(tallerId, []);
         porTaller.get(tallerId).push(v);
       });

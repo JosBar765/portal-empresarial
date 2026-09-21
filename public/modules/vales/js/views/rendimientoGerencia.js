@@ -1,4 +1,5 @@
 import { state } from '../state.js';
+import { ROL } from '../config/roles.js';
 import { $, $$ } from '../utils/dom.js';
 import { claseEstado, etiquetaEstado } from '../permisos.js';
 import { escapeHtml, formatearFecha, celdaTaller } from '../utils/formato.js';
@@ -340,7 +341,9 @@ function renderDesempeno(data) {
     </div>`;
   const cab = cabeceraPanel(`Desempeño por ${esTaller ? 'taller' : 'tienda'}`, 'De menor a mayor cumplimiento · las muestras pequeñas van al final', { extra: tabs });
   let cuerpo;
-  if (!lista.length) {
+  if (!lista.length && esTaller && state.user.rolId === ROL.SUPERVISOR) {
+    cuerpo = vacio('file-tray-outline', 'Sin talleres para mostrar', 'Las tiendas que supervisas no tienen talleres con vales en este período.');
+  } else if (!lista.length) {
     cuerpo = vacio('file-tray-outline', 'Sin vales en el período', `No hay vales asignados a ${esTaller ? 'talleres' : 'tiendas'} con los filtros actuales.`);
   } else {
     const filas = lista.map(r => {
