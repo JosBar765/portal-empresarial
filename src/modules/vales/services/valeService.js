@@ -13,6 +13,7 @@ const valeDetalleService = require('./valeDetalleService');
 const valeBuzonService = require('./valeBuzonService');
 const valeTallerService = require('./valeTallerService');
 const valeConfirmacionService = require('./valeConfirmacionService');
+const valeRendimientoService = require('./valeRendimientoService');
 const capacidadEntregaService = require('./capacidadEntregaService');
 
 module.exports = {
@@ -32,7 +33,7 @@ module.exports = {
 
   // Buzón / listado por rol + Vista Gerencia
   obtenerBuzon: (...a) => valeBuzonService.obtenerBuzon(...a),
-  obtenerDashboardGerencia: (...a) => valeBuzonService.obtenerDashboardGerencia(...a),
+  obtenerRendimientoGerencia: (...a) => valeRendimientoService.obtenerRendimiento(...a),
   obtenerTecnicosAsignables: (...a) => valeBuzonService.obtenerTecnicosAsignables(...a),
   obtenerCargaTrabajo: (...a) => valeBuzonService.obtenerCargaTrabajo(...a),
   obtenerAsignacionesDeTecnico: (...a) => valeBuzonService.obtenerAsignacionesDeTecnico(...a),

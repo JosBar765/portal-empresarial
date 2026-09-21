@@ -29,7 +29,7 @@ class ValeBuzonService {
   // Adjunta a cada vale el nombre legible de sus talleres (columna "Taller"
   // del buzón) y sus filas crudas de `vale_talleres` (`_filasTaller`, usado
   // por varias vistas para saber en cuántos talleres trabajó un vale).
-  // Compartido por `obtenerBuzon` y `obtenerDashboardGerencia`.
+  // Compartido por `obtenerBuzon` y valeRendimientoService.
   async _enriquecerConTaller(vales) {
     const talleresTodos = await tallerRepository.listarActivos();
     const valeTalleresTodos = await valeTallerRepository.listarTodos();
@@ -65,7 +65,7 @@ class ValeBuzonService {
 
     // Filtro por tienda (Vista Gerencia): solo lo manda el frontend de
     // Gerencia (y, opcionalmente, Administrador) para acotar el
-    // listado/dashboard a una sola tienda; el resto de roles nunca lo envían.
+    // listado a una sola tienda; el resto de roles nunca lo envían.
     if (filtros.tiendaId) {
       const tiendaId = Number(filtros.tiendaId);
       todosConTaller = todosConTaller.filter(v => v.tienda_id === tiendaId);
@@ -196,88 +196,6 @@ class ValeBuzonService {
       total,
       hasMore: indiceInicio + limit < total,
       nextCursor
-    };
-  }
-
-  // -----------------------------------------------------------------------
-  // Vista Gerencia: panel de solo lectura con métricas agregadas — total de
-  // vales, % entregados a tiempo/atrasados, y desgloses por estado y por
-  // tienda, respetando la misma ventana de tiempo y el mismo filtro de
-  // tienda que la lista de vales del gerente (obtenerBuzon con
-  // filtros.tiendaId). Lo más importante para gerencia son los vales
-  // atrasados (spec explícita), por eso van primero en la respuesta.
-  // -----------------------------------------------------------------------
-  async obtenerDashboardGerencia(usuario, filtros = {}) {
-    const ventana = this._resolverVentana(filtros);
-    let todos = (await valeRepository.listarTodos()).map(enriquecer);
-
-    if (usuario.rolId === ROL.SUPERVISOR) {
-      const asesorIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
-      todos = todos.filter(v => asesorIds.has(v.asesor_id));
-    }
-    todos = await this._enriquecerConTaller(todos);
-
-    const base = filtros.tiendaId
-      ? todos.filter(v => v.tienda_id === Number(filtros.tiendaId))
-      : todos;
-    const enVentana = base.filter(v => dentroDeVentana(v, ventana));
-
-    // Recibidos/En Progreso: partición por estado REAL, sin excluir a los
-    // vales que hayan pasado por una modificación — "Modificados" ya no es
-    // una tercera categoría mutuamente excluyente (correcciones_26 #1), es
-    // un indicador combinable igual que "Atrasado": un vale puede estar
-    // Recibido/En Progreso Y además ser modificado a la vez.
-    const clasificar = (v) => v.estado === ESTADOS.RECIBIDO ? 'recibidos' : 'enProgreso';
-    // Un vale "de modificación": el original que ya generó su reemplazo
-    // (`vale.modificado`) o el propio reemplazo (`vale.vale_original_id`) —
-    // esto persiste sin importar en qué estado real esté hoy. Incluye ambos
-    // lados a propósito: esValeDeModificacion solo cubre el reemplazo.
-    const esModificado = (v) => !!v.modificado || !!v.vale_original_id;
-
-    const total = enVentana.length;
-    const recibidos = enVentana.filter(v => clasificar(v) === 'recibidos').length;
-    const enProgreso = enVentana.filter(v => clasificar(v) === 'enProgreso').length;
-    const pct = (n, deTotal) => deTotal ? Math.round((n / deTotal) * 100) : 0;
-
-    // Drill-down: la lista solo se arma si hay algo activo (contador, atraso
-    // o modificados combinables, o búsqueda) — nunca por defecto. Sí se
-    // actualiza en tiempo real (ver actualizarDashboardGerenciaEnVivo en el
-    // frontend), de forma selectiva para no hacer parpadear tarjetas que el
-    // usuario no está mirando.
-    const filtroContador = ['recibidos', 'enProgreso'].includes(filtros.filtroContador) ? filtros.filtroContador : null;
-    const soloAtrasados = ['1', 'true', true].includes(filtros.soloAtrasados);
-    const soloModificados = ['1', 'true', true].includes(filtros.soloModificados);
-    const busqueda = String(filtros.busqueda || '').trim().toLowerCase();
-
-    // "Modificados" y "Atrasados" son las tarjetas reactivas al contador
-    // combinado — si hay un filtroContador activo (Recibidos/En Progreso),
-    // pasan a mostrar su número DENTRO de ese subconjunto (y su % es sobre
-    // ese subconjunto, no sobre el gran total: "de mis vales recibidos, qué
-    // % fue modificado / está atrasado"). Sin selección, vuelven al total
-    // global. Total/Recibidos/En Progreso nunca cambian con la selección.
-    const baseReactiva = filtroContador ? enVentana.filter(v => clasificar(v) === filtroContador) : enVentana;
-    const modificados = baseReactiva.filter(esModificado).length;
-    const atrasados = baseReactiva.filter(v => v.atrasado).length;
-    const porcentajeModificados = pct(modificados, baseReactiva.length);
-    const porcentajeAtrasados = pct(atrasados, baseReactiva.length);
-
-    let vales = [];
-    if (filtroContador || soloAtrasados || soloModificados || busqueda) {
-      let lista = enVentana;
-      if (filtroContador) lista = lista.filter(v => clasificar(v) === filtroContador);
-      if (soloModificados) lista = lista.filter(esModificado);
-      if (soloAtrasados) lista = lista.filter(v => v.atrasado);
-      if (busqueda) lista = lista.filter(v => `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase().includes(busqueda));
-      vales = ordenarPorGrupos(lista, [v => v.atrasado]);
-    }
-
-    return {
-      total, recibidos, enProgreso, modificados, atrasados,
-      porcentajeRecibidos: pct(recibidos, total),
-      porcentajeEnProgreso: pct(enProgreso, total),
-      porcentajeModificados,
-      porcentajeAtrasados,
-      vales
     };
   }
 

@@ -6,7 +6,7 @@ import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { puede, usaEstadosVisibles, esAccionDeTrabajoVisible, claseEstado, etiquetaEstado } from '../permisos.js';
 import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro } from '../utils/formato.js';
 import { obtenerBuzon, obtenerMasVales, obtenerLimiteColectivo } from '../api/valesApi.js';
-import { cargarDashboardGerencia } from './dashboardGerencia.js';
+import { cargarRendimientoGerencia } from './rendimientoGerencia.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/tecnico.js';
@@ -40,10 +40,10 @@ export function construirQueryBase() {
 }
 
 export async function cargarBuzon() {
-  // El Gerente en su vista "Dashboard" no pide el buzón de vales — pide las
-  // métricas agregadas.
-  if ([ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'dashboard') {
-    return cargarDashboardGerencia();
+  // Gerente y Supervisor en su vista "Rendimiento" no piden el buzón de
+  // vales — piden las métricas agregadas.
+  if ([ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'rendimiento') {
+    return cargarRendimientoGerencia();
   }
   state.paginacion = { limit: 50, cursor: null, total: 0, hasMore: false, cargandoMas: false };
   const qs = construirQueryBase();

@@ -26,7 +26,7 @@ const verVales = requirePermission('vales.ver');
 const autorizarCreacionVale = requirePermission('vales.autorizar_creacion');
 const crearVale = requirePermission('vales.crear');
 const asignarVale = requirePermission('vales.asignar');
-const verPanelGerencia = requirePermission('vales.ver_gerencia');
+const verRendimiento = requirePermission('vales.ver_gerencia');
 const trabajarVale = requirePermission('vales.trabajar');
 const revisarVale = requirePermission('vales.revisar');
 const aprobacionGeneralVale = requirePermission('vales.aprobar_general');
@@ -43,7 +43,7 @@ router.get('/carga-trabajo', asignarVale, (req, res) => valeController.cargaTrab
 router.get('/carga-trabajo/:tecnicoId', asignarVale, (req, res) => valeController.cargaTrabajoTecnico(req, res));
 
 router.get('/', verVales, (req, res) => valeController.buzon(req, res));
-router.get('/dashboard-gerencia', verPanelGerencia, (req, res) => valeController.dashboardGerencia(req, res));
+router.get('/rendimiento-gerencia', verRendimiento,(req, res) => valeController.rendimientoGerencia(req, res));
 router.post('/', crearVale, camposAdjuntos, (req, res) => valeController.crear(req, res));
 
 router.get('/:id', verVales, (req, res) => valeController.detalle(req, res));

@@ -3,7 +3,7 @@ import { ROL } from './config/roles.js';
 import { roomsParaUsuario } from './permisos.js';
 import { refreshToken, logout } from './api/authApi.js';
 import { cargarBuzon } from './views/buzon.js';
-import { actualizarDashboardGerenciaEnVivo } from './views/dashboardGerencia.js';
+import { actualizarRendimientoEnVivo } from './views/rendimientoGerencia.js';
 
 export function reproducirBeep() {
   try {
@@ -58,13 +58,12 @@ export function initSocket() {
       window.toast[esAlerta ? 'error' : 'info'](esAlerta ? 'Atención' : 'Vale de arte', data.mensaje);
       if (data.beep !== false) reproducirBeep();
     }
-    // El dashboard de Gerencia/Supervisor se actualiza en tiempo real de
-    // forma selectiva (ver actualizarDashboardGerenciaEnVivo) en vez de
-    // recargar todo el buzón — evita reconstruir la grilla de tarjetas
-    // mientras el usuario la está mirando.
-    const enVistaGerencia = [ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'dashboard';
-    if (enVistaGerencia) {
-      actualizarDashboardGerenciaEnVivo();
+    // La vista Rendimiento (Supervisor) se refresca en silencio y con rebote
+    // (ver actualizarRendimientoEnVivo) en vez de recargar un buzón que esa
+    // vista ni siquiera muestra.
+    const enVistaRendimiento = [ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'rendimiento';
+    if (enVistaRendimiento) {
+      actualizarRendimientoEnVivo();
     } else {
       cargarBuzon();
     }
