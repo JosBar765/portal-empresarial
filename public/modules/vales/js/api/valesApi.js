@@ -77,12 +77,6 @@ export async function obtenerCapacidadEntrega(talleresIds, anio, mes) {
   return leerJSON(res);
 }
 
-export async function obtenerDashboardGerencia(qs) {
-  const res = await fetch(`/api/vales/dashboard-gerencia?${qs.toString()}`);
-  if (!res.ok) throw new Error('No se pudo cargar el dashboard.');
-  return leerJSON(res);
-}
-
 export async function obtenerRendimientoGerencia(qs) {
   const res = await fetch(`/api/vales/rendimiento-gerencia?${qs.toString()}`);
   if (!res.ok) throw new Error('No se pudo cargar el rendimiento.');

@@ -33,7 +33,6 @@ module.exports = {
 
   // Buzón / listado por rol + Vista Gerencia
   obtenerBuzon: (...a) => valeBuzonService.obtenerBuzon(...a),
-  obtenerDashboardGerencia: (...a) => valeBuzonService.obtenerDashboardGerencia(...a),
   obtenerRendimientoGerencia: (...a) => valeRendimientoService.obtenerRendimiento(...a),
   obtenerTecnicosAsignables: (...a) => valeBuzonService.obtenerTecnicosAsignables(...a),
   obtenerCargaTrabajo: (...a) => valeBuzonService.obtenerCargaTrabajo(...a),

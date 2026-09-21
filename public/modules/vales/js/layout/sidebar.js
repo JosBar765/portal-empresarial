@@ -19,21 +19,17 @@ export function actualizarOffsetSidebar(sidebar) {
   document.documentElement.style.setProperty('--sidebar-offset', offset);
 }
 
-// El Gerente reemplaza contadores-grid + buzon-section por su propio
-// dashboard-gerencia (vista "dashboard") o por las gráficas de la vista
-// "rendimiento"; el Supervisor hace lo mismo con el dashboard, pero solo
-// cuando entra a SU tercer botón — sus otras dos vistas (Buzón/Trabajo
-// realizado) siguen normales. El resto de roles solo cambian el título.
+// El Gerente y el Supervisor reemplazan contadores-grid + buzon-section por
+// las gráficas de la vista "rendimiento" cuando entran a ella (para el
+// Supervisor es su tercer botón — sus otras dos vistas, Buzón/Trabajo
+// realizado, siguen normales). El resto de roles solo cambian el título.
 export function actualizarTituloYSeccionesVista() {
-  const enDashboard = state.vista === 'dashboard';
   const enRendimiento = state.vista === 'rendimiento';
   if ([ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId)) {
-    const enVistaAgregada = enDashboard || enRendimiento;
-    $('#buzon-titulo').textContent = enDashboard ? 'Dashboard' : (state.user.rolId === ROL.GERENTE ? 'Vales de Arte' : (state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte'));
-    $('#dashboard-gerencia').style.display = enDashboard ? 'block' : 'none';
+    $('#buzon-titulo').textContent = state.user.rolId === ROL.GERENTE ? 'Vales de Arte' : (state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte');
     $('#rendimiento-gerencia').style.display = enRendimiento ? 'block' : 'none';
-    $('#contadores-grid').style.display = enVistaAgregada ? 'none' : '';
-    $('.buzon-section').style.display = enVistaAgregada ? 'none' : '';
+    $('#contadores-grid').style.display = enRendimiento ? 'none' : '';
+    $('.buzon-section').style.display = enRendimiento ? 'none' : '';
     return;
   }
   $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
@@ -53,9 +49,9 @@ export function wireSidebar() {
   // escritorio, visible <900px) tome el control.
   toggleMovil.style.display = '';
 
-  // El Gerente reusa los botones del sidebar, pero con su propio juego de
-  // vistas — Rendimiento (entrada por defecto) / Dashboard / Vales de Arte —
-  // en vez de Buzón/Trabajo realizado.
+  // El Gerente reusa los dos primeros botones del sidebar, pero con su propio
+  // par de vistas — Rendimiento (entrada por defecto) / Vales de Arte — en
+  // vez de Buzón/Trabajo realizado.
   if (state.user.rolId === ROL.GERENTE) {
     const configurar = (boton, vista, icono, texto) => {
       boton.dataset.vista = vista;
@@ -63,14 +59,12 @@ export function wireSidebar() {
       boton.querySelector('span').textContent = texto;
     };
     configurar($('#sidebar-item-primario', sidebar), 'rendimiento', 'analytics-outline', 'Rendimiento');
-    configurar($('#sidebar-item-secundario', sidebar), 'dashboard', 'bar-chart-outline', 'Dashboard');
-    const terciario = $('#sidebar-item-terciario', sidebar);
-    configurar(terciario, 'vales', 'file-tray-full-outline', 'Vales de Arte');
-    terciario.style.display = '';
+    configurar($('#sidebar-item-secundario', sidebar), 'vales', 'file-tray-full-outline', 'Vales de Arte');
     state.vista = 'rendimiento';
   }
   // Supervisor de Ventas: conserva sus dos botones normales y gana un tercero
-  // al mismo dashboard que ve el Gerente, acotado a las tiendas que cubre.
+  // con la misma vista de Rendimiento del Gerente, acotada a las tiendas que
+  // cubre.
   if (state.user.rolId === ROL.SUPERVISOR) {
     $('#sidebar-item-terciario', sidebar).style.display = '';
   }
@@ -98,7 +92,6 @@ export function wireSidebar() {
       state.sort = { key: null, dir: null };
       state.filtroContador = null; // un filtro de contador es propio de la vista activa
       state.soloAtrasados = false;
-      state.soloModificados = false;
       state.estadoFiltro = ''; // el conjunto de estados válidos cambia entre Buzón/Trabajo realizado
       actualizarIndicadoresOrden();
       actualizarTituloYSeccionesVista();

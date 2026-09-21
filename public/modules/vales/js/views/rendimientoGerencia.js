@@ -33,14 +33,25 @@ function construirQuery() {
   return qs;
 }
 
-export async function cargarRendimientoGerencia() {
+let temporizadorEnVivo = null;
+
+// Refresco por eventos de tiempo real: con rebote (varios eventos seguidos
+// disparan una sola recarga) y sin atenuar la vista — el usuario la está mirando.
+export function actualizarRendimientoEnVivo() {
+  const cont = $('#rendimiento-gerencia');
+  if (!cont || !cont.dataset.wired) return;
+  clearTimeout(temporizadorEnVivo);
+  temporizadorEnVivo = setTimeout(() => cargarRendimientoGerencia({ silencioso: true }), 2000);
+}
+
+export async function cargarRendimientoGerencia({ silencioso = false } = {}) {
   const cont = $('#rendimiento-gerencia');
   armarEsqueleto(cont);
   const pedido = ++pedidoVigente;
   const cuerpo = $('#rend-cuerpo', cont);
   // Recarga: se conserva el marco anterior atenuado (sin saltos de layout);
   // solo la primera carga muestra el mensaje de espera.
-  if (ultimaData) cuerpo.classList.add('is-refetching');
+  if (ultimaData && !silencioso) cuerpo.classList.add('is-refetching');
   try {
     const data = await obtenerRendimientoGerencia(construirQuery());
     if (pedido !== pedidoVigente) return;
@@ -50,6 +61,7 @@ export async function cargarRendimientoGerencia() {
   } catch (error) {
     if (pedido !== pedidoVigente) return;
     cuerpo.classList.remove('is-refetching');
+    if (silencioso) return;
     if (!ultimaData) {
       cuerpo.innerHTML = `
         <div class="buzon-vacio buzon-vacio-error">
@@ -167,7 +179,7 @@ function renderTodo(data) {
     <details class="rend-notas">
       <summary>Cómo se calculan estas métricas</summary>
       <ul>
-        <li><strong>Entregados a tiempo:</strong> vales cerrados (confirmados por el asesor) que no tuvieron atraso, sobre el total de vales cerrados. El atraso se mide contra la fecha de entrega, igual que en el Dashboard.</li>
+        <li><strong>Entregados a tiempo:</strong> vales cerrados (confirmados por el asesor) que no tuvieron atraso, sobre el total de vales cerrados. El atraso se mide contra la fecha de entrega del vale.</li>
         <li><strong>Atrasados ahora:</strong> vales todavía en curso cuya fecha de entrega ya pasó.</li>
         <li><strong>Ciclo promedio:</strong> días desde la creación del vale hasta su confirmación.</li>
         <li><strong>Con modificación:</strong> vales originales que pidieron una modificación, sobre el total de vales originales (no cuenta los vales MOD-).</li>

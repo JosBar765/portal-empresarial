@@ -1,8 +1,9 @@
 // src/modules/vales/services/valeRendimientoService.js
-// Vista "Rendimiento" de Gerencia: métricas agregadas de solo lectura sobre
-// atrasos, ciclo de vida y desempeño por taller/tienda. Reutiliza el mismo
-// cálculo de atraso (`enriquecer`) y la misma ventana de tiempo que el
-// dashboard de contadores, para que ambos números siempre coincidan.
+// Vista "Rendimiento" (Gerente y Supervisor): métricas agregadas de solo
+// lectura sobre atrasos, ciclo de vida y desempeño por taller/tienda. Reutiliza
+// el cálculo de atraso (`enriquecer`) y la ventana de tiempo del buzón. El
+// Supervisor solo ve los vales de los asesores de las tiendas que cubre; el
+// Gerente ve todas.
 const valeRepository = require('../repositories/valeRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');

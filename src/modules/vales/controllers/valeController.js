@@ -114,29 +114,8 @@ class ValeController {
     }
   }
 
-  // Vista Gerencia: métricas agregadas, solo lectura.
-  async dashboardGerencia(req, res) {
-    try {
-      const filtros = {
-        ventana: req.query.ventana,
-        fecha: req.query.fecha,
-        desde: req.query.desde,
-        hasta: req.query.hasta,
-        tiendaId: req.query.tiendaId,
-        filtroContador: req.query.filtroContador,
-        soloAtrasados: req.query.soloAtrasados,
-        soloModificados: req.query.soloModificados,
-        busqueda: req.query.busqueda
-      };
-      const data = await valeService.obtenerDashboardGerencia(req.user, filtros);
-      return res.json(data);
-    } catch (error) {
-      return responderErrorInterno(res, error);
-    }
-  }
-
-  // Vista Rendimiento de Gerencia: KPIs, tendencia, ciclo por etapa, ranking
-  // por taller/tienda y vales críticos. Solo lectura.
+  // Vista Rendimiento (Gerente y Supervisor): KPIs, tendencia, ciclo por
+  // etapa, ranking por taller/tienda y vales críticos. Solo lectura.
   async rendimientoGerencia(req, res) {
     try {
       const filtros = {
