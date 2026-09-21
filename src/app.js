@@ -144,7 +144,7 @@ app.get('/api/modules', requireAuth, (req, res) => {
   // Filtrar módulos en base a los permisos del usuario
   // El Administrador (rol_id = 1) tiene acceso a todos los módulos automáticamente
   const userModules = catalog.filter(modulo => {
-    return user.rolId === 1 || permissions.includes(modulo.permission);
+    return permissions.includes(modulo.permission);
   });
 
   return res.json(userModules);
