@@ -4,12 +4,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-```bash
-npm install       # install dependencies
-npm run dev        # start with hot reload (node --watch), http://localhost:3000
-npm start          # start without watch mode
-```
-
 There is no test suite, linter, or build step configured in `package.json`.
 
 Database: create a MySQL database named `portal_empresarial`, then import `database/schema.sql` (structure only) and `database/seed.sql` (real catalogs/org data) in that order — see `.agents/reglas/reglas_archivosSQL.md` for the split's rationale. Then copy `.env.example` to `.env` and set `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, etc. **MySQL is a hard requirement, not an optional dependency** — `src/config/database.js` has no fallback; if the initial connection fails, the process logs a fatal error and exits (`process.exit(1)`) instead of starting in a degraded state.
@@ -21,12 +15,6 @@ Test accounts (seeded in `database/seed.sql`, all passwords match the pattern `<
 ## Architecture
 
 Single Node/Express **modular monolith** — never split modules into separate services/servers. This constraint is intentional: the target hosting is a managed Node host with MySQL, no Docker/VPS/root access. Do not introduce infrastructure that requires that.
-
-```
-Browser → Express (src/app.js) → authenticateJWT (global) → Core layers (auth/permissions/websocket/files) → Business modules (src/modules/*) → Repositories → MySQL
-```
-
-Socket.IO (`src/core/websocket/socketManager.js`) is a cross-cutting real-time layer available to every module, not tied to any one feature.
 
 ### Auth is JWT, not sessions
 
@@ -49,7 +37,7 @@ Follow `.agents/reglas/reglas_modulo.md` exactly (the README's pointer to `src/m
 1. Backend: `src/modules/<name>/{controllers,services,repositories}/`, plus `routes.js` and `events.js`. Controllers stay thin (HTTP in/out only), services hold business rules, repositories hold all SQL.
 2. Frontend: `public/modules/<name>/{index.html, css/styles.css, js/app.js}`, styled to match `public/css/global.css` (shared design tokens) — same typography/colors/proportions as login and dashboard.
 3. Register in `src/app.js`: mount `app.use('/api/<name>', requireAuth, require('./modules/<name>/routes'))`, and add an entry to the `catalog` array inside the `/api/modules` handler (id, nombre, descripcion, icono, path, `permission` code, color) — the dashboard lists modules dynamically from this endpoint based on the user's permissions, no frontend changes needed.
-4. Add new permission codes (`<modulo>.ver`, `.crear`, etc.) to `database/seed.sql` and assign them to roles (and to `src/config/database.js`'s `permisos`/`rol_permisos`, the path actually exercised in this environment).
+4. Add new permission codes (`<modulo>.ver`, `.crear`, etc.) to `database/seed.sql` and assign them to roles.
 5. Real-time updates for a module go through `socketManager.sendToModule(moduleName, event, data)`; clients join with `socket.emit('register_module', '<name>')`.
 
 ### Business domain: Vales de Arte
