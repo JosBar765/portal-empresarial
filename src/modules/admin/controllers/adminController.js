@@ -186,6 +186,24 @@ class AdminController {
     }
   }
 
+  async crearTaller(req, res) {
+    try {
+      const taller = await adminService.crearTallerLocal(req.body);
+      return res.status(201).json(taller);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
+  async establecerActivoTaller(req, res) {
+    try {
+      await adminService.establecerActivoTaller(Number(req.params.id), req.body && req.body.activo);
+      return res.json({ ok: true });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
   async listarPersonalTaller(req, res) {
     try {
       const personal = await adminService.listarPersonalTaller(Number(req.params.id));
