@@ -4,12 +4,7 @@ const router = express.Router();
 const adminController = require('./controllers/adminController');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
-// `admin.ver` sigue siendo el único requisito para entrar al panel y ver
-// sus listados (comportamiento sin cambios). Los 5 permisos "gestionar"
-// (correcciones_25, principio de mínimo privilegio) solo gatean crear/
-// editar/activar/eliminar dentro de cada sección — hoy los tiene únicamente
-// Administrador (mismo acceso de siempre, ver seed.sql), pero las rutas ya
-// quedan preparadas para el día que se necesite dar acceso parcial a otro rol.
+// Permisos
 const verAdmin = requirePermission('admin.ver');
 const gestionarUsuarios = requirePermission('admin.usuarios.gestionar');
 const gestionarRoles = requirePermission('admin.roles.gestionar');

@@ -98,8 +98,8 @@ function requireModule(moduleName) {
 
     const userModules = req.user.modulosPermitidos || [];
 
-    // Permitir acceso directo si es Administrador (rol 1) o tiene asignado el módulo
-    if (userModules.includes(moduleName) || req.user.rolId === 1) {
+    // Permitir si tiene asignado el módulo
+    if (userModules.includes(moduleName)) {
       return next();
     }
 
