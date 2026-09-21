@@ -36,7 +36,7 @@ const aprobarModificacionVale = requirePermission('vales.aprobar_modificacion');
 
 router.get('/catalogos', verVales, (req, res) => valeController.catalogos(req, res));
 router.get('/talleres', verVales, (req, res) => valeController.talleres(req, res));
-router.get('/limite-colectivo', autorizarCreacion, (req, res) => valeController.limiteColectivo(req, res));
+router.get('/limite-colectivo', autorizarCreacionVale, (req, res) => valeController.limiteColectivo(req, res));
 router.get('/capacidad-entrega', crearVale, (req, res) => valeController.capacidadEntrega(req, res));
 router.get('/tecnicos', asignarVale, (req, res) => valeController.tecnicos(req, res));
 router.get('/carga-trabajo', asignarVale, (req, res) => valeController.cargaTrabajo(req, res));
