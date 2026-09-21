@@ -99,6 +99,3 @@ CONTADORES_CONFIG[ROL.ADMINISTRADOR] = [ // vista de control general
   { key: 'aprobadoDepartamento', label: 'Por fusionar', filtro: 'aprobadoDepartamento' },
   { key: 'atrasados', label: 'Atrasados', alerta: true, filtro: 'atrasados' }
 ];
-// Gerente (Vista Gerencia): mismo resumen que el administrador para su vista
-// "Vales de Arte" — es de solo lectura, respeta la misma jerarquía.
-CONTADORES_CONFIG[ROL.GERENTE] = CONTADORES_CONFIG[ROL.ADMINISTRADOR];

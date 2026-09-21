@@ -67,6 +67,24 @@ class ValeRepository {
     return rows[0] || null;
   }
 
+  // La comparación ya es insensible a mayúsculas (collation utf8mb4_unicode_ci).
+  async obtenerPorCorrelativo(correlativo) {
+    const rows = await db.query(`${SELECT_VALE} WHERE v.correlativo = ? LIMIT 1`, [correlativo], 'vale:find_by_correlativo');
+    return rows[0] || null;
+  }
+
+  // Correlativos que CONTIENEN el texto buscado (los más recientes primero) —
+  // sugerencias cuando no hay coincidencia exacta. `%` y `_` del texto se
+  // escapan para que se busquen literalmente.
+  async buscarCorrelativosSimilares(fragmento, limite = 5) {
+    const patron = `%${String(fragmento).replace(/[\\%_]/g, '\\$&')}%`;
+    return db.query(
+      `SELECT correlativo FROM vales WHERE correlativo LIKE ? ORDER BY id DESC LIMIT ${Math.max(1, Math.floor(Number(limite)) || 5)}`,
+      [patron],
+      'vale:search_similar_correlativo'
+    );
+  }
+
   // Solo para revertir una creación fallida o un rechazo explícito del
   // Supervisor (ver valeCreacionService.eliminarValeConArchivos) — el
   // resto del ciclo de vida del vale nunca borra filas, solo cambia

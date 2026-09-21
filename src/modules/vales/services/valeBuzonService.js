@@ -63,9 +63,10 @@ class ValeBuzonService {
     const valeTalleresTodos = await valeTallerRepository.listarTodos();
     let todosConTaller = await this._enriquecerConTaller(todos);
 
-    // Filtro por tienda (Vista Gerencia): solo lo manda el frontend de
-    // Gerencia (y, opcionalmente, Administrador) para acotar el
-    // listado a una sola tienda; el resto de roles nunca lo envían.
+    // Filtro por tienda: solo lo manda el frontend del Supervisor (y,
+    // opcionalmente, Administrador) para acotar el listado a una sola
+    // tienda; el resto de roles nunca lo envían. El Gerente no tiene buzón:
+    // solo busca vales por correlativo (valeBusquedaService).
     if (filtros.tiendaId) {
       const tiendaId = Number(filtros.tiendaId);
       todosConTaller = todosConTaller.filter(v => v.tienda_id === tiendaId);
@@ -74,9 +75,6 @@ class ValeBuzonService {
     let resultado;
     switch (usuario.rolId) {
       case ROL.ADMINISTRADOR: // ve todo
-        resultado = this._buzonAdministrador(todosConTaller, ventana, filtroContador);
-        break;
-      case ROL.GERENTE: // mismo listado de solo lectura que el administrador (Vista Gerencia)
         resultado = this._buzonAdministrador(todosConTaller, ventana, filtroContador);
         break;
       case ROL.ASESOR:

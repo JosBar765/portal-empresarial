@@ -1,6 +1,7 @@
 /* public/modules/vales/css/styles.css */
 @import url('/css/dashboard.css');
 @import url('/modules/vales/css/rendimiento.css');
+@import url('/modules/vales/css/encontrar-vale.css');
 
 .header-back {
   color: var(--color-text-secondary);

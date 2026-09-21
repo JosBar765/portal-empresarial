@@ -132,6 +132,17 @@ class ValeController {
     }
   }
 
+  // "Encontrar vale" (solo Gerente, ver el guard en routes.js): un vale por
+  // correlativo exacto, con sugerencias si no hay coincidencia.
+  async buscarPorCorrelativo(req, res) {
+    try {
+      const data = await valeService.buscarValePorCorrelativo(req.query.correlativo);
+      return res.json(data);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
   async detalle(req, res) {
     try {
       const data = await valeService.obtenerDetalle(req.user, Number(req.params.id));
