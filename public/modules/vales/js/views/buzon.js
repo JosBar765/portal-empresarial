@@ -7,6 +7,7 @@ import { puede, usaEstadosVisibles, esAccionDeTrabajoVisible, claseEstado, etiqu
 import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro } from '../utils/formato.js';
 import { obtenerBuzon, obtenerMasVales, obtenerLimiteColectivo } from '../api/valesApi.js';
 import { cargarDashboardGerencia } from './dashboardGerencia.js';
+import { cargarRendimientoGerencia } from './rendimientoGerencia.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/tecnico.js';
@@ -41,9 +42,12 @@ export function construirQueryBase() {
 
 export async function cargarBuzon() {
   // El Gerente en su vista "Dashboard" no pide el buzón de vales — pide las
-  // métricas agregadas.
+  // métricas agregadas; en "Rendimiento", las gráficas.
   if ([ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'dashboard') {
     return cargarDashboardGerencia();
+  }
+  if (state.user.rolId === ROL.GERENTE && state.vista === 'rendimiento') {
+    return cargarRendimientoGerencia();
   }
   state.paginacion = { limit: 50, cursor: null, total: 0, hasMore: false, cargandoMas: false };
   const qs = construirQueryBase();

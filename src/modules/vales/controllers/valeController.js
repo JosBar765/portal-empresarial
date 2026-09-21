@@ -135,6 +135,24 @@ class ValeController {
     }
   }
 
+  // Vista Rendimiento de Gerencia: KPIs, tendencia, ciclo por etapa, ranking
+  // por taller/tienda y vales críticos. Solo lectura.
+  async rendimientoGerencia(req, res) {
+    try {
+      const filtros = {
+        ventana: req.query.ventana,
+        fecha: req.query.fecha,
+        desde: req.query.desde,
+        hasta: req.query.hasta,
+        tiendaId: req.query.tiendaId
+      };
+      const data = await valeService.obtenerRendimientoGerencia(req.user, filtros);
+      return res.json(data);
+    } catch (error) {
+      return responderErrorInterno(res, error);
+    }
+  }
+
   async detalle(req, res) {
     try {
       const data = await valeService.obtenerDetalle(req.user, Number(req.params.id));

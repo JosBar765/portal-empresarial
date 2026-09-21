@@ -83,6 +83,12 @@ export async function obtenerDashboardGerencia(qs) {
   return leerJSON(res);
 }
 
+export async function obtenerRendimientoGerencia(qs) {
+  const res = await fetch(`/api/vales/rendimiento-gerencia?${qs.toString()}`);
+  if (!res.ok) throw new Error('No se pudo cargar el rendimiento.');
+  return leerJSON(res);
+}
+
 export async function obtenerTecnicosAsignables() {
   const res = await fetch('/api/vales/tecnicos');
   return leerJSON(res);
