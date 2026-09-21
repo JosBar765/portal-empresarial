@@ -102,6 +102,14 @@ export async function listarTalleres() {
   return res.json();
 }
 
+export function crearTaller(payload) {
+  return enviarConBody('/api/admin/talleres', 'POST', payload);
+}
+
+export function toggleActivoTaller(tallerId, activo) {
+  return enviarConBody(`/api/admin/talleres/${tallerId}/activo`, 'PATCH', { activo });
+}
+
 export async function listarPersonalDeTaller(tallerId) {
   const res = await fetch(`/api/admin/talleres/${tallerId}/personal`);
   return res.json();

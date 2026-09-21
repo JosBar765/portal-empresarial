@@ -38,7 +38,7 @@ class ValeBusquedaService {
     const idsTaller = filas.length > 0
       ? filas.map(f => f.taller_id)
       : String(vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
-    const talleres = await tallerRepository.listarActivos();
+    const talleres = await tallerRepository.listarTodos();
     const nombre = (id) => (talleres.find(t => t.id === id) || {}).nombre || `#${id}`;
     return {
       id: v.id,

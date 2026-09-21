@@ -31,6 +31,14 @@ const ROL_ENCARGADO_DISENO_LOCAL = 10;
 const TALLER_FIJO_POR_ROL = { 4: 'Diseño', 5: 'Diseño UV/3D', 9: 'Protextil' };
 const TALLERES_CLONABLES_ASISTENTE = ['Diseño', 'Diseño UV/3D', 'Protextil'];
 
+// Un id que llega en el cuerpo JSON debe ser un entero (o su texto): Number()
+// a secas aceptaría [5], true o " 5 " y los trataría como 5.
+function aEntero(valor) {
+  if (typeof valor === 'number') return Number.isInteger(valor) && valor > 0 ? valor : null;
+  if (typeof valor === 'string' && /^\d{1,10}$/.test(valor.trim())) return Number(valor.trim());
+  return null;
+}
+
 class AdminService {
   async _validarEncargadoUnico(rolId, excluirId) {
     if (!ROLES_ENCARGADO_UNICO.includes(Number(rolId))) return;
@@ -347,7 +355,68 @@ class AdminService {
         throw new Error(`Ya existe un encargado activo para ${taller.nombre}: ${ocupante.nombre}. Desasígnalo primero.`);
       }
     }
+    await this._validarQueNoEncargueOtroTaller(usuario, tallerId);
     return tallerAdminRepository.asignarEncargado(tallerId, usuarioId);
+  }
+
+  // Un encargado trabaja físicamente en UN taller: no puede serlo de dos ni
+  // ser además técnico de otro (misma lógica que el asesor con su tienda).
+  async _validarQueNoEncargueOtroTaller(usuario, tallerActualId = null) {
+    const comoEncargado = await tallerAdminRepository.obtenerTallerDeEncargado(usuario.id, tallerActualId);
+    if (comoEncargado) {
+      throw new Error(`${usuario.nombre} ya es encargado de ${comoEncargado.nombre}: un encargado no puede atender dos talleres.`);
+    }
+    const comoTecnico = await tallerAdminRepository.obtenerTallerDeTecnico(usuario.id);
+    if (comoTecnico) {
+      throw new Error(`${usuario.nombre} ya trabaja en ${comoTecnico.nombre} y no puede ser encargado de otro taller.`);
+    }
+  }
+
+  // Los únicos talleres que se crean desde el panel son los de Diseño Local:
+  // uno por tienda, con nombre derivado del código de esa tienda (como el
+  // nombre de la tienda se deriva de su empresa y subdivisión), y con un
+  // encargado opcional que debe tener el rol Diseño Local y no encargarse ya
+  // de otro taller.
+  async crearTallerLocal({ tiendaId, encargadoId } = {}) {
+    const idTienda = aEntero(tiendaId);
+    const tienda = idTienda ? await tiendaAdminRepository.obtenerPorId(idTienda) : null;
+    if (!tienda) throw new Error('Selecciona la tienda a la que pertenecerá el taller.');
+    if (!tienda.activo) throw new Error('La tienda seleccionada está inactiva.');
+    const existente = await tallerAdminRepository.obtenerLocalDeTienda(tienda.id);
+    if (existente) {
+      throw new Error(`La tienda ${tienda.codigo} ya tiene su taller de Diseño Local (${existente.nombre}${existente.activo ? '' : ', inactivo — reactívalo en lugar de crear otro'}).`);
+    }
+    const nombre = `Diseño Local - ${tienda.codigo}`;
+    if (await tallerAdminRepository.obtenerPorNombre(nombre)) {
+      throw new Error(`Ya existe un taller llamado ${nombre}.`);
+    }
+    let encargado = null;
+    if (encargadoId !== undefined && encargadoId !== null && encargadoId !== '') {
+      const idEncargado = aEntero(encargadoId);
+      encargado = idEncargado ? await usuarioAdminRepository.obtenerPorId(idEncargado) : null;
+      if (!encargado || !encargado.activo) throw new Error('El encargado seleccionado no existe o está inactivo.');
+      if (Number(encargado.rol_id) !== ROL_ENCARGADO_DISENO_LOCAL) {
+        throw new Error('Solo un usuario con el rol Diseño Local puede ser encargado de un taller de Diseño Local.');
+      }
+      await this._validarQueNoEncargueOtroTaller(encargado);
+    }
+    const id = await tallerAdminRepository.crearLocal({ nombre, tiendaId: tienda.id, encargadoId: encargado ? encargado.id : null });
+    return { id, nombre };
+  }
+
+  // No se puede desactivar un taller con vales de arte en proceso; sí uno
+  // sin vales o con todos sus vales terminados. Activar no tiene condición.
+  async establecerActivoTaller(tallerId, activo) {
+    if (typeof activo !== 'boolean') throw new Error('Indica si el taller debe quedar activo o inactivo.');
+    const taller = await tallerAdminRepository.obtenerPorId(tallerId);
+    if (!taller) throw new Error('Taller no encontrado.');
+    if (!activo) {
+      const enProceso = await tallerAdminRepository.contarValesEnProceso(taller.id);
+      if (enProceso > 0) {
+        throw new Error(`No se puede desactivar ${taller.nombre}: tiene ${enProceso} vale${enProceso === 1 ? '' : 's'} de arte en proceso. Podrás desactivarlo cuando terminen.`);
+      }
+    }
+    await tallerAdminRepository.establecerActivo(taller.id, activo);
   }
 
   async quitarEncargadoDeTaller(tallerId) {

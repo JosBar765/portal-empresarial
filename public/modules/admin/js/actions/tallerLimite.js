@@ -2,7 +2,6 @@
 // (analisis_correcciones_28.md) — modal chico, independiente del de
 // personal (tallerPersonal.js), porque no comparte nada con la asignación
 // de encargado/técnicos.
-import { escapeHtml } from '../utils/formato.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { actualizarLimiteDiarioTaller } from '../api/adminApi.js';
 import { cargarTalleres } from '../views/talleres.js';
@@ -23,7 +22,7 @@ export function abrirModalLimiteTaller(taller) {
     </div>
   `;
   const { overlay, cerrar } = abrirModal({
-    title: `Límite diario — ${escapeHtml(taller.nombre)}`,
+    title: `Límite diario — ${taller.nombre}`,
     bodyHtml,
     footerHtml: `<button class="btn btn--ghost" id="btn-cerrar-limite">Cancelar</button><button class="btn btn--primary" id="btn-guardar-limite">Guardar</button>`
   });
