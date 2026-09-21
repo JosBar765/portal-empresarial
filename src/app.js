@@ -142,7 +142,6 @@ app.get('/api/modules', requireAuth, (req, res) => {
   ];
 
   // Filtrar módulos en base a los permisos del usuario
-  // El Administrador (rol_id = 1) tiene acceso a todos los módulos automáticamente
   const userModules = catalog.filter(modulo => {
     return permissions.includes(modulo.permission);
   });
@@ -150,15 +149,7 @@ app.get('/api/modules', requireAuth, (req, res) => {
   return res.json(userModules);
 });
 
-// Manejo de errores global — el detalle completo (SQL, stack, nombres de
-// tablas/columnas) solo va al log del servidor. Un error 4xx conocido (los
-// `throw new Error('mensaje amigable')` deliberados de la capa de servicio,
-// ya pensados para mostrarse) conserva su mensaje; un 500 no anticipado
-// nunca expone su `message` real al cliente.
-// Errores de Multer (límite de tamaño/cantidad de archivos) ocurren en el
-// middleware de upload, antes de llegar a ningún controlador — sin esto
-// caían al 500 genérico de abajo ("error interno del servidor"), un mensaje
-// engañoso para lo que en realidad es un archivo demasiado grande.
+// Manejo de errores con la subida de archivos
 const MENSAJES_MULTER = {
   LIMIT_FILE_SIZE: 'El archivo adjunto supera el tamaño máximo permitido.',
   LIMIT_FILE_COUNT: 'Se adjuntaron demasiados archivos.',
