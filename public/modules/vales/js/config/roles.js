@@ -16,5 +16,5 @@ export const ROLES_ENCARGADO_TALLER = [ROL.ENCARGADO_DISENO, ROL.ENCARGADO_UV3D,
 export const ROLES_TALLER_Y_TECNICO = [...ROLES_ENCARGADO_TALLER, ROL.TECNICO];
 
 // Roles con sidebar Buzón / Trabajo realizado (el Gerente reusa el mismo
-// sidebar con su propio par Rendimiento/Vales de Arte — ver layout/sidebar.js).
+// sidebar con su propio par Rendimiento/Encontrar vale — ver layout/sidebar.js).
 export const ROLES_CON_SIDEBAR = [ROL.ASESOR, ROL.SUPERVISOR, ...ROLES_TALLER_Y_TECNICO, ROL.GERENTE];

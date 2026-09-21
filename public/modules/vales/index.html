@@ -59,7 +59,7 @@
        resto del layout solo necesita compensarlo con --sidebar-offset). -->
   <aside class="sidebar-vales" id="sidebar-vales" style="display:none;">
     <!-- Para el Gerente estos dos botones se reescriben en JS como
-         Rendimiento/Vales de Arte — ver wireSidebar() en layout/sidebar.js. -->
+         Rendimiento/Encontrar vale — ver wireSidebar() en layout/sidebar.js. -->
     <button class="sidebar-item sidebar-item-active" id="sidebar-item-primario" data-vista="buzon">
       <ion-icon name="file-tray-full-outline"></ion-icon>
       <span>Buzón</span>
@@ -112,6 +112,10 @@
              ciclo y desempeño por taller/tienda; reemplaza a contadores-grid +
              buzon-section mientras state.vista === 'rendimiento'. -->
         <section class="rendimiento-gerencia" id="rendimiento-gerencia" style="display:none;"></section>
+
+        <!-- Encontrar vale (solo Gerente) — buscador por correlativo que
+             reemplaza al buzón mientras state.vista === 'encontrar'. -->
+        <section class="encontrar-vale" id="encontrar-vale" style="display:none;"></section>
 
         <section class="buzon-section">
           <div class="buzon-toolbar">

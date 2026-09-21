@@ -22,14 +22,20 @@ export function actualizarOffsetSidebar(sidebar) {
 // El Gerente y el Supervisor reemplazan contadores-grid + buzon-section por
 // las gráficas de la vista "rendimiento" cuando entran a ella (para el
 // Supervisor es su tercer botón — sus otras dos vistas, Buzón/Trabajo
-// realizado, siguen normales). El resto de roles solo cambian el título.
+// realizado, siguen normales). El Gerente no tiene buzón: su otra vista es
+// el buscador "encontrar" (que además oculta la barra de período y tienda,
+// que ahí no aplican). El resto de roles solo cambian el título.
 export function actualizarTituloYSeccionesVista() {
   const enRendimiento = state.vista === 'rendimiento';
+  const enEncontrar = state.vista === 'encontrar';
   if ([ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId)) {
-    $('#buzon-titulo').textContent = state.user.rolId === ROL.GERENTE ? 'Vales de Arte' : (state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte');
+    $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
     $('#rendimiento-gerencia').style.display = enRendimiento ? 'block' : 'none';
-    $('#contadores-grid').style.display = enRendimiento ? 'none' : '';
-    $('.buzon-section').style.display = enRendimiento ? 'none' : '';
+    $('#encontrar-vale').style.display = enEncontrar ? 'block' : 'none';
+    const enVistaPropia = enRendimiento || enEncontrar;
+    $('#contadores-grid').style.display = enVistaPropia ? 'none' : '';
+    $('.buzon-section').style.display = enVistaPropia ? 'none' : '';
+    $('.vales-toolbar').style.display = enEncontrar ? 'none' : '';
     return;
   }
   $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
@@ -50,7 +56,7 @@ export function wireSidebar() {
   toggleMovil.style.display = '';
 
   // El Gerente reusa los dos primeros botones del sidebar, pero con su propio
-  // par de vistas — Rendimiento (entrada por defecto) / Vales de Arte — en
+  // par de vistas — Rendimiento (entrada por defecto) / Encontrar vale — en
   // vez de Buzón/Trabajo realizado.
   if (state.user.rolId === ROL.GERENTE) {
     const configurar = (boton, vista, icono, texto) => {
@@ -59,7 +65,7 @@ export function wireSidebar() {
       boton.querySelector('span').textContent = texto;
     };
     configurar($('#sidebar-item-primario', sidebar), 'rendimiento', 'analytics-outline', 'Rendimiento');
-    configurar($('#sidebar-item-secundario', sidebar), 'vales', 'file-tray-full-outline', 'Vales de Arte');
+    configurar($('#sidebar-item-secundario', sidebar), 'encontrar', 'search-outline', 'Encontrar vale');
     state.vista = 'rendimiento';
   }
   // Supervisor de Ventas: conserva sus dos botones normales y gana un tercero
@@ -73,7 +79,7 @@ export function wireSidebar() {
   // este rol realmente tiene (los botones ya quedaron reescritos arriba para
   // Gerente/Supervisor).
   const VISTA_ACTIVA_KEY = 'vales:vistaActiva';
-  const vistasValidas = $$('.sidebar-item', sidebar).map(b => b.dataset.vista);
+  const vistasValidas = $$('.sidebar-item', sidebar).filter(b => b.style.display !== 'none').map(b => b.dataset.vista);
   const vistaGuardada = localStorage.getItem(VISTA_ACTIVA_KEY);
   if (vistasValidas.includes(vistaGuardada)) {
     state.vista = vistaGuardada;

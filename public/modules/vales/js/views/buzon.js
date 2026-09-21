@@ -7,6 +7,7 @@ import { puede, usaEstadosVisibles, esAccionDeTrabajoVisible, claseEstado, etiqu
 import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro } from '../utils/formato.js';
 import { obtenerBuzon, obtenerMasVales, obtenerLimiteColectivo } from '../api/valesApi.js';
 import { cargarRendimientoGerencia } from './rendimientoGerencia.js';
+import { cargarEncontrarVale } from './encontrarVale.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/tecnico.js';
@@ -44,6 +45,10 @@ export async function cargarBuzon() {
   // vales — piden las métricas agregadas.
   if ([ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'rendimiento') {
     return cargarRendimientoGerencia();
+  }
+  // El Gerente no tiene buzón: solo busca vales por correlativo.
+  if (state.user.rolId === ROL.GERENTE && state.vista === 'encontrar') {
+    return cargarEncontrarVale();
   }
   state.paginacion = { limit: 50, cursor: null, total: 0, hasMore: false, cargandoMas: false };
   const qs = construirQueryBase();
