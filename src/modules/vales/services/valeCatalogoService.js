@@ -22,8 +22,8 @@ class ValeCatalogoService {
       tallerRepository.listarActivos()
     ]);
     const solicitante = usuario ? await usuarioValeRepository.obtenerPorId(usuario.id) : null;
-    // `tiendasGerencia` es el conjunto de tiendas que el filtro del
-    // dashboard le puede ofrecer a ESTE usuario — el catálogo completo para
+    // `tiendasGerencia` es el conjunto de tiendas que el filtro de tienda
+    // (vista Rendimiento y buzón) le puede ofrecer a ESTE usuario — el catálogo completo para
     // Administrador/Gerente, solo las de sus asesores cubiertos para el
     // Supervisor (mismo alcance que su buzón).
     let tiendasGerencia = tiendas;

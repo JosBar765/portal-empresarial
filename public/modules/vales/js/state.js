@@ -10,7 +10,6 @@ export const state = {
   tiendaId: null, // Vista Gerencia: filtro de tienda
   filtroContador: null,
   soloAtrasados: false, // combinable con filtroContador
-  soloModificados: false, // ídem — solo aplica a la Vista Gerencia (dashboard)
   busqueda: '',
   estadoFiltro: '', // el filtro de estado corre en el servidor
   sort: { key: null, dir: null }, // ídem el orden por columna

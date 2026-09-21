@@ -59,8 +59,7 @@
        resto del layout solo necesita compensarlo con --sidebar-offset). -->
   <aside class="sidebar-vales" id="sidebar-vales" style="display:none;">
     <!-- Para el Gerente estos dos botones se reescriben en JS como
-         Dashboard/Vales de Arte (analisis_correcciones_7.md, Vista Gerencia)
-         — ver wireSidebar() en app.js. -->
+         Rendimiento/Encontrar vale — ver wireSidebar() en layout/sidebar.js. -->
     <button class="sidebar-item sidebar-item-active" id="sidebar-item-primario" data-vista="buzon">
       <ion-icon name="file-tray-full-outline"></ion-icon>
       <span>Buzón</span>
@@ -69,12 +68,12 @@
       <ion-icon name="checkmark-done-circle-outline"></ion-icon>
       <span>Trabajo realizado</span>
     </button>
-    <!-- Solo Supervisor de Ventas (analisis_correcciones_12.md #10, Fase 2c):
-         entrada extra al dashboard de Gerencia, además de sus otros dos
-         botones — a diferencia del Gerente, que los reemplaza. -->
-    <button class="sidebar-item" id="sidebar-item-terciario" data-vista="dashboard" style="display:none;">
-      <ion-icon name="bar-chart-outline"></ion-icon>
-      <span>Dashboard</span>
+    <!-- Solo Supervisor de Ventas: entrada extra a la vista Rendimiento,
+         además de sus otros dos botones — a diferencia del Gerente, que los
+         reemplaza. -->
+    <button class="sidebar-item" id="sidebar-item-terciario" data-vista="rendimiento" style="display:none;">
+      <ion-icon name="analytics-outline"></ion-icon>
+      <span>Rendimiento</span>
     </button>
     <button class="sidebar-collapse-toggle" id="sidebar-collapse-toggle" type="button" title="Colapsar menú">
       <ion-icon name="chevron-back-outline"></ion-icon>
@@ -88,7 +87,7 @@
     <div class="app-layout">
       <main class="main-container">
 
-        <section class="dashboard-toolbar">
+        <section class="vales-toolbar">
           <div class="ventana-selector" id="ventana-selector">
             <button data-ventana="dia" class="chip">Día</button>
             <button data-ventana="semana" class="chip">Semana</button>
@@ -96,8 +95,8 @@
             <button data-ventana="todo" class="chip chip-active">Todo</button>
             <div class="ventana-rango" id="ventana-rango"></div>
           </div>
-          <!-- Solo Gerencia: filtra por tienda tanto el Dashboard como la lista de
-               Vales de Arte (analisis_correcciones_7.md, Vista Gerencia). -->
+          <!-- Solo Gerencia y Supervisor: filtra por tienda tanto la vista
+               Rendimiento como la lista de Vales de Arte. -->
           <select id="filtro-tienda" class="filtro-tienda" style="display:none;">
             <option value="">Todas las tiendas</option>
           </select>
@@ -109,9 +108,14 @@
 
         <section class="contadores-grid" id="contadores-grid"></section>
 
-        <!-- Dashboard de Gerencia (analisis_correcciones_7.md) — reemplaza a
-             contadores-grid + buzon-section mientras state.vista === 'dashboard'. -->
-        <section class="dashboard-gerencia" id="dashboard-gerencia" style="display:none;"></section>
+        <!-- Vista Rendimiento (Gerente y Supervisor) — gráficas de atrasos,
+             ciclo y desempeño por taller/tienda; reemplaza a contadores-grid +
+             buzon-section mientras state.vista === 'rendimiento'. -->
+        <section class="rendimiento-gerencia" id="rendimiento-gerencia" style="display:none;"></section>
+
+        <!-- Encontrar vale (solo Gerente) — buscador por correlativo que
+             reemplaza al buzón mientras state.vista === 'encontrar'. -->
+        <section class="encontrar-vale" id="encontrar-vale" style="display:none;"></section>
 
         <section class="buzon-section">
           <div class="buzon-toolbar">

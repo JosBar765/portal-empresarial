@@ -114,24 +114,32 @@ class ValeController {
     }
   }
 
-  // Vista Gerencia: métricas agregadas, solo lectura.
-  async dashboardGerencia(req, res) {
+  // Vista Rendimiento (Gerente y Supervisor): KPIs, tendencia, ciclo por
+  // etapa, ranking por taller/tienda y vales críticos. Solo lectura.
+  async rendimientoGerencia(req, res) {
     try {
       const filtros = {
         ventana: req.query.ventana,
         fecha: req.query.fecha,
         desde: req.query.desde,
         hasta: req.query.hasta,
-        tiendaId: req.query.tiendaId,
-        filtroContador: req.query.filtroContador,
-        soloAtrasados: req.query.soloAtrasados,
-        soloModificados: req.query.soloModificados,
-        busqueda: req.query.busqueda
+        tiendaId: req.query.tiendaId
       };
-      const data = await valeService.obtenerDashboardGerencia(req.user, filtros);
+      const data = await valeService.obtenerRendimientoGerencia(req.user, filtros);
       return res.json(data);
     } catch (error) {
       return responderErrorInterno(res, error);
+    }
+  }
+
+  // "Encontrar vale" (solo Gerente, ver el guard en routes.js): un vale por
+  // correlativo exacto, con sugerencias si no hay coincidencia.
+  async buscarPorCorrelativo(req, res) {
+    try {
+      const data = await valeService.buscarValePorCorrelativo(req.query.correlativo);
+      return res.json(data);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
     }
   }
 

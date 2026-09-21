@@ -19,18 +19,23 @@ export function actualizarOffsetSidebar(sidebar) {
   document.documentElement.style.setProperty('--sidebar-offset', offset);
 }
 
-// El Gerente reemplaza contadores-grid + buzon-section por su propio
-// dashboard-gerencia mientras esté en la vista "dashboard"; el Supervisor hace
-// lo mismo pero solo cuando entra a SU tercer botón — sus otras dos vistas
-// (Buzón/Trabajo realizado) siguen normales. El resto de roles solo cambian
-// el título.
+// El Gerente y el Supervisor reemplazan contadores-grid + buzon-section por
+// las gráficas de la vista "rendimiento" cuando entran a ella (para el
+// Supervisor es su tercer botón — sus otras dos vistas, Buzón/Trabajo
+// realizado, siguen normales). El Gerente no tiene buzón: su otra vista es
+// el buscador "encontrar" (que además oculta la barra de período y tienda,
+// que ahí no aplican). El resto de roles solo cambian el título.
 export function actualizarTituloYSeccionesVista() {
-  const enDashboard = state.vista === 'dashboard';
+  const enRendimiento = state.vista === 'rendimiento';
+  const enEncontrar = state.vista === 'encontrar';
   if ([ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId)) {
-    $('#buzon-titulo').textContent = enDashboard ? 'Dashboard' : (state.user.rolId === ROL.GERENTE ? 'Vales de Arte' : (state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte'));
-    $('#dashboard-gerencia').style.display = enDashboard ? 'block' : 'none';
-    $('#contadores-grid').style.display = enDashboard ? 'none' : '';
-    $('.buzon-section').style.display = enDashboard ? 'none' : '';
+    $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
+    $('#rendimiento-gerencia').style.display = enRendimiento ? 'block' : 'none';
+    $('#encontrar-vale').style.display = enEncontrar ? 'block' : 'none';
+    const enVistaPropia = enRendimiento || enEncontrar;
+    $('#contadores-grid').style.display = enVistaPropia ? 'none' : '';
+    $('.buzon-section').style.display = enVistaPropia ? 'none' : '';
+    $('.vales-toolbar').style.display = enEncontrar ? 'none' : '';
     return;
   }
   $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
@@ -50,22 +55,22 @@ export function wireSidebar() {
   // escritorio, visible <900px) tome el control.
   toggleMovil.style.display = '';
 
-  // El Gerente reusa los mismos dos botones del sidebar, pero con su propio
-  // par de vistas — Dashboard / Vales de Arte — en vez de Buzón/Trabajo
-  // realizado.
+  // El Gerente reusa los dos primeros botones del sidebar, pero con su propio
+  // par de vistas — Rendimiento (entrada por defecto) / Encontrar vale — en
+  // vez de Buzón/Trabajo realizado.
   if (state.user.rolId === ROL.GERENTE) {
-    const primario = $('#sidebar-item-primario', sidebar);
-    const secundario = $('#sidebar-item-secundario', sidebar);
-    primario.dataset.vista = 'dashboard';
-    primario.querySelector('ion-icon').setAttribute('name', 'bar-chart-outline');
-    primario.querySelector('span').textContent = 'Dashboard';
-    secundario.dataset.vista = 'vales';
-    secundario.querySelector('ion-icon').setAttribute('name', 'file-tray-full-outline');
-    secundario.querySelector('span').textContent = 'Vales de Arte';
-    state.vista = 'dashboard';
+    const configurar = (boton, vista, icono, texto) => {
+      boton.dataset.vista = vista;
+      boton.querySelector('ion-icon').setAttribute('name', icono);
+      boton.querySelector('span').textContent = texto;
+    };
+    configurar($('#sidebar-item-primario', sidebar), 'rendimiento', 'analytics-outline', 'Rendimiento');
+    configurar($('#sidebar-item-secundario', sidebar), 'encontrar', 'search-outline', 'Encontrar vale');
+    state.vista = 'rendimiento';
   }
   // Supervisor de Ventas: conserva sus dos botones normales y gana un tercero
-  // al mismo dashboard que ve el Gerente, acotado a las tiendas que cubre.
+  // con la misma vista de Rendimiento del Gerente, acotada a las tiendas que
+  // cubre.
   if (state.user.rolId === ROL.SUPERVISOR) {
     $('#sidebar-item-terciario', sidebar).style.display = '';
   }
@@ -74,7 +79,7 @@ export function wireSidebar() {
   // este rol realmente tiene (los botones ya quedaron reescritos arriba para
   // Gerente/Supervisor).
   const VISTA_ACTIVA_KEY = 'vales:vistaActiva';
-  const vistasValidas = $$('.sidebar-item', sidebar).map(b => b.dataset.vista);
+  const vistasValidas = $$('.sidebar-item', sidebar).filter(b => b.style.display !== 'none').map(b => b.dataset.vista);
   const vistaGuardada = localStorage.getItem(VISTA_ACTIVA_KEY);
   if (vistasValidas.includes(vistaGuardada)) {
     state.vista = vistaGuardada;
@@ -93,7 +98,6 @@ export function wireSidebar() {
       state.sort = { key: null, dir: null };
       state.filtroContador = null; // un filtro de contador es propio de la vista activa
       state.soloAtrasados = false;
-      state.soloModificados = false;
       state.estadoFiltro = ''; // el conjunto de estados válidos cambia entre Buzón/Trabajo realizado
       actualizarIndicadoresOrden();
       actualizarTituloYSeccionesVista();

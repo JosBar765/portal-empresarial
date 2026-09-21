@@ -66,7 +66,7 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (14, 'vales.aprobar_modificacion', 'Aprobar Modificación', 'vales', 'Permite al supervisor autorizar una modificación solicitada'),
 (15, 'vales.supervisar', 'Supervisar Vales de Arte', 'vales', 'Acceso de solo lectura al panel de supervisión de vales de arte'),
 (16, 'vales.aprobar_general', 'Aprobar y Fusionar (Multi-taller)', 'vales', 'Permite fusionar y aprobar un vale enviado a más de un taller'),
-(17, 'vales.ver_gerencia', 'Ver Panel de Gerencia', 'vales', 'Acceso de solo lectura al dashboard de métricas y al listado de vales de arte de todas las tiendas'),
+(17, 'vales.ver_gerencia', 'Ver Panel de Gerencia', 'vales', 'Acceso de solo lectura a la vista de Rendimiento (atrasos, ciclo y desempeño por taller y tienda) y al listado de vales de arte'),
 (18, 'vales.autorizar_creacion', 'Autorizar Creación', 'vales', 'Permite al supervisor autorizar el envío a talleres de un vale recién creado por sus asesores'),
 (19, 'admin.usuarios.gestionar', 'Gestionar Usuarios', 'admin', 'Permite crear, editar y activar/desactivar usuarios'),
 (20, 'admin.roles.gestionar', 'Gestionar Roles y Permisos', 'admin', 'Permite crear/editar roles y cambiar los permisos asignados a cada uno'),

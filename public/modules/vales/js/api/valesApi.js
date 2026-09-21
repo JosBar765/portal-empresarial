@@ -77,9 +77,16 @@ export async function obtenerCapacidadEntrega(talleresIds, anio, mes) {
   return leerJSON(res);
 }
 
-export async function obtenerDashboardGerencia(qs) {
-  const res = await fetch(`/api/vales/dashboard-gerencia?${qs.toString()}`);
-  if (!res.ok) throw new Error('No se pudo cargar el dashboard.');
+export async function buscarValePorCorrelativo(correlativo) {
+  const res = await fetch(`/api/vales/buscar?correlativo=${encodeURIComponent(correlativo)}`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo buscar el vale.');
+  return data;
+}
+
+export async function obtenerRendimientoGerencia(qs) {
+  const res = await fetch(`/api/vales/rendimiento-gerencia?${qs.toString()}`);
+  if (!res.ok) throw new Error('No se pudo cargar el rendimiento.');
   return leerJSON(res);
 }
 

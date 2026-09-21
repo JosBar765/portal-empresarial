@@ -1,5 +1,7 @@
 /* public/modules/vales/css/styles.css */
 @import url('/css/dashboard.css');
+@import url('/modules/vales/css/rendimiento.css');
+@import url('/modules/vales/css/encontrar-vale.css');
 
 .header-back {
   color: var(--color-text-secondary);
@@ -202,7 +204,7 @@
 
   /* En móvil el sidebar deja de empujar el contenido (ver .app-shell) y se
      vuelve un cajón (drawer) que se desliza POR ENCIMA de todo, con overlay
-     para cerrarlo tocando afuera — mismo patrón que cualquier dashboard
+     para cerrarlo tocando afuera — el patrón habitual de navegación
      responsive. */
   .app-shell {
     margin-left: 0;
@@ -266,7 +268,7 @@
 }
 
 /* Toolbar */
-.dashboard-toolbar {
+.vales-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -433,14 +435,6 @@
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
-}
-
-/* Dashboard de Gerencia/Supervisor (analisis_correcciones_12.md #10, Fase 2c) —
-   la lista de drill-down reusa .buzon-toolbar/.buzon-table/.tabla-wrapper tal
-   cual (mismo look que el buzón normal); solo necesita el margen superior
-   para separarse del grid de contadores. */
-.dashboard-lista {
-  margin-top: 24px;
 }
 
 /* Buzón */
@@ -1148,7 +1142,7 @@
   font-weight: 400;
 }
 
-/* Variante compacta (analisis_correcciones — mejora de diseño del dashboard):
+/* Variante compacta del campo de fecha:
    usada en el rango de fechas de la barra de herramientas del buzón en vez de
    <input type="date"> nativos, que traían el calendario/ícono de fábrica del
    navegador y desentonaban junto a los chips Día/Semana/Mes/Todo. Ancho al
@@ -1515,7 +1509,7 @@
 }
 
 @media (max-width: 560px) {
-  .dashboard-toolbar {
+  .vales-toolbar {
     flex-direction: column;
     align-items: stretch;
   }
@@ -1537,7 +1531,7 @@
     width: 100%;
   }
 
-  .dashboard-toolbar .btn {
+  .vales-toolbar .btn {
     width: 100%;
   }
 }
