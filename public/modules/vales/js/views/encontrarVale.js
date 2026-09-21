@@ -11,9 +11,20 @@ import { abrirModalHistorial } from '../actions/historial.js';
 // final, ver historial). El esqueleto se arma UNA vez; al volver a la vista
 // se conserva la última búsqueda.
 // -----------------------------------------------------------------------
-const FORMATO_CORRELATIVO = /^[A-Z0-9-]{3,60}$/;
+const FORMATO_CORRELATIVO = /^[A-Za-z0-9-]{3,60}$/;
 
 let pedidoVigente = 0;
+
+// Solo se abren enlaces http(s): una URL guardada con esquema `javascript:`
+// o `data:` se ejecutaría con la sesión del Gerente al hacer clic.
+function urlSegura(url) {
+  try {
+    const u = new URL(url, window.location.origin);
+    return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null;
+  } catch {
+    return null;
+  }
+}
 
 export function cargarEncontrarVale() {
   const cont = $('#encontrar-vale');
@@ -86,16 +97,19 @@ function limpiar() {
 // --- búsqueda ------------------------------------------------------------
 async function buscar(texto) {
   // Pegar "MTC-AL-1023 " con espacios sobrantes no debe fallar.
-  const correlativo = String(texto).replace(/\s+/g, '').toUpperCase();
+  const limpio = String(texto).replace(/\s+/g, '');
   const input = $('#enc-input');
-  input.value = correlativo;
+  input.value = limpio.toUpperCase();
   actualizarLimpiar();
-  if (!correlativo) { mostrarError('Escribe el correlativo del vale.'); input.focus(); return; }
-  if (!FORMATO_CORRELATIVO.test(correlativo)) {
+  if (!limpio) { mostrarError('Escribe el correlativo del vale.'); input.focus(); return; }
+  // Se valida antes de pasar a mayúsculas: toUpperCase() convierte algunos
+  // caracteres no ASCII (ſ, ı) en letras válidas.
+  if (!FORMATO_CORRELATIVO.test(limpio)) {
     mostrarError('Usa al menos 3 caracteres: solo letras, números y guiones. Por ejemplo, MTC-AL-1023.');
     input.focus();
     return;
   }
+  const correlativo = limpio.toUpperCase();
   ocultarError();
 
   const pedido = ++pedidoVigente;
@@ -203,12 +217,12 @@ function mostrarVale(v) {
           <tbody>
             <tr>
               <td data-label="Correlativo"><strong>${escapeHtml(v.correlativo)}</strong>${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}</td>
-              <td data-label="Fecha de ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
-              <td data-label="Fecha de entrega">${formatearFecha(v.fecha_entrega)}</td>
-              <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : '<span class="badge badge-ok">Al día</span>')}</td>
-              <td data-label="Fecha de evento">${formatearFecha(v.fecha_evento)}</td>
+              <td data-label="Fecha de ingreso">${escapeHtml(formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`))}</td>
+              <td data-label="Fecha de entrega">${escapeHtml(formatearFecha(v.fecha_entrega))}</td>
+              <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${escapeHtml(Number(v.diasAtraso) || 0)}d</span>` : '<span class="badge badge-ok">Al día</span>')}</td>
+              <td data-label="Fecha de evento">${escapeHtml(formatearFecha(v.fecha_evento))}</td>
               <td data-label="Taller(es)" class="col-taller">${celdaTaller({ taller: escapeHtml(v.taller || '') })}</td>
-              <td data-label="Estado"><span class="estado-pill ${claseEstado(v)}">${escapeHtml(etiquetaEstado(v))}</span></td>
+              <td data-label="Estado"><span class="estado-pill ${escapeHtml(claseEstado(v))}">${escapeHtml(etiquetaEstado(v))}</span></td>
               <td data-label="Acciones" class="acciones-cell"><div class="acciones-wrap" id="enc-acciones"></div></td>
             </tr>
           </tbody>
@@ -217,11 +231,12 @@ function mostrarVale(v) {
     </div>`;
 
   const acciones = [
-    { icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank', 'noopener') }
+    { icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${encodeURIComponent(Number(v.id))}/pdf`, '_blank', 'noopener') }
   ];
   // Solo existe una vez que el vale ya fue fusionado: es la propuesta final.
-  if (v.propuesta_general_url) {
-    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_general_url, '_blank', 'noopener') });
+  const urlPropuesta = urlSegura(v.propuesta_general_url);
+  if (urlPropuesta) {
+    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(urlPropuesta, '_blank', 'noopener') });
   }
   acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: () => abrirModalHistorial(v) });
   const wrap = $('#enc-acciones', resultado);

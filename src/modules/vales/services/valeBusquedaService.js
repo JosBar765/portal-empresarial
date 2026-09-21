@@ -12,10 +12,16 @@ const MAX_SUGERENCIAS = 5;
 
 class ValeBusquedaService {
   async buscarPorCorrelativo(texto) {
-    const correlativo = String(texto || '').trim().toUpperCase();
-    if (!CORRELATIVO_VALIDO.test(correlativo)) {
+    // Solo texto: un arreglo u objeto en la query (?correlativo[]=…) no es un
+    // correlativo, y `String(['X'])` lo dejaría pasar como "X".
+    const crudo = typeof texto === 'string' ? texto.trim() : '';
+    // Se valida el texto tal cual llegó y RECIÉN DESPUÉS se pasa a mayúsculas:
+    // al revés, toUpperCase() convierte caracteres no ASCII (ſ -> S, ı -> I)
+    // en letras válidas y los cuela por la validación.
+    if (!CORRELATIVO_VALIDO.test(crudo)) {
       throw new Error('Escribe un correlativo válido (al menos 3 caracteres: letras, números y guiones), por ejemplo MTC-AL-1023.');
     }
+    const correlativo = crudo.toUpperCase();
     const vale = await valeRepository.obtenerPorCorrelativo(correlativo);
     if (!vale) {
       const similares = await valeRepository.buscarCorrelativosSimilares(correlativo, MAX_SUGERENCIAS);

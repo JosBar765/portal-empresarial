@@ -3,6 +3,7 @@ const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 const valeController = require('./controllers/valeController');
+const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 const { ROL } = require('./services/valeHelpers');
 
@@ -42,6 +43,19 @@ const encontrarVale = (req, res, next) => (
     : res.status(403).json({ error: 'Solo el Gerente puede buscar vales por correlativo.' })
 );
 
+// La búsqueda de sugerencias recorre la tabla (LIKE '%…%'): se acota por
+// usuario (ya autenticado) para que una cuenta comprometida no la martille.
+const limitarBusquedas = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `buscar:${req.user.id}`,
+  handler: (req, res) => {
+    res.status(429).json({ error: 'Demasiadas búsquedas seguidas. Espera un momento e inténtalo de nuevo.' });
+  }
+});
+
 router.get('/catalogos', verVales, (req, res) => valeController.catalogos(req, res));
 router.get('/talleres', verVales, (req, res) => valeController.talleres(req, res));
 router.get('/limite-colectivo', autorizarCreacionVale, (req, res) => valeController.limiteColectivo(req, res));
@@ -52,7 +66,7 @@ router.get('/carga-trabajo/:tecnicoId', asignarVale, (req, res) => valeControlle
 
 router.get('/', verVales, (req, res) => valeController.buzon(req, res));
 router.get('/rendimiento-gerencia', verRendimiento, (req, res) => valeController.rendimientoGerencia(req, res));
-router.get('/buscar', verRendimiento, encontrarVale, (req, res) => valeController.buscarPorCorrelativo(req, res));
+router.get('/buscar', verRendimiento, encontrarVale, limitarBusquedas, (req, res) => valeController.buscarPorCorrelativo(req, res));
 router.post('/', crearVale, camposAdjuntos, (req, res) => valeController.crear(req, res));
 
 router.get('/:id', verVales, (req, res) => valeController.detalle(req, res));

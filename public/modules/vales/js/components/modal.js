@@ -1,4 +1,5 @@
 import { $ } from '../utils/dom.js';
+import { escapeHtml } from '../utils/formato.js';
 import { cerrarPanelFechaActivo } from './datepicker.js';
 
 export function abrirModal({ title, bodyHtml, footerHtml, size }) {
@@ -8,7 +9,7 @@ export function abrirModal({ title, bodyHtml, footerHtml, size }) {
   overlay.innerHTML = `
     <div class="modal-box ${size === 'lg' ? 'modal-lg' : ''}">
       <div class="modal-header">
-        <h3>${title}</h3>
+        <h3>${escapeHtml(title)}</h3>
         <button class="modal-close">&times;</button>
       </div>
       <div class="modal-body">${bodyHtml}</div>
