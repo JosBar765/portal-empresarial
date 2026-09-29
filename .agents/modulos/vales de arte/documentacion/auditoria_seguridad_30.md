@@ -1,28 +1,33 @@
-# Correcciones #30 — Auditoría de seguridad (informe)
+# Correcciones #30 — Auditoría de seguridad (informe, segunda pasada)
 
-Estado: **solo auditoría. No se modificó código.** El plan para corregir lo encontrado está en `correcciones_30_plan_remediacion.md` (misma carpeta).
+Estado: **solo auditoría. No se modificó código.** El plan para corregir lo encontrado está en `plan_remediacion_30.md` (misma carpeta).
 
-- Código auditado: rama `feature/refresh-token` (incluye el access token corto + refresh token, el gate de módulos `/modules`, "Ver módulo" y el bloqueo de permisos del Administrador de este mismo #30).
-- Método: lectura de `src/` completo (auth, permisos, websocket, files, vales, admin, repositorios), del frontend (`public/`), `package.json`, `.env`/`.env.example`, `docker-compose.yml` y las reglas de `.agents/reglas/`; `npm audit`; y **sondas HTTP no destructivas** contra un servidor local con la base de demostración (puerto 3061, MySQL demo, sin datos reales). Cada hallazgo marcado **[VERIFICADO]** se reprodujo con esas sondas; los marcados **[CÓDIGO]** salen de leer el código.
-- Fuera de alcance de esta auditoría: pruebas contra Supabase real, contra Hostinger, pentest de red/infraestructura, revisión de los ~57 archivos JS del frontend línea por línea (se hizo un barrido automático de interpolaciones + revisión manual de las sospechosas).
+Historial de este documento:
+- **Primera pasada (2026-09-29):** sobre `feature/refresh-token`. Dejó los hallazgos SEG-01 a SEG-26.
+- **Segunda pasada (2026-09-29, esta versión):** sobre `dev` actualizado (incluye refresh token #28 y variables de entorno obligatorias #29). Se **re-verificó cada hallazgo** contra el código y con sondas nuevas, se buscaron hallazgos nuevos y se completaron las áreas de la guía que la primera pasada no había cubierto (CSRF, logging, WebSockets, DoS, producción). Los hallazgos nuevos son SEG-27 a SEG-32; el estado actual de todos está en la sección 2.1.
+
+- Código auditado: rama `fix/auditoria-seguridad` (= `dev` + estos documentos), commit base `1531bc2`.
+- Método: lectura de `src/` completo, del frontend (`public/`), `package.json`, `.env`/`.env.example`, `docker-compose.yml` y las reglas de `.agents/reglas/`; `npm audit`/`npm outdated`; y **sondas HTTP/WebSocket no destructivas** contra dos servidores locales con la base de demostración (desarrollo en el puerto 3061 y modo `production` en el 3062, sin datos reales). **[VERIFICADO]** = reproducido con esas sondas; **[CÓDIGO]** = sale de leer el código; **[PARCIAL]** = se verificaron los pasos previos pero no se ejecutó el impacto final por riesgo.
+- Fuera de alcance: pruebas contra Supabase real y contra Hostinger, pentest de red/infraestructura, revisión línea por línea de los ~57 archivos JS del frontend (se hizo barrido automático de interpolaciones + revisión manual de las sospechosas).
 
 ---
 
 ## 1. Resumen ejecutivo
 
-El proyecto tiene buenos cimientos: todo el SQL está parametrizado, los detalles/PDF/salas de socket de vales validan pertenencia (no hay IDOR en lo probado), las cookies son httpOnly + SameSite strict, el JWT fija el algoritmo, los uploads verifican magic bytes y generan el nombre físico en el servidor, los intentos de path traversal contra `/js`, `/css`, `/assets` y `/modules` devuelven 404, y todo lo protegido responde 401/302 sin sesión.
+**Resultado de la re-verificación:** de los 26 hallazgos de la primera pasada, **1 quedó solventado** (SEG-17, gracias a las variables obligatorias de #29), **3 quedaron parcialmente solventados** (SEG-16, SEG-19 y SEG-22) y **los otros 22 siguen igual** porque ninguno de los cambios recientes tocó ese código. Se encontraron **6 hallazgos nuevos** (SEG-27 a SEG-32), ninguno crítico.
 
-Lo que **sí** hay que corregir antes de producción, en orden de gravedad:
+Los cimientos siguen siendo buenos: SQL parametrizado, sin IDOR en lo probado, cookies httpOnly + SameSite=Strict (y `Secure` en modo producción, verificado), JWT con algoritmo fijado, uploads con magic bytes y nombre generado por el servidor, path traversal bloqueado, todo lo protegido responde 401/302 sin sesión, y las salas de WebSocket rechazan lo que no corresponde (verificado con una sesión de asesor: de 11 salas pedidas solo entró a `asesor:63` y `role_2`).
 
-1. **ALTO — El listado de usuarios devuelve el `password_hash` (bcrypt) de las 86 cuentas** a cualquiera con solo `admin.ver` (SEG-01, verificado).
-2. **ALTO — Errores internos de MySQL y de Supabase llegan al cliente** (SEG-02, verificado: el login con `email` en forma de arreglo devuelve el mensaje de sintaxis SQL de MySQL).
-3. **ALTO — La protección contra fuerza bruta/credential stuffing del login se evade** cambiando mayúsculas del correo, y no hay límite por IP (SEG-03, verificado). Detrás del proxy de Hostinger sin `trust proxy`, además, un atacante podría bloquear a cualquier usuario (SEG-16).
-4. **MEDIO — Nuevos cambios de este #30 dejaron brechas:** el gate de `/modules` se salta con `%76ales`, `/./vales` o mayúsculas (SEG-06, verificado); un cambio/reseteo de contraseña no cierra las sesiones abiertas y el refresh token sigue vivo hasta 12 h (SEG-07); el refresh no tiene límite de tasa y su caché en memoria puede crecer (SEG-09); `asegurarEsquema()` exige permiso `ALTER` en el arranque y choca con un usuario MySQL de mínimo privilegio (SEG-19).
-5. **MEDIO — Robustez ante abuso:** sin límites de campos en multer, PDF adjuntos sin tope de páginas, sin rate limit general (SEG-09/10/11); PDFs y adjuntos con datos de clientes en un bucket público de Supabase (SEG-12, requiere decisión).
+Lo que sigue pendiente antes de producción, en orden de gravedad:
 
-Lo que ya no es un riesgo tras el trabajo reciente: sesiones de 12 h sin renovación (ahora access de 15 min), permisos de Administrador editables y acceso a módulos sin permiso "ver" a nivel API.
+1. **ALTO — `password_hash` de todas las cuentas en `GET /api/admin/usuarios`** (SEG-01, re-verificado hoy: 86/86).
+2. **ALTO — Errores internos de MySQL/Supabase hacia el cliente** (SEG-02, re-verificado: login con `email` como arreglo y `/api/vales/abc`).
+3. **ALTO — Fuerza bruta/credential stuffing** (SEG-03, re-verificado: otra capitalización del correo reinicia el límite; 12 correos distintos sin freno) y enumeración por tiempo (SEG-04: 5 ms vs 133 ms).
+4. **MEDIO — Brechas de los cambios de #30:** gate `/modules` evadible con `%76ales`, `/./`, mayúsculas (SEG-06); sesiones no revocadas al cambiar contraseña (SEG-07); refresh sin límite de tasa (SEG-09).
+5. **MEDIO — Robustez ante abuso:** multer acepta 3 000 campos extra (SEG-10, re-verificado); PDFs sin tope de páginas (SEG-11); **nuevo:** una imagen "bomba de descompresión" pasa todas las validaciones (SEG-27).
+6. **MEDIO — Configuración de producción:** falta `trust proxy` (SEG-16), bucket público con datos de clientes (SEG-12, requiere decisión).
 
-**No existe "seguro" absoluto.** Tras aplicar el plan quedan riesgos residuales (sección 9): cuentas comprometidas por contraseñas débiles, ventana de 15 min de un access token robado, dependencia de Supabase/Hostinger, y las decisiones marcadas más abajo.
+**No existe "seguro" absoluto.** Riesgos residuales en la sección 9.
 
 ---
 
@@ -58,6 +63,52 @@ Riesgo: CRÍTICO / ALTO / MEDIO / BAJO. "Afecta funcionalidad" indica si la corr
 | SEG-24 | BAJO | Validación de entrada incompleta en vales: teléfono sin formato (la spec lo pide), tipos no verificados (`producto.trim()`), `Number(req.params.id)` acepta `NaN/Infinity` y llega a SQL | `vales/services/valeCreacionService.js:232-294`, `valeController.js` | VERIFICADO (`/api/vales/abc`) | No |
 | SEG-25 | BAJO | Dependencias: multer (moderado) y parches menores pendientes (express 4.22.3, mysql2 3.24.4, socket.io 4.8.4, supabase-js 2.117.2, sharp 0.35.5) | `package.json` | npm audit / outdated | No |
 | SEG-26 | INFO | `portal.zip` (26 MB) y `pruebas/` no versionados pero sin ignorar; `.env` sí está ignorado y no aparece en el historial de git | raíz del repo | verificado | No |
+
+### 2.1 Estado actual de los hallazgos (segunda pasada)
+
+La tabla anterior conserva el detalle de la primera pasada. Este es el estado hoy, tras las sondas y la lectura del código sobre `dev` actualizado:
+
+| ID | Estado hoy | Evidencia de la re-verificación |
+|---|---|---|
+| SEG-01 | **PERSISTE** (ALTO) | `GET /api/admin/usuarios` → 86/86 con `password_hash`; `SELECT u.*` sin cambios |
+| SEG-02 | **PERSISTE** (ALTO) | Login con `email:["a","b"]` → texto de sintaxis SQL de MySQL; `/api/vales/abc` → `Unknown column 'NaN'`; 39 `catch → error.message` en los controladores |
+| SEG-03 | **PERSISTE** (ALTO) | 14 intentos → 429 desde el 11.º, pero 6 variantes de mayúsculas → 401 (sin bloqueo); 12 correos distintos → 12 × 401 |
+| SEG-04 | **PERSISTE** | 5,1 ms (correo inexistente) vs 133,5 ms (correo real) |
+| SEG-05 | **PERSISTE** | Mismo caso del arreglo; `db.query` sigue con `pool.query` |
+| SEG-06 | **PERSISTE** | `/modules/%76ales/`, `/%76ales/js/app.js`, `/./vales/`, `/VALES/`, `/%61dmin/` → 200 sin permiso |
+| SEG-07 | **PERSISTE** | `adminService` no referencia `sesionRepository`; no existe `eliminarPorUsuario` |
+| SEG-08 | **PERSISTE** (decisión) | `authenticateJWT` sin consulta de sesión |
+| SEG-09 | **PERSISTE** | 300 refresh inventados en 531 ms, todos 401, sin 429 |
+| SEG-10 | **PERSISTE** | 3 000 campos de texto (3,1 MB) aceptados por multer (el 400 fue solo por validación de negocio); `npm audit`: multer moderado sigue |
+| SEG-11 | **PERSISTE** | `valePdfService.js:121-122` sin cambios |
+| SEG-12 | **PERSISTE** (decisión) | `descargarPdf` redirige a la URL pública |
+| SEG-13 | **PERSISTE** | `idempotencyRepository` sin `usuario_id` |
+| SEG-14 | **PERSISTE** | `dashboard.js:47` y `maintenanceMiddleware.js:42` sin escapar (0 usos de `escapeHtml` en el middleware) |
+| SEG-15 | **PERSISTE** | Sin `content-security-policy` ni `permissions-policy`; ionicons en `unpkg.com` sin SRI |
+| SEG-16 | **PARCIAL** | `NODE_ENV` ahora es obligatoria y en modo `production` las cookies salen con `HttpOnly; Secure; SameSite=Strict` (**verificado** en el servidor del puerto 3062). Sigue sin `app.set('trust proxy')` |
+| SEG-17 | **SOLVENTADO** | `env.js`: `JWT_SECRET` ≥ 32 caracteres y, en producción, rechaza el valor de ejemplo (**verificado**: arrancar en `production` con el secreto de ejemplo → `[FATAL]`). Que sea aleatorio sigue dependiendo de quien lo genere |
+| SEG-18 | **PERSISTE** | `database.js:43` sin cambios; el log de login sigue con el correo en claro |
+| SEG-19 | **PARCIAL** | Mejoró: `.env.example` ya no trae `DB_USER=root` y `DB_PASSWORD` vacía es FATAL en producción. Persisten: `asegurarEsquema()` con `ALTER` al arrancar sin `try/catch`, `pool.query`, sin transacciones |
+| SEG-20 | **PERSISTE** | Sin cambios en `valeBuzonService` |
+| SEG-21 | **PERSISTE** | Sin cambios en la política de contraseñas |
+| SEG-22 | **PARCIAL** | **Solventado:** ya no existe el CORS por defecto (`SOCKET_CORS_ORIGIN` obligatoria; con un origen ajeno no se envía `Access-Control-Allow-Origin`, verificado). **Persiste:** sin límite de tasa en `register_module` (ráfaga de 300 en un envío aceptada; 309 avisos de sala rechazada escritos al log) y `activeConnections` guarda un solo socket por usuario |
+| SEG-23 | **PERSISTE** | `handleQueryAction` sin cambios |
+| SEG-24 | **PERSISTE** | `/api/vales/1e999` → `Unknown column 'Infinity'` |
+| SEG-25 | **PERSISTE** | `npm audit`: multer; parches pendientes (mysql2 ahora 3.24.5) |
+| SEG-26 | **PERSISTE** | `.gitignore` sin `portal.zip` ni `pruebas/` |
+
+**Resumen:** 1 solventado (SEG-17), 3 parciales (SEG-16, SEG-19, SEG-22), 22 persisten.
+
+### 2.2 Hallazgos nuevos de la segunda pasada
+
+| ID | Riesgo | Vulnerabilidad | Archivo (aprox.) | Prueba | Afecta funcionalidad |
+|---|---|---|---|---|---|
+| SEG-27 | MEDIO | **Bomba de descompresión en imágenes.** Un PNG de 225 bytes que declara 50 000 × 50 000 px (2 500 MP) pasa la verificación de magic bytes y `optimizar()` lo **devuelve intacto**: el límite de 40 MP de sharp solo *omite la optimización* (el `catch` devuelve el buffer original), no rechaza el archivo. Se guarda en Supabase y `valePdfService` lo decodifica completo con `embedPng` al generar el PDF (un PNG real de menos de 2 MB puede declarar miles de megapíxeles de datos muy comprimibles) → memoria agotada / caída del proceso Node por un usuario con permiso de crear vales. | `core/files/imageOptimizer.js` (`catch → return buffer`), `core/files/fileSignature.js`, `vales/services/valePdfService.js:192-197` | PARCIAL (pasos 1-3 verificados; el impacto final no se ejecutó para no agotar la memoria de esta máquina) | Sí, leve (rechazar imágenes con dimensiones absurdas) |
+| SEG-28 | BAJO | **Inyección en el registro (log forging) y PII en logs.** El correo del intento de login se escribe sin sanear: un `email` con salto de línea produce una línea falsa `[Auth] FORJADO: login exitoso de admin@…` en el log (verificado). Además cada sala de socket rechazada escribe una línea (309 líneas por un solo envío): un usuario autenticado puede inflar el log. | `core/auth/authService.js:53,60,67`; `core/websocket/socketManager.js` (`console.warn` por sala) | VERIFICADO | No |
+| SEG-29 | BAJO | **Peticiones salientes sin timeout e integridad silenciosa del PDF.** `fetch(url)` de adjuntos/propuestas no tiene `AbortSignal`: si Supabase se cuelga, la generación del PDF y la petición del usuario quedan colgadas. Y las fusiones/imágenes fallidas se tragan con `console.warn`: el PDF oficial puede salir **sin** un adjunto sin avisar a nadie. (No hay SSRF: las URLs salen de la base de datos, generadas por el servidor.) | `vales/services/valePdfService.js:120,192` | CÓDIGO | Sí, leve (mostrar el fallo) |
+| SEG-30 | BAJO | **Conexión a MySQL sin TLS.** `createPool` no define `ssl`. Si la base de Hostinger no está en el mismo servidor que la app, credenciales y datos viajan sin cifrar. | `config/database.js` | CÓDIGO | REQUIERE DECISIÓN (depende de la topología en Hostinger) |
+| SEG-31 | BAJO | **`NODE_ENV=test` deja las cookies sin `Secure`.** Solo `production` activa `Secure`; un despliegue con `test` (permitido por la validación) quedaría sin él. | `config/env.js`, `core/auth/tokenService.js` | CÓDIGO | No |
+| SEG-32 | INFO | **Sala `vale:<id>` inalcanzable para Asesor, Supervisor y Técnico** (el validador devuelve `false` en su rama de rol antes de llegar a la de `vale:`; verificado: el asesor 63 no pudo unirse a `vale:145`, que es suyo). No es una brecha sino una limitación funcional: el historial en vivo no se actualiza para esos roles. Se anota para no "arreglarlo" abriendo la sala sin la validación de pertenencia. | `vales/events.js:32-51` | VERIFICADO | — |
 
 ---
 
@@ -114,6 +165,20 @@ Lo revisado y que **no** dejó brecha: rotación con compare-and-set, detección
 | XSS frontend | `escapeHtml` en la gran mayoría de las interpolaciones; `toast.js` usa `textContent`; los títulos de modal se escapan en `modal.js` (corregido antes). Excepciones en SEG-14. |
 | Secretos | `.env` ignorado por git y sin secretos en el historial de nombres de archivo; sin secretos en el frontend. |
 
+### 5.1 Áreas de la guía revisadas en la segunda pasada
+
+**CSRF — ¿aplica?** No como vulnerabilidad hoy. La autenticación va en cookies, así que en principio sí sería atacable, pero: (1) ambas cookies son `SameSite=Strict` (verificado): el navegador no las envía en peticiones originadas desde otro sitio; (2) los endpoints que cambian datos son `POST/PUT/PATCH/DELETE` con cuerpo JSON o multipart, y `express.json` solo procesa `application/json`; (3) la única acción con efecto por GET es `logout` (SEG-23, impacto nulo por Strict). Por eso **no se recomienda implementar tokens CSRF**; el endpoint `csrf` existente es decorativo. Riesgo residual: un subdominio comprometido del mismo sitio (SameSite considera "mismo sitio" a todos los subdominios): se mitiga usando un dominio dedicado para el portal.
+
+**WebSockets.** Verificado con una sesión real de asesor: (a) sin cookie, con firma falsa o sin `sid` de sesión vigente el handshake se rechaza; (b) de 11 salas pedidas (`vales:admin`, `asesor:99`, `supervisor:5`, `taller:1`, `tecnico:9`, `vale:1`, `role_1`, `role_8`…) solo se concedieron `asesor:63` y `role_2`; (c) el servidor solo atiende el evento `register_module`. Pendiente: límite de tasa y tope de conexiones (SEG-22), log de rechazos (SEG-28). El CORS ya queda restringido a los orígenes del `.env`.
+
+**Logging y auditoría.** Hoy solo hay `console.log/warn/error` a la salida estándar: se registran intentos de login fallidos (con el correo sin sanear, SEG-28), reuso de refresh token y errores. **No** hay registro persistente de cambios de permisos, cambios de contraseña, desactivaciones, cancelaciones ni asignaciones (el historial de vales cubre solo los estados del vale). No se registran contraseñas ni tokens (verificado por lectura); sí puede aparecer SQL con valores en errores de BD (SEG-18). Sin rotación de logs.
+
+**Denegación de servicio.** Sin rate limit general (SEG-09); multer sin cota de campos (SEG-10); PDFs sin tope de páginas (SEG-11); bomba de descompresión (SEG-27); `fetch` sin timeout (SEG-29); el buzón carga toda la tabla por petición (SEG-20); `register_module` sin límite (SEG-22). Límites que sí existen: cuerpo JSON 200 KB, imágenes 2 MB, documentos 3 MB, 10 imágenes y 5 documentos, 60 búsquedas/min por usuario, 10 logins/15 min por correo.
+
+**Mínimo privilegio.** Roles: los permisos `admin` del Administrador no se pueden quitar y los permisos "ver" gobiernan el acceso a cada módulo en API y páginas (con la brecha SEG-06). Base de datos: la cuenta de la app debería carecer de `ALTER/DROP` (SEG-19). Archivos: la app no escribe en disco (todo va a Supabase), un buen punto de partida.
+
+**Producción.** Verificado en modo `production`: cookies con `Secure`; arranque bloqueado con el secreto de ejemplo; `SOCKET_CORS_ORIGIN` exige `https`; `DB_PASSWORD` vacía prohibida. Falta `trust proxy`, CSP y `Permissions-Policy`.
+
 ---
 
 ## 6. Puntos que REQUIEREN DECISIÓN DEL DESARROLLADOR
@@ -125,7 +190,8 @@ Lo revisado y que **no** dejó brecha: rotación con compare-and-set, detección
 5. **Usuario MySQL sin `ALTER` vs migración al arrancar (SEG-19).** Recomendado: usuario de aplicación con solo `SELECT, INSERT, UPDATE, DELETE`; ejecutar `schema.sql`/migraciones con una cuenta aparte en el despliegue, y que `asegurarEsquema()` solo verifique (y falle con mensaje claro) en producción.
 6. **Cambio de contraseña por el propio usuario (SEG-21).** Hoy solo el Administrador la cambia desde el panel y ni siquiera la suya. Opciones: endpoint de "cambiar mi contraseña" (pide la actual; revoca sesiones) o mantener el modelo actual. Recomendado: implementarlo antes de producción.
 7. **`trust proxy` (SEG-16).** Depende de cuántos saltos haya en Hostinger; hay que confirmarlo (valor 1 en el caso típico) antes de fijarlo, porque un valor mal puesto permite falsear la IP.
-8. **Verificar WebSockets en el plan de Hostinger.** Algunos planes de hosting Node no soportan WebSocket sostenido; Socket.IO cae a long-polling (funciona, con más carga). Confirmar en el plan contratado.
+8. **TLS hacia MySQL (SEG-30).** Si la base de datos de Hostinger está en otro servidor que la app, activar `ssl` en `createPool` (variable `DB_SSL`); si es `localhost` en el mismo servidor no hace falta. Confirmar la topología.
+9. **Verificar WebSockets en el plan de Hostinger.** Algunos planes de hosting Node no soportan WebSocket sostenido; Socket.IO cae a long-polling (funciona, con más carga). Confirmar en el plan contratado.
 
 ---
 
@@ -186,10 +252,10 @@ Lo revisado y que **no** dejó brecha: rotación con compare-and-set, detección
 ## 10. Checklists
 
 **Antes de producción**
-- [ ] SEG-01 a SEG-07 corregidos y verificados con el script de pruebas del plan.
+- [ ] SEG-01 a SEG-07 y SEG-27 corregidos y verificados con el script de pruebas del plan.
 - [ ] `NODE_ENV=production`, `JWT_SECRET` nuevo (≥48 caracteres), `SOCKET_CORS_ORIGIN` y `trust proxy` definidos.
 - [ ] Usuario MySQL de mínimo privilegio; esquema aplicado con cuenta de migración.
-- [ ] Decisiones 1-8 de la sección 6 tomadas y documentadas.
+- [ ] Decisiones 1-9 de la sección 6 tomadas y documentadas.
 - [ ] `npm audit --omit=dev` sin vulnerabilidades altas; multer ≥ 2.4.0.
 - [ ] Contraseñas de las cuentas de prueba del `seed.sql`/`users.sql` cambiadas o cuentas eliminadas.
 - [ ] Backups configurados y **restauración probada** una vez.
