@@ -131,11 +131,12 @@ async function abrirModalPermisos(rol) {
     listarPermisosDeRol(rol.id)
   ]);
 
-  // Al Administrador no se le puede quitar ningún permiso que ya tiene (el
-  // backend también lo rechaza): sus casillas marcadas quedan bloqueadas.
-  const bloqueado = id => rol.id === ROL_ADMINISTRADOR && permisoIdsActuales.includes(id);
+  // Al Administrador no se le puede quitar ningún permiso del módulo admin (el
+  // backend también lo rechaza): esas casillas marcadas quedan bloqueadas. Los
+  // de otros módulos, como vales, sí se pueden quitar.
+  const bloqueado = (id, modulo) => rol.id === ROL_ADMINISTRADOR && modulo === 'admin' && permisoIdsActuales.includes(id);
   const bodyHtml = (rol.id === ROL_ADMINISTRADOR
-    ? '<p class="form-hint">Los permisos actuales del Administrador no se pueden quitar; sí se pueden agregar nuevos.</p>'
+    ? '<p class="form-hint">Los permisos del módulo de administración no se pueden quitar al Administrador; los de otros módulos sí.</p>'
     : '') + Object.keys(grupos).sort().map(modulo => `
     <div class="permisos-grupo" data-modulo="${escapeHtml(modulo)}">
       <div class="permisos-grupo-header">
@@ -145,7 +146,7 @@ async function abrirModalPermisos(rol) {
       <div class="permisos-lista">
         ${grupos[modulo].map(p => `
           <label class="permiso-item">
-            <input type="checkbox" class="chk-permiso" value="${p.id}" ${permisoIdsActuales.includes(p.id) ? 'checked' : ''} ${bloqueado(p.id) ? 'disabled' : ''}>
+            <input type="checkbox" class="chk-permiso" value="${p.id}" ${permisoIdsActuales.includes(p.id) ? 'checked' : ''} ${bloqueado(p.id, modulo) ? 'disabled' : ''}>
             ${escapeHtml(p.nombre)}
           </label>
         `).join('')}

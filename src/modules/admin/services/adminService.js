@@ -18,6 +18,7 @@ const ROLES_BASE = [1];
 const ROL_ASESOR = 2;
 const ROL_SUPERVISOR = 3;
 const ROL_ADMINISTRADOR = 1;
+const MODULO_ADMIN = 'admin';
 // Diseño, Diseño 3D y Protextil son talleres únicos a nivel de toda la
 // empresa (a diferencia de Diseño Local, que tiene uno por tienda) — un solo
 // encargado activo a la vez. El Asistente de Diseño es igual de único (un
@@ -206,13 +207,15 @@ class AdminService {
     if (!Array.isArray(permisoIds)) throw new Error('La lista de permisos debe ser un arreglo.');
     const ids = permisoIds.map(aEntero);
     if (ids.some(n => n === null)) throw new Error('La lista de permisos contiene valores inválidos.');
-    // Al Administrador no se le puede quitar ningún permiso que ya tenga; sí se
-    // le pueden agregar. Se valida aquí, no solo en la UI.
+    // Al Administrador no se le puede quitar ningún permiso del módulo admin
+    // (los actuales ni los que se le agreguen); los de otros módulos, como
+    // vales, sí. Se valida aquí, no solo en la UI.
     if (Number(id) === ROL_ADMINISTRADOR) {
-      const actuales = await rolRepository.listarPermisoIds(id);
+      const [actuales, todos] = await Promise.all([rolRepository.listarPermisoIds(id), permisoRepository.listarTodos()]);
+      const idsAdmin = new Set(todos.filter(p => p.modulo === MODULO_ADMIN).map(p => p.id));
       const nuevos = new Set(ids);
-      if (actuales.some(p => !nuevos.has(p))) {
-        throw new Error('No se pueden quitar permisos al rol Administrador.');
+      if (actuales.some(p => idsAdmin.has(p) && !nuevos.has(p))) {
+        throw new Error('No se pueden quitar al Administrador los permisos del módulo de administración.');
       }
     }
     const resultado = await rolRepository.establecerPermisos(id, [...new Set(ids)]);
