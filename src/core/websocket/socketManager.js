@@ -1,6 +1,7 @@
 // src/core/websocket/socketManager.js
 const { Server } = require('socket.io');
 const jwtHelper = require('../auth/jwtHelper');
+const config = require('../../config/env');
 const sesionRepository = require('../auth/sesionRepository');
 
 let io = null;
@@ -53,9 +54,9 @@ function init(server) {
     cors: {
       // Sin restringir esto, cualquier sitio web de terceros podría abrir
       // una conexión Socket.IO contra este servidor desde el navegador de
-      // una víctima. En producción, configurar SOCKET_CORS_ORIGIN con el
-      // dominio real de Hostinger.
-      origin: process.env.SOCKET_CORS_ORIGIN || 'http://localhost:3000',
+      // una víctima. SOCKET_CORS_ORIGIN (obligatoria en el .env) lista los
+      // orígenes permitidos; en producción, el dominio real de Hostinger.
+      origin: config.socketCorsOrigin,
       methods: ['GET', 'POST'],
       credentials: true
     }
