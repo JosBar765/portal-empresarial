@@ -18,12 +18,12 @@ Los permisos `vales.ver` y `admin.ver` ya existían; ahora son realmente el acce
 - `/api/vales` y `/api/admin` exigen `vales.ver` / `admin.ver` a nivel de montaje, además del permiso de cada ruta. Tener `vales.crear` sin `vales.ver` ya no sirve para llamar la API a mano.
 - `modulosPermitidos` del JWT (`authService._cargarPermisosYRol`) ahora incluye un módulo solo si el usuario tiene su permiso `.ver`; antes bastaba cualquier permiso de ese módulo.
 
-### 2.2 Permisos del Administrador no removibles
+### 2.2 Permisos de administración del Administrador no removibles
 
-- Backend (`adminService.actualizarPermisosRol`): para el rol 1, si la lista nueva omite un permiso que ya tiene, responde 400 `No se pueden quitar permisos al rol Administrador.` Agregar permisos sí se permite, y lo agregado queda igual de protegido. Los ids se validan como enteros positivos.
-- Frontend (`views/roles.js`): en el modal de permisos del Administrador las casillas marcadas quedan deshabilitadas, "Marcar/Desmarcar todos" las ignora y se muestra un aviso. Es solo UX; la regla real está en el backend.
+- Alcance: solo los permisos del módulo `admin` (`admin.ver`, `admin.usuarios.gestionar`, etc., actuales y futuros). Los de otros módulos, como `vales.ver`, se le pueden agregar y quitar como a cualquier rol.
+- Backend (`adminService.actualizarPermisosRol`): para el rol 1, si la lista nueva omite un permiso `admin` que ya tiene, responde 400 `No se pueden quitar al Administrador los permisos del módulo de administración.` Los ids se validan como enteros positivos.
+- Frontend (`views/roles.js`): en el modal del Administrador solo las casillas marcadas del grupo `admin` quedan deshabilitadas; "Marcar/Desmarcar todos" las ignora y un aviso lo explica. Es solo UX; la regla real está en el backend.
 - Los demás roles siguen siendo editables.
-- Los permisos actuales del Administrador no cambian (sigue sin write de vales, ver `CLAUDE.md`).
 
 ### 2.3 Permiso antes de cada acción
 
