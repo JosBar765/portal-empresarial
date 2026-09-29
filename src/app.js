@@ -6,7 +6,7 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const config = require('./config/env');
 const authRoutes = require('./core/auth/authRoutes');
-const jwtHelper = require('./core/auth/jwtHelper');
+const tokenService = require('./core/auth/tokenService');
 const { authenticateJWT, requireAuth, requirePermission, requireModuleAccess } = require('./core/permissions/permissionMiddleware');
 const { MODULOS } = require('./core/permissions/modulesCatalog');
 const maintenanceGate = require('./core/permissions/maintenanceMiddleware');
@@ -43,9 +43,11 @@ app.use('/js', express.static(path.join(__dirname, '../public/js')));
 // /login/index.html servido directo (mismo patrón que GET '/' más abajo).
 // El Administrador cae al panel en vez del dashboard de módulos — es su
 // "inicio".
-app.use('/login', (req, res, next) => {
-  const token = req.cookies ? req.cookies.token : null;
-  const decoded = token ? jwtHelper.verifyToken(token) : null;
+// tokenService.autenticar cuenta como sesión viva también una que solo tiene
+// refresh token válido (access vencido), para no mostrar el login a alguien
+// que aún tiene sesión única activa.
+app.use('/login', async (req, res, next) => {
+  const decoded = await tokenService.autenticar(req, res);
   if (decoded) {
     return res.redirect(decoded.rolId === 1 ? '/modules/admin/' : '/dashboard/');
   }
@@ -58,9 +60,8 @@ app.use('/api/auth.php', authRoutes);
 app.use('/api/auth', authRoutes);
 
 // Redireccionar raíz del portal a la página de login o al dashboard según corresponda
-app.get('/', (req, res) => {
-  const token = req.cookies ? req.cookies.token : null;
-  const decoded = token ? jwtHelper.verifyToken(token) : null;
+app.get('/', async (req, res) => {
+  const decoded = await tokenService.autenticar(req, res);
 
   if (decoded) {
     return res.redirect(decoded.rolId === 1 ? '/modules/admin/' : '/dashboard/');

@@ -19,7 +19,11 @@ const config = {
   port: parseInt(process.env.PORT, 10) || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
   jwtSecret: process.env.JWT_SECRET,
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '12h',
+  // Access token corto (vive en memoria del navegador solo como cookie httpOnly);
+  // la sesión larga la sostiene el refresh token rotativo.
+  jwtExpiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN || '15m',
+  // Vida máxima de una sesión (desde el login), sin importar cuántas veces se renueve.
+  refreshExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '12h',
   db: {
     host: process.env.DB_HOST || '',
     port: parseInt(process.env.DB_PORT, 10) || 3306,

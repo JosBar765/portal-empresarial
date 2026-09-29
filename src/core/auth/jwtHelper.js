@@ -28,7 +28,21 @@ function verifyToken(token) {
   }
 }
 
+/**
+ * Igual que verifyToken pero ignora la expiración: solo confirma que la firma
+ * es nuestra. Para cerrar sesión con un access token ya vencido y para el
+ * handshake del socket (donde se confirma aparte que la sesión siga viva).
+ */
+function verifyTokenIgnoreExpiry(token) {
+  try {
+    return jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'], ignoreExpiration: true });
+  } catch (error) {
+    return null;
+  }
+}
+
 module.exports = {
   generateToken,
-  verifyToken
+  verifyToken,
+  verifyTokenIgnoreExpiry
 };
