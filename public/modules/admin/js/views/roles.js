@@ -1,6 +1,7 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
+import { ROL_ADMINISTRADOR } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import {
   listarRolesRaw, toggleActivoRol as apiToggleActivoRol, guardarRol,
@@ -130,7 +131,12 @@ async function abrirModalPermisos(rol) {
     listarPermisosDeRol(rol.id)
   ]);
 
-  const bodyHtml = Object.keys(grupos).sort().map(modulo => `
+  // Al Administrador no se le puede quitar ningún permiso que ya tiene (el
+  // backend también lo rechaza): sus casillas marcadas quedan bloqueadas.
+  const bloqueado = id => rol.id === ROL_ADMINISTRADOR && permisoIdsActuales.includes(id);
+  const bodyHtml = (rol.id === ROL_ADMINISTRADOR
+    ? '<p class="form-hint">Los permisos actuales del Administrador no se pueden quitar; sí se pueden agregar nuevos.</p>'
+    : '') + Object.keys(grupos).sort().map(modulo => `
     <div class="permisos-grupo" data-modulo="${escapeHtml(modulo)}">
       <div class="permisos-grupo-header">
         <h4>${escapeHtml(modulo)}</h4>
@@ -139,7 +145,7 @@ async function abrirModalPermisos(rol) {
       <div class="permisos-lista">
         ${grupos[modulo].map(p => `
           <label class="permiso-item">
-            <input type="checkbox" class="chk-permiso" value="${p.id}" ${permisoIdsActuales.includes(p.id) ? 'checked' : ''}>
+            <input type="checkbox" class="chk-permiso" value="${p.id}" ${permisoIdsActuales.includes(p.id) ? 'checked' : ''} ${bloqueado(p.id) ? 'disabled' : ''}>
             ${escapeHtml(p.nombre)}
           </label>
         `).join('')}
@@ -156,7 +162,7 @@ async function abrirModalPermisos(rol) {
 
   $$('.btn-toggle-grupo', overlay).forEach(btn => {
     btn.addEventListener('click', () => {
-      const lista = btn.closest('.permisos-grupo').querySelectorAll('.chk-permiso');
+      const lista = btn.closest('.permisos-grupo').querySelectorAll('.chk-permiso:not(:disabled)');
       const algunoSinMarcar = Array.from(lista).some(c => !c.checked);
       lista.forEach(c => { c.checked = algunoSinMarcar; });
     });

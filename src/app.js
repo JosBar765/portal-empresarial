@@ -7,7 +7,8 @@ const path = require('path');
 const config = require('./config/env');
 const authRoutes = require('./core/auth/authRoutes');
 const jwtHelper = require('./core/auth/jwtHelper');
-const { authenticateJWT, requireAuth } = require('./core/permissions/permissionMiddleware');
+const { authenticateJWT, requireAuth, requirePermission, requireModuleAccess } = require('./core/permissions/permissionMiddleware');
+const { MODULOS } = require('./core/permissions/modulesCatalog');
 const maintenanceGate = require('./core/permissions/maintenanceMiddleware');
 const valeRoutes = require('./modules/vales/routes');
 const atrasoWatcher = require('./modules/vales/atrasoWatcher');
@@ -101,13 +102,14 @@ app.use('/dashboard', (req, res, next) => {
 app.use('/dashboard', express.static(path.join(__dirname, '../public/dashboard')));
 
 // Servir la carpeta de vistas protegidas de cada módulo
-app.use('/modules', express.static(path.join(__dirname, '../public/modules')));
+// Cada módulo exige su permiso "ver" (mismo que lo muestra en el dashboard).
+app.use('/modules', requireModuleAccess(MODULOS), express.static(path.join(__dirname, '../public/modules')));
 
 // Rutas de API del módulo Vales de Arte
-app.use('/api/vales', requireAuth, valeRoutes);
+app.use('/api/vales', requireAuth, requirePermission('vales.ver'), valeRoutes);
 
 // Rutas de API del panel de Administrador
-app.use('/api/admin', requireAuth, adminRoutes);
+app.use('/api/admin', requireAuth, requirePermission('admin.ver'), adminRoutes);
 
 // Vigilante de atraso — corre en el mismo proceso (monolito modular), revisa
 // cada 60s qué vales acaban de cruzar su fecha_entrega y dispara la alerta
@@ -119,30 +121,8 @@ app.get('/api/modules', requireAuth, (req, res) => {
   const user = req.user;
   const permissions = req.user.permissions || [];
 
-  // Catálogo completo de módulos empresariales definidos en el portal.
-  const catalog = [
-    {
-      id: 'vales',
-      nombre: 'Vales de Arte',
-      descripcion: 'Gestión, creación y control de vales artísticos y órdenes de diseño.',
-      icono: 'color-palette-outline',
-      path: '/modules/vales',
-      permission: 'vales.ver',
-      color: '#3B4C8C'
-    },
-    {
-      id: 'admin',
-      nombre: 'Administración Central',
-      descripcion: 'Gestión de roles, permisos, usuarios y reportería del portal.',
-      icono: 'settings-outline',
-      path: '/modules/admin',
-      permission: 'admin.ver',
-      color: '#52525B'
-    }
-  ];
-
   // Filtrar módulos en base a los permisos del usuario
-  const userModules = catalog.filter(modulo => {
+  const userModules = MODULOS.filter(modulo => {
     return permissions.includes(modulo.permission);
   });
 
