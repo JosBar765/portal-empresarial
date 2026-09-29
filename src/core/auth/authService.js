@@ -20,7 +20,9 @@ class AuthService {
     );
     const rolNombre = rolesRows.length > 0 ? rolesRows[0].nombre : 'Usuario';
     const permissions = permissionsRows.map(row => row.codigo);
-    const modules = [...new Set(permissionsRows.map(row => row.modulo))];
+    // Un módulo cuenta como "permitido" solo con su permiso "ver" — tener otras
+    // acciones sueltas (crear, asignar…) sin "ver" no da acceso al módulo.
+    const modules = [...new Set(permissionsRows.filter(row => row.codigo === `${row.modulo}.ver`).map(row => row.modulo))];
     return { rolNombre, permissions, modules };
   }
 

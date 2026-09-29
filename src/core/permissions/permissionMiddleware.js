@@ -109,9 +109,36 @@ function requireModule(moduleName) {
   };
 }
 
+/**
+ * Gate de acceso a las vistas de cada módulo (/modules/<id>/...). Si el
+ * usuario no tiene el permiso "ver" del módulo, la página lo devuelve a su
+ * dashboard y cualquier otro recurso del módulo (JS/CSS) responde 403.
+ * Rutas que no correspondan a un módulo del catálogo pasan tal cual.
+ * @param {Array<{id: string, permission: string}>} catalogo
+ */
+function requireModuleAccess(catalogo) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return handleUnauthorized(req, res);
+    }
+    const id = req.path.split('/')[1];
+    const modulo = catalogo.find(m => m.id === id);
+    if (!modulo || (req.user.permissions || []).includes(modulo.permission)) {
+      return next();
+    }
+    const esPagina = !/\.[a-z0-9]+$/i.test(req.path) || req.path.endsWith('.html');
+    if (esPagina) {
+      // ?vista=modulos evita que el Administrador rebote de vuelta a su panel.
+      return res.redirect('/dashboard/?vista=modulos');
+    }
+    return res.status(403).json({ error: `Acceso denegado. Se requiere el permiso: ${modulo.permission}` });
+  };
+}
+
 module.exports = {
   authenticateJWT,
   requireAuth,
   requirePermission,
-  requireModule
+  requireModule,
+  requireModuleAccess
 };

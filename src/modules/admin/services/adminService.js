@@ -204,7 +204,18 @@ class AdminService {
 
   async actualizarPermisosRol(id, permisoIds) {
     if (!Array.isArray(permisoIds)) throw new Error('La lista de permisos debe ser un arreglo.');
-    const resultado = await rolRepository.establecerPermisos(id, permisoIds);
+    const ids = permisoIds.map(aEntero);
+    if (ids.some(n => n === null)) throw new Error('La lista de permisos contiene valores inválidos.');
+    // Al Administrador no se le puede quitar ningún permiso que ya tenga; sí se
+    // le pueden agregar. Se valida aquí, no solo en la UI.
+    if (Number(id) === ROL_ADMINISTRADOR) {
+      const actuales = await rolRepository.listarPermisoIds(id);
+      const nuevos = new Set(ids);
+      if (actuales.some(p => !nuevos.has(p))) {
+        throw new Error('No se pueden quitar permisos al rol Administrador.');
+      }
+    }
+    const resultado = await rolRepository.establecerPermisos(id, [...new Set(ids)]);
     // Avisa a los usuarios de ese rol conectados ahora mismo para que
     // renueven su JWT sin cerrar sesión.
     socketManager.sendToRooms([`role_${id}`], 'permisos_actualizados', {});
