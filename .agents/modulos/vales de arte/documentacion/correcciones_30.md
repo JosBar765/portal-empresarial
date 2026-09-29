@@ -45,3 +45,13 @@ Auditoría de rutas: todas las rutas de `vales/routes.js` y `admin/routes.js` ya
 ## Pruebas
 
 Script contra la base demo con JWT firmados localmente (19 comprobaciones, todas OK): gate de páginas/recursos, API con y sin "ver", `/api/modules`, rechazo de quitar/vaciar permisos al Administrador, ids inválidos, agregar permisos, y edición normal de otro rol. La base se restauró al terminar.
+
+## Variables de entorno obligatorias, sin valores por defecto
+
+Rama: `feature/env-obligatorias`.
+
+- `src/config/env.js` ya no tiene valores por defecto: cada variable de `.env.example` es obligatoria. Por cada una que falte (o esté vacía) se imprime una línea `[FATAL] Falta la variable de entorno X en el .env.` y el proceso termina; se listan todas juntas, no solo la primera.
+- Validaciones de formato: `NODE_ENV` ∈ `development|production|test`; `PORT`/`DB_PORT` enteros 1-65535; `JWT_SECRET` ≥ 32 caracteres (en producción no puede ser el valor de ejemplo); `ACCESS_TOKEN_EXPIRES_IN`/`REFRESH_TOKEN_EXPIRES_IN` = entero positivo + `s|m|h|d` (cualquier cantidad: `45s`, `90m`, `2h`, `7d`); `SOCKET_CORS_ORIGIN` = uno o varios orígenes exactos separados por coma (sin barra final, sin `*`, `https` en producción); `SUPABASE_URL` URL válida; `DB_PASSWORD` puede estar vacía solo fuera de producción.
+- `SOCKET_CORS_ORIGIN` ahora es obligatoria y se usa desde `config` (`socketManager` ya no lee `process.env` ni cae a `http://localhost:3000`).
+- Pruebas (47 comprobaciones OK): cada variable ausente, vacía o con formato inválido, valores válidos arbitrarios, producción con secreto de ejemplo / origen `http` / contraseña vacía, varios errores a la vez, y arranque real con el `.env` actual (CORS responde solo al origen permitido).
+- Al actualizar: el `.env` local debe reemplazar `JWT_EXPIRES_IN` por `ACCESS_TOKEN_EXPIRES_IN` y `REFRESH_TOKEN_EXPIRES_IN` y definir `SOCKET_CORS_ORIGIN` (el `.env` de esta máquina ya quedó actualizado; los de otros entornos hay que ajustarlos).
