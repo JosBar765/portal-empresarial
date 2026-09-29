@@ -66,8 +66,14 @@ CREATE TABLE IF NOT EXISTS `sesiones_activas` (
   `iniciada_en`         DATETIME NOT NULL,
   `expira_en`           DATETIME NOT NULL,
   `conexiones_activas`  INT NOT NULL DEFAULT 0,
+  `refresh_hash`            CHAR(64) DEFAULT NULL,
+  `refresh_anterior_hash`   CHAR(64) DEFAULT NULL,
+  `refresh_expira_en`       DATETIME DEFAULT NULL,
+  `sin_conexiones_desde`    DATETIME DEFAULT NULL,
   FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
-  INDEX `idx_sesiones_expira` (`expira_en`)
+  INDEX `idx_sesiones_expira` (`expira_en`),
+  INDEX `idx_sesiones_refresh` (`refresh_hash`),
+  INDEX `idx_sesiones_refresh_anterior` (`refresh_anterior_hash`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `asesores` (

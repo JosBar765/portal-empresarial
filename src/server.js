@@ -17,12 +17,13 @@ const PORT = config.port;
 
 (async () => {
   await db.listo;
-  // Reconciliación de sesión única: un proceso recién arrancado no puede
-  // tener NINGÚN socket todavía conectado, así que cualquier fila de
-  // sesiones_activas que exista es forzosamente huérfana de un crash o
-  // reinicio anterior — borrarlas todas aquí da recuperación inmediata en
-  // vez de obligar a esperar a que cada `expira_en` venza por su cuenta.
-  await sesionRepository.limpiarTodas();
+  // Reconciliación de sesión única: un proceso recién arrancado no tiene
+  // NINGÚN socket conectado, así que los contadores de conexiones que haya en
+  // sesiones_activas son falsos. Se reinician, pero las sesiones vigentes se
+  // conservan — su refresh token vive ahí y un reinicio/despliegue no debe
+  // cerrarle la sesión a nadie.
+  await sesionRepository.asegurarEsquema();
+  await sesionRepository.reiniciarPresencia();
 
   server.listen(PORT, () => {
     console.log(`=======================================================`);

@@ -1,32 +1,29 @@
 // src/core/permissions/permissionMiddleware.js
 const jwtHelper = require('../auth/jwtHelper');
+const tokenService = require('../auth/tokenService');
 
 /**
  * Middleware global para interceptar y verificar el token JWT.
  * El token es la única fuente de verdad para identificar al usuario.
  */
-function authenticateJWT(req, res, next) {
+async function authenticateJWT(req, res, next) {
   // Evitar almacenamiento en caché para prevenir "Sesión Cómplice" (Go Back en navegador)
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
-  // Extraer token de las cookies o del encabezado de Autorización (Bearer)
-  let token = req.cookies ? req.cookies.token : null;
-  
-  if (!token && req.headers.authorization) {
+  // Access token de la cookie; si venció, autenticar() lo renueva solo con el
+  // refresh token (y fija las cookies nuevas en esta misma respuesta).
+  let decoded = await tokenService.autenticar(req, res);
+
+  // Cabecera Bearer: solo para clientes no-navegador; no se renueva.
+  if (!decoded && !(req.cookies && req.cookies[tokenService.REFRESH_COOKIE]) && req.headers.authorization) {
     const parts = req.headers.authorization.split(' ');
     if (parts.length === 2 && parts[0] === 'Bearer') {
-      token = parts[1];
+      decoded = jwtHelper.verifyToken(parts[1]);
     }
   }
 
-  if (!token) {
-    return handleUnauthorized(req, res);
-  }
-
-  const decoded = jwtHelper.verifyToken(token);
   if (!decoded) {
-    // Si el token es inválido o expiró, limpiar la cookie y denegar
-    res.clearCookie('token');
+    tokenService.limpiarCookies(res);
     return handleUnauthorized(req, res);
   }
 
