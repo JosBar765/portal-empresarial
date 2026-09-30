@@ -1,23 +1,9 @@
 // src/core/auth/authController.js
-const crypto = require('crypto');
 const authService = require('./authService');
 const jwtHelper = require('./jwtHelper');
 const sesionRepository = require('./sesionRepository');
-const config = require('../../config/env');
-
-// La cookie debe durar lo mismo que el JWT real que contiene — antes
-// quedaba fija en 24h sin importar JWT_EXPIRES_IN, así que con un valor más
-// corto (ej. las 12h actuales) el navegador seguía mandando un token ya
-// vencido durante horas de más (rechazado igual por verifyToken, pero
-// confuso: el usuario "parece" seguir logueado hasta que hace una acción).
-function duracionEnMs(expresion) {
-  if (typeof expresion === 'number') return expresion * 1000;
-  const match = /^(\d+)(s|m|h|d)$/.exec(String(expresion).trim());
-  if (!match) return 24 * 60 * 60 * 1000; // formato no reconocido: fallback conservador
-  const unidadEnMs = { s: 1000, m: 60000, h: 3600000, d: 86400000 };
-  return Number(match[1]) * unidadEnMs[match[2]];
-}
-const COOKIE_MAX_AGE = duracionEnMs(config.jwtExpiresIn);
+const tokenService = require('./tokenService');
+const { responderError } = require('../utils/erroresHttp');
 
 class AuthController {
   async handleQueryAction(req, res) {
@@ -38,21 +24,18 @@ class AuthController {
   }
 
   async sessionCheck(req, res) {
-    // Leer token de cookies o header
-    let token = req.cookies ? req.cookies.token : null;
-    
-    if (!token && req.headers.authorization) {
+    // Con el access token vencido, la sesión sigue viva mientras el refresh
+    // token sea válido: autenticar() lo renueva y fija las cookies nuevas.
+    let decoded = await tokenService.autenticar(req, res);
+
+    // Cabecera Bearer: solo para clientes no-navegador; no se renueva.
+    if (!decoded && req.headers.authorization) {
       const parts = req.headers.authorization.split(' ');
       if (parts.length === 2 && parts[0] === 'Bearer') {
-        token = parts[1];
+        decoded = jwtHelper.verifyToken(parts[1]);
       }
     }
 
-    if (!token) {
-      return res.json({ autenticado: false });
-    }
-
-    const decoded = jwtHelper.verifyToken(token);
     if (!decoded) {
       return res.json({ autenticado: false });
     }
@@ -103,35 +86,11 @@ class AuthController {
         });
       }
 
-      // `sid`: identifica ESTA sesión (no el usuario) — sin esto, un socket
-      // o un logout de una sesión ya reemplazada podría pisar/borrar la fila
-      // de la sesión más nueva que la reemplazó (ver sesionRepository).
-      const sid = crypto.randomUUID();
-
-      // Construir payload seguro a encriptar en el JWT.
-      // El payload contiene toda la identidad y privilegios del usuario.
-      const payload = {
-        id: authData.user.id,
-        nombre: authData.user.nombre,
-        email: authData.user.email,
-        rolId: authData.user.rolId,
-        rolNombre: authData.user.rolNombre,
-        modulosPermitidos: authData.user.modulosPermitidos,
-        permissions: authData.permissions,
-        sid
-      };
-
-      // Generar JWT
-      const token = jwtHelper.generateToken(payload);
-      await sesionRepository.crear(authData.user.id, sid, new Date(Date.now() + COOKIE_MAX_AGE));
-
-      // Guardar token en cookie segura HttpOnly
-      res.cookie('token', token, {
-        httpOnly: true,                               // Protege contra ataques XSS
-        secure: config.nodeEnv === 'production',      // Requiere HTTPS en producción
-        sameSite: 'strict',                           // Protege contra ataques CSRF
-        maxAge: COOKIE_MAX_AGE,
-      });
+      // La sesión se identifica por su `sid` (dentro del JWT y en
+      // sesiones_activas): sin eso, un socket o un logout de una sesión ya
+      // reemplazada podría pisar/borrar la de la sesión más nueva.
+      const sesion = await tokenService.emitirSesion(authData);
+      tokenService.fijarCookies(res, sesion);
 
       return res.json({
         ok: true,
@@ -139,52 +98,25 @@ class AuthController {
         user: authData.user
       });
     } catch (error) {
-      return res.status(401).json({
-        ok: false,
-        error: error.message || 'Credenciales incorrectas.'
-      });
+      // Credenciales malas → 401 con el mensaje genérico; cualquier fallo
+      // interno (BD caída, bug) → 500 genérico, nunca el texto de MySQL.
+      return responderError(res, error, 401, { ok: false });
     }
   }
 
-  // Reemite la cookie con el rol/permisos vigentes de un usuario ya
-  // autenticado — se dispara cuando el socket le avisa que los permisos de
-  // su rol cambiaron, sin pedirle credenciales.
+  // Cambia el refresh token por un par nuevo con el rol/permisos vigentes de
+  // la base. Lo usa el socket cuando el admin cambia los permisos del rol
+  // (refresco inmediato) y cualquier cliente que quiera renovar a propósito;
+  // el resto de renovaciones ocurren solas en authenticateJWT.
   async refreshToken(req, res) {
-    const token = req.cookies ? req.cookies.token : null;
-    const decoded = token ? jwtHelper.verifyToken(token) : null;
-    if (!decoded) {
+    const refresh = req.cookies ? req.cookies[tokenService.REFRESH_COOKIE] : null;
+    const resultado = await tokenService.renovar(refresh);
+    if (!resultado.ok) {
+      tokenService.limpiarCookies(res);
       return res.status(401).json({ error: 'Sesión no válida.' });
     }
-
-    try {
-      const authData = await authService.reautorizar(decoded.id);
-      // Mismo `sid` — esto es un refresco del token de la sesión YA activa
-      // (cambio de permisos), no un login nuevo; conservarlo es lo que deja
-      // a sesionRepository asociar los sockets ya abiertos con el token
-      // reemitido en vez de tratarlos como huérfanos de una sesión distinta.
-      const sid = decoded.sid;
-      const payload = {
-        id: authData.user.id,
-        nombre: authData.user.nombre,
-        email: authData.user.email,
-        rolId: authData.user.rolId,
-        rolNombre: authData.user.rolNombre,
-        modulosPermitidos: authData.user.modulosPermitidos,
-        permissions: authData.permissions,
-        sid
-      };
-      const newToken = jwtHelper.generateToken(payload);
-      if (sid) await sesionRepository.extenderExpiracion(authData.user.id, sid, new Date(Date.now() + COOKIE_MAX_AGE));
-      res.cookie('token', newToken, {
-        httpOnly: true,
-        secure: config.nodeEnv === 'production',
-        sameSite: 'strict',
-        maxAge: COOKIE_MAX_AGE,
-      });
-      return res.json({ ok: true, user: authData.user });
-    } catch (error) {
-      return res.status(401).json({ error: error.message || 'No se pudo renovar la sesión.' });
-    }
+    tokenService.fijarCookies(res, resultado);
+    return res.json({ ok: true, user: resultado.user });
   }
 
   async logout(req, res) {
@@ -194,18 +126,20 @@ class AuthController {
     // explícitamente. `eliminarSiCoincide` exige el mismo `sid` para nunca
     // borrar por error la fila de una sesión más nueva (ej. este logout
     // llega tarde desde una pestaña de una sesión ya reemplazada).
-    const token = req.cookies ? req.cookies.token : null;
-    const decoded = token ? jwtHelper.verifyToken(token) : null;
+    // Se acepta un access token ya vencido (solo se exige su firma): cerrar
+    // sesión debe funcionar aunque hayan pasado más de 15 min desde la última
+    // renovación. El refresh token también se busca por hash como respaldo.
+    const token = req.cookies ? req.cookies[tokenService.ACCESS_COOKIE] : null;
+    const decoded = token ? jwtHelper.verifyTokenIgnoreExpiry(token) : null;
     if (decoded && decoded.sid) {
       await sesionRepository.eliminarSiCoincide(decoded.id, decoded.sid);
     }
+    const refresh = req.cookies ? req.cookies[tokenService.REFRESH_COOKIE] : null;
+    if (typeof refresh === 'string' && refresh) {
+      await sesionRepository.eliminarPorRefresh(tokenService.hashDe(refresh));
+    }
 
-    // Eliminar la cookie limpiando su valor y estableciendo expiración inmediata
-    res.cookie('token', '', {
-      httpOnly: true,
-      expires: new Date(0),
-      path: '/'
-    });
+    tokenService.limpiarCookies(res);
 
     return res.json({ ok: true, message: 'Sesión cerrada correctamente.' });
   }

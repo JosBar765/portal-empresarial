@@ -356,6 +356,53 @@
   color: var(--color-text-muted);
 }
 
+/* Formulario de nuevo taller: el tipo es fijo (solo Diseño Local), así que se
+   muestra como dato, no como campo editable; y el nombre resultante se
+   previsualiza porque se deriva de la tienda elegida. */
+.form-field .campo-titulo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.campo-fijo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.campo-fijo ion-icon {
+  font-size: 16px;
+  color: var(--color-primary);
+}
+
+.taller-vista-previa {
+  margin: 0;
+  padding: 10px 14px;
+  background: var(--color-primary-light);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.taller-vista-previa strong {
+  color: var(--color-primary-hover);
+}
+
+/* Talleres desactivados: siguen en la lista (para poder reactivarlos) pero
+   atenuados. */
+.data-table tr.fila-inactiva td:not(.acciones-cell) {
+  color: var(--color-text-muted);
+}
+
 .form-error {
   background: var(--color-danger-bg);
   color: var(--color-danger);

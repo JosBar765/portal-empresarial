@@ -1,10 +1,16 @@
 // src/modules/admin/repositories/usuarioAdminRepository.js
 const db = require('../../../config/database');
 
+// Columnas de `usuarios` que pueden salir de este repositorio hacia los
+// servicios y, de ahí, al navegador. NUNCA `*`: `password_hash`,
+// `intentos_fallidos` y `bloqueado_hasta` no deben viajar al frontend.
+const COLUMNAS_USUARIO = 'id, nombre, email, rol_id, activo, creado_en, actualizado_en';
+const COLUMNAS_USUARIO_U = 'u.id, u.nombre, u.email, u.rol_id, u.activo, u.creado_en, u.actualizado_en';
+
 class UsuarioAdminRepository {
   async listarConDetalle() {
     return db.query(
-      `SELECT u.*, r.nombre AS rol_nombre,
+      `SELECT ${COLUMNAS_USUARIO_U}, r.nombre AS rol_nombre,
               a.tienda_id AS tienda_id,
               CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS tienda_nombre,
               p.nombre AS paises_asignados,
@@ -25,12 +31,12 @@ class UsuarioAdminRepository {
   }
 
   async obtenerPorId(id) {
-    const rows = await db.query('SELECT * FROM usuarios WHERE id = ?', [id], 'usuario:find_by_id');
+    const rows = await db.query(`SELECT ${COLUMNAS_USUARIO} FROM usuarios WHERE id = ?`, [id], 'usuario:find_by_id');
     return rows[0] || null;
   }
 
   async obtenerPorEmail(email) {
-    const rows = await db.query('SELECT * FROM usuarios WHERE email = ?', [email], 'usuario_admin:find_by_email');
+    const rows = await db.query(`SELECT ${COLUMNAS_USUARIO} FROM usuarios WHERE email = ?`, [email], 'usuario_admin:find_by_email');
     return rows[0] || null;
   }
 

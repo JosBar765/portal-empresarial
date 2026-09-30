@@ -210,7 +210,7 @@ class ValeDetalleService {
   }
 
   async _enriquecerTalleresConNombre(talleres) {
-    const catalogo = await tallerRepository.listarActivos();
+    const catalogo = await tallerRepository.listarTodos();
     return Promise.all(talleres.map(async t => {
       const taller = catalogo.find(x => x.id === t.taller_id);
       const tecnico = t.tecnico_id ? await usuarioValeRepository.obtenerPorId(t.tecnico_id) : null;

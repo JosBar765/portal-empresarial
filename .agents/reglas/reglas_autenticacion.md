@@ -78,7 +78,7 @@ Cualquier agente de IA que trabaje sobre este repositorio debe revisar y mantene
 
 ### A. Helper JWT: [`src/core/auth/jwtHelper.js`]
 Abstrae la librería `jsonwebtoken` utilizando variables de entorno de seguridad:
-*   `generateToken(payload)`: Firma el payload conteniendo `{ id, nombre, email, rolId, rolNombre, modulosPermitidos, permissions }` con `JWT_SECRET` y una expiración definida (ej. `24h`).
+*   `generateToken(payload)`: Firma el payload conteniendo `{ id, nombre, email, rolId, rolNombre, modulosPermitidos, permissions, sid }` con `JWT_SECRET` y la vida del access token (`ACCESS_TOKEN_EXPIRES_IN`, por defecto `15m`).
 *   `verifyToken(token)`: Verifica y descodifica el token. Retorna el payload si es válido, o `null` si está corrompido o expiró.
 
 ### B. Middleware de Seguridad: [`src/core/permissions/permissionMiddleware.js`]
@@ -88,6 +88,15 @@ Define las políticas y guards de rutas:
 *   `requirePermission(permissionCode)`: Valida que `req.user.permissions` incluya el código solicitado (ej. `vales.crear`). Si no, responde con un HTTP 403.
 *   `requireModule(moduleName)`: Valida que `req.user.modulosPermitidos` incluya el nombre del módulo. Los administradores (`rolId === 1`) se saltan esta comprobación automáticamente.
 
+### B2. Servicio de tokens: [`src/core/auth/tokenService.js`]
+Sesión = **access token corto** (cookie `token`) + **refresh token opaco y rotativo** (cookie `refresh_token`, `REFRESH_TOKEN_EXPIRES_IN`, por defecto `12h` como techo absoluto desde el login). Ambas cookies: `httpOnly`, `sameSite: 'strict'`, `path: '/'`.
+*   El refresh token nunca se guarda en claro: `sesiones_activas` solo tiene su hash SHA-256 (`refresh_hash`) y el anterior (`refresh_anterior_hash`).
+*   `autenticar(req, res)` (usado por `authenticateJWT`, `sessionCheck` y los redirects de `/` y `/login`): si el access token venció, lo renueva solo con el refresh, releyendo rol, permisos y `activo` de la base. Un usuario desactivado o con permisos cambiados lo refleja en la siguiente renovación (minutos), sin depender del socket.
+*   Cada renovación rota el refresh token con compare-and-set. Peticiones paralelas con el mismo refresh comparten resultado durante 30 s (en memoria: el sistema es un solo proceso).
+*   Presentar un refresh token ya rotado (fuera de esa ventana) = posible robo: se elimina la sesión completa.
+*   `POST /api/auth/refresh` fuerza una renovación (lo usa el evento de socket `permisos_actualizados`).
+*   La presencia por sockets (`conexiones_activas`) ya no borra la fila al llegar a 0: solo marca `sin_conexiones_desde`. Un login nuevo recibe 409 si la sesión tiene sockets o los perdió hace menos de 30 s; una sesión abandonada se reemplaza y su refresh deja de servir. Los reinicios del servidor conservan las sesiones vigentes.
+
 ### C. Controlador de Autenticación: [`src/core/auth/authController.js`]
 Gestiona la creación y destrucción de las cookies seguras:
 *   `loginPost`: Autentica credenciales vía base de datos, construye el payload del JWT, lo firma y lo inyecta como cookie HttpOnly segura:
@@ -96,7 +105,7 @@ Gestiona la creación y destrucción de las cookies seguras:
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000
+      maxAge: ACCESS_MAX_AGE   // (+ cookie refresh_token; ver tokenService.fijarCookies)
     });
     ```
 *   `logout`: Destruye el token del navegador inyectando un token vacío y una fecha de expiración inmediata en el pasado:

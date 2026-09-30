@@ -30,6 +30,8 @@ router.patch('/roles/:id/activo', gestionarRoles, (req, res) => adminController.
 
 // Talleres
 router.get('/talleres', verAdmin, (req, res) => adminController.listarTalleres(req, res));
+router.post('/talleres', gestionarTalleres, (req, res) => adminController.crearTaller(req, res));
+router.patch('/talleres/:id/activo', gestionarTalleres, (req, res) => adminController.establecerActivoTaller(req, res));
 router.get('/talleres/:id/personal', verAdmin, (req, res) => adminController.listarPersonalTaller(req, res));
 router.post('/talleres/:id/encargado', gestionarTalleres, (req, res) => adminController.asignarEncargadoDeTaller(req, res));
 router.delete('/talleres/:id/encargado', gestionarTalleres, (req, res) => adminController.quitarEncargadoDeTaller(req, res));

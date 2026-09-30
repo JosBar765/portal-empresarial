@@ -1,6 +1,7 @@
 // src/core/websocket/socketManager.js
 const { Server } = require('socket.io');
 const jwtHelper = require('../auth/jwtHelper');
+const config = require('../../config/env');
 const sesionRepository = require('../auth/sesionRepository');
 
 let io = null;
@@ -28,6 +29,11 @@ function extraerTokenDeCookie(cookieHeader) {
   return cookieToken ? decodeURIComponent(cookieToken.slice('token='.length)) : null;
 }
 
+async function sesionVigente(payload) {
+  const sesion = await sesionRepository.obtenerVigente(payload.id);
+  return !!sesion && sesion.token_id === payload.sid;
+}
+
 async function puedeUnirseASala(socket, sala) {
   // Canal de refresco de permisos/rol — sin datos de negocio, cualquier
   // usuario autenticado puede unirse al de SU PROPIO rol.
@@ -48,9 +54,9 @@ function init(server) {
     cors: {
       // Sin restringir esto, cualquier sitio web de terceros podría abrir
       // una conexión Socket.IO contra este servidor desde el navegador de
-      // una víctima. En producción, configurar SOCKET_CORS_ORIGIN con el
-      // dominio real de Hostinger.
-      origin: process.env.SOCKET_CORS_ORIGIN || 'http://localhost:3000',
+      // una víctima. SOCKET_CORS_ORIGIN (obligatoria en el .env) lista los
+      // orígenes permitidos; en producción, el dominio real de Hostinger.
+      origin: config.socketCorsOrigin,
       methods: ['GET', 'POST'],
       credentials: true
     }
@@ -60,14 +66,23 @@ function init(server) {
   // register_module, suscribirse a salas como "vales:admin" y recibir en
   // tiempo real la actividad de toda la empresa — los nombres de sala no
   // son secretos, están en el JS público del frontend.
-  io.use((socket, next) => {
-    const token = extraerTokenDeCookie(socket.handshake.headers.cookie);
-    const payload = token ? jwtHelper.verifyToken(token) : null;
-    if (!payload) {
-      return next(new Error('No autenticado'));
+  io.use(async (socket, next) => {
+    try {
+      const token = extraerTokenDeCookie(socket.handshake.headers.cookie);
+      // El access token dura minutos y un socket puede reconectarse después
+      // de que venció (sin ninguna petición HTTP que lo haya renovado): se
+      // acepta con firma válida aunque esté vencido, siempre que su sesión
+      // siga viva en sesiones_activas (mismo `sid`, refresh sin vencer).
+      // Una sesión cerrada, revocada o reemplazada ya no pasa.
+      const payload = token ? jwtHelper.verifyTokenIgnoreExpiry(token) : null;
+      if (!payload) return next(new Error('No autenticado'));
+      const vigente = payload.sid && (jwtHelper.verifyToken(token) !== null || await sesionVigente(payload));
+      if (!vigente) return next(new Error('No autenticado'));
+      socket.user = payload;
+      next();
+    } catch {
+      next(new Error('No autenticado'));
     }
-    socket.user = payload;
-    next();
   });
 
   io.on('connection', (socket) => {

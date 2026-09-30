@@ -332,7 +332,7 @@ class ValeRendimientoService {
   }
 
   async _porTaller(vales, idsVisibles) {
-    const talleres = await tallerRepository.listarActivos();
+    const talleres = await tallerRepository.listarTodos();
     const nombres = new Map(talleres.map(t => [t.id, t.nombre]));
     const porTaller = new Map();
     vales.forEach(v => {

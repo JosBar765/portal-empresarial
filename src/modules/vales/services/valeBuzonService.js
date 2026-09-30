@@ -31,7 +31,9 @@ class ValeBuzonService {
   // por varias vistas para saber en cuántos talleres trabajó un vale).
   // Compartido por `obtenerBuzon` y valeRendimientoService.
   async _enriquecerConTaller(vales) {
-    const talleresTodos = await tallerRepository.listarActivos();
+    // Incluye talleres inactivos: un vale terminado de un taller ya desactivado
+    // debe seguir mostrando su nombre, no "#id".
+    const talleresTodos = await tallerRepository.listarTodos();
     const valeTalleresTodos = await valeTallerRepository.listarTodos();
     const mapaTalleresPorVale = new Map();
     valeTalleresTodos.forEach(vt => {

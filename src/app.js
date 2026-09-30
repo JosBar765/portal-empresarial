@@ -6,14 +6,22 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const config = require('./config/env');
 const authRoutes = require('./core/auth/authRoutes');
-const jwtHelper = require('./core/auth/jwtHelper');
-const { authenticateJWT, requireAuth } = require('./core/permissions/permissionMiddleware');
+const tokenService = require('./core/auth/tokenService');
+const { authenticateJWT, requireAuth, requirePermission, requireModuleAccess } = require('./core/permissions/permissionMiddleware');
+const { MODULOS } = require('./core/permissions/modulesCatalog');
 const maintenanceGate = require('./core/permissions/maintenanceMiddleware');
 const valeRoutes = require('./modules/vales/routes');
 const atrasoWatcher = require('./modules/vales/atrasoWatcher');
 const adminRoutes = require('./modules/admin/routes');
 
 const app = express();
+
+// Detrás del proxy inverso del hosting, req.ip es la IP del proxy salvo que se
+// le indique cuántos saltos confiar (TRUST_PROXY; 0 = sin proxy): sin esto
+// todos los clientes comparten IP en los limitadores de intentos.
+if (config.trustProxy > 0) {
+  app.set('trust proxy', config.trustProxy);
+}
 
 // Cabeceras de seguridad HTTP (X-Frame-Options, X-Content-Type-Options,
 // etc.) — CSP desactivada por ahora: el frontend carga Ionicons y
@@ -42,9 +50,11 @@ app.use('/js', express.static(path.join(__dirname, '../public/js')));
 // /login/index.html servido directo (mismo patrón que GET '/' más abajo).
 // El Administrador cae al panel en vez del dashboard de módulos — es su
 // "inicio".
-app.use('/login', (req, res, next) => {
-  const token = req.cookies ? req.cookies.token : null;
-  const decoded = token ? jwtHelper.verifyToken(token) : null;
+// tokenService.autenticar cuenta como sesión viva también una que solo tiene
+// refresh token válido (access vencido), para no mostrar el login a alguien
+// que aún tiene sesión única activa.
+app.use('/login', async (req, res, next) => {
+  const decoded = await tokenService.autenticar(req, res);
   if (decoded) {
     return res.redirect(decoded.rolId === 1 ? '/modules/admin/' : '/dashboard/');
   }
@@ -57,9 +67,8 @@ app.use('/api/auth.php', authRoutes);
 app.use('/api/auth', authRoutes);
 
 // Redireccionar raíz del portal a la página de login o al dashboard según corresponda
-app.get('/', (req, res) => {
-  const token = req.cookies ? req.cookies.token : null;
-  const decoded = token ? jwtHelper.verifyToken(token) : null;
+app.get('/', async (req, res) => {
+  const decoded = await tokenService.autenticar(req, res);
 
   if (decoded) {
     return res.redirect(decoded.rolId === 1 ? '/modules/admin/' : '/dashboard/');
@@ -101,13 +110,14 @@ app.use('/dashboard', (req, res, next) => {
 app.use('/dashboard', express.static(path.join(__dirname, '../public/dashboard')));
 
 // Servir la carpeta de vistas protegidas de cada módulo
-app.use('/modules', express.static(path.join(__dirname, '../public/modules')));
+// Cada módulo exige su permiso "ver" (mismo que lo muestra en el dashboard).
+app.use('/modules', requireModuleAccess(MODULOS), express.static(path.join(__dirname, '../public/modules')));
 
 // Rutas de API del módulo Vales de Arte
-app.use('/api/vales', requireAuth, valeRoutes);
+app.use('/api/vales', requireAuth, requirePermission('vales.ver'), valeRoutes);
 
 // Rutas de API del panel de Administrador
-app.use('/api/admin', requireAuth, adminRoutes);
+app.use('/api/admin', requireAuth, requirePermission('admin.ver'), adminRoutes);
 
 // Vigilante de atraso — corre en el mismo proceso (monolito modular), revisa
 // cada 60s qué vales acaban de cruzar su fecha_entrega y dispara la alerta
@@ -119,30 +129,8 @@ app.get('/api/modules', requireAuth, (req, res) => {
   const user = req.user;
   const permissions = req.user.permissions || [];
 
-  // Catálogo completo de módulos empresariales definidos en el portal.
-  const catalog = [
-    {
-      id: 'vales',
-      nombre: 'Vales de Arte',
-      descripcion: 'Gestión, creación y control de vales artísticos y órdenes de diseño.',
-      icono: 'color-palette-outline',
-      path: '/modules/vales',
-      permission: 'vales.ver',
-      color: '#3B4C8C'
-    },
-    {
-      id: 'admin',
-      nombre: 'Administración Central',
-      descripcion: 'Gestión de roles, permisos, usuarios y reportería del portal.',
-      icono: 'settings-outline',
-      path: '/modules/admin',
-      permission: 'admin.ver',
-      color: '#52525B'
-    }
-  ];
-
   // Filtrar módulos en base a los permisos del usuario
-  const userModules = catalog.filter(modulo => {
+  const userModules = MODULOS.filter(modulo => {
     return permissions.includes(modulo.permission);
   });
 
@@ -157,12 +145,21 @@ const MENSAJES_MULTER = {
 };
 
 app.use((err, req, res, next) => {
-  console.error('[Global Error Handler]', err);
+  // Solo la pila (nombre, mensaje y líneas): el objeto completo de un error de
+  // mysql2 incluye el SQL con los valores.
+  console.error('[Global Error Handler]', (err && err.stack) || String(err));
   if (err instanceof multer.MulterError) {
     return res.status(400).json({ error: MENSAJES_MULTER[err.code] || 'No se pudo procesar el archivo adjunto.' });
   }
+  // Errores de lectura del cuerpo: mensaje fijo, sin el texto del analizador.
+  if (err && err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'El cuerpo de la solicitud no es un JSON válido.' });
+  }
+  if (err && err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'La solicitud es demasiado grande.' });
+  }
   const status = err.status || 500;
-  const mensaje = status < 500 ? (err.message || 'Solicitud inválida.') : 'Ocurrió un error interno en el servidor.';
+  const mensaje = status < 500 ? 'Solicitud inválida.' : 'Ocurrió un error interno en el servidor.';
   res.status(status).json({ error: mensaje });
 });
 

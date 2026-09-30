@@ -9,6 +9,8 @@ const mantenimientoRepository = require('../repositories/mantenimientoRepository
 const authService = require('../../../core/auth/authService');
 const maintenanceGate = require('../../../core/permissions/maintenanceMiddleware');
 const socketManager = require('../../../core/websocket/socketManager');
+const { aEntero } = require('../../../core/utils/validar');
+const sesionRepository = require('../../../core/auth/sesionRepository');
 
 // Roles base protegidos: no se pueden eliminar ni renombrar, pero sus
 // permisos sí se pueden editar. Asesor de Ventas no está en esta lista — la
@@ -18,6 +20,7 @@ const ROLES_BASE = [1];
 const ROL_ASESOR = 2;
 const ROL_SUPERVISOR = 3;
 const ROL_ADMINISTRADOR = 1;
+const MODULO_ADMIN = 'admin';
 // Diseño, Diseño 3D y Protextil son talleres únicos a nivel de toda la
 // empresa (a diferencia de Diseño Local, que tiene uno por tienda) — un solo
 // encargado activo a la vez. El Asistente de Diseño es igual de único (un
@@ -114,6 +117,11 @@ class AdminService {
       }
       const passwordHash = await bcrypt.hash(password, 10);
       await usuarioAdminRepository.actualizarPassword(id, passwordHash);
+      // Con la contraseña cambiada, cualquier sesión abierta (incluido su
+      // refresh token, que duraría hasta 12 h) debe dejar de servir: si la
+      // cuenta estaba comprometida, el atacante no conserva el acceso.
+      await sesionRepository.eliminarPorUsuario(id);
+      socketManager.sendToUser(id, 'sesion_revocada', {});
     }
     if (rolNum === ROL_ASESOR) {
       const asesorExistente = await usuarioAdminRepository.obtenerAsesorPorUsuarioId(id);
@@ -144,6 +152,9 @@ class AdminService {
     // que el JWT expire por sí solo (documentado como límite conocido en
     // correcciones_25 — ver "Riesgos que permanecerán").
     if (!activo) {
+      // Borra también la sesión: su refresh token deja de servir de inmediato
+      // (antes caía recién en la siguiente renovación del access token).
+      await sesionRepository.eliminarPorUsuario(id);
       socketManager.sendToUser(id, 'sesion_revocada', {});
     }
     return resultado;
@@ -196,7 +207,20 @@ class AdminService {
 
   async actualizarPermisosRol(id, permisoIds) {
     if (!Array.isArray(permisoIds)) throw new Error('La lista de permisos debe ser un arreglo.');
-    const resultado = await rolRepository.establecerPermisos(id, permisoIds);
+    const ids = permisoIds.map(aEntero);
+    if (ids.some(n => n === null)) throw new Error('La lista de permisos contiene valores inválidos.');
+    // Al Administrador no se le puede quitar ningún permiso del módulo admin
+    // (los actuales ni los que se le agreguen); los de otros módulos, como
+    // vales, sí. Se valida aquí, no solo en la UI.
+    if (Number(id) === ROL_ADMINISTRADOR) {
+      const [actuales, todos] = await Promise.all([rolRepository.listarPermisoIds(id), permisoRepository.listarTodos()]);
+      const idsAdmin = new Set(todos.filter(p => p.modulo === MODULO_ADMIN).map(p => p.id));
+      const nuevos = new Set(ids);
+      if (actuales.some(p => idsAdmin.has(p) && !nuevos.has(p))) {
+        throw new Error('No se pueden quitar al Administrador los permisos del módulo de administración.');
+      }
+    }
+    const resultado = await rolRepository.establecerPermisos(id, [...new Set(ids)]);
     // Avisa a los usuarios de ese rol conectados ahora mismo para que
     // renueven su JWT sin cerrar sesión.
     socketManager.sendToRooms([`role_${id}`], 'permisos_actualizados', {});
@@ -347,7 +371,68 @@ class AdminService {
         throw new Error(`Ya existe un encargado activo para ${taller.nombre}: ${ocupante.nombre}. Desasígnalo primero.`);
       }
     }
+    await this._validarQueNoEncargueOtroTaller(usuario, tallerId);
     return tallerAdminRepository.asignarEncargado(tallerId, usuarioId);
+  }
+
+  // Un encargado trabaja físicamente en UN taller: no puede serlo de dos ni
+  // ser además técnico de otro (misma lógica que el asesor con su tienda).
+  async _validarQueNoEncargueOtroTaller(usuario, tallerActualId = null) {
+    const comoEncargado = await tallerAdminRepository.obtenerTallerDeEncargado(usuario.id, tallerActualId);
+    if (comoEncargado) {
+      throw new Error(`${usuario.nombre} ya es encargado de ${comoEncargado.nombre}: un encargado no puede atender dos talleres.`);
+    }
+    const comoTecnico = await tallerAdminRepository.obtenerTallerDeTecnico(usuario.id);
+    if (comoTecnico) {
+      throw new Error(`${usuario.nombre} ya trabaja en ${comoTecnico.nombre} y no puede ser encargado de otro taller.`);
+    }
+  }
+
+  // Los únicos talleres que se crean desde el panel son los de Diseño Local:
+  // uno por tienda, con nombre derivado del código de esa tienda (como el
+  // nombre de la tienda se deriva de su empresa y subdivisión), y con un
+  // encargado opcional que debe tener el rol Diseño Local y no encargarse ya
+  // de otro taller.
+  async crearTallerLocal({ tiendaId, encargadoId } = {}) {
+    const idTienda = aEntero(tiendaId);
+    const tienda = idTienda ? await tiendaAdminRepository.obtenerPorId(idTienda) : null;
+    if (!tienda) throw new Error('Selecciona la tienda a la que pertenecerá el taller.');
+    if (!tienda.activo) throw new Error('La tienda seleccionada está inactiva.');
+    const existente = await tallerAdminRepository.obtenerLocalDeTienda(tienda.id);
+    if (existente) {
+      throw new Error(`La tienda ${tienda.codigo} ya tiene su taller de Diseño Local (${existente.nombre}${existente.activo ? '' : ', inactivo — reactívalo en lugar de crear otro'}).`);
+    }
+    const nombre = `Diseño Local - ${tienda.codigo}`;
+    if (await tallerAdminRepository.obtenerPorNombre(nombre)) {
+      throw new Error(`Ya existe un taller llamado ${nombre}.`);
+    }
+    let encargado = null;
+    if (encargadoId !== undefined && encargadoId !== null && encargadoId !== '') {
+      const idEncargado = aEntero(encargadoId);
+      encargado = idEncargado ? await usuarioAdminRepository.obtenerPorId(idEncargado) : null;
+      if (!encargado || !encargado.activo) throw new Error('El encargado seleccionado no existe o está inactivo.');
+      if (Number(encargado.rol_id) !== ROL_ENCARGADO_DISENO_LOCAL) {
+        throw new Error('Solo un usuario con el rol Diseño Local puede ser encargado de un taller de Diseño Local.');
+      }
+      await this._validarQueNoEncargueOtroTaller(encargado);
+    }
+    const id = await tallerAdminRepository.crearLocal({ nombre, tiendaId: tienda.id, encargadoId: encargado ? encargado.id : null });
+    return { id, nombre };
+  }
+
+  // No se puede desactivar un taller con vales de arte en proceso; sí uno
+  // sin vales o con todos sus vales terminados. Activar no tiene condición.
+  async establecerActivoTaller(tallerId, activo) {
+    if (typeof activo !== 'boolean') throw new Error('Indica si el taller debe quedar activo o inactivo.');
+    const taller = await tallerAdminRepository.obtenerPorId(tallerId);
+    if (!taller) throw new Error('Taller no encontrado.');
+    if (!activo) {
+      const enProceso = await tallerAdminRepository.contarValesEnProceso(taller.id);
+      if (enProceso > 0) {
+        throw new Error(`No se puede desactivar ${taller.nombre}: tiene ${enProceso} vale${enProceso === 1 ? '' : 's'} de arte en proceso. Podrás desactivarlo cuando terminen.`);
+      }
+    }
+    await tallerAdminRepository.establecerActivo(taller.id, activo);
   }
 
   async quitarEncargadoDeTaller(tallerId) {
