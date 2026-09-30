@@ -47,6 +47,19 @@ function leerDuracion(nombre) {
   return valor;
 }
 
+// Saltos de proxy inverso en los que confiar (0 = la app recibe las
+// conexiones directamente; en Hostinger normalmente 1). Un valor mayor al
+// real permitiría falsear la IP con la cabecera X-Forwarded-For.
+function leerSaltosDeProxy(nombre) {
+  const valor = leer(nombre).trim();
+  if (!valor) return 0;
+  if (!/^\d+$/.test(valor) || Number(valor) > 10) {
+    problemas.push(`${nombre} debe ser un entero entre 0 y 10: los saltos de proxy inverso en los que confiar, 0 si no hay proxy (valor recibido: "${valor}").`);
+    return 0;
+  }
+  return Number(valor);
+}
+
 const AMBIENTES = ['development', 'production', 'test'];
 const nodeEnv = leer('NODE_ENV').trim();
 if (nodeEnv && !AMBIENTES.includes(nodeEnv)) {
@@ -122,6 +135,7 @@ const config = {
   // Vida máxima de una sesión (desde el login), sin importar cuántas veces se renueve.
   refreshExpiresIn,
   socketCorsOrigin: leerOrigenes('SOCKET_CORS_ORIGIN'),
+  trustProxy: leerSaltosDeProxy('TRUST_PROXY'),
   db: {
     host: leer('DB_HOST').trim(),
     port: leerPuerto('DB_PORT'),

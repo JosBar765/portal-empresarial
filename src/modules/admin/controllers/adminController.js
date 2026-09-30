@@ -1,6 +1,7 @@
 // src/modules/admin/controllers/adminController.js
 const adminService = require('../services/adminService');
-const { responderErrorInterno } = require('../../../core/utils/erroresHttp');
+const { responderError, responderErrorInterno } = require('../../../core/utils/erroresHttp');
+const { idObligatorio } = require('../../../core/utils/validar');
 
 class AdminController {
   // ---- Usuarios ----
@@ -18,31 +19,31 @@ class AdminController {
       const usuario = await adminService.crearUsuario(req.body);
       return res.status(201).json(usuario);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async actualizarUsuario(req, res) {
     try {
-      const usuario = await adminService.actualizarUsuario(Number(req.params.id), req.body, req.user.id);
+      const usuario = await adminService.actualizarUsuario(idObligatorio(req.params.id), req.body, req.user.id);
       return res.json(usuario);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async establecerActivoUsuario(req, res) {
     try {
-      await adminService.establecerActivoUsuario(Number(req.params.id), !!req.body.activo, req.user.id);
+      await adminService.establecerActivoUsuario(idObligatorio(req.params.id), !!req.body.activo, req.user.id);
       return res.json({ ok: true });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async obtenerTiendasSupervisadas(req, res) {
     try {
-      const tiendaIds = await adminService.obtenerTiendasSupervisadas(Number(req.params.id));
+      const tiendaIds = await adminService.obtenerTiendasSupervisadas(idObligatorio(req.params.id));
       return res.json(tiendaIds);
     } catch (error) {
       return responderErrorInterno(res, error);
@@ -61,7 +62,7 @@ class AdminController {
 
   async obtenerPermisosDeRol(req, res) {
     try {
-      const permisoIds = await adminService.obtenerPermisosDeRol(Number(req.params.id));
+      const permisoIds = await adminService.obtenerPermisosDeRol(idObligatorio(req.params.id));
       return res.json(permisoIds);
     } catch (error) {
       return responderErrorInterno(res, error);
@@ -82,34 +83,34 @@ class AdminController {
       const id = await adminService.crearRol(req.body);
       return res.status(201).json({ id });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async actualizarRol(req, res) {
     try {
-      await adminService.actualizarRol(Number(req.params.id), req.body);
+      await adminService.actualizarRol(idObligatorio(req.params.id), req.body);
       return res.json({ ok: true });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async actualizarPermisosRol(req, res) {
     try {
-      await adminService.actualizarPermisosRol(Number(req.params.id), req.body.permisoIds);
+      await adminService.actualizarPermisosRol(idObligatorio(req.params.id), req.body.permisoIds);
       return res.json({ ok: true });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async establecerActivoRol(req, res) {
     try {
-      await adminService.establecerActivoRol(Number(req.params.id), !!req.body.activo);
+      await adminService.establecerActivoRol(idObligatorio(req.params.id), !!req.body.activo);
       return res.json({ ok: true });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
@@ -128,22 +129,22 @@ class AdminController {
       const id = await adminService.crearTienda(req.body);
       return res.status(201).json({ id });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async actualizarTienda(req, res) {
     try {
-      await adminService.actualizarTienda(Number(req.params.id), req.body);
+      await adminService.actualizarTienda(idObligatorio(req.params.id), req.body);
       return res.json({ ok: true });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async listarPersonalTienda(req, res) {
     try {
-      const personal = await adminService.listarPersonalTienda(Number(req.params.id));
+      const personal = await adminService.listarPersonalTienda(idObligatorio(req.params.id));
       return res.json(personal);
     } catch (error) {
       return responderErrorInterno(res, error);
@@ -152,19 +153,19 @@ class AdminController {
 
   async agregarPersonalATienda(req, res) {
     try {
-      await adminService.agregarPersonalATienda(Number(req.params.id), Number(req.body.usuarioId));
+      await adminService.agregarPersonalATienda(idObligatorio(req.params.id), idObligatorio(req.body.usuarioId, 'Usuario'));
       return res.status(201).json({ ok: true });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async quitarPersonalDeTienda(req, res) {
     try {
-      await adminService.quitarPersonalDeTienda(Number(req.params.id), Number(req.params.usuarioId));
+      await adminService.quitarPersonalDeTienda(idObligatorio(req.params.id), idObligatorio(req.params.usuarioId, 'Usuario'));
       return res.json({ ok: true });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
@@ -191,22 +192,22 @@ class AdminController {
       const taller = await adminService.crearTallerLocal(req.body);
       return res.status(201).json(taller);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async establecerActivoTaller(req, res) {
     try {
-      await adminService.establecerActivoTaller(Number(req.params.id), req.body && req.body.activo);
+      await adminService.establecerActivoTaller(idObligatorio(req.params.id), req.body && req.body.activo);
       return res.json({ ok: true });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async listarPersonalTaller(req, res) {
     try {
-      const personal = await adminService.listarPersonalTaller(Number(req.params.id));
+      const personal = await adminService.listarPersonalTaller(idObligatorio(req.params.id));
       return res.json(personal);
     } catch (error) {
       return responderErrorInterno(res, error);
@@ -215,46 +216,46 @@ class AdminController {
 
   async asignarEncargadoDeTaller(req, res) {
     try {
-      await adminService.asignarEncargadoDeTaller(Number(req.params.id), Number(req.body.usuarioId));
+      await adminService.asignarEncargadoDeTaller(idObligatorio(req.params.id), idObligatorio(req.body.usuarioId, 'Usuario'));
       return res.json({ ok: true });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async quitarEncargadoDeTaller(req, res) {
     try {
-      await adminService.quitarEncargadoDeTaller(Number(req.params.id));
+      await adminService.quitarEncargadoDeTaller(idObligatorio(req.params.id));
       return res.json({ ok: true });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async actualizarLimiteDiarioTaller(req, res) {
     try {
-      await adminService.actualizarLimiteDiarioTaller(Number(req.params.id), req.body.limiteDiario);
+      await adminService.actualizarLimiteDiarioTaller(idObligatorio(req.params.id), req.body.limiteDiario);
       return res.json({ ok: true });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async asignarTecnicoATaller(req, res) {
     try {
-      await adminService.asignarTecnicoATaller(Number(req.params.id), Number(req.body.usuarioId));
+      await adminService.asignarTecnicoATaller(idObligatorio(req.params.id), idObligatorio(req.body.usuarioId, 'Usuario'));
       return res.status(201).json({ ok: true });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async quitarTecnicoDeTaller(req, res) {
     try {
-      await adminService.quitarTecnicoDeTaller(Number(req.params.usuarioId));
+      await adminService.quitarTecnicoDeTaller(idObligatorio(req.params.usuarioId, 'Usuario'));
       return res.json({ ok: true });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
@@ -273,7 +274,7 @@ class AdminController {
       const data = await adminService.actualizarMantenimiento(req.body, req.user);
       return res.json(data);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 }

@@ -1,4 +1,5 @@
 // src/core/permissions/permissionMiddleware.js
+const path = require('path');
 const jwtHelper = require('../auth/jwtHelper');
 const tokenService = require('../auth/tokenService');
 
@@ -106,6 +107,29 @@ function requireModule(moduleName) {
   };
 }
 
+// Ruta ya decodificada y normalizada, en minúsculas. El servidor de estáticos
+// decodifica (%76ales → vales), colapsa ./ // y ../ e ignora mayúsculas según
+// el sistema de archivos: si el gate comparara la ruta cruda, /modules/%76ales/,
+// /modules/./vales/ o /modules/VALES/ llegarían al módulo sin pasar por él.
+// Devuelve null si la ruta no se puede interpretar (se rechaza).
+function rutaDeModuloNormalizada(rutaCruda) {
+  let ruta;
+  try {
+    ruta = decodeURIComponent(rutaCruda);
+  } catch {
+    return null;
+  }
+  if (ruta.includes('\0')) return null;
+  return path.posix.normalize(ruta.replace(/\\/g, '/')).toLowerCase();
+}
+
+// Primer segmento de la ruta sin puntos ni espacios finales (Windows los
+// ignora al abrir el archivo: "vales." equivale a "vales").
+function segmentoDeModulo(rutaNormalizada) {
+  const primero = rutaNormalizada.split('/').filter(Boolean)[0] || '';
+  return primero.replace(/[. ]+$/, '');
+}
+
 /**
  * Gate de acceso a las vistas de cada módulo (/modules/<id>/...). Si el
  * usuario no tiene el permiso "ver" del módulo, la página lo devuelve a su
@@ -118,12 +142,16 @@ function requireModuleAccess(catalogo) {
     if (!req.user) {
       return handleUnauthorized(req, res);
     }
-    const id = req.path.split('/')[1];
+    const ruta = rutaDeModuloNormalizada(req.path);
+    if (ruta === null) {
+      return res.status(400).json({ error: 'Ruta inválida.' });
+    }
+    const id = segmentoDeModulo(ruta);
     const modulo = catalogo.find(m => m.id === id);
     if (!modulo || (req.user.permissions || []).includes(modulo.permission)) {
       return next();
     }
-    const esPagina = !/\.[a-z0-9]+$/i.test(req.path) || req.path.endsWith('.html');
+    const esPagina = !/\.[a-z0-9]+$/i.test(ruta) || ruta.endsWith('.html');
     if (esPagina) {
       // ?vista=modulos evita que el Administrador rebote de vuelta a su panel.
       return res.redirect('/dashboard/?vista=modulos');

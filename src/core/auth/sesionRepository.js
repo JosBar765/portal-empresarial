@@ -77,6 +77,13 @@ class SesionRepository {
     return res.affectedRows === 1;
   }
 
+  // Cierra la sesión del usuario sin importar cuál sea su token: lo usan los
+  // cambios de contraseña y las desactivaciones, donde el refresh token ya no
+  // debe servir ni un minuto más.
+  async eliminarPorUsuario(usuarioId) {
+    await db.query('DELETE FROM sesiones_activas WHERE usuario_id = ?', [usuarioId], 'sesion:eliminar_por_usuario');
+  }
+
   async eliminarPorRefresh(refreshHash) {
     await db.query(
       'DELETE FROM sesiones_activas WHERE refresh_hash = ? OR refresh_anterior_hash = ?',

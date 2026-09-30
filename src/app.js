@@ -16,6 +16,13 @@ const adminRoutes = require('./modules/admin/routes');
 
 const app = express();
 
+// Detrás del proxy inverso del hosting, req.ip es la IP del proxy salvo que se
+// le indique cuántos saltos confiar (TRUST_PROXY; 0 = sin proxy): sin esto
+// todos los clientes comparten IP en los limitadores de intentos.
+if (config.trustProxy > 0) {
+  app.set('trust proxy', config.trustProxy);
+}
+
 // Cabeceras de seguridad HTTP (X-Frame-Options, X-Content-Type-Options,
 // etc.) — CSP desactivada por ahora: el frontend carga Ionicons y
 // Socket.IO client desde rutas propias/CDN sin una política ya definida
@@ -138,12 +145,21 @@ const MENSAJES_MULTER = {
 };
 
 app.use((err, req, res, next) => {
-  console.error('[Global Error Handler]', err);
+  // Solo la pila (nombre, mensaje y líneas): el objeto completo de un error de
+  // mysql2 incluye el SQL con los valores.
+  console.error('[Global Error Handler]', (err && err.stack) || String(err));
   if (err instanceof multer.MulterError) {
     return res.status(400).json({ error: MENSAJES_MULTER[err.code] || 'No se pudo procesar el archivo adjunto.' });
   }
+  // Errores de lectura del cuerpo: mensaje fijo, sin el texto del analizador.
+  if (err && err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'El cuerpo de la solicitud no es un JSON válido.' });
+  }
+  if (err && err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'La solicitud es demasiado grande.' });
+  }
   const status = err.status || 500;
-  const mensaje = status < 500 ? (err.message || 'Solicitud inválida.') : 'Ocurrió un error interno en el servidor.';
+  const mensaje = status < 500 ? 'Solicitud inválida.' : 'Ocurrió un error interno en el servidor.';
   res.status(status).json({ error: mensaje });
 });
 

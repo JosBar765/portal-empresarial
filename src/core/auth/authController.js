@@ -3,6 +3,7 @@ const authService = require('./authService');
 const jwtHelper = require('./jwtHelper');
 const sesionRepository = require('./sesionRepository');
 const tokenService = require('./tokenService');
+const { responderError } = require('../utils/erroresHttp');
 
 class AuthController {
   async handleQueryAction(req, res) {
@@ -97,10 +98,9 @@ class AuthController {
         user: authData.user
       });
     } catch (error) {
-      return res.status(401).json({
-        ok: false,
-        error: error.message || 'Credenciales incorrectas.'
-      });
+      // Credenciales malas → 401 con el mensaje genérico; cualquier fallo
+      // interno (BD caída, bug) → 500 genérico, nunca el texto de MySQL.
+      return responderError(res, error, 401, { ok: false });
     }
   }
 

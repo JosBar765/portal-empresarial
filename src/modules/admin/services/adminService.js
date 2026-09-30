@@ -9,6 +9,8 @@ const mantenimientoRepository = require('../repositories/mantenimientoRepository
 const authService = require('../../../core/auth/authService');
 const maintenanceGate = require('../../../core/permissions/maintenanceMiddleware');
 const socketManager = require('../../../core/websocket/socketManager');
+const { aEntero } = require('../../../core/utils/validar');
+const sesionRepository = require('../../../core/auth/sesionRepository');
 
 // Roles base protegidos: no se pueden eliminar ni renombrar, pero sus
 // permisos sí se pueden editar. Asesor de Ventas no está en esta lista — la
@@ -31,14 +33,6 @@ const ROL_ENCARGADO_DISENO_LOCAL = 10;
 // exactamente un taller.
 const TALLER_FIJO_POR_ROL = { 4: 'Diseño', 5: 'Diseño UV/3D', 9: 'Protextil' };
 const TALLERES_CLONABLES_ASISTENTE = ['Diseño', 'Diseño UV/3D', 'Protextil'];
-
-// Un id que llega en el cuerpo JSON debe ser un entero (o su texto): Number()
-// a secas aceptaría [5], true o " 5 " y los trataría como 5.
-function aEntero(valor) {
-  if (typeof valor === 'number') return Number.isInteger(valor) && valor > 0 ? valor : null;
-  if (typeof valor === 'string' && /^\d{1,10}$/.test(valor.trim())) return Number(valor.trim());
-  return null;
-}
 
 class AdminService {
   async _validarEncargadoUnico(rolId, excluirId) {
@@ -123,6 +117,11 @@ class AdminService {
       }
       const passwordHash = await bcrypt.hash(password, 10);
       await usuarioAdminRepository.actualizarPassword(id, passwordHash);
+      // Con la contraseña cambiada, cualquier sesión abierta (incluido su
+      // refresh token, que duraría hasta 12 h) debe dejar de servir: si la
+      // cuenta estaba comprometida, el atacante no conserva el acceso.
+      await sesionRepository.eliminarPorUsuario(id);
+      socketManager.sendToUser(id, 'sesion_revocada', {});
     }
     if (rolNum === ROL_ASESOR) {
       const asesorExistente = await usuarioAdminRepository.obtenerAsesorPorUsuarioId(id);
@@ -153,6 +152,9 @@ class AdminService {
     // que el JWT expire por sí solo (documentado como límite conocido en
     // correcciones_25 — ver "Riesgos que permanecerán").
     if (!activo) {
+      // Borra también la sesión: su refresh token deja de servir de inmediato
+      // (antes caía recién en la siguiente renovación del access token).
+      await sesionRepository.eliminarPorUsuario(id);
       socketManager.sendToUser(id, 'sesion_revocada', {});
     }
     return resultado;
