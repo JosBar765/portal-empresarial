@@ -43,7 +43,10 @@ async function query(sql, params = [], tag = null) {
     const [rows] = await pool.query(sql, params);
     return rows;
   } catch (error) {
-    console.error(`[Database] Error ejecutando consulta SQL: ${sql}`, error);
+    // Solo etiqueta, código y mensaje: el objeto `error` de mysql2 trae el SQL
+    // ya con los valores sustituidos (hashes de contraseña, datos personales)
+    // y no debe llegar a los logs.
+    console.error(`[Database] Error en la consulta ${tag || '(sin etiqueta)'}: [${error.code || 'sin código'}] ${error.sqlMessage || error.message}`);
     throw error;
   }
 }

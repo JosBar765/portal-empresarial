@@ -110,6 +110,25 @@ La tabla anterior conserva el detalle de la primera pasada. Este es el estado ho
 | SEG-31 | BAJO | **`NODE_ENV=test` deja las cookies sin `Secure`.** Solo `production` activa `Secure`; un despliegue con `test` (permitido por la validación) quedaría sin él. | `config/env.js`, `core/auth/tokenService.js` | CÓDIGO | No |
 | SEG-32 | INFO | **Sala `vale:<id>` inalcanzable para Asesor, Supervisor y Técnico** (el validador devuelve `false` en su rama de rol antes de llegar a la de `vale:`; verificado: el asesor 63 no pudo unirse a `vale:145`, que es suyo). No es una brecha sino una limitación funcional: el historial en vivo no se actualiza para esos roles. Se anota para no "arreglarlo" abriendo la sala sin la validación de pertenencia. | `vales/events.js:32-51` | VERIFICADO | — |
 
+### 2.3 Estado tras ejecutar la Fase 1 (rama `security/fase-1`)
+
+| ID | Antes | Ahora | Cómo se verificó |
+|---|---|---|---|
+| SEG-01 | PERSISTE (ALTO) | **SOLVENTADO** | `GET /api/admin/usuarios`, crear y editar usuario: ningún `password_hash`, `intentos_fallidos` ni `bloqueado_hasta`; el panel (86 usuarios) sigue funcionando |
+| SEG-02 | PERSISTE (ALTO) | **SOLVENTADO** | 25 casos: arreglos/objetos en login y en campos de vales, ids inválidos, JSON malformado, error de BD forzado, Storage caído → respuestas genéricas o "Identificador inválido"; los mensajes de negocio se conservan |
+| SEG-03 | PERSISTE (ALTO) | **SOLVENTADO** | Correo normalizado (mayúsculas/espacios), límite por IP tras ~100 fallos, bloqueo de cuenta a los 5 fallos (15 min), reinicio al acertar |
+| SEG-04 | PERSISTE | **SOLVENTADO** | Diferencia de mediana entre correo inexistente y real < 35 % (antes 5 ms vs 133 ms) |
+| SEG-05 | PERSISTE | **SOLVENTADO (login y ids)** | Tipos validados en login y en los ids de rutas/cuerpos de vales y administración; la capa de validación completa queda para la Fase 2 (2.6) |
+| SEG-06 | PERSISTE | **SOLVENTADO** | 17 variantes (`%76ales`, `./`, `//`, mayúsculas, `vales.`, `\`, `..`) ninguna devuelve 200 sin permiso; rutas legítimas siguen en 200 |
+| SEG-07 | PERSISTE | **SOLVENTADO** | Cambiar contraseña o desactivar elimina la sesión: el refresh token anterior da 401 de inmediato |
+| SEG-16 | PARCIAL | **SOLVENTADO** | `TRUST_PROXY` obligatoria; 0 ignora `X-Forwarded-For`, 1 lo respeta (verificado) |
+| SEG-18 | PERSISTE | **SOLVENTADO** | Los logs ya no contienen SQL con valores ni hashes; el correo se sanea (`paraLog`) |
+| SEG-24 | PERSISTE | **SOLVENTADO** | `/api/vales/abc`, `1e999`, `1.5`, `%20`… → 400 "Identificador inválido" |
+| SEG-27 | NUEVO (MEDIO) | **SOLVENTADO** | PNG 50 000 × 50 000 en 225 bytes y 8001 × 5000 → 400 por dimensiones; fotos reales de hasta 40 MP siguen pasando |
+| SEG-28 | NUEVO (BAJO) | **PARCIAL** | El correo del login ya no puede forjar líneas de log; el log de salas rechazadas del socket (una línea por sala) queda para 2.10 |
+
+Siguen pendientes de las fases 2 y 3: SEG-08, 09, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 25, 26, 29, 30, 31 (y la parte de 28 indicada).
+
 ---
 
 ## 3. Detalle de los hallazgos ALTOS

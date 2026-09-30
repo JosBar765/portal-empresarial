@@ -16,6 +16,36 @@ Reglas del plan (de la solicitud original):
 
 ---
 
+## Estado de ejecución
+
+| Fase | Rama | Estado |
+|---|---|---|
+| **Fase 1** | `security/fase-1` | **EJECUTADA y verificada** (ver "Resultado de la Fase 1" abajo) |
+| Fase 2 | `security/fase-2` | Pendiente |
+| Fase 3 | `security/fase-3` | Pendiente |
+
+### Resultado de la Fase 1
+
+Ítems 1.1 a 1.8 implementados. Desviaciones respecto a lo planeado, por decisión técnica:
+- **1.2 (errores):** en vez de reescribir cada `throw new Error(...)` de los servicios como `ErrorDeNegocio`, el manejador central **clasifica por origen**: es error interno todo lo que trae código/estado de MySQL (`ER_*`, `sqlState`, `ECONN*`…), los `TypeError/RangeError/…` (bugs) y las excepciones de archivos (`StorageUploadError`, `DatabaseInsertError`, `StorageRollbackError`); todo lo demás es error de negocio y conserva su mensaje. Así los textos que ya ve el usuario no cambian y no hay un refactor masivo. `ErrorDeNegocio` existe para errores nuevos con estado HTTP propio (p. ej. 400 "Identificador inválido").
+- **1.3 (login):** el límite por IP cuenta solo intentos fallidos (`skipSuccessfulRequests`) y se fijó en 100/15 min (en vez de 50) porque varias personas de una oficina comparten IP; el límite por correo también cuenta solo fallos. El bloqueo de cuenta (5 fallos → 15 min) responde el mismo mensaje genérico para no revelar que la cuenta está bloqueada.
+- **1.6 (`trust proxy`):** se implementó como variable de entorno **obligatoria** `TRUST_PROXY` (0 = sin proxy) para seguir la regla de "sin valores por defecto" de #29; en Hostinger hay que confirmar el valor (normalmente 1).
+
+Pruebas de la fase (scripts en `scripts/security/`, contra una base MySQL desechable creada desde `schema.sql` + `seed.sql` + `users.sql`):
+
+| Script | Cubre | Resultado |
+|---|---|---|
+| `pruebas-fase1.js` | T-01, T-04 (17 variantes de ruta), T-05, T-06/T-07, T-08, T-09, T-10, T-11, T-21 y el bloqueo de cuenta | **74 OK, 0 fallas** |
+| `pruebas-sesion.js` | Regresión de autenticación (refresh token, rotación, reuso, socket, logout, desactivación, permisos frescos) | **43 OK, 0 fallas** |
+| `prueba-e2e-vale.js` (con `stub-storage.js`) | Login → crear vale con imagen y PDF → PDF generado y descargado → IDOR entre asesores → limpieza | **12 OK, 0 fallas** |
+| Validación de `.env` (incluye `TRUST_PROXY`) | Cada variable ausente/vacía/inválida, valores válidos, producción | **54 OK, 0 fallas** |
+| Comprobaciones extra | Logs sin hashes/SQL/líneas forjadas; salas de WebSocket (de 10 pedidas solo entran las propias); `TRUST_PROXY` 0 vs 1 | **OK** (la única "falla" era una expectativa mal escrita de la prueba: el correo se guarda en minúsculas en el log) |
+| Lector de dimensiones de imagen | PNG/JPEG (progresivo, con EXIF)/WEBP lossy y lossless reales + 5 casos malos | **11 OK, 0 fallas** |
+
+**No se pudo verificar la subida a Supabase real:** el host de `SUPABASE_URL` del `.env` no resuelve en DNS público (ENOTFOUND con 8.8.8.8 y 1.1.1.1 mientras `supabase.co` sí resuelve), así que el flujo de subida se verificó con el sustituto local `stub-storage.js` (mismo código de la app: multer → validación → optimizador → registro en BD → generación del PDF con `fetch` de los adjuntos). El mapeo de errores de Storage se verificó de verdad: con Supabase inalcanzable el cliente recibió "No se pudo guardar el archivo adjunto…" sin nombre de bucket y el detalle quedó en el log.
+
+---
+
 ## Fase 1 — Críticas y altas + brechas de los cambios nuevos (rama `security/fase-1`)
 
 | Orden | ID | Qué se hace | Archivos | Riesgo de romper algo |

@@ -55,3 +55,17 @@ Rama: `feature/env-obligatorias`.
 - `SOCKET_CORS_ORIGIN` ahora es obligatoria y se usa desde `config` (`socketManager` ya no lee `process.env` ni cae a `http://localhost:3000`).
 - Pruebas (47 comprobaciones OK): cada variable ausente, vacía o con formato inválido, valores válidos arbitrarios, producción con secreto de ejemplo / origen `http` / contraseña vacía, varios errores a la vez, y arranque real con el `.env` actual (CORS responde solo al origen permitido).
 - Al actualizar: el `.env` local debe reemplazar `JWT_EXPIRES_IN` por `ACCESS_TOKEN_EXPIRES_IN` y `REFRESH_TOKEN_EXPIRES_IN` y definir `SOCKET_CORS_ORIGIN` (el `.env` de esta máquina ya quedó actualizado; los de otros entornos hay que ajustarlos).
+
+## Seguridad — Fase 1 del plan de remediación
+
+Rama: `security/fase-1` (detalle y resultados en `plan_remediacion_30.md`, sección "Resultado de la Fase 1").
+
+- **Usuarios sin secretos:** el repositorio de usuarios lista columnas explícitas; `password_hash`, `intentos_fallidos` y `bloqueado_hasta` ya no viajan al navegador.
+- **Errores:** `core/utils/erroresHttp.js` (`responderError`, `ErrorDeNegocio`) separa errores de negocio (se muestra el mensaje) de internos (MySQL, Storage, bugs: mensaje genérico y detalle al log). Los ids de rutas/cuerpos se validan con `core/utils/validar.js` (`idObligatorio`, `idOpcional`).
+- **Login:** tipos y largos validados, correo normalizado, bloqueo de cuenta (5 fallos → 15 min), segundo límite por IP (solo fallos), tiempo de respuesta igualado con un hash ficticio.
+- **Gate de módulos:** decodifica y normaliza la ruta (`%76ales`, `./`, `//`, mayúsculas, puntos finales).
+- **Sesiones:** cambiar contraseña o desactivar a un usuario elimina su sesión al instante.
+- **Logs:** sin SQL con valores ni hashes; el correo del login se sanea (`core/utils/logs.js`).
+- **Imágenes:** se rechazan por dimensiones declaradas (> 40 MP) leyendo solo la cabecera (`core/files/imagenDimensiones.js`).
+- **`TRUST_PROXY`:** nueva variable obligatoria del `.env` (0 = sin proxy; Hostinger normalmente 1).
+- **Pruebas reutilizables:** `scripts/security/` (`pruebas-fase1.js`, `pruebas-sesion.js`, `prueba-e2e-vale.js`, `stub-storage.js`) — requieren una base desechable, nunca la de desarrollo con datos reales.

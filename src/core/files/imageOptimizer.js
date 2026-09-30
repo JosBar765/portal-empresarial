@@ -28,7 +28,9 @@ try {
 // pequeño, "decompression bomb") podría consumir CPU/memoria del proceso
 // al decodificarla. 40 megapíxeles es muy por encima de cualquier foto de
 // trofeo real (una foto de 8000x5000 ya son 40MP).
-const LIMITE_PIXELES = 40_000_000;
+// El rechazo real ocurre ANTES, en valeController.validarArchivos (vía
+// imagenDimensiones.js): aquí el tope solo evita decodificar de más al optimizar.
+const { MAX_PIXELES: LIMITE_PIXELES } = require('./imagenDimensiones');
 
 async function optimizar(buffer, mimetype) {
   if (!sharp) return buffer;

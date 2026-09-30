@@ -1,7 +1,9 @@
 // src/modules/vales/controllers/valeController.js
 const valeService = require('../services/valeService');
 const { tipoRealCoincide } = require('../../../core/files/fileSignature');
-const { responderErrorInterno } = require('../../../core/utils/erroresHttp');
+const { excedeElLimiteDePixeles } = require('../../../core/files/imagenDimensiones');
+const { responderError, responderErrorInterno } = require('../../../core/utils/erroresHttp');
+const { idObligatorio, idOpcional } = require('../../../core/utils/validar');
 
 const IMAGEN_MAX_BYTES = 2 * 1024 * 1024;
 const DOCUMENTO_MAX_BYTES = 3 * 1024 * 1024;
@@ -20,6 +22,12 @@ function validarArchivos(files) {
     }
     if (img.size > IMAGEN_MAX_BYTES) {
       throw new Error(`La imagen ${img.originalname} supera los 2MB permitidos.`);
+    }
+    // Un archivo pequeño puede declarar miles de megapíxeles ("bomba de
+    // descompresión") y agotar la memoria al decodificarlo para el PDF: se
+    // rechaza leyendo solo la cabecera, antes de guardar nada.
+    if (excedeElLimiteDePixeles(img.buffer, img.mimetype)) {
+      throw new Error(`La imagen ${img.originalname} tiene dimensiones demasiado grandes o no se puede leer (máximo 40 megapíxeles).`);
     }
   }
   for (const doc of documentos) {
@@ -85,7 +93,7 @@ class ValeController {
       const vale = await valeService.crearVale(req.user, req.body, archivos);
       return res.status(201).json(vale);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
@@ -139,16 +147,16 @@ class ValeController {
       const data = await valeService.buscarValePorCorrelativo(req.query.correlativo);
       return res.json(data);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async detalle(req, res) {
     try {
-      const data = await valeService.obtenerDetalle(req.user, Number(req.params.id));
+      const data = await valeService.obtenerDetalle(req.user, idObligatorio(req.params.id));
       return res.json(data);
     } catch (error) {
-      return res.status(404).json({ error: error.message });
+      return responderError(res, error, 404);
     }
   }
 
@@ -156,31 +164,31 @@ class ValeController {
     try {
       // Si el vale pedido ya fue modificado, sirve el PDF del vale MOD- vigente en
       // vez del original congelado.
-      const vale = await valeService.obtenerValeParaPdf(req.user, Number(req.params.id));
+      const vale = await valeService.obtenerValeParaPdf(req.user, idObligatorio(req.params.id));
       if (!vale.pdf_url) {
         return res.status(404).json({ error: 'El PDF de este vale aún no ha sido generado.' });
       }
       return res.redirect(vale.pdf_url);
     } catch (error) {
-      return res.status(404).json({ error: error.message });
+      return responderError(res, error, 404);
     }
   }
 
   async asignar(req, res) {
     try {
-      const vale = await valeService.asignar(req.user, Number(req.params.id), Number(req.body.tecnicoId), req.body.tallerId ? Number(req.body.tallerId) : null);
+      const vale = await valeService.asignar(req.user, idObligatorio(req.params.id), idObligatorio(req.body.tecnicoId, 'Técnico'), idOpcional(req.body.tallerId, 'Taller'));
       return res.json(vale);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async comenzar(req, res) {
     try {
-      const vale = await valeService.comenzar(req.user, Number(req.params.id));
+      const vale = await valeService.comenzar(req.user, idObligatorio(req.params.id));
       return res.json(vale);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
@@ -190,51 +198,51 @@ class ValeController {
       if (propuesta && (propuesta.mimetype !== 'application/pdf' || !tipoRealCoincide(propuesta.buffer, propuesta.mimetype))) {
         throw new Error('La propuesta debe adjuntarse en formato PDF.');
       }
-      const vale = await valeService.entregar(req.user, Number(req.params.id), propuesta, req.body.idempotencyKey);
+      const vale = await valeService.entregar(req.user, idObligatorio(req.params.id), propuesta, req.body.idempotencyKey);
       return res.json(vale);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async cancelarProceso(req, res) {
     try {
-      const vale = await valeService.cancelarProcesoTecnico(req.user, Number(req.params.id));
+      const vale = await valeService.cancelarProcesoTecnico(req.user, idObligatorio(req.params.id));
       return res.json(vale);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async pausar(req, res) {
     try {
-      const vale = await valeService.pausarProceso(req.user, Number(req.params.id));
+      const vale = await valeService.pausarProceso(req.user, idObligatorio(req.params.id));
       return res.json(vale);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async reanudar(req, res) {
     try {
-      const vale = await valeService.reanudarProceso(req.user, Number(req.params.id));
+      const vale = await valeService.reanudarProceso(req.user, idObligatorio(req.params.id));
       return res.json(vale);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async revisar(req, res) {
     try {
       const { aprobar, tecnicoReasignadoId, tallerId } = req.body;
-      const vale = await valeService.revisarPropuesta(req.user, Number(req.params.id), {
+      const vale = await valeService.revisarPropuesta(req.user, idObligatorio(req.params.id), {
         aprobar: aprobar === true || aprobar === 'true',
-        tecnicoReasignadoId: tecnicoReasignadoId ? Number(tecnicoReasignadoId) : null,
-        tallerId: tallerId ? Number(tallerId) : null
+        tecnicoReasignadoId: idOpcional(tecnicoReasignadoId, 'Técnico'),
+        tallerId: idOpcional(tallerId, 'Taller')
       });
       return res.json(vale);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
@@ -244,64 +252,64 @@ class ValeController {
       if (archivo && (archivo.mimetype !== 'application/pdf' || !tipoRealCoincide(archivo.buffer, archivo.mimetype))) {
         throw new Error('El documento de fusión debe adjuntarse en formato PDF.');
       }
-      const vale = await valeService.aprobarGeneral(req.user, Number(req.params.id), archivo, req.body.idempotencyKey);
+      const vale = await valeService.aprobarGeneral(req.user, idObligatorio(req.params.id), archivo, req.body.idempotencyKey);
       return res.json(vale);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async confirmar(req, res) {
     try {
-      const vale = await valeService.confirmarRecibido(req.user, Number(req.params.id));
+      const vale = await valeService.confirmarRecibido(req.user, idObligatorio(req.params.id));
       return res.json(vale);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async solicitarModificacion(req, res) {
     try {
-      const vale = await valeService.solicitarModificacion(req.user, Number(req.params.id), req.body);
+      const vale = await valeService.solicitarModificacion(req.user, idObligatorio(req.params.id), req.body);
       return res.json(vale);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async aprobarModificacion(req, res) {
     try {
-      const vale = await valeService.aprobarModificacion(req.user, Number(req.params.id));
+      const vale = await valeService.aprobarModificacion(req.user, idObligatorio(req.params.id));
       return res.json(vale);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async rechazarModificacion(req, res) {
     try {
-      const vale = await valeService.rechazarModificacion(req.user, Number(req.params.id));
+      const vale = await valeService.rechazarModificacion(req.user, idObligatorio(req.params.id));
       return res.json(vale);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async autorizarCreacion(req, res) {
     try {
-      const vale = await valeService.autorizarCreacion(req.user, Number(req.params.id));
+      const vale = await valeService.autorizarCreacion(req.user, idObligatorio(req.params.id));
       return res.json(vale);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
   async rechazarCreacion(req, res) {
     try {
-      const resultado = await valeService.rechazarCreacion(req.user, Number(req.params.id));
+      const resultado = await valeService.rechazarCreacion(req.user, idObligatorio(req.params.id));
       return res.json(resultado);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
@@ -316,10 +324,10 @@ class ValeController {
 
   async cargaTrabajoTecnico(req, res) {
     try {
-      const data = await valeService.obtenerAsignacionesDeTecnico(req.user, Number(req.params.tecnicoId));
+      const data = await valeService.obtenerAsignacionesDeTecnico(req.user, idObligatorio(req.params.tecnicoId, 'Técnico'));
       return res.json(data);
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      return responderError(res, error);
     }
   }
 
