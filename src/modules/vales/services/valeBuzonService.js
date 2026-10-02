@@ -18,6 +18,28 @@ const {
   ROLES_TALLER_Y_TECNICO
 } = require('./valeHelpers');
 
+// El correlativo es {TIENDA}-{INICIALES}-{número} (el de una modificación lleva
+// delante MOD-): se ordena por ese número final, no alfabéticamente. Un vale
+// MOD- comparte número con su original, así que a igual número va primero el
+// original; después, el texto completo para que el orden sea estable.
+function numeroDeCorrelativo(correlativo) {
+  const m = /-(\d+)$/.exec(String(correlativo || ''));
+  return m ? Number(m[1]) : null;
+}
+
+function compararCorrelativos(a, b) {
+  const ca = String(a.correlativo || ''), cb = String(b.correlativo || '');
+  const na = numeroDeCorrelativo(ca), nb = numeroDeCorrelativo(cb);
+  if (na !== nb) {
+    if (na === null) return 1;
+    if (nb === null) return -1;
+    return na - nb;
+  }
+  const ma = ca.startsWith('MOD-'), mb = cb.startsWith('MOD-');
+  if (ma !== mb) return ma ? 1 : -1;
+  return ca < cb ? -1 : (ca > cb ? 1 : 0);
+}
+
 class ValeBuzonService {
   _resolverVentana(filtros = {}) {
     if (filtros.ventana === 'rango') {
@@ -149,20 +171,20 @@ class ValeBuzonService {
     const sortDir = filtros.sortDir === 'desc' ? -1 : 1;
     const valorOrden = (v) => {
       switch (sortKey) {
-        case 'correlativo': return v.correlativo || '';
         case 'fecha_ingreso': return v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`;
         case 'fecha_entrega': return v.fecha_entrega || '';
         case 'fecha_evento': return v.fecha_evento || '';
         default: return '';
       }
     };
-    const valesOrdenados = sortKey
-      ? [...valesBuscados].sort((a, b) => {
+    const comparador = sortKey === 'correlativo'
+      ? compararCorrelativos
+      : (a, b) => {
           const va = valorOrden(a), vb = valorOrden(b);
-          if (va < vb) return -1 * sortDir;
-          if (va > vb) return 1 * sortDir;
-          return 0;
-        })
+          return va < vb ? -1 : (va > vb ? 1 : 0);
+        };
+    const valesOrdenados = sortKey
+      ? [...valesBuscados].sort((a, b) => comparador(a, b) * sortDir)
       : valesBuscados;
 
     // Paginación por cursor: en vez de un `offset` numérico contra un
