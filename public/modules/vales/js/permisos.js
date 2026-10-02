@@ -2,6 +2,10 @@ import { state } from './state.js';
 import { ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO } from './config/roles.js';
 import { ESTADOS_LABEL, ESTADOS_VISIBLES_LABEL } from './config/estados.js';
 
+export function tienePermiso(codigo) {
+  return (state.user.permissions || []).includes(codigo);
+}
+
 export function puede(accion) {
   const r = state.user.rolId;
   const admin = r === ROL.ADMINISTRADOR;
@@ -16,9 +20,8 @@ export function puede(accion) {
     case 'solicitarModificacion': return admin || r === ROL.ASESOR;
     case 'aprobarModificacion': return admin || r === ROL.SUPERVISOR;
     case 'autorizarCreacion': return admin || r === ROL.SUPERVISOR;
-    // La fusión es del Encargado de Diseño y su clon operativo, el Asistente
-    // de Diseño.
-    case 'aprobarGeneral': return admin || r === ROL.ENCARGADO_DISENO || r === ROL.ASISTENTE_DISENO;
+    // La fusión depende del permiso, no del rol.
+    case 'aprobarGeneral': return admin || tienePermiso('vales.aprobar_general');
     default: return false;
   }
 }

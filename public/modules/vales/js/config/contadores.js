@@ -1,5 +1,7 @@
 import { ROL } from './roles.js';
 
+const PERMISO_FUSION = 'vales.aprobar_general';
+
 // "Atrasados" para asesor, supervisor y encargados es un contador COMBINABLE
 // (`atrasadosGlobal: true`) — renderContadores() lo trata como un interruptor
 // aparte (state.soloAtrasados) que puede activarse junto con cualquier otro
@@ -37,42 +39,26 @@ export const CONTADORES_CONFIG = {
       { key: 'totalConfirmados', label: 'Total confirmados', filtro: 'totalConfirmados' }
     ]
   },
-  [ROL.ENCARGADO_DISENO]: { // Encargado de un taller, con sidebar
-    // "Aprobados hoy" no está: un vale aprobado sale del buzón y pasa a
-    // Trabajo Realizado. Este rol también fusiona (vales.aprobar_general), así
-    // que su buzón/trabajo mezclan la cola de fusión (pendientesFusion/
-    // fusionadosHoy/totalFusionados).
+  // Encargado de un taller (cualquiera de los roles de encargado). Las
+  // tarjetas con `permiso` solo se muestran a quien lo tiene: la cola de
+  // fusión (pendientesFusion/fusionadosHoy/totalFusionados) la ve quien tenga
+  // vales.aprobar_general, sea cual sea su rol. "Aprobados hoy" no está en el
+  // buzón: un vale aprobado sale de ahí y pasa a Trabajo Realizado.
+  [ROL.ENCARGADO_DISENO]: {
     buzon: [
       { key: 'pendientesAsignacion', label: 'Pend. asignación', filtro: 'pendientesAsignacion' },
       { key: 'asignados', label: 'Asignados', filtro: 'asignados' },
       { key: 'enProceso', label: 'En proceso', filtro: 'enProceso' },
       { key: 'enPausa', label: 'En pausa', filtro: 'enPausa' },
       { key: 'enRevision', label: 'En revisión', filtro: 'enRevision' },
-      { key: 'pendientesFusion', label: 'Vales por fusionar', filtro: 'pendientesFusion' },
+      { key: 'pendientesFusion', label: 'Vales por fusionar', filtro: 'pendientesFusion', permiso: PERMISO_FUSION },
       { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
     ],
     trabajo: [
       { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' },
       { key: 'totalAprobados', label: 'Total aprobados', filtro: 'totalAprobados' },
-      { key: 'fusionadosHoy', label: 'Fusionados hoy', filtro: 'fusionadosHoy' },
-      { key: 'totalFusionados', label: 'Total fusionados', filtro: 'totalFusionados' }
-    ]
-  },
-  // Encargado de un taller SIN fusión (Diseño UV/3D, Protextil, Diseño
-  // Local): misma forma que el Encargado de Diseño pero sin las tarjetas de
-  // fusión (el backend nunca les manda esas claves).
-  [ROL.ENCARGADO_UV3D]: {
-    buzon: [
-      { key: 'pendientesAsignacion', label: 'Pend. asignación', filtro: 'pendientesAsignacion' },
-      { key: 'asignados', label: 'Asignados', filtro: 'asignados' },
-      { key: 'enProceso', label: 'En proceso', filtro: 'enProceso' },
-      { key: 'enPausa', label: 'En pausa', filtro: 'enPausa' },
-      { key: 'enRevision', label: 'En revisión', filtro: 'enRevision' },
-      { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
-    ],
-    trabajo: [
-      { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' },
-      { key: 'totalAprobados', label: 'Total aprobados', filtro: 'totalAprobados' }
+      { key: 'fusionadosHoy', label: 'Fusionados hoy', filtro: 'fusionadosHoy', permiso: PERMISO_FUSION },
+      { key: 'totalFusionados', label: 'Total fusionados', filtro: 'totalFusionados', permiso: PERMISO_FUSION }
     ]
   },
   [ROL.TECNICO]: {
@@ -87,12 +73,10 @@ export const CONTADORES_CONFIG = {
     ]
   }
 };
-// Asistente de Diseño: clon operativo COMPLETO del Encargado de Diseño —
-// mismas tarjetas, incluida la fusión.
+CONTADORES_CONFIG[ROL.ENCARGADO_UV3D] = CONTADORES_CONFIG[ROL.ENCARGADO_DISENO];
 CONTADORES_CONFIG[ROL.ASISTENTE_DISENO] = CONTADORES_CONFIG[ROL.ENCARGADO_DISENO];
-// Encargado de taller de Protextil / Diseño Local: misma forma que Diseño UV/3D — sin fusión.
-CONTADORES_CONFIG[ROL.ENCARGADO_PROTEXTIL] = CONTADORES_CONFIG[ROL.ENCARGADO_UV3D];
-CONTADORES_CONFIG[ROL.ENCARGADO_DISENO_LOCAL] = CONTADORES_CONFIG[ROL.ENCARGADO_UV3D];
+CONTADORES_CONFIG[ROL.ENCARGADO_PROTEXTIL] = CONTADORES_CONFIG[ROL.ENCARGADO_DISENO];
+CONTADORES_CONFIG[ROL.ENCARGADO_DISENO_LOCAL] = CONTADORES_CONFIG[ROL.ENCARGADO_DISENO];
 CONTADORES_CONFIG[ROL.ADMINISTRADOR] = [ // vista de control general
   { key: 'total', label: 'Total vales' },
   { key: 'pendientesConfirmacion', label: 'Pend. confirmación', filtro: 'pendientesConfirmacion' },

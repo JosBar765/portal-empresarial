@@ -3,7 +3,7 @@ import { $, $$ } from '../utils/dom.js';
 import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO } from '../config/roles.js';
 import { ESTADOS_LABEL, ESTADOS_VISIBLES_LABEL, CLAVES_ESTADOS_TALLER, CLAVES_ESTADOS_GENERAL, CLAVES_ESTADOS_TECNICO_BUZON, CLAVES_ESTADOS_TECNICO_TRABAJO } from '../config/estados.js';
 import { CONTADORES_CONFIG } from '../config/contadores.js';
-import { puede, usaEstadosVisibles, esAccionDeTrabajoVisible, claseEstado, etiquetaEstado } from '../permisos.js';
+import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible, claseEstado, etiquetaEstado } from '../permisos.js';
 import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro } from '../utils/formato.js';
 import { obtenerBuzon, obtenerMasVales, obtenerLimiteColectivo } from '../api/valesApi.js';
 import { cargarRendimientoGerencia } from './rendimientoGerencia.js';
@@ -127,6 +127,7 @@ export function wireScrollInfinito() {
 export function renderContadores() {
   let config = CONTADORES_CONFIG[state.user.rolId] || [];
   if (!Array.isArray(config)) config = config[state.vista] || [];
+  config = config.filter(c => !c.permiso || tienePermiso(c.permiso));
   const grid = $('#contadores-grid');
   grid.innerHTML = config.map(c => {
     const valor = state.contadores[c.key];

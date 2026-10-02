@@ -237,7 +237,8 @@ La acción de fusionar **no está amarrada a un rol**, sino al permiso
 ese permiso. Hoy lo tienen los roles 4 y 7. Ojo: la **cola** de
 `APROBADO_DEPARTAMENTO` se arma en el buzón de los roles de encargado de taller
 (4, 5, 7, 9, 10), así que quien tenga el permiso y esté en uno de esos roles la
-verá mezclada en su buzón de taller (no es un buzón aparte). No existe un rol
+verá mezclada en su buzón de taller (no es un buzón aparte). Un rol de otro tipo
+(asesor, supervisor, técnico, gerente) con el permiso no vería la cola. No existe un rol
 "Encargado General".
 
 Detalles de esa cola:
@@ -249,9 +250,8 @@ Detalles de esa cola:
 - El aviso en tiempo real de "listo para fusión" va a la sala `vales:fusion`, a la
   que se une cualquiera con el permiso `vales.aprobar_general` (el servidor lo
   valida contra el JWT), sin importar su rol o taller.
-- Limitación conocida: en el frontend, el botón de fusionar (`puede('aprobarGeneral')`)
-  sigue limitado por rol (4 y 7), así que un rol distinto con el permiso recibiría
-  el aviso pero no vería el botón.
+- El botón "Aprobar y fusionar" y las tarjetas de fusión del buzón y de "Trabajo
+  realizado" también dependen del permiso, no del rol.
 
 ## 4. Buzón y "Trabajo realizado" por rol
 

@@ -1,4 +1,4 @@
-# Correcciones #31 — Aviso en vivo de fusión por permiso, no por taller
+# Correcciones #31 — Fusión de vales multi-taller por permiso: aviso en vivo, cola, tarjetas y botón
 
 Rama: `fix/sala-fusion-por-permiso`.
 
@@ -23,10 +23,23 @@ Nueva sala `vales:fusion`, a la que se une cualquier usuario cuyo JWT incluya `v
 - Quien ya fusionaba (Encargado de Diseño y Asistente) no nota diferencia: sigue recibiendo el aviso, ahora por la sala de fusión y no por la de su taller.
 - Seguridad: la sala sigue validándose en el servidor contra el usuario autenticado del handshake; el cliente no puede unirse a `vales:fusion` sin el permiso.
 
-## Fuera de alcance (pendiente)
+## Cola, tarjetas y botón por permiso (frontend)
 
-- `puede('aprobarGeneral')` en `public/modules/vales/js/permisos.js` sigue limitado por rol (Encargado de Diseño y Asistente), así que un tercer rol con el permiso recibiría el aviso pero no vería el botón de fusionar. Y la cola `APROBADO_DEPARTAMENTO` solo se arma en el buzón de los roles de encargado de taller (`valeBuzonService.obtenerBuzon`).
+Quedaban tres puntos del frontend atados al rol en vez del permiso:
+
+- `permisos.js`: `puede('aprobarGeneral')` ya no compara contra los roles 4 y 7, sino contra `vales.aprobar_general` (nuevo helper `tienePermiso`); el Administrador conserva su excepción previa. De esto dependen el botón "Aprobar y fusionar", el "Ver propuesta" de la fusión y la opción "Aprobado por Talleres" del filtro de estado.
+- `config/contadores.js`: los cinco roles de encargado de taller comparten una sola configuración de tarjetas. Las de fusión (`pendientesFusion`, `fusionadosHoy`, `totalFusionados`) llevan `permiso: 'vales.aprobar_general'`.
+- `views/buzon.js` (`renderContadores`): filtra las tarjetas que exigen un permiso que el usuario no tiene.
+
+El backend ya calculaba la cola y las filas de "Trabajo realizado" por permiso (`valeBuzonService`: `puedeFusionar`), así que no cambió.
+
+Alcance: aplica a los roles de encargado de taller (4, 5, 7, 9 y 10), cuyo buzón es el que mezcla la cola de fusión. Un rol de otro tipo (asesor, supervisor, técnico, gerente) con el permiso no vería la cola, porque su buzón tiene otra estructura.
 
 ## Verificación
 
-Revisión de sintaxis de todos los archivos tocados (`node --check`) y de que no queden referencias a `salaFusion`. No se probó de extremo a extremo con sockets reales.
+Revisión de sintaxis y de que no queden referencias a `salaFusion`, más pruebas en navegador con el permiso concedido al Encargado de Protextil (que no participaba en los vales):
+
+- Recibe en vivo el aviso de "listo para fusión"; un Gerente sin el permiso que pide unirse a `vales:fusion` y `vales:admin` no recibe nada.
+- Su buzón muestra la tarjeta "Vales por fusionar" y el botón "Aprobar y fusionar" en cada vale `APROBADO_DEPARTAMENTO`; en "Trabajo realizado", las tarjetas de fusionados.
+- La fusión por API la acepta el backend (el vale pasa a `PENDIENTE_CONFIRMACION`).
+- El Encargado de UV/3D, sin el permiso, no ve tarjetas ni botones de fusión.
