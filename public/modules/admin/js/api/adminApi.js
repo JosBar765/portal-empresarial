@@ -13,14 +13,14 @@
 async function enviarConBody(url, method, payload) {
   const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error);
+  if (!res.ok) throw new Error(data.error || 'No se pudo completar la acción. Inténtalo de nuevo.');
   return data;
 }
 
 async function enviarSinBody(url, method) {
   const res = await fetch(url, { method });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error);
+  if (!res.ok) throw new Error(data.error || 'No se pudo completar la acción. Inténtalo de nuevo.');
   return data;
 }
 
@@ -139,7 +139,7 @@ export function actualizarLimiteDiarioTaller(tallerId, limiteDiario) {
 export async function obtenerMantenimiento() {
   const res = await fetch('/api/admin/mantenimiento');
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error);
+  if (!res.ok) throw new Error(data.error || 'No se pudo completar la acción. Inténtalo de nuevo.');
   return data;
 }
 

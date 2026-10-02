@@ -24,7 +24,7 @@ async function leerJSON(res) {
 async function enviarPost(url) {
   const res = await fetch(url, { method: 'POST' });
   const data = await leerJSON(res);
-  if (!res.ok) throw new Error(data.error);
+  if (!res.ok) throw new Error(data.error || 'No se pudo completar la acción. Inténtalo de nuevo.');
   return data;
 }
 
@@ -35,14 +35,14 @@ async function enviarJSON(url, payload) {
     body: JSON.stringify(payload)
   });
   const data = await leerJSON(res);
-  if (!res.ok) throw new Error(data.error);
+  if (!res.ok) throw new Error(data.error || 'No se pudo completar la acción. Inténtalo de nuevo.');
   return data;
 }
 
 async function enviarFormData(url, formData) {
   const res = await fetch(url, { method: 'POST', body: formData });
   const data = await leerJSON(res);
-  if (!res.ok) throw new Error(data.error);
+  if (!res.ok) throw new Error(data.error || 'No se pudo completar la acción. Inténtalo de nuevo.');
   return data;
 }
 

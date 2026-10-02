@@ -79,7 +79,7 @@ function requirePermission(permissionCode) {
     }
 
     return res.status(403).json({
-      error: `Acceso denegado. Se requiere el permiso: ${permissionCode}`
+      error: 'No tienes permiso para realizar esta acción.'
     });
   };
 }
@@ -102,7 +102,7 @@ function requireModule(moduleName) {
     }
 
     return res.status(403).json({
-      error: `Acceso denegado. No tienes acceso autorizado al módulo: ${moduleName}`
+      error: 'No tienes acceso a este módulo.'
     });
   };
 }
@@ -156,7 +156,7 @@ function requireModuleAccess(catalogo) {
       // ?vista=modulos evita que el Administrador rebote de vuelta a su panel.
       return res.redirect('/dashboard/?vista=modulos');
     }
-    return res.status(403).json({ error: `Acceso denegado. Se requiere el permiso: ${modulo.permission}` });
+    return res.status(403).json({ error: 'No tienes acceso a este módulo.' });
   };
 }
 

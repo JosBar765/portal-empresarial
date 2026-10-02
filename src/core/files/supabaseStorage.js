@@ -4,6 +4,7 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const config = require('../../config/env');
 const { extensionParaTipo } = require('./fileSignature');
+const { StorageUploadError } = require('./errores');
 
 const bucket = config.supabase.bucket;
 
@@ -12,9 +13,9 @@ let client = null;
 function obtenerCliente() {
   if (client) return client;
   if (!config.supabase.url) {
-    throw new Error('Supabase Storage no está configurado (faltan SUPABASE_URL en .env).');
+    throw new StorageUploadError('Supabase Storage no está configurado (faltan SUPABASE_URL en .env).');
   } else if (!config.supabase.secretKey) {
-    throw new Error('Supabase Storage no está configurado (faltan SUPABASE_SERVICE_ROLE_KEY en .env).');
+    throw new StorageUploadError('Supabase Storage no está configurado (faltan SUPABASE_SERVICE_ROLE_KEY en .env).');
   }
   client = createClient(config.supabase.url, config.supabase.secretKey);
   return client;
@@ -55,7 +56,7 @@ class SupabaseStorage {
       upsert: false
     });
     if (error) {
-      throw new Error(detalleError(error, bucket));
+      throw new StorageUploadError(detalleError(error, bucket));
     }
     const { data } = obtenerCliente().storage.from(bucket).getPublicUrl(objectPath);
     return { path: objectPath, url: data.publicUrl, size: buffer.length };
@@ -72,7 +73,7 @@ class SupabaseStorage {
     const objectPath = url.startsWith(prefijo) ? url.slice(prefijo.length) : path.basename(url);
     const { error } = await obtenerCliente().storage.from(bucket).remove([objectPath]);
     if (error) {
-      throw new Error(`No se pudo eliminar "${objectPath}" de Supabase Storage: ${detalleError(error, bucket)}`);
+      throw new StorageUploadError(`No se pudo eliminar "${objectPath}" de Supabase Storage: ${detalleError(error, bucket)}`);
     }
     return true;
   }

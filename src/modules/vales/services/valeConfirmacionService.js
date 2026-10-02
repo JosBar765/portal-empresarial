@@ -24,7 +24,7 @@ class ValeConfirmacionService {
       const vale = await requerirVale(valeId);
       assertPropioDelAsesor(usuario, vale);
       if (vale.estado !== ESTADOS.PENDIENTE_CONFIRMACION) {
-        throw new Error('Solo se puede confirmar de recibido un vale PENDIENTE_CONFIRMACION.');
+        throw new Error('Solo se puede confirmar de recibido un vale que está pendiente de tu confirmación.');
       }
       await valeRepository.actualizarEstado(valeId, ESTADOS.RECIBIDO);
       const ahora = `${hoyISO()} ${horaActual()}`;
@@ -55,7 +55,7 @@ class ValeConfirmacionService {
       const vale = await requerirVale(valeId);
       assertPropioDelAsesor(usuario, vale);
       if (![ESTADOS.RECIBIDO, ESTADOS.PENDIENTE_CONFIRMACION].includes(vale.estado)) {
-        throw new Error('Solo se puede solicitar modificación sobre un vale RECIBIDO o PENDIENTE_CONFIRMACION.');
+        throw new Error('Solo se puede solicitar una modificación de un vale que ya fue entregado o recibido.');
       }
       // Un vale ya no puede modificarse si YA utilizó su única modificación
       // (`vale.modificado`, el original que ya generó su reemplazo) NI si él
@@ -63,10 +63,10 @@ class ValeConfirmacionService {
       // es decir su correlativo ya lleva el prefijo MOD-) — chequear solo uno
       // de los dos dejaba un lado sin cubrir (analisis_correcciones_29.md #3).
       if (esValeDeModificacion(vale) || vale.modificado) {
-        throw new Error('Este vale de arte ya utilizó su única modificación permitida.');
+        throw new Error('Este vale ya usó su única modificación permitida.');
       }
       if (!payload.justificacion) {
-        throw new Error('Debe justificar la modificación solicitada.');
+        throw new Error('Escribe la justificación de la modificación.');
       }
       if (String(payload.justificacion).length > 2000) {
         throw new Error('La justificación supera el largo máximo permitido (2000 caracteres).');
@@ -93,10 +93,10 @@ class ValeConfirmacionService {
         }
         elegidos = [...new Set((elegidos || []).map(Number).filter(Number.isFinite))];
         if (elegidos.length === 0) {
-          throw new Error('Debe indicar a cuál(es) de los talleres originales enviar la modificación.');
+          throw new Error('Indica a cuál(es) de los talleres originales enviar la modificación.');
         }
         if (!elegidos.every(id => talleresOriginalIds.includes(id))) {
-          throw new Error('Solo puede elegir entre los talleres a los que se envió el vale original.');
+          throw new Error('Solo puedes elegir entre los talleres a los que se envió el vale original.');
         }
         talleresIdsModificacion = elegidos;
       }
@@ -142,14 +142,14 @@ class ValeConfirmacionService {
     return valeMutex.conLockDeVale(valeId, async () => {
       const original = await requerirVale(valeId);
       if (original.estado === ESTADOS.MODIFICADO) {
-        throw new Error('Este vale ya fue aprobado para su modificación.');
+        throw new Error('La modificación de este vale ya fue aprobada.');
       } else if (original.estado !== ESTADOS.SOLICITANDO_MODIFICACION)  {
-        throw new Error('Solo se pueden aprobar vales en estado SOLICITANDO_MODIFICACION.');
+        throw new Error('Este vale no tiene una modificación pendiente de decisión.');
       }
 
       const solicitud = await solicitudModificacionRepository.obtenerPendientePorValeOriginal(valeId);
       if (!solicitud) {
-        throw new Error('No se encontró una solicitud de modificación pendiente para este vale.');
+        throw new Error('Este vale no tiene una solicitud de modificación pendiente.');
       }
       const talleresIdsModificacion = (solicitud.talleres_ids || '').split(',').map(Number).filter(Number.isFinite);
       const correlativoNuevo = original.correlativo.startsWith('MOD-') ? original.correlativo : `MOD-${original.correlativo}`;
@@ -257,11 +257,11 @@ class ValeConfirmacionService {
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await requerirVale(valeId);
       if (vale.estado !== ESTADOS.SOLICITANDO_MODIFICACION) {
-        throw new Error('Solo se pueden rechazar vales en estado SOLICITANDO_MODIFICACION.');
+        throw new Error('Este vale no tiene una modificación pendiente de decisión.');
       }
       const solicitud = await solicitudModificacionRepository.obtenerPendientePorValeOriginal(valeId);
       if (!solicitud) {
-        throw new Error('No se encontró una solicitud de modificación pendiente para este vale.');
+        throw new Error('Este vale no tiene una solicitud de modificación pendiente.');
       }
       const historial = await historialRepository.listarPorVale(valeId);
       const entradaSolicitud = [...historial].reverse().find(h => h.estado_nuevo === ESTADOS.SOLICITANDO_MODIFICACION);

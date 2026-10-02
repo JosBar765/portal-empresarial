@@ -41,11 +41,11 @@ class ValeCreacionService {
 
     const solicitante = await usuarioValeRepository.obtenerPorId(usuario.id);
     if (!solicitante || !solicitante.tienda_id) {
-      throw new Error('El asesor no tiene una tienda asignada, no se puede generar el correlativo.');
+      throw new Error('Tu usuario no tiene una tienda asignada, así que no se puede crear el vale. Pide al administrador que te asigne una.');
     }
     const tienda = await catalogoRepository.obtenerTiendaPorId(solicitante.tienda_id);
     if (!tienda) {
-      throw new Error('Tienda del asesor no encontrada.');
+      throw new Error('No se encontró la tienda asignada a tu usuario. Avisa al administrador.');
     }
     // Los talleres elegibles/exclusividad dependen de la tienda del propio
     // asesor — se resuelve ANTES de validar.
@@ -70,7 +70,7 @@ class ValeCreacionService {
         const hoy = hoyISO();
         const fechaCreacionDate = new Date(`${hoy}T00:00:00`);
         if (!(datos.fechaEventoDate > datos.fechaEntregaDate && datos.fechaEntregaDate >= fechaCreacionDate)) {
-          throw new Error('Las fechas no son válidas: el evento debe ser posterior a la entrega, y la entrega igual o posterior a la creación.');
+          throw new Error('Revisa las fechas: el evento debe ser posterior a la entrega, y la entrega no puede ser anterior a hoy.');
         }
 
         // {TIENDA}-{INICIALES}-{ID}. El número es el id autoincremental de
@@ -145,9 +145,9 @@ class ValeCreacionService {
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await requerirVale(valeId);
       if (vale.estado === ESTADOS.CREADO) {
-        throw new Error('Este vale ya fue aprobado para su creación.');
+        throw new Error('Este vale ya fue autorizado.');
       } else if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
-        throw new Error('Solo se puede autorizar un vale en estado ESPERANDO_AUTORIZACION.');
+        throw new Error('Solo se puede autorizar un vale que está esperando autorización.');
       }
       // Un asesor puede tener más de un supervisor cubriéndolo a la vez
       // (supervisores rotativos) — se necesita la lista completa tanto para
@@ -157,7 +157,7 @@ class ValeCreacionService {
       const supervisoresDelAsesor = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       if (!esAdministrador(usuario)) {
         if (!supervisoresDelAsesor.some(s => s.id === usuario.id)) {
-          throw new Error('Este vale de arte no pertenece a un asesor bajo su mando.');
+          throw new Error('Este vale es de un asesor que no está a tu cargo.');
         }
         const { autorizados, limite } = await this.obtenerLimiteColectivoSupervisor(usuario.id);
         if (autorizados >= limite) {
@@ -166,7 +166,7 @@ class ValeCreacionService {
       }
       const talleresIds = (vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
       if (talleresIds.length === 0) {
-        throw new Error('Este vale de arte no tiene talleres solicitados registrados.');
+        throw new Error('Este vale no tiene talleres seleccionados, no se puede autorizar.');
       }
 
       await this.fanOutTalleres(valeId, talleresIds);
@@ -198,11 +198,11 @@ class ValeCreacionService {
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await requerirVale(valeId);
       if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
-        throw new Error('Solo se puede rechazar un vale en estado ESPERANDO_AUTORIZACION.');
+        throw new Error('Solo se puede rechazar un vale que está esperando autorización.');
       }
       const supervisoresDelAsesor = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       if (!esAdministrador(usuario) && !supervisoresDelAsesor.some(s => s.id === usuario.id)) {
-        throw new Error('Este vale de arte no pertenece a un asesor bajo su mando.');
+        throw new Error('Este vale es de un asesor que no está a tu cargo.');
       }
       await this.eliminarValeConArchivos(valeId);
       valeEvents.notificar({
@@ -253,9 +253,14 @@ class ValeCreacionService {
       clienteNombre: 150, clienteEmpresa: 150, clienteTelefono: 30, clienteCorreo: 150,
       producto: 150, material: 150, tecnica: 150, acabado: 150, descripcion: 600
     };
+    const etiquetasCampo = {
+      clienteNombre: 'El nombre del cliente', clienteEmpresa: 'La empresa', clienteTelefono: 'El teléfono',
+      clienteCorreo: 'El correo', producto: 'El producto', material: 'El material',
+      tecnica: 'La técnica', acabado: 'El acabado', descripcion: 'La descripción'
+    };
     for (const [campo, valor] of Object.entries({ clienteNombre, clienteEmpresa, clienteTelefono, clienteCorreo, producto, material, tecnica, acabado, descripcion })) {
       if (valor && String(valor).length > limitesLongitud[campo]) {
-        throw new Error(`El campo "${campo}" supera el largo máximo permitido (${limitesLongitud[campo]} caracteres).`);
+        throw new Error(`${etiquetasCampo[campo]} es demasiado largo (máximo ${limitesLongitud[campo]} caracteres).`);
       }
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clienteCorreo)) {
@@ -305,7 +310,7 @@ class ValeCreacionService {
     try {
       talleresIds = Array.isArray(talleresIdsRaw) ? talleresIdsRaw : JSON.parse(talleresIdsRaw || '[]');
     } catch {
-      throw new Error('Los talleres seleccionados no tienen un formato válido.');
+      throw new Error('No se pudieron leer los talleres seleccionados. Vuelve a elegirlos.');
     }
     talleresIds = [...new Set((talleresIds || []).map(Number).filter(Number.isFinite))];
     if (talleresIds.length === 0) {
@@ -314,7 +319,7 @@ class ValeCreacionService {
     const talleresActivos = await tallerRepository.listarActivos();
     const idsValidos = new Set(talleresActivos.map(t => t.id));
     if (!talleresIds.every(id => idsValidos.has(id))) {
-      throw new Error('Uno o más talleres seleccionados no son válidos.');
+      throw new Error('Alguno de los talleres elegidos ya no está disponible. Vuelve a elegirlos.');
     }
     if (tiendaIdAsesor !== null) {
       const seleccionados = talleresIds.map(id => talleresActivos.find(t => t.id === id));
