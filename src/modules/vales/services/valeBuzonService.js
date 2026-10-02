@@ -18,10 +18,7 @@ const {
   ROLES_TALLER_Y_TECNICO
 } = require('./valeHelpers');
 
-// El correlativo es {TIENDA}-{INICIALES}-{número} (el de una modificación lleva
-// delante MOD-): se ordena por ese número final, no alfabéticamente. Un vale
-// MOD- comparte número con su original, así que a igual número va primero el
-// original; después, el texto completo para que el orden sea estable.
+// Ordena por el número final del correlativo; a igual número, el original antes que su MOD-.
 function numeroDeCorrelativo(correlativo) {
   const m = /-(\d+)$/.exec(String(correlativo || ''));
   return m ? Number(m[1]) : null;
