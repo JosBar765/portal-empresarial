@@ -1,3 +1,9 @@
+> **DOCUMENTO HISTÓRICO.** Esta es la especificación original del módulo y ya
+> no describe el sistema real (por ejemplo `VENDIDO`/`CANCELADO`, el flujo de un
+> solo taller, o el buzón común de encargados). La fuente de verdad del flujo
+> actual es `flujo_vale_de_arte.md`; el porqué de cada cambio está en
+> `correcciones/` y `documentacion/`.
+
 # REGLAS PARA LA IA
 
 * Indicarle a Antigravity que debe usar la estructura propuesta en .agents/arquitectura\_reglas.md.
