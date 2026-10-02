@@ -13,6 +13,7 @@ const maintenanceGate = require('./core/permissions/maintenanceMiddleware');
 const valeRoutes = require('./modules/vales/routes');
 const atrasoWatcher = require('./modules/vales/atrasoWatcher');
 const adminRoutes = require('./modules/admin/routes');
+const { MENSAJE_INTERNO } = require('./core/utils/erroresHttp');
 
 const app = express();
 
@@ -159,7 +160,7 @@ app.use((err, req, res, next) => {
     return res.status(413).json({ error: 'La solicitud es demasiado grande.' });
   }
   const status = err.status || 500;
-  const mensaje = status < 500 ? 'Solicitud inválida.' : 'Ocurrió un error interno en el servidor.';
+  const mensaje = status < 500 ? 'No se pudo procesar la solicitud.' : MENSAJE_INTERNO;
   res.status(status).json({ error: mensaje });
 });
 

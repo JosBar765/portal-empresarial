@@ -242,7 +242,7 @@ async function requerirVale(valeId) {
 function assertPropioDelAsesor(usuario, vale) {
   if (esAdministrador(usuario)) return;
   if (vale.asesor_id !== usuario.id) {
-    throw new Error('Este vale de arte no pertenece a este asesor.');
+    throw new Error('Este vale fue creado por otro asesor.');
   }
 }
 

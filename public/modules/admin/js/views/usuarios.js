@@ -20,7 +20,7 @@ export async function asegurarCatalogosFiltro() {
 
 export async function cargarUsuarios() {
   const [{ res, data }] = await Promise.all([listarUsuariosRaw(), asegurarCatalogosFiltro()]);
-  if (!res.ok) throw new Error(data.error);
+  if (!res.ok) throw new Error(data.error || 'No se pudo completar la acción. Inténtalo de nuevo.');
   state.usuariosResumen = data.resumen;
   state.usuarios = data.usuarios;
   renderUsuarios();

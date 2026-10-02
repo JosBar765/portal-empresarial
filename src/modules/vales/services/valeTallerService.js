@@ -35,14 +35,14 @@ class ValeTallerService {
         return fila;
       }
       if (filas.length === 1) return filas[0];
-      throw new Error('Este vale tiene más de un taller — indique a cuál taller corresponde la acción.');
+      throw new Error('Este vale está en varios talleres: indica a cuál corresponde la acción.');
     }
     const talleres = await tallerRepository.listarActivos();
     const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
     const miTaller = talleres.find(t => t.encargado_id === idEfectivo);
-    if (!miTaller) throw new Error('Su usuario no tiene un taller asignado.');
+    if (!miTaller) throw new Error('Tu usuario no tiene un taller asignado. Pide al administrador que te asigne uno.');
     const fila = filas.find(f => f.taller_id === miTaller.id);
-    if (!fila) throw new Error('Este vale no fue enviado a su taller.');
+    if (!fila) throw new Error('Este vale no fue enviado a tu taller.');
     return fila;
   }
 
@@ -51,7 +51,7 @@ class ValeTallerService {
       await requerirVale(valeId);
       const fila = await this._resolverFilaTallerParaEncargado(usuario, valeId, tallerIdHint);
       if (fila.estado !== ESTADOS_TALLER.PENDIENTE_ASIGNACION) {
-        throw new Error('Este taller ya tiene un técnico asignado para este vale.');
+        throw new Error('Este vale ya tiene un técnico asignado en tu taller.');
       }
       // Un encargado puede asignarse el vale a SÍ MISMO — la fila ya está
       // acotada a su propio taller por _resolverFilaTallerParaEncargado, así
@@ -59,7 +59,7 @@ class ValeTallerService {
       const esAutoasignacion = !esAdministrador(usuario) && Number(tecnicoId) === Number(usuario.id);
       const tecnicos = await usuarioValeRepository.listarTecnicosPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
       if (!esAdministrador(usuario) && !esAutoasignacion && !tecnicos.some(t => t.id === Number(tecnicoId))) {
-        throw new Error('El técnico indicado no está bajo su mando.');
+        throw new Error('Ese técnico no está a tu cargo.');
       }
       await valeTallerRepository.asignar(fila.id, tecnicoId, `${hoyISO()} ${horaActual()}`);
       const tecnico = await usuarioValeRepository.obtenerPorId(tecnicoId);
@@ -80,7 +80,7 @@ class ValeTallerService {
       await requerirVale(valeId);
       const fila = await this._filaDelTecnico(usuario, valeId);
       if (fila.estado !== ESTADOS_TALLER.ASIGNADO) {
-        throw new Error('El vale debe estar ASIGNADO en su taller para poder comenzarlo.');
+        throw new Error('Para comenzar el vale, primero debe estar asignado a ti.');
       }
       const activasDelTecnico = await valeTallerRepository.listarActivasPorTecnico(usuario.id);
       for (const a of activasDelTecnico) {
@@ -103,12 +103,12 @@ class ValeTallerService {
     const activas = await valeTallerRepository.listarActivasPorTecnico(usuario.id);
     const fila = activas.find(a => a.vale_id === Number(valeId));
     if (!esAdministrador(usuario) && !fila) {
-      throw new Error('Este vale de arte no está asignado a este técnico.');
+      throw new Error('Este vale no está asignado a ti.');
     }
     if (fila) return fila;
     // Administrador sin fila propia: toma la única fila activa del vale.
     const filas = await valeTallerRepository.listarPorVale(valeId);
-    if (filas.length !== 1) throw new Error('Este vale tiene más de un taller — no se puede resolver automáticamente.');
+    if (filas.length !== 1) throw new Error('Este vale está en varios talleres y no se pudo saber cuál es el tuyo.');
     return filas[0];
   }
 
@@ -127,7 +127,7 @@ class ValeTallerService {
       await requerirVale(valeId);
       const fila = await this._filaDelTecnico(usuario, valeId);
       if (fila.estado !== ESTADOS_TALLER.EN_PROCESO) {
-        throw new Error('El vale debe estar EN_PROCESO en su taller para poder entregar la propuesta.');
+        throw new Error('Para entregar la propuesta, el vale debe estar en proceso.');
       }
       let url = null;
       if (archivoPropuesta) {
@@ -174,7 +174,7 @@ class ValeTallerService {
       await requerirVale(valeId);
       const fila = await this._filaDelTecnico(usuario, valeId);
       if (fila.estado !== ESTADOS_TALLER.EN_PROCESO) {
-        throw new Error('Solo se puede pausar un vale que esté EN_PROCESO en su taller.');
+        throw new Error('Solo se puede pausar un vale que esté en proceso.');
       }
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PAUSA);
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, `${etiquetaActorTaller(usuario)} pausó el proceso`);
@@ -192,7 +192,7 @@ class ValeTallerService {
       await requerirVale(valeId);
       const fila = await this._filaDelTecnico(usuario, valeId);
       if (fila.estado !== ESTADOS_TALLER.EN_PAUSA) {
-        throw new Error('Solo se puede reanudar un vale que esté EN_PAUSA en su taller.');
+        throw new Error('Solo se puede reanudar un vale que esté en pausa.');
       }
       // Misma regla que comenzar(): un técnico solo puede tener un vale EN_PROCESO a la vez.
       const activasDelTecnico = await valeTallerRepository.listarActivasPorTecnico(usuario.id);
@@ -218,7 +218,7 @@ class ValeTallerService {
       await requerirVale(valeId);
       const fila = await this._filaDelTecnico(usuario, valeId);
       if (fila.estado !== ESTADOS_TALLER.EN_PROCESO) {
-        throw new Error('Solo se puede cancelar un vale que esté EN_PROCESO en su taller.');
+        throw new Error('Solo se puede cancelar un vale que esté en proceso.');
       }
       // La cancelación no crea una fila "en blanco" en vale_propuestas — el
       // registro de auditoría de este evento vive únicamente en
@@ -247,12 +247,12 @@ class ValeTallerService {
   async _revisarPropuestaInterno(usuario, valeId, fila, { aprobar, tecnicoReasignadoId, esAutoaprobacion }) {
     const vale = await requerirVale(valeId);
     if (fila.estado !== ESTADOS_TALLER.EN_REVISION) {
-      throw new Error('Solo se pueden revisar talleres en estado EN_REVISION.');
+      throw new Error('Solo se puede revisar el trabajo de un taller que ya entregó su propuesta.');
     }
     if (aprobar) {
       const ultimaPropuesta = await propuestaRepository.obtenerUltimaPorValeYTecnico(valeId, fila.tecnico_id);
       if (!ultimaPropuesta || !ultimaPropuesta.url) {
-        throw new Error('No se puede aprobar una propuesta en blanco: el técnico debe adjuntar el documento de propuesta.');
+        throw new Error('No se puede aprobar una propuesta en blanco: el técnico debe adjuntar su documento.');
       }
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.APROBADO);
       fila.estado = ESTADOS_TALLER.APROBADO;
@@ -283,7 +283,7 @@ class ValeTallerService {
     const esAutoasignacion = !esAdministrador(usuario) && Number(tecnicoReasignadoId) === Number(usuario.id);
     const tecnicos = await usuarioValeRepository.listarTecnicosPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
     if (!esAdministrador(usuario) && !esAutoasignacion && !tecnicos.some(t => t.id === Number(tecnicoReasignadoId))) {
-      throw new Error('El técnico indicado no está bajo su mando.');
+      throw new Error('Ese técnico no está a tu cargo.');
     }
     await valeTallerRepository.asignar(fila.id, tecnicoReasignadoId, `${hoyISO()} ${horaActual()}`);
     const tecnico = await usuarioValeRepository.obtenerPorId(tecnicoReasignadoId);
@@ -359,7 +359,9 @@ class ValeTallerService {
 
       const vale = await requerirVale(valeId);
       if (vale.estado !== ESTADOS.APROBADO_DEPARTAMENTO) {
-        throw new Error('Solo se pueden fusionar y aprobar vales en estado APROBADO_DEPARTAMENTO.');
+        throw new Error(vale.fusionado_por
+          ? 'Este vale ya fue fusionado por otro encargado. Actualiza la página para ver su estado.'
+          : 'Este vale aún no está listo para fusionar.');
       }
       // La fusión de las propuestas de los talleres NO la hace el sistema —
       // es trabajo manual del Encargado General, que debe adjuntar su

@@ -37,7 +37,7 @@ class ValeMutex {
   async conLockDeVale(valeId, fn) {
     const key = Number(valeId);
     if (this._locksEnVale.has(key)) {
-      throw new Error('Ya hay una operación en curso sobre este vale de arte. Intenta de nuevo en un momento.');
+      throw new Error('Este vale se está procesando en este momento. Espera unos segundos e inténtalo de nuevo.');
     }
     this._locksEnVale.add(key);
     try {

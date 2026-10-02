@@ -613,7 +613,7 @@ class ValeBuzonService {
     if (!esAdministrador(usuario)) {
       const tecnicos = await usuarioValeRepository.listarTecnicosPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
       if (!tecnicos.some(t => t.id === Number(tecnicoId))) {
-        throw new Error('El técnico indicado no está bajo su mando.');
+        throw new Error('Ese técnico no está a tu cargo.');
       }
     }
     const activas = await valeTallerRepository.listarActivasPorTecnico(tecnicoId);
