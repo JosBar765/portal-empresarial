@@ -5,24 +5,24 @@
 SET NAMES utf8mb4;
 
 -- Usuarios. Contraseñas hasheadas con bcrypt (10 rondas):
---   encargado.diseno@munditrofeos.com       -> disenoenc123
---   encargado.uv3d@munditrofeos.com         -> uv3denc123
---   encargado.protextil@munditrofeos.com    -> protextilenc123
+--   encargado.diseno@grupopremia.com       -> disenoenc123
+--   encargado.uv3d@grupopremia.com         -> uv3denc123
+--   encargado.protextil@grupopremia.com    -> protextilenc123
 --   TODO los encargados de diseño local     -> disenoenc123
---   asistente@munditrofeos.com              -> asisgeneral123
---   gerente@munditrofeos.com                -> gerente123
+--   asistente@grupopremia.com              -> asisgeneral123
+--   gerente@grupopremia.com                -> gerente123
 --   supervisores                            -> supervisor123
 --   asesores de ventas                      -> asesor123
 INSERT INTO `usuarios` (`id`, `nombre`, `email`, `password_hash`, `rol_id`) VALUES
-(1, 'Administrador General', 'admin@munditrofeos.com', '$2a$10$x8YdSB2Dyb/NpGQaHkNCDe0K.tv5z4QRWBPQlCsXJpsrfqWpX17Ia', 1),
--- Encargados de talleres de Munditrofeos
-(5, 'Jesus Ramirez', 'encargado.diseno@munditrofeos.com', '$2a$10$Jz0Y4ZY88ys6jFWhAYDfVOSGQwT1Df7.4NmLcDpA.vv1pr17/wxqu', 4),
-(6, 'Josue Gomez', 'encargado.uv3d@munditrofeos.com', '$2a$10$HVFtRiPkCLQQGvEmCwNXleJpK3byoeAJs39ACEwP.e1Yh1EMktj7m', 5),
-(25, 'Leticia Tzún', 'encargado.protextil@munditrofeos.com', '$2a$10$sH7si8ioloM3rOyHiR8uRunHUeMuehv90BJqrvx4VVBPyqWncshqK', 9),
+(1, 'Administrador General', 'admin@grupopremia.com', '$2a$10$x8YdSB2Dyb/NpGQaHkNCDe0K.tv5z4QRWBPQlCsXJpsrfqWpX17Ia', 1),
+-- Encargados de talleres de grupopremia
+(5, 'Jesus Ramirez', 'encargado.diseno@grupopremia.com', '$2a$10$Jz0Y4ZY88ys6jFWhAYDfVOSGQwT1Df7.4NmLcDpA.vv1pr17/wxqu', 4),
+(6, 'Josue Gomez', 'encargado.uv3d@grupopremia.com', '$2a$10$HVFtRiPkCLQQGvEmCwNXleJpK3byoeAJs39ACEwP.e1Yh1EMktj7m', 5),
+(25, 'Leticia Tzún', 'encargado.protextil@grupopremia.com', '$2a$10$sH7si8ioloM3rOyHiR8uRunHUeMuehv90BJqrvx4VVBPyqWncshqK', 9),
 -- Asistente
-(11, 'Giancarlo Hernández', 'asistente@munditrofeos.com', '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', 7),
+(11, 'Giancarlo Hernández', 'asistente@grupopremia.com', '$2a$10$ivRatQnb0MW3ofhinj2SRu3kzn9Ca3UfHrnyma.gX7rUUtXfcXsVm', 7),
 -- Rol de gerente
-(12, 'Gerente General', 'gerente@munditrofeos.com', '$2a$10$yazyTlRjxvs0e/hn5B/UEOoUr6b06lBThNpvUlSOmJr0y1vB8tVXy', 8),
+(12, 'Gerente General', 'gerente@grupopremia.com', '$2a$10$yazyTlRjxvs0e/hn5B/UEOoUr6b06lBThNpvUlSOmJr0y1vB8tVXy', 8),
 -- Supervisores
 (13, 'Carlos Cornejo', 'ventas1@grupopremia.com', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 3),
 (14, 'Milvia Esquivel', 'gerentesala@grupopremia.com', '$2a$10$1QJZCrH9f/x2h5asWehXD.js8MfglZFLjeUl7NdzpbkpqOjMuUNYC', 3),
@@ -40,10 +40,10 @@ INSERT INTO `usuarios` (`id`, `nombre`, `email`, `password_hash`, `rol_id`) VALU
 -- Encargados de diseño local
 (27, 'Jonnathan Aquino', 'disenopremiagt2@grupopremia.com', '$2a$10$Jz0Y4ZY88ys6jFWhAYDfVOSGQwT1Df7.4NmLcDpA.vv1pr17/wxqu', 10),
 (29, 'Rodrigo Hernandez', 'disenosalvador@grupopremia.com', '$2a$10$Jz0Y4ZY88ys6jFWhAYDfVOSGQwT1Df7.4NmLcDpA.vv1pr17/wxqu', 10),
-(35, 'Oscar Martinez', 'disenolocal.ecl@munditrofeos.com', '$2a$10$Jz0Y4ZY88ys6jFWhAYDfVOSGQwT1Df7.4NmLcDpA.vv1pr17/wxqu', 10),
+(35, 'Oscar Martinez', 'disenolocal.ecl@grupopremia.com', '$2a$10$Jz0Y4ZY88ys6jFWhAYDfVOSGQwT1Df7.4NmLcDpA.vv1pr17/wxqu', 10),
 (39, 'Juan Velazquez', 'disenosps@grupopremia.com', '$2a$10$Jz0Y4ZY88ys6jFWhAYDfVOSGQwT1Df7.4NmLcDpA.vv1pr17/wxqu', 10),
 (41, 'Siham Morales', 'disenotegus3@grupopremia.com', '$2a$10$Jz0Y4ZY88ys6jFWhAYDfVOSGQwT1Df7.4NmLcDpA.vv1pr17/wxqu', 10),
-(43, 'Álvaro Chamorro', 'disenolocal.man@munditrofeos.com', '$2a$10$Jz0Y4ZY88ys6jFWhAYDfVOSGQwT1Df7.4NmLcDpA.vv1pr17/wxqu', 10),
+(43, 'Álvaro Chamorro', 'disenolocal.man@grupopremia.com', '$2a$10$Jz0Y4ZY88ys6jFWhAYDfVOSGQwT1Df7.4NmLcDpA.vv1pr17/wxqu', 10),
 (47, 'Genesis Ballesteros', 'disenocr@grupopremia.com', '$2a$10$Jz0Y4ZY88ys6jFWhAYDfVOSGQwT1Df7.4NmLcDpA.vv1pr17/wxqu', 10),
 -- Asesores de ventas
 (49, 'Alejandra Luna', 'ventas2@grupopremia.com', '$2a$10$Z6sSKBWpG/5L9jOhx0tbgOaPIPEayY4vZ1DIfVJQ3lMvon50opev.', 2),
