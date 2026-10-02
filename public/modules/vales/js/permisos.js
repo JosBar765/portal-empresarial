@@ -2,6 +2,10 @@ import { state } from './state.js';
 import { ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO } from './config/roles.js';
 import { ESTADOS_LABEL, ESTADOS_VISIBLES_LABEL } from './config/estados.js';
 
+export function tienePermiso(codigo) {
+  return (state.user.permissions || []).includes(codigo);
+}
+
 export function puede(accion) {
   const r = state.user.rolId;
   const admin = r === ROL.ADMINISTRADOR;
@@ -16,9 +20,8 @@ export function puede(accion) {
     case 'solicitarModificacion': return admin || r === ROL.ASESOR;
     case 'aprobarModificacion': return admin || r === ROL.SUPERVISOR;
     case 'autorizarCreacion': return admin || r === ROL.SUPERVISOR;
-    // La fusión es del Encargado de Diseño y su clon operativo, el Asistente
-    // de Diseño.
-    case 'aprobarGeneral': return admin || r === ROL.ENCARGADO_DISENO || r === ROL.ASISTENTE_DISENO;
+    // La fusión depende del permiso, no del rol.
+    case 'aprobarGeneral': return admin || tienePermiso('vales.aprobar_general');
     default: return false;
   }
 }
@@ -67,7 +70,7 @@ export function miTaller() {
   return talleres.find(t => t.encargado_id === state.user.id) || null;
 }
 
-export function roomsParaUsuario(user) {
+function salasPorRol(user) {
   switch (user.rolId) {
     case ROL.ADMINISTRADOR: return ['vales:admin'];
     case ROL.ASESOR: return [`asesor:${user.id}`];
@@ -87,4 +90,12 @@ export function roomsParaUsuario(user) {
     case ROL.GERENTE: return [];
     default: return [];
   }
+}
+
+// Quien puede fusionar vales multi-taller recibe además la sala de fusión,
+// sea cual sea su rol o taller: el aviso sigue al permiso.
+export function roomsParaUsuario(user) {
+  const salas = salasPorRol(user);
+  if ((user.permissions || []).includes('vales.aprobar_general')) salas.push('vales:fusion');
+  return salas;
 }

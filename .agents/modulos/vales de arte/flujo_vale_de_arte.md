@@ -237,7 +237,8 @@ La acción de fusionar **no está amarrada a un rol**, sino al permiso
 ese permiso. Hoy lo tienen los roles 4 y 7. Ojo: la **cola** de
 `APROBADO_DEPARTAMENTO` se arma en el buzón de los roles de encargado de taller
 (4, 5, 7, 9, 10), así que quien tenga el permiso y esté en uno de esos roles la
-verá mezclada en su buzón de taller (no es un buzón aparte). No existe un rol
+verá mezclada en su buzón de taller (no es un buzón aparte). Un rol de otro tipo
+(asesor, supervisor, técnico, gerente) con el permiso no vería la cola. No existe un rol
 "Encargado General".
 
 Detalles de esa cola:
@@ -246,10 +247,11 @@ Detalles de esa cola:
   taller de quien fusiona participó.
 - "Trabajo realizado" de quien fusiona muestra, además de sus aprobaciones de
   taller, una fila por cada fusión que **él** hizo (`fusionado_por`).
-- Limitación conocida: el aviso en tiempo real de "listo para fusión" se envía
-  a la sala del taller llamado **"Diseño"** (`valeCatalogoService.salaFusion`).
-  Si el permiso se le diera a alguien de otro taller, verá la cola al recargar
-  pero no recibirá el aviso en vivo.
+- El aviso en tiempo real de "listo para fusión" va a la sala `vales:fusion`, a la
+  que se une cualquiera con el permiso `vales.aprobar_general` (el servidor lo
+  valida contra el JWT), sin importar su rol o taller.
+- El botón "Aprobar y fusionar" y las tarjetas de fusión del buzón y de "Trabajo
+  realizado" también dependen del permiso, no del rol.
 
 ## 4. Buzón y "Trabajo realizado" por rol
 
@@ -325,7 +327,7 @@ combinarse con cualquier filtro de estado.
   una alerta roja **una sola vez por vale** (`atraso_notificado_en`) solo a
   quien lo tiene "en su vista": el asesor, sus supervisores, los talleres con
   fila activa (pendiente, asignado, en proceso o en revisión), los técnicos con
-  vale activo, y la sala de fusión si el vale está `APROBADO_DEPARTAMENTO`.
+  vale activo, y la sala `vales:fusion` si el vale está `APROBADO_DEPARTAMENTO`.
 
 ## 8. Tiempo real
 
@@ -333,8 +335,9 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
 **solo a las salas a quienes concierne**, ya formateados:
 `{dd/mm/aaaa hh:mm} – Vale: {correlativo} fue {acción} por {actor}[ a {destino}]`.
 
-- Salas: `asesor:<id>`, `supervisor:<id>`, `taller:<id>`, `tecnico:<id>` y
-  `vales:admin` (el Administrador ve todo).
+- Salas: `asesor:<id>`, `supervisor:<id>`, `taller:<id>`, `tecnico:<id>`,
+  `vales:fusion` (quien tenga `vales.aprobar_general`) y `vales:admin` (el
+  Administrador ve todo).
 - El servidor valida en cada conexión que el usuario tenga derecho a la sala
   que pide; no confía en la lista que arma el cliente.
 - Nivel `alerta` (toast rojo): atrasos, propuesta entregada sin archivo y
