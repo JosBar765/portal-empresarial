@@ -196,7 +196,7 @@ class ValePdfService {
           } else if (doc.mime_type === 'image/jpeg' || doc.mime_type === 'image/jpg') {
             embedded = await ctx.pdfDoc.embedJpg(bytes);
           } else {
-            throw new Error('Formato no soportado para incrustar directamente en el PDF (ej. webp).');
+            throw new Error('Una imagen adjunta está en un formato que no se puede incluir en el PDF. Usa JPG o PNG.');
           }
           const dims = embedded.scaleToFit(anchoImg, altoImg);
           ctx.page.drawImage(embedded, {

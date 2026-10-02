@@ -42,7 +42,16 @@
   }
 
   window.fetch = async function (...args) {
-    const respuesta = await fetchOriginal.apply(this, args);
+    let respuesta;
+    try {
+      respuesta = await fetchOriginal.apply(this, args);
+    } catch (error) {
+      // Un fallo de red llega como TypeError con texto técnico ("Failed to fetch").
+      if (error instanceof TypeError) {
+        throw new Error('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.');
+      }
+      throw error;
+    }
     const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
     if (respuesta.status === 401 && url.includes('/api/')) {
       mostrarAvisoSesionExpirada();

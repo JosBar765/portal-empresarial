@@ -10,7 +10,7 @@ import {
 
 export async function cargarRoles() {
   const { res, data } = await listarRolesRaw();
-  if (!res.ok) throw new Error(data.error);
+  if (!res.ok) throw new Error(data.error || 'No se pudo completar la acción. Inténtalo de nuevo.');
   state.roles = data.roles;
   renderRoles();
 }

@@ -161,6 +161,9 @@ tres primeros puntos no vale la pena.
 
 ## Comentarios
 
+- Sé breve: un comentario es de una línea; máximo 3 líneas, y solo si el porqué
+  de verdad lo amerita. El contexto, la historia y el detalle de una corrección
+  van al changelog, no al código. No se acortan los comentarios ya existentes.
 - Nunca comentes qué hace el código si el nombre de la función/variable ya lo
   dice.
 - Nunca referencies un ciclo de correcciones en un comentario nuevo o movido

@@ -40,6 +40,11 @@ const ROL = {
   ENCARGADO_DISENO_LOCAL: 10
 };
 
+// Sala de quienes pueden fusionar vales multi-taller: se une por el permiso, no
+// por el taller ni el rol.
+const PERMISO_FUSION = 'vales.aprobar_general';
+const SALA_FUSION = 'vales:fusion';
+
 const ROLES_ENCARGADO_TALLER = [ROL.ENCARGADO_DISENO, ROL.ENCARGADO_UV3D, ROL.ASISTENTE_DISENO, ROL.ENCARGADO_PROTEXTIL, ROL.ENCARGADO_DISENO_LOCAL];
 const ROLES_TALLER_Y_TECNICO = [...ROLES_ENCARGADO_TALLER, ROL.TECNICO];
 
@@ -237,13 +242,13 @@ async function requerirVale(valeId) {
 function assertPropioDelAsesor(usuario, vale) {
   if (esAdministrador(usuario)) return;
   if (vale.asesor_id !== usuario.id) {
-    throw new Error('Este vale de arte no pertenece a este asesor.');
+    throw new Error('Este vale fue creado por otro asesor.');
   }
 }
 
 module.exports = {
   ESTADOS, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
-  ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO,
+  ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistenteDeDiseno,
   inicialesAsesor, hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, etiquetaActorTaller, estadoVisibleAsesor,

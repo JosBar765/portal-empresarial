@@ -33,7 +33,7 @@ export async function abrirModalAsignar(vale) {
       <div class="form-field">
         <label>Técnico a cargo</label>
         <select id="select-tecnico">
-          ${tecnicos.length ? tecnicos.map(t => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('') : '<option value="">No hay técnicos bajo su mando</option>'}
+          ${tecnicos.length ? tecnicos.map(t => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('') : '<option value="">No hay técnicos a tu cargo</option>'}
         </select>
       </div>
     `,
