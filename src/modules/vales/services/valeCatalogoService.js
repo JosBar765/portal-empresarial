@@ -55,19 +55,6 @@ class ValeCatalogoService {
     const taller = talleres.find(t => t.id === asistente.taller_id);
     return taller ? taller.encargado_id : usuario.id;
   }
-
-  // Sala de socket a notificar cuando un vale queda listo para fusión. Se
-  // ancla al taller "Diseño" (el único con `vales.aprobar_general` fijo por
-  // rol — el Encargado de Diseño y su clon, el Asistente, ya están unidos a
-  // `taller:<id>` de ese taller, sin importar qué taller disparó la
-  // transición a APROBADO_DEPARTAMENTO). Solo es configurable A QUÉ taller
-  // clona el Asistente su BUZÓN — si el negocio algún día reasigna también
-  // la fusión a otro taller, esta sala fija tendría que revisarse aparte.
-  async salaFusion() {
-    const talleres = await tallerRepository.listarActivos();
-    const diseno = talleres.find(t => t.nombre === 'Diseño');
-    return diseno ? `taller:${diseno.id}` : 'vales:admin';
-  }
 }
 
 module.exports = new ValeCatalogoService();

@@ -67,7 +67,7 @@ export function miTaller() {
   return talleres.find(t => t.encargado_id === state.user.id) || null;
 }
 
-export function roomsParaUsuario(user) {
+function salasPorRol(user) {
   switch (user.rolId) {
     case ROL.ADMINISTRADOR: return ['vales:admin'];
     case ROL.ASESOR: return [`asesor:${user.id}`];
@@ -87,4 +87,12 @@ export function roomsParaUsuario(user) {
     case ROL.GERENTE: return [];
     default: return [];
   }
+}
+
+// Quien puede fusionar vales multi-taller recibe además la sala de fusión,
+// sea cual sea su rol o taller: el aviso sigue al permiso.
+export function roomsParaUsuario(user) {
+  const salas = salasPorRol(user);
+  if ((user.permissions || []).includes('vales.aprobar_general')) salas.push('vales:fusion');
+  return salas;
 }

@@ -54,7 +54,7 @@ Follow `.agents/reglas/reglas_modulo.md` exactly (the README's pointer to `src/m
 - Limits: the supervisor's daily collective authorization quota (= number of asesores under them, checked on authorize), and an optional per-taller daily cap `talleres.limite_diario` on the delivery date (blocks create / request / approve-modification). There is no per-asesor limit anymore.
 - "Atraso" is derived from `fecha_entrega` (`calcularAtraso()`), frozen via `atraso_congelado_en` on confirm / modification approval; `atrasoWatcher.js` fires a one-time red alert every 60 s.
 - The generated PDF (`valePdfService.js`, via `pdf-lib`) is the administrative document of the vale; proposals/fusion documents are never merged into it. Files are never stored in MySQL, only their Supabase Storage URL (`src/core/files/supabaseStorage.js`, `subirYRegistrarArchivo.js`). The endpoints that combine upload + DB write (crear vale, entregar propuesta, aprobar general) accept an `idempotencyKey` form field checked against `idempotency_keys`.
-- Real-time: `events.js` / `socketManager` send each event only to the rooms it concerns (`asesor:<id>`, `supervisor:<id>`, `taller:<id>`, `tecnico:<id>`, `vales:admin`), validated server-side per connection; clients refetch their buzón on every event.
+- Real-time: `events.js` / `socketManager` send each event only to the rooms it concerns (`asesor:<id>`, `supervisor:<id>`, `taller:<id>`, `tecnico:<id>`, `vales:fusion` for anyone with `vales.aprobar_general`, `vales:admin`), validated server-side per connection; clients refetch their buzón on every event.
 
 ### Frontend conventions
 

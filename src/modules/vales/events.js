@@ -12,7 +12,7 @@ const socketManager = require('../../core/websocket/socketManager');
 const tallerRepository = require('./repositories/tallerRepository');
 const valeCatalogoService = require('./services/valeCatalogoService');
 const valeDetalleService = require('./services/valeDetalleService');
-const { ROL, ROLES_ENCARGADO_TALLER, esAdministrador } = require('./services/valeHelpers');
+const { ROL, ROLES_ENCARGADO_TALLER, PERMISO_FUSION, SALA_FUSION, esAdministrador } = require('./services/valeHelpers');
 
 const SALA_ADMIN = 'vales:admin';
 
@@ -24,6 +24,7 @@ const SALA_ADMIN = 'vales:admin';
 async function puedeUnirseASala(socket, sala) {
   const usuario = socket.user;
   if (sala === SALA_ADMIN) return esAdministrador(usuario);
+  if (sala === SALA_FUSION) return (usuario.permissions || []).includes(PERMISO_FUSION);
   if (usuario.rolId === ROL.ASESOR) return sala === `asesor:${usuario.id}`;
   if (usuario.rolId === ROL.SUPERVISOR) return sala === `supervisor:${usuario.id}`;
   if (usuario.rolId === ROL.TECNICO) return sala === `tecnico:${usuario.id}`;

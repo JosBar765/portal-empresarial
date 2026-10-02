@@ -9,9 +9,9 @@
 const valeRepository = require('./repositories/valeRepository');
 const valeTallerRepository = require('./repositories/valeTallerRepository');
 const usuarioValeRepository = require('./repositories/usuarioValeRepository');
-const tallerRepository = require('./repositories/tallerRepository');
 const valeEvents = require('./events');
 const { ESTADOS_TALLER } = require('./services/valeService');
+const { SALA_FUSION } = require('./services/valeHelpers');
 
 const INTERVALO_MS = 60 * 1000;
 const ESTADOS_TALLER_ACTIVOS = [ESTADOS_TALLER.PENDIENTE_ASIGNACION, ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION];
@@ -40,15 +40,9 @@ async function salasParaVale(vale) {
     if (f.tecnico_id && ESTADOS_TALLER_CON_TECNICO.includes(f.estado)) salas.push(`tecnico:${f.tecnico_id}`);
   });
 
-  // Un vale APROBADO_DEPARTAMENTO espera fusión en el buzón de quien tenga
-  // vales.aprobar_general (hoy, el taller "Diseño": su encargado y su clon,
-  // el Asistente de Diseño, ya están en esa misma sala `taller:<id>` vía
-  // roomsParaUsuario en el frontend).
-  if (vale.estado === 'APROBADO_DEPARTAMENTO') {
-    const talleres = await tallerRepository.listarActivos();
-    const diseno = talleres.find(t => t.nombre === 'Diseño');
-    if (diseno) salas.push(`taller:${diseno.id}`);
-  }
+  // Un vale APROBADO_DEPARTAMENTO espera fusión en el buzón de quien tenga el
+  // permiso de fusión.
+  if (vale.estado === 'APROBADO_DEPARTAMENTO') salas.push(SALA_FUSION);
 
   return salas;
 }

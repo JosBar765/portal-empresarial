@@ -246,10 +246,12 @@ Detalles de esa cola:
   taller de quien fusiona participó.
 - "Trabajo realizado" de quien fusiona muestra, además de sus aprobaciones de
   taller, una fila por cada fusión que **él** hizo (`fusionado_por`).
-- Limitación conocida: el aviso en tiempo real de "listo para fusión" se envía
-  a la sala del taller llamado **"Diseño"** (`valeCatalogoService.salaFusion`).
-  Si el permiso se le diera a alguien de otro taller, verá la cola al recargar
-  pero no recibirá el aviso en vivo.
+- El aviso en tiempo real de "listo para fusión" va a la sala `vales:fusion`, a la
+  que se une cualquiera con el permiso `vales.aprobar_general` (el servidor lo
+  valida contra el JWT), sin importar su rol o taller.
+- Limitación conocida: en el frontend, el botón de fusionar (`puede('aprobarGeneral')`)
+  sigue limitado por rol (4 y 7), así que un rol distinto con el permiso recibiría
+  el aviso pero no vería el botón.
 
 ## 4. Buzón y "Trabajo realizado" por rol
 
@@ -325,7 +327,7 @@ combinarse con cualquier filtro de estado.
   una alerta roja **una sola vez por vale** (`atraso_notificado_en`) solo a
   quien lo tiene "en su vista": el asesor, sus supervisores, los talleres con
   fila activa (pendiente, asignado, en proceso o en revisión), los técnicos con
-  vale activo, y la sala de fusión si el vale está `APROBADO_DEPARTAMENTO`.
+  vale activo, y la sala `vales:fusion` si el vale está `APROBADO_DEPARTAMENTO`.
 
 ## 8. Tiempo real
 
@@ -333,8 +335,9 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
 **solo a las salas a quienes concierne**, ya formateados:
 `{dd/mm/aaaa hh:mm} – Vale: {correlativo} fue {acción} por {actor}[ a {destino}]`.
 
-- Salas: `asesor:<id>`, `supervisor:<id>`, `taller:<id>`, `tecnico:<id>` y
-  `vales:admin` (el Administrador ve todo).
+- Salas: `asesor:<id>`, `supervisor:<id>`, `taller:<id>`, `tecnico:<id>`,
+  `vales:fusion` (quien tenga `vales.aprobar_general`) y `vales:admin` (el
+  Administrador ve todo).
 - El servidor valida en cada conexión que el usuario tenga derecho a la sala
   que pide; no confía en la lista que arma el cliente.
 - Nivel `alerta` (toast rojo): atrasos, propuesta entregada sin archivo y

@@ -18,7 +18,7 @@ const valeCreacionService = require('./valeCreacionService');
 const {
   ESTADOS, ESTADOS_TALLER, hoyISO, horaActual, enriquecer,
   etiquetaActorTaller, registrarHistorial, esAdministrador,
-  requerirVale
+  requerirVale, SALA_FUSION
 } = require('./valeHelpers');
 
 class ValeTallerService {
@@ -269,7 +269,7 @@ class ValeTallerService {
       const targets = actualizado.estado === ESTADOS.PENDIENTE_CONFIRMACION
         ? [`asesor:${vale.asesor_id}`, `taller:${fila.taller_id}`]
         : actualizado.estado === ESTADOS.APROBADO_DEPARTAMENTO
-          ? [await valeCatalogoService.salaFusion(), `taller:${fila.taller_id}`]
+          ? [SALA_FUSION, `taller:${fila.taller_id}`]
           : [`taller:${fila.taller_id}`];
       valeEvents.notificar({ vale: actualizado, accion: 'aprobado (taller)', actor: usuario.nombre, actorId: usuario.id, salas: targets });
       return enriquecer(actualizado);
