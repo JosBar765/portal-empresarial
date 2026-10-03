@@ -12,7 +12,7 @@ import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalV
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/tecnico.js';
 import { abrirModalDecisionAsesor, abrirModalDarDeBaja } from '../actions/asesor.js';
-import { abrirModalSolicitarModificacion } from '../forms/valeForm.js';
+import { abrirModalSolicitarModificacion, abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirModalHistorial } from '../actions/historial.js';
 
 // -----------------------------------------------------------------------
@@ -342,6 +342,9 @@ export function construirAcciones(v) {
   }
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });
+  }
+  if (puede('corregir') && v.estado === 'ESPERANDO_AUTORIZACION' && v.asesor_id === state.user.id) {
+    acciones.push({ icono: 'settings-outline', titulo: 'Corregir', onClick: abrirModalCorregirVale });
   }
   acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
   if (puede('darDeBaja') && v.estado === 'ESPERANDO_AUTORIZACION' && v.asesor_id === state.user.id) {

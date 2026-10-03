@@ -4,6 +4,7 @@ import { roomsParaUsuario } from './permisos.js';
 import { refreshToken, logout } from './api/authApi.js';
 import { cargarBuzon } from './views/buzon.js';
 import { actualizarRendimientoEnVivo } from './views/rendimientoGerencia.js';
+import { avisarCambioEnModalAutorizar } from './actions/supervisor.js';
 
 export function reproducirBeep() {
   try {
@@ -52,6 +53,7 @@ export function initSocket() {
     // toast/beep por lo mismo que él mismo acaba de hacer sería una
     // notificación duplicada. Se sigue refrescando el buzón igual, solo se
     // omite el aviso.
+    if (data.tipo === 'CORREGIDO') avisarCambioEnModalAutorizar(data.valeId);
     const esPropiaAccion = data.actorId != null && data.actorId === state.user.id;
     if (!esPropiaAccion) {
       const esAlerta = data.nivel === 'alerta';

@@ -973,7 +973,8 @@
 
 /* Corrección #9: lista de archivos removibles (imágenes/documentos) del
    formulario de creación — mismo patrón visual que .taller-tag. */
-.archivo-lista {
+.archivo-lista,
+.archivos-actuales {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -995,6 +996,7 @@
 }
 
 .archivo-chip-ver {
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1415,6 +1417,23 @@
 .dp-tooltip-agotado {
   color: var(--color-danger);
   font-weight: 700;
+}
+
+.form-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  padding: 10px 14px;
+  border-radius: var(--radius-md, 8px);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.form-aviso ion-icon {
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
 .form-error {

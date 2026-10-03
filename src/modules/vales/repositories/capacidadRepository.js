@@ -14,7 +14,7 @@ class CapacidadRepository {
   // con una lista de talleres de tamaño variable.
   async listarSolicitadosEnRango(fechaDesde, fechaHasta) {
     return db.query(
-      `SELECT fecha_entrega, talleres_solicitados
+      `SELECT id, fecha_entrega, talleres_solicitados
        FROM vales
        WHERE estado_id = (SELECT id FROM estados_vale WHERE nombre = 'ESPERANDO_AUTORIZACION')
          AND fecha_entrega BETWEEN ? AND ?`,

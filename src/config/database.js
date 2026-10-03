@@ -51,10 +51,39 @@ async function query(sql, params = [], tag = null) {
   }
 }
 
+// Ejecuta `fn(tx)` en una transacción: commit si termina bien, rollback si lanza.
+// `tx.query` tiene la misma firma que `query`.
+async function transaccion(fn) {
+  const conn = await pool.getConnection();
+  const tx = {
+    async query(sql, params = [], tag = null) {
+      try {
+        const [rows] = await conn.query(sql, params);
+        return rows;
+      } catch (error) {
+        console.error(`[Database] Error en la consulta ${tag || '(sin etiqueta)'}: [${error.code || 'sin código'}] ${error.sqlMessage || error.message}`);
+        throw error;
+      }
+    }
+  };
+  try {
+    await conn.beginTransaction();
+    const resultado = await fn(tx);
+    await conn.commit();
+    return resultado;
+  } catch (error) {
+    try { await conn.rollback(); } catch { /* la conexión ya se perdió */ }
+    throw error;
+  } finally {
+    conn.release();
+  }
+}
+
 const listo = initializeDatabase();
 
 module.exports = {
   query,
+  transaccion,
   isReady: () => pool !== null,
   listo
 };
