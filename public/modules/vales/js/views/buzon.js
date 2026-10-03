@@ -344,7 +344,7 @@ export function construirAcciones(v) {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });
   }
   if (puede('corregir') && v.estado === 'ESPERANDO_AUTORIZACION' && v.asesor_id === state.user.id) {
-    acciones.push({ icono: 'pencil-outline', titulo: 'Corregir', onClick: abrirModalCorregirVale });
+    acciones.push({ icono: 'settings-outline', titulo: 'Corregir', onClick: abrirModalCorregirVale });
   }
   acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
   if (puede('darDeBaja') && v.estado === 'ESPERANDO_AUTORIZACION' && v.asesor_id === state.user.id) {
