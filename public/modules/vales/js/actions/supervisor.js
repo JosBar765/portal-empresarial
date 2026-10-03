@@ -10,6 +10,20 @@ import { cargarBuzon } from '../views/buzon.js';
 // asesor eligió los talleres al crear (vale.talleres_solicitados, CSV de
 // ids); recién aquí se reparten de verdad.
 // -----------------------------------------------------------------------
+// Modal de autorización abierto en este momento (para avisarle si el asesor corrige el vale).
+let modalAutorizarAbierto = null;
+
+export function avisarCambioEnModalAutorizar(valeId) {
+  const abierto = modalAutorizarAbierto;
+  if (!abierto || abierto.valeId !== Number(valeId) || !abierto.overlay.isConnected) return;
+  const cuerpo = abierto.overlay.querySelector('.modal-body');
+  if (cuerpo.querySelector('.form-aviso')) return;
+  const aviso = document.createElement('div');
+  aviso.className = 'form-aviso';
+  aviso.innerHTML = '<ion-icon name="alert-circle-outline"></ion-icon><span>El asesor modificó este vale. Cierra esta ventana y ábrela de nuevo para ver los datos actualizados.</span>';
+  cuerpo.prepend(aviso);
+}
+
 export function abrirModalAutorizarCreacion(vale) {
   const talleresIds = String(vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
   const nombresTalleres = talleresIds
@@ -27,6 +41,7 @@ export function abrirModalAutorizarCreacion(vale) {
       <button class="btn btn--primary" id="btn-confirmar">Autorizar</button>
     `
   });
+  modalAutorizarAbierto = { valeId: vale.id, overlay };
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
   overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
     const btn = overlay.querySelector('#btn-confirmar');

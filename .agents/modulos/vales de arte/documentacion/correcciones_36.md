@@ -29,6 +29,10 @@ El cupo diario por taller se revalida dentro de la cola de capacidad, justo ante
 - Historial: nueva categoría `CORRECCION` ("Asesor corrigió los datos del vale de arte antes de su autorización"), visible para asesor, supervisor y gerente.
 - Frontend: acción "Corregir" (tuerca) en el buzón del asesor para vales esperando autorización; el formulario de creación se reutiliza en modo corrección (`abrirModalCorregirVale`) con botón "Guardar cambios", y el selector de fechas gana `setDate`.
 
+## Aviso al supervisor
+
+Si el supervisor tiene abierto el modal "Autorizar creación" de un vale y el asesor lo corrige, el modal **no se recarga solo**: aparece arriba un aviso ámbar ("El asesor modificó este vale. Cierra esta ventana y ábrela de nuevo para ver los datos actualizados.") y los botones siguen activos. El evento en tiempo real de la corrección lleva `tipo: 'CORREGIDO'` (nuevo campo opcional de `valeEvents.notificar`) y `socket.js` se lo pasa a `avisarCambioEnModalAutorizar` (`actions/supervisor.js`), que solo actúa si el modal abierto es el de ese vale.
+
 ## Mensajes de error
 
 | Situación | Mensaje |
@@ -53,5 +57,5 @@ Los asesores con sesión abierta lo reciben al iniciar sesión de nuevo (o a la 
 ## Verificación
 
 - Por API, con Storage real de pruebas: corregir quitando una imagen, agregando otra y cambiando datos (mismo correlativo; el conteo de archivos del bucket no cambia; imagen y PDF anteriores desaparecen de Storage y el PDF nuevo existe); fallo forzado en la base **después** de subir archivos (rollback y sin archivos huérfanos); archivo ajeno; fecha pasada; supervisor sin permiso (403); vale ya autorizado; vale dado de baja; cupo diario (corregir el 4.º vale de un taller con límite 4, conservando fecha y taller, funciona, y el 5.º vale nuevo se rechaza).
-- En el navegador, como la asesora Alejandra Luna: la tuerca aparece solo en vales esperando autorización, entre el PDF y el historial (dar de baja sigue al final); el modal abre precargado (cliente, teléfono, taller, fechas, descripción y archivos actuales); guardar cambia datos y archivos con aviso de éxito; con el modal abierto, el supervisor autorizó el vale y al guardar apareció "Este vale ya fue autorizado, así que ya no se puede corregir."
+- En el navegador, como la asesora Alejandra Luna: la tuerca aparece solo en vales esperando autorización, entre el PDF y el historial (dar de baja sigue al final); el modal abre precargado (cliente, teléfono, taller, fechas, descripción y archivos actuales); guardar cambia datos y archivos con aviso de éxito; con el modal abierto, el supervisor autorizó el vale y al guardar apareció "Este vale ya fue autorizado, así que ya no se puede corregir."; con el modal "Autorizar creación" abierto como supervisor, al corregir el asesor el vale apareció el aviso ámbar sobre el modal
 - Una URL pública de Storage puede seguir respondiendo unos minutos después de borrar el archivo por la caché del CDN; la comprobación de borrado se hizo contra la API de Storage.

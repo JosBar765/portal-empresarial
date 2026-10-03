@@ -67,8 +67,9 @@ function fechaHoraLocal() {
  * @param {string[]} salas Salas objetivo (sin incluir vales:admin, que siempre se agrega).
  * @param {'info'|'alerta'} nivel 'alerta' pinta el toast en rojo en el cliente.
  * @param {boolean} beep Si debe sonar; false para notificaciones silenciosas.
+ * @param {string|null} tipo Etiqueta opcional para que el cliente reaccione a eventos concretos (p. ej. 'CORREGIDO').
  */
-function notificar({ vale, accion, actor = null, actorId = null, destino = null, salas = [], nivel = 'info', beep = true }) {
+function notificar({ vale, accion, actor = null, actorId = null, destino = null, salas = [], nivel = 'info', beep = true, tipo = null }) {
   const mensaje = `${fechaHoraLocal()} – Vale: ${vale.correlativo} fue ${accion}${actor ? ` por ${actor}` : ''}${destino ? ` a ${destino}` : ''}`;
   const salasFinal = [...new Set([...(salas || []), SALA_ADMIN])];
   socketManager.sendToRooms(salasFinal, 'vale_evento', {
@@ -79,7 +80,8 @@ function notificar({ vale, accion, actor = null, actorId = null, destino = null,
     actorId,
     mensaje,
     nivel,
-    beep
+    beep,
+    tipo
   });
   // Canal aparte, uno por vale, independiente de `salas` (que decide quién
   // oye el beep/toast de cada acción — un rol sin visibilidad "de oficio"

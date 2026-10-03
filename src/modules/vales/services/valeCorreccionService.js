@@ -90,7 +90,7 @@ class ValeCorreccionService {
       const actualizado = await valeRepository.obtenerPorId(valeId);
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       valeEvents.notificar({
-        vale: actualizado, accion: 'corregido', actor: usuario.nombre, actorId: usuario.id,
+        vale: actualizado, accion: 'corregido', tipo: 'CORREGIDO', actor: usuario.nombre, actorId: usuario.id,
         salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
       });
       const resultado = enriquecer(actualizado);
