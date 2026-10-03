@@ -27,6 +27,7 @@ module.exports = {
   crearVale: (...a) => valeCreacionService.crearVale(...a),
   autorizarCreacion: (...a) => valeCreacionService.autorizarCreacion(...a),
   rechazarCreacion: (...a) => valeCreacionService.rechazarCreacion(...a),
+  darDeBaja: (...a) => valeCreacionService.darDeBaja(...a),
   obtenerLimiteColectivoSupervisor: (...a) => valeCreacionService.obtenerLimiteColectivoSupervisor(...a),
 
   // Detalle

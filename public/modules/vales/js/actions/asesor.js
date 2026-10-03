@@ -1,7 +1,34 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
-import { confirmarRecibido } from '../api/valesApi.js';
+import { confirmarRecibido, darDeBajaVale } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { abrirModalSolicitarModificacion } from '../forms/valeForm.js';
+
+// Asesor: dar de baja un vale propio que aún no fue autorizado.
+export function abrirModalDarDeBaja(vale) {
+  const { overlay, cerrar } = abrirModal({
+    title: `Dar de baja — ${vale.correlativo}`,
+    bodyHtml: `
+      <p style="font-size:14px;font-weight:600;margin-bottom:8px;">¿Estás seguro?</p>
+      <p style="font-size:13px;">El vale se eliminará permanentemente junto con sus imágenes y documentos. Esta acción no se puede deshacer.</p>
+    `,
+    footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--danger" id="btn-confirmar">Dar de baja</button>`
+  });
+  overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
+  overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
+    const btn = overlay.querySelector('#btn-confirmar');
+    btn.disabled = true;
+    try {
+      await darDeBajaVale(vale.id);
+      window.toast.success('Vale dado de baja', `${vale.correlativo} fue eliminado.`);
+      cerrar();
+      cargarBuzon();
+    } catch (error) {
+      mostrarErrorModal(overlay, error.message);
+      btn.disabled = false;
+      cargarBuzon();
+    }
+  });
+}
 
 // -----------------------------------------------------------------------
 // Asesor: decidir sobre un vale PENDIENTE_CONFIRMACION (confirmar / corregir)

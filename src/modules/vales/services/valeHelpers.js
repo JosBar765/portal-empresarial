@@ -235,7 +235,7 @@ async function registrarHistorial(valeId, usuarioId, tallerId, estadoAnterior, e
 
 async function requerirVale(valeId) {
   const vale = await valeRepository.obtenerPorId(valeId);
-  if (!vale) throw new Error('Vale de arte no encontrado.');
+  if (!vale) throw new Error('Este vale ya no existe: fue dado de baja o rechazado.');
   return vale;
 }
 

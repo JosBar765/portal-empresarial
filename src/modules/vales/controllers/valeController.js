@@ -313,6 +313,15 @@ class ValeController {
     }
   }
 
+  async darDeBaja(req, res) {
+    try {
+      const resultado = await valeService.darDeBaja(req.user, idObligatorio(req.params.id));
+      return res.json(resultado);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async cargaTrabajo(req, res) {
     try {
       const data = await valeService.obtenerCargaTrabajo(req.user);
