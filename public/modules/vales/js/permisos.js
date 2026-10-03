@@ -21,6 +21,7 @@ export function puede(accion) {
     case 'aprobarModificacion': return admin || r === ROL.SUPERVISOR;
     case 'autorizarCreacion': return admin || r === ROL.SUPERVISOR;
     // La fusión depende del permiso, no del rol.
+    case 'darDeBaja': return r === ROL.ASESOR && tienePermiso('vales.dar_de_baja');
     case 'aprobarGeneral': return admin || tienePermiso('vales.aprobar_general');
     default: return false;
   }

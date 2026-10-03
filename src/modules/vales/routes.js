@@ -33,6 +33,7 @@ const trabajarVale = requirePermission('vales.trabajar');
 const revisarVale = requirePermission('vales.revisar');
 const aprobacionGeneralVale = requirePermission('vales.aprobar_general');
 const confirmarVale = requirePermission('vales.confirmar');
+const darDeBajaVale = requirePermission('vales.dar_de_baja');
 const solicitarModificacionVale = requirePermission('vales.solicitar_modificacion');
 const aprobarModificacionVale = requirePermission('vales.aprobar_modificacion');
 // "Encontrar vale" es solo del Gerente: `vales.ver_gerencia` también lo tiene
@@ -86,5 +87,6 @@ router.post('/:id/aprobar-modificacion', aprobarModificacionVale, (req, res) => 
 router.post('/:id/rechazar-modificacion', aprobarModificacionVale, (req, res) => valeController.rechazarModificacion(req, res));
 router.post('/:id/autorizar-creacion', autorizarCreacionVale, (req, res) => valeController.autorizarCreacion(req, res));
 router.post('/:id/rechazar-creacion', autorizarCreacionVale, (req, res) => valeController.rechazarCreacion(req, res));
+router.post('/:id/dar-de-baja', darDeBajaVale, (req, res) => valeController.darDeBaja(req, res));
 
 module.exports = router;

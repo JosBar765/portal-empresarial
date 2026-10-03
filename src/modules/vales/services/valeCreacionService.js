@@ -24,7 +24,7 @@ const valeMutex = require('./valeMutex');
 const {
   ESTADOS, inicialesAsesor, hoyISO, horaActual, enriquecer,
   normalizarDatetime, calcularUrgente, registrarHistorial,
-  esAdministrador, requerirVale
+  esAdministrador, requerirVale, ROL
 } = require('./valeHelpers');
 
 class ValeCreacionService {
@@ -209,6 +209,29 @@ class ValeCreacionService {
       valeEvents.notificar({
         vale, accion: 'rechazado por el Supervisor', actor: usuario.nombre, actorId: usuario.id,
         salas: [`asesor:${vale.asesor_id}`, ...supervisoresDelAsesor.map(s => `supervisor:${s.id}`)]
+      });
+      return { valeId: vale.id, correlativo: vale.correlativo };
+    });
+  }
+
+  // El asesor da de baja un vale propio que aún no fue autorizado: se borra por completo.
+  async darDeBaja(usuario, valeId) {
+    return valeMutex.conLockDeVale(valeId, async () => {
+      if (usuario.rolId !== ROL.ASESOR) {
+        throw new Error('Solo el asesor de ventas puede dar de baja un vale.');
+      }
+      const vale = await requerirVale(valeId);
+      if (vale.asesor_id !== usuario.id) {
+        throw new Error('Solo puedes dar de baja tus propios vales.');
+      }
+      if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
+        throw new Error('Este vale ya fue autorizado, así que ya no se puede dar de baja.');
+      }
+      const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
+      await this.eliminarValeConArchivos(valeId);
+      valeEvents.notificar({
+        vale, accion: 'dado de baja', actor: usuario.nombre, actorId: usuario.id,
+        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
       });
       return { valeId: vale.id, correlativo: vale.correlativo };
     });

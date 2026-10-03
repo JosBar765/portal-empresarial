@@ -101,6 +101,11 @@ discrepan, manda el código: corrige este archivo.
 
 Notas:
 
+- Mientras está en `ESPERANDO_AUTORIZACION`, el **asesor dueño** también puede darlo
+  de baja (permiso `vales.dar_de_baja`): se borra igual que en el rechazo del
+  supervisor. Una vez autorizado ya no es posible. Si el supervisor autoriza o
+  rechaza un vale ya dado de baja, o el asesor da de baja uno ya autorizado, el
+  sistema avisa con un mensaje claro y no cambia nada.
 - Un vale que el asesor no acepta en `PENDIENTE_CONFIRMACION` **no tiene
   acción "rechazar"**: sigue el mismo camino que una modificación.
 - La propuesta/fusión **nunca se pega dentro del PDF del vale**. El PDF es el
@@ -220,7 +225,7 @@ cambia quién puede hacer cada acción.
 | Rol (id) | Permisos de vales | Qué hace |
 |---|---|---|
 | Administrador (1) | `vales.ver` (+ `admin.*`) | Ve todo el buzón. **No** tiene permisos de escritura sobre vales: no puede autorizar, asignar, aprobar ni confirmar. |
-| Asesor de Ventas (2) | `ver`, `crear`, `editar`, `confirmar`, `solicitar_modificacion` | Crea vales; confirma el recibido o solicita la modificación. |
+| Asesor de Ventas (2) | `ver`, `crear`, `editar`, `confirmar`, `solicitar_modificacion`, `dar_de_baja` | Crea vales; los da de baja antes de ser autorizados; confirma el recibido o solicita la modificación. |
 | Supervisor de Ventas (3) | `ver`, `autorizar_creacion`, `aprobar_modificacion`, `supervisar`, `ver_gerencia` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`usuarios.encargado_id`). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
 | Encargado de Diseño (4) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Dueño del taller "Diseño". Asigna y revisa, puede trabajar vales él mismo, y **fusiona** los vales multi-taller. |
 | Encargado de Diseño UV/3D (5) | `ver`, `asignar`, `revisar`, `trabajar` | Dueño del taller "Diseño UV/3D". Sin fusión. |
