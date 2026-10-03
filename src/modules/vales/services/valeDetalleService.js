@@ -116,11 +116,10 @@ class ValeDetalleService {
   }
 
   // Cada rol tiene una lista blanca de categorías (ver categoriaHistorial):
-  // - Asesor y Supervisor: creación, autorización de creación, retorno al
-  //   asesor (directo o por fusión), confirmación de recibido, y — si hubo
-  //   modificación — solicitud/aprobación de la modificación. Ambos ven
-  //   exactamente lo mismo (el supervisor es quien autoriza y aprueba, pero
-  //   nunca el detalle interno de un taller).
+  // - Asesor y Supervisor: creación, autorización de creación, asignación y
+  //   aprobación de cada taller, retorno al asesor (directo o por fusión),
+  //   confirmación de recibido, y — si hubo modificación — solicitud/
+  //   aprobación de la modificación. Ambos ven exactamente lo mismo.
   // - Gerente: lo mismo que el asesor, más "cuándo se asignó" y "cuándo se
   //   aprobó" a nivel de TODOS los talleres, sin importar a quién ni cuál taller.
   // - Encargados de taller: autorización de creación (sin scope de taller) +
@@ -143,7 +142,7 @@ class ValeDetalleService {
 
     if (usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR) {
       const permitidas = new Set([
-        'CREACION', 'AUTORIZACION_CREACION', 'RETORNO_ASESOR',
+        'CREACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER', 'RETORNO_ASESOR',
         'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
       ]);
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);

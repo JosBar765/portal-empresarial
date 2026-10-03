@@ -7,6 +7,8 @@
 // al armar el FormData del envío en vez de depender del input directamente.
 import { iconoParaArchivo, formatearTamano } from '../utils/formato.js';
 
+const ETIQUETA_TIPO = { 'image/jpeg': 'JPG', 'image/png': 'PNG', 'image/webp': 'WEBP', 'application/pdf': 'PDF' };
+
 export function htmlDropzone({ name, id, accept, multiple = false, hint }) {
   return `
     <label class="dropzone">
@@ -27,6 +29,8 @@ export function wireDropzone(overlay, inputSelector, listaSelector, { maxBytes }
   const input = overlay.querySelector(inputSelector);
   const dropzone = input.closest('.dropzone');
   const lista = overlay.querySelector(listaSelector);
+  const tiposPermitidos = input.accept.split(',').map(t => t.trim()).filter(Boolean);
+  const etiquetaTipos = tiposPermitidos.map(t => ETIQUETA_TIPO[t] || t).join(', ');
   let archivos = [];
   const render = () => {
     lista.innerHTML = archivos.map((f, i) => `
@@ -42,6 +46,10 @@ export function wireDropzone(overlay, inputSelector, listaSelector, { maxBytes }
     const seleccionados = Array.from(input.files);
     const nuevos = [];
     for (const f of seleccionados) {
+      if (tiposPermitidos.length && !tiposPermitidos.includes(f.type)) {
+        window.toast.error('Archivo no permitido', `"${f.name}" no se puede subir. Solo se aceptan archivos ${etiquetaTipos}.`);
+        continue;
+      }
       if (maxBytes && f.size > maxBytes) {
         window.toast.error('Archivo demasiado grande', `"${f.name}" (${formatearTamano(f.size)}) supera el máximo permitido de ${formatearTamano(maxBytes)}.`);
         continue;

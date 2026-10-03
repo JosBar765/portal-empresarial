@@ -5,6 +5,7 @@ import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { crearMenuCascada, construirArbolRoles } from '../components/menuCascada.js';
 import { listarRolesRaw, listarUsuariosRaw, obtenerOrganizacion, guardarUsuario } from '../api/adminApi.js';
 import { cargarUsuarios } from '../views/usuarios.js';
+import { limitarTelefono } from '/js/telefono.js';
 
 // "Gestionar Usuarios" solo crea usuarios y edita su información personal
 // — ninguna asignación de tienda o taller vive aquí (eso es "Gestionar
@@ -88,6 +89,7 @@ export async function abrirModalUsuario(usuario) {
       </div>
     `;
     zona.querySelector('#input-telefono').value = numeroTelActual;
+    limitarTelefono(zona.querySelector('#input-telefono'));
   }
   renderTelefono();
 

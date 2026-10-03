@@ -9,7 +9,7 @@ const mantenimientoRepository = require('../repositories/mantenimientoRepository
 const authService = require('../../../core/auth/authService');
 const maintenanceGate = require('../../../core/permissions/maintenanceMiddleware');
 const socketManager = require('../../../core/websocket/socketManager');
-const { aEntero } = require('../../../core/utils/validar');
+const { aEntero, validarTelefono } = require('../../../core/utils/validar');
 const sesionRepository = require('../../../core/auth/sesionRepository');
 
 // Roles base protegidos: no se pueden eliminar ni renombrar, pero sus
@@ -73,6 +73,7 @@ class AdminService {
     if (password.length < 8) {
       throw new Error('La contraseña debe tener al menos 8 caracteres.');
     }
+    validarTelefono(telefono);
     const existente = await usuarioAdminRepository.obtenerPorEmail(email);
     if (existente) {
       throw new Error('Ya existe un usuario con ese correo electrónico.');
@@ -94,6 +95,7 @@ class AdminService {
   // El rol nunca cambia al editar — se fija en la creación.
   async actualizarUsuario(id, datos, actorId) {
     const { nombre, email, password, telefono } = datos;
+    validarTelefono(telefono);
     const usuario = await usuarioAdminRepository.obtenerPorId(id);
     if (!usuario) throw new Error('Usuario no encontrado.');
     if (Number(usuario.rol_id) === ROL_ADMINISTRADOR) {

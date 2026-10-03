@@ -985,8 +985,9 @@
   align-items: center;
   gap: 6px;
   max-width: 100%;
-  background: var(--color-surface-muted);
-  color: var(--color-text-secondary);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
   padding: 4px 6px 4px 10px;
   border-radius: var(--radius-full);
   font-size: 12px;
@@ -995,7 +996,7 @@
 
 .archivo-chip-icon {
   font-size: 14px;
-  color: var(--color-text-muted);
+  color: var(--color-success);
   flex-shrink: 0;
 }
 
@@ -1007,7 +1008,7 @@
 }
 
 .archivo-chip-tamano {
-  color: var(--color-text-muted);
+  color: var(--color-success);
   font-weight: 500;
   flex-shrink: 0;
 }
