@@ -15,7 +15,7 @@ class CapacidadEntregaService {
   }
 
   // conteos[fechaISO][tallerId] = cantidad de vales "entrantes" ese día.
-  async _contarPorTallerYFecha(talleresIds, fechaDesde, fechaHasta) {
+  async _contarPorTallerYFecha(talleresIds, fechaDesde, fechaHasta, excluirValeId = null) {
     const [solicitados, fanOut] = await Promise.all([
       capacidadRepository.listarSolicitadosEnRango(fechaDesde, fechaHasta),
       capacidadRepository.listarFanOutEnRango(talleresIds, fechaDesde, fechaHasta)
@@ -27,6 +27,7 @@ class CapacidadEntregaService {
       conteos[fechaISO][tallerId] = (conteos[fechaISO][tallerId] || 0) + 1;
     };
     for (const row of solicitados) {
+      if (excluirValeId != null && row.id === Number(excluirValeId)) continue;
       const fechaISO = String(row.fecha_entrega).slice(0, 10);
       const idsFila = (row.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
       for (const id of idsFila) {
@@ -43,7 +44,7 @@ class CapacidadEntregaService {
   // Capacidad día por día de un mes completo, para el calendario del
   // formulario de creación/modificación. Solo incluye los talleres del
   // subconjunto pedido que sí tienen límite configurado.
-  async obtenerCapacidadMes(talleresIds, anio, mes) {
+  async obtenerCapacidadMes(talleresIds, anio, mes, excluirValeId = null) {
     const conLimite = await this._talleresConLimite(talleresIds);
     if (conLimite.length === 0) return {};
 
@@ -51,7 +52,7 @@ class CapacidadEntregaService {
     const ultimoDia = new Date(anio, mes, 0).getDate();
     const desde = `${anio}-${mesStr}-01`;
     const hasta = `${anio}-${mesStr}-${String(ultimoDia).padStart(2, '0')}`;
-    const conteos = await this._contarPorTallerYFecha(conLimite.map(t => t.id), desde, hasta);
+    const conteos = await this._contarPorTallerYFecha(conLimite.map(t => t.id), desde, hasta, excluirValeId);
 
     const resultado = {};
     for (let dia = 1; dia <= ultimoDia; dia++) {
@@ -79,10 +80,10 @@ class CapacidadEntregaService {
   // deliberadamente amigable/no técnico: a quien pierde la carrera por el
   // último cupo (o simplemente llega tarde a un día ya lleno) le llega
   // igual, y no tiene por qué distinguirse de un error de validación común.
-  async validarLimiteDiario(talleresIds, fechaEntregaISO) {
+  async validarLimiteDiario(talleresIds, fechaEntregaISO, excluirValeId = null) {
     const conLimite = await this._talleresConLimite(talleresIds);
     if (conLimite.length === 0) return;
-    const conteos = await this._contarPorTallerYFecha(conLimite.map(t => t.id), fechaEntregaISO, fechaEntregaISO);
+    const conteos = await this._contarPorTallerYFecha(conLimite.map(t => t.id), fechaEntregaISO, fechaEntregaISO, excluirValeId);
     const porTaller = conteos[fechaEntregaISO] || {};
     for (const t of conLimite) {
       const programados = porTaller[t.id] || 0;

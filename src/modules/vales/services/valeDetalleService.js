@@ -25,6 +25,7 @@ function categoriaHistorial(h) {
   const ea = h.estado_anterior;
   const en = h.estado_nuevo;
   if (ea === null) return 'CREACION'; // crearVale() y la creación del vale MOD- nuevo
+  if (ea === 'ESPERANDO_AUTORIZACION' && en === 'ESPERANDO_AUTORIZACION') return 'CORRECCION';
   if (ea === 'ESPERANDO_AUTORIZACION' && en === 'CREADO') return 'AUTORIZACION_CREACION';
   if (ea === 'PENDIENTE_ASIGNACION' && en === 'ASIGNADO') return 'ASIGNACION';
   if (ea === 'ASIGNADO' && en === 'EN_PROCESO') return 'EN_PROCESO';
@@ -142,7 +143,7 @@ class ValeDetalleService {
 
     if (usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR) {
       const permitidas = new Set([
-        'CREACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER', 'RETORNO_ASESOR',
+        'CREACION', 'CORRECCION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER', 'RETORNO_ASESOR',
         'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
       ]);
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
@@ -150,7 +151,7 @@ class ValeDetalleService {
 
     if (usuario.rolId === ROL.GERENTE) {
       const permitidas = new Set([
-        'CREACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER',
+        'CREACION', 'CORRECCION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER',
         'RETORNO_ASESOR', 'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
       ]);
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);

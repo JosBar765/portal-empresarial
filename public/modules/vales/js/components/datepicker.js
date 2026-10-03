@@ -111,6 +111,12 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'S
         hidden.dispatchEvent(new Event('change', { bubbles: true }));
       }
     },
+    setDate(fecha, opts = {}) {
+      seleccionado = fecha;
+      hidden.value = isoLocal(fecha);
+      refrescarLabel();
+      if (!opts.silent) hidden.dispatchEvent(new Event('change', { bubbles: true }));
+    },
     clear(opts = {}) {
       seleccionado = null;
       hidden.value = '';

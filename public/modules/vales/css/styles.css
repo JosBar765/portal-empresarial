@@ -973,7 +973,8 @@
 
 /* Corrección #9: lista de archivos removibles (imágenes/documentos) del
    formulario de creación — mismo patrón visual que .taller-tag. */
-.archivo-lista {
+.archivo-lista,
+.archivos-actuales {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -995,6 +996,7 @@
 }
 
 .archivo-chip-ver {
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;

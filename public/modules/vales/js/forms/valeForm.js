@@ -6,7 +6,7 @@ import { htmlDropzone, wireDropzone } from '../components/dropzone.js';
 import { validarCamposNativos, wireLimpiezaValidacionInline, enfocarPrimerCampoInvalido } from '../components/validacion.js';
 import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js';
 import { escapeHtml } from '../utils/formato.js';
-import { crearVale, solicitarModificacion, obtenerCapacidadEntrega } from '../api/valesApi.js';
+import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega, obtenerDetalleVale } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { limitarTelefono } from '/js/telefono.js';
 
@@ -76,9 +76,22 @@ function wireContadorCampo(overlay, nombreCampo, maxCaracteres) {
 // Modal: Crear vale de arte
 // -----------------------------------------------------------------------
 export function abrirModalCrearVale() {
-  const tallerSeleccionados = new Set();
+  abrirModalFormularioVale(null);
+}
+
+// Asesor: corregir un vale propio que aún no fue autorizado (mismo formulario, precargado).
+export function abrirModalCorregirVale(vale) {
+  abrirModalFormularioVale(vale);
+}
+
+function abrirModalFormularioVale(vale) {
+  const esCorreccion = !!vale;
+  const tallerSeleccionados = new Set(esCorreccion
+    ? String(vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite)
+    : []);
+  const documentosQuitar = new Set();
   const { overlay, cerrar } = abrirModal({
-    title: 'Crear Vale de Arte',
+    title: esCorreccion ? `Corregir vale — ${vale.correlativo}` : 'Crear Vale de Arte',
     size: 'lg',
     bodyHtml: `
       <form id="form-crear-vale">
@@ -123,10 +136,12 @@ export function abrirModalCrearVale() {
           </div>
           <div class="form-field">
             <label>Imágenes</label>
+            <div class="archivos-actuales" data-tipo="imagen"></div>
             ${htmlDropzone({ name: 'imagenes', accept: 'image/jpeg,image/png,image/webp', multiple: true, hint: 'JPG, PNG o WEBP · máx. 2MB c/u' })}
           </div>
           <div class="form-field">
             <label>Documentos adjuntos</label>
+            <div class="archivos-actuales" data-tipo="documento"></div>
             ${htmlDropzone({ name: 'documentos', accept: 'application/pdf', multiple: true, hint: 'PDF · máx. 3MB c/u' })}
           </div>
         </div>
@@ -134,7 +149,7 @@ export function abrirModalCrearVale() {
     `,
     footerHtml: `
       <button class="btn btn--ghost" id="btn-cancelar-crear">Cancelar</button>
-      <button class="btn btn--primary" id="btn-guardar-crear">Crear Vale de Arte</button>
+      <button class="btn btn--primary" id="btn-guardar-crear">${esCorreccion ? 'Guardar cambios' : 'Crear Vale de Arte'}</button>
     `
   });
 
@@ -144,7 +159,7 @@ export function abrirModalCrearVale() {
     minDate: hoyMedianoche(),
     capacidad: {
       obtenerTalleresIds: () => [...tallerSeleccionados],
-      cargarMes: obtenerCapacidadEntrega
+      cargarMes: (talleres, anio, mes) => obtenerCapacidadEntrega(talleres, anio, mes, esCorreccion ? vale.id : null)
     }
   });
   const apiFechaEvento = wireCampoFecha(overlay, 'fechaEvento', { minDate: sumarDiaLocal(hoyMedianoche(), 1) });
@@ -157,7 +172,9 @@ export function abrirModalCrearVale() {
   const getDocumentos = wireDropzone(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista', { maxBytes: DOCUMENTO_MAX_BYTES });
 
   const formCrear = overlay.querySelector('#form-crear-vale');
+  if (esCorreccion) precargarFormulario(overlay, formCrear, vale, { apiFechaEntrega, apiFechaEvento });
   wireLimpiezaValidacionInline(formCrear);
+  if (esCorreccion) cargarArchivosActuales(overlay, vale.id, documentosQuitar);
 
   overlay.querySelector('#btn-cancelar-crear').addEventListener('click', cerrar);
   overlay.querySelector('#btn-guardar-crear').addEventListener('click', () => {
@@ -194,10 +211,82 @@ export function abrirModalCrearVale() {
     // detectar el reintento y no duplicar el vale.
     formData.set('idempotencyKey', crypto.randomUUID());
 
+    if (esCorreccion) {
+      formData.set('documentosQuitar', JSON.stringify([...documentosQuitar]));
+      guardarCorreccion(overlay, vale, formData);
+      return;
+    }
     // Antes de crear el vale de verdad, se confirma con un modal resumen (el
     // modal de creación queda debajo, intacto, por si se cancela).
     abrirModalConfirmarCreacion(formData);
   });
+}
+
+async function guardarCorreccion(overlay, vale, formData) {
+  const btn = overlay.querySelector('#btn-guardar-crear');
+  btn.disabled = true;
+  btn.classList.add('btn--loading');
+  try {
+    await corregirVale(vale.id, formData);
+    window.toast.success('Vale corregido', `${vale.correlativo} se actualizó correctamente.`);
+    document.querySelectorAll('.modal-overlay').forEach(o => o.remove());
+    cargarBuzon();
+  } catch (error) {
+    mostrarErrorModal(overlay, error.message);
+    btn.disabled = false;
+    btn.classList.remove('btn--loading');
+    cargarBuzon();
+  }
+}
+
+function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEvento }) {
+  for (const campo of ['clienteEmpresa', 'clienteNombre', 'clienteCorreo', 'producto', 'material', 'tecnica', 'acabado', 'cantidad', 'cotizacion', 'descripcion']) {
+    const nombreColumna = campo.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`);
+    form.querySelector(`[name="${campo}"]`).value = vale[nombreColumna] ?? '';
+  }
+  const [pais, ...numero] = (vale.cliente_telefono || '').split(' ');
+  if (pais) form.querySelector('[name="clienteTelefonoPais"]').value = pais;
+  form.querySelector('[name="clienteTelefono"]').value = numero.join(' ');
+  form.querySelector('[name="urgente"]').checked = !!Number(vale.urgente);
+  apiFechaEntrega.setDate(parseIsoLocal(String(vale.fecha_entrega).slice(0, 10)), { silent: true });
+  apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate(), 1));
+  apiFechaEvento.setDate(parseIsoLocal(String(vale.fecha_evento).slice(0, 10)), { silent: true });
+  form.querySelector('[name="descripcion"]').dispatchEvent(new Event('input'));
+  form.querySelector('[name="fechaEntrega"]').dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+// Archivos ya guardados del vale: se muestran con su enlace y una "×" para quitarlos al guardar.
+async function cargarArchivosActuales(overlay, valeId, documentosQuitar) {
+  let documentos;
+  try {
+    documentos = (await obtenerDetalleVale(valeId)).documentos || [];
+  } catch (error) {
+    mostrarErrorModal(overlay, error.message);
+    return;
+  }
+  const render = () => {
+    overlay.querySelectorAll('.archivos-actuales').forEach(cont => {
+      const tipo = cont.dataset.tipo;
+      cont.innerHTML = documentos.filter(d => d.tipo === tipo && !documentosQuitar.has(d.id)).map(d => `
+        <span class="archivo-chip">
+          <a class="archivo-chip-ver" href="${escapeHtml(d.ruta)}" target="_blank" rel="noopener" title="Ver archivo">
+            ${tipo === 'imagen'
+              ? `<img class="archivo-chip-miniatura" src="${escapeHtml(d.ruta)}" alt="">`
+              : '<ion-icon name="document-text-outline" class="archivo-chip-icon"></ion-icon>'}
+            <span class="archivo-chip-nombre">${escapeHtml(d.nombre_original)}</span>
+          </a>
+          <button type="button" class="archivo-chip-quitar" data-id="${d.id}" title="Quitar">&times;</button>
+        </span>
+      `).join('');
+    });
+  };
+  overlay.querySelectorAll('.archivos-actuales').forEach(cont => cont.addEventListener('click', (e) => {
+    const btn = e.target.closest('.archivo-chip-quitar');
+    if (!btn) return;
+    documentosQuitar.add(Number(btn.dataset.id));
+    render();
+  }));
+  render();
 }
 
 function abrirModalConfirmarCreacion(formData) {

@@ -424,6 +424,20 @@ class ValeCreacionService {
 
   async regenerarPdf(valeId) {
     const vale = await valeRepository.obtenerPorId(valeId);
+    const documentos = await documentoRepository.listarPorVale(valeId);
+    const pdfBuffer = await this.generarBufferPdf(vale, documentos);
+    const pdfUrlAnterior = vale.pdf_url;
+    await subirYRegistrarArchivo({
+      buffer: pdfBuffer, nombreOriginal: `${vale.correlativo}.pdf`, mimeType: 'application/pdf',
+      registrar: (subida) => valeRepository.actualizarPdfUrl(valeId, subida.url)
+    });
+    if (pdfUrlAnterior) {
+      await supabaseStorage.eliminar(pdfUrlAnterior);
+    }
+  }
+
+  // Genera el PDF de un vale a partir de sus datos y documentos, sin guardar nada.
+  async generarBufferPdf(vale, documentos) {
     const asesor = await usuarioValeRepository.obtenerPorId(vale.asesor_id);
     // Firma roja de autorización — solo existe una vez que el Supervisor
     // autorizó (creación o modificación); antes de eso la caja de firma del
@@ -440,19 +454,7 @@ class ValeCreacionService {
       __asesorTelefono: asesor ? asesor.telefono : null,
       __firmaAutorizacion: firmaAutorizacion
     };
-    // Las imágenes se conservan (no se eliminan tras generar el PDF): una
-    // modificación posterior necesita poder regenerar el documento completo
-    // desde cero.
-    const documentos = await documentoRepository.listarPorVale(valeId);
-    const pdfBuffer = await valePdfService.generarPdfVale(valeConAsesor, documentos);
-    const pdfUrlAnterior = vale.pdf_url;
-    await subirYRegistrarArchivo({
-      buffer: pdfBuffer, nombreOriginal: `${vale.correlativo}.pdf`, mimeType: 'application/pdf',
-      registrar: (subida) => valeRepository.actualizarPdfUrl(valeId, subida.url)
-    });
-    if (pdfUrlAnterior) {
-      await supabaseStorage.eliminar(pdfUrlAnterior);
-    }
+    return valePdfService.generarPdfVale(valeConAsesor, documentos);
   }
 }
 

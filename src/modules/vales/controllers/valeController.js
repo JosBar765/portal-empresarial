@@ -70,7 +70,7 @@ class ValeController {
       if (!talleresIds.length || !Number.isInteger(anio) || !Number.isInteger(mes) || mes < 1 || mes > 12) {
         return res.status(400).json({ error: 'Parámetros inválidos: se requieren talleres, anio y mes.' });
       }
-      const data = await valeService.obtenerCapacidadEntrega(talleresIds, anio, mes);
+      const data = await valeService.obtenerCapacidadEntrega(talleresIds, anio, mes, idOpcional(req.query.excluir, 'Vale'));
       return res.json(data);
     } catch (error) {
       return responderErrorInterno(res, error);
@@ -92,6 +92,16 @@ class ValeController {
       const archivos = validarArchivos(req.files);
       const vale = await valeService.crearVale(req.user, req.body, archivos);
       return res.status(201).json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async corregir(req, res) {
+    try {
+      const archivos = validarArchivos(req.files);
+      const vale = await valeService.corregirVale(req.user, idObligatorio(req.params.id), req.body, archivos);
+      return res.json(vale);
     } catch (error) {
       return responderError(res, error);
     }
