@@ -25,6 +25,18 @@ Rama: `fix/correcciones-admin-y-vales`.
 
 `.archivo-chip` (`public/modules/vales/css/styles.css`) usa los tokens `--color-success` y `--color-success-bg` (fondo, borde, ícono y tamaño en verde).
 
+## 6. Miniatura y previsualización de los archivos antes de subirlos
+
+Commit aparte (se puede revertir sin afectar el resto de esta corrección).
+
+Un archivo elegido solo existe en memoria del navegador, pero se puede mostrar con una URL temporal (`URL.createObjectURL`) sin subirlo a ninguna parte. En `wireDropzone` (`components/dropzone.js`), común a todas las zonas de carga (imágenes y documentos al crear un vale, propuesta del técnico y documento de fusión):
+
+- Las imágenes muestran una miniatura de 28 px en su badge; los PDF, el ícono de documento (no se genera miniatura de la primera página: haría falta una librería de PDF).
+- Al pulsar la miniatura, el ícono o el nombre del archivo se abre una previsualización en un modal grande: la imagen completa, o el PDF en un visor integrado. El modal incluye "Abrir en otra pestaña" por si el navegador no muestra el PDF integrado.
+- Escape cierra solo la previsualización, no el formulario que queda debajo.
+- Las URL temporales se liberan al quitar el archivo, al cerrar la previsualización y al cerrar el formulario.
+- De paso, el nombre del archivo en el badge ahora se escapa (`escapeHtml`) antes de insertarse en el HTML.
+
 ## Verificación
 
 - En el navegador, como la asesora Alejandra Luna: el historial de un vale muestra las asignaciones y las aprobaciones por taller; en "Crear Vale de Arte", escribir `1234-5678901abc` en el teléfono deja `1234-5678`; subir `notas.txt` y `contrato.docx` a "Imágenes" los rechaza con aviso y una imagen PNG queda como badge verde.
