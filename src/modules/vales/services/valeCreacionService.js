@@ -17,6 +17,7 @@ const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const supabaseStorage = require('../../../core/files/supabaseStorage');
 const subirYRegistrarArchivo = require('../../../core/files/subirYRegistrarArchivo');
 const idempotencyRepository = require('../../../core/idempotency/idempotencyRepository');
+const { validarTelefono } = require('../../../core/utils/validar');
 const valePdfService = require('./valePdfService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
@@ -263,6 +264,7 @@ class ValeCreacionService {
         throw new Error(`${etiquetasCampo[campo]} es demasiado largo (máximo ${limitesLongitud[campo]} caracteres).`);
       }
     }
+    validarTelefono(clienteTelefono, 'El teléfono del cliente');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clienteCorreo)) {
       throw new Error('El correo del cliente no tiene un formato válido.');
     }

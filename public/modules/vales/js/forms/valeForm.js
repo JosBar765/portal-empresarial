@@ -8,6 +8,7 @@ import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js'
 import { escapeHtml } from '../utils/formato.js';
 import { crearVale, solicitarModificacion, obtenerCapacidadEntrega } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
+import { limitarTelefono } from '/js/telefono.js';
 
 // Mismos límites que ya exige el backend (valeController.js:
 // IMAGEN_MAX_BYTES/DOCUMENTO_MAX_BYTES) — se repiten acá para poder
@@ -151,6 +152,7 @@ export function abrirModalCrearVale() {
     apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || hoyMedianoche(), 1));
   });
   wireContadorCampo(overlay, 'descripcion', DESCRIPCION_MAX_CARACTERES);
+  limitarTelefono(overlay.querySelector('[name="clienteTelefono"]'));
   const getImagenes = wireDropzone(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista', { maxBytes: IMAGEN_MAX_BYTES });
   const getDocumentos = wireDropzone(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista', { maxBytes: DOCUMENTO_MAX_BYTES });
 
@@ -319,6 +321,7 @@ export function abrirModalSolicitarModificacion(vale) {
   });
   if (paisCodigoActual) overlay.querySelector('[name="clienteTelefonoPais"]').value = paisCodigoActual;
   wireContadorCampo(overlay, 'justificacion', JUSTIFICACION_MAX_CARACTERES);
+  limitarTelefono(overlay.querySelector('[name="clienteTelefono"]'));
 
   const formModificacion = overlay.querySelector('#form-modificacion');
   wireLimpiezaValidacionInline(formModificacion);

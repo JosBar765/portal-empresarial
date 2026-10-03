@@ -25,4 +25,15 @@ function idOpcional(valor, etiqueta = 'Identificador') {
   return idObligatorio(valor, etiqueta);
 }
 
-module.exports = { aEntero, idObligatorio, idOpcional };
+const MAX_DIGITOS_TELEFONO = 8;
+
+// Teléfono "+código número": el número (sin el código de país) admite hasta 8 dígitos.
+function validarTelefono(valor, etiqueta = 'El teléfono') {
+  if (!valor) return;
+  const numero = String(valor).trim().replace(/^\+\d{1,4}\s+/, '');
+  if (numero.replace(/\D/g, '').length > MAX_DIGITOS_TELEFONO) {
+    throw new ErrorDeNegocio(`${etiqueta} no puede tener más de ${MAX_DIGITOS_TELEFONO} números.`, 400);
+  }
+}
+
+module.exports = { aEntero, idObligatorio, idOpcional, validarTelefono };
