@@ -82,14 +82,17 @@ class ValeTallerService {
       if (fila.estado !== ESTADOS_TALLER.ASIGNADO) {
         throw new Error('Para comenzar el vale, primero debe estar asignado a ti.');
       }
-      const activasDelTecnico = await valeTallerRepository.listarActivasPorTecnico(usuario.id);
-      for (const a of activasDelTecnico) {
-        if (a.estado === ESTADOS_TALLER.EN_PROCESO) {
-          const v = await valeRepository.obtenerPorId(a.vale_id);
-          throw new Error(`Ya tienes un vale en proceso (${v ? v.correlativo : a.vale_id}). Debes entregarlo o cancelarlo antes de comenzar otro.`);
+      // Revisar "ya tengo otro en proceso" y pasar este a EN_PROCESO van en el mismo turno de la cola del técnico.
+      await valeMutex.conColaDeTecnico(usuario.id, async () => {
+        const activasDelTecnico = await valeTallerRepository.listarActivasPorTecnico(usuario.id);
+        for (const a of activasDelTecnico) {
+          if (a.estado === ESTADOS_TALLER.EN_PROCESO) {
+            const v = await valeRepository.obtenerPorId(a.vale_id);
+            throw new Error(`Ya tienes un vale en proceso (${v ? v.correlativo : a.vale_id}). Debes entregarlo o cancelarlo antes de comenzar otro.`);
+          }
         }
-      }
-      await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PROCESO);
+        await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PROCESO);
+      });
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, `${etiquetaActorTaller(usuario)} marcó el vale como en proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       // El encargado del taller sí debe enterarse cuando su técnico empieza
@@ -195,14 +198,16 @@ class ValeTallerService {
         throw new Error('Solo se puede reanudar un vale que esté en pausa.');
       }
       // Misma regla que comenzar(): un técnico solo puede tener un vale EN_PROCESO a la vez.
-      const activasDelTecnico = await valeTallerRepository.listarActivasPorTecnico(usuario.id);
-      for (const a of activasDelTecnico) {
-        if (a.estado === ESTADOS_TALLER.EN_PROCESO) {
-          const v = await valeRepository.obtenerPorId(a.vale_id);
-          throw new Error(`Ya tienes un vale en proceso (${v ? v.correlativo : a.vale_id}). Debes entregarlo, cancelarlo o pausarlo antes de reanudar otro.`);
+      await valeMutex.conColaDeTecnico(usuario.id, async () => {
+        const activasDelTecnico = await valeTallerRepository.listarActivasPorTecnico(usuario.id);
+        for (const a of activasDelTecnico) {
+          if (a.estado === ESTADOS_TALLER.EN_PROCESO) {
+            const v = await valeRepository.obtenerPorId(a.vale_id);
+            throw new Error(`Ya tienes un vale en proceso (${v ? v.correlativo : a.vale_id}). Debes entregarlo, cancelarlo o pausarlo antes de reanudar otro.`);
+          }
         }
-      }
-      await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PROCESO);
+        await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PROCESO);
+      });
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_PROCESO, `${etiquetaActorTaller(usuario)} reanudó el proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
