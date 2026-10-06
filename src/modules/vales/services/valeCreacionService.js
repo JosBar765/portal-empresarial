@@ -159,14 +159,8 @@ class ValeCreacionService {
       // que ejecuta la acción (si no, el resto se queda con el vale
       // apareciendo accionable en su buzón hasta que recargan a mano).
       const supervisoresDelAsesor = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
-      if (!esAdministrador(usuario)) {
-        if (!supervisoresDelAsesor.some(s => s.id === usuario.id)) {
-          throw new Error('Este vale es de un asesor que no está a tu cargo.');
-        }
-        const { autorizados, limite } = await this.obtenerLimiteColectivoSupervisor(usuario.id);
-        if (autorizados >= limite) {
-          throw new Error('Se alcanzó el límite diario colectivo de autorizaciones de creación de tu equipo. Vuelve a intentar mañana.');
-        }
+      if (!esAdministrador(usuario) && !supervisoresDelAsesor.some(s => s.id === usuario.id)) {
+        throw new Error('Este vale es de un asesor que no está a tu cargo.');
       }
       await valeVistoService.exigirVisto(usuario, valeId);
       const talleresIds = (vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
@@ -174,14 +168,24 @@ class ValeCreacionService {
         throw new Error('Este vale no tiene talleres seleccionados, no se puede autorizar.');
       }
 
-      // El vale recién ocupa cupo al autorizarse; si dos supervisores compiten por el último lugar, solo gana uno.
-      await valeMutex.conColaDeCapacidad(async () => {
-        await capacidadEntregaService.validarLimiteDiario(talleresIds, String(vale.fecha_entrega).slice(0, 10), { paraSupervisor: true });
-        await this.fanOutTalleres(valeId, talleresIds);
+      // Leer el cupo del supervisor y sellar la autorización van en el mismo turno de su cola:
+      // dos autorizaciones simultáneas no pueden pasar ambas con un solo cupo libre.
+      await valeMutex.conColaDeSupervisor(usuario.id, async () => {
+        if (!esAdministrador(usuario)) {
+          const { autorizados, limite } = await this.obtenerLimiteColectivoSupervisor(usuario.id);
+          if (autorizados >= limite) {
+            throw new Error('Se alcanzó el límite diario colectivo de autorizaciones de creación de tu equipo. Vuelve a intentar mañana.');
+          }
+        }
+        // El vale recién ocupa cupo al autorizarse; si dos supervisores compiten por el último lugar, solo gana uno.
+        await valeMutex.conColaDeCapacidad(async () => {
+          await capacidadEntregaService.validarLimiteDiario(talleresIds, String(vale.fecha_entrega).slice(0, 10), { paraSupervisor: true });
+          await this.fanOutTalleres(valeId, talleresIds);
+        });
+        const ahora = `${hoyISO()} ${horaActual()}`;
+        await valeRepository.sellarAutorizacion(valeId, { autorizadoPor: usuario.id, autorizadoEn: ahora, autorizacionTipo: 'CREACION' });
+        await valeRepository.actualizarEstado(valeId, ESTADOS.CREADO);
       });
-      const ahora = `${hoyISO()} ${horaActual()}`;
-      await valeRepository.sellarAutorizacion(valeId, { autorizadoPor: usuario.id, autorizadoEn: ahora, autorizacionTipo: 'CREACION' });
-      await valeRepository.actualizarEstado(valeId, ESTADOS.CREADO);
       const nombresTalleres = await this.nombresDeTalleres(talleresIds);
       await registrarHistorial(valeId, usuario.id, null, ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.CREADO,
         `Supervisor autorizó la creación — enviado a taller${talleresIds.length > 1 ? 'es' : ''}: ${nombresTalleres}`);
