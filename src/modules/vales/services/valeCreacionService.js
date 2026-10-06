@@ -51,8 +51,8 @@ class ValeCreacionService {
     if (!tienda) {
       throw new Error('No se encontró la tienda asignada a tu usuario. Avisa al administrador.');
     }
-    // El país del correlativo es el de la empresa de la tienda.
-    if (!tienda.pais_codigo) {
+    // El prefijo del correlativo es el país de la empresa de la tienda, salvo que la empresa defina uno propio (Trofex: TX).
+    if (!tienda.prefijo_pais) {
       throw new Error('La tienda asignada a tu usuario no tiene un país configurado, así que no se puede crear el vale. Avisa al administrador.');
     }
     // Los talleres elegibles/exclusividad dependen de la tienda del propio
@@ -80,7 +80,7 @@ class ValeCreacionService {
         // {PAÍS}-{TIENDA}-{MMAA}-{ID}: país de la empresa de la tienda y mes/año de creación. El número es el id
         // autoincremental de MySQL (asignado por valeRepository.crear DESPUÉS del insert) — global, y nunca se
         // reutiliza ni retrocede sin importar cuántos vales se borren después. Los correlativos anteriores no se renumeran.
-        const correlativoPrefijo = `${tienda.pais_codigo}-${tienda.codigo}-${hoy.slice(5, 7)}${hoy.slice(2, 4)}`;
+        const correlativoPrefijo = `${tienda.prefijo_pais}-${tienda.codigo}-${hoy.slice(5, 7)}${hoy.slice(2, 4)}`;
 
         return valeRepository.crear({
           correlativoPrefijo,

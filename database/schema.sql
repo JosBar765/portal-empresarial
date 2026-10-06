@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS `empresas` (
   `id`      INT AUTO_INCREMENT PRIMARY KEY,
   `nombre`  VARCHAR(150) NOT NULL,
   `pais_id` INT NOT NULL,
+  `prefijo_correlativo` VARCHAR(2) DEFAULT NULL,
   FOREIGN KEY (`pais_id`) REFERENCES `paises` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
