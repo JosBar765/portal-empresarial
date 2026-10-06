@@ -42,7 +42,7 @@ datos; la columna "Etiqueta" es lo que se muestra hoy en pantalla
 | 1 | `ESPERANDO_AUTORIZACION` | Esperando Autorización | El vale existe pero ningún taller lo ve aún; espera al supervisor del asesor. No tiene filas en `vale_talleres`. Tiene vigencia de 24 h (§1). | El asesor crea el vale · el asesor reenvía uno `RECHAZADO` · se solicita una modificación (nace así el vale `MOD-`, oculto para el asesor) | Autorizar → `CREADO` (o `MODIFICADO` si es `MOD-`) · Rechazar → `RECHAZADO` · Baja o vencimiento → **se borra** |
 | 9 | `RECHAZADO` | Rechazado | El supervisor devolvió el vale al asesor con un motivo (≤ 50 palabras). El asesor puede corregirlo, reenviarlo o darlo de baja. Conserva la vigencia de 24 h original. | El supervisor rechaza la creación | Reenviar → `ESPERANDO_AUTORIZACION` · Baja o vencimiento → se borra |
 | 2 | `CREADO` | Creado | Autorizado; los talleres lo trabajan en paralelo (estado por taller, §2). El estado general no cambia mientras algún taller no esté `APROBADO`. | El supervisor autoriza la creación | Todos los talleres `APROBADO` → `PENDIENTE_CONFIRMACION` (1 taller) o `APROBADO_DEPARTAMENTO` (2+) |
-| 3 | `APROBADO_DEPARTAMENTO` | Aprobado por Talleres | Todos los talleres aprobaron y falta la **fusión manual** de sus propuestas (§1, cola de quien tenga `vales.aprobar_general`). | Último taller aprueba, con 2+ talleres (o `MOD-` cuyo original fue a 2+) | Se adjunta el documento de fusión → `PENDIENTE_CONFIRMACION` |
+| 3 | `APROBADO_DEPARTAMENTO` | Aprobado por Talleres | Todos los talleres aprobaron y falta la **fusión manual** de sus propuestas (§1, cola de quien tenga `vales.aprobar_general`). | Último taller aprueba, con 2+ talleres (también un `MOD-`, que va a los mismos talleres que su original) | Se adjunta el documento de fusión → `PENDIENTE_CONFIRMACION` |
 | 4 | `PENDIENTE_CONFIRMACION` | Pendiente Confirmación | El trabajo está listo; el asesor debe confirmar de recibido (o pedir una modificación). | Último taller aprueba con 1 taller · se fusionó | Confirmar → `RECIBIDO` · Solicitar modificación → `SOLICITANDO_MODIFICACION` |
 | 5 | `RECIBIDO` | Recibido (al asesor se le muestra **Confirmado**) | Terminal. El asesor confirmó; el atraso queda congelado. Puede seguir recibiendo **una** solicitud de modificación. | El asesor confirma · una modificación fue aprobada o rechazada (el original vuelve aquí) | Solicitar modificación → `SOLICITANDO_MODIFICACION` |
 | 6 | `SOLICITANDO_MODIFICACION` | Solicitando Modificación | El **original** espera que el supervisor apruebe o rechace la modificación. | El asesor solicita la modificación desde `PENDIENTE_CONFIRMACION` o `RECIBIDO` | Aprobada → `RECIBIDO` (y nace el `MOD-`) · Rechazada → vuelve al estado previo (`PENDIENTE_CONFIRMACION` o `RECIBIDO`) |
@@ -103,7 +103,7 @@ Diagrama general (flujo feliz y desvíos):
 - **Encargado de taller y técnico** ven el estado **de la fila de su taller**
   (`estado_taller`, sección B), no el general.
 - **Administrador y Gerente** ven el estado general real.
-- Un vale `MOD-` nunca es visible para el asesor mientras esté en
+- Un vale `MOD-` no aparece en los listados del asesor mientras esté en
   `ESPERANDO_AUTORIZACION` (es la solicitud pendiente; ver §1.1).
 
 ## 1. Estado GENERAL del vale (`vales.estado`)
@@ -219,9 +219,9 @@ Notas:
 ```
  Asesor solicita modificación (desde PENDIENTE_CONFIRMACION o RECIBIDO)
    · usa el mismo formulario de "Corregir", con los archivos precargados y
-     los talleres fijos (si el original fue a 2+, elige un subconjunto NO
-     vacío de ESOS talleres, nunca uno nuevo)
-   · debe escribir una justificación (máx. 2000 caracteres)
+     los talleres FIJOS: la modificación siempre va a los mismos talleres del
+     original (no se puede elegir otro ni un subconjunto)
+   · debe escribir una justificación (va en la descripción: máx. 600 caracteres)
    · se valida el cupo diario de los talleres destino (como aviso)
    · se crea YA el vale nuevo "MOD-<correlativo>" en ESPERANDO_AUTORIZACION
      (vale_original_id apunta al original), oculto para el asesor
@@ -249,7 +249,7 @@ Notas:
                       el MOD- corre el ciclo de taller normal (§2). Al terminar:
                       · si el ORIGINAL fue a 1 solo taller → PENDIENTE_CONFIRMACION
                       · si el ORIGINAL fue a 2+ talleres → APROBADO_DEPARTAMENTO
-                        (fusión), aunque la modificación solo toque 1 taller
+                        (fusión), pues el MOD fue a todos esos talleres
                       Luego el asesor lo confirma → RECIBIDO.
 ```
 
@@ -433,7 +433,8 @@ combinarse con cualquier filtro de estado.
   `SOLICITANDO_MODIFICACION` (`vales.atraso_congelado_en`). Los vales ya
   `RECIBIDO` sin sello de congelamiento usan `actualizado_en` como respaldo.
 - **Alerta en vivo:** `atrasoWatcher.js` corre cada 60 s en el mismo proceso
-  y detecta el momento exacto en que un vale cruza su `fecha_entrega`. Dispara
+  y detecta los vales con **1 día completo o más** de atraso (pasadas 24 h de
+  su `fecha_entrega`; antes solo se muestra "vence hoy"). Dispara
   una alerta roja **una sola vez por vale** (`atraso_notificado_en`) solo a
   quien lo tiene "en su vista": el asesor, sus supervisores, los talleres con
   fila activa (pendiente, asignado, en proceso o en revisión), los técnicos con
