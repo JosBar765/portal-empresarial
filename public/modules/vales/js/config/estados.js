@@ -11,6 +11,7 @@ export const ESTADOS_LABEL = {
   SOLICITANDO_MODIFICACION: 'Solicitando Modificación',
   MODIFICADO: 'Modificado',
   CONFIRMADO: 'Confirmado',
+  RECHAZADO: 'Rechazado',
   // Por taller
   PENDIENTE_ASIGNACION: 'Pendiente Asignación',
   ASIGNADO: 'Asignado',
@@ -28,14 +29,15 @@ export const ESTADOS_VISIBLES_LABEL = {
   SOLICITANDO_MODIFICACION: 'Solicitando Modificación',
   MODIFICADO: 'Modificado',
   PENDIENTE_CONFIRMACION: 'Pendiente Confirmación',
-  CONFIRMADO: 'Confirmado'
+  CONFIRMADO: 'Confirmado',
+  RECHAZADO: 'Rechazado'
 };
 
 // Subconjuntos usados solo para poblar las opciones del desplegable "Todos los
 // estados" del buzón — reflejan exactamente qué rama de `estadoActivo()`
 // aplica a cada rol, para no ofrecer una opción que nunca puede matchear nada.
 export const CLAVES_ESTADOS_TALLER = ['PENDIENTE_ASIGNACION', 'ASIGNADO', 'EN_PROCESO', 'EN_PAUSA', 'EN_REVISION', 'APROBADO'];
-export const CLAVES_ESTADOS_GENERAL = ['ESPERANDO_AUTORIZACION', 'CREADO', 'APROBADO_DEPARTAMENTO', 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'SOLICITANDO_MODIFICACION', 'MODIFICADO', 'CONFIRMADO'];
+export const CLAVES_ESTADOS_GENERAL = ['ESPERANDO_AUTORIZACION', 'CREADO', 'APROBADO_DEPARTAMENTO', 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'SOLICITANDO_MODIFICACION', 'MODIFICADO', 'CONFIRMADO', 'RECHAZADO'];
 // El técnico nunca ve PENDIENTE_ASIGNACION (un vale sin asignar no está en su
 // buzón) ni APROBADO en el Buzón (se muda a Trabajo realizado) — se separan
 // por vista en poblarFiltroEstado.

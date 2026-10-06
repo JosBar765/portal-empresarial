@@ -10,8 +10,11 @@ const ESTADOS = {
   RECIBIDO: 'RECIBIDO',
   SOLICITANDO_MODIFICACION: 'SOLICITANDO_MODIFICACION',
   MODIFICADO: 'MODIFICADO',
-  CONFIRMADO: 'CONFIRMADO'
+  CONFIRMADO: 'CONFIRMADO',
+  RECHAZADO: 'RECHAZADO'
 };
+// Estados en los que el asesor todavía puede corregir, reenviar o dar de baja su vale.
+const ESTADOS_EDITABLES_ASESOR = [ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.RECHAZADO];
 const ESTADOS_TERMINALES = [ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
 const ESTADOS_CONFIRMADOS = [ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO, ESTADOS.SOLICITANDO_MODIFICACION];
 
@@ -137,6 +140,7 @@ function estadoVisibleAsesor(vale) {
     case ESTADOS.ESPERANDO_AUTORIZACION: return 'ESPERANDO_AUTORIZACION';
     case ESTADOS.SOLICITANDO_MODIFICACION: return 'SOLICITANDO_MODIFICACION';
     case ESTADOS.PENDIENTE_CONFIRMACION: return 'PENDIENTE_CONFIRMACION';
+    case ESTADOS.RECHAZADO: return 'RECHAZADO';
     case ESTADOS.RECIBIDO: return 'CONFIRMADO';
     default: return 'CREADO'; // CREADO / APROBADO_DEPARTAMENTO
   }
@@ -229,6 +233,17 @@ function calcularUrgente(fechaEntregaNorm, urgentePayload) {
   return esVerdadero(urgentePayload);
 }
 
+const MAX_PALABRAS_MOTIVO = 50;
+
+function validarMotivoRechazo(motivo) {
+  const texto = String(motivo || '').trim();
+  const palabras = texto.split(/\s+/).filter(Boolean).length;
+  if (!palabras) throw new Error('Escribe el motivo del rechazo para que el asesor sepa qué corregir.');
+  if (palabras > MAX_PALABRAS_MOTIVO) throw new Error(`El motivo no puede tener más de ${MAX_PALABRAS_MOTIVO} palabras.`);
+  if (texto.length > 400) throw new Error('El motivo es demasiado largo. Resúmelo un poco.');
+  return texto;
+}
+
 async function registrarHistorial(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion, tecnicoId) {
   await historialRepository.registrar(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion, tecnicoId);
 }
@@ -247,12 +262,12 @@ function assertPropioDelAsesor(usuario, vale) {
 }
 
 module.exports = {
-  ESTADOS, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
+  ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistenteDeDiseno,
   inicialesAsesor, hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy, esVerdadero,
   normalizarDatetime, calcularUrgente, registrarHistorial,
-  requerirVale, assertPropioDelAsesor
+  requerirVale, assertPropioDelAsesor, validarMotivoRechazo
 };

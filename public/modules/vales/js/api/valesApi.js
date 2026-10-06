@@ -151,8 +151,12 @@ export function autorizarCreacion(valeId) {
   return enviarPost(`/api/vales/${valeId}/autorizar-creacion`);
 }
 
-export function rechazarCreacion(valeId) {
-  return enviarPost(`/api/vales/${valeId}/rechazar-creacion`);
+export function rechazarCreacion(valeId, motivo) {
+  return enviarJSON(`/api/vales/${valeId}/rechazar-creacion`, { motivo });
+}
+
+export function reenviarVale(valeId) {
+  return enviarPost(`/api/vales/${valeId}/reenviar`);
 }
 
 export function marcarValeVisto(valeId) {

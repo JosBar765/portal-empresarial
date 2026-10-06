@@ -5,7 +5,7 @@ class ValeCorreccionRepository {
   // Aplica la corrección completa en una sola transacción: datos del vale,
   // documentos quitados/agregados e historial. El UPDATE solo prospera si el
   // vale sigue esperando autorización.
-  async aplicar({ valeId, usuarioId, datos, pdfUrl, documentosQuitarIds, documentosNuevos, accionHistorial }) {
+  async aplicar({ valeId, usuarioId, datos, pdfUrl, estado, documentosQuitarIds, documentosNuevos, accionHistorial }) {
     return db.transaccion(async (tx) => {
       const res = await tx.query(
         `UPDATE vales SET
@@ -13,12 +13,12 @@ class ValeCorreccionRepository {
            cliente_empresa = ?, cliente_nombre = ?, cliente_telefono = ?, cliente_correo = ?,
            producto = ?, material = ?, tecnica = ?, acabado = ?, cantidad = ?, cotizacion = ?,
            descripcion = ?, talleres_solicitados = ?, pdf_url = ?
-         WHERE id = ? AND estado_id = (SELECT id FROM estados_vale WHERE nombre = 'ESPERANDO_AUTORIZACION')`,
+         WHERE id = ? AND estado_id = (SELECT id FROM estados_vale WHERE nombre = ?)`,
         [
           datos.fechaEntregaNorm, datos.fechaEventoNorm, datos.urgente ? 1 : 0,
           datos.clienteEmpresa || null, datos.clienteNombre, datos.clienteTelefono, datos.clienteCorreo,
           datos.producto, datos.material, datos.tecnica, datos.acabado, datos.cantidad, datos.cotizacion,
-          datos.descripcion || null, datos.talleresIds.join(','), pdfUrl, valeId
+          datos.descripcion || null, datos.talleresIds.join(','), pdfUrl, valeId, estado
         ],
         'vale:corregir'
       );
@@ -43,7 +43,7 @@ class ValeCorreccionRepository {
       }
       await tx.query(
         'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, tecnico_id) VALUES (?, ?, NULL, ?, ?, ?, NULL)',
-        [valeId, usuarioId, 'ESPERANDO_AUTORIZACION', 'ESPERANDO_AUTORIZACION', accionHistorial],
+        [valeId, usuarioId, estado, estado, accionHistorial],
         'historial:insert_correccion'
       );
     });

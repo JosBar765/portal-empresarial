@@ -173,6 +173,12 @@ function abrirModalFormularioVale(vale) {
 
   const formCrear = overlay.querySelector('#form-crear-vale');
   if (esCorreccion) precargarFormulario(overlay, formCrear, vale, { apiFechaEntrega, apiFechaEvento });
+  if (esCorreccion && vale.estado === 'RECHAZADO') {
+    const aviso = document.createElement('div');
+    aviso.className = 'form-aviso';
+    aviso.innerHTML = `<ion-icon name="alert-circle-outline"></ion-icon><span>Vale rechazado. Motivo: ${escapeHtml((vale.rechazo_motivo || 'sin motivo registrado').replace(/[.\s]+$/, ''))}. Guarda tus cambios y luego usa "Reenviar a autorización".</span>`;
+    overlay.querySelector('.modal-body').prepend(aviso);
+  }
   wireLimpiezaValidacionInline(formCrear);
   if (esCorreccion) cargarArchivosActuales(overlay, vale.id, documentosQuitar);
 

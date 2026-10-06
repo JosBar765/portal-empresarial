@@ -88,6 +88,7 @@ router.post('/:id/aprobar-modificacion', aprobarModificacionVale, (req, res) => 
 router.post('/:id/rechazar-modificacion', aprobarModificacionVale, (req, res) => valeController.rechazarModificacion(req, res));
 router.post('/:id/autorizar-creacion', autorizarCreacionVale, (req, res) => valeController.autorizarCreacion(req, res));
 router.post('/:id/rechazar-creacion', autorizarCreacionVale, (req, res) => valeController.rechazarCreacion(req, res));
+router.post('/:id/reenviar', corregirVale, (req, res) => valeController.reenviar(req, res));
 router.post('/:id/visto', requirePermission('vales.supervisar'), (req, res) => valeController.marcarVisto(req, res));
 router.post('/:id/dar-de-baja', darDeBajaVale, (req, res) => valeController.darDeBaja(req, res));
 router.post('/:id/corregir', corregirVale, camposAdjuntos, (req, res) => valeController.corregir(req, res));

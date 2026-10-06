@@ -11,7 +11,7 @@ import { cargarEncontrarVale } from './encontrarVale.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/tecnico.js';
-import { abrirModalDecisionAsesor, abrirModalDarDeBaja } from '../actions/asesor.js';
+import { abrirModalDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
 import { abrirModalSolicitarModificacion, abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirModalHistorial } from '../actions/historial.js';
 
@@ -343,11 +343,18 @@ export function construirAcciones(v) {
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });
   }
-  if (puede('corregir') && v.estado === 'ESPERANDO_AUTORIZACION' && v.asesor_id === state.user.id) {
+  const esMio = v.asesor_id === state.user.id;
+  if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
+    acciones.push({ icono: 'alert-circle-outline', titulo: 'Ver motivo del rechazo', clase: 'icon-danger', onClick: abrirModalMotivoRechazo });
+  }
+  if (puede('corregir') && ['ESPERANDO_AUTORIZACION', 'RECHAZADO'].includes(v.estado) && esMio) {
     acciones.push({ icono: 'settings-outline', titulo: 'Corregir', onClick: abrirModalCorregirVale });
   }
+  if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
+    acciones.push({ icono: 'send-outline', titulo: 'Reenviar a autorización', clase: 'icon-success', onClick: accionReenviar });
+  }
   acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
-  if (puede('darDeBaja') && v.estado === 'ESPERANDO_AUTORIZACION' && v.asesor_id === state.user.id) {
+  if (puede('darDeBaja') && ['ESPERANDO_AUTORIZACION', 'RECHAZADO'].includes(v.estado) && esMio) {
     acciones.push({ icono: 'ban-outline', titulo: 'Dar de baja', clase: 'icon-danger', onClick: abrirModalDarDeBaja });
   }
 

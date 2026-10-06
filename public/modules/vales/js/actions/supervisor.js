@@ -10,6 +10,8 @@ import { cargarBuzon } from '../views/buzon.js';
 // asesor eligió los talleres al crear (vale.talleres_solicitados, CSV de
 // ids); recién aquí se reparten de verdad.
 // -----------------------------------------------------------------------
+const MAX_PALABRAS_MOTIVO = 50;
+
 // El supervisor debe haber abierto "Ver" en el vale antes de autorizarlo (también se exige en el servidor).
 function htmlAvisoVisto(vale) {
   return vale.visto
@@ -74,18 +76,47 @@ export function abrirModalAutorizarCreacion(vale) {
       cargarBuzon();
     }
   });
-  overlay.querySelector('#btn-rechazar').addEventListener('click', async () => {
-    if (!confirm(`¿Rechazar el vale ${vale.correlativo}? Esto lo borra PERMANENTEMENTE junto con sus imágenes y PDF — no se puede deshacer.`)) return;
-    const btn = overlay.querySelector('#btn-rechazar');
+  overlay.querySelector('#btn-rechazar').addEventListener('click', () => abrirModalRechazarCreacion(vale, cerrar));
+}
+
+// Rechazo con justificación (máx. 50 palabras): el vale vuelve al asesor, no se borra.
+function abrirModalRechazarCreacion(vale, cerrarAutorizacion) {
+  const { overlay, cerrar } = abrirModal({
+    title: `Rechazar vale — ${vale.correlativo}`,
+    bodyHtml: `
+      <p style="font-size:13px;margin-bottom:10px;">El vale volverá al asesor con tu justificación para que lo corrija y lo reenvíe.</p>
+      <div class="form-field full">
+        <label>Justificación *</label>
+        <textarea id="motivo-rechazo" rows="4" maxlength="400"></textarea>
+        <div class="contador-palabras" id="motivo-palabras">0/${MAX_PALABRAS_MOTIVO} palabras</div>
+      </div>
+    `,
+    footerHtml: `<button class="btn btn--ghost" id="btn-volver">Volver</button><button class="btn btn--danger" id="btn-rechazar-confirmar">Rechazar y devolver al asesor</button>`
+  });
+  const textarea = overlay.querySelector('#motivo-rechazo');
+  const contador = overlay.querySelector('#motivo-palabras');
+  const btn = overlay.querySelector('#btn-rechazar-confirmar');
+  const palabras = () => textarea.value.trim().split(/\s+/).filter(Boolean).length;
+  const actualizar = () => {
+    const n = palabras();
+    contador.textContent = `${n}/${MAX_PALABRAS_MOTIVO} palabras`;
+    contador.classList.toggle('is-excedido', n > MAX_PALABRAS_MOTIVO);
+    btn.disabled = n === 0 || n > MAX_PALABRAS_MOTIVO;
+  };
+  textarea.addEventListener('input', actualizar);
+  actualizar();
+  overlay.querySelector('#btn-volver').addEventListener('click', cerrar);
+  btn.addEventListener('click', async () => {
     btn.disabled = true;
     try {
-      await rechazarCreacion(vale.id);
-      window.toast.success('Vale rechazado', `${vale.correlativo} fue rechazado y eliminado.`);
+      await rechazarCreacion(vale.id, textarea.value.trim());
+      window.toast.success('Vale rechazado', `${vale.correlativo} volvió al asesor con tu justificación.`);
       cerrar();
+      cerrarAutorizacion();
       cargarBuzon();
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
-      btn.disabled = false;
+      actualizar();
       cargarBuzon();
     }
   });

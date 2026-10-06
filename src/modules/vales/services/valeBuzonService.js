@@ -261,6 +261,7 @@ class ValeBuzonService {
     const contadores = {
       // El contador de límite diario es colectivo por equipo del Supervisor
       // — ver valeCreacionService.obtenerLimiteColectivoSupervisor().
+      rechazados: enVentana.filter(v => v.estado_visible === 'RECHAZADO').length,
       esperandoAutorizacion: enVentana.filter(v => v.estado_visible === 'ESPERANDO_AUTORIZACION').length,
       valesPorRevisar: enVentana.filter(v => v.estado_visible === 'PENDIENTE_CONFIRMACION').length,
       valesPendientesModificacion: enVentana.filter(v => v.estado_visible === 'SOLICITANDO_MODIFICACION').length,
@@ -270,12 +271,14 @@ class ValeBuzonService {
       atrasados: enVentana.filter(v => v.atrasado).length
     };
     const predicados = {
+      rechazados: v => v.estado_visible === 'RECHAZADO',
       esperandoAutorizacion: v => v.estado_visible === 'ESPERANDO_AUTORIZACION',
       valesPorRevisar: v => v.estado_visible === 'PENDIENTE_CONFIRMACION',
       valesPendientesModificacion: v => v.estado_visible === 'SOLICITANDO_MODIFICACION'
     };
     const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, predicados);
     const vales = ordenarPorGrupos(filtrados, [
+      v => v.estado_visible === 'RECHAZADO',
       v => v.estado_visible === 'PENDIENTE_CONFIRMACION',
       v => v.estado_visible === 'SOLICITANDO_MODIFICACION',
       v => v.estado_visible === 'MODIFICADO',

@@ -317,7 +317,7 @@ class ValeController {
 
   async rechazarCreacion(req, res) {
     try {
-      const resultado = await valeService.rechazarCreacion(req.user, idObligatorio(req.params.id));
+      const resultado = await valeService.rechazarCreacion(req.user, idObligatorio(req.params.id), req.body && req.body.motivo);
       return res.json(resultado);
     } catch (error) {
       return responderError(res, error);
@@ -328,6 +328,15 @@ class ValeController {
     try {
       const resultado = await valeService.darDeBaja(req.user, idObligatorio(req.params.id));
       return res.json(resultado);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async reenviar(req, res) {
+    try {
+      const vale = await valeService.reenviarAutorizacion(req.user, idObligatorio(req.params.id));
+      return res.json(vale);
     } catch (error) {
       return responderError(res, error);
     }

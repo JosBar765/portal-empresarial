@@ -13,7 +13,7 @@ const capacidadEntregaService = require('./capacidadEntregaService');
 const valeCreacionService = require('./valeCreacionService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
-const { ESTADOS, ROL, hoyISO, enriquecer, requerirVale } = require('./valeHelpers');
+const { ROL, ESTADOS_EDITABLES_ASESOR, hoyISO, enriquecer, requerirVale } = require('./valeHelpers');
 
 const MAX_IMAGENES = 10;
 const MAX_DOCUMENTOS = 5;
@@ -36,7 +36,7 @@ class ValeCorreccionService {
       if (vale.asesor_id !== usuario.id) {
         throw new Error('Solo puedes corregir tus propios vales.');
       }
-      if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
+      if (!ESTADOS_EDITABLES_ASESOR.includes(vale.estado)) {
         throw new Error('Este vale ya fue autorizado, así que ya no se puede corregir.');
       }
 
@@ -71,7 +71,7 @@ class ValeCorreccionService {
         await valeMutex.conColaDeCapacidad(async () => {
           await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO);
           await valeCorreccionRepository.aplicar({
-            valeId, usuarioId: usuario.id, datos, pdfUrl: pdf.url,
+            valeId, usuarioId: usuario.id, datos, pdfUrl: pdf.url, estado: vale.estado,
             documentosQuitarIds: quitarIds, documentosNuevos,
             accionHistorial: 'Asesor corrigió los datos del vale de arte antes de su autorización'
           });
@@ -91,7 +91,8 @@ class ValeCorreccionService {
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       valeEvents.notificar({
         vale: actualizado, accion: 'corregido', tipo: 'CORREGIDO', actor: usuario.nombre, actorId: usuario.id,
-        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
+        // Un vale rechazado no está en manos del supervisor: solo el asesor se entera.
+        salas: [`asesor:${vale.asesor_id}`, ...(vale.estado === 'RECHAZADO' ? [] : supervisores.map(s => `supervisor:${s.id}`))]
       });
       const resultado = enriquecer(actualizado);
       await idempotencyRepository.registrar(key, 'vales.corregir', resultado);

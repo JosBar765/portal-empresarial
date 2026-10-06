@@ -30,6 +30,7 @@ module.exports = {
   autorizarCreacion: (...a) => valeCreacionService.autorizarCreacion(...a),
   rechazarCreacion: (...a) => valeCreacionService.rechazarCreacion(...a),
   darDeBaja: (...a) => valeCreacionService.darDeBaja(...a),
+  reenviarAutorizacion: (...a) => valeCreacionService.reenviarAutorizacion(...a),
   corregirVale: (...a) => valeCorreccionService.corregirVale(...a),
   marcarVisto: (...a) => valeVistoService.marcarVisto(...a),
   obtenerLimiteColectivoSupervisor: (...a) => valeCreacionService.obtenerLimiteColectivoSupervisor(...a),

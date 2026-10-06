@@ -69,6 +69,8 @@ function fechaHoraLocal() {
  * @param {string[]} salas Salas objetivo (sin incluir vales:admin, que siempre se agrega).
  * @param {'info'|'alerta'} nivel 'alerta' pinta el toast en rojo en el cliente.
  * @param {boolean} beep Si debe sonar; false para notificaciones silenciosas.
+ * @param {boolean} valeBorrado Si el vale ya no existe, la notificación guardada no lo referencia.
+ * @param {string|null} detalle Texto adicional al final del mensaje (p. ej. el motivo de un rechazo).
  * @param {string|null} tipo Etiqueta opcional para que el cliente reaccione a eventos concretos (p. ej. 'CORREGIDO').
  */
 // Usuarios concretos detrás de cada sala (el Administrador, que ve todo, no recibe notificaciones guardadas).
@@ -83,17 +85,17 @@ async function usuariosDeSalas(salas) {
   return [...ids].filter(Number.isFinite);
 }
 
-function guardarNotificaciones({ vale, contenido, salas, actorId, nivel, tipo }) {
+function guardarNotificaciones({ vale, contenido, salas, actorId, nivel, tipo, valeBorrado }) {
   usuariosDeSalas(salas || [])
-    .then(ids => notificacionService.registrar(ids.filter(id => id !== actorId), { valeId: vale.id, tipo, nivel, mensaje: contenido }))
+    .then(ids => notificacionService.registrar(ids.filter(id => id !== actorId), { valeId: valeBorrado ? null : vale.id, tipo, nivel, mensaje: contenido }))
     .catch(error => console.error('[Notificaciones] No se pudieron guardar:', error.message));
 }
 
-function notificar({ vale, accion, actor = null, actorId = null, destino = null, salas = [], nivel = 'info', beep = true, tipo = null }) {
-  const mensaje = `${fechaHoraLocal()} – Vale: ${vale.correlativo} fue ${accion}${actor ? ` por ${actor}` : ''}${destino ? ` a ${destino}` : ''}`;
+function notificar({ vale, accion, actor = null, actorId = null, destino = null, salas = [], nivel = 'info', beep = true, tipo = null, detalle = null, valeBorrado = false }) {
+  const mensaje = `${fechaHoraLocal()} – Vale: ${vale.correlativo} fue ${accion}${actor ? ` por ${actor}` : ''}${destino ? ` a ${destino}` : ''}${detalle ? `. ${detalle}` : ''}`;
   const salasFinal = [...new Set([...(salas || []), SALA_ADMIN])];
   guardarNotificaciones({
-    vale, salas, actorId, nivel, tipo,
+    vale, salas, actorId, nivel, tipo, valeBorrado,
     contenido: mensaje.slice(mensaje.indexOf('Vale:'))
   });
   socketManager.sendToRooms(salasFinal, 'vale_evento', {

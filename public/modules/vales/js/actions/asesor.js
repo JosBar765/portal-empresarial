@@ -1,7 +1,34 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
-import { confirmarRecibido, darDeBajaVale } from '../api/valesApi.js';
+import { confirmarRecibido, darDeBajaVale, reenviarVale } from '../api/valesApi.js';
+import { escapeHtml } from '../utils/formato.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { abrirModalSolicitarModificacion } from '../forms/valeForm.js';
+
+// Asesor: ver el motivo con el que el supervisor rechazó su vale.
+export function abrirModalMotivoRechazo(vale) {
+  const { overlay, cerrar } = abrirModal({
+    title: `Vale rechazado — ${vale.correlativo}`,
+    bodyHtml: `
+      <p style="font-size:13px;margin-bottom:8px;">El supervisor devolvió este vale con el siguiente motivo:</p>
+      <p class="motivo-rechazo">${escapeHtml(vale.rechazo_motivo || 'Sin motivo registrado.')}</p>
+      <p style="font-size:13px;margin-top:12px;">Corrígelo con el botón de la tuerca y luego reenvíalo a autorización, o dalo de baja.</p>
+    `,
+    footerHtml: '<button class="btn btn--primary" id="btn-cerrar">Entendido</button>'
+  });
+  overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
+}
+
+// Asesor: volver a mandar a autorización un vale rechazado.
+export async function accionReenviar(vale) {
+  try {
+    await reenviarVale(vale.id);
+    window.toast.success('Vale reenviado', `${vale.correlativo} volvió a quedar en espera de autorización.`);
+    cargarBuzon();
+  } catch (error) {
+    window.toast.error('No se pudo reenviar', error.message);
+    cargarBuzon();
+  }
+}
 
 // Asesor: dar de baja un vale propio que aún no fue autorizado.
 export function abrirModalDarDeBaja(vale) {

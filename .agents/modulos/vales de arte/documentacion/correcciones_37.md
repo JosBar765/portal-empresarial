@@ -7,7 +7,7 @@ Base: `.agents/modulos/vales de arte/correcciones/analisis_correcciones_37.md`. 
 | 8 | Cupo del taller solo al autorizar | **hecho** |
 | 10 | Centro de notificaciones | **hecho** |
 | 5 | Obligatorio ver el vale antes de autorizar | **hecho** |
-| 6 | Rechazo de creación devuelve el vale con justificación | pendiente |
+| 6 | Rechazo de creación devuelve el vale con justificación | **hecho** |
 | 7 | Vigencia de 24 h con avisos | pendiente |
 | 4 | Modificación igual al formulario de corregir | pendiente |
 | 9 | Rendimiento: vales por asesor | pendiente |
@@ -55,3 +55,15 @@ Verificación: como supervisor en el navegador, una asesora creó dos vales y la
 - **Pendiente para el punto 4:** la solicitud de modificación se revisa hoy sobre el vale original; al pasar a un vale `MOD-` pendiente, la marca de "visto" se aplicará a ese vale.
 
 Verificación: por API, autorizar sin ver da 400; abrir el PDF (302) o "Ver info" lo habilita; una corrección del asesor reinicia la marca y vuelve a exigirla; un asesor no puede marcar vistos (403). En el navegador, como supervisor: el modal sin ver muestra el aviso con el botón deshabilitado; tras "Ver info" muestra "Ya revisaste este vale." con el botón activo. La ruta de modificación se probará en el punto 4, cuando cambie su flujo.
+
+## Punto 6 — El rechazo de creación devuelve el vale al asesor
+
+- **Estado nuevo `RECHAZADO`** (`estados_vale` id 9) y tres columnas en `vales`: `rechazo_motivo`, `rechazado_por`, `rechazado_en`. Además, `vale_historial.accion` pasó de 150 a 500 caracteres para poder guardar el motivo. En una base existente: `ALTER TABLE vales ADD COLUMN …`, `INSERT INTO estados_vale (id, nombre) VALUES (9, 'RECHAZADO')` y `ALTER TABLE vale_historial MODIFY accion VARCHAR(500) NOT NULL` (ver `schema.sql` y `seed.sql`).
+- **Rechazar (supervisor):** el botón "Rechazar" del modal "Autorizar creación" abre un modal con la justificación, obligatoria y de máximo 50 palabras (contador en vivo; el servidor valida lo mismo). El vale no se borra: pasa a `RECHAZADO` y queda con el asesor. Estado, motivo e historial cambian en una sola transacción (`valeRechazoRepository.rechazar`). El vale sale del buzón del supervisor.
+- **Aviso al asesor:** notificación (en la campana, con franja de alerta) y aviso en vivo con el motivo: "Vale: X fue rechazado por … Motivo: …". El buzón del asesor gana el contador "Rechazados" (arriba) y el estado "Rechazado" en rojo.
+- **Qué puede hacer el asesor con un vale rechazado:** "Ver motivo del rechazo", "Corregir" (el formulario muestra el motivo; el vale sigue rechazado hasta reenviarlo), "Reenviar a autorización" (`POST /api/vales/:id/reenviar`, permiso `vales.corregir`; valida que la fecha de entrega no haya pasado y avisa si el taller ya no tiene cupo; reinicia las marcas de "visto"; avisa a los supervisores) y "Dar de baja" (se borra como antes).
+- **Historial:** nuevas categorías `RECHAZO_CREACION` y `REENVIO_AUTORIZACION`, visibles para asesor, supervisor y gerente; las correcciones de un vale rechazado también se registran.
+- **Corrección en el camino:** las notificaciones de un vale que se borra (dar de baja) ya no fallaban en silencio: se guardan sin referenciar el vale (`valeBorrado` en `valeEvents.notificar`).
+- El rechazo de una **modificación** no cambia en este punto: se resuelve en el punto 4 (se borrará el vale `MOD-`).
+
+Verificación: por API, rechazar sin motivo (400), con 51 palabras (400) y con motivo válido (200, estado `RECHAZADO`, motivo visible para el asesor, notificación guardada); autorizar un vale rechazado da error; reenviar lo devuelve a "esperando autorización" y limpia el motivo; reenviar un vale no rechazado da error; corregir y dar de baja un vale rechazado funcionan. En el navegador, como supervisor, el modal con contador de palabras rechazó el vale con aviso de éxito; como asesora, aparecieron el contador "Rechazados", el estado en rojo, el modal del motivo, la notificación con el motivo, el aviso en "Corregir" y "Reenviar a autorización" dejó el vale otra vez en espera. Una primera prueba falló por el límite de 150 caracteres del historial y dejó un vale a medias (rechazado sin historial); eso motivó la transacción y el ensanche de la columna.
