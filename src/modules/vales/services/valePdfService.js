@@ -1,6 +1,6 @@
 // src/modules/vales/services/valePdfService.js
 // Genera el PDF de un vale de arte y fusiona al final los documentos PDF adjuntos
-// (y, cuando el Encargado General fusiona un vale multi-taller, también las
+// (y, cuando quien tiene el permiso de fusión fusiona un vale multi-taller, también las
 // propuestas de cada taller). El binario nunca se persiste en BD: solo se sube
 // a Supabase Storage y se guarda su URL pública. Se regenera por completo en
 // cada cambio relevante (no se anexa sobre el PDF existente) para poder
