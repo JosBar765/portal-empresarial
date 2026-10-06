@@ -63,16 +63,10 @@ export async function obtenerMasVales(qs) {
   return leerJSON(res);
 }
 
-export async function obtenerLimiteColectivo() {
-  const res = await fetch('/api/vales/limite-colectivo');
-  return leerJSON(res);
-}
-
 // Capacidad por día del mes visible, para el calendario de "Fecha de
 // entrega" — analisis_correcciones_28.md.
-export async function obtenerCapacidadEntrega(talleresIds, anio, mes, excluirValeId = null) {
+export async function obtenerCapacidadEntrega(talleresIds, anio, mes) {
   const qs = new URLSearchParams({ talleres: talleresIds.join(','), anio, mes });
-  if (excluirValeId) qs.set('excluir', excluirValeId);
   const res = await fetch(`/api/vales/capacidad-entrega?${qs.toString()}`);
   if (!res.ok) throw new Error('No se pudo cargar la capacidad de los talleres.');
   return leerJSON(res);
@@ -144,16 +138,24 @@ export function confirmarRecibido(valeId) {
   return enviarPost(`/api/vales/${valeId}/confirmar`);
 }
 
-export function solicitarModificacion(valeId, payload) {
-  return enviarJSON(`/api/vales/${valeId}/solicitar-modificacion`, payload);
+export function solicitarModificacion(valeId, formData) {
+  return enviarFormData(`/api/vales/${valeId}/solicitar-modificacion`, formData);
 }
 
 export function autorizarCreacion(valeId) {
   return enviarPost(`/api/vales/${valeId}/autorizar-creacion`);
 }
 
-export function rechazarCreacion(valeId) {
-  return enviarPost(`/api/vales/${valeId}/rechazar-creacion`);
+export function rechazarCreacion(valeId, motivo) {
+  return enviarJSON(`/api/vales/${valeId}/rechazar-creacion`, { motivo });
+}
+
+export function reenviarVale(valeId) {
+  return enviarPost(`/api/vales/${valeId}/reenviar`);
+}
+
+export function marcarValeVisto(valeId) {
+  return enviarPost(`/api/vales/${valeId}/visto`);
 }
 
 export function darDeBajaVale(valeId) {
@@ -168,8 +170,8 @@ export function aprobarModificacion(valeId) {
   return enviarPost(`/api/vales/${valeId}/aprobar-modificacion`);
 }
 
-export function rechazarModificacion(valeId) {
-  return enviarPost(`/api/vales/${valeId}/rechazar-modificacion`);
+export function rechazarModificacion(valeId, motivo) {
+  return enviarJSON(`/api/vales/${valeId}/rechazar-modificacion`, { motivo });
 }
 
 export async function obtenerCargaTrabajo() {

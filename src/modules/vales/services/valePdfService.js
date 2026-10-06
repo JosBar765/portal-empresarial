@@ -1,6 +1,6 @@
 // src/modules/vales/services/valePdfService.js
 // Genera el PDF de un vale de arte y fusiona al final los documentos PDF adjuntos
-// (y, cuando el Encargado General fusiona un vale multi-taller, también las
+// (y, cuando quien tiene el permiso de fusión fusiona un vale multi-taller, también las
 // propuestas de cada taller). El binario nunca se persiste en BD: solo se sube
 // a Supabase Storage y se guarda su URL pública. Se regenera por completo en
 // cada cambio relevante (no se anexa sobre el PDF existente) para poder
@@ -95,7 +95,10 @@ class ValePdfService {
     });
 
     const imagenes = documentos.filter(d => d.tipo === 'imagen');
-    const docsAdjuntos = documentos.filter(d => d.tipo === 'documento');
+    // En un vale MOD-, la propuesta del original va primero y luego los adjuntos.
+    const esPropuestaOriginal = (d) => String(d.nombre_original).startsWith('Propuesta original');
+    const docsAdjuntos = documentos.filter(d => d.tipo === 'documento')
+      .sort((a, b) => Number(esPropuestaOriginal(b)) - Number(esPropuestaOriginal(a)));
 
     this._dibujarTituloBloque(ctx, 'BOCETO Y DESCRIPCIÓN');
     this._dibujarTextoLargo(ctx, vale.descripcion);

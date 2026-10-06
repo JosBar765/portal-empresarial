@@ -12,7 +12,10 @@ const { MODULOS } = require('./core/permissions/modulesCatalog');
 const maintenanceGate = require('./core/permissions/maintenanceMiddleware');
 const valeRoutes = require('./modules/vales/routes');
 const atrasoWatcher = require('./modules/vales/atrasoWatcher');
+const vigenciaWatcher = require('./modules/vales/vigenciaWatcher');
+const notificacionLimpieza = require('./core/notifications/notificacionLimpieza');
 const adminRoutes = require('./modules/admin/routes');
+const notificacionRoutes = require('./core/notifications/notificacionRoutes');
 const { MENSAJE_INTERNO } = require('./core/utils/erroresHttp');
 
 const app = express();
@@ -120,10 +123,15 @@ app.use('/api/vales', requireAuth, requirePermission('vales.ver'), valeRoutes);
 // Rutas de API del panel de Administrador
 app.use('/api/admin', requireAuth, requirePermission('admin.ver'), adminRoutes);
 
+// Centro de notificaciones (de cualquier usuario autenticado, sin permiso de módulo)
+app.use('/api/notificaciones', requireAuth, notificacionRoutes);
+
 // Vigilante de atraso — corre en el mismo proceso (monolito modular), revisa
 // cada 60s qué vales acaban de cruzar su fecha_entrega y dispara la alerta
 // roja una sola vez por vale.
 atrasoWatcher.iniciar();
+vigenciaWatcher.iniciar();
+notificacionLimpieza.iniciar();
 
 // Endpoint dinámico de Módulos del Dashboard
 app.get('/api/modules', requireAuth, (req, res) => {
@@ -140,9 +148,16 @@ app.get('/api/modules', requireAuth, (req, res) => {
 
 // Manejo de errores con la subida de archivos
 const MENSAJES_MULTER = {
-  LIMIT_FILE_SIZE: 'El archivo adjunto supera el tamaño máximo permitido.',
+  LIMIT_FILE_SIZE: 'El archivo adjunto supera el tamaño máximo permitido (3 MB).',
   LIMIT_FILE_COUNT: 'Se adjuntaron demasiados archivos.',
   LIMIT_UNEXPECTED_FILE: 'Se recibió un archivo en un campo inesperado.'
+};
+// Multer lanza LIMIT_UNEXPECTED_FILE también al pasar el máximo de un campo: se explica según el campo.
+const MENSAJES_EXCESO_POR_CAMPO = {
+  imagenes: 'Un vale admite hasta 10 imágenes.',
+  documentos: 'Un vale admite hasta 5 documentos.',
+  propuesta: 'Adjunta un solo archivo de propuesta.',
+  fusion: 'Adjunta un solo documento de fusión.'
 };
 
 app.use((err, req, res, next) => {
@@ -150,7 +165,10 @@ app.use((err, req, res, next) => {
   // mysql2 incluye el SQL con los valores.
   console.error('[Global Error Handler]', (err && err.stack) || String(err));
   if (err instanceof multer.MulterError) {
-    return res.status(400).json({ error: MENSAJES_MULTER[err.code] || 'No se pudo procesar el archivo adjunto.' });
+    const mensaje = err.code === 'TIPO_NO_PERMITIDO'
+      ? `Formato de archivo no permitido${err.archivo ? `: ${err.archivo}` : ''}. Solo se aceptan JPG, PNG, WEBP y PDF.`
+      : (err.code === 'LIMIT_UNEXPECTED_FILE' && MENSAJES_EXCESO_POR_CAMPO[err.field]) || MENSAJES_MULTER[err.code] || 'No se pudo procesar el archivo adjunto.';
+    return res.status(400).json({ error: mensaje });
   }
   // Errores de lectura del cuerpo: mensaje fijo, sin el texto del analizador.
   if (err && err.type === 'entity.parse.failed') {

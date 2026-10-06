@@ -7,7 +7,6 @@ const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const documentoRepository = require('../repositories/documentoRepository');
 const historialRepository = require('../repositories/historialRepository');
-const solicitudModificacionRepository = require('../repositories/solicitudModificacionRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const {
@@ -25,8 +24,15 @@ function categoriaHistorial(h) {
   const ea = h.estado_anterior;
   const en = h.estado_nuevo;
   if (ea === null) return 'CREACION'; // crearVale() y la creación del vale MOD- nuevo
-  if (ea === 'ESPERANDO_AUTORIZACION' && en === 'ESPERANDO_AUTORIZACION') return 'CORRECCION';
-  if (ea === 'ESPERANDO_AUTORIZACION' && en === 'CREADO') return 'AUTORIZACION_CREACION';
+  // Entradas del ORIGINAL ante una modificación: su estado no cambia (o pasa a RECIBIDO al aprobarse), así que las distingue el texto.
+  if (/^Asesor solicitó modificación/.test(h.accion)) return 'SOLICITUD_MODIFICACION';
+  if (/aprobó la solicitud de modificación/.test(h.accion)) return 'APROBACION_MODIFICACION_ORIGINAL';
+  // Un vale MOD- espera al supervisor en SOLICITANDO_MODIFICACION (el vale normal, en ESPERANDO_AUTORIZACION).
+  const enEspera = (e) => e === 'ESPERANDO_AUTORIZACION' || e === 'SOLICITANDO_MODIFICACION';
+  if (ea === en && (enEspera(ea) || ea === 'RECHAZADO')) return 'CORRECCION';
+  if (enEspera(ea) && en === 'RECHAZADO') return 'RECHAZO_CREACION';
+  if (ea === 'RECHAZADO' && enEspera(en)) return 'REENVIO_AUTORIZACION';
+  if (enEspera(ea) && (en === 'CREADO' || en === 'MODIFICADO')) return 'AUTORIZACION_CREACION';
   if (ea === 'PENDIENTE_ASIGNACION' && en === 'ASIGNADO') return 'ASIGNACION';
   if (ea === 'ASIGNADO' && en === 'EN_PROCESO') return 'EN_PROCESO';
   if (ea === 'EN_PROCESO' && en === 'EN_PAUSA') return 'PAUSA';
@@ -37,8 +43,6 @@ function categoriaHistorial(h) {
   if (en === 'PENDIENTE_CONFIRMACION') return 'RETORNO_ASESOR'; // directo o por fusión — el vale "vuelve" al asesor
   if (en === 'APROBADO_DEPARTAMENTO') return 'PENDIENTE_FUSION'; // bookkeeping interno, nadie lo pidió ver
   if (ea === 'PENDIENTE_CONFIRMACION' && en === 'RECIBIDO') return 'CONFIRMACION_RECIBIDO';
-  if (ea === 'SOLICITANDO_MODIFICACION' && en === 'CONFIRMADO') return 'APROBACION_MODIFICACION_ORIGINAL';
-  if (en === 'SOLICITANDO_MODIFICACION') return 'SOLICITUD_MODIFICACION';
   return 'OTRO';
 }
 
@@ -73,13 +77,7 @@ class ValeDetalleService {
     // El supervisor necesita ver la justificación al decidir si autoriza la
     // modificación — se adjunta solo cuando aplica, reusando la misma
     // consulta que ya usa aprobarModificacion() en valeConfirmacionService.
-    let solicitudModificacion = null;
-    if (vale.estado === ESTADOS.SOLICITANDO_MODIFICACION) {
-      const solicitud = await solicitudModificacionRepository.obtenerPendientePorValeOriginal(valeId);
-      if (solicitud) solicitudModificacion = { justificacion: solicitud.justificacion };
-    }
-
-    return { ...enriquecer(vale), talleres: talleresConNombre, propuestas, documentos, historial: historialVisible, solicitudModificacion };
+    return { ...enriquecer(vale), talleres: talleresConNombre, propuestas, documentos, historial: historialVisible };
   }
 
   // Control de propiedad: cada rol solo puede pedir el detalle de un vale
@@ -143,7 +141,7 @@ class ValeDetalleService {
 
     if (usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR) {
       const permitidas = new Set([
-        'CREACION', 'CORRECCION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER', 'RETORNO_ASESOR',
+        'CREACION', 'CORRECCION', 'RECHAZO_CREACION', 'REENVIO_AUTORIZACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER', 'RETORNO_ASESOR',
         'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
       ]);
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
@@ -151,7 +149,7 @@ class ValeDetalleService {
 
     if (usuario.rolId === ROL.GERENTE) {
       const permitidas = new Set([
-        'CREACION', 'CORRECCION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER',
+        'CREACION', 'CORRECCION', 'RECHAZO_CREACION', 'REENVIO_AUTORIZACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER',
         'RETORNO_ASESOR', 'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
       ]);
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);

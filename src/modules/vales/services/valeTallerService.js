@@ -1,7 +1,7 @@
 // src/modules/vales/services/valeTallerService.js
 // Transiciones dentro de un taller (asignar / comenzar / entregar / pausar /
-// reanudar / cancelar / revisar) y la fusión final del Encargado General
-// (aprobarGeneral) — el paso terminal del ciclo de un taller, no una feature
+// reanudar / cancelar / revisar) y la fusión final
+// (aprobarGeneral, permiso `vales.aprobar_general`) — el paso terminal del ciclo de un taller, no una feature
 // aparte, por eso vive aquí en vez de en un archivo propio.
 const crypto = require('crypto');
 const valeRepository = require('../repositories/valeRepository');
@@ -82,14 +82,17 @@ class ValeTallerService {
       if (fila.estado !== ESTADOS_TALLER.ASIGNADO) {
         throw new Error('Para comenzar el vale, primero debe estar asignado a ti.');
       }
-      const activasDelTecnico = await valeTallerRepository.listarActivasPorTecnico(usuario.id);
-      for (const a of activasDelTecnico) {
-        if (a.estado === ESTADOS_TALLER.EN_PROCESO) {
-          const v = await valeRepository.obtenerPorId(a.vale_id);
-          throw new Error(`Ya tienes un vale en proceso (${v ? v.correlativo : a.vale_id}). Debes entregarlo o cancelarlo antes de comenzar otro.`);
+      // Revisar "ya tengo otro en proceso" y pasar este a EN_PROCESO van en el mismo turno de la cola del técnico.
+      await valeMutex.conColaDeTecnico(usuario.id, async () => {
+        const activasDelTecnico = await valeTallerRepository.listarActivasPorTecnico(usuario.id);
+        for (const a of activasDelTecnico) {
+          if (a.estado === ESTADOS_TALLER.EN_PROCESO) {
+            const v = await valeRepository.obtenerPorId(a.vale_id);
+            throw new Error(`Ya tienes un vale en proceso (${v ? v.correlativo : a.vale_id}). Debes entregarlo o cancelarlo antes de comenzar otro.`);
+          }
         }
-      }
-      await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PROCESO);
+        await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PROCESO);
+      });
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, `${etiquetaActorTaller(usuario)} marcó el vale como en proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       // El encargado del taller sí debe enterarse cuando su técnico empieza
@@ -195,14 +198,16 @@ class ValeTallerService {
         throw new Error('Solo se puede reanudar un vale que esté en pausa.');
       }
       // Misma regla que comenzar(): un técnico solo puede tener un vale EN_PROCESO a la vez.
-      const activasDelTecnico = await valeTallerRepository.listarActivasPorTecnico(usuario.id);
-      for (const a of activasDelTecnico) {
-        if (a.estado === ESTADOS_TALLER.EN_PROCESO) {
-          const v = await valeRepository.obtenerPorId(a.vale_id);
-          throw new Error(`Ya tienes un vale en proceso (${v ? v.correlativo : a.vale_id}). Debes entregarlo, cancelarlo o pausarlo antes de reanudar otro.`);
+      await valeMutex.conColaDeTecnico(usuario.id, async () => {
+        const activasDelTecnico = await valeTallerRepository.listarActivasPorTecnico(usuario.id);
+        for (const a of activasDelTecnico) {
+          if (a.estado === ESTADOS_TALLER.EN_PROCESO) {
+            const v = await valeRepository.obtenerPorId(a.vale_id);
+            throw new Error(`Ya tienes un vale en proceso (${v ? v.correlativo : a.vale_id}). Debes entregarlo, cancelarlo o pausarlo antes de reanudar otro.`);
+          }
         }
-      }
-      await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PROCESO);
+        await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PROCESO);
+      });
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_PROCESO, `${etiquetaActorTaller(usuario)} reanudó el proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
@@ -314,7 +319,7 @@ class ValeTallerService {
     // eso no se decide solo por los talleres de ESTE vale (la modificación
     // puede tocar un único taller), sino por cuántos talleres tuvo el vale
     // ORIGINAL desde su creación: si el original nació para 2+ talleres, el
-    // Encargado General debe volver a fusionar — combinando las propuestas
+    // quien fusiona debe volver a fusionar — combinando las propuestas
     // originales ya aprobadas de los demás talleres con la(s) corregida(s)
     // — aunque la modificación en sí solo haya tocado uno (correcciones_26
     // #3). Si el original nació para un único taller, su modificación
@@ -328,7 +333,7 @@ class ValeTallerService {
     if (vale.estado === nuevoEstado) return;
 
     // Con un solo taller y sin ser modificación no hay fusión que hacer (el
-    // Encargado General nunca interviene en el camino feliz) — la propuesta
+    // la fusión nunca interviene en el camino feliz) — la propuesta
     // de ese único taller pasa a ser directamente el "documento oficial" del vale.
     if (filas.length === 1 && nuevoEstado === ESTADOS.PENDIENTE_CONFIRMACION) {
       const propuesta = await propuestaRepository.obtenerUltimaPorValeYTecnico(valeId, filas[0].tecnico_id);
@@ -340,12 +345,12 @@ class ValeTallerService {
     await valeRepository.actualizarEstado(valeId, nuevoEstado);
     const accion = nuevoEstado === ESTADOS.PENDIENTE_CONFIRMACION
       ? 'Único taller aprobado — pasa directo a confirmación del asesor'
-      : 'Todos los talleres aprobaron — pendiente de fusión por Encargado General';
+      : 'Todos los talleres aprobaron — pendiente de fusión';
     await registrarHistorial(valeId, actorUsuarioId, null, vale.estado, nuevoEstado, accion);
   }
 
   // -----------------------------------------------------------------------
-  // Encargado General: fusiona y aprueba vales multi-taller (también el
+  // Fusión (permiso `vales.aprobar_general`): fusiona y aprueba vales multi-taller (también el
   // punto de reentrada cuando el asesor rechaza un vale)
   // -----------------------------------------------------------------------
   // Misma idempotency key por FormData que entregar() — un reintento de red
@@ -364,13 +369,13 @@ class ValeTallerService {
           : 'Este vale aún no está listo para fusionar.');
       }
       // La fusión de las propuestas de los talleres NO la hace el sistema —
-      // es trabajo manual del Encargado General, que debe adjuntar su
+      // es trabajo manual de quien fusiona, que debe adjuntar su
       // propio documento final, aun cuando solo hubo un taller involucrado.
       if (!archivoFusion) {
         throw new Error('Debe adjuntar el documento de fusión antes de aprobar.');
       }
 
-      // El documento que sube aquí el Encargado General queda disponible
+      // El documento que sube aquí quien fusiona queda disponible
       // como propuesta (enlace "Ver propuesta"), pero NUNCA se fusiona
       // (copyPages) dentro del PDF oficial del vale: ese PDF es el
       // documento ADMINISTRATIVO del vale (encabezado, cliente, venta,
@@ -387,7 +392,7 @@ class ValeTallerService {
       await valeRepository.sellarFusion(valeId, { fusionadoPor: usuario.id, fusionadoEn: `${hoyISO()} ${horaActual()}` });
       await valeRepository.actualizarEstado(valeId, ESTADOS.PENDIENTE_CONFIRMACION);
       await registrarHistorial(valeId, usuario.id, null, vale.estado, ESTADOS.PENDIENTE_CONFIRMACION,
-        'Encargado General adjuntó la fusión final del trabajo de los talleres y aprobó el vale');
+        'Se adjuntó la fusión final del trabajo de los talleres y se aprobó el vale');
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({ vale: actualizado, accion: 'aprobado (fusión general)', actor: usuario.nombre, actorId: usuario.id, salas: [`asesor:${vale.asesor_id}`] });
       const resultado = enriquecer(actualizado);

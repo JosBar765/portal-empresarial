@@ -1,12 +1,15 @@
 // Estado global del módulo de vales — un solo objeto mutable compartido por
 // todas las vistas/acciones (no hay accessors: se lee y escribe directo).
+import { isoLocal, primerDiaDelMes } from './utils/fechas.js';
+
 export const state = {
   user: null,
   catalogos: null,
   vales: [],
   contadores: {},
   vista: 'buzon', // solo aplica a roles con sidebar
-  ventana: { tipo: 'todo', desde: null, hasta: null },
+  // Arranca en "Todo"; `fecha` es el primer día del mes que se elige al pulsar el selector de mes.
+  ventana: { tipo: 'todo', fecha: isoLocal(primerDiaDelMes(new Date())), desde: null, hasta: null },
   tiendaId: null, // Vista Gerencia: filtro de tienda
   filtroContador: null,
   soloAtrasados: false, // combinable con filtroContador

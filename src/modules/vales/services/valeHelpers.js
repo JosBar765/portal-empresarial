@@ -10,10 +10,14 @@ const ESTADOS = {
   RECIBIDO: 'RECIBIDO',
   SOLICITANDO_MODIFICACION: 'SOLICITANDO_MODIFICACION',
   MODIFICADO: 'MODIFICADO',
-  CONFIRMADO: 'CONFIRMADO'
+  CONFIRMADO: 'CONFIRMADO',
+  RECHAZADO: 'RECHAZADO'
 };
+// Estados en los que el asesor todavía puede corregir, reenviar o dar de baja su vale
+// (SOLICITANDO_MODIFICACION es el "esperando autorización" de un vale MOD-).
+const ESTADOS_EDITABLES_ASESOR = [ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.SOLICITANDO_MODIFICACION, ESTADOS.RECHAZADO];
 const ESTADOS_TERMINALES = [ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
-const ESTADOS_CONFIRMADOS = [ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO, ESTADOS.SOLICITANDO_MODIFICACION];
+const ESTADOS_CONFIRMADOS = [ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
 
 const ESTADOS_TALLER = {
   PENDIENTE_ASIGNACION: 'PENDIENTE_ASIGNACION',
@@ -119,6 +123,11 @@ function esValeDeModificacion(vale) {
   return vale.vale_original_id != null;
 }
 
+// El estado en que un vale espera la decisión del supervisor: un MOD- nace en SOLICITANDO_MODIFICACION.
+function estadoEnAutorizacion(vale) {
+  return esValeDeModificacion(vale) ? ESTADOS.SOLICITANDO_MODIFICACION : ESTADOS.ESPERANDO_AUTORIZACION;
+}
+
 function etiquetaActorTaller(usuario) {
   return usuario.rolId === ROL.TECNICO ? 'Técnico' : 'Encargado';
 }
@@ -126,6 +135,8 @@ function etiquetaActorTaller(usuario) {
 function estadoVisibleAsesor(vale) {
   if (esValeDeModificacion(vale)) {
     switch (vale.estado) {
+      case ESTADOS.SOLICITANDO_MODIFICACION: return 'SOLICITANDO_MODIFICACION';
+      case ESTADOS.RECHAZADO: return 'RECHAZADO';
       case ESTADOS.MODIFICADO: return 'MODIFICADO';
       case ESTADOS.PENDIENTE_CONFIRMACION: return 'PENDIENTE_CONFIRMACION';
       case ESTADOS.RECIBIDO: return 'CONFIRMADO';
@@ -135,41 +146,26 @@ function estadoVisibleAsesor(vale) {
   }
   switch (vale.estado) {
     case ESTADOS.ESPERANDO_AUTORIZACION: return 'ESPERANDO_AUTORIZACION';
-    case ESTADOS.SOLICITANDO_MODIFICACION: return 'SOLICITANDO_MODIFICACION';
     case ESTADOS.PENDIENTE_CONFIRMACION: return 'PENDIENTE_CONFIRMACION';
+    case ESTADOS.RECHAZADO: return 'RECHAZADO';
     case ESTADOS.RECIBIDO: return 'CONFIRMADO';
     default: return 'CREADO'; // CREADO / APROBADO_DEPARTAMENTO
   }
 }
 
+// La ventana de tiempo filtra por la fecha de ENTREGA del vale: 'todo', 'mes' (el de `ventana.fecha`) o 'rango'.
 function dentroDeVentana(vale, ventana) {
   if (!ventana || !ventana.tipo || ventana.tipo === 'todo') return true;
-  const fechaVale = vale.fecha_creacion;
-  const fv = new Date(`${fechaVale}T00:00:00`);
+  const fv = new Date(`${String(vale.fecha_entrega).slice(0, 10)}T00:00:00`);
 
   if (ventana.tipo === 'rango') {
     if (!ventana.desde && !ventana.hasta) return true;
-    // Fecha fin ausente con fecha inicio presente: se toma como si fuera hoy.
-    const hastaEfectiva = ventana.hasta || (ventana.desde ? hoyISO() : null);
     if (ventana.desde && fv < new Date(`${ventana.desde}T00:00:00`)) return false;
-    if (hastaEfectiva && fv > new Date(`${hastaEfectiva}T00:00:00`)) return false;
+    if (ventana.hasta && fv > new Date(`${ventana.hasta}T00:00:00`)) return false;
     return true;
   }
-
-  const referencia = ventana.fecha || hoyISO();
-  const ref = new Date(`${referencia}T00:00:00`);
-
-  if (ventana.tipo === 'dia') {
-    return fechaVale === referencia;
-  }
-  if (ventana.tipo === 'semana') {
-    const inicioSemana = new Date(ref);
-    inicioSemana.setDate(ref.getDate() - ref.getDay());
-    const finSemana = new Date(inicioSemana);
-    finSemana.setDate(inicioSemana.getDate() + 6);
-    return fv >= inicioSemana && fv <= finSemana;
-  }
   if (ventana.tipo === 'mes') {
+    const ref = new Date(`${ventana.fecha || hoyISO()}T00:00:00`);
     return fv.getFullYear() === ref.getFullYear() && fv.getMonth() === ref.getMonth();
   }
   return true;
@@ -229,6 +225,17 @@ function calcularUrgente(fechaEntregaNorm, urgentePayload) {
   return esVerdadero(urgentePayload);
 }
 
+const MAX_PALABRAS_MOTIVO = 50;
+
+function validarMotivoRechazo(motivo) {
+  const texto = String(motivo || '').trim();
+  const palabras = texto.split(/\s+/).filter(Boolean).length;
+  if (!palabras) throw new Error('Escribe el motivo del rechazo para que el asesor sepa qué corregir.');
+  if (palabras > MAX_PALABRAS_MOTIVO) throw new Error(`El motivo no puede tener más de ${MAX_PALABRAS_MOTIVO} palabras.`);
+  if (texto.length > 400) throw new Error('El motivo es demasiado largo. Resúmelo un poco.');
+  return texto;
+}
+
 async function registrarHistorial(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion, tecnicoId) {
   await historialRepository.registrar(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion, tecnicoId);
 }
@@ -247,12 +254,12 @@ function assertPropioDelAsesor(usuario, vale) {
 }
 
 module.exports = {
-  ESTADOS, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
+  ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistenteDeDiseno,
   inicialesAsesor, hoyISO, horaActual, calcularAtraso, enriquecer,
-  esValeDeModificacion, etiquetaActorTaller, estadoVisibleAsesor,
+  esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy, esVerdadero,
   normalizarDatetime, calcularUrgente, registrarHistorial,
-  requerirVale, assertPropioDelAsesor
+  requerirVale, assertPropioDelAsesor, validarMotivoRechazo
 };

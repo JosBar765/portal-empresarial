@@ -21,10 +21,13 @@ const { validarTelefono } = require('../../../core/utils/validar');
 const valePdfService = require('./valePdfService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
+const valeVistoService = require('./valeVistoService');
+const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
   ESTADOS, inicialesAsesor, hoyISO, horaActual, enriquecer,
   normalizarDatetime, calcularUrgente, registrarHistorial,
-  esAdministrador, requerirVale, ROL
+  esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, validarMotivoRechazo,
+  esValeDeModificacion, estadoEnAutorizacion
 } = require('./valeHelpers');
 
 class ValeCreacionService {
@@ -69,10 +72,6 @@ class ValeCreacionService {
 
       return valeMutex.conColaDeCreacion(usuario.id, async () => {
         const hoy = hoyISO();
-        const fechaCreacionDate = new Date(`${hoy}T00:00:00`);
-        if (!(datos.fechaEventoDate > datos.fechaEntregaDate && datos.fechaEntregaDate >= fechaCreacionDate)) {
-          throw new Error('Revisa las fechas: el evento debe ser posterior a la entrega, y la entrega no puede ser anterior a hoy.');
-        }
 
         // {TIENDA}-{INICIALES}-{ID}. El número es el id autoincremental de
         // MySQL (asignado por valeRepository.crear DESPUÉS del insert) —
@@ -102,7 +101,8 @@ class ValeCreacionService {
           cotizacion: datos.cotizacion,
           descripcion: datos.descripcion,
           talleresSolicitados: datos.talleresIds.join(','),
-          estado: ESTADOS.ESPERANDO_AUTORIZACION
+          estado: ESTADOS.ESPERANDO_AUTORIZACION,
+          conVigencia: true
         });
       });
     });
@@ -145,6 +145,9 @@ class ValeCreacionService {
   async autorizarCreacion(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await requerirVale(valeId);
+      if (esValeDeModificacion(vale)) {
+        throw new Error('Este vale es una solicitud de modificación: se autoriza con "Aprobar modificación".');
+      }
       if (vale.estado === ESTADOS.CREADO) {
         throw new Error('Este vale ya fue autorizado.');
       } else if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
@@ -156,24 +159,33 @@ class ValeCreacionService {
       // que ejecuta la acción (si no, el resto se queda con el vale
       // apareciendo accionable en su buzón hasta que recargan a mano).
       const supervisoresDelAsesor = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
-      if (!esAdministrador(usuario)) {
-        if (!supervisoresDelAsesor.some(s => s.id === usuario.id)) {
-          throw new Error('Este vale es de un asesor que no está a tu cargo.');
-        }
-        const { autorizados, limite } = await this.obtenerLimiteColectivoSupervisor(usuario.id);
-        if (autorizados >= limite) {
-          throw new Error('Se alcanzó el límite diario colectivo de autorizaciones de creación de tu equipo. Vuelve a intentar mañana.');
-        }
+      if (!esAdministrador(usuario) && !supervisoresDelAsesor.some(s => s.id === usuario.id)) {
+        throw new Error('Este vale es de un asesor que no está a tu cargo.');
       }
+      await valeVistoService.exigirVisto(usuario, valeId);
       const talleresIds = (vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
       if (talleresIds.length === 0) {
         throw new Error('Este vale no tiene talleres seleccionados, no se puede autorizar.');
       }
 
-      await this.fanOutTalleres(valeId, talleresIds);
-      const ahora = `${hoyISO()} ${horaActual()}`;
-      await valeRepository.sellarAutorizacion(valeId, { autorizadoPor: usuario.id, autorizadoEn: ahora, autorizacionTipo: 'CREACION' });
-      await valeRepository.actualizarEstado(valeId, ESTADOS.CREADO);
+      // Leer el cupo del supervisor y sellar la autorización van en el mismo turno de su cola:
+      // dos autorizaciones simultáneas no pueden pasar ambas con un solo cupo libre.
+      await valeMutex.conColaDeSupervisor(usuario.id, async () => {
+        if (!esAdministrador(usuario)) {
+          const { autorizados, limite } = await this.obtenerLimiteColectivoSupervisor(usuario.id);
+          if (autorizados >= limite) {
+            throw new Error('Se alcanzó el límite diario colectivo de autorizaciones de creación de tu equipo. Vuelve a intentar mañana.');
+          }
+        }
+        // El vale recién ocupa cupo al autorizarse; si dos supervisores compiten por el último lugar, solo gana uno.
+        await valeMutex.conColaDeCapacidad(async () => {
+          await capacidadEntregaService.validarLimiteDiario(talleresIds, String(vale.fecha_entrega).slice(0, 10), { paraSupervisor: true });
+          await this.fanOutTalleres(valeId, talleresIds);
+        });
+        const ahora = `${hoyISO()} ${horaActual()}`;
+        await valeRepository.sellarAutorizacion(valeId, { autorizadoPor: usuario.id, autorizadoEn: ahora, autorizacionTipo: 'CREACION' });
+        await valeRepository.actualizarEstado(valeId, ESTADOS.CREADO);
+      });
       const nombresTalleres = await this.nombresDeTalleres(talleresIds);
       await registrarHistorial(valeId, usuario.id, null, ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.CREADO,
         `Supervisor autorizó la creación — enviado a taller${talleresIds.length > 1 ? 'es' : ''}: ${nombresTalleres}`);
@@ -189,32 +201,63 @@ class ValeCreacionService {
     });
   }
 
-  // El Supervisor rechaza un vale ESPERANDO_AUTORIZACION que el asesor no
-  // debió enviar (error de captura, cliente que se arrepintió, etc.) — a
-  // diferencia de autorizarCreacion, esto BORRA el vale por completo (fila,
-  // adjuntos y PDF ya generado) en vez de cambiarle el estado. Mismas
-  // reglas de pertenencia que autorizarCreacion (supervisor del asesor, o
-  // Administrador).
-  async rechazarCreacion(usuario, valeId) {
+  // El Supervisor rechaza un vale pendiente (creación, o modificación con `modificacion: true`): no se borra,
+  // vuelve al asesor (estado RECHAZADO) con el motivo.
+  async rechazarCreacion(usuario, valeId, motivo, { modificacion = false } = {}) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await requerirVale(valeId);
-      if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
-        throw new Error('Solo se puede rechazar un vale que está esperando autorización.');
+      if (esValeDeModificacion(vale) !== modificacion) {
+        throw new Error(modificacion
+          ? 'Este vale no es una solicitud de modificación.'
+          : 'Este vale es una solicitud de modificación: se rechaza con "Rechazar modificación".');
+      }
+      const estadoPendiente = estadoEnAutorizacion(vale);
+      if (vale.estado !== estadoPendiente) {
+        throw new Error(modificacion
+          ? 'Solo se puede rechazar una modificación que está esperando autorización.'
+          : 'Solo se puede rechazar un vale que está esperando autorización.');
       }
       const supervisoresDelAsesor = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       if (!esAdministrador(usuario) && !supervisoresDelAsesor.some(s => s.id === usuario.id)) {
         throw new Error('Este vale es de un asesor que no está a tu cargo.');
       }
-      await this.eliminarValeConArchivos(valeId);
+      const motivoLimpio = validarMotivoRechazo(motivo);
+      const ahora = `${hoyISO()} ${horaActual()}`;
+      await valeRechazoRepository.rechazar({
+        valeId, usuarioId: usuario.id, motivo: motivoLimpio, rechazadoEn: ahora, estadoPendiente,
+        accionHistorial: `Supervisor rechazó ${modificacion ? 'la modificación' : 'la creación'} y ${modificacion ? 'la' : 'lo'} devolvió al asesor — motivo: ${motivoLimpio}`
+      });
+      const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
-        vale, accion: 'rechazado por el Supervisor', actor: usuario.nombre, actorId: usuario.id,
+        vale: actualizado, accion: 'rechazado', tipo: 'RECHAZADO', actor: usuario.nombre, actorId: usuario.id,
+        detalle: `Motivo: ${motivoLimpio}`, nivel: 'alerta',
         salas: [`asesor:${vale.asesor_id}`, ...supervisoresDelAsesor.map(s => `supervisor:${s.id}`)]
       });
-      return { valeId: vale.id, correlativo: vale.correlativo };
+      return enriquecer(actualizado);
     });
   }
 
-  // El asesor da de baja un vale propio que aún no fue autorizado: se borra por completo.
+  // Un vale (o una solicitud de modificación) sin autorizar cumple su vigencia de 24 h: se elimina solo (con sus archivos,
+  // salvo los que comparte con su original) y se avisa con su código. El original no se toca.
+  async expirarVale(valeId) {
+    return valeMutex.conLockDeVale(valeId, async () => {
+      const vale = await valeRepository.obtenerPorId(valeId);
+      if (!vale || !ESTADOS_EDITABLES_ASESOR.includes(vale.estado)) return false;
+      const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
+      const original = esValeDeModificacion(vale) ? await valeRepository.obtenerPorId(vale.vale_original_id) : null;
+      await this.eliminarValeConArchivos(valeId);
+      valeEvents.notificar({
+        vale, tipo: 'EXPIRADO', valeBorrado: true, nivel: 'alerta',
+        texto: original
+          ? `(solicitud de modificación) fue eliminado automáticamente: venció su vigencia de 24 horas sin ser autorizado. ${original.correlativo} queda sin cambios`
+          : 'fue eliminado automáticamente: venció su vigencia de 24 horas sin ser autorizado',
+        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
+      });
+      return true;
+    });
+  }
+
+  // El asesor da de baja un vale propio que aún no fue autorizado (o que fue rechazado): se borra por completo.
   async darDeBaja(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       if (usuario.rolId !== ROL.ASESOR) {
@@ -224,16 +267,52 @@ class ValeCreacionService {
       if (vale.asesor_id !== usuario.id) {
         throw new Error('Solo puedes dar de baja tus propios vales.');
       }
-      if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
-        throw new Error('Este vale ya fue autorizado, así que ya no se puede dar de baja.');
+      if (!ESTADOS_EDITABLES_ASESOR.includes(vale.estado)) {
+        throw new Error(esValeDeModificacion(vale)
+          ? 'Esta modificación ya fue autorizada, así que ya no se puede dar de baja.'
+          : 'Este vale ya fue autorizado, así que ya no se puede dar de baja.');
       }
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       await this.eliminarValeConArchivos(valeId);
       valeEvents.notificar({
-        vale, accion: 'dado de baja', actor: usuario.nombre, actorId: usuario.id,
+        vale, accion: 'dado de baja', valeBorrado: true, actor: usuario.nombre, actorId: usuario.id,
         salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
       });
       return { valeId: vale.id, correlativo: vale.correlativo };
+    });
+  }
+
+  // El asesor vuelve a mandar a autorización un vale rechazado, ya corregido.
+  async reenviarAutorizacion(usuario, valeId) {
+    return valeMutex.conLockDeVale(valeId, async () => {
+      if (usuario.rolId !== ROL.ASESOR) {
+        throw new Error('Solo el asesor de ventas puede reenviar un vale a autorización.');
+      }
+      const vale = await requerirVale(valeId);
+      if (vale.asesor_id !== usuario.id) {
+        throw new Error('Solo puedes reenviar tus propios vales.');
+      }
+      if (vale.estado !== ESTADOS.RECHAZADO) {
+        throw new Error('Este vale no está rechazado, no hace falta reenviarlo.');
+      }
+      const fechaEntrega = String(vale.fecha_entrega).slice(0, 10);
+      if (fechaEntrega < hoyISO()) {
+        throw new Error('La fecha de entrega ya pasó. Corrige el vale con una fecha vigente antes de reenviarlo.');
+      }
+      await capacidadEntregaService.validarLimiteDiario(
+        (vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite), fechaEntrega
+      );
+      await valeRechazoRepository.reenviar({
+        valeId, usuarioId: usuario.id, estadoDestino: estadoEnAutorizacion(vale),
+        accionHistorial: `Asesor corrigió ${esValeDeModificacion(vale) ? 'la modificación y la' : 'el vale y lo'} reenvió a autorización`
+      });
+      const actualizado = await valeRepository.obtenerPorId(valeId);
+      const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
+      valeEvents.notificar({
+        vale: actualizado, accion: 'reenviado a autorización', actor: usuario.nombre, actorId: usuario.id,
+        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
+      });
+      return enriquecer(actualizado);
     });
   }
 
@@ -255,17 +334,21 @@ class ValeCreacionService {
   // solicitarModificacion() no pasa por este camino para elegir taller).
   async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null } = {}) {
     const {
-      clienteEmpresa, clienteNombre, clienteTelefono, clienteCorreo,
-      fechaEntrega, fechaEvento, urgente, producto, material, tecnica, acabado,
+      clienteEmpresa, clienteTelefono, clienteCorreo,
+      fechaEntrega, fechaEvento, urgente, tecnica, acabado,
       cantidad, cotizacion, descripcion
     } = payload;
+    // Los obligatorios se validan ya sin espacios: "   " cuenta como vacío.
+    const recortar = (valor) => String(valor ?? '').trim();
+    const clienteNombre = recortar(payload.clienteNombre);
+    const producto = recortar(payload.producto);
+    const material = recortar(payload.material);
 
-    if (!clienteNombre || !clienteTelefono || !clienteCorreo) {
-      throw new Error('Los datos del cliente (nombre, teléfono, correo) son obligatorios.');
-    }
-    if (!producto || !material) {
-      throw new Error('El producto y el material son obligatorios.');
-    }
+    if (!clienteNombre) throw new Error('El nombre del cliente es obligatorio.');
+    if (!recortar(clienteTelefono)) throw new Error('El teléfono del cliente es obligatorio.');
+    if (!recortar(clienteCorreo)) throw new Error('El correo del cliente es obligatorio.');
+    if (!producto) throw new Error('El código de producto es obligatorio.');
+    if (!material) throw new Error('El material es obligatorio.');
     if (!fechaEntrega || !fechaEvento) {
       throw new Error('Las fechas de entrega y de evento son obligatorias.');
     }
@@ -279,12 +362,13 @@ class ValeCreacionService {
     };
     const etiquetasCampo = {
       clienteNombre: 'El nombre del cliente', clienteEmpresa: 'La empresa', clienteTelefono: 'El teléfono',
-      clienteCorreo: 'El correo', producto: 'El producto', material: 'El material',
+      clienteCorreo: 'El correo', producto: 'El código de producto', material: 'El material',
       tecnica: 'La técnica', acabado: 'El acabado', descripcion: 'La descripción'
     };
     for (const [campo, valor] of Object.entries({ clienteNombre, clienteEmpresa, clienteTelefono, clienteCorreo, producto, material, tecnica, acabado, descripcion })) {
       if (valor && String(valor).length > limitesLongitud[campo]) {
-        throw new Error(`${etiquetasCampo[campo]} es demasiado largo (máximo ${limitesLongitud[campo]} caracteres).`);
+        const fem = etiquetasCampo[campo].startsWith('La ');
+        throw new Error(`${etiquetasCampo[campo]} es demasiad${fem ? 'a larga' : 'o largo'} (máximo ${limitesLongitud[campo]} caracteres).`);
       }
     }
     validarTelefono(clienteTelefono, 'El teléfono del cliente');
@@ -299,6 +383,20 @@ class ValeCreacionService {
     // día calendario distinto (y posterior) al de entrega.
     const fechaEntregaNorm = normalizarDatetime(fechaEntrega, true);
     const fechaEventoNorm = normalizarDatetime(fechaEvento, false);
+    // Las fechas se validan una por una y luego entre sí, cada error con su propio mensaje.
+    const fechaReal = (norm) => {
+      if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(norm)) return false;
+      const d = new Date(`${norm.slice(0, 10)}T00:00:00Z`);
+      return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === norm.slice(0, 10);
+    };
+    if (!fechaReal(fechaEntregaNorm)) throw new Error('La fecha de entrega no es válida.');
+    if (!fechaReal(fechaEventoNorm)) throw new Error('La fecha del evento no es válida.');
+    if (new Date(fechaEntregaNorm.replace(' ', 'T')) < new Date(`${hoyISO()}T00:00:00`)) {
+      throw new Error('La fecha de entrega no puede ser anterior a hoy.');
+    }
+    if (!(new Date(fechaEventoNorm.replace(' ', 'T')) > new Date(fechaEntregaNorm.replace(' ', 'T')))) {
+      throw new Error('La fecha del evento debe ser posterior a la fecha de entrega.');
+    }
     const cantidadNum = Number(cantidad);
     if (!Number.isFinite(cantidadNum) || cantidadNum <= 1) {
       throw new Error('La cantidad debe ser mayor a 1.');
@@ -316,7 +414,7 @@ class ValeCreacionService {
       fechaEntregaDate: new Date(fechaEntregaNorm.replace(' ', 'T')),
       fechaEventoDate: new Date(fechaEventoNorm.replace(' ', 'T')),
       urgente: calcularUrgente(fechaEntregaNorm, urgente),
-      producto: producto.trim(), material: material.trim(),
+      producto, material,
       tecnica: (tecnica || '').trim(), acabado: (acabado || '').trim(),
       cantidad: cantidadNum, cotizacion: cotizacionNum, descripcion,
       talleresIds
@@ -386,6 +484,8 @@ class ValeCreacionService {
     const documentos = await documentoRepository.listarPorVale(valeId);
     for (const doc of documentos) {
       try {
+        // Un archivo que otro vale (el original de una modificación) también usa no se borra de Storage.
+        if (await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, valeId) > 0) continue;
         await supabaseStorage.eliminar(doc.ruta);
       } catch { /* best-effort — el vale se borra de todas formas */ }
     }

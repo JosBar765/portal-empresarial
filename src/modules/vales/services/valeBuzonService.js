@@ -11,10 +11,12 @@ const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
+const valeVistoRepository = require('../repositories/valeVistoRepository');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
   esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
-  ordenarPorFecha, esHoy, estadoVisibleAsesor,
+  ordenarPorFecha, esHoy, estadoVisibleAsesor, hoyISO,
   ROLES_TALLER_Y_TECNICO
 } = require('./valeHelpers');
 
@@ -38,11 +40,26 @@ function compararCorrelativos(a, b) {
 }
 
 class ValeBuzonService {
+  // Ventana de tiempo del buzón y de Rendimiento; un valor inválido es un 400, no un error interno.
   _resolverVentana(filtros = {}) {
-    if (filtros.ventana === 'rango') {
-      return { tipo: 'rango', desde: filtros.desde || null, hasta: filtros.hasta || null };
+    const tipo = filtros.ventana || 'todo';
+    if (!['todo', 'mes', 'rango'].includes(tipo)) throw new ErrorDeNegocio('El período elegido no es válido.');
+    const fechaValida = (valor, etiqueta) => {
+      if (valor === undefined || valor === null || valor === '') return null;
+      const texto = String(valor);
+      const f = new Date(`${texto}T00:00:00Z`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(texto) || Number.isNaN(f.getTime()) || f.toISOString().slice(0, 10) !== texto) {
+        throw new ErrorDeNegocio(`La fecha ${etiqueta} no es válida.`);
+      }
+      return texto;
+    };
+    if (tipo === 'rango') {
+      const desde = fechaValida(filtros.desde, '«Desde»');
+      const hasta = fechaValida(filtros.hasta, '«Hasta»');
+      if (desde && hasta && desde > hasta) throw new ErrorDeNegocio('La fecha «Desde» no puede ser posterior a «Hasta».');
+      return { tipo, desde, hasta };
     }
-    return { tipo: filtros.ventana || 'todo', fecha: filtros.fecha };
+    return { tipo, fecha: fechaValida(filtros.fecha, 'del mes') || undefined };
   }
 
   // Adjunta a cada vale el nombre legible de sus talleres (columna "Taller"
@@ -61,6 +78,9 @@ class ValeBuzonService {
       mapaTalleresPorVale.set(vt.vale_id, lista);
     });
     const nombreTaller = (id) => (talleresTodos.find(t => t.id === id) || {}).nombre || `#${id}`;
+    // Un original con una modificación en trámite sigue en su estado: este dato permite avisarlo y bloquear "Confirmar".
+    const enTramite = new Map((await valeRepository.listarModificacionesEnTramite())
+      .map(m => [m.vale_original_id, { id: m.id, correlativo: m.correlativo, estado: m.estado }]));
     return vales.map(v => {
       const filas = mapaTalleresPorVale.get(v.id) || [];
       // Un vale en ESPERANDO_AUTORIZACION todavía no tiene filas reales en
@@ -71,7 +91,7 @@ class ValeBuzonService {
       const idsTaller = filas.length > 0
         ? filas.map(f => f.taller_id)
         : String(v.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
-      return { ...v, taller: idsTaller.map(nombreTaller).join(', '), _filasTaller: filas };
+      return { ...v, taller: idsTaller.map(nombreTaller).join(', '), _filasTaller: filas, mod_en_tramite: enTramite.get(v.id) || null };
     });
   }
 
@@ -260,6 +280,7 @@ class ValeBuzonService {
     const contadores = {
       // El contador de límite diario es colectivo por equipo del Supervisor
       // — ver valeCreacionService.obtenerLimiteColectivoSupervisor().
+      rechazados: enVentana.filter(v => v.estado_visible === 'RECHAZADO').length,
       esperandoAutorizacion: enVentana.filter(v => v.estado_visible === 'ESPERANDO_AUTORIZACION').length,
       valesPorRevisar: enVentana.filter(v => v.estado_visible === 'PENDIENTE_CONFIRMACION').length,
       valesPendientesModificacion: enVentana.filter(v => v.estado_visible === 'SOLICITANDO_MODIFICACION').length,
@@ -269,12 +290,14 @@ class ValeBuzonService {
       atrasados: enVentana.filter(v => v.atrasado).length
     };
     const predicados = {
+      rechazados: v => v.estado_visible === 'RECHAZADO',
       esperandoAutorizacion: v => v.estado_visible === 'ESPERANDO_AUTORIZACION',
       valesPorRevisar: v => v.estado_visible === 'PENDIENTE_CONFIRMACION',
       valesPendientesModificacion: v => v.estado_visible === 'SOLICITANDO_MODIFICACION'
     };
     const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, predicados);
     const vales = ordenarPorGrupos(filtrados, [
+      v => v.estado_visible === 'RECHAZADO',
       v => v.estado_visible === 'PENDIENTE_CONFIRMACION',
       v => v.estado_visible === 'SOLICITANDO_MODIFICACION',
       v => v.estado_visible === 'MODIFICADO',
@@ -313,16 +336,15 @@ class ValeBuzonService {
   // que cada tienda tiene su propio Supervisor ----
   async _buzonSupervisor(usuario, todos, ventana, filtroContador) {
     const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
-    const propios = todos.filter(v => misAsesoresIds.has(v.asesor_id));
+    const vistos = new Set(await valeVistoRepository.listarIdsPorUsuario(usuario.id));
+    const propios = todos.filter(v => misAsesoresIds.has(v.asesor_id)).map(v => ({ ...v, visto: vistos.has(v.id) }));
     const visibles = propios.filter(v => [
       ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.SOLICITANDO_MODIFICACION, ESTADOS.MODIFICADO, ESTADOS.PENDIENTE_CONFIRMACION
     ].includes(v.estado));
     const enVentana = visibles.filter(v => dentroDeVentana(v, ventana));
     const contadores = {
-      // Se calcula por separado en
-      // valeCreacionService.obtenerLimiteColectivoSupervisor() — la tarjeta
-      // arma el texto "N/M" igual que ya hacía el asesor.
-      valesAutorizadosHoy: null,
+      // "N/M": autorizaciones de creación que hizo hoy el supervisor / asesores a su cargo (el mismo cupo que se valida al autorizar).
+      valesAutorizadosHoy: `${await valeRepository.contarAutorizacionesCreacionPorSupervisorYFecha(usuario.id, hoyISO())}/${misAsesoresIds.size}`,
       pendientesAutorizacion: enVentana.filter(v => v.estado === ESTADOS.ESPERANDO_AUTORIZACION).length,
       pendientesConfirmarModificacion: enVentana.filter(v => v.estado === ESTADOS.SOLICITANDO_MODIFICACION).length,
       modificados: enVentana.filter(v => v.estado === ESTADOS.MODIFICADO).length,

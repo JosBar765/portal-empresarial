@@ -88,6 +88,7 @@ function init(server) {
   io.on('connection', (socket) => {
     const userId = String(socket.user.id);
     activeConnections.set(userId, socket.id);
+    socket.join(`usuario:${userId}`);
     console.log(`[WebSocket] Usuario conectado: ${userId} (Socket: ${socket.id})`);
 
     // Sesión única (ver sesionRepository/authController): cada pestaña

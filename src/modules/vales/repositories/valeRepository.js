@@ -30,12 +30,13 @@ class ValeRepository {
         correlativo, asesor_id, tienda_id, vale_original_id, fecha_creacion, hora_creacion, fecha_entrega, fecha_evento, urgente,
         cliente_empresa, cliente_nombre, cliente_telefono, cliente_correo,
         producto, material, tecnica, acabado, cantidad, cotizacion, descripcion, estado_id,
-        talleres_solicitados, autorizado_por, autorizado_en, autorizacion_tipo_id
+        talleres_solicitados, autorizado_por, autorizado_en, autorizacion_tipo_id, vigencia_hasta
       ) VALUES (
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
         (SELECT id FROM estados_vale WHERE nombre = ?),
         ?, ?, ?,
-        (SELECT id FROM tipos_autorizacion WHERE nombre = ?)
+        (SELECT id FROM tipos_autorizacion WHERE nombre = ?),
+        IF(?, DATE_ADD(NOW(), INTERVAL 24 HOUR), NULL)
       )`,
       [
         placeholder, data.asesorId, data.tiendaId, data.valeOriginalId || null, data.fechaCreacion, data.horaCreacion,
@@ -47,7 +48,8 @@ class ValeRepository {
         // espera autorización; `autorizadoPor`/`autorizadoEn`/`autorizacionTipo`
         // solo vienen poblados cuando el vale nace ya autorizado (el MOD- que
         // crea aprobarModificacion).
-        data.talleresSolicitados || null, data.autorizadoPor || null, data.autorizadoEn || null, data.autorizacionTipo || null
+        data.talleresSolicitados || null, data.autorizadoPor || null, data.autorizadoEn || null, data.autorizacionTipo || null,
+        data.conVigencia ? 1 : 0
       ],
       'vale:insert'
     );
@@ -96,6 +98,23 @@ class ValeRepository {
 
   async listarTodos() {
     return db.query(SELECT_VALE, [], 'vale:list_all');
+  }
+
+  // Vales MOD- todavía en trámite (esperando al supervisor o rechazados): el original no cambia de estado
+  // mientras tanto, así que esta lista es la que dice qué originales tienen una modificación en curso.
+  async listarModificacionesEnTramite() {
+    return db.query(
+      `${SELECT_VALE} WHERE v.vale_original_id IS NOT NULL AND ev.nombre IN ('SOLICITANDO_MODIFICACION', 'RECHAZADO')`,
+      [], 'vale:list_modificaciones_en_tramite'
+    );
+  }
+
+  async obtenerModificacionEnTramite(valeOriginalId) {
+    const rows = await db.query(
+      `${SELECT_VALE} WHERE v.vale_original_id = ? AND ev.nombre IN ('SOLICITANDO_MODIFICACION', 'RECHAZADO') LIMIT 1`,
+      [valeOriginalId], 'vale:find_modificacion_en_tramite'
+    );
+    return rows[0] || null;
   }
 
   // El vale MOD- que reemplaza a este (a lo sumo uno, solo se permite una
@@ -203,6 +222,30 @@ class ValeRepository {
       [],
       'vale:list_atrasados_sin_notificar'
     );
+  }
+
+  // Vales con vigencia de 24 h (solo creaciones nuevas) que siguen sin autorizarse.
+  async listarVigenciaVencida() {
+    return db.query(
+      `${SELECT_VALE}
+       WHERE v.vigencia_hasta IS NOT NULL AND v.vigencia_hasta <= NOW()
+         AND ev.nombre IN ('ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO')`,
+      [], 'vale:list_vigencia_vencida'
+    );
+  }
+
+  async listarPorExpirar(horas) {
+    return db.query(
+      `${SELECT_VALE}
+       WHERE v.vigencia_hasta IS NOT NULL AND v.vigencia_aviso_en IS NULL
+         AND v.vigencia_hasta > NOW() AND v.vigencia_hasta <= DATE_ADD(NOW(), INTERVAL ? HOUR)
+         AND ev.nombre IN ('ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO')`,
+      [horas], 'vale:list_por_expirar'
+    );
+  }
+
+  async marcarAvisoVigencia(id) {
+    await db.query('UPDATE vales SET vigencia_aviso_en = NOW() WHERE id = ?', [id], 'vale:marcar_aviso_vigencia');
   }
 
   async marcarAtrasoNotificado(id, fechaHora) {

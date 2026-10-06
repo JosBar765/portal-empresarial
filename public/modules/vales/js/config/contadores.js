@@ -10,6 +10,7 @@ const PERMISO_FUSION = 'vales.aprobar_general';
 export const CONTADORES_CONFIG = {
   [ROL.ASESOR]: {
     buzon: [
+      { key: 'rechazados', label: 'Rechazados', filtro: 'rechazados', alerta: true },
       { key: 'esperandoAutorizacion', label: 'Esperando autorización', filtro: 'esperandoAutorizacion' },
       { key: 'valesPorRevisar', label: 'Pend. confirmación', filtro: 'valesPorRevisar' },
       { key: 'valesPendientesModificacion', label: 'Solicitando modificación', filtro: 'valesPendientesModificacion' },
@@ -22,8 +23,7 @@ export const CONTADORES_CONFIG = {
   },
   [ROL.SUPERVISOR]: {
     buzon: [
-      // Contador colectivo ascendente "autorizados/asesores" — se calcula
-      // aparte, ver views/buzon.js (cargarBuzon).
+      // Contador colectivo "autorizados/asesores" — lo calcula el servidor.
       { key: 'valesAutorizadosHoy', label: 'Autorizados hoy (equipo)', esTexto: true },
       { key: 'pendientesAutorizacion', label: 'Por autorizar creación', filtro: 'pendientesAutorizacion' },
       { key: 'pendientesConfirmarModificacion', label: 'Por autorizar modificación', filtro: 'pendientesConfirmarModificacion' },

@@ -108,6 +108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const socket = io({
       query: { userId: currentUser.id }
     });
+    window.centroNotificaciones?.iniciar({ socket });
 
     socket.on('connect', () => {
       console.log('[WebSocket] Conectado exitosamente al canal de notificaciones en tiempo real del portal.');

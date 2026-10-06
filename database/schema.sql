@@ -221,6 +221,11 @@ CREATE TABLE IF NOT EXISTS `vales` (
   `autorizado_en`         DATETIME DEFAULT NULL,
   `autorizacion_tipo_id`  INT DEFAULT NULL,
   `confirmado_en`         DATETIME DEFAULT NULL,
+  `vigencia_hasta`        DATETIME DEFAULT NULL,
+  `vigencia_aviso_en`     DATETIME DEFAULT NULL,
+  `rechazo_motivo`        VARCHAR(500) DEFAULT NULL,
+  `rechazado_por`         INT DEFAULT NULL,
+  `rechazado_en`          DATETIME DEFAULT NULL,
   `estado_id`             INT NOT NULL,
   `creado_en`             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `actualizado_en`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -229,6 +234,7 @@ CREATE TABLE IF NOT EXISTS `vales` (
   FOREIGN KEY (`vale_original_id`)   REFERENCES `vales` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   FOREIGN KEY (`autorizado_por`)     REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   FOREIGN KEY (`fusionado_por`)      REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  FOREIGN KEY (`rechazado_por`)      REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   FOREIGN KEY (`autorizacion_tipo_id`) REFERENCES `tipos_autorizacion` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (`estado_id`)          REFERENCES `estados_vale` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   INDEX `idx_vales_estado` (`estado_id`),
@@ -319,7 +325,7 @@ CREATE TABLE IF NOT EXISTS `vale_historial` (
   `tecnico_id`      INT DEFAULT NULL,
   `estado_anterior` VARCHAR(50) DEFAULT NULL,
   `estado_nuevo`    VARCHAR(50) NOT NULL,
-  `accion`          VARCHAR(150) NOT NULL,
+  `accion`          VARCHAR(500) NOT NULL,
   `creado_en`       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -342,6 +348,29 @@ CREATE TABLE IF NOT EXISTS `idempotency_keys` (
   `endpoint`         VARCHAR(100) NOT NULL,
   `resultado`        JSON NOT NULL,
   `creado_en`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `vale_vistos` (
+  `vale_id`    INT NOT NULL,
+  `usuario_id` INT NOT NULL,
+  `visto_en`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`vale_id`, `usuario_id`),
+  FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `notificaciones` (
+  `id`         INT AUTO_INCREMENT PRIMARY KEY,
+  `usuario_id` INT NOT NULL,
+  `vale_id`    INT DEFAULT NULL,
+  `tipo`       VARCHAR(30) DEFAULT NULL,
+  `nivel`      VARCHAR(10) NOT NULL DEFAULT 'info',
+  `mensaje`    VARCHAR(500) NOT NULL,
+  `creado_en`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `leida_en`   DATETIME DEFAULT NULL,
+  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  INDEX `idx_notificaciones_usuario` (`usuario_id`, `leida_en`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

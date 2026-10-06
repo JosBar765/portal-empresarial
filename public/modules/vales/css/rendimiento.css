@@ -424,3 +424,9 @@
   .rend-kpi--hero .rend-kpi-valor { font-size: 3rem; }
   .rend-panel { padding: 16px; }
 }
+
+.rend-tabla tfoot th,
+.rend-tabla tfoot td {
+  border-top: 2px solid var(--color-border);
+  font-weight: 700;
+}

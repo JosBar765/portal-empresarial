@@ -70,7 +70,7 @@ class ValeController {
       if (!talleresIds.length || !Number.isInteger(anio) || !Number.isInteger(mes) || mes < 1 || mes > 12) {
         return res.status(400).json({ error: 'Parámetros inválidos: se requieren talleres, anio y mes.' });
       }
-      const data = await valeService.obtenerCapacidadEntrega(talleresIds, anio, mes, idOpcional(req.query.excluir, 'Vale'));
+      const data = await valeService.obtenerCapacidadEntrega(talleresIds, anio, mes);
       return res.json(data);
     } catch (error) {
       return responderErrorInterno(res, error);
@@ -175,6 +175,7 @@ class ValeController {
       // Si el vale pedido ya fue modificado, sirve el PDF del vale MOD- vigente en
       // vez del original congelado.
       const vale = await valeService.obtenerValeParaPdf(req.user, idObligatorio(req.params.id));
+      valeService.marcarVisto(req.user, vale.id).catch(error => console.error('[Visto]', error.message));
       if (!vale.pdf_url) {
         return res.status(404).json({ error: 'El PDF de este vale aún no ha sido generado.' });
       }
@@ -280,7 +281,8 @@ class ValeController {
 
   async solicitarModificacion(req, res) {
     try {
-      const vale = await valeService.solicitarModificacion(req.user, idObligatorio(req.params.id), req.body);
+      const archivos = validarArchivos(req.files);
+      const vale = await valeService.solicitarModificacion(req.user, idObligatorio(req.params.id), req.body, archivos);
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
@@ -298,7 +300,7 @@ class ValeController {
 
   async rechazarModificacion(req, res) {
     try {
-      const vale = await valeService.rechazarModificacion(req.user, idObligatorio(req.params.id));
+      const vale = await valeService.rechazarModificacion(req.user, idObligatorio(req.params.id), req.body && req.body.motivo);
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
@@ -316,7 +318,7 @@ class ValeController {
 
   async rechazarCreacion(req, res) {
     try {
-      const resultado = await valeService.rechazarCreacion(req.user, idObligatorio(req.params.id));
+      const resultado = await valeService.rechazarCreacion(req.user, idObligatorio(req.params.id), req.body && req.body.motivo);
       return res.json(resultado);
     } catch (error) {
       return responderError(res, error);
@@ -327,6 +329,24 @@ class ValeController {
     try {
       const resultado = await valeService.darDeBaja(req.user, idObligatorio(req.params.id));
       return res.json(resultado);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async reenviar(req, res) {
+    try {
+      const vale = await valeService.reenviarAutorizacion(req.user, idObligatorio(req.params.id));
+      return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async marcarVisto(req, res) {
+    try {
+      await valeService.marcarVisto(req.user, idObligatorio(req.params.id));
+      return res.json({ ok: true });
     } catch (error) {
       return responderError(res, error);
     }

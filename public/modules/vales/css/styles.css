@@ -316,6 +316,58 @@
   color: #FFFFFF;
 }
 
+.mes-nav {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-full);
+  padding: 2px;
+  transition: border-color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.mes-nav.is-activo {
+  border-color: var(--color-primary);
+}
+
+.mes-nav.is-desactivado {
+  opacity: 0.45;
+}
+
+.mes-nav button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mes-nav button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.mes-nav.is-activo .mes-nav-etiqueta {
+  color: var(--color-primary);
+}
+
+.mes-nav-flecha {
+  width: 30px;
+  height: 30px;
+}
+
+.mes-nav-etiqueta {
+  min-width: 130px;
+  padding: 0 8px;
+  height: 30px;
+}
+
 .ventana-rango {
   display: flex;
   align-items: center;
@@ -627,6 +679,14 @@
   margin-left: 6px;
 }
 
+/* Un vale original con una solicitud de modificación en trámite. */
+.badge-mod {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  margin-left: 6px;
+  cursor: help;
+}
+
 /* analisis_correcciones_16.md #4/#5: marca (F)/(P) junto al correlativo en
    Trabajo Realizado, cuando un mismo vale trae fila de fusión y de propuesta
    propia — el tooltip real va en el atributo title del span. */
@@ -691,6 +751,11 @@
 }
 
 /* Estado general del vale (vales.estado) */
+.estado-RECHAZADO {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
 .estado-ESPERANDO_AUTORIZACION {
   background: var(--vale-estado-espera-autorizacion-bg);
   color: var(--vale-estado-espera-autorizacion-fg);
@@ -1417,6 +1482,42 @@
 .dp-tooltip-agotado {
   color: var(--color-danger);
   font-weight: 700;
+}
+
+.form-nota {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.motivo-rechazo {
+  margin: 0;
+  padding: 10px 14px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-radius: var(--radius-md, 8px);
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.contador-palabras {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: right;
+  margin-top: 4px;
+}
+
+.contador-palabras.is-excedido {
+  color: var(--color-danger);
+}
+
+.nota-visto {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--color-success);
 }
 
 .form-aviso {

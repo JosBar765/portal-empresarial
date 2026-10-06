@@ -101,7 +101,7 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 INSERT INTO `estados_vale` (`id`, `nombre`) VALUES
 (1, 'ESPERANDO_AUTORIZACION'), (2, 'CREADO'), (3, 'APROBADO_DEPARTAMENTO'),
 (4, 'PENDIENTE_CONFIRMACION'), (5, 'RECIBIDO'), (6, 'SOLICITANDO_MODIFICACION'),
-(7, 'MODIFICADO'), (8, 'CONFIRMADO');
+(7, 'MODIFICADO'), (8, 'CONFIRMADO'), (9, 'RECHAZADO');
 
 INSERT INTO `tipos_autorizacion` (`id`, `nombre`) VALUES
 (1, 'CREACION'), (2, 'MODIFICACION');

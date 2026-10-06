@@ -11,8 +11,12 @@ const TIPOS_PERMITIDOS = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 3 * 1024 * 1024 },
+  // Un tipo no permitido se rechaza con error (antes se descartaba en silencio y el vale se creaba sin ese archivo).
   fileFilter: (req, file, cb) => {
-    cb(null, TIPOS_PERMITIDOS.has(file.mimetype));
+    if (TIPOS_PERMITIDOS.has(file.mimetype)) return cb(null, true);
+    const error = new multer.MulterError('TIPO_NO_PERMITIDO', file.fieldname);
+    error.archivo = String(file.originalname || '').replace(/[<>"'&]/g, '').slice(0, 80);
+    return cb(error);
   }
 });
 
@@ -83,11 +87,13 @@ router.post('/:id/reanudar', trabajarVale, (req, res) => valeController.reanudar
 router.post('/:id/revisar', revisarVale, (req, res) => valeController.revisar(req, res));
 router.post('/:id/aprobar-general', aprobacionGeneralVale, campoFusion, (req, res) => valeController.aprobarGeneral(req, res));
 router.post('/:id/confirmar', confirmarVale, (req, res) => valeController.confirmar(req, res));
-router.post('/:id/solicitar-modificacion', solicitarModificacionVale, (req, res) => valeController.solicitarModificacion(req, res));
+router.post('/:id/solicitar-modificacion', solicitarModificacionVale, camposAdjuntos, (req, res) => valeController.solicitarModificacion(req, res));
 router.post('/:id/aprobar-modificacion', aprobarModificacionVale, (req, res) => valeController.aprobarModificacion(req, res));
 router.post('/:id/rechazar-modificacion', aprobarModificacionVale, (req, res) => valeController.rechazarModificacion(req, res));
 router.post('/:id/autorizar-creacion', autorizarCreacionVale, (req, res) => valeController.autorizarCreacion(req, res));
 router.post('/:id/rechazar-creacion', autorizarCreacionVale, (req, res) => valeController.rechazarCreacion(req, res));
+router.post('/:id/reenviar', corregirVale, (req, res) => valeController.reenviar(req, res));
+router.post('/:id/visto', requirePermission('vales.supervisar'), (req, res) => valeController.marcarVisto(req, res));
 router.post('/:id/dar-de-baja', darDeBajaVale, (req, res) => valeController.darDeBaja(req, res));
 router.post('/:id/corregir', corregirVale, camposAdjuntos, (req, res) => valeController.corregir(req, res));
 

@@ -13,7 +13,7 @@ const capacidadEntregaService = require('./capacidadEntregaService');
 const valeCreacionService = require('./valeCreacionService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
-const { ESTADOS, ROL, hoyISO, enriquecer, requerirVale } = require('./valeHelpers');
+const { ROL, ESTADOS_EDITABLES_ASESOR, enriquecer, requerirVale, esValeDeModificacion } = require('./valeHelpers');
 
 const MAX_IMAGENES = 10;
 const MAX_DOCUMENTOS = 5;
@@ -36,17 +36,23 @@ class ValeCorreccionService {
       if (vale.asesor_id !== usuario.id) {
         throw new Error('Solo puedes corregir tus propios vales.');
       }
-      if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
-        throw new Error('Este vale ya fue autorizado, así que ya no se puede corregir.');
+      if (!ESTADOS_EDITABLES_ASESOR.includes(vale.estado)) {
+        throw new Error(esValeDeModificacion(vale)
+          ? 'Esta modificación ya fue autorizada, así que ya no se puede corregir.'
+          : 'Este vale ya fue autorizado, así que ya no se puede corregir.');
       }
 
-      const datos = await valeCreacionService.validarDatosVale(payload, { tiendaIdAsesor: vale.tienda_id });
-      const fechaCreacion = new Date(`${hoyISO()}T00:00:00`);
-      if (!(datos.fechaEventoDate > datos.fechaEntregaDate && datos.fechaEntregaDate >= fechaCreacion)) {
-        throw new Error('Revisa las fechas: el evento debe ser posterior a la entrega, y la entrega no puede ser anterior a hoy.');
+      // Un MOD- conserva los talleres del original (fijos) y su descripción es la justificación de la modificación.
+      const esMod = esValeDeModificacion(vale);
+      let payloadEfectivo = payload;
+      if (esMod) {
+        const justificacion = String(payload.descripcion || '').trim();
+        if (!justificacion) throw new Error('Escribe la justificación de la modificación.');
+        payloadEfectivo = { ...payload, descripcion: justificacion, talleresIds: (vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite) };
       }
+      const datos = await valeCreacionService.validarDatosVale(payloadEfectivo, { tiendaIdAsesor: esMod ? null : vale.tienda_id });
       const fechaEntregaISO = datos.fechaEntregaNorm.slice(0, 10);
-      await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO, valeId);
+      await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO);
 
       const documentosActuales = await documentoRepository.listarPorVale(valeId);
       const quitarIds = this._idsAQuitar(payload.documentosQuitar, documentosActuales);
@@ -69,11 +75,11 @@ class ValeCorreccionService {
 
         // El cupo se revalida y la base se actualiza en el mismo turno de la cola de capacidad.
         await valeMutex.conColaDeCapacidad(async () => {
-          await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO, valeId);
+          await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO);
           await valeCorreccionRepository.aplicar({
-            valeId, usuarioId: usuario.id, datos, pdfUrl: pdf.url,
+            valeId, usuarioId: usuario.id, datos, pdfUrl: pdf.url, estado: vale.estado,
             documentosQuitarIds: quitarIds, documentosNuevos,
-            accionHistorial: 'Asesor corrigió los datos del vale de arte antes de su autorización'
+            accionHistorial: `Asesor corrigió los datos ${esMod ? 'de la modificación' : 'del vale de arte'} antes de su autorización`
           });
         });
       } catch (error) {
@@ -81,17 +87,19 @@ class ValeCorreccionService {
         throw error;
       }
 
-      const aReemplazar = [
-        ...documentosActuales.filter(d => quitarIds.includes(d.id)).map(d => d.ruta),
-        vale.pdf_url
-      ].filter(Boolean);
+      // Un archivo que otro vale (el original de una modificación) también usa no se borra de Storage.
+      const aReemplazar = [vale.pdf_url].filter(Boolean);
+      for (const doc of documentosActuales.filter(d => quitarIds.includes(d.id))) {
+        if (await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, valeId) === 0) aReemplazar.push(doc.ruta);
+      }
       await this._borrarDeStorage(aReemplazar);
 
       const actualizado = await valeRepository.obtenerPorId(valeId);
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       valeEvents.notificar({
         vale: actualizado, accion: 'corregido', tipo: 'CORREGIDO', actor: usuario.nombre, actorId: usuario.id,
-        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
+        // Un vale rechazado no está en manos del supervisor: solo el asesor se entera.
+        salas: [`asesor:${vale.asesor_id}`, ...(vale.estado === 'RECHAZADO' ? [] : supervisores.map(s => `supervisor:${s.id}`))]
       });
       const resultado = enriquecer(actualizado);
       await idempotencyRepository.registrar(key, 'vales.corregir', resultado);

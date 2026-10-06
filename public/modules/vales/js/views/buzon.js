@@ -5,13 +5,13 @@ import { ESTADOS_LABEL, ESTADOS_VISIBLES_LABEL, CLAVES_ESTADOS_TALLER, CLAVES_ES
 import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible, claseEstado, etiquetaEstado } from '../permisos.js';
 import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro } from '../utils/formato.js';
-import { obtenerBuzon, obtenerMasVales, obtenerLimiteColectivo } from '../api/valesApi.js';
+import { obtenerBuzon, obtenerMasVales } from '../api/valesApi.js';
 import { cargarRendimientoGerencia } from './rendimientoGerencia.js';
 import { cargarEncontrarVale } from './encontrarVale.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/tecnico.js';
-import { abrirModalDecisionAsesor, abrirModalDarDeBaja } from '../actions/asesor.js';
+import { abrirModalDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
 import { abrirModalSolicitarModificacion, abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirModalHistorial } from '../actions/historial.js';
 
@@ -23,6 +23,7 @@ import { abrirModalHistorial } from '../actions/historial.js';
 export function construirQueryBase() {
   const qs = new URLSearchParams();
   if (state.ventana.tipo) qs.set('ventana', state.ventana.tipo);
+  if (state.ventana.tipo === 'mes') qs.set('fecha', state.ventana.fecha);
   if (state.ventana.tipo === 'rango') {
     if (state.ventana.desde) qs.set('desde', state.ventana.desde);
     if (state.ventana.hasta) qs.set('hasta', state.ventana.hasta);
@@ -70,15 +71,6 @@ export async function cargarBuzon() {
         </div>
       </td></tr>`;
     return;
-  }
-
-  // El límite diario es un contador colectivo ascendente "autorizados/asesores"
-  // del Supervisor.
-  if (state.user.rolId === ROL.SUPERVISOR && state.vista !== 'trabajo') {
-    try {
-      const d = await obtenerLimiteColectivo();
-      state.contadores.valesAutorizadosHoy = `${d.autorizados}/${d.limite}`;
-    } catch { /* no bloquea el render del buzón */ }
   }
 
   renderContadores();
@@ -241,7 +233,7 @@ export function renderTabla() {
 
   tbody.innerHTML = filas.map(v => `
     <tr>
-      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}</td>
+      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}</td>
       <td data-label="Fecha Ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
       <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
@@ -331,23 +323,31 @@ export function construirAcciones(v) {
   if (puede('aprobarGeneral') && v.estado === 'APROBADO_DEPARTAMENTO') {
     acciones.push({ icono: 'checkmark-done-circle-outline', titulo: 'Aprobar y fusionar', clase: 'icon-success', onClick: abrirModalAprobarGeneral });
   }
-  if (puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION') {
+  // Con una solicitud de modificación en trámite no se puede confirmar el original: se espera su decisión.
+  if (puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite) {
     acciones.push({ icono: 'document-text-outline', titulo: 'Confirmar o solicitar modificación', clase: 'icon-success', onClick: abrirModalDecisionAsesor });
   }
   // Un vale MOD- (nacido de una modificación ya aprobada, `vale_original_id`
   // seteado) nunca puede volver a solicitar modificación — solo se permite
   // una por vale (analisis_correcciones_29.md #3).
-  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.vale_original_id) {
+  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.vale_original_id && !v.mod_en_tramite) {
     acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirModalSolicitarModificacion });
   }
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });
   }
-  if (puede('corregir') && v.estado === 'ESPERANDO_AUTORIZACION' && v.asesor_id === state.user.id) {
+  const esMio = v.asesor_id === state.user.id;
+  if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
+    acciones.push({ icono: 'alert-circle-outline', titulo: 'Ver motivo del rechazo', clase: 'icon-danger', onClick: abrirModalMotivoRechazo });
+  }
+  if (puede('corregir') && ['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) && esMio) {
     acciones.push({ icono: 'settings-outline', titulo: 'Corregir', onClick: abrirModalCorregirVale });
   }
+  if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
+    acciones.push({ icono: 'send-outline', titulo: 'Reenviar a autorización', clase: 'icon-success', onClick: accionReenviar });
+  }
   acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
-  if (puede('darDeBaja') && v.estado === 'ESPERANDO_AUTORIZACION' && v.asesor_id === state.user.id) {
+  if (puede('darDeBaja') && ['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) && esMio) {
     acciones.push({ icono: 'ban-outline', titulo: 'Dar de baja', clase: 'icon-danger', onClick: abrirModalDarDeBaja });
   }
 
