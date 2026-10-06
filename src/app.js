@@ -13,6 +13,7 @@ const maintenanceGate = require('./core/permissions/maintenanceMiddleware');
 const valeRoutes = require('./modules/vales/routes');
 const atrasoWatcher = require('./modules/vales/atrasoWatcher');
 const adminRoutes = require('./modules/admin/routes');
+const notificacionRoutes = require('./core/notifications/notificacionRoutes');
 const { MENSAJE_INTERNO } = require('./core/utils/erroresHttp');
 
 const app = express();
@@ -119,6 +120,9 @@ app.use('/api/vales', requireAuth, requirePermission('vales.ver'), valeRoutes);
 
 // Rutas de API del panel de Administrador
 app.use('/api/admin', requireAuth, requirePermission('admin.ver'), adminRoutes);
+
+// Centro de notificaciones (de cualquier usuario autenticado, sin permiso de módulo)
+app.use('/api/notificaciones', requireAuth, notificacionRoutes);
 
 // Vigilante de atraso — corre en el mismo proceso (monolito modular), revisa
 // cada 60s qué vales acaban de cruzar su fecha_entrega y dispara la alerta

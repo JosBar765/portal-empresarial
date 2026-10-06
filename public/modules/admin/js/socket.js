@@ -6,6 +6,7 @@ import { refreshToken, logout } from './api/authApi.js';
 export function initSocket() {
   if (typeof io === 'undefined') return;
   state.socket = io({ query: { userId: state.user.id } });
+  window.centroNotificaciones?.iniciar({ socket: state.socket });
   state.socket.on('connect', () => {
     state.socket.emit('register_module', [`role_${state.user.rolId}`]);
   });

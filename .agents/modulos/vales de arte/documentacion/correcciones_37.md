@@ -5,7 +5,7 @@ Base: `.agents/modulos/vales de arte/correcciones/analisis_correcciones_37.md`. 
 | # | Punto del análisis | Estado |
 |---|---|---|
 | 8 | Cupo del taller solo al autorizar | **hecho** |
-| 10 | Centro de notificaciones | pendiente |
+| 10 | Centro de notificaciones | **hecho** |
 | 5 | Obligatorio ver el vale antes de autorizar | pendiente |
 | 6 | Rechazo de creación devuelve el vale con justificación | pendiente |
 | 7 | Vigencia de 24 h con avisos | pendiente |
@@ -34,3 +34,13 @@ Base: `.agents/modulos/vales de arte/correcciones/analisis_correcciones_37.md`. 
 - La aprobación de una modificación ya validaba el cupo dentro de esa cola; no cambió.
 
 Verificación: taller UV/3D (límite 4). Se crearon 6 vales pendientes para el mismo día (todos se aceptaron; capacidad del día 0/4). Se autorizaron 3 (3/4); dos autorizaciones simultáneas con un solo cupo dieron 200 y 400 (4/4, día bloqueado); autorizar uno más dio el error de cupo y el vale siguió pendiente. En el navegador, como supervisor, el modal "Autorizar creación" mostró el mensaje en rojo.
+
+## Punto 10 — Centro de notificaciones
+
+- **Tabla nueva `notificaciones`** (`schema.sql`): `usuario_id`, `vale_id` (se pone en NULL si el vale se borra, la notificación se conserva), `tipo`, `nivel`, `mensaje`, `creado_en`, `leida_en`. Nunca se borran: solo se marcan como leídas. En una base existente hay que crearla (el `CREATE TABLE` está en `schema.sql`).
+- **Qué se guarda:** todo lo que sale por `valeEvents.notificar` (mismos avisos que ya salían como toast, incluidas las alertas de atraso), una fila por usuario destinatario. `events.js` convierte las salas de tiempo real en usuarios: `asesor:`, `supervisor:` y `tecnico:` (el id del usuario), `taller:` (encargado del taller y su Asistente de Diseño) y `vales:fusion` (quien tiene `vales.aprobar_general`). El Administrador (sala `vales:admin`) no recibe notificaciones guardadas porque vería toda la actividad de la empresa, y quien ejecuta la acción tampoco recibe la suya.
+- **API** (`/api/notificaciones`, cualquier usuario autenticado, sin permiso de módulo): `GET /` (paginado de 20 en 20, con `noLeidas`), `POST /:id/leer` y `POST /leer-todas`. Código en `src/core/notifications/`.
+- **Tiempo real:** cada socket entra automáticamente a su sala personal `usuario:<id>` (decisión del servidor) y recibe `notificacion_nueva`.
+- **Interfaz:** campana con contador de no leídas en el encabezado del dashboard, de Vales y de Administración (`public/js/notificaciones.js`, estilos en `dashboard.css`). El panel muestra el contenido y la fecha y hora; pulsar una la marca como leída; "Marcar todas como leídas"; "Cargar más". Las leídas se conservan en la lista.
+
+Verificación: como supervisor en el navegador, una asesora creó dos vales y la campana subió a 2 en vivo en el dashboard; el panel los listó con fecha y hora; marcar una dejó el contador en 1 y se conservó al recargar; en el módulo de Vales aparece la misma campana y "Marcar todas" dejó 0 sin borrar las 2. La campana de Administración usa el mismo código y marcado pero no se probó en pantalla (no se dispone de una sesión de Administrador).

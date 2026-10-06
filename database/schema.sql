@@ -344,4 +344,18 @@ CREATE TABLE IF NOT EXISTS `idempotency_keys` (
   `creado_en`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `notificaciones` (
+  `id`         INT AUTO_INCREMENT PRIMARY KEY,
+  `usuario_id` INT NOT NULL,
+  `vale_id`    INT DEFAULT NULL,
+  `tipo`       VARCHAR(30) DEFAULT NULL,
+  `nivel`      VARCHAR(10) NOT NULL DEFAULT 'info',
+  `mensaje`    VARCHAR(500) NOT NULL,
+  `creado_en`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `leida_en`   DATETIME DEFAULT NULL,
+  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  INDEX `idx_notificaciones_usuario` (`usuario_id`, `leida_en`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
