@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { ROL } from '../config/roles.js';
 import { $, $$ } from '../utils/dom.js';
-import { claseEstado, etiquetaEstado } from '../permisos.js';
+import { celdaEstado } from '../components/pipeline.js';
 import { escapeHtml, formatearFecha, celdaTaller } from '../utils/formato.js';
 import { obtenerRendimientoGerencia } from '../api/valesApi.js';
 import { abrirModalHistorial } from '../actions/historial.js';
@@ -487,7 +487,7 @@ function renderCriticos(data) {
             <td data-label="Taller" class="col-taller">${celdaTaller({ taller: escapeHtml(v.taller || '') })}</td>
             <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
             <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : `<span class="badge badge-atraso">${v.diasAtraso}d</span>`}</td>
-            <td data-label="Estado"><span class="estado-pill ${claseEstado(v)}">${escapeHtml(etiquetaEstado(v))}</span></td>
+            <td data-label="Estado" class="col-estado">${celdaEstado(v)}</td>
             <td data-label="Acciones" class="acciones-cell" data-vale-id="${v.id}"></td>
           </tr>`).join('')}
         </tbody>

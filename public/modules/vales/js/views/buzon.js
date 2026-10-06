@@ -3,7 +3,8 @@ import { $, $$ } from '../utils/dom.js';
 import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO } from '../config/roles.js';
 import { ESTADOS_LABEL, ESTADOS_VISIBLES_LABEL, CLAVES_ESTADOS_TALLER, CLAVES_ESTADOS_GENERAL, CLAVES_ESTADOS_TECNICO_BUZON, CLAVES_ESTADOS_TECNICO_TRABAJO } from '../config/estados.js';
 import { CONTADORES_CONFIG } from '../config/contadores.js';
-import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible, claseEstado, etiquetaEstado } from '../permisos.js';
+import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible } from '../permisos.js';
+import { celdaEstado } from '../components/pipeline.js';
 import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro } from '../utils/formato.js';
 import { obtenerBuzon, obtenerMasVales } from '../api/valesApi.js';
 import { cargarRendimientoGerencia } from './rendimientoGerencia.js';
@@ -116,6 +117,8 @@ export function wireScrollInfinito() {
 // activarse (el backend las calcula antes de aplicar el filtro), y no afecta
 // el scroll infinito porque el filtro viaja en la misma querystring que ya
 // usa la paginación.
+let contadorEnfocado = null;
+
 export function renderContadores() {
   let config = CONTADORES_CONFIG[state.user.rolId] || [];
   if (!Array.isArray(config)) config = config[state.vista] || [];
@@ -140,18 +143,26 @@ export function renderContadores() {
     // — .valor-compacto lo reduce sin tocar los contadores numéricos ni los
     // "N/M" cortos.
     const valorLargo = String(mostrado).length > 6;
-    return `
-      <div class="${clases.join(' ')}" data-filtro="${c.filtro || ''}" data-atrasados-global="${c.atrasadosGlobal ? '1' : ''}">
-        <div class="valor${valorLargo ? ' valor-compacto' : ''}">${mostrado}</div>
-        <div class="etiqueta">${c.label}</div>
-      </div>`;
+    const atributos = `class="${clases.join(' ')}" data-key="${c.key}" data-filtro="${c.filtro || ''}" data-atrasados-global="${c.atrasadosGlobal ? '1' : ''}"`;
+    const contenido = `<span class="valor${valorLargo ? ' valor-compacto' : ''}">${mostrado}</span><span class="etiqueta">${c.label}</span>`;
+    return esClickeable
+      ? `<button type="button" ${atributos} aria-pressed="${activo ? 'true' : 'false'}">${contenido}</button>`
+      : `<div ${atributos}>${contenido}</div>`;
   }).join('');
+
+  // Al volver a pintar las tarjetas se pierde el foco: quien filtró con el teclado lo recupera.
+  if (contadorEnfocado) {
+    const card = grid.querySelector(`[data-key="${CSS.escape(contadorEnfocado)}"]`);
+    if (card && card.tagName === 'BUTTON') card.focus();
+    contadorEnfocado = null;
+  }
 
   $$('.contador-card', grid).forEach(card => {
     const filtro = card.dataset.filtro;
     const esAtrasadosGlobal = card.dataset.atrasadosGlobal === '1';
     if (!filtro && !esAtrasadosGlobal) return;
     card.addEventListener('click', () => {
+      contadorEnfocado = card.dataset.key;
       if (esAtrasadosGlobal) {
         state.soloAtrasados = !state.soloAtrasados;
       } else {
@@ -239,7 +250,7 @@ export function renderTabla() {
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
       <td data-label="Fecha Evento">${formatearFecha(v.fecha_evento)}</td>
       <td data-label="Taller" class="col-taller">${celdaTaller(v)}</td>
-      <td data-label="Estado"><span class="estado-pill ${claseEstado(v)}">${etiquetaEstado(v)}</span></td>
+      <td data-label="Estado" class="col-estado">${celdaEstado(v)}</td>
       <td data-label="Acciones" class="acciones-cell" data-row-key="${claveFila(v)}"></td>
     </tr>
   `).join('');

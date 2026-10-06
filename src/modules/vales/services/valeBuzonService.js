@@ -13,6 +13,7 @@ const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeVistoRepository = require('../repositories/valeVistoRepository');
+const { calcularPipeline } = require('./valePipeline');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
   esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
@@ -91,7 +92,8 @@ class ValeBuzonService {
       const idsTaller = filas.length > 0
         ? filas.map(f => f.taller_id)
         : String(v.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
-      return { ...v, taller: idsTaller.map(nombreTaller).join(', '), _filasTaller: filas, mod_en_tramite: enTramite.get(v.id) || null };
+      const talleresDetalle = filas.map(f => ({ taller_id: f.taller_id, nombre: nombreTaller(f.taller_id), estado: f.estado }));
+      return { ...v, taller: idsTaller.map(nombreTaller).join(', '), _filasTaller: filas, _talleresDetalle: talleresDetalle, mod_en_tramite: enTramite.get(v.id) || null };
     });
   }
 
@@ -227,7 +229,8 @@ class ValeBuzonService {
     } else {
       indiceInicio = Math.max(0, Number(filtros.offset) || 0);
     }
-    const pagina = valesOrdenados.slice(indiceInicio, indiceInicio + limit);
+    const pagina = valesOrdenados.slice(indiceInicio, indiceInicio + limit)
+      .map(v => ({ ...v, pipeline: calcularPipeline(v, { rolId: usuario.rolId }) }));
     const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
     return {
       vales: pagina,

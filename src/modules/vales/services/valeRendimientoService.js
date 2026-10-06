@@ -8,6 +8,7 @@ const valeRepository = require('../repositories/valeRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeBuzonService = require('./valeBuzonService');
+const { calcularPipeline } = require('./valePipeline');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ROL,
   enriquecer, dentroDeVentana, hoyISO
@@ -260,7 +261,7 @@ class ValeRendimientoService {
       talleres: await this._porTaller(enVentana, talleresVisibles),
       tiendas: this._porTienda(enVentana),
       asesores: await this._porAsesor(enVentana),
-      criticos: this._criticos(enVentana)
+      criticos: this._criticos(enVentana).map(v => ({ ...v, pipeline: calcularPipeline(v) }))
     };
   }
 

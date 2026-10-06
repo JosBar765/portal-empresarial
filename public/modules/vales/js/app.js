@@ -12,6 +12,7 @@ import { wireAccountMenu } from './layout/accountMenu.js';
 import { wireSidebar } from './layout/sidebar.js';
 import { wireToolbar, wireSortHeaders } from './layout/toolbar.js';
 import { initSocket } from './socket.js';
+import { iniciarTooltipPipeline } from './components/pipeline.js';
 import { cargarBuzon, wireScrollInfinito } from './views/buzon.js';
 import { abrirModalCrearVale } from './forms/valeForm.js';
 import { abrirModalCargaTrabajo } from './actions/cargaTrabajo.js';
@@ -60,6 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireToolbar();
   wireSortHeaders();
   wireScrollInfinito();
+  iniciarTooltipPipeline();
   initSocket();
 
   await cargarBuzon();
