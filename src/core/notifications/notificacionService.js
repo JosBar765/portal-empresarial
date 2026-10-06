@@ -1,5 +1,5 @@
 // src/core/notifications/notificacionService.js
-// Centro de notificaciones: se guardan por usuario (nunca se borran, solo se marcan como leídas)
+// Centro de notificaciones: se guardan por usuario (las leídas se purgan a los 60 días)
 // y se empujan en vivo a la sala personal `usuario:<id>` de cada destinatario.
 const notificacionRepository = require('./notificacionRepository');
 const socketManager = require('../websocket/socketManager');
@@ -27,6 +27,10 @@ class NotificacionService {
 
   marcarLeida(usuarioId, id) {
     return notificacionRepository.marcarLeida(usuarioId, id);
+  }
+
+  purgarLeidasAntiguas(dias) {
+    return notificacionRepository.purgarLeidasAntiguas(dias);
   }
 
   marcarTodasLeidas(usuarioId) {

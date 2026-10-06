@@ -42,6 +42,8 @@ Verificación: taller UV/3D (límite 4). Se crearon 6 vales pendientes para el m
 - **API** (`/api/notificaciones`, cualquier usuario autenticado, sin permiso de módulo): `GET /` (paginado de 20 en 20, con `noLeidas`), `POST /:id/leer` y `POST /leer-todas`. Código en `src/core/notifications/`.
 - **Tiempo real:** cada socket entra automáticamente a su sala personal `usuario:<id>` (decisión del servidor) y recibe `notificacion_nueva`.
 - **Interfaz:** campana con contador de no leídas en el encabezado del dashboard, de Vales y de Administración (`public/js/notificaciones.js`, estilos en `dashboard.css`). El panel muestra el contenido y la fecha y hora; pulsar una la marca como leída; "Marcar todas como leídas"; "Cargar más". Las leídas se conservan en la lista.
+- **Retención de 60 días:** las notificaciones **leídas** con más de 60 días se borran solas (`notificacionLimpieza.js`, al arrancar el servidor y cada 6 horas; `notificacionRepository.purgarLeidasAntiguas`). Las **no leídas nunca se borran**, por antiguas que sean.
+- **Lista fluida:** marcar una como leída, marcar todas y «Cargar más» conservan el desplazamiento de la lista (ya no vuelve arriba).
 
 Verificación: como supervisor en el navegador, una asesora creó dos vales y la campana subió a 2 en vivo en el dashboard; el panel los listó con fecha y hora; marcar una dejó el contador en 1 y se conservó al recargar; en el módulo de Vales aparece la misma campana y "Marcar todas" dejó 0 sin borrar las 2. La campana de Administración usa el mismo código y marcado pero no se probó en pantalla (no se dispone de una sesión de Administrador).
 
@@ -109,3 +111,5 @@ Verificación: Karla Ordoñez figura con 40 ingresados y 26 autorizados, igual q
 - **Aplica a:** Buzón, Trabajo realizado y Rendimiento (la ventana anterior de comparación y la tendencia usan la fecha de entrega; ya no existen las ventanas día/semana).
 
 Verificación en pantalla (Gerente y Supervisor de Ventas): arranca en Octubre 2026 (16 vales en Rendimiento, 9 en el Buzón); la flecha lleva a Septiembre (66 vales; 2 en el Buzón del supervisor); `Todo` da 220 y desactiva las flechas; elegir "Desde 06/10/2026" desactiva el mes y por API devuelve 42 vales con el rango abierto.
+
+Verificación de la retención: con tres filas de prueba (leída hace 61 días, leída hace 59 días y no leída de 90 días) la purga borró solo la primera.
