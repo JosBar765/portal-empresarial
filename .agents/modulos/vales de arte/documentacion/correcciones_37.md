@@ -11,7 +11,7 @@ Base: `.agents/modulos/vales de arte/correcciones/analisis_correcciones_37.md`. 
 | 7 | Vigencia de 24 h con avisos | **hecho** |
 | 4 | Modificación igual al formulario de corregir | **hecho** |
 | 9 | Rendimiento: vales por asesor | **hecho** |
-| 2 y 3 | Filtros por fecha de entrega y navegador de mes | ✅ listo |
+| 2 y 3 | Filtros por fecha de entrega y navegador de mes | **hecho** |
 | 1 | Supervisor creando vales | **omitido por ahora** (decisión del usuario) |
 
 ## Decisiones acordadas
