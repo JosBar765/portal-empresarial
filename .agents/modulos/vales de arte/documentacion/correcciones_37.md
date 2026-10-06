@@ -147,3 +147,18 @@ UPDATE vale_historial SET accion = 'Se adjuntó la fusión final del trabajo de 
 
 Verificación: cada corrección se probó con peticiones reales contra el servidor, incluida la carrera (tres autorizaciones simultáneas con un cupo libre: pasa una; tres `comenzar` simultáneos: queda uno en proceso) y los flujos con Protextil, Diseño Local y Administrador.
 
+## La modificación como vale propio (cambio posterior a la prueba del flujo)
+
+Se rediseñó la modificación para que sea «un vale nuevo» con su propio ciclo, y se cambió el filtro por defecto.
+
+- **`Todo` por defecto** en Buzón, Trabajo realizado y Rendimiento. Pulsar el nombre del mes activa el navegador de mes; limpiar un rango vuelve a `Todo`. (Antes arrancaba en el mes actual y escondía vales pendientes con entrega en meses futuros.)
+- **El `MOD-` nace en `SOLICITANDO_MODIFICACION`** (antes, en `ESPERANDO_AUTORIZACION` y oculto) y es una fila propia en el Buzón del asesor y del supervisor. **El original no cambia de estado** mientras tanto (opción A): si estaba en `PENDIENTE_CONFIRMACION`, sigue ahí y no se puede confirmar («Confirmar» se bloquea con un mensaje que nombra al `MOD-`); si estaba en `RECIBIDO`, sigue en `RECIBIDO`. Se muestra con la marca «MOD en trámite». Al autorizarse el `MOD-`, el original pasa a `RECIBIDO` (y congela el atraso si no estaba).
+- **Flujo normal:** el supervisor autoriza o rechaza usando el id del `MOD-`; rechazar exige un motivo (≤ 50 palabras) y pasa el `MOD-` a `RECHAZADO` (ya no se borra); el asesor lo corrige (talleres fijos y justificación obligatoria; sin borrar de Storage los archivos que comparte con el original), lo reenvía (vuelve a `SOLICITANDO_MODIFICACION`) o lo da de baja. La baja ahora sirve también para el `MOD-` pendiente o rechazado, y el original queda como estaba.
+- **Vigencia de 24 h** también para el `MOD-` (pendiente o rechazado): aviso 6 h antes y eliminación al vencer, con notificaciones que nombran el vale, p. ej. «Vale: MOD-MTC-AL-318 (solicitud de modificación) fue eliminado automáticamente… MTC-AL-318 queda sin cambios». El original no se toca y se puede volver a pedir la modificación.
+- **`MODIFICADO` sigue en uso:** es el estado del `MOD-` autorizado mientras pasa por los talleres (el equivalente a `CREADO`).
+- **Historial:** el original registra la solicitud (sin cambio de estado) y su aprobación; el `MOD-` registra su propio ciclo. Las entradas del original se clasifican por el texto de la acción.
+- **Se retiró** el campo `mod_pendiente` de las filas del supervisor y `solicitudModificacion` del detalle; el repositorio expone `listarModificacionesEnTramite` y `obtenerModificacionEnTramite`.
+
+Datos existentes (una base con solicitudes ya en trámite): pasar cada `MOD-` en `ESPERANDO_AUTORIZACION` a `SOLICITANDO_MODIFICACION` (y su primera fila de historial), y devolver el original que esté en `SOLICITANDO_MODIFICACION` a su estado previo (el `estado_anterior` de su última fila de historial con `estado_nuevo = 'SOLICITANDO_MODIFICACION'`). En la base de desarrollo no había solicitudes en trámite.
+
+Verificación: por API (solicitar desde `RECIBIDO` y desde `PENDIENTE_CONFIRMACION`, bloqueo de «Confirmar», aprobar por id del `MOD-`, rechazo con motivo, corrección, reenvío con «visto» reiniciado, baja de un `MOD-` pendiente y rechazado, vencimiento y aviso con los vigilantes, archivos del original intactos en Storage, historial por rol) y en pantalla (supervisor: fila propia, modal de autorizar y rechazo con justificación; asesor: fila rechazada con sus acciones, formulario «Corregir modificación» con talleres fijos, reenvío y marca «MOD en trámite» sin botón de confirmar en el original).

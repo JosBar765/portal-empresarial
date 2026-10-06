@@ -39,14 +39,14 @@ datos; la columna "Etiqueta" es lo que se muestra hoy en pantalla
 
 | id | Código | Etiqueta en pantalla | Qué significa | Entra por | Sale por |
 |---|---|---|---|---|---|
-| 1 | `ESPERANDO_AUTORIZACION` | Esperando Autorización | El vale existe pero ningún taller lo ve aún; espera al supervisor del asesor. No tiene filas en `vale_talleres`. Tiene vigencia de 24 h (§1). | El asesor crea el vale · el asesor reenvía uno `RECHAZADO` · se solicita una modificación (nace así el vale `MOD-`, oculto para el asesor) | Autorizar → `CREADO` (o `MODIFICADO` si es `MOD-`) · Rechazar → `RECHAZADO` · Baja o vencimiento → **se borra** |
-| 9 | `RECHAZADO` | Rechazado | El supervisor devolvió el vale al asesor con un motivo (≤ 50 palabras). El asesor puede corregirlo, reenviarlo o darlo de baja. Conserva la vigencia de 24 h original. | El supervisor rechaza la creación | Reenviar → `ESPERANDO_AUTORIZACION` · Baja o vencimiento → se borra |
+| 1 | `ESPERANDO_AUTORIZACION` | Esperando Autorización | El vale existe pero ningún taller lo ve aún; espera al supervisor del asesor. No tiene filas en `vale_talleres`. Tiene vigencia de 24 h (§1). Es el estado de espera de un vale **normal** (el `MOD-` espera en `SOLICITANDO_MODIFICACION`). | El asesor crea el vale · el asesor reenvía uno `RECHAZADO` | Autorizar → `CREADO` · Rechazar → `RECHAZADO` · Baja o vencimiento → **se borra** |
+| 9 | `RECHAZADO` | Rechazado | El supervisor devolvió el vale (normal o `MOD-`) al asesor con un motivo (≤ 50 palabras). El asesor puede corregirlo, reenviarlo o darlo de baja. Conserva la vigencia de 24 h original. | El supervisor rechaza la creación o la modificación | Reenviar → `ESPERANDO_AUTORIZACION` (o `SOLICITANDO_MODIFICACION` si es un `MOD-`) · Baja o vencimiento → se borra |
 | 2 | `CREADO` | Creado | Autorizado; los talleres lo trabajan en paralelo (estado por taller, §2). El estado general no cambia mientras algún taller no esté `APROBADO`. | El supervisor autoriza la creación | Todos los talleres `APROBADO` → `PENDIENTE_CONFIRMACION` (1 taller) o `APROBADO_DEPARTAMENTO` (2+) |
 | 3 | `APROBADO_DEPARTAMENTO` | Aprobado por Talleres | Todos los talleres aprobaron y falta la **fusión manual** de sus propuestas (§1, cola de quien tenga `vales.aprobar_general`). | Último taller aprueba, con 2+ talleres (también un `MOD-`, que va a los mismos talleres que su original) | Se adjunta el documento de fusión → `PENDIENTE_CONFIRMACION` |
-| 4 | `PENDIENTE_CONFIRMACION` | Pendiente Confirmación | El trabajo está listo; el asesor debe confirmar de recibido (o pedir una modificación). | Último taller aprueba con 1 taller · se fusionó | Confirmar → `RECIBIDO` · Solicitar modificación → `SOLICITANDO_MODIFICACION` |
-| 5 | `RECIBIDO` | Recibido (al asesor se le muestra **Confirmado**) | Terminal. El asesor confirmó; el atraso queda congelado. Puede seguir recibiendo **una** solicitud de modificación. | El asesor confirma · una modificación fue aprobada o rechazada (el original vuelve aquí) | Solicitar modificación → `SOLICITANDO_MODIFICACION` |
-| 6 | `SOLICITANDO_MODIFICACION` | Solicitando Modificación | El **original** espera que el supervisor apruebe o rechace la modificación. | El asesor solicita la modificación desde `PENDIENTE_CONFIRMACION` o `RECIBIDO` | Aprobada → `RECIBIDO` (y nace el `MOD-`) · Rechazada → vuelve al estado previo (`PENDIENTE_CONFIRMACION` o `RECIBIDO`) |
-| 7 | `MODIFICADO` | Modificado | Estado del vale **`MOD-`** desde que se aprueba la modificación hasta que pasa a confirmación. Ya está autorizado y corre el ciclo de taller. | El supervisor aprueba la modificación | Mismos caminos que `CREADO` (§1.1) |
+| 4 | `PENDIENTE_CONFIRMACION` | Pendiente Confirmación | El trabajo está listo; el asesor debe confirmar de recibido (o pedir una modificación, sin que el vale cambie de estado mientras tanto). | Último taller aprueba con 1 taller · se fusionó | Confirmar → `RECIBIDO` (no se puede mientras haya un `MOD-` en trámite) · se aprueba una modificación → `RECIBIDO` |
+| 5 | `RECIBIDO` | Recibido (al asesor se le muestra **Confirmado**) | Terminal. El asesor confirmó; el atraso queda congelado. Puede recibir **una** solicitud de modificación, y **no cambia de estado** mientras esta está en trámite. | El asesor confirma · se aprueba la modificación de un original pendiente de confirmación | — |
+| 6 | `SOLICITANDO_MODIFICACION` | Solicitando Modificación | Estado **del vale `MOD-`** mientras espera la decisión del supervisor (el equivalente a `ESPERANDO_AUTORIZACION` de un vale normal). Tiene vigencia de 24 h. El original **ya no pasa por este estado**. | El asesor solicita la modificación (el `MOD-` nace aquí) · el asesor reenvía un `MOD-` `RECHAZADO` | Autorizar → `MODIFICADO` · Rechazar → `RECHAZADO` · Baja o vencimiento → se borra el `MOD-` (el original queda como estaba) |
+| 7 | `MODIFICADO` | Modificado | Estado del vale **`MOD-`** desde que se autoriza hasta que pasa a confirmación: lo que `CREADO` es para un vale normal. Corre el ciclo de taller. Se conserva para distinguirlo (etiqueta «Modificado» y contador «Modificados» del supervisor). | El supervisor autoriza la modificación | Mismos caminos que `CREADO` (§1.1) |
 | 8 | `CONFIRMADO` | Confirmado | **No se guarda nunca en `vales.estado` ni en `vale_historial`** (el historial registra `RECIBIDO`, el estado real): existe en el catálogo y en el código, pero solo sirve como etiqueta que ve el asesor (`estadoVisibleAsesor`). En la base, un vale confirmado está en `RECIBIDO`. | — | — |
 
 Diagrama general (flujo feliz y desvíos):
@@ -69,13 +69,16 @@ Diagrama general (flujo feliz y desvíos):
                        ▼                                           │
                  PENDIENTE_CONFIRMACION ◄──────────────────────────┘
                    │              │
-        asesor confirma      asesor solicita modificación
+        asesor confirma      asesor solicita modificación (el original NO cambia de estado)
                    ▼              ▼
-               RECIBIDO ──► SOLICITANDO_MODIFICACION ── rechaza ─► (vuelve al previo)
-                   ▲              │ aprueba
-                   │              ▼
-                   └── original  se crea el vale MOD-:  MODIFICADO ─► (ciclo de taller, §1.1)
-                       queda RECIBIDO                     └─► PENDIENTE_CONFIRMACION / APROBADO_DEPARTAMENTO ─► RECIBIDO
+               RECIBIDO      nace el vale MOD-:  SOLICITANDO_MODIFICACION ◄─ reenvía ─┐
+                   ▲                                │          │                     │
+                   │ al autorizarse el MOD-         │          └── supervisor ───► RECHAZADO
+                   │ el original pasa a RECIBIDO    │ supervisor autoriza   rechaza    (el asesor corrige)
+                   │                                ▼
+                   └───────────────────────────  MODIFICADO ─► ciclo de taller (§2) ─► PENDIENTE_CONFIRMACION
+                                                                          / APROBADO_DEPARTAMENTO ─► RECIBIDO
+        Baja del asesor o 24 h sin autorizar: el MOD- se borra y el original queda como estaba.
 ```
 
 ### B. Estado por TALLER (`vale_talleres.estado` → tabla `estados_taller`)
@@ -99,12 +102,13 @@ Diagrama general (flujo feliz y desvíos):
   real, sino una versión colapsada (`estadoVisibleAsesor`, calculada en el
   servidor y enviada como `estado_visible`): `CREADO`/`APROBADO_DEPARTAMENTO` →
   **Creado**; `RECIBIDO` → **Confirmado**; el vale `MOD-` se muestra como
-  **Modificado** hasta `PENDIENTE_CONFIRMACION`. El resto se muestra igual.
+  **Solicitando Modificación** o **Rechazado** mientras está pendiente y como
+  **Modificado** en talleres, hasta `PENDIENTE_CONFIRMACION`. El resto se muestra igual.
 - **Encargado de taller y técnico** ven el estado **de la fila de su taller**
   (`estado_taller`, sección B), no el general.
 - **Administrador y Gerente** ven el estado general real.
-- Un vale `MOD-` no aparece en los listados del asesor mientras esté en
-  `ESPERANDO_AUTORIZACION` (es la solicitud pendiente; ver §1.1).
+- Un vale `MOD-` es un vale más en los listados: aparece como fila propia
+  desde que se solicita (ver §1.1).
 
 ## 1. Estado GENERAL del vale (`vales.estado`)
 
@@ -172,10 +176,10 @@ Diagrama general (flujo feliz y desvíos):
           │ el asesor aún puede solicitar modificación ─────────┤
                                                                 ▼
                                               ┌───────────────────────────┐
+                                              │  nace el vale MOD- en     │
                                               │  SOLICITANDO_MODIFICACION │
-                                              │  buzón del SUPERVISOR     │
                                               └──────────────┬────────────┘
-                                                             │ (ver §1.1)
+                                                             │ (ver §1.1; el original no cambia)
 ```
 
 Notas:
@@ -190,8 +194,9 @@ Notas:
   modificación) un vale que haya abierto con "Ver" o cuyo PDF haya abierto
   (`vale_vistos`); se exige en pantalla y en el servidor. Si el asesor corrige,
   la marca se reinicia.
-- **Vigencia de 24 h:** un vale nuevo en `ESPERANDO_AUTORIZACION` o
-  `RECHAZADO` se **elimina solo** (con sus archivos) a las 24 h de su creación
+- **Vigencia de 24 h:** un vale nuevo en `ESPERANDO_AUTORIZACION`, una solicitud
+  de modificación (`MOD-` en `SOLICITANDO_MODIFICACION`) o cualquiera de los dos
+  en `RECHAZADO` se **elimina solo** (con sus archivos) a las 24 h de su creación
   si nadie lo autoriza; 6 h antes se avisa al asesor y a sus supervisores
   (`vigenciaWatcher.js`, cada 60 s). Aplica solo a vales creados desde que
   existe esta regla.
@@ -206,7 +211,9 @@ Notas:
   corrección queda en el historial. Una vez autorizado ya no es posible (después solo
   existe la solicitud de modificación).
 - Un vale que el asesor no acepta en `PENDIENTE_CONFIRMACION` **no tiene
-  acción "rechazar"**: sigue el mismo camino que una modificación.
+  acción "rechazar"**: sigue el mismo camino que una modificación (el original
+  se queda en `PENDIENTE_CONFIRMACION` y no se puede confirmar mientras el
+  `MOD-` esté en trámite).
 - La propuesta/fusión **nunca se pega dentro del PDF del vale**. El PDF es el
   documento administrativo del vale (encabezado, cliente, venta, firma); la
   propuesta queda aparte, accesible con "Ver propuesta".
@@ -216,54 +223,65 @@ Notas:
 
 ### 1.1 Modificación (una sola por vale)
 
+La solicitud de modificación es **un vale nuevo** (`MOD-<correlativo>`) que sigue
+el mismo flujo que cualquier vale pendiente: rechazo con motivo, corrección,
+reenvío, baja y vigencia de 24 h. La diferencia es que su estado de espera es
+`SOLICITANDO_MODIFICACION` y que, al autorizarse, no empieza de cero: va a los
+mismos talleres del original.
+
 ```
  Asesor solicita modificación (desde PENDIENTE_CONFIRMACION o RECIBIDO)
-   · usa el mismo formulario de "Corregir", con los archivos precargados y
-     los talleres FIJOS: la modificación siempre va a los mismos talleres del
-     original (no se puede elegir otro ni un subconjunto)
+   · el original NO cambia de estado: queda como estaba, con la marca "MOD en
+     trámite", y si estaba en PENDIENTE_CONFIRMACION no se puede confirmar
+   · mismo formulario de "Corregir", con los archivos precargados y los
+     talleres FIJOS (siempre los mismos del original)
    · debe escribir una justificación (va en la descripción: máx. 600 caracteres)
    · se valida el cupo diario de los talleres destino (como aviso)
-   · se crea YA el vale nuevo "MOD-<correlativo>" en ESPERANDO_AUTORIZACION
-     (vale_original_id apunta al original), oculto para el asesor
-   · el original pasa a SOLICITANDO_MODIFICACION
+   · nace el vale MOD- en SOLICITANDO_MODIFICACION, con 24 h de vigencia,
+     como fila propia en el Buzón del asesor y del supervisor
         │
         ▼  Supervisor del asesor (debe abrir "Ver" el MOD-; ve la justificación)
  ┌──────────────┴───────────────────────────────┐
- │ RECHAZA                                      │ APRUEBA
+ │ RECHAZA (motivo ≤ 50 palabras)               │ AUTORIZA
  ▼                                              ▼
- El vale MOD- pendiente se BORRA (documentos    El MOD- pasa a MODIFICADO:
- e historial en cascada; los archivos de        · YA autorizado (autorizado_por/en,
- Storage que comparte el original NO se           tipo MODIFICACION): aprobar la
- tocan). El original vuelve al estado que         modificación ES la autorización
- tenía antes (PENDIENTE_CONFIRMACION o          · fan-out INMEDIATO a los talleres
- RECIBIDO, recuperado del historial).             elegidos (cupo revalidado ahora)
- No consume la modificación.                    · la justificación pasa a ser su
-                                                  "Boceto y Descripción"
-                                                · el PDF muestra primero la
-                                                  "Propuesta original"
-                                                El original: queda RECIBIDO,
-                                                `modificado = 1` y su atraso se
-                                                congela si aún no lo estaba.
+ El MOD- pasa a RECHAZADO y vuelve al           El MOD- pasa a MODIFICADO:
+ asesor, que puede corregirlo, reenviarlo       · autorizado (tipo MODIFICACION): aprobar
+ (vuelve a SOLICITANDO_MODIFICACION) o            la modificación ES la autorización
+ darlo de baja. El original no cambia.          · fan-out INMEDIATO a los talleres del
+                                                  original (cupo revalidado ahora)
+                                                · el PDF muestra primero la "Propuesta
+                                                  original"
+                                                El original pasa a RECIBIDO (si estaba
+                                                en PENDIENTE_CONFIRMACION, su atraso se
+                                                congela aquí) y `modificado = 1`.
                                                         │
                                                         ▼
                       el MOD- corre el ciclo de taller normal (§2). Al terminar:
                       · si el ORIGINAL fue a 1 solo taller → PENDIENTE_CONFIRMACION
                       · si el ORIGINAL fue a 2+ talleres → APROBADO_DEPARTAMENTO
-                        (fusión), pues el MOD fue a todos esos talleres
+                        (fusión), pues el MOD- fue a todos esos talleres
                       Luego el asesor lo confirma → RECIBIDO.
+
+ Baja (permiso `vales.dar_de_baja`) o 24 h sin autorizar: el MOD- se borra con sus
+ archivos (menos los que comparte con el original) y el original queda como estaba;
+ se puede volver a pedir la modificación. Un MOD- ya autorizado no se puede dar de
+ baja ni corregir.
 ```
 
 - Son **dos registros y dos PDF independientes**: el original nunca se
   sobreescribe; "Ver PDF" del original sirve siempre el del original.
 - Solo se permite **una** modificación: no puede modificarse un vale con
-  `modificado = 1` ni un vale `MOD-` (`vale_original_id` no nulo).
+  `modificado = 1`, ni un vale `MOD-`, ni uno que ya tenga un `MOD-` en trámite.
+- El **supervisor** autoriza o rechaza usando el id del propio `MOD-`
+  (`aprobar-modificacion` / `rechazar-modificacion`), nunca el del original.
+- Las notificaciones (rechazo, aviso de las 6 h, eliminación por baja o por
+  vencimiento) nombran el vale: «Vale: MOD-…».
 - Las tablas `vale_solicitudes_modificacion` y `estados_solicitud_modificacion`
-  (`PENDIENTE`/`APROBADA`/`RECHAZADA`) **ya no se usan**: la solicitud
-  pendiente es el propio vale `MOD-` en `ESPERANDO_AUTORIZACION`. Pueden
-  retirarse más adelante y no hay que renombrar nada en ellas.
-- Al asesor, el estado de un vale `MOD-` se le muestra como `MODIFICADO` hasta
-  que llega a `PENDIENTE_CONFIRMACION`, y como `CONFIRMADO` al recibirse;
-  el de un vale normal `RECIBIDO` se le muestra como `CONFIRMADO`
+  (`PENDIENTE`/`APROBADA`/`RECHAZADA`) **ya no se usan**. Pueden retirarse más
+  adelante y no hay que renombrar nada en ellas.
+- Al asesor, el estado de un vale `MOD-` se le muestra como `SOLICITANDO_MODIFICACION`
+  o `RECHAZADO` mientras está pendiente, `MODIFICADO` en talleres, y `CONFIRMADO`
+  al recibirse; el de un vale normal `RECIBIDO` se le muestra como `CONFIRMADO`
   (`estadoVisibleAsesor`).
 
 ## 2. Estado por TALLER (`vale_talleres.estado`)
@@ -370,12 +388,18 @@ tienen las mismas columnas para todos; cambian filtros, orden y acciones.
 
 | Rol | Buzón (contadores) | Trabajo realizado |
 |---|---|---|
-| Asesor | Rechazados · Esperando autorización · Pendientes de confirmación · Solicitando modificación · Atrasados. Excluye RECIBIDO. | Vales `RECIBIDO` y `SOLICITANDO_MODIFICACION` (un vale confirmado sigue ahí aunque tenga una modificación en curso). Total y recibidos hoy. |
+| Asesor | Rechazados · Esperando autorización · Pendientes de confirmación · Solicitando modificación · Atrasados. Excluye RECIBIDO. | Vales `RECIBIDO` (un vale confirmado sigue ahí aunque tenga una modificación en curso). Total y recibidos hoy. |
 | Supervisor | Por autorizar creación (con contador N/M del cupo colectivo) · Por autorizar modificación · Modificados · Pendientes de confirmación del asesor · Atrasados. | Dos grupos: lo que **él** autorizó (por fecha de autorización) y lo que sus asesores confirmaron (por `confirmado_en`). Un vale que cae en ambos aparece una vez. |
 | Encargado de taller | Pendiente de asignación · Asignados · En proceso · **En pausa** · En revisión · Atrasados (+ **Por fusionar** si tiene `aprobar_general`). Muestra el estado **de la fila de su taller**, no el general. | Vales con fila `APROBADO` en su taller (con "Ver propuesta" de su técnico), + sus fusiones si fusiona. |
 | Técnico | Asignados sin atraso · Asignados con atraso · Vale en proceso (ve también `EN_PAUSA` y `EN_REVISION` en la lista). | Vales que su taller aprobó, con su propuesta. |
 | Administrador | Todo, con contadores generales (total, atrasados, recibidos hoy, pendientes de confirmación, por fusionar). | — |
 | Gerente | **No tiene buzón**: ver §6. | — |
+
+Una solicitud de modificación aparece como **fila propia** (`MOD-…`) en el Buzón
+del asesor y del supervisor (contadores «Solicitando modificación» y «Por
+autorizar modificación»). El vale original, mientras tanto, conserva su estado y
+muestra la marca «MOD en trámite»; si está en `PENDIENTE_CONFIRMACION` no ofrece
+«Confirmar».
 
 "Atrasados" es el único contador que se **combina** con cualquier otro filtro
 activo (los demás contadores son mutuamente excluyentes). Además hay filtro
@@ -429,8 +453,8 @@ combinarse con cualquier filtro de estado.
   2. el supervisor aprueba una modificación (el atraso del **original** se
      congela aquí si aún no lo estaba).
 
-  Después de congelado se queda fijo, aunque el vale pase luego a
-  `SOLICITANDO_MODIFICACION` (`vales.atraso_congelado_en`). Los vales ya
+  Después de congelado se queda fijo, aunque luego se pida una
+  modificación (`vales.atraso_congelado_en`). Los vales ya
   `RECIBIDO` sin sello de congelamiento usan `actualizado_en` como respaldo.
 - **Alerta en vivo:** `atrasoWatcher.js` corre cada 60 s en el mismo proceso
   y detecta los vales con **1 día completo o más** de atraso (pasadas 24 h de
@@ -509,12 +533,12 @@ Dónde aparece cada código (búscalo con `grep -rnw CODIGO src public database`
   clase generada por `claseEstado()`): si cambias un código, cambia también su clase.
 - **`vale_historial`:** guarda el código como texto (`estado_anterior`,
   `estado_nuevo`) y **el código lo lee**: `valeDetalleService` clasifica cada
-  fila del historial por el par de estados, y el rechazo de una modificación
-  recupera el "estado anterior" desde ahí (`valeModificacionService`). Aprobar y rechazar una modificación dejan ambos `SOLICITANDO_MODIFICACION → RECIBIDO` cuando el original estaba recibido: se distinguen por el texto de `accion`. Si
-  renombras un código hay que hacer un `UPDATE vale_historial` por cada uno
-  (en `estado_anterior` **y** `estado_nuevo`) en la misma migración, o el
-  historial viejo dejará de clasificarse y un rechazo de modificación podría
-  restaurar un estado inexistente.
+  fila del historial por el par de estados, y las entradas del **original**
+  ante una modificación (la solicitud y su aprobación) se distinguen por el texto
+  de `accion`, porque su estado no cambia o pasa a `RECIBIDO`. Si renombras un
+  código hay que hacer un `UPDATE vale_historial` por cada uno (en
+  `estado_anterior` **y** `estado_nuevo`) en la misma migración, o el historial
+  viejo dejará de clasificarse.
 - Los estados se referencian por **nombre** y por **id** (`estados_vale.id`,
   FK en `vales.estado_id`): renombrar solo cambia el `nombre`; **no cambies
   los ids**.

@@ -24,10 +24,15 @@ function categoriaHistorial(h) {
   const ea = h.estado_anterior;
   const en = h.estado_nuevo;
   if (ea === null) return 'CREACION'; // crearVale() y la creación del vale MOD- nuevo
-  if (ea === en && (ea === 'ESPERANDO_AUTORIZACION' || ea === 'RECHAZADO')) return 'CORRECCION';
-  if (ea === 'ESPERANDO_AUTORIZACION' && en === 'RECHAZADO') return 'RECHAZO_CREACION';
-  if (ea === 'RECHAZADO' && en === 'ESPERANDO_AUTORIZACION') return 'REENVIO_AUTORIZACION';
-  if (ea === 'ESPERANDO_AUTORIZACION' && (en === 'CREADO' || en === 'MODIFICADO')) return 'AUTORIZACION_CREACION';
+  // Entradas del ORIGINAL ante una modificación: su estado no cambia (o pasa a RECIBIDO al aprobarse), así que las distingue el texto.
+  if (/^Asesor solicitó modificación/.test(h.accion)) return 'SOLICITUD_MODIFICACION';
+  if (/aprobó la solicitud de modificación/.test(h.accion)) return 'APROBACION_MODIFICACION_ORIGINAL';
+  // Un vale MOD- espera al supervisor en SOLICITANDO_MODIFICACION (el vale normal, en ESPERANDO_AUTORIZACION).
+  const enEspera = (e) => e === 'ESPERANDO_AUTORIZACION' || e === 'SOLICITANDO_MODIFICACION';
+  if (ea === en && (enEspera(ea) || ea === 'RECHAZADO')) return 'CORRECCION';
+  if (enEspera(ea) && en === 'RECHAZADO') return 'RECHAZO_CREACION';
+  if (ea === 'RECHAZADO' && enEspera(en)) return 'REENVIO_AUTORIZACION';
+  if (enEspera(ea) && (en === 'CREADO' || en === 'MODIFICADO')) return 'AUTORIZACION_CREACION';
   if (ea === 'PENDIENTE_ASIGNACION' && en === 'ASIGNADO') return 'ASIGNACION';
   if (ea === 'ASIGNADO' && en === 'EN_PROCESO') return 'EN_PROCESO';
   if (ea === 'EN_PROCESO' && en === 'EN_PAUSA') return 'PAUSA';
@@ -38,10 +43,6 @@ function categoriaHistorial(h) {
   if (en === 'PENDIENTE_CONFIRMACION') return 'RETORNO_ASESOR'; // directo o por fusión — el vale "vuelve" al asesor
   if (en === 'APROBADO_DEPARTAMENTO') return 'PENDIENTE_FUSION'; // bookkeeping interno, nadie lo pidió ver
   if (ea === 'PENDIENTE_CONFIRMACION' && en === 'RECIBIDO') return 'CONFIRMACION_RECIBIDO';
-  // El original queda RECIBIDO tanto si se aprueba como si se rechaza la modificación: el texto distingue.
-  // 'CONFIRMADO' solo existe en filas anteriores a que se escribiera RECIBIDO.
-  if (ea === 'SOLICITANDO_MODIFICACION' && (en === 'RECIBIDO' || en === 'CONFIRMADO') && /aprob/i.test(h.accion)) return 'APROBACION_MODIFICACION_ORIGINAL';
-  if (en === 'SOLICITANDO_MODIFICACION') return 'SOLICITUD_MODIFICACION';
   return 'OTRO';
 }
 

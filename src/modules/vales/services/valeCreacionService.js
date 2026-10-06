@@ -225,7 +225,7 @@ class ValeCreacionService {
       const ahora = `${hoyISO()} ${horaActual()}`;
       await valeRechazoRepository.rechazar({
         valeId, usuarioId: usuario.id, motivo: motivoLimpio, rechazadoEn: ahora, estadoPendiente,
-        accionHistorial: `Supervisor rechazó ${modificacion ? 'la modificación' : 'la creación'} y lo devolvió al asesor — motivo: ${motivoLimpio}`
+        accionHistorial: `Supervisor rechazó ${modificacion ? 'la modificación' : 'la creación'} y ${modificacion ? 'la' : 'lo'} devolvió al asesor — motivo: ${motivoLimpio}`
       });
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
@@ -304,7 +304,7 @@ class ValeCreacionService {
       );
       await valeRechazoRepository.reenviar({
         valeId, usuarioId: usuario.id, estadoDestino: estadoEnAutorizacion(vale),
-        accionHistorial: `Asesor corrigió ${esValeDeModificacion(vale) ? 'la modificación' : 'el vale'} y lo reenvió a autorización`
+        accionHistorial: `Asesor corrigió ${esValeDeModificacion(vale) ? 'la modificación y la' : 'el vale y lo'} reenvió a autorización`
       });
       const actualizado = await valeRepository.obtenerPorId(valeId);
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
