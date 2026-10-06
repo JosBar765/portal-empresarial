@@ -6,7 +6,7 @@ Rama: `feature/nuevo-correlativo-vale` (desde `fix/correcciones-32`). Análisis 
 
 | # | Punto | Estado |
 |---|---|---|
-| 1 | Nuevo formato de correlativo `{PAÍS}-{TIENDA}-{MMAA}-{N}` | **pendiente de implementar** |
+| 1 | Nuevo formato de correlativo `{PAÍS}-{TIENDA}-{MMAA}-{N}` | **hecho** |
 
 ## Cómo se arma hoy
 
@@ -25,6 +25,14 @@ Rama: `feature/nuevo-correlativo-vale` (desde `fix/correcciones-32`). Análisis 
 - **Iniciales del asesor:** ya no forman parte del correlativo.
 - **Vales existentes:** conservan su correlativo (no se renumeran). Cómo queden los datos de prueba no importa.
 
+## Implementación
+
+- **El número es el `id` del vale** (decidido con gerencia/producto): como hoy, sin tabla nueva. Los vales `MOD-` también consumen `id` aunque su correlativo repita el del original, así que entre dos vales normales pueden verse saltos; se aceptó.
+- `catalogoRepository.obtenerTiendaPorId` devuelve ahora `pais_codigo` (`tienda → empresa → país`). `valeCreacionService.crearVale` falla con «La tienda asignada a tu usuario no tiene un país configurado… Avisa al administrador.» si falta, y arma el prefijo `{PAÍS}-{TIENDA}-{MM}{AA}` con la fecha de creación; `valeRepository.crear` le añade el `id`.
+- Se eliminó `inicialesAsesor` (ya no se usa).
+
+Verificación (por API): el correlativo sale `GT-MTC-1026-337` (país, tienda, mes y año de hoy, `id`), el siguiente vale es el `id` siguiente, la modificación se llama `MOD-GT-MTC-1026-337`, sus PDF se generan y descargan, el Gerente encuentra el vale y su `MOD-` por correlativo, la búsqueda del Buzón por texto funciona, el orden ascendente y descendente mezcla bien los correlativos viejos y nuevos, las notificaciones y el historial nombran el correlativo nuevo, y con el código de país vacío la creación responde 400 con el mensaje claro.
+
 ## Orden y filtros
 
 `numeroDeCorrelativo` (Buzón) ya toma el **último número** del correlativo, así que el orden y el filtrado por correlativo siguen funcionando sin cambios con el formato nuevo, porque el número es global y creciente.
@@ -32,5 +40,5 @@ Rama: `feature/nuevo-correlativo-vale` (desde `fix/correcciones-32`). Análisis 
 ## Qué toca (a revisar al implementar)
 
 - Backend: `valeCreacionService.crearVale` y `valeRepository.crear` (arman el correlativo), un repositorio que resuelva el código de país de la tienda, y `valeHelpers.inicialesAsesor` (deja de usarse en el correlativo).
-- Se usa el correlativo como texto en: PDF del vale (`valePdfService`), notificaciones e historial, búsqueda de «Encontrar vale» del Gerente (`valeBusquedaService`), filtros y búsqueda del Buzón, y el nombre de los PDF en Storage (`{correlativo}.pdf`).
+- Se usa el correlativo como texto en: PDF del vale (`valePdfService`), notificaciones e historial, búsqueda de «Encontrar vale» del Gerente (`valeBusquedaService`) y filtros y búsqueda del Buzón. No depende del formato en ninguno de esos sitios (en Storage los archivos se guardan con nombre aleatorio).
 - Documentación a actualizar: `flujo_vale_de_arte.md` (conceptos clave) y el `CLAUDE.md`.
