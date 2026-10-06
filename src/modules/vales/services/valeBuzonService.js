@@ -318,7 +318,13 @@ class ValeBuzonService {
   async _buzonSupervisor(usuario, todos, ventana, filtroContador) {
     const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
     const vistos = new Set(await valeVistoRepository.listarIdsPorUsuario(usuario.id));
-    const propios = todos.filter(v => misAsesoresIds.has(v.asesor_id)).map(v => ({ ...v, visto: vistos.has(v.id) }));
+    const modificaciones = new Map((await valeRepository.listarModificacionesPendientes()).map(m => [m.vale_original_id, m]));
+    const propios = todos.filter(v => misAsesoresIds.has(v.asesor_id)).map(v => {
+      const mod = modificaciones.get(v.id);
+      return mod
+        ? { ...v, mod_pendiente: { ...mod, taller: v.taller }, visto: vistos.has(mod.id) }
+        : { ...v, visto: vistos.has(v.id) };
+    });
     const visibles = propios.filter(v => [
       ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.SOLICITANDO_MODIFICACION, ESTADOS.MODIFICADO, ESTADOS.PENDIENTE_CONFIRMACION
     ].includes(v.estado));

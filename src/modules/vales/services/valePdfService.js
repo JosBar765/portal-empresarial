@@ -95,7 +95,10 @@ class ValePdfService {
     });
 
     const imagenes = documentos.filter(d => d.tipo === 'imagen');
-    const docsAdjuntos = documentos.filter(d => d.tipo === 'documento');
+    // En un vale MOD-, la propuesta del original va primero y luego los adjuntos.
+    const esPropuestaOriginal = (d) => String(d.nombre_original).startsWith('Propuesta original');
+    const docsAdjuntos = documentos.filter(d => d.tipo === 'documento')
+      .sort((a, b) => Number(esPropuestaOriginal(b)) - Number(esPropuestaOriginal(a)));
 
     this._dibujarTituloBloque(ctx, 'BOCETO Y DESCRIPCIÓN');
     this._dibujarTextoLargo(ctx, vale.descripcion);

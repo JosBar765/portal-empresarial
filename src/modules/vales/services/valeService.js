@@ -18,6 +18,7 @@ const valeBusquedaService = require('./valeBusquedaService');
 const capacidadEntregaService = require('./capacidadEntregaService');
 const valeCorreccionService = require('./valeCorreccionService');
 const valeVistoService = require('./valeVistoService');
+const valeModificacionService = require('./valeModificacionService');
 
 module.exports = {
   // Catálogo
@@ -58,9 +59,9 @@ module.exports = {
 
   // Asesor / Modificación
   confirmarRecibido: (...a) => valeConfirmacionService.confirmarRecibido(...a),
-  solicitarModificacion: (...a) => valeConfirmacionService.solicitarModificacion(...a),
-  aprobarModificacion: (...a) => valeConfirmacionService.aprobarModificacion(...a),
-  rechazarModificacion: (...a) => valeConfirmacionService.rechazarModificacion(...a),
+  solicitarModificacion: (...a) => valeModificacionService.solicitarModificacion(...a),
+  aprobarModificacion: (...a) => valeModificacionService.aprobarModificacion(...a),
+  rechazarModificacion: (...a) => valeModificacionService.rechazarModificacion(...a),
   obtenerValeParaPdf: (...a) => valeConfirmacionService.obtenerValeParaPdf(...a),
 
   ESTADOS,

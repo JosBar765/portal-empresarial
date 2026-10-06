@@ -10,7 +10,7 @@ class ValeVistoService {
   async marcarVisto(usuario, valeId) {
     if (usuario.rolId !== ROL.SUPERVISOR) return;
     const vale = await valeRepository.obtenerPorId(valeId);
-    if (!vale || ![ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.SOLICITANDO_MODIFICACION].includes(vale.estado)) return;
+    if (!vale || vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) return;
     const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
     if (!supervisores.some(s => s.id === usuario.id)) return;
     await valeVistoRepository.registrar(valeId, usuario.id);

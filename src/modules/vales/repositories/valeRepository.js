@@ -96,8 +96,27 @@ class ValeRepository {
     await db.query('DELETE FROM vales WHERE id = ?', [id], 'vale:delete');
   }
 
+  // Un vale MOD- que aún espera autorización es parte de una solicitud en curso: no aparece en ninguna lista.
   async listarTodos() {
-    return db.query(SELECT_VALE, [], 'vale:list_all');
+    return db.query(
+      `${SELECT_VALE} WHERE NOT (v.vale_original_id IS NOT NULL AND ev.nombre = 'ESPERANDO_AUTORIZACION')`,
+      [], 'vale:list_all'
+    );
+  }
+
+  async listarModificacionesPendientes() {
+    return db.query(
+      `${SELECT_VALE} WHERE v.vale_original_id IS NOT NULL AND ev.nombre = 'ESPERANDO_AUTORIZACION'`,
+      [], 'vale:list_modificaciones_pendientes'
+    );
+  }
+
+  async obtenerModificacionPendiente(valeOriginalId) {
+    const rows = await db.query(
+      `${SELECT_VALE} WHERE v.vale_original_id = ? AND ev.nombre = 'ESPERANDO_AUTORIZACION' LIMIT 1`,
+      [valeOriginalId], 'vale:find_modificacion_pendiente'
+    );
+    return rows[0] || null;
   }
 
   // El vale MOD- que reemplaza a este (a lo sumo uno, solo se permite una

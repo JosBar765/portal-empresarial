@@ -21,7 +21,7 @@ function htmlAvisoVisto(vale) {
 
 function registrarVisto(vale) {
   vale.visto = true;
-  marcarValeVisto(vale.id).catch(() => { /* el servidor lo exigirá al autorizar */ });
+  marcarValeVisto((vale.mod_pendiente || vale).id).catch(() => { /* el servidor lo exigirá al autorizar */ });
 }
 
 // Modal de autorización abierto en este momento (para avisarle si el asesor corrige el vale).
@@ -126,32 +126,27 @@ function abrirModalRechazarCreacion(vale, cerrarAutorizacion) {
 // Supervisor: aprobar modificación (crea el vale MOD- nuevo)
 // -----------------------------------------------------------------------
 export async function abrirModalAprobarModificacion(vale) {
-  // El supervisor necesita ver la justificación para decidir.
-  let detalle;
+  // La modificación ya existe como un vale MOD- pendiente: la justificación es su descripción.
+  const mod = vale.mod_pendiente || {};
+  let propuestaUrl = vale.propuesta_general_url;
   try {
-    detalle = await obtenerDetalleVale(vale.id);
-  } catch {
-    detalle = { solicitudModificacion: null };
-  }
-  const justificacion = detalle.solicitudModificacion && detalle.solicitudModificacion.justificacion;
-  // `detalle` es un fetch fresco hecho acá mismo, así que es la fuente
-  // correcta del link de "Ver propuesta"; se conserva `vale...` solo como
-  // respaldo si ese fetch fallara.
-  const propuestaUrl = detalle.propuesta_general_url || vale.propuesta_general_url;
+    propuestaUrl = (await obtenerDetalleVale(vale.id)).propuesta_general_url || propuestaUrl;
+  } catch { /* se conserva la propuesta de la fila */ }
 
   const { overlay, cerrar } = abrirModal({
     title: `Autorizar modificación — ${vale.correlativo}`,
     bodyHtml: `
-      ${htmlAvisoVisto(vale)}
+      <div class="aviso-visto">${htmlAvisoVisto(vale)}</div>
       <div class="form-field full" style="margin-bottom:14px;">
         <label>Justificación de la modificación</label>
-        <p style="font-size:13px;white-space:pre-wrap;">${justificacion ? escapeHtml(justificacion) : 'Sin justificación registrada.'}</p>
+        <p style="font-size:13px;white-space:pre-wrap;">${mod.descripcion ? escapeHtml(mod.descripcion) : 'Sin justificación registrada.'}</p>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-        <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale de arte (PDF)</a>
+        <a href="/api/vales/${mod.id}/pdf" target="_blank" data-visto class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale modificado (PDF)</a>
+        <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale original (PDF)</a>
         ${propuestaUrl ? `<a href="${propuestaUrl}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
       </div>
-      <p style="font-size:13px;">¿Confirmas autorizar la modificación solicitada para este vale de arte? Se creará un vale de arte nuevo con el prefijo MOD-, enviado de inmediato al taller que el asesor indicó (o al mismo de siempre, si solo hay uno).</p>
+      <p style="font-size:13px;">¿Confirmas autorizar la modificación solicitada? El vale ${escapeHtml(mod.correlativo || 'MOD-')} quedará autorizado y se enviará de inmediato a los mismos talleres del vale original.</p>
     `,
     footerHtml: `
       <button class="btn btn--danger" id="btn-rechazar" style="margin-right:auto;">Rechazar</button>
@@ -160,31 +155,47 @@ export async function abrirModalAprobarModificacion(vale) {
     `
   });
   overlay.querySelector('#btn-confirmar').disabled = !vale.visto;
+  // Abrir el PDF de la modificación desde aquí también cuenta como haberla visto.
+  overlay.querySelector('a[data-visto]').addEventListener('click', () => {
+    vale.visto = true;
+    overlay.querySelector('.aviso-visto').innerHTML = htmlAvisoVisto(vale);
+    overlay.querySelector('#btn-confirmar').disabled = false;
+  });
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
   overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
     const btn = overlay.querySelector('#btn-confirmar');
     btn.disabled = true;
     try {
       const data = await aprobarModificacion(vale.id);
-      window.toast.success('Modificación autorizada', `Se creó el vale ${data.correlativo}.`);
+      window.toast.success('Modificación autorizada', `El vale ${data.correlativo} quedó autorizado y fue enviado a los talleres.`);
       cerrar();
       cargarBuzon();
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
       btn.disabled = false;
-      // Otro supervisor pudo haberlo aprobado un instante antes — refresca el
-      // buzón para que este vale deje de aparecer accionable de inmediato.
+      // Otro supervisor pudo haberla decidido un instante antes: se refresca el buzón.
       cargarBuzon();
     }
   });
-  overlay.querySelector('#btn-rechazar').addEventListener('click', async () => {
-    if (!confirm(`¿Rechazar la modificación solicitada para ${vale.correlativo}? El vale no se borra: vuelve al estado en que estaba antes de la solicitud.`)) return;
-    const btn = overlay.querySelector('#btn-rechazar');
+  overlay.querySelector('#btn-rechazar').addEventListener('click', () => abrirModalRechazarModificacion(vale, cerrar));
+}
+
+// Rechazar la modificación elimina el vale MOD- pendiente; el original queda intacto.
+function abrirModalRechazarModificacion(vale, cerrarAutorizacion) {
+  const { overlay, cerrar } = abrirModal({
+    title: `Rechazar modificación — ${vale.correlativo}`,
+    bodyHtml: '<p style="font-size:13px;">¿Seguro que quieres rechazar esta modificación? El vale MOD- se eliminará junto con sus archivos y el vale original quedará exactamente como estaba.</p>',
+    footerHtml: '<button class="btn btn--ghost" id="btn-volver">Volver</button><button class="btn btn--danger" id="btn-rechazar-confirmar">Rechazar modificación</button>'
+  });
+  overlay.querySelector('#btn-volver').addEventListener('click', cerrar);
+  overlay.querySelector('#btn-rechazar-confirmar').addEventListener('click', async () => {
+    const btn = overlay.querySelector('#btn-rechazar-confirmar');
     btn.disabled = true;
     try {
       await rechazarModificacion(vale.id);
-      window.toast.success('Modificación rechazada', `${vale.correlativo} volvió a su estado anterior.`);
+      window.toast.success('Modificación rechazada', `${vale.correlativo} quedó como estaba antes de la solicitud.`);
       cerrar();
+      cerrarAutorizacion();
       cargarBuzon();
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
@@ -198,7 +209,9 @@ export async function abrirModalAprobarModificacion(vale) {
 // Supervisor: "Ver" abre a elegir entre info de encabezado o el PDF completo
 // — a veces solo hace falta lo primero.
 // -----------------------------------------------------------------------
-export function abrirModalVerSupervisor(v) {
+export function abrirModalVerSupervisor(fila) {
+  // En una solicitud de modificación, lo que se revisa es el vale MOD- pendiente, no el original.
+  const v = fila.mod_pendiente || fila;
   const { overlay, cerrar } = abrirModal({
     title: `Ver vale de arte — ${v.correlativo}`,
     bodyHtml: `<p style="font-size:13px;">¿Qué necesitas ver?</p>`,
@@ -208,12 +221,12 @@ export function abrirModalVerSupervisor(v) {
     `
   });
   overlay.querySelector('#btn-ver-pdf').addEventListener('click', () => {
-    registrarVisto(v);
+    registrarVisto(fila);
     window.open(`/api/vales/${v.id}/pdf`, '_blank');
     cerrar();
   });
   overlay.querySelector('#btn-ver-info').addEventListener('click', () => {
-    registrarVisto(v);
+    registrarVisto(fila);
     cerrar();
     abrirModalInfoVale(v);
   });

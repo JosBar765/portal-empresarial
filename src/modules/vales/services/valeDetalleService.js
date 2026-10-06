@@ -7,7 +7,6 @@ const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const documentoRepository = require('../repositories/documentoRepository');
 const historialRepository = require('../repositories/historialRepository');
-const solicitudModificacionRepository = require('../repositories/solicitudModificacionRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const {
@@ -28,7 +27,7 @@ function categoriaHistorial(h) {
   if (ea === en && (ea === 'ESPERANDO_AUTORIZACION' || ea === 'RECHAZADO')) return 'CORRECCION';
   if (ea === 'ESPERANDO_AUTORIZACION' && en === 'RECHAZADO') return 'RECHAZO_CREACION';
   if (ea === 'RECHAZADO' && en === 'ESPERANDO_AUTORIZACION') return 'REENVIO_AUTORIZACION';
-  if (ea === 'ESPERANDO_AUTORIZACION' && en === 'CREADO') return 'AUTORIZACION_CREACION';
+  if (ea === 'ESPERANDO_AUTORIZACION' && (en === 'CREADO' || en === 'MODIFICADO')) return 'AUTORIZACION_CREACION';
   if (ea === 'PENDIENTE_ASIGNACION' && en === 'ASIGNADO') return 'ASIGNACION';
   if (ea === 'ASIGNADO' && en === 'EN_PROCESO') return 'EN_PROCESO';
   if (ea === 'EN_PROCESO' && en === 'EN_PAUSA') return 'PAUSA';
@@ -77,8 +76,8 @@ class ValeDetalleService {
     // consulta que ya usa aprobarModificacion() en valeConfirmacionService.
     let solicitudModificacion = null;
     if (vale.estado === ESTADOS.SOLICITANDO_MODIFICACION) {
-      const solicitud = await solicitudModificacionRepository.obtenerPendientePorValeOriginal(valeId);
-      if (solicitud) solicitudModificacion = { justificacion: solicitud.justificacion };
+      const mod = await valeRepository.obtenerModificacionPendiente(valeId);
+      if (mod) solicitudModificacion = { justificacion: mod.descripcion, valeId: mod.id };
     }
 
     return { ...enriquecer(vale), talleres: talleresConNombre, propuestas, documentos, historial: historialVisible, solicitudModificacion };

@@ -143,8 +143,8 @@ export function confirmarRecibido(valeId) {
   return enviarPost(`/api/vales/${valeId}/confirmar`);
 }
 
-export function solicitarModificacion(valeId, payload) {
-  return enviarJSON(`/api/vales/${valeId}/solicitar-modificacion`, payload);
+export function solicitarModificacion(valeId, formData) {
+  return enviarFormData(`/api/vales/${valeId}/solicitar-modificacion`, formData);
 }
 
 export function autorizarCreacion(valeId) {

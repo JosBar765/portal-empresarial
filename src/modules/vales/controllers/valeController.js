@@ -281,7 +281,8 @@ class ValeController {
 
   async solicitarModificacion(req, res) {
     try {
-      const vale = await valeService.solicitarModificacion(req.user, idObligatorio(req.params.id), req.body);
+      const archivos = validarArchivos(req.files);
+      const vale = await valeService.solicitarModificacion(req.user, idObligatorio(req.params.id), req.body, archivos);
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
