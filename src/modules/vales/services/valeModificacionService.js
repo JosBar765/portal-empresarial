@@ -144,7 +144,7 @@ class ValeModificacionService {
       await valeRepository.congelarAtraso(original.id, ahora);
 
       const nombresTalleres = await valeCreacionService.nombresDeTalleres(talleresIds);
-      await registrarHistorial(original.id, usuario.id, null, ESTADOS.SOLICITANDO_MODIFICACION, ESTADOS.CONFIRMADO,
+      await registrarHistorial(original.id, usuario.id, null, ESTADOS.SOLICITANDO_MODIFICACION, ESTADOS.RECIBIDO,
         `Supervisor aprobó la solicitud de modificación — se creó el vale ${mod.correlativo}`);
       await registrarHistorial(mod.id, usuario.id, null, ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.MODIFICADO,
         `Supervisor autorizó la modificación de ${original.correlativo} — enviado a taller${talleresIds.length > 1 ? 'es' : ''}: ${nombresTalleres}`);

@@ -38,7 +38,9 @@ function categoriaHistorial(h) {
   if (en === 'PENDIENTE_CONFIRMACION') return 'RETORNO_ASESOR'; // directo o por fusión — el vale "vuelve" al asesor
   if (en === 'APROBADO_DEPARTAMENTO') return 'PENDIENTE_FUSION'; // bookkeeping interno, nadie lo pidió ver
   if (ea === 'PENDIENTE_CONFIRMACION' && en === 'RECIBIDO') return 'CONFIRMACION_RECIBIDO';
-  if (ea === 'SOLICITANDO_MODIFICACION' && en === 'CONFIRMADO') return 'APROBACION_MODIFICACION_ORIGINAL';
+  // El original queda RECIBIDO tanto si se aprueba como si se rechaza la modificación: el texto distingue.
+  // 'CONFIRMADO' solo existe en filas anteriores a que se escribiera RECIBIDO.
+  if (ea === 'SOLICITANDO_MODIFICACION' && (en === 'RECIBIDO' || en === 'CONFIRMADO') && /aprob/i.test(h.accion)) return 'APROBACION_MODIFICACION_ORIGINAL';
   if (en === 'SOLICITANDO_MODIFICACION') return 'SOLICITUD_MODIFICACION';
   return 'OTRO';
 }
