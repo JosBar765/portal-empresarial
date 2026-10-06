@@ -26,7 +26,8 @@ const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
   ESTADOS, inicialesAsesor, hoyISO, horaActual, enriquecer,
   normalizarDatetime, calcularUrgente, registrarHistorial,
-  esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, validarMotivoRechazo
+  esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, validarMotivoRechazo,
+  esValeDeModificacion, estadoEnAutorizacion
 } = require('./valeHelpers');
 
 class ValeCreacionService {
@@ -144,6 +145,9 @@ class ValeCreacionService {
   async autorizarCreacion(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await requerirVale(valeId);
+      if (esValeDeModificacion(vale)) {
+        throw new Error('Este vale es una solicitud de modificación: se autoriza con "Aprobar modificación".');
+      }
       if (vale.estado === ESTADOS.CREADO) {
         throw new Error('Este vale ya fue autorizado.');
       } else if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
@@ -197,12 +201,21 @@ class ValeCreacionService {
     });
   }
 
-  // El Supervisor rechaza la creación: el vale no se borra, vuelve al asesor (estado RECHAZADO) con el motivo.
-  async rechazarCreacion(usuario, valeId, motivo) {
+  // El Supervisor rechaza un vale pendiente (creación, o modificación con `modificacion: true`): no se borra,
+  // vuelve al asesor (estado RECHAZADO) con el motivo.
+  async rechazarCreacion(usuario, valeId, motivo, { modificacion = false } = {}) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await requerirVale(valeId);
-      if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
-        throw new Error('Solo se puede rechazar un vale que está esperando autorización.');
+      if (esValeDeModificacion(vale) !== modificacion) {
+        throw new Error(modificacion
+          ? 'Este vale no es una solicitud de modificación.'
+          : 'Este vale es una solicitud de modificación: se rechaza con "Rechazar modificación".');
+      }
+      const estadoPendiente = estadoEnAutorizacion(vale);
+      if (vale.estado !== estadoPendiente) {
+        throw new Error(modificacion
+          ? 'Solo se puede rechazar una modificación que está esperando autorización.'
+          : 'Solo se puede rechazar un vale que está esperando autorización.');
       }
       const supervisoresDelAsesor = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       if (!esAdministrador(usuario) && !supervisoresDelAsesor.some(s => s.id === usuario.id)) {
@@ -211,8 +224,8 @@ class ValeCreacionService {
       const motivoLimpio = validarMotivoRechazo(motivo);
       const ahora = `${hoyISO()} ${horaActual()}`;
       await valeRechazoRepository.rechazar({
-        valeId, usuarioId: usuario.id, motivo: motivoLimpio, rechazadoEn: ahora,
-        accionHistorial: `Supervisor rechazó la creación y lo devolvió al asesor — motivo: ${motivoLimpio}`
+        valeId, usuarioId: usuario.id, motivo: motivoLimpio, rechazadoEn: ahora, estadoPendiente,
+        accionHistorial: `Supervisor rechazó ${modificacion ? 'la modificación' : 'la creación'} y lo devolvió al asesor — motivo: ${motivoLimpio}`
       });
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
@@ -251,7 +264,9 @@ class ValeCreacionService {
         throw new Error('Solo puedes dar de baja tus propios vales.');
       }
       if (!ESTADOS_EDITABLES_ASESOR.includes(vale.estado)) {
-        throw new Error('Este vale ya fue autorizado, así que ya no se puede dar de baja.');
+        throw new Error(esValeDeModificacion(vale)
+          ? 'Esta modificación ya fue autorizada, así que ya no se puede dar de baja.'
+          : 'Este vale ya fue autorizado, así que ya no se puede dar de baja.');
       }
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       await this.eliminarValeConArchivos(valeId);
@@ -283,7 +298,10 @@ class ValeCreacionService {
       await capacidadEntregaService.validarLimiteDiario(
         (vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite), fechaEntrega
       );
-      await valeRechazoRepository.reenviar({ valeId, usuarioId: usuario.id, accionHistorial: 'Asesor corrigió el vale y lo reenvió a autorización' });
+      await valeRechazoRepository.reenviar({
+        valeId, usuarioId: usuario.id, estadoDestino: estadoEnAutorizacion(vale),
+        accionHistorial: `Asesor corrigió ${esValeDeModificacion(vale) ? 'la modificación' : 'el vale'} y lo reenvió a autorización`
+      });
       const actualizado = await valeRepository.obtenerPorId(valeId);
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       valeEvents.notificar({

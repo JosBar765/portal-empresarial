@@ -300,7 +300,7 @@ class ValeController {
 
   async rechazarModificacion(req, res) {
     try {
-      const vale = await valeService.rechazarModificacion(req.user, idObligatorio(req.params.id));
+      const vale = await valeService.rechazarModificacion(req.user, idObligatorio(req.params.id), req.body && req.body.motivo);
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
