@@ -2,7 +2,7 @@ import { state } from '../state.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { etiquetaEstado } from '../permisos.js';
 import { formatearFecha, escapeHtml } from '../utils/formato.js';
-import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, aprobarModificacion, rechazarModificacion } from '../api/valesApi.js';
+import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, aprobarModificacion, rechazarModificacion, marcarValeVisto } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 
 // -----------------------------------------------------------------------
@@ -10,6 +10,18 @@ import { cargarBuzon } from '../views/buzon.js';
 // asesor eligió los talleres al crear (vale.talleres_solicitados, CSV de
 // ids); recién aquí se reparten de verdad.
 // -----------------------------------------------------------------------
+// El supervisor debe haber abierto "Ver" en el vale antes de autorizarlo (también se exige en el servidor).
+function htmlAvisoVisto(vale) {
+  return vale.visto
+    ? '<p class="nota-visto"><ion-icon name="checkmark-circle-outline"></ion-icon> Ya revisaste este vale.</p>'
+    : '<div class="form-aviso"><ion-icon name="alert-circle-outline"></ion-icon><span>Es de suma importancia que hayas visto este vale antes de autorizarlo. Cierra esta ventana, abre el botón "Ver" del vale y vuelve a intentarlo.</span></div>';
+}
+
+function registrarVisto(vale) {
+  vale.visto = true;
+  marcarValeVisto(vale.id).catch(() => { /* el servidor lo exigirá al autorizar */ });
+}
+
 // Modal de autorización abierto en este momento (para avisarle si el asesor corrige el vale).
 let modalAutorizarAbierto = null;
 
@@ -32,6 +44,7 @@ export function abrirModalAutorizarCreacion(vale) {
   const { overlay, cerrar } = abrirModal({
     title: `Autorizar creación — ${vale.correlativo}`,
     bodyHtml: `
+      ${htmlAvisoVisto(vale)}
       <p style="font-size:13px;margin-bottom:10px;">Taller${talleresIds.length > 1 ? 'es' : ''} solicitado${talleresIds.length > 1 ? 's' : ''}: <strong>${nombresTalleres || 'Ninguno'}</strong></p>
       <p style="font-size:13px;">¿Confirmas autorizar este vale de arte? Se enviará de inmediato a ese/esos taller(es) y quedará firmado con tu nombre en el documento.</p>
     `,
@@ -42,6 +55,7 @@ export function abrirModalAutorizarCreacion(vale) {
     `
   });
   modalAutorizarAbierto = { valeId: vale.id, overlay };
+  overlay.querySelector('#btn-confirmar').disabled = !vale.visto;
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
   overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
     const btn = overlay.querySelector('#btn-confirmar');
@@ -97,6 +111,7 @@ export async function abrirModalAprobarModificacion(vale) {
   const { overlay, cerrar } = abrirModal({
     title: `Autorizar modificación — ${vale.correlativo}`,
     bodyHtml: `
+      ${htmlAvisoVisto(vale)}
       <div class="form-field full" style="margin-bottom:14px;">
         <label>Justificación de la modificación</label>
         <p style="font-size:13px;white-space:pre-wrap;">${justificacion ? escapeHtml(justificacion) : 'Sin justificación registrada.'}</p>
@@ -113,6 +128,7 @@ export async function abrirModalAprobarModificacion(vale) {
       <button class="btn btn--primary" id="btn-confirmar">Autorizar</button>
     `
   });
+  overlay.querySelector('#btn-confirmar').disabled = !vale.visto;
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
   overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
     const btn = overlay.querySelector('#btn-confirmar');
@@ -161,10 +177,12 @@ export function abrirModalVerSupervisor(v) {
     `
   });
   overlay.querySelector('#btn-ver-pdf').addEventListener('click', () => {
+    registrarVisto(v);
     window.open(`/api/vales/${v.id}/pdf`, '_blank');
     cerrar();
   });
   overlay.querySelector('#btn-ver-info').addEventListener('click', () => {
+    registrarVisto(v);
     cerrar();
     abrirModalInfoVale(v);
   });

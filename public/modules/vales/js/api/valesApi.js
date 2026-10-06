@@ -155,6 +155,10 @@ export function rechazarCreacion(valeId) {
   return enviarPost(`/api/vales/${valeId}/rechazar-creacion`);
 }
 
+export function marcarValeVisto(valeId) {
+  return enviarPost(`/api/vales/${valeId}/visto`);
+}
+
 export function darDeBajaVale(valeId) {
   return enviarPost(`/api/vales/${valeId}/dar-de-baja`);
 }

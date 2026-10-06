@@ -1419,6 +1419,15 @@
   font-weight: 700;
 }
 
+.nota-visto {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--color-success);
+}
+
 .form-aviso {
   display: flex;
   align-items: flex-start;

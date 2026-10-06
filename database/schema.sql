@@ -344,6 +344,15 @@ CREATE TABLE IF NOT EXISTS `idempotency_keys` (
   `creado_en`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `vale_vistos` (
+  `vale_id`    INT NOT NULL,
+  `usuario_id` INT NOT NULL,
+  `visto_en`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`vale_id`, `usuario_id`),
+  FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `notificaciones` (
   `id`         INT AUTO_INCREMENT PRIMARY KEY,
   `usuario_id` INT NOT NULL,

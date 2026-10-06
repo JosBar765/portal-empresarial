@@ -25,6 +25,7 @@ class ValeCorreccionRepository {
       if (res.affectedRows !== 1) {
         throw new Error('Este vale ya fue autorizado, así que ya no se puede corregir.');
       }
+      await tx.query('DELETE FROM vale_vistos WHERE vale_id = ?', [valeId], 'vale_visto:reiniciar');
       if (documentosQuitarIds.length) {
         await tx.query(
           `DELETE FROM vale_documentos WHERE vale_id = ? AND id IN (${documentosQuitarIds.map(() => '?').join(',')})`,

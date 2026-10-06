@@ -175,6 +175,7 @@ class ValeController {
       // Si el vale pedido ya fue modificado, sirve el PDF del vale MOD- vigente en
       // vez del original congelado.
       const vale = await valeService.obtenerValeParaPdf(req.user, idObligatorio(req.params.id));
+      valeService.marcarVisto(req.user, vale.id).catch(error => console.error('[Visto]', error.message));
       if (!vale.pdf_url) {
         return res.status(404).json({ error: 'El PDF de este vale aún no ha sido generado.' });
       }
@@ -327,6 +328,15 @@ class ValeController {
     try {
       const resultado = await valeService.darDeBaja(req.user, idObligatorio(req.params.id));
       return res.json(resultado);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async marcarVisto(req, res) {
+    try {
+      await valeService.marcarVisto(req.user, idObligatorio(req.params.id));
+      return res.json({ ok: true });
     } catch (error) {
       return responderError(res, error);
     }

@@ -17,6 +17,7 @@ const valeRendimientoService = require('./valeRendimientoService');
 const valeBusquedaService = require('./valeBusquedaService');
 const capacidadEntregaService = require('./capacidadEntregaService');
 const valeCorreccionService = require('./valeCorreccionService');
+const valeVistoService = require('./valeVistoService');
 
 module.exports = {
   // Catálogo
@@ -30,6 +31,7 @@ module.exports = {
   rechazarCreacion: (...a) => valeCreacionService.rechazarCreacion(...a),
   darDeBaja: (...a) => valeCreacionService.darDeBaja(...a),
   corregirVale: (...a) => valeCorreccionService.corregirVale(...a),
+  marcarVisto: (...a) => valeVistoService.marcarVisto(...a),
   obtenerLimiteColectivoSupervisor: (...a) => valeCreacionService.obtenerLimiteColectivoSupervisor(...a),
 
   // Detalle

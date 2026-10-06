@@ -11,6 +11,7 @@ const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
+const valeVistoRepository = require('../repositories/valeVistoRepository');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
   esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
@@ -313,7 +314,8 @@ class ValeBuzonService {
   // que cada tienda tiene su propio Supervisor ----
   async _buzonSupervisor(usuario, todos, ventana, filtroContador) {
     const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
-    const propios = todos.filter(v => misAsesoresIds.has(v.asesor_id));
+    const vistos = new Set(await valeVistoRepository.listarIdsPorUsuario(usuario.id));
+    const propios = todos.filter(v => misAsesoresIds.has(v.asesor_id)).map(v => ({ ...v, visto: vistos.has(v.id) }));
     const visibles = propios.filter(v => [
       ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.SOLICITANDO_MODIFICACION, ESTADOS.MODIFICADO, ESTADOS.PENDIENTE_CONFIRMACION
     ].includes(v.estado));

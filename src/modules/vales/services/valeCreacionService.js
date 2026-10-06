@@ -21,6 +21,7 @@ const { validarTelefono } = require('../../../core/utils/validar');
 const valePdfService = require('./valePdfService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
+const valeVistoService = require('./valeVistoService');
 const {
   ESTADOS, inicialesAsesor, hoyISO, horaActual, enriquecer,
   normalizarDatetime, calcularUrgente, registrarHistorial,
@@ -165,6 +166,7 @@ class ValeCreacionService {
           throw new Error('Se alcanzó el límite diario colectivo de autorizaciones de creación de tu equipo. Vuelve a intentar mañana.');
         }
       }
+      await valeVistoService.exigirVisto(usuario, valeId);
       const talleresIds = (vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
       if (talleresIds.length === 0) {
         throw new Error('Este vale no tiene talleres seleccionados, no se puede autorizar.');

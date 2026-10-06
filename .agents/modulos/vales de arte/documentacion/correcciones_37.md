@@ -6,7 +6,7 @@ Base: `.agents/modulos/vales de arte/correcciones/analisis_correcciones_37.md`. 
 |---|---|---|
 | 8 | Cupo del taller solo al autorizar | **hecho** |
 | 10 | Centro de notificaciones | **hecho** |
-| 5 | Obligatorio ver el vale antes de autorizar | pendiente |
+| 5 | Obligatorio ver el vale antes de autorizar | **hecho** |
 | 6 | Rechazo de creación devuelve el vale con justificación | pendiente |
 | 7 | Vigencia de 24 h con avisos | pendiente |
 | 4 | Modificación igual al formulario de corregir | pendiente |
@@ -44,3 +44,14 @@ Verificación: taller UV/3D (límite 4). Se crearon 6 vales pendientes para el m
 - **Interfaz:** campana con contador de no leídas en el encabezado del dashboard, de Vales y de Administración (`public/js/notificaciones.js`, estilos en `dashboard.css`). El panel muestra el contenido y la fecha y hora; pulsar una la marca como leída; "Marcar todas como leídas"; "Cargar más". Las leídas se conservan en la lista.
 
 Verificación: como supervisor en el navegador, una asesora creó dos vales y la campana subió a 2 en vivo en el dashboard; el panel los listó con fecha y hora; marcar una dejó el contador en 1 y se conservó al recargar; en el módulo de Vales aparece la misma campana y "Marcar todas" dejó 0 sin borrar las 2. La campana de Administración usa el mismo código y marcado pero no se probó en pantalla (no se dispone de una sesión de Administrador).
+
+## Punto 5 — El supervisor debe ver el vale antes de autorizarlo
+
+- **Tabla nueva `vale_vistos`** (`vale_id`, `usuario_id`, `visto_en`): qué supervisor ya vio cada vale. Se crea con el `CREATE TABLE` de `schema.sql` en bases existentes.
+- **Qué cuenta como "ver":** elegir "Ver info" o "Ver vale" en el botón "Ver" del supervisor (`POST /api/vales/:id/visto`), o abrir el PDF del vale por cualquier vía (`GET /:id/pdf` lo registra en el servidor). Solo cuenta si quien lo abre es supervisor del asesor y el vale está pendiente (esperando autorización o solicitando modificación).
+- **Exigencia:** `autorizarCreacion` y `aprobarModificacion` rechazan con "Debes revisar este vale con el botón "Ver" antes de autorizarlo." si ese supervisor no lo vio (`valeVistoService.exigirVisto`); se exige en el servidor, no solo en pantalla. El Administrador queda fuera de la regla.
+- **Reinicio:** cuando el asesor corrige el vale se borran sus marcas (`valeCorreccionRepository`), así que hay que volver a verlo.
+- **Pantalla:** los modales "Autorizar creación" y "Autorizar modificación" muestran un aviso ("Es de suma importancia que hayas visto este vale antes de autorizarlo…") y el botón "Autorizar" queda deshabilitado hasta que el supervisor lo vea; con el vale ya visto muestran "Ya revisaste este vale." El buzón del supervisor trae un campo `visto` por fila.
+- **Pendiente para el punto 4:** la solicitud de modificación se revisa hoy sobre el vale original; al pasar a un vale `MOD-` pendiente, la marca de "visto" se aplicará a ese vale.
+
+Verificación: por API, autorizar sin ver da 400; abrir el PDF (302) o "Ver info" lo habilita; una corrección del asesor reinicia la marca y vuelve a exigirla; un asesor no puede marcar vistos (403). En el navegador, como supervisor: el modal sin ver muestra el aviso con el botón deshabilitado; tras "Ver info" muestra "Ya revisaste este vale." con el botón activo. La ruta de modificación se probará en el punto 4, cuando cambie su flujo.

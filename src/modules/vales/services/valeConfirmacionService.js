@@ -10,6 +10,7 @@ const solicitudModificacionRepository = require('../repositories/solicitudModifi
 const historialRepository = require('../repositories/historialRepository');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
+const valeVistoService = require('./valeVistoService');
 const valeCreacionService = require('./valeCreacionService');
 const valeDetalleService = require('./valeDetalleService');
 const capacidadEntregaService = require('./capacidadEntregaService');
@@ -151,6 +152,7 @@ class ValeConfirmacionService {
       if (!solicitud) {
         throw new Error('Este vale no tiene una solicitud de modificación pendiente.');
       }
+      await valeVistoService.exigirVisto(usuario, valeId);
       const talleresIdsModificacion = (solicitud.talleres_ids || '').split(',').map(Number).filter(Number.isFinite);
       const correlativoNuevo = original.correlativo.startsWith('MOD-') ? original.correlativo : `MOD-${original.correlativo}`;
       // Se revalida el límite diario aquí (no solo al solicitar la
