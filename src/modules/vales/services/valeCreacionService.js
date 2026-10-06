@@ -237,16 +237,20 @@ class ValeCreacionService {
     });
   }
 
-  // Un vale sin autorizar cumple su vigencia de 24 h: se elimina solo (con sus archivos) y se avisa.
+  // Un vale (o una solicitud de modificación) sin autorizar cumple su vigencia de 24 h: se elimina solo (con sus archivos,
+  // salvo los que comparte con su original) y se avisa con su código. El original no se toca.
   async expirarVale(valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await valeRepository.obtenerPorId(valeId);
       if (!vale || !ESTADOS_EDITABLES_ASESOR.includes(vale.estado)) return false;
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
+      const original = esValeDeModificacion(vale) ? await valeRepository.obtenerPorId(vale.vale_original_id) : null;
       await this.eliminarValeConArchivos(valeId);
       valeEvents.notificar({
         vale, tipo: 'EXPIRADO', valeBorrado: true, nivel: 'alerta',
-        texto: 'fue eliminado automáticamente: venció su vigencia de 24 horas sin ser autorizado',
+        texto: original
+          ? `(solicitud de modificación) fue eliminado automáticamente: venció su vigencia de 24 horas sin ser autorizado. ${original.correlativo} queda sin cambios`
+          : 'fue eliminado automáticamente: venció su vigencia de 24 horas sin ser autorizado',
         salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
       });
       return true;
