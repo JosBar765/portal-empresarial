@@ -21,7 +21,7 @@ function htmlAvisoVisto(vale) {
 
 function registrarVisto(vale) {
   vale.visto = true;
-  marcarValeVisto((vale.mod_pendiente || vale).id).catch(() => { /* el servidor lo exigirá al autorizar */ });
+  marcarValeVisto(vale.id).catch(() => { /* el servidor lo exigirá al autorizar */ });
 }
 
 // Modal de autorización abierto en este momento (para avisarle si el asesor corrige el vale).
@@ -79,12 +79,12 @@ export function abrirModalAutorizarCreacion(vale) {
   overlay.querySelector('#btn-rechazar').addEventListener('click', () => abrirModalRechazarCreacion(vale, cerrar));
 }
 
-// Rechazo con justificación (máx. 50 palabras): el vale vuelve al asesor, no se borra.
-function abrirModalRechazarCreacion(vale, cerrarAutorizacion) {
+// Rechazo con justificación (máx. 50 palabras): el vale (o la solicitud de modificación) vuelve al asesor, no se borra.
+function abrirModalRechazarCreacion(vale, cerrarAutorizacion, { modificacion = false } = {}) {
   const { overlay, cerrar } = abrirModal({
-    title: `Rechazar vale — ${vale.correlativo}`,
+    title: `${modificacion ? 'Rechazar modificación' : 'Rechazar vale'} — ${vale.correlativo}`,
     bodyHtml: `
-      <p style="font-size:13px;margin-bottom:10px;">El vale volverá al asesor con tu justificación para que lo corrija y lo reenvíe.</p>
+      <p style="font-size:13px;margin-bottom:10px;">${modificacion ? 'La solicitud' : 'El vale'} volverá al asesor con tu justificación para que ${modificacion ? 'la' : 'lo'} corrija y ${modificacion ? 'la' : 'lo'} reenvíe.</p>
       <div class="form-field full">
         <label>Justificación *</label>
         <textarea id="motivo-rechazo" rows="4" maxlength="400"></textarea>
@@ -109,8 +109,8 @@ function abrirModalRechazarCreacion(vale, cerrarAutorizacion) {
   btn.addEventListener('click', async () => {
     btn.disabled = true;
     try {
-      await rechazarCreacion(vale.id, textarea.value.trim());
-      window.toast.success('Vale rechazado', `${vale.correlativo} volvió al asesor con tu justificación.`);
+      await (modificacion ? rechazarModificacion : rechazarCreacion)(vale.id, textarea.value.trim());
+      window.toast.success(modificacion ? 'Modificación rechazada' : 'Vale rechazado', `${vale.correlativo} volvió al asesor con tu justificación.`);
       cerrar();
       cerrarAutorizacion();
       cargarBuzon();
@@ -123,15 +123,15 @@ function abrirModalRechazarCreacion(vale, cerrarAutorizacion) {
 }
 
 // -----------------------------------------------------------------------
-// Supervisor: aprobar modificación (crea el vale MOD- nuevo)
+// Supervisor: autorizar una modificación. `vale` es el vale MOD- (una fila propia del Buzón); su descripción es la
+// justificación y su original es `vale_original_id`.
 // -----------------------------------------------------------------------
 export async function abrirModalAprobarModificacion(vale) {
-  // La modificación ya existe como un vale MOD- pendiente: la justificación es su descripción.
-  const mod = vale.mod_pendiente || {};
-  let propuestaUrl = vale.propuesta_general_url;
+  let propuestaUrl = null;
   try {
-    propuestaUrl = (await obtenerDetalleVale(vale.id)).propuesta_general_url || propuestaUrl;
-  } catch { /* se conserva la propuesta de la fila */ }
+    propuestaUrl = (await obtenerDetalleVale(vale.vale_original_id)).propuesta_general_url || null;
+  } catch { /* sin propuesta del original */ }
+  const correlativoOriginal = String(vale.correlativo || '').replace(/^MOD-/, '');
 
   const { overlay, cerrar } = abrirModal({
     title: `Autorizar modificación — ${vale.correlativo}`,
@@ -139,14 +139,14 @@ export async function abrirModalAprobarModificacion(vale) {
       <div class="aviso-visto">${htmlAvisoVisto(vale)}</div>
       <div class="form-field full" style="margin-bottom:14px;">
         <label>Justificación de la modificación</label>
-        <p style="font-size:13px;white-space:pre-wrap;">${mod.descripcion ? escapeHtml(mod.descripcion) : 'Sin justificación registrada.'}</p>
+        <p style="font-size:13px;white-space:pre-wrap;">${vale.descripcion ? escapeHtml(vale.descripcion) : 'Sin justificación registrada.'}</p>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-        <a href="/api/vales/${mod.id}/pdf" target="_blank" data-visto class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale modificado (PDF)</a>
-        <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale original (PDF)</a>
+        <a href="/api/vales/${vale.id}/pdf" target="_blank" data-visto class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale modificado (PDF)</a>
+        <a href="/api/vales/${vale.vale_original_id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale original (PDF)</a>
         ${propuestaUrl ? `<a href="${propuestaUrl}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
       </div>
-      <p style="font-size:13px;">¿Confirmas autorizar la modificación solicitada? El vale ${escapeHtml(mod.correlativo || 'MOD-')} quedará autorizado y se enviará de inmediato a los mismos talleres del vale original.</p>
+      <p style="font-size:13px;">¿Confirmas autorizar la modificación de ${escapeHtml(correlativoOriginal)}? El vale ${escapeHtml(vale.correlativo)} quedará autorizado y se enviará de inmediato a los mismos talleres del vale original.</p>
     `,
     footerHtml: `
       <button class="btn btn--danger" id="btn-rechazar" style="margin-right:auto;">Rechazar</button>
@@ -154,10 +154,11 @@ export async function abrirModalAprobarModificacion(vale) {
       <button class="btn btn--primary" id="btn-confirmar">Autorizar</button>
     `
   });
+  modalAutorizarAbierto = { valeId: vale.id, overlay };
   overlay.querySelector('#btn-confirmar').disabled = !vale.visto;
   // Abrir el PDF de la modificación desde aquí también cuenta como haberla visto.
   overlay.querySelector('a[data-visto]').addEventListener('click', () => {
-    vale.visto = true;
+    registrarVisto(vale);
     overlay.querySelector('.aviso-visto').innerHTML = htmlAvisoVisto(vale);
     overlay.querySelector('#btn-confirmar').disabled = false;
   });
@@ -177,32 +178,7 @@ export async function abrirModalAprobarModificacion(vale) {
       cargarBuzon();
     }
   });
-  overlay.querySelector('#btn-rechazar').addEventListener('click', () => abrirModalRechazarModificacion(vale, cerrar));
-}
-
-// Rechazar la modificación elimina el vale MOD- pendiente; el original queda intacto.
-function abrirModalRechazarModificacion(vale, cerrarAutorizacion) {
-  const { overlay, cerrar } = abrirModal({
-    title: `Rechazar modificación — ${vale.correlativo}`,
-    bodyHtml: '<p style="font-size:13px;">¿Seguro que quieres rechazar esta modificación? El vale MOD- se eliminará junto con sus archivos y el vale original quedará exactamente como estaba.</p>',
-    footerHtml: '<button class="btn btn--ghost" id="btn-volver">Volver</button><button class="btn btn--danger" id="btn-rechazar-confirmar">Rechazar modificación</button>'
-  });
-  overlay.querySelector('#btn-volver').addEventListener('click', cerrar);
-  overlay.querySelector('#btn-rechazar-confirmar').addEventListener('click', async () => {
-    const btn = overlay.querySelector('#btn-rechazar-confirmar');
-    btn.disabled = true;
-    try {
-      await rechazarModificacion(vale.id);
-      window.toast.success('Modificación rechazada', `${vale.correlativo} quedó como estaba antes de la solicitud.`);
-      cerrar();
-      cerrarAutorizacion();
-      cargarBuzon();
-    } catch (error) {
-      mostrarErrorModal(overlay, error.message);
-      btn.disabled = false;
-      cargarBuzon();
-    }
-  });
+  overlay.querySelector('#btn-rechazar').addEventListener('click', () => abrirModalRechazarCreacion(vale, cerrar, { modificacion: true }));
 }
 
 // -----------------------------------------------------------------------
@@ -210,8 +186,7 @@ function abrirModalRechazarModificacion(vale, cerrarAutorizacion) {
 // — a veces solo hace falta lo primero.
 // -----------------------------------------------------------------------
 export function abrirModalVerSupervisor(fila) {
-  // En una solicitud de modificación, lo que se revisa es el vale MOD- pendiente, no el original.
-  const v = fila.mod_pendiente || fila;
+  const v = fila;
   const { overlay, cerrar } = abrirModal({
     title: `Ver vale de arte — ${v.correlativo}`,
     bodyHtml: `<p style="font-size:13px;">¿Qué necesitas ver?</p>`,

@@ -679,6 +679,14 @@
   margin-left: 6px;
 }
 
+/* Un vale original con una solicitud de modificación en trámite. */
+.badge-mod {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  margin-left: 6px;
+  cursor: help;
+}
+
 /* analisis_correcciones_16.md #4/#5: marca (F)/(P) junto al correlativo en
    Trabajo Realizado, cuando un mismo vale trae fila de fusión y de propuesta
    propia — el tooltip real va en el atributo title del span. */

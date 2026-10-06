@@ -83,6 +83,8 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
   const esCorreccion = modo === 'corregir';
   const esModificacion = modo === 'modificar';
   const hayOriginal = !!vale;
+  // Un formulario de modificación: pedirla, o corregir un vale MOD- (talleres fijos y justificación obligatoria).
+  const esMod = esModificacion || (hayOriginal && Number(vale.vale_original_id) > 0);
   // Una modificación va a los mismos talleres del vale original (los de su reparto, o los solicitados).
   const talleresOriginales = esModificacion
     ? [...new Set((vale._filasTaller || []).map(f => f.taller_id))]
@@ -93,7 +95,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
   const documentosQuitar = new Set();
   const nombresTalleres = [...tallerSeleccionados]
     .map(id => ((state.catalogos.talleres || []).find(t => t.id === id) || {}).nombre || `#${id}`);
-  const titulos = { crear: 'Crear Vale de Arte', corregir: 'Corregir vale', modificar: 'Solicitar modificación' };
+  const titulos = { crear: 'Crear Vale de Arte', corregir: esMod ? 'Corregir modificación' : 'Corregir vale', modificar: 'Solicitar modificación' };
   const { overlay, cerrar } = abrirModal({
     title: hayOriginal ? `${titulos[modo]} — ${vale.correlativo}` : titulos[modo],
     size: 'lg',
@@ -115,7 +117,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
 
         <div class="section-title">Información de Taller</div>
         <div class="form-grid">
-          ${esModificacion
+          ${esMod
             ? `<div class="form-field full"><label>Talleres</label><div class="taller-tags">${nombresTalleres.map(n => `<span class="taller-tag">${escapeHtml(n)}</span>`).join('')}</div><p class="form-nota">Una modificación se envía a los mismos talleres del vale original.</p></div>`
             : htmlSelectorTalleres()}
         </div>
@@ -136,8 +138,8 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
         <div class="section-title">Boceto y Descripción</div>
         <div class="form-grid">
           <div class="form-field full">
-            <label>${esModificacion ? 'Justificación de la modificación *' : 'Descripción'} <span class="campo-contador" id="descripcion-contador">0/${DESCRIPCION_MAX_CARACTERES}</span></label>
-            <textarea name="descripcion" maxlength="${DESCRIPCION_MAX_CARACTERES}"${esModificacion ? ' required' : ''}></textarea>
+            <label>${esMod ? 'Justificación de la modificación *' : 'Descripción'} <span class="campo-contador" id="descripcion-contador">0/${DESCRIPCION_MAX_CARACTERES}</span></label>
+            <textarea name="descripcion" maxlength="${DESCRIPCION_MAX_CARACTERES}"${esMod ? ' required' : ''}></textarea>
             <span class="field-error" id="descripcion-alerta-limite"><ion-icon name="alert-circle-outline"></ion-icon><span>Alcanzaste el límite de ${DESCRIPCION_MAX_CARACTERES} caracteres.</span></span>
           </div>
           <div class="form-field">
@@ -159,7 +161,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
     `
   });
 
-  if (!esModificacion) wireSelectorTalleres(overlay, tallerSeleccionados);
+  if (!esMod) wireSelectorTalleres(overlay, tallerSeleccionados);
   wireUrgenteAutoLock(overlay);
   const apiFechaEntrega = wireCampoFecha(overlay, 'fechaEntrega', {
     minDate: hoyMedianoche(),
@@ -197,7 +199,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
     // manuales (que no son constraint-validation nativa) van después, para
     // que no les borre el error recién marcado.
     const camposOk = validarCamposNativos(form);
-    const tallerOk = esModificacion || validarTalleresSeleccionados(overlay, tallerSeleccionados);
+    const tallerOk = esMod || validarTalleresSeleccionados(overlay, tallerSeleccionados);
     const entregaOk = validarCampoFecha(overlay, 'fechaEntrega');
     const eventoOk = validarCampoFecha(overlay, 'fechaEvento');
     if (!tallerOk || !entregaOk || !eventoOk || !camposOk) {

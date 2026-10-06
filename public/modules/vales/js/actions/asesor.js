@@ -36,7 +36,9 @@ export function abrirModalDarDeBaja(vale) {
     title: `Dar de baja — ${vale.correlativo}`,
     bodyHtml: `
       <p style="font-size:14px;font-weight:600;margin-bottom:8px;">¿Estás seguro?</p>
-      <p style="font-size:13px;">El vale se eliminará permanentemente junto con sus imágenes y documentos. Esta acción no se puede deshacer.</p>
+      <p style="font-size:13px;">${vale.vale_original_id
+        ? 'La solicitud de modificación se eliminará permanentemente junto con sus archivos; el vale original no cambia. Esta acción no se puede deshacer.'
+        : 'El vale se eliminará permanentemente junto con sus imágenes y documentos. Esta acción no se puede deshacer.'}</p>
     `,
     footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--danger" id="btn-confirmar">Dar de baja</button>`
   });
@@ -46,7 +48,7 @@ export function abrirModalDarDeBaja(vale) {
     btn.disabled = true;
     try {
       await darDeBajaVale(vale.id);
-      window.toast.success('Vale dado de baja', `${vale.correlativo} fue eliminado.`);
+      window.toast.success(vale.vale_original_id ? 'Solicitud dada de baja' : 'Vale dado de baja', `${vale.correlativo} fue eliminado.`);
       cerrar();
       cargarBuzon();
     } catch (error) {

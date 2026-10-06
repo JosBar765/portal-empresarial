@@ -170,8 +170,8 @@ export function aprobarModificacion(valeId) {
   return enviarPost(`/api/vales/${valeId}/aprobar-modificacion`);
 }
 
-export function rechazarModificacion(valeId) {
-  return enviarPost(`/api/vales/${valeId}/rechazar-modificacion`);
+export function rechazarModificacion(valeId, motivo) {
+  return enviarJSON(`/api/vales/${valeId}/rechazar-modificacion`, { motivo });
 }
 
 export async function obtenerCargaTrabajo() {
