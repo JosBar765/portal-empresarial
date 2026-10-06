@@ -148,9 +148,16 @@ app.get('/api/modules', requireAuth, (req, res) => {
 
 // Manejo de errores con la subida de archivos
 const MENSAJES_MULTER = {
-  LIMIT_FILE_SIZE: 'El archivo adjunto supera el tamaño máximo permitido.',
+  LIMIT_FILE_SIZE: 'El archivo adjunto supera el tamaño máximo permitido (3 MB).',
   LIMIT_FILE_COUNT: 'Se adjuntaron demasiados archivos.',
   LIMIT_UNEXPECTED_FILE: 'Se recibió un archivo en un campo inesperado.'
+};
+// Multer lanza LIMIT_UNEXPECTED_FILE también al pasar el máximo de un campo: se explica según el campo.
+const MENSAJES_EXCESO_POR_CAMPO = {
+  imagenes: 'Un vale admite hasta 10 imágenes.',
+  documentos: 'Un vale admite hasta 5 documentos.',
+  propuesta: 'Adjunta un solo archivo de propuesta.',
+  fusion: 'Adjunta un solo documento de fusión.'
 };
 
 app.use((err, req, res, next) => {
@@ -158,7 +165,8 @@ app.use((err, req, res, next) => {
   // mysql2 incluye el SQL con los valores.
   console.error('[Global Error Handler]', (err && err.stack) || String(err));
   if (err instanceof multer.MulterError) {
-    return res.status(400).json({ error: MENSAJES_MULTER[err.code] || 'No se pudo procesar el archivo adjunto.' });
+    const mensaje = (err.code === 'LIMIT_UNEXPECTED_FILE' && MENSAJES_EXCESO_POR_CAMPO[err.field]) || MENSAJES_MULTER[err.code] || 'No se pudo procesar el archivo adjunto.';
+    return res.status(400).json({ error: mensaje });
   }
   // Errores de lectura del cuerpo: mensaje fijo, sin el texto del analizador.
   if (err && err.type === 'entity.parse.failed') {

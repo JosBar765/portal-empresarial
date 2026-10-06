@@ -71,10 +71,6 @@ class ValeCreacionService {
 
       return valeMutex.conColaDeCreacion(usuario.id, async () => {
         const hoy = hoyISO();
-        const fechaCreacionDate = new Date(`${hoy}T00:00:00`);
-        if (!(datos.fechaEventoDate > datos.fechaEntregaDate && datos.fechaEntregaDate >= fechaCreacionDate)) {
-          throw new Error('Revisa las fechas: el evento debe ser posterior a la entrega, y la entrega no puede ser anterior a hoy.');
-        }
 
         // {TIENDA}-{INICIALES}-{ID}. El número es el id autoincremental de
         // MySQL (asignado por valeRepository.crear DESPUÉS del insert) —
@@ -349,7 +345,8 @@ class ValeCreacionService {
     };
     for (const [campo, valor] of Object.entries({ clienteNombre, clienteEmpresa, clienteTelefono, clienteCorreo, producto, material, tecnica, acabado, descripcion })) {
       if (valor && String(valor).length > limitesLongitud[campo]) {
-        throw new Error(`${etiquetasCampo[campo]} es demasiado largo (máximo ${limitesLongitud[campo]} caracteres).`);
+        const fem = etiquetasCampo[campo].startsWith('La ');
+        throw new Error(`${etiquetasCampo[campo]} es demasiad${fem ? 'a larga' : 'o largo'} (máximo ${limitesLongitud[campo]} caracteres).`);
       }
     }
     validarTelefono(clienteTelefono, 'El teléfono del cliente');
@@ -364,6 +361,20 @@ class ValeCreacionService {
     // día calendario distinto (y posterior) al de entrega.
     const fechaEntregaNorm = normalizarDatetime(fechaEntrega, true);
     const fechaEventoNorm = normalizarDatetime(fechaEvento, false);
+    // Las fechas se validan una por una y luego entre sí, cada error con su propio mensaje.
+    const fechaReal = (norm) => {
+      if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(norm)) return false;
+      const d = new Date(`${norm.slice(0, 10)}T00:00:00Z`);
+      return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === norm.slice(0, 10);
+    };
+    if (!fechaReal(fechaEntregaNorm)) throw new Error('La fecha de entrega no es válida.');
+    if (!fechaReal(fechaEventoNorm)) throw new Error('La fecha del evento no es válida.');
+    if (new Date(fechaEntregaNorm.replace(' ', 'T')) < new Date(`${hoyISO()}T00:00:00`)) {
+      throw new Error('La fecha de entrega no puede ser anterior a hoy.');
+    }
+    if (!(new Date(fechaEventoNorm.replace(' ', 'T')) > new Date(fechaEntregaNorm.replace(' ', 'T')))) {
+      throw new Error('La fecha del evento debe ser posterior a la fecha de entrega.');
+    }
     const cantidadNum = Number(cantidad);
     if (!Number.isFinite(cantidadNum) || cantidadNum <= 1) {
       throw new Error('La cantidad debe ser mayor a 1.');

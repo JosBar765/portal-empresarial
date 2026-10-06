@@ -71,13 +71,14 @@ class CapacidadEntregaService {
     if (conLimite.length === 0) return;
     const conteos = await this._contarPorTallerYFecha(conLimite.map(t => t.id), fechaEntregaISO, fechaEntregaISO);
     const porTaller = conteos[fechaEntregaISO] || {};
+    const fechaLegible = fechaEntregaISO.split('-').reverse().join('/');
     for (const t of conLimite) {
       const programados = porTaller[t.id] || 0;
       if (programados >= t.limite_diario) {
         if (paraSupervisor) {
-          throw new Error(`El taller "${t.nombre}" ya no tiene cupo para la fecha de entrega ${fechaEntregaISO}. Puedes rechazar el vale indicándole al asesor que elija otra fecha.`);
+          throw new Error(`El taller "${t.nombre}" ya no tiene cupo para la fecha de entrega ${fechaLegible}. Puedes rechazar el vale indicándole al asesor que elija otra fecha.`);
         }
-        throw new Error(`¡Uy! El taller "${t.nombre}" ya no tiene cupo para el ${fechaEntregaISO} — alguien más acaba de tomar el último lugar. Selecciona otra fecha de entrega e intenta de nuevo.`);
+        throw new Error(`El taller "${t.nombre}" ya alcanzó su límite diario para el ${fechaLegible}. Selecciona otra fecha de entrega e intenta de nuevo.`);
       }
     }
   }

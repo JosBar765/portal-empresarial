@@ -44,10 +44,6 @@ class ValeModificacionService {
       const justificacion = String(payload.descripcion || '').trim();
       if (!justificacion) throw new Error('Escribe la justificación de la modificación.');
       const datos = await valeCreacionService.validarDatosVale({ ...payload, descripcion: justificacion }, { requiereTalleres: false });
-      const fechaCreacion = new Date(`${hoyISO()}T00:00:00`);
-      if (!(datos.fechaEventoDate > datos.fechaEntregaDate && datos.fechaEntregaDate >= fechaCreacion)) {
-        throw new Error('Revisa las fechas: el evento debe ser posterior a la entrega, y la entrega no puede ser anterior a hoy.');
-      }
       // La modificación va a los mismos talleres del original.
       const filasOriginal = await valeTallerRepository.listarPorVale(valeId);
       const talleresIds = [...new Set(filasOriginal.map(f => f.taller_id))];

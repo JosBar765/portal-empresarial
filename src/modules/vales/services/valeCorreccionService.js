@@ -13,7 +13,7 @@ const capacidadEntregaService = require('./capacidadEntregaService');
 const valeCreacionService = require('./valeCreacionService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
-const { ROL, ESTADOS_EDITABLES_ASESOR, hoyISO, enriquecer, requerirVale } = require('./valeHelpers');
+const { ROL, ESTADOS_EDITABLES_ASESOR, enriquecer, requerirVale } = require('./valeHelpers');
 
 const MAX_IMAGENES = 10;
 const MAX_DOCUMENTOS = 5;
@@ -41,10 +41,6 @@ class ValeCorreccionService {
       }
 
       const datos = await valeCreacionService.validarDatosVale(payload, { tiendaIdAsesor: vale.tienda_id });
-      const fechaCreacion = new Date(`${hoyISO()}T00:00:00`);
-      if (!(datos.fechaEventoDate > datos.fechaEntregaDate && datos.fechaEntregaDate >= fechaCreacion)) {
-        throw new Error('Revisa las fechas: el evento debe ser posterior a la entrega, y la entrega no puede ser anterior a hoy.');
-      }
       const fechaEntregaISO = datos.fechaEntregaNorm.slice(0, 10);
       await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO);
 
