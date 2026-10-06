@@ -24,9 +24,15 @@ discrepan, manda el código: corrige este archivo.
   `vale_historial`.
 - Hora de referencia: UTC-6 fijo (Guatemala), calculado por offset, no por la
   zona horaria del servidor.
-- Correlativo: `{CÓDIGO TIENDA}-{INICIALES ASESOR}-{id autoincremental}`. El
-  vale de modificación lleva el prefijo `MOD-` delante del correlativo del
-  original.
+- Correlativo: `{PAÍS}-{TIENDA}-{MM}{AA}-{N}`, p. ej. `GT-MTC-1026-337`. El país es
+  el de la **empresa** de la tienda (`paises.codigo`, 2 letras); `MM` y `AA` son
+  el mes (`01`–`12`) y los dos últimos dígitos del año de la creación; `N` es el
+  `id` autoincremental del vale: global, no se reinicia y nunca se reutiliza
+  (los vales `MOD-` también consumen `id`, por eso puede haber saltos). Sin país
+  configurado en la tienda no se puede crear el vale. El vale de modificación lleva
+  el prefijo `MOD-` delante del correlativo **idéntico** al del original
+  (`MOD-GT-MTC-1026-337`). Los vales anteriores conservan su correlativo
+  (`MTC-KO-245`); el Buzón ordena por el último número.
 
 ## 0.1 Máquina de estados: catálogo completo
 

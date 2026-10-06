@@ -18,7 +18,7 @@ const SELECT_VALE = `
 class ValeRepository {
   // `data.correlativo` explícito (el MOD-... de aprobarModificacion, que
   // reutiliza el número del vale original) se inserta tal cual. Sin eso,
-  // `data.correlativoPrefijo` ("{TIENDA}-{INICIALES}") arma el correlativo
+  // `data.correlativoPrefijo` ("{PAÍS}-{TIENDA}-{MMAA}") arma el correlativo
   // final DESPUÉS del insert, usando el propio `id` autoincremental de
   // MySQL como número — nunca se reutiliza ni retrocede sin importar
   // cuántos vales se borren después (a diferencia de un conteo en vivo).
