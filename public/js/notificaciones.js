@@ -37,6 +37,8 @@
 
   function render() {
     if (!root) return;
+    // Conserva el desplazamiento de la lista al redibujar (marcar leída, cargar más).
+    const scrollPrevio = root.querySelector('.notif-lista')?.scrollTop || 0;
     const lista = estado.items.map(n => `
       <li class="notif-item${n.leida_en ? '' : ' is-no-leida'}${n.nivel === 'alerta' ? ' is-alerta' : ''}" data-id="${n.id}">
         <span class="notif-contenido">${escapar(n.mensaje)}</span>
@@ -55,6 +57,8 @@
         <ul class="notif-lista">${lista || '<li class="notif-vacio">Aún no tienes notificaciones.</li>'}</ul>
         ${estado.hayMas ? '<button type="button" class="notif-mas">Cargar más</button>' : ''}
       </div>`;
+    const listaEl = root.querySelector('.notif-lista');
+    if (listaEl) listaEl.scrollTop = scrollPrevio;
   }
 
   async function marcarLeida(id) {
