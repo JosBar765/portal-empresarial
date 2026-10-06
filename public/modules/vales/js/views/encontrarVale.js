@@ -1,5 +1,5 @@
 import { $ } from '../utils/dom.js';
-import { claseEstado, etiquetaEstado } from '../permisos.js';
+import { celdaEstado } from '../components/pipeline.js';
 import { escapeHtml, formatearFecha, formatearFechaHora, celdaTaller } from '../utils/formato.js';
 import { buscarValePorCorrelativo } from '../api/valesApi.js';
 import { abrirModalHistorial } from '../actions/historial.js';
@@ -222,7 +222,7 @@ function mostrarVale(v) {
               <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${escapeHtml(Number(v.diasAtraso) || 0)}d</span>` : '<span class="badge badge-ok">Al día</span>')}</td>
               <td data-label="Fecha de evento">${escapeHtml(formatearFecha(v.fecha_evento))}</td>
               <td data-label="Taller(es)" class="col-taller">${celdaTaller({ taller: escapeHtml(v.taller || '') })}</td>
-              <td data-label="Estado"><span class="estado-pill ${escapeHtml(claseEstado(v))}">${escapeHtml(etiquetaEstado(v))}</span></td>
+              <td data-label="Estado" class="col-estado">${celdaEstado(v)}</td>
               <td data-label="Acciones" class="acciones-cell"><div class="acciones-wrap" id="enc-acciones"></div></td>
             </tr>
           </tbody>

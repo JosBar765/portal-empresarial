@@ -6,6 +6,7 @@ const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const { enriquecer } = require('./valeHelpers');
+const { calcularPipeline } = require('./valePipeline');
 
 const CORRELATIVO_VALIDO = /^[A-Za-z0-9-]{3,60}$/;
 const MAX_SUGERENCIAS = 5;
@@ -53,6 +54,7 @@ class ValeBusquedaService {
       diasAtraso: v.diasAtraso,
       venceHoy: v.venceHoy,
       estado: v.estado,
+      pipeline: calcularPipeline({ ...v, _talleresDetalle: filas.map(f => ({ taller_id: f.taller_id, nombre: nombre(f.taller_id), estado: f.estado })) }),
       taller: [...new Set(idsTaller)].map(nombre).join(', '),
       propuesta_general_url: v.propuesta_general_url
     };

@@ -9,7 +9,8 @@ const db = require('../../../config/database');
 // nunca ve `estado_id`) no note el cambio. Todo INSERT/UPDATE resuelve el id
 // con una subconsulta inline a partir del mismo string de siempre.
 const SELECT_VALE = `
-  SELECT v.*, ev.nombre AS estado, ta.nombre AS autorizacion_tipo
+  SELECT v.*, ev.nombre AS estado, ta.nombre AS autorizacion_tipo,
+         TIMESTAMPDIFF(MINUTE, NOW(), v.vigencia_hasta) AS vigencia_minutos
   FROM vales v
   LEFT JOIN estados_vale ev ON ev.id = v.estado_id
   LEFT JOIN tipos_autorizacion ta ON ta.id = v.autorizacion_tipo_id

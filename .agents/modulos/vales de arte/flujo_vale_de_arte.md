@@ -567,3 +567,24 @@ código y base deben cambiar juntos.
   también para `APROBADO_DEPARTAMENTO`; `MODIFICADO` se usa para dos cosas
   (estado real del `MOD-` y etiqueta del asesor). Si gerencia quiere nombres
   más claros, estos son los que más conviene separar.
+
+## 10. Pipeline de estado (columna «Estado» de las tablas)
+
+La columna «Estado» del Buzón, «Encontrar vale» y la tabla de vales críticos de Rendimiento muestra un
+pipeline de 5 pasos numerados en vez de la píldora. El servidor lo calcula (`services/valePipeline.js`,
+campo `pipeline` de cada fila) y el frontend lo dibuja (`js/components/pipeline.js`, `css/pipeline.css`).
+No cambia ningún estado ni filtro: el desplegable de estado sigue usando los estados reales.
+
+| Paso | Estado general | Estado por taller |
+|---|---|---|
+| 1 Autorización | `ESPERANDO_AUTORIZACION`, `SOLICITANDO_MODIFICACION`, `RECHAZADO` (paso en rojo con X) | — |
+| 2 Asignación | `CREADO`, `MODIFICADO` | `PENDIENTE_ASIGNACION`, `ASIGNADO` |
+| 3 Producción | `CREADO`, `MODIFICADO` | `EN_PROCESO`, `EN_PAUSA` (ámbar) |
+| 4 Revisión | `CREADO`, `MODIFICADO`, `APROBADO_DEPARTAMENTO` (fusión) | `EN_REVISION`, `APROBADO` |
+| 5 Confirmación | `PENDIENTE_CONFIRMACION`, `RECIBIDO` (los cinco en verde) | — |
+
+- Con varios talleres se muestra el paso del taller más atrasado y «N de M talleres listos»; el tooltip lista el estado de cada uno. Encargados y técnicos ven el paso de **su** taller.
+- El atraso (≥ 1 día) tiñe de rojo el paso actual; al estar `RECIBIDO` muestra «Atraso final».
+- Marcas bajo el pipeline: `MOD` (vale `MOD-`) y `Vence en N h` (vigencia de 24 h; ámbar cuando faltan 6 h o menos, calculado con `vigencia_minutos` en `SELECT_VALE`).
+- Un estado nuevo se agrega en `ETAPA_TALLER` o como un `case` de `calcularPipeline`; una etapa nueva del recorrido es un paso más en `PASOS`.
+- Diseño: Figma, página «Pipeline de estado (Vales)» (archivo del prototipo de Incidencias).

@@ -382,32 +382,42 @@
 /* Contadores */
 .contadores-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 16px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
+/* Tarjeta compacta: número a la izquierda y etiqueta a la derecha. Las que filtran son <button>
+   (teclado, aria-pressed); las informativas siguen siendo <div> y no parecen pulsables. */
 .contador-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 14px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 18px;
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-md);
+  font: inherit;
+  text-align: left;
+  color: inherit;
 }
 
 .contador-card .valor {
+  flex: 0 0 auto;
   font-family: var(--font-title);
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 800;
   color: var(--color-primary);
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Ver JS (renderContadores): un valor largo (correlativo) en vez de un número
    corto o un "N/M" — mismo peso tipográfico, tamaño reducido para que un
    identificador no se lea como si fuera el número destacado de la tarjeta. */
 .contador-card .valor.valor-compacto {
-  font-size: 19px;
+  font-size: 15px;
   letter-spacing: -0.01em;
 }
 
@@ -415,19 +425,28 @@
   color: var(--color-danger);
 }
 
-/* Corrección #10: los contadores con filtro asociado se pueden activar/desactivar
-   con un clic para filtrar el buzón por ese criterio. */
+/* Los contadores con filtro asociado se activan/desactivan con un clic para filtrar el buzón. */
 .contador-card.contador-clickeable {
   cursor: pointer;
-  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  width: 100%;
+  transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 .contador-card.contador-clickeable:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary-border);
+  background: var(--color-surface-muted);
+}
+.contador-card.contador-clickeable:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 .contador-card.contador-activo {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--color-primary-light);
+  background: var(--color-primary-light);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+.contador-card.contador-activo .etiqueta {
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 /* Corrección #9: encargados y técnicos no necesitan ver la columna Taller (ya
@@ -454,8 +473,8 @@
 
 .contador-card .etiqueta {
   font-size: 12px;
+  line-height: 1.25;
   color: var(--color-text-secondary);
-  margin-top: 6px;
   font-weight: 500;
 }
 
@@ -1663,7 +1682,7 @@
    ------------------------------------------------------------------------- */
 @media (max-width: 900px) {
   .contadores-grid {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
   }
 }
 
@@ -1715,26 +1734,26 @@
   }
 
   .contadores-grid {
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 10px;
-    margin-bottom: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
   }
 
   .contador-card {
-    padding: 10px;
+    gap: 8px;
+    padding: 8px 10px;
   }
 
   .contador-card .valor {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .contador-card .valor.valor-compacto {
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .contador-card .etiqueta {
-    font-size: 10px;
-    margin-top: 3px;
+    font-size: 11px;
   }
 
   .buzon-section {
