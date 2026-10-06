@@ -1,10 +1,10 @@
 // public/js/notificaciones.js
-// Centro de notificaciones compartido (dashboard, Vales y Administración): campana con contador,
-// lista con fecha y hora, marcar como leída (una o todas). Cada página lo inicia con su socket:
-// window.centroNotificaciones.iniciar({ socket }).
+// Centro de notificaciones por módulo (Vales, Administración…): campana con contador, lista con fecha y hora,
+// marcar como leída (una o todas). Cada módulo lo inicia con su socket y su id:
+// window.centroNotificaciones.iniciar({ socket, modulo: 'vales' }).
 (() => {
   const POR_PAGINA = 20;
-  const estado = { items: [], noLeidas: 0, hayMas: false, abierto: false, cargando: false };
+  const estado = { modulo: null, items: [], noLeidas: 0, hayMas: false, abierto: false, cargando: false };
   let root = null;
 
   const escapar = (t) => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -26,7 +26,7 @@
     estado.cargando = true;
     try {
       const desplazamiento = reiniciar ? 0 : estado.items.length;
-      const data = await pedir(`/api/notificaciones?limite=${POR_PAGINA}&desplazamiento=${desplazamiento}`);
+      const data = await pedir(`/api/notificaciones?modulo=${encodeURIComponent(estado.modulo)}&limite=${POR_PAGINA}&desplazamiento=${desplazamiento}`);
       estado.items = reiniciar ? data.notificaciones : estado.items.concat(data.notificaciones);
       estado.hayMas = data.hayMas;
       estado.noLeidas = data.noLeidas;
@@ -54,7 +54,7 @@
           <strong>Notificaciones</strong>
           <button type="button" class="notif-leer-todas"${estado.noLeidas ? '' : ' disabled'}>Marcar todas como leídas</button>
         </div>
-        <ul class="notif-lista">${lista || '<li class="notif-vacio">Aún no tienes notificaciones.</li>'}</ul>
+        <ul class="notif-lista">${lista || '<li class="notif-vacio">No hay notificaciones.</li>'}</ul>
         ${estado.hayMas ? '<button type="button" class="notif-mas">Cargar más</button>' : ''}
       </div>`;
     const listaEl = root.querySelector('.notif-lista');
@@ -74,12 +74,18 @@
     estado.items.forEach(n => { if (!n.leida_en) n.leida_en = new Date().toISOString(); });
     estado.noLeidas = 0;
     render();
-    try { await fetch('/api/notificaciones/leer-todas', { method: 'POST' }); } catch { /* se reintenta al recargar */ }
+    try {
+      await fetch('/api/notificaciones/leer-todas', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ modulo: estado.modulo })
+      });
+    } catch { /* se reintenta al recargar */ }
   }
 
-  function iniciar({ socket }) {
+  // Cada módulo inicia su propio centro: `modulo` es su id del catálogo ('vales', 'admin'…).
+  function iniciar({ socket, modulo }) {
     root = document.getElementById('notificaciones-root');
-    if (!root) return;
+    if (!root || !modulo) return;
+    estado.modulo = modulo;
     root.addEventListener('click', (e) => {
       e.stopPropagation();
       if (e.target.closest('.notif-bell')) {
@@ -104,6 +110,7 @@
     });
     if (socket) {
       socket.on('notificacion_nueva', (n) => {
+        if (n.modulo !== estado.modulo) return; // la de otro módulo no es de este centro
         estado.items.unshift(n);
         estado.noLeidas += 1;
         render();
