@@ -316,17 +316,21 @@ class ValeCreacionService {
   // solicitarModificacion() no pasa por este camino para elegir taller).
   async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null } = {}) {
     const {
-      clienteEmpresa, clienteNombre, clienteTelefono, clienteCorreo,
-      fechaEntrega, fechaEvento, urgente, producto, material, tecnica, acabado,
+      clienteEmpresa, clienteTelefono, clienteCorreo,
+      fechaEntrega, fechaEvento, urgente, tecnica, acabado,
       cantidad, cotizacion, descripcion
     } = payload;
+    // Los obligatorios se validan ya sin espacios: "   " cuenta como vacío.
+    const recortar = (valor) => String(valor ?? '').trim();
+    const clienteNombre = recortar(payload.clienteNombre);
+    const producto = recortar(payload.producto);
+    const material = recortar(payload.material);
 
-    if (!clienteNombre || !clienteTelefono || !clienteCorreo) {
-      throw new Error('Los datos del cliente (nombre, teléfono, correo) son obligatorios.');
-    }
-    if (!producto || !material) {
-      throw new Error('El producto y el material son obligatorios.');
-    }
+    if (!clienteNombre) throw new Error('El nombre del cliente es obligatorio.');
+    if (!recortar(clienteTelefono)) throw new Error('El teléfono del cliente es obligatorio.');
+    if (!recortar(clienteCorreo)) throw new Error('El correo del cliente es obligatorio.');
+    if (!producto) throw new Error('El código de producto es obligatorio.');
+    if (!material) throw new Error('El material es obligatorio.');
     if (!fechaEntrega || !fechaEvento) {
       throw new Error('Las fechas de entrega y de evento son obligatorias.');
     }
@@ -340,7 +344,7 @@ class ValeCreacionService {
     };
     const etiquetasCampo = {
       clienteNombre: 'El nombre del cliente', clienteEmpresa: 'La empresa', clienteTelefono: 'El teléfono',
-      clienteCorreo: 'El correo', producto: 'El producto', material: 'El material',
+      clienteCorreo: 'El correo', producto: 'El código de producto', material: 'El material',
       tecnica: 'La técnica', acabado: 'El acabado', descripcion: 'La descripción'
     };
     for (const [campo, valor] of Object.entries({ clienteNombre, clienteEmpresa, clienteTelefono, clienteCorreo, producto, material, tecnica, acabado, descripcion })) {
@@ -377,7 +381,7 @@ class ValeCreacionService {
       fechaEntregaDate: new Date(fechaEntregaNorm.replace(' ', 'T')),
       fechaEventoDate: new Date(fechaEventoNorm.replace(' ', 'T')),
       urgente: calcularUrgente(fechaEntregaNorm, urgente),
-      producto: producto.trim(), material: material.trim(),
+      producto, material,
       tecnica: (tecnica || '').trim(), acabado: (acabado || '').trim(),
       cantidad: cantidadNum, cotizacion: cotizacionNum, descripcion,
       talleresIds
