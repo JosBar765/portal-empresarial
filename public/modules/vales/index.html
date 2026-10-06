@@ -91,10 +91,12 @@
 
         <section class="vales-toolbar">
           <div class="ventana-selector" id="ventana-selector">
-            <button data-ventana="dia" class="chip">Día</button>
-            <button data-ventana="semana" class="chip">Semana</button>
-            <button data-ventana="mes" class="chip">Mes</button>
-            <button data-ventana="todo" class="chip chip-active">Todo</button>
+            <button data-ventana="todo" class="chip">Todo</button>
+            <div class="mes-nav" id="mes-nav">
+              <button type="button" class="mes-nav-flecha" id="mes-prev" title="Mes anterior" aria-label="Mes anterior"><ion-icon name="chevron-back-outline"></ion-icon></button>
+              <button type="button" class="mes-nav-etiqueta" id="mes-etiqueta" title="Volver al mes actual"></button>
+              <button type="button" class="mes-nav-flecha" id="mes-next" title="Mes siguiente" aria-label="Mes siguiente"><ion-icon name="chevron-forward-outline"></ion-icon></button>
+            </div>
             <div class="ventana-rango" id="ventana-rango"></div>
           </div>
           <!-- Solo Gerencia y Supervisor: filtra por tienda tanto la vista

@@ -26,6 +26,7 @@ const vistaTabla = { tendencia: false, ciclo: false, encurso: false };
 function construirQuery() {
   const qs = new URLSearchParams();
   if (state.ventana.tipo) qs.set('ventana', state.ventana.tipo);
+  if (state.ventana.tipo === 'mes') qs.set('fecha', state.ventana.fecha);
   if (state.ventana.tipo === 'rango') {
     if (state.ventana.desde) qs.set('desde', state.ventana.desde);
     if (state.ventana.hasta) qs.set('hasta', state.ventana.hasta);
@@ -109,8 +110,6 @@ function etiquetaPeriodo(data) {
   const { tipo, desde, hasta } = data.ventana;
   let texto;
   if (tipo === 'todo') texto = 'Todo el historial';
-  else if (tipo === 'dia') texto = `Día ${formatearFecha(hasta)}`;
-  else if (tipo === 'semana') texto = `Semana del ${formatearFecha(desde)} al ${formatearFecha(hasta)}`;
   else if (tipo === 'mes') texto = `Mes de ${MESES[Number(desde.slice(5, 7)) - 1]} ${desde.slice(0, 4)}`;
   else texto = `${formatearFecha(desde)} — ${formatearFecha(hasta)}`;
   return state.tiendaId ? `${texto} · ${nombreTienda(Number(state.tiendaId))}` : texto;
@@ -269,7 +268,7 @@ function renderTendencia(data) {
   const parcial = data.tendencia.length > 0 && data.tendencia[data.tendencia.length - 1].parcial;
   const cab = cabeceraPanel('Actividad de vales', `Vales creados y cerrados por ${unidad}${parcial ? ' · el último tramo punteado aún está en curso' : ''}`, { tabla: 'tendencia' });
   if (data.tendencia.length < 3) {
-    panel.innerHTML = cab + vacio('trending-up-outline', 'Período muy corto para una tendencia', 'Elige Semana, Mes o Todo en la barra superior para ver cómo evoluciona la actividad.');
+    panel.innerHTML = cab + vacio('trending-up-outline', 'Período muy corto para una tendencia', 'Elige un mes completo o Todo en la barra superior para ver cómo evoluciona la actividad.');
     conectarToggleTabla(panel, 'tendencia', renderTendencia);
     return;
   }

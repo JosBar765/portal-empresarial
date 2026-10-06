@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
 import { ROL } from '../config/roles.js';
-import { isoLocal } from '../utils/fechas.js';
+import { isoLocal, parseIsoLocal, primerDiaDelMes } from '../utils/fechas.js';
 import { htmlCampoFechaCompacto, wireCampoFecha } from '../components/datepicker.js';
 import { cargarBuzon } from '../views/buzon.js';
 
@@ -18,30 +18,52 @@ export function wireToolbar() {
   const apiDesde = wireCampoFecha(rangoRoot, 'ventana-desde', { placeholder: 'Desde' });
   const apiHasta = wireCampoFecha(rangoRoot, 'ventana-hasta', { placeholder: 'Hasta' });
 
-  $$('#ventana-selector .chip').forEach(btn => {
-    btn.addEventListener('click', () => {
-      $$('#ventana-selector .chip').forEach(b => b.classList.remove('chip-active'));
-      btn.classList.add('chip-active');
-      state.ventana = { tipo: btn.dataset.ventana, desde: null, hasta: null };
-      apiDesde.clear({ silent: true });
-      apiHasta.clear({ silent: true });
-      apiHasta.setMinDate(null);
-      cargarBuzon();
-    });
+  const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const chipTodo = $('.chip[data-ventana="todo"]');
+  const mesNav = $('#mes-nav');
+
+  // Refleja state.ventana: "Todo" resaltado, el mes resaltado y activo, o el mes desactivado mientras hay un rango.
+  const pintarVentana = () => {
+    const { tipo, fecha } = state.ventana;
+    chipTodo.classList.toggle('chip-active', tipo === 'todo');
+    mesNav.classList.toggle('is-activo', tipo === 'mes');
+    mesNav.classList.toggle('is-desactivado', tipo === 'rango');
+    mesNav.querySelectorAll('button').forEach(b => { b.disabled = tipo === 'rango'; });
+    $('#mes-prev').disabled = $('#mes-next').disabled = tipo !== 'mes';
+    const ref = parseIsoLocal(fecha || state.ventana.fecha) || new Date();
+    $('#mes-etiqueta').textContent = `${MESES[ref.getMonth()]} ${ref.getFullYear()}`;
+  };
+  const irAlMes = (fechaMes) => {
+    state.ventana = { tipo: 'mes', fecha: isoLocal(primerDiaDelMes(fechaMes)), desde: null, hasta: null };
+    pintarVentana();
+    cargarBuzon();
+  };
+  const mesElegido = () => parseIsoLocal(state.ventana.fecha);
+
+  chipTodo.addEventListener('click', () => {
+    state.ventana = { tipo: 'todo', fecha: state.ventana.fecha, desde: null, hasta: null };
+    apiDesde.clear({ silent: true });
+    apiHasta.clear({ silent: true });
+    apiHasta.setMinDate(null);
+    pintarVentana();
+    cargarBuzon();
   });
+  $('#mes-prev').addEventListener('click', () => { const m = mesElegido(); irAlMes(new Date(m.getFullYear(), m.getMonth() - 1, 1)); });
+  $('#mes-next').addEventListener('click', () => { const m = mesElegido(); irAlMes(new Date(m.getFullYear(), m.getMonth() + 1, 1)); });
+  // Desde "Todo", pulsar el mes vuelve al mes actual.
+  $('#mes-etiqueta').addEventListener('click', () => irAlMes(new Date()));
+  pintarVentana();
+
   const onRangoChange = () => {
     const desde = apiDesde.getDate() ? isoLocal(apiDesde.getDate()) : null;
     const hasta = apiHasta.getDate() ? isoLocal(apiHasta.getDate()) : null;
     if (!desde && !hasta) {
-      // Al borrar ambas fechas del rango, vuelve automáticamente a "Todo".
-      $$('#ventana-selector .chip').forEach(b => b.classList.remove('chip-active'));
-      $('.chip[data-ventana="todo"]').classList.add('chip-active');
-      state.ventana = { tipo: 'todo', desde: null, hasta: null };
-      cargarBuzon();
+      // Al limpiar el rango, vuelve al mes actual.
+      irAlMes(new Date());
       return;
     }
-    $$('#ventana-selector .chip').forEach(b => b.classList.remove('chip-active'));
-    state.ventana = { tipo: 'rango', desde, hasta };
+    state.ventana = { tipo: 'rango', fecha: state.ventana.fecha, desde, hasta };
+    pintarVentana();
     cargarBuzon();
   };
   rangoRoot.querySelector('[data-date-field="ventana-desde"] input[type="hidden"]').addEventListener('change', () => {

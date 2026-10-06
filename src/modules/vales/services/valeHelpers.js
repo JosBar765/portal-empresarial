@@ -146,34 +146,19 @@ function estadoVisibleAsesor(vale) {
   }
 }
 
+// La ventana de tiempo filtra por la fecha de ENTREGA del vale: 'todo', 'mes' (el de `ventana.fecha`) o 'rango'.
 function dentroDeVentana(vale, ventana) {
   if (!ventana || !ventana.tipo || ventana.tipo === 'todo') return true;
-  const fechaVale = vale.fecha_creacion;
-  const fv = new Date(`${fechaVale}T00:00:00`);
+  const fv = new Date(`${String(vale.fecha_entrega).slice(0, 10)}T00:00:00`);
 
   if (ventana.tipo === 'rango') {
     if (!ventana.desde && !ventana.hasta) return true;
-    // Fecha fin ausente con fecha inicio presente: se toma como si fuera hoy.
-    const hastaEfectiva = ventana.hasta || (ventana.desde ? hoyISO() : null);
     if (ventana.desde && fv < new Date(`${ventana.desde}T00:00:00`)) return false;
-    if (hastaEfectiva && fv > new Date(`${hastaEfectiva}T00:00:00`)) return false;
+    if (ventana.hasta && fv > new Date(`${ventana.hasta}T00:00:00`)) return false;
     return true;
   }
-
-  const referencia = ventana.fecha || hoyISO();
-  const ref = new Date(`${referencia}T00:00:00`);
-
-  if (ventana.tipo === 'dia') {
-    return fechaVale === referencia;
-  }
-  if (ventana.tipo === 'semana') {
-    const inicioSemana = new Date(ref);
-    inicioSemana.setDate(ref.getDate() - ref.getDay());
-    const finSemana = new Date(inicioSemana);
-    finSemana.setDate(inicioSemana.getDate() + 6);
-    return fv >= inicioSemana && fv <= finSemana;
-  }
   if (ventana.tipo === 'mes') {
+    const ref = new Date(`${ventana.fecha || hoyISO()}T00:00:00`);
     return fv.getFullYear() === ref.getFullYear() && fv.getMonth() === ref.getMonth();
   }
   return true;

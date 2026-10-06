@@ -23,6 +23,7 @@ import { abrirModalHistorial } from '../actions/historial.js';
 export function construirQueryBase() {
   const qs = new URLSearchParams();
   if (state.ventana.tipo) qs.set('ventana', state.ventana.tipo);
+  if (state.ventana.tipo === 'mes') qs.set('fecha', state.ventana.fecha);
   if (state.ventana.tipo === 'rango') {
     if (state.ventana.desde) qs.set('desde', state.ventana.desde);
     if (state.ventana.hasta) qs.set('hasta', state.ventana.hasta);

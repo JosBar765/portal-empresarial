@@ -11,7 +11,7 @@ Base: `.agents/modulos/vales de arte/correcciones/analisis_correcciones_37.md`. 
 | 7 | Vigencia de 24 h con avisos | **hecho** |
 | 4 | Modificación igual al formulario de corregir | **hecho** |
 | 9 | Rendimiento: vales por asesor | **hecho** |
-| 2 y 3 | Filtros por fecha de entrega y navegador de mes | pendiente |
+| 2 y 3 | Filtros por fecha de entrega y navegador de mes | ✅ listo |
 | 1 | Supervisor creando vales | **omitido por ahora** (decisión del usuario) |
 
 ## Decisiones acordadas
@@ -100,3 +100,12 @@ Verificación: por API, solicitar sin justificación (400); solicitar con un arc
 - Los vales que se borran (dados de baja o vencidos) dejan de contarse, porque ya no existen en la tabla.
 
 Verificación: Karla Ordoñez figura con 40 ingresados y 26 autorizados, igual que el conteo directo en la base; la suma del Gerente es 207 (181 autorizados, 26 sin autorizar) y el Supervisor ve solo sus 11 asesores. En el navegador, como Gerente, aparece el panel con el total.
+
+## Puntos 2 y 3 — Filtros por fecha de entrega y navegador de mes
+
+- **Fecha de entrega:** `dentroDeVentana` (Buzón y Trabajo realizado) y la ventana de Rendimiento filtran ahora por `fecha_entrega`, no por la de creación. El rango "Desde" sin "Hasta" queda abierto hacia adelante (ya no se corta en hoy), porque las entregas son futuras.
+- **Navegador de mes:** reemplaza a Día, Semana y Mes. Quedan `Todo`, `< mes año >` y el rango Desde/Hasta; arranca en el mes actual, las flechas pasan de enero al diciembre del año anterior y viceversa, y pulsar el nombre del mes vuelve al actual.
+- **Exclusión:** con un rango elegido el selector de mes se desactiva; con `Todo` se desactivan las flechas. Limpiar el rango vuelve al mes actual.
+- **Aplica a:** Buzón, Trabajo realizado y Rendimiento (la ventana anterior de comparación y la tendencia usan la fecha de entrega; ya no existen las ventanas día/semana).
+
+Verificación en pantalla (Gerente y Supervisor de Ventas): arranca en Octubre 2026 (16 vales en Rendimiento, 9 en el Buzón); la flecha lleva a Septiembre (66 vales; 2 en el Buzón del supervisor); `Todo` da 220 y desactiva las flechas; elegir "Desde 06/10/2026" desactiva el mes y por API devuelve 42 vales con el rango abierto.
