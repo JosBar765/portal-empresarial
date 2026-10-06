@@ -88,7 +88,7 @@ async function usuariosDeSalas(salas) {
 
 function guardarNotificaciones({ vale, contenido, salas, actorId, nivel, tipo, valeBorrado }) {
   usuariosDeSalas(salas || [])
-    .then(ids => notificacionService.registrar(ids.filter(id => id !== actorId), { valeId: valeBorrado ? null : vale.id, tipo, nivel, mensaje: contenido }))
+    .then(ids => notificacionService.registrar(ids.filter(id => id !== actorId), { modulo: 'vales', valeId: valeBorrado ? null : vale.id, tipo, nivel, mensaje: contenido }))
     .catch(error => console.error('[Notificaciones] No se pudieron guardar:', error.message));
 }
 

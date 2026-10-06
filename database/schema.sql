@@ -362,6 +362,7 @@ CREATE TABLE IF NOT EXISTS `vale_vistos` (
 CREATE TABLE IF NOT EXISTS `notificaciones` (
   `id`         INT AUTO_INCREMENT PRIMARY KEY,
   `usuario_id` INT NOT NULL,
+  `modulo`     VARCHAR(30) NOT NULL DEFAULT 'vales',
   `vale_id`    INT DEFAULT NULL,
   `tipo`       VARCHAR(30) DEFAULT NULL,
   `nivel`      VARCHAR(10) NOT NULL DEFAULT 'info',
@@ -370,7 +371,7 @@ CREATE TABLE IF NOT EXISTS `notificaciones` (
   `leida_en`   DATETIME DEFAULT NULL,
   FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  INDEX `idx_notificaciones_usuario` (`usuario_id`, `leida_en`, `id`)
+  INDEX `idx_notificaciones_usuario` (`usuario_id`, `modulo`, `leida_en`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
