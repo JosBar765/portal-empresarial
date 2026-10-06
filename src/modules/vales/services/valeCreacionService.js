@@ -170,7 +170,11 @@ class ValeCreacionService {
         throw new Error('Este vale no tiene talleres seleccionados, no se puede autorizar.');
       }
 
-      await this.fanOutTalleres(valeId, talleresIds);
+      // El vale recién ocupa cupo al autorizarse; si dos supervisores compiten por el último lugar, solo gana uno.
+      await valeMutex.conColaDeCapacidad(async () => {
+        await capacidadEntregaService.validarLimiteDiario(talleresIds, String(vale.fecha_entrega).slice(0, 10), { paraSupervisor: true });
+        await this.fanOutTalleres(valeId, talleresIds);
+      });
       const ahora = `${hoyISO()} ${horaActual()}`;
       await valeRepository.sellarAutorizacion(valeId, { autorizadoPor: usuario.id, autorizadoEn: ahora, autorizacionTipo: 'CREACION' });
       await valeRepository.actualizarEstado(valeId, ESTADOS.CREADO);

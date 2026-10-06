@@ -46,7 +46,7 @@ class ValeCorreccionService {
         throw new Error('Revisa las fechas: el evento debe ser posterior a la entrega, y la entrega no puede ser anterior a hoy.');
       }
       const fechaEntregaISO = datos.fechaEntregaNorm.slice(0, 10);
-      await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO, valeId);
+      await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO);
 
       const documentosActuales = await documentoRepository.listarPorVale(valeId);
       const quitarIds = this._idsAQuitar(payload.documentosQuitar, documentosActuales);
@@ -69,7 +69,7 @@ class ValeCorreccionService {
 
         // El cupo se revalida y la base se actualiza en el mismo turno de la cola de capacidad.
         await valeMutex.conColaDeCapacidad(async () => {
-          await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO, valeId);
+          await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO);
           await valeCorreccionRepository.aplicar({
             valeId, usuarioId: usuario.id, datos, pdfUrl: pdf.url,
             documentosQuitarIds: quitarIds, documentosNuevos,

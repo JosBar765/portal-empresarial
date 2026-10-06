@@ -159,7 +159,7 @@ function abrirModalFormularioVale(vale) {
     minDate: hoyMedianoche(),
     capacidad: {
       obtenerTalleresIds: () => [...tallerSeleccionados],
-      cargarMes: (talleres, anio, mes) => obtenerCapacidadEntrega(talleres, anio, mes, esCorreccion ? vale.id : null)
+      cargarMes: obtenerCapacidadEntrega
     }
   });
   const apiFechaEvento = wireCampoFecha(overlay, 'fechaEvento', { minDate: sumarDiaLocal(hoyMedianoche(), 1) });

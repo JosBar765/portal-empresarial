@@ -70,9 +70,8 @@ export async function obtenerLimiteColectivo() {
 
 // Capacidad por día del mes visible, para el calendario de "Fecha de
 // entrega" — analisis_correcciones_28.md.
-export async function obtenerCapacidadEntrega(talleresIds, anio, mes, excluirValeId = null) {
+export async function obtenerCapacidadEntrega(talleresIds, anio, mes) {
   const qs = new URLSearchParams({ talleres: talleresIds.join(','), anio, mes });
-  if (excluirValeId) qs.set('excluir', excluirValeId);
   const res = await fetch(`/api/vales/capacidad-entrega?${qs.toString()}`);
   if (!res.ok) throw new Error('No se pudo cargar la capacidad de los talleres.');
   return leerJSON(res);

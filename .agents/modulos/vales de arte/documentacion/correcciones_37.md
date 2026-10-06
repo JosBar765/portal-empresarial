@@ -4,7 +4,7 @@ Base: `.agents/modulos/vales de arte/correcciones/analisis_correcciones_37.md`. 
 
 | # | Punto del análisis | Estado |
 |---|---|---|
-| 8 | Cupo del taller solo al autorizar | pendiente |
+| 8 | Cupo del taller solo al autorizar | **hecho** |
 | 10 | Centro de notificaciones | pendiente |
 | 5 | Obligatorio ver el vale antes de autorizar | pendiente |
 | 6 | Rechazo de creación devuelve el vale con justificación | pendiente |
@@ -25,3 +25,12 @@ Base: `.agents/modulos/vales de arte/correcciones/analisis_correcciones_37.md`. 
 - **Cupo (8):** un vale pendiente no ocupa cupo; se valida (como aviso) al crear, corregir o solicitar modificación, y de forma definitiva al autorizar, en una cola para que solo gane uno. Si ya no hay cupo, el supervisor recibe el error y es él quien rechaza con justificación; no se rechaza solo.
 - **Rendimiento (9):** cantidad de vales por asesor, separando autorizados y pendientes, a partir de las columnas ya existentes de `vales`.
 - **Notificaciones (10):** se guardan por usuario las mismas notificaciones que hoy salen como aviso, con fecha y hora, marcar como leída (una o todas) y conservación permanente; la campana aparece en todas las pantallas.
+
+## Punto 8 — El cupo del taller solo se ocupa al autorizar
+
+- `capacidadEntregaService` ya no cuenta los vales pendientes: solo cuentan los autorizados (los que tienen filas en `vale_talleres`). Se eliminó `capacidadRepository.listarSolicitadosEnRango` y el parámetro `excluirValeId` (creado para "Corregir"), que ya no hace falta: un vale pendiente no se cuenta a sí mismo ni a otros.
+- Crear, corregir y solicitar una modificación siguen validando el cupo como aviso (con el mensaje "¡Uy! El taller… ya no tiene cupo…"), y el calendario del formulario muestra solo los cupos ya autorizados.
+- `autorizarCreacion` valida el cupo y reparte el vale a los talleres en el mismo turno de la cola de capacidad (`conColaDeCapacidad`): si varios supervisores autorizan a la vez el último cupo, gana uno solo. A los demás les llega "El taller "X" ya no tiene cupo para la fecha de entrega AAAA-MM-DD. Puedes rechazar el vale indicándole al asesor que elija otra fecha." (`validarLimiteDiario(..., { paraSupervisor: true })`). El vale queda pendiente: rechazarlo y justificarlo es decisión del supervisor, no es automático.
+- La aprobación de una modificación ya validaba el cupo dentro de esa cola; no cambió.
+
+Verificación: taller UV/3D (límite 4). Se crearon 6 vales pendientes para el mismo día (todos se aceptaron; capacidad del día 0/4). Se autorizaron 3 (3/4); dos autorizaciones simultáneas con un solo cupo dieron 200 y 400 (4/4, día bloqueado); autorizar uno más dio el error de cupo y el vale siguió pendiente. En el navegador, como supervisor, el modal "Autorizar creación" mostró el mensaje en rojo.
