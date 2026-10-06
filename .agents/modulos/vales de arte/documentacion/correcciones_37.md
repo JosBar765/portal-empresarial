@@ -113,3 +113,37 @@ Verificación: Karla Ordoñez figura con 40 ingresados y 26 autorizados, igual q
 Verificación en pantalla (Gerente y Supervisor de Ventas): arranca en Octubre 2026 (16 vales en Rendimiento, 9 en el Buzón); la flecha lleva a Septiembre (66 vales; 2 en el Buzón del supervisor); `Todo` da 220 y desactiva las flechas; elegir "Desde 06/10/2026" desactiva el mes y por API devuelve 42 vales con el rango abierto.
 
 Verificación de la retención: con tres filas de prueba (leída hace 61 días, leída hace 59 días y no leída de 90 días) la purga borró solo la primera.
+
+## Correcciones tras la prueba del flujo completo
+
+Se recorrió todo el flujo (y los alternos) por API con sesiones de asesor, supervisor, encargados de Diseño, UV/3D y Protextil, técnico, asistente, Diseño Local y gerente, más una pasada en pantalla. Se corrigió lo encontrado:
+
+| # | Hallazgo | Corrección |
+|---|---|---|
+| 1 | Dos autorizaciones simultáneas superaban el cupo diario del supervisor (12 de 11) | Cola por supervisor (`valeMutex.conColaDeSupervisor`): leer el cupo y sellar la autorización son un solo turno |
+| 2 | Dos `comenzar` o `reanudar` simultáneos dejaban dos vales en proceso a un técnico | Cola por técnico (`conColaDeTecnico`) alrededor de la revisión y el cambio de estado |
+| 3 | Período o fecha inválidos en Buzón/Rendimiento daban 500 | `_resolverVentana` valida y responde 400 con mensaje («La fecha del mes no es válida.», «El período elegido no es válido.», «Desde» posterior a «Hasta») |
+| 4 | Se aceptaba un producto, material o nombre de cliente de solo espacios | Se validan ya recortados (también teléfono y correo) al crear, corregir y modificar; los valores se guardan sin espacios sobrantes |
+| 5 | Textos del historial con «Encargado General» (rol inexistente) | Textos neutros: «pendiente de fusión» y «Se adjuntó la fusión final…» |
+| 6 | Mensajes que no correspondían al error | «demasiada larga» según el género; fechas validadas una a una («no es válida», «no puede ser anterior a hoy», «el evento debe ser posterior»); más de 10 imágenes o 5 documentos dicen el máximo; el cupo lleno ya no afirma que «alguien más tomó el último lugar» |
+| 7 | Un archivo de tipo no permitido se descartaba en silencio por API | `fileFilter` lo rechaza con 400 y el nombre saneado del archivo |
+| 8 | El historial guardaba `CONFIRMADO` aunque el estado real es `RECIBIDO` | Se escribe `RECIBIDO`; `categoriaHistorial` distingue aprobar de rechazar por el texto |
+| 9.1 | `valesAutorizadosHoy` viajaba siempre en `null` | El servidor devuelve «N/M» (autorizaciones de creación de hoy / asesores a cargo) y se quitó la petición extra del frontend |
+| 9.2 | Las alertas de atraso se guardaban sin `tipo` | Se guardan con `tipo: 'ATRASO'` |
+| 9.3 | «Código de producto» en pantalla y PDF, «producto» en los mensajes | Los mensajes dicen «código de producto» |
+
+**Datos existentes (base de desarrollo ya migrada).** En una base con datos previos conviene ejecutar:
+
+```sql
+UPDATE vale_historial SET estado_nuevo = 'RECIBIDO'
+ WHERE estado_anterior = 'SOLICITANDO_MODIFICACION' AND estado_nuevo = 'CONFIRMADO';
+UPDATE vale_historial SET accion = REPLACE(accion, ' — pendiente de fusión por Encargado General', ' — pendiente de fusión')
+ WHERE accion LIKE '%pendiente de fusión por Encargado General%';
+UPDATE vale_historial SET accion = 'Se adjuntó la fusión final del trabajo de los talleres y se aprobó el vale'
+ WHERE accion = 'Encargado General adjuntó la fusión final del trabajo de los talleres y aprobó el vale';
+```
+
+**Diferencias entre la base de desarrollo y `seed.sql` (no son errores de código).** En la base de desarrollo el encargado de Protextil tiene además `vales.trabajar` y `vales.aprobar_general` (la fusión es por permiso: lo verificado con un vale Diseño + Protextil), y el Administrador no tiene `vales.ver`, por lo que no entra al módulo de vales (solo al panel de administración). El seed todavía describe lo contrario.
+
+Verificación: cada corrección se probó con peticiones reales contra el servidor, incluida la carrera (tres autorizaciones simultáneas con un cupo libre: pasa una; tres `comenzar` simultáneos: queda uno en proceso) y los flujos con Protextil, Diseño Local y Administrador.
+

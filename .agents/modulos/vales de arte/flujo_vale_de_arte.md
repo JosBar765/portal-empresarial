@@ -20,7 +20,7 @@ discrepan, manda el código: corrige este archivo.
   nombres de rol de este documento describen quién tiene hoy ese permiso en
   `database/seed.sql`, pero el backend solo valida el permiso
   (`routes.js` → `requirePermission`).
-- Toda transición se serializa con un lock por vale (`valeMutex`) y se anota en
+- Toda transición se serializa con un lock por vale (`valeMutex`); además, el cupo del supervisor y el "un solo vale en proceso" del técnico se serializan en colas por supervisor y por técnico (`conColaDeSupervisor`, `conColaDeTecnico`). Se anota en
   `vale_historial`.
 - Hora de referencia: UTC-6 fijo (Guatemala), calculado por offset, no por la
   zona horaria del servidor.
@@ -47,7 +47,7 @@ datos; la columna "Etiqueta" es lo que se muestra hoy en pantalla
 | 5 | `RECIBIDO` | Recibido (al asesor se le muestra **Confirmado**) | Terminal. El asesor confirmó; el atraso queda congelado. Puede seguir recibiendo **una** solicitud de modificación. | El asesor confirma · una modificación fue aprobada o rechazada (el original vuelve aquí) | Solicitar modificación → `SOLICITANDO_MODIFICACION` |
 | 6 | `SOLICITANDO_MODIFICACION` | Solicitando Modificación | El **original** espera que el supervisor apruebe o rechace la modificación. | El asesor solicita la modificación desde `PENDIENTE_CONFIRMACION` o `RECIBIDO` | Aprobada → `RECIBIDO` (y nace el `MOD-`) · Rechazada → vuelve al estado previo (`PENDIENTE_CONFIRMACION` o `RECIBIDO`) |
 | 7 | `MODIFICADO` | Modificado | Estado del vale **`MOD-`** desde que se aprueba la modificación hasta que pasa a confirmación. Ya está autorizado y corre el ciclo de taller. | El supervisor aprueba la modificación | Mismos caminos que `CREADO` (§1.1) |
-| 8 | `CONFIRMADO` | Confirmado | **No se guarda nunca en `vales.estado`**: existe en el catálogo y en el código, pero se usa solo como texto en `vale_historial` y como etiqueta que ve el asesor (`estadoVisibleAsesor`). En la base, un vale confirmado está en `RECIBIDO`. | — | — |
+| 8 | `CONFIRMADO` | Confirmado | **No se guarda nunca en `vales.estado` ni en `vale_historial`** (el historial registra `RECIBIDO`, el estado real): existe en el catálogo y en el código, pero solo sirve como etiqueta que ve el asesor (`estadoVisibleAsesor`). En la base, un vale confirmado está en `RECIBIDO`. | — | — |
 
 Diagrama general (flujo feliz y desvíos):
 
@@ -388,11 +388,11 @@ Desde/Hasta; con un rango el mes se desactiva) y paginación por cursor de 50 en
 
 | Límite | Dónde se valida | Efecto |
 |---|---|---|
-| **Cupo colectivo diario del Supervisor** = nº de asesores activos bajo su mando; cuenta las autorizaciones de **creación** que hizo hoy | Al **autorizar** (no al crear) | Al llegar al límite no puede autorizar más ese día. Al Administrador no le aplica. Crear un vale nunca se bloquea ni se pospone por esto. |
+| **Cupo colectivo diario del Supervisor** = nº de asesores activos bajo su mando; cuenta las autorizaciones de **creación** que hizo hoy | Al **autorizar** (no al crear) | Al llegar al límite no puede autorizar más ese día. Al Administrador no le aplica. Crear un vale nunca se bloquea ni se pospone por esto. Leer el cupo y sellar la autorización van en el mismo turno de la cola del supervisor, así que dos autorizaciones simultáneas no pueden pasarlo. La tarjeta "Autorizados hoy (equipo)" (N/M) la calcula el servidor con este mismo conteo. |
 | **Cupo diario por taller** (`talleres.limite_diario`, opcional; NULL = sin límite), sobre la fecha de **entrega** (no la de evento) | Al **crear**, al **solicitar** la modificación y al **aprobar** la modificación | Bloquea con un mensaje amigable ("el taller X ya no tiene cupo para el día…"). Las verificaciones + inserción son atómicas entre asesores (`conColaDeCapacidad`). El calendario del frontend solo lo anticipa. |
-| Un técnico = un vale `EN_PROCESO` | `comenzar` y `reanudar` | Debe entregar, cancelar o pausar el actual antes. |
+| Un técnico = un vale `EN_PROCESO` | `comenzar` y `reanudar` (en la cola del técnico: dos acciones simultáneas no lo superan) | Debe entregar, cancelar o pausar el actual antes. |
 | Una sola modificación por vale | `solicitarModificacion` | Ver §1.1. |
-| Adjuntos | `routes.js` | Máx. 3 MB por archivo; JPEG/PNG/WebP/PDF; hasta 10 imágenes y 5 documentos al crear. |
+| Adjuntos | `routes.js` | Máx. 3 MB por archivo; JPEG/PNG/WebP/PDF; hasta 10 imágenes y 5 documentos al crear. Un tipo no permitido se **rechaza** con un 400 (no se descarta en silencio). |
 
 Validaciones de formulario (creación y modificación): cliente (nombre,
 teléfono y correo válido) obligatorio, producto y material obligatorios,
@@ -510,7 +510,7 @@ Dónde aparece cada código (búscalo con `grep -rnw CODIGO src public database`
 - **`vale_historial`:** guarda el código como texto (`estado_anterior`,
   `estado_nuevo`) y **el código lo lee**: `valeDetalleService` clasifica cada
   fila del historial por el par de estados, y el rechazo de una modificación
-  recupera el "estado anterior" desde ahí (`valeModificacionService`). Si
+  recupera el "estado anterior" desde ahí (`valeModificacionService`). Aprobar y rechazar una modificación dejan ambos `SOLICITANDO_MODIFICACION → RECIBIDO` cuando el original estaba recibido: se distinguen por el texto de `accion`. Si
   renombras un código hay que hacer un `UPDATE vale_historial` por cada uno
   (en `estado_anterior` **y** `estado_nuevo`) en la misma migración, o el
   historial viejo dejará de clasificarse y un rechazo de modificación podría
