@@ -176,6 +176,7 @@ function renderTodo(data) {
       <section class="rend-panel rend-span-7" id="rend-panel-desempeno"></section>
       <section class="rend-panel rend-span-5" id="rend-panel-encurso"></section>
       <section class="rend-panel rend-span-12" id="rend-panel-criticos"></section>
+      <section class="rend-panel rend-span-12" id="rend-panel-asesores"></section>
     </div>
     <details class="rend-notas">
       <summary>Cómo se calculan estas métricas</summary>
@@ -184,6 +185,7 @@ function renderTodo(data) {
         <li><strong>Atrasados ahora:</strong> vales todavía en curso cuya fecha de entrega ya pasó.</li>
         <li><strong>Ciclo promedio:</strong> días desde la creación del vale hasta su confirmación.</li>
         <li><strong>Con modificación:</strong> vales originales que pidieron una modificación, sobre el total de vales originales (no cuenta los vales MOD-).</li>
+        <li><strong>Vales por asesor:</strong> vales originales ingresados por cada asesor en el período (no cuenta los vales MOD-). «Autorizados» ya pasaron por la autorización del supervisor; «Sin autorizar» siguen esperándola o fueron rechazados.</li>
         <li><strong>Desempeño por taller:</strong> un vale que pasa por varios talleres cuenta en cada uno; el cumplimiento es el del vale completo.</li>
         <li><strong>Variación:</strong> se compara contra el período inmediatamente anterior de igual duración; con «Todo» no hay comparación.</li>
       </ul>
@@ -193,6 +195,7 @@ function renderTodo(data) {
   renderDesempeno(data);
   renderEnCurso(data);
   renderCriticos(data);
+  renderAsesores(data);
 }
 
 function htmlKpis(data) {
@@ -392,6 +395,34 @@ function renderDesempeno(data) {
     renderDesempeno(ultimaData);
   }));
   conectarTooltips(panel);
+}
+
+// --- Vales ingresados por asesor ------------------------------------------
+function renderAsesores(data) {
+  const panel = $('#rend-panel-asesores');
+  const cab = cabeceraPanel('Vales por asesor', 'Cuántos vales ingresó cada asesor en el período, y cuántos ya fueron autorizados');
+  if (!data.asesores.length) {
+    panel.innerHTML = cab + vacio('people-outline', 'Sin vales en el período', 'Ningún asesor ingresó vales con los filtros actuales.');
+    return;
+  }
+  const total = data.asesores.reduce((s, a) => s + a.total, 0);
+  const autorizados = data.asesores.reduce((s, a) => s + a.autorizados, 0);
+  const filas = data.asesores.map(a => `
+    <tr>
+      <th scope="row" class="rend-nombre">${escapeHtml(a.nombre)}</th>
+      <td>${escapeHtml(nombreTienda(a.tiendaId))}</td>
+      <td class="rend-num"><strong>${fmtNum(a.total)}</strong></td>
+      <td class="rend-num">${fmtNum(a.autorizados)}</td>
+      <td class="rend-num">${a.sinAutorizar ? `<span class="rend-atrasados">${fmtNum(a.sinAutorizar)}</span>` : '<span class="rend-cero">0</span>'}</td>
+    </tr>`).join('');
+  panel.innerHTML = cab + `
+    <div class="rend-tabla-wrap">
+      <table class="rend-tabla rend-tabla--ranking">
+        <thead><tr><th>Asesor</th><th>Tienda</th><th class="rend-num">Ingresados</th><th class="rend-num">Autorizados</th><th class="rend-num">Sin autorizar</th></tr></thead>
+        <tbody>${filas}</tbody>
+        <tfoot><tr><th scope="row" colspan="2">Total</th><td class="rend-num"><strong>${fmtNum(total)}</strong></td><td class="rend-num">${fmtNum(autorizados)}</td><td class="rend-num">${fmtNum(total - autorizados)}</td></tr></tfoot>
+      </table>
+    </div>`;
 }
 
 // --- Vales en curso por etapa --------------------------------------------

@@ -10,7 +10,7 @@ Base: `.agents/modulos/vales de arte/correcciones/analisis_correcciones_37.md`. 
 | 6 | Rechazo de creación devuelve el vale con justificación | **hecho** |
 | 7 | Vigencia de 24 h con avisos | **hecho** |
 | 4 | Modificación igual al formulario de corregir | **hecho** |
-| 9 | Rendimiento: vales por asesor | pendiente |
+| 9 | Rendimiento: vales por asesor | **hecho** |
 | 2 y 3 | Filtros por fecha de entrega y navegador de mes | pendiente |
 | 1 | Supervisor creando vales | **omitido por ahora** (decisión del usuario) |
 
@@ -92,3 +92,11 @@ Verificación (la hora del servidor es UTC-6; las pruebas deben usar la misma zo
 - **Historial:** la autorización de una modificación (`ESPERANDO_AUTORIZACION → MODIFICADO`) se clasifica como autorización, igual que la de una creación.
 
 Verificación: por API, solicitar sin justificación (400); solicitar con un archivo quitado y uno nuevo (200; el `MOD-` no aparece en el buzón del asesor y sí como `mod_pendiente` en el del supervisor); aprobar sin ver (400) y tras ver el PDF (200: vale `MOD-` `MODIFICADO` con el taller en `PENDIENTE_ASIGNACION` y la propuesta original adjunta, original `RECIBIDO` modificado); rechazar (200: `MOD-` borrado, original intacto con sus archivos, la imagen nueva y el PDF del `MOD-` borrados de Storage y la imagen del original conservada); rechazar de nuevo (400); nueva solicitud tras el rechazo (200). En el navegador, como asesora: el formulario precargado, talleres fijos, justificación obligatoria, archivos actuales/nuevos y el aviso de éxito; como supervisor: aviso y botón desactivado antes de ver, "Ver" apuntando al `MOD-`, autorización con aviso de éxito, y el rechazo con su modal de confirmación y el original de vuelta en "pendiente de confirmación".
+
+## Punto 9 — Rendimiento: vales por asesor
+
+- **Sin tablas ni columnas nuevas:** el conteo sale de las columnas ya existentes de `vales` (`asesor_id`, `tienda_id`, `autorizado_por`) sobre los mismos vales de la ventana de tiempo del resto de la pantalla. `valeRendimientoService._porAsesor` agrupa los vales **originales** (no cuenta los `MOD-`, igual que las demás métricas) y devuelve, por asesor, `total` (ingresados), `autorizados` (los que ya pasaron por la autorización del supervisor, `autorizado_por` no nulo) y `sinAutorizar` (los que siguen esperándola o fueron rechazados). Ordenado por ingresados.
+- **Pantalla:** nuevo panel "Vales por asesor" al final de Rendimiento (Gerente y Supervisor): asesor, tienda, ingresados, autorizados y sin autorizar (en rojo si hay), con una fila de total. El Supervisor ve solo a sus asesores, como en el resto de la vista. Se agregó la explicación en "Cómo se calculan estas métricas".
+- Los vales que se borran (dados de baja o vencidos) dejan de contarse, porque ya no existen en la tabla.
+
+Verificación: Karla Ordoñez figura con 40 ingresados y 26 autorizados, igual que el conteo directo en la base; la suma del Gerente es 207 (181 autorizados, 26 sin autorizar) y el Supervisor ve solo sus 11 asesores. En el navegador, como Gerente, aparece el panel con el total.

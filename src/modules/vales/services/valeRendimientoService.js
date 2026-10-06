@@ -262,6 +262,7 @@ class ValeRendimientoService {
       enCurso: this._enCurso(enVentana),
       talleres: await this._porTaller(enVentana, talleresVisibles),
       tiendas: this._porTienda(enVentana),
+      asesores: await this._porAsesor(enVentana),
       criticos: this._criticos(enVentana)
     };
   }
@@ -356,6 +357,23 @@ class ValeRendimientoService {
     return [...porTienda.entries()]
       .map(([id, lista]) => ({ id, ...resumirGrupo(lista) }))
       .sort(ordenarRanking);
+  }
+
+  // Vales originales ingresados por cada asesor; "autorizados" son los que ya pasaron por la autorización del supervisor.
+  async _porAsesor(vales) {
+    const porAsesor = new Map();
+    vales.filter(v => !v.vale_original_id).forEach(v => {
+      if (!porAsesor.has(v.asesor_id)) porAsesor.set(v.asesor_id, { tiendaId: v.tienda_id, total: 0, autorizados: 0 });
+      const fila = porAsesor.get(v.asesor_id);
+      fila.total++;
+      if (v.autorizado_por) fila.autorizados++;
+    });
+    const filas = [];
+    for (const [id, fila] of porAsesor) {
+      const asesor = await usuarioValeRepository.obtenerPorId(id);
+      filas.push({ id, nombre: asesor ? asesor.nombre : `#${id}`, ...fila, sinAutorizar: fila.total - fila.autorizados });
+    }
+    return filas.sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre));
   }
 
   _criticos(vales) {
