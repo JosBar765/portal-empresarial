@@ -58,8 +58,10 @@ export function wireToolbar() {
     const desde = apiDesde.getDate() ? isoLocal(apiDesde.getDate()) : null;
     const hasta = apiHasta.getDate() ? isoLocal(apiHasta.getDate()) : null;
     if (!desde && !hasta) {
-      // Al limpiar el rango, vuelve al mes actual.
-      irAlMes(new Date());
+      // Al limpiar el rango, vuelve a "Todo", el valor por defecto.
+      state.ventana = { tipo: 'todo', fecha: state.ventana.fecha, desde: null, hasta: null };
+      pintarVentana();
+      cargarBuzon();
       return;
     }
     state.ventana = { tipo: 'rango', fecha: state.ventana.fecha, desde, hasta };

@@ -381,7 +381,7 @@ tienen las mismas columnas para todos; cambian filtros, orden y acciones.
 activo (los demás contadores son mutuamente excluyentes). Además hay filtro
 por estado, búsqueda por correlativo/cliente/empresa, orden por columna
 (reemplaza la jerarquía de negocio mientras está activo), ventana de tiempo
-por **fecha de entrega** (`Todo`, navegador de mes —arranca en el mes actual— o rango
+por **fecha de entrega** (`Todo` —el valor por defecto—, navegador de mes o rango
 Desde/Hasta; con un rango el mes se desactiva) y paginación por cursor de 50 en 50.
 
 ## 5. Límites y cupos

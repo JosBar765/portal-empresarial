@@ -8,8 +8,8 @@ export const state = {
   vales: [],
   contadores: {},
   vista: 'buzon', // solo aplica a roles con sidebar
-  // Arranca siempre en el mes actual; `fecha` es el primer día del mes elegido.
-  ventana: { tipo: 'mes', fecha: isoLocal(primerDiaDelMes(new Date())), desde: null, hasta: null },
+  // Arranca en "Todo"; `fecha` es el primer día del mes que se elige al pulsar el selector de mes.
+  ventana: { tipo: 'todo', fecha: isoLocal(primerDiaDelMes(new Date())), desde: null, hasta: null },
   tiendaId: null, // Vista Gerencia: filtro de tienda
   filtroContador: null,
   soloAtrasados: false, // combinable con filtroContador

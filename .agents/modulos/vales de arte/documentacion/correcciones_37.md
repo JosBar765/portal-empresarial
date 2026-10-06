@@ -17,7 +17,7 @@ Base: `.agents/modulos/vales de arte/correcciones/analisis_correcciones_37.md`. 
 ## Decisiones acordadas
 
 - **Filtros (2):** el filtro de tiempo usa la fecha de entrega en Buzón, Trabajo realizado y Rendimiento.
-- **Ventana (3):** queda `Todo`, `< mes >` y rango de fechas; `< mes >` arranca en el mes actual (al retroceder de enero se pasa a diciembre del año anterior) y se desactiva mientras haya un rango elegido, hasta limpiarlo.
+- **Ventana (3):** queda `Todo`, `< mes >` y rango de fechas; la vista arranca en `Todo` y `< mes >` se activa al pulsar el nombre del mes (al retroceder de enero se pasa a diciembre del año anterior) y se desactiva mientras haya un rango elegido, hasta limpiarlo.
 - **Modificación (4):** mismo formulario que "Corregir" (archivos actuales precargados, quitar o agregar); datos del original precargados y talleres fijos (todos los del original); la justificación sigue siendo la descripción del vale `MOD-`. Si se rechaza la solicitud, se borra el vale `MOD-` generado (con sus archivos) y el original queda intacto.
 - **Ver antes de autorizar (5):** debe abrir "Ver" cada vale pendiente (creación o modificación); se exige también en el servidor; si el asesor corrige el vale, la marca de "visto" se reinicia.
 - **Rechazo (6):** el rechazo de una creación no borra el vale: pasa a un estado `RECHAZADO` y vuelve al asesor con una justificación (máx. 50 palabras) y una notificación. El asesor puede corregirlo y reenviarlo con un botón, o darlo de baja. El rechazo de una modificación borra el vale `MOD-`.
@@ -106,7 +106,7 @@ Verificación: Karla Ordoñez figura con 40 ingresados y 26 autorizados, igual q
 ## Puntos 2 y 3 — Filtros por fecha de entrega y navegador de mes
 
 - **Fecha de entrega:** `dentroDeVentana` (Buzón y Trabajo realizado) y la ventana de Rendimiento filtran ahora por `fecha_entrega`, no por la de creación. El rango "Desde" sin "Hasta" queda abierto hacia adelante (ya no se corta en hoy), porque las entregas son futuras.
-- **Navegador de mes:** reemplaza a Día, Semana y Mes. Quedan `Todo`, `< mes año >` y el rango Desde/Hasta; arranca en el mes actual, las flechas pasan de enero al diciembre del año anterior y viceversa, y pulsar el nombre del mes vuelve al actual.
+- **Navegador de mes:** reemplaza a Día, Semana y Mes. Quedan `Todo`, `< mes año >` y el rango Desde/Hasta; arranca en `Todo` (decisión posterior: antes arrancaba en el mes actual), las flechas pasan de enero al diciembre del año anterior y viceversa, y pulsar el nombre del mes vuelve al actual.
 - **Exclusión:** con un rango elegido el selector de mes se desactiva; con `Todo` se desactivan las flechas. Limpiar el rango vuelve al mes actual.
 - **Aplica a:** Buzón, Trabajo realizado y Rendimiento (la ventana anterior de comparación y la tendencia usan la fecha de entrega; ya no existen las ventanas día/semana).
 
