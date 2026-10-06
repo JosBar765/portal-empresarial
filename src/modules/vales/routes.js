@@ -11,8 +11,12 @@ const TIPOS_PERMITIDOS = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 3 * 1024 * 1024 },
+  // Un tipo no permitido se rechaza con error (antes se descartaba en silencio y el vale se creaba sin ese archivo).
   fileFilter: (req, file, cb) => {
-    cb(null, TIPOS_PERMITIDOS.has(file.mimetype));
+    if (TIPOS_PERMITIDOS.has(file.mimetype)) return cb(null, true);
+    const error = new multer.MulterError('TIPO_NO_PERMITIDO', file.fieldname);
+    error.archivo = String(file.originalname || '').replace(/[<>"'&]/g, '').slice(0, 80);
+    return cb(error);
   }
 });
 

@@ -165,7 +165,9 @@ app.use((err, req, res, next) => {
   // mysql2 incluye el SQL con los valores.
   console.error('[Global Error Handler]', (err && err.stack) || String(err));
   if (err instanceof multer.MulterError) {
-    const mensaje = (err.code === 'LIMIT_UNEXPECTED_FILE' && MENSAJES_EXCESO_POR_CAMPO[err.field]) || MENSAJES_MULTER[err.code] || 'No se pudo procesar el archivo adjunto.';
+    const mensaje = err.code === 'TIPO_NO_PERMITIDO'
+      ? `Formato de archivo no permitido${err.archivo ? `: ${err.archivo}` : ''}. Solo se aceptan JPG, PNG, WEBP y PDF.`
+      : (err.code === 'LIMIT_UNEXPECTED_FILE' && MENSAJES_EXCESO_POR_CAMPO[err.field]) || MENSAJES_MULTER[err.code] || 'No se pudo procesar el archivo adjunto.';
     return res.status(400).json({ error: mensaje });
   }
   // Errores de lectura del cuerpo: mensaje fijo, sin el texto del analizador.
