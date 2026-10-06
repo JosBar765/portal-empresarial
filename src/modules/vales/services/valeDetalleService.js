@@ -76,13 +76,7 @@ class ValeDetalleService {
     // El supervisor necesita ver la justificación al decidir si autoriza la
     // modificación — se adjunta solo cuando aplica, reusando la misma
     // consulta que ya usa aprobarModificacion() en valeConfirmacionService.
-    let solicitudModificacion = null;
-    if (vale.estado === ESTADOS.SOLICITANDO_MODIFICACION) {
-      const mod = await valeRepository.obtenerModificacionPendiente(valeId);
-      if (mod) solicitudModificacion = { justificacion: mod.descripcion, valeId: mod.id };
-    }
-
-    return { ...enriquecer(vale), talleres: talleresConNombre, propuestas, documentos, historial: historialVisible, solicitudModificacion };
+    return { ...enriquecer(vale), talleres: talleresConNombre, propuestas, documentos, historial: historialVisible };
   }
 
   // Control de propiedad: cada rol solo puede pedir el detalle de un vale

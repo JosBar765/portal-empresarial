@@ -13,10 +13,11 @@ const ESTADOS = {
   CONFIRMADO: 'CONFIRMADO',
   RECHAZADO: 'RECHAZADO'
 };
-// Estados en los que el asesor todavía puede corregir, reenviar o dar de baja su vale.
-const ESTADOS_EDITABLES_ASESOR = [ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.RECHAZADO];
+// Estados en los que el asesor todavía puede corregir, reenviar o dar de baja su vale
+// (SOLICITANDO_MODIFICACION es el "esperando autorización" de un vale MOD-).
+const ESTADOS_EDITABLES_ASESOR = [ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.SOLICITANDO_MODIFICACION, ESTADOS.RECHAZADO];
 const ESTADOS_TERMINALES = [ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
-const ESTADOS_CONFIRMADOS = [ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO, ESTADOS.SOLICITANDO_MODIFICACION];
+const ESTADOS_CONFIRMADOS = [ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
 
 const ESTADOS_TALLER = {
   PENDIENTE_ASIGNACION: 'PENDIENTE_ASIGNACION',
@@ -122,6 +123,11 @@ function esValeDeModificacion(vale) {
   return vale.vale_original_id != null;
 }
 
+// El estado en que un vale espera la decisión del supervisor: un MOD- nace en SOLICITANDO_MODIFICACION.
+function estadoEnAutorizacion(vale) {
+  return esValeDeModificacion(vale) ? ESTADOS.SOLICITANDO_MODIFICACION : ESTADOS.ESPERANDO_AUTORIZACION;
+}
+
 function etiquetaActorTaller(usuario) {
   return usuario.rolId === ROL.TECNICO ? 'Técnico' : 'Encargado';
 }
@@ -129,6 +135,8 @@ function etiquetaActorTaller(usuario) {
 function estadoVisibleAsesor(vale) {
   if (esValeDeModificacion(vale)) {
     switch (vale.estado) {
+      case ESTADOS.SOLICITANDO_MODIFICACION: return 'SOLICITANDO_MODIFICACION';
+      case ESTADOS.RECHAZADO: return 'RECHAZADO';
       case ESTADOS.MODIFICADO: return 'MODIFICADO';
       case ESTADOS.PENDIENTE_CONFIRMACION: return 'PENDIENTE_CONFIRMACION';
       case ESTADOS.RECIBIDO: return 'CONFIRMADO';
@@ -138,7 +146,6 @@ function estadoVisibleAsesor(vale) {
   }
   switch (vale.estado) {
     case ESTADOS.ESPERANDO_AUTORIZACION: return 'ESPERANDO_AUTORIZACION';
-    case ESTADOS.SOLICITANDO_MODIFICACION: return 'SOLICITANDO_MODIFICACION';
     case ESTADOS.PENDIENTE_CONFIRMACION: return 'PENDIENTE_CONFIRMACION';
     case ESTADOS.RECHAZADO: return 'RECHAZADO';
     case ESTADOS.RECIBIDO: return 'CONFIRMADO';
@@ -251,7 +258,7 @@ module.exports = {
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistenteDeDiseno,
   inicialesAsesor, hoyISO, horaActual, calcularAtraso, enriquecer,
-  esValeDeModificacion, etiquetaActorTaller, estadoVisibleAsesor,
+  esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy, esVerdadero,
   normalizarDatetime, calcularUrgente, registrarHistorial,
   requerirVale, assertPropioDelAsesor, validarMotivoRechazo

@@ -17,6 +17,11 @@ class ValeConfirmacionService {
       if (vale.estado !== ESTADOS.PENDIENTE_CONFIRMACION) {
         throw new Error('Solo se puede confirmar de recibido un vale que está pendiente de tu confirmación.');
       }
+      // Con una modificación en trámite hay un solo camino a la vez: se espera su decisión, o se da de baja el MOD-.
+      const modEnTramite = await valeRepository.obtenerModificacionEnTramite(valeId);
+      if (modEnTramite) {
+        throw new Error(`Este vale tiene la solicitud de modificación ${modEnTramite.correlativo} en trámite. Espera la decisión del supervisor o da de baja esa solicitud antes de confirmarlo.`);
+      }
       await valeRepository.actualizarEstado(valeId, ESTADOS.RECIBIDO);
       const ahora = `${hoyISO()} ${horaActual()}`;
       // Congela el atraso de forma permanente — ya no debe seguir corriendo

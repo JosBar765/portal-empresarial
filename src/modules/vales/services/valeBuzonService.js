@@ -78,6 +78,9 @@ class ValeBuzonService {
       mapaTalleresPorVale.set(vt.vale_id, lista);
     });
     const nombreTaller = (id) => (talleresTodos.find(t => t.id === id) || {}).nombre || `#${id}`;
+    // Un original con una modificación en trámite sigue en su estado: este dato permite avisarlo y bloquear "Confirmar".
+    const enTramite = new Map((await valeRepository.listarModificacionesEnTramite())
+      .map(m => [m.vale_original_id, { id: m.id, correlativo: m.correlativo, estado: m.estado }]));
     return vales.map(v => {
       const filas = mapaTalleresPorVale.get(v.id) || [];
       // Un vale en ESPERANDO_AUTORIZACION todavía no tiene filas reales en
@@ -88,7 +91,7 @@ class ValeBuzonService {
       const idsTaller = filas.length > 0
         ? filas.map(f => f.taller_id)
         : String(v.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
-      return { ...v, taller: idsTaller.map(nombreTaller).join(', '), _filasTaller: filas };
+      return { ...v, taller: idsTaller.map(nombreTaller).join(', '), _filasTaller: filas, mod_en_tramite: enTramite.get(v.id) || null };
     });
   }
 
@@ -334,13 +337,7 @@ class ValeBuzonService {
   async _buzonSupervisor(usuario, todos, ventana, filtroContador) {
     const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
     const vistos = new Set(await valeVistoRepository.listarIdsPorUsuario(usuario.id));
-    const modificaciones = new Map((await valeRepository.listarModificacionesPendientes()).map(m => [m.vale_original_id, m]));
-    const propios = todos.filter(v => misAsesoresIds.has(v.asesor_id)).map(v => {
-      const mod = modificaciones.get(v.id);
-      return mod
-        ? { ...v, mod_pendiente: { ...mod, taller: v.taller }, visto: vistos.has(mod.id) }
-        : { ...v, visto: vistos.has(v.id) };
-    });
+    const propios = todos.filter(v => misAsesoresIds.has(v.asesor_id)).map(v => ({ ...v, visto: vistos.has(v.id) }));
     const visibles = propios.filter(v => [
       ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.SOLICITANDO_MODIFICACION, ESTADOS.MODIFICADO, ESTADOS.PENDIENTE_CONFIRMACION
     ].includes(v.estado));

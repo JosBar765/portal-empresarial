@@ -3,14 +3,14 @@
 const valeRepository = require('../repositories/valeRepository');
 const valeVistoRepository = require('../repositories/valeVistoRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
-const { ESTADOS, ROL, esAdministrador } = require('./valeHelpers');
+const { ROL, esAdministrador, estadoEnAutorizacion } = require('./valeHelpers');
 
 class ValeVistoService {
   // Solo cuenta para un supervisor del asesor y sobre un vale pendiente de autorización; en otro caso se ignora.
   async marcarVisto(usuario, valeId) {
     if (usuario.rolId !== ROL.SUPERVISOR) return;
     const vale = await valeRepository.obtenerPorId(valeId);
-    if (!vale || vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) return;
+    if (!vale || vale.estado !== estadoEnAutorizacion(vale)) return;
     const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
     if (!supervisores.some(s => s.id === usuario.id)) return;
     await valeVistoRepository.registrar(valeId, usuario.id);

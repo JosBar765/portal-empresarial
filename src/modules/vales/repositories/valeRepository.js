@@ -96,25 +96,23 @@ class ValeRepository {
     await db.query('DELETE FROM vales WHERE id = ?', [id], 'vale:delete');
   }
 
-  // Un vale MOD- que aún espera autorización es parte de una solicitud en curso: no aparece en ninguna lista.
   async listarTodos() {
+    return db.query(SELECT_VALE, [], 'vale:list_all');
+  }
+
+  // Vales MOD- todavía en trámite (esperando al supervisor o rechazados): el original no cambia de estado
+  // mientras tanto, así que esta lista es la que dice qué originales tienen una modificación en curso.
+  async listarModificacionesEnTramite() {
     return db.query(
-      `${SELECT_VALE} WHERE NOT (v.vale_original_id IS NOT NULL AND ev.nombre = 'ESPERANDO_AUTORIZACION')`,
-      [], 'vale:list_all'
+      `${SELECT_VALE} WHERE v.vale_original_id IS NOT NULL AND ev.nombre IN ('SOLICITANDO_MODIFICACION', 'RECHAZADO')`,
+      [], 'vale:list_modificaciones_en_tramite'
     );
   }
 
-  async listarModificacionesPendientes() {
-    return db.query(
-      `${SELECT_VALE} WHERE v.vale_original_id IS NOT NULL AND ev.nombre = 'ESPERANDO_AUTORIZACION'`,
-      [], 'vale:list_modificaciones_pendientes'
-    );
-  }
-
-  async obtenerModificacionPendiente(valeOriginalId) {
+  async obtenerModificacionEnTramite(valeOriginalId) {
     const rows = await db.query(
-      `${SELECT_VALE} WHERE v.vale_original_id = ? AND ev.nombre = 'ESPERANDO_AUTORIZACION' LIMIT 1`,
-      [valeOriginalId], 'vale:find_modificacion_pendiente'
+      `${SELECT_VALE} WHERE v.vale_original_id = ? AND ev.nombre IN ('SOLICITANDO_MODIFICACION', 'RECHAZADO') LIMIT 1`,
+      [valeOriginalId], 'vale:find_modificacion_en_tramite'
     );
     return rows[0] || null;
   }
@@ -231,7 +229,7 @@ class ValeRepository {
     return db.query(
       `${SELECT_VALE}
        WHERE v.vigencia_hasta IS NOT NULL AND v.vigencia_hasta <= NOW()
-         AND ev.nombre IN ('ESPERANDO_AUTORIZACION', 'RECHAZADO')`,
+         AND ev.nombre IN ('ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO')`,
       [], 'vale:list_vigencia_vencida'
     );
   }
@@ -241,7 +239,7 @@ class ValeRepository {
       `${SELECT_VALE}
        WHERE v.vigencia_hasta IS NOT NULL AND v.vigencia_aviso_en IS NULL
          AND v.vigencia_hasta > NOW() AND v.vigencia_hasta <= DATE_ADD(NOW(), INTERVAL ? HOUR)
-         AND ev.nombre IN ('ESPERANDO_AUTORIZACION', 'RECHAZADO')`,
+         AND ev.nombre IN ('ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO')`,
       [horas], 'vale:list_por_expirar'
     );
   }
