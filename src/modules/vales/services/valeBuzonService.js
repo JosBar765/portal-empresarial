@@ -11,6 +11,7 @@ const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeVistoRepository = require('../repositories/valeVistoRepository');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
@@ -39,11 +40,26 @@ function compararCorrelativos(a, b) {
 }
 
 class ValeBuzonService {
+  // Ventana de tiempo del buzón y de Rendimiento; un valor inválido es un 400, no un error interno.
   _resolverVentana(filtros = {}) {
-    if (filtros.ventana === 'rango') {
-      return { tipo: 'rango', desde: filtros.desde || null, hasta: filtros.hasta || null };
+    const tipo = filtros.ventana || 'todo';
+    if (!['todo', 'mes', 'rango'].includes(tipo)) throw new ErrorDeNegocio('El período elegido no es válido.');
+    const fechaValida = (valor, etiqueta) => {
+      if (valor === undefined || valor === null || valor === '') return null;
+      const texto = String(valor);
+      const f = new Date(`${texto}T00:00:00Z`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(texto) || Number.isNaN(f.getTime()) || f.toISOString().slice(0, 10) !== texto) {
+        throw new ErrorDeNegocio(`La fecha ${etiqueta} no es válida.`);
+      }
+      return texto;
+    };
+    if (tipo === 'rango') {
+      const desde = fechaValida(filtros.desde, '«Desde»');
+      const hasta = fechaValida(filtros.hasta, '«Hasta»');
+      if (desde && hasta && desde > hasta) throw new ErrorDeNegocio('La fecha «Desde» no puede ser posterior a «Hasta».');
+      return { tipo, desde, hasta };
     }
-    return { tipo: filtros.ventana || 'todo', fecha: filtros.fecha };
+    return { tipo, fecha: fechaValida(filtros.fecha, 'del mes') || undefined };
   }
 
   // Adjunta a cada vale el nombre legible de sus talleres (columna "Taller"
