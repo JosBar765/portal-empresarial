@@ -23,8 +23,7 @@ export const CONTADORES_CONFIG = {
   },
   [ROL.SUPERVISOR]: {
     buzon: [
-      // Contador colectivo ascendente "autorizados/asesores" — se calcula
-      // aparte, ver views/buzon.js (cargarBuzon).
+      // Contador colectivo "autorizados/asesores" — lo calcula el servidor.
       { key: 'valesAutorizadosHoy', label: 'Autorizados hoy (equipo)', esTexto: true },
       { key: 'pendientesAutorizacion', label: 'Por autorizar creación', filtro: 'pendientesAutorizacion' },
       { key: 'pendientesConfirmarModificacion', label: 'Por autorizar modificación', filtro: 'pendientesConfirmarModificacion' },

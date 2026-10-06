@@ -5,7 +5,7 @@ import { ESTADOS_LABEL, ESTADOS_VISIBLES_LABEL, CLAVES_ESTADOS_TALLER, CLAVES_ES
 import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible, claseEstado, etiquetaEstado } from '../permisos.js';
 import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro } from '../utils/formato.js';
-import { obtenerBuzon, obtenerMasVales, obtenerLimiteColectivo } from '../api/valesApi.js';
+import { obtenerBuzon, obtenerMasVales } from '../api/valesApi.js';
 import { cargarRendimientoGerencia } from './rendimientoGerencia.js';
 import { cargarEncontrarVale } from './encontrarVale.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
@@ -71,15 +71,6 @@ export async function cargarBuzon() {
         </div>
       </td></tr>`;
     return;
-  }
-
-  // El límite diario es un contador colectivo ascendente "autorizados/asesores"
-  // del Supervisor.
-  if (state.user.rolId === ROL.SUPERVISOR && state.vista !== 'trabajo') {
-    try {
-      const d = await obtenerLimiteColectivo();
-      state.contadores.valesAutorizadosHoy = `${d.autorizados}/${d.limite}`;
-    } catch { /* no bloquea el render del buzón */ }
   }
 
   renderContadores();

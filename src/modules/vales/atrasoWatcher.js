@@ -52,7 +52,7 @@ async function revisarAtrasos() {
     const vencidos = await valeRepository.listarAtrasadosSinNotificar();
     for (const vale of vencidos) {
       const salas = await salasParaVale(vale);
-      valeEvents.notificar({ vale, accion: 'marcado como atrasado', salas, nivel: 'alerta' });
+      valeEvents.notificar({ vale, accion: 'marcado como atrasado', tipo: 'ATRASO', salas, nivel: 'alerta' });
       await valeRepository.marcarAtrasoNotificado(vale.id, ahoraLocal());
     }
   } catch (error) {

@@ -63,11 +63,6 @@ export async function obtenerMasVales(qs) {
   return leerJSON(res);
 }
 
-export async function obtenerLimiteColectivo() {
-  const res = await fetch('/api/vales/limite-colectivo');
-  return leerJSON(res);
-}
-
 // Capacidad por día del mes visible, para el calendario de "Fecha de
 // entrega" — analisis_correcciones_28.md.
 export async function obtenerCapacidadEntrega(talleresIds, anio, mes) {

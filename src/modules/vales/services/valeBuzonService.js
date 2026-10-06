@@ -16,7 +16,7 @@ const valeVistoRepository = require('../repositories/valeVistoRepository');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
   esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
-  ordenarPorFecha, esHoy, estadoVisibleAsesor,
+  ordenarPorFecha, esHoy, estadoVisibleAsesor, hoyISO,
   ROLES_TALLER_Y_TECNICO
 } = require('./valeHelpers');
 
@@ -346,10 +346,8 @@ class ValeBuzonService {
     ].includes(v.estado));
     const enVentana = visibles.filter(v => dentroDeVentana(v, ventana));
     const contadores = {
-      // Se calcula por separado en
-      // valeCreacionService.obtenerLimiteColectivoSupervisor() — la tarjeta
-      // arma el texto "N/M" igual que ya hacía el asesor.
-      valesAutorizadosHoy: null,
+      // "N/M": autorizaciones de creación que hizo hoy el supervisor / asesores a su cargo (el mismo cupo que se valida al autorizar).
+      valesAutorizadosHoy: `${await valeRepository.contarAutorizacionesCreacionPorSupervisorYFecha(usuario.id, hoyISO())}/${misAsesoresIds.size}`,
       pendientesAutorizacion: enVentana.filter(v => v.estado === ESTADOS.ESPERANDO_AUTORIZACION).length,
       pendientesConfirmarModificacion: enVentana.filter(v => v.estado === ESTADOS.SOLICITANDO_MODIFICACION).length,
       modificados: enVentana.filter(v => v.estado === ESTADOS.MODIFICADO).length,
