@@ -24,7 +24,7 @@ const valeMutex = require('./valeMutex');
 const valeVistoService = require('./valeVistoService');
 const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
-  ESTADOS, inicialesAsesor, hoyISO, horaActual, enriquecer,
+  ESTADOS, hoyISO, horaActual, enriquecer,
   normalizarDatetime, calcularUrgente, registrarHistorial,
   esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, validarMotivoRechazo,
   esValeDeModificacion, estadoEnAutorizacion
@@ -51,6 +51,10 @@ class ValeCreacionService {
     if (!tienda) {
       throw new Error('No se encontró la tienda asignada a tu usuario. Avisa al administrador.');
     }
+    // El país del correlativo es el de la empresa de la tienda.
+    if (!tienda.pais_codigo) {
+      throw new Error('La tienda asignada a tu usuario no tiene un país configurado, así que no se puede crear el vale. Avisa al administrador.');
+    }
     // Los talleres elegibles/exclusividad dependen de la tienda del propio
     // asesor — se resuelve ANTES de validar.
     const datos = await this.validarDatosVale(payload, { tiendaIdAsesor: tienda.id });
@@ -73,12 +77,10 @@ class ValeCreacionService {
       return valeMutex.conColaDeCreacion(usuario.id, async () => {
         const hoy = hoyISO();
 
-        // {TIENDA}-{INICIALES}-{ID}. El número es el id autoincremental de
-        // MySQL (asignado por valeRepository.crear DESPUÉS del insert) —
-        // nunca se reutiliza ni retrocede sin importar cuántos vales se
-        // borren después (a diferencia de un contador en vivo). Los
-        // correlativos históricos (GUA-3-0001, etc.) no se renumeran.
-        const correlativoPrefijo = `${tienda.codigo}-${inicialesAsesor(solicitante.nombre)}`;
+        // {PAÍS}-{TIENDA}-{MMAA}-{ID}: país de la empresa de la tienda y mes/año de creación. El número es el id
+        // autoincremental de MySQL (asignado por valeRepository.crear DESPUÉS del insert) — global, y nunca se
+        // reutiliza ni retrocede sin importar cuántos vales se borren después. Los correlativos anteriores no se renumeran.
+        const correlativoPrefijo = `${tienda.pais_codigo}-${tienda.codigo}-${hoy.slice(5, 7)}${hoy.slice(2, 4)}`;
 
         return valeRepository.crear({
           correlativoPrefijo,

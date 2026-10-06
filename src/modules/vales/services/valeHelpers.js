@@ -60,13 +60,6 @@ function esAsistenteDeDiseno(usuario) {
   return usuario.rolId === ROL.ASISTENTE_DISENO;
 }
 
-function inicialesAsesor(nombreCompleto) {
-  const partes = String(nombreCompleto || '').trim().split(/\s+/);
-  const p1 = (partes[0] || '?')[0];
-  const p2 = (partes[1] || partes[0] || '?')[0];
-  return `${p1}${p2}`.toUpperCase();
-}
-
 // Centroamérica (salvo Belice y Panamá) usa UTC-6 sin horario de verano —
 // se calcula por aritmética de offset fijo en vez de depender de la zona
 // horaria del sistema operativo del proceso Node, que en un host
@@ -257,7 +250,7 @@ module.exports = {
   ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistenteDeDiseno,
-  inicialesAsesor, hoyISO, horaActual, calcularAtraso, enriquecer,
+  hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy, esVerdadero,
   normalizarDatetime, calcularUrgente, registrarHistorial,
