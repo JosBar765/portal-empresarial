@@ -8,7 +8,7 @@ Base: `.agents/modulos/vales de arte/correcciones/analisis_correcciones_37.md`. 
 | 10 | Centro de notificaciones | **hecho** |
 | 5 | Obligatorio ver el vale antes de autorizar | **hecho** |
 | 6 | Rechazo de creación devuelve el vale con justificación | **hecho** |
-| 7 | Vigencia de 24 h con avisos | pendiente |
+| 7 | Vigencia de 24 h con avisos | **hecho** |
 | 4 | Modificación igual al formulario de corregir | pendiente |
 | 9 | Rendimiento: vales por asesor | pendiente |
 | 2 y 3 | Filtros por fecha de entrega y navegador de mes | pendiente |
@@ -67,3 +67,14 @@ Verificación: por API, autorizar sin ver da 400; abrir el PDF (302) o "Ver info
 - El rechazo de una **modificación** no cambia en este punto: se resuelve en el punto 4 (se borrará el vale `MOD-`).
 
 Verificación: por API, rechazar sin motivo (400), con 51 palabras (400) y con motivo válido (200, estado `RECHAZADO`, motivo visible para el asesor, notificación guardada); autorizar un vale rechazado da error; reenviar lo devuelve a "esperando autorización" y limpia el motivo; reenviar un vale no rechazado da error; corregir y dar de baja un vale rechazado funcionan. En el navegador, como supervisor, el modal con contador de palabras rechazó el vale con aviso de éxito; como asesora, aparecieron el contador "Rechazados", el estado en rojo, el modal del motivo, la notificación con el motivo, el aviso en "Corregir" y "Reenviar a autorización" dejó el vale otra vez en espera. Una primera prueba falló por el límite de 150 caracteres del historial y dejó un vale a medias (rechazado sin historial); eso motivó la transacción y el ensanche de la columna.
+
+## Punto 7 — Vigencia de 24 horas para ser autorizado
+
+- **Columnas nuevas en `vales`:** `vigencia_hasta` (creación + 24 h, solo para vales creados desde ahora) y `vigencia_aviso_en` (marca el aviso ya enviado). Los vales pendientes que ya existían tienen `vigencia_hasta` NULL y no se tocan (decisión acordada). En una base existente: `ALTER TABLE vales ADD COLUMN vigencia_hasta DATETIME DEFAULT NULL, ADD COLUMN vigencia_aviso_en DATETIME DEFAULT NULL`.
+- **Alcance:** solo la creación de vales (`crearVale` fija `conVigencia`); las solicitudes de modificación no expiran. El plazo cuenta desde la creación y **no se reinicia** al corregir, rechazar ni reenviar. Aplica a vales en `ESPERANDO_AUTORIZACION` y `RECHAZADO`.
+- **Vigilante** (`vigenciaWatcher.js`, cada 60 s, mismo proceso que `atrasoWatcher`):
+  - 6 horas antes del final avisa una sola vez: "Vale: X está por expirar: se eliminará automáticamente en menos de 6 horas si no es autorizado" (al asesor y a sus supervisores; si el vale está rechazado, solo al asesor).
+  - Al vencer, `valeCreacionService.expirarVale` (dentro del lock del vale, comprobando de nuevo el estado) elimina el vale con sus archivos de Storage y avisa al asesor y a sus supervisores: "Vale: X fue eliminado automáticamente: venció su vigencia de 24 horas sin ser autorizado".
+- Ambos avisos son notificaciones de alerta guardadas en el centro de notificaciones (tipos `POR_EXPIRAR` y `EXPIRADO`); la de un vale eliminado se guarda sin referenciar el vale. `valeEvents.notificar` gana el parámetro `texto` para frases que no empiezan por "fue …".
+
+Verificación (la hora del servidor es UTC-6; las pruebas deben usar la misma zona): un vale nuevo queda con 24 h de vigencia; uno con 5 h restantes recibe el aviso una sola vez (una segunda revisión no lo repite); uno vencido en espera de autorización se elimina junto con su imagen en Storage; uno vencido y rechazado también; uno con 24 h completas y los 22 vales viejos sin vigencia no se tocan. En el navegador, como asesora, el vigilante del servidor entregó en vivo a la campana el aviso de "por expirar" y el de "eliminado automáticamente", y el vale vencido desapareció del buzón.

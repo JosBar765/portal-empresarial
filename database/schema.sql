@@ -221,6 +221,8 @@ CREATE TABLE IF NOT EXISTS `vales` (
   `autorizado_en`         DATETIME DEFAULT NULL,
   `autorizacion_tipo_id`  INT DEFAULT NULL,
   `confirmado_en`         DATETIME DEFAULT NULL,
+  `vigencia_hasta`        DATETIME DEFAULT NULL,
+  `vigencia_aviso_en`     DATETIME DEFAULT NULL,
   `rechazo_motivo`        VARCHAR(500) DEFAULT NULL,
   `rechazado_por`         INT DEFAULT NULL,
   `rechazado_en`          DATETIME DEFAULT NULL,

@@ -30,12 +30,13 @@ class ValeRepository {
         correlativo, asesor_id, tienda_id, vale_original_id, fecha_creacion, hora_creacion, fecha_entrega, fecha_evento, urgente,
         cliente_empresa, cliente_nombre, cliente_telefono, cliente_correo,
         producto, material, tecnica, acabado, cantidad, cotizacion, descripcion, estado_id,
-        talleres_solicitados, autorizado_por, autorizado_en, autorizacion_tipo_id
+        talleres_solicitados, autorizado_por, autorizado_en, autorizacion_tipo_id, vigencia_hasta
       ) VALUES (
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
         (SELECT id FROM estados_vale WHERE nombre = ?),
         ?, ?, ?,
-        (SELECT id FROM tipos_autorizacion WHERE nombre = ?)
+        (SELECT id FROM tipos_autorizacion WHERE nombre = ?),
+        IF(?, DATE_ADD(NOW(), INTERVAL 24 HOUR), NULL)
       )`,
       [
         placeholder, data.asesorId, data.tiendaId, data.valeOriginalId || null, data.fechaCreacion, data.horaCreacion,
@@ -47,7 +48,8 @@ class ValeRepository {
         // espera autorización; `autorizadoPor`/`autorizadoEn`/`autorizacionTipo`
         // solo vienen poblados cuando el vale nace ya autorizado (el MOD- que
         // crea aprobarModificacion).
-        data.talleresSolicitados || null, data.autorizadoPor || null, data.autorizadoEn || null, data.autorizacionTipo || null
+        data.talleresSolicitados || null, data.autorizadoPor || null, data.autorizadoEn || null, data.autorizacionTipo || null,
+        data.conVigencia ? 1 : 0
       ],
       'vale:insert'
     );
@@ -203,6 +205,30 @@ class ValeRepository {
       [],
       'vale:list_atrasados_sin_notificar'
     );
+  }
+
+  // Vales con vigencia de 24 h (solo creaciones nuevas) que siguen sin autorizarse.
+  async listarVigenciaVencida() {
+    return db.query(
+      `${SELECT_VALE}
+       WHERE v.vigencia_hasta IS NOT NULL AND v.vigencia_hasta <= NOW()
+         AND ev.nombre IN ('ESPERANDO_AUTORIZACION', 'RECHAZADO')`,
+      [], 'vale:list_vigencia_vencida'
+    );
+  }
+
+  async listarPorExpirar(horas) {
+    return db.query(
+      `${SELECT_VALE}
+       WHERE v.vigencia_hasta IS NOT NULL AND v.vigencia_aviso_en IS NULL
+         AND v.vigencia_hasta > NOW() AND v.vigencia_hasta <= DATE_ADD(NOW(), INTERVAL ? HOUR)
+         AND ev.nombre IN ('ESPERANDO_AUTORIZACION', 'RECHAZADO')`,
+      [horas], 'vale:list_por_expirar'
+    );
+  }
+
+  async marcarAvisoVigencia(id) {
+    await db.query('UPDATE vales SET vigencia_aviso_en = NOW() WHERE id = ?', [id], 'vale:marcar_aviso_vigencia');
   }
 
   async marcarAtrasoNotificado(id, fechaHora) {

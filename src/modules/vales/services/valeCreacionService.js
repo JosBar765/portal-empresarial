@@ -104,7 +104,8 @@ class ValeCreacionService {
           cotizacion: datos.cotizacion,
           descripcion: datos.descripcion,
           talleresSolicitados: datos.talleresIds.join(','),
-          estado: ESTADOS.ESPERANDO_AUTORIZACION
+          estado: ESTADOS.ESPERANDO_AUTORIZACION,
+          conVigencia: true
         });
       });
     });
@@ -220,6 +221,22 @@ class ValeCreacionService {
         salas: [`asesor:${vale.asesor_id}`, ...supervisoresDelAsesor.map(s => `supervisor:${s.id}`)]
       });
       return enriquecer(actualizado);
+    });
+  }
+
+  // Un vale sin autorizar cumple su vigencia de 24 h: se elimina solo (con sus archivos) y se avisa.
+  async expirarVale(valeId) {
+    return valeMutex.conLockDeVale(valeId, async () => {
+      const vale = await valeRepository.obtenerPorId(valeId);
+      if (!vale || !ESTADOS_EDITABLES_ASESOR.includes(vale.estado)) return false;
+      const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
+      await this.eliminarValeConArchivos(valeId);
+      valeEvents.notificar({
+        vale, tipo: 'EXPIRADO', valeBorrado: true, nivel: 'alerta',
+        texto: 'fue eliminado automáticamente: venció su vigencia de 24 horas sin ser autorizado',
+        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
+      });
+      return true;
     });
   }
 

@@ -69,6 +69,7 @@ function fechaHoraLocal() {
  * @param {string[]} salas Salas objetivo (sin incluir vales:admin, que siempre se agrega).
  * @param {'info'|'alerta'} nivel 'alerta' pinta el toast en rojo en el cliente.
  * @param {boolean} beep Si debe sonar; false para notificaciones silenciosas.
+ * @param {string|null} texto Frase completa tras "Vale: X" (sustituye a "fue {accion}").
  * @param {boolean} valeBorrado Si el vale ya no existe, la notificación guardada no lo referencia.
  * @param {string|null} detalle Texto adicional al final del mensaje (p. ej. el motivo de un rechazo).
  * @param {string|null} tipo Etiqueta opcional para que el cliente reaccione a eventos concretos (p. ej. 'CORREGIDO').
@@ -91,8 +92,9 @@ function guardarNotificaciones({ vale, contenido, salas, actorId, nivel, tipo, v
     .catch(error => console.error('[Notificaciones] No se pudieron guardar:', error.message));
 }
 
-function notificar({ vale, accion, actor = null, actorId = null, destino = null, salas = [], nivel = 'info', beep = true, tipo = null, detalle = null, valeBorrado = false }) {
-  const mensaje = `${fechaHoraLocal()} – Vale: ${vale.correlativo} fue ${accion}${actor ? ` por ${actor}` : ''}${destino ? ` a ${destino}` : ''}${detalle ? `. ${detalle}` : ''}`;
+function notificar({ vale, accion, actor = null, actorId = null, destino = null, salas = [], nivel = 'info', beep = true, tipo = null, detalle = null, valeBorrado = false, texto = null }) {
+  const cuerpo = texto || `fue ${accion}${actor ? ` por ${actor}` : ''}${destino ? ` a ${destino}` : ''}`;
+  const mensaje = `${fechaHoraLocal()} – Vale: ${vale.correlativo} ${cuerpo}${detalle ? `. ${detalle}` : ''}`;
   const salasFinal = [...new Set([...(salas || []), SALA_ADMIN])];
   guardarNotificaciones({
     vale, salas, actorId, nivel, tipo, valeBorrado,
