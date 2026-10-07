@@ -1,6 +1,6 @@
 # restriccion-horario-vales
 
-Rama: `feature/restriccion-horario-vales` (desde `origin/dev`) · Estado: T1 y T2 hechas.
+Rama: `feature/restriccion-horario-vales` (desde `origin/dev`) · Estado: T1, T2 y T3 hechas.
 
 ## Objetivo
 Proteger los días de trabajo de los talleres: los vales no se piden en domingo y la entrega "para hoy" solo se acepta si el vale se crea y se autoriza antes de las 12:00.
@@ -27,7 +27,7 @@ Proteger los días de trabajo de los talleres: los vales no se piden en domingo 
 ## Tareas
 - [x] T1 · Validaciones de servidor: ayudantes, fecha mínima y domingo en crear / modificar / corregir / reenviar; bloqueo del domingo y chequeo de fecha en autorizar y aprobar modificación. Ruta: escritor delegado. Verificado: 40 de 41 checks en proceso con el reloj simulado; el único fallo fue una expectativa mal escrita del propio script (el mínimo ese día era el 15, no el 16) y el código respondió bien. No probado: rutas HTTP, frontend, supervisor creando vale propio.
 - [x] T2 · Plazos de 24 h sin domingos: ayudante y los 3 puntos de escritura (autorización/rechazado, modificación, adjuntos). Ruta: escritor delegado. Verificado: 16/16 casos unitarios del ayudante y la integración en proceso con el reloj simulado (sábado 15:00 vence lunes 15:00; modificación y adjuntos igual; segundo rechazo no mueve el plazo); los watchers siguen borrando al vencer. El reloj de la BD coincide con el de la aplicación (0 s). Desviación: se reemplazó la bandera `conVigencia` por el valor `vigenciaHasta` y el cálculo vive en los servicios (los repositorios no pueden importar valeHelpers: dependencia circular).
-- [ ] T3 · Calendario: mínimo en hora de Guatemala, domingos deshabilitados, mensajes claros.
+- [x] T3 · Calendario: mínimo en hora de Guatemala, domingos deshabilitados, mensajes claros. Ruta: escritor delegado. Verificado en el navegador: con el reloj real (pasado el mediodía) el mínimo es mañana y los domingos están deshabilitados; con el reloj simulado a las 11:00, hoy queda habilitado y la nota dice "Entrega mínima: 07/10"; helpers probados bajo tres zonas horarias distintas. Sin ver en pantalla: corregir con fecha ya inválida y el error del servidor en el modal.
 - [ ] T4 · Documentación y verificación de punta a punta con reloj simulado.
 
 ## Verificación y evidencia

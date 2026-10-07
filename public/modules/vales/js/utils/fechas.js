@@ -24,3 +24,25 @@ export function parseIsoLocal(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d);
 }
+
+// Hora de Guatemala (UTC-6) sin depender de la zona del navegador: los getters UTC dan la hora de pared.
+export function ahoraGT() {
+  return new Date(Date.now() - 6 * 3600 * 1000);
+}
+
+export function hoyGT() {
+  const a = ahoraGT();
+  return new Date(a.getUTCFullYear(), a.getUTCMonth(), a.getUTCDate());
+}
+
+export function esDomingo(fecha) {
+  return fecha.getDay() === 0;
+}
+
+// Mínimo de entrega (medianoche local del día): hoy antes de las 12:00 GT, si no mañana; el domingo pasa al lunes.
+export function fechaMinimaEntregaGT() {
+  let min = hoyGT();
+  if (ahoraGT().getUTCHours() >= 12) min = sumarDiaLocal(min, 1);
+  if (esDomingo(min)) min = sumarDiaLocal(min, 1);
+  return min;
+}

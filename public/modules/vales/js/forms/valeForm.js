@@ -4,7 +4,7 @@ import { htmlSelectorTalleres, wireSelectorTalleres, validarTalleresSeleccionado
 import { htmlCampoFecha, wireCampoFecha, validarCampoFecha } from '../components/datepicker.js';
 import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dropzone.js';
 import { validarCamposNativos, wireLimpiezaValidacionInline, enfocarPrimerCampoInvalido } from '../components/validacion.js';
-import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js';
+import { hoyMedianoche, sumarDiaLocal, parseIsoLocal, fechaMinimaEntregaGT } from '../utils/fechas.js';
 import { escapeHtml } from '../utils/formato.js';
 import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega, obtenerDetalleVale } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
@@ -152,8 +152,12 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
 
   if (!esMod) wireSelectorTalleres(overlay, tallerSeleccionados);
   wireAvisoUrgente(overlay);
+  const minEntrega = fechaMinimaEntregaGT();
+  const campoEntrega = overlay.querySelector('[data-date-field="fechaEntrega"]').closest('.form-field');
+  campoEntrega.insertAdjacentHTML('beforeend', `<p class="form-nota">Entrega mínima: ${String(minEntrega.getDate()).padStart(2, '0')}/${String(minEntrega.getMonth() + 1).padStart(2, '0')}. Pasadas las 12:00 no se pide para hoy y no hay entregas en domingo.</p>`);
   const apiFechaEntrega = wireCampoFecha(overlay, 'fechaEntrega', {
-    minDate: hoyMedianoche(),
+    minDate: minEntrega,
+    sinDomingos: true,
     capacidad: {
       obtenerTalleresIds: () => [...tallerSeleccionados],
       cargarMes: obtenerCapacidadEntrega
@@ -256,8 +260,10 @@ function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEve
   const [pais, ...numero] = (vale.cliente_telefono || '').split(' ');
   if (pais) form.querySelector('[name="clienteTelefonoPais"]').value = pais;
   form.querySelector('[name="clienteTelefono"]').value = numero.join(' ');
-  apiFechaEntrega.setDate(parseIsoLocal(String(vale.fecha_entrega).slice(0, 10)), { silent: true });
-  apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate(), 1));
+  // Una entrega ya no disponible (pasada o domingo) se limpia para que se elija otra.
+  const entrega = parseIsoLocal(String(vale.fecha_entrega).slice(0, 10));
+  if (apiFechaEntrega.esValida(entrega)) apiFechaEntrega.setDate(entrega, { silent: true });
+  apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || fechaMinimaEntregaGT(), 1));
   apiFechaEvento.setDate(parseIsoLocal(String(vale.fecha_evento).slice(0, 10)), { silent: true });
   form.querySelector('[name="descripcion"]').dispatchEvent(new Event('input'));
   form.querySelector('[name="fechaEntrega"]').dispatchEvent(new Event('change', { bubbles: true }));

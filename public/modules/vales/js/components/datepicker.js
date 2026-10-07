@@ -8,7 +8,7 @@
 // día, un indicador de cupos disponibles del/los taller(es) elegidos y
 // bloquea los días donde ya se alcanzó el límite diario de alguno. "Fecha
 // del evento" nunca lo recibe, así que su calendario queda intacto.
-import { hoyMedianoche, isoLocal, parseIsoLocal } from '../utils/fechas.js';
+import { hoyMedianoche, isoLocal, parseIsoLocal, esDomingo } from '../utils/fechas.js';
 import { formatearFecha } from '../utils/formato.js';
 import { limpiarErrorCampo, marcarErrorCampo } from './validacion.js';
 
@@ -95,7 +95,7 @@ function htmlTooltipCapacidad(diaInfo) {
 // minDate se puede ajustar después con api.setMinDate() — lo usa, por
 // ejemplo, la fecha del evento, que se recalcula cuando cambia la fecha de
 // entrega. `capacidad`, ver comentario del encabezado del archivo.
-export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'Seleccionar fecha', capacidad = null } = {}) {
+export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'Seleccionar fecha', capacidad = null, sinDomingos = false } = {}) {
   const wrapper = overlay.querySelector(`[data-date-field="${name}"]`);
   const trigger = wrapper.querySelector('.date-field-trigger');
   const valueEl = wrapper.querySelector('.date-field-value');
@@ -108,12 +108,14 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'S
   let tooltipEl = null;
   let capacidadToken = 0;
 
+  const noDisponible = (f) => !!(minActual && f < minActual) || (sinDomingos && esDomingo(f));
+
   const api = {
     cerrar: cerrarPanel,
     getDate: () => seleccionado,
     setMinDate(fecha) {
       minActual = fecha;
-      if (seleccionado && minActual && seleccionado < minActual) {
+      if (seleccionado && noDisponible(seleccionado)) {
         seleccionado = null;
         hidden.value = '';
         refrescarLabel();
@@ -126,6 +128,7 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'S
       refrescarLabel();
       if (!opts.silent) hidden.dispatchEvent(new Event('change', { bubbles: true }));
     },
+    esValida: (f) => !noDisponible(f),
     clear(opts = {}) {
       seleccionado = null;
       hidden.value = '';
@@ -247,7 +250,7 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'S
     for (let i = 0; i < offset; i++) celdas += '<span class="dp-day is-outside"></span>';
     for (let d = 1; d <= diasEnMes; d++) {
       const fecha = new Date(mesVisible.getFullYear(), mesVisible.getMonth(), d);
-      const deshabilitado = !!(minActual && fecha < minActual);
+      const deshabilitado = noDisponible(fecha);
       const clases = ['dp-day'];
       if (fecha.getTime() === hoy.getTime()) clases.push('is-today');
       if (seleccionado && fecha.getTime() === seleccionado.getTime()) clases.push('is-selected');
