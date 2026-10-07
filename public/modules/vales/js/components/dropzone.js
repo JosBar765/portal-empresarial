@@ -8,6 +8,9 @@
 import { iconoParaArchivo, formatearTamano, escapeHtml } from '../utils/formato.js';
 import { abrirModal } from './modal.js';
 
+// Mismo tope que exige el servidor (valeController.js: ARCHIVO_MAX_BYTES), para todo archivo del módulo.
+export const ARCHIVO_MAX_BYTES = 5 * 1024 * 1024;
+
 const ETIQUETA_TIPO = { 'image/jpeg': 'JPG', 'image/png': 'PNG', 'image/webp': 'WEBP', 'application/pdf': 'PDF' };
 
 // Ejecuta `fn` cuando el overlay sale del DOM, sea cual sea la forma de cerrarlo.

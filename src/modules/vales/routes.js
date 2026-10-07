@@ -10,7 +10,7 @@ const { ROL } = require('./services/valeHelpers');
 const TIPOS_PERMITIDOS = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']);
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 3 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 },
   // Un tipo no permitido se rechaza con error (antes se descartaba en silencio y el vale se creaba sin ese archivo).
   fileFilter: (req, file, cb) => {
     if (TIPOS_PERMITIDOS.has(file.mimetype)) return cb(null, true);

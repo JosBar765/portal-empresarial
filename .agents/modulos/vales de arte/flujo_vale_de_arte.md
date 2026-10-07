@@ -223,7 +223,8 @@ Notas:
 - La propuesta/fusión **nunca se pega dentro del PDF del vale**. El PDF es el
   documento administrativo del vale (encabezado, cliente, venta, firma); la
   propuesta queda aparte, accesible con "Ver propuesta".
-- El PDF se genera al crear el vale y se regenera al autorizar (firma roja),
+- El PDF se genera al crear el vale y se regenera al autorizar (firma roja con
+  el supervisor, CREACIÓN/MODIFICACIÓN y la fecha y hora de la autorización),
   al aprobar una modificación y al fusionar. Se sube a Supabase Storage; en
   MySQL solo se guarda la URL.
 
@@ -424,16 +425,16 @@ Desde/Hasta; con un rango el mes se desactiva) y paginación por cursor de 50 en
 | Límite | Dónde se valida | Efecto |
 |---|---|---|
 | **Cupo colectivo diario del Supervisor** = nº de asesores activos bajo su mando; cuenta las autorizaciones de **creación** que hizo hoy | Al **autorizar** (no al crear) | Al llegar al límite no puede autorizar más ese día. Al Administrador no le aplica. Crear un vale nunca se bloquea ni se pospone por esto. Leer el cupo y sellar la autorización van en el mismo turno de la cola del supervisor, así que dos autorizaciones simultáneas no pueden pasarlo. La tarjeta "Autorizados hoy (equipo)" (N/M) la calcula el servidor con este mismo conteo. |
-| **Cupo diario por taller** (`talleres.limite_diario`, opcional; NULL = sin límite), sobre la fecha de **entrega** (no la de evento) | Al **crear**, al **solicitar** la modificación y al **aprobar** la modificación | Bloquea con un mensaje amigable ("el taller X ya no tiene cupo para el día…"). Las verificaciones + inserción son atómicas entre asesores (`conColaDeCapacidad`). El calendario del frontend solo lo anticipa. |
+| **Cupo diario por taller** (`talleres.limite_diario`, opcional; NULL = sin límite; hoy Diseño y Diseño UV/3D = 15, Protextil = 8, Diseño Local sin límite), sobre la fecha de **entrega** (no la de evento) | Al **crear**, al **solicitar** la modificación y al **aprobar** la modificación | Bloquea con un mensaje amigable ("el taller X ya no tiene cupo para el día…"). Las verificaciones + inserción son atómicas entre asesores (`conColaDeCapacidad`). El calendario del frontend solo lo anticipa. |
 | Un diseñador = un vale `EN_PROCESO` | `comenzar` y `reanudar` (en la cola del diseñador: dos acciones simultáneas no lo superan) | Debe entregar, cancelar o pausar el actual antes. |
 | Una sola modificación por vale | `solicitarModificacion` | Ver §1.1. |
-| Adjuntos | `routes.js` | Máx. 3 MB por archivo; JPEG/PNG/WebP/PDF; hasta 10 imágenes y 5 documentos al crear. Un tipo no permitido se **rechaza** con un 400 (no se descarta en silencio). |
+| Adjuntos | `routes.js` | Máx. 5 MB por archivo (imágenes, PDF, propuesta y fusión); JPEG/PNG/WebP/PDF; hasta 10 imágenes y 5 documentos al crear. Un tipo no permitido se **rechaza** con un 400 (no se descarta en silencio). |
 
 Validaciones de formulario (creación y modificación): cliente (nombre,
 teléfono y correo válido) obligatorio, producto y material obligatorios,
 cantidad > 1, cotización > 0, fecha de evento posterior a la de entrega y
 entrega igual o posterior a hoy. Técnica y acabado son opcionales. Un vale es
-**urgente** automáticamente si faltan menos de 3 días para la entrega.
+**urgente** automáticamente si faltan menos de 3 días para la entrega (entrega hoy, mañana o pasado mañana): lo calcula el servidor (`calcularUrgente`) al crear, corregir o solicitar la modificación; el formulario no tiene casilla y solo muestra el aviso «Urgente: entrega en menos de 3 días».
 
 > Nota: esto reemplaza al antiguo límite diario por asesor
 > (`asesor_limites`), que ya no existe: crear nunca se pospone.

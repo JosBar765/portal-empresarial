@@ -5,8 +5,7 @@ const { excedeElLimiteDePixeles } = require('../../../core/files/imagenDimension
 const { responderError, responderErrorInterno } = require('../../../core/utils/erroresHttp');
 const { idObligatorio, idOpcional } = require('../../../core/utils/validar');
 
-const IMAGEN_MAX_BYTES = 2 * 1024 * 1024;
-const DOCUMENTO_MAX_BYTES = 3 * 1024 * 1024;
+const ARCHIVO_MAX_BYTES = 5 * 1024 * 1024;
 
 function validarArchivos(files) {
   const imagenes = (files && files.imagenes) || [];
@@ -20,8 +19,8 @@ function validarArchivos(files) {
     if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(img.mimetype) || !tipoRealCoincide(img.buffer, img.mimetype)) {
       throw new Error(`Formato de imagen no soportado: ${img.originalname}`);
     }
-    if (img.size > IMAGEN_MAX_BYTES) {
-      throw new Error(`La imagen ${img.originalname} supera los 2MB permitidos.`);
+    if (img.size > ARCHIVO_MAX_BYTES) {
+      throw new Error(`La imagen ${img.originalname} supera los 5MB permitidos.`);
     }
     // Un archivo pequeño puede declarar miles de megapíxeles ("bomba de
     // descompresión") y agotar la memoria al decodificarlo para el PDF: se
@@ -34,8 +33,8 @@ function validarArchivos(files) {
     if (doc.mimetype !== 'application/pdf' || !tipoRealCoincide(doc.buffer, doc.mimetype)) {
       throw new Error(`Formato de documento no soportado: ${doc.originalname} (solo se permite PDF).`);
     }
-    if (doc.size > DOCUMENTO_MAX_BYTES) {
-      throw new Error(`El documento ${doc.originalname} supera los 3MB permitidos.`);
+    if (doc.size > ARCHIVO_MAX_BYTES) {
+      throw new Error(`El documento ${doc.originalname} supera los 5MB permitidos.`);
     }
   }
   return { imagenes, documentos };

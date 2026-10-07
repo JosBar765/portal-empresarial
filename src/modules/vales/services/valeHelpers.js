@@ -198,10 +198,6 @@ function esHoy(fechaHora) {
   return String(fechaHora).slice(0, 10) === hoyISO();
 }
 
-function esVerdadero(valor) {
-  return valor === true || valor === 'true' || valor === '1' || valor === 1;
-}
-
 function normalizarDatetime(valor, finDelDia = false) {
   if (!valor) return valor;
   const limpio = String(valor).replace('T', ' ');
@@ -211,11 +207,11 @@ function normalizarDatetime(valor, finDelDia = false) {
   return limpio.length === 16 ? `${limpio}:00` : limpio;
 }
 
-function calcularUrgente(fechaEntregaNorm, urgentePayload) {
+// Urgente solo se calcula: entrega en menos de 3 días. El cliente no lo decide.
+function calcularUrgente(fechaEntregaNorm) {
   const entrega = parsearUTC6(fechaEntregaNorm);
   const diffDias = (entrega - new Date()) / (1000 * 60 * 60 * 24);
-  if (diffDias < 3) return true;
-  return esVerdadero(urgentePayload);
+  return diffDias < 3;
 }
 
 const MAX_PALABRAS_MOTIVO = 50;
@@ -252,7 +248,7 @@ module.exports = {
   esAdministrador, esAsistenteDeDiseno,
   hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
-  dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy, esVerdadero,
+  dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
   normalizarDatetime, calcularUrgente, registrarHistorial,
   requerirVale, assertPropioDelAsesor, validarMotivoRechazo
 };

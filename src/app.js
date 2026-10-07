@@ -148,7 +148,7 @@ app.get('/api/modules', requireAuth, (req, res) => {
 
 // Manejo de errores con la subida de archivos
 const MENSAJES_MULTER = {
-  LIMIT_FILE_SIZE: 'El archivo adjunto supera el tamaño máximo permitido (3 MB).',
+  LIMIT_FILE_SIZE: 'El archivo adjunto supera el tamaño máximo permitido (5 MB).',
   LIMIT_FILE_COUNT: 'Se adjuntaron demasiados archivos.',
   LIMIT_UNEXPECTED_FILE: 'Se recibió un archivo en un campo inesperado.'
 };

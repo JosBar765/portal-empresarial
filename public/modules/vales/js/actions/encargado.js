@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { ROLES_ENCARGADO_TALLER } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
-import { htmlDropzone, wireDropzone } from '../components/dropzone.js';
+import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dropzone.js';
 import { obtenerDisenadoresAsignables, asignarDisenador, obtenerDetalleVale, revisarPropuesta, aprobarGeneral } from '../api/valesApi.js';
 import { escapeHtml } from '../utils/formato.js';
 import { cargarBuzon } from '../views/buzon.js';
@@ -175,12 +175,12 @@ export async function abrirModalAprobarGeneral(vale) {
       ${detalleOriginal ? '<p style="font-size:12px;color:var(--color-text-secondary);margin-top:-10px;margin-bottom:14px;">* Modificado.</p>' : ''}
       <div class="form-field">
         <label>Documento de fusión final *</label>
-        ${htmlDropzone({ id: 'input-fusion', accept: 'application/pdf', hint: 'PDF' })}
+        ${htmlDropzone({ id: 'input-fusion', accept: 'application/pdf', hint: 'PDF · máx. 5MB' })}
       </div>
     `,
     footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Aprobar y Fusionar</button>`
   });
-  const getFusion = wireDropzone(overlay, '#input-fusion', '.archivo-lista');
+  const getFusion = wireDropzone(overlay, '#input-fusion', '.archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
   // Una sola key por apertura del modal — si el envío falla y el usuario
   // reintenta con "Aprobar y Fusionar" de nuevo, se reenvía con la misma key
   // para que el backend detecte el reintento y no duplique la fusión.

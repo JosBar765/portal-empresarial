@@ -2,7 +2,7 @@ import { state } from '../state.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { htmlSelectorTalleres, wireSelectorTalleres, validarTalleresSeleccionados } from '../components/selectorTalleres.js';
 import { htmlCampoFecha, wireCampoFecha, validarCampoFecha } from '../components/datepicker.js';
-import { htmlDropzone, wireDropzone } from '../components/dropzone.js';
+import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dropzone.js';
 import { validarCamposNativos, wireLimpiezaValidacionInline, enfocarPrimerCampoInvalido } from '../components/validacion.js';
 import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js';
 import { escapeHtml } from '../utils/formato.js';
@@ -10,11 +10,6 @@ import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega
 import { cargarBuzon } from '../views/buzon.js';
 import { limitarTelefono } from '/js/telefono.js';
 
-// Mismos límites que ya exige el backend (valeController.js:
-// IMAGEN_MAX_BYTES/DOCUMENTO_MAX_BYTES) — se repiten acá para poder
-// rechazar el archivo desde el selector, antes de intentar subirlo.
-const IMAGEN_MAX_BYTES = 2 * 1024 * 1024;
-const DOCUMENTO_MAX_BYTES = 3 * 1024 * 1024;
 const DESCRIPCION_MAX_CARACTERES = 600;
 export function opcionesPaises() {
   return (state.catalogos.paises || []).map(p =>
@@ -22,21 +17,16 @@ export function opcionesPaises() {
   ).join('');
 }
 
-// Si la entrega queda a menos de 3 días, "Urgente" se marca solo y no se
-// puede desmarcar; con más margen, el asesor decide libremente.
-export function wireUrgenteAutoLock(overlay) {
+// Urgente lo decide el sistema: entrega en menos de 3 días. El formulario solo lo avisa.
+function esEntregaUrgente(fechaIso) {
+  if (!fechaIso) return false;
+  return (parseIsoLocal(fechaIso) - hoyMedianoche()) / (1000 * 60 * 60 * 24) < 3;
+}
+
+export function wireAvisoUrgente(overlay) {
   const fechaInput = overlay.querySelector('[name="fechaEntrega"]');
-  const checkbox = overlay.querySelector('[name="urgente"]');
-  const actualizar = () => {
-    if (!fechaInput.value) { checkbox.disabled = false; return; }
-    const diffDias = (parseIsoLocal(fechaInput.value) - hoyMedianoche()) / (1000 * 60 * 60 * 24);
-    if (diffDias < 3) {
-      checkbox.checked = true;
-      checkbox.disabled = true;
-    } else {
-      checkbox.disabled = false;
-    }
-  };
+  const aviso = overlay.querySelector('#aviso-urgente');
+  const actualizar = () => { aviso.hidden = !esEntregaUrgente(fechaInput.value); };
   fechaInput.addEventListener('change', actualizar);
   actualizar();
 }
@@ -126,14 +116,13 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
         <div class="form-grid">
           ${htmlCampoFecha('Fecha de entrega', 'fechaEntrega')}
           ${htmlCampoFecha('Fecha del evento', 'fechaEvento')}
+          <div class="aviso-urgente full" id="aviso-urgente" role="status" aria-live="polite" hidden><ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon><span>Urgente: entrega en menos de 3 días</span></div>
           <div class="form-field"><label>Código de producto *</label><input type="text" name="producto" required maxlength="150" placeholder="Ej. Trofeo" /></div>
           <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="150" placeholder="Ej. Acrílico" /></div>
           <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" /></div>
           <div class="form-field"><label>Acabado</label><input type="text" name="acabado" /></div>
           <div class="form-field"><label>Cantidad * (mayor a 1)</label><input type="number" name="cantidad" min="2" required /></div>
-          <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>
-          <div class="form-field form-checkbox full"><input type="checkbox" name="urgente" id="chk-urgente" /><label for="chk-urgente">Urgente</label></div>
-        </div>
+          <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>        </div>
 
         <div class="section-title">Boceto y Descripción</div>
         <div class="form-grid">
@@ -145,12 +134,12 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
           <div class="form-field">
             <label>Imágenes</label>
             <div class="archivos-actuales" data-tipo="imagen"></div>
-            ${htmlDropzone({ name: 'imagenes', accept: 'image/jpeg,image/png,image/webp', multiple: true, hint: 'JPG, PNG o WEBP · máx. 2MB c/u' })}
+            ${htmlDropzone({ name: 'imagenes', accept: 'image/jpeg,image/png,image/webp', multiple: true, hint: 'JPG, PNG o WEBP · máx. 5MB c/u' })}
           </div>
           <div class="form-field">
             <label>Documentos adjuntos</label>
             <div class="archivos-actuales" data-tipo="documento"></div>
-            ${htmlDropzone({ name: 'documentos', accept: 'application/pdf', multiple: true, hint: 'PDF · máx. 3MB c/u' })}
+            ${htmlDropzone({ name: 'documentos', accept: 'application/pdf', multiple: true, hint: 'PDF · máx. 5MB c/u' })}
           </div>
         </div>
       </form>
@@ -162,7 +151,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
   });
 
   if (!esMod) wireSelectorTalleres(overlay, tallerSeleccionados);
-  wireUrgenteAutoLock(overlay);
+  wireAvisoUrgente(overlay);
   const apiFechaEntrega = wireCampoFecha(overlay, 'fechaEntrega', {
     minDate: hoyMedianoche(),
     capacidad: {
@@ -176,8 +165,8 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
   });
   wireContadorCampo(overlay, 'descripcion', DESCRIPCION_MAX_CARACTERES);
   limitarTelefono(overlay.querySelector('[name="clienteTelefono"]'));
-  const getImagenes = wireDropzone(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista', { maxBytes: IMAGEN_MAX_BYTES });
-  const getDocumentos = wireDropzone(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista', { maxBytes: DOCUMENTO_MAX_BYTES });
+  const getImagenes = wireDropzone(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
+  const getDocumentos = wireDropzone(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
 
   const formCrear = overlay.querySelector('#form-crear-vale');
   if (hayOriginal) precargarFormulario(overlay, formCrear, vale, { apiFechaEntrega, apiFechaEvento }, { conDescripcion: !esModificacion });
@@ -207,7 +196,6 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
       return;
     }
     const formData = new FormData(form);
-    formData.set('urgente', form.querySelector('[name="urgente"]').checked ? 'true' : 'false');
     const paisCodigo = form.querySelector('[name="clienteTelefonoPais"]').value;
     const telefonoNum = form.querySelector('[name="clienteTelefono"]').value.trim();
     formData.set('clienteTelefono', `${paisCodigo} ${telefonoNum}`);
@@ -268,7 +256,6 @@ function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEve
   const [pais, ...numero] = (vale.cliente_telefono || '').split(' ');
   if (pais) form.querySelector('[name="clienteTelefonoPais"]').value = pais;
   form.querySelector('[name="clienteTelefono"]').value = numero.join(' ');
-  form.querySelector('[name="urgente"]').checked = !!Number(vale.urgente);
   apiFechaEntrega.setDate(parseIsoLocal(String(vale.fecha_entrega).slice(0, 10)), { silent: true });
   apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate(), 1));
   apiFechaEvento.setDate(parseIsoLocal(String(vale.fecha_evento).slice(0, 10)), { silent: true });
@@ -323,7 +310,7 @@ function abrirModalConfirmarCreacion(formData) {
         <li><strong>Talleres:</strong> ${nombresTalleres}</li>
         <li><strong>Cantidad:</strong> ${formData.get('cantidad')}</li>
         <li><strong>Cotización:</strong> Q${formData.get('cotizacion')}</li>
-        <li><strong>Urgente:</strong> ${formData.get('urgente') === 'true' ? 'Sí' : 'No'}</li>
+        <li><strong>Urgente:</strong> ${esEntregaUrgente(formData.get('fechaEntrega')) ? 'Sí' : 'No'}</li>
       </ul>
     `,
     footerHtml: `
