@@ -340,8 +340,8 @@ class ValeBuzonService {
   async _buzonSupervisor(usuario, todos, ventana, filtroContador) {
     const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
     const vistos = new Set(await valeVistoRepository.listarIdsPorUsuario(usuario.id));
-    // También lista los vales que el propio supervisor creó (`es_propio`): esos los autoriza otro supervisor, así que
-    // no cuentan en los contadores de autorización y se ven en todos sus estados activos, como el Buzón de un asesor.
+    // También lista los vales que el propio supervisor creó (`es_propio`), que él mismo autoriza: cuentan en los
+    // contadores como los de su equipo y se ven en todos sus estados activos, como el Buzón de un asesor.
     const propios = todos.filter(v => misAsesoresIds.has(v.asesor_id) || v.asesor_id === usuario.id)
       .map(v => ({ ...v, visto: vistos.has(v.id), es_propio: v.asesor_id === usuario.id }));
     const ESTADOS_A_SUPERVISAR = [
@@ -349,21 +349,20 @@ class ValeBuzonService {
     ];
     const visibles = propios.filter(v => (v.es_propio ? !ESTADOS_TERMINALES.includes(v.estado) : ESTADOS_A_SUPERVISAR.includes(v.estado)));
     const enVentana = visibles.filter(v => dentroDeVentana(v, ventana));
-    const deMiEquipo = enVentana.filter(v => !v.es_propio);
     const contadores = {
       // "N/M": autorizaciones de creación que hizo hoy el supervisor / asesores a su cargo (el mismo cupo que se valida al autorizar).
       valesAutorizadosHoy: `${await valeRepository.contarAutorizacionesCreacionPorSupervisorYFecha(usuario.id, hoyISO())}/${misAsesoresIds.size}`,
-      pendientesAutorizacion: deMiEquipo.filter(v => v.estado === ESTADOS.ESPERANDO_AUTORIZACION).length,
-      pendientesConfirmarModificacion: deMiEquipo.filter(v => v.estado === ESTADOS.SOLICITANDO_MODIFICACION).length,
-      modificados: deMiEquipo.filter(v => v.estado === ESTADOS.MODIFICADO).length,
-      pendientesConfirmacion: deMiEquipo.filter(v => v.estado === ESTADOS.PENDIENTE_CONFIRMACION).length,
+      pendientesAutorizacion: enVentana.filter(v => v.estado === ESTADOS.ESPERANDO_AUTORIZACION).length,
+      pendientesConfirmarModificacion: enVentana.filter(v => v.estado === ESTADOS.SOLICITANDO_MODIFICACION).length,
+      modificados: enVentana.filter(v => v.estado === ESTADOS.MODIFICADO).length,
+      pendientesConfirmacion: enVentana.filter(v => v.estado === ESTADOS.PENDIENTE_CONFIRMACION).length,
       atrasados: enVentana.filter(v => v.atrasado).length
     };
     const predicados = {
-      pendientesAutorizacion: v => !v.es_propio && v.estado === ESTADOS.ESPERANDO_AUTORIZACION,
-      pendientesConfirmarModificacion: v => !v.es_propio && v.estado === ESTADOS.SOLICITANDO_MODIFICACION,
-      modificados: v => !v.es_propio && v.estado === ESTADOS.MODIFICADO,
-      pendientesConfirmacion: v => !v.es_propio && v.estado === ESTADOS.PENDIENTE_CONFIRMACION
+      pendientesAutorizacion: v => v.estado === ESTADOS.ESPERANDO_AUTORIZACION,
+      pendientesConfirmarModificacion: v => v.estado === ESTADOS.SOLICITANDO_MODIFICACION,
+      modificados: v => v.estado === ESTADOS.MODIFICADO,
+      pendientesConfirmacion: v => v.estado === ESTADOS.PENDIENTE_CONFIRMACION
     };
     const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, predicados);
     const vales = ordenarPorGrupos(filtrados, [

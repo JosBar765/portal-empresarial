@@ -283,8 +283,8 @@ export function construirAcciones(v) {
   // Un supervisor solo actúa como asesor sobre SUS vales: sobre los de su equipo solo autoriza y supervisa.
   const ajenoDeSupervisor = state.user.rolId === ROL.SUPERVISOR && !esMio;
   // El supervisor abre un modal de elección (Ver info / Ver vale) en vez de ir
-  // directo al PDF — a veces solo necesita los datos de encabezado. Sus propios vales van directo al PDF.
-  const acciones = ajenoDeSupervisor
+  // directo al PDF — a veces solo necesita los datos de encabezado. Vale también para los suyos, que él autoriza.
+  const acciones = state.user.rolId === ROL.SUPERVISOR
     ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
     : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') }];
   // El hipervínculo de la propuesta apunta al documento de propuesta real, no
@@ -309,7 +309,7 @@ export function construirAcciones(v) {
 
   // El Supervisor autoriza el envío a talleres de un vale recién creado por
   // uno de sus asesores.
-  if (puede('autorizarCreacion') && v.estado === 'ESPERANDO_AUTORIZACION' && !esMio) {
+  if (puede('autorizarCreacion') && v.estado === 'ESPERANDO_AUTORIZACION') {
     acciones.push({ icono: 'checkmark-done-outline', titulo: 'Autorizar creación', clase: 'icon-success', onClick: abrirModalAutorizarCreacion });
   }
   if (puede('asignar') && v.estado_taller === 'PENDIENTE_ASIGNACION') {
@@ -347,7 +347,7 @@ export function construirAcciones(v) {
   if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.vale_original_id && !v.mod_en_tramite && !ajenoDeSupervisor) {
     acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirModalSolicitarModificacion });
   }
-  if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION' && !esMio) {
+  if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });
   }
   if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {

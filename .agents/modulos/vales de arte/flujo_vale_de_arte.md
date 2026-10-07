@@ -370,13 +370,14 @@ cambia quién puede hacer cada acción.
 
 ### Vales del supervisor
 
-Todo supervisor de ventas puede crear vales, además de supervisar. Requisitos y reglas:
+Todo supervisor de ventas puede crear vales, además de supervisar (p. ej. el de Comercialización). Requisitos y reglas:
 
-- **Datos:** el usuario debe tener una fila en `supervisores` **y** otra en `asesores`; esta última le da la tienda (`asesores.tienda_id`) de la que sale el correlativo y los talleres que puede elegir. Su rol sigue siendo Supervisor (3): los chequeos de servidor aceptan «asesor o supervisor» (`puedeActuarComoAsesor`) y la propiedad del vale decide qué puede tocar.
+- **Datos:** el usuario debe tener una fila en `supervisores` **y** otra en `asesores`; esta última le da la tienda (`asesores.tienda_id`) de la que sale el correlativo y los talleres que puede elegir. Su rol sigue siendo Supervisor (3): los chequeos de servidor aceptan «asesor o supervisor» (`puedeActuarComoAsesor`) y la propiedad del vale decide qué puede tocar como asesor.
 - **Permisos del rol 3** para sus vales: `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja` y `corregir`.
-- **Nunca autoriza ni rechaza lo suyo:** sus vales (y sus modificaciones) los autoriza **otro** supervisor que cubra su tienda; `obtenerSupervisoresDeAsesor` no lo devuelve a sí mismo. Si su tienda no tiene otro supervisor, **no puede crear** (error «Tu tienda no tiene otro supervisor que pueda autorizar tus vales…»).
-- **Cupo colectivo:** el supervisor no cuenta como asesor de nadie (el denominador solo cuenta `rol_id = 2`), y los vales que él crea **no consumen** el cupo del supervisor que los autoriza ni se bloquean por él.
-- **Buzón:** el Buzón del supervisor lista, además de lo de su equipo, **sus propios vales en todos sus estados activos** (esperando, rechazado, en talleres, por confirmar…), con el mismo criterio de orden; no suman a los contadores de autorización ni a «Pend. confirmación asesor». Sus vales confirmados salen en «Trabajo realizado» y cuentan en su Rendimiento. Sobre sus vales ve las acciones de asesor (corregir, reenviar, dar de baja, confirmar, modificar); sobre los de su equipo, solo las de supervisión.
+- **Autoriza también los suyos:** sus vales y sus modificaciones los autoriza o rechaza **él mismo**, o cualquier otro supervisor que cubra su tienda (`supervisor_tiendas`). Rigen las mismas reglas que para un asesor (abrir «Ver» antes de autorizar, rechazo con justificación, vigencia de 24 h…).
+- **Sin supervisor, no se crea:** si ningún supervisor cubre su tienda, no puede crear («Tu tienda no tiene ningún supervisor que pueda autorizar tus vales…»); el vale quedaría sin nadie que lo autorice.
+- **Cupo colectivo:** el supervisor no cuenta como asesor de nadie (el denominador solo cuenta `rol_id = 2`), y los vales que crea un supervisor, propios o de otro supervisor, **no consumen** el cupo de quien los autoriza ni se bloquean por él.
+- **Buzón:** el Buzón del supervisor lista, además de lo de su equipo, **sus propios vales en todos sus estados activos** (esperando, rechazado, en talleres, por confirmar…), con el mismo criterio de orden, y cuentan en los contadores como los de su equipo. Sus vales confirmados salen en «Trabajo realizado» y cuentan en su Rendimiento. Sobre sus vales ve además las acciones de asesor (corregir, reenviar, dar de baja, confirmar, modificar); sobre los de su equipo, solo las de supervisión.
 - **Tiempo real:** recibe lo de sus vales en la sala `asesor:<su id>` además de `supervisor:<su id>`.
 
 ### Quién fusiona

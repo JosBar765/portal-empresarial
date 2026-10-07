@@ -51,9 +51,9 @@ class ValeCreacionService {
     if (!tienda) {
       throw new Error('No se encontró la tienda asignada a tu usuario. Avisa al administrador.');
     }
-    // Un supervisor nunca autoriza sus propios vales: se necesita otro supervisor que cubra su tienda.
+    // Un supervisor autoriza también sus propios vales, pero solo si su tienda tiene algún supervisor que la cubra.
     if (Number(solicitante.rol_id) === ROL.SUPERVISOR && (await usuarioValeRepository.obtenerSupervisoresDeAsesor(usuario.id)).length === 0) {
-      throw new Error('Tu tienda no tiene otro supervisor que pueda autorizar tus vales, así que no se puede crear. Avisa al administrador.');
+      throw new Error('Tu tienda no tiene ningún supervisor que pueda autorizar tus vales, así que no se puede crear. Avisa al administrador.');
     }
     // El prefijo del correlativo es el país de la empresa de la tienda, salvo que la empresa defina uno propio (Trofex: TX).
     if (!tienda.prefijo_pais) {
@@ -159,9 +159,6 @@ class ValeCreacionService {
       } else if (vale.estado !== ESTADOS.ESPERANDO_AUTORIZACION) {
         throw new Error('Solo se puede autorizar un vale que está esperando autorización.');
       }
-      if (vale.asesor_id === usuario.id) {
-        throw new Error('No puedes autorizar tus propios vales: lo hace otro supervisor de tu tienda.');
-      }
       // Un asesor puede tener más de un supervisor cubriéndolo a la vez
       // (supervisores rotativos) — se necesita la lista completa tanto para
       // el chequeo de pertenencia como para notificar a todos, no solo al
@@ -176,7 +173,7 @@ class ValeCreacionService {
       if (talleresIds.length === 0) {
         throw new Error('Este vale no tiene talleres seleccionados, no se puede autorizar.');
       }
-      // El cupo colectivo es para los vales de los asesores del equipo; el de un supervisor no lo consume.
+      // El cupo colectivo es para los vales de los asesores del equipo; los de un supervisor (incluidos los suyos) no lo consumen.
       const creador = await usuarioValeRepository.obtenerPorId(vale.asesor_id);
       const creadorEsSupervisor = !!creador && Number(creador.rol_id) === ROL.SUPERVISOR;
 
@@ -222,9 +219,6 @@ class ValeCreacionService {
         throw new Error(modificacion
           ? 'Este vale no es una solicitud de modificación.'
           : 'Este vale es una solicitud de modificación: se rechaza con "Rechazar modificación".');
-      }
-      if (vale.asesor_id === usuario.id) {
-        throw new Error('No puedes rechazar tus propios vales: lo hace otro supervisor de tu tienda.');
       }
       const estadoPendiente = estadoEnAutorizacion(vale);
       if (vale.estado !== estadoPendiente) {
