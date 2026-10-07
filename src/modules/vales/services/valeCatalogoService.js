@@ -45,7 +45,7 @@ class ValeCatalogoService {
   // `talleres.encargado_id === usuario.id` para resolver "mi taller"/"mis
   // diseñadores" pasa por AQUÍ en su lugar, para que la excepción viva en un
   // solo punto en vez de repetirse en cada servicio. A QUÉ taller "clona" el
-  // Asistente sale de `taller_tecnicos` (mismo mecanismo que usa un
+  // Asistente sale de `taller_disenadores` (mismo mecanismo que usa un
   // Diseñador), asignable desde "Editar usuario".
   async idEncargadoEfectivo(usuario) {
     if (!esAsistenteDeDiseno(usuario)) return usuario.id;

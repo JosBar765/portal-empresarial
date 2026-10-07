@@ -1,6 +1,6 @@
 // src/modules/admin/repositories/tallerAdminRepository.js
 // Asignación de talleres desde el panel de administración —
-// `talleres.encargado_id` y `taller_tecnicos` se actualizan desde aquí.
+// `talleres.encargado_id` y `taller_disenadores` se actualizan desde aquí.
 const db = require('../../../config/database');
 
 class TallerAdminRepository {
@@ -11,7 +11,7 @@ class TallerAdminRepository {
       `SELECT t.id, t.nombre, t.encargado_id, t.tienda_id, t.limite_diario, t.activo, u.nombre AS encargado_nombre,
               ti.codigo AS tienda_codigo,
               CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS tienda_nombre,
-              (SELECT COUNT(*) FROM taller_tecnicos tt WHERE tt.taller_id = t.id) AS tecnicos_count
+              (SELECT COUNT(*) FROM taller_disenadores tt WHERE tt.taller_id = t.id) AS disenadores_count
        FROM talleres t
        LEFT JOIN usuarios u ON u.id = t.encargado_id
        LEFT JOIN tiendas ti ON ti.id = t.tienda_id
@@ -55,11 +55,11 @@ class TallerAdminRepository {
     return rows[0] || null;
   }
 
-  async obtenerTallerDeTecnico(usuarioId) {
+  async obtenerTallerDeDisenador(usuarioId) {
     const rows = await db.query(
-      `SELECT t.id, t.nombre FROM taller_tecnicos tt JOIN talleres t ON t.id = tt.taller_id WHERE tt.usuario_id = ? LIMIT 1`,
+      `SELECT t.id, t.nombre FROM taller_disenadores tt JOIN talleres t ON t.id = tt.taller_id WHERE tt.usuario_id = ? LIMIT 1`,
       [usuarioId],
-      'taller_admin:find_by_tecnico'
+      'taller_admin:find_by_disenador'
     );
     return rows[0] || null;
   }
@@ -127,10 +127,10 @@ class TallerAdminRepository {
        JOIN talleres t ON t.encargado_id = u.id AND t.id = ?
        WHERE u.activo = 1
        UNION ALL
-       SELECT u.id, u.nombre, u.email, r.nombre AS rol_nombre, u.rol_id, 'tecnico' AS tipo_vinculo
+       SELECT u.id, u.nombre, u.email, r.nombre AS rol_nombre, u.rol_id, 'disenador' AS tipo_vinculo
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
-       JOIN taller_tecnicos tt ON tt.usuario_id = u.id AND tt.taller_id = ?
+       JOIN taller_disenadores tt ON tt.usuario_id = u.id AND tt.taller_id = ?
        WHERE u.activo = 1
        ORDER BY tipo_vinculo, nombre`,
       [tallerId, tallerId],
@@ -149,19 +149,19 @@ class TallerAdminRepository {
   // Mismo mecanismo para Diseñador (rol 6) y Asistente (rol 7, "clona" el
   // taller elegido) — PK en usuario_id, así que reasignar es un upsert
   // simple (nunca puede quedar en dos talleres).
-  async asignarTecnico(usuarioId, tallerId) {
+  async asignarDisenador(usuarioId, tallerId) {
     return db.query(
-      'INSERT INTO taller_tecnicos (usuario_id, taller_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE taller_id = VALUES(taller_id)',
+      'INSERT INTO taller_disenadores (usuario_id, taller_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE taller_id = VALUES(taller_id)',
       [usuarioId, tallerId],
-      'taller_tecnico:asignar'
+      'taller_disenador:asignar'
     );
   }
 
-  async quitarTecnico(usuarioId) {
+  async quitarDisenador(usuarioId) {
     return db.query(
-      'DELETE FROM taller_tecnicos WHERE usuario_id = ?',
+      'DELETE FROM taller_disenadores WHERE usuario_id = ?',
       [usuarioId],
-      'taller_tecnico:quitar'
+      'taller_disenador:quitar'
     );
   }
 }

@@ -10,7 +10,7 @@ const historialRepository = require('../repositories/historialRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const {
-  ESTADOS, ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO,
+  ESTADOS, ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR,
   esAdministrador, enriquecer
 } = require('./valeHelpers');
 
@@ -90,7 +90,7 @@ class ValeDetalleService {
       const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
       return misAsesoresIds.has(vale.asesor_id);
     }
-    if (ROLES_TALLER_Y_TECNICO.includes(usuario.rolId)) {
+    if (ROLES_TALLER_Y_DISENADOR.includes(usuario.rolId)) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
       if (tallerVisible && talleres.some(t => t.taller_id === tallerVisible)) return true;
       // Quien fusiona (vales.aprobar_general) necesita poder ver CUALQUIER
@@ -128,9 +128,9 @@ class ValeDetalleService {
   //   (creación, retorno, confirmación, modificación) que antes se colaban
   //   por tener taller_id null.
   // - Diseñador: el mismo ciclo, pero acotado ADEMÁS a que el evento sea suyo —
-  //   `usuario_id` para lo que él mismo ejecuta, `tecnico_id` para lo que un
+  //   `usuario_id` para lo que él mismo ejecuta, `disenador_id` para lo que un
   //   encargado hizo SOBRE él (asignación/aprobación/reasignación). Las filas
-  //   sembradas antes de que existiera la columna `tecnico_id` caen a un
+  //   sembradas antes de que existiera la columna `disenador_id` caen a un
   //   respaldo por nombre en el texto de `accion` (best-effort, solo para
   //   datos históricos previos a esta corrección).
   async _filtrarHistorialPorRol(usuario, historial) {
@@ -167,7 +167,7 @@ class ValeDetalleService {
         .map(sinCategoria);
     }
 
-    if (usuario.rolId === ROL.TECNICO) {
+    if (usuario.rolId === ROL.DISENADOR) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
       if (!tallerVisible) return [];
       const propias = new Set(['EN_PROCESO', 'PAUSA', 'REANUDACION', 'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO']);
@@ -177,7 +177,7 @@ class ValeDetalleService {
           if (h.taller_id !== tallerVisible) return false;
           if (propias.has(h._categoria)) return h.usuario_id === usuario.id;
           if (deUnEncargado.has(h._categoria)) {
-            if (h.tecnico_id != null) return h.tecnico_id === usuario.id;
+            if (h.disenador_id != null) return h.disenador_id === usuario.id;
             return !!(usuario.nombre && h.accion && h.accion.includes(usuario.nombre));
           }
           return false;
@@ -198,11 +198,11 @@ class ValeDetalleService {
       const propio = talleres.find(t => t.encargado_id === idEfectivo);
       return propio ? propio.id : null;
     }
-    if (usuario.rolId === ROL.TECNICO) {
-      // El taller del diseñador sale directo de `taller_tecnicos`, sin pasar
+    if (usuario.rolId === ROL.DISENADOR) {
+      // El taller del diseñador sale directo de `taller_disenadores`, sin pasar
       // por el id del encargado.
-      const tecnico = await usuarioValeRepository.obtenerPorId(usuario.id);
-      return tecnico && tecnico.taller_id ? tecnico.taller_id : null;
+      const disenador = await usuarioValeRepository.obtenerPorId(usuario.id);
+      return disenador && disenador.taller_id ? disenador.taller_id : null;
     }
     return null;
   }
@@ -211,8 +211,8 @@ class ValeDetalleService {
     const catalogo = await tallerRepository.listarTodos();
     return Promise.all(talleres.map(async t => {
       const taller = catalogo.find(x => x.id === t.taller_id);
-      const tecnico = t.tecnico_id ? await usuarioValeRepository.obtenerPorId(t.tecnico_id) : null;
-      return { ...t, taller_nombre: taller ? taller.nombre : `#${t.taller_id}`, tecnico_nombre: tecnico ? tecnico.nombre : null };
+      const disenador = t.disenador_id ? await usuarioValeRepository.obtenerPorId(t.disenador_id) : null;
+      return { ...t, taller_nombre: taller ? taller.nombre : `#${t.taller_id}`, disenador_nombre: disenador ? disenador.nombre : null };
     }));
   }
 

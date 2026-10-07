@@ -61,7 +61,7 @@ export const CONTADORES_CONFIG = {
       { key: 'totalFusionados', label: 'Total fusionados', filtro: 'totalFusionados', permiso: PERMISO_FUSION }
     ]
   },
-  [ROL.TECNICO]: {
+  [ROL.DISENADOR]: {
     buzon: [
       { key: 'asignados', label: 'Asignados sin atraso', filtro: 'asignados' },
       { key: 'asignadosAtrasados', label: 'Asignados con atraso', alerta: true, filtro: 'asignadosAtrasados' },

@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO } from '../config/roles.js';
-import { ESTADOS_LABEL, ESTADOS_VISIBLES_LABEL, CLAVES_ESTADOS_TALLER, CLAVES_ESTADOS_GENERAL, CLAVES_ESTADOS_TECNICO_BUZON, CLAVES_ESTADOS_TECNICO_TRABAJO } from '../config/estados.js';
+import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR } from '../config/roles.js';
+import { ESTADOS_LABEL, ESTADOS_VISIBLES_LABEL, CLAVES_ESTADOS_TALLER, CLAVES_ESTADOS_GENERAL, CLAVES_ESTADOS_DISENADOR_BUZON, CLAVES_ESTADOS_DISENADOR_TRABAJO } from '../config/estados.js';
 import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible } from '../permisos.js';
 import { celdaEstado } from '../components/pipeline.js';
@@ -11,7 +11,7 @@ import { cargarRendimientoGerencia } from './rendimientoGerencia.js';
 import { cargarEncontrarVale } from './encontrarVale.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
-import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/tecnico.js';
+import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/disenador.js';
 import { abrirModalDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
 import { abrirModalSolicitarModificacion, abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirModalHistorial } from '../actions/historial.js';
@@ -188,14 +188,14 @@ export function poblarFiltroEstado() {
     // a ver, no la familia completa. Quien fusiona (vales.aprobar_general) ve,
     // mezclados en su propio buzón/trabajo, los estados de la cola de fusión.
     let claves;
-    if (state.user.rolId === ROL.TECNICO) claves = state.vista === 'trabajo' ? CLAVES_ESTADOS_TECNICO_TRABAJO : CLAVES_ESTADOS_TECNICO_BUZON;
+    if (state.user.rolId === ROL.DISENADOR) claves = state.vista === 'trabajo' ? CLAVES_ESTADOS_DISENADOR_TRABAJO : CLAVES_ESTADOS_DISENADOR_BUZON;
     else if (ROLES_ENCARGADO_TALLER.includes(state.user.rolId)) {
       // Trabajo Realizado siempre muestra APROBADO (estado congelado, tanto la
       // fila de propuesta propia como la de fusión) — los estados generales ya
       // no pueden ocurrir ahí, así que el desplegable colapsa igual que el del
       // diseñador.
       if (state.vista === 'trabajo') {
-        claves = [...CLAVES_ESTADOS_TECNICO_TRABAJO];
+        claves = [...CLAVES_ESTADOS_DISENADOR_TRABAJO];
       } else {
         claves = [...CLAVES_ESTADOS_TALLER];
         if (puede('aprobarGeneral')) claves = [...claves, 'APROBADO_DEPARTAMENTO'];
@@ -300,7 +300,7 @@ export function construirAcciones(v) {
   // la propuesta REAL que se aprobó (`propuesta_taller_url`, solo viene
   // poblado en esa vista) — no `propuesta_general_url`, que en un vale
   // multi-taller es la fusión, no el trabajo propio de este taller.
-  if (ROLES_TALLER_Y_TECNICO.includes(state.user.rolId) && v.propuesta_taller_url) {
+  if (ROLES_TALLER_Y_DISENADOR.includes(state.user.rolId) && v.propuesta_taller_url) {
     acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_taller_url, '_blank') });
   }
 

@@ -37,18 +37,18 @@ class ValeTallerRepository {
     return db.query(`${SELECT_VALE_TALLER} WHERE vt.vale_id = ? AND vt.activo = 1 ORDER BY vt.id ASC`, [valeId], 'vale_taller:list_by_vale');
   }
 
-  async listarActivasPorTecnico(tecnicoId) {
-    return db.query(`${SELECT_VALE_TALLER} WHERE vt.tecnico_id = ? AND vt.activo = 1`, [tecnicoId], 'vale_taller:list_activas_by_tecnico');
+  async listarActivasPorDisenador(disenadorId) {
+    return db.query(`${SELECT_VALE_TALLER} WHERE vt.disenador_id = ? AND vt.activo = 1`, [disenadorId], 'vale_taller:list_activas_by_disenador');
   }
 
   async listarActivasPorTaller(tallerId) {
     return db.query(`${SELECT_VALE_TALLER} WHERE vt.taller_id = ? AND vt.activo = 1`, [tallerId], 'vale_taller:list_activas_by_taller');
   }
 
-  async asignar(id, tecnicoId, fechaAsignacion) {
+  async asignar(id, disenadorId, fechaAsignacion) {
     await db.query(
-      "UPDATE vale_talleres SET tecnico_id = ?, estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ASIGNADO'), fecha_asignacion = ? WHERE id = ?",
-      [tecnicoId, fechaAsignacion, id],
+      "UPDATE vale_talleres SET disenador_id = ?, estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ASIGNADO'), fecha_asignacion = ? WHERE id = ?",
+      [disenadorId, fechaAsignacion, id],
       'vale_taller:asignar'
     );
   }

@@ -20,7 +20,7 @@ discrepan, manda el código: corrige este archivo.
   nombres de rol de este documento describen quién tiene hoy ese permiso en
   `database/seed.sql`, pero el backend solo valida el permiso
   (`routes.js` → `requirePermission`).
-- Toda transición se serializa con un lock por vale (`valeMutex`); además, el cupo del supervisor y el "un solo vale en proceso" del diseñador se serializan en colas por supervisor y por diseñador (`conColaDeSupervisor`, `conColaDeTecnico`). Se anota en
+- Toda transición se serializa con un lock por vale (`valeMutex`); además, el cupo del supervisor y el "un solo vale en proceso" del diseñador se serializan en colas por supervisor y por diseñador (`conColaDeSupervisor`, `conColaDeDisenador`). Se anota en
   `vale_historial`.
 - Hora de referencia: UTC-6 fijo (Guatemala), calculado por offset, no por la
   zona horaria del servidor.
@@ -339,7 +339,7 @@ Reglas:
   tras desaprobar) a sí mismo. Si luego entrega **con archivo**, su trabajo se
   **autoaprueba** en el mismo paso (no pasa por revisión de sí mismo).
 - **Asistente de Diseño:** opera como "clon" del encargado del taller al que
-  esté vinculado (`taller_tecnicos`), para asignar, revisar y ver el buzón.
+  esté vinculado (`taller_disenadores`), para asignar, revisar y ver el buzón.
 - Un encargado solo actúa sobre la fila de **su propio** taller; el
   Administrador, si el vale tiene un solo taller, sobre esa fila, y si tiene
   varios debe indicar el taller.
@@ -364,9 +364,9 @@ cambia quién puede hacer cada acción.
 | Diseño Local (10) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de un taller de Diseño Local (ligado a una tienda); sin fusión. |
 
 > **Nombre del rol 6.** El rol que trabaja los vales en el taller se llama **Diseñador** (antes
-> «Técnico»). Los identificadores internos conservan la raíz `tecnico` (`vale_talleres.tecnico_id`,
-> `taller_tecnicos`, `ROL.TECNICO`, las salas `tecnico:<id>` y las rutas `/tecnicos`): no se ven
-> en pantalla, y renombrarlos exigiría migrar la base y la API.
+> «Técnico»), en pantalla, en la base y en el código: `vale_talleres.disenador_id`,
+> `taller_disenadores`, `ROL.DISENADOR`, las salas `disenador:<id>` y las rutas `/disenadores`.
+> Las cuentas existentes conservan su correo (`tecnico1@…`).
 
 ### Quién fusiona
 
@@ -481,7 +481,7 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
 **solo a las salas a quienes concierne**, ya formateados:
 `{dd/mm/aaaa hh:mm} – Vale: {correlativo} fue {acción} por {actor}[ a {destino}]`.
 
-- Salas: `asesor:<id>`, `supervisor:<id>`, `taller:<id>`, `tecnico:<id>`,
+- Salas: `asesor:<id>`, `supervisor:<id>`, `taller:<id>`, `disenador:<id>`,
   `vales:fusion` (quien tenga `vales.aprobar_general`) y `vales:admin` (el
   Administrador ve todo).
 - El servidor valida en cada conexión que el usuario tenga derecho a la sala

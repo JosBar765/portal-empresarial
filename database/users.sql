@@ -179,7 +179,7 @@ INSERT INTO `taller_tiendas` (`taller_id`, `tienda_id`) VALUES
 (12, 11), 
 (14, 13);
 
-INSERT INTO `taller_tecnicos` (`taller_id`, `usuario_id`) VALUES
+INSERT INTO `taller_disenadores` (`taller_id`, `usuario_id`) VALUES
 (1, 97), (1, 98), (1, 99), (1, 100), (1, 101), (1, 102),  (1, 103),
 (2, 104), (2, 105), (2, 106), (2, 107),
 (3, 108), (3, 109);

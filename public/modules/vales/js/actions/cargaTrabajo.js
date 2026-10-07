@@ -3,7 +3,7 @@ import { $, $$ } from '../utils/dom.js';
 import { abrirModal } from '../components/modal.js';
 import { formatearFecha, escapeHtml } from '../utils/formato.js';
 import { ESTADOS_LABEL } from '../config/estados.js';
-import { obtenerCargaTrabajo, obtenerAsignacionesTecnico } from '../api/valesApi.js';
+import { obtenerCargaTrabajo, obtenerAsignacionesDisenador } from '../api/valesApi.js';
 
 // -----------------------------------------------------------------------
 // Carga de trabajo (encargados de taller) — se mantiene actualizada en tiempo
@@ -19,7 +19,7 @@ async function renderContenidoCargaTrabajo(overlay) {
   const maxAsignaciones = Math.max(1, ...data.map(t => t.asignaciones));
   const body = overlay.querySelector('.modal-body');
   body.innerHTML = data.length ? data.map(t => `
-    <div class="carga-tecnico" data-tecnico-id="${t.tecnicoId}">
+    <div class="carga-disenador" data-disenador-id="${t.disenadorId}">
       <div class="nombre">${escapeHtml(t.nombre)}</div>
       <div class="carga-barra"><div class="carga-barra-fill" style="transform:scaleX(${t.asignaciones / maxAsignaciones})"></div></div>
       <div style="font-size:12px;color:var(--color-text-secondary);">
@@ -28,8 +28,8 @@ async function renderContenidoCargaTrabajo(overlay) {
     </div>
   `).join('') : '<p style="font-size:13px;">No tienes diseñadores bajo tu mando.</p>';
 
-  $$('.carga-tecnico', body).forEach(el => {
-    el.addEventListener('click', () => abrirModalAsignacionesTecnico(el.dataset.tecnicoId));
+  $$('.carga-disenador', body).forEach(el => {
+    el.addEventListener('click', () => abrirModalAsignacionesDisenador(el.dataset.disenadorId));
   });
 }
 
@@ -39,10 +39,10 @@ export function abrirModalCargaTrabajo() {
   renderContenidoCargaTrabajo(overlay);
 }
 
-async function renderContenidoAsignacionesTecnico(overlay, tecnicoId) {
+async function renderContenidoAsignacionesDisenador(overlay, disenadorId) {
   let vales = [];
   try {
-    vales = await obtenerAsignacionesTecnico(tecnicoId);
+    vales = await obtenerAsignacionesDisenador(disenadorId);
   } catch { /* se muestra vacío si falla */ }
 
   const body = overlay.querySelector('.modal-body');
@@ -56,8 +56,8 @@ async function renderContenidoAsignacionesTecnico(overlay, tecnicoId) {
   ` : '<p style="font-size:13px;">Este diseñador no tiene asignaciones activas.</p>';
 }
 
-function abrirModalAsignacionesTecnico(tecnicoId) {
+function abrirModalAsignacionesDisenador(disenadorId) {
   const { overlay } = abrirModal({ title: 'Asignaciones del diseñador', bodyHtml: '<p class="tabla-vacia">Cargando...</p>' });
-  state.cargaTrabajoModal = { overlay, actualizar: () => renderContenidoAsignacionesTecnico(overlay, tecnicoId) };
-  renderContenidoAsignacionesTecnico(overlay, tecnicoId);
+  state.cargaTrabajoModal = { overlay, actualizar: () => renderContenidoAsignacionesDisenador(overlay, disenadorId) };
+  renderContenidoAsignacionesDisenador(overlay, disenadorId);
 }

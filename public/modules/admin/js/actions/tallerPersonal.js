@@ -1,11 +1,11 @@
 import { escapeHtml } from '../utils/formato.js';
 import { $$ } from '../utils/dom.js';
-import { ROL_TECNICO, ROL_ASISTENTE, ROL_ENCARGADO_DISENO_LOCAL, TALLERES_CLONABLES_ASISTENTE } from '../config/roles.js';
+import { ROL_DISENADOR, ROL_ASISTENTE, ROL_ENCARGADO_DISENO_LOCAL, TALLERES_CLONABLES_ASISTENTE } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import {
   listarPersonalDeTaller, listarUsuariosRaw,
   asignarEncargadoTaller, quitarEncargadoTaller,
-  agregarTecnicoATaller, quitarTecnicoDeTaller
+  agregarDisenadorATaller, quitarDisenadorDeTaller
 } from '../api/adminApi.js';
 import { cargarTalleres } from '../views/talleres.js';
 
@@ -19,7 +19,7 @@ function rolEsperadoDeTaller(taller) {
 export async function abrirModalVerPersonalTaller(taller) {
   const personal = await listarPersonalDeTaller(taller.id);
   const encargado = personal.find(p => p.tipo_vinculo === 'encargado');
-  const tecnicos = personal.filter(p => p.tipo_vinculo === 'tecnico');
+  const disenadores = personal.filter(p => p.tipo_vinculo === 'disenador');
   const bodyHtml = `
     <p class="section-title">Encargado</p>
     <div class="personal-lista">
@@ -27,9 +27,9 @@ export async function abrirModalVerPersonalTaller(taller) {
         ? `<div class="personal-item"><div class="personal-item-info"><span>${escapeHtml(encargado.nombre)}</span></div></div>`
         : '<p class="form-hint">Sin encargado asignado.</p>'}
     </div>
-    <p class="section-title">Diseñadores (${tecnicos.length})</p>
+    <p class="section-title">Diseñadores (${disenadores.length})</p>
     <div class="personal-lista">
-      ${tecnicos.map(p => `
+      ${disenadores.map(p => `
         <div class="personal-item">
           <div class="personal-item-info">
             <span>${escapeHtml(p.nombre)}</span>
@@ -54,23 +54,23 @@ export async function abrirModalPersonalTaller(taller) {
   ]);
   const todosUsuarios = usuariosRaw.data.usuarios;
   const encargadoActual = personal.find(p => p.tipo_vinculo === 'encargado');
-  const tecnicosActuales = personal.filter(p => p.tipo_vinculo === 'tecnico');
+  const disenadoresActuales = personal.filter(p => p.tipo_vinculo === 'disenador');
   const idsActuales = new Set(personal.map(p => p.id));
 
   const rolEsperado = rolEsperadoDeTaller(taller);
   const encargadosDisponibles = todosUsuarios.filter(u => u.activo && u.rol_id === rolEsperado && !u.taller_id);
-  const tecnicosClonables = TALLERES_CLONABLES_ASISTENTE.includes(taller.nombre);
-  const tecnicosDisponibles = todosUsuarios.filter(u =>
+  const disenadoresClonables = TALLERES_CLONABLES_ASISTENTE.includes(taller.nombre);
+  const disenadoresDisponibles = todosUsuarios.filter(u =>
     u.activo && !idsActuales.has(u.id) && !u.taller_id &&
-    (u.rol_id === ROL_TECNICO || (u.rol_id === ROL_ASISTENTE && tecnicosClonables))
+    (u.rol_id === ROL_DISENADOR || (u.rol_id === ROL_ASISTENTE && disenadoresClonables))
   );
 
   const bodyHtml = `
     <p class="section-title">Encargado</p>
     <div id="zona-encargado-taller" class="form-grid"></div>
     <p class="section-title">Diseñadores</p>
-    <div id="tecnicos-actual">
-      ${tecnicosActuales.map(p => `
+    <div id="disenadores-actual">
+      ${disenadoresActuales.map(p => `
         <div class="personal-item" data-usuario-id="${p.id}">
           <div class="personal-item-info">
             <span>${escapeHtml(p.nombre)}</span>
@@ -83,9 +83,9 @@ export async function abrirModalPersonalTaller(taller) {
     <div class="form-grid">
       <div class="form-field">
         <label>Persona</label>
-        <select id="input-agregar-tecnico">
+        <select id="input-agregar-disenador">
           <option value="">Seleccionar...</option>
-          ${tecnicosDisponibles.map(u => `<option value="${u.id}">${escapeHtml(u.nombre)}${u.rol_id === ROL_ASISTENTE ? ' (Asistente)' : ''}</option>`).join('')}
+          ${disenadoresDisponibles.map(u => `<option value="${u.id}">${escapeHtml(u.nombre)}${u.rol_id === ROL_ASISTENTE ? ' (Asistente)' : ''}</option>`).join('')}
         </select>
       </div>
     </div>
@@ -93,7 +93,7 @@ export async function abrirModalPersonalTaller(taller) {
   const { overlay, cerrar } = abrirModal({
     title: `Personal — ${taller.nombre}`,
     bodyHtml,
-    footerHtml: `<button class="btn btn--ghost" id="btn-cerrar-taller">Cerrar</button><button class="btn btn--primary" id="btn-agregar-tecnico">Agregar diseñador</button>`
+    footerHtml: `<button class="btn btn--ghost" id="btn-cerrar-taller">Cerrar</button><button class="btn btn--primary" id="btn-agregar-disenador">Agregar diseñador</button>`
   });
 
   function renderZonaEncargado() {
@@ -150,7 +150,7 @@ export async function abrirModalPersonalTaller(taller) {
   }
   renderZonaEncargado();
 
-  $$('#tecnicos-actual .personal-item', overlay).forEach(item => {
+  $$('#disenadores-actual .personal-item', overlay).forEach(item => {
     const btnQuitar = document.createElement('button');
     btnQuitar.className = 'btn-icon icon-danger';
     btnQuitar.title = 'Quitar';
@@ -158,7 +158,7 @@ export async function abrirModalPersonalTaller(taller) {
     btnQuitar.addEventListener('click', async () => {
       const usuarioId = item.dataset.usuarioId;
       try {
-        await quitarTecnicoDeTaller(taller.id, usuarioId);
+        await quitarDisenadorDeTaller(taller.id, usuarioId);
         window.toast.success('Personal actualizado', 'Se quitó del taller.');
         cerrar();
         cargarTalleres();
@@ -170,13 +170,13 @@ export async function abrirModalPersonalTaller(taller) {
   });
 
   overlay.querySelector('#btn-cerrar-taller').addEventListener('click', cerrar);
-  overlay.querySelector('#btn-agregar-tecnico').addEventListener('click', async () => {
-    const usuarioId = overlay.querySelector('#input-agregar-tecnico').value;
+  overlay.querySelector('#btn-agregar-disenador').addEventListener('click', async () => {
+    const usuarioId = overlay.querySelector('#input-agregar-disenador').value;
     if (!usuarioId) return;
-    const btn = overlay.querySelector('#btn-agregar-tecnico');
+    const btn = overlay.querySelector('#btn-agregar-disenador');
     btn.disabled = true;
     try {
-      await agregarTecnicoATaller(taller.id, usuarioId);
+      await agregarDisenadorATaller(taller.id, usuarioId);
       window.toast.success('Personal actualizado', 'Se agregó al taller.');
       cerrar();
       cargarTalleres();

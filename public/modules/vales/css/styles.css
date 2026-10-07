@@ -1642,7 +1642,7 @@
   transform: scale(0.97);
 }
 
-.carga-tecnico {
+.carga-disenador {
   padding: 12px 14px;
   background: var(--color-surface-muted);
   border-radius: var(--radius-sm);
@@ -1651,11 +1651,11 @@
   transition: background-color var(--transition-fast);
 }
 
-.carga-tecnico:hover {
+.carga-disenador:hover {
   background: var(--color-border);
 }
 
-.carga-tecnico .nombre {
+.carga-disenador .nombre {
   font-weight: 700;
   font-size: 13px;
   color: var(--color-primary);

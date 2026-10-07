@@ -42,7 +42,7 @@ class ValeCorreccionRepository {
         );
       }
       await tx.query(
-        'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, tecnico_id) VALUES (?, ?, NULL, ?, ?, ?, NULL)',
+        'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, disenador_id) VALUES (?, ?, NULL, ?, ?, ?, NULL)',
         [valeId, usuarioId, estado, estado, accionHistorial],
         'historial:insert_correccion'
       );

@@ -41,5 +41,5 @@ export const CLAVES_ESTADOS_GENERAL = ['ESPERANDO_AUTORIZACION', 'CREADO', 'APRO
 // El diseñador nunca ve PENDIENTE_ASIGNACION (un vale sin asignar no está en su
 // buzón) ni APROBADO en el Buzón (se muda a Trabajo realizado) — se separan
 // por vista en poblarFiltroEstado.
-export const CLAVES_ESTADOS_TECNICO_BUZON = ['ASIGNADO', 'EN_PROCESO', 'EN_PAUSA', 'EN_REVISION'];
-export const CLAVES_ESTADOS_TECNICO_TRABAJO = ['APROBADO'];
+export const CLAVES_ESTADOS_DISENADOR_BUZON = ['ASIGNADO', 'EN_PROCESO', 'EN_PAUSA', 'EN_REVISION'];
+export const CLAVES_ESTADOS_DISENADOR_TRABAJO = ['APROBADO'];

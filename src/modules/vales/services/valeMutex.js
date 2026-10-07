@@ -35,7 +35,7 @@ class ValeMutex {
     // Colas por supervisor (cupo diario) y por diseñador (un solo vale EN_PROCESO): igual que la de
     // creación, el segundo en llegar espera su turno, para que leer el conteo y escribir sea atómico.
     this._colaPorSupervisor = new Map();
-    this._colaPorTecnico = new Map();
+    this._colaPorDisenador = new Map();
   }
 
   async conLockDeVale(valeId, fn) {
@@ -73,8 +73,8 @@ class ValeMutex {
     return this._encolar(this._colaPorSupervisor, supervisorId, fn);
   }
 
-  conColaDeTecnico(tecnicoId, fn) {
-    return this._encolar(this._colaPorTecnico, tecnicoId, fn);
+  conColaDeDisenador(disenadorId, fn) {
+    return this._encolar(this._colaPorDisenador, disenadorId, fn);
   }
 
   conColaDeCapacidad(fn) {
