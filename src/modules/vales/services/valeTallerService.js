@@ -72,7 +72,7 @@ class ValeTallerService {
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: 'asignado', actor: usuario.nombre, actorId: usuario.id, destino: disenador ? disenador.nombre : null,
-        salas: ['disenador:' + disenadorId, `taller:${fila.taller_id}`]
+        salas: ['disenador:' + disenadorId, `taller:${fila.taller_id}`, `asesor:${actualizado.asesor_id}`]
       });
       return enriquecer(actualizado);
     });
