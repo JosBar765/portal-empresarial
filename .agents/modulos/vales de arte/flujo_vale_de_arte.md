@@ -539,6 +539,7 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
 - Nivel `alerta` (toast rojo): atrasos, propuesta entregada sin archivo y
   cancelación de proceso.
 - Al recibir un evento, el cliente refresca su buzón.
+- Al **entregar una propuesta** (el taller pasa a `EN_REVISION`) y al **cancelar el proceso**, el aviso va también al asesor dueño (`asesor:<id>`). Si el que entrega es el encargado y el vale se autoaprueba, el asesor recibe solo el aviso de aprobación. Los demás movimientos del taller (en proceso, pausa, etc.) todavía no lo avisan.
 
 ## 9. Guía para renombrar estados
 
