@@ -10,14 +10,30 @@ const MENSAJE_POR_DEFECTO = 'Adjuntos enviados al correo';
 // -----------------------------------------------------------------------
 // Encargado/asistente: verificar o rechazar los adjuntos de su taller
 // -----------------------------------------------------------------------
-export async function accionVerificarAdjuntos(vale) {
-  try {
-    await verificarAdjuntos(vale.id);
-    window.toast.success('Adjuntos verificados', `${vale.correlativo} ya puede asignarse a un diseñador.`);
-  } catch (error) {
-    window.toast.error('No se pudo verificar', error.message);
-  }
-  cargarBuzon();
+export function abrirModalVerificarAdjuntos(vale) {
+  const { overlay, cerrar } = abrirModal({
+    title: `Verificar adjuntos — ${vale.correlativo}`,
+    bodyHtml: `
+      <p style="font-size:14px;font-weight:600;margin-bottom:8px;">¿Estás seguro que recibiste los adjuntos del vale de arte antes de trabajar?</p>
+      <p style="font-size:13px;">Al confirmar, el vale queda listo para asignarse a un diseñador.</p>
+    `,
+    footerHtml: '<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Sí, los recibí</button>'
+  });
+  overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
+  overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
+    const btn = overlay.querySelector('#btn-confirmar');
+    btn.disabled = true;
+    try {
+      await verificarAdjuntos(vale.id);
+      window.toast.success('Adjuntos verificados', `${vale.correlativo} ya puede asignarse a un diseñador.`);
+      cerrar();
+      cargarBuzon();
+    } catch (error) {
+      mostrarErrorModal(overlay, error.message);
+      btn.disabled = false;
+      cargarBuzon();
+    }
+  });
 }
 
 export function abrirModalRechazarAdjuntos(vale) {
