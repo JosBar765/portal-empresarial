@@ -123,12 +123,12 @@ export function quitarEncargadoTaller(tallerId) {
   return enviarSinBody(`/api/admin/talleres/${tallerId}/encargado`, 'DELETE');
 }
 
-export function agregarTecnicoATaller(tallerId, usuarioId) {
-  return enviarConBody(`/api/admin/talleres/${tallerId}/tecnicos`, 'POST', { usuarioId: Number(usuarioId) });
+export function agregarDisenadorATaller(tallerId, usuarioId) {
+  return enviarConBody(`/api/admin/talleres/${tallerId}/disenadores`, 'POST', { usuarioId: Number(usuarioId) });
 }
 
-export function quitarTecnicoDeTaller(tallerId, usuarioId) {
-  return enviarSinBody(`/api/admin/talleres/${tallerId}/tecnicos/${usuarioId}`, 'DELETE');
+export function quitarDisenadorDeTaller(tallerId, usuarioId) {
+  return enviarSinBody(`/api/admin/talleres/${tallerId}/disenadores/${usuarioId}`, 'DELETE');
 }
 
 export function actualizarLimiteDiarioTaller(tallerId, limiteDiario) {

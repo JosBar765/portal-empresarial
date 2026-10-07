@@ -20,7 +20,7 @@ discrepan, manda el código: corrige este archivo.
   nombres de rol de este documento describen quién tiene hoy ese permiso en
   `database/seed.sql`, pero el backend solo valida el permiso
   (`routes.js` → `requirePermission`).
-- Toda transición se serializa con un lock por vale (`valeMutex`); además, el cupo del supervisor y el "un solo vale en proceso" del técnico se serializan en colas por supervisor y por técnico (`conColaDeSupervisor`, `conColaDeTecnico`). Se anota en
+- Toda transición se serializa con un lock por vale (`valeMutex`); además, el cupo del supervisor y el "un solo vale en proceso" del diseñador se serializan en colas por supervisor y por diseñador (`conColaDeSupervisor`, `conColaDeDisenador`). Se anota en
   `vale_historial`.
 - Hora de referencia: UTC-6 fijo (Guatemala), calculado por offset, no por la
   zona horaria del servidor.
@@ -91,10 +91,10 @@ Diagrama general (flujo feliz y desvíos):
 
 | id | Código | Etiqueta en pantalla | Qué significa | Entra por | Sale por |
 |---|---|---|---|---|---|
-| 1 | `PENDIENTE_ASIGNACION` | Pendiente Asignación | El taller recibió el vale; el encargado aún no elige técnico. | El supervisor autoriza (una fila por taller) | Encargado asigna técnico → `ASIGNADO` |
-| 2 | `ASIGNADO` | Asignado | Tiene técnico, aún no empieza. | Asignación · el encargado **desaprueba** y reasigna | Técnico comienza → `EN_PROCESO` |
-| 3 | `EN_PROCESO` | En Proceso | El técnico trabaja (solo 1 por técnico). | Comenzar · reanudar | Entregar o cancelar → `EN_REVISION` · Pausar → `EN_PAUSA` |
-| 4 | `EN_PAUSA` | En Pausa | El técnico detuvo el trabajo. | Pausar | Reanudar → `EN_PROCESO` |
+| 1 | `PENDIENTE_ASIGNACION` | Pendiente Asignación | El taller recibió el vale; el encargado aún no elige diseñador. | El supervisor autoriza (una fila por taller) | Encargado asigna diseñador → `ASIGNADO` |
+| 2 | `ASIGNADO` | Asignado | Tiene diseñador, aún no empieza. | Asignación · el encargado **desaprueba** y reasigna | Diseñador comienza → `EN_PROCESO` |
+| 3 | `EN_PROCESO` | En Proceso | El diseñador trabaja (solo 1 por diseñador). | Comenzar · reanudar | Entregar o cancelar → `EN_REVISION` · Pausar → `EN_PAUSA` |
+| 4 | `EN_PAUSA` | En Pausa | El diseñador detuvo el trabajo. | Pausar | Reanudar → `EN_PROCESO` |
 | 5 | `EN_REVISION` | En Revisión | Entregó propuesta (o canceló sin propuesta) y espera al encargado. | Entregar / cancelar | Aprobar → `APROBADO` · Desaprobar → `ASIGNADO` |
 | 6 | `APROBADO` | Aprobado | El taller terminó (con propuesta con archivo). | Aprobación del encargado (o autoaprobación si se autoasignó y entregó con archivo) | — |
 
@@ -110,7 +110,7 @@ Diagrama general (flujo feliz y desvíos):
   **Creado**; `RECIBIDO` → **Confirmado**; el vale `MOD-` se muestra como
   **Solicitando Modificación** o **Rechazado** mientras está pendiente y como
   **Modificado** en talleres, hasta `PENDIENTE_CONFIRMACION`. El resto se muestra igual.
-- **Encargado de taller y técnico** ven el estado **de la fila de su taller**
+- **Encargado de taller y diseñador** ven el estado **de la fila de su taller**
   (`estado_taller`, sección B), no el general.
 - **Administrador y Gerente** ven el estado general real.
 - Un vale `MOD-` es un vale más en los listados: aparece como fila propia
@@ -298,14 +298,14 @@ Nace cuando el Supervisor autoriza la creación (o aprueba la modificación).
         ┌─────────────────────────┐
         │   PENDIENTE_ASIGNACION   │
         └────────────┬─────────────┘
-                     │ el encargado del taller asigna un técnico
+                     │ el encargado del taller asigna un diseñador
                      │ (de su mando, o a sí mismo)
                      ▼
                ┌───────────┐ ◄────────────────────────────────────┐
                │  ASIGNADO │                                       │
                └─────┬─────┘                                       │
-                     │ técnico "comenzar"                          │ encargado DESAPRUEBA:
-                     │ (solo 1 vale EN_PROCESO por técnico)        │ debe indicar a qué técnico
+                     │ diseñador "comenzar"                          │ encargado DESAPRUEBA:
+                     │ (solo 1 vale EN_PROCESO por diseñador)        │ debe indicar a qué diseñador
                      ▼                                             │ reasignar (puede ser él mismo)
           ┌───────────────────┐   pausar    ┌────────────┐         │
           │    EN_PROCESO     │────────────►│  EN_PAUSA  │         │
@@ -330,7 +330,7 @@ Nace cuando el Supervisor autoriza la creación (o aprueba la modificación).
 
 Reglas:
 
-- **Entregar con archivo vs. sin archivo:** si el técnico entrega sin archivo,
+- **Entregar con archivo vs. sin archivo:** si el diseñador entrega sin archivo,
   se dispara una alerta roja y el encargado no podrá aprobar, solo
   desaprobar/reasignar. Cancelar el proceso deja el taller en `EN_REVISION`
   igual que una entrega vacía (no crea fila en `vale_propuestas`; solo queda
@@ -339,7 +339,7 @@ Reglas:
   tras desaprobar) a sí mismo. Si luego entrega **con archivo**, su trabajo se
   **autoaprueba** en el mismo paso (no pasa por revisión de sí mismo).
 - **Asistente de Diseño:** opera como "clon" del encargado del taller al que
-  esté vinculado (`taller_tecnicos`), para asignar, revisar y ver el buzón.
+  esté vinculado (`taller_disenadores`), para asignar, revisar y ver el buzón.
 - Un encargado solo actúa sobre la fila de **su propio** taller; el
   Administrador, si el vale tiene un solo taller, sobre esa fila, y si tiene
   varios debe indicar el taller.
@@ -357,11 +357,16 @@ cambia quién puede hacer cada acción.
 | Supervisor de Ventas (3) | `ver`, `autorizar_creacion`, `aprobar_modificacion`, `supervisar`, `ver_gerencia` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`usuarios.encargado_id`). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
 | Encargado de Diseño (4) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Dueño del taller "Diseño". Asigna y revisa, puede trabajar vales él mismo, y **fusiona** los vales multi-taller. |
 | Encargado de Diseño UV/3D (5) | `ver`, `asignar`, `revisar`, `trabajar` | Dueño del taller "Diseño UV/3D". Sin fusión. |
-| Técnico (6) | `ver`, `trabajar` | Comienza, pausa, reanuda, cancela y entrega sus vales. |
+| Diseñador (6) | `ver`, `trabajar` | Comienza, pausa, reanuda, cancela y entrega sus vales. |
 | Asistente de Diseño (7) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Clon operativo completo del Encargado de Diseño. |
 | Gerente (8) | `ver`, `ver_gerencia` | Solo lectura (ver §6). |
 | Encargado de Protextil (9) | `ver`, `asignar`, `revisar` | Encargado de su taller; sin fusión. |
 | Diseño Local (10) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de un taller de Diseño Local (ligado a una tienda); sin fusión. |
+
+> **Nombre del rol 6.** El rol que trabaja los vales en el taller se llama **Diseñador** (antes
+> «Técnico»), en pantalla, en la base y en el código: `vale_talleres.disenador_id`,
+> `taller_disenadores`, `ROL.DISENADOR`, las salas `disenador:<id>` y las rutas `/disenadores`.
+> Las cuentas del rol usan correos `disenadorN@…` y la contraseña de desarrollo `disenador123`.
 
 ### Quién fusiona
 
@@ -371,7 +376,7 @@ ese permiso. Hoy lo tienen los roles 4 y 7. Ojo: la **cola** de
 `APROBADO_DEPARTAMENTO` se arma en el buzón de los roles de encargado de taller
 (4, 5, 7, 9, 10), así que quien tenga el permiso y esté en uno de esos roles la
 verá mezclada en su buzón de taller (no es un buzón aparte). Un rol de otro tipo
-(asesor, supervisor, técnico, gerente) con el permiso no vería la cola. No existe un rol
+(asesor, supervisor, diseñador, gerente) con el permiso no vería la cola. No existe un rol
 "Encargado General".
 
 Detalles de esa cola:
@@ -396,8 +401,8 @@ tienen las mismas columnas para todos; cambian filtros, orden y acciones.
 |---|---|---|
 | Asesor | Rechazados · Esperando autorización · Pendientes de confirmación · Solicitando modificación · Atrasados. Excluye RECIBIDO. | Vales `RECIBIDO` (un vale confirmado sigue ahí aunque tenga una modificación en curso). Total y recibidos hoy. |
 | Supervisor | Por autorizar creación (con contador N/M del cupo colectivo) · Por autorizar modificación · Modificados · Pendientes de confirmación del asesor · Atrasados. | Dos grupos: lo que **él** autorizó (por fecha de autorización) y lo que sus asesores confirmaron (por `confirmado_en`). Un vale que cae en ambos aparece una vez. |
-| Encargado de taller | Pendiente de asignación · Asignados · En proceso · **En pausa** · En revisión · Atrasados (+ **Por fusionar** si tiene `aprobar_general`). Muestra el estado **de la fila de su taller**, no el general. | Vales con fila `APROBADO` en su taller (con "Ver propuesta" de su técnico), + sus fusiones si fusiona. |
-| Técnico | Asignados sin atraso · Asignados con atraso · Vale en proceso (ve también `EN_PAUSA` y `EN_REVISION` en la lista). | Vales que su taller aprobó, con su propuesta. |
+| Encargado de taller | Pendiente de asignación · Asignados · En proceso · **En pausa** · En revisión · Atrasados (+ **Por fusionar** si tiene `aprobar_general`). Muestra el estado **de la fila de su taller**, no el general. | Vales con fila `APROBADO` en su taller (con "Ver propuesta" de su diseñador), + sus fusiones si fusiona. |
+| Diseñador | Asignados sin atraso · Asignados con atraso · Vale en proceso (ve también `EN_PAUSA` y `EN_REVISION` en la lista). | Vales que su taller aprobó, con su propuesta. |
 | Administrador | Todo, con contadores generales (total, atrasados, recibidos hoy, pendientes de confirmación, por fusionar). | — |
 | Gerente | **No tiene buzón**: ver §6. | — |
 
@@ -420,7 +425,7 @@ Desde/Hasta; con un rango el mes se desactiva) y paginación por cursor de 50 en
 |---|---|---|
 | **Cupo colectivo diario del Supervisor** = nº de asesores activos bajo su mando; cuenta las autorizaciones de **creación** que hizo hoy | Al **autorizar** (no al crear) | Al llegar al límite no puede autorizar más ese día. Al Administrador no le aplica. Crear un vale nunca se bloquea ni se pospone por esto. Leer el cupo y sellar la autorización van en el mismo turno de la cola del supervisor, así que dos autorizaciones simultáneas no pueden pasarlo. La tarjeta "Autorizados hoy (equipo)" (N/M) la calcula el servidor con este mismo conteo. |
 | **Cupo diario por taller** (`talleres.limite_diario`, opcional; NULL = sin límite), sobre la fecha de **entrega** (no la de evento) | Al **crear**, al **solicitar** la modificación y al **aprobar** la modificación | Bloquea con un mensaje amigable ("el taller X ya no tiene cupo para el día…"). Las verificaciones + inserción son atómicas entre asesores (`conColaDeCapacidad`). El calendario del frontend solo lo anticipa. |
-| Un técnico = un vale `EN_PROCESO` | `comenzar` y `reanudar` (en la cola del técnico: dos acciones simultáneas no lo superan) | Debe entregar, cancelar o pausar el actual antes. |
+| Un diseñador = un vale `EN_PROCESO` | `comenzar` y `reanudar` (en la cola del diseñador: dos acciones simultáneas no lo superan) | Debe entregar, cancelar o pausar el actual antes. |
 | Una sola modificación por vale | `solicitarModificacion` | Ver §1.1. |
 | Adjuntos | `routes.js` | Máx. 3 MB por archivo; JPEG/PNG/WebP/PDF; hasta 10 imágenes y 5 documentos al crear. Un tipo no permitido se **rechaza** con un 400 (no se descarta en silencio). |
 
@@ -467,7 +472,7 @@ combinarse con cualquier filtro de estado.
   su `fecha_entrega`; antes solo se muestra "vence hoy"). Dispara
   una alerta roja **una sola vez por vale** (`atraso_notificado_en`) solo a
   quien lo tiene "en su vista": el asesor, sus supervisores, los talleres con
-  fila activa (pendiente, asignado, en proceso o en revisión), los técnicos con
+  fila activa (pendiente, asignado, en proceso o en revisión), los diseñadores con
   vale activo, y la sala `vales:fusion` si el vale está `APROBADO_DEPARTAMENTO`.
 
 ## 8. Tiempo real
@@ -476,7 +481,7 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
 **solo a las salas a quienes concierne**, ya formateados:
 `{dd/mm/aaaa hh:mm} – Vale: {correlativo} fue {acción} por {actor}[ a {destino}]`.
 
-- Salas: `asesor:<id>`, `supervisor:<id>`, `taller:<id>`, `tecnico:<id>`,
+- Salas: `asesor:<id>`, `supervisor:<id>`, `taller:<id>`, `disenador:<id>`,
   `vales:fusion` (quien tenga `vales.aprobar_general`) y `vales:admin` (el
   Administrador ve todo).
 - El servidor valida en cada conexión que el usuario tenga derecho a la sala
@@ -507,7 +512,7 @@ costo alto y riesgo real (ver abajo).
 
 Para renombrar solo la etiqueta (capa 1):
 
-1. Edita `ESTADOS_LABEL` (lo ven Administrador, Gerente, encargados, técnicos y
+1. Edita `ESTADOS_LABEL` (lo ven Administrador, Gerente, encargados, diseñadores y
    el Supervisor) **y** `ESTADOS_VISIBLES_LABEL` (lo ven Asesor y el Supervisor en
    "Trabajo realizado"). Un mismo estado figura en ambos diccionarios: cámbialo
    en los dos o el asesor y el supervisor verán nombres distintos.
@@ -583,7 +588,7 @@ No cambia ningún estado ni filtro: el desplegable de estado sigue usando los es
 | 4 Revisión | `CREADO`, `MODIFICADO`, `APROBADO_DEPARTAMENTO` (fusión) | `EN_REVISION`, `APROBADO` |
 | 5 Confirmación | `PENDIENTE_CONFIRMACION`, `RECIBIDO` (los cinco en verde) | — |
 
-- Con varios talleres se muestra el paso del taller más atrasado y «N de M talleres listos»; el tooltip lista el estado de cada uno. Encargados y técnicos ven el paso de **su** taller.
+- Con varios talleres se muestra el paso del taller más atrasado y «N de M talleres listos»; el tooltip lista el estado de cada uno. Encargados y diseñadores ven el paso de **su** taller.
 - El atraso (≥ 1 día) tiñe de rojo el paso actual; al estar `RECIBIDO` muestra «Atraso final».
 - Marcas bajo el pipeline: `MOD` (vale `MOD-`) y `Vence en N h` (vigencia de 24 h; ámbar cuando faltan 6 h o menos, calculado con `vigencia_minutos` en `SELECT_VALE`).
 - Un estado nuevo se agrega en `ETAPA_TALLER` o como un `case` de `calcularPipeline`; una etapa nueva del recorrido es un paso más en `PASOS`.

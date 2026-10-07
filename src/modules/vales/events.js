@@ -29,7 +29,7 @@ async function puedeUnirseASala(socket, sala) {
   if (sala === SALA_FUSION) return (usuario.permissions || []).includes(PERMISO_FUSION);
   if (usuario.rolId === ROL.ASESOR) return sala === `asesor:${usuario.id}`;
   if (usuario.rolId === ROL.SUPERVISOR) return sala === `supervisor:${usuario.id}`;
-  if (usuario.rolId === ROL.TECNICO) return sala === `tecnico:${usuario.id}`;
+  if (usuario.rolId === ROL.DISENADOR) return sala === `disenador:${usuario.id}`;
   if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId) && sala.startsWith('taller:')) {
     const tallerId = Number(sala.slice('taller:'.length));
     if (!Number.isFinite(tallerId)) return false;
@@ -79,7 +79,7 @@ async function usuariosDeSalas(salas) {
   const ids = new Set();
   for (const sala of salas) {
     const [tipo, valor] = String(sala).split(':');
-    if (['asesor', 'supervisor', 'tecnico'].includes(tipo)) ids.add(Number(valor));
+    if (['asesor', 'supervisor', 'disenador'].includes(tipo)) ids.add(Number(valor));
     else if (tipo === 'taller') (await destinatariosRepository.listarDeTaller(Number(valor))).forEach(id => ids.add(id));
     else if (sala === SALA_FUSION) (await destinatariosRepository.listarConPermiso(PERMISO_FUSION)).forEach(id => ids.add(id));
   }

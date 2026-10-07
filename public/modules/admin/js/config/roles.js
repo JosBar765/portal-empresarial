@@ -2,7 +2,7 @@
 export const ROL_ADMINISTRADOR = 1;
 export const ROL_ASESOR = 2;
 export const ROL_SUPERVISOR = 3;
-export const ROL_TECNICO = 6;
+export const ROL_DISENADOR = 6;
 export const ROL_ASISTENTE = 7;
 export const ROL_ENCARGADO_DISENO_LOCAL = 10;
 

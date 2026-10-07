@@ -3,7 +3,7 @@
 // forms/ y actions/ — este archivo no la implementa, solo la conecta.
 import { state } from './state.js';
 import { $ } from './utils/dom.js';
-import { ROL, ROLES_TALLER_Y_TECNICO, ROLES_ENCARGADO_TALLER } from './config/roles.js';
+import { ROL, ROLES_TALLER_Y_DISENADOR, ROLES_ENCARGADO_TALLER } from './config/roles.js';
 import { puede } from './permisos.js';
 import { inicialesAvatar } from './utils/formato.js';
 import { sessionCheck, logout } from './api/authApi.js';
@@ -40,9 +40,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('#account-dropdown-role').textContent = state.user.rolNombre;
   $('#account-avatar').textContent = inicialesAvatar(state.user.nombre);
 
-  // Encargados y técnicos ya trabajan scoped a su propio taller — la columna
+  // Encargados y diseñadores ya trabajan scoped a su propio taller — la columna
   // "Taller" (pensada para el asesor y roles de supervisión) sobra ahí.
-  $('.buzon-table').classList.toggle('oculta-taller', ROLES_TALLER_Y_TECNICO.includes(state.user.rolId));
+  $('.buzon-table').classList.toggle('oculta-taller', ROLES_TALLER_Y_DISENADOR.includes(state.user.rolId));
 
   $('#btn-nuevo-vale').style.display = puede('crear') ? 'flex' : 'none';
   // La carga de trabajo es una herramienta de gestión del propio equipo del

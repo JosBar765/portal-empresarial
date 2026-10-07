@@ -104,7 +104,7 @@ class TiendaAdminRepository {
        SELECT u.id, u.nombre, u.email, r.nombre AS rol_nombre, u.rol_id, 'directo' AS tipo_vinculo
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
-       JOIN taller_tecnicos tt ON tt.usuario_id = u.id
+       JOIN taller_disenadores tt ON tt.usuario_id = u.id
        JOIN taller_tiendas et ON et.taller_id = tt.taller_id AND et.tienda_id = ?
        WHERE u.activo = 1
        UNION ALL

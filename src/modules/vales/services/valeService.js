@@ -43,9 +43,9 @@ module.exports = {
   obtenerBuzon: (...a) => valeBuzonService.obtenerBuzon(...a),
   obtenerRendimientoGerencia: (...a) => valeRendimientoService.obtenerRendimiento(...a),
   buscarValePorCorrelativo: (...a) => valeBusquedaService.buscarPorCorrelativo(...a),
-  obtenerTecnicosAsignables: (...a) => valeBuzonService.obtenerTecnicosAsignables(...a),
+  obtenerDisenadoresAsignables: (...a) => valeBuzonService.obtenerDisenadoresAsignables(...a),
   obtenerCargaTrabajo: (...a) => valeBuzonService.obtenerCargaTrabajo(...a),
-  obtenerAsignacionesDeTecnico: (...a) => valeBuzonService.obtenerAsignacionesDeTecnico(...a),
+  obtenerAsignacionesDeDisenador: (...a) => valeBuzonService.obtenerAsignacionesDeDisenador(...a),
 
   // Transiciones de taller
   asignar: (...a) => valeTallerService.asignar(...a),
@@ -53,7 +53,7 @@ module.exports = {
   entregar: (...a) => valeTallerService.entregar(...a),
   pausarProceso: (...a) => valeTallerService.pausarProceso(...a),
   reanudarProceso: (...a) => valeTallerService.reanudarProceso(...a),
-  cancelarProcesoTecnico: (...a) => valeTallerService.cancelarProcesoTecnico(...a),
+  cancelarProcesoDisenador: (...a) => valeTallerService.cancelarProcesoDisenador(...a),
   revisarPropuesta: (...a) => valeTallerService.revisarPropuesta(...a),
   aprobarGeneral: (...a) => valeTallerService.aprobarGeneral(...a),
 

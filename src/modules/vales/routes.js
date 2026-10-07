@@ -66,9 +66,9 @@ router.get('/catalogos', verVales, (req, res) => valeController.catalogos(req, r
 router.get('/talleres', verVales, (req, res) => valeController.talleres(req, res));
 router.get('/limite-colectivo', autorizarCreacionVale, (req, res) => valeController.limiteColectivo(req, res));
 router.get('/capacidad-entrega', crearVale, (req, res) => valeController.capacidadEntrega(req, res));
-router.get('/tecnicos', asignarVale, (req, res) => valeController.tecnicos(req, res));
+router.get('/disenadores', asignarVale, (req, res) => valeController.disenadores(req, res));
 router.get('/carga-trabajo', asignarVale, (req, res) => valeController.cargaTrabajo(req, res));
-router.get('/carga-trabajo/:tecnicoId', asignarVale, (req, res) => valeController.cargaTrabajoTecnico(req, res));
+router.get('/carga-trabajo/:disenadorId', asignarVale, (req, res) => valeController.cargaTrabajoDisenador(req, res));
 
 router.get('/', verVales, (req, res) => valeController.buzon(req, res));
 router.get('/rendimiento-gerencia', verRendimiento, (req, res) => valeController.rendimientoGerencia(req, res));

@@ -187,7 +187,7 @@ class ValeController {
 
   async asignar(req, res) {
     try {
-      const vale = await valeService.asignar(req.user, idObligatorio(req.params.id), idObligatorio(req.body.tecnicoId, 'Técnico'), idOpcional(req.body.tallerId, 'Taller'));
+      const vale = await valeService.asignar(req.user, idObligatorio(req.params.id), idObligatorio(req.body.disenadorId, 'Diseñador'), idOpcional(req.body.tallerId, 'Taller'));
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
@@ -218,7 +218,7 @@ class ValeController {
 
   async cancelarProceso(req, res) {
     try {
-      const vale = await valeService.cancelarProcesoTecnico(req.user, idObligatorio(req.params.id));
+      const vale = await valeService.cancelarProcesoDisenador(req.user, idObligatorio(req.params.id));
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
@@ -245,10 +245,10 @@ class ValeController {
 
   async revisar(req, res) {
     try {
-      const { aprobar, tecnicoReasignadoId, tallerId } = req.body;
+      const { aprobar, disenadorReasignadoId, tallerId } = req.body;
       const vale = await valeService.revisarPropuesta(req.user, idObligatorio(req.params.id), {
         aprobar: aprobar === true || aprobar === 'true',
-        tecnicoReasignadoId: idOpcional(tecnicoReasignadoId, 'Técnico'),
+        disenadorReasignadoId: idOpcional(disenadorReasignadoId, 'Diseñador'),
         tallerId: idOpcional(tallerId, 'Taller')
       });
       return res.json(vale);
@@ -361,18 +361,18 @@ class ValeController {
     }
   }
 
-  async cargaTrabajoTecnico(req, res) {
+  async cargaTrabajoDisenador(req, res) {
     try {
-      const data = await valeService.obtenerAsignacionesDeTecnico(req.user, idObligatorio(req.params.tecnicoId, 'Técnico'));
+      const data = await valeService.obtenerAsignacionesDeDisenador(req.user, idObligatorio(req.params.disenadorId, 'Diseñador'));
       return res.json(data);
     } catch (error) {
       return responderError(res, error);
     }
   }
 
-  async tecnicos(req, res) {
+  async disenadores(req, res) {
     try {
-      const data = await valeService.obtenerTecnicosAsignables(req.user);
+      const data = await valeService.obtenerDisenadoresAsignables(req.user);
       return res.json(data);
     } catch (error) {
       return responderErrorInterno(res, error);

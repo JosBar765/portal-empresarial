@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO } from '../config/roles.js';
-import { ESTADOS_LABEL, ESTADOS_VISIBLES_LABEL, CLAVES_ESTADOS_TALLER, CLAVES_ESTADOS_GENERAL, CLAVES_ESTADOS_TECNICO_BUZON, CLAVES_ESTADOS_TECNICO_TRABAJO } from '../config/estados.js';
+import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR } from '../config/roles.js';
+import { ESTADOS_LABEL, ESTADOS_VISIBLES_LABEL, CLAVES_ESTADOS_TALLER, CLAVES_ESTADOS_GENERAL, CLAVES_ESTADOS_DISENADOR_BUZON, CLAVES_ESTADOS_DISENADOR_TRABAJO } from '../config/estados.js';
 import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible } from '../permisos.js';
 import { celdaEstado } from '../components/pipeline.js';
@@ -11,7 +11,7 @@ import { cargarRendimientoGerencia } from './rendimientoGerencia.js';
 import { cargarEncontrarVale } from './encontrarVale.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
-import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/tecnico.js';
+import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/disenador.js';
 import { abrirModalDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
 import { abrirModalSolicitarModificacion, abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirModalHistorial } from '../actions/historial.js';
@@ -138,7 +138,7 @@ export function renderContadores() {
     if (alerta) clases.push('contador-alerta');
     if (esClickeable) clases.push('contador-clickeable');
     if (activo) clases.push('contador-activo');
-    // Un valor largo (p. ej. el correlativo del vale en proceso del técnico,
+    // Un valor largo (p. ej. el correlativo del vale en proceso del diseñador,
     // "GUA-3-0003") no se lee bien con el mismo tamaño pensado para un número
     // — .valor-compacto lo reduce sin tocar los contadores numéricos ni los
     // "N/M" cortos.
@@ -188,14 +188,14 @@ export function poblarFiltroEstado() {
     // a ver, no la familia completa. Quien fusiona (vales.aprobar_general) ve,
     // mezclados en su propio buzón/trabajo, los estados de la cola de fusión.
     let claves;
-    if (state.user.rolId === ROL.TECNICO) claves = state.vista === 'trabajo' ? CLAVES_ESTADOS_TECNICO_TRABAJO : CLAVES_ESTADOS_TECNICO_BUZON;
+    if (state.user.rolId === ROL.DISENADOR) claves = state.vista === 'trabajo' ? CLAVES_ESTADOS_DISENADOR_TRABAJO : CLAVES_ESTADOS_DISENADOR_BUZON;
     else if (ROLES_ENCARGADO_TALLER.includes(state.user.rolId)) {
       // Trabajo Realizado siempre muestra APROBADO (estado congelado, tanto la
       // fila de propuesta propia como la de fusión) — los estados generales ya
       // no pueden ocurrir ahí, así que el desplegable colapsa igual que el del
-      // técnico.
+      // diseñador.
       if (state.vista === 'trabajo') {
-        claves = [...CLAVES_ESTADOS_TECNICO_TRABAJO];
+        claves = [...CLAVES_ESTADOS_DISENADOR_TRABAJO];
       } else {
         claves = [...CLAVES_ESTADOS_TALLER];
         if (puede('aprobarGeneral')) claves = [...claves, 'APROBADO_DEPARTAMENTO'];
@@ -209,7 +209,7 @@ export function poblarFiltroEstado() {
 }
 
 // Cuenta las columnas realmente visibles del <thead> (la de Taller puede estar
-// oculta vía CSS para encargados/técnicos) para que los mensajes de "tabla
+// oculta vía CSS para encargados/diseñadores) para que los mensajes de "tabla
 // vacía"/error usen el colspan correcto sin hardcodearlo por rol.
 export function columnasVisibles() {
   const todas = $$('.buzon-table thead th');
@@ -296,11 +296,11 @@ export function construirAcciones(v) {
   if ((usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || puede('aprobarGeneral')) && v.propuesta_general_url && v._tipoRegistro !== 'PROPUESTA') {
     acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_general_url, '_blank') });
   }
-  // En "Trabajo realizado" el encargado de un taller (y el propio técnico) ve
+  // En "Trabajo realizado" el encargado de un taller (y el propio diseñador) ve
   // la propuesta REAL que se aprobó (`propuesta_taller_url`, solo viene
   // poblado en esa vista) — no `propuesta_general_url`, que en un vale
   // multi-taller es la fusión, no el trabajo propio de este taller.
-  if (ROLES_TALLER_Y_TECNICO.includes(state.user.rolId) && v.propuesta_taller_url) {
+  if (ROLES_TALLER_Y_DISENADOR.includes(state.user.rolId) && v.propuesta_taller_url) {
     acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_taller_url, '_blank') });
   }
 
@@ -310,14 +310,14 @@ export function construirAcciones(v) {
     acciones.push({ icono: 'checkmark-done-outline', titulo: 'Autorizar creación', clase: 'icon-success', onClick: abrirModalAutorizarCreacion });
   }
   if (puede('asignar') && v.estado_taller === 'PENDIENTE_ASIGNACION') {
-    acciones.push({ icono: 'person-add-outline', titulo: 'Asignar a técnico', onClick: abrirModalAsignar });
+    acciones.push({ icono: 'person-add-outline', titulo: 'Asignar a diseñador', onClick: abrirModalAsignar });
   }
   if (puede('revisar') && v.estado_taller === 'EN_REVISION') {
     acciones.push({ icono: 'clipboard-outline', titulo: 'Revisar propuesta', onClick: abrirModalRevisar });
   }
-  // Un encargado comparte buzón con TODOS los técnicos de su taller — las
+  // Un encargado comparte buzón con TODOS los diseñadores de su taller — las
   // acciones de "trabajar" solo deben aparecer en el vale que él mismo se
-  // autoasignó, nunca en el de otro técnico solo porque ambos caen en el
+  // autoasignó, nunca en el de otro diseñador solo porque ambos caen en el
   // mismo buzón.
   const puedeTrabajarEste = puede('trabajar') && esAccionDeTrabajoVisible(v);
   if (puedeTrabajarEste && v.estado_taller === 'ASIGNADO') {

@@ -5,7 +5,7 @@ const PERMISO_FUSION = 'vales.aprobar_general';
 // "Atrasados" para asesor, supervisor y encargados es un contador COMBINABLE
 // (`atrasadosGlobal: true`) — renderContadores() lo trata como un interruptor
 // aparte (state.soloAtrasados) que puede activarse junto con cualquier otro
-// filtro de contador. El técnico queda afuera: su "Asignados con atraso" es
+// filtro de contador. El diseñador queda afuera: su "Asignados con atraso" es
 // su propio filtro fijo.
 export const CONTADORES_CONFIG = {
   [ROL.ASESOR]: {
@@ -61,7 +61,7 @@ export const CONTADORES_CONFIG = {
       { key: 'totalFusionados', label: 'Total fusionados', filtro: 'totalFusionados', permiso: PERMISO_FUSION }
     ]
   },
-  [ROL.TECNICO]: {
+  [ROL.DISENADOR]: {
     buzon: [
       { key: 'asignados', label: 'Asignados sin atraso', filtro: 'asignados' },
       { key: 'asignadosAtrasados', label: 'Asignados con atraso', alerta: true, filtro: 'asignadosAtrasados' },

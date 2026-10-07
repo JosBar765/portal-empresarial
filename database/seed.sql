@@ -47,10 +47,10 @@ INSERT INTO `roles` (`id`, `nombre`, `descripcion`, `activo`) VALUES
 (3, 'Supervisor de Ventas', 'Supervisor de ventas, encargado de supervisar al equipo comercial', 1),
 (4, 'Encargado de taller de Diseño', 'Encargado del taller de Diseño, responsable de coordinar y fusionar el trabajo del equipo de diseño', 1),
 (5, 'Encargado de taller de Diseño 3d', 'Encargado del taller de Diseño UV/3D, responsable de coordinar al equipo de diseño UV/3D', 1),
-(6, 'Técnico', 'Técnico, encargado de ejecutar el trabajo de diseño o producción asignada', 1),
+(6, 'Diseñador', 'Diseñador, encargado de ejecutar el trabajo de diseño o producción asignada', 1),
 (7, 'Asistente de Diseño', 'Asistente del Encargado de taller de diseño, con las mismas responsabilidades de coordinación y fusión', 1),
 (8, 'Gerente', 'Gerente, encargado de supervisar la operación general y sus métricas', 1),
-(9, 'Encargado de taller de Protextil', 'Encargado del taller de Protextil, responsable de asignar técnicos y revisar sus propuestas', 1),
+(9, 'Encargado de taller de Protextil', 'Encargado del taller de Protextil, responsable de asignar diseñadores y revisar sus propuestas', 1),
 (10, 'Diseño Local', 'Encargado de un taller de Diseño Local, responsable de trabajo de diseño y supervisión', 1);
 
 INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUES
@@ -58,9 +58,9 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (2, 'vales.crear', 'Crear Vales de Arte', 'vales', 'Permite ingresar nuevos vales de arte'),
 (3, 'vales.editar', 'Editar Vales de Arte', 'vales', 'Permite modificar el contenido de un vale de arte (formulario de modificación)'),
 (8, 'admin.ver', 'Ver Panel de Administración', 'admin', 'Permite acceder al módulo de administración central'),
-(9, 'vales.asignar', 'Asignar Vales de Arte', 'vales', 'Permite asignar/reasignar un vale de arte a un técnico'),
-(10, 'vales.revisar', 'Revisar Propuestas', 'vales', 'Permite aprobar o desaprobar la propuesta de un técnico'),
-(11, 'vales.trabajar', 'Trabajar Vales de Arte', 'vales', 'Permite a un técnico comenzar, entregar o cancelar un vale asignado'),
+(9, 'vales.asignar', 'Asignar Vales de Arte', 'vales', 'Permite asignar/reasignar un vale de arte a un diseñador'),
+(10, 'vales.revisar', 'Revisar Propuestas', 'vales', 'Permite aprobar o desaprobar la propuesta de un diseñador'),
+(11, 'vales.trabajar', 'Trabajar Vales de Arte', 'vales', 'Permite a un diseñador comenzar, entregar o cancelar un vale asignado'),
 (12, 'vales.confirmar', 'Confirmar de Recibido', 'vales', 'Permite al asesor confirmarde recibido un vale de arte'),
 (13, 'vales.solicitar_modificacion', 'Solicitar Modificación', 'vales', 'Permite al asesor solicitar la modificación de un vale de arte'),
 (14, 'vales.aprobar_modificacion', 'Aprobar Modificación', 'vales', 'Permite al supervisor autorizar una modificación solicitada'),
@@ -70,7 +70,7 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (18, 'vales.autorizar_creacion', 'Autorizar Creación', 'vales', 'Permite al supervisor autorizar el envío a talleres de un vale recién creado por sus asesores'),
 (19, 'admin.usuarios.gestionar', 'Gestionar Usuarios', 'admin', 'Permite crear, editar y activar/desactivar usuarios'),
 (20, 'admin.roles.gestionar', 'Gestionar Roles y Permisos', 'admin', 'Permite crear/editar roles y cambiar los permisos asignados a cada uno'),
-(21, 'admin.talleres.gestionar', 'Gestionar Talleres', 'admin', 'Permite asignar/quitar encargados y técnicos de un taller'),
+(21, 'admin.talleres.gestionar', 'Gestionar Talleres', 'admin', 'Permite asignar/quitar encargados y diseñadores de un taller'),
 (22, 'admin.tiendas.gestionar', 'Gestionar Tiendas', 'admin', 'Permite crear/editar tiendas y su personal asignado'),
 (23, 'admin.mantenimiento.gestionar', 'Gestionar Mantenimiento', 'admin', 'Permite activar/desactivar el modo mantenimiento del portal'),
 (24, 'vales.dar_de_baja', 'Dar de baja Vales de Arte', 'vales', 'Permite al asesor dar de baja un vale de arte propio antes de que sea autorizado'),
@@ -87,7 +87,7 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 (4, 1), (4, 9), (4, 10), (4, 11), (4, 16),
 -- Encargado de taller de diseño 3d: dueño del taller "Diseño UV/3D", sin fusión
 (5, 1), (5, 9), (5, 10), (5, 11),
--- Técnicos
+-- Diseñadores
 (6, 1), (6, 11),
 -- Asistente: clon operativo COMPLETO del Encargado de taller de diseño
 (7, 1), (7, 9), (7, 10), (7, 11), (7, 16),

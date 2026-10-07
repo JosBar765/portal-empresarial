@@ -1,6 +1,6 @@
 // src/core/utils/erroresHttp.js
 // Un error se considera "de negocio" cuando un servicio lo lanzó a propósito con
-// un mensaje pensado para el usuario (`throw new Error('El técnico indicado no
+// un mensaje pensado para el usuario (`throw new Error('El diseñador indicado no
 // está bajo su mando.')`): ese mensaje sí se devuelve. Cualquier otra cosa
 // (errores de MySQL, de Supabase, TypeError de un bug, cortes de red) es
 // INTERNA: su `.message` trae detalles de SQL, nombres de tabla/columna,

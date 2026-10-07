@@ -24,7 +24,7 @@ class UsuarioAdminRepository {
        LEFT JOIN empresas e ON e.id = t.empresa_id
        LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
        LEFT JOIN paises p ON p.id = e.pais_id
-       LEFT JOIN taller_tecnicos tt ON tt.usuario_id = u.id
+       LEFT JOIN taller_disenadores tt ON tt.usuario_id = u.id
        LEFT JOIN talleres td ON td.encargado_id = u.id
        ORDER BY u.nombre`,
       [],

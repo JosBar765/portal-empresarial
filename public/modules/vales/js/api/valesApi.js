@@ -85,8 +85,8 @@ export async function obtenerRendimientoGerencia(qs) {
   return leerJSON(res);
 }
 
-export async function obtenerTecnicosAsignables() {
-  const res = await fetch('/api/vales/tecnicos');
+export async function obtenerDisenadoresAsignables() {
+  const res = await fetch('/api/vales/disenadores');
   return leerJSON(res);
 }
 
@@ -97,8 +97,8 @@ export async function crearVale(formData) {
   return data;
 }
 
-export function asignarTecnico(valeId, tecnicoId) {
-  return enviarJSON(`/api/vales/${valeId}/asignar`, { tecnicoId });
+export function asignarDisenador(valeId, disenadorId) {
+  return enviarJSON(`/api/vales/${valeId}/asignar`, { disenadorId });
 }
 
 export async function obtenerDetalleVale(valeId) {
@@ -179,7 +179,7 @@ export async function obtenerCargaTrabajo() {
   return leerJSON(res);
 }
 
-export async function obtenerAsignacionesTecnico(tecnicoId) {
-  const res = await fetch(`/api/vales/carga-trabajo/${tecnicoId}`);
+export async function obtenerAsignacionesDisenador(disenadorId) {
+  const res = await fetch(`/api/vales/carga-trabajo/${disenadorId}`);
   return leerJSON(res);
 }

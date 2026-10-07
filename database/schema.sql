@@ -151,12 +151,12 @@ CREATE TABLE IF NOT EXISTS `taller_tiendas` (
   FOREIGN KEY (`tienda_id`) REFERENCES `tiendas` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `taller_tecnicos` (
+CREATE TABLE IF NOT EXISTS `taller_disenadores` (
   `usuario_id` INT NOT NULL PRIMARY KEY,
   `taller_id`  INT NOT NULL,
   FOREIGN KEY (`taller_id`)  REFERENCES `talleres` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  INDEX `idx_taller_tecnicos_taller` (`taller_id`)
+  INDEX `idx_taller_disenadores_taller` (`taller_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `estados_vale` (
@@ -247,7 +247,7 @@ CREATE TABLE IF NOT EXISTS `vale_talleres` (
   `id`               INT AUTO_INCREMENT PRIMARY KEY,
   `vale_id`          INT NOT NULL,
   `taller_id`        INT NOT NULL,
-  `tecnico_id`       INT DEFAULT NULL,
+  `disenador_id`       INT DEFAULT NULL,
   `estado_id`        INT NOT NULL,
   `fecha_asignacion` DATETIME DEFAULT NULL,
   `activo`           TINYINT(1) NOT NULL DEFAULT 1,
@@ -255,10 +255,10 @@ CREATE TABLE IF NOT EXISTS `vale_talleres` (
   `actualizado_en`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`taller_id`)  REFERENCES `talleres` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  FOREIGN KEY (`tecnico_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`disenador_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (`estado_id`)  REFERENCES `estados_taller` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   INDEX `idx_vale_talleres_vale` (`vale_id`),
-  INDEX `idx_vale_talleres_tecnico` (`tecnico_id`, `activo`),
+  INDEX `idx_vale_talleres_disenador` (`disenador_id`, `activo`),
   INDEX `idx_vale_talleres_taller` (`taller_id`, `activo`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -293,11 +293,11 @@ CREATE TABLE IF NOT EXISTS `vale_solicitudes_modificacion` (
 CREATE TABLE IF NOT EXISTS `vale_propuestas` (
   `id`         INT AUTO_INCREMENT PRIMARY KEY,
   `vale_id`    INT NOT NULL,
-  `tecnico_id` INT NOT NULL,
+  `disenador_id` INT NOT NULL,
   `url`        TEXT DEFAULT NULL,
   `creado_en`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  FOREIGN KEY (`tecnico_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  FOREIGN KEY (`disenador_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   INDEX `idx_propuestas_vale` (`vale_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -323,7 +323,7 @@ CREATE TABLE IF NOT EXISTS `vale_historial` (
   `vale_id`         INT NOT NULL,
   `usuario_id`      INT NOT NULL,
   `taller_id`       INT DEFAULT NULL,
-  `tecnico_id`      INT DEFAULT NULL,
+  `disenador_id`      INT DEFAULT NULL,
   `estado_anterior` VARCHAR(50) DEFAULT NULL,
   `estado_nuevo`    VARCHAR(50) NOT NULL,
   `accion`          VARCHAR(500) NOT NULL,
@@ -331,7 +331,7 @@ CREATE TABLE IF NOT EXISTS `vale_historial` (
   FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (`taller_id`)  REFERENCES `talleres` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  FOREIGN KEY (`tecnico_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  FOREIGN KEY (`disenador_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   INDEX `idx_historial_vale` (`vale_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

@@ -2,38 +2,38 @@ import { state } from '../state.js';
 import { ROLES_ENCARGADO_TALLER } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { htmlDropzone, wireDropzone } from '../components/dropzone.js';
-import { obtenerTecnicosAsignables, asignarTecnico, obtenerDetalleVale, revisarPropuesta, aprobarGeneral } from '../api/valesApi.js';
+import { obtenerDisenadoresAsignables, asignarDisenador, obtenerDetalleVale, revisarPropuesta, aprobarGeneral } from '../api/valesApi.js';
 import { escapeHtml } from '../utils/formato.js';
 import { cargarBuzon } from '../views/buzon.js';
 
-// Lista de técnicos asignables, con la opción "(yo mismo)" para un encargado
+// Lista de diseñadores asignables, con la opción "(yo mismo)" para un encargado
 // — quien revisa una propuesta también puede reasignarse el trabajo a sí
 // mismo.
-export async function cargarTecnicosAsignables() {
-  let tecnicos = [];
+export async function cargarDisenadoresAsignables() {
+  let disenadores = [];
   try {
-    tecnicos = await obtenerTecnicosAsignables();
+    disenadores = await obtenerDisenadoresAsignables();
   } catch { /* se muestra select vacío si falla */ }
 
-  if (ROLES_ENCARGADO_TALLER.includes(state.user.rolId) && !tecnicos.some(t => t.id === state.user.id)) {
-    tecnicos = [{ id: state.user.id, nombre: `${state.user.nombre} (yo mismo)` }, ...tecnicos];
+  if (ROLES_ENCARGADO_TALLER.includes(state.user.rolId) && !disenadores.some(t => t.id === state.user.id)) {
+    disenadores = [{ id: state.user.id, nombre: `${state.user.nombre} (yo mismo)` }, ...disenadores];
   }
-  return tecnicos;
+  return disenadores;
 }
 
 // -----------------------------------------------------------------------
-// Modal: Asignar a técnico
+// Modal: Asignar a diseñador
 // -----------------------------------------------------------------------
 export async function abrirModalAsignar(vale) {
-  const tecnicos = await cargarTecnicosAsignables();
+  const disenadores = await cargarDisenadoresAsignables();
 
   const { overlay, cerrar } = abrirModal({
     title: `Asignar ${vale.correlativo}`,
     bodyHtml: `
       <div class="form-field">
-        <label>Técnico a cargo</label>
-        <select id="select-tecnico">
-          ${tecnicos.length ? tecnicos.map(t => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('') : '<option value="">No hay técnicos a tu cargo</option>'}
+        <label>Diseñador a cargo</label>
+        <select id="select-disenador">
+          ${disenadores.length ? disenadores.map(t => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('') : '<option value="">No hay diseñadores a tu cargo</option>'}
         </select>
       </div>
     `,
@@ -42,14 +42,14 @@ export async function abrirModalAsignar(vale) {
 
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
   overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
-    const tecnicoId = overlay.querySelector('#select-tecnico').value;
-    if (!tecnicoId) return;
+    const disenadorId = overlay.querySelector('#select-disenador').value;
+    if (!disenadorId) return;
     const btn = overlay.querySelector('#btn-confirmar');
     btn.disabled = true;
     try {
-      await asignarTecnico(vale.id, tecnicoId);
-      const tecnico = tecnicos.find(t => t.id === Number(tecnicoId));
-      window.toast.success('Vale asignado', `Se asignó correctamente al técnico ${tecnico ? tecnico.nombre : tecnicoId}.`);
+      await asignarDisenador(vale.id, disenadorId);
+      const disenador = disenadores.find(t => t.id === Number(disenadorId));
+      window.toast.success('Vale asignado', `Se asignó correctamente al diseñador ${disenador ? disenador.nombre : disenadorId}.`);
       cerrar();
       cargarBuzon();
     } catch (error) {
@@ -70,11 +70,11 @@ export async function abrirModalRevisar(vale) {
     detalle = { propuestas: [] };
   }
   // En un vale multi-taller `detalle.propuestas` trae una fila por CADA
-  // técnico (una por taller) — se filtra por el propio (`vale.tecnico_id`, ya
+  // diseñador (una por taller) — se filtra por el propio (`vale.disenador_id`, ya
   // adjunto por el backend) para no mostrar la propuesta de cualquier taller.
-  const propias = (detalle.propuestas || []).filter(p => p.tecnico_id === vale.tecnico_id);
+  const propias = (detalle.propuestas || []).filter(p => p.disenador_id === vale.disenador_id);
   const ultima = propias[propias.length - 1];
-  const tecnicos = await cargarTecnicosAsignables();
+  const disenadores = await cargarDisenadoresAsignables();
 
   // El backend rechaza aprobar sin un documento adjunto real — se refleja
   // acá deshabilitando el botón en vez de dejar que el usuario reciba el
@@ -86,15 +86,15 @@ export async function abrirModalRevisar(vale) {
     bodyHtml: `
       <p style="margin-bottom:14px;font-size:13px;">
         ${!ultima
-          ? 'El técnico canceló el proceso — no hay propuesta que revisar.'
+          ? 'El diseñador canceló el proceso — no hay propuesta que revisar.'
           : (ultima.url
               ? `<a href="${ultima.url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta adjunta</a>`
-              : 'El técnico no adjuntó documento de propuesta (no se puede aprobar en blanco).')}
+              : 'El diseñador no adjuntó documento de propuesta (no se puede aprobar en blanco).')}
       </p>
       <div class="form-field">
         <label>Reasignar a (solo si desaprueba)</label>
-        <select id="select-tecnico-reasignar">
-          ${tecnicos.map(t => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('')}
+        <select id="select-disenador-reasignar">
+          ${disenadores.map(t => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('')}
         </select>
       </div>
     `,
@@ -108,9 +108,9 @@ export async function abrirModalRevisar(vale) {
   overlay.querySelector('#btn-desaprobar').addEventListener('click', () => enviarRevision(false));
 
   async function enviarRevision(aprobarValor) {
-    const tecnicoReasignadoId = overlay.querySelector('#select-tecnico-reasignar').value;
+    const disenadorReasignadoId = overlay.querySelector('#select-disenador-reasignar').value;
     try {
-      await revisarPropuesta(vale.id, { aprobar: aprobarValor, tecnicoReasignadoId: aprobarValor ? null : tecnicoReasignadoId });
+      await revisarPropuesta(vale.id, { aprobar: aprobarValor, disenadorReasignadoId: aprobarValor ? null : disenadorReasignadoId });
       window.toast.success(aprobarValor ? 'Propuesta aprobada' : 'Vale reasignado', `${vale.correlativo} ${aprobarValor ? 'aprobado' : 'reasignado'} correctamente.`);
       cerrar();
       cargarBuzon();
@@ -144,8 +144,8 @@ export async function abrirModalAprobarGeneral(vale) {
       detalleOriginal = null;
     }
   }
-  const urlDePropuesta = (det, tecnicoId) => {
-    const propias = (det.propuestas || []).filter(p => p.tecnico_id === tecnicoId);
+  const urlDePropuesta = (det, disenadorId) => {
+    const propias = (det.propuestas || []).filter(p => p.disenador_id === disenadorId);
     const ultima = propias[propias.length - 1];
     return ultima ? ultima.url : null;
   };
@@ -157,11 +157,11 @@ export async function abrirModalAprobarGeneral(vale) {
     const corregidosPorTaller = new Map((detalle.talleres || []).map(t => [t.taller_id, t]));
     filasPropuesta = (detalleOriginal.talleres || []).map(tOriginal => {
       const corregido = corregidosPorTaller.get(tOriginal.taller_id);
-      const url = corregido ? urlDePropuesta(detalle, corregido.tecnico_id) : urlDePropuesta(detalleOriginal, tOriginal.tecnico_id);
+      const url = corregido ? urlDePropuesta(detalle, corregido.disenador_id) : urlDePropuesta(detalleOriginal, tOriginal.disenador_id);
       return filaPropuesta(tOriginal.taller_nombre, url, !!corregido);
     }).join('');
   } else {
-    filasPropuesta = (detalle.talleres || []).map(t => filaPropuesta(t.taller_nombre, urlDePropuesta(detalle, t.tecnico_id), false)).join('');
+    filasPropuesta = (detalle.talleres || []).map(t => filaPropuesta(t.taller_nombre, urlDePropuesta(detalle, t.disenador_id), false)).join('');
   }
 
   const { overlay, cerrar } = abrirModal({

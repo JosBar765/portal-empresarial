@@ -37,7 +37,7 @@ const ROL = {
   SUPERVISOR: 3,
   ENCARGADO_DISENO: 4,
   ENCARGADO_UV3D: 5,
-  TECNICO: 6,
+  DISENADOR: 6,
   ASISTENTE_DISENO: 7,
   GERENTE: 8,
   ENCARGADO_PROTEXTIL: 9,
@@ -50,7 +50,7 @@ const PERMISO_FUSION = 'vales.aprobar_general';
 const SALA_FUSION = 'vales:fusion';
 
 const ROLES_ENCARGADO_TALLER = [ROL.ENCARGADO_DISENO, ROL.ENCARGADO_UV3D, ROL.ASISTENTE_DISENO, ROL.ENCARGADO_PROTEXTIL, ROL.ENCARGADO_DISENO_LOCAL];
-const ROLES_TALLER_Y_TECNICO = [...ROLES_ENCARGADO_TALLER, ROL.TECNICO];
+const ROLES_TALLER_Y_DISENADOR = [...ROLES_ENCARGADO_TALLER, ROL.DISENADOR];
 
 function esAdministrador(usuario) {
   return usuario.rolId === ROL.ADMINISTRADOR;
@@ -122,7 +122,7 @@ function estadoEnAutorizacion(vale) {
 }
 
 function etiquetaActorTaller(usuario) {
-  return usuario.rolId === ROL.TECNICO ? 'Técnico' : 'Encargado';
+  return usuario.rolId === ROL.DISENADOR ? 'Diseñador' : 'Encargado';
 }
 
 function estadoVisibleAsesor(vale) {
@@ -229,8 +229,8 @@ function validarMotivoRechazo(motivo) {
   return texto;
 }
 
-async function registrarHistorial(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion, tecnicoId) {
-  await historialRepository.registrar(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion, tecnicoId);
+async function registrarHistorial(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion, disenadorId) {
+  await historialRepository.registrar(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion, disenadorId);
 }
 
 async function requerirVale(valeId) {
@@ -248,7 +248,7 @@ function assertPropioDelAsesor(usuario, vale) {
 
 module.exports = {
   ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
-  ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO, PERMISO_FUSION, SALA_FUSION,
+  ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistenteDeDiseno,
   hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,

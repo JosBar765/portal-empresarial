@@ -18,7 +18,7 @@ const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
   esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
   ordenarPorFecha, esHoy, estadoVisibleAsesor, hoyISO,
-  ROLES_TALLER_Y_TECNICO
+  ROLES_TALLER_Y_DISENADOR
 } = require('./valeHelpers');
 
 // Ordena por el número final del correlativo; a igual número, el original antes que su MOD-.
@@ -142,10 +142,10 @@ class ValeBuzonService {
           ? await this._trabajoEncargadoTaller(usuario, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador)
           : await this._buzonEncargado(usuario, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador);
         break;
-      case ROL.TECNICO:
+      case ROL.DISENADOR:
         resultado = vista === 'trabajo'
-          ? await this.obtenerTrabajoTecnico(usuario, ventana, filtroContador)
-          : await this.obtenerBuzonTecnico(usuario, ventana, filtroContador);
+          ? await this.obtenerTrabajoDisenador(usuario, ventana, filtroContador)
+          : await this.obtenerBuzonDisenador(usuario, ventana, filtroContador);
         break;
       default:
         resultado = { vales: [], contadores: {} };
@@ -163,11 +163,11 @@ class ValeBuzonService {
     // criterio de "estado activo por rol" que ya usa el frontend para pintar
     // la píldora — nunca dos fuentes de verdad divergentes: estado_visible
     // para el asesor (y el supervisor en su vista de trabajo), estado_taller
-    // para encargados/técnico, estado general para el resto.
+    // para encargados/diseñador, estado general para el resto.
     const usaEstadosVisiblesParaFiltro = usuario.rolId === ROL.ASESOR || (usuario.rolId === ROL.SUPERVISOR && vista === 'trabajo');
     const estadoActivoDe = (v) => {
       if (usaEstadosVisiblesParaFiltro) return v.estado_visible;
-      if (ROLES_TALLER_Y_TECNICO.includes(usuario.rolId)) return v.estado_taller || v.estado;
+      if (ROLES_TALLER_Y_DISENADOR.includes(usuario.rolId)) return v.estado_taller || v.estado;
       return v.estado;
     };
     const estadoFiltro = filtros.estado || null;
@@ -448,7 +448,7 @@ class ValeBuzonService {
       .filter(v => valeIdsVisibles.has(v.id))
       .map(v => {
         const fila = misFilas.find(f => f.vale_id === v.id);
-        return { ...v, estado_taller: fila.estado, tecnico_id: fila.tecnico_id, _filaTallerId: fila.id };
+        return { ...v, estado_taller: fila.estado, disenador_id: fila.disenador_id, _filaTallerId: fila.id };
       });
     const enVentana = vistos.filter(v => dentroDeVentana(v, ventana));
 
@@ -485,7 +485,7 @@ class ValeBuzonService {
     };
     if (puedeFusionar) predicados.pendientesFusion = v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO;
     const filtrados = this._aplicarFiltroContador([...enVentana, ...pendientesFusion], filtroContador, predicados);
-    // El trabajo activo de los técnicos (en proceso/en pausa) y lo ya
+    // El trabajo activo de los diseñadores (en proceso/en pausa) y lo ya
     // asignado suben por encima de lo que requiere acción del propio
     // encargado (revisar/asignar). La cola de fusión se queda al final.
     const vales = ordenarPorGrupos(filtrados, [
@@ -509,7 +509,7 @@ class ValeBuzonService {
   // fecha de aprobación real vive en vale_talleres.actualizado_en, pero se
   // ordena por la del vale para ser consistente con _trabajoAsesor). Cada
   // fila trae también `propuesta_taller_url` — la propuesta REAL que este
-  // taller aprobó (vale_propuestas, por técnico), no
+  // taller aprobó (vale_propuestas, por diseñador), no
   // `vale.propuesta_general_url` (que en un vale multi-taller es la fusión,
   // no el trabajo de este taller en particular). Quien tenga
   // `vales.aprobar_general` ve ADEMÁS, mezclados, los vales que YA fusionó
@@ -543,7 +543,7 @@ class ValeBuzonService {
     // `v.id`.
     const conPropuesta = await Promise.all(enVentana.map(async v => {
       const fila = mapaFilaPorVale.get(v.id);
-      const propuesta = fila.tecnico_id ? await propuestaRepository.obtenerUltimaPorValeYTecnico(v.id, fila.tecnico_id) : null;
+      const propuesta = fila.disenador_id ? await propuestaRepository.obtenerUltimaPorValeYDisenador(v.id, fila.disenador_id) : null;
       const propuestaTallerUrl = propuesta ? propuesta.url : null;
       // La fecha de "aprobado hoy" debe ser la de ESTA fila de taller
       // (fila.actualizado_en), no la del vale general (v.actualizado_en) —
@@ -595,20 +595,20 @@ class ValeBuzonService {
     return { vales: ordenarPorFecha(filtrados), contadores };
   }
 
-  async obtenerTecnicosAsignables(usuario) {
+  async obtenerDisenadoresAsignables(usuario) {
     if (esAdministrador(usuario)) {
-      return usuarioValeRepository.listarTodosLosTecnicos();
+      return usuarioValeRepository.listarTodosLosDisenadores();
     }
-    return usuarioValeRepository.listarTecnicosPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
+    return usuarioValeRepository.listarDisenadoresPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
   }
 
-  // Ordenado por fecha de ENTREGA más próxima. Un técnico sin vales activos
+  // Ordenado por fecha de ENTREGA más próxima. Un diseñador sin vales activos
   // no tiene "próxima entrega": va al final.
   async obtenerCargaTrabajo(usuario) {
-    const tecnicos = await usuarioValeRepository.listarTecnicosPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
+    const disenadores = await usuarioValeRepository.listarDisenadoresPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
     const resultado = [];
-    for (const tecnico of tecnicos) {
-      const activas = await valeTallerRepository.listarActivasPorTecnico(tecnico.id);
+    for (const disenador of disenadores) {
+      const activas = await valeTallerRepository.listarActivasPorDisenador(disenador.id);
       const vales = (await Promise.all(activas.map(a => valeRepository.obtenerPorId(a.vale_id)))).filter(Boolean);
       const filaEnProceso = activas.find(a => a.estado === ESTADOS_TALLER.EN_PROCESO);
       const valeEnProceso = filaEnProceso ? vales.find(v => v.id === filaEnProceso.vale_id) : null;
@@ -618,8 +618,8 @@ class ValeBuzonService {
         .filter(Boolean)
         .map(v => new Date(v.fecha_entrega).getTime());
       resultado.push({
-        tecnicoId: tecnico.id,
-        nombre: tecnico.nombre,
+        disenadorId: disenador.id,
+        nombre: disenador.nombre,
         asignaciones: vigentes.length,
         enProceso: valeEnProceso ? valeEnProceso.correlativo : null,
         _proximaEntrega: fechasEntrega.length ? Math.min(...fechasEntrega) : null
@@ -634,14 +634,14 @@ class ValeBuzonService {
     return resultado.map(({ _proximaEntrega, ...r }) => r);
   }
 
-  async obtenerAsignacionesDeTecnico(usuario, tecnicoId) {
+  async obtenerAsignacionesDeDisenador(usuario, disenadorId) {
     if (!esAdministrador(usuario)) {
-      const tecnicos = await usuarioValeRepository.listarTecnicosPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
-      if (!tecnicos.some(t => t.id === Number(tecnicoId))) {
-        throw new Error('Ese técnico no está a tu cargo.');
+      const disenadores = await usuarioValeRepository.listarDisenadoresPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
+      if (!disenadores.some(t => t.id === Number(disenadorId))) {
+        throw new Error('Ese diseñador no está a tu cargo.');
       }
     }
-    const activas = await valeTallerRepository.listarActivasPorTecnico(tecnicoId);
+    const activas = await valeTallerRepository.listarActivasPorDisenador(disenadorId);
     const activasVigentes = activas.filter(a => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION].includes(a.estado));
     const vales = await Promise.all(activasVigentes.map(async a => {
       const vale = await valeRepository.obtenerPorId(a.vale_id);
@@ -651,9 +651,9 @@ class ValeBuzonService {
     return vales.filter(Boolean).sort((a, b) => new Date(a.fecha_entrega) - new Date(b.fecha_entrega));
   }
 
-  // ---- Técnico: sidebar Buzón (asignaciones activas, sin aprobados/desaprobados) ----
-  async obtenerBuzonTecnico(usuario, ventana, filtroContador) {
-    const activas = (await valeTallerRepository.listarActivasPorTecnico(usuario.id))
+  // ---- Diseñador: sidebar Buzón (asignaciones activas, sin aprobados/desaprobados) ----
+  async obtenerBuzonDisenador(usuario, ventana, filtroContador) {
+    const activas = (await valeTallerRepository.listarActivasPorDisenador(usuario.id))
       .filter(a => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION].includes(a.estado));
     const vales = (await Promise.all(activas.map(async a => {
       const vale = await valeRepository.obtenerPorId(a.vale_id);
@@ -662,7 +662,7 @@ class ValeBuzonService {
       .filter(Boolean)
       .filter(v => dentroDeVentana(v, ventana));
 
-    // Se dejan únicamente 3 contadores para el técnico ("asignados sin
+    // Se dejan únicamente 3 contadores para el diseñador ("asignados sin
     // atraso", "asignados con atraso" y el vale en proceso) — no está en la
     // lista de roles con el "Atrasados en general" combinable, así que
     // "asignadosAtrasados" sigue siendo su propio filtro normal (mutuamente
@@ -686,24 +686,24 @@ class ValeBuzonService {
     return { vales: listaOrdenada, contadores };
   }
 
-  // ---- Técnico: sidebar Trabajo realizado (aprobados por su taller, orden
+  // ---- Diseñador: sidebar Trabajo realizado (aprobados por su taller, orden
   // por fecha) — cada fila trae también `propuesta_taller_url`, la propuesta
-  // REAL que el propio técnico entregó, calcado de _trabajoEncargadoTaller,
+  // REAL que el propio diseñador entregó, calcado de _trabajoEncargadoTaller,
   // para que "Ver propuesta" también aplique aquí.
-  async obtenerTrabajoTecnico(usuario, ventana, filtroContador) {
-    const activas = (await valeTallerRepository.listarActivasPorTecnico(usuario.id))
+  async obtenerTrabajoDisenador(usuario, ventana, filtroContador) {
+    const activas = (await valeTallerRepository.listarActivasPorDisenador(usuario.id))
       .filter(a => a.estado === ESTADOS_TALLER.APROBADO);
     const vales = (await Promise.all(activas.map(async a => {
       const vale = await valeRepository.obtenerPorId(a.vale_id);
       if (!vale) return null;
-      const propuesta = await propuestaRepository.obtenerUltimaPorValeYTecnico(a.vale_id, usuario.id);
+      const propuesta = await propuestaRepository.obtenerUltimaPorValeYDisenador(a.vale_id, usuario.id);
       const propuestaTallerUrl = propuesta ? propuesta.url : null;
-      // Estado lógico fijo — al técnico no le importa qué pase con el vale
+      // Estado lógico fijo — al diseñador no le importa qué pase con el vale
       // después de que le aprueben su trabajo (mismo criterio que
       // _trabajoEncargadoTaller). `aprobado_en` toma la fecha de ESTA fila
       // de taller (`a.actualizado_en`), no la del vale general.
       // `_rowKey`/`_tipoRegistro` por consistencia con
-      // _trabajoEncargadoTaller — el técnico nunca fusiona, siempre una sola
+      // _trabajoEncargadoTaller — el diseñador nunca fusiona, siempre una sola
       // fila por correlativo.
       return {
         ...enriquecer(vale), propuesta_taller_url: propuestaTallerUrl, estado_taller: ESTADOS_TALLER.APROBADO,

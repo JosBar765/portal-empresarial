@@ -4,7 +4,7 @@ import { comenzarVale, entregarPropuesta, cancelarProceso, pausarVale, reanudarV
 import { cargarBuzon } from '../views/buzon.js';
 
 // -----------------------------------------------------------------------
-// Técnico: comenzar / entregar / cancelar / pausar / reanudar
+// Diseñador: comenzar / entregar / cancelar / pausar / reanudar
 // -----------------------------------------------------------------------
 export async function accionComenzar(vale) {
   try {
@@ -63,7 +63,7 @@ export async function accionCancelarProceso(vale) {
   }
 }
 
-// El técnico puede pausar/reanudar un vale EN_PROCESO sin entregar propuesta,
+// El diseñador puede pausar/reanudar un vale EN_PROCESO sin entregar propuesta,
 // para tomar otro más urgente.
 export async function accionPausar(vale) {
   try {

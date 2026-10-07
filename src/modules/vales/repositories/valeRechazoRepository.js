@@ -15,7 +15,7 @@ class ValeRechazoRepository {
       );
       if (res.affectedRows !== 1) throw new Error('Solo se puede rechazar un vale que está esperando autorización.');
       await tx.query(
-        'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, tecnico_id) VALUES (?, ?, NULL, ?, ?, ?, NULL)',
+        'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, disenador_id) VALUES (?, ?, NULL, ?, ?, ?, NULL)',
         [valeId, usuarioId, estadoPendiente, 'RECHAZADO', accionHistorial],
         'historial:insert_rechazo'
       );
@@ -34,7 +34,7 @@ class ValeRechazoRepository {
       if (res.affectedRows !== 1) throw new Error('Este vale no está rechazado, no hace falta reenviarlo.');
       await tx.query('DELETE FROM vale_vistos WHERE vale_id = ?', [valeId], 'vale_visto:reiniciar_reenvio');
       await tx.query(
-        'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, tecnico_id) VALUES (?, ?, NULL, ?, ?, ?, NULL)',
+        'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, disenador_id) VALUES (?, ?, NULL, ?, ?, ?, NULL)',
         [valeId, usuarioId, 'RECHAZADO', estadoDestino, accionHistorial],
         'historial:insert_reenvio'
       );

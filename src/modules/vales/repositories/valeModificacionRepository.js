@@ -40,11 +40,11 @@ class ValeModificacionRepository {
         );
       }
       await tx.query(
-        'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, tecnico_id) VALUES (?, ?, NULL, ?, ?, ?, NULL)',
+        'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, disenador_id) VALUES (?, ?, NULL, ?, ?, ?, NULL)',
         [original.id, usuarioId, original.estado, original.estado, `Asesor solicitó modificación — se creó el vale ${correlativo}`], 'historial:insert_solicitud'
       );
       await tx.query(
-        'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, tecnico_id) VALUES (?, ?, NULL, NULL, ?, ?, NULL)',
+        'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, disenador_id) VALUES (?, ?, NULL, NULL, ?, ?, NULL)',
         [modId, usuarioId, 'SOLICITANDO_MODIFICACION', `Modificación solicitada sobre ${original.correlativo}, esperando autorización del Supervisor`], 'historial:insert_modificacion'
       );
       return modId;

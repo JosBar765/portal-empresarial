@@ -8,7 +8,7 @@ class DestinatariosRepository {
     const rows = await db.query(
       `SELECT t.encargado_id AS id FROM talleres t WHERE t.id = ? AND t.encargado_id IS NOT NULL
        UNION
-       SELECT tt.usuario_id AS id FROM taller_tecnicos tt
+       SELECT tt.usuario_id AS id FROM taller_disenadores tt
        JOIN usuarios u ON u.id = tt.usuario_id
        WHERE tt.taller_id = ? AND u.rol_id = 7 AND u.activo = 1`,
       [tallerId, tallerId],

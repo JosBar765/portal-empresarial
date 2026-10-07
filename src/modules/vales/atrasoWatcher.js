@@ -15,7 +15,7 @@ const { SALA_FUSION } = require('./services/valeHelpers');
 
 const INTERVALO_MS = 60 * 1000;
 const ESTADOS_TALLER_ACTIVOS = [ESTADOS_TALLER.PENDIENTE_ASIGNACION, ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION];
-const ESTADOS_TALLER_CON_TECNICO = [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION];
+const ESTADOS_TALLER_CON_DISENADOR = [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION];
 
 // Mismo offset fijo UTC-6 que valeHelpers.js (hoyISO/horaActual) — no
 // depender de la zona horaria del sistema operativo del proceso Node.
@@ -37,7 +37,7 @@ async function salasParaVale(vale) {
   const filas = await valeTallerRepository.listarPorVale(vale.id);
   filas.forEach(f => {
     if (ESTADOS_TALLER_ACTIVOS.includes(f.estado)) salas.push(`taller:${f.taller_id}`);
-    if (f.tecnico_id && ESTADOS_TALLER_CON_TECNICO.includes(f.estado)) salas.push(`tecnico:${f.tecnico_id}`);
+    if (f.disenador_id && ESTADOS_TALLER_CON_DISENADOR.includes(f.estado)) salas.push(`disenador:${f.disenador_id}`);
   });
 
   // Un vale APROBADO_DEPARTAMENTO espera fusión en el buzón de quien tenga el

@@ -38,8 +38,8 @@ export const ESTADOS_VISIBLES_LABEL = {
 // aplica a cada rol, para no ofrecer una opción que nunca puede matchear nada.
 export const CLAVES_ESTADOS_TALLER = ['PENDIENTE_ASIGNACION', 'ASIGNADO', 'EN_PROCESO', 'EN_PAUSA', 'EN_REVISION', 'APROBADO'];
 export const CLAVES_ESTADOS_GENERAL = ['ESPERANDO_AUTORIZACION', 'CREADO', 'APROBADO_DEPARTAMENTO', 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'SOLICITANDO_MODIFICACION', 'MODIFICADO', 'CONFIRMADO', 'RECHAZADO'];
-// El técnico nunca ve PENDIENTE_ASIGNACION (un vale sin asignar no está en su
+// El diseñador nunca ve PENDIENTE_ASIGNACION (un vale sin asignar no está en su
 // buzón) ni APROBADO en el Buzón (se muda a Trabajo realizado) — se separan
 // por vista en poblarFiltroEstado.
-export const CLAVES_ESTADOS_TECNICO_BUZON = ['ASIGNADO', 'EN_PROCESO', 'EN_PAUSA', 'EN_REVISION'];
-export const CLAVES_ESTADOS_TECNICO_TRABAJO = ['APROBADO'];
+export const CLAVES_ESTADOS_DISENADOR_BUZON = ['ASIGNADO', 'EN_PROCESO', 'EN_PAUSA', 'EN_REVISION'];
+export const CLAVES_ESTADOS_DISENADOR_TRABAJO = ['APROBADO'];
