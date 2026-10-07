@@ -354,7 +354,7 @@ cambia quién puede hacer cada acción.
 |---|---|---|
 | Administrador (1) | `vales.ver` (+ `admin.*`) | Ve todo el buzón. **No** tiene permisos de escritura sobre vales: no puede autorizar, asignar, aprobar ni confirmar. |
 | Asesor de Ventas (2) | `ver`, `crear`, `editar`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir` | Crea vales; los corrige o da de baja antes de ser autorizados; confirma el recibido o solicita la modificación. |
-| Supervisor de Ventas (3) | `ver`, `autorizar_creacion`, `aprobar_modificacion`, `supervisar`, `ver_gerencia` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`usuarios.encargado_id`). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
+| Supervisor de Ventas (3) | `ver`, `autorizar_creacion`, `aprobar_modificacion`, `supervisar`, `ver_gerencia`, y para sus propios vales `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`supervisor_tiendas`). También crea y gestiona **sus propios vales** (ver «Vales del supervisor» abajo). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
 | Encargado de Diseño (4) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Dueño del taller "Diseño". Asigna y revisa, puede trabajar vales él mismo, y **fusiona** los vales multi-taller. |
 | Encargado de Diseño UV/3D (5) | `ver`, `asignar`, `revisar`, `trabajar` | Dueño del taller "Diseño UV/3D". Sin fusión. |
 | Diseñador (6) | `ver`, `trabajar` | Comienza, pausa, reanuda, cancela y entrega sus vales. |
@@ -367,6 +367,17 @@ cambia quién puede hacer cada acción.
 > «Técnico»), en pantalla, en la base y en el código: `vale_talleres.disenador_id`,
 > `taller_disenadores`, `ROL.DISENADOR`, las salas `disenador:<id>` y las rutas `/disenadores`.
 > Las cuentas del rol usan correos `disenadorN@…` y la contraseña de desarrollo `disenador123`.
+
+### Vales del supervisor
+
+Todo supervisor de ventas puede crear vales, además de supervisar. Requisitos y reglas:
+
+- **Datos:** el usuario debe tener una fila en `supervisores` **y** otra en `asesores`; esta última le da la tienda (`asesores.tienda_id`) de la que sale el correlativo y los talleres que puede elegir. Su rol sigue siendo Supervisor (3): los chequeos de servidor aceptan «asesor o supervisor» (`puedeActuarComoAsesor`) y la propiedad del vale decide qué puede tocar.
+- **Permisos del rol 3** para sus vales: `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja` y `corregir`.
+- **Nunca autoriza ni rechaza lo suyo:** sus vales (y sus modificaciones) los autoriza **otro** supervisor que cubra su tienda; `obtenerSupervisoresDeAsesor` no lo devuelve a sí mismo. Si su tienda no tiene otro supervisor, **no puede crear** (error «Tu tienda no tiene otro supervisor que pueda autorizar tus vales…»).
+- **Cupo colectivo:** el supervisor no cuenta como asesor de nadie (el denominador solo cuenta `rol_id = 2`), y los vales que él crea **no consumen** el cupo del supervisor que los autoriza ni se bloquean por él.
+- **Buzón:** el Buzón del supervisor lista, además de lo de su equipo, **sus propios vales en todos sus estados activos** (esperando, rechazado, en talleres, por confirmar…), con el mismo criterio de orden; no suman a los contadores de autorización ni a «Pend. confirmación asesor». Sus vales confirmados salen en «Trabajo realizado» y cuentan en su Rendimiento. Sobre sus vales ve las acciones de asesor (corregir, reenviar, dar de baja, confirmar, modificar); sobre los de su equipo, solo las de supervisión.
+- **Tiempo real:** recibe lo de sus vales en la sala `asesor:<su id>` además de `supervisor:<su id>`.
 
 ### Quién fusiona
 
