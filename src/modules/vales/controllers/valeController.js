@@ -187,7 +187,7 @@ class ValeController {
 
   async asignar(req, res) {
     try {
-      const vale = await valeService.asignar(req.user, idObligatorio(req.params.id), idObligatorio(req.body.tecnicoId, 'Técnico'), idOpcional(req.body.tallerId, 'Taller'));
+      const vale = await valeService.asignar(req.user, idObligatorio(req.params.id), idObligatorio(req.body.tecnicoId, 'Diseñador'), idOpcional(req.body.tallerId, 'Taller'));
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
@@ -248,7 +248,7 @@ class ValeController {
       const { aprobar, tecnicoReasignadoId, tallerId } = req.body;
       const vale = await valeService.revisarPropuesta(req.user, idObligatorio(req.params.id), {
         aprobar: aprobar === true || aprobar === 'true',
-        tecnicoReasignadoId: idOpcional(tecnicoReasignadoId, 'Técnico'),
+        tecnicoReasignadoId: idOpcional(tecnicoReasignadoId, 'Diseñador'),
         tallerId: idOpcional(tallerId, 'Taller')
       });
       return res.json(vale);
@@ -363,7 +363,7 @@ class ValeController {
 
   async cargaTrabajoTecnico(req, res) {
     try {
-      const data = await valeService.obtenerAsignacionesDeTecnico(req.user, idObligatorio(req.params.tecnicoId, 'Técnico'));
+      const data = await valeService.obtenerAsignacionesDeTecnico(req.user, idObligatorio(req.params.tecnicoId, 'Diseñador'));
       return res.json(data);
     } catch (error) {
       return responderError(res, error);

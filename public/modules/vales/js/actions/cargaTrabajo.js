@@ -26,7 +26,7 @@ async function renderContenidoCargaTrabajo(overlay) {
         Asignaciones: ${t.asignaciones} · En proceso: ${t.enProceso || 'Ninguno'}
       </div>
     </div>
-  `).join('') : '<p style="font-size:13px;">No tienes técnicos bajo tu mando.</p>';
+  `).join('') : '<p style="font-size:13px;">No tienes diseñadores bajo tu mando.</p>';
 
   $$('.carga-tecnico', body).forEach(el => {
     el.addEventListener('click', () => abrirModalAsignacionesTecnico(el.dataset.tecnicoId));
@@ -53,11 +53,11 @@ async function renderContenidoAsignacionesTecnico(overlay, tecnicoId) {
         <td>${v.correlativo}</td><td>${formatearFecha(v.fecha_entrega)}</td>
         <td><span class="estado-pill estado-${v.estado_taller}">${ESTADOS_LABEL[v.estado_taller] || v.estado_taller}</span></td>
       </tr>`).join('')}</tbody></table>
-  ` : '<p style="font-size:13px;">Este técnico no tiene asignaciones activas.</p>';
+  ` : '<p style="font-size:13px;">Este diseñador no tiene asignaciones activas.</p>';
 }
 
 function abrirModalAsignacionesTecnico(tecnicoId) {
-  const { overlay } = abrirModal({ title: 'Asignaciones del técnico', bodyHtml: '<p class="tabla-vacia">Cargando...</p>' });
+  const { overlay } = abrirModal({ title: 'Asignaciones del diseñador', bodyHtml: '<p class="tabla-vacia">Cargando...</p>' });
   state.cargaTrabajoModal = { overlay, actualizar: () => renderContenidoAsignacionesTecnico(overlay, tecnicoId) };
   renderContenidoAsignacionesTecnico(overlay, tecnicoId);
 }

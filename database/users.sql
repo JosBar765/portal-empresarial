@@ -94,7 +94,7 @@ INSERT INTO `usuarios` (`id`, `nombre`, `email`, `password_hash`, `rol_id`) VALU
 (94, 'Alejandra Salazar', 'leon@grupopremia.com', '$2a$10$Z6sSKBWpG/5L9jOhx0tbgOaPIPEayY4vZ1DIfVJQ3lMvon50opev.', 2),
 (95, 'Francisco Zamora', 'ventas1cr@grupopremia.com', '$2a$10$Z6sSKBWpG/5L9jOhx0tbgOaPIPEayY4vZ1DIfVJQ3lMvon50opev.', 2),
 (96, 'Luis Elizondo', 'ventas2cr@grupopremia.com', '$2a$10$Z6sSKBWpG/5L9jOhx0tbgOaPIPEayY4vZ1DIfVJQ3lMvon50opev.', 2),
--- Tecnicos
+-- Diseñadores
 (97, 'Alma Boror', 'tecnico1@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),
 (98, 'Pamela Morales', 'tecnico2@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),
 (99, 'Victoria Coyoy', 'tecnico3@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),

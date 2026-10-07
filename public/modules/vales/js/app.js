@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('#account-dropdown-role').textContent = state.user.rolNombre;
   $('#account-avatar').textContent = inicialesAvatar(state.user.nombre);
 
-  // Encargados y técnicos ya trabajan scoped a su propio taller — la columna
+  // Encargados y diseñadores ya trabajan scoped a su propio taller — la columna
   // "Taller" (pensada para el asesor y roles de supervisión) sobra ahí.
   $('.buzon-table').classList.toggle('oculta-taller', ROLES_TALLER_Y_TECNICO.includes(state.user.rolId));
 

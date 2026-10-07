@@ -110,7 +110,7 @@ class ValePdfService {
       await this._fusionarPdfExterno(pdfDoc, doc.ruta, doc.nombre_original);
     }
 
-    // El checkbox de "ADJUNTOS" ya no se calcula: lo marca a mano el técnico al
+    // El checkbox de "ADJUNTOS" ya no se calcula: lo marca a mano el diseñador al
     // imprimir el vale (corrección #8) — siempre se dibuja vacío.
     this._dibujarPiesDePagina(pdfDoc, font, fontBold, { modificado: !!vale.modificado });
 
@@ -390,7 +390,7 @@ class ValePdfService {
   /**
    * Dibuja el pie de página en TODAS las páginas del documento final (incluidas las de
    * documentos/propuestas fusionados): numeración actual/total, el checkbox de
-   * "ADJUNTOS" (siempre vacío, lo marca a mano el técnico al imprimir),
+   * "ADJUNTOS" (siempre vacío, lo marca a mano el diseñador al imprimir),
    * y el indicador "MODIFICAR" abajo-izquierda si aplica.
    */
   _dibujarPiesDePagina(pdfDoc, font, fontBold, { modificado }) {

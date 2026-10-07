@@ -163,7 +163,7 @@ class ValeBuzonService {
     // criterio de "estado activo por rol" que ya usa el frontend para pintar
     // la píldora — nunca dos fuentes de verdad divergentes: estado_visible
     // para el asesor (y el supervisor en su vista de trabajo), estado_taller
-    // para encargados/técnico, estado general para el resto.
+    // para encargados/diseñador, estado general para el resto.
     const usaEstadosVisiblesParaFiltro = usuario.rolId === ROL.ASESOR || (usuario.rolId === ROL.SUPERVISOR && vista === 'trabajo');
     const estadoActivoDe = (v) => {
       if (usaEstadosVisiblesParaFiltro) return v.estado_visible;
@@ -485,7 +485,7 @@ class ValeBuzonService {
     };
     if (puedeFusionar) predicados.pendientesFusion = v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO;
     const filtrados = this._aplicarFiltroContador([...enVentana, ...pendientesFusion], filtroContador, predicados);
-    // El trabajo activo de los técnicos (en proceso/en pausa) y lo ya
+    // El trabajo activo de los diseñadores (en proceso/en pausa) y lo ya
     // asignado suben por encima de lo que requiere acción del propio
     // encargado (revisar/asignar). La cola de fusión se queda al final.
     const vales = ordenarPorGrupos(filtrados, [
@@ -509,7 +509,7 @@ class ValeBuzonService {
   // fecha de aprobación real vive en vale_talleres.actualizado_en, pero se
   // ordena por la del vale para ser consistente con _trabajoAsesor). Cada
   // fila trae también `propuesta_taller_url` — la propuesta REAL que este
-  // taller aprobó (vale_propuestas, por técnico), no
+  // taller aprobó (vale_propuestas, por diseñador), no
   // `vale.propuesta_general_url` (que en un vale multi-taller es la fusión,
   // no el trabajo de este taller en particular). Quien tenga
   // `vales.aprobar_general` ve ADEMÁS, mezclados, los vales que YA fusionó
@@ -602,7 +602,7 @@ class ValeBuzonService {
     return usuarioValeRepository.listarTecnicosPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
   }
 
-  // Ordenado por fecha de ENTREGA más próxima. Un técnico sin vales activos
+  // Ordenado por fecha de ENTREGA más próxima. Un diseñador sin vales activos
   // no tiene "próxima entrega": va al final.
   async obtenerCargaTrabajo(usuario) {
     const tecnicos = await usuarioValeRepository.listarTecnicosPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
@@ -638,7 +638,7 @@ class ValeBuzonService {
     if (!esAdministrador(usuario)) {
       const tecnicos = await usuarioValeRepository.listarTecnicosPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
       if (!tecnicos.some(t => t.id === Number(tecnicoId))) {
-        throw new Error('Ese técnico no está a tu cargo.');
+        throw new Error('Ese diseñador no está a tu cargo.');
       }
     }
     const activas = await valeTallerRepository.listarActivasPorTecnico(tecnicoId);
@@ -651,7 +651,7 @@ class ValeBuzonService {
     return vales.filter(Boolean).sort((a, b) => new Date(a.fecha_entrega) - new Date(b.fecha_entrega));
   }
 
-  // ---- Técnico: sidebar Buzón (asignaciones activas, sin aprobados/desaprobados) ----
+  // ---- Diseñador: sidebar Buzón (asignaciones activas, sin aprobados/desaprobados) ----
   async obtenerBuzonTecnico(usuario, ventana, filtroContador) {
     const activas = (await valeTallerRepository.listarActivasPorTecnico(usuario.id))
       .filter(a => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION].includes(a.estado));
@@ -662,7 +662,7 @@ class ValeBuzonService {
       .filter(Boolean)
       .filter(v => dentroDeVentana(v, ventana));
 
-    // Se dejan únicamente 3 contadores para el técnico ("asignados sin
+    // Se dejan únicamente 3 contadores para el diseñador ("asignados sin
     // atraso", "asignados con atraso" y el vale en proceso) — no está en la
     // lista de roles con el "Atrasados en general" combinable, así que
     // "asignadosAtrasados" sigue siendo su propio filtro normal (mutuamente
@@ -686,9 +686,9 @@ class ValeBuzonService {
     return { vales: listaOrdenada, contadores };
   }
 
-  // ---- Técnico: sidebar Trabajo realizado (aprobados por su taller, orden
+  // ---- Diseñador: sidebar Trabajo realizado (aprobados por su taller, orden
   // por fecha) — cada fila trae también `propuesta_taller_url`, la propuesta
-  // REAL que el propio técnico entregó, calcado de _trabajoEncargadoTaller,
+  // REAL que el propio diseñador entregó, calcado de _trabajoEncargadoTaller,
   // para que "Ver propuesta" también aplique aquí.
   async obtenerTrabajoTecnico(usuario, ventana, filtroContador) {
     const activas = (await valeTallerRepository.listarActivasPorTecnico(usuario.id))
@@ -698,12 +698,12 @@ class ValeBuzonService {
       if (!vale) return null;
       const propuesta = await propuestaRepository.obtenerUltimaPorValeYTecnico(a.vale_id, usuario.id);
       const propuestaTallerUrl = propuesta ? propuesta.url : null;
-      // Estado lógico fijo — al técnico no le importa qué pase con el vale
+      // Estado lógico fijo — al diseñador no le importa qué pase con el vale
       // después de que le aprueben su trabajo (mismo criterio que
       // _trabajoEncargadoTaller). `aprobado_en` toma la fecha de ESTA fila
       // de taller (`a.actualizado_en`), no la del vale general.
       // `_rowKey`/`_tipoRegistro` por consistencia con
-      // _trabajoEncargadoTaller — el técnico nunca fusiona, siempre una sola
+      // _trabajoEncargadoTaller — el diseñador nunca fusiona, siempre una sola
       // fila por correlativo.
       return {
         ...enriquecer(vale), propuesta_taller_url: propuestaTallerUrl, estado_taller: ESTADOS_TALLER.APROBADO,

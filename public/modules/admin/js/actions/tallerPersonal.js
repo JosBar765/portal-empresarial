@@ -27,7 +27,7 @@ export async function abrirModalVerPersonalTaller(taller) {
         ? `<div class="personal-item"><div class="personal-item-info"><span>${escapeHtml(encargado.nombre)}</span></div></div>`
         : '<p class="form-hint">Sin encargado asignado.</p>'}
     </div>
-    <p class="section-title">Técnicos (${tecnicos.length})</p>
+    <p class="section-title">Diseñadores (${tecnicos.length})</p>
     <div class="personal-lista">
       ${tecnicos.map(p => `
         <div class="personal-item">
@@ -36,7 +36,7 @@ export async function abrirModalVerPersonalTaller(taller) {
             ${p.rol_id === ROL_ASISTENTE ? '<span class="rol">Asistente</span>' : ''}
           </div>
         </div>
-      `).join('') || '<p class="form-hint">Sin técnicos asignados.</p>'}
+      `).join('') || '<p class="form-hint">Sin diseñadores asignados.</p>'}
     </div>
   `;
   const { overlay, cerrar } = abrirModal({
@@ -68,7 +68,7 @@ export async function abrirModalPersonalTaller(taller) {
   const bodyHtml = `
     <p class="section-title">Encargado</p>
     <div id="zona-encargado-taller" class="form-grid"></div>
-    <p class="section-title">Técnicos</p>
+    <p class="section-title">Diseñadores</p>
     <div id="tecnicos-actual">
       ${tecnicosActuales.map(p => `
         <div class="personal-item" data-usuario-id="${p.id}">
@@ -77,9 +77,9 @@ export async function abrirModalPersonalTaller(taller) {
             ${p.rol_id === ROL_ASISTENTE ? '<span class="rol">Asistente</span>' : ''}
           </div>
         </div>
-      `).join('') || '<p class="form-hint">Sin técnicos asignados.</p>'}
+      `).join('') || '<p class="form-hint">Sin diseñadores asignados.</p>'}
     </div>
-    <p class="section-title">Agregar técnico</p>
+    <p class="section-title">Agregar diseñador</p>
     <div class="form-grid">
       <div class="form-field">
         <label>Persona</label>
@@ -93,7 +93,7 @@ export async function abrirModalPersonalTaller(taller) {
   const { overlay, cerrar } = abrirModal({
     title: `Personal — ${taller.nombre}`,
     bodyHtml,
-    footerHtml: `<button class="btn btn--ghost" id="btn-cerrar-taller">Cerrar</button><button class="btn btn--primary" id="btn-agregar-tecnico">Agregar técnico</button>`
+    footerHtml: `<button class="btn btn--ghost" id="btn-cerrar-taller">Cerrar</button><button class="btn btn--primary" id="btn-agregar-tecnico">Agregar diseñador</button>`
   });
 
   function renderZonaEncargado() {

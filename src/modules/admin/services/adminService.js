@@ -343,7 +343,7 @@ class AdminService {
   }
 
   // Catálogo de talleres para poblar el selector "Taller" del modal "Editar
-  // usuario" (Técnico, Encargado de taller local y Asistente).
+  // usuario" (Diseñador, Encargado de taller local y Asistente).
   async listarTalleres() {
     return { talleres: await tallerAdminRepository.listarConDetalle() };
   }
@@ -378,7 +378,7 @@ class AdminService {
   }
 
   // Un encargado trabaja físicamente en UN taller: no puede serlo de dos ni
-  // ser además técnico de otro (misma lógica que el asesor con su tienda).
+  // ser además diseñador de otro (misma lógica que el asesor con su tienda).
   async _validarQueNoEncargueOtroTaller(usuario, tallerActualId = null) {
     const comoEncargado = await tallerAdminRepository.obtenerTallerDeEncargado(usuario.id, tallerActualId);
     if (comoEncargado) {
@@ -466,7 +466,7 @@ class AdminService {
     if (!usuario) throw new Error('Usuario no encontrado.');
     const rolNum = Number(usuario.rol_id);
     if (rolNum !== ROL_TECNICO && rolNum !== ROL_ASISTENTE) {
-      throw new Error('Solo un Técnico o el Asistente pueden agregarse como personal de un taller.');
+      throw new Error('Solo un Diseñador o el Asistente pueden agregarse como personal de un taller.');
     }
     if (rolNum === ROL_ASISTENTE && !TALLERES_CLONABLES_ASISTENTE.includes(taller.nombre)) {
       throw new Error('El Asistente solo puede clonar Diseño, Diseño UV/3D o Protextil.');

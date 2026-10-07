@@ -29,7 +29,7 @@ export function renderTalleres() {
     </div>
     <div class="tabla-wrapper">
       <table class="data-table sticky-header">
-        <thead><tr><th>Taller</th><th>Tienda</th><th>Encargado</th><th>Técnicos</th><th>Límite diario</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Taller</th><th>Tienda</th><th>Encargado</th><th>Diseñadores</th><th>Límite diario</th><th>Estado</th><th>Acciones</th></tr></thead>
         <tbody id="talleres-tbody"></tbody>
       </table>
     </div>
@@ -43,7 +43,7 @@ export function renderTalleres() {
         ? `${escapeHtml(t.tienda_nombre || '')}<div class="tabla-secundaria">${escapeHtml(t.tienda_codigo || '')}</div>`
         : '<span class="form-hint">Toda la empresa</span>'}</td>
       <td data-label="Encargado">${t.encargado_nombre ? escapeHtml(t.encargado_nombre) : '<span class="form-hint">Sin encargado</span>'}</td>
-      <td data-label="Técnicos">${t.tecnicos_count}</td>
+      <td data-label="Diseñadores">${t.tecnicos_count}</td>
       <td data-label="Límite diario">${t.limite_diario != null ? `${t.limite_diario} / día` : '<span class="form-hint">Sin límite</span>'}</td>
       <td data-label="Estado"><span class="badge ${t.activo ? 'badge-activo' : 'badge-inactivo'}">${t.activo ? 'Activo' : 'Inactivo'}</span></td>
       <td data-label="Acciones" class="acciones-cell" data-taller-id="${t.id}"></td>

@@ -449,7 +449,7 @@
   font-weight: 600;
 }
 
-/* Corrección #9: encargados y técnicos no necesitan ver la columna Taller (ya
+/* Corrección #9: encargados y diseñadores no necesitan ver la columna Taller (ya
    filtran/trabajan solo lo de su propio taller) — se oculta con una clase en la
    tabla en vez de duplicar el <thead>/<tbody> por rol. */
 .buzon-table.oculta-taller .col-taller {

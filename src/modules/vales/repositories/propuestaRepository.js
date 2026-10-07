@@ -20,7 +20,7 @@ class PropuestaRepository {
     return rows[0] || null;
   }
 
-  // La última propuesta de UN taller específico (identificado por el técnico que la
+  // La última propuesta de UN taller específico (identificado por el diseñador que la
   // subió) — necesario porque con varios talleres puede haber varias propuestas vivas
   // para el mismo vale al mismo tiempo, una por taller.
   async obtenerUltimaPorValeYTecnico(valeId, tecnicoId) {

@@ -29,9 +29,9 @@ export function puede(accion) {
 }
 
 // Un encargado de taller ve en su buzón TODOS los vales de su taller,
-// incluidos los asignados a sus propios técnicos — las acciones de técnico
+// incluidos los asignados a sus propios diseñadores — las acciones de diseñador
 // (Comenzar/Entregar/Pausar/Cancelar) solo deben mostrarse cuando el vale es
-// el que ÉL MISMO se autoasignó. El Técnico y el Administrador siempre ven
+// el que ÉL MISMO se autoasignó. El Diseñador y el Administrador siempre ven
 // su/cualquier vale asignado, sin este filtro.
 export function esAccionDeTrabajoVisible(v) {
   if (state.user.rolId === ROL.TECNICO || state.user.rolId === ROL.ADMINISTRADOR) return true;
@@ -45,7 +45,7 @@ export function usaEstadosVisibles() {
 }
 
 // El estado que corresponde MOSTRAR depende del rol: el asesor ve su versión
-// lógica; encargados y técnicos ven el progreso DENTRO de su taller
+// lógica; encargados y diseñadores ven el progreso DENTRO de su taller
 // (v.estado_taller); el resto ve el estado general del vale (v.estado).
 export function estadoActivo(v) {
   if (usaEstadosVisibles()) return v.estado_visible;

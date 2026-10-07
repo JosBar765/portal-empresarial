@@ -4,8 +4,8 @@ const db = require('../../../config/database');
 class HistorialRepository {
   // `tallerId` es NULL para eventos de nivel de vale (visibles para todos) y
   // el taller correspondiente para eventos internos de un taller. `tecnicoId`
-  // solo se llena en eventos donde el actor NO es el propio técnico
-  // (asignación/reasignación/aprobación) — permite que un técnico filtre su
+  // solo se llena en eventos donde el actor NO es el propio diseñador
+  // (asignación/reasignación/aprobación) — permite que un diseñador filtre su
   // historial sin depender del texto de `accion`.
   async registrar(valeId, usuarioId, tallerId, estadoAnterior, estadoNuevo, accion, tecnicoId) {
     await db.query(

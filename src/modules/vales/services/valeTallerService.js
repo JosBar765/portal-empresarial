@@ -51,7 +51,7 @@ class ValeTallerService {
       await requerirVale(valeId);
       const fila = await this._resolverFilaTallerParaEncargado(usuario, valeId, tallerIdHint);
       if (fila.estado !== ESTADOS_TALLER.PENDIENTE_ASIGNACION) {
-        throw new Error('Este vale ya tiene un técnico asignado en tu taller.');
+        throw new Error('Este vale ya tiene un diseñador asignado en tu taller.');
       }
       // Un encargado puede asignarse el vale a SÍ MISMO — la fila ya está
       // acotada a su propio taller por _resolverFilaTallerParaEncargado, así
@@ -59,13 +59,13 @@ class ValeTallerService {
       const esAutoasignacion = !esAdministrador(usuario) && Number(tecnicoId) === Number(usuario.id);
       const tecnicos = await usuarioValeRepository.listarTecnicosPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
       if (!esAdministrador(usuario) && !esAutoasignacion && !tecnicos.some(t => t.id === Number(tecnicoId))) {
-        throw new Error('Ese técnico no está a tu cargo.');
+        throw new Error('Ese diseñador no está a tu cargo.');
       }
       await valeTallerRepository.asignar(fila.id, tecnicoId, `${hoyISO()} ${horaActual()}`);
       const tecnico = await usuarioValeRepository.obtenerPorId(tecnicoId);
       const taller = await tallerRepository.obtenerPorId(fila.taller_id);
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.PENDIENTE_ASIGNACION, ESTADOS_TALLER.ASIGNADO,
-        `Asignado al técnico ${tecnico ? tecnico.nombre : tecnicoId} (taller ${taller ? taller.nombre : fila.taller_id})`, tecnicoId);
+        `Asignado al diseñador ${tecnico ? tecnico.nombre : tecnicoId} (taller ${taller ? taller.nombre : fila.taller_id})`, tecnicoId);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: 'asignado', actor: usuario.nombre, actorId: usuario.id, destino: tecnico ? tecnico.nombre : null,
@@ -82,7 +82,7 @@ class ValeTallerService {
       if (fila.estado !== ESTADOS_TALLER.ASIGNADO) {
         throw new Error('Para comenzar el vale, primero debe estar asignado a ti.');
       }
-      // Revisar "ya tengo otro en proceso" y pasar este a EN_PROCESO van en el mismo turno de la cola del técnico.
+      // Revisar "ya tengo otro en proceso" y pasar este a EN_PROCESO van en el mismo turno de la cola del diseñador.
       await valeMutex.conColaDeTecnico(usuario.id, async () => {
         const activasDelTecnico = await valeTallerRepository.listarActivasPorTecnico(usuario.id);
         for (const a of activasDelTecnico) {
@@ -95,7 +95,7 @@ class ValeTallerService {
       });
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, `${etiquetaActorTaller(usuario)} marcó el vale como en proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
-      // El encargado del taller sí debe enterarse cuando su técnico empieza
+      // El encargado del taller sí debe enterarse cuando su diseñador empieza
       // a trabajar un vale.
       valeEvents.notificar({ vale: actualizado, accion: 'tomado en proceso', actor: usuario.nombre, actorId: usuario.id, salas: [`taller:${fila.taller_id}`] });
       return enriquecer(actualizado);
@@ -168,7 +168,7 @@ class ValeTallerService {
     });
   }
 
-  // El técnico puede pausar un vale EN_PROCESO (sin propuesta) para tomar
+  // El diseñador puede pausar un vale EN_PROCESO (sin propuesta) para tomar
   // otro más urgente, y reanudarlo después. Mismo patrón que
   // cancelarProcesoTecnico, pero queda en EN_PAUSA en vez de volver a
   // EN_REVISION (la pausa no es una entrega).
@@ -197,7 +197,7 @@ class ValeTallerService {
       if (fila.estado !== ESTADOS_TALLER.EN_PAUSA) {
         throw new Error('Solo se puede reanudar un vale que esté en pausa.');
       }
-      // Misma regla que comenzar(): un técnico solo puede tener un vale EN_PROCESO a la vez.
+      // Misma regla que comenzar(): un diseñador solo puede tener un vale EN_PROCESO a la vez.
       await valeMutex.conColaDeTecnico(usuario.id, async () => {
         const activasDelTecnico = await valeTallerRepository.listarActivasPorTecnico(usuario.id);
         for (const a of activasDelTecnico) {
@@ -257,7 +257,7 @@ class ValeTallerService {
     if (aprobar) {
       const ultimaPropuesta = await propuestaRepository.obtenerUltimaPorValeYTecnico(valeId, fila.tecnico_id);
       if (!ultimaPropuesta || !ultimaPropuesta.url) {
-        throw new Error('No se puede aprobar una propuesta en blanco: el técnico debe adjuntar su documento.');
+        throw new Error('No se puede aprobar una propuesta en blanco: el diseñador debe adjuntar su documento.');
       }
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.APROBADO);
       fila.estado = ESTADOS_TALLER.APROBADO;
@@ -281,14 +281,14 @@ class ValeTallerService {
     }
 
     if (!tecnicoReasignadoId) {
-      throw new Error('Debe indicar a qué técnico reasignar el vale desaprobado.');
+      throw new Error('Debe indicar a qué diseñador reasignar el vale desaprobado.');
     }
     // Igual que asignar(), el encargado puede reasignarse el trabajo
     // desaprobado a sí mismo.
     const esAutoasignacion = !esAdministrador(usuario) && Number(tecnicoReasignadoId) === Number(usuario.id);
     const tecnicos = await usuarioValeRepository.listarTecnicosPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
     if (!esAdministrador(usuario) && !esAutoasignacion && !tecnicos.some(t => t.id === Number(tecnicoReasignadoId))) {
-      throw new Error('Ese técnico no está a tu cargo.');
+      throw new Error('Ese diseñador no está a tu cargo.');
     }
     await valeTallerRepository.asignar(fila.id, tecnicoReasignadoId, `${hoyISO()} ${horaActual()}`);
     const tecnico = await usuarioValeRepository.obtenerPorId(tecnicoReasignadoId);

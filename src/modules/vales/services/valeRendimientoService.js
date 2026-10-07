@@ -32,7 +32,7 @@ const ETAPAS_EN_CURSO = [
 
 const ETAPAS_CICLO = [
   { clave: 'autorizacion', label: 'Autorización' },
-  { clave: 'asignacion', label: 'Asignación a técnico' },
+  { clave: 'asignacion', label: 'Asignación a diseñador' },
   { clave: 'produccion', label: 'Producción y revisión' },
   { clave: 'confirmacion', label: 'Confirmación del asesor' }
 ];

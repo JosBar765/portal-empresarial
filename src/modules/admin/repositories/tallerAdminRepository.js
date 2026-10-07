@@ -146,7 +146,7 @@ class TallerAdminRepository {
     );
   }
 
-  // Mismo mecanismo para Técnico (rol 6) y Asistente (rol 7, "clona" el
+  // Mismo mecanismo para Diseñador (rol 6) y Asistente (rol 7, "clona" el
   // taller elegido) — PK en usuario_id, así que reasignar es un upsert
   // simple (nunca puede quedar en dos talleres).
   async asignarTecnico(usuarioId, tallerId) {

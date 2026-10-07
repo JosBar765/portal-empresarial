@@ -6,7 +6,7 @@ import { obtenerTecnicosAsignables, asignarTecnico, obtenerDetalleVale, revisarP
 import { escapeHtml } from '../utils/formato.js';
 import { cargarBuzon } from '../views/buzon.js';
 
-// Lista de técnicos asignables, con la opción "(yo mismo)" para un encargado
+// Lista de diseñadores asignables, con la opción "(yo mismo)" para un encargado
 // — quien revisa una propuesta también puede reasignarse el trabajo a sí
 // mismo.
 export async function cargarTecnicosAsignables() {
@@ -22,7 +22,7 @@ export async function cargarTecnicosAsignables() {
 }
 
 // -----------------------------------------------------------------------
-// Modal: Asignar a técnico
+// Modal: Asignar a diseñador
 // -----------------------------------------------------------------------
 export async function abrirModalAsignar(vale) {
   const tecnicos = await cargarTecnicosAsignables();
@@ -31,9 +31,9 @@ export async function abrirModalAsignar(vale) {
     title: `Asignar ${vale.correlativo}`,
     bodyHtml: `
       <div class="form-field">
-        <label>Técnico a cargo</label>
+        <label>Diseñador a cargo</label>
         <select id="select-tecnico">
-          ${tecnicos.length ? tecnicos.map(t => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('') : '<option value="">No hay técnicos a tu cargo</option>'}
+          ${tecnicos.length ? tecnicos.map(t => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('') : '<option value="">No hay diseñadores a tu cargo</option>'}
         </select>
       </div>
     `,
@@ -49,7 +49,7 @@ export async function abrirModalAsignar(vale) {
     try {
       await asignarTecnico(vale.id, tecnicoId);
       const tecnico = tecnicos.find(t => t.id === Number(tecnicoId));
-      window.toast.success('Vale asignado', `Se asignó correctamente al técnico ${tecnico ? tecnico.nombre : tecnicoId}.`);
+      window.toast.success('Vale asignado', `Se asignó correctamente al diseñador ${tecnico ? tecnico.nombre : tecnicoId}.`);
       cerrar();
       cargarBuzon();
     } catch (error) {
@@ -70,7 +70,7 @@ export async function abrirModalRevisar(vale) {
     detalle = { propuestas: [] };
   }
   // En un vale multi-taller `detalle.propuestas` trae una fila por CADA
-  // técnico (una por taller) — se filtra por el propio (`vale.tecnico_id`, ya
+  // diseñador (una por taller) — se filtra por el propio (`vale.tecnico_id`, ya
   // adjunto por el backend) para no mostrar la propuesta de cualquier taller.
   const propias = (detalle.propuestas || []).filter(p => p.tecnico_id === vale.tecnico_id);
   const ultima = propias[propias.length - 1];
@@ -86,10 +86,10 @@ export async function abrirModalRevisar(vale) {
     bodyHtml: `
       <p style="margin-bottom:14px;font-size:13px;">
         ${!ultima
-          ? 'El técnico canceló el proceso — no hay propuesta que revisar.'
+          ? 'El diseñador canceló el proceso — no hay propuesta que revisar.'
           : (ultima.url
               ? `<a href="${ultima.url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta adjunta</a>`
-              : 'El técnico no adjuntó documento de propuesta (no se puede aprobar en blanco).')}
+              : 'El diseñador no adjuntó documento de propuesta (no se puede aprobar en blanco).')}
       </p>
       <div class="form-field">
         <label>Reasignar a (solo si desaprueba)</label>

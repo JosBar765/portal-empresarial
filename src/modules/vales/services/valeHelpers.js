@@ -122,7 +122,7 @@ function estadoEnAutorizacion(vale) {
 }
 
 function etiquetaActorTaller(usuario) {
-  return usuario.rolId === ROL.TECNICO ? 'Técnico' : 'Encargado';
+  return usuario.rolId === ROL.TECNICO ? 'Diseñador' : 'Encargado';
 }
 
 function estadoVisibleAsesor(vale) {

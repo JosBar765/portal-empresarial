@@ -33,7 +33,7 @@ class UsuarioValeRepository {
   }
 
   // El taller de este encargado sale de `talleres.encargado_id` y sus
-  // técnicos, de `taller_tecnicos`.
+  // diseñadores, de `taller_tecnicos`.
   async listarTecnicosPorEncargado(encargadoId) {
     return db.query(
       `SELECT u.id, u.nombre, u.email, tt.taller_id

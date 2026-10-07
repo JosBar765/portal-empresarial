@@ -138,7 +138,7 @@ export function renderContadores() {
     if (alerta) clases.push('contador-alerta');
     if (esClickeable) clases.push('contador-clickeable');
     if (activo) clases.push('contador-activo');
-    // Un valor largo (p. ej. el correlativo del vale en proceso del técnico,
+    // Un valor largo (p. ej. el correlativo del vale en proceso del diseñador,
     // "GUA-3-0003") no se lee bien con el mismo tamaño pensado para un número
     // — .valor-compacto lo reduce sin tocar los contadores numéricos ni los
     // "N/M" cortos.
@@ -193,7 +193,7 @@ export function poblarFiltroEstado() {
       // Trabajo Realizado siempre muestra APROBADO (estado congelado, tanto la
       // fila de propuesta propia como la de fusión) — los estados generales ya
       // no pueden ocurrir ahí, así que el desplegable colapsa igual que el del
-      // técnico.
+      // diseñador.
       if (state.vista === 'trabajo') {
         claves = [...CLAVES_ESTADOS_TECNICO_TRABAJO];
       } else {
@@ -209,7 +209,7 @@ export function poblarFiltroEstado() {
 }
 
 // Cuenta las columnas realmente visibles del <thead> (la de Taller puede estar
-// oculta vía CSS para encargados/técnicos) para que los mensajes de "tabla
+// oculta vía CSS para encargados/diseñadores) para que los mensajes de "tabla
 // vacía"/error usen el colspan correcto sin hardcodearlo por rol.
 export function columnasVisibles() {
   const todas = $$('.buzon-table thead th');
@@ -296,7 +296,7 @@ export function construirAcciones(v) {
   if ((usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || puede('aprobarGeneral')) && v.propuesta_general_url && v._tipoRegistro !== 'PROPUESTA') {
     acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_general_url, '_blank') });
   }
-  // En "Trabajo realizado" el encargado de un taller (y el propio técnico) ve
+  // En "Trabajo realizado" el encargado de un taller (y el propio diseñador) ve
   // la propuesta REAL que se aprobó (`propuesta_taller_url`, solo viene
   // poblado en esa vista) — no `propuesta_general_url`, que en un vale
   // multi-taller es la fusión, no el trabajo propio de este taller.
@@ -310,14 +310,14 @@ export function construirAcciones(v) {
     acciones.push({ icono: 'checkmark-done-outline', titulo: 'Autorizar creación', clase: 'icon-success', onClick: abrirModalAutorizarCreacion });
   }
   if (puede('asignar') && v.estado_taller === 'PENDIENTE_ASIGNACION') {
-    acciones.push({ icono: 'person-add-outline', titulo: 'Asignar a técnico', onClick: abrirModalAsignar });
+    acciones.push({ icono: 'person-add-outline', titulo: 'Asignar a diseñador', onClick: abrirModalAsignar });
   }
   if (puede('revisar') && v.estado_taller === 'EN_REVISION') {
     acciones.push({ icono: 'clipboard-outline', titulo: 'Revisar propuesta', onClick: abrirModalRevisar });
   }
-  // Un encargado comparte buzón con TODOS los técnicos de su taller — las
+  // Un encargado comparte buzón con TODOS los diseñadores de su taller — las
   // acciones de "trabajar" solo deben aparecer en el vale que él mismo se
-  // autoasignó, nunca en el de otro técnico solo porque ambos caen en el
+  // autoasignó, nunca en el de otro diseñador solo porque ambos caen en el
   // mismo buzón.
   const puedeTrabajarEste = puede('trabajar') && esAccionDeTrabajoVisible(v);
   if (puedeTrabajarEste && v.estado_taller === 'ASIGNADO') {

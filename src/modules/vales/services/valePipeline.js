@@ -13,8 +13,8 @@ const MINUTOS_VENCE_URGENTE = 6 * 60;
 const ETAPA_TALLER = {
   [ESTADOS_TALLER.PENDIENTE_ASIGNACION]: { orden: 1, paso: 2, etiqueta: 'Por asignar', detalle: 'Encargado' },
   [ESTADOS_TALLER.ASIGNADO]: { orden: 2, paso: 2, etiqueta: 'Asignado', detalle: 'Sin iniciar' },
-  [ESTADOS_TALLER.EN_PROCESO]: { orden: 3, paso: 3, etiqueta: 'En proceso', detalle: 'Técnico' },
-  [ESTADOS_TALLER.EN_PAUSA]: { orden: 4, paso: 3, etiqueta: 'En pausa', detalle: 'Técnico', nodo: 'pausa', tono: 'warning' },
+  [ESTADOS_TALLER.EN_PROCESO]: { orden: 3, paso: 3, etiqueta: 'En proceso', detalle: 'Diseñador' },
+  [ESTADOS_TALLER.EN_PAUSA]: { orden: 4, paso: 3, etiqueta: 'En pausa', detalle: 'Diseñador', nodo: 'pausa', tono: 'warning' },
   [ESTADOS_TALLER.EN_REVISION]: { orden: 5, paso: 4, etiqueta: 'En revisión', detalle: 'Encargado' }
 };
 

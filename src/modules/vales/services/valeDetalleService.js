@@ -127,7 +127,7 @@ class ValeDetalleService {
   //   pasó en otro taller del mismo vale, ni los eventos de nivel de vale
   //   (creación, retorno, confirmación, modificación) que antes se colaban
   //   por tener taller_id null.
-  // - Técnico: el mismo ciclo, pero acotado ADEMÁS a que el evento sea suyo —
+  // - Diseñador: el mismo ciclo, pero acotado ADEMÁS a que el evento sea suyo —
   //   `usuario_id` para lo que él mismo ejecuta, `tecnico_id` para lo que un
   //   encargado hizo SOBRE él (asignación/aprobación/reasignación). Las filas
   //   sembradas antes de que existiera la columna `tecnico_id` caen a un
@@ -199,7 +199,7 @@ class ValeDetalleService {
       return propio ? propio.id : null;
     }
     if (usuario.rolId === ROL.TECNICO) {
-      // El taller del técnico sale directo de `taller_tecnicos`, sin pasar
+      // El taller del diseñador sale directo de `taller_tecnicos`, sin pasar
       // por el id del encargado.
       const tecnico = await usuarioValeRepository.obtenerPorId(usuario.id);
       return tecnico && tecnico.taller_id ? tecnico.taller_id : null;
