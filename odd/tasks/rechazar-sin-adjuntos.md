@@ -29,7 +29,7 @@ El encargado de taller verifica que recibió por correo los adjuntos (vectores, 
 - [x] T2 · Backend del flujo: inicializar en `fanOutTalleres`; servicios verificar / rechazar / responder; bloquear `asignar` hasta `VERIFICADO`; rutas con el permiso nuevo. Ruta: escritor delegado (varios archivos). Verificado: 41/41 checks contra el servidor de desarrollo (script propio); no se probaron por HTTP las acciones del supervisor ni los actores admin y asistente.
 - [x] T3 · Dar de baja ampliado: permitir con adjuntos pendientes, avisar a talleres trabajando y borrar el vale. Ruta: escritor delegado. Verificado: 26/26 checks (script propio); el cupo del supervisor se libera al borrar; la entrega de sockets y el tope por taller no se probaron en vivo.
 - [x] T4 · Watcher de plazo: aviso al asesor 6 h antes y, a las 24 h del primer rechazo sin responder, borrado del vale completo (`MOD-` deja el original). Ruta: escritor delegado. Verificado: 32/32 checks en proceso simulando el tiempo con la BD (aviso único, borrado completo, no borra si ya respondió, MOD-, cupo); la entrega por sockets no se probó en vivo.
-- [ ] T5 · Buzón y notificaciones: etiquetas y contadores para encargado, asesor y supervisor; eventos y avisos nuevos.
+- [x] T5 · Buzón y notificaciones: etiquetas y contadores para encargado, asesor y supervisor; eventos y avisos nuevos. (datos de backend; la UI es T6). Ruta: escritor delegado. Verificado: 26/26 checks (script propio). Pendiente de decisión: qué vales de su equipo ve el supervisor con adjuntos pendientes.
 - [ ] T6 · Frontend: acciones del encargado (verificar / rechazar), modal de respuesta del asesor, etiquetas, avisos.
 - [ ] T7 · Documentación (`flujo_vale_de_arte.md`, `CLAUDE.md`) y verificación de punta a punta.
 

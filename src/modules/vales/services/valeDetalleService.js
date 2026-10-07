@@ -77,7 +77,29 @@ class ValeDetalleService {
     // El supervisor necesita ver la justificación al decidir si autoriza la
     // modificación — se adjunta solo cuando aplica, reusando la misma
     // consulta que ya usa aprobarModificacion() en valeConfirmacionService.
-    return { ...enriquecer(vale), talleres: talleresConNombre, propuestas, documentos, historial: historialVisible };
+    const adjuntos = await this._adjuntosVisibles(usuario, talleresConNombre);
+    return { ...enriquecer(vale), talleres: talleresConNombre, adjuntos, propuestas, documentos, historial: historialVisible };
+  }
+
+  // Adjuntos reclamados por taller. Encargado: solo su taller (incluye VERIFICANDO); asesor/supervisor: sin VERIFICANDO;
+  // administrador y gerente: todos. El diseñador no los ve.
+  async _adjuntosVisibles(usuario, talleres) {
+    const ESTADOS_ADJ = ['VERIFICANDO_ADJUNTOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'];
+    let filas = talleres.filter(t => ESTADOS_ADJ.includes(t.estado));
+    if (esAdministrador(usuario) || usuario.rolId === ROL.GERENTE) {
+      // todos
+    } else if (usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR) {
+      filas = filas.filter(t => t.estado !== 'VERIFICANDO_ADJUNTOS');
+    } else if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId)) {
+      const tallerVisible = await this._tallerIdVisiblePara(usuario);
+      filas = filas.filter(t => t.taller_id === tallerVisible);
+    } else {
+      return [];
+    }
+    return filas.map(t => ({
+      taller_id: t.taller_id, taller: t.taller_nombre, estado: t.estado,
+      vence_en: t.adjuntos_vence_en, mensaje: t.adjuntos_mensaje, respondido_en: t.adjuntos_respondido_en
+    }));
   }
 
   // Control de propiedad: cada rol solo puede pedir el detalle de un vale
