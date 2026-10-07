@@ -350,8 +350,8 @@ class ValeBuzonService {
     const visibles = propios.filter(v => (v.es_propio ? !ESTADOS_TERMINALES.includes(v.estado) : ESTADOS_A_SUPERVISAR.includes(v.estado)));
     const enVentana = visibles.filter(v => dentroDeVentana(v, ventana));
     const contadores = {
-      // "N/M": autorizaciones de creación que hizo hoy el supervisor / asesores a su cargo (el mismo cupo que se valida al autorizar).
-      valesAutorizadosHoy: `${await valeRepository.contarAutorizacionesCreacionPorSupervisorYFecha(usuario.id, hoyISO())}/${misAsesoresIds.size}`,
+      // "N/M": autorizaciones de creación que hizo hoy el supervisor / su cupo diario (el mismo que se valida al autorizar).
+      valesAutorizadosHoy: `${await valeRepository.contarAutorizacionesCreacionPorSupervisorYFecha(usuario.id, hoyISO())}/${await usuarioValeRepository.contarCupoDiario(usuario.id)}`,
       pendientesAutorizacion: enVentana.filter(v => v.estado === ESTADOS.ESPERANDO_AUTORIZACION).length,
       pendientesConfirmarModificacion: enVentana.filter(v => v.estado === ESTADOS.SOLICITANDO_MODIFICACION).length,
       modificados: enVentana.filter(v => v.estado === ESTADOS.MODIFICADO).length,

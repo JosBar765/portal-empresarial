@@ -173,14 +173,11 @@ class ValeCreacionService {
       if (talleresIds.length === 0) {
         throw new Error('Este vale no tiene talleres seleccionados, no se puede autorizar.');
       }
-      // El cupo colectivo es para los vales de los asesores del equipo; los de un supervisor (incluidos los suyos) no lo consumen.
-      const creador = await usuarioValeRepository.obtenerPorId(vale.asesor_id);
-      const creadorEsSupervisor = !!creador && Number(creador.rol_id) === ROL.SUPERVISOR;
 
       // Leer el cupo del supervisor y sellar la autorización van en el mismo turno de su cola:
       // dos autorizaciones simultáneas no pueden pasar ambas con un solo cupo libre.
       await valeMutex.conColaDeSupervisor(usuario.id, async () => {
-        if (!esAdministrador(usuario) && !creadorEsSupervisor) {
+        if (!esAdministrador(usuario)) {
           const { autorizados, limite } = await this.obtenerLimiteColectivoSupervisor(usuario.id);
           if (autorizados >= limite) {
             throw new Error('Se alcanzó el límite diario colectivo de autorizaciones de creación de tu equipo. Vuelve a intentar mañana.');
@@ -327,10 +324,10 @@ class ValeCreacionService {
 
   // El límite diario es COLECTIVO del Supervisor —
   // "vales_autorizados_crear/asesores", ascendente. El denominador es la
-  // cantidad de asesores activos bajo su mando. Administrador no tiene límite.
+  // cantidad de asesores activos bajo su mando, más él mismo si también crea vales.
+  // Cuenta toda autorización de creación, incluida la de sus propios vales. Administrador no tiene límite.
   async obtenerLimiteColectivoSupervisor(supervisorId) {
-    const asesores = await usuarioValeRepository.listarAsesoresPorSupervisor(supervisorId);
-    const limite = asesores.length;
+    const limite = await usuarioValeRepository.contarCupoDiario(supervisorId);
     const autorizados = await valeRepository.contarAutorizacionesCreacionPorSupervisorYFecha(supervisorId, hoyISO());
     return { autorizados, limite };
   }

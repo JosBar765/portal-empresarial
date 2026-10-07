@@ -199,8 +199,7 @@ class ValeRepository {
       `SELECT COUNT(*) AS total FROM vales
        WHERE autorizado_por = ?
          AND autorizacion_tipo_id = (SELECT id FROM tipos_autorizacion WHERE nombre = 'CREACION')
-         AND DATE(autorizado_en) = ?
-         AND asesor_id NOT IN (SELECT id FROM usuarios WHERE rol_id = 3)`,
+         AND DATE(autorizado_en) = ?`,
       [supervisorId, fecha],
       'vale:count_autorizaciones_creacion_por_supervisor'
     );
