@@ -74,7 +74,10 @@ class ValeDetalleService {
     ]);
     const talleresConNombre = await this._enriquecerTalleresConNombre(talleres);
     const historialConActor = await this._enriquecerHistorialConActor(historial);
-    const historialVisible = await this._filtrarHistorialPorRol(usuario, historialConActor);
+    // Sin `vales.ver_historial` el historial no sale del servidor.
+    const historialVisible = (usuario.permissions || []).includes('vales.ver_historial')
+      ? await this._filtrarHistorialPorRol(usuario, historialConActor)
+      : [];
 
     // El supervisor necesita ver la justificación al decidir si autoriza la
     // modificación — se adjunta solo cuando aplica, reusando la misma

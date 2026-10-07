@@ -5,6 +5,7 @@ import { celdaEstado } from '../components/pipeline.js';
 import { escapeHtml, formatearFecha, celdaTaller } from '../utils/formato.js';
 import { obtenerRendimientoGerencia } from '../api/valesApi.js';
 import { abrirModalHistorial } from '../actions/historial.js';
+import { puede } from '../permisos.js';
 import { fmtNum, fmtPct, fmtDias, sparkline, graficaLineas, conectarTooltips, ocultarTooltip } from '../components/charts.js';
 
 // -----------------------------------------------------------------------
@@ -500,7 +501,7 @@ function renderCriticos(data) {
     celda.appendChild(wrap);
     [
       { icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') },
-      { icono: 'time-outline', titulo: 'Ver historial', onClick: () => abrirModalHistorial(v) }
+      ...(puede('verHistorial') ? [{ icono: 'time-outline', titulo: 'Ver historial', onClick: () => abrirModalHistorial(v) }] : [])
     ].forEach(accion => {
       const btn = document.createElement('button');
       btn.className = 'btn-icon';
