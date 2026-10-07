@@ -447,10 +447,10 @@ tienen las mismas columnas para todos; cambian filtros, orden y acciones.
 
 | Rol | Buzón (contadores) | Trabajo realizado |
 |---|---|---|
-| Asesor | Rechazados · Esperando autorización · Pendientes de confirmación · Solicitando modificación · Atrasados. Excluye RECIBIDO. | Vales `RECIBIDO` (un vale confirmado sigue ahí aunque tenga una modificación en curso). Total y recibidos hoy. |
-| Supervisor | Por autorizar creación (con contador N/M del cupo colectivo) · Por autorizar modificación · Modificados · Pendientes de confirmación del asesor · Atrasados. | Dos grupos: lo que **él** autorizó (por fecha de autorización) y lo que sus asesores confirmaron (por `confirmado_en`). Un vale que cae en ambos aparece una vez. |
-| Encargado de taller | Pendiente de asignación · Asignados · En proceso · **En pausa** · En revisión · Atrasados (+ **Por fusionar** si tiene `aprobar_general`). Muestra el estado **de la fila de su taller**, no el general. | Vales con fila `APROBADO` en su taller (con "Ver propuesta" de su diseñador), + sus fusiones si fusiona. |
-| Diseñador | Asignados sin atraso · Asignados con atraso · Vale en proceso (ve también `EN_PAUSA` y `EN_REVISION` en la lista). | Vales que su taller aprobó, con su propuesta. |
+| Asesor | Por autorizar · Por asignar · En proceso · En revisión · Por recibir (uno por paso del pipeline, §10) + los interruptores **Modificados** y **Atrasados**, que se combinan con cualquiera. Excluye RECIBIDO. | Vales `RECIBIDO` (un vale confirmado sigue ahí aunque tenga una modificación en curso). Total y recibidos hoy. |
+| Supervisor | «Autorizados hoy (equipo)» (N/M del cupo colectivo, informativo) y los mismos contadores por paso, Modificados y Atrasados que el asesor, sobre **todos los vales activos de su equipo** (y los que crea él). | Dos grupos: lo que **él** autorizó (por fecha de autorización) y lo que sus asesores confirmaron (por `confirmado_en`). Un vale que cae en ambos aparece una vez. |
+| Encargado de taller | Por asignar · Asignado (en manos de diseñadores: asignado, en proceso o en pausa) · Mis asignaciones (los que él mismo se asignó) · Por revisar · Atrasados (+ **Por fusionar** si tiene `aprobar_general`), y un combobox para filtrar por diseñador. Muestra el estado **de la fila de su taller**, no el general. | Vales con fila `APROBADO` en su taller (con "Ver propuesta" de su diseñador), + sus fusiones si fusiona. |
+| Diseñador | Mis asignaciones (sin retraso) · Mis asignaciones (con atraso) · Vale en proceso (ve también `EN_PAUSA` y `EN_REVISION` en la lista). | Vales que su taller aprobó, con su propuesta. |
 | Administrador | Todo, con contadores generales (total, atrasados, recibidos hoy, pendientes de confirmación, por fusionar). | — |
 | Gerente | **No tiene buzón**: ver §6. | — |
 
@@ -460,12 +460,18 @@ autorizar modificación»). El vale original, mientras tanto, conserva su estado
 muestra la marca «MOD en trámite»; si está en `PENDIENTE_CONFIRMACION` no ofrece
 «Confirmar».
 
-"Atrasados" es el único contador que se **combina** con cualquier otro filtro
-activo (los demás contadores son mutuamente excluyentes). Además hay filtro
-por estado, búsqueda por correlativo/cliente/empresa, orden por columna
+"Atrasados" y "Modificados" (asesor y supervisor) son los únicos contadores que se **combinan** con cualquier otro filtro
+activo (los demás contadores son mutuamente excluyentes). Además hay búsqueda
+por correlativo/cliente/empresa, orden por columna
 (reemplaza la jerarquía de negocio mientras está activo), ventana de tiempo
-por **fecha de entrega** (`Todo` —el valor por defecto—, navegador de mes o rango
-Desde/Hasta; con un rango el mes se desactiva) y paginación por cursor de 50 en 50.
+por **fecha de entrega** (`Todo` —el valor por defecto—, `Hoy`, un **mes** o un **día**
+elegidos en el selector de período, o rango Desde/Hasta; elegir mes o día reemplaza el
+rango) y paginación por cursor de 50 en 50. El desplegable de filtro por estado ya no existe.
+
+El selector de período abre un panel de dos niveles: el calendario del mes (un día filtra solo ese
+día) y, al pulsar el título del mes, una cuadrícula de meses con flechas de año (un mes filtra todo ese
+mes; también «Todo el mes» desde el calendario). Las flechas ‹ › avanzan de mes en mes o de día en día
+según lo elegido. Un día viaja al servidor como un rango de un solo día.
 
 ## 5. Límites y cupos
 
@@ -646,3 +652,16 @@ No cambia ningún estado ni filtro: el desplegable de estado sigue usando los es
 - Si el vale tiene un taller en `ADJUNTOS_RECHAZADOS`, el paso 2 se dibuja en rojo con «Faltan adjuntos: <taller>» para asesor y supervisor (solo en pantalla, `pipelineConAdjuntos`).
 - Un estado nuevo se agrega en `ETAPA_TALLER` o como un `case` de `calcularPipeline`; una etapa nueva del recorrido es un paso más en `PASOS`.
 - Diseño: Figma, página «Pipeline de estado (Vales)» (archivo del prototipo de Incidencias).
+
+## 11. Reportes de actividad (pestaña «Reportes»)
+
+Pestaña de la barra lateral con el permiso `vales.ver_reportes` (Administrador, Asesor, Supervisor, Encargados de taller y Diseñador; no el Gerente). Mide la actividad de las personas a partir de `vale_historial` y se exporta a PDF (`GET /api/vales/reportes` y `/reportes/pdf`; `services/valeReporteService.js` y `valeReportePdfService.js`). El alcance lo decide el servidor por rol: Asesor y Diseñador ven solo lo suyo; el Supervisor a sus asesores; el Encargado a su taller (cada diseñador); el Administrador todo, con filtros de tienda y taller.
+
+- **Período:** cada acción cuenta por el día en que ocurrió (no por la fecha de entrega); abre en «Hoy» y usa la barra de período (§4).
+- **Acciones contadas:** crear, solicitar modificación, autorizar, rechazar, confirmar, asignar, comenzar, entregar (cancelar un proceso no cuenta), aprobar, devolver y fusionar; una devolución cuenta para quien entregó el trabajo devuelto.
+- **Tiempos:** de producción (comenzar → entregar, pausas incluidas), de revisión (entregar → aprobar o devolver), hasta la autorización (crear o reenviar → autorizar o rechazar) y ciclo completo (crear → confirmar).
+- Indicadores por rol, tablas por persona y listado de vales: ver `documentacion/correcciones_42.md`.
+
+Ajustes (correcciones 43): Supervisor y Asesor solo ven Vales creados, Autorizados y Modificaciones solicitadas; no hay gráfica; quien tiene gente a su cargo puede evaluar a una o varias personas (`personaIds`), y el reporte y el PDF muestran solo a las elegidas.
+
+Simplificación (correcciones 43): Encargado y Diseñador también quedan con tres indicadores de actividad más «Atrasados ahora».

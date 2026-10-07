@@ -1,13 +1,14 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR } from '../config/roles.js';
-import { ESTADOS_LABEL, ESTADOS_VISIBLES_LABEL, CLAVES_ESTADOS_TALLER, CLAVES_ESTADOS_GENERAL, CLAVES_ESTADOS_DISENADOR_BUZON, CLAVES_ESTADOS_DISENADOR_TRABAJO } from '../config/estados.js';
+import { ROL, ROLES_CON_SIDEBAR, ROLES_TALLER_Y_DISENADOR } from '../config/roles.js';
 import { CONTADORES_CONFIG } from '../config/contadores.js';
+import { aplicarVentanaAQuery } from '../utils/ventana.js';
 import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible } from '../permisos.js';
 import { celdaEstado } from '../components/pipeline.js';
 import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro } from '../utils/formato.js';
 import { obtenerBuzon, obtenerMasVales } from '../api/valesApi.js';
 import { cargarRendimientoGerencia } from './rendimientoGerencia.js';
+import { cargarReportes } from './reportes.js';
 import { cargarEncontrarVale } from './encontrarVale.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
@@ -24,18 +25,14 @@ import { abrirModalHistorial } from '../actions/historial.js';
 // -----------------------------------------------------------------------
 export function construirQueryBase() {
   const qs = new URLSearchParams();
-  if (state.ventana.tipo) qs.set('ventana', state.ventana.tipo);
-  if (state.ventana.tipo === 'mes') qs.set('fecha', state.ventana.fecha);
-  if (state.ventana.tipo === 'rango') {
-    if (state.ventana.desde) qs.set('desde', state.ventana.desde);
-    if (state.ventana.hasta) qs.set('hasta', state.ventana.hasta);
-  }
+  aplicarVentanaAQuery(qs);
   if (ROLES_CON_SIDEBAR.includes(state.user.rolId)) qs.set('vista', state.vista);
   if (state.filtroContador) qs.set('filtroContador', state.filtroContador);
   if (state.soloAtrasados) qs.set('soloAtrasados', '1');
+  if (state.soloModificados) qs.set('soloModificados', '1');
+  if (state.disenadorFiltro && state.vista !== 'trabajo') qs.set('disenadorId', state.disenadorFiltro);
   if (state.busqueda) qs.set('busqueda', state.busqueda);
   if (state.tiendaId) qs.set('tiendaId', state.tiendaId);
-  if (state.estadoFiltro) qs.set('estado', state.estadoFiltro);
   if (state.sort.key && state.sort.dir) {
     qs.set('sortKey', state.sort.key);
     qs.set('sortDir', state.sort.dir);
@@ -44,6 +41,8 @@ export function construirQueryBase() {
 }
 
 export async function cargarBuzon() {
+  // Reportes de actividad: tienen su propia vista y su propia consulta.
+  if (state.vista === 'reportes') return cargarReportes();
   // Gerente y Supervisor en su vista "Rendimiento" no piden el buzón de
   // vales — piden las métricas agregadas.
   if ([ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'rendimiento') {
@@ -76,7 +75,6 @@ export async function cargarBuzon() {
   }
 
   renderContadores();
-  poblarFiltroEstado();
   renderTabla();
 }
 
@@ -129,12 +127,12 @@ export function renderContadores() {
     const valor = state.contadores[c.key];
     const mostrado = c.esTexto ? (valor || '—') : (valor ?? 0);
     const alerta = c.alerta && Number(valor) > 0;
-    const esClickeable = !!c.filtro || !!c.atrasadosGlobal;
-    // "Atrasados en general" es el único contador combinable: se activa/
-    // desactiva con su propio interruptor (state.soloAtrasados) en vez de
-    // competir por state.filtroContador con el resto de las tarjetas, que
-    // siguen siendo mutuamente excluyentes.
-    const activo = c.atrasadosGlobal ? state.soloAtrasados : (c.filtro && state.filtroContador === c.filtro);
+    const esClickeable = !!c.filtro || !!c.atrasadosGlobal || !!c.modificadosGlobal;
+    // "Atrasados" y "Modificados" son contadores combinables: se activan/desactivan con su propio
+    // interruptor (state.soloAtrasados / state.soloModificados) en vez de competir por
+    // state.filtroContador con el resto de las tarjetas, que siguen siendo mutuamente excluyentes.
+    const activo = c.atrasadosGlobal ? state.soloAtrasados
+      : (c.modificadosGlobal ? state.soloModificados : (c.filtro && state.filtroContador === c.filtro));
     const clases = ['contador-card'];
     if (alerta) clases.push('contador-alerta');
     if (esClickeable) clases.push('contador-clickeable');
@@ -144,8 +142,12 @@ export function renderContadores() {
     // — .valor-compacto lo reduce sin tocar los contadores numéricos ni los
     // "N/M" cortos.
     const valorLargo = String(mostrado).length > 6;
-    const atributos = `class="${clases.join(' ')}" data-key="${c.key}" data-filtro="${c.filtro || ''}" data-atrasados-global="${c.atrasadosGlobal ? '1' : ''}"`;
-    const contenido = `<span class="valor${valorLargo ? ' valor-compacto' : ''}">${mostrado}</span><span class="etiqueta">${c.label}</span>`;
+    const atributos = `class="${clases.join(' ')}" data-key="${c.key}" data-filtro="${c.filtro || ''}" data-atrasados-global="${c.atrasadosGlobal ? '1' : ''}" data-modificados-global="${c.modificadosGlobal ? '1' : ''}"`;
+    // `quien`: quién tiene que actuar en ese paso, en pequeño bajo la etiqueta.
+    const etiqueta = c.quien
+      ? `<span class="etiqueta"><span class="etiqueta-texto">${c.label}</span><span class="etiqueta-quien">${c.quien}</span></span>`
+      : `<span class="etiqueta">${c.label}</span>`;
+    const contenido = `<span class="valor${valorLargo ? ' valor-compacto' : ''}">${mostrado}</span>${etiqueta}`;
     return esClickeable
       ? `<button type="button" ${atributos} aria-pressed="${activo ? 'true' : 'false'}">${contenido}</button>`
       : `<div ${atributos}>${contenido}</div>`;
@@ -161,52 +163,20 @@ export function renderContadores() {
   $$('.contador-card', grid).forEach(card => {
     const filtro = card.dataset.filtro;
     const esAtrasadosGlobal = card.dataset.atrasadosGlobal === '1';
-    if (!filtro && !esAtrasadosGlobal) return;
+    const esModificadosGlobal = card.dataset.modificadosGlobal === '1';
+    if (!filtro && !esAtrasadosGlobal && !esModificadosGlobal) return;
     card.addEventListener('click', () => {
       contadorEnfocado = card.dataset.key;
       if (esAtrasadosGlobal) {
         state.soloAtrasados = !state.soloAtrasados;
+      } else if (esModificadosGlobal) {
+        state.soloModificados = !state.soloModificados;
       } else {
         state.filtroContador = state.filtroContador === filtro ? null : filtro;
       }
       cargarBuzon();
     });
   });
-}
-
-// Opciones del desplegable "Todos los estados": se muestra siempre el
-// conjunto completo válido para el rol/vista actual (no lo que estuviera
-// cargado en `state.vales` en ese momento), para que un estado que solo
-// existe más allá de la primera página siga siendo seleccionable. El
-// filtrado en sí es responsabilidad del servidor (state.estadoFiltro).
-export function poblarFiltroEstado() {
-  const select = $('#filtro-estado');
-  let labelMap;
-  if (usaEstadosVisibles()) {
-    labelMap = ESTADOS_VISIBLES_LABEL;
-  } else {
-    // Cada rol solo debe poder filtrar por estados que realmente puede llegar
-    // a ver, no la familia completa. Quien fusiona (vales.aprobar_general) ve,
-    // mezclados en su propio buzón/trabajo, los estados de la cola de fusión.
-    let claves;
-    if (state.user.rolId === ROL.DISENADOR) claves = state.vista === 'trabajo' ? CLAVES_ESTADOS_DISENADOR_TRABAJO : CLAVES_ESTADOS_DISENADOR_BUZON;
-    else if (ROLES_ENCARGADO_TALLER.includes(state.user.rolId)) {
-      // Trabajo Realizado siempre muestra APROBADO (estado congelado, tanto la
-      // fila de propuesta propia como la de fusión) — los estados generales ya
-      // no pueden ocurrir ahí, así que el desplegable colapsa igual que el del
-      // diseñador.
-      if (state.vista === 'trabajo') {
-        claves = [...CLAVES_ESTADOS_DISENADOR_TRABAJO];
-      } else {
-        claves = [...CLAVES_ESTADOS_TALLER];
-        if (puede('aprobarGeneral')) claves = [...claves, 'APROBADO_DEPARTAMENTO'];
-      }
-    } else claves = CLAVES_ESTADOS_GENERAL;
-    labelMap = Object.fromEntries(claves.map(k => [k, ESTADOS_LABEL[k]]));
-  }
-  select.innerHTML = '<option value="">Todos los estados</option>' +
-    Object.entries(labelMap).map(([clave, label]) => `<option value="${clave}">${label}</option>`).join('');
-  select.value = state.estadoFiltro || '';
 }
 
 // Cuenta las columnas realmente visibles del <thead> (la de Taller puede estar

@@ -2,20 +2,24 @@ import { ROL } from './roles.js';
 
 const PERMISO_FUSION = 'vales.aprobar_general';
 
-// "Atrasados" para asesor, supervisor y encargados es un contador COMBINABLE
-// (`atrasadosGlobal: true`) — renderContadores() lo trata como un interruptor
-// aparte (state.soloAtrasados) que puede activarse junto con cualquier otro
-// filtro de contador. El diseñador queda afuera: su "Asignados con atraso" es
-// su propio filtro fijo.
+// "Atrasados" y "Modificados" (asesor y supervisor) y "Atrasados" (encargados) son contadores COMBINABLES
+// (`atrasadosGlobal` / `modificadosGlobal`) — renderContadores() los trata como interruptores aparte
+// (state.soloAtrasados / state.soloModificados) que pueden activarse junto con cualquier otro filtro de
+// contador. El diseñador queda afuera: su "Mis asignaciones (con atraso)" es su propio filtro fijo.
+// `quien` es quién tiene que actuar en ese paso; se muestra pequeño bajo la etiqueta.
+const CONTADORES_POR_PASO = [
+  { key: 'porAutorizar', label: 'Por autorizar', quien: 'Gerencia', filtro: 'porAutorizar' },
+  { key: 'porAsignar', label: 'Por asignar', quien: 'Encargado de taller', filtro: 'porAsignar' },
+  { key: 'enProceso', label: 'En proceso', quien: 'Diseñador', filtro: 'enProceso' },
+  { key: 'enRevision', label: 'En revisión', quien: 'Encargado de taller', filtro: 'enRevision' },
+  { key: 'porRecibir', label: 'Por recibir', quien: 'Asesor', filtro: 'porRecibir' },
+  { key: 'modificados', label: 'Modificados', modificadosGlobal: true },
+  { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
+];
+
 export const CONTADORES_CONFIG = {
   [ROL.ASESOR]: {
-    buzon: [
-      { key: 'rechazados', label: 'Rechazados', filtro: 'rechazados', alerta: true },
-      { key: 'esperandoAutorizacion', label: 'Esperando autorización', filtro: 'esperandoAutorizacion' },
-      { key: 'valesPorRevisar', label: 'Pend. confirmación', filtro: 'valesPorRevisar' },
-      { key: 'valesPendientesModificacion', label: 'Solicitando modificación', filtro: 'valesPendientesModificacion' },
-      { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
-    ],
+    buzon: CONTADORES_POR_PASO,
     trabajo: [
       { key: 'recibidosHoy', label: 'Recibidos hoy', filtro: 'recibidosHoy' },
       { key: 'totalRecibidos', label: 'Total recibidos', filtro: 'totalRecibidos' }
@@ -25,11 +29,7 @@ export const CONTADORES_CONFIG = {
     buzon: [
       // Contador colectivo "autorizados/asesores" — lo calcula el servidor.
       { key: 'valesAutorizadosHoy', label: 'Autorizados hoy (equipo)', esTexto: true },
-      { key: 'pendientesAutorizacion', label: 'Por autorizar creación', filtro: 'pendientesAutorizacion' },
-      { key: 'pendientesConfirmarModificacion', label: 'Por autorizar modificación', filtro: 'pendientesConfirmarModificacion' },
-      { key: 'modificados', label: 'Modificados', filtro: 'modificados' },
-      { key: 'pendientesConfirmacion', label: 'Pend. confirmación asesor', filtro: 'pendientesConfirmacion' },
-      { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
+      ...CONTADORES_POR_PASO
     ],
     // Dos grupos — lo que él autorizó, y lo que sus asesores confirmaron de recibido.
     trabajo: [
@@ -46,12 +46,11 @@ export const CONTADORES_CONFIG = {
   // buzón: un vale aprobado sale de ahí y pasa a Trabajo Realizado.
   [ROL.ENCARGADO_DISENO]: {
     buzon: [
-      { key: 'pendientesAsignacion', label: 'Pend. asignación', filtro: 'pendientesAsignacion' },
-      { key: 'asignados', label: 'Asignados', filtro: 'asignados' },
-      { key: 'enProceso', label: 'En proceso', filtro: 'enProceso' },
-      { key: 'enPausa', label: 'En pausa', filtro: 'enPausa' },
-      { key: 'enRevision', label: 'En revisión', filtro: 'enRevision' },
-      { key: 'pendientesFusion', label: 'Vales por fusionar', filtro: 'pendientesFusion', permiso: PERMISO_FUSION },
+      { key: 'porAsignar', label: 'Por asignar', filtro: 'porAsignar' },
+      { key: 'asignadosDisenadores', label: 'Asignado', quien: 'Diseñadores', filtro: 'asignadosDisenadores' },
+      { key: 'misAsignaciones', label: 'Mis asignaciones', filtro: 'misAsignaciones' },
+      { key: 'porRevisar', label: 'Por revisar', filtro: 'porRevisar' },
+      { key: 'pendientesFusion', label: 'Por fusionar', filtro: 'pendientesFusion', permiso: PERMISO_FUSION },
       { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
     ],
     trabajo: [
@@ -63,8 +62,8 @@ export const CONTADORES_CONFIG = {
   },
   [ROL.DISENADOR]: {
     buzon: [
-      { key: 'asignados', label: 'Asignados sin atraso', filtro: 'asignados' },
-      { key: 'asignadosAtrasados', label: 'Asignados con atraso', alerta: true, filtro: 'asignadosAtrasados' },
+      { key: 'asignados', label: 'Mis asignaciones (Sin retraso)', filtro: 'asignados' },
+      { key: 'asignadosAtrasados', label: 'Mis asignaciones (Con atraso)', alerta: true, filtro: 'asignadosAtrasados' },
       { key: 'enProceso', label: 'Vale en proceso', esTexto: true }
     ],
     trabajo: [

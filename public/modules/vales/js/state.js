@@ -13,8 +13,10 @@ export const state = {
   tiendaId: null, // Vista Gerencia: filtro de tienda
   filtroContador: null,
   soloAtrasados: false, // combinable con filtroContador
+  soloModificados: false, // ídem: vales MOD- y sus originales
+  disenadorFiltro: '', // combobox de diseñadores (solo encargados)
+  reporte: { personaIds: [], tallerId: '', iniciado: false }, // Reportes: personas evaluadas y taller y arranque en «Hoy»
   busqueda: '',
-  estadoFiltro: '', // el filtro de estado corre en el servidor
   sort: { key: null, dir: null }, // ídem el orden por columna
   socket: null,
   cargaTrabajoModal: null,

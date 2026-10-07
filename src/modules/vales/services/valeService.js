@@ -19,9 +19,21 @@ const capacidadEntregaService = require('./capacidadEntregaService');
 const valeCorreccionService = require('./valeCorreccionService');
 const valeVistoService = require('./valeVistoService');
 const valeModificacionService = require('./valeModificacionService');
+const valeReporteService = require('./valeReporteService');
+const valeReportePdfService = require('./valeReportePdfService');
 const valeAdjuntosService = require('./valeAdjuntosService');
 
 module.exports = {
+  // Reportes de actividad
+  obtenerReporte: (...a) => valeReporteService.obtenerReporte(...a),
+  generarReportePdf: async (usuario, filtros) => {
+    const reporte = await valeReporteService.obtenerReporte(usuario, filtros, { maxFilas: valeReporteService.MAX_FILAS_PDF });
+    const ahora = new Date(Date.now() - 6 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 16);
+    const [f, h] = ahora.split(' ');
+    const [y, m, d] = f.split('-');
+    return { reporte, pdf: await valeReportePdfService.generar(reporte, { generadoPor: usuario.nombre, ahora: `${d}/${m}/${y} ${h}` }) };
+  },
+
   // Catálogo
   obtenerCatalogos: (...a) => valeCatalogoService.obtenerCatalogos(...a),
   obtenerTalleres: (...a) => valeCatalogoService.obtenerTalleres(...a),

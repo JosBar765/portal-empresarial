@@ -33,6 +33,7 @@ const autorizarCreacionVale = requirePermission('vales.autorizar_creacion');
 const crearVale = requirePermission('vales.crear');
 const asignarVale = requirePermission('vales.asignar');
 const verRendimiento = requirePermission('vales.ver_gerencia');
+const verReportes = requirePermission('vales.ver_reportes');
 const trabajarVale = requirePermission('vales.trabajar');
 const revisarVale = requirePermission('vales.revisar');
 const aprobacionGeneralVale = requirePermission('vales.aprobar_general');
@@ -63,6 +64,18 @@ const limitarBusquedas = rateLimit({
   }
 });
 
+// Un reporte recorre el historial del período: se acota por usuario (ya autenticado).
+const limitarReportes = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `reportes:${req.user.id}`,
+  handler: (req, res) => {
+    res.status(429).json({ error: 'Demasiados reportes seguidos. Espera un momento e inténtalo de nuevo.' });
+  }
+});
+
 router.get('/catalogos', verVales, (req, res) => valeController.catalogos(req, res));
 router.get('/talleres', verVales, (req, res) => valeController.talleres(req, res));
 router.get('/limite-colectivo', autorizarCreacionVale, (req, res) => valeController.limiteColectivo(req, res));
@@ -72,6 +85,8 @@ router.get('/carga-trabajo', asignarVale, (req, res) => valeController.cargaTrab
 router.get('/carga-trabajo/:disenadorId', asignarVale, (req, res) => valeController.cargaTrabajoDisenador(req, res));
 
 router.get('/', verVales, (req, res) => valeController.buzon(req, res));
+router.get('/reportes', verReportes, limitarReportes, (req, res) => valeController.reportes(req, res));
+router.get('/reportes/pdf', verReportes, limitarReportes, (req, res) => valeController.reportePdf(req, res));
 router.get('/rendimiento-gerencia', verRendimiento, (req, res) => valeController.rendimientoGerencia(req, res));
 router.get('/buscar', verRendimiento, encontrarVale, limitarBusquedas, (req, res) => valeController.buscarPorCorrelativo(req, res));
 router.post('/', crearVale, camposAdjuntos, (req, res) => valeController.crear(req, res));
