@@ -26,7 +26,7 @@ const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
   ESTADOS, hoyISO, horaActual, enriquecer,
   normalizarDatetime, calcularUrgente, registrarHistorial,
-  esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, validarMotivoRechazo,
+  esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
   esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor
 } = require('./valeHelpers');
 
@@ -263,7 +263,8 @@ class ValeCreacionService {
     });
   }
 
-  // El asesor da de baja un vale propio que aún no fue autorizado (o que fue rechazado): se borra por completo.
+  // El asesor da de baja un vale propio sin autorizar (o rechazado), o ya autorizado mientras algún taller
+  // reclame sus adjuntos: se borra el vale completo y se avisa a los talleres que ya lo tenían.
   async darDeBaja(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       if (!puedeActuarComoAsesor(usuario)) {
@@ -273,16 +274,17 @@ class ValeCreacionService {
       if (vale.asesor_id !== usuario.id) {
         throw new Error('Solo puedes dar de baja tus propios vales.');
       }
-      if (!ESTADOS_EDITABLES_ASESOR.includes(vale.estado)) {
-        throw new Error(esValeDeModificacion(vale)
-          ? 'Esta modificación ya fue autorizada, así que ya no se puede dar de baja.'
-          : 'Este vale ya fue autorizado, así que ya no se puede dar de baja.');
+      const talleres = await valeTallerRepository.listarPorVale(valeId);
+      if (!ESTADOS_EDITABLES_ASESOR.includes(vale.estado)
+        && !talleres.some(t => [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS].includes(t.estado))) {
+        throw new Error(`${esValeDeModificacion(vale) ? 'Esta modificación ya fue autorizada' : 'Este vale ya fue autorizado'}: solo se puede dar de baja mientras un taller reclame sus adjuntos.`);
       }
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       await this.eliminarValeConArchivos(valeId);
+      const salasTalleres = [...new Set(talleres.flatMap(t => [`taller:${t.taller_id}`, ...(t.disenador_id ? [`disenador:${t.disenador_id}`] : [])]))];
       valeEvents.notificar({
         vale, accion: 'dado de baja', valeBorrado: true, actor: usuario.nombre, actorId: usuario.id,
-        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
+        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`), ...salasTalleres]
       });
       return { valeId: vale.id, correlativo: vale.correlativo };
     });

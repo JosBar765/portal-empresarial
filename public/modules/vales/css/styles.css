@@ -778,6 +778,8 @@
 
 /* Estado por taller (vale_talleres.estado) */
 .estado-CREADO,
+.estado-VERIFICANDO_ADJUNTOS,
+.estado-ADJUNTOS_RESPONDIDOS,
 .estado-PENDIENTE_ASIGNACION {
   background: var(--vale-estado-pendiente-asignacion-bg);
   color: var(--vale-estado-pendiente-asignacion-fg);
@@ -804,6 +806,7 @@
 }
 
 /* Estado general del vale (vales.estado) */
+.estado-ADJUNTOS_RECHAZADOS,
 .estado-RECHAZADO {
   background: var(--color-danger-bg);
   color: var(--color-danger);
@@ -1646,6 +1649,17 @@
   font-size: 13px;
   white-space: pre-wrap;
 }
+
+.mensaje-adjuntos {
+  margin: 0;
+  padding: 10px 14px;
+  background: var(--color-bg, #f5f6f8);
+  border-radius: var(--radius-md, 8px);
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.adjuntos-item { margin-bottom: 12px; }
 
 .contador-palabras {
   font-size: 11px;

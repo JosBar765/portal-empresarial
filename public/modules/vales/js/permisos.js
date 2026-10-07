@@ -24,9 +24,16 @@ export function puede(accion) {
     // La fusión depende del permiso, no del rol.
     case 'corregir': return (r === ROL.ASESOR || r === ROL.SUPERVISOR) && tienePermiso('vales.corregir');
     case 'darDeBaja': return (r === ROL.ASESOR || r === ROL.SUPERVISOR) && tienePermiso('vales.dar_de_baja');
+    case 'verificarAdjuntos': return tienePermiso('vales.verificar_adjuntos');
+    case 'verHistorial': return tienePermiso('vales.ver_historial');
     case 'aprobarGeneral': return admin || tienePermiso('vales.aprobar_general');
     default: return false;
   }
+}
+
+// Responder adjuntos: solo el asesor dueño (o el supervisor en su PROPIO vale).
+export function puedeResponderAdjuntos(v) {
+  return puede('corregir') && v.asesor_id === state.user.id;
 }
 
 // Un encargado de taller ve en su buzón TODOS los vales de su taller,

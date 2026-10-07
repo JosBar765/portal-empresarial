@@ -13,6 +13,7 @@ import { cargarEncontrarVale } from './encontrarVale.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/disenador.js';
+import { accionVerificarAdjuntos, abrirModalRechazarAdjuntos, abrirModalMensajeAdjuntos, abrirModalAdjuntosPendientes } from '../actions/adjuntos.js';
 import { abrirModalDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
 import { abrirModalSolicitarModificacion, abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirModalHistorial } from '../actions/historial.js';
@@ -285,6 +286,14 @@ export function construirAcciones(v) {
   if (puede('asignar') && v.estado_taller === 'PENDIENTE_ASIGNACION') {
     acciones.push({ icono: 'person-add-outline', titulo: 'Asignar a diseñador', onClick: abrirModalAsignar });
   }
+  // Adjuntos: el encargado verifica/rechaza; mientras espera al asesor no tiene acciones.
+  if (puede('verificarAdjuntos') && ['VERIFICANDO_ADJUNTOS', 'ADJUNTOS_RESPONDIDOS'].includes(v.estado_taller)) {
+    if (v.estado_taller === 'ADJUNTOS_RESPONDIDOS') {
+      acciones.push({ icono: 'chatbox-ellipses-outline', titulo: 'Ver mensaje del asesor', onClick: abrirModalMensajeAdjuntos });
+    }
+    acciones.push({ icono: 'mail-open-outline', titulo: 'Verificar adjuntos', clase: 'icon-success', onClick: accionVerificarAdjuntos });
+    acciones.push({ icono: 'close-circle-outline', titulo: 'Rechazar: sin adjuntos', clase: 'icon-danger', onClick: abrirModalRechazarAdjuntos });
+  }
   if (puede('revisar') && v.estado_taller === 'EN_REVISION') {
     acciones.push({ icono: 'clipboard-outline', titulo: 'Revisar propuesta', onClick: abrirModalRevisar });
   }
@@ -323,14 +332,19 @@ export function construirAcciones(v) {
   if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
     acciones.push({ icono: 'alert-circle-outline', titulo: 'Ver motivo del rechazo', clase: 'icon-danger', onClick: abrirModalMotivoRechazo });
   }
+  // Adjuntos reclamados por talleres: lo ven el dueño y su supervisor; solo el dueño responde (en el modal).
+  if ((v.adjuntos || []).length && (state.user.rolId === ROL.ASESOR || state.user.rolId === ROL.SUPERVISOR)) {
+    const hayRechazados = v.adjuntos.some(a => a.estado === 'ADJUNTOS_RECHAZADOS');
+    acciones.push({ icono: 'alert-circle-outline', titulo: hayRechazados ? 'Ver adjuntos faltantes' : 'Ver adjuntos enviados', clase: hayRechazados ? 'icon-danger' : '', onClick: abrirModalAdjuntosPendientes });
+  }
   if (puede('corregir') && ['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) && esMio) {
     acciones.push({ icono: 'settings-outline', titulo: 'Corregir', onClick: abrirModalCorregirVale });
   }
   if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
     acciones.push({ icono: 'send-outline', titulo: 'Reenviar a autorización', clase: 'icon-success', onClick: accionReenviar });
   }
-  acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
-  if (puede('darDeBaja') && ['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) && esMio) {
+  if (puede('verHistorial')) acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
+  if (puede('darDeBaja') && (['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) || (v.adjuntos || []).length) && esMio) {
     acciones.push({ icono: 'ban-outline', titulo: 'Dar de baja', clase: 'icon-danger', onClick: abrirModalDarDeBaja });
   }
 

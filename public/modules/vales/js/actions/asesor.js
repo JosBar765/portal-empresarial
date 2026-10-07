@@ -36,7 +36,9 @@ export function abrirModalDarDeBaja(vale) {
     title: `Dar de baja — ${vale.correlativo}`,
     bodyHtml: `
       <p style="font-size:14px;font-weight:600;margin-bottom:8px;">¿Estás seguro?</p>
-      <p style="font-size:13px;">${vale.vale_original_id
+      <p style="font-size:13px;">${(vale.adjuntos || []).length
+        ? 'El vale se cancelará por completo, para todos sus talleres, y se eliminará permanentemente junto con sus archivos. Esta acción no se puede deshacer.'
+        : vale.vale_original_id
         ? 'La solicitud de modificación se eliminará permanentemente junto con sus archivos; el vale original no cambia. Esta acción no se puede deshacer.'
         : 'El vale se eliminará permanentemente junto con sus imágenes y documentos. Esta acción no se puede deshacer.'}</p>
     `,

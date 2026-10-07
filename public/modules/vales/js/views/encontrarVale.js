@@ -3,6 +3,7 @@ import { celdaEstado } from '../components/pipeline.js';
 import { escapeHtml, formatearFecha, formatearFechaHora, celdaTaller } from '../utils/formato.js';
 import { buscarValePorCorrelativo } from '../api/valesApi.js';
 import { abrirModalHistorial } from '../actions/historial.js';
+import { puede } from '../permisos.js';
 
 // -----------------------------------------------------------------------
 // "Encontrar vale" (solo Gerente): reemplaza al buzón. Un buscador por
@@ -238,7 +239,7 @@ function mostrarVale(v) {
   if (urlPropuesta) {
     acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(urlPropuesta, '_blank', 'noopener') });
   }
-  acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: () => abrirModalHistorial(v) });
+  if (puede('verHistorial')) acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: () => abrirModalHistorial(v) });
   const wrap = $('#enc-acciones', resultado);
   acciones.forEach(accion => {
     const btn = document.createElement('button');

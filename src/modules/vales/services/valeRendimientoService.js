@@ -198,7 +198,7 @@ function etapaEnCurso(vale) {
     case ESTADOS.CREADO:
     case ESTADOS.MODIFICADO: {
       const estados = (vale._filasTaller || []).map(f => f.estado);
-      if (!estados.length || estados.includes(ESTADOS_TALLER.PENDIENTE_ASIGNACION)) return 'sinAsignar';
+      if (!estados.length || estados.some(e => [ESTADOS_TALLER.PENDIENTE_ASIGNACION, ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS].includes(e))) return 'sinAsignar';
       if (estados.some(e => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA].includes(e))) return 'enProduccion';
       return 'enRevision';
     }

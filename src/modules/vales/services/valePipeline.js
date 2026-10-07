@@ -11,6 +11,9 @@ const MINUTOS_VENCE_URGENTE = 6 * 60;
 
 // Etapa de un taller (vale_talleres.estado) dentro del pipeline; `orden` decide cuál va más atrasado.
 const ETAPA_TALLER = {
+  [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS]: { orden: 0, paso: 2, etiqueta: 'Verificando adjuntos', detalle: 'Encargado' },
+  [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS]: { orden: 0, paso: 2, etiqueta: 'Esperando adjuntos', detalle: 'Asesor' },
+  [ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS]: { orden: 0, paso: 2, etiqueta: 'Adjuntos enviados', detalle: 'Encargado' },
   [ESTADOS_TALLER.PENDIENTE_ASIGNACION]: { orden: 1, paso: 2, etiqueta: 'Por asignar', detalle: 'Encargado' },
   [ESTADOS_TALLER.ASIGNADO]: { orden: 2, paso: 2, etiqueta: 'Asignado', detalle: 'Sin iniciar' },
   [ESTADOS_TALLER.EN_PROCESO]: { orden: 3, paso: 3, etiqueta: 'En proceso', detalle: 'Diseñador' },

@@ -70,7 +70,23 @@ function compararCorrelativos(a, b) {
   return ca < cb ? -1 : (ca > cb ? 1 : 0);
 }
 
+// Estados de taller que esperan los adjuntos: cuentan como "pendientes de asignar" del encargado.
+const ESTADOS_ADJUNTOS = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
+const ESTADOS_ADJUNTOS_VISIBLES_ASESOR = [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
+const esPendienteAsignacion = (estado) => estado === ESTADOS_TALLER.PENDIENTE_ASIGNACION || ESTADOS_ADJUNTOS.includes(estado);
+
 class ValeBuzonService {
+  // Adjuntos reclamados por taller (rechazados/respondidos) para asesor y supervisor; VERIFICANDO no se muestra.
+  _adjuntosDe(vale) {
+    const nombres = new Map((vale._talleresDetalle || []).map(t => [t.taller_id, t.nombre]));
+    return (vale._filasTaller || [])
+      .filter(f => ESTADOS_ADJUNTOS_VISIBLES_ASESOR.includes(f.estado))
+      .map(f => ({
+        taller_id: f.taller_id, taller: nombres.get(f.taller_id) || `#${f.taller_id}`, estado: f.estado,
+        vence_en: f.adjuntos_vence_en, mensaje: f.adjuntos_mensaje, respondido_en: f.adjuntos_respondido_en
+      }));
+  }
+
   // Ventana de tiempo del buzón y de Rendimiento; un valor inválido es un 400, no un error interno.
   _resolverVentana(filtros = {}) {
     const tipo = filtros.ventana || 'todo';
@@ -299,7 +315,7 @@ class ValeBuzonService {
 
   // ---- Asesor: sidebar Buzón (pipeline activo, sin recibidos/rechazados) ----
   _buzonAsesor(usuario, todos, ventana, filtroContador) {
-    const propios = todos.filter(v => v.asesor_id === usuario.id).map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v) }));
+    const propios = todos.filter(v => v.asesor_id === usuario.id).map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v), adjuntos: this._adjuntosDe(v) }));
     const activos = propios.filter(v => !ESTADOS_TERMINALES.includes(v.estado));
     const enVentana = conPaso(activos.filter(v => dentroDeVentana(v, ventana)));
 
@@ -351,10 +367,12 @@ class ValeBuzonService {
     // También lista los vales que el propio supervisor creó (`es_propio`), que él mismo autoriza: cuentan en los
     // contadores como los de su equipo y se ven en todos sus estados activos, como el Buzón de un asesor.
     const propios = todos.filter(v => misAsesoresIds.has(v.asesor_id) || v.asesor_id === usuario.id)
-      .map(v => ({ ...v, visto: vistos.has(v.id), es_propio: v.asesor_id === usuario.id }));
+    
+    .map(v => ({ ...v, visto: vistos.has(v.id), es_propio: v.asesor_id === usuario.id, adjuntos: this._adjuntosDe(v) }));
     // Todos los vales activos de su equipo (y los propios): los contadores por paso necesitan verlos todos.
     const visibles = propios.filter(v => !ESTADOS_TERMINALES.includes(v.estado));
     const enVentana = conPaso(visibles.filter(v => dentroDeVentana(v, ventana)));
+    
     const contadores = {
       // "N/M": autorizaciones de creación que hizo hoy el supervisor / su cupo diario (el mismo que se valida al autorizar).
       valesAutorizadosHoy: `${await valeRepository.contarAutorizacionesCreacionPorSupervisorYFecha(usuario.id, hoyISO())}/${await usuarioValeRepository.contarCupoDiario(usuario.id)}`,
@@ -450,16 +468,19 @@ class ValeBuzonService {
       .filter(v => valeIdsVisibles.has(v.id))
       .map(v => {
         const fila = misFilas.find(f => f.vale_id === v.id);
-        return { ...v, estado_taller: fila.estado, disenador_id: fila.disenador_id, _filaTallerId: fila.id };
+        return {
+          ...v, estado_taller: fila.estado, disenador_id: fila.disenador_id, _filaTallerId: fila.id,
+          adjuntos_vence_en: fila.adjuntos_vence_en, adjuntos_mensaje: fila.adjuntos_mensaje, adjuntos_respondido_en: fila.adjuntos_respondido_en
+        };
       });
     const enVentana = vistos.filter(v => dentroDeVentana(v, ventana));
-
+    
     // "Asignado" = en manos de los diseñadores del taller (asignado, en proceso o en pausa, y no del propio encargado);
     // "Mis asignaciones" = lo que el propio encargado se asignó.
     const EN_MANOS_DE_DISENADOR = [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA];
     const esMio = v => v.disenador_id != null && v.disenador_id === usuario.id;
     const predicados = {
-      porAsignar: v => v.estado_taller === ESTADOS_TALLER.PENDIENTE_ASIGNACION,
+      porAsignar: v => esPendienteAsignacion(v.estado_taller),
       asignadosDisenadores: v => EN_MANOS_DE_DISENADOR.includes(v.estado_taller) && v.disenador_id != null && !esMio(v),
       misAsignaciones: v => esMio(v) && [...EN_MANOS_DE_DISENADOR, ESTADOS_TALLER.EN_REVISION].includes(v.estado_taller),
       porRevisar: v => v.estado_taller === ESTADOS_TALLER.EN_REVISION
@@ -481,6 +502,7 @@ class ValeBuzonService {
       atrasados: enVentana.filter(v => v.atrasado).length
     };
     if (puedeFusionar) contadores.pendientesFusion = pendientesFusion.length;
+
     if (puedeFusionar) predicados.pendientesFusion = v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO;
     const filtrados = this._aplicarFiltroContador([...enVentana, ...pendientesFusion], filtroContador, predicados);
     // El trabajo activo de los diseñadores (en proceso/en pausa) y lo ya
@@ -491,7 +513,7 @@ class ValeBuzonService {
       v => v.estado_taller === ESTADOS_TALLER.EN_PAUSA,
       v => v.estado_taller === ESTADOS_TALLER.ASIGNADO,
       v => v.estado_taller === ESTADOS_TALLER.EN_REVISION,
-      v => v.estado_taller === ESTADOS_TALLER.PENDIENTE_ASIGNACION,
+      v => esPendienteAsignacion(v.estado_taller),
       v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO
     ]);
     return { vales, contadores };

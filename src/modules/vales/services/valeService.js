@@ -21,6 +21,7 @@ const valeVistoService = require('./valeVistoService');
 const valeModificacionService = require('./valeModificacionService');
 const valeReporteService = require('./valeReporteService');
 const valeReportePdfService = require('./valeReportePdfService');
+const valeAdjuntosService = require('./valeAdjuntosService');
 
 module.exports = {
   // Reportes de actividad
@@ -68,6 +69,11 @@ module.exports = {
   cancelarProcesoDisenador: (...a) => valeTallerService.cancelarProcesoDisenador(...a),
   revisarPropuesta: (...a) => valeTallerService.revisarPropuesta(...a),
   aprobarGeneral: (...a) => valeTallerService.aprobarGeneral(...a),
+
+  // Verificación de adjuntos
+  verificarAdjuntos: (...a) => valeAdjuntosService.verificarAdjuntos(...a),
+  rechazarAdjuntos: (...a) => valeAdjuntosService.rechazarAdjuntos(...a),
+  responderAdjuntos: (...a) => valeAdjuntosService.responderAdjuntos(...a),
 
   // Asesor / Modificación
   confirmarRecibido: (...a) => valeConfirmacionService.confirmarRecibido(...a),

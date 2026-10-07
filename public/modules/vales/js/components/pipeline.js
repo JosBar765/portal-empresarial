@@ -1,7 +1,9 @@
 // Pipeline de estado de 5 pasos para la columna «Estado» de las tablas. El servidor lo calcula
 // (`v.pipeline`, valePipeline.js); aquí solo se dibuja y se muestra el detalle de cada paso.
-import { escapeHtml } from '../utils/formato.js';
+import { escapeHtml, tiempoRestante } from '../utils/formato.js';
 import { claseEstado, etiquetaEstado } from '../permisos.js';
+import { state } from '../state.js';
+import { ROLES_ENCARGADO_TALLER } from '../config/roles.js';
 
 const SIMBOLOS = {
   completado: '<svg viewBox="0 0 12 10" aria-hidden="true"><path d="M1.5 5.5 4.5 8.5 10.5 1.5"/></svg>',
@@ -50,8 +52,27 @@ export function htmlPipeline(p) {
 }
 
 // Celda de la columna «Estado»: el pipeline, o la píldora de siempre si la fila no trae uno.
+// Adjuntos pendientes: el asesor/supervisor ve el paso 2 rechazado (rojo); el encargado, la etiqueta de su acción.
+function pipelineConAdjuntos(v) {
+  const p = v.pipeline;
+  const rechazados = (v.adjuntos || []).filter(a => a.estado === 'ADJUNTOS_RECHAZADOS');
+  if (rechazados.length) {
+    const texto = `Faltan adjuntos: ${rechazados.map(a => a.taller).join(', ')}`;
+    const nodos = p.nodos.map((_, i) => (i === 0 ? 'completado' : (i === 1 ? 'devuelto' : 'pendiente')));
+    return { ...p, nodos, tono: 'danger', etiqueta: 'Esperando adjuntos', detalle: texto, motivo: texto };
+  }
+  if (!ROLES_ENCARGADO_TALLER.includes(state.user.rolId)) return p;
+  if (v.estado_taller === 'VERIFICANDO_ADJUNTOS') return { ...p, etiqueta: 'Verificar adjuntos' };
+  if (v.estado_taller === 'ADJUNTOS_RESPONDIDOS') return { ...p, etiqueta: 'Adjuntos enviados, verificar' };
+  if (v.estado_taller === 'ADJUNTOS_RECHAZADOS') {
+    const resta = tiempoRestante(v.adjuntos_vence_en);
+    return { ...p, etiqueta: 'Esperando adjuntos', detalle: resta ? `Quedan ${resta}` : 'Asesor' };
+  }
+  return p;
+}
+
 export function celdaEstado(v) {
-  if (v.pipeline) return htmlPipeline(v.pipeline);
+  if (v.pipeline) return htmlPipeline(pipelineConAdjuntos(v));
   return `<span class="estado-pill ${escapeHtml(claseEstado(v))}">${escapeHtml(etiquetaEstado(v))}</span>`;
 }
 

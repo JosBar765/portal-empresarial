@@ -33,6 +33,8 @@ function categoriaHistorial(h) {
   if (enEspera(ea) && en === 'RECHAZADO') return 'RECHAZO_CREACION';
   if (ea === 'RECHAZADO' && enEspera(en)) return 'REENVIO_AUTORIZACION';
   if (enEspera(ea) && (en === 'CREADO' || en === 'MODIFICADO')) return 'AUTORIZACION_CREACION';
+  const estadosAdjuntos = ['VERIFICANDO_ADJUNTOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'];
+  if (estadosAdjuntos.includes(ea) || estadosAdjuntos.includes(en)) return 'ADJUNTOS';
   if (ea === 'PENDIENTE_ASIGNACION' && en === 'ASIGNADO') return 'ASIGNACION';
   if (ea === 'ASIGNADO' && en === 'EN_PROCESO') return 'EN_PROCESO';
   if (ea === 'EN_PROCESO' && en === 'EN_PAUSA') return 'PAUSA';
@@ -72,12 +74,37 @@ class ValeDetalleService {
     ]);
     const talleresConNombre = await this._enriquecerTalleresConNombre(talleres);
     const historialConActor = await this._enriquecerHistorialConActor(historial);
-    const historialVisible = await this._filtrarHistorialPorRol(usuario, historialConActor);
+    // Sin `vales.ver_historial` el historial no sale del servidor.
+    const historialVisible = (usuario.permissions || []).includes('vales.ver_historial')
+      ? await this._filtrarHistorialPorRol(usuario, historialConActor)
+      : [];
 
     // El supervisor necesita ver la justificación al decidir si autoriza la
     // modificación — se adjunta solo cuando aplica, reusando la misma
     // consulta que ya usa aprobarModificacion() en valeConfirmacionService.
-    return { ...enriquecer(vale), talleres: talleresConNombre, propuestas, documentos, historial: historialVisible };
+    const adjuntos = await this._adjuntosVisibles(usuario, talleresConNombre);
+    return { ...enriquecer(vale), talleres: talleresConNombre, adjuntos, propuestas, documentos, historial: historialVisible };
+  }
+
+  // Adjuntos reclamados por taller. Encargado: solo su taller (incluye VERIFICANDO); asesor/supervisor: sin VERIFICANDO;
+  // administrador y gerente: todos. El diseñador no los ve.
+  async _adjuntosVisibles(usuario, talleres) {
+    const ESTADOS_ADJ = ['VERIFICANDO_ADJUNTOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'];
+    let filas = talleres.filter(t => ESTADOS_ADJ.includes(t.estado));
+    if (esAdministrador(usuario) || usuario.rolId === ROL.GERENTE) {
+      // todos
+    } else if (usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR) {
+      filas = filas.filter(t => t.estado !== 'VERIFICANDO_ADJUNTOS');
+    } else if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId)) {
+      const tallerVisible = await this._tallerIdVisiblePara(usuario);
+      filas = filas.filter(t => t.taller_id === tallerVisible);
+    } else {
+      return [];
+    }
+    return filas.map(t => ({
+      taller_id: t.taller_id, taller: t.taller_nombre, estado: t.estado,
+      vence_en: t.adjuntos_vence_en, mensaje: t.adjuntos_mensaje, respondido_en: t.adjuntos_respondido_en
+    }));
   }
 
   // Control de propiedad: cada rol solo puede pedir el detalle de un vale
@@ -143,7 +170,7 @@ class ValeDetalleService {
     if (usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR) {
       const permitidas = new Set([
         'CREACION', 'CORRECCION', 'RECHAZO_CREACION', 'REENVIO_AUTORIZACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER', 'RETORNO_ASESOR',
-        'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
+        'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL', 'ADJUNTOS'
       ]);
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
     }
@@ -151,7 +178,7 @@ class ValeDetalleService {
     if (usuario.rolId === ROL.GERENTE) {
       const permitidas = new Set([
         'CREACION', 'CORRECCION', 'RECHAZO_CREACION', 'REENVIO_AUTORIZACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER',
-        'RETORNO_ASESOR', 'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
+        'RETORNO_ASESOR', 'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL', 'ADJUNTOS'
       ]);
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
     }
@@ -161,7 +188,7 @@ class ValeDetalleService {
       if (!tallerVisible) return [];
       const cicloTaller = new Set([
         'ASIGNACION', 'EN_PROCESO', 'PAUSA', 'REANUDACION',
-        'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO', 'APROBACION_TALLER', 'DESAPROBACION_REASIGNACION'
+        'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO', 'APROBACION_TALLER', 'DESAPROBACION_REASIGNACION', 'ADJUNTOS'
       ]);
       return conCategoria
         .filter(h => h._categoria === 'AUTORIZACION_CREACION' || (cicloTaller.has(h._categoria) && h.taller_id === tallerVisible))

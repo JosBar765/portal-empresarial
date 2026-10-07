@@ -371,6 +371,33 @@ class ValeController {
     }
   }
 
+  async verificarAdjuntos(req, res) {
+    try {
+      const vale = await valeService.verificarAdjuntos(req.user, idObligatorio(req.params.id), idOpcional(req.body && req.body.tallerId, 'Taller'));
+      return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async rechazarAdjuntos(req, res) {
+    try {
+      const vale = await valeService.rechazarAdjuntos(req.user, idObligatorio(req.params.id), idOpcional(req.body && req.body.tallerId, 'Taller'));
+      return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async responderAdjuntos(req, res) {
+    try {
+      const vale = await valeService.responderAdjuntos(req.user, idObligatorio(req.params.id), idObligatorio(req.body && req.body.tallerId, 'Taller'), req.body && req.body.mensaje);
+      return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async reenviar(req, res) {
     try {
       const vale = await valeService.reenviarAutorizacion(req.user, idObligatorio(req.params.id));

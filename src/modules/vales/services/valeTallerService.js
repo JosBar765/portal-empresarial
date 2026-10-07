@@ -50,6 +50,9 @@ class ValeTallerService {
     return valeMutex.conLockDeVale(valeId, async () => {
       await requerirVale(valeId);
       const fila = await this._resolverFilaTallerParaEncargado(usuario, valeId, tallerIdHint);
+      if ([ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS].includes(fila.estado)) {
+        throw new Error('Primero verifica los adjuntos de este vale.');
+      }
       if (fila.estado !== ESTADOS_TALLER.PENDIENTE_ASIGNACION) {
         throw new Error('Este vale ya tiene un diseñador asignado en tu taller.');
       }
@@ -69,7 +72,7 @@ class ValeTallerService {
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: 'asignado', actor: usuario.nombre, actorId: usuario.id, destino: disenador ? disenador.nombre : null,
-        salas: ['disenador:' + disenadorId, `taller:${fila.taller_id}`]
+        salas: ['disenador:' + disenadorId, `taller:${fila.taller_id}`, `asesor:${actualizado.asesor_id}`]
       });
       return enriquecer(actualizado);
     });
@@ -145,22 +148,26 @@ class ValeTallerService {
       fila.estado = ESTADOS_TALLER.EN_REVISION;
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, `${etiquetaActorTaller(usuario)} entregó propuesta`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
-      // Alerta roja si la propuesta va vacía (sin archivo).
-      valeEvents.notificar({
-        vale: actualizado, accion: 'entregado (propuesta)', actor: usuario.nombre, actorId: usuario.id,
-        salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`], nivel: url ? 'info' : 'alerta'
-      });
-
       // Si quien entrega es el ENCARGADO de este mismo taller (se autoasignó
       // el vale), su trabajo se autoaprueba — no pasa por un período de
       // revisión de sí mismo.
-      let resultado;
+      let autoaprueba = false;
       if (url) {
         const taller = await tallerRepository.obtenerPorId(fila.taller_id);
         const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
-        if (taller && taller.encargado_id === idEfectivo) {
-          resultado = await this._revisarPropuestaInterno(usuario, valeId, fila, { aprobar: true, esAutoaprobacion: true });
-        }
+        autoaprueba = !!taller && taller.encargado_id === idEfectivo;
+      }
+      // Alerta roja si la propuesta va vacía (sin archivo). Al asesor se le avisa de la revisión,
+      // salvo que se autoapruebe (ahí recibe el aviso de aprobación).
+      valeEvents.notificar({
+        vale: actualizado, accion: 'entregado (propuesta)', actor: usuario.nombre, actorId: usuario.id,
+        salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`, ...(autoaprueba ? [] : [`asesor:${actualizado.asesor_id}`])],
+        nivel: url ? 'info' : 'alerta'
+      });
+
+      let resultado;
+      if (autoaprueba) {
+        resultado = await this._revisarPropuestaInterno(usuario, valeId, fila, { aprobar: true, esAutoaprobacion: true });
       }
       if (!resultado) resultado = enriquecer(actualizado);
       await idempotencyRepository.registrar(key, 'vales.entregar', resultado);
@@ -233,7 +240,7 @@ class ValeTallerService {
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: 'canceló su proceso', actor: usuario.nombre, actorId: usuario.id,
-        salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`], nivel: 'alerta'
+        salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`, `asesor:${actualizado.asesor_id}`], nivel: 'alerta'
       });
       return enriquecer(actualizado);
     });
