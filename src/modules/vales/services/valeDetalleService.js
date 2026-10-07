@@ -33,6 +33,8 @@ function categoriaHistorial(h) {
   if (enEspera(ea) && en === 'RECHAZADO') return 'RECHAZO_CREACION';
   if (ea === 'RECHAZADO' && enEspera(en)) return 'REENVIO_AUTORIZACION';
   if (enEspera(ea) && (en === 'CREADO' || en === 'MODIFICADO')) return 'AUTORIZACION_CREACION';
+  const estadosAdjuntos = ['VERIFICANDO_ADJUNTOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'];
+  if (estadosAdjuntos.includes(ea) || estadosAdjuntos.includes(en)) return 'ADJUNTOS';
   if (ea === 'PENDIENTE_ASIGNACION' && en === 'ASIGNADO') return 'ASIGNACION';
   if (ea === 'ASIGNADO' && en === 'EN_PROCESO') return 'EN_PROCESO';
   if (ea === 'EN_PROCESO' && en === 'EN_PAUSA') return 'PAUSA';
@@ -165,7 +167,7 @@ class ValeDetalleService {
     if (usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR) {
       const permitidas = new Set([
         'CREACION', 'CORRECCION', 'RECHAZO_CREACION', 'REENVIO_AUTORIZACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER', 'RETORNO_ASESOR',
-        'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
+        'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL', 'ADJUNTOS'
       ]);
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
     }
@@ -173,7 +175,7 @@ class ValeDetalleService {
     if (usuario.rolId === ROL.GERENTE) {
       const permitidas = new Set([
         'CREACION', 'CORRECCION', 'RECHAZO_CREACION', 'REENVIO_AUTORIZACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER',
-        'RETORNO_ASESOR', 'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
+        'RETORNO_ASESOR', 'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL', 'ADJUNTOS'
       ]);
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
     }
@@ -183,7 +185,7 @@ class ValeDetalleService {
       if (!tallerVisible) return [];
       const cicloTaller = new Set([
         'ASIGNACION', 'EN_PROCESO', 'PAUSA', 'REANUDACION',
-        'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO', 'APROBACION_TALLER', 'DESAPROBACION_REASIGNACION'
+        'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO', 'APROBACION_TALLER', 'DESAPROBACION_REASIGNACION', 'ADJUNTOS'
       ]);
       return conCategoria
         .filter(h => h._categoria === 'AUTORIZACION_CREACION' || (cicloTaller.has(h._categoria) && h.taller_id === tallerVisible))
