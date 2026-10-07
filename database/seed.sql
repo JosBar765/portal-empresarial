@@ -73,8 +73,9 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (21, 'admin.talleres.gestionar', 'Gestionar Talleres', 'admin', 'Permite asignar/quitar encargados y diseñadores de un taller'),
 (22, 'admin.tiendas.gestionar', 'Gestionar Tiendas', 'admin', 'Permite crear/editar tiendas y su personal asignado'),
 (23, 'admin.mantenimiento.gestionar', 'Gestionar Mantenimiento', 'admin', 'Permite activar/desactivar el modo mantenimiento del portal'),
-(24, 'vales.dar_de_baja', 'Dar de baja Vales de Arte', 'vales', 'Permite al asesor dar de baja un vale de arte propio antes de que sea autorizado'),
-(25, 'vales.corregir', 'Corregir Vales de Arte', 'vales', 'Permite al asesor corregir los datos de un vale de arte propio antes de que sea autorizado');
+(24, 'vales.dar_de_baja', 'Dar de baja Vales de Arte', 'vales', 'Permite al asesor dar de baja un vale de arte propio antes de que sea autorizado, o ya autorizado mientras un taller reclame sus adjuntos'),
+(25, 'vales.corregir', 'Corregir Vales de Arte', 'vales', 'Permite al asesor corregir los datos de un vale de arte propio antes de que sea autorizado'),
+(26, 'vales.verificar_adjuntos', 'Verificar Adjuntos', 'vales', 'Permite al encargado de taller confirmar que recibió los adjuntos de un vale de arte o rechazarlo por no haberlos recibido');
 
 INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 -- Administrador
@@ -85,19 +86,19 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 -- 13 solicitar modificación, 24 dar de baja, 25 corregir)
 (3, 1), (3, 14), (3, 15), (3, 17), (3, 18), (3, 2), (3, 12), (3, 13), (3, 24), (3, 25),
 -- Encargado de taller de diseño: dueño del taller "Diseño", con fusión (16) y "trabajar" (11)
-(4, 1), (4, 9), (4, 10), (4, 11), (4, 16),
+(4, 1), (4, 9), (4, 10), (4, 11), (4, 16), (4, 26),
 -- Encargado de taller de diseño 3d: dueño del taller "Diseño UV/3D", sin fusión
-(5, 1), (5, 9), (5, 10), (5, 11),
+(5, 1), (5, 9), (5, 10), (5, 11), (5, 26),
 -- Diseñadores
 (6, 1), (6, 11),
 -- Asistente: clon operativo COMPLETO del Encargado de taller de diseño
-(7, 1), (7, 9), (7, 10), (7, 11), (7, 16),
+(7, 1), (7, 9), (7, 10), (7, 11), (7, 16), (7, 26),
 -- Gerente: solo lectura
 (8, 1), (8, 17),
 -- Encargado de taller de protextil: sin fusión
-(9, 1), (9, 9), (9, 10),
+(9, 1), (9, 9), (9, 10), (9, 26),
 -- Encargado de taller de diseño local: mismos permisos atómicos que Diseño
-(10, 1), (10, 9), (10, 10), (10, 11);
+(10, 1), (10, 9), (10, 10), (10, 11), (10, 26);
 
 INSERT INTO `estados_vale` (`id`, `nombre`) VALUES
 (1, 'ESPERANDO_AUTORIZACION'), (2, 'CREADO'), (3, 'APROBADO_DEPARTAMENTO'),
@@ -109,7 +110,8 @@ INSERT INTO `tipos_autorizacion` (`id`, `nombre`) VALUES
 
 INSERT INTO `estados_taller` (`id`, `nombre`) VALUES
 (1, 'PENDIENTE_ASIGNACION'), (2, 'ASIGNADO'), (3, 'EN_PROCESO'),
-(4, 'EN_PAUSA'), (5, 'EN_REVISION'), (6, 'APROBADO');
+(4, 'EN_PAUSA'), (5, 'EN_REVISION'), (6, 'APROBADO'),
+(7, 'VERIFICANDO_ADJUNTOS'), (8, 'ADJUNTOS_RECHAZADOS'), (9, 'ADJUNTOS_RESPONDIDOS');
 
 INSERT INTO `estados_solicitud_modificacion` (`id`, `nombre`) VALUES
 (1, 'PENDIENTE'), (2, 'APROBADA'), (3, 'RECHAZADA');
