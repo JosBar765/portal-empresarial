@@ -73,7 +73,7 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (21, 'admin.talleres.gestionar', 'Gestionar Talleres', 'admin', 'Permite asignar/quitar encargados y diseñadores de un taller'),
 (22, 'admin.tiendas.gestionar', 'Gestionar Tiendas', 'admin', 'Permite crear/editar tiendas y su personal asignado'),
 (23, 'admin.mantenimiento.gestionar', 'Gestionar Mantenimiento', 'admin', 'Permite activar/desactivar el modo mantenimiento del portal'),
-(24, 'vales.dar_de_baja', 'Dar de baja Vales de Arte', 'vales', 'Permite al asesor dar de baja un vale de arte propio antes de que sea autorizado'),
+(24, 'vales.dar_de_baja', 'Dar de baja Vales de Arte', 'vales', 'Permite al asesor dar de baja un vale de arte propio antes de que sea autorizado, o ya autorizado mientras un taller reclame sus adjuntos'),
 (25, 'vales.corregir', 'Corregir Vales de Arte', 'vales', 'Permite al asesor corregir los datos de un vale de arte propio antes de que sea autorizado'),
 (26, 'vales.verificar_adjuntos', 'Verificar Adjuntos', 'vales', 'Permite al encargado de taller confirmar que recibió los adjuntos de un vale de arte o rechazarlo por no haberlos recibido');
 
