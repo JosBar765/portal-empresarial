@@ -72,6 +72,7 @@ class UsuarioValeRepository {
        JOIN supervisor_tiendas st ON st.usuario_id = u.id
        JOIN asesores a ON a.tienda_id = st.tienda_id
        WHERE u.rol_id = 3 AND u.activo = 1 AND a.usuario_id = ?
+         AND u.id <> a.usuario_id
        ORDER BY u.nombre`,
       [asesorId],
       'usuario:find_supervisores_by_asesor'

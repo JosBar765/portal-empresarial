@@ -103,6 +103,7 @@ class ValeModificacionService {
   }
 
   async _validarSupervisor(usuario, vale) {
+    if (vale.asesor_id === usuario.id) throw new Error('No puedes autorizar tus propias modificaciones: lo hace otro supervisor de tu tienda.');
     if (esAdministrador(usuario)) return;
     const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
     if (!supervisores.some(s => s.id === usuario.id)) throw new Error('Este vale es de un asesor que no está a tu cargo.');
