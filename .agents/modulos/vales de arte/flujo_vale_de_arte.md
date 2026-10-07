@@ -91,12 +91,15 @@ Diagrama general (flujo feliz y desvíos):
 
 | id | Código | Etiqueta en pantalla | Qué significa | Entra por | Sale por |
 |---|---|---|---|---|---|
-| 1 | `PENDIENTE_ASIGNACION` | Pendiente Asignación | El taller recibió el vale; el encargado aún no elige diseñador. | El supervisor autoriza (una fila por taller) | Encargado asigna diseñador → `ASIGNADO` |
+| 1 | `PENDIENTE_ASIGNACION` | Pendiente Asignación | Adjuntos verificados; el encargado aún no elige diseñador. | Verificación de adjuntos (sección 2.1) | Encargado asigna diseñador → `ASIGNADO` |
 | 2 | `ASIGNADO` | Asignado | Tiene diseñador, aún no empieza. | Asignación · el encargado **desaprueba** y reasigna | Diseñador comienza → `EN_PROCESO` |
 | 3 | `EN_PROCESO` | En Proceso | El diseñador trabaja (solo 1 por diseñador). | Comenzar · reanudar | Entregar o cancelar → `EN_REVISION` · Pausar → `EN_PAUSA` |
 | 4 | `EN_PAUSA` | En Pausa | El diseñador detuvo el trabajo. | Pausar | Reanudar → `EN_PROCESO` |
 | 5 | `EN_REVISION` | En Revisión | Entregó propuesta (o canceló sin propuesta) y espera al encargado. | Entregar / cancelar | Aprobar → `APROBADO` · Desaprobar → `ASIGNADO` |
 | 6 | `APROBADO` | Aprobado | El taller terminó (con propuesta con archivo). | Aprobación del encargado (o autoaprobación si se autoasignó y entregó con archivo) | — |
+| 7 | `VERIFICANDO_ADJUNTOS` | Verificar adjuntos | Estado inicial de todo taller: el encargado debe confirmar que recibió los adjuntos por correo. | El supervisor autoriza (una fila por taller) | Verifica → `PENDIENTE_ASIGNACION` · Rechaza → `ADJUNTOS_RECHAZADOS` |
+| 8 | `ADJUNTOS_RECHAZADOS` | Esperando adjuntos | El encargado rechazó el taller por no haber recibido los adjuntos; espera al asesor (plazo único de 24 h). | Rechazo del encargado | El asesor responde → `ADJUNTOS_RESPONDIDOS` · Vence → se borra el vale |
+| 9 | `ADJUNTOS_RESPONDIDOS` | Adjuntos enviados, verificar | El asesor avisó que envió los adjuntos; el vale vuelve al encargado. | Respuesta del asesor | Verifica → `PENDIENTE_ASIGNACION` · Rechaza → `ADJUNTOS_RECHAZADOS` |
 
 > Los nombres de los dos niveles **no colisionan** (por eso comparten
 > diccionario de etiquetas): `APROBADO` es de taller y `APROBADO_DEPARTAMENTO`
@@ -293,7 +296,7 @@ mismos talleres del original.
 
 ## 2. Estado por TALLER (`vale_talleres.estado`)
 
-Nace cuando el Supervisor autoriza la creación (o aprueba la modificación).
+Nace cuando el Supervisor autoriza la creación (o aprueba la modificación), en `VERIFICANDO_ADJUNTOS`: el diagrama siguiente arranca cuando el encargado verifica los adjuntos (sección 2.1).
 
 ```
         ┌─────────────────────────┐
@@ -344,6 +347,34 @@ Reglas:
 - Un encargado solo actúa sobre la fila de **su propio** taller; el
   Administrador, si el vale tiene un solo taller, sobre esa fila, y si tiene
   varios debe indicar el taller.
+
+### 2.1 Verificación de adjuntos (antes de asignar)
+
+Los adjuntos de un vale (vectores, fuentes, etc.) viajan por **correo**, fuera del módulo: el sistema no detecta si llegaron. Por eso cada taller que recibe un vale, normal o `MOD-`, **debe verificar los adjuntos antes de poder asignarlo**.
+
+```
+ autorización / aprobación de modificación
+                  │
+                  ▼
+        VERIFICANDO_ADJUNTOS ◄──────────────┐
+          │ verifica     │ rechaza           │ rechaza otra vez
+          │              ▼                   │
+          │      ADJUNTOS_RECHAZADOS         │
+          │              │ el asesor responde│
+          │              ▼                   │
+          │      ADJUNTOS_RESPONDIDOS ───────┘
+          │              │ verifica
+          ▼              ▼
+              PENDIENTE_ASIGNACION  →  (flujo normal de la sección 2)
+```
+
+- **Quién:** el permiso `vales.verificar_adjuntos` lo tienen los roles 4, 5, 9 y 10 (encargados de taller) y el 7 (asistente, solo Diseño). Cada uno actúa solo sobre **su** taller. No hay mensaje al rechazar.
+- **Por taller:** un taller que rechaza no frena a los demás del mismo vale; el asesor responde **una vez por taller** rechazado.
+- **Respuesta del asesor** (permiso `vales.corregir`, solo el dueño del vale): botón «Adjuntos enviados al correo», con un mensaje editable de hasta 200 palabras, prellenado con «Adjuntos enviados al correo». El vale vuelve al encargado, que ve el mensaje y puede verificar o rechazar otra vez (el ciclo se repite). Mientras el asesor no responde, el encargado no tiene acciones; un supervisor que no es el dueño solo ve el estado, sin botón de respuesta.
+- **Plazo único de 24 h** desde el **primer** rechazo del taller (`vale_talleres.adjuntos_vence_en`): no se reinicia con rechazos posteriores. A las 6 h restantes el asesor recibe un aviso (una sola vez). Si vence con el taller todavía en `ADJUNTOS_RECHAZADOS`, se **borra el vale completo** (todos sus talleres, aunque otros ya trabajen) con sus archivos y se libera el cupo del supervisor; un vale `MOD-` deja el original intacto. Si el asesor ya respondió, no se borra, aunque el encargado rechace después de pasado el plazo (en ese caso el siguiente chequeo lo borra). Lo hace `adjuntosWatcher.js` (60 s), calcado de `vigenciaWatcher.js`.
+- **Dar de baja:** el asesor puede dar de baja un vale **ya autorizado** mientras algún taller esté en `ADJUNTOS_RECHAZADOS` o `ADJUNTOS_RESPONDIDOS` (no en `VERIFICANDO_ADJUNTOS`). Cancela el vale completo; los talleres que ya trabajaban, sus encargados y el diseñador asignado reciben un aviso y el vale desaparece de su vista.
+- **Qué ve cada uno:** el encargado conserva el vale en la lista normal de «Pendientes de asignar» (los tres estados suman al contador) con la etiqueta «Verificar adjuntos», «Esperando adjuntos» o «Adjuntos enviados, verificar». El asesor y el supervisor ven el paso 2 del pipeline **en rojo** con «Faltan adjuntos: <taller>» y, en «ver adjuntos faltantes», el motivo y el tiempo restante; el supervisor ve exactamente la misma lista que antes. El historial del vale muestra estos movimientos a asesor, supervisor, gerente y administrador, y a cada encargado solo los de su taller.
+- **Avisos** (`tipo`): `ADJUNTOS_RECHAZADOS`, `ADJUNTOS_VERIFICADOS`, `ADJUNTOS_RESPONDIDOS`, `ADJUNTOS_POR_VENCER`, `ADJUNTOS_VENCIDOS`.
 
 ## 3. Roles y permisos
 
@@ -598,7 +629,7 @@ No cambia ningún estado ni filtro: el desplegable de estado sigue usando los es
 | Paso | Estado general | Estado por taller |
 |---|---|---|
 | 1 Autorización | `ESPERANDO_AUTORIZACION`, `SOLICITANDO_MODIFICACION`, `RECHAZADO` (paso en rojo con X) | — |
-| 2 Asignación | `CREADO`, `MODIFICADO` | `PENDIENTE_ASIGNACION`, `ASIGNADO` |
+| 2 Asignación | `CREADO`, `MODIFICADO` | `VERIFICANDO_ADJUNTOS`, `ADJUNTOS_RECHAZADOS`, `ADJUNTOS_RESPONDIDOS`, `PENDIENTE_ASIGNACION`, `ASIGNADO` |
 | 3 Producción | `CREADO`, `MODIFICADO` | `EN_PROCESO`, `EN_PAUSA` (ámbar) |
 | 4 Revisión | `CREADO`, `MODIFICADO`, `APROBADO_DEPARTAMENTO` (fusión) | `EN_REVISION`, `APROBADO` |
 | 5 Confirmación | `PENDIENTE_CONFIRMACION`, `RECIBIDO` (los cinco en verde) | — |
@@ -606,5 +637,6 @@ No cambia ningún estado ni filtro: el desplegable de estado sigue usando los es
 - Con varios talleres se muestra el paso del taller más atrasado y «N de M talleres listos»; el tooltip lista el estado de cada uno. Encargados y diseñadores ven el paso de **su** taller.
 - El atraso (≥ 1 día) tiñe de rojo el paso actual; al estar `RECIBIDO` muestra «Atraso final».
 - Marcas bajo el pipeline: `MOD` (vale `MOD-`) y `Vence en N h` (vigencia de 24 h; ámbar cuando faltan 6 h o menos, calculado con `vigencia_minutos` en `SELECT_VALE`).
+- Si el vale tiene un taller en `ADJUNTOS_RECHAZADOS`, el paso 2 se dibuja en rojo con «Faltan adjuntos: <taller>» para asesor y supervisor (solo en pantalla, `pipelineConAdjuntos`).
 - Un estado nuevo se agrega en `ETAPA_TALLER` o como un `case` de `calcularPipeline`; una etapa nueva del recorrido es un paso más en `PASOS`.
 - Diseño: Figma, página «Pipeline de estado (Vales)» (archivo del prototipo de Incidencias).

@@ -1,6 +1,6 @@
 # rechazar-sin-adjuntos
 
-Rama: `feature/rechazar-sin-adjuntos` · Estrategia de entrega: `ask-on-risk` · Estado: planificado, sin código escrito.
+Rama: `feature/rechazar-sin-adjuntos` · Estrategia de entrega: `ask-on-risk` · Estado: T1–T7 hechas.
 
 ## Objetivo
 El encargado de taller verifica que recibió por correo los adjuntos (vectores, fuentes…) de un vale autorizado. Si no llegaron, rechaza ese taller y el asesor tiene 24 h para avisar que los envió. La detección de si llegaron queda fuera del módulo.
@@ -31,7 +31,7 @@ El encargado de taller verifica que recibió por correo los adjuntos (vectores, 
 - [x] T4 · Watcher de plazo: aviso al asesor 6 h antes y, a las 24 h del primer rechazo sin responder, borrado del vale completo (`MOD-` deja el original). Ruta: escritor delegado. Verificado: 32/32 checks en proceso simulando el tiempo con la BD (aviso único, borrado completo, no borra si ya respondió, MOD-, cupo); la entrega por sockets no se probó en vivo.
 - [x] T5 · Buzón y notificaciones: etiquetas y contadores para encargado, asesor y supervisor; eventos y avisos nuevos. (datos de backend; la UI es T6). Ruta: escritor delegado. Verificado: 26/26 checks (script propio). Pendiente de decisión: qué vales de su equipo ve el supervisor con adjuntos pendientes.
 - [x] T6 · Frontend: acciones del encargado (verificar / rechazar), modal de respuesta del asesor, etiquetas, avisos. Ruta: escritor delegado. Verificado en el navegador (asesor y encargado de UV/3D): semáforo rojo con "Faltan adjuntos", modal de respuesta prellenado, fila que se actualiza sola, verificar deja el vale en "Por asignar", sin errores de consola. No se probó la vista del supervisor ni "Rechazar" del encargado.
-- [ ] T7 · Documentación (`flujo_vale_de_arte.md`, `CLAUDE.md`) y verificación de punta a punta.
+- [x] T7 · Documentación (`flujo_vale_de_arte.md`, `CLAUDE.md`) y verificación de punta a punta. Documentación: sección 2.1 de `flujo_vale_de_arte.md`, tablas de estados y pipeline, y `CLAUDE.md`. Verificación de punta a punta repartida por tarea (41 + 26 + 32 + 26 + 3 checks y UI en el navegador). Sin probar en vivo: sockets, vista del supervisor, botón Rechazar del encargado, asistente (rol 7) y admin.
 
 ## Verificación y evidencia
 Sin suite de tests en el proyecto: se verifica con scripts propios contra la BD de desarrollo y la interfaz.
