@@ -1509,6 +1509,23 @@
   color: var(--color-text-secondary);
 }
 
+/* Aviso bajo las fechas: el vale se marcará urgente solo, sin casilla. */
+.aviso-urgente {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-bg);
+  color: var(--vale-estado-pendiente-confirmacion-fg);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.aviso-urgente[hidden] { display: none; }
+.aviso-urgente ion-icon { flex: 0 0 auto; font-size: 18px; color: var(--color-warning); }
+
 .motivo-rechazo {
   margin: 0;
   padding: 10px 14px;

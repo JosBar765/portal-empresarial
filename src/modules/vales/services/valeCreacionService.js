@@ -341,7 +341,7 @@ class ValeCreacionService {
   async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null } = {}) {
     const {
       clienteEmpresa, clienteTelefono, clienteCorreo,
-      fechaEntrega, fechaEvento, urgente, tecnica, acabado,
+      fechaEntrega, fechaEvento, tecnica, acabado,
       cantidad, cotizacion, descripcion
     } = payload;
     // Los obligatorios se validan ya sin espacios: "   " cuenta como vacío.
@@ -419,7 +419,7 @@ class ValeCreacionService {
       fechaEntregaNorm, fechaEventoNorm,
       fechaEntregaDate: new Date(fechaEntregaNorm.replace(' ', 'T')),
       fechaEventoDate: new Date(fechaEventoNorm.replace(' ', 'T')),
-      urgente: calcularUrgente(fechaEntregaNorm, urgente),
+      urgente: calcularUrgente(fechaEntregaNorm),
       producto, material,
       tecnica: (tecnica || '').trim(), acabado: (acabado || '').trim(),
       cantidad: cantidadNum, cotizacion: cotizacionNum, descripcion,
@@ -551,7 +551,7 @@ class ValeCreacionService {
     let firmaAutorizacion = null;
     if (vale.autorizado_por && vale.autorizacion_tipo) {
       const supervisor = await usuarioValeRepository.obtenerPorId(vale.autorizado_por);
-      if (supervisor) firmaAutorizacion = `${supervisor.nombre} ${vale.autorizacion_tipo}`;
+      if (supervisor) firmaAutorizacion = { nombre: supervisor.nombre, tipo: vale.autorizacion_tipo, fechaHora: vale.autorizado_en || null };
     }
     const valeConAsesor = {
       ...vale,

@@ -155,17 +155,17 @@ INSERT INTO `supervisor_tiendas` (`usuario_id`, `tienda_id`) VALUES
 (23, 11), (23, 12),
 (24, 13);
 
-INSERT INTO `talleres` (`id`, `nombre`, `encargado_id`, `tienda_id`) VALUES
-(1, 'Diseño', 5, NULL),
-(2, 'Diseño UV/3D', 6, NULL),
-(3, 'Protextil', 25, NULL),
-(4, 'Diseño Local - P13', 27, 3),
-(5, 'Diseño Local - SSV', 29, 4),
-(8, 'Diseño Local - ECL', 35, 7),
-(10, 'Diseño Local - TEG', 39, 9),
-(11, 'Diseño Local - SPS', 41, 10),
-(12, 'Diseño Local - MAN', 43, 11),
-(14, 'Diseño Local - SJO', 47, 13);
+INSERT INTO `talleres` (`id`, `nombre`, `encargado_id`, `tienda_id`, `limite_diario`) VALUES
+(1, 'Diseño', 5, NULL, 15),
+(2, 'Diseño UV/3D', 6, NULL, 15),
+(3, 'Protextil', 25, NULL, 8),
+(4, 'Diseño Local - P13', 27, 3, NULL),
+(5, 'Diseño Local - SSV', 29, 4, NULL),
+(8, 'Diseño Local - ECL', 35, 7, NULL),
+(10, 'Diseño Local - TEG', 39, 9, NULL),
+(11, 'Diseño Local - SPS', 41, 10, NULL),
+(12, 'Diseño Local - MAN', 43, 11, NULL),
+(14, 'Diseño Local - SJO', 47, 13, NULL);
 
 INSERT INTO `taller_tiendas` (`taller_id`, `tienda_id`) VALUES
 (1, 1), (1, 2),
