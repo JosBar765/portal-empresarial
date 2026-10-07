@@ -98,7 +98,7 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 -- Encargado de taller de protextil: sin fusión
 (9, 1), (9, 9), (9, 10), (9, 26),
 -- Encargado de taller de diseño local: mismos permisos atómicos que Diseño
-(10, 1), (10, 9), (10, 10), (10, 11);
+(10, 1), (10, 9), (10, 10), (10, 11), (10, 26);
 
 INSERT INTO `estados_vale` (`id`, `nombre`) VALUES
 (1, 'ESPERANDO_AUTORIZACION'), (2, 'CREADO'), (3, 'APROBADO_DEPARTAMENTO'),

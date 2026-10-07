@@ -25,7 +25,7 @@ El encargado de taller verifica que recibió por correo los adjuntos (vectores, 
 - No hay carpeta de migraciones: se edita `schema.sql`/`seed.sql` y se aplica a mano en la BD de desarrollo.
 
 ## Tareas
-- [x] T1 · Esquema y permiso: 4 columnas `adjuntos_*` en `vale_talleres`, 3 estados nuevos en `estados_taller` (7–9), permiso `vales.verificar_adjuntos` (id 26) y `rol_permisos` 4/5/7/9 en `seed.sql`; aplicado a la BD de desarrollo y verificado por consulta. Ruta: inline (edición mecánica de SQL). Pendiente de decidir: rol 10 (encargado de diseño local).
+- [x] T1 · Esquema y permiso: 4 columnas `adjuntos_*` en `vale_talleres`, 3 estados nuevos en `estados_taller` (7–9), permiso `vales.verificar_adjuntos` (id 26) y `rol_permisos` 4/5/7/9 en `seed.sql`; aplicado a la BD de desarrollo y verificado por consulta. Ruta: inline (edición mecánica de SQL). El rol 10 (encargado de diseño local) también recibe el permiso.
 - [ ] T2 · Backend del flujo: inicializar en `fanOutTalleres`; servicios verificar / rechazar / responder; bloquear `asignar` hasta `VERIFICADO`; rutas con el permiso nuevo.
 - [ ] T3 · Dar de baja ampliado: permitir con adjuntos pendientes, avisar a talleres trabajando y borrar el vale.
 - [ ] T4 · Watcher de plazo: aviso a 6 h y vencimiento a 24 h (quitar taller o borrar vale; `MOD-` deja el original).
