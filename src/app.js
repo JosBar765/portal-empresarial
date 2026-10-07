@@ -13,6 +13,7 @@ const maintenanceGate = require('./core/permissions/maintenanceMiddleware');
 const valeRoutes = require('./modules/vales/routes');
 const atrasoWatcher = require('./modules/vales/atrasoWatcher');
 const vigenciaWatcher = require('./modules/vales/vigenciaWatcher');
+const adjuntosWatcher = require('./modules/vales/adjuntosWatcher');
 const notificacionLimpieza = require('./core/notifications/notificacionLimpieza');
 const adminRoutes = require('./modules/admin/routes');
 const notificacionRoutes = require('./core/notifications/notificacionRoutes');
@@ -131,6 +132,7 @@ app.use('/api/notificaciones', requireAuth, notificacionRoutes);
 // roja una sola vez por vale.
 atrasoWatcher.iniciar();
 vigenciaWatcher.iniciar();
+adjuntosWatcher.iniciar();
 notificacionLimpieza.iniciar();
 
 // Endpoint dinámico de Módulos del Dashboard

@@ -74,6 +74,37 @@ class ValeTallerRepository {
     );
   }
 
+  // Filas esperando al asesor cuyo plazo ya venció (de un vale, o de todos).
+  async listarAdjuntosVencidos(valeId = null) {
+    return db.query(
+      `${SELECT_VALE_TALLER}
+       WHERE vt.activo = 1 AND et.nombre = 'ADJUNTOS_RECHAZADOS' AND vt.adjuntos_vence_en <= NOW()
+         ${valeId ? 'AND vt.vale_id = ?' : ''}`,
+      valeId ? [valeId] : [], 'vale_taller:list_adjuntos_vencidos'
+    );
+  }
+
+  // Filas esperando al asesor a las que les quedan `horas` o menos y aún sin aviso.
+  async listarAdjuntosPorVencer(horas) {
+    return db.query(
+      `SELECT vt.id, vt.vale_id, vt.taller_id, TIMESTAMPDIFF(MINUTE, NOW(), vt.adjuntos_vence_en) AS minutos_restantes
+       FROM vale_talleres vt
+       JOIN estados_taller et ON et.id = vt.estado_id
+       WHERE vt.activo = 1 AND et.nombre = 'ADJUNTOS_RECHAZADOS' AND vt.adjuntos_aviso_en IS NULL
+         AND vt.adjuntos_vence_en > NOW() AND vt.adjuntos_vence_en <= DATE_ADD(NOW(), INTERVAL ? HOUR)`,
+      [horas], 'vale_taller:list_adjuntos_por_vencer'
+    );
+  }
+
+  // true si esta llamada fue la que marcó el aviso (evita avisar dos veces).
+  async marcarAvisoAdjuntos(id) {
+    const result = await db.query(
+      'UPDATE vale_talleres SET adjuntos_aviso_en = NOW() WHERE id = ? AND adjuntos_aviso_en IS NULL',
+      [id], 'vale_taller:marcar_aviso_adjuntos'
+    );
+    return result.affectedRows > 0;
+  }
+
   async responderAdjuntos(id, mensaje) {
     await db.query(
       `UPDATE vale_talleres SET estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ADJUNTOS_RESPONDIDOS'),
