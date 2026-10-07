@@ -27,7 +27,7 @@ const {
   ESTADOS, hoyISO, horaActual, enriquecer,
   normalizarDatetime, calcularUrgente, registrarHistorial,
   esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, validarMotivoRechazo,
-  esValeDeModificacion, estadoEnAutorizacion
+  esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor
 } = require('./valeHelpers');
 
 class ValeCreacionService {
@@ -262,8 +262,8 @@ class ValeCreacionService {
   // El asesor da de baja un vale propio que aún no fue autorizado (o que fue rechazado): se borra por completo.
   async darDeBaja(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
-      if (usuario.rolId !== ROL.ASESOR) {
-        throw new Error('Solo el asesor de ventas puede dar de baja un vale.');
+      if (!puedeActuarComoAsesor(usuario)) {
+        throw new Error('Solo un asesor o un supervisor de ventas puede dar de baja un vale.');
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {
@@ -287,8 +287,8 @@ class ValeCreacionService {
   // El asesor vuelve a mandar a autorización un vale rechazado, ya corregido.
   async reenviarAutorizacion(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
-      if (usuario.rolId !== ROL.ASESOR) {
-        throw new Error('Solo el asesor de ventas puede reenviar un vale a autorización.');
+      if (!puedeActuarComoAsesor(usuario)) {
+        throw new Error('Solo un asesor o un supervisor de ventas puede reenviar un vale a autorización.');
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {

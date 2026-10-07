@@ -81,8 +81,9 @@ INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 (1, 1), (1, 8), (1, 19), (1, 20), (1, 21), (1, 22), (1, 23),
 -- Asesor de Ventas
 (2, 1), (2, 2), (2, 3), (2, 12), (2, 13), (2, 24), (2, 25),
--- Supervisor de Ventas
-(3, 1), (3, 14), (3, 15), (3, 17), (3, 18),
+-- Supervisor de Ventas: además de supervisar, crea y gestiona sus propios vales (2 crear, 12 confirmar,
+-- 13 solicitar modificación, 24 dar de baja, 25 corregir)
+(3, 1), (3, 14), (3, 15), (3, 17), (3, 18), (3, 2), (3, 12), (3, 13), (3, 24), (3, 25),
 -- Encargado de taller de diseño: dueño del taller "Diseño", con fusión (16) y "trabajar" (11)
 (4, 1), (4, 9), (4, 10), (4, 11), (4, 16),
 -- Encargado de taller de diseño 3d: dueño del taller "Diseño UV/3D", sin fusión
