@@ -28,7 +28,8 @@ async function puedeUnirseASala(socket, sala) {
   if (sala === SALA_ADMIN) return esAdministrador(usuario);
   if (sala === SALA_FUSION) return (usuario.permissions || []).includes(PERMISO_FUSION);
   if (usuario.rolId === ROL.ASESOR) return sala === `asesor:${usuario.id}`;
-  if (usuario.rolId === ROL.SUPERVISOR) return sala === `supervisor:${usuario.id}`;
+  // El supervisor también puede crear vales: recibe lo de los suyos en su sala de asesor.
+  if (usuario.rolId === ROL.SUPERVISOR) return sala === `supervisor:${usuario.id}` || sala === `asesor:${usuario.id}`;
   if (usuario.rolId === ROL.DISENADOR) return sala === `disenador:${usuario.id}`;
   if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId) && sala.startsWith('taller:')) {
     const tallerId = Number(sala.slice('taller:'.length));

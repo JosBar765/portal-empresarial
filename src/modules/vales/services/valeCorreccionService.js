@@ -13,7 +13,7 @@ const capacidadEntregaService = require('./capacidadEntregaService');
 const valeCreacionService = require('./valeCreacionService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
-const { ROL, ESTADOS_EDITABLES_ASESOR, enriquecer, requerirVale, esValeDeModificacion } = require('./valeHelpers');
+const { ESTADOS_EDITABLES_ASESOR, enriquecer, requerirVale, esValeDeModificacion, puedeActuarComoAsesor } = require('./valeHelpers');
 
 const MAX_IMAGENES = 10;
 const MAX_DOCUMENTOS = 5;
@@ -29,8 +29,8 @@ class ValeCorreccionService {
       const previo = await idempotencyRepository.buscar(key);
       if (previo) return previo.resultado;
 
-      if (usuario.rolId !== ROL.ASESOR) {
-        throw new Error('Solo el asesor de ventas puede corregir un vale.');
+      if (!puedeActuarComoAsesor(usuario)) {
+        throw new Error('Solo un asesor o un supervisor de ventas puede corregir un vale.');
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {

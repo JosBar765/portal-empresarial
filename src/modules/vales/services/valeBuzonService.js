@@ -340,14 +340,18 @@ class ValeBuzonService {
   async _buzonSupervisor(usuario, todos, ventana, filtroContador) {
     const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
     const vistos = new Set(await valeVistoRepository.listarIdsPorUsuario(usuario.id));
-    const propios = todos.filter(v => misAsesoresIds.has(v.asesor_id)).map(v => ({ ...v, visto: vistos.has(v.id) }));
-    const visibles = propios.filter(v => [
+    // También lista los vales que el propio supervisor creó (`es_propio`), que él mismo autoriza: cuentan en los
+    // contadores como los de su equipo y se ven en todos sus estados activos, como el Buzón de un asesor.
+    const propios = todos.filter(v => misAsesoresIds.has(v.asesor_id) || v.asesor_id === usuario.id)
+      .map(v => ({ ...v, visto: vistos.has(v.id), es_propio: v.asesor_id === usuario.id }));
+    const ESTADOS_A_SUPERVISAR = [
       ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.SOLICITANDO_MODIFICACION, ESTADOS.MODIFICADO, ESTADOS.PENDIENTE_CONFIRMACION
-    ].includes(v.estado));
+    ];
+    const visibles = propios.filter(v => (v.es_propio ? !ESTADOS_TERMINALES.includes(v.estado) : ESTADOS_A_SUPERVISAR.includes(v.estado)));
     const enVentana = visibles.filter(v => dentroDeVentana(v, ventana));
     const contadores = {
-      // "N/M": autorizaciones de creación que hizo hoy el supervisor / asesores a su cargo (el mismo cupo que se valida al autorizar).
-      valesAutorizadosHoy: `${await valeRepository.contarAutorizacionesCreacionPorSupervisorYFecha(usuario.id, hoyISO())}/${misAsesoresIds.size}`,
+      // "N/M": autorizaciones de creación que hizo hoy el supervisor / su cupo diario (el mismo que se valida al autorizar).
+      valesAutorizadosHoy: `${await valeRepository.contarAutorizacionesCreacionPorSupervisorYFecha(usuario.id, hoyISO())}/${await usuarioValeRepository.contarCupoDiario(usuario.id)}`,
       pendientesAutorizacion: enVentana.filter(v => v.estado === ESTADOS.ESPERANDO_AUTORIZACION).length,
       pendientesConfirmarModificacion: enVentana.filter(v => v.estado === ESTADOS.SOLICITANDO_MODIFICACION).length,
       modificados: enVentana.filter(v => v.estado === ESTADOS.MODIFICADO).length,
@@ -377,7 +381,9 @@ class ValeBuzonService {
   // por confirmado_en desc.
   async _trabajoSupervisor(usuario, todos, ventana, filtroContador) {
     const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
-    const propios = todos.filter(v => misAsesoresIds.has(v.asesor_id)).map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v) }));
+    // Incluye los vales que él mismo creó (confirmados por él).
+    const propios = todos.filter(v => misAsesoresIds.has(v.asesor_id) || v.asesor_id === usuario.id)
+      .map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v) }));
 
     const autorizadosPorMi = propios.filter(v => v.autorizado_por === usuario.id && v.autorizado_en && dentroDeVentana(v, ventana));
     const confirmadosDeMisAsesores = propios.filter(v => v.confirmado_en && dentroDeVentana(v, ventana));

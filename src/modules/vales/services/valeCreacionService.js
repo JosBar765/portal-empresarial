@@ -27,7 +27,7 @@ const {
   ESTADOS, hoyISO, horaActual, enriquecer,
   normalizarDatetime, calcularUrgente, registrarHistorial,
   esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, validarMotivoRechazo,
-  esValeDeModificacion, estadoEnAutorizacion
+  esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor
 } = require('./valeHelpers');
 
 class ValeCreacionService {
@@ -50,6 +50,10 @@ class ValeCreacionService {
     const tienda = await catalogoRepository.obtenerTiendaPorId(solicitante.tienda_id);
     if (!tienda) {
       throw new Error('No se encontró la tienda asignada a tu usuario. Avisa al administrador.');
+    }
+    // Un supervisor autoriza también sus propios vales, pero solo si su tienda tiene algún supervisor que la cubra.
+    if (Number(solicitante.rol_id) === ROL.SUPERVISOR && (await usuarioValeRepository.obtenerSupervisoresDeAsesor(usuario.id)).length === 0) {
+      throw new Error('Tu tienda no tiene ningún supervisor que pueda autorizar tus vales, así que no se puede crear. Avisa al administrador.');
     }
     // El prefijo del correlativo es el país de la empresa de la tienda, salvo que la empresa defina uno propio (Trofex: TX).
     if (!tienda.prefijo_pais) {
@@ -262,8 +266,8 @@ class ValeCreacionService {
   // El asesor da de baja un vale propio que aún no fue autorizado (o que fue rechazado): se borra por completo.
   async darDeBaja(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
-      if (usuario.rolId !== ROL.ASESOR) {
-        throw new Error('Solo el asesor de ventas puede dar de baja un vale.');
+      if (!puedeActuarComoAsesor(usuario)) {
+        throw new Error('Solo un asesor o un supervisor de ventas puede dar de baja un vale.');
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {
@@ -287,8 +291,8 @@ class ValeCreacionService {
   // El asesor vuelve a mandar a autorización un vale rechazado, ya corregido.
   async reenviarAutorizacion(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
-      if (usuario.rolId !== ROL.ASESOR) {
-        throw new Error('Solo el asesor de ventas puede reenviar un vale a autorización.');
+      if (!puedeActuarComoAsesor(usuario)) {
+        throw new Error('Solo un asesor o un supervisor de ventas puede reenviar un vale a autorización.');
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {
@@ -320,10 +324,10 @@ class ValeCreacionService {
 
   // El límite diario es COLECTIVO del Supervisor —
   // "vales_autorizados_crear/asesores", ascendente. El denominador es la
-  // cantidad de asesores activos bajo su mando. Administrador no tiene límite.
+  // cantidad de asesores activos bajo su mando, más él mismo si también crea vales.
+  // Cuenta toda autorización de creación, incluida la de sus propios vales. Administrador no tiene límite.
   async obtenerLimiteColectivoSupervisor(supervisorId) {
-    const asesores = await usuarioValeRepository.listarAsesoresPorSupervisor(supervisorId);
-    const limite = asesores.length;
+    const limite = await usuarioValeRepository.contarCupoDiario(supervisorId);
     const autorizados = await valeRepository.contarAutorizacionesCreacionPorSupervisorYFecha(supervisorId, hoyISO());
     return { autorizados, limite };
   }

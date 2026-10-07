@@ -87,6 +87,7 @@ class ValeDetalleService {
     if (esAdministrador(usuario) || usuario.rolId === ROL.GERENTE) return true; // Gerente: solo lectura de todo
     if (usuario.rolId === ROL.ASESOR) return vale.asesor_id === usuario.id;
     if (usuario.rolId === ROL.SUPERVISOR) {
+      if (vale.asesor_id === usuario.id) return true; // un vale que él mismo creó
       const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
       return misAsesoresIds.has(vale.asesor_id);
     }

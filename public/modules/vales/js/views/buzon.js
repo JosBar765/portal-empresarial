@@ -279,8 +279,11 @@ export function renderTabla() {
 }
 
 export function construirAcciones(v) {
+  const esMio = v.asesor_id === state.user.id;
+  // Un supervisor solo actúa como asesor sobre SUS vales: sobre los de su equipo solo autoriza y supervisa.
+  const ajenoDeSupervisor = state.user.rolId === ROL.SUPERVISOR && !esMio;
   // El supervisor abre un modal de elección (Ver info / Ver vale) en vez de ir
-  // directo al PDF — a veces solo necesita los datos de encabezado.
+  // directo al PDF — a veces solo necesita los datos de encabezado. Vale también para los suyos, que él autoriza.
   const acciones = state.user.rolId === ROL.SUPERVISOR
     ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
     : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') }];
@@ -335,19 +338,18 @@ export function construirAcciones(v) {
     acciones.push({ icono: 'checkmark-done-circle-outline', titulo: 'Aprobar y fusionar', clase: 'icon-success', onClick: abrirModalAprobarGeneral });
   }
   // Con una solicitud de modificación en trámite no se puede confirmar el original: se espera su decisión.
-  if (puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite) {
+  if (puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite && !ajenoDeSupervisor) {
     acciones.push({ icono: 'document-text-outline', titulo: 'Confirmar o solicitar modificación', clase: 'icon-success', onClick: abrirModalDecisionAsesor });
   }
   // Un vale MOD- (nacido de una modificación ya aprobada, `vale_original_id`
   // seteado) nunca puede volver a solicitar modificación — solo se permite
   // una por vale (analisis_correcciones_29.md #3).
-  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.vale_original_id && !v.mod_en_tramite) {
+  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.vale_original_id && !v.mod_en_tramite && !ajenoDeSupervisor) {
     acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirModalSolicitarModificacion });
   }
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });
   }
-  const esMio = v.asesor_id === state.user.id;
   if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
     acciones.push({ icono: 'alert-circle-outline', titulo: 'Ver motivo del rechazo', clase: 'icon-danger', onClick: abrirModalMotivoRechazo });
   }

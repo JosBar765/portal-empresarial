@@ -20,7 +20,7 @@ const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
 const {
   ESTADOS, ROL, hoyISO, horaActual, enriquecer, registrarHistorial,
-  esAdministrador, esValeDeModificacion, requerirVale, assertPropioDelAsesor
+  esAdministrador, esValeDeModificacion, requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor
 } = require('./valeHelpers');
 
 const MAX_IMAGENES = 10;
@@ -33,7 +33,7 @@ class ValeModificacionService {
       const previo = await idempotencyRepository.buscar(key);
       if (previo) return previo.resultado;
 
-      if (usuario.rolId !== ROL.ASESOR) throw new Error('Solo el asesor de ventas puede solicitar una modificación.');
+      if (!puedeActuarComoAsesor(usuario)) throw new Error('Solo un asesor o un supervisor de ventas puede solicitar una modificación.');
       const original = await requerirVale(valeId);
       assertPropioDelAsesor(usuario, original);
       if (![ESTADOS.RECIBIDO, ESTADOS.PENDIENTE_CONFIRMACION].includes(original.estado)) {

@@ -355,7 +355,7 @@ cambia quién puede hacer cada acción.
 |---|---|---|
 | Administrador (1) | `vales.ver` (+ `admin.*`) | Ve todo el buzón. **No** tiene permisos de escritura sobre vales: no puede autorizar, asignar, aprobar ni confirmar. |
 | Asesor de Ventas (2) | `ver`, `crear`, `editar`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir` | Crea vales; los corrige o da de baja antes de ser autorizados; confirma el recibido o solicita la modificación. |
-| Supervisor de Ventas (3) | `ver`, `autorizar_creacion`, `aprobar_modificacion`, `supervisar`, `ver_gerencia` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`usuarios.encargado_id`). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
+| Supervisor de Ventas (3) | `ver`, `autorizar_creacion`, `aprobar_modificacion`, `supervisar`, `ver_gerencia`, y para sus propios vales `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`supervisor_tiendas`). También crea y gestiona **sus propios vales** (ver «Vales del supervisor» abajo). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
 | Encargado de Diseño (4) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Dueño del taller "Diseño". Asigna y revisa, puede trabajar vales él mismo, y **fusiona** los vales multi-taller. |
 | Encargado de Diseño UV/3D (5) | `ver`, `asignar`, `revisar`, `trabajar` | Dueño del taller "Diseño UV/3D". Sin fusión. |
 | Diseñador (6) | `ver`, `trabajar` | Comienza, pausa, reanuda, cancela y entrega sus vales. |
@@ -368,6 +368,18 @@ cambia quién puede hacer cada acción.
 > «Técnico»), en pantalla, en la base y en el código: `vale_talleres.disenador_id`,
 > `taller_disenadores`, `ROL.DISENADOR`, las salas `disenador:<id>` y las rutas `/disenadores`.
 > Las cuentas del rol usan correos `disenadorN@…` y la contraseña de desarrollo `disenador123`.
+
+### Vales del supervisor
+
+Todo supervisor de ventas puede crear vales, además de supervisar (p. ej. el de Comercialización). Requisitos y reglas:
+
+- **Datos:** el usuario debe tener una fila en `supervisores` **y** otra en `asesores`; esta última le da la tienda (`asesores.tienda_id`) de la que sale el correlativo y los talleres que puede elegir. Su rol sigue siendo Supervisor (3): los chequeos de servidor aceptan «asesor o supervisor» (`puedeActuarComoAsesor`) y la propiedad del vale decide qué puede tocar como asesor.
+- **Permisos del rol 3** para sus vales: `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja` y `corregir`.
+- **Autoriza también los suyos:** sus vales y sus modificaciones los autoriza o rechaza **él mismo**, o cualquier otro supervisor que cubra su tienda (`supervisor_tiendas`). Rigen las mismas reglas que para un asesor (abrir «Ver» antes de autorizar, rechazo con justificación, vigencia de 24 h…).
+- **Sin supervisor, no se crea:** si ningún supervisor cubre su tienda, no puede crear («Tu tienda no tiene ningún supervisor que pueda autorizar tus vales…»); el vale quedaría sin nadie que lo autorice.
+- **Cupo colectivo:** el tope diario de autorizaciones de un supervisor es el número de asesores a su cargo **más él mismo** si también crea vales (`contarCupoDiario`: 11 asesores + 1 = 12). Toda autorización de creación **cuenta**, incluidas las de sus propios vales y las de vales de otro supervisor que él autorice; al llegar al tope se frena por igual a los suyos y a los de su equipo. Quien tiene tantos vales propios que deja sin cupo a su equipo es decisión suya. Un supervisor que no crea vales (sin fila en `asesores`) no suma ese +1.
+- **Buzón:** el Buzón del supervisor lista, además de lo de su equipo, **sus propios vales en todos sus estados activos** (esperando, rechazado, en talleres, por confirmar…), con el mismo criterio de orden, y cuentan en los contadores como los de su equipo. Sus vales confirmados salen en «Trabajo realizado» y cuentan en su Rendimiento. Sobre sus vales ve además las acciones de asesor (corregir, reenviar, dar de baja, confirmar, modificar); sobre los de su equipo, solo las de supervisión.
+- **Tiempo real:** recibe lo de sus vales en la sala `asesor:<su id>` además de `supervisor:<su id>`.
 
 ### Quién fusiona
 
@@ -426,6 +438,8 @@ Desde/Hasta; con un rango el mes se desactiva) y paginación por cursor de 50 en
 |---|---|---|
 | **Cupo colectivo diario del Supervisor** = nº de asesores activos bajo su mando; cuenta las autorizaciones de **creación** que hizo hoy | Al **autorizar** (no al crear) | Al llegar al límite no puede autorizar más ese día. Al Administrador no le aplica. Crear un vale nunca se bloquea ni se pospone por esto. Leer el cupo y sellar la autorización van en el mismo turno de la cola del supervisor, así que dos autorizaciones simultáneas no pueden pasarlo. La tarjeta "Autorizados hoy (equipo)" (N/M) la calcula el servidor con este mismo conteo. |
 | **Cupo diario por taller** (`talleres.limite_diario`, opcional; NULL = sin límite; hoy Diseño y Diseño UV/3D = 15, Protextil = 8, Diseño Local sin límite), sobre la fecha de **entrega** (no la de evento) | Al **crear**, al **solicitar** la modificación y al **aprobar** la modificación | Bloquea con un mensaje amigable ("el taller X ya no tiene cupo para el día…"). Las verificaciones + inserción son atómicas entre asesores (`conColaDeCapacidad`). El calendario del frontend solo lo anticipa. |
+| **Cupo colectivo diario del Supervisor** = nº de asesores activos bajo su mando, **más él mismo** si también crea vales (p. ej. 11 asesores + 1 = 12); cuenta las autorizaciones de **creación** que hizo hoy | Al **autorizar** (no al crear) | Al llegar al límite no puede autorizar más ese día. Al Administrador no le aplica. Crear un vale nunca se bloquea ni se pospone por esto. Leer el cupo y sellar la autorización van en el mismo turno de la cola del supervisor, así que dos autorizaciones simultáneas no pueden pasarlo. La tarjeta "Autorizados hoy (equipo)" (N/M) la calcula el servidor con este mismo conteo. |
+| **Cupo diario por taller** (`talleres.limite_diario`, opcional; NULL = sin límite), sobre la fecha de **entrega** (no la de evento) | Al **crear**, al **solicitar** la modificación y al **aprobar** la modificación | Bloquea con un mensaje amigable ("el taller X ya no tiene cupo para el día…"). Las verificaciones + inserción son atómicas entre asesores (`conColaDeCapacidad`). El calendario del frontend solo lo anticipa. |
 | Un diseñador = un vale `EN_PROCESO` | `comenzar` y `reanudar` (en la cola del diseñador: dos acciones simultáneas no lo superan) | Debe entregar, cancelar o pausar el actual antes. |
 | Una sola modificación por vale | `solicitarModificacion` | Ver §1.1. |
 | Adjuntos | `routes.js` | Máx. 5 MB por archivo (imágenes, PDF, propuesta y fusión); JPEG/PNG/WebP/PDF; hasta 10 imágenes y 5 documentos al crear. Un tipo no permitido se **rechaza** con un 400 (no se descarta en silencio). |
