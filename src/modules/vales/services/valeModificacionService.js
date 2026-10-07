@@ -19,7 +19,7 @@ const valeVistoService = require('./valeVistoService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
 const {
-  ESTADOS, ROL, hoyISO, horaActual, enriquecer, registrarHistorial,
+  ESTADOS, ROL, hoyISO, horaActual, vencimiento24h, enriquecer, registrarHistorial,
   esAdministrador, esValeDeModificacion, requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor
 } = require('./valeHelpers');
 
@@ -83,7 +83,7 @@ class ValeModificacionService {
         subidos.push(pdf.url);
         modId = await valeModificacionRepository.crear({
           original, datos, correlativo, fechaCreacion: fecha, horaCreacion: hora, pdfUrl: pdf.url,
-          documentos, usuarioId: usuario.id, talleresIds
+          documentos, usuarioId: usuario.id, talleresIds, vigenciaHasta: vencimiento24h()
         });
       } catch (error) {
         await valeCorreccionService._borrarDeStorage(subidos);

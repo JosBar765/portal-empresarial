@@ -24,7 +24,7 @@ const valeMutex = require('./valeMutex');
 const valeVistoService = require('./valeVistoService');
 const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
-  ESTADOS, hoyISO, horaActual, esDomingoHoy, esFechaDomingo, fechaMinimaEntrega, enriquecer,
+  ESTADOS, hoyISO, horaActual, esDomingoHoy, esFechaDomingo, fechaMinimaEntrega, vencimiento24h, enriquecer,
   normalizarDatetime, calcularUrgente, registrarHistorial,
   esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
   esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor
@@ -127,7 +127,7 @@ class ValeCreacionService {
           descripcion: datos.descripcion,
           talleresSolicitados: datos.talleresIds.join(','),
           estado: ESTADOS.ESPERANDO_AUTORIZACION,
-          conVigencia: true
+          vigenciaHasta: vencimiento24h()
         });
       });
     });

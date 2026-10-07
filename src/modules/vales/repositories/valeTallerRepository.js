@@ -62,14 +62,14 @@ class ValeTallerRepository {
   }
 
   // Rechazo de adjuntos: el plazo de 24 h se fija solo la primera vez (COALESCE) y el aviso se limpia solo entonces.
-  async rechazarAdjuntos(id) {
+  async rechazarAdjuntos(id, venceEn) {
     await db.query(
       `UPDATE vale_talleres SET estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ADJUNTOS_RECHAZADOS'),
          adjuntos_aviso_en = IF(adjuntos_vence_en IS NULL, NULL, adjuntos_aviso_en),
-         adjuntos_vence_en = COALESCE(adjuntos_vence_en, DATE_ADD(NOW(), INTERVAL 24 HOUR)),
+         adjuntos_vence_en = COALESCE(adjuntos_vence_en, ?),
          adjuntos_mensaje = NULL, adjuntos_respondido_en = NULL
        WHERE id = ?`,
-      [id],
+      [venceEn, id],
       'vale_taller:rechazar_adjuntos'
     );
   }
