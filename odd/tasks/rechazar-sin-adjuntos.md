@@ -26,7 +26,7 @@ El encargado de taller verifica que recibió por correo los adjuntos (vectores, 
 
 ## Tareas
 - [x] T1 · Esquema y permiso: 4 columnas `adjuntos_*` en `vale_talleres`, 3 estados nuevos en `estados_taller` (7–9), permiso `vales.verificar_adjuntos` (id 26) y `rol_permisos` 4/5/7/9 en `seed.sql`; aplicado a la BD de desarrollo y verificado por consulta. Ruta: inline (edición mecánica de SQL). El rol 10 (encargado de diseño local) también recibe el permiso.
-- [ ] T2 · Backend del flujo: inicializar en `fanOutTalleres`; servicios verificar / rechazar / responder; bloquear `asignar` hasta `VERIFICADO`; rutas con el permiso nuevo.
+- [x] T2 · Backend del flujo: inicializar en `fanOutTalleres`; servicios verificar / rechazar / responder; bloquear `asignar` hasta `VERIFICADO`; rutas con el permiso nuevo. Ruta: escritor delegado (varios archivos). Verificado: 41/41 checks contra el servidor de desarrollo (script propio); no se probaron por HTTP las acciones del supervisor ni los actores admin y asistente.
 - [ ] T3 · Dar de baja ampliado: permitir con adjuntos pendientes, avisar a talleres trabajando y borrar el vale.
 - [ ] T4 · Watcher de plazo: aviso a 6 h y vencimiento a 24 h (quitar taller o borrar vale; `MOD-` deja el original).
 - [ ] T5 · Buzón y notificaciones: etiquetas y contadores para encargado, asesor y supervisor; eventos y avisos nuevos.

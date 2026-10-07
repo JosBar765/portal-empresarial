@@ -17,7 +17,7 @@ const SELECT_VALE_TALLER = `
 class ValeTallerRepository {
   async crear(valeId, tallerId) {
     const result = await db.query(
-      "INSERT INTO vale_talleres (vale_id, taller_id, estado_id, activo) VALUES (?, ?, (SELECT id FROM estados_taller WHERE nombre = 'PENDIENTE_ASIGNACION'), 1)",
+      "INSERT INTO vale_talleres (vale_id, taller_id, estado_id, activo) VALUES (?, ?, (SELECT id FROM estados_taller WHERE nombre = 'VERIFICANDO_ADJUNTOS'), 1)",
       [valeId, tallerId],
       'vale_taller:insert'
     );
@@ -58,6 +58,29 @@ class ValeTallerRepository {
       'UPDATE vale_talleres SET estado_id = (SELECT id FROM estados_taller WHERE nombre = ?) WHERE id = ?',
       [estado, id],
       'vale_taller:update_estado'
+    );
+  }
+
+  // Rechazo de adjuntos: el plazo de 24 h se fija solo la primera vez (COALESCE) y el aviso se limpia solo entonces.
+  async rechazarAdjuntos(id) {
+    await db.query(
+      `UPDATE vale_talleres SET estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ADJUNTOS_RECHAZADOS'),
+         adjuntos_aviso_en = IF(adjuntos_vence_en IS NULL, NULL, adjuntos_aviso_en),
+         adjuntos_vence_en = COALESCE(adjuntos_vence_en, DATE_ADD(NOW(), INTERVAL 24 HOUR)),
+         adjuntos_mensaje = NULL, adjuntos_respondido_en = NULL
+       WHERE id = ?`,
+      [id],
+      'vale_taller:rechazar_adjuntos'
+    );
+  }
+
+  async responderAdjuntos(id, mensaje) {
+    await db.query(
+      `UPDATE vale_talleres SET estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ADJUNTOS_RESPONDIDOS'),
+         adjuntos_mensaje = ?, adjuntos_respondido_en = NOW()
+       WHERE id = ?`,
+      [mensaje, id],
+      'vale_taller:responder_adjuntos'
     );
   }
 }

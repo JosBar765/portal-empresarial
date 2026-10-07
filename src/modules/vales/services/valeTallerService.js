@@ -50,6 +50,9 @@ class ValeTallerService {
     return valeMutex.conLockDeVale(valeId, async () => {
       await requerirVale(valeId);
       const fila = await this._resolverFilaTallerParaEncargado(usuario, valeId, tallerIdHint);
+      if ([ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS].includes(fila.estado)) {
+        throw new Error('Primero verifica los adjuntos de este vale.');
+      }
       if (fila.estado !== ESTADOS_TALLER.PENDIENTE_ASIGNACION) {
         throw new Error('Este vale ya tiene un diseñador asignado en tu taller.');
       }
