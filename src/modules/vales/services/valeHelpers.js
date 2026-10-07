@@ -94,6 +94,23 @@ function horaActual() {
   return ahoraUTC6().toISOString().slice(11, 19);
 }
 
+function esDomingoHoy() {
+  return ahoraUTC6().getUTCDay() === 0;
+}
+
+function esFechaDomingo(iso) {
+  return new Date(`${String(iso).slice(0, 10)}T00:00:00Z`).getUTCDay() === 0;
+}
+
+// Hoy si son antes de las 12:00 (UTC-6), si no mañana; nunca domingo.
+function fechaMinimaEntrega() {
+  const ahora = ahoraUTC6();
+  const base = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate()));
+  if (ahora.getUTCHours() >= 12) base.setUTCDate(base.getUTCDate() + 1);
+  if (base.getUTCDay() === 0) base.setUTCDate(base.getUTCDate() + 1);
+  return base.toISOString().slice(0, 10);
+}
+
 function calcularAtraso(vale) {
   const congelamiento = vale.atraso_congelado_en
     || (ESTADOS_TERMINALES.includes(vale.estado) ? vale.actualizado_en : null);
@@ -255,7 +272,7 @@ module.exports = {
   ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistenteDeDiseno,
-  hoyISO, horaActual, calcularAtraso, enriquecer,
+  hoyISO, horaActual, esDomingoHoy, esFechaDomingo, fechaMinimaEntrega, calcularAtraso, enriquecer,
   esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
   normalizarDatetime, calcularUrgente, registrarHistorial,
