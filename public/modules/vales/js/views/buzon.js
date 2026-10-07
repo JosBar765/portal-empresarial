@@ -373,7 +373,7 @@ export function construirAcciones(v) {
   if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
     acciones.push({ icono: 'send-outline', titulo: 'Reenviar a autorización', clase: 'icon-success', onClick: accionReenviar });
   }
-  acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
+  if (puede('verHistorial')) acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
   if (puede('darDeBaja') && (['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) || (v.adjuntos || []).length) && esMio) {
     acciones.push({ icono: 'ban-outline', titulo: 'Dar de baja', clase: 'icon-danger', onClick: abrirModalDarDeBaja });
   }

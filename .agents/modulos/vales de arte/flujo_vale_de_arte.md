@@ -400,6 +400,10 @@ cambia quién puede hacer cada acción.
 > `taller_disenadores`, `ROL.DISENADOR`, las salas `disenador:<id>` y las rutas `/disenadores`.
 > Las cuentas del rol usan correos `disenadorN@…` y la contraseña de desarrollo `disenador123`.
 
+### Historial del vale
+
+La acción «Ver historial» y el contenido del historial dependen del permiso `vales.ver_historial`, que hoy tiene **solo el Administrador** (rol 1). Sin el permiso la acción no se muestra (Buzón, Encontrar vale y Rendimiento) y además el servidor devuelve el historial vacío en el detalle del vale (`GET /api/vales/:id`). Con el permiso, cada rol sigue viendo las categorías que le corresponden (`_filtrarHistorialPorRol`). Se asigna a otros roles desde el seed o desde el panel de administración.
+
 ### Vales del supervisor
 
 Todo supervisor de ventas puede crear vales, además de supervisar (p. ej. el de Comercialización). Requisitos y reglas:
