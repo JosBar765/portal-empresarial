@@ -30,7 +30,7 @@ El encargado de taller verifica que recibió por correo los adjuntos (vectores, 
 - [x] T3 · Dar de baja ampliado: permitir con adjuntos pendientes, avisar a talleres trabajando y borrar el vale. Ruta: escritor delegado. Verificado: 26/26 checks (script propio); el cupo del supervisor se libera al borrar; la entrega de sockets y el tope por taller no se probaron en vivo.
 - [x] T4 · Watcher de plazo: aviso al asesor 6 h antes y, a las 24 h del primer rechazo sin responder, borrado del vale completo (`MOD-` deja el original). Ruta: escritor delegado. Verificado: 32/32 checks en proceso simulando el tiempo con la BD (aviso único, borrado completo, no borra si ya respondió, MOD-, cupo); la entrega por sockets no se probó en vivo.
 - [x] T5 · Buzón y notificaciones: etiquetas y contadores para encargado, asesor y supervisor; eventos y avisos nuevos. (datos de backend; la UI es T6). Ruta: escritor delegado. Verificado: 26/26 checks (script propio). Pendiente de decisión: qué vales de su equipo ve el supervisor con adjuntos pendientes.
-- [ ] T6 · Frontend: acciones del encargado (verificar / rechazar), modal de respuesta del asesor, etiquetas, avisos.
+- [x] T6 · Frontend: acciones del encargado (verificar / rechazar), modal de respuesta del asesor, etiquetas, avisos. Ruta: escritor delegado. Verificado en el navegador (asesor y encargado de UV/3D): semáforo rojo con "Faltan adjuntos", modal de respuesta prellenado, fila que se actualiza sola, verificar deja el vale en "Por asignar", sin errores de consola. No se probó la vista del supervisor ni "Rechazar" del encargado.
 - [ ] T7 · Documentación (`flujo_vale_de_arte.md`, `CLAUDE.md`) y verificación de punta a punta.
 
 ## Verificación y evidencia

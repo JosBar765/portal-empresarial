@@ -27,6 +27,15 @@ export function formatearFechaHora(valor) {
   return `${d}/${m}/${y}${hm ? ' ' + hm : ''}`;
 }
 
+// "5 h 20 min" hasta un datetime del servidor; null si ya pasó o no hay fecha.
+export function tiempoRestante(valor) {
+  if (!valor) return null;
+  const ms = new Date(String(valor).replace(' ', 'T')) - Date.now();
+  if (!(ms > 0)) return null;
+  const min = Math.ceil(ms / 60000);
+  return min >= 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min} min`;
+}
+
 export function formatearTamano(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;

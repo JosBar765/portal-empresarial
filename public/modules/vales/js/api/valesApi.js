@@ -162,6 +162,18 @@ export function darDeBajaVale(valeId) {
   return enviarPost(`/api/vales/${valeId}/dar-de-baja`);
 }
 
+export function verificarAdjuntos(valeId) {
+  return enviarJSON(`/api/vales/${valeId}/verificar-adjuntos`, {});
+}
+
+export function rechazarAdjuntos(valeId) {
+  return enviarJSON(`/api/vales/${valeId}/rechazar-adjuntos`, {});
+}
+
+export function responderAdjuntos(valeId, tallerId, mensaje) {
+  return enviarJSON(`/api/vales/${valeId}/responder-adjuntos`, { tallerId, mensaje });
+}
+
 export function corregirVale(valeId, formData) {
   return enviarFormData(`/api/vales/${valeId}/corregir`, formData);
 }
