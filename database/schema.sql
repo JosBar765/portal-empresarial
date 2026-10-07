@@ -332,7 +332,8 @@ CREATE TABLE IF NOT EXISTS `vale_historial` (
   FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   FOREIGN KEY (`taller_id`)  REFERENCES `talleres` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   FOREIGN KEY (`disenador_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  INDEX `idx_historial_vale` (`vale_id`)
+  INDEX `idx_historial_vale` (`vale_id`),
+  INDEX `idx_historial_creado` (`creado_en`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `mantenimiento_config` (

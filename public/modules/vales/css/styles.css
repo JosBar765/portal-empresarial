@@ -2,6 +2,7 @@
 @import url('/css/dashboard.css');
 @import url('/modules/vales/css/rendimiento.css');
 @import url('/modules/vales/css/encontrar-vale.css');
+@import url('/modules/vales/css/reportes.css');
 
 .header-back {
   color: var(--color-text-secondary);
@@ -330,9 +331,6 @@
   border-color: var(--color-primary);
 }
 
-.mes-nav.is-desactivado {
-  opacity: 0.45;
-}
 
 .mes-nav button {
   display: flex;
@@ -363,9 +361,32 @@
 }
 
 .mes-nav-etiqueta {
+  gap: 6px;
   min-width: 130px;
-  padding: 0 8px;
+  padding: 0 10px;
   height: 30px;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.mes-nav-etiqueta:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-primary);
+}
+
+.mes-nav-etiqueta ion-icon {
+  font-size: 14px;
+  transition: transform var(--transition-fast);
+}
+
+.mes-nav-etiqueta[aria-expanded="true"] ion-icon {
+  transform: rotate(180deg);
+}
+
+.mes-nav-etiqueta:focus-visible,
+.mes-nav-flecha:focus-visible,
+.chip:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .ventana-rango {
@@ -476,6 +497,19 @@
   line-height: 1.25;
   color: var(--color-text-secondary);
   font-weight: 500;
+}
+
+/* Etiqueta de dos líneas: el paso y, más pequeño y gris, quién tiene que actuar. */
+.contador-card .etiqueta-texto,
+.contador-card .etiqueta-quien {
+  display: block;
+}
+
+.contador-card .etiqueta-quien {
+  margin-top: 1px;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--color-text-muted);
 }
 
 /* Filtro de tienda del Gerente (analisis_correcciones_7.md, Vista Gerencia) —
@@ -1362,6 +1396,83 @@
 .dp-nav:hover {
   background: var(--color-surface-muted);
   color: var(--color-primary);
+}
+
+/* Selector de período de la barra: título del mes pulsable, cuadrícula de meses y atajo «Todo el mes». */
+.dp-titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.dp-titulo:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-primary);
+}
+
+.dp-titulo ion-icon { font-size: 14px; }
+
+.dp-meses {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.dp-mes {
+  padding: 12px 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.dp-mes:hover { background: var(--color-surface-muted); }
+.dp-mes.is-actual { color: var(--color-primary); font-weight: 700; }
+.dp-mes.is-selected { background: var(--color-primary); color: #fff; font-weight: 700; }
+
+.dp-pie {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.dp-accion {
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.dp-accion:hover { background: var(--color-primary-light); }
+
+.dp-nav:focus-visible,
+.dp-titulo:focus-visible,
+.dp-day:focus-visible,
+.dp-mes:focus-visible,
+.dp-accion:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
 }
 
 .dp-weekdays {

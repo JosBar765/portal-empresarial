@@ -17,4 +17,4 @@ export const ROLES_TALLER_Y_DISENADOR = [...ROLES_ENCARGADO_TALLER, ROL.DISENADO
 
 // Roles con sidebar Buzón / Trabajo realizado (el Gerente reusa el mismo
 // sidebar con su propio par Rendimiento/Encontrar vale — ver layout/sidebar.js).
-export const ROLES_CON_SIDEBAR = [ROL.ASESOR, ROL.SUPERVISOR, ...ROLES_TALLER_Y_DISENADOR, ROL.GERENTE];
+export const ROLES_CON_SIDEBAR = [ROL.ADMINISTRADOR, ROL.ASESOR, ROL.SUPERVISOR, ...ROLES_TALLER_Y_DISENADOR, ROL.GERENTE];

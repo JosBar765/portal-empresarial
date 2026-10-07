@@ -32,14 +32,3 @@ export const ESTADOS_VISIBLES_LABEL = {
   CONFIRMADO: 'Confirmado',
   RECHAZADO: 'Rechazado'
 };
-
-// Subconjuntos usados solo para poblar las opciones del desplegable "Todos los
-// estados" del buzón — reflejan exactamente qué rama de `estadoActivo()`
-// aplica a cada rol, para no ofrecer una opción que nunca puede matchear nada.
-export const CLAVES_ESTADOS_TALLER = ['PENDIENTE_ASIGNACION', 'ASIGNADO', 'EN_PROCESO', 'EN_PAUSA', 'EN_REVISION', 'APROBADO'];
-export const CLAVES_ESTADOS_GENERAL = ['ESPERANDO_AUTORIZACION', 'CREADO', 'APROBADO_DEPARTAMENTO', 'PENDIENTE_CONFIRMACION', 'RECIBIDO', 'SOLICITANDO_MODIFICACION', 'MODIFICADO', 'CONFIRMADO', 'RECHAZADO'];
-// El diseñador nunca ve PENDIENTE_ASIGNACION (un vale sin asignar no está en su
-// buzón) ni APROBADO en el Buzón (se muda a Trabajo realizado) — se separan
-// por vista en poblarFiltroEstado.
-export const CLAVES_ESTADOS_DISENADOR_BUZON = ['ASIGNADO', 'EN_PROCESO', 'EN_PAUSA', 'EN_REVISION'];
-export const CLAVES_ESTADOS_DISENADOR_TRABAJO = ['APROBADO'];

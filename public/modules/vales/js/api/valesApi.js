@@ -85,6 +85,25 @@ export async function obtenerRendimientoGerencia(qs) {
   return leerJSON(res);
 }
 
+export async function obtenerReporte(qs) {
+  const res = await fetch(`/api/vales/reportes?${qs.toString()}`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar el reporte.');
+  return data;
+}
+
+// Descarga el PDF del reporte con los mismos filtros; devuelve { blob, nombre }.
+export async function descargarReportePdf(qs) {
+  const res = await fetch(`/api/vales/reportes/pdf?${qs.toString()}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'No se pudo generar el PDF.');
+  }
+  const disposicion = res.headers.get('Content-Disposition') || '';
+  const nombre = (/filename="([^"]+)"/.exec(disposicion) || [])[1] || 'reporte-vales.pdf';
+  return { blob: await res.blob(), nombre };
+}
+
 export async function obtenerDisenadoresAsignables() {
   const res = await fetch('/api/vales/disenadores');
   return leerJSON(res);

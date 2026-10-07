@@ -78,6 +78,11 @@
       <ion-icon name="analytics-outline"></ion-icon>
       <span>Rendimiento</span>
     </button>
+    <!-- Reportes de actividad: lo ven los roles con el permiso vales.ver_reportes (se muestra desde sidebar.js). -->
+    <button class="sidebar-item" id="sidebar-item-reportes" data-vista="reportes" style="display:none;">
+      <ion-icon name="stats-chart-outline"></ion-icon>
+      <span>Reportes</span>
+    </button>
     <button class="sidebar-collapse-toggle" id="sidebar-collapse-toggle" type="button" title="Colapsar menú">
       <ion-icon name="chevron-back-outline"></ion-icon>
       <span>Colapsar</span>
@@ -93,10 +98,11 @@
         <section class="vales-toolbar">
           <div class="ventana-selector" id="ventana-selector">
             <button data-ventana="todo" class="chip">Todo</button>
+            <button data-ventana="hoy" class="chip">Hoy</button>
             <div class="mes-nav" id="mes-nav">
-              <button type="button" class="mes-nav-flecha" id="mes-prev" title="Mes anterior" aria-label="Mes anterior"><ion-icon name="chevron-back-outline"></ion-icon></button>
-              <button type="button" class="mes-nav-etiqueta" id="mes-etiqueta" title="Volver al mes actual"></button>
-              <button type="button" class="mes-nav-flecha" id="mes-next" title="Mes siguiente" aria-label="Mes siguiente"><ion-icon name="chevron-forward-outline"></ion-icon></button>
+              <button type="button" class="mes-nav-flecha" id="mes-prev" title="Anterior" aria-label="Anterior"><ion-icon name="chevron-back-outline"></ion-icon></button>
+              <button type="button" class="mes-nav-etiqueta" id="mes-etiqueta" title="Elegir mes o día" aria-haspopup="dialog" aria-expanded="false"><span id="mes-etiqueta-texto"></span><ion-icon name="chevron-down-outline" aria-hidden="true"></ion-icon></button>
+              <button type="button" class="mes-nav-flecha" id="mes-next" title="Siguiente" aria-label="Siguiente"><ion-icon name="chevron-forward-outline"></ion-icon></button>
             </div>
             <div class="ventana-rango" id="ventana-rango"></div>
           </div>
@@ -118,6 +124,9 @@
              buzon-section mientras state.vista === 'rendimiento'. -->
         <section class="rendimiento-gerencia" id="rendimiento-gerencia" style="display:none;"></section>
 
+        <!-- Reportes de actividad (según el rol) — reemplaza al buzón mientras state.vista === 'reportes'. -->
+        <section class="rendimiento-gerencia reportes-vista" id="reportes-vista" style="display:none;"></section>
+
         <!-- Encontrar vale (solo Gerente) — buscador por correlativo que
              reemplaza al buzón mientras state.vista === 'encontrar'. -->
         <section class="encontrar-vale" id="encontrar-vale" style="display:none;"></section>
@@ -127,8 +136,8 @@
             <h2 id="buzon-titulo">Buzón de Vales de Arte</h2>
             <div class="buzon-filtros">
               <input type="text" id="filtro-texto" placeholder="Buscar por correlativo o cliente..." />
-              <select id="filtro-estado">
-                <option value="">Todos los estados</option>
+              <select id="filtro-disenador" aria-label="Filtrar por diseñador" style="display:none;">
+                <option value="">Todos los diseñadores</option>
               </select>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { state } from '../state.js';
 import { ROL } from '../config/roles.js';
 import { $, $$ } from '../utils/dom.js';
 import { celdaEstado } from '../components/pipeline.js';
+import { aplicarVentanaAQuery } from '../utils/ventana.js';
 import { escapeHtml, formatearFecha, celdaTaller } from '../utils/formato.js';
 import { obtenerRendimientoGerencia } from '../api/valesApi.js';
 import { abrirModalHistorial } from '../actions/historial.js';
@@ -25,12 +26,7 @@ const vistaTabla = { tendencia: false, ciclo: false, encurso: false };
 
 function construirQuery() {
   const qs = new URLSearchParams();
-  if (state.ventana.tipo) qs.set('ventana', state.ventana.tipo);
-  if (state.ventana.tipo === 'mes') qs.set('fecha', state.ventana.fecha);
-  if (state.ventana.tipo === 'rango') {
-    if (state.ventana.desde) qs.set('desde', state.ventana.desde);
-    if (state.ventana.hasta) qs.set('hasta', state.ventana.hasta);
-  }
+  aplicarVentanaAQuery(qs);
   if (state.tiendaId) qs.set('tiendaId', state.tiendaId);
   return qs;
 }

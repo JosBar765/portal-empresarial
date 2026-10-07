@@ -119,8 +119,9 @@ class ValeController {
         filtroContador: req.query.filtroContador,
         busqueda: req.query.busqueda,
         soloAtrasados: req.query.soloAtrasados,
+        soloModificados: req.query.soloModificados,
+        disenadorId: req.query.disenadorId,
         tiendaId: req.query.tiendaId,
-        estado: req.query.estado,
         sortKey: req.query.sortKey,
         sortDir: req.query.sortDir
       };
@@ -133,6 +134,43 @@ class ValeController {
 
   // Vista Rendimiento (Gerente y Supervisor): KPIs, tendencia, ciclo por
   // etapa, ranking por taller/tienda y vales críticos. Solo lectura.
+  _filtrosReporte(req) {
+    return {
+      ventana: req.query.ventana,
+      fecha: req.query.fecha,
+      desde: req.query.desde,
+      hasta: req.query.hasta,
+      tiendaId: req.query.tiendaId,
+      tallerId: req.query.tallerId,
+      personaIds: req.query.personaIds
+    };
+  }
+
+  async reportes(req, res) {
+    try {
+      return res.json(await valeService.obtenerReporte(req.user, this._filtrosReporte(req)));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async reportePdf(req, res) {
+    try {
+      const { reporte, pdf } = await valeService.generarReportePdf(req.user, this._filtrosReporte(req));
+      const fecha = reporte.periodo.desde && reporte.periodo.desde === reporte.periodo.hasta ? reporte.periodo.desde : (reporte.periodo.desde || 'historial');
+      const quien = reporte.evaluados.length === 1
+        ? reporte.evaluados[0].nombre.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
+        : (reporte.evaluados.length > 1 ? `${reporte.evaluados.length}-personas` : '');
+      const sufijo = quien ? `${fecha}-${quien}` : fecha;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="reporte-vales-${sufijo}.pdf"`);
+      res.setHeader('Content-Length', pdf.length);
+      return res.end(pdf);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async rendimientoGerencia(req, res) {
     try {
       const filtros = {

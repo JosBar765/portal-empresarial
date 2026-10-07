@@ -1,0 +1,161 @@
+/* public/modules/vales/css/reportes.css — pestaña Reportes. Reusa las tarjetas, paneles, tablas y gráfica de
+   rendimiento.css; aquí solo lo propio: acciones de la cabecera, rejilla de indicadores y filas enfocables. */
+.rep-acciones {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.rep-controles {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Con más indicadores que Rendimiento (hasta 12), una rejilla que se adapta al ancho. */
+.rep-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.reportes-vista .rend-kpi-valor { font-size: 1.75rem; }
+.reportes-vista .rend-kpi-pie { min-height: 0; padding-top: 8px; }
+
+.rep-fila-enfocable { cursor: pointer; }
+.rep-fila-enfocable:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.rep-nota {
+  margin-top: 12px;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 640px) {
+  .rep-acciones { justify-content: flex-start; width: 100%; }
+  .rep-kpis { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+}
+
+/* Selector de personas a evaluar (una o varias) */
+.rep-selector { position: relative; }
+.rep-selector-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 260px;
+  text-align: left;
+}
+.rep-selector-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rep-selector-btn.is-activo { border-color: var(--color-primary); color: var(--color-primary-dark); font-weight: 600; }
+
+.rep-selector-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  width: min(320px, 86vw);
+  padding: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+.rep-selector-panel[hidden] { display: none; }
+
+.rep-selector-buscar {
+  width: 100%;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.rep-selector-buscar:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.rep-selector-acciones { display: flex; justify-content: space-between; margin: 8px 2px 4px; }
+
+.rep-link {
+  padding: 2px 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.rep-link:hover { text-decoration: underline; }
+.rep-link:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: var(--radius-xs); }
+
+.rep-selector-lista { max-height: 220px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.rep-selector-lista li[hidden] { display: none; }
+.rep-selector-lista label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  font-size: 13px;
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.rep-selector-lista label:hover { background: var(--color-bg, #f8fafc); }
+.rep-selector-lista input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--color-primary-dark); cursor: pointer; }
+
+.rep-selector-vacio { margin: 8px 4px; font-size: 12px; color: var(--color-text-secondary); }
+
+.rep-selector-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  border-top: 1px solid var(--color-border);
+}
+.rep-selector-botones { display: inline-flex; gap: 6px; }
+
+/* Fichas de las personas evaluadas */
+.rep-fichas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 16px; }
+.rep-fichas[hidden] { display: none; }
+.rep-fichas-rotulo { font-size: 12px; color: var(--color-text-secondary); }
+.rep-ficha {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  background: rgba(var(--color-primary-rgb), 0.1);
+  border-radius: var(--radius-full);
+}
+.rep-ficha button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+.rep-ficha button:hover { background: rgba(var(--color-primary-rgb), 0.2); }
+.rep-ficha button:focus-visible { outline: 2px solid var(--color-primary); }
