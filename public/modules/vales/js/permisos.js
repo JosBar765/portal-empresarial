@@ -10,19 +10,20 @@ export function puede(accion) {
   const r = state.user.rolId;
   const admin = r === ROL.ADMINISTRADOR;
   switch (accion) {
-    case 'crear': return admin || r === ROL.ASESOR;
+    // El supervisor también crea y gestiona sus propios vales (si su rol tiene el permiso).
+    case 'crear': return admin || r === ROL.ASESOR || (r === ROL.SUPERVISOR && tienePermiso('vales.crear'));
     case 'asignar': return admin || ROLES_ENCARGADO_TALLER.includes(r);
     case 'revisar': return admin || ROLES_ENCARGADO_TALLER.includes(r);
     // Un encargado de taller también puede trabajar un vale — pero SOLO si se
     // lo autoasignó (ver esAccionDeTrabajoVisible).
     case 'trabajar': return admin || ROLES_TALLER_Y_DISENADOR.includes(r);
-    case 'confirmar': return admin || r === ROL.ASESOR;
-    case 'solicitarModificacion': return admin || r === ROL.ASESOR;
+    case 'confirmar': return admin || r === ROL.ASESOR || (r === ROL.SUPERVISOR && tienePermiso('vales.confirmar'));
+    case 'solicitarModificacion': return admin || r === ROL.ASESOR || (r === ROL.SUPERVISOR && tienePermiso('vales.solicitar_modificacion'));
     case 'aprobarModificacion': return admin || r === ROL.SUPERVISOR;
     case 'autorizarCreacion': return admin || r === ROL.SUPERVISOR;
     // La fusión depende del permiso, no del rol.
-    case 'corregir': return r === ROL.ASESOR && tienePermiso('vales.corregir');
-    case 'darDeBaja': return r === ROL.ASESOR && tienePermiso('vales.dar_de_baja');
+    case 'corregir': return (r === ROL.ASESOR || r === ROL.SUPERVISOR) && tienePermiso('vales.corregir');
+    case 'darDeBaja': return (r === ROL.ASESOR || r === ROL.SUPERVISOR) && tienePermiso('vales.dar_de_baja');
     case 'aprobarGeneral': return admin || tienePermiso('vales.aprobar_general');
     default: return false;
   }
@@ -76,7 +77,8 @@ function salasPorRol(user) {
   switch (user.rolId) {
     case ROL.ADMINISTRADOR: return ['vales:admin'];
     case ROL.ASESOR: return [`asesor:${user.id}`];
-    case ROL.SUPERVISOR: return [`supervisor:${user.id}`];
+    // Además de su sala de supervisor, recibe lo de sus propios vales (sala de asesor).
+    case ROL.SUPERVISOR: return [`supervisor:${user.id}`, `asesor:${user.id}`];
     case ROL.ENCARGADO_DISENO:
     case ROL.ENCARGADO_UV3D:
     case ROL.ASISTENTE_DISENO: // se une a la sala del taller "Diseño"

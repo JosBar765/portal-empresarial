@@ -222,6 +222,7 @@ class ValeRendimientoService {
     let todos = (await valeRepository.listarTodos()).map(enriquecer);
     if (usuario.rolId === ROL.SUPERVISOR) {
       const asesorIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
+      asesorIds.add(usuario.id); // también sus propios vales
       todos = todos.filter(v => asesorIds.has(v.asesor_id));
     }
     todos = await valeBuzonService._enriquecerConTaller(todos);
