@@ -95,19 +95,19 @@ INSERT INTO `usuarios` (`id`, `nombre`, `email`, `password_hash`, `rol_id`) VALU
 (95, 'Francisco Zamora', 'ventas1cr@grupopremia.com', '$2a$10$Z6sSKBWpG/5L9jOhx0tbgOaPIPEayY4vZ1DIfVJQ3lMvon50opev.', 2),
 (96, 'Luis Elizondo', 'ventas2cr@grupopremia.com', '$2a$10$Z6sSKBWpG/5L9jOhx0tbgOaPIPEayY4vZ1DIfVJQ3lMvon50opev.', 2),
 -- Diseñadores
-(97, 'Alma Boror', 'tecnico1@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),
-(98, 'Pamela Morales', 'tecnico2@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),
-(99, 'Victoria Coyoy', 'tecnico3@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),
-(100, 'Marilyn López', 'tecnico4@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),
-(101, 'Héctor González', 'tecnico5@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),
-(102, 'Luis Sanchez', 'tecnico6@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),
-(103, 'Walter Quiroa', 'tecnico7@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),
-(104, 'Henry Juárez', 'tecnico8@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),
-(105, 'Alison Lopez', 'tecnico9@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),
-(106, 'Jose Alfaro', 'tecnico10@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),
-(107, 'Jennifer Cifuentes', 'tecnico11@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),
-(108, 'Sucely Roman', 'tecnico12@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6),
-(109, 'Katherine Recinos', 'tecnico13@grupopremia.com', '$2a$10$FXtAxu8qvkDeiUfFuO.b3.2Ws3EWaOMp8n5Arz8xKhZvJM2FGSxk2', 6);
+(97, 'Alma Boror', 'disenador1@grupopremia.com', '$2a$10$sgHJ.UPJAGs9osLGG3Y1/.Xr7PTkCUQYOQuOh17NL18pc/kC.u.G.', 6),
+(98, 'Pamela Morales', 'disenador2@grupopremia.com', '$2a$10$sgHJ.UPJAGs9osLGG3Y1/.Xr7PTkCUQYOQuOh17NL18pc/kC.u.G.', 6),
+(99, 'Victoria Coyoy', 'disenador3@grupopremia.com', '$2a$10$sgHJ.UPJAGs9osLGG3Y1/.Xr7PTkCUQYOQuOh17NL18pc/kC.u.G.', 6),
+(100, 'Marilyn López', 'disenador4@grupopremia.com', '$2a$10$sgHJ.UPJAGs9osLGG3Y1/.Xr7PTkCUQYOQuOh17NL18pc/kC.u.G.', 6),
+(101, 'Héctor González', 'disenador5@grupopremia.com', '$2a$10$sgHJ.UPJAGs9osLGG3Y1/.Xr7PTkCUQYOQuOh17NL18pc/kC.u.G.', 6),
+(102, 'Luis Sanchez', 'disenador6@grupopremia.com', '$2a$10$sgHJ.UPJAGs9osLGG3Y1/.Xr7PTkCUQYOQuOh17NL18pc/kC.u.G.', 6),
+(103, 'Walter Quiroa', 'disenador7@grupopremia.com', '$2a$10$sgHJ.UPJAGs9osLGG3Y1/.Xr7PTkCUQYOQuOh17NL18pc/kC.u.G.', 6),
+(104, 'Henry Juárez', 'disenador8@grupopremia.com', '$2a$10$sgHJ.UPJAGs9osLGG3Y1/.Xr7PTkCUQYOQuOh17NL18pc/kC.u.G.', 6),
+(105, 'Alison Lopez', 'disenador9@grupopremia.com', '$2a$10$sgHJ.UPJAGs9osLGG3Y1/.Xr7PTkCUQYOQuOh17NL18pc/kC.u.G.', 6),
+(106, 'Jose Alfaro', 'disenador10@grupopremia.com', '$2a$10$sgHJ.UPJAGs9osLGG3Y1/.Xr7PTkCUQYOQuOh17NL18pc/kC.u.G.', 6),
+(107, 'Jennifer Cifuentes', 'disenador11@grupopremia.com', '$2a$10$sgHJ.UPJAGs9osLGG3Y1/.Xr7PTkCUQYOQuOh17NL18pc/kC.u.G.', 6),
+(108, 'Sucely Roman', 'disenador12@grupopremia.com', '$2a$10$sgHJ.UPJAGs9osLGG3Y1/.Xr7PTkCUQYOQuOh17NL18pc/kC.u.G.', 6),
+(109, 'Katherine Recinos', 'disenador13@grupopremia.com', '$2a$10$sgHJ.UPJAGs9osLGG3Y1/.Xr7PTkCUQYOQuOh17NL18pc/kC.u.G.', 6);
 
 INSERT INTO `asesores` (`tienda_id`, `usuario_id`) VALUES
 (1, 49), (1, 50), (1, 51), (1, 52), (1, 53), (1, 54),

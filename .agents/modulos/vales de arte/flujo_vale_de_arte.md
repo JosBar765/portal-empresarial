@@ -366,7 +366,7 @@ cambia quién puede hacer cada acción.
 > **Nombre del rol 6.** El rol que trabaja los vales en el taller se llama **Diseñador** (antes
 > «Técnico»), en pantalla, en la base y en el código: `vale_talleres.disenador_id`,
 > `taller_disenadores`, `ROL.DISENADOR`, las salas `disenador:<id>` y las rutas `/disenadores`.
-> Las cuentas existentes conservan su correo (`tecnico1@…`).
+> Las cuentas del rol usan correos `disenadorN@…` y la contraseña de desarrollo `disenador123`.
 
 ### Quién fusiona
 
