@@ -1,10 +1,10 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
-import { htmlDropzone, wireDropzone } from '../components/dropzone.js';
+import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dropzone.js';
 import { comenzarVale, entregarPropuesta, cancelarProceso, pausarVale, reanudarVale } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 
 // -----------------------------------------------------------------------
-// Técnico: comenzar / entregar / cancelar / pausar / reanudar
+// Diseñador: comenzar / entregar / cancelar / pausar / reanudar
 // -----------------------------------------------------------------------
 export async function accionComenzar(vale) {
   try {
@@ -22,12 +22,12 @@ export function abrirModalEntregar(vale) {
     bodyHtml: `
       <div class="form-field">
         <label>Documento de propuesta (opcional)</label>
-        ${htmlDropzone({ id: 'input-propuesta', accept: 'application/pdf', hint: 'PDF' })}
+        ${htmlDropzone({ id: 'input-propuesta', accept: 'application/pdf', hint: 'PDF · máx. 5MB' })}
       </div>
     `,
     footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-enviar">Entregar</button>`
   });
-  const getPropuesta = wireDropzone(overlay, '#input-propuesta', '.archivo-lista');
+  const getPropuesta = wireDropzone(overlay, '#input-propuesta', '.archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
   // Una sola key por apertura del modal — si el envío falla y el usuario
   // reintenta con "Entregar" de nuevo, se reenvía con la misma key para que
   // el backend detecte el reintento y no duplique la propuesta.
@@ -63,7 +63,7 @@ export async function accionCancelarProceso(vale) {
   }
 }
 
-// El técnico puede pausar/reanudar un vale EN_PROCESO sin entregar propuesta,
+// El diseñador puede pausar/reanudar un vale EN_PROCESO sin entregar propuesta,
 // para tomar otro más urgente.
 export async function accionPausar(vale) {
   try {

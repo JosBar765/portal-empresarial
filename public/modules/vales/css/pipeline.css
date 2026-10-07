@@ -1,0 +1,191 @@
+/* Pipeline de estado de 5 pasos (columna «Estado» de las tablas). Medidas y colores del diseño en Figma:
+   nodo 24 px, conector 16×2 px, separación 4 px, halo 3 px. */
+.pipeline {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 212px;
+  padding: 4px 3px;
+}
+
+.pl-pasos {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pl-nodo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: default;
+  outline: none;
+}
+
+.pl-nodo svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pl-nodo--pausa svg {
+  fill: currentColor;
+  stroke: none;
+}
+
+.pl-nodo--completado svg { width: 12px; height: 10px; }
+.pl-nodo--pausa svg { width: 10px; height: 12px; }
+.pl-nodo--devuelto svg { width: 9px; height: 9px; stroke-width: 2.2; }
+
+.pl-nodo--pendiente {
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1.5px var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.pl-nodo--actual {
+  background: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 28%, transparent);
+  color: #fff;
+}
+
+.pl-nodo--completado {
+  background: var(--color-success);
+  color: #fff;
+}
+
+.pl-nodo--pausa {
+  background: var(--color-warning);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-warning) 28%, transparent);
+  color: #fff;
+}
+
+.pl-nodo--atrasado {
+  background: var(--color-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 28%, transparent);
+  color: #fff;
+}
+
+.pl-nodo--devuelto {
+  background: var(--color-danger-bg);
+  box-shadow: inset 0 0 0 1.5px var(--color-danger);
+  color: var(--color-danger);
+}
+
+.pl-nodo:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-primary);
+}
+
+.pl-conector {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-border);
+}
+
+.pl-conector--completado { background: var(--color-success); }
+
+.pl-etiqueta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 4px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.pl-etiqueta strong { font-weight: 600; }
+.pl-etiqueta--info strong { color: var(--color-info-text); }
+.pl-etiqueta--warning strong { color: var(--vale-estado-pendiente-confirmacion-fg); }
+.pl-etiqueta--danger strong { color: var(--color-danger); }
+.pl-etiqueta--success strong { color: var(--vale-estado-aprobado-fg); }
+
+.pl-detalle {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+.pl-detalle--alerta { color: var(--color-danger); }
+
+.pl-marcas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pl-marca {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.pl-marca--mod {
+  background: var(--color-primary-light);
+  color: var(--color-info-text);
+}
+
+.pl-marca--vence {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+
+.pl-marca--vence-urgente {
+  background: var(--vale-estado-pendiente-confirmacion-bg);
+  color: var(--vale-estado-pendiente-confirmacion-fg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-warning) 50%, transparent);
+}
+
+.pl-tooltip {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 280px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-primary-dark);
+  color: var(--sidebar-text);
+  font-size: 11px;
+  line-height: 1.4;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+}
+
+.pl-tooltip[hidden] { display: none; }
+.pl-tooltip strong { color: #fff; font-size: 12px; font-weight: 600; }
+
+.pl-tooltip::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: var(--pl-caret-x, 20px);
+  border: 6px solid transparent;
+  border-top: 0;
+  border-bottom-color: var(--color-primary-dark);
+}
+
+.pl-tooltip--arriba::before {
+  top: auto;
+  bottom: -5px;
+  border-top: 6px solid var(--color-primary-dark);
+  border-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .pipeline { min-width: 0; }
+}

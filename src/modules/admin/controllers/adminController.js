@@ -241,18 +241,18 @@ class AdminController {
     }
   }
 
-  async asignarTecnicoATaller(req, res) {
+  async asignarDisenadorATaller(req, res) {
     try {
-      await adminService.asignarTecnicoATaller(idObligatorio(req.params.id), idObligatorio(req.body.usuarioId, 'Usuario'));
+      await adminService.asignarDisenadorATaller(idObligatorio(req.params.id), idObligatorio(req.body.usuarioId, 'Usuario'));
       return res.status(201).json({ ok: true });
     } catch (error) {
       return responderError(res, error);
     }
   }
 
-  async quitarTecnicoDeTaller(req, res) {
+  async quitarDisenadorDeTaller(req, res) {
     try {
-      await adminService.quitarTecnicoDeTaller(idObligatorio(req.params.usuarioId, 'Usuario'));
+      await adminService.quitarDisenadorDeTaller(idObligatorio(req.params.usuarioId, 'Usuario'));
       return res.json({ ok: true });
     } catch (error) {
       return responderError(res, error);

@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_CON_SIDEBAR } from '../config/roles.js';
+import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER } from '../config/roles.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { actualizarIndicadoresOrden } from './toolbar.js';
 
@@ -26,19 +26,19 @@ export function actualizarOffsetSidebar(sidebar) {
 // el buscador "encontrar" (que además oculta la barra de período y tienda,
 // que ahí no aplican). El resto de roles solo cambian el título.
 export function actualizarTituloYSeccionesVista() {
+  // El combobox de diseñadores es de los encargados y solo aplica al Buzón (Trabajo realizado y Reportes no lo usan).
+  $('#filtro-disenador').style.display = ROLES_ENCARGADO_TALLER.includes(state.user.rolId) && state.vista === 'buzon' ? '' : 'none';
   const enRendimiento = state.vista === 'rendimiento';
   const enEncontrar = state.vista === 'encontrar';
-  if ([ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId)) {
-    $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
-    $('#rendimiento-gerencia').style.display = enRendimiento ? 'block' : 'none';
-    $('#encontrar-vale').style.display = enEncontrar ? 'block' : 'none';
-    const enVistaPropia = enRendimiento || enEncontrar;
-    $('#contadores-grid').style.display = enVistaPropia ? 'none' : '';
-    $('.buzon-section').style.display = enVistaPropia ? 'none' : '';
-    $('.vales-toolbar').style.display = enEncontrar ? 'none' : '';
-    return;
-  }
+  const enReportes = state.vista === 'reportes';
   $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
+  $('#rendimiento-gerencia').style.display = enRendimiento ? 'block' : 'none';
+  $('#encontrar-vale').style.display = enEncontrar ? 'block' : 'none';
+  $('#reportes-vista').style.display = enReportes ? 'block' : 'none';
+  const enVistaPropia = enRendimiento || enEncontrar || enReportes;
+  $('#contadores-grid').style.display = enVistaPropia ? 'none' : '';
+  $('.buzon-section').style.display = enVistaPropia ? 'none' : '';
+  $('.vales-toolbar').style.display = enEncontrar ? 'none' : '';
 }
 
 export function wireSidebar() {
@@ -74,6 +74,14 @@ export function wireSidebar() {
   if (state.user.rolId === ROL.SUPERVISOR) {
     $('#sidebar-item-terciario', sidebar).style.display = '';
   }
+  // El Administrador no tiene «Trabajo realizado»: su barra solo lleva Buzón y Reportes.
+  if (state.user.rolId === ROL.ADMINISTRADOR) {
+    $('#sidebar-item-secundario', sidebar).style.display = 'none';
+  }
+  // Reportes de actividad: por permiso (el Gerente no lo tiene y conserva solo Rendimiento / Encontrar vale).
+  if ((state.user.permissions || []).includes('vales.ver_reportes')) {
+    $('#sidebar-item-reportes', sidebar).style.display = '';
+  }
 
   // No perder la vista activa al recargar — se valida contra las vistas que
   // este rol realmente tiene (los botones ya quedaron reescritos arriba para
@@ -98,7 +106,9 @@ export function wireSidebar() {
       state.sort = { key: null, dir: null };
       state.filtroContador = null; // un filtro de contador es propio de la vista activa
       state.soloAtrasados = false;
-      state.estadoFiltro = ''; // el conjunto de estados válidos cambia entre Buzón/Trabajo realizado
+      state.soloModificados = false;
+      state.disenadorFiltro = '';
+      $('#filtro-disenador').value = '';
       actualizarIndicadoresOrden();
       actualizarTituloYSeccionesVista();
       cargarBuzon();

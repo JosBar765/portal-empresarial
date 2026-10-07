@@ -13,33 +13,33 @@ INSERT INTO `paises` (`codigo`, `nombre`, `codigo_telefono`) VALUES
 ('CR', 'Costa Rica', '+506'),
 ('BZ', 'Belice', '+501');
 
-INSERT INTO `empresas` (`id`, `nombre`, `pais_id`) VALUES
-(1,  'Munditrofeos, S.A.', 1),
-(2,  'Premia, S.A.', 1),
-(3,  'Premia San Salvador', 2),
-(4,  'Premia Express Santa Ana', 2),
-(5,  'Premia Express San Miguel', 2),
-(6,  'Premia Express Escalón', 2),
-(7,  'Premia Express Comayagua', 3),
-(8,  'Premia Tegucigalpa', 3),
-(9,  'Premia San Pedro Sula', 3),
-(10, 'Premia Express Managua', 4),
-(11, 'Premia Express León', 4),
-(12, 'Premia San Jose', 5),
-(13, 'Trofex San Juan', 1),
-(14, 'Trofex Zona 3', 1),
-(15, 'Trofex Coban', 1),
-(16, 'Trofex Petén', 1),
-(17, 'Trofex Puerto Barrios', 1),
-(18, 'Trofex Chiquimula', 1),
-(19, 'Trofex Jutiapa', 1),
-(20, 'Trofex San Marcos', 1),
-(21, 'Trofex Chimaltenango', 1),
-(22, 'Trofex Escuintla', 1),
-(23, 'Trofex Huehuetenango', 1),
-(24, 'Trofex Mazatenango', 1),
-(25, 'Trofex Villa Nueva', 1),
-(26, 'Trofex Xela', 1);
+INSERT INTO `empresas` (`id`, `nombre`, `pais_id`, `prefijo_correlativo`) VALUES
+(1,  'Munditrofeos, S.A.', 1, NULL),
+(2,  'Premia, S.A.', 1, NULL),
+(3,  'Premia San Salvador', 2, NULL),
+(4,  'Premia Express Santa Ana', 2, NULL),
+(5,  'Premia Express San Miguel', 2, NULL),
+(6,  'Premia Express Escalón', 2, NULL),
+(7,  'Premia Express Comayagua', 3, NULL),
+(8,  'Premia Tegucigalpa', 3, NULL),
+(9,  'Premia San Pedro Sula', 3, NULL),
+(10, 'Premia Express Managua', 4, NULL),
+(11, 'Premia Express León', 4, NULL),
+(12, 'Premia San Jose', 5, NULL),
+(13, 'Trofex San Juan', 1, 'TX'),
+(14, 'Trofex Zona 3', 1, 'TX'),
+(15, 'Trofex Coban', 1, 'TX'),
+(16, 'Trofex Petén', 1, 'TX'),
+(17, 'Trofex Puerto Barrios', 1, 'TX'),
+(18, 'Trofex Chiquimula', 1, 'TX'),
+(19, 'Trofex Jutiapa', 1, 'TX'),
+(20, 'Trofex San Marcos', 1, 'TX'),
+(21, 'Trofex Chimaltenango', 1, 'TX'),
+(22, 'Trofex Escuintla', 1, 'TX'),
+(23, 'Trofex Huehuetenango', 1, 'TX'),
+(24, 'Trofex Mazatenango', 1, 'TX'),
+(25, 'Trofex Villa Nueva', 1, 'TX'),
+(26, 'Trofex Xela', 1, 'TX');
 
 INSERT INTO `roles` (`id`, `nombre`, `descripcion`, `activo`) VALUES
 (1, 'Administrador', 'Acceso total a todos los módulos y configuraciones del portal', 1),
@@ -47,10 +47,10 @@ INSERT INTO `roles` (`id`, `nombre`, `descripcion`, `activo`) VALUES
 (3, 'Supervisor de Ventas', 'Supervisor de ventas, encargado de supervisar al equipo comercial', 1),
 (4, 'Encargado de taller de Diseño', 'Encargado del taller de Diseño, responsable de coordinar y fusionar el trabajo del equipo de diseño', 1),
 (5, 'Encargado de taller de Diseño 3d', 'Encargado del taller de Diseño UV/3D, responsable de coordinar al equipo de diseño UV/3D', 1),
-(6, 'Técnico', 'Técnico, encargado de ejecutar el trabajo de diseño o producción asignada', 1),
+(6, 'Diseñador', 'Diseñador, encargado de ejecutar el trabajo de diseño o producción asignada', 1),
 (7, 'Asistente de Diseño', 'Asistente del Encargado de taller de diseño, con las mismas responsabilidades de coordinación y fusión', 1),
 (8, 'Gerente', 'Gerente, encargado de supervisar la operación general y sus métricas', 1),
-(9, 'Encargado de taller de Protextil', 'Encargado del taller de Protextil, responsable de asignar técnicos y revisar sus propuestas', 1),
+(9, 'Encargado de taller de Protextil', 'Encargado del taller de Protextil, responsable de asignar diseñadores y revisar sus propuestas', 1),
 (10, 'Diseño Local', 'Encargado de un taller de Diseño Local, responsable de trabajo de diseño y supervisión', 1);
 
 INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUES
@@ -58,9 +58,9 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (2, 'vales.crear', 'Crear Vales de Arte', 'vales', 'Permite ingresar nuevos vales de arte'),
 (3, 'vales.editar', 'Editar Vales de Arte', 'vales', 'Permite modificar el contenido de un vale de arte (formulario de modificación)'),
 (8, 'admin.ver', 'Ver Panel de Administración', 'admin', 'Permite acceder al módulo de administración central'),
-(9, 'vales.asignar', 'Asignar Vales de Arte', 'vales', 'Permite asignar/reasignar un vale de arte a un técnico'),
-(10, 'vales.revisar', 'Revisar Propuestas', 'vales', 'Permite aprobar o desaprobar la propuesta de un técnico'),
-(11, 'vales.trabajar', 'Trabajar Vales de Arte', 'vales', 'Permite a un técnico comenzar, entregar o cancelar un vale asignado'),
+(9, 'vales.asignar', 'Asignar Vales de Arte', 'vales', 'Permite asignar/reasignar un vale de arte a un diseñador'),
+(10, 'vales.revisar', 'Revisar Propuestas', 'vales', 'Permite aprobar o desaprobar la propuesta de un diseñador'),
+(11, 'vales.trabajar', 'Trabajar Vales de Arte', 'vales', 'Permite a un diseñador comenzar, entregar o cancelar un vale asignado'),
 (12, 'vales.confirmar', 'Confirmar de Recibido', 'vales', 'Permite al asesor confirmarde recibido un vale de arte'),
 (13, 'vales.solicitar_modificacion', 'Solicitar Modificación', 'vales', 'Permite al asesor solicitar la modificación de un vale de arte'),
 (14, 'vales.aprobar_modificacion', 'Aprobar Modificación', 'vales', 'Permite al supervisor autorizar una modificación solicitada'),
@@ -70,43 +70,50 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (18, 'vales.autorizar_creacion', 'Autorizar Creación', 'vales', 'Permite al supervisor autorizar el envío a talleres de un vale recién creado por sus asesores'),
 (19, 'admin.usuarios.gestionar', 'Gestionar Usuarios', 'admin', 'Permite crear, editar y activar/desactivar usuarios'),
 (20, 'admin.roles.gestionar', 'Gestionar Roles y Permisos', 'admin', 'Permite crear/editar roles y cambiar los permisos asignados a cada uno'),
-(21, 'admin.talleres.gestionar', 'Gestionar Talleres', 'admin', 'Permite asignar/quitar encargados y técnicos de un taller'),
+(21, 'admin.talleres.gestionar', 'Gestionar Talleres', 'admin', 'Permite asignar/quitar encargados y diseñadores de un taller'),
 (22, 'admin.tiendas.gestionar', 'Gestionar Tiendas', 'admin', 'Permite crear/editar tiendas y su personal asignado'),
-(23, 'admin.mantenimiento.gestionar', 'Gestionar Mantenimiento', 'admin', 'Permite activar/desactivar el modo mantenimiento del portal');
+(23, 'admin.mantenimiento.gestionar', 'Gestionar Mantenimiento', 'admin', 'Permite activar/desactivar el modo mantenimiento del portal'),
+(24, 'vales.dar_de_baja', 'Dar de baja Vales de Arte', 'vales', 'Permite al asesor dar de baja un vale de arte propio antes de que sea autorizado, o ya autorizado mientras un taller reclame sus adjuntos'),
+(25, 'vales.corregir', 'Corregir Vales de Arte', 'vales', 'Permite al asesor corregir los datos de un vale de arte propio antes de que sea autorizado'),
+(26, 'vales.verificar_adjuntos', 'Verificar Adjuntos', 'vales', 'Permite al encargado de taller confirmar que recibió los adjuntos de un vale de arte o rechazarlo por no haberlos recibido'),
+(27, 'vales.ver_historial', 'Ver Historial del Vale', 'vales', 'Permite ver la acción y el contenido del historial de movimientos de un vale de arte'),
+(28, 'vales.ver_reportes', 'Ver Reportes de Actividad', 'vales', 'Permite ver la pestaña Reportes (actividad propia o de su equipo según el rol) y exportarla a PDF');
 
 INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
--- Administrador
-(1, 1), (1, 8), (1, 19), (1, 20), (1, 21), (1, 22), (1, 23),
+-- Administrador: único rol con el historial de vales (27)
+(1, 1), (1, 8), (1, 19), (1, 20), (1, 21), (1, 22), (1, 23), (1, 26), (1, 28),
 -- Asesor de Ventas
-(2, 1), (2, 2), (2, 3), (2, 12), (2, 13),
--- Supervisor de Ventas
-(3, 1), (3, 14), (3, 15), (3, 17), (3, 18),
+(2, 1), (2, 2), (2, 3), (2, 12), (2, 13), (2, 24), (2, 25), (2, 26),
+-- Supervisor de Ventas: además de supervisar, crea y gestiona sus propios vales (2 crear, 12 confirmar,
+-- 13 solicitar modificación, 24 dar de baja, 25 corregir)
+(3, 1), (3, 14), (3, 15), (3, 17), (3, 18), (3, 2), (3, 12), (3, 13), (3, 24), (3, 25), (3, 26),
 -- Encargado de taller de diseño: dueño del taller "Diseño", con fusión (16) y "trabajar" (11)
-(4, 1), (4, 9), (4, 10), (4, 11), (4, 16),
+(4, 1), (4, 9), (4, 10), (4, 11), (4, 16), (4, 26),
 -- Encargado de taller de diseño 3d: dueño del taller "Diseño UV/3D", sin fusión
-(5, 1), (5, 9), (5, 10), (5, 11),
--- Técnicos
-(6, 1), (6, 11),
+(5, 1), (5, 9), (5, 10), (5, 11), (5, 26),
+-- Diseñadores
+(6, 1), (6, 11), (6, 26),
 -- Asistente: clon operativo COMPLETO del Encargado de taller de diseño
-(7, 1), (7, 9), (7, 10), (7, 11), (7, 16),
+(7, 1), (7, 9), (7, 10), (7, 11), (7, 16), (7, 26),
 -- Gerente: solo lectura
 (8, 1), (8, 17),
 -- Encargado de taller de protextil: sin fusión
-(9, 1), (9, 9), (9, 10),
+(9, 1), (9, 9), (9, 10), (9, 26),
 -- Encargado de taller de diseño local: mismos permisos atómicos que Diseño
-(10, 1), (10, 9), (10, 10), (10, 11);
+(10, 1), (10, 9), (10, 10), (10, 11), (10, 26);
 
 INSERT INTO `estados_vale` (`id`, `nombre`) VALUES
 (1, 'ESPERANDO_AUTORIZACION'), (2, 'CREADO'), (3, 'APROBADO_DEPARTAMENTO'),
 (4, 'PENDIENTE_CONFIRMACION'), (5, 'RECIBIDO'), (6, 'SOLICITANDO_MODIFICACION'),
-(7, 'MODIFICADO'), (8, 'CONFIRMADO');
+(7, 'MODIFICADO'), (8, 'CONFIRMADO'), (9, 'RECHAZADO');
 
 INSERT INTO `tipos_autorizacion` (`id`, `nombre`) VALUES
 (1, 'CREACION'), (2, 'MODIFICACION');
 
 INSERT INTO `estados_taller` (`id`, `nombre`) VALUES
 (1, 'PENDIENTE_ASIGNACION'), (2, 'ASIGNADO'), (3, 'EN_PROCESO'),
-(4, 'EN_PAUSA'), (5, 'EN_REVISION'), (6, 'APROBADO');
+(4, 'EN_PAUSA'), (5, 'EN_REVISION'), (6, 'APROBADO'),
+(7, 'VERIFICANDO_ADJUNTOS'), (8, 'ADJUNTOS_RECHAZADOS'), (9, 'ADJUNTOS_RESPONDIDOS');
 
 INSERT INTO `estados_solicitud_modificacion` (`id`, `nombre`) VALUES
 (1, 'PENDIENTE'), (2, 'APROBADA'), (3, 'RECHAZADA');

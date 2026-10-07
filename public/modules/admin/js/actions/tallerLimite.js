@@ -1,7 +1,7 @@
 // Límite diario opcional de vales de arte entrantes por fecha de ENTREGA
 // (analisis_correcciones_28.md) — modal chico, independiente del de
 // personal (tallerPersonal.js), porque no comparte nada con la asignación
-// de encargado/técnicos.
+// de encargado/diseñadores.
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { actualizarLimiteDiarioTaller } from '../api/adminApi.js';
 import { cargarTalleres } from '../views/talleres.js';

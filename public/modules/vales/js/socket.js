@@ -4,6 +4,7 @@ import { roomsParaUsuario } from './permisos.js';
 import { refreshToken, logout } from './api/authApi.js';
 import { cargarBuzon } from './views/buzon.js';
 import { actualizarRendimientoEnVivo } from './views/rendimientoGerencia.js';
+import { avisarCambioEnModalAutorizar } from './actions/supervisor.js';
 
 export function reproducirBeep() {
   try {
@@ -24,6 +25,7 @@ export function reproducirBeep() {
 export function initSocket() {
   if (typeof io === 'undefined') return;
   state.socket = io({ query: { userId: state.user.id } });
+  window.centroNotificaciones?.iniciar({ socket: state.socket, modulo: 'vales' });
   state.socket.on('connect', () => {
     // `role_X` es independiente de las salas de notificación de vales — todo
     // rol la necesita para enterarse de cambios de permisos, incluido Gerente.
@@ -52,6 +54,7 @@ export function initSocket() {
     // toast/beep por lo mismo que él mismo acaba de hacer sería una
     // notificación duplicada. Se sigue refrescando el buzón igual, solo se
     // omite el aviso.
+    if (data.tipo === 'CORREGIDO') avisarCambioEnModalAutorizar(data.valeId);
     const esPropiaAccion = data.actorId != null && data.actorId === state.user.id;
     if (!esPropiaAccion) {
       const esAlerta = data.nivel === 'alerta';

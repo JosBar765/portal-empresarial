@@ -17,7 +17,7 @@ const SELECT_VALE_TALLER = `
 class ValeTallerRepository {
   async crear(valeId, tallerId) {
     const result = await db.query(
-      "INSERT INTO vale_talleres (vale_id, taller_id, estado_id, activo) VALUES (?, ?, (SELECT id FROM estados_taller WHERE nombre = 'PENDIENTE_ASIGNACION'), 1)",
+      "INSERT INTO vale_talleres (vale_id, taller_id, estado_id, activo) VALUES (?, ?, (SELECT id FROM estados_taller WHERE nombre = 'VERIFICANDO_ADJUNTOS'), 1)",
       [valeId, tallerId],
       'vale_taller:insert'
     );
@@ -37,18 +37,18 @@ class ValeTallerRepository {
     return db.query(`${SELECT_VALE_TALLER} WHERE vt.vale_id = ? AND vt.activo = 1 ORDER BY vt.id ASC`, [valeId], 'vale_taller:list_by_vale');
   }
 
-  async listarActivasPorTecnico(tecnicoId) {
-    return db.query(`${SELECT_VALE_TALLER} WHERE vt.tecnico_id = ? AND vt.activo = 1`, [tecnicoId], 'vale_taller:list_activas_by_tecnico');
+  async listarActivasPorDisenador(disenadorId) {
+    return db.query(`${SELECT_VALE_TALLER} WHERE vt.disenador_id = ? AND vt.activo = 1`, [disenadorId], 'vale_taller:list_activas_by_disenador');
   }
 
   async listarActivasPorTaller(tallerId) {
     return db.query(`${SELECT_VALE_TALLER} WHERE vt.taller_id = ? AND vt.activo = 1`, [tallerId], 'vale_taller:list_activas_by_taller');
   }
 
-  async asignar(id, tecnicoId, fechaAsignacion) {
+  async asignar(id, disenadorId, fechaAsignacion) {
     await db.query(
-      "UPDATE vale_talleres SET tecnico_id = ?, estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ASIGNADO'), fecha_asignacion = ? WHERE id = ?",
-      [tecnicoId, fechaAsignacion, id],
+      "UPDATE vale_talleres SET disenador_id = ?, estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ASIGNADO'), fecha_asignacion = ? WHERE id = ?",
+      [disenadorId, fechaAsignacion, id],
       'vale_taller:asignar'
     );
   }
@@ -58,6 +58,60 @@ class ValeTallerRepository {
       'UPDATE vale_talleres SET estado_id = (SELECT id FROM estados_taller WHERE nombre = ?) WHERE id = ?',
       [estado, id],
       'vale_taller:update_estado'
+    );
+  }
+
+  // Rechazo de adjuntos: el plazo de 24 h se fija solo la primera vez (COALESCE) y el aviso se limpia solo entonces.
+  async rechazarAdjuntos(id) {
+    await db.query(
+      `UPDATE vale_talleres SET estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ADJUNTOS_RECHAZADOS'),
+         adjuntos_aviso_en = IF(adjuntos_vence_en IS NULL, NULL, adjuntos_aviso_en),
+         adjuntos_vence_en = COALESCE(adjuntos_vence_en, DATE_ADD(NOW(), INTERVAL 24 HOUR)),
+         adjuntos_mensaje = NULL, adjuntos_respondido_en = NULL
+       WHERE id = ?`,
+      [id],
+      'vale_taller:rechazar_adjuntos'
+    );
+  }
+
+  // Filas esperando al asesor cuyo plazo ya venció (de un vale, o de todos).
+  async listarAdjuntosVencidos(valeId = null) {
+    return db.query(
+      `${SELECT_VALE_TALLER}
+       WHERE vt.activo = 1 AND et.nombre = 'ADJUNTOS_RECHAZADOS' AND vt.adjuntos_vence_en <= NOW()
+         ${valeId ? 'AND vt.vale_id = ?' : ''}`,
+      valeId ? [valeId] : [], 'vale_taller:list_adjuntos_vencidos'
+    );
+  }
+
+  // Filas esperando al asesor a las que les quedan `horas` o menos y aún sin aviso.
+  async listarAdjuntosPorVencer(horas) {
+    return db.query(
+      `SELECT vt.id, vt.vale_id, vt.taller_id, TIMESTAMPDIFF(MINUTE, NOW(), vt.adjuntos_vence_en) AS minutos_restantes
+       FROM vale_talleres vt
+       JOIN estados_taller et ON et.id = vt.estado_id
+       WHERE vt.activo = 1 AND et.nombre = 'ADJUNTOS_RECHAZADOS' AND vt.adjuntos_aviso_en IS NULL
+         AND vt.adjuntos_vence_en > NOW() AND vt.adjuntos_vence_en <= DATE_ADD(NOW(), INTERVAL ? HOUR)`,
+      [horas], 'vale_taller:list_adjuntos_por_vencer'
+    );
+  }
+
+  // true si esta llamada fue la que marcó el aviso (evita avisar dos veces).
+  async marcarAvisoAdjuntos(id) {
+    const result = await db.query(
+      'UPDATE vale_talleres SET adjuntos_aviso_en = NOW() WHERE id = ? AND adjuntos_aviso_en IS NULL',
+      [id], 'vale_taller:marcar_aviso_adjuntos'
+    );
+    return result.affectedRows > 0;
+  }
+
+  async responderAdjuntos(id, mensaje) {
+    await db.query(
+      `UPDATE vale_talleres SET estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ADJUNTOS_RESPONDIDOS'),
+         adjuntos_mensaje = ?, adjuntos_respondido_en = NOW()
+       WHERE id = ?`,
+      [mensaje, id],
+      'vale_taller:responder_adjuntos'
     );
   }
 }

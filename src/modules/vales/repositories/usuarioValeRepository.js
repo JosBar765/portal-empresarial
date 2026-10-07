@@ -13,7 +13,7 @@ class UsuarioValeRepository {
        FROM usuarios u
        LEFT JOIN asesores a ON a.usuario_id = u.id
        LEFT JOIN supervisores s ON s.usuario_id = u.id
-       LEFT JOIN taller_tecnicos tt ON tt.usuario_id = u.id
+       LEFT JOIN taller_disenadores tt ON tt.usuario_id = u.id
        WHERE u.id = ?`,
       [id],
       'usuario:find_by_id'
@@ -21,11 +21,11 @@ class UsuarioValeRepository {
     return rows[0] || null;
   }
 
-  async listarTodosLosTecnicos() {
+  async listarTodosLosDisenadores() {
     return db.query(
       `SELECT u.id, u.nombre, u.email, tt.taller_id
        FROM usuarios u
-       LEFT JOIN taller_tecnicos tt ON tt.usuario_id = u.id
+       LEFT JOIN taller_disenadores tt ON tt.usuario_id = u.id
        WHERE u.rol_id = 6 AND u.activo = 1 ORDER BY u.nombre`,
       [6],
       'usuario:find_by_rol'
@@ -33,22 +33,30 @@ class UsuarioValeRepository {
   }
 
   // El taller de este encargado sale de `talleres.encargado_id` y sus
-  // técnicos, de `taller_tecnicos`.
-  async listarTecnicosPorEncargado(encargadoId) {
+  // diseñadores, de `taller_disenadores`.
+  async listarDisenadoresPorEncargado(encargadoId) {
     return db.query(
       `SELECT u.id, u.nombre, u.email, tt.taller_id
        FROM usuarios u
-       JOIN taller_tecnicos tt ON tt.usuario_id = u.id
+       JOIN taller_disenadores tt ON tt.usuario_id = u.id
        JOIN talleres t ON t.id = tt.taller_id AND t.encargado_id = ?
        WHERE u.rol_id = 6 AND u.activo = 1 ORDER BY u.nombre`,
       [encargadoId],
-      'usuario:find_tecnicos_by_encargado'
+      'usuario:find_disenadores_by_encargado'
     );
   }
 
   // Un supervisor cubre asesores por tienda puntual vía `supervisor_tiendas`,
   // cruzada con la tienda de cada asesor en `asesores.tienda_id` — sin
   // cobertura heredada por departamento/subdivisión.
+  // Tope diario colectivo del supervisor: los asesores a su cargo, más él mismo si también crea vales
+  // (tiene fila en `asesores`).
+  async contarCupoDiario(supervisorId) {
+    const asesores = await this.listarAsesoresPorSupervisor(supervisorId);
+    const comoAsesor = await db.query('SELECT 1 FROM asesores WHERE usuario_id = ?', [supervisorId], 'usuario:es_asesor');
+    return asesores.length + (comoAsesor.length ? 1 : 0);
+  }
+
   async listarAsesoresPorSupervisor(supervisorId) {
     return db.query(
       `SELECT DISTINCT u.id, u.nombre, u.email, a.tienda_id

@@ -7,11 +7,10 @@ const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const documentoRepository = require('../repositories/documentoRepository');
 const historialRepository = require('../repositories/historialRepository');
-const solicitudModificacionRepository = require('../repositories/solicitudModificacionRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const {
-  ESTADOS, ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_TECNICO,
+  ESTADOS, ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR,
   esAdministrador, enriquecer
 } = require('./valeHelpers');
 
@@ -25,7 +24,17 @@ function categoriaHistorial(h) {
   const ea = h.estado_anterior;
   const en = h.estado_nuevo;
   if (ea === null) return 'CREACION'; // crearVale() y la creación del vale MOD- nuevo
-  if (ea === 'ESPERANDO_AUTORIZACION' && en === 'CREADO') return 'AUTORIZACION_CREACION';
+  // Entradas del ORIGINAL ante una modificación: su estado no cambia (o pasa a RECIBIDO al aprobarse), así que las distingue el texto.
+  if (/^Asesor solicitó modificación/.test(h.accion)) return 'SOLICITUD_MODIFICACION';
+  if (/aprobó la solicitud de modificación/.test(h.accion)) return 'APROBACION_MODIFICACION_ORIGINAL';
+  // Un vale MOD- espera al supervisor en SOLICITANDO_MODIFICACION (el vale normal, en ESPERANDO_AUTORIZACION).
+  const enEspera = (e) => e === 'ESPERANDO_AUTORIZACION' || e === 'SOLICITANDO_MODIFICACION';
+  if (ea === en && (enEspera(ea) || ea === 'RECHAZADO')) return 'CORRECCION';
+  if (enEspera(ea) && en === 'RECHAZADO') return 'RECHAZO_CREACION';
+  if (ea === 'RECHAZADO' && enEspera(en)) return 'REENVIO_AUTORIZACION';
+  if (enEspera(ea) && (en === 'CREADO' || en === 'MODIFICADO')) return 'AUTORIZACION_CREACION';
+  const estadosAdjuntos = ['VERIFICANDO_ADJUNTOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'];
+  if (estadosAdjuntos.includes(ea) || estadosAdjuntos.includes(en)) return 'ADJUNTOS';
   if (ea === 'PENDIENTE_ASIGNACION' && en === 'ASIGNADO') return 'ASIGNACION';
   if (ea === 'ASIGNADO' && en === 'EN_PROCESO') return 'EN_PROCESO';
   if (ea === 'EN_PROCESO' && en === 'EN_PAUSA') return 'PAUSA';
@@ -36,8 +45,6 @@ function categoriaHistorial(h) {
   if (en === 'PENDIENTE_CONFIRMACION') return 'RETORNO_ASESOR'; // directo o por fusión — el vale "vuelve" al asesor
   if (en === 'APROBADO_DEPARTAMENTO') return 'PENDIENTE_FUSION'; // bookkeeping interno, nadie lo pidió ver
   if (ea === 'PENDIENTE_CONFIRMACION' && en === 'RECIBIDO') return 'CONFIRMACION_RECIBIDO';
-  if (ea === 'SOLICITANDO_MODIFICACION' && en === 'CONFIRMADO') return 'APROBACION_MODIFICACION_ORIGINAL';
-  if (en === 'SOLICITANDO_MODIFICACION') return 'SOLICITUD_MODIFICACION';
   return 'OTRO';
 }
 
@@ -67,18 +74,37 @@ class ValeDetalleService {
     ]);
     const talleresConNombre = await this._enriquecerTalleresConNombre(talleres);
     const historialConActor = await this._enriquecerHistorialConActor(historial);
-    const historialVisible = await this._filtrarHistorialPorRol(usuario, historialConActor);
+    // Sin `vales.ver_historial` el historial no sale del servidor.
+    const historialVisible = (usuario.permissions || []).includes('vales.ver_historial')
+      ? await this._filtrarHistorialPorRol(usuario, historialConActor)
+      : [];
 
     // El supervisor necesita ver la justificación al decidir si autoriza la
     // modificación — se adjunta solo cuando aplica, reusando la misma
     // consulta que ya usa aprobarModificacion() en valeConfirmacionService.
-    let solicitudModificacion = null;
-    if (vale.estado === ESTADOS.SOLICITANDO_MODIFICACION) {
-      const solicitud = await solicitudModificacionRepository.obtenerPendientePorValeOriginal(valeId);
-      if (solicitud) solicitudModificacion = { justificacion: solicitud.justificacion };
-    }
+    const adjuntos = await this._adjuntosVisibles(usuario, talleresConNombre);
+    return { ...enriquecer(vale), talleres: talleresConNombre, adjuntos, propuestas, documentos, historial: historialVisible };
+  }
 
-    return { ...enriquecer(vale), talleres: talleresConNombre, propuestas, documentos, historial: historialVisible, solicitudModificacion };
+  // Adjuntos reclamados por taller. Encargado: solo su taller (incluye VERIFICANDO); asesor/supervisor: sin VERIFICANDO;
+  // administrador y gerente: todos. El diseñador no los ve.
+  async _adjuntosVisibles(usuario, talleres) {
+    const ESTADOS_ADJ = ['VERIFICANDO_ADJUNTOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'];
+    let filas = talleres.filter(t => ESTADOS_ADJ.includes(t.estado));
+    if (esAdministrador(usuario) || usuario.rolId === ROL.GERENTE) {
+      // todos
+    } else if (usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR) {
+      filas = filas.filter(t => t.estado !== 'VERIFICANDO_ADJUNTOS');
+    } else if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId)) {
+      const tallerVisible = await this._tallerIdVisiblePara(usuario);
+      filas = filas.filter(t => t.taller_id === tallerVisible);
+    } else {
+      return [];
+    }
+    return filas.map(t => ({
+      taller_id: t.taller_id, taller: t.taller_nombre, estado: t.estado,
+      vence_en: t.adjuntos_vence_en, mensaje: t.adjuntos_mensaje, respondido_en: t.adjuntos_respondido_en
+    }));
   }
 
   // Control de propiedad: cada rol solo puede pedir el detalle de un vale
@@ -88,10 +114,11 @@ class ValeDetalleService {
     if (esAdministrador(usuario) || usuario.rolId === ROL.GERENTE) return true; // Gerente: solo lectura de todo
     if (usuario.rolId === ROL.ASESOR) return vale.asesor_id === usuario.id;
     if (usuario.rolId === ROL.SUPERVISOR) {
+      if (vale.asesor_id === usuario.id) return true; // un vale que él mismo creó
       const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
       return misAsesoresIds.has(vale.asesor_id);
     }
-    if (ROLES_TALLER_Y_TECNICO.includes(usuario.rolId)) {
+    if (ROLES_TALLER_Y_DISENADOR.includes(usuario.rolId)) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
       if (tallerVisible && talleres.some(t => t.taller_id === tallerVisible)) return true;
       // Quien fusiona (vales.aprobar_general) necesita poder ver CUALQUIER
@@ -116,11 +143,10 @@ class ValeDetalleService {
   }
 
   // Cada rol tiene una lista blanca de categorías (ver categoriaHistorial):
-  // - Asesor y Supervisor: creación, autorización de creación, retorno al
-  //   asesor (directo o por fusión), confirmación de recibido, y — si hubo
-  //   modificación — solicitud/aprobación de la modificación. Ambos ven
-  //   exactamente lo mismo (el supervisor es quien autoriza y aprueba, pero
-  //   nunca el detalle interno de un taller).
+  // - Asesor y Supervisor: creación, autorización de creación, asignación y
+  //   aprobación de cada taller, retorno al asesor (directo o por fusión),
+  //   confirmación de recibido, y — si hubo modificación — solicitud/
+  //   aprobación de la modificación. Ambos ven exactamente lo mismo.
   // - Gerente: lo mismo que el asesor, más "cuándo se asignó" y "cuándo se
   //   aprobó" a nivel de TODOS los talleres, sin importar a quién ni cuál taller.
   // - Encargados de taller: autorización de creación (sin scope de taller) +
@@ -129,10 +155,10 @@ class ValeDetalleService {
   //   pasó en otro taller del mismo vale, ni los eventos de nivel de vale
   //   (creación, retorno, confirmación, modificación) que antes se colaban
   //   por tener taller_id null.
-  // - Técnico: el mismo ciclo, pero acotado ADEMÁS a que el evento sea suyo —
-  //   `usuario_id` para lo que él mismo ejecuta, `tecnico_id` para lo que un
+  // - Diseñador: el mismo ciclo, pero acotado ADEMÁS a que el evento sea suyo —
+  //   `usuario_id` para lo que él mismo ejecuta, `disenador_id` para lo que un
   //   encargado hizo SOBRE él (asignación/aprobación/reasignación). Las filas
-  //   sembradas antes de que existiera la columna `tecnico_id` caen a un
+  //   sembradas antes de que existiera la columna `disenador_id` caen a un
   //   respaldo por nombre en el texto de `accion` (best-effort, solo para
   //   datos históricos previos a esta corrección).
   async _filtrarHistorialPorRol(usuario, historial) {
@@ -143,16 +169,16 @@ class ValeDetalleService {
 
     if (usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR) {
       const permitidas = new Set([
-        'CREACION', 'AUTORIZACION_CREACION', 'RETORNO_ASESOR',
-        'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
+        'CREACION', 'CORRECCION', 'RECHAZO_CREACION', 'REENVIO_AUTORIZACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER', 'RETORNO_ASESOR',
+        'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL', 'ADJUNTOS'
       ]);
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
     }
 
     if (usuario.rolId === ROL.GERENTE) {
       const permitidas = new Set([
-        'CREACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER',
-        'RETORNO_ASESOR', 'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL'
+        'CREACION', 'CORRECCION', 'RECHAZO_CREACION', 'REENVIO_AUTORIZACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER',
+        'RETORNO_ASESOR', 'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL', 'ADJUNTOS'
       ]);
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
     }
@@ -162,14 +188,14 @@ class ValeDetalleService {
       if (!tallerVisible) return [];
       const cicloTaller = new Set([
         'ASIGNACION', 'EN_PROCESO', 'PAUSA', 'REANUDACION',
-        'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO', 'APROBACION_TALLER', 'DESAPROBACION_REASIGNACION'
+        'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO', 'APROBACION_TALLER', 'DESAPROBACION_REASIGNACION', 'ADJUNTOS'
       ]);
       return conCategoria
         .filter(h => h._categoria === 'AUTORIZACION_CREACION' || (cicloTaller.has(h._categoria) && h.taller_id === tallerVisible))
         .map(sinCategoria);
     }
 
-    if (usuario.rolId === ROL.TECNICO) {
+    if (usuario.rolId === ROL.DISENADOR) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
       if (!tallerVisible) return [];
       const propias = new Set(['EN_PROCESO', 'PAUSA', 'REANUDACION', 'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO']);
@@ -179,7 +205,7 @@ class ValeDetalleService {
           if (h.taller_id !== tallerVisible) return false;
           if (propias.has(h._categoria)) return h.usuario_id === usuario.id;
           if (deUnEncargado.has(h._categoria)) {
-            if (h.tecnico_id != null) return h.tecnico_id === usuario.id;
+            if (h.disenador_id != null) return h.disenador_id === usuario.id;
             return !!(usuario.nombre && h.accion && h.accion.includes(usuario.nombre));
           }
           return false;
@@ -200,11 +226,11 @@ class ValeDetalleService {
       const propio = talleres.find(t => t.encargado_id === idEfectivo);
       return propio ? propio.id : null;
     }
-    if (usuario.rolId === ROL.TECNICO) {
-      // El taller del técnico sale directo de `taller_tecnicos`, sin pasar
+    if (usuario.rolId === ROL.DISENADOR) {
+      // El taller del diseñador sale directo de `taller_disenadores`, sin pasar
       // por el id del encargado.
-      const tecnico = await usuarioValeRepository.obtenerPorId(usuario.id);
-      return tecnico && tecnico.taller_id ? tecnico.taller_id : null;
+      const disenador = await usuarioValeRepository.obtenerPorId(usuario.id);
+      return disenador && disenador.taller_id ? disenador.taller_id : null;
     }
     return null;
   }
@@ -213,8 +239,8 @@ class ValeDetalleService {
     const catalogo = await tallerRepository.listarTodos();
     return Promise.all(talleres.map(async t => {
       const taller = catalogo.find(x => x.id === t.taller_id);
-      const tecnico = t.tecnico_id ? await usuarioValeRepository.obtenerPorId(t.tecnico_id) : null;
-      return { ...t, taller_nombre: taller ? taller.nombre : `#${t.taller_id}`, tecnico_nombre: tecnico ? tecnico.nombre : null };
+      const disenador = t.disenador_id ? await usuarioValeRepository.obtenerPorId(t.disenador_id) : null;
+      return { ...t, taller_nombre: taller ? taller.nombre : `#${t.taller_id}`, disenador_nombre: disenador ? disenador.nombre : null };
     }));
   }
 

@@ -35,8 +35,8 @@ router.patch('/talleres/:id/activo', gestionarTalleres, (req, res) => adminContr
 router.get('/talleres/:id/personal', verAdmin, (req, res) => adminController.listarPersonalTaller(req, res));
 router.post('/talleres/:id/encargado', gestionarTalleres, (req, res) => adminController.asignarEncargadoDeTaller(req, res));
 router.delete('/talleres/:id/encargado', gestionarTalleres, (req, res) => adminController.quitarEncargadoDeTaller(req, res));
-router.post('/talleres/:id/tecnicos', gestionarTalleres, (req, res) => adminController.asignarTecnicoATaller(req, res));
-router.delete('/talleres/:id/tecnicos/:usuarioId', gestionarTalleres, (req, res) => adminController.quitarTecnicoDeTaller(req, res));
+router.post('/talleres/:id/disenadores', gestionarTalleres, (req, res) => adminController.asignarDisenadorATaller(req, res));
+router.delete('/talleres/:id/disenadores/:usuarioId', gestionarTalleres, (req, res) => adminController.quitarDisenadorDeTaller(req, res));
 router.put('/talleres/:id/limite-diario', gestionarTalleres, (req, res) => adminController.actualizarLimiteDiarioTaller(req, res));
 
 // Tiendas

@@ -9,7 +9,7 @@ const { ROL, esAsistenteDeDiseno } = require('./valeHelpers');
 
 class ValeCatalogoService {
   // `talleres` sigue devolviendo el catálogo COMPLETO (lo usan todos los
-  // roles para resolver nombres de taller — encargados, técnicos, admin,
+  // roles para resolver nombres de taller — encargados, diseñadores, admin,
   // tablas del buzón — no solo el asesor eligiendo destino al crear).
   // `miTiendaId` es un dato adicional para que el FRONTEND filtre las
   // opciones que le ofrece al asesor (su propio Diseño Local, nunca el de
@@ -43,10 +43,10 @@ class ValeCatalogoService {
   // El Asistente de Diseño opera un taller como si fuera su propio
   // encargado_id, sin serlo. Todo sitio que compara
   // `talleres.encargado_id === usuario.id` para resolver "mi taller"/"mis
-  // técnicos" pasa por AQUÍ en su lugar, para que la excepción viva en un
+  // diseñadores" pasa por AQUÍ en su lugar, para que la excepción viva en un
   // solo punto en vez de repetirse en cada servicio. A QUÉ taller "clona" el
-  // Asistente sale de `taller_tecnicos` (mismo mecanismo que usa un
-  // Técnico), asignable desde "Editar usuario".
+  // Asistente sale de `taller_disenadores` (mismo mecanismo que usa un
+  // Diseñador), asignable desde "Editar usuario".
   async idEncargadoEfectivo(usuario) {
     if (!esAsistenteDeDiseno(usuario)) return usuario.id;
     const asistente = await usuarioValeRepository.obtenerPorId(usuario.id);

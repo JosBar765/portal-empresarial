@@ -9,7 +9,7 @@ const mantenimientoRepository = require('../repositories/mantenimientoRepository
 const authService = require('../../../core/auth/authService');
 const maintenanceGate = require('../../../core/permissions/maintenanceMiddleware');
 const socketManager = require('../../../core/websocket/socketManager');
-const { aEntero } = require('../../../core/utils/validar');
+const { aEntero, validarTelefono } = require('../../../core/utils/validar');
 const sesionRepository = require('../../../core/auth/sesionRepository');
 
 // Roles base protegidos: no se pueden eliminar ni renombrar, pero sus
@@ -26,7 +26,7 @@ const MODULO_ADMIN = 'admin';
 // encargado activo a la vez. El Asistente de Diseño es igual de único (un
 // solo clon comodín para los 3 talleres, no uno por taller).
 const ROLES_ENCARGADO_UNICO = [4, 5, 9, 7];
-const ROL_TECNICO = 6;
+const ROL_DISENADOR = 6;
 const ROL_ASISTENTE = 7;
 const ROL_ENCARGADO_DISENO_LOCAL = 10;
 // Diseño/Diseño UV-3D/Protextil son de toda la empresa — cada uno mapea a
@@ -73,6 +73,7 @@ class AdminService {
     if (password.length < 8) {
       throw new Error('La contraseña debe tener al menos 8 caracteres.');
     }
+    validarTelefono(telefono);
     const existente = await usuarioAdminRepository.obtenerPorEmail(email);
     if (existente) {
       throw new Error('Ya existe un usuario con ese correo electrónico.');
@@ -94,6 +95,7 @@ class AdminService {
   // El rol nunca cambia al editar — se fija en la creación.
   async actualizarUsuario(id, datos, actorId) {
     const { nombre, email, password, telefono } = datos;
+    validarTelefono(telefono);
     const usuario = await usuarioAdminRepository.obtenerPorId(id);
     if (!usuario) throw new Error('Usuario no encontrado.');
     if (Number(usuario.rol_id) === ROL_ADMINISTRADOR) {
@@ -341,7 +343,7 @@ class AdminService {
   }
 
   // Catálogo de talleres para poblar el selector "Taller" del modal "Editar
-  // usuario" (Técnico, Encargado de taller local y Asistente).
+  // usuario" (Diseñador, Encargado de taller local y Asistente).
   async listarTalleres() {
     return { talleres: await tallerAdminRepository.listarConDetalle() };
   }
@@ -376,15 +378,15 @@ class AdminService {
   }
 
   // Un encargado trabaja físicamente en UN taller: no puede serlo de dos ni
-  // ser además técnico de otro (misma lógica que el asesor con su tienda).
+  // ser además diseñador de otro (misma lógica que el asesor con su tienda).
   async _validarQueNoEncargueOtroTaller(usuario, tallerActualId = null) {
     const comoEncargado = await tallerAdminRepository.obtenerTallerDeEncargado(usuario.id, tallerActualId);
     if (comoEncargado) {
       throw new Error(`${usuario.nombre} ya es encargado de ${comoEncargado.nombre}: un encargado no puede atender dos talleres.`);
     }
-    const comoTecnico = await tallerAdminRepository.obtenerTallerDeTecnico(usuario.id);
-    if (comoTecnico) {
-      throw new Error(`${usuario.nombre} ya trabaja en ${comoTecnico.nombre} y no puede ser encargado de otro taller.`);
+    const comoDisenador = await tallerAdminRepository.obtenerTallerDeDisenador(usuario.id);
+    if (comoDisenador) {
+      throw new Error(`${usuario.nombre} ya trabaja en ${comoDisenador.nombre} y no puede ser encargado de otro taller.`);
     }
   }
 
@@ -457,23 +459,23 @@ class AdminService {
     return tallerAdminRepository.actualizarLimiteDiario(tallerId, limiteDiario);
   }
 
-  async asignarTecnicoATaller(tallerId, usuarioId) {
+  async asignarDisenadorATaller(tallerId, usuarioId) {
     const taller = await tallerAdminRepository.obtenerPorId(tallerId);
     if (!taller) throw new Error('Taller no encontrado.');
     const usuario = await usuarioAdminRepository.obtenerPorId(usuarioId);
     if (!usuario) throw new Error('Usuario no encontrado.');
     const rolNum = Number(usuario.rol_id);
-    if (rolNum !== ROL_TECNICO && rolNum !== ROL_ASISTENTE) {
-      throw new Error('Solo un Técnico o el Asistente pueden agregarse como personal de un taller.');
+    if (rolNum !== ROL_DISENADOR && rolNum !== ROL_ASISTENTE) {
+      throw new Error('Solo un Diseñador o el Asistente pueden agregarse como personal de un taller.');
     }
     if (rolNum === ROL_ASISTENTE && !TALLERES_CLONABLES_ASISTENTE.includes(taller.nombre)) {
       throw new Error('El Asistente solo puede clonar Diseño, Diseño UV/3D o Protextil.');
     }
-    return tallerAdminRepository.asignarTecnico(usuarioId, tallerId);
+    return tallerAdminRepository.asignarDisenador(usuarioId, tallerId);
   }
 
-  async quitarTecnicoDeTaller(usuarioId) {
-    return tallerAdminRepository.quitarTecnico(usuarioId);
+  async quitarDisenadorDeTaller(usuarioId) {
+    return tallerAdminRepository.quitarDisenador(usuarioId);
   }
 
   // ---------------------------------------------------------------------

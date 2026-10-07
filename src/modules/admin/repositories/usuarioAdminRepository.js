@@ -14,15 +14,17 @@ class UsuarioAdminRepository {
               a.tienda_id AS tienda_id,
               CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS tienda_nombre,
               p.nombre AS paises_asignados,
-              COALESCE(tt.taller_id, td.id) AS taller_id
+              COALESCE(tt.taller_id, td.id) AS taller_id,
+              COALESCE(a.telefono, sup.telefono) AS telefono
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
        LEFT JOIN asesores a ON a.usuario_id = u.id
+       LEFT JOIN supervisores sup ON sup.usuario_id = u.id
        LEFT JOIN tiendas t ON t.id = a.tienda_id
        LEFT JOIN empresas e ON e.id = t.empresa_id
        LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
        LEFT JOIN paises p ON p.id = e.pais_id
-       LEFT JOIN taller_tecnicos tt ON tt.usuario_id = u.id
+       LEFT JOIN taller_disenadores tt ON tt.usuario_id = u.id
        LEFT JOIN talleres td ON td.encargado_id = u.id
        ORDER BY u.nombre`,
       [],

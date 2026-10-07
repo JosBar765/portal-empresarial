@@ -16,8 +16,24 @@ const valeConfirmacionService = require('./valeConfirmacionService');
 const valeRendimientoService = require('./valeRendimientoService');
 const valeBusquedaService = require('./valeBusquedaService');
 const capacidadEntregaService = require('./capacidadEntregaService');
+const valeCorreccionService = require('./valeCorreccionService');
+const valeVistoService = require('./valeVistoService');
+const valeModificacionService = require('./valeModificacionService');
+const valeReporteService = require('./valeReporteService');
+const valeReportePdfService = require('./valeReportePdfService');
+const valeAdjuntosService = require('./valeAdjuntosService');
 
 module.exports = {
+  // Reportes de actividad
+  obtenerReporte: (...a) => valeReporteService.obtenerReporte(...a),
+  generarReportePdf: async (usuario, filtros) => {
+    const reporte = await valeReporteService.obtenerReporte(usuario, filtros, { maxFilas: valeReporteService.MAX_FILAS_PDF });
+    const ahora = new Date(Date.now() - 6 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 16);
+    const [f, h] = ahora.split(' ');
+    const [y, m, d] = f.split('-');
+    return { reporte, pdf: await valeReportePdfService.generar(reporte, { generadoPor: usuario.nombre, ahora: `${d}/${m}/${y} ${h}` }) };
+  },
+
   // Catálogo
   obtenerCatalogos: (...a) => valeCatalogoService.obtenerCatalogos(...a),
   obtenerTalleres: (...a) => valeCatalogoService.obtenerTalleres(...a),
@@ -27,6 +43,10 @@ module.exports = {
   crearVale: (...a) => valeCreacionService.crearVale(...a),
   autorizarCreacion: (...a) => valeCreacionService.autorizarCreacion(...a),
   rechazarCreacion: (...a) => valeCreacionService.rechazarCreacion(...a),
+  darDeBaja: (...a) => valeCreacionService.darDeBaja(...a),
+  reenviarAutorizacion: (...a) => valeCreacionService.reenviarAutorizacion(...a),
+  corregirVale: (...a) => valeCorreccionService.corregirVale(...a),
+  marcarVisto: (...a) => valeVistoService.marcarVisto(...a),
   obtenerLimiteColectivoSupervisor: (...a) => valeCreacionService.obtenerLimiteColectivoSupervisor(...a),
 
   // Detalle
@@ -36,9 +56,9 @@ module.exports = {
   obtenerBuzon: (...a) => valeBuzonService.obtenerBuzon(...a),
   obtenerRendimientoGerencia: (...a) => valeRendimientoService.obtenerRendimiento(...a),
   buscarValePorCorrelativo: (...a) => valeBusquedaService.buscarPorCorrelativo(...a),
-  obtenerTecnicosAsignables: (...a) => valeBuzonService.obtenerTecnicosAsignables(...a),
+  obtenerDisenadoresAsignables: (...a) => valeBuzonService.obtenerDisenadoresAsignables(...a),
   obtenerCargaTrabajo: (...a) => valeBuzonService.obtenerCargaTrabajo(...a),
-  obtenerAsignacionesDeTecnico: (...a) => valeBuzonService.obtenerAsignacionesDeTecnico(...a),
+  obtenerAsignacionesDeDisenador: (...a) => valeBuzonService.obtenerAsignacionesDeDisenador(...a),
 
   // Transiciones de taller
   asignar: (...a) => valeTallerService.asignar(...a),
@@ -46,15 +66,20 @@ module.exports = {
   entregar: (...a) => valeTallerService.entregar(...a),
   pausarProceso: (...a) => valeTallerService.pausarProceso(...a),
   reanudarProceso: (...a) => valeTallerService.reanudarProceso(...a),
-  cancelarProcesoTecnico: (...a) => valeTallerService.cancelarProcesoTecnico(...a),
+  cancelarProcesoDisenador: (...a) => valeTallerService.cancelarProcesoDisenador(...a),
   revisarPropuesta: (...a) => valeTallerService.revisarPropuesta(...a),
   aprobarGeneral: (...a) => valeTallerService.aprobarGeneral(...a),
 
+  // Verificación de adjuntos
+  verificarAdjuntos: (...a) => valeAdjuntosService.verificarAdjuntos(...a),
+  rechazarAdjuntos: (...a) => valeAdjuntosService.rechazarAdjuntos(...a),
+  responderAdjuntos: (...a) => valeAdjuntosService.responderAdjuntos(...a),
+
   // Asesor / Modificación
   confirmarRecibido: (...a) => valeConfirmacionService.confirmarRecibido(...a),
-  solicitarModificacion: (...a) => valeConfirmacionService.solicitarModificacion(...a),
-  aprobarModificacion: (...a) => valeConfirmacionService.aprobarModificacion(...a),
-  rechazarModificacion: (...a) => valeConfirmacionService.rechazarModificacion(...a),
+  solicitarModificacion: (...a) => valeModificacionService.solicitarModificacion(...a),
+  aprobarModificacion: (...a) => valeModificacionService.aprobarModificacion(...a),
+  rechazarModificacion: (...a) => valeModificacionService.rechazarModificacion(...a),
   obtenerValeParaPdf: (...a) => valeConfirmacionService.obtenerValeParaPdf(...a),
 
   ESTADOS,

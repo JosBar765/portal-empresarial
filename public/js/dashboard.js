@@ -20,6 +20,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   const welcomeMessage = document.getElementById('welcome-message');
   const logoutBtn = document.getElementById('logout-btn');
   const modulesContainer = document.getElementById('modules-container');
+  // Burbuja de no leídas de cada tarjeta (como la de las apps del celular): id de módulo -> { elemento, cantidad }.
+  const burbujas = {};
+  function pintarBurbuja(id) {
+    const b = burbujas[id];
+    if (!b) return;
+    b.elemento.textContent = b.cantidad > 99 ? '99+' : String(b.cantidad);
+    b.elemento.hidden = b.cantidad <= 0;
+  }
+  async function cargarResumenNotificaciones() {
+    try {
+      const res = await fetch('/api/notificaciones/resumen');
+      if (!res.ok) return;
+      const resumen = await res.json();
+      Object.keys(burbujas).forEach(id => { burbujas[id].cantidad = Number(resumen[id] || 0); pintarBurbuja(id); });
+    } catch { /* sin burbujas: la tarjeta sigue funcionando */ }
+  }
   const modulesCount = document.getElementById('modules-count');
 
   let currentUser = null;
@@ -116,6 +132,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       socket.emit('register_module', `role_${currentUser.rolId}`);
     });
 
+    // Una notificación nueva sube la burbuja de su módulo.
+    socket.on('notificacion_nueva', (n) => {
+      if (!burbujas[n.modulo]) return;
+      burbujas[n.modulo].cantidad += 1;
+      pintarBurbuja(n.modulo);
+    });
+    // Al volver a esta página (botón Atrás) se recalcula: el usuario pudo leer notificaciones dentro del módulo.
+    window.addEventListener('pageshow', (e) => { if (e.persisted) cargarResumenNotificaciones(); });
+
     // Escuchar notificaciones del portal en tiempo real
     socket.on('portal_notification', (data) => {
       console.log('[WebSocket] Notificación del portal recibida:', data);
@@ -163,6 +188,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       card.innerHTML = `
         <div class="module-icon-container">
           <ion-icon name="${module.icono}"></ion-icon>
+          <span class="module-badge" hidden aria-label="Notificaciones sin leer"></span>
         </div>
         <div class="module-info">
           <h3 class="module-title">${module.nombre}</h3>
@@ -175,6 +201,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
 
       modulesContainer.appendChild(card);
+      burbujas[module.id] = { elemento: card.querySelector('.module-badge'), cantidad: 0 };
     });
+    cargarResumenNotificaciones();
   }
 });

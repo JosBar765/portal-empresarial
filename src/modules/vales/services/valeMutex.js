@@ -32,6 +32,10 @@ class ValeMutex {
     // creación de vales no justifica esa complejidad — serializa toda
     // creación con el resto, pero cada una tarda milisegundos.
     this._colaCapacidad = Promise.resolve();
+    // Colas por supervisor (cupo diario) y por diseñador (un solo vale EN_PROCESO): igual que la de
+    // creación, el segundo en llegar espera su turno, para que leer el conteo y escribir sea atómico.
+    this._colaPorSupervisor = new Map();
+    this._colaPorDisenador = new Map();
   }
 
   async conLockDeVale(valeId, fn) {
@@ -56,6 +60,21 @@ class ValeMutex {
     // recibiendo quien llamó a esta creación en particular a través de `actual`.
     this._colaCreacionPorAsesor.set(key, actual.catch(() => {}));
     return actual;
+  }
+
+  _encolar(mapa, id, fn) {
+    const key = Number(id);
+    const actual = (mapa.get(key) || Promise.resolve()).then(fn, fn);
+    mapa.set(key, actual.catch(() => {}));
+    return actual;
+  }
+
+  conColaDeSupervisor(supervisorId, fn) {
+    return this._encolar(this._colaPorSupervisor, supervisorId, fn);
+  }
+
+  conColaDeDisenador(disenadorId, fn) {
+    return this._encolar(this._colaPorDisenador, disenadorId, fn);
   }
 
   conColaDeCapacidad(fn) {

@@ -13,7 +13,7 @@ import { cargarTiendas } from '../views/tiendas.js';
 // agrupar al personal de una tienda — los 4 roles de encargado de taller se
 // colapsan en un solo bucket ("Encargado(s) de taller"), el resto conserva
 // su nombre de rol tal cual.
-const ORDEN_CATEGORIAS_PERSONAL = ['Gerente', 'Supervisor de Ventas', 'Asesor de Ventas', 'Encargado(s) de taller', 'Asistente', 'Técnicos'];
+const ORDEN_CATEGORIAS_PERSONAL = ['Gerente', 'Supervisor de Ventas', 'Asesor de Ventas', 'Encargado(s) de taller', 'Asistente', 'Diseñador'];
 const ROLES_ENCARGADO_TALLER_NOMBRES = ['Encargado de taller de diseño', 'Encargado de taller de diseño 3d', 'Encargado de taller de protextil', 'Encargado de taller de diseño local'];
 function categoriaDePersonal(rolNombre) {
   return ROLES_ENCARGADO_TALLER_NOMBRES.includes(rolNombre) ? 'Encargado(s) de taller' : (rolNombre || 'Sin rol');

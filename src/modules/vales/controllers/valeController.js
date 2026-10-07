@@ -5,8 +5,7 @@ const { excedeElLimiteDePixeles } = require('../../../core/files/imagenDimension
 const { responderError, responderErrorInterno } = require('../../../core/utils/erroresHttp');
 const { idObligatorio, idOpcional } = require('../../../core/utils/validar');
 
-const IMAGEN_MAX_BYTES = 2 * 1024 * 1024;
-const DOCUMENTO_MAX_BYTES = 3 * 1024 * 1024;
+const ARCHIVO_MAX_BYTES = 5 * 1024 * 1024;
 
 function validarArchivos(files) {
   const imagenes = (files && files.imagenes) || [];
@@ -20,8 +19,8 @@ function validarArchivos(files) {
     if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(img.mimetype) || !tipoRealCoincide(img.buffer, img.mimetype)) {
       throw new Error(`Formato de imagen no soportado: ${img.originalname}`);
     }
-    if (img.size > IMAGEN_MAX_BYTES) {
-      throw new Error(`La imagen ${img.originalname} supera los 2MB permitidos.`);
+    if (img.size > ARCHIVO_MAX_BYTES) {
+      throw new Error(`La imagen ${img.originalname} supera los 5MB permitidos.`);
     }
     // Un archivo pequeño puede declarar miles de megapíxeles ("bomba de
     // descompresión") y agotar la memoria al decodificarlo para el PDF: se
@@ -34,8 +33,8 @@ function validarArchivos(files) {
     if (doc.mimetype !== 'application/pdf' || !tipoRealCoincide(doc.buffer, doc.mimetype)) {
       throw new Error(`Formato de documento no soportado: ${doc.originalname} (solo se permite PDF).`);
     }
-    if (doc.size > DOCUMENTO_MAX_BYTES) {
-      throw new Error(`El documento ${doc.originalname} supera los 3MB permitidos.`);
+    if (doc.size > ARCHIVO_MAX_BYTES) {
+      throw new Error(`El documento ${doc.originalname} supera los 5MB permitidos.`);
     }
   }
   return { imagenes, documentos };
@@ -97,6 +96,16 @@ class ValeController {
     }
   }
 
+  async corregir(req, res) {
+    try {
+      const archivos = validarArchivos(req.files);
+      const vale = await valeService.corregirVale(req.user, idObligatorio(req.params.id), req.body, archivos);
+      return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async buzon(req, res) {
     try {
       const filtros = {
@@ -110,8 +119,9 @@ class ValeController {
         filtroContador: req.query.filtroContador,
         busqueda: req.query.busqueda,
         soloAtrasados: req.query.soloAtrasados,
+        soloModificados: req.query.soloModificados,
+        disenadorId: req.query.disenadorId,
         tiendaId: req.query.tiendaId,
-        estado: req.query.estado,
         sortKey: req.query.sortKey,
         sortDir: req.query.sortDir
       };
@@ -124,6 +134,43 @@ class ValeController {
 
   // Vista Rendimiento (Gerente y Supervisor): KPIs, tendencia, ciclo por
   // etapa, ranking por taller/tienda y vales críticos. Solo lectura.
+  _filtrosReporte(req) {
+    return {
+      ventana: req.query.ventana,
+      fecha: req.query.fecha,
+      desde: req.query.desde,
+      hasta: req.query.hasta,
+      tiendaId: req.query.tiendaId,
+      tallerId: req.query.tallerId,
+      personaIds: req.query.personaIds
+    };
+  }
+
+  async reportes(req, res) {
+    try {
+      return res.json(await valeService.obtenerReporte(req.user, this._filtrosReporte(req)));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async reportePdf(req, res) {
+    try {
+      const { reporte, pdf } = await valeService.generarReportePdf(req.user, this._filtrosReporte(req));
+      const fecha = reporte.periodo.desde && reporte.periodo.desde === reporte.periodo.hasta ? reporte.periodo.desde : (reporte.periodo.desde || 'historial');
+      const quien = reporte.evaluados.length === 1
+        ? reporte.evaluados[0].nombre.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
+        : (reporte.evaluados.length > 1 ? `${reporte.evaluados.length}-personas` : '');
+      const sufijo = quien ? `${fecha}-${quien}` : fecha;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="reporte-vales-${sufijo}.pdf"`);
+      res.setHeader('Content-Length', pdf.length);
+      return res.end(pdf);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async rendimientoGerencia(req, res) {
     try {
       const filtros = {
@@ -165,6 +212,7 @@ class ValeController {
       // Si el vale pedido ya fue modificado, sirve el PDF del vale MOD- vigente en
       // vez del original congelado.
       const vale = await valeService.obtenerValeParaPdf(req.user, idObligatorio(req.params.id));
+      valeService.marcarVisto(req.user, vale.id).catch(error => console.error('[Visto]', error.message));
       if (!vale.pdf_url) {
         return res.status(404).json({ error: 'El PDF de este vale aún no ha sido generado.' });
       }
@@ -176,7 +224,7 @@ class ValeController {
 
   async asignar(req, res) {
     try {
-      const vale = await valeService.asignar(req.user, idObligatorio(req.params.id), idObligatorio(req.body.tecnicoId, 'Técnico'), idOpcional(req.body.tallerId, 'Taller'));
+      const vale = await valeService.asignar(req.user, idObligatorio(req.params.id), idObligatorio(req.body.disenadorId, 'Diseñador'), idOpcional(req.body.tallerId, 'Taller'));
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
@@ -207,7 +255,7 @@ class ValeController {
 
   async cancelarProceso(req, res) {
     try {
-      const vale = await valeService.cancelarProcesoTecnico(req.user, idObligatorio(req.params.id));
+      const vale = await valeService.cancelarProcesoDisenador(req.user, idObligatorio(req.params.id));
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
@@ -234,10 +282,10 @@ class ValeController {
 
   async revisar(req, res) {
     try {
-      const { aprobar, tecnicoReasignadoId, tallerId } = req.body;
+      const { aprobar, disenadorReasignadoId, tallerId } = req.body;
       const vale = await valeService.revisarPropuesta(req.user, idObligatorio(req.params.id), {
         aprobar: aprobar === true || aprobar === 'true',
-        tecnicoReasignadoId: idOpcional(tecnicoReasignadoId, 'Técnico'),
+        disenadorReasignadoId: idOpcional(disenadorReasignadoId, 'Diseñador'),
         tallerId: idOpcional(tallerId, 'Taller')
       });
       return res.json(vale);
@@ -270,7 +318,8 @@ class ValeController {
 
   async solicitarModificacion(req, res) {
     try {
-      const vale = await valeService.solicitarModificacion(req.user, idObligatorio(req.params.id), req.body);
+      const archivos = validarArchivos(req.files);
+      const vale = await valeService.solicitarModificacion(req.user, idObligatorio(req.params.id), req.body, archivos);
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
@@ -288,7 +337,7 @@ class ValeController {
 
   async rechazarModificacion(req, res) {
     try {
-      const vale = await valeService.rechazarModificacion(req.user, idObligatorio(req.params.id));
+      const vale = await valeService.rechazarModificacion(req.user, idObligatorio(req.params.id), req.body && req.body.motivo);
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
@@ -306,8 +355,62 @@ class ValeController {
 
   async rechazarCreacion(req, res) {
     try {
-      const resultado = await valeService.rechazarCreacion(req.user, idObligatorio(req.params.id));
+      const resultado = await valeService.rechazarCreacion(req.user, idObligatorio(req.params.id), req.body && req.body.motivo);
       return res.json(resultado);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async darDeBaja(req, res) {
+    try {
+      const resultado = await valeService.darDeBaja(req.user, idObligatorio(req.params.id));
+      return res.json(resultado);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async verificarAdjuntos(req, res) {
+    try {
+      const vale = await valeService.verificarAdjuntos(req.user, idObligatorio(req.params.id), idOpcional(req.body && req.body.tallerId, 'Taller'));
+      return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async rechazarAdjuntos(req, res) {
+    try {
+      const vale = await valeService.rechazarAdjuntos(req.user, idObligatorio(req.params.id), idOpcional(req.body && req.body.tallerId, 'Taller'));
+      return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async responderAdjuntos(req, res) {
+    try {
+      const vale = await valeService.responderAdjuntos(req.user, idObligatorio(req.params.id), idObligatorio(req.body && req.body.tallerId, 'Taller'), req.body && req.body.mensaje);
+      return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async reenviar(req, res) {
+    try {
+      const vale = await valeService.reenviarAutorizacion(req.user, idObligatorio(req.params.id));
+      return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async marcarVisto(req, res) {
+    try {
+      await valeService.marcarVisto(req.user, idObligatorio(req.params.id));
+      return res.json({ ok: true });
     } catch (error) {
       return responderError(res, error);
     }
@@ -322,18 +425,18 @@ class ValeController {
     }
   }
 
-  async cargaTrabajoTecnico(req, res) {
+  async cargaTrabajoDisenador(req, res) {
     try {
-      const data = await valeService.obtenerAsignacionesDeTecnico(req.user, idObligatorio(req.params.tecnicoId, 'Técnico'));
+      const data = await valeService.obtenerAsignacionesDeDisenador(req.user, idObligatorio(req.params.disenadorId, 'Diseñador'));
       return res.json(data);
     } catch (error) {
       return responderError(res, error);
     }
   }
 
-  async tecnicos(req, res) {
+  async disenadores(req, res) {
     try {
-      const data = await valeService.obtenerTecnicosAsignables(req.user);
+      const data = await valeService.obtenerDisenadoresAsignables(req.user);
       return res.json(data);
     } catch (error) {
       return responderErrorInterno(res, error);

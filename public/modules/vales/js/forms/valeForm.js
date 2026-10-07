@@ -2,45 +2,31 @@ import { state } from '../state.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { htmlSelectorTalleres, wireSelectorTalleres, validarTalleresSeleccionados } from '../components/selectorTalleres.js';
 import { htmlCampoFecha, wireCampoFecha, validarCampoFecha } from '../components/datepicker.js';
-import { htmlDropzone, wireDropzone } from '../components/dropzone.js';
+import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dropzone.js';
 import { validarCamposNativos, wireLimpiezaValidacionInline, enfocarPrimerCampoInvalido } from '../components/validacion.js';
 import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js';
 import { escapeHtml } from '../utils/formato.js';
-import { crearVale, solicitarModificacion, obtenerCapacidadEntrega } from '../api/valesApi.js';
+import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega, obtenerDetalleVale } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
+import { limitarTelefono } from '/js/telefono.js';
 
-// Mismos límites que ya exige el backend (valeController.js:
-// IMAGEN_MAX_BYTES/DOCUMENTO_MAX_BYTES) — se repiten acá para poder
-// rechazar el archivo desde el selector, antes de intentar subirlo.
-const IMAGEN_MAX_BYTES = 2 * 1024 * 1024;
-const DOCUMENTO_MAX_BYTES = 3 * 1024 * 1024;
 const DESCRIPCION_MAX_CARACTERES = 600;
-// Mismo límite que exige el backend para `justificacion` en
-// valeConfirmacionService.solicitarModificacion — distinto del de
-// descripción, no es el mismo campo.
-const JUSTIFICACION_MAX_CARACTERES = 600;
-
 export function opcionesPaises() {
   return (state.catalogos.paises || []).map(p =>
     `<option value="${p.codigo_telefono}" ${p.codigo === 'GT' ? 'selected' : ''}>${p.codigo_telefono} ${p.codigo}</option>`
   ).join('');
 }
 
-// Si la entrega queda a menos de 3 días, "Urgente" se marca solo y no se
-// puede desmarcar; con más margen, el asesor decide libremente.
-export function wireUrgenteAutoLock(overlay) {
+// Urgente lo decide el sistema: entrega en menos de 3 días. El formulario solo lo avisa.
+function esEntregaUrgente(fechaIso) {
+  if (!fechaIso) return false;
+  return (parseIsoLocal(fechaIso) - hoyMedianoche()) / (1000 * 60 * 60 * 24) < 3;
+}
+
+export function wireAvisoUrgente(overlay) {
   const fechaInput = overlay.querySelector('[name="fechaEntrega"]');
-  const checkbox = overlay.querySelector('[name="urgente"]');
-  const actualizar = () => {
-    if (!fechaInput.value) { checkbox.disabled = false; return; }
-    const diffDias = (parseIsoLocal(fechaInput.value) - hoyMedianoche()) / (1000 * 60 * 60 * 24);
-    if (diffDias < 3) {
-      checkbox.checked = true;
-      checkbox.disabled = true;
-    } else {
-      checkbox.disabled = false;
-    }
-  };
+  const aviso = overlay.querySelector('#aviso-urgente');
+  const actualizar = () => { aviso.hidden = !esEntregaUrgente(fechaInput.value); };
   fechaInput.addEventListener('change', actualizar);
   actualizar();
 }
@@ -75,9 +61,33 @@ function wireContadorCampo(overlay, nombreCampo, maxCaracteres) {
 // Modal: Crear vale de arte
 // -----------------------------------------------------------------------
 export function abrirModalCrearVale() {
-  const tallerSeleccionados = new Set();
+  abrirModalFormularioVale(null);
+}
+
+// Asesor: corregir un vale propio que aún no fue autorizado (mismo formulario, precargado).
+export function abrirModalCorregirVale(vale) {
+  abrirModalFormularioVale(vale);
+}
+
+function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
+  const esCorreccion = modo === 'corregir';
+  const esModificacion = modo === 'modificar';
+  const hayOriginal = !!vale;
+  // Un formulario de modificación: pedirla, o corregir un vale MOD- (talleres fijos y justificación obligatoria).
+  const esMod = esModificacion || (hayOriginal && Number(vale.vale_original_id) > 0);
+  // Una modificación va a los mismos talleres del vale original (los de su reparto, o los solicitados).
+  const talleresOriginales = esModificacion
+    ? [...new Set((vale._filasTaller || []).map(f => f.taller_id))]
+    : [];
+  const tallerSeleccionados = new Set(esModificacion
+    ? (talleresOriginales.length ? talleresOriginales : String(vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite))
+    : (esCorreccion ? String(vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite) : []));
+  const documentosQuitar = new Set();
+  const nombresTalleres = [...tallerSeleccionados]
+    .map(id => ((state.catalogos.talleres || []).find(t => t.id === id) || {}).nombre || `#${id}`);
+  const titulos = { crear: 'Crear Vale de Arte', corregir: esMod ? 'Corregir modificación' : 'Corregir vale', modificar: 'Solicitar modificación' };
   const { overlay, cerrar } = abrirModal({
-    title: 'Crear Vale de Arte',
+    title: hayOriginal ? `${titulos[modo]} — ${vale.correlativo}` : titulos[modo],
     size: 'lg',
     bodyHtml: `
       <form id="form-crear-vale">
@@ -97,48 +107,51 @@ export function abrirModalCrearVale() {
 
         <div class="section-title">Información de Taller</div>
         <div class="form-grid">
-          ${htmlSelectorTalleres()}
+          ${esMod
+            ? `<div class="form-field full"><label>Talleres</label><div class="taller-tags">${nombresTalleres.map(n => `<span class="taller-tag">${escapeHtml(n)}</span>`).join('')}</div><p class="form-nota">Una modificación se envía a los mismos talleres del vale original.</p></div>`
+            : htmlSelectorTalleres()}
         </div>
 
         <div class="section-title">Información de Venta</div>
         <div class="form-grid">
           ${htmlCampoFecha('Fecha de entrega', 'fechaEntrega')}
           ${htmlCampoFecha('Fecha del evento', 'fechaEvento')}
+          <div class="aviso-urgente full" id="aviso-urgente" role="status" aria-live="polite" hidden><ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon><span>El vale se marcará como urgente, entrega en menos de 3 días</span></div>
           <div class="form-field"><label>Código de producto *</label><input type="text" name="producto" required maxlength="150" placeholder="Ej. Trofeo" /></div>
           <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="150" placeholder="Ej. Acrílico" /></div>
           <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" /></div>
           <div class="form-field"><label>Acabado</label><input type="text" name="acabado" /></div>
           <div class="form-field"><label>Cantidad * (mayor a 1)</label><input type="number" name="cantidad" min="2" required /></div>
-          <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>
-          <div class="form-field form-checkbox full"><input type="checkbox" name="urgente" id="chk-urgente" /><label for="chk-urgente">Urgente</label></div>
-        </div>
+          <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>        </div>
 
         <div class="section-title">Boceto y Descripción</div>
         <div class="form-grid">
           <div class="form-field full">
-            <label>Descripción <span class="campo-contador" id="descripcion-contador">0/${DESCRIPCION_MAX_CARACTERES}</span></label>
-            <textarea name="descripcion" maxlength="${DESCRIPCION_MAX_CARACTERES}"></textarea>
+            <label>${esMod ? 'Justificación de la modificación *' : 'Descripción'} <span class="campo-contador" id="descripcion-contador">0/${DESCRIPCION_MAX_CARACTERES}</span></label>
+            <textarea name="descripcion" maxlength="${DESCRIPCION_MAX_CARACTERES}"${esMod ? ' required' : ''}></textarea>
             <span class="field-error" id="descripcion-alerta-limite"><ion-icon name="alert-circle-outline"></ion-icon><span>Alcanzaste el límite de ${DESCRIPCION_MAX_CARACTERES} caracteres.</span></span>
           </div>
           <div class="form-field">
             <label>Imágenes</label>
-            ${htmlDropzone({ name: 'imagenes', accept: 'image/jpeg,image/png,image/webp', multiple: true, hint: 'JPG, PNG o WEBP · máx. 2MB c/u' })}
+            <div class="archivos-actuales" data-tipo="imagen"></div>
+            ${htmlDropzone({ name: 'imagenes', accept: 'image/jpeg,image/png,image/webp', multiple: true, hint: 'JPG, PNG o WEBP · máx. 5MB c/u' })}
           </div>
           <div class="form-field">
             <label>Documentos adjuntos</label>
-            ${htmlDropzone({ name: 'documentos', accept: 'application/pdf', multiple: true, hint: 'PDF · máx. 3MB c/u' })}
+            <div class="archivos-actuales" data-tipo="documento"></div>
+            ${htmlDropzone({ name: 'documentos', accept: 'application/pdf', multiple: true, hint: 'PDF · máx. 5MB c/u' })}
           </div>
         </div>
       </form>
     `,
     footerHtml: `
       <button class="btn btn--ghost" id="btn-cancelar-crear">Cancelar</button>
-      <button class="btn btn--primary" id="btn-guardar-crear">Crear Vale de Arte</button>
+      <button class="btn btn--primary" id="btn-guardar-crear">${{ crear: 'Crear Vale de Arte', corregir: 'Guardar cambios', modificar: 'Solicitar modificación' }[modo]}</button>
     `
   });
 
-  wireSelectorTalleres(overlay, tallerSeleccionados);
-  wireUrgenteAutoLock(overlay);
+  if (!esMod) wireSelectorTalleres(overlay, tallerSeleccionados);
+  wireAvisoUrgente(overlay);
   const apiFechaEntrega = wireCampoFecha(overlay, 'fechaEntrega', {
     minDate: hoyMedianoche(),
     capacidad: {
@@ -151,11 +164,20 @@ export function abrirModalCrearVale() {
     apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || hoyMedianoche(), 1));
   });
   wireContadorCampo(overlay, 'descripcion', DESCRIPCION_MAX_CARACTERES);
-  const getImagenes = wireDropzone(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista', { maxBytes: IMAGEN_MAX_BYTES });
-  const getDocumentos = wireDropzone(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista', { maxBytes: DOCUMENTO_MAX_BYTES });
+  limitarTelefono(overlay.querySelector('[name="clienteTelefono"]'));
+  const getImagenes = wireDropzone(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
+  const getDocumentos = wireDropzone(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
 
   const formCrear = overlay.querySelector('#form-crear-vale');
+  if (hayOriginal) precargarFormulario(overlay, formCrear, vale, { apiFechaEntrega, apiFechaEvento }, { conDescripcion: !esModificacion });
+  if (esCorreccion && vale.estado === 'RECHAZADO') {
+    const aviso = document.createElement('div');
+    aviso.className = 'form-aviso';
+    aviso.innerHTML = `<ion-icon name="alert-circle-outline"></ion-icon><span>Vale rechazado. Motivo: ${escapeHtml((vale.rechazo_motivo || 'sin motivo registrado').replace(/[.\s]+$/, ''))}. Guarda tus cambios y luego usa "Reenviar a autorización".</span>`;
+    overlay.querySelector('.modal-body').prepend(aviso);
+  }
   wireLimpiezaValidacionInline(formCrear);
+  if (hayOriginal) cargarArchivosActuales(overlay, vale.id, documentosQuitar);
 
   overlay.querySelector('#btn-cancelar-crear').addEventListener('click', cerrar);
   overlay.querySelector('#btn-guardar-crear').addEventListener('click', () => {
@@ -166,7 +188,7 @@ export function abrirModalCrearVale() {
     // manuales (que no son constraint-validation nativa) van después, para
     // que no les borre el error recién marcado.
     const camposOk = validarCamposNativos(form);
-    const tallerOk = validarTalleresSeleccionados(overlay, tallerSeleccionados);
+    const tallerOk = esMod || validarTalleresSeleccionados(overlay, tallerSeleccionados);
     const entregaOk = validarCampoFecha(overlay, 'fechaEntrega');
     const eventoOk = validarCampoFecha(overlay, 'fechaEvento');
     if (!tallerOk || !entregaOk || !eventoOk || !camposOk) {
@@ -174,7 +196,6 @@ export function abrirModalCrearVale() {
       return;
     }
     const formData = new FormData(form);
-    formData.set('urgente', form.querySelector('[name="urgente"]').checked ? 'true' : 'false');
     const paisCodigo = form.querySelector('[name="clienteTelefonoPais"]').value;
     const telefonoNum = form.querySelector('[name="clienteTelefono"]').value.trim();
     formData.set('clienteTelefono', `${paisCodigo} ${telefonoNum}`);
@@ -192,10 +213,88 @@ export function abrirModalCrearVale() {
     // detectar el reintento y no duplicar el vale.
     formData.set('idempotencyKey', crypto.randomUUID());
 
+    if (hayOriginal) {
+      formData.set('documentosQuitar', JSON.stringify([...documentosQuitar]));
+      guardarCambios(overlay, vale, formData, modo);
+      return;
+    }
     // Antes de crear el vale de verdad, se confirma con un modal resumen (el
     // modal de creación queda debajo, intacto, por si se cancela).
     abrirModalConfirmarCreacion(formData);
   });
+}
+
+async function guardarCambios(overlay, vale, formData, modo) {
+  const btn = overlay.querySelector('#btn-guardar-crear');
+  btn.disabled = true;
+  btn.classList.add('btn--loading');
+  try {
+    if (modo === 'modificar') {
+      await solicitarModificacion(vale.id, formData);
+      window.toast.success('Modificación solicitada', `Modificación solicitada para ${vale.correlativo}.`);
+    } else {
+      await corregirVale(vale.id, formData);
+      window.toast.success('Vale corregido', `${vale.correlativo} se actualizó correctamente.`);
+    }
+    document.querySelectorAll('.modal-overlay').forEach(o => o.remove());
+    cargarBuzon();
+  } catch (error) {
+    mostrarErrorModal(overlay, error.message);
+    btn.disabled = false;
+    btn.classList.remove('btn--loading');
+    cargarBuzon();
+  }
+}
+
+function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEvento }, { conDescripcion }) {
+  const campos = ['clienteEmpresa', 'clienteNombre', 'clienteCorreo', 'producto', 'material', 'tecnica', 'acabado', 'cantidad', 'cotizacion'];
+  if (conDescripcion) campos.push('descripcion');
+  for (const campo of campos) {
+    const nombreColumna = campo.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`);
+    form.querySelector(`[name="${campo}"]`).value = vale[nombreColumna] ?? '';
+  }
+  const [pais, ...numero] = (vale.cliente_telefono || '').split(' ');
+  if (pais) form.querySelector('[name="clienteTelefonoPais"]').value = pais;
+  form.querySelector('[name="clienteTelefono"]').value = numero.join(' ');
+  apiFechaEntrega.setDate(parseIsoLocal(String(vale.fecha_entrega).slice(0, 10)), { silent: true });
+  apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate(), 1));
+  apiFechaEvento.setDate(parseIsoLocal(String(vale.fecha_evento).slice(0, 10)), { silent: true });
+  form.querySelector('[name="descripcion"]').dispatchEvent(new Event('input'));
+  form.querySelector('[name="fechaEntrega"]').dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+// Archivos ya guardados del vale: se muestran con su enlace y una "×" para quitarlos al guardar.
+async function cargarArchivosActuales(overlay, valeId, documentosQuitar) {
+  let documentos;
+  try {
+    documentos = (await obtenerDetalleVale(valeId)).documentos || [];
+  } catch (error) {
+    mostrarErrorModal(overlay, error.message);
+    return;
+  }
+  const render = () => {
+    overlay.querySelectorAll('.archivos-actuales').forEach(cont => {
+      const tipo = cont.dataset.tipo;
+      cont.innerHTML = documentos.filter(d => d.tipo === tipo && !documentosQuitar.has(d.id)).map(d => `
+        <span class="archivo-chip">
+          <a class="archivo-chip-ver" href="${escapeHtml(d.ruta)}" target="_blank" rel="noopener" title="Ver archivo">
+            ${tipo === 'imagen'
+              ? `<img class="archivo-chip-miniatura" src="${escapeHtml(d.ruta)}" alt="">`
+              : '<ion-icon name="document-text-outline" class="archivo-chip-icon"></ion-icon>'}
+            <span class="archivo-chip-nombre">${escapeHtml(d.nombre_original)}</span>
+          </a>
+          <button type="button" class="archivo-chip-quitar" data-id="${d.id}" title="Quitar">&times;</button>
+        </span>
+      `).join('');
+    });
+  };
+  overlay.querySelectorAll('.archivos-actuales').forEach(cont => cont.addEventListener('click', (e) => {
+    const btn = e.target.closest('.archivo-chip-quitar');
+    if (!btn) return;
+    documentosQuitar.add(Number(btn.dataset.id));
+    render();
+  }));
+  render();
 }
 
 function abrirModalConfirmarCreacion(formData) {
@@ -211,7 +310,7 @@ function abrirModalConfirmarCreacion(formData) {
         <li><strong>Talleres:</strong> ${nombresTalleres}</li>
         <li><strong>Cantidad:</strong> ${formData.get('cantidad')}</li>
         <li><strong>Cotización:</strong> Q${formData.get('cotizacion')}</li>
-        <li><strong>Urgente:</strong> ${formData.get('urgente') === 'true' ? 'Sí' : 'No'}</li>
+        <li><strong>Urgente:</strong> ${esEntregaUrgente(formData.get('fechaEntrega')) ? 'Sí' : 'No'}</li>
       </ul>
     `,
     footerHtml: `
@@ -240,133 +339,9 @@ function abrirModalConfirmarCreacion(formData) {
 }
 
 // -----------------------------------------------------------------------
-// Asesor: solicitar modificación (mismo formulario de creación, precargado;
-// boceto y descripción quedan en blanco)
+// Asesor: solicitar modificación de un vale ya entregado (mismo formulario, precargado; los talleres
+// quedan fijos y la justificación es la descripción del nuevo vale MOD-)
 // -----------------------------------------------------------------------
 export function abrirModalSolicitarModificacion(vale) {
-  const [paisCodigoActual, ...resto] = (vale.cliente_telefono || '').split(' ');
-  const telefonoActual = resto.join(' ');
-  // Si el vale original fue a un solo taller (Munditrofeos o Diseño Local, da
-  // igual) el destino es obvio y no se pregunta nada; si fue a 2+ talleres de
-  // Munditrofeos, el asesor debe elegir a cuál(es) de esos MISMOS talleres va
-  // la modificación.
-  const talleresOriginal = (vale._filasTaller || [])
-    .map(f => (state.catalogos.talleres || []).find(t => t.id === f.taller_id))
-    .filter(Boolean);
-  const requiereEleccionTaller = talleresOriginal.length > 1;
-
-  const { overlay, cerrar } = abrirModal({
-    title: `Solicitar modificación — ${vale.correlativo}`,
-    size: 'lg',
-    bodyHtml: `
-      <form id="form-modificacion">
-        <div class="section-title">Información de Cliente</div>
-        <div class="form-grid">
-          <div class="form-field"><label>Empresa</label><input type="text" name="clienteEmpresa" value="${escapeHtml(vale.cliente_empresa || '')}" /></div>
-          <div class="form-field"><label>Cliente *</label><input type="text" name="clienteNombre" value="${escapeHtml(vale.cliente_nombre || '')}" required /></div>
-          <div class="form-field">
-            <label>Teléfono *</label>
-            <div class="form-field-phone">
-              <select name="clienteTelefonoPais">${opcionesPaises()}</select>
-              <input type="text" name="clienteTelefono" value="${escapeHtml(telefonoActual)}" required placeholder="0000-0000" />
-            </div>
-          </div>
-          <div class="form-field"><label>Correo *</label><input type="email" name="clienteCorreo" value="${escapeHtml(vale.cliente_correo || '')}" required /></div>
-        </div>
-
-        <div class="section-title">Información de Venta</div>
-        <div class="form-grid">
-          ${htmlCampoFecha('Fecha de entrega', 'fechaEntrega')}
-          ${htmlCampoFecha('Fecha del evento', 'fechaEvento')}
-          <div class="form-field"><label>Código de producto *</label><input type="text" name="producto" required maxlength="150" value="${escapeHtml(vale.producto || '')}" /></div>
-          <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="150" value="${escapeHtml(vale.material || '')}" /></div>
-          <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" value="${escapeHtml(vale.tecnica || '')}" /></div>
-          <div class="form-field"><label>Acabado</label><input type="text" name="acabado" value="${escapeHtml(vale.acabado || '')}" /></div>
-          <div class="form-field"><label>Cantidad * (mayor a 1)</label><input type="number" name="cantidad" min="2" value="${vale.cantidad || ''}" required /></div>
-          <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" value="${vale.cotizacion || ''}" required /></div>
-          <div class="form-field form-checkbox full"><input type="checkbox" name="urgente" id="chk-urgente-mod" /><label for="chk-urgente-mod">Urgente</label></div>
-        </div>
-
-        ${requiereEleccionTaller ? `
-        <div class="section-title">Destino de la modificación</div>
-        <p style="font-size:13px;margin-bottom:10px;">Este vale se trabajó en más de un taller — elige a cuál(es) enviar la modificación:</p>
-        ${htmlSelectorTalleres(talleresOriginal)}
-        ` : ''}
-
-        <div class="form-field full">
-          <label>Justificación de la modificación * <span class="campo-contador" id="justificacion-contador">0/${JUSTIFICACION_MAX_CARACTERES}</span></label>
-          <textarea name="justificacion" required maxlength="${JUSTIFICACION_MAX_CARACTERES}"></textarea>
-          <span class="field-error" id="justificacion-alerta-limite"><ion-icon name="alert-circle-outline"></ion-icon><span>Alcanzaste el límite de ${JUSTIFICACION_MAX_CARACTERES} caracteres.</span></span>
-        </div>
-      </form>
-    `,
-    footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-enviar">Solicitar Modificación</button>`
-  });
-
-  const tallerSeleccionadosMod = new Set();
-  if (requiereEleccionTaller) wireSelectorTalleres(overlay, tallerSeleccionadosMod, talleresOriginal);
-  wireUrgenteAutoLock(overlay);
-  const apiFechaEntregaMod = wireCampoFecha(overlay, 'fechaEntrega', {
-    minDate: hoyMedianoche(),
-    capacidad: {
-      obtenerTalleresIds: () => requiereEleccionTaller ? [...tallerSeleccionadosMod] : talleresOriginal.map(t => t.id),
-      cargarMes: obtenerCapacidadEntrega
-    }
-  });
-  const apiFechaEventoMod = wireCampoFecha(overlay, 'fechaEvento', { minDate: sumarDiaLocal(hoyMedianoche(), 1) });
-  overlay.querySelector('[name="fechaEntrega"]').addEventListener('change', () => {
-    apiFechaEventoMod.setMinDate(sumarDiaLocal(apiFechaEntregaMod.getDate() || hoyMedianoche(), 1));
-  });
-  if (paisCodigoActual) overlay.querySelector('[name="clienteTelefonoPais"]').value = paisCodigoActual;
-  wireContadorCampo(overlay, 'justificacion', JUSTIFICACION_MAX_CARACTERES);
-
-  const formModificacion = overlay.querySelector('#form-modificacion');
-  wireLimpiezaValidacionInline(formModificacion);
-
-  overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
-  overlay.querySelector('#btn-enviar').addEventListener('click', async () => {
-    const form = formModificacion;
-    const entregaOk = validarCampoFecha(overlay, 'fechaEntrega');
-    const eventoOk = validarCampoFecha(overlay, 'fechaEvento');
-    const camposOk = validarCamposNativos(form);
-    const tallerOk = !requiereEleccionTaller || validarTalleresSeleccionados(overlay, tallerSeleccionadosMod);
-    if (!entregaOk || !eventoOk || !camposOk || !tallerOk) {
-      enfocarPrimerCampoInvalido(overlay);
-      return;
-    }
-    const fd = new FormData(form);
-    const paisCodigo = fd.get('clienteTelefonoPais');
-    const telefonoNum = (fd.get('clienteTelefono') || '').trim();
-    const payload = {
-      clienteEmpresa: fd.get('clienteEmpresa'),
-      clienteNombre: fd.get('clienteNombre'),
-      clienteTelefono: `${paisCodigo} ${telefonoNum}`,
-      clienteCorreo: fd.get('clienteCorreo'),
-      fechaEntrega: fd.get('fechaEntrega'),
-      fechaEvento: fd.get('fechaEvento'),
-      urgente: form.querySelector('[name="urgente"]').checked,
-      producto: fd.get('producto'),
-      material: fd.get('material'),
-      tecnica: fd.get('tecnica'),
-      acabado: fd.get('acabado'),
-      cantidad: fd.get('cantidad'),
-      cotizacion: fd.get('cotizacion'),
-      // Solo se manda cuando el vale original fue a 2+ talleres — si fue a
-      // uno solo, el backend lo resuelve automáticamente sin necesidad de
-      // elegir nada.
-      ...(requiereEleccionTaller ? { talleresIds: JSON.stringify([...tallerSeleccionadosMod]) } : {}),
-      justificacion: fd.get('justificacion')
-    };
-    const btn = overlay.querySelector('#btn-enviar');
-    btn.disabled = true;
-    try {
-      await solicitarModificacion(vale.id, payload);
-      window.toast.success('Modificación solicitada', `Modificación solicitada para ${vale.correlativo}.`);
-      cerrar();
-      cargarBuzon();
-    } catch (error) {
-      mostrarErrorModal(overlay, error.message);
-      btn.disabled = false;
-    }
-  });
+  abrirModalFormularioVale(vale, 'modificar');
 }

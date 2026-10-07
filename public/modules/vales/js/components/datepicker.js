@@ -12,8 +12,8 @@ import { hoyMedianoche, isoLocal, parseIsoLocal } from '../utils/fechas.js';
 import { formatearFecha } from '../utils/formato.js';
 import { limpiarErrorCampo, marcarErrorCampo } from './validacion.js';
 
-const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-const DIAS_SEMANA_CORTO = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
+export const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+export const DIAS_SEMANA_CORTO = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 
 // Solo un calendario puede estar abierto a la vez (aunque el formulario tenga
 // varios campos de fecha) — se usa para cerrar el anterior al abrir otro, y
@@ -21,6 +21,15 @@ const DIAS_SEMANA_CORTO = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 let panelFechaActivo = null;
 export function cerrarPanelFechaActivo() {
   if (panelFechaActivo) panelFechaActivo.cerrar();
+}
+
+// Para otros paneles de fecha (selector de período de la barra) que comparten esa regla de «uno a la vez».
+export function registrarPanelFechaActivo(api) {
+  if (panelFechaActivo && panelFechaActivo !== api) panelFechaActivo.cerrar();
+  panelFechaActivo = api;
+}
+export function liberarPanelFechaActivo(api) {
+  if (panelFechaActivo === api) panelFechaActivo = null;
 }
 
 export function htmlCampoFecha(label, name, requerido = true) {
@@ -110,6 +119,12 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'S
         refrescarLabel();
         hidden.dispatchEvent(new Event('change', { bubbles: true }));
       }
+    },
+    setDate(fecha, opts = {}) {
+      seleccionado = fecha;
+      hidden.value = isoLocal(fecha);
+      refrescarLabel();
+      if (!opts.silent) hidden.dispatchEvent(new Event('change', { bubbles: true }));
     },
     clear(opts = {}) {
       seleccionado = null;

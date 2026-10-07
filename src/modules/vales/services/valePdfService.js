@@ -1,6 +1,6 @@
 // src/modules/vales/services/valePdfService.js
 // Genera el PDF de un vale de arte y fusiona al final los documentos PDF adjuntos
-// (y, cuando el Encargado General fusiona un vale multi-taller, también las
+// (y, cuando quien tiene el permiso de fusión fusiona un vale multi-taller, también las
 // propuestas de cada taller). El binario nunca se persiste en BD: solo se sube
 // a Supabase Storage y se guarda su URL pública. Se regenera por completo en
 // cada cambio relevante (no se anexa sobre el PDF existente) para poder
@@ -95,7 +95,10 @@ class ValePdfService {
     });
 
     const imagenes = documentos.filter(d => d.tipo === 'imagen');
-    const docsAdjuntos = documentos.filter(d => d.tipo === 'documento');
+    // En un vale MOD-, la propuesta del original va primero y luego los adjuntos.
+    const esPropuestaOriginal = (d) => String(d.nombre_original).startsWith('Propuesta original');
+    const docsAdjuntos = documentos.filter(d => d.tipo === 'documento')
+      .sort((a, b) => Number(esPropuestaOriginal(b)) - Number(esPropuestaOriginal(a)));
 
     this._dibujarTituloBloque(ctx, 'BOCETO Y DESCRIPCIÓN');
     this._dibujarTextoLargo(ctx, vale.descripcion);
@@ -107,7 +110,7 @@ class ValePdfService {
       await this._fusionarPdfExterno(pdfDoc, doc.ruta, doc.nombre_original);
     }
 
-    // El checkbox de "ADJUNTOS" ya no se calcula: lo marca a mano el técnico al
+    // El checkbox de "ADJUNTOS" ya no se calcula: lo marca a mano el diseñador al
     // imprimir el vale (corrección #8) — siempre se dibuja vacío.
     this._dibujarPiesDePagina(pdfDoc, font, fontBold, { modificado: !!vale.modificado });
 
@@ -298,11 +301,11 @@ class ValePdfService {
   // simple) para la cotización; la caja de firma queda completamente vacía
   // (sin etiqueta adentro) para firmarse a mano, con "FIRMA Y AUTORIZACIÓN"
   // impreso justo debajo de su borde, fuera de la caja. `firma`, cuando
-  // viene, es el texto "<Supervisor> CREACIÓN"/"<Supervisor> MODIFICACIÓN"
-  // que se dibuja EN ROJO dentro de la caja si el vale ya fue autorizado —
-  // si no, la caja queda vacía para firmarse a mano.
+  // viene, es { nombre, tipo, fechaHora } (supervisor, CREACIÓN/MODIFICACIÓN y
+  // la fecha y hora de la autorización) y se dibuja EN ROJO dentro de la caja
+  // si el vale ya fue autorizado — si no, la caja queda vacía para firmarse a mano.
   _dibujarFilaCotizacionYFirma(ctx, valorCotizacion, etiquetaFirma, firma) {
-    const alto = 17; // altura reducida para liberar espacio vertical hacia BOCETO Y DESCRIPCIÓN
+    const alto = 30; // la firma lleva tres líneas (supervisor, tipo y fecha/hora) y debe leerse bien
     this._asegurarEspacio(ctx, alto + 18);
     const y = ctx.y - alto;
     const anchoCotizacion = (CONTENT_WIDTH * 4) / 5;
@@ -321,15 +324,23 @@ class ValePdfService {
     // que ni `alto` ni el `ctx.y` de salida cambian.
     ctx.page.drawRectangle({ x: xFirma, y, width: anchoFirma, height: alto, borderColor: COLOR_DIVISOR_FUERTE, borderWidth: 1 });
     if (firma) {
-      // La caja es angosta (1/5 del ancho de contenido) — el tamaño de fuente
-      // se calcula para que el texto quepa en vez de fijarlo, bajando hasta 5pt.
+      // La caja es angosta (1/5 del ancho de contenido): cada línea calcula su tamaño de fuente
+      // para que quepa en vez de fijarlo, y se centra. Tres líneas: supervisor, tipo y fecha/hora.
       const margenInterno = 6;
-      let size = 8;
-      while (size > 5 && ctx.fontBold.widthOfTextAtSize(firma, size) > anchoFirma - margenInterno * 2) {
-        size -= 0.5;
+      const lineas = [
+        { texto: firma.nombre, max: 8, min: 5.5, base: y + alto - 11 },
+        { texto: firma.tipo, max: 7, min: 5, base: y + alto - 19.5 },
+        { texto: firma.fechaHora ? formatFechaHora(firma.fechaHora) : '', max: 7, min: 5, base: y + 4 }
+      ];
+      for (const linea of lineas) {
+        if (!linea.texto) continue;
+        let size = linea.max;
+        while (size > linea.min && ctx.fontBold.widthOfTextAtSize(linea.texto, size) > anchoFirma - margenInterno * 2) {
+          size -= 0.5;
+        }
+        const anchoTexto = ctx.fontBold.widthOfTextAtSize(linea.texto, size);
+        this._texto(ctx, linea.texto, xFirma + (anchoFirma - anchoTexto) / 2, linea.base, { size, bold: true, color: COLOR_FIRMA });
       }
-      const anchoTexto = ctx.fontBold.widthOfTextAtSize(firma, size);
-      this._texto(ctx, firma, xFirma + (anchoFirma - anchoTexto) / 2, y + alto / 2 - size / 2 + 1, { size, bold: true, color: COLOR_FIRMA });
     }
     const anchoEtiqueta = ctx.fontBold.widthOfTextAtSize(etiquetaFirma, 6);
     this._texto(ctx, etiquetaFirma, xFirma + anchoFirma - anchoEtiqueta, y - 9, { size: 6, bold: true });
@@ -387,7 +398,7 @@ class ValePdfService {
   /**
    * Dibuja el pie de página en TODAS las páginas del documento final (incluidas las de
    * documentos/propuestas fusionados): numeración actual/total, el checkbox de
-   * "ADJUNTOS" (siempre vacío, lo marca a mano el técnico al imprimir),
+   * "ADJUNTOS" (siempre vacío, lo marca a mano el diseñador al imprimir),
    * y el indicador "MODIFICAR" abajo-izquierda si aplica.
    */
   _dibujarPiesDePagina(pdfDoc, font, fontBold, { modificado }) {

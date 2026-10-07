@@ -63,11 +63,6 @@ export async function obtenerMasVales(qs) {
   return leerJSON(res);
 }
 
-export async function obtenerLimiteColectivo() {
-  const res = await fetch('/api/vales/limite-colectivo');
-  return leerJSON(res);
-}
-
 // Capacidad por día del mes visible, para el calendario de "Fecha de
 // entrega" — analisis_correcciones_28.md.
 export async function obtenerCapacidadEntrega(talleresIds, anio, mes) {
@@ -90,8 +85,27 @@ export async function obtenerRendimientoGerencia(qs) {
   return leerJSON(res);
 }
 
-export async function obtenerTecnicosAsignables() {
-  const res = await fetch('/api/vales/tecnicos');
+export async function obtenerReporte(qs) {
+  const res = await fetch(`/api/vales/reportes?${qs.toString()}`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar el reporte.');
+  return data;
+}
+
+// Descarga el PDF del reporte con los mismos filtros; devuelve { blob, nombre }.
+export async function descargarReportePdf(qs) {
+  const res = await fetch(`/api/vales/reportes/pdf?${qs.toString()}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'No se pudo generar el PDF.');
+  }
+  const disposicion = res.headers.get('Content-Disposition') || '';
+  const nombre = (/filename="([^"]+)"/.exec(disposicion) || [])[1] || 'reporte-vales.pdf';
+  return { blob: await res.blob(), nombre };
+}
+
+export async function obtenerDisenadoresAsignables() {
+  const res = await fetch('/api/vales/disenadores');
   return leerJSON(res);
 }
 
@@ -102,8 +116,8 @@ export async function crearVale(formData) {
   return data;
 }
 
-export function asignarTecnico(valeId, tecnicoId) {
-  return enviarJSON(`/api/vales/${valeId}/asignar`, { tecnicoId });
+export function asignarDisenador(valeId, disenadorId) {
+  return enviarJSON(`/api/vales/${valeId}/asignar`, { disenadorId });
 }
 
 export async function obtenerDetalleVale(valeId) {
@@ -143,24 +157,52 @@ export function confirmarRecibido(valeId) {
   return enviarPost(`/api/vales/${valeId}/confirmar`);
 }
 
-export function solicitarModificacion(valeId, payload) {
-  return enviarJSON(`/api/vales/${valeId}/solicitar-modificacion`, payload);
+export function solicitarModificacion(valeId, formData) {
+  return enviarFormData(`/api/vales/${valeId}/solicitar-modificacion`, formData);
 }
 
 export function autorizarCreacion(valeId) {
   return enviarPost(`/api/vales/${valeId}/autorizar-creacion`);
 }
 
-export function rechazarCreacion(valeId) {
-  return enviarPost(`/api/vales/${valeId}/rechazar-creacion`);
+export function rechazarCreacion(valeId, motivo) {
+  return enviarJSON(`/api/vales/${valeId}/rechazar-creacion`, { motivo });
+}
+
+export function reenviarVale(valeId) {
+  return enviarPost(`/api/vales/${valeId}/reenviar`);
+}
+
+export function marcarValeVisto(valeId) {
+  return enviarPost(`/api/vales/${valeId}/visto`);
+}
+
+export function darDeBajaVale(valeId) {
+  return enviarPost(`/api/vales/${valeId}/dar-de-baja`);
+}
+
+export function verificarAdjuntos(valeId) {
+  return enviarJSON(`/api/vales/${valeId}/verificar-adjuntos`, {});
+}
+
+export function rechazarAdjuntos(valeId) {
+  return enviarJSON(`/api/vales/${valeId}/rechazar-adjuntos`, {});
+}
+
+export function responderAdjuntos(valeId, tallerId, mensaje) {
+  return enviarJSON(`/api/vales/${valeId}/responder-adjuntos`, { tallerId, mensaje });
+}
+
+export function corregirVale(valeId, formData) {
+  return enviarFormData(`/api/vales/${valeId}/corregir`, formData);
 }
 
 export function aprobarModificacion(valeId) {
   return enviarPost(`/api/vales/${valeId}/aprobar-modificacion`);
 }
 
-export function rechazarModificacion(valeId) {
-  return enviarPost(`/api/vales/${valeId}/rechazar-modificacion`);
+export function rechazarModificacion(valeId, motivo) {
+  return enviarJSON(`/api/vales/${valeId}/rechazar-modificacion`, { motivo });
 }
 
 export async function obtenerCargaTrabajo() {
@@ -168,7 +210,7 @@ export async function obtenerCargaTrabajo() {
   return leerJSON(res);
 }
 
-export async function obtenerAsignacionesTecnico(tecnicoId) {
-  const res = await fetch(`/api/vales/carga-trabajo/${tecnicoId}`);
+export async function obtenerAsignacionesDisenador(disenadorId) {
+  const res = await fetch(`/api/vales/carga-trabajo/${disenadorId}`);
   return leerJSON(res);
 }

@@ -133,12 +133,12 @@ function multipart(archivos) {
       chk(`GET ${r} → 400`, x.s === 400 && !filtra(x.t), `${x.s} ${x.t}`);
     }
     const asignador = { token: token(4, ['vales.ver', 'vales.asignar'], 5) };
-    x = await pedir('POST', '/api/vales/1/asignar', { cookies: asignador, json: { tecnicoId: 'abc' } });
-    chk('POST asignar con tecnicoId="abc" → 400 sin SQL', x.s === 400 && !filtra(x.t), `${x.s} ${x.t}`);
-    x = await pedir('POST', '/api/vales/1/asignar', { cookies: asignador, json: { tecnicoId: [1, 2] } });
-    chk('POST asignar con tecnicoId=[1,2] → 400 sin SQL', x.s === 400 && !filtra(x.t), `${x.s} ${x.t}`);
-    x = await pedir('POST', '/api/vales/1/revisar', { cookies: { token: token(4, ['vales.ver', 'vales.revisar'], 5) }, json: { aprobar: false, tecnicoReasignadoId: { a: 1 } } });
-    chk('POST revisar con tecnicoReasignadoId=objeto → 400 sin SQL', x.s === 400 && !filtra(x.t), `${x.s} ${x.t}`);
+    x = await pedir('POST', '/api/vales/1/asignar', { cookies: asignador, json: { disenadorId: 'abc' } });
+    chk('POST asignar con disenadorId="abc" → 400 sin SQL', x.s === 400 && !filtra(x.t), `${x.s} ${x.t}`);
+    x = await pedir('POST', '/api/vales/1/asignar', { cookies: asignador, json: { disenadorId: [1, 2] } });
+    chk('POST asignar con disenadorId=[1,2] → 400 sin SQL', x.s === 400 && !filtra(x.t), `${x.s} ${x.t}`);
+    x = await pedir('POST', '/api/vales/1/revisar', { cookies: { token: token(4, ['vales.ver', 'vales.revisar'], 5) }, json: { aprobar: false, disenadorReasignadoId: { a: 1 } } });
+    chk('POST revisar con disenadorReasignadoId=objeto → 400 sin SQL', x.s === 400 && !filtra(x.t), `${x.s} ${x.t}`);
     x = await pedir('POST', '/api/vales/999999/confirmar', { cookies: { token: token(2, ['vales.ver', 'vales.confirmar'], 63) } });
     chk('error de negocio se conserva (vale inexistente → mensaje legible)', [400, 404].includes(x.s) && x.j && /vale/i.test(x.j.error), `${x.s} ${x.t}`);
 
@@ -197,29 +197,29 @@ function multipart(archivos) {
 
     // ------------------------------------------------------------------
     seccion('Bloqueo de cuenta tras 5 contraseñas malas (encargado de diseño de la base de pruebas)');
-    const tecnico = 'encargado.diseno@munditrofeos.com'; // contraseña de users.sql: disenoenc123
-    await db.query('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE email = ?', [tecnico]);
-    for (let i = 0; i < 5; i++) await login(tecnico, 'mala-' + i);
-    let [[fila]] = await db.query('SELECT intentos_fallidos, bloqueado_hasta FROM usuarios WHERE email = ?', [tecnico]);
+    const disenador = 'encargado.diseno@munditrofeos.com'; // contraseña de users.sql: disenoenc123
+    await db.query('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE email = ?', [disenador]);
+    for (let i = 0; i < 5; i++) await login(disenador, 'mala-' + i);
+    let [[fila]] = await db.query('SELECT intentos_fallidos, bloqueado_hasta FROM usuarios WHERE email = ?', [disenador]);
     chk('al 5.º fallo la cuenta queda bloqueada (bloqueado_hasta en el futuro) y el contador se reinicia', fila.bloqueado_hasta !== null && fila.intentos_fallidos === 0, JSON.stringify(fila));
-    x = await login(tecnico, 'disenoenc123');
+    x = await login(disenador, 'disenoenc123');
     chk('con la cuenta bloqueada, ni la contraseña correcta entra (401 genérico, sin revelar el bloqueo)', x.s === 401 && x.j.error === 'Correo o contraseña incorrectos.', `${x.s} ${x.t}`);
-    await db.query("UPDATE usuarios SET bloqueado_hasta = NOW() - INTERVAL 1 MINUTE WHERE email = ?", [tecnico]);
-    x = await login(tecnico, 'disenoenc123');
+    await db.query("UPDATE usuarios SET bloqueado_hasta = NOW() - INTERVAL 1 MINUTE WHERE email = ?", [disenador]);
+    x = await login(disenador, 'disenoenc123');
     chk('vencido el bloqueo, la contraseña correcta vuelve a entrar', x.s === 200, `${x.s} ${x.t}`);
     if (x.s === 200) await pedir('POST', '/api/auth/logout', { cookies: x.cookies });
-    [[fila]] = await db.query('SELECT intentos_fallidos, bloqueado_hasta FROM usuarios WHERE email = ?', [tecnico]);
+    [[fila]] = await db.query('SELECT intentos_fallidos, bloqueado_hasta FROM usuarios WHERE email = ?', [disenador]);
     chk('un acierto reinicia el contador y limpia el bloqueo', fila.intentos_fallidos === 0 && fila.bloqueado_hasta === null, JSON.stringify(fila));
-    await login(tecnico, 'mala'); await login(tecnico, 'mala');
-    x = await login(tecnico, 'disenoenc123');
+    await login(disenador, 'mala'); await login(disenador, 'mala');
+    x = await login(disenador, 'disenoenc123');
     chk('2 fallos seguidos de un acierto NO bloquean', x.s === 200, `${x.s}`);
     if (x.s === 200) await pedir('POST', '/api/auth/logout', { cookies: x.cookies });
-    await db.query('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE email = ?', [tecnico]);
+    await db.query('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE email = ?', [disenador]);
 
     // ------------------------------------------------------------------
     seccion('T-09 Tiempo de respuesta del login: correo inexistente vs. real (15 muestras c/u, cuentas distintas)');
     const medir = async (correos) => { const t = []; for (const c of correos) { const i = process.hrtime.bigint(); await login(c, 'clave-incorrecta-1'); t.push(Number(process.hrtime.bigint() - i) / 1e6); } t.sort((p, q) => p - q); return t[Math.floor(t.length / 2)]; };
-    const reales = (await db.query("SELECT email FROM usuarios WHERE activo = 1 AND email NOT IN (?, ?) LIMIT 15", [ADMIN.email, tecnico]))[0].map(r => r.email);
+    const reales = (await db.query("SELECT email FROM usuarios WHERE activo = 1 AND email NOT IN (?, ?) LIMIT 15", [ADMIN.email, disenador]))[0].map(r => r.email);
     const mediana = { inexistente: await medir(Array.from({ length: 15 }, (_, i) => `no.existe.${i}@pruebas.local`)), real: await medir(reales) };
     const diferencia = Math.abs(mediana.real - mediana.inexistente) / Math.max(mediana.real, mediana.inexistente);
     chk(`diferencia de mediana < 35 % (inexistente ${mediana.inexistente.toFixed(1)} ms, real ${mediana.real.toFixed(1)} ms, dif ${(diferencia * 100).toFixed(0)} %)`, diferencia < 0.35, `${(diferencia * 100).toFixed(0)} %`);

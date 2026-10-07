@@ -1,10 +1,12 @@
 import { state } from '../state.js';
 import { ROL } from '../config/roles.js';
 import { $, $$ } from '../utils/dom.js';
-import { claseEstado, etiquetaEstado } from '../permisos.js';
+import { celdaEstado } from '../components/pipeline.js';
+import { aplicarVentanaAQuery } from '../utils/ventana.js';
 import { escapeHtml, formatearFecha, celdaTaller } from '../utils/formato.js';
 import { obtenerRendimientoGerencia } from '../api/valesApi.js';
 import { abrirModalHistorial } from '../actions/historial.js';
+import { puede } from '../permisos.js';
 import { fmtNum, fmtPct, fmtDias, sparkline, graficaLineas, conectarTooltips, ocultarTooltip } from '../components/charts.js';
 
 // -----------------------------------------------------------------------
@@ -25,11 +27,7 @@ const vistaTabla = { tendencia: false, ciclo: false, encurso: false };
 
 function construirQuery() {
   const qs = new URLSearchParams();
-  if (state.ventana.tipo) qs.set('ventana', state.ventana.tipo);
-  if (state.ventana.tipo === 'rango') {
-    if (state.ventana.desde) qs.set('desde', state.ventana.desde);
-    if (state.ventana.hasta) qs.set('hasta', state.ventana.hasta);
-  }
+  aplicarVentanaAQuery(qs);
   if (state.tiendaId) qs.set('tiendaId', state.tiendaId);
   return qs;
 }
@@ -109,8 +107,6 @@ function etiquetaPeriodo(data) {
   const { tipo, desde, hasta } = data.ventana;
   let texto;
   if (tipo === 'todo') texto = 'Todo el historial';
-  else if (tipo === 'dia') texto = `Día ${formatearFecha(hasta)}`;
-  else if (tipo === 'semana') texto = `Semana del ${formatearFecha(desde)} al ${formatearFecha(hasta)}`;
   else if (tipo === 'mes') texto = `Mes de ${MESES[Number(desde.slice(5, 7)) - 1]} ${desde.slice(0, 4)}`;
   else texto = `${formatearFecha(desde)} — ${formatearFecha(hasta)}`;
   return state.tiendaId ? `${texto} · ${nombreTienda(Number(state.tiendaId))}` : texto;
@@ -176,6 +172,7 @@ function renderTodo(data) {
       <section class="rend-panel rend-span-7" id="rend-panel-desempeno"></section>
       <section class="rend-panel rend-span-5" id="rend-panel-encurso"></section>
       <section class="rend-panel rend-span-12" id="rend-panel-criticos"></section>
+      <section class="rend-panel rend-span-12" id="rend-panel-asesores"></section>
     </div>
     <details class="rend-notas">
       <summary>Cómo se calculan estas métricas</summary>
@@ -184,6 +181,7 @@ function renderTodo(data) {
         <li><strong>Atrasados ahora:</strong> vales todavía en curso cuya fecha de entrega ya pasó.</li>
         <li><strong>Ciclo promedio:</strong> días desde la creación del vale hasta su confirmación.</li>
         <li><strong>Con modificación:</strong> vales originales que pidieron una modificación, sobre el total de vales originales (no cuenta los vales MOD-).</li>
+        <li><strong>Vales por asesor:</strong> vales originales ingresados por cada asesor en el período (no cuenta los vales MOD-). «Autorizados» ya pasaron por la autorización del supervisor; «Sin autorizar» siguen esperándola o fueron rechazados.</li>
         <li><strong>Desempeño por taller:</strong> un vale que pasa por varios talleres cuenta en cada uno; el cumplimiento es el del vale completo.</li>
         <li><strong>Variación:</strong> se compara contra el período inmediatamente anterior de igual duración; con «Todo» no hay comparación.</li>
       </ul>
@@ -193,6 +191,7 @@ function renderTodo(data) {
   renderDesempeno(data);
   renderEnCurso(data);
   renderCriticos(data);
+  renderAsesores(data);
 }
 
 function htmlKpis(data) {
@@ -266,7 +265,7 @@ function renderTendencia(data) {
   const parcial = data.tendencia.length > 0 && data.tendencia[data.tendencia.length - 1].parcial;
   const cab = cabeceraPanel('Actividad de vales', `Vales creados y cerrados por ${unidad}${parcial ? ' · el último tramo punteado aún está en curso' : ''}`, { tabla: 'tendencia' });
   if (data.tendencia.length < 3) {
-    panel.innerHTML = cab + vacio('trending-up-outline', 'Período muy corto para una tendencia', 'Elige Semana, Mes o Todo en la barra superior para ver cómo evoluciona la actividad.');
+    panel.innerHTML = cab + vacio('trending-up-outline', 'Período muy corto para una tendencia', 'Elige un mes completo o Todo en la barra superior para ver cómo evoluciona la actividad.');
     conectarToggleTabla(panel, 'tendencia', renderTendencia);
     return;
   }
@@ -394,6 +393,34 @@ function renderDesempeno(data) {
   conectarTooltips(panel);
 }
 
+// --- Vales ingresados por asesor ------------------------------------------
+function renderAsesores(data) {
+  const panel = $('#rend-panel-asesores');
+  const cab = cabeceraPanel('Vales por asesor', 'Cuántos vales ingresó cada asesor en el período, y cuántos ya fueron autorizados');
+  if (!data.asesores.length) {
+    panel.innerHTML = cab + vacio('people-outline', 'Sin vales en el período', 'Ningún asesor ingresó vales con los filtros actuales.');
+    return;
+  }
+  const total = data.asesores.reduce((s, a) => s + a.total, 0);
+  const autorizados = data.asesores.reduce((s, a) => s + a.autorizados, 0);
+  const filas = data.asesores.map(a => `
+    <tr>
+      <th scope="row" class="rend-nombre">${escapeHtml(a.nombre)}</th>
+      <td>${escapeHtml(nombreTienda(a.tiendaId))}</td>
+      <td class="rend-num"><strong>${fmtNum(a.total)}</strong></td>
+      <td class="rend-num">${fmtNum(a.autorizados)}</td>
+      <td class="rend-num">${a.sinAutorizar ? `<span class="rend-atrasados">${fmtNum(a.sinAutorizar)}</span>` : '<span class="rend-cero">0</span>'}</td>
+    </tr>`).join('');
+  panel.innerHTML = cab + `
+    <div class="rend-tabla-wrap">
+      <table class="rend-tabla rend-tabla--ranking">
+        <thead><tr><th>Asesor</th><th>Tienda</th><th class="rend-num">Ingresados</th><th class="rend-num">Autorizados</th><th class="rend-num">Sin autorizar</th></tr></thead>
+        <tbody>${filas}</tbody>
+        <tfoot><tr><th scope="row" colspan="2">Total</th><td class="rend-num"><strong>${fmtNum(total)}</strong></td><td class="rend-num">${fmtNum(autorizados)}</td><td class="rend-num">${fmtNum(total - autorizados)}</td></tr></tfoot>
+      </table>
+    </div>`;
+}
+
 // --- Vales en curso por etapa --------------------------------------------
 function renderEnCurso(data) {
   const panel = $('#rend-panel-encurso');
@@ -457,7 +484,7 @@ function renderCriticos(data) {
             <td data-label="Taller" class="col-taller">${celdaTaller({ taller: escapeHtml(v.taller || '') })}</td>
             <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
             <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : `<span class="badge badge-atraso">${v.diasAtraso}d</span>`}</td>
-            <td data-label="Estado"><span class="estado-pill ${claseEstado(v)}">${escapeHtml(etiquetaEstado(v))}</span></td>
+            <td data-label="Estado" class="col-estado">${celdaEstado(v)}</td>
             <td data-label="Acciones" class="acciones-cell" data-vale-id="${v.id}"></td>
           </tr>`).join('')}
         </tbody>
@@ -470,7 +497,7 @@ function renderCriticos(data) {
     celda.appendChild(wrap);
     [
       { icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') },
-      { icono: 'time-outline', titulo: 'Ver historial', onClick: () => abrirModalHistorial(v) }
+      ...(puede('verHistorial') ? [{ icono: 'time-outline', titulo: 'Ver historial', onClick: () => abrirModalHistorial(v) }] : [])
     ].forEach(accion => {
       const btn = document.createElement('button');
       btn.className = 'btn-icon';

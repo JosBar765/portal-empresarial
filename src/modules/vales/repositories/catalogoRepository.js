@@ -21,10 +21,11 @@ class CatalogoRepository {
 
   async obtenerTiendaPorId(id) {
     const rows = await db.query(
-      `SELECT t.id, t.codigo, e.pais_id, t.departamento_id, t.subdivision_id,
+      `SELECT t.id, t.codigo, e.pais_id, COALESCE(e.prefijo_correlativo, p.codigo) AS prefijo_pais, t.departamento_id, t.subdivision_id,
               CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS nombre
        FROM tiendas t
        JOIN empresas e ON e.id = t.empresa_id
+       LEFT JOIN paises p ON p.id = e.pais_id
        LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
        WHERE t.id = ?`,
       [id],

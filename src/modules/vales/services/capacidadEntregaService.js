@@ -14,28 +14,14 @@ class CapacidadEntregaService {
     return talleres.filter(t => idsSet.has(t.id) && t.limite_diario != null);
   }
 
-  // conteos[fechaISO][tallerId] = cantidad de vales "entrantes" ese día.
+  // conteos[fechaISO][tallerId] = vales ya AUTORIZADOS que entran ese día; uno pendiente no ocupa cupo.
   async _contarPorTallerYFecha(talleresIds, fechaDesde, fechaHasta) {
-    const [solicitados, fanOut] = await Promise.all([
-      capacidadRepository.listarSolicitadosEnRango(fechaDesde, fechaHasta),
-      capacidadRepository.listarFanOutEnRango(talleresIds, fechaDesde, fechaHasta)
-    ]);
-    const talleresSet = new Set(talleresIds);
+    const fanOut = await capacidadRepository.listarFanOutEnRango(talleresIds, fechaDesde, fechaHasta);
     const conteos = {};
-    const sumar = (fechaISO, tallerId) => {
-      conteos[fechaISO] = conteos[fechaISO] || {};
-      conteos[fechaISO][tallerId] = (conteos[fechaISO][tallerId] || 0) + 1;
-    };
-    for (const row of solicitados) {
-      const fechaISO = String(row.fecha_entrega).slice(0, 10);
-      const idsFila = (row.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
-      for (const id of idsFila) {
-        if (talleresSet.has(id)) sumar(fechaISO, id);
-      }
-    }
     for (const row of fanOut) {
       const fechaISO = String(row.fecha_entrega).slice(0, 10);
-      sumar(fechaISO, row.taller_id);
+      conteos[fechaISO] = conteos[fechaISO] || {};
+      conteos[fechaISO][row.taller_id] = (conteos[fechaISO][row.taller_id] || 0) + 1;
     }
     return conteos;
   }
@@ -79,15 +65,20 @@ class CapacidadEntregaService {
   // deliberadamente amigable/no técnico: a quien pierde la carrera por el
   // último cupo (o simplemente llega tarde a un día ya lleno) le llega
   // igual, y no tiene por qué distinguirse de un error de validación común.
-  async validarLimiteDiario(talleresIds, fechaEntregaISO) {
+  // `paraSupervisor`: el mensaje se redacta para quien autoriza, no para quien captura el vale.
+  async validarLimiteDiario(talleresIds, fechaEntregaISO, { paraSupervisor = false } = {}) {
     const conLimite = await this._talleresConLimite(talleresIds);
     if (conLimite.length === 0) return;
     const conteos = await this._contarPorTallerYFecha(conLimite.map(t => t.id), fechaEntregaISO, fechaEntregaISO);
     const porTaller = conteos[fechaEntregaISO] || {};
+    const fechaLegible = fechaEntregaISO.split('-').reverse().join('/');
     for (const t of conLimite) {
       const programados = porTaller[t.id] || 0;
       if (programados >= t.limite_diario) {
-        throw new Error(`¡Uy! El taller "${t.nombre}" ya no tiene cupo para el ${fechaEntregaISO} — alguien más acaba de tomar el último lugar. Selecciona otra fecha de entrega e intenta de nuevo.`);
+        if (paraSupervisor) {
+          throw new Error(`El taller "${t.nombre}" ya no tiene cupo para la fecha de entrega ${fechaLegible}. Puedes rechazar el vale indicándole al asesor que elija otra fecha.`);
+        }
+        throw new Error(`El taller "${t.nombre}" ya alcanzó su límite diario para el ${fechaLegible}. Selecciona otra fecha de entrega e intenta de nuevo.`);
       }
     }
   }

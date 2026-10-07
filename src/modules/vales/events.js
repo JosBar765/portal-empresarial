@@ -9,6 +9,8 @@
 // reenvío a varios talleres a la vez: un solo emit, un solo beep, aunque el
 // mensaje mencione a más de un destino).
 const socketManager = require('../../core/websocket/socketManager');
+const notificacionService = require('../../core/notifications/notificacionService');
+const destinatariosRepository = require('./repositories/destinatariosRepository');
 const tallerRepository = require('./repositories/tallerRepository');
 const valeCatalogoService = require('./services/valeCatalogoService');
 const valeDetalleService = require('./services/valeDetalleService');
@@ -26,8 +28,9 @@ async function puedeUnirseASala(socket, sala) {
   if (sala === SALA_ADMIN) return esAdministrador(usuario);
   if (sala === SALA_FUSION) return (usuario.permissions || []).includes(PERMISO_FUSION);
   if (usuario.rolId === ROL.ASESOR) return sala === `asesor:${usuario.id}`;
-  if (usuario.rolId === ROL.SUPERVISOR) return sala === `supervisor:${usuario.id}`;
-  if (usuario.rolId === ROL.TECNICO) return sala === `tecnico:${usuario.id}`;
+  // El supervisor también puede crear vales: recibe lo de los suyos en su sala de asesor.
+  if (usuario.rolId === ROL.SUPERVISOR) return sala === `supervisor:${usuario.id}` || sala === `asesor:${usuario.id}`;
+  if (usuario.rolId === ROL.DISENADOR) return sala === `disenador:${usuario.id}`;
   if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId) && sala.startsWith('taller:')) {
     const tallerId = Number(sala.slice('taller:'.length));
     if (!Number.isFinite(tallerId)) return false;
@@ -67,10 +70,37 @@ function fechaHoraLocal() {
  * @param {string[]} salas Salas objetivo (sin incluir vales:admin, que siempre se agrega).
  * @param {'info'|'alerta'} nivel 'alerta' pinta el toast en rojo en el cliente.
  * @param {boolean} beep Si debe sonar; false para notificaciones silenciosas.
+ * @param {string|null} texto Frase completa tras "Vale: X" (sustituye a "fue {accion}").
+ * @param {boolean} valeBorrado Si el vale ya no existe, la notificación guardada no lo referencia.
+ * @param {string|null} detalle Texto adicional al final del mensaje (p. ej. el motivo de un rechazo).
+ * @param {string|null} tipo Etiqueta opcional para que el cliente reaccione a eventos concretos (p. ej. 'CORREGIDO').
  */
-function notificar({ vale, accion, actor = null, actorId = null, destino = null, salas = [], nivel = 'info', beep = true }) {
-  const mensaje = `${fechaHoraLocal()} – Vale: ${vale.correlativo} fue ${accion}${actor ? ` por ${actor}` : ''}${destino ? ` a ${destino}` : ''}`;
+// Usuarios concretos detrás de cada sala (el Administrador, que ve todo, no recibe notificaciones guardadas).
+async function usuariosDeSalas(salas) {
+  const ids = new Set();
+  for (const sala of salas) {
+    const [tipo, valor] = String(sala).split(':');
+    if (['asesor', 'supervisor', 'disenador'].includes(tipo)) ids.add(Number(valor));
+    else if (tipo === 'taller') (await destinatariosRepository.listarDeTaller(Number(valor))).forEach(id => ids.add(id));
+    else if (sala === SALA_FUSION) (await destinatariosRepository.listarConPermiso(PERMISO_FUSION)).forEach(id => ids.add(id));
+  }
+  return [...ids].filter(Number.isFinite);
+}
+
+function guardarNotificaciones({ vale, contenido, salas, actorId, nivel, tipo, valeBorrado }) {
+  usuariosDeSalas(salas || [])
+    .then(ids => notificacionService.registrar(ids.filter(id => id !== actorId), { modulo: 'vales', valeId: valeBorrado ? null : vale.id, tipo, nivel, mensaje: contenido }))
+    .catch(error => console.error('[Notificaciones] No se pudieron guardar:', error.message));
+}
+
+function notificar({ vale, accion, actor = null, actorId = null, destino = null, salas = [], nivel = 'info', beep = true, tipo = null, detalle = null, valeBorrado = false, texto = null }) {
+  const cuerpo = texto || `fue ${accion}${actor ? ` por ${actor}` : ''}${destino ? ` a ${destino}` : ''}`;
+  const mensaje = `${fechaHoraLocal()} – Vale: ${vale.correlativo} ${cuerpo}${detalle ? `. ${detalle}` : ''}`;
   const salasFinal = [...new Set([...(salas || []), SALA_ADMIN])];
+  guardarNotificaciones({
+    vale, salas, actorId, nivel, tipo, valeBorrado,
+    contenido: mensaje.slice(mensaje.indexOf('Vale:'))
+  });
   socketManager.sendToRooms(salasFinal, 'vale_evento', {
     valeId: vale.id,
     correlativo: vale.correlativo,
@@ -79,7 +109,8 @@ function notificar({ vale, accion, actor = null, actorId = null, destino = null,
     actorId,
     mensaje,
     nivel,
-    beep
+    beep,
+    tipo
   });
   // Canal aparte, uno por vale, independiente de `salas` (que decide quién
   // oye el beep/toast de cada acción — un rol sin visibilidad "de oficio"

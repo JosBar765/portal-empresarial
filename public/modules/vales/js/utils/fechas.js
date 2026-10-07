@@ -15,6 +15,10 @@ export function isoLocal(fecha) {
   return `${y}-${m}-${d}`;
 }
 
+export function primerDiaDelMes(fecha) {
+  return new Date(fecha.getFullYear(), fecha.getMonth(), 1);
+}
+
 export function parseIsoLocal(iso) {
   if (!iso) return null;
   const [y, m, d] = iso.split('-').map(Number);

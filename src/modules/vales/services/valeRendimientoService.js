@@ -8,6 +8,7 @@ const valeRepository = require('../repositories/valeRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeBuzonService = require('./valeBuzonService');
+const { calcularPipeline } = require('./valePipeline');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ROL,
   enriquecer, dentroDeVentana, hoyISO
@@ -31,7 +32,7 @@ const ETAPAS_EN_CURSO = [
 
 const ETAPAS_CICLO = [
   { clave: 'autorizacion', label: 'Autorización' },
-  { clave: 'asignacion', label: 'Asignación a técnico' },
+  { clave: 'asignacion', label: 'Asignación a diseñador' },
   { clave: 'produccion', label: 'Producción y revisión' },
   { clave: 'confirmacion', label: 'Confirmación del asesor' }
 ];
@@ -87,8 +88,6 @@ function ventanaAnterior(ventana) {
   if (!ventana || !ventana.tipo || ventana.tipo === 'todo') return null;
   const ref = ventana.fecha || hoyISO();
   switch (ventana.tipo) {
-    case 'dia': return { tipo: 'dia', fecha: sumarDias(ref, -1) };
-    case 'semana': return { tipo: 'semana', fecha: sumarDias(ref, -7) };
     case 'mes': return { tipo: 'mes', fecha: new Date(Date.UTC(Number(ref.slice(0, 4)), Number(ref.slice(5, 7)) - 2, 1)).toISOString().slice(0, 10) };
     case 'rango': {
       if (!ventana.desde) return null;
@@ -116,20 +115,19 @@ function claveBucket(iso, granularidad) {
 
 function limitesVentana(ventana, vales, hoy) {
   const ref = ventana.fecha || hoy;
-  const primeraCreacion = vales.reduce((min, v) => (!min || v.fecha_creacion < min ? v.fecha_creacion : min), null);
+  const fechasEntrega = vales.map(v => String(v.fecha_entrega).slice(0, 10));
+  const primeraEntrega = fechasEntrega.reduce((min, f) => (!min || f < min ? f : min), null);
+  const ultimaEntrega = fechasEntrega.reduce((max, f) => (!max || f > max ? f : max), null);
   let desde;
   let hasta;
   switch (ventana.tipo) {
-    case 'dia': desde = ref; hasta = ref; break;
-    case 'semana': desde = claveBucket(ref, 'semana'); hasta = sumarDias(desde, 6); break;
     case 'mes':
       desde = `${ref.slice(0, 7)}-01`;
       hasta = new Date(Date.UTC(Number(ref.slice(0, 4)), Number(ref.slice(5, 7)), 0)).toISOString().slice(0, 10);
       break;
-    case 'rango': desde = ventana.desde || primeraCreacion || hoy; hasta = ventana.hasta || hoy; break;
-    default: desde = primeraCreacion || hoy; hasta = hoy;
+    case 'rango': desde = ventana.desde || primeraEntrega || hoy; hasta = ventana.hasta || ultimaEntrega || hoy; break;
+    default: desde = primeraEntrega || hoy; hasta = ultimaEntrega && ultimaEntrega > hoy ? ultimaEntrega : hoy;
   }
-  if (hasta > hoy) hasta = hoy;
   if (desde > hasta) desde = hasta;
   return { desde, hasta };
 }
@@ -200,7 +198,7 @@ function etapaEnCurso(vale) {
     case ESTADOS.CREADO:
     case ESTADOS.MODIFICADO: {
       const estados = (vale._filasTaller || []).map(f => f.estado);
-      if (!estados.length || estados.includes(ESTADOS_TALLER.PENDIENTE_ASIGNACION)) return 'sinAsignar';
+      if (!estados.length || estados.some(e => [ESTADOS_TALLER.PENDIENTE_ASIGNACION, ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS].includes(e))) return 'sinAsignar';
       if (estados.some(e => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA].includes(e))) return 'enProduccion';
       return 'enRevision';
     }
@@ -224,6 +222,7 @@ class ValeRendimientoService {
     let todos = (await valeRepository.listarTodos()).map(enriquecer);
     if (usuario.rolId === ROL.SUPERVISOR) {
       const asesorIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
+      asesorIds.add(usuario.id); // también sus propios vales
       todos = todos.filter(v => asesorIds.has(v.asesor_id));
     }
     todos = await valeBuzonService._enriquecerConTaller(todos);
@@ -262,7 +261,8 @@ class ValeRendimientoService {
       enCurso: this._enCurso(enVentana),
       talleres: await this._porTaller(enVentana, talleresVisibles),
       tiendas: this._porTienda(enVentana),
-      criticos: this._criticos(enVentana)
+      asesores: await this._porAsesor(enVentana),
+      criticos: this._criticos(enVentana).map(v => ({ ...v, pipeline: calcularPipeline(v) }))
     };
   }
 
@@ -272,7 +272,7 @@ class ValeRendimientoService {
       creados: 0, cerrados: 0, aTiempo: 0, ciclos: []
     }]));
     vales.forEach(v => {
-      const bCreado = buckets.get(claveBucket(String(v.fecha_creacion).slice(0, 10), granularidad));
+      const bCreado = buckets.get(claveBucket(String(v.fecha_entrega).slice(0, 10), granularidad));
       if (bCreado) bCreado.creados++;
       if (!esCerrado(v)) return;
       const cierre = cierreDe(v);
@@ -356,6 +356,23 @@ class ValeRendimientoService {
     return [...porTienda.entries()]
       .map(([id, lista]) => ({ id, ...resumirGrupo(lista) }))
       .sort(ordenarRanking);
+  }
+
+  // Vales originales ingresados por cada asesor; "autorizados" son los que ya pasaron por la autorización del supervisor.
+  async _porAsesor(vales) {
+    const porAsesor = new Map();
+    vales.filter(v => !v.vale_original_id).forEach(v => {
+      if (!porAsesor.has(v.asesor_id)) porAsesor.set(v.asesor_id, { tiendaId: v.tienda_id, total: 0, autorizados: 0 });
+      const fila = porAsesor.get(v.asesor_id);
+      fila.total++;
+      if (v.autorizado_por) fila.autorizados++;
+    });
+    const filas = [];
+    for (const [id, fila] of porAsesor) {
+      const asesor = await usuarioValeRepository.obtenerPorId(id);
+      filas.push({ id, nombre: asesor ? asesor.nombre : `#${id}`, ...fila, sinAutorizar: fila.total - fila.autorizados });
+    }
+    return filas.sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre));
   }
 
   _criticos(vales) {
