@@ -494,6 +494,16 @@ entrega igual o posterior a hoy. Técnica y acabado son opcionales. Un vale es
 > Nota: esto reemplaza al antiguo límite diario por asesor
 > (`asesor_limites`), que ya no existe: crear nunca se pospone.
 
+### 5.1 Restricción de horario (domingo y mediodía)
+
+Para no quitarle días de trabajo a los talleres. Todo se calcula con la **hora de Guatemala (UTC-6)**, no con la del navegador.
+
+- **Fecha mínima de entrega:** hoy si la hora es anterior a las 12:00; desde las 12:00, mañana. Si ese día es domingo, el mínimo pasa al lunes (`fechaMinimaEntrega()` en `valeHelpers.js`). La fecha de entrega **nunca** puede ser domingo. La fecha del evento no tiene restricción.
+- **Domingo:** no se puede crear un vale, solicitar una modificación, corregir, reenviar a autorización, autorizar ni aprobar una modificación (rige para asesores y para supervisores que crean vales propios). Rechazar sí se puede.
+- **Al autorizar** (creación y modificación): si la fecha de entrega es anterior al mínimo de ese momento, sale un error y el supervisor debe **rechazar** el vale para que el asesor cambie la fecha. Hoy pasadas las 12:00: «La fecha de entrega ya no está disponible porque son pasadas las 12:00. Rechaza el vale para que el asesor modifique la fecha de entrega.»; fecha ya pasada: «La fecha de entrega ya pasó. Rechaza el vale…».
+- **Plazos de 24 h sin domingos:** el domingo (día completo) no cuenta en los plazos de esperando autorización (y vale rechazado, que conserva ese vencimiento), modificación y adjuntos. Un vale creado el sábado a las 15:00 vence el lunes a las 15:00. El vencimiento se calcula al guardarlo (`sumarHorasSinDomingos`, `vencimiento24h()`) y los vigilantes, el «Vence en N h» y la cuenta regresiva leen ese valor. Los vales anteriores a este cambio conservan su vencimiento original.
+- **Calendario:** el formulario calcula el mínimo con UTC-6 y deshabilita los domingos en la fecha de entrega; el servidor es quien hace cumplir la regla.
+
 ## 6. Gerente y Administrador
 
 - **Gerente** (solo lectura, nunca ejecuta una acción sobre un vale): ve la
