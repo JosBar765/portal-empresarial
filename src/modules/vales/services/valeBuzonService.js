@@ -195,7 +195,9 @@ class ValeBuzonService {
           : await this.obtenerBuzonDisenador(usuario, ventana, filtroContador);
         break;
       default:
-        resultado = { vales: [], contadores: {} };
+        // Cualquier otro rol con vales.ver (p. ej. el Gerente) ve el buzón general en solo lectura: sus acciones
+        // siguen exigiendo sus propios permisos de escritura.
+        resultado = this._buzonAdministrador(todosConTaller, ventana, filtroContador);
     }
 
     // "Atrasados" en general: a diferencia de filtroContador (mutuamente

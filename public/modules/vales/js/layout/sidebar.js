@@ -66,6 +66,12 @@ export function wireSidebar() {
     };
     configurar($('#sidebar-item-primario', sidebar), 'rendimiento', 'analytics-outline', 'Rendimiento');
     configurar($('#sidebar-item-secundario', sidebar), 'encontrar', 'search-outline', 'Encontrar vale');
+    // Con vales.ver también ve el buzón general (todos los vales, solo lectura) como tercer botón.
+    if ((state.user.permissions || []).includes('vales.ver')) {
+      const buzon = $('#sidebar-item-terciario', sidebar);
+      configurar(buzon, 'buzon', 'file-tray-full-outline', 'Buzón');
+      buzon.style.display = '';
+    }
     state.vista = 'rendimiento';
   }
   // Supervisor de Ventas: conserva sus dos botones normales y gana un tercero

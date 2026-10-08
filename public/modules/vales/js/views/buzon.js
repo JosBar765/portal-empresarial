@@ -119,7 +119,7 @@ export function wireScrollInfinito() {
 let contadorEnfocado = null;
 
 export function renderContadores() {
-  let config = CONTADORES_CONFIG[state.user.rolId] || [];
+  let config = CONTADORES_CONFIG[state.user.rolId] || CONTADORES_CONFIG[ROL.ADMINISTRADOR] || [];
   if (!Array.isArray(config)) config = config[state.vista] || [];
   config = config.filter(c => !c.permiso || tienePermiso(c.permiso));
   const grid = $('#contadores-grid');
