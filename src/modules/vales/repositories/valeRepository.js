@@ -173,6 +173,16 @@ class ValeRepository {
     });
   }
 
+  // Si el MOD- autorizado se eliminó y no queda otro, el original puede volver a pedir una modificación.
+  async reabrirModificacion(id) {
+    const res = await db.query(
+      `UPDATE vales SET modificado = 0 WHERE id = ? AND modificado = 1
+         AND NOT EXISTS (SELECT 1 FROM (SELECT id FROM vales WHERE vale_original_id = ?) m)`,
+      [id, id], 'vale:reabrir_modificacion'
+    );
+    return res.affectedRows === 1;
+  }
+
   async marcarModificado(id) {
     await db.query('UPDATE vales SET modificado = 1 WHERE id = ?', [id], 'vale:marcar_modificado');
   }

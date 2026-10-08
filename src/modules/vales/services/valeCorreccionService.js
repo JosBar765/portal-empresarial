@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const valeRepository = require('../repositories/valeRepository');
 const valeCorreccionRepository = require('../repositories/valeCorreccionRepository');
 const documentoRepository = require('../repositories/documentoRepository');
+const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const supabaseStorage = require('../../../core/files/supabaseStorage');
 const imageOptimizer = require('../../../core/files/imageOptimizer');
@@ -36,23 +37,44 @@ class ValeCorreccionService {
       if (vale.asesor_id !== usuario.id) {
         throw new Error('Solo puedes corregir tus propios vales.');
       }
-      // Una modificación no se corrige: se da de baja y se solicita otra (su PDF ya lleva la propuesta del original).
-      if (esValeDeModificacion(vale)) throw new Error('Las modificaciones no se corrigen: da de baja la solicitud y crea una nueva.');
+      const esMod = esValeDeModificacion(vale);
       if (!ESTADOS_EDITABLES_ASESOR.includes(vale.estado)) {
-        throw new Error('Este vale ya fue autorizado, así que ya no se puede corregir.');
+        throw new Error(esMod
+          ? 'Esta modificación ya fue autorizada, así que ya no se puede corregir.'
+          : 'Este vale ya fue autorizado, así que ya no se puede corregir.');
       }
 
-      const datos = await valeCreacionService.validarDatosVale(payload, { tiendaIdAsesor: vale.tienda_id });
+      // Un MOD- conserva los talleres del original (fijos) y su descripción es la justificación de la modificación.
+      let payloadEfectivo = payload;
+      let propuestaOriginal = null;
+      if (esMod) {
+        const justificacion = String(payload.descripcion || '').trim();
+        if (!justificacion) throw new Error('Escribe la justificación de la modificación.');
+        const fijos = (vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
+        if (payload.talleresIds !== undefined && payload.talleresIds !== '') {
+          let enviados;
+          try { enviados = Array.isArray(payload.talleresIds) ? payload.talleresIds : JSON.parse(payload.talleresIds); } catch { enviados = null; }
+          const mismos = Array.isArray(enviados) && new Set(enviados.map(Number)).size === fijos.length && fijos.every(id => enviados.map(Number).includes(id));
+          if (!mismos) throw new Error('Los talleres de una modificación no se pueden cambiar: son los del vale original.');
+        }
+        payloadEfectivo = { ...payload, descripcion: justificacion, talleresIds: fijos };
+        const original = await valeRepository.obtenerPorId(vale.vale_original_id);
+        propuestaOriginal = original && (original.propuesta_general_url || (await propuestaRepository.obtenerUltimaPorVale(original.id))?.url);
+      }
+      const datos = await valeCreacionService.validarDatosVale(payloadEfectivo, { tiendaIdAsesor: esMod ? null : vale.tienda_id });
       const fechaEntregaISO = datos.fechaEntregaNorm.slice(0, 10);
       await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO);
 
       const documentosActuales = await documentoRepository.listarPorVale(valeId);
-      const quitarIds = this._idsAQuitar(payload.documentosQuitar, documentosActuales);
+      // La propuesta original de un MOD- no se quita ni se reemplaza, mande lo que mande el cliente.
+      const esPropuesta = (d) => esMod && d.ruta === propuestaOriginal && /^Propuesta original/.test(d.nombre_original);
+      const quitarIds = this._idsAQuitar(payload.documentosQuitar, documentosActuales)
+        .filter(id => !esPropuesta(documentosActuales.find(d => d.id === id)));
       const conservados = documentosActuales.filter(d => !quitarIds.includes(d.id));
       const nuevosImagenes = (archivos && archivos.imagenes) || [];
       const nuevosDocumentos = (archivos && archivos.documentos) || [];
       if (conservados.filter(d => d.tipo === 'imagen').length + nuevosImagenes.length > MAX_IMAGENES
-        || conservados.filter(d => d.tipo === 'documento').length + nuevosDocumentos.length > MAX_DOCUMENTOS) {
+        || conservados.filter(d => d.tipo === 'documento' && !esPropuesta(d)).length + nuevosDocumentos.length > MAX_DOCUMENTOS) {
         throw new Error(`Un vale admite hasta ${MAX_IMAGENES} imágenes y ${MAX_DOCUMENTOS} documentos.`);
       }
 
@@ -71,7 +93,7 @@ class ValeCorreccionService {
           await valeCorreccionRepository.aplicar({
             valeId, usuarioId: usuario.id, datos, pdfUrl: pdf.url, estado: vale.estado,
             documentosQuitarIds: quitarIds, documentosNuevos,
-            accionHistorial: 'Asesor corrigió los datos del vale de arte antes de su autorización'
+            accionHistorial: `Asesor corrigió los datos ${esMod ? 'de la modificación' : 'del vale de arte'} antes de su autorización`
           });
         });
       } catch (error) {

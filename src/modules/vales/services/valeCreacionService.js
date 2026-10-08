@@ -528,6 +528,14 @@ class ValeCreacionService {
       } catch { /* best-effort */ }
     }
     await valeRepository.eliminar(valeId);
+    // Un MOD- ya autorizado que se elimina nunca se trabajó: el original puede pedir otra modificación.
+    if (vale.vale_original_id && await valeRepository.reabrirModificacion(vale.vale_original_id)) {
+      const original = await valeRepository.obtenerPorId(vale.vale_original_id);
+      if (original) {
+        await registrarHistorial(original.id, vale.asesor_id, null, original.estado, original.estado,
+          'Solicitud de modificación eliminada: puede solicitar una nueva');
+      }
+    }
   }
 
   async guardarAdjuntos(valeId, archivos, subidoPor, esModificacion) {
