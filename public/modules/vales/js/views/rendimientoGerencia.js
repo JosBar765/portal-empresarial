@@ -7,6 +7,7 @@ import { escapeHtml, formatearFecha, celdaTaller } from '../utils/formato.js';
 import { obtenerRendimientoGerencia } from '../api/valesApi.js';
 import { abrirModalHistorial } from '../actions/historial.js';
 import { puede } from '../permisos.js';
+import { mantenerEtiquetas } from '../utils/tablas.js';
 import { fmtNum, fmtPct, fmtDias, sparkline, graficaLineas, conectarTooltips, ocultarTooltip } from '../components/charts.js';
 
 // -----------------------------------------------------------------------
@@ -162,6 +163,7 @@ function variacion(actual, previo, tipo, bueno) {
 // -----------------------------------------------------------------------
 function renderTodo(data) {
   ocultarTooltip();
+  mantenerEtiquetas($('#rend-cuerpo'));
   if (graficaTendencia) { graficaTendencia.destruir(); graficaTendencia = null; }
   $('#rend-meta').textContent = `${etiquetaPeriodo(data)} · Actualizado ${new Date().toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' })}`;
   $('#rend-cuerpo').innerHTML = `

@@ -189,3 +189,12 @@
 @media (max-width: 640px) {
   .pipeline { min-width: 0; }
 }
+
+@media (max-width: 640px) {
+  .pl-detalle { font-size: 12px; }
+}
+
+@media (max-width: 380px) {
+  .pl-pasos { gap: 3px; }
+  .pl-nodo { width: 22px; height: 22px; font-size: 11px; }
+}

@@ -2021,3 +2021,56 @@
     box-shadow: none;
   }
 }
+/* ============================================================
+   Celulares (≤640 px): objetivos táctiles de 44 px y toolbar compacta.
+   Escritorio y tablet no cambian.
+   ============================================================ */
+@media (max-width: 640px) {
+  .header-back, .sidebar-toggle-mobile, .notif-bell {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    align-items: center;
+    margin-right: 0;
+  }
+  .sidebar-item { min-height: 44px; }
+  .chip, .ventana-selector .chip { min-height: 44px; padding-left: 16px; padding-right: 16px; }
+  .mes-nav-flecha { min-width: 44px; min-height: 44px; }
+  .mes-nav-etiqueta { min-height: 44px; }
+  .date-field-trigger, .filtro-tienda { min-height: 44px; }
+  .btn-icon { width: 44px; height: 44px; }
+  .btn { min-height: 44px; }
+  .btn--sm { min-height: 44px; }
+  .buzon-table .acciones-wrap { gap: 8px; }
+}
+
+@media (max-width: 640px) and (orientation: landscape) {
+  .app-header { padding-top: 6px; padding-bottom: 6px; }
+}
+
+@media (max-width: 640px) {
+  /* El pipeline ocupa todo el ancho de la tarjeta en vez de competir con su etiqueta. */
+  .buzon-table td[data-label="Estado"] { flex-direction: column; align-items: flex-start; text-align: left; gap: 6px; }
+  #filtro-texto, .buzon-filtros input { min-height: 44px; }
+  .contador-card .etiqueta-texto { font-size: 12px; }
+  .contador-card .etiqueta-quien { font-size: 11px; }
+  .notif-badge { font-size: 11px; }
+}
+
+@media (max-width: 640px) {
+  #filtro-disenador, .buzon-filtros select { min-height: 44px; }
+}
+
+@media (max-width: 560px) {
+  /* La barra de período (Todo/Hoy/mes/rango + tienda) no debe ensanchar la página. */
+  .vales-toolbar, .ventana-selector, .ventana-rango { max-width: 100%; min-width: 0; }
+  .ventana-selector { flex-wrap: wrap; row-gap: 8px; }
+  .ventana-rango { flex-wrap: wrap; }
+  .mes-nav { max-width: 100%; }
+  #filtro-tienda { width: 100%; max-width: 100%; }
+}
+
+@media (max-width: 640px) {
+  .dp-nav { width: 40px; height: 40px; }
+  .dp-day { width: 100%; min-width: 34px; height: 38px; }
+}
