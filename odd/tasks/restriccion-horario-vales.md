@@ -1,6 +1,6 @@
 # restriccion-horario-vales
 
-Rama: `feature/restriccion-horario-vales` (recreada desde el `origin/dev` del 2026-10-08) · Estado: T1–T4 reaplicadas; T5–T7 pendientes (sábado y taller primero).
+Rama: `feature/restriccion-horario-vales` (recreada desde el `origin/dev` del 2026-10-08) · Estado: T1–T7 hechas.
 
 ## Objetivo
 Proteger los días de trabajo de los talleres: los vales no se piden en domingo y la entrega "para hoy" solo se acepta si el vale se crea y se autoriza antes de las 12:00.
@@ -51,4 +51,4 @@ Reglas nuevas acordadas con el usuario (reemplazan lo que decía solo del doming
 ## Tareas nuevas
 - [x] T5 · Servidor: sábado y domingo (fin de semana) en validaciones, mínimo de entrega y plazos de 24 h; autorizar y aprobar modificación permitidos en sábado y bloqueados en domingo. Ruta: escritor delegado. Verificado con reloj simulado y por HTTP: 13/13 (plazos), 55/55 (validaciones: mínimo, sábado y domingo, autorizar permitido el sábado y bloqueado el domingo, rechazar siempre), 12/12 (plazos integrados) y 7/7 por HTTP con el reloj real. Consecuencia: un vale con entrega el viernes solo se puede autorizar hasta el viernes a las 11:59; después el mínimo es el lunes y el supervisor debe rechazarlo.
 - [x] T6 · Calendario: deshabilitar sábados y domingos, mínimo con fin de semana, y fecha de entrega deshabilitada hasta elegir un taller (se borra si se quitan todos). Ruta: escritor delegado. Verificado en el navegador como asesor: sin taller el campo está apagado con «Elige primero un taller» y no abre el calendario; con un taller se habilita; sábados y domingos y los días anteriores al mínimo salen deshabilitados; al quitar el único taller la fecha se borra y el campo vuelve a apagarse; en solicitar modificación el campo queda habilitado con la fecha precargada. Mínimo y helpers probados bajo tres zonas horarias.
-- [ ] T7 · Documentación y verificación de punta a punta con reloj simulado.
+- [x] T7 · Documentación y verificación de punta a punta con reloj simulado. Documentación: sección 5.1 de `flujo_vale_de_arte.md` y `CLAUDE.md` actualizadas (fin de semana, sábado con autorizar permitido, atraso sin cambios, fecha de entrega tras elegir taller). Verificación repartida: T5 con reloj simulado y por HTTP, T6 en el navegador. Sin probar: un sábado o domingo real por HTTP, ni al supervisor creando su propio vale con estas reglas.
