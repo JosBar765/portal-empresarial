@@ -1,6 +1,6 @@
 # restriccion-horario-vales
 
-Rama: `feature/restriccion-horario-vales` (desde `origin/dev`) · Estado: T1–T4 hechas.
+Rama: `feature/restriccion-horario-vales` (recreada desde el `origin/dev` del 2026-10-08) · Estado: T1–T4 reaplicadas; T5–T7 pendientes (sábado y taller primero).
 
 ## Objetivo
 Proteger los días de trabajo de los talleres: los vales no se piden en domingo y la entrega "para hoy" solo se acepta si el vale se crea y se autoriza antes de las 12:00.
@@ -39,3 +39,16 @@ Sin suite de tests: scripts propios en proceso con el reloj simulado (`Date.now`
 
 ## Siguiente paso
 T1.
+
+## Cambios posteriores (2026-10-08): sábado y taller primero
+Reglas nuevas acordadas con el usuario (reemplazan lo que decía solo del domingo):
+- **Sábado y domingo son días de descanso de los talleres.** No se puede crear un vale, solicitar una modificación, corregir ni reenviar en sábado ni en domingo. **Autorizar y aprobar una modificación SÍ se pueden en sábado** (el vale llega a los talleres ese día, sin espera); **en domingo no** (el domingo sigue bloqueado todo).
+- **La fecha de entrega nunca puede ser sábado ni domingo.** El mínimo de entrega (hoy antes de las 12:00, si no mañana) salta sábados y domingos hasta el lunes.
+- **Los plazos de 24 h no cuentan sábado ni domingo** (esperando autorización, rechazado, modificación y adjuntos): un vale creado el viernes a las 15:00 vence el lunes a las 15:00.
+- **El atraso NO se toca:** sigue contando días corridos. La restricción solo evita pedir entregas en sábado y domingo.
+- **Al crear un vale, la fecha de entrega queda deshabilitada hasta que haya al menos un taller seleccionado.** Si se quitan todos los talleres, la fecha se borra y el campo vuelve a deshabilitarse. En modificar y corregir los talleres ya vienen fijos y la fecha queda habilitada.
+
+## Tareas nuevas
+- [ ] T5 · Servidor: sábado y domingo (fin de semana) en validaciones, mínimo de entrega y plazos de 24 h; autorizar y aprobar modificación permitidos en sábado y bloqueados en domingo.
+- [ ] T6 · Calendario: deshabilitar sábados y domingos, mínimo con fin de semana, y fecha de entrega deshabilitada hasta elegir un taller (se borra si se quitan todos).
+- [ ] T7 · Documentación y verificación de punta a punta con reloj simulado.
