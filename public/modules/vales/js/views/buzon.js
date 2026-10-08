@@ -5,7 +5,7 @@ import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { aplicarVentanaAQuery } from '../utils/ventana.js';
 import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible } from '../permisos.js';
 import { celdaEstado } from '../components/pipeline.js';
-import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro } from '../utils/formato.js';
+import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro, badgePersona } from '../utils/formato.js';
 import { obtenerBuzon, obtenerMasVales } from '../api/valesApi.js';
 import { cargarRendimientoGerencia } from './rendimientoGerencia.js';
 import { cargarReportes } from './reportes.js';
@@ -215,7 +215,7 @@ export function renderTabla() {
 
   tbody.innerHTML = filas.map(v => `
     <tr>
-      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}</td>
+      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${badgePersona(v)}</td>
       <td data-label="Fecha Ingreso" class="col-fecha-ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
       <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>

@@ -477,8 +477,8 @@
   display: none;
 }
 
-/* Encargados y diseñadores no ven Fecha Ingreso en su tabla (la Fecha Evento sí). */
-.buzon-table.oculta-fechas .col-fecha-ingreso {
+/* Encargados y diseñadores no ven Fecha Evento en su tabla (la Fecha Ingreso sí). */
+.buzon-table.oculta-fechas .col-fecha-evento {
   display: none;
 }
 
@@ -2078,4 +2078,30 @@
 @media (max-width: 640px) {
   .dp-nav { width: 40px; height: 40px; }
   .dp-day { width: 100%; min-width: 34px; height: 38px; }
+}
+
+/* Quién está detrás del vale, bajo el correlativo (asesor para el Supervisor; diseñador para el Encargado). */
+.persona-badge {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.persona-badge ion-icon { font-size: 13px; flex-shrink: 0; }
+.persona-badge--asesor { background: var(--color-surface-muted); color: var(--color-text-secondary); }
+.persona-badge--disenador { background: var(--color-primary-light); color: var(--color-primary-dark); }
+.persona-badge--libre { background: var(--color-warning-bg, #fef3c7); color: var(--color-warning, #b45309); }
+@media (max-width: 560px) {
+  .buzon-table td[data-label="Correlativo"] { flex-wrap: wrap; justify-content: flex-end; }
+  .persona-badge { margin-top: 0; }
 }
