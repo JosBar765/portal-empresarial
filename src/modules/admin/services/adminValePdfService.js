@@ -63,7 +63,7 @@ class AdminValePdfService {
     const cred = await repo.obtenerCredencial(usuarioId);
     const intento = password.slice(0, 72);
     const valida = await bcrypt.compare(intento, cred ? cred.password_hash : HASH_FICTICIO);
-    if (!cred || !cred.activo || !valida) throw err('Contraseña incorrecta.', 401);
+    if (!cred || !cred.activo || !valida) throw err('Contraseña incorrecta.', 403);
   }
 
   // Convierte el formulario en un objeto con la forma que consume valePdfService.

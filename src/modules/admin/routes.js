@@ -69,7 +69,7 @@ const subirAdjuntos = multer({
   }
 }).fields([{ name: 'imagenes', maxCount: 10 }, { name: 'documentos', maxCount: 5 }]);
 
-// Solo cuentan las contraseñas incorrectas (401): 5 en 15 min bloquean la acción
+// Solo cuentan las contraseñas incorrectas (403): 5 en 15 min bloquean la acción
 // para ese usuario, sin tocar el bloqueo de la cuenta.
 const limitarContrasenaVale = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -77,7 +77,7 @@ const limitarContrasenaVale = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
-  requestWasSuccessful: (req, res) => res.statusCode !== 401,
+  requestWasSuccessful: (req, res) => res.statusCode !== 403,
   keyGenerator: (req) => `vale-pdf:${req.user.id}`,
   handler: (req, res) => {
     res.status(429).json({ error: 'Demasiados intentos de contraseña incorrecta. Espera unos minutos para volver a generar.' });
