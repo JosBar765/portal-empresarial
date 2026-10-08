@@ -477,6 +477,11 @@
   display: none;
 }
 
+/* Encargados y diseñadores no ven Fecha Ingreso en su tabla (la Fecha Evento sí). */
+.buzon-table.oculta-fechas .col-fecha-ingreso {
+  display: none;
+}
+
 /* Chips de taller en el buzón — reusa .taller-tag (selector de talleres del
    formulario de creación) en modo solo lectura, sin el botón "×" de quitar:
    un vale multi-taller ("Diseño, Diseño UV/3D") se leía como una sola frase en

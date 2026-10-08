@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Encargados y diseñadores ya trabajan scoped a su propio taller — la columna
   // "Taller" (pensada para el asesor y roles de supervisión) sobra ahí.
   $('.buzon-table').classList.toggle('oculta-taller', ROLES_TALLER_Y_DISENADOR.includes(state.user.rolId));
+  $('.buzon-table').classList.toggle('oculta-fechas', ROLES_TALLER_Y_DISENADOR.includes(state.user.rolId));
 
   $('#btn-nuevo-vale').style.display = puede('crear') ? 'flex' : 'none';
   // La carga de trabajo es una herramienta de gestión del propio equipo del

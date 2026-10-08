@@ -216,10 +216,10 @@ export function renderTabla() {
   tbody.innerHTML = filas.map(v => `
     <tr>
       <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}</td>
-      <td data-label="Fecha Ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
+      <td data-label="Fecha Ingreso" class="col-fecha-ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
       <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
-      <td data-label="Fecha Evento">${formatearFecha(v.fecha_evento)}</td>
+      <td data-label="Fecha Evento" class="col-fecha-evento">${formatearFecha(v.fecha_evento)}</td>
       <td data-label="Taller" class="col-taller">${celdaTaller(v)}</td>
       <td data-label="Estado" class="col-estado">${celdaEstado(v)}</td>
       <td data-label="Acciones" class="acciones-cell" data-row-key="${claveFila(v)}"></td>
