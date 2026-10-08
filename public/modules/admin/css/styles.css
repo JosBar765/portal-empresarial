@@ -863,3 +863,19 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Crear Vale de Arte */
+/* ------------------------------------------------------------------ */
+.crear-vale-form { display: flex; flex-direction: column; gap: 16px; max-width: 900px; margin-top: 12px; }
+.crear-vale-seccion { border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 16px; min-width: 0; }
+.crear-vale-seccion legend { font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-text-secondary); padding: 0 6px; }
+.crear-vale-acciones { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.crear-vale-archivos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.crear-vale-archivos li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.crear-vale-resultado { max-width: 900px; margin-top: 16px; }
+.crear-vale-resultado input { width: 100%; padding: 8px 10px; border-radius: var(--radius-md, 8px); border: 1px solid var(--color-border); background: var(--color-surface, #fff); color: var(--color-text); }
+.crear-vale-generados { margin-top: 24px; }
+@media (max-width: 640px) {
+  .crear-vale-seccion .form-grid { grid-template-columns: 1fr; }
+}

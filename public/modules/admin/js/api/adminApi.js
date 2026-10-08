@@ -135,6 +135,33 @@ export function actualizarLimiteDiarioTaller(tallerId, limiteDiario) {
   return enviarConBody(`/api/admin/talleres/${tallerId}/limite-diario`, 'PUT', { limiteDiario });
 }
 
+// ---- Crear Vale de Arte (PDF) ----
+// multipart: sin Content-Type a mano, el navegador pone el boundary.
+async function enviarFormData(url, formData) {
+  const res = await fetch(url, { method: 'POST', body: formData });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'No se pudo completar la acción. Inténtalo de nuevo.');
+  return data;
+}
+
+export async function opcionesValePdf() {
+  const res = await fetch('/api/admin/vale-pdf/opciones');
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'No se pudo completar la acción. Inténtalo de nuevo.');
+  return data;
+}
+
+export async function listarValePdfGenerados() {
+  const res = await fetch('/api/admin/vale-pdf');
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'No se pudo completar la acción. Inténtalo de nuevo.');
+  return data;
+}
+
+export function generarValePdf(formData) {
+  return enviarFormData('/api/admin/vale-pdf', formData);
+}
+
 // ---- Mantenimiento ----
 export async function obtenerMantenimiento() {
   const res = await fetch('/api/admin/mantenimiento');
