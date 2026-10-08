@@ -142,6 +142,29 @@ class ValeRepository {
     await db.query('UPDATE vales SET pdf_url = ? WHERE id = ?', [pdfUrl, id], 'vale:update_pdf_url');
   }
 
+  // Autorización completa en una transacción: talleres, firma, estado, PDF e historial (todo o nada).
+  async autorizarCreacionAtomico({ valeId, usuarioId, talleresIds, autorizadoEn, tipo, pdfUrl, estadoAnterior, estadoNuevo, accionHistorial }) {
+    return db.transaccion(async (tx) => {
+      for (const tallerId of talleresIds) {
+        await tx.query(
+          "INSERT INTO vale_talleres (vale_id, taller_id, estado_id, activo) VALUES (?, ?, (SELECT id FROM estados_taller WHERE nombre = 'VERIFICANDO_ADJUNTOS'), 1)",
+          [valeId, tallerId], 'vale_taller:insert'
+        );
+      }
+      const res = await tx.query(
+        `UPDATE vales SET autorizado_por = ?, autorizado_en = ?, autorizacion_tipo_id = (SELECT id FROM tipos_autorizacion WHERE nombre = ?),
+           estado_id = (SELECT id FROM estados_vale WHERE nombre = ?), pdf_url = ?
+         WHERE id = ? AND estado_id = (SELECT id FROM estados_vale WHERE nombre = ?)`,
+        [usuarioId, autorizadoEn, tipo, estadoNuevo, pdfUrl, valeId, estadoAnterior], 'vale:autorizar_creacion'
+      );
+      if (res.affectedRows !== 1) throw new Error('Este vale ya no está esperando autorización.');
+      await tx.query(
+        'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, disenador_id) VALUES (?, ?, NULL, ?, ?, ?, NULL)',
+        [valeId, usuarioId, estadoAnterior, estadoNuevo, accionHistorial], 'historial:insert'
+      );
+    });
+  }
+
   async marcarModificado(id) {
     await db.query('UPDATE vales SET modificado = 1 WHERE id = ?', [id], 'vale:marcar_modificado');
   }

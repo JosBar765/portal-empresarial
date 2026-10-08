@@ -183,20 +183,32 @@ class ValeCreacionService {
             throw new Error('Se alcanzó el límite diario colectivo de autorizaciones de creación de tu equipo. Vuelve a intentar mañana.');
           }
         }
-        // El vale recién ocupa cupo al autorizarse; si dos supervisores compiten por el último lugar, solo gana uno.
-        await valeMutex.conColaDeCapacidad(async () => {
-          await capacidadEntregaService.validarLimiteDiario(talleresIds, String(vale.fecha_entrega).slice(0, 10), { paraSupervisor: true });
-          await this.fanOutTalleres(valeId, talleresIds);
-        });
+        // El PDF con la firma se genera y sube ANTES de tocar la base: si falla, nada cambió.
         const ahora = `${hoyISO()} ${horaActual()}`;
-        await valeRepository.sellarAutorizacion(valeId, { autorizadoPor: usuario.id, autorizadoEn: ahora, autorizacionTipo: 'CREACION' });
-        await valeRepository.actualizarEstado(valeId, ESTADOS.CREADO);
+        const nombresTalleres = await this.nombresDeTalleres(talleresIds);
+        const documentos = await documentoRepository.listarPorVale(valeId);
+        const pdfBuffer = await this.generarBufferPdf(vale, documentos,
+          { autorizado_por: usuario.id, autorizado_en: ahora, autorizacion_tipo: 'CREACION' });
+        const pdf = await supabaseStorage.subir(pdfBuffer, `${vale.correlativo}.pdf`, 'application/pdf');
+        try {
+          // El vale recién ocupa cupo al autorizarse; si dos supervisores compiten por el último lugar, solo gana uno.
+          await valeMutex.conColaDeCapacidad(async () => {
+            await capacidadEntregaService.validarLimiteDiario(talleresIds, String(vale.fecha_entrega).slice(0, 10), { paraSupervisor: true });
+            await valeRepository.autorizarCreacionAtomico({
+              valeId, usuarioId: usuario.id, talleresIds, autorizadoEn: ahora, tipo: 'CREACION', pdfUrl: pdf.url,
+              estadoAnterior: ESTADOS.ESPERANDO_AUTORIZACION, estadoNuevo: ESTADOS.CREADO,
+              accionHistorial: `Supervisor autorizó la creación — enviado a taller${talleresIds.length > 1 ? 'es' : ''}: ${nombresTalleres}`
+            });
+          });
+        } catch (error) {
+          try { await supabaseStorage.eliminar(pdf.url); } catch (e) { console.error(`[Storage] PDF huérfano sin borrar: ${pdf.url} (${e.message})`); }
+          throw error;
+        }
+        // Recién con la base confirmada se borra el PDF anterior.
+        if (vale.pdf_url) {
+          try { await supabaseStorage.eliminar(vale.pdf_url); } catch (e) { console.error(`[Storage] PDF anterior sin borrar: ${vale.pdf_url} (${e.message})`); }
+        }
       });
-      const nombresTalleres = await this.nombresDeTalleres(talleresIds);
-      await registrarHistorial(valeId, usuario.id, null, ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.CREADO,
-        `Supervisor autorizó la creación — enviado a taller${talleresIds.length > 1 ? 'es' : ''}: ${nombresTalleres}`);
-      // Regenera el PDF para que la firma de autorización aparezca.
-      await this.regenerarPdf(valeId);
 
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
@@ -530,22 +542,24 @@ class ValeCreacionService {
     }
   }
 
-  async regenerarPdf(valeId) {
+  // `overrides`: campos del vale que aún no están en la base (p. ej. la firma de autorización).
+  async regenerarPdf(valeId, overrides) {
     const vale = await valeRepository.obtenerPorId(valeId);
     const documentos = await documentoRepository.listarPorVale(valeId);
-    const pdfBuffer = await this.generarBufferPdf(vale, documentos);
+    const pdfBuffer = await this.generarBufferPdf(vale, documentos, overrides);
     const pdfUrlAnterior = vale.pdf_url;
     await subirYRegistrarArchivo({
       buffer: pdfBuffer, nombreOriginal: `${vale.correlativo}.pdf`, mimeType: 'application/pdf',
       registrar: (subida) => valeRepository.actualizarPdfUrl(valeId, subida.url)
     });
     if (pdfUrlAnterior) {
-      await supabaseStorage.eliminar(pdfUrlAnterior);
+      try { await supabaseStorage.eliminar(pdfUrlAnterior); } catch (e) { console.error(`[Storage] PDF anterior sin borrar: ${pdfUrlAnterior} (${e.message})`); }
     }
   }
 
   // Genera el PDF de un vale a partir de sus datos y documentos, sin guardar nada.
-  async generarBufferPdf(vale, documentos) {
+  async generarBufferPdf(vale, documentos, overrides) {
+    if (overrides) vale = { ...vale, ...overrides };
     const asesor = await usuarioValeRepository.obtenerPorId(vale.asesor_id);
     // Firma roja de autorización — solo existe una vez que el Supervisor
     // autorizó (creación o modificación); antes de eso la caja de firma del
