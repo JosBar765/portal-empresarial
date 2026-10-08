@@ -335,11 +335,8 @@ class ValeBuzonService {
   }
 
   // ---- Asesor: sidebar Trabajo realizado (confirmados, orden por fecha) ----
-  // Un vale confirmado permanece visible aquí incluso mientras tiene una
-  // modificación en curso (ESTADOS_CONFIRMADOS incluye
-  // SOLICITANDO_MODIFICACION) — solicitar una modificación no debe "borrar"
-  // el registro de que ya fue confirmado (el historial completo vive en
-  // vale_historial).
+  // Un vale confirmado (o cuya modificación se solicitó: queda RECIBIDO al pedirla) permanece visible aquí
+  // mientras su MOD- está en trámite.
   _trabajoAsesor(usuario, todos, ventana, filtroContador) {
     const propios = todos.filter(v => v.asesor_id === usuario.id).map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v) }));
     const cerrados = propios.filter(v => ESTADOS_CONFIRMADOS.includes(v.estado));

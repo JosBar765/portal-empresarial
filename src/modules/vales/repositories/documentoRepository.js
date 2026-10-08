@@ -25,13 +25,16 @@ class DocumentoRepository {
     return db.query(`${SELECT_DOCUMENTO} WHERE vd.vale_id = ?`, [valeId], 'documento:list_by_vale');
   }
 
-  // Cuántos documentos de OTROS vales apuntan al mismo archivo (un vale MOD- puede conservar los del original).
+  // Cuántas referencias de OTROS vales apuntan al mismo archivo: documentos (un MOD- conserva los del original)
+  // y propuestas (el MOD- lleva la del original como documento).
   async contarReferenciasEnOtrosVales(ruta, valeId) {
     const rows = await db.query(
-      'SELECT COUNT(*) AS n FROM vale_documentos WHERE ruta = ? AND vale_id <> ?',
-      [ruta, valeId], 'documento:count_referencias'
+      `SELECT (SELECT COUNT(*) FROM vale_documentos WHERE ruta = ? AND vale_id <> ?)
+            + (SELECT COUNT(*) FROM vales WHERE propuesta_general_url = ? AND id <> ?)
+            + (SELECT COUNT(*) FROM vale_propuestas WHERE url = ? AND vale_id <> ?) AS n`,
+      [ruta, valeId, ruta, valeId, ruta, valeId], 'documento:count_referencias'
     );
-    return rows[0].n;
+    return Number(rows[0].n);
   }
 
   async eliminar(id) {

@@ -36,21 +36,13 @@ class ValeCorreccionService {
       if (vale.asesor_id !== usuario.id) {
         throw new Error('Solo puedes corregir tus propios vales.');
       }
+      // Una modificación no se corrige: se da de baja y se solicita otra (su PDF ya lleva la propuesta del original).
+      if (esValeDeModificacion(vale)) throw new Error('Las modificaciones no se corrigen: da de baja la solicitud y crea una nueva.');
       if (!ESTADOS_EDITABLES_ASESOR.includes(vale.estado)) {
-        throw new Error(esValeDeModificacion(vale)
-          ? 'Esta modificación ya fue autorizada, así que ya no se puede corregir.'
-          : 'Este vale ya fue autorizado, así que ya no se puede corregir.');
+        throw new Error('Este vale ya fue autorizado, así que ya no se puede corregir.');
       }
 
-      // Un MOD- conserva los talleres del original (fijos) y su descripción es la justificación de la modificación.
-      const esMod = esValeDeModificacion(vale);
-      let payloadEfectivo = payload;
-      if (esMod) {
-        const justificacion = String(payload.descripcion || '').trim();
-        if (!justificacion) throw new Error('Escribe la justificación de la modificación.');
-        payloadEfectivo = { ...payload, descripcion: justificacion, talleresIds: (vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite) };
-      }
-      const datos = await valeCreacionService.validarDatosVale(payloadEfectivo, { tiendaIdAsesor: esMod ? null : vale.tienda_id });
+      const datos = await valeCreacionService.validarDatosVale(payload, { tiendaIdAsesor: vale.tienda_id });
       const fechaEntregaISO = datos.fechaEntregaNorm.slice(0, 10);
       await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO);
 
@@ -79,7 +71,7 @@ class ValeCorreccionService {
           await valeCorreccionRepository.aplicar({
             valeId, usuarioId: usuario.id, datos, pdfUrl: pdf.url, estado: vale.estado,
             documentosQuitarIds: quitarIds, documentosNuevos,
-            accionHistorial: `Asesor corrigió los datos ${esMod ? 'de la modificación' : 'del vale de arte'} antes de su autorización`
+            accionHistorial: 'Asesor corrigió los datos del vale de arte antes de su autorización'
           });
         });
       } catch (error) {

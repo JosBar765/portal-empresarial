@@ -101,8 +101,7 @@ class ValeRepository {
     return db.query(SELECT_VALE, [], 'vale:list_all');
   }
 
-  // Vales MOD- todavía en trámite (esperando al supervisor o rechazados): el original no cambia de estado
-  // mientras tanto, así que esta lista es la que dice qué originales tienen una modificación en curso.
+  // Vales MOD- todavía en trámite (esperando al supervisor): esta lista dice qué originales tienen una modificación en curso.
   async listarModificacionesEnTramite() {
     return db.query(
       `${SELECT_VALE} WHERE v.vale_original_id IS NOT NULL AND ev.nombre IN ('SOLICITANDO_MODIFICACION', 'RECHAZADO')`,
@@ -143,7 +142,8 @@ class ValeRepository {
   }
 
   // Autorización completa en una transacción: talleres, firma, estado, PDF e historial (todo o nada).
-  async autorizarCreacionAtomico({ valeId, usuarioId, talleresIds, autorizadoEn, tipo, pdfUrl, estadoAnterior, estadoNuevo, accionHistorial }) {
+  // Con `valeOriginalId` (autorizar un MOD-) también marca el original como modificado y anota su historial.
+  async autorizarCreacionAtomico({ valeId, usuarioId, talleresIds, autorizadoEn, tipo, pdfUrl, estadoAnterior, estadoNuevo, accionHistorial, valeOriginalId = null, accionHistorialOriginal = null }) {
     return db.transaccion(async (tx) => {
       for (const tallerId of talleresIds) {
         await tx.query(
@@ -162,6 +162,14 @@ class ValeRepository {
         'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, disenador_id) VALUES (?, ?, NULL, ?, ?, ?, NULL)',
         [valeId, usuarioId, estadoAnterior, estadoNuevo, accionHistorial], 'historial:insert'
       );
+      if (valeOriginalId) {
+        await tx.query('UPDATE vales SET modificado = 1 WHERE id = ?', [valeOriginalId], 'vale:marcar_modificado');
+        await tx.query(
+          `INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, disenador_id)
+           SELECT v.id, ?, NULL, ev.nombre, ev.nombre, ?, NULL FROM vales v JOIN estados_vale ev ON ev.id = v.estado_id WHERE v.id = ?`,
+          [usuarioId, accionHistorialOriginal, valeOriginalId], 'historial:insert_aprobacion_original'
+        );
+      }
     });
   }
 
@@ -169,9 +177,9 @@ class ValeRepository {
     await db.query('UPDATE vales SET modificado = 1 WHERE id = ?', [id], 'vale:marcar_modificado');
   }
 
-  // Congela el atraso de forma permanente — se llama exactamente en los dos
-  // puntos donde un vale queda "entregado": confirmarRecibido() y
-  // aprobarModificacion() (al devolver el original a RECIBIDO). El `IS NULL`
+  // Congela el atraso de forma permanente — se llama cuando un vale queda
+  // "entregado": confirmarRecibido() (y solicitarModificacion(), que lo hace en
+  // su propia transacción). El `IS NULL`
   // evita pisar el primer congelamiento si por cualquier motivo se volviera a
   // llamar sobre el mismo vale.
   async congelarAtraso(id, fechaHora) {

@@ -219,8 +219,8 @@ class ValeCreacionService {
     });
   }
 
-  // El Supervisor rechaza un vale pendiente (creación, o modificación con `modificacion: true`): no se borra,
-  // vuelve al asesor (estado RECHAZADO) con el motivo.
+  // El Supervisor rechaza un vale pendiente: una creación vuelve al asesor (RECHAZADO) con el motivo; una modificación
+  // (`modificacion: true`) se elimina y el asesor recibe el motivo en una notificación (el original ya quedó RECIBIDO).
   async rechazarCreacion(usuario, valeId, motivo, { modificacion = false } = {}) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await requerirVale(valeId);
@@ -240,10 +240,22 @@ class ValeCreacionService {
         throw new Error('Este vale es de un asesor que no está a tu cargo.');
       }
       const motivoLimpio = validarMotivoRechazo(motivo);
+      if (modificacion) {
+        const original = await valeRepository.obtenerPorId(vale.vale_original_id);
+        await this.eliminarValeConArchivos(valeId);
+        const codigoOriginal = original ? original.correlativo : 'El vale original';
+        valeEvents.notificar({
+          vale, tipo: 'RECHAZADO', valeBorrado: true, nivel: 'alerta', actorId: usuario.id,
+          texto: `(solicitud de modificación${original ? ` de ${original.correlativo}` : ''}) fue rechazada por ${usuario.nombre}`,
+          detalle: `Motivo: ${motivoLimpio}. ${codigoOriginal} ya quedó como Recibido`,
+          salas: [`asesor:${vale.asesor_id}`, ...supervisoresDelAsesor.map(s => `supervisor:${s.id}`)]
+        });
+        return { ...enriquecer(vale), eliminado: true };
+      }
       const ahora = `${hoyISO()} ${horaActual()}`;
       await valeRechazoRepository.rechazar({
         valeId, usuarioId: usuario.id, motivo: motivoLimpio, rechazadoEn: ahora, estadoPendiente,
-        accionHistorial: `Supervisor rechazó ${modificacion ? 'la modificación' : 'la creación'} y ${modificacion ? 'la' : 'lo'} devolvió al asesor — motivo: ${motivoLimpio}`
+        accionHistorial: `Supervisor rechazó la creación y lo devolvió al asesor — motivo: ${motivoLimpio}`
       });
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
@@ -267,7 +279,7 @@ class ValeCreacionService {
       valeEvents.notificar({
         vale, tipo: 'EXPIRADO', valeBorrado: true, nivel: 'alerta',
         texto: original
-          ? `(solicitud de modificación) fue eliminado automáticamente: venció su vigencia de 24 horas sin ser autorizado. ${original.correlativo} queda sin cambios`
+          ? `(solicitud de modificación) fue eliminado automáticamente: venció su vigencia de 24 horas sin ser autorizado. ${original.correlativo} ya quedó como Recibido`
           : 'fue eliminado automáticamente: venció su vigencia de 24 horas sin ser autorizado',
         salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
       });
@@ -312,6 +324,7 @@ class ValeCreacionService {
       if (vale.asesor_id !== usuario.id) {
         throw new Error('Solo puedes reenviar tus propios vales.');
       }
+      if (esValeDeModificacion(vale)) throw new Error('Las modificaciones rechazadas se eliminan: solicita una nueva.');
       if (vale.estado !== ESTADOS.RECHAZADO) {
         throw new Error('Este vale no está rechazado, no hace falta reenviarlo.');
       }
@@ -323,8 +336,8 @@ class ValeCreacionService {
         (vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite), fechaEntrega
       );
       await valeRechazoRepository.reenviar({
-        valeId, usuarioId: usuario.id, estadoDestino: estadoEnAutorizacion(vale),
-        accionHistorial: `Asesor corrigió ${esValeDeModificacion(vale) ? 'la modificación y la' : 'el vale y lo'} reenvió a autorización`
+        valeId, usuarioId: usuario.id, estadoDestino: ESTADOS.ESPERANDO_AUTORIZACION,
+        accionHistorial: 'Asesor corrigió el vale y lo reenvió a autorización'
       });
       const actualizado = await valeRepository.obtenerPorId(valeId);
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);

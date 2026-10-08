@@ -1,10 +1,11 @@
 // src/modules/vales/repositories/valeModificacionRepository.js
-// Solicitud de modificación: nace el vale MOD- (esperando al supervisor, con 24 h de vigencia). El original no cambia de estado.
+// Solicitud de modificación: nace el vale MOD- (esperando al supervisor, con 24 h de vigencia) y el original queda RECIBIDO.
 const db = require('../../../config/database');
 
 class ValeModificacionRepository {
-  // Crea el vale MOD- con sus documentos y registra el historial de ambos vales en una sola transacción.
+  // Crea el vale MOD- con sus documentos, pasa el original a RECIBIDO y registra el historial de ambos en una sola transacción.
   async crear({ original, datos, correlativo, fechaCreacion, horaCreacion, pdfUrl, documentos, usuarioId, talleresIds }) {
+    const ahora = `${fechaCreacion} ${horaCreacion}`;
     return db.transaccion(async (tx) => {
       // El original debe seguir entregado o recibido, y sin otra modificación en trámite.
       const vigentes = await tx.query(
@@ -39,9 +40,19 @@ class ValeModificacionRepository {
           'documento:insert_modificacion'
         );
       }
+      // Pedir la modificación cuenta como confirmar de recibido: se congela el atraso y se sella la confirmación.
+      if (original.estado === 'PENDIENTE_CONFIRMACION') {
+        const res = await tx.query(
+          `UPDATE vales SET estado_id = (SELECT id FROM estados_vale WHERE nombre = 'RECIBIDO'),
+             atraso_congelado_en = COALESCE(atraso_congelado_en, ?), confirmado_en = COALESCE(confirmado_en, ?)
+           WHERE id = ? AND estado_id = (SELECT id FROM estados_vale WHERE nombre = 'PENDIENTE_CONFIRMACION')`,
+          [ahora, ahora, original.id], 'vale:recibir_por_modificacion'
+        );
+        if (res.affectedRows !== 1) throw new Error('Este vale cambió de estado mientras se creaba la solicitud. Actualiza e inténtalo de nuevo.');
+      }
       await tx.query(
         'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, disenador_id) VALUES (?, ?, NULL, ?, ?, ?, NULL)',
-        [original.id, usuarioId, original.estado, original.estado, `Asesor solicitó modificación — se creó el vale ${correlativo}`], 'historial:insert_solicitud'
+        [original.id, usuarioId, original.estado, 'RECIBIDO', `Asesor solicitó modificación — se creó el vale ${correlativo}`], 'historial:insert_solicitud'
       );
       await tx.query(
         'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, disenador_id) VALUES (?, ?, NULL, NULL, ?, ?, NULL)',
