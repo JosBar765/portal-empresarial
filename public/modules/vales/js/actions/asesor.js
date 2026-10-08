@@ -76,6 +76,7 @@ export function abrirModalDecisionAsesor(vale) {
         <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale de arte (PDF)</a>
         ${vale.propuesta_general_url ? `<a href="${vale.propuesta_general_url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
       </div>
+      <p class="form-nota">Si solicitas una modificación, este vale pasará a «Recibido» de inmediato y se creará un vale de modificación (MOD-) con la propuesta original adjunta. El supervisor debe autorizarlo; si lo rechaza o vence, el MOD- se elimina y puedes solicitar uno nuevo.</p>
     `,
     footerHtml: `
       <button class="btn btn--danger" id="btn-solicitar-modificacion">Solicitar Modificación</button>

@@ -91,6 +91,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
     size: 'lg',
     bodyHtml: `
       <form id="form-crear-vale">
+        ${esModificacion ? '<p class="form-nota">Al solicitarla, el vale original pasará a «Recibido» de inmediato y se creará el MOD- con la propuesta original adjunta. Si el supervisor lo rechaza o vence, se elimina y puedes solicitar otro.</p>' : ''}
         <div class="section-title">Información de Cliente</div>
         <div class="form-grid">
           <div class="form-field"><label>Empresa</label><input type="text" name="clienteEmpresa" /></div>
@@ -263,6 +264,8 @@ function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEve
   form.querySelector('[name="fechaEntrega"]').dispatchEvent(new Event('change', { bubbles: true }));
 }
 
+const esPropuestaOriginal = d => String(d.nombre_original || '').startsWith('Propuesta original - ');
+
 // Archivos ya guardados del vale: se muestran con su enlace y una "×" para quitarlos al guardar.
 async function cargarArchivosActuales(overlay, valeId, documentosQuitar) {
   let documentos;
@@ -283,7 +286,9 @@ async function cargarArchivosActuales(overlay, valeId, documentosQuitar) {
               : '<ion-icon name="document-text-outline" class="archivo-chip-icon"></ion-icon>'}
             <span class="archivo-chip-nombre">${escapeHtml(d.nombre_original)}</span>
           </a>
-          <button type="button" class="archivo-chip-quitar" data-id="${d.id}" title="Quitar">&times;</button>
+          ${esPropuestaOriginal(d)
+            ? '<small class="form-nota" style="margin:0 0 0 6px;">Propuesta del vale original: no se puede quitar</small>'
+            : `<button type="button" class="archivo-chip-quitar" data-id="${d.id}" title="Quitar">&times;</button>`}
         </span>
       `).join('');
     });
