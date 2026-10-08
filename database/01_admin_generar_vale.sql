@@ -1,4 +1,4 @@
--- 01_admin_generar_vale.sql
+-- admin_generar_vale.sql
 -- Script de migración para una base YA EN PRODUCCIÓN (no forma parte de schema.sql ni seed.sql).
 --
 -- Para qué sirve:
@@ -12,7 +12,8 @@
 --   3. Asignación de ese permiso SOLO al rol Administrador (rol_id 1) en `rol_permisos`.
 --
 -- Cómo se importa (una sola vez, o las veces que haga falta: es idempotente):
---   mysql -u <usuario> -p <base_de_datos> < database/01_admin_generar_vale.sql
+--   mysql -u <usuario> -p <base_de_datos> < database/<correlativo>_admin_generar_vale.sql
+--   (el archivo lleva un número delante; en la documentación se cita sin él)
 --   Después, los usuarios Administrador deben cerrar sesión e iniciar de nuevo
 --   para que su token incluya el permiso nuevo.
 
