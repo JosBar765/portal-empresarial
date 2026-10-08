@@ -154,10 +154,10 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
   wireAvisoUrgente(overlay);
   const minEntrega = fechaMinimaEntregaGT();
   const campoEntrega = overlay.querySelector('[data-date-field="fechaEntrega"]').closest('.form-field');
-  campoEntrega.insertAdjacentHTML('beforeend', `<p class="form-nota">Entrega mínima: ${String(minEntrega.getDate()).padStart(2, '0')}/${String(minEntrega.getMonth() + 1).padStart(2, '0')}. Pasadas las 12:00 no se pide para hoy y no hay entregas en domingo.</p>`);
+  campoEntrega.insertAdjacentHTML('beforeend', `<p class="form-nota">Entrega mínima: ${String(minEntrega.getDate()).padStart(2, '0')}/${String(minEntrega.getMonth() + 1).padStart(2, '0')}. Pasadas las 12:00 no se pide para hoy y no hay entregas en sábado ni domingo.</p>`);
   const apiFechaEntrega = wireCampoFecha(overlay, 'fechaEntrega', {
     minDate: minEntrega,
-    sinDomingos: true,
+    sinFinDeSemana: true,
     capacidad: {
       obtenerTalleresIds: () => [...tallerSeleccionados],
       cargarMes: obtenerCapacidadEntrega
@@ -167,6 +167,13 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
   overlay.querySelector('[name="fechaEntrega"]').addEventListener('change', () => {
     apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || hoyMedianoche(), 1));
   });
+  // Al crear, la entrega espera a que haya al menos un taller (si se quitan todos, se borra).
+  if (modo === 'crear') {
+    const sincronizarEntrega = () => apiFechaEntrega.setEnabled(tallerSeleccionados.size > 0, 'Elige primero un taller');
+    overlay.querySelector('.select-agregar-taller').addEventListener('change', sincronizarEntrega);
+    overlay.querySelector('.taller-tags').addEventListener('click', sincronizarEntrega);
+    sincronizarEntrega();
+  }
   wireContadorCampo(overlay, 'descripcion', DESCRIPCION_MAX_CARACTERES);
   limitarTelefono(overlay.querySelector('[name="clienteTelefono"]'));
   const getImagenes = wireDropzone(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
@@ -260,7 +267,7 @@ function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEve
   const [pais, ...numero] = (vale.cliente_telefono || '').split(' ');
   if (pais) form.querySelector('[name="clienteTelefonoPais"]').value = pais;
   form.querySelector('[name="clienteTelefono"]').value = numero.join(' ');
-  // Una entrega ya no disponible (pasada o domingo) se limpia para que se elija otra.
+  // Una entrega ya no disponible (pasada o fin de semana) se limpia para que se elija otra.
   const entrega = parseIsoLocal(String(vale.fecha_entrega).slice(0, 10));
   if (apiFechaEntrega.esValida(entrega)) apiFechaEntrega.setDate(entrega, { silent: true });
   apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || fechaMinimaEntregaGT(), 1));

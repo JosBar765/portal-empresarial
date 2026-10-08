@@ -35,14 +35,15 @@ export function hoyGT() {
   return new Date(a.getUTCFullYear(), a.getUTCMonth(), a.getUTCDate());
 }
 
-export function esDomingo(fecha) {
-  return fecha.getDay() === 0;
+export function esFinDeSemana(fecha) {
+  const d = fecha.getDay();
+  return d === 0 || d === 6;
 }
 
-// Mínimo de entrega (medianoche local del día): hoy antes de las 12:00 GT, si no mañana; el domingo pasa al lunes.
+// Mínimo de entrega (medianoche local del día): hoy antes de las 12:00 GT, si no mañana; sábado y domingo pasan al lunes.
 export function fechaMinimaEntregaGT() {
   let min = hoyGT();
   if (ahoraGT().getUTCHours() >= 12) min = sumarDiaLocal(min, 1);
-  if (esDomingo(min)) min = sumarDiaLocal(min, 1);
+  while (esFinDeSemana(min)) min = sumarDiaLocal(min, 1);
   return min;
 }
