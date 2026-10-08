@@ -9,6 +9,8 @@
 const fs = require('fs/promises');
 const path = require('path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+const { descargarPdfConReintentos, ErrorDescargaPdf } = require('../../../core/files/descargarPdfConReintentos');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 
 const PAGE_WIDTH = 612; // Carta
 const PAGE_HEIGHT = 792;
@@ -107,7 +109,7 @@ class ValePdfService {
     // Fusionar documentos PDF adjuntos al final (nunca se re-almacenan, solo se copian sus páginas)
     for (const doc of docsAdjuntos) {
       if (doc.mime_type !== 'application/pdf') continue;
-      await this._fusionarPdfExterno(pdfDoc, doc.ruta, doc.nombre_original);
+      await this._fusionarPdfExterno(pdfDoc, doc.ruta, doc.nombre_original, vale);
     }
 
     // El checkbox de "ADJUNTOS" ya no se calcula: lo marca a mano el diseñador al
@@ -118,14 +120,23 @@ class ValePdfService {
     return Buffer.from(bytes);
   }
 
-  async _fusionarPdfExterno(pdfDoc, url, nombreParaLog) {
+  // Estricto: si el PDF adjunto no se puede leer, lanza y no se genera el PDF.
+  async _fusionarPdfExterno(pdfDoc, url, nombreParaLog, vale = {}) {
+    const donde = `al PDF del vale ${vale.correlativo} (id ${vale.id})`;
     try {
-      const bytes = Buffer.from(await (await fetch(url)).arrayBuffer());
-      const externo = await PDFDocument.load(bytes);
+      const externo = await descargarPdfConReintentos(url, (e) => {
+        console.warn(`[ValePdfService] Reintentando "${nombreParaLog}" ${donde}: ${e.causa} · ${e.message} · intento ${e.intento}/${e.maxIntentos}`);
+      });
       const paginas = await pdfDoc.copyPages(externo, externo.getPageIndices());
       paginas.forEach(p => pdfDoc.addPage(p));
     } catch (error) {
-      console.warn(`[ValePdfService] No se pudo fusionar "${nombreParaLog}":`, error.message);
+      const causa = error instanceof ErrorDescargaPdf ? error.causa : 'error inesperado al fusionar el PDF';
+      const intento = error instanceof ErrorDescargaPdf ? `${error.intento}/${error.maxIntentos}` : '1/1';
+      console.error(`[ValePdfService] No se pudo adjuntar "${nombreParaLog}" ${donde}: ${causa} · url=${url} · intento ${intento} · ${error.message}`);
+      throw new ErrorDeNegocio(
+        `No se pudo adjuntar el archivo "${nombreParaLog}" al PDF del vale. Inténtalo de nuevo en unos minutos; si el problema continúa, avisa al administrador.`,
+        503
+      );
     }
   }
 
