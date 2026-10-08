@@ -49,6 +49,6 @@ Reglas nuevas acordadas con el usuario (reemplazan lo que decía solo del doming
 - **Al crear un vale, la fecha de entrega queda deshabilitada hasta que haya al menos un taller seleccionado.** Si se quitan todos los talleres, la fecha se borra y el campo vuelve a deshabilitarse. En modificar y corregir los talleres ya vienen fijos y la fecha queda habilitada.
 
 ## Tareas nuevas
-- [ ] T5 · Servidor: sábado y domingo (fin de semana) en validaciones, mínimo de entrega y plazos de 24 h; autorizar y aprobar modificación permitidos en sábado y bloqueados en domingo.
+- [x] T5 · Servidor: sábado y domingo (fin de semana) en validaciones, mínimo de entrega y plazos de 24 h; autorizar y aprobar modificación permitidos en sábado y bloqueados en domingo. Ruta: escritor delegado. Verificado con reloj simulado y por HTTP: 13/13 (plazos), 55/55 (validaciones: mínimo, sábado y domingo, autorizar permitido el sábado y bloqueado el domingo, rechazar siempre), 12/12 (plazos integrados) y 7/7 por HTTP con el reloj real. Consecuencia: un vale con entrega el viernes solo se puede autorizar hasta el viernes a las 11:59; después el mínimo es el lunes y el supervisor debe rechazarlo.
 - [ ] T6 · Calendario: deshabilitar sábados y domingos, mínimo con fin de semana, y fecha de entrega deshabilitada hasta elegir un taller (se borra si se quitan todos).
 - [ ] T7 · Documentación y verificación de punta a punta con reloj simulado.

@@ -24,7 +24,7 @@ const valeMutex = require('./valeMutex');
 const valeVistoService = require('./valeVistoService');
 const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
-  ESTADOS, hoyISO, horaActual, esDomingoHoy, esFechaDomingo, fechaMinimaEntrega, vencimiento24h, enriquecer,
+  ESTADOS, hoyISO, horaActual, esDomingoHoy, esSabadoHoy, esFechaFinDeSemana, fechaMinimaEntrega, vencimiento24h, enriquecer,
   normalizarDatetime, calcularUrgente, registrarHistorial,
   esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
   esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor
@@ -36,6 +36,13 @@ class ValeCreacionService {
     return `${d}/${m}/${a}`;
   }
 
+  // Sábado y domingo: acciones que piden entrega (crear, modificar, corregir, reenviar).
+  exigirDiaHabil(accion) {
+    if (esSabadoHoy()) throw new Error(`Los sábados no se pueden ${accion} (día de descanso).`);
+    this.exigirNoDomingo(accion);
+  }
+
+  // Domingo: además autorizar y aprobar modificación (el sábado sí se pueden).
   exigirNoDomingo(accion) {
     if (esDomingoHoy()) throw new Error(`Los domingos no se pueden ${accion} (día de descanso).`);
   }
@@ -60,7 +67,7 @@ class ValeCreacionService {
     const idempotencyKey = payload.idempotencyKey || crypto.randomUUID();
     const previo = await idempotencyRepository.buscar(idempotencyKey);
     if (previo) return previo.resultado;
-    this.exigirNoDomingo('crear vales de arte');
+    this.exigirDiaHabil('crear vales de arte');
 
     const solicitante = await usuarioValeRepository.obtenerPorId(usuario.id);
     if (!solicitante || !solicitante.tienda_id) {
@@ -314,7 +321,7 @@ class ValeCreacionService {
   // El asesor vuelve a mandar a autorización un vale rechazado, ya corregido.
   async reenviarAutorizacion(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
-      this.exigirNoDomingo('reenviar vales a autorización');
+      this.exigirDiaHabil('reenviar vales a autorización');
       if (!puedeActuarComoAsesor(usuario)) {
         throw new Error('Solo un asesor o un supervisor de ventas puede reenviar un vale a autorización.');
       }
@@ -326,7 +333,7 @@ class ValeCreacionService {
         throw new Error('Este vale no está rechazado, no hace falta reenviarlo.');
       }
       const fechaEntrega = String(vale.fecha_entrega).slice(0, 10);
-      if (esFechaDomingo(fechaEntrega) || fechaEntrega < fechaMinimaEntrega()) {
+      if (esFechaFinDeSemana(fechaEntrega) || fechaEntrega < fechaMinimaEntrega()) {
         throw new Error(`La fecha de entrega ya no está disponible (mínima: ${this.formatearFecha(fechaMinimaEntrega())}). Corrige el vale con una fecha de entrega válida antes de reenviarlo.`);
       }
       await capacidadEntregaService.validarLimiteDiario(
@@ -422,10 +429,10 @@ class ValeCreacionService {
     if (!fechaReal(fechaEntregaNorm)) throw new Error('La fecha de entrega no es válida.');
     if (!fechaReal(fechaEventoNorm)) throw new Error('La fecha del evento no es válida.');
     const entregaISO = fechaEntregaNorm.slice(0, 10);
-    if (esFechaDomingo(entregaISO)) throw new Error('La fecha de entrega no puede ser domingo.');
+    if (esFechaFinDeSemana(entregaISO)) throw new Error('La fecha de entrega no puede ser sábado ni domingo.');
     const minima = fechaMinimaEntrega();
     if (entregaISO < minima) {
-      throw new Error(`La fecha de entrega mínima es ${this.formatearFecha(minima)}: no se puede pedir para días pasados, para hoy después de las 12:00 ni para un domingo.`);
+      throw new Error(`La fecha de entrega mínima es ${this.formatearFecha(minima)}: no se puede pedir para días pasados, para hoy después de las 12:00 ni para sábados y domingos.`);
     }
     if (!(new Date(fechaEventoNorm.replace(' ', 'T')) > new Date(fechaEntregaNorm.replace(' ', 'T')))) {
       throw new Error('La fecha del evento debe ser posterior a la fecha de entrega.');

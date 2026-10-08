@@ -29,7 +29,7 @@ class ValeCorreccionService {
       const previo = await idempotencyRepository.buscar(key);
       if (previo) return previo.resultado;
 
-      valeCreacionService.exigirNoDomingo('corregir vales');
+      valeCreacionService.exigirDiaHabil('corregir vales');
       if (!puedeActuarComoAsesor(usuario)) {
         throw new Error('Solo un asesor o un supervisor de ventas puede corregir un vale.');
       }

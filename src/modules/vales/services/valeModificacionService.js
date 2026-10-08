@@ -33,7 +33,7 @@ class ValeModificacionService {
       const previo = await idempotencyRepository.buscar(key);
       if (previo) return previo.resultado;
 
-      valeCreacionService.exigirNoDomingo('solicitar modificaciones');
+      valeCreacionService.exigirDiaHabil('solicitar modificaciones');
       if (!puedeActuarComoAsesor(usuario)) throw new Error('Solo un asesor o un supervisor de ventas puede solicitar una modificación.');
       const original = await requerirVale(valeId);
       assertPropioDelAsesor(usuario, original);
