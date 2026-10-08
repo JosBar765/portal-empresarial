@@ -1,6 +1,6 @@
 # admin-generar-vale
 
-Rama: `feature/admin-generar-vale` (desde `origin/dev`) · Estado: T1 hecha.
+Rama: `feature/admin-generar-vale` (desde `origin/dev`) · Estado: T1–T3 hechas.
 
 ## Objetivo
 Una pestaña «Crear Vale de Arte» en Administración que genera el PDF de un vale a partir de campos arbitrarios (correcciones, p. ej. regenerar un vale con otra fecha de entrega), lo sube a Supabase y muestra el link. El cambio de `vales.pdf_url` en la BD lo hace el usuario a mano.
@@ -23,8 +23,8 @@ Una pestaña «Crear Vale de Arte» en Administración que genera el PDF de un v
 
 ## Tareas
 - [x] T1 · Backend: tabla de auditoría, permiso `admin.vales.generar`, endpoints (opciones, generar con verificación de contraseña y límite, listado), `valePdfService` acepta buffers. Ruta: escritor delegado. Los cambios de base van en `database/01_admin_generar_vale.sql` (idempotente, sin ids fijos; probado dos veces en desarrollo), NO en schema.sql/seed.sql, porque el sistema ya está en producción. Verificado: 18/18 de punta a punta (PDF válido subido a Storage, auditoría, 403 sin permiso, 401 y 429 por contraseña, tipos de archivo, vales intactos) y una prueba de humo de que crear un vale con imagen sigue funcionando. Sin inspección visual del diseño del PDF.
-- [ ] T2 · Frontend: pestaña «Crear Vale de Arte» (formulario, modal de contraseña, resultado con link, lista de generados).
-- [ ] T3 · Documentación y verificación de punta a punta (PDF válido, subido, auditoría, contraseña mala/límite, permisos).
+- [x] T2 · Frontend: pestaña «Crear Vale de Arte» (formulario, modal de contraseña, resultado con link, lista de generados). Ruta: escritor delegado. Verificado en el navegador como Administrador: la pestaña aparece, el asesor rellena nombre/correo/teléfono, la firma se habilita al elegir supervisor, contraseña incorrecta muestra el mensaje en el modal, la correcta genera y sube el PDF (200, application/pdf), aparece el link y la fila de auditoría, y el PDF se ve bien armado. Se encontró y corrigió un bug: la contraseña incorrecta devolvía 401 y `sessionGuard.js` mostraba «Tu sesión ha expirado»; ahora responde 403.
+- [x] T3 · Documentación y verificación de punta a punta (PDF válido, subido, auditoría, contraseña mala/límite, permisos). CLAUDE.md actualizado (scripts de base numerados y la pestaña). Pruebas de punta a punta hechas en T1 y T2; los archivos y filas de prueba se borraron. Sin probar: archivos adjuntos (imagen y PDF) desde el formulario en el navegador, y el diseño por debajo de 640 px.
 
 ## Verificación y evidencia
 Sin suite de tests: scripts propios contra la BD y Supabase de desarrollo, y la interfaz en el navegador.
