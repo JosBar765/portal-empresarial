@@ -107,7 +107,7 @@ class ValePdfService {
     // Fusionar documentos PDF adjuntos al final (nunca se re-almacenan, solo se copian sus páginas)
     for (const doc of docsAdjuntos) {
       if (doc.mime_type !== 'application/pdf') continue;
-      await this._fusionarPdfExterno(pdfDoc, doc.ruta, doc.nombre_original);
+      await this._fusionarPdfExterno(pdfDoc, doc.buffer || doc.ruta, doc.nombre_original);
     }
 
     // El checkbox de "ADJUNTOS" ya no se calcula: lo marca a mano el diseñador al
@@ -118,9 +118,10 @@ class ValePdfService {
     return Buffer.from(bytes);
   }
 
-  async _fusionarPdfExterno(pdfDoc, url, nombreParaLog) {
+  // `origen`: URL a descargar o, si ya está en memoria, el Buffer.
+  async _fusionarPdfExterno(pdfDoc, origen, nombreParaLog) {
     try {
-      const bytes = Buffer.from(await (await fetch(url)).arrayBuffer());
+      const bytes = Buffer.isBuffer(origen) ? origen : Buffer.from(await (await fetch(origen)).arrayBuffer());
       const externo = await PDFDocument.load(bytes);
       const paginas = await pdfDoc.copyPages(externo, externo.getPageIndices());
       paginas.forEach(p => pdfDoc.addPage(p));
@@ -192,7 +193,7 @@ class ValePdfService {
         const doc = fila[j];
         const x = MARGIN + j * (anchoImg + gap);
         try {
-          const bytes = Buffer.from(await (await fetch(doc.ruta)).arrayBuffer());
+          const bytes = doc.buffer || Buffer.from(await (await fetch(doc.ruta)).arrayBuffer());
           let embedded;
           if (doc.mime_type === 'image/png') {
             embedded = await ctx.pdfDoc.embedPng(bytes);
@@ -230,8 +231,9 @@ class ValePdfService {
     const yTop = ctx.y;
     // Offset fijo UTC-6 — no depender de la zona horaria del sistema
     // operativo del proceso Node (mismo criterio que valeHelpers.js).
+    // `__fechaGeneracion` ('YYYY-MM-DD ...') la fija a mano; sin ella, ahora.
     const hoy = new Date(Date.now() - 6 * 60 * 60 * 1000);
-    const [anioHoy, mesHoy, diaHoy] = hoy.toISOString().slice(0, 10).split('-');
+    const [anioHoy, mesHoy, diaHoy] = (vale.__fechaGeneracion ? String(vale.__fechaGeneracion).slice(0, 10) : hoy.toISOString().slice(0, 10)).split('-');
     const fechaHoy = `${diaHoy}/${mesHoy}/${anioHoy}`;
 
     this._texto(ctx, 'VALE DE ARTE', MARGIN, yTop - 16, { size: 18, bold: true });
