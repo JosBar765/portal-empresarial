@@ -1,6 +1,6 @@
 # multitaller-hallazgos
 
-Rama: `fix/multitaller-hallazgos` (desde `dev`) · Estrategia de entrega: `ask-on-risk` · Estado: T1–T5 hechas; queda la duda de avisos de 6 h repetidos por taller.
+Rama: `fix/multitaller-hallazgos` (desde `dev`) · Estrategia de entrega: `ask-on-risk` · Estado: T1–T5 hechas y documentadas.
 
 ## Origen
 Prueba completa del flujo multitaller en `dev` (87ae23a); hallazgos en la conversación. Decisiones del usuario:
@@ -9,7 +9,7 @@ Prueba completa del flujo multitaller en `dev` (87ae23a); hallazgos en la conver
 - **H4:** corregir la frase de la documentación (§7, `EN_PAUSA`).
 - **B1:** el aviso al aprobar el último taller debe decir que el vale quedó listo para fusionar.
 - **B2:** el gerente no se toca.
-- **B3:** el aviso de 6 h de adjuntos va al asesor, al supervisor y al encargado de taller.
+- **B3:** el aviso de 6 h de adjuntos va al asesor, al supervisor y al encargado de taller; si dos talleres vencen en la ventana, un aviso por taller. El aviso de verificar adjuntos va solo al taller que verifica.
 - **B4:** corregir la respuesta de adjuntos (mensaje vacío y error «Taller inválido»).
 - **B5:** solucionar (rechazar ids inválidos). **B6:** se deja como está. **H2:** cartel y campana solo al diseñador nuevo; asesor, supervisores y diseñador anterior refrescan la pantalla en silencio.
 - **Verificar adjuntos:** el aviso va solo al taller que verifica (más asesor y supervisores); los demás talleres no se enteran (ya funciona así).
@@ -24,5 +24,14 @@ Prueba completa del flujo multitaller en `dev` (87ae23a); hallazgos en la conver
 ## Verificación y evidencia
 T1: diff de permisos por nombre entre `seed.sql` y la BD de desarrollo: sin diferencias salvo `admin.vales.generar` (viene de `admin_generar_vale.sql`).
 
+## Notas para producción
+Sin cambios de esquema ni scripts: el evento `vale_refrescar` es solo un mensaje de socket y viaja con el mismo despliegue que el cliente. Una pestaña abierta con la versión vieja lo ignora y se refresca como antes.
+
+Permisos a revisar a mano en la base de producción (por nombre; el seed ya quedó corregido para instalaciones nuevas):
+- **Administrador:** debe tener `vales.ver`, `vales.ver_reportes` y `vales.ver_historial`; no debe tener `vales.verificar_adjuntos`.
+- **Asesor de Ventas, Supervisor de Ventas y Diseñador:** quitar `vales.verificar_adjuntos` si lo tienen.
+- **Encargado de taller de Protextil:** quitar `vales.aprobar_general` y agregar `vales.trabajar` si no lo tiene (trabaja vales, no fusiona).
+- Si el permiso `vales.ver_reportes` no existe en la tabla `permisos`, crearlo (nombre «Ver Reportes de Actividad», módulo `vales`) antes de asignarlo; ningún script de `database/` lo crea.
+
 ## Siguiente paso
-Aclarar la duda de avisos duplicados de 6 h por taller.
+Abrir el PR hacia `dev` y revisar los permisos de producción (arriba).
