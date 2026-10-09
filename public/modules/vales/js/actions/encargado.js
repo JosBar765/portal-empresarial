@@ -9,6 +9,9 @@ import { cargarBuzon } from '../views/buzon.js';
 // Lista de diseñadores asignables, con la opción "(yo mismo)" para un encargado
 // — quien revisa una propuesta también puede reasignarse el trabajo a sí
 // mismo.
+// Texto del combobox: nombre y asignaciones vigentes del diseñador.
+const etiquetaDisenador = (t) => (t.asignaciones == null ? t.nombre : `${t.nombre} (Asignaciones actuales: ${t.asignaciones})`);
+
 export async function cargarDisenadoresAsignables() {
   let disenadores = [];
   try {
@@ -33,7 +36,7 @@ export async function abrirModalAsignar(vale) {
       <div class="form-field">
         <label>Diseñador a cargo</label>
         <select id="select-disenador">
-          ${disenadores.length ? disenadores.map(t => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('') : '<option value="">No hay diseñadores a tu cargo</option>'}
+          ${disenadores.length ? disenadores.map(t => `<option value="${t.id}">${escapeHtml(etiquetaDisenador(t))}</option>`).join('') : '<option value="">No hay diseñadores a tu cargo</option>'}
         </select>
       </div>
     `,
@@ -94,7 +97,7 @@ export async function abrirModalRevisar(vale) {
       <div class="form-field">
         <label>Reasignar a (solo si desaprueba)</label>
         <select id="select-disenador-reasignar">
-          ${disenadores.map(t => `<option value="${t.id}">${escapeHtml(t.nombre)}</option>`).join('')}
+          ${disenadores.map(t => `<option value="${t.id}">${escapeHtml(etiquetaDisenador(t))}</option>`).join('')}
         </select>
       </div>
     `,

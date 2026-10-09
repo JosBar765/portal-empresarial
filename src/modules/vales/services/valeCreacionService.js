@@ -172,8 +172,7 @@ class ValeCreacionService {
 
   // El Supervisor de Ventas autoriza el envío a talleres de un vale creado
   // por uno de SUS asesores — recién aquí se reparten las filas de
-  // vale_talleres (antes ocurría de inmediato en crearVale). Gated por el
-  // cupo colectivo diario del propio Supervisor (obtenerLimiteColectivoSupervisor).
+  // vale_talleres (antes ocurría de inmediato en crearVale).
   async autorizarCreacion(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       this.exigirNoDomingo('autorizar vales de arte');
@@ -202,42 +201,31 @@ class ValeCreacionService {
         throw new Error('Este vale no tiene talleres seleccionados, no se puede autorizar.');
       }
 
-      // Leer el cupo del supervisor y sellar la autorización van en el mismo turno de su cola:
-      // dos autorizaciones simultáneas no pueden pasar ambas con un solo cupo libre.
-      await valeMutex.conColaDeSupervisor(usuario.id, async () => {
-        if (!esAdministrador(usuario)) {
-          const { autorizados, limite } = await this.obtenerLimiteColectivoSupervisor(usuario.id);
-          if (autorizados >= limite) {
-            throw new Error('Se alcanzó el límite diario colectivo de autorizaciones de creación de tu equipo. Vuelve a intentar mañana.');
-          }
-        }
-        // El PDF con la firma se genera y sube ANTES de tocar la base: si falla, nada cambió.
-        const ahora = `${hoyISO()} ${horaActual()}`;
-        const nombresTalleres = await this.nombresDeTalleres(talleresIds);
-        const documentos = await documentoRepository.listarPorVale(valeId);
-        const pdfBuffer = await this.generarBufferPdf(vale, documentos,
-          { autorizado_por: usuario.id, autorizado_en: ahora, autorizacion_tipo: 'CREACION' });
-        const pdf = await supabaseStorage.subir(pdfBuffer, `${vale.correlativo}.pdf`, 'application/pdf');
-        try {
-          // El vale recién ocupa cupo al autorizarse; si dos supervisores compiten por el último lugar, solo gana uno.
-          await valeMutex.conColaDeCapacidad(async () => {
-            await capacidadEntregaService.validarLimiteDiario(talleresIds, String(vale.fecha_entrega).slice(0, 10), { paraSupervisor: true });
-            await valeRepository.autorizarCreacionAtomico({
-              valeId, usuarioId: usuario.id, talleresIds, autorizadoEn: ahora, tipo: 'CREACION', pdfUrl: pdf.url,
-              estadoAnterior: ESTADOS.ESPERANDO_AUTORIZACION, estadoNuevo: ESTADOS.CREADO,
-              accionHistorial: `Supervisor autorizó la creación — enviado a taller${talleresIds.length > 1 ? 'es' : ''}: ${nombresTalleres}`
-            });
+      // El PDF con la firma se genera y sube ANTES de tocar la base: si falla, nada cambió.
+      const ahora = `${hoyISO()} ${horaActual()}`;
+      const nombresTalleres = await this.nombresDeTalleres(talleresIds);
+      const documentos = await documentoRepository.listarPorVale(valeId);
+      const pdfBuffer = await this.generarBufferPdf(vale, documentos,
+        { autorizado_por: usuario.id, autorizado_en: ahora, autorizacion_tipo: 'CREACION' });
+      const pdf = await supabaseStorage.subir(pdfBuffer, `${vale.correlativo}.pdf`, 'application/pdf');
+      try {
+        // El vale recién ocupa cupo al autorizarse; si dos supervisores compiten por el último lugar, solo gana uno.
+        await valeMutex.conColaDeCapacidad(async () => {
+          await capacidadEntregaService.validarLimiteDiario(talleresIds, String(vale.fecha_entrega).slice(0, 10), { paraSupervisor: true });
+          await valeRepository.autorizarCreacionAtomico({
+            valeId, usuarioId: usuario.id, talleresIds, autorizadoEn: ahora, tipo: 'CREACION', pdfUrl: pdf.url,
+            estadoAnterior: ESTADOS.ESPERANDO_AUTORIZACION, estadoNuevo: ESTADOS.CREADO,
+            accionHistorial: `Supervisor autorizó la creación — enviado a taller${talleresIds.length > 1 ? 'es' : ''}: ${nombresTalleres}`
           });
-        } catch (error) {
-          try { await supabaseStorage.eliminar(pdf.url); } catch (e) { console.error(`[Storage] PDF huérfano sin borrar: ${pdf.url} (${e.message})`); }
-          throw error;
-        }
-        // Recién con la base confirmada se borra el PDF anterior.
-        if (vale.pdf_url) {
-          try { await supabaseStorage.eliminar(vale.pdf_url); } catch (e) { console.error(`[Storage] PDF anterior sin borrar: ${vale.pdf_url} (${e.message})`); }
-        }
-      });
-
+        });
+      } catch (error) {
+        try { await supabaseStorage.eliminar(pdf.url); } catch (e) { console.error(`[Storage] PDF huérfano sin borrar: ${pdf.url} (${e.message})`); }
+        throw error;
+      }
+      // Recién con la base confirmada se borra el PDF anterior.
+      if (vale.pdf_url) {
+        try { await supabaseStorage.eliminar(vale.pdf_url); } catch (e) { console.error(`[Storage] PDF anterior sin borrar: ${vale.pdf_url} (${e.message})`); }
+      }
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: 'autorizado (creación)', actor: usuario.nombre, actorId: usuario.id,
@@ -378,16 +366,6 @@ class ValeCreacionService {
     });
   }
 
-  // El límite diario es COLECTIVO del Supervisor —
-  // "vales_autorizados_crear/asesores", ascendente. El denominador es la
-  // cantidad de asesores activos bajo su mando, más él mismo si también crea vales.
-  // Cuenta toda autorización de creación, incluida la de sus propios vales. Administrador no tiene límite.
-  async obtenerLimiteColectivoSupervisor(supervisorId) {
-    const limite = await usuarioValeRepository.contarCupoDiario(supervisorId);
-    const autorizados = await valeRepository.contarAutorizacionesCreacionPorSupervisorYFecha(supervisorId, hoyISO());
-    return { autorizados, limite };
-  }
-
   // Validaciones compartidas entre crearVale() y solicitarModificacion() (el
   // formulario de modificación es literalmente el mismo formulario de
   // creación, salvo por los talleres: la resolución del destino de una
@@ -420,7 +398,7 @@ class ValeCreacionService {
     // filtrarse hasta el cliente.
     const limitesLongitud = {
       // Máximos que caben en su celda del PDF aun con letras anchas (ver valePdfService); la descripción se autoajusta.
-      clienteNombre: 100, clienteEmpresa: 100, clienteTelefono: 30, clienteCorreo: 100,
+      clienteNombre: 100, clienteEmpresa: 100, clienteTelefono: 20, clienteCorreo: 100,
       producto: 40, material: 40, tecnica: 40, acabado: 40, descripcion: 600
     };
     const etiquetasCampo = {

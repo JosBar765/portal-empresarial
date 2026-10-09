@@ -45,16 +45,6 @@ class ValeController {
     }
   }
 
-  // Límite diario colectivo del Supervisor (no individual del asesor).
-  async limiteColectivo(req, res) {
-    try {
-      const { autorizados, limite } = await valeService.obtenerLimiteColectivoSupervisor(req.user.id);
-      return res.json({ autorizados, limite });
-    } catch (error) {
-      return responderErrorInterno(res, error);
-    }
-  }
-
   async crear(req, res) {
     try {
       const archivos = validarArchivos(req.files);
