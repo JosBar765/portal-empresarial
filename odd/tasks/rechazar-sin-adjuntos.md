@@ -22,7 +22,7 @@ El encargado de taller verifica que recibió por correo los adjuntos (vectores, 
 - Columnas de apoyo en `vale_talleres` para lo que un estado no guarda: `adjuntos_vence_en` (se fija solo en el primer rechazo), `adjuntos_aviso_en`, `adjuntos_mensaje`, `adjuntos_respondido_en`.
 - Punto de inicialización único: `valeCreacionService.fanOutTalleres` → `valeTallerRepository.crear`.
 - Watcher nuevo calcado de `vigenciaWatcher.js`, registrado en `src/app.js` junto a los otros.
-- No hay carpeta de migraciones: se edita `schema.sql`/`seed.sql` y se aplica a mano en la BD de desarrollo.
+- No hay carpeta de migraciones: se edita `schema.sql`/`seed.sql` y se aplica a mano en la BD de desarrollo. (Superado desde el 2026-10-08: con el sistema en producción, los cambios de base van en scripts de `database/`, citados sin correlativo.)
 
 ## Tareas
 - [x] T1 · Esquema y permiso: 4 columnas `adjuntos_*` en `vale_talleres`, 3 estados nuevos en `estados_taller` (7–9), permiso `vales.verificar_adjuntos` (id 26) y `rol_permisos` 4/5/7/9 en `seed.sql`; aplicado a la BD de desarrollo y verificado por consulta. Ruta: inline (edición mecánica de SQL). El rol 10 (encargado de diseño local) también recibe el permiso.

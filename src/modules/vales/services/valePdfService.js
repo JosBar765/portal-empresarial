@@ -110,6 +110,7 @@ class ValePdfService {
     for (const doc of docsAdjuntos) {
       if (doc.mime_type !== 'application/pdf') continue;
       await this._fusionarPdfExterno(pdfDoc, doc.buffer || doc.ruta, doc.nombre_original, vale);
+    }
 
     // El checkbox de "ADJUNTOS" ya no se calcula: lo marca a mano el diseñador al
     // imprimir el vale (corrección #8) — siempre se dibuja vacío.
@@ -119,7 +120,7 @@ class ValePdfService {
     return Buffer.from(bytes);
   }
 
-// Estricto: si el PDF adjunto no se puede leer, lanza y no se genera el PDF.
+  // Estricto: si el PDF adjunto no se puede leer, lanza y no se genera el PDF.
   // `origen`: URL a descargar o, si ya está en memoria, el Buffer.
   async _fusionarPdfExterno(pdfDoc, origen, nombreParaLog, vale = {}) {
     const donde = `al PDF del vale ${vale.correlativo} (id ${vale.id})`;

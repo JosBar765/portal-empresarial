@@ -1,7 +1,7 @@
 # Flujo del módulo "Vales de Arte" (estado real del sistema)
 
 Referencia del flujo tal como lo implementa el código en `src/modules/vales/`
-(verificado contra los servicios el 2026-10-06). Si este archivo y el código
+(verificado contra los servicios el 2026-10-09). Si este archivo y el código
 discrepan, manda el código: corrige este archivo.
 
 - `analisis_modulo.md` es la especificación **original** y solo se conserva
@@ -405,7 +405,7 @@ cambia quién puede hacer cada acción.
 > **Nombre del rol 6.** El rol que trabaja los vales en el taller se llama **Diseñador** (antes
 > «Técnico»), en pantalla, en la base y en el código: `vale_talleres.disenador_id`,
 > `taller_disenadores`, `ROL.DISENADOR`, las salas `disenador:<id>` y las rutas `/disenadores`.
-> Las cuentas del rol usan correos `disenadorN@…` y la contraseña de desarrollo `disenador123`.
+> Las cuentas del rol son `disenadorN@grupopremia.com` (ver `database/users.sql`).
 
 ### Historial del vale
 
@@ -463,9 +463,16 @@ tienen las mismas columnas para todos; cambian filtros, orden y acciones.
 
 Una solicitud de modificación aparece como **fila propia** (`MOD-…`) en el Buzón
 del asesor y del supervisor (contadores «Solicitando modificación» y «Por
-autorizar modificación»). El vale original, mientras tanto, conserva su estado y
-muestra la marca «MOD en trámite»; si está en `PENDIENTE_CONFIRMACION` no ofrece
-«Confirmar».
+autorizar modificación»). El vale original ya pasó a `RECIBIDO` al
+solicitarse la modificación (§1.1): aparece en «Trabajo realizado» con la marca
+«MOD en trámite».
+
+**Insignia de persona** (bajo el correlativo, `badgePersona`): el supervisor ve el asesor
+que creó el vale; el encargado de taller (y el asistente, Protextil y Diseño Local) ve el
+diseñador asignado o «Sin asignar» (las filas de fusión no llevan insignia). Asesor,
+diseñador, gerente y administrador no la ven, y tampoco aparece en «Encontrar vale» ni
+en la tabla de vales críticos de Rendimiento. El servidor agrega `persona = {rol, nombre}`
+a cada fila (`valeBuzonService`); el diseño está en `documentacion/correcciones_46.md`.
 
 "Atrasados" y "Modificados" (asesor y supervisor) son los únicos contadores que se **combinan** con cualquier otro filtro
 activo (los demás contadores son mutuamente excluyentes). Además hay búsqueda
@@ -484,10 +491,8 @@ según lo elegido. Un día viaja al servidor como un rango de un solo día.
 
 | Límite | Dónde se valida | Efecto |
 |---|---|---|
-| **Cupo colectivo diario del Supervisor** = nº de asesores activos bajo su mando; cuenta las autorizaciones de **creación** que hizo hoy | Al **autorizar** (no al crear) | Al llegar al límite no puede autorizar más ese día. Al Administrador no le aplica. Crear un vale nunca se bloquea ni se pospone por esto. Leer el cupo y sellar la autorización van en el mismo turno de la cola del supervisor, así que dos autorizaciones simultáneas no pueden pasarlo. La tarjeta "Autorizados hoy (equipo)" (N/M) la calcula el servidor con este mismo conteo. |
 | **Cupo diario por taller** (`talleres.limite_diario`, opcional; NULL = sin límite; hoy Diseño y Diseño UV/3D = 15, Protextil = 8, Diseño Local sin límite), sobre la fecha de **entrega** (no la de evento) | Al **crear**, al **solicitar** la modificación y al **aprobar** la modificación | Bloquea con un mensaje amigable ("el taller X ya no tiene cupo para el día…"). Las verificaciones + inserción son atómicas entre asesores (`conColaDeCapacidad`). El calendario del frontend solo lo anticipa. |
 | **Cupo colectivo diario del Supervisor** = nº de asesores activos bajo su mando, **más él mismo** si también crea vales (p. ej. 11 asesores + 1 = 12); cuenta las autorizaciones de **creación** que hizo hoy | Al **autorizar** (no al crear) | Al llegar al límite no puede autorizar más ese día. Al Administrador no le aplica. Crear un vale nunca se bloquea ni se pospone por esto. Leer el cupo y sellar la autorización van en el mismo turno de la cola del supervisor, así que dos autorizaciones simultáneas no pueden pasarlo. La tarjeta "Autorizados hoy (equipo)" (N/M) la calcula el servidor con este mismo conteo. |
-| **Cupo diario por taller** (`talleres.limite_diario`, opcional; NULL = sin límite), sobre la fecha de **entrega** (no la de evento) | Al **crear**, al **solicitar** la modificación y al **aprobar** la modificación | Bloquea con un mensaje amigable ("el taller X ya no tiene cupo para el día…"). Las verificaciones + inserción son atómicas entre asesores (`conColaDeCapacidad`). El calendario del frontend solo lo anticipa. |
 | Un diseñador = un vale `EN_PROCESO` | `comenzar` y `reanudar` (en la cola del diseñador: dos acciones simultáneas no lo superan) | Debe entregar, cancelar o pausar el actual antes. |
 | Una sola modificación por vale | `solicitarModificacion` | Ver §1.1. |
 | Adjuntos | `routes.js` | Máx. 5 MB por archivo (imágenes, PDF, propuesta y fusión); JPEG/PNG/WebP/PDF; hasta 10 imágenes y 5 documentos al crear. Un tipo no permitido se **rechaza** con un 400 (no se descarta en silencio). |
@@ -495,7 +500,7 @@ según lo elegido. Un día viaja al servidor como un rango de un solo día.
 Validaciones de formulario (creación y modificación): cliente (nombre,
 teléfono y correo válido) obligatorio, producto y material obligatorios,
 cantidad > 1, cotización > 0, fecha de evento posterior a la de entrega y
-entrega igual o posterior a hoy. Técnica y acabado son opcionales. Un vale es
+entrega igual o posterior a la fecha mínima de entrega (§5.1). Técnica y acabado son opcionales. Un vale es
 **urgente** automáticamente si faltan menos de 3 días para la entrega (entrega hoy, mañana o pasado mañana): lo calcula el servidor (`calcularUrgente`) al crear, corregir o solicitar la modificación; el formulario no tiene casilla y solo muestra el aviso «Urgente: entrega en menos de 3 días».
 
 > Nota: esto reemplaza al antiguo límite diario por asesor
@@ -508,6 +513,7 @@ Sábado y domingo son días de descanso de los talleres: la restricción evita q
 - **Fecha mínima de entrega:** hoy si la hora es anterior a las 12:00; desde las 12:00, mañana. Si ese día es sábado o domingo, el mínimo pasa al lunes (`fechaMinimaEntrega()` en `valeHelpers.js`). La fecha de entrega **nunca** puede ser sábado ni domingo. La fecha del evento no tiene restricción.
 - **Sábado y domingo:** no se puede crear un vale, solicitar una modificación, corregir ni reenviar a autorización (rige para asesores y para supervisores que crean vales propios). **Autorizar y aprobar una modificación sí se pueden el sábado** (el vale llega a los talleres ese mismo día) y **no el domingo**, cuando todo queda bloqueado. Rechazar se puede todos los días.
 - **Atraso:** no cambia; sigue contando días corridos.
+- **Fecha de ingreso:** no cambia. `fecha_creacion` y `hora_creacion` son la fecha y la hora reales de creación, también después de las 12:00; la regla solo mueve la fecha **mínima de entrega**. De la fecha de ingreso salen el mes del correlativo, el encabezado del PDF, la columna «Fecha Ingreso» del Buzón y los ciclos de Rendimiento.
 - **Al autorizar** (creación y modificación): si la fecha de entrega es anterior al mínimo de ese momento, sale un error y el supervisor debe **rechazar** el vale para que el asesor cambie la fecha. Hoy pasadas las 12:00: «La fecha de entrega ya no está disponible porque son pasadas las 12:00. Rechaza el vale para que el asesor modifique la fecha de entrega.»; fecha ya pasada: «La fecha de entrega ya pasó. Rechaza el vale…».
 - **Plazos de 24 h sin fin de semana:** el sábado y el domingo (días completos) no cuentan en los plazos de esperando autorización (y vale rechazado, que conserva ese vencimiento), modificación y adjuntos. Un vale creado el viernes a las 15:00 vence el lunes a las 15:00. El vencimiento se calcula al guardarlo (`sumarHorasHabiles`, `vencimiento24h()`) y los vigilantes, el «Vence en N h» y la cuenta regresiva leen ese valor. Los vales anteriores a este cambio conservan su vencimiento original.
 - **Calendario:** el formulario calcula el mínimo con UTC-6 y deshabilita sábados y domingos en la fecha de entrega; el servidor es quien hace cumplir la regla. Al **crear** un vale, la fecha de entrega queda deshabilitada hasta elegir al menos un taller y se borra si se quitan todos los talleres (en modificar y corregir los talleres ya vienen fijos).
@@ -536,8 +542,8 @@ combinarse con cualquier filtro de estado.
 - Mientras el vale está activo, el atraso corre en vivo.
 - Se **congela** (se detiene de forma permanente) en dos momentos:
   1. el asesor confirma de recibido (`confirmarRecibido`),
-  2. el supervisor aprueba una modificación (el atraso del **original** se
-     congela aquí si aún no lo estaba).
+  2. el asesor solicita una modificación (el atraso del **original** se
+     congela en ese momento, si aún no lo estaba).
 
   Después de congelado se queda fijo, aunque luego se pida una
   modificación (`vales.atraso_congelado_en`). Los vales ya
@@ -564,7 +570,7 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
 - Nivel `alerta` (toast rojo): atrasos, propuesta entregada sin archivo y
   cancelación de proceso.
 - Al recibir un evento, el cliente refresca su buzón.
-- Al **asignar** un vale, el aviso va también al asesor dueño (`asesor:<id>`): su buzón se refresca y recibe la notificación. Los demás movimientos del taller (en proceso, pausa, entrega, etc.) todavía no lo avisan.
+- Al **asignar** un vale, el aviso va también al asesor dueño (`asesor:<id>`): su buzón se refresca y recibe la notificación. Comenzar, pausar y reanudar todavía no avisan al asesor.
 - Al **entregar una propuesta** (el taller pasa a `EN_REVISION`) y al **cancelar el proceso**, el aviso va también al asesor dueño (`asesor:<id>`). Si el que entrega es el encargado y el vale se autoaprueba, el asesor recibe solo el aviso de aprobación. Los demás movimientos del taller (en proceso, pausa, etc.) todavía no lo avisan.
 
 ## 9. Guía para renombrar estados
