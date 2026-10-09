@@ -1,6 +1,6 @@
 # notificaciones-vales
 
-Rama: `feature/notificaciones-vales` (desde `dev`) · Estrategia de entrega: `ask-on-risk` · Estado: T1–T5 pendientes.
+Rama: `feature/notificaciones-vales` (desde `dev`) · Estrategia de entrega: `ask-on-risk` · Estado: T1–T5 hechas.
 
 ## Objetivo
 Que cada actor reciba, en aviso y en tiempo real, los cambios de estado que le importan, según lo decidido con el usuario tras la auditoría por actor.
@@ -20,16 +20,16 @@ Que cada actor reciba, en aviso y en tiempo real, los cambios de estado que le i
 - [x] T2 · Supervisor y fusión: corrección siempre al supervisor; fusión a supervisores (`supervisor:<id>`) y a `vales:fusion`.
 - [x] T3 · Taller y diseñador: atraso con `EN_PAUSA` (`atrasoWatcher.js`); aprobación al `disenador:<id>` de la fila; autoaprobación con una sola notificación.
 - [x] T4 · Redacción de pausar, reanudar y cancelar.
-- [ ] T5 · Documentación (`flujo_vale_de_arte.md` §8, `CLAUDE.md` si aplica) y verificación de punta a punta con script contra la BD de desarrollo.
+- [x] T5 · Documentación (`flujo_vale_de_arte.md` §8; `CLAUDE.md` no requiere cambios) y verificación de punta a punta con script contra la BD de desarrollo.
 
 ## Verificación y evidencia
 - T1: eslint sin errores; script `nt.js` contra la BD de desarrollo: comenzar notifica al asesor; aprobar un taller (vale de 2 talleres) notifica al asesor (1 fila); cancelar proceso: asesor sin fila, taller con fila alerta; fusión mantiene el aviso al asesor.
 - T2: eslint sin errores; `nt.js`: comenzar y aprobar de un taller notifican al supervisor del asesor (13); corregir un vale RECHAZADO notifica al supervisor; la fusión notifica al asesor, al supervisor y a los otros con `vales.aprobar_general` (11 y 25), con el actor (5) excluido.
 - T3: eslint sin errores; `natraso.js` (vale con taller EN_PAUSA, vigilante invocado con repositorio acotado a ese vale): avisa al encargado (5), asistente (11) y diseñador (97), además de asesor y supervisor; `nt.js`: aprobar notifica a `disenador:<id>` de la fila (97); autoaprobación genera una sola fila por persona (se omite el aviso de «entregado» y queda el de aprobación).
-- T4: eslint sin errores; `nt.js` 30/30: textos «<nombre> pausó/reanudó/canceló su proceso» sin «fue» ni «por»; vales de prueba eliminados. Pendiente fuera de superficie: `valeAdjuntosService.js:52` produce «fue adjuntos verificados (…)».
+- T4: eslint sin errores; `nt.js` 30/30: textos «<nombre> pausó/reanudó/canceló su proceso» sin «fue» ni «por»; vales de prueba eliminados. `valeAdjuntosService.js` (verificar adjuntos) corregido en T5 con `texto`.
 
 ## Ruta por tarea
-(pendiente: se registra al ejecutar cada una)
+T1–T4: escritor delegado (varios archivos en `valeTallerService.js`, watcher y corrección). T5: inline (doc y una línea de redacción).
 
 ## Siguiente paso
-Delegar un escritor para T1–T4 y verificar.
+Revisión del usuario y PR. No probado: entrega real por sockets en el navegador ni el intervalo de 60 s del watcher (se invocó en proceso).

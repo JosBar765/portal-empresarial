@@ -570,8 +570,14 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
 - Nivel `alerta` (toast rojo): atrasos, propuesta entregada sin archivo y
   cancelación de proceso.
 - Al recibir un evento, el cliente refresca su buzón.
-- Al **asignar** un vale, el aviso va también al asesor dueño (`asesor:<id>`): su buzón se refresca y recibe la notificación. Comenzar, pausar y reanudar todavía no avisan al asesor.
-- Al **entregar una propuesta** (el taller pasa a `EN_REVISION`) y al **cancelar el proceso**, el aviso va también al asesor dueño (`asesor:<id>`). Si el que entrega es el encargado y el vale se autoaprueba, el asesor recibe solo el aviso de aprobación. Los demás movimientos del taller (en proceso, pausa, etc.) todavía no lo avisan.
+- **Quién recibe qué** (el actor nunca se avisa a sí mismo; cada persona recibe una sola notificación por movimiento):
+  - **Asesor** (y su **supervisor**, por la sala `supervisor:<id>`): asignar, comenzar, entregar la propuesta, aprobación de **cada** taller (aunque el vale tenga varios), fusión y correcciones. Pausar, reanudar y cancelar el proceso **no** le llegan.
+  - **Taller** (encargado + asistentes): lo que llega a su taller, la cancelación del proceso (alerta roja) y el atraso, también con el proceso en `EN_PAUSA`. La confirmación de recibido no les llega: su flujo termina en la aprobación.
+  - **Diseñador:** asignación, propuesta aprobada y atraso, también en pausa.
+  - **Fusión:** al fusionar, se avisa al asesor, a sus supervisores y a `vales:fusion` (los demás con `vales.aprobar_general` actualizan su cola en tiempo real).
+  - **Autoaprobación** (el encargado entrega con archivo): solo el aviso de aprobación, sin el de entrega.
+  - **Gerente:** nada. **Administrador:** solo carteles (`vales:admin`).
+- El texto sale de `accion` («fue {acción} por {actor}») o, si el movimiento no cabe en esa frase, de `texto` (p. ej. «{actor} pausó el proceso»).
 
 ## 9. Guía para renombrar estados
 

@@ -49,7 +49,7 @@ class ValeAdjuntosService {
         `Encargado de ${nombre} confirmó que recibió los adjuntos`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
-        vale: actualizado, accion: `adjuntos verificados (${nombre})`, tipo: 'ADJUNTOS_VERIFICADOS', actor: usuario.nombre, actorId: usuario.id,
+        vale: actualizado, texto: `${usuario.nombre} verificó los adjuntos (${nombre})`, tipo: 'ADJUNTOS_VERIFICADOS', actor: usuario.nombre, actorId: usuario.id,
         salas: [...await this._salasAsesor(vale), `taller:${fila.taller_id}`]
       });
       return enriquecer(actualizado);
