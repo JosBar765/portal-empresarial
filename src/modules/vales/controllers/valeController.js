@@ -4,6 +4,11 @@ const { validarArchivos, tipoRealCoincide } = require('../../../core/files/fileS
 const { responderError, responderErrorInterno } = require('../../../core/utils/erroresHttp');
 const { idObligatorio, idOpcional } = require('../../../core/utils/validar');
 
+// Taller de la conversación: obligatorio y válido.
+function idTallerConversacion(valor) {
+  try { return idObligatorio(valor, 'Taller'); } catch { throw new Error('Indica de qué taller es la conversación.'); }
+}
+
 class ValeController {
   async catalogos(req, res) {
     try {
@@ -35,16 +40,6 @@ class ValeController {
       }
       const data = await valeService.obtenerCapacidadEntrega(talleresIds, anio, mes);
       return res.json(data);
-    } catch (error) {
-      return responderErrorInterno(res, error);
-    }
-  }
-
-  // Límite diario colectivo del Supervisor (no individual del asesor).
-  async limiteColectivo(req, res) {
-    try {
-      const { autorizados, limite } = await valeService.obtenerLimiteColectivoSupervisor(req.user.id);
-      return res.json({ autorizados, limite });
     } catch (error) {
       return responderErrorInterno(res, error);
     }
@@ -355,7 +350,7 @@ class ValeController {
 
   async conversacion(req, res) {
     try {
-      return res.json(await valeService.listarConversacion(req.user, idObligatorio(req.params.id), idObligatorio(req.query.tallerId, 'Taller')));
+      return res.json(await valeService.listarConversacion(req.user, idObligatorio(req.params.id), idTallerConversacion(req.query.tallerId)));
     } catch (error) {
       return responderError(res, error);
     }
@@ -363,7 +358,7 @@ class ValeController {
 
   async enviarMensaje(req, res) {
     try {
-      return res.json(await valeService.enviarMensaje(req.user, idObligatorio(req.params.id), idObligatorio(req.body && req.body.tallerId, 'Taller'), req.body && req.body.mensaje));
+      return res.json(await valeService.enviarMensaje(req.user, idObligatorio(req.params.id), idTallerConversacion(req.body && req.body.tallerId), req.body && req.body.mensaje));
     } catch (error) {
       return responderError(res, error);
     }

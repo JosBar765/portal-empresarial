@@ -18,7 +18,7 @@ const { calcularPipeline } = require('./valePipeline');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
   esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
-  ordenarPorFecha, esHoy, estadoVisibleAsesor, hoyISO,
+  ordenarPorFecha, esHoy, estadoVisibleAsesor,
   ROLES_ENCARGADO_TALLER, esValeDeModificacion
 } = require('./valeHelpers');
 
@@ -389,8 +389,6 @@ class ValeBuzonService {
     const enVentana = conPaso(visibles.filter(v => dentroDeVentana(v, ventana)));
     
     const contadores = {
-      // "N/M": autorizaciones de creación que hizo hoy el supervisor / su cupo diario (el mismo que se valida al autorizar).
-      valesAutorizadosHoy: `${await valeRepository.contarAutorizacionesCreacionPorSupervisorYFecha(usuario.id, hoyISO())}/${await usuarioValeRepository.contarCupoDiario(usuario.id)}`,
       ...contadoresPorPaso(enVentana)
     };
     const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, PREDICADOS_POR_PASO);
@@ -630,11 +628,22 @@ class ValeBuzonService {
     return { vales: ordenarPorFecha(filtrados), contadores };
   }
 
+  // Asignaciones vigentes de un diseñador (las mismas que cuenta la carga de trabajo).
+  async _contarAsignacionesVigentes(disenadorId) {
+    const activas = await valeTallerRepository.listarActivasPorDisenador(disenadorId);
+    return activas.filter(a => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION].includes(a.estado)).length;
+  }
+
+  // Diseñadores para el combobox de asignar, cada uno con sus asignaciones actuales; el encargado también se ofrece a sí mismo.
   async obtenerDisenadoresAsignables(usuario) {
-    if (esAdministrador(usuario)) {
-      return usuarioValeRepository.listarTodosLosDisenadores();
+    const lista = esAdministrador(usuario)
+      ? await usuarioValeRepository.listarTodosLosDisenadores()
+      : await usuarioValeRepository.listarDisenadoresPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
+    const conCarga = await Promise.all(lista.map(async d => ({ ...d, asignaciones: await this._contarAsignacionesVigentes(d.id) })));
+    if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId) && !conCarga.some(d => d.id === usuario.id)) {
+      conCarga.unshift({ id: usuario.id, nombre: `${usuario.nombre} (YO)`, asignaciones: await this._contarAsignacionesVigentes(usuario.id) });
     }
-    return usuarioValeRepository.listarDisenadoresPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
+    return conCarga;
   }
 
   // Ordenado por fecha de ENTREGA más próxima. Un diseñador sin vales activos

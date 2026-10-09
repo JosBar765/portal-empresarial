@@ -58,8 +58,13 @@ export function initSocket() {
     if (['MENSAJE_RECHAZO', 'ADJUNTOS_VERIFICADOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'].includes(data.tipo) && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId) {
       state.conversacionAbierta.refrescar();
     }
+    // Cambió el estado del adjunto de este vale: el modal del asesor quedó desactualizado y se cierra (el buzón se refresca abajo).
+    if (['ADJUNTOS_VERIFICADOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'].includes(data.tipo) && state.adjuntosModalAbierto && state.adjuntosModalAbierto.valeId === data.valeId) {
+      state.adjuntosModalAbierto.cerrar();
+    }
+    const conversacionVisible = data.tipo === 'MENSAJE_RECHAZO' && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId;
     const esPropiaAccion = data.actorId != null && data.actorId === state.user.id;
-    if (!esPropiaAccion) {
+    if (!esPropiaAccion && !conversacionVisible) { // con la conversación abierta no se repite cartel ni beep
       const esAlerta = data.nivel === 'alerta';
       window.toast[esAlerta ? 'error' : 'info'](esAlerta ? 'Atención' : 'Vale de arte', data.mensaje);
       if (data.beep !== false) reproducirBeep();

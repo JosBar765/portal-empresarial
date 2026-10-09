@@ -27,8 +27,6 @@ export const CONTADORES_CONFIG = {
   },
   [ROL.SUPERVISOR]: {
     buzon: [
-      // Contador colectivo "autorizados/asesores" — lo calcula el servidor.
-      { key: 'valesAutorizadosHoy', label: 'Autorizados hoy (equipo)', esTexto: true },
       ...CONTADORES_POR_PASO
     ],
     // Dos grupos — lo que él autorizó, y lo que sus asesores confirmaron de recibido.

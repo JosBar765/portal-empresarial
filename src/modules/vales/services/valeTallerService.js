@@ -12,6 +12,7 @@ const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const subirYRegistrarArchivo = require('../../../core/files/subirYRegistrarArchivo');
 const idempotencyRepository = require('../../../core/idempotency/idempotencyRepository');
 const valeEvents = require('../events');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeMutex = require('./valeMutex');
 const valeCatalogoService = require('./valeCatalogoService');
 const valeCreacionService = require('./valeCreacionService');
@@ -47,6 +48,7 @@ class ValeTallerService {
     const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
     const miTaller = talleres.find(t => t.encargado_id === idEfectivo);
     if (!miTaller) throw new Error('Tu usuario no tiene un taller asignado. Pide al administrador que te asigne uno.');
+    if (tallerIdHint && Number(tallerIdHint) !== miTaller.id) throw new ErrorDeNegocio('Ese taller no es el tuyo.', 403);
     const fila = filas.find(f => f.taller_id === miTaller.id);
     if (!fila) throw new Error('Este vale no fue enviado a tu taller.');
     return fila;

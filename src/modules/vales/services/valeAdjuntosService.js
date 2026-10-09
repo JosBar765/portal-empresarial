@@ -7,6 +7,7 @@ const tallerRepository = require('../repositories/tallerRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeMensajeRepository = require('../repositories/valeMensajeRepository');
 const valeEvents = require('../events');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeMutex = require('./valeMutex');
 const valeTallerService = require('./valeTallerService');
 const valeCreacionService = require('./valeCreacionService');
@@ -16,7 +17,6 @@ const {
 } = require('./valeHelpers');
 
 const MAX_CARACTERES_MENSAJE = 200;
-const MAX_MENSAJES_CONVERSACION = 30;
 const ESTADOS_POR_VERIFICAR = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
 // Mientras el taller tiene el vale rechazado (o ya respondido) la conversación está abierta; después es de solo lectura.
 const ESTADOS_CONVERSACION_ABIERTA = [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
@@ -83,7 +83,7 @@ class ValeAdjuntosService {
         `Encargado de ${nombre} rechazó el vale: ${texto}`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
-        vale: actualizado, accion: `rechazado por falta de adjuntos (${nombre})`, tipo: 'ADJUNTOS_RECHAZADOS', actor: usuario.nombre, actorId: usuario.id,
+        vale: actualizado, texto: `${usuario.nombre} (${nombre}): Rechazado (ver mensaje)`, tipo: 'ADJUNTOS_RECHAZADOS', actor: usuario.nombre, actorId: usuario.id,
         nivel: 'alerta', salas: [...await this._salasAsesor(vale), `taller:${fila.taller_id}`]
       });
       return enriquecer(actualizado);
@@ -115,6 +115,8 @@ class ValeAdjuntosService {
         vale: actualizado, accion: `respondido sobre adjuntos (${nombre})`, tipo: 'ADJUNTOS_RESPONDIDOS', actor: usuario.nombre, actorId: usuario.id,
         salas: [`taller:${fila.taller_id}`]
       });
+      // El equipo de ventas (supervisores y otras pestañas del asesor) solo refresca la pantalla, en silencio.
+      valeEvents.refrescar({ vale: actualizado, salas: await this._salasAsesor(vale) });
       return enriquecer(actualizado);
     });
   }
@@ -131,7 +133,7 @@ class ValeAdjuntosService {
     if (vale.asesor_id === usuario.id && puedeActuarComoAsesor(usuario)) return { fila, escribe: 'ASESOR' };
     // Nadie más la ve mientras está abierta (ni supervisor, ni administrador, ni gerente); ya cerrada, solo queda el registro
     // del historial para quien tenga `vales.ver_historial`.
-    throw new Error('No tienes acceso a esta conversación.');
+    throw new ErrorDeNegocio('No tienes acceso a esta conversación.', 403);
   }
 
   // Mientras el taller tiene el vale rechazado o respondido la conversación está abierta. Al llegar a un acuerdo (el taller
@@ -140,14 +142,13 @@ class ValeAdjuntosService {
     const vale = await requerirVale(valeId);
     const { fila, escribe } = await this._resolverAcceso(usuario, vale, tallerId);
     if (!ESTADOS_CONVERSACION_ABIERTA.includes(fila.estado)) {
-      return { taller_id: fila.taller_id, estado: fila.estado, cerrada: true, puede_escribir: false, total: 0, maximo: MAX_MENSAJES_CONVERSACION, mensajes: [] };
+      return { taller_id: fila.taller_id, estado: fila.estado, cerrada: true, puede_escribir: false, total: 0, mensajes: [] };
     }
     const mensajes = await valeMensajeRepository.listarPorValeTaller(fila.id);
-    const topeAlcanzado = mensajes.length >= MAX_MENSAJES_CONVERSACION;
     return {
       taller_id: fila.taller_id, estado: fila.estado, vence_en: fila.adjuntos_vence_en, cerrada: false,
-      puede_escribir: !!escribe && !topeAlcanzado, tope_alcanzado: topeAlcanzado, lado: escribe,
-      total: mensajes.length, maximo: MAX_MENSAJES_CONVERSACION,
+      puede_escribir: !!escribe, lado: escribe,
+      total: mensajes.length,
       mensajes: mensajes.map(m => ({ id: m.id, lado: m.lado, autor: m.autor, autor_id: m.autor_id, mensaje: m.mensaje, creado_en: m.creado_en }))
     };
   }
@@ -161,17 +162,12 @@ class ValeAdjuntosService {
       if (!ESTADOS_CONVERSACION_ABIERTA.includes(fila.estado)) {
         throw new Error('La conversación se cerró: se llegó a un acuerdo.');
       }
-      // Tope contra conversaciones interminables: solo se cierra el asunto con las acciones esenciales (avisar, verificar o rechazar).
-      const total = (await valeMensajeRepository.contarPorValeTaller([fila.id])).get(fila.id) || 0;
-      if (total >= MAX_MENSAJES_CONVERSACION) {
-        throw new Error(`Se alcanzó el máximo de ${MAX_MENSAJES_CONVERSACION} mensajes. ${escribe === 'ASESOR' ? 'Usa «Ya lo atendí» para avisar al taller.' : 'Verifica el vale o recházalo de nuevo para continuar.'}`);
-      }
       await valeMensajeRepository.crear(fila.id, usuario.id, escribe, texto);
       const nombre = await this._nombreTaller(fila.taller_id);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: `comentado en la conversación del rechazo (${nombre})`, tipo: 'MENSAJE_RECHAZO', actor: usuario.nombre, actorId: usuario.id,
-        salas: escribe === 'TALLER' ? await this._salasAsesor(vale) : [`taller:${fila.taller_id}`]
+        salas: escribe === 'TALLER' ? [`asesor:${vale.asesor_id}`] : [`taller:${fila.taller_id}`] // el supervisor no lee la conversación: sin aviso ni campana
       });
       return this.listarConversacion(usuario, valeId, tallerId);
     });

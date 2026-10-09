@@ -232,21 +232,6 @@ class ValeRepository {
     await db.query('UPDATE vales SET confirmado_en = ? WHERE id = ?', [fechaHora, id], 'vale:sellar_confirmacion');
   }
 
-  // Cuenta cuántas autorizaciones de CREACIÓN hizo este Supervisor hoy — el
-  // denominador (cantidad de asesores a su cargo) se resuelve aparte, vía
-  // usuarioValeRepository.listarAsesoresPorSupervisor.
-  async contarAutorizacionesCreacionPorSupervisorYFecha(supervisorId, fecha) {
-    const rows = await db.query(
-      `SELECT COUNT(*) AS total FROM vales
-       WHERE autorizado_por = ?
-         AND autorizacion_tipo_id = (SELECT id FROM tipos_autorizacion WHERE nombre = 'CREACION')
-         AND DATE(autorizado_en) = ?`,
-      [supervisorId, fecha],
-      'vale:count_autorizaciones_creacion_por_supervisor'
-    );
-    return rows[0] ? Number(rows[0].total) : 0;
-  }
-
   // Vales que acaban de cruzar su fecha_entrega y todavía no fueron
   // notificados — usado por atrasoWatcher. Excluye vales con el atraso ya
   // congelado (RECIBIDO/etc. — ver calcularAtraso en valeService): su atraso
