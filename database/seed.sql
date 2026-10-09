@@ -81,24 +81,24 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 
 INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 -- Administrador: único rol con el historial de vales (27)
-(1, 1), (1, 8), (1, 19), (1, 20), (1, 21), (1, 22), (1, 23), (1, 26), (1, 28),
+(1, 1), (1, 8), (1, 19), (1, 20), (1, 21), (1, 22), (1, 23), (1, 27), (1, 28),
 -- Asesor de Ventas
-(2, 1), (2, 2), (2, 3), (2, 12), (2, 13), (2, 24), (2, 25), (2, 26),
+(2, 1), (2, 2), (2, 3), (2, 12), (2, 13), (2, 24), (2, 25),
 -- Supervisor de Ventas: además de supervisar, crea y gestiona sus propios vales (2 crear, 12 confirmar,
 -- 13 solicitar modificación, 24 dar de baja, 25 corregir)
-(3, 1), (3, 14), (3, 15), (3, 17), (3, 18), (3, 2), (3, 12), (3, 13), (3, 24), (3, 25), (3, 26),
+(3, 1), (3, 14), (3, 15), (3, 17), (3, 18), (3, 2), (3, 12), (3, 13), (3, 24), (3, 25),
 -- Encargado de taller de diseño: dueño del taller "Diseño", con fusión (16) y "trabajar" (11)
 (4, 1), (4, 9), (4, 10), (4, 11), (4, 16), (4, 26),
 -- Encargado de taller de diseño 3d: dueño del taller "Diseño UV/3D", sin fusión
 (5, 1), (5, 9), (5, 10), (5, 11), (5, 26),
 -- Diseñadores
-(6, 1), (6, 11), (6, 26),
+(6, 1), (6, 11),
 -- Asistente: clon operativo COMPLETO del Encargado de taller de diseño
 (7, 1), (7, 9), (7, 10), (7, 11), (7, 16), (7, 26),
 -- Gerente: solo lectura
 (8, 1), (8, 17),
--- Encargado de taller de protextil: sin fusión
-(9, 1), (9, 9), (9, 10), (9, 26),
+-- Encargado de taller de protextil: trabaja vales, sin fusión
+(9, 1), (9, 9), (9, 10), (9, 11), (9, 26),
 -- Encargado de taller de diseño local: mismos permisos atómicos que Diseño
 (10, 1), (10, 9), (10, 10), (10, 11), (10, 26);
 
