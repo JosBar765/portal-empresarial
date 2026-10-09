@@ -83,7 +83,7 @@ class ValeAdjuntosService {
         `Encargado de ${nombre} rechazó el vale: ${texto}`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
-        vale: actualizado, accion: `rechazado por falta de adjuntos (${nombre})`, tipo: 'ADJUNTOS_RECHAZADOS', actor: usuario.nombre, actorId: usuario.id,
+        vale: actualizado, texto: `${usuario.nombre} (${nombre}): Rechazado (ver mensaje)`, tipo: 'ADJUNTOS_RECHAZADOS', actor: usuario.nombre, actorId: usuario.id,
         nivel: 'alerta', salas: [...await this._salasAsesor(vale), `taller:${fila.taller_id}`]
       });
       return enriquecer(actualizado);
@@ -115,6 +115,8 @@ class ValeAdjuntosService {
         vale: actualizado, accion: `respondido sobre adjuntos (${nombre})`, tipo: 'ADJUNTOS_RESPONDIDOS', actor: usuario.nombre, actorId: usuario.id,
         salas: [`taller:${fila.taller_id}`]
       });
+      // El equipo de ventas (supervisores y otras pestañas del asesor) solo refresca la pantalla, en silencio.
+      valeEvents.refrescar({ vale: actualizado, salas: await this._salasAsesor(vale) });
       return enriquecer(actualizado);
     });
   }
@@ -171,7 +173,7 @@ class ValeAdjuntosService {
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: `comentado en la conversación del rechazo (${nombre})`, tipo: 'MENSAJE_RECHAZO', actor: usuario.nombre, actorId: usuario.id,
-        salas: escribe === 'TALLER' ? await this._salasAsesor(vale) : [`taller:${fila.taller_id}`]
+        salas: escribe === 'TALLER' ? [`asesor:${vale.asesor_id}`] : [`taller:${fila.taller_id}`] // el supervisor no lee la conversación: sin aviso ni campana
       });
       return this.listarConversacion(usuario, valeId, tallerId);
     });
