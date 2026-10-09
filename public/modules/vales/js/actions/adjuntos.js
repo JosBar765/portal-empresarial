@@ -268,7 +268,12 @@ export function abrirModalAdjuntosPendientes(vale) {
     `,
     footerHtml: '<button class="btn btn--ghost" id="btn-cerrar">Cerrar</button>'
   });
-  overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
+  const cerrarModal = () => {
+    if (state.adjuntosModalAbierto && state.adjuntosModalAbierto.overlay === overlay) state.adjuntosModalAbierto = null;
+    cerrar();
+  };
+  state.adjuntosModalAbierto = { overlay, valeId: vale.id, cerrar: cerrarModal };
+  overlay.querySelector('#btn-cerrar').addEventListener('click', cerrarModal);
   overlay.querySelectorAll('[data-conversacion]').forEach(btn => {
     btn.addEventListener('click', () => {
       const adjunto = adjuntos.find(a => a.taller_id === Number(btn.dataset.conversacion));
@@ -278,7 +283,7 @@ export function abrirModalAdjuntosPendientes(vale) {
   overlay.querySelectorAll('[data-responder]').forEach(btn => {
     btn.addEventListener('click', () => {
       const adjunto = adjuntos.find(a => a.taller_id === Number(btn.dataset.responder));
-      if (adjunto) abrirModalResponderAdjuntos(vale, adjunto, cerrar);
+      if (adjunto) abrirModalResponderAdjuntos(vale, adjunto, cerrarModal);
     });
   });
 }

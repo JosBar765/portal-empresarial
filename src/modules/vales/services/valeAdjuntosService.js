@@ -7,6 +7,7 @@ const tallerRepository = require('../repositories/tallerRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeMensajeRepository = require('../repositories/valeMensajeRepository');
 const valeEvents = require('../events');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeMutex = require('./valeMutex');
 const valeTallerService = require('./valeTallerService');
 const valeCreacionService = require('./valeCreacionService');
@@ -132,7 +133,7 @@ class ValeAdjuntosService {
     if (vale.asesor_id === usuario.id && puedeActuarComoAsesor(usuario)) return { fila, escribe: 'ASESOR' };
     // Nadie más la ve mientras está abierta (ni supervisor, ni administrador, ni gerente); ya cerrada, solo queda el registro
     // del historial para quien tenga `vales.ver_historial`.
-    throw new Error('No tienes acceso a esta conversación.');
+    throw new ErrorDeNegocio('No tienes acceso a esta conversación.', 403);
   }
 
   // Mientras el taller tiene el vale rechazado o respondido la conversación está abierta. Al llegar a un acuerdo (el taller

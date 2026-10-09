@@ -20,6 +20,7 @@ export const state = {
   sort: { key: null, dir: null }, // ídem el orden por columna
   socket: null,
   cargaTrabajoModal: null,
+  adjuntosModalAbierto: null, // modal de adjuntos pendientes del asesor (overlay, valeId, cerrar): se cierra si el estado cambia
   conversacionAbierta: null, // conversación del rechazo abierta (overlay, valeId, refrescar) para actualizarla en vivo
   historialModal: null,
   accionesEnCurso: new Set(),
