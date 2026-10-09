@@ -283,7 +283,12 @@ class ValeTallerService {
       const actualizado = await valeRepository.obtenerPorId(valeId);
       // El equipo de ventas se entera siempre; quien fusiona, solo si el vale queda esperando fusión.
       const targets = [`taller:${fila.taller_id}`, ...(fila.disenador_id ? [`disenador:${fila.disenador_id}`] : []), ...await this._salasEquipo(vale.asesor_id), ...(actualizado.estado === ESTADOS.APROBADO_DEPARTAMENTO ? [SALA_FUSION] : [])];
-      valeEvents.notificar({ vale: actualizado, accion: 'aprobado (taller)', actor: usuario.nombre, actorId: usuario.id, salas: targets });
+      // Último taller aprobado: el aviso dice que el vale quedó listo para fusionar.
+      const listoParaFusionar = actualizado.estado === ESTADOS.APROBADO_DEPARTAMENTO;
+      const aviso = listoParaFusionar
+        ? { texto: `${usuario.nombre} aprobó el taller ${taller ? taller.nombre : fila.taller_id}: todos los talleres terminaron, el vale está listo para fusionar` }
+        : { accion: 'aprobado (taller)' };
+      valeEvents.notificar({ vale: actualizado, ...aviso, actor: usuario.nombre, actorId: usuario.id, salas: targets });
       return enriquecer(actualizado);
     }
 
