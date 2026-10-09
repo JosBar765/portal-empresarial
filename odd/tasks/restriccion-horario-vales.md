@@ -6,6 +6,8 @@ Rama: `feature/restriccion-horario-vales` (recreada desde el `origin/dev` del 20
 Proteger los días de trabajo de los talleres: los vales no se piden en domingo y la entrega "para hoy" solo se acepta si el vale se crea y se autoriza antes de las 12:00.
 
 ## Reglas acordadas con el usuario (hora de Guatemala, UTC-6)
+> Texto original, solo domingo. La sección «Cambios posteriores» del final lo reemplaza por sábado y domingo.
+
 - **Fecha mínima de entrega**: hoy si son las 11:59 o antes; mañana desde las 12:00. Si ese día es domingo, pasa al lunes. La fecha de entrega **nunca** puede ser domingo. La fecha del evento no tiene restricción.
 - **Domingo**: no se puede crear un vale, solicitar una modificación, corregir, reenviar, autorizar ni aprobar una modificación.
 - **Aplica a todo lo que lleva fecha de entrega**: crear, solicitar modificación, corregir y reenviar (también a supervisores que crean vales propios).
