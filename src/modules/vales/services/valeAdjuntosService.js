@@ -117,7 +117,7 @@ class ValeAdjuntosService {
       const salasTalleres = [...new Set(talleres.flatMap(t => [`taller:${t.taller_id}`, ...(t.disenador_id ? [`disenador:${t.disenador_id}`] : [])]))];
       valeEvents.notificar({
         vale, tipo: 'ADJUNTOS_VENCIDOS', valeBorrado: true, nivel: 'alerta',
-        texto: `${original ? '(solicitud de modificación) ' : ''}fue eliminado automáticamente: el asesor no envió los adjuntos en 24 horas${original ? `. ${original.correlativo} queda sin cambios` : ''}`,
+        texto: `${original ? '(solicitud de modificación) ' : ''}fue eliminado automáticamente: el asesor no envió los adjuntos en 24 horas${original ? `. ${original.correlativo} ya quedó como Recibido` : ''}`,
         salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`), ...salasTalleres]
       });
       return true;
