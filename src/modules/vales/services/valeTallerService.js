@@ -314,6 +314,11 @@ class ValeTallerService {
       vale: actualizado, accion: 'desaprobado y reasignado', actor: usuario.nombre, actorId: usuario.id, destino: disenador ? disenador.nombre : null,
       salas: [`disenador:${disenadorReasignadoId}`, `taller:${fila.taller_id}`]
     });
+    // Asesor, supervisores y diseñador anterior solo refrescan su pantalla.
+    valeEvents.refrescar({
+      vale: actualizado,
+      salas: [...await this._salasEquipo(actualizado.asesor_id), ...(fila.disenador_id ? [`disenador:${fila.disenador_id}`] : [])]
+    });
     return enriquecer(actualizado);
   }
 

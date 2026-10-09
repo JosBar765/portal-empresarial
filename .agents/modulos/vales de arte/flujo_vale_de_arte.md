@@ -577,6 +577,7 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
   - **Fusión:** al fusionar, se avisa al asesor, a sus supervisores y a `vales:fusion` (los demás con `vales.aprobar_general` actualizan su cola en tiempo real).
   - **Autoaprobación** (el encargado entrega con archivo): solo el aviso de aprobación, sin el de entrega.
   - **Gerente:** nada. **Administrador:** solo carteles (`vales:admin`).
+- **Desaprobar y reasignar:** con cartel y campana solo se entera el diseñador nuevo (y el taller). El asesor, sus supervisores y el diseñador anterior **refrescan su pantalla en silencio** (evento `vale_refrescar`, sin cartel, beep ni campana), para que el paso y los contadores no queden desfasados.
 - El texto sale de `accion` («fue {acción} por {actor}») o, si el movimiento no cabe en esa frase, de `texto` (p. ej. «{actor} pausó el proceso»).
 
 ## 9. Guía para renombrar estados
