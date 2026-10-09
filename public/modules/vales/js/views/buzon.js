@@ -13,7 +13,7 @@ import { cargarEncontrarVale } from './encontrarVale.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/disenador.js';
-import { accionVerificarAdjuntos, abrirModalRechazarAdjuntos, abrirModalMensajeAdjuntos, abrirModalAdjuntosPendientes } from '../actions/adjuntos.js';
+import { abrirModalVerificarAdjuntos, abrirModalRechazarAdjuntos, abrirModalMensajeAdjuntos, abrirModalAdjuntosPendientes } from '../actions/adjuntos.js';
 import { abrirModalDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
 import { abrirModalSolicitarModificacion, abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirModalHistorial } from '../actions/historial.js';
@@ -291,7 +291,7 @@ export function construirAcciones(v) {
     if (v.estado_taller === 'ADJUNTOS_RESPONDIDOS') {
       acciones.push({ icono: 'chatbox-ellipses-outline', titulo: 'Ver mensaje del asesor', onClick: abrirModalMensajeAdjuntos });
     }
-    acciones.push({ icono: 'mail-open-outline', titulo: 'Verificar adjuntos', clase: 'icon-success', onClick: accionVerificarAdjuntos });
+    acciones.push({ icono: 'mail-open-outline', titulo: 'Verificar adjuntos', clase: 'icon-success', onClick: abrirModalVerificarAdjuntos });
     acciones.push({ icono: 'close-circle-outline', titulo: 'Rechazar: sin adjuntos', clase: 'icon-danger', onClick: abrirModalRechazarAdjuntos });
   }
   if (puede('revisar') && v.estado_taller === 'EN_REVISION') {
