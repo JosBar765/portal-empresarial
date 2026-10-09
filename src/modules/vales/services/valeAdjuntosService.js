@@ -16,7 +16,6 @@ const {
 } = require('./valeHelpers');
 
 const MAX_CARACTERES_MENSAJE = 200;
-const MAX_MENSAJES_CONVERSACION = 30;
 const ESTADOS_POR_VERIFICAR = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
 // Mientras el taller tiene el vale rechazado (o ya respondido) la conversación está abierta; después es de solo lectura.
 const ESTADOS_CONVERSACION_ABIERTA = [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
@@ -142,14 +141,13 @@ class ValeAdjuntosService {
     const vale = await requerirVale(valeId);
     const { fila, escribe } = await this._resolverAcceso(usuario, vale, tallerId);
     if (!ESTADOS_CONVERSACION_ABIERTA.includes(fila.estado)) {
-      return { taller_id: fila.taller_id, estado: fila.estado, cerrada: true, puede_escribir: false, total: 0, maximo: MAX_MENSAJES_CONVERSACION, mensajes: [] };
+      return { taller_id: fila.taller_id, estado: fila.estado, cerrada: true, puede_escribir: false, total: 0, mensajes: [] };
     }
     const mensajes = await valeMensajeRepository.listarPorValeTaller(fila.id);
-    const topeAlcanzado = mensajes.length >= MAX_MENSAJES_CONVERSACION;
     return {
       taller_id: fila.taller_id, estado: fila.estado, vence_en: fila.adjuntos_vence_en, cerrada: false,
-      puede_escribir: !!escribe && !topeAlcanzado, tope_alcanzado: topeAlcanzado, lado: escribe,
-      total: mensajes.length, maximo: MAX_MENSAJES_CONVERSACION,
+      puede_escribir: !!escribe, lado: escribe,
+      total: mensajes.length,
       mensajes: mensajes.map(m => ({ id: m.id, lado: m.lado, autor: m.autor, autor_id: m.autor_id, mensaje: m.mensaje, creado_en: m.creado_en }))
     };
   }
@@ -162,11 +160,6 @@ class ValeAdjuntosService {
       if (!escribe) throw new Error('Solo el taller y el asesor del vale pueden escribir en la conversación.');
       if (!ESTADOS_CONVERSACION_ABIERTA.includes(fila.estado)) {
         throw new Error('La conversación se cerró: se llegó a un acuerdo.');
-      }
-      // Tope contra conversaciones interminables: solo se cierra el asunto con las acciones esenciales (avisar, verificar o rechazar).
-      const total = (await valeMensajeRepository.contarPorValeTaller([fila.id])).get(fila.id) || 0;
-      if (total >= MAX_MENSAJES_CONVERSACION) {
-        throw new Error(`Se alcanzó el máximo de ${MAX_MENSAJES_CONVERSACION} mensajes. ${escribe === 'ASESOR' ? 'Usa «Ya lo atendí» para avisar al taller.' : 'Verifica el vale o recházalo de nuevo para continuar.'}`);
       }
       await valeMensajeRepository.crear(fila.id, usuario.id, escribe, texto);
       const nombre = await this._nombreTaller(fila.taller_id);

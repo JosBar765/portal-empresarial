@@ -1,6 +1,6 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { verificarAdjuntos, rechazarAdjuntos, responderAdjuntos, obtenerConversacion, enviarMensajeRechazo } from '../api/valesApi.js';
-import { escapeHtml, formatearFechaHora, tiempoRestante, inicialesAvatar } from '../utils/formato.js';
+import { escapeHtml, formatearFechaHora, inicialesAvatar } from '../utils/formato.js';
 import { puedeResponderAdjuntos } from '../permisos.js';
 import { state } from '../state.js';
 import { cargarBuzon } from '../views/buzon.js';
@@ -148,7 +148,6 @@ function htmlHilo(conversacion) {
 }
 
 const ESTADO_CHAT = {
-  ADJUNTOS_RECHAZADOS: { texto: 'Esperando respuesta del asesor', clase: 'chip-estado--alerta' },
   ADJUNTOS_RESPONDIDOS: { texto: 'Esperando revisión del taller', clase: 'chip-estado--info' }
 };
 
@@ -195,19 +194,14 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
       return;
     }
     const estado = ESTADO_CHAT[conversacion.estado];
-    const resta = conversacion.vence_en ? tiempoRestante(conversacion.vence_en) : '';
     cabecera.innerHTML = `
       ${nombreTaller ? `<span class="chip-estado chip-estado--taller"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon>${escapeHtml(nombreTaller)}</span>` : ''}
-      ${estado ? `<span class="chip-estado ${estado.clase}">${escapeHtml(estado.texto)}</span>` : ''}
-      ${resta ? `<span class="chip-estado chip-estado--tiempo" title="El vale se elimina el ${escapeHtml(formatearFechaHora(conversacion.vence_en))}"><ion-icon name="time-outline" aria-hidden="true"></ion-icon>Quedan ${escapeHtml(resta)}</span>` : ''}
-      <span class="chip-estado${conversacion.tope_alcanzado ? ' chip-estado--alerta' : ''}" title="Máximo de mensajes por conversación">${conversacion.total}/${conversacion.maximo} mensajes</span>`;
+      ${estado ? `<span class="chip-estado ${estado.clase}">${escapeHtml(estado.texto)}</span>` : ''}`;
     hilo.innerHTML = htmlHilo(conversacion);
     hilo.scrollTop = hilo.scrollHeight;
     zonaEscribir.hidden = !conversacion.puede_escribir;
     cerrada.hidden = conversacion.puede_escribir;
-    cerrada.querySelector('span').textContent = conversacion.tope_alcanzado
-      ? (conversacion.lado === 'ASESOR' ? 'Se alcanzó el máximo de mensajes. Usa «Ya lo atendí» para avisar al taller.' : 'Se alcanzó el máximo de mensajes. Verifica el vale o recházalo de nuevo para continuar.')
-      : 'Solo lectura.';
+    cerrada.querySelector('span').textContent = 'Solo lectura.';
   };
   const refrescar = async () => {
     try { pintar(await obtenerConversacion(vale.id, tallerId)); } catch (error) { hilo.innerHTML = `<div class="chat-vacio"><p>${escapeHtml(error.message)}</p></div>`; }
@@ -254,11 +248,9 @@ export function abrirModalAdjuntosPendientes(vale) {
         ${puedeResponder ? `<div class="rechazo-acciones"><button class="btn btn--ghost btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Ver conversación</button></div>` : ''}
       </li>`;
     }
-    const resta = tiempoRestante(a.vence_en);
     return `<li class="rechazo-tarjeta rechazo-tarjeta--alerta">
       <div class="rechazo-cab"><strong>${escapeHtml(a.taller)}</strong><span class="chip-estado chip-estado--alerta">Rechazado por el taller</span></div>
       <p class="rechazo-texto">Atiende el mensaje del taller. Si no se resuelve, el vale se elimina${a.vence_en ? ` el ${escapeHtml(formatearFechaHora(a.vence_en))}` : ''}.</p>
-      ${resta ? `<span class="chip-estado chip-estado--tiempo"><ion-icon name="time-outline" aria-hidden="true"></ion-icon>Quedan ${escapeHtml(resta)}</span>` : ''}
       ${puedeResponder ? `<div class="rechazo-acciones">
         <button class="btn btn--primary btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Leer y responder</button>
         <button class="btn btn--ghost btn--sm" data-responder="${Number(a.taller_id)}"><ion-icon name="checkmark-done-outline"></ion-icon> Ya lo atendí</button>

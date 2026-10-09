@@ -38,6 +38,6 @@ Rama: `feature/mensajes-rechazo` (desde `dev`).
 - **Cierre:** al verificar el taller los adjuntos, `GET /api/vales/:id/mensajes` devuelve `cerrada: true` y **cero mensajes**, y `POST` responde «La conversación se cerró: se llegó a un acuerdo.». En pantalla, el modal abierto pasa a «Se llegó a un acuerdo» (se refresca en vivo). Sin cambios de base de datos: el cierre se deduce del estado del taller.
 - **Registro:** los mensajes se conservan (y se borran con el vale) y el detalle del vale trae `conversaciones` solo para quien tiene `vales.ver_historial`; el historial muestra una sección plegable «Conversación del rechazo — <taller>» de solo lectura.
 - **Historial (líneas cortas):** el rechazo ya incluye su mensaje; el aviso del asesor pasa a «Asesor avisó que atendió el rechazo (taller)»; al verificar, si hubo conversación, se agrega «Conversación cerrada: se llegó a un acuerdo (N mensajes)».
-- **Tope:** 30 mensajes por conversación (solo para mensajes libres); «Ya lo atendí», verificar y rechazar de nuevo no se bloquean. La pantalla muestra «N/30 mensajes».
+- **Tope:** se había fijado en 30 mensajes por conversación; se retiró en correcciones 51.
 - **Continuidad:** si tras «Ya lo atendí» el taller rechaza de nuevo, sigue la misma conversación.
 - Archivos: `valeAdjuntosService.js`, `valeDetalleService.js`, `valeMensajeRepository.js`, `adjuntos.js`, `historial.js`, `socket.js`, `styles.css`.
