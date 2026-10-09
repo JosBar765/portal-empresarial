@@ -148,6 +148,7 @@ function htmlHilo(conversacion) {
 }
 
 const ESTADO_CHAT = {
+  ADJUNTOS_RECHAZADOS: { texto: 'Esperando respuesta del asesor', clase: 'chip-estado--alerta' },
   ADJUNTOS_RESPONDIDOS: { texto: 'Esperando revisión del taller', clase: 'chip-estado--info' }
 };
 
