@@ -76,24 +76,30 @@ function partirEnLineas(texto, font, size, maxWidth, maxLineas) {
   return visibles;
 }
 
-function wrapText(text, font, size, maxWidth) {
-  const words = String(text || '').split(/\s+/).filter(Boolean);
-  const lines = [];
-  let current = '';
-  for (const word of words) {
-    const tentative = current ? `${current} ${word}` : word;
-    if (font.widthOfTextAtSize(tentative, size) > maxWidth && current) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = tentative;
-    }
-  }
-  if (current) lines.push(current);
-  return lines.length ? lines : [''];
-}
+// Caracteres que la fuente estándar del PDF puede dibujar (se carga una vez).
+let juegoDeCaracteres = null;
+// Los invisibles (espacio de ancho cero, etc.) se muestran por su código para que el usuario sepa cuál quitar.
+const INVISIBLE = new RegExp('['+String.fromCharCode(92)+'p{Cc}'+String.fromCharCode(92)+'p{Cf}'+String.fromCharCode(92)+'p{Z}]', 'u');
+const mostrarCaracter = (c) => (INVISIBLE.test(c) ? `U+${c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}` : c);
 
 class ValePdfService {
+  // Rechaza texto que la fuente del PDF no puede dibujar (emoji, flechas, chino…) en vez de fallar con un 500 al generarlo.
+  async validarTextos(campos) {
+    if (!juegoDeCaracteres) {
+      const doc = await PDFDocument.create();
+      juegoDeCaracteres = new Set((await doc.embedFont(StandardFonts.Helvetica)).getCharacterSet());
+    }
+    for (const { etiqueta, valor } of campos) {
+      const malos = [...new Set([...String(valor ?? '')].filter(c => {
+        const cp = c.codePointAt(0);
+        return !juegoDeCaracteres.has(cp) && cp !== 9 && cp !== 10 && cp !== 13;
+      }))];
+      if (malos.length) {
+        throw new Error(`Se están usando caracteres innecesarios en «${etiqueta}» (${malos.slice(0, 5).map(mostrarCaracter).join(' ')}). Quítalos e inténtalo de nuevo.`);
+      }
+    }
+  }
+
   // Este PDF es el documento ADMINISTRATIVO del vale (encabezado, cliente,
   // venta, firma) — nunca lleva fusionada la propuesta/diseño de ningún
   // taller. Esa propuesta vive en su propio enlace ("Ver propuesta",
@@ -213,11 +219,18 @@ class ValePdfService {
   }
 
   _dibujarTextoLargo(ctx, descripcion) {
-    const lineas = wrapText(descripcion || 'Sin descripción.', ctx.font, 9, CONTENT_WIDTH);
+    const partir = (size) => String(descripcion || 'Sin descripción.').split(/\r?\n/)
+      .flatMap(parrafo => (parrafo.trim() ? partirEnLineas(parrafo, ctx.font, size, CONTENT_WIDTH, Infinity) : ['']));
+    // Autoajuste: letra de 9 pt y, si el texto es muy largo, más chica (mínimo 7 pt) para que no ocupe media hoja.
+    let size = 9;
+    let lineas = partir(size);
+    if (lineas.length > 20) { size = 8; lineas = partir(size); }
+    if (lineas.length > 30) { size = 7; lineas = partir(size); }
+    const alto = size + 5;
     lineas.forEach(linea => {
-      this._asegurarEspacio(ctx, 14);
-      this._texto(ctx, linea, MARGIN, ctx.y, { size: 9 });
-      ctx.y -= 14;
+      this._asegurarEspacio(ctx, alto);
+      this._texto(ctx, linea, MARGIN, ctx.y, { size });
+      ctx.y -= alto;
     });
     ctx.y -= 6;
   }

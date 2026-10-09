@@ -10,8 +10,8 @@ Rama `fix/rechazo-hallazgos`. Objetivo: cerrar los hallazgos R1, R4, R5 y R9 del
 
 ## Tareas
 - [x] T1 R1 + R9 (acceso por taller, modal en vivo, sin cartel repetido, 403, mensaje sin tallerId)
-- [ ] T2 R5 caracteres no soportados
-- [ ] T3 R4 límites de campos y autoajuste de la descripción
+- [x] T2 R5 caracteres no soportados (validarTextos; 400 claro; admin incluido)
+- [x] T3 R4 límites de campos (100/30/40) y autoajuste de la descripción (600). PDFs vistos en el navegador: 600 «A», URL de 600, párrafos y campos al máximo con «W»/«M», todo dentro de la hoja y de su celda
 
 ## Ruta
 Un solo escritor, inline (el parent delegó); sin suite de tests: scripts contra dev en el scratchpad.

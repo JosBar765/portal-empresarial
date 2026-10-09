@@ -419,8 +419,9 @@ class ValeCreacionService {
     // de "Data too long for column" (con el nombre de la columna) podía
     // filtrarse hasta el cliente.
     const limitesLongitud = {
-      clienteNombre: 150, clienteEmpresa: 150, clienteTelefono: 30, clienteCorreo: 150,
-      producto: 150, material: 150, tecnica: 150, acabado: 150, descripcion: 600
+      // Máximos que caben en su celda del PDF aun con letras anchas (ver valePdfService); la descripción se autoajusta.
+      clienteNombre: 100, clienteEmpresa: 100, clienteTelefono: 30, clienteCorreo: 100,
+      producto: 40, material: 40, tecnica: 40, acabado: 40, descripcion: 600
     };
     const etiquetasCampo = {
       clienteNombre: 'El nombre del cliente', clienteEmpresa: 'La empresa', clienteTelefono: 'El teléfono',
@@ -433,6 +434,8 @@ class ValeCreacionService {
         throw new Error(`${etiquetasCampo[campo]} es demasiad${fem ? 'a larga' : 'o largo'} (máximo ${limitesLongitud[campo]} caracteres).`);
       }
     }
+    await valePdfService.validarTextos(Object.entries({ clienteNombre, clienteEmpresa, clienteTelefono, clienteCorreo, producto, material, tecnica, acabado, descripcion })
+      .map(([campo, valor]) => ({ etiqueta: etiquetasCampo[campo].replace(/^(El|La) /, ''), valor })));
     validarTelefono(clienteTelefono, 'El teléfono del cliente');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clienteCorreo)) {
       throw new Error('El correo del cliente no tiene un formato válido.');

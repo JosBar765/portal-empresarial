@@ -94,8 +94,8 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
         ${esModificacion ? '<p class="form-nota">Al solicitarla, el vale original pasará a «Recibido» de inmediato y se creará el MOD- con la propuesta original adjunta. Si el supervisor lo rechaza o vence, se elimina y puedes solicitar otro.</p>' : ''}
         <div class="section-title">Información de Cliente</div>
         <div class="form-grid">
-          <div class="form-field"><label>Empresa</label><input type="text" name="clienteEmpresa" /></div>
-          <div class="form-field"><label>Cliente *</label><input type="text" name="clienteNombre" required /></div>
+          <div class="form-field"><label>Empresa</label><input type="text" name="clienteEmpresa" maxlength="100" /></div>
+          <div class="form-field"><label>Cliente *</label><input type="text" name="clienteNombre" required maxlength="100" /></div>
           <div class="form-field">
             <label>Teléfono *</label>
             <div class="form-field-phone">
@@ -103,7 +103,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
               <input type="text" name="clienteTelefono" required placeholder="0000-0000" />
             </div>
           </div>
-          <div class="form-field"><label>Correo *</label><input type="email" name="clienteCorreo" required /></div>
+          <div class="form-field"><label>Correo *</label><input type="email" name="clienteCorreo" required maxlength="100" /></div>
         </div>
 
         <div class="section-title">Información de Taller</div>
@@ -118,10 +118,10 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
           ${htmlCampoFecha('Fecha de entrega', 'fechaEntrega')}
           ${htmlCampoFecha('Fecha del evento', 'fechaEvento')}
           <div class="aviso-urgente full" id="aviso-urgente" role="status" aria-live="polite" hidden><ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon><span>El vale se marcará como urgente, entrega en menos de 3 días</span></div>
-          <div class="form-field"><label>Código de producto *</label><input type="text" name="producto" required maxlength="150" placeholder="Ej. Trofeo" /></div>
-          <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="150" placeholder="Ej. Acrílico" /></div>
-          <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" /></div>
-          <div class="form-field"><label>Acabado</label><input type="text" name="acabado" /></div>
+          <div class="form-field"><label>Código de producto *</label><input type="text" name="producto" required maxlength="40" placeholder="Ej. Trofeo" /></div>
+          <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="40" placeholder="Ej. Acrílico" /></div>
+          <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" maxlength="40" /></div>
+          <div class="form-field"><label>Acabado</label><input type="text" name="acabado" maxlength="40" /></div>
           <div class="form-field"><label>Cantidad * (mayor a 1)</label><input type="number" name="cantidad" min="2" required /></div>
           <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>        </div>
 

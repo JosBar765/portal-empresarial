@@ -114,6 +114,11 @@ class AdminValePdfService {
         fechaHora: fechaHora(body, 'fechaAutorizacion', 'La fecha de autorización', true)
       };
     }
+    await valePdfService.validarTextos([
+      ['Empresa', vale.cliente_empresa], ['Cliente', vale.cliente_nombre], ['Correo', vale.cliente_correo], ['Producto', vale.producto],
+      ['Material', vale.material], ['Técnica', vale.tecnica], ['Acabado', vale.acabado], ['Descripción', vale.descripcion],
+      ['Asesor', vale.__asesorNombre], ['Correo del asesor', vale.__asesorCorreo]
+    ].map(([etiqueta, valor]) => ({ etiqueta, valor })));
     return vale;
   }
 
