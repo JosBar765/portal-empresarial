@@ -98,9 +98,8 @@ class ValeTallerService {
       });
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, `${etiquetaActorTaller(usuario)} marcó el vale como en proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
-      // El encargado del taller sí debe enterarse cuando su diseñador empieza
-      // a trabajar un vale.
-      valeEvents.notificar({ vale: actualizado, accion: 'tomado en proceso', actor: usuario.nombre, actorId: usuario.id, salas: [`taller:${fila.taller_id}`] });
+      // Se enteran el taller y el asesor (su pantalla pasa al paso 3).
+      valeEvents.notificar({ vale: actualizado, accion: 'tomado en proceso', actor: usuario.nombre, actorId: usuario.id, salas: [`taller:${fila.taller_id}`, `asesor:${actualizado.asesor_id}`] });
       return enriquecer(actualizado);
     });
   }
@@ -240,7 +239,7 @@ class ValeTallerService {
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: 'canceló su proceso', actor: usuario.nombre, actorId: usuario.id,
-        salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`, `asesor:${actualizado.asesor_id}`], nivel: 'alerta'
+        salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`], nivel: 'alerta'
       });
       return enriquecer(actualizado);
     });
@@ -275,14 +274,8 @@ class ValeTallerService {
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO, accionHistorial, fila.disenador_id);
       await this._recalcularEstadoVale(valeId, usuario.id);
       const actualizado = await valeRepository.obtenerPorId(valeId);
-      // El encargado que aprobó también se entera (self-broadcast, igual que
-      // el resto de acciones del módulo), además de a quien le toca seguir
-      // el flujo (asesor o quien fusiona).
-      const targets = actualizado.estado === ESTADOS.PENDIENTE_CONFIRMACION
-        ? [`asesor:${vale.asesor_id}`, `taller:${fila.taller_id}`]
-        : actualizado.estado === ESTADOS.APROBADO_DEPARTAMENTO
-          ? [SALA_FUSION, `taller:${fila.taller_id}`]
-          : [`taller:${fila.taller_id}`];
+      // El asesor se entera siempre; quien fusiona, solo si el vale queda esperando fusión.
+      const targets = [`taller:${fila.taller_id}`, `asesor:${vale.asesor_id}`, ...(actualizado.estado === ESTADOS.APROBADO_DEPARTAMENTO ? [SALA_FUSION] : [])];
       valeEvents.notificar({ vale: actualizado, accion: 'aprobado (taller)', actor: usuario.nombre, actorId: usuario.id, salas: targets });
       return enriquecer(actualizado);
     }
