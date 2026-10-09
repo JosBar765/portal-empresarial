@@ -78,7 +78,7 @@ class ValeTallerService {
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: 'asignado', actor: usuario.nombre, actorId: usuario.id, destino: disenador ? disenador.nombre : null,
-        salas: ['disenador:' + disenadorId, `taller:${fila.taller_id}`, `asesor:${actualizado.asesor_id}`]
+        salas: [`disenador:${disenadorId}`, `taller:${fila.taller_id}`, ...await this._salasEquipo(actualizado.asesor_id)]
       });
       return enriquecer(actualizado);
     });
@@ -166,7 +166,7 @@ class ValeTallerService {
       if (!autoaprueba) {
         valeEvents.notificar({
           vale: actualizado, accion: 'entregado (propuesta)', actor: usuario.nombre, actorId: usuario.id,
-          salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`, `asesor:${actualizado.asesor_id}`],
+          salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`, ...await this._salasEquipo(actualizado.asesor_id)],
           nivel: url ? 'info' : 'alerta'
         });
       }
