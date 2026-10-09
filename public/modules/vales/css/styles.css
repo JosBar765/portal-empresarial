@@ -477,6 +477,11 @@
   display: none;
 }
 
+/* Encargados y diseñadores no ven Fecha Evento en su tabla (la Fecha Ingreso sí). */
+.buzon-table.oculta-fechas .col-fecha-evento {
+  display: none;
+}
+
 /* Chips de taller en el buzón — reusa .taller-tag (selector de talleres del
    formulario de creación) en modo solo lectura, sin el botón "×" de quitar:
    un vale multi-taller ("Diseño, Diseño UV/3D") se leía como una sola frase en
@@ -1293,6 +1298,16 @@
   box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
 }
 
+.date-field-trigger:disabled {
+  background: var(--color-surface-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.date-field-trigger:disabled:hover {
+  border-color: var(--color-border);
+}
+
 .date-field-trigger ion-icon {
   font-size: 16px;
   color: var(--color-text-muted);
@@ -2021,3 +2036,275 @@
     box-shadow: none;
   }
 }
+/* ============================================================
+   Celulares (≤640 px): objetivos táctiles de 44 px y toolbar compacta.
+   Escritorio y tablet no cambian.
+   ============================================================ */
+@media (max-width: 640px) {
+  .header-back, .sidebar-toggle-mobile, .notif-bell {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    align-items: center;
+    margin-right: 0;
+  }
+  .sidebar-item { min-height: 44px; }
+  .chip, .ventana-selector .chip { min-height: 44px; padding-left: 16px; padding-right: 16px; }
+  .mes-nav-flecha { min-width: 44px; min-height: 44px; }
+  .mes-nav-etiqueta { min-height: 44px; }
+  .date-field-trigger, .filtro-tienda { min-height: 44px; }
+  .btn-icon { width: 44px; height: 44px; }
+  .btn { min-height: 44px; }
+  .btn--sm { min-height: 44px; }
+  .buzon-table .acciones-wrap { gap: 8px; }
+}
+
+@media (max-width: 640px) and (orientation: landscape) {
+  .app-header { padding-top: 6px; padding-bottom: 6px; }
+}
+
+@media (max-width: 640px) {
+  /* El pipeline ocupa todo el ancho de la tarjeta en vez de competir con su etiqueta. */
+  .buzon-table td[data-label="Estado"] { flex-direction: column; align-items: flex-start; text-align: left; gap: 6px; }
+  #filtro-texto, .buzon-filtros input { min-height: 44px; }
+  .contador-card .etiqueta-texto { font-size: 12px; }
+  .contador-card .etiqueta-quien { font-size: 11px; }
+  .notif-badge { font-size: 11px; }
+}
+
+@media (max-width: 640px) {
+  #filtro-disenador, .buzon-filtros select { min-height: 44px; }
+}
+
+@media (max-width: 560px) {
+  /* La barra de período (Todo/Hoy/mes/rango + tienda) no debe ensanchar la página. */
+  .vales-toolbar, .ventana-selector, .ventana-rango { max-width: 100%; min-width: 0; }
+  .ventana-selector { flex-wrap: wrap; row-gap: 8px; }
+  .ventana-rango { flex-wrap: wrap; }
+  .mes-nav { max-width: 100%; }
+  #filtro-tienda { width: 100%; max-width: 100%; }
+}
+
+@media (max-width: 640px) {
+  .dp-nav { width: 40px; height: 40px; }
+  .dp-day { width: 100%; min-width: 34px; height: 38px; }
+}
+
+/* Quién está detrás del vale, bajo el correlativo (asesor para el Supervisor; diseñador para el Encargado). */
+.persona-badge {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.persona-badge ion-icon { font-size: 13px; flex-shrink: 0; }
+.persona-badge--asesor { background: var(--color-surface-muted); color: var(--color-text-secondary); }
+.persona-badge--disenador { background: var(--color-primary-light); color: var(--color-primary-dark); }
+.persona-badge--libre { background: var(--color-warning-bg, #fef3c7); color: var(--color-warning, #b45309); }
+@media (max-width: 560px) {
+  .buzon-table td[data-label="Correlativo"] { flex-wrap: wrap; justify-content: flex-end; }
+  .persona-badge { margin-top: 0; }
+}
+
+/* Conversación del rechazo (taller ↔ asesor) y sus modales */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* Aviso informativo de los modales de rechazo */
+.aviso-rechazo {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background: var(--color-primary-light);
+  border-radius: var(--radius-md);
+}
+.aviso-rechazo ion-icon { flex: 0 0 auto; margin-top: 1px; font-size: 18px; color: var(--color-primary-dark); }
+.aviso-rechazo p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--color-text); }
+
+/* Sugerencias rápidas del motivo */
+.motivos-rapidos { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.chip-motivo {
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast);
+}
+.chip-motivo:hover { color: var(--color-primary-dark); border-color: var(--color-primary); background: var(--color-primary-light); }
+.chip-motivo:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.campo-pie { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.campo-ayuda { font-size: 12px; color: var(--color-text-secondary); }
+.contador-mensaje { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
+.contador-mensaje.is-cerca { color: var(--color-warning, #b45309); font-weight: 600; }
+.contador-mensaje.is-excedido { color: var(--color-danger); font-weight: 700; }
+
+/* Chips de estado */
+.chip-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+.chip-estado ion-icon { font-size: 14px; }
+.chip-estado--alerta { background: var(--color-danger-bg); color: var(--color-danger); }
+.chip-estado--info { background: var(--color-primary-light); color: var(--color-primary-dark); }
+.chip-estado--tiempo { background: #fef3c7; color: #92400e; }
+.chip-estado--taller { background: var(--color-surface-muted); color: var(--color-text); }
+.chip-estado--cerrado { background: var(--color-surface-muted); color: var(--color-text-muted); }
+
+/* Modal del asesor: una tarjeta por taller */
+.rechazo-lista { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.rechazo-tarjeta { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.rechazo-tarjeta--alerta { background: var(--color-danger-bg); border-color: rgba(220, 38, 38, .25); }
+.rechazo-cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; width: 100%; }
+.rechazo-cab strong { font-size: 14px; }
+.rechazo-texto { margin: 0; font-size: 13px; line-height: 1.45; color: var(--color-text-secondary); }
+.rechazo-acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+.rechazo-tarjeta .mensaje-adjuntos { width: 100%; }
+
+/* Conversación */
+.chat-cabecera { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.chat-cabecera:empty { display: none; }
+
+.chat-hilo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 140px;
+  max-height: 46vh;
+  padding: 14px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  scroll-behavior: smooth;
+}
+.chat-hilo:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.chat-vacio { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: auto; color: var(--color-text-secondary); font-size: 13px; text-align: center; }
+.chat-vacio ion-icon { font-size: 28px; color: var(--color-text-muted); }
+.chat-vacio p { margin: 0; }
+
+.chat-dia { display: flex; align-items: center; gap: 10px; margin: 4px 0; font-size: 11px; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.chat-dia::before, .chat-dia::after { content: ''; flex: 1; height: 1px; background: var(--color-border); }
+
+.chat-fila { display: flex; align-items: flex-end; gap: 8px; max-width: 88%; align-self: flex-start; }
+.chat-fila--propia { flex-direction: row-reverse; align-self: flex-end; }
+
+.chat-avatar {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+}
+.chat-avatar--taller { background: var(--color-primary-dark); color: #fff; }
+.chat-avatar--asesor { background: var(--color-border); color: var(--color-text); }
+
+.chat-burbuja {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md) var(--radius-md) var(--radius-md) var(--radius-xs);
+}
+.chat-burbuja--propia { background: var(--color-primary-light); border-color: transparent; border-radius: var(--radius-md) var(--radius-md) var(--radius-xs) var(--radius-md); }
+.chat-burbuja--motivo { background: var(--color-danger-bg); border-color: rgba(220, 38, 38, .25); }
+.chat-burbuja p { margin: 0; font-size: 14px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-autor { font-size: 12px; font-weight: 700; color: var(--color-text); }
+.chat-autor em { margin-left: 6px; font-style: normal; font-weight: 500; color: var(--color-text-muted); }
+.chat-etiqueta { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--color-danger); text-transform: uppercase; letter-spacing: .03em; }
+.chat-hora { align-self: flex-end; font-size: 11px; color: var(--color-text-muted); }
+
+/* Caja para escribir */
+.chat-escribir { margin-top: 12px; }
+.chat-escribir[hidden] { display: none; }
+.chat-caja {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.chat-caja:focus-within { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1); }
+.chat-caja textarea { flex: 1; min-height: 32px; max-height: 110px; padding: 6px 0; font: inherit; font-size: 14px; line-height: 1.4; color: var(--color-text); background: transparent; border: 0; outline: none; resize: none; }
+.chat-enviar {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-size: 17px;
+  color: #fff;
+  background: var(--color-primary-dark);
+  border: 0;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+.chat-enviar:hover:not(:disabled) { transform: translateY(-1px); }
+.chat-enviar:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.chat-enviar:disabled { opacity: .4; cursor: not-allowed; }
+.chat-enviar.is-enviando ion-icon { animation: chatEnviando .6s ease-in-out infinite alternate; }
+@keyframes chatEnviando { to { transform: translateX(3px); opacity: .5; } }
+
+.chat-cerrada { display: flex; align-items: center; gap: 6px; margin: 12px 0 0; font-size: 12px; color: var(--color-text-secondary); }
+.chat-cerrada[hidden] { display: none; }
+
+@media (max-width: 640px) {
+  .chat-fila { max-width: 94%; }
+  .chat-hilo { max-height: none; min-height: 40vh; height: calc(100dvh - 330px); }
+  .chat-enviar { width: 44px; height: 44px; }
+  .chip-motivo { min-height: 36px; }
+  .rechazo-acciones .btn { flex: 1 1 140px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-hilo { scroll-behavior: auto; }
+  .chat-enviar.is-enviando ion-icon { animation: none; }
+}
+
+/* Registro de conversaciones en el historial del vale (solo lectura) */
+.registro-conversacion { margin-top: 14px; background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.registro-conversacion > summary { display: flex; align-items: center; gap: 8px; padding: 10px 12px; font-size: 13px; font-weight: 600; cursor: pointer; list-style: none; }
+.registro-conversacion > summary::-webkit-details-marker { display: none; }
+.registro-conversacion > summary ion-icon { font-size: 17px; color: var(--color-text-secondary); }
+.registro-conversacion > summary span { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--color-text-muted); }
+.registro-conversacion > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; border-radius: var(--radius-md); }
+.registro-mensajes { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0 12px 12px; list-style: none; }
+.registro-mensaje { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; font-size: 13px; line-height: 1.4; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+.registro-mensaje--taller { background: var(--color-primary-light); border-color: transparent; }
+.registro-meta { font-size: 11px; color: var(--color-text-secondary); }

@@ -55,30 +55,24 @@ export function initSocket() {
     // notificación duplicada. Se sigue refrescando el buzón igual, solo se
     // omite el aviso.
     if (data.tipo === 'CORREGIDO') avisarCambioEnModalAutorizar(data.valeId);
+    if (['MENSAJE_RECHAZO', 'ADJUNTOS_VERIFICADOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'].includes(data.tipo) && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId) {
+      state.conversacionAbierta.refrescar();
+    }
+    // Cambió el estado del adjunto de este vale: el modal del asesor quedó desactualizado y se cierra (el buzón se refresca abajo).
+    if (['ADJUNTOS_VERIFICADOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'].includes(data.tipo) && state.adjuntosModalAbierto && state.adjuntosModalAbierto.valeId === data.valeId) {
+      state.adjuntosModalAbierto.cerrar();
+    }
+    const conversacionVisible = data.tipo === 'MENSAJE_RECHAZO' && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId;
     const esPropiaAccion = data.actorId != null && data.actorId === state.user.id;
-    if (!esPropiaAccion) {
+    if (!esPropiaAccion && !conversacionVisible) { // con la conversación abierta no se repite cartel ni beep
       const esAlerta = data.nivel === 'alerta';
       window.toast[esAlerta ? 'error' : 'info'](esAlerta ? 'Atención' : 'Vale de arte', data.mensaje);
       if (data.beep !== false) reproducirBeep();
     }
-    // La vista Rendimiento (Supervisor) se refresca en silencio y con rebote
-    // (ver actualizarRendimientoEnVivo) en vez de recargar un buzón que esa
-    // vista ni siquiera muestra.
-    const enVistaRendimiento = [ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'rendimiento';
-    if (enVistaRendimiento) {
-      actualizarRendimientoEnVivo();
-    } else {
-      cargarBuzon();
-    }
-    if (state.cargaTrabajoModal) {
-      if (state.cargaTrabajoModal.overlay.isConnected) {
-        state.cargaTrabajoModal.actualizar();
-      } else {
-        state.cargaTrabajoModal = null;
-      }
-    }
-    actualizarHistorialModalSiAplica();
+    refrescarPantalla();
   });
+  // Solo refresco, sin toast ni beep (ver `refrescar` en events.js).
+  state.socket.on('vale_refrescar', () => refrescarPantalla());
   // Canal aparte de `vale_evento` (ver events.js) — llega a CUALQUIER vista
   // que tenga abierto el historial de ESTE vale, sin importar el rol ni si
   // esa vista está en alguna de las salas por rol de `vale_evento`. Nunca
@@ -88,6 +82,26 @@ export function initSocket() {
       actualizarHistorialModalSiAplica();
     }
   });
+}
+
+function refrescarPantalla() {
+  // La vista Rendimiento (Supervisor) se refresca en silencio y con rebote
+  // (ver actualizarRendimientoEnVivo) en vez de recargar un buzón que esa
+  // vista ni siquiera muestra.
+  const enVistaRendimiento = [ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'rendimiento';
+  if (enVistaRendimiento) {
+    actualizarRendimientoEnVivo();
+  } else {
+    cargarBuzon();
+  }
+  if (state.cargaTrabajoModal) {
+    if (state.cargaTrabajoModal.overlay.isConnected) {
+      state.cargaTrabajoModal.actualizar();
+    } else {
+      state.cargaTrabajoModal = null;
+    }
+  }
+  actualizarHistorialModalSiAplica();
 }
 
 function actualizarHistorialModalSiAplica() {

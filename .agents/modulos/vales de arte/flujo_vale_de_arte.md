@@ -1,7 +1,7 @@
 # Flujo del módulo "Vales de Arte" (estado real del sistema)
 
 Referencia del flujo tal como lo implementa el código en `src/modules/vales/`
-(verificado contra los servicios el 2026-10-06). Si este archivo y el código
+(verificado contra los servicios el 2026-10-09). Si este archivo y el código
 discrepan, manda el código: corrige este archivo.
 
 - `analisis_modulo.md` es la especificación **original** y solo se conserva
@@ -46,12 +46,12 @@ datos; la columna "Etiqueta" es lo que se muestra hoy en pantalla
 | id | Código | Etiqueta en pantalla | Qué significa | Entra por | Sale por |
 |---|---|---|---|---|---|
 | 1 | `ESPERANDO_AUTORIZACION` | Esperando Autorización | El vale existe pero ningún taller lo ve aún; espera al supervisor del asesor. No tiene filas en `vale_talleres`. Tiene vigencia de 24 h (§1). Es el estado de espera de un vale **normal** (el `MOD-` espera en `SOLICITANDO_MODIFICACION`). | El asesor crea el vale · el asesor reenvía uno `RECHAZADO` | Autorizar → `CREADO` · Rechazar → `RECHAZADO` · Baja o vencimiento → **se borra** |
-| 9 | `RECHAZADO` | Rechazado | El supervisor devolvió el vale (normal o `MOD-`) al asesor con un motivo (≤ 50 palabras). El asesor puede corregirlo, reenviarlo o darlo de baja. Conserva la vigencia de 24 h original. | El supervisor rechaza la creación o la modificación | Reenviar → `ESPERANDO_AUTORIZACION` (o `SOLICITANDO_MODIFICACION` si es un `MOD-`) · Baja o vencimiento → se borra |
+| 9 | `RECHAZADO` | Rechazado | El supervisor devolvió un vale **normal** al asesor con un motivo (≤ 50 palabras). El asesor puede corregirlo, reenviarlo o darlo de baja. (Una modificación rechazada no pasa por aquí: se elimina.) Conserva la vigencia de 24 h original. | El supervisor rechaza la creación | Reenviar → `ESPERANDO_AUTORIZACION` · Baja o vencimiento → se borra |
 | 2 | `CREADO` | Creado | Autorizado; los talleres lo trabajan en paralelo (estado por taller, §2). El estado general no cambia mientras algún taller no esté `APROBADO`. | El supervisor autoriza la creación | Todos los talleres `APROBADO` → `PENDIENTE_CONFIRMACION` (1 taller) o `APROBADO_DEPARTAMENTO` (2+) |
 | 3 | `APROBADO_DEPARTAMENTO` | Aprobado por Talleres | Todos los talleres aprobaron y falta la **fusión manual** de sus propuestas (§1, cola de quien tenga `vales.aprobar_general`). | Último taller aprueba, con 2+ talleres (también un `MOD-`, que va a los mismos talleres que su original) | Se adjunta el documento de fusión → `PENDIENTE_CONFIRMACION` |
-| 4 | `PENDIENTE_CONFIRMACION` | Pendiente Confirmación | El trabajo está listo; el asesor debe confirmar de recibido (o pedir una modificación, sin que el vale cambie de estado mientras tanto). | Último taller aprueba con 1 taller · se fusionó | Confirmar → `RECIBIDO` (no se puede mientras haya un `MOD-` en trámite) · se aprueba una modificación → `RECIBIDO` |
-| 5 | `RECIBIDO` | Recibido (al asesor se le muestra **Confirmado**) | Terminal. El asesor confirmó; el atraso queda congelado. Puede recibir **una** solicitud de modificación, y **no cambia de estado** mientras esta está en trámite. | El asesor confirma · se aprueba la modificación de un original pendiente de confirmación | — |
-| 6 | `SOLICITANDO_MODIFICACION` | Solicitando Modificación | Estado **del vale `MOD-`** mientras espera la decisión del supervisor (el equivalente a `ESPERANDO_AUTORIZACION` de un vale normal). Tiene vigencia de 24 h. El original **ya no pasa por este estado**. | El asesor solicita la modificación (el `MOD-` nace aquí) · el asesor reenvía un `MOD-` `RECHAZADO` | Autorizar → `MODIFICADO` · Rechazar → `RECHAZADO` · Baja o vencimiento → se borra el `MOD-` (el original queda como estaba) |
+| 4 | `PENDIENTE_CONFIRMACION` | Pendiente Confirmación | El trabajo está listo; el asesor debe confirmar de recibido o pedir una modificación (al pedirla, el vale pasa a `RECIBIDO` de inmediato). | Último taller aprueba con 1 taller · se fusionó | Confirmar → `RECIBIDO` · solicitar una modificación → `RECIBIDO` |
+| 5 | `RECIBIDO` | Recibido (al asesor se le muestra **Confirmado**) | Terminal. El asesor confirmó o solicitó una modificación: el atraso queda congelado y se registra la fecha de confirmación (aparece en «Trabajo realizado»). Puede recibir otra solicitud de modificación mientras no haya una autorizada. | El asesor confirma · el asesor solicita una modificación | — |
+| 6 | `SOLICITANDO_MODIFICACION` | Solicitando Modificación | Estado **del vale `MOD-`** mientras espera la decisión del supervisor (el equivalente a `ESPERANDO_AUTORIZACION` de un vale normal). Tiene vigencia de 24 h. El original **ya no pasa por este estado**. | El asesor solicita la modificación (el `MOD-` nace aquí) | Autorizar → `MODIFICADO` · Rechazar, baja o vencimiento → se **borra** el `MOD-` (el original ya quedó `RECIBIDO`) |
 | 7 | `MODIFICADO` | Modificado | Estado del vale **`MOD-`** desde que se autoriza hasta que pasa a confirmación: lo que `CREADO` es para un vale normal. Corre el ciclo de taller. Se conserva para distinguirlo (etiqueta «Modificado» y contador «Modificados» del supervisor). | El supervisor autoriza la modificación | Mismos caminos que `CREADO` (§1.1) |
 | 8 | `CONFIRMADO` | Confirmado | **No se guarda nunca en `vales.estado` ni en `vale_historial`** (el historial registra `RECIBIDO`, el estado real): existe en el catálogo y en el código, pero solo sirve como etiqueta que ve el asesor (`estadoVisibleAsesor`). En la base, un vale confirmado está en `RECIBIDO`. | — | — |
 
@@ -75,16 +75,16 @@ Diagrama general (flujo feliz y desvíos):
                        ▼                                           │
                  PENDIENTE_CONFIRMACION ◄──────────────────────────┘
                    │              │
-        asesor confirma      asesor solicita modificación (el original NO cambia de estado)
+        asesor confirma      asesor solicita modificación (el original pasa a RECIBIDO)
                    ▼              ▼
-               RECIBIDO      nace el vale MOD-:  SOLICITANDO_MODIFICACION ◄─ reenvía ─┐
-                   ▲                                │          │                     │
-                   │ al autorizarse el MOD-         │          └── supervisor ───► RECHAZADO
-                   │ el original pasa a RECIBIDO    │ supervisor autoriza   rechaza    (el asesor corrige)
+               RECIBIDO      nace el vale MOD-:  SOLICITANDO_MODIFICACION
+                   ▲                                │          │
+                   │ (el original ya está           │          └── supervisor rechaza ──► se BORRA el MOD-
+                   │  RECIBIDO desde la solicitud)  │ supervisor autoriza
                    │                                ▼
                    └───────────────────────────  MODIFICADO ─► ciclo de taller (§2) ─► PENDIENTE_CONFIRMACION
                                                                           / APROBADO_DEPARTAMENTO ─► RECIBIDO
-        Baja del asesor o 24 h sin autorizar: el MOD- se borra y el original queda como estaba.
+        Rechazo, baja del asesor o 24 h sin autorizar: el MOD- se borra y el original sigue RECIBIDO.
 ```
 
 ### B. Estado por TALLER (`vale_talleres.estado` → tabla `estados_taller`)
@@ -134,9 +134,9 @@ Diagrama general (flujo feliz y desvíos):
              │
      ┌───────┴────────────────────────────┐
      │ Supervisor RECHAZA                 │ Supervisor AUTORIZA
-     ▼                                    │ (gated por el cupo colectivo
- Pasa a RECHAZADO y vuelve al ASESOR      │  diario de su equipo, ver §5;
- con un motivo (≤ 50 palabras): puede     │  debe haber abierto "Ver" antes)
+     ▼                                    │ (debe haber abierto "Ver"
+ Pasa a RECHAZADO y vuelve al ASESOR      │  antes; sin tope diario)    
+ con un motivo (≤ 50 palabras): puede     │                                 
  corregir, reenviar o dar de baja.        │ → crea 1 fila en vale_talleres
  (ver notas)                              │   por taller solicitado
                                           │ → sella autorizado_por/en
@@ -176,8 +176,8 @@ Diagrama general (flujo feliz y desvíos):
                                      │
           ┌──────────────────────────┴──────────────────────────┐
           │ Asesor confirma de recibido                         │ Asesor solicita modificación
-          │ (sella confirmado_en y                              │ (ver §1.1; permitido también
-          │  congela el atraso)                                 │  desde RECIBIDO)
+          │ (sella confirmado_en y                              │ (ver §1.1; pasa a RECIBIDO y
+          │  congela el atraso)                                 │  también se permite desde RECIBIDO)
           ▼                                                     │
      ┌──────────┐                                               │
      │ RECIBIDO │  (terminal)                                   │
@@ -188,7 +188,7 @@ Diagrama general (flujo feliz y desvíos):
                                               │  nace el vale MOD- en     │
                                               │  SOLICITANDO_MODIFICACION │
                                               └──────────────┬────────────┘
-                                                             │ (ver §1.1; el original no cambia)
+                                                             │ (ver §1.1; el original pasa a RECIBIDO)
 ```
 
 Notas:
@@ -204,7 +204,7 @@ Notas:
   (`vale_vistos`); se exige en pantalla y en el servidor. Si el asesor corrige,
   la marca se reinicia.
 - **Vigencia de 24 h:** un vale nuevo en `ESPERANDO_AUTORIZACION`, una solicitud
-  de modificación (`MOD-` en `SOLICITANDO_MODIFICACION`) o cualquiera de los dos
+  de modificación (`MOD-` en `SOLICITANDO_MODIFICACION`) o un vale normal
   en `RECHAZADO` se **elimina solo** (con sus archivos) a las 24 h de su creación
   si nadie lo autoriza; 6 h antes se avisa al asesor y a sus supervisores
   (`vigenciaWatcher.js`, cada 60 s). Aplica solo a vales creados desde que
@@ -220,50 +220,54 @@ Notas:
   corrección queda en el historial. Una vez autorizado ya no es posible (después solo
   existe la solicitud de modificación).
 - Un vale que el asesor no acepta en `PENDIENTE_CONFIRMACION` **no tiene
-  acción "rechazar"**: sigue el mismo camino que una modificación (el original
-  se queda en `PENDIENTE_CONFIRMACION` y no se puede confirmar mientras el
-  `MOD-` esté en trámite).
-- La propuesta/fusión **nunca se pega dentro del PDF del vale**. El PDF es el
+  acción "rechazar"**: sigue el mismo camino que una modificación (§1.1: el original pasa a
+  `RECIBIDO` al pedirla).
+- La propuesta/fusión **no se pega dentro del PDF de un vale normal**. El PDF es el
   documento administrativo del vale (encabezado, cliente, venta, firma); la
-  propuesta queda aparte, accesible con "Ver propuesta".
+  propuesta queda aparte, accesible con "Ver propuesta". **Excepción:** el PDF de un
+  vale `MOD-` lleva al final la propuesta del vale original (§1.1).
+- **Nunca un PDF a medias:** cada PDF adjunto que se fusiona se descarga con hasta 3
+  intentos; si no se puede traer o leer, **no se genera el PDF** y se muestra un error con
+  el nombre del archivo (el vale no cambia). El log del servidor (`[ValePdfService]`)
+  indica el correlativo, el id, el archivo, la URL y la causa: el archivo ya no existe
+  (404), sin permiso (403), error del servidor (5xx), sin conexión o tiempo agotado, no es
+  un PDF o está dañado. Para repararlo, se corrige la URL de la fila de `vale_documentos`
+  o se vuelve a subir el archivo. Al autorizar, el PDF con la firma se genera **antes** de
+  tocar la base y todo se confirma en una sola transacción.
 - El PDF se genera al crear el vale y se regenera al autorizar (firma roja con
   el supervisor, CREACIÓN/MODIFICACIÓN y la fecha y hora de la autorización),
   al aprobar una modificación y al fusionar. Se sube a Supabase Storage; en
   MySQL solo se guarda la URL.
 
-### 1.1 Modificación (una sola por vale)
+### 1.1 Modificación
 
-La solicitud de modificación es **un vale nuevo** (`MOD-<correlativo>`) que sigue
-el mismo flujo que cualquier vale pendiente: rechazo con motivo, corrección,
-reenvío, baja y vigencia de 24 h. La diferencia es que su estado de espera es
-`SOLICITANDO_MODIFICACION` y que, al autorizarse, no empieza de cero: va a los
-mismos talleres del original.
+La solicitud de modificación crea **un vale nuevo** (`MOD-<correlativo>`) y deja el original en
+`RECIBIDO`. El `MOD-` nace completo al solicitar; su estado de espera es
+`SOLICITANDO_MODIFICACION` y, al autorizarse, va a los mismos talleres del original.
 
 ```
  Asesor solicita modificación (desde PENDIENTE_CONFIRMACION o RECIBIDO)
-   · el original NO cambia de estado: queda como estaba, con la marca "MOD en
-     trámite", y si estaba en PENDIENTE_CONFIRMACION no se puede confirmar
-   · mismo formulario de "Corregir", con los archivos precargados y los
-     talleres FIJOS (siempre los mismos del original)
+   · el ORIGINAL pasa a RECIBIDO en ese mismo momento: se congela su atraso, se registra la
+     fecha de confirmación y aparece en "Trabajo realizado"; queda con la marca "MOD en trámite"
+   · mismo formulario de "Corregir", con los archivos precargados y los talleres FIJOS
    · debe escribir una justificación (va en la descripción: máx. 600 caracteres)
    · se valida el cupo diario de los talleres destino (como aviso)
-   · nace el vale MOD- en SOLICITANDO_MODIFICACION, con 24 h de vigencia,
-     como fila propia en el Buzón del asesor y del supervisor
+   · nace el vale MOD- en SOLICITANDO_MODIFICACION, con 24 h de vigencia y su PDF ya armado:
+     el vale con sus campos e imágenes, luego la «Propuesta original - <correlativo>.pdf»
+     del vale original y por último los demás PDF adjuntos. Si la propuesta no se puede
+     descargar, no se crea nada y el original no cambia.
         │
         ▼  Supervisor del asesor (debe abrir "Ver" el MOD-; ve la justificación)
  ┌──────────────┴───────────────────────────────┐
  │ RECHAZA (motivo ≤ 50 palabras)               │ AUTORIZA
  ▼                                              ▼
- El MOD- pasa a RECHAZADO y vuelve al           El MOD- pasa a MODIFICADO:
- asesor, que puede corregirlo, reenviarlo       · autorizado (tipo MODIFICACION): aprobar
- (vuelve a SOLICITANDO_MODIFICACION) o            la modificación ES la autorización
- darlo de baja. El original no cambia.          · fan-out INMEDIATO a los talleres del
-                                                  original (cupo revalidado ahora)
-                                                · el PDF muestra primero la "Propuesta
-                                                  original"
-                                                El original pasa a RECIBIDO (si estaba
-                                                en PENDIENTE_CONFIRMACION, su atraso se
-                                                congela aquí) y `modificado = 1`.
+ El MOD- se ELIMINA con sus archivos            El MOD- pasa a MODIFICADO:
+ (menos los que comparte con el original).      · autorizado (tipo MODIFICACION)
+ El asesor recibe una notificación con el       · fan-out INMEDIATO a los talleres del
+ motivo. El original ya está RECIBIDO y puede     original (cupo revalidado ahora)
+ pedir otra modificación.                       · el PDF se regenera SOLO para estampar la
+                                                  firma y la fecha de autorización
+                                                · el original queda con `modificado = 1`
                                                         │
                                                         ▼
                       el MOD- corre el ciclo de taller normal (§2). Al terminar:
@@ -271,28 +275,31 @@ mismos talleres del original.
                       · si el ORIGINAL fue a 2+ talleres → APROBADO_DEPARTAMENTO
                         (fusión), pues el MOD- fue a todos esos talleres
                       Luego el asesor lo confirma → RECIBIDO.
-
- Baja (permiso `vales.dar_de_baja`) o 24 h sin autorizar: el MOD- se borra con sus
- archivos (menos los que comparte con el original) y el original queda como estaba;
- se puede volver a pedir la modificación. Un MOD- ya autorizado no se puede dar de
- baja ni corregir.
 ```
 
-- Son **dos registros y dos PDF independientes**: el original nunca se
-  sobreescribe; "Ver PDF" del original sirve siempre el del original.
-- Solo se permite **una** modificación: no puede modificarse un vale con
-  `modificado = 1`, ni un vale `MOD-`, ni uno que ya tenga un `MOD-` en trámite.
+- **Corregir un `MOD-` pendiente** (permiso `vales.corregir`, mientras espera autorización) se
+  permite, pero la «Propuesta original» **no se puede quitar ni mover** y los **talleres no se
+  pueden cambiar** (son los del original). Un `MOD-` ya autorizado no se puede corregir.
+  No hay «reenviar» para las modificaciones: una rechazada se elimina y se pide una nueva.
+- **Baja** (permiso `vales.dar_de_baja`; antes de autorizar, o ya autorizado mientras un taller
+  reclama adjuntos) o **vencimiento** (24 h sin autorizar, o el plazo de adjuntos): el `MOD-`
+  se borra con sus archivos, **sin tocar los del original** (ni su PDF ni su propuesta). Si el
+  `MOD-` ya estaba autorizado y se elimina después, el original vuelve a `modificado = 0` y
+  puede pedir otra modificación (la primera nunca se trabajó); queda una fila en su historial.
+- Son **dos registros y dos PDF independientes**: el original nunca se sobreescribe; "Ver PDF"
+  del original sirve siempre el del original.
+- Se permite **una** modificación autorizada: no puede modificarse un vale con `modificado = 1`,
+  ni un vale `MOD-`, ni uno que ya tenga un `MOD-` en trámite.
 - El **supervisor** autoriza o rechaza usando el id del propio `MOD-`
   (`aprobar-modificacion` / `rechazar-modificacion`), nunca el del original.
-- Las notificaciones (rechazo, aviso de las 6 h, eliminación por baja o por
-  vencimiento) nombran el vale: «Vale: MOD-…».
+- Las notificaciones (rechazo con su motivo, aviso de las 6 h, eliminación por baja o por
+  vencimiento) nombran el vale: «Vale: MOD-…» y aclaran que el original ya quedó Recibido.
 - Las tablas `vale_solicitudes_modificacion` y `estados_solicitud_modificacion`
   (`PENDIENTE`/`APROBADA`/`RECHAZADA`) **ya no se usan**. Pueden retirarse más
   adelante y no hay que renombrar nada en ellas.
 - Al asesor, el estado de un vale `MOD-` se le muestra como `SOLICITANDO_MODIFICACION`
-  o `RECHAZADO` mientras está pendiente, `MODIFICADO` en talleres, y `CONFIRMADO`
-  al recibirse; el de un vale normal `RECIBIDO` se le muestra como `CONFIRMADO`
-  (`estadoVisibleAsesor`).
+  mientras está pendiente, `MODIFICADO` en talleres, y `CONFIRMADO` al recibirse; el de un
+  vale normal `RECIBIDO` se le muestra como `CONFIRMADO` (`estadoVisibleAsesor`).
 
 ## 2. Estado por TALLER (`vale_talleres.estado`)
 
@@ -368,13 +375,14 @@ Los adjuntos de un vale (vectores, fuentes, etc.) viajan por **correo**, fuera d
               PENDIENTE_ASIGNACION  →  (flujo normal de la sección 2)
 ```
 
-- **Quién:** el permiso `vales.verificar_adjuntos` lo tienen los roles 4, 5, 9 y 10 (encargados de taller) y el 7 (asistente, solo Diseño). Cada uno actúa solo sobre **su** taller. No hay mensaje al rechazar.
+- **Quién:** el permiso `vales.verificar_adjuntos` lo tienen los roles 4, 5, 9 y 10 (encargados de taller) y el 7 (asistente, solo Diseño). Cada uno actúa solo sobre **su** taller. **Rechazar es un rechazo general con mensaje obligatorio** (1 a 200 caracteres) para el asesor, que abre la conversación de ese taller (ver «Conversación del rechazo»). **Verificar** pide confirmación en un modal («¿Estás seguro que recibiste los adjuntos del vale de arte antes de trabajar?»); rechazar también tiene su modal.
 - **Por taller:** un taller que rechaza no frena a los demás del mismo vale; el asesor responde **una vez por taller** rechazado.
-- **Respuesta del asesor** (permiso `vales.corregir`, solo el dueño del vale): botón «Adjuntos enviados al correo», con un mensaje editable de hasta 200 palabras, prellenado con «Adjuntos enviados al correo». El vale vuelve al encargado, que ve el mensaje y puede verificar o rechazar otra vez (el ciclo se repite). Mientras el asesor no responde, el encargado no tiene acciones; un supervisor que no es el dueño solo ve el estado, sin botón de respuesta.
-- **Plazo único de 24 h** desde el **primer** rechazo del taller (`vale_talleres.adjuntos_vence_en`): no se reinicia con rechazos posteriores. A las 6 h restantes el asesor recibe un aviso (una sola vez). Si vence con el taller todavía en `ADJUNTOS_RECHAZADOS`, se **borra el vale completo** (todos sus talleres, aunque otros ya trabajen) con sus archivos y se libera el cupo del supervisor; un vale `MOD-` deja el original intacto. Si el asesor ya respondió, no se borra, aunque el encargado rechace después de pasado el plazo (en ese caso el siguiente chequeo lo borra). Lo hace `adjuntosWatcher.js` (60 s), calcado de `vigenciaWatcher.js`.
+- **Respuesta del asesor** (permiso `vales.corregir`, solo el dueño del vale): botón «Adjuntos enviados al correo», con un mensaje editable de hasta 200 caracteres, prellenado con «Adjuntos enviados al correo». El mensaje es **obligatorio**: vacío o solo espacios se rechaza («Escribe un mensaje.») y el botón «Enviar» se deshabilita sin texto; si falta el taller, el error dice «Indica a qué taller respondes.». El vale vuelve al encargado, que ve el mensaje y puede verificar o rechazar otra vez (el ciclo se repite). Mientras el asesor no responde, el encargado no tiene acciones; un supervisor que no es el dueño solo ve el estado, sin botón de respuesta.
+- **Plazo único de 24 h** desde el **primer** rechazo del taller (`vale_talleres.adjuntos_vence_en`): no se reinicia con rechazos posteriores. A las 6 h restantes se avisa **una sola vez por taller** al asesor, a sus supervisores y al encargado de **cada** taller del vale (encargado + asistentes, no a los diseñadores); si dos talleres tienen adjuntos rechazados en esa ventana, cada persona recibe un aviso por taller. En cambio, cuando un taller **verifica** sus adjuntos el aviso va solo a ese taller (más el asesor y los supervisores): los demás talleres no se enteran. Si vence con el taller todavía en `ADJUNTOS_RECHAZADOS`, se **borra el vale completo** (todos sus talleres, aunque otros ya trabajen) con sus archivos y se libera el cupo del supervisor; un vale `MOD-` deja el original intacto. Si el asesor ya respondió, no se borra, aunque el encargado rechace después de pasado el plazo (en ese caso el siguiente chequeo lo borra). Lo hace `adjuntosWatcher.js` (60 s), calcado de `vigenciaWatcher.js`.
 - **Dar de baja:** el asesor puede dar de baja un vale **ya autorizado** mientras algún taller esté en `ADJUNTOS_RECHAZADOS` o `ADJUNTOS_RESPONDIDOS` (no en `VERIFICANDO_ADJUNTOS`). Cancela el vale completo; los talleres que ya trabajaban, sus encargados y el diseñador asignado reciben un aviso y el vale desaparece de su vista.
-- **Qué ve cada uno:** el encargado conserva el vale en la lista normal de «Pendientes de asignar» (los tres estados suman al contador) con la etiqueta «Verificar adjuntos», «Esperando adjuntos» o «Adjuntos enviados, verificar». El asesor y el supervisor ven el paso 2 del pipeline **en rojo** con «Faltan adjuntos: <taller>» y, en «ver adjuntos faltantes», el motivo y el tiempo restante; el supervisor ve exactamente la misma lista que antes. El historial del vale muestra estos movimientos a asesor, supervisor, gerente y administrador, y a cada encargado solo los de su taller.
-- **Avisos** (`tipo`): `ADJUNTOS_RECHAZADOS`, `ADJUNTOS_VERIFICADOS`, `ADJUNTOS_RESPONDIDOS`, `ADJUNTOS_POR_VENCER`, `ADJUNTOS_VENCIDOS`.
+- **Qué ve cada uno:** el encargado conserva el vale en la lista normal de «Pendientes de asignar» (los tres estados suman al contador) con la etiqueta «Verificar adjuntos», «Esperando adjuntos» o «Adjuntos enviados, verificar». El asesor y el supervisor ven el paso 2 del pipeline **en rojo** con «Faltan adjuntos: <taller>» y, en «ver adjuntos faltantes», el motivo; el supervisor ve exactamente la misma lista que antes. El historial del vale solo lo ve quien tiene `vales.ver_historial` (hoy el Administrador); sin ese permiso el servidor devuelve el historial vacío.
+- **Conversación del rechazo** (tabla `vale_taller_mensajes`, `database/mensajes_rechazo.sql`): hilo ligado al taller dentro del vale, de máximo 200 caracteres por mensaje y **sin límite de cantidad** de mensajes. Escriben el encargado/asistente del taller y el asesor dueño solo mientras el taller esté en `ADJUNTOS_RECHAZADOS` o `ADJUNTOS_RESPONDIDOS` (no cambia estados ni plazos; «Ya lo atendí: avisar al taller», verificar y rechazar de nuevo siguen disponibles). **Cuando el taller verifica los adjuntos (acuerdo) la conversación deja de verse** para el asesor y el encargado: el servidor ya no devuelve mensajes y solo queda el registro. Los mensajes se **conservan** (se eliminan junto con el vale, por llave foránea `ON DELETE CASCADE`: plazo vencido, baja o rechazo del supervisor) y los ve, dentro del historial del vale, quien tiene `vales.ver_historial`. Si tras «Ya lo atendí» el taller rechaza otra vez, continúa la misma conversación. Líneas del historial: rechazo con su mensaje, «Asesor avisó que atendió el rechazo (taller)» y, al verificar, «… Conversación cerrada: se llegó a un acuerdo (N mensajes)». Rutas: `GET/POST /api/vales/:id/mensajes`; `rechazar-adjuntos` exige `mensaje`. **Avisos:** el rechazo llega al asesor y a sus supervisores como «<encargado> (<taller>): Rechazado (ver mensaje)»; los mensajes del taller avisan solo al asesor y los del asesor solo al taller (el **supervisor no recibe aviso ni campana** de los mensajes porque no puede leer la conversación). Cuando el asesor responde con «Ya lo atendí», el supervisor y las otras pestañas del asesor **refrescan la pantalla en silencio** (evento `vale_refrescar`), sin cartel. **Límite conocido:** el servidor convierte a texto cualquier `mensaje` que no sea una cadena (un objeto llegaría como «[object Object]»); el formulario nunca lo envía, solo se logra llamando a la API a mano.
+- **Avisos** (`tipo`): `ADJUNTOS_RECHAZADOS`, `ADJUNTOS_VERIFICADOS`, `ADJUNTOS_RESPONDIDOS`, `ADJUNTOS_POR_VENCER`, `ADJUNTOS_VENCIDOS`, `MENSAJE_RECHAZO`.
 
 ## 3. Roles y permisos
 
@@ -384,7 +392,7 @@ cambia quién puede hacer cada acción.
 
 | Rol (id) | Permisos de vales | Qué hace |
 |---|---|---|
-| Administrador (1) | `vales.ver` (+ `admin.*`) | Ve todo el buzón. **No** tiene permisos de escritura sobre vales: no puede autorizar, asignar, aprobar ni confirmar. |
+| Administrador (1) | `vales.ver`, `vales.ver_reportes`, `vales.ver_historial` (+ `admin.*`) | Ve todo el buzón. **No** tiene permisos de escritura sobre vales: no puede autorizar, asignar, aprobar ni confirmar. |
 | Asesor de Ventas (2) | `ver`, `crear`, `editar`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir` | Crea vales; los corrige o da de baja antes de ser autorizados; confirma el recibido o solicita la modificación. |
 | Supervisor de Ventas (3) | `ver`, `autorizar_creacion`, `aprobar_modificacion`, `supervisar`, `ver_gerencia`, y para sus propios vales `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`supervisor_tiendas`). También crea y gestiona **sus propios vales** (ver «Vales del supervisor» abajo). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
 | Encargado de Diseño (4) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Dueño del taller "Diseño". Asigna y revisa, puede trabajar vales él mismo, y **fusiona** los vales multi-taller. |
@@ -392,13 +400,13 @@ cambia quién puede hacer cada acción.
 | Diseñador (6) | `ver`, `trabajar` | Comienza, pausa, reanuda, cancela y entrega sus vales. |
 | Asistente de Diseño (7) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Clon operativo completo del Encargado de Diseño. |
 | Gerente (8) | `ver`, `ver_gerencia` | Solo lectura (ver §6). |
-| Encargado de Protextil (9) | `ver`, `asignar`, `revisar` | Encargado de su taller; sin fusión. |
+| Encargado de Protextil (9) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de su taller; puede trabajar vales él mismo, pero **sin fusión**. |
 | Diseño Local (10) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de un taller de Diseño Local (ligado a una tienda); sin fusión. |
 
 > **Nombre del rol 6.** El rol que trabaja los vales en el taller se llama **Diseñador** (antes
 > «Técnico»), en pantalla, en la base y en el código: `vale_talleres.disenador_id`,
 > `taller_disenadores`, `ROL.DISENADOR`, las salas `disenador:<id>` y las rutas `/disenadores`.
-> Las cuentas del rol usan correos `disenadorN@…` y la contraseña de desarrollo `disenador123`.
+> Las cuentas del rol son `disenadorN@grupopremia.com` (ver `database/users.sql`).
 
 ### Historial del vale
 
@@ -412,7 +420,7 @@ Todo supervisor de ventas puede crear vales, además de supervisar (p. ej. el de
 - **Permisos del rol 3** para sus vales: `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja` y `corregir`.
 - **Autoriza también los suyos:** sus vales y sus modificaciones los autoriza o rechaza **él mismo**, o cualquier otro supervisor que cubra su tienda (`supervisor_tiendas`). Rigen las mismas reglas que para un asesor (abrir «Ver» antes de autorizar, rechazo con justificación, vigencia de 24 h…).
 - **Sin supervisor, no se crea:** si ningún supervisor cubre su tienda, no puede crear («Tu tienda no tiene ningún supervisor que pueda autorizar tus vales…»); el vale quedaría sin nadie que lo autorice.
-- **Cupo colectivo:** el tope diario de autorizaciones de un supervisor es el número de asesores a su cargo **más él mismo** si también crea vales (`contarCupoDiario`: 11 asesores + 1 = 12). Toda autorización de creación **cuenta**, incluidas las de sus propios vales y las de vales de otro supervisor que él autorice; al llegar al tope se frena por igual a los suyos y a los de su equipo. Quien tiene tantos vales propios que deja sin cupo a su equipo es decisión suya. Un supervisor que no crea vales (sin fila en `asesores`) no suma ese +1.
+- **Sin cupo colectivo:** el supervisor autoriza sin tope diario (gerencia retiró el límite colectivo). Lo único que frena una autorización es el cupo diario del taller (§5), el domingo y haber abierto «Ver» antes.
 - **Buzón:** el Buzón del supervisor lista, además de lo de su equipo, **sus propios vales en todos sus estados activos** (esperando, rechazado, en talleres, por confirmar…), con el mismo criterio de orden, y cuentan en los contadores como los de su equipo. Sus vales confirmados salen en «Trabajo realizado» y cuentan en su Rendimiento. Sobre sus vales ve además las acciones de asesor (corregir, reenviar, dar de baja, confirmar, modificar); sobre los de su equipo, solo las de supervisión.
 - **Tiempo real:** recibe lo de sus vales en la sala `asesor:<su id>` además de `supervisor:<su id>`.
 
@@ -448,17 +456,24 @@ tienen las mismas columnas para todos; cambian filtros, orden y acciones.
 | Rol | Buzón (contadores) | Trabajo realizado |
 |---|---|---|
 | Asesor | Por autorizar · Por asignar · En proceso · En revisión · Por recibir (uno por paso del pipeline, §10) + los interruptores **Modificados** y **Atrasados**, que se combinan con cualquiera. Excluye RECIBIDO. | Vales `RECIBIDO` (un vale confirmado sigue ahí aunque tenga una modificación en curso). Total y recibidos hoy. |
-| Supervisor | «Autorizados hoy (equipo)» (N/M del cupo colectivo, informativo) y los mismos contadores por paso, Modificados y Atrasados que el asesor, sobre **todos los vales activos de su equipo** (y los que crea él). | Dos grupos: lo que **él** autorizó (por fecha de autorización) y lo que sus asesores confirmaron (por `confirmado_en`). Un vale que cae en ambos aparece una vez. |
+| Supervisor | Los mismos contadores por paso, Modificados y Atrasados que el asesor, sobre **todos los vales activos de su equipo** (y los que crea él). | Dos grupos: lo que **él** autorizó (por fecha de autorización) y lo que sus asesores confirmaron (por `confirmado_en`). Un vale que cae en ambos aparece una vez. |
 | Encargado de taller | Por asignar · Asignado (en manos de diseñadores: asignado, en proceso o en pausa) · Mis asignaciones (los que él mismo se asignó) · Por revisar · Atrasados (+ **Por fusionar** si tiene `aprobar_general`), y un combobox para filtrar por diseñador. Muestra el estado **de la fila de su taller**, no el general. | Vales con fila `APROBADO` en su taller (con "Ver propuesta" de su diseñador), + sus fusiones si fusiona. |
 | Diseñador | Mis asignaciones (sin retraso) · Mis asignaciones (con atraso) · Vale en proceso (ve también `EN_PAUSA` y `EN_REVISION` en la lista). | Vales que su taller aprobó, con su propuesta. |
 | Administrador | Todo, con contadores generales (total, atrasados, recibidos hoy, pendientes de confirmación, por fusionar). | — |
-| Gerente | **No tiene buzón**: ver §6. | — |
+| Gerente | Buzón general en solo lectura (como el Administrador, sin acciones): ver §6. | — |
 
 Una solicitud de modificación aparece como **fila propia** (`MOD-…`) en el Buzón
 del asesor y del supervisor (contadores «Solicitando modificación» y «Por
-autorizar modificación»). El vale original, mientras tanto, conserva su estado y
-muestra la marca «MOD en trámite»; si está en `PENDIENTE_CONFIRMACION` no ofrece
-«Confirmar».
+autorizar modificación»). El vale original ya pasó a `RECIBIDO` al
+solicitarse la modificación (§1.1): aparece en «Trabajo realizado» con la marca
+«MOD en trámite».
+
+**Insignia de persona** (bajo el correlativo, `badgePersona`): el supervisor ve el asesor
+que creó el vale; el encargado de taller (y el asistente, Protextil y Diseño Local) ve el
+diseñador asignado o «Sin asignar» (las filas de fusión no llevan insignia). Asesor,
+diseñador, gerente y administrador no la ven, y tampoco aparece en «Encontrar vale» ni
+en la tabla de vales críticos de Rendimiento. El servidor agrega `persona = {rol, nombre}`
+a cada fila (`valeBuzonService`); el diseño está en `documentacion/correcciones_46.md`.
 
 "Atrasados" y "Modificados" (asesor y supervisor) son los únicos contadores que se **combinan** con cualquier otro filtro
 activo (los demás contadores son mutuamente excluyentes). Además hay búsqueda
@@ -477,10 +492,7 @@ según lo elegido. Un día viaja al servidor como un rango de un solo día.
 
 | Límite | Dónde se valida | Efecto |
 |---|---|---|
-| **Cupo colectivo diario del Supervisor** = nº de asesores activos bajo su mando; cuenta las autorizaciones de **creación** que hizo hoy | Al **autorizar** (no al crear) | Al llegar al límite no puede autorizar más ese día. Al Administrador no le aplica. Crear un vale nunca se bloquea ni se pospone por esto. Leer el cupo y sellar la autorización van en el mismo turno de la cola del supervisor, así que dos autorizaciones simultáneas no pueden pasarlo. La tarjeta "Autorizados hoy (equipo)" (N/M) la calcula el servidor con este mismo conteo. |
-| **Cupo diario por taller** (`talleres.limite_diario`, opcional; NULL = sin límite; hoy Diseño y Diseño UV/3D = 15, Protextil = 8, Diseño Local sin límite), sobre la fecha de **entrega** (no la de evento) | Al **crear**, al **solicitar** la modificación y al **aprobar** la modificación | Bloquea con un mensaje amigable ("el taller X ya no tiene cupo para el día…"). Las verificaciones + inserción son atómicas entre asesores (`conColaDeCapacidad`). El calendario del frontend solo lo anticipa. |
-| **Cupo colectivo diario del Supervisor** = nº de asesores activos bajo su mando, **más él mismo** si también crea vales (p. ej. 11 asesores + 1 = 12); cuenta las autorizaciones de **creación** que hizo hoy | Al **autorizar** (no al crear) | Al llegar al límite no puede autorizar más ese día. Al Administrador no le aplica. Crear un vale nunca se bloquea ni se pospone por esto. Leer el cupo y sellar la autorización van en el mismo turno de la cola del supervisor, así que dos autorizaciones simultáneas no pueden pasarlo. La tarjeta "Autorizados hoy (equipo)" (N/M) la calcula el servidor con este mismo conteo. |
-| **Cupo diario por taller** (`talleres.limite_diario`, opcional; NULL = sin límite), sobre la fecha de **entrega** (no la de evento) | Al **crear**, al **solicitar** la modificación y al **aprobar** la modificación | Bloquea con un mensaje amigable ("el taller X ya no tiene cupo para el día…"). Las verificaciones + inserción son atómicas entre asesores (`conColaDeCapacidad`). El calendario del frontend solo lo anticipa. |
+| **Cupo diario por taller** (`talleres.limite_diario`, opcional; NULL = sin límite; hoy Diseño y Diseño UV/3D = 15, Protextil = 8, Diseño Local sin límite), sobre la fecha de **entrega** (no la de evento) | Al **crear**, al **solicitar** la modificación, al **autorizar** y al **aprobar** la modificación | Solo cuentan los vales **ya autorizados**: uno pendiente de autorización no ocupa cupo. Por eso el asesor puede crear aunque el día se llene con otros pendientes; si al **autorizar** ya no hay cupo, el supervisor debe **rechazar** el vale y el asesor elige otra fecha. Bloquea con un mensaje amigable ("el taller X ya no tiene cupo para el día…"). Las verificaciones + inserción son atómicas entre asesores (`conColaDeCapacidad`). El calendario del frontend solo lo anticipa. |
 | Un diseñador = un vale `EN_PROCESO` | `comenzar` y `reanudar` (en la cola del diseñador: dos acciones simultáneas no lo superan) | Debe entregar, cancelar o pausar el actual antes. |
 | Una sola modificación por vale | `solicitarModificacion` | Ver §1.1. |
 | Adjuntos | `routes.js` | Máx. 5 MB por archivo (imágenes, PDF, propuesta y fusión); JPEG/PNG/WebP/PDF; hasta 10 imágenes y 5 documentos al crear. Un tipo no permitido se **rechaza** con un 400 (no se descarta en silencio). |
@@ -488,15 +500,30 @@ según lo elegido. Un día viaja al servidor como un rango de un solo día.
 Validaciones de formulario (creación y modificación): cliente (nombre,
 teléfono y correo válido) obligatorio, producto y material obligatorios,
 cantidad > 1, cotización > 0, fecha de evento posterior a la de entrega y
-entrega igual o posterior a hoy. Técnica y acabado son opcionales. Un vale es
+entrega igual o posterior a la fecha mínima de entrega (§5.1). Técnica y acabado son opcionales. Un vale es
 **urgente** automáticamente si faltan menos de 3 días para la entrega (entrega hoy, mañana o pasado mañana): lo calcula el servidor (`calcularUrgente`) al crear, corregir o solicitar la modificación; el formulario no tiene casilla y solo muestra el aviso «Urgente: entrega en menos de 3 días».
 
 > Nota: esto reemplaza al antiguo límite diario por asesor
 > (`asesor_limites`), que ya no existe: crear nunca se pospone.
 
+**Talleres del vale.** La lista de talleres que llega al crear se valida entera: cualquier id que no sea un entero positivo (`[1,"x"]`, `[0]`, `[1.5]`, `[null]`) rechaza la creación con «Alguno de los talleres elegidos no es válido», igual que un taller inexistente o inactivo.
+
+### 5.1 Restricción de horario (fin de semana y mediodía)
+
+Sábado y domingo son días de descanso de los talleres: la restricción evita que se pidan entregas esos días y que los talleres reciban vales nuevos (no acumulan atraso por eso). Todo se calcula con la **hora de Guatemala (UTC-6)**, no con la del navegador.
+
+- **Fecha mínima de entrega:** hoy si la hora es anterior a las 12:00; desde las 12:00, mañana. Si ese día es sábado o domingo, el mínimo pasa al lunes (`fechaMinimaEntrega()` en `valeHelpers.js`). La fecha de entrega **nunca** puede ser sábado ni domingo. La fecha del evento no tiene restricción.
+- **Sábado y domingo:** no se puede crear un vale, solicitar una modificación, corregir ni reenviar a autorización (rige para asesores y para supervisores que crean vales propios). **Autorizar y aprobar una modificación sí se pueden el sábado** (el vale llega a los talleres ese mismo día) y **no el domingo**, cuando todo queda bloqueado. Rechazar se puede todos los días.
+- **Atraso:** no cambia; sigue contando días corridos.
+- **Fecha de ingreso:** no cambia. `fecha_creacion` y `hora_creacion` son la fecha y la hora reales de creación, también después de las 12:00; la regla solo mueve la fecha **mínima de entrega**. De la fecha de ingreso salen el mes del correlativo, el encabezado del PDF, la columna «Fecha Ingreso» del Buzón y los ciclos de Rendimiento.
+- **Al autorizar** (creación y modificación): si la fecha de entrega es anterior al mínimo de ese momento, sale un error y el supervisor debe **rechazar** el vale para que el asesor cambie la fecha. Hoy pasadas las 12:00: «La fecha de entrega ya no está disponible porque son pasadas las 12:00. Rechaza el vale para que el asesor modifique la fecha de entrega.»; fecha ya pasada: «La fecha de entrega ya pasó. Rechaza el vale…».
+- **Plazos de 24 h sin fin de semana:** el sábado y el domingo (días completos) no cuentan en los plazos de esperando autorización (y vale rechazado, que conserva ese vencimiento), modificación y adjuntos. Un vale creado el viernes a las 15:00 vence el lunes a las 15:00. El vencimiento se calcula al guardarlo (`sumarHorasHabiles`, `vencimiento24h()`) y los vigilantes, el «Vence en N h» y la cuenta regresiva leen ese valor. Los vales anteriores a este cambio conservan su vencimiento original.
+- **Calendario:** el formulario calcula el mínimo con UTC-6 y deshabilita sábados y domingos en la fecha de entrega; el servidor es quien hace cumplir la regla. Al **crear** un vale, la fecha de entrega queda deshabilitada hasta elegir al menos un taller y se borra si se quitan todos los talleres (en modificar y corregir los talleres ya vienen fijos).
+
 ## 6. Gerente y Administrador
 
-- **Gerente** (solo lectura, nunca ejecuta una acción sobre un vale): ve la
+- **`vales.ver`** abre el módulo y la API; además, todo rol con ese permiso que no tenga una vista propia (hoy el Gerente) ve el **Buzón general** con todos los vales, en solo lectura. Las acciones siguen exigiendo sus propios permisos.
+- **Gerente** (solo lectura, nunca ejecuta una acción sobre un vale): ve el **Buzón** general, la
   vista **Rendimiento** (KPIs y gráficas por estado, tienda y taller; ciclo de
   vida; atrasos), filtrable por tienda y ventana de tiempo, y **"Encontrar
   vale"**, que busca **un** vale por correlativo exacto (con sugerencias si no
@@ -517,8 +544,8 @@ combinarse con cualquier filtro de estado.
 - Mientras el vale está activo, el atraso corre en vivo.
 - Se **congela** (se detiene de forma permanente) en dos momentos:
   1. el asesor confirma de recibido (`confirmarRecibido`),
-  2. el supervisor aprueba una modificación (el atraso del **original** se
-     congela aquí si aún no lo estaba).
+  2. el asesor solicita una modificación (el atraso del **original** se
+     congela en ese momento, si aún no lo estaba).
 
   Después de congelado se queda fijo, aunque luego se pida una
   modificación (`vales.atraso_congelado_en`). Los vales ya
@@ -528,7 +555,7 @@ combinarse con cualquier filtro de estado.
   su `fecha_entrega`; antes solo se muestra "vence hoy"). Dispara
   una alerta roja **una sola vez por vale** (`atraso_notificado_en`) solo a
   quien lo tiene "en su vista": el asesor, sus supervisores, los talleres con
-  fila activa (pendiente, asignado, en proceso o en revisión), los diseñadores con
+  fila activa (pendiente, asignado, en proceso, en pausa o en revisión), los diseñadores con
   vale activo, y la sala `vales:fusion` si el vale está `APROBADO_DEPARTAMENTO`.
 
 ## 8. Tiempo real
@@ -545,8 +572,19 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
 - Nivel `alerta` (toast rojo): atrasos, propuesta entregada sin archivo y
   cancelación de proceso.
 - Al recibir un evento, el cliente refresca su buzón.
-- Al **asignar** un vale, el aviso va también al asesor dueño (`asesor:<id>`): su buzón se refresca y recibe la notificación. Los demás movimientos del taller (en proceso, pausa, entrega, etc.) todavía no lo avisan.
-- Al **entregar una propuesta** (el taller pasa a `EN_REVISION`) y al **cancelar el proceso**, el aviso va también al asesor dueño (`asesor:<id>`). Si el que entrega es el encargado y el vale se autoaprueba, el asesor recibe solo el aviso de aprobación. Los demás movimientos del taller (en proceso, pausa, etc.) todavía no lo avisan.
+- **Quién recibe qué** (el actor nunca se avisa a sí mismo; cada persona recibe una sola notificación por movimiento):
+  - **Asesor** (y su **supervisor**, por la sala `supervisor:<id>`): asignar, comenzar, entregar la propuesta, aprobación de **cada** taller (aunque el vale tenga varios), fusión y correcciones. Pausar, reanudar y cancelar el proceso **no** le llegan.
+  - **Taller** (encargado + asistentes): lo que llega a su taller, la cancelación del proceso (alerta roja) y el atraso, también con el proceso en `EN_PAUSA`. La confirmación de recibido no les llega: su flujo termina en la aprobación.
+  - **Diseñador:** asignación, propuesta aprobada y atraso, también en pausa.
+  - **Fusión:** al fusionar, se avisa al asesor, a sus supervisores y a `vales:fusion` (los demás con `vales.aprobar_general` actualizan su cola en tiempo real).
+  - **Autoaprobación** (el encargado entrega con archivo): solo el aviso de aprobación, sin el de entrega.
+  - **Gerente:** nada. **Administrador:** solo carteles (`vales:admin`).
+- **Textos del vale y PDF.** Los textos se validan antes de generar el PDF: caracteres que la fuente estándar no puede dibujar (emoji, flechas, Ł, chino, ✓, Ω, espacios de ancho cero…) rechazan la creación, corrección o modificación con «Se están usando caracteres innecesarios en «<campo>» (…)»; acentos, ñ, €, ™, © y los saltos de línea de la descripción sí se permiten. Máximos para que cada dato quepa en su celda del PDF (también con letras anchas): empresa, cliente y correo **100** caracteres, teléfono **8 números** (sin el código de país; ya era así), código de producto, material, técnica y acabado **40**. La **descripción** admite hasta **600** y se autoajusta en el PDF: respeta los párrafos, parte por carácter las palabras o URLs sin espacios y reduce la letra (9 → 8 → 7 pt) si es muy larga.
+- **Conversación del rechazo — acceso:** solo el encargado del taller del vale y los asistentes vinculados a él; el encargado o asistente de **otro** taller del mismo vale, aunque el vale también vaya a su taller, recibe 403 («Ese taller no es el tuyo.»). Con la conversación abierta en pantalla, los mensajes nuevos no sacan cartel ni beep (la campana los guarda).
+- **Asignar a un diseñador:** en el combobox cada diseñador aparece como «(**Asignaciones actuales**: N) - Nombre» (en negrita con letras Unicode, porque un `<option>` no admite HTML), con N = sus asignaciones vigentes (asignado, en proceso, en pausa o en revisión; las mismas de «Carga de trabajo»). El encargado o asistente también se ofrece como «(Asignaciones actuales: N) - Nombre (YO)»; los demás diseñadores no llevan «(YO)» con su propio conteo. Igual en el modal de reasignar al desaprobar.
+- **Último taller aprobado:** cuando la aprobación de un taller deja al vale en `APROBADO_DEPARTAMENTO`, el aviso (una sola notificación por persona, a las mismas salas de siempre) dice «{actor} aprobó el taller {taller}: todos los talleres terminaron, el vale está listo para fusionar». Las demás aprobaciones conservan el texto «fue aprobado (taller)».
+- **Desaprobar y reasignar:** con cartel y campana solo se entera el diseñador nuevo (y el taller). El asesor, sus supervisores y el diseñador anterior **refrescan su pantalla en silencio** (evento `vale_refrescar`, sin cartel, beep ni campana), para que el paso y los contadores no queden desfasados.
+- El texto sale de `accion` («fue {acción} por {actor}») o, si el movimiento no cabe en esa frase, de `texto` (p. ej. «{actor} pausó el proceso»).
 
 ## 9. Guía para renombrar estados
 

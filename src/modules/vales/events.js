@@ -122,4 +122,9 @@ function notificar({ vale, accion, actor = null, actorId = null, destino = null,
   socketManager.sendToRooms([`vale:${vale.id}`], 'vale_actualizado', { valeId: vale.id });
 }
 
-module.exports = { notificar };
+// Solo refresca la pantalla de quien esté en las salas: sin cartel, sin beep, sin campana.
+function refrescar({ vale, salas = [] }) {
+  socketManager.sendToRooms([...new Set(salas)], 'vale_refrescar', { valeId: vale.id, estado: vale.estado });
+}
+
+module.exports = { notificar, refrescar };

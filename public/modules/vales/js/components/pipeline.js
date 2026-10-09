@@ -1,6 +1,6 @@
 // Pipeline de estado de 5 pasos para la columna «Estado» de las tablas. El servidor lo calcula
 // (`v.pipeline`, valePipeline.js); aquí solo se dibuja y se muestra el detalle de cada paso.
-import { escapeHtml, tiempoRestante } from '../utils/formato.js';
+import { escapeHtml } from '../utils/formato.js';
 import { claseEstado, etiquetaEstado } from '../permisos.js';
 import { state } from '../state.js';
 import { ROLES_ENCARGADO_TALLER } from '../config/roles.js';
@@ -65,8 +65,7 @@ function pipelineConAdjuntos(v) {
   if (v.estado_taller === 'VERIFICANDO_ADJUNTOS') return { ...p, etiqueta: 'Verificar adjuntos' };
   if (v.estado_taller === 'ADJUNTOS_RESPONDIDOS') return { ...p, etiqueta: 'Adjuntos enviados, verificar' };
   if (v.estado_taller === 'ADJUNTOS_RECHAZADOS') {
-    const resta = tiempoRestante(v.adjuntos_vence_en);
-    return { ...p, etiqueta: 'Esperando adjuntos', detalle: resta ? `Quedan ${resta}` : 'Asesor' };
+    return { ...p, etiqueta: 'Esperando adjuntos', detalle: 'Asesor' };
   }
   return p;
 }

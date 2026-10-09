@@ -79,19 +79,21 @@ export function abrirModalAutorizarCreacion(vale) {
   overlay.querySelector('#btn-rechazar').addEventListener('click', () => abrirModalRechazarCreacion(vale, cerrar));
 }
 
-// Rechazo con justificación (máx. 50 palabras): el vale (o la solicitud de modificación) vuelve al asesor, no se borra.
+// Rechazo con justificación (máx. 50 palabras): el vale vuelve al asesor; una modificación se elimina.
 function abrirModalRechazarCreacion(vale, cerrarAutorizacion, { modificacion = false } = {}) {
   const { overlay, cerrar } = abrirModal({
     title: `${modificacion ? 'Rechazar modificación' : 'Rechazar vale'} — ${vale.correlativo}`,
     bodyHtml: `
-      <p style="font-size:13px;margin-bottom:10px;">${modificacion ? 'La solicitud' : 'El vale'} volverá al asesor con tu justificación para que ${modificacion ? 'la' : 'lo'} corrija y ${modificacion ? 'la' : 'lo'} reenvíe.</p>
+      <p style="font-size:13px;margin-bottom:10px;">${modificacion
+        ? 'Al rechazar, la modificación se eliminará y el asesor recibirá tu justificación; si la necesita, tendrá que solicitar una nueva. El vale original ya quedó como Recibido.'
+        : 'El vale volverá al asesor con tu justificación para que lo corrija y lo reenvíe.'}</p>
       <div class="form-field full">
         <label>Justificación *</label>
         <textarea id="motivo-rechazo" rows="4" maxlength="400"></textarea>
         <div class="contador-palabras" id="motivo-palabras">0/${MAX_PALABRAS_MOTIVO} palabras</div>
       </div>
     `,
-    footerHtml: `<button class="btn btn--ghost" id="btn-volver">Volver</button><button class="btn btn--danger" id="btn-rechazar-confirmar">Rechazar y devolver al asesor</button>`
+    footerHtml: `<button class="btn btn--ghost" id="btn-volver">Volver</button><button class="btn btn--danger" id="btn-rechazar-confirmar">${modificacion ? 'Rechazar y eliminar' : 'Rechazar y devolver al asesor'}</button>`
   });
   const textarea = overlay.querySelector('#motivo-rechazo');
   const contador = overlay.querySelector('#motivo-palabras');
@@ -110,7 +112,7 @@ function abrirModalRechazarCreacion(vale, cerrarAutorizacion, { modificacion = f
     btn.disabled = true;
     try {
       await (modificacion ? rechazarModificacion : rechazarCreacion)(vale.id, textarea.value.trim());
-      window.toast.success(modificacion ? 'Modificación rechazada' : 'Vale rechazado', `${vale.correlativo} volvió al asesor con tu justificación.`);
+      window.toast.success(modificacion ? 'Modificación rechazada' : 'Vale rechazado', modificacion ? `${vale.correlativo} se eliminó y el asesor recibió tu justificación.` : `${vale.correlativo} volvió al asesor con tu justificación.`);
       cerrar();
       cerrarAutorizacion();
       cargarBuzon();

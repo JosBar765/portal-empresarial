@@ -47,7 +47,6 @@ module.exports = {
   reenviarAutorizacion: (...a) => valeCreacionService.reenviarAutorizacion(...a),
   corregirVale: (...a) => valeCorreccionService.corregirVale(...a),
   marcarVisto: (...a) => valeVistoService.marcarVisto(...a),
-  obtenerLimiteColectivoSupervisor: (...a) => valeCreacionService.obtenerLimiteColectivoSupervisor(...a),
 
   // Detalle
   obtenerDetalle: (...a) => valeDetalleService.obtenerDetalle(...a),
@@ -74,6 +73,8 @@ module.exports = {
   verificarAdjuntos: (...a) => valeAdjuntosService.verificarAdjuntos(...a),
   rechazarAdjuntos: (...a) => valeAdjuntosService.rechazarAdjuntos(...a),
   responderAdjuntos: (...a) => valeAdjuntosService.responderAdjuntos(...a),
+  listarConversacion: (...a) => valeAdjuntosService.listarConversacion(...a),
+  enviarMensaje: (...a) => valeAdjuntosService.enviarMensaje(...a),
 
   // Asesor / Modificación
   confirmarRecibido: (...a) => valeConfirmacionService.confirmarRecibido(...a),

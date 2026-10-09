@@ -9,6 +9,8 @@
 const fs = require('fs/promises');
 const path = require('path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+const { descargarPdfConReintentos, ErrorDescargaPdf } = require('../../../core/files/descargarPdfConReintentos');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 
 const PAGE_WIDTH = 612; // Carta
 const PAGE_HEIGHT = 792;
@@ -45,24 +47,59 @@ function formatFechaHora(valor) {
   return `${d}/${m}/${y}${hm ? ' ' + hm : ''}`;
 }
 
-function wrapText(text, font, size, maxWidth) {
-  const words = String(text || '').split(/\s+/).filter(Boolean);
-  const lines = [];
-  let current = '';
-  for (const word of words) {
-    const tentative = current ? `${current} ${word}` : word;
-    if (font.widthOfTextAtSize(tentative, size) > maxWidth && current) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = tentative;
+// Parte el texto de una celda en líneas que caben en `maxWidth`: por palabras y, si una palabra sola no cabe
+// (p. ej. un texto sin espacios), por caracteres. Si pasa de `maxLineas`, corta con «…» en la última.
+function partirEnLineas(texto, font, size, maxWidth, maxLineas) {
+  const ancho = (t) => font.widthOfTextAtSize(t, size);
+  const lineas = [];
+  let actual = '';
+  const cerrarLinea = () => { lineas.push(actual); actual = ''; };
+  for (const palabra of String(texto ?? '').split(/\s+/).filter(Boolean)) {
+    let resto = palabra;
+    while (ancho(resto) > maxWidth) {
+      if (actual) cerrarLinea();
+      let n = resto.length;
+      while (n > 1 && ancho(resto.slice(0, n)) > maxWidth) n -= 1;
+      lineas.push(resto.slice(0, n));
+      resto = resto.slice(n);
     }
+    const tentativa = actual ? `${actual} ${resto}` : resto;
+    if (actual && ancho(tentativa) > maxWidth) { cerrarLinea(); actual = resto; } else { actual = tentativa; }
   }
-  if (current) lines.push(current);
-  return lines.length ? lines : [''];
+  if (actual) lineas.push(actual);
+  if (!lineas.length) return ['-'];
+  if (lineas.length <= maxLineas) return lineas;
+  const visibles = lineas.slice(0, maxLineas);
+  let ultima = visibles[maxLineas - 1];
+  while (ultima.length > 1 && ancho(`${ultima}...`) > maxWidth) ultima = ultima.slice(0, -1);
+  visibles[maxLineas - 1] = `${ultima}...`;
+  return visibles;
 }
 
+// Caracteres que la fuente estándar del PDF puede dibujar (se carga una vez).
+let juegoDeCaracteres = null;
+// Los invisibles (espacio de ancho cero, etc.) se muestran por su código para que el usuario sepa cuál quitar.
+const INVISIBLE = new RegExp('['+String.fromCharCode(92)+'p{Cc}'+String.fromCharCode(92)+'p{Cf}'+String.fromCharCode(92)+'p{Z}]', 'u');
+const mostrarCaracter = (c) => (INVISIBLE.test(c) ? `U+${c.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}` : c);
+
 class ValePdfService {
+  // Rechaza texto que la fuente del PDF no puede dibujar (emoji, flechas, chino…) en vez de fallar con un 500 al generarlo.
+  async validarTextos(campos) {
+    if (!juegoDeCaracteres) {
+      const doc = await PDFDocument.create();
+      juegoDeCaracteres = new Set((await doc.embedFont(StandardFonts.Helvetica)).getCharacterSet());
+    }
+    for (const { etiqueta, valor } of campos) {
+      const malos = [...new Set([...String(valor ?? '')].filter(c => {
+        const cp = c.codePointAt(0);
+        return !juegoDeCaracteres.has(cp) && cp !== 9 && cp !== 10 && cp !== 13;
+      }))];
+      if (malos.length) {
+        throw new Error(`Se están usando caracteres innecesarios en «${etiqueta}» (${malos.slice(0, 5).map(mostrarCaracter).join(' ')}). Quítalos e inténtalo de nuevo.`);
+      }
+    }
+  }
+
   // Este PDF es el documento ADMINISTRATIVO del vale (encabezado, cliente,
   // venta, firma) — nunca lleva fusionada la propuesta/diseño de ningún
   // taller. Esa propuesta vive en su propio enlace ("Ver propuesta",
@@ -107,7 +144,7 @@ class ValePdfService {
     // Fusionar documentos PDF adjuntos al final (nunca se re-almacenan, solo se copian sus páginas)
     for (const doc of docsAdjuntos) {
       if (doc.mime_type !== 'application/pdf') continue;
-      await this._fusionarPdfExterno(pdfDoc, doc.ruta, doc.nombre_original);
+      await this._fusionarPdfExterno(pdfDoc, doc.buffer || doc.ruta, doc.nombre_original, vale);
     }
 
     // El checkbox de "ADJUNTOS" ya no se calcula: lo marca a mano el diseñador al
@@ -118,14 +155,27 @@ class ValePdfService {
     return Buffer.from(bytes);
   }
 
-  async _fusionarPdfExterno(pdfDoc, url, nombreParaLog) {
+  // Estricto: si el PDF adjunto no se puede leer, lanza y no se genera el PDF.
+  // `origen`: URL a descargar o, si ya está en memoria, el Buffer.
+  async _fusionarPdfExterno(pdfDoc, origen, nombreParaLog, vale = {}) {
+    const donde = `al PDF del vale ${vale.correlativo} (id ${vale.id})`;
+    const enMemoria = Buffer.isBuffer(origen);
     try {
-      const bytes = Buffer.from(await (await fetch(url)).arrayBuffer());
-      const externo = await PDFDocument.load(bytes);
+      const externo = enMemoria
+        ? await PDFDocument.load(origen)
+        : await descargarPdfConReintentos(origen, (e) => {
+          console.warn(`[ValePdfService] Reintentando "${nombreParaLog}" ${donde}: ${e.causa} · ${e.message} · intento ${e.intento}/${e.maxIntentos}`);
+        });
       const paginas = await pdfDoc.copyPages(externo, externo.getPageIndices());
       paginas.forEach(p => pdfDoc.addPage(p));
     } catch (error) {
-      console.warn(`[ValePdfService] No se pudo fusionar "${nombreParaLog}":`, error.message);
+      const causa = error instanceof ErrorDescargaPdf ? error.causa : 'error inesperado al fusionar el PDF';
+      const intento = error instanceof ErrorDescargaPdf ? `${error.intento}/${error.maxIntentos}` : '1/1';
+      console.error(`[ValePdfService] No se pudo adjuntar "${nombreParaLog}" ${donde}: ${causa} · url=${enMemoria ? '(archivo en memoria)' : origen} · intento ${intento} · ${error.message}`);
+      throw new ErrorDeNegocio(
+        `No se pudo adjuntar el archivo "${nombreParaLog}" al PDF del vale. Inténtalo de nuevo en unos minutos; si el problema continúa, avisa al administrador.`,
+        503
+      );
     }
   }
 
@@ -169,11 +219,18 @@ class ValePdfService {
   }
 
   _dibujarTextoLargo(ctx, descripcion) {
-    const lineas = wrapText(descripcion || 'Sin descripción.', ctx.font, 9, CONTENT_WIDTH);
+    const partir = (size) => String(descripcion || 'Sin descripción.').split(/\r?\n/)
+      .flatMap(parrafo => (parrafo.trim() ? partirEnLineas(parrafo, ctx.font, size, CONTENT_WIDTH, Infinity) : ['']));
+    // Autoajuste: letra de 9 pt y, si el texto es muy largo, más chica (mínimo 7 pt) para que no ocupe media hoja.
+    let size = 9;
+    let lineas = partir(size);
+    if (lineas.length > 20) { size = 8; lineas = partir(size); }
+    if (lineas.length > 30) { size = 7; lineas = partir(size); }
+    const alto = size + 5;
     lineas.forEach(linea => {
-      this._asegurarEspacio(ctx, 14);
-      this._texto(ctx, linea, MARGIN, ctx.y, { size: 9 });
-      ctx.y -= 14;
+      this._asegurarEspacio(ctx, alto);
+      this._texto(ctx, linea, MARGIN, ctx.y, { size });
+      ctx.y -= alto;
     });
     ctx.y -= 6;
   }
@@ -192,7 +249,7 @@ class ValePdfService {
         const doc = fila[j];
         const x = MARGIN + j * (anchoImg + gap);
         try {
-          const bytes = Buffer.from(await (await fetch(doc.ruta)).arrayBuffer());
+          const bytes = doc.buffer || Buffer.from(await (await fetch(doc.ruta)).arrayBuffer());
           let embedded;
           if (doc.mime_type === 'image/png') {
             embedded = await ctx.pdfDoc.embedPng(bytes);
@@ -230,8 +287,9 @@ class ValePdfService {
     const yTop = ctx.y;
     // Offset fijo UTC-6 — no depender de la zona horaria del sistema
     // operativo del proceso Node (mismo criterio que valeHelpers.js).
+    // `__fechaGeneracion` ('YYYY-MM-DD ...') la fija a mano; sin ella, ahora.
     const hoy = new Date(Date.now() - 6 * 60 * 60 * 1000);
-    const [anioHoy, mesHoy, diaHoy] = hoy.toISOString().slice(0, 10).split('-');
+    const [anioHoy, mesHoy, diaHoy] = (vale.__fechaGeneracion ? String(vale.__fechaGeneracion).slice(0, 10) : hoy.toISOString().slice(0, 10)).split('-');
     const fechaHoy = `${diaHoy}/${mesHoy}/${anioHoy}`;
 
     this._texto(ctx, 'VALE DE ARTE', MARGIN, yTop - 16, { size: 18, bold: true });
@@ -267,24 +325,44 @@ class ValePdfService {
   // con ese mismo patrón de legibilidad.
   _dibujarSeccionCampos(ctx, titulo, filas) {
     const altoTitulo = 24;
-    const altoFila = 30;
-    const alto = altoTitulo + filas.length * altoFila;
+    const altoMinimoFila = 30;
+    const MAX_LINEAS = 4;
+    // Cada valor se parte en líneas dentro del ancho de su celda; la fila crece según la celda más alta, así un texto
+    // largo no se encima con el de la celda vecina.
+    const preparadas = filas.map(fila => {
+      let maxLineasFila = 1;
+      let tamano = 9;
+      const celdas = fila.map(campo => {
+        const w = CONTENT_WIDTH * campo.proporcion;
+        if (!campo.etiqueta) return { campo, lineas: [] };
+        const texto = campo.valor == null || campo.valor === '' ? '-' : String(campo.valor);
+        let size = 9;
+        let lineas = partirEnLineas(texto, ctx.font, size, w - 8, MAX_LINEAS);
+        if (lineas.length > 2) { size = 8; lineas = partirEnLineas(texto, ctx.font, size, w - 8, MAX_LINEAS); }
+        maxLineasFila = Math.max(maxLineasFila, lineas.length);
+        tamano = Math.min(tamano, size);
+        return { campo, lineas, size };
+      });
+      const interlineado = tamano + 2;
+      return { celdas, interlineado, alto: Math.max(altoMinimoFila, 16 + maxLineasFila * interlineado) };
+    });
+    const alto = altoTitulo + preparadas.reduce((s, f) => s + f.alto, 0);
     this._asegurarEspacio(ctx, alto + 14);
 
     this._texto(ctx, titulo, MARGIN, ctx.y - 10, { size: 10.5, bold: true });
     ctx.y -= altoTitulo;
 
-    filas.forEach(fila => {
+    preparadas.forEach(fila => {
       let x = MARGIN;
-      fila.forEach(campo => {
+      fila.celdas.forEach(({ campo, lineas, size }) => {
         const w = CONTENT_WIDTH * campo.proporcion;
         if (campo.etiqueta) {
           this._texto(ctx, campo.etiqueta, x, ctx.y - 7, { size: 6.5, bold: true, color: COLOR_ETIQUETA });
-          this._texto(ctx, campo.valor ?? '-', x, ctx.y - 20, { size: 9 });
+          lineas.forEach((linea, i) => this._texto(ctx, linea, x, ctx.y - 20 - i * fila.interlineado, { size }));
         }
         x += w;
       });
-      ctx.y -= altoFila;
+      ctx.y -= fila.alto;
       ctx.page.drawLine({
         start: { x: MARGIN, y: ctx.y }, end: { x: MARGIN + CONTENT_WIDTH, y: ctx.y },
         thickness: 0.75, color: COLOR_DIVISOR

@@ -4,7 +4,7 @@ import { htmlSelectorTalleres, wireSelectorTalleres, validarTalleresSeleccionado
 import { htmlCampoFecha, wireCampoFecha, validarCampoFecha } from '../components/datepicker.js';
 import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dropzone.js';
 import { validarCamposNativos, wireLimpiezaValidacionInline, enfocarPrimerCampoInvalido } from '../components/validacion.js';
-import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js';
+import { hoyMedianoche, sumarDiaLocal, parseIsoLocal, fechaMinimaEntregaGT } from '../utils/fechas.js';
 import { escapeHtml } from '../utils/formato.js';
 import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega, obtenerDetalleVale } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
@@ -91,10 +91,11 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
     size: 'lg',
     bodyHtml: `
       <form id="form-crear-vale">
+        ${esModificacion ? '<p class="form-nota">Al solicitarla, el vale original pasará a «Recibido» de inmediato y se creará el MOD- con la propuesta original adjunta. Si el supervisor lo rechaza o vence, se elimina y puedes solicitar otro.</p>' : ''}
         <div class="section-title">Información de Cliente</div>
         <div class="form-grid">
-          <div class="form-field"><label>Empresa</label><input type="text" name="clienteEmpresa" /></div>
-          <div class="form-field"><label>Cliente *</label><input type="text" name="clienteNombre" required /></div>
+          <div class="form-field"><label>Empresa</label><input type="text" name="clienteEmpresa" maxlength="100" /></div>
+          <div class="form-field"><label>Cliente *</label><input type="text" name="clienteNombre" required maxlength="100" /></div>
           <div class="form-field">
             <label>Teléfono *</label>
             <div class="form-field-phone">
@@ -102,7 +103,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
               <input type="text" name="clienteTelefono" required placeholder="0000-0000" />
             </div>
           </div>
-          <div class="form-field"><label>Correo *</label><input type="email" name="clienteCorreo" required /></div>
+          <div class="form-field"><label>Correo *</label><input type="email" name="clienteCorreo" required maxlength="100" /></div>
         </div>
 
         <div class="section-title">Información de Taller</div>
@@ -117,10 +118,10 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
           ${htmlCampoFecha('Fecha de entrega', 'fechaEntrega')}
           ${htmlCampoFecha('Fecha del evento', 'fechaEvento')}
           <div class="aviso-urgente full" id="aviso-urgente" role="status" aria-live="polite" hidden><ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon><span>El vale se marcará como urgente, entrega en menos de 3 días</span></div>
-          <div class="form-field"><label>Código de producto *</label><input type="text" name="producto" required maxlength="150" placeholder="Ej. Trofeo" /></div>
-          <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="150" placeholder="Ej. Acrílico" /></div>
-          <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" /></div>
-          <div class="form-field"><label>Acabado</label><input type="text" name="acabado" /></div>
+          <div class="form-field"><label>Código de producto *</label><input type="text" name="producto" required maxlength="40" placeholder="Ej. Trofeo" /></div>
+          <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="40" placeholder="Ej. Acrílico" /></div>
+          <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" maxlength="40" /></div>
+          <div class="form-field"><label>Acabado</label><input type="text" name="acabado" maxlength="40" /></div>
           <div class="form-field"><label>Cantidad * (mayor a 1)</label><input type="number" name="cantidad" min="2" required /></div>
           <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>        </div>
 
@@ -152,8 +153,12 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
 
   if (!esMod) wireSelectorTalleres(overlay, tallerSeleccionados);
   wireAvisoUrgente(overlay);
+  const minEntrega = fechaMinimaEntregaGT();
+  const campoEntrega = overlay.querySelector('[data-date-field="fechaEntrega"]').closest('.form-field');
+  campoEntrega.insertAdjacentHTML('beforeend', `<p class="form-nota">Entrega mínima: ${String(minEntrega.getDate()).padStart(2, '0')}/${String(minEntrega.getMonth() + 1).padStart(2, '0')}. Pasadas las 12:00 no se pide para hoy y no hay entregas en sábado ni domingo.</p>`);
   const apiFechaEntrega = wireCampoFecha(overlay, 'fechaEntrega', {
-    minDate: hoyMedianoche(),
+    minDate: minEntrega,
+    sinFinDeSemana: true,
     capacidad: {
       obtenerTalleresIds: () => [...tallerSeleccionados],
       cargarMes: obtenerCapacidadEntrega
@@ -163,6 +168,13 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
   overlay.querySelector('[name="fechaEntrega"]').addEventListener('change', () => {
     apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || hoyMedianoche(), 1));
   });
+  // Al crear, la entrega espera a que haya al menos un taller (si se quitan todos, se borra).
+  if (modo === 'crear') {
+    const sincronizarEntrega = () => apiFechaEntrega.setEnabled(tallerSeleccionados.size > 0, 'Elige primero un taller');
+    overlay.querySelector('.select-agregar-taller').addEventListener('change', sincronizarEntrega);
+    overlay.querySelector('.taller-tags').addEventListener('click', sincronizarEntrega);
+    sincronizarEntrega();
+  }
   wireContadorCampo(overlay, 'descripcion', DESCRIPCION_MAX_CARACTERES);
   limitarTelefono(overlay.querySelector('[name="clienteTelefono"]'));
   const getImagenes = wireDropzone(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
@@ -256,12 +268,16 @@ function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEve
   const [pais, ...numero] = (vale.cliente_telefono || '').split(' ');
   if (pais) form.querySelector('[name="clienteTelefonoPais"]').value = pais;
   form.querySelector('[name="clienteTelefono"]').value = numero.join(' ');
-  apiFechaEntrega.setDate(parseIsoLocal(String(vale.fecha_entrega).slice(0, 10)), { silent: true });
-  apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate(), 1));
+  // Una entrega ya no disponible (pasada o fin de semana) se limpia para que se elija otra.
+  const entrega = parseIsoLocal(String(vale.fecha_entrega).slice(0, 10));
+  if (apiFechaEntrega.esValida(entrega)) apiFechaEntrega.setDate(entrega, { silent: true });
+  apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || fechaMinimaEntregaGT(), 1));
   apiFechaEvento.setDate(parseIsoLocal(String(vale.fecha_evento).slice(0, 10)), { silent: true });
   form.querySelector('[name="descripcion"]').dispatchEvent(new Event('input'));
   form.querySelector('[name="fechaEntrega"]').dispatchEvent(new Event('change', { bubbles: true }));
 }
+
+const esPropuestaOriginal = d => String(d.nombre_original || '').startsWith('Propuesta original - ');
 
 // Archivos ya guardados del vale: se muestran con su enlace y una "×" para quitarlos al guardar.
 async function cargarArchivosActuales(overlay, valeId, documentosQuitar) {
@@ -283,7 +299,9 @@ async function cargarArchivosActuales(overlay, valeId, documentosQuitar) {
               : '<ion-icon name="document-text-outline" class="archivo-chip-icon"></ion-icon>'}
             <span class="archivo-chip-nombre">${escapeHtml(d.nombre_original)}</span>
           </a>
-          <button type="button" class="archivo-chip-quitar" data-id="${d.id}" title="Quitar">&times;</button>
+          ${esPropuestaOriginal(d)
+            ? '<small class="form-nota" style="margin:0 0 0 6px;">Propuesta del vale original: no se puede quitar</small>'
+            : `<button type="button" class="archivo-chip-quitar" data-id="${d.id}" title="Quitar">&times;</button>`}
         </span>
       `).join('');
     });

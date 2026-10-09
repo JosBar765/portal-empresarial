@@ -1,7 +1,10 @@
 // src/modules/admin/routes.js
 const express = require('express');
+const multer = require('multer');
+const { rateLimit } = require('express-rate-limit');
 const router = express.Router();
 const adminController = require('./controllers/adminController');
+const valePdfController = require('./controllers/adminValePdfController');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
 // Permisos
@@ -51,5 +54,38 @@ router.delete('/tiendas/:id/personal/:usuarioId', gestionarTiendas, (req, res) =
 // Mantenimiento
 router.get('/mantenimiento', verAdmin, (req, res) => adminController.obtenerMantenimiento(req, res));
 router.put('/mantenimiento', gestionarMantenimiento, (req, res) => adminController.actualizarMantenimiento(req, res));
+
+// Generar PDF de vale (correcciones). Mismos tipos y límites que al crear un vale.
+const generarValePdf = requirePermission('admin.vales.generar');
+const TIPOS_ADJUNTO = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']);
+const subirAdjuntos = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (TIPOS_ADJUNTO.has(file.mimetype)) return cb(null, true);
+    const error = new multer.MulterError('TIPO_NO_PERMITIDO', file.fieldname);
+    error.archivo = String(file.originalname || '').replace(/[<>"'&]/g, '').slice(0, 80);
+    return cb(error);
+  }
+}).fields([{ name: 'imagenes', maxCount: 10 }, { name: 'documentos', maxCount: 5 }]);
+
+// Solo cuentan las contraseñas incorrectas (403): 5 en 15 min bloquean la acción
+// para ese usuario, sin tocar el bloqueo de la cuenta.
+const limitarContrasenaVale = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  requestWasSuccessful: (req, res) => res.statusCode !== 403,
+  keyGenerator: (req) => `vale-pdf:${req.user.id}`,
+  handler: (req, res) => {
+    res.status(429).json({ error: 'Demasiados intentos de contraseña incorrecta. Espera unos minutos para volver a generar.' });
+  }
+});
+
+router.get('/vale-pdf/opciones', generarValePdf, (req, res) => valePdfController.opciones(req, res));
+router.get('/vale-pdf', generarValePdf, (req, res) => valePdfController.listar(req, res));
+router.post('/vale-pdf', generarValePdf, limitarContrasenaVale, subirAdjuntos, (req, res) => valePdfController.generar(req, res));
 
 module.exports = router;

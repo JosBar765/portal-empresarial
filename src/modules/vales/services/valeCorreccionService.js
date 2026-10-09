@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const valeRepository = require('../repositories/valeRepository');
 const valeCorreccionRepository = require('../repositories/valeCorreccionRepository');
 const documentoRepository = require('../repositories/documentoRepository');
+const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const supabaseStorage = require('../../../core/files/supabaseStorage');
 const imageOptimizer = require('../../../core/files/imageOptimizer');
@@ -29,6 +30,7 @@ class ValeCorreccionService {
       const previo = await idempotencyRepository.buscar(key);
       if (previo) return previo.resultado;
 
+      valeCreacionService.exigirDiaHabil('corregir vales');
       if (!puedeActuarComoAsesor(usuario)) {
         throw new Error('Solo un asesor o un supervisor de ventas puede corregir un vale.');
       }
@@ -36,31 +38,44 @@ class ValeCorreccionService {
       if (vale.asesor_id !== usuario.id) {
         throw new Error('Solo puedes corregir tus propios vales.');
       }
+      const esMod = esValeDeModificacion(vale);
       if (!ESTADOS_EDITABLES_ASESOR.includes(vale.estado)) {
-        throw new Error(esValeDeModificacion(vale)
+        throw new Error(esMod
           ? 'Esta modificación ya fue autorizada, así que ya no se puede corregir.'
           : 'Este vale ya fue autorizado, así que ya no se puede corregir.');
       }
 
       // Un MOD- conserva los talleres del original (fijos) y su descripción es la justificación de la modificación.
-      const esMod = esValeDeModificacion(vale);
       let payloadEfectivo = payload;
+      let propuestaOriginal = null;
       if (esMod) {
         const justificacion = String(payload.descripcion || '').trim();
         if (!justificacion) throw new Error('Escribe la justificación de la modificación.');
-        payloadEfectivo = { ...payload, descripcion: justificacion, talleresIds: (vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite) };
+        const fijos = (vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
+        if (payload.talleresIds !== undefined && payload.talleresIds !== '') {
+          let enviados;
+          try { enviados = Array.isArray(payload.talleresIds) ? payload.talleresIds : JSON.parse(payload.talleresIds); } catch { enviados = null; }
+          const mismos = Array.isArray(enviados) && new Set(enviados.map(Number)).size === fijos.length && fijos.every(id => enviados.map(Number).includes(id));
+          if (!mismos) throw new Error('Los talleres de una modificación no se pueden cambiar: son los del vale original.');
+        }
+        payloadEfectivo = { ...payload, descripcion: justificacion, talleresIds: fijos };
+        const original = await valeRepository.obtenerPorId(vale.vale_original_id);
+        propuestaOriginal = original && (original.propuesta_general_url || (await propuestaRepository.obtenerUltimaPorVale(original.id))?.url);
       }
       const datos = await valeCreacionService.validarDatosVale(payloadEfectivo, { tiendaIdAsesor: esMod ? null : vale.tienda_id });
       const fechaEntregaISO = datos.fechaEntregaNorm.slice(0, 10);
       await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO);
 
       const documentosActuales = await documentoRepository.listarPorVale(valeId);
-      const quitarIds = this._idsAQuitar(payload.documentosQuitar, documentosActuales);
+      // La propuesta original de un MOD- no se quita ni se reemplaza, mande lo que mande el cliente.
+      const esPropuesta = (d) => esMod && d.ruta === propuestaOriginal && /^Propuesta original/.test(d.nombre_original);
+      const quitarIds = this._idsAQuitar(payload.documentosQuitar, documentosActuales)
+        .filter(id => !esPropuesta(documentosActuales.find(d => d.id === id)));
       const conservados = documentosActuales.filter(d => !quitarIds.includes(d.id));
       const nuevosImagenes = (archivos && archivos.imagenes) || [];
       const nuevosDocumentos = (archivos && archivos.documentos) || [];
       if (conservados.filter(d => d.tipo === 'imagen').length + nuevosImagenes.length > MAX_IMAGENES
-        || conservados.filter(d => d.tipo === 'documento').length + nuevosDocumentos.length > MAX_DOCUMENTOS) {
+        || conservados.filter(d => d.tipo === 'documento' && !esPropuesta(d)).length + nuevosDocumentos.length > MAX_DOCUMENTOS) {
         throw new Error(`Un vale admite hasta ${MAX_IMAGENES} imágenes y ${MAX_DOCUMENTOS} documentos.`);
       }
 
@@ -98,8 +113,7 @@ class ValeCorreccionService {
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       valeEvents.notificar({
         vale: actualizado, accion: 'corregido', tipo: 'CORREGIDO', actor: usuario.nombre, actorId: usuario.id,
-        // Un vale rechazado no está en manos del supervisor: solo el asesor se entera.
-        salas: [`asesor:${vale.asesor_id}`, ...(vale.estado === 'RECHAZADO' ? [] : supervisores.map(s => `supervisor:${s.id}`))]
+        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
       });
       const resultado = enriquecer(actualizado);
       await idempotencyRepository.registrar(key, 'vales.corregir', resultado);

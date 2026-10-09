@@ -10,6 +10,7 @@ const valeTallerRepository = require('../repositories/valeTallerRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
+const reporteRepository = require('../repositories/reporteRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeVistoRepository = require('../repositories/valeVistoRepository');
@@ -17,7 +18,7 @@ const { calcularPipeline } = require('./valePipeline');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
   esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
-  ordenarPorFecha, esHoy, estadoVisibleAsesor, hoyISO,
+  ordenarPorFecha, esHoy, estadoVisibleAsesor,
   ROLES_ENCARGADO_TALLER, esValeDeModificacion
 } = require('./valeHelpers');
 
@@ -194,7 +195,9 @@ class ValeBuzonService {
           : await this.obtenerBuzonDisenador(usuario, ventana, filtroContador);
         break;
       default:
-        resultado = { vales: [], contadores: {} };
+        // Cualquier otro rol con vales.ver (p. ej. el Gerente) ve el buzón general en solo lectura: sus acciones
+        // siguen exigiendo sus propios permisos de escritura.
+        resultado = this._buzonAdministrador(todosConTaller, ventana, filtroContador);
     }
 
     // "Atrasados" en general: a diferencia de filtroContador (mutuamente
@@ -268,8 +271,23 @@ class ValeBuzonService {
     } else {
       indiceInicio = Math.max(0, Number(filtros.offset) || 0);
     }
-    const pagina = valesOrdenados.slice(indiceInicio, indiceInicio + limit)
-      .map(v => ({ ...v, pipeline: calcularPipeline(v, { rolId: usuario.rolId }) }));
+    // Quién está detrás del vale (badge bajo el correlativo): al Supervisor, el asesor que lo creó; al Encargado de taller,
+    // el diseñador asignado a su taller.
+    const esSupervisor = usuario.rolId === ROL.SUPERVISOR;
+    const esEncargado = ROLES_ENCARGADO_TALLER.includes(usuario.rolId);
+    const paginaCruda = valesOrdenados.slice(indiceInicio, indiceInicio + limit);
+    const idsPersona = new Set();
+    paginaCruda.forEach(v => {
+      if (esSupervisor && v.asesor_id) idsPersona.add(v.asesor_id);
+      if (esEncargado && v._tipoRegistro !== 'FUSION' && v.disenador_id) idsPersona.add(v.disenador_id);
+    });
+    const nombres = new Map((await reporteRepository.listarNombres([...idsPersona])).map(u => [u.id, u.nombre]));
+    const personaDe = (v) => {
+      if (esSupervisor) return v.asesor_id ? { rol: 'asesor', nombre: nombres.get(v.asesor_id) || null } : null;
+      if (esEncargado && v._tipoRegistro !== 'FUSION') return { rol: 'disenador', nombre: v.disenador_id ? (nombres.get(v.disenador_id) || null) : null };
+      return null;
+    };
+    const pagina = paginaCruda.map(v => ({ ...v, persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId }) }));
     const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
     return {
       vales: pagina,
@@ -335,11 +353,8 @@ class ValeBuzonService {
   }
 
   // ---- Asesor: sidebar Trabajo realizado (confirmados, orden por fecha) ----
-  // Un vale confirmado permanece visible aquí incluso mientras tiene una
-  // modificación en curso (ESTADOS_CONFIRMADOS incluye
-  // SOLICITANDO_MODIFICACION) — solicitar una modificación no debe "borrar"
-  // el registro de que ya fue confirmado (el historial completo vive en
-  // vale_historial).
+  // Un vale confirmado (o cuya modificación se solicitó: queda RECIBIDO al pedirla) permanece visible aquí
+  // mientras su MOD- está en trámite.
   _trabajoAsesor(usuario, todos, ventana, filtroContador) {
     const propios = todos.filter(v => v.asesor_id === usuario.id).map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v) }));
     const cerrados = propios.filter(v => ESTADOS_CONFIRMADOS.includes(v.estado));
@@ -374,8 +389,6 @@ class ValeBuzonService {
     const enVentana = conPaso(visibles.filter(v => dentroDeVentana(v, ventana)));
     
     const contadores = {
-      // "N/M": autorizaciones de creación que hizo hoy el supervisor / su cupo diario (el mismo que se valida al autorizar).
-      valesAutorizadosHoy: `${await valeRepository.contarAutorizacionesCreacionPorSupervisorYFecha(usuario.id, hoyISO())}/${await usuarioValeRepository.contarCupoDiario(usuario.id)}`,
       ...contadoresPorPaso(enVentana)
     };
     const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, PREDICADOS_POR_PASO);
@@ -469,7 +482,7 @@ class ValeBuzonService {
       .map(v => {
         const fila = misFilas.find(f => f.vale_id === v.id);
         return {
-          ...v, estado_taller: fila.estado, disenador_id: fila.disenador_id, _filaTallerId: fila.id,
+          ...v, estado_taller: fila.estado, disenador_id: fila.disenador_id, _filaTallerId: fila.id, taller_id: fila.taller_id,
           adjuntos_vence_en: fila.adjuntos_vence_en, adjuntos_mensaje: fila.adjuntos_mensaje, adjuntos_respondido_en: fila.adjuntos_respondido_en
         };
       });
@@ -615,11 +628,22 @@ class ValeBuzonService {
     return { vales: ordenarPorFecha(filtrados), contadores };
   }
 
+  // Asignaciones vigentes de un diseñador (las mismas que cuenta la carga de trabajo).
+  async _contarAsignacionesVigentes(disenadorId) {
+    const activas = await valeTallerRepository.listarActivasPorDisenador(disenadorId);
+    return activas.filter(a => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION].includes(a.estado)).length;
+  }
+
+  // Diseñadores para el combobox de asignar, cada uno con sus asignaciones actuales; el encargado también se ofrece a sí mismo.
   async obtenerDisenadoresAsignables(usuario) {
-    if (esAdministrador(usuario)) {
-      return usuarioValeRepository.listarTodosLosDisenadores();
+    const lista = esAdministrador(usuario)
+      ? await usuarioValeRepository.listarTodosLosDisenadores()
+      : await usuarioValeRepository.listarDisenadoresPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
+    const conCarga = await Promise.all(lista.map(async d => ({ ...d, asignaciones: await this._contarAsignacionesVigentes(d.id) })));
+    if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId) && !conCarga.some(d => d.id === usuario.id)) {
+      conCarga.unshift({ id: usuario.id, nombre: `${usuario.nombre} (YO)`, asignaciones: await this._contarAsignacionesVigentes(usuario.id) });
     }
-    return usuarioValeRepository.listarDisenadoresPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
+    return conCarga;
   }
 
   // Ordenado por fecha de ENTREGA más próxima. Un diseñador sin vales activos

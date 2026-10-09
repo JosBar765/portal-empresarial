@@ -46,17 +46,6 @@ class UsuarioValeRepository {
     );
   }
 
-  // Un supervisor cubre asesores por tienda puntual vía `supervisor_tiendas`,
-  // cruzada con la tienda de cada asesor en `asesores.tienda_id` — sin
-  // cobertura heredada por departamento/subdivisión.
-  // Tope diario colectivo del supervisor: los asesores a su cargo, más él mismo si también crea vales
-  // (tiene fila en `asesores`).
-  async contarCupoDiario(supervisorId) {
-    const asesores = await this.listarAsesoresPorSupervisor(supervisorId);
-    const comoAsesor = await db.query('SELECT 1 FROM asesores WHERE usuario_id = ?', [supervisorId], 'usuario:es_asesor');
-    return asesores.length + (comoAsesor.length ? 1 : 0);
-  }
-
   async listarAsesoresPorSupervisor(supervisorId) {
     return db.query(
       `SELECT DISTINCT u.id, u.nombre, u.email, a.tienda_id

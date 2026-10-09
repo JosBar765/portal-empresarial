@@ -185,8 +185,19 @@ export function verificarAdjuntos(valeId) {
   return enviarJSON(`/api/vales/${valeId}/verificar-adjuntos`, {});
 }
 
-export function rechazarAdjuntos(valeId) {
-  return enviarJSON(`/api/vales/${valeId}/rechazar-adjuntos`, {});
+export function rechazarAdjuntos(valeId, tallerId, mensaje) {
+  return enviarJSON(`/api/vales/${valeId}/rechazar-adjuntos`, { tallerId, mensaje });
+}
+
+export async function obtenerConversacion(valeId, tallerId) {
+  const res = await fetch(`/api/vales/${valeId}/mensajes?tallerId=${encodeURIComponent(tallerId)}`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar la conversación.');
+  return data;
+}
+
+export function enviarMensajeRechazo(valeId, tallerId, mensaje) {
+  return enviarJSON(`/api/vales/${valeId}/mensajes`, { tallerId, mensaje });
 }
 
 export function responderAdjuntos(valeId, tallerId, mensaje) {

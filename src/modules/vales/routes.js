@@ -41,6 +41,12 @@ const confirmarVale = requirePermission('vales.confirmar');
 const darDeBajaVale = requirePermission('vales.dar_de_baja');
 const verificarAdjuntosVale = requirePermission('vales.verificar_adjuntos');
 const corregirVale =requirePermission('vales.corregir');
+const escribirConversacion = (req, res, next) => {
+  const permisos = req.user.permissions || [];
+  return permisos.includes('vales.verificar_adjuntos') || permisos.includes('vales.corregir')
+    ? next()
+    : res.status(403).json({ error: 'No tienes permiso para escribir en esta conversación.' });
+};
 const solicitarModificacionVale = requirePermission('vales.solicitar_modificacion');
 const aprobarModificacionVale = requirePermission('vales.aprobar_modificacion');
 // "Encontrar vale" es solo del Gerente: `vales.ver_gerencia` también lo tiene
@@ -78,7 +84,6 @@ const limitarReportes = rateLimit({
 
 router.get('/catalogos', verVales, (req, res) => valeController.catalogos(req, res));
 router.get('/talleres', verVales, (req, res) => valeController.talleres(req, res));
-router.get('/limite-colectivo', autorizarCreacionVale, (req, res) => valeController.limiteColectivo(req, res));
 router.get('/capacidad-entrega', crearVale, (req, res) => valeController.capacidadEntrega(req, res));
 router.get('/disenadores', asignarVale, (req, res) => valeController.disenadores(req, res));
 router.get('/carga-trabajo', asignarVale, (req, res) => valeController.cargaTrabajo(req, res));
@@ -111,6 +116,9 @@ router.post('/:id/rechazar-creacion', autorizarCreacionVale, (req, res) => valeC
 router.post('/:id/verificar-adjuntos', verificarAdjuntosVale, (req, res) => valeController.verificarAdjuntos(req, res));
 router.post('/:id/rechazar-adjuntos', verificarAdjuntosVale, (req, res) => valeController.rechazarAdjuntos(req, res));
 router.post('/:id/responder-adjuntos', corregirVale, (req, res) => valeController.responderAdjuntos(req, res));
+// Conversación del rechazo: la leen quienes ven el vale y escribe el taller (vales.verificar_adjuntos) o el asesor (vales.corregir).
+router.get('/:id/mensajes', verVales, (req, res) => valeController.conversacion(req, res));
+router.post('/:id/mensajes', escribirConversacion, (req, res) => valeController.enviarMensaje(req, res));
 router.post('/:id/reenviar', corregirVale, (req, res) => valeController.reenviar(req, res));
 router.post('/:id/visto', requirePermission('vales.supervisar'), (req, res) => valeController.marcarVisto(req, res));
 router.post('/:id/dar-de-baja', darDeBajaVale, (req, res) => valeController.darDeBaja(req, res));
