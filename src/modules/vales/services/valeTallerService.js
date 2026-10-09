@@ -196,7 +196,7 @@ class ValeTallerService {
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, `${etiquetaActorTaller(usuario)} pausó el proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
-        vale: actualizado, accion: 'pausó el proceso', actor: usuario.nombre, actorId: usuario.id,
+        vale: actualizado, texto: `${usuario.nombre} pausó el proceso`, actorId: usuario.id,
         salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`]
       });
       return enriquecer(actualizado);
@@ -224,7 +224,7 @@ class ValeTallerService {
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_PROCESO, `${etiquetaActorTaller(usuario)} reanudó el proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
-        vale: actualizado, accion: 'reanudó el proceso', actor: usuario.nombre, actorId: usuario.id,
+        vale: actualizado, texto: `${usuario.nombre} reanudó el proceso`, actorId: usuario.id,
         salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`]
       });
       return enriquecer(actualizado);
@@ -245,7 +245,7 @@ class ValeTallerService {
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, `${etiquetaActorTaller(usuario)} canceló el proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
-        vale: actualizado, accion: 'canceló su proceso', actor: usuario.nombre, actorId: usuario.id,
+        vale: actualizado, texto: `${usuario.nombre} canceló su proceso`, actorId: usuario.id,
         salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`], nivel: 'alerta'
       });
       return enriquecer(actualizado);
