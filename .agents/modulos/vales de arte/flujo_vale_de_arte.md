@@ -452,7 +452,7 @@ tienen las mismas columnas para todos; cambian filtros, orden y acciones.
 | Encargado de taller | Por asignar · Asignado (en manos de diseñadores: asignado, en proceso o en pausa) · Mis asignaciones (los que él mismo se asignó) · Por revisar · Atrasados (+ **Por fusionar** si tiene `aprobar_general`), y un combobox para filtrar por diseñador. Muestra el estado **de la fila de su taller**, no el general. | Vales con fila `APROBADO` en su taller (con "Ver propuesta" de su diseñador), + sus fusiones si fusiona. |
 | Diseñador | Mis asignaciones (sin retraso) · Mis asignaciones (con atraso) · Vale en proceso (ve también `EN_PAUSA` y `EN_REVISION` en la lista). | Vales que su taller aprobó, con su propuesta. |
 | Administrador | Todo, con contadores generales (total, atrasados, recibidos hoy, pendientes de confirmación, por fusionar). | — |
-| Gerente | **No tiene buzón**: ver §6. | — |
+| Gerente | Buzón general en solo lectura (como el Administrador, sin acciones): ver §6. | — |
 
 Una solicitud de modificación aparece como **fila propia** (`MOD-…`) en el Buzón
 del asesor y del supervisor (contadores «Solicitando modificación» y «Por
@@ -507,7 +507,8 @@ Sábado y domingo son días de descanso de los talleres: la restricción evita q
 
 ## 6. Gerente y Administrador
 
-- **Gerente** (solo lectura, nunca ejecuta una acción sobre un vale): ve la
+- **`vales.ver`** abre el módulo y la API; además, todo rol con ese permiso que no tenga una vista propia (hoy el Gerente) ve el **Buzón general** con todos los vales, en solo lectura. Las acciones siguen exigiendo sus propios permisos.
+- **Gerente** (solo lectura, nunca ejecuta una acción sobre un vale): ve el **Buzón** general, la
   vista **Rendimiento** (KPIs y gráficas por estado, tienda y taller; ciclo de
   vida; atrasos), filtrable por tienda y ventana de tiempo, y **"Encontrar
   vale"**, que busca **un** vale por correlativo exacto (con sugerencias si no

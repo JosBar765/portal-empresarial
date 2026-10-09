@@ -477,6 +477,11 @@
   display: none;
 }
 
+/* Encargados y diseñadores no ven Fecha Evento en su tabla (la Fecha Ingreso sí). */
+.buzon-table.oculta-fechas .col-fecha-evento {
+  display: none;
+}
+
 /* Chips de taller en el buzón — reusa .taller-tag (selector de talleres del
    formulario de creación) en modo solo lectura, sin el botón "×" de quitar:
    un vale multi-taller ("Diseño, Diseño UV/3D") se leía como una sola frase en
@@ -2030,4 +2035,83 @@
     position: static;
     box-shadow: none;
   }
+}
+/* ============================================================
+   Celulares (≤640 px): objetivos táctiles de 44 px y toolbar compacta.
+   Escritorio y tablet no cambian.
+   ============================================================ */
+@media (max-width: 640px) {
+  .header-back, .sidebar-toggle-mobile, .notif-bell {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    align-items: center;
+    margin-right: 0;
+  }
+  .sidebar-item { min-height: 44px; }
+  .chip, .ventana-selector .chip { min-height: 44px; padding-left: 16px; padding-right: 16px; }
+  .mes-nav-flecha { min-width: 44px; min-height: 44px; }
+  .mes-nav-etiqueta { min-height: 44px; }
+  .date-field-trigger, .filtro-tienda { min-height: 44px; }
+  .btn-icon { width: 44px; height: 44px; }
+  .btn { min-height: 44px; }
+  .btn--sm { min-height: 44px; }
+  .buzon-table .acciones-wrap { gap: 8px; }
+}
+
+@media (max-width: 640px) and (orientation: landscape) {
+  .app-header { padding-top: 6px; padding-bottom: 6px; }
+}
+
+@media (max-width: 640px) {
+  /* El pipeline ocupa todo el ancho de la tarjeta en vez de competir con su etiqueta. */
+  .buzon-table td[data-label="Estado"] { flex-direction: column; align-items: flex-start; text-align: left; gap: 6px; }
+  #filtro-texto, .buzon-filtros input { min-height: 44px; }
+  .contador-card .etiqueta-texto { font-size: 12px; }
+  .contador-card .etiqueta-quien { font-size: 11px; }
+  .notif-badge { font-size: 11px; }
+}
+
+@media (max-width: 640px) {
+  #filtro-disenador, .buzon-filtros select { min-height: 44px; }
+}
+
+@media (max-width: 560px) {
+  /* La barra de período (Todo/Hoy/mes/rango + tienda) no debe ensanchar la página. */
+  .vales-toolbar, .ventana-selector, .ventana-rango { max-width: 100%; min-width: 0; }
+  .ventana-selector { flex-wrap: wrap; row-gap: 8px; }
+  .ventana-rango { flex-wrap: wrap; }
+  .mes-nav { max-width: 100%; }
+  #filtro-tienda { width: 100%; max-width: 100%; }
+}
+
+@media (max-width: 640px) {
+  .dp-nav { width: 40px; height: 40px; }
+  .dp-day { width: 100%; min-width: 34px; height: 38px; }
+}
+
+/* Quién está detrás del vale, bajo el correlativo (asesor para el Supervisor; diseñador para el Encargado). */
+.persona-badge {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.persona-badge ion-icon { font-size: 13px; flex-shrink: 0; }
+.persona-badge--asesor { background: var(--color-surface-muted); color: var(--color-text-secondary); }
+.persona-badge--disenador { background: var(--color-primary-light); color: var(--color-primary-dark); }
+.persona-badge--libre { background: var(--color-warning-bg, #fef3c7); color: var(--color-warning, #b45309); }
+@media (max-width: 560px) {
+  .buzon-table td[data-label="Correlativo"] { flex-wrap: wrap; justify-content: flex-end; }
+  .persona-badge { margin-top: 0; }
 }
