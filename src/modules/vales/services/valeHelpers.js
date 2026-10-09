@@ -94,6 +94,51 @@ function horaActual() {
   return ahoraUTC6().toISOString().slice(11, 19);
 }
 
+function esDomingoHoy() {
+  return ahoraUTC6().getUTCDay() === 0;
+}
+
+function esSabadoHoy() {
+  return ahoraUTC6().getUTCDay() === 6;
+}
+
+function esFechaFinDeSemana(iso) {
+  const dia = new Date(`${String(iso).slice(0, 10)}T00:00:00Z`).getUTCDay();
+  return dia === 0 || dia === 6;
+}
+
+// Hoy si son antes de las 12:00 (UTC-6), si no mañana; sábado y domingo pasan al lunes.
+function fechaMinimaEntrega() {
+  const ahora = ahoraUTC6();
+  const base = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate()));
+  if (ahora.getUTCHours() >= 12) base.setUTCDate(base.getUTCDate() + 1);
+  if (base.getUTCDay() === 6) base.setUTCDate(base.getUTCDate() + 2);
+  else if (base.getUTCDay() === 0) base.setUTCDate(base.getUTCDate() + 1);
+  return base.toISOString().slice(0, 10);
+}
+
+// Suma horas de reloj a una hora de pared UTC-6 sin contar sábados ni domingos
+// (Date o 'YYYY-MM-DD HH:MM:SS'); devuelve el string listo para un DATETIME.
+function sumarHorasHabiles(inicio, horas) {
+  let t = inicio instanceof Date ? new Date(inicio) : new Date(`${String(inicio).replace(' ', 'T')}Z`);
+  let resto = horas * 3600000;
+  while (true) {
+    const finDia = Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate() + 1);
+    const dia = t.getUTCDay();
+    if (dia === 0 || dia === 6) { t = new Date(finDia); continue; }
+    if (resto === 0) break;
+    if (resto < finDia - t) { t = new Date(t.getTime() + resto); break; }
+    resto -= finDia - t;
+    t = new Date(finDia);
+  }
+  return t.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+// Vencimiento de los plazos de 24 h: sábado y domingo no cuentan.
+function vencimiento24h() {
+  return sumarHorasHabiles(ahoraUTC6(), 24);
+}
+
 function calcularAtraso(vale) {
   const congelamiento = vale.atraso_congelado_en
     || (ESTADOS_TERMINALES.includes(vale.estado) ? vale.actualizado_en : null);
@@ -255,7 +300,7 @@ module.exports = {
   ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistenteDeDiseno,
-  hoyISO, horaActual, calcularAtraso, enriquecer,
+  hoyISO, horaActual, esDomingoHoy, esSabadoHoy, esFechaFinDeSemana, fechaMinimaEntrega, sumarHorasHabiles, vencimiento24h, calcularAtraso, enriquecer,
   esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
   normalizarDatetime, calcularUrgente, registrarHistorial,

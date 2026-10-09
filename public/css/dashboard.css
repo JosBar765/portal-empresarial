@@ -604,3 +604,46 @@ body {
   font-size: 12px;
   color: var(--color-text-muted);
 }
+
+/* ============================================================
+   Cabecera en celulares: el logo, el título, la campana y la cuenta
+   deben caber desde 320 px sin desbordar ni partir el título.
+   ============================================================ */
+@media (max-width: 560px) {
+  .app-header {
+    padding: 10px 12px;
+    padding-left: max(12px, var(--safe-left));
+    padding-right: max(12px, var(--safe-right));
+    padding-top: max(10px, var(--safe-top));
+    gap: 8px;
+  }
+  .header-brand { gap: 8px; min-width: 0; flex: 1 1 auto; }
+  .header-logo-container { width: 34px; height: 34px; flex-shrink: 0; }
+  .header-title-wrapper { min-width: 0; }
+  .header-title, .header-company { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .header-title { font-size: 15px; }
+  .header-user-menu, .notif-root { flex-shrink: 0; }
+  .notif-root { margin-right: 2px; }
+  .account-widget { gap: 6px; padding: 4px 6px 4px 4px; min-height: 44px; }
+  .account-dropdown { max-width: calc(100vw - 24px); }
+}
+
+@media (max-width: 380px) {
+  .header-company { display: none; }
+}
+
+@media (max-width: 560px) {
+  .account-dropdown-item { min-height: 44px; }
+  .account-dropdown-role { font-size: 12px; }
+}
+
+@media (max-width: 380px) {
+  .account-chevron { display: none; }
+  .app-header { padding-left: 8px; padding-right: 8px; gap: 4px; }
+  .header-brand { gap: 6px; }
+  .header-back, .sidebar-toggle-mobile { min-width: 40px; }
+}
+
+@media (max-width: 340px) {
+  .header-logo-container { display: none; }
+}

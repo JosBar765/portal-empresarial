@@ -37,7 +37,7 @@ class ValeRepository {
         (SELECT id FROM estados_vale WHERE nombre = ?),
         ?, ?, ?,
         (SELECT id FROM tipos_autorizacion WHERE nombre = ?),
-        IF(?, DATE_ADD(NOW(), INTERVAL 24 HOUR), NULL)
+        ?
       )`,
       [
         placeholder, data.asesorId, data.tiendaId, data.valeOriginalId || null, data.fechaCreacion, data.horaCreacion,
@@ -50,7 +50,7 @@ class ValeRepository {
         // solo vienen poblados cuando el vale nace ya autorizado (el MOD- que
         // crea aprobarModificacion).
         data.talleresSolicitados || null, data.autorizadoPor || null, data.autorizadoEn || null, data.autorizacionTipo || null,
-        data.conVigencia ? 1 : 0
+        data.vigenciaHasta || null
       ],
       'vale:insert'
     );

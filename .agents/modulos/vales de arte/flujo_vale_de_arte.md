@@ -375,7 +375,7 @@ Los adjuntos de un vale (vectores, fuentes, etc.) viajan por **correo**, fuera d
               PENDIENTE_ASIGNACION  →  (flujo normal de la sección 2)
 ```
 
-- **Quién:** el permiso `vales.verificar_adjuntos` lo tienen los roles 4, 5, 9 y 10 (encargados de taller) y el 7 (asistente, solo Diseño). Cada uno actúa solo sobre **su** taller. No hay mensaje al rechazar.
+- **Quién:** el permiso `vales.verificar_adjuntos` lo tienen los roles 4, 5, 9 y 10 (encargados de taller) y el 7 (asistente, solo Diseño). Cada uno actúa solo sobre **su** taller. No hay mensaje al rechazar. **Verificar** pide confirmación en un modal («¿Estás seguro que recibiste los adjuntos del vale de arte antes de trabajar?»); rechazar también tiene su modal.
 - **Por taller:** un taller que rechaza no frena a los demás del mismo vale; el asesor responde **una vez por taller** rechazado.
 - **Respuesta del asesor** (permiso `vales.corregir`, solo el dueño del vale): botón «Adjuntos enviados al correo», con un mensaje editable de hasta 200 palabras, prellenado con «Adjuntos enviados al correo». El vale vuelve al encargado, que ve el mensaje y puede verificar o rechazar otra vez (el ciclo se repite). Mientras el asesor no responde, el encargado no tiene acciones; un supervisor que no es el dueño solo ve el estado, sin botón de respuesta.
 - **Plazo único de 24 h** desde el **primer** rechazo del taller (`vale_talleres.adjuntos_vence_en`): no se reinicia con rechazos posteriores. A las 6 h restantes el asesor recibe un aviso (una sola vez). Si vence con el taller todavía en `ADJUNTOS_RECHAZADOS`, se **borra el vale completo** (todos sus talleres, aunque otros ya trabajen) con sus archivos y se libera el cupo del supervisor; un vale `MOD-` deja el original intacto. Si el asesor ya respondió, no se borra, aunque el encargado rechace después de pasado el plazo (en ese caso el siguiente chequeo lo borra). Lo hace `adjuntosWatcher.js` (60 s), calcado de `vigenciaWatcher.js`.
@@ -459,7 +459,7 @@ tienen las mismas columnas para todos; cambian filtros, orden y acciones.
 | Encargado de taller | Por asignar · Asignado (en manos de diseñadores: asignado, en proceso o en pausa) · Mis asignaciones (los que él mismo se asignó) · Por revisar · Atrasados (+ **Por fusionar** si tiene `aprobar_general`), y un combobox para filtrar por diseñador. Muestra el estado **de la fila de su taller**, no el general. | Vales con fila `APROBADO` en su taller (con "Ver propuesta" de su diseñador), + sus fusiones si fusiona. |
 | Diseñador | Mis asignaciones (sin retraso) · Mis asignaciones (con atraso) · Vale en proceso (ve también `EN_PAUSA` y `EN_REVISION` en la lista). | Vales que su taller aprobó, con su propuesta. |
 | Administrador | Todo, con contadores generales (total, atrasados, recibidos hoy, pendientes de confirmación, por fusionar). | — |
-| Gerente | **No tiene buzón**: ver §6. | — |
+| Gerente | Buzón general en solo lectura (como el Administrador, sin acciones): ver §6. | — |
 
 Una solicitud de modificación aparece como **fila propia** (`MOD-…`) en el Buzón
 del asesor y del supervisor (contadores «Solicitando modificación» y «Por
@@ -501,9 +501,21 @@ entrega igual o posterior a hoy. Técnica y acabado son opcionales. Un vale es
 > Nota: esto reemplaza al antiguo límite diario por asesor
 > (`asesor_limites`), que ya no existe: crear nunca se pospone.
 
+### 5.1 Restricción de horario (fin de semana y mediodía)
+
+Sábado y domingo son días de descanso de los talleres: la restricción evita que se pidan entregas esos días y que los talleres reciban vales nuevos (no acumulan atraso por eso). Todo se calcula con la **hora de Guatemala (UTC-6)**, no con la del navegador.
+
+- **Fecha mínima de entrega:** hoy si la hora es anterior a las 12:00; desde las 12:00, mañana. Si ese día es sábado o domingo, el mínimo pasa al lunes (`fechaMinimaEntrega()` en `valeHelpers.js`). La fecha de entrega **nunca** puede ser sábado ni domingo. La fecha del evento no tiene restricción.
+- **Sábado y domingo:** no se puede crear un vale, solicitar una modificación, corregir ni reenviar a autorización (rige para asesores y para supervisores que crean vales propios). **Autorizar y aprobar una modificación sí se pueden el sábado** (el vale llega a los talleres ese mismo día) y **no el domingo**, cuando todo queda bloqueado. Rechazar se puede todos los días.
+- **Atraso:** no cambia; sigue contando días corridos.
+- **Al autorizar** (creación y modificación): si la fecha de entrega es anterior al mínimo de ese momento, sale un error y el supervisor debe **rechazar** el vale para que el asesor cambie la fecha. Hoy pasadas las 12:00: «La fecha de entrega ya no está disponible porque son pasadas las 12:00. Rechaza el vale para que el asesor modifique la fecha de entrega.»; fecha ya pasada: «La fecha de entrega ya pasó. Rechaza el vale…».
+- **Plazos de 24 h sin fin de semana:** el sábado y el domingo (días completos) no cuentan en los plazos de esperando autorización (y vale rechazado, que conserva ese vencimiento), modificación y adjuntos. Un vale creado el viernes a las 15:00 vence el lunes a las 15:00. El vencimiento se calcula al guardarlo (`sumarHorasHabiles`, `vencimiento24h()`) y los vigilantes, el «Vence en N h» y la cuenta regresiva leen ese valor. Los vales anteriores a este cambio conservan su vencimiento original.
+- **Calendario:** el formulario calcula el mínimo con UTC-6 y deshabilita sábados y domingos en la fecha de entrega; el servidor es quien hace cumplir la regla. Al **crear** un vale, la fecha de entrega queda deshabilitada hasta elegir al menos un taller y se borra si se quitan todos los talleres (en modificar y corregir los talleres ya vienen fijos).
+
 ## 6. Gerente y Administrador
 
-- **Gerente** (solo lectura, nunca ejecuta una acción sobre un vale): ve la
+- **`vales.ver`** abre el módulo y la API; además, todo rol con ese permiso que no tenga una vista propia (hoy el Gerente) ve el **Buzón general** con todos los vales, en solo lectura. Las acciones siguen exigiendo sus propios permisos.
+- **Gerente** (solo lectura, nunca ejecuta una acción sobre un vale): ve el **Buzón** general, la
   vista **Rendimiento** (KPIs y gráficas por estado, tienda y taller; ciclo de
   vida; atrasos), filtrable por tienda y ventana de tiempo, y **"Encontrar
   vale"**, que busca **un** vale por correlativo exacto (con sugerencias si no

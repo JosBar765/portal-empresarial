@@ -109,8 +109,7 @@ class ValePdfService {
     // Fusionar documentos PDF adjuntos al final (nunca se re-almacenan, solo se copian sus páginas)
     for (const doc of docsAdjuntos) {
       if (doc.mime_type !== 'application/pdf') continue;
-      await this._fusionarPdfExterno(pdfDoc, doc.ruta, doc.nombre_original, vale);
-    }
+      await this._fusionarPdfExterno(pdfDoc, doc.buffer || doc.ruta, doc.nombre_original, vale);
 
     // El checkbox de "ADJUNTOS" ya no se calcula: lo marca a mano el diseñador al
     // imprimir el vale (corrección #8) — siempre se dibuja vacío.
@@ -120,19 +119,23 @@ class ValePdfService {
     return Buffer.from(bytes);
   }
 
-  // Estricto: si el PDF adjunto no se puede leer, lanza y no se genera el PDF.
-  async _fusionarPdfExterno(pdfDoc, url, nombreParaLog, vale = {}) {
+// Estricto: si el PDF adjunto no se puede leer, lanza y no se genera el PDF.
+  // `origen`: URL a descargar o, si ya está en memoria, el Buffer.
+  async _fusionarPdfExterno(pdfDoc, origen, nombreParaLog, vale = {}) {
     const donde = `al PDF del vale ${vale.correlativo} (id ${vale.id})`;
+    const enMemoria = Buffer.isBuffer(origen);
     try {
-      const externo = await descargarPdfConReintentos(url, (e) => {
-        console.warn(`[ValePdfService] Reintentando "${nombreParaLog}" ${donde}: ${e.causa} · ${e.message} · intento ${e.intento}/${e.maxIntentos}`);
-      });
+      const externo = enMemoria
+        ? await PDFDocument.load(origen)
+        : await descargarPdfConReintentos(origen, (e) => {
+          console.warn(`[ValePdfService] Reintentando "${nombreParaLog}" ${donde}: ${e.causa} · ${e.message} · intento ${e.intento}/${e.maxIntentos}`);
+        });
       const paginas = await pdfDoc.copyPages(externo, externo.getPageIndices());
       paginas.forEach(p => pdfDoc.addPage(p));
     } catch (error) {
       const causa = error instanceof ErrorDescargaPdf ? error.causa : 'error inesperado al fusionar el PDF';
       const intento = error instanceof ErrorDescargaPdf ? `${error.intento}/${error.maxIntentos}` : '1/1';
-      console.error(`[ValePdfService] No se pudo adjuntar "${nombreParaLog}" ${donde}: ${causa} · url=${url} · intento ${intento} · ${error.message}`);
+      console.error(`[ValePdfService] No se pudo adjuntar "${nombreParaLog}" ${donde}: ${causa} · url=${enMemoria ? '(archivo en memoria)' : origen} · intento ${intento} · ${error.message}`);
       throw new ErrorDeNegocio(
         `No se pudo adjuntar el archivo "${nombreParaLog}" al PDF del vale. Inténtalo de nuevo en unos minutos; si el problema continúa, avisa al administrador.`,
         503
@@ -203,7 +206,7 @@ class ValePdfService {
         const doc = fila[j];
         const x = MARGIN + j * (anchoImg + gap);
         try {
-          const bytes = Buffer.from(await (await fetch(doc.ruta)).arrayBuffer());
+          const bytes = doc.buffer || Buffer.from(await (await fetch(doc.ruta)).arrayBuffer());
           let embedded;
           if (doc.mime_type === 'image/png') {
             embedded = await ctx.pdfDoc.embedPng(bytes);
@@ -241,8 +244,9 @@ class ValePdfService {
     const yTop = ctx.y;
     // Offset fijo UTC-6 — no depender de la zona horaria del sistema
     // operativo del proceso Node (mismo criterio que valeHelpers.js).
+    // `__fechaGeneracion` ('YYYY-MM-DD ...') la fija a mano; sin ella, ahora.
     const hoy = new Date(Date.now() - 6 * 60 * 60 * 1000);
-    const [anioHoy, mesHoy, diaHoy] = hoy.toISOString().slice(0, 10).split('-');
+    const [anioHoy, mesHoy, diaHoy] = (vale.__fechaGeneracion ? String(vale.__fechaGeneracion).slice(0, 10) : hoy.toISOString().slice(0, 10)).split('-');
     const fechaHoy = `${diaHoy}/${mesHoy}/${anioHoy}`;
 
     this._texto(ctx, 'VALE DE ARTE', MARGIN, yTop - 16, { size: 18, bold: true });

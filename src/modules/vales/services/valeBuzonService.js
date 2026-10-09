@@ -10,6 +10,7 @@ const valeTallerRepository = require('../repositories/valeTallerRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
+const reporteRepository = require('../repositories/reporteRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeVistoRepository = require('../repositories/valeVistoRepository');
@@ -194,7 +195,9 @@ class ValeBuzonService {
           : await this.obtenerBuzonDisenador(usuario, ventana, filtroContador);
         break;
       default:
-        resultado = { vales: [], contadores: {} };
+        // Cualquier otro rol con vales.ver (p. ej. el Gerente) ve el buzón general en solo lectura: sus acciones
+        // siguen exigiendo sus propios permisos de escritura.
+        resultado = this._buzonAdministrador(todosConTaller, ventana, filtroContador);
     }
 
     // "Atrasados" en general: a diferencia de filtroContador (mutuamente
@@ -268,8 +271,23 @@ class ValeBuzonService {
     } else {
       indiceInicio = Math.max(0, Number(filtros.offset) || 0);
     }
-    const pagina = valesOrdenados.slice(indiceInicio, indiceInicio + limit)
-      .map(v => ({ ...v, pipeline: calcularPipeline(v, { rolId: usuario.rolId }) }));
+    // Quién está detrás del vale (badge bajo el correlativo): al Supervisor, el asesor que lo creó; al Encargado de taller,
+    // el diseñador asignado a su taller.
+    const esSupervisor = usuario.rolId === ROL.SUPERVISOR;
+    const esEncargado = ROLES_ENCARGADO_TALLER.includes(usuario.rolId);
+    const paginaCruda = valesOrdenados.slice(indiceInicio, indiceInicio + limit);
+    const idsPersona = new Set();
+    paginaCruda.forEach(v => {
+      if (esSupervisor && v.asesor_id) idsPersona.add(v.asesor_id);
+      if (esEncargado && v._tipoRegistro !== 'FUSION' && v.disenador_id) idsPersona.add(v.disenador_id);
+    });
+    const nombres = new Map((await reporteRepository.listarNombres([...idsPersona])).map(u => [u.id, u.nombre]));
+    const personaDe = (v) => {
+      if (esSupervisor) return v.asesor_id ? { rol: 'asesor', nombre: nombres.get(v.asesor_id) || null } : null;
+      if (esEncargado && v._tipoRegistro !== 'FUSION') return { rol: 'disenador', nombre: v.disenador_id ? (nombres.get(v.disenador_id) || null) : null };
+      return null;
+    };
+    const pagina = paginaCruda.map(v => ({ ...v, persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId }) }));
     const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
     return {
       vales: pagina,

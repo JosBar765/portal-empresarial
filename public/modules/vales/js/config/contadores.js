@@ -82,3 +82,4 @@ CONTADORES_CONFIG[ROL.ADMINISTRADOR] = [ // vista de control general
   { key: 'aprobadoDepartamento', label: 'Por fusionar', filtro: 'aprobadoDepartamento' },
   { key: 'atrasados', label: 'Atrasados', alerta: true, filtro: 'atrasados' }
 ];
+CONTADORES_CONFIG[ROL.GERENTE] = CONTADORES_CONFIG[ROL.ADMINISTRADOR]; // solo lectura, misma vista general

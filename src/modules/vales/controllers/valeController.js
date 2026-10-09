@@ -1,44 +1,8 @@
 // src/modules/vales/controllers/valeController.js
 const valeService = require('../services/valeService');
-const { tipoRealCoincide } = require('../../../core/files/fileSignature');
-const { excedeElLimiteDePixeles } = require('../../../core/files/imagenDimensiones');
+const { validarArchivos } = require('../../../core/files/fileSignature');
 const { responderError, responderErrorInterno } = require('../../../core/utils/erroresHttp');
 const { idObligatorio, idOpcional } = require('../../../core/utils/validar');
-
-const ARCHIVO_MAX_BYTES = 5 * 1024 * 1024;
-
-function validarArchivos(files) {
-  const imagenes = (files && files.imagenes) || [];
-  const documentos = (files && files.documentos) || [];
-
-  for (const img of imagenes) {
-    // El Content-Type del multipart lo declara el propio cliente — nunca es
-    // suficiente por sí solo (un .svg/.html renombrado podría pasarlo). Se
-    // exige además que los primeros bytes del archivo coincidan de verdad
-    // con ese tipo.
-    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(img.mimetype) || !tipoRealCoincide(img.buffer, img.mimetype)) {
-      throw new Error(`Formato de imagen no soportado: ${img.originalname}`);
-    }
-    if (img.size > ARCHIVO_MAX_BYTES) {
-      throw new Error(`La imagen ${img.originalname} supera los 5MB permitidos.`);
-    }
-    // Un archivo pequeño puede declarar miles de megapíxeles ("bomba de
-    // descompresión") y agotar la memoria al decodificarlo para el PDF: se
-    // rechaza leyendo solo la cabecera, antes de guardar nada.
-    if (excedeElLimiteDePixeles(img.buffer, img.mimetype)) {
-      throw new Error(`La imagen ${img.originalname} tiene dimensiones demasiado grandes o no se puede leer (máximo 40 megapíxeles).`);
-    }
-  }
-  for (const doc of documentos) {
-    if (doc.mimetype !== 'application/pdf' || !tipoRealCoincide(doc.buffer, doc.mimetype)) {
-      throw new Error(`Formato de documento no soportado: ${doc.originalname} (solo se permite PDF).`);
-    }
-    if (doc.size > ARCHIVO_MAX_BYTES) {
-      throw new Error(`El documento ${doc.originalname} supera los 5MB permitidos.`);
-    }
-  }
-  return { imagenes, documentos };
-}
 
 class ValeController {
   async catalogos(req, res) {
