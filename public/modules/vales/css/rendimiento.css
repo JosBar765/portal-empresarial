@@ -430,3 +430,35 @@
   border-top: 2px solid var(--color-border);
   font-weight: 700;
 }
+
+/* Celulares: las tablas del reporte pasan a tarjetas (una por fila), con la etiqueta de cada columna
+   tomada de `data-label`; la primera celda (nombre) hace de título. */
+@media (max-width: 640px) {
+  .rend-tabla-wrap { overflow-x: visible; }
+  .rend-tabla, .rend-tabla tbody, .rend-tabla tfoot, .rend-tabla tr { display: block; width: 100%; }
+  .rend-tabla thead {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap;
+  }
+  .rend-tabla tbody tr, .rend-tabla tfoot tr {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    margin-bottom: 10px;
+    padding: 4px 14px;
+  }
+  .rend-tabla tbody tr:hover { background: var(--color-surface); }
+  .rend-tabla th, .rend-tabla td {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 9px 0; border-bottom: 1px solid var(--color-border); text-align: right;
+  }
+  .rend-tabla tbody tr th, .rend-tabla tbody tr td:first-child { font-weight: 700; text-align: left; justify-content: flex-start; }
+  .rend-tabla td::before {
+    content: attr(data-label);
+    font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--color-text-secondary); text-align: left; flex-shrink: 0;
+  }
+  .rend-tabla td:not([data-label])::before { content: none; }
+  .rend-tabla tr > :last-child { border-bottom: none; }
+  .rend-celda-barra { min-width: 0; }
+  .rend-toggle-tabla { min-height: 44px; }
+}

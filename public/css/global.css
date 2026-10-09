@@ -377,3 +377,38 @@ html {
   background: var(--color-warning);
   animation: toastProgress linear forwards;
 }
+
+/* ============================================================
+   Base móvil (celulares): solo aplica a punteros táctiles / pantallas
+   chicas; escritorio y tablet no cambian.
+   ============================================================ */
+:root {
+  --tap-min: 44px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+@media (pointer: coarse) {
+  button, a, select, summary, [role="button"], [role="tab"], label { touch-action: manipulation; }
+  input[type="checkbox"], input[type="radio"] { min-width: 20px; min-height: 20px; }
+}
+
+@media (max-width: 640px) {
+  /* 16 px evita el zoom automático de iOS al enfocar un campo. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  select,
+  textarea { font-size: 16px; }
+  body { overflow-x: hidden; }
+}
+
+@media (max-width: 640px) {
+  .modal-close { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .modal-overlay input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  .modal-overlay select,
+  .modal-overlay .select-agregar-taller { min-height: 44px; }
+  .modal-footer { padding-bottom: max(14px, var(--safe-bottom)); }
+}

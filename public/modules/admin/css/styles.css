@@ -879,3 +879,44 @@
 @media (max-width: 640px) {
   .crear-vale-seccion .form-grid { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   Celulares (≤640 px): tablas a tarjetas y objetivos táctiles de 44 px.
+   ============================================================ */
+@media (max-width: 640px) {
+  .header-back, .sidebar-toggle-mobile, .notif-bell { min-width: 44px; min-height: 44px; justify-content: center; align-items: center; margin-right: 0; }
+  .sidebar-item, .menu-cascada-trigger, .menu-cascada-item, .btn, .btn--sm, .btn-icon,
+  #buscar-usuarios, .filtro-tienda, select, input:not([type="checkbox"]):not([type="radio"]) { min-height: 44px; }
+  .btn-icon { min-width: 44px; }
+
+  .data-table, .data-table tbody, .data-table tr { display: block; width: 100%; }
+  .data-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .data-table tbody tr {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    margin-bottom: 12px;
+    padding: 4px 14px;
+    box-shadow: var(--shadow-sm);
+  }
+  .data-table tbody tr:hover td { background: transparent; }
+  .data-table td {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid var(--color-border); text-align: right; white-space: normal;
+  }
+  .data-table td:last-child { border-bottom: none; }
+  .data-table td::before {
+    content: attr(data-label);
+    font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--color-text-secondary); text-align: left; flex-shrink: 0;
+  }
+  .data-table td:not([data-label])::before, .data-table td.acciones-cell::before { content: none; }
+  .data-table td.acciones-cell { justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+  .data-table td .tabla-secundaria { text-align: right; }
+}
+
+@media (max-width: 640px) {
+  .data-table td { overflow-wrap: anywhere; min-width: 0; }
+  .data-table td > * { min-width: 0; max-width: 100%; }
+  .tabla-wrapper { overflow-x: visible; }
+}

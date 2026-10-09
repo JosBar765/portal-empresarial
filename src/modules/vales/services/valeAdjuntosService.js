@@ -10,7 +10,7 @@ const valeMutex = require('./valeMutex');
 const valeTallerService = require('./valeTallerService');
 const valeCreacionService = require('./valeCreacionService');
 const {
-  ESTADOS_TALLER, esValeDeModificacion, enriquecer, registrarHistorial, requerirVale, puedeActuarComoAsesor
+  ESTADOS_TALLER, esValeDeModificacion, vencimiento24h, enriquecer, registrarHistorial, requerirVale, puedeActuarComoAsesor
 } = require('./valeHelpers');
 
 const MAX_PALABRAS_RESPUESTA = 200;
@@ -63,7 +63,7 @@ class ValeAdjuntosService {
       if (!ESTADOS_POR_VERIFICAR.includes(fila.estado)) {
         throw new Error('Este vale no está esperando que verifiques sus adjuntos en tu taller.');
       }
-      await valeTallerRepository.rechazarAdjuntos(fila.id);
+      await valeTallerRepository.rechazarAdjuntos(fila.id, vencimiento24h());
       const nombre = await this._nombreTaller(fila.taller_id);
       await registrarHistorial(valeId, usuario.id, fila.taller_id, fila.estado, ESTADOS_TALLER.ADJUNTOS_RECHAZADOS,
         `Encargado de ${nombre} rechazó el vale: no recibió los adjuntos`);
