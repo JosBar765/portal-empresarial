@@ -134,7 +134,7 @@ function abrirModalResponderAdjuntos(vale, adjunto, cerrarPadre) {
     const n = textarea.value.trim().split(/\s+/).filter(Boolean).length;
     contador.textContent = `${n}/${MAX_PALABRAS} palabras`;
     contador.classList.toggle('is-excedido', n > MAX_PALABRAS);
-    btn.disabled = n > MAX_PALABRAS;
+    btn.disabled = n === 0 || n > MAX_PALABRAS;
   };
   textarea.addEventListener('input', actualizar);
   actualizar();

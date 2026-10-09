@@ -14,11 +14,11 @@ const {
 } = require('./valeHelpers');
 
 const MAX_PALABRAS_RESPUESTA = 200;
-const MENSAJE_POR_DEFECTO = 'Adjuntos enviados al correo';
 const ESTADOS_POR_VERIFICAR = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
 
 function validarRespuesta(mensaje) {
-  const texto = String(mensaje || '').trim() || MENSAJE_POR_DEFECTO;
+  const texto = String(mensaje || '').trim();
+  if (!texto) throw new Error('Escribe un mensaje para el taller.');
   const palabras = texto.split(/\s+/).filter(Boolean).length;
   if (palabras > MAX_PALABRAS_RESPUESTA) throw new Error(`El mensaje no puede tener más de ${MAX_PALABRAS_RESPUESTA} palabras.`);
   if (texto.length > 2000) throw new Error('El mensaje es demasiado largo. Resúmelo un poco.');

@@ -355,7 +355,10 @@ class ValeController {
 
   async responderAdjuntos(req, res) {
     try {
-      const vale = await valeService.responderAdjuntos(req.user, idObligatorio(req.params.id), idObligatorio(req.body && req.body.tallerId, 'Taller'), req.body && req.body.mensaje);
+      let tallerId = null;
+      try { tallerId = idOpcional(req.body && req.body.tallerId, 'Taller'); } catch { /* inválido = no indicado */ }
+      if (tallerId === null) throw new Error('Indica a qué taller respondes.');
+      const vale = await valeService.responderAdjuntos(req.user, idObligatorio(req.params.id), tallerId, req.body && req.body.mensaje);
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
