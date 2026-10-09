@@ -6,11 +6,19 @@ import { obtenerDisenadoresAsignables, asignarDisenador, obtenerDetalleVale, rev
 import { escapeHtml } from '../utils/formato.js';
 import { cargarBuzon } from '../views/buzon.js';
 
-// Lista de diseñadores asignables, con la opción "(yo mismo)" para un encargado
+// Lista de diseñadores asignables, con la opción "(YO)" para un encargado
 // — quien revisa una propuesta también puede reasignarse el trabajo a sí
 // mismo.
+// Un <option> no admite HTML: la negrita se logra con las letras en negrita de Unicode (sans-serif bold).
+const negrita = (texto) => [...texto].map((c) => {
+  const k = c.charCodeAt(0);
+  if (k >= 65 && k <= 90) return String.fromCodePoint(0x1D5D4 + k - 65);
+  if (k >= 97 && k <= 122) return String.fromCodePoint(0x1D5EE + k - 97);
+  return c;
+}).join('');
+
 // Texto del combobox: nombre y asignaciones vigentes del diseñador.
-const etiquetaDisenador = (t) => (t.asignaciones == null ? t.nombre : `${t.nombre} (Asignaciones actuales: ${t.asignaciones})`);
+const etiquetaDisenador = (t) => (t.asignaciones == null ? t.nombre : `${t.nombre} (${negrita('Asignaciones actuales')}: ${t.asignaciones})`);
 
 export async function cargarDisenadoresAsignables() {
   let disenadores = [];
@@ -19,7 +27,7 @@ export async function cargarDisenadoresAsignables() {
   } catch { /* se muestra select vacío si falla */ }
 
   if (ROLES_ENCARGADO_TALLER.includes(state.user.rolId) && !disenadores.some(t => t.id === state.user.id)) {
-    disenadores = [{ id: state.user.id, nombre: `${state.user.nombre} (yo mismo)` }, ...disenadores];
+    disenadores = [{ id: state.user.id, nombre: `${state.user.nombre} (YO)` }, ...disenadores];
   }
   return disenadores;
 }

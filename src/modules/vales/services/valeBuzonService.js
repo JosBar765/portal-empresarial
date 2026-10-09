@@ -641,7 +641,7 @@ class ValeBuzonService {
       : await usuarioValeRepository.listarDisenadoresPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
     const conCarga = await Promise.all(lista.map(async d => ({ ...d, asignaciones: await this._contarAsignacionesVigentes(d.id) })));
     if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId) && !conCarga.some(d => d.id === usuario.id)) {
-      conCarga.unshift({ id: usuario.id, nombre: `${usuario.nombre} (yo mismo)`, asignaciones: await this._contarAsignacionesVigentes(usuario.id) });
+      conCarga.unshift({ id: usuario.id, nombre: `${usuario.nombre} (YO)`, asignaciones: await this._contarAsignacionesVigentes(usuario.id) });
     }
     return conCarga;
   }
