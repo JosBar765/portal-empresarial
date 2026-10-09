@@ -20,6 +20,7 @@ export const state = {
   sort: { key: null, dir: null }, // ídem el orden por columna
   socket: null,
   cargaTrabajoModal: null,
+  conversacionAbierta: null, // conversación del rechazo abierta (overlay, valeId, refrescar) para actualizarla en vivo
   historialModal: null,
   accionesEnCurso: new Set(),
   // `cursor` es el id del último vale ya cargado (no una posición numérica),

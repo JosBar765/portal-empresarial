@@ -55,6 +55,9 @@ export function initSocket() {
     // notificación duplicada. Se sigue refrescando el buzón igual, solo se
     // omite el aviso.
     if (data.tipo === 'CORREGIDO') avisarCambioEnModalAutorizar(data.valeId);
+    if (['MENSAJE_RECHAZO', 'ADJUNTOS_VERIFICADOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'].includes(data.tipo) && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId) {
+      state.conversacionAbierta.refrescar();
+    }
     const esPropiaAccion = data.actorId != null && data.actorId === state.user.id;
     if (!esPropiaAccion) {
       const esAlerta = data.nivel === 'alerta';

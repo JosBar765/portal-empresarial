@@ -7,6 +7,7 @@ const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const documentoRepository = require('../repositories/documentoRepository');
 const historialRepository = require('../repositories/historialRepository');
+const valeMensajeRepository = require('../repositories/valeMensajeRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const {
@@ -83,7 +84,19 @@ class ValeDetalleService {
     // modificación — se adjunta solo cuando aplica, reusando la misma
     // consulta que ya usa aprobarModificacion() en valeConfirmacionService.
     const adjuntos = await this._adjuntosVisibles(usuario, talleresConNombre);
-    return { ...enriquecer(vale), talleres: talleresConNombre, adjuntos, propuestas, documentos, historial: historialVisible };
+    // Registro de las conversaciones del rechazo (cerradas o no): solo con el permiso de historial; el buzón ya no las muestra.
+    const conversaciones = (usuario.permissions || []).includes('vales.ver_historial') ? await this._registroConversaciones(valeId) : [];
+    return { ...enriquecer(vale), talleres: talleresConNombre, adjuntos, propuestas, documentos, historial: historialVisible, conversaciones };
+  }
+
+  async _registroConversaciones(valeId) {
+    const mensajes = await valeMensajeRepository.listarPorVale(valeId);
+    const porTaller = new Map();
+    for (const m of mensajes) {
+      if (!porTaller.has(m.taller_id)) porTaller.set(m.taller_id, { taller_id: m.taller_id, taller: m.taller, mensajes: [] });
+      porTaller.get(m.taller_id).mensajes.push({ id: m.id, lado: m.lado, autor: m.autor, mensaje: m.mensaje, creado_en: m.creado_en });
+    }
+    return [...porTaller.values()];
   }
 
   // Adjuntos reclamados por taller. Encargado: solo su taller (incluye VERIFICANDO); asesor/supervisor: sin VERIFICANDO;

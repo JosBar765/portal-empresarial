@@ -47,6 +47,35 @@ function formatFechaHora(valor) {
   return `${d}/${m}/${y}${hm ? ' ' + hm : ''}`;
 }
 
+// Parte el texto de una celda en líneas que caben en `maxWidth`: por palabras y, si una palabra sola no cabe
+// (p. ej. un texto sin espacios), por caracteres. Si pasa de `maxLineas`, corta con «…» en la última.
+function partirEnLineas(texto, font, size, maxWidth, maxLineas) {
+  const ancho = (t) => font.widthOfTextAtSize(t, size);
+  const lineas = [];
+  let actual = '';
+  const cerrarLinea = () => { lineas.push(actual); actual = ''; };
+  for (const palabra of String(texto ?? '').split(/\s+/).filter(Boolean)) {
+    let resto = palabra;
+    while (ancho(resto) > maxWidth) {
+      if (actual) cerrarLinea();
+      let n = resto.length;
+      while (n > 1 && ancho(resto.slice(0, n)) > maxWidth) n -= 1;
+      lineas.push(resto.slice(0, n));
+      resto = resto.slice(n);
+    }
+    const tentativa = actual ? `${actual} ${resto}` : resto;
+    if (actual && ancho(tentativa) > maxWidth) { cerrarLinea(); actual = resto; } else { actual = tentativa; }
+  }
+  if (actual) lineas.push(actual);
+  if (!lineas.length) return ['-'];
+  if (lineas.length <= maxLineas) return lineas;
+  const visibles = lineas.slice(0, maxLineas);
+  let ultima = visibles[maxLineas - 1];
+  while (ultima.length > 1 && ancho(`${ultima}...`) > maxWidth) ultima = ultima.slice(0, -1);
+  visibles[maxLineas - 1] = `${ultima}...`;
+  return visibles;
+}
+
 function wrapText(text, font, size, maxWidth) {
   const words = String(text || '').split(/\s+/).filter(Boolean);
   const lines = [];
@@ -283,24 +312,44 @@ class ValePdfService {
   // con ese mismo patrón de legibilidad.
   _dibujarSeccionCampos(ctx, titulo, filas) {
     const altoTitulo = 24;
-    const altoFila = 30;
-    const alto = altoTitulo + filas.length * altoFila;
+    const altoMinimoFila = 30;
+    const MAX_LINEAS = 4;
+    // Cada valor se parte en líneas dentro del ancho de su celda; la fila crece según la celda más alta, así un texto
+    // largo no se encima con el de la celda vecina.
+    const preparadas = filas.map(fila => {
+      let maxLineasFila = 1;
+      let tamano = 9;
+      const celdas = fila.map(campo => {
+        const w = CONTENT_WIDTH * campo.proporcion;
+        if (!campo.etiqueta) return { campo, lineas: [] };
+        const texto = campo.valor == null || campo.valor === '' ? '-' : String(campo.valor);
+        let size = 9;
+        let lineas = partirEnLineas(texto, ctx.font, size, w - 8, MAX_LINEAS);
+        if (lineas.length > 2) { size = 8; lineas = partirEnLineas(texto, ctx.font, size, w - 8, MAX_LINEAS); }
+        maxLineasFila = Math.max(maxLineasFila, lineas.length);
+        tamano = Math.min(tamano, size);
+        return { campo, lineas, size };
+      });
+      const interlineado = tamano + 2;
+      return { celdas, interlineado, alto: Math.max(altoMinimoFila, 16 + maxLineasFila * interlineado) };
+    });
+    const alto = altoTitulo + preparadas.reduce((s, f) => s + f.alto, 0);
     this._asegurarEspacio(ctx, alto + 14);
 
     this._texto(ctx, titulo, MARGIN, ctx.y - 10, { size: 10.5, bold: true });
     ctx.y -= altoTitulo;
 
-    filas.forEach(fila => {
+    preparadas.forEach(fila => {
       let x = MARGIN;
-      fila.forEach(campo => {
+      fila.celdas.forEach(({ campo, lineas, size }) => {
         const w = CONTENT_WIDTH * campo.proporcion;
         if (campo.etiqueta) {
           this._texto(ctx, campo.etiqueta, x, ctx.y - 7, { size: 6.5, bold: true, color: COLOR_ETIQUETA });
-          this._texto(ctx, campo.valor ?? '-', x, ctx.y - 20, { size: 9 });
+          lineas.forEach((linea, i) => this._texto(ctx, linea, x, ctx.y - 20 - i * fila.interlineado, { size }));
         }
         x += w;
       });
-      ctx.y -= altoFila;
+      ctx.y -= fila.alto;
       ctx.page.drawLine({
         start: { x: MARGIN, y: ctx.y }, end: { x: MARGIN + CONTENT_WIDTH, y: ctx.y },
         thickness: 0.75, color: COLOR_DIVISOR
