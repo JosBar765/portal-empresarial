@@ -4,7 +4,7 @@ import { htmlSelectorTalleres, wireSelectorTalleres, validarTalleresSeleccionado
 import { htmlCampoFecha, wireCampoFecha, validarCampoFecha } from '../components/datepicker.js';
 import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dropzone.js';
 import { validarCamposNativos, wireLimpiezaValidacionInline, enfocarPrimerCampoInvalido } from '../components/validacion.js';
-import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js';
+import { hoyMedianoche, sumarDiaLocal, parseIsoLocal, fechaMinimaEntregaGT } from '../utils/fechas.js';
 import { escapeHtml } from '../utils/formato.js';
 import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega, obtenerDetalleVale } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
@@ -152,8 +152,12 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
 
   if (!esMod) wireSelectorTalleres(overlay, tallerSeleccionados);
   wireAvisoUrgente(overlay);
+  const minEntrega = fechaMinimaEntregaGT();
+  const campoEntrega = overlay.querySelector('[data-date-field="fechaEntrega"]').closest('.form-field');
+  campoEntrega.insertAdjacentHTML('beforeend', `<p class="form-nota">Entrega mínima: ${String(minEntrega.getDate()).padStart(2, '0')}/${String(minEntrega.getMonth() + 1).padStart(2, '0')}. Pasadas las 12:00 no se pide para hoy y no hay entregas en sábado ni domingo.</p>`);
   const apiFechaEntrega = wireCampoFecha(overlay, 'fechaEntrega', {
-    minDate: hoyMedianoche(),
+    minDate: minEntrega,
+    sinFinDeSemana: true,
     capacidad: {
       obtenerTalleresIds: () => [...tallerSeleccionados],
       cargarMes: obtenerCapacidadEntrega
@@ -163,6 +167,13 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
   overlay.querySelector('[name="fechaEntrega"]').addEventListener('change', () => {
     apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || hoyMedianoche(), 1));
   });
+  // Al crear, la entrega espera a que haya al menos un taller (si se quitan todos, se borra).
+  if (modo === 'crear') {
+    const sincronizarEntrega = () => apiFechaEntrega.setEnabled(tallerSeleccionados.size > 0, 'Elige primero un taller');
+    overlay.querySelector('.select-agregar-taller').addEventListener('change', sincronizarEntrega);
+    overlay.querySelector('.taller-tags').addEventListener('click', sincronizarEntrega);
+    sincronizarEntrega();
+  }
   wireContadorCampo(overlay, 'descripcion', DESCRIPCION_MAX_CARACTERES);
   limitarTelefono(overlay.querySelector('[name="clienteTelefono"]'));
   const getImagenes = wireDropzone(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
@@ -256,8 +267,10 @@ function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEve
   const [pais, ...numero] = (vale.cliente_telefono || '').split(' ');
   if (pais) form.querySelector('[name="clienteTelefonoPais"]').value = pais;
   form.querySelector('[name="clienteTelefono"]').value = numero.join(' ');
-  apiFechaEntrega.setDate(parseIsoLocal(String(vale.fecha_entrega).slice(0, 10)), { silent: true });
-  apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate(), 1));
+  // Una entrega ya no disponible (pasada o fin de semana) se limpia para que se elija otra.
+  const entrega = parseIsoLocal(String(vale.fecha_entrega).slice(0, 10));
+  if (apiFechaEntrega.esValida(entrega)) apiFechaEntrega.setDate(entrega, { silent: true });
+  apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || fechaMinimaEntregaGT(), 1));
   apiFechaEvento.setDate(parseIsoLocal(String(vale.fecha_evento).slice(0, 10)), { silent: true });
   form.querySelector('[name="descripcion"]').dispatchEvent(new Event('input'));
   form.querySelector('[name="fechaEntrega"]').dispatchEvent(new Event('change', { bubbles: true }));

@@ -19,7 +19,7 @@ const valeVistoService = require('./valeVistoService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
 const {
-  ESTADOS, ROL, hoyISO, horaActual, enriquecer, registrarHistorial,
+  ESTADOS, ROL, hoyISO, horaActual, vencimiento24h, enriquecer, registrarHistorial,
   esAdministrador, esValeDeModificacion, requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor
 } = require('./valeHelpers');
 
@@ -33,6 +33,7 @@ class ValeModificacionService {
       const previo = await idempotencyRepository.buscar(key);
       if (previo) return previo.resultado;
 
+      valeCreacionService.exigirDiaHabil('solicitar modificaciones');
       if (!puedeActuarComoAsesor(usuario)) throw new Error('Solo un asesor o un supervisor de ventas puede solicitar una modificación.');
       const original = await requerirVale(valeId);
       assertPropioDelAsesor(usuario, original);
@@ -82,7 +83,7 @@ class ValeModificacionService {
         subidos.push(pdf.url);
         modId = await valeModificacionRepository.crear({
           original, datos, correlativo, fechaCreacion: fecha, horaCreacion: hora, pdfUrl: pdf.url,
-          documentos, usuarioId: usuario.id, talleresIds
+          documentos, usuarioId: usuario.id, talleresIds, vigenciaHasta: vencimiento24h()
         });
       } catch (error) {
         await valeCorreccionService._borrarDeStorage(subidos);
@@ -111,6 +112,7 @@ class ValeModificacionService {
   // `valeId` es el del vale MOD-: se autoriza como cualquier vale pendiente y el original queda RECIBIDO.
   async aprobarModificacion(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
+      valeCreacionService.exigirNoDomingo('aprobar modificaciones');
       const mod = await requerirVale(valeId);
       if (!esValeDeModificacion(mod)) throw new Error('Este vale no es una solicitud de modificación.');
       if (mod.estado === ESTADOS.MODIFICADO) {
@@ -124,6 +126,7 @@ class ValeModificacionService {
         if (![ESTADOS.RECIBIDO, ESTADOS.PENDIENTE_CONFIRMACION].includes(original.estado)) {
           throw new Error('El vale original ya no está en un estado que permita aprobar la modificación.');
         }
+        valeCreacionService.exigirFechaAutorizable(mod);
         await valeVistoService.exigirVisto(usuario, mod.id);
         const talleresIds = (mod.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
 
