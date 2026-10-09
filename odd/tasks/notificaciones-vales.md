@@ -17,13 +17,14 @@ Que cada actor reciba, en aviso y en tiempo real, los cambios de estado que le i
 
 ## Tareas
 - [x] T1 · Asesor: aviso en `comenzar`; aviso en `aprobar` (taller) siempre; quitar al asesor de `cancelar`; fusión avisa al asesor.
-- [ ] T2 · Supervisor y fusión: corrección siempre al supervisor; fusión a supervisores (`supervisor:<id>`) y a `vales:fusion`.
+- [x] T2 · Supervisor y fusión: corrección siempre al supervisor; fusión a supervisores (`supervisor:<id>`) y a `vales:fusion`.
 - [ ] T3 · Taller y diseñador: atraso con `EN_PAUSA` (`atrasoWatcher.js`); aprobación al `disenador:<id>` de la fila; autoaprobación con una sola notificación.
 - [ ] T4 · Redacción de pausar, reanudar y cancelar.
 - [ ] T5 · Documentación (`flujo_vale_de_arte.md` §8, `CLAUDE.md` si aplica) y verificación de punta a punta con script contra la BD de desarrollo.
 
 ## Verificación y evidencia
 - T1: eslint sin errores; script `nt.js` contra la BD de desarrollo: comenzar notifica al asesor; aprobar un taller (vale de 2 talleres) notifica al asesor (1 fila); cancelar proceso: asesor sin fila, taller con fila alerta; fusión mantiene el aviso al asesor.
+- T2: eslint sin errores; `nt.js`: comenzar y aprobar de un taller notifican al supervisor del asesor (13); corregir un vale RECHAZADO notifica al supervisor; la fusión notifica al asesor, al supervisor y a los otros con `vales.aprobar_general` (11 y 25), con el actor (5) excluido.
 
 ## Ruta por tarea
 (pendiente: se registra al ejecutar cada una)

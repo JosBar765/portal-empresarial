@@ -22,6 +22,12 @@ const {
 } = require('./valeHelpers');
 
 class ValeTallerService {
+  // Salas del asesor del vale y de sus supervisores.
+  async _salasEquipo(asesorId) {
+    const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(asesorId);
+    return [`asesor:${asesorId}`, ...supervisores.map(s => `supervisor:${s.id}`)];
+  }
+
   // Resuelve la fila de vale_talleres sobre la que un encargado puede
   // actuar para un vale dado: la de SU PROPIO taller (nunca confía en un
   // tallerId del cliente, salvo para el administrador, que no tiene taller
@@ -98,8 +104,8 @@ class ValeTallerService {
       });
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, `${etiquetaActorTaller(usuario)} marcó el vale como en proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
-      // Se enteran el taller y el asesor (su pantalla pasa al paso 3).
-      valeEvents.notificar({ vale: actualizado, accion: 'tomado en proceso', actor: usuario.nombre, actorId: usuario.id, salas: [`taller:${fila.taller_id}`, `asesor:${actualizado.asesor_id}`] });
+      // Se enteran el taller y el equipo de ventas (su pantalla pasa al paso 3).
+      valeEvents.notificar({ vale: actualizado, accion: 'tomado en proceso', actor: usuario.nombre, actorId: usuario.id, salas: [`taller:${fila.taller_id}`, ...await this._salasEquipo(actualizado.asesor_id)] });
       return enriquecer(actualizado);
     });
   }
@@ -274,8 +280,8 @@ class ValeTallerService {
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO, accionHistorial, fila.disenador_id);
       await this._recalcularEstadoVale(valeId, usuario.id);
       const actualizado = await valeRepository.obtenerPorId(valeId);
-      // El asesor se entera siempre; quien fusiona, solo si el vale queda esperando fusión.
-      const targets = [`taller:${fila.taller_id}`, `asesor:${vale.asesor_id}`, ...(actualizado.estado === ESTADOS.APROBADO_DEPARTAMENTO ? [SALA_FUSION] : [])];
+      // El equipo de ventas se entera siempre; quien fusiona, solo si el vale queda esperando fusión.
+      const targets = [`taller:${fila.taller_id}`, ...await this._salasEquipo(vale.asesor_id), ...(actualizado.estado === ESTADOS.APROBADO_DEPARTAMENTO ? [SALA_FUSION] : [])];
       valeEvents.notificar({ vale: actualizado, accion: 'aprobado (taller)', actor: usuario.nombre, actorId: usuario.id, salas: targets });
       return enriquecer(actualizado);
     }
@@ -394,7 +400,7 @@ class ValeTallerService {
       await registrarHistorial(valeId, usuario.id, null, vale.estado, ESTADOS.PENDIENTE_CONFIRMACION,
         'Se adjuntó la fusión final del trabajo de los talleres y se aprobó el vale');
       const actualizado = await valeRepository.obtenerPorId(valeId);
-      valeEvents.notificar({ vale: actualizado, accion: 'aprobado (fusión general)', actor: usuario.nombre, actorId: usuario.id, salas: [`asesor:${vale.asesor_id}`] });
+      valeEvents.notificar({ vale: actualizado, accion: 'aprobado (fusión general)', actor: usuario.nombre, actorId: usuario.id, salas: [SALA_FUSION, ...await this._salasEquipo(vale.asesor_id)] });
       const resultado = enriquecer(actualizado);
       await idempotencyRepository.registrar(key, 'vales.aprobarGeneral', resultado);
       return resultado;
