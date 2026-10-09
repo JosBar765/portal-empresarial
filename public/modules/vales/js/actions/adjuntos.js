@@ -251,7 +251,7 @@ export function abrirModalAdjuntosPendientes(vale) {
         <div class="rechazo-cab"><strong>${escapeHtml(a.taller)}</strong><span class="chip-estado chip-estado--info">Esperando revisión del taller</span></div>
         <p class="rechazo-texto">Ya avisaste al taller. Tu mensaje:</p>
         <p class="mensaje-adjuntos">${escapeHtml(a.mensaje || MENSAJE_POR_DEFECTO)}</p>
-        <div class="rechazo-acciones"><button class="btn btn--ghost btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Ver conversación</button></div>
+        ${puedeResponder ? `<div class="rechazo-acciones"><button class="btn btn--ghost btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Ver conversación</button></div>` : ''}
       </li>`;
     }
     const resta = tiempoRestante(a.vence_en);
@@ -259,10 +259,10 @@ export function abrirModalAdjuntosPendientes(vale) {
       <div class="rechazo-cab"><strong>${escapeHtml(a.taller)}</strong><span class="chip-estado chip-estado--alerta">Rechazado por el taller</span></div>
       <p class="rechazo-texto">Atiende el mensaje del taller. Si no se resuelve, el vale se elimina${a.vence_en ? ` el ${escapeHtml(formatearFechaHora(a.vence_en))}` : ''}.</p>
       ${resta ? `<span class="chip-estado chip-estado--tiempo"><ion-icon name="time-outline" aria-hidden="true"></ion-icon>Quedan ${escapeHtml(resta)}</span>` : ''}
-      <div class="rechazo-acciones">
-        <button class="btn btn--primary btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> ${puedeResponder ? 'Leer y responder' : 'Ver conversación'}</button>
-        ${puedeResponder ? `<button class="btn btn--ghost btn--sm" data-responder="${Number(a.taller_id)}"><ion-icon name="checkmark-done-outline"></ion-icon> Ya lo atendí</button>` : ''}
-      </div>
+      ${puedeResponder ? `<div class="rechazo-acciones">
+        <button class="btn btn--primary btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Leer y responder</button>
+        <button class="btn btn--ghost btn--sm" data-responder="${Number(a.taller_id)}"><ion-icon name="checkmark-done-outline"></ion-icon> Ya lo atendí</button>
+      </div>` : ''}
     </li>`;
   }).join('');
 
