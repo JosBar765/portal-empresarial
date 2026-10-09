@@ -28,6 +28,9 @@ Que cada actor reciba, en aviso y en tiempo real, los cambios de estado que le i
 - T3: eslint sin errores; `natraso.js` (vale con taller EN_PAUSA, vigilante invocado con repositorio acotado a ese vale): avisa al encargado (5), asistente (11) y diseñador (97), además de asesor y supervisor; `nt.js`: aprobar notifica a `disenador:<id>` de la fila (97); autoaprobación genera una sola fila por persona (se omite el aviso de «entregado» y queda el de aprobación).
 - T4: eslint sin errores; `nt.js` 30/30: textos «<nombre> pausó/reanudó/canceló su proceso» sin «fue» ni «por»; vales de prueba eliminados. `valeAdjuntosService.js` (verificar adjuntos) corregido en T5 con `texto`.
 
+- Navegador (2026-10-09, BD de desarrollo, un actor a la vez con acciones disparadas por script): asesor (carteles y fila en vivo: asignar, comenzar con paso 2→3, entregar, aprobación de un taller con contador «1 de 2», autoaprobación con un solo cartel, fusión; sin carteles de pausar/reanudar/cancelar), supervisor (los mismos eventos, filas en vivo, «corregido» de un vale RECHAZADO), encargado de Diseño (alerta roja de atraso con el proceso en pausa), diseñador (aprobación de su propuesta), asistente como otro con `vales.aprobar_general` (el vale aparece en su cola y sale al fusionarse, con cartel), gerente (cero carteles y cero filas guardadas). Administrador: la BD de desarrollo no le da `vales.ver`, así que no abre el módulo y no recibe nada (0 filas guardadas).
+- Decisión del usuario: en un vale de varios talleres el paso general lo marca el taller más atrasado; no se cambia.
+
 ## Ruta por tarea
 T1–T4: escritor delegado (varios archivos en `valeTallerService.js`, watcher y corrección). T5: inline (doc y una línea de redacción).
 
