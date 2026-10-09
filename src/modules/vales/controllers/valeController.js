@@ -1,6 +1,6 @@
 // src/modules/vales/controllers/valeController.js
 const valeService = require('../services/valeService');
-const { validarArchivos } = require('../../../core/files/fileSignature');
+const { validarArchivos, tipoRealCoincide } = require('../../../core/files/fileSignature');
 const { responderError, responderErrorInterno } = require('../../../core/utils/erroresHttp');
 const { idObligatorio, idOpcional } = require('../../../core/utils/validar');
 
