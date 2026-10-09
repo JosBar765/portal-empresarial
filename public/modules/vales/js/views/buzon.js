@@ -13,7 +13,7 @@ import { cargarEncontrarVale } from './encontrarVale.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/disenador.js';
-import { abrirModalVerificarAdjuntos, abrirModalRechazarAdjuntos, abrirModalMensajeAdjuntos, abrirModalAdjuntosPendientes } from '../actions/adjuntos.js';
+import { abrirModalVerificarAdjuntos, abrirModalRechazarAdjuntos, abrirModalConversacion, abrirModalAdjuntosPendientes } from '../actions/adjuntos.js';
 import { abrirModalDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
 import { abrirModalSolicitarModificacion, abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirModalHistorial } from '../actions/historial.js';
@@ -286,13 +286,13 @@ export function construirAcciones(v) {
   if (puede('asignar') && v.estado_taller === 'PENDIENTE_ASIGNACION') {
     acciones.push({ icono: 'person-add-outline', titulo: 'Asignar a diseñador', onClick: abrirModalAsignar });
   }
-  // Adjuntos: el encargado verifica/rechaza; mientras espera al asesor no tiene acciones.
+  // El encargado verifica o rechaza (con un mensaje para el asesor) y, con el vale rechazado o ya respondido, conversa con él.
+  if (puede('verificarAdjuntos') && ['ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'].includes(v.estado_taller)) {
+    acciones.push({ icono: 'chatbubbles-outline', titulo: 'Conversación con el asesor', onClick: (vale) => abrirModalConversacion(vale, vale.taller_id) });
+  }
   if (puede('verificarAdjuntos') && ['VERIFICANDO_ADJUNTOS', 'ADJUNTOS_RESPONDIDOS'].includes(v.estado_taller)) {
-    if (v.estado_taller === 'ADJUNTOS_RESPONDIDOS') {
-      acciones.push({ icono: 'chatbox-ellipses-outline', titulo: 'Ver mensaje del asesor', onClick: abrirModalMensajeAdjuntos });
-    }
     acciones.push({ icono: 'mail-open-outline', titulo: 'Verificar adjuntos', clase: 'icon-success', onClick: abrirModalVerificarAdjuntos });
-    acciones.push({ icono: 'close-circle-outline', titulo: 'Rechazar: sin adjuntos', clase: 'icon-danger', onClick: abrirModalRechazarAdjuntos });
+    acciones.push({ icono: 'close-circle-outline', titulo: 'Rechazar', clase: 'icon-danger', onClick: abrirModalRechazarAdjuntos });
   }
   if (puede('revisar') && v.estado_taller === 'EN_REVISION') {
     acciones.push({ icono: 'clipboard-outline', titulo: 'Revisar propuesta', onClick: abrirModalRevisar });

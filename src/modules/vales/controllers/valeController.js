@@ -346,8 +346,24 @@ class ValeController {
 
   async rechazarAdjuntos(req, res) {
     try {
-      const vale = await valeService.rechazarAdjuntos(req.user, idObligatorio(req.params.id), idOpcional(req.body && req.body.tallerId, 'Taller'));
+      const vale = await valeService.rechazarAdjuntos(req.user, idObligatorio(req.params.id), idOpcional(req.body && req.body.tallerId, 'Taller'), req.body && req.body.mensaje);
       return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async conversacion(req, res) {
+    try {
+      return res.json(await valeService.listarConversacion(req.user, idObligatorio(req.params.id), idObligatorio(req.query.tallerId, 'Taller')));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async enviarMensaje(req, res) {
+    try {
+      return res.json(await valeService.enviarMensaje(req.user, idObligatorio(req.params.id), idObligatorio(req.body && req.body.tallerId, 'Taller'), req.body && req.body.mensaje));
     } catch (error) {
       return responderError(res, error);
     }

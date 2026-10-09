@@ -484,7 +484,7 @@ class ValeBuzonService {
       .map(v => {
         const fila = misFilas.find(f => f.vale_id === v.id);
         return {
-          ...v, estado_taller: fila.estado, disenador_id: fila.disenador_id, _filaTallerId: fila.id,
+          ...v, estado_taller: fila.estado, disenador_id: fila.disenador_id, _filaTallerId: fila.id, taller_id: fila.taller_id,
           adjuntos_vence_en: fila.adjuntos_vence_en, adjuntos_mensaje: fila.adjuntos_mensaje, adjuntos_respondido_en: fila.adjuntos_respondido_en
         };
       });
