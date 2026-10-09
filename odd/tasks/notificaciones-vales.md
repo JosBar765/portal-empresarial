@@ -1,0 +1,38 @@
+# notificaciones-vales
+
+Rama: `feature/notificaciones-vales` (desde `dev`) · Estrategia de entrega: `ask-on-risk` · Estado: T1–T5 hechas.
+
+## Objetivo
+Que cada actor reciba, en aviso y en tiempo real, los cambios de estado que le importan, según lo decidido con el usuario tras la auditoría por actor.
+
+## Reglas acordadas
+- **Asesor:** aviso al comenzar el trabajo (la pantalla pasa sola del paso 2 al 3); aviso cuando UN taller aprueba su parte aunque haya varios; aviso de la fusión. Ya NO recibe «cancelar proceso» (el taller conserva su alerta roja). Pausar y reanudar: sin cambios (no le importan).
+- **Supervisor:** mismos avisos y tiempo real que el asesor sobre los vales de su equipo; toda corrección se avisa siempre (también si el vale estaba `RECHAZADO`); avisa la fusión.
+- **Fusión (`vales.aprobar_general`, roles 4 y 7):** al fusionar un vale, todos los demás que fusionan se actualizan en tiempo real.
+- **Taller (encargado + asistentes):** el atraso se avisa también con el proceso en `EN_PAUSA`; la confirmación de recibido no les llega (su flujo termina en el estado 4).
+- **Diseñador:** aviso cuando su propuesta es aprobada; atraso también en pausa.
+- **Autoaprobación:** una sola notificación por persona.
+- **Redacción:** corregir los textos de pausar, reanudar y cancelar (usar `texto`).
+- **Gerente y Administrador:** sin cambios (el gerente no recibe nada; el admin solo carteles).
+
+## Tareas
+- [x] T1 · Asesor: aviso en `comenzar`; aviso en `aprobar` (taller) siempre; quitar al asesor de `cancelar`; fusión avisa al asesor.
+- [x] T2 · Supervisor y fusión: corrección siempre al supervisor; fusión a supervisores (`supervisor:<id>`) y a `vales:fusion`.
+- [x] T3 · Taller y diseñador: atraso con `EN_PAUSA` (`atrasoWatcher.js`); aprobación al `disenador:<id>` de la fila; autoaprobación con una sola notificación.
+- [x] T4 · Redacción de pausar, reanudar y cancelar.
+- [x] T5 · Documentación (`flujo_vale_de_arte.md` §8; `CLAUDE.md` no requiere cambios) y verificación de punta a punta con script contra la BD de desarrollo.
+
+## Verificación y evidencia
+- T1: eslint sin errores; script `nt.js` contra la BD de desarrollo: comenzar notifica al asesor; aprobar un taller (vale de 2 talleres) notifica al asesor (1 fila); cancelar proceso: asesor sin fila, taller con fila alerta; fusión mantiene el aviso al asesor.
+- T2: eslint sin errores; `nt.js`: comenzar y aprobar de un taller notifican al supervisor del asesor (13); corregir un vale RECHAZADO notifica al supervisor; la fusión notifica al asesor, al supervisor y a los otros con `vales.aprobar_general` (11 y 25), con el actor (5) excluido.
+- T3: eslint sin errores; `natraso.js` (vale con taller EN_PAUSA, vigilante invocado con repositorio acotado a ese vale): avisa al encargado (5), asistente (11) y diseñador (97), además de asesor y supervisor; `nt.js`: aprobar notifica a `disenador:<id>` de la fila (97); autoaprobación genera una sola fila por persona (se omite el aviso de «entregado» y queda el de aprobación).
+- T4: eslint sin errores; `nt.js` 30/30: textos «<nombre> pausó/reanudó/canceló su proceso» sin «fue» ni «por»; vales de prueba eliminados. `valeAdjuntosService.js` (verificar adjuntos) corregido en T5 con `texto`.
+
+- Navegador (2026-10-09, BD de desarrollo, un actor a la vez con acciones disparadas por script): asesor (carteles y fila en vivo: asignar, comenzar con paso 2→3, entregar, aprobación de un taller con contador «1 de 2», autoaprobación con un solo cartel, fusión; sin carteles de pausar/reanudar/cancelar), supervisor (los mismos eventos, filas en vivo, «corregido» de un vale RECHAZADO), encargado de Diseño (alerta roja de atraso con el proceso en pausa), diseñador (aprobación de su propuesta), asistente como otro con `vales.aprobar_general` (el vale aparece en su cola y sale al fusionarse, con cartel), gerente (cero carteles y cero filas guardadas). Administrador: la BD de desarrollo no le da `vales.ver`, así que no abre el módulo y no recibe nada (0 filas guardadas).
+- Decisión del usuario: en un vale de varios talleres el paso general lo marca el taller más atrasado; no se cambia.
+
+## Ruta por tarea
+T1–T4: escritor delegado (varios archivos en `valeTallerService.js`, watcher y corrección). T5: inline (doc y una línea de redacción).
+
+## Siguiente paso
+Revisión del usuario y PR. No probado: entrega real por sockets en el navegador ni el intervalo de 60 s del watcher (se invocó en proceso).

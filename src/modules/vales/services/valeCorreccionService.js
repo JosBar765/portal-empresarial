@@ -113,8 +113,7 @@ class ValeCorreccionService {
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       valeEvents.notificar({
         vale: actualizado, accion: 'corregido', tipo: 'CORREGIDO', actor: usuario.nombre, actorId: usuario.id,
-        // Un vale rechazado no está en manos del supervisor: solo el asesor se entera.
-        salas: [`asesor:${vale.asesor_id}`, ...(vale.estado === 'RECHAZADO' ? [] : supervisores.map(s => `supervisor:${s.id}`))]
+        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
       });
       const resultado = enriquecer(actualizado);
       await idempotencyRepository.registrar(key, 'vales.corregir', resultado);
