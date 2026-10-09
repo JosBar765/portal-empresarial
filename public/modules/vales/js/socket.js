@@ -64,24 +64,10 @@ export function initSocket() {
       window.toast[esAlerta ? 'error' : 'info'](esAlerta ? 'Atención' : 'Vale de arte', data.mensaje);
       if (data.beep !== false) reproducirBeep();
     }
-    // La vista Rendimiento (Supervisor) se refresca en silencio y con rebote
-    // (ver actualizarRendimientoEnVivo) en vez de recargar un buzón que esa
-    // vista ni siquiera muestra.
-    const enVistaRendimiento = [ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'rendimiento';
-    if (enVistaRendimiento) {
-      actualizarRendimientoEnVivo();
-    } else {
-      cargarBuzon();
-    }
-    if (state.cargaTrabajoModal) {
-      if (state.cargaTrabajoModal.overlay.isConnected) {
-        state.cargaTrabajoModal.actualizar();
-      } else {
-        state.cargaTrabajoModal = null;
-      }
-    }
-    actualizarHistorialModalSiAplica();
+    refrescarPantalla();
   });
+  // Solo refresco, sin toast ni beep (ver `refrescar` en events.js).
+  state.socket.on('vale_refrescar', () => refrescarPantalla());
   // Canal aparte de `vale_evento` (ver events.js) — llega a CUALQUIER vista
   // que tenga abierto el historial de ESTE vale, sin importar el rol ni si
   // esa vista está en alguna de las salas por rol de `vale_evento`. Nunca
@@ -91,6 +77,26 @@ export function initSocket() {
       actualizarHistorialModalSiAplica();
     }
   });
+}
+
+function refrescarPantalla() {
+  // La vista Rendimiento (Supervisor) se refresca en silencio y con rebote
+  // (ver actualizarRendimientoEnVivo) en vez de recargar un buzón que esa
+  // vista ni siquiera muestra.
+  const enVistaRendimiento = [ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'rendimiento';
+  if (enVistaRendimiento) {
+    actualizarRendimientoEnVivo();
+  } else {
+    cargarBuzon();
+  }
+  if (state.cargaTrabajoModal) {
+    if (state.cargaTrabajoModal.overlay.isConnected) {
+      state.cargaTrabajoModal.actualizar();
+    } else {
+      state.cargaTrabajoModal = null;
+    }
+  }
+  actualizarHistorialModalSiAplica();
 }
 
 function actualizarHistorialModalSiAplica() {

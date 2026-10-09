@@ -17,7 +17,6 @@ const {
 
 const MAX_CARACTERES_MENSAJE = 200;
 const MAX_MENSAJES_CONVERSACION = 30;
-const MENSAJE_POR_DEFECTO = 'Adjuntos enviados al correo';
 const ESTADOS_POR_VERIFICAR = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
 // Mientras el taller tiene el vale rechazado (o ya respondido) la conversación está abierta; después es de solo lectura.
 const ESTADOS_CONVERSACION_ABIERTA = [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
@@ -105,7 +104,7 @@ class ValeAdjuntosService {
       if (fila.estado !== ESTADOS_TALLER.ADJUNTOS_RECHAZADOS) {
         throw new Error('Este taller no está esperando una respuesta tuya sobre los adjuntos.');
       }
-      const texto = validarMensaje(mensaje, { porDefecto: MENSAJE_POR_DEFECTO });
+      const texto = validarMensaje(mensaje);
       await valeTallerRepository.responderAdjuntos(fila.id, texto);
       await valeMensajeRepository.crear(fila.id, usuario.id, 'ASESOR', texto);
       const nombre = await this._nombreTaller(fila.taller_id);

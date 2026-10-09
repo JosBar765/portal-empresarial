@@ -301,14 +301,14 @@ function abrirModalResponderAdjuntos(vale, adjunto, cerrarPadre) {
       <div class="form-field full">
         <label for="mensaje-adjuntos">Mensaje para el taller</label>
         <textarea id="mensaje-adjuntos" rows="3" maxlength="${MAX_CARACTERES}">${MENSAJE_POR_DEFECTO}</textarea>
-        <div class="campo-pie"><span class="campo-ayuda">Opcional.</span><span class="contador-mensaje" id="mensaje-palabras"></span></div>
+        <div class="campo-pie"><span class="campo-ayuda">Obligatorio.</span><span class="contador-mensaje" id="mensaje-palabras"></span></div>
       </div>
     `,
     footerHtml: '<button class="btn btn--ghost" id="btn-volver">Volver</button><button class="btn btn--primary" id="btn-enviar"><ion-icon name="send-outline"></ion-icon> Avisar al taller</button>'
   });
   const textarea = overlay.querySelector('#mensaje-adjuntos');
   const btn = overlay.querySelector('#btn-enviar');
-  const actualizar = wireContador(textarea, overlay.querySelector('#mensaje-palabras'), btn, { obligatorio: false });
+  const actualizar = wireContador(textarea, overlay.querySelector('#mensaje-palabras'), btn);
   overlay.querySelector('#btn-volver').addEventListener('click', cerrar);
   btn.addEventListener('click', async () => {
     btn.disabled = true;
