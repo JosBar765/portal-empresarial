@@ -162,13 +162,14 @@ class ValeTallerService {
         const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
         autoaprueba = !!taller && taller.encargado_id === idEfectivo;
       }
-      // Alerta roja si la propuesta va vacía (sin archivo). Al asesor se le avisa de la revisión,
-      // salvo que se autoapruebe (ahí recibe el aviso de aprobación).
-      valeEvents.notificar({
-        vale: actualizado, accion: 'entregado (propuesta)', actor: usuario.nombre, actorId: usuario.id,
-        salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`, ...(autoaprueba ? [] : [`asesor:${actualizado.asesor_id}`])],
-        nivel: url ? 'info' : 'alerta'
-      });
+      // Alerta roja si la propuesta va vacía. Con autoaprobación solo se emite el aviso de aprobación (una notificación por persona).
+      if (!autoaprueba) {
+        valeEvents.notificar({
+          vale: actualizado, accion: 'entregado (propuesta)', actor: usuario.nombre, actorId: usuario.id,
+          salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`, `asesor:${actualizado.asesor_id}`],
+          nivel: url ? 'info' : 'alerta'
+        });
+      }
 
       let resultado;
       if (autoaprueba) {
@@ -281,7 +282,7 @@ class ValeTallerService {
       await this._recalcularEstadoVale(valeId, usuario.id);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       // El equipo de ventas se entera siempre; quien fusiona, solo si el vale queda esperando fusión.
-      const targets = [`taller:${fila.taller_id}`, ...await this._salasEquipo(vale.asesor_id), ...(actualizado.estado === ESTADOS.APROBADO_DEPARTAMENTO ? [SALA_FUSION] : [])];
+      const targets = [`taller:${fila.taller_id}`, ...(fila.disenador_id ? [`disenador:${fila.disenador_id}`] : []), ...await this._salasEquipo(vale.asesor_id), ...(actualizado.estado === ESTADOS.APROBADO_DEPARTAMENTO ? [SALA_FUSION] : [])];
       valeEvents.notificar({ vale: actualizado, accion: 'aprobado (taller)', actor: usuario.nombre, actorId: usuario.id, salas: targets });
       return enriquecer(actualizado);
     }
