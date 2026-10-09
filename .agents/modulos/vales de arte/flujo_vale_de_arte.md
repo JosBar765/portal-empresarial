@@ -377,8 +377,8 @@ Los adjuntos de un vale (vectores, fuentes, etc.) viajan por **correo**, fuera d
 
 - **Quién:** el permiso `vales.verificar_adjuntos` lo tienen los roles 4, 5, 9 y 10 (encargados de taller) y el 7 (asistente, solo Diseño). Cada uno actúa solo sobre **su** taller. No hay mensaje al rechazar. **Verificar** pide confirmación en un modal («¿Estás seguro que recibiste los adjuntos del vale de arte antes de trabajar?»); rechazar también tiene su modal.
 - **Por taller:** un taller que rechaza no frena a los demás del mismo vale; el asesor responde **una vez por taller** rechazado.
-- **Respuesta del asesor** (permiso `vales.corregir`, solo el dueño del vale): botón «Adjuntos enviados al correo», con un mensaje editable de hasta 200 palabras, prellenado con «Adjuntos enviados al correo». El vale vuelve al encargado, que ve el mensaje y puede verificar o rechazar otra vez (el ciclo se repite). Mientras el asesor no responde, el encargado no tiene acciones; un supervisor que no es el dueño solo ve el estado, sin botón de respuesta.
-- **Plazo único de 24 h** desde el **primer** rechazo del taller (`vale_talleres.adjuntos_vence_en`): no se reinicia con rechazos posteriores. A las 6 h restantes el asesor recibe un aviso (una sola vez). Si vence con el taller todavía en `ADJUNTOS_RECHAZADOS`, se **borra el vale completo** (todos sus talleres, aunque otros ya trabajen) con sus archivos y se libera el cupo del supervisor; un vale `MOD-` deja el original intacto. Si el asesor ya respondió, no se borra, aunque el encargado rechace después de pasado el plazo (en ese caso el siguiente chequeo lo borra). Lo hace `adjuntosWatcher.js` (60 s), calcado de `vigenciaWatcher.js`.
+- **Respuesta del asesor** (permiso `vales.corregir`, solo el dueño del vale): botón «Adjuntos enviados al correo», con un mensaje editable de hasta 200 palabras, prellenado con «Adjuntos enviados al correo». El mensaje es **obligatorio**: vacío o solo espacios se rechaza («Escribe un mensaje para el taller.») y el botón «Enviar» se deshabilita sin texto; si falta el taller, el error dice «Indica a qué taller respondes.». El vale vuelve al encargado, que ve el mensaje y puede verificar o rechazar otra vez (el ciclo se repite). Mientras el asesor no responde, el encargado no tiene acciones; un supervisor que no es el dueño solo ve el estado, sin botón de respuesta.
+- **Plazo único de 24 h** desde el **primer** rechazo del taller (`vale_talleres.adjuntos_vence_en`): no se reinicia con rechazos posteriores. A las 6 h restantes se avisa **una sola vez por taller** al asesor, a sus supervisores y al encargado de **cada** taller del vale (encargado + asistentes, no a los diseñadores); si dos talleres tienen adjuntos rechazados en esa ventana, cada persona recibe un aviso por taller. En cambio, cuando un taller **verifica** sus adjuntos el aviso va solo a ese taller (más el asesor y los supervisores): los demás talleres no se enteran. Si vence con el taller todavía en `ADJUNTOS_RECHAZADOS`, se **borra el vale completo** (todos sus talleres, aunque otros ya trabajen) con sus archivos y se libera el cupo del supervisor; un vale `MOD-` deja el original intacto. Si el asesor ya respondió, no se borra, aunque el encargado rechace después de pasado el plazo (en ese caso el siguiente chequeo lo borra). Lo hace `adjuntosWatcher.js` (60 s), calcado de `vigenciaWatcher.js`.
 - **Dar de baja:** el asesor puede dar de baja un vale **ya autorizado** mientras algún taller esté en `ADJUNTOS_RECHAZADOS` o `ADJUNTOS_RESPONDIDOS` (no en `VERIFICANDO_ADJUNTOS`). Cancela el vale completo; los talleres que ya trabajaban, sus encargados y el diseñador asignado reciben un aviso y el vale desaparece de su vista.
 - **Qué ve cada uno:** el encargado conserva el vale en la lista normal de «Pendientes de asignar» (los tres estados suman al contador) con la etiqueta «Verificar adjuntos», «Esperando adjuntos» o «Adjuntos enviados, verificar». El asesor y el supervisor ven el paso 2 del pipeline **en rojo** con «Faltan adjuntos: <taller>» y, en «ver adjuntos faltantes», el motivo y el tiempo restante; el supervisor ve exactamente la misma lista que antes. El historial del vale muestra estos movimientos a asesor, supervisor, gerente y administrador, y a cada encargado solo los de su taller.
 - **Avisos** (`tipo`): `ADJUNTOS_RECHAZADOS`, `ADJUNTOS_VERIFICADOS`, `ADJUNTOS_RESPONDIDOS`, `ADJUNTOS_POR_VENCER`, `ADJUNTOS_VENCIDOS`.
@@ -391,7 +391,7 @@ cambia quién puede hacer cada acción.
 
 | Rol (id) | Permisos de vales | Qué hace |
 |---|---|---|
-| Administrador (1) | `vales.ver` (+ `admin.*`) | Ve todo el buzón. **No** tiene permisos de escritura sobre vales: no puede autorizar, asignar, aprobar ni confirmar. |
+| Administrador (1) | `vales.ver`, `vales.ver_reportes`, `vales.ver_historial` (+ `admin.*`) | Ve todo el buzón. **No** tiene permisos de escritura sobre vales: no puede autorizar, asignar, aprobar ni confirmar. |
 | Asesor de Ventas (2) | `ver`, `crear`, `editar`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir` | Crea vales; los corrige o da de baja antes de ser autorizados; confirma el recibido o solicita la modificación. |
 | Supervisor de Ventas (3) | `ver`, `autorizar_creacion`, `aprobar_modificacion`, `supervisar`, `ver_gerencia`, y para sus propios vales `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`supervisor_tiendas`). También crea y gestiona **sus propios vales** (ver «Vales del supervisor» abajo). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
 | Encargado de Diseño (4) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Dueño del taller "Diseño". Asigna y revisa, puede trabajar vales él mismo, y **fusiona** los vales multi-taller. |
@@ -399,7 +399,7 @@ cambia quién puede hacer cada acción.
 | Diseñador (6) | `ver`, `trabajar` | Comienza, pausa, reanuda, cancela y entrega sus vales. |
 | Asistente de Diseño (7) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Clon operativo completo del Encargado de Diseño. |
 | Gerente (8) | `ver`, `ver_gerencia` | Solo lectura (ver §6). |
-| Encargado de Protextil (9) | `ver`, `asignar`, `revisar` | Encargado de su taller; sin fusión. |
+| Encargado de Protextil (9) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de su taller; puede trabajar vales él mismo, pero **sin fusión**. |
 | Diseño Local (10) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de un taller de Diseño Local (ligado a una tienda); sin fusión. |
 
 > **Nombre del rol 6.** El rol que trabaja los vales en el taller se llama **Diseñador** (antes
@@ -491,7 +491,7 @@ según lo elegido. Un día viaja al servidor como un rango de un solo día.
 
 | Límite | Dónde se valida | Efecto |
 |---|---|---|
-| **Cupo diario por taller** (`talleres.limite_diario`, opcional; NULL = sin límite; hoy Diseño y Diseño UV/3D = 15, Protextil = 8, Diseño Local sin límite), sobre la fecha de **entrega** (no la de evento) | Al **crear**, al **solicitar** la modificación y al **aprobar** la modificación | Bloquea con un mensaje amigable ("el taller X ya no tiene cupo para el día…"). Las verificaciones + inserción son atómicas entre asesores (`conColaDeCapacidad`). El calendario del frontend solo lo anticipa. |
+| **Cupo diario por taller** (`talleres.limite_diario`, opcional; NULL = sin límite; hoy Diseño y Diseño UV/3D = 15, Protextil = 8, Diseño Local sin límite), sobre la fecha de **entrega** (no la de evento) | Al **crear**, al **solicitar** la modificación, al **autorizar** y al **aprobar** la modificación | Solo cuentan los vales **ya autorizados**: uno pendiente de autorización no ocupa cupo. Por eso el asesor puede crear aunque el día se llene con otros pendientes; si al **autorizar** ya no hay cupo, el supervisor debe **rechazar** el vale y el asesor elige otra fecha. Bloquea con un mensaje amigable ("el taller X ya no tiene cupo para el día…"). Las verificaciones + inserción son atómicas entre asesores (`conColaDeCapacidad`). El calendario del frontend solo lo anticipa. |
 | **Cupo colectivo diario del Supervisor** = nº de asesores activos bajo su mando, **más él mismo** si también crea vales (p. ej. 11 asesores + 1 = 12); cuenta las autorizaciones de **creación** que hizo hoy | Al **autorizar** (no al crear) | Al llegar al límite no puede autorizar más ese día. Al Administrador no le aplica. Crear un vale nunca se bloquea ni se pospone por esto. Leer el cupo y sellar la autorización van en el mismo turno de la cola del supervisor, así que dos autorizaciones simultáneas no pueden pasarlo. La tarjeta "Autorizados hoy (equipo)" (N/M) la calcula el servidor con este mismo conteo. |
 | Un diseñador = un vale `EN_PROCESO` | `comenzar` y `reanudar` (en la cola del diseñador: dos acciones simultáneas no lo superan) | Debe entregar, cancelar o pausar el actual antes. |
 | Una sola modificación por vale | `solicitarModificacion` | Ver §1.1. |
@@ -505,6 +505,8 @@ entrega igual o posterior a la fecha mínima de entrega (§5.1). Técnica y acab
 
 > Nota: esto reemplaza al antiguo límite diario por asesor
 > (`asesor_limites`), que ya no existe: crear nunca se pospone.
+
+**Talleres del vale.** La lista de talleres que llega al crear se valida entera: cualquier id que no sea un entero positivo (`[1,"x"]`, `[0]`, `[1.5]`, `[null]`) rechaza la creación con «Alguno de los talleres elegidos no es válido», igual que un taller inexistente o inactivo.
 
 ### 5.1 Restricción de horario (fin de semana y mediodía)
 
@@ -553,7 +555,7 @@ combinarse con cualquier filtro de estado.
   su `fecha_entrega`; antes solo se muestra "vence hoy"). Dispara
   una alerta roja **una sola vez por vale** (`atraso_notificado_en`) solo a
   quien lo tiene "en su vista": el asesor, sus supervisores, los talleres con
-  fila activa (pendiente, asignado, en proceso o en revisión), los diseñadores con
+  fila activa (pendiente, asignado, en proceso, en pausa o en revisión), los diseñadores con
   vale activo, y la sala `vales:fusion` si el vale está `APROBADO_DEPARTAMENTO`.
 
 ## 8. Tiempo real
@@ -577,6 +579,8 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
   - **Fusión:** al fusionar, se avisa al asesor, a sus supervisores y a `vales:fusion` (los demás con `vales.aprobar_general` actualizan su cola en tiempo real).
   - **Autoaprobación** (el encargado entrega con archivo): solo el aviso de aprobación, sin el de entrega.
   - **Gerente:** nada. **Administrador:** solo carteles (`vales:admin`).
+- **Último taller aprobado:** cuando la aprobación de un taller deja al vale en `APROBADO_DEPARTAMENTO`, el aviso (una sola notificación por persona, a las mismas salas de siempre) dice «{actor} aprobó el taller {taller}: todos los talleres terminaron, el vale está listo para fusionar». Las demás aprobaciones conservan el texto «fue aprobado (taller)».
+- **Desaprobar y reasignar:** con cartel y campana solo se entera el diseñador nuevo (y el taller). El asesor, sus supervisores y el diseñador anterior **refrescan su pantalla en silencio** (evento `vale_refrescar`, sin cartel, beep ni campana), para que el paso y los contadores no queden desfasados.
 - El texto sale de `accion` («fue {acción} por {actor}») o, si el movimiento no cabe en esa frase, de `texto` (p. ej. «{actor} pausó el proceso»).
 
 ## 9. Guía para renombrar estados

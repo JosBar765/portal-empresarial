@@ -3,6 +3,8 @@
 // una vez y, al vencer sin respuesta, elimina el vale completo. Corre en el mismo proceso, cada 60 s.
 const valeRepository = require('./repositories/valeRepository');
 const valeTallerRepository = require('./repositories/valeTallerRepository');
+const tallerRepository = require('./repositories/tallerRepository');
+const usuarioValeRepository = require('./repositories/usuarioValeRepository');
 const valeAdjuntosService = require('./services/valeAdjuntosService');
 const valeEvents = require('./events');
 
@@ -15,10 +17,13 @@ async function avisarPorVencer() {
     const vale = await valeRepository.obtenerPorId(fila.vale_id);
     if (!vale) continue;
     const horas = Math.max(1, Math.ceil(fila.minutos_restantes / 60));
+    const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
+    const salasTalleres = (await valeTallerRepository.listarPorVale(vale.id)).map(t => `taller:${t.taller_id}`);
+    const taller = await tallerRepository.obtenerPorId(fila.taller_id);
     valeEvents.notificar({
       vale, tipo: 'ADJUNTOS_POR_VENCER', nivel: 'alerta',
-      texto: `te quedan ${horas} ${horas === 1 ? 'hora' : 'horas'} para enviar los adjuntos que reclama el taller: si no, el vale se eliminará automáticamente`,
-      salas: [`asesor:${vale.asesor_id}`]
+      texto: `quedan ${horas} ${horas === 1 ? 'hora' : 'horas'} para que el asesor envíe los adjuntos que reclama el taller ${taller ? taller.nombre : fila.taller_id}: si no, el vale se eliminará automáticamente`,
+      salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`), ...new Set(salasTalleres)]
     });
   }
 }

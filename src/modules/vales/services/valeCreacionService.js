@@ -500,7 +500,11 @@ class ValeCreacionService {
     } catch {
       throw new Error('No se pudieron leer los talleres seleccionados. Vuelve a elegirlos.');
     }
-    talleresIds = [...new Set((talleresIds || []).map(Number).filter(Number.isFinite))];
+    const numeros = (Array.isArray(talleresIds) ? talleresIds : []).map(id => (typeof id === 'string' && id.trim() === '' ? NaN : Number(id)));
+    if (numeros.some(n => !Number.isInteger(n) || n <= 0)) {
+      throw new Error('Alguno de los talleres elegidos no es válido. Vuelve a elegirlos.');
+    }
+    talleresIds = [...new Set(numeros)];
     if (talleresIds.length === 0) {
       throw new Error('Debe seleccionar al menos un taller para el vale de arte.');
     }
