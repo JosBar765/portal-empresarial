@@ -17,8 +17,8 @@ const negrita = (texto) => [...texto].map((c) => {
   return c;
 }).join('');
 
-// Texto del combobox: nombre y asignaciones vigentes del diseñador.
-const etiquetaDisenador = (t) => (t.asignaciones == null ? t.nombre : `${t.nombre} (${negrita('Asignaciones actuales')}: ${t.asignaciones})`);
+// Texto del combobox: «(Asignaciones actuales: N) - Nombre»; el encargado ya trae «(YO)» en su nombre.
+const etiquetaDisenador = (t) => (t.asignaciones == null ? t.nombre : `(${negrita('Asignaciones actuales')}: ${t.asignaciones}) - ${t.nombre}`);
 
 export async function cargarDisenadoresAsignables() {
   let disenadores = [];
