@@ -71,12 +71,12 @@ export function etiquetaEstado(v) {
   return ESTADOS_LABEL[clave] || clave;
 }
 
-// El Asistente de Diseño opera el taller "Diseño" como si fuera su propio
-// encargado_id, sin serlo — mismo clon operativo que resuelve el backend
-// (_idEncargadoEfectivo).
+// El Asistente opera UN taller como si fuera su propio encargado_id, sin serlo — el que tiene asignado en
+// `taller_disenadores` (el servidor lo manda como `miTallerId`), igual que resuelve el backend
+// (idEncargadoEfectivo). Sin asignación no tiene taller.
 export function miTaller() {
   const talleres = state.catalogos.talleres || [];
-  if (state.user.rolId === ROL.ASISTENTE_DISENO) return talleres.find(t => t.nombre === 'Diseño') || null;
+  if (state.user.rolId === ROL.ASISTENTE_DISENO) return talleres.find(t => t.id === state.catalogos.miTallerId) || null;
   return talleres.find(t => t.encargado_id === state.user.id) || null;
 }
 
