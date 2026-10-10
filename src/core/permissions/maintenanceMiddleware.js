@@ -81,6 +81,10 @@ async function refrescar() {
 // initializeDatabase() resuelva (ver database.js: `listo`).
 Promise.resolve(db.listo).catch(() => {}).then(refrescar).catch(err => console.error('[Mantenimiento] No se pudo cargar el estado inicial:', err));
 
+// El mensaje lo escribe el administrador: se escapa antes de ir al HTML.
+const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const escaparHtml = (texto) => String(texto == null ? '' : texto).replace(/[&<>"']/g, (c) => ESCAPES[c]);
+
 function paginaMantenimiento(mensaje) {
   return `<!doctype html>
 <html lang="es">
@@ -104,7 +108,7 @@ function paginaMantenimiento(mensaje) {
 <body>
   <div class="box">
     <h1>Sistema en mantenimiento</h1>
-    <p>${mensaje}</p>
+    <p>${escaparHtml(mensaje)}</p>
     <button type="button" id="cerrar-sesion">Cerrar sesión</button>
     <p id="error" role="alert"></p>
   </div>
@@ -142,3 +146,4 @@ module.exports = maintenanceGate;
 module.exports.refrescar = refrescar;
 module.exports.obtenerEstado = calcular;
 module.exports.MINUTOS_CUENTA_REGRESIVA = MINUTOS_CUENTA_REGRESIVA;
+module.exports.paginaMantenimiento = paginaMantenimiento;
