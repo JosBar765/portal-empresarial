@@ -520,6 +520,8 @@ Sábado y domingo son días de descanso de los talleres: la restricción evita q
 - **Plazos de 24 h sin fin de semana:** el sábado y el domingo (días completos) no cuentan en los plazos de esperando autorización (y vale rechazado, que conserva ese vencimiento), modificación y adjuntos. Un vale creado el viernes a las 15:00 vence el lunes a las 15:00. El vencimiento se calcula al guardarlo (`sumarHorasHabiles`, `vencimiento24h()`) y los vigilantes, el «Vence en N h» y la cuenta regresiva leen ese valor. Los vales anteriores a este cambio conservan su vencimiento original.
 - **Calendario:** el formulario calcula el mínimo con UTC-6 y deshabilita sábados y domingos en la fecha de entrega; el servidor es quien hace cumplir la regla. Al **crear** un vale, la fecha de entrega queda deshabilitada hasta elegir al menos un taller y se borra si se quitan todos los talleres (en modificar y corregir los talleres ya vienen fijos).
 
+> Nota: las tablas `horarios_laborales` (horario semanal global) y `feriados` (por país) ya existen y se administran en Administración → «Horarios y feriados» (`horarios_laborales.sql`), pero **todavía no se usan** en la lógica de vales: la restricción de arriba y los plazos de 24 h siguen contando solo sábado y domingo. Ver `.agents/modulos/admin/documentacion/horarios_feriados.md`.
+
 ## 6. Gerente y Administrador
 
 - **`vales.ver`** abre el módulo y la API; además, todo rol con ese permiso que no tenga una vista propia (hoy el Gerente) ve el **Buzón general** con todos los vales, en solo lectura. Las acciones siguen exigiendo sus propios permisos.
