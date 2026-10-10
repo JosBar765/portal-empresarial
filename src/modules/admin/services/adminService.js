@@ -12,6 +12,7 @@ const socketManager = require('../../../core/websocket/socketManager');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero, validarTelefono } = require('../../../core/utils/validar');
 const sesionRepository = require('../../../core/auth/sesionRepository');
+const calendarioService = require('../../../core/calendario/calendarioService');
 
 // Roles base protegidos: no se pueden eliminar ni renombrar, pero sus
 // permisos sí se pueden editar. Asesor de Ventas no está en esta lista — la
@@ -298,7 +299,9 @@ class AdminService {
     }
     const depId = await this._resolverDepartamento({ departamentoId, departamentoNombre, paisId });
     const subId = await this._resolverSubdivision({ departamentoId: depId, subdivisionId, subdivisionNombre, paisId });
-    return tiendaAdminRepository.actualizar(id, { codigo, empresaId: Number(empresaId), departamentoId: depId, subdivisionId: subId, activo });
+    const resultado = await tiendaAdminRepository.actualizar(id, { codigo, empresaId: Number(empresaId), departamentoId: depId, subdivisionId: subId, activo });
+    calendarioService.invalidar();
+    return resultado;
   }
 
   async listarPersonalTienda(tiendaId) {
@@ -420,6 +423,7 @@ class AdminService {
       await this._validarQueNoEncargueOtroTaller(encargado);
     }
     const id = await tallerAdminRepository.crearLocal({ nombre, tiendaId: tienda.id, encargadoId: encargado ? encargado.id : null });
+    calendarioService.invalidar();
     return { id, nombre };
   }
 
@@ -467,7 +471,9 @@ class AdminService {
     if (typeof horaRaw !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(horaRaw)) {
       throw new ErrorDeNegocio('La hora máxima de recibimiento debe tener el formato HH:MM de 24 horas (de 00:00 a 23:59).');
     }
-    return tallerAdminRepository.actualizarHoraMaxima(tallerId, horaRaw);
+    const resultado = await tallerAdminRepository.actualizarHoraMaxima(tallerId, horaRaw);
+    calendarioService.invalidar();
+    return resultado;
   }
 
   async asignarDisenadorATaller(tallerId, usuarioId) {

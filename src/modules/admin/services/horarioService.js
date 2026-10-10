@@ -1,7 +1,8 @@
 // src/modules/admin/services/horarioService.js
-// Horario laboral semanal (global) y feriados por país. Solo CRUD: ninguna otra regla los consulta todavía.
+// Horario laboral semanal (global), feriados por país y parámetros; cada cambio invalida el caché del calendario laboral.
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idObligatorio, idOpcional } = require('../../../core/utils/validar');
+const calendarioService = require('../../../core/calendario/calendarioService');
 const repo = require('../repositories/horarioRepository');
 const tiendaAdminRepository = require('../repositories/tiendaAdminRepository');
 
@@ -91,6 +92,7 @@ class HorarioService {
     const validados = dias.map(validarDia);
     if (new Set(validados.map(d => d.diaSemana)).size !== 7) throw err('Cada día de la semana debe aparecer una sola vez.');
     await repo.guardarHorarios(validados);
+    calendarioService.invalidar();
     return this.listarHorarios();
   }
 
@@ -107,6 +109,7 @@ class HorarioService {
       throw err(`Las horas de vencimiento deben estar entre ${HORAS_VENCIMIENTO_MIN} y ${HORAS_VENCIMIENTO_MAX}.`);
     }
     await repo.guardarParametro(CLAVE_HORAS_VENCIMIENTO, horas);
+    calendarioService.invalidar();
     return this.obtenerParametros();
   }
 
@@ -138,6 +141,7 @@ class HorarioService {
     const datos = validarFeriado(body);
     await this.exigirSinChoque(paisId, datos);
     const id = await repo.insertarFeriado({ paisId, ...datos });
+    calendarioService.invalidar();
     return aFeriado(await repo.obtenerFeriado(id));
   }
 
@@ -149,12 +153,14 @@ class HorarioService {
     const datos = validarFeriado(body);
     await this.exigirSinChoque(actual.pais_id, datos, id);
     await repo.actualizarFeriado(id, datos);
+    calendarioService.invalidar();
     return aFeriado(await repo.obtenerFeriado(id));
   }
 
   async eliminarFeriado(idCrudo) {
     const id = idObligatorio(idCrudo, 'Feriado');
     if (!(await repo.eliminarFeriado(id))) throw err('El feriado no existe.', 404);
+    calendarioService.invalidar();
     return { ok: true };
   }
 }
