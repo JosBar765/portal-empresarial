@@ -5,6 +5,7 @@ const { rateLimit } = require('express-rate-limit');
 const router = express.Router();
 const adminController = require('./controllers/adminController');
 const valePdfController = require('./controllers/adminValePdfController');
+const horarioController = require('./controllers/adminHorarioController');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
 // Permisos
@@ -54,6 +55,16 @@ router.delete('/tiendas/:id/personal/:usuarioId', gestionarTiendas, (req, res) =
 // Mantenimiento
 router.get('/mantenimiento', verAdmin, (req, res) => adminController.obtenerMantenimiento(req, res));
 router.put('/mantenimiento', gestionarMantenimiento, (req, res) => adminController.actualizarMantenimiento(req, res));
+
+// Horario laboral y feriados
+const gestionarHorarios = requirePermission('admin.horarios.gestionar');
+router.get('/horarios', gestionarHorarios, (req, res) => horarioController.listarHorarios(req, res));
+router.put('/horarios', gestionarHorarios, (req, res) => horarioController.guardarHorarios(req, res));
+router.get('/horarios/paises', gestionarHorarios, (req, res) => horarioController.listarPaises(req, res));
+router.get('/feriados', gestionarHorarios, (req, res) => horarioController.listarFeriados(req, res));
+router.post('/feriados', gestionarHorarios, (req, res) => horarioController.crearFeriado(req, res));
+router.put('/feriados/:id', gestionarHorarios, (req, res) => horarioController.actualizarFeriado(req, res));
+router.delete('/feriados/:id', gestionarHorarios, (req, res) => horarioController.eliminarFeriado(req, res));
 
 // Generar PDF de vale (correcciones). Mismos tipos y límites que al crear un vale.
 const generarValePdf = requirePermission('admin.vales.generar');
