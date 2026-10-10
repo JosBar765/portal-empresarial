@@ -26,6 +26,7 @@ export function initSocket() {
   if (typeof io === 'undefined') return;
   state.socket = io({ query: { userId: state.user.id } });
   window.centroNotificaciones?.iniciar({ socket: state.socket, modulo: 'vales' });
+  window.avisoMantenimiento?.iniciar({ socket: state.socket, rolId: state.user.rolId });
   state.socket.on('connect', () => {
     // `role_X` es independiente de las salas de notificación de vales — todo
     // rol la necesita para enterarse de cambios de permisos, incluido Gerente.
