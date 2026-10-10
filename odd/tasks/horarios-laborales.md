@@ -24,10 +24,10 @@ Tablas `horarios_laborales` (7 filas, un horario por día; un día no laboral no
 - [x] T1–T4 · Fase 1 (script, backend, pestaña, docs).
 - [x] T5 · Script: columna `recibe_vales`, columna `talleres.hora_maxima_recepcion` (12:00), parámetro de horas de vencimiento (4) y seed (horarios y feriado) con upgrade idempotente.
 - [x] T6 · Admin backend + pestañas: casilla «Recibe vales de arte» por día, campo «Horas de vencimiento de un vale de arte», y hora máxima por taller en «Gestionar Talleres».
-- [ ] T7 · Servicio de calendario laboral (país del vale, sumar horas laborales, minutos laborales restantes, fecha mínima de entrega y días no disponibles) con pruebas por simulación de fechas.
-- [ ] T8 · Plazos: reemplazar los tres de 24 h; vigilantes y aviso al 25%; contador de tiempo laboral y textos.
-- [ ] T9 · Fecha de entrega (servidor y calendario del navegador) y fin de las restricciones por día; mensajes.
-- [ ] T10 · Documentación (flujo §5.1, CLAUDE.md, correcciones) y verificación de punta a punta.
+- [x] T7 · Servicio de calendario laboral en `src/core/calendario/` (commit c31f533). Evidencia: simulación 60/60 PASS (ejemplos de plazos, límites exactos, fecha mínima, país de Diseño Local con feriado propio, respaldo sin días laborales).
+- [x] T8 · Plazos laborales, vigilantes al 25%, contador y textos dinámicos, `scripts/recalcular-vencimientos.js` (commit ee90985, junto con el servidor de T9 porque comparten archivos). Evidencia: API/vigilantes 19/19 PASS (plazo de vigencia, adjuntos sin reinicio, aviso único con texto dinámico, vencidos eliminados, MOD-), script `--dry-run` y real verificados.
+- [x] T9 · Fecha de entrega (servidor en ee90985; calendario del navegador en 50313a4) y fin de las restricciones por día. Evidencia: API 37/37 tras corregir un error del propio script de prueba; endpoint `fechas-entrega` con 9 entradas inválidas = 400; navegador: sábados/domingos y 20/10 deshabilitados con motivo, mínima 12/10, nota dinámica.
+- [x] T10 · Documentación: flujo §5.1 y menciones de 24 h/6 h, `CLAUDE.md`, `correcciones_52.md` (con «Para producción»).
 
 ## Verificación y evidencia
 (fase 1) 47 comprobaciones API y verificación en el navegador. (fase 2) pendiente.

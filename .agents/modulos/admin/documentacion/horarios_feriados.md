@@ -1,6 +1,6 @@
 # Pestaña «Horarios y feriados» (Administración)
 
-Esta pestaña solo administra datos (CRUD). La aplicación de estas reglas a los vales (plazos en horas laborales, fecha mínima de entrega) se documenta aparte, en el flujo del vale de arte.
+Esta pestaña administra los datos; cada cambio (horario, feriados, parámetro, hora máxima de un taller) invalida el caché del calendario laboral (`src/core/calendario/`). La aplicación de estas reglas a los vales (plazos en horas laborales, fecha mínima de entrega) está en §5.1 del flujo del vale de arte.
 
 Además del horario y los feriados, la pestaña edita las **horas de vencimiento de un vale de arte** (parámetro global, entero de 1 a 48, por defecto 4) y cada día lleva la casilla **«Recibe vales de arte»** (solo un día laboral puede recibir vales). La **hora máxima de recibimiento** de cada taller (por defecto 12:00) se edita en «Gestionar Talleres» (ver al final).
 
