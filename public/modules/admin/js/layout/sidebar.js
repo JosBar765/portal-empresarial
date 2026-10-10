@@ -7,6 +7,7 @@ import { cargarTiendas } from '../views/tiendas.js';
 import { cargarTalleres } from '../views/talleres.js';
 import { cargarMantenimiento } from '../views/mantenimiento.js';
 import { cargarCrearVale } from '../views/crearVale.js';
+import { cargarHorarios } from '../views/horarios.js';
 
 // Sidebar: mismo patrón colapsable/cajón móvil que Vales de Arte. Las 5
 // pestañas ahora sí varían por usuario — quien entra al panel sin ser
@@ -28,7 +29,8 @@ const PERMISO_POR_TAB = {
   tiendas: 'admin.tiendas.gestionar',
   talleres: 'admin.talleres.gestionar',
   mantenimiento: 'admin.mantenimiento.gestionar',
-  'crear-vale': 'admin.vales.generar'
+  'crear-vale': 'admin.vales.generar',
+  horarios: 'admin.horarios.gestionar'
 };
 const TABS_VALIDOS = Object.keys(PERMISO_POR_TAB);
 
@@ -38,7 +40,7 @@ const TABS_VALIDOS = Object.keys(PERMISO_POR_TAB);
 // correcciones_27 para el guard de entrada al panel.
 function tienePermisoDeTab(tab) {
   // El permiso nuevo no se asume para el Administrador: debe estar asignado.
-  if (tab === 'crear-vale') return (state.user.permissions || []).includes(PERMISO_POR_TAB[tab]);
+  if (tab === 'crear-vale' || tab === 'horarios') return (state.user.permissions || []).includes(PERMISO_POR_TAB[tab]);
   return state.user.rolId === 1 || (state.user.permissions || []).includes(PERMISO_POR_TAB[tab]);
 }
 
@@ -60,6 +62,7 @@ export async function cargarTab() {
     else if (state.tab === 'talleres') await cargarTalleres();
     else if (state.tab === 'mantenimiento') await cargarMantenimiento();
     else if (state.tab === 'crear-vale') await cargarCrearVale();
+    else if (state.tab === 'horarios') await cargarHorarios();
   } catch (error) {
     cont.innerHTML = `<div class="buzon-vacio buzon-vacio-error"><ion-icon name="alert-circle-outline"></ion-icon><h3>No se pudo cargar</h3><p>${escapeHtml(error.message)}</p></div>`;
   }

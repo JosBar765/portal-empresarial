@@ -11,5 +11,6 @@ export const state = {
   // cargados una vez y reusados por las distintas pestañas.
   catalogoTiendas: [], catalogoRoles: [],
   mantenimiento: null,
+  horarios: [], paisesHorarios: [], paisFeriadoId: null, feriados: [],
   socket: null
 };

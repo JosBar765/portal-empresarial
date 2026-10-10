@@ -162,6 +162,42 @@ export function generarValePdf(formData) {
   return enviarFormData('/api/admin/vale-pdf', formData);
 }
 
+// ---- Horarios y feriados ----
+async function obtenerJson(url) {
+  const res = await fetch(url);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'No se pudo completar la acción. Inténtalo de nuevo.');
+  return data;
+}
+
+export function obtenerHorarios() {
+  return obtenerJson('/api/admin/horarios');
+}
+
+export function guardarHorarios(dias) {
+  return enviarConBody('/api/admin/horarios', 'PUT', { dias });
+}
+
+export function listarPaisesHorarios() {
+  return obtenerJson('/api/admin/horarios/paises');
+}
+
+export function listarFeriados(paisId) {
+  return obtenerJson(`/api/admin/feriados?paisId=${encodeURIComponent(paisId)}`);
+}
+
+export function crearFeriado(payload) {
+  return enviarConBody('/api/admin/feriados', 'POST', payload);
+}
+
+export function actualizarFeriado(feriadoId, payload) {
+  return enviarConBody(`/api/admin/feriados/${feriadoId}`, 'PUT', payload);
+}
+
+export function eliminarFeriado(feriadoId) {
+  return enviarSinBody(`/api/admin/feriados/${feriadoId}`, 'DELETE');
+}
+
 // ---- Mantenimiento ----
 export async function obtenerMantenimiento() {
   const res = await fetch('/api/admin/mantenimiento');
