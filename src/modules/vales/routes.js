@@ -85,6 +85,7 @@ const limitarReportes = rateLimit({
 router.get('/catalogos', verVales, (req, res) => valeController.catalogos(req, res));
 router.get('/talleres', verVales, (req, res) => valeController.talleres(req, res));
 router.get('/capacidad-entrega', crearVale, (req, res) => valeController.capacidadEntrega(req, res));
+router.get('/fechas-entrega', crearVale, (req, res) => valeController.fechasEntrega(req, res));
 router.get('/disenadores', asignarVale, (req, res) => valeController.disenadores(req, res));
 router.get('/carga-trabajo', asignarVale, (req, res) => valeController.cargaTrabajo(req, res));
 router.get('/carga-trabajo/:disenadorId', asignarVale, (req, res) => valeController.cargaTrabajoDisenador(req, res));

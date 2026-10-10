@@ -175,6 +175,18 @@ function sendToUser(userId, event, data) {
 }
 
 /**
+ * Envía un mensaje a todas las pestañas conectadas de varios usuarios.
+ * @param {Array<string|number>} userIds
+ * @param {string} event
+ * @param {any} data
+ */
+function sendToUsers(userIds, event, data) {
+  if (io && userIds && userIds.length) {
+    io.to(userIds.map(id => `usuario:${id}`)).emit(event, data);
+  }
+}
+
+/**
  * Envía un mensaje a un conjunto específico de salas (roles/usuarios objetivo).
  * @param {string[]} rooms
  * @param {string} event
@@ -192,6 +204,7 @@ module.exports = {
   broadcast,
   sendToModule,
   sendToUser,
+  sendToUsers,
   sendToRooms,
   registrarValidadorSala
 };

@@ -59,13 +59,18 @@ export function abrirModalVerificarAdjuntos(vale) {
   });
 }
 
+function textoPlazoVale() {
+  const horas = state.catalogos && state.catalogos.horasVencimientoVale;
+  return horas ? `${horas} ${horas === 1 ? 'hora laboral' : 'horas laborales'}` : 'un plazo en horas laborales';
+}
+
 export function abrirModalRechazarAdjuntos(vale) {
   const { overlay, cerrar } = abrirModal({
     title: `Rechazar vale — ${vale.correlativo}`,
     bodyHtml: `
       <div class="aviso-rechazo">
         <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
-        <p>El vale vuelve al asesor con tu mensaje y tiene <strong>24 horas</strong> para atenderlo. Si no se resuelve en ese plazo, el vale se elimina junto con la conversación.</p>
+        <p>El vale vuelve al asesor con tu mensaje y tiene <strong>${textoPlazoVale()}</strong> para atenderlo. Si no se resuelve en ese plazo, el vale se elimina junto con la conversación.</p>
       </div>
       <div class="form-field full">
         <label for="mensaje-rechazo">¿Qué debe hacer el asesor? *</label>

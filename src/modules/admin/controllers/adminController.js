@@ -241,6 +241,15 @@ class AdminController {
     }
   }
 
+  async actualizarHoraMaximaTaller(req, res) {
+    try {
+      await adminService.actualizarHoraMaximaTaller(idObligatorio(req.params.id), req.body.horaMaxima);
+      return res.json({ ok: true });
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async asignarDisenadorATaller(req, res) {
     try {
       await adminService.asignarDisenadorATaller(idObligatorio(req.params.id), idObligatorio(req.body.usuarioId, 'Usuario'));

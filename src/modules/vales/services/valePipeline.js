@@ -2,12 +2,13 @@
 // Pipeline de estado de 5 pasos que reemplaza la píldora de estado en las tablas. Solo traduce los estados
 // reales (vales.estado y vale_talleres.estado) a un paso, un modificador y unas marcas: no cambia ninguno.
 // Para agregar un estado nuevo basta una entrada en ETAPA_TALLER o un caso en calcularPipeline.
+const calendarioService = require('../../../core/calendario/calendarioService');
 const {
   ESTADOS, ESTADOS_TALLER, ROLES_TALLER_Y_DISENADOR, esValeDeModificacion
 } = require('./valeHelpers');
 
 const PASOS = ['Autorización', 'Asignación', 'Producción', 'Revisión', 'Confirmación'];
-const MINUTOS_VENCE_URGENTE = 6 * 60;
+const MINUTOS_VENCE_URGENTE_RESPALDO = 60; // 25% de las 4 h por defecto, si el calendario aún no cargó
 
 // Etapa de un taller (vale_talleres.estado) dentro del pipeline; `orden` decide cuál va más atrasado.
 const ETAPA_TALLER = {
@@ -15,7 +16,7 @@ const ETAPA_TALLER = {
   [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS]: { orden: 0, paso: 2, etiqueta: 'Esperando adjuntos', detalle: 'Asesor' },
   [ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS]: { orden: 0, paso: 2, etiqueta: 'Adjuntos enviados', detalle: 'Encargado' },
   [ESTADOS_TALLER.PENDIENTE_ASIGNACION]: { orden: 1, paso: 2, etiqueta: 'Por asignar', detalle: 'Encargado' },
-  [ESTADOS_TALLER.ASIGNADO]: { orden: 2, paso: 2, etiqueta: 'Asignado', detalle: 'Sin iniciar' },
+  [ESTADOS_TALLER.ASIGNADO]: { orden: 2, paso: 3, etiqueta: 'En proceso', detalle: 'Diseñador' }, // asignado ya cuenta como producción
   [ESTADOS_TALLER.EN_PROCESO]: { orden: 3, paso: 3, etiqueta: 'En proceso', detalle: 'Diseñador' },
   [ESTADOS_TALLER.EN_PAUSA]: { orden: 4, paso: 3, etiqueta: 'En pausa', detalle: 'Diseñador', nodo: 'pausa', tono: 'warning' },
   [ESTADOS_TALLER.EN_REVISION]: { orden: 5, paso: 4, etiqueta: 'En revisión', detalle: 'Encargado' }
@@ -48,10 +49,13 @@ function etapaDeTalleres(vale, filas, estadoPropio) {
 function marcasDe(vale) {
   const marcas = [];
   if (esValeDeModificacion(vale)) marcas.push({ tipo: 'mod', texto: 'MOD' });
-  if (ESTADOS_CON_VIGENCIA.includes(vale.estado) && vale.vigencia_minutos != null) {
-    const minutos = Math.max(0, Number(vale.vigencia_minutos));
+  if (ESTADOS_CON_VIGENCIA.includes(vale.estado) && vale.vigencia_hasta != null) {
+    // Tiempo laboral restante (se detiene fuera de horario); sin calendario cargado, el reloj corrido de la base.
+    const laboral = calendarioService.minutosRestantesDeVale(vale.vigencia_hasta, vale.talleres_solicitados);
+    const minutos = Math.max(0, laboral ? laboral.minutos : Number(vale.vigencia_minutos));
+    const urgente = laboral ? laboral.umbralUrgente : MINUTOS_VENCE_URGENTE_RESPALDO;
     marcas.push({
-      tipo: minutos <= MINUTOS_VENCE_URGENTE ? 'vence-urgente' : 'vence',
+      tipo: minutos <= urgente ? 'vence-urgente' : 'vence',
       texto: minutos >= 60 ? `Vence en ${Math.ceil(minutos / 60)} h` : `Vence en ${minutos} min`
     });
   }
@@ -118,4 +122,7 @@ function calcularPipeline(vale, opciones = {}) {
   };
 }
 
-module.exports = { calcularPipeline, PASOS };
+// Los servicios que arman listas con pipeline esperan esto antes, para que el contador use el calendario ya cargado.
+const prepararPipeline = () => calendarioService.cargar();
+
+module.exports = { calcularPipeline, prepararPipeline, PASOS };

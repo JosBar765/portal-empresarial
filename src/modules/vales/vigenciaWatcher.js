@@ -1,23 +1,27 @@
 // src/modules/vales/vigenciaWatcher.js
-// Un vale recién creado (o una solicitud de modificación, el vale MOD-) tiene 24 h para ser autorizado: a las 6 h
-// del final avisa al asesor y a sus supervisores, y al vencer lo elimina y avisa. Corre en el mismo proceso, cada 60 s.
+// Un vale recién creado (o una solicitud de modificación, el vale MOD-) tiene N horas laborales para ser autorizado:
+// cuando queda el 25% del plazo avisa al asesor y a sus supervisores, y al vencer lo elimina y avisa. Cada 60 s.
 const valeRepository = require('./repositories/valeRepository');
 const usuarioValeRepository = require('./repositories/usuarioValeRepository');
 const valeCreacionService = require('./services/valeCreacionService');
 const valeEvents = require('./events');
+const calendarioService = require('../../core/calendario/calendarioService');
 const { ESTADOS, esValeDeModificacion } = require('./services/valeHelpers');
 
 const INTERVALO_MS = 60 * 1000;
-const HORAS_DE_AVISO = 6;
 
 async function avisarPorExpirar() {
-  for (const vale of await valeRepository.listarPorExpirar(HORAS_DE_AVISO)) {
+  const umbral = await calendarioService.umbralAvisoMinutos();
+  for (const vale of await valeRepository.listarSinAvisoDeVigencia()) {
+    const minutos = await calendarioService.minutosRestantes(vale.vigencia_hasta, calendarioService.idsDeCsv(vale.talleres_solicitados));
+    if (minutos > umbral) continue;
     // Un vale rechazado está en manos del asesor: solo a él le sirve el aviso.
     const supervisores = vale.estado === ESTADOS.RECHAZADO ? [] : await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
-    let texto = `está por expirar: se eliminará automáticamente en menos de ${HORAS_DE_AVISO} horas si no es autorizado`;
+    const restante = `le queda aproximadamente ${calendarioService.formatearDuracion(minutos)} de horario laboral`;
+    let texto = `está por expirar: ${restante} y se eliminará automáticamente si no es autorizado`;
     if (esValeDeModificacion(vale)) {
       const original = await valeRepository.obtenerPorId(vale.vale_original_id);
-      texto = `(solicitud de modificación${original ? ` de ${original.correlativo}` : ''}) está por expirar: se eliminará automáticamente en menos de ${HORAS_DE_AVISO} horas si no es autorizada`;
+      texto = `(solicitud de modificación${original ? ` de ${original.correlativo}` : ''}) está por expirar: ${restante} y se eliminará automáticamente si no es autorizada`;
     }
     valeEvents.notificar({
       vale, tipo: 'POR_EXPIRAR', nivel: 'alerta', texto,

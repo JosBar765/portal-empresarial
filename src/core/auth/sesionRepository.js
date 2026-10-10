@@ -84,6 +84,20 @@ class SesionRepository {
     await db.query('DELETE FROM sesiones_activas WHERE usuario_id = ?', [usuarioId], 'sesion:eliminar_por_usuario');
   }
 
+  // Cierre masivo del mantenimiento: borra las sesiones de todo usuario que no
+  // es Administrador (rol 1) y devuelve sus ids para avisarles por socket.
+  async eliminarNoAdministradores() {
+    const filas = await db.query(
+      'SELECT sa.usuario_id FROM sesiones_activas sa JOIN usuarios u ON u.id = sa.usuario_id WHERE u.rol_id <> 1',
+      [], 'sesion:listar_no_admin'
+    );
+    await db.query(
+      'DELETE sa FROM sesiones_activas sa JOIN usuarios u ON u.id = sa.usuario_id WHERE u.rol_id <> 1',
+      [], 'sesion:eliminar_no_admin'
+    );
+    return filas.map(f => f.usuario_id);
+  }
+
   async eliminarPorRefresh(refreshHash) {
     await db.query(
       'DELETE FROM sesiones_activas WHERE refresh_hash = ? OR refresh_anterior_hash = ?',

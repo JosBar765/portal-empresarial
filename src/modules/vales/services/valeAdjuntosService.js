@@ -11,8 +11,9 @@ const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeMutex = require('./valeMutex');
 const valeTallerService = require('./valeTallerService');
 const valeCreacionService = require('./valeCreacionService');
+const calendarioService = require('../../../core/calendario/calendarioService');
 const {
-  ESTADOS_TALLER, ROLES_ENCARGADO_TALLER, esValeDeModificacion, vencimiento24h, enriquecer, registrarHistorial,
+  ESTADOS_TALLER, ROLES_ENCARGADO_TALLER, esValeDeModificacion, enriquecer, registrarHistorial,
   requerirVale, puedeActuarComoAsesor
 } = require('./valeHelpers');
 
@@ -76,7 +77,7 @@ class ValeAdjuntosService {
       if (!ESTADOS_POR_VERIFICAR.includes(fila.estado)) {
         throw new Error('Este vale no está esperando que verifiques sus adjuntos en tu taller.');
       }
-      await valeTallerRepository.rechazarAdjuntos(fila.id, vencimiento24h());
+      await valeTallerRepository.rechazarAdjuntos(fila.id, await calendarioService.vencimientoPlazo([fila.taller_id]));
       await valeMensajeRepository.crear(fila.id, usuario.id, 'TALLER', texto);
       const nombre = await this._nombreTaller(fila.taller_id);
       await registrarHistorial(valeId, usuario.id, fila.taller_id, fila.estado, ESTADOS_TALLER.ADJUNTOS_RECHAZADOS,
@@ -173,7 +174,7 @@ class ValeAdjuntosService {
     });
   }
 
-  // Venció el plazo de 24 h sin respuesta del asesor: se borra el vale completo (el original de un MOD- no se toca).
+  // Venció el plazo sin respuesta del asesor: se borra el vale completo (el original de un MOD- no se toca).
   // Revalida bajo el lock: el asesor o el encargado pudieron actuar entretanto.
   async expirarPorAdjuntos(valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
@@ -182,11 +183,12 @@ class ValeAdjuntosService {
       const talleres = await valeTallerRepository.listarPorVale(valeId);
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       const original = esValeDeModificacion(vale) ? await valeRepository.obtenerPorId(vale.vale_original_id) : null;
+      const horas = await calendarioService.horasVencimiento();
       await valeCreacionService.eliminarValeConArchivos(valeId);
       const salasTalleres = [...new Set(talleres.flatMap(t => [`taller:${t.taller_id}`, ...(t.disenador_id ? [`disenador:${t.disenador_id}`] : [])]))];
       valeEvents.notificar({
         vale, tipo: 'ADJUNTOS_VENCIDOS', valeBorrado: true, nivel: 'alerta',
-        texto: `${original ? '(solicitud de modificación) ' : ''}fue eliminado automáticamente: el asesor no envió los adjuntos en 24 horas${original ? `. ${original.correlativo} ya quedó como Recibido` : ''}`,
+        texto: `${original ? '(solicitud de modificación) ' : ''}fue eliminado automáticamente: el asesor no envió los adjuntos en ${horas} ${horas === 1 ? 'hora laboral' : 'horas laborales'}${original ? `. ${original.correlativo} ya quedó como Recibido` : ''}`,
         salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`), ...salasTalleres]
       });
       return true;

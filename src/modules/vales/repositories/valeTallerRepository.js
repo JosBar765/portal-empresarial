@@ -61,7 +61,7 @@ class ValeTallerRepository {
     );
   }
 
-  // Rechazo de adjuntos: el plazo de 24 h se fija solo la primera vez (COALESCE) y el aviso se limpia solo entonces.
+  // Rechazo de adjuntos: el plazo se fija solo la primera vez (COALESCE) y el aviso se limpia solo entonces.
   async rechazarAdjuntos(id, venceEn) {
     await db.query(
       `UPDATE vale_talleres SET estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ADJUNTOS_RECHAZADOS'),
@@ -84,15 +84,15 @@ class ValeTallerRepository {
     );
   }
 
-  // Filas esperando al asesor a las que les quedan `horas` o menos y aún sin aviso.
-  async listarAdjuntosPorVencer(horas) {
+  // Filas esperando al asesor con plazo vigente y aún sin aviso; el servicio decide cuáles están en el último tramo.
+  async listarAdjuntosSinAviso() {
     return db.query(
-      `SELECT vt.id, vt.vale_id, vt.taller_id, TIMESTAMPDIFF(MINUTE, NOW(), vt.adjuntos_vence_en) AS minutos_restantes
+      `SELECT vt.id, vt.vale_id, vt.taller_id, vt.adjuntos_vence_en
        FROM vale_talleres vt
        JOIN estados_taller et ON et.id = vt.estado_id
        WHERE vt.activo = 1 AND et.nombre = 'ADJUNTOS_RECHAZADOS' AND vt.adjuntos_aviso_en IS NULL
-         AND vt.adjuntos_vence_en > NOW() AND vt.adjuntos_vence_en <= DATE_ADD(NOW(), INTERVAL ? HOUR)`,
-      [horas], 'vale_taller:list_adjuntos_por_vencer'
+         AND vt.adjuntos_vence_en > NOW()`,
+      [], 'vale_taller:list_adjuntos_sin_aviso'
     );
   }
 

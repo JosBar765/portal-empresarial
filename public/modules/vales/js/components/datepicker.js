@@ -8,8 +8,8 @@
 // día, un indicador de cupos disponibles del/los taller(es) elegidos y
 // bloquea los días donde ya se alcanzó el límite diario de alguno. "Fecha
 // del evento" nunca lo recibe, así que su calendario queda intacto.
-import { hoyMedianoche, isoLocal, parseIsoLocal, esFinDeSemana } from '../utils/fechas.js';
-import { formatearFecha } from '../utils/formato.js';
+import { hoyMedianoche, isoLocal, parseIsoLocal } from '../utils/fechas.js';
+import { formatearFecha, escapeHtml } from '../utils/formato.js';
 import { limpiarErrorCampo, marcarErrorCampo } from './validacion.js';
 
 export const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -92,10 +92,11 @@ function htmlTooltipCapacidad(diaInfo) {
   return `<p class="dp-tooltip-titulo">Detalle de Capacidad:</p>${filas}`;
 }
 
+// `alCambiarMes(anio, mes)` avisa cuando el panel muestra otro mes (para pedir al servidor sus días no disponibles).
 // minDate se puede ajustar después con api.setMinDate() — lo usa, por
 // ejemplo, la fecha del evento, que se recalcula cuando cambia la fecha de
 // entrega. `capacidad`, ver comentario del encabezado del archivo.
-export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'Seleccionar fecha', capacidad = null, sinFinDeSemana = false } = {}) {
+export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'Seleccionar fecha', capacidad = null, alCambiarMes = null } = {}) {
   const wrapper = overlay.querySelector(`[data-date-field="${name}"]`);
   const trigger = wrapper.querySelector('.date-field-trigger');
   const valueEl = wrapper.querySelector('.date-field-value');
@@ -108,20 +109,34 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'S
   let tooltipEl = null;
   let capacidadToken = 0;
   let placeholderActual = placeholder;
+  // Días no disponibles que informa el servidor: 'YYYY-MM-DD' -> { motivo, detalle }.
+  let bloqueadas = new Map();
 
-  const noDisponible = (f) => !!(minActual && f < minActual) || (sinFinDeSemana && esFinDeSemana(f));
+  const noDisponible = (f) => !!(minActual && f < minActual) || bloqueadas.has(isoLocal(f));
+
+  // Si la fecha elegida dejó de ser válida se borra; si el panel está abierto se redibuja.
+  function revalidar() {
+    if (seleccionado && noDisponible(seleccionado)) {
+      seleccionado = null;
+      hidden.value = '';
+      refrescarLabel();
+      hidden.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if (panelEl) renderPanel();
+  }
 
   const api = {
     cerrar: cerrarPanel,
     getDate: () => seleccionado,
     setMinDate(fecha) {
       minActual = fecha;
-      if (seleccionado && noDisponible(seleccionado)) {
-        seleccionado = null;
-        hidden.value = '';
-        refrescarLabel();
-        hidden.dispatchEvent(new Event('change', { bubbles: true }));
-      }
+      revalidar();
+    },
+    // Mínima y días no disponibles que calcula el servidor; `reemplazar` descarta los de consultas anteriores.
+    setRestricciones(minima, mapa, reemplazar = false) {
+      minActual = minima;
+      bloqueadas = reemplazar ? new Map(mapa) : new Map([...bloqueadas, ...mapa]);
+      revalidar();
     },
     setDate(fecha, opts = {}) {
       seleccionado = fecha;
@@ -264,10 +279,14 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'S
       const fecha = new Date(mesVisible.getFullYear(), mesVisible.getMonth(), d);
       const deshabilitado = noDisponible(fecha);
       const clases = ['dp-day'];
+      const razon = bloqueadas.get(isoLocal(fecha));
+      const motivoTexto = razon ? (razon.motivo === 'FERIADO' ? `Feriado: ${razon.detalle}` : razon.detalle) : '';
+      if (razon && razon.motivo === 'FERIADO') clases.push('dp-day--feriado');
       if (fecha.getTime() === hoy.getTime()) clases.push('is-today');
       if (seleccionado && fecha.getTime() === seleccionado.getTime()) clases.push('is-selected');
       if (deshabilitado) clases.push('is-disabled');
-      celdas += `<button type="button" class="${clases.join(' ')}" ${deshabilitado ? 'disabled' : ''} data-fecha="${isoLocal(fecha)}">${d}</button>`;
+      const ayuda = deshabilitado && motivoTexto ? ` title="${escapeHtml(motivoTexto)}" aria-label="${d}, ${escapeHtml(motivoTexto)}"` : '';
+      celdas += `<button type="button" class="${clases.join(' ')}" ${deshabilitado ? 'disabled' : ''} data-fecha="${isoLocal(fecha)}"${ayuda}>${d}</button>`;
     }
     panelEl.innerHTML = `
       <div class="dp-header">
@@ -282,6 +301,7 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'S
       btn.addEventListener('click', () => {
         mesVisible = new Date(mesVisible.getFullYear(), mesVisible.getMonth() + Number(btn.dataset.nav), 1);
         renderPanel();
+        if (alCambiarMes) alCambiarMes(mesVisible.getFullYear(), mesVisible.getMonth() + 1);
       });
     });
     panelEl.querySelectorAll('.dp-day[data-fecha]:not(.is-disabled)').forEach(btn => {
@@ -310,6 +330,7 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'S
     panelEl.className = 'date-picker-panel';
     document.body.appendChild(panelEl);
     renderPanel();
+    if (alCambiarMes) alCambiarMes(mesVisible.getFullYear(), mesVisible.getMonth() + 1);
     posicionarPanel();
     trigger.setAttribute('aria-expanded', 'true');
     document.addEventListener('keydown', onKeydownCapture, true);

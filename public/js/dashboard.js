@@ -125,6 +125,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       query: { userId: currentUser.id }
     });
 
+    window.avisoMantenimiento?.iniciar({ socket, rolId: currentUser.rolId });
+
     socket.on('connect', () => {
       console.log('[WebSocket] Conectado exitosamente al canal de notificaciones en tiempo real del portal.');
       

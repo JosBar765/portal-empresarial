@@ -9,8 +9,10 @@ const mantenimientoRepository = require('../repositories/mantenimientoRepository
 const authService = require('../../../core/auth/authService');
 const maintenanceGate = require('../../../core/permissions/maintenanceMiddleware');
 const socketManager = require('../../../core/websocket/socketManager');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero, validarTelefono } = require('../../../core/utils/validar');
 const sesionRepository = require('../../../core/auth/sesionRepository');
+const calendarioService = require('../../../core/calendario/calendarioService');
 
 // Roles base protegidos: no se pueden eliminar ni renombrar, pero sus
 // permisos sí se pueden editar. Asesor de Ventas no está en esta lista — la
@@ -297,7 +299,9 @@ class AdminService {
     }
     const depId = await this._resolverDepartamento({ departamentoId, departamentoNombre, paisId });
     const subId = await this._resolverSubdivision({ departamentoId: depId, subdivisionId, subdivisionNombre, paisId });
-    return tiendaAdminRepository.actualizar(id, { codigo, empresaId: Number(empresaId), departamentoId: depId, subdivisionId: subId, activo });
+    const resultado = await tiendaAdminRepository.actualizar(id, { codigo, empresaId: Number(empresaId), departamentoId: depId, subdivisionId: subId, activo });
+    calendarioService.invalidar();
+    return resultado;
   }
 
   async listarPersonalTienda(tiendaId) {
@@ -419,6 +423,7 @@ class AdminService {
       await this._validarQueNoEncargueOtroTaller(encargado);
     }
     const id = await tallerAdminRepository.crearLocal({ nombre, tiendaId: tienda.id, encargadoId: encargado ? encargado.id : null });
+    calendarioService.invalidar();
     return { id, nombre };
   }
 
@@ -459,6 +464,18 @@ class AdminService {
     return tallerAdminRepository.actualizarLimiteDiario(tallerId, limiteDiario);
   }
 
+  // Hora máxima de recibimiento: HH:MM de 24 h, obligatoria (sin 24:00 ni vacío).
+  async actualizarHoraMaximaTaller(tallerId, horaRaw) {
+    const taller = await tallerAdminRepository.obtenerPorId(tallerId);
+    if (!taller) throw new ErrorDeNegocio('Taller no encontrado.', 404);
+    if (typeof horaRaw !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(horaRaw)) {
+      throw new ErrorDeNegocio('La hora máxima de recibimiento debe tener el formato HH:MM de 24 horas (de 00:00 a 23:59).');
+    }
+    const resultado = await tallerAdminRepository.actualizarHoraMaxima(tallerId, horaRaw);
+    calendarioService.invalidar();
+    return resultado;
+  }
+
   async asignarDisenadorATaller(tallerId, usuarioId) {
     const taller = await tallerAdminRepository.obtenerPorId(tallerId);
     if (!taller) throw new Error('Taller no encontrado.');
@@ -482,11 +499,14 @@ class AdminService {
   // Modo Mantenimiento
   // ---------------------------------------------------------------------
   async obtenerMantenimiento() {
-    return mantenimientoRepository.obtener();
+    const fila = await mantenimientoRepository.obtener();
+    return { ...fila, ...maintenanceGate.obtenerEstado() };
   }
 
   async actualizarMantenimiento({ activo, mensaje, password }, usuario) {
+    const antes = maintenanceGate.obtenerEstado();
     if (activo) {
+      if (antes.activo) throw new Error('El Modo Mantenimiento ya está activo.');
       if (!password) throw new Error('Debes ingresar tu contraseña para activar el Modo Mantenimiento.');
       try {
         await authService.authenticate(usuario.email, password);
@@ -494,9 +514,16 @@ class AdminService {
         throw new Error('Contraseña incorrecta.');
       }
     }
-    await mantenimientoRepository.actualizar({ activo, mensaje, activadoPor: usuario.id });
-    await maintenanceGate.refrescar();
-    return mantenimientoRepository.obtener();
+    await mantenimientoRepository.actualizar({
+      activo, mensaje, activadoPor: usuario.id, minutosCuenta: maintenanceGate.MINUTOS_CUENTA_REGRESIVA
+    });
+    const despues = await maintenanceGate.refrescar();
+    if (despues.enCuentaRegresiva) {
+      socketManager.broadcast('mantenimiento_programado', { segundosRestantes: despues.segundosRestantes, mensaje: despues.mensaje });
+    } else if (!despues.activo && antes.enCuentaRegresiva) {
+      socketManager.broadcast('mantenimiento_cancelado', {});
+    }
+    return this.obtenerMantenimiento();
   }
 }
 

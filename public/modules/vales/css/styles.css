@@ -1553,6 +1553,23 @@
   cursor: default;
 }
 
+/* Feriado: el día queda deshabilitado y con un punto de color para distinguirlo de un día sin recepción. */
+.dp-day--feriado {
+  position: relative;
+}
+
+.dp-day--feriado::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--color-danger);
+}
+
 /* -------------------------------------------------------------------------
    Cupos por día (analisis_correcciones_28.md) — barra bajo el número que
    resume el uso del taller (o el más ajustado, si hay varios) más
