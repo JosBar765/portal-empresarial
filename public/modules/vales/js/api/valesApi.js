@@ -72,6 +72,15 @@ export async function obtenerCapacidadEntrega(talleresIds, anio, mes) {
   return leerJSON(res);
 }
 
+// Mínima y días no disponibles (feriados, días sin recepción, hora máxima) de la fecha de entrega en un rango.
+export async function obtenerFechasEntrega(talleresIds, desde, hasta) {
+  const qs = new URLSearchParams({ talleres: talleresIds.join(','), desde, hasta });
+  const res = await fetch(`/api/vales/fechas-entrega?${qs.toString()}`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudieron cargar las fechas de entrega disponibles.');
+  return data;
+}
+
 export async function buscarValePorCorrelativo(correlativo) {
   const res = await fetch(`/api/vales/buscar?correlativo=${encodeURIComponent(correlativo)}`);
   const data = await leerJSON(res);
