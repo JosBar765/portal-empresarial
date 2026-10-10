@@ -683,11 +683,12 @@ No cambia ningún estado ni filtro: el desplegable de estado sigue usando los es
 | Paso | Estado general | Estado por taller |
 |---|---|---|
 | 1 Autorización | `ESPERANDO_AUTORIZACION`, `SOLICITANDO_MODIFICACION`, `RECHAZADO` (paso en rojo con X) | — |
-| 2 Asignación | `CREADO`, `MODIFICADO` | `VERIFICANDO_ADJUNTOS`, `ADJUNTOS_RECHAZADOS`, `ADJUNTOS_RESPONDIDOS`, `PENDIENTE_ASIGNACION`, `ASIGNADO` |
-| 3 Producción | `CREADO`, `MODIFICADO` | `EN_PROCESO`, `EN_PAUSA` (ámbar) |
+| 2 Asignación | `CREADO`, `MODIFICADO` | `VERIFICANDO_ADJUNTOS`, `ADJUNTOS_RECHAZADOS`, `ADJUNTOS_RESPONDIDOS`, `PENDIENTE_ASIGNACION` |
+| 3 Producción | `CREADO`, `MODIFICADO` | `ASIGNADO`, `EN_PROCESO`, `EN_PAUSA` (ámbar) |
 | 4 Revisión | `CREADO`, `MODIFICADO`, `APROBADO_DEPARTAMENTO` (fusión) | `EN_REVISION`, `APROBADO` |
 | 5 Confirmación | `PENDIENTE_CONFIRMACION`, `RECIBIDO` (los cinco en verde) | — |
 
+- Desde que el encargado **asigna** a un diseñador el vale ya figura en el paso 3 «En proceso» (aunque el diseñador todavía no haya iniciado): así lo ven asesor, supervisor, gerente y administrador, y los contadores «Por asignar»/«En proceso» de asesor y supervisor lo cuentan en «En proceso». Los estados reales del taller y los contadores del encargado y del diseñador no cambian.
 - Con varios talleres se muestra el paso del taller más atrasado y «N de M talleres listos»; el tooltip lista el estado de cada uno. Encargados y diseñadores ven el paso de **su** taller.
 - El atraso (≥ 1 día) tiñe de rojo el paso actual; al estar `RECIBIDO` muestra «Atraso final».
 - Marcas bajo el pipeline: `MOD` (vale `MOD-`) y `Vence en N h` / `Vence en N min` (tiempo **laboral** restante, que se detiene fuera de horario; ámbar cuando queda el 25% del plazo o menos; lo calcula `valePipeline.js` con el calendario laboral a partir de `vigencia_hasta`).
