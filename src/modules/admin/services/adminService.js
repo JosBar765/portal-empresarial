@@ -499,11 +499,14 @@ class AdminService {
   // Modo Mantenimiento
   // ---------------------------------------------------------------------
   async obtenerMantenimiento() {
-    return mantenimientoRepository.obtener();
+    const fila = await mantenimientoRepository.obtener();
+    return { ...fila, ...maintenanceGate.obtenerEstado() };
   }
 
   async actualizarMantenimiento({ activo, mensaje, password }, usuario) {
+    const antes = maintenanceGate.obtenerEstado();
     if (activo) {
+      if (antes.activo) throw new Error('El Modo Mantenimiento ya está activo.');
       if (!password) throw new Error('Debes ingresar tu contraseña para activar el Modo Mantenimiento.');
       try {
         await authService.authenticate(usuario.email, password);
@@ -511,9 +514,16 @@ class AdminService {
         throw new Error('Contraseña incorrecta.');
       }
     }
-    await mantenimientoRepository.actualizar({ activo, mensaje, activadoPor: usuario.id });
-    await maintenanceGate.refrescar();
-    return mantenimientoRepository.obtener();
+    await mantenimientoRepository.actualizar({
+      activo, mensaje, activadoPor: usuario.id, minutosCuenta: maintenanceGate.MINUTOS_CUENTA_REGRESIVA
+    });
+    const despues = await maintenanceGate.refrescar();
+    if (despues.enCuentaRegresiva) {
+      socketManager.broadcast('mantenimiento_programado', { segundosRestantes: despues.segundosRestantes, mensaje: despues.mensaje });
+    } else if (!despues.activo && antes.enCuentaRegresiva) {
+      socketManager.broadcast('mantenimiento_cancelado', {});
+    }
+    return this.obtenerMantenimiento();
   }
 }
 

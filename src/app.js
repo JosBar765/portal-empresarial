@@ -135,6 +135,9 @@ vigenciaWatcher.iniciar();
 adjuntosWatcher.iniciar();
 notificacionLimpieza.iniciar();
 
+// Estado del mantenimiento para el aviso con cuenta regresiva (segundos restantes, sin depender del reloj del cliente).
+app.get('/api/mantenimiento/estado', requireAuth, (req, res) => res.json(maintenanceGate.obtenerEstado()));
+
 // Endpoint dinámico de Módulos del Dashboard
 app.get('/api/modules', requireAuth, (req, res) => {
   const user = req.user;
