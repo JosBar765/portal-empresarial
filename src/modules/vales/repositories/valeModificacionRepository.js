@@ -1,5 +1,5 @@
 // src/modules/vales/repositories/valeModificacionRepository.js
-// Solicitud de modificación: nace el vale MOD- (esperando al supervisor, con 24 h de vigencia) y el original queda RECIBIDO.
+// Solicitud de modificación: nace el vale MOD- (esperando al supervisor, con vigencia en horas laborales) y el original queda RECIBIDO.
 const db = require('../../../config/database');
 
 class ValeModificacionRepository {

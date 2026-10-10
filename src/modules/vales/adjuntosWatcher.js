@@ -1,28 +1,30 @@
 // src/modules/vales/adjuntosWatcher.js
-// Un taller que rechazó los adjuntos le da 24 h al asesor (desde el primer rechazo): a las 6 h del final lo avisa
-// una vez y, al vencer sin respuesta, elimina el vale completo. Corre en el mismo proceso, cada 60 s.
+// Un taller que rechazó los adjuntos le da N horas laborales al asesor (desde el primer rechazo): cuando queda el 25%
+// del plazo lo avisa una vez y, al vencer sin respuesta, elimina el vale completo. Cada 60 s.
 const valeRepository = require('./repositories/valeRepository');
 const valeTallerRepository = require('./repositories/valeTallerRepository');
 const tallerRepository = require('./repositories/tallerRepository');
 const usuarioValeRepository = require('./repositories/usuarioValeRepository');
 const valeAdjuntosService = require('./services/valeAdjuntosService');
 const valeEvents = require('./events');
+const calendarioService = require('../../core/calendario/calendarioService');
 
 const INTERVALO_MS = 60 * 1000;
-const HORAS_DE_AVISO = 6;
 
 async function avisarPorVencer() {
-  for (const fila of await valeTallerRepository.listarAdjuntosPorVencer(HORAS_DE_AVISO)) {
+  const umbral = await calendarioService.umbralAvisoMinutos();
+  for (const fila of await valeTallerRepository.listarAdjuntosSinAviso()) {
+    const minutos = await calendarioService.minutosRestantes(fila.adjuntos_vence_en, [fila.taller_id]);
+    if (minutos > umbral) continue;
     if (!(await valeTallerRepository.marcarAvisoAdjuntos(fila.id))) continue;
     const vale = await valeRepository.obtenerPorId(fila.vale_id);
     if (!vale) continue;
-    const horas = Math.max(1, Math.ceil(fila.minutos_restantes / 60));
     const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
     const salasTalleres = (await valeTallerRepository.listarPorVale(vale.id)).map(t => `taller:${t.taller_id}`);
     const taller = await tallerRepository.obtenerPorId(fila.taller_id);
     valeEvents.notificar({
       vale, tipo: 'ADJUNTOS_POR_VENCER', nivel: 'alerta',
-      texto: `quedan ${horas} ${horas === 1 ? 'hora' : 'horas'} para que el asesor envíe los adjuntos que reclama el taller ${taller ? taller.nombre : fila.taller_id}: si no, el vale se eliminará automáticamente`,
+      texto: `quedan aproximadamente ${calendarioService.formatearDuracion(minutos)} de horario laboral para que el asesor envíe los adjuntos que reclama el taller ${taller ? taller.nombre : fila.taller_id}: si no, el vale se eliminará automáticamente`,
       salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`), ...new Set(salasTalleres)]
     });
   }

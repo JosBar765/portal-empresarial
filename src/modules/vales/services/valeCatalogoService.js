@@ -5,6 +5,7 @@
 const tallerRepository = require('../repositories/tallerRepository');
 const catalogoRepository = require('../repositories/catalogoRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
+const calendarioService = require('../../../core/calendario/calendarioService');
 const { ROL, esAsistenteDeDiseno } = require('./valeHelpers');
 
 class ValeCatalogoService {
@@ -35,7 +36,8 @@ class ValeCatalogoService {
     // producto/material/tecnica/acabado no son catálogo — son texto libre.
     // `miTallerId` solo le sirve al Asistente (el taller que opera); el resto lo resuelve por `talleres.encargado_id`.
     const miTallerId = usuario && esAsistenteDeDiseno(usuario) && solicitante ? (solicitante.taller_id || null) : null;
-    return { tiendas, paises, talleres, miTiendaId: (solicitante && solicitante.tienda_id) || null, miTallerId, tiendasGerencia };
+    const horasVencimientoVale = await calendarioService.horasVencimiento();
+    return { tiendas, paises, talleres, miTiendaId: (solicitante && solicitante.tienda_id) || null, miTallerId, tiendasGerencia, horasVencimientoVale };
   }
 
   async obtenerTalleres() {

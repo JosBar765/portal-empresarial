@@ -14,7 +14,7 @@ const reporteRepository = require('../repositories/reporteRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeVistoRepository = require('../repositories/valeVistoRepository');
-const { calcularPipeline } = require('./valePipeline');
+const { calcularPipeline, prepararPipeline } = require('./valePipeline');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
   esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
@@ -145,6 +145,7 @@ class ValeBuzonService {
   }
 
   async obtenerBuzon(usuario, filtros = {}) {
+    await prepararPipeline();
     const ventana = this._resolverVentana(filtros);
     const vista = filtros.vista === 'trabajo' ? 'trabajo' : 'buzon';
     const filtroContador = filtros.filtroContador || null;
