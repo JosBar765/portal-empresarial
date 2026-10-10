@@ -31,6 +31,7 @@ Despite `express-session` conventions elsewhere, this app uses **stateless JWT i
   - `requirePermission('modulo.accion')` — 403s unless `req.user.permissions` includes the code.
   - `requireModule('modulo')` — 403s unless `req.user.modulosPermitidos` includes it; rol_id 1 (Administrador) always bypasses this.
 - Static routes must be registered **before** `app.use(authenticateJWT)` in `app.js` if they should be public (see the ordering there); anything registered after is implicitly protected.
+- **Maintenance mode** (`maintenanceMiddleware.js`, `maintenanceGate` after `authenticateJWT`): activating it starts a 10-minute countdown (`inicia_en`, MySQL clock) during which users keep working and see a notice (`public/js/mantenimientoAviso.js`, `GET /api/mantenimiento/estado`); at 0 the gate blocks non-Administrators (503 page with a logout button; `/api/auth` is mounted before the gate) and the `sesiones_activas` rows of every rol_id <> 1 user are deleted once (`sesiones_cerradas_en`, resumed on restart) plus `sesion_revocada` over sockets. Details and production steps (import `mantenimiento_cuenta_regresiva.sql` BEFORE deploying): `.agents/modulos/admin/documentacion/mantenimiento_cuenta_regresiva.md`.
 - Permission checks belong in the backend only — hiding a button in the frontend is not access control.
 
 ### Adding a new business module
