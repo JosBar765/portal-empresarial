@@ -19,6 +19,22 @@ class AdminHorarioController {
     }
   }
 
+  async obtenerParametros(req, res) {
+    try {
+      return res.json(await service.obtenerParametros());
+    } catch (error) {
+      return responderErrorInterno(res, error);
+    }
+  }
+
+  async guardarParametros(req, res) {
+    try {
+      return res.json(await service.guardarParametros(req.body));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async listarPaises(req, res) {
     try {
       return res.json(await service.listarPaises());

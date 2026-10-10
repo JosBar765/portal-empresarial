@@ -22,8 +22,8 @@ Tablas `horarios_laborales` (7 filas, un horario por día; un día no laboral no
 
 ## Tareas
 - [x] T1–T4 · Fase 1 (script, backend, pestaña, docs).
-- [ ] T5 · Script: columna `recibe_vales`, columna `talleres.hora_maxima_recepcion` (12:00), parámetro de horas de vencimiento (4) y seed (horarios y feriado) con upgrade idempotente.
-- [ ] T6 · Admin backend + pestañas: casilla «Recibe vales de arte» por día, campo «Horas de vencimiento de un vale de arte», y hora máxima por taller en «Gestionar Talleres».
+- [x] T5 · Script: columna `recibe_vales`, columna `talleres.hora_maxima_recepcion` (12:00), parámetro de horas de vencimiento (4) y seed (horarios y feriado) con upgrade idempotente.
+- [x] T6 · Admin backend + pestañas: casilla «Recibe vales de arte» por día, campo «Horas de vencimiento de un vale de arte», y hora máxima por taller en «Gestionar Talleres».
 - [ ] T7 · Servicio de calendario laboral (país del vale, sumar horas laborales, minutos laborales restantes, fecha mínima de entrega y días no disponibles) con pruebas por simulación de fechas.
 - [ ] T8 · Plazos: reemplazar los tres de 24 h; vigilantes y aviso al 25%; contador de tiempo laboral y textos.
 - [ ] T9 · Fecha de entrega (servidor y calendario del navegador) y fin de las restricciones por día; mensajes.
@@ -36,4 +36,4 @@ Tablas `horarios_laborales` (7 filas, un horario por día; un día no laboral no
 Fase 1: escritor delegado. Fase 2: escritor A (T5–T6), escritor B (T7–T10).
 
 ## Siguiente paso
-Escritor A (T5–T6).
+Escritor B (T7–T10).

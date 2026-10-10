@@ -135,6 +135,10 @@ export function actualizarLimiteDiarioTaller(tallerId, limiteDiario) {
   return enviarConBody(`/api/admin/talleres/${tallerId}/limite-diario`, 'PUT', { limiteDiario });
 }
 
+export function actualizarHoraMaximaTaller(tallerId, horaMaxima) {
+  return enviarConBody(`/api/admin/talleres/${tallerId}/hora-maxima`, 'PUT', { horaMaxima });
+}
+
 // ---- Crear Vale de Arte (PDF) ----
 // multipart: sin Content-Type a mano, el navegador pone el boundary.
 async function enviarFormData(url, formData) {
@@ -176,6 +180,14 @@ export function obtenerHorarios() {
 
 export function guardarHorarios(dias) {
   return enviarConBody('/api/admin/horarios', 'PUT', { dias });
+}
+
+export function obtenerParametrosHorario() {
+  return obtenerJson('/api/admin/horarios/parametros');
+}
+
+export function guardarParametrosHorario(horasVencimientoVale) {
+  return enviarConBody('/api/admin/horarios/parametros', 'PUT', { horasVencimientoVale });
 }
 
 export function listarPaisesHorarios() {

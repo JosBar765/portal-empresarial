@@ -9,6 +9,7 @@ const mantenimientoRepository = require('../repositories/mantenimientoRepository
 const authService = require('../../../core/auth/authService');
 const maintenanceGate = require('../../../core/permissions/maintenanceMiddleware');
 const socketManager = require('../../../core/websocket/socketManager');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero, validarTelefono } = require('../../../core/utils/validar');
 const sesionRepository = require('../../../core/auth/sesionRepository');
 
@@ -457,6 +458,16 @@ class AdminService {
       }
     }
     return tallerAdminRepository.actualizarLimiteDiario(tallerId, limiteDiario);
+  }
+
+  // Hora máxima de recibimiento: HH:MM de 24 h, obligatoria (sin 24:00 ni vacío).
+  async actualizarHoraMaximaTaller(tallerId, horaRaw) {
+    const taller = await tallerAdminRepository.obtenerPorId(tallerId);
+    if (!taller) throw new ErrorDeNegocio('Taller no encontrado.', 404);
+    if (typeof horaRaw !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(horaRaw)) {
+      throw new ErrorDeNegocio('La hora máxima de recibimiento debe tener el formato HH:MM de 24 horas (de 00:00 a 23:59).');
+    }
+    return tallerAdminRepository.actualizarHoraMaxima(tallerId, horaRaw);
   }
 
   async asignarDisenadorATaller(tallerId, usuarioId) {

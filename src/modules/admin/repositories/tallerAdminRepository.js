@@ -8,7 +8,7 @@ class TallerAdminRepository {
   // reactivarlos. Los activos van primero.
   async listarConDetalle() {
     return db.query(
-      `SELECT t.id, t.nombre, t.encargado_id, t.tienda_id, t.limite_diario, t.activo, u.nombre AS encargado_nombre,
+      `SELECT t.id, t.nombre, t.encargado_id, t.tienda_id, t.limite_diario, TIME_FORMAT(t.hora_maxima_recepcion, '%H:%i') AS hora_maxima_recepcion, t.activo, u.nombre AS encargado_nombre,
               ti.codigo AS tienda_codigo,
               CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS tienda_nombre,
               (SELECT COUNT(*) FROM taller_disenadores tt WHERE tt.taller_id = t.id) AS disenadores_count
@@ -116,6 +116,14 @@ class TallerAdminRepository {
       'UPDATE talleres SET limite_diario = ? WHERE id = ?',
       [limiteDiario, tallerId],
       'taller_admin:actualizar_limite_diario'
+    );
+  }
+
+  async actualizarHoraMaxima(tallerId, hora) {
+    return db.query(
+      'UPDATE talleres SET hora_maxima_recepcion = ? WHERE id = ?',
+      [hora, tallerId],
+      'taller_admin:actualizar_hora_maxima'
     );
   }
 

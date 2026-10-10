@@ -3,7 +3,7 @@ import { $ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import {
-  obtenerHorarios, guardarHorarios, listarPaisesHorarios, listarFeriados,
+  obtenerHorarios, guardarHorarios, obtenerParametrosHorario, guardarParametrosHorario, listarPaisesHorarios, listarFeriados,
   crearFeriado, actualizarFeriado, eliminarFeriado
 } from '../api/adminApi.js';
 
@@ -12,8 +12,9 @@ const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', '
 const fechaLegible = (f) => String(f).split('-').reverse().join('/');
 
 export async function cargarHorarios() {
-  const [horarios, paises] = await Promise.all([obtenerHorarios(), listarPaisesHorarios()]);
+  const [horarios, paises, parametros] = await Promise.all([obtenerHorarios(), listarPaisesHorarios(), obtenerParametrosHorario()]);
   state.horarios = horarios;
+  state.horasVencimientoVale = parametros.horasVencimientoVale;
   // Guatemala primero y por defecto.
   state.paisesHorarios = [...paises].sort((a, b) => (b.codigo === 'GT') - (a.codigo === 'GT') || a.nombre.localeCompare(b.nombre));
   if (!state.paisesHorarios.some(p => p.id === state.paisFeriadoId)) state.paisFeriadoId = state.paisesHorarios[0]?.id ?? null;
@@ -36,9 +37,24 @@ function renderHorarios() {
       <div id="horario-error" class="form-error" role="alert" style="display:none;"></div>
       <div class="tabla-wrapper">
         <table class="data-table horario-tabla">
-          <thead><tr><th>Día</th><th>Laboral</th><th>Hora de inicio</th><th>Hora de fin</th></tr></thead>
+          <thead><tr><th>Día</th><th>Laboral</th><th>Recibe vales de arte</th><th>Hora de inicio</th><th>Hora de fin</th></tr></thead>
           <tbody>${state.horarios.map(filaHorario).join('')}</tbody>
         </table>
+      </div>
+    </section>
+
+    <section class="horario-seccion" aria-labelledby="parametros-titulo">
+      <div class="panel-toolbar">
+        <h3 id="parametros-titulo">Vencimiento de vales de arte</h3>
+        <div class="panel-toolbar-acciones">
+          <button class="btn btn--primary" id="btn-guardar-parametros"><ion-icon name="save-outline"></ion-icon> Guardar</button>
+        </div>
+      </div>
+      <div id="parametros-error" class="form-error" role="alert" style="display:none;"></div>
+      <div class="form-field horario-pais">
+        <label for="input-horas-vencimiento">Horas de vencimiento de un vale de arte</label>
+        <input type="number" id="input-horas-vencimiento" min="1" max="48" step="1" inputmode="numeric" value="${state.horasVencimientoVale}">
+        <span class="form-hint">Número entero de 1 a 48.</span>
       </div>
     </section>
 
@@ -59,6 +75,7 @@ function renderHorarios() {
   `;
   document.querySelectorAll('.horario-laboral').forEach(chk => chk.addEventListener('change', () => alternarDia(chk)));
   $('#btn-guardar-horario').addEventListener('click', guardar);
+  $('#btn-guardar-parametros').addEventListener('click', guardarParametros);
   $('#btn-agregar-feriado').addEventListener('click', () => abrirModalFeriado());
   $('#select-pais-feriados').addEventListener('change', async (e) => {
     state.paisFeriadoId = Number(e.target.value);
@@ -77,15 +94,22 @@ function filaHorario(h) {
         <span class="form-checkbox"><input type="checkbox" class="horario-laboral" id="laboral-${h.diaSemana}" ${h.laboral ? 'checked' : ''}>
         <label for="laboral-${h.diaSemana}">Laboral<span class="sr-only"> el ${nombre.toLowerCase()}</span></label></span>
       </td>
+      <td data-label="Recibe vales de arte">
+        <span class="form-checkbox"><input type="checkbox" class="horario-recibe" id="recibe-${h.diaSemana}" ${h.recibeVales ? 'checked' : ''} ${dis}>
+        <label for="recibe-${h.diaSemana}">Recibe vales de arte<span class="sr-only"> el ${nombre.toLowerCase()}</span></label></span>
+      </td>
       <td data-label="Hora de inicio"><div class="form-field"><input type="time" class="horario-inicio" aria-label="Hora de inicio del ${nombre.toLowerCase()}" value="${h.horaInicio || ''}" ${dis}></div></td>
       <td data-label="Hora de fin"><div class="form-field"><input type="time" class="horario-fin" aria-label="Hora de fin del ${nombre.toLowerCase()}" value="${h.horaFin || ''}" ${dis}></div></td>
     </tr>`;
 }
 
-// Un día no laboral no admite horas: se deshabilitan y se vacían.
+// Un día no laboral no admite horas ni recibir vales: se deshabilitan y se vacían.
 function alternarDia(chk) {
   const fila = chk.closest('tr');
   fila.querySelectorAll('input[type="time"]').forEach(i => { i.disabled = !chk.checked; if (!chk.checked) i.value = ''; });
+  const recibe = fila.querySelector('.horario-recibe');
+  recibe.disabled = !chk.checked;
+  if (!chk.checked) recibe.checked = false;
 }
 
 function mostrarErrorHorario(msg) {
@@ -100,6 +124,7 @@ function leerHorario() {
     return {
       diaSemana: Number(fila.dataset.dia),
       laboral,
+      recibeVales: laboral && fila.querySelector('.horario-recibe').checked,
       horaInicio: laboral ? fila.querySelector('.horario-inicio').value || null : null,
       horaFin: laboral ? fila.querySelector('.horario-fin').value || null : null
     };
@@ -130,6 +155,32 @@ async function guardar() {
     mostrarErrorHorario(error.message);
     btn.disabled = false;
   }
+}
+
+function mostrarErrorParametros(msg) {
+  const box = $('#parametros-error');
+  box.textContent = msg || '';
+  box.style.display = msg ? '' : 'none';
+}
+
+async function guardarParametros() {
+  const crudo = $('#input-horas-vencimiento').value.trim();
+  const horas = Number(crudo);
+  const problema = !crudo || !Number.isInteger(horas) || horas < 1 || horas > 48
+    ? 'Las horas de vencimiento deben ser un número entero de 1 a 48.' : '';
+  mostrarErrorParametros(problema);
+  if (problema) return;
+  const btn = $('#btn-guardar-parametros');
+  btn.disabled = true;
+  try {
+    const r = await guardarParametrosHorario(horas);
+    state.horasVencimientoVale = r.horasVencimientoVale;
+    window.toast.success('Parámetro guardado', 'Las horas de vencimiento de un vale de arte quedaron actualizadas.');
+    $('#input-horas-vencimiento').value = state.horasVencimientoVale;
+  } catch (error) {
+    mostrarErrorParametros(error.message);
+  }
+  btn.disabled = false;
 }
 
 async function recargarFeriados() {

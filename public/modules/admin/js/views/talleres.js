@@ -4,6 +4,7 @@ import { escapeHtml } from '../utils/formato.js';
 import { listarTalleres, toggleActivoTaller as apiToggleActivoTaller } from '../api/adminApi.js';
 import { abrirModalVerPersonalTaller, abrirModalPersonalTaller } from '../actions/tallerPersonal.js';
 import { abrirModalLimiteTaller } from '../actions/tallerLimite.js';
+import { abrirModalHoraMaximaTaller } from '../actions/tallerHoraMaxima.js';
 import { abrirModalNuevoTaller } from '../forms/tallerForm.js';
 
 export async function cargarTalleres() {
@@ -29,7 +30,7 @@ export function renderTalleres() {
     </div>
     <div class="tabla-wrapper">
       <table class="data-table sticky-header">
-        <thead><tr><th>Taller</th><th>Tienda</th><th>Encargado</th><th>Diseñadores</th><th>Límite diario</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Taller</th><th>Tienda</th><th>Encargado</th><th>Diseñadores</th><th>Límite diario</th><th>Hora máxima</th><th>Estado</th><th>Acciones</th></tr></thead>
         <tbody id="talleres-tbody"></tbody>
       </table>
     </div>
@@ -45,6 +46,7 @@ export function renderTalleres() {
       <td data-label="Encargado">${t.encargado_nombre ? escapeHtml(t.encargado_nombre) : '<span class="form-hint">Sin encargado</span>'}</td>
       <td data-label="Diseñadores">${t.disenadores_count}</td>
       <td data-label="Límite diario">${t.limite_diario != null ? `${t.limite_diario} / día` : '<span class="form-hint">Sin límite</span>'}</td>
+      <td data-label="Hora máxima">${escapeHtml(t.hora_maxima_recepcion || '12:00')}</td>
       <td data-label="Estado"><span class="badge ${t.activo ? 'badge-activo' : 'badge-inactivo'}">${t.activo ? 'Activo' : 'Inactivo'}</span></td>
       <td data-label="Acciones" class="acciones-cell" data-taller-id="${t.id}"></td>
     </tr>
@@ -71,6 +73,13 @@ export function renderTalleres() {
     btnLimite.innerHTML = '<ion-icon name="speedometer-outline"></ion-icon>';
     btnLimite.addEventListener('click', () => abrirModalLimiteTaller(t));
     celda.appendChild(btnLimite);
+
+    const btnHora = document.createElement('button');
+    btnHora.className = 'btn-icon';
+    btnHora.title = 'Editar hora máxima de recibimiento';
+    btnHora.innerHTML = '<ion-icon name="time-outline"></ion-icon>';
+    btnHora.addEventListener('click', () => abrirModalHoraMaximaTaller(t));
+    celda.appendChild(btnHora);
 
     // Mismo candado que los usuarios: abierto = activo, cerrado = inactivo.
     const btnToggle = document.createElement('button');

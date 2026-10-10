@@ -6,7 +6,7 @@ const COLUMNAS_FERIADO = 'id, pais_id, DATE_FORMAT(fecha, \'%Y-%m-%d\') AS fecha
 class HorarioRepository {
   listarHorarios() {
     return db.query(
-      `SELECT dia_semana, laboral, TIME_FORMAT(hora_inicio, '%H:%i') AS hora_inicio, TIME_FORMAT(hora_fin, '%H:%i') AS hora_fin
+      `SELECT dia_semana, laboral, recibe_vales, TIME_FORMAT(hora_inicio, '%H:%i') AS hora_inicio, TIME_FORMAT(hora_fin, '%H:%i') AS hora_fin
        FROM horarios_laborales ORDER BY dia_semana`,
       [], 'horario:listar'
     );
@@ -17,12 +17,24 @@ class HorarioRepository {
     return db.transaccion(async (tx) => {
       for (const d of dias) {
         await tx.query(
-          `INSERT INTO horarios_laborales (dia_semana, laboral, hora_inicio, hora_fin) VALUES (?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE laboral = VALUES(laboral), hora_inicio = VALUES(hora_inicio), hora_fin = VALUES(hora_fin)`,
-          [d.diaSemana, d.laboral ? 1 : 0, d.horaInicio, d.horaFin], 'horario:guardar'
+          `INSERT INTO horarios_laborales (dia_semana, laboral, recibe_vales, hora_inicio, hora_fin) VALUES (?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE laboral = VALUES(laboral), recibe_vales = VALUES(recibe_vales), hora_inicio = VALUES(hora_inicio), hora_fin = VALUES(hora_fin)`,
+          [d.diaSemana, d.laboral ? 1 : 0, d.recibeVales ? 1 : 0, d.horaInicio, d.horaFin], 'horario:guardar'
         );
       }
     });
+  }
+
+  async obtenerParametro(clave) {
+    const rows = await db.query('SELECT valor FROM parametros_sistema WHERE clave = ?', [clave], 'parametro:obtener');
+    return rows[0] ? rows[0].valor : null;
+  }
+
+  guardarParametro(clave, valor) {
+    return db.query(
+      'INSERT INTO parametros_sistema (clave, valor) VALUES (?, ?) ON DUPLICATE KEY UPDATE valor = VALUES(valor)',
+      [clave, String(valor)], 'parametro:guardar'
+    );
   }
 
   async existePais(paisId) {

@@ -42,6 +42,7 @@ router.delete('/talleres/:id/encargado', gestionarTalleres, (req, res) => adminC
 router.post('/talleres/:id/disenadores', gestionarTalleres, (req, res) => adminController.asignarDisenadorATaller(req, res));
 router.delete('/talleres/:id/disenadores/:usuarioId', gestionarTalleres, (req, res) => adminController.quitarDisenadorDeTaller(req, res));
 router.put('/talleres/:id/limite-diario', gestionarTalleres, (req, res) => adminController.actualizarLimiteDiarioTaller(req, res));
+router.put('/talleres/:id/hora-maxima', gestionarTalleres, (req, res) => adminController.actualizarHoraMaximaTaller(req, res));
 
 // Tiendas
 router.get('/organizacion', verAdmin, (req, res) => adminController.obtenerOrganizacion(req, res));
@@ -60,6 +61,8 @@ router.put('/mantenimiento', gestionarMantenimiento, (req, res) => adminControll
 const gestionarHorarios = requirePermission('admin.horarios.gestionar');
 router.get('/horarios', gestionarHorarios, (req, res) => horarioController.listarHorarios(req, res));
 router.put('/horarios', gestionarHorarios, (req, res) => horarioController.guardarHorarios(req, res));
+router.get('/horarios/parametros', gestionarHorarios, (req, res) => horarioController.obtenerParametros(req, res));
+router.put('/horarios/parametros', gestionarHorarios, (req, res) => horarioController.guardarParametros(req, res));
 router.get('/horarios/paises', gestionarHorarios, (req, res) => horarioController.listarPaises(req, res));
 router.get('/feriados', gestionarHorarios, (req, res) => horarioController.listarFeriados(req, res));
 router.post('/feriados', gestionarHorarios, (req, res) => horarioController.crearFeriado(req, res));

@@ -12,6 +12,9 @@ const RE_CONTROL = /[\u0000-\u001F\u007F]/;
 const ANIO_MIN = 2000;
 const ANIO_MAX = 2100;
 const MAX_NOMBRE = 100;
+const CLAVE_HORAS_VENCIMIENTO = 'horas_vencimiento_vale';
+const HORAS_VENCIMIENTO_MIN = 1;
+const HORAS_VENCIMIENTO_MAX = 48;
 
 const err = (msg, status = 400) => new ErrorDeNegocio(msg, status);
 const vacio = (v) => v === undefined || v === null || v === '';
@@ -27,19 +30,22 @@ function validarDia(d) {
   if (!Number.isInteger(diaSemana) || diaSemana < 1 || diaSemana > 7) throw err('El día de la semana debe ser un número del 1 (lunes) al 7 (domingo).');
   const nombre = DIAS[diaSemana - 1];
   if (typeof d.laboral !== 'boolean') throw err(`Indica si el ${nombre} es laboral o no.`);
+  if (d.recibeVales !== undefined && typeof d.recibeVales !== 'boolean') throw err(`Indica si el ${nombre} recibe vales de arte o no.`);
+  const recibeVales = d.recibeVales === true;
   if (!d.laboral) {
+    if (recibeVales) throw err(`El ${nombre} no es laboral, por lo que no puede recibir vales de arte.`);
     if (!vacio(d.horaInicio) || !vacio(d.horaFin)) throw err(`El ${nombre} no es laboral, por lo que no puede tener horario.`);
-    return { diaSemana, laboral: false, horaInicio: null, horaFin: null };
+    return { diaSemana, laboral: false, recibeVales: false, horaInicio: null, horaFin: null };
   }
   if (vacio(d.horaInicio) || vacio(d.horaFin)) throw err(`El ${nombre} es laboral: indica la hora de inicio y la hora de fin.`);
   const horaInicio = validarHora(d.horaInicio, `La hora de inicio del ${nombre}`);
   const horaFin = validarHora(d.horaFin, `La hora de fin del ${nombre}`);
   if (horaInicio >= horaFin) throw err(`En el ${nombre}, la hora de inicio debe ser anterior a la hora de fin.`);
-  return { diaSemana, laboral: true, horaInicio, horaFin };
+  return { diaSemana, laboral: true, recibeVales, horaInicio, horaFin };
 }
 
 function aHorario(fila) {
-  return { diaSemana: fila.dia_semana, laboral: !!fila.laboral, horaInicio: fila.hora_inicio, horaFin: fila.hora_fin };
+  return { diaSemana: fila.dia_semana, laboral: !!fila.laboral, recibeVales: !!fila.recibe_vales, horaInicio: fila.hora_inicio, horaFin: fila.hora_fin };
 }
 
 function validarFecha(valor) {
@@ -86,6 +92,22 @@ class HorarioService {
     if (new Set(validados.map(d => d.diaSemana)).size !== 7) throw err('Cada día de la semana debe aparecer una sola vez.');
     await repo.guardarHorarios(validados);
     return this.listarHorarios();
+  }
+
+  async obtenerParametros() {
+    return { horasVencimientoVale: Number(await repo.obtenerParametro(CLAVE_HORAS_VENCIMIENTO)) };
+  }
+
+  async guardarParametros(body) {
+    const crudo = body && body.horasVencimientoVale;
+    if (vacio(crudo)) throw err('Indica las horas de vencimiento de un vale de arte.');
+    const horas = typeof crudo === 'string' && /^\d+$/.test(crudo.trim()) ? Number(crudo) : crudo;
+    if (typeof horas !== 'number' || !Number.isInteger(horas)) throw err('Las horas de vencimiento deben ser un número entero.');
+    if (horas < HORAS_VENCIMIENTO_MIN || horas > HORAS_VENCIMIENTO_MAX) {
+      throw err(`Las horas de vencimiento deben estar entre ${HORAS_VENCIMIENTO_MIN} y ${HORAS_VENCIMIENTO_MAX}.`);
+    }
+    await repo.guardarParametro(CLAVE_HORAS_VENCIMIENTO, horas);
+    return this.obtenerParametros();
   }
 
   listarPaises() {
