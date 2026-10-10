@@ -45,6 +45,16 @@ class ValeController {
     }
   }
 
+  // Mínima y días no disponibles (feriados, días sin recepción, hora máxima) para los talleres elegidos.
+  async fechasEntrega(req, res) {
+    try {
+      const data = await valeService.obtenerFechasEntrega(req.query.talleres, req.query.desde, req.query.hasta);
+      return res.json(data);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async crear(req, res) {
     try {
       const archivos = validarArchivos(req.files);

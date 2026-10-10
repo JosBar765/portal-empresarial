@@ -251,7 +251,7 @@ class ValeRepository {
     );
   }
 
-  // Vales con vigencia de 24 h (solo creaciones nuevas) que siguen sin autorizarse.
+  // Vales con vigencia (solo creaciones nuevas) que siguen sin autorizarse.
   async listarVigenciaVencida() {
     return db.query(
       `${SELECT_VALE}
@@ -261,13 +261,13 @@ class ValeRepository {
     );
   }
 
-  async listarPorExpirar(horas) {
+  // Con vigencia vigente y sin aviso; el servicio decide cuáles están en el último tramo.
+  async listarSinAvisoDeVigencia() {
     return db.query(
       `${SELECT_VALE}
-       WHERE v.vigencia_hasta IS NOT NULL AND v.vigencia_aviso_en IS NULL
-         AND v.vigencia_hasta > NOW() AND v.vigencia_hasta <= DATE_ADD(NOW(), INTERVAL ? HOUR)
+       WHERE v.vigencia_hasta IS NOT NULL AND v.vigencia_aviso_en IS NULL AND v.vigencia_hasta > NOW()
          AND ev.nombre IN ('ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO')`,
-      [horas], 'vale:list_por_expirar'
+      [], 'vale:list_sin_aviso_vigencia'
     );
   }
 

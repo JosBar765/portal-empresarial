@@ -1,6 +1,7 @@
 // src/modules/vales/services/valeHelpers.js
 const valeRepository = require('../repositories/valeRepository');
 const historialRepository = require('../repositories/historialRepository');
+const { ahoraUTC6 } = require('../../../core/calendario/calendarioLaboral');
 
 const ESTADOS = {
   ESPERANDO_AUTORIZACION: 'ESPERANDO_AUTORIZACION',
@@ -63,20 +64,8 @@ function esAsistenteDeDiseno(usuario) {
   return usuario.rolId === ROL.ASISTENTE_DISENO;
 }
 
-// Centroamérica (salvo Belice y Panamá) usa UTC-6 sin horario de verano —
-// se calcula por aritmética de offset fijo en vez de depender de la zona
-// horaria del sistema operativo del proceso Node, que en un host
-// administrado (Hostinger) no se controla.
-const OFFSET_UTC6_MS = 6 * 60 * 60 * 1000;
-
-// Para generar STRINGS de hora de pared (hoyISO/horaActual): recorta el
-// epoch real 6h hacia atrás antes de pedirle a toISOString() (que siempre
-// renderiza en UTC) que dibuje los dígitos — el resultado son los dígitos
-// de la hora de Guatemala. Nunca usar este valor para restar contra un
-// instante real (parsearUTC6/new Date()) — para eso, ver más abajo.
-function ahoraUTC6() {
-  return new Date(Date.now() - OFFSET_UTC6_MS);
-}
+// `ahoraUTC6()` (core/calendario) devuelve un Date cuyos dígitos UTC son la hora de Guatemala: sirve para generar
+// STRINGS de hora de pared (hoyISO/horaActual), nunca para restar contra un instante real (parsearUTC6/new Date()).
 
 // Convierte un string de fecha/hora "naive" guardado en BD (se asume que
 // ya representa la hora de pared en UTC-6) a un Date real, anclándolo
@@ -92,51 +81,6 @@ function hoyISO() {
 
 function horaActual() {
   return ahoraUTC6().toISOString().slice(11, 19);
-}
-
-function esDomingoHoy() {
-  return ahoraUTC6().getUTCDay() === 0;
-}
-
-function esSabadoHoy() {
-  return ahoraUTC6().getUTCDay() === 6;
-}
-
-function esFechaFinDeSemana(iso) {
-  const dia = new Date(`${String(iso).slice(0, 10)}T00:00:00Z`).getUTCDay();
-  return dia === 0 || dia === 6;
-}
-
-// Hoy si son antes de las 12:00 (UTC-6), si no mañana; sábado y domingo pasan al lunes.
-function fechaMinimaEntrega() {
-  const ahora = ahoraUTC6();
-  const base = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate()));
-  if (ahora.getUTCHours() >= 12) base.setUTCDate(base.getUTCDate() + 1);
-  if (base.getUTCDay() === 6) base.setUTCDate(base.getUTCDate() + 2);
-  else if (base.getUTCDay() === 0) base.setUTCDate(base.getUTCDate() + 1);
-  return base.toISOString().slice(0, 10);
-}
-
-// Suma horas de reloj a una hora de pared UTC-6 sin contar sábados ni domingos
-// (Date o 'YYYY-MM-DD HH:MM:SS'); devuelve el string listo para un DATETIME.
-function sumarHorasHabiles(inicio, horas) {
-  let t = inicio instanceof Date ? new Date(inicio) : new Date(`${String(inicio).replace(' ', 'T')}Z`);
-  let resto = horas * 3600000;
-  while (true) {
-    const finDia = Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate() + 1);
-    const dia = t.getUTCDay();
-    if (dia === 0 || dia === 6) { t = new Date(finDia); continue; }
-    if (resto === 0) break;
-    if (resto < finDia - t) { t = new Date(t.getTime() + resto); break; }
-    resto -= finDia - t;
-    t = new Date(finDia);
-  }
-  return t.toISOString().slice(0, 19).replace('T', ' ');
-}
-
-// Vencimiento de los plazos de 24 h: sábado y domingo no cuentan.
-function vencimiento24h() {
-  return sumarHorasHabiles(ahoraUTC6(), 24);
 }
 
 function calcularAtraso(vale) {
@@ -300,7 +244,7 @@ module.exports = {
   ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistenteDeDiseno,
-  hoyISO, horaActual, esDomingoHoy, esSabadoHoy, esFechaFinDeSemana, fechaMinimaEntrega, sumarHorasHabiles, vencimiento24h, calcularAtraso, enriquecer,
+  hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
   normalizarDatetime, calcularUrgente, registrarHistorial,

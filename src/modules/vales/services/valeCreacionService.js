@@ -17,14 +17,18 @@ const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const supabaseStorage = require('../../../core/files/supabaseStorage');
 const subirYRegistrarArchivo = require('../../../core/files/subirYRegistrarArchivo');
 const idempotencyRepository = require('../../../core/idempotency/idempotencyRepository');
+const calendarioService = require('../../../core/calendario/calendarioService');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { validarTelefono } = require('../../../core/utils/validar');
+
+const { idsDeCsv } = calendarioService;
 const valePdfService = require('./valePdfService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
 const valeVistoService = require('./valeVistoService');
 const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
-  ESTADOS, hoyISO, horaActual, esDomingoHoy, esSabadoHoy, esFechaFinDeSemana, fechaMinimaEntrega, vencimiento24h, enriquecer,
+  ESTADOS, hoyISO, horaActual, enriquecer,
   normalizarDatetime, calcularUrgente, registrarHistorial,
   esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
   esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor
@@ -36,24 +40,16 @@ class ValeCreacionService {
     return `${d}/${m}/${a}`;
   }
 
-  // Sábado y domingo: acciones que piden entrega (crear, modificar, corregir, reenviar).
-  exigirDiaHabil(accion) {
-    if (esSabadoHoy()) throw new Error(`Los sábados no se pueden ${accion} (día de descanso).`);
-    this.exigirNoDomingo(accion);
-  }
-
-  // Domingo: además autorizar y aprobar modificación (el sábado sí se pueden).
-  exigirNoDomingo(accion) {
-    if (esDomingoHoy()) throw new Error(`Los domingos no se pueden ${accion} (día de descanso).`);
-  }
-
-  // Al autorizar, la entrega no puede haber quedado por debajo del mínimo vigente.
-  exigirFechaAutorizable(vale) {
+  // Al autorizar, la entrega no puede haber quedado por debajo del mínimo vigente de sus talleres.
+  async exigirFechaAutorizable(vale) {
     const entrega = String(vale.fecha_entrega).slice(0, 10);
-    if (entrega >= fechaMinimaEntrega()) return;
-    throw new Error(entrega < hoyISO()
-      ? 'La fecha de entrega ya pasó. Rechaza el vale para que el asesor modifique la fecha de entrega.'
-      : 'La fecha de entrega ya no está disponible porque son pasadas las 12:00. Rechaza el vale para que el asesor modifique la fecha de entrega.');
+    const talleresIds = idsDeCsv(vale.talleres_solicitados);
+    const minima = await calendarioService.fechaMinimaEntrega(talleresIds);
+    const rechazar = 'Rechaza el vale para que el asesor modifique la fecha de entrega.';
+    if (entrega < hoyISO()) throw new Error(`La fecha de entrega ya pasó. ${rechazar}`);
+    if (!minima || entrega >= minima) return;
+    const hora = await calendarioService.horaMaximaRestrictiva(talleresIds);
+    throw new Error(`La fecha de entrega ya no está disponible (mínima: ${this.formatearFecha(minima)}; la hora máxima de recibimiento es ${hora}). ${rechazar}`);
   }
 
   // La idempotency key viaja como campo del propio FormData (junto a los
@@ -67,7 +63,6 @@ class ValeCreacionService {
     const idempotencyKey = payload.idempotencyKey || crypto.randomUUID();
     const previo = await idempotencyRepository.buscar(idempotencyKey);
     if (previo) return previo.resultado;
-    this.exigirDiaHabil('crear vales de arte');
 
     const solicitante = await usuarioValeRepository.obtenerPorId(usuario.id);
     if (!solicitante || !solicitante.tienda_id) {
@@ -134,7 +129,7 @@ class ValeCreacionService {
           descripcion: datos.descripcion,
           talleresSolicitados: datos.talleresIds.join(','),
           estado: ESTADOS.ESPERANDO_AUTORIZACION,
-          vigenciaHasta: vencimiento24h()
+          vigenciaHasta: await calendarioService.vencimientoPlazo(datos.talleresIds)
         });
       });
     });
@@ -175,7 +170,6 @@ class ValeCreacionService {
   // vale_talleres (antes ocurría de inmediato en crearVale).
   async autorizarCreacion(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
-      this.exigirNoDomingo('autorizar vales de arte');
       const vale = await requerirVale(valeId);
       if (esValeDeModificacion(vale)) {
         throw new Error('Este vale es una solicitud de modificación: se autoriza con "Aprobar modificación".');
@@ -194,7 +188,7 @@ class ValeCreacionService {
       if (!esAdministrador(usuario) && !supervisoresDelAsesor.some(s => s.id === usuario.id)) {
         throw new Error('Este vale es de un asesor que no está a tu cargo.');
       }
-      this.exigirFechaAutorizable(vale);
+      await this.exigirFechaAutorizable(vale);
       await valeVistoService.exigirVisto(usuario, valeId);
       const talleresIds = (vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
       if (talleresIds.length === 0) {
@@ -283,7 +277,7 @@ class ValeCreacionService {
     });
   }
 
-  // Un vale (o una solicitud de modificación) sin autorizar cumple su vigencia de 24 h: se elimina solo (con sus archivos,
+  // Un vale (o una solicitud de modificación) sin autorizar cumple su vigencia: se elimina solo (con sus archivos,
   // salvo los que comparte con su original) y se avisa con su código. El original no se toca.
   async expirarVale(valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
@@ -291,12 +285,14 @@ class ValeCreacionService {
       if (!vale || !ESTADOS_EDITABLES_ASESOR.includes(vale.estado)) return false;
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       const original = esValeDeModificacion(vale) ? await valeRepository.obtenerPorId(vale.vale_original_id) : null;
+      const horas = await calendarioService.horasVencimiento();
+      const plazo = `${horas} ${horas === 1 ? 'hora laboral' : 'horas laborales'}`;
       await this.eliminarValeConArchivos(valeId);
       valeEvents.notificar({
         vale, tipo: 'EXPIRADO', valeBorrado: true, nivel: 'alerta',
         texto: original
-          ? `(solicitud de modificación) fue eliminado automáticamente: venció su vigencia de 24 horas sin ser autorizado. ${original.correlativo} ya quedó como Recibido`
-          : 'fue eliminado automáticamente: venció su vigencia de 24 horas sin ser autorizado',
+          ? `(solicitud de modificación) fue eliminado automáticamente: venció su vigencia de ${plazo} sin ser autorizado. ${original.correlativo} ya quedó como Recibido`
+          : `fue eliminado automáticamente: venció su vigencia de ${plazo} sin ser autorizado`,
         salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
       });
       return true;
@@ -333,7 +329,6 @@ class ValeCreacionService {
   // El asesor vuelve a mandar a autorización un vale rechazado, ya corregido.
   async reenviarAutorizacion(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
-      this.exigirDiaHabil('reenviar vales a autorización');
       if (!puedeActuarComoAsesor(usuario)) {
         throw new Error('Solo un asesor o un supervisor de ventas puede reenviar un vale a autorización.');
       }
@@ -346,12 +341,14 @@ class ValeCreacionService {
         throw new Error('Este vale no está rechazado, no hace falta reenviarlo.');
       }
       const fechaEntrega = String(vale.fecha_entrega).slice(0, 10);
-      if (esFechaFinDeSemana(fechaEntrega) || fechaEntrega < fechaMinimaEntrega()) {
-        throw new Error(`La fecha de entrega ya no está disponible (mínima: ${this.formatearFecha(fechaMinimaEntrega())}). Corrige el vale con una fecha de entrega válida antes de reenviarlo.`);
+      const talleresIds = idsDeCsv(vale.talleres_solicitados);
+      try {
+        await calendarioService.validarFechaEntrega(fechaEntrega, talleresIds);
+      } catch (error) {
+        if (!(error instanceof ErrorDeNegocio)) throw error;
+        throw new Error(`${error.message} Corrige el vale con una fecha de entrega válida antes de reenviarlo.`);
       }
-      await capacidadEntregaService.validarLimiteDiario(
-        (vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite), fechaEntrega
-      );
+      await capacidadEntregaService.validarLimiteDiario(talleresIds, fechaEntrega);
       await valeRechazoRepository.reenviar({
         valeId, usuarioId: usuario.id, estadoDestino: ESTADOS.ESPERANDO_AUTORIZACION,
         accionHistorial: 'Asesor corrigió el vale y lo reenvió a autorización'
@@ -372,7 +369,7 @@ class ValeCreacionService {
   // modificación tiene su propia lógica, ver valeConfirmacionService — así
   // que crearVale() sigue exigiendo `talleresIds` aquí pero
   // solicitarModificacion() no pasa por este camino para elegir taller).
-  async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null } = {}) {
+  async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null, talleresFijos = [] } = {}) {
     const {
       clienteEmpresa, clienteTelefono, clienteCorreo,
       fechaEntrega, fechaEvento, tecnica, acabado,
@@ -434,12 +431,8 @@ class ValeCreacionService {
     };
     if (!fechaReal(fechaEntregaNorm)) throw new Error('La fecha de entrega no es válida.');
     if (!fechaReal(fechaEventoNorm)) throw new Error('La fecha del evento no es válida.');
-    const entregaISO = fechaEntregaNorm.slice(0, 10);
-    if (esFechaFinDeSemana(entregaISO)) throw new Error('La fecha de entrega no puede ser sábado ni domingo.');
-    const minima = fechaMinimaEntrega();
-    if (entregaISO < minima) {
-      throw new Error(`La fecha de entrega mínima es ${this.formatearFecha(minima)}: no se puede pedir para días pasados, para hoy después de las 12:00 ni para sábados y domingos.`);
-    }
+    const talleresIds = requiereTalleres ? await this.validarTalleresIds(payload.talleresIds, tiendaIdAsesor) : talleresFijos;
+    await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds);
     if (!(new Date(fechaEventoNorm.replace(' ', 'T')) > new Date(fechaEntregaNorm.replace(' ', 'T')))) {
       throw new Error('La fecha del evento debe ser posterior a la fecha de entrega.');
     }
@@ -451,8 +444,6 @@ class ValeCreacionService {
     if (!Number.isFinite(cotizacionNum) || cotizacionNum <= 0) {
       throw new Error('La cotización debe ser un valor numérico mayor a 0.');
     }
-
-    const talleresIds = requiereTalleres ? await this.validarTalleresIds(payload.talleresIds, tiendaIdAsesor) : [];
 
     return {
       clienteEmpresa, clienteNombre, clienteTelefono, clienteCorreo,

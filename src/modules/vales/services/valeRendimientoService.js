@@ -8,7 +8,7 @@ const valeRepository = require('../repositories/valeRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeBuzonService = require('./valeBuzonService');
-const { calcularPipeline } = require('./valePipeline');
+const { calcularPipeline, prepararPipeline } = require('./valePipeline');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ROL,
   enriquecer, dentroDeVentana, hoyISO
@@ -216,6 +216,7 @@ function primeraAsignacion(vale) {
 
 class ValeRendimientoService {
   async obtenerRendimiento(usuario, filtros = {}) {
+    await prepararPipeline();
     const ventana = valeBuzonService._resolverVentana(filtros);
     const hoy = hoyISO();
 

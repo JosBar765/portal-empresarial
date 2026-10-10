@@ -6,7 +6,7 @@ const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const { enriquecer } = require('./valeHelpers');
-const { calcularPipeline } = require('./valePipeline');
+const { calcularPipeline, prepararPipeline } = require('./valePipeline');
 
 const CORRELATIVO_VALIDO = /^[A-Za-z0-9-]{3,60}$/;
 const MAX_SUGERENCIAS = 5;
@@ -32,6 +32,7 @@ class ValeBusquedaService {
   }
 
   async _paraLaVista(vale) {
+    await prepararPipeline();
     const v = enriquecer(vale);
     const filas = await valeTallerRepository.listarPorVale(vale.id);
     // Un vale ESPERANDO_AUTORIZACION aún no tiene filas en vale_talleres:

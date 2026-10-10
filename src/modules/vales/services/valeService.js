@@ -16,6 +16,7 @@ const valeConfirmacionService = require('./valeConfirmacionService');
 const valeRendimientoService = require('./valeRendimientoService');
 const valeBusquedaService = require('./valeBusquedaService');
 const capacidadEntregaService = require('./capacidadEntregaService');
+const fechasEntregaService = require('./fechasEntregaService');
 const valeCorreccionService = require('./valeCorreccionService');
 const valeVistoService = require('./valeVistoService');
 const valeModificacionService = require('./valeModificacionService');
@@ -38,6 +39,7 @@ module.exports = {
   obtenerCatalogos: (...a) => valeCatalogoService.obtenerCatalogos(...a),
   obtenerTalleres: (...a) => valeCatalogoService.obtenerTalleres(...a),
   obtenerCapacidadEntrega: (...a) => capacidadEntregaService.obtenerCapacidadMes(...a),
+  obtenerFechasEntrega: (...a) => fechasEntregaService.obtenerFechasEntrega(...a),
 
   // Creación
   crearVale: (...a) => valeCreacionService.crearVale(...a),
