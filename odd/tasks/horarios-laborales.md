@@ -1,33 +1,39 @@
 # horarios-laborales
 
-Rama: `feature/horarios-laborales` (desde `dev`) · Estrategia de entrega: `ask-on-risk` · Estado: T1–T4 hechas.
+Rama: `feature/horarios-laborales` (desde `dev`) · Estrategia de entrega: `ask-on-risk` · Estado: fase 1 (CRUD) hecha; fase 2 (lógica) en curso.
 
 ## Objetivo
-Tabla de horarios laborales de la empresa y de feriados por país, con una pestaña nueva en la vista del administrador para gestionarlos (**solo CRUD**). La lógica (vencimientos que solo corren en horario laboral, días hábiles, feriados que no reciben vales) llega después, cuando el usuario la explique; no se implementa aquí.
+Tabla de horarios laborales y de feriados por país, gestionadas desde una pestaña del administrador (fase 1, hecha), y **aplicar esas reglas a los vales** (fase 2): plazos que solo corren en horario laboral, fecha mínima de entrega, días en que no se entrega, y fin de las restricciones por día de la semana.
 
-## Contexto de negocio (del usuario)
-- Todas las tiendas abren y cierran a la misma hora y laboran los mismos días: el horario es **global**. Lo que cambia por país son los **feriados**.
-- Hoy el sábado y el domingo se tratan como descanso en los vencimientos, pero la empresa labora unas horas el sábado (los vales siguen sin recibirse el sábado: restricción aparte). El horario servirá después para que el contador de vencimiento (24 h, quizá 3 h) solo descuente en horario laboral y no cuente feriados.
+## Fase 1 (hecha): CRUD
+Tablas `horarios_laborales` (7 filas, un horario por día; un día no laboral no admite horas) y `feriados` (por país, con «se repite todos los años»), permiso `admin.horarios.gestionar`, pestaña «Horarios y feriados». Commits 5e96300…8cd6485.
 
-## Decisiones acordadas
-- **Horario:** una fila por día de la semana (7 filas). Cada día es laboral o no; si no es laboral **no admite horario** (la pantalla deshabilita las horas y el servidor las rechaza). Si es laboral lleva hora de inicio y de fin.
-- **Feriados:** por país (los de la tabla `paises`), con fecha exacta, nombre y la opción «se repite todos los años». De momento se parte solo con Guatemala: las tablas quedan **sin datos** y los carga el administrador.
-- Cambios de base: script idempotente en `database/` (sin tocar `schema.sql`/`seed.sql`), citado en la documentación sin correlativo, con permiso nuevo por nombre.
+## Fase 2: decisiones del usuario (no suponer nada fuera de esto)
+- **Plazos:** los tres de 24 h pasan a **N horas laborales** (hoy 4): vigencia de un vale en espera de autorización, vigencia de un `MOD-` y plazo de adjuntos tras el primer rechazo. N es **editable por el administrador** («HORAS DE VENCIMIENTO DE UN VALE DE ARTE»), número **entero** (1–48).
+- **Cómputo:** solo corre dentro del horario laboral de cada día (los sábados cuentan sus horas: 08:00–12:00 en los datos actuales), salta noches, días no laborales y feriados. Un vale creado o rechazado fuera de horario empieza a contar al inicio del siguiente día laboral. El contador mostrado es el **tiempo laboral restante** y se detiene fuera de horario.
+- **Aviso de próximo a vencer:** cuando queda el **25% del plazo** (con 4 h, cuando queda 1 h laboral). Reemplaza el aviso de 6 h.
+- **Vales ya guardados:** se recalculan (en producción no hay vales pendientes de vencer; se verifica con una consulta antes de desplegar).
+- **Fecha de entrega:** no se puede elegir un día que no reciba vales («RECIBE VALES DE ARTE», una casilla por día; el sábado no) ni un **feriado del país del vale**. **Hora máxima de recibimiento** (por taller, 12:00 por defecto, editable en «Gestionar Talleres»): un vale creado a esa hora o después no puede pedirse para hoy; la fecha mínima pasa al siguiente día válido (también si hoy es feriado o no recibe vales). Con varios talleres rige la **más restrictiva** (la fecha mínima más tardía).
+- **País del vale:** el del destino. Diseño, Diseño UV/3D y Protextil son de **Guatemala**; los Diseño Local usan el país de **su tienda** (tienda → departamento → país). Zona horaria fija UTC-6 para todos.
+- **Sin restricciones fuera del horario laboral:** se quitan las restricciones por sábado/domingo al operar (crear, corregir, reenviar, modificar, autorizar, aprobar modificación). Se conservan las de la fecha de entrega y, al autorizar, si la fecha de entrega ya venció el supervisor debe rechazar para que el asesor la corrija.
+- **Atraso:** sin cambios (días corridos).
+- **Seed del script** (datos actuales del usuario): L–V 08:00–18:00 y reciben vales; sábado 08:00–12:00 y NO recibe vales; domingo no laboral; feriado Guatemala 20/10 «Día de la Revolución» (anual).
+- **Base de datos:** se modifica `03_horarios_laborales.sql` (nada se ha importado en producción). Idempotente también sobre bases que ya corrieron la versión de fase 1. Recordar al usuario importarlo ANTES de desplegar.
 
 ## Tareas
-- [x] T1 · Script de base de datos (`horarios_laborales.sql`): tablas `horarios_laborales` y `feriados`, 7 filas iniciales de horario (no laborales, sin horas), permiso `admin.horarios.gestionar` dado al Administrador. (1c6c02a)
-- [x] T2 · Backend admin: repositorios, servicio con validaciones y rutas. (3f45903)
-- [x] T3 · Frontend: pestaña nueva en la vista del administrador (horario semanal + feriados por país). (a07bb2e)
-- [x] T4 · Documentación y verificación de punta a punta.
+- [x] T1–T4 · Fase 1 (script, backend, pestaña, docs).
+- [ ] T5 · Script: columna `recibe_vales`, columna `talleres.hora_maxima_recepcion` (12:00), parámetro de horas de vencimiento (4) y seed (horarios y feriado) con upgrade idempotente.
+- [ ] T6 · Admin backend + pestañas: casilla «Recibe vales de arte» por día, campo «Horas de vencimiento de un vale de arte», y hora máxima por taller en «Gestionar Talleres».
+- [ ] T7 · Servicio de calendario laboral (país del vale, sumar horas laborales, minutos laborales restantes, fecha mínima de entrega y días no disponibles) con pruebas por simulación de fechas.
+- [ ] T8 · Plazos: reemplazar los tres de 24 h; vigilantes y aviso al 25%; contador de tiempo laboral y textos.
+- [ ] T9 · Fecha de entrega (servidor y calendario del navegador) y fin de las restricciones por día; mensajes.
+- [ ] T10 · Documentación (flujo §5.1, CLAUDE.md, correcciones) y verificación de punta a punta.
 
 ## Verificación y evidencia
-- T1: script aplicado dos veces sin error (MySQL 8.4.11); 7 filas no laborales, 0 feriados, permiso asignado al Administrador; el CHECK rechaza inicio>fin, día 8 y no laboral con horas.
-- T2: eslint limpio; 47 comprobaciones PASS (GET/PUT, validaciones 400, 403 sin permiso, CRUD de feriados, 404, choques 409) contra el router montado en una app temporal.
-- T3: eslint sin errores nuevos; navegador: pestaña visible, interruptor habilita/vacía horas, errores de cliente y de servidor, guardado con toast, agregar/editar/eliminar feriado con modales, estado vacío, sin errores de consola.
-- Datos de prueba restaurados: 7 días no laborales sin horas, 0 feriados.
+(fase 1) 47 comprobaciones API y verificación en el navegador. (fase 2) pendiente.
 
 ## Ruta por tarea
-T1–T4: delegado directo (un escritor).
+Fase 1: escritor delegado. Fase 2: escritor A (T5–T6), escritor B (T7–T10).
 
 ## Siguiente paso
-Esperar la explicación del usuario para la lógica de horarios y feriados en vales.
+Escritor A (T5–T6).
