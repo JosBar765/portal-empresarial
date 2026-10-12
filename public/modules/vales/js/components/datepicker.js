@@ -256,6 +256,22 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'S
   function onClickFuera(e) {
     if (panelEl && !panelEl.contains(e.target) && !trigger.contains(e.target)) cerrarPanel();
   }
+  // El panel es fixed en <body>: sigue al campo mientras se hace scroll y se cierra si el campo sale de la zona visible.
+  function onScrollOResize() {
+    if (!panelEl) return;
+    const campo = trigger.getBoundingClientRect();
+    let visible = { top: 0, bottom: window.innerHeight };
+    for (let el = trigger.parentElement; el && el !== document.body; el = el.parentElement) {
+      const overflow = getComputedStyle(el).overflowY;
+      if (overflow === 'auto' || overflow === 'scroll') {
+        const caja = el.getBoundingClientRect();
+        visible = { top: Math.max(visible.top, caja.top), bottom: Math.min(visible.bottom, caja.bottom) };
+      }
+    }
+    if (campo.bottom <= visible.top || campo.top >= visible.bottom) { cerrarPanel(); return; }
+    ocultarTooltip();
+    posicionarPanel();
+  }
   function cerrarPanel() {
     if (!panelEl) return;
     panelEl.remove();
@@ -265,6 +281,8 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'S
     trigger.setAttribute('aria-expanded', 'false');
     document.removeEventListener('keydown', onKeydownCapture, true);
     document.removeEventListener('click', onClickFuera, true);
+    window.removeEventListener('scroll', onScrollOResize, true);
+    window.removeEventListener('resize', onScrollOResize);
     if (panelFechaActivo === api) panelFechaActivo = null;
   }
 
@@ -335,6 +353,8 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = 'S
     trigger.setAttribute('aria-expanded', 'true');
     document.addEventListener('keydown', onKeydownCapture, true);
     setTimeout(() => document.addEventListener('click', onClickFuera, true), 0);
+    window.addEventListener('scroll', onScrollOResize, true);
+    window.addEventListener('resize', onScrollOResize);
     panelFechaActivo = api;
   });
 
