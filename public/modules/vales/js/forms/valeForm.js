@@ -5,7 +5,7 @@ import { htmlCampoFecha, wireCampoFecha, validarCampoFecha } from '../components
 import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dropzone.js';
 import { validarCamposNativos, wireLimpiezaValidacionInline, enfocarPrimerCampoInvalido } from '../components/validacion.js';
 import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js';
-import { escapeHtml } from '../utils/formato.js';
+import { escapeHtml, formatearFecha } from '../utils/formato.js';
 import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega, obtenerFechasEntrega, obtenerDetalleVale } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { limitarTelefono } from '/js/telefono.js';
@@ -353,10 +353,11 @@ function abrirModalConfirmarCreacion(formData) {
     bodyHtml: `
       <p style="font-size:13px;margin-bottom:10px;">Vas a crear un vale de arte con los siguientes datos:</p>
       <ul class="historial-list">
-        <li><strong>Cliente:</strong> ${formData.get('clienteNombre')}</li>
-        <li><strong>Talleres:</strong> ${nombresTalleres}</li>
-        <li><strong>Cantidad:</strong> ${formData.get('cantidad')}</li>
-        <li><strong>Cotización:</strong> Q${formData.get('cotizacion')}</li>
+        <li><strong>Cliente:</strong> ${escapeHtml(formData.get('clienteNombre'))}</li>
+        <li><strong>Teléfono cliente:</strong> ${escapeHtml(formData.get('clienteTelefono'))}</li>
+        <li><strong>Correo cliente:</strong> ${escapeHtml(formData.get('clienteCorreo'))}</li>
+        <li><strong>Talleres:</strong> ${escapeHtml(nombresTalleres)}</li>
+        <li><strong>Fecha de entrega:</strong> ${formatearFecha(formData.get('fechaEntrega'))}</li>
         <li><strong>Urgente:</strong> ${esEntregaUrgente(formData.get('fechaEntrega')) ? 'Sí' : 'No'}</li>
       </ul>
     `,
