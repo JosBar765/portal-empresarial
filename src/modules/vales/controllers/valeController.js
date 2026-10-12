@@ -101,7 +101,10 @@ class ValeController {
       hasta: req.query.hasta,
       tiendaId: req.query.tiendaId,
       tallerId: req.query.tallerId,
-      personaIds: req.query.personaIds
+      personaIds: req.query.personaIds,
+      asesorIds: req.query.asesorIds,
+      disenadorIds: req.query.disenadorIds,
+      agruparPor: req.query.agruparPor
     };
   }
 

@@ -38,7 +38,8 @@ export function actualizarTituloYSeccionesVista() {
   const enVistaPropia = enRendimiento || enEncontrar || enReportes;
   $('#contadores-grid').style.display = enVistaPropia ? 'none' : '';
   $('.buzon-section').style.display = enVistaPropia ? 'none' : '';
-  $('.vales-toolbar').style.display = enEncontrar ? 'none' : '';
+  // Reportes y «Encontrar vale» traen su propia barra (la de Reportes: Hoy, Día, Semana, Mes y Desde–Hasta).
+  $('.vales-toolbar').style.display = enEncontrar || enReportes ? 'none' : '';
 }
 
 export function wireSidebar() {

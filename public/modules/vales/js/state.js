@@ -15,7 +15,10 @@ export const state = {
   soloAtrasados: false, // combinable con filtroContador
   soloModificados: false, // ídem: vales MOD- y sus originales
   disenadorFiltro: '', // combobox de diseñadores (solo encargados)
-  reporte: { personaIds: [], tallerId: '', iniciado: false }, // Reportes: personas evaluadas y taller y arranque en «Hoy»
+  reporte: { // Reportes: su propio período (arranca en «Hoy»), agrupación, filtros y filas desplegadas
+    ventana: { tipo: 'hoy', fecha: isoLocal(new Date()), desde: '', hasta: '' },
+    agruparPor: '', tiendaId: '', tallerId: '', asesorIds: [], disenadorIds: [], expandidos: new Set()
+  },
   busqueda: '',
   sort: { key: null, dir: null }, // ídem el orden por columna
   socket: null,

@@ -91,6 +91,35 @@ class ReporteRepository {
     );
   }
 
+  // Solo las tiendas que cubre un supervisor (mismo nombre derivado que `listarTiendas`).
+  async listarTiendasPorSupervisor(usuarioId) {
+    return db.query(
+      `SELECT t.id, CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS nombre
+       FROM tiendas t
+       JOIN empresas e ON e.id = t.empresa_id
+       LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
+       JOIN supervisor_tiendas st ON st.tienda_id = t.id AND st.usuario_id = ?
+       ORDER BY nombre`,
+      [usuarioId],
+      'reporte:tiendas_supervisor'
+    );
+  }
+
+  // Opciones de los filtros de Reportes.
+  async listarAsesores() {
+    return db.query(
+      `SELECT u.id, u.nombre FROM usuarios u JOIN asesores a ON a.usuario_id = u.id WHERE u.activo = 1 ORDER BY u.nombre`,
+      [], 'reporte:asesores'
+    );
+  }
+
+  async listarDisenadores() {
+    return db.query(
+      `SELECT DISTINCT u.id, u.nombre FROM usuarios u JOIN taller_disenadores td ON td.usuario_id = u.id WHERE u.activo = 1 ORDER BY u.nombre`,
+      [], 'reporte:disenadores'
+    );
+  }
+
   async listarNombres(usuarioIds) {
     if (!usuarioIds.length) return [];
     return db.query('SELECT id, nombre FROM usuarios WHERE id IN (?)', [usuarioIds], 'reporte:nombres');

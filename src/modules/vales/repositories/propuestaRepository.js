@@ -20,6 +20,17 @@ class PropuestaRepository {
     return rows[0] || null;
   }
 
+  // Última propuesta con archivo de cada vale (en un solo viaje): Map(valeId -> url). Para los reportes.
+  async listarUltimasPorVales(valeIds) {
+    if (!valeIds.length) return new Map();
+    const filas = await db.query(
+      'SELECT vale_id, url FROM vale_propuestas WHERE vale_id IN (?) AND url IS NOT NULL ORDER BY id ASC',
+      [valeIds],
+      'propuesta:latest_by_vales'
+    );
+    return new Map(filas.map(f => [f.vale_id, f.url]));
+  }
+
   // La última propuesta de UN taller específico (identificado por el diseñador que la
   // subió) — necesario porque con varios talleres puede haber varias propuestas vivas
   // para el mismo vale al mismo tiempo, una por taller.

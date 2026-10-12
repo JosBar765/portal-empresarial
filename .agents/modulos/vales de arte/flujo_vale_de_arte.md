@@ -693,9 +693,9 @@ No cambia ningún estado ni filtro: el desplegable de estado sigue usando los es
 
 ## 11. Reportes de actividad (pestaña «Reportes»)
 
-Pestaña de la barra lateral con el permiso `vales.ver_reportes` (Administrador, Asesor, Supervisor, Encargados de taller y Diseñador; no el Gerente). Mide la actividad de las personas a partir de `vale_historial` y se exporta a PDF (`GET /api/vales/reportes` y `/reportes/pdf`; `services/valeReporteService.js` y `valeReportePdfService.js`). El alcance lo decide el servidor por rol: Asesor y Diseñador ven solo lo suyo; el Supervisor a sus asesores; el Encargado a su taller (cada diseñador); el Administrador todo, con filtros de tienda y taller.
+Pestaña de la barra lateral que aparece **solo según el permiso `vales.ver_reportes`**, para cualquier rol (hoy Administrador, Gerente, Asesor, Supervisor, Encargados de taller y Diseñador); sin el permiso no se muestra y la API responde 403. Un rol sin alcance propio (el Gerente) ve todo el sistema en solo lectura, igual que el Administrador. Mide la actividad de las personas a partir de `vale_historial` y se exporta a PDF (`GET /api/vales/reportes` y `/reportes/pdf`; `services/valeReporteService.js` y `valeReportePdfService.js`). El alcance lo decide el servidor por rol: Asesor y Diseñador ven solo lo suyo; el Supervisor a sus asesores; el Encargado a su taller (cada diseñador); el Administrador todo, con filtros de tienda y taller.
 
-- **Período:** cada acción cuenta por el día en que ocurrió (no por la fecha de entrega); abre en «Hoy» y usa la barra de período (§4).
+- **Período:** cada acción cuenta por el día en que ocurrió (no por la fecha de entrega); abre en «Hoy» y usa su propia barra: **Hoy · Día · Semana (lunes a domingo) · Mes · Desde–Hasta** (sin «Todo»).
 - **Acciones contadas:** crear, solicitar modificación, autorizar, rechazar, confirmar, asignar, comenzar, entregar (cancelar un proceso no cuenta), aprobar, devolver y fusionar; una devolución cuenta para quien entregó el trabajo devuelto.
 - **Tiempos:** de producción (comenzar → entregar, pausas incluidas), de revisión (entregar → aprobar o devolver), hasta la autorización (crear o reenviar → autorizar o rechazar) y ciclo completo (crear → confirmar).
 - Indicadores por rol, tablas por persona y listado de vales: ver `documentacion/correcciones_42.md`.
@@ -703,3 +703,6 @@ Pestaña de la barra lateral con el permiso `vales.ver_reportes` (Administrador,
 Ajustes (correcciones 43): Supervisor y Asesor solo ven Vales creados, Autorizados y Modificaciones solicitadas; no hay gráfica; quien tiene gente a su cargo puede evaluar a una o varias personas (`personaIds`), y el reporte y el PDF muestran solo a las elegidas.
 
 Simplificación (correcciones 43): Encargado y Diseñador también quedan con tres indicadores de actividad más «Atrasados ahora».
+
+Tabla unificada (correcciones 53): Gerente, Administrador, Supervisor y Encargado/Asistente ven personas con sus vales creados en el período, desplegables al pulsar la fila (vale, pipeline, entrega, atraso, propuesta y acciones «Ver vale» y «Ver propuesta»). Se agrupa por Asesor, Diseñador, Taller o Tienda y se filtra por tienda, taller, asesores y diseñadores. Los vales (y las filas, por su peor vale) se ordenan por atraso, paso más bajo del pipeline y falta de propuesta. El PDF sigue la misma estructura.
+- **Agrupaciones y filtros por rol:** Administrador y Gerente agrupan por asesor, diseñador, taller o tienda y filtran por todo; el Supervisor solo agrupa por asesor y filtra por sus asesores (más él como «(yo)»), las tiendas que cubre y los talleres de esas tiendas; el Encargado/Asistente solo agrupa por diseñador y filtra por los diseñadores de sus talleres (y por taller si tiene 2 o más). Pedir otra cosa a mano responde 400.
