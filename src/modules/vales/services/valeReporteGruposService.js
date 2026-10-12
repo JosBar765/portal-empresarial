@@ -1,7 +1,7 @@
 // src/modules/vales/services/valeReporteGruposService.js
 // Tabla unificada de Reportes: personas (o talleres/tiendas) como filas y, bajo cada una, los vales creados en el período
 // con su pipeline, entrega, atraso y propuesta. El orden de los vales (y el de las filas, por su peor vale) es:
-// 1) atraso, 2) paso más bajo del pipeline, 3) sin propuesta adjunta.
+// 0) sin asignar, 1) atraso, 2) paso más bajo del pipeline, 3) sin propuesta adjunta.
 const valeRepository = require('../repositories/valeRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
@@ -17,8 +17,12 @@ const ESTADOS_CON_PROPUESTA = [ESTADOS.CREADO, ESTADOS.MODIFICADO, ESTADOS.APROB
 
 const fechaDe = (valor) => String(valor || '').slice(0, 10);
 
-// Atrasados primero (más días arriba), luego el paso más bajo del pipeline, luego los que no tienen propuesta.
+// Un vale está sin asignar cuando el encargado todavía no le ha dado diseñador («Por asignar»).
+const sinAsignar = v => /Por asignar$/.test(v.pipeline.etiqueta);
+
+// Sin asignar primero; luego atrasados (más días arriba), el paso más bajo del pipeline y los que no tienen propuesta.
 function compararVales(a, b) {
+  if (sinAsignar(a) !== sinAsignar(b)) return sinAsignar(a) ? -1 : 1;
   if (a.atrasado !== b.atrasado) return a.atrasado ? -1 : 1;
   if (a.atrasado && a.diasAtraso !== b.diasAtraso) return b.diasAtraso - a.diasAtraso;
   if (a.pipeline.paso !== b.pipeline.paso) return a.pipeline.paso - b.pipeline.paso;

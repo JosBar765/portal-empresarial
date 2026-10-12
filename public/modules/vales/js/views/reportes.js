@@ -183,7 +183,7 @@ function notasDelRol(data) {
     '<li><strong>Período:</strong> se elige con Hoy, Día, Semana (de lunes a domingo), Mes o Desde–Hasta. Cada acción cuenta en el día en que ocurrió.</li>'
   ];
   if (data.grupos) {
-    reglas.push('<li><strong>Tabla:</strong> lista los vales <strong>creados</strong> en el período, agrupados por la persona, taller o tienda elegidos. Cada fila muestra cuántos vales creó, cuántos ya fueron autorizados y qué atención requieren (atrasados y sin propuesta). Al pulsarla se despliegan sus vales, ordenados por atraso, luego por el paso más bajo del pipeline y luego por los que aún no tienen propuesta.</li>');
+    reglas.push('<li><strong>Tabla:</strong> lista los vales <strong>creados</strong> en el período, agrupados por la persona, taller o tienda elegidos. Cada fila muestra cuántos vales creó, cuántos ya fueron autorizados y qué atención requieren (atrasados y sin propuesta). Al pulsarla se despliegan sus vales, con los que aún no están asignados primero y luego ordenados por atraso, por el paso más bajo del pipeline y luego por los que aún no tienen propuesta.</li>');
   }
   return reglas.join('');
 }
