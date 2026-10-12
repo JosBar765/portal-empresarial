@@ -43,6 +43,15 @@ class ValePdfGeneradoRepository {
     return result.insertId;
   }
 
+  // URLs ya generadas cuyo nombre empieza por el correlativo (ya sanitizado: sin % ni _).
+  async listarUrlsPorCorrelativo(correlativoSanitizado) {
+    const rows = await db.query(
+      'SELECT url FROM vale_pdf_generados WHERE url LIKE ?',
+      [`%/${correlativoSanitizado}\\_%`], 'vale_pdf:urls_por_correlativo'
+    );
+    return rows.map(r => r.url);
+  }
+
   async listarRecientes(limite = 50) {
     return db.query(
       `SELECT g.id, u.nombre AS usuario_nombre, g.correlativo, g.url, g.creado_en

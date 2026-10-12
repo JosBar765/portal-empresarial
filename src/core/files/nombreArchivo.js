@@ -16,6 +16,7 @@ function segmento(texto) {
   return sinAcentos(texto).replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase();
 }
 
+// Un taller nuevo debe agregarse aquí; si no, entregar una propuesta con archivo falla.
 // `taller`: { nombre, tienda_codigo? }. Diseño Local usa el código de su tienda; si no viene,
 // se toma del nombre ('Diseño Local - ECL' -> ECL), que coincide con tiendas.codigo.
 function codigoTaller(taller) {
@@ -29,7 +30,7 @@ function codigoTaller(taller) {
     if (!tienda) throw new Error(`No se pudo determinar el código de tienda del taller "${nombre}".`);
     return `DISENIO_${tienda}`;
   }
-  throw new Error(`No se reconoce el taller "${nombre}" para nombrar el archivo.`);
+  throw new Error(`El taller "${nombre}" no tiene código para nombrar archivos en Storage. Agrégalo en codigoTaller (src/core/files/nombreArchivo.js).`);
 }
 
 function pdfCreacion(correlativo) {
@@ -55,6 +56,15 @@ function adjunto(correlativo, tipo, etapa, contador) {
 
 function prefijoAdjunto(correlativo, tipo, etapa) {
   return `${sanitizarCorrelativo(correlativo)}_${tipo}_${etapa}`;
+}
+
+// Herramienta admin: tipo 'CREACION'|'AUTORIZACION'.
+function prefijoCorreccionAdmin(correlativo, tipo) {
+  return `${sanitizarCorrelativo(correlativo)}_CORRECCION_${tipo}_ADMIN`;
+}
+
+function correccionAdmin(correlativo, tipo, contador) {
+  return `${prefijoCorreccionAdmin(correlativo, tipo)}_${contador}`;
 }
 
 function propuesta(correlativo, taller, contador) {
@@ -86,5 +96,6 @@ function siguienteContador(urlsExistentes, prefijo) {
 module.exports = {
   sanitizarCorrelativo, codigoTaller, siguienteContador,
   pdfCreacion, pdfAutorizacion, prefijoCorreccionPreAutorizacion, pdfCorreccionPreAutorizacion,
-  adjunto, prefijoAdjunto, propuesta, prefijoPropuesta, propuestaFusion
+  adjunto, prefijoAdjunto, propuesta, prefijoPropuesta, propuestaFusion,
+  prefijoCorreccionAdmin, correccionAdmin
 };

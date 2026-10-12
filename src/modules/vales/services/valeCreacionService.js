@@ -1,8 +1,7 @@
 // src/modules/vales/services/valeCreacionService.js
 // Creación de vales y autorización de esa creación por el Supervisor de
-// Ventas. `validarDatosVale`/`fanOutTalleres`/`nombresDeTalleres`/
-// `regenerarPdf` se exportan sin guion bajo porque también los usa
-// valeConfirmacionService (solicitarModificacion/aprobarModificacion) — ver el comentario
+// Ventas. `validarDatosVale`/`nombresDeTalleres` se exportan sin guion bajo porque
+// también los usan valeModificacionService y valeCorreccionService — ver el comentario
 // original de _validarDatosVale, que ya documentaba esta dependencia
 // compartida entre crearVale() y solicitarModificacion().
 const crypto = require('crypto');
