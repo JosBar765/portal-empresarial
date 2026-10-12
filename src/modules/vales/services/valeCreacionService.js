@@ -2,8 +2,7 @@
 // Creación de vales y autorización de esa creación por el Supervisor de
 // Ventas. `validarDatosVale`/`fanOutTalleres`/`nombresDeTalleres`/
 // `regenerarPdf` se exportan sin guion bajo porque también los usa
-// valeConfirmacionService (solicitarModificacion/aprobarModificacion) y
-// valeTallerService (aprobarGeneral, solo regenerarPdf) — ver el comentario
+// valeConfirmacionService (solicitarModificacion/aprobarModificacion) — ver el comentario
 // original de _validarDatosVale, que ya documentaba esta dependencia
 // compartida entre crearVale() y solicitarModificacion().
 const crypto = require('crypto');
@@ -551,19 +550,24 @@ class ValeCreacionService {
     if (!archivos) return;
     const imagenes = archivos.imagenes || [];
     const documentos = archivos.documentos || [];
+    const { correlativo } = await valeRepository.obtenerPorId(valeId);
 
+    let numero = 0;
     for (const file of imagenes) {
       await subirYRegistrarArchivo({
         buffer: file.buffer, nombreOriginal: file.originalname, mimeType: file.mimetype,
+        nombreObjeto: nombreArchivo.adjunto(correlativo, 'IMAGEN', 'CREACION', ++numero),
         registrar: (subida) => documentoRepository.crear({
           valeId, nombreOriginal: file.originalname, ruta: subida.url, tipo: 'imagen',
           mimeType: file.mimetype, tamano: subida.size, esModificacion, subidoPor
         })
       });
     }
+    numero = 0;
     for (const file of documentos) {
       await subirYRegistrarArchivo({
         buffer: file.buffer, nombreOriginal: file.originalname, mimeType: file.mimetype,
+        nombreObjeto: nombreArchivo.adjunto(correlativo, 'PDF', 'CREACION', ++numero),
         registrar: (subida) => documentoRepository.crear({
           valeId, nombreOriginal: file.originalname, ruta: subida.url, tipo: 'documento',
           mimeType: file.mimetype, tamano: subida.size, esModificacion, subidoPor

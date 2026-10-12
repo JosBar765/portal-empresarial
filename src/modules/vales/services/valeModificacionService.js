@@ -76,7 +76,7 @@ class ValeModificacionService {
       const subidos = [];
       let modId;
       try {
-        const nuevos = (await valeCorreccionService._subirNuevos(nuevasImagenes, nuevosDocumentos, subidos)).map(d => ({ ...d, nuevo: true }));
+        const nuevos = (await valeCorreccionService._subirNuevos(nuevasImagenes, nuevosDocumentos, subidos, { correlativo, etapa: 'CREACION' })).map(d => ({ ...d, nuevo: true }));
         const documentos = [...conservados, ...nuevos, {
           nombre_original: `Propuesta original - ${original.correlativo}.pdf`, ruta: propuestaOriginal,
           tipo: 'documento', mime_type: 'application/pdf', tamano: 0, nuevo: true

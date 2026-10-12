@@ -82,7 +82,9 @@ class ValeCorreccionService {
       const subidos = [];
       let documentosNuevos;
       try {
-        documentosNuevos = await this._subirNuevos(nuevosImagenes, nuevosDocumentos, subidos);
+        // X continúa tras los adjuntos actuales (incluidos los que se quitan: siguen en Storage hasta confirmar).
+        documentosNuevos = await this._subirNuevos(nuevosImagenes, nuevosDocumentos, subidos,
+          { correlativo: vale.correlativo, etapa: 'CORRECCION', urlsExistentes: documentosActuales.map(d => d.ruta) });
         const valeCorregido = this._valeConDatos(vale, datos);
         const pdfBuffer = await valeCreacionService.generarBufferPdf(valeCorregido, [...conservados, ...documentosNuevos]);
         // X sale del PDF vigente: {corr}_CORRECCION_PRE_AUTORIZACION_N -> N + 1; cualquier otro -> 1.
@@ -151,14 +153,17 @@ class ValeCorreccionService {
   }
 
   // Cada URL subida se anota en `subidos` apenas existe, para poder borrarla si algo falla después.
-  async _subirNuevos(imagenes, documentos, subidos) {
+  // `etapa`: 'CREACION' | 'CORRECCION'; X continúa desde `urlsExistentes` y dentro de la misma llamada.
+  async _subirNuevos(imagenes, documentos, subidos, { correlativo, etapa, urlsExistentes = [] }) {
     const nuevos = [];
-    for (const [lista, tipo] of [[imagenes, 'imagen'], [documentos, 'documento']]) {
+    for (const [lista, tipo, tipoNombre] of [[imagenes, 'imagen', 'IMAGEN'], [documentos, 'documento', 'PDF']]) {
+      let contador = nombreArchivo.siguienteContador(urlsExistentes, nombreArchivo.prefijoAdjunto(correlativo, tipoNombre, etapa));
       for (const file of lista) {
         let subida;
         try {
           const buffer = await imageOptimizer.optimizar(file.buffer, file.mimetype);
-          subida = await supabaseStorage.subir(buffer, file.originalname, file.mimetype);
+          subida = await supabaseStorage.subir(buffer, file.originalname, file.mimetype,
+            nombreArchivo.adjunto(correlativo, tipoNombre, etapa, contador++));
         } catch (error) {
           throw new StorageUploadError(`No se pudo subir "${file.originalname}": ${error.message}`);
         }
