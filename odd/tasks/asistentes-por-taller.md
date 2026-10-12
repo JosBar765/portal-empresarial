@@ -35,5 +35,12 @@ Ninguna.
 
 - T6: ruta delegada (escritor; disparador: preparación de la escritura + verificación con servidor y BD). Doc `.agents/modulos/admin/documentacion/asistentes_por_taller.md` y una frase en CLAUDE.md. Verificado en dev: taller 3 (Protextil) con encargado_id NULL temporal, usuario temporal rol 12 -> login 200 (claim heredaDeRolId 9), GET /api/vales -> error con «El taller al que fuiste asignado no tiene un encargado.» (HTTP 500 con ese mensaje). encargado_id restaurado a 25 y usuario temporal borrado.
 
+## Revisión visual (navegador, 127.0.0.1:3000, cuenta de pruebas admin)
+- OK · Roles y Permisos, rol «Asistente de Protextil»: nota «Este rol hereda de un encargado…» y permisos que el encargado no tiene atenuados y deshabilitados (fusión, admin.*, crear, etc.); los heredables siguen marcados.
+- OK · «Marcar/Desmarcar todos» solo cambia los permisos habilitados y no toca los atenuados.
+- OK · Los 4 roles de asistente aparecen en el listado de roles.
+- Discrepancia (menor, texto): en Gestionar Talleres > Personal, la sección se llama «Diseñadores» y el botón «Agregar diseñador», pero ahora también agrupa asistentes. Pendiente decidir si se renombra a «Personal».
+- No verificado: lista de candidatos del selector (en dev no hay usuarios sin taller con rol de asistente ni diseñadores libres; el selector solo mostró «Seleccionar…»); buzón visual de un asistente (el botón «Cerrar sesión» no respondió y se detuvo la revisión); sockets y notificaciones en vivo.
+
 ## Siguiente paso
 Revisar y abrir el PR (decisión del usuario). Recordar importar `asistentes_por_taller.sql` antes de desplegar.
