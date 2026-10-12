@@ -545,6 +545,13 @@ Es una condición **derivada** de `fecha_entrega`, calculada al vuelo
 (`calcularAtraso`) en cada consulta; no se guarda como estado. Puede
 combinarse con cualquier filtro de estado.
 
+- **Se cuenta por día calendario (hora de Guatemala, UTC-6)**, usando solo la
+  fecha de `fecha_entrega`; la hora no influye. Ejemplo: un vale ingresa el
+  12/10 a las 14:55 y se entrega el 13/10. Durante todo el 13/10 está "Al día"
+  y muestra "Hoy" (vence hoy); desde el 14/10 00:00 está atrasado con 1 día,
+  el 15/10 con 2, y así. "Hoy" solo aplica mientras el vale sigue activo; uno
+  ya confirmado el día de entrega queda "Al día".
+
 - Mientras el vale está activo, el atraso corre en vivo.
 - Se **congela** (se detiene de forma permanente) en dos momentos:
   1. el asesor confirma de recibido (`confirmarRecibido`),
@@ -555,8 +562,8 @@ combinarse con cualquier filtro de estado.
   modificación (`vales.atraso_congelado_en`). Los vales ya
   `RECIBIDO` sin sello de congelamiento usan `actualizado_en` como respaldo.
 - **Alerta en vivo:** `atrasoWatcher.js` corre cada 60 s en el mismo proceso
-  y detecta los vales con **1 día completo o más** de atraso (pasadas 24 h de
-  su `fecha_entrega`; antes solo se muestra "vence hoy"). Dispara
+  y detecta los vales con **1 día o más** de atraso (a partir de las 00:00 del
+  día siguiente a su `fecha_entrega`; ese mismo día solo se muestra "Hoy"). Dispara
   una alerta roja **una sola vez por vale** (`atraso_notificado_en`) solo a
   quien lo tiene "en su vista": el asesor, sus supervisores, los talleres con
   fila activa (pendiente, asignado, en proceso, en pausa o en revisión), los diseñadores con

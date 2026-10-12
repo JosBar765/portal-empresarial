@@ -83,15 +83,18 @@ function horaActual() {
   return ahoraUTC6().toISOString().slice(11, 19);
 }
 
-function calcularAtraso(vale) {
+// Atraso por día calendario (UTC-6): solo cuenta la fecha de fecha_entrega, no la hora.
+// Todo el día de entrega es "Hoy"; desde el día siguiente hay 1 día de atraso, y así.
+function calcularAtraso(vale, ahora = new Date()) {
   const congelamiento = vale.atraso_congelado_en
     || (ESTADOS_TERMINALES.includes(vale.estado) ? vale.actualizado_en : null);
-  const referencia = congelamiento ? parsearUTC6(congelamiento) : new Date();
-  const entrega = parsearUTC6(vale.fecha_entrega);
-  const diffMs = referencia - entrega;
-  const atrasado = diffMs > 0;
-  const dias = atrasado ? Math.floor(diffMs / (1000 * 60 * 60 * 24)) : 0;
-  return { atrasado, diasAtraso: dias, venceHoy: atrasado && dias === 0 };
+  const refDia = congelamiento
+    ? String(congelamiento).slice(0, 10)
+    : new Date(ahora.getTime() - 6 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const aDiaUTC = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10));
+  const entregaDia = String(vale.fecha_entrega).slice(0, 10);
+  const dias = Math.max(0, Math.round((aDiaUTC(refDia) - aDiaUTC(entregaDia)) / 86400000));
+  return { atrasado: dias >= 1, diasAtraso: dias, venceHoy: !congelamiento && refDia === entregaDia };
 }
 
 function enriquecer(vale) {
