@@ -7,7 +7,9 @@ import { cargarBuzon } from '../views/buzon.js';
 
 const MAX_CARACTERES = 200;
 const AVISO_CARACTERES = 170;
-const MENSAJE_POR_DEFECTO = 'Adjuntos enviados al correo';
+const MENSAJE_POR_DEFECTO = 'Solventado';
+// Aviso en negrita en los paneles donde se escriben mensajes del rechazo.
+const AVISO_MENSAJES_TEMPORALES = '<strong>Estos mensajes son TEMPORALES y no se podrán consultar luego: cualquier información importante colócala en BOCETO Y DESCRIPCIÓN.</strong>';
 const MOTIVOS_RAPIDOS = [
   'Faltan los adjuntos.',
   'Da de baja este vale y crea otro.',
@@ -70,7 +72,7 @@ export function abrirModalRechazarAdjuntos(vale) {
     bodyHtml: `
       <div class="aviso-rechazo">
         <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
-        <p>El vale vuelve al asesor con tu mensaje y tiene <strong>${textoPlazoVale()}</strong> para atenderlo. Si no se resuelve en ese plazo, el vale se elimina junto con la conversación.</p>
+        <p>El vale vuelve al asesor con tu mensaje y tiene <strong>${textoPlazoVale()}</strong> para atenderlo. Si no se resuelve en ese plazo, el vale se elimina junto con la conversación.<br>${AVISO_MENSAJES_TEMPORALES}</p>
       </div>
       <div class="form-field full">
         <label for="mensaje-rechazo">¿Qué debe hacer el asesor? *</label>
@@ -164,6 +166,7 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
       <div class="chat-cabecera" id="chat-cabecera"></div>
       <div class="chat-hilo" id="chat-hilo" role="log" aria-live="polite" tabindex="0"><div class="chat-vacio"><p>Cargando…</p></div></div>
       <div class="chat-escribir" id="chat-escribir" hidden>
+        <p class="campo-ayuda">${AVISO_MENSAJES_TEMPORALES}</p>
         <label for="chat-mensaje" class="sr-only">Escribe un mensaje</label>
         <div class="chat-caja">
           <textarea id="chat-mensaje" rows="1" maxlength="${MAX_CARACTERES}" placeholder="Escribe un mensaje…"></textarea>
@@ -299,7 +302,7 @@ function abrirModalResponderAdjuntos(vale, adjunto, cerrarPadre) {
     bodyHtml: `
       <div class="aviso-rechazo">
         <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
-        <p>El vale volverá a <strong>${escapeHtml(adjunto.taller)}</strong> para que lo revise de nuevo. Úsalo cuando ya atendiste lo que te pidieron.</p>
+        <p>El vale volverá a <strong>${escapeHtml(adjunto.taller)}</strong> para que lo revise de nuevo. Úsalo cuando ya atendiste lo que te pidieron.<br>${AVISO_MENSAJES_TEMPORALES}</p>
       </div>
       <div class="form-field full">
         <label for="mensaje-adjuntos">Mensaje para el taller</label>
