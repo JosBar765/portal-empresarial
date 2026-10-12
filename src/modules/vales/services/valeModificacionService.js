@@ -11,6 +11,7 @@ const documentoRepository = require('../repositories/documentoRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const historialRepository = require('../repositories/historialRepository');
 const supabaseStorage = require('../../../core/files/supabaseStorage');
+const nombreArchivo = require('../../../core/files/nombreArchivo');
 const idempotencyRepository = require('../../../core/idempotency/idempotencyRepository');
 const capacidadEntregaService = require('./capacidadEntregaService');
 const valeCreacionService = require('./valeCreacionService');
@@ -88,7 +89,7 @@ class ValeModificacionService {
           autorizado_por: null, autorizacion_tipo: null, modificado: 0
         };
         const pdfBuffer = await valeCreacionService.generarBufferPdf(valeMod, documentos);
-        const pdf = await supabaseStorage.subir(pdfBuffer, `${correlativo}.pdf`, 'application/pdf');
+        const pdf = await supabaseStorage.subir(pdfBuffer, `${correlativo}.pdf`, 'application/pdf', nombreArchivo.pdfCreacion(correlativo));
         subidos.push(pdf.url);
         modId = await valeModificacionRepository.crear({
           original, datos, correlativo, fechaCreacion: fecha, horaCreacion: hora, pdfUrl: pdf.url,
@@ -144,7 +145,7 @@ class ValeModificacionService {
         const documentos = await documentoRepository.listarPorVale(mod.id);
         const pdfBuffer = await valeCreacionService.generarBufferPdf(mod, documentos,
           { autorizado_por: usuario.id, autorizado_en: ahora, autorizacion_tipo: 'MODIFICACION' });
-        const pdf = await supabaseStorage.subir(pdfBuffer, `${mod.correlativo}.pdf`, 'application/pdf');
+        const pdf = await supabaseStorage.subir(pdfBuffer, `${mod.correlativo}.pdf`, 'application/pdf', nombreArchivo.pdfAutorizacion(mod.correlativo));
         try {
           // El vale MOD- recién ocupa cupo al autorizarse; si varios supervisores compiten por el último lugar, gana uno.
           await valeMutex.conColaDeCapacidad(async () => {

@@ -8,6 +8,7 @@ const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const supabaseStorage = require('../../../core/files/supabaseStorage');
 const imageOptimizer = require('../../../core/files/imageOptimizer');
+const nombreArchivo = require('../../../core/files/nombreArchivo');
 const { StorageUploadError } = require('../../../core/files/errores');
 const idempotencyRepository = require('../../../core/idempotency/idempotencyRepository');
 const capacidadEntregaService = require('./capacidadEntregaService');
@@ -84,7 +85,10 @@ class ValeCorreccionService {
         documentosNuevos = await this._subirNuevos(nuevosImagenes, nuevosDocumentos, subidos);
         const valeCorregido = this._valeConDatos(vale, datos);
         const pdfBuffer = await valeCreacionService.generarBufferPdf(valeCorregido, [...conservados, ...documentosNuevos]);
-        const pdf = await supabaseStorage.subir(pdfBuffer, `${vale.correlativo}.pdf`, 'application/pdf');
+        // X sale del PDF vigente: {corr}_CORRECCION_PRE_AUTORIZACION_N -> N + 1; cualquier otro -> 1.
+        const nombrePdf = nombreArchivo.pdfCorreccionPreAutorizacion(vale.correlativo,
+          nombreArchivo.siguienteContador([vale.pdf_url], nombreArchivo.prefijoCorreccionPreAutorizacion(vale.correlativo)));
+        const pdf = await supabaseStorage.subir(pdfBuffer, `${vale.correlativo}.pdf`, 'application/pdf', nombrePdf);
         subidos.push(pdf.url);
 
         // El cupo se revalida y la base se actualiza en el mismo turno de la cola de capacidad.

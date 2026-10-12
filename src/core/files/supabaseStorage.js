@@ -43,14 +43,18 @@ class SupabaseStorage {
    * "No se pudo subir..." que salía cuando esta función también clasificaba).
    * @returns {Promise<{path: string, url: string, size: number}>}
    */
-  async subir(buffer, nombreOriginal, mimeType) {
+  async subir(buffer, nombreOriginal, mimeType, nombreObjeto) {
     // La extensión sale del tipo YA VERIFICADO por magic bytes
     // (valeController.validarArchivos), nunca del nombre que mandó el
     // usuario — path.extname(nombreOriginal) es 100% controlado por quien
     // sube el archivo y permitía guardar, por ejemplo, un .svg/.html
     // disfrazado bajo esa extensión en un bucket público.
     const extension = extensionParaTipo(mimeType) || path.extname(nombreOriginal);
-    const objectPath = crypto.randomBytes(16).toString('hex') + extension;
+    // `nombreObjeto` (sin extensión) fija el nombre; sin él se usa un token aleatorio.
+    if (nombreObjeto !== undefined && !/^[A-Za-z0-9_.-]+$/.test(nombreObjeto)) {
+      throw new StorageUploadError(`Nombre de archivo no válido para Storage: "${nombreObjeto}".`);
+    }
+    const objectPath = (nombreObjeto || crypto.randomBytes(16).toString('hex')) + extension;
     const { error } = await obtenerCliente().storage.from(bucket).upload(objectPath, buffer, {
       contentType: mimeType,
       upsert: false
