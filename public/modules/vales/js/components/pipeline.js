@@ -3,7 +3,7 @@
 import { escapeHtml } from '../utils/formato.js';
 import { claseEstado, etiquetaEstado } from '../permisos.js';
 import { state } from '../state.js';
-import { ROLES_ENCARGADO_TALLER } from '../config/roles.js';
+import { ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
 
 const SIMBOLOS = {
   completado: '<svg viewBox="0 0 12 10" aria-hidden="true"><path d="M1.5 5.5 4.5 8.5 10.5 1.5"/></svg>',
@@ -61,7 +61,7 @@ function pipelineConAdjuntos(v) {
     const nodos = p.nodos.map((_, i) => (i === 0 ? 'completado' : (i === 1 ? 'devuelto' : 'pendiente')));
     return { ...p, nodos, tono: 'danger', etiqueta: 'Esperando adjuntos', detalle: texto, motivo: texto };
   }
-  if (!ROLES_ENCARGADO_TALLER.includes(state.user.rolId)) return p;
+  if (!ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user))) return p;
   if (v.estado_taller === 'VERIFICANDO_ADJUNTOS') return { ...p, etiqueta: 'Verificar adjuntos' };
   if (v.estado_taller === 'ADJUNTOS_RESPONDIDOS') return { ...p, etiqueta: 'Adjuntos enviados, verificar' };
   if (v.estado_taller === 'ADJUNTOS_RECHAZADOS') {

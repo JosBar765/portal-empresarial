@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR } from './config/roles.js';
+import { ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, rolEncargadoDe, esAsistente } from './config/roles.js';
 import { ESTADOS_LABEL, ESTADOS_VISIBLES_LABEL } from './config/estados.js';
 
 export function tienePermiso(codigo) {
@@ -7,7 +7,7 @@ export function tienePermiso(codigo) {
 }
 
 export function puede(accion) {
-  const r = state.user.rolId;
+  const r = rolEncargadoDe(state.user);
   const admin = r === ROL.ADMINISTRADOR;
   switch (accion) {
     // El supervisor también crea y gestiona sus propios vales (si su rol tiene el permiso).
@@ -57,7 +57,7 @@ export function usaEstadosVisibles() {
 // (v.estado_taller); el resto ve el estado general del vale (v.estado).
 export function estadoActivo(v) {
   if (usaEstadosVisibles()) return v.estado_visible;
-  if (ROLES_TALLER_Y_DISENADOR.includes(state.user.rolId)) return v.estado_taller || v.estado;
+  if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user))) return v.estado_taller || v.estado;
   return v.estado;
 }
 
@@ -71,24 +71,23 @@ export function etiquetaEstado(v) {
   return ESTADOS_LABEL[clave] || clave;
 }
 
-// El Asistente opera UN taller como si fuera su propio encargado_id, sin serlo — el que tiene asignado en
+// El asistente (de cualquier taller) opera UN taller como si fuera su propio encargado_id, sin serlo — el que tiene asignado en
 // `taller_disenadores` (el servidor lo manda como `miTallerId`), igual que resuelve el backend
 // (idEncargadoEfectivo). Sin asignación no tiene taller.
 export function miTaller() {
   const talleres = state.catalogos.talleres || [];
-  if (state.user.rolId === ROL.ASISTENTE_DISENO) return talleres.find(t => t.id === state.catalogos.miTallerId) || null;
+  if (esAsistente(state.user)) return talleres.find(t => t.id === state.catalogos.miTallerId) || null;
   return talleres.find(t => t.encargado_id === state.user.id) || null;
 }
 
 function salasPorRol(user) {
-  switch (user.rolId) {
+  switch (rolEncargadoDe(user)) {
     case ROL.ADMINISTRADOR: return ['vales:admin'];
     case ROL.ASESOR: return [`asesor:${user.id}`];
     // Además de su sala de supervisor, recibe lo de sus propios vales (sala de asesor).
     case ROL.SUPERVISOR: return [`supervisor:${user.id}`, `asesor:${user.id}`];
     case ROL.ENCARGADO_DISENO:
     case ROL.ENCARGADO_UV3D:
-    case ROL.ASISTENTE_DISENO: // se une a la sala del taller "Diseño"
     case ROL.ENCARGADO_PROTEXTIL:
     case ROL.ENCARGADO_DISENO_LOCAL: {
       const taller = miTaller();

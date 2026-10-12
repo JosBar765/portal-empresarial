@@ -17,8 +17,8 @@ Que el Asistente pueda asignarse a cualquier taller (Diseño, Diseño UV/3D, Pro
 - [x] T1 · Script SQL idempotente `asistentes_por_taller.sql`: columna `roles.hereda_de_rol_id`, roles nuevos (por nombre, sin ids fijos), permisos copiados del rol padre, rol 7 marcado como hijo del 4.
 - [x] T2 · Backend admin: validar permisos de roles heredados (crear/actualizar), quitar unicidad del asistente, permitir asignarlo a cualquier taller según su tipo de rol, varios por taller.
 - [x] T3 · Backend vales: tratar los 4 roles de asistente como el encargado de su taller (buzón, fusión, sockets, detalle).
-- [ ] T4 · Frontend admin: error visual en la pestaña de roles, formulario de usuario y gestión de personal del taller.
-- [ ] T5 · Frontend vales: roles de asistente en `config/roles.js` y `permisos.js`.
+- [x] T4 · Frontend admin: error visual en la pestaña de roles, formulario de usuario y gestión de personal del taller.
+- [x] T5 · Frontend vales: roles de asistente en `config/roles.js` y `permisos.js`.
 - [ ] T6 · Documentación y verificación liviana.
 
 ## Preguntas abiertas
@@ -30,6 +30,8 @@ Ninguna.
 - T2: ruta delegada (escritor; disparador: 2+ archivos no triviales). Sin runner de tests: RED/GREEN no aplica, verificado funcionalmente contra la API local. PUT roles/11 con permiso ajeno al padre -> 400 con mensaje; quitar permiso al rol 9 lo quita del 12 (restaurado después); rol 12 a taller Diseño -> 400, a Protextil -> 201 para 2 asistentes (datos de prueba borrados).
 
 - T3: ruta delegada (escritor; disparador: 2+ archivos no triviales). Claim JWT nuevo `heredaDeRolId` (leído de roles.hereda_de_rol_id en login y refresco; el rol 7 cuenta como asistente aunque el token no lo traiga). Helpers `esAsistente/rolEncargadoDe/esDeTaller/esTallerODisenador` en valeHelpers.js reemplazan `ROL.ASISTENTE_DISENO` y `ROLES_ENCARGADO_TALLER.includes`; `idEncargadoEfectivo` ya no devuelve null si el taller no tiene encargado; `listarDeTaller` toma cualquier rol con padre. Verificado en dev: asistente rol 12 en Protextil -> login 200, claim 9, buzón 200 con vales de Protextil, miTallerId 3, sin vales.aprobar_general; asistente rol 7 -> buzón 200, miTallerId 1, con fusión. Usuario temporal borrado.
+
+- T4/T5: ruta delegada (escritor; disparador: 2+ archivos no triviales). Sin runner: RED/GREEN no aplica. `node --check` como módulo OK en los 14 archivos editados; los estáticos responden 302 (login) sin servidor reiniciado. Admin: `roles.js` config data-driven (`rolEncargadoDeTaller`, `rolPadreDe`), `tallerPersonal.js` lista asistentes por rol padre, `usuarioForm` ya no bloquea roles de asistente, permisos del rol hijo atenuados/deshabilitados si el padre no los tiene (el error del API ya se muestra con `mostrarErrorModal`). Vales: `rolEncargadoDe/esAsistente` en `config/roles.js` (fallback rol 7 -> 4). Sin verificar visualmente en navegador.
 
 ## Siguiente paso
 Resolver la pregunta abierta y empezar T1.
