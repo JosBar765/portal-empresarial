@@ -8,6 +8,7 @@ const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const supabaseStorage = require('../../../core/files/supabaseStorage');
 const imageOptimizer = require('../../../core/files/imageOptimizer');
+const nombreArchivo = require('../../../core/files/nombreArchivo');
 const { StorageUploadError } = require('../../../core/files/errores');
 const idempotencyRepository = require('../../../core/idempotency/idempotencyRepository');
 const capacidadEntregaService = require('./capacidadEntregaService');
@@ -81,10 +82,15 @@ class ValeCorreccionService {
       const subidos = [];
       let documentosNuevos;
       try {
-        documentosNuevos = await this._subirNuevos(nuevosImagenes, nuevosDocumentos, subidos);
+        // X continúa tras los adjuntos actuales (incluidos los que se quitan: siguen en Storage hasta confirmar).
+        documentosNuevos = await this._subirNuevos(nuevosImagenes, nuevosDocumentos, subidos,
+          { correlativo: vale.correlativo, etapa: 'CORRECCION', urlsExistentes: documentosActuales.map(d => d.ruta) });
         const valeCorregido = this._valeConDatos(vale, datos);
         const pdfBuffer = await valeCreacionService.generarBufferPdf(valeCorregido, [...conservados, ...documentosNuevos]);
-        const pdf = await supabaseStorage.subir(pdfBuffer, `${vale.correlativo}.pdf`, 'application/pdf');
+        // X sale del PDF vigente: {corr}_CORRECCION_PRE_AUTORIZACION_N -> N + 1; cualquier otro -> 1.
+        const nombrePdf = nombreArchivo.pdfCorreccionPreAutorizacion(vale.correlativo,
+          nombreArchivo.siguienteContador([vale.pdf_url], nombreArchivo.prefijoCorreccionPreAutorizacion(vale.correlativo)));
+        const pdf = await supabaseStorage.subir(pdfBuffer, `${vale.correlativo}.pdf`, 'application/pdf', nombrePdf);
         subidos.push(pdf.url);
 
         // El cupo se revalida y la base se actualiza en el mismo turno de la cola de capacidad.
@@ -147,14 +153,19 @@ class ValeCorreccionService {
   }
 
   // Cada URL subida se anota en `subidos` apenas existe, para poder borrarla si algo falla después.
-  async _subirNuevos(imagenes, documentos, subidos) {
+  // `etapa`: 'CREACION' | 'CORRECCION'; X continúa desde `urlsExistentes` y dentro de la misma llamada.
+  // `recuperarHuerfanos`: solo si el vale aún no existe (solicitud de MOD-); permite reemplazar un archivo viejo sin vale.
+  async _subirNuevos(imagenes, documentos, subidos, { correlativo, etapa, urlsExistentes = [], recuperarHuerfanos = false }) {
+    const opciones = recuperarHuerfanos ? { esHuerfano: async () => !(await valeRepository.existePorCorrelativo(correlativo)) } : undefined;
     const nuevos = [];
-    for (const [lista, tipo] of [[imagenes, 'imagen'], [documentos, 'documento']]) {
+    for (const [lista, tipo, tipoNombre] of [[imagenes, 'imagen', 'IMAGEN'], [documentos, 'documento', 'PDF']]) {
+      let contador = nombreArchivo.siguienteContador(urlsExistentes, nombreArchivo.prefijoAdjunto(correlativo, tipoNombre, etapa));
       for (const file of lista) {
         let subida;
         try {
           const buffer = await imageOptimizer.optimizar(file.buffer, file.mimetype);
-          subida = await supabaseStorage.subir(buffer, file.originalname, file.mimetype);
+          subida = await supabaseStorage.subir(buffer, file.originalname, file.mimetype,
+            nombreArchivo.adjunto(correlativo, tipoNombre, etapa, contador++), opciones);
         } catch (error) {
           throw new StorageUploadError(`No se pudo subir "${file.originalname}": ${error.message}`);
         }

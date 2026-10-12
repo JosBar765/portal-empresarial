@@ -29,6 +29,11 @@ function detalleError(error, bucketUsado) {
   return partes.join(' | ');
 }
 
+// Supabase responde 409 / "The resource already exists" cuando el objeto ya existe.
+function esDuplicado(error) {
+  return Number(error.status || error.statusCode) === 409 || /already exists/i.test(error.message || '');
+}
+
 function prefijoUrlPublica() {
   const { data } = obtenerCliente().storage.from(bucket).getPublicUrl('');
   return data.publicUrl;
@@ -41,20 +46,43 @@ class SupabaseStorage {
    * genérico con el mensaje crudo de Supabase — es subirYRegistrarArchivo
    * quien lo reclasifica como StorageUploadError (evita el doble prefijo
    * "No se pudo subir..." que salía cuando esta función también clasificaba).
+   * `opciones.esHuerfano` (async, opcional; solo con `nombreObjeto`): si el objeto ya existe, decide si es un huérfano;
+   * de serlo se borra y se reintenta UNA vez. Sin la opción, el comportamiento no cambia.
    * @returns {Promise<{path: string, url: string, size: number}>}
    */
-  async subir(buffer, nombreOriginal, mimeType) {
+  async subir(buffer, nombreOriginal, mimeType, nombreObjeto, { esHuerfano } = {}) {
     // La extensión sale del tipo YA VERIFICADO por magic bytes
     // (valeController.validarArchivos), nunca del nombre que mandó el
     // usuario — path.extname(nombreOriginal) es 100% controlado por quien
     // sube el archivo y permitía guardar, por ejemplo, un .svg/.html
     // disfrazado bajo esa extensión en un bucket público.
     const extension = extensionParaTipo(mimeType) || path.extname(nombreOriginal);
-    const objectPath = crypto.randomBytes(16).toString('hex') + extension;
-    const { error } = await obtenerCliente().storage.from(bucket).upload(objectPath, buffer, {
+    // `nombreObjeto` (sin extensión) fija el nombre; sin él se usa un token aleatorio.
+    if (nombreObjeto !== undefined && !/^[A-Za-z0-9_.-]+$/.test(nombreObjeto)) {
+      throw new StorageUploadError(`Nombre de archivo no válido para Storage: "${nombreObjeto}".`);
+    }
+    const objectPath = (nombreObjeto || crypto.randomBytes(16).toString('hex')) + extension;
+    const subirObjeto = () => obtenerCliente().storage.from(bucket).upload(objectPath, buffer, {
       contentType: mimeType,
       upsert: false
     });
+    let { error } = await subirObjeto();
+    if (error && esHuerfano && nombreObjeto && esDuplicado(error)) {
+      const sinBorrar = new StorageUploadError(
+        `Ya existe un archivo con el nombre "${objectPath}" en Storage y no se pudo reemplazar. Avisa al administrador para limpiarlo.`
+      );
+      let huerfano = false;
+      try { huerfano = await esHuerfano(); } catch (e) { throw sinBorrar; }
+      if (!huerfano) throw sinBorrar;
+      try {
+        await this.eliminar(objectPath);
+      } catch (e) {
+        throw sinBorrar;
+      }
+      console.warn(`[Storage] Huérfano eliminado: ${objectPath} (su vale ya no existe)`);
+      ({ error } = await subirObjeto());
+      if (error && esDuplicado(error)) throw sinBorrar;
+    }
     if (error) {
       throw new StorageUploadError(detalleError(error, bucket));
     }

@@ -72,6 +72,12 @@ class ValeRepository {
   }
 
   // La comparación ya es insensible a mayúsculas (collation utf8mb4_unicode_ci).
+  // Consulta liviana por el índice UNIQUE de correlativo.
+  async existePorCorrelativo(correlativo) {
+    const rows = await db.query('SELECT 1 FROM vales WHERE correlativo = ? LIMIT 1', [correlativo], 'vale:exists_by_correlativo');
+    return rows.length > 0;
+  }
+
   async obtenerPorCorrelativo(correlativo) {
     const rows = await db.query(`${SELECT_VALE} WHERE v.correlativo = ? LIMIT 1`, [correlativo], 'vale:find_by_correlativo');
     return rows[0] || null;

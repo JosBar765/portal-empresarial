@@ -10,12 +10,12 @@ const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const subirYRegistrarArchivo = require('../../../core/files/subirYRegistrarArchivo');
+const nombreArchivo = require('../../../core/files/nombreArchivo');
 const idempotencyRepository = require('../../../core/idempotency/idempotencyRepository');
 const valeEvents = require('../events');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeMutex = require('./valeMutex');
 const valeCatalogoService = require('./valeCatalogoService');
-const valeCreacionService = require('./valeCreacionService');
 const {
   ESTADOS, ESTADOS_TALLER, hoyISO, horaActual, enriquecer,
   etiquetaActorTaller, registrarHistorial, esAdministrador,
@@ -137,15 +137,20 @@ class ValeTallerService {
       const previo = await idempotencyRepository.buscar(key);
       if (previo) return previo.resultado;
 
-      await requerirVale(valeId);
+      const vale = await requerirVale(valeId);
       const fila = await this._filaDelDisenador(usuario, valeId);
       if (fila.estado !== ESTADOS_TALLER.EN_PROCESO) {
         throw new Error('Para entregar la propuesta, el vale debe estar en proceso.');
       }
       let url = null;
       if (archivoPropuesta) {
+        // X = siguiente número de las propuestas ya subidas de este taller para el vale.
+        const tallerPropuesta = await tallerRepository.obtenerPorId(fila.taller_id);
+        const previas = await propuestaRepository.listarPorVale(valeId);
+        const numero = nombreArchivo.siguienteContador(previas.map(p => p.url), nombreArchivo.prefijoPropuesta(vale.correlativo, tallerPropuesta));
         await subirYRegistrarArchivo({
           buffer: archivoPropuesta.buffer, nombreOriginal: archivoPropuesta.originalname, mimeType: archivoPropuesta.mimetype,
+          nombreObjeto: nombreArchivo.propuesta(vale.correlativo, tallerPropuesta, numero),
           registrar: async (subida) => { url = subida.url; return propuestaRepository.crear(valeId, usuario.id, url); }
         });
       } else {
@@ -399,9 +404,9 @@ class ValeTallerService {
       // (copyPages) dentro del PDF oficial del vale: ese PDF es el
       // documento ADMINISTRATIVO del vale (encabezado, cliente, venta,
       // firma), no el lugar donde vive el diseño/propuesta.
-      await valeCreacionService.regenerarPdf(valeId);
       await subirYRegistrarArchivo({
         buffer: archivoFusion.buffer, nombreOriginal: archivoFusion.originalname, mimeType: archivoFusion.mimetype,
+        nombreObjeto: nombreArchivo.propuestaFusion(vale.correlativo),
         registrar: (subida) => valeRepository.actualizarPropuestaGeneral(valeId, subida.url)
       });
       // Sella quién fusionó y cuándo — es lo que le permite a

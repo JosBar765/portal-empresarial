@@ -1,9 +1,7 @@
 // src/modules/vales/services/valeCreacionService.js
 // Creación de vales y autorización de esa creación por el Supervisor de
-// Ventas. `validarDatosVale`/`fanOutTalleres`/`nombresDeTalleres`/
-// `regenerarPdf` se exportan sin guion bajo porque también los usa
-// valeConfirmacionService (solicitarModificacion/aprobarModificacion) y
-// valeTallerService (aprobarGeneral, solo regenerarPdf) — ver el comentario
+// Ventas. `validarDatosVale`/`nombresDeTalleres` se exportan sin guion bajo porque
+// también los usan valeModificacionService y valeCorreccionService — ver el comentario
 // original de _validarDatosVale, que ya documentaba esta dependencia
 // compartida entre crearVale() y solicitarModificacion().
 const crypto = require('crypto');
@@ -16,6 +14,7 @@ const catalogoRepository = require('../repositories/catalogoRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const supabaseStorage = require('../../../core/files/supabaseStorage');
 const subirYRegistrarArchivo = require('../../../core/files/subirYRegistrarArchivo');
+const nombreArchivo = require('../../../core/files/nombreArchivo');
 const idempotencyRepository = require('../../../core/idempotency/idempotencyRepository');
 const calendarioService = require('../../../core/calendario/calendarioService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
@@ -146,7 +145,7 @@ class ValeCreacionService {
       const nombresTalleres = await this.nombresDeTalleres(datos.talleresIds);
       await registrarHistorial(valeId, usuario.id, null, null, ESTADOS.ESPERANDO_AUTORIZACION,
         `Vale de arte creado por el asesor — esperando autorización del Supervisor (taller${datos.talleresIds.length > 1 ? 'es' : ''} solicitado${datos.talleresIds.length > 1 ? 's' : ''}: ${nombresTalleres})`);
-      await this.regenerarPdf(valeId);
+      await this.regenerarPdf(valeId, undefined, { creacion: true });
     } catch (error) {
       await this.eliminarValeConArchivos(valeId);
       throw error;
@@ -201,7 +200,7 @@ class ValeCreacionService {
       const documentos = await documentoRepository.listarPorVale(valeId);
       const pdfBuffer = await this.generarBufferPdf(vale, documentos,
         { autorizado_por: usuario.id, autorizado_en: ahora, autorizacion_tipo: 'CREACION' });
-      const pdf = await supabaseStorage.subir(pdfBuffer, `${vale.correlativo}.pdf`, 'application/pdf');
+      const pdf = await supabaseStorage.subir(pdfBuffer, `${vale.correlativo}.pdf`, 'application/pdf', nombreArchivo.pdfAutorizacion(vale.correlativo));
       try {
         // El vale recién ocupa cupo al autorizarse; si dos supervisores compiten por el último lugar, solo gana uno.
         await valeMutex.conColaDeCapacidad(async () => {
@@ -550,19 +549,24 @@ class ValeCreacionService {
     if (!archivos) return;
     const imagenes = archivos.imagenes || [];
     const documentos = archivos.documentos || [];
+    const { correlativo } = await valeRepository.obtenerPorId(valeId);
 
+    let numero = 0;
     for (const file of imagenes) {
       await subirYRegistrarArchivo({
         buffer: file.buffer, nombreOriginal: file.originalname, mimeType: file.mimetype,
+        nombreObjeto: nombreArchivo.adjunto(correlativo, 'IMAGEN', 'CREACION', ++numero),
         registrar: (subida) => documentoRepository.crear({
           valeId, nombreOriginal: file.originalname, ruta: subida.url, tipo: 'imagen',
           mimeType: file.mimetype, tamano: subida.size, esModificacion, subidoPor
         })
       });
     }
+    numero = 0;
     for (const file of documentos) {
       await subirYRegistrarArchivo({
         buffer: file.buffer, nombreOriginal: file.originalname, mimeType: file.mimetype,
+        nombreObjeto: nombreArchivo.adjunto(correlativo, 'PDF', 'CREACION', ++numero),
         registrar: (subida) => documentoRepository.crear({
           valeId, nombreOriginal: file.originalname, ruta: subida.url, tipo: 'documento',
           mimeType: file.mimetype, tamano: subida.size, esModificacion, subidoPor
@@ -572,13 +576,15 @@ class ValeCreacionService {
   }
 
   // `overrides`: campos del vale que aún no están en la base (p. ej. la firma de autorización).
-  async regenerarPdf(valeId, overrides) {
+  // `creacion: true` nombra el objeto como PDF de creación; sin él se mantiene el nombre aleatorio.
+  async regenerarPdf(valeId, overrides, { creacion = false } = {}) {
     const vale = await valeRepository.obtenerPorId(valeId);
     const documentos = await documentoRepository.listarPorVale(valeId);
     const pdfBuffer = await this.generarBufferPdf(vale, documentos, overrides);
     const pdfUrlAnterior = vale.pdf_url;
     await subirYRegistrarArchivo({
       buffer: pdfBuffer, nombreOriginal: `${vale.correlativo}.pdf`, mimeType: 'application/pdf',
+      nombreObjeto: creacion ? nombreArchivo.pdfCreacion(vale.correlativo) : undefined,
       registrar: (subida) => valeRepository.actualizarPdfUrl(valeId, subida.url)
     });
     if (pdfUrlAnterior) {
