@@ -10,7 +10,7 @@ const valeCatalogoService = require('./valeCatalogoService');
 const valeBuzonService = require('./valeBuzonService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const {
-  ROL, ESTADOS_TERMINALES, ESTADOS_TALLER, ROLES_ENCARGADO_TALLER, hoyISO, enriquecer, esValeDeModificacion
+  ROL, ESTADOS_TERMINALES, ESTADOS_TALLER, esDeTaller, hoyISO, enriquecer, esValeDeModificacion
 } = require('./valeHelpers');
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -198,7 +198,7 @@ async function resolverAlcance(usuario) {
     case ROL.DISENADOR:
       return { rol: 'disenador', equipo: false, valesDeDisenadorId: usuario.id, personas: [] };
     default:
-      if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId)) {
+      if (esDeTaller(usuario)) {
         const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
         const talleres = (await tallerRepository.listarActivos()).filter(t => t.encargado_id === idEfectivo);
         const disenadores = await usuarioValeRepository.listarDisenadoresPorEncargado(idEfectivo);

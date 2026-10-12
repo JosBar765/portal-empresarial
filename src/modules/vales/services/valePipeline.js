@@ -4,7 +4,7 @@
 // Para agregar un estado nuevo basta una entrada en ETAPA_TALLER o un caso en calcularPipeline.
 const calendarioService = require('../../../core/calendario/calendarioService');
 const {
-  ESTADOS, ESTADOS_TALLER, ROLES_TALLER_Y_DISENADOR, esValeDeModificacion
+  ESTADOS, ESTADOS_TALLER, esTallerODisenador, esValeDeModificacion
 } = require('./valeHelpers');
 
 const PASOS = ['Autorización', 'Asignación', 'Producción', 'Revisión', 'Confirmación'];
@@ -64,7 +64,7 @@ function marcasDe(vale) {
 
 function calcularPipeline(vale, opciones = {}) {
   const filas = vale._talleresDetalle || vale._filasTaller || [];
-  const estadoPropio = ROLES_TALLER_Y_DISENADOR.includes(opciones.rolId) ? vale.estado_taller : null;
+  const estadoPropio = esTallerODisenador(opciones) ? vale.estado_taller : null;
   let r;
   switch (vale.estado) {
     case ESTADOS.ESPERANDO_AUTORIZACION:

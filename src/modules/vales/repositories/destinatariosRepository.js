@@ -3,14 +3,15 @@
 const db = require('../../../config/database');
 
 class DestinatariosRepository {
-  // Encargado del taller y el Asistente de Diseño vinculado a él.
+  // Encargado del taller y los asistentes (cualquier rol con padre) vinculados a él.
   async listarDeTaller(tallerId) {
     const rows = await db.query(
       `SELECT t.encargado_id AS id FROM talleres t WHERE t.id = ? AND t.encargado_id IS NOT NULL
        UNION
        SELECT tt.usuario_id AS id FROM taller_disenadores tt
        JOIN usuarios u ON u.id = tt.usuario_id
-       WHERE tt.taller_id = ? AND u.rol_id = 7 AND u.activo = 1`,
+       JOIN roles r ON r.id = u.rol_id
+       WHERE tt.taller_id = ? AND r.hereda_de_rol_id IS NOT NULL AND u.activo = 1`,
       [tallerId, tallerId],
       'destinatarios:taller'
     );

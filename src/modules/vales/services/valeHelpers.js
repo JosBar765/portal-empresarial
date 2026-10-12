@@ -60,8 +60,24 @@ function esAdministrador(usuario) {
   return usuario.rolId === ROL.ADMINISTRADOR;
 }
 
-function esAsistenteDeDiseno(usuario) {
-  return usuario.rolId === ROL.ASISTENTE_DISENO;
+// Asistente de cualquier taller: rol con padre (claim heredaDeRolId). El rol 7 cuenta aunque su token no traiga el claim.
+function esAsistente(usuario) {
+  return usuario.heredaDeRolId != null || usuario.rolId === ROL.ASISTENTE_DISENO;
+}
+
+// Rol de encargado cuyo buzón/permisos opera el usuario: el padre si es asistente, su propio rol si no.
+function rolEncargadoDe(usuario) {
+  if (!esAsistente(usuario)) return usuario.rolId;
+  return usuario.heredaDeRolId != null ? usuario.heredaDeRolId : ROL.ENCARGADO_DISENO;
+}
+
+// Encargado de taller o asistente de cualquier taller.
+function esDeTaller(usuario) {
+  return ROLES_ENCARGADO_TALLER.includes(usuario.rolId) || esAsistente(usuario);
+}
+
+function esTallerODisenador(usuario) {
+  return esDeTaller(usuario) || usuario.rolId === ROL.DISENADOR;
 }
 
 // `ahoraUTC6()` (core/calendario) devuelve un Date cuyos dígitos UTC son la hora de Guatemala: sirve para generar
@@ -243,7 +259,7 @@ function assertPropioDelAsesor(usuario, vale) {
 module.exports = {
   ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
-  esAdministrador, esAsistenteDeDiseno,
+  esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
   hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,

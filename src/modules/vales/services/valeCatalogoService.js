@@ -6,7 +6,7 @@ const tallerRepository = require('../repositories/tallerRepository');
 const catalogoRepository = require('../repositories/catalogoRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const calendarioService = require('../../../core/calendario/calendarioService');
-const { ROL, esAsistenteDeDiseno } = require('./valeHelpers');
+const { ROL, esAsistente } = require('./valeHelpers');
 
 class ValeCatalogoService {
   // `talleres` sigue devolviendo el catálogo COMPLETO (lo usan todos los
@@ -35,7 +35,7 @@ class ValeCatalogoService {
     }
     // producto/material/tecnica/acabado no son catálogo — son texto libre.
     // `miTallerId` solo le sirve al Asistente (el taller que opera); el resto lo resuelve por `talleres.encargado_id`.
-    const miTallerId = usuario && esAsistenteDeDiseno(usuario) && solicitante ? (solicitante.taller_id || null) : null;
+    const miTallerId = usuario && esAsistente(usuario) && solicitante ? (solicitante.taller_id || null) : null;
     const horasVencimientoVale = await calendarioService.horasVencimiento();
     return { tiendas, paises, talleres, miTiendaId: (solicitante && solicitante.tienda_id) || null, miTallerId, tiendasGerencia, horasVencimientoVale };
   }
@@ -44,7 +44,7 @@ class ValeCatalogoService {
     return tallerRepository.listarActivos();
   }
 
-  // El Asistente de Diseño opera un taller como si fuera su propio
+  // El Asistente (de cualquier taller) opera un taller como si fuera su propio
   // encargado_id, sin serlo. Todo sitio que compara
   // `talleres.encargado_id === usuario.id` para resolver "mi taller"/"mis
   // diseñadores" pasa por AQUÍ en su lugar, para que la excepción viva en un
@@ -52,12 +52,13 @@ class ValeCatalogoService {
   // Asistente sale de `taller_disenadores` (mismo mecanismo que usa un
   // Diseñador), asignable desde "Editar usuario".
   async idEncargadoEfectivo(usuario) {
-    if (!esAsistenteDeDiseno(usuario)) return usuario.id;
+    if (!esAsistente(usuario)) return usuario.id;
     const asistente = await usuarioValeRepository.obtenerPorId(usuario.id);
     if (!asistente || !asistente.taller_id) return usuario.id;
     const talleres = await tallerRepository.listarActivos();
     const taller = talleres.find(t => t.id === asistente.taller_id);
-    return taller ? taller.encargado_id : usuario.id;
+    // Taller sin encargado: se devuelve su propio id (nunca null, que igualaría a talleres sin encargado).
+    return taller && taller.encargado_id ? taller.encargado_id : usuario.id;
   }
 }
 

@@ -43,6 +43,7 @@ function armarPayload(authData, sid) {
     email: authData.user.email,
     rolId: authData.user.rolId,
     rolNombre: authData.user.rolNombre,
+    heredaDeRolId: authData.user.heredaDeRolId || null,
     modulosPermitidos: authData.user.modulosPermitidos,
     permissions: authData.permissions,
     sid
