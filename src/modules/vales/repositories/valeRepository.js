@@ -1,6 +1,7 @@
 // src/modules/vales/repositories/valeRepository.js
 const crypto = require('crypto');
 const db = require('../../../config/database');
+const { ahoraUTC6 } = require('../../../core/calendario/calendarioLaboral');
 
 // `estado`/`autorizacion_tipo` viven en catálogos (estados_vale,
 // tipos_autorizacion — ver analisis_correcciones_24.md #5) en vez de ENUM en
@@ -232,21 +233,16 @@ class ValeRepository {
     await db.query('UPDATE vales SET confirmado_en = ? WHERE id = ?', [fechaHora, id], 'vale:sellar_confirmacion');
   }
 
-  // Vales que acaban de cruzar su fecha_entrega y todavía no fueron
-  // notificados — usado por atrasoWatcher. Excluye vales con el atraso ya
-  // congelado (RECIBIDO/etc. — ver calcularAtraso en valeService): su atraso
-  // ya no corre en vivo, así que "acaban de atrasarse" no aplica. El margen de
-  // 1 día es intencional: "atraso" real empieza a las 24h de cruzar
-  // fecha_entrega, no en el instante mismo (eso es "vence hoy", diasAtraso
-  // === 0 en valeService.calcularAtraso) — la alerta roja solo debe sonar una
-  // vez que el vale cumple >= 1 día de atraso.
+  // Vales con >= 1 día de atraso (por día calendario UTC-6, ver calcularAtraso)
+  // y sin notificar — usado por atrasoWatcher. Excluye vales con el atraso ya
+  // congelado: su atraso no corre en vivo.
   async listarAtrasadosSinNotificar() {
     return db.query(
       `${SELECT_VALE}
        WHERE v.atraso_notificado_en IS NULL AND v.atraso_congelado_en IS NULL
          AND ev.nombre NOT IN ('RECIBIDO', 'CONFIRMADO')
-         AND v.fecha_entrega < NOW() - INTERVAL 1 DAY`,
-      [],
+         AND DATE(v.fecha_entrega) < ?`,
+      [ahoraUTC6().toISOString().slice(0, 10)],
       'vale:list_atrasados_sin_notificar'
     );
   }
