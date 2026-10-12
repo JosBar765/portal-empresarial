@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_CON_SIDEBAR, ROLES_TALLER_Y_DISENADOR } from '../config/roles.js';
+import { ROL, ROLES_CON_SIDEBAR, ROLES_TALLER_Y_DISENADOR, rolEncargadoDe } from '../config/roles.js';
 import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { aplicarVentanaAQuery } from '../utils/ventana.js';
 import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible } from '../permisos.js';
@@ -26,7 +26,7 @@ import { abrirModalHistorial } from '../actions/historial.js';
 export function construirQueryBase() {
   const qs = new URLSearchParams();
   aplicarVentanaAQuery(qs);
-  if (ROLES_CON_SIDEBAR.includes(state.user.rolId)) qs.set('vista', state.vista);
+  if (ROLES_CON_SIDEBAR.includes(rolEncargadoDe(state.user))) qs.set('vista', state.vista);
   if (state.filtroContador) qs.set('filtroContador', state.filtroContador);
   if (state.soloAtrasados) qs.set('soloAtrasados', '1');
   if (state.soloModificados) qs.set('soloModificados', '1');
@@ -45,7 +45,7 @@ export async function cargarBuzon() {
   if (state.vista === 'reportes') return cargarReportes();
   // Gerente y Supervisor en su vista "Rendimiento" no piden el buzón de
   // vales — piden las métricas agregadas.
-  if ([ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'rendimiento') {
+  if ([ROL.SUPERVISOR, ROL.GERENTE].includes(rolEncargadoDe(state.user)) && state.vista === 'rendimiento') {
     return cargarRendimientoGerencia();
   }
   // El Gerente no tiene buzón: solo busca vales por correlativo.
@@ -119,7 +119,7 @@ export function wireScrollInfinito() {
 let contadorEnfocado = null;
 
 export function renderContadores() {
-  let config = CONTADORES_CONFIG[state.user.rolId] || CONTADORES_CONFIG[ROL.ADMINISTRADOR] || [];
+  let config = CONTADORES_CONFIG[rolEncargadoDe(state.user)] || CONTADORES_CONFIG[ROL.ADMINISTRADOR] || [];
   if (!Array.isArray(config)) config = config[state.vista] || [];
   config = config.filter(c => !c.permiso || tienePermiso(c.permiso));
   const grid = $('#contadores-grid');
@@ -274,7 +274,7 @@ export function construirAcciones(v) {
   // la propuesta REAL que se aprobó (`propuesta_taller_url`, solo viene
   // poblado en esa vista) — no `propuesta_general_url`, que en un vale
   // multi-taller es la fusión, no el trabajo propio de este taller.
-  if (ROLES_TALLER_Y_DISENADOR.includes(state.user.rolId) && v.propuesta_taller_url) {
+  if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && v.propuesta_taller_url) {
     acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_taller_url, '_blank') });
   }
 

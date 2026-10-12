@@ -16,7 +16,9 @@ import { cargarTiendas } from '../views/tiendas.js';
 const ORDEN_CATEGORIAS_PERSONAL = ['Gerente', 'Supervisor de Ventas', 'Asesor de Ventas', 'Encargado(s) de taller', 'Asistente', 'Diseñador'];
 const ROLES_ENCARGADO_TALLER_NOMBRES = ['Encargado de taller de diseño', 'Encargado de taller de diseño 3d', 'Encargado de taller de protextil', 'Encargado de taller de diseño local'];
 function categoriaDePersonal(rolNombre) {
-  return ROLES_ENCARGADO_TALLER_NOMBRES.includes(rolNombre) ? 'Encargado(s) de taller' : (rolNombre || 'Sin rol');
+  if (ROLES_ENCARGADO_TALLER_NOMBRES.includes(rolNombre)) return 'Encargado(s) de taller';
+  if (rolNombre && rolNombre.startsWith('Asistente')) return 'Asistente';
+  return rolNombre || 'Sin rol';
 }
 function ordenarCategorias(categorias) {
   return categorias.sort((a, b) => {

@@ -3,7 +3,7 @@
 // forms/ y actions/ — este archivo no la implementa, solo la conecta.
 import { state } from './state.js';
 import { $ } from './utils/dom.js';
-import { ROL, ROLES_TALLER_Y_DISENADOR, ROLES_ENCARGADO_TALLER } from './config/roles.js';
+import { ROL, ROLES_TALLER_Y_DISENADOR, ROLES_ENCARGADO_TALLER, rolEncargadoDe } from './config/roles.js';
 import { puede } from './permisos.js';
 import { inicialesAvatar } from './utils/formato.js';
 import { sessionCheck, logout } from './api/authApi.js';
@@ -42,14 +42,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Encargados y diseñadores ya trabajan scoped a su propio taller — la columna
   // "Taller" (pensada para el asesor y roles de supervisión) sobra ahí.
-  $('.buzon-table').classList.toggle('oculta-taller', ROLES_TALLER_Y_DISENADOR.includes(state.user.rolId));
-  $('.buzon-table').classList.toggle('oculta-fechas', ROLES_TALLER_Y_DISENADOR.includes(state.user.rolId));
+  $('.buzon-table').classList.toggle('oculta-taller', ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)));
+  $('.buzon-table').classList.toggle('oculta-fechas', ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)));
 
   $('#btn-nuevo-vale').style.display = puede('crear') ? 'flex' : 'none';
   // La carga de trabajo es una herramienta de gestión del propio equipo del
   // encargado de UN taller; el administrador ya ve todo desde el buzón
   // general, por lo que no aplica para él.
-  $('#btn-carga-trabajo').style.display = ROLES_ENCARGADO_TALLER.includes(state.user.rolId) ? 'flex' : 'none';
+  $('#btn-carga-trabajo').style.display = ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)) ? 'flex' : 'none';
 
   try {
     state.catalogos = await obtenerCatalogos();

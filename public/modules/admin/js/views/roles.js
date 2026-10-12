@@ -126,10 +126,16 @@ function abrirModalRol(rol) {
 }
 
 async function abrirModalPermisos(rol) {
-  const [grupos, permisoIdsActuales] = await Promise.all([
+  const [grupos, permisoIdsActuales, permisoIdsPadre] = await Promise.all([
     listarPermisos(),
-    listarPermisosDeRol(rol.id)
+    listarPermisosDeRol(rol.id),
+    rol.hereda_de_rol_id ? listarPermisosDeRol(rol.hereda_de_rol_id) : null
   ]);
+
+  // Un rol de asistente no puede tener más permisos que su encargado (el
+  // backend lo valida): se bloquean los que el padre no tiene y aún no están marcados.
+  const sinPermisoDelPadre = (id) => !!permisoIdsPadre && !permisoIdsPadre.includes(id);
+  const noHeredable = (id) => sinPermisoDelPadre(id) && !permisoIdsActuales.includes(id);
 
   // Al Administrador no se le puede quitar ningún permiso del módulo admin (el
   // backend también lo rechaza): esas casillas marcadas quedan bloqueadas. Los
@@ -137,6 +143,8 @@ async function abrirModalPermisos(rol) {
   const bloqueado = (id, modulo) => rol.id === ROL_ADMINISTRADOR && modulo === 'admin' && permisoIdsActuales.includes(id);
   const bodyHtml = (rol.id === ROL_ADMINISTRADOR
     ? '<p class="form-hint">Los permisos del módulo de administración no se pueden quitar al Administrador; los de otros módulos sí.</p>'
+    : '') + (permisoIdsPadre
+    ? '<p class="form-hint">Este rol hereda de un encargado: solo puede tener permisos que su encargado también tenga. Los atenuados no están disponibles.</p>'
     : '') + Object.keys(grupos).sort().map(modulo => `
     <div class="permisos-grupo" data-modulo="${escapeHtml(modulo)}">
       <div class="permisos-grupo-header">
@@ -145,8 +153,8 @@ async function abrirModalPermisos(rol) {
       </div>
       <div class="permisos-lista">
         ${grupos[modulo].map(p => `
-          <label class="permiso-item">
-            <input type="checkbox" class="chk-permiso" value="${p.id}" ${permisoIdsActuales.includes(p.id) ? 'checked' : ''} ${bloqueado(p.id, modulo) ? 'disabled' : ''}>
+          <label class="permiso-item${noHeredable(p.id) ? ' permiso-item--no-heredable' : ''}"${noHeredable(p.id) ? ' title="Su encargado no tiene este permiso"' : ''}>
+            <input type="checkbox" class="chk-permiso" value="${p.id}" ${permisoIdsActuales.includes(p.id) ? 'checked' : ''} ${bloqueado(p.id, modulo) || noHeredable(p.id) ? 'disabled' : ''}>
             ${escapeHtml(p.nombre)}
           </label>
         `).join('')}

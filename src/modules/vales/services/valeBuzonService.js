@@ -19,7 +19,7 @@ const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
   esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
   ordenarPorFecha, esHoy, estadoVisibleAsesor,
-  ROLES_ENCARGADO_TALLER, esValeDeModificacion
+  esDeTaller, rolEncargadoDe, esValeDeModificacion
 } = require('./valeHelpers');
 
 // Vale MOD-, o el original que tiene (o ya tuvo) una modificación.
@@ -164,7 +164,8 @@ class ValeBuzonService {
     }
 
     let resultado;
-    switch (usuario.rolId) {
+    // El asistente se rige por el rol de su encargado (y su taller sale de idEncargadoEfectivo).
+    switch (rolEncargadoDe(usuario)) {
       case ROL.ADMINISTRADOR: // ve todo
         resultado = this._buzonAdministrador(todosConTaller, ventana, filtroContador);
         break;
@@ -180,7 +181,6 @@ class ValeBuzonService {
         break;
       case ROL.ENCARGADO_DISENO:
       case ROL.ENCARGADO_UV3D:
-      case ROL.ASISTENTE_DISENO: // clon operativo del taller "Diseño"
       case ROL.ENCARGADO_PROTEXTIL:
       case ROL.ENCARGADO_DISENO_LOCAL: // buzón individual, scoped a su propio taller
         // Quien tenga vales.aprobar_general (Encargado de Diseño y Asistente)
@@ -210,7 +210,7 @@ class ValeBuzonService {
     // de diseñadores (solo encargados) filtra por el diseñador de la fila de su taller.
     const soloAtrasados = ['1', 'true', true].includes(filtros.soloAtrasados);
     const soloModificados = ['1', 'true', true].includes(filtros.soloModificados);
-    const disenadorId = ROLES_ENCARGADO_TALLER.includes(usuario.rolId) ? Number(filtros.disenadorId) || null : null;
+    const disenadorId = esDeTaller(usuario) ? Number(filtros.disenadorId) || null : null;
     const valesConAtraso = resultado.vales
       .filter(v => !soloAtrasados || v.atrasado)
       .filter(v => !soloModificados || esModificado(v))
@@ -275,7 +275,7 @@ class ValeBuzonService {
     // Quién está detrás del vale (badge bajo el correlativo): al Supervisor, el asesor que lo creó; al Encargado de taller,
     // el diseñador asignado a su taller.
     const esSupervisor = usuario.rolId === ROL.SUPERVISOR;
-    const esEncargado = ROLES_ENCARGADO_TALLER.includes(usuario.rolId);
+    const esEncargado = esDeTaller(usuario);
     const paginaCruda = valesOrdenados.slice(indiceInicio, indiceInicio + limit);
     const idsPersona = new Set();
     paginaCruda.forEach(v => {
@@ -288,7 +288,7 @@ class ValeBuzonService {
       if (esEncargado && v._tipoRegistro !== 'FUSION') return { rol: 'disenador', nombre: v.disenador_id ? (nombres.get(v.disenador_id) || null) : null };
       return null;
     };
-    const pagina = paginaCruda.map(v => ({ ...v, persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId }) }));
+    const pagina = paginaCruda.map(v => ({ ...v, persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
     const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
     return {
       vales: pagina,
@@ -641,7 +641,7 @@ class ValeBuzonService {
       ? await usuarioValeRepository.listarTodosLosDisenadores()
       : await usuarioValeRepository.listarDisenadoresPorEncargado(await valeCatalogoService.idEncargadoEfectivo(usuario));
     const conCarga = await Promise.all(lista.map(async d => ({ ...d, asignaciones: await this._contarAsignacionesVigentes(d.id) })));
-    if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId) && !conCarga.some(d => d.id === usuario.id)) {
+    if (esDeTaller(usuario) && !conCarga.some(d => d.id === usuario.id)) {
       conCarga.unshift({ id: usuario.id, nombre: `${usuario.nombre} (YO)`, asignaciones: await this._contarAsignacionesVigentes(usuario.id) });
     }
     return conCarga;

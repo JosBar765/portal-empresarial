@@ -11,7 +11,7 @@ const valeMensajeRepository = require('../repositories/valeMensajeRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const {
-  ESTADOS, ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR,
+  ESTADOS, ROL, esDeTaller, esTallerODisenador,
   esAdministrador, enriquecer
 } = require('./valeHelpers');
 
@@ -108,7 +108,7 @@ class ValeDetalleService {
       // todos
     } else if (usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR) {
       filas = filas.filter(t => t.estado !== 'VERIFICANDO_ADJUNTOS');
-    } else if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId)) {
+    } else if (esDeTaller(usuario)) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
       filas = filas.filter(t => t.taller_id === tallerVisible);
     } else {
@@ -131,7 +131,7 @@ class ValeDetalleService {
       const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
       return misAsesoresIds.has(vale.asesor_id);
     }
-    if (ROLES_TALLER_Y_DISENADOR.includes(usuario.rolId)) {
+    if (esTallerODisenador(usuario)) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
       if (tallerVisible && talleres.some(t => t.taller_id === tallerVisible)) return true;
       // Quien fusiona (vales.aprobar_general) necesita poder ver CUALQUIER
@@ -196,7 +196,7 @@ class ValeDetalleService {
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
     }
 
-    if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId)) {
+    if (esDeTaller(usuario)) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
       if (!tallerVisible) return [];
       const cicloTaller = new Set([
@@ -234,7 +234,7 @@ class ValeDetalleService {
 
   async _tallerIdVisiblePara(usuario) {
     const talleres = await tallerRepository.listarActivos();
-    if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId)) {
+    if (esDeTaller(usuario)) {
       const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
       const propio = talleres.find(t => t.encargado_id === idEfectivo);
       return propio ? propio.id : null;

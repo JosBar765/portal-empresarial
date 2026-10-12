@@ -48,6 +48,7 @@ class AuthController {
         email: decoded.email,
         rolId: decoded.rolId,
         rolNombre: decoded.rolNombre,
+        heredaDeRolId: decoded.heredaDeRolId || null,
         modulosPermitidos: decoded.modulosPermitidos,
         permissions: decoded.permissions
       }

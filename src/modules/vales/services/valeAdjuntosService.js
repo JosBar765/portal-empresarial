@@ -13,7 +13,7 @@ const valeTallerService = require('./valeTallerService');
 const valeCreacionService = require('./valeCreacionService');
 const calendarioService = require('../../../core/calendario/calendarioService');
 const {
-  ESTADOS_TALLER, ROLES_ENCARGADO_TALLER, esValeDeModificacion, enriquecer, registrarHistorial,
+  ESTADOS_TALLER, esDeTaller, esValeDeModificacion, enriquecer, registrarHistorial,
   requerirVale, puedeActuarComoAsesor
 } = require('./valeHelpers');
 
@@ -127,7 +127,7 @@ class ValeAdjuntosService {
   async _resolverAcceso(usuario, vale, tallerId) {
     const fila = (await valeTallerRepository.listarPorVale(vale.id)).find(f => f.taller_id === Number(tallerId));
     if (!fila) throw new Error('Este vale no fue enviado a ese taller.');
-    if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId)) {
+    if (esDeTaller(usuario)) {
       await valeTallerService._resolverFilaTallerParaEncargado(usuario, vale.id, fila.taller_id);
       return { fila, escribe: 'TALLER' };
     }

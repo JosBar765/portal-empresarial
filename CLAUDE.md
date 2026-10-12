@@ -12,7 +12,7 @@ Controllers answer errors with `responderError` (`src/core/utils/erroresHttp.js`
 
 Query code (repositories) always goes through `db.query(sql, params, tag)`. The 3rd `tag` argument (e.g. `'vale:insert'`, `'usuario:find_by_id'`) is passed through to every call for consistency/documentation, but MySQL itself ignores it and just runs the parameterized SQL as-is.
 
-Accounts: all users (asesores, supervisores, encargados, diseñadores, asistente, gerente) are loaded by `database/users.sql`, with `@grupopremia.com` / `@trofex.com` emails; the shared development password of each role is written in the comment at the top of that file and **must be changed in production**. The Administrador (rol_id 1) is `admin@grupopremia.com`. Roles: 1 Administrador, 2 Asesor, 3 Supervisor, 4 Encargado de Diseño, 5 Encargado de Diseño UV/3D, 6 Diseñador, 7 Asistente, 8 Gerente, 9 Encargado de Protextil, 10 Encargado de Diseño Local.
+Accounts: all users (asesores, supervisores, encargados, diseñadores, asistente, gerente) are loaded by `database/users.sql`, with `@grupopremia.com` / `@trofex.com` emails; the shared development password of each role is written in the comment at the top of that file and **must be changed in production**. The Administrador (rol_id 1) is `admin@grupopremia.com`. Roles: 1 Administrador, 2 Asesor, 3 Supervisor, 4 Encargado de Diseño, 5 Encargado de Diseño UV/3D, 6 Diseñador, 7 Asistente, 8 Gerente, 9 Encargado de Protextil, 10 Encargado de Diseño Local. Los asistentes (rol 7 y los de UV/3D, Protextil y Diseño Local) son roles con `roles.hereda_de_rol_id` apuntando al rol de su encargado por tipo de taller: ver `.agents/modulos/admin/documentacion/asistentes_por_taller.md`.
 
 ## Architecture
 

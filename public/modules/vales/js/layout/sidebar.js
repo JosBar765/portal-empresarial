@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER } from '../config/roles.js';
+import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { actualizarIndicadoresOrden } from './toolbar.js';
 
@@ -13,7 +13,7 @@ const SIDEBAR_ANCHO = '224px';
 const SIDEBAR_ANCHO_COLAPSADO = '68px';
 
 export function actualizarOffsetSidebar(sidebar) {
-  const offset = !ROLES_CON_SIDEBAR.includes(state.user.rolId)
+  const offset = !ROLES_CON_SIDEBAR.includes(rolEncargadoDe(state.user))
     ? '0px'
     : (sidebar.classList.contains('colapsado') ? SIDEBAR_ANCHO_COLAPSADO : SIDEBAR_ANCHO);
   document.documentElement.style.setProperty('--sidebar-offset', offset);
@@ -27,7 +27,7 @@ export function actualizarOffsetSidebar(sidebar) {
 // que ahí no aplican). El resto de roles solo cambian el título.
 export function actualizarTituloYSeccionesVista() {
   // El combobox de diseñadores es de los encargados y solo aplica al Buzón (Trabajo realizado y Reportes no lo usan).
-  $('#filtro-disenador').style.display = ROLES_ENCARGADO_TALLER.includes(state.user.rolId) && state.vista === 'buzon' ? '' : 'none';
+  $('#filtro-disenador').style.display = ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)) && state.vista === 'buzon' ? '' : 'none';
   const enRendimiento = state.vista === 'rendimiento';
   const enEncontrar = state.vista === 'encontrar';
   const enReportes = state.vista === 'reportes';
@@ -44,7 +44,7 @@ export function actualizarTituloYSeccionesVista() {
 export function wireSidebar() {
   const sidebar = $('#sidebar-vales');
   const toggleMovil = $('#sidebar-toggle-mobile');
-  if (!ROLES_CON_SIDEBAR.includes(state.user.rolId)) {
+  if (!ROLES_CON_SIDEBAR.includes(rolEncargadoDe(state.user))) {
     sidebar.style.display = 'none';
     actualizarOffsetSidebar(sidebar);
     return;
