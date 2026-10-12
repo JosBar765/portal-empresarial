@@ -19,7 +19,7 @@ Que el Asistente pueda asignarse a cualquier taller (Diseño, Diseño UV/3D, Pro
 - [x] T3 · Backend vales: tratar los 4 roles de asistente como el encargado de su taller (buzón, fusión, sockets, detalle).
 - [x] T4 · Frontend admin: error visual en la pestaña de roles, formulario de usuario y gestión de personal del taller.
 - [x] T5 · Frontend vales: roles de asistente en `config/roles.js` y `permisos.js`.
-- [ ] T6 · Documentación y verificación liviana.
+- [x] T6 · Documentación y verificación liviana.
 
 ## Preguntas abiertas
 Ninguna.
@@ -33,5 +33,7 @@ Ninguna.
 
 - T4/T5: ruta delegada (escritor; disparador: 2+ archivos no triviales). Sin runner: RED/GREEN no aplica. `node --check` como módulo OK en los 14 archivos editados; los estáticos responden 302 (login) sin servidor reiniciado. Admin: `roles.js` config data-driven (`rolEncargadoDeTaller`, `rolPadreDe`), `tallerPersonal.js` lista asistentes por rol padre, `usuarioForm` ya no bloquea roles de asistente, permisos del rol hijo atenuados/deshabilitados si el padre no los tiene (el error del API ya se muestra con `mostrarErrorModal`). Vales: `rolEncargadoDe/esAsistente` en `config/roles.js` (fallback rol 7 -> 4). Sin verificar visualmente en navegador.
 
+- T6: ruta delegada (escritor; disparador: preparación de la escritura + verificación con servidor y BD). Doc `.agents/modulos/admin/documentacion/asistentes_por_taller.md` y una frase en CLAUDE.md. Verificado en dev: taller 3 (Protextil) con encargado_id NULL temporal, usuario temporal rol 12 -> login 200 (claim heredaDeRolId 9), GET /api/vales -> error con «El taller al que fuiste asignado no tiene un encargado.» (HTTP 500 con ese mensaje). encargado_id restaurado a 25 y usuario temporal borrado.
+
 ## Siguiente paso
-Resolver la pregunta abierta y empezar T1.
+Revisar y abrir el PR (decisión del usuario). Recordar importar `asistentes_por_taller.sql` antes de desplegar.

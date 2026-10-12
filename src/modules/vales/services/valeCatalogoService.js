@@ -57,8 +57,8 @@ class ValeCatalogoService {
     if (!asistente || !asistente.taller_id) return usuario.id;
     const talleres = await tallerRepository.listarActivos();
     const taller = talleres.find(t => t.id === asistente.taller_id);
-    // Taller sin encargado: se devuelve su propio id (nunca null, que igualaría a talleres sin encargado).
-    return taller && taller.encargado_id ? taller.encargado_id : usuario.id;
+    if (taller && !taller.encargado_id) throw new Error('El taller al que fuiste asignado no tiene un encargado.');
+    return taller ? taller.encargado_id : usuario.id;
   }
 }
 

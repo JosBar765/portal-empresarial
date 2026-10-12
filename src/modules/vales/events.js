@@ -34,7 +34,8 @@ async function puedeUnirseASala(socket, sala) {
   if (esDeTaller(usuario) && sala.startsWith('taller:')) {
     const tallerId = Number(sala.slice('taller:'.length));
     if (!Number.isFinite(tallerId)) return false;
-    const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
+    const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario).catch(() => null);
+    if (idEfectivo === null) return false;
     const talleres = await tallerRepository.listarActivos();
     const miTaller = talleres.find(t => t.encargado_id === idEfectivo);
     return !!miTaller && miTaller.id === tallerId;
