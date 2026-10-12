@@ -15,7 +15,7 @@ Que el Asistente pueda asignarse a cualquier taller (Diseño, Diseño UV/3D, Pro
 
 ## Tareas
 - [x] T1 · Script SQL idempotente `asistentes_por_taller.sql`: columna `roles.hereda_de_rol_id`, roles nuevos (por nombre, sin ids fijos), permisos copiados del rol padre, rol 7 marcado como hijo del 4.
-- [ ] T2 · Backend admin: validar permisos de roles heredados (crear/actualizar), quitar unicidad del asistente, permitir asignarlo a cualquier taller según su tipo de rol, varios por taller.
+- [x] T2 · Backend admin: validar permisos de roles heredados (crear/actualizar), quitar unicidad del asistente, permitir asignarlo a cualquier taller según su tipo de rol, varios por taller.
 - [ ] T3 · Backend vales: tratar los 4 roles de asistente como el encargado de su taller (buzón, fusión, sockets, detalle).
 - [ ] T4 · Frontend admin: error visual en la pestaña de roles, formulario de usuario y gestión de personal del taller.
 - [ ] T5 · Frontend vales: roles de asistente en `config/roles.js` y `permisos.js`.
@@ -26,6 +26,8 @@ Ninguna.
 
 ## Verificación y evidencia
 - T1: `05_asistentes_por_taller.sql` aplicado 2 veces en dev (munditrofeos): columna existe; roles nuevos ids 11, 12, 13 sin duplicados; hereda_de 7->4, 11->5, 12->9, 13->10; permisos de cada rol nuevo = los de su padre (5/5/5); rol 7 intacto (6).
+
+- T2: ruta delegada (escritor; disparador: 2+ archivos no triviales). Sin runner de tests: RED/GREEN no aplica, verificado funcionalmente contra la API local. PUT roles/11 con permiso ajeno al padre -> 400 con mensaje; quitar permiso al rol 9 lo quita del 12 (restaurado después); rol 12 a taller Diseño -> 400, a Protextil -> 201 para 2 asistentes (datos de prueba borrados).
 
 ## Siguiente paso
 Resolver la pregunta abierta y empezar T1.

@@ -38,6 +38,35 @@ class RolRepository {
     return rows[0].total;
   }
 
+  async obtenerPorId(id) {
+    const rows = await db.query('SELECT id, nombre, hereda_de_rol_id FROM roles WHERE id = ?', [id], 'rol:find_by_id');
+    return rows[0] || null;
+  }
+
+  async listarIdsHijos(padreId) {
+    const rows = await db.query('SELECT id FROM roles WHERE hereda_de_rol_id = ?', [padreId], 'rol:list_hijos');
+    return rows.map(r => r.id);
+  }
+
+  // Reemplaza los permisos del rol y, en la misma transacción, quita de los
+  // roles hijos los que ya no estén en `permisoIds` (no agrega nada a los hijos).
+  async establecerPermisosEnCascada(rolId, permisoIds, hijoIds) {
+    return db.transaccion(async (tx) => {
+      await tx.query('DELETE FROM rol_permisos WHERE rol_id = ?', [rolId], 'rol_permiso:delete_todos');
+      if (permisoIds.length) {
+        const placeholders = permisoIds.map(() => '(?, ?)').join(', ');
+        const params = permisoIds.flatMap(id => [rolId, id]);
+        await tx.query(`INSERT INTO rol_permisos (rol_id, permiso_id) VALUES ${placeholders}`, params, 'rol_permiso:insertar_todos');
+      }
+      if (!hijoIds.length) return;
+      if (permisoIds.length) {
+        await tx.query('DELETE FROM rol_permisos WHERE rol_id IN (?) AND permiso_id NOT IN (?)', [hijoIds, permisoIds], 'rol_permiso:cascada_quitar');
+      } else {
+        await tx.query('DELETE FROM rol_permisos WHERE rol_id IN (?)', [hijoIds], 'rol_permiso:cascada_quitar_todos');
+      }
+    });
+  }
+
   async establecerPermisos(rolId, permisoIds) {
     await db.query('DELETE FROM rol_permisos WHERE rol_id = ?', [rolId], 'rol_permiso:delete_todos');
     if (!permisoIds.length) return;

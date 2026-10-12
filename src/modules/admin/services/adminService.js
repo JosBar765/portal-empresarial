@@ -25,16 +25,13 @@ const ROL_ADMINISTRADOR = 1;
 const MODULO_ADMIN = 'admin';
 // Diseño, Diseño 3D y Protextil son talleres únicos a nivel de toda la
 // empresa (a diferencia de Diseño Local, que tiene uno por tienda) — un solo
-// encargado activo a la vez. El Asistente de Diseño es igual de único (un
-// solo clon comodín para los 3 talleres, no uno por taller).
-const ROLES_ENCARGADO_UNICO = [4, 5, 9, 7];
+// encargado activo a la vez. Los roles de asistente (hereda_de_rol_id) no son únicos.
+const ROLES_ENCARGADO_UNICO = [4, 5, 9];
 const ROL_DISENADOR = 6;
-const ROL_ASISTENTE = 7;
 const ROL_ENCARGADO_DISENO_LOCAL = 10;
 // Diseño/Diseño UV-3D/Protextil son de toda la empresa — cada uno mapea a
 // exactamente un taller.
 const TALLER_FIJO_POR_ROL = { 4: 'Diseño', 5: 'Diseño UV/3D', 9: 'Protextil' };
-const TALLERES_CLONABLES_ASISTENTE = ['Diseño', 'Diseño UV/3D', 'Protextil'];
 
 class AdminService {
   async _validarEncargadoUnico(rolId, excluirId) {
@@ -224,10 +221,23 @@ class AdminService {
         throw new Error('No se pueden quitar al Administrador los permisos del módulo de administración.');
       }
     }
-    const resultado = await rolRepository.establecerPermisos(id, [...new Set(ids)]);
-    // Avisa a los usuarios de ese rol conectados ahora mismo para que
+    const nuevos = [...new Set(ids)];
+    const rol = await rolRepository.obtenerPorId(id);
+    if (rol && rol.hereda_de_rol_id != null) {
+      const permisosPadre = new Set(await rolRepository.listarPermisoIds(rol.hereda_de_rol_id));
+      const sobrantes = nuevos.filter(p => !permisosPadre.has(p));
+      if (sobrantes.length) {
+        const todos = await permisoRepository.listarTodos();
+        const codigos = sobrantes.map(p => (todos.find(t => t.id === p) || {}).codigo || p);
+        throw new Error(`Un rol de asistente no puede tener permisos que su encargado no tiene: ${codigos.join(', ')}.`);
+      }
+    }
+    // Lo que se quita a este rol se quita también de sus roles de asistente.
+    const hijoIds = await rolRepository.listarIdsHijos(id);
+    const resultado = await rolRepository.establecerPermisosEnCascada(id, nuevos, hijoIds);
+    // Avisa a los usuarios de esos roles conectados ahora mismo para que
     // renueven su JWT sin cerrar sesión.
-    socketManager.sendToRooms([`role_${id}`], 'permisos_actualizados', {});
+    socketManager.sendToRooms([id, ...hijoIds].map(r => `role_${r}`), 'permisos_actualizados', {});
     return resultado;
   }
 
@@ -482,11 +492,13 @@ class AdminService {
     const usuario = await usuarioAdminRepository.obtenerPorId(usuarioId);
     if (!usuario) throw new Error('Usuario no encontrado.');
     const rolNum = Number(usuario.rol_id);
-    if (rolNum !== ROL_DISENADOR && rolNum !== ROL_ASISTENTE) {
-      throw new Error('Solo un Diseñador o el Asistente pueden agregarse como personal de un taller.');
+    const rol = await rolRepository.obtenerPorId(rolNum);
+    const padreId = rol ? rol.hereda_de_rol_id : null;
+    if (rolNum !== ROL_DISENADOR && padreId == null) {
+      throw new Error('Solo un Diseñador o un Asistente pueden agregarse como personal de un taller.');
     }
-    if (rolNum === ROL_ASISTENTE && !TALLERES_CLONABLES_ASISTENTE.includes(taller.nombre)) {
-      throw new Error('El Asistente solo puede clonar Diseño, Diseño UV/3D o Protextil.');
+    if (padreId != null && Number(padreId) !== this._rolEsperadoDeTaller(taller)) {
+      throw new Error(`El rol ${rol.nombre} no corresponde al tipo de taller de ${taller.nombre}.`);
     }
     return tallerAdminRepository.asignarDisenador(usuarioId, tallerId);
   }
