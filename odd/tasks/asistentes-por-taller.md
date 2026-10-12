@@ -42,5 +42,13 @@ Ninguna.
 - Discrepancia (menor, texto): en Gestionar Talleres > Personal, la sección se llama «Diseñadores» y el botón «Agregar diseñador», pero ahora también agrupa asistentes. Pendiente decidir si se renombra a «Personal».
 - No verificado: lista de candidatos del selector (en dev no hay usuarios sin taller con rol de asistente ni diseñadores libres; el selector solo mostró «Seleccionar…»); buzón visual de un asistente (el botón «Cerrar sesión» no respondió y se detuvo la revisión); sockets y notificaciones en vivo.
 
+## Segunda revisión (usuarios de prueba creados en dev, ver Engram `dev/usuarios-prueba-asistentes`)
+- OK · Selector de personal del taller Protextil: solo ofrece los asistentes de rol Protextil sin taller (no los de UV/3D ni Local), con la etiqueta «(Asistente)».
+- OK · Asignar dos asistentes de Protextil al mismo taller desde la interfaz: ambos quedan en `taller_disenadores` (taller 3).
+- OK · Buzón visual del asistente de Protextil: ve los vales de Protextil con las acciones del encargado (revisar, asignar) y sin cola de fusión.
+- OK · Tiempo real: con el asistente conectado, el encargado asignó el vale 201; el buzón del asistente se refrescó solo (Por asignar 1→0, Asignado 2→3) y apareció la notificación con aviso en la campana.
+- Efecto en dev: el vale 201 quedó asignado a Katherine Recinos (antes PENDIENTE_ASIGNACION); los 4 usuarios de prueba y las 2 asignaciones se dejaron en la BD de desarrollo.
+- No probado: que un asistente de OTRO taller no reciba el evento, y el caso de taller sin encargado en el navegador.
+
 ## Siguiente paso
 Revisar y abrir el PR (decisión del usuario). Recordar importar `asistentes_por_taller.sql` antes de desplegar.
