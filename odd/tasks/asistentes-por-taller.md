@@ -48,7 +48,9 @@ Ninguna.
 - OK · Buzón visual del asistente de Protextil: ve los vales de Protextil con las acciones del encargado (revisar, asignar) y sin cola de fusión.
 - OK · Tiempo real: con el asistente conectado, el encargado asignó el vale 201; el buzón del asistente se refrescó solo (Por asignar 1→0, Asignado 2→3) y apareció la notificación con aviso en la campana.
 - Efecto en dev: el vale 201 quedó asignado a Katherine Recinos (antes PENDIENTE_ASIGNACION); los 4 usuarios de prueba y las 2 asignaciones se dejaron en la BD de desarrollo.
-- No probado: que un asistente de OTRO taller no reciba el evento, y el caso de taller sin encargado en el navegador.
+- OK · Aislamiento: con un asistente de UV/3D conectado (taller 2), el encargado de Protextil asignó el vale 162 (solo Protextil). Los 2 asistentes de Protextil pasaron de 1 a 2 notificaciones guardadas; el de UV/3D se quedó en 0, sin toast, sin badge y con el buzón sin cambios.
+- Efecto en dev de esta prueba: el vale 162 se puso temporalmente en PENDIENTE_ASIGNACION por SQL y se restauró (estado EN_PROCESO, diseñador 108, fecha original); quedaron filas extra en `vale_historial` y `notificaciones`. El usuario de prueba de UV/3D quedó asignado al taller 2.
+- No probado: el caso de taller sin encargado en el navegador (solo por API).
 
 ## Siguiente paso
 Revisar y abrir el PR (decisión del usuario). Recordar importar `asistentes_por_taller.sql` antes de desplegar.
