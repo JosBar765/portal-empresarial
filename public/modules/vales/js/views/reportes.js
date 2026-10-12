@@ -22,10 +22,10 @@ let tablaActiva = '';
 
 const ICONO_AGRUPAR = { asesor: 'people-outline', disenador: 'brush-outline', taller: 'construct-outline', tienda: 'storefront-outline' };
 const AGRUPACIONES = [
-  { id: 'asesor', texto: 'Asesor', plural: 'asesores' },
-  { id: 'disenador', texto: 'Diseñador', plural: 'diseñadores' },
+  { id: 'tienda', texto: 'Tienda', plural: 'tiendas' },
   { id: 'taller', texto: 'Taller', plural: 'talleres' },
-  { id: 'tienda', texto: 'Tienda', plural: 'tiendas' }
+  { id: 'asesor', texto: 'Asesor', plural: 'asesores' },
+  { id: 'disenador', texto: 'Diseñador', plural: 'diseñadores' }
 ];
 
 function construirQuery() {
@@ -163,34 +163,29 @@ function renderTodo(data) {
   $('#rep-meta').textContent = `${data.periodo.etiqueta} · Actualizado ${new Date().toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' })}`;
   renderFiltros(data);
   $('#rep-cuerpo').innerHTML = `
-    <section class="rep-kpis" aria-label="Indicadores">${data.kpis.map(htmlKpi).join('')}</section>
     <div class="rend-grid">
       ${data.grupos ? '<section class="rend-panel rend-span-12" id="rep-panel-grupos"></section>' : ''}
       ${!data.grupos && (data.tablas || []).length ? '<section class="rend-panel rend-span-12" id="rep-panel-tablas"></section>' : ''}
       ${!data.grupos && data.vales ? '<section class="rend-panel rend-span-12" id="rep-panel-vales"></section>' : ''}
     </div>
     <details class="rend-notas">
-      <summary>Cómo se calculan estos indicadores</summary>
+      <summary>Cómo funciona este reporte</summary>
       <ul>
         ${notasDelRol(data)}
       </ul>
     </details>`;
-  conectarInfoKpis($('#rep-cuerpo'));
   if (data.grupos) renderGrupos(data); else { renderTablas(data); renderVales(data); }
 }
 
-// «Cómo se calculan estos indicadores»: reglas generales y, debajo, la definición de cada indicador de la pantalla
-// (las mismas explicaciones del ícono de información de cada tarjeta, siempre al día con el rol).
+// «Cómo funciona este reporte»: reglas del período y de la tabla.
 function notasDelRol(data) {
   const reglas = [
-    '<li><strong>Período:</strong> se elige con Hoy, Día, Semana (de lunes a domingo), Mes o Desde–Hasta. Cada acción cuenta en el día en que ocurrió.</li>',
-    '<li><strong>Ahora mismo:</strong> las tarjetas con esa etiqueta muestran el estado de hoy, sin importar el período elegido.</li>'
+    '<li><strong>Período:</strong> se elige con Hoy, Día, Semana (de lunes a domingo), Mes o Desde–Hasta. Cada acción cuenta en el día en que ocurrió.</li>'
   ];
   if (data.grupos) {
     reglas.push('<li><strong>Tabla:</strong> lista los vales <strong>creados</strong> en el período, agrupados por la persona, taller o tienda elegidos. Cada fila muestra cuántos vales creó, cuántos ya fueron autorizados y qué atención requieren (atrasados y sin propuesta). Al pulsarla se despliegan sus vales, ordenados por atraso, luego por el paso más bajo del pipeline y luego por los que aún no tienen propuesta.</li>');
   }
-  const definiciones = data.kpis.filter(k => k.ayuda).map(k => `<li><strong>${escapeHtml(k.label)}:</strong> ${escapeHtml(k.ayuda)}</li>`);
-  return `${reglas.join('')}${definiciones.length ? `<li class="rep-notas-titulo">Indicadores</li>${definiciones.join('')}` : ''}`;
+  return reglas.join('');
 }
 
 // -----------------------------------------------------------------------

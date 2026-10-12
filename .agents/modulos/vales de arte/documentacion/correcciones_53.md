@@ -53,3 +53,17 @@ Cada rol agrupa y filtra solo su personal a cargo:
 - Con una sola agrupación, la pantalla muestra un rótulo fijo en lugar de los botones.
 - Si se pide a mano una agrupación o un filtro que el rol no tiene (agrupar por taller siendo supervisor, tienda o asesores siendo encargado, diseñadores siendo supervisor, tienda o taller ajenos), la API responde 400.
 - Archivos: `valeReporteService.js` (`resolverAlcance`, `obtenerReporte`, `_opcionesDeFiltro`), `reporteRepository.js` (`listarTiendasPorSupervisor`), `views/reportes.js`.
+
+## Ajuste posterior: orden de «Agrupar por» y sin contadores
+
+- El orden de las agrupaciones es **Tienda, Taller, Asesor, Diseñador** (la que abre por defecto sigue siendo Asesor, o Diseñador para el Encargado).
+- La pestaña Reportes ya no muestra las tarjetas de contadores para ningún rol: abre directo con los filtros y la tabla. El servidor sigue calculando `kpis` (no se tocó la API).
+- «Cómo se calculan estos indicadores» pasa a «Cómo funciona este reporte» y conserva solo las reglas del período y de la tabla.
+
+## Ajuste posterior: PDF vertical y estado por paso
+
+- El PDF del reporte pasa a **Carta vertical** y se quita la columna **Cliente** (en pantalla sigue). Tabla unificada: Vale, Estado (la más ancha), Entrega, Atraso y Propuesta; Asesor y Diseñador, Correlativo, Estado, Entrega y sus columnas.
+- **Estado por paso del pipeline**, en una sola línea: «Paso 3 de 5 - Producción | En proceso» (o «Paso 5 de 5 - Completado | Recibido»); detrás, quién tiene el turno o los talleres listos si aplica («Encargado», «1 de 3 talleres listos»). Si no cabe pasa a una segunda línea. Sin barra de pasos ni texto de atraso.
+- **Columna Atraso con semáforo** (también en el listado de Asesor y Diseñador), solo con el color de la letra, sin fondo: rojo con los días si está atrasado («8 días»), naranja si vence hoy y amarillo oscuro si va al día. Entrega, Atraso y Propuesta van centradas y las columnas se reparten para llenar el ancho; el estado queda pegado al correlativo. Cuando el estado pasa a dos líneas, el bloque queda centrado en la fila.
+- Los vales de varios talleres muestran el paso del taller más atrasado, igual que en pantalla.
+- `valeReporteService._listado` agrega `pipeline` a cada fila para que el listado de Asesor y Diseñador use el mismo formato; la pantalla lo ignora.

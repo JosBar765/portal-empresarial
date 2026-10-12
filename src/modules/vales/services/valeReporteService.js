@@ -10,6 +10,7 @@ const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const valeBuzonService = require('./valeBuzonService');
 const valeReporteGruposService = require('./valeReporteGruposService');
+const { calcularPipeline } = require('./valePipeline');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const {
   ROL, ESTADOS_TERMINALES, ESTADOS_TALLER, ROLES_ENCARGADO_TALLER, hoyISO, enriquecer, esValeDeModificacion
@@ -256,7 +257,7 @@ const filtrarPares = (pares, pred) => ({
 });
 
 // ---- Alcance por rol ----
-const AGRUPACIONES_GLOBAL = ['asesor', 'disenador', 'taller', 'tienda'];
+const AGRUPACIONES_GLOBAL = ['tienda', 'taller', 'asesor', 'disenador'];
 
 async function resolverAlcance(usuario) {
   switch (usuario.rolId) {
@@ -381,7 +382,7 @@ class ValeReporteService {
     let vales = null;
     let grupos = null;
     if (alcance.equipo) {
-      const agruparPor = valeReporteGruposService.agrupacionValida(filtros.agruparPor, alcance.agrupaciones[0]);
+      const agruparPor = valeReporteGruposService.agrupacionValida(filtros.agruparPor, alcance.agrupaciones.includes('asesor') ? 'asesor' : alcance.agrupaciones[0]);
       grupos = await valeReporteGruposService.armar({ alcance, dentroDelRango: (f) => dentro(f, rango), agruparPor, tiendaId, tallerId, asesorSel, disSel });
     } else {
       const nombres = await this._nombres(alcance, normalizados);
@@ -626,6 +627,12 @@ class ValeReporteService {
         ...base, creado: ultimo(h, ['creacion']), autorizado: ultimo(h, ['autorizacion']), modificacion: ultimo(h, ['solicitud_mod'])
       };
     }).filter(Boolean).sort((a, b) => b.actividadMs - a.actividadMs);
+
+    // Cada vale lleva su paso del pipeline (el PDF lo muestra en lugar del estado crudo).
+    const mostradas = filas.slice(0, maxFilas);
+    const conTaller = await valeBuzonService._enriquecerConTaller(mostradas.map(f => resumen.get(f.id)));
+    const pipelines = new Map(conTaller.map(v => [v.id, calcularPipeline(v, { rolId: ROL.ADMINISTRADOR })]));
+    mostradas.forEach(f => { f.pipeline = pipelines.get(f.id); });
 
     const columnas = esDiseno
       ? (alcance.rol === 'encargado'

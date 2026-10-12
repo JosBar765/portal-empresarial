@@ -1,11 +1,11 @@
 // src/modules/vales/services/valeReportePdfService.js
-// PDF del reporte de actividad (horizontal, estilo del vale): indicadores, tablas por persona y listado de vales.
+// PDF del reporte de actividad (vertical): vales por persona, taller o tienda, con su paso del pipeline.
 const fs = require('fs/promises');
 const path = require('path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 
-const PAGE_WIDTH = 792; // Carta horizontal
-const PAGE_HEIGHT = 612;
+const PAGE_WIDTH = 612; // Carta vertical
+const PAGE_HEIGHT = 792;
 const MARGIN = 36;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const LOGO_PATH = path.join(__dirname, '../../../../public/assets/logos/LOGO_GP_isotipo.png');
@@ -15,12 +15,16 @@ const GRIS = rgb(0.45, 0.48, 0.52);
 const LINEA = rgb(0.85, 0.85, 0.85);
 const FONDO_CABECERA = rgb(0.95, 0.96, 0.97);
 const ROJO = rgb(0.8, 0.1, 0.1);
+const GRIS_TEXTO = rgb(0.3, 0.33, 0.37);
 
-const ETIQUETA_ESTADO = {
-  ESPERANDO_AUTORIZACION: 'Esperando autorización', CREADO: 'Creado', APROBADO_DEPARTAMENTO: 'Aprobado por talleres',
-  PENDIENTE_CONFIRMACION: 'Pend. confirmación', RECIBIDO: 'Recibido', SOLICITANDO_MODIFICACION: 'Solicitando modificación',
-  MODIFICADO: 'Modificado', CONFIRMADO: 'Confirmado', RECHAZADO: 'Rechazado'
-};
+// Celda de estado: «Paso N de 5 - Nombre del paso | Estado actual | Quién tiene el turno» (el atraso va en su propia columna).
+function celdaEstado(pipeline) {
+  const nombrePaso = pipeline.pasos[Math.min(pipeline.paso, pipeline.pasos.length) - 1];
+  const total = pipeline.pasos.length;
+  const segmentos = [pipeline.terminado ? `Paso ${total} de ${total} - Completado` : `Paso ${pipeline.paso} de ${total} - ${nombrePaso}`, pipeline.etiqueta];
+  if (!pipeline.terminado && !pipeline.alerta && pipeline.detalle) segmentos.push(pipeline.detalle);
+  return { segmentos };
+}
 
 // Las fuentes estándar del PDF solo cubren Latin-1: lo demás se sustituye en vez de romper la generación.
 const limpiar = texto => String(texto ?? '').replace(/[–—]/g, '-').replace(/→/g, 'a').replace(/[^ -ÿ]/g, '?');
@@ -49,6 +53,14 @@ function formatear(valor, formato) {
     }
     default: return String(valor);
   }
+}
+
+// Semáforo de la columna Atraso, solo con el color de la letra: rojo si está atrasado, naranja si vence hoy y amarillo si va al día.
+const COLOR_SEMAFORO = { rojo: rgb(0.78, 0.1, 0.1), naranja: rgb(0.85, 0.4, 0), amarillo: rgb(0.7, 0.5, 0) };
+function semaforoAtraso({ atrasado, diasAtraso, venceHoy }) {
+  if (atrasado) return { semaforo: { texto: `${diasAtraso} ${diasAtraso === 1 ? 'día' : 'días'}`, tono: 'rojo' } };
+  if (venceHoy) return { semaforo: { texto: 'Vence hoy', tono: 'naranja' } };
+  return { semaforo: { texto: 'Al día', tono: 'amarillo' } };
 }
 
 class ValeReportePdfService {
@@ -99,7 +111,7 @@ class ValeReportePdfService {
     this._texto(ctx, reporte.titulo, x0 + 30, ctx.y - 20, { size: 8.5, color: GRIS });
     const derecha = [`Período: ${reporte.periodo.etiqueta}`, `Generado: ${ahora}${generadoPor ? ` por ${generadoPor}` : ''}`];
     derecha.forEach((linea, i) => {
-      const t = limpiar(linea);
+      const t = this._ajustar(ctx, linea, 330, 7.5);
       this._texto(ctx, t, PAGE_WIDTH - MARGIN - ctx.font.widthOfTextAtSize(t, 7.5), ctx.y - 9 - i * 10, { size: 7.5, color: GRIS });
     });
     ctx.y -= 28;
@@ -131,35 +143,75 @@ class ValeReportePdfService {
   }
 
   // Tabla genérica: `columnas` [{ label, ancho (proporción), derecha }], `filas` [[texto, ...]].
-  _tabla(ctx, columnas, filas, { altoFila = 14, tamano = 7.5 } = {}) {
+  // Una celda puede ser texto o un estado `{ segmentos, alerta }` (ver `celdaEstado`).
+  _tabla(ctx, columnas, filas, { altoFila = 14, tamano = 7.5, altoCabecera = 14 } = {}) {
     const total = columnas.reduce((s, c) => s + c.ancho, 0);
     const anchos = columnas.map(c => (c.ancho / total) * CONTENT_WIDTH);
     const cabecera = () => {
-      this._espacio(ctx, altoFila * 2);
-      ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - altoFila, width: CONTENT_WIDTH, height: altoFila, color: FONDO_CABECERA });
+      this._espacio(ctx, altoCabecera + altoFila);
+      ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - altoCabecera, width: CONTENT_WIDTH, height: altoCabecera, color: FONDO_CABECERA });
       let x = MARGIN;
       columnas.forEach((c, i) => {
         const t = this._ajustar(ctx, c.label, anchos[i] - 8, tamano, true);
-        const tx = c.derecha ? x + anchos[i] - 4 - ctx.fontBold.widthOfTextAtSize(t, tamano) : x + 4;
-        this._texto(ctx, t, tx, ctx.y - altoFila + 4, { size: tamano, bold: true, color: GRIS });
+        const tx = c.derecha ? x + anchos[i] - 4 - ctx.fontBold.widthOfTextAtSize(t, tamano) : (c.centro ? x + (anchos[i] - ctx.fontBold.widthOfTextAtSize(t, tamano)) / 2 : x + 4);
+        this._texto(ctx, t, tx, ctx.y - altoCabecera + 4, { size: tamano, bold: true, color: GRIS });
         x += anchos[i];
       });
-      ctx.y -= altoFila;
+      ctx.y -= altoCabecera;
     };
     cabecera();
     filas.forEach(fila => {
       if (ctx.y - altoFila < MARGIN + 18) { this._nuevaPagina(ctx); cabecera(); }
       let x = MARGIN;
       fila.forEach((celda, i) => {
-        const t = this._ajustar(ctx, celda, anchos[i] - 8, tamano);
-        const tx = columnas[i].derecha ? x + anchos[i] - 4 - ctx.font.widthOfTextAtSize(t, tamano) : x + 4;
-        this._texto(ctx, t, tx, ctx.y - altoFila + 4, { size: tamano });
+        if (celda && celda.semaforo) {
+          this._dibujarSemaforo(ctx, celda.semaforo, x + 2, anchos[i] - 4, tamano, altoFila);
+        } else if (celda && typeof celda === 'object') {
+          this._dibujarEstado(ctx, celda, x + 4, anchos[i] - 8, tamano, altoFila);
+        } else {
+          const t = this._ajustar(ctx, celda, anchos[i] - 8, tamano);
+          const c = columnas[i];
+          const tx = c.derecha ? x + anchos[i] - 4 - ctx.font.widthOfTextAtSize(t, tamano) : (c.centro ? x + (anchos[i] - ctx.font.widthOfTextAtSize(t, tamano)) / 2 : x + 4);
+          this._texto(ctx, t, tx, ctx.y - altoFila / 2 - tamano * 0.35, { size: tamano });
+        }
         x += anchos[i];
       });
       ctx.page.drawLine({ start: { x: MARGIN, y: ctx.y - altoFila }, end: { x: PAGE_WIDTH - MARGIN, y: ctx.y - altoFila }, thickness: 0.5, color: LINEA });
       ctx.y -= altoFila;
     });
     ctx.y -= 12;
+  }
+
+  // Segmentos separados por «|»: el primero en negrita; si no caben en una línea pasan a una segunda.
+  _dibujarEstado(ctx, { segmentos }, x, ancho, tamano, altoFila) {
+    const sep = ' | ';
+    const anchoDe = (t, negrita) => (negrita ? ctx.fontBold : ctx.font).widthOfTextAtSize(limpiar(t), tamano);
+    const lineas = [[]];
+    let usado = 0;
+    segmentos.forEach((seg, i) => {
+      const w = anchoDe(seg, i === 0) + (usado ? anchoDe(sep) : 0);
+      if (usado && usado + w > ancho && lineas.length < 2) { lineas.push([]); usado = 0; }
+      lineas[lineas.length - 1].push({ seg, i });
+      usado += w;
+    });
+    const interlineado = tamano + 2.5;
+    const base = ctx.y - altoFila / 2 - tamano * 0.35 + (lineas.length - 1) * interlineado / 2;
+    lineas.forEach((linea, l) => {
+      let cx = x;
+      linea.forEach(({ seg, i }, k) => {
+        if (k > 0) { this._texto(ctx, sep, cx, base - l * interlineado, { size: tamano, color: GRIS }); cx += anchoDe(sep); }
+        const texto = this._ajustar(ctx, seg, Math.max(20, x + ancho - cx), tamano, i === 0);
+        this._texto(ctx, texto, cx, base - l * interlineado, { size: tamano, bold: i === 0, color: i === 0 ? NEGRO : GRIS_TEXTO });
+        cx += anchoDe(texto, i === 0);
+      });
+    });
+  }
+
+  // Texto en negrita, centrado en la celda y con el color del semáforo.
+  _dibujarSemaforo(ctx, { texto, tono }, x, ancho, tamano, altoFila) {
+    const t = this._ajustar(ctx, texto, ancho - 4, tamano, true);
+    const w = ctx.fontBold.widthOfTextAtSize(limpiar(t), tamano);
+    this._texto(ctx, t, x + (ancho - w) / 2, ctx.y - altoFila / 2 - tamano * 0.35, { size: tamano, bold: true, color: COLOR_SEMAFORO[tono] });
   }
 
   _tablaPersonas(ctx, tabla) {
@@ -181,11 +233,11 @@ class ValeReportePdfService {
       return;
     }
     const columnas = [
-      { label: 'Vale', ancho: 1.5 }, { label: 'Cliente', ancho: 2 }, { label: 'Estado', ancho: 2.4 },
-      { label: 'Entrega', ancho: 0.9 }, { label: 'Atraso', ancho: 0.8 }, { label: 'Propuesta', ancho: 0.9 }
+      { label: 'Vale', ancho: 1.8 }, { label: 'Estado', ancho: 3.4 },
+      { label: 'Entrega', ancho: 1, centro: true }, { label: 'Atraso', ancho: 1, centro: true }, { label: 'Propuesta', ancho: 1, centro: true }
     ];
     for (const grupo of g.grupos) {
-      this._espacio(ctx, 60);
+      this._espacio(ctx, 80);
       const resumen = `Creados ${grupo.creados}  ·  Autorizados ${grupo.autorizados}`
         + (grupo.atrasados ? `  ·  ${grupo.atrasados} atrasado${grupo.atrasados === 1 ? '' : 's'}` : '')
         + (grupo.sinPropuesta ? `  ·  ${grupo.sinPropuesta} sin propuesta` : '');
@@ -195,13 +247,13 @@ class ValeReportePdfService {
       ctx.y -= 22;
       if (!grupo.vales.length) { this._texto(ctx, 'Sin vales creados en este período.', MARGIN + 6, ctx.y - 6, { size: 8, color: GRIS }); ctx.y -= 16; continue; }
       const filas = grupo.vales.map(v => [
-        `${v.correlativo}${v.esMod ? ' (MOD)' : ''}`, v.cliente,
-        `${v.pipeline.etiqueta}${v.pipeline.detalle ? ` · ${v.pipeline.detalle}` : ''}`,
+        `${v.correlativo}${v.esMod ? ' (MOD)' : ''}`,
+        celdaEstado(v.pipeline),
         formatear(v.fechaEntrega, 'fecha'),
-        v.atrasado ? `${v.diasAtraso} d` : (v.venceHoy ? 'Vence hoy' : 'Al día'),
+        semaforoAtraso(v),
         v.tienePropuesta ? 'Sí' : (v.sinPropuesta ? 'No' : '-')
       ]);
-      this._tabla(ctx, columnas, filas, { altoFila: 13, tamano: 7 });
+      this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5 });
     }
     if (g.truncado) {
       this._espacio(ctx, 16);
@@ -218,14 +270,14 @@ class ValeReportePdfService {
       return;
     }
     const columnas = [
-      { label: 'Correlativo', ancho: 1.6 }, { label: 'Cliente', ancho: 2 }, { label: 'Entrega', ancho: 0.9 }, { label: 'Estado', ancho: 1.6 },
-      ...v.columnas.map(c => ({ label: c.label, ancho: 1.1, derecha: c.formato === 'horas' }))
+      { label: 'Correlativo', ancho: 1.7 }, { label: 'Estado', ancho: 2.7 }, { label: 'Entrega', ancho: 0.9, centro: true }, { label: 'Atraso', ancho: 0.9, centro: true },
+      ...v.columnas.map(c => ({ label: c.label, ancho: 1.35, derecha: c.formato === 'horas' }))
     ];
     const filas = v.filas.map(f => [
-      `${f.correlativo}${f.esMod ? ' (MOD)' : ''}`, f.cliente, `${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}${f.atrasado && f.diasAtraso >= 1 ? ` (+${f.diasAtraso}d)` : ''}`,
-      ETIQUETA_ESTADO[f.estado] || f.estado, ...v.columnas.map(c => formatear(f[c.clave], c.formato))
+      `${f.correlativo}${f.esMod ? ' (MOD)' : ''}`, celdaEstado(f.pipeline),
+      `${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}`, semaforoAtraso(f), ...v.columnas.map(c => formatear(f[c.clave], c.formato))
     ]);
-    this._tabla(ctx, columnas, filas, { altoFila: 13, tamano: 7 });
+    this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5 });
     if (v.truncado) {
       this._espacio(ctx, 16);
       this._texto(ctx, `Se muestran los primeros ${v.filas.length} de ${v.total} vales. Acota el período para ver el resto.`, MARGIN, ctx.y - 8, { size: 8, color: GRIS });
