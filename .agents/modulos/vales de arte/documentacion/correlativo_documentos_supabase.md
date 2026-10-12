@@ -29,3 +29,5 @@ La extensión sale del tipo verificado del archivo (`.pdf`, `.jpg`, `.png`, `.we
 - Los adjuntos nuevos de una solicitud de modificación se nombran como creación del vale `MOD-` (`MOD-…_IMAGEN_CREACION_X`).
 - El nombre debe ser seguro en una URL: el correlativo se sanitiza a `[A-Za-z0-9-]` (en la herramienta admin solo para el nombre del objeto; la columna guarda el texto escrito).
 - Las subidas usan `upsert: false`: si el archivo ya existe, la subida falla con «already exists».
+- Recuperación de huérfanos (solo al solicitar una modificación, donde el vale `MOD-` aún no existe): si el PDF o un adjunto nuevo ya existe en Storage y no hay ningún vale con ese correlativo (`valeRepository.existePorCorrelativo`), es un resto de un `MOD-` anterior cuyo borrado falló: se elimina, se avisa en el log (`[Storage] Huérfano eliminado`) y se reintenta la subida una sola vez.
+- Si el vale sí existe o el borrado falla, la subida termina con el error «Ya existe un archivo con el nombre "…" en Storage…». El mecanismo vive en `supabaseStorage.subir` (opción `esHuerfano`); sin esa opción nada cambia.

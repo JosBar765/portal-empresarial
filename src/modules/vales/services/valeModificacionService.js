@@ -76,7 +76,7 @@ class ValeModificacionService {
       const subidos = [];
       let modId;
       try {
-        const nuevos = (await valeCorreccionService._subirNuevos(nuevasImagenes, nuevosDocumentos, subidos, { correlativo, etapa: 'CREACION' })).map(d => ({ ...d, nuevo: true }));
+        const nuevos = (await valeCorreccionService._subirNuevos(nuevasImagenes, nuevosDocumentos, subidos, { correlativo, etapa: 'CREACION', recuperarHuerfanos: true })).map(d => ({ ...d, nuevo: true }));
         const documentos = [...conservados, ...nuevos, {
           nombre_original: `Propuesta original - ${original.correlativo}.pdf`, ruta: propuestaOriginal,
           tipo: 'documento', mime_type: 'application/pdf', tamano: 0, nuevo: true
@@ -89,7 +89,8 @@ class ValeModificacionService {
           autorizado_por: null, autorizacion_tipo: null, modificado: 0
         };
         const pdfBuffer = await valeCreacionService.generarBufferPdf(valeMod, documentos);
-        const pdf = await supabaseStorage.subir(pdfBuffer, `${correlativo}.pdf`, 'application/pdf', nombreArchivo.pdfCreacion(correlativo));
+        const pdf = await supabaseStorage.subir(pdfBuffer, `${correlativo}.pdf`, 'application/pdf', nombreArchivo.pdfCreacion(correlativo),
+          { esHuerfano: async () => !(await valeRepository.existePorCorrelativo(correlativo)) });
         subidos.push(pdf.url);
         modId = await valeModificacionRepository.crear({
           original, datos, correlativo, fechaCreacion: fecha, horaCreacion: hora, pdfUrl: pdf.url,

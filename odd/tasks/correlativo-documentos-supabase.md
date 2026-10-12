@@ -1,6 +1,6 @@
 # correlativo-documentos-supabase
 
-Rama: `fix/correlativo-documentos-supabase` (desde `dev`) · Estrategia de entrega: `ask-on-risk` · Estado: T1-T5 hechas.
+Rama: `fix/correlativo-documentos-supabase` (desde `dev`) · Estrategia de entrega: `ask-on-risk` · Estado: T1-T6 hechas.
 
 ## Objetivo
 Que los archivos que se suben a Supabase Storage lleven un nombre basado en el correlativo del vale en vez de un token aleatorio, para identificarlos fácilmente.
@@ -25,9 +25,10 @@ Extensión siempre desde el tipo verificado del archivo (`.pdf`, `.jpg`, `.png`,
 - [x] T3 · Adjuntos: creación, corrección y adjuntos nuevos de la solicitud de modificación.
 - [x] T4 · Propuestas (por taller y fusión) y quitar `regenerarPdf` de la fusión.
 - [x] T5 · Documentación y verificación liviana (incluye nombres de la herramienta admin y error explicativo de taller desconocido).
+- [x] T6 · Recuperación de huérfanos en MOD-: si la subida de un objeto con nombre fijo choca con uno existente y no hay vale con ese correlativo, se borra el huérfano y se reintenta una vez.
 
 ## Preguntas abiertas
-- Reutilización del correlativo de un MOD-: un MOD- rechazado, vencido o dado de baja se borra y su original puede pedir un nuevo `MOD-<original>` con el mismo correlativo. Si el borrado en Storage de los archivos viejos falló (solo se loguea), la subida nueva falla con "already exists". Decisión pendiente; no implementada.
+Ninguna. Resuelta (T6): reutilización del correlativo de un MOD- con variante de verificación de existencia por correlativo. Riesgo residual: dos solicitudes simultáneas del mismo MOD-; se cree evitado por el lock por vale (`valeMutex`), no probado.
 
 ## Verificación y evidencia
 - T1/T2 · ruta: escritor delegado (disparador: 2+ archivos no triviales). Sin runner de tests: RED/GREEN no aplica.
@@ -44,5 +45,9 @@ Extensión siempre desde el tipo verificado del archivo (`.pdf`, `.jpg`, `.png`,
 - T5 · doc: `.agents/modulos/vales de arte/documentacion/correlativo_documentos_supabase.md` + nota en CLAUDE.md.
 - T5 · verificación: ver el informe del escritor (script en scratchpad t5check.js, sin subidas reales).
 
+- T6 · ruta: escritor delegado (disparador: 2+ archivos no triviales). Sin runner de tests: RED/GREEN no aplica.
+- T6 · `supabaseStorage.subir(..., { esHuerfano })`: ante duplicado (status 409 / "already exists", forma real de StorageApiError) con `nombreObjeto` y hook, consulta el hook; huérfano => `eliminar` + `console.warn` + un solo reintento; si no, `StorageUploadError` «Ya existe un archivo con el nombre "…" en Storage…». Cableado solo en `solicitarModificacion` (PDF del MOD- y `_subirNuevos` con `recuperarHuerfanos`), con `valeRepository.existePorCorrelativo`. Sin cambios en el camino normal.
+- T6 · `node --check` OK en los 4 archivos; sin líneas LF sueltas. Script en scratchpad (t6check.js, cliente Supabase simulado, sin subidas reales): (a) subida normal sin hook ni eliminar; (b) duplicado sin vale => 1 eliminar, 2 subidas, warn; (c) vale existe => sin borrado y con mensaje; (d) borrado falla => error; (e) segundo duplicado => error sin bucle; (f) sin hook igual que antes. t34check.js sigue OK.
+
 ## Siguiente paso
-Revisar y decidir la pregunta abierta; commit de T5 por el usuario.
+Commit de T6 por el usuario.

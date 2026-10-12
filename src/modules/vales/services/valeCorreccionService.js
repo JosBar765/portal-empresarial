@@ -154,7 +154,9 @@ class ValeCorreccionService {
 
   // Cada URL subida se anota en `subidos` apenas existe, para poder borrarla si algo falla después.
   // `etapa`: 'CREACION' | 'CORRECCION'; X continúa desde `urlsExistentes` y dentro de la misma llamada.
-  async _subirNuevos(imagenes, documentos, subidos, { correlativo, etapa, urlsExistentes = [] }) {
+  // `recuperarHuerfanos`: solo si el vale aún no existe (solicitud de MOD-); permite reemplazar un archivo viejo sin vale.
+  async _subirNuevos(imagenes, documentos, subidos, { correlativo, etapa, urlsExistentes = [], recuperarHuerfanos = false }) {
+    const opciones = recuperarHuerfanos ? { esHuerfano: async () => !(await valeRepository.existePorCorrelativo(correlativo)) } : undefined;
     const nuevos = [];
     for (const [lista, tipo, tipoNombre] of [[imagenes, 'imagen', 'IMAGEN'], [documentos, 'documento', 'PDF']]) {
       let contador = nombreArchivo.siguienteContador(urlsExistentes, nombreArchivo.prefijoAdjunto(correlativo, tipoNombre, etapa));
@@ -163,7 +165,7 @@ class ValeCorreccionService {
         try {
           const buffer = await imageOptimizer.optimizar(file.buffer, file.mimetype);
           subida = await supabaseStorage.subir(buffer, file.originalname, file.mimetype,
-            nombreArchivo.adjunto(correlativo, tipoNombre, etapa, contador++));
+            nombreArchivo.adjunto(correlativo, tipoNombre, etapa, contador++), opciones);
         } catch (error) {
           throw new StorageUploadError(`No se pudo subir "${file.originalname}": ${error.message}`);
         }
