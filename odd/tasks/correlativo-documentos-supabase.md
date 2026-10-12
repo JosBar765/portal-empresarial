@@ -49,5 +49,11 @@ Ninguna. Resuelta (T6): reutilización del correlativo de un MOD- con variante d
 - T6 · `supabaseStorage.subir(..., { esHuerfano })`: ante duplicado (status 409 / "already exists", forma real de StorageApiError) con `nombreObjeto` y hook, consulta el hook; huérfano => `eliminar` + `console.warn` + un solo reintento; si no, `StorageUploadError` «Ya existe un archivo con el nombre "…" en Storage…». Cableado solo en `solicitarModificacion` (PDF del MOD- y `_subirNuevos` con `recuperarHuerfanos`), con `valeRepository.existePorCorrelativo`. Sin cambios en el camino normal.
 - T6 · `node --check` OK en los 4 archivos; sin líneas LF sueltas. Script en scratchpad (t6check.js, cliente Supabase simulado, sin subidas reales): (a) subida normal sin hook ni eliminar; (b) duplicado sin vale => 1 eliminar, 2 subidas, warn; (c) vale existe => sin borrado y con mensaje; (d) borrado falla => error; (e) segundo duplicado => error sin bucle; (f) sin hook igual que antes. t34check.js sigue OK.
 
+## Pruebas de punta a punta (bucket de prueba, subidas reales; 2026-10-12)
+- E2E 1 (vales 713–716): creación, 2 correcciones previas, autorización, propuesta Protextil, modificación MOD-, herramienta admin y recuperación de huérfanos: PASS. Un duplicado en Supabase responde HTTP 400 «The resource already exists» (no 409); se detecta por el mensaje.
+- E2E 2 (vale 717, Diseño + Protextil): `_PROPUESTA_DISENIO_1`, `_PROPUESTA_PROTEXTIL_1`, segunda entrega tras desaprobar con reasignación `_PROPUESTA_PROTEXTIL_2`, fusión `_PROPUESTA_FUSION`: PASS. `pdf_url` sigue en `_AUTORIZACION.pdf` y el bucket ganó solo 1 objeto en la fusión (no se regenera el PDF del vale).
+- Un encargado que entrega su propio trabajo se autoaprueba, por lo que una segunda entrega solo se da cuando entrega un diseñador y el encargado desaprueba reasignando.
+- Efectos en dev: 28 objetos en `my_bucket`; vales 713–717 y filas 14–15 de `vale_pdf_generados`; el vale 162 se pausó y reanudó (quedó EN_PROCESO).
+
 ## Siguiente paso
 Commit de T6 por el usuario.
