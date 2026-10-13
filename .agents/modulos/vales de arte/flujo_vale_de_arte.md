@@ -720,7 +720,7 @@ El calendario desplegable de la barra del Buzón (el que filtra por día o mes) 
 
 Al entregar su propuesta, el Diseñador (y el Encargado/Asistente al adjuntar la fusión de un vale de varios talleres) puede agregar, además del PDF (hasta 5 MB), hasta **5 enlaces** a documentos de otras plataformas (solo `https`) y una **nota** de hasta 500 caracteres.
 
-- **Qué cuenta como propuesta:** un archivo **o** al menos un enlace; la nota sola no basta. Con un enlace la propuesta se puede aprobar y autoaprobar igual que con un archivo. Entregar sin archivo ni enlace da error.
+- **Qué cuenta como propuesta:** al **entregar** el Diseñador debe adjuntar siempre el PDF; los enlaces y la nota son complementos opcionales (sin PDF da error). En la **fusión** del Encargado basta un archivo o al menos un enlace; la nota sola no basta. Una propuesta con solo enlaces (datos anteriores) se puede aprobar y autoaprobar igual que con archivo.
 - **Dónde se guarda:** `vale_propuestas.nota`, `vales.propuesta_general_nota` (nota de la fusión) y la tabla `vale_propuesta_enlaces` (con `propuesta_id` NULL son los enlaces de la fusión). Migración `propuesta_nota_enlaces.sql`.
 - **Quién la ve:** todos los que ven la propuesta, en el visor emergente (pestaña «Propuesta»), en el modal «Revisar propuesta» del Encargado y en la fusión. Los enlaces abren en una pestaña nueva. El historial dice «entregó propuesta (archivo, 2 enlaces y nota)».
 - **API:** `POST /:id/entregar` y `POST /:id/aprobar-general` reciben `nota` y `enlaces` (JSON) junto al archivo; `GET /:id/propuesta?tipo=taller|general|ultima&disenadorId=` devuelve la propuesta con su nota y enlaces.

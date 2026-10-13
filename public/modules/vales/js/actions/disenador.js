@@ -20,13 +20,14 @@ export function abrirModalEntregar(vale) {
   const { overlay, cerrar } = abrirModal({
     title: `Entregar propuesta — ${vale.correlativo}`,
     size: 'lg',
-    bodyHtml: htmlAdjuntosPropuesta({ idArchivo: 'input-propuesta' }),
+    bodyHtml: htmlAdjuntosPropuesta({ idArchivo: 'input-propuesta', archivoObligatorio: true }),
     footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-enviar" disabled>Entregar</button>`
   });
   const btn = overlay.querySelector('#btn-enviar');
   const adjuntos = wireAdjuntosPropuesta(overlay, {
     idArchivo: 'input-propuesta',
-    // El botón se habilita con un archivo o al menos un enlace válido; el resumen dice qué falta o qué se enviará.
+    archivoObligatorio: true,
+    // El botón se habilita solo con el PDF adjunto (y sin enlaces inválidos); el resumen dice qué falta o qué se enviará.
     onCambio: ({ valido }) => { btn.disabled = !valido; }
   });
   // Una sola key por apertura del modal — si el envío falla y el usuario

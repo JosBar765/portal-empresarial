@@ -251,7 +251,7 @@ function propuestaTallerVisible(v) {
 }
 const propuestaVisible = (v) => propuestaGeneralVisible(v) || propuestaTallerVisible(v);
 
-const abrirVisorDeFila = (v, propuesta, activo = 'vale') => abrirVisorVale({ id: v.id, correlativo: v.correlativo, cliente: v.cliente_nombre, propuesta, activo });
+const abrirVisorDeFila = (v, propuesta) => abrirVisorVale({ id: v.id, correlativo: v.correlativo, propuesta });
 
 export function construirAcciones(v) {
   const esMio = v.asesor_id === state.user.id;
@@ -262,26 +262,6 @@ export function construirAcciones(v) {
   const acciones = state.user.rolId === ROL.SUPERVISOR
     ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
     : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
-  // El hipervínculo de la propuesta apunta al documento de propuesta real, no
-  // al vale (PDF) — disponible tanto en el buzón (trabajo realizado) como en
-  // cualquier vista donde ya exista una propuesta oficial para el vale. El
-  // supervisor también la necesita en Trabajo realizado. Quien fusiona
-  // (Encargado/Asistente de Diseño) también ve "Ver propuesta" con SU
-  // documento de fusión (propuesta_general_url) en Trabajo Realizado. Se
-  // excluye la fila de PROPUESTA propia (también trae propuesta_general_url,
-  // hereda todos los campos del vale) para no mostrar el botón de la fusión
-  // en las dos filas del mismo vale.
-  if (propuestaGeneralVisible(v)) {
-    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => abrirVisorDeFila(v, propuestaGeneralVisible(v), 'propuesta') });
-  }
-  // En "Trabajo realizado" el encargado de un taller (y el propio diseñador) ve
-  // la propuesta REAL que se aprobó (`propuesta_taller_url`, solo viene
-  // poblado en esa vista) — no `propuesta_general_url`, que en un vale
-  // multi-taller es la fusión, no el trabajo propio de este taller.
-  if (propuestaTallerVisible(v)) {
-    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => abrirVisorDeFila(v, propuestaTallerVisible(v), 'propuesta') });
-  }
-
   // El Supervisor autoriza el envío a talleres de un vale recién creado por
   // uno de sus asesores.
   if (puede('autorizarCreacion') && v.estado === 'ESPERANDO_AUTORIZACION') {

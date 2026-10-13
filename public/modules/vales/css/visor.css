@@ -8,23 +8,24 @@
   display: flex; flex-direction: column; width: min(1100px, 100%); height: min(92vh, 100%);
   background: var(--color-surface); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); overflow: hidden;
 }
-.visor-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--color-border); }
+.visor-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 12px; border-bottom: 1px solid var(--color-border); }
 .visor-titulos { min-width: 0; }
-.visor-titulos h3 { margin: 0; font-size: var(--text-sm); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.visor-titulos h3 { margin: 0; font-size: 12.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .visor-titulos p { margin: 2px 0 0; font-size: 12px; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .visor-acciones { display: flex; align-items: center; gap: 6px; flex: none; }
-.visor-acciones .btn ion-icon { font-size: 16px; }
+.visor-acciones .btn ion-icon { font-size: 15px; }
+.visor-acciones .btn { padding: 4px 10px; font-size: 12px; }
 .visor-cerrar {
-  display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; font: inherit; color: var(--color-text-secondary);
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; font: inherit; color: var(--color-text-secondary);
   background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer;
 }
-.visor-cerrar ion-icon { font-size: 22px; }
+.visor-cerrar ion-icon { font-size: 20px; }
 .visor-cerrar:hover { background: var(--color-surface-muted); color: var(--color-text); }
 .visor-cerrar:focus-visible, .visor-pestana:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
-.visor-pestanas { display: flex; gap: 4px; padding: 8px 16px 0; border-bottom: 1px solid var(--color-border); }
+.visor-pestanas { display: flex; gap: 4px; padding: 4px 12px 0; border-bottom: 1px solid var(--color-border); }
 .visor-pestana {
-  padding: 8px 14px; font: inherit; font-size: 13px; font-weight: 600; color: var(--color-text-secondary);
+  padding: 6px 12px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--color-text-secondary);
   background: transparent; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
 }
 .visor-pestana:hover { color: var(--color-text); }

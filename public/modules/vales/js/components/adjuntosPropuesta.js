@@ -27,13 +27,14 @@ function revisarUrl(texto) {
 }
 
 // `idArchivo`: id del <input type="file"> de la zona de arrastre; `etiquetaArchivo` y `etiquetaNota` ajustan los textos.
-export function htmlAdjuntosPropuesta({ idArchivo, etiquetaArchivo = 'Archivo', etiquetaNota = 'Nota para el encargado' }) {
+// Con `archivoObligatorio` (entregar propuesta) el PDF es indispensable y los enlaces y la nota son complementos.
+export function htmlAdjuntosPropuesta({ idArchivo, etiquetaArchivo = 'Archivo', etiquetaNota = 'Nota para el encargado', archivoObligatorio = false }) {
   return `
     <div class="adj" data-adj>
       <section class="adj-seccion">
-        <h4 class="adj-titulo"><ion-icon name="document-attach-outline" aria-hidden="true"></ion-icon>${escapeHtml(etiquetaArchivo)}<span class="adj-opcional">PDF · máx. 5 MB</span></h4>
+        <h4 class="adj-titulo"><ion-icon name="document-attach-outline" aria-hidden="true"></ion-icon>${escapeHtml(etiquetaArchivo)}${archivoObligatorio ? ' <span class="adj-requerido" aria-hidden="true">*</span>' : ''}<span class="adj-opcional">${archivoObligatorio ? 'Obligatorio · ' : ''}PDF · máx. 5 MB</span></h4>
         ${htmlDropzone({ id: idArchivo, accept: 'application/pdf', hint: 'PDF · máx. 5MB' })}
-        <p class="adj-ayuda">¿Pesa más? Agrega un enlace en la sección de abajo.</p>
+        <p class="adj-ayuda">${archivoObligatorio ? 'Sube el PDF de la propuesta; puedes complementarlo con enlaces y una nota.' : '¿Pesa más? Agrega un enlace en la sección de abajo.'}</p>
       </section>
       <section class="adj-seccion">
         <h4 class="adj-titulo"><ion-icon name="link-outline" aria-hidden="true"></ion-icon>Enlaces<span class="adj-opcional">Opcional · hasta ${MAX_ENLACES}</span></h4>
@@ -52,7 +53,7 @@ export function htmlAdjuntosPropuesta({ idArchivo, etiquetaArchivo = 'Archivo', 
 
 // Conecta el componente dentro de `overlay`. `onCambio({ valido, resumen })` se llama cada vez que cambia algo, para que la
 // ventana habilite o no el botón de enviar y muestre qué se va a enviar.
-export function wireAdjuntosPropuesta(overlay, { idArchivo, onCambio = () => {} }) {
+export function wireAdjuntosPropuesta(overlay, { idArchivo, archivoObligatorio = false, onCambio = () => {} }) {
   const raiz = overlay.querySelector('[data-adj]');
   const lista = raiz.querySelector('[data-adj-lista]');
   const botonAgregar = raiz.querySelector('[data-adj-agregar]');
@@ -99,10 +100,11 @@ export function wireAdjuntosPropuesta(overlay, { idArchivo, onCambio = () => {} 
     if (e.archivo) partes.push('1 archivo');
     if (e.enlaces.length) partes.push(pluralizar(e.enlaces.length, 'enlace', 'enlaces'));
     if (e.nota) partes.push('nota');
-    const valido = !!(e.archivo || e.enlaces.length) && !e.hayInvalidos;
+    const tieneContenido = archivoObligatorio ? !!e.archivo : !!(e.archivo || e.enlaces.length);
+    const valido = tieneContenido && !e.hayInvalidos;
     let texto;
     if (e.hayInvalidos) texto = 'Corrige los enlaces marcados para continuar.';
-    else if (!e.archivo && !e.enlaces.length) texto = 'Agrega un archivo o al menos un enlace para continuar.';
+    else if (!tieneContenido) texto = archivoObligatorio ? 'Adjunta el PDF de la propuesta para continuar.' : 'Agrega un archivo o al menos un enlace para continuar.';
     else texto = `Se enviará: ${partes.join(' · ')}`;
     resumen.textContent = texto;
     resumen.classList.toggle('is-pendiente', !valido);
@@ -153,7 +155,8 @@ export function wireAdjuntosPropuesta(overlay, { idArchivo, onCambio = () => {} 
         pintarFila(fila, true);
         if (leerFila(fila).error) { fila.querySelector('.adj-url').focus(); return 'Corrige los enlaces marcados.'; }
       }
-      if (!e.archivo && !e.enlaces.length) return 'Agrega un archivo o al menos un enlace.';
+      if (archivoObligatorio && !e.archivo) return 'Adjunta el PDF de la propuesta.';
+      if (!archivoObligatorio && !e.archivo && !e.enlaces.length) return 'Agrega un archivo o al menos un enlace.';
       return null;
     },
     // Agrega al FormData el archivo (con el nombre de campo que espera el servidor), los enlaces y la nota.

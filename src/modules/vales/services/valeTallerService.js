@@ -133,9 +133,9 @@ class ValeTallerService {
   // DENTRO del lock de valeMutex (no antes) para que dos requests casi
   // simultáneos con la misma key nunca lo evalúen en paralelo.
   async entregar(usuario, valeId, archivoPropuesta, idempotencyKey, adjuntos = { nota: null, enlaces: [] }) {
-    // Una propuesta es válida con un archivo o con al menos un enlace; la nota sola no basta.
-    if (!archivoPropuesta && !adjuntos.enlaces.length) {
-      throw new Error('Adjunta un archivo PDF o al menos un enlace para entregar la propuesta.');
+    // Entregar exige siempre un documento PDF; los enlaces y la nota son complementos opcionales.
+    if (!archivoPropuesta) {
+      throw new Error('Adjunta el documento PDF de la propuesta para poder entregarla.');
     }
     return valeMutex.conLockDeVale(valeId, async () => {
       const key = idempotencyKey || crypto.randomUUID();

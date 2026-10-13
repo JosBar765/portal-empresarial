@@ -336,8 +336,7 @@ function htmlMiniTabla(g) {
       <td data-label="Atraso">${htmlAtraso(v)}</td>
       <td data-label="${agrupadoPorDisenador ? 'Terminado' : 'Propuesta'}">${agrupadoPorDisenador ? htmlTerminado(v) : htmlPropuesta(v)}</td>
       <td data-label="Acciones" class="rep-acciones-celda"><div class="rep-acciones-fila">
-        <button type="button" class="btn-icon" data-ver="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}" data-cliente="${escapeHtml(v.cliente)}"${v.tienePropuesta ? ' data-con-propuesta="1"' : ''} title="Ver vale" aria-label="Ver vale ${escapeHtml(v.correlativo)}"><ion-icon name="eye-outline"></ion-icon></button>
-        ${v.tienePropuesta ? `<button type="button" class="btn-icon" data-propuesta="1" data-id="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}" data-cliente="${escapeHtml(v.cliente)}" title="Ver propuesta" aria-label="Ver propuesta de ${escapeHtml(v.correlativo)}"><ion-icon name="document-attach-outline"></ion-icon></button>` : ''}
+        <button type="button" class="btn-icon" data-ver="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}"${v.tienePropuesta ? ' data-con-propuesta="1"' : ''} title="Ver vale" aria-label="Ver vale ${escapeHtml(v.correlativo)}"><ion-icon name="eye-outline"></ion-icon></button>
       </div></td>
     </tr>`).join('');
   return `<div class="rep-mini-wrap"><table class="rep-mini"><thead><tr><th>Vale</th>${vistaTaller ? '<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th><th>Atraso</th><th>${agrupadoPorDisenador ? 'Terminado' : 'Propuesta'}</th><th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
@@ -407,10 +406,7 @@ function renderGrupos(data) {
 // Acciones de cada vale desplegado: ver el vale (PDF) y ver su propuesta.
 function conectarAcciones(cuerpo) {
   cuerpo.querySelectorAll('[data-ver]').forEach(b => b.addEventListener('click', () => abrirVisorVale({
-    id: b.dataset.ver, correlativo: b.dataset.correlativo, cliente: b.dataset.cliente, propuesta: b.dataset.conPropuesta ? { tipo: 'ultima' } : null
-  })));
-  cuerpo.querySelectorAll('[data-propuesta]').forEach(b => b.addEventListener('click', () => abrirVisorVale({
-    id: b.dataset.id, correlativo: b.dataset.correlativo, cliente: b.dataset.cliente, propuesta: { tipo: 'ultima' }, activo: 'propuesta'
+    id: b.dataset.ver, correlativo: b.dataset.correlativo, propuesta: b.dataset.conPropuesta ? { tipo: 'ultima' } : null
   })));
 }
 

@@ -201,7 +201,7 @@ export function abrirModalVerSupervisor(fila) {
   overlay.querySelector('#btn-ver-pdf').addEventListener('click', () => {
     registrarVisto(fila);
     cerrar();
-    abrirVisorVale({ id: v.id, correlativo: v.correlativo, cliente: v.cliente_nombre, propuesta: v.propuesta_general_url || v.propuesta_extra ? { tipo: 'general' } : null });
+    abrirVisorVale({ id: v.id, correlativo: v.correlativo, propuesta: v.propuesta_general_url || v.propuesta_extra ? { tipo: 'general' } : null });
   });
   overlay.querySelector('#btn-ver-info').addEventListener('click', () => {
     registrarVisto(fila);

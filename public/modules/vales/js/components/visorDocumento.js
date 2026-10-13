@@ -164,22 +164,20 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0 }) {
 
 // Atajo para un vale: su PDF y, si tiene, su propuesta (con nota y enlaces). `propuesta`: { tipo: 'taller' | 'general' | 'ultima',
 // disenadorId } o null; `activo`: 'vale' | 'propuesta'.
-export function abrirVisorVale({ id, correlativo, cliente = '', propuesta = null, activo = 'vale' }) {
+export function abrirVisorVale({ id, correlativo, propuesta = null, activo = 'vale' }) {
   const documentos = [{ etiqueta: 'Vale de arte', url: `/api/vales/${id}/pdf` }];
   if (propuesta) documentos.push({ etiqueta: 'Propuesta', cargar: () => obtenerPropuestaVale(id, propuesta) });
   return abrirVisor({
     titulo: correlativo || 'Vale de arte',
-    subtitulo: cliente,
     documentos,
     activo: activo === 'propuesta' && propuesta ? 1 : 0
   });
 }
 
 // Solo la propuesta de un vale (sin pestaña del vale), por ejemplo desde la revisión del Encargado.
-export function abrirVisorPropuesta({ id, correlativo, cliente = '', propuesta }) {
+export function abrirVisorPropuesta({ id, correlativo, propuesta }) {
   return abrirVisor({
     titulo: `Propuesta — ${correlativo || ''}`.trim(),
-    subtitulo: cliente,
     documentos: [{ etiqueta: 'Propuesta', cargar: () => obtenerPropuestaVale(id, propuesta) }]
   });
 }

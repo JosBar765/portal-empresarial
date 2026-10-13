@@ -39,3 +39,5 @@
 
 /* Nota y enlaces dentro del modal de revisión del Encargado */
 .pinfo-revision { margin-bottom: 14px; padding: 12px 14px; background: var(--color-surface-muted); border-radius: var(--radius-md); }
+
+.adj-requerido { color: var(--color-danger); }

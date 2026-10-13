@@ -120,7 +120,7 @@ export async function abrirModalRevisar(vale) {
   });
 
   const verPropuesta = overlay.querySelector('#btn-ver-propuesta');
-  if (verPropuesta) verPropuesta.addEventListener('click', () => abrirVisorPropuesta({ id: vale.id, correlativo: vale.correlativo, cliente: vale.cliente_nombre, propuesta: { tipo: 'taller', disenadorId: vale.disenador_id } }));
+  if (verPropuesta) verPropuesta.addEventListener('click', () => abrirVisorPropuesta({ id: vale.id, correlativo: vale.correlativo, propuesta: { tipo: 'taller', disenadorId: vale.disenador_id } }));
   overlay.querySelector('#btn-aprobar').addEventListener('click', () => enviarRevision(true));
   overlay.querySelector('#btn-desaprobar').addEventListener('click', () => enviarRevision(false));
 
@@ -201,9 +201,9 @@ export async function abrirModalAprobarGeneral(vale) {
     idArchivo: 'input-fusion',
     onCambio: ({ valido }) => { btnConfirmar.disabled = !valido; }
   });
-  overlay.querySelector('#btn-ver-vale').addEventListener('click', () => abrirVisorVale({ id: vale.id, correlativo: vale.correlativo, cliente: vale.cliente_nombre }));
+  overlay.querySelector('#btn-ver-vale').addEventListener('click', () => abrirVisorVale({ id: vale.id, correlativo: vale.correlativo }));
   overlay.querySelectorAll('[data-ver-propuesta-id]').forEach(b => b.addEventListener('click', () => abrirVisorPropuesta({
-    id: Number(b.dataset.verPropuestaId), correlativo: vale.correlativo, cliente: vale.cliente_nombre,
+    id: Number(b.dataset.verPropuestaId), correlativo: vale.correlativo,
     propuesta: { tipo: 'taller', disenadorId: Number(b.dataset.verPropuestaDis) }
   })));
   // Una sola key por apertura del modal — si el envío falla y el usuario

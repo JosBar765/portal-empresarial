@@ -112,3 +112,12 @@ Cada rol agrupa y filtra solo su personal a cargo:
 - El filtro «Todos los diseñadores» (Administrador y Gerente) ahora lista también a los **encargados y asistentes de taller** (y a cualquiera con vales asignados), con la etiqueta «· Encargado» / «· Asistente» en el filtro, las fichas, la tabla agrupada por Diseñador y el PDF. Antes solo listaba a quienes estaban asignados a un taller como diseñadores, y un encargado que se asigna vales a sí mismo no se podía elegir.
 - **Con un taller elegido**, el filtro de diseñadores solo muestra a quienes trabajan en ese taller, al cambiar de taller se quitan las personas elegidas que ya no aplican, y al agrupar por Diseñador solo salen los diseñadores de ese taller (antes, un vale de varios talleres traía también a los de los otros talleres).
 - Archivos: `reporteRepository.js` (`listarDisenadores`, `listarNombres`), `valeReporteService.js`, `valeReporteGruposService.js`, `views/reportes.js`. Sin migración.
+
+## Ajuste posterior: entregar propuesta exige siempre el PDF
+
+- **Entregar propuesta** ahora exige **siempre un documento PDF**: el botón «Entregar» queda deshabilitado hasta adjuntarlo (con el aviso «Adjunta el PDF de la propuesta para continuar») y la API responde 400 sin archivo, aunque lleve enlaces. Los **enlaces y la nota** pasan a ser complementos opcionales. La fusión del Encargado no cambia (archivo o enlace).
+
+## Ajuste posterior: visor sin botón «Ver propuesta» y con encabezado compacto
+
+- Como el visor ya muestra el vale y la propuesta en pestañas, se quita el ícono aparte «Ver propuesta» de las filas del Buzón y de la tabla de Reportes: el ojo abre el visor (siempre en «Vale de arte») y la pestaña «Propuesta» aparece cuando existe. Los modales de revisión, fusión, Asesor y Supervisor no cambian.
+- El encabezado del visor ya no muestra el cliente (solo el correlativo) y es más bajo y de letra menor; el tamaño de la ventana no cambia.
