@@ -6,6 +6,7 @@
   const POR_PAGINA = 20;
   const estado = { modulo: null, items: [], noLeidas: 0, hayMas: false, abierto: false, cargando: false };
   let root = null;
+  let tituloBase = '';
 
   const escapar = (t) => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -35,8 +36,16 @@
     render();
   }
 
+  // Muestra el total de no leídas en la pestaña del navegador: "(3) Vales de Arte | Portal Empresarial".
+  function actualizarTituloPestana() {
+    if (!tituloBase) return;
+    const total = estado.noLeidas > 99 ? '99+' : estado.noLeidas;
+    document.title = estado.noLeidas ? `(${total}) ${tituloBase}` : tituloBase;
+  }
+
   function render() {
     if (!root) return;
+    actualizarTituloPestana();
     // Conserva el desplazamiento de la lista al redibujar (marcar leída, cargar más).
     const scrollPrevio = root.querySelector('.notif-lista')?.scrollTop || 0;
     const lista = estado.items.map(n => `
@@ -86,6 +95,7 @@
     root = document.getElementById('notificaciones-root');
     if (!root || !modulo) return;
     estado.modulo = modulo;
+    tituloBase = document.title.replace(/^\(\d+\+?\)\s*/, '');
     root.addEventListener('click', (e) => {
       e.stopPropagation();
       if (e.target.closest('.notif-bell')) {

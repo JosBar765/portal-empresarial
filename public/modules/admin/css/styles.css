@@ -935,3 +935,5 @@
   .data-table td > * { min-width: 0; max-width: 100%; }
   .tabla-wrapper { overflow-x: visible; }
 }
+
+.permiso-item--no-heredable { opacity: 0.5; cursor: not-allowed; }

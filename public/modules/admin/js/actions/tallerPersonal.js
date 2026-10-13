@@ -1,23 +1,17 @@
 import { escapeHtml } from '../utils/formato.js';
 import { $$ } from '../utils/dom.js';
-import { ROL_DISENADOR, ROL_ASISTENTE, ROL_ENCARGADO_DISENO_LOCAL, TALLERES_CLONABLES_ASISTENTE } from '../config/roles.js';
+import { ROL_DISENADOR, rolEncargadoDeTaller, rolPadreDe } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import {
-  listarPersonalDeTaller, listarUsuariosRaw,
+  listarPersonalDeTaller, listarUsuariosRaw, listarRolesRaw,
   asignarEncargadoTaller, quitarEncargadoTaller,
   agregarDisenadorATaller, quitarDisenadorDeTaller
 } from '../api/adminApi.js';
 import { cargarTalleres } from '../views/talleres.js';
 
-function rolEsperadoDeTaller(taller) {
-  if (taller.nombre === 'Diseño') return 4;
-  if (taller.nombre === 'Diseño UV/3D') return 5;
-  if (taller.nombre === 'Protextil') return 9;
-  return ROL_ENCARGADO_DISENO_LOCAL;
-}
-
 export async function abrirModalVerPersonalTaller(taller) {
-  const personal = await listarPersonalDeTaller(taller.id);
+  const [personal, rolesRaw] = await Promise.all([listarPersonalDeTaller(taller.id), listarRolesRaw()]);
+  const esAsistenteRol = (rolId) => rolPadreDe(rolId, rolesRaw.data.roles) !== null;
   const encargado = personal.find(p => p.tipo_vinculo === 'encargado');
   const disenadores = personal.filter(p => p.tipo_vinculo === 'disenador');
   const bodyHtml = `
@@ -33,7 +27,7 @@ export async function abrirModalVerPersonalTaller(taller) {
         <div class="personal-item">
           <div class="personal-item-info">
             <span>${escapeHtml(p.nombre)}</span>
-            ${p.rol_id === ROL_ASISTENTE ? '<span class="rol">Asistente</span>' : ''}
+            ${esAsistenteRol(p.rol_id) ? '<span class="rol">Asistente</span>' : ''}
           </div>
         </div>
       `).join('') || '<p class="form-hint">Sin diseñadores asignados.</p>'}
@@ -48,21 +42,23 @@ export async function abrirModalVerPersonalTaller(taller) {
 }
 
 export async function abrirModalPersonalTaller(taller) {
-  const [personal, usuariosRaw] = await Promise.all([
+  const [personal, usuariosRaw, rolesRaw] = await Promise.all([
     listarPersonalDeTaller(taller.id),
-    listarUsuariosRaw()
+    listarUsuariosRaw(),
+    listarRolesRaw()
   ]);
+  const roles = rolesRaw.data.roles;
+  const esAsistenteRol = (rolId) => rolPadreDe(rolId, roles) !== null;
   const todosUsuarios = usuariosRaw.data.usuarios;
   const encargadoActual = personal.find(p => p.tipo_vinculo === 'encargado');
   const disenadoresActuales = personal.filter(p => p.tipo_vinculo === 'disenador');
   const idsActuales = new Set(personal.map(p => p.id));
 
-  const rolEsperado = rolEsperadoDeTaller(taller);
+  const rolEsperado = rolEncargadoDeTaller(taller);
   const encargadosDisponibles = todosUsuarios.filter(u => u.activo && u.rol_id === rolEsperado && !u.taller_id);
-  const disenadoresClonables = TALLERES_CLONABLES_ASISTENTE.includes(taller.nombre);
   const disenadoresDisponibles = todosUsuarios.filter(u =>
     u.activo && !idsActuales.has(u.id) && !u.taller_id &&
-    (u.rol_id === ROL_DISENADOR || (u.rol_id === ROL_ASISTENTE && disenadoresClonables))
+    (u.rol_id === ROL_DISENADOR || rolPadreDe(u.rol_id, roles) === rolEsperado)
   );
 
   const bodyHtml = `
@@ -74,7 +70,7 @@ export async function abrirModalPersonalTaller(taller) {
         <div class="personal-item" data-usuario-id="${p.id}">
           <div class="personal-item-info">
             <span>${escapeHtml(p.nombre)}</span>
-            ${p.rol_id === ROL_ASISTENTE ? '<span class="rol">Asistente</span>' : ''}
+            ${esAsistenteRol(p.rol_id) ? '<span class="rol">Asistente</span>' : ''}
           </div>
         </div>
       `).join('') || '<p class="form-hint">Sin diseñadores asignados.</p>'}
@@ -85,7 +81,7 @@ export async function abrirModalPersonalTaller(taller) {
         <label>Persona</label>
         <select id="input-agregar-disenador">
           <option value="">Seleccionar...</option>
-          ${disenadoresDisponibles.map(u => `<option value="${u.id}">${escapeHtml(u.nombre)}${u.rol_id === ROL_ASISTENTE ? ' (Asistente)' : ''}</option>`).join('')}
+          ${disenadoresDisponibles.map(u => `<option value="${u.id}">${escapeHtml(u.nombre)}${esAsistenteRol(u.rol_id) ? ' (Asistente)' : ''}</option>`).join('')}
         </select>
       </div>
     </div>

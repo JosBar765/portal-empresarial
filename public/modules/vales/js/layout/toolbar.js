@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_ENCARGADO_TALLER } from '../config/roles.js';
+import { ROL, ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
 import { obtenerDisenadoresAsignables } from '../api/valesApi.js';
 import { hoyMedianoche, isoLocal, parseIsoLocal, primerDiaDelMes, sumarDiaLocal } from '../utils/fechas.js';
 import { htmlCampoFechaCompacto, wireCampoFecha } from '../components/datepicker.js';
@@ -96,7 +96,7 @@ export function wireToolbar() {
     debounceBusqueda = setTimeout(() => { state.busqueda = valor; cargarBuzon(); }, 300);
   });
   // Combobox de diseñadores del encargado: filtra el Buzón por el diseñador asignado (se combina con los contadores).
-  if (ROLES_ENCARGADO_TALLER.includes(state.user.rolId)) {
+  if (ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user))) {
     const selectDisenador = $('#filtro-disenador');
     obtenerDisenadoresAsignables().then(disenadores => {
       (Array.isArray(disenadores) ? disenadores : []).forEach(d => {
@@ -116,7 +116,7 @@ export function wireToolbar() {
   // (catalogos) ya viene acotado a lo que cada uno puede filtrar: el catálogo
   // completo para Gerente/Administrador, solo sus tiendas cubiertas para
   // Supervisor.
-  if ([ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR].includes(state.user.rolId)) {
+  if ([ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR].includes(rolEncargadoDe(state.user))) {
     const selectTienda = $('#filtro-tienda');
     selectTienda.style.display = '';
     (state.catalogos.tiendasGerencia || state.catalogos.tiendas || []).forEach(t => {

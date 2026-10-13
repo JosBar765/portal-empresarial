@@ -14,7 +14,7 @@ const destinatariosRepository = require('./repositories/destinatariosRepository'
 const tallerRepository = require('./repositories/tallerRepository');
 const valeCatalogoService = require('./services/valeCatalogoService');
 const valeDetalleService = require('./services/valeDetalleService');
-const { ROL, ROLES_ENCARGADO_TALLER, PERMISO_FUSION, SALA_FUSION, esAdministrador } = require('./services/valeHelpers');
+const { ROL, esDeTaller, PERMISO_FUSION, SALA_FUSION, esAdministrador } = require('./services/valeHelpers');
 
 const SALA_ADMIN = 'vales:admin';
 
@@ -31,10 +31,11 @@ async function puedeUnirseASala(socket, sala) {
   // El supervisor también puede crear vales: recibe lo de los suyos en su sala de asesor.
   if (usuario.rolId === ROL.SUPERVISOR) return sala === `supervisor:${usuario.id}` || sala === `asesor:${usuario.id}`;
   if (usuario.rolId === ROL.DISENADOR) return sala === `disenador:${usuario.id}`;
-  if (ROLES_ENCARGADO_TALLER.includes(usuario.rolId) && sala.startsWith('taller:')) {
+  if (esDeTaller(usuario) && sala.startsWith('taller:')) {
     const tallerId = Number(sala.slice('taller:'.length));
     if (!Number.isFinite(tallerId)) return false;
-    const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
+    const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario).catch(() => null);
+    if (idEfectivo === null) return false;
     const talleres = await tallerRepository.listarActivos();
     const miTaller = talleres.find(t => t.encargado_id === idEfectivo);
     return !!miTaller && miTaller.id === tallerId;

@@ -154,8 +154,8 @@ class TallerAdminRepository {
     );
   }
 
-  // Mismo mecanismo para Diseñador (rol 6) y Asistente (rol 7, "clona" el
-  // taller elegido) — PK en usuario_id, así que reasignar es un upsert
+  // Mismo mecanismo para Diseñador (rol 6) y roles de asistente (varios por taller; el
+  // taller se valida en el servicio) — PK en usuario_id, así que reasignar es un upsert
   // simple (nunca puede quedar en dos talleres).
   async asignarDisenador(usuarioId, tallerId) {
     return db.query(

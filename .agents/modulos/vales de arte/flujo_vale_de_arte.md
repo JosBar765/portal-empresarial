@@ -377,7 +377,7 @@ Los adjuntos de un vale (vectores, fuentes, etc.) viajan por **correo**, fuera d
 
 - **Quién:** el permiso `vales.verificar_adjuntos` lo tienen los roles 4, 5, 9 y 10 (encargados de taller) y el 7 (asistente, solo Diseño). Cada uno actúa solo sobre **su** taller. **Rechazar es un rechazo general con mensaje obligatorio** (1 a 200 caracteres) para el asesor, que abre la conversación de ese taller (ver «Conversación del rechazo»). **Verificar** pide confirmación en un modal («¿Estás seguro que recibiste los adjuntos del vale de arte antes de trabajar?»); rechazar también tiene su modal.
 - **Por taller:** un taller que rechaza no frena a los demás del mismo vale; el asesor responde **una vez por taller** rechazado.
-- **Respuesta del asesor** (permiso `vales.corregir`, solo el dueño del vale): botón «Adjuntos enviados al correo», con un mensaje editable de hasta 200 caracteres, prellenado con «Adjuntos enviados al correo». El mensaje es **obligatorio**: vacío o solo espacios se rechaza («Escribe un mensaje.») y el botón «Enviar» se deshabilita sin texto; si falta el taller, el error dice «Indica a qué taller respondes.». El vale vuelve al encargado, que ve el mensaje y puede verificar o rechazar otra vez (el ciclo se repite). Mientras el asesor no responde, el encargado no tiene acciones; un supervisor que no es el dueño solo ve el estado, sin botón de respuesta.
+- **Respuesta del asesor** (permiso `vales.corregir`, solo el dueño del vale): botón «Solventado», con un mensaje editable de hasta 200 caracteres, prellenado con «Solventado». El mensaje es **obligatorio**: vacío o solo espacios se rechaza («Escribe un mensaje.») y el botón «Enviar» se deshabilita sin texto; si falta el taller, el error dice «Indica a qué taller respondes.». El vale vuelve al encargado, que ve el mensaje y puede verificar o rechazar otra vez (el ciclo se repite). Mientras el asesor no responde, el encargado no tiene acciones; un supervisor que no es el dueño solo ve el estado, sin botón de respuesta.
 - **Plazo único de N horas laborales** desde el **primer** rechazo del taller (`vale_talleres.adjuntos_vence_en`): no se reinicia con rechazos posteriores. Cuando queda el 25% del plazo (en tiempo laboral) se avisa **una sola vez por taller** al asesor, a sus supervisores y al encargado de **cada** taller del vale (encargado + asistentes, no a los diseñadores); si dos talleres tienen adjuntos rechazados en esa ventana, cada persona recibe un aviso por taller. En cambio, cuando un taller **verifica** sus adjuntos el aviso va solo a ese taller (más el asesor y los supervisores): los demás talleres no se enteran. Si vence con el taller todavía en `ADJUNTOS_RECHAZADOS`, se **borra el vale completo** (todos sus talleres, aunque otros ya trabajen) con sus archivos y se libera el cupo del supervisor; un vale `MOD-` deja el original intacto. Si el asesor ya respondió, no se borra, aunque el encargado rechace después de pasado el plazo (en ese caso el siguiente chequeo lo borra). Lo hace `adjuntosWatcher.js` (60 s), calcado de `vigenciaWatcher.js`.
 - **Dar de baja:** el asesor puede dar de baja un vale **ya autorizado** mientras algún taller esté en `ADJUNTOS_RECHAZADOS` o `ADJUNTOS_RESPONDIDOS` (no en `VERIFICANDO_ADJUNTOS`). Cancela el vale completo; los talleres que ya trabajaban, sus encargados y el diseñador asignado reciben un aviso y el vale desaparece de su vista.
 - **Qué ve cada uno:** el encargado conserva el vale en la lista normal de «Pendientes de asignar» (los tres estados suman al contador) con la etiqueta «Verificar adjuntos», «Esperando adjuntos» o «Adjuntos enviados, verificar». El asesor y el supervisor ven el paso 2 del pipeline **en rojo** con «Faltan adjuntos: <taller>» y, en «ver adjuntos faltantes», el motivo; el supervisor ve exactamente la misma lista que antes. El historial del vale solo lo ve quien tiene `vales.ver_historial` (hoy el Administrador); sin ese permiso el servidor devuelve el historial vacío.
@@ -545,6 +545,13 @@ Es una condición **derivada** de `fecha_entrega`, calculada al vuelo
 (`calcularAtraso`) en cada consulta; no se guarda como estado. Puede
 combinarse con cualquier filtro de estado.
 
+- **Se cuenta por día calendario (hora de Guatemala, UTC-6)**, usando solo la
+  fecha de `fecha_entrega`; la hora no influye. Ejemplo: un vale ingresa el
+  12/10 a las 14:55 y se entrega el 13/10. Durante todo el 13/10 está "Al día"
+  y muestra "Hoy" (vence hoy); desde el 14/10 00:00 está atrasado con 1 día,
+  el 15/10 con 2, y así. "Hoy" solo aplica mientras el vale sigue activo; uno
+  ya confirmado el día de entrega queda "Al día".
+
 - Mientras el vale está activo, el atraso corre en vivo.
 - Se **congela** (se detiene de forma permanente) en dos momentos:
   1. el asesor confirma de recibido (`confirmarRecibido`),
@@ -555,8 +562,8 @@ combinarse con cualquier filtro de estado.
   modificación (`vales.atraso_congelado_en`). Los vales ya
   `RECIBIDO` sin sello de congelamiento usan `actualizado_en` como respaldo.
 - **Alerta en vivo:** `atrasoWatcher.js` corre cada 60 s en el mismo proceso
-  y detecta los vales con **1 día completo o más** de atraso (pasadas 24 h de
-  su `fecha_entrega`; antes solo se muestra "vence hoy"). Dispara
+  y detecta los vales con **1 día o más** de atraso (a partir de las 00:00 del
+  día siguiente a su `fecha_entrega`; ese mismo día solo se muestra "Hoy"). Dispara
   una alerta roja **una sola vez por vale** (`atraso_notificado_en`) solo a
   quien lo tiene "en su vista": el asesor, sus supervisores, los talleres con
   fila activa (pendiente, asignado, en proceso, en pausa o en revisión), los diseñadores con

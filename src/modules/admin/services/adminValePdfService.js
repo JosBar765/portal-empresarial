@@ -7,6 +7,7 @@ const subirYRegistrarArchivo = require('../../../core/files/subirYRegistrarArchi
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idOpcional } = require('../../../core/utils/validar');
 const repo = require('../repositories/valePdfGeneradoRepository');
+const nombreArchivo = require('../../../core/files/nombreArchivo');
 
 const HASH_FICTICIO = bcrypt.hashSync('contrasena-ficticia-que-nadie-usa', 10);
 const RE_FECHA = /^\d{4}-\d{2}-\d{2}$/;
@@ -130,9 +131,15 @@ class AdminValePdfService {
       ...archivos.documentos.map(f => ({ tipo: 'documento', buffer: f.buffer, mime_type: f.mimetype, nombre_original: f.originalname }))
     ];
     const pdf = await valePdfService.generarPdfVale(vale, documentos);
+    // X = siguiente número entre los PDFs ya generados con este correlativo y tipo.
+    const tipoNombre = vale.__firmaAutorizacion ? 'AUTORIZACION' : 'CREACION';
+    const prefijo = nombreArchivo.prefijoCorreccionAdmin(vale.correlativo, tipoNombre);
+    const previas = await repo.listarUrlsPorCorrelativo(nombreArchivo.sanitizarCorrelativo(vale.correlativo));
+    const numero = nombreArchivo.siguienteContador(previas, prefijo);
     // Si falla el registro, subirYRegistrarArchivo borra el archivo recién subido.
     return subirYRegistrarArchivo({
       buffer: pdf, nombreOriginal: `${vale.correlativo}.pdf`, mimeType: 'application/pdf',
+      nombreObjeto: nombreArchivo.correccionAdmin(vale.correlativo, tipoNombre, numero),
       registrar: async (subida) => {
         const id = await repo.insertar({ usuarioId, correlativo: vale.correlativo, url: subida.url });
         return { id, correlativo: vale.correlativo, url: subida.url };

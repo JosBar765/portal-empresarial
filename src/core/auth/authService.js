@@ -27,7 +27,7 @@ class AuthService {
       [rolId]
     );
     const rolesRows = await db.query(
-      'SELECT nombre FROM roles WHERE id = ?',
+      'SELECT nombre, hereda_de_rol_id FROM roles WHERE id = ?',
       [rolId]
     );
     const rolNombre = rolesRows.length > 0 ? rolesRows[0].nombre : 'Usuario';
@@ -35,7 +35,9 @@ class AuthService {
     // Un módulo cuenta como "permitido" solo con su permiso "ver" — tener otras
     // acciones sueltas (crear, asignar…) sin "ver" no da acceso al módulo.
     const modules = [...new Set(permissionsRows.filter(row => row.codigo === `${row.modulo}.ver`).map(row => row.modulo))];
-    return { rolNombre, permissions, modules };
+    // Rol del encargado del que hereda (solo los roles de asistente; null en el resto).
+    const heredaDeRolId = rolesRows.length > 0 ? rolesRows[0].hereda_de_rol_id : null;
+    return { rolNombre, heredaDeRolId, permissions, modules };
   }
 
   /**
@@ -116,7 +118,7 @@ class AuthService {
       'usuario:reiniciar_fallos_login'
     );
 
-    const { rolNombre, permissions, modules } = await this._cargarPermisosYRol(user.rol_id);
+    const { rolNombre, heredaDeRolId, permissions, modules } = await this._cargarPermisosYRol(user.rol_id);
 
     // Quitar hash de la contraseña por seguridad
     const userClean = {
@@ -125,6 +127,7 @@ class AuthService {
       email: user.email,
       rolId: user.rol_id,
       rolNombre: rolNombre,
+      heredaDeRolId: heredaDeRolId,
       modulosPermitidos: modules
     };
 
@@ -152,7 +155,7 @@ class AuthService {
       throw new Error('Esta cuenta de usuario está desactivada.');
     }
 
-    const { rolNombre, permissions, modules } = await this._cargarPermisosYRol(user.rol_id);
+    const { rolNombre, heredaDeRolId, permissions, modules } = await this._cargarPermisosYRol(user.rol_id);
 
     const userClean = {
       id: user.id,
@@ -160,6 +163,7 @@ class AuthService {
       email: user.email,
       rolId: user.rol_id,
       rolNombre: rolNombre,
+      heredaDeRolId: heredaDeRolId,
       modulosPermitidos: modules
     };
 
