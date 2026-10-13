@@ -8,7 +8,7 @@ const propuestaRepository = require('../repositories/propuestaRepository');
 const reporteRepository = require('../repositories/reporteRepository');
 const valeBuzonService = require('./valeBuzonService');
 const { calcularPipeline } = require('./valePipeline');
-const { ROL, ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, enriquecer, esValeDeModificacion } = require('./valeHelpers');
+const { ROL, ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ROLES_ENCARGADO_TALLER, enriquecer, esValeDeModificacion } = require('./valeHelpers');
 
 const AGRUPACIONES = ['asesor', 'disenador', 'taller', 'tienda'];
 const MAX_VALES = 1000;
@@ -35,6 +35,12 @@ function compararVales(a, b) {
 }
 
 class ValeReporteGruposService {
+  // «Leticia Tzún · Encargado»: distingue a quien trabaja vales pero es encargado o asistente de un taller.
+  etiquetaNombre(nombre, rolId) {
+    if (rolId === ROL.ASISTENTE_DISENO) return `${nombre} · Asistente`;
+    return ROLES_ENCARGADO_TALLER.includes(rolId) ? `${nombre} · Encargado` : nombre;
+  }
+
   agrupacionValida(valor, porDefecto) {
     return AGRUPACIONES.includes(valor) ? valor : porDefecto;
   }
@@ -56,7 +62,7 @@ class ValeReporteGruposService {
       if (tiendaId && v.tienda_id !== tiendaId) return false;
       if (asesorSel.size && !asesorSel.has(v.asesor_id)) return false;
       if (tallerId && !filas(v).some(f => f.taller_id === tallerId)) return false;
-      if (disSel.size && !filas(v).some(f => disSel.has(f.disenador_id))) return false;
+      if (disSel.size && !filas(v).some(f => (!tallerId || f.taller_id === tallerId) && disSel.has(f.disenador_id))) return false;
       return true;
     });
 
@@ -66,7 +72,9 @@ class ValeReporteGruposService {
     const tiendas = new Map((await reporteRepository.listarTiendas()).map(t => [t.id, t.nombre]));
     const idsPersonas = new Set();
     visibles.forEach(v => { idsPersonas.add(v.asesor_id); filas(v).forEach(f => { if (f.disenador_id) idsPersonas.add(f.disenador_id); }); });
-    const nombres = new Map((await reporteRepository.listarNombres([...idsPersonas])).map(u => [u.id, u.nombre]));
+    const usuarios = await reporteRepository.listarNombres([...idsPersonas]);
+    const nombres = new Map(usuarios.map(u => [u.id, u.nombre]));
+    const nombresConRol = new Map(usuarios.map(u => [u.id, this.etiquetaNombre(u.nombre, u.rol_id)]));
 
     // Vista Taller (Encargado/Asistente): un vale está terminado cuando su parte ya salió a revisión o se aprobó.
     const esTaller = alcance.rol === 'encargado';
@@ -106,8 +114,10 @@ class ValeReporteGruposService {
         const unicos = [...new Set(ids)].filter(id => !tallerId || id === tallerId);
         return unicos.length ? unicos.map(id => ({ id, nombre: talleres.get(id) || `Taller ${id}` })) : [{ id: 0, nombre: 'Sin taller' }];
       }
-      const dis = [...new Set((esTaller ? propias(v) : filas(v)).map(f => f.disenador_id).filter(Boolean))].filter(id => !disSel.size || disSel.has(id));
-      return dis.length ? dis.map(id => ({ id, nombre: nombres.get(id) || `#${id}` })) : [{ id: 0, nombre: 'Sin diseñador asignado' }];
+      // Con un taller elegido (o para el Encargado, sus talleres) solo cuentan las filas de ese taller, no las de otros talleres del vale.
+      const delTaller = tallerId ? filas(v).filter(f => f.taller_id === tallerId) : (esTaller ? propias(v) : filas(v));
+      const dis = [...new Set(delTaller.map(f => f.disenador_id).filter(Boolean))].filter(id => !disSel.size || disSel.has(id));
+      return dis.length ? dis.map(id => ({ id, nombre: nombresConRol.get(id) || `#${id}` })) : [{ id: 0, nombre: 'Sin diseñador asignado' }];
     };
 
     const grupos = new Map();
@@ -121,7 +131,7 @@ class ValeReporteGruposService {
     const elegidas = agruparPor === 'asesor' ? asesorSel : (agruparPor === 'disenador' ? disSel : new Set());
     if (elegidas.size) {
       const faltan = [...elegidas].filter(id => !grupos.has(id));
-      (await reporteRepository.listarNombres(faltan)).forEach(u => grupos.set(u.id, { clave: `${agruparPor}:${u.id}`, id: u.id, nombre: u.nombre, vales: [] }));
+      (await reporteRepository.listarNombres(faltan)).forEach(u => grupos.set(u.id, { clave: `${agruparPor}:${u.id}`, id: u.id, nombre: agruparPor === 'disenador' ? this.etiquetaNombre(u.nombre, u.rol_id) : u.nombre, vales: [] }));
     }
 
     const totalVales = visibles.length;

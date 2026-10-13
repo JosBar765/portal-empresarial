@@ -106,3 +106,9 @@ Cada rol agrupa y filtra solo su personal a cargo:
 ## Ajuste posterior: tabla «Vales por diseñador»
 
 - Al agrupar por diseñador (pantalla y PDF) se quita la columna/cifra **Autorizados** y la columna «Propuesta» pasa a **«Terminado»** con Sí o No (el taller ya terminó su parte; para otros roles, el vale ya está completo). En la columna Atención, «sin propuesta» pasa a «sin terminar». Las demás agrupaciones no cambian.
+
+## Ajuste posterior: encargados que trabajan vales y filtro por taller
+
+- El filtro «Todos los diseñadores» (Administrador y Gerente) ahora lista también a los **encargados y asistentes de taller** (y a cualquiera con vales asignados), con la etiqueta «· Encargado» / «· Asistente» en el filtro, las fichas, la tabla agrupada por Diseñador y el PDF. Antes solo listaba a quienes estaban asignados a un taller como diseñadores, y un encargado que se asigna vales a sí mismo no se podía elegir.
+- **Con un taller elegido**, el filtro de diseñadores solo muestra a quienes trabajan en ese taller, al cambiar de taller se quitan las personas elegidas que ya no aplican, y al agrupar por Diseñador solo salen los diseñadores de ese taller (antes, un vale de varios talleres traía también a los de los otros talleres).
+- Archivos: `reporteRepository.js` (`listarDisenadores`, `listarNombres`), `valeReporteService.js`, `valeReporteGruposService.js`, `views/reportes.js`. Sin migración.

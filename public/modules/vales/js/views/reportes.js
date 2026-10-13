@@ -224,6 +224,10 @@ function renderFiltros(data) {
   const agrupar = data.grupos.agruparPor;
   const permitidas = f.agrupaciones && f.agrupaciones.length ? f.agrupaciones : AGRUPACIONES.map(a => a.id);
   const disponibles = AGRUPACIONES.filter(a => permitidas.includes(a.id));
+  // El selector de diseñadores solo lista a quienes trabajan en el taller elegido (si hay uno).
+  const tallerElegido = Number(r.tallerId) || null;
+  const delTaller = (d) => !tallerElegido || !d.tallerIds || d.tallerIds.includes(tallerElegido);
+  const disenadoresVisibles = f.disenadores.filter(delTaller);
   const opciones = (lista, valor, vacio) => `<option value="">${vacio}</option>${lista.map(o => `<option value="${o.id}"${String(o.id) === String(valor) ? ' selected' : ''}>${escapeHtml(o.nombre)}</option>`).join('')}`;
   cont.hidden = false;
   cont.innerHTML = `
@@ -250,17 +254,24 @@ function renderFiltros(data) {
   const tienda = $('#rep-f-tienda', cont);
   if (tienda) tienda.addEventListener('change', () => { r.tiendaId = tienda.value; r.expandidos.clear(); cargarReportes(); });
   const taller = $('#rep-f-taller', cont);
-  if (taller) taller.addEventListener('change', () => { r.tallerId = taller.value; r.expandidos.clear(); cargarReportes(); });
+  if (taller) taller.addEventListener('change', () => {
+    r.tallerId = taller.value;
+    // Las personas elegidas que no trabajan en el nuevo taller se quitan de la selección.
+    const nuevo = Number(r.tallerId) || null;
+    if (nuevo) r.disenadorIds = r.disenadorIds.filter(id => { const d = f.disenadores.find(x => x.id === id); return !d || !d.tallerIds || d.tallerIds.includes(nuevo); });
+    r.expandidos.clear();
+    cargarReportes();
+  });
   if (f.asesores.length) {
     crearSelectorMultiple($('#rep-f-asesores', cont), {
       uid: 'rep-sel-asesores', icono: 'people-outline', vacio: 'Todos los asesores', plural: ['asesor', 'asesores'],
       opciones: f.asesores, seleccion: r.asesorIds, alAplicar: (ids) => { r.asesorIds = ids; r.expandidos.clear(); cargarReportes(); }
     });
   }
-  if (f.disenadores.length) {
+  if (disenadoresVisibles.length) {
     crearSelectorMultiple($('#rep-f-disenadores', cont), {
       uid: 'rep-sel-disenadores', icono: 'brush-outline', vacio: 'Todos los diseñadores', plural: ['diseñador', 'diseñadores'],
-      opciones: f.disenadores, seleccion: r.disenadorIds, alAplicar: (ids) => { r.disenadorIds = ids; r.expandidos.clear(); cargarReportes(); }
+      opciones: disenadoresVisibles, seleccion: r.disenadorIds, alAplicar: (ids) => { r.disenadorIds = ids; r.expandidos.clear(); cargarReportes(); }
     });
   }
   const limpiar = $('#rep-limpiar-filtros', cont);

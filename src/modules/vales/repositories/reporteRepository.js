@@ -113,16 +113,27 @@ class ReporteRepository {
     );
   }
 
+  // Quienes trabajan vales: diseñadores asignados a un taller, encargados de taller (también trabajan vales asignados a sí mismos),
+  // asistentes y cualquier persona con vales asignados; con su rol y los talleres (`taller_ids`, separados por coma) donde trabajan.
   async listarDisenadores() {
     return db.query(
-      `SELECT DISTINCT u.id, u.nombre FROM usuarios u JOIN taller_disenadores td ON td.usuario_id = u.id WHERE u.activo = 1 ORDER BY u.nombre`,
+      `SELECT u.id, u.nombre, u.rol_id, GROUP_CONCAT(DISTINCT x.taller_id) AS taller_ids
+       FROM usuarios u
+       JOIN (
+         SELECT usuario_id, taller_id FROM taller_disenadores
+         UNION SELECT encargado_id AS usuario_id, id AS taller_id FROM talleres WHERE encargado_id IS NOT NULL AND activo = 1
+         UNION SELECT disenador_id AS usuario_id, taller_id FROM vale_talleres WHERE disenador_id IS NOT NULL
+       ) x ON x.usuario_id = u.id
+       WHERE u.activo = 1
+       GROUP BY u.id, u.nombre, u.rol_id
+       ORDER BY u.nombre`,
       [], 'reporte:disenadores'
     );
   }
 
   async listarNombres(usuarioIds) {
     if (!usuarioIds.length) return [];
-    return db.query('SELECT id, nombre FROM usuarios WHERE id IN (?)', [usuarioIds], 'reporte:nombres');
+    return db.query('SELECT id, nombre, rol_id FROM usuarios WHERE id IN (?)', [usuarioIds], 'reporte:nombres');
   }
 }
 
