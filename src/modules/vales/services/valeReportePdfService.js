@@ -56,9 +56,9 @@ function formatear(valor, formato) {
 }
 
 // Semáforo de la columna Atraso, solo con el color de la letra: rojo si está atrasado, naranja si vence hoy y amarillo si va al día.
-const COLOR_SEMAFORO = { rojo: rgb(0.78, 0.1, 0.1), naranja: rgb(0.85, 0.4, 0), amarillo: rgb(0.7, 0.5, 0) };
+const COLOR_SEMAFORO = { rojo: rgb(0.78, 0.1, 0.1), naranja: rgb(0.85, 0.4, 0), amarillo: rgb(0.7, 0.5, 0), verde: rgb(0.09, 0.5, 0.2), gris: rgb(0.45, 0.48, 0.52) };
 function semaforoAtraso({ atrasado, diasAtraso, venceHoy }) {
-  if (atrasado) return { semaforo: { texto: `${diasAtraso} ${diasAtraso === 1 ? 'día' : 'días'}`, tono: 'rojo' } };
+  if (atrasado) return { semaforo: { texto: diasAtraso >= 1 ? `${diasAtraso} ${diasAtraso === 1 ? 'día' : 'días'}` : 'Atrasado', tono: 'rojo' } };
   if (venceHoy) return { semaforo: { texto: 'Vence hoy', tono: 'naranja' } };
   return { semaforo: { texto: 'Al día', tono: 'amarillo' } };
 }
@@ -74,7 +74,8 @@ class ValeReportePdfService {
 
     this._nuevaPagina(ctx);
     this._encabezado(ctx, reporte, generadoPor, ahora);
-    if (reporte.grupos) this._grupos(ctx, reporte);
+    if (reporte.grupos && reporte.grupos.indicadoresTaller) this._taller(ctx, reporte);
+    else if (reporte.grupos) this._grupos(ctx, reporte);
     else {
       reporte.tablas.forEach(t => this._tablaPersonas(ctx, t));
       this._listado(ctx, reporte);
@@ -109,7 +110,7 @@ class ValeReportePdfService {
     if (ctx.logo) ctx.page.drawImage(ctx.logo, { x: x0, y: ctx.y - 22, width: 22, height: 22 });
     this._texto(ctx, 'REPORTE DE ACTIVIDAD', x0 + 30, ctx.y - 9, { size: 12, bold: true });
     this._texto(ctx, reporte.titulo, x0 + 30, ctx.y - 20, { size: 8.5, color: GRIS });
-    const derecha = [`Período: ${reporte.periodo.etiqueta}`, `Generado: ${ahora}${generadoPor ? ` por ${generadoPor}` : ''}`];
+    const derecha = [reporte.periodo.titulo || `Período: ${reporte.periodo.etiqueta}`, `Generado: ${ahora}${generadoPor ? ` por ${generadoPor}` : ''}`];
     derecha.forEach((linea, i) => {
       const t = this._ajustar(ctx, linea, 330, 7.5);
       this._texto(ctx, t, PAGE_WIDTH - MARGIN - ctx.font.widthOfTextAtSize(t, 7.5), ctx.y - 9 - i * 10, { size: 7.5, color: GRIS });
@@ -228,33 +229,88 @@ class ValeReportePdfService {
     const nombre = { asesor: 'ASESOR', disenador: 'DISEÑADOR', taller: 'TALLER', tienda: 'TIENDA' }[g.agruparPor];
     this._titulo(ctx, `VALES POR ${nombre} (${g.totalVales})`);
     if (!g.grupos.length) {
-      this._texto(ctx, 'No hubo vales creados en este período.', MARGIN, ctx.y - 8, { size: 9, color: GRIS });
+      this._texto(ctx, 'No hubo vales con entrega en este período.', MARGIN, ctx.y - 8, { size: 9, color: GRIS });
       ctx.y -= 20;
       return;
     }
+    // «Vales por diseñador»: sin Autorizados en el resumen y «Terminado» (Sí/No) en lugar de «Propuesta».
+    const porDisenador = g.agruparPor === 'disenador';
     const columnas = [
       { label: 'Vale', ancho: 1.8 }, { label: 'Estado', ancho: 3.4 },
-      { label: 'Entrega', ancho: 1, centro: true }, { label: 'Atraso', ancho: 1, centro: true }, { label: 'Propuesta', ancho: 1, centro: true }
+      { label: 'Entrega', ancho: 1, centro: true }, { label: 'Atraso', ancho: 1, centro: true }, { label: porDisenador ? 'Terminado' : 'Propuesta', ancho: 1, centro: true }
     ];
     for (const grupo of g.grupos) {
       this._espacio(ctx, 80);
-      const resumen = `Creados ${grupo.creados}  ·  Autorizados ${grupo.autorizados}`
+      const sinTerminar = grupo.vales.filter(v => !v.terminado).length;
+      const resumen = `Vales ${grupo.total}${porDisenador ? '' : `  ·  Autorizados ${grupo.autorizados}`}`
         + (grupo.atrasados ? `  ·  ${grupo.atrasados} atrasado${grupo.atrasados === 1 ? '' : 's'}` : '')
-        + (grupo.sinPropuesta ? `  ·  ${grupo.sinPropuesta} sin propuesta` : '');
+        + (porDisenador
+          ? (sinTerminar ? `  ·  ${sinTerminar} sin terminar` : '')
+          : (grupo.sinPropuesta ? `  ·  ${grupo.sinPropuesta} sin propuesta` : ''));
       ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - 18, width: CONTENT_WIDTH, height: 18, color: FONDO_CABECERA });
       this._texto(ctx, this._ajustar(ctx, grupo.nombre, 200, 9, true), MARGIN + 6, ctx.y - 13, { size: 9, bold: true });
       this._texto(ctx, this._ajustar(ctx, resumen, CONTENT_WIDTH - 220, 7.5), MARGIN + 214, ctx.y - 13, { size: 7.5, color: GRIS });
       ctx.y -= 22;
-      if (!grupo.vales.length) { this._texto(ctx, 'Sin vales creados en este período.', MARGIN + 6, ctx.y - 6, { size: 8, color: GRIS }); ctx.y -= 16; continue; }
+      if (!grupo.vales.length) { this._texto(ctx, 'Sin vales con entrega en este período.', MARGIN + 6, ctx.y - 6, { size: 8, color: GRIS }); ctx.y -= 16; continue; }
       const filas = grupo.vales.map(v => [
         `${v.correlativo}${v.esMod ? ' (MOD)' : ''}`,
         celdaEstado(v.pipeline),
         formatear(v.fechaEntrega, 'fecha'),
         semaforoAtraso(v),
-        v.tienePropuesta ? 'Sí' : (v.sinPropuesta ? 'No' : '-')
+        porDisenador
+          ? { semaforo: { texto: v.terminado ? 'Sí' : 'No', tono: v.terminado ? 'verde' : 'gris' } }
+          : (v.tienePropuesta ? 'Sí' : (v.sinPropuesta ? 'No' : '-'))
       ]);
       this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5 });
     }
+    if (g.truncado) {
+      this._espacio(ctx, 16);
+      this._texto(ctx, `Hay ${g.totalVales} vales; se muestran los más urgentes. Acota el período o los filtros para ver el resto.`, MARGIN, ctx.y - 8, { size: 8, color: GRIS });
+    }
+  }
+
+  // Vista Taller (Encargado/Asistente): resumen de indicadores y dos listas planas, primero los atrasados y luego los demás,
+  // cada una por fecha de entrega (la más antigua primero).
+  _taller(ctx, reporte) {
+    const g = reporte.grupos;
+    const i = g.indicadoresTaller;
+    const pct = (n) => (n == null ? '-' : `${String(n).replace('.', ',')} %`);
+    const resumen = `Entrantes ${i.entrantes}  ·  Entregados ${i.entregados}  ·  Efectividad ${pct(i.efectividad)}  ·  A tiempo ${pct(i.aTiempo)}  ·  Atrasados ${i.atrasados}`;
+    this._texto(ctx, this._ajustar(ctx, resumen, CONTENT_WIDTH, 8.5, true), MARGIN, ctx.y - 9, { size: 8.5, bold: true });
+    ctx.y -= 22;
+
+    const unicos = new Map();
+    g.grupos.forEach(gr => gr.vales.forEach(v => { if (!unicos.has(v.id)) unicos.set(v.id, v); }));
+    const porEntrega = (a, b) => String(a.fechaEntrega).localeCompare(String(b.fechaEntrega)) || String(a.correlativo).localeCompare(String(b.correlativo));
+    const lista = [...unicos.values()];
+    const atrasados = lista.filter(v => v.atrasado).sort(porEntrega);
+    const demas = lista.filter(v => !v.atrasado).sort(porEntrega);
+
+    const columnas = [
+      { label: 'Vale', ancho: 1.75 }, { label: 'Fecha de ingreso', ancho: 1.5 }, { label: 'Estado', ancho: 2.8 },
+      { label: 'Entrega', ancho: 1, centro: true }, { label: 'Atraso', ancho: 0.9, centro: true },
+      { label: 'Diseñador', ancho: 1.4 }, { label: 'Terminado', ancho: 0.95, centro: true }
+    ];
+    const ingreso = (v) => {
+      const [fecha, hora] = String(v.creadoEn).split(' ');
+      return `${formatear(fecha, 'fecha')} ${(hora || '').slice(0, 5)}`;
+    };
+    const filasDe = (vales) => vales.map(v => [
+      v.esMod && !/^MOD-/.test(v.correlativo) ? `${v.correlativo} (MOD)` : v.correlativo,
+      ingreso(v),
+      celdaEstado(v.pipeline),
+      formatear(v.fechaEntrega, 'fecha'),
+      semaforoAtraso(v),
+      v.disenadores,
+      { semaforo: { texto: v.terminado ? 'Sí' : 'No', tono: v.terminado ? 'verde' : 'gris' } }
+    ]);
+    const seccion = (titulo, vales, vacio) => {
+      this._titulo(ctx, `${titulo} (${vales.length})`);
+      if (!vales.length) { this._texto(ctx, vacio, MARGIN, ctx.y - 6, { size: 8, color: GRIS }); ctx.y -= 18; return; }
+      this._tabla(ctx, columnas, filasDe(vales), { altoFila: 22, tamano: 7 });
+    };
+    seccion('ATRASADOS', atrasados, 'No hay vales atrasados en este período.');
+    seccion('DEMÁS VALES', demas, 'No hay otros vales en este período.');
     if (g.truncado) {
       this._espacio(ctx, 16);
       this._texto(ctx, `Hay ${g.totalVales} vales; se muestran los más urgentes. Acota el período o los filtros para ver el resto.`, MARGIN, ctx.y - 8, { size: 8, color: GRIS });

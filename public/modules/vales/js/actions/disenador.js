@@ -1,5 +1,5 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
-import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dropzone.js';
+import { htmlAdjuntosPropuesta, wireAdjuntosPropuesta } from '../components/adjuntosPropuesta.js';
 import { comenzarVale, entregarPropuesta, cancelarProceso, pausarVale, reanudarVale } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 
@@ -19,26 +19,27 @@ export async function accionComenzar(vale) {
 export function abrirModalEntregar(vale) {
   const { overlay, cerrar } = abrirModal({
     title: `Entregar propuesta — ${vale.correlativo}`,
-    bodyHtml: `
-      <div class="form-field">
-        <label>Documento de propuesta (opcional)</label>
-        ${htmlDropzone({ id: 'input-propuesta', accept: 'application/pdf', hint: 'PDF · máx. 5MB' })}
-      </div>
-    `,
-    footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-enviar">Entregar</button>`
+    size: 'lg',
+    bodyHtml: htmlAdjuntosPropuesta({ idArchivo: 'input-propuesta' }),
+    footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-enviar" disabled>Entregar</button>`
   });
-  const getPropuesta = wireDropzone(overlay, '#input-propuesta', '.archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
+  const btn = overlay.querySelector('#btn-enviar');
+  const adjuntos = wireAdjuntosPropuesta(overlay, {
+    idArchivo: 'input-propuesta',
+    // El botón se habilita con un archivo o al menos un enlace válido; el resumen dice qué falta o qué se enviará.
+    onCambio: ({ valido }) => { btn.disabled = !valido; }
+  });
   // Una sola key por apertura del modal — si el envío falla y el usuario
   // reintenta con "Entregar" de nuevo, se reenvía con la misma key para que
   // el backend detecte el reintento y no duplique la propuesta.
   const idempotencyKey = crypto.randomUUID();
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
-  overlay.querySelector('#btn-enviar').addEventListener('click', async () => {
-    const file = getPropuesta()[0];
+  btn.addEventListener('click', async () => {
+    const problema = adjuntos.validar();
+    if (problema) { mostrarErrorModal(overlay, problema); return; }
     const formData = new FormData();
-    if (file) formData.append('propuesta', file);
+    adjuntos.agregarAFormData(formData, 'propuesta');
     formData.append('idempotencyKey', idempotencyKey);
-    const btn = overlay.querySelector('#btn-enviar');
     btn.disabled = true;
     try {
       await entregarPropuesta(vale.id, formData);

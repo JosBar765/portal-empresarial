@@ -67,3 +67,42 @@ Cada rol agrupa y filtra solo su personal a cargo:
 - **Columna Atraso con semáforo** (también en el listado de Asesor y Diseñador), solo con el color de la letra, sin fondo: rojo con los días si está atrasado («8 días»), naranja si vence hoy y amarillo oscuro si va al día. Entrega, Atraso y Propuesta van centradas y las columnas se reparten para llenar el ancho; el estado queda pegado al correlativo. Cuando el estado pasa a dos líneas, el bloque queda centrado en la fila.
 - Los vales de varios talleres muestran el paso del taller más atrasado, igual que en pantalla.
 - `valeReporteService._listado` agrega `pipeline` a cada fila para que el listado de Asesor y Diseñador use el mismo formato; la pantalla lo ignora.
+
+## Ajuste posterior: Rendimiento se elimina y nace «Cupo de talleres»
+
+- **Rendimiento se elimina del sistema** (y la API de «Encontrar vale»): se borran su pantalla, `valeRendimientoService`, `valeBusquedaService`, las rutas `/rendimiento-gerencia` y `/buscar`, `charts.js` y `rendimiento.css` (las reglas que Reportes aún usa pasaron a `reportes.css`; también se quitó el código de las tarjetas de indicadores, que ya no se ven). La migración `quitar_rendimiento.sql` borra el permiso `vales.ver_gerencia`.
+- **Nueva pestaña «Cupo de talleres»** (permiso nuevo `vales.ver_cupo`, migración `cupo_talleres.sql`, que lo da al Supervisor): calendario mensual con mapa de calor del cupo diario de los talleres con límite de sus tiendas, vales por autorizar como «+N» y detalle por día con la lista de vales. Ver `flujo_vale_de_arte.md` §12.
+- Los usuarios deben cerrar sesión y volver a entrar para que el permiso cambie.
+
+## Ajuste posterior: todo por fecha de entrega y vista «Taller»
+
+- **Todo el reporte filtra por la fecha de entrega** de los vales (antes, por la fecha de creación o de cada acción): la tabla unificada, el listado de Asesor y Diseñador y el PDF. La pantalla y el PDF muestran «Fecha de entrega: Octubre 2026», y el resumen de cada fila pasa de «Creados» a «Vales».
+- **Vista Taller (Encargado/Asistente):**
+  - Franja de indicadores sobre la tabla: **Entrantes** (vales del período que ya llegaron a sus talleres), **Entregados** (el taller ya terminó: propuesta en revisión o aprobada), **% efectividad** (entregados ÷ entrantes), **% a tiempo** (entregados a revisión en o antes de la fecha de entrega ÷ entregados con entrega registrada en el historial) y **Atrasados** (vales del período con entrega vencida que el taller aún no termina). Con valor cero en el divisor se muestra «—».
+  - La tabla agrega la columna **Fecha de ingreso** y deja de mostrar el cliente bajo el correlativo.
+  - Los diseñadores listados son solo los de sus talleres (antes un vale de varios talleres traía también a los de los otros).
+  - **PDF:** resumen de los cinco indicadores bajo el encabezado y dos listas planas, **ATRASADOS** y **DEMÁS VALES**, cada una por fecha de entrega (la más antigua primero), con las columnas Vale, Fecha de ingreso, Estado, Entrega, Atraso, Diseñador y **Terminado** (Sí/No, antes «Propuesta»).
+- Un vale atrasado con menos de un día completo de atraso se muestra como «Atrasado» en la columna Atraso del PDF.
+- Archivos: `valeReporteGruposService.js`, `valeReporteService.js` (`_listado`, `_primerasEntregas`), `valeReportePdfService.js`, `views/reportes.js`, `css/reportes.css`.
+
+## Ajuste posterior: información por día en el calendario del Buzón y visor emergente
+
+- **Calendario desplegable del Buzón con información por día** (la que se abre desde «Octubre 2026»):
+  - **Supervisor** (permiso `vales.ver_cupo`): semáforo por día con barras por taller con límite, «+N» de vales por autorizar y, en el pie, el detalle del día (`Diseño 3/15 · 12 libres`).
+  - **Diseñador y Encargado/Asistente de taller:** número de vales con entrega ese día (los del diseñador, o los de su taller) con intensidad de color y el mismo pie de detalle.
+  - Con información, elegir un día lo marca y el pie ofrece **«Ver vales de este día»** (filtra el Buzón) y **«Ver reporte de este día»** (abre Reportes con período «Día» en esa fecha de entrega). Asesor, Gerente y Administrador conservan el calendario de siempre.
+  - API: `GET /api/vales/calendario-buzon?anio=&mes=`, que responde según el rol (`cupo`, `conteo` o `null`).
+- **Se elimina la pestaña «Cupo de talleres»** y sus rutas `/cupo-talleres`; el cupo vive en el calendario. El permiso `vales.ver_cupo` se conserva (migración `cupo_talleres.sql`, con textos actualizados).
+- **Visor emergente de vale y propuesta** (`components/visorDocumento.js`): reemplaza abrir una pestaña nueva en el Buzón, el modal «Ver» del Supervisor y la tabla de Reportes. Casi pantalla completa en escritorio y pantalla completa en celular, pestañas «Vale de arte» / «Propuesta» cuando existen ambos, PDF o imagen integrados, indicador de carga, Esc y clic fuera para cerrar, foco atrapado y devuelto, y los botones «Abrir en pestaña» y «Descargar» como respaldo. El PDF del vale sigue pasando por `/api/vales/:id/pdf`, así que el vale se marca como visto igual que antes.
+
+## Ajuste posterior: propuesta con nota y enlaces
+
+- **Entregar propuesta (Diseñador) y fusión (Encargado/Asistente)** ahora comparten un componente (`adjuntosPropuesta.js`) con tres secciones: **Archivo** (PDF de hasta 5 MB), **Enlaces** (hasta 5, con nombre opcional, solo https, con aviso del dominio y errores en cada fila) y **Nota** de hasta 500 caracteres con contador. Un resumen sobre los botones dice qué se va a enviar y el botón «Entregar» / «Aprobar y Fusionar» se habilita con un archivo o al menos un enlace válido.
+- **Regla:** una propuesta es válida con un **archivo o un enlace**; la nota sola no basta. Con enlace se puede aprobar y autoaprobar igual que con un PDF. Cambio de comportamiento: entregar una propuesta completamente vacía (que antes generaba la alerta roja) ahora responde 400.
+- **Datos:** migración `propuesta_nota_enlaces.sql` (columnas `vale_propuestas.nota` y `vales.propuesta_general_nota`, tabla `vale_propuesta_enlaces`); aditiva e idempotente. La validación vive en `services/propuestaAdjuntos.js` y se repite en el servidor (https, hasta 5 enlaces, sin usuario ni contraseña, nota de hasta 500 caracteres). El historial queda como «entregó propuesta (archivo, 2 enlaces y nota)».
+- **Verla:** el visor emergente carga `GET /api/vales/:id/propuesta` (tipos `taller`, `general` y `ultima`, con la misma regla de acceso que el detalle) y muestra el archivo incrustado y, al lado, un panel con las observaciones y las tarjetas de enlace, que abren en una pestaña nueva con `rel="noopener noreferrer"`. Si solo hay enlaces, el panel ocupa todo el visor. El modal «Revisar propuesta» del Encargado también muestra la nota y los enlaces, y la fusión abre el visor de la propuesta de cada taller.
+- **Botones «Ver propuesta»** del Buzón y de Reportes aparecen también cuando la propuesta solo tiene enlaces (`propuesta_extra` / `propuesta_taller_extra`); en Reportes «Propuesta: Sí» cuenta los enlaces.
+
+## Ajuste posterior: tabla «Vales por diseñador»
+
+- Al agrupar por diseñador (pantalla y PDF) se quita la columna/cifra **Autorizados** y la columna «Propuesta» pasa a **«Terminado»** con Sí o No (el taller ya terminó su parte; para otros roles, el vale ya está completo). En la columna Atención, «sin propuesta» pasa a «sin terminar». Las demás agrupaciones no cambian.

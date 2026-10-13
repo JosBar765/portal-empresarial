@@ -13,8 +13,6 @@ const valeDetalleService = require('./valeDetalleService');
 const valeBuzonService = require('./valeBuzonService');
 const valeTallerService = require('./valeTallerService');
 const valeConfirmacionService = require('./valeConfirmacionService');
-const valeRendimientoService = require('./valeRendimientoService');
-const valeBusquedaService = require('./valeBusquedaService');
 const capacidadEntregaService = require('./capacidadEntregaService');
 const valeCorreccionService = require('./valeCorreccionService');
 const valeVistoService = require('./valeVistoService');
@@ -38,6 +36,7 @@ module.exports = {
   obtenerCatalogos: (...a) => valeCatalogoService.obtenerCatalogos(...a),
   obtenerTalleres: (...a) => valeCatalogoService.obtenerTalleres(...a),
   obtenerCapacidadEntrega: (...a) => capacidadEntregaService.obtenerCapacidadMes(...a),
+  obtenerCalendarioBuzon: (...a) => capacidadEntregaService.obtenerCalendarioBuzon(...a),
 
   // Creación
   crearVale: (...a) => valeCreacionService.crearVale(...a),
@@ -50,11 +49,10 @@ module.exports = {
 
   // Detalle
   obtenerDetalle: (...a) => valeDetalleService.obtenerDetalle(...a),
+  obtenerPropuesta: (...a) => valeDetalleService.obtenerPropuesta(...a),
 
-  // Buzón / listado por rol + Vista Gerencia
+  // Buzón / listado por rol
   obtenerBuzon: (...a) => valeBuzonService.obtenerBuzon(...a),
-  obtenerRendimientoGerencia: (...a) => valeRendimientoService.obtenerRendimiento(...a),
-  buscarValePorCorrelativo: (...a) => valeBusquedaService.buscarPorCorrelativo(...a),
   obtenerDisenadoresAsignables: (...a) => valeBuzonService.obtenerDisenadoresAsignables(...a),
   obtenerCargaTrabajo: (...a) => valeBuzonService.obtenerCargaTrabajo(...a),
   obtenerAsignacionesDeDisenador: (...a) => valeBuzonService.obtenerAsignacionesDeDisenador(...a),

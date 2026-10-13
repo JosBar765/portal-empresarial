@@ -5,11 +5,10 @@ import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { aplicarVentanaAQuery } from '../utils/ventana.js';
 import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible } from '../permisos.js';
 import { celdaEstado } from '../components/pipeline.js';
+import { abrirVisorVale } from '../components/visorDocumento.js';
 import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro, badgePersona } from '../utils/formato.js';
 import { obtenerBuzon, obtenerMasVales } from '../api/valesApi.js';
-import { cargarRendimientoGerencia } from './rendimientoGerencia.js';
 import { cargarReportes } from './reportes.js';
-import { cargarEncontrarVale } from './encontrarVale.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/disenador.js';
@@ -43,15 +42,6 @@ export function construirQueryBase() {
 export async function cargarBuzon() {
   // Reportes de actividad: tienen su propia vista y su propia consulta.
   if (state.vista === 'reportes') return cargarReportes();
-  // Gerente y Supervisor en su vista "Rendimiento" no piden el buzón de
-  // vales — piden las métricas agregadas.
-  if ([ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'rendimiento') {
-    return cargarRendimientoGerencia();
-  }
-  // El Gerente no tiene buzón: solo busca vales por correlativo.
-  if (state.user.rolId === ROL.GERENTE && state.vista === 'encontrar') {
-    return cargarEncontrarVale();
-  }
   state.paginacion = { limit: 50, cursor: null, total: 0, hasMore: false, cargandoMas: false };
   const qs = construirQueryBase();
 
@@ -249,6 +239,20 @@ export function renderTabla() {
   });
 }
 
+// Propuesta que este usuario puede ver en la fila (la fusión o la del propio taller; con archivo o solo con enlaces), o null.
+function propuestaGeneralVisible(v) {
+  const aplica = (usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || puede('aprobarGeneral')) && v._tipoRegistro !== 'PROPUESTA';
+  return aplica && (v.propuesta_general_url || v.propuesta_extra) ? { tipo: 'general' } : null;
+}
+function propuestaTallerVisible(v) {
+  return ROLES_TALLER_Y_DISENADOR.includes(state.user.rolId) && (v.propuesta_taller_url || v.propuesta_taller_extra)
+    ? { tipo: 'taller', disenadorId: v.propuesta_disenador_id }
+    : null;
+}
+const propuestaVisible = (v) => propuestaGeneralVisible(v) || propuestaTallerVisible(v);
+
+const abrirVisorDeFila = (v, propuesta, activo = 'vale') => abrirVisorVale({ id: v.id, correlativo: v.correlativo, cliente: v.cliente_nombre, propuesta, activo });
+
 export function construirAcciones(v) {
   const esMio = v.asesor_id === state.user.id;
   // Un supervisor solo actúa como asesor sobre SUS vales: sobre los de su equipo solo autoriza y supervisa.
@@ -257,7 +261,7 @@ export function construirAcciones(v) {
   // directo al PDF — a veces solo necesita los datos de encabezado. Vale también para los suyos, que él autoriza.
   const acciones = state.user.rolId === ROL.SUPERVISOR
     ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
-    : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') }];
+    : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
   // El hipervínculo de la propuesta apunta al documento de propuesta real, no
   // al vale (PDF) — disponible tanto en el buzón (trabajo realizado) como en
   // cualquier vista donde ya exista una propuesta oficial para el vale. El
@@ -267,15 +271,15 @@ export function construirAcciones(v) {
   // excluye la fila de PROPUESTA propia (también trae propuesta_general_url,
   // hereda todos los campos del vale) para no mostrar el botón de la fusión
   // en las dos filas del mismo vale.
-  if ((usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || puede('aprobarGeneral')) && v.propuesta_general_url && v._tipoRegistro !== 'PROPUESTA') {
-    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_general_url, '_blank') });
+  if (propuestaGeneralVisible(v)) {
+    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => abrirVisorDeFila(v, propuestaGeneralVisible(v), 'propuesta') });
   }
   // En "Trabajo realizado" el encargado de un taller (y el propio diseñador) ve
   // la propuesta REAL que se aprobó (`propuesta_taller_url`, solo viene
   // poblado en esa vista) — no `propuesta_general_url`, que en un vale
   // multi-taller es la fusión, no el trabajo propio de este taller.
-  if (ROLES_TALLER_Y_DISENADOR.includes(state.user.rolId) && v.propuesta_taller_url) {
-    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_taller_url, '_blank') });
+  if (propuestaTallerVisible(v)) {
+    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => abrirVisorDeFila(v, propuestaTallerVisible(v), 'propuesta') });
   }
 
   // El Supervisor autoriza el envío a talleres de un vale recién creado por

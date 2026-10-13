@@ -1,0 +1,88 @@
+/* public/modules/vales/css/visor.css — visor emergente del vale de arte y de la propuesta. */
+.visor-overlay {
+  position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; padding: 20px;
+  background: rgba(15, 23, 42, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  animation: fadeIn .15s var(--ease-out);
+}
+.visor {
+  display: flex; flex-direction: column; width: min(1100px, 100%); height: min(92vh, 100%);
+  background: var(--color-surface); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); overflow: hidden;
+}
+.visor-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--color-border); }
+.visor-titulos { min-width: 0; }
+.visor-titulos h3 { margin: 0; font-size: var(--text-sm); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.visor-titulos p { margin: 2px 0 0; font-size: 12px; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.visor-acciones { display: flex; align-items: center; gap: 6px; flex: none; }
+.visor-acciones .btn ion-icon { font-size: 16px; }
+.visor-cerrar {
+  display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; font: inherit; color: var(--color-text-secondary);
+  background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer;
+}
+.visor-cerrar ion-icon { font-size: 22px; }
+.visor-cerrar:hover { background: var(--color-surface-muted); color: var(--color-text); }
+.visor-cerrar:focus-visible, .visor-pestana:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.visor-pestanas { display: flex; gap: 4px; padding: 8px 16px 0; border-bottom: 1px solid var(--color-border); }
+.visor-pestana {
+  padding: 8px 14px; font: inherit; font-size: 13px; font-weight: 600; color: var(--color-text-secondary);
+  background: transparent; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
+}
+.visor-pestana:hover { color: var(--color-text); }
+.visor-pestana.is-activa { color: var(--color-primary-dark); border-bottom-color: var(--color-primary-dark); }
+
+.visor-cuerpo { position: relative; flex: 1; min-height: 0; background: var(--color-surface-muted); }
+.visor-contenido { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto; }
+.visor-marco { width: 100%; height: 100%; border: 0; background: #fff; }
+.visor-imagen { max-width: 100%; max-height: 100%; object-fit: contain; }
+.visor-cargando, .visor-error {
+  position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  color: var(--color-text-secondary); font-size: var(--text-sm); background: var(--color-surface-muted);
+}
+.visor-cargando[hidden], .visor-error[hidden] { display: none; }
+.visor-cargando ion-icon, .visor-error ion-icon { font-size: 28px; }
+.visor-error p { margin: 0; }
+.visor-pie { margin: 0; padding: 8px 16px; font-size: 12px; color: var(--color-text-muted); border-top: 1px solid var(--color-border); }
+
+@media (max-width: 640px) {
+  .visor-overlay { padding: 0; }
+  .visor { width: 100%; height: 100%; border-radius: 0; }
+  .visor-cab { padding: 10px 12px; }
+  .visor-acciones [data-visor-descarga] span, .visor-acciones [data-visor-pestana] span { display: none; }
+  .visor-acciones .btn { min-width: 44px; min-height: 44px; justify-content: center; }
+  .visor-cerrar { width: 44px; height: 44px; }
+  .visor-pestana { min-height: 44px; }
+}
+
+/* Pestaña Propuesta: archivo incrustado y, al lado, la nota y los enlaces */
+.visor-acciones [hidden], .visor-error [hidden] { display: none !important; }
+.visor-propuesta { display: flex; width: 100%; height: 100%; }
+.visor-propuesta-doc { position: relative; flex: 1; min-width: 0; }
+.visor-propuesta-doc .visor-marco { position: absolute; inset: 0; }
+.visor-propuesta-doc .visor-imagen { position: absolute; inset: 0; margin: auto; }
+.visor-propuesta-extras { flex: none; width: 320px; padding: 16px; overflow-y: auto; background: var(--color-surface); border-left: 1px solid var(--color-border); }
+.visor-propuesta.solo-extras { justify-content: center; }
+.visor-propuesta.solo-extras .visor-propuesta-extras { width: min(560px, 100%); border-left: 0; background: transparent; }
+
+.pinfo-bloque + .pinfo-bloque { margin-top: 18px; }
+.pinfo-bloque h4 { margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-secondary); }
+.pinfo-nota { margin: 0; font-size: var(--text-sm); line-height: 1.5; color: var(--color-text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.pinfo-enlaces { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.pinfo-enlace {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; min-height: 48px; color: var(--color-text); text-decoration: none;
+  background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+.pinfo-enlace:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+.pinfo-enlace:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.pinfo-enlace > ion-icon:first-child { flex: none; font-size: 20px; color: var(--color-primary-dark); }
+.pinfo-enlace-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pinfo-enlace-texto strong { font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pinfo-enlace-texto small { font-size: 11px; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pinfo-abrir { flex: none; font-size: 16px; color: var(--color-text-muted); }
+
+@media (max-width: 900px) {
+  .visor-propuesta { flex-direction: column; }
+  .visor-propuesta-doc { flex: 1 1 55%; min-height: 0; }
+  .visor-propuesta-extras { width: 100%; flex: 0 1 45%; border-left: 0; border-top: 1px solid var(--color-border); }
+  .visor-propuesta.solo-extras .visor-propuesta-extras { flex: 1; }
+}

@@ -1,11 +1,20 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
 import { ROL, ROLES_ENCARGADO_TALLER } from '../config/roles.js';
-import { obtenerDisenadoresAsignables } from '../api/valesApi.js';
+import { obtenerDisenadoresAsignables, obtenerCalendarioBuzon } from '../api/valesApi.js';
 import { hoyMedianoche, isoLocal, parseIsoLocal, primerDiaDelMes, sumarDiaLocal } from '../utils/fechas.js';
 import { htmlCampoFechaCompacto, wireCampoFecha } from '../components/datepicker.js';
 import { wireSelectorPeriodo, etiquetaDia, etiquetaMes } from '../components/selectorPeriodo.js';
+import { ROLES_TALLER_Y_DISENADOR } from '../config/roles.js';
 import { cargarBuzon } from '../views/buzon.js';
+
+// «Ver reporte de este día»: abre la pestaña Reportes con período «Día» en esa fecha de entrega.
+function verReporteDelDia(iso) {
+  state.reporte.ventana = { tipo: 'dia', fecha: iso, desde: '', hasta: '' };
+  state.reporte.expandidos.clear();
+  const boton = document.querySelector('.sidebar-item[data-vista="reportes"]');
+  if (boton && boton.style.display !== 'none') boton.click();
+}
 
 export function wireToolbar() {
   // El rango de fechas reusa el mismo componente de calendario propio de los
@@ -61,9 +70,14 @@ export function wireToolbar() {
   chipHoy.addEventListener('click', () => irAlDia(hoyMedianoche()));
   $('#mes-prev').addEventListener('click', () => mover(-1));
   $('#mes-next').addEventListener('click', () => mover(1));
+  // El Supervisor (con vales.ver_cupo) ve el cupo de los talleres por día; el Diseñador y el Encargado/Asistente, cuántos vales tienen.
+  const permisos = state.user.permissions || [];
+  const conInfoPorDia = permisos.includes('vales.ver_cupo') || ROLES_TALLER_Y_DISENADOR.includes(state.user.rolId);
   wireSelectorPeriodo($('#mes-etiqueta'), {
     obtener: () => state.ventana,
-    alElegir: ({ tipo, fecha }) => (tipo === 'dia' ? irAlDia(fecha) : irAlMes(fecha))
+    alElegir: ({ tipo, fecha }) => (tipo === 'dia' ? irAlDia(fecha) : irAlMes(fecha)),
+    cargarInfoMes: conInfoPorDia ? obtenerCalendarioBuzon : null,
+    alVerReporte: permisos.includes('vales.ver_reportes') ? verReporteDelDia : null
   });
   pintarVentana();
 

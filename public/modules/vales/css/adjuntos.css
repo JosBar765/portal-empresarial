@@ -1,0 +1,41 @@
+/* public/modules/vales/css/adjuntos.css — archivo, enlaces y nota al entregar una propuesta o la fusión de un vale. */
+.adj { display: flex; flex-direction: column; gap: 12px; }
+.adj-seccion { padding: 12px 14px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.adj-titulo { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: var(--text-sm); font-weight: 700; color: var(--color-text); }
+.adj-titulo ion-icon { font-size: 18px; color: var(--color-primary-dark); flex: none; }
+.adj-titulo label { font: inherit; color: inherit; }
+.adj-opcional { margin-left: auto; font-size: 11px; font-weight: 500; color: var(--color-text-muted); }
+.adj-ayuda { margin: 8px 0 0; font-size: 12px; color: var(--color-text-secondary); }
+
+.adj-enlaces { margin: 0 0 8px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.adj-enlace-campos { display: grid; grid-template-columns: minmax(0, 1fr) 190px 38px; gap: 8px; align-items: center; }
+.adj-enlace input { width: 100%; min-height: 38px; padding: 0 10px; font: inherit; font-size: var(--text-sm); color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.adj-enlace input:focus { outline: 2px solid var(--color-primary); outline-offset: 1px; border-color: transparent; }
+.adj-enlace input[aria-invalid="true"] { border-color: var(--color-danger); background: var(--color-danger-bg); }
+.adj-quitar { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; color: var(--color-text-secondary); background: transparent; border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; }
+.adj-quitar:hover { color: var(--color-danger); border-color: var(--color-danger); }
+.adj-quitar:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.adj-quitar ion-icon { font-size: 18px; }
+.adj-dominio { display: flex; align-items: center; gap: 4px; margin: 4px 2px 0; font-size: 12px; color: var(--color-success); }
+.adj-dominio[hidden], .adj-error[hidden] { display: none; }
+.adj-dominio ion-icon { font-size: 14px; }
+.adj-error { margin: 4px 2px 0; font-size: 12px; color: var(--color-danger); }
+.adj-agregar ion-icon { font-size: 16px; }
+
+.adj-nota { width: 100%; padding: 8px 10px; font: inherit; font-size: var(--text-sm); color: var(--color-text); resize: vertical; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.adj-nota:focus { outline: 2px solid var(--color-primary); outline-offset: 1px; border-color: transparent; }
+.adj-contador { margin-top: 4px; font-size: 11px; text-align: right; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+
+.adj-resumen { margin: 0; padding: 8px 12px; font-size: 12px; font-weight: 600; color: var(--color-success); background: var(--color-success-bg); border-radius: var(--radius-sm); }
+.adj-resumen.is-pendiente { color: var(--color-text-secondary); background: var(--color-surface-muted); }
+
+@media (max-width: 640px) {
+  .adj-enlace-campos { grid-template-columns: minmax(0, 1fr) 44px; }
+  .adj-enlace-campos .adj-nombre { grid-column: 1 / 2; }
+  .adj-enlace input, .adj-quitar { min-height: 44px; height: 44px; }
+  .adj-quitar { width: 44px; grid-column: 2; grid-row: 1 / span 2; }
+  .adj-agregar { min-height: 44px; }
+}
+
+/* Nota y enlaces dentro del modal de revisión del Encargado */
+.pinfo-revision { margin-bottom: 14px; padding: 12px 14px; background: var(--color-surface-muted); border-radius: var(--radius-md); }

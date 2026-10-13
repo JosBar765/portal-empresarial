@@ -1,17 +1,17 @@
 import { state } from '../state.js';
 import { $ } from '../utils/dom.js';
-import { escapeHtml, formatearFecha, inicialesAvatar } from '../utils/formato.js';
+import { escapeHtml, formatearFecha, formatearFechaHora, inicialesAvatar } from '../utils/formato.js';
 import { ESTADOS_LABEL } from '../config/estados.js';
 import { obtenerReporte, descargarReportePdf } from '../api/valesApi.js';
 import { abrirModalHistorial } from '../actions/historial.js';
-import { fmtNum, fmtPct, fmtDias, ocultarTooltip } from '../components/charts.js';
 import { celdaEstado } from '../components/pipeline.js';
+import { abrirVisorVale } from '../components/visorDocumento.js';
 import { crearBarraPeriodo, aplicarPeriodoAQuery } from '../components/barraPeriodoReportes.js';
 import { crearSelectorMultiple } from '../components/selectorMultiple.js';
 
 // -----------------------------------------------------------------------
 // Reportes de actividad. Quienes ven a varias personas (Gerente, Administrador, Supervisor y Encargado/Asistente) reciben
-// una tabla unificada: personas (o talleres/tiendas) con sus vales creados en el período, que se despliegan al pulsar
+// una tabla unificada: personas (o talleres/tiendas) con sus vales con entrega en el período, que se despliegan al pulsar
 // la fila. Asesor y Diseñador ven su propio listado. El alcance lo decide el servidor según el rol.
 // -----------------------------------------------------------------------
 
@@ -48,6 +48,10 @@ const hayFiltros = () => {
 // -----------------------------------------------------------------------
 // Formato
 // -----------------------------------------------------------------------
+const fmtNum = (n, dec = 0) => (n == null ? '—' : Number(n).toLocaleString('es-GT', { minimumFractionDigits: 0, maximumFractionDigits: dec }));
+const fmtPct = (n) => (n == null ? '—' : `${fmtNum(n, 1)}%`);
+const fmtDias = (n) => (n == null ? '—' : `${fmtNum(n, 1)} d`);
+
 const horas = (h) => {
   if (h == null) return '—';
   if (h < 1) return `${Math.max(1, Math.round(h * 60))} min`;
@@ -77,6 +81,7 @@ function formatear(valor, formato) {
 export async function cargarReportes() {
   const cont = $('#reportes-vista');
   armarEsqueleto(cont);
+  if (barraPeriodo) barraPeriodo.pintar();
   const pedido = ++pedidoVigente;
   const cuerpo = $('#rep-cuerpo', cont);
   if (ultimaData) cuerpo.classList.add('is-refetching');
@@ -157,12 +162,12 @@ async function exportarPdf() {
 // Render
 // -----------------------------------------------------------------------
 function renderTodo(data) {
-  ocultarTooltip();
-  ocultarInfo();
   $('#rep-titulo').textContent = data.titulo;
-  $('#rep-meta').textContent = `${data.periodo.etiqueta} · Actualizado ${new Date().toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' })}`;
+  vistaTaller = data.rol === 'encargado';
+  $('#rep-meta').textContent = `${data.periodo.titulo || data.periodo.etiqueta} · Actualizado ${new Date().toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' })}`;
   renderFiltros(data);
   $('#rep-cuerpo').innerHTML = `
+    ${data.grupos && data.grupos.indicadoresTaller ? htmlIndicadoresTaller(data.grupos.indicadoresTaller) : ''}
     <div class="rend-grid">
       ${data.grupos ? '<section class="rend-panel rend-span-12" id="rep-panel-grupos"></section>' : ''}
       ${!data.grupos && (data.tablas || []).length ? '<section class="rend-panel rend-span-12" id="rep-panel-tablas"></section>' : ''}
@@ -180,12 +185,32 @@ function renderTodo(data) {
 // «Cómo funciona este reporte»: reglas del período y de la tabla.
 function notasDelRol(data) {
   const reglas = [
-    '<li><strong>Período:</strong> se elige con Hoy, Día, Semana (de lunes a domingo), Mes o Desde–Hasta. Cada acción cuenta en el día en que ocurrió.</li>'
+    '<li><strong>Período:</strong> se elige con Hoy, Día, Semana (de lunes a domingo), Mes o Desde–Hasta, y siempre filtra por la <strong>fecha de entrega</strong> de los vales.</li>'
   ];
   if (data.grupos) {
-    reglas.push('<li><strong>Tabla:</strong> lista los vales <strong>creados</strong> en el período, agrupados por la persona, taller o tienda elegidos. Cada fila muestra cuántos vales creó, cuántos ya fueron autorizados y qué atención requieren (atrasados y sin propuesta). Al pulsarla se despliegan sus vales, con los que aún no están asignados primero y luego ordenados por atraso, por el paso más bajo del pipeline y luego por los que aún no tienen propuesta.</li>');
+    reglas.push('<li><strong>Tabla:</strong> lista los vales con <strong>fecha de entrega</strong> en el período, agrupados por la persona, taller o tienda elegidos. Cada fila muestra cuántos vales tiene, cuántos ya fueron autorizados y qué atención requieren (atrasados y sin propuesta). Al pulsarla se despliegan sus vales, con los que aún no están asignados primero y luego ordenados por atraso, por el paso más bajo del pipeline y luego por los que aún no tienen propuesta.</li>');
+  }
+  if (data.grupos && data.grupos.indicadoresTaller) {
+    reglas.push('<li><strong>Indicadores del taller:</strong> <em>Entrantes</em> son los vales del período que ya llegaron a tus talleres; <em>Entregados</em>, los que tu taller ya terminó (enviados a revisión o aprobados); <em>Efectividad</em>, entregados ÷ entrantes; <em>A tiempo</em>, los entregados a revisión en o antes de su fecha de entrega ÷ entregados; <em>Atrasados</em>, los vales del período con fecha de entrega vencida que tu taller aún no termina.</li>');
   }
   return reglas.join('');
+}
+
+// Franja de indicadores de la vista Taller (Encargado/Asistente). Cada uno explica su definición al pasar o enfocar el ícono.
+const porcentaje = (n) => (n == null ? '—' : `${String(n).replace('.', ',')} %`);
+function htmlIndicadoresTaller(i) {
+  const tarjetas = [
+    { etiqueta: 'Entrantes', valor: i.entrantes, ayuda: 'Vales con fecha de entrega en el período que ya llegaron a tus talleres.' },
+    { etiqueta: 'Entregados', valor: i.entregados, ayuda: 'Vales que tu taller ya terminó: la propuesta está en revisión o aprobada.' },
+    { etiqueta: '% efectividad', valor: porcentaje(i.efectividad), ayuda: 'Entregados entre entrantes.' },
+    { etiqueta: '% a tiempo', valor: porcentaje(i.aTiempo), ayuda: 'De los vales entregados, los que se enviaron a revisión en o antes de su fecha de entrega.' },
+    { etiqueta: 'Atrasados', valor: i.atrasados, malo: i.atrasados > 0, ayuda: 'Vales del período con fecha de entrega vencida que tu taller todavía no termina (hasta hoy).' }
+  ];
+  return `<section class="rep-ind" aria-label="Indicadores del taller">${tarjetas.map(t => `
+    <article class="rep-ind-tarjeta${t.malo ? ' rep-ind-tarjeta--alerta' : ''}">
+      <header><p>${t.etiqueta}</p><button type="button" class="rep-info" data-info="${escapeHtml(t.ayuda)}" aria-label="¿Qué es «${t.etiqueta}»? ${escapeHtml(t.ayuda)}"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon></button></header>
+      <strong>${t.valor}</strong>
+    </article>`).join('')}</section>`;
 }
 
 // -----------------------------------------------------------------------
@@ -263,71 +288,6 @@ function renderFichas(data) {
   $('#rep-limpiar', cont).addEventListener('click', () => { r.asesorIds = []; r.disenadorIds = []; cargarReportes(); });
 }
 
-// Tarjeta de indicador: etiqueta con un ícono de información (la explicación sale al pasar el ratón, enfocar o tocar),
-// el valor y, si es el estado de ahora, una etiqueta «Ahora mismo».
-let idInfo = 0;
-function htmlKpi(k) {
-  const alerta = k.malo && typeof k.valor === 'number' && k.valor > 0 && k.instantaneo;
-  const id = `rep-info-${++idInfo}`;
-  return `
-    <article class="rend-kpi rep-kpi${alerta ? ' rend-kpi--alerta' : ''}">
-      <header class="rep-kpi-cab">
-        <p class="rend-kpi-etiqueta">${escapeHtml(k.label)}</p>
-        ${k.ayuda ? `<button type="button" class="rep-info" data-info="${escapeHtml(k.ayuda)}" aria-label="¿Qué es «${escapeHtml(k.label)}»?" aria-describedby="${id}" aria-expanded="false"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon></button><span id="${id}" class="sr-only">${escapeHtml(k.ayuda)}</span>` : ''}
-      </header>
-      <div class="rep-kpi-fila">
-        <p class="rend-kpi-valor">${alerta ? '<ion-icon name="alert-circle" aria-hidden="true"></ion-icon>' : ''}${formatear(k.valor, k.formato)}</p>
-        ${k.instantaneo ? '<span class="rep-kpi-ahora">Ahora</span>' : ''}
-      </div>
-    </article>`;
-}
-
-// Globo con la explicación de cada indicador: un solo elemento reutilizado. Se abre al pasar el ratón o enfocar, se
-// alterna al tocar (celulares) y se cierra con Esc o al tocar fuera.
-let globoInfo = null;
-let botonInfo = null;
-
-function ocultarInfo() {
-  if (globoInfo) globoInfo.hidden = true;
-  if (botonInfo) botonInfo.setAttribute('aria-expanded', 'false');
-  botonInfo = null;
-}
-
-function mostrarInfo(boton) {
-  if (!globoInfo) {
-    globoInfo = document.createElement('div');
-    globoInfo.className = 'rep-globo';
-    globoInfo.setAttribute('role', 'tooltip');
-    globoInfo.hidden = true;
-    document.body.appendChild(globoInfo);
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') ocultarInfo(); });
-    document.addEventListener('click', (e) => { if (botonInfo && !botonInfo.contains(e.target)) ocultarInfo(); });
-  }
-  if (botonInfo && botonInfo !== boton) botonInfo.setAttribute('aria-expanded', 'false');
-  botonInfo = boton;
-  boton.setAttribute('aria-expanded', 'true');
-  globoInfo.textContent = boton.dataset.info;
-  globoInfo.hidden = false;
-  const r = boton.getBoundingClientRect();
-  const ancho = Math.min(280, window.innerWidth - 24);
-  globoInfo.style.width = `${ancho}px`;
-  const izquierda = Math.min(Math.max(12, r.left + r.width / 2 - ancho / 2), window.innerWidth - ancho - 12);
-  const alto = globoInfo.offsetHeight;
-  const abajoCabe = r.bottom + 8 + alto <= window.innerHeight;
-  globoInfo.style.left = `${izquierda}px`;
-  globoInfo.style.top = `${abajoCabe ? r.bottom + 8 : Math.max(8, r.top - alto - 8)}px`;
-}
-
-function conectarInfoKpis(contenedor) {
-  contenedor.querySelectorAll('.rep-info').forEach(b => {
-    b.addEventListener('mouseenter', () => mostrarInfo(b));
-    b.addEventListener('mouseleave', () => { if (!b.matches(':focus')) ocultarInfo(); });
-    b.addEventListener('focus', () => mostrarInfo(b));
-    b.addEventListener('blur', ocultarInfo);
-    b.addEventListener('click', (e) => { e.stopPropagation(); mostrarInfo(b); });
-  });
-}
-
 function cabeceraPanel(titulo, subtitulo, extra = '') {
   return `<header class="rend-panel-cab"><div><h3>${titulo}</h3><p>${subtitulo}</p></div>${extra}</header>`;
 }
@@ -349,21 +309,27 @@ function htmlPropuesta(v) {
   return '<span class="rep-propuesta rep-propuesta--na">Aún no aplica</span>';
 }
 
+let vistaTaller = false;
+let agrupadoPorDisenador = false; // «Vales por diseñador»: sin columna Autorizados y con «Terminado» (Sí/No) en lugar de «Propuesta»
+
+const htmlTerminado = (v) => `<span class="rep-terminado rep-terminado--${v.terminado ? 'si' : 'no'}">${v.terminado ? 'Sí' : 'No'}</span>`;
+
 function htmlMiniTabla(g) {
-  if (!g.vales.length) return '<p class="rep-sin-vales">Sin vales creados en este período.</p>';
+  if (!g.vales.length) return '<p class="rep-sin-vales">Sin vales con entrega en este período.</p>';
   const filas = g.vales.map(v => `
     <tr>
-      <td data-label="Vale"><strong>${escapeHtml(v.correlativo)}</strong>${v.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}<span class="rep-cliente">${escapeHtml(v.cliente)}</span></td>
+      <td data-label="Vale"><strong>${escapeHtml(v.correlativo)}</strong>${v.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${vistaTaller ? '' : `<span class="rep-cliente">${escapeHtml(v.cliente)}</span>`}</td>
+      ${vistaTaller ? `<td data-label="Fecha de ingreso">${escapeHtml(formatearFechaHora(v.creadoEn))}</td>` : ''}
       <td data-label="Estado">${celdaEstado(v)}</td>
       <td data-label="Entrega">${escapeHtml(formatearFecha(v.fechaEntrega))}</td>
       <td data-label="Atraso">${htmlAtraso(v)}</td>
-      <td data-label="Propuesta">${htmlPropuesta(v)}</td>
+      <td data-label="${agrupadoPorDisenador ? 'Terminado' : 'Propuesta'}">${agrupadoPorDisenador ? htmlTerminado(v) : htmlPropuesta(v)}</td>
       <td data-label="Acciones" class="rep-acciones-celda"><div class="rep-acciones-fila">
-        <button type="button" class="btn-icon" data-ver="${v.id}" title="Ver vale" aria-label="Ver vale ${escapeHtml(v.correlativo)}"><ion-icon name="eye-outline"></ion-icon></button>
-        ${v.urlPropuesta ? `<button type="button" class="btn-icon" data-propuesta="${escapeHtml(v.urlPropuesta)}" title="Ver propuesta" aria-label="Ver propuesta de ${escapeHtml(v.correlativo)}"><ion-icon name="document-attach-outline"></ion-icon></button>` : ''}
+        <button type="button" class="btn-icon" data-ver="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}" data-cliente="${escapeHtml(v.cliente)}"${v.tienePropuesta ? ' data-con-propuesta="1"' : ''} title="Ver vale" aria-label="Ver vale ${escapeHtml(v.correlativo)}"><ion-icon name="eye-outline"></ion-icon></button>
+        ${v.tienePropuesta ? `<button type="button" class="btn-icon" data-propuesta="1" data-id="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}" data-cliente="${escapeHtml(v.cliente)}" title="Ver propuesta" aria-label="Ver propuesta de ${escapeHtml(v.correlativo)}"><ion-icon name="document-attach-outline"></ion-icon></button>` : ''}
       </div></td>
     </tr>`).join('');
-  return `<div class="rep-mini-wrap"><table class="rep-mini"><thead><tr><th>Vale</th><th>Estado</th><th>Entrega</th><th>Atraso</th><th>Propuesta</th><th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
+  return `<div class="rep-mini-wrap"><table class="rep-mini"><thead><tr><th>Vale</th>${vistaTaller ? '<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th><th>Atraso</th><th>${agrupadoPorDisenador ? 'Terminado' : 'Propuesta'}</th><th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
     ${g.recortado ? '<p class="rep-nota">Se muestran los vales más urgentes; acota el período o los filtros para ver el resto.</p>' : ''}`;
 }
 
@@ -371,14 +337,15 @@ function htmlGrupo(g, indice) {
   const abierto = state.reporte.expandidos.has(g.clave);
   const alertas = [
     g.atrasados ? `<span class="rep-chip rep-chip--alerta" title="Vales atrasados"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>${g.atrasados} atrasado${g.atrasados === 1 ? '' : 's'}</span>` : '',
-    g.sinPropuesta ? `<span class="rep-chip rep-chip--aviso" title="Vales sin propuesta adjunta"><ion-icon name="document-outline" aria-hidden="true"></ion-icon>${g.sinPropuesta} sin propuesta</span>` : ''
+    agrupadoPorDisenador && g.vales.some(v => !v.terminado) ? `<span class="rep-chip rep-chip--aviso" title="Vales sin terminar"><ion-icon name="time-outline" aria-hidden="true"></ion-icon>${g.vales.filter(v => !v.terminado).length} sin terminar</span>` : '',
+    !agrupadoPorDisenador && g.sinPropuesta ? `<span class="rep-chip rep-chip--aviso" title="Vales sin propuesta adjunta"><ion-icon name="document-outline" aria-hidden="true"></ion-icon>${g.sinPropuesta} sin propuesta</span>` : ''
   ].join('') || '<span class="rep-chip rep-chip--ok"><ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon>Todo en orden</span>';
   return `
     <div class="rep-grupo${abierto ? ' is-abierto' : ''}" data-clave="${escapeHtml(g.clave)}">
       <button type="button" class="rep-grupo-cab" aria-expanded="${abierto}" aria-controls="rep-g-${indice}">
         <span class="rep-grupo-nombre"><ion-icon name="chevron-forward-outline" class="rep-chevron" aria-hidden="true"></ion-icon><span class="rep-avatar" aria-hidden="true">${escapeHtml(inicialesAvatar(g.nombre))}</span><strong>${escapeHtml(g.nombre)}</strong></span>
-        <span class="rep-celda" data-label="Creados">${g.creados}</span>
-        <span class="rep-celda" data-label="Autorizados">${g.autorizados}</span>
+        <span class="rep-celda" data-label="Vales">${g.total}</span>
+        ${agrupadoPorDisenador ? '' : `<span class="rep-celda" data-label="Autorizados">${g.autorizados}</span>`}
         <span class="rep-celda rep-celda--chips" data-label="Atención">${alertas}</span>
       </button>
       <div class="rep-grupo-cuerpo" id="rep-g-${indice}"${abierto ? '' : ' hidden'}>${abierto ? htmlMiniTabla(g) : ''}</div>
@@ -389,17 +356,18 @@ function renderGrupos(data) {
   const panel = $('#rep-panel-grupos');
   const g = data.grupos;
   const info = AGRUPACIONES.find(a => a.id === g.agruparPor);
-  const sub = `${g.totalVales} vale${g.totalVales === 1 ? '' : 's'} creado${g.totalVales === 1 ? '' : 's'} · ${g.grupos.length} ${g.grupos.length === 1 ? info.texto.toLowerCase() : info.plural}`;
+  agrupadoPorDisenador = g.agruparPor === 'disenador';
+  const sub = `${g.totalVales} vale${g.totalVales === 1 ? '' : 's'} · ${g.grupos.length} ${g.grupos.length === 1 ? info.texto.toLowerCase() : info.plural}`;
   const acciones = g.grupos.length
     ? '<div class="rep-expandir"><button type="button" class="rep-link" id="rep-expandir-todo">Expandir todo</button><button type="button" class="rep-link" id="rep-contraer-todo">Contraer todo</button></div>'
     : '';
   if (!g.grupos.length) {
-    panel.innerHTML = cabeceraPanel(`Vales por ${info.texto.toLowerCase()}`, sub) + vacio('document-text-outline', 'Sin vales creados en este período', 'Cambia el período o los filtros para ver otros vales.');
+    panel.innerHTML = cabeceraPanel(`Vales por ${info.texto.toLowerCase()}`, sub) + vacio('document-text-outline', 'Sin vales con entrega en este período', 'Cambia el período o los filtros para ver otros vales.');
     return;
   }
   panel.innerHTML = `${cabeceraPanel(`Vales por ${info.texto.toLowerCase()}`, sub, acciones)}
-    <div class="rep-tabla" role="list">
-      <div class="rep-tabla-cab" aria-hidden="true"><span>${info.texto}</span><span>Creados</span><span>Autorizados</span><span>Atención</span></div>
+    <div class="rep-tabla${agrupadoPorDisenador ? ' rep-tabla--sin-aut' : ''}" role="list">
+      <div class="rep-tabla-cab" aria-hidden="true"><span>${info.texto}</span><span>Vales</span>${agrupadoPorDisenador ? '' : '<span>Autorizados</span>'}<span>Atención</span></div>
       ${g.grupos.map(htmlGrupo).join('')}
     </div>
     ${g.truncado ? `<p class="rep-nota">Hay ${g.totalVales} vales; se muestran los más urgentes. Acota el período o los filtros para ver el resto.</p>` : ''}`;
@@ -427,8 +395,12 @@ function renderGrupos(data) {
 
 // Acciones de cada vale desplegado: ver el vale (PDF) y ver su propuesta.
 function conectarAcciones(cuerpo) {
-  cuerpo.querySelectorAll('[data-ver]').forEach(b => b.addEventListener('click', () => window.open(`/api/vales/${b.dataset.ver}/pdf`, '_blank')));
-  cuerpo.querySelectorAll('[data-propuesta]').forEach(b => b.addEventListener('click', () => window.open(b.dataset.propuesta, '_blank', 'noopener')));
+  cuerpo.querySelectorAll('[data-ver]').forEach(b => b.addEventListener('click', () => abrirVisorVale({
+    id: b.dataset.ver, correlativo: b.dataset.correlativo, cliente: b.dataset.cliente, propuesta: b.dataset.conPropuesta ? { tipo: 'ultima' } : null
+  })));
+  cuerpo.querySelectorAll('[data-propuesta]').forEach(b => b.addEventListener('click', () => abrirVisorVale({
+    id: b.dataset.id, correlativo: b.dataset.correlativo, cliente: b.dataset.cliente, propuesta: { tipo: 'ultima' }, activo: 'propuesta'
+  })));
 }
 
 // -----------------------------------------------------------------------

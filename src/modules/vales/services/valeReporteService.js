@@ -383,11 +383,14 @@ class ValeReporteService {
     let grupos = null;
     if (alcance.equipo) {
       const agruparPor = valeReporteGruposService.agrupacionValida(filtros.agruparPor, alcance.agrupaciones.includes('asesor') ? 'asesor' : alcance.agrupaciones[0]);
-      grupos = await valeReporteGruposService.armar({ alcance, dentroDelRango: (f) => dentro(f, rango), agruparPor, tiendaId, tallerId, asesorSel, disSel });
+      grupos = await valeReporteGruposService.armar({
+        alcance, dentroDelRango: (f) => dentro(f, rango), agruparPor, tiendaId, tallerId, asesorSel, disSel,
+        obtenerEntregas: (valeIds, tallerIds) => this._primerasEntregas(valeIds, tallerIds)
+      });
     } else {
       const nombres = await this._nombres(alcance, normalizados);
       tablas = await this._tablas(alcance, eventosPeriodo, paresAplicables, rango, { todos, filasTaller, nombres, personaIds });
-      vales = await this._listado(alcance, usuario, eventosPeriodo, historial, paresAplicables, { porId, nombres, maxFilas });
+      vales = await this._listado(alcance, usuario, { porId, filasTaller, nombres, maxFilas, dentroDelRango: (f) => dentro(f, rango) });
     }
 
     const opcionesFiltro = await this._opcionesDeFiltro(alcance, usuario);
@@ -396,7 +399,7 @@ class ValeReporteService {
       alcance: alcance.equipo ? (alcance.rol === 'administrador' ? 'global' : 'equipo') : 'propio',
       titulo: this._titulo(alcance, evaluados),
       evaluados,
-      periodo: { ...rango, etiqueta: etiquetaPeriodo(rango), anterior: anterior ? etiquetaPeriodo(anterior) : null },
+      periodo: { ...rango, etiqueta: etiquetaPeriodo(rango), titulo: `Fecha de entrega: ${etiquetaPeriodo(rango)}`, anterior: anterior ? etiquetaPeriodo(anterior) : null },
       kpis, tablas, vales, grupos,
       resumenFiltros: grupos ? this._resumenFiltros(grupos.agruparPor, opcionesFiltro, { tiendaId, tallerId }) : [],
       filtros: opcionesFiltro
@@ -404,6 +407,15 @@ class ValeReporteService {
   }
 
   // Texto de los filtros activos para el encabezado del PDF.
+  // Momento de la primera entrega a revisión de cada vale en los talleres dados (desde el historial).
+  async _primerasEntregas(valeIds, tallerIds) {
+    const eventos = (await reporteRepository.listarHistorialDeVales(valeIds)).map(normalizar)
+      .filter(e => e && e.tipo === 'entrega' && tallerIds.includes(e.tallerId));
+    const primeras = new Map();
+    eventos.forEach(e => { if (!primeras.has(e.valeId) || e.ms < primeras.get(e.valeId)) primeras.set(e.valeId, e.ms); });
+    return primeras;
+  }
+
   _resumenFiltros(agruparPor, opciones, { tiendaId, tallerId }) {
     const nombre = (lista, id) => ((lista || []).find(o => o.id === id) || {}).nombre;
     const etiqueta = { asesor: 'asesor', disenador: 'diseñador', taller: 'taller', tienda: 'tienda' }[agruparPor];
@@ -590,12 +602,17 @@ class ValeReporteService {
     return tablas;
   }
 
-  // ---- Listado de vales del período con sus hitos ----
-  async _listado(alcance, usuario, eventos, historial, pares, { porId, nombres, maxFilas }) {
-    const TIPOS_VENTAS = ['creacion', 'autorizacion', 'solicitud_mod'];
-    const ids = [...new Set(eventos.filter(e => ['disenador', 'encargado'].includes(alcance.rol) || TIPOS_VENTAS.includes(e.tipo)).map(e => e.valeId))];
+  // ---- Listado de vales con entrega en el período (Asesor y Diseñador), con sus hitos ----
+  async _listado(alcance, usuario, { porId, filasTaller, nombres, maxFilas, dentroDelRango }) {
+    const enRango = (v) => dentroDelRango(String(v.fecha_entrega).slice(0, 10));
+    const mios = alcance.rol === 'disenador' ? new Set(filasTaller.filter(f => f.disenador_id === usuario.id).map(f => f.vale_id)) : null;
+    const ids = [...porId.values()]
+      .filter(v => enRango(v) && (mios ? mios.has(v.id) : v.asesor_id === usuario.id))
+      .map(v => v.id);
     const vales = await reporteRepository.listarValesPorIds(ids);
     const resumen = new Map(vales.map(v => [v.id, enriquecer(v)]));
+    const historial = (await reporteRepository.listarHistorialDeVales(ids)).map(normalizar).filter(Boolean);
+    const pares = emparejar(historial, new Map(vales.map(v => [v.id, { asesorId: v.asesor_id, tiendaId: v.tienda_id, entregaMs: v.fecha_entrega ? msDe(v.fecha_entrega) : null }])));
     const historialPorVale = new Map();
     historial.forEach(e => { if (!historialPorVale.has(e.valeId)) historialPorVale.set(e.valeId, []); historialPorVale.get(e.valeId).push(e); });
     const ultimo = (lista, tipos, pred = () => true) => {
@@ -609,11 +626,10 @@ class ValeReporteService {
       const v = resumen.get(id);
       if (!v) return null;
       const h = historialPorVale.get(id) || [];
-      const actividad = Math.max(...eventos.filter(e => e.valeId === id).map(e => e.ms));
       const base = {
         id, correlativo: v.correlativo, cliente: v.cliente_nombre, asesor: nombres.get(v.asesor_id) || `#${v.asesor_id}`,
         fechaEntrega: String(v.fecha_entrega).slice(0, 10), estado: v.estado, esMod: esValeDeModificacion(v),
-        atrasado: v.atrasado, diasAtraso: v.diasAtraso, actividadMs: actividad
+        atrasado: v.atrasado, diasAtraso: v.diasAtraso
       };
       if (esDiseno) {
         const del = h.filter(propioDiseno);
@@ -626,7 +642,7 @@ class ValeReporteService {
       return {
         ...base, creado: ultimo(h, ['creacion']), autorizado: ultimo(h, ['autorizacion']), modificacion: ultimo(h, ['solicitud_mod'])
       };
-    }).filter(Boolean).sort((a, b) => b.actividadMs - a.actividadMs);
+    }).filter(Boolean).sort((a, b) => a.fechaEntrega.localeCompare(b.fechaEntrega) || a.correlativo.localeCompare(b.correlativo));
 
     // Cada vale lleva su paso del pipeline (el PDF lo muestra en lugar del estado crudo).
     const mostradas = filas.slice(0, maxFilas);
@@ -642,7 +658,7 @@ class ValeReporteService {
     return {
       total: filas.length,
       columnas: columnas.map(([clave, label]) => ({ clave, label, formato: clave === 'tiempoProduccionH' ? 'horas' : 'fechaHora' })),
-      filas: filas.slice(0, maxFilas).map(({ actividadMs, ...f }) => f),
+      filas: mostradas,
       truncado: filas.length > maxFilas
     };
   }

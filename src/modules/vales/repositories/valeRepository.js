@@ -204,6 +204,10 @@ class ValeRepository {
     await db.query('UPDATE vales SET propuesta_general_url = ? WHERE id = ?', [url, id], 'vale:update_propuesta_general');
   }
 
+  async actualizarNotaFusion(id, nota) {
+    await db.query('UPDATE vales SET propuesta_general_nota = ? WHERE id = ?', [nota || null, id], 'vale:update_nota_fusion');
+  }
+
   // Deja rastro de quién fusionó y cuándo — sin esto sería imposible acotar
   // "Trabajo Realizado" a quien realmente fusionó, ni fecharlo sin pisarse con
   // transiciones posteriores del vale (RECIBIDO, CONFIRMADO...).

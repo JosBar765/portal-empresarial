@@ -1,8 +1,9 @@
 /* public/modules/vales/css/styles.css */
 @import url('/css/dashboard.css');
-@import url('/modules/vales/css/rendimiento.css');
-@import url('/modules/vales/css/encontrar-vale.css');
 @import url('/modules/vales/css/reportes.css');
+@import url('/modules/vales/css/calendario-info.css');
+@import url('/modules/vales/css/visor.css');
+@import url('/modules/vales/css/adjuntos.css');
 
 .header-back {
   color: var(--color-text-secondary);
