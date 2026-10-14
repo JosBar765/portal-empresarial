@@ -325,7 +325,7 @@ class ValeReporteService {
     if (alcance.rol === 'encargado' && [...disSel].some(id => !propias.has(id))) throw new ErrorDeNegocio('Esa persona no está a tu cargo.');
     if (!alcance.equipo) { asesorSel.clear(); disSel.clear(); }
     const personaIds = alcance.rol === 'supervisor' ? asesorSel : (alcance.rol === 'encargado' ? disSel : new Set());
-    const evaluados = (await reporteRepository.listarNombres([...asesorSel, ...disSel])).map(u => ({ id: u.id, nombre: valeReporteGruposService.etiquetaNombre(u.nombre, u.rol_id) }));
+    const evaluados = (await reporteRepository.listarNombres([...asesorSel, ...disSel])).map(u => ({ id: u.id, nombre: valeReporteGruposService.etiquetaNombre(u.nombre, u.rol_id, u.hereda_de_rol_id) }));
 
     // Un solo viaje a la base cubre el período y el anterior; después se reparte por fecha.
     const desdeCarga = (anterior || rango).desde;
@@ -721,7 +721,7 @@ class ValeReporteService {
     opciones.tiendas = await reporteRepository.listarTiendas();
     opciones.asesores = await reporteRepository.listarAsesores();
     opciones.disenadores = (await reporteRepository.listarDisenadores()).map(d => ({
-      id: d.id, nombre: valeReporteGruposService.etiquetaNombre(d.nombre, d.rol_id), tallerIds: String(d.taller_ids || '').split(',').map(Number).filter(Boolean)
+      id: d.id, nombre: valeReporteGruposService.etiquetaNombre(d.nombre, d.rol_id, d.hereda_de_rol_id), tallerIds: String(d.taller_ids || '').split(',').map(Number).filter(Boolean)
     }));
     opciones.talleres = talleres.map(t => ({ id: t.id, nombre: t.nombre }));
     return opciones;

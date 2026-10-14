@@ -40,8 +40,8 @@ function compararVales(a, b) {
 
 class ValeReporteGruposService {
   // «Leticia Tzún · Encargado»: distingue a quien trabaja vales pero es encargado o asistente de un taller.
-  etiquetaNombre(nombre, rolId) {
-    if (rolId === ROL.ASISTENTE_DISENO) return `${nombre} · Asistente`;
+  etiquetaNombre(nombre, rolId, heredaDeRolId = null) {
+    if (heredaDeRolId != null || rolId === ROL.ASISTENTE_DISENO) return `${nombre} · Asistente`;
     return ROLES_ENCARGADO_TALLER.includes(rolId) ? `${nombre} · Encargado` : nombre;
   }
 
@@ -81,7 +81,7 @@ class ValeReporteGruposService {
     visibles.forEach(v => { idsPersonas.add(v.asesor_id); filas(v).forEach(f => { if (f.disenador_id) idsPersonas.add(f.disenador_id); }); });
     const usuarios = await reporteRepository.listarNombres([...idsPersonas]);
     const nombres = new Map(usuarios.map(u => [u.id, u.nombre]));
-    const nombresConRol = new Map(usuarios.map(u => [u.id, this.etiquetaNombre(u.nombre, u.rol_id)]));
+    const nombresConRol = new Map(usuarios.map(u => [u.id, this.etiquetaNombre(u.nombre, u.rol_id, u.hereda_de_rol_id)]));
 
     // Vista Taller (Encargado/Asistente): un vale está terminado cuando su parte ya salió a revisión o se aprobó.
     const esTaller = alcance.rol === 'encargado';
@@ -143,7 +143,7 @@ class ValeReporteGruposService {
     const elegidas = agruparPor === 'asesor' ? asesorSel : (agruparPor === 'disenador' ? disSel : new Set());
     if (elegidas.size) {
       const faltan = [...elegidas].filter(id => !grupos.has(id));
-      (await reporteRepository.listarNombres(faltan)).forEach(u => grupos.set(u.id, { clave: `${agruparPor}:${u.id}`, id: u.id, nombre: agruparPor === 'disenador' ? this.etiquetaNombre(u.nombre, u.rol_id) : u.nombre, vales: [] }));
+      (await reporteRepository.listarNombres(faltan)).forEach(u => grupos.set(u.id, { clave: `${agruparPor}:${u.id}`, id: u.id, nombre: agruparPor === 'disenador' ? this.etiquetaNombre(u.nombre, u.rol_id, u.hereda_de_rol_id) : u.nombre, vales: [] }));
     }
 
     const totalVales = visibles.length;

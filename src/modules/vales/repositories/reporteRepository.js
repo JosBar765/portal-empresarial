@@ -117,15 +117,16 @@ class ReporteRepository {
   // asistentes y cualquier persona con vales asignados; con su rol y los talleres (`taller_ids`, separados por coma) donde trabajan.
   async listarDisenadores() {
     return db.query(
-      `SELECT u.id, u.nombre, u.rol_id, GROUP_CONCAT(DISTINCT x.taller_id) AS taller_ids
+      `SELECT u.id, u.nombre, u.rol_id, r.hereda_de_rol_id, GROUP_CONCAT(DISTINCT x.taller_id) AS taller_ids
        FROM usuarios u
+       JOIN roles r ON r.id = u.rol_id
        JOIN (
          SELECT usuario_id, taller_id FROM taller_disenadores
          UNION SELECT encargado_id AS usuario_id, id AS taller_id FROM talleres WHERE encargado_id IS NOT NULL AND activo = 1
          UNION SELECT disenador_id AS usuario_id, taller_id FROM vale_talleres WHERE disenador_id IS NOT NULL
        ) x ON x.usuario_id = u.id
        WHERE u.activo = 1
-       GROUP BY u.id, u.nombre, u.rol_id
+       GROUP BY u.id, u.nombre, u.rol_id, r.hereda_de_rol_id
        ORDER BY u.nombre`,
       [], 'reporte:disenadores'
     );
@@ -133,7 +134,7 @@ class ReporteRepository {
 
   async listarNombres(usuarioIds) {
     if (!usuarioIds.length) return [];
-    return db.query('SELECT id, nombre, rol_id FROM usuarios WHERE id IN (?)', [usuarioIds], 'reporte:nombres');
+    return db.query('SELECT u.id, u.nombre, u.rol_id, r.hereda_de_rol_id FROM usuarios u JOIN roles r ON r.id = u.rol_id WHERE u.id IN (?)', [usuarioIds], 'reporte:nombres');
   }
 }
 
