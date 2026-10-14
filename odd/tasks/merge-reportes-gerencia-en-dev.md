@@ -43,12 +43,31 @@ Merge commiteado en 100b44c (13 archivos resueltos + 4 correcciones manuales) y 
 - V5 (Chrome): los 7 roles cargan sin errores de consola y ninguno tiene Rendimiento ni Encontrar vale; Gerente: Buzón general (solo lectura) y Reportes con el diseño nuevo; Supervisor: calendario con cupo por día; Asistente: calendario con conteo por día; el visor emergente de vale abre (Cerrar, Abrir en pestaña, Descargar).
 
 ### No probado / pendiente
-- Entregar una propuesta REAL con PDF (sube a Supabase): no se hizo porque no sé si el Storage de la BD local es de pruebas. La entrega se simuló por BD.
+- (Superado en la segunda ronda) Entregar una propuesta real con PDF: ver abajo.
 - Que el visor muestre un PDF real (la captura de pantalla se cuelga con el visor de PDF de Chrome dentro del iframe; el portal respondió y el endpoint redirige al Storage).
 - Crear un vale desde la interfaz con las fechas de entrega de dev, responsive/móvil, concurrencia, y el flujo con la rama de notificaciones push (no está en este merge).
 - Inconsistencias de la RAMA ORIGINAL (no del merge): el comentario de `propuestaAdjuntos.js` y la cabecera de `08_propuesta_nota_enlaces.sql` dicen que una propuesta es válida con archivo o con al menos un enlace, pero `entregar` exige siempre el PDF (commit 3704e04 de la rama) y deja un cálculo `valida` que ya no hace nada.
-- Cosmético: `valeReporteGruposService.etiquetaNombre` solo rotula «· Asistente» al rol 7; los asistentes de UV/3D, Protextil y Diseño Local salen sin etiqueta.
+- (Superado en la segunda ronda) Etiqueta «· Asistente» para todos los asistentes.
 
 ### Para desplegar (cuando el dueño lo pida)
 La rama necesita importar en PROD, ANTES de desplegar, estos scripts idempotentes (probados dos veces seguidas en local): `reportes_gerente` (05; en el dump de PROD del 12/10 el Gerente ya tiene vales.ver_reportes), `quitar_rendimiento` (06; BORRA el permiso vales.ver_gerencia), `cupo_talleres` (07; crea vales.ver_cupo y se lo da al Supervisor) y `propuesta_nota_enlaces` (08; 2 columnas y la tabla vale_propuesta_enlaces). Sus números chocan con scripts ya existentes (05_asistentes_por_taller) o de mis ramas (06_push_suscripciones); en la documentación se citan por nombre.
 Mis ramas feature/acciones-frontend-por-permisos y feature/notificaciones-push chocan con esta (mismos archivos, y socket.js); además el script 06 borra vales.ver_gerencia, el permiso en el que mi rama de permisos basa Rendimiento.
+
+## Segunda ronda (instrucciones del dueño, 2026-10-14)
+Decisiones del dueño: el bucket de Storage local es de PRUEBAS (vales_de_arte_TEST); para una propuesta solo es obligatorio el archivo PDF y una propuesta solo con enlaces NO es válida; corregir la etiqueta de asistente para todos los asistentes.
+
+### Cambios (commits 411f6cb y 92af54d)
+- Etiqueta «· Asistente» para cualquier asistente (rol con hereda_de_rol_id): `etiquetaNombre(nombre, rolId, heredaDeRolId)` y las dos consultas de reporteRepository devuelven `hereda_de_rol_id`. Prueba RED/GREEN: `node scripts/reportes/etiquetasAsistentes.js` (falló con Katherine, asistente de Protextil, sin etiqueta; ahora OK).
+- El PDF es lo único obligatorio al entregar: se eliminó en `valeTallerService.entregar` la rama sin archivo y la variable `valida` (código muerto), en `encargado.js` aprobar y mostrar la propuesta exigen el PDF, y se corrigieron los textos de `propuestaAdjuntos.js`, `adjuntosPropuesta.js`, la cabecera de `08_propuesta_nota_enlaces.sql` y `correcciones_53.md`. La regla de la FUSIÓN no se tocó (basta archivo o al menos un enlace): pendiente de confirmar con el dueño.
+
+### Pruebas con archivos reales (Storage de pruebas; 28/28)
+- Flujo A (un taller, Diseño): crear (con las fechas de entrega de dev) -> autorizar (exige «visto») -> verificar adjuntos -> asignar -> comenzar -> entregar con PDF real + nota + enlace -> el encargado ve nota y enlaces -> aprueba -> PENDIENTE_CONFIRMACION (sin fusión, propuesta como general) -> confirmar -> RECIBIDO. Rechazados: archivo que no es PDF real y entrega sin PDF (solo nota y enlace).
+- Flujo B (dos talleres, Diseño + Protextil): ... -> dos propuestas con PDF real (nombres con correlativo y taller: `GT-MTC-1026-724_PROPUESTA_DISENIO_1.pdf`, `..._PROTEXTIL_1.pdf`) -> ambos aprueban -> APROBADO_DEPARTAMENTO -> el ASISTENTE de Diseño fusiona con PDF real + nota + enlace (`..._PROPUESTA_FUSION.pdf`) -> PENDIENTE_CONFIRMACION -> el asesor ve la propuesta general -> confirma -> RECIBIDO. Todos los PDF subidos son accesibles en Storage.
+- Navegador: el panel de nota y enlaces del visor (propuestaInfo) abre los enlaces en pestaña nueva con rel noopener noreferrer y escapa HTML malicioso en nota y nombre de enlace; modal de crear vale: el campo de fecha se habilita al elegir taller, muestra «Entrega mínima» y hora máxima, y el calendario marca fechas pasadas, fin de semana, feriado y cupo; vista móvil (390 px) de Buzón del Asesor y de Reportes del Gerente sin desborde horizontal.
+- Concurrencia: dos asignaciones simultáneas del mismo vale -> una gana (200) y la otra se rechaza («se está procesando»); queda un solo diseñador.
+
+### Hallazgo PREEXISTENTE en dev (no lo introdujo el merge)
+Dos creaciones simultáneas con la MISMA idempotencyKey crean DOS vales (una responde 201 y la otra 409 al registrar la clave, pero el vale duplicado ya existe): `crearVale` revisa la clave ANTES de la cola de creación y la registra al final. `valeCreacionService.js` es idéntico al de dev. No se modificó.
+
+### Aún sin probar
+Que el visor muestre el PDF real y se pueda inspeccionar: Chrome incrusta su visor de PDF y la automatización pierde la conexión con la pestaña (no es un fallo del portal; el panel y el endpoint sí se probaron).
