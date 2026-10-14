@@ -1,0 +1,11 @@
+# Cambios Sebas
+
+Rama `cambios-sebas` (desde `dev`).
+
+- **Cantidad:** el mínimo baja a 1 (antes debía ser mayor a 1), en el formulario y en el servidor (`validarDatosVale`).
+- **Adjuntos obligatorios:** no se puede crear un vale sin al menos una imagen o un PDF. Al corregir o solicitar una modificación cuentan los archivos que el vale ya tiene (la propuesta original de un MOD- no cuenta). Se valida en el formulario (aviso bajo los campos de archivos) y en el servidor.
+- **Urgente manual:** vuelve la casilla «Urgente». Sin ella la fecha de entrega mínima es hoy + 3 días naturales; con ella se puede elegir desde la mínima normal del calendario (urgente no salta la hora máxima de recibimiento). Las fechas que solo valen con urgente salen deshabilitadas en el calendario con el motivo «Solo con “Urgente”». El endpoint `/api/vales/fechas-entrega` acepta `urgente=1`; el calendario laboral recibe `diasMinimos` (`calendarioLaboral.js`). Al autorizar y al reenviar un vale rechazado solo rige la mínima normal (el plazo de 3 días corre desde que se pide, no desde que se autoriza).
+- **Vista del Encargado de taller:** bajo el correlativo se muestra también el asesor que creó el vale, además del diseñador asignado (en las filas de fusión, solo el asesor).
+- **Fin del atraso al entregar propuesta (Encargado/Asistente y Diseñador):** nueva columna `vale_talleres.atraso_congelado_en`, que se llena al entregar la propuesta y se borra si el vale vuelve a ASIGNADO. El Buzón, Trabajo realizado y Reportes de esos roles miden el atraso hasta ese momento (`enriquecerParaFila` en `valeHelpers.js`); el atraso del vale para los demás roles no cambia. `atrasoWatcher.js` ya no avisa a un taller que entregó.
+- **Migración:** `atraso_taller.sql` (idempotente; agrega la columna y rellena las filas ya entregadas desde `vale_historial`). Importarla antes de desplegar.
+- **Diseño:** la casilla «Pedido urgente» es una tarjeta con una ayuda corta que cambia al marcarla (el borde y el fondo pasan a ámbar); el aviso de adjuntos obligatorios aparece junto a los demás errores del formulario; bajo el correlativo, el asesor y el diseñador son dos líneas pequeñas de texto apagado (icono + nombre, sin fondo; el asesor más tenue), para que se consulten de un vistazo sin competir con el correlativo. Aplica también al asesor que ve el Supervisor; «Sin asignar» sigue en ámbar.

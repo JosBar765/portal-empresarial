@@ -17,20 +17,6 @@ export function opcionesPaises() {
   ).join('');
 }
 
-// Urgente lo decide el sistema: entrega en menos de 3 días. El formulario solo lo avisa.
-function esEntregaUrgente(fechaIso) {
-  if (!fechaIso) return false;
-  return (parseIsoLocal(fechaIso) - hoyMedianoche()) / (1000 * 60 * 60 * 24) < 3;
-}
-
-export function wireAvisoUrgente(overlay) {
-  const fechaInput = overlay.querySelector('[name="fechaEntrega"]');
-  const aviso = overlay.querySelector('#aviso-urgente');
-  const actualizar = () => { aviso.hidden = !esEntregaUrgente(fechaInput.value); };
-  fechaInput.addEventListener('change', actualizar);
-  actualizar();
-}
-
 // Contador "actual/máximo" del boceto y descripción — el límite en sí ya lo
 // impone el navegador vía `maxlength` (no deja escribir de más); esto es
 // solo la señal visual: el número sube mientras se escribe y, al llegar al
@@ -119,12 +105,17 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
         <div class="form-grid">
           ${htmlCampoFecha('Fecha de entrega', 'fechaEntrega')}
           ${htmlCampoFecha('Fecha del evento', 'fechaEvento')}
-          <div class="aviso-urgente full" id="aviso-urgente" role="status" aria-live="polite" hidden><ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon><span>El vale se marcará como urgente, entrega en menos de 3 días</span></div>
+          <div class="form-field full">
+            <label class="urgente-opcion" for="vale-urgente">
+              <input type="checkbox" name="urgente" id="vale-urgente" />
+              <span class="urgente-opcion-texto"><strong>Pedido urgente</strong><small id="urgente-ayuda">Márcalo si la entrega es en menos de 3 días.</small></span>
+            </label>
+          </div>
           <div class="form-field"><label>Código de producto *</label><input type="text" name="producto" required maxlength="40" placeholder="Ej. Trofeo" /></div>
           <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="40" placeholder="Ej. Acrílico" /></div>
           <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" maxlength="40" /></div>
           <div class="form-field"><label>Acabado</label><input type="text" name="acabado" maxlength="40" /></div>
-          <div class="form-field"><label>Cantidad * (mayor a 1)</label><input type="number" name="cantidad" min="2" required /></div>
+          <div class="form-field"><label>Cantidad *</label><input type="number" name="cantidad" min="1" step="1" required /></div>
           <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>        </div>
 
         <div class="section-title">Boceto y Descripción</div>
@@ -134,6 +125,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
             <textarea name="descripcion" maxlength="${DESCRIPCION_MAX_CARACTERES}"${esMod ? ' required' : ''}></textarea>
             <span class="field-error" id="descripcion-alerta-limite"><ion-icon name="alert-circle-outline"></ion-icon><span>Alcanzaste el límite de ${DESCRIPCION_MAX_CARACTERES} caracteres.</span></span>
           </div>
+          <p class="form-nota full" style="margin:0;">Obligatorio: adjunta al menos una imagen o un documento PDF.</p>
           <div class="form-field">
             <label>Imágenes</label>
             <div class="archivos-actuales" data-tipo="imagen"></div>
@@ -144,6 +136,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
             <div class="archivos-actuales" data-tipo="documento"></div>
             ${htmlDropzone({ name: 'documentos', accept: 'application/pdf', multiple: true, hint: 'PDF · máx. 5MB c/u' })}
           </div>
+          <span class="field-error full" id="adjuntos-error" style="display:none;"><ion-icon name="alert-circle-outline"></ion-icon><span>Adjunta al menos una imagen o un documento PDF.</span></span>
         </div>
       </form>
     `,
@@ -154,13 +147,15 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
   });
 
   if (!esMod) wireSelectorTalleres(overlay, tallerSeleccionados);
-  wireAvisoUrgente(overlay);
   const campoEntrega = overlay.querySelector('[data-date-field="fechaEntrega"]').closest('.form-field');
   campoEntrega.insertAdjacentHTML('beforeend', `<p class="form-nota" id="nota-entrega">${NOTA_ENTREGA_SIN_TALLER}</p>`);
   const notaEntrega = campoEntrega.querySelector('#nota-entrega');
   // Las reglas de la fecha de entrega (mínima, feriados, días sin recepción, hora máxima) las calcula el servidor.
   let consultaFechas = 0;
+  const casillaUrgente = overlay.querySelector('[name="urgente"]');
+  let mesVisible = null;
   const cargarFechasEntrega = async (anio, mes, reemplazar = false) => {
+    mesVisible = { anio, mes };
     const talleresIds = [...tallerSeleccionados];
     const consulta = ++consultaFechas;
     if (talleresIds.length === 0) {
@@ -170,7 +165,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
     }
     const mm = String(mes).padStart(2, '0');
     try {
-      const data = await obtenerFechasEntrega(talleresIds, `${anio}-${mm}-01`, `${anio}-${mm}-${String(new Date(anio, mes, 0).getDate()).padStart(2, '0')}`);
+      const data = await obtenerFechasEntrega(talleresIds, `${anio}-${mm}-01`, `${anio}-${mm}-${String(new Date(anio, mes, 0).getDate()).padStart(2, '0')}`, casillaUrgente.checked);
       if (consulta !== consultaFechas) return;
       apiFechaEntrega.setRestricciones(data.minima ? parseIsoLocal(data.minima) : null, new Map(data.noDisponibles.map(x => [x.fecha, x])), reemplazar);
       notaEntrega.textContent = data.minima
@@ -186,6 +181,15 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
       obtenerTalleresIds: () => [...tallerSeleccionados],
       cargarMes: obtenerCapacidadEntrega
     }
+  });
+  // Marcar o desmarcar «Urgente» cambia la fecha mínima: se recargan las reglas y se borra la fecha si ya no vale.
+  const ayudaUrgente = overlay.querySelector('#urgente-ayuda');
+  casillaUrgente.addEventListener('change', () => {
+    ayudaUrgente.textContent = casillaUrgente.checked
+      ? 'Puedes elegir una entrega con menos de 3 días; sigue aplicando la hora máxima de recibimiento.'
+      : 'Márcalo si la entrega es en menos de 3 días.';
+    const { anio, mes } = mesVisible || { anio: new Date().getFullYear(), mes: new Date().getMonth() + 1 };
+    cargarFechasEntrega(anio, mes, true);
   });
   const mesInicial = hayOriginal && vale.fecha_entrega ? parseIsoLocal(String(vale.fecha_entrega).slice(0, 10)) : new Date();
   cargarFechasEntrega(mesInicial.getFullYear(), mesInicial.getMonth() + 1, true);
@@ -218,7 +222,13 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
     overlay.querySelector('.modal-body').prepend(aviso);
   }
   wireLimpiezaValidacionInline(formCrear);
-  if (hayOriginal) cargarArchivosActuales(overlay, vale.id, documentosQuitar);
+  const actuales = { documentos: [] };
+  if (hayOriginal) cargarArchivosActuales(overlay, vale.id, documentosQuitar, actuales);
+  const errorAdjuntos = overlay.querySelector('#adjuntos-error');
+  overlay.addEventListener('change', (e) => { if (e.target.type === 'file') errorAdjuntos.style.display = 'none'; });
+  // Al menos un archivo: los nuevos más los que el vale ya tiene y no se quitan (la propuesta original de un MOD- no cuenta).
+  const hayAdjuntos = () => getImagenes().length + getDocumentos().length
+    + actuales.documentos.filter(d => !documentosQuitar.has(d.id) && !esPropuestaOriginal(d)).length > 0;
 
   overlay.querySelector('#btn-cancelar-crear').addEventListener('click', cerrar);
   overlay.querySelector('#btn-guardar-crear').addEventListener('click', () => {
@@ -232,8 +242,14 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
     const tallerOk = esMod || validarTalleresSeleccionados(overlay, tallerSeleccionados);
     const entregaOk = validarCampoFecha(overlay, 'fechaEntrega');
     const eventoOk = validarCampoFecha(overlay, 'fechaEvento');
+    const adjuntosOk = hayAdjuntos();
+    errorAdjuntos.style.display = adjuntosOk ? 'none' : '';
     if (!tallerOk || !entregaOk || !eventoOk || !camposOk) {
       enfocarPrimerCampoInvalido(overlay);
+      return;
+    }
+    if (!adjuntosOk) {
+      errorAdjuntos.scrollIntoView({ block: 'center', behavior: 'smooth' });
       return;
     }
     const formData = new FormData(form);
@@ -297,6 +313,9 @@ function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEve
   const [pais, ...numero] = (vale.cliente_telefono || '').split(' ');
   if (pais) form.querySelector('[name="clienteTelefonoPais"]').value = pais;
   form.querySelector('[name="clienteTelefono"]').value = numero.join(' ');
+  const casilla = form.querySelector('[name="urgente"]');
+  casilla.checked = Number(vale.urgente) === 1;
+  casilla.dispatchEvent(new Event('change', { bubbles: true }));
   // La entrega se precarga y, cuando llegan las reglas del servidor, se limpia si ya no está disponible.
   const entrega = parseIsoLocal(String(vale.fecha_entrega).slice(0, 10));
   if (apiFechaEntrega.esValida(entrega)) apiFechaEntrega.setDate(entrega, { silent: true });
@@ -309,10 +328,11 @@ function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEve
 const esPropuestaOriginal = d => String(d.nombre_original || '').startsWith('Propuesta original - ');
 
 // Archivos ya guardados del vale: se muestran con su enlace y una "×" para quitarlos al guardar.
-async function cargarArchivosActuales(overlay, valeId, documentosQuitar) {
+async function cargarArchivosActuales(overlay, valeId, documentosQuitar, actuales) {
   let documentos;
   try {
     documentos = (await obtenerDetalleVale(valeId)).documentos || [];
+    actuales.documentos = documentos;
   } catch (error) {
     mostrarErrorModal(overlay, error.message);
     return;
@@ -358,7 +378,7 @@ function abrirModalConfirmarCreacion(formData) {
         <li><strong>Correo cliente:</strong> ${escapeHtml(formData.get('clienteCorreo'))}</li>
         <li><strong>Talleres:</strong> ${escapeHtml(nombresTalleres)}</li>
         <li><strong>Fecha de entrega:</strong> ${formatearFecha(formData.get('fechaEntrega'))}</li>
-        <li><strong>Urgente:</strong> ${esEntregaUrgente(formData.get('fechaEntrega')) ? 'Sí' : 'No'}</li>
+        <li><strong>Urgente:</strong> ${formData.get('urgente') ? 'Sí' : 'No'}</li>
       </ul>
     `,
     footerHtml: `

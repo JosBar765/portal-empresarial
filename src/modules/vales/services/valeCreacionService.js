@@ -28,7 +28,7 @@ const valeVistoService = require('./valeVistoService');
 const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
   ESTADOS, hoyISO, horaActual, enriquecer,
-  normalizarDatetime, calcularUrgente, registrarHistorial,
+  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial,
   esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
   esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor
 } = require('./valeHelpers');
@@ -62,6 +62,9 @@ class ValeCreacionService {
     const idempotencyKey = payload.idempotencyKey || crypto.randomUUID();
     const previo = await idempotencyRepository.buscar(idempotencyKey);
     if (previo) return previo.resultado;
+    if (!archivos || ((archivos.imagenes || []).length + (archivos.documentos || []).length) === 0) {
+      throw new Error('Adjunta al menos una imagen o un documento PDF.');
+    }
 
     const solicitante = await usuarioValeRepository.obtenerPorId(usuario.id);
     if (!solicitante || !solicitante.tienda_id) {
@@ -431,13 +434,14 @@ class ValeCreacionService {
     if (!fechaReal(fechaEntregaNorm)) throw new Error('La fecha de entrega no es válida.');
     if (!fechaReal(fechaEventoNorm)) throw new Error('La fecha del evento no es válida.');
     const talleresIds = requiereTalleres ? await this.validarTalleresIds(payload.talleresIds, tiendaIdAsesor) : talleresFijos;
-    await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds);
+    const urgente = esUrgente(payload.urgente);
+    await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, urgente ? 0 : DIAS_MINIMOS_SIN_URGENTE);
     if (!(new Date(fechaEventoNorm.replace(' ', 'T')) > new Date(fechaEntregaNorm.replace(' ', 'T')))) {
       throw new Error('La fecha del evento debe ser posterior a la fecha de entrega.');
     }
     const cantidadNum = Number(cantidad);
-    if (!Number.isFinite(cantidadNum) || cantidadNum <= 1) {
-      throw new Error('La cantidad debe ser mayor a 1.');
+    if (!Number.isFinite(cantidadNum) || cantidadNum < 1) {
+      throw new Error('La cantidad debe ser 1 o más.');
     }
     const cotizacionNum = Number(cotizacion);
     if (!Number.isFinite(cotizacionNum) || cotizacionNum <= 0) {
@@ -449,7 +453,7 @@ class ValeCreacionService {
       fechaEntregaNorm, fechaEventoNorm,
       fechaEntregaDate: new Date(fechaEntregaNorm.replace(' ', 'T')),
       fechaEventoDate: new Date(fechaEventoNorm.replace(' ', 'T')),
-      urgente: calcularUrgente(fechaEntregaNorm),
+      urgente,
       producto, material,
       tecnica: (tecnica || '').trim(), acabado: (acabado || '').trim(),
       cantidad: cantidadNum, cotizacion: cotizacionNum, descripcion,

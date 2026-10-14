@@ -80,10 +80,13 @@ export function marcadorTipoRegistro(v) {
 export function badgePersona(v) {
   const p = v.persona;
   if (!p) return '';
+  const asesor = p.rol === 'disenador' && p.asesor
+    ? `<div class="persona-badge persona-badge--asesor" title="Asesor que creó el vale"><ion-icon name="person-outline" aria-hidden="true"></ion-icon>${escapeHtml(p.asesor)}</div>`
+    : '';
   if (p.rol === 'asesor') {
     return p.nombre ? `<div class="persona-badge persona-badge--asesor" title="Asesor que creó el vale"><ion-icon name="person-outline" aria-hidden="true"></ion-icon>${escapeHtml(p.nombre)}</div>` : '';
   }
-  return p.nombre
+  return `<div class="persona-badges">${asesor}${p.nombre
     ? `<div class="persona-badge persona-badge--disenador" title="Diseñador asignado"><ion-icon name="brush-outline" aria-hidden="true"></ion-icon>${escapeHtml(p.nombre)}</div>`
-    : '<div class="persona-badge persona-badge--libre" title="Aún sin diseñador asignado"><ion-icon name="person-add-outline" aria-hidden="true"></ion-icon>Sin asignar</div>';
+    : '<div class="persona-badge persona-badge--libre" title="Aún sin diseñador asignado"><ion-icon name="person-add-outline" aria-hidden="true"></ion-icon>Sin asignar</div>'}</div>`;
 }

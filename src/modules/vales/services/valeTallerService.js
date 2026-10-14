@@ -157,6 +157,7 @@ class ValeTallerService {
         await propuestaRepository.crear(valeId, usuario.id, null);
       }
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_REVISION);
+      await valeTallerRepository.congelarAtraso(fila.id, `${hoyISO()} ${horaActual()}`);
       fila.estado = ESTADOS_TALLER.EN_REVISION;
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, `${etiquetaActorTaller(usuario)} entregó propuesta`);
       const actualizado = await valeRepository.obtenerPorId(valeId);

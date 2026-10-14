@@ -47,10 +47,15 @@ class ValeTallerRepository {
 
   async asignar(id, disenadorId, fechaAsignacion) {
     await db.query(
-      "UPDATE vale_talleres SET disenador_id = ?, estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ASIGNADO'), fecha_asignacion = ? WHERE id = ?",
+      "UPDATE vale_talleres SET disenador_id = ?, estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ASIGNADO'), fecha_asignacion = ?, atraso_congelado_en = NULL WHERE id = ?",
       [disenadorId, fechaAsignacion, id],
       'vale_taller:asignar'
     );
+  }
+
+  // El taller entregó su propuesta: su atraso se detiene en ese momento (hora de pared UTC-6, 'YYYY-MM-DD HH:MM:SS').
+  async congelarAtraso(id, momento) {
+    await db.query('UPDATE vale_talleres SET atraso_congelado_en = ? WHERE id = ?', [momento, id], 'vale_taller:congelar_atraso');
   }
 
   async actualizarEstado(id, estado) {

@@ -17,7 +17,7 @@ const valeVistoRepository = require('../repositories/valeVistoRepository');
 const { calcularPipeline, prepararPipeline } = require('./valePipeline');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
-  esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
+  esAdministrador, enriquecer, enriquecerParaFila, dentroDeVentana, ordenarPorGrupos,
   ordenarPorFecha, esHoy, estadoVisibleAsesor,
   esDeTaller, rolEncargadoDe, esValeDeModificacion
 } = require('./valeHelpers');
@@ -281,11 +281,17 @@ class ValeBuzonService {
     paginaCruda.forEach(v => {
       if (esSupervisor && v.asesor_id) idsPersona.add(v.asesor_id);
       if (esEncargado && v._tipoRegistro !== 'FUSION' && v.disenador_id) idsPersona.add(v.disenador_id);
+      if (esEncargado && v.asesor_id) idsPersona.add(v.asesor_id);
     });
     const nombres = new Map((await reporteRepository.listarNombres([...idsPersona])).map(u => [u.id, u.nombre]));
     const personaDe = (v) => {
       if (esSupervisor) return v.asesor_id ? { rol: 'asesor', nombre: nombres.get(v.asesor_id) || null } : null;
-      if (esEncargado && v._tipoRegistro !== 'FUSION') return { rol: 'disenador', nombre: v.disenador_id ? (nombres.get(v.disenador_id) || null) : null };
+      // El Encargado ve también al asesor que creó el vale (en las filas de fusión, solo al asesor).
+      if (esEncargado) {
+        const asesor = v.asesor_id ? (nombres.get(v.asesor_id) || null) : null;
+        if (v._tipoRegistro === 'FUSION') return { rol: 'asesor', nombre: asesor };
+        return { rol: 'disenador', nombre: v.disenador_id ? (nombres.get(v.disenador_id) || null) : null, asesor };
+      }
       return null;
     };
     const pagina = paginaCruda.map(v => ({ ...v, persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
@@ -483,7 +489,7 @@ class ValeBuzonService {
       .map(v => {
         const fila = misFilas.find(f => f.vale_id === v.id);
         return {
-          ...v, estado_taller: fila.estado, disenador_id: fila.disenador_id, _filaTallerId: fila.id, taller_id: fila.taller_id,
+          ...enriquecerParaFila(v, fila), estado_taller: fila.estado, disenador_id: fila.disenador_id, _filaTallerId: fila.id, taller_id: fila.taller_id,
           adjuntos_vence_en: fila.adjuntos_vence_en, adjuntos_mensaje: fila.adjuntos_mensaje, adjuntos_respondido_en: fila.adjuntos_respondido_en
         };
       });
@@ -585,7 +591,7 @@ class ValeBuzonService {
       // (fusión, confirmación, etc.), lo que antes hacía que "aprobados hoy"
       // contara aprobaciones viejas cuyo vale cambió hoy.
       return {
-        ...v, estado_taller: ESTADOS_TALLER.APROBADO, propuesta_taller_url: propuestaTallerUrl, aprobado_en: fila.actualizado_en,
+        ...enriquecerParaFila(v, fila), estado_taller: ESTADOS_TALLER.APROBADO, propuesta_taller_url: propuestaTallerUrl, aprobado_en: fila.actualizado_en,
         _rowKey: `${v.id}-P`, _tipoRegistro: 'PROPUESTA'
       };
     }));
@@ -690,7 +696,7 @@ class ValeBuzonService {
     const activasVigentes = activas.filter(a => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION].includes(a.estado));
     const vales = await Promise.all(activasVigentes.map(async a => {
       const vale = await valeRepository.obtenerPorId(a.vale_id);
-      return vale ? { ...enriquecer(vale), estado_taller: a.estado } : null;
+      return vale ? { ...enriquecerParaFila(vale, a), estado_taller: a.estado } : null;
     }));
     // Ordenado por fecha de entrega más próxima.
     return vales.filter(Boolean).sort((a, b) => new Date(a.fecha_entrega) - new Date(b.fecha_entrega));
@@ -702,7 +708,7 @@ class ValeBuzonService {
       .filter(a => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION].includes(a.estado));
     const vales = (await Promise.all(activas.map(async a => {
       const vale = await valeRepository.obtenerPorId(a.vale_id);
-      return vale ? { ...enriquecer(vale), estado_taller: a.estado } : null;
+      return vale ? { ...enriquecerParaFila(vale, a), estado_taller: a.estado } : null;
     })))
       .filter(Boolean)
       .filter(v => dentroDeVentana(v, ventana));
@@ -751,7 +757,7 @@ class ValeBuzonService {
       // _trabajoEncargadoTaller — el diseñador nunca fusiona, siempre una sola
       // fila por correlativo.
       return {
-        ...enriquecer(vale), propuesta_taller_url: propuestaTallerUrl, estado_taller: ESTADOS_TALLER.APROBADO,
+        ...enriquecerParaFila(vale, a), propuesta_taller_url: propuestaTallerUrl, estado_taller: ESTADOS_TALLER.APROBADO,
         aprobado_en: a.actualizado_en, _rowKey: `${vale.id}-P`, _tipoRegistro: 'PROPUESTA'
       };
     })))
