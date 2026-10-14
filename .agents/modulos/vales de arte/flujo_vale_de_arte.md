@@ -394,12 +394,12 @@ cambia quién puede hacer cada acción.
 |---|---|---|
 | Administrador (1) | `vales.ver`, `vales.ver_reportes`, `vales.ver_historial` (+ `admin.*`) | Ve todo el buzón. **No** tiene permisos de escritura sobre vales: no puede autorizar, asignar, aprobar ni confirmar. |
 | Asesor de Ventas (2) | `ver`, `crear`, `editar`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir` | Crea vales; los corrige o da de baja antes de ser autorizados; confirma el recibido o solicita la modificación. |
-| Supervisor de Ventas (3) | `ver`, `autorizar_creacion`, `aprobar_modificacion`, `supervisar`, `ver_gerencia`, y para sus propios vales `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`supervisor_tiendas`). También crea y gestiona **sus propios vales** (ver «Vales del supervisor» abajo). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
+| Supervisor de Ventas (3) | `ver`, `autorizar_creacion`, `aprobar_modificacion`, `supervisar`, `ver_cupo`, y para sus propios vales `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`supervisor_tiendas`). También crea y gestiona **sus propios vales** (ver «Vales del supervisor» abajo). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
 | Encargado de Diseño (4) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Dueño del taller "Diseño". Asigna y revisa, puede trabajar vales él mismo, y **fusiona** los vales multi-taller. |
 | Encargado de Diseño UV/3D (5) | `ver`, `asignar`, `revisar`, `trabajar` | Dueño del taller "Diseño UV/3D". Sin fusión. |
 | Diseñador (6) | `ver`, `trabajar` | Comienza, pausa, reanuda, cancela y entrega sus vales. |
 | Asistente de Diseño (7) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Clon operativo completo del Encargado de Diseño. |
-| Gerente (8) | `ver`, `ver_gerencia` | Solo lectura (ver §6). |
+| Gerente (8) | `ver`, `ver_reportes` | Solo lectura (ver §6). |
 | Encargado de Protextil (9) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de su taller; puede trabajar vales él mismo, pero **sin fusión**. |
 | Diseño Local (10) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de un taller de Diseño Local (ligado a una tienda); sin fusión. |
 
@@ -471,8 +471,7 @@ solicitarse la modificación (§1.1): aparece en «Trabajo realizado» con la ma
 **Insignia de persona** (bajo el correlativo, `badgePersona`): el supervisor ve el asesor
 que creó el vale; el encargado de taller (y el asistente, Protextil y Diseño Local) ve el
 diseñador asignado o «Sin asignar» (las filas de fusión no llevan insignia). Asesor,
-diseñador, gerente y administrador no la ven, y tampoco aparece en «Encontrar vale» ni
-en la tabla de vales críticos de Rendimiento. El servidor agrega `persona = {rol, nombre}`
+diseñador, gerente y administrador no la ven. El servidor agrega `persona = {rol, nombre}`
 a cada fila (`valeBuzonService`); el diseño está en `documentacion/correcciones_46.md`.
 
 "Atrasados" y "Modificados" (asesor y supervisor) son los únicos contadores que se **combinan** con cualquier otro filtro
@@ -527,14 +526,10 @@ Todo se calcula con la **hora de Guatemala (UTC-6)** para todos los países, nun
 ## 6. Gerente y Administrador
 
 - **`vales.ver`** abre el módulo y la API; además, todo rol con ese permiso que no tenga una vista propia (hoy el Gerente) ve el **Buzón general** con todos los vales, en solo lectura. Las acciones siguen exigiendo sus propios permisos.
-- **Gerente** (solo lectura, nunca ejecuta una acción sobre un vale): ve el **Buzón** general, la
-  vista **Rendimiento** (KPIs y gráficas por estado, tienda y taller; ciclo de
-  vida; atrasos), filtrable por tienda y ventana de tiempo, y **"Encontrar
-  vale"**, que busca **un** vale por correlativo exacto (con sugerencias si no
-  existe; solo el rol Gerente, aunque `vales.ver_gerencia` también lo tenga el
-  Supervisor). Puede ver el detalle y el PDF de cualquier vale.
-- **Supervisor**: tiene la vista Rendimiento acotada a las tiendas de sus
-  asesores.
+- **Gerente** (solo lectura, nunca ejecuta una acción sobre un vale): ve el **Buzón** general (con
+  `vales.ver`) y **Reportes** (con `vales.ver_reportes`). Ya no tiene las pestañas Rendimiento ni
+  «Encontrar vale» (correcciones 53). Puede ver el detalle y el PDF de cualquier vale.
+- **Supervisor**: tiene la pestaña el cupo de talleres en el calendario del Buzón (ver §12) y Reportes acotados a sus tiendas y asesores.
 - **Administrador**: ve el buzón completo y el detalle de cualquier vale, pero
   su rol solo tiene `vales.ver`, así que no puede ejecutar las acciones de
   escritura (aceptado como limitación conocida).
@@ -643,7 +638,7 @@ Dónde aparece cada código (búscalo con `grep -rnw CODIGO src public database`
   `vale*Repository.js` (consultas con el literal, p. ej. `valeRepository`,
   `valeTallerRepository`, `tallerAdminRepository`).
 - `atrasoWatcher.js`, `vigenciaWatcher.js`, `valeBuzonService.js` (contadores y
-  filtros), `valeRendimientoService.js` (KPIs y embudo).
+  filtros).
 - Frontend: `config/estados.js`, `permisos.js`, `views/buzon.js` (condiciones
   como `v.estado === 'ESPERANDO_AUTORIZACION'`), `actions/*.js`,
   `forms/valeForm.js`.
@@ -682,7 +677,7 @@ código y base deben cambiar juntos.
 
 ## 10. Pipeline de estado (columna «Estado» de las tablas)
 
-La columna «Estado» del Buzón, «Encontrar vale» y la tabla de vales críticos de Rendimiento muestra un
+La columna «Estado» del Buzón y la tabla de Reportes muestra un
 pipeline de 5 pasos numerados en vez de la píldora. El servidor lo calcula (`services/valePipeline.js`,
 campo `pipeline` de cada fila) y el frontend lo dibuja (`js/components/pipeline.js`, `css/pipeline.css`).
 No cambia ningún estado ni filtro: el desplegable de estado sigue usando los estados reales.
@@ -705,9 +700,9 @@ No cambia ningún estado ni filtro: el desplegable de estado sigue usando los es
 
 ## 11. Reportes de actividad (pestaña «Reportes»)
 
-Pestaña de la barra lateral con el permiso `vales.ver_reportes` (Administrador, Asesor, Supervisor, Encargados de taller y Diseñador; no el Gerente). Mide la actividad de las personas a partir de `vale_historial` y se exporta a PDF (`GET /api/vales/reportes` y `/reportes/pdf`; `services/valeReporteService.js` y `valeReportePdfService.js`). El alcance lo decide el servidor por rol: Asesor y Diseñador ven solo lo suyo; el Supervisor a sus asesores; el Encargado a su taller (cada diseñador); el Administrador todo, con filtros de tienda y taller.
+Pestaña de la barra lateral que aparece **solo según el permiso `vales.ver_reportes`**, para cualquier rol (hoy Administrador, Gerente, Asesor, Supervisor, Encargados de taller y Diseñador); sin el permiso no se muestra y la API responde 403. Un rol sin alcance propio (el Gerente) ve todo el sistema en solo lectura, igual que el Administrador. Mide la actividad de las personas a partir de `vale_historial` y se exporta a PDF (`GET /api/vales/reportes` y `/reportes/pdf`; `services/valeReporteService.js` y `valeReportePdfService.js`). El alcance lo decide el servidor por rol: Asesor y Diseñador ven solo lo suyo; el Supervisor a sus asesores; el Encargado a su taller (cada diseñador); el Administrador todo, con filtros de tienda y taller.
 
-- **Período:** cada acción cuenta por el día en que ocurrió (no por la fecha de entrega); abre en «Hoy» y usa la barra de período (§4).
+- **Período:** cada acción cuenta por el día en que ocurrió (no por la fecha de entrega); abre en «Hoy» y usa su propia barra: **Hoy · Día · Semana (lunes a domingo) · Mes · Desde–Hasta** (sin «Todo»).
 - **Acciones contadas:** crear, solicitar modificación, autorizar, rechazar, confirmar, asignar, comenzar, entregar (cancelar un proceso no cuenta), aprobar, devolver y fusionar; una devolución cuenta para quien entregó el trabajo devuelto.
 - **Tiempos:** de producción (comenzar → entregar, pausas incluidas), de revisión (entregar → aprobar o devolver), hasta la autorización (crear o reenviar → autorizar o rechazar) y ciclo completo (crear → confirmar).
 - Indicadores por rol, tablas por persona y listado de vales: ver `documentacion/correcciones_42.md`.
@@ -715,3 +710,35 @@ Pestaña de la barra lateral con el permiso `vales.ver_reportes` (Administrador,
 Ajustes (correcciones 43): Supervisor y Asesor solo ven Vales creados, Autorizados y Modificaciones solicitadas; no hay gráfica; quien tiene gente a su cargo puede evaluar a una o varias personas (`personaIds`), y el reporte y el PDF muestran solo a las elegidas.
 
 Simplificación (correcciones 43): Encargado y Diseñador también quedan con tres indicadores de actividad más «Atrasados ahora».
+
+Tabla unificada (correcciones 53): Gerente, Administrador, Supervisor y Encargado/Asistente ven personas con sus vales creados en el período, desplegables al pulsar la fila (vale, pipeline, entrega, atraso, propuesta y acciones «Ver vale» y «Ver propuesta»). Se agrupa por Asesor, Diseñador, Taller o Tienda y se filtra por tienda, taller, asesores y diseñadores. Los vales (y las filas, por su peor vale) se ordenan primero los que aún no están asignados («Por asignar») y luego por atraso, paso más bajo del pipeline y falta de propuesta. El PDF sigue la misma estructura.
+- **Agrupaciones y filtros por rol:** Administrador y Gerente agrupan por asesor, diseñador, taller o tienda y filtran por todo; el Supervisor solo agrupa por asesor y filtra por sus asesores (más él como «(yo)»), las tiendas que cubre y los talleres de esas tiendas; el Encargado/Asistente solo agrupa por diseñador y filtra por los diseñadores de sus talleres (y por taller si tiene 2 o más). Pedir otra cosa a mano responde 400.
+- **PDF del reporte:** vertical, sin cliente; el estado de cada vale se muestra como «Paso N de 5 - nombre del paso | estado actual», y el atraso va en su propia columna con semáforo de color de letra (rojo atrasado, naranja vence hoy, amarillo al día).
+- **Fecha de entrega y vista Taller:** el período filtra siempre por la fecha de entrega de los vales. El Encargado/Asistente ve cinco indicadores (entrantes, entregados, % efectividad, % a tiempo y atrasados), la columna «Fecha de ingreso» y, en el PDF, las listas ATRASADOS y DEMÁS VALES (por fecha de entrega) con la columna «Terminado»; un vale está terminado para el taller cuando su propuesta ya salió a revisión o se aprobó. Detalle en `documentacion/correcciones_53.md`.
+
+## 12. Información por día en el calendario del Buzón
+
+El calendario desplegable de la barra del Buzón (el que filtra por día o mes) puede mostrar información de cada día según el rol. Ya **no existe** la pestaña «Cupo de talleres».
+
+- **Supervisor** (permiso `vales.ver_cupo`, que se asigna desde «Roles y Permisos»): cupo diario de los talleres que tienen `limite_diario`, de los talleres de sus tiendas (`tallerRepository.listarIdsPorSupervisor`), con la misma regla del calendario de «Fecha de entrega»: verde con menos del 60 %, amarillo de 60 % a 89 %, naranja desde el 90 % y rojo si algún taller está lleno. Cada día lleva una barra por taller y un «+N» con los vales de su equipo que esperan autorización (no cuentan para el semáforo). Un rol con el permiso y sin tiendas propias ve todos los talleres con límite.
+- **Diseñador:** número de sus vales (los que tiene asignados) con entrega ese día. **Encargado/Asistente de taller:** número de vales de su taller con entrega ese día. Los días más cargados del mes se marcan con más intensidad.
+- **Pie del calendario:** detalle del día enfocado o elegido (`Diseño 3/15 · 12 libres`, o `5 vales con entrega este día`). Al elegir un día, el pie ofrece **«Ver vales de este día»** (filtra el Buzón) y **«Ver reporte de este día»** (abre Reportes con período «Día» en esa fecha de entrega; solo con `vales.ver_reportes`). Asesor, Gerente y Administrador no ven información y un clic filtra y cierra como siempre.
+- **API:** `GET /api/vales/calendario-buzon?anio=&mes=` (`vales.ver`) devuelve `{ tipo: 'cupo' | 'conteo' | null, ... }` según el rol; reutiliza `capacidadEntregaService.obtenerCupoMes` y `capacidadRepository.contarPorDia`.
+- Migración: `cupo_talleres.sql` (permiso `vales.ver_cupo` y asignación al Supervisor).
+
+**Visor emergente.** «Ver vale» y «Ver propuesta» (Buzón, modal del Supervisor y Reportes) abren una ventana emergente (`components/visorDocumento.js`) con pestañas «Vale de arte» / «Propuesta», en lugar de una pestaña nueva; incluye «Abrir en pestaña» y «Descargar» como respaldo.
+
+## 13. Propuesta con nota y enlaces
+
+Al entregar su propuesta, el Diseñador (y el Encargado/Asistente al adjuntar la fusión de un vale de varios talleres) puede agregar, además del PDF (hasta 5 MB), hasta **5 enlaces** a documentos de otras plataformas (solo `https`) y una **nota** de hasta 500 caracteres.
+
+- **Qué cuenta como propuesta:** al **entregar** el Diseñador debe adjuntar siempre el PDF; los enlaces y la nota son complementos opcionales (sin PDF da error). En la **fusión** del Encargado basta un archivo o al menos un enlace; la nota sola no basta. Una propuesta con solo enlaces (datos anteriores) se puede aprobar y autoaprobar igual que con archivo.
+- **Dónde se guarda:** `vale_propuestas.nota`, `vales.propuesta_general_nota` (nota de la fusión) y la tabla `vale_propuesta_enlaces` (con `propuesta_id` NULL son los enlaces de la fusión). Migración `propuesta_nota_enlaces.sql`.
+- **Quién la ve:** todos los que ven la propuesta, en el visor emergente (pestaña «Propuesta»), en el modal «Revisar propuesta» del Encargado y en la fusión. Los enlaces abren en una pestaña nueva. El historial dice «entregó propuesta (archivo, 2 enlaces y nota)».
+- **API:** `POST /:id/entregar` y `POST /:id/aprobar-general` reciben `nota` y `enlaces` (JSON) junto al archivo; `GET /:id/propuesta?tipo=taller|general|ultima&disenadorId=` devuelve la propuesta con su nota y enlaces.
+
+- **Atrasados vigentes:** el Buzón (con un filtro de fecha) y Reportes muestran aparte, en un bloque o panel plegable, los vales atrasados y abiertos de tu alcance cuya fecha de entrega queda fuera del filtro o período; el contador «Atrasados» del Buzón cuenta todos. Detalle en `documentacion/correcciones_53.md`.
+
+- **Orden de Reportes:** contadores, atrasados antes del período, gráfica de barras dobles (Encargado: asignados vs entregados por diseñador; Supervisor: creados vs autorizados por asesor), atrasados en el período, no entregados y entregados. «Entregado» = el taller ya entregó su propuesta (Encargado/Diseñador) o el vale ya llegó al asesor (demás roles). Detalle en `documentacion/correcciones_53.md`.
+
+- **Reporte de rendimiento:** el Encargado/Asistente y el Supervisor tienen, además de Actividad, un reporte de Rendimiento (contadores, gráfica y tabla comparativa por persona); se elige cuál descargar desde «Exportar PDF». Detalle en `documentacion/correcciones_53.md`.

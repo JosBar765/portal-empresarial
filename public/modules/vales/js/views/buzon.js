@@ -5,11 +5,11 @@ import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { aplicarVentanaAQuery } from '../utils/ventana.js';
 import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible } from '../permisos.js';
 import { celdaEstado } from '../components/pipeline.js';
+import { abrirVisorVale } from '../components/visorDocumento.js';
+import { htmlBloqueVigentes, conectarBloqueVigentes } from '../components/atrasadosVigentes.js';
 import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro, badgePersona } from '../utils/formato.js';
 import { obtenerBuzon, obtenerMasVales } from '../api/valesApi.js';
-import { cargarRendimientoGerencia } from './rendimientoGerencia.js';
 import { cargarReportes } from './reportes.js';
-import { cargarEncontrarVale } from './encontrarVale.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/disenador.js';
@@ -43,15 +43,6 @@ export function construirQueryBase() {
 export async function cargarBuzon() {
   // Reportes de actividad: tienen su propia vista y su propia consulta.
   if (state.vista === 'reportes') return cargarReportes();
-  // Gerente y Supervisor en su vista "Rendimiento" no piden el buzón de
-  // vales — piden las métricas agregadas.
-  if ([ROL.SUPERVISOR, ROL.GERENTE].includes(rolEncargadoDe(state.user)) && state.vista === 'rendimiento') {
-    return cargarRendimientoGerencia();
-  }
-  // El Gerente no tiene buzón: solo busca vales por correlativo.
-  if (state.user.rolId === ROL.GERENTE && state.vista === 'encontrar') {
-    return cargarEncontrarVale();
-  }
   state.paginacion = { limit: 50, cursor: null, total: 0, hasMore: false, cargandoMas: false };
   const qs = construirQueryBase();
 
@@ -62,6 +53,7 @@ export async function cargarBuzon() {
     state.paginacion.total = data.total ?? state.vales.length;
     state.paginacion.hasMore = !!data.hasMore;
     state.paginacion.cursor = data.nextCursor ?? null;
+    state.atrasadosVigentes = data.atrasadosVigentes || { total: 0, truncado: false, vales: [] };
   } catch (error) {
     $('#buzon-tbody').innerHTML = `
       <tr><td colspan="${columnasVisibles()}" class="tabla-vacia">
@@ -75,6 +67,7 @@ export async function cargarBuzon() {
   }
 
   renderContadores();
+  renderVigentes();
   renderTabla();
 }
 
@@ -213,6 +206,11 @@ export function renderTabla() {
     return;
   }
 
+  pintarFilas(tbody, filas);
+}
+
+// Dibuja las filas de vales (y sus botones de acción) en un <tbody>: lo usan la tabla principal y el bloque de atrasados vigentes.
+function pintarFilas(tbody, filas) {
   tbody.innerHTML = filas.map(v => `
     <tr>
       <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${badgePersona(v)}</td>
@@ -233,21 +231,69 @@ export function renderTabla() {
     const wrap = document.createElement('div');
     wrap.className = 'acciones-wrap';
     cell.appendChild(wrap);
-    construirAcciones(v).forEach(accion => {
-      const btn = document.createElement('button');
-      btn.className = `btn-icon ${accion.clase || ''}`;
-      btn.title = accion.titulo;
-      btn.innerHTML = `<ion-icon name="${accion.icono}"></ion-icon>`;
-      btn.addEventListener('click', () => {
-        const clave = claveFila(v);
-        if (state.accionesEnCurso.has(clave)) return;
-        state.accionesEnCurso.add(clave);
-        Promise.resolve(accion.onClick(v)).finally(() => state.accionesEnCurso.delete(clave));
-      });
-      wrap.appendChild(btn);
-    });
+    crearBotonesAcciones(wrap, v);
   });
 }
+
+// Botones de acción de una fila (los mismos en la tabla y en el bloque de atrasados vigentes).
+function crearBotonesAcciones(wrap, v) {
+  construirAcciones(v).forEach(accion => {
+    const btn = document.createElement('button');
+    btn.className = `btn-icon ${accion.clase || ''}`;
+    btn.title = accion.titulo;
+    btn.innerHTML = `<ion-icon name="${accion.icono}"></ion-icon>`;
+    btn.addEventListener('click', () => {
+      const clave = claveFila(v);
+      if (state.accionesEnCurso.has(clave)) return;
+      state.accionesEnCurso.add(clave);
+      Promise.resolve(accion.onClick(v)).finally(() => state.accionesEnCurso.delete(clave));
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+// «Atrasados vigentes»: los vales atrasados que siguen abiertos aunque su entrega quede fuera del filtro de fecha elegido. Bloque
+// plegable sobre la tabla, con las mismas columnas y acciones; el usuario recuerda si lo plegó.
+const CLAVE_VIGENTES_PLEGADO = 'vales:vigentesPlegado';
+const leerPlegado = () => { try { return localStorage.getItem(CLAVE_VIGENTES_PLEGADO) === '1'; } catch { return false; } };
+const guardarPlegado = (plegado) => { try { localStorage.setItem(CLAVE_VIGENTES_PLEGADO, plegado ? '1' : '0'); } catch { /* sin almacenamiento: no se recuerda */ } };
+
+export function renderVigentes() {
+  const cont = $('#atrasados-vigentes');
+  const av = state.atrasadosVigentes;
+  if (!cont) return;
+  if (!av || !av.total) { cont.hidden = true; cont.innerHTML = ''; return; }
+  cont.hidden = false;
+  cont.innerHTML = htmlBloqueVigentes({
+    id: 'vig-buzon', total: av.total, truncado: av.truncado, plegado: leerPlegado(),
+    items: av.vales.map(v => ({
+      correlativo: v.correlativo, esMod: false, sub: [v.cliente_nombre, v.persona && v.persona.nombre].filter(Boolean).join(' · '),
+      pipeline: v.pipeline, fechaEntrega: v.fecha_entrega, diasAtraso: v.diasAtraso,
+      accionesHtml: `<div class="acciones-wrap" data-vig-key="${escapeAttr(claveFila(v))}"></div>`
+    }))
+  });
+  av.vales.forEach(v => {
+    const wrap = cont.querySelector(`[data-vig-key="${CSS.escape(claveFila(v))}"]`);
+    if (wrap) crearBotonesAcciones(wrap, v);
+  });
+  conectarBloqueVigentes(cont, guardarPlegado);
+}
+
+const escapeAttr = (t) => String(t).replace(/"/g, '&quot;');
+
+// Propuesta que este usuario puede ver en la fila (la fusión o la del propio taller; con archivo o solo con enlaces), o null.
+function propuestaGeneralVisible(v) {
+  const aplica = (usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || puede('aprobarGeneral')) && v._tipoRegistro !== 'PROPUESTA';
+  return aplica && (v.propuesta_general_url || v.propuesta_extra) ? { tipo: 'general' } : null;
+}
+function propuestaTallerVisible(v) {
+  return ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && (v.propuesta_taller_url || v.propuesta_taller_extra)
+    ? { tipo: 'taller', disenadorId: v.propuesta_disenador_id }
+    : null;
+}
+const propuestaVisible = (v) => propuestaGeneralVisible(v) || propuestaTallerVisible(v);
+
+const abrirVisorDeFila = (v, propuesta) => abrirVisorVale({ id: v.id, correlativo: v.correlativo, propuesta });
 
 export function construirAcciones(v) {
   const esMio = v.asesor_id === state.user.id;
@@ -257,27 +303,7 @@ export function construirAcciones(v) {
   // directo al PDF — a veces solo necesita los datos de encabezado. Vale también para los suyos, que él autoriza.
   const acciones = state.user.rolId === ROL.SUPERVISOR
     ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
-    : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') }];
-  // El hipervínculo de la propuesta apunta al documento de propuesta real, no
-  // al vale (PDF) — disponible tanto en el buzón (trabajo realizado) como en
-  // cualquier vista donde ya exista una propuesta oficial para el vale. El
-  // supervisor también la necesita en Trabajo realizado. Quien fusiona
-  // (Encargado/Asistente de Diseño) también ve "Ver propuesta" con SU
-  // documento de fusión (propuesta_general_url) en Trabajo Realizado. Se
-  // excluye la fila de PROPUESTA propia (también trae propuesta_general_url,
-  // hereda todos los campos del vale) para no mostrar el botón de la fusión
-  // en las dos filas del mismo vale.
-  if ((usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || puede('aprobarGeneral')) && v.propuesta_general_url && v._tipoRegistro !== 'PROPUESTA') {
-    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_general_url, '_blank') });
-  }
-  // En "Trabajo realizado" el encargado de un taller (y el propio diseñador) ve
-  // la propuesta REAL que se aprobó (`propuesta_taller_url`, solo viene
-  // poblado en esa vista) — no `propuesta_general_url`, que en un vale
-  // multi-taller es la fusión, no el trabajo propio de este taller.
-  if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && v.propuesta_taller_url) {
-    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_taller_url, '_blank') });
-  }
-
+    : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
   // El Supervisor autoriza el envío a talleres de un vale recién creado por
   // uno de sus asesores.
   if (puede('autorizarCreacion') && v.estado === 'ESPERANDO_AUTORIZACION') {

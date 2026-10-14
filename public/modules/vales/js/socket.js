@@ -3,7 +3,6 @@ import { ROL } from './config/roles.js';
 import { roomsParaUsuario } from './permisos.js';
 import { refreshToken, logout } from './api/authApi.js';
 import { cargarBuzon } from './views/buzon.js';
-import { actualizarRendimientoEnVivo } from './views/rendimientoGerencia.js';
 import { avisarCambioEnModalAutorizar } from './actions/supervisor.js';
 
 export function reproducirBeep() {
@@ -86,15 +85,7 @@ export function initSocket() {
 }
 
 function refrescarPantalla() {
-  // La vista Rendimiento (Supervisor) se refresca en silencio y con rebote
-  // (ver actualizarRendimientoEnVivo) en vez de recargar un buzón que esa
-  // vista ni siquiera muestra.
-  const enVistaRendimiento = [ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'rendimiento';
-  if (enVistaRendimiento) {
-    actualizarRendimientoEnVivo();
-  } else {
-    cargarBuzon();
-  }
+  cargarBuzon();
   if (state.cargaTrabajoModal) {
     if (state.cargaTrabajoModal.overlay.isConnected) {
       state.cargaTrabajoModal.actualizar();

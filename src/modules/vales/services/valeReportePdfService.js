@@ -1,11 +1,11 @@
 // src/modules/vales/services/valeReportePdfService.js
-// PDF del reporte de actividad (horizontal, estilo del vale): indicadores, tablas por persona y listado de vales.
+// PDF del reporte de actividad (vertical): vales por persona, taller o tienda, con su paso del pipeline.
 const fs = require('fs/promises');
 const path = require('path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 
-const PAGE_WIDTH = 792; // Carta horizontal
-const PAGE_HEIGHT = 612;
+const PAGE_WIDTH = 612; // Carta vertical
+const PAGE_HEIGHT = 792;
 const MARGIN = 36;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const LOGO_PATH = path.join(__dirname, '../../../../public/assets/logos/LOGO_GP_isotipo.png');
@@ -15,12 +15,24 @@ const GRIS = rgb(0.45, 0.48, 0.52);
 const LINEA = rgb(0.85, 0.85, 0.85);
 const FONDO_CABECERA = rgb(0.95, 0.96, 0.97);
 const ROJO = rgb(0.8, 0.1, 0.1);
+const GRIS_TEXTO = rgb(0.3, 0.33, 0.37);
 
-const ETIQUETA_ESTADO = {
-  ESPERANDO_AUTORIZACION: 'Esperando autorización', CREADO: 'Creado', APROBADO_DEPARTAMENTO: 'Aprobado por talleres',
-  PENDIENTE_CONFIRMACION: 'Pend. confirmación', RECIBIDO: 'Recibido', SOLICITANDO_MODIFICACION: 'Solicitando modificación',
-  MODIFICADO: 'Modificado', CONFIRMADO: 'Confirmado', RECHAZADO: 'Rechazado'
-};
+const SECCIONES_PDF = [
+  { clave: 'atrasados', titulo: 'ATRASADOS EN EL PERÍODO' },
+  { clave: 'noEntregados', titulo: 'NO ENTREGADOS' },
+  { clave: 'entregados', titulo: 'ENTREGADOS' }
+];
+const COLOR_SERIE_A = rgb(0.145, 0.388, 0.922);
+const COLOR_SERIE_B = rgb(0.086, 0.639, 0.29);
+
+// Celda de estado: «Paso N de 5 - Nombre del paso | Estado actual | Quién tiene el turno» (el atraso va en su propia columna).
+function celdaEstado(pipeline) {
+  const nombrePaso = pipeline.pasos[Math.min(pipeline.paso, pipeline.pasos.length) - 1];
+  const total = pipeline.pasos.length;
+  const segmentos = [pipeline.terminado ? `Paso ${total} de ${total} - Completado` : `Paso ${pipeline.paso} de ${total} - ${nombrePaso}`, pipeline.etiqueta];
+  if (!pipeline.terminado && !pipeline.alerta && pipeline.detalle) segmentos.push(pipeline.detalle);
+  return { segmentos };
+}
 
 // Las fuentes estándar del PDF solo cubren Latin-1: lo demás se sustituye en vez de romper la generación.
 const limpiar = texto => String(texto ?? '').replace(/[–—]/g, '-').replace(/→/g, 'a').replace(/[^ -ÿ]/g, '?');
@@ -37,6 +49,11 @@ function formatear(valor, formato) {
       if (h < 48) return `${h.toLocaleString('es-GT', { maximumFractionDigits: 1 })} h`;
       return `${(h / 24).toLocaleString('es-GT', { maximumFractionDigits: 1 })} d`;
     }
+    case 'fecha': {
+      const [f] = String(valor).split(' ');
+      const [y, m, d] = f.split('-');
+      return `${d}/${m}/${y}`;
+    }
     case 'fechaHora': {
       const [f, hora] = String(valor).split(' ');
       const [, m, d] = f.split('-');
@@ -44,6 +61,14 @@ function formatear(valor, formato) {
     }
     default: return String(valor);
   }
+}
+
+// Semáforo de la columna Atraso, solo con el color de la letra: rojo si está atrasado, naranja si vence hoy y amarillo si va al día.
+const COLOR_SEMAFORO = { rojo: rgb(0.78, 0.1, 0.1), naranja: rgb(0.85, 0.4, 0), amarillo: rgb(0.7, 0.5, 0), verde: rgb(0.09, 0.5, 0.2), gris: rgb(0.45, 0.48, 0.52) };
+function semaforoAtraso({ atrasado, diasAtraso, venceHoy }) {
+  if (atrasado) return { semaforo: { texto: diasAtraso >= 1 ? `${diasAtraso} ${diasAtraso === 1 ? 'día' : 'días'}` : 'Atrasado', tono: 'rojo' } };
+  if (venceHoy) return { semaforo: { texto: 'Vence hoy', tono: 'naranja' } };
+  return { semaforo: { texto: 'Al día', tono: 'amarillo' } };
 }
 
 class ValeReportePdfService {
@@ -57,11 +82,25 @@ class ValeReportePdfService {
 
     this._nuevaPagina(ctx);
     this._encabezado(ctx, reporte, generadoPor, ahora);
-    this._indicadores(ctx, reporte);
-    reporte.tablas.forEach(t => this._tablaPersonas(ctx, t));
-    this._listado(ctx, reporte);
+    if (reporte.tipo === 'rendimiento' && reporte.grupos && reporte.grupos.rendimiento) {
+      if (reporte.grupos.indicadoresTaller) this._contadores(ctx, reporte.grupos.indicadoresTaller);
+      this._grafica(ctx, reporte.grupos.rendimiento);
+      this._tablaRendimiento(ctx, reporte.grupos.rendimiento);
+    } else {
+      this._actividad(ctx, reporte);
+    }
     this._pies(pdfDoc, font);
     return Buffer.from(await pdfDoc.save());
+  }
+
+  // Reporte de actividad: atrasados antes del período y las tres secciones del período (o la lista del Asesor y del Diseñador).
+  _actividad(ctx, reporte) {
+    if (reporte.atrasadosVigentes && reporte.atrasadosVigentes.total) this._vigentes(ctx, reporte.atrasadosVigentes);
+    if (reporte.grupos) this._secciones(ctx, reporte);
+    else {
+      reporte.tablas.forEach(t => this._tablaPersonas(ctx, t));
+      this._listado(ctx, reporte);
+    }
   }
 
   _nuevaPagina(ctx) {
@@ -87,15 +126,21 @@ class ValeReportePdfService {
 
   _encabezado(ctx, reporte, generadoPor, ahora) {
     const x0 = MARGIN;
-    if (ctx.logo) ctx.page.drawImage(ctx.logo, { x: x0, y: ctx.y - 30, width: 30, height: 30 });
-    this._texto(ctx, 'REPORTE DE ACTIVIDAD', x0 + 42, ctx.y - 13, { size: 16, bold: true });
-    this._texto(ctx, reporte.titulo, x0 + 42, ctx.y - 28, { size: 10, color: GRIS });
-    const derecha = [`Período: ${reporte.periodo.etiqueta}`, `Generado: ${ahora}${generadoPor ? ` por ${generadoPor}` : ''}`];
+    if (ctx.logo) ctx.page.drawImage(ctx.logo, { x: x0, y: ctx.y - 22, width: 22, height: 22 });
+    this._texto(ctx, reporte.tipo === 'rendimiento' ? 'REPORTE DE RENDIMIENTO' : 'REPORTE DE ACTIVIDAD', x0 + 30, ctx.y - 9, { size: 12, bold: true });
+    this._texto(ctx, reporte.titulo, x0 + 30, ctx.y - 20, { size: 8.5, color: GRIS });
+    const derecha = [reporte.periodo.titulo || `Período: ${reporte.periodo.etiqueta}`, `Generado: ${ahora}${generadoPor ? ` por ${generadoPor}` : ''}`];
     derecha.forEach((linea, i) => {
-      const t = limpiar(linea);
-      this._texto(ctx, t, PAGE_WIDTH - MARGIN - ctx.font.widthOfTextAtSize(t, 8.5), ctx.y - 13 - i * 12, { size: 8.5, color: GRIS });
+      const t = this._ajustar(ctx, linea, 330, 7.5);
+      this._texto(ctx, t, PAGE_WIDTH - MARGIN - ctx.font.widthOfTextAtSize(t, 7.5), ctx.y - 9 - i * 10, { size: 7.5, color: GRIS });
     });
-    ctx.y -= 40;
+    ctx.y -= 28;
+    // «Agrupar por» no aplica al reporte de rendimiento.
+    const filtrosVisibles = (reporte.resumenFiltros || []).filter(t => reporte.tipo !== 'rendimiento' || !/^Agrupado por/.test(t));
+    if (filtrosVisibles.length) {
+      this._texto(ctx, this._ajustar(ctx, filtrosVisibles.join('  ·  '), CONTENT_WIDTH, 7.5), MARGIN, ctx.y - 5, { size: 7.5, color: GRIS });
+      ctx.y -= 13;
+    }
     const evaluados = reporte.evaluados || [];
     if (evaluados.length) {
       const nombres = evaluados.map(p => p.nombre);
@@ -106,34 +151,11 @@ class ValeReportePdfService {
         texto = `${nombres.slice(0, mostrados).join(', ')} y ${nombres.length - mostrados} más`;
       }
       const linea = evaluados.length === 1 ? `Evaluado: ${texto}` : `Evaluados (${nombres.length}): ${texto}`;
-      this._texto(ctx, this._ajustar(ctx, linea, CONTENT_WIDTH, 8.5, true), MARGIN, ctx.y - 6, { size: 8.5, bold: true });
-      ctx.y -= 20;
+      this._texto(ctx, this._ajustar(ctx, linea, CONTENT_WIDTH, 7.5, true), MARGIN, ctx.y - 5, { size: 7.5, bold: true });
+      ctx.y -= 14;
     }
-    ctx.page.drawLine({ start: { x: MARGIN, y: ctx.y }, end: { x: PAGE_WIDTH - MARGIN, y: ctx.y }, thickness: 1, color: NEGRO });
-    ctx.y -= 18;
-  }
-
-  _indicadores(ctx, reporte) {
-    this._titulo(ctx, 'INDICADORES');
-    const columnas = 4;
-    const gap = 8;
-    const ancho = (CONTENT_WIDTH - gap * (columnas - 1)) / columnas;
-    const alto = 44;
-    for (let i = 0; i < reporte.kpis.length; i += columnas) {
-      this._espacio(ctx, alto + 6);
-      reporte.kpis.slice(i, i + columnas).forEach((k, j) => {
-        const x = MARGIN + j * (ancho + gap);
-        const y = ctx.y - alto;
-        ctx.page.drawRectangle({ x, y, width: ancho, height: alto, borderColor: LINEA, borderWidth: 1 });
-        this._texto(ctx, this._ajustar(ctx, k.label, ancho - 12, 7.5), x + 6, y + alto - 12, { size: 7.5, color: GRIS });
-        this._texto(ctx, formatear(k.valor, k.formato), x + 6, y + alto - 30, { size: 15, bold: true, color: k.malo && Number(k.valor) > 0 ? ROJO : NEGRO });
-        if (k.anterior != null && !k.instantaneo) {
-          this._texto(ctx, this._ajustar(ctx, `Anterior: ${formatear(k.anterior, k.formato)}`, ancho - 12, 7), x + 6, y + 5, { size: 7, color: GRIS });
-        }
-      });
-      ctx.y -= alto + 6;
-    }
-    ctx.y -= 8;
+    ctx.page.drawLine({ start: { x: MARGIN, y: ctx.y }, end: { x: PAGE_WIDTH - MARGIN, y: ctx.y }, thickness: 0.75, color: NEGRO });
+    ctx.y -= 14;
   }
 
   _titulo(ctx, texto) {
@@ -143,35 +165,75 @@ class ValeReportePdfService {
   }
 
   // Tabla genérica: `columnas` [{ label, ancho (proporción), derecha }], `filas` [[texto, ...]].
-  _tabla(ctx, columnas, filas, { altoFila = 14, tamano = 7.5 } = {}) {
+  // Una celda puede ser texto o un estado `{ segmentos, alerta }` (ver `celdaEstado`).
+  _tabla(ctx, columnas, filas, { altoFila = 14, tamano = 7.5, altoCabecera = 14 } = {}) {
     const total = columnas.reduce((s, c) => s + c.ancho, 0);
     const anchos = columnas.map(c => (c.ancho / total) * CONTENT_WIDTH);
     const cabecera = () => {
-      this._espacio(ctx, altoFila * 2);
-      ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - altoFila, width: CONTENT_WIDTH, height: altoFila, color: FONDO_CABECERA });
+      this._espacio(ctx, altoCabecera + altoFila);
+      ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - altoCabecera, width: CONTENT_WIDTH, height: altoCabecera, color: FONDO_CABECERA });
       let x = MARGIN;
       columnas.forEach((c, i) => {
         const t = this._ajustar(ctx, c.label, anchos[i] - 8, tamano, true);
-        const tx = c.derecha ? x + anchos[i] - 4 - ctx.fontBold.widthOfTextAtSize(t, tamano) : x + 4;
-        this._texto(ctx, t, tx, ctx.y - altoFila + 4, { size: tamano, bold: true, color: GRIS });
+        const tx = c.derecha ? x + anchos[i] - 4 - ctx.fontBold.widthOfTextAtSize(t, tamano) : (c.centro ? x + (anchos[i] - ctx.fontBold.widthOfTextAtSize(t, tamano)) / 2 : x + 4);
+        this._texto(ctx, t, tx, ctx.y - altoCabecera + 4, { size: tamano, bold: true, color: GRIS });
         x += anchos[i];
       });
-      ctx.y -= altoFila;
+      ctx.y -= altoCabecera;
     };
     cabecera();
     filas.forEach(fila => {
       if (ctx.y - altoFila < MARGIN + 18) { this._nuevaPagina(ctx); cabecera(); }
       let x = MARGIN;
       fila.forEach((celda, i) => {
-        const t = this._ajustar(ctx, celda, anchos[i] - 8, tamano);
-        const tx = columnas[i].derecha ? x + anchos[i] - 4 - ctx.font.widthOfTextAtSize(t, tamano) : x + 4;
-        this._texto(ctx, t, tx, ctx.y - altoFila + 4, { size: tamano });
+        if (celda && celda.semaforo) {
+          this._dibujarSemaforo(ctx, celda.semaforo, x + 2, anchos[i] - 4, tamano, altoFila);
+        } else if (celda && typeof celda === 'object') {
+          this._dibujarEstado(ctx, celda, x + 4, anchos[i] - 8, tamano, altoFila);
+        } else {
+          const t = this._ajustar(ctx, celda, anchos[i] - 8, tamano);
+          const c = columnas[i];
+          const tx = c.derecha ? x + anchos[i] - 4 - ctx.font.widthOfTextAtSize(t, tamano) : (c.centro ? x + (anchos[i] - ctx.font.widthOfTextAtSize(t, tamano)) / 2 : x + 4);
+          this._texto(ctx, t, tx, ctx.y - altoFila / 2 - tamano * 0.35, { size: tamano });
+        }
         x += anchos[i];
       });
       ctx.page.drawLine({ start: { x: MARGIN, y: ctx.y - altoFila }, end: { x: PAGE_WIDTH - MARGIN, y: ctx.y - altoFila }, thickness: 0.5, color: LINEA });
       ctx.y -= altoFila;
     });
     ctx.y -= 12;
+  }
+
+  // Segmentos separados por «|»: el primero en negrita; si no caben en una línea pasan a una segunda.
+  _dibujarEstado(ctx, { segmentos }, x, ancho, tamano, altoFila) {
+    const sep = ' | ';
+    const anchoDe = (t, negrita) => (negrita ? ctx.fontBold : ctx.font).widthOfTextAtSize(limpiar(t), tamano);
+    const lineas = [[]];
+    let usado = 0;
+    segmentos.forEach((seg, i) => {
+      const w = anchoDe(seg, i === 0) + (usado ? anchoDe(sep) : 0);
+      if (usado && usado + w > ancho && lineas.length < 2) { lineas.push([]); usado = 0; }
+      lineas[lineas.length - 1].push({ seg, i });
+      usado += w;
+    });
+    const interlineado = tamano + 2.5;
+    const base = ctx.y - altoFila / 2 - tamano * 0.35 + (lineas.length - 1) * interlineado / 2;
+    lineas.forEach((linea, l) => {
+      let cx = x;
+      linea.forEach(({ seg, i }, k) => {
+        if (k > 0) { this._texto(ctx, sep, cx, base - l * interlineado, { size: tamano, color: GRIS }); cx += anchoDe(sep); }
+        const texto = this._ajustar(ctx, seg, Math.max(20, x + ancho - cx), tamano, i === 0);
+        this._texto(ctx, texto, cx, base - l * interlineado, { size: tamano, bold: i === 0, color: i === 0 ? NEGRO : GRIS_TEXTO });
+        cx += anchoDe(texto, i === 0);
+      });
+    });
+  }
+
+  // Texto en negrita, centrado en la celda y con el color del semáforo.
+  _dibujarSemaforo(ctx, { texto, tono }, x, ancho, tamano, altoFila) {
+    const t = this._ajustar(ctx, texto, ancho - 4, tamano, true);
+    const w = ctx.fontBold.widthOfTextAtSize(limpiar(t), tamano);
+    this._texto(ctx, t, x + (ancho - w) / 2, ctx.y - altoFila / 2 - tamano * 0.35, { size: tamano, bold: true, color: COLOR_SEMAFORO[tono] });
   }
 
   _tablaPersonas(ctx, tabla) {
@@ -182,23 +244,163 @@ class ValeReportePdfService {
     this._tabla(ctx, columnas, filas);
   }
 
+  // Secciones del período (atrasados, no entregados y entregados): en cada una, cada persona (o taller/tienda) con sus vales, del más urgente al menos.
+  _secciones(ctx, reporte) {
+    const g = reporte.grupos;
+    const nombre = { asesor: 'ASESOR', disenador: 'DISEÑADOR', taller: 'TALLER', tienda: 'TIENDA' }[g.agruparPor];
+    const esTaller = reporte.rol === 'encargado';
+    const hayVales = SECCIONES_PDF.some(sec => g.secciones[sec.clave].total > 0);
+    if (!hayVales) {
+      this._titulo(ctx, `VALES POR ${nombre} (0)`);
+      this._texto(ctx, 'No hubo vales con entrega en este período.', MARGIN, ctx.y - 8, { size: 9, color: GRIS });
+      ctx.y -= 20;
+      return;
+    }
+    // Columnas según la sección: atrasados con Atraso; entregados sin Atraso ni Propuesta.
+    const columnasDe = (clave) => [
+      { label: 'Vale', ancho: 1.8 }, ...(esTaller ? [{ label: 'Ingreso', ancho: 1.3 }] : []), { label: 'Estado', ancho: 3.2 },
+      { label: 'Entrega', ancho: 1, centro: true },
+      ...(clave === 'atrasados' ? [{ label: 'Atraso', ancho: 1, centro: true }] : []),
+      ...(clave !== 'entregados' ? [{ label: 'Propuesta', ancho: 1, centro: true }] : [])
+    ];
+    const ingreso = (v) => {
+      const [fecha, hora] = String(v.creadoEn).split(' ');
+      return `${formatear(fecha, 'fecha')} ${(hora || '').slice(0, 5)}`;
+    };
+    for (const sec of SECCIONES_PDF) {
+      const datos = g.secciones[sec.clave];
+      if (!datos.total) continue;
+      this._titulo(ctx, `${sec.titulo} (${datos.total})`);
+      const columnas = columnasDe(sec.clave);
+      for (const grupo of datos.grupos) {
+        this._espacio(ctx, 80);
+        const resumen = `${grupo.total} vale${grupo.total === 1 ? '' : 's'}`
+          + (sec.clave !== 'entregados' && grupo.sinPropuesta ? `  ·  ${grupo.sinPropuesta} sin propuesta` : '');
+        ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - 18, width: CONTENT_WIDTH, height: 18, color: FONDO_CABECERA });
+        this._texto(ctx, this._ajustar(ctx, grupo.nombre, 200, 9, true), MARGIN + 6, ctx.y - 13, { size: 9, bold: true });
+        this._texto(ctx, this._ajustar(ctx, resumen, CONTENT_WIDTH - 220, 7.5), MARGIN + 214, ctx.y - 13, { size: 7.5, color: GRIS });
+        ctx.y -= 22;
+        const filas = grupo.vales.map(v => [
+          `${v.correlativo}${v.esMod ? ' (MOD)' : ''}`,
+          ...(esTaller ? [ingreso(v)] : []),
+          celdaEstado(v.pipeline),
+          formatear(v.fechaEntrega, 'fecha'),
+          ...(sec.clave === 'atrasados' ? [semaforoAtraso(v)] : []),
+          ...(sec.clave !== 'entregados' ? [v.tienePropuesta ? 'Sí' : (v.sinPropuesta ? 'No' : '-')] : [])
+        ]);
+        this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5 });
+      }
+    }
+    if (g.truncado) {
+      this._espacio(ctx, 16);
+      this._texto(ctx, `Hay ${g.totalVales} vales; se muestran los más urgentes. Acota el período o los filtros para ver el resto.`, MARGIN, ctx.y - 8, { size: 8, color: GRIS });
+    }
+  }
+
+  // Tabla comparativa del reporte de rendimiento, con fila de totales.
+  _tablaRendimiento(ctx, r) {
+    const [serieA, serieB] = r.series;
+    this._titulo(ctx, 'COMPARATIVO POR PERSONA');
+    const columnas = [
+      { label: r.persona || 'Persona', ancho: 2.6 }, { label: serieA.etiqueta, ancho: 1, centro: true },
+      { label: serieB.etiqueta, ancho: 1, centro: true }, { label: '%', ancho: 1.3, centro: true }, { label: 'Atrasados', ancho: 1, centro: true }
+    ];
+    const pct = (a, b) => (a > 0 ? `${Math.round((b / a) * 100)} %` : '-');
+    const filas = r.filas.map(f => [
+      f.nombre, String(f.a), String(f.b), `${pct(f.a, f.b)}${r.totales.masBajo === f.id ? '  (más bajo)' : ''}`, String(f.atrasados)
+    ]);
+    filas.push(['TOTAL', String(r.totales.a), String(r.totales.b), pct(r.totales.a, r.totales.b), String(r.totales.atrasados)]);
+    this._tabla(ctx, columnas, filas, { altoFila: 16, tamano: 8 });
+  }
+
+  // Barras dobles por persona (Encargado: asignados vs entregados; Supervisor: creados vs autorizados).
+  _grafica(ctx, grafica) {
+    if (!grafica.filas.length) return;
+    this._titulo(ctx, grafica.titulo.toUpperCase());
+    const [serieA, serieB] = grafica.series;
+    // Leyenda
+    this._espacio(ctx, 18);
+    let x = MARGIN;
+    [[serieA, COLOR_SERIE_A], [serieB, COLOR_SERIE_B]].forEach(([serie, color]) => {
+      ctx.page.drawRectangle({ x, y: ctx.y - 9, width: 8, height: 8, color });
+      this._texto(ctx, serie.etiqueta, x + 12, ctx.y - 8, { size: 8, color: GRIS_TEXTO });
+      x += 12 + ctx.font.widthOfTextAtSize(limpiar(serie.etiqueta), 8) + 18;
+    });
+    this._texto(ctx, `% = ${serieB.etiqueta.toLowerCase()} entre ${serieA.etiqueta.toLowerCase()}`, x, ctx.y - 8, { size: 7.5, color: GRIS });
+    ctx.y -= 18;
+    const anchoNombre = 140;
+    const x0 = MARGIN + anchoNombre + 6;
+    const anchoMax = CONTENT_WIDTH - anchoNombre - 6 - 62;
+    const maximo = Math.max(1, ...grafica.filas.map(f => Math.max(f.a, f.b)));
+    for (const f of grafica.filas) {
+      this._espacio(ctx, 24);
+      this._texto(ctx, this._ajustar(ctx, f.nombre, anchoNombre, 8, true), MARGIN, ctx.y - 14, { size: 8, bold: true, color: f.a === 0 ? GRIS : NEGRO });
+      [[f.a, COLOR_SERIE_A, 0], [f.b, COLOR_SERIE_B, 1]].forEach(([valor, color, i]) => {
+        const y = ctx.y - 10 - i * 9;
+        ctx.page.drawRectangle({ x: x0, y, width: anchoMax, height: 6, color: FONDO_CABECERA });
+        if (valor > 0) ctx.page.drawRectangle({ x: x0, y, width: Math.max(2, (valor / maximo) * anchoMax), height: 6, color });
+        this._texto(ctx, String(valor), x0 + anchoMax + 6, y - 1, { size: 7.5, bold: true });
+      });
+      const pct = f.a > 0 ? `${Math.round((f.b / f.a) * 100)} %` : '-';
+      this._texto(ctx, pct, PAGE_WIDTH - MARGIN - ctx.font.widthOfTextAtSize(pct, 8), ctx.y - 14, { size: 8, color: GRIS_TEXTO });
+      ctx.y -= 24;
+    }
+    ctx.y -= 6;
+  }
+
+  // «Atrasados vigentes»: vales atrasados y abiertos con entrega fuera del período, del más atrasado al menos.
+  _vigentes(ctx, av) {
+    this._titulo(ctx, `ATRASADOS ANTES DEL PERÍODO (${av.total})`);
+    const conResponsable = av.vales.some(v => v.responsable);
+    const columnas = [
+      { label: 'Vale', ancho: 1.8 },
+      ...(conResponsable ? [{ label: 'Responsable', ancho: 1.7 }] : []),
+      { label: 'Estado', ancho: 3 }, { label: 'Entrega', ancho: 1, centro: true }, { label: 'Atraso', ancho: 1, centro: true }
+    ];
+    const filas = av.vales.map(v => [
+      v.esMod && !/^MOD-/.test(v.correlativo) ? `${v.correlativo} (MOD)` : v.correlativo,
+      ...(conResponsable ? [v.responsable || '-'] : []),
+      celdaEstado(v.pipeline),
+      formatear(v.fechaEntrega, 'fecha'),
+      semaforoAtraso(v)
+    ]);
+    this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5 });
+    if (av.truncado) this._texto(ctx, `Se muestran los ${av.vales.length} más atrasados de ${av.total}.`, MARGIN, ctx.y - 2, { size: 8, color: GRIS });
+    if (av.truncado) ctx.y -= 14;
+  }
+
+  // Vista Taller (Encargado/Asistente): resumen de indicadores y dos listas planas, primero los atrasados y luego los demás,
+  // cada una por fecha de entrega (la más antigua primero).
+  // Franja de contadores de la vista Taller (Encargado/Asistente).
+  _contadores(ctx, i) {
+    const pct = (n) => (n == null ? '-' : `${String(n).replace('.', ',')} %`);
+    const resumen = `Entrantes ${i.entrantes}  ·  Entregados ${i.entregados}  ·  Efectividad ${pct(i.efectividad)}  ·  A tiempo ${pct(i.aTiempo)}  ·  Atrasados ${i.atrasados}`;
+    this._texto(ctx, this._ajustar(ctx, resumen, CONTENT_WIDTH, 8.5, true), MARGIN, ctx.y - 9, { size: 8.5, bold: true });
+    ctx.y -= 22;
+  }
+
   _listado(ctx, reporte) {
     const v = reporte.vales;
-    this._titulo(ctx, `VALES DEL PERÍODO (${v.total})`);
     if (!v.filas.length) {
-      this._texto(ctx, 'No hubo actividad en este período.', MARGIN, ctx.y - 8, { size: 9, color: GRIS });
+      this._titulo(ctx, 'VALES DEL PERÍODO (0)');
+      this._texto(ctx, 'No hubo vales con entrega en este período.', MARGIN, ctx.y - 8, { size: 9, color: GRIS });
       ctx.y -= 20;
       return;
     }
     const columnas = [
-      { label: 'Correlativo', ancho: 1.6 }, { label: 'Cliente', ancho: 2 }, { label: 'Entrega', ancho: 0.9 }, { label: 'Estado', ancho: 1.6 },
-      ...v.columnas.map(c => ({ label: c.label, ancho: 1.1, derecha: c.formato === 'horas' }))
+      { label: 'Correlativo', ancho: 1.7 }, { label: 'Estado', ancho: 2.7 }, { label: 'Entrega', ancho: 0.9, centro: true }, { label: 'Atraso', ancho: 0.9, centro: true },
+      ...v.columnas.map(c => ({ label: c.label, ancho: 1.35, derecha: c.formato === 'horas' }))
     ];
-    const filas = v.filas.map(f => [
-      `${f.correlativo}${f.esMod ? ' (MOD)' : ''}`, f.cliente, `${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}${f.atrasado && f.diasAtraso >= 1 ? ` (+${f.diasAtraso}d)` : ''}`,
-      ETIQUETA_ESTADO[f.estado] || f.estado, ...v.columnas.map(c => formatear(f[c.clave], c.formato))
-    ]);
-    this._tabla(ctx, columnas, filas, { altoFila: 13, tamano: 7 });
+    for (const sec of SECCIONES_PDF) {
+      const datos = v.secciones[sec.clave];
+      if (!datos.total) continue;
+      this._titulo(ctx, `${sec.titulo} (${datos.total})`);
+      const filas = datos.filas.map(f => [
+        `${f.correlativo}${f.esMod ? ' (MOD)' : ''}`, celdaEstado(f.pipeline),
+        `${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}`, semaforoAtraso(f), ...v.columnas.map(c => formatear(f[c.clave], c.formato))
+      ]);
+      this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5 });
+    }
     if (v.truncado) {
       this._espacio(ctx, 16);
       this._texto(ctx, `Se muestran los primeros ${v.filas.length} de ${v.total} vales. Acota el período para ver el resto.`, MARGIN, ctx.y - 8, { size: 8, color: GRIS });

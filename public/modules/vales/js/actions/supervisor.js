@@ -4,6 +4,7 @@ import { etiquetaEstado } from '../permisos.js';
 import { formatearFecha, escapeHtml } from '../utils/formato.js';
 import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, aprobarModificacion, rechazarModificacion, marcarValeVisto } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
+import { abrirVisorVale } from '../components/visorDocumento.js';
 
 // -----------------------------------------------------------------------
 // Supervisor: autorizar el envío a talleres de un vale recién creado — el
@@ -199,8 +200,8 @@ export function abrirModalVerSupervisor(fila) {
   });
   overlay.querySelector('#btn-ver-pdf').addEventListener('click', () => {
     registrarVisto(fila);
-    window.open(`/api/vales/${v.id}/pdf`, '_blank');
     cerrar();
+    abrirVisorVale({ id: v.id, correlativo: v.correlativo, propuesta: v.propuesta_general_url || v.propuesta_extra ? { tipo: 'general' } : null });
   });
   overlay.querySelector('#btn-ver-info').addEventListener('click', () => {
     registrarVisto(fila);

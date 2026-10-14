@@ -81,17 +81,22 @@ export async function obtenerFechasEntrega(talleresIds, desde, hasta) {
   return data;
 }
 
-export async function buscarValePorCorrelativo(correlativo) {
-  const res = await fetch(`/api/vales/buscar?correlativo=${encodeURIComponent(correlativo)}`);
+// Información por día del calendario desplegable del Buzón: cupo (Supervisor) o cantidad de vales (Diseñador y Encargado).
+export async function obtenerCalendarioBuzon(anio, mes) {
+  const res = await fetch(`/api/vales/calendario-buzon?anio=${anio}&mes=${mes}`);
   const data = await leerJSON(res);
-  if (!res.ok) throw new Error(data.error || 'No se pudo buscar el vale.');
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar la información del calendario.');
   return data;
 }
 
-export async function obtenerRendimientoGerencia(qs) {
-  const res = await fetch(`/api/vales/rendimiento-gerencia?${qs.toString()}`);
-  if (!res.ok) throw new Error('No se pudo cargar el rendimiento.');
-  return leerJSON(res);
+// Propuesta de un vale con su nota y enlaces: { tipo: 'taller' | 'general' | 'ultima', disenadorId }.
+export async function obtenerPropuestaVale(id, { tipo = 'ultima', disenadorId = null } = {}) {
+  const qs = new URLSearchParams({ tipo });
+  if (disenadorId) qs.set('disenadorId', disenadorId);
+  const res = await fetch(`/api/vales/${id}/propuesta?${qs.toString()}`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar la propuesta.');
+  return data;
 }
 
 export async function obtenerReporte(qs) {

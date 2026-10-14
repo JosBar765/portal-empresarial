@@ -5,18 +5,60 @@ const reporteRepository = require('../repositories/reporteRepository');
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
 const tallerRepository = require('../repositories/tallerRepository');
+const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const valeBuzonService = require('./valeBuzonService');
+const valeReporteGruposService = require('./valeReporteGruposService');
+const { calcularPipeline } = require('./valePipeline');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const {
-  ROL, ESTADOS_TERMINALES, ESTADOS_TALLER, esDeTaller, hoyISO, enriquecer, esValeDeModificacion
+  ROL, ESTADOS, ESTADOS_TERMINALES, ESTADOS_TALLER, esDeTaller, hoyISO, enriquecer, esValeDeModificacion
 } = require('./valeHelpers');
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const MAX_FILAS_PANTALLA = 100;
 const MAX_FILAS_PDF = 500;
 const MAX_PERSONAS = 50;
+
+// Explicación de cada indicador, por rol (si un rol no define una clave, se usa la de `comunes`).
+const AYUDAS_KPI = {
+  comunes: {
+    atrasadosAhora: 'Vales abiertos cuya fecha de entrega ya pasó. Es el estado de ahora mismo, sin importar el período elegido.'
+  },
+  administrador: {
+    creados: 'Vales de arte creados en el período. No cuenta las solicitudes de modificación.',
+    autorizados: 'Autorizaciones que los supervisores hicieron en el período (incluye las modificaciones autorizadas).',
+    entregados: 'Propuestas que los diseñadores entregaron a revisión en el período. Si una se devuelve y se vuelve a entregar, cuenta otra vez.',
+    cicloDias: 'Tiempo promedio entre la creación de un vale y su confirmación de recibido por el asesor, de los vales confirmados en el período.',
+    tiempoProduccionH: 'Tiempo promedio desde que el diseñador comienza un vale hasta que entrega la propuesta, pausas incluidas, de las entregas del período.',
+    sinPropuestaAhora: 'Vales abiertos que ya están en los talleres y todavía no tienen una propuesta adjunta. Es el estado de ahora mismo.'
+  },
+  supervisor: {
+    creados: 'Vales creados en el período por tu equipo de ventas. No cuenta las solicitudes de modificación.',
+    autorizados: 'Vales de tu equipo que se autorizaron en el período.',
+    solicitudesMod: 'Solicitudes de modificación que tu equipo hizo en el período.'
+  },
+  asesor: {
+    creados: 'Vales que creaste en el período. No cuenta las solicitudes de modificación.',
+    autorizados: 'Tus vales que el supervisor autorizó en el período.',
+    solicitudesMod: 'Solicitudes de modificación que hiciste en el período.'
+  },
+  encargado: {
+    asignaciones: 'Veces que se asignó un vale a un diseñador de tu taller en el período.',
+    entregados: 'Propuestas que los diseñadores de tu taller entregaron a revisión en el período.',
+    aprobados: 'Propuestas de tu taller que se aprobaron en el período.',
+    atrasadosAhora: 'Vales abiertos de tu taller cuya fecha de entrega ya pasó. Es el estado de ahora mismo.'
+  },
+  disenador: {
+    comenzados: 'Vales que empezaste a trabajar en el período.',
+    entregados: 'Propuestas que entregaste a revisión en el período.',
+    aprobados: 'Entregas tuyas que el encargado aprobó en el período.',
+    atrasadosAhora: 'Tus vales abiertos cuya fecha de entrega ya pasó. Es el estado de ahora mismo.'
+  }
+};
+// Estados en los que el vale ya está en los talleres (se espera una propuesta).
+const ESTADOS_CON_TALLER = ['CREADO', 'MODIFICADO', 'APROBADO_DEPARTAMENTO', 'PENDIENTE_CONFIRMACION'];
 const ESTADOS_COLA_DISENADOR = [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION];
 
 // ---- Fechas (todo en hora de Guatemala, como el resto del módulo) ----
@@ -32,15 +74,55 @@ function diasEntre(a, b) {
 const msDe = ts => new Date(`${String(ts).replace(' ', 'T')}-06:00`).getTime();
 const fechaCorta = iso => { const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}`; };
 
+const VENTANAS_REPORTE = ['hoy', 'dia', 'semana', 'mes', 'rango'];
+
+function fechaIso(valor, etiqueta) {
+  if (valor === undefined || valor === null || valor === '') return null;
+  const texto = String(valor);
+  const f = new Date(`${texto}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(texto) || Number.isNaN(f.getTime()) || f.toISOString().slice(0, 10) !== texto) {
+    throw new ErrorDeNegocio(`La fecha ${etiqueta} no es válida.`);
+  }
+  return texto;
+}
+
+// Reportes ya no tiene «Todo»: sin período válido arranca en «Hoy».
+function resolverVentanaReporte(filtros = {}) {
+  const tipo = filtros.ventana || 'hoy';
+  if (!VENTANAS_REPORTE.includes(tipo)) throw new ErrorDeNegocio('El período elegido no es válido.');
+  if (tipo === 'rango') {
+    const desde = fechaIso(filtros.desde, '«Desde»');
+    const hasta = fechaIso(filtros.hasta, '«Hasta»');
+    if (!desde || !hasta) throw new ErrorDeNegocio('Elige las fechas «Desde» y «Hasta».');
+    if (desde > hasta) throw new ErrorDeNegocio('La fecha «Desde» no puede ser posterior a «Hasta».');
+    return { tipo, desde, hasta };
+  }
+  return { tipo, fecha: fechaIso(filtros.fecha, 'del período') || null };
+}
+
+const lunesDe = (iso) => sumarDias(iso, -((new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7));
+
+// Número de semana ISO (la semana empieza en lunes).
+function semanaIso(iso) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3);
+  const primerJueves = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  return 1 + Math.round(((d - primerJueves) / 86400000 - 3 + ((primerJueves.getUTCDay() + 6) % 7)) / 7);
+}
+
 function rangoDe(ventana) {
   const hoy = hoyISO();
-  if (ventana.tipo === 'mes') {
-    const [y, m] = (ventana.fecha || hoy).split('-').map(Number);
-    const desde = `${y}-${dos(m)}-01`;
-    return { tipo: 'mes', desde, hasta: sumarDias(`${m === 12 ? y + 1 : y}-${dos(m === 12 ? 1 : m + 1)}-01`, -1) };
+  const base = ventana.fecha || hoy;
+  switch (ventana.tipo) {
+    case 'hoy': return { tipo: 'hoy', desde: hoy, hasta: hoy };
+    case 'dia': return { tipo: 'dia', desde: base, hasta: base };
+    case 'semana': { const lunes = lunesDe(base); return { tipo: 'semana', desde: lunes, hasta: sumarDias(lunes, 6) }; }
+    case 'mes': {
+      const [y, m] = base.split('-').map(Number);
+      return { tipo: 'mes', desde: `${y}-${dos(m)}-01`, hasta: sumarDias(`${m === 12 ? y + 1 : y}-${dos(m === 12 ? 1 : m + 1)}-01`, -1) };
+    }
+    default: return { tipo: 'rango', desde: ventana.desde, hasta: ventana.hasta };
   }
-  if (ventana.tipo === 'rango') return { tipo: 'rango', desde: ventana.desde || null, hasta: ventana.hasta || null };
-  return { tipo: 'todo', desde: null, hasta: null };
 }
 
 function rangoAnterior(r) {
@@ -49,21 +131,15 @@ function rangoAnterior(r) {
     const [y, m] = fin.split('-').map(Number);
     return { tipo: 'mes', desde: `${y}-${dos(m)}-01`, hasta: fin };
   }
-  if (r.desde && r.hasta) {
-    const n = diasEntre(r.desde, r.hasta) + 1;
-    return { tipo: 'rango', desde: sumarDias(r.desde, -n), hasta: sumarDias(r.desde, -1) };
-  }
-  return null;
+  const n = diasEntre(r.desde, r.hasta) + 1;
+  return { tipo: r.tipo === 'hoy' ? 'dia' : r.tipo, desde: sumarDias(r.desde, -n), hasta: sumarDias(r.desde, -1) };
 }
 
 function etiquetaPeriodo(r) {
-  if (r.tipo === 'todo') return 'Todo el historial';
   if (r.tipo === 'mes') { const [y, m] = r.desde.split('-').map(Number); return `${MESES[m - 1]} ${y}`; }
-  if (r.desde && r.hasta) {
-    if (r.desde === r.hasta) return r.desde === hoyISO() ? `Hoy · ${fechaCorta(r.desde)}` : fechaCorta(r.desde);
-    return `${fechaCorta(r.desde)} – ${fechaCorta(r.hasta)}`;
-  }
-  return r.desde ? `Desde ${fechaCorta(r.desde)}` : `Hasta ${fechaCorta(r.hasta)}`;
+  if (r.tipo === 'semana') return `Semana ${semanaIso(r.desde)} · ${fechaCorta(r.desde)} – ${fechaCorta(r.hasta)}`;
+  if (r.desde === r.hasta) return r.desde === hoyISO() ? `Hoy · ${fechaCorta(r.desde)}` : fechaCorta(r.desde);
+  return `${fechaCorta(r.desde)} – ${fechaCorta(r.hasta)}`;
 }
 
 const dentro = (fecha, r) => (!r.desde || fecha >= r.desde) && (!r.hasta || fecha <= r.hasta);
@@ -181,18 +257,24 @@ const filtrarPares = (pares, pred) => ({
 });
 
 // ---- Alcance por rol ----
+const AGRUPACIONES_GLOBAL = ['tienda', 'taller', 'asesor', 'disenador'];
+
 async function resolverAlcance(usuario) {
   switch (usuario.rolId) {
     case ROL.ADMINISTRADOR:
-      return { rol: 'administrador', equipo: true };
+      return { rol: 'administrador', equipo: true, agrupaciones: AGRUPACIONES_GLOBAL };
     case ROL.ASESOR:
       return { rol: 'asesor', equipo: false, asesorIds: [usuario.id], personas: [] };
     case ROL.SUPERVISOR: {
       const asesores = await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id);
+      const tiendas = await reporteRepository.listarTiendasPorSupervisor(usuario.id);
+      const tallerIdsVisibles = (await tallerRepository.listarIdsPorSupervisor(usuario.id)).map(t => t.id);
+      // Él también crea vales: aparece como «(yo)» junto a sus asesores.
+      const personas = [{ id: usuario.id, nombre: `${usuario.nombre} (yo)` }, ...asesores.filter(a => a.id !== usuario.id).map(a => ({ id: a.id, nombre: a.nombre }))];
       return {
-        rol: 'supervisor', equipo: true,
+        rol: 'supervisor', equipo: true, agrupaciones: ['asesor'],
         asesorIds: [...new Set([...asesores.map(a => a.id), usuario.id])],
-        personas: asesores.map(a => ({ id: a.id, nombre: a.nombre }))
+        tiendas, tiendaIds: tiendas.map(t => t.id), tallerIdsVisibles, personas
       };
     }
     case ROL.DISENADOR:
@@ -203,11 +285,12 @@ async function resolverAlcance(usuario) {
         const talleres = (await tallerRepository.listarActivos()).filter(t => t.encargado_id === idEfectivo);
         const disenadores = await usuarioValeRepository.listarDisenadoresPorEncargado(idEfectivo);
         return {
-          rol: 'encargado', equipo: true, tallerIds: talleres.map(t => t.id), actorId: usuario.id,
+          rol: 'encargado', equipo: true, agrupaciones: ['disenador'], tallerIds: talleres.map(t => t.id), actorId: usuario.id,
           personas: [{ id: usuario.id, nombre: `${usuario.nombre} (yo)` }, ...disenadores.map(d => ({ id: d.id, nombre: d.nombre }))]
         };
       }
-      throw new ErrorDeNegocio('Tu rol no tiene reportes.');
+      // La ruta ya exige `vales.ver_reportes`: quien llega aquí sin alcance propio (p. ej. el Gerente) ve todo el sistema, solo lectura.
+      return { rol: 'administrador', equipo: true, soloLectura: true, agrupaciones: AGRUPACIONES_GLOBAL };
   }
 }
 
@@ -215,19 +298,34 @@ const PERSONA_EN_EVENTO = { asesor: e => e.asesorId, disenador: e => e.persona }
 
 class ValeReporteService {
   async obtenerReporte(usuario, filtros = {}, { maxFilas = MAX_FILAS_PANTALLA } = {}) {
-    const ventana = valeBuzonService._resolverVentana(filtros);
+    const ventana = resolverVentanaReporte(filtros);
     const rango = rangoDe(ventana);
     const anterior = rangoAnterior(rango);
     const alcance = await resolverAlcance(usuario);
     const entero = v => (Number.isInteger(Number(v)) && Number(v) > 0 ? Number(v) : null);
-    const tiendaId = ['supervisor', 'administrador'].includes(alcance.rol) ? entero(filtros.tiendaId) : null;
-    const tallerId = alcance.rol === 'administrador' ? entero(filtros.tallerId) : null;
-    const pedidas = [...new Set(String(filtros.personaIds ?? '').split(',').map(entero).filter(Boolean))].slice(0, MAX_PERSONAS);
-    if (alcance.equipo && alcance.personas && pedidas.some(id => !alcance.personas.some(p => p.id === id))) {
-      throw new ErrorDeNegocio('Esa persona no está a tu cargo.');
+    const lista = v => [...new Set(String(v ?? '').split(',').map(entero).filter(Boolean))].slice(0, MAX_PERSONAS);
+    const tiendaId = alcance.equipo ? entero(filtros.tiendaId) : null;
+    const tallerId = alcance.equipo ? entero(filtros.tallerId) : null;
+    if (alcance.equipo && filtros.agruparPor && !alcance.agrupaciones.includes(filtros.agruparPor)) throw new ErrorDeNegocio('Esa agrupación no está disponible para tu rol.');
+    if (alcance.rol === 'encargado') {
+      if (tallerId && !alcance.tallerIds.includes(tallerId)) throw new ErrorDeNegocio('Ese taller no está a tu cargo.');
+      if (tiendaId || lista(filtros.asesorIds).length) throw new ErrorDeNegocio('Ese filtro no está disponible para tu rol.');
     }
-    const personaIds = alcance.equipo ? new Set(pedidas) : new Set();
-    const evaluados = (alcance.personas || []).filter(p => personaIds.has(p.id)).map(p => ({ id: p.id, nombre: p.nombre }));
+    if (alcance.rol === 'supervisor') {
+      if (tiendaId && !alcance.tiendaIds.includes(tiendaId)) throw new ErrorDeNegocio('Esa tienda no está a tu cargo.');
+      if (tallerId && !alcance.tallerIdsVisibles.includes(tallerId)) throw new ErrorDeNegocio('Ese taller no está a tu cargo.');
+      if (lista(filtros.disenadorIds).length) throw new ErrorDeNegocio('Ese filtro no está disponible para tu rol.');
+    }
+    // Quién se evalúa: asesores y diseñadores (el parámetro anterior `personaIds` se sigue aceptando).
+    const asesorSel = new Set(lista(filtros.asesorIds));
+    const disSel = new Set(lista(filtros.disenadorIds));
+    lista(filtros.personaIds).forEach(id => (alcance.rol === 'encargado' ? disSel : asesorSel).add(id));
+    const propias = new Set((alcance.personas || []).map(p => p.id));
+    if (alcance.rol === 'supervisor' && [...asesorSel].some(id => !propias.has(id))) throw new ErrorDeNegocio('Esa persona no está a tu cargo.');
+    if (alcance.rol === 'encargado' && [...disSel].some(id => !propias.has(id))) throw new ErrorDeNegocio('Esa persona no está a tu cargo.');
+    if (!alcance.equipo) { asesorSel.clear(); disSel.clear(); }
+    const personaIds = alcance.rol === 'supervisor' ? asesorSel : (alcance.rol === 'encargado' ? disSel : new Set());
+    const evaluados = (await reporteRepository.listarNombres([...asesorSel, ...disSel])).map(u => ({ id: u.id, nombre: valeReporteGruposService.etiquetaNombre(u.nombre, u.rol_id) }));
 
     // Un solo viaje a la base cubre el período y el anterior; después se reparte por fecha.
     const desdeCarga = (anterior || rango).desde;
@@ -254,10 +352,14 @@ class ValeReporteService {
       if (alcance.rol === 'encargado') return true; // el SQL ya lo acotó a su taller (y a su propia actividad)
       return true;
     };
+    // Con un diseñador elegido (y sin ser el encargado, que ya se acota por persona) se miden los vales en los que trabajó.
+    const valesDeDisenadores = new Set(disSel.size && alcance.rol !== 'encargado' ? normalizados.filter(e => disSel.has(e.persona)).map(e => e.valeId) : []);
     const dePersona = (e) => {
-      if (!personaIds.size) return true;
-      if (alcance.rol === 'supervisor') return personaIds.has(e.asesorId);
-      if (alcance.rol === 'encargado') return personaIds.has(e.persona) || (e.tipo === 'fusion' && personaIds.has(e.actor));
+      if (asesorSel.size && !asesorSel.has(e.asesorId)) return false;
+      if (disSel.size) {
+        if (alcance.rol === 'encargado') return disSel.has(e.persona) || (e.tipo === 'fusion' && disSel.has(e.actor));
+        return valesDeDisenadores.has(e.valeId);
+      }
       return true;
     };
     const aplicable = e => esDelAlcance(e) && dePersona(e);
@@ -272,22 +374,60 @@ class ValeReporteService {
     const todos = (await valeRepository.listarTodos()).map(enriquecer);
     const porId = new Map(todos.map(v => [v.id, v]));
     const filasTaller = await valeTallerRepository.listarTodos();
-    const ahora = this._instantanea(alcance, usuario, { todos, porId, filasTaller, personaIds, tiendaId, tallerId });
+    const ahora = await this._instantanea(alcance, usuario, { todos, porId, filasTaller, personaIds, asesorSel, disSel, tiendaId, tallerId });
 
     const kpis = await this._armarKpis(alcance, usuario, ind, indAnt, ahora, eventosPeriodo, rango);
-    const nombres = await this._nombres(alcance, normalizados);
-    const tablas = await this._tablas(alcance, eventosPeriodo, paresAplicables, rango, { todos, filasTaller, nombres, personaIds });
-    const vales = await this._listado(alcance, usuario, eventosPeriodo, historial, paresAplicables, { porId, nombres, maxFilas });
+    // Quienes ven a varias personas reciben la tabla unificada (personas con sus vales); asesor y diseñador, su listado simple.
+    let tablas = [];
+    let vales = null;
+    let grupos = null;
+    let atrasadosVigentes = null;
+    if (alcance.equipo) {
+      const agruparPor = valeReporteGruposService.agrupacionValida(filtros.agruparPor, alcance.agrupaciones.includes('asesor') ? 'asesor' : alcance.agrupaciones[0]);
+      const argumentos = {
+        alcance, dentroDelRango: (f) => dentro(f, rango), agruparPor, tiendaId, tallerId, asesorSel, disSel,
+        obtenerEntregas: (valeIds, tallerIds) => this._primerasEntregas(valeIds, tallerIds)
+      };
+      grupos = await valeReporteGruposService.armar(argumentos);
+      atrasadosVigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosFueraDe: (f) => dentro(f, rango) });
+    } else {
+      const nombres = await this._nombres(alcance, normalizados);
+      tablas = await this._tablas(alcance, eventosPeriodo, paresAplicables, rango, { todos, filasTaller, nombres, personaIds });
+      vales = await this._listado(alcance, usuario, { porId, filasTaller, nombres, maxFilas, dentroDelRango: (f) => dentro(f, rango) });
+      atrasadosVigentes = await this._atrasadosVigentesSimple(alcance, usuario, { porId, filasTaller, dentroDelRango: (f) => dentro(f, rango) });
+    }
 
+    const opcionesFiltro = await this._opcionesDeFiltro(alcance, usuario);
     return {
       rol: alcance.rol,
       alcance: alcance.equipo ? (alcance.rol === 'administrador' ? 'global' : 'equipo') : 'propio',
       titulo: this._titulo(alcance, evaluados),
       evaluados,
-      periodo: { ...rango, etiqueta: etiquetaPeriodo(rango), anterior: anterior ? etiquetaPeriodo(anterior) : null },
-      kpis, tablas, vales,
-      filtros: await this._opcionesDeFiltro(alcance, usuario)
+      periodo: { ...rango, etiqueta: etiquetaPeriodo(rango), titulo: `Fecha de entrega: ${etiquetaPeriodo(rango)}`, anterior: anterior ? etiquetaPeriodo(anterior) : null },
+      kpis, tablas, vales, grupos, atrasadosVigentes,
+      resumenFiltros: grupos ? this._resumenFiltros(grupos.agruparPor, opcionesFiltro, { tiendaId, tallerId }) : [],
+      filtros: opcionesFiltro
     };
+  }
+
+  // Texto de los filtros activos para el encabezado del PDF.
+  // Momento de la primera entrega a revisión de cada vale en los talleres dados (desde el historial).
+  async _primerasEntregas(valeIds, tallerIds) {
+    const eventos = (await reporteRepository.listarHistorialDeVales(valeIds)).map(normalizar)
+      .filter(e => e && e.tipo === 'entrega' && tallerIds.includes(e.tallerId));
+    const primeras = new Map();
+    eventos.forEach(e => { if (!primeras.has(e.valeId) || e.ms < primeras.get(e.valeId)) primeras.set(e.valeId, e.ms); });
+    return primeras;
+  }
+
+  _resumenFiltros(agruparPor, opciones, { tiendaId, tallerId }) {
+    const nombre = (lista, id) => ((lista || []).find(o => o.id === id) || {}).nombre;
+    const etiqueta = { asesor: 'asesor', disenador: 'diseñador', taller: 'taller', tienda: 'tienda' }[agruparPor];
+    return [
+      `Agrupado por ${etiqueta}`,
+      ...(tiendaId ? [`Tienda: ${nombre(opciones.tiendas, tiendaId) || tiendaId}`] : []),
+      ...(tallerId ? [`Taller: ${nombre(opciones.talleres, tallerId) || tallerId}`] : [])
+    ];
   }
 
   _titulo(alcance, evaluados) {
@@ -301,7 +441,7 @@ class ValeReporteService {
   }
 
   // ---- Fotografía de hoy ----
-  _instantanea(alcance, usuario, { todos, porId, filasTaller, personaIds, tiendaId, tallerId }) {
+  async _instantanea(alcance, usuario, { todos, porId, filasTaller, personaIds, asesorSel = new Set(), disSel = new Set(), tiendaId, tallerId }) {
     const abierto = v => !ESTADOS_TERMINALES.includes(v.estado);
     if (alcance.rol === 'disenador') {
       const mias = filasTaller.filter(f => f.disenador_id === usuario.id && ESTADOS_COLA_DISENADOR.includes(f.estado));
@@ -323,15 +463,31 @@ class ValeReporteService {
     let propios = todos.filter(abierto);
     if (alcance.asesorIds) propios = propios.filter(v => alcance.asesorIds.includes(v.asesor_id));
     if (personaIds.size && alcance.rol === 'supervisor') propios = propios.filter(v => personaIds.has(v.asesor_id));
+    if (asesorSel.size && alcance.rol !== 'supervisor') propios = propios.filter(v => asesorSel.has(v.asesor_id));
+    if (disSel.size && alcance.rol !== 'encargado') {
+      const idsVale = new Set(filasTaller.filter(f => disSel.has(f.disenador_id)).map(f => f.vale_id));
+      propios = propios.filter(v => idsVale.has(v.id));
+    }
     if (tiendaId) propios = propios.filter(v => v.tienda_id === tiendaId);
     if (tallerId) {
       const ids = new Set(filasTaller.filter(f => f.taller_id === tallerId).map(f => f.vale_id));
       propios = propios.filter(v => ids.has(v.id));
     }
-    return { abiertosAhora: propios.length, atrasadosAhora: propios.filter(v => v.atrasado).length };
+    // Vales abiertos que ya están en los talleres y todavía no tienen propuesta adjunta.
+    const esperanPropuesta = propios.filter(v => ESTADOS_CON_TALLER.includes(v.estado));
+    const conPropuesta = await propuestaRepository.listarUltimasPorVales(esperanPropuesta.map(v => v.id));
+    const sinPropuestaAhora = esperanPropuesta.filter(v => !v.propuesta_general_url && !conPropuesta.has(v.id)).length;
+    return { abiertosAhora: propios.length, atrasadosAhora: propios.filter(v => v.atrasado).length, sinPropuestaAhora };
   }
 
+  // Cada indicador lleva su explicación (`ayuda`), que la pantalla muestra en el ícono de información de la tarjeta.
   async _armarKpis(alcance, usuario, ind, indAnt, ahora, eventos, rango) {
+    const kpis = await this._kpisBase(alcance, usuario, ind, indAnt, ahora, eventos, rango);
+    const ayudas = AYUDAS_KPI[alcance.rol] || AYUDAS_KPI.administrador;
+    return kpis.map(k => ({ ...k, ayuda: ayudas[k.clave] || AYUDAS_KPI.comunes[k.clave] || k.ayuda || null }));
+  }
+
+  async _kpisBase(alcance, usuario, ind, indAnt, ahora, eventos, rango) {
     const k = (clave, label, formato, extra = {}) => ({
       clave, label, formato, valor: ind[clave] ?? ahora[clave] ?? null, anterior: indAnt ? (indAnt[clave] ?? null) : null, ...extra
     });
@@ -355,12 +511,11 @@ class ValeReporteService {
         ];
       default:
         return [
-          k('creados', 'Vales creados', 'num'), k('autorizados', 'Autorizados', 'num'), k('rechazados', 'Rechazados', 'num', { malo: true }),
-          k('confirmados', 'Confirmados de recibido', 'num'), k('asignaciones', 'Asignaciones', 'num'), k('entregados', 'Propuestas entregadas', 'num'),
-          k('aprobados', 'Aprobados', 'num'), k('devueltos', 'Devueltos a corregir', 'num', { malo: true }),
+          k('creados', 'Vales creados', 'num'), k('autorizados', 'Autorizados', 'num'), k('entregados', 'Propuestas entregadas', 'num'),
           k('cicloDias', 'Ciclo completo (crear → confirmar)', 'dias', { menorEsMejor: true }),
-          k('tiempoProduccionH', 'Tiempo de producción promedio', 'horas', { menorEsMejor: true }),
-          instantaneo('abiertosAhora', 'Abiertos ahora'), instantaneo('atrasadosAhora', 'Atrasados ahora', { malo: true })
+          k('tiempoProduccionH', 'Tiempo de producción', 'horas', { menorEsMejor: true }),
+          instantaneo('sinPropuestaAhora', 'Sin propuesta', { malo: true, ayuda: 'Vales abiertos en los talleres sin propuesta adjunta.' }),
+          instantaneo('atrasadosAhora', 'Atrasados ahora', { malo: true })
         ];
     }
   }
@@ -451,12 +606,33 @@ class ValeReporteService {
     return tablas;
   }
 
-  // ---- Listado de vales del período con sus hitos ----
-  async _listado(alcance, usuario, eventos, historial, pares, { porId, nombres, maxFilas }) {
-    const TIPOS_VENTAS = ['creacion', 'autorizacion', 'solicitud_mod'];
-    const ids = [...new Set(eventos.filter(e => ['disenador', 'encargado'].includes(alcance.rol) || TIPOS_VENTAS.includes(e.tipo)).map(e => e.valeId))];
+  // Atrasados vigentes de un Asesor o Diseñador: sus vales abiertos y atrasados con entrega fuera del período.
+  async _atrasadosVigentesSimple(alcance, usuario, { porId, filasTaller, dentroDelRango }) {
+    const mios = alcance.rol === 'disenador' ? new Set(filasTaller.filter(f => f.disenador_id === usuario.id).map(f => f.vale_id)) : null;
+    const candidatos = [...porId.values()]
+      .filter(v => v.atrasado && !ESTADOS_TERMINALES.includes(v.estado) && !dentroDelRango(String(v.fecha_entrega).slice(0, 10)))
+      .filter(v => (mios ? mios.has(v.id) : v.asesor_id === usuario.id));
+    const conTaller = await valeBuzonService._enriquecerConTaller(candidatos);
+    const vales = conTaller
+      .map(v => ({
+        id: v.id, correlativo: v.correlativo, cliente: v.cliente_nombre, esMod: esValeDeModificacion(v), fechaEntrega: String(v.fecha_entrega).slice(0, 10),
+        atrasado: true, diasAtraso: v.diasAtraso, estado: v.estado, pipeline: calcularPipeline(v, { rolId: ROL.ADMINISTRADOR }), responsable: ''
+      }))
+      .sort((a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0));
+    return { total: vales.length, truncado: vales.length > 200, vales: vales.slice(0, 200) };
+  }
+
+  // ---- Listado de vales con entrega en el período (Asesor y Diseñador), con sus hitos ----
+  async _listado(alcance, usuario, { porId, filasTaller, nombres, maxFilas, dentroDelRango }) {
+    const enRango = (v) => dentroDelRango(String(v.fecha_entrega).slice(0, 10));
+    const mios = alcance.rol === 'disenador' ? new Set(filasTaller.filter(f => f.disenador_id === usuario.id).map(f => f.vale_id)) : null;
+    const ids = [...porId.values()]
+      .filter(v => enRango(v) && (mios ? mios.has(v.id) : v.asesor_id === usuario.id))
+      .map(v => v.id);
     const vales = await reporteRepository.listarValesPorIds(ids);
     const resumen = new Map(vales.map(v => [v.id, enriquecer(v)]));
+    const historial = (await reporteRepository.listarHistorialDeVales(ids)).map(normalizar).filter(Boolean);
+    const pares = emparejar(historial, new Map(vales.map(v => [v.id, { asesorId: v.asesor_id, tiendaId: v.tienda_id, entregaMs: v.fecha_entrega ? msDe(v.fecha_entrega) : null }])));
     const historialPorVale = new Map();
     historial.forEach(e => { if (!historialPorVale.has(e.valeId)) historialPorVale.set(e.valeId, []); historialPorVale.get(e.valeId).push(e); });
     const ultimo = (lista, tipos, pred = () => true) => {
@@ -470,11 +646,10 @@ class ValeReporteService {
       const v = resumen.get(id);
       if (!v) return null;
       const h = historialPorVale.get(id) || [];
-      const actividad = Math.max(...eventos.filter(e => e.valeId === id).map(e => e.ms));
       const base = {
         id, correlativo: v.correlativo, cliente: v.cliente_nombre, asesor: nombres.get(v.asesor_id) || `#${v.asesor_id}`,
         fechaEntrega: String(v.fecha_entrega).slice(0, 10), estado: v.estado, esMod: esValeDeModificacion(v),
-        atrasado: v.atrasado, diasAtraso: v.diasAtraso, actividadMs: actividad
+        atrasado: v.atrasado, diasAtraso: v.diasAtraso
       };
       if (esDiseno) {
         const del = h.filter(propioDiseno);
@@ -487,7 +662,28 @@ class ValeReporteService {
       return {
         ...base, creado: ultimo(h, ['creacion']), autorizado: ultimo(h, ['autorizacion']), modificacion: ultimo(h, ['solicitud_mod'])
       };
-    }).filter(Boolean).sort((a, b) => b.actividadMs - a.actividadMs);
+    }).filter(Boolean).sort((a, b) => a.fechaEntrega.localeCompare(b.fechaEntrega) || a.correlativo.localeCompare(b.correlativo));
+
+    // Sección de cada vale: atrasado (abierto) > entregado > no entregado. Entregado: para el Diseñador, su propuesta ya salió a revisión;
+    // para el Asesor, el vale ya llegó a él.
+    const ENTREGADA = [ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO];
+    const LLEGO_AL_ASESOR = [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
+    filas.forEach(f => {
+      const propias = alcance.rol === 'disenador' ? filasTaller.filter(x => x.vale_id === f.id && x.disenador_id === usuario.id) : [];
+      const entregado = alcance.rol === 'disenador' ? (propias.length > 0 && propias.every(x => ENTREGADA.includes(x.estado))) : LLEGO_AL_ASESOR.includes(f.estado);
+      const abierto = !ESTADOS_TERMINALES.includes(f.estado) && !(alcance.rol === 'disenador' && entregado);
+      f.seccion = f.atrasado && abierto ? 'atrasados' : (entregado ? 'entregados' : 'noEntregados');
+    });
+    const ordenSecciones = ['atrasados', 'noEntregados', 'entregados'];
+    // Atrasados: el más atrasado primero; el resto, por fecha de entrega.
+    filas.sort((a, b) => ordenSecciones.indexOf(a.seccion) - ordenSecciones.indexOf(b.seccion)
+      || (a.seccion === 'atrasados' ? (b.diasAtraso || 0) - (a.diasAtraso || 0) : 0)
+      || a.fechaEntrega.localeCompare(b.fechaEntrega) || a.correlativo.localeCompare(b.correlativo));
+    // Cada vale lleva su paso del pipeline (el PDF lo muestra en lugar del estado crudo).
+    const mostradas = filas.slice(0, maxFilas);
+    const conTaller = await valeBuzonService._enriquecerConTaller(mostradas.map(f => resumen.get(f.id)));
+    const pipelines = new Map(conTaller.map(v => [v.id, calcularPipeline(v, { rolId: ROL.ADMINISTRADOR })]));
+    mostradas.forEach(f => { f.pipeline = pipelines.get(f.id); });
 
     const columnas = esDiseno
       ? (alcance.rol === 'encargado'
@@ -497,15 +693,37 @@ class ValeReporteService {
     return {
       total: filas.length,
       columnas: columnas.map(([clave, label]) => ({ clave, label, formato: clave === 'tiempoProduccionH' ? 'horas' : 'fechaHora' })),
-      filas: filas.slice(0, maxFilas).map(({ actividadMs, ...f }) => f),
+      filas: mostradas,
+      secciones: Object.fromEntries(ordenSecciones.map(clave => [clave, {
+        total: filas.filter(f => f.seccion === clave).length, filas: mostradas.filter(f => f.seccion === clave)
+      }])),
       truncado: filas.length > maxFilas
     };
   }
 
+  // Opciones de los filtros de la barra de Reportes (solo quienes ven a varias personas).
   async _opcionesDeFiltro(alcance, usuario) {
-    const opciones = { personas: alcance.equipo ? (alcance.personas || []) : [], tiendas: [], talleres: [] };
-    if (['supervisor', 'administrador'].includes(alcance.rol)) opciones.tiendas = await reporteRepository.listarTiendas();
-    if (alcance.rol === 'administrador') opciones.talleres = (await tallerRepository.listarTodos()).map(t => ({ id: t.id, nombre: t.nombre }));
+    const opciones = { personas: alcance.equipo ? (alcance.personas || []) : [], agrupaciones: alcance.agrupaciones || [], tiendas: [], talleres: [], asesores: [], disenadores: [] };
+    if (!alcance.equipo) return opciones;
+    const talleres = await tallerRepository.listarTodos();
+    if (alcance.rol === 'supervisor') {
+      opciones.tiendas = alcance.tiendas;
+      opciones.asesores = alcance.personas;
+      opciones.talleres = talleres.filter(t => alcance.tallerIdsVisibles.includes(t.id)).map(t => ({ id: t.id, nombre: t.nombre }));
+      return opciones;
+    }
+    if (alcance.rol === 'encargado') {
+      opciones.disenadores = alcance.personas;
+      const propios = talleres.filter(t => alcance.tallerIds.includes(t.id)).map(t => ({ id: t.id, nombre: t.nombre }));
+      opciones.talleres = propios.length > 1 ? propios : [];
+      return opciones;
+    }
+    opciones.tiendas = await reporteRepository.listarTiendas();
+    opciones.asesores = await reporteRepository.listarAsesores();
+    opciones.disenadores = (await reporteRepository.listarDisenadores()).map(d => ({
+      id: d.id, nombre: valeReporteGruposService.etiquetaNombre(d.nombre, d.rol_id), tallerIds: String(d.taller_ids || '').split(',').map(Number).filter(Boolean)
+    }));
+    opciones.talleres = talleres.map(t => ({ id: t.id, nombre: t.nombre }));
     return opciones;
   }
 }

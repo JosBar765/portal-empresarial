@@ -1,5 +1,6 @@
 // src/modules/vales/controllers/valeController.js
 const valeService = require('../services/valeService');
+const { leerAdjuntos } = require('../services/propuestaAdjuntos');
 const { validarArchivos, tipoRealCoincide } = require('../../../core/files/fileSignature');
 const { responderError, responderErrorInterno } = require('../../../core/utils/erroresHttp');
 const { idObligatorio, idOpcional } = require('../../../core/utils/validar');
@@ -55,6 +56,20 @@ class ValeController {
     }
   }
 
+  // Información por día del calendario desplegable del Buzón (cupo para el Supervisor, conteo para Diseñador y Encargado).
+  async calendarioBuzon(req, res) {
+    try {
+      const anio = Number(req.query.anio);
+      const mes = Number(req.query.mes);
+      if (!Number.isInteger(anio) || !Number.isInteger(mes) || mes < 1 || mes > 12 || anio < 2000 || anio > 2100) {
+        return res.status(400).json({ error: 'Parámetros inválidos: se requieren anio y mes.' });
+      }
+      return res.json(await valeService.obtenerCalendarioBuzon(req.user, anio, mes));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async crear(req, res) {
     try {
       const archivos = validarArchivos(req.files);
@@ -101,8 +116,6 @@ class ValeController {
     }
   }
 
-  // Vista Rendimiento (Gerente y Supervisor): KPIs, tendencia, ciclo por
-  // etapa, ranking por taller/tienda y vales críticos. Solo lectura.
   _filtrosReporte(req) {
     return {
       ventana: req.query.ventana,
@@ -111,7 +124,10 @@ class ValeController {
       hasta: req.query.hasta,
       tiendaId: req.query.tiendaId,
       tallerId: req.query.tallerId,
-      personaIds: req.query.personaIds
+      personaIds: req.query.personaIds,
+      asesorIds: req.query.asesorIds,
+      disenadorIds: req.query.disenadorIds,
+      agruparPor: req.query.agruparPor
     };
   }
 
@@ -125,14 +141,14 @@ class ValeController {
 
   async reportePdf(req, res) {
     try {
-      const { reporte, pdf } = await valeService.generarReportePdf(req.user, this._filtrosReporte(req));
+      const { reporte, pdf } = await valeService.generarReportePdf(req.user, this._filtrosReporte(req), String(req.query.tipo || 'actividad'));
       const fecha = reporte.periodo.desde && reporte.periodo.desde === reporte.periodo.hasta ? reporte.periodo.desde : (reporte.periodo.desde || 'historial');
       const quien = reporte.evaluados.length === 1
         ? reporte.evaluados[0].nombre.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
         : (reporte.evaluados.length > 1 ? `${reporte.evaluados.length}-personas` : '');
       const sufijo = quien ? `${fecha}-${quien}` : fecha;
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="reporte-vales-${sufijo}.pdf"`);
+      res.setHeader('Content-Disposition', `attachment; filename="reporte-${req.query.tipo === 'rendimiento' ? 'rendimiento' : 'actividad'}-${sufijo}.pdf"`);
       res.setHeader('Content-Length', pdf.length);
       return res.end(pdf);
     } catch (error) {
@@ -140,30 +156,15 @@ class ValeController {
     }
   }
 
-  async rendimientoGerencia(req, res) {
+  // Propuesta de un vale con su nota y enlaces: tipo `taller` (con disenadorId), `general` (la fusión) o `ultima`.
+  async propuesta(req, res) {
     try {
-      const filtros = {
-        ventana: req.query.ventana,
-        fecha: req.query.fecha,
-        desde: req.query.desde,
-        hasta: req.query.hasta,
-        tiendaId: req.query.tiendaId
-      };
-      const data = await valeService.obtenerRendimientoGerencia(req.user, filtros);
+      const data = await valeService.obtenerPropuesta(req.user, idObligatorio(req.params.id), {
+        tipo: String(req.query.tipo || 'ultima'), disenadorId: Number(req.query.disenadorId) || null
+      });
       return res.json(data);
     } catch (error) {
-      return responderErrorInterno(res, error);
-    }
-  }
-
-  // "Encontrar vale" (solo Gerente, ver el guard en routes.js): un vale por
-  // correlativo exacto, con sugerencias si no hay coincidencia.
-  async buscarPorCorrelativo(req, res) {
-    try {
-      const data = await valeService.buscarValePorCorrelativo(req.query.correlativo);
-      return res.json(data);
-    } catch (error) {
-      return responderError(res, error);
+      return responderError(res, error, 404);
     }
   }
 
@@ -215,7 +216,7 @@ class ValeController {
       if (propuesta && (propuesta.mimetype !== 'application/pdf' || !tipoRealCoincide(propuesta.buffer, propuesta.mimetype))) {
         throw new Error('La propuesta debe adjuntarse en formato PDF.');
       }
-      const vale = await valeService.entregar(req.user, idObligatorio(req.params.id), propuesta, req.body.idempotencyKey);
+      const vale = await valeService.entregar(req.user, idObligatorio(req.params.id), propuesta, req.body.idempotencyKey, leerAdjuntos(req.body));
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
@@ -269,7 +270,7 @@ class ValeController {
       if (archivo && (archivo.mimetype !== 'application/pdf' || !tipoRealCoincide(archivo.buffer, archivo.mimetype))) {
         throw new Error('El documento de fusión debe adjuntarse en formato PDF.');
       }
-      const vale = await valeService.aprobarGeneral(req.user, idObligatorio(req.params.id), archivo, req.body.idempotencyKey);
+      const vale = await valeService.aprobarGeneral(req.user, idObligatorio(req.params.id), archivo, req.body.idempotencyKey, leerAdjuntos(req.body));
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
