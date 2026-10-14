@@ -148,22 +148,16 @@ class ValeTallerService {
         throw new Error('Para entregar la propuesta, el vale debe estar en proceso.');
       }
       let url = null;
-      let propuestaId;
-      if (archivoPropuesta) {
-        // X = siguiente número de las propuestas ya subidas de este taller para el vale.
-        const tallerPropuesta = await tallerRepository.obtenerPorId(fila.taller_id);
-        const previas = await propuestaRepository.listarPorVale(valeId);
-        const numero = nombreArchivo.siguienteContador(previas.map(p => p.url), nombreArchivo.prefijoPropuesta(vale.correlativo, tallerPropuesta));
-        propuestaId = await subirYRegistrarArchivo({
-          buffer: archivoPropuesta.buffer, nombreOriginal: archivoPropuesta.originalname, mimeType: archivoPropuesta.mimetype,
-          nombreObjeto: nombreArchivo.propuesta(vale.correlativo, tallerPropuesta, numero),
-          registrar: async (subida) => { url = subida.url; return propuestaRepository.crear(valeId, usuario.id, url, adjuntos.nota); }
-        });
-      } else {
-        propuestaId = await propuestaRepository.crear(valeId, usuario.id, null, adjuntos.nota);
-      }
+      // X = siguiente número de las propuestas ya subidas de este taller para el vale.
+      const tallerPropuesta = await tallerRepository.obtenerPorId(fila.taller_id);
+      const previas = await propuestaRepository.listarPorVale(valeId);
+      const numero = nombreArchivo.siguienteContador(previas.map(p => p.url), nombreArchivo.prefijoPropuesta(vale.correlativo, tallerPropuesta));
+      const propuestaId = await subirYRegistrarArchivo({
+        buffer: archivoPropuesta.buffer, nombreOriginal: archivoPropuesta.originalname, mimeType: archivoPropuesta.mimetype,
+        nombreObjeto: nombreArchivo.propuesta(vale.correlativo, tallerPropuesta, numero),
+        registrar: async (subida) => { url = subida.url; return propuestaRepository.crear(valeId, usuario.id, url, adjuntos.nota); }
+      });
       await propuestaRepository.crearEnlaces(valeId, propuestaId, adjuntos.enlaces);
-      const valida = !!url || adjuntos.enlaces.length > 0;
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_REVISION);
       fila.estado = ESTADOS_TALLER.EN_REVISION;
       const detalleAdjuntos = describirAdjuntos({ archivo: !!url, enlaces: adjuntos.enlaces.length, nota: !!adjuntos.nota });
@@ -172,18 +166,14 @@ class ValeTallerService {
       // Si quien entrega es el ENCARGADO de este mismo taller (se autoasignó
       // el vale), su trabajo se autoaprueba — no pasa por un período de
       // revisión de sí mismo.
-      let autoaprueba = false;
-      if (valida) {
-        const taller = await tallerRepository.obtenerPorId(fila.taller_id);
-        const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
-        autoaprueba = !!taller && taller.encargado_id === idEfectivo;
-      }
-      // Alerta roja si la propuesta va vacía. Con autoaprobación solo se emite el aviso de aprobación (una notificación por persona).
+      const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
+      const autoaprueba = !!tallerPropuesta && tallerPropuesta.encargado_id === idEfectivo;
+      // Con autoaprobación solo se emite el aviso de aprobación (una notificación por persona).
       if (!autoaprueba) {
         valeEvents.notificar({
           vale: actualizado, accion: 'entregado (propuesta)', actor: usuario.nombre, actorId: usuario.id,
           salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`, ...await this._salasEquipo(actualizado.asesor_id)],
-          nivel: valida ? 'info' : 'alerta'
+          nivel: 'info'
         });
       }
 

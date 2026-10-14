@@ -92,8 +92,7 @@ export async function abrirModalRevisar(vale) {
   // El backend rechaza aprobar sin un documento adjunto real — se refleja
   // acá deshabilitando el botón en vez de dejar que el usuario reciba el
   // error recién después de hacer clic.
-  const tieneEnlaces = !!(ultima && ultima.enlaces && ultima.enlaces.length);
-  const puedeAprobar = !!(ultima && (ultima.url || tieneEnlaces));
+  const puedeAprobar = !!(ultima && ultima.url);
 
   const { overlay, cerrar } = abrirModal({
     title: `Revisar propuesta — ${vale.correlativo}`,
@@ -161,11 +160,11 @@ export async function abrirModalAprobarGeneral(vale) {
       detalleOriginal = null;
     }
   }
-  // Propuesta de cada taller: tiene contenido si trae archivo o enlaces; el botón abre el visor con su nota y enlaces.
+  // Propuesta de cada taller: existe si trae su PDF; el botón abre el visor con su nota y enlaces.
   const propuestaDe = (det, disenadorId) => {
     const propias = (det.propuestas || []).filter(p => p.disenador_id === disenadorId);
     const ultima = propias[propias.length - 1];
-    return ultima && (ultima.url || (ultima.enlaces && ultima.enlaces.length)) ? { id: det.id, disenadorId } : null;
+    return ultima && ultima.url ? { id: det.id, disenadorId } : null;
   };
   const filaPropuesta = (nombre, propuesta, corregido) =>
     `<li><strong>${nombre}${corregido ? '*' : ''}:</strong> ${propuesta ? `<button type="button" class="rep-link" data-ver-propuesta-id="${propuesta.id}" data-ver-propuesta-dis="${propuesta.disenadorId}">Ver propuesta</button>` : 'Sin propuesta'}</li>`;

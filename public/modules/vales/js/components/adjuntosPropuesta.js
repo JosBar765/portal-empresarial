@@ -3,8 +3,8 @@ import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from './dropzone.js';
 
 // -----------------------------------------------------------------------
 // Adjuntos de una propuesta (entrega del Diseñador y fusión del Encargado): archivo, enlaces a documentos de otras
-// plataformas y una nota de observaciones. Una propuesta es válida con un archivo o con al menos un enlace; la nota sola no
-// basta. El servidor vuelve a validar todo (https, hasta 5 enlaces, nota de hasta 500 caracteres).
+// plataformas y una nota de observaciones. Al entregar, el PDF es obligatorio (`archivoObligatorio`) y los enlaces y la nota son
+// complementos; en la fusión basta un archivo o al menos un enlace. El servidor vuelve a validar todo (https, hasta 5 enlaces, nota de hasta 500 caracteres).
 // -----------------------------------------------------------------------
 export const MAX_ENLACES = 5;
 export const MAX_NOTA = 500;

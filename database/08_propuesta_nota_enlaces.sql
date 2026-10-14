@@ -4,8 +4,9 @@
 -- Para qué sirve:
 --   Permite que, al entregar una propuesta (Diseñador) o al adjuntar la fusión de un vale de varios talleres
 --   (Encargado/Asistente), se pueda agregar además una NOTA con observaciones y hasta 5 ENLACES a documentos
---   alojados en otras plataformas (por ejemplo cuando el archivo pesa demasiado). Una propuesta es válida con un
---   archivo o con al menos un enlace; la nota sola no basta. Nada de esto cambia los datos que ya existen.
+--   alojados en otras plataformas. Al entregar una propuesta el PDF sigue siendo obligatorio (una propuesta solo con
+--   enlaces no es válida; la nota y los enlaces son complementos); en la fusión basta un archivo o al menos un enlace.
+--   Nada de esto cambia los datos que ya existen.
 --
 -- Qué agrega (solo columnas y una tabla nuevas; no modifica ni borra ningún dato, índice ni permiso existente):
 --   1. Columna `vale_propuestas.nota`: observaciones del diseñador al entregar (máx. 500 caracteres).
