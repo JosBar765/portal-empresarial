@@ -4,6 +4,7 @@
 @import url('/modules/vales/css/calendario-info.css');
 @import url('/modules/vales/css/visor.css');
 @import url('/modules/vales/css/adjuntos.css');
+@import url('/modules/vales/css/vigentes.css');
 
 .header-back {
   color: var(--color-text-secondary);
@@ -1460,8 +1461,9 @@
 }
 
 .dp-mes:hover { background: var(--color-surface-muted); }
-.dp-mes.is-actual { color: var(--color-primary); font-weight: 700; }
-.dp-mes.is-selected { background: var(--color-primary); color: #fff; font-weight: 700; }
+.dp-mes.is-actual { color: var(--color-primary-dark); font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--color-primary-dark); }
+.dp-mes.is-selected { background: var(--color-primary-dark); color: #fff; font-weight: 700; box-shadow: none; }
+.dp-mes.is-selected:hover { background: var(--color-primary-dark-hover); }
 
 .dp-pie {
   display: flex;
@@ -1533,15 +1535,22 @@
   background: var(--color-surface-muted);
 }
 
+/* Hoy: anillo fino; seleccionado: relleno azul oscuro (el de los botones y del segmento activo de Reportes), con texto blanco. */
 .dp-day.is-today {
-  color: var(--color-primary);
+  color: var(--color-primary-dark);
   font-weight: 700;
+  box-shadow: inset 0 0 0 1.5px var(--color-primary-dark);
 }
 
 .dp-day.is-selected {
-  background: var(--color-primary);
+  background: var(--color-primary-dark);
   color: #FFFFFF;
   font-weight: 700;
+  box-shadow: none;
+}
+
+.dp-day.is-selected:hover:not(.is-disabled) {
+  background: var(--color-primary-dark-hover);
 }
 
 .dp-day.is-disabled {

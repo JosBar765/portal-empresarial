@@ -1,0 +1,67 @@
+/* public/modules/vales/css/vigentes.css — bloque «Atrasados vigentes» (Buzón y Reportes): tarjeta sobria con lista compacta. */
+.vig { margin-bottom: 14px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.vig[hidden] { display: none; }
+
+.vig-cab {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 8px 14px; font: inherit; text-align: left;
+  color: var(--color-text); background: transparent; border: 0; cursor: pointer; transition: background-color var(--transition-fast);
+}
+.vig-cab:hover { background: var(--color-surface-muted); }
+.vig-cab:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.vig-icono { flex: none; font-size: 18px; color: var(--color-danger); }
+.vig-titulo { font-size: var(--text-sm); font-weight: 700; }
+.vig-n { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 7px; font-size: 12px; font-weight: 700; color: var(--color-danger); background: var(--color-danger-bg); border-radius: var(--radius-full); font-variant-numeric: tabular-nums; }
+.vig-resumen { flex: 1; min-width: 0; font-size: 12px; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vig-chevron { flex: none; font-size: 18px; color: var(--color-text-muted); transition: transform var(--transition-fast); }
+.vig-cab[aria-expanded="false"] .vig-chevron { transform: rotate(-90deg); }
+.vig-cuerpo { border-top: 1px solid var(--color-border); }
+.vig-cuerpo[hidden] { display: none; }
+
+.vig-lista { margin: 0; padding: 0; list-style: none; }
+.vig-lista.is-completa { max-height: 340px; overflow-y: auto; }
+.vig-item {
+  display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.6fr) 96px 84px auto; align-items: center; gap: 12px;
+  padding: 9px 14px; border-top: 1px solid var(--color-border);
+}
+.vig-item:first-child { border-top: 0; }
+.vig-item--extra { display: none; }
+.vig-lista.is-completa .vig-item--extra { display: grid; }
+.vig-item:hover { background: var(--color-surface-muted); }
+.vig-vale { display: flex; flex-direction: column; min-width: 0; }
+.vig-correlativo { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); }
+.vig-sub { font-size: 12px; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vig-estado { display: flex; flex-direction: column; min-width: 0; }
+.vig-etiqueta { font-size: var(--text-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vig-paso { font-size: 11px; color: var(--color-text-muted); }
+.vig-fecha { display: flex; flex-direction: column; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.vig-rotulo { font-size: 11px; color: var(--color-text-muted); }
+
+/* Días de atraso: el color acompaña al texto (nunca es lo único que informa) */
+.vig-atraso { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vig-punto { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+.vig-atraso--baja { color: #B45309; }
+.vig-atraso--media { color: #C2410C; }
+.vig-atraso--alta { color: var(--color-danger); }
+.vig-acciones { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.vig-acciones .acciones-wrap { display: flex; gap: 4px; }
+
+.vig-mas {
+  display: block; width: 100%; min-height: 40px; padding: 8px 14px; font: inherit; font-size: 12px; font-weight: 600; text-align: center;
+  color: var(--color-primary-dark); background: transparent; border: 0; border-top: 1px solid var(--color-border); cursor: pointer;
+}
+.vig-mas:hover { background: var(--color-surface-muted); }
+.vig-mas:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.vig-nota { margin: 0; padding: 8px 14px; font-size: 12px; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); }
+
+@media (max-width: 900px) {
+  .vig-item { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "vale atraso" "estado acciones" "fecha acciones"; gap: 4px 12px; padding: 10px 12px; }
+  .vig-vale { grid-area: vale; }
+  .vig-atraso { grid-area: atraso; justify-self: end; }
+  .vig-estado { grid-area: estado; flex-direction: row; align-items: baseline; gap: 6px; }
+  .vig-fecha { grid-area: fecha; flex-direction: row; gap: 6px; }
+  .vig-acciones { grid-area: acciones; }
+}
+@media (max-width: 640px) {
+  .vig-resumen { display: none; }
+  .vig-acciones .btn-icon { min-width: 44px; min-height: 44px; }
+}

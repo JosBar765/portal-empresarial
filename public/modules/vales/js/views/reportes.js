@@ -6,6 +6,7 @@ import { obtenerReporte, descargarReportePdf } from '../api/valesApi.js';
 import { abrirModalHistorial } from '../actions/historial.js';
 import { celdaEstado } from '../components/pipeline.js';
 import { abrirVisorVale } from '../components/visorDocumento.js';
+import { htmlBloqueVigentes, conectarBloqueVigentes } from '../components/atrasadosVigentes.js';
 import { crearBarraPeriodo, aplicarPeriodoAQuery } from '../components/barraPeriodoReportes.js';
 import { crearSelectorMultiple } from '../components/selectorMultiple.js';
 
@@ -167,6 +168,7 @@ function renderTodo(data) {
   $('#rep-meta').textContent = `${data.periodo.titulo || data.periodo.etiqueta} · Actualizado ${new Date().toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' })}`;
   renderFiltros(data);
   $('#rep-cuerpo').innerHTML = `
+    ${htmlAtrasadosVigentes(data.atrasadosVigentes)}
     ${data.grupos && data.grupos.indicadoresTaller ? htmlIndicadoresTaller(data.grupos.indicadoresTaller) : ''}
     <div class="rend-grid">
       ${data.grupos ? '<section class="rend-panel rend-span-12" id="rep-panel-grupos"></section>' : ''}
@@ -179,7 +181,34 @@ function renderTodo(data) {
         ${notasDelRol(data)}
       </ul>
     </details>`;
+  conectarAtrasadosVigentes($('#rep-cuerpo'));
   if (data.grupos) renderGrupos(data); else { renderTablas(data); renderVales(data); }
+}
+
+// «Atrasados vigentes»: los vales atrasados y abiertos con entrega fuera del período elegido (con los mismos filtros de alcance).
+// Panel plegable al inicio; la tabla de abajo sigue siendo solo del período.
+const CLAVE_VIGENTES_REPORTE = 'vales:repVigentesPlegado';
+const leerPlegadoVigentes = () => { try { return localStorage.getItem(CLAVE_VIGENTES_REPORTE) === '1'; } catch { return false; } };
+
+function htmlAtrasadosVigentes(av) {
+  if (!av || !av.total) return '';
+  return htmlBloqueVigentes({
+    id: 'rep-vigentes', total: av.total, truncado: av.truncado, plegado: leerPlegadoVigentes(),
+    textoPeriodo: 'abiertos, con entrega anterior al período elegido',
+    items: av.vales.map(v => ({
+      correlativo: v.correlativo, esMod: false, sub: v.responsable || '', pipeline: v.pipeline, fechaEntrega: v.fechaEntrega, diasAtraso: v.diasAtraso,
+      accionesHtml: `<button type="button" class="btn-icon" data-ver="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}"${v.tienePropuesta ? ' data-con-propuesta="1"' : ''} title="Ver vale" aria-label="Ver vale ${escapeHtml(v.correlativo)}"><ion-icon name="eye-outline"></ion-icon></button>`
+    }))
+  });
+}
+
+function conectarAtrasadosVigentes(cont) {
+  const panel = $('#rep-vigentes', cont);
+  if (!panel) return;
+  conectarBloqueVigentes(panel, (plegado) => {
+    try { localStorage.setItem(CLAVE_VIGENTES_REPORTE, plegado ? '1' : '0'); } catch { /* sin almacenamiento: no se recuerda */ }
+  });
+  conectarAcciones(panel);
 }
 
 // «Cómo funciona este reporte»: reglas del período y de la tabla.

@@ -154,23 +154,8 @@ class ValeBuzonService {
     });
   }
 
-  async obtenerBuzon(usuario, filtros = {}) {
-    const ventana = this._resolverVentana(filtros);
-    const vista = filtros.vista === 'trabajo' ? 'trabajo' : 'buzon';
-    const filtroContador = filtros.filtroContador || null;
-    const todos = (await valeRepository.listarTodos()).map(enriquecer);
-    const talleresTodos = await tallerRepository.listarActivos();
-    const valeTalleresTodos = await valeTallerRepository.listarTodos();
-    let todosConTaller = await this._enriquecerConTaller(todos);
-
-    // Filtro por tienda: solo lo manda el frontend del Supervisor (y,
-    // opcionalmente, Administrador) para acotar el listado a una sola
-    // tienda; el resto de roles nunca lo envían.
-    if (filtros.tiendaId) {
-      const tiendaId = Number(filtros.tiendaId);
-      todosConTaller = todosConTaller.filter(v => v.tienda_id === tiendaId);
-    }
-
+  // Selección del buzón (o de Trabajo realizado) según el rol, para una ventana de tiempo dada.
+  async _resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador) {
     let resultado;
     switch (usuario.rolId) {
       case ROL.ADMINISTRADOR: // ve todo
@@ -208,6 +193,27 @@ class ValeBuzonService {
         // siguen exigiendo sus propios permisos de escritura.
         resultado = this._buzonAdministrador(todosConTaller, ventana, filtroContador);
     }
+    return resultado;
+  }
+
+  async obtenerBuzon(usuario, filtros = {}) {
+    const ventana = this._resolverVentana(filtros);
+    const vista = filtros.vista === 'trabajo' ? 'trabajo' : 'buzon';
+    const filtroContador = filtros.filtroContador || null;
+    const todos = (await valeRepository.listarTodos()).map(enriquecer);
+    const talleresTodos = await tallerRepository.listarActivos();
+    const valeTalleresTodos = await valeTallerRepository.listarTodos();
+    let todosConTaller = await this._enriquecerConTaller(todos);
+
+    // Filtro por tienda: solo lo manda el frontend del Supervisor (y,
+    // opcionalmente, Administrador) para acotar el listado a una sola
+    // tienda; el resto de roles nunca lo envían.
+    if (filtros.tiendaId) {
+      const tiendaId = Number(filtros.tiendaId);
+      todosConTaller = todosConTaller.filter(v => v.tienda_id === tiendaId);
+    }
+
+    let resultado = await this._resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador);
 
     // "Atrasados" en general: a diferencia de filtroContador (mutuamente
     // excluyente), este es el ÚNICO contador que se puede COMBINAR con
@@ -266,6 +272,25 @@ class ValeBuzonService {
     // respaldo — el frontend además descarta cualquier fila duplicada al
     // unir páginas, así que este respaldo nunca produce filas repetidas en
     // pantalla.
+    // «Atrasados vigentes»: con un filtro de fecha (Hoy, día, mes, rango) los vales atrasados que siguen abiertos y cuya entrega cae fuera de
+    // la ventana saldrían de la lista; se devuelven aparte para que se vean siempre. En «Todo» y en Trabajo realizado no aplica.
+    let vigentesFuera = [];
+    if (vista === 'buzon' && ventana.tipo !== 'todo') {
+      const completo = await this._resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, { tipo: 'todo' }, null);
+      const vistos = new Set();
+      vigentesFuera = completo.vales
+        .filter(v => v.atrasado && !dentroDeVentana(v, ventana))
+        .filter(v => { const k = String(v._rowKey || v.id); return vistos.has(k) ? false : vistos.add(k); })
+        .filter(v => !soloModificados || esModificado(v))
+        .filter(v => !disenadorId || v.disenador_id === disenadorId)
+        .filter(v => !busqueda || `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase().includes(busqueda))
+        .sort((a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || String(a.fecha_entrega).localeCompare(String(b.fecha_entrega)));
+      // El contador «Atrasados» cuenta todos los vigentes (dentro y fuera de la ventana): el mismo número que con «Todo».
+      if (resultado.contadores && typeof completo.contadores.atrasados === 'number') resultado.contadores.atrasados = completo.contadores.atrasados;
+    }
+    const MAX_VIGENTES = 100;
+    const vigentesMostrados = vigentesFuera.slice(0, MAX_VIGENTES);
+
     const limit = 50;
     const total = valesOrdenados.length;
     // En Trabajo Realizado un mismo vale puede producir 2 filas (fusión +
@@ -286,7 +311,7 @@ class ValeBuzonService {
     const esEncargado = ROLES_ENCARGADO_TALLER.includes(usuario.rolId);
     const paginaCruda = valesOrdenados.slice(indiceInicio, indiceInicio + limit);
     const idsPersona = new Set();
-    paginaCruda.forEach(v => {
+    [...paginaCruda, ...vigentesMostrados].forEach(v => {
       if (esSupervisor && v.asesor_id) idsPersona.add(v.asesor_id);
       if (esEncargado && v._tipoRegistro !== 'FUSION' && v.disenador_id) idsPersona.add(v.disenador_id);
     });
@@ -298,8 +323,14 @@ class ValeBuzonService {
     };
     const pagina = paginaCruda.map(v => ({ ...v, persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId }) }));
     const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
+    const atrasadosVigentes = {
+      total: vigentesFuera.length,
+      truncado: vigentesFuera.length > MAX_VIGENTES,
+      vales: vigentesMostrados.map(v => ({ ...v, persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId }) }))
+    };
     return {
       vales: pagina,
+      atrasadosVigentes,
       contadores: resultado.contadores,
       total,
       hasMore: indiceInicio + limit < total,

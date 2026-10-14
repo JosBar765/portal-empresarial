@@ -121,3 +121,15 @@ Cada rol agrupa y filtra solo su personal a cargo:
 
 - Como el visor ya muestra el vale y la propuesta en pestañas, se quita el ícono aparte «Ver propuesta» de las filas del Buzón y de la tabla de Reportes: el ojo abre el visor (siempre en «Vale de arte») y la pestaña «Propuesta» aparece cuando existe. Los modales de revisión, fusión, Asesor y Supervisor no cambian.
 - El encabezado del visor ya no muestra el cliente (solo el correlativo) y es más bajo y de letra menor; el tamaño de la ventana no cambia.
+
+## Ajuste posterior: atrasados vigentes
+
+- **Problema:** el filtro de fecha del Buzón (Hoy, día, mes, rango) y el período de Reportes usan la fecha de entrega, así que un vale atrasado que sigue abierto desaparecía al elegir «Hoy» (y el contador «Atrasados» solo contaba los de hoy).
+- **Buzón:** con cualquier filtro de fecha distinto de «Todo», un bloque plegable **«Atrasados vigentes»** sobre la tabla lista todos los vales atrasados y abiertos de tu alcance cuya entrega queda fuera del filtro (los más atrasados primero, hasta 100), con las mismas columnas y acciones. El contador «Atrasados» cuenta siempre todos los vigentes. No aplica a «Todo» ni a «Trabajo realizado». El servidor devuelve `atrasadosVigentes` en la respuesta del Buzón (`valeBuzonService.obtenerBuzon`).
+- **Reportes:** un panel plegable **«Atrasados vigentes»** al inicio (hasta 200, con el responsable según la agrupación) con los atrasados abiertos fuera del período y con los mismos filtros de tienda, taller y personas; la tabla de abajo sigue siendo solo del período. El PDF lo incluye como sección «ATRASADOS VIGENTES» antes del resto. El Asesor y el Diseñador ven el panel con sus propios vales.
+- **Diseño del bloque (Buzón y Reportes):** tarjeta sobria con un encabezado de una línea («Atrasados vigentes», contador y «El más atrasado lleva 28 días · con entrega anterior al período elegido») y una lista compacta de los **5 más atrasados**; el resto se abre con «Ver los N restantes» (lista con desplazamiento). Cada fila muestra el vale y su contexto (cliente y responsable), el estado con su paso, la fecha de entrega, los días de atraso con un punto de color según la gravedad (1–3, 4–7 y 8 o más días; el texto siempre dice los días) y las acciones. En celular cada fila pasa a dos líneas. Componente `components/atrasadosVigentes.js`.
+- Se recuerda si el usuario plegó el bloque o el panel (preferencia local del navegador). Sin migración.
+
+- **Selector de calendario:** el día (y el mes) seleccionado pasa del azul brillante al azul oscuro de la marca (el de los botones), con texto blanco; «hoy» se marca con un anillo fino del mismo tono y la intensidad de vales por día del calendario del Buzón usa grises azulados en lugar de azul. Solo CSS (styles.css, calendario-info.css).
+
+- **Calendario del Supervisor:** en la vista con cupo, el día elegido se rellena con el tono sólido de su estado (verde, ámbar, naranja o rojo) con número y barras en blanco, en vez del azul oscuro, que desentonaba sobre el fondo verde.

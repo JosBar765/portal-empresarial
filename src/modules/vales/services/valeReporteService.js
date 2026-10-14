@@ -381,16 +381,20 @@ class ValeReporteService {
     let tablas = [];
     let vales = null;
     let grupos = null;
+    let atrasadosVigentes = null;
     if (alcance.equipo) {
       const agruparPor = valeReporteGruposService.agrupacionValida(filtros.agruparPor, alcance.agrupaciones.includes('asesor') ? 'asesor' : alcance.agrupaciones[0]);
-      grupos = await valeReporteGruposService.armar({
+      const argumentos = {
         alcance, dentroDelRango: (f) => dentro(f, rango), agruparPor, tiendaId, tallerId, asesorSel, disSel,
         obtenerEntregas: (valeIds, tallerIds) => this._primerasEntregas(valeIds, tallerIds)
-      });
+      };
+      grupos = await valeReporteGruposService.armar(argumentos);
+      atrasadosVigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosFueraDe: (f) => dentro(f, rango) });
     } else {
       const nombres = await this._nombres(alcance, normalizados);
       tablas = await this._tablas(alcance, eventosPeriodo, paresAplicables, rango, { todos, filasTaller, nombres, personaIds });
       vales = await this._listado(alcance, usuario, { porId, filasTaller, nombres, maxFilas, dentroDelRango: (f) => dentro(f, rango) });
+      atrasadosVigentes = await this._atrasadosVigentesSimple(alcance, usuario, { porId, filasTaller, dentroDelRango: (f) => dentro(f, rango) });
     }
 
     const opcionesFiltro = await this._opcionesDeFiltro(alcance, usuario);
@@ -400,7 +404,7 @@ class ValeReporteService {
       titulo: this._titulo(alcance, evaluados),
       evaluados,
       periodo: { ...rango, etiqueta: etiquetaPeriodo(rango), titulo: `Fecha de entrega: ${etiquetaPeriodo(rango)}`, anterior: anterior ? etiquetaPeriodo(anterior) : null },
-      kpis, tablas, vales, grupos,
+      kpis, tablas, vales, grupos, atrasadosVigentes,
       resumenFiltros: grupos ? this._resumenFiltros(grupos.agruparPor, opcionesFiltro, { tiendaId, tallerId }) : [],
       filtros: opcionesFiltro
     };
@@ -600,6 +604,22 @@ class ValeReporteService {
       });
     }
     return tablas;
+  }
+
+  // Atrasados vigentes de un Asesor o Diseñador: sus vales abiertos y atrasados con entrega fuera del período.
+  async _atrasadosVigentesSimple(alcance, usuario, { porId, filasTaller, dentroDelRango }) {
+    const mios = alcance.rol === 'disenador' ? new Set(filasTaller.filter(f => f.disenador_id === usuario.id).map(f => f.vale_id)) : null;
+    const candidatos = [...porId.values()]
+      .filter(v => v.atrasado && !ESTADOS_TERMINALES.includes(v.estado) && !dentroDelRango(String(v.fecha_entrega).slice(0, 10)))
+      .filter(v => (mios ? mios.has(v.id) : v.asesor_id === usuario.id));
+    const conTaller = await valeBuzonService._enriquecerConTaller(candidatos);
+    const vales = conTaller
+      .map(v => ({
+        id: v.id, correlativo: v.correlativo, cliente: v.cliente_nombre, esMod: esValeDeModificacion(v), fechaEntrega: String(v.fecha_entrega).slice(0, 10),
+        atrasado: true, diasAtraso: v.diasAtraso, estado: v.estado, pipeline: calcularPipeline(v, { rolId: ROL.ADMINISTRADOR }), responsable: ''
+      }))
+      .sort((a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0));
+    return { total: vales.length, truncado: vales.length > 200, vales: vales.slice(0, 200) };
   }
 
   // ---- Listado de vales con entrega en el período (Asesor y Diseñador), con sus hitos ----

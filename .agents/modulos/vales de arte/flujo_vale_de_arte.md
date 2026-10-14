@@ -724,3 +724,5 @@ Al entregar su propuesta, el Diseñador (y el Encargado/Asistente al adjuntar la
 - **Dónde se guarda:** `vale_propuestas.nota`, `vales.propuesta_general_nota` (nota de la fusión) y la tabla `vale_propuesta_enlaces` (con `propuesta_id` NULL son los enlaces de la fusión). Migración `propuesta_nota_enlaces.sql`.
 - **Quién la ve:** todos los que ven la propuesta, en el visor emergente (pestaña «Propuesta»), en el modal «Revisar propuesta» del Encargado y en la fusión. Los enlaces abren en una pestaña nueva. El historial dice «entregó propuesta (archivo, 2 enlaces y nota)».
 - **API:** `POST /:id/entregar` y `POST /:id/aprobar-general` reciben `nota` y `enlaces` (JSON) junto al archivo; `GET /:id/propuesta?tipo=taller|general|ultima&disenadorId=` devuelve la propuesta con su nota y enlaces.
+
+- **Atrasados vigentes:** el Buzón (con un filtro de fecha) y Reportes muestran aparte, en un bloque o panel plegable, los vales atrasados y abiertos de tu alcance cuya fecha de entrega queda fuera del filtro o período; el contador «Atrasados» del Buzón cuenta todos. Detalle en `documentacion/correcciones_53.md`.

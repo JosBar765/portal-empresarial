@@ -74,6 +74,7 @@ class ValeReportePdfService {
 
     this._nuevaPagina(ctx);
     this._encabezado(ctx, reporte, generadoPor, ahora);
+    if (reporte.atrasadosVigentes && reporte.atrasadosVigentes.total) this._vigentes(ctx, reporte.atrasadosVigentes);
     if (reporte.grupos && reporte.grupos.indicadoresTaller) this._taller(ctx, reporte);
     else if (reporte.grupos) this._grupos(ctx, reporte);
     else {
@@ -267,6 +268,27 @@ class ValeReportePdfService {
       this._espacio(ctx, 16);
       this._texto(ctx, `Hay ${g.totalVales} vales; se muestran los más urgentes. Acota el período o los filtros para ver el resto.`, MARGIN, ctx.y - 8, { size: 8, color: GRIS });
     }
+  }
+
+  // «Atrasados vigentes»: vales atrasados y abiertos con entrega fuera del período, del más atrasado al menos.
+  _vigentes(ctx, av) {
+    this._titulo(ctx, `ATRASADOS VIGENTES (${av.total}) - entrega anterior al período`);
+    const conResponsable = av.vales.some(v => v.responsable);
+    const columnas = [
+      { label: 'Vale', ancho: 1.8 },
+      ...(conResponsable ? [{ label: 'Responsable', ancho: 1.7 }] : []),
+      { label: 'Estado', ancho: 3 }, { label: 'Entrega', ancho: 1, centro: true }, { label: 'Atraso', ancho: 1, centro: true }
+    ];
+    const filas = av.vales.map(v => [
+      v.esMod && !/^MOD-/.test(v.correlativo) ? `${v.correlativo} (MOD)` : v.correlativo,
+      ...(conResponsable ? [v.responsable || '-'] : []),
+      celdaEstado(v.pipeline),
+      formatear(v.fechaEntrega, 'fecha'),
+      semaforoAtraso(v)
+    ]);
+    this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5 });
+    if (av.truncado) this._texto(ctx, `Se muestran los ${av.vales.length} más atrasados de ${av.total}.`, MARGIN, ctx.y - 2, { size: 8, color: GRIS });
+    if (av.truncado) ctx.y -= 14;
   }
 
   // Vista Taller (Encargado/Asistente): resumen de indicadores y dos listas planas, primero los atrasados y luego los demás,

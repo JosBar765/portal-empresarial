@@ -7,11 +7,24 @@
 .panel-periodo--info .dp-day--moderado { background: #FEFCE8; }
 .panel-periodo--info .dp-day--critico { background: #FFF1E6; }
 .panel-periodo--info .dp-day--agotado { background: var(--color-danger-bg); color: var(--color-danger); font-weight: 700; }
-.panel-periodo--info .dp-day--c1 { background: rgba(var(--color-primary-rgb), .08); }
-.panel-periodo--info .dp-day--c2 { background: rgba(var(--color-primary-rgb), .16); }
-.panel-periodo--info .dp-day--c3 { background: rgba(var(--color-primary-rgb), .26); }
-.panel-periodo--info .dp-day--c4 { background: rgba(var(--color-primary-rgb), .38); }
-.panel-periodo--info .dp-day.is-previa { box-shadow: 0 0 0 2px var(--color-primary-dark); }
+/* Intensidad de la cantidad de vales en la gama de grises azulados de la app; el día elegido va en azul oscuro sólido. */
+.panel-periodo--info .dp-day--c1 { background: rgba(27, 33, 48, .06); }
+.panel-periodo--info .dp-day--c2 { background: rgba(27, 33, 48, .12); }
+.panel-periodo--info .dp-day--c3 { background: rgba(27, 33, 48, .2); }
+.panel-periodo--info .dp-day--c4 { background: rgba(27, 33, 48, .3); }
+.panel-periodo--info .dp-day.is-previa { box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-primary-dark); }
+
+/* Día elegido en la vista con cupo (Supervisor): relleno sólido del tono de su estado, para no chocar con el verde/ámbar/rojo del fondo */
+.panel-periodo--info .dp-day--disponible.is-selected { background: var(--color-success); }
+.panel-periodo--info .dp-day--moderado.is-selected { background: #CA8A04; }
+.panel-periodo--info .dp-day--critico.is-selected { background: #EA580C; }
+.panel-periodo--info .dp-day--agotado.is-selected { background: var(--color-danger); color: #fff; }
+.panel-periodo--info .dp-day--disponible.is-selected:hover:not(.is-disabled) { background: var(--color-success); }
+.panel-periodo--info .dp-day--moderado.is-selected:hover:not(.is-disabled) { background: #CA8A04; }
+.panel-periodo--info .dp-day--critico.is-selected:hover:not(.is-disabled) { background: #EA580C; }
+.panel-periodo--info .dp-day--agotado.is-selected:hover:not(.is-disabled) { background: var(--color-danger); }
+.panel-periodo--info .dp-day.is-selected .dp-pista { background: rgba(255, 255, 255, .35); }
+.panel-periodo--info .dp-day.is-selected .dp-barra { background: #fff; }
 
 /* Barras de cupo (una por taller con límite) y cantidad de vales bajo el número del día */
 .dp-day-barras { position: absolute; left: 12%; right: 12%; bottom: 3px; display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
