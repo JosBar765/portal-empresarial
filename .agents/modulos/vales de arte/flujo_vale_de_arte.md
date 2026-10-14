@@ -726,3 +726,7 @@ Al entregar su propuesta, el Diseñador (y el Encargado/Asistente al adjuntar la
 - **API:** `POST /:id/entregar` y `POST /:id/aprobar-general` reciben `nota` y `enlaces` (JSON) junto al archivo; `GET /:id/propuesta?tipo=taller|general|ultima&disenadorId=` devuelve la propuesta con su nota y enlaces.
 
 - **Atrasados vigentes:** el Buzón (con un filtro de fecha) y Reportes muestran aparte, en un bloque o panel plegable, los vales atrasados y abiertos de tu alcance cuya fecha de entrega queda fuera del filtro o período; el contador «Atrasados» del Buzón cuenta todos. Detalle en `documentacion/correcciones_53.md`.
+
+- **Orden de Reportes:** contadores, atrasados antes del período, gráfica de barras dobles (Encargado: asignados vs entregados por diseñador; Supervisor: creados vs autorizados por asesor), atrasados en el período, no entregados y entregados. «Entregado» = el taller ya entregó su propuesta (Encargado/Diseñador) o el vale ya llegó al asesor (demás roles). Detalle en `documentacion/correcciones_53.md`.
+
+- **Reporte de rendimiento:** el Encargado/Asistente y el Supervisor tienen, además de Actividad, un reporte de Rendimiento (contadores, gráfica y tabla comparativa por persona); se elige cuál descargar desde «Exportar PDF». Detalle en `documentacion/correcciones_53.md`.

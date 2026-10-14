@@ -17,6 +17,14 @@ const FONDO_CABECERA = rgb(0.95, 0.96, 0.97);
 const ROJO = rgb(0.8, 0.1, 0.1);
 const GRIS_TEXTO = rgb(0.3, 0.33, 0.37);
 
+const SECCIONES_PDF = [
+  { clave: 'atrasados', titulo: 'ATRASADOS EN EL PERÍODO' },
+  { clave: 'noEntregados', titulo: 'NO ENTREGADOS' },
+  { clave: 'entregados', titulo: 'ENTREGADOS' }
+];
+const COLOR_SERIE_A = rgb(0.145, 0.388, 0.922);
+const COLOR_SERIE_B = rgb(0.086, 0.639, 0.29);
+
 // Celda de estado: «Paso N de 5 - Nombre del paso | Estado actual | Quién tiene el turno» (el atraso va en su propia columna).
 function celdaEstado(pipeline) {
   const nombrePaso = pipeline.pasos[Math.min(pipeline.paso, pipeline.pasos.length) - 1];
@@ -74,15 +82,25 @@ class ValeReportePdfService {
 
     this._nuevaPagina(ctx);
     this._encabezado(ctx, reporte, generadoPor, ahora);
+    if (reporte.tipo === 'rendimiento' && reporte.grupos && reporte.grupos.rendimiento) {
+      if (reporte.grupos.indicadoresTaller) this._contadores(ctx, reporte.grupos.indicadoresTaller);
+      this._grafica(ctx, reporte.grupos.rendimiento);
+      this._tablaRendimiento(ctx, reporte.grupos.rendimiento);
+    } else {
+      this._actividad(ctx, reporte);
+    }
+    this._pies(pdfDoc, font);
+    return Buffer.from(await pdfDoc.save());
+  }
+
+  // Reporte de actividad: atrasados antes del período y las tres secciones del período (o la lista del Asesor y del Diseñador).
+  _actividad(ctx, reporte) {
     if (reporte.atrasadosVigentes && reporte.atrasadosVigentes.total) this._vigentes(ctx, reporte.atrasadosVigentes);
-    if (reporte.grupos && reporte.grupos.indicadoresTaller) this._taller(ctx, reporte);
-    else if (reporte.grupos) this._grupos(ctx, reporte);
+    if (reporte.grupos) this._secciones(ctx, reporte);
     else {
       reporte.tablas.forEach(t => this._tablaPersonas(ctx, t));
       this._listado(ctx, reporte);
     }
-    this._pies(pdfDoc, font);
-    return Buffer.from(await pdfDoc.save());
   }
 
   _nuevaPagina(ctx) {
@@ -109,7 +127,7 @@ class ValeReportePdfService {
   _encabezado(ctx, reporte, generadoPor, ahora) {
     const x0 = MARGIN;
     if (ctx.logo) ctx.page.drawImage(ctx.logo, { x: x0, y: ctx.y - 22, width: 22, height: 22 });
-    this._texto(ctx, 'REPORTE DE ACTIVIDAD', x0 + 30, ctx.y - 9, { size: 12, bold: true });
+    this._texto(ctx, reporte.tipo === 'rendimiento' ? 'REPORTE DE RENDIMIENTO' : 'REPORTE DE ACTIVIDAD', x0 + 30, ctx.y - 9, { size: 12, bold: true });
     this._texto(ctx, reporte.titulo, x0 + 30, ctx.y - 20, { size: 8.5, color: GRIS });
     const derecha = [reporte.periodo.titulo || `Período: ${reporte.periodo.etiqueta}`, `Generado: ${ahora}${generadoPor ? ` por ${generadoPor}` : ''}`];
     derecha.forEach((linea, i) => {
@@ -117,8 +135,10 @@ class ValeReportePdfService {
       this._texto(ctx, t, PAGE_WIDTH - MARGIN - ctx.font.widthOfTextAtSize(t, 7.5), ctx.y - 9 - i * 10, { size: 7.5, color: GRIS });
     });
     ctx.y -= 28;
-    if ((reporte.resumenFiltros || []).length) {
-      this._texto(ctx, this._ajustar(ctx, reporte.resumenFiltros.join('  ·  '), CONTENT_WIDTH, 7.5), MARGIN, ctx.y - 5, { size: 7.5, color: GRIS });
+    // «Agrupar por» no aplica al reporte de rendimiento.
+    const filtrosVisibles = (reporte.resumenFiltros || []).filter(t => reporte.tipo !== 'rendimiento' || !/^Agrupado por/.test(t));
+    if (filtrosVisibles.length) {
+      this._texto(ctx, this._ajustar(ctx, filtrosVisibles.join('  ·  '), CONTENT_WIDTH, 7.5), MARGIN, ctx.y - 5, { size: 7.5, color: GRIS });
       ctx.y -= 13;
     }
     const evaluados = reporte.evaluados || [];
@@ -224,45 +244,52 @@ class ValeReportePdfService {
     this._tabla(ctx, columnas, filas);
   }
 
-  // Tabla unificada: cada persona (o taller/tienda) con sus vales creados en el período, del más urgente al menos.
-  _grupos(ctx, reporte) {
+  // Secciones del período (atrasados, no entregados y entregados): en cada una, cada persona (o taller/tienda) con sus vales, del más urgente al menos.
+  _secciones(ctx, reporte) {
     const g = reporte.grupos;
     const nombre = { asesor: 'ASESOR', disenador: 'DISEÑADOR', taller: 'TALLER', tienda: 'TIENDA' }[g.agruparPor];
-    this._titulo(ctx, `VALES POR ${nombre} (${g.totalVales})`);
-    if (!g.grupos.length) {
+    const esTaller = reporte.rol === 'encargado';
+    const hayVales = SECCIONES_PDF.some(sec => g.secciones[sec.clave].total > 0);
+    if (!hayVales) {
+      this._titulo(ctx, `VALES POR ${nombre} (0)`);
       this._texto(ctx, 'No hubo vales con entrega en este período.', MARGIN, ctx.y - 8, { size: 9, color: GRIS });
       ctx.y -= 20;
       return;
     }
-    // «Vales por diseñador»: sin Autorizados en el resumen y «Terminado» (Sí/No) en lugar de «Propuesta».
-    const porDisenador = g.agruparPor === 'disenador';
-    const columnas = [
-      { label: 'Vale', ancho: 1.8 }, { label: 'Estado', ancho: 3.4 },
-      { label: 'Entrega', ancho: 1, centro: true }, { label: 'Atraso', ancho: 1, centro: true }, { label: porDisenador ? 'Terminado' : 'Propuesta', ancho: 1, centro: true }
+    // Columnas según la sección: atrasados con Atraso; entregados sin Atraso ni Propuesta.
+    const columnasDe = (clave) => [
+      { label: 'Vale', ancho: 1.8 }, ...(esTaller ? [{ label: 'Ingreso', ancho: 1.3 }] : []), { label: 'Estado', ancho: 3.2 },
+      { label: 'Entrega', ancho: 1, centro: true },
+      ...(clave === 'atrasados' ? [{ label: 'Atraso', ancho: 1, centro: true }] : []),
+      ...(clave !== 'entregados' ? [{ label: 'Propuesta', ancho: 1, centro: true }] : [])
     ];
-    for (const grupo of g.grupos) {
-      this._espacio(ctx, 80);
-      const sinTerminar = grupo.vales.filter(v => !v.terminado).length;
-      const resumen = `Vales ${grupo.total}${porDisenador ? '' : `  ·  Autorizados ${grupo.autorizados}`}`
-        + (grupo.atrasados ? `  ·  ${grupo.atrasados} atrasado${grupo.atrasados === 1 ? '' : 's'}` : '')
-        + (porDisenador
-          ? (sinTerminar ? `  ·  ${sinTerminar} sin terminar` : '')
-          : (grupo.sinPropuesta ? `  ·  ${grupo.sinPropuesta} sin propuesta` : ''));
-      ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - 18, width: CONTENT_WIDTH, height: 18, color: FONDO_CABECERA });
-      this._texto(ctx, this._ajustar(ctx, grupo.nombre, 200, 9, true), MARGIN + 6, ctx.y - 13, { size: 9, bold: true });
-      this._texto(ctx, this._ajustar(ctx, resumen, CONTENT_WIDTH - 220, 7.5), MARGIN + 214, ctx.y - 13, { size: 7.5, color: GRIS });
-      ctx.y -= 22;
-      if (!grupo.vales.length) { this._texto(ctx, 'Sin vales con entrega en este período.', MARGIN + 6, ctx.y - 6, { size: 8, color: GRIS }); ctx.y -= 16; continue; }
-      const filas = grupo.vales.map(v => [
-        `${v.correlativo}${v.esMod ? ' (MOD)' : ''}`,
-        celdaEstado(v.pipeline),
-        formatear(v.fechaEntrega, 'fecha'),
-        semaforoAtraso(v),
-        porDisenador
-          ? { semaforo: { texto: v.terminado ? 'Sí' : 'No', tono: v.terminado ? 'verde' : 'gris' } }
-          : (v.tienePropuesta ? 'Sí' : (v.sinPropuesta ? 'No' : '-'))
-      ]);
-      this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5 });
+    const ingreso = (v) => {
+      const [fecha, hora] = String(v.creadoEn).split(' ');
+      return `${formatear(fecha, 'fecha')} ${(hora || '').slice(0, 5)}`;
+    };
+    for (const sec of SECCIONES_PDF) {
+      const datos = g.secciones[sec.clave];
+      if (!datos.total) continue;
+      this._titulo(ctx, `${sec.titulo} (${datos.total})`);
+      const columnas = columnasDe(sec.clave);
+      for (const grupo of datos.grupos) {
+        this._espacio(ctx, 80);
+        const resumen = `${grupo.total} vale${grupo.total === 1 ? '' : 's'}`
+          + (sec.clave !== 'entregados' && grupo.sinPropuesta ? `  ·  ${grupo.sinPropuesta} sin propuesta` : '');
+        ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - 18, width: CONTENT_WIDTH, height: 18, color: FONDO_CABECERA });
+        this._texto(ctx, this._ajustar(ctx, grupo.nombre, 200, 9, true), MARGIN + 6, ctx.y - 13, { size: 9, bold: true });
+        this._texto(ctx, this._ajustar(ctx, resumen, CONTENT_WIDTH - 220, 7.5), MARGIN + 214, ctx.y - 13, { size: 7.5, color: GRIS });
+        ctx.y -= 22;
+        const filas = grupo.vales.map(v => [
+          `${v.correlativo}${v.esMod ? ' (MOD)' : ''}`,
+          ...(esTaller ? [ingreso(v)] : []),
+          celdaEstado(v.pipeline),
+          formatear(v.fechaEntrega, 'fecha'),
+          ...(sec.clave === 'atrasados' ? [semaforoAtraso(v)] : []),
+          ...(sec.clave !== 'entregados' ? [v.tienePropuesta ? 'Sí' : (v.sinPropuesta ? 'No' : '-')] : [])
+        ]);
+        this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5 });
+      }
     }
     if (g.truncado) {
       this._espacio(ctx, 16);
@@ -270,9 +297,60 @@ class ValeReportePdfService {
     }
   }
 
+  // Tabla comparativa del reporte de rendimiento, con fila de totales.
+  _tablaRendimiento(ctx, r) {
+    const [serieA, serieB] = r.series;
+    this._titulo(ctx, 'COMPARATIVO POR PERSONA');
+    const columnas = [
+      { label: r.persona || 'Persona', ancho: 2.6 }, { label: serieA.etiqueta, ancho: 1, centro: true },
+      { label: serieB.etiqueta, ancho: 1, centro: true }, { label: '%', ancho: 1.3, centro: true }, { label: 'Atrasados', ancho: 1, centro: true }
+    ];
+    const pct = (a, b) => (a > 0 ? `${Math.round((b / a) * 100)} %` : '-');
+    const filas = r.filas.map(f => [
+      f.nombre, String(f.a), String(f.b), `${pct(f.a, f.b)}${r.totales.masBajo === f.id ? '  (más bajo)' : ''}`, String(f.atrasados)
+    ]);
+    filas.push(['TOTAL', String(r.totales.a), String(r.totales.b), pct(r.totales.a, r.totales.b), String(r.totales.atrasados)]);
+    this._tabla(ctx, columnas, filas, { altoFila: 16, tamano: 8 });
+  }
+
+  // Barras dobles por persona (Encargado: asignados vs entregados; Supervisor: creados vs autorizados).
+  _grafica(ctx, grafica) {
+    if (!grafica.filas.length) return;
+    this._titulo(ctx, grafica.titulo.toUpperCase());
+    const [serieA, serieB] = grafica.series;
+    // Leyenda
+    this._espacio(ctx, 18);
+    let x = MARGIN;
+    [[serieA, COLOR_SERIE_A], [serieB, COLOR_SERIE_B]].forEach(([serie, color]) => {
+      ctx.page.drawRectangle({ x, y: ctx.y - 9, width: 8, height: 8, color });
+      this._texto(ctx, serie.etiqueta, x + 12, ctx.y - 8, { size: 8, color: GRIS_TEXTO });
+      x += 12 + ctx.font.widthOfTextAtSize(limpiar(serie.etiqueta), 8) + 18;
+    });
+    this._texto(ctx, `% = ${serieB.etiqueta.toLowerCase()} entre ${serieA.etiqueta.toLowerCase()}`, x, ctx.y - 8, { size: 7.5, color: GRIS });
+    ctx.y -= 18;
+    const anchoNombre = 140;
+    const x0 = MARGIN + anchoNombre + 6;
+    const anchoMax = CONTENT_WIDTH - anchoNombre - 6 - 62;
+    const maximo = Math.max(1, ...grafica.filas.map(f => Math.max(f.a, f.b)));
+    for (const f of grafica.filas) {
+      this._espacio(ctx, 24);
+      this._texto(ctx, this._ajustar(ctx, f.nombre, anchoNombre, 8, true), MARGIN, ctx.y - 14, { size: 8, bold: true, color: f.a === 0 ? GRIS : NEGRO });
+      [[f.a, COLOR_SERIE_A, 0], [f.b, COLOR_SERIE_B, 1]].forEach(([valor, color, i]) => {
+        const y = ctx.y - 10 - i * 9;
+        ctx.page.drawRectangle({ x: x0, y, width: anchoMax, height: 6, color: FONDO_CABECERA });
+        if (valor > 0) ctx.page.drawRectangle({ x: x0, y, width: Math.max(2, (valor / maximo) * anchoMax), height: 6, color });
+        this._texto(ctx, String(valor), x0 + anchoMax + 6, y - 1, { size: 7.5, bold: true });
+      });
+      const pct = f.a > 0 ? `${Math.round((f.b / f.a) * 100)} %` : '-';
+      this._texto(ctx, pct, PAGE_WIDTH - MARGIN - ctx.font.widthOfTextAtSize(pct, 8), ctx.y - 14, { size: 8, color: GRIS_TEXTO });
+      ctx.y -= 24;
+    }
+    ctx.y -= 6;
+  }
+
   // «Atrasados vigentes»: vales atrasados y abiertos con entrega fuera del período, del más atrasado al menos.
   _vigentes(ctx, av) {
-    this._titulo(ctx, `ATRASADOS VIGENTES (${av.total}) - entrega anterior al período`);
+    this._titulo(ctx, `ATRASADOS ANTES DEL PERÍODO (${av.total})`);
     const conResponsable = av.vales.some(v => v.responsable);
     const columnas = [
       { label: 'Vale', ancho: 1.8 },
@@ -293,57 +371,19 @@ class ValeReportePdfService {
 
   // Vista Taller (Encargado/Asistente): resumen de indicadores y dos listas planas, primero los atrasados y luego los demás,
   // cada una por fecha de entrega (la más antigua primero).
-  _taller(ctx, reporte) {
-    const g = reporte.grupos;
-    const i = g.indicadoresTaller;
+  // Franja de contadores de la vista Taller (Encargado/Asistente).
+  _contadores(ctx, i) {
     const pct = (n) => (n == null ? '-' : `${String(n).replace('.', ',')} %`);
     const resumen = `Entrantes ${i.entrantes}  ·  Entregados ${i.entregados}  ·  Efectividad ${pct(i.efectividad)}  ·  A tiempo ${pct(i.aTiempo)}  ·  Atrasados ${i.atrasados}`;
     this._texto(ctx, this._ajustar(ctx, resumen, CONTENT_WIDTH, 8.5, true), MARGIN, ctx.y - 9, { size: 8.5, bold: true });
     ctx.y -= 22;
-
-    const unicos = new Map();
-    g.grupos.forEach(gr => gr.vales.forEach(v => { if (!unicos.has(v.id)) unicos.set(v.id, v); }));
-    const porEntrega = (a, b) => String(a.fechaEntrega).localeCompare(String(b.fechaEntrega)) || String(a.correlativo).localeCompare(String(b.correlativo));
-    const lista = [...unicos.values()];
-    const atrasados = lista.filter(v => v.atrasado).sort(porEntrega);
-    const demas = lista.filter(v => !v.atrasado).sort(porEntrega);
-
-    const columnas = [
-      { label: 'Vale', ancho: 1.75 }, { label: 'Fecha de ingreso', ancho: 1.5 }, { label: 'Estado', ancho: 2.8 },
-      { label: 'Entrega', ancho: 1, centro: true }, { label: 'Atraso', ancho: 0.9, centro: true },
-      { label: 'Diseñador', ancho: 1.4 }, { label: 'Terminado', ancho: 0.95, centro: true }
-    ];
-    const ingreso = (v) => {
-      const [fecha, hora] = String(v.creadoEn).split(' ');
-      return `${formatear(fecha, 'fecha')} ${(hora || '').slice(0, 5)}`;
-    };
-    const filasDe = (vales) => vales.map(v => [
-      v.esMod && !/^MOD-/.test(v.correlativo) ? `${v.correlativo} (MOD)` : v.correlativo,
-      ingreso(v),
-      celdaEstado(v.pipeline),
-      formatear(v.fechaEntrega, 'fecha'),
-      semaforoAtraso(v),
-      v.disenadores,
-      { semaforo: { texto: v.terminado ? 'Sí' : 'No', tono: v.terminado ? 'verde' : 'gris' } }
-    ]);
-    const seccion = (titulo, vales, vacio) => {
-      this._titulo(ctx, `${titulo} (${vales.length})`);
-      if (!vales.length) { this._texto(ctx, vacio, MARGIN, ctx.y - 6, { size: 8, color: GRIS }); ctx.y -= 18; return; }
-      this._tabla(ctx, columnas, filasDe(vales), { altoFila: 22, tamano: 7 });
-    };
-    seccion('ATRASADOS', atrasados, 'No hay vales atrasados en este período.');
-    seccion('DEMÁS VALES', demas, 'No hay otros vales en este período.');
-    if (g.truncado) {
-      this._espacio(ctx, 16);
-      this._texto(ctx, `Hay ${g.totalVales} vales; se muestran los más urgentes. Acota el período o los filtros para ver el resto.`, MARGIN, ctx.y - 8, { size: 8, color: GRIS });
-    }
   }
 
   _listado(ctx, reporte) {
     const v = reporte.vales;
-    this._titulo(ctx, `VALES DEL PERÍODO (${v.total})`);
     if (!v.filas.length) {
-      this._texto(ctx, 'No hubo actividad en este período.', MARGIN, ctx.y - 8, { size: 9, color: GRIS });
+      this._titulo(ctx, 'VALES DEL PERÍODO (0)');
+      this._texto(ctx, 'No hubo vales con entrega en este período.', MARGIN, ctx.y - 8, { size: 9, color: GRIS });
       ctx.y -= 20;
       return;
     }
@@ -351,11 +391,16 @@ class ValeReportePdfService {
       { label: 'Correlativo', ancho: 1.7 }, { label: 'Estado', ancho: 2.7 }, { label: 'Entrega', ancho: 0.9, centro: true }, { label: 'Atraso', ancho: 0.9, centro: true },
       ...v.columnas.map(c => ({ label: c.label, ancho: 1.35, derecha: c.formato === 'horas' }))
     ];
-    const filas = v.filas.map(f => [
-      `${f.correlativo}${f.esMod ? ' (MOD)' : ''}`, celdaEstado(f.pipeline),
-      `${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}`, semaforoAtraso(f), ...v.columnas.map(c => formatear(f[c.clave], c.formato))
-    ]);
-    this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5 });
+    for (const sec of SECCIONES_PDF) {
+      const datos = v.secciones[sec.clave];
+      if (!datos.total) continue;
+      this._titulo(ctx, `${sec.titulo} (${datos.total})`);
+      const filas = datos.filas.map(f => [
+        `${f.correlativo}${f.esMod ? ' (MOD)' : ''}`, celdaEstado(f.pipeline),
+        `${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}`, semaforoAtraso(f), ...v.columnas.map(c => formatear(f[c.clave], c.formato))
+      ]);
+      this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5 });
+    }
     if (v.truncado) {
       this._espacio(ctx, 16);
       this._texto(ctx, `Se muestran los primeros ${v.filas.length} de ${v.total} vales. Acota el período para ver el resto.`, MARGIN, ctx.y - 8, { size: 8, color: GRIS });

@@ -13,7 +13,7 @@ const valeReporteGruposService = require('./valeReporteGruposService');
 const { calcularPipeline } = require('./valePipeline');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const {
-  ROL, ESTADOS_TERMINALES, ESTADOS_TALLER, ROLES_ENCARGADO_TALLER, hoyISO, enriquecer, esValeDeModificacion
+  ROL, ESTADOS, ESTADOS_TERMINALES, ESTADOS_TALLER, ROLES_ENCARGADO_TALLER, hoyISO, enriquecer, esValeDeModificacion
 } = require('./valeHelpers');
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -664,6 +664,21 @@ class ValeReporteService {
       };
     }).filter(Boolean).sort((a, b) => a.fechaEntrega.localeCompare(b.fechaEntrega) || a.correlativo.localeCompare(b.correlativo));
 
+    // Sección de cada vale: atrasado (abierto) > entregado > no entregado. Entregado: para el Diseñador, su propuesta ya salió a revisión;
+    // para el Asesor, el vale ya llegó a él.
+    const ENTREGADA = [ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO];
+    const LLEGO_AL_ASESOR = [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
+    filas.forEach(f => {
+      const propias = alcance.rol === 'disenador' ? filasTaller.filter(x => x.vale_id === f.id && x.disenador_id === usuario.id) : [];
+      const entregado = alcance.rol === 'disenador' ? (propias.length > 0 && propias.every(x => ENTREGADA.includes(x.estado))) : LLEGO_AL_ASESOR.includes(f.estado);
+      const abierto = !ESTADOS_TERMINALES.includes(f.estado) && !(alcance.rol === 'disenador' && entregado);
+      f.seccion = f.atrasado && abierto ? 'atrasados' : (entregado ? 'entregados' : 'noEntregados');
+    });
+    const ordenSecciones = ['atrasados', 'noEntregados', 'entregados'];
+    // Atrasados: el más atrasado primero; el resto, por fecha de entrega.
+    filas.sort((a, b) => ordenSecciones.indexOf(a.seccion) - ordenSecciones.indexOf(b.seccion)
+      || (a.seccion === 'atrasados' ? (b.diasAtraso || 0) - (a.diasAtraso || 0) : 0)
+      || a.fechaEntrega.localeCompare(b.fechaEntrega) || a.correlativo.localeCompare(b.correlativo));
     // Cada vale lleva su paso del pipeline (el PDF lo muestra en lugar del estado crudo).
     const mostradas = filas.slice(0, maxFilas);
     const conTaller = await valeBuzonService._enriquecerConTaller(mostradas.map(f => resumen.get(f.id)));
@@ -679,6 +694,9 @@ class ValeReporteService {
       total: filas.length,
       columnas: columnas.map(([clave, label]) => ({ clave, label, formato: clave === 'tiempoProduccionH' ? 'horas' : 'fechaHora' })),
       filas: mostradas,
+      secciones: Object.fromEntries(ordenSecciones.map(clave => [clave, {
+        total: filas.filter(f => f.seccion === clave).length, filas: mostradas.filter(f => f.seccion === clave)
+      }])),
       truncado: filas.length > maxFilas
     };
   }

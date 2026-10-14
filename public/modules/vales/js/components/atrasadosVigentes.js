@@ -35,10 +35,10 @@ export function htmlBloqueVigentes({ id, total, items, truncado, plegado, textoP
   const masAtrasado = items.length ? Math.max(...items.map(i => i.diasAtraso || 0)) : 0;
   const resto = items.length - VISIBLES;
   return `
-    <section class="vig" id="${id}" aria-label="Atrasados vigentes">
+    <section class="vig" id="${id}" aria-label="Atrasados antes del período">
       <button type="button" class="vig-cab" aria-expanded="${!plegado}" aria-controls="${id}-cuerpo">
         <ion-icon name="time-outline" class="vig-icono" aria-hidden="true"></ion-icon>
-        <span class="vig-titulo">Atrasados vigentes</span>
+        <span class="vig-titulo">Atrasados antes del período</span>
         <span class="vig-n">${total}</span>
         <span class="vig-resumen">${masAtrasado >= 1 ? `El más atrasado lleva ${masAtrasado} ${masAtrasado === 1 ? 'día' : 'días'} · ` : ''}${escapeHtml(textoPeriodo)}</span>
         <ion-icon name="chevron-down-outline" class="vig-chevron" aria-hidden="true"></ion-icon>

@@ -7,6 +7,9 @@ import { abrirModalHistorial } from '../actions/historial.js';
 import { celdaEstado } from '../components/pipeline.js';
 import { abrirVisorVale } from '../components/visorDocumento.js';
 import { htmlBloqueVigentes, conectarBloqueVigentes } from '../components/atrasadosVigentes.js';
+import { htmlGraficaBarrasDobles } from '../components/graficaBarrasDobles.js';
+import { htmlTablaRendimiento } from '../components/tablaRendimiento.js';
+import { crearMenuExportar } from '../components/menuExportar.js';
 import { crearBarraPeriodo, aplicarPeriodoAQuery } from '../components/barraPeriodoReportes.js';
 import { crearSelectorMultiple } from '../components/selectorMultiple.js';
 
@@ -20,6 +23,12 @@ let pedidoVigente = 0;
 let ultimaData = null;
 let barraPeriodo = null;
 let tablaActiva = '';
+let menuExportar = null;
+
+// Pestaña del reporte (solo Encargado/Asistente y Supervisor tienen «Rendimiento»); se recuerda la última.
+const CLAVE_VISTA_REPORTE = 'vales:repVista';
+const leerVista = () => { try { return localStorage.getItem(CLAVE_VISTA_REPORTE) === 'rendimiento' ? 'rendimiento' : 'actividad'; } catch { return 'actividad'; } };
+const guardarVista = (vista) => { try { localStorage.setItem(CLAVE_VISTA_REPORTE, vista); } catch { /* sin almacenamiento */ } };
 
 const ICONO_AGRUPAR = { asesor: 'people-outline', disenador: 'brush-outline', taller: 'construct-outline', tienda: 'storefront-outline' };
 const AGRUPACIONES = [
@@ -80,6 +89,7 @@ function formatear(valor, formato) {
 // Carga
 // -----------------------------------------------------------------------
 export async function cargarReportes() {
+  if (!state.reporte.vista) state.reporte.vista = leerVista();
   const cont = $('#reportes-vista');
   armarEsqueleto(cont);
   if (barraPeriodo) barraPeriodo.pintar();
@@ -117,13 +127,14 @@ function armarEsqueleto(cont) {
       </div>
       <div class="rep-acciones">
         <button class="btn btn--ghost btn--sm" id="rep-actualizar" type="button"><ion-icon name="refresh-outline"></ion-icon> Actualizar</button>
-        <button class="btn btn--primary btn--sm" id="rep-exportar" type="button"><ion-icon name="download-outline"></ion-icon> <span>Exportar PDF</span></button>
+        <div class="rep-exportar" id="rep-exportar-cont"></div>
       </div>
     </div>
+    <div class="rep-tabs" id="rep-tabs" role="tablist" aria-label="Tipo de reporte" hidden></div>
     <div class="rp-barra" id="rep-periodo"></div>
     <div class="rep-filtros" id="rep-filtros" hidden></div>
     <div class="rep-fichas" id="rep-fichas" hidden></div>
-    <div class="rend-cuerpo" id="rep-cuerpo">
+    <div class="rend-cuerpo" id="rep-cuerpo" role="tabpanel">
       <div class="buzon-vacio"><ion-icon name="sync-outline" class="spin-animation"></ion-icon><p>Calculando el reporte...</p></div>
     </div>`;
   barraPeriodo = crearBarraPeriodo($('#rep-periodo', cont), {
@@ -131,17 +142,17 @@ function armarEsqueleto(cont) {
     alCambiar: (ventana) => { state.reporte.ventana = ventana; barraPeriodo.pintar(); cargarReportes(); }
   });
   $('#rep-actualizar', cont).addEventListener('click', () => cargarReportes());
-  $('#rep-exportar', cont).addEventListener('click', exportarPdf);
+  menuExportar = crearMenuExportar($('#rep-exportar-cont', cont), { alElegir: exportarPdf });
+  menuExportar.configurar([{ id: 'actividad', icono: 'list-outline', titulo: 'Reporte de actividad', detalle: '' }], 'actividad');
   cont.dataset.wired = '1';
 }
 
-async function exportarPdf() {
-  const boton = $('#rep-exportar');
-  const etiqueta = $('span', boton);
-  boton.disabled = true;
-  etiqueta.textContent = 'Generando PDF…';
+async function exportarPdf(tipo = 'actividad') {
+  menuExportar.ocupado(true);
   try {
-    const { blob, nombre } = await descargarReportePdf(construirQuery());
+    const qs = construirQuery();
+    qs.set('tipo', tipo);
+    const { blob, nombre } = await descargarReportePdf(qs);
     const url = URL.createObjectURL(blob);
     const enlace = document.createElement('a');
     enlace.href = url;
@@ -154,22 +165,85 @@ async function exportarPdf() {
   } catch (error) {
     window.toast?.error('No se pudo exportar', error.message);
   } finally {
-    boton.disabled = false;
-    etiqueta.textContent = 'Exportar PDF';
+    menuExportar.ocupado(false);
+    if (ultimaData) configurarExportacion(ultimaData, vistaActual(ultimaData));
+    $('#rep-exportar')?.focus();
   }
+}
+
+// Opciones del menú de descarga según el rol: Rendimiento solo existe para Encargado/Asistente y Supervisor.
+function configurarExportacion(data, vista) {
+  const opciones = [{ id: 'actividad', icono: 'list-outline', titulo: 'Reporte de actividad', detalle: 'Vales atrasados, no entregados y entregados' }];
+  if (data.grupos && data.grupos.rendimiento) {
+    opciones.push({ id: 'rendimiento', icono: 'bar-chart-outline', titulo: 'Reporte de rendimiento', detalle: 'Contadores, gráfica y tabla comparativa por persona' });
+  }
+  menuExportar.configurar(opciones, vista);
+}
+
+const vistaActual = (data) => (data.grupos && data.grupos.rendimiento && state.reporte.vista === 'rendimiento' ? 'rendimiento' : 'actividad');
+
+// Pestañas «Actividad | Rendimiento» (roles con Rendimiento). Actividad muestra cuántos vales piden atención.
+function renderTabs(data, vista) {
+  const cont = $('#rep-tabs');
+  const hay = !!(data.grupos && data.grupos.rendimiento);
+  cont.hidden = !hay;
+  $('#rep-cuerpo').setAttribute('aria-labelledby', hay ? `rep-tab-${vista}` : '');
+  if (!hay) { cont.innerHTML = ''; return; }
+  const atencion = ((data.atrasadosVigentes && data.atrasadosVigentes.total) || 0) + (data.grupos.secciones.atrasados.total || 0);
+  const tabs = [
+    { id: 'actividad', texto: 'Actividad', icono: 'list-outline', n: atencion },
+    { id: 'rendimiento', texto: 'Rendimiento', icono: 'bar-chart-outline', n: 0 }
+  ];
+  cont.innerHTML = tabs.map(t => `
+    <button type="button" role="tab" class="rep-tab${t.id === vista ? ' is-activa' : ''}" id="rep-tab-${t.id}" data-vista="${t.id}" aria-selected="${t.id === vista}" aria-controls="rep-cuerpo" tabindex="${t.id === vista ? '0' : '-1'}">
+      <ion-icon name="${t.icono}" aria-hidden="true"></ion-icon>${t.texto}${t.n ? `<span class="rep-tab-n" title="${t.n} vale${t.n === 1 ? '' : 's'} atrasado${t.n === 1 ? '' : 's'}">${t.n}</span>` : ''}
+    </button>`).join('');
+  const cambiar = (id, enfocar = false) => {
+    if (id === vistaActual(data)) return;
+    state.reporte.vista = id;
+    guardarVista(id);
+    renderTodo(ultimaData);
+    if (enfocar) $(`#rep-tab-${id}`)?.focus();
+  };
+  cont.querySelectorAll('[role="tab"]').forEach(tab => {
+    tab.addEventListener('click', () => cambiar(tab.dataset.vista));
+    tab.addEventListener('keydown', (e) => {
+      const orden = tabs.map(t => t.id);
+      const i = orden.indexOf(tab.dataset.vista);
+      let destino = null;
+      if (e.key === 'ArrowRight') destino = orden[(i + 1) % orden.length];
+      else if (e.key === 'ArrowLeft') destino = orden[(i - 1 + orden.length) % orden.length];
+      else if (e.key === 'Home') destino = orden[0];
+      else if (e.key === 'End') destino = orden[orden.length - 1];
+      if (destino) { e.preventDefault(); cambiar(destino, true); }
+    });
+  });
 }
 
 // -----------------------------------------------------------------------
 // Render
 // -----------------------------------------------------------------------
 function renderTodo(data) {
-  $('#rep-titulo').textContent = data.titulo;
+  const vista = vistaActual(data);
+  $('#rep-titulo').textContent = vista === 'rendimiento' ? data.titulo.replace(/^Actividad/, 'Rendimiento') : data.titulo;
   vistaTaller = data.rol === 'encargado';
   $('#rep-meta').textContent = `${data.periodo.titulo || data.periodo.etiqueta} · Actualizado ${new Date().toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' })}`;
-  renderFiltros(data);
+  renderFiltros(data, vista);
+  renderTabs(data, vista);
+  configurarExportacion(data, vista);
+  if (vista === 'rendimiento') {
+    $('#rep-cuerpo').innerHTML = `
+      ${data.grupos.indicadoresTaller ? htmlIndicadoresTaller(data.grupos.indicadoresTaller) : ''}
+      ${htmlGraficaBarrasDobles(data.grupos.rendimiento)}
+      ${htmlTablaRendimiento(data.grupos.rendimiento)}
+      <details class="rend-notas">
+        <summary>Cómo funciona este reporte</summary>
+        <ul>${notasRendimiento(data)}</ul>
+      </details>`;
+    return;
+  }
   $('#rep-cuerpo').innerHTML = `
     ${htmlAtrasadosVigentes(data.atrasadosVigentes)}
-    ${data.grupos && data.grupos.indicadoresTaller ? htmlIndicadoresTaller(data.grupos.indicadoresTaller) : ''}
     <div class="rend-grid">
       ${data.grupos ? '<section class="rend-panel rend-span-12" id="rep-panel-grupos"></section>' : ''}
       ${!data.grupos && (data.tablas || []).length ? '<section class="rend-panel rend-span-12" id="rep-panel-tablas"></section>' : ''}
@@ -183,6 +257,17 @@ function renderTodo(data) {
     </details>`;
   conectarAtrasadosVigentes($('#rep-cuerpo'));
   if (data.grupos) renderGrupos(data); else { renderTablas(data); renderVales(data); }
+}
+
+// Notas del reporte de rendimiento.
+function notasRendimiento(data) {
+  const entregado = data.rol === 'encargado'
+    ? '<strong>Asignados / Entregados:</strong> vales con fecha de entrega en el período asignados a cada diseñador (y a ti) y, de ellos, los que su propuesta ya salió a revisión o está aprobada.'
+    : '<strong>Creados / Autorizados:</strong> vales con fecha de entrega en el período creados por cada asesor (y por ti) y, de ellos, los que ya fueron autorizados.';
+  return `<li>${entregado}</li>
+    <li><strong>%:</strong> la segunda cifra entre la primera. «% más bajo» marca a la persona con el porcentaje menor, si hay más de una con vales.</li>
+    <li><strong>Atrasados:</strong> vales abiertos del período con fecha de entrega vencida (hasta hoy).</li>
+    <li>El período y los filtros de tienda, taller y personas se aplican igual que en Actividad.</li>`;
 }
 
 // «Atrasados vigentes»: los vales atrasados y abiertos con entrega fuera del período elegido (con los mismos filtros de alcance).
@@ -245,7 +330,7 @@ function htmlIndicadoresTaller(i) {
 // -----------------------------------------------------------------------
 // Filtros: agrupar por, tienda, taller, asesores y diseñadores
 // -----------------------------------------------------------------------
-function renderFiltros(data) {
+function renderFiltros(data, vista = 'actividad') {
   const cont = $('#rep-filtros');
   const f = data.filtros;
   if (!data.grupos) { cont.hidden = true; cont.innerHTML = ''; renderFichas(data); return; }
@@ -260,13 +345,13 @@ function renderFiltros(data) {
   const opciones = (lista, valor, vacio) => `<option value="">${vacio}</option>${lista.map(o => `<option value="${o.id}"${String(o.id) === String(valor) ? ' selected' : ''}>${escapeHtml(o.nombre)}</option>`).join('')}`;
   cont.hidden = false;
   cont.innerHTML = `
-    <div class="rep-agrupar${disponibles.length > 1 ? '' : ' rep-agrupar--fijo'}" role="group" aria-label="Agrupar por">
+    ${vista === 'rendimiento' ? '' : `<div class="rep-agrupar${disponibles.length > 1 ? '' : ' rep-agrupar--fijo'}" role="group" aria-label="Agrupar por">
       <ion-icon name="${ICONO_AGRUPAR[agrupar] || 'layers-outline'}" aria-hidden="true"></ion-icon>
       <span class="rep-filtro-rotulo">Agrupar por</span>
       ${disponibles.length > 1
         ? disponibles.map(a => `<button type="button" class="rp-segmento${a.id === agrupar ? ' is-activo' : ''}" data-agrupar="${a.id}" aria-pressed="${a.id === agrupar}">${a.texto}</button>`).join('')
         : `<span class="rep-agrupar-fijo">${escapeHtml((disponibles[0] || AGRUPACIONES.find(a => a.id === agrupar) || {}).texto || '')}</span>`}
-    </div>
+    </div>`}
     <div class="rep-filtros-fila">
       ${f.tiendas.length ? `<select id="rep-f-tienda" class="filtro-tienda" aria-label="Filtrar por tienda">${opciones(f.tiendas, r.tiendaId, 'Todas las tiendas')}</select>` : ''}
       ${f.talleres.length ? `<select id="rep-f-taller" class="filtro-tienda" aria-label="Filtrar por taller">${opciones(f.talleres, r.tallerId, 'Todos los talleres')}</select>` : ''}
@@ -350,68 +435,117 @@ function htmlPropuesta(v) {
 }
 
 let vistaTaller = false;
-let agrupadoPorDisenador = false; // «Vales por diseñador»: sin columna Autorizados y con «Terminado» (Sí/No) en lugar de «Propuesta»
 
-const htmlTerminado = (v) => `<span class="rep-terminado rep-terminado--${v.terminado ? 'si' : 'no'}">${v.terminado ? 'Sí' : 'No'}</span>`;
 
+// Columnas según la sección: atrasados muestran el Atraso; los entregados ya no necesitan Atraso ni Propuesta.
 function htmlMiniTabla(g) {
   if (!g.vales.length) return '<p class="rep-sin-vales">Sin vales con entrega en este período.</p>';
+  const sec = g.seccion || 'noEntregados';
+  const conAtraso = sec === 'atrasados';
+  const conPropuesta = sec !== 'entregados';
   const filas = g.vales.map(v => `
     <tr>
       <td data-label="Vale"><strong>${escapeHtml(v.correlativo)}</strong>${v.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${vistaTaller ? '' : `<span class="rep-cliente">${escapeHtml(v.cliente)}</span>`}</td>
       ${vistaTaller ? `<td data-label="Fecha de ingreso">${escapeHtml(formatearFechaHora(v.creadoEn))}</td>` : ''}
       <td data-label="Estado">${celdaEstado(v)}</td>
       <td data-label="Entrega">${escapeHtml(formatearFecha(v.fechaEntrega))}</td>
-      <td data-label="Atraso">${htmlAtraso(v)}</td>
-      <td data-label="${agrupadoPorDisenador ? 'Terminado' : 'Propuesta'}">${agrupadoPorDisenador ? htmlTerminado(v) : htmlPropuesta(v)}</td>
+      ${conAtraso ? `<td data-label="Atraso">${htmlAtraso(v)}</td>` : ''}
+      ${conPropuesta ? `<td data-label="Propuesta">${htmlPropuesta(v)}</td>` : ''}
       <td data-label="Acciones" class="rep-acciones-celda"><div class="rep-acciones-fila">
         <button type="button" class="btn-icon" data-ver="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}"${v.tienePropuesta ? ' data-con-propuesta="1"' : ''} title="Ver vale" aria-label="Ver vale ${escapeHtml(v.correlativo)}"><ion-icon name="eye-outline"></ion-icon></button>
       </div></td>
     </tr>`).join('');
-  return `<div class="rep-mini-wrap"><table class="rep-mini"><thead><tr><th>Vale</th>${vistaTaller ? '<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th><th>Atraso</th><th>${agrupadoPorDisenador ? 'Terminado' : 'Propuesta'}</th><th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
+  return `<div class="rep-mini-wrap"><table class="rep-mini"><thead><tr><th>Vale</th>${vistaTaller ? '<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}${conPropuesta ? '<th>Propuesta</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
     ${g.recortado ? '<p class="rep-nota">Se muestran los vales más urgentes; acota el período o los filtros para ver el resto.</p>' : ''}`;
 }
 
+// Fila de una persona: nombre, cuántos vales y solo lo que pide atención (sin repetir lo que ya dice la sección).
 function htmlGrupo(g, indice) {
   const abierto = state.reporte.expandidos.has(g.clave);
-  const alertas = [
-    g.atrasados ? `<span class="rep-chip rep-chip--alerta" title="Vales atrasados"><ion-icon name="alert-circle" aria-hidden="true"></ion-icon>${g.atrasados} atrasado${g.atrasados === 1 ? '' : 's'}</span>` : '',
-    agrupadoPorDisenador && g.vales.some(v => !v.terminado) ? `<span class="rep-chip rep-chip--aviso" title="Vales sin terminar"><ion-icon name="time-outline" aria-hidden="true"></ion-icon>${g.vales.filter(v => !v.terminado).length} sin terminar</span>` : '',
-    !agrupadoPorDisenador && g.sinPropuesta ? `<span class="rep-chip rep-chip--aviso" title="Vales sin propuesta adjunta"><ion-icon name="document-outline" aria-hidden="true"></ion-icon>${g.sinPropuesta} sin propuesta</span>` : ''
-  ].join('') || '<span class="rep-chip rep-chip--ok"><ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon>Todo en orden</span>';
+  const alertas = g.seccion !== 'entregados' && g.sinPropuesta
+    ? `<span class="rep-chip rep-chip--aviso" title="Vales sin propuesta adjunta"><ion-icon name="document-outline" aria-hidden="true"></ion-icon>${g.sinPropuesta} sin propuesta</span>`
+    : '';
   return `
     <div class="rep-grupo${abierto ? ' is-abierto' : ''}" data-clave="${escapeHtml(g.clave)}">
       <button type="button" class="rep-grupo-cab" aria-expanded="${abierto}" aria-controls="rep-g-${indice}">
         <span class="rep-grupo-nombre"><ion-icon name="chevron-forward-outline" class="rep-chevron" aria-hidden="true"></ion-icon><span class="rep-avatar" aria-hidden="true">${escapeHtml(inicialesAvatar(g.nombre))}</span><strong>${escapeHtml(g.nombre)}</strong></span>
-        <span class="rep-celda" data-label="Vales">${g.total}</span>
-        ${agrupadoPorDisenador ? '' : `<span class="rep-celda" data-label="Autorizados">${g.autorizados}</span>`}
-        <span class="rep-celda rep-celda--chips" data-label="Atención">${alertas}</span>
+        <span class="rep-celda rep-celda--n">${g.total} vale${g.total === 1 ? '' : 's'}</span>
+        <span class="rep-celda rep-celda--chips">${alertas}</span>
       </button>
       <div class="rep-grupo-cuerpo" id="rep-g-${indice}"${abierto ? '' : ' hidden'}>${abierto ? htmlMiniTabla(g) : ''}</div>
     </div>`;
+}
+
+// Secciones del reporte (tras «Atrasados antes del período»): cada una plegable, con su contador.
+const SECCIONES_REPORTE = [
+  { clave: 'atrasados', titulo: 'Atrasados en el período', icono: 'alert-circle', sub: 'Entrega en el período, vencidos y aún abiertos' },
+  { clave: 'noEntregados', titulo: 'No entregados', icono: 'time-outline', sub: 'En curso y dentro del plazo' },
+  { clave: 'entregados', titulo: 'Entregados', icono: 'checkmark-circle', sub: '' }
+];
+const leerSeccionPlegada = (clave) => {
+  try {
+    const guardado = localStorage.getItem(`vales:repSec:${clave}`);
+    if (guardado !== null) return guardado === '1';
+  } catch { /* sin almacenamiento */ }
+  return clave === 'entregados'; // lo ya resuelto arranca plegado (el contador sigue visible)
+};
+const guardarSeccionPlegada = (clave, plegada) => { try { localStorage.setItem(`vales:repSec:${clave}`, plegada ? '1' : '0'); } catch { /* sin almacenamiento */ } };
+
+function htmlSeccion({ clave, titulo, icono, sub, total, cuerpo }) {
+  const plegada = leerSeccionPlegada(clave);
+  return `
+    <section class="rep-seccion rep-seccion--${clave}" data-seccion="${clave}" aria-label="${escapeHtml(titulo)}">
+      <button type="button" class="rep-seccion-cab" aria-expanded="${!plegada}" aria-controls="rep-sec-${clave}">
+        <ion-icon name="${icono}" class="rep-seccion-icono" aria-hidden="true"></ion-icon>
+        <span class="rep-seccion-titulo">${escapeHtml(titulo)}</span>
+        <span class="rep-seccion-n">${total}</span>
+        <span class="rep-seccion-sub">${escapeHtml(sub)}</span>
+        <ion-icon name="chevron-down-outline" class="rep-seccion-chevron" aria-hidden="true"></ion-icon>
+      </button>
+      <div class="rep-seccion-cuerpo" id="rep-sec-${clave}"${plegada ? ' hidden' : ''}>${cuerpo}</div>
+    </section>`;
+}
+
+function conectarSecciones(panel) {
+  panel.querySelectorAll('.rep-seccion').forEach(sec => {
+    const cab = $('.rep-seccion-cab', sec);
+    cab.addEventListener('click', () => {
+      const abrir = cab.getAttribute('aria-expanded') !== 'true';
+      cab.setAttribute('aria-expanded', String(abrir));
+      $('.rep-seccion-cuerpo', sec).hidden = !abrir;
+      guardarSeccionPlegada(sec.dataset.seccion, !abrir);
+    });
+  });
 }
 
 function renderGrupos(data) {
   const panel = $('#rep-panel-grupos');
   const g = data.grupos;
   const info = AGRUPACIONES.find(a => a.id === g.agruparPor);
-  agrupadoPorDisenador = g.agruparPor === 'disenador';
-  const sub = `${g.totalVales} vale${g.totalVales === 1 ? '' : 's'} · ${g.grupos.length} ${g.grupos.length === 1 ? info.texto.toLowerCase() : info.plural}`;
-  const acciones = g.grupos.length
+  const secciones = SECCIONES_REPORTE.map(def => ({ ...def, ...g.secciones[def.clave] })).filter(x => x.total > 0);
+  const subEntregados = vistaTaller ? 'Tu taller ya entregó la propuesta' : 'Ya llegaron al asesor';
+  const personas = new Set(secciones.flatMap(x => x.grupos.map(gr => gr.id))).size;
+  const sub = `${g.totalVales} vale${g.totalVales === 1 ? '' : 's'} · ${personas} ${personas === 1 ? info.texto.toLowerCase() : info.plural}`;
+  const acciones = secciones.length
     ? '<div class="rep-expandir"><button type="button" class="rep-link" id="rep-expandir-todo">Expandir todo</button><button type="button" class="rep-link" id="rep-contraer-todo">Contraer todo</button></div>'
     : '';
-  if (!g.grupos.length) {
+  if (!secciones.length) {
     panel.innerHTML = cabeceraPanel(`Vales por ${info.texto.toLowerCase()}`, sub) + vacio('document-text-outline', 'Sin vales con entrega en este período', 'Cambia el período o los filtros para ver otros vales.');
     return;
   }
+  // La misma persona puede estar en varias secciones: su clave lleva la sección para recordar qué filas están abiertas.
+  const porClave = new Map();
+  const htmlTabla = (sec) => {
+    const grupos = sec.grupos.map(gr => ({ ...gr, seccion: sec.clave, clave: `${sec.clave}|${gr.clave}` }));
+    grupos.forEach(gr => porClave.set(gr.clave, gr));
+    return `<div class="rep-tabla rep-tabla--simple" role="list" aria-label="${escapeHtml(info.plural)}">
+      ${grupos.map((gr, i) => htmlGrupo(gr, `${sec.clave}-${i}`)).join('')}
+    </div>`;
+  };
   panel.innerHTML = `${cabeceraPanel(`Vales por ${info.texto.toLowerCase()}`, sub, acciones)}
-    <div class="rep-tabla${agrupadoPorDisenador ? ' rep-tabla--sin-aut' : ''}" role="list">
-      <div class="rep-tabla-cab" aria-hidden="true"><span>${info.texto}</span><span>Vales</span>${agrupadoPorDisenador ? '' : '<span>Autorizados</span>'}<span>Atención</span></div>
-      ${g.grupos.map(htmlGrupo).join('')}
-    </div>
+    ${secciones.map(sec => htmlSeccion({ ...sec, sub: sec.clave === 'entregados' ? subEntregados : sec.sub, cuerpo: htmlTabla(sec) })).join('')}
     ${g.truncado ? `<p class="rep-nota">Hay ${g.totalVales} vales; se muestran los más urgentes. Acota el período o los filtros para ver el resto.</p>` : ''}`;
 
-  const porClave = new Map(g.grupos.map(x => [x.clave, x]));
   const alternar = (el, abrir) => {
     const clave = el.dataset.clave;
     const cuerpo = $('.rep-grupo-cuerpo', el);
@@ -426,6 +560,7 @@ function renderGrupos(data) {
     $('.rep-grupo-cab', el).addEventListener('click', () => alternar(el, $('.rep-grupo-cab', el).getAttribute('aria-expanded') !== 'true'));
     if (state.reporte.expandidos.has(el.dataset.clave)) conectarAcciones($('.rep-grupo-cuerpo', el));
   });
+  conectarSecciones(panel);
   const todo = $('#rep-expandir-todo', panel);
   if (todo) todo.addEventListener('click', () => panel.querySelectorAll('.rep-grupo').forEach(el => alternar(el, true)));
   const nada = $('#rep-contraer-todo', panel);
@@ -464,22 +599,26 @@ function renderVales(data) {
   const panel = $('#rep-panel-vales');
   const v = data.vales;
   if (!panel || !v) return;
-  const sub = v.total ? `${v.total} vale${v.total === 1 ? '' : 's'} con actividad en el período` : 'Vales con actividad en el período';
+  const sub = v.total ? `${v.total} vale${v.total === 1 ? '' : 's'} con entrega en el período` : 'Vales con entrega en el período';
   if (!v.filas.length) {
-    panel.innerHTML = cabeceraPanel('Vales del período', sub) + vacio('document-text-outline', 'Sin vales en este período', 'No hubo actividad registrada.');
+    panel.innerHTML = cabeceraPanel('Vales del período', sub) + vacio('document-text-outline', 'Sin vales en este período', 'No hubo vales con entrega en el período.');
     return;
   }
-  const filas = v.filas.map(f => `
+  const filaVale = (f) => `
     <tr>
       <td data-label="Correlativo"><strong>${escapeHtml(f.correlativo)}</strong>${f.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}</td>
       <td data-label="Cliente">${escapeHtml(f.cliente)}</td>
+      <td data-label="Estado">${f.pipeline ? celdaEstado(f) : escapeHtml(ESTADOS_LABEL[f.estado] || f.estado)}</td>
       <td data-label="Entrega">${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}${f.atrasado && f.diasAtraso >= 1 ? `<span class="badge badge-atraso">${f.diasAtraso}d</span>` : ''}</td>
-      <td data-label="Estado">${escapeHtml(ESTADOS_LABEL[f.estado] || f.estado)}</td>
       ${v.columnas.map(c => `<td class="rend-num" data-label="${escapeHtml(c.label)}">${formatear(f[c.clave], c.formato)}</td>`).join('')}
       <td data-label="Historial"><button type="button" class="btn-icon" data-historial="${f.id}" data-correlativo="${escapeHtml(f.correlativo)}" title="Ver historial" aria-label="Ver historial de ${escapeHtml(f.correlativo)}"><ion-icon name="time-outline"></ion-icon></button></td>
-    </tr>`).join('');
+    </tr>`;
+  const tabla = (filas) => `<div class="rend-tabla-wrap"><table class="rend-tabla"><thead><tr><th>Correlativo</th><th>Cliente</th><th>Estado</th><th>Entrega</th>${v.columnas.map(c => `<th class="rend-num">${escapeHtml(c.label)}</th>`).join('')}<th></th></tr></thead><tbody>${filas.map(filaVale).join('')}</tbody></table></div>`;
+  const subEntregados = data.rol === 'disenador' ? 'Tu propuesta ya salió a revisión' : 'Ya llegaron a ti';
+  const secciones = SECCIONES_REPORTE.map(def => ({ ...def, ...v.secciones[def.clave] })).filter(x => x.total > 0);
   panel.innerHTML = `${cabeceraPanel('Vales del período', sub)}
-    <div class="rend-tabla-wrap"><table class="rend-tabla"><thead><tr><th>Correlativo</th><th>Cliente</th><th>Entrega</th><th>Estado</th>${v.columnas.map(c => `<th class="rend-num">${escapeHtml(c.label)}</th>`).join('')}<th></th></tr></thead><tbody>${filas}</tbody></table></div>
+    ${secciones.map(sec => htmlSeccion({ ...sec, sub: sec.clave === 'entregados' ? subEntregados : sec.sub, cuerpo: tabla(sec.filas) })).join('')}
     ${v.truncado ? `<p class="rep-nota">Se muestran los primeros ${v.filas.length} de ${v.total}. Exporta el PDF para ver más (hasta 500) o acota el período.</p>` : ''}`;
+  conectarSecciones(panel);
   panel.querySelectorAll('[data-historial]').forEach(b => b.addEventListener('click', () => abrirModalHistorial({ id: Number(b.dataset.historial), correlativo: b.dataset.correlativo })));
 }

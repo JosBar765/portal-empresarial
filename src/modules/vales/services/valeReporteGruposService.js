@@ -19,6 +19,9 @@ const ESTADOS_CON_PROPUESTA = [ESTADOS.CREADO, ESTADOS.MODIFICADO, ESTADOS.APROB
 const fechaDe = (valor) => String(valor || '').slice(0, 10);
 // Fin del día de entrega (hora de Guatemala, UTC-6), para saber si una entrega a revisión llegó a tiempo.
 const finDelDia = (fecha) => new Date(`${fecha}T23:59:59-06:00`).getTime();
+// El vale ya llegó al asesor (propuesta lista para confirmar o ya confirmada): «entregado» para Asesor, Supervisor, Gerente y Administrador.
+const ESTADOS_LLEGO_AL_ASESOR = [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
+const SECCIONES = ['atrasados', 'noEntregados', 'entregados'];
 const ESTADOS_VALE_TERMINADO_TALLER = [ESTADOS.APROBADO_DEPARTAMENTO, ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
 const redondear = (n) => Math.round(n * 10) / 10;
 
@@ -99,7 +102,12 @@ class ValeReporteGruposService {
       const terminado = esTaller ? terminadoTaller(v) : pipeline.terminado;
       const abierto = !ESTADOS_TERMINALES.includes(v.estado) && !(esTaller && terminado);
       const asignados = [...new Set((esTaller ? propias(v) : filas(v)).map(f => f.disenador_id).filter(Boolean))].map(id => nombres.get(id) || `#${id}`);
+      const atrasadoFicha = abierto && !!v.atrasado;
+      const entregado = esTaller ? terminado : ESTADOS_LLEGO_AL_ASESOR.includes(v.estado);
+      // Precedencia: un vale atrasado va solo en su sección; luego entregado; el resto, no entregado.
+      const seccion = atrasadoFicha ? 'atrasados' : (entregado ? 'entregados' : 'noEntregados');
       return [v.id, {
+        seccion,
         id: v.id, correlativo: v.correlativo, cliente: v.cliente_nombre, esMod: esValeDeModificacion(v), urgente: !!Number(v.urgente),
         estado: v.estado, pipeline, terminado, disenadores: asignados.length ? asignados.join(', ') : 'Sin asignar',
         creadoEn: `${fechaDe(v.fecha_creacion)} ${String(v.hora_creacion || '00:00:00').slice(0, 8)}`,
@@ -168,15 +176,106 @@ class ValeReporteGruposService {
       return { total: todosVigentes.length, truncado: todosVigentes.length > MAX_VIGENTES, vales: todosVigentes.slice(0, MAX_VIGENTES) };
     }
 
+    // Tres secciones (atrasados, no entregados, entregados): las mismas filas de la agrupación elegida, solo con los vales de cada una.
+    const porSeccion = (clave) => lista
+      .map(g => {
+        const vales = g.vales.filter(v => v.seccion === clave);
+        return vales.length ? {
+          ...g, vales, total: vales.length, autorizados: vales.filter(v => v.autorizado).length,
+          atrasados: vales.filter(v => v.atrasado).length, sinPropuesta: vales.filter(v => v.sinPropuesta).length
+        } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => compararVales(a.vales[0], b.vales[0]) || b.total - a.total || a.nombre.localeCompare(b.nombre));
+
     // Tope de vales por respuesta: se recortan del final (los menos urgentes) y se avisa.
     let restante = MAX_VALES;
-    const recortado = lista.map(g => {
-      const vales = g.vales.slice(0, Math.max(0, restante));
-      restante -= vales.length;
-      return { ...g, vales, recortado: vales.length < g.vales.length };
-    });
+    const secciones = {};
+    for (const clave of SECCIONES) {
+      const grupos = porSeccion(clave);
+      secciones[clave] = {
+        total: grupos.reduce((s, g) => s + g.vales.length, 0),
+        grupos: grupos.map(g => {
+          const vales = g.vales.slice(0, Math.max(0, restante));
+          restante -= vales.length;
+          return { ...g, vales, recortado: vales.length < g.vales.length };
+        }).filter(g => g.vales.length)
+      };
+    }
     const indicadoresTaller = esTaller ? await this._indicadoresTaller(visibles, fichas, alcance, obtenerEntregas) : null;
-    return { agruparPor, grupos: recortado, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller };
+    const datosRendimiento = this._rendimiento({ alcance, visibles, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel });
+    const rendimiento = datosRendimiento && { ...datosRendimiento, totales: this._totalesRendimiento(datosRendimiento.filas) };
+    return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento };
+  }
+
+  // Reporte de rendimiento (solo Encargado/Asistente y Supervisor): por persona, dos cifras comparadas, su % y sus atrasados, sobre los
+  // vales del período y con los filtros aplicados. Encargado: asignados vs entregados por diseñador (y él mismo). Supervisor: creados vs
+  // autorizados por asesor (y él mismo). Alimenta la gráfica y la tabla comparativa.
+  _rendimiento({ alcance, visibles, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel }) {
+    if (!alcance.equipo || !(alcance.personas || []).length) return null;
+    if (esTaller) {
+      const elegidas = disSel.size ? alcance.personas.filter(p => disSel.has(p.id)) : alcance.personas;
+      const filasDe = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : propias(v));
+      const ENTREGADA = [ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO];
+      const filasGrafica = elegidas.map(p => {
+        let a = 0; let b = 0; let atrasados = 0;
+        for (const v of visibles) {
+          const propia = filasDe(v).filter(f => f.disenador_id === p.id);
+          if (!propia.length) continue;
+          a += 1;
+          if (propia.every(f => ENTREGADA.includes(f.estado))) b += 1;
+          else if (fichas.get(v.id).atrasado) atrasados += 1;
+        }
+        return { id: p.id, nombre: p.nombre, a, b, atrasados };
+      });
+      return {
+        clave: 'disenadores', persona: 'Diseñador', titulo: 'Asignaciones por diseñador', subtitulo: 'Vales con entrega en el período',
+        series: [
+          { clave: 'a', etiqueta: 'Asignados', ayuda: 'Vales con entrega en el período asignados a esa persona.' },
+          { clave: 'b', etiqueta: 'Entregados', ayuda: 'De esos vales, los que su propuesta ya salió a revisión o está aprobada.' }
+        ],
+        filas: this._ordenarGrafica(filasGrafica)
+      };
+    }
+    if (alcance.rol === 'supervisor') {
+      const elegidas = asesorSel.size ? alcance.personas.filter(p => asesorSel.has(p.id)) : alcance.personas;
+      const filasGrafica = elegidas.map(p => {
+        const suyos = visibles.filter(v => v.asesor_id === p.id);
+        return {
+          id: p.id, nombre: p.nombre, a: suyos.length, b: suyos.filter(v => fichas.get(v.id).autorizado).length,
+          atrasados: suyos.filter(v => fichas.get(v.id).atrasado).length
+        };
+      });
+      return {
+        clave: 'asesores', persona: 'Asesor', titulo: 'Vales por asesor', subtitulo: 'Vales con entrega en el período',
+        series: [
+          { clave: 'a', etiqueta: 'Creados', ayuda: 'Vales con entrega en el período creados por esa persona.' },
+          { clave: 'b', etiqueta: 'Autorizados', ayuda: 'De esos vales, los que ya fueron autorizados.' }
+        ],
+        filas: this._ordenarGrafica(filasGrafica)
+      };
+    }
+    return null;
+  }
+
+  // Más vales primero; a igualdad, por nombre. Quienes no tienen vales quedan al final con 0.
+  _ordenarGrafica(filas) {
+    return filas.sort((x, y) => y.a - x.a || y.b - x.b || x.nombre.localeCompare(y.nombre));
+  }
+
+  // Totales de la tabla comparativa y quién tiene el % más bajo (solo entre quienes tienen vales; hace falta más de una persona).
+  _totalesRendimiento(filas) {
+    const a = filas.reduce((s, f) => s + f.a, 0);
+    const b = filas.reduce((s, f) => s + f.b, 0);
+    const conVales = filas.filter(f => f.a > 0);
+    let masBajo = null;
+    if (conVales.length > 1) {
+      const pct = (f) => f.b / f.a;
+      const menor = Math.min(...conVales.map(pct));
+      const empatados = conVales.filter(f => pct(f) === menor);
+      if (empatados.length === 1 && menor < 1) masBajo = empatados[0].id;
+    }
+    return { a, b, atrasados: filas.reduce((s, f) => s + f.atrasados, 0), masBajo };
   }
 
   // Entrantes, entregados, % de efectividad, % entregados a tiempo y atrasados de los vales del período en los talleres del encargado.
