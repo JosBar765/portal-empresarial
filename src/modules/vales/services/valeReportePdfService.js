@@ -26,10 +26,11 @@ const SECCIONES_PDF = [
 const COLOR_SERIE_A = rgb(0.145, 0.388, 0.922);
 const COLOR_SERIE_B = rgb(0.086, 0.639, 0.29);
 
-// Celda de estado: solo «Paso N de 5» (el atraso va en su propia columna).
+// Celda de estado: «Paso N de 5 · Nombre del paso» (el atraso va en su propia columna).
 function celdaEstado(pipeline) {
   const total = pipeline.pasos.length;
-  return `Paso ${pipeline.terminado ? total : pipeline.paso} de ${total}`;
+  const nombrePaso = pipeline.terminado ? 'Completado' : pipeline.pasos[Math.min(pipeline.paso, total) - 1];
+  return `Paso ${pipeline.terminado ? total : pipeline.paso} de ${total} · ${nombrePaso}`;
 }
 
 // Las fuentes estándar del PDF solo cubren Latin-1: lo demás se sustituye en vez de romper la generación.
@@ -245,7 +246,7 @@ class ValeReportePdfService {
   // fila completa se remarca si se entregó con atraso.
   _gruposPdf(ctx, grupos, clave, esTaller) {
     const columnas = [
-      { label: 'Vale', ancho: 1.8 }, ...(esTaller ? [{ label: 'Ingreso', ancho: 1.3 }] : []), { label: 'Estado', ancho: 2 },
+      { label: 'Vale', ancho: 1.8 }, ...(esTaller ? [{ label: 'Ingreso', ancho: 1.3 }] : []), { label: 'Estado', ancho: 2.6 },
       { label: 'Entrega', ancho: 1, centro: true },
       ...(clave === 'atrasados' ? [{ label: 'Atraso', ancho: 1, centro: true }] : []),
       ...(clave === 'entregados' ? [{ label: 'Con atraso', ancho: 1.1, centro: true }] : [])
