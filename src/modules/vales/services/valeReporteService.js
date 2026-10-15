@@ -306,7 +306,16 @@ class ValeReporteService {
     const ventana = resolverVentanaReporte(filtros);
     const rango = rangoDe(ventana);
     const anterior = rangoAnterior(rango);
+    // Rendimiento: una semana o un mes solo se consulta cuando ya cerró; sus cifras son las del cierre (no cambian después).
+    // Día, Hoy y Desde–Hasta pueden estar en curso: cifras a hoy.
+    const hoy = hoyISO();
+    const esRendimiento = filtros.tipo === 'rendimiento';
+    const cerrado = !!rango.hasta && rango.hasta < hoy;
+    const corte = esRendimiento && cerrado ? rango.hasta : hoy;
     const alcance = await resolverAlcance(usuario);
+    if (esRendimiento && ['encargado', 'supervisor'].includes(alcance.rol) && ['semana', 'mes'].includes(rango.tipo) && rango.hasta >= hoy) {
+      throw new ErrorDeNegocio('El rendimiento de una semana o de un mes solo está disponible cuando el período ya cerró. Elige el período anterior.');
+    }
     const entero = v => (Number.isInteger(Number(v)) && Number(v) > 0 ? Number(v) : null);
     const lista = v => [...new Set(String(v ?? '').split(',').map(entero).filter(Boolean))].slice(0, MAX_PERSONAS);
     const tiendaId = alcance.equipo ? entero(filtros.tiendaId) : null;
@@ -390,7 +399,7 @@ class ValeReporteService {
     if (alcance.equipo) {
       const agruparPor = valeReporteGruposService.agrupacionValida(filtros.agruparPor, alcance.agrupaciones.includes('asesor') ? 'asesor' : alcance.agrupaciones[0]);
       const argumentos = {
-        alcance, dentroDelRango: (f) => dentro(f, rango), agruparPor, tiendaId, tallerId, asesorSel, disSel
+        alcance, dentroDelRango: (f) => dentro(f, rango), agruparPor, tiendaId, tallerId, asesorSel, disSel, corte
       };
       grupos = await valeReporteGruposService.armar(argumentos);
       atrasadosVigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosAntesDe: (f) => antesDe(f, rango) });
@@ -409,7 +418,7 @@ class ValeReporteService {
       alcance: alcance.equipo ? (alcance.rol === 'administrador' ? 'global' : 'equipo') : 'propio',
       titulo: this._titulo(alcance, evaluados),
       evaluados,
-      periodo: { ...rango, etiqueta: etiquetaPeriodo(rango), titulo: `Fecha de entrega: ${etiquetaPeriodo(rango)}`, anterior: anterior ? etiquetaPeriodo(anterior) : null },
+      periodo: { ...rango, corte, cerrado, etiqueta: etiquetaPeriodo(rango), titulo: `Fecha de entrega: ${etiquetaPeriodo(rango)}`, anterior: anterior ? etiquetaPeriodo(anterior) : null },
       kpis, tablas, vales, grupos, atrasadosVigentes,
       resumenFiltros: grupos ? this._resumenFiltros(grupos.agruparPor, opcionesFiltro, { tiendaId, tallerId }) : [],
       filtros: opcionesFiltro

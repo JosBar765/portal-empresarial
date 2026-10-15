@@ -17,6 +17,7 @@ const MAX_VIGENTES = 200;
 const ESTADOS_CON_PROPUESTA = [ESTADOS.CREADO, ESTADOS.MODIFICADO, ESTADOS.APROBADO_DEPARTAMENTO, ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
 
 const fechaDe = (valor) => String(valor || '').slice(0, 10);
+const diasEntreFechas = (a, b) => Math.max(0, Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 864e5));
 // Atraso del vale en SU taller: corre hasta que el Encargado aprueba; con todas sus filas aprobadas y su fecha registrada, queda detenido ahí.
 function atrasoEnTaller(v, filasPropias) {
   const congelados = filasPropias.map(f => f.atraso_congelado_en).filter(Boolean).map(String).sort();
@@ -57,11 +58,16 @@ class ValeReporteGruposService {
   // validados contra el alcance.
   // `soloAtrasadosAntesDe(fechaIso)` (opcional): en lugar del período, devuelve los vales atrasados y abiertos cuya fecha de entrega
   // es ANTERIOR al período («atrasados antes del período») con las mismas reglas de alcance y filtros, como { total, truncado, vales }.
-  async armar({ alcance, dentroDelRango, agruparPor, tiendaId, tallerId, asesorSel, disSel, soloAtrasadosAntesDe = null }) {
+  // `corte`: fecha de la «foto». Es hoy salvo en un período ya cerrado, donde es su último día (cifras al cierre: no cambian después).
+  async armar({ alcance, dentroDelRango, agruparPor, tiendaId, tallerId, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO() }) {
+    const alCorte = corte < hoyISO();
     const todos = (await valeRepository.listarTodos())
       .filter(v => (soloAtrasadosAntesDe ? soloAtrasadosAntesDe(fechaDe(v.fecha_entrega)) : dentroDelRango(fechaDe(v.fecha_entrega))))
       .map(enriquecer)
-      .filter(v => !soloAtrasadosAntesDe || (v.atrasado && !ESTADOS_TERMINALES.includes(v.estado)));
+      .filter(v => !soloAtrasadosAntesDe || (alCorte
+        // Al cierre: vencido antes del corte y que entonces aún no se aprobaba (hoy abierto, o aprobado después del corte).
+        ? (fechaDe(v.fecha_entrega) < corte && (!ESTADOS_TERMINALES.includes(v.estado) || fechaDe(v.atraso_congelado_en) > corte))
+        : (v.atrasado && !ESTADOS_TERMINALES.includes(v.estado))));
     const conTaller = await valeBuzonService._enriquecerConTaller(todos);
 
     // Alcance y filtros: todo sobre los vales con entrega en el período.
@@ -89,11 +95,12 @@ class ValeReporteGruposService {
     // Vista Taller (Encargado/Asistente): un vale está terminado (entregado) cuando el Encargado ya aprobó su parte; en revisión aún no cuenta.
     const esTaller = alcance.rol === 'encargado';
     const propias = (v) => filas(v).filter(f => (alcance.tallerIds || []).includes(f.taller_id));
+    // Al cierre, una parte cuenta como aprobada solo si el Encargado la aprobó a más tardar en el corte.
+    const aprobadaAlCorte = (f) => f.estado === ESTADOS_TALLER.APROBADO && (!alCorte || !f.atraso_congelado_en || fechaDe(f.atraso_congelado_en) <= corte);
     const terminadoTaller = (v) => {
       const p = propias(v);
       if (!p.length) return false;
-      return ESTADOS_VALE_TERMINADO_TALLER.includes(v.estado)
-        || p.every(f => f.estado === ESTADOS_TALLER.APROBADO);
+      return (!alCorte && ESTADOS_VALE_TERMINADO_TALLER.includes(v.estado)) || p.every(aprobadaAlCorte);
     };
 
     // Cada vale, con los datos que muestra la mini tabla.
@@ -105,9 +112,11 @@ class ValeReporteGruposService {
       const terminado = esTaller ? terminadoTaller(v) : pipeline.terminado;
       // Para el Encargado el atraso corre hasta que su taller aprueba (en revisión sigue contando).
       const aprobadoTaller = esTaller && (ESTADOS_VALE_TERMINADO_TALLER.includes(v.estado) || (propias(v).length > 0 && propias(v).every(f => f.estado === ESTADOS_TALLER.APROBADO)));
-      const abierto = !ESTADOS_TERMINALES.includes(v.estado) && !aprobadoTaller;
+      const alCierreTaller = alCorte && esTaller; // foto al cierre del período (vista Taller)
+      const abierto = alCierreTaller ? !terminado : (!ESTADOS_TERMINALES.includes(v.estado) && !aprobadoTaller);
+      const vencido = alCierreTaller ? fechaDe(v.fecha_entrega) < corte : !!v.atrasado;
       const asignados = [...new Set((esTaller ? propias(v) : filas(v)).map(f => f.disenador_id).filter(Boolean))].map(id => nombres.get(id) || `#${id}`);
-      const atrasadoFicha = abierto && !!v.atrasado;
+      const atrasadoFicha = abierto && vencido;
       const entregado = esTaller ? terminado : ESTADOS_LLEGO_AL_ASESOR.includes(v.estado);
       // Precedencia: un vale atrasado va solo en su sección; luego entregado; el resto, no entregado.
       const seccion = atrasadoFicha ? 'atrasados' : (entregado ? 'entregados' : 'noEntregados');
@@ -117,7 +126,7 @@ class ValeReporteGruposService {
         estado: v.estado, pipeline, terminado, disenadores: asignados.length ? asignados.join(', ') : 'Sin asignar',
         creadoEn: `${fechaDe(v.fecha_creacion)} ${String(v.hora_creacion || '00:00:00').slice(0, 8)}`,
         autorizado: !!v.autorizado_en, fechaEntrega: fechaDe(v.fecha_entrega),
-        atrasado: abierto && !!v.atrasado, diasAtraso: abierto ? (v.diasAtraso || 0) : 0, venceHoy: abierto && !!v.venceHoy,
+        atrasado: abierto && vencido, diasAtraso: abierto ? (alCierreTaller ? diasEntreFechas(fechaDe(v.fecha_entrega), corte) : (v.diasAtraso || 0)) : 0, venceHoy: abierto && !!v.venceHoy,
         // Vista Taller: días de atraso con que se entregó (aprobó el Encargado); 0 si llegó a tiempo.
         diasTarde: esTaller && terminado ? atrasoEnTaller(v, propias(v)).diasAtraso : 0,
         tienePropuesta: !!urlPropuesta || conEnlaces, sinPropuesta: requierePropuesta && !urlPropuesta && !conEnlaces, urlPropuesta, conEnlaces
@@ -211,11 +220,10 @@ class ValeReporteGruposService {
       };
     }
     // Rendimiento «hasta hoy»: un vale cuya fecha de entrega aún no llega no puede contarse como no entregado; entra cuando llega su fecha.
-    const hoy = hoyISO();
-    const exigibles = visibles.filter(v => fechaDe(v.fecha_entrega) <= hoy);
+    const exigibles = visibles.filter(v => fechaDe(v.fecha_entrega) <= corte);
     const indicadoresTaller = esTaller ? this._indicadoresTaller(exigibles, fichas) : null;
     const hastaHoy = exigibles.length < visibles.length; // solo se anuncia «hasta hoy» si de verdad quedó algo fuera
-    const datosRendimiento = this._rendimiento({ alcance, visibles: exigibles, hastaHoy, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol });
+    const datosRendimiento = this._rendimiento({ alcance, visibles: exigibles, hastaHoy, aprobada: aprobadaAlCorte, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol });
     const rendimiento = datosRendimiento && { ...datosRendimiento, totales: this._totalesRendimiento(datosRendimiento.filas, datosRendimiento.sinAsignar) };
     return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento };
   }
@@ -223,7 +231,7 @@ class ValeReporteGruposService {
   // Reporte de rendimiento (solo Encargado/Asistente y Supervisor): por persona, dos cifras comparadas, su % y sus atrasados, sobre los
   // vales del período y con los filtros aplicados. Encargado: asignados vs entregados por diseñador (y él mismo). Supervisor: creados vs
   // autorizados por asesor (y él mismo). Alimenta la gráfica y la tabla comparativa.
-  _rendimiento({ alcance, visibles, hastaHoy, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol }) {
+  _rendimiento({ alcance, visibles, hastaHoy, aprobada, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol }) {
     if (!alcance.equipo || !(alcance.personas || []).length) return null;
     if (esTaller) {
       const filasDe = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : propias(v));
@@ -235,14 +243,14 @@ class ValeReporteGruposService {
           if (f.disenador_id && !conocidos.has(f.disenador_id)) { conocidos.add(f.disenador_id); elegidas.push({ id: f.disenador_id, nombre: nombresConRol.get(f.disenador_id) || `#${f.disenador_id}` }); }
         }));
       }
-      const ENTREGADA = [ESTADOS_TALLER.APROBADO]; // entregado = aprobado por el Encargado
       const filasGrafica = elegidas.map(p => {
         let a = 0; let b = 0; let tarde = 0;
         for (const v of visibles) {
           const propia = filasDe(v).filter(f => f.disenador_id === p.id);
           if (!propia.length) continue;
           a += 1;
-          if (propia.every(f => ENTREGADA.includes(f.estado))) { b += 1; if (atrasoEnTaller(v, propia).atrasado) tarde += 1; }
+          if (propia.every(aprobada)) { // entregado = aprobado por el Encargado (al corte)
+             b += 1; if (atrasoEnTaller(v, propia).atrasado) tarde += 1; }
         }
         return { id: p.id, nombre: p.nombre, a, b, tarde, sinEntregar: a - b };
       });

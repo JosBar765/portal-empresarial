@@ -127,7 +127,8 @@ class ValeController {
       personaIds: req.query.personaIds,
       asesorIds: req.query.asesorIds,
       disenadorIds: req.query.disenadorIds,
-      agruparPor: req.query.agruparPor
+      agruparPor: req.query.agruparPor,
+      tipo: req.query.tipo
     };
   }
 

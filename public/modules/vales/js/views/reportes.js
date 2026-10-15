@@ -10,7 +10,7 @@ import { htmlBloqueVigentes, conectarBloqueVigentes } from '../components/atrasa
 import { htmlGraficaBarrasDobles } from '../components/graficaBarrasDobles.js';
 import { htmlTablaRendimiento } from '../components/tablaRendimiento.js';
 import { crearMenuExportar } from '../components/menuExportar.js';
-import { crearBarraPeriodo, aplicarPeriodoAQuery } from '../components/barraPeriodoReportes.js';
+import { crearBarraPeriodo, aplicarPeriodoAQuery, normalizarPeriodoCerrado } from '../components/barraPeriodoReportes.js';
 import { crearSelectorMultiple } from '../components/selectorMultiple.js';
 
 // -----------------------------------------------------------------------
@@ -42,6 +42,7 @@ function construirQuery() {
   const r = state.reporte;
   const qs = new URLSearchParams();
   aplicarPeriodoAQuery(qs, r.ventana);
+  if (r.vista === 'rendimiento') qs.set('tipo', 'rendimiento'); // Rendimiento: períodos cerrados y cifras al cierre
   if (r.agruparPor) qs.set('agruparPor', r.agruparPor);
   if (r.tiendaId) qs.set('tiendaId', r.tiendaId);
   if (r.tallerId) qs.set('tallerId', r.tallerId);
@@ -90,6 +91,8 @@ function formatear(valor, formato) {
 // -----------------------------------------------------------------------
 export async function cargarReportes() {
   if (!state.reporte.vista) state.reporte.vista = leerVista();
+  // En Rendimiento, Semana y Mes solo cerrados: si había uno en curso se pasa al último cerrado.
+  if (state.reporte.vista === 'rendimiento') state.reporte.ventana = normalizarPeriodoCerrado(state.reporte.ventana);
   const cont = $('#reportes-vista');
   armarEsqueleto(cont);
   if (barraPeriodo) barraPeriodo.pintar();
@@ -139,6 +142,7 @@ function armarEsqueleto(cont) {
     </div>`;
   barraPeriodo = crearBarraPeriodo($('#rep-periodo', cont), {
     obtener: () => state.reporte.ventana,
+    soloCerrados: () => state.reporte.vista === 'rendimiento',
     alCambiar: (ventana) => { state.reporte.ventana = ventana; barraPeriodo.pintar(); cargarReportes(); }
   });
   $('#rep-actualizar', cont).addEventListener('click', () => cargarReportes());
@@ -202,7 +206,7 @@ function renderTabs(data, vista) {
     if (id === vistaActual(data)) return;
     state.reporte.vista = id;
     guardarVista(id);
-    renderTodo(ultimaData);
+    cargarReportes(); // las cifras de Rendimiento (al cierre) y las de Actividad (de hoy) se piden por separado
     if (enfocar) $(`#rep-tab-${id}`)?.focus();
   };
   cont.querySelectorAll('[role="tab"]').forEach(tab => {
@@ -227,7 +231,9 @@ function renderTodo(data) {
   const vista = vistaActual(data);
   $('#rep-titulo').textContent = vista === 'rendimiento' ? data.titulo.replace(/^Actividad/, 'Rendimiento') : data.titulo;
   vistaTaller = data.rol === 'encargado';
-  $('#rep-meta').textContent = `${data.periodo.titulo || data.periodo.etiqueta} · Actualizado ${new Date().toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' })}`;
+  const corte = data.periodo.corte ? `${data.periodo.corte.slice(8, 10)}/${data.periodo.corte.slice(5, 7)}/${data.periodo.corte.slice(0, 4)}` : '';
+  const textoCorte = vista === 'rendimiento' && corte ? ` · ${data.periodo.cerrado ? `Cifras al cierre del período (${corte})` : `Cifras al ${corte} (período en curso)`}` : '';
+  $('#rep-meta').textContent = `${data.periodo.titulo || data.periodo.etiqueta}${textoCorte} · Actualizado ${new Date().toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' })}`;
   renderFiltros(data, vista);
   renderTabs(data, vista);
   configurarExportacion(data, vista);
@@ -267,7 +273,7 @@ function notasRendimiento(data) {
   return `<li>${entregado}</li>
     <li><strong>%:</strong> la segunda cifra entre la primera.</li>
     ${data.rol === 'encargado'
-      ? '<li><strong>Cómo se calcula:</strong> con el estado de hoy y solo con los vales cuya fecha de entrega ya llegó. Un vale que vence después cuenta cuando llega su fecha, aunque ya esté entregado. Uno que vence hoy es «sin entregar» pero no «atrasado» hasta mañana; «atrasado» es todo vale vencido que el Encargado aún no aprueba.</li><li><strong>Entregas tarde:</strong> de los entregados (aprobados por el Encargado), los que tienen atraso en su taller. <strong>% a tiempo:</strong> entregados sin atraso entre entregados. <strong>Sin entregar:</strong> asignados de la ventana que esa persona aún no entrega (asignados menos entregados). <strong>Sin asignar:</strong> vales de la ventana que ningún diseñador tiene todavía.</li>'
+      ? '<li><strong>Cómo se calcula:</strong> Semana y Mes solo se consultan cuando ya cerraron y muestran las cifras al cierre: no cambian después (un vale aprobado después del cierre cuenta como sin entregar en ese período). Día, Hoy y Desde–Hasta muestran las cifras de hoy y solo cuentan vales cuya fecha de entrega ya llegó. Un vale que vence hoy es «sin entregar» pero no «atrasado» hasta mañana; «atrasado» es todo vale vencido que el Encargado aún no aprueba.</li><li><strong>Entregas tarde:</strong> de los entregados (aprobados por el Encargado), los que tienen atraso en su taller. <strong>% a tiempo:</strong> entregados sin atraso entre entregados. <strong>Sin entregar:</strong> asignados de la ventana que esa persona aún no entrega (asignados menos entregados). <strong>Sin asignar:</strong> vales de la ventana que ningún diseñador tiene todavía.</li>'
       : '<li><strong>Atrasados:</strong> vales abiertos del período con fecha de entrega vencida (hasta hoy).</li>'}
     <li>El período y los filtros de tienda, taller y personas se aplican igual que en Actividad.</li>`;
 }

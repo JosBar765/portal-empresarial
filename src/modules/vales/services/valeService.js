@@ -29,7 +29,7 @@ module.exports = {
   // `tipo`: 'actividad' (por defecto) o 'rendimiento' (solo Encargado/Asistente y Supervisor).
   generarReportePdf: async (usuario, filtros, tipo = 'actividad') => {
     if (!['actividad', 'rendimiento'].includes(tipo)) throw new ErrorDeNegocio('El tipo de reporte no es válido.');
-    const reporte = await valeReporteService.obtenerReporte(usuario, filtros, { maxFilas: valeReporteService.MAX_FILAS_PDF });
+    const reporte = await valeReporteService.obtenerReporte(usuario, { ...filtros, tipo }, { maxFilas: valeReporteService.MAX_FILAS_PDF });
     if (tipo === 'rendimiento' && !(reporte.grupos && reporte.grupos.rendimiento)) throw new ErrorDeNegocio('El reporte de rendimiento no está disponible para tu rol.');
     reporte.tipo = tipo;
     if (tipo === 'rendimiento') reporte.titulo = reporte.titulo.replace(/^Actividad/, 'Rendimiento');

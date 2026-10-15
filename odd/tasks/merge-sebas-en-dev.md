@@ -45,6 +45,12 @@ Cantidad mínima 1; adjuntos obligatorios al crear/corregir/modificar; urgente m
 - «Atrasados sin entregar» = vencidos de la ventana sin aprobar + los que se arrastran de antes de la ventana. En octubre (hoy 15/10): entrantes 30 -> 22, atrasados sin entregar 2 -> 10, % a tiempo 73,3 % -> 63,6 %.
 - Los vales entregados por adelantado (entrega posterior a hoy) no cuentan hasta que llega su fecha.
 
+## Períodos cerrados en Rendimiento (2026-10-15)
+- Rendimiento: Semana y Mes solo cuando el período ya cerró (la API responde 400 si no; la barra de período apaga la flecha siguiente, deshabilita semanas/meses en curso y, al pasar a Rendimiento, lleva el período en curso al último cerrado). Día, Hoy y Desde–Hasta siguen abiertos.
+- Cifras AL CIERRE (corte = último día del período; hoy si aún no cierra): entregado = aprobado por el Encargado a más tardar en el corte (`vale_talleres.atraso_congelado_en`); atrasado = entrega anterior al corte y sin aprobar al corte. Septiembre medido en la BD local: al cierre 14 de 17 (82,4 %), con el estado de hoy 15 de 17 (88,2 %).
+- El reporte avisa «Cifras al cierre del período (dd/mm/aaaa)» o «Cifras al dd/mm/aaaa (período en curso)». Actividad no cambia. El Supervisor: misma restricción de períodos, cifras de hoy (limitación).
+- Limitación: el diseñador asignado al cierre se toma del asignado actual.
+
 ## Para desplegar
 Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_taller` (`06_atraso_taller.sql`, idempotente, agrega `vale_talleres.atraso_congelado_en` y rellena las filas ya aprobadas). El número 06 choca con `06_quitar_rendimiento`; se cita por nombre.
 
