@@ -52,13 +52,13 @@ class ValeReporteGruposService {
   // `alcance`: del servicio de reportes. `dentroDelRango(fechaIso)`: período elegido (sobre la fecha de entrega). Filtros ya
   // validados contra el alcance. `obtenerEntregas(valeIds, tallerIds)`: Map valeId -> momento (ms) de la primera entrega a
   // revisión de esos talleres, para el % a tiempo del Encargado.
-  // `soloAtrasadosFueraDe(fechaIso)` (opcional): en lugar del período, devuelve los vales atrasados y abiertos cuya fecha de entrega
-  // queda FUERA del período («atrasados vigentes») con las mismas reglas de alcance y filtros, como { total, truncado, vales }.
-  async armar({ alcance, dentroDelRango, agruparPor, tiendaId, tallerId, asesorSel, disSel, obtenerEntregas, soloAtrasadosFueraDe = null }) {
+  // `soloAtrasadosAntesDe(fechaIso)` (opcional): en lugar del período, devuelve los vales atrasados y abiertos cuya fecha de entrega
+  // es ANTERIOR al período («atrasados antes del período») con las mismas reglas de alcance y filtros, como { total, truncado, vales }.
+  async armar({ alcance, dentroDelRango, agruparPor, tiendaId, tallerId, asesorSel, disSel, obtenerEntregas, soloAtrasadosAntesDe = null }) {
     const todos = (await valeRepository.listarTodos())
-      .filter(v => (soloAtrasadosFueraDe ? !soloAtrasadosFueraDe(fechaDe(v.fecha_entrega)) : dentroDelRango(fechaDe(v.fecha_entrega))))
+      .filter(v => (soloAtrasadosAntesDe ? soloAtrasadosAntesDe(fechaDe(v.fecha_entrega)) : dentroDelRango(fechaDe(v.fecha_entrega))))
       .map(enriquecer)
-      .filter(v => !soloAtrasadosFueraDe || (v.atrasado && !ESTADOS_TERMINALES.includes(v.estado)));
+      .filter(v => !soloAtrasadosAntesDe || (v.atrasado && !ESTADOS_TERMINALES.includes(v.estado)));
     const conTaller = await valeBuzonService._enriquecerConTaller(todos);
 
     // Alcance y filtros: todo sobre los vales con entrega en el período.
@@ -163,7 +163,7 @@ class ValeReporteGruposService {
       return compararVales(a.vales[0], b.vales[0]) || b.total - a.total || a.nombre.localeCompare(b.nombre);
     });
 
-    if (soloAtrasadosFueraDe) {
+    if (soloAtrasadosAntesDe) {
       const unicos = new Map();
       for (const g of lista) {
         for (const v of g.vales) {

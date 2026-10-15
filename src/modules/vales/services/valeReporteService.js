@@ -146,6 +146,8 @@ function etiquetaPeriodo(r) {
 }
 
 const dentro = (fecha, r) => (!r.desde || fecha >= r.desde) && (!r.hasta || fecha <= r.hasta);
+// Con entrega anterior al inicio del período (sin inicio, como «Todo», no hay nada anterior).
+const antesDe = (fecha, r) => !!r.desde && fecha < r.desde;
 
 // ---- Eventos: cada fila de historial se traduce a una acción con nombre ----
 function clasificar(h) {
@@ -392,12 +394,12 @@ class ValeReporteService {
         obtenerEntregas: (valeIds, tallerIds) => this._primerasEntregas(valeIds, tallerIds)
       };
       grupos = await valeReporteGruposService.armar(argumentos);
-      atrasadosVigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosFueraDe: (f) => dentro(f, rango) });
+      atrasadosVigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosAntesDe: (f) => antesDe(f, rango) });
     } else {
       const nombres = await this._nombres(alcance, normalizados);
       tablas = await this._tablas(alcance, eventosPeriodo, paresAplicables, rango, { todos, filasTaller, nombres, personaIds });
       vales = await this._listado(alcance, usuario, { porId, filasTaller, nombres, maxFilas, dentroDelRango: (f) => dentro(f, rango) });
-      atrasadosVigentes = await this._atrasadosVigentesSimple(alcance, usuario, { porId, filasTaller, dentroDelRango: (f) => dentro(f, rango) });
+      atrasadosVigentes = await this._atrasadosVigentesSimple(alcance, usuario, { porId, filasTaller, antesDelPeriodo: (f) => antesDe(f, rango) });
     }
 
     const opcionesFiltro = await this._opcionesDeFiltro(alcance, usuario);
@@ -610,7 +612,7 @@ class ValeReporteService {
   }
 
   // Atrasados vigentes de un Asesor o Diseñador: sus vales abiertos y atrasados con entrega fuera del período.
-  async _atrasadosVigentesSimple(alcance, usuario, { porId, filasTaller, dentroDelRango }) {
+  async _atrasadosVigentesSimple(alcance, usuario, { porId, filasTaller, antesDelPeriodo }) {
     const mios = alcance.rol === 'disenador' ? new Set(filasTaller.filter(f => f.disenador_id === usuario.id).map(f => f.vale_id)) : null;
     // Al Diseñador no le cuenta un vale que su Encargado ya aprobó (su atraso terminó ahí).
     const aprobadoPorSuTaller = (valeId) => {
@@ -618,7 +620,7 @@ class ValeReporteService {
       return propias.length > 0 && propias.every(f => f.estado === ESTADOS_TALLER.APROBADO);
     };
     const candidatos = [...porId.values()]
-      .filter(v => v.atrasado && !ESTADOS_TERMINALES.includes(v.estado) && !dentroDelRango(String(v.fecha_entrega).slice(0, 10)))
+      .filter(v => v.atrasado && !ESTADOS_TERMINALES.includes(v.estado) && antesDelPeriodo(String(v.fecha_entrega).slice(0, 10)))
       .filter(v => (mios ? mios.has(v.id) && !aprobadoPorSuTaller(v.id) : v.asesor_id === usuario.id));
     const conTaller = await valeBuzonService._enriquecerConTaller(candidatos);
     const vales = conTaller
