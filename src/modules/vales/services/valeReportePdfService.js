@@ -299,14 +299,14 @@ class ValeReportePdfService {
         { label: 'Sin entregar', ancho: 1.1, centro: true }
       ]
       : [
-        { label: r.persona || 'Persona', ancho: 2.4 }, { label: serieA.etiqueta, ancho: 1, centro: true }, { label: serieB.etiqueta, ancho: 1.1, centro: true },
-        { label: '% autoriz.', ancho: 1.1, centro: true }, { label: 'Recib. sin atraso', ancho: 1.3, centro: true },
-        { label: 'Recib. con atraso', ancho: 1.3, centro: true }, { label: 'Sin recibir', ancho: 1.1, centro: true }
+        { label: r.persona || 'Persona', ancho: 2 }, { label: serieA.etiqueta, ancho: 1, centro: true }, { label: serieB.etiqueta, ancho: 1.1, centro: true },
+        { label: '% autoriz.', ancho: 1.1, centro: true }, { label: '% a tiempo', ancho: 1.1, centro: true }, { label: 'Recib. sin atraso', ancho: 1.7, centro: true },
+        { label: 'Recib. con atraso', ancho: 1.7, centro: true }, { label: 'Sin recibir', ancho: 1.1, centro: true }
       ];
     // En la fila de total los porcentajes van en guion (sumar porcentajes de personas confunde; los contadores dan el global).
     const fila = (nombre, f, esTotal = false) => (esTaller
       ? [nombre, String(f.a), String(f.b), esTotal ? '-' : celdaPct(f.b, f.a), esTotal ? '-' : celdaPct(f.b - f.tarde, f.b), celdaConteo(f.tarde, 'ambar'), celdaConteo(f.sinEntregar, 'rojo')]
-      : [nombre, String(f.a), String(f.b), esTotal ? '-' : pct(f.a, f.b), String(f.recibidosATiempo), celdaConteo(f.recibidosTarde, 'ambar'), celdaConteo(f.sinRecibir, 'rojo')]);
+      : [nombre, String(f.a), String(f.b), esTotal ? '-' : pct(f.a, f.b), esTotal ? '-' : pct(f.recibidosATiempo + f.recibidosTarde, f.recibidosATiempo), String(f.recibidosATiempo), celdaConteo(f.recibidosTarde, 'ambar'), celdaConteo(f.sinRecibir, 'rojo')]);
     const filas = (r.sinAsignar ? [r.sinAsignar, ...r.filas] : r.filas).map(f => fila(f.nombre, f));
     filas.push(fila('TOTAL', r.totales, true));
     this._tabla(ctx, columnas, filas, { altoFila: 16, tamano: 8 });
