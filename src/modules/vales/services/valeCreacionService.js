@@ -60,8 +60,15 @@ class ValeCreacionService {
   // porque el cliente nunca la reutilizaría.
   async crearVale(usuario, payload, archivos) {
     const idempotencyKey = payload.idempotencyKey || crypto.randomUUID();
-    const previo = await idempotencyRepository.buscar(idempotencyKey);
-    if (previo) return previo.resultado;
+    // Misma key en paralelo: se serializa, y la comprobación va DENTRO de la cola para que nunca se cree dos veces.
+    return valeMutex.conColaDeLlave(idempotencyKey, async () => {
+      const previo = await idempotencyRepository.buscar(idempotencyKey);
+      if (previo) return previo.resultado;
+      return this._crearVale(usuario, payload, archivos, idempotencyKey);
+    });
+  }
+
+  async _crearVale(usuario, payload, archivos, idempotencyKey) {
 
     const solicitante = await usuarioValeRepository.obtenerPorId(usuario.id);
     if (!solicitante || !solicitante.tienda_id) {
