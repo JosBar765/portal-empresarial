@@ -740,7 +740,7 @@ Al entregar su propuesta, el Diseñador (y el Encargado/Asistente al adjuntar la
 
 - **Orden de Reportes:** contadores, atrasados antes del período, gráfica de barras dobles (Encargado: asignados vs entregados por diseñador; Supervisor: creados vs autorizados por asesor), atrasados en el período, no entregados y entregados. «Entregado» = el taller ya entregó su propuesta (Encargado/Diseñador) o el vale ya llegó al asesor (demás roles). Detalle en `documentacion/correcciones_53.md`.
 
-- **Firmas en los PDF de reportes:** todo PDF (Actividad y Rendimiento, cualquier rol) termina con dos líneas de firma: a la izquierda quien lo imprimió (su nombre sale solo) y a la derecha «JEFE INMEDIATO».
+- **Firmas en los PDF de reportes:** el pie de la última página de todo PDF (Actividad y Rendimiento, cualquier rol) lleva dos líneas de firma, sin crear hoja extra (todas las páginas reservan ese hueco): a la izquierda quien lo imprimió (su nombre sale solo) y a la derecha «Jefe Inmediato».
 - **Reporte de rendimiento:** el Encargado/Asistente y el Supervisor tienen, además de Actividad, un reporte de Rendimiento (contadores, gráfica y tabla comparativa por persona); se elige cuál descargar desde «Exportar PDF». Detalle en `documentacion/correcciones_53.md`.
 
 - **Atraso del taller:** el atraso que ven el Encargado de taller (y Asistente) y el Diseñador termina cuando el Encargado de SU taller APRUEBA la propuesta (`vale_talleres.atraso_congelado_en`; en revisión sigue corriendo); si la propuesta se desaprueba y el vale vuelve a ASIGNADO, el atraso se reanuda. Asesor, Supervisor, Gerente, Administrador y las demás vistas siguen con el atraso del vale. En el buzón del Encargado cada fila muestra también al asesor que creó el vale.

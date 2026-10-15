@@ -7,6 +7,8 @@ const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const PAGE_WIDTH = 612; // Carta vertical
 const PAGE_HEIGHT = 792;
 const MARGIN = 36;
+// Todas las páginas dejan abajo el hueco de las firmas, para que no obliguen a crear una hoja nueva.
+const LIMITE_INFERIOR = MARGIN + 46;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const LOGO_PATH = path.join(__dirname, '../../../../public/assets/logos/LOGO_GP_isotipo.png');
 
@@ -113,17 +115,15 @@ class ValeReportePdfService {
     }
   }
 
-  // Cierre de todo reporte: dos líneas de firma, la de quien lo imprimió (con su nombre) y la de su jefe inmediato.
+  // Pie de la última página de todo reporte: dos líneas de firma, la de quien lo imprimió (con su nombre) y la de su jefe inmediato.
   _firmas(ctx, generadoPor) {
-    this._espacio(ctx, 90);
-    const y = ctx.y - 60;
+    const y = 66;
     const ancho = (CONTENT_WIDTH - 60) / 2;
-    [[MARGIN, generadoPor || ' '], [MARGIN + ancho + 60, 'JEFE INMEDIATO']].forEach(([x, rotulo]) => {
+    [[MARGIN, generadoPor || ' '], [MARGIN + ancho + 60, 'Jefe Inmediato']].forEach(([x, rotulo]) => {
       ctx.page.drawLine({ start: { x, y }, end: { x: x + ancho, y }, thickness: 0.8, color: NEGRO });
-      const w = ctx.fontBold.widthOfTextAtSize(limpiar(rotulo), 8);
-      this._texto(ctx, rotulo, x + (ancho - w) / 2, y - 12, { size: 8, bold: true });
+      const w = ctx.fontBold.widthOfTextAtSize(limpiar(rotulo), 7);
+      this._texto(ctx, rotulo, x + (ancho - w) / 2, y - 10, { size: 7, bold: true });
     });
-    ctx.y = y - 20;
   }
 
   _nuevaPagina(ctx) {
@@ -132,7 +132,7 @@ class ValeReportePdfService {
   }
 
   _espacio(ctx, alto) {
-    if (ctx.y - alto < MARGIN + 18) this._nuevaPagina(ctx);
+    if (ctx.y - alto < LIMITE_INFERIOR) this._nuevaPagina(ctx);
   }
 
   _texto(ctx, texto, x, y, { size = 9, bold = false, color = NEGRO } = {}) {
@@ -206,7 +206,7 @@ class ValeReportePdfService {
     };
     cabecera();
     filas.forEach((fila, indice) => {
-      if (ctx.y - altoFila < MARGIN + 18) { this._nuevaPagina(ctx); cabecera(); }
+      if (ctx.y - altoFila < LIMITE_INFERIOR) { this._nuevaPagina(ctx); cabecera(); }
       // Fila resaltada (entregado con atraso): amarillo fluorescente al 60 % de opacidad, detrás del texto.
       if (resaltadas.includes(indice)) ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - altoFila, width: CONTENT_WIDTH, height: altoFila, color: rgb(1, 1, 0), opacity: 0.6 });
       let x = MARGIN;
