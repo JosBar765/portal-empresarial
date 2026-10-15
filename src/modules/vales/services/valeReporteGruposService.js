@@ -287,7 +287,7 @@ class ValeReporteGruposService {
     return filas.some(f => 'tarde' in f) ? { a, b, tarde: suma('tarde'), sinEntregar: suma('sinEntregar'), masBajo } : { a, b, atrasados: suma('atrasados'), masBajo };
   }
 
-  // Entrantes, entregados, % de efectividad, % entregados a tiempo y atrasados sin entregar de los vales del período en los talleres del
+  // Entrantes, entregados, sin entregar, atrasados sin entregar, % de efectividad y % entregados a tiempo de los vales del período en los talleres del
   // encargado. «A tiempo»: lo entregado sin atraso en su taller (el atraso termina al aprobar el Encargado). «Atrasados sin entregar»:
   // vales atrasados que el taller no ha entregado (no se trabajaron, o se trabajaron pero no se enviaron a revisión).
   _indicadoresTaller(visibles, fichas) {
@@ -297,6 +297,7 @@ class ValeReporteGruposService {
     return {
       entrantes: lista.length,
       entregados: entregados.length,
+      sinEntregar: lista.length - entregados.length,
       efectividad: lista.length ? redondear(entregados.length / lista.length * 100) : null,
       aTiempo: entregados.length ? redondear((entregados.length - tarde) / entregados.length * 100) : null,
       atrasadosSinEntregar: lista.filter(x => x.ficha.atrasado && !x.ficha.terminado).length

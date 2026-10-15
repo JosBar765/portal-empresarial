@@ -265,7 +265,7 @@ function notasRendimiento(data) {
     ? '<strong>Asignados / Entregados:</strong> vales con fecha de entrega en el período asignados a cada diseñador (y a ti) y, de ellos, los que su propuesta ya salió a revisión o está aprobada.'
     : '<strong>Creados / Autorizados:</strong> vales con fecha de entrega en el período creados por cada asesor (y por ti) y, de ellos, los que ya fueron autorizados.';
   return `<li>${entregado}</li>
-    <li><strong>%:</strong> la segunda cifra entre la primera. «% más bajo» marca a la persona con el porcentaje menor, si hay más de una con vales.</li>
+    <li><strong>%:</strong> la segunda cifra entre la primera.${data.rol === 'encargado' ? '' : ' «% más bajo» marca a la persona con el porcentaje menor, si hay más de una con vales.'}</li>
     ${data.rol === 'encargado'
       ? '<li><strong>Entregas tarde:</strong> de los entregados, los que tienen atraso en su taller (aprobados con atraso, o en revisión ya atrasados). <strong>% a tiempo:</strong> entregados sin atraso entre entregados. <strong>Sin entregar:</strong> vales atrasados que esa persona no ha entregado (no los trabajó, o los trabajó pero no los envió a revisión).</li>'
       : '<li><strong>Atrasados:</strong> vales abiertos del período con fecha de entrega vencida (hasta hoy).</li>'}
@@ -314,16 +314,19 @@ function notasDelRol(data) {
 
 // Franja de indicadores de la vista Taller (Encargado/Asistente). Cada uno explica su definición al pasar o enfocar el ícono.
 const porcentaje = (n) => (n == null ? '—' : `${String(n).replace('.', ',')} %`);
+// Color de un porcentaje: rojo por debajo de 50 %, amarillo por debajo de 90 %.
+const tonoPorcentaje = (n) => (n == null ? '' : (n < 50 ? 'rojo' : (n < 90 ? 'amarillo' : '')));
 function htmlIndicadoresTaller(i) {
   const tarjetas = [
     { etiqueta: 'Entrantes', valor: i.entrantes, ayuda: 'Vales con fecha de entrega en el período que ya llegaron a tus talleres.' },
     { etiqueta: 'Entregados', valor: i.entregados, ayuda: 'Vales que tu taller ya terminó: la propuesta está en revisión o aprobada.' },
-    { etiqueta: '% efectividad', valor: porcentaje(i.efectividad), ayuda: 'Entregados entre entrantes.' },
-    { etiqueta: '% a tiempo', valor: porcentaje(i.aTiempo), ayuda: 'De los vales entregados, los que no tienen atraso en tu taller (el atraso termina cuando el Encargado aprueba).' },
-    { etiqueta: 'Atrasados sin entregar', valor: i.atrasadosSinEntregar, malo: i.atrasadosSinEntregar > 0, ayuda: 'Vales del período con fecha de entrega vencida que tu taller no ha entregado: no se trabajaron, o se trabajaron pero no se enviaron a revisión (hasta hoy).' }
+    { etiqueta: 'Sin entregar', valor: i.sinEntregar, ayuda: 'Vales del período que tu taller aún no entrega: sin asignar, en trabajo o en pausa.' },
+    { etiqueta: 'Atrasados sin entregar', valor: i.atrasadosSinEntregar, tono: i.atrasadosSinEntregar > 0 ? 'rojo' : '', ayuda: 'De los que no se han entregado, los que ya pasaron su fecha de entrega (hasta hoy): no se trabajaron, o se trabajaron pero no se enviaron a revisión.' },
+    { etiqueta: '% efectividad', valor: porcentaje(i.efectividad), tono: tonoPorcentaje(i.efectividad), ayuda: 'Entregados entre entrantes. Amarillo por debajo de 90 %, rojo por debajo de 50 %.' },
+    { etiqueta: '% entregas a tiempo', valor: porcentaje(i.aTiempo), tono: tonoPorcentaje(i.aTiempo), ayuda: 'De los vales entregados, los que no tienen atraso en tu taller (el atraso termina cuando el Encargado aprueba). Amarillo por debajo de 90 %, rojo por debajo de 50 %.' }
   ];
   return `<section class="rep-ind" aria-label="Indicadores del taller">${tarjetas.map(t => `
-    <article class="rep-ind-tarjeta${t.malo ? ' rep-ind-tarjeta--alerta' : ''}">
+    <article class="rep-ind-tarjeta${t.tono === 'rojo' ? ' rep-ind-tarjeta--alerta' : (t.tono === 'amarillo' ? ' rep-ind-tarjeta--aviso' : '')}">
       <header><p>${t.etiqueta}</p><button type="button" class="rep-info" data-info="${escapeHtml(t.ayuda)}" aria-label="¿Qué es «${t.etiqueta}»? ${escapeHtml(t.ayuda)}"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon></button></header>
       <strong>${t.valor}</strong>
     </article>`).join('')}</section>`;

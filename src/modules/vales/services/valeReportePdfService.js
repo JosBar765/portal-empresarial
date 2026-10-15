@@ -301,7 +301,7 @@ class ValeReportePdfService {
   // Entregas tarde y Sin entregar; Supervisor: las dos cifras, su % y los atrasados.
   _tablaRendimiento(ctx, r) {
     const [serieA, serieB] = r.series;
-    this._titulo(ctx, 'COMPARATIVO POR PERSONA');
+    this._titulo(ctx, r.clave === 'disenadores' ? 'COMPARATIVO POR DISEÑADOR' : 'COMPARATIVO POR PERSONA');
     const pct = (a, b) => (a > 0 ? `${Math.round((b / a) * 100)} %` : '-');
     const aTiempo = (entregados, tarde) => (entregados > 0 ? `${Math.round(((entregados - tarde) / entregados) * 100)} %` : '-');
     const esTaller = r.clave === 'disenadores';
@@ -316,7 +316,7 @@ class ValeReportePdfService {
         { label: serieB.etiqueta, ancho: 1, centro: true }, { label: '%', ancho: 1.3, centro: true }, { label: 'Atrasados', ancho: 1, centro: true }
       ];
     const fila = (nombre, f, masBajo) => (esTaller
-      ? [nombre, String(f.a), String(f.b), `${pct(f.a, f.b)}${masBajo ? '  (más bajo)' : ''}`, aTiempo(f.b, f.tarde), String(f.tarde), String(f.sinEntregar)]
+      ? [nombre, String(f.a), String(f.b), pct(f.a, f.b), aTiempo(f.b, f.tarde), String(f.tarde), String(f.sinEntregar)]
       : [nombre, String(f.a), String(f.b), `${pct(f.a, f.b)}${masBajo ? '  (más bajo)' : ''}`, String(f.atrasados)]);
     const filas = r.filas.map(f => fila(f.nombre, f, r.totales.masBajo === f.id));
     filas.push(fila('TOTAL', r.totales, false));
@@ -384,7 +384,7 @@ class ValeReportePdfService {
   // Franja de contadores de la vista Taller (Encargado/Asistente).
   _contadores(ctx, i) {
     const pct = (n) => (n == null ? '-' : `${String(n).replace('.', ',')} %`);
-    const resumen = `Entrantes ${i.entrantes}  ·  Entregados ${i.entregados}  ·  Efectividad ${pct(i.efectividad)}  ·  A tiempo ${pct(i.aTiempo)}  ·  Atrasados sin entregar ${i.atrasadosSinEntregar}`;
+    const resumen = `Entrantes ${i.entrantes}  ·  Entregados ${i.entregados}  ·  Sin entregar ${i.sinEntregar}  ·  Atrasados sin entregar ${i.atrasadosSinEntregar}  ·  Efectividad ${pct(i.efectividad)}  ·  A tiempo ${pct(i.aTiempo)}`;
     this._texto(ctx, this._ajustar(ctx, resumen, CONTENT_WIDTH, 8.5, true), MARGIN, ctx.y - 9, { size: 8.5, bold: true });
     ctx.y -= 22;
   }

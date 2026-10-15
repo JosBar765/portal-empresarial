@@ -22,7 +22,7 @@ function htmlTablaTaller(r) {
       <td class="rend-num${f.sinEntregar ? ' rend-num--alerta' : ''}" data-label="${col[5]}">${f.sinEntregar}</td>`;
   const filas = r.filas.map(f => `
     <tr${f.a === 0 ? ' class="rend-fila-vacia"' : ''}>
-      <th scope="row" data-label="${escapeHtml(r.persona)}">${escapeHtml(f.nombre)}${r.totales.masBajo === f.id ? '<span class="rep-chip rep-chip--aviso rep-chip--mini">% más bajo</span>' : ''}</th>${celdas(f)}
+      <th scope="row" data-label="${escapeHtml(r.persona)}">${escapeHtml(f.nombre)}</th>${celdas(f)}
     </tr>`).join('');
   return {
     sub: 'Las cifras de la gráfica, con entregas tarde y sin entregar',
