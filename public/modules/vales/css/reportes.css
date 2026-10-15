@@ -356,6 +356,8 @@
 }
 .rp-flecha { width: 38px; }
 .rp-flecha[hidden] { display: none; }
+.rp-flecha:disabled { opacity: 0.4; cursor: not-allowed; }
+.dp-mes:disabled { opacity: 0.35; cursor: not-allowed; }
 .rp-etiqueta { gap: 8px; padding: 0 14px; font-size: 13px; font-weight: 600; }
 .rp-etiqueta ion-icon { font-size: 16px; color: var(--color-text-secondary); }
 .rp-etiqueta:disabled { cursor: default; opacity: 1; background: transparent; border-color: transparent; }
@@ -494,7 +496,8 @@
 .rep-ind-tarjeta header { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .rep-ind-tarjeta p { margin: 0; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
 .rep-ind-tarjeta strong { font-size: 1.375rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
-.rep-ind-tarjeta--alerta strong { color: var(--color-danger); }
+.rep-ind-tarjeta--alerta p, .rep-ind-tarjeta--alerta strong { color: var(--color-danger); }
+.rep-ind-tarjeta--aviso p, .rep-ind-tarjeta--aviso strong { color: var(--color-warning); }
 .rep-info { display: inline-flex; align-items: center; padding: 2px; font: inherit; color: var(--color-text-muted); background: none; border: 0; border-radius: 50%; cursor: help; }
 .rep-info ion-icon { font-size: 16px; }
 .rep-info:hover, .rep-info:focus-visible { color: var(--color-primary); }
@@ -591,6 +594,7 @@
 .rep-rendimiento tbody th { font-weight: 600; text-align: left; }
 .rep-rendimiento .rend-fila-vacia th { color: var(--color-text-muted); font-weight: 500; }
 .rep-rendimiento .rend-num--alerta { color: var(--color-danger); font-weight: 700; }
+.rep-rendimiento .rend-num--aviso { color: var(--color-warning); font-weight: 700; }
 .rep-chip--mini { margin-left: 8px; padding: 1px 8px; font-size: 11px; vertical-align: middle; }
 @media (max-width: 640px) {
   .rep-rendimiento thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }

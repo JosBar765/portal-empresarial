@@ -311,15 +311,25 @@ class ValeBuzonService {
     const esSupervisor = usuario.rolId === ROL.SUPERVISOR;
     const esEncargado = esDeTaller(usuario);
     const paginaCruda = valesOrdenados.slice(indiceInicio, indiceInicio + limit);
+    // Fila de fusión: la etiquetada FUSION o el vale pendiente de fusionar (sin etiqueta); no tiene diseñador, solo asesor.
+    const esFilaFusion = (v) => v._tipoRegistro === 'FUSION' || (!v._tipoRegistro && v.estado === ESTADOS.APROBADO_DEPARTAMENTO);
+    // En «Trabajo realizado» la fila (P) guarda a su diseñador en `propuesta_disenador_id`.
+    const disenadorDe = (v) => v.disenador_id || v.propuesta_disenador_id || null;
     const idsPersona = new Set();
     [...paginaCruda, ...vigentesMostrados].forEach(v => {
       if (esSupervisor && v.asesor_id) idsPersona.add(v.asesor_id);
-      if (esEncargado && v._tipoRegistro !== 'FUSION' && v.disenador_id) idsPersona.add(v.disenador_id);
+      if (esEncargado && !esFilaFusion(v) && disenadorDe(v)) idsPersona.add(disenadorDe(v));
+      if (esEncargado && v.asesor_id) idsPersona.add(v.asesor_id);
     });
     const nombres = new Map((await reporteRepository.listarNombres([...idsPersona])).map(u => [u.id, u.nombre]));
     const personaDe = (v) => {
       if (esSupervisor) return v.asesor_id ? { rol: 'asesor', nombre: nombres.get(v.asesor_id) || null } : null;
-      if (esEncargado && v._tipoRegistro !== 'FUSION') return { rol: 'disenador', nombre: v.disenador_id ? (nombres.get(v.disenador_id) || null) : null };
+      // El Encargado ve también al asesor que creó el vale (en las filas de fusión, solo al asesor).
+      if (esEncargado) {
+        const asesor = v.asesor_id ? (nombres.get(v.asesor_id) || null) : null;
+        if (esFilaFusion(v)) return { rol: 'asesor', nombre: asesor };
+        return { rol: 'disenador', nombre: disenadorDe(v) ? (nombres.get(disenadorDe(v)) || null) : null, asesor };
+      }
       return null;
     };
     const pagina = paginaCruda.map(v => ({ ...v, persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
@@ -523,7 +533,7 @@ class ValeBuzonService {
       .map(v => {
         const fila = misFilas.find(f => f.vale_id === v.id);
         return {
-          ...v, estado_taller: fila.estado, disenador_id: fila.disenador_id, _filaTallerId: fila.id, taller_id: fila.taller_id,
+          ...enriquecer(v), estado_taller: fila.estado, disenador_id: fila.disenador_id, _filaTallerId: fila.id, taller_id: fila.taller_id,
           adjuntos_vence_en: fila.adjuntos_vence_en, adjuntos_mensaje: fila.adjuntos_mensaje, adjuntos_respondido_en: fila.adjuntos_respondido_en
         };
       });
@@ -625,7 +635,7 @@ class ValeBuzonService {
       // (fusión, confirmación, etc.), lo que antes hacía que "aprobados hoy"
       // contara aprobaciones viejas cuyo vale cambió hoy.
       return {
-        ...v, estado_taller: ESTADOS_TALLER.APROBADO, propuesta_taller_url: propuestaTallerUrl, propuesta_taller_extra: extraDe(propuesta), propuesta_disenador_id: fila.disenador_id || null, aprobado_en: fila.actualizado_en,
+        ...enriquecer(v), estado_taller: ESTADOS_TALLER.APROBADO, propuesta_taller_url: propuestaTallerUrl, propuesta_taller_extra: extraDe(propuesta), propuesta_disenador_id: fila.disenador_id || null, aprobado_en: fila.actualizado_en,
         _rowKey: `${v.id}-P`, _tipoRegistro: 'PROPUESTA'
       };
     }));

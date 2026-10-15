@@ -67,6 +67,9 @@ class ValeModificacionService {
       const conservados = documentosOriginal.filter(d => !quitarIds.includes(d.id)).map(d => ({ ...d, nuevo: false }));
       const nuevasImagenes = (archivos && archivos.imagenes) || [];
       const nuevosDocumentos = (archivos && archivos.documentos) || [];
+      if (conservados.length + nuevasImagenes.length + nuevosDocumentos.length === 0) {
+        throw new Error('Adjunta al menos una imagen o un documento PDF.');
+      }
       if (conservados.filter(d => d.tipo === 'imagen').length + nuevasImagenes.length > MAX_IMAGENES
         || conservados.filter(d => d.tipo === 'documento').length + nuevosDocumentos.length > MAX_DOCUMENTOS) {
         throw new Error(`Un vale admite hasta ${MAX_IMAGENES} imágenes y ${MAX_DOCUMENTOS} documentos.`);

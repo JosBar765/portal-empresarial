@@ -1,4 +1,5 @@
 import { state } from '../state.js';
+import { ROL, ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
 import { $ } from '../utils/dom.js';
 import { escapeHtml, formatearFecha, formatearFechaHora, inicialesAvatar } from '../utils/formato.js';
 import { ESTADOS_LABEL } from '../config/estados.js';
@@ -10,7 +11,7 @@ import { htmlBloqueVigentes, conectarBloqueVigentes } from '../components/atrasa
 import { htmlGraficaBarrasDobles } from '../components/graficaBarrasDobles.js';
 import { htmlTablaRendimiento } from '../components/tablaRendimiento.js';
 import { crearMenuExportar } from '../components/menuExportar.js';
-import { crearBarraPeriodo, aplicarPeriodoAQuery } from '../components/barraPeriodoReportes.js';
+import { crearBarraPeriodo, aplicarPeriodoAQuery, normalizarPeriodoCerrado } from '../components/barraPeriodoReportes.js';
 import { crearSelectorMultiple } from '../components/selectorMultiple.js';
 
 // -----------------------------------------------------------------------
@@ -28,6 +29,8 @@ let menuExportar = null;
 // Pestaña del reporte (solo Encargado/Asistente y Supervisor tienen «Rendimiento»); se recuerda la última.
 const CLAVE_VISTA_REPORTE = 'vales:repVista';
 const leerVista = () => { try { return localStorage.getItem(CLAVE_VISTA_REPORTE) === 'rendimiento' ? 'rendimiento' : 'actividad'; } catch { return 'actividad'; } };
+// Solo el Encargado/Asistente de taller y el Supervisor tienen la pestaña Rendimiento (la vista recordada puede venir de otro usuario del navegador).
+const tieneRendimiento = () => !!state.user && (state.user.rolId === ROL.SUPERVISOR || ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)));
 const guardarVista = (vista) => { try { localStorage.setItem(CLAVE_VISTA_REPORTE, vista); } catch { /* sin almacenamiento */ } };
 
 const ICONO_AGRUPAR = { asesor: 'people-outline', disenador: 'brush-outline', taller: 'construct-outline', tienda: 'storefront-outline' };
@@ -42,6 +45,7 @@ function construirQuery() {
   const r = state.reporte;
   const qs = new URLSearchParams();
   aplicarPeriodoAQuery(qs, r.ventana);
+  if (r.vista === 'rendimiento') qs.set('tipo', 'rendimiento'); // Rendimiento: períodos cerrados y cifras al cierre
   if (r.agruparPor) qs.set('agruparPor', r.agruparPor);
   if (r.tiendaId) qs.set('tiendaId', r.tiendaId);
   if (r.tallerId) qs.set('tallerId', r.tallerId);
@@ -90,6 +94,9 @@ function formatear(valor, formato) {
 // -----------------------------------------------------------------------
 export async function cargarReportes() {
   if (!state.reporte.vista) state.reporte.vista = leerVista();
+  if (state.reporte.vista === 'rendimiento' && !tieneRendimiento()) state.reporte.vista = 'actividad';
+  // En Rendimiento, Semana y Mes solo cerrados: si había uno en curso se pasa al último cerrado.
+  if (state.reporte.vista === 'rendimiento') state.reporte.ventana = normalizarPeriodoCerrado(state.reporte.ventana);
   const cont = $('#reportes-vista');
   armarEsqueleto(cont);
   if (barraPeriodo) barraPeriodo.pintar();
@@ -139,6 +146,7 @@ function armarEsqueleto(cont) {
     </div>`;
   barraPeriodo = crearBarraPeriodo($('#rep-periodo', cont), {
     obtener: () => state.reporte.ventana,
+    soloCerrados: () => state.reporte.vista === 'rendimiento',
     alCambiar: (ventana) => { state.reporte.ventana = ventana; barraPeriodo.pintar(); cargarReportes(); }
   });
   $('#rep-actualizar', cont).addEventListener('click', () => cargarReportes());
@@ -202,7 +210,7 @@ function renderTabs(data, vista) {
     if (id === vistaActual(data)) return;
     state.reporte.vista = id;
     guardarVista(id);
-    renderTodo(ultimaData);
+    cargarReportes(); // las cifras de Rendimiento (al cierre) y las de Actividad (de hoy) se piden por separado
     if (enfocar) $(`#rep-tab-${id}`)?.focus();
   };
   cont.querySelectorAll('[role="tab"]').forEach(tab => {
@@ -227,7 +235,9 @@ function renderTodo(data) {
   const vista = vistaActual(data);
   $('#rep-titulo').textContent = vista === 'rendimiento' ? data.titulo.replace(/^Actividad/, 'Rendimiento') : data.titulo;
   vistaTaller = data.rol === 'encargado';
-  $('#rep-meta').textContent = `${data.periodo.titulo || data.periodo.etiqueta} · Actualizado ${new Date().toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' })}`;
+  const corte = data.periodo.corte ? `${data.periodo.corte.slice(8, 10)}/${data.periodo.corte.slice(5, 7)}/${data.periodo.corte.slice(0, 4)}` : '';
+  const textoCorte = vista === 'rendimiento' && corte ? ` · ${data.periodo.cerrado ? `Cifras al cierre del período (${corte})` : `Cifras al ${corte} (período en curso)`}` : '';
+  $('#rep-meta').textContent = `${data.periodo.titulo || data.periodo.etiqueta}${textoCorte} · Actualizado ${new Date().toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' })}`;
   renderFiltros(data, vista);
   renderTabs(data, vista);
   configurarExportacion(data, vista);
@@ -262,11 +272,13 @@ function renderTodo(data) {
 // Notas del reporte de rendimiento.
 function notasRendimiento(data) {
   const entregado = data.rol === 'encargado'
-    ? '<strong>Asignados / Entregados:</strong> vales con fecha de entrega en el período asignados a cada diseñador (y a ti) y, de ellos, los que su propuesta ya salió a revisión o está aprobada.'
+    ? '<strong>Asignados / Entregados:</strong> vales con fecha de entrega en el período asignados a cada diseñador (y a ti) y, de ellos, los que su propuesta ya aprobó el Encargado.'
     : '<strong>Creados / Autorizados:</strong> vales con fecha de entrega en el período creados por cada asesor (y por ti) y, de ellos, los que ya fueron autorizados.';
   return `<li>${entregado}</li>
-    <li><strong>%:</strong> la segunda cifra entre la primera. «% más bajo» marca a la persona con el porcentaje menor, si hay más de una con vales.</li>
-    <li><strong>Atrasados:</strong> vales abiertos del período con fecha de entrega vencida (hasta hoy).</li>
+    <li><strong>%:</strong> la segunda cifra entre la primera.</li>
+    ${data.rol === 'encargado'
+      ? '<li><strong>Cómo se calcula:</strong> Semana y Mes solo se consultan cuando ya cerraron y muestran las cifras al cierre: no cambian después (un vale aprobado después del cierre cuenta como sin entregar en ese período). Día, Hoy y Desde–Hasta muestran las cifras de hoy y solo cuentan vales cuya fecha de entrega ya llegó. Un vale que vence hoy es «sin entregar» pero no «atrasado» hasta mañana; «atrasado» es todo vale vencido que el Encargado aún no aprueba.</li><li><strong>Entregas tarde:</strong> de los entregados (aprobados por el Encargado), los que tienen atraso en su taller. <strong>% a tiempo:</strong> entregados sin atraso entre entregados. <strong>Sin entregar:</strong> asignados de la ventana que esa persona aún no entrega (asignados menos entregados). <strong>Sin asignar:</strong> vales de la ventana que ningún diseñador tiene todavía.</li>'
+      : '<li><strong>Atrasados:</strong> vales abiertos del período con fecha de entrega vencida (hasta hoy).</li>'}
     <li>El período y los filtros de tienda, taller y personas se aplican igual que en Actividad.</li>`;
 }
 
@@ -302,26 +314,29 @@ function notasDelRol(data) {
     '<li><strong>Período:</strong> se elige con Hoy, Día, Semana (de lunes a domingo), Mes o Desde–Hasta, y siempre filtra por la <strong>fecha de entrega</strong> de los vales.</li>'
   ];
   if (data.grupos) {
-    reglas.push('<li><strong>Tabla:</strong> lista los vales con <strong>fecha de entrega</strong> en el período, agrupados por la persona, taller o tienda elegidos. Cada fila muestra cuántos vales tiene, cuántos ya fueron autorizados y qué atención requieren (atrasados y sin propuesta). Al pulsarla se despliegan sus vales, con los que aún no están asignados primero y luego ordenados por atraso, por el paso más bajo del pipeline y luego por los que aún no tienen propuesta.</li>');
+    reglas.push('<li><strong>Tabla:</strong> lista los vales con <strong>fecha de entrega</strong> en el período, agrupados por la persona, taller o tienda elegidos. Cada fila muestra cuántos vales tiene, cuántos ya fueron autorizados y qué atención requieren (atrasados). Al pulsarla se despliegan sus vales: los atrasados del más atrasado al menos; los no entregados por fecha de ingreso; los entregados, primero los que se entregaron con atraso (del más atrasado al menos) y luego los que llegaron a tiempo.</li>');
   }
   if (data.grupos && data.grupos.indicadoresTaller) {
-    reglas.push('<li><strong>Indicadores del taller:</strong> <em>Entrantes</em> son los vales del período que ya llegaron a tus talleres; <em>Entregados</em>, los que tu taller ya terminó (enviados a revisión o aprobados); <em>Efectividad</em>, entregados ÷ entrantes; <em>A tiempo</em>, los entregados a revisión en o antes de su fecha de entrega ÷ entregados; <em>Atrasados</em>, los vales del período con fecha de entrega vencida que tu taller aún no termina.</li>');
+    reglas.push('<li><strong>Indicadores del taller:</strong> <em>Entrantes</em> son los vales del período que ya llegaron a tus talleres; <em>Entregados</em>, los que el Encargado ya aprobó (con atraso o sin él); <em>Sin entregar</em>, los demás; <em>Atrasados sin entregar</em>, los que ya vencieron (del período o de antes) y aún no se aprueban; todo se calcula hasta hoy; <em>Efectividad</em>, entregados ÷ entrantes; <em>A tiempo</em>, los entregados sin atraso en su taller ÷ entregados.</li>');
   }
   return reglas.join('');
 }
 
 // Franja de indicadores de la vista Taller (Encargado/Asistente). Cada uno explica su definición al pasar o enfocar el ícono.
 const porcentaje = (n) => (n == null ? '—' : `${String(n).replace('.', ',')} %`);
+// Color de un porcentaje: rojo por debajo de 50 %, amarillo por debajo de 90 %.
+const tonoPorcentaje = (n) => (n == null ? '' : (n < 50 ? 'rojo' : (n < 90 ? 'amarillo' : '')));
 function htmlIndicadoresTaller(i) {
   const tarjetas = [
-    { etiqueta: 'Entrantes', valor: i.entrantes, ayuda: 'Vales con fecha de entrega en el período que ya llegaron a tus talleres.' },
-    { etiqueta: 'Entregados', valor: i.entregados, ayuda: 'Vales que tu taller ya terminó: la propuesta está en revisión o aprobada.' },
-    { etiqueta: '% efectividad', valor: porcentaje(i.efectividad), ayuda: 'Entregados entre entrantes.' },
-    { etiqueta: '% a tiempo', valor: porcentaje(i.aTiempo), ayuda: 'De los vales entregados, los que se enviaron a revisión en o antes de su fecha de entrega.' },
-    { etiqueta: 'Atrasados', valor: i.atrasados, malo: i.atrasados > 0, ayuda: 'Vales del período con fecha de entrega vencida que tu taller todavía no termina (hasta hoy).' }
+    { etiqueta: 'Entrantes', valor: i.entrantes, ayuda: 'Vales con fecha de entrega en la ventana de tiempo, hasta hoy: los que aún no llegan a su fecha de entrega no cuentan.' },
+    { etiqueta: 'Entregados', valor: i.entregados, ayuda: 'De los entrantes, los que el Encargado ya aprobó (con atraso o sin él).' },
+    { etiqueta: 'Sin entregar', valor: i.sinEntregar, ayuda: 'De los entrantes, los que aún no aprueba el Encargado (sin asignar, en trabajo, en pausa o en revisión).' },
+    { etiqueta: 'Atrasados sin entregar', valor: i.atrasadosSinEntregar, tono: i.atrasadosSinEntregar > 0 ? 'rojo' : '', ayuda: 'Vales con la fecha de entrega ya vencida (de la ventana o de antes) que el Encargado aún no aprueba.' },
+    { etiqueta: '% efectividad', valor: porcentaje(i.efectividad), tono: tonoPorcentaje(i.efectividad), ayuda: 'Entregados entre entrantes, calculado hasta hoy. Amarillo por debajo de 90 %, rojo por debajo de 50 %.' },
+    { etiqueta: '% entregas a tiempo', valor: porcentaje(i.aTiempo), tono: tonoPorcentaje(i.aTiempo), ayuda: 'Entregados sin atraso en tu taller entre entregados (el atraso termina cuando el Encargado aprueba). Amarillo por debajo de 90 %, rojo por debajo de 50 %.' }
   ];
   return `<section class="rep-ind" aria-label="Indicadores del taller">${tarjetas.map(t => `
-    <article class="rep-ind-tarjeta${t.malo ? ' rep-ind-tarjeta--alerta' : ''}">
+    <article class="rep-ind-tarjeta${t.tono === 'rojo' ? ' rep-ind-tarjeta--alerta' : (t.tono === 'amarillo' ? ' rep-ind-tarjeta--aviso' : '')}">
       <header><p>${t.etiqueta}</p><button type="button" class="rep-info" data-info="${escapeHtml(t.ayuda)}" aria-label="¿Qué es «${t.etiqueta}»? ${escapeHtml(t.ayuda)}"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon></button></header>
       <strong>${t.valor}</strong>
     </article>`).join('')}</section>`;
@@ -428,49 +443,43 @@ function htmlAtraso(v) {
   return '<span class="badge badge-ok">Al día</span>';
 }
 
-function htmlPropuesta(v) {
-  if (v.tienePropuesta) return '<span class="rep-propuesta rep-propuesta--si"><ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon>Adjunta</span>';
-  if (v.sinPropuesta) return '<span class="rep-propuesta rep-propuesta--no"><ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>Sin propuesta</span>';
-  return '<span class="rep-propuesta rep-propuesta--na">Aún no aplica</span>';
+// Entregado: si llegó con atraso, sus días en rojo (como los atrasados); si no, «Al día».
+function htmlAtrasoEntregado(v) {
+  return v.diasTarde >= 1 ? `<span class="badge badge-atraso" title="Entregado con atraso">${v.diasTarde} d</span>` : '<span class="badge badge-ok">Al día</span>';
 }
 
 let vistaTaller = false;
 
 
-// Columnas según la sección: atrasados muestran el Atraso; los entregados ya no necesitan Atraso ni Propuesta.
+// Columnas según la sección: atrasados y entregados muestran el Atraso (en los entregados, los días con que se entregó).
 function htmlMiniTabla(g) {
   if (!g.vales.length) return '<p class="rep-sin-vales">Sin vales con entrega en este período.</p>';
   const sec = g.seccion || 'noEntregados';
-  const conAtraso = sec === 'atrasados';
-  const conPropuesta = sec !== 'entregados';
+  const conAtraso = sec === 'atrasados' || sec === 'entregados';
   const filas = g.vales.map(v => `
     <tr>
       <td data-label="Vale"><strong>${escapeHtml(v.correlativo)}</strong>${v.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${vistaTaller ? '' : `<span class="rep-cliente">${escapeHtml(v.cliente)}</span>`}</td>
       ${vistaTaller ? `<td data-label="Fecha de ingreso">${escapeHtml(formatearFechaHora(v.creadoEn))}</td>` : ''}
       <td data-label="Estado">${celdaEstado(v)}</td>
       <td data-label="Entrega">${escapeHtml(formatearFecha(v.fechaEntrega))}</td>
-      ${conAtraso ? `<td data-label="Atraso">${htmlAtraso(v)}</td>` : ''}
-      ${conPropuesta ? `<td data-label="Propuesta">${htmlPropuesta(v)}</td>` : ''}
+      ${conAtraso ? `<td data-label="Atraso">${sec === 'entregados' ? htmlAtrasoEntregado(v) : htmlAtraso(v)}</td>` : ''}
       <td data-label="Acciones" class="rep-acciones-celda"><div class="rep-acciones-fila">
         <button type="button" class="btn-icon" data-ver="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}"${v.tienePropuesta ? ' data-con-propuesta="1"' : ''} title="Ver vale" aria-label="Ver vale ${escapeHtml(v.correlativo)}"><ion-icon name="eye-outline"></ion-icon></button>
       </div></td>
     </tr>`).join('');
-  return `<div class="rep-mini-wrap"><table class="rep-mini"><thead><tr><th>Vale</th>${vistaTaller ? '<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}${conPropuesta ? '<th>Propuesta</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
+  return `<div class="rep-mini-wrap"><table class="rep-mini"><thead><tr><th>Vale</th>${vistaTaller ? '<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
     ${g.recortado ? '<p class="rep-nota">Se muestran los vales más urgentes; acota el período o los filtros para ver el resto.</p>' : ''}`;
 }
 
-// Fila de una persona: nombre, cuántos vales y solo lo que pide atención (sin repetir lo que ya dice la sección).
+// Fila de una persona: nombre y cuántos vales (el detalle va al desplegarla).
 function htmlGrupo(g, indice) {
   const abierto = state.reporte.expandidos.has(g.clave);
-  const alertas = g.seccion !== 'entregados' && g.sinPropuesta
-    ? `<span class="rep-chip rep-chip--aviso" title="Vales sin propuesta adjunta"><ion-icon name="document-outline" aria-hidden="true"></ion-icon>${g.sinPropuesta} sin propuesta</span>`
-    : '';
   return `
     <div class="rep-grupo${abierto ? ' is-abierto' : ''}" data-clave="${escapeHtml(g.clave)}">
       <button type="button" class="rep-grupo-cab" aria-expanded="${abierto}" aria-controls="rep-g-${indice}">
         <span class="rep-grupo-nombre"><ion-icon name="chevron-forward-outline" class="rep-chevron" aria-hidden="true"></ion-icon><span class="rep-avatar" aria-hidden="true">${escapeHtml(inicialesAvatar(g.nombre))}</span><strong>${escapeHtml(g.nombre)}</strong></span>
         <span class="rep-celda rep-celda--n">${g.total} vale${g.total === 1 ? '' : 's'}</span>
-        <span class="rep-celda rep-celda--chips">${alertas}</span>
+        <span class="rep-celda rep-celda--chips"></span>
       </button>
       <div class="rep-grupo-cuerpo" id="rep-g-${indice}"${abierto ? '' : ' hidden'}>${abierto ? htmlMiniTabla(g) : ''}</div>
     </div>`;
@@ -523,7 +532,7 @@ function renderGrupos(data) {
   const g = data.grupos;
   const info = AGRUPACIONES.find(a => a.id === g.agruparPor);
   const secciones = SECCIONES_REPORTE.map(def => ({ ...def, ...g.secciones[def.clave] })).filter(x => x.total > 0);
-  const subEntregados = vistaTaller ? 'Tu taller ya entregó la propuesta' : 'Ya llegaron al asesor';
+  const subEntregados = vistaTaller ? 'Propuesta aprobada por el Encargado' : 'Ya llegaron al asesor';
   const personas = new Set(secciones.flatMap(x => x.grupos.map(gr => gr.id))).size;
   const sub = `${g.totalVales} vale${g.totalVales === 1 ? '' : 's'} · ${personas} ${personas === 1 ? info.texto.toLowerCase() : info.plural}`;
   const acciones = secciones.length
@@ -614,7 +623,7 @@ function renderVales(data) {
       <td data-label="Historial"><button type="button" class="btn-icon" data-historial="${f.id}" data-correlativo="${escapeHtml(f.correlativo)}" title="Ver historial" aria-label="Ver historial de ${escapeHtml(f.correlativo)}"><ion-icon name="time-outline"></ion-icon></button></td>
     </tr>`;
   const tabla = (filas) => `<div class="rend-tabla-wrap"><table class="rend-tabla"><thead><tr><th>Correlativo</th><th>Cliente</th><th>Estado</th><th>Entrega</th>${v.columnas.map(c => `<th class="rend-num">${escapeHtml(c.label)}</th>`).join('')}<th></th></tr></thead><tbody>${filas.map(filaVale).join('')}</tbody></table></div>`;
-  const subEntregados = data.rol === 'disenador' ? 'Tu propuesta ya salió a revisión' : 'Ya llegaron a ti';
+  const subEntregados = data.rol === 'disenador' ? 'Tu propuesta ya fue aprobada' : 'Ya llegaron a ti';
   const secciones = SECCIONES_REPORTE.map(def => ({ ...def, ...v.secciones[def.clave] })).filter(x => x.total > 0);
   panel.innerHTML = `${cabeceraPanel('Vales del período', sub)}
     ${secciones.map(sec => htmlSeccion({ ...sec, sub: sec.clave === 'entregados' ? subEntregados : sec.sub, cuerpo: tabla(sec.filas) })).join('')}

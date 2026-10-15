@@ -36,6 +36,7 @@ async function salasParaVale(vale) {
 
   const filas = await valeTallerRepository.listarPorVale(vale.id);
   filas.forEach(f => {
+    if (f.atraso_congelado_en) return; // su Encargado ya aprobó la propuesta del taller: su atraso terminó
     if (ESTADOS_TALLER_ACTIVOS.includes(f.estado)) salas.push(`taller:${f.taller_id}`);
     if (f.disenador_id && ESTADOS_TALLER_CON_DISENADOR.includes(f.estado)) salas.push(`disenador:${f.disenador_id}`);
   });

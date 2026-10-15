@@ -19,6 +19,28 @@ const corto = (f) => `${f.getDate()} ${MESES[f.getMonth()].slice(0, 3).toLowerCa
 
 export const lunesDeSemana = (f) => sumarDiaLocal(new Date(f.getFullYear(), f.getMonth(), f.getDate()), -((f.getDay() + 6) % 7));
 
+// Una semana o un mes está «cerrado» cuando su último día ya pasó (hoy no cuenta). Día y rango no se restringen.
+export function periodoCerrado(tipo, f) {
+  const hoy = hoyMedianoche();
+  if (tipo === 'semana') return sumarDiaLocal(lunesDeSemana(f), 6) < hoy;
+  if (tipo === 'mes') return new Date(f.getFullYear(), f.getMonth() + 1, 0) < hoy;
+  return true;
+}
+
+// Último período cerrado del tipo (semana o mes) que contiene la fecha o la precede.
+export function ultimoPeriodoCerrado(tipo, f = hoyMedianoche()) {
+  if (tipo === 'semana') { let g = lunesDeSemana(f); while (!periodoCerrado('semana', g)) g = sumarDiaLocal(g, -7); return g; }
+  if (tipo === 'mes') { let g = new Date(f.getFullYear(), f.getMonth(), 1); while (!periodoCerrado('mes', g)) g = new Date(g.getFullYear(), g.getMonth() - 1, 1); return g; }
+  return f;
+}
+
+// Si el período es una semana o un mes que aún no cierra, lo lleva al último cerrado (mismo objeto si no hace falta).
+export function normalizarPeriodoCerrado(p) {
+  if (p.tipo !== 'semana' && p.tipo !== 'mes') return p;
+  const f = parseIsoLocal(p.fecha) || hoyMedianoche();
+  return periodoCerrado(p.tipo, f) ? p : { ...p, fecha: isoLocal(ultimoPeriodoCerrado(p.tipo, f)) };
+}
+
 function semanaIso(f) {
   const d = new Date(Date.UTC(f.getFullYear(), f.getMonth(), f.getDate()));
   d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3);
@@ -54,7 +76,8 @@ export function aplicarPeriodoAQuery(qs, p) {
   else if (p.tipo !== 'hoy') qs.set('fecha', p.fecha);
 }
 
-export function crearBarraPeriodo(contenedor, { obtener, alCambiar }) {
+// `soloCerrados()`: si devuelve true, Semana y Mes solo permiten períodos ya cerrados (reporte de Rendimiento).
+export function crearBarraPeriodo(contenedor, { obtener, alCambiar, soloCerrados = () => false }) {
   contenedor.innerHTML = `
     <div class="rp-segmentos" role="group" aria-label="Tipo de período">
       ${TIPOS.map(t => `<button type="button" class="rp-segmento" data-tipo="${t.id}" aria-pressed="false">${t.texto}</button>`).join('')}
@@ -85,6 +108,15 @@ export function crearBarraPeriodo(contenedor, { obtener, alCambiar }) {
     navegador.hidden = p.tipo === 'rango';
     rango.hidden = p.tipo !== 'rango';
     navegador.querySelectorAll('.rp-flecha').forEach(b => { b.hidden = p.tipo === 'hoy'; });
+    // Con períodos cerrados, la flecha «siguiente» se apaga cuando el siguiente aún no cierra.
+    const siguiente = navegador.querySelector('[data-paso="1"]');
+    if (siguiente) {
+      const f = parseIsoLocal(p.fecha) || hoyMedianoche();
+      const proximo = p.tipo === 'semana' ? sumarDiaLocal(f, 7) : new Date(f.getFullYear(), f.getMonth() + 1, 1);
+      const apagar = soloCerrados() && (p.tipo === 'semana' || p.tipo === 'mes') && !periodoCerrado(p.tipo, proximo);
+      siguiente.disabled = apagar;
+      siguiente.title = apagar ? 'Este período aún no cierra' : '';
+    }
     etiqueta.querySelector('span').textContent = etiquetaDelPeriodo(p);
     etiqueta.disabled = p.tipo === 'hoy';
     if (p.tipo === 'rango') {
@@ -101,7 +133,8 @@ export function crearBarraPeriodo(contenedor, { obtener, alCambiar }) {
     if (tipo === 'rango') {
       cambiar({ tipo, desde: p.desde || isoLocal(sumarDiaLocal(hoy, -6)), hasta: p.hasta || isoLocal(hoy) });
     } else {
-      cambiar({ tipo, fecha: tipo === 'hoy' ? isoLocal(hoy) : (p.fecha || isoLocal(hoy)) });
+      const nuevo = { tipo, fecha: tipo === 'hoy' ? isoLocal(hoy) : (p.fecha || isoLocal(hoy)) };
+      cambiar(soloCerrados() ? normalizarPeriodoCerrado({ ...p, ...nuevo }) : nuevo);
     }
   }));
 
@@ -168,7 +201,10 @@ export function crearBarraPeriodo(contenedor, { obtener, alCambiar }) {
       if (f.getTime() === hoy.getTime()) clases.push('is-today');
       const marcado = modo === 'dia' && elegido && f.getTime() === elegido.getTime();
       if (marcado) clases.push('is-selected');
-      celdas.push(`<button type="button" class="${clases.join(' ')}" data-fecha="${isoLocal(f)}" aria-label="${etiquetaDia(f)}"${marcado ? ' aria-pressed="true"' : ''}>${d}</button>`);
+      // En Rendimiento no se elige una semana que aún no cierra.
+      const sinCerrar = modo === 'semana' && soloCerrados() && !periodoCerrado('semana', f);
+      if (sinCerrar) clases.push('is-disabled');
+      celdas.push(`<button type="button" class="${clases.join(' ')}" data-fecha="${isoLocal(f)}" aria-label="${etiquetaDia(f)}"${marcado ? ' aria-pressed="true"' : ''}${sinCerrar ? ' disabled title="Esta semana aún no cierra"' : ''}>${d}</button>`);
     }
     let cuadricula = celdas.join('');
     if (modo === 'semana') {
@@ -203,7 +239,8 @@ export function crearBarraPeriodo(contenedor, { obtener, alCambiar }) {
       if (anioVisible === hoy.getFullYear() && i === hoy.getMonth()) clases.push('is-actual');
       const activo = elegido && elegido.getFullYear() === anioVisible && elegido.getMonth() === i;
       if (activo) clases.push('is-selected');
-      return `<button type="button" class="${clases.join(' ')}" data-mes="${i}" aria-label="${nombre} ${anioVisible}"${activo ? ' aria-pressed="true"' : ''}>${nombre.slice(0, 3)}</button>`;
+      const sinCerrar = p.tipo === 'mes' && soloCerrados() && !periodoCerrado('mes', new Date(anioVisible, i, 1));
+      return `<button type="button" class="${clases.join(' ')}" data-mes="${i}" aria-label="${nombre} ${anioVisible}"${activo ? ' aria-pressed="true"' : ''}${sinCerrar ? ' disabled title="Este mes aún no cierra"' : ''}>${nombre.slice(0, 3)}</button>`;
     }).join('');
     return `
       <div class="dp-header">

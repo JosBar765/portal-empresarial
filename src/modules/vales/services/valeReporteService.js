@@ -16,6 +16,9 @@ const {
   ROL, ESTADOS, ESTADOS_TERMINALES, ESTADOS_TALLER, esDeTaller, hoyISO, enriquecer, esValeDeModificacion
 } = require('./valeHelpers');
 
+// Un solo atraso, el del vale (termina cuando la propuesta llega al asesor).
+const atrasadaEnSuTaller = (porId, fila) => !!(porId.get(fila.vale_id) || {}).atrasado;
+
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const MAX_FILAS_PANTALLA = 100;
 const MAX_FILAS_PDF = 500;
@@ -59,6 +62,8 @@ const AYUDAS_KPI = {
 };
 // Estados en los que el vale ya está en los talleres (se espera una propuesta).
 const ESTADOS_CON_TALLER = ['CREADO', 'MODIFICADO', 'APROBADO_DEPARTAMENTO', 'PENDIENTE_CONFIRMACION'];
+// Vales cuya propuesta ya se envió al asesor: entregados, ya no acumulan atraso.
+const ENVIADOS_AL_ASESOR = [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
 const ESTADOS_COLA_DISENADOR = [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION];
 
 // ---- Fechas (todo en hora de Guatemala, como el resto del módulo) ----
@@ -143,6 +148,8 @@ function etiquetaPeriodo(r) {
 }
 
 const dentro = (fecha, r) => (!r.desde || fecha >= r.desde) && (!r.hasta || fecha <= r.hasta);
+// Con entrega anterior al inicio del período (sin inicio, como «Todo», no hay nada anterior).
+const antesDe = (fecha, r) => !!r.desde && fecha < r.desde;
 
 // ---- Eventos: cada fila de historial se traduce a una acción con nombre ----
 function clasificar(h) {
@@ -301,7 +308,16 @@ class ValeReporteService {
     const ventana = resolverVentanaReporte(filtros);
     const rango = rangoDe(ventana);
     const anterior = rangoAnterior(rango);
+    // Rendimiento: una semana o un mes solo se consulta cuando ya cerró; sus cifras son las del cierre (no cambian después).
+    // Día, Hoy y Desde–Hasta pueden estar en curso: cifras a hoy.
+    const hoy = hoyISO();
+    const esRendimiento = filtros.tipo === 'rendimiento';
+    const cerrado = !!rango.hasta && rango.hasta < hoy;
+    const corte = esRendimiento && cerrado ? rango.hasta : hoy;
     const alcance = await resolverAlcance(usuario);
+    if (esRendimiento && ['encargado', 'supervisor'].includes(alcance.rol) && ['semana', 'mes'].includes(rango.tipo) && rango.hasta >= hoy) {
+      throw new ErrorDeNegocio('El rendimiento de una semana o de un mes solo está disponible cuando el período ya cerró. Elige el período anterior.');
+    }
     const entero = v => (Number.isInteger(Number(v)) && Number(v) > 0 ? Number(v) : null);
     const lista = v => [...new Set(String(v ?? '').split(',').map(entero).filter(Boolean))].slice(0, MAX_PERSONAS);
     const tiendaId = alcance.equipo ? entero(filtros.tiendaId) : null;
@@ -385,16 +401,17 @@ class ValeReporteService {
     if (alcance.equipo) {
       const agruparPor = valeReporteGruposService.agrupacionValida(filtros.agruparPor, alcance.agrupaciones.includes('asesor') ? 'asesor' : alcance.agrupaciones[0]);
       const argumentos = {
-        alcance, dentroDelRango: (f) => dentro(f, rango), agruparPor, tiendaId, tallerId, asesorSel, disSel,
-        obtenerEntregas: (valeIds, tallerIds) => this._primerasEntregas(valeIds, tallerIds)
+        alcance, dentroDelRango: (f) => dentro(f, rango), agruparPor, tiendaId, tallerId, asesorSel, disSel, corte
       };
       grupos = await valeReporteGruposService.armar(argumentos);
-      atrasadosVigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosFueraDe: (f) => dentro(f, rango) });
+      atrasadosVigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosAntesDe: (f) => antesDe(f, rango) });
+      // Contador «Atrasados sin entregar»: los vencidos de la ventana sin aprobar (ya contados) más los que se arrastran de antes de la ventana.
+      if (grupos.indicadoresTaller) grupos.indicadoresTaller.atrasadosSinEntregar += atrasadosVigentes.sinEntregar || 0;
     } else {
       const nombres = await this._nombres(alcance, normalizados);
       tablas = await this._tablas(alcance, eventosPeriodo, paresAplicables, rango, { todos, filasTaller, nombres, personaIds });
       vales = await this._listado(alcance, usuario, { porId, filasTaller, nombres, maxFilas, dentroDelRango: (f) => dentro(f, rango) });
-      atrasadosVigentes = await this._atrasadosVigentesSimple(alcance, usuario, { porId, filasTaller, dentroDelRango: (f) => dentro(f, rango) });
+      atrasadosVigentes = await this._atrasadosVigentesSimple(alcance, usuario, { porId, filasTaller, antesDelPeriodo: (f) => antesDe(f, rango) });
     }
 
     const opcionesFiltro = await this._opcionesDeFiltro(alcance, usuario);
@@ -403,7 +420,7 @@ class ValeReporteService {
       alcance: alcance.equipo ? (alcance.rol === 'administrador' ? 'global' : 'equipo') : 'propio',
       titulo: this._titulo(alcance, evaluados),
       evaluados,
-      periodo: { ...rango, etiqueta: etiquetaPeriodo(rango), titulo: `Fecha de entrega: ${etiquetaPeriodo(rango)}`, anterior: anterior ? etiquetaPeriodo(anterior) : null },
+      periodo: { ...rango, corte, cerrado, etiqueta: etiquetaPeriodo(rango), titulo: `Fecha de entrega: ${etiquetaPeriodo(rango)}`, anterior: anterior ? etiquetaPeriodo(anterior) : null },
       kpis, tablas, vales, grupos, atrasadosVigentes,
       resumenFiltros: grupos ? this._resumenFiltros(grupos.agruparPor, opcionesFiltro, { tiendaId, tallerId }) : [],
       filtros: opcionesFiltro
@@ -411,15 +428,6 @@ class ValeReporteService {
   }
 
   // Texto de los filtros activos para el encabezado del PDF.
-  // Momento de la primera entrega a revisión de cada vale en los talleres dados (desde el historial).
-  async _primerasEntregas(valeIds, tallerIds) {
-    const eventos = (await reporteRepository.listarHistorialDeVales(valeIds)).map(normalizar)
-      .filter(e => e && e.tipo === 'entrega' && tallerIds.includes(e.tallerId));
-    const primeras = new Map();
-    eventos.forEach(e => { if (!primeras.has(e.valeId) || e.ms < primeras.get(e.valeId)) primeras.set(e.valeId, e.ms); });
-    return primeras;
-  }
-
   _resumenFiltros(agruparPor, opciones, { tiendaId, tallerId }) {
     const nombre = (lista, id) => ((lista || []).find(o => o.id === id) || {}).nombre;
     const etiqueta = { asesor: 'asesor', disenador: 'diseñador', taller: 'taller', tienda: 'tienda' }[agruparPor];
@@ -448,7 +456,7 @@ class ValeReporteService {
       return {
         asignadosAhora: mias.filter(f => f.estado === ESTADOS_TALLER.ASIGNADO).length,
         enProcesoAhora: mias.filter(f => [ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA].includes(f.estado)).length,
-        atrasadosAhora: mias.filter(f => (porId.get(f.vale_id) || {}).atrasado).length
+        atrasadosAhora: mias.filter(f => atrasadaEnSuTaller(porId, f)).length
       };
     }
     if (alcance.rol === 'encargado') {
@@ -457,7 +465,7 @@ class ValeReporteService {
       return {
         porRevisarAhora: enTaller.filter(f => f.estado === ESTADOS_TALLER.EN_REVISION).length,
         enColaAhora: enTaller.length,
-        atrasadosAhora: enTaller.filter(f => (porId.get(f.vale_id) || {}).atrasado).length
+        atrasadosAhora: enTaller.filter(f => atrasadaEnSuTaller(porId, f)).length
       };
     }
     let propios = todos.filter(abierto);
@@ -477,7 +485,7 @@ class ValeReporteService {
     const esperanPropuesta = propios.filter(v => ESTADOS_CON_TALLER.includes(v.estado));
     const conPropuesta = await propuestaRepository.listarUltimasPorVales(esperanPropuesta.map(v => v.id));
     const sinPropuestaAhora = esperanPropuesta.filter(v => !v.propuesta_general_url && !conPropuesta.has(v.id)).length;
-    return { abiertosAhora: propios.length, atrasadosAhora: propios.filter(v => v.atrasado).length, sinPropuestaAhora };
+    return { abiertosAhora: propios.length, atrasadosAhora: propios.filter(v => v.atrasado && !ENVIADOS_AL_ASESOR.includes(v.estado)).length, sinPropuestaAhora };
   }
 
   // Cada indicador lleva su explicación (`ayuda`), que la pantalla muestra en el ícono de información de la tarjeta.
@@ -607,11 +615,16 @@ class ValeReporteService {
   }
 
   // Atrasados vigentes de un Asesor o Diseñador: sus vales abiertos y atrasados con entrega fuera del período.
-  async _atrasadosVigentesSimple(alcance, usuario, { porId, filasTaller, dentroDelRango }) {
+  async _atrasadosVigentesSimple(alcance, usuario, { porId, filasTaller, antesDelPeriodo }) {
     const mios = alcance.rol === 'disenador' ? new Set(filasTaller.filter(f => f.disenador_id === usuario.id).map(f => f.vale_id)) : null;
+    // Al Diseñador no le cuenta un vale que su Encargado ya aprobó (su atraso terminó ahí).
+    const aprobadoPorSuTaller = (valeId) => {
+      const propias = filasTaller.filter(f => f.vale_id === valeId && f.disenador_id === usuario.id);
+      return propias.length > 0 && propias.every(f => f.estado === ESTADOS_TALLER.APROBADO);
+    };
     const candidatos = [...porId.values()]
-      .filter(v => v.atrasado && !ESTADOS_TERMINALES.includes(v.estado) && !dentroDelRango(String(v.fecha_entrega).slice(0, 10)))
-      .filter(v => (mios ? mios.has(v.id) : v.asesor_id === usuario.id));
+      .filter(v => v.atrasado && !ESTADOS_TERMINALES.includes(v.estado) && antesDelPeriodo(String(v.fecha_entrega).slice(0, 10)))
+      .filter(v => (mios ? mios.has(v.id) && !aprobadoPorSuTaller(v.id) : v.asesor_id === usuario.id && !ENVIADOS_AL_ASESOR.includes(v.estado)));
     const conTaller = await valeBuzonService._enriquecerConTaller(candidatos);
     const vales = conTaller
       .map(v => ({
@@ -666,19 +679,27 @@ class ValeReporteService {
 
     // Sección de cada vale: atrasado (abierto) > entregado > no entregado. Entregado: para el Diseñador, su propuesta ya salió a revisión;
     // para el Asesor, el vale ya llegó a él.
-    const ENTREGADA = [ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO];
+    const ENTREGADA = [ESTADOS_TALLER.APROBADO]; // entregado = aprobado por el Encargado
     const LLEGO_AL_ASESOR = [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
     filas.forEach(f => {
       const propias = alcance.rol === 'disenador' ? filasTaller.filter(x => x.vale_id === f.id && x.disenador_id === usuario.id) : [];
       const entregado = alcance.rol === 'disenador' ? (propias.length > 0 && propias.every(x => ENTREGADA.includes(x.estado))) : LLEGO_AL_ASESOR.includes(f.estado);
-      const abierto = !ESTADOS_TERMINALES.includes(f.estado) && !(alcance.rol === 'disenador' && entregado);
+      // El atraso del Diseñador corre hasta que su Encargado aprueba (en revisión sigue contando).
+      const aprobadoPorSuTaller = alcance.rol === 'disenador' && propias.length > 0 && propias.every(x => x.estado === ESTADOS_TALLER.APROBADO);
+      // Una vez entregado el vale ya no acumula atraso (Diseñador: aprobado por su Encargado; Asesor: propuesta ya enviada a él).
+      const abierto = !ESTADOS_TERMINALES.includes(f.estado) && !aprobadoPorSuTaller && !(alcance.rol !== 'disenador' && entregado);
       f.seccion = f.atrasado && abierto ? 'atrasados' : (entregado ? 'entregados' : 'noEntregados');
     });
     const ordenSecciones = ['atrasados', 'noEntregados', 'entregados'];
-    // Atrasados: el más atrasado primero; el resto, por fecha de entrega.
-    filas.sort((a, b) => ordenSecciones.indexOf(a.seccion) - ordenSecciones.indexOf(b.seccion)
-      || (a.seccion === 'atrasados' ? (b.diasAtraso || 0) - (a.diasAtraso || 0) : 0)
-      || a.fechaEntrega.localeCompare(b.fechaEntrega) || a.correlativo.localeCompare(b.correlativo));
+    // Mismo orden por sección que el reporte de los talleres: atrasados, del más atrasado al menos; no entregados, por fecha de ingreso;
+    // entregados, primero los entregados con atraso (del más atrasado al menos) y luego los que llegaron a tiempo.
+    const { COMPARADORES } = valeReporteGruposService;
+    filas.forEach(f => {
+      const v = resumen.get(f.id);
+      f.creadoEn = `${String(v.fecha_creacion).slice(0, 10)} ${String(v.hora_creacion || '00:00:00').slice(0, 8)}`;
+      f.diasTarde = f.seccion === 'entregados' ? (v.diasAtraso || 0) : 0;
+    });
+    filas.sort((a, b) => ordenSecciones.indexOf(a.seccion) - ordenSecciones.indexOf(b.seccion) || COMPARADORES[a.seccion](a, b));
     // Cada vale lleva su paso del pipeline (el PDF lo muestra en lugar del estado crudo).
     const mostradas = filas.slice(0, maxFilas);
     const conTaller = await valeBuzonService._enriquecerConTaller(mostradas.map(f => resumen.get(f.id)));

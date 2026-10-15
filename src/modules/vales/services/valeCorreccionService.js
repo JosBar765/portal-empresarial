@@ -74,6 +74,9 @@ class ValeCorreccionService {
       const conservados = documentosActuales.filter(d => !quitarIds.includes(d.id));
       const nuevosImagenes = (archivos && archivos.imagenes) || [];
       const nuevosDocumentos = (archivos && archivos.documentos) || [];
+      if (conservados.filter(d => !esPropuesta(d)).length + nuevosImagenes.length + nuevosDocumentos.length === 0) {
+        throw new Error('Adjunta al menos una imagen o un documento PDF.');
+      }
       if (conservados.filter(d => d.tipo === 'imagen').length + nuevosImagenes.length > MAX_IMAGENES
         || conservados.filter(d => d.tipo === 'documento' && !esPropuesta(d)).length + nuevosDocumentos.length > MAX_DOCUMENTOS) {
         throw new Error(`Un vale admite hasta ${MAX_IMAGENES} imágenes y ${MAX_DOCUMENTOS} documentos.`);

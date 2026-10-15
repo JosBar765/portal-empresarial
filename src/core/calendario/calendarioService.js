@@ -100,17 +100,18 @@ class CalendarioService {
     return calendario.fechaMinimaEntrega(await cargar(), talleresIds, ahora);
   }
 
-  async fechasNoDisponibles(talleresIds, desde, hasta, ahora = calendario.ahoraUTC6()) {
+  // `diasMinimos`: 3 cuando el vale no es urgente (antelación mínima en días naturales); 0 con «urgente».
+  async fechasNoDisponibles(talleresIds, desde, hasta, diasMinimos = 0, ahora = calendario.ahoraUTC6()) {
     const cfg = await cargar();
     return {
-      minima: calendario.fechaMinimaEntrega(cfg, talleresIds, ahora),
+      minima: calendario.fechaMinimaEntrega(cfg, talleresIds, ahora, diasMinimos),
       horaMaxima: calendario.horaMaximaRestrictiva(cfg, talleresIds),
-      noDisponibles: calendario.fechasNoDisponibles(cfg, talleresIds, desde, hasta, ahora)
+      noDisponibles: calendario.fechasNoDisponibles(cfg, talleresIds, desde, hasta, ahora, diasMinimos)
     };
   }
 
-  async validarFechaEntrega(fecha, talleresIds, ahora = calendario.ahoraUTC6()) {
-    return calendario.validarFechaEntrega(await cargar(), fecha, talleresIds, ahora);
+  async validarFechaEntrega(fecha, talleresIds, diasMinimos = 0, ahora = calendario.ahoraUTC6()) {
+    return calendario.validarFechaEntrega(await cargar(), fecha, talleresIds, ahora, diasMinimos);
   }
 
   async existenTalleres(talleresIds) {

@@ -1665,23 +1665,6 @@
   color: var(--color-text-secondary);
 }
 
-/* Aviso bajo las fechas: el vale se marcará urgente solo, sin casilla. */
-.aviso-urgente {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
-  border-radius: var(--radius-sm);
-  background: var(--color-warning-bg);
-  color: var(--vale-estado-pendiente-confirmacion-fg);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.aviso-urgente[hidden] { display: none; }
-.aviso-urgente ion-icon { flex: 0 0 auto; font-size: 18px; color: var(--color-warning); }
-
 .motivo-rechazo {
   margin: 0;
   padding: 10px 14px;
@@ -2117,27 +2100,30 @@
   .dp-day { width: 100%; min-width: 34px; height: 38px; }
 }
 
-/* Quién está detrás del vale, bajo el correlativo (asesor para el Supervisor; diseñador para el Encargado). */
+/* Quién está detrás del vale, bajo el correlativo (asesor para el Supervisor; diseñador y asesor para el Encargado). */
 .persona-badge {
   display: flex;
   width: fit-content;
   align-items: center;
   gap: 4px;
   max-width: 100%;
-  margin-top: 4px;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
+  margin-top: 2px;
+  padding: 0;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.persona-badge ion-icon { font-size: 13px; flex-shrink: 0; }
-.persona-badge--asesor { background: var(--color-surface-muted); color: var(--color-text-secondary); }
-.persona-badge--disenador { background: var(--color-primary-light); color: var(--color-primary-dark); }
-.persona-badge--libre { background: var(--color-warning-bg, #fef3c7); color: var(--color-warning, #b45309); }
+.persona-badge ion-icon { font-size: 12px; flex-shrink: 0; opacity: .75; }
+/* Información de apoyo: texto pequeño y apagado, sin fondo, para no competir con el correlativo */
+.persona-badge--asesor { color: var(--color-text-muted); }
+.persona-badge--disenador { color: var(--color-text-secondary); }
+/* Encargado: asesor y diseñador juntos, en pila compacta */
+.persona-badges { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; max-width: 100%; margin-top: 2px; }
+.persona-badges .persona-badge { margin-top: 0; }
+.persona-badge--libre { color: var(--color-warning, #b45309); font-weight: 600; }
 @media (max-width: 560px) {
   .buzon-table td[data-label="Correlativo"] { flex-wrap: wrap; justify-content: flex-end; }
   .persona-badge { margin-top: 0; }
@@ -2335,3 +2321,23 @@
 .registro-mensaje { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; font-size: 13px; line-height: 1.4; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
 .registro-mensaje--taller { background: var(--color-primary-light); border-color: transparent; }
 .registro-meta { font-size: 11px; color: var(--color-text-secondary); }
+
+/* Casilla «Urgente» del formulario del vale */
+.urgente-opcion {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+.urgente-opcion:hover { background: var(--color-surface-muted); }
+.urgente-opcion:has(input:checked) { border-color: var(--color-warning); background: var(--color-warning-bg); }
+.urgente-opcion:has(input:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.urgente-opcion input { margin-top: 2px; flex: none; accent-color: var(--color-primary-dark); }
+.urgente-opcion, .urgente-opcion-texto { text-transform: none; letter-spacing: normal; }
+.urgente-opcion-texto { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
+.urgente-opcion-texto small { font-size: 12px; font-weight: 400; color: var(--color-text-secondary); }
