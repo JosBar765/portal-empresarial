@@ -159,6 +159,7 @@ class ValeTallerService {
       });
       await propuestaRepository.crearEnlaces(valeId, propuestaId, adjuntos.enlaces);
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_REVISION);
+      await valeTallerRepository.congelarAtraso(fila.id, `${hoyISO()} ${horaActual()}`);
       fila.estado = ESTADOS_TALLER.EN_REVISION;
       const detalleAdjuntos = describirAdjuntos({ archivo: !!url, enlaces: adjuntos.enlaces.length, nota: !!adjuntos.nota });
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, `${etiquetaActorTaller(usuario)} entregó propuesta${detalleAdjuntos ? ` (${detalleAdjuntos})` : ''}`);

@@ -118,6 +118,16 @@ function enriquecer(vale) {
   return { ...vale, atrasado, diasAtraso, venceHoy };
 }
 
+// El atraso que ven el Encargado del taller y el Diseñador termina cuando SU taller entrega la propuesta (`vale_talleres.atraso_congelado_en`);
+// si el vale ya tenía el atraso congelado antes, rige el más temprano. Sin entrega del taller, es el atraso del vale.
+function enriquecerParaFila(vale, fila) {
+  const propio = fila && fila.atraso_congelado_en;
+  if (!propio) return enriquecer(vale);
+  const delVale = vale.atraso_congelado_en;
+  const congelado = delVale && String(delVale) < String(propio) ? delVale : propio;
+  return enriquecer({ ...vale, atraso_congelado_en: congelado });
+}
+
 // `vale_original_id` es permanente (se fija al crear el vale MOD- y nunca
 // cambia), a diferencia de `estado`, que solo vale MODIFICADO justo después
 // de aprobarModificacion y luego avanza (RECIBIDO, PENDIENTE_CONFIRMACION,
@@ -218,11 +228,11 @@ function normalizarDatetime(valor, finDelDia = false) {
   return limpio.length === 16 ? `${limpio}:00` : limpio;
 }
 
-// Urgente solo se calcula: entrega en menos de 3 días. El cliente no lo decide.
-function calcularUrgente(fechaEntregaNorm) {
-  const entrega = parsearUTC6(fechaEntregaNorm);
-  const diffDias = (entrega - new Date()) / (1000 * 60 * 60 * 24);
-  return diffDias < 3;
+// Urgente lo marca el asesor: sin urgente la entrega pide 3 días naturales de antelación; con urgente basta el mínimo del calendario
+// (no se salta la hora máxima de recibimiento). El formulario lo manda como casilla ('on' / 'true' / '1').
+const DIAS_MINIMOS_SIN_URGENTE = 3;
+function esUrgente(valor) {
+  return valor === true || valor === 1 || ['on', 'true', '1'].includes(String(valor).toLowerCase());
 }
 
 const MAX_PALABRAS_MOTIVO = 50;
@@ -263,9 +273,9 @@ module.exports = {
   ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
-  hoyISO, horaActual, calcularAtraso, enriquecer,
+  hoyISO, horaActual, calcularAtraso, enriquecer, enriquecerParaFila,
   esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
-  normalizarDatetime, calcularUrgente, registrarHistorial,
+  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial,
   requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo
 };

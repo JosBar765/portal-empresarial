@@ -13,8 +13,11 @@ const valeReporteGruposService = require('./valeReporteGruposService');
 const { calcularPipeline } = require('./valePipeline');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const {
-  ROL, ESTADOS, ESTADOS_TERMINALES, ESTADOS_TALLER, esDeTaller, hoyISO, enriquecer, esValeDeModificacion
+  ROL, ESTADOS, ESTADOS_TERMINALES, ESTADOS_TALLER, esDeTaller, hoyISO, enriquecer, enriquecerParaFila, esValeDeModificacion
 } = require('./valeHelpers');
+
+// El atraso del taller termina cuando entrega su propuesta (ver enriquecerParaFila).
+const atrasadaEnSuTaller = (porId, fila) => { const v = porId.get(fila.vale_id); return !!v && enriquecerParaFila(v, fila).atrasado; };
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const MAX_FILAS_PANTALLA = 100;
@@ -448,7 +451,7 @@ class ValeReporteService {
       return {
         asignadosAhora: mias.filter(f => f.estado === ESTADOS_TALLER.ASIGNADO).length,
         enProcesoAhora: mias.filter(f => [ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA].includes(f.estado)).length,
-        atrasadosAhora: mias.filter(f => (porId.get(f.vale_id) || {}).atrasado).length
+        atrasadosAhora: mias.filter(f => atrasadaEnSuTaller(porId, f)).length
       };
     }
     if (alcance.rol === 'encargado') {
@@ -457,7 +460,7 @@ class ValeReporteService {
       return {
         porRevisarAhora: enTaller.filter(f => f.estado === ESTADOS_TALLER.EN_REVISION).length,
         enColaAhora: enTaller.length,
-        atrasadosAhora: enTaller.filter(f => (porId.get(f.vale_id) || {}).atrasado).length
+        atrasadosAhora: enTaller.filter(f => atrasadaEnSuTaller(porId, f)).length
       };
     }
     let propios = todos.filter(abierto);
@@ -646,10 +649,15 @@ class ValeReporteService {
       const v = resumen.get(id);
       if (!v) return null;
       const h = historialPorVale.get(id) || [];
+      // Diseñador y Encargado: el atraso termina cuando su taller entrega la propuesta.
+      const filaPropia = esDiseno
+        ? filasTaller.find(f => f.vale_id === id && f.atraso_congelado_en && (alcance.rol === 'disenador' ? f.disenador_id === usuario.id : (alcance.tallerIds || []).includes(f.taller_id)))
+        : null;
+      const atraso = filaPropia ? enriquecerParaFila(v, filaPropia) : v;
       const base = {
         id, correlativo: v.correlativo, cliente: v.cliente_nombre, asesor: nombres.get(v.asesor_id) || `#${v.asesor_id}`,
         fechaEntrega: String(v.fecha_entrega).slice(0, 10), estado: v.estado, esMod: esValeDeModificacion(v),
-        atrasado: v.atrasado, diasAtraso: v.diasAtraso
+        atrasado: atraso.atrasado, diasAtraso: atraso.diasAtraso
       };
       if (esDiseno) {
         const del = h.filter(propioDiseno);

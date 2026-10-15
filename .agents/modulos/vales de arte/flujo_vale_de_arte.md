@@ -498,9 +498,8 @@ según lo elegido. Un día viaja al servidor como un rango de un solo día.
 
 Validaciones de formulario (creación y modificación): cliente (nombre,
 teléfono y correo válido) obligatorio, producto y material obligatorios,
-cantidad > 1, cotización > 0, fecha de evento posterior a la de entrega y
-entrega igual o posterior a la fecha mínima de entrega (§5.1). Técnica y acabado son opcionales. Un vale es
-**urgente** automáticamente si faltan menos de 3 días para la entrega (entrega hoy, mañana o pasado mañana): lo calcula el servidor (`calcularUrgente`) al crear, corregir o solicitar la modificación; el formulario no tiene casilla y solo muestra el aviso «Urgente: entrega en menos de 3 días».
+cantidad ≥ 1, al menos una imagen o un PDF adjunto (también al corregir y modificar, contando los que el vale ya tiene), cotización > 0, fecha de evento posterior a la de entrega y
+entrega igual o posterior a la fecha mínima de entrega (§5.1). Técnica y acabado son opcionales. **Urgente** es una casilla del formulario (manual): sin ella la fecha de entrega mínima es hoy + 3 días naturales (siempre sobre un día que reciba vales); con ella se puede pedir desde la mínima normal del calendario. Urgente no salta la hora máxima de recibimiento. Aplica al crear, corregir y solicitar la modificación; al autorizar o reenviar solo rige la mínima normal.
 
 > Nota: esto reemplaza al antiguo límite diario por asesor
 > (`asesor_limites`), que ya no existe: crear nunca se pospone.
@@ -742,3 +741,5 @@ Al entregar su propuesta, el Diseñador (y el Encargado/Asistente al adjuntar la
 - **Orden de Reportes:** contadores, atrasados antes del período, gráfica de barras dobles (Encargado: asignados vs entregados por diseñador; Supervisor: creados vs autorizados por asesor), atrasados en el período, no entregados y entregados. «Entregado» = el taller ya entregó su propuesta (Encargado/Diseñador) o el vale ya llegó al asesor (demás roles). Detalle en `documentacion/correcciones_53.md`.
 
 - **Reporte de rendimiento:** el Encargado/Asistente y el Supervisor tienen, además de Actividad, un reporte de Rendimiento (contadores, gráfica y tabla comparativa por persona); se elige cuál descargar desde «Exportar PDF». Detalle en `documentacion/correcciones_53.md`.
+
+- **Atraso del taller:** el atraso que ven el Encargado de taller (y Asistente) y el Diseñador termina cuando SU taller entrega la propuesta (`vale_talleres.atraso_congelado_en`); si la propuesta se desaprueba y el vale vuelve a ASIGNADO, el atraso se reanuda. Asesor, Supervisor, Gerente, Administrador y las demás vistas siguen con el atraso del vale. En el buzón del Encargado cada fila muestra también al asesor que creó el vale.
