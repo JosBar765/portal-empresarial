@@ -1,4 +1,5 @@
 import { state } from '../state.js';
+import { ROL, ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
 import { $ } from '../utils/dom.js';
 import { escapeHtml, formatearFecha, formatearFechaHora, inicialesAvatar } from '../utils/formato.js';
 import { ESTADOS_LABEL } from '../config/estados.js';
@@ -28,6 +29,8 @@ let menuExportar = null;
 // Pestaña del reporte (solo Encargado/Asistente y Supervisor tienen «Rendimiento»); se recuerda la última.
 const CLAVE_VISTA_REPORTE = 'vales:repVista';
 const leerVista = () => { try { return localStorage.getItem(CLAVE_VISTA_REPORTE) === 'rendimiento' ? 'rendimiento' : 'actividad'; } catch { return 'actividad'; } };
+// Solo el Encargado/Asistente de taller y el Supervisor tienen la pestaña Rendimiento (la vista recordada puede venir de otro usuario del navegador).
+const tieneRendimiento = () => !!state.user && (state.user.rolId === ROL.SUPERVISOR || ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)));
 const guardarVista = (vista) => { try { localStorage.setItem(CLAVE_VISTA_REPORTE, vista); } catch { /* sin almacenamiento */ } };
 
 const ICONO_AGRUPAR = { asesor: 'people-outline', disenador: 'brush-outline', taller: 'construct-outline', tienda: 'storefront-outline' };
@@ -91,6 +94,7 @@ function formatear(valor, formato) {
 // -----------------------------------------------------------------------
 export async function cargarReportes() {
   if (!state.reporte.vista) state.reporte.vista = leerVista();
+  if (state.reporte.vista === 'rendimiento' && !tieneRendimiento()) state.reporte.vista = 'actividad';
   // En Rendimiento, Semana y Mes solo cerrados: si había uno en curso se pasa al último cerrado.
   if (state.reporte.vista === 'rendimiento') state.reporte.ventana = normalizarPeriodoCerrado(state.reporte.ventana);
   const cont = $('#reportes-vista');
