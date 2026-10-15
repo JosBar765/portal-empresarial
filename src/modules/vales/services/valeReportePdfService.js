@@ -98,6 +98,7 @@ class ValeReportePdfService {
     } else {
       this._actividad(ctx, reporte);
     }
+    this._firmas(ctx, generadoPor);
     this._pies(pdfDoc, font);
     return Buffer.from(await pdfDoc.save());
   }
@@ -110,6 +111,19 @@ class ValeReportePdfService {
       reporte.tablas.forEach(t => this._tablaPersonas(ctx, t));
       this._listado(ctx, reporte);
     }
+  }
+
+  // Cierre de todo reporte: dos líneas de firma, la de quien lo imprimió (con su nombre) y la de su jefe inmediato.
+  _firmas(ctx, generadoPor) {
+    this._espacio(ctx, 90);
+    const y = ctx.y - 60;
+    const ancho = (CONTENT_WIDTH - 60) / 2;
+    [[MARGIN, generadoPor || ' '], [MARGIN + ancho + 60, 'JEFE INMEDIATO']].forEach(([x, rotulo]) => {
+      ctx.page.drawLine({ start: { x, y }, end: { x: x + ancho, y }, thickness: 0.8, color: NEGRO });
+      const w = ctx.fontBold.widthOfTextAtSize(limpiar(rotulo), 8);
+      this._texto(ctx, rotulo, x + (ancho - w) / 2, y - 12, { size: 8, bold: true });
+    });
+    ctx.y = y - 20;
   }
 
   _nuevaPagina(ctx) {
