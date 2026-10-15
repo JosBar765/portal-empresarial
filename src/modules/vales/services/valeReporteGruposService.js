@@ -8,7 +8,7 @@ const propuestaRepository = require('../repositories/propuestaRepository');
 const reporteRepository = require('../repositories/reporteRepository');
 const valeBuzonService = require('./valeBuzonService');
 const { calcularPipeline } = require('./valePipeline');
-const { ROL, ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ROLES_ENCARGADO_TALLER, enriquecer, enriquecerParaFila, esValeDeModificacion } = require('./valeHelpers');
+const { ROL, ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ROLES_ENCARGADO_TALLER, hoyISO, enriquecer, enriquecerParaFila, esValeDeModificacion } = require('./valeHelpers');
 
 const AGRUPACIONES = ['asesor', 'disenador', 'taller', 'tienda'];
 const MAX_VALES = 1000;
@@ -210,8 +210,11 @@ class ValeReporteGruposService {
         }).filter(g => g.vales.length)
       };
     }
-    const indicadoresTaller = esTaller ? this._indicadoresTaller(visibles, fichas) : null;
-    const datosRendimiento = this._rendimiento({ alcance, visibles, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol });
+    // Rendimiento «hasta hoy»: un vale cuya fecha de entrega aún no llega no puede contarse como no entregado; entra cuando llega su fecha.
+    const hoy = hoyISO();
+    const exigibles = visibles.filter(v => fechaDe(v.fecha_entrega) <= hoy);
+    const indicadoresTaller = esTaller ? this._indicadoresTaller(exigibles, fichas) : null;
+    const datosRendimiento = this._rendimiento({ alcance, visibles: exigibles, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol });
     const rendimiento = datosRendimiento && { ...datosRendimiento, totales: this._totalesRendimiento(datosRendimiento.filas, datosRendimiento.sinAsignar) };
     return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento };
   }
@@ -249,7 +252,7 @@ class ValeReporteGruposService {
         sinAsignar = { nombre: 'Sin asignar', a: n, b: 0, tarde: 0, sinEntregar: n };
       }
       return {
-        clave: 'disenadores', sinAsignar, persona: 'Diseñador', titulo: 'Asignaciones por diseñador', subtitulo: 'Vales con entrega en el período',
+        clave: 'disenadores', sinAsignar, persona: 'Diseñador', titulo: 'Asignaciones por diseñador', subtitulo: 'Vales con entrega en el período, hasta hoy',
         series: [
           { clave: 'a', etiqueta: 'Asignados', ayuda: 'Vales con entrega en el período asignados a esa persona.' },
           { clave: 'b', etiqueta: 'Entregados', ayuda: 'De esos vales, los que su propuesta ya aprobó el Encargado.' }
@@ -293,9 +296,9 @@ class ValeReporteGruposService {
     return filas.some(f => 'tarde' in f) ? { a, b, tarde: suma('tarde'), sinEntregar: suma('sinEntregar') } : { a, b, atrasados: suma('atrasados') };
   }
 
-  // Entrantes (vales con entrega en la ventana), entregados (de ellos, los que el taller ya entregó, con atraso o sin él), sin entregar (los
-  // demás), % de efectividad (entregados / entrantes) y % entregados a tiempo (entregados sin atraso en su taller / entregados). El atraso del
-  // taller termina al aprobar el Encargado. «Atrasados sin entregar» (los que se arrastran de antes de la ventana) lo completa el servicio.
+  // Entrantes (vales con entrega en la ventana, hasta hoy), entregados (de ellos, los que el Encargado ya aprobó, con atraso o sin él), sin
+  // entregar (los demás), % de efectividad (entregados / entrantes) y % entregados a tiempo (entregados sin atraso en su taller / entregados).
+  // «Atrasados sin entregar»: los vencidos de la ventana sin aprobar; el servicio suma los que se arrastran de antes de la ventana.
   _indicadoresTaller(visibles, fichas) {
     const lista = visibles.map(v => ({ v, ficha: fichas.get(v.id) }));
     const entregados = lista.filter(x => x.ficha.terminado);
@@ -306,7 +309,8 @@ class ValeReporteGruposService {
       sinEntregar: lista.length - entregados.length,
       efectividad: lista.length ? redondear(entregados.length / lista.length * 100) : null,
       aTiempo: entregados.length ? redondear((entregados.length - tarde) / entregados.length * 100) : null,
-      atrasadosSinEntregar: 0 // lo completa el servicio con los atrasados que se arrastran de antes de la ventana
+      // Atrasados sin entregar de la ventana (entrega ya vencida y sin aprobar); el servicio suma los que se arrastran de antes de la ventana.
+      atrasadosSinEntregar: lista.filter(x => !x.ficha.terminado && x.ficha.atrasado).length
     };
   }
 }

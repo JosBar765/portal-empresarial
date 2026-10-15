@@ -40,6 +40,11 @@ Cantidad mínima 1; adjuntos obligatorios al crear/corregir/modificar; urgente m
 - Comparativo del taller: fila «Sin asignar» al inicio (vales de la ventana sin diseñador; no entra en la gráfica) y fila para quien tenga vales aunque no figure entre los diseñadores del taller (p. ej. un asistente). Los totales cuadran con las tarjetas (entrantes, entregados, sin entregar).
 - BD LOCAL: reparadas las cronologías incoherentes de vales de prueba de sep–nov (creados después de su entrega, aprobados antes de asignarse, vale confirmado con un taller sin aprobar, atraso del vale anterior a la aprobación); auditoría sin hallazgos. Scripts en el scratchpad de la sesión (no van al repo).
 
+## Rendimiento «hasta hoy» (2026-10-15, pedido del dueño)
+- Los contadores y el comparativo del taller solo cuentan vales cuya fecha de entrega ya llegó (entrega <= hoy): un vale que vence después no es «sin entregar» todavía ni entra en el % de efectividad hasta su fecha. Ventanas ya pasadas no cambian; ventanas futuras dan 0 / «—».
+- «Atrasados sin entregar» = vencidos de la ventana sin aprobar + los que se arrastran de antes de la ventana. En octubre (hoy 15/10): entrantes 30 -> 22, atrasados sin entregar 2 -> 10, % a tiempo 73,3 % -> 63,6 %.
+- Los vales entregados por adelantado (entrega posterior a hoy) no cuentan hasta que llega su fecha.
+
 ## Para desplegar
 Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_taller` (`06_atraso_taller.sql`, idempotente, agrega `vale_talleres.atraso_congelado_en` y rellena las filas ya aprobadas). El número 06 choca con `06_quitar_rendimiento`; se cita por nombre.
 

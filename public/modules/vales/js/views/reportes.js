@@ -307,7 +307,7 @@ function notasDelRol(data) {
     reglas.push('<li><strong>Tabla:</strong> lista los vales con <strong>fecha de entrega</strong> en el período, agrupados por la persona, taller o tienda elegidos. Cada fila muestra cuántos vales tiene, cuántos ya fueron autorizados y qué atención requieren (atrasados y sin propuesta). Al pulsarla se despliegan sus vales, con los que aún no están asignados primero y luego ordenados por atraso, por el paso más bajo del pipeline y luego por los que aún no tienen propuesta.</li>');
   }
   if (data.grupos && data.grupos.indicadoresTaller) {
-    reglas.push('<li><strong>Indicadores del taller:</strong> <em>Entrantes</em> son los vales del período que ya llegaron a tus talleres; <em>Entregados</em>, los que el Encargado ya aprobó (con atraso o sin él); <em>Sin entregar</em>, los demás; <em>Atrasados sin entregar</em>, los atrasados de antes del período que aún no se aprueban; <em>Efectividad</em>, entregados ÷ entrantes; <em>A tiempo</em>, los entregados sin atraso en su taller ÷ entregados.</li>');
+    reglas.push('<li><strong>Indicadores del taller:</strong> <em>Entrantes</em> son los vales del período que ya llegaron a tus talleres; <em>Entregados</em>, los que el Encargado ya aprobó (con atraso o sin él); <em>Sin entregar</em>, los demás; <em>Atrasados sin entregar</em>, los que ya vencieron (del período o de antes) y aún no se aprueban; todo se calcula hasta hoy; <em>Efectividad</em>, entregados ÷ entrantes; <em>A tiempo</em>, los entregados sin atraso en su taller ÷ entregados.</li>');
   }
   return reglas.join('');
 }
@@ -318,11 +318,11 @@ const porcentaje = (n) => (n == null ? '—' : `${String(n).replace('.', ',')} %
 const tonoPorcentaje = (n) => (n == null ? '' : (n < 50 ? 'rojo' : (n < 90 ? 'amarillo' : '')));
 function htmlIndicadoresTaller(i) {
   const tarjetas = [
-    { etiqueta: 'Entrantes', valor: i.entrantes, ayuda: 'Vales con fecha de entrega en la ventana de tiempo que ya llegaron a tus talleres.' },
+    { etiqueta: 'Entrantes', valor: i.entrantes, ayuda: 'Vales con fecha de entrega en la ventana de tiempo, hasta hoy: los que aún no llegan a su fecha de entrega no cuentan.' },
     { etiqueta: 'Entregados', valor: i.entregados, ayuda: 'De los entrantes, los que el Encargado ya aprobó (con atraso o sin él).' },
     { etiqueta: 'Sin entregar', valor: i.sinEntregar, ayuda: 'De los entrantes, los que aún no aprueba el Encargado (sin asignar, en trabajo, en pausa o en revisión).' },
-    { etiqueta: 'Atrasados sin entregar', valor: i.atrasadosSinEntregar, tono: i.atrasadosSinEntregar > 0 ? 'rojo' : '', ayuda: 'Vales atrasados que se arrastran de antes de la ventana de tiempo y que el Encargado aún no aprueba.' },
-    { etiqueta: '% efectividad', valor: porcentaje(i.efectividad), tono: tonoPorcentaje(i.efectividad), ayuda: 'Entregados entre entrantes. Amarillo por debajo de 90 %, rojo por debajo de 50 %.' },
+    { etiqueta: 'Atrasados sin entregar', valor: i.atrasadosSinEntregar, tono: i.atrasadosSinEntregar > 0 ? 'rojo' : '', ayuda: 'Vales con la fecha de entrega ya vencida (de la ventana o de antes) que el Encargado aún no aprueba.' },
+    { etiqueta: '% efectividad', valor: porcentaje(i.efectividad), tono: tonoPorcentaje(i.efectividad), ayuda: 'Entregados entre entrantes, calculado hasta hoy. Amarillo por debajo de 90 %, rojo por debajo de 50 %.' },
     { etiqueta: '% entregas a tiempo', valor: porcentaje(i.aTiempo), tono: tonoPorcentaje(i.aTiempo), ayuda: 'Entregados sin atraso en tu taller entre entregados (el atraso termina cuando el Encargado aprueba). Amarillo por debajo de 90 %, rojo por debajo de 50 %.' }
   ];
   return `<section class="rep-ind" aria-label="Indicadores del taller">${tarjetas.map(t => `
