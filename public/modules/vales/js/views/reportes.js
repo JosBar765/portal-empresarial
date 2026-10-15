@@ -310,7 +310,7 @@ function notasDelRol(data) {
     '<li><strong>Período:</strong> se elige con Hoy, Día, Semana (de lunes a domingo), Mes o Desde–Hasta, y siempre filtra por la <strong>fecha de entrega</strong> de los vales.</li>'
   ];
   if (data.grupos) {
-    reglas.push('<li><strong>Tabla:</strong> lista los vales con <strong>fecha de entrega</strong> en el período, agrupados por la persona, taller o tienda elegidos. Cada fila muestra cuántos vales tiene, cuántos ya fueron autorizados y qué atención requieren (atrasados y sin propuesta). Al pulsarla se despliegan sus vales, con los que aún no están asignados primero y luego ordenados por atraso, por el paso más bajo del pipeline y luego por los que aún no tienen propuesta.</li>');
+    reglas.push('<li><strong>Tabla:</strong> lista los vales con <strong>fecha de entrega</strong> en el período, agrupados por la persona, taller o tienda elegidos. Cada fila muestra cuántos vales tiene, cuántos ya fueron autorizados y qué atención requieren (atrasados). Al pulsarla se despliegan sus vales, con los que aún no están asignados primero y luego ordenados por atraso, por el paso más bajo del pipeline y luego por los que aún no tienen propuesta.</li>');
   }
   if (data.grupos && data.grupos.indicadoresTaller) {
     reglas.push('<li><strong>Indicadores del taller:</strong> <em>Entrantes</em> son los vales del período que ya llegaron a tus talleres; <em>Entregados</em>, los que el Encargado ya aprobó (con atraso o sin él); <em>Sin entregar</em>, los demás; <em>Atrasados sin entregar</em>, los que ya vencieron (del período o de antes) y aún no se aprueban; todo se calcula hasta hoy; <em>Efectividad</em>, entregados ÷ entrantes; <em>A tiempo</em>, los entregados sin atraso en su taller ÷ entregados.</li>');
@@ -475,18 +475,15 @@ function htmlMiniTabla(g) {
     ${g.recortado ? '<p class="rep-nota">Se muestran los vales más urgentes; acota el período o los filtros para ver el resto.</p>' : ''}`;
 }
 
-// Fila de una persona: nombre, cuántos vales y solo lo que pide atención (sin repetir lo que ya dice la sección).
+// Fila de una persona: nombre y cuántos vales (el detalle va al desplegarla).
 function htmlGrupo(g, indice) {
   const abierto = state.reporte.expandidos.has(g.clave);
-  const alertas = g.seccion !== 'entregados' && g.sinPropuesta
-    ? `<span class="rep-chip rep-chip--aviso" title="Vales sin propuesta adjunta"><ion-icon name="document-outline" aria-hidden="true"></ion-icon>${g.sinPropuesta} sin propuesta</span>`
-    : '';
   return `
     <div class="rep-grupo${abierto ? ' is-abierto' : ''}" data-clave="${escapeHtml(g.clave)}">
       <button type="button" class="rep-grupo-cab" aria-expanded="${abierto}" aria-controls="rep-g-${indice}">
         <span class="rep-grupo-nombre"><ion-icon name="chevron-forward-outline" class="rep-chevron" aria-hidden="true"></ion-icon><span class="rep-avatar" aria-hidden="true">${escapeHtml(inicialesAvatar(g.nombre))}</span><strong>${escapeHtml(g.nombre)}</strong></span>
         <span class="rep-celda rep-celda--n">${g.total} vale${g.total === 1 ? '' : 's'}</span>
-        <span class="rep-celda rep-celda--chips">${alertas}</span>
+        <span class="rep-celda rep-celda--chips"></span>
       </button>
       <div class="rep-grupo-cuerpo" id="rep-g-${indice}"${abierto ? '' : ' hidden'}>${abierto ? htmlMiniTabla(g) : ''}</div>
     </div>`;
