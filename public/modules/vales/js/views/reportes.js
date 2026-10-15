@@ -310,7 +310,7 @@ function notasDelRol(data) {
     '<li><strong>Período:</strong> se elige con Hoy, Día, Semana (de lunes a domingo), Mes o Desde–Hasta, y siempre filtra por la <strong>fecha de entrega</strong> de los vales.</li>'
   ];
   if (data.grupos) {
-    reglas.push('<li><strong>Tabla:</strong> lista los vales con <strong>fecha de entrega</strong> en el período, agrupados por la persona, taller o tienda elegidos. Cada fila muestra cuántos vales tiene, cuántos ya fueron autorizados y qué atención requieren (atrasados). Al pulsarla se despliegan sus vales, con los que aún no están asignados primero y luego ordenados por atraso y por el paso más bajo del pipeline.</li>');
+    reglas.push('<li><strong>Tabla:</strong> lista los vales con <strong>fecha de entrega</strong> en el período, agrupados por la persona, taller o tienda elegidos. Cada fila muestra cuántos vales tiene, cuántos ya fueron autorizados y qué atención requieren (atrasados). Al pulsarla se despliegan sus vales: los atrasados del más atrasado al menos; los no entregados por fecha de ingreso; los entregados, primero los que se entregaron con atraso (del más atrasado al menos) y luego los que llegaron a tiempo.</li>');
   }
   if (data.grupos && data.grupos.indicadoresTaller) {
     reglas.push('<li><strong>Indicadores del taller:</strong> <em>Entrantes</em> son los vales del período que ya llegaron a tus talleres; <em>Entregados</em>, los que el Encargado ya aprobó (con atraso o sin él); <em>Sin entregar</em>, los demás; <em>Atrasados sin entregar</em>, los que ya vencieron (del período o de antes) y aún no se aprueban; todo se calcula hasta hoy; <em>Efectividad</em>, entregados ÷ entrantes; <em>A tiempo</em>, los entregados sin atraso en su taller ÷ entregados.</li>');

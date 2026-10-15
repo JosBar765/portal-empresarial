@@ -54,6 +54,11 @@ Cantidad mínima 1; adjuntos obligatorios al crear/corregir/modificar; urgente m
 ## Actividad sin «propuesta» (2026-10-15)
 - Fuera de Actividad: la etiqueta amarilla «N sin propuesta» de las filas de personas, la columna «Propuesta» de la tabla de vales (pantalla y PDF), el «· N sin propuesta» del encabezado del PDF y el criterio de orden «sin propuesta» (era solo el último desempate: sin asignar > atraso > paso del pipeline). Se conserva `tienePropuesta` porque el botón «Ver vale» abre el visor en la pestaña Propuesta cuando existe. El KPI «Sin propuesta» de los reportes de Asesor/Supervisor (`sinPropuestaAhora`) no se tocó.
 
+## PDF de Actividad reestructurado (2026-10-15)
+- «Atrasados antes del período» agrupado como las demás secciones (adiós columna Responsable; la API devuelve `atrasadosVigentes.grupos`, la lista plana sigue para la pantalla). Atraso solo en las secciones de atrasados; entregados con columna «Con atraso» («Sí · 2d» / «No») y fila completa amarilla (rgb 1,1,0 al 60 %) si se entregó con atraso. `diasTarde` ahora también para roles que no son Taller (atraso del vale congelado al aprobar el último taller).
+- Orden por sección (servidor, también en pantalla): atrasados por días desc; no entregados por fecha de ingreso asc; entregados con atraso primero (días desc) y luego a tiempo. Las filas (personas/talleres/tiendas) por su primer vale. Se quitó la regla «sin asignar primero».
+- Verificado con el Encargado: 4 secciones con 2, 8, 7 y 15 vales; 4 celdas «Sí · Nd» y 4 rectángulos amarillos; sin «Responsable».
+
 ## Para desplegar
 Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_taller` (`06_atraso_taller.sql`, idempotente, agrega `vale_talleres.atraso_congelado_en` y rellena las filas ya aprobadas). El número 06 choca con `06_quitar_rendimiento`; se cita por nombre.
 

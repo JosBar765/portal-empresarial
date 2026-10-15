@@ -96,7 +96,7 @@ class ValeReportePdfService {
 
   // Reporte de actividad: atrasados antes del período y las tres secciones del período (o la lista del Asesor y del Diseñador).
   _actividad(ctx, reporte) {
-    if (reporte.atrasadosVigentes && reporte.atrasadosVigentes.total) this._vigentes(ctx, reporte.atrasadosVigentes);
+    if (reporte.atrasadosVigentes && reporte.atrasadosVigentes.total) this._vigentes(ctx, reporte.atrasadosVigentes, reporte.rol === 'encargado');
     if (reporte.grupos) this._secciones(ctx, reporte);
     else {
       reporte.tablas.forEach(t => this._tablaPersonas(ctx, t));
@@ -167,7 +167,7 @@ class ValeReportePdfService {
 
   // Tabla genérica: `columnas` [{ label, ancho (proporción), derecha }], `filas` [[texto, ...]].
   // Una celda puede ser texto o un estado `{ segmentos, alerta }` (ver `celdaEstado`).
-  _tabla(ctx, columnas, filas, { altoFila = 14, tamano = 7.5, altoCabecera = 14 } = {}) {
+  _tabla(ctx, columnas, filas, { altoFila = 14, tamano = 7.5, altoCabecera = 14, resaltadas = [] } = {}) {
     const total = columnas.reduce((s, c) => s + c.ancho, 0);
     const anchos = columnas.map(c => (c.ancho / total) * CONTENT_WIDTH);
     const cabecera = () => {
@@ -183,8 +183,10 @@ class ValeReportePdfService {
       ctx.y -= altoCabecera;
     };
     cabecera();
-    filas.forEach(fila => {
+    filas.forEach((fila, indice) => {
       if (ctx.y - altoFila < MARGIN + 18) { this._nuevaPagina(ctx); cabecera(); }
+      // Fila resaltada (entregado con atraso): amarillo fluorescente al 60 % de opacidad, detrás del texto.
+      if (resaltadas.includes(indice)) ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - altoFila, width: CONTENT_WIDTH, height: altoFila, color: rgb(1, 1, 0), opacity: 0.6 });
       let x = MARGIN;
       fila.forEach((celda, i) => {
         if (celda && celda.semaforo) {
@@ -257,41 +259,48 @@ class ValeReportePdfService {
       ctx.y -= 20;
       return;
     }
-    // Columnas según la sección: atrasados con Atraso; entregados sin Atraso.
-    const columnasDe = (clave) => [
-      { label: 'Vale', ancho: 1.8 }, ...(esTaller ? [{ label: 'Ingreso', ancho: 1.3 }] : []), { label: 'Estado', ancho: 3.8 },
+    for (const sec of SECCIONES_PDF) {
+      const datos = g.secciones[sec.clave];
+      if (!datos.total) continue;
+      this._titulo(ctx, `${sec.titulo} (${datos.total})`);
+      this._gruposPdf(ctx, datos.grupos, sec.clave, esTaller);
+    }
+    if (g.truncado) {
+      this._espacio(ctx, 16);
+      this._texto(ctx, `Hay ${g.totalVales} vales; se muestran los más urgentes. Acota el período o los filtros para ver el resto.`, MARGIN, ctx.y - 8, { size: 8, color: GRIS });
+    }
+  }
+
+  // Cada persona (o taller/tienda) con sus vales. «Atraso» solo en las secciones de atrasados; «Con atraso» solo en entregados, donde la
+  // fila completa se remarca si se entregó con atraso.
+  _gruposPdf(ctx, grupos, clave, esTaller) {
+    const columnas = [
+      { label: 'Vale', ancho: 1.8 }, ...(esTaller ? [{ label: 'Ingreso', ancho: 1.3 }] : []), { label: 'Estado', ancho: 3.6 },
       { label: 'Entrega', ancho: 1, centro: true },
-      ...(clave === 'atrasados' ? [{ label: 'Atraso', ancho: 1, centro: true }] : [])
+      ...(clave === 'atrasados' ? [{ label: 'Atraso', ancho: 1, centro: true }] : []),
+      ...(clave === 'entregados' ? [{ label: 'Con atraso', ancho: 1.1, centro: true }] : [])
     ];
     const ingreso = (v) => {
       const [fecha, hora] = String(v.creadoEn).split(' ');
       return `${formatear(fecha, 'fecha')} ${(hora || '').slice(0, 5)}`;
     };
-    for (const sec of SECCIONES_PDF) {
-      const datos = g.secciones[sec.clave];
-      if (!datos.total) continue;
-      this._titulo(ctx, `${sec.titulo} (${datos.total})`);
-      const columnas = columnasDe(sec.clave);
-      for (const grupo of datos.grupos) {
-        this._espacio(ctx, 80);
-        const resumen = `${grupo.total} vale${grupo.total === 1 ? '' : 's'}`;
-        ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - 18, width: CONTENT_WIDTH, height: 18, color: FONDO_CABECERA });
-        this._texto(ctx, this._ajustar(ctx, grupo.nombre, 200, 9, true), MARGIN + 6, ctx.y - 13, { size: 9, bold: true });
-        this._texto(ctx, this._ajustar(ctx, resumen, CONTENT_WIDTH - 220, 7.5), MARGIN + 214, ctx.y - 13, { size: 7.5, color: GRIS });
-        ctx.y -= 22;
-        const filas = grupo.vales.map(v => [
-          `${v.correlativo}${v.esMod ? ' (MOD)' : ''}`,
-          ...(esTaller ? [ingreso(v)] : []),
-          celdaEstado(v.pipeline),
-          formatear(v.fechaEntrega, 'fecha'),
-          ...(sec.clave === 'atrasados' ? [semaforoAtraso(v)] : [])
-        ]);
-        this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5 });
-      }
-    }
-    if (g.truncado) {
-      this._espacio(ctx, 16);
-      this._texto(ctx, `Hay ${g.totalVales} vales; se muestran los más urgentes. Acota el período o los filtros para ver el resto.`, MARGIN, ctx.y - 8, { size: 8, color: GRIS });
+    for (const grupo of grupos) {
+      this._espacio(ctx, 80);
+      const resumen = `${grupo.total} vale${grupo.total === 1 ? '' : 's'}`;
+      ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - 18, width: CONTENT_WIDTH, height: 18, color: FONDO_CABECERA });
+      this._texto(ctx, this._ajustar(ctx, grupo.nombre, 200, 9, true), MARGIN + 6, ctx.y - 13, { size: 9, bold: true });
+      this._texto(ctx, this._ajustar(ctx, resumen, CONTENT_WIDTH - 220, 7.5), MARGIN + 214, ctx.y - 13, { size: 7.5, color: GRIS });
+      ctx.y -= 22;
+      const filas = grupo.vales.map(v => [
+        `${v.correlativo}${v.esMod && !/^MOD-/.test(v.correlativo) ? ' (MOD)' : ''}`,
+        ...(esTaller ? [ingreso(v)] : []),
+        celdaEstado(v.pipeline),
+        formatear(v.fechaEntrega, 'fecha'),
+        ...(clave === 'atrasados' ? [semaforoAtraso(v)] : []),
+        ...(clave === 'entregados' ? [v.diasTarde > 0 ? `Sí · ${v.diasTarde}d` : 'No'] : [])
+      ]);
+      const resaltadas = clave === 'entregados' ? grupo.vales.map((v, i) => (v.diasTarde > 0 ? i : -1)).filter(i => i >= 0) : [];
+      this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5, resaltadas });
     }
   }
 
@@ -358,8 +367,14 @@ class ValeReportePdfService {
   }
 
   // «Atrasados vigentes»: vales atrasados y abiertos con entrega fuera del período, del más atrasado al menos.
-  _vigentes(ctx, av) {
+  _vigentes(ctx, av, esTaller = false) {
     this._titulo(ctx, `ATRASADOS ANTES DEL PERÍODO (${av.total})`);
+    if (av.grupos) {
+      // Agrupados como las demás secciones (por diseñador, asesor, taller o tienda), del más atrasado al menos.
+      this._gruposPdf(ctx, av.grupos, 'atrasados', esTaller);
+      if (av.truncado) { this._texto(ctx, `Se muestran los ${av.vales.length} más atrasados de ${av.total}.`, MARGIN, ctx.y - 2, { size: 8, color: GRIS }); ctx.y -= 14; }
+      return;
+    }
     const conResponsable = av.vales.some(v => v.responsable);
     const columnas = [
       { label: 'Vale', ancho: 1.8 },

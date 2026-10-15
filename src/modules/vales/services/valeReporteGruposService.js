@@ -1,7 +1,8 @@
 // src/modules/vales/services/valeReporteGruposService.js
 // Tabla unificada de Reportes: personas (o talleres/tiendas) como filas y, bajo cada una, los vales cuya FECHA DE ENTREGA
-// cae en el período, con su pipeline, entrega y atraso. El orden de los vales (y el de las filas, por su peor vale) es:
-// 0) sin asignar, 1) atraso, 2) paso más bajo del pipeline.
+// cae en el período, con su pipeline, entrega y atraso. Cada sección ordena sus vales (y sus filas, por su primer vale) a su manera:
+// atrasados, del más atrasado al menos; no entregados, por fecha de ingreso; entregados, primero los entregados con atraso (del más
+// atrasado al menos) y luego los que llegaron a tiempo.
 const valeRepository = require('../repositories/valeRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
@@ -28,17 +29,15 @@ const SECCIONES = ['atrasados', 'noEntregados', 'entregados'];
 const ESTADOS_VALE_TERMINADO_TALLER = [ESTADOS.APROBADO_DEPARTAMENTO, ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
 const redondear = (n) => Math.round(n * 10) / 10;
 
-// Un vale está sin asignar cuando el encargado todavía no le ha dado diseñador («Por asignar»).
-const sinAsignar = v => /Por asignar$/.test(v.pipeline.etiqueta);
-
-// Sin asignar primero; luego atrasados (más días arriba) y el paso más bajo del pipeline.
-function compararVales(a, b) {
-  if (sinAsignar(a) !== sinAsignar(b)) return sinAsignar(a) ? -1 : 1;
-  if (a.atrasado !== b.atrasado) return a.atrasado ? -1 : 1;
-  if (a.atrasado && a.diasAtraso !== b.diasAtraso) return b.diasAtraso - a.diasAtraso;
-  if (a.pipeline.paso !== b.pipeline.paso) return a.pipeline.paso - b.pipeline.paso;
-  return String(a.fechaEntrega).localeCompare(String(b.fechaEntrega)) || a.id - b.id;
-}
+const porFechaEntrega = (a, b) => String(a.fechaEntrega).localeCompare(String(b.fechaEntrega)) || a.id - b.id;
+// Orden de los vales dentro de cada sección.
+const COMPARADORES = {
+  atrasados: (a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || porFechaEntrega(a, b),
+  noEntregados: (a, b) => String(a.creadoEn).localeCompare(String(b.creadoEn)) || a.id - b.id,
+  entregados: (a, b) => ((b.diasTarde || 0) > 0) - ((a.diasTarde || 0) > 0) || (b.diasTarde || 0) - (a.diasTarde || 0) || porFechaEntrega(a, b)
+};
+// Las filas (personas, talleres o tiendas) se ordenan por su primer vale, ya en el orden de la sección.
+const ordenarGrupos = (grupos, clave) => grupos.sort((a, b) => COMPARADORES[clave](a.vales[0], b.vales[0]) || b.total - a.total || a.nombre.localeCompare(b.nombre));
 
 class ValeReporteGruposService {
   // «Leticia Tzún · Encargado»: distingue a quien trabaja vales pero es encargado o asistente de un taller.
@@ -123,8 +122,8 @@ class ValeReporteGruposService {
         creadoEn: `${fechaDe(v.fecha_creacion)} ${String(v.hora_creacion || '00:00:00').slice(0, 8)}`,
         autorizado: !!v.autorizado_en, fechaEntrega: fechaDe(v.fecha_entrega),
         atrasado: abierto && vencido, diasAtraso: abierto ? (alCierreTaller ? diasEntreFechas(fechaDe(v.fecha_entrega), corte) : (v.diasAtraso || 0)) : 0, venceHoy: abierto && !!v.venceHoy,
-        // Vista Taller: días de atraso con que se entregó (aprobó el Encargado); 0 si llegó a tiempo.
-        diasTarde: esTaller && terminado ? atrasoEnTaller(v, propias(v)).diasAtraso : 0,
+        // Días de atraso con que se entregó (en la vista Taller, hasta que aprobó el Encargado; en las demás, hasta que aprobó el último taller); 0 si llegó a tiempo.
+        diasTarde: entregado ? (esTaller ? atrasoEnTaller(v, propias(v)).diasAtraso : (v.diasAtraso || 0)) : 0,
         tienePropuesta: !!urlPropuesta || conEnlaces, urlPropuesta, conEnlaces
       }];
     }));
@@ -160,17 +159,13 @@ class ValeReporteGruposService {
 
     const totalVales = visibles.length;
     const lista = [...grupos.values()].map(g => {
-      g.vales.sort(compararVales);
       return {
         ...g,
         total: g.vales.length,
         autorizados: g.vales.filter(v => v.autorizado).length,
         atrasados: g.vales.filter(v => v.atrasado).length
       };
-    }).sort((a, b) => {
-      if (!a.vales.length || !b.vales.length) return a.vales.length ? -1 : (b.vales.length ? 1 : a.nombre.localeCompare(b.nombre));
-      return compararVales(a.vales[0], b.vales[0]) || b.total - a.total || a.nombre.localeCompare(b.nombre);
-    });
+    }).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
     if (soloAtrasadosAntesDe) {
       const unicos = new Map();
@@ -184,21 +179,28 @@ class ValeReporteGruposService {
       const todosVigentes = [...unicos.values()]
         .map(({ responsables, ...v }) => ({ ...v, responsable: responsables.join(', ') }))
         .sort((a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || String(a.fechaEntrega).localeCompare(String(b.fechaEntrega)));
+      // Los mismos vales, agrupados como las secciones del período (para el PDF): del más atrasado al menos.
+      let restanteVigentes = MAX_VIGENTES;
+      const gruposVigentes = ordenarGrupos(lista
+        .map(g => { const vales = g.vales.filter(v => v.atrasado).sort(COMPARADORES.atrasados); return vales.length ? { ...g, vales, total: vales.length } : null; })
+        .filter(Boolean), 'atrasados')
+        .map(g => { const vales = g.vales.slice(0, Math.max(0, restanteVigentes)); restanteVigentes -= vales.length; return { ...g, vales }; })
+        .filter(g => g.vales.length);
       // `sinEntregar`: de los atrasados que se arrastran, los que el taller aún no entrega (alimenta el contador «Atrasados sin entregar»).
-      return { total: todosVigentes.length, truncado: todosVigentes.length > MAX_VIGENTES, sinEntregar: todosVigentes.filter(v => !v.terminado).length, vales: todosVigentes.slice(0, MAX_VIGENTES) };
+      return { total: todosVigentes.length, truncado: todosVigentes.length > MAX_VIGENTES, sinEntregar: todosVigentes.filter(v => !v.terminado).length, vales: todosVigentes.slice(0, MAX_VIGENTES), grupos: gruposVigentes };
     }
 
     // Tres secciones (atrasados, no entregados, entregados): las mismas filas de la agrupación elegida, solo con los vales de cada una.
     const porSeccion = (clave) => lista
       .map(g => {
-        const vales = g.vales.filter(v => v.seccion === clave);
+        const vales = g.vales.filter(v => v.seccion === clave).sort(COMPARADORES[clave]);
         return vales.length ? {
           ...g, vales, total: vales.length, autorizados: vales.filter(v => v.autorizado).length,
           atrasados: vales.filter(v => v.atrasado).length
         } : null;
       })
       .filter(Boolean)
-      .sort((a, b) => compararVales(a.vales[0], b.vales[0]) || b.total - a.total || a.nombre.localeCompare(b.nombre));
+      .sort((a, b) => COMPARADORES[clave](a.vales[0], b.vales[0]) || b.total - a.total || a.nombre.localeCompare(b.nombre));
 
     // Tope de vales por respuesta: se recortan del final (los menos urgentes) y se avisa.
     let restante = MAX_VALES;
