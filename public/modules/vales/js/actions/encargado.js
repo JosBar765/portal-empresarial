@@ -190,7 +190,7 @@ export async function abrirModalAprobarGeneral(vale) {
       <p style="font-size:13px;margin-bottom:10px;">Revisa la propuesta de cada taller y adjunta el documento final ya fusionado por ti.</p>
       <ul class="historial-list" style="margin-bottom:14px;">${filasPropuesta || '<li>Este vale no tiene talleres asociados.</li>'}</ul>
       ${detalleOriginal ? '<p style="font-size:12px;color:var(--color-text-secondary);margin-top:-10px;margin-bottom:14px;">* Modificado.</p>' : ''}
-      ${htmlAdjuntosPropuesta({ idArchivo: 'input-fusion', etiquetaArchivo: 'Documento de fusión final', etiquetaNota: 'Nota sobre la fusión' })}
+      ${htmlAdjuntosPropuesta({ idArchivo: 'input-fusion', etiquetaArchivo: 'Documento de fusión final', archivoObligatorio: true, etiquetaNota: 'Nota sobre la fusión' })}
     `,
     size: 'lg',
     footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar" disabled>Aprobar y Fusionar</button>`
@@ -198,6 +198,7 @@ export async function abrirModalAprobarGeneral(vale) {
   const btnConfirmar = overlay.querySelector('#btn-confirmar');
   const adjuntos = wireAdjuntosPropuesta(overlay, {
     idArchivo: 'input-fusion',
+    archivoObligatorio: true,
     onCambio: ({ valido }) => { btnConfirmar.disabled = !valido; }
   });
   overlay.querySelector('#btn-ver-vale').addEventListener('click', () => abrirVisorVale({ id: vale.id, correlativo: vale.correlativo }));

@@ -5,7 +5,7 @@
 --   Permite que, al entregar una propuesta (Diseñador) o al adjuntar la fusión de un vale de varios talleres
 --   (Encargado/Asistente), se pueda agregar además una NOTA con observaciones y hasta 5 ENLACES a documentos
 --   alojados en otras plataformas. Al entregar una propuesta el PDF sigue siendo obligatorio (una propuesta solo con
---   enlaces no es válida; la nota y los enlaces son complementos); en la fusión basta un archivo o al menos un enlace.
+--   enlaces no es válida; la nota y los enlaces son complementos); la fusión también exige el PDF.
 --   Nada de esto cambia los datos que ya existen.
 --
 -- Qué agrega (solo columnas y una tabla nuevas; no modifica ni borra ningún dato, índice ni permiso existente):

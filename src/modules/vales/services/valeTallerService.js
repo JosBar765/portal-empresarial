@@ -394,8 +394,8 @@ class ValeTallerService {
       // La fusión de las propuestas de los talleres NO la hace el sistema —
       // es trabajo manual de quien fusiona, que debe adjuntar su
       // propio documento final, aun cuando solo hubo un taller involucrado.
-      if (!archivoFusion && !adjuntos.enlaces.length) {
-        throw new Error('Debe adjuntar el documento de fusión o al menos un enlace antes de aprobar.');
+      if (!archivoFusion) {
+        throw new Error('Debe adjuntar el documento de fusión (PDF) antes de aprobar; los enlaces y la nota son solo complementos.');
       }
 
       // El documento que sube aquí quien fusiona queda disponible
@@ -403,15 +403,11 @@ class ValeTallerService {
       // (copyPages) dentro del PDF oficial del vale: ese PDF es el
       // documento ADMINISTRATIVO del vale (encabezado, cliente, venta,
       // firma), no el lugar donde vive el diseño/propuesta.
-      if (archivoFusion) {
-        await subirYRegistrarArchivo({
-          buffer: archivoFusion.buffer, nombreOriginal: archivoFusion.originalname, mimeType: archivoFusion.mimetype,
-          nombreObjeto: nombreArchivo.propuestaFusion(vale.correlativo),
-          registrar: (subida) => valeRepository.actualizarPropuestaGeneral(valeId, subida.url)
-        });
-      } else {
-        await valeRepository.actualizarPropuestaGeneral(valeId, null); // fusión solo con enlaces: no queda un archivo viejo
-      }
+      await subirYRegistrarArchivo({
+        buffer: archivoFusion.buffer, nombreOriginal: archivoFusion.originalname, mimeType: archivoFusion.mimetype,
+        nombreObjeto: nombreArchivo.propuestaFusion(vale.correlativo),
+        registrar: (subida) => valeRepository.actualizarPropuestaGeneral(valeId, subida.url)
+      });
       await valeRepository.actualizarNotaFusion(valeId, adjuntos.nota);
       await propuestaRepository.borrarEnlacesDeFusion(valeId);
       await propuestaRepository.crearEnlaces(valeId, null, adjuntos.enlaces);
@@ -421,7 +417,7 @@ class ValeTallerService {
       // (que sigue cambiando después).
       await valeRepository.sellarFusion(valeId, { fusionadoPor: usuario.id, fusionadoEn: `${hoyISO()} ${horaActual()}` });
       await valeRepository.actualizarEstado(valeId, ESTADOS.PENDIENTE_CONFIRMACION);
-      const detalleFusion = describirAdjuntos({ archivo: !!archivoFusion, enlaces: adjuntos.enlaces.length, nota: !!adjuntos.nota });
+      const detalleFusion = describirAdjuntos({ archivo: true, enlaces: adjuntos.enlaces.length, nota: !!adjuntos.nota });
       await registrarHistorial(valeId, usuario.id, null, vale.estado, ESTADOS.PENDIENTE_CONFIRMACION,
         `Se adjuntó la fusión final del trabajo de los talleres${detalleFusion ? ` (${detalleFusion})` : ''} y se aprobó el vale`);
       const actualizado = await valeRepository.obtenerPorId(valeId);

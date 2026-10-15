@@ -1,7 +1,6 @@
 // src/modules/vales/services/propuestaAdjuntos.js
 // Nota y enlaces que acompañan a una propuesta (entrega del Diseñador) o a la fusión de un vale de varios talleres.
-// Al entregar, el PDF es obligatorio (lo exige entregar()): una propuesta solo con enlaces no es válida; nota y enlaces son complementos.
-// En la fusión basta un archivo o al menos un enlace (lo exige aprobarGeneral()).
+// Al entregar y al fusionar el PDF es obligatorio (lo exigen entregar() y aprobarGeneral()): solo con enlaces no es válido; nota y enlaces son complementos.
 const MAX_NOTA = 500;
 const MAX_ENLACES = 5;
 const MAX_URL = 500;
