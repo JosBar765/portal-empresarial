@@ -86,14 +86,14 @@ class ValeReporteGruposService {
     const nombres = new Map(usuarios.map(u => [u.id, u.nombre]));
     const nombresConRol = new Map(usuarios.map(u => [u.id, this.etiquetaNombre(u.nombre, u.rol_id, u.hereda_de_rol_id)]));
 
-    // Vista Taller (Encargado/Asistente): un vale está terminado cuando su parte ya salió a revisión o se aprobó.
+    // Vista Taller (Encargado/Asistente): un vale está terminado (entregado) cuando el Encargado ya aprobó su parte; en revisión aún no cuenta.
     const esTaller = alcance.rol === 'encargado';
     const propias = (v) => filas(v).filter(f => (alcance.tallerIds || []).includes(f.taller_id));
     const terminadoTaller = (v) => {
       const p = propias(v);
       if (!p.length) return false;
       return ESTADOS_VALE_TERMINADO_TALLER.includes(v.estado)
-        || p.every(f => [ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO].includes(f.estado));
+        || p.every(f => f.estado === ESTADOS_TALLER.APROBADO);
     };
 
     // Cada vale, con los datos que muestra la mini tabla.
@@ -103,7 +103,7 @@ class ValeReporteGruposService {
       const conEnlaces = conExtra.fusion.has(v.id) || conExtra.propuestas.has(v.id) || !!v.propuesta_general_nota;
       const pipeline = calcularPipeline(v, { rolId: ROL.ADMINISTRADOR });
       const terminado = esTaller ? terminadoTaller(v) : pipeline.terminado;
-      // Para el Encargado el atraso corre hasta que su taller aprueba (en revisión sigue contando); «terminado» solo clasifica.
+      // Para el Encargado el atraso corre hasta que su taller aprueba (en revisión sigue contando).
       const aprobadoTaller = esTaller && (ESTADOS_VALE_TERMINADO_TALLER.includes(v.estado) || (propias(v).length > 0 && propias(v).every(f => f.estado === ESTADOS_TALLER.APROBADO)));
       const abierto = !ESTADOS_TERMINALES.includes(v.estado) && !aprobadoTaller;
       const asignados = [...new Set((esTaller ? propias(v) : filas(v)).map(f => f.disenador_id).filter(Boolean))].map(id => nombres.get(id) || `#${id}`);
@@ -118,7 +118,7 @@ class ValeReporteGruposService {
         creadoEn: `${fechaDe(v.fecha_creacion)} ${String(v.hora_creacion || '00:00:00').slice(0, 8)}`,
         autorizado: !!v.autorizado_en, fechaEntrega: fechaDe(v.fecha_entrega),
         atrasado: abierto && !!v.atrasado, diasAtraso: abierto ? (v.diasAtraso || 0) : 0, venceHoy: abierto && !!v.venceHoy,
-        // Vista Taller: días de atraso de lo ya entregado (aprobado con atraso, o en revisión ya atrasado); 0 si llegó a tiempo.
+        // Vista Taller: días de atraso con que se entregó (aprobó el Encargado); 0 si llegó a tiempo.
         diasTarde: esTaller && terminado ? atrasoEnTaller(v, propias(v)).diasAtraso : 0,
         tienePropuesta: !!urlPropuesta || conEnlaces, sinPropuesta: requierePropuesta && !urlPropuesta && !conEnlaces, urlPropuesta, conEnlaces
       }];
@@ -224,7 +224,7 @@ class ValeReporteGruposService {
     if (esTaller) {
       const elegidas = disSel.size ? alcance.personas.filter(p => disSel.has(p.id)) : alcance.personas;
       const filasDe = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : propias(v));
-      const ENTREGADA = [ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO];
+      const ENTREGADA = [ESTADOS_TALLER.APROBADO]; // entregado = aprobado por el Encargado
       const filasGrafica = elegidas.map(p => {
         let a = 0; let b = 0; let tarde = 0;
         for (const v of visibles) {
@@ -239,7 +239,7 @@ class ValeReporteGruposService {
         clave: 'disenadores', persona: 'Diseñador', titulo: 'Asignaciones por diseñador', subtitulo: 'Vales con entrega en el período',
         series: [
           { clave: 'a', etiqueta: 'Asignados', ayuda: 'Vales con entrega en el período asignados a esa persona.' },
-          { clave: 'b', etiqueta: 'Entregados', ayuda: 'De esos vales, los que su propuesta ya salió a revisión o está aprobada.' }
+          { clave: 'b', etiqueta: 'Entregados', ayuda: 'De esos vales, los que su propuesta ya aprobó el Encargado.' }
         ],
         filas: this._ordenarGrafica(filasGrafica)
       };

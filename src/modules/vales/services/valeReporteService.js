@@ -673,7 +673,7 @@ class ValeReporteService {
 
     // Sección de cada vale: atrasado (abierto) > entregado > no entregado. Entregado: para el Diseñador, su propuesta ya salió a revisión;
     // para el Asesor, el vale ya llegó a él.
-    const ENTREGADA = [ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO];
+    const ENTREGADA = [ESTADOS_TALLER.APROBADO]; // entregado = aprobado por el Encargado
     const LLEGO_AL_ASESOR = [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
     filas.forEach(f => {
       const propias = alcance.rol === 'disenador' ? filasTaller.filter(x => x.vale_id === f.id && x.disenador_id === usuario.id) : [];
