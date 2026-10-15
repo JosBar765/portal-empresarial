@@ -451,11 +451,11 @@ function htmlAtrasoEntregado(v) {
 let vistaTaller = false;
 
 
-// Columnas según la sección: atrasados muestran el Atraso (y los entregados del taller, con el suyo).
+// Columnas según la sección: atrasados y entregados muestran el Atraso (en los entregados, los días con que se entregó).
 function htmlMiniTabla(g) {
   if (!g.vales.length) return '<p class="rep-sin-vales">Sin vales con entrega en este período.</p>';
   const sec = g.seccion || 'noEntregados';
-  const conAtraso = sec === 'atrasados' || (vistaTaller && sec === 'entregados');
+  const conAtraso = sec === 'atrasados' || sec === 'entregados';
   const filas = g.vales.map(v => `
     <tr>
       <td data-label="Vale"><strong>${escapeHtml(v.correlativo)}</strong>${v.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${vistaTaller ? '' : `<span class="rep-cliente">${escapeHtml(v.cliente)}</span>`}</td>

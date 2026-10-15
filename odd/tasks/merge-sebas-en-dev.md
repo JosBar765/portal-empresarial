@@ -76,6 +76,9 @@ Cantidad mínima 1; adjuntos obligatorios al crear/corregir/modificar; urgente m
 - Lista del Asesor y del Diseñador (`_listado`): mismo orden por sección que el taller (atrasados por días; no entregados por fecha de ingreso; entregados con atraso primero) y PDF con Atraso solo en atrasados y «Con atraso» (rojo) con la fila amarilla en entregados.
 - Decidido: una vez enviada la propuesta al asesor (PENDIENTE_CONFIRMACION o más) el vale está ENTREGADO y no acumula atraso: va a «Entregados» (con «Con atraso» si llegó tarde) para Supervisor, Gerente, Administrador y Asesor, con las mismas 4 secciones que el taller. En la BD local, los 11 vales así pasaron a Entregados (6 con atraso); «Atrasados en el período» del Supervisor bajó de 22 a 17. Quedan pendientes los contadores del Buzón (`Atrasados`), que aún cuentan esos vales.
 
+## Columna Atraso en Entregados para todos los roles (2026-10-15)
+- La pantalla de Actividad del Supervisor/Gerente/Administrador ahora tiene la columna Atraso en «Entregados» (días en rojo o «Al día»), como el taller. El Asesor ya lo mostraba junto a la fecha de entrega. Corregido de paso: la restricción de períodos cerrados solo aplica a quien tiene Rendimiento (antes el Asesor heredaba la vista recordada de otro usuario del navegador).
+
 ## Para desplegar
 Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_taller` (`06_atraso_taller.sql`, idempotente, agrega `vale_talleres.atraso_congelado_en` y rellena las filas ya aprobadas). El número 06 choca con `06_quitar_rendimiento`; se cita por nombre.
 
