@@ -66,8 +66,10 @@ Decisiones del dueño: el bucket de Storage local es de PRUEBAS (vales_de_arte_T
 - Navegador: el panel de nota y enlaces del visor (propuestaInfo) abre los enlaces en pestaña nueva con rel noopener noreferrer y escapa HTML malicioso en nota y nombre de enlace; modal de crear vale: el campo de fecha se habilita al elegir taller, muestra «Entrega mínima» y hora máxima, y el calendario marca fechas pasadas, fin de semana, feriado y cupo; vista móvil (390 px) de Buzón del Asesor y de Reportes del Gerente sin desborde horizontal.
 - Concurrencia: dos asignaciones simultáneas del mismo vale -> una gana (200) y la otra se rechaza («se está procesando»); queda un solo diseñador.
 
-### Hallazgo PREEXISTENTE en dev (no lo introdujo el merge)
-Dos creaciones simultáneas con la MISMA idempotencyKey crean DOS vales (una responde 201 y la otra 409 al registrar la clave, pero el vale duplicado ya existe): `crearVale` revisa la clave ANTES de la cola de creación y la registra al final. `valeCreacionService.js` es idéntico al de dev. No se modificó.
+### Tercera ronda (2026-10-14)
+- La FUSIÓN también exige siempre el PDF (decisión del dueño): `aprobarGeneral` rechaza la fusión sin archivo (400) y `encargado.js` usa `archivoObligatorio`. Prueba: fusión solo con enlace y nota -> 400 y el vale sigue APROBADO_DEPARTAMENTO; la fusión con PDF sigue OK (flujo real 29/29).
+- Idempotencia de `crearVale` (hallazgo preexistente de dev, ahora corregido por pedido del dueño: "NUNCA debe pasar"): `valeMutex.conColaDeLlave(key, fn)` serializa por idempotency key y la comprobación `buscar(key)` va DENTRO de la cola; el segundo envío ve el resultado registrado por el primero (o reintenta si el primero falló). Prueba (`e2e_concurrencia`): 8 envíos simultáneos con la misma key -> 1 vale, los 8 responden 201 con el mismo id; reintento posterior -> mismo vale; 3 keys distintas -> 3 vales. Antes: 2 vales y un 409.
+- Límite: la cola vive en memoria (un solo proceso Node, como el resto de `valeMutex`); con varios procesos haría falta una restricción en BD.
 
 ### Aún sin probar
 Que el visor muestre el PDF real y se pueda inspeccionar: Chrome incrusta su visor de PDF y la automatización pierde la conexión con la pestaña (no es un fallo del portal; el panel y el endpoint sí se probaron).
