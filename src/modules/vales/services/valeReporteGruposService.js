@@ -8,7 +8,7 @@ const propuestaRepository = require('../repositories/propuestaRepository');
 const reporteRepository = require('../repositories/reporteRepository');
 const valeBuzonService = require('./valeBuzonService');
 const { calcularPipeline } = require('./valePipeline');
-const { ROL, ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ROLES_ENCARGADO_TALLER, enriquecer, esValeDeModificacion } = require('./valeHelpers');
+const { ROL, ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ROLES_ENCARGADO_TALLER, enriquecer, enriquecerParaFila, esValeDeModificacion } = require('./valeHelpers');
 
 const AGRUPACIONES = ['asesor', 'disenador', 'taller', 'tienda'];
 const MAX_VALES = 1000;
@@ -17,7 +17,7 @@ const MAX_VIGENTES = 200;
 const ESTADOS_CON_PROPUESTA = [ESTADOS.CREADO, ESTADOS.MODIFICADO, ESTADOS.APROBADO_DEPARTAMENTO, ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
 
 const fechaDe = (valor) => String(valor || '').slice(0, 10);
-// Fin del día de entrega (hora de Guatemala, UTC-6), para saber si una entrega a revisión llegó a tiempo.
+// Fin del día de entrega (hora de Guatemala, UTC-6), para saber si la aprobación del Encargado llegó a tiempo.
 const finDelDia = (fecha) => new Date(`${fecha}T23:59:59-06:00`).getTime();
 // El vale ya llegó al asesor (propuesta lista para confirmar o ya confirmada): «entregado» para Asesor, Supervisor, Gerente y Administrador.
 const ESTADOS_LLEGO_AL_ASESOR = [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
@@ -50,11 +50,11 @@ class ValeReporteGruposService {
   }
 
   // `alcance`: del servicio de reportes. `dentroDelRango(fechaIso)`: período elegido (sobre la fecha de entrega). Filtros ya
-  // validados contra el alcance. `obtenerEntregas(valeIds, tallerIds)`: Map valeId -> momento (ms) de la primera entrega a
-  // revisión de esos talleres, para el % a tiempo del Encargado.
+  // validados contra el alcance. `obtenerAprobaciones(valeIds, tallerIds)`: Map valeId -> momento (ms) de la última aprobación de
+  // esos talleres, para el % a tiempo del Encargado.
   // `soloAtrasadosAntesDe(fechaIso)` (opcional): en lugar del período, devuelve los vales atrasados y abiertos cuya fecha de entrega
   // es ANTERIOR al período («atrasados antes del período») con las mismas reglas de alcance y filtros, como { total, truncado, vales }.
-  async armar({ alcance, dentroDelRango, agruparPor, tiendaId, tallerId, asesorSel, disSel, obtenerEntregas, soloAtrasadosAntesDe = null }) {
+  async armar({ alcance, dentroDelRango, agruparPor, tiendaId, tallerId, asesorSel, disSel, obtenerAprobaciones, soloAtrasadosAntesDe = null }) {
     const todos = (await valeRepository.listarTodos())
       .filter(v => (soloAtrasadosAntesDe ? soloAtrasadosAntesDe(fechaDe(v.fecha_entrega)) : dentroDelRango(fechaDe(v.fecha_entrega))))
       .map(enriquecer)
@@ -204,7 +204,7 @@ class ValeReporteGruposService {
         }).filter(g => g.vales.length)
       };
     }
-    const indicadoresTaller = esTaller ? await this._indicadoresTaller(visibles, fichas, alcance, obtenerEntregas) : null;
+    const indicadoresTaller = esTaller ? await this._indicadoresTaller(visibles, fichas, alcance, obtenerAprobaciones) : null;
     const datosRendimiento = this._rendimiento({ alcance, visibles, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel });
     const rendimiento = datosRendimiento && { ...datosRendimiento, totales: this._totalesRendimiento(datosRendimiento.filas) };
     return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento };
@@ -219,6 +219,12 @@ class ValeReporteGruposService {
       const elegidas = disSel.size ? alcance.personas.filter(p => disSel.has(p.id)) : alcance.personas;
       const filasDe = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : propias(v));
       const ENTREGADA = [ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO];
+      // Atrasado en su taller: corriendo (aún sin aprobar) o aprobado con atraso (el atraso se detuvo al aprobar el Encargado).
+      const atrasadoEnSuTaller = (v, propia) => {
+        const congelados = propia.map(f => f.atraso_congelado_en).filter(Boolean).map(String).sort();
+        const aprobada = propia.every(f => f.estado === ESTADOS_TALLER.APROBADO) && congelados.length === propia.length;
+        return enriquecerParaFila(v, aprobada ? { atraso_congelado_en: congelados[congelados.length - 1] } : null).atrasado;
+      };
       const filasGrafica = elegidas.map(p => {
         let a = 0; let b = 0; let atrasados = 0;
         for (const v of visibles) {
@@ -226,7 +232,7 @@ class ValeReporteGruposService {
           if (!propia.length) continue;
           a += 1;
           if (propia.every(f => ENTREGADA.includes(f.estado))) b += 1;
-          else if (fichas.get(v.id).atrasado) atrasados += 1;
+          if (atrasadoEnSuTaller(v, propia)) atrasados += 1;
         }
         return { id: p.id, nombre: p.nombre, a, b, atrasados };
       });
@@ -281,12 +287,12 @@ class ValeReporteGruposService {
   }
 
   // Entrantes, entregados, % de efectividad, % entregados a tiempo y atrasados de los vales del período en los talleres del encargado.
-  async _indicadoresTaller(visibles, fichas, alcance, obtenerEntregas) {
+  async _indicadoresTaller(visibles, fichas, alcance, obtenerAprobaciones) {
     const lista = visibles.map(v => ({ v, ficha: fichas.get(v.id) }));
     const entregados = lista.filter(x => x.ficha.terminado);
-    const entregas = entregados.length && obtenerEntregas ? await obtenerEntregas(entregados.map(x => x.v.id), alcance.tallerIds) : new Map();
-    const conFecha = entregados.filter(x => entregas.has(x.v.id));
-    const aTiempo = conFecha.filter(x => entregas.get(x.v.id) <= finDelDia(x.ficha.fechaEntrega)).length;
+    const aprobaciones = entregados.length && obtenerAprobaciones ? await obtenerAprobaciones(entregados.map(x => x.v.id), alcance.tallerIds) : new Map();
+    const conFecha = entregados.filter(x => aprobaciones.has(x.v.id));
+    const aTiempo = conFecha.filter(x => aprobaciones.get(x.v.id) <= finDelDia(x.ficha.fechaEntrega)).length;
     return {
       entrantes: lista.length,
       entregados: entregados.length,

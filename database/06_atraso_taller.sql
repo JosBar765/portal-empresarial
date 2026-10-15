@@ -16,6 +16,8 @@
 --   ALTER TABLE `vale_talleres` DROP COLUMN `atraso_congelado_en`;
 
 SET NAMES utf8mb4;
+-- La app guarda las horas en Guatemala (UTC-6); el relleno de abajo copia una hora del historial, así que se hace en esa zona.
+SET time_zone = '-06:00';
 
 -- 1. Columna (solo si falta)
 SET @sql = (SELECT IF(COUNT(*) = 0,
@@ -31,7 +33,7 @@ JOIN `estados_taller` et ON et.id = vt.estado_id AND et.nombre = 'APROBADO'
 JOIN (
   SELECT vale_id, taller_id, MAX(creado_en) AS aprobado_en
   FROM `vale_historial`
-  WHERE accion LIKE '%aprobó la propuesta de su taller%' OR accion LIKE '%aprobó su propio trabajo%'
+  WHERE estado_anterior = 'EN_REVISION' AND estado_nuevo = 'APROBADO'
   GROUP BY vale_id, taller_id
 ) h ON h.vale_id = vt.vale_id AND h.taller_id = vt.taller_id
 SET vt.atraso_congelado_en = h.aprobado_en

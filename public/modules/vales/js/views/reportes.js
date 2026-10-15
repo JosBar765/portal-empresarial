@@ -317,7 +317,7 @@ function htmlIndicadoresTaller(i) {
     { etiqueta: 'Entrantes', valor: i.entrantes, ayuda: 'Vales con fecha de entrega en el período que ya llegaron a tus talleres.' },
     { etiqueta: 'Entregados', valor: i.entregados, ayuda: 'Vales que tu taller ya terminó: la propuesta está en revisión o aprobada.' },
     { etiqueta: '% efectividad', valor: porcentaje(i.efectividad), ayuda: 'Entregados entre entrantes.' },
-    { etiqueta: '% a tiempo', valor: porcentaje(i.aTiempo), ayuda: 'De los vales entregados, los que se enviaron a revisión en o antes de su fecha de entrega.' },
+    { etiqueta: '% a tiempo', valor: porcentaje(i.aTiempo), ayuda: 'De los vales entregados, los que el Encargado aprobó en o antes de su fecha de entrega.' },
     { etiqueta: 'Atrasados', valor: i.atrasados, malo: i.atrasados > 0, ayuda: 'Vales del período con fecha de entrega vencida que tu taller todavía no termina (hasta hoy).' }
   ];
   return `<section class="rep-ind" aria-label="Indicadores del taller">${tarjetas.map(t => `

@@ -391,7 +391,7 @@ class ValeReporteService {
       const agruparPor = valeReporteGruposService.agrupacionValida(filtros.agruparPor, alcance.agrupaciones.includes('asesor') ? 'asesor' : alcance.agrupaciones[0]);
       const argumentos = {
         alcance, dentroDelRango: (f) => dentro(f, rango), agruparPor, tiendaId, tallerId, asesorSel, disSel,
-        obtenerEntregas: (valeIds, tallerIds) => this._primerasEntregas(valeIds, tallerIds)
+        obtenerAprobaciones: (valeIds, tallerIds) => this._aprobacionesDeTaller(valeIds, tallerIds)
       };
       grupos = await valeReporteGruposService.armar(argumentos);
       atrasadosVigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosAntesDe: (f) => antesDe(f, rango) });
@@ -416,13 +416,13 @@ class ValeReporteService {
   }
 
   // Texto de los filtros activos para el encabezado del PDF.
-  // Momento de la primera entrega a revisión de cada vale en los talleres dados (desde el historial).
-  async _primerasEntregas(valeIds, tallerIds) {
+  // Momento en que el Encargado aprobó el trabajo de cada vale en los talleres dados (la última aprobación; desde el historial).
+  async _aprobacionesDeTaller(valeIds, tallerIds) {
     const eventos = (await reporteRepository.listarHistorialDeVales(valeIds)).map(normalizar)
-      .filter(e => e && e.tipo === 'entrega' && tallerIds.includes(e.tallerId));
-    const primeras = new Map();
-    eventos.forEach(e => { if (!primeras.has(e.valeId) || e.ms < primeras.get(e.valeId)) primeras.set(e.valeId, e.ms); });
-    return primeras;
+      .filter(e => e && e.tipo === 'aprobacion' && tallerIds.includes(e.tallerId));
+    const ultimas = new Map();
+    eventos.forEach(e => { if (!ultimas.has(e.valeId) || e.ms > ultimas.get(e.valeId)) ultimas.set(e.valeId, e.ms); });
+    return ultimas;
   }
 
   _resumenFiltros(agruparPor, opciones, { tiendaId, tallerId }) {
