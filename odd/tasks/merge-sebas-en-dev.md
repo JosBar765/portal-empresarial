@@ -59,6 +59,9 @@ Cantidad mínima 1; adjuntos obligatorios al crear/corregir/modificar; urgente m
 - Orden por sección (servidor, también en pantalla): atrasados por días desc; no entregados por fecha de ingreso asc; entregados con atraso primero (días desc) y luego a tiempo. Las filas (personas/talleres/tiendas) por su primer vale. Se quitó la regla «sin asignar primero».
 - Verificado con el Encargado: 4 secciones con 2, 8, 7 y 15 vales; 4 celdas «Sí · Nd» y 4 rectángulos amarillos; sin «Responsable».
 
+## PDF de Actividad: estado simple y «Con atraso» en rojo (2026-10-15)
+- La celda Estado del PDF dice solo «Paso N de 5» (sin nombre del paso, estado actual ni quién tiene el turno); se retiró el código que dibujaba esos segmentos. En «Con atraso» el «Sí · Nd» va en rojo y negrita, igual que el conteo de los atrasados. Verificado en los PDF de Encargado, Supervisor y Asesor.
+
 ## Para desplegar
 Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_taller` (`06_atraso_taller.sql`, idempotente, agrega `vale_talleres.atraso_congelado_en` y rellena las filas ya aprobadas). El número 06 choca con `06_quitar_rendimiento`; se cita por nombre.
 

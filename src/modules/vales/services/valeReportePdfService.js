@@ -26,13 +26,10 @@ const SECCIONES_PDF = [
 const COLOR_SERIE_A = rgb(0.145, 0.388, 0.922);
 const COLOR_SERIE_B = rgb(0.086, 0.639, 0.29);
 
-// Celda de estado: «Paso N de 5 - Nombre del paso | Estado actual | Quién tiene el turno» (el atraso va en su propia columna).
+// Celda de estado: solo «Paso N de 5» (el atraso va en su propia columna).
 function celdaEstado(pipeline) {
-  const nombrePaso = pipeline.pasos[Math.min(pipeline.paso, pipeline.pasos.length) - 1];
   const total = pipeline.pasos.length;
-  const segmentos = [pipeline.terminado ? `Paso ${total} de ${total} - Completado` : `Paso ${pipeline.paso} de ${total} - ${nombrePaso}`, pipeline.etiqueta];
-  if (!pipeline.terminado && !pipeline.alerta && pipeline.detalle) segmentos.push(pipeline.detalle);
-  return { segmentos };
+  return `Paso ${pipeline.terminado ? total : pipeline.paso} de ${total}`;
 }
 
 // Las fuentes estándar del PDF solo cubren Latin-1: lo demás se sustituye en vez de romper la generación.
@@ -166,7 +163,7 @@ class ValeReportePdfService {
   }
 
   // Tabla genérica: `columnas` [{ label, ancho (proporción), derecha }], `filas` [[texto, ...]].
-  // Una celda puede ser texto o un estado `{ segmentos, alerta }` (ver `celdaEstado`).
+  // Una celda es texto o un semáforo `{ semaforo }` (el atraso).
   _tabla(ctx, columnas, filas, { altoFila = 14, tamano = 7.5, altoCabecera = 14, resaltadas = [] } = {}) {
     const total = columnas.reduce((s, c) => s + c.ancho, 0);
     const anchos = columnas.map(c => (c.ancho / total) * CONTENT_WIDTH);
@@ -191,8 +188,6 @@ class ValeReportePdfService {
       fila.forEach((celda, i) => {
         if (celda && celda.semaforo) {
           this._dibujarSemaforo(ctx, celda.semaforo, x + 2, anchos[i] - 4, tamano, altoFila);
-        } else if (celda && typeof celda === 'object') {
-          this._dibujarEstado(ctx, celda, x + 4, anchos[i] - 8, tamano, altoFila);
         } else {
           const t = this._ajustar(ctx, celda, anchos[i] - 8, tamano);
           const c = columnas[i];
@@ -205,31 +200,6 @@ class ValeReportePdfService {
       ctx.y -= altoFila;
     });
     ctx.y -= 12;
-  }
-
-  // Segmentos separados por «|»: el primero en negrita; si no caben en una línea pasan a una segunda.
-  _dibujarEstado(ctx, { segmentos }, x, ancho, tamano, altoFila) {
-    const sep = ' | ';
-    const anchoDe = (t, negrita) => (negrita ? ctx.fontBold : ctx.font).widthOfTextAtSize(limpiar(t), tamano);
-    const lineas = [[]];
-    let usado = 0;
-    segmentos.forEach((seg, i) => {
-      const w = anchoDe(seg, i === 0) + (usado ? anchoDe(sep) : 0);
-      if (usado && usado + w > ancho && lineas.length < 2) { lineas.push([]); usado = 0; }
-      lineas[lineas.length - 1].push({ seg, i });
-      usado += w;
-    });
-    const interlineado = tamano + 2.5;
-    const base = ctx.y - altoFila / 2 - tamano * 0.35 + (lineas.length - 1) * interlineado / 2;
-    lineas.forEach((linea, l) => {
-      let cx = x;
-      linea.forEach(({ seg, i }, k) => {
-        if (k > 0) { this._texto(ctx, sep, cx, base - l * interlineado, { size: tamano, color: GRIS }); cx += anchoDe(sep); }
-        const texto = this._ajustar(ctx, seg, Math.max(20, x + ancho - cx), tamano, i === 0);
-        this._texto(ctx, texto, cx, base - l * interlineado, { size: tamano, bold: i === 0, color: i === 0 ? NEGRO : GRIS_TEXTO });
-        cx += anchoDe(texto, i === 0);
-      });
-    });
   }
 
   // Texto en negrita, centrado en la celda y con el color del semáforo.
@@ -275,7 +245,7 @@ class ValeReportePdfService {
   // fila completa se remarca si se entregó con atraso.
   _gruposPdf(ctx, grupos, clave, esTaller) {
     const columnas = [
-      { label: 'Vale', ancho: 1.8 }, ...(esTaller ? [{ label: 'Ingreso', ancho: 1.3 }] : []), { label: 'Estado', ancho: 3.6 },
+      { label: 'Vale', ancho: 1.8 }, ...(esTaller ? [{ label: 'Ingreso', ancho: 1.3 }] : []), { label: 'Estado', ancho: 2 },
       { label: 'Entrega', ancho: 1, centro: true },
       ...(clave === 'atrasados' ? [{ label: 'Atraso', ancho: 1, centro: true }] : []),
       ...(clave === 'entregados' ? [{ label: 'Con atraso', ancho: 1.1, centro: true }] : [])
@@ -297,7 +267,7 @@ class ValeReportePdfService {
         celdaEstado(v.pipeline),
         formatear(v.fechaEntrega, 'fecha'),
         ...(clave === 'atrasados' ? [semaforoAtraso(v)] : []),
-        ...(clave === 'entregados' ? [v.diasTarde > 0 ? `Sí · ${v.diasTarde}d` : 'No'] : [])
+        ...(clave === 'entregados' ? [v.diasTarde > 0 ? { semaforo: { texto: `Sí · ${v.diasTarde}d`, tono: 'rojo' } } : 'No'] : [])
       ]);
       const resaltadas = clave === 'entregados' ? grupo.vales.map((v, i) => (v.diasTarde > 0 ? i : -1)).filter(i => i >= 0) : [];
       this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5, resaltadas });
