@@ -51,6 +51,9 @@ Cantidad mínima 1; adjuntos obligatorios al crear/corregir/modificar; urgente m
 - El reporte avisa «Cifras al cierre del período (dd/mm/aaaa)» o «Cifras al dd/mm/aaaa (período en curso)». Actividad no cambia. El Supervisor: misma restricción de períodos, cifras de hoy (limitación).
 - Limitación: el diseñador asignado al cierre se toma del asignado actual.
 
+## Actividad sin «propuesta» (2026-10-15)
+- Fuera de Actividad: la etiqueta amarilla «N sin propuesta» de las filas de personas, la columna «Propuesta» de la tabla de vales (pantalla y PDF), el «· N sin propuesta» del encabezado del PDF y el criterio de orden «sin propuesta» (era solo el último desempate: sin asignar > atraso > paso del pipeline). Se conserva `tienePropuesta` porque el botón «Ver vale» abre el visor en la pestaña Propuesta cuando existe. El KPI «Sin propuesta» de los reportes de Asesor/Supervisor (`sinPropuestaAhora`) no se tocó.
+
 ## Para desplegar
 Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_taller` (`06_atraso_taller.sql`, idempotente, agrega `vale_talleres.atraso_congelado_en` y rellena las filas ya aprobadas). El número 06 choca con `06_quitar_rendimiento`; se cita por nombre.
 

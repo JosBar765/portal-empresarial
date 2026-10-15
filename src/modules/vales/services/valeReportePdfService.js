@@ -257,12 +257,11 @@ class ValeReportePdfService {
       ctx.y -= 20;
       return;
     }
-    // Columnas según la sección: atrasados con Atraso; entregados sin Atraso ni Propuesta.
+    // Columnas según la sección: atrasados con Atraso; entregados sin Atraso.
     const columnasDe = (clave) => [
-      { label: 'Vale', ancho: 1.8 }, ...(esTaller ? [{ label: 'Ingreso', ancho: 1.3 }] : []), { label: 'Estado', ancho: 3.2 },
+      { label: 'Vale', ancho: 1.8 }, ...(esTaller ? [{ label: 'Ingreso', ancho: 1.3 }] : []), { label: 'Estado', ancho: 3.8 },
       { label: 'Entrega', ancho: 1, centro: true },
-      ...(clave === 'atrasados' ? [{ label: 'Atraso', ancho: 1, centro: true }] : []),
-      ...(clave !== 'entregados' ? [{ label: 'Propuesta', ancho: 1, centro: true }] : [])
+      ...(clave === 'atrasados' ? [{ label: 'Atraso', ancho: 1, centro: true }] : [])
     ];
     const ingreso = (v) => {
       const [fecha, hora] = String(v.creadoEn).split(' ');
@@ -275,8 +274,7 @@ class ValeReportePdfService {
       const columnas = columnasDe(sec.clave);
       for (const grupo of datos.grupos) {
         this._espacio(ctx, 80);
-        const resumen = `${grupo.total} vale${grupo.total === 1 ? '' : 's'}`
-          + (sec.clave !== 'entregados' && grupo.sinPropuesta ? `  ·  ${grupo.sinPropuesta} sin propuesta` : '');
+        const resumen = `${grupo.total} vale${grupo.total === 1 ? '' : 's'}`;
         ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - 18, width: CONTENT_WIDTH, height: 18, color: FONDO_CABECERA });
         this._texto(ctx, this._ajustar(ctx, grupo.nombre, 200, 9, true), MARGIN + 6, ctx.y - 13, { size: 9, bold: true });
         this._texto(ctx, this._ajustar(ctx, resumen, CONTENT_WIDTH - 220, 7.5), MARGIN + 214, ctx.y - 13, { size: 7.5, color: GRIS });
@@ -286,8 +284,7 @@ class ValeReportePdfService {
           ...(esTaller ? [ingreso(v)] : []),
           celdaEstado(v.pipeline),
           formatear(v.fechaEntrega, 'fecha'),
-          ...(sec.clave === 'atrasados' ? [semaforoAtraso(v)] : []),
-          ...(sec.clave !== 'entregados' ? [v.tienePropuesta ? 'Sí' : (v.sinPropuesta ? 'No' : '-')] : [])
+          ...(sec.clave === 'atrasados' ? [semaforoAtraso(v)] : [])
         ]);
         this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5 });
       }

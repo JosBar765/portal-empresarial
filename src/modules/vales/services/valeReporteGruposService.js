@@ -1,7 +1,7 @@
 // src/modules/vales/services/valeReporteGruposService.js
 // Tabla unificada de Reportes: personas (o talleres/tiendas) como filas y, bajo cada una, los vales cuya FECHA DE ENTREGA
-// cae en el período, con su pipeline, entrega, atraso y propuesta. El orden de los vales (y el de las filas, por su peor vale) es:
-// 0) sin asignar, 1) atraso, 2) paso más bajo del pipeline, 3) sin propuesta adjunta.
+// cae en el período, con su pipeline, entrega y atraso. El orden de los vales (y el de las filas, por su peor vale) es:
+// 0) sin asignar, 1) atraso, 2) paso más bajo del pipeline.
 const valeRepository = require('../repositories/valeRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
@@ -13,8 +13,6 @@ const { ROL, ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ROLES_ENCARGADO_TALLER
 const AGRUPACIONES = ['asesor', 'disenador', 'taller', 'tienda'];
 const MAX_VALES = 1000;
 const MAX_VIGENTES = 200;
-// Estados en los que el vale ya está en los talleres, y por tanto se espera una propuesta.
-const ESTADOS_CON_PROPUESTA = [ESTADOS.CREADO, ESTADOS.MODIFICADO, ESTADOS.APROBADO_DEPARTAMENTO, ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
 
 const fechaDe = (valor) => String(valor || '').slice(0, 10);
 const diasEntreFechas = (a, b) => Math.max(0, Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 864e5));
@@ -33,13 +31,12 @@ const redondear = (n) => Math.round(n * 10) / 10;
 // Un vale está sin asignar cuando el encargado todavía no le ha dado diseñador («Por asignar»).
 const sinAsignar = v => /Por asignar$/.test(v.pipeline.etiqueta);
 
-// Sin asignar primero; luego atrasados (más días arriba), el paso más bajo del pipeline y los que no tienen propuesta.
+// Sin asignar primero; luego atrasados (más días arriba) y el paso más bajo del pipeline.
 function compararVales(a, b) {
   if (sinAsignar(a) !== sinAsignar(b)) return sinAsignar(a) ? -1 : 1;
   if (a.atrasado !== b.atrasado) return a.atrasado ? -1 : 1;
   if (a.atrasado && a.diasAtraso !== b.diasAtraso) return b.diasAtraso - a.diasAtraso;
   if (a.pipeline.paso !== b.pipeline.paso) return a.pipeline.paso - b.pipeline.paso;
-  if (a.sinPropuesta !== b.sinPropuesta) return a.sinPropuesta ? -1 : 1;
   return String(a.fechaEntrega).localeCompare(String(b.fechaEntrega)) || a.id - b.id;
 }
 
@@ -106,7 +103,6 @@ class ValeReporteGruposService {
     // Cada vale, con los datos que muestra la mini tabla.
     const fichas = new Map(visibles.map(v => {
       const urlPropuesta = v.propuesta_general_url || propuestas.get(v.id) || null;
-      const requierePropuesta = ESTADOS_CON_PROPUESTA.includes(v.estado);
       const conEnlaces = conExtra.fusion.has(v.id) || conExtra.propuestas.has(v.id) || !!v.propuesta_general_nota;
       const pipeline = calcularPipeline(v, { rolId: ROL.ADMINISTRADOR });
       const terminado = esTaller ? terminadoTaller(v) : pipeline.terminado;
@@ -129,7 +125,7 @@ class ValeReporteGruposService {
         atrasado: abierto && vencido, diasAtraso: abierto ? (alCierreTaller ? diasEntreFechas(fechaDe(v.fecha_entrega), corte) : (v.diasAtraso || 0)) : 0, venceHoy: abierto && !!v.venceHoy,
         // Vista Taller: días de atraso con que se entregó (aprobó el Encargado); 0 si llegó a tiempo.
         diasTarde: esTaller && terminado ? atrasoEnTaller(v, propias(v)).diasAtraso : 0,
-        tienePropuesta: !!urlPropuesta || conEnlaces, sinPropuesta: requierePropuesta && !urlPropuesta && !conEnlaces, urlPropuesta, conEnlaces
+        tienePropuesta: !!urlPropuesta || conEnlaces, urlPropuesta, conEnlaces
       }];
     }));
 
@@ -169,8 +165,7 @@ class ValeReporteGruposService {
         ...g,
         total: g.vales.length,
         autorizados: g.vales.filter(v => v.autorizado).length,
-        atrasados: g.vales.filter(v => v.atrasado).length,
-        sinPropuesta: g.vales.filter(v => v.sinPropuesta).length
+        atrasados: g.vales.filter(v => v.atrasado).length
       };
     }).sort((a, b) => {
       if (!a.vales.length || !b.vales.length) return a.vales.length ? -1 : (b.vales.length ? 1 : a.nombre.localeCompare(b.nombre));
@@ -199,7 +194,7 @@ class ValeReporteGruposService {
         const vales = g.vales.filter(v => v.seccion === clave);
         return vales.length ? {
           ...g, vales, total: vales.length, autorizados: vales.filter(v => v.autorizado).length,
-          atrasados: vales.filter(v => v.atrasado).length, sinPropuesta: vales.filter(v => v.sinPropuesta).length
+          atrasados: vales.filter(v => v.atrasado).length
         } : null;
       })
       .filter(Boolean)

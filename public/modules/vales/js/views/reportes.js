@@ -310,7 +310,7 @@ function notasDelRol(data) {
     '<li><strong>Período:</strong> se elige con Hoy, Día, Semana (de lunes a domingo), Mes o Desde–Hasta, y siempre filtra por la <strong>fecha de entrega</strong> de los vales.</li>'
   ];
   if (data.grupos) {
-    reglas.push('<li><strong>Tabla:</strong> lista los vales con <strong>fecha de entrega</strong> en el período, agrupados por la persona, taller o tienda elegidos. Cada fila muestra cuántos vales tiene, cuántos ya fueron autorizados y qué atención requieren (atrasados). Al pulsarla se despliegan sus vales, con los que aún no están asignados primero y luego ordenados por atraso, por el paso más bajo del pipeline y luego por los que aún no tienen propuesta.</li>');
+    reglas.push('<li><strong>Tabla:</strong> lista los vales con <strong>fecha de entrega</strong> en el período, agrupados por la persona, taller o tienda elegidos. Cada fila muestra cuántos vales tiene, cuántos ya fueron autorizados y qué atención requieren (atrasados). Al pulsarla se despliegan sus vales, con los que aún no están asignados primero y luego ordenados por atraso y por el paso más bajo del pipeline.</li>');
   }
   if (data.grupos && data.grupos.indicadoresTaller) {
     reglas.push('<li><strong>Indicadores del taller:</strong> <em>Entrantes</em> son los vales del período que ya llegaron a tus talleres; <em>Entregados</em>, los que el Encargado ya aprobó (con atraso o sin él); <em>Sin entregar</em>, los demás; <em>Atrasados sin entregar</em>, los que ya vencieron (del período o de antes) y aún no se aprueban; todo se calcula hasta hoy; <em>Efectividad</em>, entregados ÷ entrantes; <em>A tiempo</em>, los entregados sin atraso en su taller ÷ entregados.</li>');
@@ -444,21 +444,14 @@ function htmlAtrasoEntregado(v) {
   return v.diasTarde >= 1 ? `<span class="badge badge-tarde" title="Entregado con atraso">${v.diasTarde} d</span>` : '<span class="badge badge-ok">Al día</span>';
 }
 
-function htmlPropuesta(v) {
-  if (v.tienePropuesta) return '<span class="rep-propuesta rep-propuesta--si"><ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon>Adjunta</span>';
-  if (v.sinPropuesta) return '<span class="rep-propuesta rep-propuesta--no"><ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>Sin propuesta</span>';
-  return '<span class="rep-propuesta rep-propuesta--na">Aún no aplica</span>';
-}
-
 let vistaTaller = false;
 
 
-// Columnas según la sección: atrasados muestran el Atraso; los entregados ya no necesitan Atraso ni Propuesta.
+// Columnas según la sección: atrasados muestran el Atraso (y los entregados del taller, con el suyo).
 function htmlMiniTabla(g) {
   if (!g.vales.length) return '<p class="rep-sin-vales">Sin vales con entrega en este período.</p>';
   const sec = g.seccion || 'noEntregados';
   const conAtraso = sec === 'atrasados' || (vistaTaller && sec === 'entregados');
-  const conPropuesta = sec !== 'entregados';
   const filas = g.vales.map(v => `
     <tr>
       <td data-label="Vale"><strong>${escapeHtml(v.correlativo)}</strong>${v.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${vistaTaller ? '' : `<span class="rep-cliente">${escapeHtml(v.cliente)}</span>`}</td>
@@ -466,12 +459,11 @@ function htmlMiniTabla(g) {
       <td data-label="Estado">${celdaEstado(v)}</td>
       <td data-label="Entrega">${escapeHtml(formatearFecha(v.fechaEntrega))}</td>
       ${conAtraso ? `<td data-label="Atraso">${sec === 'entregados' ? htmlAtrasoEntregado(v) : htmlAtraso(v)}</td>` : ''}
-      ${conPropuesta ? `<td data-label="Propuesta">${htmlPropuesta(v)}</td>` : ''}
       <td data-label="Acciones" class="rep-acciones-celda"><div class="rep-acciones-fila">
         <button type="button" class="btn-icon" data-ver="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}"${v.tienePropuesta ? ' data-con-propuesta="1"' : ''} title="Ver vale" aria-label="Ver vale ${escapeHtml(v.correlativo)}"><ion-icon name="eye-outline"></ion-icon></button>
       </div></td>
     </tr>`).join('');
-  return `<div class="rep-mini-wrap"><table class="rep-mini"><thead><tr><th>Vale</th>${vistaTaller ? '<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}${conPropuesta ? '<th>Propuesta</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
+  return `<div class="rep-mini-wrap"><table class="rep-mini"><thead><tr><th>Vale</th>${vistaTaller ? '<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
     ${g.recortado ? '<p class="rep-nota">Se muestran los vales más urgentes; acota el período o los filtros para ver el resto.</p>' : ''}`;
 }
 
