@@ -28,8 +28,8 @@ Cantidad mínima 1; adjuntos obligatorios al crear/corregir/modificar; urgente m
 - Fila "Por fusionar" del Encargado: solo muestra al asesor (ya no "Sin asignar").
 
 ## Para desplegar
-Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_taller` (`06_atraso_taller.sql`, idempotente, agrega `vale_talleres.atraso_congelado_en` y rellena las filas ya entregadas). El número 06 choca con `06_quitar_rendimiento`; se cita por nombre.
+Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_taller` (`06_atraso_taller.sql`, idempotente, agrega `vale_talleres.atraso_congelado_en` y rellena las filas ya aprobadas). El número 06 choca con `06_quitar_rendimiento`; se cita por nombre.
 
 ## No probado
-- Reportes del Encargado/Diseñador con la regla de atraso congelado por la interfaz (solo por API y lectura del código; el Diseñador no tiene permiso de reportes).
+- Reportes del Encargado/Diseñador con la regla de atraso del taller por la interfaz (el del Encargado se probó por API; el del Diseñador solo por lectura del código, porque ese rol no tiene permiso de reportes). Un vale ya aprobado por su taller no muestra su atraso congelado en los reportes (queda en «entregados» sin atraso).
 - `e2e_merge` y `e2e_reportes_roles` (de la ronda anterior) dan fallos por expectativas desactualizadas: fusión sin archivo (ahora debe dar 400), permisos de reportes que mi BD local tiene concedidos a roles 2-5, y agrupaciones por rol. No son regresiones del merge.
