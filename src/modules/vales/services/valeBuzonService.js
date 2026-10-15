@@ -311,10 +311,12 @@ class ValeBuzonService {
     const esSupervisor = usuario.rolId === ROL.SUPERVISOR;
     const esEncargado = esDeTaller(usuario);
     const paginaCruda = valesOrdenados.slice(indiceInicio, indiceInicio + limit);
+    // Fila de fusión: la etiquetada FUSION o el vale pendiente de fusionar (sin etiqueta); no tiene diseñador, solo asesor.
+    const esFilaFusion = (v) => v._tipoRegistro === 'FUSION' || (!v._tipoRegistro && v.estado === ESTADOS.APROBADO_DEPARTAMENTO);
     const idsPersona = new Set();
     [...paginaCruda, ...vigentesMostrados].forEach(v => {
       if (esSupervisor && v.asesor_id) idsPersona.add(v.asesor_id);
-      if (esEncargado && v._tipoRegistro !== 'FUSION' && v.disenador_id) idsPersona.add(v.disenador_id);
+      if (esEncargado && !esFilaFusion(v) && v.disenador_id) idsPersona.add(v.disenador_id);
       if (esEncargado && v.asesor_id) idsPersona.add(v.asesor_id);
     });
     const nombres = new Map((await reporteRepository.listarNombres([...idsPersona])).map(u => [u.id, u.nombre]));
@@ -323,7 +325,7 @@ class ValeBuzonService {
       // El Encargado ve también al asesor que creó el vale (en las filas de fusión, solo al asesor).
       if (esEncargado) {
         const asesor = v.asesor_id ? (nombres.get(v.asesor_id) || null) : null;
-        if (v._tipoRegistro === 'FUSION') return { rol: 'asesor', nombre: asesor };
+        if (esFilaFusion(v)) return { rol: 'asesor', nombre: asesor };
         return { rol: 'disenador', nombre: v.disenador_id ? (nombres.get(v.disenador_id) || null) : null, asesor };
       }
       return null;
