@@ -439,9 +439,9 @@ function htmlAtraso(v) {
   return '<span class="badge badge-ok">Al día</span>';
 }
 
-// Entregado: si llegó con atraso acumulado en su taller, se remarca en amarillo; si no, «Al día».
+// Entregado: si llegó con atraso, sus días en rojo (como los atrasados); si no, «Al día».
 function htmlAtrasoEntregado(v) {
-  return v.diasTarde >= 1 ? `<span class="badge badge-tarde" title="Entregado con atraso">${v.diasTarde} d</span>` : '<span class="badge badge-ok">Al día</span>';
+  return v.diasTarde >= 1 ? `<span class="badge badge-atraso" title="Entregado con atraso">${v.diasTarde} d</span>` : '<span class="badge badge-ok">Al día</span>';
 }
 
 let vistaTaller = false;
@@ -614,7 +614,7 @@ function renderVales(data) {
       <td data-label="Correlativo"><strong>${escapeHtml(f.correlativo)}</strong>${f.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}</td>
       <td data-label="Cliente">${escapeHtml(f.cliente)}</td>
       <td data-label="Estado">${f.pipeline ? celdaEstado(f) : escapeHtml(ESTADOS_LABEL[f.estado] || f.estado)}</td>
-      <td data-label="Entrega">${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}${f.atrasado && f.diasAtraso >= 1 ? `<span class="badge ${f.seccion === 'entregados' && data.rol === 'disenador' ? 'badge-tarde' : 'badge-atraso'}">${f.diasAtraso}d</span>` : ''}</td>
+      <td data-label="Entrega">${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}${f.atrasado && f.diasAtraso >= 1 ? `<span class="badge badge-atraso">${f.diasAtraso}d</span>` : ''}</td>
       ${v.columnas.map(c => `<td class="rend-num" data-label="${escapeHtml(c.label)}">${formatear(f[c.clave], c.formato)}</td>`).join('')}
       <td data-label="Historial"><button type="button" class="btn-icon" data-historial="${f.id}" data-correlativo="${escapeHtml(f.correlativo)}" title="Ver historial" aria-label="Ver historial de ${escapeHtml(f.correlativo)}"><ion-icon name="time-outline"></ion-icon></button></td>
     </tr>`;
