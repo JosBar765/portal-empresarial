@@ -279,7 +279,7 @@ class ValeTallerService {
         throw new Error('No se puede aprobar una propuesta en blanco: el diseñador debe adjuntar su documento o un enlace.');
       }
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.APROBADO);
-      await valeTallerRepository.congelarAtraso(fila.id, `${hoyISO()} ${horaActual()}`); // el atraso del taller termina al aprobar su Encargado
+      await valeTallerRepository.congelarAtraso(fila.id, `${hoyISO()} ${horaActual()}`); // momento en que su Encargado aprobó (cuándo se entregó el taller)
       fila.estado = ESTADOS_TALLER.APROBADO;
       const taller = await tallerRepository.obtenerPorId(fila.taller_id);
       const accionHistorial = esAutoaprobacion
@@ -336,8 +336,6 @@ class ValeTallerService {
     const filas = await valeTallerRepository.listarPorVale(valeId);
     const todosAprobados = filas.length > 0 && filas.every(f => f.estado === ESTADOS_TALLER.APROBADO);
     if (!todosAprobados) return;
-    // El atraso del vale termina cuando el último taller aprueba (se fija una sola vez), no cuando el asesor confirma.
-    await valeRepository.congelarAtraso(valeId, `${hoyISO()} ${horaActual()}`);
 
     const vale = await valeRepository.obtenerPorId(valeId);
     // Solo hay fusión que hacer cuando de verdad hay 2+ talleres
@@ -356,6 +354,8 @@ class ValeTallerService {
     }
     const requiereEncargadoGeneral = filas.length > 1 || talleresOriginales > 1;
     const nuevoEstado = requiereEncargadoGeneral ? ESTADOS.APROBADO_DEPARTAMENTO : ESTADOS.PENDIENTE_CONFIRMACION;
+    // Un solo atraso: termina cuando la propuesta llega al asesor. Con un taller, al aprobar; con varios, en la fusión final (aprobarGeneral).
+    if (nuevoEstado === ESTADOS.PENDIENTE_CONFIRMACION) await valeRepository.congelarAtraso(valeId, `${hoyISO()} ${horaActual()}`);
     if (vale.estado === nuevoEstado) return;
 
     // Con un solo taller y sin ser modificación no hay fusión que hacer (el
@@ -420,6 +420,7 @@ class ValeTallerService {
       // (que sigue cambiando después).
       await valeRepository.sellarFusion(valeId, { fusionadoPor: usuario.id, fusionadoEn: `${hoyISO()} ${horaActual()}` });
       await valeRepository.actualizarEstado(valeId, ESTADOS.PENDIENTE_CONFIRMACION);
+      await valeRepository.congelarAtraso(valeId, `${hoyISO()} ${horaActual()}`); // fusión final: la propuesta llega al asesor
       const detalleFusion = describirAdjuntos({ archivo: true, enlaces: adjuntos.enlaces.length, nota: !!adjuntos.nota });
       await registrarHistorial(valeId, usuario.id, null, vale.estado, ESTADOS.PENDIENTE_CONFIRMACION,
         `Se adjuntó la fusión final del trabajo de los talleres${detalleFusion ? ` (${detalleFusion})` : ''} y se aprobó el vale`);

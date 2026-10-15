@@ -13,11 +13,11 @@ const valeReporteGruposService = require('./valeReporteGruposService');
 const { calcularPipeline } = require('./valePipeline');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const {
-  ROL, ESTADOS, ESTADOS_TERMINALES, ESTADOS_TALLER, esDeTaller, hoyISO, enriquecer, enriquecerParaFila, esValeDeModificacion
+  ROL, ESTADOS, ESTADOS_TERMINALES, ESTADOS_TALLER, esDeTaller, hoyISO, enriquecer, esValeDeModificacion
 } = require('./valeHelpers');
 
-// El atraso del taller termina cuando entrega su propuesta (ver enriquecerParaFila).
-const atrasadaEnSuTaller = (porId, fila) => { const v = porId.get(fila.vale_id); return !!v && enriquecerParaFila(v, fila).atrasado; };
+// Un solo atraso, el del vale (termina cuando la propuesta llega al asesor).
+const atrasadaEnSuTaller = (porId, fila) => !!(porId.get(fila.vale_id) || {}).atrasado;
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const MAX_FILAS_PANTALLA = 100;
@@ -657,15 +657,10 @@ class ValeReporteService {
       const v = resumen.get(id);
       if (!v) return null;
       const h = historialPorVale.get(id) || [];
-      // Diseñador y Encargado: el atraso termina cuando su taller entrega la propuesta.
-      const filaPropia = esDiseno
-        ? filasTaller.find(f => f.vale_id === id && f.atraso_congelado_en && (alcance.rol === 'disenador' ? f.disenador_id === usuario.id : (alcance.tallerIds || []).includes(f.taller_id)))
-        : null;
-      const atraso = filaPropia ? enriquecerParaFila(v, filaPropia) : v;
       const base = {
         id, correlativo: v.correlativo, cliente: v.cliente_nombre, asesor: nombres.get(v.asesor_id) || `#${v.asesor_id}`,
         fechaEntrega: String(v.fecha_entrega).slice(0, 10), estado: v.estado, esMod: esValeDeModificacion(v),
-        atrasado: atraso.atrasado, diasAtraso: atraso.diasAtraso
+        atrasado: v.atrasado, diasAtraso: v.diasAtraso
       };
       if (esDiseno) {
         const del = h.filter(propioDiseno);

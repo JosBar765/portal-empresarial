@@ -9,7 +9,7 @@ const propuestaRepository = require('../repositories/propuestaRepository');
 const reporteRepository = require('../repositories/reporteRepository');
 const valeBuzonService = require('./valeBuzonService');
 const { calcularPipeline } = require('./valePipeline');
-const { ROL, ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ROLES_ENCARGADO_TALLER, hoyISO, enriquecer, enriquecerParaFila, esValeDeModificacion } = require('./valeHelpers');
+const { ROL, ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ROLES_ENCARGADO_TALLER, hoyISO, enriquecer, esValeDeModificacion } = require('./valeHelpers');
 
 const AGRUPACIONES = ['asesor', 'disenador', 'taller', 'tienda'];
 const MAX_VALES = 1000;
@@ -17,11 +17,10 @@ const MAX_VIGENTES = 200;
 
 const fechaDe = (valor) => String(valor || '').slice(0, 10);
 const diasEntreFechas = (a, b) => Math.max(0, Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 864e5));
-// Atraso del vale en SU taller: corre hasta que el Encargado aprueba; con todas sus filas aprobadas y su fecha registrada, queda detenido ahí.
-function atrasoEnTaller(v, filasPropias) {
-  const congelados = filasPropias.map(f => f.atraso_congelado_en).filter(Boolean).map(String).sort();
-  const aprobadas = filasPropias.length > 0 && filasPropias.every(f => f.estado === ESTADOS_TALLER.APROBADO) && congelados.length === filasPropias.length;
-  return enriquecerParaFila(v, aprobadas ? { atraso_congelado_en: congelados[congelados.length - 1] } : null);
+// Días de atraso del vale: hasta que la propuesta se envió al asesor (el atraso se congela ahí) o, si aún no, hasta el corte. Es un solo atraso para todos.
+function diasAtrasoAl(v, corte) {
+  const congelado = fechaDe(v.atraso_congelado_en);
+  return diasEntreFechas(fechaDe(v.fecha_entrega), congelado && congelado <= corte ? congelado : corte);
 }
 // El vale ya llegó al asesor (propuesta lista para confirmar o ya confirmada): «entregado» para Asesor, Supervisor, Gerente y Administrador.
 const ESTADOS_LLEGO_AL_ASESOR = [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
@@ -122,8 +121,8 @@ class ValeReporteGruposService {
         creadoEn: `${fechaDe(v.fecha_creacion)} ${String(v.hora_creacion || '00:00:00').slice(0, 8)}`,
         autorizado: !!v.autorizado_en, fechaEntrega: fechaDe(v.fecha_entrega),
         atrasado: abierto && vencido, diasAtraso: abierto ? (alCierreTaller ? diasEntreFechas(fechaDe(v.fecha_entrega), corte) : (v.diasAtraso || 0)) : 0, venceHoy: abierto && !!v.venceHoy,
-        // Días de atraso con que se entregó (en la vista Taller, hasta que aprobó el Encargado; en las demás, hasta que aprobó el último taller); 0 si llegó a tiempo.
-        diasTarde: entregado ? (esTaller ? atrasoEnTaller(v, propias(v)).diasAtraso : (v.diasAtraso || 0)) : 0,
+        // Días de atraso con que se entregó (hasta que la propuesta llegó al asesor, o hasta el corte); 0 si llegó a tiempo.
+        diasTarde: entregado ? diasAtrasoAl(v, corte) : 0,
         tienePropuesta: !!urlPropuesta || conEnlaces, urlPropuesta, conEnlaces
       }];
     }));
@@ -220,7 +219,7 @@ class ValeReporteGruposService {
     const exigibles = visibles.filter(v => fechaDe(v.fecha_entrega) <= corte);
     const indicadoresTaller = esTaller ? this._indicadoresTaller(exigibles, fichas) : null;
     const hastaHoy = exigibles.length < visibles.length; // solo se anuncia «hasta hoy» si de verdad quedó algo fuera
-    const datosRendimiento = this._rendimiento({ alcance, visibles: exigibles, hastaHoy, aprobada: aprobadaAlCorte, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol });
+    const datosRendimiento = this._rendimiento({ alcance, visibles: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol });
     const rendimiento = datosRendimiento && { ...datosRendimiento, totales: this._totalesRendimiento(datosRendimiento.filas, datosRendimiento.sinAsignar) };
     return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento };
   }
@@ -228,7 +227,7 @@ class ValeReporteGruposService {
   // Reporte de rendimiento (solo Encargado/Asistente y Supervisor): por persona, dos cifras comparadas, su % y sus atrasados, sobre los
   // vales del período y con los filtros aplicados. Encargado: asignados vs entregados por diseñador (y él mismo). Supervisor: creados vs
   // autorizados por asesor (y él mismo). Alimenta la gráfica y la tabla comparativa.
-  _rendimiento({ alcance, visibles, hastaHoy, aprobada, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol }) {
+  _rendimiento({ alcance, visibles, hastaHoy, aprobada, corte, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol }) {
     if (!alcance.equipo || !(alcance.personas || []).length) return null;
     if (esTaller) {
       const filasDe = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : propias(v));
@@ -247,7 +246,7 @@ class ValeReporteGruposService {
           if (!propia.length) continue;
           a += 1;
           if (propia.every(aprobada)) { // entregado = aprobado por el Encargado (al corte)
-             b += 1; if (atrasoEnTaller(v, propia).atrasado) tarde += 1; }
+             b += 1; if (diasAtrasoAl(v, corte) >= 1) tarde += 1; }
         }
         return { id: p.id, nombre: p.nombre, a, b, tarde, sinEntregar: a - b };
       });

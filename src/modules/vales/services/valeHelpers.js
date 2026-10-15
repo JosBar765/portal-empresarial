@@ -118,16 +118,6 @@ function enriquecer(vale) {
   return { ...vale, atrasado, diasAtraso, venceHoy };
 }
 
-// El atraso que ven el Encargado del taller y el Diseñador termina cuando SU taller entrega la propuesta (`vale_talleres.atraso_congelado_en`);
-// si el vale ya tenía el atraso congelado antes, rige el más temprano. Sin entrega del taller, es el atraso del vale.
-function enriquecerParaFila(vale, fila) {
-  const propio = fila && fila.atraso_congelado_en;
-  if (!propio) return enriquecer(vale);
-  const delVale = vale.atraso_congelado_en;
-  const congelado = delVale && String(delVale) < String(propio) ? delVale : propio;
-  return enriquecer({ ...vale, atraso_congelado_en: congelado });
-}
-
 // `vale_original_id` es permanente (se fija al crear el vale MOD- y nunca
 // cambia), a diferencia de `estado`, que solo vale MODIFICADO justo después
 // de aprobarModificacion y luego avanza (RECIBIDO, PENDIENTE_CONFIRMACION,
@@ -273,7 +263,7 @@ module.exports = {
   ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
-  hoyISO, horaActual, calcularAtraso, enriquecer, enriquecerParaFila,
+  hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
   normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial,

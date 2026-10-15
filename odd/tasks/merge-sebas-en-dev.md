@@ -65,6 +65,12 @@ Cantidad mínima 1; adjuntos obligatorios al crear/corregir/modificar; urgente m
 ## PDF de Rendimiento con colores (2026-10-15)
 - Gráfica (solo diseñadores): el % de efectividad de cada persona lleva el criterio de los contadores (rojo < 50 %, ámbar < 90 %, normal si no). Comparativo por diseñador: lo mismo en % efectividad y % a tiempo; Entregas tarde en ámbar y Sin entregar en rojo cuando son mayores que 0 (también en el total). El color se decide con el % redondeado que se ve. La pantalla ya tenía tarde/sin entregar con color; los % individuales de la pantalla no.
 
+## Un solo atraso (2026-10-15, decisión del dueño)
+- El atraso es el del VALE, para todos los roles, y termina cuando la propuesta se envía al asesor (estado PENDIENTE_CONFIRMACION): con un taller, al aprobar su Encargado; con varios, en la fusión final (`aprobarGeneral`). Ya no termina al confirmar el asesor ni al aprobar cada taller. Se retiró el atraso «por taller» (`enriquecerParaFila`, `atrasoEnTaller`); `vale_talleres.atraso_congelado_en` queda solo como la hora en que el Encargado aprobó (sirve para saber cuándo se entregó el taller y para las cifras al cierre).
+- Rendimiento: «entregas tarde» / «% a tiempo» usan ese atraso del vale (con corte al cierre en períodos cerrados). En septiembre (BD local) el % a tiempo pasó de 100 % a 78,6 %: 3 vales entregados con atraso (MTC-RR-138 4 d, MTS-NM-104 2 d, MTC-KO-121 1 d) por contar hasta la fusión.
+- `06_atraso_taller.sql` paso 3: el atraso del vale se fija en la primera vez que pasó a PENDIENTE_CONFIRMACION (historial), sin alargar uno ya congelado. Cambia el «atraso final» de vales históricos.
+- Pruebas: flujo real 31/31 (con varios talleres NO se congela al aprobar los talleres; sí en la fusión), Sebas 24/24 (el asesor ve el mismo atraso que el Encargado), concurrencia 6/6.
+
 ## Para desplegar
 Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_taller` (`06_atraso_taller.sql`, idempotente, agrega `vale_talleres.atraso_congelado_en` y rellena las filas ya aprobadas). El número 06 choca con `06_quitar_rendimiento`; se cita por nombre.
 
