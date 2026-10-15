@@ -274,7 +274,10 @@ class ValeReporteGruposService {
         const suyos = visibles.filter(v => v.asesor_id === p.id);
         return {
           id: p.id, nombre: p.nombre, a: suyos.length, b: suyos.filter(v => fichas.get(v.id).autorizado).length,
-          atrasados: suyos.filter(v => fichas.get(v.id).atrasado).length
+          // Recibidos = propuesta ya enviada al asesor (sección Entregados), con o sin atraso; el resto está sin recibir.
+          recibidosATiempo: suyos.filter(v => fichas.get(v.id).seccion === 'entregados' && !fichas.get(v.id).diasTarde).length,
+          recibidosTarde: suyos.filter(v => fichas.get(v.id).seccion === 'entregados' && fichas.get(v.id).diasTarde > 0).length,
+          sinRecibir: suyos.filter(v => fichas.get(v.id).seccion !== 'entregados').length
         };
       });
       return {
@@ -300,8 +303,9 @@ class ValeReporteGruposService {
     const a = filas.reduce((s, f) => s + f.a, 0);
     const b = filas.reduce((s, f) => s + f.b, 0);
     const suma = (clave) => filas.reduce((s, f) => s + (f[clave] || 0), 0);
-    // Taller: entregas tarde y sin entregar; Supervisor: atrasados.
-    return filas.some(f => 'tarde' in f) ? { a, b, tarde: suma('tarde'), sinEntregar: suma('sinEntregar') } : { a, b, atrasados: suma('atrasados') };
+    // Taller: entregas tarde y sin entregar; Supervisor: recibidos (a tiempo / con atraso) y sin recibir.
+    return filas.some(f => 'tarde' in f) ? { a, b, tarde: suma('tarde'), sinEntregar: suma('sinEntregar') }
+      : { a, b, recibidosATiempo: suma('recibidosATiempo'), recibidosTarde: suma('recibidosTarde'), sinRecibir: suma('sinRecibir') };
   }
 
   // Entrantes (vales con entrega en la ventana, hasta hoy), entregados (de ellos, los que el Encargado ya aprobó, con atraso o sin él), sin

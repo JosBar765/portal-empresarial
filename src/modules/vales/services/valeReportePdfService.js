@@ -286,7 +286,7 @@ class ValeReportePdfService {
   }
 
   // Tabla comparativa del reporte de rendimiento, con fila de totales. Taller: Asignados, Entregados, % efectividad, % a tiempo,
-  // Entregas tarde y Sin entregar; Supervisor: las dos cifras, su % y los atrasados.
+  // Entregas tarde y Sin entregar; Supervisor: creados, autorizados, % de autorización, recibidos sin/con atraso y sin recibir.
   _tablaRendimiento(ctx, r) {
     const [serieA, serieB] = r.series;
     this._titulo(ctx, r.clave === 'disenadores' ? 'COMPARATIVO POR DISEÑADOR' : 'COMPARATIVO POR PERSONA');
@@ -299,13 +299,14 @@ class ValeReportePdfService {
         { label: 'Sin entregar', ancho: 1.1, centro: true }
       ]
       : [
-        { label: r.persona || 'Persona', ancho: 2.6 }, { label: serieA.etiqueta, ancho: 1, centro: true },
-        { label: serieB.etiqueta, ancho: 1, centro: true }, { label: '%', ancho: 1.3, centro: true }, { label: 'Atrasados', ancho: 1, centro: true }
+        { label: r.persona || 'Persona', ancho: 2.4 }, { label: serieA.etiqueta, ancho: 1, centro: true }, { label: serieB.etiqueta, ancho: 1.1, centro: true },
+        { label: '% autoriz.', ancho: 1.1, centro: true }, { label: 'Recib. sin atraso', ancho: 1.3, centro: true },
+        { label: 'Recib. con atraso', ancho: 1.3, centro: true }, { label: 'Sin recibir', ancho: 1.1, centro: true }
       ];
     // En la fila de total los porcentajes van en guion (sumar porcentajes de personas confunde; los contadores dan el global).
     const fila = (nombre, f, esTotal = false) => (esTaller
       ? [nombre, String(f.a), String(f.b), esTotal ? '-' : celdaPct(f.b, f.a), esTotal ? '-' : celdaPct(f.b - f.tarde, f.b), celdaConteo(f.tarde, 'ambar'), celdaConteo(f.sinEntregar, 'rojo')]
-      : [nombre, String(f.a), String(f.b), esTotal ? '-' : pct(f.a, f.b), String(f.atrasados)]);
+      : [nombre, String(f.a), String(f.b), esTotal ? '-' : pct(f.a, f.b), String(f.recibidosATiempo), celdaConteo(f.recibidosTarde, 'ambar'), celdaConteo(f.sinRecibir, 'rojo')]);
     const filas = (r.sinAsignar ? [r.sinAsignar, ...r.filas] : r.filas).map(f => fila(f.nombre, f));
     filas.push(fila('TOTAL', r.totales, true));
     this._tabla(ctx, columnas, filas, { altoFila: 16, tamano: 8 });

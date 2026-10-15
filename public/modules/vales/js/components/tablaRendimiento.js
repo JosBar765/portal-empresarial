@@ -3,7 +3,7 @@ import { escapeHtml } from '../utils/formato.js';
 // -----------------------------------------------------------------------
 // Tabla comparativa del reporte de Rendimiento: una fila por persona y una fila de totales. En celular cada fila pasa a tarjeta.
 // Taller (diseñadores): Asignados, Entregados, % efectividad, % a tiempo, Entregas tarde y Sin entregar.
-// Supervisor (asesores): las dos cifras comparadas, su % y sus atrasados.
+// Supervisor (asesores): creados, autorizados, % de autorización, recibidos sin/con atraso y sin recibir.
 // -----------------------------------------------------------------------
 const pct = (a, b) => (a > 0 ? `${Math.round((b / a) * 100)} %` : '—');
 // % a tiempo: lo entregado sin atraso entre lo entregado.
@@ -41,18 +41,22 @@ function htmlTablaSupervisor(r) {
       <th scope="row" data-label="${escapeHtml(r.persona)}">${escapeHtml(f.nombre)}</th>
       <td class="rend-num" data-label="${escapeHtml(serieA.etiqueta)}">${f.a}</td>
       <td class="rend-num" data-label="${escapeHtml(serieB.etiqueta)}">${f.b}</td>
-      <td class="rend-num" data-label="%">${pct(f.a, f.b)}</td>
-      <td class="rend-num${f.atrasados ? ' rend-num--alerta' : ''}" data-label="Atrasados">${f.atrasados}</td>
+      <td class="rend-num" data-label="% autorización">${pct(f.a, f.b)}</td>
+      <td class="rend-num" data-label="Recibidos sin atraso">${f.recibidosATiempo}</td>
+      <td class="rend-num${f.recibidosTarde ? ' rend-num--aviso' : ''}" data-label="Recibidos con atraso">${f.recibidosTarde}</td>
+      <td class="rend-num${f.sinRecibir ? ' rend-num--alerta' : ''}" data-label="Sin recibir">${f.sinRecibir}</td>
     </tr>`).join('');
   return {
-    sub: 'Las mismas cifras de la gráfica, con atrasados',
-    cabecera: `<th scope="col">${escapeHtml(r.persona)}</th><th scope="col" class="rend-num">${escapeHtml(serieA.etiqueta)}</th><th scope="col" class="rend-num">${escapeHtml(serieB.etiqueta)}</th><th scope="col" class="rend-num">%</th><th scope="col" class="rend-num">Atrasados</th>`,
+    sub: 'Las cifras de la gráfica, con lo recibido y lo que falta por recibir',
+    cabecera: `<th scope="col">${escapeHtml(r.persona)}</th><th scope="col" class="rend-num">${escapeHtml(serieA.etiqueta)}</th><th scope="col" class="rend-num">${escapeHtml(serieB.etiqueta)}</th><th scope="col" class="rend-num">% autorización</th><th scope="col" class="rend-num">Recibidos sin atraso</th><th scope="col" class="rend-num">Recibidos con atraso</th><th scope="col" class="rend-num">Sin recibir</th>`,
     filas,
     total: `<th scope="row" data-label="Total">Total</th>
             <td class="rend-num" data-label="${escapeHtml(serieA.etiqueta)}">${r.totales.a}</td>
             <td class="rend-num" data-label="${escapeHtml(serieB.etiqueta)}">${r.totales.b}</td>
-            <td class="rend-num" data-label="%">—</td>
-            <td class="rend-num${r.totales.atrasados ? ' rend-num--alerta' : ''}" data-label="Atrasados">${r.totales.atrasados}</td>`
+            <td class="rend-num" data-label="% autorización">—</td>
+            <td class="rend-num" data-label="Recibidos sin atraso">${r.totales.recibidosATiempo}</td>
+            <td class="rend-num${r.totales.recibidosTarde ? ' rend-num--aviso' : ''}" data-label="Recibidos con atraso">${r.totales.recibidosTarde}</td>
+            <td class="rend-num${r.totales.sinRecibir ? ' rend-num--alerta' : ''}" data-label="Sin recibir">${r.totales.sinRecibir}</td>`
   };
 }
 

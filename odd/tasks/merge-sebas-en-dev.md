@@ -85,3 +85,6 @@ Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_ta
 ## No probado
 - Reportes del Encargado/Diseñador con la regla de atraso del taller por la interfaz (el del Encargado se probó por API; el del Diseñador solo por lectura del código, porque ese rol no tiene permiso de reportes). Un vale ya aprobado por su taller no muestra su atraso congelado en los reportes (queda en «entregados» sin atraso).
 - `e2e_merge` y `e2e_reportes_roles` (de la ronda anterior) dan fallos por expectativas desactualizadas: fusión sin archivo (ahora debe dar 400), permisos de reportes que mi BD local tiene concedidos a roles 2-5, y agrupaciones por rol. No son regresiones del merge.
+
+## Rendimiento del Supervisor: comparativo por asesor
+- [x] Columnas Creados, Autorizados, % autorización, Recibidos sin atraso, Recibidos con atraso y Sin recibir (pantalla, PDF y API); TOTAL sin % . Verificado en septiembre al cierre contra la BD: 20 creados, 18 autorizados, 12+2 recibidos, 6 sin recibir; PDF con los encabezados nuevos.
