@@ -62,6 +62,8 @@ const AYUDAS_KPI = {
 };
 // Estados en los que el vale ya está en los talleres (se espera una propuesta).
 const ESTADOS_CON_TALLER = ['CREADO', 'MODIFICADO', 'APROBADO_DEPARTAMENTO', 'PENDIENTE_CONFIRMACION'];
+// Vales cuya propuesta ya se envió al asesor: entregados, ya no acumulan atraso.
+const ENVIADOS_AL_ASESOR = [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
 const ESTADOS_COLA_DISENADOR = [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION];
 
 // ---- Fechas (todo en hora de Guatemala, como el resto del módulo) ----
@@ -483,7 +485,7 @@ class ValeReporteService {
     const esperanPropuesta = propios.filter(v => ESTADOS_CON_TALLER.includes(v.estado));
     const conPropuesta = await propuestaRepository.listarUltimasPorVales(esperanPropuesta.map(v => v.id));
     const sinPropuestaAhora = esperanPropuesta.filter(v => !v.propuesta_general_url && !conPropuesta.has(v.id)).length;
-    return { abiertosAhora: propios.length, atrasadosAhora: propios.filter(v => v.atrasado).length, sinPropuestaAhora };
+    return { abiertosAhora: propios.length, atrasadosAhora: propios.filter(v => v.atrasado && !ENVIADOS_AL_ASESOR.includes(v.estado)).length, sinPropuestaAhora };
   }
 
   // Cada indicador lleva su explicación (`ayuda`), que la pantalla muestra en el ícono de información de la tarjeta.
@@ -622,7 +624,7 @@ class ValeReporteService {
     };
     const candidatos = [...porId.values()]
       .filter(v => v.atrasado && !ESTADOS_TERMINALES.includes(v.estado) && antesDelPeriodo(String(v.fecha_entrega).slice(0, 10)))
-      .filter(v => (mios ? mios.has(v.id) && !aprobadoPorSuTaller(v.id) : v.asesor_id === usuario.id));
+      .filter(v => (mios ? mios.has(v.id) && !aprobadoPorSuTaller(v.id) : v.asesor_id === usuario.id && !ENVIADOS_AL_ASESOR.includes(v.estado)));
     const conTaller = await valeBuzonService._enriquecerConTaller(candidatos);
     const vales = conTaller
       .map(v => ({
@@ -684,7 +686,8 @@ class ValeReporteService {
       const entregado = alcance.rol === 'disenador' ? (propias.length > 0 && propias.every(x => ENTREGADA.includes(x.estado))) : LLEGO_AL_ASESOR.includes(f.estado);
       // El atraso del Diseñador corre hasta que su Encargado aprueba (en revisión sigue contando).
       const aprobadoPorSuTaller = alcance.rol === 'disenador' && propias.length > 0 && propias.every(x => x.estado === ESTADOS_TALLER.APROBADO);
-      const abierto = !ESTADOS_TERMINALES.includes(f.estado) && !aprobadoPorSuTaller;
+      // Una vez entregado el vale ya no acumula atraso (Diseñador: aprobado por su Encargado; Asesor: propuesta ya enviada a él).
+      const abierto = !ESTADOS_TERMINALES.includes(f.estado) && !aprobadoPorSuTaller && !(alcance.rol !== 'disenador' && entregado);
       f.seccion = f.atrasado && abierto ? 'atrasados' : (entregado ? 'entregados' : 'noEntregados');
     });
     const ordenSecciones = ['atrasados', 'noEntregados', 'entregados'];

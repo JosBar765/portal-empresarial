@@ -110,7 +110,8 @@ class ValeReporteGruposService {
       // asesor (o aprobado, en la vista Taller) a más tardar en el corte, y atrasado es lo vencido antes del corte que aún no se entregaba.
       const enviadoAlAsesor = ESTADOS_LLEGO_AL_ASESOR.includes(v.estado) && (!alCorte || !v.atraso_congelado_en || fechaDe(v.atraso_congelado_en) <= corte);
       const entregado = esTaller ? terminado : enviadoAlAsesor;
-      const abierto = alCorte ? !entregado : (!ESTADOS_TERMINALES.includes(v.estado) && !aprobadoTaller);
+      // Una vez entregado (taller: aprobado por su Encargado; ventas: propuesta ya enviada al asesor) el vale ya no acumula atraso.
+      const abierto = alCorte ? !entregado : (!ESTADOS_TERMINALES.includes(v.estado) && !(esTaller ? aprobadoTaller : entregado));
       const vencido = alCorte ? fechaDe(v.fecha_entrega) < corte : !!v.atrasado;
       const asignados = [...new Set((esTaller ? propias(v) : filas(v)).map(f => f.disenador_id).filter(Boolean))].map(id => nombres.get(id) || `#${id}`);
       const atrasadoFicha = abierto && vencido;
