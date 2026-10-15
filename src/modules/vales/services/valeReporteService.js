@@ -612,9 +612,14 @@ class ValeReporteService {
   // Atrasados vigentes de un Asesor o Diseñador: sus vales abiertos y atrasados con entrega fuera del período.
   async _atrasadosVigentesSimple(alcance, usuario, { porId, filasTaller, dentroDelRango }) {
     const mios = alcance.rol === 'disenador' ? new Set(filasTaller.filter(f => f.disenador_id === usuario.id).map(f => f.vale_id)) : null;
+    // Al Diseñador no le cuenta un vale que su Encargado ya aprobó (su atraso terminó ahí).
+    const aprobadoPorSuTaller = (valeId) => {
+      const propias = filasTaller.filter(f => f.vale_id === valeId && f.disenador_id === usuario.id);
+      return propias.length > 0 && propias.every(f => f.estado === ESTADOS_TALLER.APROBADO);
+    };
     const candidatos = [...porId.values()]
       .filter(v => v.atrasado && !ESTADOS_TERMINALES.includes(v.estado) && !dentroDelRango(String(v.fecha_entrega).slice(0, 10)))
-      .filter(v => (mios ? mios.has(v.id) : v.asesor_id === usuario.id));
+      .filter(v => (mios ? mios.has(v.id) && !aprobadoPorSuTaller(v.id) : v.asesor_id === usuario.id));
     const conTaller = await valeBuzonService._enriquecerConTaller(candidatos);
     const vales = conTaller
       .map(v => ({
@@ -679,7 +684,9 @@ class ValeReporteService {
     filas.forEach(f => {
       const propias = alcance.rol === 'disenador' ? filasTaller.filter(x => x.vale_id === f.id && x.disenador_id === usuario.id) : [];
       const entregado = alcance.rol === 'disenador' ? (propias.length > 0 && propias.every(x => ENTREGADA.includes(x.estado))) : LLEGO_AL_ASESOR.includes(f.estado);
-      const abierto = !ESTADOS_TERMINALES.includes(f.estado) && !(alcance.rol === 'disenador' && entregado);
+      // El atraso del Diseñador corre hasta que su Encargado aprueba (en revisión sigue contando).
+      const aprobadoPorSuTaller = alcance.rol === 'disenador' && propias.length > 0 && propias.every(x => x.estado === ESTADOS_TALLER.APROBADO);
+      const abierto = !ESTADOS_TERMINALES.includes(f.estado) && !aprobadoPorSuTaller;
       f.seccion = f.atrasado && abierto ? 'atrasados' : (entregado ? 'entregados' : 'noEntregados');
     });
     const ordenSecciones = ['atrasados', 'noEntregados', 'entregados'];

@@ -159,7 +159,6 @@ class ValeTallerService {
       });
       await propuestaRepository.crearEnlaces(valeId, propuestaId, adjuntos.enlaces);
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_REVISION);
-      await valeTallerRepository.congelarAtraso(fila.id, `${hoyISO()} ${horaActual()}`);
       fila.estado = ESTADOS_TALLER.EN_REVISION;
       const detalleAdjuntos = describirAdjuntos({ archivo: !!url, enlaces: adjuntos.enlaces.length, nota: !!adjuntos.nota });
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, `${etiquetaActorTaller(usuario)} entregó propuesta${detalleAdjuntos ? ` (${detalleAdjuntos})` : ''}`);
@@ -280,6 +279,7 @@ class ValeTallerService {
         throw new Error('No se puede aprobar una propuesta en blanco: el diseñador debe adjuntar su documento o un enlace.');
       }
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.APROBADO);
+      await valeTallerRepository.congelarAtraso(fila.id, `${hoyISO()} ${horaActual()}`); // el atraso del taller termina al aprobar su Encargado
       fila.estado = ESTADOS_TALLER.APROBADO;
       const taller = await tallerRepository.obtenerPorId(fila.taller_id);
       const accionHistorial = esAutoaprobacion

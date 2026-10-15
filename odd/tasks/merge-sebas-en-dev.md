@@ -20,6 +20,13 @@ Cantidad mínima 1; adjuntos obligatorios al crear/corregir/modificar; urgente m
 - Concurrencia (`e2e_concurrencia`) 6/6: la cola por idempotency key sobrevive al merge (8 envíos simultáneos -> 1 vale).
 - Navegador: modal de crear vale (tarjeta «Pedido urgente», fecha deshabilitada hasta elegir taller, calendario con urgente) y buzón del Encargado con asesor y diseñador; sin errores de consola.
 
+## Corrección posterior (2026-10-15, pedido del dueño)
+- El atraso del taller se pausa cuando el ENCARGADO aprueba la propuesta (`_revisarPropuestaInterno`, también en la autoaprobación), no cuando el Diseñador la entrega. En revisión sigue corriendo. Desaprobar y reasignar lo reanuda (`atraso_congelado_en` = NULL).
+- Reportes: Encargado/Asistente (`valeReporteGruposService`) y Diseñador (`valeReporteService._listado` y `_atrasadosVigentesSimple`) cuentan el vale como atrasado hasta que su taller aprueba; el atraso de Asesor/Supervisor/Gerente/Admin sigue siendo el del vale.
+- `06_atraso_taller.sql` ahora rellena solo las filas APROBADAS (con la fecha de su aprobación en `vale_historial`). Aún no se importó en PROD, así que no hay datos a corregir.
+- Pruebas: `e2e_sebas` 24/24 (en revisión 5 días corriendo; al desaprobar sigue NULL; al aprobar se congela y baja a 2 días en Trabajo realizado; el Asesor sigue en 5). Reporte del Encargado: en revisión -> atrasados (5 días); aprobado -> entregados sin atraso.
+- Fila "Por fusionar" del Encargado: solo muestra al asesor (ya no "Sin asignar").
+
 ## Para desplegar
 Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_taller` (`06_atraso_taller.sql`, idempotente, agrega `vale_talleres.atraso_congelado_en` y rellena las filas ya entregadas). El número 06 choca con `06_quitar_rendimiento`; se cita por nombre.
 

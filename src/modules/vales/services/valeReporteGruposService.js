@@ -100,7 +100,9 @@ class ValeReporteGruposService {
       const conEnlaces = conExtra.fusion.has(v.id) || conExtra.propuestas.has(v.id) || !!v.propuesta_general_nota;
       const pipeline = calcularPipeline(v, { rolId: ROL.ADMINISTRADOR });
       const terminado = esTaller ? terminadoTaller(v) : pipeline.terminado;
-      const abierto = !ESTADOS_TERMINALES.includes(v.estado) && !(esTaller && terminado);
+      // Para el Encargado el atraso corre hasta que su taller aprueba (en revisión sigue contando); «terminado» solo clasifica.
+      const aprobadoTaller = esTaller && (ESTADOS_VALE_TERMINADO_TALLER.includes(v.estado) || (propias(v).length > 0 && propias(v).every(f => f.estado === ESTADOS_TALLER.APROBADO)));
+      const abierto = !ESTADOS_TERMINALES.includes(v.estado) && !aprobadoTaller;
       const asignados = [...new Set((esTaller ? propias(v) : filas(v)).map(f => f.disenador_id).filter(Boolean))].map(id => nombres.get(id) || `#${id}`);
       const atrasadoFicha = abierto && !!v.atrasado;
       const entregado = esTaller ? terminado : ESTADOS_LLEGO_AL_ASESOR.includes(v.estado);
