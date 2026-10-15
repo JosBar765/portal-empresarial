@@ -214,7 +214,8 @@ class ValeReporteGruposService {
     const hoy = hoyISO();
     const exigibles = visibles.filter(v => fechaDe(v.fecha_entrega) <= hoy);
     const indicadoresTaller = esTaller ? this._indicadoresTaller(exigibles, fichas) : null;
-    const datosRendimiento = this._rendimiento({ alcance, visibles: exigibles, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol });
+    const hastaHoy = exigibles.length < visibles.length; // solo se anuncia «hasta hoy» si de verdad quedó algo fuera
+    const datosRendimiento = this._rendimiento({ alcance, visibles: exigibles, hastaHoy, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol });
     const rendimiento = datosRendimiento && { ...datosRendimiento, totales: this._totalesRendimiento(datosRendimiento.filas, datosRendimiento.sinAsignar) };
     return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento };
   }
@@ -222,7 +223,7 @@ class ValeReporteGruposService {
   // Reporte de rendimiento (solo Encargado/Asistente y Supervisor): por persona, dos cifras comparadas, su % y sus atrasados, sobre los
   // vales del período y con los filtros aplicados. Encargado: asignados vs entregados por diseñador (y él mismo). Supervisor: creados vs
   // autorizados por asesor (y él mismo). Alimenta la gráfica y la tabla comparativa.
-  _rendimiento({ alcance, visibles, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol }) {
+  _rendimiento({ alcance, visibles, hastaHoy, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol }) {
     if (!alcance.equipo || !(alcance.personas || []).length) return null;
     if (esTaller) {
       const filasDe = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : propias(v));
@@ -252,7 +253,7 @@ class ValeReporteGruposService {
         sinAsignar = { nombre: 'Sin asignar', a: n, b: 0, tarde: 0, sinEntregar: n };
       }
       return {
-        clave: 'disenadores', sinAsignar, persona: 'Diseñador', titulo: 'Asignaciones por diseñador', subtitulo: 'Vales con entrega en el período, hasta hoy',
+        clave: 'disenadores', sinAsignar, persona: 'Diseñador', titulo: 'Asignaciones por diseñador', subtitulo: hastaHoy ? 'Vales con entrega en el período, hasta hoy' : 'Vales con entrega en el período',
         series: [
           { clave: 'a', etiqueta: 'Asignados', ayuda: 'Vales con entrega en el período asignados a esa persona.' },
           { clave: 'b', etiqueta: 'Entregados', ayuda: 'De esos vales, los que su propuesta ya aprobó el Encargado.' }

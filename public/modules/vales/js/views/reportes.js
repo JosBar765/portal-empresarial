@@ -267,7 +267,7 @@ function notasRendimiento(data) {
   return `<li>${entregado}</li>
     <li><strong>%:</strong> la segunda cifra entre la primera.</li>
     ${data.rol === 'encargado'
-      ? '<li><strong>Entregas tarde:</strong> de los entregados (aprobados por el Encargado), los que tienen atraso en su taller. <strong>% a tiempo:</strong> entregados sin atraso entre entregados. <strong>Sin entregar:</strong> asignados de la ventana que esa persona aún no entrega (asignados menos entregados). <strong>Sin asignar:</strong> vales de la ventana que ningún diseñador tiene todavía.</li>'
+      ? '<li><strong>Cómo se calcula:</strong> con el estado de hoy y solo con los vales cuya fecha de entrega ya llegó. Un vale que vence después cuenta cuando llega su fecha, aunque ya esté entregado. Uno que vence hoy es «sin entregar» pero no «atrasado» hasta mañana; «atrasado» es todo vale vencido que el Encargado aún no aprueba.</li><li><strong>Entregas tarde:</strong> de los entregados (aprobados por el Encargado), los que tienen atraso en su taller. <strong>% a tiempo:</strong> entregados sin atraso entre entregados. <strong>Sin entregar:</strong> asignados de la ventana que esa persona aún no entrega (asignados menos entregados). <strong>Sin asignar:</strong> vales de la ventana que ningún diseñador tiene todavía.</li>'
       : '<li><strong>Atrasados:</strong> vales abiertos del período con fecha de entrega vencida (hasta hoy).</li>'}
     <li>El período y los filtros de tienda, taller y personas se aplican igual que en Actividad.</li>`;
 }
