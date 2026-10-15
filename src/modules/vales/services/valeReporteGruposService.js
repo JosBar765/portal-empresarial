@@ -211,19 +211,26 @@ class ValeReporteGruposService {
       };
     }
     const indicadoresTaller = esTaller ? this._indicadoresTaller(visibles, fichas) : null;
-    const datosRendimiento = this._rendimiento({ alcance, visibles, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel });
-    const rendimiento = datosRendimiento && { ...datosRendimiento, totales: this._totalesRendimiento(datosRendimiento.filas) };
+    const datosRendimiento = this._rendimiento({ alcance, visibles, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol });
+    const rendimiento = datosRendimiento && { ...datosRendimiento, totales: this._totalesRendimiento(datosRendimiento.filas, datosRendimiento.sinAsignar) };
     return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento };
   }
 
   // Reporte de rendimiento (solo Encargado/Asistente y Supervisor): por persona, dos cifras comparadas, su % y sus atrasados, sobre los
   // vales del período y con los filtros aplicados. Encargado: asignados vs entregados por diseñador (y él mismo). Supervisor: creados vs
   // autorizados por asesor (y él mismo). Alimenta la gráfica y la tabla comparativa.
-  _rendimiento({ alcance, visibles, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel }) {
+  _rendimiento({ alcance, visibles, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol }) {
     if (!alcance.equipo || !(alcance.personas || []).length) return null;
     if (esTaller) {
-      const elegidas = disSel.size ? alcance.personas.filter(p => disSel.has(p.id)) : alcance.personas;
       const filasDe = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : propias(v));
+      const elegidas = disSel.size ? alcance.personas.filter(p => disSel.has(p.id)) : [...alcance.personas];
+      if (!disSel.size) {
+        // Quien tiene vales de la ventana aunque no figure entre los diseñadores del taller (p. ej. un asistente) también tiene su fila.
+        const conocidos = new Set(elegidas.map(p => p.id));
+        visibles.forEach(v => filasDe(v).forEach(f => {
+          if (f.disenador_id && !conocidos.has(f.disenador_id)) { conocidos.add(f.disenador_id); elegidas.push({ id: f.disenador_id, nombre: nombresConRol.get(f.disenador_id) || `#${f.disenador_id}` }); }
+        }));
+      }
       const ENTREGADA = [ESTADOS_TALLER.APROBADO]; // entregado = aprobado por el Encargado
       const filasGrafica = elegidas.map(p => {
         let a = 0; let b = 0; let tarde = 0;
@@ -235,8 +242,14 @@ class ValeReporteGruposService {
         }
         return { id: p.id, nombre: p.nombre, a, b, tarde, sinEntregar: a - b };
       });
+      // Vales de la ventana que ningún diseñador tiene todavía: fila «Sin asignar» de la tabla (sin filtro de diseñadores).
+      let sinAsignar = null;
+      if (!disSel.size) {
+        const n = visibles.filter(v => { const f = filasDe(v); return f.length > 0 && f.every(x => !x.disenador_id); }).length;
+        sinAsignar = { nombre: 'Sin asignar', a: n, b: 0, tarde: 0, sinEntregar: n };
+      }
       return {
-        clave: 'disenadores', persona: 'Diseñador', titulo: 'Asignaciones por diseñador', subtitulo: 'Vales con entrega en el período',
+        clave: 'disenadores', sinAsignar, persona: 'Diseñador', titulo: 'Asignaciones por diseñador', subtitulo: 'Vales con entrega en el período',
         series: [
           { clave: 'a', etiqueta: 'Asignados', ayuda: 'Vales con entrega en el período asignados a esa persona.' },
           { clave: 'b', etiqueta: 'Entregados', ayuda: 'De esos vales, los que su propuesta ya aprobó el Encargado.' }
@@ -271,7 +284,8 @@ class ValeReporteGruposService {
   }
 
   // Totales de la tabla comparativa y quién tiene el % más bajo (solo entre quienes tienen vales; hace falta más de una persona).
-  _totalesRendimiento(filas) {
+  _totalesRendimiento(filasPersonas, sinAsignar = null) {
+    const filas = sinAsignar ? [sinAsignar, ...filasPersonas] : filasPersonas;
     const a = filas.reduce((s, f) => s + f.a, 0);
     const b = filas.reduce((s, f) => s + f.b, 0);
     const suma = (clave) => filas.reduce((s, f) => s + (f[clave] || 0), 0);

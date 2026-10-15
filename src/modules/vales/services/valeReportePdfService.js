@@ -318,7 +318,7 @@ class ValeReportePdfService {
     const fila = (nombre, f) => (esTaller
       ? [nombre, String(f.a), String(f.b), pct(f.a, f.b), aTiempo(f.b, f.tarde), String(f.tarde), String(f.sinEntregar)]
       : [nombre, String(f.a), String(f.b), pct(f.a, f.b), String(f.atrasados)]);
-    const filas = r.filas.map(f => fila(f.nombre, f));
+    const filas = (r.sinAsignar ? [r.sinAsignar, ...r.filas] : r.filas).map(f => fila(f.nombre, f));
     filas.push(fila('TOTAL', r.totales));
     this._tabla(ctx, columnas, filas, { altoFila: 16, tamano: 8 });
   }

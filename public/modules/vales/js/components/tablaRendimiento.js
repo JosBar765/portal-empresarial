@@ -19,7 +19,9 @@ function htmlTablaTaller(r) {
       <td class="rend-num" data-label="${col[3]}">${pctATiempo(f.b, f.tarde)}</td>
       <td class="rend-num${f.tarde ? ' rend-num--aviso' : ''}" data-label="${col[4]}">${f.tarde}</td>
       <td class="rend-num${f.sinEntregar ? ' rend-num--alerta' : ''}" data-label="${col[5]}">${f.sinEntregar}</td>`;
-  const filas = r.filas.map(f => `
+  // «Sin asignar» va primero: los vales de la ventana que ningún diseñador tiene todavía.
+  const todas = r.sinAsignar ? [r.sinAsignar, ...r.filas] : r.filas;
+  const filas = todas.map(f => `
     <tr${f.a === 0 ? ' class="rend-fila-vacia"' : ''}>
       <th scope="row" data-label="${escapeHtml(r.persona)}">${escapeHtml(f.nombre)}</th>${celdas(f)}
     </tr>`).join('');

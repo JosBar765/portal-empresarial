@@ -35,6 +35,11 @@ Cantidad mínima 1; adjuntos obligatorios al crear/corregir/modificar; urgente m
 - PDF de Rendimiento con las mismas columnas. El PDF de Actividad no marca en amarillo.
 - Definición de las métricas del taller (dueño): entrantes = vales con entrega en la ventana; entregados = de ellos, los que el Encargado YA APROBÓ (en revisión aún no cuenta; con atraso o sin él), en Actividad y en Rendimiento; sin entregar = entrantes - entregados; atrasados sin entregar = los que se arrastran (entrega ANTERIOR a la ventana, abiertos y atrasados) que el taller no ha entregado; % efectividad = entregados / entrantes; % a tiempo = entregados sin atraso en su taller / entregados. Por diseñador: sin entregar = asignados - entregados (antes solo contaba los ya atrasados). Sin «% más bajo» en ningún comparativo (pantalla ni PDF).
 
+## Atraso unificado y datos (2026-10-15, pedido del dueño)
+- El atraso del VALE (Asesor, Supervisor, Gerente, Administrador) ahora también termina cuando aprueba el último taller (`_recalcularEstadoVale` -> `congelarAtraso`), ya no cuando el asesor confirma; el del taller (Encargado/Diseñador) termina cuando aprueba su taller. En un vale de un solo taller coinciden; en uno de varios talleres cada Encargado ve el suyo y los demás roles ven el del último. `06_atraso_taller.sql` paso 3 lo aplica a los vales ya aprobados (sin alargar atrasos ya congelados) — cambia el «atraso final» de vales históricos.
+- Comparativo del taller: fila «Sin asignar» al inicio (vales de la ventana sin diseñador; no entra en la gráfica) y fila para quien tenga vales aunque no figure entre los diseñadores del taller (p. ej. un asistente). Los totales cuadran con las tarjetas (entrantes, entregados, sin entregar).
+- BD LOCAL: reparadas las cronologías incoherentes de vales de prueba de sep–nov (creados después de su entrega, aprobados antes de asignarse, vale confirmado con un taller sin aprobar, atraso del vale anterior a la aprobación); auditoría sin hallazgos. Scripts en el scratchpad de la sesión (no van al repo).
+
 ## Para desplegar
 Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_taller` (`06_atraso_taller.sql`, idempotente, agrega `vale_talleres.atraso_congelado_en` y rellena las filas ya aprobadas). El número 06 choca con `06_quitar_rendimiento`; se cita por nombre.
 

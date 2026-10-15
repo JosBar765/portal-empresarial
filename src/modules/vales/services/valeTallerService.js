@@ -336,6 +336,8 @@ class ValeTallerService {
     const filas = await valeTallerRepository.listarPorVale(valeId);
     const todosAprobados = filas.length > 0 && filas.every(f => f.estado === ESTADOS_TALLER.APROBADO);
     if (!todosAprobados) return;
+    // El atraso del vale termina cuando el último taller aprueba (se fija una sola vez), no cuando el asesor confirma.
+    await valeRepository.congelarAtraso(valeId, `${hoyISO()} ${horaActual()}`);
 
     const vale = await valeRepository.obtenerPorId(valeId);
     // Solo hay fusión que hacer cuando de verdad hay 2+ talleres
