@@ -394,6 +394,8 @@ class ValeReporteService {
       };
       grupos = await valeReporteGruposService.armar(argumentos);
       atrasadosVigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosAntesDe: (f) => antesDe(f, rango) });
+      // Contador «Atrasados sin entregar»: los atrasados que se arrastran de antes de la ventana y el taller aún no entrega.
+      if (grupos.indicadoresTaller) grupos.indicadoresTaller.atrasadosSinEntregar = atrasadosVigentes.sinEntregar || 0;
     } else {
       const nombres = await this._nombres(alcance, normalizados);
       tablas = await this._tablas(alcance, eventosPeriodo, paresAplicables, rango, { todos, filasTaller, nombres, personaIds });

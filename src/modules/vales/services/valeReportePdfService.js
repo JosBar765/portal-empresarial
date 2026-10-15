@@ -315,11 +315,11 @@ class ValeReportePdfService {
         { label: r.persona || 'Persona', ancho: 2.6 }, { label: serieA.etiqueta, ancho: 1, centro: true },
         { label: serieB.etiqueta, ancho: 1, centro: true }, { label: '%', ancho: 1.3, centro: true }, { label: 'Atrasados', ancho: 1, centro: true }
       ];
-    const fila = (nombre, f, masBajo) => (esTaller
+    const fila = (nombre, f) => (esTaller
       ? [nombre, String(f.a), String(f.b), pct(f.a, f.b), aTiempo(f.b, f.tarde), String(f.tarde), String(f.sinEntregar)]
-      : [nombre, String(f.a), String(f.b), `${pct(f.a, f.b)}${masBajo ? '  (más bajo)' : ''}`, String(f.atrasados)]);
-    const filas = r.filas.map(f => fila(f.nombre, f, r.totales.masBajo === f.id));
-    filas.push(fila('TOTAL', r.totales, false));
+      : [nombre, String(f.a), String(f.b), pct(f.a, f.b), String(f.atrasados)]);
+    const filas = r.filas.map(f => fila(f.nombre, f));
+    filas.push(fila('TOTAL', r.totales));
     this._tabla(ctx, columnas, filas, { altoFila: 16, tamano: 8 });
   }
 

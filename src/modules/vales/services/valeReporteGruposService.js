@@ -180,7 +180,8 @@ class ValeReporteGruposService {
       const todosVigentes = [...unicos.values()]
         .map(({ responsables, ...v }) => ({ ...v, responsable: responsables.join(', ') }))
         .sort((a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || String(a.fechaEntrega).localeCompare(String(b.fechaEntrega)));
-      return { total: todosVigentes.length, truncado: todosVigentes.length > MAX_VIGENTES, vales: todosVigentes.slice(0, MAX_VIGENTES) };
+      // `sinEntregar`: de los atrasados que se arrastran, los que el taller aún no entrega (alimenta el contador «Atrasados sin entregar»).
+      return { total: todosVigentes.length, truncado: todosVigentes.length > MAX_VIGENTES, sinEntregar: todosVigentes.filter(v => !v.terminado).length, vales: todosVigentes.slice(0, MAX_VIGENTES) };
     }
 
     // Tres secciones (atrasados, no entregados, entregados): las mismas filas de la agrupación elegida, solo con los vales de cada una.
@@ -225,15 +226,14 @@ class ValeReporteGruposService {
       const filasDe = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : propias(v));
       const ENTREGADA = [ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO];
       const filasGrafica = elegidas.map(p => {
-        let a = 0; let b = 0; let tarde = 0; let sinEntregar = 0;
+        let a = 0; let b = 0; let tarde = 0;
         for (const v of visibles) {
           const propia = filasDe(v).filter(f => f.disenador_id === p.id);
           if (!propia.length) continue;
           a += 1;
-          const atrasado = atrasoEnTaller(v, propia).atrasado;
-          if (propia.every(f => ENTREGADA.includes(f.estado))) { b += 1; if (atrasado) tarde += 1; } else if (atrasado) sinEntregar += 1;
+          if (propia.every(f => ENTREGADA.includes(f.estado))) { b += 1; if (atrasoEnTaller(v, propia).atrasado) tarde += 1; }
         }
-        return { id: p.id, nombre: p.nombre, a, b, tarde, sinEntregar };
+        return { id: p.id, nombre: p.nombre, a, b, tarde, sinEntregar: a - b };
       });
       return {
         clave: 'disenadores', persona: 'Diseñador', titulo: 'Asignaciones por diseñador', subtitulo: 'Vales con entrega en el período',
@@ -274,22 +274,14 @@ class ValeReporteGruposService {
   _totalesRendimiento(filas) {
     const a = filas.reduce((s, f) => s + f.a, 0);
     const b = filas.reduce((s, f) => s + f.b, 0);
-    const conVales = filas.filter(f => f.a > 0);
-    let masBajo = null;
-    if (conVales.length > 1) {
-      const pct = (f) => f.b / f.a;
-      const menor = Math.min(...conVales.map(pct));
-      const empatados = conVales.filter(f => pct(f) === menor);
-      if (empatados.length === 1 && menor < 1) masBajo = empatados[0].id;
-    }
     const suma = (clave) => filas.reduce((s, f) => s + (f[clave] || 0), 0);
     // Taller: entregas tarde y sin entregar; Supervisor: atrasados.
-    return filas.some(f => 'tarde' in f) ? { a, b, tarde: suma('tarde'), sinEntregar: suma('sinEntregar'), masBajo } : { a, b, atrasados: suma('atrasados'), masBajo };
+    return filas.some(f => 'tarde' in f) ? { a, b, tarde: suma('tarde'), sinEntregar: suma('sinEntregar') } : { a, b, atrasados: suma('atrasados') };
   }
 
-  // Entrantes, entregados, sin entregar, atrasados sin entregar, % de efectividad y % entregados a tiempo de los vales del período en los talleres del
-  // encargado. «A tiempo»: lo entregado sin atraso en su taller (el atraso termina al aprobar el Encargado). «Atrasados sin entregar»:
-  // vales atrasados que el taller no ha entregado (no se trabajaron, o se trabajaron pero no se enviaron a revisión).
+  // Entrantes (vales con entrega en la ventana), entregados (de ellos, los que el taller ya entregó, con atraso o sin él), sin entregar (los
+  // demás), % de efectividad (entregados / entrantes) y % entregados a tiempo (entregados sin atraso en su taller / entregados). El atraso del
+  // taller termina al aprobar el Encargado. «Atrasados sin entregar» (los que se arrastran de antes de la ventana) lo completa el servicio.
   _indicadoresTaller(visibles, fichas) {
     const lista = visibles.map(v => ({ v, ficha: fichas.get(v.id) }));
     const entregados = lista.filter(x => x.ficha.terminado);
@@ -300,7 +292,7 @@ class ValeReporteGruposService {
       sinEntregar: lista.length - entregados.length,
       efectividad: lista.length ? redondear(entregados.length / lista.length * 100) : null,
       aTiempo: entregados.length ? redondear((entregados.length - tarde) / entregados.length * 100) : null,
-      atrasadosSinEntregar: lista.filter(x => x.ficha.atrasado && !x.ficha.terminado).length
+      atrasadosSinEntregar: 0 // lo completa el servicio con los atrasados que se arrastran de antes de la ventana
     };
   }
 }

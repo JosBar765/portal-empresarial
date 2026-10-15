@@ -1,8 +1,7 @@
 import { escapeHtml } from '../utils/formato.js';
 
 // -----------------------------------------------------------------------
-// Tabla comparativa del reporte de Rendimiento: una fila por persona y una fila de totales. La persona con el % más bajo lleva el
-// texto «más bajo» (no solo color). En celular cada fila pasa a tarjeta.
+// Tabla comparativa del reporte de Rendimiento: una fila por persona y una fila de totales. En celular cada fila pasa a tarjeta.
 // Taller (diseñadores): Asignados, Entregados, % efectividad, % a tiempo, Entregas tarde y Sin entregar.
 // Supervisor (asesores): las dos cifras comparadas, su % y sus atrasados.
 // -----------------------------------------------------------------------
@@ -36,7 +35,7 @@ function htmlTablaSupervisor(r) {
   const [serieA, serieB] = r.series;
   const filas = r.filas.map(f => `
     <tr${f.a === 0 ? ' class="rend-fila-vacia"' : ''}>
-      <th scope="row" data-label="${escapeHtml(r.persona)}">${escapeHtml(f.nombre)}${r.totales.masBajo === f.id ? '<span class="rep-chip rep-chip--aviso rep-chip--mini">% más bajo</span>' : ''}</th>
+      <th scope="row" data-label="${escapeHtml(r.persona)}">${escapeHtml(f.nombre)}</th>
       <td class="rend-num" data-label="${escapeHtml(serieA.etiqueta)}">${f.a}</td>
       <td class="rend-num" data-label="${escapeHtml(serieB.etiqueta)}">${f.b}</td>
       <td class="rend-num" data-label="%">${pct(f.a, f.b)}</td>
