@@ -71,6 +71,11 @@ Cantidad mínima 1; adjuntos obligatorios al crear/corregir/modificar; urgente m
 - `06_atraso_taller.sql` paso 3: el atraso del vale se fija en la primera vez que pasó a PENDIENTE_CONFIRMACION (historial), sin alargar uno ya congelado. Cambia el «atraso final» de vales históricos.
 - Pruebas: flujo real 31/31 (con varios talleres NO se congela al aprobar los talleres; sí en la fusión), Sebas 24/24 (el asesor ve el mismo atraso que el Encargado), concurrencia 6/6.
 
+## Supervisor y Asesor alineados con el taller (2026-10-15)
+- Rendimiento del Supervisor al cierre del período (todos los roles usan el mismo corte): creados / autorizados (`autorizado_en` <= corte) / atrasados al cierre. Verificado contra la BD en 4 asesores de septiembre: coinciden.
+- Lista del Asesor y del Diseñador (`_listado`): mismo orden por sección que el taller (atrasados por días; no entregados por fecha de ingreso; entregados con atraso primero) y PDF con Atraso solo en atrasados y «Con atraso» (rojo) con la fila amarilla en entregados.
+- Pendiente de decisión: los vales ya enviados al asesor (PENDIENTE_CONFIRMACION) con atraso congelado siguen en «Atrasados» para los roles de ventas en vez de «Entregados con atraso».
+
 ## Para desplegar
 Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_taller` (`06_atraso_taller.sql`, idempotente, agrega `vale_talleres.atraso_congelado_en` y rellena las filas ya aprobadas). El número 06 choca con `06_quitar_rendimiento`; se cita por nombre.
 

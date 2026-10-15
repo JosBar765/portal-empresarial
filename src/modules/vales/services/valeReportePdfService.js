@@ -410,19 +410,28 @@ class ValeReportePdfService {
       ctx.y -= 20;
       return;
     }
-    const columnas = [
-      { label: 'Correlativo', ancho: 1.7 }, { label: 'Estado', ancho: 2.7 }, { label: 'Entrega', ancho: 0.9, centro: true }, { label: 'Atraso', ancho: 0.9, centro: true },
-      ...v.columnas.map(c => ({ label: c.label, ancho: 1.35, derecha: c.formato === 'horas' }))
-    ];
     for (const sec of SECCIONES_PDF) {
       const datos = v.secciones[sec.clave];
       if (!datos.total) continue;
       this._titulo(ctx, `${sec.titulo} (${datos.total})`);
+      // «Atraso» solo en las secciones de atrasados; «Con atraso» solo en entregados, con la fila remarcada si se entregó con atraso.
+      const enAtraso = sec.clave === 'atrasados';
+      const entregados = sec.clave === 'entregados';
+      const columnas = [
+        { label: 'Correlativo', ancho: 1.7 }, { label: 'Estado', ancho: 2.7 }, { label: 'Entrega', ancho: 0.9, centro: true },
+        ...(enAtraso ? [{ label: 'Atraso', ancho: 0.9, centro: true }] : []),
+        ...(entregados ? [{ label: 'Con atraso', ancho: 1, centro: true }] : []),
+        ...v.columnas.map(c => ({ label: c.label, ancho: 1.35, derecha: c.formato === 'horas' }))
+      ];
       const filas = datos.filas.map(f => [
         `${f.correlativo}${f.esMod ? ' (MOD)' : ''}`, celdaEstado(f.pipeline),
-        `${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}`, semaforoAtraso(f), ...v.columnas.map(c => formatear(f[c.clave], c.formato))
+        `${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}`,
+        ...(enAtraso ? [semaforoAtraso(f)] : []),
+        ...(entregados ? [f.diasTarde > 0 ? { semaforo: { texto: `Sí · ${f.diasTarde}d`, tono: 'rojo' } } : 'No'] : []),
+        ...v.columnas.map(c => formatear(f[c.clave], c.formato))
       ]);
-      this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5 });
+      const resaltadas = entregados ? datos.filas.map((f, i) => (f.diasTarde > 0 ? i : -1)).filter(i => i >= 0) : [];
+      this._tabla(ctx, columnas, filas, { altoFila: 22, tamano: 7.5, resaltadas });
     }
     if (v.truncado) {
       this._espacio(ctx, 16);

@@ -106,12 +106,14 @@ class ValeReporteGruposService {
       const terminado = esTaller ? terminadoTaller(v) : pipeline.terminado;
       // Para el Encargado el atraso corre hasta que su taller aprueba (en revisión sigue contando).
       const aprobadoTaller = esTaller && (ESTADOS_VALE_TERMINADO_TALLER.includes(v.estado) || (propias(v).length > 0 && propias(v).every(f => f.estado === ESTADOS_TALLER.APROBADO)));
-      const alCierreTaller = alCorte && esTaller; // foto al cierre del período (vista Taller)
-      const abierto = alCierreTaller ? !terminado : (!ESTADOS_TERMINALES.includes(v.estado) && !aprobadoTaller);
-      const vencido = alCierreTaller ? fechaDe(v.fecha_entrega) < corte : !!v.atrasado;
+      // Foto al cierre del período (Rendimiento de un período cerrado), para todos los roles: «entregado» es lo que ya se había enviado al
+      // asesor (o aprobado, en la vista Taller) a más tardar en el corte, y atrasado es lo vencido antes del corte que aún no se entregaba.
+      const enviadoAlAsesor = ESTADOS_LLEGO_AL_ASESOR.includes(v.estado) && (!alCorte || !v.atraso_congelado_en || fechaDe(v.atraso_congelado_en) <= corte);
+      const entregado = esTaller ? terminado : enviadoAlAsesor;
+      const abierto = alCorte ? !entregado : (!ESTADOS_TERMINALES.includes(v.estado) && !aprobadoTaller);
+      const vencido = alCorte ? fechaDe(v.fecha_entrega) < corte : !!v.atrasado;
       const asignados = [...new Set((esTaller ? propias(v) : filas(v)).map(f => f.disenador_id).filter(Boolean))].map(id => nombres.get(id) || `#${id}`);
       const atrasadoFicha = abierto && vencido;
-      const entregado = esTaller ? terminado : ESTADOS_LLEGO_AL_ASESOR.includes(v.estado);
       // Precedencia: un vale atrasado va solo en su sección; luego entregado; el resto, no entregado.
       const seccion = atrasadoFicha ? 'atrasados' : (entregado ? 'entregados' : 'noEntregados');
       return [v.id, {
@@ -119,8 +121,8 @@ class ValeReporteGruposService {
         id: v.id, correlativo: v.correlativo, cliente: v.cliente_nombre, esMod: esValeDeModificacion(v), urgente: !!Number(v.urgente),
         estado: v.estado, pipeline, terminado, disenadores: asignados.length ? asignados.join(', ') : 'Sin asignar',
         creadoEn: `${fechaDe(v.fecha_creacion)} ${String(v.hora_creacion || '00:00:00').slice(0, 8)}`,
-        autorizado: !!v.autorizado_en, fechaEntrega: fechaDe(v.fecha_entrega),
-        atrasado: abierto && vencido, diasAtraso: abierto ? (alCierreTaller ? diasEntreFechas(fechaDe(v.fecha_entrega), corte) : (v.diasAtraso || 0)) : 0, venceHoy: abierto && !!v.venceHoy,
+        autorizado: !!v.autorizado_en && (!alCorte || fechaDe(v.autorizado_en) <= corte), fechaEntrega: fechaDe(v.fecha_entrega),
+        atrasado: abierto && vencido, diasAtraso: abierto ? (alCorte ? diasEntreFechas(fechaDe(v.fecha_entrega), corte) : (v.diasAtraso || 0)) : 0, venceHoy: abierto && !!v.venceHoy,
         // Días de atraso con que se entregó (hasta que la propuesta llegó al asesor, o hasta el corte); 0 si llegó a tiempo.
         diasTarde: entregado ? diasAtrasoAl(v, corte) : 0,
         tienePropuesta: !!urlPropuesta || conEnlaces, urlPropuesta, conEnlaces
@@ -322,3 +324,4 @@ class ValeReporteGruposService {
 
 module.exports = new ValeReporteGruposService();
 module.exports.AGRUPACIONES = AGRUPACIONES;
+module.exports.COMPARADORES = COMPARADORES;

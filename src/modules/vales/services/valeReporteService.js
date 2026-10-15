@@ -688,10 +688,15 @@ class ValeReporteService {
       f.seccion = f.atrasado && abierto ? 'atrasados' : (entregado ? 'entregados' : 'noEntregados');
     });
     const ordenSecciones = ['atrasados', 'noEntregados', 'entregados'];
-    // Atrasados: el más atrasado primero; el resto, por fecha de entrega.
-    filas.sort((a, b) => ordenSecciones.indexOf(a.seccion) - ordenSecciones.indexOf(b.seccion)
-      || (a.seccion === 'atrasados' ? (b.diasAtraso || 0) - (a.diasAtraso || 0) : 0)
-      || a.fechaEntrega.localeCompare(b.fechaEntrega) || a.correlativo.localeCompare(b.correlativo));
+    // Mismo orden por sección que el reporte de los talleres: atrasados, del más atrasado al menos; no entregados, por fecha de ingreso;
+    // entregados, primero los entregados con atraso (del más atrasado al menos) y luego los que llegaron a tiempo.
+    const { COMPARADORES } = valeReporteGruposService;
+    filas.forEach(f => {
+      const v = resumen.get(f.id);
+      f.creadoEn = `${String(v.fecha_creacion).slice(0, 10)} ${String(v.hora_creacion || '00:00:00').slice(0, 8)}`;
+      f.diasTarde = f.seccion === 'entregados' ? (v.diasAtraso || 0) : 0;
+    });
+    filas.sort((a, b) => ordenSecciones.indexOf(a.seccion) - ordenSecciones.indexOf(b.seccion) || COMPARADORES[a.seccion](a, b));
     // Cada vale lleva su paso del pipeline (el PDF lo muestra en lugar del estado crudo).
     const mostradas = filas.slice(0, maxFilas);
     const conTaller = await valeBuzonService._enriquecerConTaller(mostradas.map(f => resumen.get(f.id)));
