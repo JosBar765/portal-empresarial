@@ -1,7 +1,9 @@
 import { state } from '../state.js';
 import { ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
-import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dropzone.js';
+import { htmlAdjuntosPropuesta, wireAdjuntosPropuesta } from '../components/adjuntosPropuesta.js';
+import { abrirVisorVale, abrirVisorPropuesta } from '../components/visorDocumento.js';
+import { htmlPropuestaExtras, hayExtras } from '../components/propuestaInfo.js';
 import { obtenerDisenadoresAsignables, asignarDisenador, obtenerDetalleVale, revisarPropuesta, aprobarGeneral } from '../api/valesApi.js';
 import { escapeHtml } from '../utils/formato.js';
 import { cargarBuzon } from '../views/buzon.js';
@@ -98,10 +100,11 @@ export async function abrirModalRevisar(vale) {
       <p style="margin-bottom:14px;font-size:13px;">
         ${!ultima
           ? 'El diseñador canceló el proceso — no hay propuesta que revisar.'
-          : (ultima.url
-              ? `<a href="${ultima.url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta adjunta</a>`
+          : (puedeAprobar
+              ? '<button type="button" class="btn btn--ghost" id="btn-ver-propuesta">Ver propuesta</button>'
               : 'El diseñador no adjuntó documento de propuesta (no se puede aprobar en blanco).')}
       </p>
+      ${ultima && hayExtras(ultima) ? `<div class="pinfo-revision">${htmlPropuestaExtras(ultima)}</div>` : ''}
       <div class="form-field">
         <label>Reasignar a (solo si desaprueba)</label>
         <select id="select-disenador-reasignar">
@@ -115,6 +118,8 @@ export async function abrirModalRevisar(vale) {
     `
   });
 
+  const verPropuesta = overlay.querySelector('#btn-ver-propuesta');
+  if (verPropuesta) verPropuesta.addEventListener('click', () => abrirVisorPropuesta({ id: vale.id, correlativo: vale.correlativo, propuesta: { tipo: 'taller', disenadorId: vale.disenador_id } }));
   overlay.querySelector('#btn-aprobar').addEventListener('click', () => enviarRevision(true));
   overlay.querySelector('#btn-desaprobar').addEventListener('click', () => enviarRevision(false));
 
@@ -155,56 +160,65 @@ export async function abrirModalAprobarGeneral(vale) {
       detalleOriginal = null;
     }
   }
-  const urlDePropuesta = (det, disenadorId) => {
+  // Propuesta de cada taller: existe si trae su PDF; el botón abre el visor con su nota y enlaces.
+  const propuestaDe = (det, disenadorId) => {
     const propias = (det.propuestas || []).filter(p => p.disenador_id === disenadorId);
     const ultima = propias[propias.length - 1];
-    return ultima ? ultima.url : null;
+    return ultima && ultima.url ? { id: det.id, disenadorId } : null;
   };
-  const filaPropuesta = (nombre, url, corregido) =>
-    `<li><strong>${nombre}${corregido ? '*' : ''}:</strong> ${url ? `<a href="${url}" target="_blank">Ver propuesta</a>` : 'Sin propuesta'}</li>`;
+  const filaPropuesta = (nombre, propuesta, corregido) =>
+    `<li><strong>${nombre}${corregido ? '*' : ''}:</strong> ${propuesta ? `<button type="button" class="rep-link" data-ver-propuesta-id="${propuesta.id}" data-ver-propuesta-dis="${propuesta.disenadorId}">Ver propuesta</button>` : 'Sin propuesta'}</li>`;
 
   let filasPropuesta;
   if (detalleOriginal) {
     const corregidosPorTaller = new Map((detalle.talleres || []).map(t => [t.taller_id, t]));
     filasPropuesta = (detalleOriginal.talleres || []).map(tOriginal => {
       const corregido = corregidosPorTaller.get(tOriginal.taller_id);
-      const url = corregido ? urlDePropuesta(detalle, corregido.disenador_id) : urlDePropuesta(detalleOriginal, tOriginal.disenador_id);
-      return filaPropuesta(tOriginal.taller_nombre, url, !!corregido);
+      const propuesta = corregido ? propuestaDe(detalle, corregido.disenador_id) : propuestaDe(detalleOriginal, tOriginal.disenador_id);
+      return filaPropuesta(tOriginal.taller_nombre, propuesta, !!corregido);
     }).join('');
   } else {
-    filasPropuesta = (detalle.talleres || []).map(t => filaPropuesta(t.taller_nombre, urlDePropuesta(detalle, t.disenador_id), false)).join('');
+    filasPropuesta = (detalle.talleres || []).map(t => filaPropuesta(t.taller_nombre, propuestaDe(detalle, t.disenador_id), false)).join('');
   }
 
   const { overlay, cerrar } = abrirModal({
     title: `Aprobar y fusionar — ${vale.correlativo}`,
     bodyHtml: `
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-        <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale de arte (PDF)</a>
+        <button type="button" class="btn btn--ghost" id="btn-ver-vale">Ver vale de arte</button>
       </div>
       <p style="font-size:13px;margin-bottom:10px;">Revisa la propuesta de cada taller y adjunta el documento final ya fusionado por ti.</p>
       <ul class="historial-list" style="margin-bottom:14px;">${filasPropuesta || '<li>Este vale no tiene talleres asociados.</li>'}</ul>
       ${detalleOriginal ? '<p style="font-size:12px;color:var(--color-text-secondary);margin-top:-10px;margin-bottom:14px;">* Modificado.</p>' : ''}
-      <div class="form-field">
-        <label>Documento de fusión final *</label>
-        ${htmlDropzone({ id: 'input-fusion', accept: 'application/pdf', hint: 'PDF · máx. 5MB' })}
-      </div>
+      ${htmlAdjuntosPropuesta({ idArchivo: 'input-fusion', etiquetaArchivo: 'Documento de fusión final', archivoObligatorio: true, etiquetaNota: 'Nota sobre la fusión' })}
     `,
-    footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar">Aprobar y Fusionar</button>`
+    size: 'lg',
+    footerHtml: `<button class="btn btn--ghost" id="btn-cerrar">Cancelar</button><button class="btn btn--primary" id="btn-confirmar" disabled>Aprobar y Fusionar</button>`
   });
-  const getFusion = wireDropzone(overlay, '#input-fusion', '.archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
+  const btnConfirmar = overlay.querySelector('#btn-confirmar');
+  const adjuntos = wireAdjuntosPropuesta(overlay, {
+    idArchivo: 'input-fusion',
+    archivoObligatorio: true,
+    onCambio: ({ valido }) => { btnConfirmar.disabled = !valido; }
+  });
+  overlay.querySelector('#btn-ver-vale').addEventListener('click', () => abrirVisorVale({ id: vale.id, correlativo: vale.correlativo }));
+  overlay.querySelectorAll('[data-ver-propuesta-id]').forEach(b => b.addEventListener('click', () => abrirVisorPropuesta({
+    id: Number(b.dataset.verPropuestaId), correlativo: vale.correlativo,
+    propuesta: { tipo: 'taller', disenadorId: Number(b.dataset.verPropuestaDis) }
+  })));
   // Una sola key por apertura del modal — si el envío falla y el usuario
   // reintenta con "Aprobar y Fusionar" de nuevo, se reenvía con la misma key
   // para que el backend detecte el reintento y no duplique la fusión.
   const idempotencyKey = crypto.randomUUID();
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
   overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
-    const file = getFusion()[0];
-    if (!file) {
-      mostrarErrorModal(overlay, 'Debe adjuntar el documento de fusión final.');
+    const problema = adjuntos.validar();
+    if (problema) {
+      mostrarErrorModal(overlay, problema);
       return;
     }
     const formData = new FormData();
-    formData.append('fusion', file);
+    adjuntos.agregarAFormData(formData, 'fusion');
     formData.append('idempotencyKey', idempotencyKey);
     const btn = overlay.querySelector('#btn-confirmar');
     btn.disabled = true;

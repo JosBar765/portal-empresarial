@@ -5,7 +5,6 @@ const router = express.Router();
 const valeController = require('./controllers/valeController');
 const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
-const { ROL } = require('./services/valeHelpers');
 
 const TIPOS_PERMITIDOS = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']);
 const upload = multer({
@@ -32,7 +31,6 @@ const verVales = requirePermission('vales.ver');
 const autorizarCreacionVale = requirePermission('vales.autorizar_creacion');
 const crearVale = requirePermission('vales.crear');
 const asignarVale = requirePermission('vales.asignar');
-const verRendimiento = requirePermission('vales.ver_gerencia');
 const verReportes = requirePermission('vales.ver_reportes');
 const trabajarVale = requirePermission('vales.trabajar');
 const revisarVale = requirePermission('vales.revisar');
@@ -49,27 +47,6 @@ const escribirConversacion = (req, res, next) => {
 };
 const solicitarModificacionVale = requirePermission('vales.solicitar_modificacion');
 const aprobarModificacionVale = requirePermission('vales.aprobar_modificacion');
-// "Encontrar vale" es solo del Gerente: `vales.ver_gerencia` también lo tiene
-// el Supervisor (para su Rendimiento), así que el rol se exige aparte.
-const encontrarVale = (req, res, next) => (
-  req.user.rolId === ROL.GERENTE
-    ? next()
-    : res.status(403).json({ error: 'Solo el Gerente puede buscar vales por correlativo.' })
-);
-
-// La búsqueda de sugerencias recorre la tabla (LIKE '%…%'): se acota por
-// usuario (ya autenticado) para que una cuenta comprometida no la martille.
-const limitarBusquedas = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => `buscar:${req.user.id}`,
-  handler: (req, res) => {
-    res.status(429).json({ error: 'Demasiadas búsquedas seguidas. Espera un momento e inténtalo de nuevo.' });
-  }
-});
-
 // Un reporte recorre el historial del período: se acota por usuario (ya autenticado).
 const limitarReportes = rateLimit({
   windowMs: 60 * 1000,
@@ -86,6 +63,7 @@ router.get('/catalogos', verVales, (req, res) => valeController.catalogos(req, r
 router.get('/talleres', verVales, (req, res) => valeController.talleres(req, res));
 router.get('/capacidad-entrega', crearVale, (req, res) => valeController.capacidadEntrega(req, res));
 router.get('/fechas-entrega', crearVale, (req, res) => valeController.fechasEntrega(req, res));
+router.get('/calendario-buzon', verVales, (req, res) => valeController.calendarioBuzon(req, res));
 router.get('/disenadores', asignarVale, (req, res) => valeController.disenadores(req, res));
 router.get('/carga-trabajo', asignarVale, (req, res) => valeController.cargaTrabajo(req, res));
 router.get('/carga-trabajo/:disenadorId', asignarVale, (req, res) => valeController.cargaTrabajoDisenador(req, res));
@@ -93,12 +71,11 @@ router.get('/carga-trabajo/:disenadorId', asignarVale, (req, res) => valeControl
 router.get('/', verVales, (req, res) => valeController.buzon(req, res));
 router.get('/reportes', verReportes, limitarReportes, (req, res) => valeController.reportes(req, res));
 router.get('/reportes/pdf', verReportes, limitarReportes, (req, res) => valeController.reportePdf(req, res));
-router.get('/rendimiento-gerencia', verRendimiento, (req, res) => valeController.rendimientoGerencia(req, res));
-router.get('/buscar', verRendimiento, encontrarVale, limitarBusquedas, (req, res) => valeController.buscarPorCorrelativo(req, res));
 router.post('/', crearVale, camposAdjuntos, (req, res) => valeController.crear(req, res));
 
 router.get('/:id', verVales, (req, res) => valeController.detalle(req, res));
 router.get('/:id/pdf', verVales, (req, res) => valeController.descargarPdf(req, res));
+router.get('/:id/propuesta', verVales, (req, res) => valeController.propuesta(req, res));
 
 router.post('/:id/asignar', asignarVale, (req, res) => valeController.asignar(req, res));
 router.post('/:id/comenzar', trabajarVale, (req, res) => valeController.comenzar(req, res));

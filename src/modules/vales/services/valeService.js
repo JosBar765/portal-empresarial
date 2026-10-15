@@ -13,13 +13,12 @@ const valeDetalleService = require('./valeDetalleService');
 const valeBuzonService = require('./valeBuzonService');
 const valeTallerService = require('./valeTallerService');
 const valeConfirmacionService = require('./valeConfirmacionService');
-const valeRendimientoService = require('./valeRendimientoService');
-const valeBusquedaService = require('./valeBusquedaService');
 const capacidadEntregaService = require('./capacidadEntregaService');
 const fechasEntregaService = require('./fechasEntregaService');
 const valeCorreccionService = require('./valeCorreccionService');
 const valeVistoService = require('./valeVistoService');
 const valeModificacionService = require('./valeModificacionService');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeReporteService = require('./valeReporteService');
 const valeReportePdfService = require('./valeReportePdfService');
 const valeAdjuntosService = require('./valeAdjuntosService');
@@ -27,12 +26,17 @@ const valeAdjuntosService = require('./valeAdjuntosService');
 module.exports = {
   // Reportes de actividad
   obtenerReporte: (...a) => valeReporteService.obtenerReporte(...a),
-  generarReportePdf: async (usuario, filtros) => {
+  // `tipo`: 'actividad' (por defecto) o 'rendimiento' (solo Encargado/Asistente y Supervisor).
+  generarReportePdf: async (usuario, filtros, tipo = 'actividad') => {
+    if (!['actividad', 'rendimiento'].includes(tipo)) throw new ErrorDeNegocio('El tipo de reporte no es válido.');
     const reporte = await valeReporteService.obtenerReporte(usuario, filtros, { maxFilas: valeReporteService.MAX_FILAS_PDF });
+    if (tipo === 'rendimiento' && !(reporte.grupos && reporte.grupos.rendimiento)) throw new ErrorDeNegocio('El reporte de rendimiento no está disponible para tu rol.');
+    reporte.tipo = tipo;
+    if (tipo === 'rendimiento') reporte.titulo = reporte.titulo.replace(/^Actividad/, 'Rendimiento');
     const ahora = new Date(Date.now() - 6 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 16);
     const [f, h] = ahora.split(' ');
     const [y, m, d] = f.split('-');
-    return { reporte, pdf: await valeReportePdfService.generar(reporte, { generadoPor: usuario.nombre, ahora: `${d}/${m}/${y} ${h}` }) };
+    return { reporte, pdf: await valeReportePdfService.generar(reporte, { generadoPor: usuario.nombre, ahora: `${d}/${m}/${y} ${h}`, tipo }) };
   },
 
   // Catálogo
@@ -40,6 +44,7 @@ module.exports = {
   obtenerTalleres: (...a) => valeCatalogoService.obtenerTalleres(...a),
   obtenerCapacidadEntrega: (...a) => capacidadEntregaService.obtenerCapacidadMes(...a),
   obtenerFechasEntrega: (...a) => fechasEntregaService.obtenerFechasEntrega(...a),
+  obtenerCalendarioBuzon: (...a) => capacidadEntregaService.obtenerCalendarioBuzon(...a),
 
   // Creación
   crearVale: (...a) => valeCreacionService.crearVale(...a),
@@ -52,11 +57,10 @@ module.exports = {
 
   // Detalle
   obtenerDetalle: (...a) => valeDetalleService.obtenerDetalle(...a),
+  obtenerPropuesta: (...a) => valeDetalleService.obtenerPropuesta(...a),
 
-  // Buzón / listado por rol + Vista Gerencia
+  // Buzón / listado por rol
   obtenerBuzon: (...a) => valeBuzonService.obtenerBuzon(...a),
-  obtenerRendimientoGerencia: (...a) => valeRendimientoService.obtenerRendimiento(...a),
-  buscarValePorCorrelativo: (...a) => valeBusquedaService.buscarPorCorrelativo(...a),
   obtenerDisenadoresAsignables: (...a) => valeBuzonService.obtenerDisenadoresAsignables(...a),
   obtenerCargaTrabajo: (...a) => valeBuzonService.obtenerCargaTrabajo(...a),
   obtenerAsignacionesDeDisenador: (...a) => valeBuzonService.obtenerAsignacionesDeDisenador(...a),

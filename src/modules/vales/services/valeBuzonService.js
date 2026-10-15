@@ -22,6 +22,9 @@ const {
   esDeTaller, rolEncargadoDe, esValeDeModificacion
 } = require('./valeHelpers');
 
+// La propuesta del taller trae nota o enlaces (aunque no tenga archivo).
+const extraDe = (propuesta) => !!(propuesta && (propuesta.nota || Number(propuesta.n_enlaces) > 0));
+
 // Vale MOD-, o el original que tiene (o ya tuvo) una modificación.
 function esModificado(v) {
   return esValeDeModificacion(v) || Number(v.modificado) === 1 || !!v.mod_en_tramite;
@@ -88,7 +91,7 @@ class ValeBuzonService {
       }));
   }
 
-  // Ventana de tiempo del buzón y de Rendimiento; un valor inválido es un 400, no un error interno.
+  // Ventana de tiempo del buzón; un valor inválido es un 400, no un error interno.
   _resolverVentana(filtros = {}) {
     const tipo = filtros.ventana || 'todo';
     if (!['todo', 'mes', 'rango'].includes(tipo)) throw new ErrorDeNegocio('El período elegido no es válido.');
@@ -113,7 +116,7 @@ class ValeBuzonService {
   // Adjunta a cada vale el nombre legible de sus talleres (columna "Taller"
   // del buzón) y sus filas crudas de `vale_talleres` (`_filasTaller`, usado
   // por varias vistas para saber en cuántos talleres trabajó un vale).
-  // Compartido por `obtenerBuzon` y valeRendimientoService.
+  // Compartido por `obtenerBuzon`.
   async _enriquecerConTaller(vales) {
     // Incluye talleres inactivos: un vale terminado de un taller ya desactivado
     // debe seguir mostrando su nombre, no "#id".
@@ -126,6 +129,8 @@ class ValeBuzonService {
       mapaTalleresPorVale.set(vt.vale_id, lista);
     });
     const nombreTaller = (id) => (talleresTodos.find(t => t.id === id) || {}).nombre || `#${id}`;
+    // Vales con nota o enlaces en su propuesta o fusión: «Ver propuesta» también aplica aunque no haya archivo.
+    const conExtra = await propuestaRepository.listarValesConExtra();
     // Un original con una modificación en trámite sigue en su estado: este dato permite avisarlo y bloquear "Confirmar".
     const enTramite = new Map((await valeRepository.listarModificacionesEnTramite())
       .map(m => [m.vale_original_id, { id: m.id, correlativo: m.correlativo, estado: m.estado }]));
@@ -140,29 +145,17 @@ class ValeBuzonService {
         ? filas.map(f => f.taller_id)
         : String(v.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
       const talleresDetalle = filas.map(f => ({ taller_id: f.taller_id, nombre: nombreTaller(f.taller_id), estado: f.estado }));
-      return { ...v, taller: idsTaller.map(nombreTaller).join(', '), _filasTaller: filas, _talleresDetalle: talleresDetalle, mod_en_tramite: enTramite.get(v.id) || null };
+      return {
+        ...v, taller: idsTaller.map(nombreTaller).join(', '), _filasTaller: filas, _talleresDetalle: talleresDetalle, mod_en_tramite: enTramite.get(v.id) || null,
+        // Nota o enlaces de la fusión; o los de la propuesta cuando el vale ya volvió al asesor (no antes de que se apruebe).
+        propuesta_extra: conExtra.fusion.has(v.id) || !!v.propuesta_general_nota
+          || (conExtra.propuestas.has(v.id) && [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO].includes(v.estado))
+      };
     });
   }
 
-  async obtenerBuzon(usuario, filtros = {}) {
-    await prepararPipeline();
-    const ventana = this._resolverVentana(filtros);
-    const vista = filtros.vista === 'trabajo' ? 'trabajo' : 'buzon';
-    const filtroContador = filtros.filtroContador || null;
-    const todos = (await valeRepository.listarTodos()).map(enriquecer);
-    const talleresTodos = await tallerRepository.listarActivos();
-    const valeTalleresTodos = await valeTallerRepository.listarTodos();
-    let todosConTaller = await this._enriquecerConTaller(todos);
-
-    // Filtro por tienda: solo lo manda el frontend del Supervisor (y,
-    // opcionalmente, Administrador) para acotar el listado a una sola
-    // tienda; el resto de roles nunca lo envían. El Gerente no tiene buzón:
-    // solo busca vales por correlativo (valeBusquedaService).
-    if (filtros.tiendaId) {
-      const tiendaId = Number(filtros.tiendaId);
-      todosConTaller = todosConTaller.filter(v => v.tienda_id === tiendaId);
-    }
-
+  // Selección del buzón (o de Trabajo realizado) según el rol, para una ventana de tiempo dada.
+  async _resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador) {
     let resultado;
     // El asistente se rige por el rol de su encargado (y su taller sale de idEncargadoEfectivo).
     switch (rolEncargadoDe(usuario)) {
@@ -200,6 +193,28 @@ class ValeBuzonService {
         // siguen exigiendo sus propios permisos de escritura.
         resultado = this._buzonAdministrador(todosConTaller, ventana, filtroContador);
     }
+    return resultado;
+  }
+
+  async obtenerBuzon(usuario, filtros = {}) {
+    await prepararPipeline();
+    const ventana = this._resolverVentana(filtros);
+    const vista = filtros.vista === 'trabajo' ? 'trabajo' : 'buzon';
+    const filtroContador = filtros.filtroContador || null;
+    const todos = (await valeRepository.listarTodos()).map(enriquecer);
+    const talleresTodos = await tallerRepository.listarActivos();
+    const valeTalleresTodos = await valeTallerRepository.listarTodos();
+    let todosConTaller = await this._enriquecerConTaller(todos);
+
+    // Filtro por tienda: solo lo manda el frontend del Supervisor (y,
+    // opcionalmente, Administrador) para acotar el listado a una sola
+    // tienda; el resto de roles nunca lo envían.
+    if (filtros.tiendaId) {
+      const tiendaId = Number(filtros.tiendaId);
+      todosConTaller = todosConTaller.filter(v => v.tienda_id === tiendaId);
+    }
+
+    let resultado = await this._resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador);
 
     // "Atrasados" en general: a diferencia de filtroContador (mutuamente
     // excluyente), este es el ÚNICO contador que se puede COMBINAR con
@@ -258,6 +273,25 @@ class ValeBuzonService {
     // respaldo — el frontend además descarta cualquier fila duplicada al
     // unir páginas, así que este respaldo nunca produce filas repetidas en
     // pantalla.
+    // «Atrasados vigentes»: con un filtro de fecha (Hoy, día, mes, rango) los vales atrasados que siguen abiertos y cuya entrega cae fuera de
+    // la ventana saldrían de la lista; se devuelven aparte para que se vean siempre. En «Todo» y en Trabajo realizado no aplica.
+    let vigentesFuera = [];
+    if (vista === 'buzon' && ventana.tipo !== 'todo') {
+      const completo = await this._resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, { tipo: 'todo' }, null);
+      const vistos = new Set();
+      vigentesFuera = completo.vales
+        .filter(v => v.atrasado && !dentroDeVentana(v, ventana))
+        .filter(v => { const k = String(v._rowKey || v.id); return vistos.has(k) ? false : vistos.add(k); })
+        .filter(v => !soloModificados || esModificado(v))
+        .filter(v => !disenadorId || v.disenador_id === disenadorId)
+        .filter(v => !busqueda || `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase().includes(busqueda))
+        .sort((a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || String(a.fecha_entrega).localeCompare(String(b.fecha_entrega)));
+      // El contador «Atrasados» cuenta todos los vigentes (dentro y fuera de la ventana): el mismo número que con «Todo».
+      if (resultado.contadores && typeof completo.contadores.atrasados === 'number') resultado.contadores.atrasados = completo.contadores.atrasados;
+    }
+    const MAX_VIGENTES = 100;
+    const vigentesMostrados = vigentesFuera.slice(0, MAX_VIGENTES);
+
     const limit = 50;
     const total = valesOrdenados.length;
     // En Trabajo Realizado un mismo vale puede producir 2 filas (fusión +
@@ -278,7 +312,7 @@ class ValeBuzonService {
     const esEncargado = esDeTaller(usuario);
     const paginaCruda = valesOrdenados.slice(indiceInicio, indiceInicio + limit);
     const idsPersona = new Set();
-    paginaCruda.forEach(v => {
+    [...paginaCruda, ...vigentesMostrados].forEach(v => {
       if (esSupervisor && v.asesor_id) idsPersona.add(v.asesor_id);
       if (esEncargado && v._tipoRegistro !== 'FUSION' && v.disenador_id) idsPersona.add(v.disenador_id);
     });
@@ -290,8 +324,14 @@ class ValeBuzonService {
     };
     const pagina = paginaCruda.map(v => ({ ...v, persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
     const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
+    const atrasadosVigentes = {
+      total: vigentesFuera.length,
+      truncado: vigentesFuera.length > MAX_VIGENTES,
+      vales: vigentesMostrados.map(v => ({ ...v, persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }))
+    };
     return {
       vales: pagina,
+      atrasadosVigentes,
       contadores: resultado.contadores,
       total,
       hasMore: indiceInicio + limit < total,
@@ -585,7 +625,7 @@ class ValeBuzonService {
       // (fusión, confirmación, etc.), lo que antes hacía que "aprobados hoy"
       // contara aprobaciones viejas cuyo vale cambió hoy.
       return {
-        ...v, estado_taller: ESTADOS_TALLER.APROBADO, propuesta_taller_url: propuestaTallerUrl, aprobado_en: fila.actualizado_en,
+        ...v, estado_taller: ESTADOS_TALLER.APROBADO, propuesta_taller_url: propuestaTallerUrl, propuesta_taller_extra: extraDe(propuesta), propuesta_disenador_id: fila.disenador_id || null, aprobado_en: fila.actualizado_en,
         _rowKey: `${v.id}-P`, _tipoRegistro: 'PROPUESTA'
       };
     }));
@@ -751,7 +791,7 @@ class ValeBuzonService {
       // _trabajoEncargadoTaller — el diseñador nunca fusiona, siempre una sola
       // fila por correlativo.
       return {
-        ...enriquecer(vale), propuesta_taller_url: propuestaTallerUrl, estado_taller: ESTADOS_TALLER.APROBADO,
+        ...enriquecer(vale), propuesta_taller_url: propuestaTallerUrl, propuesta_taller_extra: extraDe(propuesta), propuesta_disenador_id: usuario.id, estado_taller: ESTADOS_TALLER.APROBADO,
         aprobado_en: a.actualizado_en, _rowKey: `${vale.id}-P`, _tipoRegistro: 'PROPUESTA'
       };
     })))
