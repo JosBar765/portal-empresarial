@@ -390,8 +390,7 @@ class ValeReporteService {
     if (alcance.equipo) {
       const agruparPor = valeReporteGruposService.agrupacionValida(filtros.agruparPor, alcance.agrupaciones.includes('asesor') ? 'asesor' : alcance.agrupaciones[0]);
       const argumentos = {
-        alcance, dentroDelRango: (f) => dentro(f, rango), agruparPor, tiendaId, tallerId, asesorSel, disSel,
-        obtenerAprobaciones: (valeIds, tallerIds) => this._aprobacionesDeTaller(valeIds, tallerIds)
+        alcance, dentroDelRango: (f) => dentro(f, rango), agruparPor, tiendaId, tallerId, asesorSel, disSel
       };
       grupos = await valeReporteGruposService.armar(argumentos);
       atrasadosVigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosAntesDe: (f) => antesDe(f, rango) });
@@ -416,15 +415,6 @@ class ValeReporteService {
   }
 
   // Texto de los filtros activos para el encabezado del PDF.
-  // Momento en que el Encargado aprobó el trabajo de cada vale en los talleres dados (la última aprobación; desde el historial).
-  async _aprobacionesDeTaller(valeIds, tallerIds) {
-    const eventos = (await reporteRepository.listarHistorialDeVales(valeIds)).map(normalizar)
-      .filter(e => e && e.tipo === 'aprobacion' && tallerIds.includes(e.tallerId));
-    const ultimas = new Map();
-    eventos.forEach(e => { if (!ultimas.has(e.valeId) || e.ms > ultimas.get(e.valeId)) ultimas.set(e.valeId, e.ms); });
-    return ultimas;
-  }
-
   _resumenFiltros(agruparPor, opciones, { tiendaId, tallerId }) {
     const nombre = (lista, id) => ((lista || []).find(o => o.id === id) || {}).nombre;
     const etiqueta = { asesor: 'asesor', disenador: 'diseñador', taller: 'taller', tienda: 'tienda' }[agruparPor];

@@ -762,6 +762,12 @@
   color: var(--color-danger);
 }
 
+/* Entregado con atraso acumulado (Reportes de Actividad del Encargado y del Diseñador): amarillo fluorescente al 60 %. */
+.badge-tarde {
+  background: rgba(255, 255, 0, 0.6);
+  color: #1f2937;
+}
+
 /* analisis_correcciones_12.md #7: un vale que apenas cruzó su fecha de entrega
    (menos de 1 día) no está "atrasado" todavía — muestra "Hoy" en amarillo en
    vez de un engañoso "0d" en rojo. */

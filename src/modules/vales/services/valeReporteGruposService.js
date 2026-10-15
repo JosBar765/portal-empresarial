@@ -17,8 +17,12 @@ const MAX_VIGENTES = 200;
 const ESTADOS_CON_PROPUESTA = [ESTADOS.CREADO, ESTADOS.MODIFICADO, ESTADOS.APROBADO_DEPARTAMENTO, ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
 
 const fechaDe = (valor) => String(valor || '').slice(0, 10);
-// Fin del día de entrega (hora de Guatemala, UTC-6), para saber si la aprobación del Encargado llegó a tiempo.
-const finDelDia = (fecha) => new Date(`${fecha}T23:59:59-06:00`).getTime();
+// Atraso del vale en SU taller: corre hasta que el Encargado aprueba; con todas sus filas aprobadas y su fecha registrada, queda detenido ahí.
+function atrasoEnTaller(v, filasPropias) {
+  const congelados = filasPropias.map(f => f.atraso_congelado_en).filter(Boolean).map(String).sort();
+  const aprobadas = filasPropias.length > 0 && filasPropias.every(f => f.estado === ESTADOS_TALLER.APROBADO) && congelados.length === filasPropias.length;
+  return enriquecerParaFila(v, aprobadas ? { atraso_congelado_en: congelados[congelados.length - 1] } : null);
+}
 // El vale ya llegó al asesor (propuesta lista para confirmar o ya confirmada): «entregado» para Asesor, Supervisor, Gerente y Administrador.
 const ESTADOS_LLEGO_AL_ASESOR = [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
 const SECCIONES = ['atrasados', 'noEntregados', 'entregados'];
@@ -50,11 +54,10 @@ class ValeReporteGruposService {
   }
 
   // `alcance`: del servicio de reportes. `dentroDelRango(fechaIso)`: período elegido (sobre la fecha de entrega). Filtros ya
-  // validados contra el alcance. `obtenerAprobaciones(valeIds, tallerIds)`: Map valeId -> momento (ms) de la última aprobación de
-  // esos talleres, para el % a tiempo del Encargado.
+  // validados contra el alcance.
   // `soloAtrasadosAntesDe(fechaIso)` (opcional): en lugar del período, devuelve los vales atrasados y abiertos cuya fecha de entrega
   // es ANTERIOR al período («atrasados antes del período») con las mismas reglas de alcance y filtros, como { total, truncado, vales }.
-  async armar({ alcance, dentroDelRango, agruparPor, tiendaId, tallerId, asesorSel, disSel, obtenerAprobaciones, soloAtrasadosAntesDe = null }) {
+  async armar({ alcance, dentroDelRango, agruparPor, tiendaId, tallerId, asesorSel, disSel, soloAtrasadosAntesDe = null }) {
     const todos = (await valeRepository.listarTodos())
       .filter(v => (soloAtrasadosAntesDe ? soloAtrasadosAntesDe(fechaDe(v.fecha_entrega)) : dentroDelRango(fechaDe(v.fecha_entrega))))
       .map(enriquecer)
@@ -115,6 +118,8 @@ class ValeReporteGruposService {
         creadoEn: `${fechaDe(v.fecha_creacion)} ${String(v.hora_creacion || '00:00:00').slice(0, 8)}`,
         autorizado: !!v.autorizado_en, fechaEntrega: fechaDe(v.fecha_entrega),
         atrasado: abierto && !!v.atrasado, diasAtraso: abierto ? (v.diasAtraso || 0) : 0, venceHoy: abierto && !!v.venceHoy,
+        // Vista Taller: días de atraso de lo ya entregado (aprobado con atraso, o en revisión ya atrasado); 0 si llegó a tiempo.
+        diasTarde: esTaller && terminado ? atrasoEnTaller(v, propias(v)).diasAtraso : 0,
         tienePropuesta: !!urlPropuesta || conEnlaces, sinPropuesta: requierePropuesta && !urlPropuesta && !conEnlaces, urlPropuesta, conEnlaces
       }];
     }));
@@ -204,7 +209,7 @@ class ValeReporteGruposService {
         }).filter(g => g.vales.length)
       };
     }
-    const indicadoresTaller = esTaller ? await this._indicadoresTaller(visibles, fichas, alcance, obtenerAprobaciones) : null;
+    const indicadoresTaller = esTaller ? this._indicadoresTaller(visibles, fichas) : null;
     const datosRendimiento = this._rendimiento({ alcance, visibles, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel });
     const rendimiento = datosRendimiento && { ...datosRendimiento, totales: this._totalesRendimiento(datosRendimiento.filas) };
     return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento };
@@ -219,22 +224,16 @@ class ValeReporteGruposService {
       const elegidas = disSel.size ? alcance.personas.filter(p => disSel.has(p.id)) : alcance.personas;
       const filasDe = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : propias(v));
       const ENTREGADA = [ESTADOS_TALLER.EN_REVISION, ESTADOS_TALLER.APROBADO];
-      // Atrasado en su taller: corriendo (aún sin aprobar) o aprobado con atraso (el atraso se detuvo al aprobar el Encargado).
-      const atrasadoEnSuTaller = (v, propia) => {
-        const congelados = propia.map(f => f.atraso_congelado_en).filter(Boolean).map(String).sort();
-        const aprobada = propia.every(f => f.estado === ESTADOS_TALLER.APROBADO) && congelados.length === propia.length;
-        return enriquecerParaFila(v, aprobada ? { atraso_congelado_en: congelados[congelados.length - 1] } : null).atrasado;
-      };
       const filasGrafica = elegidas.map(p => {
-        let a = 0; let b = 0; let atrasados = 0;
+        let a = 0; let b = 0; let tarde = 0; let sinEntregar = 0;
         for (const v of visibles) {
           const propia = filasDe(v).filter(f => f.disenador_id === p.id);
           if (!propia.length) continue;
           a += 1;
-          if (propia.every(f => ENTREGADA.includes(f.estado))) b += 1;
-          if (atrasadoEnSuTaller(v, propia)) atrasados += 1;
+          const atrasado = atrasoEnTaller(v, propia).atrasado;
+          if (propia.every(f => ENTREGADA.includes(f.estado))) { b += 1; if (atrasado) tarde += 1; } else if (atrasado) sinEntregar += 1;
         }
-        return { id: p.id, nombre: p.nombre, a, b, atrasados };
+        return { id: p.id, nombre: p.nombre, a, b, tarde, sinEntregar };
       });
       return {
         clave: 'disenadores', persona: 'Diseñador', titulo: 'Asignaciones por diseñador', subtitulo: 'Vales con entrega en el período',
@@ -283,22 +282,24 @@ class ValeReporteGruposService {
       const empatados = conVales.filter(f => pct(f) === menor);
       if (empatados.length === 1 && menor < 1) masBajo = empatados[0].id;
     }
-    return { a, b, atrasados: filas.reduce((s, f) => s + f.atrasados, 0), masBajo };
+    const suma = (clave) => filas.reduce((s, f) => s + (f[clave] || 0), 0);
+    // Taller: entregas tarde y sin entregar; Supervisor: atrasados.
+    return filas.some(f => 'tarde' in f) ? { a, b, tarde: suma('tarde'), sinEntregar: suma('sinEntregar'), masBajo } : { a, b, atrasados: suma('atrasados'), masBajo };
   }
 
-  // Entrantes, entregados, % de efectividad, % entregados a tiempo y atrasados de los vales del período en los talleres del encargado.
-  async _indicadoresTaller(visibles, fichas, alcance, obtenerAprobaciones) {
+  // Entrantes, entregados, % de efectividad, % entregados a tiempo y atrasados sin entregar de los vales del período en los talleres del
+  // encargado. «A tiempo»: lo entregado sin atraso en su taller (el atraso termina al aprobar el Encargado). «Atrasados sin entregar»:
+  // vales atrasados que el taller no ha entregado (no se trabajaron, o se trabajaron pero no se enviaron a revisión).
+  _indicadoresTaller(visibles, fichas) {
     const lista = visibles.map(v => ({ v, ficha: fichas.get(v.id) }));
     const entregados = lista.filter(x => x.ficha.terminado);
-    const aprobaciones = entregados.length && obtenerAprobaciones ? await obtenerAprobaciones(entregados.map(x => x.v.id), alcance.tallerIds) : new Map();
-    const conFecha = entregados.filter(x => aprobaciones.has(x.v.id));
-    const aTiempo = conFecha.filter(x => aprobaciones.get(x.v.id) <= finDelDia(x.ficha.fechaEntrega)).length;
+    const tarde = entregados.filter(x => x.ficha.diasTarde >= 1).length;
     return {
       entrantes: lista.length,
       entregados: entregados.length,
       efectividad: lista.length ? redondear(entregados.length / lista.length * 100) : null,
-      aTiempo: conFecha.length ? redondear(aTiempo / conFecha.length * 100) : null,
-      atrasados: lista.filter(x => x.ficha.atrasado).length
+      aTiempo: entregados.length ? redondear((entregados.length - tarde) / entregados.length * 100) : null,
+      atrasadosSinEntregar: lista.filter(x => x.ficha.atrasado && !x.ficha.terminado).length
     };
   }
 }

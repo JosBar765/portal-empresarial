@@ -591,6 +591,7 @@
 .rep-rendimiento tbody th { font-weight: 600; text-align: left; }
 .rep-rendimiento .rend-fila-vacia th { color: var(--color-text-muted); font-weight: 500; }
 .rep-rendimiento .rend-num--alerta { color: var(--color-danger); font-weight: 700; }
+.rep-rendimiento .rend-num--aviso { color: var(--color-warning); font-weight: 700; }
 .rep-chip--mini { margin-left: 8px; padding: 1px 8px; font-size: 11px; vertical-align: middle; }
 @media (max-width: 640px) {
   .rep-rendimiento thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }

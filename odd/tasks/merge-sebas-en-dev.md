@@ -27,6 +27,13 @@ Cantidad mínima 1; adjuntos obligatorios al crear/corregir/modificar; urgente m
 - Pruebas: `e2e_sebas` 24/24 (en revisión 5 días corriendo; al desaprobar sigue NULL; al aprobar se congela y baja a 2 días en Trabajo realizado; el Asesor sigue en 5). Reporte del Encargado: en revisión -> atrasados (5 días); aprobado -> entregados sin atraso.
 - Fila "Por fusionar" del Encargado: solo muestra al asesor (ya no "Sin asignar").
 
+## Ajustes de Reportes (2026-10-15, pedido del dueño)
+- Actividad (Encargado/Asistente y Diseñador): en «Entregados» la columna Atraso (Encargado) / la insignia de Entrega (Diseñador) remarca en amarillo fluorescente al 60 % (`.badge-tarde`) lo entregado con atraso acumulado en su taller (`diasTarde` en la ficha). Lo en revisión ya atrasado sigue en «Atrasados».
+- Rendimiento: contador «Atrasados sin entregar» (`atrasadosSinEntregar`: atrasado y no entregado, incluye vales sin diseñador); comparativo del taller con Asignados, Entregados, % efectividad, % a tiempo, Entregas tarde y Sin entregar (Supervisor sin cambios). «% a tiempo» = entregados sin atraso en su taller ÷ entregados (mismo criterio en el contador y en la tabla).
+- Se quitó la lectura de aprobaciones del historial (`_aprobacionesDeTaller`): el atraso del taller sale de `vale_talleres.atraso_congelado_en`.
+- `06_atraso_taller.sql`: relleno por estado del historial (EN_REVISION -> APROBADO) y zona horaria -06:00 (antes copiaba la hora en la zona del servidor y solo reconocía un texto de historial).
+- PDF de Rendimiento con las mismas columnas. El PDF de Actividad no marca en amarillo.
+
 ## Para desplegar
 Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_taller` (`06_atraso_taller.sql`, idempotente, agrega `vale_talleres.atraso_congelado_en` y rellena las filas ya aprobadas). El número 06 choca con `06_quitar_rendimiento`; se cita por nombre.
 

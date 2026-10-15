@@ -266,7 +266,9 @@ function notasRendimiento(data) {
     : '<strong>Creados / Autorizados:</strong> vales con fecha de entrega en el período creados por cada asesor (y por ti) y, de ellos, los que ya fueron autorizados.';
   return `<li>${entregado}</li>
     <li><strong>%:</strong> la segunda cifra entre la primera. «% más bajo» marca a la persona con el porcentaje menor, si hay más de una con vales.</li>
-    <li><strong>Atrasados:</strong> vales abiertos del período con fecha de entrega vencida (hasta hoy).</li>
+    ${data.rol === 'encargado'
+      ? '<li><strong>Entregas tarde:</strong> de los entregados, los que tienen atraso en su taller (aprobados con atraso, o en revisión ya atrasados). <strong>% a tiempo:</strong> entregados sin atraso entre entregados. <strong>Sin entregar:</strong> vales atrasados que esa persona no ha entregado (no los trabajó, o los trabajó pero no los envió a revisión).</li>'
+      : '<li><strong>Atrasados:</strong> vales abiertos del período con fecha de entrega vencida (hasta hoy).</li>'}
     <li>El período y los filtros de tienda, taller y personas se aplican igual que en Actividad.</li>`;
 }
 
@@ -317,8 +319,8 @@ function htmlIndicadoresTaller(i) {
     { etiqueta: 'Entrantes', valor: i.entrantes, ayuda: 'Vales con fecha de entrega en el período que ya llegaron a tus talleres.' },
     { etiqueta: 'Entregados', valor: i.entregados, ayuda: 'Vales que tu taller ya terminó: la propuesta está en revisión o aprobada.' },
     { etiqueta: '% efectividad', valor: porcentaje(i.efectividad), ayuda: 'Entregados entre entrantes.' },
-    { etiqueta: '% a tiempo', valor: porcentaje(i.aTiempo), ayuda: 'De los vales entregados, los que el Encargado aprobó en o antes de su fecha de entrega.' },
-    { etiqueta: 'Atrasados', valor: i.atrasados, malo: i.atrasados > 0, ayuda: 'Vales del período con fecha de entrega vencida que tu taller todavía no termina (hasta hoy).' }
+    { etiqueta: '% a tiempo', valor: porcentaje(i.aTiempo), ayuda: 'De los vales entregados, los que no tienen atraso en tu taller (el atraso termina cuando el Encargado aprueba).' },
+    { etiqueta: 'Atrasados sin entregar', valor: i.atrasadosSinEntregar, malo: i.atrasadosSinEntregar > 0, ayuda: 'Vales del período con fecha de entrega vencida que tu taller no ha entregado: no se trabajaron, o se trabajaron pero no se enviaron a revisión (hasta hoy).' }
   ];
   return `<section class="rep-ind" aria-label="Indicadores del taller">${tarjetas.map(t => `
     <article class="rep-ind-tarjeta${t.malo ? ' rep-ind-tarjeta--alerta' : ''}">
@@ -428,6 +430,11 @@ function htmlAtraso(v) {
   return '<span class="badge badge-ok">Al día</span>';
 }
 
+// Entregado: si llegó con atraso acumulado en su taller, se remarca en amarillo; si no, «Al día».
+function htmlAtrasoEntregado(v) {
+  return v.diasTarde >= 1 ? `<span class="badge badge-tarde" title="Entregado con atraso">${v.diasTarde} d</span>` : '<span class="badge badge-ok">Al día</span>';
+}
+
 function htmlPropuesta(v) {
   if (v.tienePropuesta) return '<span class="rep-propuesta rep-propuesta--si"><ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon>Adjunta</span>';
   if (v.sinPropuesta) return '<span class="rep-propuesta rep-propuesta--no"><ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>Sin propuesta</span>';
@@ -441,7 +448,7 @@ let vistaTaller = false;
 function htmlMiniTabla(g) {
   if (!g.vales.length) return '<p class="rep-sin-vales">Sin vales con entrega en este período.</p>';
   const sec = g.seccion || 'noEntregados';
-  const conAtraso = sec === 'atrasados';
+  const conAtraso = sec === 'atrasados' || (vistaTaller && sec === 'entregados');
   const conPropuesta = sec !== 'entregados';
   const filas = g.vales.map(v => `
     <tr>
@@ -449,7 +456,7 @@ function htmlMiniTabla(g) {
       ${vistaTaller ? `<td data-label="Fecha de ingreso">${escapeHtml(formatearFechaHora(v.creadoEn))}</td>` : ''}
       <td data-label="Estado">${celdaEstado(v)}</td>
       <td data-label="Entrega">${escapeHtml(formatearFecha(v.fechaEntrega))}</td>
-      ${conAtraso ? `<td data-label="Atraso">${htmlAtraso(v)}</td>` : ''}
+      ${conAtraso ? `<td data-label="Atraso">${sec === 'entregados' ? htmlAtrasoEntregado(v) : htmlAtraso(v)}</td>` : ''}
       ${conPropuesta ? `<td data-label="Propuesta">${htmlPropuesta(v)}</td>` : ''}
       <td data-label="Acciones" class="rep-acciones-celda"><div class="rep-acciones-fila">
         <button type="button" class="btn-icon" data-ver="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}"${v.tienePropuesta ? ' data-con-propuesta="1"' : ''} title="Ver vale" aria-label="Ver vale ${escapeHtml(v.correlativo)}"><ion-icon name="eye-outline"></ion-icon></button>
@@ -609,7 +616,7 @@ function renderVales(data) {
       <td data-label="Correlativo"><strong>${escapeHtml(f.correlativo)}</strong>${f.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}</td>
       <td data-label="Cliente">${escapeHtml(f.cliente)}</td>
       <td data-label="Estado">${f.pipeline ? celdaEstado(f) : escapeHtml(ESTADOS_LABEL[f.estado] || f.estado)}</td>
-      <td data-label="Entrega">${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}${f.atrasado && f.diasAtraso >= 1 ? `<span class="badge badge-atraso">${f.diasAtraso}d</span>` : ''}</td>
+      <td data-label="Entrega">${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}${f.atrasado && f.diasAtraso >= 1 ? `<span class="badge ${f.seccion === 'entregados' && data.rol === 'disenador' ? 'badge-tarde' : 'badge-atraso'}">${f.diasAtraso}d</span>` : ''}</td>
       ${v.columnas.map(c => `<td class="rend-num" data-label="${escapeHtml(c.label)}">${formatear(f[c.clave], c.formato)}</td>`).join('')}
       <td data-label="Historial"><button type="button" class="btn-icon" data-historial="${f.id}" data-correlativo="${escapeHtml(f.correlativo)}" title="Ver historial" aria-label="Ver historial de ${escapeHtml(f.correlativo)}"><ion-icon name="time-outline"></ion-icon></button></td>
     </tr>`;
