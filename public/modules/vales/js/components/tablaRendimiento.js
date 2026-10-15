@@ -12,11 +12,12 @@ const pctATiempo = (entregados, tarde) => (entregados > 0 ? `${Math.round(((entr
 function htmlTablaTaller(r) {
   const [serieA, serieB] = r.series;
   const col = [serieA.etiqueta, serieB.etiqueta, '% efectividad', '% a tiempo', 'Entregas tarde', 'Sin entregar'];
-  const celdas = (f, alerta) => `
+  // En la fila de total los porcentajes van en guion: sumar o promediar porcentajes de personas confunde (los contadores ya dan el global).
+  const celdas = (f, esTotal = false) => `
       <td class="rend-num" data-label="${escapeHtml(col[0])}">${f.a}</td>
       <td class="rend-num" data-label="${escapeHtml(col[1])}">${f.b}</td>
-      <td class="rend-num" data-label="${col[2]}">${pct(f.a, f.b)}</td>
-      <td class="rend-num" data-label="${col[3]}">${pctATiempo(f.b, f.tarde)}</td>
+      <td class="rend-num" data-label="${col[2]}">${esTotal ? '—' : pct(f.a, f.b)}</td>
+      <td class="rend-num" data-label="${col[3]}">${esTotal ? '—' : pctATiempo(f.b, f.tarde)}</td>
       <td class="rend-num${f.tarde ? ' rend-num--aviso' : ''}" data-label="${col[4]}">${f.tarde}</td>
       <td class="rend-num${f.sinEntregar ? ' rend-num--alerta' : ''}" data-label="${col[5]}">${f.sinEntregar}</td>`;
   // «Sin asignar» va primero: los vales de la ventana que ningún diseñador tiene todavía.
@@ -29,7 +30,7 @@ function htmlTablaTaller(r) {
     sub: 'Las cifras de la gráfica, con entregas tarde y sin entregar',
     cabecera: `<th scope="col">${escapeHtml(r.persona)}</th>${col.map(c => `<th scope="col" class="rend-num">${escapeHtml(c)}</th>`).join('')}`,
     filas,
-    total: `<th scope="row" data-label="Total">Total</th>${celdas(r.totales)}`
+    total: `<th scope="row" data-label="Total">Total</th>${celdas(r.totales, true)}`
   };
 }
 
@@ -50,7 +51,7 @@ function htmlTablaSupervisor(r) {
     total: `<th scope="row" data-label="Total">Total</th>
             <td class="rend-num" data-label="${escapeHtml(serieA.etiqueta)}">${r.totales.a}</td>
             <td class="rend-num" data-label="${escapeHtml(serieB.etiqueta)}">${r.totales.b}</td>
-            <td class="rend-num" data-label="%">${pct(r.totales.a, r.totales.b)}</td>
+            <td class="rend-num" data-label="%">—</td>
             <td class="rend-num${r.totales.atrasados ? ' rend-num--alerta' : ''}" data-label="Atrasados">${r.totales.atrasados}</td>`
   };
 }

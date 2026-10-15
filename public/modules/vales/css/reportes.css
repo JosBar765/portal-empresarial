@@ -494,8 +494,8 @@
 .rep-ind-tarjeta header { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .rep-ind-tarjeta p { margin: 0; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
 .rep-ind-tarjeta strong { font-size: 1.375rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
-.rep-ind-tarjeta--alerta strong { color: var(--color-danger); }
-.rep-ind-tarjeta--aviso strong { color: var(--color-warning); }
+.rep-ind-tarjeta--alerta p, .rep-ind-tarjeta--alerta strong { color: var(--color-danger); }
+.rep-ind-tarjeta--aviso p, .rep-ind-tarjeta--aviso strong { color: var(--color-warning); }
 .rep-info { display: inline-flex; align-items: center; padding: 2px; font: inherit; color: var(--color-text-muted); background: none; border: 0; border-radius: 50%; cursor: help; }
 .rep-info ion-icon { font-size: 16px; }
 .rep-info:hover, .rep-info:focus-visible { color: var(--color-primary); }

@@ -15,6 +15,7 @@ const GRIS = rgb(0.45, 0.48, 0.52);
 const LINEA = rgb(0.85, 0.85, 0.85);
 const FONDO_CABECERA = rgb(0.95, 0.96, 0.97);
 const ROJO = rgb(0.8, 0.1, 0.1);
+const AMBAR = rgb(0.85, 0.47, 0.02);
 const GRIS_TEXTO = rgb(0.3, 0.33, 0.37);
 
 const SECCIONES_PDF = [
@@ -315,11 +316,12 @@ class ValeReportePdfService {
         { label: r.persona || 'Persona', ancho: 2.6 }, { label: serieA.etiqueta, ancho: 1, centro: true },
         { label: serieB.etiqueta, ancho: 1, centro: true }, { label: '%', ancho: 1.3, centro: true }, { label: 'Atrasados', ancho: 1, centro: true }
       ];
-    const fila = (nombre, f) => (esTaller
-      ? [nombre, String(f.a), String(f.b), pct(f.a, f.b), aTiempo(f.b, f.tarde), String(f.tarde), String(f.sinEntregar)]
-      : [nombre, String(f.a), String(f.b), pct(f.a, f.b), String(f.atrasados)]);
+    // En la fila de total los porcentajes van en guion (sumar porcentajes de personas confunde; los contadores dan el global).
+    const fila = (nombre, f, esTotal = false) => (esTaller
+      ? [nombre, String(f.a), String(f.b), esTotal ? '-' : pct(f.a, f.b), esTotal ? '-' : aTiempo(f.b, f.tarde), String(f.tarde), String(f.sinEntregar)]
+      : [nombre, String(f.a), String(f.b), esTotal ? '-' : pct(f.a, f.b), String(f.atrasados)]);
     const filas = (r.sinAsignar ? [r.sinAsignar, ...r.filas] : r.filas).map(f => fila(f.nombre, f));
-    filas.push(fila('TOTAL', r.totales));
+    filas.push(fila('TOTAL', r.totales, true));
     this._tabla(ctx, columnas, filas, { altoFila: 16, tamano: 8 });
   }
 
@@ -384,8 +386,23 @@ class ValeReportePdfService {
   // Franja de contadores de la vista Taller (Encargado/Asistente).
   _contadores(ctx, i) {
     const pct = (n) => (n == null ? '-' : `${String(n).replace('.', ',')} %`);
-    const resumen = `Entrantes ${i.entrantes}  ·  Entregados ${i.entregados}  ·  Sin entregar ${i.sinEntregar}  ·  Atrasados sin entregar ${i.atrasadosSinEntregar}  ·  Efectividad ${pct(i.efectividad)}  ·  A tiempo ${pct(i.aTiempo)}`;
-    this._texto(ctx, this._ajustar(ctx, resumen, CONTENT_WIDTH, 8.5, true), MARGIN, ctx.y - 9, { size: 8.5, bold: true });
+    // Rojo por debajo de 50 %, amarillo por debajo de 90 % (mismo criterio que la pantalla).
+    const tono = (n) => (n == null ? NEGRO : (n < 50 ? ROJO : (n < 90 ? AMBAR : NEGRO)));
+    const items = [
+      ['Entrantes', i.entrantes, NEGRO], ['Entregados', i.entregados, NEGRO], ['Sin entregar', i.sinEntregar, NEGRO],
+      ['Atrasados sin entregar', i.atrasadosSinEntregar, i.atrasadosSinEntregar > 0 ? ROJO : NEGRO],
+      ['Efectividad', pct(i.efectividad), tono(i.efectividad)], ['A tiempo', pct(i.aTiempo), tono(i.aTiempo)]
+    ];
+    const size = 8.5; const sep = '  ·  ';
+    const ancho = (t) => ctx.fontBold.widthOfTextAtSize(limpiar(t), size);
+    let x = MARGIN; let y = ctx.y - 9;
+    items.forEach(([etiqueta, valor, color], k) => {
+      const texto = `${etiqueta} ${valor}`;
+      if (k && x + ancho(sep) + ancho(texto) > MARGIN + CONTENT_WIDTH) { x = MARGIN; y -= 12; ctx.y -= 12; }
+      else if (k) { this._texto(ctx, sep, x, y, { size, bold: true, color: GRIS }); x += ancho(sep); }
+      this._texto(ctx, texto, x, y, { size, bold: true, color });
+      x += ancho(texto);
+    });
     ctx.y -= 22;
   }
 
