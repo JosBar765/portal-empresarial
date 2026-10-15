@@ -63,7 +63,17 @@ function formatear(valor, formato) {
 }
 
 // Semáforo de la columna Atraso, solo con el color de la letra: rojo si está atrasado, naranja si vence hoy y amarillo si va al día.
-const COLOR_SEMAFORO = { rojo: rgb(0.78, 0.1, 0.1), naranja: rgb(0.85, 0.4, 0), amarillo: rgb(0.7, 0.5, 0), verde: rgb(0.09, 0.5, 0.2), gris: rgb(0.45, 0.48, 0.52) };
+const COLOR_SEMAFORO = { ambar: AMBAR, rojo: rgb(0.78, 0.1, 0.1), naranja: rgb(0.85, 0.4, 0), amarillo: rgb(0.7, 0.5, 0), verde: rgb(0.09, 0.5, 0.2), gris: rgb(0.45, 0.48, 0.52) };
+// Rendimiento: color de un porcentaje (efectividad o a tiempo): rojo por debajo de 50 %, ámbar por debajo de 90 % (como los contadores).
+const tonoPct = (n) => (n == null ? null : (n < 50 ? 'rojo' : (n < 90 ? 'ambar' : null)));
+const celdaPct = (num, den) => {
+  if (!(den > 0)) return '-';
+  const n = Math.round((num / den) * 100);
+  const tono = tonoPct(n);
+  return tono ? { semaforo: { texto: `${n} %`, tono } } : `${n} %`;
+};
+// Conteos del comparativo: ámbar las entregas tarde, rojo las sin entregar (solo si hay).
+const celdaConteo = (n, tono) => (n > 0 ? { semaforo: { texto: String(n), tono } } : String(n));
 function semaforoAtraso({ atrasado, diasAtraso, venceHoy }) {
   if (atrasado) return { semaforo: { texto: diasAtraso >= 1 ? `${diasAtraso} ${diasAtraso === 1 ? 'día' : 'días'}` : 'Atrasado', tono: 'rojo' } };
   if (venceHoy) return { semaforo: { texto: 'Vence hoy', tono: 'naranja' } };
@@ -281,7 +291,6 @@ class ValeReportePdfService {
     const [serieA, serieB] = r.series;
     this._titulo(ctx, r.clave === 'disenadores' ? 'COMPARATIVO POR DISEÑADOR' : 'COMPARATIVO POR PERSONA');
     const pct = (a, b) => (a > 0 ? `${Math.round((b / a) * 100)} %` : '-');
-    const aTiempo = (entregados, tarde) => (entregados > 0 ? `${Math.round(((entregados - tarde) / entregados) * 100)} %` : '-');
     const esTaller = r.clave === 'disenadores';
     const columnas = esTaller
       ? [
@@ -295,7 +304,7 @@ class ValeReportePdfService {
       ];
     // En la fila de total los porcentajes van en guion (sumar porcentajes de personas confunde; los contadores dan el global).
     const fila = (nombre, f, esTotal = false) => (esTaller
-      ? [nombre, String(f.a), String(f.b), esTotal ? '-' : pct(f.a, f.b), esTotal ? '-' : aTiempo(f.b, f.tarde), String(f.tarde), String(f.sinEntregar)]
+      ? [nombre, String(f.a), String(f.b), esTotal ? '-' : celdaPct(f.b, f.a), esTotal ? '-' : celdaPct(f.b - f.tarde, f.b), celdaConteo(f.tarde, 'ambar'), celdaConteo(f.sinEntregar, 'rojo')]
       : [nombre, String(f.a), String(f.b), esTotal ? '-' : pct(f.a, f.b), String(f.atrasados)]);
     const filas = (r.sinAsignar ? [r.sinAsignar, ...r.filas] : r.filas).map(f => fila(f.nombre, f));
     filas.push(fila('TOTAL', r.totales, true));
@@ -330,8 +339,12 @@ class ValeReportePdfService {
         if (valor > 0) ctx.page.drawRectangle({ x: x0, y, width: Math.max(2, (valor / maximo) * anchoMax), height: 6, color });
         this._texto(ctx, String(valor), x0 + anchoMax + 6, y - 1, { size: 7.5, bold: true });
       });
-      const pct = f.a > 0 ? `${Math.round((f.b / f.a) * 100)} %` : '-';
-      this._texto(ctx, pct, PAGE_WIDTH - MARGIN - ctx.font.widthOfTextAtSize(pct, 8), ctx.y - 14, { size: 8, color: GRIS_TEXTO });
+      // En el de diseñadores, el % de efectividad lleva el color de los contadores (rojo < 50 %, ámbar < 90 %).
+      const n = f.a > 0 ? Math.round((f.b / f.a) * 100) : null;
+      const pct = n == null ? '-' : `${n} %`;
+      const tono = grafica.clave === 'disenadores' ? tonoPct(n) : null;
+      const fuente = tono ? ctx.fontBold : ctx.font;
+      this._texto(ctx, pct, PAGE_WIDTH - MARGIN - fuente.widthOfTextAtSize(pct, 8), ctx.y - 14, { size: 8, bold: !!tono, color: tono ? COLOR_SEMAFORO[tono] : GRIS_TEXTO });
       ctx.y -= 24;
     }
     ctx.y -= 6;

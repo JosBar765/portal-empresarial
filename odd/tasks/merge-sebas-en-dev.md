@@ -62,6 +62,9 @@ Cantidad mínima 1; adjuntos obligatorios al crear/corregir/modificar; urgente m
 ## PDF de Actividad: estado simple y «Con atraso» en rojo (2026-10-15)
 - La celda Estado del PDF dice «Paso N de 5 · Nombre del paso» (p. ej. «Paso 3 de 5 · Producción»; «Completado» si terminó), sin estado actual ni quién tiene el turno; se retiró el código que dibujaba esos segmentos. En «Con atraso» el «Sí · Nd» va en rojo y negrita, igual que el conteo de los atrasados. Verificado en los PDF de Encargado, Supervisor y Asesor.
 
+## PDF de Rendimiento con colores (2026-10-15)
+- Gráfica (solo diseñadores): el % de efectividad de cada persona lleva el criterio de los contadores (rojo < 50 %, ámbar < 90 %, normal si no). Comparativo por diseñador: lo mismo en % efectividad y % a tiempo; Entregas tarde en ámbar y Sin entregar en rojo cuando son mayores que 0 (también en el total). El color se decide con el % redondeado que se ve. La pantalla ya tenía tarde/sin entregar con color; los % individuales de la pantalla no.
+
 ## Para desplegar
 Importar en PROD ANTES, además de los 4 scripts de la rama anterior: `atraso_taller` (`06_atraso_taller.sql`, idempotente, agrega `vale_talleres.atraso_congelado_en` y rellena las filas ya aprobadas). El número 06 choca con `06_quitar_rendimiento`; se cita por nombre.
 
