@@ -8,7 +8,7 @@ const PAGE_WIDTH = 612; // Carta vertical
 const PAGE_HEIGHT = 792;
 const MARGIN = 36;
 // Todas las páginas dejan abajo el hueco de las firmas, para que no obliguen a crear una hoja nueva.
-const LIMITE_INFERIOR = MARGIN + 46;
+const LIMITE_INFERIOR = MARGIN + 26;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const LOGO_PATH = path.join(__dirname, '../../../../public/assets/logos/LOGO_GP_isotipo.png');
 
@@ -117,7 +117,7 @@ class ValeReportePdfService {
 
   // Pie de la última página de todo reporte: dos líneas de firma, la de quien lo imprimió (con su nombre) y la de su jefe inmediato.
   _firmas(ctx, generadoPor) {
-    const y = 66;
+    const y = 40;
     const ancho = (CONTENT_WIDTH - 60) / 2;
     [[MARGIN, generadoPor || ' '], [MARGIN + ancho + 60, 'Jefe Inmediato']].forEach(([x, rotulo]) => {
       ctx.page.drawLine({ start: { x, y }, end: { x: x + ancho, y }, thickness: 0.8, color: NEGRO });
