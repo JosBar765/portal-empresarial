@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { etiquetaEstado } from '../permisos.js';
-import { formatearFecha, escapeHtml } from '../utils/formato.js';
+import { formatearFecha, escapeHtml, correlativoBase } from '../utils/formato.js';
 import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, aprobarModificacion, rechazarModificacion, marcarValeVisto } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { abrirVisorVale } from '../components/visorDocumento.js';
@@ -126,18 +126,21 @@ function abrirModalRechazarCreacion(vale, cerrarAutorizacion, { modificacion = f
 }
 
 // -----------------------------------------------------------------------
-// Supervisor: autorizar una modificación. `vale` es el vale MOD- (una fila propia del Buzón); su descripción es la
-// justificación y su original es `vale_original_id`.
+// Supervisor: autorizar una modificación media o avanzada. `vale` es el vale MOD (una fila propia del Buzón); su descripción es
+// la justificación y el vale que modifica es `vale_original_id` (el original, o el MOD anterior en MOD2, MOD3…).
 // -----------------------------------------------------------------------
 export async function abrirModalAprobarModificacion(vale) {
   let propuestaUrl = null;
+  let correlativoOriginal = correlativoBase(vale.correlativo);
   try {
-    propuestaUrl = (await obtenerDetalleVale(vale.vale_original_id)).propuesta_general_url || null;
+    const original = await obtenerDetalleVale(vale.vale_original_id);
+    propuestaUrl = original.propuesta_general_url || null;
+    if (original.correlativo) correlativoOriginal = original.correlativo;
   } catch { /* sin propuesta del original */ }
-  const correlativoOriginal = String(vale.correlativo || '').replace(/^MOD-/, '');
+  const tipo = { MEDIA: ' media', AVANZADA: ' avanzada' }[vale.modificacion_tipo] || '';
 
   const { overlay, cerrar } = abrirModal({
-    title: `Autorizar modificación — ${vale.correlativo}`,
+    title: `Autorizar modificación${tipo} — ${vale.correlativo}`,
     bodyHtml: `
       <div class="aviso-visto">${htmlAvisoVisto(vale)}</div>
       <div class="form-field full" style="margin-bottom:14px;">
