@@ -28,9 +28,6 @@ function lineaDeEstado(c) {
   }
 }
 
-// Ideas para no empezar de cero: tocan y se agregan al mensaje.
-const SUGERENCIAS = ['Cambiar un color', 'Corregir un texto', 'Ajustar el tamaño'];
-
 const chipEstado = (estado) => {
   const e = ESTADO_MODIFICACION[estado] || { texto: estado, clase: 'chip-estado--cerrado' };
   return `<span class="chip-estado ${e.clase}">${escapeHtml(e.texto)}</span>`;
@@ -58,7 +55,6 @@ export function abrirModalModificacionBasica(vale) {
       <div class="chat-caja">
         <textarea id="mb-mensaje" rows="3" maxlength="${MAX_CARACTERES_CHAT}" placeholder="Ej.: cambiar el color del logo a azul."></textarea>
       </div>
-      <div class="mb-sugerencias" aria-label="Ideas">${SUGERENCIAS.map(s => `<button type="button" class="chip chip-motivo" data-sugerencia="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join('')}</div>
       <div class="campo-pie"><span class="campo-ayuda">¿Cambio grande? Pide una Media o Avanzada.</span><span class="contador-mensaje" id="mb-contador"></span></div>
     `,
     footerHtml: '<button class="btn btn--ghost" id="mb-cancelar">Cancelar</button><button class="btn btn--primary" id="mb-enviar">Enviar</button>'
@@ -70,14 +66,6 @@ export function abrirModalModificacionBasica(vale) {
   const validar = () => { enviar.disabled = !actualizar() || !hayTaller(); };
   overlay.querySelectorAll('input[name="mb-taller"]').forEach(c => c.addEventListener('change', validar));
   textarea.addEventListener('input', validar);
-  overlay.querySelectorAll('[data-sugerencia]').forEach(b => b.addEventListener('click', () => {
-    const actual = textarea.value.trim();
-    const texto = actual ? `${actual}. ${b.dataset.sugerencia}` : b.dataset.sugerencia;
-    textarea.value = texto.slice(0, MAX_CARACTERES_CHAT);
-    validar();
-    textarea.focus();
-    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-  }));
   validar();
   overlay.querySelector('#mb-cancelar').addEventListener('click', cerrar);
   enviar.addEventListener('click', async () => {
