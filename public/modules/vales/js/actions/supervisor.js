@@ -2,9 +2,9 @@ import { state } from '../state.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { etiquetaEstado } from '../permisos.js';
 import { formatearFecha, escapeHtml, correlativoBase } from '../utils/formato.js';
-import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, aprobarModificacion, rechazarModificacion, marcarValeVisto } from '../api/valesApi.js';
+import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, obtenerPropuestaVale, aprobarModificacion, rechazarModificacion, marcarValeVisto } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
-import { abrirVisorVale } from '../components/visorDocumento.js';
+import { abrirVisorVale, abrirVisorDocumentos } from '../components/visorDocumento.js';
 
 // -----------------------------------------------------------------------
 // Supervisor: autorizar el envío a talleres de un vale recién creado — el
@@ -22,7 +22,7 @@ function htmlAvisoVisto(vale) {
 
 function registrarVisto(vale) {
   vale.visto = true;
-  marcarValeVisto(vale.id).catch(() => { /* el servidor lo exigirá al autorizar */ });
+  return marcarValeVisto(vale.id).catch(() => { /* el servidor lo exigirá al autorizar */ });
 }
 
 // Modal de autorización abierto en este momento (para avisarle si el asesor corrige el vale).
@@ -32,6 +32,11 @@ export function avisarCambioEnModalAutorizar(valeId) {
   const abierto = modalAutorizarAbierto;
   if (!abierto || abierto.valeId !== Number(valeId) || !abierto.overlay.isConnected) return;
   const cuerpo = abierto.overlay.querySelector('.modal-body');
+  if (!cuerpo) {
+    const subtitulo = abierto.overlay.querySelector('.visor-titulos p');
+    if (subtitulo) { subtitulo.textContent = 'El asesor cambió este vale. Cierra y vuelve a abrir.'; subtitulo.style.color = 'var(--color-danger)'; }
+    return;
+  }
   if (cuerpo.querySelector('.form-aviso')) return;
   const aviso = document.createElement('div');
   aviso.className = 'form-aviso';
@@ -130,61 +135,55 @@ function abrirModalRechazarCreacion(vale, cerrarAutorizacion, { modificacion = f
 // la justificación y el vale que modifica es `vale_original_id` (el original, o el MOD anterior en MOD2, MOD3…).
 // -----------------------------------------------------------------------
 export async function abrirModalAprobarModificacion(vale) {
-  let propuestaUrl = null;
-  let correlativoOriginal = correlativoBase(vale.correlativo);
-  try {
-    const original = await obtenerDetalleVale(vale.vale_original_id);
-    propuestaUrl = original.propuesta_general_url || null;
-    if (original.correlativo) correlativoOriginal = original.correlativo;
-  } catch { /* sin propuesta del original */ }
+  let original = null;
+  try { original = await obtenerDetalleVale(vale.vale_original_id); } catch { /* sin datos del vale que modifica */ }
+  const correlativoOriginal = (original && original.correlativo) || correlativoBase(vale.correlativo);
+  const hayPropuesta = !!(original && (original.propuesta_general_url || (original.propuestas || []).some(p => p.url)));
   const tipo = { MEDIA: ' media', AVANZADA: ' avanzada' }[vale.modificacion_tipo] || '';
 
-  const { overlay, cerrar } = abrirModal({
-    title: `Autorizar modificación${tipo} — ${vale.correlativo}`,
-    bodyHtml: `
-      <div class="aviso-visto">${htmlAvisoVisto(vale)}</div>
-      <div class="form-field full" style="margin-bottom:14px;">
-        <label>Justificación de la modificación</label>
-        <p style="font-size:13px;white-space:pre-wrap;">${vale.descripcion ? escapeHtml(vale.descripcion) : 'Sin justificación registrada.'}</p>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-        <a href="/api/vales/${vale.id}/pdf" target="_blank" data-visto class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale nuevo</a>
-        <a href="/api/vales/${vale.vale_original_id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver ${escapeHtml(correlativoOriginal)}</a>
-        ${propuestaUrl ? `<a href="${propuestaUrl}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
-      </div>
-      <p style="font-size:13px;">¿Autorizar? Se envía ahora a los mismos talleres de ${escapeHtml(correlativoOriginal)}.</p>
-    `,
-    footerHtml: `
-      <button class="btn btn--danger" id="btn-rechazar" style="margin-right:auto;">Rechazar</button>
-      <button class="btn btn--ghost" id="btn-cerrar">Cancelar</button>
-      <button class="btn btn--primary" id="btn-confirmar">Autorizar</button>
-    `
-  });
-  modalAutorizarAbierto = { valeId: vale.id, overlay };
-  overlay.querySelector('#btn-confirmar').disabled = !vale.visto;
-  // Abrir el PDF de la modificación desde aquí también cuenta como haberla visto.
-  overlay.querySelector('a[data-visto]').addEventListener('click', () => {
-    registrarVisto(vale);
-    overlay.querySelector('.aviso-visto').innerHTML = htmlAvisoVisto(vale);
-    overlay.querySelector('#btn-confirmar').disabled = false;
-  });
-  overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
-  overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
-    const btn = overlay.querySelector('#btn-confirmar');
-    btn.disabled = true;
+  const documentos = [
+    {
+      etiqueta: 'Datos',
+      html: `
+        <div class="form-field full" style="margin-bottom:14px;max-width:760px;margin-inline:auto;">
+          <label>Justificación de la modificación</label>
+          <p style="font-size:13px;white-space:pre-wrap;margin:0;">${vale.descripcion ? escapeHtml(vale.descripcion) : 'Sin justificación registrada.'}</p>
+        </div>
+        ${htmlDatosVale(vale)}`
+    },
+    { etiqueta: 'Vale nuevo', url: `/api/vales/${vale.id}/pdf` },
+    { etiqueta: correlativoOriginal, url: `/api/vales/${vale.vale_original_id}/pdf` }
+  ];
+  if (hayPropuesta) documentos.push({ etiqueta: 'Propuesta', cargar: () => obtenerPropuestaVale(vale.vale_original_id, { tipo: 'general' }) });
+
+  // Abrir el visor cuenta como haber visto el vale nuevo (pestaña inicial); el servidor lo exige al autorizar.
+  const visto = vale.visto ? Promise.resolve() : registrarVisto(vale);
+  const autorizar = async ({ cerrar, boton }) => {
+    boton.disabled = true;
     try {
+      await visto;
       const data = await aprobarModificacion(vale.id);
-      window.toast.success('Modificación autorizada', `El vale ${data.correlativo} quedó autorizado y fue enviado a los talleres.`);
+      window.toast.success('Modificación autorizada', `${data.correlativo} ya está en los talleres.`);
       cerrar();
       cargarBuzon();
     } catch (error) {
-      mostrarErrorModal(overlay, error.message);
-      btn.disabled = false;
+      window.toast.error('No se pudo autorizar', error.message);
+      boton.disabled = false;
       // Otro supervisor pudo haberla decidido un instante antes: se refresca el buzón.
       cargarBuzon();
     }
+  };
+  const visor = abrirVisorDocumentos({
+    titulo: `Autorizar modificación${tipo} — ${vale.correlativo}`,
+    subtitulo: 'Se envía a los mismos talleres al autorizar.',
+    documentos,
+    activo: 1,
+    acciones: [
+      { etiqueta: 'Rechazar', icono: 'close-outline', clase: 'btn--danger', onClick: ({ cerrar }) => abrirModalRechazarCreacion(vale, cerrar, { modificacion: true }) },
+      { etiqueta: 'Autorizar', icono: 'checkmark-outline', clase: 'btn--primary', onClick: autorizar }
+    ]
   });
-  overlay.querySelector('#btn-rechazar').addEventListener('click', () => abrirModalRechazarCreacion(vale, cerrar, { modificacion: true }));
+  if (visor) modalAutorizarAbierto = { valeId: vale.id, overlay: visor.overlay };
 }
 
 // -----------------------------------------------------------------------
@@ -213,14 +212,12 @@ export function abrirModalVerSupervisor(fila) {
   });
 }
 
-export function abrirModalInfoVale(v) {
+// Datos del vale (fila del Buzón) en una cuadrícula de campos de solo lectura.
+function htmlDatosVale(v) {
   const campo = (etiqueta, valor) => `
     <div class="form-field"><label>${etiqueta}</label><p style="font-size:13px;margin:0;">${valor ? escapeHtml(String(valor)) : '-'}</p></div>
   `;
-  const { overlay, cerrar } = abrirModal({
-    title: `Información — ${v.correlativo}`,
-    size: 'lg',
-    bodyHtml: `
+  return `
       <div class="form-grid">
         ${campo('Correlativo', v.correlativo)}
         ${campo('Estado', etiquetaEstado(v))}
@@ -239,7 +236,14 @@ export function abrirModalInfoVale(v) {
         ${campo('Cotización', v.cotizacion != null ? `Q${Number(v.cotizacion).toFixed(2)}` : '-')}
         ${campo('Urgente', v.urgente ? 'Sí' : 'No')}
       </div>
-    `,
+  `;
+}
+
+export function abrirModalInfoVale(v) {
+  const { overlay, cerrar } = abrirModal({
+    title: `Información — ${v.correlativo}`,
+    size: 'lg',
+    bodyHtml: htmlDatosVale(v),
     footerHtml: `<button class="btn btn--primary" id="btn-cerrar-info">Cerrar</button>`
   });
   overlay.querySelector('#btn-cerrar-info').addEventListener('click', cerrar);
