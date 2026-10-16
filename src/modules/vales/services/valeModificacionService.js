@@ -47,9 +47,9 @@ class ValeModificacionService {
         throw new Error('Solo se puede solicitar una modificación de un vale que ya fue entregado o recibido.');
       }
       // Un MOD también se puede modificar (MOD2, MOD3…), pero cada vale tiene a lo sumo una modificación con vale.
-      if (original.modificado) throw new Error('Este vale ya fue modificado: pide la modificación sobre su versión más reciente.');
+      if (original.modificado) throw new Error('Este vale ya fue modificado. Pídela sobre el más reciente.');
       if (await modificacionBasicaRepository.contarAbiertasPorVale(valeId)) {
-        throw new Error('Este vale tiene una modificación básica en conversación con el taller. Espera su respuesta o cancélala antes de pedir otra modificación.');
+        throw new Error('Hay una modificación básica abierta. Espera la respuesta o cancélala.');
       }
       const justificacion = String(payload.descripcion || '').trim();
       if (!justificacion) throw new Error('Escribe la justificación de la modificación.');

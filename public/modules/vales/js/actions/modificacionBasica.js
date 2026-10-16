@@ -11,11 +11,25 @@ import { cargarBuzon } from '../views/buzon.js';
 // Modificación básica: sin vale MOD. El asesor le pide un cambio pequeño a uno o varios talleres y conversan; el taller acepta o rechaza.
 const ESTADO_MODIFICACION = {
   EN_CONVERSACION: { texto: 'En conversación', clase: 'chip-estado--info' },
-  ACEPTADA: { texto: 'Aceptada: el taller rehace la propuesta', clase: 'chip-estado--info' },
-  RECHAZADA: { texto: 'Rechazada por el taller', clase: 'chip-estado--alerta' },
-  CANCELADA: { texto: 'Cancelada por el asesor', clase: 'chip-estado--cerrado' },
-  ENTREGADA: { texto: 'Propuesta entregada', clase: 'chip-estado--cerrado' }
+  ACEPTADA: { texto: 'Aceptada', clase: 'chip-estado--info' },
+  RECHAZADA: { texto: 'Rechazada', clase: 'chip-estado--alerta' },
+  CANCELADA: { texto: 'Cancelada', clase: 'chip-estado--cerrado' },
+  ENTREGADA: { texto: 'Entregada', clase: 'chip-estado--cerrado' }
 };
+
+// Frase corta bajo el título: qué pasa ahora y qué toca hacer, según quién la lee.
+function lineaDeEstado(c) {
+  switch (c.estado) {
+    case 'EN_CONVERSACION': return c.lado === 'TALLER' ? 'Acepta para rehacer la propuesta, o rechaza para dejarla igual.' : 'Esperando la respuesta del taller.';
+    case 'ACEPTADA': return 'El taller está rehaciendo la propuesta.';
+    case 'RECHAZADA': return 'El vale sigue como estaba.';
+    case 'CANCELADA': return 'Solicitud cancelada.';
+    default: return 'El taller ya entregó la nueva propuesta.';
+  }
+}
+
+// Ideas para no empezar de cero: tocan y se agregan al mensaje.
+const SUGERENCIAS = ['Cambiar un color', 'Corregir un texto', 'Ajustar el tamaño'];
 
 const chipEstado = (estado) => {
   const e = ESTADO_MODIFICACION[estado] || { texto: estado, clase: 'chip-estado--cerrado' };
@@ -34,19 +48,20 @@ export function abrirModalModificacionBasica(vale) {
   const { overlay, cerrar } = abrirModal({
     title: `Modificación básica — ${vale.correlativo}`,
     bodyHtml: `
-      <p class="form-nota"><strong>No se crea otro vale.</strong> Cuéntale al taller qué cambio pequeño necesitas. Si lo acepta, rehace la propuesta y vuelve a quedar pendiente de tu confirmación con la fecha de entrega movida <strong>1 día hábil</strong> (nunca antes de la actual). No se valida el cupo del taller.</p>
+      <p class="mod-aviso"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon><span>Sin vale nuevo. Si el taller acepta, rehace la propuesta y la entrega sube <strong>1 día hábil</strong>.</span></p>
       ${variosTalleres ? `
       <fieldset class="campo-grupo">
-        <legend>¿A qué taller se lo pides?</legend>
+        <legend>¿A qué taller?</legend>
         ${talleres.map(t => `<label class="opcion-taller"><input type="checkbox" name="mb-taller" value="${t.taller_id}"> <span>${escapeHtml(t.nombre)}</span></label>`).join('')}
-      </fieldset>` : `<p style="font-size:13px;margin:10px 0;">Taller: <strong>${escapeHtml(talleres.map(t => t.nombre).join(', ') || vale.taller || '')}</strong></p>`}
-      <label for="mb-mensaje" style="font-size:13px;font-weight:600;">¿Qué cambio necesitas?</label>
+      </fieldset>` : `<p class="mb-taller-unico"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon>${escapeHtml(talleres.map(t => t.nombre).join(', ') || vale.taller || '')}</p>`}
+      <label for="mb-mensaje" class="mb-etiqueta">¿Qué cambio necesitas?</label>
       <div class="chat-caja">
         <textarea id="mb-mensaje" rows="3" maxlength="${MAX_CARACTERES_CHAT}" placeholder="Ej.: cambiar el color del logo a azul."></textarea>
       </div>
-      <div class="campo-pie"><span class="campo-ayuda">Si el cambio es grande, usa una modificación media o avanzada.</span><span class="contador-mensaje" id="mb-contador"></span></div>
+      <div class="mb-sugerencias" aria-label="Ideas">${SUGERENCIAS.map(s => `<button type="button" class="chip chip-motivo" data-sugerencia="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join('')}</div>
+      <div class="campo-pie"><span class="campo-ayuda">¿Cambio grande? Pide una Media o Avanzada.</span><span class="contador-mensaje" id="mb-contador"></span></div>
     `,
-    footerHtml: '<button class="btn btn--ghost" id="mb-cancelar">Cancelar</button><button class="btn btn--primary" id="mb-enviar">Enviar solicitud</button>'
+    footerHtml: '<button class="btn btn--ghost" id="mb-cancelar">Cancelar</button><button class="btn btn--primary" id="mb-enviar">Enviar</button>'
   });
   const textarea = overlay.querySelector('#mb-mensaje');
   const enviar = overlay.querySelector('#mb-enviar');
@@ -55,6 +70,14 @@ export function abrirModalModificacionBasica(vale) {
   const validar = () => { enviar.disabled = !actualizar() || !hayTaller(); };
   overlay.querySelectorAll('input[name="mb-taller"]').forEach(c => c.addEventListener('change', validar));
   textarea.addEventListener('input', validar);
+  overlay.querySelectorAll('[data-sugerencia]').forEach(b => b.addEventListener('click', () => {
+    const actual = textarea.value.trim();
+    const texto = actual ? `${actual}. ${b.dataset.sugerencia}` : b.dataset.sugerencia;
+    textarea.value = texto.slice(0, MAX_CARACTERES_CHAT);
+    validar();
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  }));
   validar();
   overlay.querySelector('#mb-cancelar').addEventListener('click', cerrar);
   enviar.addEventListener('click', async () => {
@@ -64,11 +87,11 @@ export function abrirModalModificacionBasica(vale) {
     enviar.disabled = true;
     try {
       const modificaciones = await solicitarModificacionBasica(vale.id, ids, textarea.value.trim());
-      window.toast.success('Solicitud enviada', 'El taller recibió tu solicitud de modificación básica.');
+      window.toast.success('Solicitud enviada', 'El taller ya la puede ver.');
       cerrar();
       await cargarBuzon();
-      const nueva = modificaciones.filter(m => m.estado === 'EN_CONVERSACION').pop();
-      if (nueva && modificaciones.filter(m => m.estado === 'EN_CONVERSACION').length === 1) abrirModalConversacionBasica(vale, nueva.id);
+      const abiertas = modificaciones.filter(m => m.estado === 'EN_CONVERSACION');
+      if (abiertas.length === 1) abrirModalConversacionBasica(vale, abiertas[0].id);
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
       validar();
@@ -86,7 +109,8 @@ export async function abrirModalConversacionBasica(vale, modId) {
     title: `Modificación básica — ${vale.correlativo}`,
     bodyHtml: `
       <div class="chat-cabecera" id="mb-cabecera"></div>
-      <p class="form-nota" id="mb-fechas" hidden></p>
+      <p class="mb-estado" id="mb-estado"></p>
+      <p class="mb-fechas" id="mb-fechas" hidden></p>
       <div class="chat-hilo" id="chat-hilo" role="log" aria-live="polite" tabindex="0"><div class="chat-vacio"><p>Cargando…</p></div></div>
       <div class="chat-escribir" id="chat-escribir" hidden>
         <label for="chat-mensaje" class="sr-only">Escribe un mensaje</label>
@@ -94,22 +118,21 @@ export async function abrirModalConversacionBasica(vale, modId) {
           <textarea id="chat-mensaje" rows="1" maxlength="${MAX_CARACTERES_CHAT}" placeholder="Escribe un mensaje…"></textarea>
           <button class="chat-enviar" id="chat-enviar" type="button" aria-label="Enviar mensaje"><ion-icon name="send"></ion-icon></button>
         </div>
-        <div class="campo-pie"><span class="campo-ayuda">Enter envía · Shift + Enter agrega una línea</span><span class="contador-mensaje" id="chat-contador"></span></div>
+        <div class="campo-pie"><span class="campo-ayuda">Enter envía · Shift + Enter, nueva línea</span><span class="contador-mensaje" id="chat-contador"></span></div>
       </div>
-      <p class="chat-cerrada" id="chat-cerrada" hidden><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon><span>Solo lectura.</span></p>
     `,
     footerHtml: `
       <button class="btn btn--ghost" id="mb-cerrar" style="margin-right:auto;">Cerrar</button>
-      <button class="btn btn--ghost" id="mb-cancelar-solicitud" hidden>Cancelar solicitud</button>
-      <button class="btn btn--danger" id="mb-rechazar" hidden>Rechazar</button>
-      <button class="btn btn--primary" id="mb-aceptar" hidden>Aceptar modificación</button>
+      <button class="btn btn--ghost btn--texto-peligro" id="mb-cancelar-solicitud" hidden>Cancelar solicitud</button>
+      <button class="btn btn--ghost btn--texto-peligro" id="mb-rechazar" hidden>Rechazar</button>
+      <button class="btn btn--primary" id="mb-aceptar" hidden>Aceptar</button>
     `
   });
   const cabecera = overlay.querySelector('#mb-cabecera');
+  const estado = overlay.querySelector('#mb-estado');
   const fechas = overlay.querySelector('#mb-fechas');
   const hilo = overlay.querySelector('#chat-hilo');
   const zonaEscribir = overlay.querySelector('#chat-escribir');
-  const cerrada = overlay.querySelector('#chat-cerrada');
   const textarea = overlay.querySelector('#chat-mensaje');
   const enviar = overlay.querySelector('#chat-enviar');
   const btnCancelar = overlay.querySelector('#mb-cancelar-solicitud');
@@ -125,13 +148,13 @@ export async function abrirModalConversacionBasica(vale, modId) {
 
   const pintar = (c) => {
     cabecera.innerHTML = `<span class="chip-estado chip-estado--taller"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon>${escapeHtml(c.taller)}</span>${chipEstado(c.estado)}`;
-    fechas.hidden = false;
-    fechas.innerHTML = `Fecha de entrega: <strong>${escapeHtml(formatearFecha(c.fecha_entrega_anterior))}</strong> → si el taller acepta, <strong>${escapeHtml(formatearFecha(c.fecha_entrega_nueva))}</strong> (como mínimo, 1 día hábil desde el día en que acepte).`;
+    estado.textContent = lineaDeEstado(c);
+    // La fecha nueva solo importa mientras se decide; después ya quedó aplicada o descartada.
+    fechas.hidden = c.cerrada;
+    fechas.innerHTML = `<ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>Entrega: ${escapeHtml(formatearFecha(c.fecha_entrega_anterior))} → <strong>${escapeHtml(formatearFecha(c.fecha_entrega_nueva))}</strong> si el taller acepta`;
     hilo.innerHTML = htmlHilo(c, { destacarMotivo: false });
     hilo.scrollTop = hilo.scrollHeight;
     zonaEscribir.hidden = !c.puede_escribir;
-    cerrada.hidden = c.puede_escribir;
-    cerrada.querySelector('span').textContent = 'La conversación terminó: solo lectura.';
     btnAceptar.hidden = btnRechazar.hidden = !c.puede_decidir;
     btnCancelar.hidden = !c.puede_cancelar;
   };
@@ -174,9 +197,9 @@ export async function abrirModalConversacionBasica(vale, modId) {
     }
     cargarBuzon();
   });
-  decidir(btnAceptar, aceptarModificacionBasica, { titulo: 'Modificación aceptada', texto: 'El vale volvió a tu taller para rehacer la propuesta.' });
-  decidir(btnRechazar, rechazarModificacionBasica, { titulo: 'Modificación rechazada', texto: 'El asesor fue avisado; el vale sigue como estaba.' });
-  decidir(btnCancelar, cancelarModificacionBasica, { titulo: 'Solicitud cancelada', texto: 'Puedes confirmar el vale o pedir otra modificación.' });
+  decidir(btnAceptar, aceptarModificacionBasica, { titulo: 'Aceptada', texto: 'Ya puedes rehacer la propuesta.' });
+  decidir(btnRechazar, rechazarModificacionBasica, { titulo: 'Rechazada', texto: 'El asesor fue avisado.' });
+  decidir(btnCancelar, cancelarModificacionBasica, { titulo: 'Cancelada', texto: 'Ya puedes confirmar el vale.' });
   if (!zonaEscribir.hidden) textarea.focus();
 }
 
@@ -194,16 +217,17 @@ export async function abrirConversacionesBasicas(vale) {
   const abiertas = modificaciones.filter(m => m.estado === 'EN_CONVERSACION');
   const lista = abiertas.length ? abiertas : modificaciones.slice(-1);
   if (lista.length === 1) { abrirModalConversacionBasica(vale, lista[0].id); return; }
-  if (!lista.length) { window.toast.info('Modificación básica', 'Este vale no tiene conversaciones de modificación básica.'); return; }
+  if (!lista.length) { window.toast.info('Sin conversaciones', 'Este vale no tiene modificaciones básicas.'); return; }
   const { overlay, cerrar } = abrirModal({
     title: `Modificaciones básicas — ${vale.correlativo}`,
     bodyHtml: `
-      <p style="font-size:13px;margin-bottom:10px;">Elige la conversación que quieres abrir.</p>
+      <p class="mod-intro">¿Cuál quieres abrir?</p>
       <div class="lista-conversaciones">${lista.map(m => `
-        <div class="fila-conversacion">
-          <div><strong>${escapeHtml(m.taller)}</strong><div>${chipEstado(m.estado)}</div></div>
-          <button class="btn btn--ghost" data-modificacion="${m.id}">Abrir</button>
-        </div>`).join('')}</div>`,
+        <button type="button" class="fila-conversacion" data-modificacion="${m.id}">
+          <span class="fila-conversacion-taller"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon>${escapeHtml(m.taller)}</span>
+          ${chipEstado(m.estado)}
+          <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+        </button>`).join('')}</div>`,
     footerHtml: '<button class="btn btn--ghost" id="mb-cerrar-lista">Cerrar</button>'
   });
   overlay.querySelector('#mb-cerrar-lista').addEventListener('click', cerrar);

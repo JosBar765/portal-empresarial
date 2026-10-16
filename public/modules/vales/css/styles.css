@@ -2217,13 +2217,27 @@
 .mod-info summary ion-icon { font-size: 18px; }
 .mod-info-lista { margin: 8px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--color-text-secondary); }
 .mod-info-lista li { margin-bottom: 4px; }
-/* Modificación básica: elección de taller y lista de conversaciones */
+/* Modificación básica: solicitud, chat y lista de conversaciones */
 .campo-grupo { margin: 12px 0; padding: 0; border: 0; }
 .campo-grupo legend { margin-bottom: 6px; padding: 0; font-size: 13px; font-weight: 600; }
-.opcion-taller { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 6px; font-size: 13px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; }
+.opcion-taller { display: flex; align-items: center; gap: 8px; padding: 9px 12px; margin-bottom: 6px; font-size: 13px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; }
+.opcion-taller:hover { border-color: var(--color-border-focus); }
 .opcion-taller:has(input:checked) { border-color: var(--color-primary); background: var(--color-primary-light); }
+.mb-taller-unico { display: inline-flex; align-items: center; gap: 6px; margin: 12px 0 4px; padding: 4px 10px; font-size: 13px; font-weight: 600; background: var(--color-surface-muted); border-radius: var(--radius-full); }
+.mb-taller-unico ion-icon { font-size: 15px; color: var(--color-primary); }
+.mb-etiqueta { display: block; margin: 12px 0 6px; font-size: 13px; font-weight: 600; }
+.mb-sugerencias { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mb-estado { margin: 8px 0 4px; font-size: 13px; font-weight: 500; }
+.mb-fechas { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 12.5px; color: var(--color-text-secondary); }
+.mb-fechas[hidden] { display: none; }
+.mb-fechas ion-icon { flex: none; font-size: 15px; }
+.btn--texto-peligro { color: var(--color-danger); }
+.btn--texto-peligro:hover:not(:disabled) { background: var(--color-danger-bg); }
 .lista-conversaciones { display: flex; flex-direction: column; gap: 8px; }
-.fila-conversacion { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; font-size: 13px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.fila-conversacion { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; font: inherit; font-size: 13px; text-align: left; color: var(--color-text); background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; }
+.fila-conversacion:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+.fila-conversacion-taller { display: inline-flex; align-items: center; flex: 1; gap: 6px; font-weight: 600; }
+.fila-conversacion ion-icon { font-size: 16px; color: var(--color-text-muted); }
 
 /* Modal del asesor: una tarjeta por taller */
 .rechazo-lista { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }

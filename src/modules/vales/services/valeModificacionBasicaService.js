@@ -34,7 +34,7 @@ class ValeModificacionBasicaService {
     const actual = String(vale.fecha_entrega).slice(0, 10);
     const iso = minima > actual ? minima : actual;
     if (iso >= String(vale.fecha_evento).slice(0, 10)) {
-      throw new Error(`La nueva fecha de entrega (${fmtFecha(iso)}) alcanzaría la fecha del evento. Pide una modificación media o avanzada para ajustar las fechas.`);
+      throw new Error(`La nueva entrega (${fmtFecha(iso)}) llega al día del evento. Usa una Media o Avanzada.`);
     }
     return `${iso} 23:59:59`;
   }
@@ -55,28 +55,28 @@ class ValeModificacionBasicaService {
   async _cargar(valeId, modId) {
     const vale = await requerirVale(valeId);
     const mod = await modificacionRepository.obtenerPorId(Number(modId));
-    if (!mod || mod.vale_id !== vale.id) throw new Error('Esa solicitud de modificación no existe.');
+    if (!mod || mod.vale_id !== vale.id) throw new Error('Esa solicitud no existe.');
     return { vale, mod };
   }
 
   async solicitar(usuario, valeId, { talleres, mensaje }) {
     const texto = validarMensajeChat(mensaje);
     return valeMutex.conLockDeVale(valeId, async () => {
-      if (!puedeActuarComoAsesor(usuario)) throw new Error('Solo un asesor o un supervisor de ventas puede solicitar una modificación.');
+      if (!puedeActuarComoAsesor(usuario)) throw new Error('Solo un asesor o supervisor de ventas puede pedirla.');
       const vale = await requerirVale(valeId);
       assertPropioDelAsesor(usuario, vale);
       if (vale.estado !== ESTADOS.PENDIENTE_CONFIRMACION) {
-        throw new Error('La modificación básica solo se puede pedir cuando el vale está esperando tu confirmación.');
+        throw new Error('La básica solo se pide antes de confirmar el vale.');
       }
       if (await valeRepository.obtenerModificacionEnTramite(valeId)) {
-        throw new Error('Este vale ya tiene una modificación con vale MOD en trámite.');
+        throw new Error('Ya hay una modificación con vale MOD en trámite.');
       }
       const filas = await valeTallerRepository.listarPorVale(valeId);
       const pedidos = [...new Set((Array.isArray(talleres) ? talleres : []).map(Number).filter(Number.isFinite))];
       const elegidas = filas.length === 1 && !pedidos.length ? filas : filas.filter(f => pedidos.includes(f.taller_id));
-      if (!elegidas.length || (pedidos.length && elegidas.length !== pedidos.length)) throw new Error('Elige a qué taller le pides la modificación.');
+      if (!elegidas.length || (pedidos.length && elegidas.length !== pedidos.length)) throw new Error('Elige un taller.');
       for (const fila of elegidas) {
-        if (fila.estado !== ESTADOS_TALLER.APROBADO) throw new Error('Solo se puede modificar el trabajo de un taller que ya tiene su propuesta aprobada.');
+        if (fila.estado !== ESTADOS_TALLER.APROBADO) throw new Error('Ese taller aún no tiene su propuesta aprobada.');
       }
       const nombres = new Map((await tallerRepository.listarActivos()).map(t => [t.id, t.nombre]));
       const fechaNueva = await this._fechaNueva(vale, filas.map(f => f.taller_id));
@@ -86,7 +86,7 @@ class ValeModificacionBasicaService {
       });
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
-        vale: actualizado, texto: `${usuario.nombre} pidió una modificación básica: ${texto}`, tipo: 'MOD_BASICA_SOLICITADA', actor: usuario.nombre, actorId: usuario.id,
+        vale: actualizado, texto: `${usuario.nombre} pidió una modificación: ${texto}`, tipo: 'MOD_BASICA_SOLICITADA', actor: usuario.nombre, actorId: usuario.id,
         salas: elegidas.map(f => `taller:${f.taller_id}`)
       });
       valeEvents.refrescar({ vale: actualizado, salas: await this._salasAsesor(vale) });
@@ -131,10 +131,10 @@ class ValeModificacionBasicaService {
     return valeMutex.conLockDeVale(valeId, async () => {
       const { vale, mod } = await this._cargar(valeId, modId);
       const { lado } = await this._resolverAcceso(usuario, vale, mod);
-      if (mod.estado !== EN_CONVERSACION) throw new Error('La conversación se cerró: la modificación ya fue respondida.');
+      if (mod.estado !== EN_CONVERSACION) throw new Error('La conversación ya se cerró.');
       await modificacionRepository.crearMensaje(mod.id, usuario.id, lado, texto);
       valeEvents.notificar({
-        vale, texto: `${usuario.nombre} escribió en la modificación básica (${mod.taller})`, tipo: 'MOD_BASICA_MENSAJE', actor: usuario.nombre, actorId: usuario.id,
+        vale, texto: `${usuario.nombre} escribió en la modificación (${mod.taller})`, tipo: 'MOD_BASICA_MENSAJE', actor: usuario.nombre, actorId: usuario.id,
         salas: lado === 'TALLER' ? [`asesor:${vale.asesor_id}`] : [`taller:${mod.taller_id}`]
       });
       return this.listarConversacion(usuario, valeId, modId);
@@ -146,12 +146,12 @@ class ValeModificacionBasicaService {
     return valeMutex.conLockDeVale(valeId, async () => {
       const { vale, mod } = await this._cargar(valeId, modId);
       const { lado, fila } = await this._resolverAcceso(usuario, vale, mod);
-      if (lado !== 'TALLER') throw new ErrorDeNegocio('Solo el taller puede aceptar o rechazar la modificación.', 403);
-      if (mod.estado !== EN_CONVERSACION) throw new Error('Esta modificación ya fue respondida o cancelada.');
+      if (lado !== 'TALLER') throw new ErrorDeNegocio('Solo el taller puede aceptar o rechazar.', 403);
+      if (mod.estado !== EN_CONVERSACION) throw new Error('Esta solicitud ya se cerró.');
       if (![ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.CREADO].includes(vale.estado)) {
-        throw new Error('El vale ya no está en un estado que permita aceptar la modificación.');
+        throw new Error('El vale ya no admite esta modificación.');
       }
-      if (fila.estado !== ESTADOS_TALLER.APROBADO) throw new Error('Tu taller ya no tiene la propuesta aprobada de este vale.');
+      if (fila.estado !== ESTADOS_TALLER.APROBADO) throw new Error('Tu propuesta de este vale ya no está aprobada.');
       const filas = await valeTallerRepository.listarPorVale(valeId);
       // Si pasaron días desde la solicitud, la fecha se recalcula para que nunca quede en el pasado.
       const fechaEntrega = await this._fechaNueva(vale, filas.map(f => f.taller_id));
@@ -162,7 +162,7 @@ class ValeModificacionBasicaService {
       });
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
-        vale: actualizado, texto: `${usuario.nombre} (${mod.taller}) aceptó la modificación básica: rehará la propuesta, nueva entrega ${fmtFecha(fechaEntrega)}`,
+        vale: actualizado, texto: `${mod.taller} aceptó la modificación. Nueva entrega: ${fmtFecha(fechaEntrega)}`,
         tipo: 'MOD_BASICA_ACEPTADA', actor: usuario.nombre, actorId: usuario.id,
         salas: [`asesor:${vale.asesor_id}`, `taller:${fila.taller_id}`, ...(fila.disenador_id ? [`disenador:${fila.disenador_id}`] : [])]
       });
@@ -174,14 +174,14 @@ class ValeModificacionBasicaService {
   async rechazar(usuario, valeId, modId) {
     return this._cerrar(usuario, valeId, modId, { lado: 'TALLER', estado: 'RECHAZADA', tipo: 'MOD_BASICA_RECHAZADA',
       accion: (mod) => `Taller ${mod.taller} rechazó la modificación básica`,
-      texto: (mod, u) => `${u.nombre} (${mod.taller}) rechazó la modificación básica`,
+      texto: (mod, u) => `${mod.taller} rechazó la modificación`,
       salasDe: (vale) => [`asesor:${vale.asesor_id}`], nivel: 'alerta' });
   }
 
   async cancelar(usuario, valeId, modId) {
     return this._cerrar(usuario, valeId, modId, { lado: 'ASESOR', estado: 'CANCELADA', tipo: 'MOD_BASICA_CANCELADA',
       accion: (mod) => `Asesor canceló la modificación básica pedida a ${mod.taller}`,
-      texto: (mod, u) => `${u.nombre} canceló la modificación básica (${mod.taller})`,
+      texto: (mod, u) => `${u.nombre} canceló la modificación (${mod.taller})`,
       salasDe: (vale, mod) => [`taller:${mod.taller_id}`], nivel: 'info' });
   }
 
@@ -190,9 +190,9 @@ class ValeModificacionBasicaService {
       const { vale, mod } = await this._cargar(valeId, modId);
       const acceso = await this._resolverAcceso(usuario, vale, mod);
       if (acceso.lado !== lado) {
-        throw new ErrorDeNegocio(lado === 'TALLER' ? 'Solo el taller puede aceptar o rechazar la modificación.' : 'Solo el asesor del vale puede cancelar la solicitud.', 403);
+        throw new ErrorDeNegocio(lado === 'TALLER' ? 'Solo el taller puede aceptar o rechazar.' : 'Solo el asesor puede cancelarla.', 403);
       }
-      if (mod.estado !== EN_CONVERSACION) throw new Error('Esta modificación ya fue respondida o cancelada.');
+      if (mod.estado !== EN_CONVERSACION) throw new Error('Esta solicitud ya se cerró.');
       await modificacionRepository.cerrar({
         id: mod.id, estado, usuarioId: usuario.id, valeId, tallerId: mod.taller_id, estadoVale: vale.estado, accion: accion(mod)
       });

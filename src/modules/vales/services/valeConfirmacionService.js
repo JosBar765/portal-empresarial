@@ -24,7 +24,7 @@ class ValeConfirmacionService {
         throw new Error(`Este vale tiene la solicitud de modificación ${modEnTramite.correlativo} en trámite. Espera la decisión del supervisor o da de baja esa solicitud antes de confirmarlo.`);
       }
       if (await modificacionBasicaRepository.contarAbiertasPorVale(valeId)) {
-        throw new Error('Este vale tiene una modificación básica en conversación con el taller. Espera su respuesta o cancela la solicitud antes de confirmarlo.');
+        throw new Error('Hay una modificación básica abierta. Espera la respuesta o cancélala.');
       }
       await valeRepository.actualizarEstado(valeId, ESTADOS.RECIBIDO);
       const ahora = `${hoyISO()} ${horaActual()}`;

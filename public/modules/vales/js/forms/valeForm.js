@@ -82,7 +82,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
     size: 'lg',
     bodyHtml: `
       <form id="form-crear-vale">
-        ${esModificacion ? `<p class="form-nota">Modificación <strong>${tipoMod === 'AVANZADA' ? 'avanzada' : 'media'}</strong>: al solicitarla, este vale pasará a «Recibido» de inmediato y se creará el vale <strong>${escapeHtml(siguienteCodigoMod(vale))}</strong> con la propuesta actual adjunta. La fecha de entrega debe ser de al menos ${diasMinimosMod} días hábiles desde hoy (puedes elegir más) y no admite «urgente». Si el supervisor lo rechaza o vence, se elimina y puedes solicitar otro.</p>` : ''}
+        ${esModificacion ? `<p class="mod-aviso"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon><span>Modificación <strong>${tipoMod === 'AVANZADA' ? 'avanzada' : 'media'}</strong>: crea <strong>${escapeHtml(siguienteCodigoMod(vale))}</strong> y lo autoriza tu supervisor. Entrega: mínimo ${diasMinimosMod} días hábiles desde hoy. Sin «urgente».</span></p>` : ''}
         <div class="section-title">Información de Cliente</div>
         <div class="form-grid">
           <div class="form-field"><label>Empresa</label><input type="text" name="clienteEmpresa" maxlength="100" /></div>
@@ -172,10 +172,10 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
       if (consulta !== consultaFechas) return;
       apiFechaEntrega.setRestricciones(data.minima ? parseIsoLocal(data.minima) : null, new Map(data.noDisponibles.map(x => [x.fecha, x])), reemplazar);
       notaEntrega.textContent = data.minima
-        ? `Entrega mínima: ${data.minima.slice(8, 10)}/${data.minima.slice(5, 7)}. Hora máxima de recibimiento: ${data.horaMaxima}`
-        : 'No hay días configurados para recibir vales de arte. Avisa al administrador.';
+        ? `Mínimo ${data.minima.slice(8, 10)}/${data.minima.slice(5, 7)} · se recibe hasta las ${data.horaMaxima}`
+        : 'No hay días para recibir vales. Avisa al administrador.';
     } catch {
-      if (consulta === consultaFechas) notaEntrega.textContent = 'No se pudieron cargar las fechas disponibles; la fecha se validará al guardar.';
+      if (consulta === consultaFechas) notaEntrega.textContent = 'No se cargaron las fechas; se validarán al guardar.';
     }
   };
   const apiFechaEntrega = wireCampoFecha(overlay, 'fechaEntrega', {
@@ -293,10 +293,10 @@ async function guardarCambios(overlay, vale, formData, modo) {
   try {
     if (modo === 'modificar') {
       await solicitarModificacion(vale.id, formData);
-      window.toast.success('Modificación solicitada', `Modificación solicitada para ${vale.correlativo}.`);
+      window.toast.success('Modificación solicitada', 'Tu supervisor la revisará.');
     } else {
       await corregirVale(vale.id, formData);
-      window.toast.success('Vale corregido', `${vale.correlativo} se actualizó correctamente.`);
+      window.toast.success('Vale corregido', `${vale.correlativo} se actualizó.`);
     }
     document.querySelectorAll('.modal-overlay').forEach(o => o.remove());
     cargarBuzon();

@@ -24,7 +24,7 @@ class ValeModificacionBasicaRepository {
           "SELECT id FROM vale_modificaciones_basicas WHERE vale_taller_id = ? AND estado IN ('EN_CONVERSACION', 'ACEPTADA') LIMIT 1",
           [fila.id], 'modificacion_basica:validar_abierta'
         );
-        if (abierta.length) throw new Error(`El taller ${fila.taller_nombre} ya tiene una modificación básica en curso.`);
+        if (abierta.length) throw new Error(`${fila.taller_nombre} ya tiene una modificación en curso.`);
         const ins = await tx.query(
           'INSERT INTO vale_modificaciones_basicas (vale_id, vale_taller_id, solicitante_id, fecha_entrega_anterior, fecha_entrega_nueva) VALUES (?, ?, ?, ?, ?)',
           [valeId, fila.id, solicitanteId, fechaAnterior, fechaNueva], 'modificacion_basica:insert'
@@ -79,21 +79,21 @@ class ValeModificacionBasicaRepository {
         "UPDATE vale_modificaciones_basicas SET estado = 'ACEPTADA', resuelto_en = NOW(), resuelto_por = ? WHERE id = ? AND estado = 'EN_CONVERSACION'",
         [usuarioId, id], 'modificacion_basica:aceptar'
       );
-      if (mod.affectedRows !== 1) throw new Error('Esta modificación ya fue respondida o cancelada. Actualiza e inténtalo de nuevo.');
+      if (mod.affectedRows !== 1) throw new Error('Esta solicitud ya se cerró. Actualiza la pantalla.');
       const fila = await tx.query(
         `UPDATE vale_talleres SET estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ASIGNADO'),
            fecha_asignacion = ?, atraso_congelado_en = NULL
          WHERE id = ? AND estado_id = (SELECT id FROM estados_taller WHERE nombre = 'APROBADO')`,
         [fechaAsignacion, valeTallerId], 'modificacion_basica:reabrir_taller'
       );
-      if (fila.affectedRows !== 1) throw new Error('El taller ya no tiene su propuesta aprobada. Actualiza e inténtalo de nuevo.');
+      if (fila.affectedRows !== 1) throw new Error('El taller ya no tiene la propuesta aprobada. Actualiza la pantalla.');
       const vale = await tx.query(
         `UPDATE vales SET estado_id = (SELECT id FROM estados_vale WHERE nombre = 'CREADO'),
            fecha_entrega = ?, atraso_congelado_en = NULL, atraso_notificado_en = NULL
          WHERE id = ? AND estado_id IN (SELECT id FROM estados_vale WHERE nombre IN ('PENDIENTE_CONFIRMACION', 'CREADO'))`,
         [fechaEntrega, valeId], 'modificacion_basica:reabrir_vale'
       );
-      if (vale.affectedRows !== 1) throw new Error('El vale cambió de estado mientras se aceptaba la modificación. Actualiza e inténtalo de nuevo.');
+      if (vale.affectedRows !== 1) throw new Error('El vale cambió de estado. Actualiza la pantalla.');
       await tx.query(SQL_HISTORIAL, [valeId, usuarioId, tallerId, 'APROBADO', 'ASIGNADO', accion, disenadorId || null], 'historial:insert_modificacion_basica_aceptada');
       if (estadoValeAnterior !== 'CREADO') {
         await tx.query(SQL_HISTORIAL, [valeId, usuarioId, null, estadoValeAnterior, 'CREADO', 'El vale vuelve al taller por una modificación básica aceptada', null], 'historial:insert_vale_reabierto');
@@ -108,7 +108,7 @@ class ValeModificacionBasicaRepository {
         "UPDATE vale_modificaciones_basicas SET estado = ?, resuelto_en = NOW(), resuelto_por = ? WHERE id = ? AND estado = 'EN_CONVERSACION'",
         [estado, usuarioId, id], 'modificacion_basica:cerrar'
       );
-      if (res.affectedRows !== 1) throw new Error('Esta modificación ya fue respondida o cancelada. Actualiza e inténtalo de nuevo.');
+      if (res.affectedRows !== 1) throw new Error('Esta solicitud ya se cerró. Actualiza la pantalla.');
       await tx.query(SQL_HISTORIAL, [valeId, usuarioId, tallerId, estadoVale, estadoVale, accion, null], 'historial:insert_modificacion_basica_cerrada');
     });
   }

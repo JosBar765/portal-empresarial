@@ -215,7 +215,7 @@ export function renderTabla() {
 function pintarFilas(tbody, filas) {
   tbody.innerHTML = filas.map(v => `
     <tr>
-      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${(v.modificaciones_basicas_abiertas || []).length ? '<span class="badge badge-mod" title="El asesor y el taller están conversando una modificación básica">Modificación básica</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${badgePersona(v)}</td>
+      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${(v.modificaciones_basicas_abiertas || []).length ? '<span class="badge badge-mod" title="Hay una modificación básica en conversación">Mod. básica</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${badgePersona(v)}</td>
       <td data-label="Fecha Ingreso" class="col-fecha-ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
       <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
@@ -309,7 +309,7 @@ export function construirAcciones(v) {
   // El supervisor abre un modal de elección (Ver info / Ver vale) en vez de ir
   // directo al PDF — a veces solo necesita los datos de encabezado. Vale también para los suyos, que él autoriza.
   const acciones = decideEnPaso5
-    ? [{ icono: 'document-text-outline', titulo: 'Ver vale y propuesta: confirmar o solicitar modificación', clase: 'icon-success', onClick: (vale) => abrirVisorDecisionAsesor(vale, propuestaVisible(vale)) }]
+    ? [{ icono: 'document-text-outline', titulo: 'Ver y decidir', clase: 'icon-success', onClick: (vale) => abrirVisorDecisionAsesor(vale, propuestaVisible(vale)) }]
     : state.user.rolId === ROL.SUPERVISOR
       ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
       : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
@@ -359,7 +359,7 @@ export function construirAcciones(v) {
   // Modificación básica abierta: el asesor dueño (o el equipo del taller involucrado) abre la conversación.
   const basicaDelTaller = basicasAbiertas.some(m => m.taller_id === v.taller_id);
   if (basicasAbiertas.length && ((puede('solicitarModificacion') && esMio) || (puede('responderModificacionBasica') && basicaDelTaller))) {
-    acciones.push({ icono: 'chatbubbles-outline', titulo: puede('responderModificacionBasica') ? 'Modificación básica: responder al asesor' : 'Conversación de la modificación básica', clase: 'icon-success', onClick: abrirConversacionesBasicas });
+    acciones.push({ icono: 'chatbubbles-outline', titulo: puede('responderModificacionBasica') ? 'Responder modificación' : 'Chat de la modificación', clase: 'icon-success', onClick: abrirConversacionesBasicas });
   }
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });

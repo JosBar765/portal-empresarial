@@ -68,7 +68,7 @@ export function abrirModalDarDeBaja(vale) {
 // Un solo botón abre el visor con el vale y la propuesta; abajo a la derecha van «Solicitar modificación» y «Confirmar recibido».
 export function abrirVisorDecisionAsesor(vale, propuesta) {
   return abrirVisorVale({
-    id: vale.id, correlativo: vale.correlativo, propuesta,
+    id: vale.id, correlativo: vale.correlativo, propuesta, subtitulo: 'Revisa el vale y la propuesta, y decide.',
     acciones: [
       { etiqueta: 'Solicitar modificación', icono: 'create-outline', clase: 'btn--ghost', onClick: ({ cerrar }) => { cerrar(); abrirSelectorModificacion(vale); } },
       {
@@ -77,7 +77,7 @@ export function abrirVisorDecisionAsesor(vale, propuesta) {
           boton.disabled = true;
           try {
             await confirmarRecibido(vale.id);
-            window.toast.success('Recibido', `${vale.correlativo} confirmado como recibido.`);
+            window.toast.success('Recibido', `${vale.correlativo} confirmado.`);
             cerrar();
             cargarBuzon();
           } catch (error) {

@@ -228,7 +228,7 @@ function validarFechaEntrega(cfg, fecha, talleresIds, ahora, diasMinimos = 0, di
     throw new ErrorDeNegocio(`Sin marcar «Urgente», la fecha de entrega mínima es ${fmtFecha(minima)}. Marca «Urgente» para pedir una fecha más cercana.`);
   }
   if (r.motivo === 'ANTES_DE_MINIMA') {
-    throw new ErrorDeNegocio(`La fecha de entrega mínima de esta modificación es ${fmtFecha(minima)} (${textoDiasHabiles(diasHabiles)} desde hoy).`);
+    throw new ErrorDeNegocio(`La entrega mínima es ${fmtFecha(minima)} (${textoDiasHabiles(diasHabiles)} desde hoy).`);
   }
   if (r.hora) {
     const de = talleresIds.length > 1 ? ` de ${r.taller}` : '';
