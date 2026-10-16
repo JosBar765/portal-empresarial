@@ -7,7 +7,7 @@ import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible } fro
 import { celdaEstado } from '../components/pipeline.js';
 import { abrirVisorVale } from '../components/visorDocumento.js';
 import { htmlBloqueVigentes, conectarBloqueVigentes } from '../components/atrasadosVigentes.js';
-import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro, badgePersona } from '../utils/formato.js';
+import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro, badgePersona, escapeHtml } from '../utils/formato.js';
 import { obtenerBuzon, obtenerMasVales } from '../api/valesApi.js';
 import { cargarReportes } from './reportes.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
@@ -19,6 +19,7 @@ import { abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirSelectorModificacion } from '../actions/modificacionTipo.js';
 import { abrirModalHistorial } from '../actions/historial.js';
 import { abrirConversacionesBasicas } from '../actions/modificacionBasica.js';
+import { rechazosSinLeer, textoRechazos } from '../utils/modificacionesVistas.js';
 
 // -----------------------------------------------------------------------
 // Carga y render del buzón (paginado: 50 vales por petición, cargados por
@@ -215,7 +216,7 @@ export function renderTabla() {
 function pintarFilas(tbody, filas) {
   tbody.innerHTML = filas.map(v => `
     <tr>
-      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${(v.modificaciones_basicas_abiertas || []).length ? '<span class="badge badge-mod" title="Hay una modificación básica en conversación">Mod. básica</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${badgePersona(v)}</td>
+      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${(v.modificaciones_basicas_abiertas || []).length ? '<span class="badge badge-mod" title="Hay una modificación básica en conversación">Mod. básica</span>' : ''}${rechazosSinLeer(v).length ? `<span class="badge badge-rechazada" title="${escapeHtml(textoRechazos(rechazosSinLeer(v)))}">Mod. rechazada</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${badgePersona(v)}</td>
       <td data-label="Fecha Ingreso" class="col-fecha-ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
       <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
@@ -360,6 +361,11 @@ export function construirAcciones(v) {
   const basicaDelTaller = basicasAbiertas.some(m => m.taller_id === v.taller_id);
   if (basicasAbiertas.length && ((puede('solicitarModificacion') && esMio) || (puede('responderModificacionBasica') && basicaDelTaller))) {
     acciones.push({ icono: 'chatbubbles-outline', titulo: puede('responderModificacionBasica') ? 'Responder modificación' : 'Chat de la modificación', clase: 'icon-success', onClick: abrirConversacionesBasicas });
+  }
+  // Un taller rechazó la modificación básica y el asesor aún no la abrió: botón para leer la conversación.
+  const rechazos = rechazosSinLeer(v);
+  if (rechazos.length && puede('solicitarModificacion') && esMio) {
+    acciones.push({ icono: 'chatbubbles-outline', titulo: 'Ver chat del rechazo', clase: 'icon-danger', onClick: (vale) => abrirConversacionesBasicas(vale, { ids: rechazos.map(r => r.id) }) });
   }
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });

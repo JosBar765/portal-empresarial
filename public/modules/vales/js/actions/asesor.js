@@ -4,6 +4,8 @@ import { confirmarRecibido, darDeBajaVale, reenviarVale } from '../api/valesApi.
 import { escapeHtml } from '../utils/formato.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { abrirSelectorModificacion } from './modificacionTipo.js';
+import { abrirConversacionesBasicas } from './modificacionBasica.js';
+import { rechazosSinLeer, textoRechazos } from '../utils/modificacionesVistas.js';
 
 // Asesor: ver el motivo con el que el supervisor rechazó su vale.
 export function abrirModalMotivoRechazo(vale) {
@@ -67,7 +69,14 @@ export function abrirModalDarDeBaja(vale) {
 // -----------------------------------------------------------------------
 // Un solo botón abre el visor con el vale y la propuesta; abajo a la derecha van «Solicitar modificación» y «Confirmar recibido».
 export function abrirVisorDecisionAsesor(vale, propuesta) {
+  // Si un taller rechazó una modificación básica y el asesor aún no la abrió, el visor lo avisa con acceso a la conversación.
+  const rechazos = rechazosSinLeer(vale);
+  const aviso = rechazos.length ? {
+    texto: `${textoRechazos(rechazos)}. El vale sigue igual.`,
+    boton: { etiqueta: 'Ver chat', onClick: ({ quitar }) => { quitar(); abrirConversacionesBasicas(vale, { ids: rechazos.map(r => r.id) }); } }
+  } : null;
   return abrirVisorVale({
+    aviso,
     id: vale.id, correlativo: vale.correlativo, propuesta, subtitulo: 'Revisa el vale y la propuesta, y decide.',
     acciones: [
       { etiqueta: 'Solicitar modificación', icono: 'create-outline', clase: 'btn--ghost', onClick: ({ cerrar }) => { cerrar(); abrirSelectorModificacion(vale); } },

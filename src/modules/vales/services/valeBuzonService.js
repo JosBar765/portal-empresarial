@@ -148,6 +148,13 @@ class ValeBuzonService {
       lista.push({ id: m.id, taller_id: m.taller_id });
       basicasAbiertas.set(m.vale_id, lista);
     }
+    // Rechazos recientes de una modificación básica: solo importan mientras el vale espera la decisión del asesor.
+    const basicasRechazadas = new Map();
+    for (const m of await modificacionBasicaRepository.listarRechazadasRecientesPorVales(vales.map(v => v.id))) {
+      const lista = basicasRechazadas.get(m.vale_id) || [];
+      lista.push({ id: m.id, taller_id: m.taller_id, taller: nombreTaller(m.taller_id) });
+      basicasRechazadas.set(m.vale_id, lista);
+    }
     return vales.map(v => {
       const filas = mapaTalleresPorVale.get(v.id) || [];
       // Un vale en ESPERANDO_AUTORIZACION todavía no tiene filas reales en
@@ -162,6 +169,7 @@ class ValeBuzonService {
       return {
         ...v, taller: idsTaller.map(nombreTaller).join(', '), _filasTaller: filas, _talleresDetalle: talleresDetalle, mod_en_tramite: enTramite.get(v.id) || null,
         modificaciones_basicas_abiertas: basicasAbiertas.get(v.id) || [],
+        modificaciones_basicas_rechazadas: v.estado === ESTADOS.PENDIENTE_CONFIRMACION ? (basicasRechazadas.get(v.id) || []) : [],
         // Nota o enlaces de la fusión; o los de la propuesta cuando el vale ya volvió al asesor (no antes de que se apruebe).
         propuesta_extra: conExtra.fusion.has(v.id) || !!v.propuesta_general_nota
           || (conExtra.propuestas.has(v.id) && [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO].includes(v.estado))

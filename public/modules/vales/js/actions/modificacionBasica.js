@@ -7,6 +7,7 @@ import { escapeHtml, formatearFecha } from '../utils/formato.js';
 import { wireContador, htmlHilo, MAX_CARACTERES_CHAT } from './adjuntos.js';
 import { state } from '../state.js';
 import { cargarBuzon } from '../views/buzon.js';
+import { marcarRechazoVisto } from '../utils/modificacionesVistas.js';
 
 // Modificación básica: sin vale MOD. El asesor le pide un cambio pequeño a uno o varios talleres y conversan; el taller acepta o rechaza.
 const ESTADO_MODIFICACION = {
@@ -22,7 +23,7 @@ function lineaDeEstado(c) {
   switch (c.estado) {
     case 'EN_CONVERSACION': return c.lado === 'TALLER' ? 'Acepta para rehacer la propuesta, o rechaza para dejarla igual.' : 'Esperando la respuesta del taller.';
     case 'ACEPTADA': return 'El taller está rehaciendo la propuesta.';
-    case 'RECHAZADA': return 'El vale sigue como estaba.';
+    case 'RECHAZADA': return c.lado === 'ASESOR' ? 'El vale sigue igual: puedes confirmarlo o pedir otra modificación.' : 'Solicitud rechazada.';
     case 'CANCELADA': return 'Solicitud cancelada.';
     default: return 'El taller ya entregó la nueva propuesta.';
   }
@@ -127,9 +128,11 @@ export async function abrirModalConversacionBasica(vale, modId) {
   const btnRechazar = overlay.querySelector('#mb-rechazar');
   const btnAceptar = overlay.querySelector('#mb-aceptar');
 
+  let leido = false; // el asesor leyó un rechazo: al cerrar, el buzón quita la marca
   const cerrar = () => {
     if (state.conversacionAbierta && state.conversacionAbierta.overlay === overlay) state.conversacionAbierta = null;
     cerrarModal();
+    if (leido) cargarBuzon();
   };
   overlay.querySelector('#mb-cerrar').addEventListener('click', cerrar);
   const ajustarAlto = () => { textarea.style.height = 'auto'; textarea.style.height = `${Math.min(textarea.scrollHeight, 110)}px`; };
@@ -149,6 +152,7 @@ export async function abrirModalConversacionBasica(vale, modId) {
     zonaEscribir.hidden = !c.puede_escribir;
     btnAceptar.hidden = btnRechazar.hidden = !c.puede_decidir;
     btnCancelar.hidden = !c.puede_cancelar;
+    if (c.estado === 'RECHAZADA' && c.lado === 'ASESOR') { marcarRechazoVisto(c.id); leido = true; }
   };
   const refrescar = async () => {
     try { pintar(await obtenerConversacionBasica(vale.id, modId)); } catch (error) { hilo.innerHTML = `<div class="chat-vacio"><p>${escapeHtml(error.message)}</p></div>`; }
@@ -198,7 +202,7 @@ export async function abrirModalConversacionBasica(vale, modId) {
 // -----------------------------------------------------------------------
 // Entrada desde el buzón: abre la conversación abierta o, si hay varias (vale con varios talleres), deja elegir cuál
 // -----------------------------------------------------------------------
-export async function abrirConversacionesBasicas(vale) {
+export async function abrirConversacionesBasicas(vale, { ids = null } = {}) {
   let modificaciones;
   try {
     modificaciones = await listarModificacionesBasicas(vale.id);
@@ -207,7 +211,7 @@ export async function abrirConversacionesBasicas(vale) {
     return;
   }
   const abiertas = modificaciones.filter(m => m.estado === 'EN_CONVERSACION');
-  const lista = abiertas.length ? abiertas : modificaciones.slice(-1);
+  const lista = ids ? modificaciones.filter(m => ids.includes(m.id)) : abiertas.length ? abiertas : modificaciones.slice(-1);
   if (lista.length === 1) { abrirModalConversacionBasica(vale, lista[0].id); return; }
   if (!lista.length) { window.toast.info('Sin conversaciones', 'Este vale no tiene modificaciones básicas.'); return; }
   const { overlay, cerrar } = abrirModal({

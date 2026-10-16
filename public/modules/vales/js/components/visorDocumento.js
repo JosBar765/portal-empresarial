@@ -17,7 +17,8 @@ let visorAbierto = null;
 // donde `cargar()` devuelve { url, nota, enlaces } (el archivo se incrusta y la nota y los enlaces van en un panel);
 // `activo`: índice del documento que se muestra primero.
 // `acciones`: [{ etiqueta, icono, clase, onClick({ cerrar, boton }) }], botones que se muestran abajo a la derecha.
-export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, acciones = [] }) {
+// `aviso`: { texto, icono, boton: { etiqueta, onClick({ quitar }) } }, una franja corta sobre el documento.
+export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, acciones = [], aviso = null }) {
   if (!documentos || !documentos.length) return null;
   if (visorAbierto) visorAbierto.cerrar();
   const origen = document.activeElement;
@@ -41,6 +42,11 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, acc
       ${documentos.length > 1 ? `
       <div class="visor-pestanas" role="tablist" aria-label="Documentos">
         ${documentos.map((d, i) => `<button type="button" class="visor-pestana" role="tab" data-visor-pestana-i="${i}" aria-selected="false">${escapeHtml(d.etiqueta)}</button>`).join('')}
+      </div>` : ''}
+      ${aviso ? `<div class="visor-aviso" role="status">
+        <ion-icon name="${aviso.icono || 'alert-circle-outline'}" aria-hidden="true"></ion-icon>
+        <p>${escapeHtml(aviso.texto)}</p>
+        ${aviso.boton ? `<button type="button" class="btn btn--ghost btn--sm" data-visor-aviso-boton>${escapeHtml(aviso.boton.etiqueta)}</button>` : ''}
       </div>` : ''}
       <div class="visor-cuerpo" role="tabpanel">
         <div class="visor-cargando" data-visor-cargando><ion-icon name="sync-outline" class="spin-animation" aria-hidden="true"></ion-icon><span>Cargando documento…</span></div>
@@ -161,6 +167,8 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, acc
     }
   }
 
+  const botonAviso = overlay.querySelector('[data-visor-aviso-boton]');
+  if (botonAviso) botonAviso.addEventListener('click', () => aviso.boton.onClick({ quitar: () => { const franja = overlay.querySelector('.visor-aviso'); if (franja) franja.remove(); } }));
   overlay.querySelector('[data-visor-cerrar]').addEventListener('click', cerrar);
   overlay.querySelectorAll('[data-visor-pestana-i]').forEach(b => b.addEventListener('click', () => mostrar(Number(b.dataset.visorPestanaI))));
   overlay.querySelectorAll('[data-visor-accion]').forEach(b => b.addEventListener('click', () => acciones[Number(b.dataset.visorAccion)].onClick({ cerrar, boton: b })));
@@ -178,7 +186,7 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, acc
 
 // Atajo para un vale: su PDF y, si tiene, su propuesta (con nota y enlaces). `propuesta`: { tipo: 'taller' | 'general' | 'ultima',
 // disenadorId } o null; `activo`: 'vale' | 'propuesta'.
-export function abrirVisorVale({ id, correlativo, propuesta = null, activo = 'vale', acciones = [], subtitulo = '' }) {
+export function abrirVisorVale({ id, correlativo, propuesta = null, activo = 'vale', acciones = [], subtitulo = '', aviso = null }) {
   const documentos = [{ etiqueta: 'Vale de arte', url: `/api/vales/${id}/pdf` }];
   if (propuesta) documentos.push({ etiqueta: 'Propuesta', cargar: () => obtenerPropuestaVale(id, propuesta) });
   return abrirVisor({
@@ -186,7 +194,8 @@ export function abrirVisorVale({ id, correlativo, propuesta = null, activo = 'va
     subtitulo,
     documentos,
     activo: activo === 'propuesta' && propuesta ? 1 : 0,
-    acciones
+    acciones,
+    aviso
   });
 }
 

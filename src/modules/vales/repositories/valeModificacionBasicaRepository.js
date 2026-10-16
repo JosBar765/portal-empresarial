@@ -71,6 +71,18 @@ class ValeModificacionBasicaRepository {
     );
   }
 
+  // Rechazos más recientes de cada taller (sin una solicitud posterior al mismo taller): el asesor los ve en su buzón.
+  async listarRechazadasRecientesPorVales(valeIds) {
+    if (!valeIds.length) return [];
+    return db.query(
+      `SELECT m.id, m.vale_id, vt.taller_id, m.resuelto_en
+       FROM vale_modificaciones_basicas m JOIN vale_talleres vt ON vt.id = m.vale_taller_id
+       WHERE m.vale_id IN (?) AND m.estado = 'RECHAZADA'
+         AND NOT EXISTS (SELECT 1 FROM vale_modificaciones_basicas n WHERE n.vale_taller_id = m.vale_taller_id AND n.id > m.id)`,
+      [valeIds], 'modificacion_basica:list_rechazadas_vales'
+    );
+  }
+
   // El taller aceptó: su fila vuelve a ASIGNADO (mismo diseñador) y el vale sale del paso 5 con la nueva fecha de entrega.
   // Todo o nada; cada UPDATE exige el estado esperado por si algo cambió mientras tanto.
   async aceptar({ id, valeId, valeTallerId, tallerId, disenadorId, usuarioId, estadoValeAnterior, fechaEntrega, fechaAsignacion, accion }) {

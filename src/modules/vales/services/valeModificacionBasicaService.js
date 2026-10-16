@@ -174,7 +174,7 @@ class ValeModificacionBasicaService {
   async rechazar(usuario, valeId, modId) {
     return this._cerrar(usuario, valeId, modId, { lado: 'TALLER', estado: 'RECHAZADA', tipo: 'MOD_BASICA_RECHAZADA',
       accion: (mod) => `Taller ${mod.taller} rechazó la modificación básica`,
-      texto: (mod, u) => `${mod.taller} rechazó la modificación`,
+      texto: (mod, u) => `${mod.taller} rechazó tu modificación`,
       salasDe: (vale) => [`asesor:${vale.asesor_id}`], nivel: 'alerta' });
   }
 

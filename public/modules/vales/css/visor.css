@@ -34,6 +34,11 @@
 .visor-pestana:hover { color: var(--color-text); }
 .visor-pestana.is-activa { color: var(--color-primary-dark); border-bottom-color: var(--color-primary-dark); }
 
+/* Franja de aviso sobre el documento (p. ej. una modificación rechazada) */
+.visor-aviso { display: flex; align-items: center; gap: 10px; margin: 10px 12px 0; padding: 8px 12px; background: var(--color-danger-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.visor-aviso > ion-icon { flex: none; font-size: 20px; color: var(--color-danger); }
+.visor-aviso p { flex: 1; margin: 0; font-size: 13px; font-weight: 500; }
+.visor-aviso .btn { flex: none; }
 .visor-cuerpo { position: relative; flex: 1; min-height: 0; background: var(--color-surface-muted); }
 .visor-contenido { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto; }
 .visor-marco { width: 100%; height: 100%; border: 0; background: #fff; }
