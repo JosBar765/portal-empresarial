@@ -160,18 +160,19 @@ function estadoVisibleAsesor(vale) {
 // La ventana de tiempo filtra por la fecha de ENTREGA del vale: 'todo', 'mes' (el de `ventana.fecha`) o 'rango'.
 function dentroDeVentana(vale, ventana) {
   if (!ventana || !ventana.tipo || ventana.tipo === 'todo') return true;
-  // Buzón: un atrasado abierto se ve siempre, aunque su entrega caiga fuera del período.
-  if (ventana.incluirAtrasados && vale.atrasado && !ESTADOS_TERMINALES.includes(vale.estado)) return true;
   const fv = new Date(`${String(vale.fecha_entrega).slice(0, 10)}T00:00:00`);
+  // Buzón: un atrasado abierto con entrega ANTERIOR al inicio del período se ve igual; los posteriores no.
+  const atrasadoAnterior = () => !!ventana.incluirAtrasados && vale.atrasado && !ESTADOS_TERMINALES.includes(vale.estado);
 
   if (ventana.tipo === 'rango') {
     if (!ventana.desde && !ventana.hasta) return true;
-    if (ventana.desde && fv < new Date(`${ventana.desde}T00:00:00`)) return false;
+    if (ventana.desde && fv < new Date(`${ventana.desde}T00:00:00`)) return atrasadoAnterior();
     if (ventana.hasta && fv > new Date(`${ventana.hasta}T00:00:00`)) return false;
     return true;
   }
   if (ventana.tipo === 'mes') {
     const ref = new Date(`${ventana.fecha || hoyISO()}T00:00:00`);
+    if (fv < new Date(ref.getFullYear(), ref.getMonth(), 1)) return atrasadoAnterior();
     return fv.getFullYear() === ref.getFullYear() && fv.getMonth() === ref.getMonth();
   }
   return true;
