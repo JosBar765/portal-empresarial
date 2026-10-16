@@ -58,8 +58,8 @@ export const CONTADORES_CONFIG = {
     ],
     trabajo: [
       { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' },
-      { key: 'totalAprobados', label: 'Total aprobados', filtro: 'totalAprobados' },
       { key: 'fusionadosHoy', label: 'Fusionados hoy', filtro: 'fusionadosHoy', permiso: PERMISO_FUSION },
+      { key: 'totalAprobados', label: 'Total aprobados', filtro: 'totalAprobados' },
       { key: 'totalFusionados', label: 'Total fusionados', filtro: 'totalFusionados', permiso: PERMISO_FUSION },
       ATRASADOS_TRABAJO
     ]
