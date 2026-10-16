@@ -18,7 +18,7 @@ const valeVistoRepository = require('../repositories/valeVistoRepository');
 const { calcularPipeline, prepararPipeline } = require('./valePipeline');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
-  esAdministrador, enriquecer, dentroDeVentana, esAnteriorAlPeriodo, ordenarPorGrupos,
+  esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
   ordenarPorFecha, esHoy, estadoVisibleAsesor,
   esDeTaller, rolEncargadoDe, esValeDeModificacion
 } = require('./valeHelpers');
@@ -270,12 +270,11 @@ class ValeBuzonService {
       ? [...valesBuscados].sort((a, b) => comparador(a, b) * sortDir)
       : valesBuscados;
 
-    // Buzón con filtro de fecha y sin orden por columna: arriba lo que se arrastra (entrega anterior al período), del más al menos
-    // atrasado; debajo lo del período con la jerarquía del rol.
+    // Buzón sin orden por columna: del más al menos atrasado (los filtros de estado ya están en los contadores); sin atraso,
+    // por fecha de entrega.
     if (vista === 'buzon' && !sortKey) {
-      const arrastrados = valesOrdenados.filter(v => esAnteriorAlPeriodo(v, ventana))
+      valesOrdenados = [...valesOrdenados]
         .sort((a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || String(a.fecha_entrega).localeCompare(String(b.fecha_entrega)));
-      if (arrastrados.length) valesOrdenados = [...arrastrados, ...valesOrdenados.filter(v => !esAnteriorAlPeriodo(v, ventana))];
     }
 
     // Paginación por cursor: en vez de un `offset` numérico contra un

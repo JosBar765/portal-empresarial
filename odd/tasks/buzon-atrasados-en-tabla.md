@@ -6,9 +6,9 @@ Rama: `fix/ordenamiento-aparicion-vales` · Estrategia de entrega: `ask-on-risk`
 En el Buzón, con cualquier filtro de fecha (día, «Hoy», mes o rango), cada usuario ve los vales que **viene arrastrando** (siguen pendientes en su buzón y su entrega es anterior al inicio del período) **además** de los que le toca hacer en el período. Aplica a todos los roles (encargados y asistentes, diseñadores, asesores, supervisores, administrador y gerente). Es clave para que los encargados vean lo que no han trabajado.
 
 ## Decisiones acordadas con el usuario (2026-10-16)
-- Sin títulos de sección: la tabla es una sola lista, los arrastrados arriba y los del período debajo.
+- Sin títulos de sección: la tabla es una sola lista.
 - **Arrastrado** = vale que sigue pendiente en el buzón del usuario con entrega anterior al inicio del período, aunque su atraso esté congelado (p. ej. un vale «Por confirmar» del asesor). No depende de que esté atrasado.
-- **Orden:** arrastrados primero, del más al menos atrasado; debajo, los del período con la jerarquía por estado del rol. Con orden por columna manda el orden del usuario.
+- **Orden (decisión final):** una sola regla, días de atraso de mayor a menor, sin agrupar por estado (los filtros de estado son las tarjetas); sin atraso, por fecha de entrega. Con orden por columna manda el orden del usuario. Se descartó dejar los arrastrados primero y debajo la jerarquía del rol: seguía rompiéndose. Arrastrado = anterior al inicio del período (el usuario confirmó que "sin importar la ventana" fue un error).
 - «Trabajo realizado» no muestra arrastrados (es un registro de lo hecho).
 - Los asistentes tienen la misma vista que su encargado.
 - **Administrador y Gerente** (misma vista general de solo lectura): se separan en Buzón y Trabajo realizado. Trabajo realizado = vales cerrados (`RECIBIDO`/`CONFIRMADO`), como la vista del asesor pero de todos; Buzón = todo lo que sigue en curso.
@@ -17,7 +17,7 @@ En el Buzón, con cualquier filtro de fecha (día, «Hoy», mes o rango), cada u
 
 ## Diseño
 - `dentroDeVentana` (`valeHelpers.js`) acepta `ventana.incluirArrastrados`: un vale con entrega anterior al inicio de la ventana cuenta como dentro de ella. Solo se activa en la vista Buzón. Los buzones por rol ya filtran lo pendiente antes, así que contadores, filtros de contador y paginación quedan coherentes.
-- `obtenerBuzon` (sin orden por columna) pone primero los arrastrados por días de atraso desc y después el resto en el orden del rol.
+- `obtenerBuzon` (sin orden por columna) ordena todo por días de atraso desc y, sin atraso, por fecha de entrega.
 - Administrador/Gerente: `_buzonAdministrador` excluye los cerrados; `_trabajoGeneral` lista los cerrados con los contadores del asesor (`recibidosHoy`, `totalRecibidos`).
 - Frontend: sin encabezados de sección; el sidebar muestra «Trabajo realizado» al administrador y al gerente, con sus contadores.
 
@@ -30,6 +30,7 @@ En el Buzón, con cualquier filtro de fecha (día, «Hoy», mes o rango), cada u
 - [x] T5 · Frontend: quitar encabezados y estilos de sección. Ruta: inline. Commit: ver «Progreso».
 - [x] T6 · Backend: administrador y gerente separados en Buzón y Trabajo realizado. Ruta: inline. Verificado por API: Buzón 94 + Trabajo realizado 159 = 253 vales (el total), solo `RECIBIDO` en Trabajo realizado.
 - [x] T7 · Frontend: sidebar y contadores de Trabajo realizado para administrador y gerente. Ruta: inline.
+- [x] T4b · Orden único por días de atraso, sin jerarquía por estado (verificado por API en 6 roles, 0 saltos en día, mes y «Todo»).
 - [ ] T8 · Documentación y revisión de cada vista con el usuario, rol por rol.
 
 ## Reglas de trabajo

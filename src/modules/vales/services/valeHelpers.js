@@ -157,20 +157,6 @@ function estadoVisibleAsesor(vale) {
   }
 }
 
-// Primer día de la ventana (mes o `desde` del rango), o null si no tiene inicio.
-function inicioDeVentana(ventana) {
-  if (!ventana || !ventana.tipo || ventana.tipo === 'todo') return null;
-  if (ventana.tipo === 'rango') return ventana.desde ? new Date(`${ventana.desde}T00:00:00`) : null;
-  const ref = new Date(`${ventana.fecha || hoyISO()}T00:00:00`);
-  return new Date(ref.getFullYear(), ref.getMonth(), 1);
-}
-
-// La entrega del vale es anterior al inicio de la ventana.
-function esAnteriorAlPeriodo(vale, ventana) {
-  const inicio = inicioDeVentana(ventana);
-  return !!inicio && new Date(`${String(vale.fecha_entrega).slice(0, 10)}T00:00:00`) < inicio;
-}
-
 // La ventana de tiempo filtra por la fecha de ENTREGA del vale: 'todo', 'mes' (el de `ventana.fecha`) o 'rango'.
 function dentroDeVentana(vale, ventana) {
   if (!ventana || !ventana.tipo || ventana.tipo === 'todo') return true;
@@ -282,7 +268,7 @@ module.exports = {
   esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
   hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
-  dentroDeVentana, esAnteriorAlPeriodo, ordenarPorGrupos, ordenarPorFecha, esHoy,
+  dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
   normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial,
   requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo
 };
