@@ -18,7 +18,7 @@ const valeVistoRepository = require('../repositories/valeVistoRepository');
 const { calcularPipeline, prepararPipeline } = require('./valePipeline');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
-  esAdministrador, enriquecer, dentroDeVentana, esAtrasoVigente, esAnteriorAlPeriodo, ordenarPorGrupos,
+  esAdministrador, enriquecer, dentroDeVentana, esAnteriorAlPeriodo, ordenarPorGrupos,
   ordenarPorFecha, esHoy, estadoVisibleAsesor,
   esDeTaller, rolEncargadoDe, esValeDeModificacion
 } = require('./valeHelpers');
@@ -201,7 +201,7 @@ class ValeBuzonService {
     await prepararPipeline();
     const ventana = this._resolverVentana(filtros);
     const vista = filtros.vista === 'trabajo' ? 'trabajo' : 'buzon';
-    if (vista === 'buzon') ventana.incluirAtrasados = true;
+    if (vista === 'buzon') ventana.incluirArrastrados = true;
     const filtroContador = filtros.filtroContador || null;
     const todos = (await valeRepository.listarTodos()).map(enriquecer);
     const talleresTodos = await tallerRepository.listarActivos();
@@ -266,19 +266,12 @@ class ValeBuzonService {
       ? [...valesBuscados].sort((a, b) => comparador(a, b) * sortDir)
       : valesBuscados;
 
-    // Buzón con filtro de fecha y sin orden por columna: arriba los atrasados anteriores al período (del más al menos atrasado)
-    // y abajo el buzón del período con la jerarquía del rol. Sin atrasados anteriores no hay secciones.
-    let secciones = null;
-    const anteriores = new Set();
+    // Buzón con filtro de fecha y sin orden por columna: arriba lo que se arrastra (entrega anterior al período), del más al menos
+    // atrasado; debajo lo del período con la jerarquía del rol.
     if (vista === 'buzon' && !sortKey) {
-      valesOrdenados.filter(v => esAtrasoVigente(v) && esAnteriorAlPeriodo(v, ventana))
-        .sort((a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || String(a.fecha_entrega).localeCompare(String(b.fecha_entrega)))
-        .forEach(v => anteriores.add(v));
-      if (anteriores.size) {
-        const delPeriodo = valesOrdenados.filter(v => !anteriores.has(v));
-        valesOrdenados = [...anteriores, ...delPeriodo];
-        secciones = { anteriores: anteriores.size, periodo: delPeriodo.length };
-      }
+      const arrastrados = valesOrdenados.filter(v => esAnteriorAlPeriodo(v, ventana))
+        .sort((a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || String(a.fecha_entrega).localeCompare(String(b.fecha_entrega)));
+      if (arrastrados.length) valesOrdenados = [...arrastrados, ...valesOrdenados.filter(v => !esAnteriorAlPeriodo(v, ventana))];
     }
 
     // Paginación por cursor: en vez de un `offset` numérico contra un
@@ -334,12 +327,11 @@ class ValeBuzonService {
     const idsBuzon = [...new Set(paginaCruda.map(v => v.id))];
     const conPropuestaNueva = await propuestasCompartidasService.valesConPropuestaNueva(usuario, idsBuzon);
     const conHermano = await propuestasCompartidasService.valesConHermano(usuario, idsBuzon);
-    const pagina = paginaCruda.map(v => ({ ...v, ...(secciones && { seccion: anteriores.has(v) ? 'anteriores' : 'periodo' }), propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
+    const pagina = paginaCruda.map(v => ({ ...v, propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
     const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
     return {
       vales: pagina,
       contadores: resultado.contadores,
-      secciones,
       total,
       hasMore: indiceInicio + limit < total,
       nextCursor

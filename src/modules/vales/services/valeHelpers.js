@@ -157,11 +157,6 @@ function estadoVisibleAsesor(vale) {
   }
 }
 
-// Atraso que sigue corriendo: atrasado y sin congelar (ni terminal, ni con el taller ya aprobado y a la espera de confirmar).
-function esAtrasoVigente(vale) {
-  return !!vale.atrasado && !vale.atraso_congelado_en && !ESTADOS_TERMINALES.includes(vale.estado);
-}
-
 // Primer día de la ventana (mes o `desde` del rango), o null si no tiene inicio.
 function inicioDeVentana(ventana) {
   if (!ventana || !ventana.tipo || ventana.tipo === 'todo') return null;
@@ -180,18 +175,18 @@ function esAnteriorAlPeriodo(vale, ventana) {
 function dentroDeVentana(vale, ventana) {
   if (!ventana || !ventana.tipo || ventana.tipo === 'todo') return true;
   const fv = new Date(`${String(vale.fecha_entrega).slice(0, 10)}T00:00:00`);
-  // Buzón: un atraso vigente con entrega ANTERIOR al inicio del período se ve igual; los posteriores no.
-  const atrasadoAnterior = () => !!ventana.incluirAtrasados && esAtrasoVigente(vale);
+  // Buzón: lo que se arrastra (entrega ANTERIOR al inicio del período) se ve igual; lo posterior no.
+  const arrastrado = () => !!ventana.incluirArrastrados;
 
   if (ventana.tipo === 'rango') {
     if (!ventana.desde && !ventana.hasta) return true;
-    if (ventana.desde && fv < new Date(`${ventana.desde}T00:00:00`)) return atrasadoAnterior();
+    if (ventana.desde && fv < new Date(`${ventana.desde}T00:00:00`)) return arrastrado();
     if (ventana.hasta && fv > new Date(`${ventana.hasta}T00:00:00`)) return false;
     return true;
   }
   if (ventana.tipo === 'mes') {
     const ref = new Date(`${ventana.fecha || hoyISO()}T00:00:00`);
-    if (fv < new Date(ref.getFullYear(), ref.getMonth(), 1)) return atrasadoAnterior();
+    if (fv < new Date(ref.getFullYear(), ref.getMonth(), 1)) return arrastrado();
     return fv.getFullYear() === ref.getFullYear() && fv.getMonth() === ref.getMonth();
   }
   return true;
@@ -287,7 +282,7 @@ module.exports = {
   esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
   hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
-  dentroDeVentana, esAtrasoVigente, esAnteriorAlPeriodo, ordenarPorGrupos, ordenarPorFecha, esHoy,
+  dentroDeVentana, esAnteriorAlPeriodo, ordenarPorGrupos, ordenarPorFecha, esHoy,
   normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial,
   requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo
 };
