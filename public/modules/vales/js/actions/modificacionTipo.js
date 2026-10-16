@@ -3,29 +3,29 @@ import { escapeHtml, siguienteCodigoMod } from '../utils/formato.js';
 import { abrirModalSolicitarModificacion } from '../forms/valeForm.js';
 import { abrirModalModificacionBasica } from './modificacionBasica.js';
 
-// Tipos de modificación según la complejidad del cambio. Los días son mínimos contados en días hábiles desde el día de la solicitud.
+// Tipos de modificación según el tamaño del cambio. Los días son mínimos y se cuentan en días hábiles desde hoy.
 const TIPOS = [
   {
-    id: 'BASICA', nombre: 'Básica', dias: '+1 día hábil', icono: 'chatbubbles-outline',
-    resumen: 'Un cambio muy pequeño que se acuerda conversando con el taller.',
-    datos: () => ['No crea otro vale', 'Chat con el taller: acepta o rechaza', 'No valida el cupo del taller'],
-    info: 'Para un ajuste mínimo (un color, una palabra, un detalle). <strong>No se crea otro vale:</strong> le cuentas el cambio al taller por un chat y, si lo acepta, rehace la propuesta y la envía para tu confirmación. La fecha de entrega se mueve exactamente 1 día hábil.'
+    id: 'BASICA', nombre: 'Básica', dias: '+1 día', icono: 'chatbubbles-outline',
+    resumen: 'Un ajuste pequeño, acordado por chat con el taller.',
+    ejemplo: 'Ej.: cambiar un color o un texto.',
+    chips: () => [['chatbubble-outline', 'Chat con el taller'], ['documents-outline', 'Sin vale nuevo']]
   },
   {
-    id: 'MEDIA', nombre: 'Media', dias: '+2 días hábiles', icono: 'create-outline',
-    resumen: 'Un cambio de tamaño intermedio, con vale MOD.',
-    datos: (vale) => [`Se crea el vale ${siguienteCodigoMod(vale)}`, 'Lo autoriza tu supervisor', 'Entrega: mínimo 2 días hábiles desde hoy (puedes poner más)'],
-    info: 'Para un cambio intermedio. Se crea un <strong>vale MOD</strong> con la propuesta actual adjunta y tu supervisor debe autorizarlo. La fecha de entrega debe ser de al menos 2 días hábiles desde hoy (puedes elegir más). No admite «urgente».'
+    id: 'MEDIA', nombre: 'Media', dias: '+2 días', icono: 'create-outline',
+    resumen: 'Un cambio mediano, con vale nuevo.',
+    ejemplo: 'Ej.: ajustar medidas o materiales.',
+    chips: (vale) => [['document-text-outline', `Crea ${siguienteCodigoMod(vale)}`], ['person-outline', 'Autoriza tu supervisor']]
   },
   {
-    id: 'AVANZADA', nombre: 'Avanzada', dias: '+3 días hábiles', icono: 'construct-outline',
-    resumen: 'Un cambio grande o un rediseño, con vale MOD.',
-    datos: (vale) => [`Se crea el vale ${siguienteCodigoMod(vale)}`, 'Lo autoriza tu supervisor', 'Entrega: mínimo 3 días hábiles desde hoy (puedes poner más)'],
-    info: 'Para un cambio grande (rediseño, otro producto o material). Funciona igual que la Media, pero la fecha de entrega debe ser de al menos 3 días hábiles desde hoy. Los vales MOD se acumulan: MOD, MOD2, MOD3…'
+    id: 'AVANZADA', nombre: 'Avanzada', dias: '+3 días', icono: 'construct-outline',
+    resumen: 'Un cambio grande o un rediseño, con vale nuevo.',
+    ejemplo: 'Ej.: otro diseño u otro producto.',
+    chips: (vale) => [['document-text-outline', `Crea ${siguienteCodigoMod(vale)}`], ['person-outline', 'Autoriza tu supervisor']]
   }
 ];
 
-// Asesor: elige el tipo de modificación y sigue con su flujo (conversación con el taller, o vale MOD con el formulario).
+// Asesor: elige el tipo de modificación y sigue con su flujo (chat con el taller, o formulario del vale MOD).
 // La básica solo existe mientras el vale espera tu confirmación: el taller rehace la propuesta antes de que lo recibas.
 export function abrirSelectorModificacion(vale) {
   const disponibles = TIPOS.filter(t => t.id !== 'BASICA' || vale.estado === 'PENDIENTE_CONFIRMACION');
@@ -33,39 +33,50 @@ export function abrirSelectorModificacion(vale) {
     title: `Solicitar modificación — ${vale.correlativo}`,
     size: 'lg',
     bodyHtml: `
-      <p class="mod-intro">¿Qué tan grande es el cambio? Elige el tipo de modificación.</p>
+      <p class="mod-intro">¿Qué tan grande es el cambio?</p>
       <div class="mod-tipos" role="radiogroup" aria-label="Tipo de modificación">
         ${disponibles.map(t => `
           <label class="mod-tipo">
             <input type="radio" name="mod-tipo" value="${t.id}" class="sr-only">
             <span class="mod-tipo-cuerpo">
-              <span class="mod-tipo-cab"><ion-icon name="${t.icono}" aria-hidden="true"></ion-icon><strong>${t.nombre}</strong><span class="mod-tipo-dias">${t.dias}</span></span>
+              <span class="mod-tipo-cab">
+                <ion-icon name="${t.icono}" aria-hidden="true"></ion-icon><strong>${t.nombre}</strong>
+                <span class="mod-tipo-dias">${t.dias}</span>
+                <span class="mod-tipo-marca" aria-hidden="true"></span>
+              </span>
               <span class="mod-tipo-resumen">${escapeHtml(t.resumen)}</span>
-              <ul class="mod-tipo-datos">${t.datos(vale).map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>
+              <span class="mod-tipo-ejemplo">${escapeHtml(t.ejemplo)}</span>
+              <span class="mod-tipo-chips">${t.chips(vale).map(([i, txt]) => `<span class="mod-chip"><ion-icon name="${i}" aria-hidden="true"></ion-icon>${escapeHtml(txt)}</span>`).join('')}</span>
             </span>
           </label>`).join('')}
       </div>
-      ${disponibles.length < TIPOS.length ? '<p class="form-nota">La modificación básica solo se puede pedir mientras el vale espera tu confirmación, porque el taller rehace la propuesta antes de que lo recibas.</p>' : ''}
+      ${disponibles.length < TIPOS.length ? '<p class="mod-aviso"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>La básica solo se pide antes de confirmar el vale.</p>' : ''}
       <details class="mod-info">
-        <summary><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon> ¿Qué es cada modificación?</summary>
-        <div class="mod-info-cuerpo">
-          ${TIPOS.map(t => `<p><strong>${t.nombre} (${t.dias}).</strong> ${t.info}</p>`).join('')}
-          <p>Los días son <strong>mínimos</strong> y se cuentan en días hábiles desde hoy. En la Media y la Avanzada puedes elegir una fecha de entrega más lejana.</p>
-        </div>
+        <summary><ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>¿Cuál elijo?</summary>
+        <ul class="mod-info-lista">
+          <li><strong>Básica:</strong> sin vale nuevo. El taller acepta o rechaza por chat y la entrega sube 1 día hábil.</li>
+          <li><strong>Media y Avanzada:</strong> crean un vale MOD que autoriza tu supervisor. No admiten «urgente».</li>
+          <li>Los días son <strong>mínimos</strong>, contados en días hábiles desde hoy. En Media y Avanzada puedes elegir más.</li>
+        </ul>
       </details>
     `,
     footerHtml: '<button class="btn btn--ghost" id="mod-cancelar">Cancelar</button><button class="btn btn--primary" id="mod-continuar" disabled>Continuar</button>'
   });
   const continuar = overlay.querySelector('#mod-continuar');
-  overlay.querySelectorAll('input[name="mod-tipo"]').forEach(r => r.addEventListener('change', () => { continuar.disabled = false; }));
-  overlay.querySelector('#mod-cancelar').addEventListener('click', cerrar);
-  continuar.addEventListener('click', () => {
+  const seguir = () => {
     const elegido = overlay.querySelector('input[name="mod-tipo"]:checked');
     if (!elegido) return;
     cerrar();
     if (elegido.value === 'BASICA') abrirModalModificacionBasica(vale);
     else abrirModalSolicitarModificacion(vale, elegido.value);
+  };
+  overlay.querySelectorAll('input[name="mod-tipo"]').forEach(r => {
+    r.addEventListener('change', () => { continuar.disabled = false; });
+    // Doble clic en una tarjeta: elige y continúa.
+    r.closest('.mod-tipo').addEventListener('dblclick', () => { r.checked = true; seguir(); });
   });
+  overlay.querySelector('#mod-cancelar').addEventListener('click', cerrar);
+  continuar.addEventListener('click', seguir);
   const primero = overlay.querySelector('input[name="mod-tipo"]');
   if (primero) primero.focus();
 }
