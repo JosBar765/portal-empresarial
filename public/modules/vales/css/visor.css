@@ -42,7 +42,13 @@
 .visor-cargando[hidden], .visor-error[hidden] { display: none; }
 .visor-cargando ion-icon, .visor-error ion-icon { font-size: 28px; }
 .visor-error p { margin: 0; }
-.visor-pie { margin: 0; padding: 8px 16px; font-size: 12px; color: var(--color-text-muted); border-top: 1px solid var(--color-border); }
+.visor-pie { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 8px 16px; border-top: 1px solid var(--color-border); }
+.visor-pie[hidden], .visor-pie-ayuda[hidden] { display: none; }
+.visor-pie-ayuda { margin: 0; font-size: 12px; color: var(--color-text-muted); }
+/* Acciones del visor (p. ej. confirmar o solicitar modificación), abajo a la derecha */
+.visor-pie-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-left: auto; }
+.visor-pie-acciones .btn { display: inline-flex; align-items: center; gap: 6px; }
+.visor-pie-acciones .btn ion-icon { font-size: 16px; }
 
 @media (max-width: 640px) {
   .visor-overlay { padding: 0; }
@@ -52,6 +58,9 @@
   .visor-acciones .btn { min-width: 44px; min-height: 44px; justify-content: center; }
   .visor-cerrar { width: 44px; height: 44px; }
   .visor-pestana { min-height: 44px; }
+  .visor-pie { flex-direction: column-reverse; align-items: stretch; gap: 8px; }
+  .visor-pie-acciones { margin-left: 0; }
+  .visor-pie-acciones .btn { flex: 1; min-height: 44px; justify-content: center; }
 }
 
 /* Pestaña Propuesta: archivo incrustado y, al lado, la nota y los enlaces */
