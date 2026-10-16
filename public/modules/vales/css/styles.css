@@ -2186,6 +2186,9 @@
 .chip-estado--tiempo { background: #fef3c7; color: #92400e; }
 .chip-estado--taller { background: var(--color-surface-muted); color: var(--color-text); }
 .chip-estado--cerrado { background: var(--color-surface-muted); color: var(--color-text-muted); }
+/* Un botón con el atributo hidden (p. ej. las decisiones del chat de la modificación básica) no se muestra */
+.btn[hidden] { display: none; }
+
 /* Selector del tipo de modificación */
 .mod-intro { margin: 0 0 12px; font-size: 13px; }
 .mod-tipos { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
