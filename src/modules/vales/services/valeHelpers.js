@@ -236,6 +236,15 @@ function esUrgente(valor) {
   return valor === true || valor === 1 || ['on', 'true', '1'].includes(String(valor).toLowerCase());
 }
 
+// Mensaje de un chat entre asesor y taller: texto no vacío de hasta 200 caracteres (se cuentan caracteres, no palabras).
+const MAX_CARACTERES_MENSAJE = 200;
+function validarMensajeChat(mensaje) {
+  const texto = String(mensaje == null ? '' : mensaje).trim();
+  if (!texto) throw new Error('Escribe un mensaje.');
+  if (Array.from(texto).length > MAX_CARACTERES_MENSAJE) throw new Error(`El mensaje no puede tener más de ${MAX_CARACTERES_MENSAJE} caracteres.`);
+  return texto;
+}
+
 const MAX_PALABRAS_MOTIVO = 50;
 
 function validarMotivoRechazo(motivo) {
@@ -279,5 +288,5 @@ module.exports = {
   PREFIJO_MOD, esCorrelativoMod, correlativoBase, armarCorrelativoMod, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
   normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial,
-  requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo
+  requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo, validarMensajeChat
 };
