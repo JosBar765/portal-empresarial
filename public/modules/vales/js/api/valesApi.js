@@ -73,9 +73,11 @@ export async function obtenerCapacidadEntrega(talleresIds, anio, mes) {
 }
 
 // Mínima y días no disponibles (feriados, días sin recepción, hora máxima) de la fecha de entrega en un rango.
-export async function obtenerFechasEntrega(talleresIds, desde, hasta, urgente = false) {
+// `modificacion`: MEDIA o AVANZADA para el vale MOD (sin «urgente», con su mínimo en días hábiles).
+export async function obtenerFechasEntrega(talleresIds, desde, hasta, urgente = false, modificacion = null) {
   const qs = new URLSearchParams({ talleres: talleresIds.join(','), desde, hasta });
   if (urgente) qs.set('urgente', '1');
+  if (modificacion) qs.set('modificacion', modificacion);
   const res = await fetch(`/api/vales/fechas-entrega?${qs.toString()}`);
   const data = await leerJSON(res);
   if (!res.ok) throw new Error(data.error || 'No se pudieron cargar las fechas de entrega disponibles.');

@@ -5,7 +5,7 @@ import { htmlCampoFecha, wireCampoFecha, validarCampoFecha } from '../components
 import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dropzone.js';
 import { validarCamposNativos, wireLimpiezaValidacionInline, enfocarPrimerCampoInvalido } from '../components/validacion.js';
 import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js';
-import { escapeHtml, formatearFecha } from '../utils/formato.js';
+import { escapeHtml, formatearFecha, siguienteCodigoMod } from '../utils/formato.js';
 import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega, obtenerFechasEntrega, obtenerDetalleVale } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { limitarTelefono } from '/js/telefono.js';
@@ -57,12 +57,15 @@ export function abrirModalCorregirVale(vale) {
 
 const NOTA_ENTREGA_SIN_TALLER = 'Elige primero un taller para ver la fecha mínima de entrega.';
 
-function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
+// `tipoModificacion` (MEDIA / AVANZADA): al pedir una modificación con vale MOD; al corregir un MOD sale del propio vale.
+function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipoModificacion = null) {
   const esCorreccion = modo === 'corregir';
   const esModificacion = modo === 'modificar';
   const hayOriginal = !!vale;
-  // Un formulario de modificación: pedirla, o corregir un vale MOD- (talleres fijos y justificación obligatoria).
+  // Un formulario de modificación: pedirla, o corregir un vale MOD (talleres fijos, justificación obligatoria y sin «urgente»).
   const esMod = esModificacion || (hayOriginal && Number(vale.vale_original_id) > 0);
+  const tipoMod = esMod ? (esModificacion ? tipoModificacion : vale.modificacion_tipo) : null;
+  const diasMinimosMod = { MEDIA: 2, AVANZADA: 3 }[tipoMod];
   // Una modificación va a los mismos talleres del vale original (los de su reparto, o los solicitados).
   const talleresOriginales = esModificacion
     ? [...new Set((vale._filasTaller || []).map(f => f.taller_id))]
@@ -79,7 +82,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
     size: 'lg',
     bodyHtml: `
       <form id="form-crear-vale">
-        ${esModificacion ? '<p class="form-nota">Al solicitarla, el vale original pasará a «Recibido» de inmediato y se creará el MOD- con la propuesta original adjunta. Si el supervisor lo rechaza o vence, se elimina y puedes solicitar otro.</p>' : ''}
+        ${esModificacion ? `<p class="form-nota">Modificación <strong>${tipoMod === 'AVANZADA' ? 'avanzada' : 'media'}</strong>: al solicitarla, este vale pasará a «Recibido» de inmediato y se creará el vale <strong>${escapeHtml(siguienteCodigoMod(vale))}</strong> con la propuesta actual adjunta. La fecha de entrega debe ser de al menos ${diasMinimosMod} días hábiles desde hoy (puedes elegir más) y no admite «urgente». Si el supervisor lo rechaza o vence, se elimina y puedes solicitar otro.</p>` : ''}
         <div class="section-title">Información de Cliente</div>
         <div class="form-grid">
           <div class="form-field"><label>Empresa</label><input type="text" name="clienteEmpresa" maxlength="100" /></div>
@@ -105,12 +108,12 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
         <div class="form-grid">
           ${htmlCampoFecha('Fecha de entrega', 'fechaEntrega')}
           ${htmlCampoFecha('Fecha del evento', 'fechaEvento')}
-          <div class="form-field full">
+          ${esMod ? '' : `<div class="form-field full">
             <label class="urgente-opcion" for="vale-urgente">
               <input type="checkbox" name="urgente" id="vale-urgente" />
               <span class="urgente-opcion-texto"><strong>Pedido urgente</strong><small id="urgente-ayuda">Márcalo si la entrega es en menos de 3 días.</small></span>
             </label>
-          </div>
+          </div>`}
           <div class="form-field"><label>Código de producto *</label><input type="text" name="producto" required maxlength="40" placeholder="Ej. Trofeo" /></div>
           <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="40" placeholder="Ej. Acrílico" /></div>
           <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" maxlength="40" /></div>
@@ -165,7 +168,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
     }
     const mm = String(mes).padStart(2, '0');
     try {
-      const data = await obtenerFechasEntrega(talleresIds, `${anio}-${mm}-01`, `${anio}-${mm}-${String(new Date(anio, mes, 0).getDate()).padStart(2, '0')}`, casillaUrgente.checked);
+      const data = await obtenerFechasEntrega(talleresIds, `${anio}-${mm}-01`, `${anio}-${mm}-${String(new Date(anio, mes, 0).getDate()).padStart(2, '0')}`, !!casillaUrgente && casillaUrgente.checked, tipoMod);
       if (consulta !== consultaFechas) return;
       apiFechaEntrega.setRestricciones(data.minima ? parseIsoLocal(data.minima) : null, new Map(data.noDisponibles.map(x => [x.fecha, x])), reemplazar);
       notaEntrega.textContent = data.minima
@@ -184,7 +187,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
   });
   // Marcar o desmarcar «Urgente» cambia la fecha mínima: se recargan las reglas y se borra la fecha si ya no vale.
   const ayudaUrgente = overlay.querySelector('#urgente-ayuda');
-  casillaUrgente.addEventListener('change', () => {
+  if (casillaUrgente) casillaUrgente.addEventListener('change', () => {
     ayudaUrgente.textContent = casillaUrgente.checked
       ? 'Puedes elegir una entrega con menos de 3 días; sigue aplicando la hora máxima de recibimiento.'
       : 'Márcalo si la entrega es en menos de 3 días.';
@@ -269,6 +272,8 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear') {
     // reenvía el mismo FormData con la misma key, para que el backend pueda
     // detectar el reintento y no duplicar el vale.
     formData.set('idempotencyKey', crypto.randomUUID());
+    if (esModificacion) formData.set('tipo', tipoMod);
+    if (esMod) formData.delete('urgente');
 
     if (hayOriginal) {
       formData.set('documentosQuitar', JSON.stringify([...documentosQuitar]));
@@ -313,9 +318,11 @@ function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEve
   const [pais, ...numero] = (vale.cliente_telefono || '').split(' ');
   if (pais) form.querySelector('[name="clienteTelefonoPais"]').value = pais;
   form.querySelector('[name="clienteTelefono"]').value = numero.join(' ');
-  const casilla = form.querySelector('[name="urgente"]');
-  casilla.checked = Number(vale.urgente) === 1;
-  casilla.dispatchEvent(new Event('change', { bubbles: true }));
+  const casilla = form.querySelector('[name="urgente"]'); // un vale MOD no tiene «urgente»
+  if (casilla) {
+    casilla.checked = Number(vale.urgente) === 1;
+    casilla.dispatchEvent(new Event('change', { bubbles: true }));
+  }
   // La entrega se precarga y, cuando llegan las reglas del servidor, se limpia si ya no está disponible.
   const entrega = parseIsoLocal(String(vale.fecha_entrega).slice(0, 10));
   if (apiFechaEntrega.esValida(entrega)) apiFechaEntrega.setDate(entrega, { silent: true });
@@ -407,9 +414,9 @@ function abrirModalConfirmarCreacion(formData) {
 }
 
 // -----------------------------------------------------------------------
-// Asesor: solicitar modificación de un vale ya entregado (mismo formulario, precargado; los talleres
-// quedan fijos y la justificación es la descripción del nuevo vale MOD-)
+// Asesor: solicitar una modificación media o avanzada de un vale (mismo formulario, precargado; los talleres
+// quedan fijos y la justificación es la descripción del nuevo vale MOD)
 // -----------------------------------------------------------------------
-export function abrirModalSolicitarModificacion(vale) {
-  abrirModalFormularioVale(vale, 'modificar');
+export function abrirModalSolicitarModificacion(vale, tipo) {
+  abrirModalFormularioVale(vale, 'modificar', tipo);
 }
