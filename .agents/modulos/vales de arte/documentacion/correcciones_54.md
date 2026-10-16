@@ -38,3 +38,11 @@ Con la base local y el servidor en el puerto 3031:
 - **Encargado, revisar propuesta y aprobar/fusionar:** el modal conserva su formulario y los botones sueltos pasan a un solo botón **Ver documentos** que abre el visor con el vale y la propuesta de cada taller.
 - **Cliente:** `components/visorDocumento.js`, `css/visor.css`, `actions/supervisor.js` y `actions/encargado.js`. Sin cambios de servidor ni de base de datos.
 - **Verificación:** supervisor (4 pestañas, Datos, rechazo encima del visor), encargado de Diseño (fusión con pestañas «Vale de arte» y «Propuesta Diseño»; revisión abriendo en Propuesta). No se ejecutó Autorizar para no consumir los datos de prueba.
+
+## Ajuste posterior: aviso al asesor cuando el taller rechaza una modificación básica
+
+- **Antes:** solo el cartel en vivo y la campana. Al cerrarse la solicitud desaparecían la marca y el chat del buzón, así que quien no vio el cartel no se enteraba.
+- **Ahora, mientras el vale sigue en el paso 5 y el asesor no abra el rechazo:** la fila muestra la marca roja **Mod. rechazada** (con el nombre del taller al pasar el cursor) y un botón rojo de chat; el visor del paso 5 muestra una franja «<Taller> rechazó tu modificación. El vale sigue igual.» con el botón **Ver chat**. El chat cerrado dice «El vale sigue igual: puedes confirmarlo o pedir otra modificación.»
+- **Se quita cuando:** el asesor abre la conversación, el taller recibe una solicitud nueva o el vale sale del paso 5.
+- **Servidor:** `valeBuzonService` agrega `modificaciones_basicas_rechazadas` (último rechazo de cada taller, solo con el vale en `PENDIENTE_CONFIRMACION`) con `listarRechazadasRecientesPorVales`. Sin cambios de base de datos.
+- **Cliente:** lo «leído» se guarda por usuario en el navegador (`utils/modificacionesVistas.js`); en otro navegador la marca reaparece. El visor acepta una franja de `aviso`.
