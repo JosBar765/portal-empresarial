@@ -7,6 +7,7 @@ export const state = {
   catalogos: null,
   vales: [],
   contadores: {},
+  secciones: null, // Buzón con atrasados anteriores al período: { anteriores, periodo } (cantidad de vales de cada sección)
   vista: 'buzon', // solo aplica a roles con sidebar
   // Arranca en "Todo"; `fecha` es el primer día del mes que se elige al pulsar el selector de mes.
   ventana: { tipo: 'todo', fecha: isoLocal(primerDiaDelMes(new Date())), desde: null, hasta: null },

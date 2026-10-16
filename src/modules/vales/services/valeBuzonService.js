@@ -18,7 +18,7 @@ const valeVistoRepository = require('../repositories/valeVistoRepository');
 const { calcularPipeline, prepararPipeline } = require('./valePipeline');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
-  esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
+  esAdministrador, enriquecer, dentroDeVentana, esAtrasoVigente, esAnteriorAlPeriodo, ordenarPorGrupos,
   ordenarPorFecha, esHoy, estadoVisibleAsesor,
   esDeTaller, rolEncargadoDe, esValeDeModificacion
 } = require('./valeHelpers');
@@ -262,9 +262,24 @@ class ValeBuzonService {
           const va = valorOrden(a), vb = valorOrden(b);
           return va < vb ? -1 : (va > vb ? 1 : 0);
         };
-    const valesOrdenados = sortKey
+    let valesOrdenados = sortKey
       ? [...valesBuscados].sort((a, b) => comparador(a, b) * sortDir)
       : valesBuscados;
+
+    // Buzón con filtro de fecha y sin orden por columna: arriba los atrasados anteriores al período (del más al menos atrasado)
+    // y abajo el buzón del período con la jerarquía del rol. Sin atrasados anteriores no hay secciones.
+    let secciones = null;
+    const anteriores = new Set();
+    if (vista === 'buzon' && !sortKey) {
+      valesOrdenados.filter(v => esAtrasoVigente(v) && esAnteriorAlPeriodo(v, ventana))
+        .sort((a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || String(a.fecha_entrega).localeCompare(String(b.fecha_entrega)))
+        .forEach(v => anteriores.add(v));
+      if (anteriores.size) {
+        const delPeriodo = valesOrdenados.filter(v => !anteriores.has(v));
+        valesOrdenados = [...anteriores, ...delPeriodo];
+        secciones = { anteriores: anteriores.size, periodo: delPeriodo.length };
+      }
+    }
 
     // Paginación por cursor: en vez de un `offset` numérico contra un
     // conjunto que puede recalcularse distinto en cada request (el atraso es
@@ -319,11 +334,12 @@ class ValeBuzonService {
     const idsBuzon = [...new Set(paginaCruda.map(v => v.id))];
     const conPropuestaNueva = await propuestasCompartidasService.valesConPropuestaNueva(usuario, idsBuzon);
     const conHermano = await propuestasCompartidasService.valesConHermano(usuario, idsBuzon);
-    const pagina = paginaCruda.map(v => ({ ...v, propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
+    const pagina = paginaCruda.map(v => ({ ...v, ...(secciones && { seccion: anteriores.has(v) ? 'anteriores' : 'periodo' }), propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
     const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
     return {
       vales: pagina,
       contadores: resultado.contadores,
+      secciones,
       total,
       hasMore: indiceInicio + limit < total,
       nextCursor

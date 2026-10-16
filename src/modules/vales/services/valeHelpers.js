@@ -157,12 +157,31 @@ function estadoVisibleAsesor(vale) {
   }
 }
 
+// Atraso que sigue corriendo: atrasado y sin congelar (ni terminal, ni con el taller ya aprobado y a la espera de confirmar).
+function esAtrasoVigente(vale) {
+  return !!vale.atrasado && !vale.atraso_congelado_en && !ESTADOS_TERMINALES.includes(vale.estado);
+}
+
+// Primer día de la ventana (mes o `desde` del rango), o null si no tiene inicio.
+function inicioDeVentana(ventana) {
+  if (!ventana || !ventana.tipo || ventana.tipo === 'todo') return null;
+  if (ventana.tipo === 'rango') return ventana.desde ? new Date(`${ventana.desde}T00:00:00`) : null;
+  const ref = new Date(`${ventana.fecha || hoyISO()}T00:00:00`);
+  return new Date(ref.getFullYear(), ref.getMonth(), 1);
+}
+
+// La entrega del vale es anterior al inicio de la ventana.
+function esAnteriorAlPeriodo(vale, ventana) {
+  const inicio = inicioDeVentana(ventana);
+  return !!inicio && new Date(`${String(vale.fecha_entrega).slice(0, 10)}T00:00:00`) < inicio;
+}
+
 // La ventana de tiempo filtra por la fecha de ENTREGA del vale: 'todo', 'mes' (el de `ventana.fecha`) o 'rango'.
 function dentroDeVentana(vale, ventana) {
   if (!ventana || !ventana.tipo || ventana.tipo === 'todo') return true;
   const fv = new Date(`${String(vale.fecha_entrega).slice(0, 10)}T00:00:00`);
-  // Buzón: un atrasado abierto con entrega ANTERIOR al inicio del período se ve igual; los posteriores no.
-  const atrasadoAnterior = () => !!ventana.incluirAtrasados && vale.atrasado && !ESTADOS_TERMINALES.includes(vale.estado);
+  // Buzón: un atraso vigente con entrega ANTERIOR al inicio del período se ve igual; los posteriores no.
+  const atrasadoAnterior = () => !!ventana.incluirAtrasados && esAtrasoVigente(vale);
 
   if (ventana.tipo === 'rango') {
     if (!ventana.desde && !ventana.hasta) return true;
@@ -193,7 +212,7 @@ function ordenarPorGrupos(vales, predicados) {
 
   const comparador = (a, b) => {
     if (a.atrasado !== b.atrasado) return a.atrasado ? -1 : 1;
-    if (a.atrasado) return new Date(a.fecha_entrega) - new Date(b.fecha_entrega);
+    if (a.atrasado) return (b.diasAtraso || 0) - (a.diasAtraso || 0) || new Date(a.fecha_entrega) - new Date(b.fecha_entrega);
     if (!!a.urgente !== !!b.urgente) return a.urgente ? -1 : 1;
     return new Date(a.fecha_entrega) - new Date(b.fecha_entrega);
   };
@@ -268,7 +287,7 @@ module.exports = {
   esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
   hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
-  dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
+  dentroDeVentana, esAtrasoVigente, esAnteriorAlPeriodo, ordenarPorGrupos, ordenarPorFecha, esHoy,
   normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial,
   requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo
 };

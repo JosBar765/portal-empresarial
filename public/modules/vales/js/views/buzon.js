@@ -50,6 +50,7 @@ export async function cargarBuzon() {
     const data = await obtenerBuzon(qs);
     state.vales = data.vales || [];
     state.contadores = data.contadores || {};
+    state.secciones = data.secciones || null;
     state.paginacion.total = data.total ?? state.vales.length;
     state.paginacion.hasMore = !!data.hasMore;
     state.paginacion.cursor = data.nextCursor ?? null;
@@ -88,6 +89,7 @@ export async function cargarMasVales() {
     state.vales = state.vales.concat(nuevos);
     state.paginacion.cursor = data.nextCursor ?? state.paginacion.cursor;
     state.paginacion.total = data.total ?? state.paginacion.total;
+    state.secciones = data.secciones || state.secciones;
     state.paginacion.hasMore = !!data.hasMore;
     renderTabla();
   } catch { /* si falla, simplemente no se agregan más filas; el usuario puede reintentar scrolleando */ }
@@ -207,9 +209,20 @@ export function renderTabla() {
   pintarFilas(tbody, filas);
 }
 
+// Encabezado de sección del buzón (atrasados anteriores / período) con su cantidad de vales.
+function filaSeccion(seccion) {
+  const anteriores = seccion === 'anteriores';
+  const cantidad = state.secciones ? (anteriores ? state.secciones.anteriores : state.secciones.periodo) : '';
+  return `<tr class="buzon-seccion ${anteriores ? 'buzon-seccion--atrasados' : ''}"><td colspan="${columnasVisibles()}"><span>${anteriores ? 'Atrasados anteriores al período' : 'Vales del período'}</span><span class="seccion-cuenta">${cantidad}</span></td></tr>`;
+}
+
 // Dibuja las filas de vales (y sus botones de acción) en un <tbody>.
 function pintarFilas(tbody, filas) {
-  tbody.innerHTML = filas.map(v => `
+  let seccionPrevia = null;
+  tbody.innerHTML = filas.map(v => {
+    const encabezado = v.seccion && v.seccion !== seccionPrevia ? filaSeccion(v.seccion) : '';
+    seccionPrevia = v.seccion;
+    return encabezado + `
     <tr>
       <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${marcaPropuestaNueva(v)}${badgePersona(v)}</td>
       <td data-label="Fecha Ingreso" class="col-fecha-ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
@@ -220,7 +233,8 @@ function pintarFilas(tbody, filas) {
       <td data-label="Estado" class="col-estado">${celdaEstado(v)}</td>
       <td data-label="Acciones" class="acciones-cell" data-row-key="${claveFila(v)}"></td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   filas.forEach(v => {
     const cell = tbody.querySelector(`.acciones-cell[data-row-key="${CSS.escape(claveFila(v))}"]`);
