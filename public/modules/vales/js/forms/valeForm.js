@@ -65,7 +65,6 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
   // Un formulario de modificación: pedirla, o corregir un vale MOD (talleres fijos, justificación obligatoria y sin «urgente»).
   const esMod = esModificacion || (hayOriginal && Number(vale.vale_original_id) > 0);
   const tipoMod = esMod ? (esModificacion ? tipoModificacion : vale.modificacion_tipo) : null;
-  const diasMinimosMod = { MEDIA: 2, AVANZADA: 3 }[tipoMod];
   // Una modificación va a los mismos talleres del vale original (los de su reparto, o los solicitados).
   const talleresOriginales = esModificacion
     ? [...new Set((vale._filasTaller || []).map(f => f.taller_id))]
@@ -82,7 +81,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
     size: 'lg',
     bodyHtml: `
       <form id="form-crear-vale">
-        ${esModificacion ? `<p class="mod-aviso"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon><span>Modificación <strong>${tipoMod === 'AVANZADA' ? 'avanzada' : 'media'}</strong>: crea <strong>${escapeHtml(siguienteCodigoMod(vale))}</strong> y lo autoriza tu supervisor. Entrega: mínimo ${diasMinimosMod} días hábiles desde hoy. Sin «urgente».</span></p>` : ''}
+        ${esModificacion ? `<p class="mod-aviso"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon><span>Modificación <strong>${tipoMod === 'AVANZADA' ? 'avanzada' : 'media'}</strong>: crea <strong>${escapeHtml(siguienteCodigoMod(vale))}</strong> y lo autoriza tu supervisor.</span></p>` : ''}
         <div class="section-title">Información de Cliente</div>
         <div class="form-grid">
           <div class="form-field"><label>Empresa</label><input type="text" name="clienteEmpresa" maxlength="100" /></div>

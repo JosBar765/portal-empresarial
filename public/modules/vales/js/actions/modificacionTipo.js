@@ -55,7 +55,7 @@ export function abrirSelectorModificacion(vale) {
         <summary><ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>¿Cuál elijo?</summary>
         <ul class="mod-info-lista">
           <li><strong>Básica:</strong> sin vale nuevo. El taller acepta o rechaza por chat y la entrega sube 1 día hábil.</li>
-          <li><strong>Media y Avanzada:</strong> crean un vale MOD que autoriza tu supervisor. No admiten «urgente».</li>
+          <li><strong>Media y Avanzada:</strong> crean un vale MOD que autoriza tu supervisor.</li>
           <li>Los días son <strong>mínimos</strong>, contados en días hábiles desde hoy. En Media y Avanzada puedes elegir más.</li>
         </ul>
       </details>
