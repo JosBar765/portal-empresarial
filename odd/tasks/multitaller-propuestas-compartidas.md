@@ -26,7 +26,7 @@ Desaprobar y reasignar (el hermano vuelve a «En trabajo»); reasignación a otr
 - [x] T1 · BD: script idempotente `database/09_comparte_propuestas.sql` (columna `talleres.comparte_propuestas` + tabla de «visto» por usuario/vale/taller de origen), valores iniciales, y espejo en `schema.sql`/`seed.sql` según `.agents/reglas/reglas_archivosSQL.md`. Ruta: delegada (escritor único). Commit 8179c8a.
 - [x] T2 · Backend lectura: propuestas de talleres hermanos en el detalle del vale (respetando el flag y los estados) y endpoint para marcar «visto». Ruta: delegada. Commit 8242da1.
 - [x] T3 · Backend aviso: al aprobar, `notificar` a encargado, asistentes y diseñador asignado de los hermanos con flag; indicador «propuesta nueva sin ver» por usuario en el buzón. Ruta: delegada. Commit 0b60266.
-- [ ] T4 · Frontend: sección «Propuestas de otros talleres» en el detalle del vale y signo rojo «?» con tooltip en el buzón; marcar «visto» al abrir. Ruta: delegada.
+- [x] T4 · Frontend: sección «Propuestas de otros talleres» en el detalle del vale y signo rojo «?» con tooltip en el buzón; marcar «visto» al abrir. Ruta: delegada. Commit HASH_T4.
 - [ ] T5 · Documentación (`flujo_vale_de_arte.md`, `CLAUDE.md` si aplica, nota de producción con el script) y verificación de punta a punta en el servidor que levanta el usuario. Ruta: inline / delegada.
 
 ## Reglas de trabajo
@@ -41,6 +41,7 @@ Desaprobar y reasignar (el hermano vuelve a «En trabajo»); reasignación a otr
 - T2: script desechable contra la BD de desarrollo, 22 comprobaciones OK (hermano aprobado/en trabajo, flag 0 oculta en ambos sentidos, vale de un taller, asesor/admin/gerente vacío, taller `activo=0`, «visto» idempotente y por usuario, re-aprobación vuelve a no visto). El endpoint HTTP no se probó (solo carga de rutas). No hay eslint configurado en el repositorio.
 - T3: script desechable, 19 comprobaciones OK (aviso único a encargado, asistentes y diseñador asignado del hermano; no al actor, ni a otros diseñadores, ni a Diseño Local; flag 0 sin aviso; autoaprobación una por persona; indicador del buzón true/false según «visto», con desaprobar y re-aprobar).
 - Contrato para T4: `propuestasOtrosTalleres` en el detalle; `POST /api/vales/:id/propuestas-otros/:tallerId/visto`; campo `propuestaOtroTallerNueva` en cada vale del buzón.
+- T4: `node --check` OK en los 4 JS tocados; lectura de datos/XSS (todo por `escapeHtml`, nota y enlaces por `propuestaInfo`) revisada. Comportamiento en navegador NO verificado (pendiente en T5). Decisión: no existe un «detalle» para roles de taller (el ojo abre el visor), así que la sección es un modal nuevo abierto desde una acción «Propuestas de otros talleres» (vales con varios talleres o aviso pendiente) y desde el propio «?».
 
 ## Siguiente paso
-T4 frontend.
+T5 documentación y verificación de punta a punta.

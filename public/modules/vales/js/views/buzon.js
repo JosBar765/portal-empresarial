@@ -17,6 +17,7 @@ import { abrirModalVerificarAdjuntos, abrirModalRechazarAdjuntos, abrirModalConv
 import { abrirModalDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
 import { abrirModalSolicitarModificacion, abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirModalHistorial } from '../actions/historial.js';
+import { abrirModalPropuestasOtros } from '../actions/propuestasOtros.js';
 
 // -----------------------------------------------------------------------
 // Carga y render del buzón (paginado: 50 vales por petición, cargados por
@@ -213,7 +214,7 @@ export function renderTabla() {
 function pintarFilas(tbody, filas) {
   tbody.innerHTML = filas.map(v => `
     <tr>
-      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${badgePersona(v)}</td>
+      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${marcaPropuestaNueva(v)}${badgePersona(v)}</td>
       <td data-label="Fecha Ingreso" class="col-fecha-ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
       <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
@@ -232,6 +233,21 @@ function pintarFilas(tbody, filas) {
     wrap.className = 'acciones-wrap';
     cell.appendChild(wrap);
     crearBotonesAcciones(wrap, v);
+  });
+  conectarMarcas(tbody, filas);
+}
+
+// Signo rojo «?»: otro taller del vale ya tiene su propuesta aprobada y este usuario aún no la ha visto.
+export function marcaPropuestaNueva(v) {
+  if (!v.propuestaOtroTallerNueva) return '';
+  const texto = 'Propuesta disponible. Otro taller ya tiene su propuesta aprobada. Puedes verla en el detalle del vale.';
+  return `<button type="button" class="pn-marca" data-pn-clave="${escapeAttr(claveFila(v))}" aria-label="${texto}"><span aria-hidden="true">?</span><span class="pn-tip" role="tooltip" aria-hidden="true"><strong>Propuesta disponible</strong>Otro taller ya tiene su propuesta aprobada. Puedes verla en el detalle del vale.</span></button>`;
+}
+
+function conectarMarcas(raiz, filas) {
+  raiz.querySelectorAll('[data-pn-clave]').forEach(b => {
+    const v = filas.find(f => claveFila(f) === b.dataset.pnClave);
+    if (v) b.addEventListener('click', () => abrirModalPropuestasOtros(v));
   });
 }
 
@@ -268,7 +284,7 @@ export function renderVigentes() {
     id: 'vig-buzon', total: av.total, truncado: av.truncado, plegado: leerPlegado(),
     items: av.vales.map(v => ({
       correlativo: v.correlativo, esMod: false, sub: [v.cliente_nombre, v.persona && v.persona.nombre].filter(Boolean).join(' · '),
-      pipeline: v.pipeline, fechaEntrega: v.fecha_entrega, diasAtraso: v.diasAtraso,
+      pipeline: v.pipeline, fechaEntrega: v.fecha_entrega, diasAtraso: v.diasAtraso, marcaHtml: marcaPropuestaNueva(v),
       accionesHtml: `<div class="acciones-wrap" data-vig-key="${escapeAttr(claveFila(v))}"></div>`
     }))
   });
@@ -276,6 +292,7 @@ export function renderVigentes() {
     const wrap = cont.querySelector(`[data-vig-key="${CSS.escape(claveFila(v))}"]`);
     if (wrap) crearBotonesAcciones(wrap, v);
   });
+  conectarMarcas(cont, av.vales);
   conectarBloqueVigentes(cont, guardarPlegado);
 }
 
@@ -368,6 +385,10 @@ export function construirAcciones(v) {
   }
   if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
     acciones.push({ icono: 'send-outline', titulo: 'Reenviar a autorización', clase: 'icon-success', onClick: accionReenviar });
+  }
+  // Vale con varios talleres (o con aviso pendiente): propuestas aprobadas de los otros talleres, solo lectura.
+  if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && (v.propuestaOtroTallerNueva || String(v.taller || '').includes(','))) {
+    acciones.push({ icono: 'documents-outline', titulo: 'Propuestas de otros talleres', onClick: abrirModalPropuestasOtros });
   }
   if (puede('verHistorial')) acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
   if (puede('darDeBaja') && (['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) || (v.adjuntos || []).length) && esMio) {

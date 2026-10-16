@@ -5,6 +5,7 @@
 @import url('/modules/vales/css/visor.css');
 @import url('/modules/vales/css/adjuntos.css');
 @import url('/modules/vales/css/vigentes.css');
+@import url('/modules/vales/css/propuestasOtros.css');
 
 .header-back {
   color: var(--color-text-secondary);
