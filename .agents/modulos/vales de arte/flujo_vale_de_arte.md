@@ -460,7 +460,7 @@ tienen las mismas columnas para todos; cambian filtros, orden y acciones.
 | Encargado de taller | Por asignar · Asignado (en manos de diseñadores: asignado, en proceso o en pausa) · Mis asignaciones (los que él mismo se asignó) · Por revisar · Atrasados (+ **Por fusionar** si tiene `aprobar_general`), y un combobox para filtrar por diseñador. Muestra el estado **de la fila de su taller**, no el general. | Vales con fila `APROBADO` en su taller (con "Ver propuesta" de su diseñador), + sus fusiones si fusiona. |
 | Diseñador | Mis asignaciones (sin retraso) · Mis asignaciones (con atraso) · Vale en proceso (ve también `EN_PAUSA` y `EN_REVISION` en la lista). | Vales que su taller aprobó, con su propuesta. |
 | Administrador | Todo, con contadores generales (total, atrasados, recibidos hoy, pendientes de confirmación, por fusionar). | — |
-| Gerente | Buzón general y Trabajo realizado generales en solo lectura (como el Administrador, sin acciones): ver §6. | — |
+| Gerente | Buzón y Trabajo realizado del Asesor con los vales de todos, en solo lectura (como el Administrador, sin acciones): ver §6. | — |
 
 Una solicitud de modificación aparece como **fila propia** (`MOD-…`) en el Buzón
 del asesor y del supervisor (contadores «Solicitando modificación» y «Por
@@ -524,7 +524,7 @@ Todo se calcula con la **hora de Guatemala (UTC-6)** para todos los países, nun
 
 ## 6. Gerente y Administrador
 
-- **`vales.ver`** abre el módulo y la API; además, todo rol con ese permiso que no tenga una vista propia (hoy el Gerente) ve el **Buzón general** (lo que sigue en curso) y **Trabajo realizado** (los vales `RECIBIDO`/`CONFIRMADO` de todos), en solo lectura; el Administrador tiene la misma separación. Las acciones siguen exigiendo sus propios permisos.
+- **`vales.ver`** abre el módulo y la API; además, todo rol con ese permiso que no tenga una vista propia (hoy el Gerente) ve el **Buzón** y **Trabajo realizado** del Asesor pero con los vales de **todos** los asesores, en solo lectura (mismas tarjetas, filtros y orden); el Administrador tiene la misma vista. Las acciones siguen exigiendo sus propios permisos.
 - **Gerente** (solo lectura, nunca ejecuta una acción sobre un vale): ve el **Buzón** general (con
   `vales.ver`) y **Reportes** (con `vales.ver_reportes`). Ya no tiene las pestañas Rendimiento ni
   «Encontrar vale» (correcciones 53). Puede ver el detalle y el PDF de cualquier vale.

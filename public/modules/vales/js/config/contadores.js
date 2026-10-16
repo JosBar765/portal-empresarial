@@ -81,17 +81,5 @@ export const CONTADORES_CONFIG = {
 CONTADORES_CONFIG[ROL.ENCARGADO_UV3D] = CONTADORES_CONFIG[ROL.ENCARGADO_DISENO];
 CONTADORES_CONFIG[ROL.ENCARGADO_PROTEXTIL] = CONTADORES_CONFIG[ROL.ENCARGADO_DISENO];
 CONTADORES_CONFIG[ROL.ENCARGADO_DISENO_LOCAL] = CONTADORES_CONFIG[ROL.ENCARGADO_DISENO];
-CONTADORES_CONFIG[ROL.ADMINISTRADOR] = { // vista de control general
-  buzon: [
-    { key: 'total', label: 'Total vales' },
-    { key: 'pendientesConfirmacion', label: 'Pend. confirmación', filtro: 'pendientesConfirmacion' },
-    { key: 'aprobadoDepartamento', label: 'Por fusionar', filtro: 'aprobadoDepartamento' },
-    { key: 'atrasados', label: 'Atrasados', alerta: true, filtro: 'atrasados' }
-  ],
-  trabajo: [
-    { key: 'recibidosHoy', label: 'Recibidos hoy', filtro: 'recibidosHoy' },
-    { key: 'totalRecibidos', label: 'Total recibidos', filtro: 'totalRecibidos' },
-    ATRASADOS_TRABAJO
-  ]
-};
-CONTADORES_CONFIG[ROL.GERENTE] = CONTADORES_CONFIG[ROL.ADMINISTRADOR]; // solo lectura, misma vista general
+CONTADORES_CONFIG[ROL.ADMINISTRADOR] = CONTADORES_CONFIG[ROL.ASESOR]; // vista general: la misma del asesor, con los vales de todos
+CONTADORES_CONFIG[ROL.GERENTE] = CONTADORES_CONFIG[ROL.ADMINISTRADOR]; // solo lectura, misma vista

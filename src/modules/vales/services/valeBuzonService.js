@@ -162,8 +162,8 @@ class ValeBuzonService {
     switch (rolEncargadoDe(usuario)) {
       case ROL.ADMINISTRADOR: // ve todo
         resultado = vista === 'trabajo'
-          ? this._trabajoGeneral(todosConTaller, ventana, filtroContador)
-          : this._buzonAdministrador(todosConTaller, ventana, filtroContador);
+          ? this._trabajoAsesor(null, todosConTaller, ventana, filtroContador)
+          : this._buzonAsesor(null, todosConTaller, ventana, filtroContador);
         break;
       case ROL.ASESOR:
         resultado = vista === 'trabajo'
@@ -195,8 +195,8 @@ class ValeBuzonService {
         // Cualquier otro rol con vales.ver (p. ej. el Gerente) ve el buzón general en solo lectura: sus acciones
         // siguen exigiendo sus propios permisos de escritura.
         resultado = vista === 'trabajo'
-          ? this._trabajoGeneral(todosConTaller, ventana, filtroContador)
-          : this._buzonAdministrador(todosConTaller, ventana, filtroContador);
+          ? this._trabajoAsesor(null, todosConTaller, ventana, filtroContador)
+          : this._buzonAsesor(null, todosConTaller, ventana, filtroContador);
     }
     return resultado;
   }
@@ -354,49 +354,10 @@ class ValeBuzonService {
     return vales.filter(predicados[filtroContador]);
   }
 
-  // Vista general (administrador y gerente): el Buzón es lo que sigue en curso; lo cerrado va a Trabajo realizado.
-  _buzonAdministrador(todos, ventana, filtroContador) {
-    const enVentana = todos.filter(v => !ESTADOS_TERMINALES.includes(v.estado) && dentroDeVentana(v, ventana));
-    const predicados = {
-      atrasados: v => v.atrasado,
-      pendientesConfirmacion: v => v.estado === ESTADOS.PENDIENTE_CONFIRMACION,
-      aprobadoDepartamento: v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO
-    };
-    const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, predicados);
-    const vales = ordenarPorGrupos(filtrados, [
-      v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO,
-      v => v.estado === ESTADOS.CREADO || v.estado === ESTADOS.MODIFICADO
-    ]);
-    return { vales, contadores: this._contadoresGenerales(enVentana) };
-  }
-
-  // ---- Administrador y gerente: Trabajo realizado (vales cerrados de todos, orden por fecha) ----
-  _trabajoGeneral(todos, ventana, filtroContador) {
-    const enVentana = todos.filter(v => ESTADOS_CONFIRMADOS.includes(v.estado) && dentroDeVentana(v, ventana));
-    const contadores = {
-      totalRecibidos: enVentana.length,
-      recibidosHoy: enVentana.filter(v => esHoy(v.actualizado_en)).length
-    };
-    const predicados = {
-      totalRecibidos: () => true,
-      recibidosHoy: v => esHoy(v.actualizado_en)
-    };
-    return { vales: ordenarPorFecha(this._aplicarFiltroContador(enVentana, filtroContador, predicados)), contadores };
-  }
-
-  _contadoresGenerales(vales) {
-    return {
-      total: vales.length,
-      atrasados: vales.filter(v => v.atrasado).length,
-      recibidosHoy: vales.filter(v => (v.estado === ESTADOS.RECIBIDO || v.estado === ESTADOS.CONFIRMADO) && esHoy(v.actualizado_en)).length,
-      pendientesConfirmacion: vales.filter(v => v.estado === ESTADOS.PENDIENTE_CONFIRMACION).length,
-      aprobadoDepartamento: vales.filter(v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO).length
-    };
-  }
-
   // ---- Asesor: sidebar Buzón (pipeline activo, sin recibidos/rechazados) ----
+  // `usuario` null: la vista del administrador y del gerente, con los vales de todos los asesores.
   _buzonAsesor(usuario, todos, ventana, filtroContador) {
-    const propios = todos.filter(v => v.asesor_id === usuario.id).map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v), adjuntos: this._adjuntosDe(v) }));
+    const propios = (usuario ? todos.filter(v => v.asesor_id === usuario.id) : todos).map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v), adjuntos: this._adjuntosDe(v) }));
     const activos = propios.filter(v => !ESTADOS_TERMINALES.includes(v.estado));
     const enVentana = conPaso(activos.filter(v => dentroDeVentana(v, ventana)));
 
@@ -419,7 +380,7 @@ class ValeBuzonService {
   // Un vale confirmado (o cuya modificación se solicitó: queda RECIBIDO al pedirla) permanece visible aquí
   // mientras su MOD- está en trámite.
   _trabajoAsesor(usuario, todos, ventana, filtroContador) {
-    const propios = todos.filter(v => v.asesor_id === usuario.id).map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v) }));
+    const propios = (usuario ? todos.filter(v => v.asesor_id === usuario.id) : todos).map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v) }));
     const cerrados = propios.filter(v => ESTADOS_CONFIRMADOS.includes(v.estado));
     const enVentana = cerrados.filter(v => dentroDeVentana(v, ventana));
 

@@ -11,14 +11,14 @@ En el Buzón, con cualquier filtro de fecha (día, «Hoy», mes o rango), cada u
 - **Orden (decisión final):** una sola regla, días de atraso de mayor a menor, sin agrupar por estado (los filtros de estado son las tarjetas); sin atraso, por fecha de entrega. Con orden por columna manda el orden del usuario. Se descartó dejar los arrastrados primero y debajo la jerarquía del rol: seguía rompiéndose. Arrastrado = anterior al inicio del período (el usuario confirmó que "sin importar la ventana" fue un error).
 - «Trabajo realizado» no muestra arrastrados (es un registro de lo hecho).
 - Los asistentes tienen la misma vista que su encargado.
-- **Administrador y Gerente** (misma vista general de solo lectura): se separan en Buzón y Trabajo realizado. Trabajo realizado = vales cerrados (`RECIBIDO`/`CONFIRMADO`), como la vista del asesor pero de todos; Buzón = todo lo que sigue en curso.
+- **Administrador y Gerente** (misma vista general de solo lectura): se separan en Buzón y Trabajo realizado y su vista es **una copia de la del asesor** con los vales de todos los asesores (decisión final del usuario, para no complicar).
 - El panel de «Atrasados vigentes» de **Reportes** no se toca.
 - Cada vista se revisa con el usuario, rol por rol.
 
 ## Diseño
 - `dentroDeVentana` (`valeHelpers.js`) acepta `ventana.incluirArrastrados`: un vale con entrega anterior al inicio de la ventana cuenta como dentro de ella. Solo se activa en la vista Buzón. Los buzones por rol ya filtran lo pendiente antes, así que contadores, filtros de contador y paginación quedan coherentes.
 - `obtenerBuzon` (sin orden por columna) ordena todo por días de atraso desc y, sin atraso, por fecha de entrega.
-- Administrador/Gerente: `_buzonAdministrador` excluye los cerrados; `_trabajoGeneral` lista los cerrados con los contadores del asesor (`recibidosHoy`, `totalRecibidos`).
+- Administrador/Gerente: `_buzonAsesor`/`_trabajoAsesor` con `usuario` nulo (todos los vales); sus tarjetas son las del asesor.
 - Frontend: sin encabezados de sección; el sidebar muestra «Trabajo realizado» al administrador y al gerente, con sus contadores.
 
 ## Tareas
@@ -34,6 +34,7 @@ En el Buzón, con cualquier filtro de fecha (día, «Hoy», mes o rango), cada u
 - [x] T4c · Contador «En revisión» en el Buzón del diseñador (pedido tras revisar su vista; las demás tarjetas siguen contando lo del filtro de fecha, el usuario lo aceptó).
 - [x] T4d · «Atrasados» se recalcula al combinarlo con otra tarjeta (decisión del usuario, opción A: solo el número recalculado). Verificado por API con el encargado de Diseño: «Por asignar» 0, «Asignado» 10, «Por revisar» 3, siempre igual a los atrasados de la lista.
 - [x] T4e · Tarjeta «Atrasados» en Trabajo realizado de todos los roles, combinable y recalculada (decisión del usuario). Verificado por API en 7 roles (número = atrasados de la lista, con y sin filtros) y en pantalla con el encargado de Diseño (27 → 15 con «Total aprobados»).
+- [x] T6b · Administrador y gerente copian la vista del asesor (Buzón y Trabajo realizado). Verificado por API: Buzón general 94 vales = 21+25+19+8+21 por paso; con el 10/10, 51 = 13+4+12+5+17; Trabajo realizado 159 con «Atrasados» 17.
 - [ ] T8 · Documentación y revisión de cada vista con el usuario, rol por rol.
 
 ## Reglas de trabajo
