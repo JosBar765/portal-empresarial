@@ -13,8 +13,9 @@ const FOCALIZABLES = 'a[href], button:not([disabled]), [tabindex]:not([tabindex=
 
 let visorAbierto = null;
 
-// `documentos`: [{ etiqueta, url }] o, para la propuesta, [{ etiqueta, cargar }] donde `cargar()` devuelve { url, nota, enlaces }
-// (el archivo se incrusta y la nota y los enlaces van en un panel); `activo`: índice del documento que se muestra primero.
+// `documentos`: [{ etiqueta, url }], [{ etiqueta, html }] para una pestaña de datos, o, para la propuesta, [{ etiqueta, cargar }]
+// donde `cargar()` devuelve { url, nota, enlaces } (el archivo se incrusta y la nota y los enlaces van en un panel);
+// `activo`: índice del documento que se muestra primero.
 // `acciones`: [{ etiqueta, icono, clase, onClick({ cerrar, boton }) }], botones que se muestran abajo a la derecha.
 export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, acciones = [] }) {
   if (!documentos || !documentos.length) return null;
@@ -99,6 +100,13 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, acc
     error.hidden = true;
     cargando.hidden = false;
     contenido.innerHTML = '';
+    if (doc.html !== undefined) {
+      // Pestaña sin archivo (p. ej. «Datos»): solo contenido, sin enlaces de abrir ni descargar.
+      fijarEnlaces(null);
+      cargando.hidden = true;
+      contenido.innerHTML = `<div class="visor-datos">${doc.html}</div>`;
+      return;
+    }
     if (!doc.cargar) {
       fijarEnlaces(doc.url);
       contenido.appendChild(crearElemento(doc.url, doc.etiqueta));
@@ -181,6 +189,9 @@ export function abrirVisorVale({ id, correlativo, propuesta = null, activo = 'va
     acciones
   });
 }
+
+// Pestañas a medida: cada documento es { etiqueta, url } | { etiqueta, html } | { etiqueta, cargar }.
+export const abrirVisorDocumentos = abrirVisor;
 
 // Solo la propuesta de un vale (sin pestaña del vale), por ejemplo desde la revisión del Encargado.
 export function abrirVisorPropuesta({ id, correlativo, propuesta }) {

@@ -35,6 +35,10 @@
 .visor-contenido { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto; }
 .visor-marco { width: 100%; height: 100%; border: 0; background: #fff; }
 .visor-imagen { max-width: 100%; max-height: 100%; object-fit: contain; }
+.visor-datos { align-self: stretch; width: 100%; padding: 16px 20px; overflow: auto; background: var(--color-surface); font-size: 13px; }
+.visor-datos .form-grid { max-width: 760px; margin: 0 auto; }
+/* Un modal que se abre desde el visor (p. ej. rechazar) queda por encima de él */
+.visor-overlay ~ .modal-overlay { z-index: 130; }
 .visor-cargando, .visor-error {
   position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
   color: var(--color-text-secondary); font-size: var(--text-sm); background: var(--color-surface-muted);
