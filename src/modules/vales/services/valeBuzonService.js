@@ -221,8 +221,9 @@ class ValeBuzonService {
     }
 
     let resultado = await this._resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador);
-    // «Atrasados» se combina con las demás tarjetas: con otra activa cuenta los atrasados de esa selección.
-    if (filtroContador && resultado.contadores && typeof resultado.contadores.atrasados === 'number') {
+    // «Atrasados» se combina con las demás tarjetas: con otra activa cuenta los atrasados de esa selección. En Trabajo
+    // realizado (vales entregados con atraso) siempre se calcula aquí.
+    if (resultado.contadores && (vista === 'trabajo' || (filtroContador && typeof resultado.contadores.atrasados === 'number'))) {
       resultado.contadores.atrasados = resultado.vales.filter(v => v.atrasado).length;
     }
 

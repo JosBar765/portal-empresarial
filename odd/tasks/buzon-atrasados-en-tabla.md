@@ -33,6 +33,7 @@ En el Buzón, con cualquier filtro de fecha (día, «Hoy», mes o rango), cada u
 - [x] T4b · Orden único por días de atraso, sin jerarquía por estado (verificado por API en 6 roles, 0 saltos en día, mes y «Todo»).
 - [x] T4c · Contador «En revisión» en el Buzón del diseñador (pedido tras revisar su vista; las demás tarjetas siguen contando lo del filtro de fecha, el usuario lo aceptó).
 - [x] T4d · «Atrasados» se recalcula al combinarlo con otra tarjeta (decisión del usuario, opción A: solo el número recalculado). Verificado por API con el encargado de Diseño: «Por asignar» 0, «Asignado» 10, «Por revisar» 3, siempre igual a los atrasados de la lista.
+- [x] T4e · Tarjeta «Atrasados» en Trabajo realizado de todos los roles, combinable y recalculada (decisión del usuario). Verificado por API en 7 roles (número = atrasados de la lista, con y sin filtros) y en pantalla con el encargado de Diseño (27 → 15 con «Total aprobados»).
 - [ ] T8 · Documentación y revisión de cada vista con el usuario, rol por rol.
 
 ## Reglas de trabajo
