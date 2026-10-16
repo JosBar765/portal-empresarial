@@ -30,3 +30,11 @@ Con la base local y el servidor en el puerto 3031:
 - **Media y Avanzada:** fecha por debajo del mínimo rechazada con su mensaje (viernes 16/10 +2 → 21/10 porque el 20/10 es feriado; +3 → 22/10); `urgente=on` guardado como 0; `MOD-GT-MTC-1026-51` (Media, número 1) y luego `MOD2-GT-MTC-1026-51` (Avanzada, número 2, apunta al MOD); el original ya modificado se rechaza.
 - **Navegador:** botón único y visor con los dos botones abajo a la derecha; selector con su panel informativo; formulario sin «urgente» y con «Entrega mínima»; chat del asesor (solo «Cancelar solicitud») y del taller (solo «Rechazar» y «Aceptar»); toast y fila actualizada tras aceptar.
 - No cubierto: autorizar un MOD con el supervisor desde la interfaz (se simuló el estado autorizado en la base) y las vistas móviles del selector y del chat.
+
+## Ajuste posterior: visor con pestañas en los modales de decisión
+
+- **Visor:** las pestañas pueden ser de datos (`{ etiqueta, html }`, sin archivo) además de PDF y propuesta; `abrirVisorDocumentos` arma pestañas a medida. Un modal abierto desde el visor (p. ej. el rechazo) queda por encima de él.
+- **Supervisor, autorizar modificación:** ya no es un modal con enlaces que abrían pestañas del navegador. Es un visor con **Datos** (justificación y datos del vale), **Vale nuevo**, el vale que modifica y **Propuesta** (solo si existe), con **Rechazar** y **Autorizar** abajo a la derecha. Abrirlo cuenta como haber visto el vale nuevo.
+- **Encargado, revisar propuesta y aprobar/fusionar:** el modal conserva su formulario y los botones sueltos pasan a un solo botón **Ver documentos** que abre el visor con el vale y la propuesta de cada taller.
+- **Cliente:** `components/visorDocumento.js`, `css/visor.css`, `actions/supervisor.js` y `actions/encargado.js`. Sin cambios de servidor ni de base de datos.
+- **Verificación:** supervisor (4 pestañas, Datos, rechazo encima del visor), encargado de Diseño (fusión con pestañas «Vale de arte» y «Propuesta Diseño»; revisión abriendo en Propuesta). No se ejecutó Autorizar para no consumir los datos de prueba.
