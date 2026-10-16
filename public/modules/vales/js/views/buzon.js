@@ -14,7 +14,7 @@ import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalV
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/disenador.js';
 import { abrirModalVerificarAdjuntos, abrirModalRechazarAdjuntos, abrirModalConversacion, abrirModalAdjuntosPendientes } from '../actions/adjuntos.js';
-import { abrirModalDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
+import { abrirVisorDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
 import { abrirModalSolicitarModificacion, abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirModalHistorial } from '../actions/historial.js';
 
@@ -299,11 +299,16 @@ export function construirAcciones(v) {
   const esMio = v.asesor_id === state.user.id;
   // Un supervisor solo actúa como asesor sobre SUS vales: sobre los de su equipo solo autoriza y supervisa.
   const ajenoDeSupervisor = state.user.rolId === ROL.SUPERVISOR && !esMio;
+  // En el paso 5 (pendiente de confirmación) el «ojo» y el de confirmar son un solo botón: abre el vale y la propuesta con
+  // «Confirmar recibido» y «Solicitar modificación» abajo. Con una modificación en trámite hay un solo camino a la vez.
+  const decideEnPaso5 = puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite && !ajenoDeSupervisor;
   // El supervisor abre un modal de elección (Ver info / Ver vale) en vez de ir
   // directo al PDF — a veces solo necesita los datos de encabezado. Vale también para los suyos, que él autoriza.
-  const acciones = state.user.rolId === ROL.SUPERVISOR
-    ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
-    : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
+  const acciones = decideEnPaso5
+    ? [{ icono: 'document-text-outline', titulo: 'Ver vale y propuesta: confirmar o solicitar modificación', clase: 'icon-success', onClick: (vale) => abrirVisorDecisionAsesor(vale, propuestaVisible(vale)) }]
+    : state.user.rolId === ROL.SUPERVISOR
+      ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
+      : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
   // El Supervisor autoriza el envío a talleres de un vale recién creado por
   // uno de sus asesores.
   if (puede('autorizarCreacion') && v.estado === 'ESPERANDO_AUTORIZACION') {
@@ -341,10 +346,6 @@ export function construirAcciones(v) {
   }
   if (puede('aprobarGeneral') && v.estado === 'APROBADO_DEPARTAMENTO') {
     acciones.push({ icono: 'checkmark-done-circle-outline', titulo: 'Aprobar y fusionar', clase: 'icon-success', onClick: abrirModalAprobarGeneral });
-  }
-  // Con una solicitud de modificación en trámite no se puede confirmar el original: se espera su decisión.
-  if (puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite && !ajenoDeSupervisor) {
-    acciones.push({ icono: 'document-text-outline', titulo: 'Confirmar o solicitar modificación', clase: 'icon-success', onClick: abrirModalDecisionAsesor });
   }
   // Un vale MOD- (nacido de una modificación ya aprobada, `vale_original_id`
   // seteado) nunca puede volver a solicitar modificación — solo se permite

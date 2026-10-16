@@ -1,4 +1,5 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
+import { abrirVisorVale } from '../components/visorDocumento.js';
 import { confirmarRecibido, darDeBajaVale, reenviarVale } from '../api/valesApi.js';
 import { escapeHtml } from '../utils/formato.js';
 import { cargarBuzon } from '../views/buzon.js';
@@ -62,43 +63,30 @@ export function abrirModalDarDeBaja(vale) {
 }
 
 // -----------------------------------------------------------------------
-// Asesor: decidir sobre un vale PENDIENTE_CONFIRMACION (confirmar / corregir)
+// Asesor: decidir sobre un vale PENDIENTE_CONFIRMACION (paso 5)
 // -----------------------------------------------------------------------
-// Rechazar no es una acción separada de "solicitar corrección": un solo botón
-// "Rechazar" pide el motivo y manda el vale a corrección — cae al buzón del
-// encargado, nunca queda como un estado "Rechazado" persistido.
-export function abrirModalDecisionAsesor(vale) {
-  const { overlay, cerrar } = abrirModal({
-    title: `Vale pendiente de confirmación — ${vale.correlativo}`,
-    bodyHtml: `
-      <p style="font-size:13px;margin-bottom:14px;">Revisa el vale de arte final y decide qué hacer.</p>
-      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-        <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale de arte (PDF)</a>
-        ${vale.propuesta_general_url ? `<a href="${vale.propuesta_general_url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
-      </div>
-      <p class="form-nota">Si solicitas una modificación, este vale pasará a «Recibido» de inmediato y se creará un vale de modificación (MOD-) con la propuesta original adjunta. El supervisor debe autorizarlo; si lo rechaza o vence, el MOD- se elimina y puedes solicitar uno nuevo.</p>
-    `,
-    footerHtml: `
-      <button class="btn btn--danger" id="btn-solicitar-modificacion">Solicitar Modificación</button>
-      <button class="btn btn--primary" id="btn-confirmar-recibido">Confirmar Recibido</button>
-    `
-  });
-
-  overlay.querySelector('#btn-confirmar-recibido').addEventListener('click', async () => {
-    try {
-      await confirmarRecibido(vale.id);
-      window.toast.success('Recibido', `${vale.correlativo} confirmado como recibido.`);
-      cerrar();
-      cargarBuzon();
-    } catch (error) {
-      mostrarErrorModal(overlay, error.message);
-    }
-  });
-
-  // Reusa el modal completo de solicitar modificación, que ya sabe pedir la
-  // justificación y talleres y llamar al endpoint correspondiente.
-  overlay.querySelector('#btn-solicitar-modificacion').addEventListener('click', () => {
-    cerrar();
-    abrirModalSolicitarModificacion(vale);
+// Un solo botón abre el visor con el vale y la propuesta; abajo a la derecha van «Solicitar modificación» y «Confirmar recibido».
+export function abrirVisorDecisionAsesor(vale, propuesta) {
+  return abrirVisorVale({
+    id: vale.id, correlativo: vale.correlativo, propuesta,
+    acciones: [
+      { etiqueta: 'Solicitar modificación', icono: 'create-outline', clase: 'btn--ghost', onClick: ({ cerrar }) => { cerrar(); abrirModalSolicitarModificacion(vale); } },
+      {
+        etiqueta: 'Confirmar recibido', icono: 'checkmark-outline', clase: 'btn--primary',
+        onClick: async ({ cerrar, boton }) => {
+          boton.disabled = true;
+          try {
+            await confirmarRecibido(vale.id);
+            window.toast.success('Recibido', `${vale.correlativo} confirmado como recibido.`);
+            cerrar();
+            cargarBuzon();
+          } catch (error) {
+            window.toast.error('No se pudo confirmar', error.message);
+            boton.disabled = false;
+            cargarBuzon();
+          }
+        }
+      }
+    ]
   });
 }
