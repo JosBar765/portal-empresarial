@@ -151,7 +151,11 @@ export async function abrirModalConversacionBasica(vale, modId) {
     estado.textContent = lineaDeEstado(c);
     // La fecha nueva solo importa mientras se decide; después ya quedó aplicada o descartada.
     fechas.hidden = c.cerrada;
-    fechas.innerHTML = `<ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>Entrega: ${escapeHtml(formatearFecha(c.fecha_entrega_anterior))} → <strong>${escapeHtml(formatearFecha(c.fecha_entrega_nueva))}</strong> si el taller acepta`;
+    const antes = formatearFecha(c.fecha_entrega_anterior);
+    const despues = formatearFecha(c.fecha_entrega_nueva);
+    fechas.innerHTML = `<ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>${antes === despues
+      ? `Entrega: <strong>${escapeHtml(despues)}</strong> (sin cambio)`
+      : `Entrega: ${escapeHtml(antes)} → <strong>${escapeHtml(despues)}</strong> si el taller acepta`}`;
     hilo.innerHTML = htmlHilo(c, { destacarMotivo: false });
     hilo.scrollTop = hilo.scrollHeight;
     zonaEscribir.hidden = !c.puede_escribir;
