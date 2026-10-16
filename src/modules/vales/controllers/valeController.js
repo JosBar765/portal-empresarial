@@ -397,6 +397,16 @@ class ValeController {
     }
   }
 
+  // Marca como vista la propuesta aprobada de otro taller del vale.
+  async propuestaOtroTallerVista(req, res) {
+    try {
+      const data = await valeService.marcarPropuestaOtroTallerVista(req.user, idObligatorio(req.params.id), idObligatorio(req.params.tallerId, 'Taller'));
+      return res.json(data);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async marcarVisto(req, res) {
     try {
       await valeService.marcarVisto(req.user, idObligatorio(req.params.id));

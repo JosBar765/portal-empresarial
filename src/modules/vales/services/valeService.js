@@ -17,6 +17,7 @@ const capacidadEntregaService = require('./capacidadEntregaService');
 const fechasEntregaService = require('./fechasEntregaService');
 const valeCorreccionService = require('./valeCorreccionService');
 const valeVistoService = require('./valeVistoService');
+const propuestasCompartidasService = require('./propuestasCompartidasService');
 const valeModificacionService = require('./valeModificacionService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeReporteService = require('./valeReporteService');
@@ -58,6 +59,7 @@ module.exports = {
   // Detalle
   obtenerDetalle: (...a) => valeDetalleService.obtenerDetalle(...a),
   obtenerPropuesta: (...a) => valeDetalleService.obtenerPropuesta(...a),
+  marcarPropuestaOtroTallerVista: (...a) => propuestasCompartidasService.marcarVisto(...a),
 
   // Buzón / listado por rol
   obtenerBuzon: (...a) => valeBuzonService.obtenerBuzon(...a),
