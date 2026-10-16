@@ -17,7 +17,7 @@ const MAX_PALABRAS_MOTIVO = 50;
 function htmlAvisoVisto(vale) {
   return vale.visto
     ? '<p class="nota-visto"><ion-icon name="checkmark-circle-outline"></ion-icon> Ya revisaste este vale.</p>'
-    : '<div class="form-aviso"><ion-icon name="alert-circle-outline"></ion-icon><span>Es de suma importancia que hayas visto este vale antes de autorizarlo. Cierra esta ventana, abre el botón "Ver" del vale y vuelve a intentarlo.</span></div>';
+    : '<div class="form-aviso"><ion-icon name="alert-circle-outline"></ion-icon><span>Antes de autorizar, abre el vale con «Ver».</span></div>';
 }
 
 function registrarVisto(vale) {
@@ -35,7 +35,7 @@ export function avisarCambioEnModalAutorizar(valeId) {
   if (cuerpo.querySelector('.form-aviso')) return;
   const aviso = document.createElement('div');
   aviso.className = 'form-aviso';
-  aviso.innerHTML = '<ion-icon name="alert-circle-outline"></ion-icon><span>El asesor modificó este vale. Cierra esta ventana y ábrela de nuevo para ver los datos actualizados.</span>';
+  aviso.innerHTML = '<ion-icon name="alert-circle-outline"></ion-icon><span>El asesor cambió este vale. Cierra y vuelve a abrir.</span>';
   cuerpo.prepend(aviso);
 }
 
@@ -49,7 +49,7 @@ export function abrirModalAutorizarCreacion(vale) {
     bodyHtml: `
       ${htmlAvisoVisto(vale)}
       <p style="font-size:13px;margin-bottom:10px;">Taller${talleresIds.length > 1 ? 'es' : ''} solicitado${talleresIds.length > 1 ? 's' : ''}: <strong>${nombresTalleres || 'Ninguno'}</strong></p>
-      <p style="font-size:13px;">¿Confirmas autorizar este vale de arte? Se enviará de inmediato a ese/esos taller(es) y quedará firmado con tu nombre en el documento.</p>
+      <p style="font-size:13px;">¿Autorizar? Se envía ahora al taller y queda firmado con tu nombre.</p>
     `,
     footerHtml: `
       <button class="btn btn--danger" id="btn-rechazar" style="margin-right:auto;">Rechazar</button>
@@ -65,7 +65,7 @@ export function abrirModalAutorizarCreacion(vale) {
     btn.disabled = true;
     try {
       await autorizarCreacion(vale.id);
-      window.toast.success('Creación autorizada', `${vale.correlativo} se creó correctamente, enviado ${talleresIds.length > 1 ? 'a los talleres' : 'al taller'} seleccionado${talleresIds.length > 1 ? 's' : ''}.`);
+      window.toast.success('Creación autorizada', `${vale.correlativo} ya está ${talleresIds.length > 1 ? 'en los talleres' : 'en el taller'}.`);
       cerrar();
       cargarBuzon();
     } catch (error) {
@@ -86,8 +86,8 @@ function abrirModalRechazarCreacion(vale, cerrarAutorizacion, { modificacion = f
     title: `${modificacion ? 'Rechazar modificación' : 'Rechazar vale'} — ${vale.correlativo}`,
     bodyHtml: `
       <p style="font-size:13px;margin-bottom:10px;">${modificacion
-        ? 'Al rechazar, la modificación se eliminará y el asesor recibirá tu justificación; si la necesita, tendrá que solicitar una nueva. El vale original ya quedó como Recibido.'
-        : 'El vale volverá al asesor con tu justificación para que lo corrija y lo reenvíe.'}</p>
+        ? 'Se elimina la modificación y el asesor verá tu justificación. El vale anterior sigue Recibido.'
+        : 'El asesor lo corrige y lo reenvía con tu justificación.'}</p>
       <div class="form-field full">
         <label>Justificación *</label>
         <textarea id="motivo-rechazo" rows="4" maxlength="400"></textarea>
@@ -113,7 +113,7 @@ function abrirModalRechazarCreacion(vale, cerrarAutorizacion, { modificacion = f
     btn.disabled = true;
     try {
       await (modificacion ? rechazarModificacion : rechazarCreacion)(vale.id, textarea.value.trim());
-      window.toast.success(modificacion ? 'Modificación rechazada' : 'Vale rechazado', modificacion ? `${vale.correlativo} se eliminó y el asesor recibió tu justificación.` : `${vale.correlativo} volvió al asesor con tu justificación.`);
+      window.toast.success(modificacion ? 'Modificación rechazada' : 'Vale rechazado', modificacion ? `${vale.correlativo} eliminada. El asesor verá tu justificación.` : `${vale.correlativo} volvió al asesor con tu justificación.`);
       cerrar();
       cerrarAutorizacion();
       cargarBuzon();
@@ -148,11 +148,11 @@ export async function abrirModalAprobarModificacion(vale) {
         <p style="font-size:13px;white-space:pre-wrap;">${vale.descripcion ? escapeHtml(vale.descripcion) : 'Sin justificación registrada.'}</p>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-        <a href="/api/vales/${vale.id}/pdf" target="_blank" data-visto class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale modificado (PDF)</a>
-        <a href="/api/vales/${vale.vale_original_id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale original (PDF)</a>
+        <a href="/api/vales/${vale.id}/pdf" target="_blank" data-visto class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale nuevo</a>
+        <a href="/api/vales/${vale.vale_original_id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver ${escapeHtml(correlativoOriginal)}</a>
         ${propuestaUrl ? `<a href="${propuestaUrl}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
       </div>
-      <p style="font-size:13px;">¿Confirmas autorizar la modificación de ${escapeHtml(correlativoOriginal)}? El vale ${escapeHtml(vale.correlativo)} quedará autorizado y se enviará de inmediato a los mismos talleres del vale original.</p>
+      <p style="font-size:13px;">¿Autorizar? Se envía ahora a los mismos talleres de ${escapeHtml(correlativoOriginal)}.</p>
     `,
     footerHtml: `
       <button class="btn btn--danger" id="btn-rechazar" style="margin-right:auto;">Rechazar</button>
