@@ -90,6 +90,14 @@ class PropuestasCompartidasService {
     const disenadorId = usuario.rolId === ROL.DISENADOR ? usuario.id : null;
     return repo.listarValesConPropuestaNueva(usuario.id, tallerId, disenadorId, valeIds);
   }
+
+  // Ids de vales donde la sección de otros talleres aplica al usuario (misma regla que `hermanosDe`).
+  async valesConHermano(usuario, valeIds) {
+    if (!valeIds.length || !esTallerODisenador(usuario)) return new Set();
+    const tallerId = await this.tallerIdDe(usuario);
+    if (!tallerId) return new Set();
+    return repo.listarValesConHermano(tallerId, valeIds);
+  }
 }
 
 module.exports = new PropuestasCompartidasService();

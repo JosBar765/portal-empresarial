@@ -334,13 +334,15 @@ class ValeBuzonService {
       return null;
     };
     // Propuesta aprobada de otro taller sin ver (una sola consulta para toda la página).
-    const conPropuestaNueva = await propuestasCompartidasService.valesConPropuestaNueva(usuario, [...new Set([...paginaCruda, ...vigentesMostrados].map(v => v.id))]);
-    const pagina = paginaCruda.map(v => ({ ...v, propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
+    const idsBuzon = [...new Set([...paginaCruda, ...vigentesMostrados].map(v => v.id))];
+    const conPropuestaNueva = await propuestasCompartidasService.valesConPropuestaNueva(usuario, idsBuzon);
+    const conHermano = await propuestasCompartidasService.valesConHermano(usuario, idsBuzon);
+    const pagina = paginaCruda.map(v => ({ ...v, propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
     const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
     const atrasadosVigentes = {
       total: vigentesFuera.length,
       truncado: vigentesFuera.length > MAX_VIGENTES,
-      vales: vigentesMostrados.map(v => ({ ...v, propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }))
+      vales: vigentesMostrados.map(v => ({ ...v, propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }))
     };
     return {
       vales: pagina,

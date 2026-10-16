@@ -386,8 +386,8 @@ export function construirAcciones(v) {
   if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
     acciones.push({ icono: 'send-outline', titulo: 'Reenviar a autorización', clase: 'icon-success', onClick: accionReenviar });
   }
-  // Vale con varios talleres (o con aviso pendiente): propuestas aprobadas de los otros talleres, solo lectura.
-  if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && (v.propuestaOtroTallerNueva || String(v.taller || '').includes(','))) {
+  // Propuestas aprobadas de los otros talleres (solo si aplica la regla de compartir), solo lectura.
+  if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && (v.propuestaOtroTallerNueva || v.propuestasOtrosAplica)) {
     acciones.push({ icono: 'documents-outline', titulo: 'Propuestas de otros talleres', onClick: abrirModalPropuestasOtros });
   }
   if (puede('verHistorial')) acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
