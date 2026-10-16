@@ -127,6 +127,17 @@ function esValeDeModificacion(vale) {
   return vale.vale_original_id != null;
 }
 
+// Días hábiles mínimos (contados desde hoy) de la fecha de entrega según el tipo de modificación.
+// La básica no crea vale MOD: se resuelve conversando con el taller.
+const DIAS_HABILES_MODIFICACION = { BASICA: 1, MEDIA: 2, AVANZADA: 3 };
+const TIPOS_MODIFICACION_CON_VALE = ['MEDIA', 'AVANZADA'];
+
+// Código de un vale MOD: MOD-X, MOD2-X, MOD3-X… con X el correlativo del vale raíz, que nunca cambia.
+const PREFIJO_MOD = /^MODd*-/;
+const esCorrelativoMod = (correlativo) => PREFIJO_MOD.test(String(correlativo || ''));
+const correlativoBase = (correlativo) => String(correlativo || '').replace(PREFIJO_MOD, '');
+const armarCorrelativoMod = (base, numero) => `MOD${numero > 1 ? numero : ''}-${base}`;
+
 // El estado en que un vale espera la decisión del supervisor: un MOD- nace en SOLICITANDO_MODIFICACION.
 function estadoEnAutorizacion(vale) {
   return esValeDeModificacion(vale) ? ESTADOS.SOLICITANDO_MODIFICACION : ESTADOS.ESPERANDO_AUTORIZACION;
@@ -264,7 +275,8 @@ module.exports = {
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
   hoyISO, horaActual, calcularAtraso, enriquecer,
-  esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
+  esValeDeModificacion, DIAS_HABILES_MODIFICACION, TIPOS_MODIFICACION_CON_VALE,
+  PREFIJO_MOD, esCorrelativoMod, correlativoBase, armarCorrelativoMod, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
   normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial,
   requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo
