@@ -2186,6 +2186,25 @@
 .chip-estado--tiempo { background: #fef3c7; color: #92400e; }
 .chip-estado--taller { background: var(--color-surface-muted); color: var(--color-text); }
 .chip-estado--cerrado { background: var(--color-surface-muted); color: var(--color-text-muted); }
+/* Selector del tipo de modificación */
+.mod-intro { margin: 0 0 12px; font-size: 13px; }
+.mod-tipos { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.mod-tipo { display: block; cursor: pointer; }
+.mod-tipo-cuerpo { display: flex; flex-direction: column; gap: 8px; height: 100%; padding: 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); transition: border-color var(--transition-fast), background var(--transition-fast); }
+.mod-tipo:hover .mod-tipo-cuerpo { border-color: var(--color-border-focus); }
+.mod-tipo input:focus-visible + .mod-tipo-cuerpo { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.mod-tipo input:checked + .mod-tipo-cuerpo { border-color: var(--color-primary); background: var(--color-primary-light); }
+.mod-tipo-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 14px; }
+.mod-tipo-cab ion-icon { font-size: 18px; color: var(--color-primary); }
+.mod-tipo-dias { margin-left: auto; padding: 1px 8px; font-size: 11px; font-weight: 600; color: var(--color-text-secondary); background: var(--color-surface-muted); border-radius: var(--radius-full); }
+.mod-tipo-resumen { font-size: 12.5px; color: var(--color-text-secondary); }
+.mod-tipo-datos { margin: 0; padding-left: 16px; font-size: 12px; color: var(--color-text-secondary); }
+.mod-tipo-datos li { margin-bottom: 2px; }
+.mod-info { margin-top: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.mod-info summary { display: flex; align-items: center; gap: 6px; padding: 10px 12px; font-size: 13px; font-weight: 600; color: var(--color-primary); cursor: pointer; }
+.mod-info summary ion-icon { font-size: 18px; }
+.mod-info-cuerpo { padding: 0 12px 10px; font-size: 12.5px; }
+.mod-info-cuerpo p { margin: 0 0 8px; }
 /* Modificación básica: elección de taller y lista de conversaciones */
 .campo-grupo { margin: 12px 0; padding: 0; border: 0; }
 .campo-grupo legend { margin-bottom: 6px; padding: 0; font-size: 13px; font-weight: 600; }

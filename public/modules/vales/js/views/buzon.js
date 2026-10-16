@@ -15,7 +15,8 @@ import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/disenador.js';
 import { abrirModalVerificarAdjuntos, abrirModalRechazarAdjuntos, abrirModalConversacion, abrirModalAdjuntosPendientes } from '../actions/adjuntos.js';
 import { abrirVisorDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
-import { abrirModalSolicitarModificacion, abrirModalCorregirVale } from '../forms/valeForm.js';
+import { abrirModalCorregirVale } from '../forms/valeForm.js';
+import { abrirSelectorModificacion } from '../actions/modificacionTipo.js';
 import { abrirModalHistorial } from '../actions/historial.js';
 import { abrirConversacionesBasicas } from '../actions/modificacionBasica.js';
 
@@ -350,11 +351,10 @@ export function construirAcciones(v) {
   if (puede('aprobarGeneral') && v.estado === 'APROBADO_DEPARTAMENTO') {
     acciones.push({ icono: 'checkmark-done-circle-outline', titulo: 'Aprobar y fusionar', clase: 'icon-success', onClick: abrirModalAprobarGeneral });
   }
-  // Un vale MOD- (nacido de una modificación ya aprobada, `vale_original_id`
-  // seteado) nunca puede volver a solicitar modificación — solo se permite
-  // una por vale (analisis_correcciones_29.md #3).
-  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.vale_original_id && !v.mod_en_tramite && !ajenoDeSupervisor) {
-    acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirModalSolicitarModificacion });
+  // Un vale recibido se puede modificar si todavía no tiene un vale MOD hijo; un MOD recibido también (MOD2, MOD3…).
+  // Desde aquí solo se ofrecen la modificación media y la avanzada.
+  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.mod_en_tramite && !basicasAbiertas.length && !ajenoDeSupervisor) {
+    acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirSelectorModificacion });
   }
   // Modificación básica abierta: el asesor dueño (o el equipo del taller involucrado) abre la conversación.
   const basicaDelTaller = basicasAbiertas.some(m => m.taller_id === v.taller_id);

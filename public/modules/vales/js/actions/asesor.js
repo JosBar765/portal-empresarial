@@ -3,7 +3,7 @@ import { abrirVisorVale } from '../components/visorDocumento.js';
 import { confirmarRecibido, darDeBajaVale, reenviarVale } from '../api/valesApi.js';
 import { escapeHtml } from '../utils/formato.js';
 import { cargarBuzon } from '../views/buzon.js';
-import { abrirModalSolicitarModificacion } from '../forms/valeForm.js';
+import { abrirSelectorModificacion } from './modificacionTipo.js';
 
 // Asesor: ver el motivo con el que el supervisor rechazó su vale.
 export function abrirModalMotivoRechazo(vale) {
@@ -70,7 +70,7 @@ export function abrirVisorDecisionAsesor(vale, propuesta) {
   return abrirVisorVale({
     id: vale.id, correlativo: vale.correlativo, propuesta,
     acciones: [
-      { etiqueta: 'Solicitar modificación', icono: 'create-outline', clase: 'btn--ghost', onClick: ({ cerrar }) => { cerrar(); abrirModalSolicitarModificacion(vale); } },
+      { etiqueta: 'Solicitar modificación', icono: 'create-outline', clase: 'btn--ghost', onClick: ({ cerrar }) => { cerrar(); abrirSelectorModificacion(vale); } },
       {
         etiqueta: 'Confirmar recibido', icono: 'checkmark-outline', clase: 'btn--primary',
         onClick: async ({ cerrar, boton }) => {
