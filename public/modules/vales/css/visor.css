@@ -24,6 +24,8 @@
 .visor-cerrar:focus-visible, .visor-pestana:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
 .visor-pestanas { display: flex; gap: 4px; padding: 4px 12px 0; overflow-x: auto; border-bottom: 1px solid var(--color-border); }
+.visor-pestanas { scrollbar-width: none; }
+.visor-pestanas::-webkit-scrollbar { display: none; }
 .visor-pestana { flex: none; white-space: nowrap; }
 .visor-pestana {
   padding: 6px 12px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--color-text-secondary);
