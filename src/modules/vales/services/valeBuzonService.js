@@ -161,7 +161,9 @@ class ValeBuzonService {
     // El asistente se rige por el rol de su encargado (y su taller sale de idEncargadoEfectivo).
     switch (rolEncargadoDe(usuario)) {
       case ROL.ADMINISTRADOR: // ve todo
-        resultado = this._buzonAdministrador(todosConTaller, ventana, filtroContador);
+        resultado = vista === 'trabajo'
+          ? this._trabajoGeneral(todosConTaller, ventana, filtroContador)
+          : this._buzonAdministrador(todosConTaller, ventana, filtroContador);
         break;
       case ROL.ASESOR:
         resultado = vista === 'trabajo'
@@ -192,7 +194,9 @@ class ValeBuzonService {
       default:
         // Cualquier otro rol con vales.ver (p. ej. el Gerente) ve el buzón general en solo lectura: sus acciones
         // siguen exigiendo sus propios permisos de escritura.
-        resultado = this._buzonAdministrador(todosConTaller, ventana, filtroContador);
+        resultado = vista === 'trabajo'
+          ? this._trabajoGeneral(todosConTaller, ventana, filtroContador)
+          : this._buzonAdministrador(todosConTaller, ventana, filtroContador);
     }
     return resultado;
   }
@@ -346,8 +350,9 @@ class ValeBuzonService {
     return vales.filter(predicados[filtroContador]);
   }
 
+  // Vista general (administrador y gerente): el Buzón es lo que sigue en curso; lo cerrado va a Trabajo realizado.
   _buzonAdministrador(todos, ventana, filtroContador) {
-    const enVentana = todos.filter(v => dentroDeVentana(v, ventana));
+    const enVentana = todos.filter(v => !ESTADOS_TERMINALES.includes(v.estado) && dentroDeVentana(v, ventana));
     const predicados = {
       atrasados: v => v.atrasado,
       pendientesConfirmacion: v => v.estado === ESTADOS.PENDIENTE_CONFIRMACION,
@@ -359,6 +364,20 @@ class ValeBuzonService {
       v => v.estado === ESTADOS.CREADO || v.estado === ESTADOS.MODIFICADO
     ]);
     return { vales, contadores: this._contadoresGenerales(enVentana) };
+  }
+
+  // ---- Administrador y gerente: Trabajo realizado (vales cerrados de todos, orden por fecha) ----
+  _trabajoGeneral(todos, ventana, filtroContador) {
+    const enVentana = todos.filter(v => ESTADOS_CONFIRMADOS.includes(v.estado) && dentroDeVentana(v, ventana));
+    const contadores = {
+      totalRecibidos: enVentana.length,
+      recibidosHoy: enVentana.filter(v => esHoy(v.actualizado_en)).length
+    };
+    const predicados = {
+      totalRecibidos: () => true,
+      recibidosHoy: v => esHoy(v.actualizado_en)
+    };
+    return { vales: ordenarPorFecha(this._aplicarFiltroContador(enVentana, filtroContador, predicados)), contadores };
   }
 
   _contadoresGenerales(vales) {
