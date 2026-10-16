@@ -553,7 +553,22 @@ class ValeBuzonService {
         };
       });
     const enVentana = vistos.filter(v => dentroDeVentana(v, ventana));
-    
+
+    // Un vale en el paso 5 cuyo asesor pidió una modificación básica a MI taller: su fila ya está aprobada (no entra arriba), pero el
+    // taller debe responder, así que se muestra siempre, sin depender de la ventana de fechas.
+    const yaVisibles = new Set(vistos.map(v => v.id));
+    const conBasica = [];
+    for (const v of todosConTaller) {
+      if (yaVisibles.has(v.id)) continue;
+      const solicitud = (v.modificaciones_basicas_abiertas || []).find(m => (miTaller ? m.taller_id === miTaller.id : esAdministrador(usuario)));
+      const fila = solicitud && valeTalleresTodos.find(f => f.vale_id === v.id && f.taller_id === solicitud.taller_id);
+      if (!fila) continue;
+      conBasica.push({
+        ...enriquecer(v), estado_taller: fila.estado, disenador_id: fila.disenador_id, _filaTallerId: fila.id, taller_id: fila.taller_id,
+        adjuntos_vence_en: fila.adjuntos_vence_en, adjuntos_mensaje: fila.adjuntos_mensaje, adjuntos_respondido_en: fila.adjuntos_respondido_en
+      });
+    }
+
     // "Asignado" = en manos de los diseñadores del taller (asignado, en proceso o en pausa, y no del propio encargado);
     // "Mis asignaciones" = lo que el propio encargado se asignó.
     const EN_MANOS_DE_DISENADOR = [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA];
@@ -583,11 +598,12 @@ class ValeBuzonService {
     if (puedeFusionar) contadores.pendientesFusion = pendientesFusion.length;
 
     if (puedeFusionar) predicados.pendientesFusion = v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO;
-    const filtrados = this._aplicarFiltroContador([...enVentana, ...pendientesFusion], filtroContador, predicados);
+    const filtrados = this._aplicarFiltroContador([...enVentana, ...pendientesFusion, ...conBasica], filtroContador, predicados);
     // El trabajo activo de los diseñadores (en proceso/en pausa) y lo ya
     // asignado suben por encima de lo que requiere acción del propio
     // encargado (revisar/asignar). La cola de fusión se queda al final.
     const vales = ordenarPorGrupos(filtrados, [
+      v => (v.modificaciones_basicas_abiertas || []).length > 0, // una modificación básica por responder va primero
       v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO,
       v => v.estado_taller === ESTADOS_TALLER.EN_PAUSA,
       v => v.estado_taller === ESTADOS_TALLER.ASIGNADO,
