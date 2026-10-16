@@ -46,9 +46,9 @@ export const CONTADORES_CONFIG = {
     buzon: [
       { key: 'porAsignar', label: 'Por asignar', filtro: 'porAsignar' },
       { key: 'asignadosDisenadores', label: 'Asignado', quien: 'Diseñadores', filtro: 'asignadosDisenadores' },
-      { key: 'misAsignaciones', label: 'Mis asignaciones', filtro: 'misAsignaciones' },
       { key: 'porRevisar', label: 'Por revisar', filtro: 'porRevisar' },
       { key: 'pendientesFusion', label: 'Por fusionar', filtro: 'pendientesFusion', permiso: PERMISO_FUSION },
+      { key: 'misAsignaciones', label: 'Mis asignaciones', filtro: 'misAsignaciones' },
       { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
     ],
     trabajo: [
