@@ -47,6 +47,7 @@ document.addEventListener('mouseover', e => { const m = marcaDe(e); if (m) mostr
 document.addEventListener('mouseout', e => { if (marcaDe(e)) ocultarTip(); });
 document.addEventListener('focusin', e => { const m = marcaDe(e); if (m && m.matches(':focus-visible')) mostrarTip(m); });
 document.addEventListener('focusout', e => { if (marcaDe(e)) ocultarTip(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') ocultarTip(); });
 document.addEventListener('scroll', ocultarTip, true);
 document.addEventListener('click', ocultarTip, true);
 window.addEventListener('resize', ocultarTip);
