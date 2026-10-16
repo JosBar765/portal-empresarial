@@ -19,7 +19,6 @@ export const state = {
     ventana: { tipo: 'hoy', fecha: isoLocal(new Date()), desde: '', hasta: '' },
     agruparPor: '', tiendaId: '', tallerId: '', asesorIds: [], disenadorIds: [], expandidos: new Set()
   },
-  atrasadosVigentes: { total: 0, truncado: false, vales: [] }, // Buzón: atrasados abiertos fuera del filtro de fecha
   busqueda: '',
   sort: { key: null, dir: null }, // ídem el orden por columna
   socket: null,
