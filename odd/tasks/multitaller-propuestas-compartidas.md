@@ -1,6 +1,6 @@
 # multitaller-propuestas-compartidas
 
-Rama: `fix/multitaller` (desde `dev`) · Estrategia de entrega: `ask-on-risk` · Estado: plan creado, sin implementar.
+Rama: `fix/multitaller` (desde `dev`) · Estrategia de entrega: `ask-on-risk` · Estado: hecho, pendiente de PR.
 
 ## Objetivo
 En un vale multitaller, que los talleres puedan **ver las propuestas aprobadas de los otros talleres** y reciban un **aviso** cuando otro taller termina, sin bloquear nada (cada taller avanza por su cuenta).
@@ -27,7 +27,7 @@ Desaprobar y reasignar (el hermano vuelve a «En trabajo»); reasignación a otr
 - [x] T2 · Backend lectura: propuestas de talleres hermanos en el detalle del vale (respetando el flag y los estados) y endpoint para marcar «visto». Ruta: delegada. Commit 8242da1.
 - [x] T3 · Backend aviso: al aprobar, `notificar` a encargado, asistentes y diseñador asignado de los hermanos con flag; indicador «propuesta nueva sin ver» por usuario en el buzón. Ruta: delegada. Commit 0b60266.
 - [x] T4 · Frontend: sección «Propuestas de otros talleres» en el detalle del vale y signo rojo «?» con tooltip en el buzón; marcar «visto» al abrir. Ruta: delegada. Commit 5129596.
-- [ ] T5 · Documentación (`flujo_vale_de_arte.md`, `CLAUDE.md` si aplica, nota de producción con el script) y verificación de punta a punta en el servidor que levanta el usuario. Ruta: inline / delegada.
+- [x] T5 · Documentación (sección 14 de `flujo_vale_de_arte.md`, `CLAUDE.md`, notas de producción) y verificación de punta a punta. Ruta: delegada. Commit: ver «Commits de la rama».
 
 ## Reglas de trabajo
 - El servidor lo levanta siempre el usuario; las pruebas van contra ese servidor, sin crear procesos propios.
@@ -44,5 +44,29 @@ Desaprobar y reasignar (el hermano vuelve a «En trabajo»); reasignación a otr
 - T4: `node --check` OK en los 4 JS tocados; lectura de datos/XSS (todo por `escapeHtml`, nota y enlaces por `propuestaInfo`) revisada. Comportamiento en navegador NO verificado (pendiente en T5). Decisión: no existe un «detalle» para roles de taller (el ojo abre el visor), así que la sección es un modal nuevo abierto desde una acción «Propuestas de otros talleres» (vales con varios talleres o aviso pendiente) y desde el propio «?».
 - Correcciones tras navegador: el tooltip del «?» pasa a un único `div.pn-tip` en `<body>` con `position: fixed` (evita el stacking del `td` sticky y el recorte por overflow), posicionado por JS (debajo o encima, recortado al viewport; cubre móvil y «Atrasados antes del período»). Sin cambio de backend para la marca vieja tras desaprobar: ninguna ruta saca una fila de APROBADO (desaprobar solo parte de EN_REVISION, que los hermanos nunca vieron como aprobada). `node --check` OK y función de posición probada con node; re-verificación en navegador pendiente. Commit: 9acc005.
 
+- Corrección final (dad15c5): la acción «Propuestas de otros talleres» usaba solo «el vale tiene varios talleres», así que un usuario de Diseño Local veía el icono y un modal vacío. El buzón (`vales[]` y `atrasadosVigentes.vales[]`) ahora trae `propuestasOtrosAplica`, calculado por lote (una consulta, sin N+1) con la misma regla del servicio de propuestas compartidas. Script desechable sobre `obtenerBuzon`, 9 comprobaciones OK: encargado, diseñador y encargado de Protextil sobre vale Diseño+Protextil = true; asesor = false; vale de un solo taller = false; Diseño Local sobre Diseño+Diseño Local = false (y en Diseño+Local+UV/3D sigue false, mientras Diseño = true); vale `MOD-` consistente (calculado con sus propias filas). Datos de prueba eliminados. `node --check` OK en los 4 JS. El servidor lo reinicia el usuario para cargar el cambio; navegador no verificado tras esta corrección.
+
+## Resumen de verificación (T5)
+Pruebas A–I en navegador el 2026-10-16 por verificadores, contra el servidor del usuario:
+- Aprobación por la interfaz del encargado; aviso una sola vez por persona (encargado, asistente y diseñador asignado).
+- Signo «?» en tiempo real; «visto» por usuario; con `comparte_propuestas = 0` no aparece nada; Diseño Local no ve nada; vale de un taller no muestra nada.
+- Desaprobar y volver a aprobar vuelve a mostrar el signo.
+- Tooltip corregido (posición fija en `body`, recortado al viewport en celular, Escape lo cierra).
+- Ancho de celular con iframe de 390 px: modal, visor y tarjetas correctos; área táctil de 44 px mediante `::after`.
+- Nota y enlaces a salvo de XSS; caso de propuesta sin URL correcto; sin errores en la consola; rol diseñador correcto.
+
+**No verificado:** eventos táctiles reales, visor de PDF en un celular real, taller hermano Protextil en navegador, vale `MOD-`, consola del Administrador, captura en vivo del aviso emergente para diseñadores, y el comportamiento en navegador tras la corrección dad15c5.
+
+## Notas para producción
+1. Importar `database/09_comparte_propuestas.sql` **antes** de desplegar el código (idempotente).
+2. El script asigna 1 por **nombre exacto** ('Diseño', 'Diseño UV/3D', 'Protextil'). Revisar antes los nombres en producción: si no coinciden, la marca queda en 0 y la función queda apagada sin error. El UPDATE solo corre al crear la columna; para repetirlo a mano: `UPDATE talleres SET comparte_propuestas = 1 WHERE nombre IN ('Diseño', 'Diseño UV/3D', 'Protextil');` y comprobar con `SELECT id, nombre, comparte_propuestas FROM talleres;`.
+3. Reiniciar el servidor tras desplegar (cambios de backend).
+4. No hay migración de datos para el «visto».
+5. El «?» es retroactivo en vales cuyo hermano aprobó antes de la función; se aceptó porque en producción hay un solo vale en proceso y nadie ha entregado propuesta.
+6. Restricción solo de interfaz: el detalle sigue devolviendo todas las propuestas (decisión del usuario); las URL de Supabase son públicas.
+
+## Commits de la rama (`e61d502..HEAD`)
+8179c8a (T1), 8242da1 (T2), 0b60266 (T3), c75c2ec, 5129596 (T4), 6abf17d, 9acc005, e49ea73, 34f5f12, 185fbc4, dad15c5 (corrección final) y el commit de documentación de T5 (último de la rama).
+
 ## Siguiente paso
-T5 documentación y verificación de punta a punta.
+Abrir el PR hacia dev (decisión del usuario) y ejecutar el script 09 en producción a mano.

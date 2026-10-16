@@ -744,3 +744,20 @@ Al entregar su propuesta, el Diseñador (y el Encargado/Asistente al adjuntar la
 - **Reporte de rendimiento:** el Encargado/Asistente y el Supervisor tienen, además de Actividad, un reporte de Rendimiento (contadores, gráfica y tabla comparativa por persona); se elige cuál descargar desde «Exportar PDF». Detalle en `documentacion/correcciones_53.md`.
 
 - **Atraso del taller:** el atraso que ven el Encargado de taller (y Asistente) y el Diseñador termina cuando el Encargado de SU taller APRUEBA la propuesta (`vale_talleres.atraso_congelado_en`; en revisión sigue corriendo); si la propuesta se desaprueba y el vale vuelve a ASIGNADO, el atraso se reanuda. Asesor, Supervisor, Gerente, Administrador y las demás vistas siguen con el atraso del vale. En el buzón del Encargado cada fila muestra también al asesor que creó el vale.
+
+## 14. Propuestas compartidas entre talleres
+
+En un vale con varios talleres, los talleres que comparten propuestas ven la última propuesta **aprobada** de los demás y reciben un aviso cuando otro termina. No bloquea nada: cada taller avanza por su cuenta.
+
+- **Regla:** columna `talleres.comparte_propuestas` (0/1). Es simétrica: un taller ve a otro solo si **ambos** la tienen en 1. Valores iniciales: Diseño, Diseño UV/3D y Protextil = 1; Diseño Local = 0 (todas sus tiendas). Se evalúa al leer, así que cambiar la columna afecta de inmediato a los vales en curso. Un taller «hermano» es otra fila **activa** (`vale_talleres.activo = 1`) del mismo vale; en un `MOD-` solo cuentan las filas del propio `MOD-`. Vale de un solo taller, o con solo talleres sin la marca: no hay sección ni signo.
+- **Quién lo ve:** encargado, asistentes y diseñadores del taller (Asesor, Supervisor, Gerente y Administrador no). En el Buzón aparece la acción «Propuestas de otros talleres» (el backend manda `propuestasOtrosAplica` con la misma regla) que abre un modal de solo lectura.
+- **Qué se ve:** de cada taller hermano, el PDF de su última propuesta aprobada con su nota y enlaces. Si aún no la aprueba (o se desaprobó), «En trabajo» y sin archivo.
+- **Cuándo avisa:** solo cuando el **encargado aprueba** (entregar y desaprobar no avisan). Recibe el aviso (`valeEvents.notificar`, tipo `PROPUESTA_COMPARTIDA`, queda en el centro de notificaciones) el encargado, los asistentes y el diseñador **asignado** de cada taller hermano, una sola vez por persona; no al actor ni a otros diseñadores.
+- **Signo rojo «?» en el Buzón:** sobre el vale, con tooltip, mientras el usuario no haya abierto la propuesta nueva. El «visto» es por usuario (`vale_propuestas_otros_vistos`) y se guarda con el `propuesta_id`, por lo que una re-aprobación con otra propuesta vuelve a contar como nueva. Se marca con `POST /api/vales/:id/propuestas-otros/:tallerId/visto`; el detalle sale en `propuestasOtrosTalleres`.
+- **Script de BD:** `database/09_comparte_propuestas.sql` (columna y tabla de «visto»).
+
+**Límites conocidos**
+- La restricción es solo de interfaz: `obtenerDetalle` y `GET /:id/propuesta` siguen devolviendo las propuestas de todos los talleres (decisión de producto: los datos no son sensibles). Las URL de Supabase son públicas.
+- El «?» es retroactivo: un vale cuyo hermano aprobó antes de la función aparece como nuevo hasta que se abra. Se dejó así porque en producción hay un solo vale en proceso y nadie ha entregado propuesta.
+- Al aprobar, el Administrador recibe dos avisos emergentes (conocido, sin cambio).
+- El botón flotante de acción se superpone en celular: ya existía y no tiene relación.
