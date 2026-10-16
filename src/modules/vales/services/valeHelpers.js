@@ -160,6 +160,8 @@ function estadoVisibleAsesor(vale) {
 // La ventana de tiempo filtra por la fecha de ENTREGA del vale: 'todo', 'mes' (el de `ventana.fecha`) o 'rango'.
 function dentroDeVentana(vale, ventana) {
   if (!ventana || !ventana.tipo || ventana.tipo === 'todo') return true;
+  // Buzón: un atrasado abierto se ve siempre, aunque su entrega caiga fuera del período.
+  if (ventana.incluirAtrasados && vale.atrasado && !ESTADOS_TERMINALES.includes(vale.estado)) return true;
   const fv = new Date(`${String(vale.fecha_entrega).slice(0, 10)}T00:00:00`);
 
   if (ventana.tipo === 'rango') {

@@ -201,6 +201,7 @@ class ValeBuzonService {
     await prepararPipeline();
     const ventana = this._resolverVentana(filtros);
     const vista = filtros.vista === 'trabajo' ? 'trabajo' : 'buzon';
+    if (vista === 'buzon') ventana.incluirAtrasados = true;
     const filtroContador = filtros.filtroContador || null;
     const todos = (await valeRepository.listarTodos()).map(enriquecer);
     const talleresTodos = await tallerRepository.listarActivos();
@@ -274,25 +275,6 @@ class ValeBuzonService {
     // respaldo — el frontend además descarta cualquier fila duplicada al
     // unir páginas, así que este respaldo nunca produce filas repetidas en
     // pantalla.
-    // «Atrasados vigentes»: con un filtro de fecha (Hoy, día, mes, rango) los vales atrasados que siguen abiertos y cuya entrega cae fuera de
-    // la ventana saldrían de la lista; se devuelven aparte para que se vean siempre. En «Todo» y en Trabajo realizado no aplica.
-    let vigentesFuera = [];
-    if (vista === 'buzon' && ventana.tipo !== 'todo') {
-      const completo = await this._resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, { tipo: 'todo' }, null);
-      const vistos = new Set();
-      vigentesFuera = completo.vales
-        .filter(v => v.atrasado && !dentroDeVentana(v, ventana))
-        .filter(v => { const k = String(v._rowKey || v.id); return vistos.has(k) ? false : vistos.add(k); })
-        .filter(v => !soloModificados || esModificado(v))
-        .filter(v => !disenadorId || v.disenador_id === disenadorId)
-        .filter(v => !busqueda || `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase().includes(busqueda))
-        .sort((a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || String(a.fecha_entrega).localeCompare(String(b.fecha_entrega)));
-      // El contador «Atrasados» cuenta todos los vigentes (dentro y fuera de la ventana): el mismo número que con «Todo».
-      if (resultado.contadores && typeof completo.contadores.atrasados === 'number') resultado.contadores.atrasados = completo.contadores.atrasados;
-    }
-    const MAX_VIGENTES = 100;
-    const vigentesMostrados = vigentesFuera.slice(0, MAX_VIGENTES);
-
     const limit = 50;
     const total = valesOrdenados.length;
     // En Trabajo Realizado un mismo vale puede producir 2 filas (fusión +
@@ -317,7 +299,7 @@ class ValeBuzonService {
     // En «Trabajo realizado» la fila (P) guarda a su diseñador en `propuesta_disenador_id`.
     const disenadorDe = (v) => v.disenador_id || v.propuesta_disenador_id || null;
     const idsPersona = new Set();
-    [...paginaCruda, ...vigentesMostrados].forEach(v => {
+    paginaCruda.forEach(v => {
       if (esSupervisor && v.asesor_id) idsPersona.add(v.asesor_id);
       if (esEncargado && !esFilaFusion(v) && disenadorDe(v)) idsPersona.add(disenadorDe(v));
       if (esEncargado && v.asesor_id) idsPersona.add(v.asesor_id);
@@ -334,19 +316,13 @@ class ValeBuzonService {
       return null;
     };
     // Propuesta aprobada de otro taller sin ver (una sola consulta para toda la página).
-    const idsBuzon = [...new Set([...paginaCruda, ...vigentesMostrados].map(v => v.id))];
+    const idsBuzon = [...new Set(paginaCruda.map(v => v.id))];
     const conPropuestaNueva = await propuestasCompartidasService.valesConPropuestaNueva(usuario, idsBuzon);
     const conHermano = await propuestasCompartidasService.valesConHermano(usuario, idsBuzon);
     const pagina = paginaCruda.map(v => ({ ...v, propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
     const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
-    const atrasadosVigentes = {
-      total: vigentesFuera.length,
-      truncado: vigentesFuera.length > MAX_VIGENTES,
-      vales: vigentesMostrados.map(v => ({ ...v, propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }))
-    };
     return {
       vales: pagina,
-      atrasadosVigentes,
       contadores: resultado.contadores,
       total,
       hasMore: indiceInicio + limit < total,
