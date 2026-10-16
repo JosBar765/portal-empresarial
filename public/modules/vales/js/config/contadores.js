@@ -62,6 +62,7 @@ export const CONTADORES_CONFIG = {
     buzon: [
       { key: 'asignados', label: 'Mis asignaciones (Sin retraso)', filtro: 'asignados' },
       { key: 'asignadosAtrasados', label: 'Mis asignaciones (Con atraso)', alerta: true, filtro: 'asignadosAtrasados' },
+      { key: 'enRevision', label: 'En revisión', filtro: 'enRevision' },
       { key: 'enProceso', label: 'Vale en proceso', esTexto: true }
     ],
     trabajo: [

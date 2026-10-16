@@ -31,6 +31,7 @@ En el Buzón, con cualquier filtro de fecha (día, «Hoy», mes o rango), cada u
 - [x] T6 · Backend: administrador y gerente separados en Buzón y Trabajo realizado. Ruta: inline. Verificado por API: Buzón 94 + Trabajo realizado 159 = 253 vales (el total), solo `RECIBIDO` en Trabajo realizado.
 - [x] T7 · Frontend: sidebar y contadores de Trabajo realizado para administrador y gerente. Ruta: inline.
 - [x] T4b · Orden único por días de atraso, sin jerarquía por estado (verificado por API en 6 roles, 0 saltos en día, mes y «Todo»).
+- [x] T4c · Contador «En revisión» en el Buzón del diseñador (pedido tras revisar su vista; las demás tarjetas siguen contando lo del filtro de fecha, el usuario lo aceptó).
 - [ ] T8 · Documentación y revisión de cada vista con el usuario, rol por rol.
 
 ## Reglas de trabajo

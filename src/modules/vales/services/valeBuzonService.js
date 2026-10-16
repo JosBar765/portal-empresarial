@@ -772,11 +772,13 @@ class ValeBuzonService {
     const contadores = {
       asignados: vales.filter(v => v.estado_taller === ESTADOS_TALLER.ASIGNADO && !v.atrasado).length,
       asignadosAtrasados: vales.filter(v => v.estado_taller === ESTADOS_TALLER.ASIGNADO && v.atrasado).length,
+      enRevision: vales.filter(v => v.estado_taller === ESTADOS_TALLER.EN_REVISION).length,
       enProceso: vales.find(v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO)?.correlativo || null
     };
     const predicados = {
       asignados: v => v.estado_taller === ESTADOS_TALLER.ASIGNADO && !v.atrasado,
-      asignadosAtrasados: v => v.estado_taller === ESTADOS_TALLER.ASIGNADO && v.atrasado
+      asignadosAtrasados: v => v.estado_taller === ESTADOS_TALLER.ASIGNADO && v.atrasado,
+      enRevision: v => v.estado_taller === ESTADOS_TALLER.EN_REVISION
     };
     const filtrados = this._aplicarFiltroContador(vales, filtroContador, predicados);
     const listaOrdenada = ordenarPorGrupos(filtrados, [
