@@ -221,6 +221,10 @@ class ValeBuzonService {
     }
 
     let resultado = await this._resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador);
+    // «Atrasados» se combina con las demás tarjetas: con otra activa cuenta los atrasados de esa selección.
+    if (filtroContador && resultado.contadores && typeof resultado.contadores.atrasados === 'number') {
+      resultado.contadores.atrasados = resultado.vales.filter(v => v.atrasado).length;
+    }
 
     // "Atrasados" en general: a diferencia de filtroContador (mutuamente
     // excluyente), este es el ÚNICO contador que se puede COMBINAR con
