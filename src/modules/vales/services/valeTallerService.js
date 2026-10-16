@@ -16,6 +16,7 @@ const valeEvents = require('../events');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeMutex = require('./valeMutex');
 const valeCatalogoService = require('./valeCatalogoService');
+const propuestasCompartidasService = require('./propuestasCompartidasService');
 const { describirAdjuntos } = require('./propuestaAdjuntos');
 const {
   ESTADOS, ESTADOS_TALLER, hoyISO, horaActual, enriquecer,
@@ -296,6 +297,14 @@ class ValeTallerService {
         ? { texto: `${usuario.nombre} aprobó el taller ${taller ? taller.nombre : fila.taller_id}: todos los talleres terminaron, el vale está listo para fusionar` }
         : { accion: 'aprobado (taller)' };
       valeEvents.notificar({ vale: actualizado, ...aviso, actor: usuario.nombre, actorId: usuario.id, salas: targets });
+      // Aviso a los talleres hermanos que comparten propuestas (encargado, asistentes y diseñador asignado).
+      const salasHermanos = await propuestasCompartidasService.salasDeAviso(valeId, fila.taller_id);
+      if (salasHermanos.length) {
+        valeEvents.notificar({
+          vale: actualizado, texto: `tiene aprobada la propuesta del taller ${taller ? taller.nombre : fila.taller_id}`,
+          actorId: usuario.id, salas: salasHermanos, tipo: 'PROPUESTA_COMPARTIDA'
+        });
+      }
       return enriquecer(actualizado);
     }
 
