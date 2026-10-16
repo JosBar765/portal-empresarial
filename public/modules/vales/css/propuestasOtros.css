@@ -5,6 +5,8 @@
   color: #fff; background: var(--color-danger); border: 0; border-radius: 50%; cursor: pointer;
 }
 .pn-marca:focus-visible { outline: 2px solid var(--color-danger); outline-offset: 2px; }
+/* Área táctil de 44px sin cambiar el tamaño visible. */
+@media (max-width: 640px) { .pn-marca::after { content: ''; position: absolute; inset: -13px; } }
 /* Un único tooltip en <body> (position: fixed), fuera de los stacking contexts y overflow de la tabla. */
 .pn-tip {
   position: fixed; z-index: 1000; top: 0; left: 0; display: none; width: 230px; max-width: calc(100vw - 2rem); padding: 8px 10px;
