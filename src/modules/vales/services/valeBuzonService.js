@@ -7,6 +7,7 @@
 // cohesión.
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
+const modificacionBasicaRepository = require('../repositories/valeModificacionBasicaRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
@@ -55,10 +56,16 @@ const PREDICADOS_POR_PASO = {
   porRecibir: v => v.paso_pipeline === 5
 };
 
-// Ordena por el número final del correlativo; a igual número, el original antes que su MOD-.
+// Ordena por el número final del correlativo; a igual número, el original antes que sus MOD-, MOD2-, MOD3-…
 function numeroDeCorrelativo(correlativo) {
   const m = /-(\d+)$/.exec(String(correlativo || ''));
   return m ? Number(m[1]) : null;
+}
+
+// 0 para un vale normal; 1 para MOD-, 2 para MOD2-…
+function ordenDeMod(correlativo) {
+  const m = /^MOD(\d*)-/.exec(correlativo);
+  return m ? (m[1] ? Number(m[1]) : 1) : 0;
 }
 
 function compararCorrelativos(a, b) {
@@ -69,8 +76,8 @@ function compararCorrelativos(a, b) {
     if (nb === null) return -1;
     return na - nb;
   }
-  const ma = ca.startsWith('MOD-'), mb = cb.startsWith('MOD-');
-  if (ma !== mb) return ma ? 1 : -1;
+  const ma = ordenDeMod(ca), mb = ordenDeMod(cb);
+  if (ma !== mb) return ma - mb;
   return ca < cb ? -1 : (ca > cb ? 1 : 0);
 }
 
@@ -134,6 +141,13 @@ class ValeBuzonService {
     // Un original con una modificación en trámite sigue en su estado: este dato permite avisarlo y bloquear "Confirmar".
     const enTramite = new Map((await valeRepository.listarModificacionesEnTramite())
       .map(m => [m.vale_original_id, { id: m.id, correlativo: m.correlativo, estado: m.estado }]));
+    // Conversaciones de modificación básica abiertas: el asesor no puede confirmar mientras tanto y el taller debe responder.
+    const basicasAbiertas = new Map();
+    for (const m of await modificacionBasicaRepository.listarAbiertasPorVales(vales.map(v => v.id))) {
+      const lista = basicasAbiertas.get(m.vale_id) || [];
+      lista.push({ id: m.id, taller_id: m.taller_id });
+      basicasAbiertas.set(m.vale_id, lista);
+    }
     return vales.map(v => {
       const filas = mapaTalleresPorVale.get(v.id) || [];
       // Un vale en ESPERANDO_AUTORIZACION todavía no tiene filas reales en
@@ -147,6 +161,7 @@ class ValeBuzonService {
       const talleresDetalle = filas.map(f => ({ taller_id: f.taller_id, nombre: nombreTaller(f.taller_id), estado: f.estado }));
       return {
         ...v, taller: idsTaller.map(nombreTaller).join(', '), _filasTaller: filas, _talleresDetalle: talleresDetalle, mod_en_tramite: enTramite.get(v.id) || null,
+        modificaciones_basicas_abiertas: basicasAbiertas.get(v.id) || [],
         // Nota o enlaces de la fusión; o los de la propuesta cuando el vale ya volvió al asesor (no antes de que se apruebe).
         propuesta_extra: conExtra.fusion.has(v.id) || !!v.propuesta_general_nota
           || (conExtra.propuestas.has(v.id) && [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO].includes(v.estado))
