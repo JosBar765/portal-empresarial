@@ -144,12 +144,7 @@ export async function abrirModalAprobarModificacion(vale) {
   const documentos = [
     {
       etiqueta: 'Datos',
-      html: `
-        <div class="form-field full" style="margin-bottom:14px;max-width:760px;margin-inline:auto;">
-          <label>Justificación de la modificación</label>
-          <p style="font-size:13px;white-space:pre-wrap;margin:0;">${vale.descripcion ? escapeHtml(vale.descripcion) : 'Sin justificación registrada.'}</p>
-        </div>
-        ${htmlDatosVale(vale)}`
+      html: htmlDatosVale(vale, { destacado: vale.descripcion || '' })
     },
     { etiqueta: 'Vale nuevo', url: `/api/vales/${vale.id}/pdf` },
     { etiqueta: correlativoOriginal, url: `/api/vales/${vale.vale_original_id}/pdf` }
@@ -212,31 +207,41 @@ export function abrirModalVerSupervisor(fila) {
   });
 }
 
-// Datos del vale (fila del Buzón) en una cuadrícula de campos de solo lectura.
-function htmlDatosVale(v) {
-  const campo = (etiqueta, valor) => `
-    <div class="form-field"><label>${etiqueta}</label><p style="font-size:13px;margin:0;">${valor ? escapeHtml(String(valor)) : '-'}</p></div>
-  `;
+// Datos del vale (fila del Buzón) en secciones de solo lectura. `destacado`: texto opcional que se muestra arriba (p. ej. la justificación).
+function htmlDatosVale(v, { destacado = null } = {}) {
+  const dato = (etiqueta, valor, { ancho = false } = {}) => `
+    <div class="dato${ancho ? ' dato--ancho' : ''}"><dt>${etiqueta}</dt><dd${valor ? '' : ' class="dato-vacio"'}>${valor ? escapeHtml(String(valor)) : 'Sin dato'}</dd></div>`;
+  const seccion = (icono, titulo, contenido) => `
+    <section class="datos-seccion">
+      <h4><ion-icon name="${icono}" aria-hidden="true"></ion-icon>${titulo}</h4>
+      <dl class="datos-grid">${contenido}</dl>
+    </section>`;
   return `
-      <div class="form-grid">
-        ${campo('Correlativo', v.correlativo)}
-        ${campo('Estado', etiquetaEstado(v))}
-        ${campo('Cliente', v.cliente_nombre)}
-        ${campo('Empresa', v.cliente_empresa)}
-        ${campo('Teléfono', v.cliente_telefono)}
-        ${campo('Correo', v.cliente_correo)}
-        ${campo('Fecha entrega', formatearFecha(v.fecha_entrega))}
-        ${campo('Fecha evento', formatearFecha(v.fecha_evento))}
-        ${campo('Taller(es)', v.taller)}
-        ${campo('Código de producto', v.producto)}
-        ${campo('Material', v.material)}
-        ${campo('Técnica', v.tecnica)}
-        ${campo('Acabado', v.acabado)}
-        ${campo('Cantidad', v.cantidad)}
-        ${campo('Cotización', v.cotizacion != null ? `Q${Number(v.cotizacion).toFixed(2)}` : '-')}
-        ${campo('Urgente', v.urgente ? 'Sí' : 'No')}
-      </div>
-  `;
+    <div class="datos">
+      ${destacado === null ? '' : `
+      <div class="datos-destacado">
+        <ion-icon name="chatbubble-ellipses-outline" aria-hidden="true"></ion-icon>
+        <div><strong>Justificación</strong><p>${destacado ? escapeHtml(destacado) : 'Sin justificación registrada.'}</p></div>
+      </div>`}
+      ${seccion('calendar-outline', 'Entrega', `
+        ${dato('Estado', etiquetaEstado(v))}
+        ${dato('Taller(es)', v.taller)}
+        ${dato('Fecha de entrega', formatearFecha(v.fecha_entrega))}
+        ${dato('Fecha del evento', formatearFecha(v.fecha_evento))}
+        ${dato('Urgente', v.urgente ? 'Sí' : 'No')}`)}
+      ${seccion('person-outline', 'Cliente', `
+        ${dato('Cliente', v.cliente_nombre)}
+        ${dato('Empresa', v.cliente_empresa)}
+        ${dato('Teléfono', v.cliente_telefono)}
+        ${dato('Correo', v.cliente_correo)}`)}
+      ${seccion('cube-outline', 'Pedido', `
+        ${dato('Código de producto', v.producto)}
+        ${dato('Material', v.material)}
+        ${dato('Técnica', v.tecnica)}
+        ${dato('Acabado', v.acabado)}
+        ${dato('Cantidad', v.cantidad)}
+        ${dato('Cotización', v.cotizacion != null ? `Q${Number(v.cotizacion).toFixed(2)}` : '')}`)}
+    </div>`;
 }
 
 export function abrirModalInfoVale(v) {

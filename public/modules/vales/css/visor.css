@@ -23,7 +23,8 @@
 .visor-cerrar:hover { background: var(--color-surface-muted); color: var(--color-text); }
 .visor-cerrar:focus-visible, .visor-pestana:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
-.visor-pestanas { display: flex; gap: 4px; padding: 4px 12px 0; border-bottom: 1px solid var(--color-border); }
+.visor-pestanas { display: flex; gap: 4px; padding: 4px 12px 0; overflow-x: auto; border-bottom: 1px solid var(--color-border); }
+.visor-pestana { flex: none; white-space: nowrap; }
 .visor-pestana {
   padding: 6px 12px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--color-text-secondary);
   background: transparent; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
@@ -35,8 +36,26 @@
 .visor-contenido { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto; }
 .visor-marco { width: 100%; height: 100%; border: 0; background: #fff; }
 .visor-imagen { max-width: 100%; max-height: 100%; object-fit: contain; }
-.visor-datos { align-self: stretch; width: 100%; padding: 16px 20px; overflow: auto; background: var(--color-surface); font-size: 13px; }
-.visor-datos .form-grid { max-width: 760px; margin: 0 auto; }
+.visor-datos { align-self: stretch; width: 100%; padding: 20px 16px 28px; overflow: auto; background: var(--color-surface-muted); }
+/* Datos de solo lectura (pestaña «Datos» del visor y modal «Información») */
+.datos { display: flex; flex-direction: column; gap: 12px; max-width: 720px; margin: 0 auto; }
+.datos-destacado { display: flex; gap: 12px; padding: 14px 16px; background: var(--color-primary-light); border-left: 4px solid var(--color-primary); border-radius: var(--radius-md); }
+.datos-destacado > ion-icon { flex: none; margin-top: 1px; font-size: 22px; color: var(--color-primary-dark); }
+.datos-destacado strong { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--color-primary-dark); }
+.datos-destacado p { margin: 4px 0 0; font-size: 15px; font-weight: 500; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.datos-seccion { padding: 14px 16px 6px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.datos-seccion h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13px; font-weight: 700; }
+.datos-seccion h4 ion-icon { font-size: 18px; color: var(--color-primary); }
+.datos-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; margin: 0; }
+.dato { min-width: 0; padding: 8px 0; border-top: 1px solid var(--color-border); }
+.dato--ancho { grid-column: 1 / -1; }
+.dato dt { font-size: 11.5px; font-weight: 600; color: var(--color-text-muted); }
+.dato dd { margin: 2px 0 0; font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.dato-vacio { font-weight: 400; color: var(--color-text-muted); }
+@media (max-width: 640px) {
+  .visor-datos { padding: 12px 12px 24px; }
+  .datos-grid { grid-template-columns: 1fr; }
+}
 /* Un modal que se abre desde el visor (p. ej. rechazar) queda por encima de él */
 .visor-overlay ~ .modal-overlay { z-index: 130; }
 .visor-cargando, .visor-error {
