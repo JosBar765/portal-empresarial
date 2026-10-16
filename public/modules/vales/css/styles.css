@@ -2186,6 +2186,13 @@
 .chip-estado--tiempo { background: #fef3c7; color: #92400e; }
 .chip-estado--taller { background: var(--color-surface-muted); color: var(--color-text); }
 .chip-estado--cerrado { background: var(--color-surface-muted); color: var(--color-text-muted); }
+/* Modificación básica: elección de taller y lista de conversaciones */
+.campo-grupo { margin: 12px 0; padding: 0; border: 0; }
+.campo-grupo legend { margin-bottom: 6px; padding: 0; font-size: 13px; font-weight: 600; }
+.opcion-taller { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 6px; font-size: 13px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; }
+.opcion-taller:has(input:checked) { border-color: var(--color-primary); background: var(--color-primary-light); }
+.lista-conversaciones { display: flex; flex-direction: column; gap: 8px; }
+.fila-conversacion { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; font-size: 13px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
 
 /* Modal del asesor: una tarjeta por taller */
 .rechazo-lista { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }

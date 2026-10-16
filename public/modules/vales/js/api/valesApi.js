@@ -223,6 +223,41 @@ export function corregirVale(valeId, formData) {
   return enviarFormData(`/api/vales/${valeId}/corregir`, formData);
 }
 
+// Modificación básica (sin vale MOD): solicitud y conversación entre el asesor y el taller.
+export function solicitarModificacionBasica(valeId, talleres, mensaje) {
+  return enviarJSON(`/api/vales/${valeId}/modificaciones-basicas`, { talleres, mensaje });
+}
+
+export async function listarModificacionesBasicas(valeId) {
+  const res = await fetch(`/api/vales/${valeId}/modificaciones-basicas`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudieron cargar las modificaciones.');
+  return data;
+}
+
+export async function obtenerConversacionBasica(valeId, modId) {
+  const res = await fetch(`/api/vales/${valeId}/modificaciones-basicas/${modId}/mensajes`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar la conversación.');
+  return data;
+}
+
+export function enviarMensajeBasica(valeId, modId, mensaje) {
+  return enviarJSON(`/api/vales/${valeId}/modificaciones-basicas/${modId}/mensajes`, { mensaje });
+}
+
+export function aceptarModificacionBasica(valeId, modId) {
+  return enviarPost(`/api/vales/${valeId}/modificaciones-basicas/${modId}/aceptar`);
+}
+
+export function rechazarModificacionBasica(valeId, modId) {
+  return enviarPost(`/api/vales/${valeId}/modificaciones-basicas/${modId}/rechazar`);
+}
+
+export function cancelarModificacionBasica(valeId, modId) {
+  return enviarPost(`/api/vales/${valeId}/modificaciones-basicas/${modId}/cancelar`);
+}
+
 export function aprobarModificacion(valeId) {
   return enviarPost(`/api/vales/${valeId}/aprobar-modificacion`);
 }
