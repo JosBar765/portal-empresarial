@@ -25,7 +25,7 @@ Desaprobar y reasignar (el hermano vuelve a «En trabajo»); reasignación a otr
 ## Tareas
 - [x] T1 · BD: script idempotente `database/09_comparte_propuestas.sql` (columna `talleres.comparte_propuestas` + tabla de «visto» por usuario/vale/taller de origen), valores iniciales, y espejo en `schema.sql`/`seed.sql` según `.agents/reglas/reglas_archivosSQL.md`. Ruta: delegada (escritor único). Commit 8179c8a.
 - [x] T2 · Backend lectura: propuestas de talleres hermanos en el detalle del vale (respetando el flag y los estados) y endpoint para marcar «visto». Ruta: delegada. Commit 8242da1.
-- [x] T3 · Backend aviso: al aprobar, `notificar` a encargado, asistentes y diseñador asignado de los hermanos con flag; indicador «propuesta nueva sin ver» por usuario en el buzón. Ruta: delegada. Commit: ver T3 en `git log`.
+- [x] T3 · Backend aviso: al aprobar, `notificar` a encargado, asistentes y diseñador asignado de los hermanos con flag; indicador «propuesta nueva sin ver» por usuario en el buzón. Ruta: delegada. Commit 0b60266.
 - [ ] T4 · Frontend: sección «Propuestas de otros talleres» en el detalle del vale y signo rojo «?» con tooltip en el buzón; marcar «visto» al abrir. Ruta: delegada.
 - [ ] T5 · Documentación (`flujo_vale_de_arte.md`, `CLAUDE.md` si aplica, nota de producción con el script) y verificación de punta a punta en el servidor que levanta el usuario. Ruta: inline / delegada.
 
