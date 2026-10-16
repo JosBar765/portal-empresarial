@@ -1,34 +1,44 @@
 # buzon-atrasados-en-tabla
 
-Rama: `fix/ordenamiento-aparicion-vales` · Estrategia de entrega: `ask-on-risk` · Estado: hecho, pendiente de PR.
+Rama: `fix/ordenamiento-aparicion-vales` · Estrategia de entrega: `ask-on-risk` · Estado: en curso (rediseño del 2026-10-16).
 
 ## Objetivo
-Con un filtro de fecha en el Buzón, los atrasados con atraso **vigente** y entrega **anterior al inicio del período** salen **en la misma tabla**, en una sección «Atrasados anteriores al período» (del más al menos atrasado) sobre la sección «Vales del período» (jerarquía del rol), con filas iguales. Es clave para que los encargados de taller vean lo que no han trabajado.
+En el Buzón, con cualquier filtro de fecha (día, «Hoy», mes o rango), cada usuario ve los vales que **viene arrastrando** (siguen pendientes en su buzón y su entrega es anterior al inicio del período) **además** de los que le toca hacer en el período. Aplica a todos los roles (encargados y asistentes, diseñadores, asesores, supervisores, administrador y gerente). Es clave para que los encargados vean lo que no han trabajado.
 
 ## Decisiones acordadas con el usuario (2026-10-16)
-- Opción 1 (decidida tras ver la 2): dos secciones en la tabla del Buzón, sin bloque aparte. La opción 2 (todos los atrasados juntos y debajo «Al día») se descartó: se evaluó con el administrador, que mezcla pendientes y terminados.
-- Aplica a todas las vistas de Buzón (administrador, asesor, supervisor, encargado, diseñador). «Trabajo realizado» no cambia: son vales ya terminados.
-- El bloque de «Atrasados vigentes» de **Reportes** no se toca.
+- Sin títulos de sección: la tabla es una sola lista, los arrastrados arriba y los del período debajo.
+- **Arrastrado** = vale que sigue pendiente en el buzón del usuario con entrega anterior al inicio del período, aunque su atraso esté congelado (p. ej. un vale «Por confirmar» del asesor). No depende de que esté atrasado.
+- **Orden:** arrastrados primero, del más al menos atrasado; debajo, los del período con la jerarquía por estado del rol. Con orden por columna manda el orden del usuario.
+- «Trabajo realizado» no muestra arrastrados (es un registro de lo hecho).
+- Los asistentes tienen la misma vista que su encargado.
+- **Administrador y Gerente** (misma vista general de solo lectura): se separan en Buzón y Trabajo realizado. Trabajo realizado = vales cerrados (`RECIBIDO`/`CONFIRMADO`), como la vista del asesor pero de todos; Buzón = todo lo que sigue en curso.
+- El panel de «Atrasados vigentes» de **Reportes** no se toca.
+- Cada vista se revisa con el usuario, rol por rol.
 
 ## Diseño
-- `dentroDeVentana` (`valeHelpers.js`) acepta `ventana.incluirAtrasados`: con él, un vale atrasado y no terminal con entrega **anterior al inicio** de la ventana cuenta como dentro de ella (los posteriores no). Todos los buzones por rol ya pasan por ahí, así que los contadores, el orden por grupos, los filtros de contador y la paginación quedan coherentes sin tocar cada rol.
-- `obtenerBuzon` activa la bandera solo en la vista `buzon` y retira el cálculo y la respuesta de `atrasadosVigentes`.
-- Frontend: se quita el bloque del Buzón (`renderVigentes`, `#atrasados-vigentes`, `state.atrasadosVigentes`); el componente compartido sigue sirviendo a Reportes.
+- `dentroDeVentana` (`valeHelpers.js`) acepta `ventana.incluirArrastrados`: un vale con entrega anterior al inicio de la ventana cuenta como dentro de ella. Solo se activa en la vista Buzón. Los buzones por rol ya filtran lo pendiente antes, así que contadores, filtros de contador y paginación quedan coherentes.
+- `obtenerBuzon` (sin orden por columna) pone primero los arrastrados por días de atraso desc y después el resto en el orden del rol.
+- Administrador/Gerente: `_buzonAdministrador` excluye los cerrados; `_trabajoGeneral` lista los cerrados con los contadores del asesor (`recibidosHoy`, `totalRecibidos`).
+- Frontend: sin encabezados de sección; el sidebar muestra «Trabajo realizado» al administrador y al gerente, con sus contadores.
 
 ## Tareas
-- [x] T1 · Backend: bandera `incluirAtrasados` en `dentroDeVentana` y retiro del bloque aparte en `obtenerBuzon`. Ruta: inline (2 archivos acotados y ya entendidos). Commit b44de8a.
-- [x] T2 · Frontend: quitar el bloque del Buzón. Ruta: inline. Commit ef4956f.
-- [x] T3 · Documentación (`flujo_vale_de_arte.md`, `correcciones_53.md`) y verificación en navegador con los datos de prueba. Commit: ver «Progreso». `CLAUDE.md` no menciona el bloque: sin cambio.
+- [x] T1 · Backend: bandera de ventana y retiro del bloque aparte en `obtenerBuzon` (primera versión, solo atrasados vigentes). Commit b44de8a.
+- [x] T2 · Frontend: quitar el bloque del Buzón. Commit ef4956f.
+- [x] T3 · Docs de la primera versión. Commit 5fd006b.
+- [x] T3b · Correcciones: solo anteriores al período (34460c9), dos secciones con título y orden por días de atraso (0083f3b). Superadas por T4–T5.
+- [x] T4 · Backend: arrastrados = pendientes con entrega anterior al período, orden y sin secciones. Ruta: inline. Verificado por API con encargado de Diseño, UV/3D, supervisor y asesor (arrastrados primero, 0 saltos de orden; supervisor y asesor incluyen los «Por confirmar» con atraso congelado). Commit: ver «Progreso».
+- [x] T5 · Frontend: quitar encabezados y estilos de sección. Ruta: inline. Commit: ver «Progreso».
+- [ ] T6 · Backend: administrador y gerente separados en Buzón y Trabajo realizado. Ruta: inline.
+- [ ] T7 · Frontend: sidebar y contadores de Trabajo realizado para administrador y gerente. Ruta: inline.
+- [ ] T8 · Documentación y revisión de cada vista con el usuario, rol por rol.
 
 ## Reglas de trabajo
 - El servidor lo levanta siempre el usuario (puerto 3000); las pruebas van contra ese servidor.
+- Probar siempre con roles de trabajo reales (no inferir del administrador) y verificar quién está logueado en la pestaña.
 - Comentarios de código lo más cortos posible. Commits en español, Conventional Commits, sin atribución de IA.
 - Test-first: no hay suite de pruebas configurada; excepción documentada. Verificación con la API y el navegador.
 - Al reportar pruebas, solo resultados, no los datos locales modificados.
 
 ## Progreso y evidencia
-- Mapeo: todos los buzones por rol filtran con `dentroDeVentana`; el bloque aparte vivía en `obtenerBuzon` (`vigentesFuera`).
-- T1: verificado por API contra :3000 con 4 roles (encargado de Diseño, encargado UV/3D, supervisor, asesor): con un día, la tabla trae todos sus atrasados abiertos (el mismo número que con «Todo») y la respuesta ya no trae `atrasadosVigentes`. Administrador, día 10/10: 49 filas (13 del día + 36 atrasados abiertos). «Trabajo realizado» sin cambios (13). El contador «Atrasados» del administrador pasó de 65 a 48 con filtro de fecha porque ya no cuenta los terminados con atraso final fuera del período; en «Todo» sigue en 65.
-- T2/T3: verificado en el navegador (administrador, `127.0.0.1:3000`, día 10/10): 49 filas, arrancan con los atrasados de septiembre y octubre y terminan con los del 10/10; sin bloque aparte; contadores 49 / 11 / 0 / 48. No verificado en el navegador: roles de taller, asesor y supervisor (solo por API), vista celular.
-- Corrección (2026-10-16): la primera versión incluía también los atrasados con entrega POSTERIOR al período; el usuario lo detectó. Ahora solo entran los anteriores al inicio (rango con `desde`, o antes del primer día del mes). Verificado por API como administrador: día 10/10 = 45 filas (del 17/09 al 10/10), mes de octubre = 69, rango 5–10/10 = 47; ningún atrasado posterior al fin del período.
-- Rediseño (2026-10-16): el usuario descartó la opción 2. Atraso vigente = atrasado, sin `atraso_congelado_en` y no terminal (un vale que el taller ya aprobó y espera confirmación tiene el atraso congelado, p. ej. MTC-RR-138: entrega 26/09, congelado el 02/10 con 6 días). Entre atrasados el orden ahora es por días de atraso desc. Verificado como encargado de Diseño en el navegador (día 10/10: 4 anteriores + 5 del período) y por API con encargado UV/3D, supervisor y asesor; «Trabajo realizado» sin secciones. La vista del administrador mezcla pendientes y terminados y no es representativa.
+- El atraso congelado es por diseño: MTC-RR-138 (entrega 26/09, taller aprobó, por confirmar del asesor) quedó congelado el 02/10 con 6 días.
+- El calendario del encargado cuenta 13 vales con entrega el 10/10 pero su buzón muestra 5: 8 ya los aprobó su taller. Discrepancia previa, no se toca.
