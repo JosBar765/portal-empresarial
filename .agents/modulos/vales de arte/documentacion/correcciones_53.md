@@ -149,3 +149,8 @@ Cada rol agrupa y filtra solo su personal a cargo:
 - **Descarga:** botón «Exportar PDF ▾» con menú accesible (teclado, Esc, clic fuera) para elegir «Reporte de actividad» o «Reporte de rendimiento» (marca la pestaña actual); roles sin Rendimiento tienen el botón simple. API: `GET /api/vales/reportes/pdf?tipo=actividad|rendimiento` (rendimiento fuera de su alcance responde 400); archivos `reporte-actividad-…` y `reporte-rendimiento-…`.
 
 - **Nombre:** el bloque «Atrasados vigentes» pasa a llamarse **«Atrasados antes del período»** (Buzón, Reportes y PDF), para que se entienda que son los vencidos con entrega anterior al período elegido.
+
+## Ajuste posterior: el Buzón vuelve a la tabla única
+
+- **Cambio:** el bloque «Atrasados antes del período» del **Buzón** se retiró: los atrasados abiertos con entrega fuera del filtro de fecha salen **dentro de la tabla principal**, iguales a los demás (mismas columnas, acciones, orden por grupos y paginación), para que los encargados de taller vean siempre lo que no han trabajado. Aplica a todas las vistas del Buzón; «Trabajo realizado» no cambia. Reportes conserva su panel.
+- **Cómo:** `dentroDeVentana` acepta `ventana.incluirAtrasados` (atrasado y no terminal) y `obtenerBuzon` lo activa solo en la vista Buzón; la respuesta ya no trae `atrasadosVigentes`. Los contadores se calculan sobre esa misma lista (el «Atrasados» del administrador con filtro de fecha ya no cuenta los terminados con atraso final fuera del período; en «Todo» sigue contándolos). Sin migración.
