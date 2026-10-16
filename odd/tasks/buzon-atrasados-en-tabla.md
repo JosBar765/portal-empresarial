@@ -28,8 +28,8 @@ En el Buzón, con cualquier filtro de fecha (día, «Hoy», mes o rango), cada u
 - [x] T3b · Correcciones: solo anteriores al período (34460c9), dos secciones con título y orden por días de atraso (0083f3b). Superadas por T4–T5.
 - [x] T4 · Backend: arrastrados = pendientes con entrega anterior al período, orden y sin secciones. Ruta: inline. Verificado por API con encargado de Diseño, UV/3D, supervisor y asesor (arrastrados primero, 0 saltos de orden; supervisor y asesor incluyen los «Por confirmar» con atraso congelado). Commit: ver «Progreso».
 - [x] T5 · Frontend: quitar encabezados y estilos de sección. Ruta: inline. Commit: ver «Progreso».
-- [ ] T6 · Backend: administrador y gerente separados en Buzón y Trabajo realizado. Ruta: inline.
-- [ ] T7 · Frontend: sidebar y contadores de Trabajo realizado para administrador y gerente. Ruta: inline.
+- [x] T6 · Backend: administrador y gerente separados en Buzón y Trabajo realizado. Ruta: inline. Verificado por API: Buzón 94 + Trabajo realizado 159 = 253 vales (el total), solo `RECIBIDO` en Trabajo realizado.
+- [x] T7 · Frontend: sidebar y contadores de Trabajo realizado para administrador y gerente. Ruta: inline.
 - [ ] T8 · Documentación y revisión de cada vista con el usuario, rol por rol.
 
 ## Reglas de trabajo
