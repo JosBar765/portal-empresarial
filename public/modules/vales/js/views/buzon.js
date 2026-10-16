@@ -17,6 +17,7 @@ import { abrirModalVerificarAdjuntos, abrirModalRechazarAdjuntos, abrirModalConv
 import { abrirVisorDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
 import { abrirModalSolicitarModificacion, abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirModalHistorial } from '../actions/historial.js';
+import { abrirConversacionesBasicas } from '../actions/modificacionBasica.js';
 
 // -----------------------------------------------------------------------
 // Carga y render del buzón (paginado: 50 vales por petición, cargados por
@@ -213,7 +214,7 @@ export function renderTabla() {
 function pintarFilas(tbody, filas) {
   tbody.innerHTML = filas.map(v => `
     <tr>
-      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${badgePersona(v)}</td>
+      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${(v.modificaciones_basicas_abiertas || []).length ? '<span class="badge badge-mod" title="El asesor y el taller están conversando una modificación básica">Modificación básica</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${badgePersona(v)}</td>
       <td data-label="Fecha Ingreso" class="col-fecha-ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
       <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
@@ -301,7 +302,9 @@ export function construirAcciones(v) {
   const ajenoDeSupervisor = state.user.rolId === ROL.SUPERVISOR && !esMio;
   // En el paso 5 (pendiente de confirmación) el «ojo» y el de confirmar son un solo botón: abre el vale y la propuesta con
   // «Confirmar recibido» y «Solicitar modificación» abajo. Con una modificación en trámite hay un solo camino a la vez.
-  const decideEnPaso5 = puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite && !ajenoDeSupervisor;
+  // Con una modificación básica abierta tampoco se confirma: se conversa con el taller hasta que responda.
+  const basicasAbiertas = v.modificaciones_basicas_abiertas || [];
+  const decideEnPaso5 = puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite && !basicasAbiertas.length && !ajenoDeSupervisor;
   // El supervisor abre un modal de elección (Ver info / Ver vale) en vez de ir
   // directo al PDF — a veces solo necesita los datos de encabezado. Vale también para los suyos, que él autoriza.
   const acciones = decideEnPaso5
@@ -352,6 +355,11 @@ export function construirAcciones(v) {
   // una por vale (analisis_correcciones_29.md #3).
   if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.vale_original_id && !v.mod_en_tramite && !ajenoDeSupervisor) {
     acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirModalSolicitarModificacion });
+  }
+  // Modificación básica abierta: el asesor dueño (o el equipo del taller involucrado) abre la conversación.
+  const basicaDelTaller = basicasAbiertas.some(m => m.taller_id === v.taller_id);
+  if (basicasAbiertas.length && ((puede('solicitarModificacion') && esMio) || (puede('responderModificacionBasica') && basicaDelTaller))) {
+    acciones.push({ icono: 'chatbubbles-outline', titulo: puede('responderModificacionBasica') ? 'Modificación básica: responder al asesor' : 'Conversación de la modificación básica', clase: 'icon-success', onClick: abrirConversacionesBasicas });
   }
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });
