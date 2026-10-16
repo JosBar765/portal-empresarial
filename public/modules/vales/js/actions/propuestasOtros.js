@@ -10,6 +10,47 @@ const ESTADOS = {
   EN_TRABAJO: { texto: 'En trabajo', clase: 'chip-estado--taller' }
 };
 
+const MARGEN = 16;
+const SEPARACION = 8;
+let tip = null;
+
+// Posición del tooltip: debajo de la marca (o encima si no cabe), recortado horizontalmente al viewport.
+export function posicionarTip(r, ancho, alto, vw, vh) {
+  const left = Math.max(MARGEN, Math.min(r.left, vw - ancho - MARGEN));
+  const abajo = r.bottom + SEPARACION;
+  const top = abajo + alto + MARGEN <= vh || r.top - SEPARACION - alto < 0 ? abajo : r.top - SEPARACION - alto;
+  return { left, top };
+}
+
+function mostrarTip(marca) {
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.className = 'pn-tip';
+    tip.setAttribute('role', 'tooltip');
+    tip.innerHTML = '<strong>Propuesta disponible</strong>Otro taller ya tiene su propuesta aprobada. Puedes verla en el detalle del vale.';
+    document.body.appendChild(tip);
+  }
+  tip.classList.add('is-visible');
+  const r = marca.getBoundingClientRect();
+  const { left, top } = posicionarTip(r, tip.offsetWidth, tip.offsetHeight, document.documentElement.clientWidth, window.innerHeight);
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
+}
+
+function ocultarTip() {
+  if (tip) tip.classList.remove('is-visible');
+}
+
+// Delegado: las filas del buzón se re-renderizan en cada refetch.
+const marcaDe = e => (e.target instanceof Element ? e.target.closest('.pn-marca') : null);
+document.addEventListener('mouseover', e => { const m = marcaDe(e); if (m) mostrarTip(m); });
+document.addEventListener('mouseout', e => { if (marcaDe(e)) ocultarTip(); });
+document.addEventListener('focusin', e => { const m = marcaDe(e); if (m && m.matches(':focus-visible')) mostrarTip(m); });
+document.addEventListener('focusout', e => { if (marcaDe(e)) ocultarTip(); });
+document.addEventListener('scroll', ocultarTip, true);
+document.addEventListener('click', ocultarTip, true);
+window.addEventListener('resize', ocultarTip);
+
 function htmlItem(it, i, correlativo) {
   const est = ESTADOS[it.estado] || ESTADOS.EN_TRABAJO;
   const p = it.propuesta;

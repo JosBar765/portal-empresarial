@@ -241,7 +241,7 @@ function pintarFilas(tbody, filas) {
 export function marcaPropuestaNueva(v) {
   if (!v.propuestaOtroTallerNueva) return '';
   const texto = 'Propuesta disponible. Otro taller ya tiene su propuesta aprobada. Puedes verla en el detalle del vale.';
-  return `<button type="button" class="pn-marca" data-pn-clave="${escapeAttr(claveFila(v))}" aria-label="${texto}"><span aria-hidden="true">?</span><span class="pn-tip" role="tooltip" aria-hidden="true"><strong>Propuesta disponible</strong>Otro taller ya tiene su propuesta aprobada. Puedes verla en el detalle del vale.</span></button>`;
+  return `<button type="button" class="pn-marca" data-pn-clave="${escapeAttr(claveFila(v))}" aria-label="${texto}"><span aria-hidden="true">?</span></button>`;
 }
 
 function conectarMarcas(raiz, filas) {
