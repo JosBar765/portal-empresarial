@@ -46,3 +46,11 @@ Con la base local y el servidor en el puerto 3031:
 - **Se quita cuando:** el asesor abre la conversación, el taller recibe una solicitud nueva o el vale sale del paso 5.
 - **Servidor:** `valeBuzonService` agrega `modificaciones_basicas_rechazadas` (último rechazo de cada taller, solo con el vale en `PENDIENTE_CONFIRMACION`) con `listarRechazadasRecientesPorVales`. Sin cambios de base de datos.
 - **Cliente:** lo «leído» se guarda por usuario en el navegador (`utils/modificacionesVistas.js`); en otro navegador la marca reaparece. El visor acepta una franja de `aviso`.
+
+## Ajuste posterior: la modificación básica se puede pedir con el vale ya confirmado
+
+- **Cuándo:** en el paso 5 (`PENDIENTE_CONFIRMACION`) y también con el vale `RECIBIDO`, siempre que el taller tenga su propuesta aprobada y el vale no tenga un MOD hijo (`modificado = 1`) ni uno en trámite. El selector ofrece la Básica en ambos casos.
+- **Si el taller acepta un vale `RECIBIDO`:** su fila vuelve a `ASIGNADO`, el vale pasa a `CREADO` con la entrega al siguiente día hábil, se borran `atraso_congelado_en` y `confirmado_en`, y queda una fila en el historial. Al aprobarse la nueva propuesta vuelve al paso 5 y el asesor lo confirma otra vez.
+- **Rechazo:** el aviso al asesor (marca y chat) también aplica a vales `RECIBIDO`.
+- **Archivos:** `valeModificacionBasicaService.js`, `valeModificacionBasicaRepository.js`, `valeBuzonService.js`, `actions/modificacionTipo.js` y `views/buzon.js` (en «Trabajo realizado» el taller también ve el botón de chat).
+- **Verificación local:** vale recibido `GT-MTC-1026-14`: el asesor la pide, el encargado de Diseño la acepta y el vale vuelve a «En proceso» con la entrega al 19/10.

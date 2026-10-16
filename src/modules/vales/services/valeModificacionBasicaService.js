@@ -1,8 +1,8 @@
 // src/modules/vales/services/valeModificacionBasicaService.js
-// Modificación básica: no crea vale MOD. Con el vale en el paso 5 (PENDIENTE_CONFIRMACION), el asesor le pide un cambio pequeño a
-// uno o varios talleres y conversan; el taller acepta o rechaza. Si acepta, su fila vuelve a ASIGNADO (mismo diseñador) para rehacer
-// la propuesta y el vale pasa a CREADO con la entrega en el siguiente día hábil; al aprobarse la nueva propuesta el vale vuelve al
-// paso 5. Si rechaza (o el asesor cancela) nada cambia. No valida cupo.
+// Modificación básica: no crea vale MOD. Con el vale en el paso 5 (PENDIENTE_CONFIRMACION) o ya confirmado (RECIBIDO), el asesor le
+// pide un cambio pequeño a uno o varios talleres y conversan; el taller acepta o rechaza. Si acepta, su fila vuelve a ASIGNADO (mismo
+// diseñador) para rehacer la propuesta y el vale pasa a CREADO con la entrega en el siguiente día hábil; al aprobarse la nueva
+// propuesta el vale vuelve al paso 5 para confirmarlo otra vez. Si rechaza (o el asesor cancela) nada cambia. No valida cupo.
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
@@ -65,9 +65,10 @@ class ValeModificacionBasicaService {
       if (!puedeActuarComoAsesor(usuario)) throw new Error('Solo un asesor o supervisor de ventas puede pedirla.');
       const vale = await requerirVale(valeId);
       assertPropioDelAsesor(usuario, vale);
-      if (vale.estado !== ESTADOS.PENDIENTE_CONFIRMACION) {
-        throw new Error('La básica solo se pide antes de confirmar el vale.');
+      if (![ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO].includes(vale.estado)) {
+        throw new Error('La básica se pide cuando el vale ya tiene su propuesta lista.');
       }
+      if (Number(vale.modificado)) throw new Error('Este vale ya fue modificado. Pídela sobre el más reciente.');
       if (await valeRepository.obtenerModificacionEnTramite(valeId)) {
         throw new Error('Ya hay una modificación con vale MOD en trámite.');
       }
@@ -148,7 +149,7 @@ class ValeModificacionBasicaService {
       const { lado, fila } = await this._resolverAcceso(usuario, vale, mod);
       if (lado !== 'TALLER') throw new ErrorDeNegocio('Solo el taller puede aceptar o rechazar.', 403);
       if (mod.estado !== EN_CONVERSACION) throw new Error('Esta solicitud ya se cerró.');
-      if (![ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.CREADO].includes(vale.estado)) {
+      if (![ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.CREADO, ESTADOS.RECIBIDO].includes(vale.estado)) {
         throw new Error('El vale ya no admite esta modificación.');
       }
       if (fila.estado !== ESTADOS_TALLER.APROBADO) throw new Error('Tu propuesta de este vale ya no está aprobada.');

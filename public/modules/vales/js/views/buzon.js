@@ -358,7 +358,8 @@ export function construirAcciones(v) {
     acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirSelectorModificacion });
   }
   // Modificación básica abierta: el asesor dueño (o el equipo del taller involucrado) abre la conversación.
-  const basicaDelTaller = basicasAbiertas.some(m => m.taller_id === v.taller_id);
+  // En «Trabajo realizado» la fila es del vale y no de un taller: ahí basta con que haya una solicitud abierta (el servidor entrega solo las del taller).
+  const basicaDelTaller = v.taller_id == null || basicasAbiertas.some(m => m.taller_id === v.taller_id);
   if (basicasAbiertas.length && ((puede('solicitarModificacion') && esMio) || (puede('responderModificacionBasica') && basicaDelTaller))) {
     acciones.push({ icono: 'chatbubbles-outline', titulo: puede('responderModificacionBasica') ? 'Responder modificación' : 'Chat de la modificación', clase: 'icon-success', onClick: abrirConversacionesBasicas });
   }

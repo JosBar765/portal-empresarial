@@ -26,9 +26,9 @@ const TIPOS = [
 ];
 
 // Asesor: elige el tipo de modificación y sigue con su flujo (chat con el taller, o formulario del vale MOD).
-// La básica solo existe mientras el vale espera tu confirmación: el taller rehace la propuesta antes de que lo recibas.
+// La básica se puede pedir en el paso 5 o con el vale ya recibido: el taller rehace la propuesta y se confirma otra vez.
 export function abrirSelectorModificacion(vale) {
-  const disponibles = TIPOS.filter(t => t.id !== 'BASICA' || vale.estado === 'PENDIENTE_CONFIRMACION');
+  const disponibles = TIPOS;
   const { overlay, cerrar } = abrirModal({
     title: `Solicitar modificación — ${vale.correlativo}`,
     size: 'lg',
@@ -50,7 +50,6 @@ export function abrirSelectorModificacion(vale) {
             </span>
           </label>`).join('')}
       </div>
-      ${disponibles.length < TIPOS.length ? '<p class="mod-aviso"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>La básica solo se pide antes de confirmar el vale.</p>' : ''}
       <details class="mod-info">
         <summary><ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>¿Cuál elijo?</summary>
         <ul class="mod-info-lista">

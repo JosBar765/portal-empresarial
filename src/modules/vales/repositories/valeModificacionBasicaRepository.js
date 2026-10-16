@@ -83,7 +83,7 @@ class ValeModificacionBasicaRepository {
     );
   }
 
-  // El taller aceptó: su fila vuelve a ASIGNADO (mismo diseñador) y el vale sale del paso 5 con la nueva fecha de entrega.
+  // El taller aceptó: su fila vuelve a ASIGNADO (mismo diseñador) y el vale sale del paso 5 (o de Recibido) con la nueva fecha de entrega.
   // Todo o nada; cada UPDATE exige el estado esperado por si algo cambió mientras tanto.
   async aceptar({ id, valeId, valeTallerId, tallerId, disenadorId, usuarioId, estadoValeAnterior, fechaEntrega, fechaAsignacion, accion }) {
     return db.transaccion(async (tx) => {
@@ -101,8 +101,8 @@ class ValeModificacionBasicaRepository {
       if (fila.affectedRows !== 1) throw new Error('El taller ya no tiene la propuesta aprobada. Actualiza la pantalla.');
       const vale = await tx.query(
         `UPDATE vales SET estado_id = (SELECT id FROM estados_vale WHERE nombre = 'CREADO'),
-           fecha_entrega = ?, atraso_congelado_en = NULL, atraso_notificado_en = NULL
-         WHERE id = ? AND estado_id IN (SELECT id FROM estados_vale WHERE nombre IN ('PENDIENTE_CONFIRMACION', 'CREADO'))`,
+           fecha_entrega = ?, atraso_congelado_en = NULL, atraso_notificado_en = NULL, confirmado_en = NULL
+         WHERE id = ? AND estado_id IN (SELECT id FROM estados_vale WHERE nombre IN ('PENDIENTE_CONFIRMACION', 'CREADO', 'RECIBIDO'))`,
         [fechaEntrega, valeId], 'modificacion_basica:reabrir_vale'
       );
       if (vale.affectedRows !== 1) throw new Error('El vale cambió de estado. Actualiza la pantalla.');

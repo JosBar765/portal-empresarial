@@ -261,12 +261,12 @@ apunta al vale que modifica); un vale que ya tiene un MOD hijo (`modificado = 1`
 
 #### Modificación básica (sin vale MOD)
 
-Solo desde `PENDIENTE_CONFIRMACION`. El asesor elige a qué taller(es) con propuesta aprobada se la pide (uno por
+Desde `PENDIENTE_CONFIRMACION` **o con el vale ya confirmado (`RECIBIDO`)**, mientras no tenga un MOD hijo ni uno en trámite. El asesor elige a qué taller(es) con propuesta aprobada se la pide (uno por
 conversación; los demás quedan aprobados) y escribe el primer mensaje (200 caracteres). **El vale sigue en el paso 5**
 mientras conversan y no se puede confirmar ni pedir otra modificación. Tablas `vale_modificaciones_basicas` y
 `vale_modificacion_mensajes`; permiso `vales.responder_modificacion_basica` para el equipo del taller.
 
-- **El taller acepta:** su fila vuelve a `ASIGNADO` (mismo diseñador), el vale pasa a `CREADO`, la fecha de entrega
+- **El taller acepta:** su fila vuelve a `ASIGNADO` (mismo diseñador), el vale pasa a `CREADO` (si estaba `RECIBIDO` también se borra su fecha de confirmación), la fecha de entrega
   pasa al siguiente día hábil (se calcula con el día de la aceptación y nunca adelanta la actual) y el atraso se
   «descongela». Si la nueva fecha alcanzaría la del evento no se puede pedir (hay que usar una Media o Avanzada).
 - **El taller rechaza / el asesor cancela:** nada cambia; el asesor vuelve al paso 5 con todas las opciones y sin
