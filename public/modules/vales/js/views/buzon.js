@@ -216,7 +216,7 @@ export function renderTabla() {
 function pintarFilas(tbody, filas) {
   tbody.innerHTML = filas.map(v => `
     <tr>
-      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${(v.modificaciones_basicas_abiertas || []).length ? '<span class="badge badge-mod" title="Hay una modificación básica en conversación">Mod. básica</span>' : ''}${rechazosSinLeer(v).length ? `<span class="badge badge-rechazada" title="${escapeHtml(textoRechazos(rechazosSinLeer(v)))}">Mod. rechazada</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${badgePersona(v)}</td>
+      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${badgeBasica(v)}${rechazosSinLeer(v).length ? `<span class="badge badge-rechazada" title="${escapeHtml(textoRechazos(rechazosSinLeer(v)))}">Básica rechazada</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${badgePersona(v)}</td>
       <td data-label="Fecha Ingreso" class="col-fecha-ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
       <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
@@ -298,6 +298,17 @@ const propuestaVisible = (v) => propuestaGeneralVisible(v) || propuestaTallerVis
 
 const abrirVisorDeFila = (v, propuesta) => abrirVisorVale({ id: v.id, correlativo: v.correlativo, propuesta });
 
+// Modificaciones básicas del vale que ve quien mira: el asesor dueño ve todas; un taller solo las suyas.
+const basicasVisibles = (v) => (v.modificaciones_basicas || []).filter(m => v.taller_id == null || v.asesor_id === state.user.id || m.taller_id === v.taller_id);
+
+// Etiqueta mientras la modificación básica está en trámite: se conversa o el taller aceptó y rehace la propuesta.
+function badgeBasica(v) {
+  const basicas = basicasVisibles(v);
+  if (basicas.some(m => m.estado === 'EN_CONVERSACION')) return '<span class="badge badge-basica" title="Hay una modificación básica en conversación">Básica en chat</span>';
+  if (basicas.some(m => m.estado === 'ACEPTADA')) return '<span class="badge badge-basica" title="El taller aceptó: se está rehaciendo la propuesta">Básica en proceso</span>';
+  return '';
+}
+
 export function construirAcciones(v) {
   const esMio = v.asesor_id === state.user.id;
   // Un supervisor solo actúa como asesor sobre SUS vales: sobre los de su equipo solo autoriza y supervisa.
@@ -357,16 +368,18 @@ export function construirAcciones(v) {
   if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.mod_en_tramite && !basicasAbiertas.length && !ajenoDeSupervisor) {
     acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirSelectorModificacion });
   }
-  // Modificación básica abierta: el asesor dueño (o el equipo del taller involucrado) abre la conversación.
-  // En «Trabajo realizado» la fila es del vale y no de un taller: ahí basta con que haya una solicitud abierta (el servidor entrega solo las del taller).
-  const basicaDelTaller = v.taller_id == null || basicasAbiertas.some(m => m.taller_id === v.taller_id);
-  if (basicasAbiertas.length && ((puede('solicitarModificacion') && esMio) || (puede('responderModificacionBasica') && basicaDelTaller))) {
-    acciones.push({ icono: 'chatbubbles-outline', titulo: puede('responderModificacionBasica') ? 'Responder modificación' : 'Chat de la modificación', clase: 'icon-success', onClick: abrirConversacionesBasicas });
-  }
-  // Un taller rechazó la modificación básica y el asesor aún no la abrió: botón para leer la conversación.
+  // Chat de la modificación básica: queda en la fila mientras haya alguna visible para quien mira (asesor dueño o equipo del taller),
+  // también ya cerrada, para saber qué se pidió. Rojo si hay un rechazo sin leer; el servidor entrega solo las conversaciones del taller.
+  const basicas = basicasVisibles(v);
+  const equipoTaller = puede('responderModificacionBasica');
   const rechazos = rechazosSinLeer(v);
-  if (rechazos.length && puede('solicitarModificacion') && esMio) {
-    acciones.push({ icono: 'chatbubbles-outline', titulo: 'Ver chat del rechazo', clase: 'icon-danger', onClick: (vale) => abrirConversacionesBasicas(vale, { ids: rechazos.map(r => r.id) }) });
+  if (basicas.length && ((puede('solicitarModificacion') && esMio) || equipoTaller)) {
+    acciones.push({
+      icono: 'chatbubbles-outline',
+      titulo: rechazos.length ? 'Ver chat del rechazo' : (equipoTaller && basicasAbiertas.length ? 'Responder modificación' : 'Chat de la modificación'),
+      clase: rechazos.length ? 'icon-danger' : (basicasAbiertas.length ? 'icon-success' : undefined),
+      onClick: (vale) => abrirConversacionesBasicas(vale, rechazos.length ? { ids: rechazos.map(r => r.id) } : {})
+    });
   }
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });

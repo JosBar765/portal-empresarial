@@ -61,6 +61,17 @@ class ValeModificacionBasicaRepository {
     return Number(rows[0].total);
   }
 
+  // Todas las solicitudes de varios vales (cualquier estado): el buzón deja el chat disponible aunque ya estén cerradas.
+  async listarPorVales(valeIds) {
+    if (!valeIds.length) return [];
+    return db.query(
+      `SELECT m.id, m.vale_id, vt.taller_id, m.estado
+       FROM vale_modificaciones_basicas m JOIN vale_talleres vt ON vt.id = m.vale_taller_id
+       WHERE m.vale_id IN (?) ORDER BY m.id`,
+      [valeIds], 'modificacion_basica:list_por_vales'
+    );
+  }
+
   // Solicitudes que siguen en curso: en conversación o aceptadas y todavía sin su nueva propuesta aprobada.
   async contarEnCursoPorVale(valeId) {
     const rows = await db.query(

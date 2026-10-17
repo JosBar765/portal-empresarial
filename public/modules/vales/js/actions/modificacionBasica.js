@@ -211,7 +211,7 @@ export async function abrirConversacionesBasicas(vale, { ids = null } = {}) {
     return;
   }
   const abiertas = modificaciones.filter(m => m.estado === 'EN_CONVERSACION');
-  const lista = ids ? modificaciones.filter(m => ids.includes(m.id)) : abiertas.length ? abiertas : modificaciones.slice(-1);
+  const lista = ids ? modificaciones.filter(m => ids.includes(m.id)) : abiertas.length ? abiertas : modificaciones;
   if (lista.length === 1) { abrirModalConversacionBasica(vale, lista[0].id); return; }
   if (!lista.length) { window.toast.info('Sin conversaciones', 'Este vale no tiene modificaciones básicas.'); return; }
   const { overlay, cerrar } = abrirModal({
