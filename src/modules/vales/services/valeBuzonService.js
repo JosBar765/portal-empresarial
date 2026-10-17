@@ -7,6 +7,7 @@
 // cohesión.
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
+const modificacionBasicaRepository = require('../repositories/valeModificacionBasicaRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
@@ -55,10 +56,16 @@ const PREDICADOS_POR_PASO = {
   porRecibir: v => v.paso_pipeline === 5
 };
 
-// Ordena por el número final del correlativo; a igual número, el original antes que su MOD-.
+// Ordena por el número final del correlativo; a igual número, el original antes que sus MOD-, MOD2-, MOD3-…
 function numeroDeCorrelativo(correlativo) {
   const m = /-(\d+)$/.exec(String(correlativo || ''));
   return m ? Number(m[1]) : null;
+}
+
+// 0 para un vale normal; 1 para MOD-, 2 para MOD2-…
+function ordenDeMod(correlativo) {
+  const m = /^MOD(\d*)-/.exec(correlativo);
+  return m ? (m[1] ? Number(m[1]) : 1) : 0;
 }
 
 function compararCorrelativos(a, b) {
@@ -69,8 +76,8 @@ function compararCorrelativos(a, b) {
     if (nb === null) return -1;
     return na - nb;
   }
-  const ma = ca.startsWith('MOD-'), mb = cb.startsWith('MOD-');
-  if (ma !== mb) return ma ? 1 : -1;
+  const ma = ordenDeMod(ca), mb = ordenDeMod(cb);
+  if (ma !== mb) return ma - mb;
   return ca < cb ? -1 : (ca > cb ? 1 : 0);
 }
 
@@ -134,6 +141,27 @@ class ValeBuzonService {
     // Un original con una modificación en trámite sigue en su estado: este dato permite avisarlo y bloquear "Confirmar".
     const enTramite = new Map((await valeRepository.listarModificacionesEnTramite())
       .map(m => [m.vale_original_id, { id: m.id, correlativo: m.correlativo, estado: m.estado }]));
+    // Conversaciones de modificación básica abiertas: el asesor no puede confirmar mientras tanto y el taller debe responder.
+    const basicasAbiertas = new Map();
+    for (const m of await modificacionBasicaRepository.listarAbiertasPorVales(vales.map(v => v.id))) {
+      const lista = basicasAbiertas.get(m.vale_id) || [];
+      lista.push({ id: m.id, taller_id: m.taller_id });
+      basicasAbiertas.set(m.vale_id, lista);
+    }
+    // Todas las modificaciones básicas del vale (con su estado): el chat y la etiqueta «Mod. en proceso» salen de aquí.
+    const basicasTodas = new Map();
+    for (const m of await modificacionBasicaRepository.listarPorVales(vales.map(v => v.id))) {
+      const lista = basicasTodas.get(m.vale_id) || [];
+      lista.push({ id: m.id, taller_id: m.taller_id, estado: m.estado });
+      basicasTodas.set(m.vale_id, lista);
+    }
+    // Rechazos recientes de una modificación básica: solo importan mientras el vale está en el paso 5 o ya recibido.
+    const basicasRechazadas = new Map();
+    for (const m of await modificacionBasicaRepository.listarRechazadasRecientesPorVales(vales.map(v => v.id))) {
+      const lista = basicasRechazadas.get(m.vale_id) || [];
+      lista.push({ id: m.id, taller_id: m.taller_id, taller: nombreTaller(m.taller_id) });
+      basicasRechazadas.set(m.vale_id, lista);
+    }
     return vales.map(v => {
       const filas = mapaTalleresPorVale.get(v.id) || [];
       // Un vale en ESPERANDO_AUTORIZACION todavía no tiene filas reales en
@@ -147,6 +175,9 @@ class ValeBuzonService {
       const talleresDetalle = filas.map(f => ({ taller_id: f.taller_id, nombre: nombreTaller(f.taller_id), estado: f.estado }));
       return {
         ...v, taller: idsTaller.map(nombreTaller).join(', '), _filasTaller: filas, _talleresDetalle: talleresDetalle, mod_en_tramite: enTramite.get(v.id) || null,
+        modificaciones_basicas_abiertas: basicasAbiertas.get(v.id) || [],
+        modificaciones_basicas: basicasTodas.get(v.id) || [],
+        modificaciones_basicas_rechazadas: [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO].includes(v.estado) ? (basicasRechazadas.get(v.id) || []) : [],
         // Nota o enlaces de la fusión; o los de la propuesta cuando el vale ya volvió al asesor (no antes de que se apruebe).
         propuesta_extra: conExtra.fusion.has(v.id) || !!v.propuesta_general_nota
           || (conExtra.propuestas.has(v.id) && [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO].includes(v.estado))
@@ -538,7 +569,22 @@ class ValeBuzonService {
         };
       });
     const enVentana = vistos.filter(v => dentroDeVentana(v, ventana));
-    
+
+    // Un vale en el paso 5 cuyo asesor pidió una modificación básica a MI taller: su fila ya está aprobada (no entra arriba), pero el
+    // taller debe responder, así que se muestra siempre, sin depender de la ventana de fechas.
+    const yaVisibles = new Set(vistos.map(v => v.id));
+    const conBasica = [];
+    for (const v of todosConTaller) {
+      if (yaVisibles.has(v.id)) continue;
+      const solicitud = (v.modificaciones_basicas_abiertas || []).find(m => (miTaller ? m.taller_id === miTaller.id : esAdministrador(usuario)));
+      const fila = solicitud && valeTalleresTodos.find(f => f.vale_id === v.id && f.taller_id === solicitud.taller_id);
+      if (!fila) continue;
+      conBasica.push({
+        ...enriquecer(v), estado_taller: fila.estado, disenador_id: fila.disenador_id, _filaTallerId: fila.id, taller_id: fila.taller_id,
+        adjuntos_vence_en: fila.adjuntos_vence_en, adjuntos_mensaje: fila.adjuntos_mensaje, adjuntos_respondido_en: fila.adjuntos_respondido_en
+      });
+    }
+
     // "Asignado" = en manos de los diseñadores del taller (asignado, en proceso o en pausa, y no del propio encargado);
     // "Mis asignaciones" = lo que el propio encargado se asignó.
     const EN_MANOS_DE_DISENADOR = [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA];
@@ -568,11 +614,12 @@ class ValeBuzonService {
     if (puedeFusionar) contadores.pendientesFusion = pendientesFusion.length;
 
     if (puedeFusionar) predicados.pendientesFusion = v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO;
-    const filtrados = this._aplicarFiltroContador([...enVentana, ...pendientesFusion], filtroContador, predicados);
+    const filtrados = this._aplicarFiltroContador([...enVentana, ...pendientesFusion, ...conBasica], filtroContador, predicados);
     // El trabajo activo de los diseñadores (en proceso/en pausa) y lo ya
     // asignado suben por encima de lo que requiere acción del propio
     // encargado (revisar/asignar). La cola de fusión se queda al final.
     const vales = ordenarPorGrupos(filtrados, [
+      v => (v.modificaciones_basicas_abiertas || []).length > 0, // una modificación básica por responder va primero
       v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO,
       v => v.estado_taller === ESTADOS_TALLER.EN_PAUSA,
       v => v.estado_taller === ESTADOS_TALLER.ASIGNADO,

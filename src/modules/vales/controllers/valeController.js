@@ -49,7 +49,7 @@ class ValeController {
   // Mínima y días no disponibles (feriados, días sin recepción, hora máxima) para los talleres elegidos.
   async fechasEntrega(req, res) {
     try {
-      const data = await valeService.obtenerFechasEntrega(req.query.talleres, req.query.desde, req.query.hasta, req.query.urgente);
+      const data = await valeService.obtenerFechasEntrega(req.query.talleres, req.query.desde, req.query.hasta, req.query.urgente, req.query.modificacion);
       return res.json(data);
     } catch (error) {
       return responderError(res, error);
@@ -292,6 +292,63 @@ class ValeController {
       const archivos = validarArchivos(req.files);
       const vale = await valeService.solicitarModificacion(req.user, idObligatorio(req.params.id), req.body, archivos);
       return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  // Modificación básica: sin vale MOD, el asesor y el taller conversan y el taller acepta o rechaza.
+  async solicitarModificacionBasica(req, res) {
+    try {
+      return res.json(await valeService.solicitarModificacionBasica(req.user, idObligatorio(req.params.id), req.body || {}));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async listarModificacionesBasicas(req, res) {
+    try {
+      return res.json(await valeService.listarModificacionesBasicas(req.user, idObligatorio(req.params.id)));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async conversacionModificacionBasica(req, res) {
+    try {
+      return res.json(await valeService.conversacionModificacionBasica(req.user, idObligatorio(req.params.id), idObligatorio(req.params.modId)));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async enviarMensajeModificacionBasica(req, res) {
+    try {
+      return res.json(await valeService.enviarMensajeModificacionBasica(req.user, idObligatorio(req.params.id), idObligatorio(req.params.modId), req.body && req.body.mensaje));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async aceptarModificacionBasica(req, res) {
+    try {
+      return res.json(await valeService.aceptarModificacionBasica(req.user, idObligatorio(req.params.id), idObligatorio(req.params.modId)));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async rechazarModificacionBasica(req, res) {
+    try {
+      return res.json(await valeService.rechazarModificacionBasica(req.user, idObligatorio(req.params.id), idObligatorio(req.params.modId)));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async cancelarModificacionBasica(req, res) {
+    try {
+      return res.json(await valeService.cancelarModificacionBasica(req.user, idObligatorio(req.params.id), idObligatorio(req.params.modId)));
     } catch (error) {
       return responderError(res, error);
     }

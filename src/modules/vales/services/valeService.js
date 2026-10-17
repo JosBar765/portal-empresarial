@@ -18,6 +18,7 @@ const fechasEntregaService = require('./fechasEntregaService');
 const valeCorreccionService = require('./valeCorreccionService');
 const valeVistoService = require('./valeVistoService');
 const valeModificacionService = require('./valeModificacionService');
+const valeModificacionBasicaService = require('./valeModificacionBasicaService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeReporteService = require('./valeReporteService');
 const valeReportePdfService = require('./valeReportePdfService');
@@ -86,6 +87,14 @@ module.exports = {
   confirmarRecibido: (...a) => valeConfirmacionService.confirmarRecibido(...a),
   solicitarModificacion: (...a) => valeModificacionService.solicitarModificacion(...a),
   aprobarModificacion: (...a) => valeModificacionService.aprobarModificacion(...a),
+  // Modificación básica (sin vale MOD): solicitud y conversación entre el asesor y el taller
+  solicitarModificacionBasica: (...a) => valeModificacionBasicaService.solicitar(...a),
+  listarModificacionesBasicas: (...a) => valeModificacionBasicaService.listar(...a),
+  conversacionModificacionBasica: (...a) => valeModificacionBasicaService.listarConversacion(...a),
+  enviarMensajeModificacionBasica: (...a) => valeModificacionBasicaService.enviarMensaje(...a),
+  aceptarModificacionBasica: (...a) => valeModificacionBasicaService.aceptar(...a),
+  rechazarModificacionBasica: (...a) => valeModificacionBasicaService.rechazar(...a),
+  cancelarModificacionBasica: (...a) => valeModificacionBasicaService.cancelar(...a),
   rechazarModificacion: (...a) => valeModificacionService.rechazarModificacion(...a),
   obtenerValeParaPdf: (...a) => valeConfirmacionService.obtenerValeParaPdf(...a),
 

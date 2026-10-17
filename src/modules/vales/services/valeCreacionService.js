@@ -28,7 +28,7 @@ const valeVistoService = require('./valeVistoService');
 const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
   ESTADOS, hoyISO, horaActual, enriquecer,
-  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial,
+  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, DIAS_HABILES_MODIFICACION, registrarHistorial,
   esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
   esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor
 } = require('./valeHelpers');
@@ -378,7 +378,9 @@ class ValeCreacionService {
   // modificación tiene su propia lógica, ver valeConfirmacionService — así
   // que crearVale() sigue exigiendo `talleresIds` aquí pero
   // solicitarModificacion() no pasa por este camino para elegir taller).
-  async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null, talleresFijos = [] } = {}) {
+  // `modificacionTipo` (MEDIA / AVANZADA) marca un vale MOD: no admite «urgente» y su fecha de entrega
+  // pide ese mínimo en días hábiles desde hoy, en lugar de los 3 días naturales de un vale normal.
+  async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null, talleresFijos = [], modificacionTipo = null } = {}) {
     const {
       clienteEmpresa, clienteTelefono, clienteCorreo,
       fechaEntrega, fechaEvento, tecnica, acabado,
@@ -441,8 +443,12 @@ class ValeCreacionService {
     if (!fechaReal(fechaEntregaNorm)) throw new Error('La fecha de entrega no es válida.');
     if (!fechaReal(fechaEventoNorm)) throw new Error('La fecha del evento no es válida.');
     const talleresIds = requiereTalleres ? await this.validarTalleresIds(payload.talleresIds, tiendaIdAsesor) : talleresFijos;
-    const urgente = esUrgente(payload.urgente);
-    await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, urgente ? 0 : DIAS_MINIMOS_SIN_URGENTE);
+    const urgente = !modificacionTipo && esUrgente(payload.urgente);
+    if (modificacionTipo) {
+      await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, 0, undefined, DIAS_HABILES_MODIFICACION[modificacionTipo]);
+    } else {
+      await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, urgente ? 0 : DIAS_MINIMOS_SIN_URGENTE);
+    }
     if (!(new Date(fechaEventoNorm.replace(' ', 'T')) > new Date(fechaEntregaNorm.replace(' ', 'T')))) {
       throw new Error('La fecha del evento debe ser posterior a la fecha de entrega.');
     }

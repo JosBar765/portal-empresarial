@@ -7,16 +7,19 @@ import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible } fro
 import { celdaEstado } from '../components/pipeline.js';
 import { abrirVisorVale } from '../components/visorDocumento.js';
 import { htmlBloqueVigentes, conectarBloqueVigentes } from '../components/atrasadosVigentes.js';
-import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro, badgePersona } from '../utils/formato.js';
+import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro, badgePersona, escapeHtml } from '../utils/formato.js';
 import { obtenerBuzon, obtenerMasVales } from '../api/valesApi.js';
 import { cargarReportes } from './reportes.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/disenador.js';
 import { abrirModalVerificarAdjuntos, abrirModalRechazarAdjuntos, abrirModalConversacion, abrirModalAdjuntosPendientes } from '../actions/adjuntos.js';
-import { abrirModalDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
-import { abrirModalSolicitarModificacion, abrirModalCorregirVale } from '../forms/valeForm.js';
+import { abrirVisorDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
+import { abrirModalCorregirVale } from '../forms/valeForm.js';
+import { abrirSelectorModificacion } from '../actions/modificacionTipo.js';
 import { abrirModalHistorial } from '../actions/historial.js';
+import { abrirConversacionesBasicas } from '../actions/modificacionBasica.js';
+import { rechazosSinLeer, textoRechazos } from '../utils/modificacionesVistas.js';
 
 // -----------------------------------------------------------------------
 // Carga y render del buzón (paginado: 50 vales por petición, cargados por
@@ -213,7 +216,7 @@ export function renderTabla() {
 function pintarFilas(tbody, filas) {
   tbody.innerHTML = filas.map(v => `
     <tr>
-      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${badgePersona(v)}</td>
+      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${badgeBasica(v)}${rechazosSinLeer(v).length ? `<span class="badge badge-rechazada" title="${escapeHtml(textoRechazos(rechazosSinLeer(v)))}">Básica rechazada</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${badgePersona(v)}</td>
       <td data-label="Fecha Ingreso" class="col-fecha-ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
       <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
@@ -295,15 +298,33 @@ const propuestaVisible = (v) => propuestaGeneralVisible(v) || propuestaTallerVis
 
 const abrirVisorDeFila = (v, propuesta) => abrirVisorVale({ id: v.id, correlativo: v.correlativo, propuesta });
 
+// Modificaciones básicas del vale que ve quien mira: el asesor dueño ve todas; un taller solo las suyas.
+const basicasVisibles = (v) => (v.modificaciones_basicas || []).filter(m => v.taller_id == null || v.asesor_id === state.user.id || m.taller_id === v.taller_id);
+
+// Etiqueta mientras la modificación básica está en trámite: se conversa o el taller aceptó y rehace la propuesta.
+function badgeBasica(v) {
+  const basicas = basicasVisibles(v);
+  if (basicas.some(m => m.estado === 'EN_CONVERSACION')) return '<span class="badge badge-basica" title="Hay una modificación básica en conversación">Básica en chat</span>';
+  if (basicas.some(m => m.estado === 'ACEPTADA')) return '<span class="badge badge-basica" title="El taller aceptó: se está rehaciendo la propuesta">Básica en proceso</span>';
+  return '';
+}
+
 export function construirAcciones(v) {
   const esMio = v.asesor_id === state.user.id;
   // Un supervisor solo actúa como asesor sobre SUS vales: sobre los de su equipo solo autoriza y supervisa.
   const ajenoDeSupervisor = state.user.rolId === ROL.SUPERVISOR && !esMio;
+  // En el paso 5 (pendiente de confirmación) el «ojo» y el de confirmar son un solo botón: abre el vale y la propuesta con
+  // «Confirmar recibido» y «Solicitar modificación» abajo. Con una modificación en trámite hay un solo camino a la vez.
+  // Con una modificación básica abierta tampoco se confirma: se conversa con el taller hasta que responda.
+  const basicasAbiertas = v.modificaciones_basicas_abiertas || [];
+  const decideEnPaso5 = puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite && !basicasAbiertas.length && !ajenoDeSupervisor;
   // El supervisor abre un modal de elección (Ver info / Ver vale) en vez de ir
   // directo al PDF — a veces solo necesita los datos de encabezado. Vale también para los suyos, que él autoriza.
-  const acciones = state.user.rolId === ROL.SUPERVISOR
-    ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
-    : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
+  const acciones = decideEnPaso5
+    ? [{ icono: 'document-text-outline', titulo: 'Ver y decidir', clase: 'icon-success', onClick: (vale) => abrirVisorDecisionAsesor(vale, propuestaVisible(vale)) }]
+    : state.user.rolId === ROL.SUPERVISOR
+      ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
+      : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
   // El Supervisor autoriza el envío a talleres de un vale recién creado por
   // uno de sus asesores.
   if (puede('autorizarCreacion') && v.estado === 'ESPERANDO_AUTORIZACION') {
@@ -342,15 +363,23 @@ export function construirAcciones(v) {
   if (puede('aprobarGeneral') && v.estado === 'APROBADO_DEPARTAMENTO') {
     acciones.push({ icono: 'checkmark-done-circle-outline', titulo: 'Aprobar y fusionar', clase: 'icon-success', onClick: abrirModalAprobarGeneral });
   }
-  // Con una solicitud de modificación en trámite no se puede confirmar el original: se espera su decisión.
-  if (puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite && !ajenoDeSupervisor) {
-    acciones.push({ icono: 'document-text-outline', titulo: 'Confirmar o solicitar modificación', clase: 'icon-success', onClick: abrirModalDecisionAsesor });
+  // Un vale recibido se puede modificar si todavía no tiene un vale MOD hijo; un MOD recibido también (MOD2, MOD3…).
+  // Desde aquí solo se ofrecen la modificación media y la avanzada.
+  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.mod_en_tramite && !basicasAbiertas.length && !ajenoDeSupervisor) {
+    acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirSelectorModificacion });
   }
-  // Un vale MOD- (nacido de una modificación ya aprobada, `vale_original_id`
-  // seteado) nunca puede volver a solicitar modificación — solo se permite
-  // una por vale (analisis_correcciones_29.md #3).
-  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.vale_original_id && !v.mod_en_tramite && !ajenoDeSupervisor) {
-    acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirModalSolicitarModificacion });
+  // Chat de la modificación básica: queda en la fila mientras haya alguna visible para quien mira (asesor dueño o equipo del taller),
+  // también ya cerrada, para saber qué se pidió. Rojo si hay un rechazo sin leer; el servidor entrega solo las conversaciones del taller.
+  const basicas = basicasVisibles(v);
+  const equipoTaller = puede('responderModificacionBasica');
+  const rechazos = rechazosSinLeer(v);
+  if (basicas.length && ((puede('solicitarModificacion') && esMio) || equipoTaller)) {
+    acciones.push({
+      icono: 'chatbubbles-outline',
+      titulo: rechazos.length ? 'Ver chat del rechazo' : (equipoTaller && basicasAbiertas.length ? 'Responder modificación' : 'Chat de la modificación'),
+      clase: rechazos.length ? 'icon-danger' : (basicasAbiertas.length ? 'icon-success' : undefined),
+      onClick: (vale) => abrirConversacionesBasicas(vale, rechazos.length ? { ids: rechazos.map(r => r.id) } : {})
+    });
   }
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });

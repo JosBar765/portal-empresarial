@@ -287,7 +287,7 @@ class ValeReportePdfService {
       this._texto(ctx, this._ajustar(ctx, resumen, CONTENT_WIDTH - 220, 7.5), MARGIN + 214, ctx.y - 13, { size: 7.5, color: GRIS });
       ctx.y -= 22;
       const filas = grupo.vales.map(v => [
-        `${v.correlativo}${v.esMod && !/^MOD-/.test(v.correlativo) ? ' (MOD)' : ''}`,
+        `${v.correlativo}${v.esMod && !/^MOD\d*-/.test(v.correlativo) ? ' (MOD)' : ''}`,
         ...(esTaller ? [ingreso(v)] : []),
         celdaEstado(v.pipeline),
         formatear(v.fechaEntrega, 'fecha'),
@@ -381,7 +381,7 @@ class ValeReportePdfService {
       { label: 'Estado', ancho: 3 }, { label: 'Entrega', ancho: 1, centro: true }, { label: 'Atraso', ancho: 1, centro: true }
     ];
     const filas = av.vales.map(v => [
-      v.esMod && !/^MOD-/.test(v.correlativo) ? `${v.correlativo} (MOD)` : v.correlativo,
+      v.esMod && !/^MOD\d*-/.test(v.correlativo) ? `${v.correlativo} (MOD)` : v.correlativo,
       ...(conResponsable ? [v.responsable || '-'] : []),
       celdaEstado(v.pipeline),
       formatear(v.fechaEntrega, 'fecha'),

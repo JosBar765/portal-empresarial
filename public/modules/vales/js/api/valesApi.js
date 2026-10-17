@@ -73,9 +73,11 @@ export async function obtenerCapacidadEntrega(talleresIds, anio, mes) {
 }
 
 // Mínima y días no disponibles (feriados, días sin recepción, hora máxima) de la fecha de entrega en un rango.
-export async function obtenerFechasEntrega(talleresIds, desde, hasta, urgente = false) {
+// `modificacion`: MEDIA o AVANZADA para el vale MOD (sin «urgente», con su mínimo en días hábiles).
+export async function obtenerFechasEntrega(talleresIds, desde, hasta, urgente = false, modificacion = null) {
   const qs = new URLSearchParams({ talleres: talleresIds.join(','), desde, hasta });
   if (urgente) qs.set('urgente', '1');
+  if (modificacion) qs.set('modificacion', modificacion);
   const res = await fetch(`/api/vales/fechas-entrega?${qs.toString()}`);
   const data = await leerJSON(res);
   if (!res.ok) throw new Error(data.error || 'No se pudieron cargar las fechas de entrega disponibles.');
@@ -221,6 +223,41 @@ export function responderAdjuntos(valeId, tallerId, mensaje) {
 
 export function corregirVale(valeId, formData) {
   return enviarFormData(`/api/vales/${valeId}/corregir`, formData);
+}
+
+// Modificación básica (sin vale MOD): solicitud y conversación entre el asesor y el taller.
+export function solicitarModificacionBasica(valeId, talleres, mensaje) {
+  return enviarJSON(`/api/vales/${valeId}/modificaciones-basicas`, { talleres, mensaje });
+}
+
+export async function listarModificacionesBasicas(valeId) {
+  const res = await fetch(`/api/vales/${valeId}/modificaciones-basicas`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudieron cargar las modificaciones.');
+  return data;
+}
+
+export async function obtenerConversacionBasica(valeId, modId) {
+  const res = await fetch(`/api/vales/${valeId}/modificaciones-basicas/${modId}/mensajes`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar la conversación.');
+  return data;
+}
+
+export function enviarMensajeBasica(valeId, modId, mensaje) {
+  return enviarJSON(`/api/vales/${valeId}/modificaciones-basicas/${modId}/mensajes`, { mensaje });
+}
+
+export function aceptarModificacionBasica(valeId, modId) {
+  return enviarPost(`/api/vales/${valeId}/modificaciones-basicas/${modId}/aceptar`);
+}
+
+export function rechazarModificacionBasica(valeId, modId) {
+  return enviarPost(`/api/vales/${valeId}/modificaciones-basicas/${modId}/rechazar`);
+}
+
+export function cancelarModificacionBasica(valeId, modId) {
+  return enviarPost(`/api/vales/${valeId}/modificaciones-basicas/${modId}/cancelar`);
 }
 
 export function aprobarModificacion(valeId) {

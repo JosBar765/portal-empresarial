@@ -31,7 +31,8 @@ discrepan, manda el código: corrige este archivo.
   (los vales `MOD-` también consumen `id`, por eso puede haber saltos). Sin país
   configurado en la tienda no se puede crear el vale. El vale de modificación lleva
   el prefijo `MOD-` delante del correlativo **idéntico** al del original
-  (`MOD-GT-MTC-1026-337`). Los vales anteriores conservan su correlativo
+  (`MOD-GT-MTC-1026-337`); los siguientes son acumulables: `MOD2-GT-MTC-1026-337`,
+  `MOD3-…`, siempre sobre el correlativo raíz. Los vales anteriores conservan su correlativo
   (`MTC-KO-245`); el Buzón ordena por el último número.
 
 ## 0.1 Máquina de estados: catálogo completo
@@ -241,9 +242,40 @@ Notas:
 
 ### 1.1 Modificación
 
-La solicitud de modificación crea **un vale nuevo** (`MOD-<correlativo>`) y deja el original en
+Hay **tres tipos** de modificación, según la complejidad del cambio. El asesor los elige en un selector con
+una explicación de cada uno (botón único del paso 5 → «Solicitar modificación»). Los días son **mínimos** y se
+cuentan en **días hábiles** (días que reciben vales: sin fines de semana ni feriados del país) desde el día de la
+solicitud:
+
+| Tipo | Vale MOD | Quién decide | Fecha de entrega |
+|---|---|---|---|
+| **Básica** | No | El taller, por chat | +1 día hábil, fijo; no valida cupo |
+| **Media** | Sí (`MOD-X`, `MOD2-X`…) | El supervisor | Mínimo +2 días hábiles (puede ser más) |
+| **Avanzada** | Sí | El supervisor | Mínimo +3 días hábiles (puede ser más) |
+
+Un vale MOD **no admite «urgente»** (se ignora aunque llegue) y su fecha mínima reemplaza la regla de 3 días del vale
+normal. Los MOD son **acumulables**: la primera modificación con vale es `MOD-X`, la segunda `MOD2-X` y así
+sucesivamente (`X` es el correlativo raíz). Se pide siempre sobre el **último** vale vigente (`vale_original_id`
+apunta al vale que modifica); un vale que ya tiene un MOD hijo (`modificado = 1`) no se vuelve a modificar. Se guardan
+`vales.modificacion_tipo` (`MEDIA`/`AVANZADA`) y `vales.modificacion_numero` (1, 2, 3…).
+
+#### Modificación básica (sin vale MOD)
+
+Desde `PENDIENTE_CONFIRMACION` **o con el vale ya confirmado (`RECIBIDO`)**, también sobre un vale que ya es MOD (`MOD-X`, `MOD2-X`…). El original con un MOD hijo (`modificado = 1`) no la admite: se pide sobre el MOD más reciente. El asesor elige a qué taller(es) con propuesta aprobada se la pide (uno o varios en la misma solicitud) y escribe el primer mensaje (200 caracteres).
+**Solo hay una básica en curso por vale** (en conversación o aceptada y sin su nueva propuesta aprobada): mientras exista, no se manda otra a ningún taller. No se confirma el vale ni se pide otra modificación mientras se conversa. La fecha del evento no restringe. Tablas `vale_modificaciones_basicas` y `vale_modificacion_mensajes`; permiso `vales.responder_modificacion_basica` para el equipo del taller.
+
+- **Fecha de entrega (se fija al pedir):** el día base es el que recibiría un vale pedido ahora (hoy antes de la hora máxima del taller, o el siguiente día que reciba vales) y la entrega es el **siguiente día que reciba vales**; con varios talleres rige el más tardío y nunca adelanta la fecha que ya tenía. Si se pide después de la hora máxima del taller, cuenta desde el día siguiente. Al aceptar se usa esa fecha, sin recalcular: si ya pasó, el vale empieza con atraso.
+- **El taller acepta:** la fila de su taller vuelve a **«Por asignar» (paso 2)**, sin diseñador, y el vale pasa a `CREADO` (si estaba `RECIBIDO` también se borra su fecha de confirmación). El encargado lo asigna de nuevo (puede elegir otro diseñador) y sigue el flujo normal: en proceso, revisión y paso 5. No se crea vale MOD. El atraso se reinicia en ese momento.
+- **El taller rechaza / el asesor cancela:** nada cambia; el vale conserva su estado y se puede pedir otra básica sin límite de intentos. Si rechaza el taller, el asesor lo ve con la etiqueta «Básica rechazada» y un botón de chat rojo en la fila, y con una franja en el visor del paso 5, hasta que abre la conversación (lo leído se guarda en su navegador).
+- Cuando el diseñador entrega y el encargado aprueba la nueva propuesta, la modificación queda `ENTREGADA` y el vale vuelve a `PENDIENTE_CONFIRMACION` (con 2+ talleres vuelve a pasar por la fusión) para confirmarlo otra vez.
+- **El chat persiste:** el botón de chat queda en la fila del asesor dueño y del equipo del taller (cada taller ve solo las suyas) también después de aceptar, rechazar, entregar o confirmar, en solo lectura. Con varias solicitudes abre una lista con su estado. Mientras está en trámite la fila lleva la etiqueta **«Básica en chat»** (se conversa) o **«Básica en proceso»** (el taller aceptó y rehace la propuesta); las de básica llevan borde fino para no confundirlas con las etiquetas MOD rellenas, y el rechazo va en ámbar (el rojo queda para urgente y atraso).
+- Sin plazo automático. La conversación se muestra al asesor dueño y al equipo del taller; el supervisor no la lee. El buzón del encargado muestra primero estas solicitudes aunque su fila ya esté aprobada.
+
+#### Modificación media y avanzada (vale MOD)
+
+La solicitud crea **un vale nuevo** (`MOD-<correlativo>`) y deja el vale modificado en
 `RECIBIDO`. El `MOD-` nace completo al solicitar; su estado de espera es
-`SOLICITANDO_MODIFICACION` y, al autorizarse, va a los mismos talleres del original.
+`SOLICITANDO_MODIFICACION` y, al autorizarse, va a los mismos talleres del vale que modifica.
 
 ```
  Asesor solicita modificación (desde PENDIENTE_CONFIRMACION o RECIBIDO)
@@ -288,8 +320,9 @@ La solicitud de modificación crea **un vale nuevo** (`MOD-<correlativo>`) y dej
   puede pedir otra modificación (la primera nunca se trabajó); queda una fila en su historial.
 - Son **dos registros y dos PDF independientes**: el original nunca se sobreescribe; "Ver PDF"
   del original sirve siempre el del original.
-- Se permite **una** modificación autorizada: no puede modificarse un vale con `modificado = 1`,
-  ni un vale `MOD-`, ni uno que ya tenga un `MOD-` en trámite.
+- Cada vale admite **una** modificación con vale a la vez: no puede modificarse un vale con `modificado = 1` ni uno
+  que ya tenga un `MOD` en trámite o una modificación básica en conversación. Un `MOD` recibido sí puede
+  modificarse de nuevo (`MOD2-`, `MOD3-`…).
 - El **supervisor** autoriza o rechaza usando el id del propio `MOD-`
   (`aprobar-modificacion` / `rechazar-modificacion`), nunca el del original.
 - Las notificaciones (rechazo con su motivo, aviso de «por vencer» (25% del plazo), eliminación por baja o por

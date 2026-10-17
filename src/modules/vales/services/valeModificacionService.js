@@ -1,11 +1,13 @@
 // src/modules/vales/services/valeModificacionService.js
-// Modificación de un vale ya entregado: al solicitarla el original queda RECIBIDO y nace el vale MOD-, completo y con la
-// propuesta del original al final de su PDF (esperando al supervisor, baja, vigencia en horas laborales). Autorizarlo lo reparte a
-// los mismos talleres; rechazarlo o vencerlo lo elimina (el original y sus archivos no se tocan).
+// Modificación media o avanzada de un vale ya entregado: al solicitarla el vale modificado queda RECIBIDO y nace el vale MOD
+// (MOD-X, MOD2-X…), completo y con la propuesta del modificado al final de su PDF (esperando al supervisor, baja, vigencia en
+// horas laborales). Autorizarlo lo reparte a los mismos talleres; rechazarlo o vencerlo lo elimina (el modificado y sus archivos no
+// se tocan). La modificación básica no crea vale: ver valeModificacionBasicaService.
 const crypto = require('crypto');
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
 const valeModificacionRepository = require('../repositories/valeModificacionRepository');
+const modificacionBasicaRepository = require('../repositories/valeModificacionBasicaRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const documentoRepository = require('../repositories/documentoRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
@@ -22,7 +24,8 @@ const valeMutex = require('./valeMutex');
 const calendarioService = require('../../../core/calendario/calendarioService');
 const {
   ESTADOS, ROL, hoyISO, horaActual, enriquecer, registrarHistorial,
-  esAdministrador, esValeDeModificacion, requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor
+  esAdministrador, esValeDeModificacion, requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor,
+  TIPOS_MODIFICACION_CON_VALE, correlativoBase, armarCorrelativoMod
 } = require('./valeHelpers');
 
 const MAX_IMAGENES = 10;
@@ -36,23 +39,28 @@ class ValeModificacionService {
       if (previo) return previo.resultado;
 
       if (!puedeActuarComoAsesor(usuario)) throw new Error('Solo un asesor o un supervisor de ventas puede solicitar una modificación.');
+      const tipo = String(payload.tipo || '').toUpperCase();
+      if (!TIPOS_MODIFICACION_CON_VALE.includes(tipo)) throw new Error('Elige el tipo de modificación: media o avanzada.');
       const original = await requerirVale(valeId);
       assertPropioDelAsesor(usuario, original);
       if (![ESTADOS.RECIBIDO, ESTADOS.PENDIENTE_CONFIRMACION].includes(original.estado)) {
         throw new Error('Solo se puede solicitar una modificación de un vale que ya fue entregado o recibido.');
       }
-      if (esValeDeModificacion(original) || original.modificado) {
-        throw new Error('Este vale ya usó su única modificación permitida.');
+      // Un MOD también se puede modificar (MOD2, MOD3…), pero cada vale tiene a lo sumo una modificación con vale.
+      if (original.modificado) throw new Error('Este vale ya fue modificado. Pídela sobre el más reciente.');
+      if (await modificacionBasicaRepository.contarAbiertasPorVale(valeId)) {
+        throw new Error('Hay una modificación básica abierta. Espera la respuesta o cancélala.');
       }
       const justificacion = String(payload.descripcion || '').trim();
       if (!justificacion) throw new Error('Escribe la justificación de la modificación.');
       // La modificación va a los mismos talleres del original.
       const filasOriginal = await valeTallerRepository.listarPorVale(valeId);
       const talleresIds = [...new Set(filasOriginal.map(f => f.taller_id))];
-      const datos = await valeCreacionService.validarDatosVale({ ...payload, descripcion: justificacion }, { requiereTalleres: false, talleresFijos: talleresIds });
+      const datos = await valeCreacionService.validarDatosVale({ ...payload, descripcion: justificacion }, { requiereTalleres: false, talleresFijos: talleresIds, modificacionTipo: tipo });
       await capacidadEntregaService.validarLimiteDiario(talleresIds, datos.fechaEntregaNorm.slice(0, 10));
 
-      const correlativo = original.correlativo.startsWith('MOD-') ? original.correlativo : `MOD-${original.correlativo}`;
+      const numero = (original.modificacion_numero || 0) + 1;
+      const correlativo = armarCorrelativoMod(correlativoBase(original.correlativo), numero);
       if (await valeRepository.obtenerModificacionEnTramite(valeId) || await valeRepository.obtenerPorCorrelativo(correlativo)) {
         throw new Error('Ya hay una solicitud de modificación en curso para este vale.');
       }
@@ -96,7 +104,7 @@ class ValeModificacionService {
           { esHuerfano: async () => !(await valeRepository.existePorCorrelativo(correlativo)) });
         subidos.push(pdf.url);
         modId = await valeModificacionRepository.crear({
-          original, datos, correlativo, fechaCreacion: fecha, horaCreacion: hora, pdfUrl: pdf.url,
+          original, datos, correlativo, tipo, numero, fechaCreacion: fecha, horaCreacion: hora, pdfUrl: pdf.url,
           documentos, usuarioId: usuario.id, talleresIds, vigenciaHasta: await calendarioService.vencimientoPlazo(talleresIds)
         });
       } catch (error) {
