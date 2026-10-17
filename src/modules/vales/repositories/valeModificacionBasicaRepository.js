@@ -93,9 +93,9 @@ class ValeModificacionBasicaRepository {
     );
   }
 
-  // El taller aceptó: su fila vuelve a ASIGNADO (mismo diseñador) y el vale sale del paso 5 (o de Recibido) con la nueva fecha de entrega.
+  // El taller aceptó: su fila vuelve a «Por asignar» (paso 2, sin diseñador) y el vale sale del paso 5 (o de Recibido) con la fecha fijada.
   // Todo o nada; cada UPDATE exige el estado esperado por si algo cambió mientras tanto.
-  async aceptar({ id, valeId, valeTallerId, tallerId, disenadorId, usuarioId, estadoValeAnterior, fechaEntrega, fechaAsignacion, accion }) {
+  async aceptar({ id, valeId, valeTallerId, tallerId, usuarioId, estadoValeAnterior, fechaEntrega, accion }) {
     return db.transaccion(async (tx) => {
       const mod = await tx.query(
         "UPDATE vale_modificaciones_basicas SET estado = 'ACEPTADA', resuelto_en = NOW(), resuelto_por = ? WHERE id = ? AND estado = 'EN_CONVERSACION'",
@@ -103,10 +103,10 @@ class ValeModificacionBasicaRepository {
       );
       if (mod.affectedRows !== 1) throw new Error('Esta solicitud ya se cerró. Actualiza la pantalla.');
       const fila = await tx.query(
-        `UPDATE vale_talleres SET estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ASIGNADO'),
-           fecha_asignacion = ?, atraso_congelado_en = NULL
+        `UPDATE vale_talleres SET estado_id = (SELECT id FROM estados_taller WHERE nombre = 'PENDIENTE_ASIGNACION'),
+           disenador_id = NULL, fecha_asignacion = NULL, atraso_congelado_en = NULL
          WHERE id = ? AND estado_id = (SELECT id FROM estados_taller WHERE nombre = 'APROBADO')`,
-        [fechaAsignacion, valeTallerId], 'modificacion_basica:reabrir_taller'
+        [valeTallerId], 'modificacion_basica:reabrir_taller'
       );
       if (fila.affectedRows !== 1) throw new Error('El taller ya no tiene la propuesta aprobada. Actualiza la pantalla.');
       const vale = await tx.query(
@@ -116,7 +116,7 @@ class ValeModificacionBasicaRepository {
         [fechaEntrega, valeId], 'modificacion_basica:reabrir_vale'
       );
       if (vale.affectedRows !== 1) throw new Error('El vale cambió de estado. Actualiza la pantalla.');
-      await tx.query(SQL_HISTORIAL, [valeId, usuarioId, tallerId, 'APROBADO', 'ASIGNADO', accion, disenadorId || null], 'historial:insert_modificacion_basica_aceptada');
+      await tx.query(SQL_HISTORIAL, [valeId, usuarioId, tallerId, 'APROBADO', 'PENDIENTE_ASIGNACION', accion, null], 'historial:insert_modificacion_basica_aceptada');
       if (estadoValeAnterior !== 'CREADO') {
         await tx.query(SQL_HISTORIAL, [valeId, usuarioId, null, estadoValeAnterior, 'CREADO', 'El vale vuelve al taller por una modificación básica aceptada', null], 'historial:insert_vale_reabierto');
       }

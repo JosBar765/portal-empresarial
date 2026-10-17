@@ -14,7 +14,7 @@ const valeMutex = require('./valeMutex');
 const valeTallerService = require('./valeTallerService');
 const calendarioService = require('../../../core/calendario/calendarioService');
 const {
-  ESTADOS, ESTADOS_TALLER, esDeTaller, enriquecer, hoyISO, horaActual,
+  ESTADOS, ESTADOS_TALLER, esDeTaller, enriquecer,
   requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMensajeChat
 } = require('./valeHelpers');
 
@@ -141,7 +141,7 @@ class ValeModificacionBasicaService {
     });
   }
 
-  // El taller acepta: su fila vuelve a ASIGNADO y el vale sale del paso 5 con la nueva fecha de entrega.
+  // El taller acepta: su fila vuelve a «Por asignar» (el encargado asigna de nuevo) y el vale sale del paso 5 con la fecha fijada.
   async aceptar(usuario, valeId, modId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const { vale, mod } = await this._cargar(valeId, modId);
@@ -158,17 +158,20 @@ class ValeModificacionBasicaService {
       const actual = String(vale.fecha_entrega).slice(0, 10);
       const fechaEntrega = `${fijada > actual ? fijada : actual} 23:59:59`;
       await modificacionRepository.aceptar({
-        id: mod.id, valeId, valeTallerId: fila.id, tallerId: fila.taller_id, disenadorId: fila.disenador_id, usuarioId: usuario.id,
-        estadoValeAnterior: vale.estado, fechaEntrega, fechaAsignacion: `${hoyISO()} ${horaActual()}`,
-        accion: `Taller ${mod.taller} aceptó la modificación básica — nueva fecha de entrega ${fmtFecha(fechaEntrega)}`
+        id: mod.id, valeId, valeTallerId: fila.id, tallerId: fila.taller_id, usuarioId: usuario.id,
+        estadoValeAnterior: vale.estado, fechaEntrega,
+        accion: `Taller ${mod.taller} aceptó la modificación básica: vuelve a Por asignar, nueva fecha de entrega ${fmtFecha(fechaEntrega)}`
       });
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, texto: `${mod.taller} aceptó la modificación. Nueva entrega: ${fmtFecha(fechaEntrega)}`,
         tipo: 'MOD_BASICA_ACEPTADA', actor: usuario.nombre, actorId: usuario.id,
-        salas: [`asesor:${vale.asesor_id}`, `taller:${fila.taller_id}`, ...(fila.disenador_id ? [`disenador:${fila.disenador_id}`] : [])]
+        salas: [`asesor:${vale.asesor_id}`, `taller:${fila.taller_id}`]
       });
-      valeEvents.refrescar({ vale: actualizado, salas: await this._salasAsesor(vale) });
+      // El diseñador que lo tenía ya no lo ve: se le refresca la pantalla sin aviso.
+      const salasRefresco = await this._salasAsesor(vale);
+      if (fila.disenador_id) salasRefresco.push(`disenador:${fila.disenador_id}`);
+      valeEvents.refrescar({ vale: actualizado, salas: salasRefresco });
       return enriquecer(actualizado);
     });
   }

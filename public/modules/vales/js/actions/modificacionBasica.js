@@ -22,7 +22,7 @@ const ESTADO_MODIFICACION = {
 function lineaDeEstado(c) {
   switch (c.estado) {
     case 'EN_CONVERSACION': return c.lado === 'TALLER' ? 'Acepta para rehacer la propuesta, o rechaza para dejarla igual.' : 'Esperando la respuesta del taller.';
-    case 'ACEPTADA': return 'El taller está rehaciendo la propuesta.';
+    case 'ACEPTADA': return 'Aceptada. El taller rehace la propuesta.';
     case 'RECHAZADA': return c.lado === 'ASESOR' ? 'El vale sigue igual: puedes confirmarlo o pedir otra modificación.' : 'Solicitud rechazada.';
     case 'CANCELADA': return 'Solicitud cancelada.';
     default: return 'El taller ya entregó la nueva propuesta.';
@@ -193,7 +193,7 @@ export async function abrirModalConversacionBasica(vale, modId) {
     }
     cargarBuzon();
   });
-  decidir(btnAceptar, aceptarModificacionBasica, { titulo: 'Aceptada', texto: 'Ya puedes rehacer la propuesta.' });
+  decidir(btnAceptar, aceptarModificacionBasica, { titulo: 'Aceptada', texto: 'Asigna el vale a un diseñador.' });
   decidir(btnRechazar, rechazarModificacionBasica, { titulo: 'Rechazada', texto: 'El asesor fue avisado.' });
   decidir(btnCancelar, cancelarModificacionBasica, { titulo: 'Cancelada', texto: vale.estado === 'PENDIENTE_CONFIRMACION' ? 'Ya puedes confirmar el vale.' : 'La solicitud se canceló.' });
   if (!zonaEscribir.hidden) textarea.focus();
