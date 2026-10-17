@@ -120,6 +120,11 @@ class CalendarioService {
     return calendario.fechaMinimaEntrega(await cargar(), talleresIds, ahora, 0, diasHabiles);
   }
 
+  // Entrega de una modificación básica: el siguiente día que recibe vales desde el día de la solicitud (con la hora de corte del taller).
+  async fechaMinimaModificacionBasica(talleresIds, ahora = calendario.ahoraUTC6()) {
+    return calendario.fechaMinimaModificacionBasica(await cargar(), talleresIds, ahora);
+  }
+
   async existenTalleres(talleresIds) {
     const cfg = await cargar();
     return talleresIds.every(id => cfg.talleres.has(id));

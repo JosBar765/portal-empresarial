@@ -174,6 +174,26 @@ function fechaMinimaEntrega(cfg, talleresIds, ahora, diasMinimos = 0, diasHabile
   return minima || null;
 }
 
+// Modificación básica: el día base es el que recibiría un vale pedido ahora (hoy antes de la hora máxima del taller, o el siguiente
+// día que reciba vales) y la entrega es el día que reciba vales siguiente. Con varios talleres rige el más tardío.
+function fechaMinimaModificacionBasica(cfg, talleresIds, ahora) {
+  let minima = '';
+  for (const id of talleresIds) {
+    const base = fechaMinimaParaTaller(cfg, id, ahora);
+    if (!base) return null;
+    const t = datosTaller(cfg, id);
+    let dia = diaMs(base);
+    let entrega = null;
+    for (let n = 0; n < MAX_DIAS_BUSQUEDA && !entrega; n++) {
+      dia += MS_DIA;
+      if (recibeVales(cfg, isoDe(dia), t.paisId)) entrega = isoDe(dia);
+    }
+    if (!entrega) return null;
+    if (entrega > minima) minima = entrega;
+  }
+  return minima || null;
+}
+
 function horaMaximaRestrictiva(cfg, talleresIds) {
   const horas = talleresIds.map(id => datosTaller(cfg, id).horaMaxima);
   return aHHMM(horas.length ? Math.min(...horas) : HORA_MAXIMA_POR_DEFECTO);
@@ -252,5 +272,5 @@ function formatearDuracion(minutos) {
 module.exports = {
   ahoraUTC6, crearConfig, feriadoDe, esDiaLaboral, recibeVales,
   sumarHorasLaborales, minutosLaboralesRestantes, paisDeTalleres,
-  nesimoDiaHabil, fechaMinimaEntrega, horaMaximaRestrictiva, fechasNoDisponibles, validarFechaEntrega, formatearDuracion
+  nesimoDiaHabil, fechaMinimaEntrega, fechaMinimaModificacionBasica, horaMaximaRestrictiva, fechasNoDisponibles, validarFechaEntrega, formatearDuracion
 };

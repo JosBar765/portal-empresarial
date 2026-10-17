@@ -14,7 +14,7 @@ const valeMutex = require('./valeMutex');
 const valeTallerService = require('./valeTallerService');
 const calendarioService = require('../../../core/calendario/calendarioService');
 const {
-  ESTADOS, ESTADOS_TALLER, DIAS_HABILES_MODIFICACION, esDeTaller, enriquecer, hoyISO, horaActual,
+  ESTADOS, ESTADOS_TALLER, esDeTaller, enriquecer, hoyISO, horaActual,
   requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMensajeChat
 } = require('./valeHelpers');
 
@@ -27,9 +27,10 @@ class ValeModificacionBasicaService {
     return [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)];
   }
 
-  // Fecha de entrega que regiría: el siguiente día hábil contado desde hoy, sin adelantar nunca la que ya tiene el vale.
+  // Fecha de entrega que regiría: el siguiente día que recibe vales desde la solicitud (con la hora de corte del taller), sin
+  // adelantar nunca la que ya tiene el vale.
   async _fechaNueva(vale, talleresIds) {
-    const minima = await calendarioService.fechaMinimaModificacion(talleresIds, DIAS_HABILES_MODIFICACION.BASICA);
+    const minima = await calendarioService.fechaMinimaModificacionBasica(talleresIds);
     if (!minima) throw new Error('No hay ningún día configurado para recibir vales de arte. Avisa al administrador.');
     const actual = String(vale.fecha_entrega).slice(0, 10);
     const iso = minima > actual ? minima : actual;
@@ -151,9 +152,11 @@ class ValeModificacionBasicaService {
         throw new Error('El vale ya no admite esta modificación.');
       }
       if (fila.estado !== ESTADOS_TALLER.APROBADO) throw new Error('Tu propuesta de este vale ya no está aprobada.');
-      const filas = await valeTallerRepository.listarPorVale(valeId);
-      // Si pasaron días desde la solicitud, la fecha se recalcula para que nunca quede en el pasado.
-      const fechaEntrega = await this._fechaNueva(vale, filas.map(f => f.taller_id));
+      // La fecha se fijó al pedir la modificación y no se recalcula: si ya pasó, el vale arranca con atraso. Solo se respeta
+      // una fecha más tardía que otro taller haya puesto mientras tanto.
+      const fijada = String(mod.fecha_entrega_nueva).slice(0, 10);
+      const actual = String(vale.fecha_entrega).slice(0, 10);
+      const fechaEntrega = `${fijada > actual ? fijada : actual} 23:59:59`;
       await modificacionRepository.aceptar({
         id: mod.id, valeId, valeTallerId: fila.id, tallerId: fila.taller_id, disenadorId: fila.disenador_id, usuarioId: usuario.id,
         estadoValeAnterior: vale.estado, fechaEntrega, fechaAsignacion: `${hoyISO()} ${horaActual()}`,

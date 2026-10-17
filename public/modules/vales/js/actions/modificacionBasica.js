@@ -195,7 +195,7 @@ export async function abrirModalConversacionBasica(vale, modId) {
   });
   decidir(btnAceptar, aceptarModificacionBasica, { titulo: 'Aceptada', texto: 'Ya puedes rehacer la propuesta.' });
   decidir(btnRechazar, rechazarModificacionBasica, { titulo: 'Rechazada', texto: 'El asesor fue avisado.' });
-  decidir(btnCancelar, cancelarModificacionBasica, { titulo: 'Cancelada', texto: 'Ya puedes confirmar el vale.' });
+  decidir(btnCancelar, cancelarModificacionBasica, { titulo: 'Cancelada', texto: vale.estado === 'PENDIENTE_CONFIRMACION' ? 'Ya puedes confirmar el vale.' : 'La solicitud se canceló.' });
   if (!zonaEscribir.hidden) textarea.focus();
 }
 
