@@ -172,15 +172,18 @@ function estadoVisibleAsesor(vale) {
 function dentroDeVentana(vale, ventana) {
   if (!ventana || !ventana.tipo || ventana.tipo === 'todo') return true;
   const fv = new Date(`${String(vale.fecha_entrega).slice(0, 10)}T00:00:00`);
+  // Buzón: lo que se arrastra (entrega ANTERIOR al inicio del período) se ve igual; lo posterior no.
+  const arrastrado = () => !!ventana.incluirArrastrados;
 
   if (ventana.tipo === 'rango') {
     if (!ventana.desde && !ventana.hasta) return true;
-    if (ventana.desde && fv < new Date(`${ventana.desde}T00:00:00`)) return false;
+    if (ventana.desde && fv < new Date(`${ventana.desde}T00:00:00`)) return arrastrado();
     if (ventana.hasta && fv > new Date(`${ventana.hasta}T00:00:00`)) return false;
     return true;
   }
   if (ventana.tipo === 'mes') {
     const ref = new Date(`${ventana.fecha || hoyISO()}T00:00:00`);
+    if (fv < new Date(ref.getFullYear(), ref.getMonth(), 1)) return arrastrado();
     return fv.getFullYear() === ref.getFullYear() && fv.getMonth() === ref.getMonth();
   }
   return true;
@@ -201,7 +204,7 @@ function ordenarPorGrupos(vales, predicados) {
 
   const comparador = (a, b) => {
     if (a.atrasado !== b.atrasado) return a.atrasado ? -1 : 1;
-    if (a.atrasado) return new Date(a.fecha_entrega) - new Date(b.fecha_entrega);
+    if (a.atrasado) return (b.diasAtraso || 0) - (a.diasAtraso || 0) || new Date(a.fecha_entrega) - new Date(b.fecha_entrega);
     if (!!a.urgente !== !!b.urgente) return a.urgente ? -1 : 1;
     return new Date(a.fecha_entrega) - new Date(b.fecha_entrega);
   };

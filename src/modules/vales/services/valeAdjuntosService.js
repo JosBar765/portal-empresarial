@@ -21,6 +21,9 @@ const MAX_CARACTERES_MENSAJE = 200;
 const ESTADOS_POR_VERIFICAR = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
 // Mientras el taller tiene el vale rechazado (o ya respondido) la conversación está abierta; después es de solo lectura.
 const ESTADOS_CONVERSACION_ABIERTA = [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
+// Un taller en cualquiera de estos no protege el vale del borrado por plazo vencido; en ADJUNTOS_RESPONDIDOS el asesor
+// ya hizo su parte, y en los demás estados (asignado, en proceso...) el taller ya aceptó o trabaja.
+const ESTADOS_SIN_PROTEGER = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RECHAZADOS];
 
 // Mensaje de la conversación: texto no vacío de hasta 200 caracteres (se cuentan caracteres, no palabras).
 function validarMensaje(mensaje, { obligatorio = true, porDefecto = null } = {}) {
@@ -174,13 +177,20 @@ class ValeAdjuntosService {
     });
   }
 
-  // Venció el plazo sin respuesta del asesor: se borra el vale completo (el original de un MOD- no se toca).
+  // true si algún taller (filas de listarPorVale) protege el vale: el vencimiento de otro taller no lo borra.
+  algunTallerProtege(talleres) {
+    return talleres.some(t => !ESTADOS_SIN_PROTEGER.includes(t.estado));
+  }
+
+  // Venció el plazo sin respuesta del asesor: se borra el vale completo (el original de un MOD- no se toca), salvo que
+  // otro taller ya lo haya aceptado o el asesor ya le haya respondido: ese trabajo no se pierde (el taller trabado se quita a mano, runbook en Engram).
   // Revalida bajo el lock: el asesor o el encargado pudieron actuar entretanto.
   async expirarPorAdjuntos(valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await valeRepository.obtenerPorId(valeId);
       if (!vale || !(await valeTallerRepository.listarAdjuntosVencidos(valeId)).length) return false;
       const talleres = await valeTallerRepository.listarPorVale(valeId);
+      if (this.algunTallerProtege(talleres)) return false;
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       const original = esValeDeModificacion(vale) ? await valeRepository.obtenerPorId(vale.vale_original_id) : null;
       const horas = await calendarioService.horasVencimiento();

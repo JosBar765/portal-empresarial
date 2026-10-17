@@ -48,18 +48,12 @@ export function wireSidebar() {
   // escritorio, visible <900px) tome el control.
   toggleMovil.style.display = '';
 
-  // El Gerente solo lee: con vales.ver ve el buzón general (todos los vales) y con vales.ver_reportes la
-  // pestaña Reportes; sin «Trabajo realizado».
-  if (state.user.rolId === ROL.GERENTE) {
+  // El Gerente solo lee: con vales.ver ve el Buzón y Trabajo realizado generales (todos los vales) y con
+  // vales.ver_reportes la pestaña Reportes; sin vales.ver solo le queda Reportes.
+  if (state.user.rolId === ROL.GERENTE && !(state.user.permissions || []).includes('vales.ver')) {
+    $('#sidebar-item-primario', sidebar).style.display = 'none';
     $('#sidebar-item-secundario', sidebar).style.display = 'none';
-    if (!(state.user.permissions || []).includes('vales.ver')) {
-      $('#sidebar-item-primario', sidebar).style.display = 'none';
-      state.vista = 'reportes';
-    }
-  }
-  // El Administrador no tiene «Trabajo realizado»: su barra solo lleva Buzón y Reportes.
-  if (state.user.rolId === ROL.ADMINISTRADOR) {
-    $('#sidebar-item-secundario', sidebar).style.display = 'none';
+    state.vista = 'reportes';
   }
   // Reportes de actividad: por permiso (vales.ver_reportes), para cualquier rol.
   if ((state.user.permissions || []).includes('vales.ver_reportes')) {

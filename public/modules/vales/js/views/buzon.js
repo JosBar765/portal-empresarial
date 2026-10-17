@@ -57,7 +57,6 @@ export async function cargarBuzon() {
     state.paginacion.total = data.total ?? state.vales.length;
     state.paginacion.hasMore = !!data.hasMore;
     state.paginacion.cursor = data.nextCursor ?? null;
-    state.atrasadosVigentes = data.atrasadosVigentes || { total: 0, truncado: false, vales: [] };
   } catch (error) {
     $('#buzon-tbody').innerHTML = `
       <tr><td colspan="${columnasVisibles()}" class="tabla-vacia">
@@ -71,7 +70,6 @@ export async function cargarBuzon() {
   }
 
   renderContadores();
-  renderVigentes();
   renderTabla();
 }
 
@@ -213,7 +211,7 @@ export function renderTabla() {
   pintarFilas(tbody, filas);
 }
 
-// Dibuja las filas de vales (y sus botones de acción) en un <tbody>: lo usan la tabla principal y el bloque de atrasados vigentes.
+// Dibuja las filas de vales (y sus botones de acción) en un <tbody>.
 function pintarFilas(tbody, filas) {
   tbody.innerHTML = filas.map(v => `
     <tr>
@@ -254,7 +252,7 @@ function conectarMarcas(raiz, filas) {
   });
 }
 
-// Botones de acción de una fila (los mismos en la tabla y en el bloque de atrasados vigentes).
+// Botones de acción de una fila.
 function crearBotonesAcciones(wrap, v) {
   construirAcciones(v).forEach(accion => {
     const btn = document.createElement('button');
@@ -269,34 +267,6 @@ function crearBotonesAcciones(wrap, v) {
     });
     wrap.appendChild(btn);
   });
-}
-
-// «Atrasados vigentes»: los vales atrasados que siguen abiertos aunque su entrega quede fuera del filtro de fecha elegido. Bloque
-// plegable sobre la tabla, con las mismas columnas y acciones; el usuario recuerda si lo plegó.
-const CLAVE_VIGENTES_PLEGADO = 'vales:vigentesPlegado';
-const leerPlegado = () => { try { return localStorage.getItem(CLAVE_VIGENTES_PLEGADO) === '1'; } catch { return false; } };
-const guardarPlegado = (plegado) => { try { localStorage.setItem(CLAVE_VIGENTES_PLEGADO, plegado ? '1' : '0'); } catch { /* sin almacenamiento: no se recuerda */ } };
-
-export function renderVigentes() {
-  const cont = $('#atrasados-vigentes');
-  const av = state.atrasadosVigentes;
-  if (!cont) return;
-  if (!av || !av.total) { cont.hidden = true; cont.innerHTML = ''; return; }
-  cont.hidden = false;
-  cont.innerHTML = htmlBloqueVigentes({
-    id: 'vig-buzon', total: av.total, truncado: av.truncado, plegado: leerPlegado(),
-    items: av.vales.map(v => ({
-      correlativo: v.correlativo, esMod: false, sub: [v.cliente_nombre, v.persona && v.persona.nombre].filter(Boolean).join(' · '),
-      pipeline: v.pipeline, fechaEntrega: v.fecha_entrega, diasAtraso: v.diasAtraso, marcaHtml: marcaPropuestaNueva(v),
-      accionesHtml: `<div class="acciones-wrap" data-vig-key="${escapeAttr(claveFila(v))}"></div>`
-    }))
-  });
-  av.vales.forEach(v => {
-    const wrap = cont.querySelector(`[data-vig-key="${CSS.escape(claveFila(v))}"]`);
-    if (wrap) crearBotonesAcciones(wrap, v);
-  });
-  conectarMarcas(cont, av.vales);
-  conectarBloqueVigentes(cont, guardarPlegado);
 }
 
 const escapeAttr = (t) => String(t).replace(/"/g, '&quot;');
