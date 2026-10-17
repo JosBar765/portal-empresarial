@@ -69,8 +69,9 @@ class ValeModificacionBasicaService {
       if (await valeRepository.obtenerModificacionEnTramite(valeId)) {
         throw new Error('Ya hay una modificación con vale MOD en trámite.');
       }
+      if (await modificacionRepository.contarEnCursoPorVale(valeId)) throw new Error('Ya hay una modificación en curso. Espera su resultado.');
       const filas = await valeTallerRepository.listarPorVale(valeId);
-      const pedidos = [...new Set((Array.isArray(talleres) ? talleres : []).map(Number).filter(Number.isFinite))];
+      const pedidos =[...new Set((Array.isArray(talleres) ? talleres : []).map(Number).filter(Number.isFinite))];
       const elegidas = filas.length === 1 && !pedidos.length ? filas : filas.filter(f => pedidos.includes(f.taller_id));
       if (!elegidas.length || (pedidos.length && elegidas.length !== pedidos.length)) throw new Error('Elige un taller.');
       for (const fila of elegidas) {

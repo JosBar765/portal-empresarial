@@ -19,12 +19,13 @@ class ValeModificacionBasicaRepository {
   async crear({ valeId, solicitanteId, filas, fechaAnterior, fechaNueva, mensaje, estadoVale }) {
     return db.transaccion(async (tx) => {
       const ids = [];
+      // Una sola modificación básica en curso por vale: no se manda otra a ningún taller hasta que termine.
+      const enCurso = await tx.query(
+        "SELECT id FROM vale_modificaciones_basicas WHERE vale_id = ? AND estado IN ('EN_CONVERSACION', 'ACEPTADA') LIMIT 1",
+        [valeId], 'modificacion_basica:validar_en_curso'
+      );
+      if (enCurso.length) throw new Error('Ya hay una modificación en curso. Espera su resultado.');
       for (const fila of filas) {
-        const abierta = await tx.query(
-          "SELECT id FROM vale_modificaciones_basicas WHERE vale_taller_id = ? AND estado IN ('EN_CONVERSACION', 'ACEPTADA') LIMIT 1",
-          [fila.id], 'modificacion_basica:validar_abierta'
-        );
-        if (abierta.length) throw new Error(`${fila.taller_nombre} ya tiene una modificación en curso.`);
         const ins = await tx.query(
           'INSERT INTO vale_modificaciones_basicas (vale_id, vale_taller_id, solicitante_id, fecha_entrega_anterior, fecha_entrega_nueva) VALUES (?, ?, ?, ?, ?)',
           [valeId, fila.id, solicitanteId, fechaAnterior, fechaNueva], 'modificacion_basica:insert'
@@ -56,6 +57,15 @@ class ValeModificacionBasicaRepository {
     const rows = await db.query(
       "SELECT COUNT(*) AS total FROM vale_modificaciones_basicas WHERE vale_id = ? AND estado = 'EN_CONVERSACION'",
       [valeId], 'modificacion_basica:count_abiertas_vale'
+    );
+    return Number(rows[0].total);
+  }
+
+  // Solicitudes que siguen en curso: en conversación o aceptadas y todavía sin su nueva propuesta aprobada.
+  async contarEnCursoPorVale(valeId) {
+    const rows = await db.query(
+      "SELECT COUNT(*) AS total FROM vale_modificaciones_basicas WHERE vale_id = ? AND estado IN ('EN_CONVERSACION', 'ACEPTADA')",
+      [valeId], 'modificacion_basica:count_en_curso_vale'
     );
     return Number(rows[0].total);
   }
