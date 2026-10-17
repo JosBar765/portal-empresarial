@@ -261,20 +261,15 @@ apunta al vale que modifica); un vale que ya tiene un MOD hijo (`modificado = 1`
 
 #### Modificación básica (sin vale MOD)
 
-Desde `PENDIENTE_CONFIRMACION` **o con el vale ya confirmado (`RECIBIDO`)**, mientras no tenga un MOD hijo ni uno en trámite. El asesor elige a qué taller(es) con propuesta aprobada se la pide (uno por
-conversación; los demás quedan aprobados) y escribe el primer mensaje (200 caracteres). **El vale sigue en el paso 5**
-mientras conversan y no se puede confirmar ni pedir otra modificación. Tablas `vale_modificaciones_basicas` y
-`vale_modificacion_mensajes`; permiso `vales.responder_modificacion_basica` para el equipo del taller.
+Desde `PENDIENTE_CONFIRMACION` **o con el vale ya confirmado (`RECIBIDO`)**, también sobre un vale que ya es MOD (`MOD-X`, `MOD2-X`…). El original con un MOD hijo (`modificado = 1`) no la admite: se pide sobre el MOD más reciente. El asesor elige a qué taller(es) con propuesta aprobada se la pide (uno o varios en la misma solicitud) y escribe el primer mensaje (200 caracteres).
+**Solo hay una básica en curso por vale** (en conversación o aceptada y sin su nueva propuesta aprobada): mientras exista, no se manda otra a ningún taller. No se confirma el vale ni se pide otra modificación mientras se conversa. La fecha del evento no restringe. Tablas `vale_modificaciones_basicas` y `vale_modificacion_mensajes`; permiso `vales.responder_modificacion_basica` para el equipo del taller.
 
-- **El taller acepta:** su fila vuelve a `ASIGNADO` (mismo diseñador), el vale pasa a `CREADO` (si estaba `RECIBIDO` también se borra su fecha de confirmación), la fecha de entrega
-  pasa al siguiente día hábil (se calcula con el día de la aceptación y nunca adelanta la actual) y el atraso se
-  «descongela». Si la nueva fecha alcanzaría la del evento no se puede pedir (hay que usar una Media o Avanzada).
-- **El taller rechaza / el asesor cancela:** nada cambia; el asesor vuelve al paso 5 con todas las opciones y sin
-  límite de intentos.
-- Cuando el diseñador entrega y el encargado aprueba la nueva propuesta, la modificación queda `ENTREGADA` y el vale
-  vuelve a `PENDIENTE_CONFIRMACION` (con 2+ talleres vuelve a pasar por la fusión).
-- Sin plazo automático. La conversación se muestra al asesor dueño y al equipo del taller; el supervisor no la lee.
-  El buzón del encargado muestra primero estas solicitudes aunque su fila ya esté aprobada.
+- **Fecha de entrega (se fija al pedir):** el día base es el que recibiría un vale pedido ahora (hoy antes de la hora máxima del taller, o el siguiente día que reciba vales) y la entrega es el **siguiente día que reciba vales**; con varios talleres rige el más tardío y nunca adelanta la fecha que ya tenía. Si se pide después de la hora máxima del taller, cuenta desde el día siguiente. Al aceptar se usa esa fecha, sin recalcular: si ya pasó, el vale empieza con atraso.
+- **El taller acepta:** la fila de su taller vuelve a **«Por asignar» (paso 2)**, sin diseñador, y el vale pasa a `CREADO` (si estaba `RECIBIDO` también se borra su fecha de confirmación). El encargado lo asigna de nuevo (puede elegir otro diseñador) y sigue el flujo normal: en proceso, revisión y paso 5. No se crea vale MOD. El atraso se reinicia en ese momento.
+- **El taller rechaza / el asesor cancela:** nada cambia; el vale conserva su estado y se puede pedir otra básica sin límite de intentos. Si rechaza el taller, el asesor lo ve con la etiqueta «Básica rechazada» y un botón de chat rojo en la fila, y con una franja en el visor del paso 5, hasta que abre la conversación (lo leído se guarda en su navegador).
+- Cuando el diseñador entrega y el encargado aprueba la nueva propuesta, la modificación queda `ENTREGADA` y el vale vuelve a `PENDIENTE_CONFIRMACION` (con 2+ talleres vuelve a pasar por la fusión) para confirmarlo otra vez.
+- **El chat persiste:** el botón de chat queda en la fila del asesor dueño y del equipo del taller (cada taller ve solo las suyas) también después de aceptar, rechazar, entregar o confirmar, en solo lectura. Con varias solicitudes abre una lista con su estado. Mientras está en trámite la fila lleva la etiqueta **«Básica en chat»** (se conversa) o **«Básica en proceso»** (el taller aceptó y rehace la propuesta); las de básica llevan borde fino para no confundirlas con las etiquetas MOD rellenas, y el rechazo va en ámbar (el rojo queda para urgente y atraso).
+- Sin plazo automático. La conversación se muestra al asesor dueño y al equipo del taller; el supervisor no la lee. El buzón del encargado muestra primero estas solicitudes aunque su fila ya esté aprobada.
 
 #### Modificación media y avanzada (vale MOD)
 

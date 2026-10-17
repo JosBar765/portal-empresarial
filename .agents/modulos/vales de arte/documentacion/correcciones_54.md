@@ -54,3 +54,14 @@ Con la base local y el servidor en el puerto 3031:
 - **Rechazo:** el aviso al asesor (marca y chat) también aplica a vales `RECIBIDO`.
 - **Archivos:** `valeModificacionBasicaService.js`, `valeModificacionBasicaRepository.js`, `valeBuzonService.js`, `actions/modificacionTipo.js` y `views/buzon.js` (en «Trabajo realizado» el taller también ve el botón de chat).
 - **Verificación local:** vale recibido `GT-MTC-1026-14`: el asesor la pide, el encargado de Diseño la acepta y el vale vuelve a «En proceso» con la entrega al 19/10.
+
+## Ajuste posterior: reglas de la modificación básica (fecha, estado 2, chat persistente y un trámite por vale)
+
+- **Un trámite por vale:** con una básica en curso (en conversación o aceptada) no se manda otra a ningún taller del vale. La solicitud inicial sí puede elegir varios talleres. Mensaje: «Ya hay una modificación en curso. Espera su resultado.»
+- **Fecha del evento:** deja de restringir la básica; es solo de referencia.
+- **Fecha de entrega fijada al pedir:** siguiente día que recibe vales desde la solicitud, con la hora de corte del taller (pedida después de la hora máxima cuenta desde el día siguiente); con varios talleres rige el más tardío; nunca adelanta la fecha anterior. Al aceptar se usa la fecha fijada (`calendarioLaboral.fechaMinimaModificacionBasica`). Ejemplo local: pedida el sábado 17/10 → miércoles 21/10 (el 20/10 es feriado).
+- **Al aceptar, estado 2:** la fila vuelve a `PENDIENTE_ASIGNACION` sin diseñador y el vale a `CREADO`, con atraso y confirmación limpios; el encargado asigna de nuevo (puede ser otro diseñador). El diseñador anterior solo recibe un refresco.
+- **Chat persistente y etiquetas:** `modificaciones_basicas` (todas, con estado) en el payload del buzón. Botón de chat siempre en la fila para el asesor dueño y el equipo del taller; etiqueta «Básica en chat» / «Básica en proceso» durante el trámite y «Básica rechazada» (ámbar) hasta que el asesor la lee. El estilo con borde distingue la básica de las etiquetas MOD.
+- **Vale que ya es MOD:** admite básica; el original con `modificado = 1` sigue bloqueado («Pídela sobre el más reciente»).
+- **Archivos:** `valeModificacionBasicaService.js`, `valeModificacionBasicaRepository.js`, `valeBuzonService.js`, `core/calendario/calendarioLaboral.js` y `calendarioService.js`; cliente: `views/buzon.js`, `actions/modificacionBasica.js`, `css/styles.css`. Sin migración nueva.
+- **Verificación local:** vales 42 (recibido → aceptada → por asignar → asignado a otro diseñador), 44 (multi-taller), 14 (recibido) y `MOD-GT-MTS-0926-7`. Resultados de la fecha con hora de corte simulados contra el calendario real.
