@@ -33,9 +33,6 @@ class ValeModificacionBasicaService {
     if (!minima) throw new Error('No hay ningún día configurado para recibir vales de arte. Avisa al administrador.');
     const actual = String(vale.fecha_entrega).slice(0, 10);
     const iso = minima > actual ? minima : actual;
-    if (iso >= String(vale.fecha_evento).slice(0, 10)) {
-      throw new Error(`La nueva entrega (${fmtFecha(iso)}) llega al día del evento. Usa una Media o Avanzada.`);
-    }
     return `${iso} 23:59:59`;
   }
 
