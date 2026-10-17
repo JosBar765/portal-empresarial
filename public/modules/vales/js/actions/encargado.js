@@ -2,9 +2,9 @@ import { state } from '../state.js';
 import { ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { htmlAdjuntosPropuesta, wireAdjuntosPropuesta } from '../components/adjuntosPropuesta.js';
-import { abrirVisorVale, abrirVisorPropuesta } from '../components/visorDocumento.js';
+import { abrirVisorVale, abrirVisorDocumentos } from '../components/visorDocumento.js';
 import { htmlPropuestaExtras, hayExtras } from '../components/propuestaInfo.js';
-import { obtenerDisenadoresAsignables, asignarDisenador, obtenerDetalleVale, revisarPropuesta, aprobarGeneral } from '../api/valesApi.js';
+import { obtenerDisenadoresAsignables, asignarDisenador, obtenerDetalleVale, obtenerPropuestaVale, revisarPropuesta, aprobarGeneral } from '../api/valesApi.js';
 import { escapeHtml } from '../utils/formato.js';
 import { cargarBuzon } from '../views/buzon.js';
 
@@ -101,7 +101,7 @@ export async function abrirModalRevisar(vale) {
         ${!ultima
           ? 'El diseñador canceló el proceso — no hay propuesta que revisar.'
           : (puedeAprobar
-              ? '<button type="button" class="btn btn--ghost" id="btn-ver-propuesta">Ver propuesta</button>'
+              ? '<button type="button" class="btn btn--ghost" id="btn-ver-propuesta">Ver documentos</button>'
               : 'El diseñador no adjuntó documento de propuesta (no se puede aprobar en blanco).')}
       </p>
       ${ultima && hayExtras(ultima) ? `<div class="pinfo-revision">${htmlPropuestaExtras(ultima)}</div>` : ''}
@@ -119,7 +119,9 @@ export async function abrirModalRevisar(vale) {
   });
 
   const verPropuesta = overlay.querySelector('#btn-ver-propuesta');
-  if (verPropuesta) verPropuesta.addEventListener('click', () => abrirVisorPropuesta({ id: vale.id, correlativo: vale.correlativo, propuesta: { tipo: 'taller', disenadorId: vale.disenador_id } }));
+  if (verPropuesta) verPropuesta.addEventListener('click', () => abrirVisorVale({
+    id: vale.id, correlativo: vale.correlativo, propuesta: { tipo: 'taller', disenadorId: vale.disenador_id }, activo: 'propuesta'
+  }));
   overlay.querySelector('#btn-aprobar').addEventListener('click', () => enviarRevision(true));
   overlay.querySelector('#btn-desaprobar').addEventListener('click', () => enviarRevision(false));
 
@@ -166,8 +168,12 @@ export async function abrirModalAprobarGeneral(vale) {
     const ultima = propias[propias.length - 1];
     return ultima && ultima.url ? { id: det.id, disenadorId } : null;
   };
-  const filaPropuesta = (nombre, propuesta, corregido) =>
-    `<li><strong>${nombre}${corregido ? '*' : ''}:</strong> ${propuesta ? `<button type="button" class="rep-link" data-ver-propuesta-id="${propuesta.id}" data-ver-propuesta-dis="${propuesta.disenadorId}">Ver propuesta</button>` : 'Sin propuesta'}</li>`;
+  // Cada taller con propuesta es una pestaña del visor; la lista solo indica si la tiene.
+  const itemsPropuesta = [];
+  const filaPropuesta = (nombre, propuesta, corregido) => {
+    if (propuesta) itemsPropuesta.push({ nombre: `${nombre}${corregido ? '*' : ''}`, propuesta });
+    return `<li><strong>${nombre}${corregido ? '*' : ''}:</strong> ${propuesta ? 'Con propuesta' : 'Sin propuesta'}</li>`;
+  };
 
   let filasPropuesta;
   if (detalleOriginal) {
@@ -185,7 +191,7 @@ export async function abrirModalAprobarGeneral(vale) {
     title: `Aprobar y fusionar — ${vale.correlativo}`,
     bodyHtml: `
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-        <button type="button" class="btn btn--ghost" id="btn-ver-vale">Ver vale de arte</button>
+        <button type="button" class="btn btn--ghost" id="btn-ver-vale">Ver documentos</button>
       </div>
       <p style="font-size:13px;margin-bottom:10px;">Revisa la propuesta de cada taller y adjunta el documento final ya fusionado por ti.</p>
       <ul class="historial-list" style="margin-bottom:14px;">${filasPropuesta || '<li>Este vale no tiene talleres asociados.</li>'}</ul>
@@ -201,11 +207,16 @@ export async function abrirModalAprobarGeneral(vale) {
     archivoObligatorio: true,
     onCambio: ({ valido }) => { btnConfirmar.disabled = !valido; }
   });
-  overlay.querySelector('#btn-ver-vale').addEventListener('click', () => abrirVisorVale({ id: vale.id, correlativo: vale.correlativo }));
-  overlay.querySelectorAll('[data-ver-propuesta-id]').forEach(b => b.addEventListener('click', () => abrirVisorPropuesta({
-    id: Number(b.dataset.verPropuestaId), correlativo: vale.correlativo,
-    propuesta: { tipo: 'taller', disenadorId: Number(b.dataset.verPropuestaDis) }
-  })));
+  overlay.querySelector('#btn-ver-vale').addEventListener('click', () => abrirVisorDocumentos({
+    titulo: vale.correlativo,
+    documentos: [
+      { etiqueta: 'Vale de arte', url: `/api/vales/${vale.id}/pdf` },
+      ...itemsPropuesta.map(({ nombre, propuesta }) => ({
+        etiqueta: `Propuesta ${nombre}`,
+        cargar: () => obtenerPropuestaVale(propuesta.id, { tipo: 'taller', disenadorId: propuesta.disenadorId })
+      }))
+    ]
+  }));
   // Una sola key por apertura del modal — si el envío falla y el usuario
   // reintenta con "Aprobar y Fusionar" de nuevo, se reenvía con la misma key
   // para que el backend detecte el reintento y no duplique la fusión.

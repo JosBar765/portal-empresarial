@@ -66,6 +66,16 @@ export function claveFila(v) {
   return v._rowKey || String(v.id);
 }
 
+// Código de un vale MOD: MOD-X, MOD2-X, MOD3-X… con X el correlativo del vale raíz (nunca cambia).
+export const PREFIJO_MOD = /^MOD\d*-/;
+export const esCorrelativoMod = (correlativo) => PREFIJO_MOD.test(String(correlativo || ''));
+export const correlativoBase = (correlativo) => String(correlativo || '').replace(PREFIJO_MOD, '');
+// Código que tendrá el vale MOD que nacería al modificar este vale.
+export function siguienteCodigoMod(vale) {
+  const numero = (Number(vale.modificacion_numero) || 0) + 1;
+  return `MOD${numero > 1 ? numero : ''}-${correlativoBase(vale.correlativo)}`;
+}
+
 export function marcadorTipoRegistro(v) {
   if (v._tipoRegistro === 'FUSION') {
     return ' <span class="tag-tipo-registro" title="Fusión final de las propuestas de los talleres">(F)</span>';

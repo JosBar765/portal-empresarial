@@ -1,10 +1,10 @@
 import { state } from '../state.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { etiquetaEstado } from '../permisos.js';
-import { formatearFecha, escapeHtml } from '../utils/formato.js';
-import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, aprobarModificacion, rechazarModificacion, marcarValeVisto } from '../api/valesApi.js';
+import { formatearFecha, escapeHtml, correlativoBase } from '../utils/formato.js';
+import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, obtenerPropuestaVale, aprobarModificacion, rechazarModificacion, marcarValeVisto } from '../api/valesApi.js';
 import { cargarBuzon } from '../views/buzon.js';
-import { abrirVisorVale } from '../components/visorDocumento.js';
+import { abrirVisorVale, abrirVisorDocumentos } from '../components/visorDocumento.js';
 
 // -----------------------------------------------------------------------
 // Supervisor: autorizar el envío a talleres de un vale recién creado — el
@@ -17,12 +17,12 @@ const MAX_PALABRAS_MOTIVO = 50;
 function htmlAvisoVisto(vale) {
   return vale.visto
     ? '<p class="nota-visto"><ion-icon name="checkmark-circle-outline"></ion-icon> Ya revisaste este vale.</p>'
-    : '<div class="form-aviso"><ion-icon name="alert-circle-outline"></ion-icon><span>Es de suma importancia que hayas visto este vale antes de autorizarlo. Cierra esta ventana, abre el botón "Ver" del vale y vuelve a intentarlo.</span></div>';
+    : '<div class="form-aviso"><ion-icon name="alert-circle-outline"></ion-icon><span>Antes de autorizar, abre el vale con «Ver».</span></div>';
 }
 
 function registrarVisto(vale) {
   vale.visto = true;
-  marcarValeVisto(vale.id).catch(() => { /* el servidor lo exigirá al autorizar */ });
+  return marcarValeVisto(vale.id).catch(() => { /* el servidor lo exigirá al autorizar */ });
 }
 
 // Modal de autorización abierto en este momento (para avisarle si el asesor corrige el vale).
@@ -32,10 +32,15 @@ export function avisarCambioEnModalAutorizar(valeId) {
   const abierto = modalAutorizarAbierto;
   if (!abierto || abierto.valeId !== Number(valeId) || !abierto.overlay.isConnected) return;
   const cuerpo = abierto.overlay.querySelector('.modal-body');
+  if (!cuerpo) {
+    const subtitulo = abierto.overlay.querySelector('.visor-titulos p');
+    if (subtitulo) { subtitulo.textContent = 'El asesor cambió este vale. Cierra y vuelve a abrir.'; subtitulo.style.color = 'var(--color-danger)'; }
+    return;
+  }
   if (cuerpo.querySelector('.form-aviso')) return;
   const aviso = document.createElement('div');
   aviso.className = 'form-aviso';
-  aviso.innerHTML = '<ion-icon name="alert-circle-outline"></ion-icon><span>El asesor modificó este vale. Cierra esta ventana y ábrela de nuevo para ver los datos actualizados.</span>';
+  aviso.innerHTML = '<ion-icon name="alert-circle-outline"></ion-icon><span>El asesor cambió este vale. Cierra y vuelve a abrir.</span>';
   cuerpo.prepend(aviso);
 }
 
@@ -49,7 +54,7 @@ export function abrirModalAutorizarCreacion(vale) {
     bodyHtml: `
       ${htmlAvisoVisto(vale)}
       <p style="font-size:13px;margin-bottom:10px;">Taller${talleresIds.length > 1 ? 'es' : ''} solicitado${talleresIds.length > 1 ? 's' : ''}: <strong>${nombresTalleres || 'Ninguno'}</strong></p>
-      <p style="font-size:13px;">¿Confirmas autorizar este vale de arte? Se enviará de inmediato a ese/esos taller(es) y quedará firmado con tu nombre en el documento.</p>
+      <p style="font-size:13px;">¿Autorizar? Se envía ahora al taller y queda firmado con tu nombre.</p>
     `,
     footerHtml: `
       <button class="btn btn--danger" id="btn-rechazar" style="margin-right:auto;">Rechazar</button>
@@ -65,7 +70,7 @@ export function abrirModalAutorizarCreacion(vale) {
     btn.disabled = true;
     try {
       await autorizarCreacion(vale.id);
-      window.toast.success('Creación autorizada', `${vale.correlativo} se creó correctamente, enviado ${talleresIds.length > 1 ? 'a los talleres' : 'al taller'} seleccionado${talleresIds.length > 1 ? 's' : ''}.`);
+      window.toast.success('Creación autorizada', `${vale.correlativo} ya está ${talleresIds.length > 1 ? 'en los talleres' : 'en el taller'}.`);
       cerrar();
       cargarBuzon();
     } catch (error) {
@@ -86,8 +91,8 @@ function abrirModalRechazarCreacion(vale, cerrarAutorizacion, { modificacion = f
     title: `${modificacion ? 'Rechazar modificación' : 'Rechazar vale'} — ${vale.correlativo}`,
     bodyHtml: `
       <p style="font-size:13px;margin-bottom:10px;">${modificacion
-        ? 'Al rechazar, la modificación se eliminará y el asesor recibirá tu justificación; si la necesita, tendrá que solicitar una nueva. El vale original ya quedó como Recibido.'
-        : 'El vale volverá al asesor con tu justificación para que lo corrija y lo reenvíe.'}</p>
+        ? 'Se elimina la modificación y el asesor verá tu justificación. El vale anterior sigue Recibido.'
+        : 'El asesor lo corrige y lo reenvía con tu justificación.'}</p>
       <div class="form-field full">
         <label>Justificación *</label>
         <textarea id="motivo-rechazo" rows="4" maxlength="400"></textarea>
@@ -113,7 +118,7 @@ function abrirModalRechazarCreacion(vale, cerrarAutorizacion, { modificacion = f
     btn.disabled = true;
     try {
       await (modificacion ? rechazarModificacion : rechazarCreacion)(vale.id, textarea.value.trim());
-      window.toast.success(modificacion ? 'Modificación rechazada' : 'Vale rechazado', modificacion ? `${vale.correlativo} se eliminó y el asesor recibió tu justificación.` : `${vale.correlativo} volvió al asesor con tu justificación.`);
+      window.toast.success(modificacion ? 'Modificación rechazada' : 'Vale rechazado', modificacion ? `${vale.correlativo} eliminada. El asesor verá tu justificación.` : `${vale.correlativo} volvió al asesor con tu justificación.`);
       cerrar();
       cerrarAutorizacion();
       cargarBuzon();
@@ -126,62 +131,54 @@ function abrirModalRechazarCreacion(vale, cerrarAutorizacion, { modificacion = f
 }
 
 // -----------------------------------------------------------------------
-// Supervisor: autorizar una modificación. `vale` es el vale MOD- (una fila propia del Buzón); su descripción es la
-// justificación y su original es `vale_original_id`.
+// Supervisor: autorizar una modificación media o avanzada. `vale` es el vale MOD (una fila propia del Buzón); su descripción es
+// la justificación y el vale que modifica es `vale_original_id` (el original, o el MOD anterior en MOD2, MOD3…).
 // -----------------------------------------------------------------------
 export async function abrirModalAprobarModificacion(vale) {
-  let propuestaUrl = null;
-  try {
-    propuestaUrl = (await obtenerDetalleVale(vale.vale_original_id)).propuesta_general_url || null;
-  } catch { /* sin propuesta del original */ }
-  const correlativoOriginal = String(vale.correlativo || '').replace(/^MOD-/, '');
+  let original = null;
+  try { original = await obtenerDetalleVale(vale.vale_original_id); } catch { /* sin datos del vale que modifica */ }
+  const correlativoOriginal = (original && original.correlativo) || correlativoBase(vale.correlativo);
+  const hayPropuesta = !!(original && (original.propuesta_general_url || (original.propuestas || []).some(p => p.url)));
+  const tipo = { MEDIA: ' media', AVANZADA: ' avanzada' }[vale.modificacion_tipo] || '';
 
-  const { overlay, cerrar } = abrirModal({
-    title: `Autorizar modificación — ${vale.correlativo}`,
-    bodyHtml: `
-      <div class="aviso-visto">${htmlAvisoVisto(vale)}</div>
-      <div class="form-field full" style="margin-bottom:14px;">
-        <label>Justificación de la modificación</label>
-        <p style="font-size:13px;white-space:pre-wrap;">${vale.descripcion ? escapeHtml(vale.descripcion) : 'Sin justificación registrada.'}</p>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-        <a href="/api/vales/${vale.id}/pdf" target="_blank" data-visto class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale modificado (PDF)</a>
-        <a href="/api/vales/${vale.vale_original_id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale original (PDF)</a>
-        ${propuestaUrl ? `<a href="${propuestaUrl}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
-      </div>
-      <p style="font-size:13px;">¿Confirmas autorizar la modificación de ${escapeHtml(correlativoOriginal)}? El vale ${escapeHtml(vale.correlativo)} quedará autorizado y se enviará de inmediato a los mismos talleres del vale original.</p>
-    `,
-    footerHtml: `
-      <button class="btn btn--danger" id="btn-rechazar" style="margin-right:auto;">Rechazar</button>
-      <button class="btn btn--ghost" id="btn-cerrar">Cancelar</button>
-      <button class="btn btn--primary" id="btn-confirmar">Autorizar</button>
-    `
-  });
-  modalAutorizarAbierto = { valeId: vale.id, overlay };
-  overlay.querySelector('#btn-confirmar').disabled = !vale.visto;
-  // Abrir el PDF de la modificación desde aquí también cuenta como haberla visto.
-  overlay.querySelector('a[data-visto]').addEventListener('click', () => {
-    registrarVisto(vale);
-    overlay.querySelector('.aviso-visto').innerHTML = htmlAvisoVisto(vale);
-    overlay.querySelector('#btn-confirmar').disabled = false;
-  });
-  overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
-  overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
-    const btn = overlay.querySelector('#btn-confirmar');
-    btn.disabled = true;
+  const documentos = [
+    {
+      etiqueta: 'Datos',
+      html: htmlDatosVale(vale, { destacado: vale.descripcion || '' })
+    },
+    { etiqueta: 'Vale nuevo', url: `/api/vales/${vale.id}/pdf` },
+    { etiqueta: correlativoOriginal, url: `/api/vales/${vale.vale_original_id}/pdf` }
+  ];
+  if (hayPropuesta) documentos.push({ etiqueta: 'Propuesta', cargar: () => obtenerPropuestaVale(vale.vale_original_id, { tipo: 'general' }) });
+
+  // Abrir el visor cuenta como haber visto el vale nuevo (pestaña inicial); el servidor lo exige al autorizar.
+  const visto = vale.visto ? Promise.resolve() : registrarVisto(vale);
+  const autorizar = async ({ cerrar, boton }) => {
+    boton.disabled = true;
     try {
+      await visto;
       const data = await aprobarModificacion(vale.id);
-      window.toast.success('Modificación autorizada', `El vale ${data.correlativo} quedó autorizado y fue enviado a los talleres.`);
+      window.toast.success('Modificación autorizada', `${data.correlativo} ya está en los talleres.`);
       cerrar();
       cargarBuzon();
     } catch (error) {
-      mostrarErrorModal(overlay, error.message);
-      btn.disabled = false;
+      window.toast.error('No se pudo autorizar', error.message);
+      boton.disabled = false;
       // Otro supervisor pudo haberla decidido un instante antes: se refresca el buzón.
       cargarBuzon();
     }
+  };
+  const visor = abrirVisorDocumentos({
+    titulo: `Autorizar modificación${tipo} — ${vale.correlativo}`,
+    subtitulo: 'Se envía a los mismos talleres al autorizar.',
+    documentos,
+    activo: 1,
+    acciones: [
+      { etiqueta: 'Rechazar', icono: 'close-outline', clase: 'btn--danger', onClick: ({ cerrar }) => abrirModalRechazarCreacion(vale, cerrar, { modificacion: true }) },
+      { etiqueta: 'Autorizar', icono: 'checkmark-outline', clase: 'btn--primary', onClick: autorizar }
+    ]
   });
-  overlay.querySelector('#btn-rechazar').addEventListener('click', () => abrirModalRechazarCreacion(vale, cerrar, { modificacion: true }));
+  if (visor) modalAutorizarAbierto = { valeId: vale.id, overlay: visor.overlay };
 }
 
 // -----------------------------------------------------------------------
@@ -210,33 +207,48 @@ export function abrirModalVerSupervisor(fila) {
   });
 }
 
+// Datos del vale (fila del Buzón) en secciones de solo lectura. `destacado`: texto opcional que se muestra arriba (p. ej. la justificación).
+function htmlDatosVale(v, { destacado = null } = {}) {
+  const dato = (etiqueta, valor, { ancho = false } = {}) => `
+    <div class="dato${ancho ? ' dato--ancho' : ''}"><dt>${etiqueta}</dt><dd${valor ? '' : ' class="dato-vacio"'}>${valor ? escapeHtml(String(valor)) : 'Sin dato'}</dd></div>`;
+  const seccion = (icono, titulo, contenido) => `
+    <section class="datos-seccion">
+      <h4><ion-icon name="${icono}" aria-hidden="true"></ion-icon>${titulo}</h4>
+      <dl class="datos-grid">${contenido}</dl>
+    </section>`;
+  return `
+    <div class="datos">
+      ${destacado === null ? '' : `
+      <div class="datos-destacado">
+        <ion-icon name="chatbubble-ellipses-outline" aria-hidden="true"></ion-icon>
+        <div><strong>Justificación</strong><p>${destacado ? escapeHtml(destacado) : 'Sin justificación registrada.'}</p></div>
+      </div>`}
+      ${seccion('calendar-outline', 'Entrega', `
+        ${dato('Estado', etiquetaEstado(v))}
+        ${dato('Taller(es)', v.taller)}
+        ${dato('Fecha de entrega', formatearFecha(v.fecha_entrega))}
+        ${dato('Fecha del evento', formatearFecha(v.fecha_evento))}
+        ${dato('Urgente', v.urgente ? 'Sí' : 'No')}`)}
+      ${seccion('person-outline', 'Cliente', `
+        ${dato('Cliente', v.cliente_nombre)}
+        ${dato('Empresa', v.cliente_empresa)}
+        ${dato('Teléfono', v.cliente_telefono)}
+        ${dato('Correo', v.cliente_correo)}`)}
+      ${seccion('cube-outline', 'Pedido', `
+        ${dato('Código de producto', v.producto)}
+        ${dato('Material', v.material)}
+        ${dato('Técnica', v.tecnica)}
+        ${dato('Acabado', v.acabado)}
+        ${dato('Cantidad', v.cantidad)}
+        ${dato('Cotización', v.cotizacion != null ? `Q${Number(v.cotizacion).toFixed(2)}` : '')}`)}
+    </div>`;
+}
+
 export function abrirModalInfoVale(v) {
-  const campo = (etiqueta, valor) => `
-    <div class="form-field"><label>${etiqueta}</label><p style="font-size:13px;margin:0;">${valor ? escapeHtml(String(valor)) : '-'}</p></div>
-  `;
   const { overlay, cerrar } = abrirModal({
     title: `Información — ${v.correlativo}`,
     size: 'lg',
-    bodyHtml: `
-      <div class="form-grid">
-        ${campo('Correlativo', v.correlativo)}
-        ${campo('Estado', etiquetaEstado(v))}
-        ${campo('Cliente', v.cliente_nombre)}
-        ${campo('Empresa', v.cliente_empresa)}
-        ${campo('Teléfono', v.cliente_telefono)}
-        ${campo('Correo', v.cliente_correo)}
-        ${campo('Fecha entrega', formatearFecha(v.fecha_entrega))}
-        ${campo('Fecha evento', formatearFecha(v.fecha_evento))}
-        ${campo('Taller(es)', v.taller)}
-        ${campo('Código de producto', v.producto)}
-        ${campo('Material', v.material)}
-        ${campo('Técnica', v.tecnica)}
-        ${campo('Acabado', v.acabado)}
-        ${campo('Cantidad', v.cantidad)}
-        ${campo('Cotización', v.cotizacion != null ? `Q${Number(v.cotizacion).toFixed(2)}` : '-')}
-        ${campo('Urgente', v.urgente ? 'Sí' : 'No')}
-      </div>
-    `,
+    bodyHtml: htmlDatosVale(v),
     footerHtml: `<button class="btn btn--primary" id="btn-cerrar-info">Cerrar</button>`
   });
   overlay.querySelector('#btn-cerrar-info').addEventListener('click', cerrar);
