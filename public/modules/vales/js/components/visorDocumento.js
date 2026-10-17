@@ -13,9 +13,12 @@ const FOCALIZABLES = 'a[href], button:not([disabled]), [tabindex]:not([tabindex=
 
 let visorAbierto = null;
 
-// `documentos`: [{ etiqueta, url }] o, para la propuesta, [{ etiqueta, cargar }] donde `cargar()` devuelve { url, nota, enlaces }
-// (el archivo se incrusta y la nota y los enlaces van en un panel); `activo`: índice del documento que se muestra primero.
-export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0 }) {
+// `documentos`: [{ etiqueta, url }], [{ etiqueta, html }] para una pestaña de datos, o, para la propuesta, [{ etiqueta, cargar }]
+// donde `cargar()` devuelve { url, nota, enlaces } (el archivo se incrusta y la nota y los enlaces van en un panel);
+// `activo`: índice del documento que se muestra primero.
+// `acciones`: [{ etiqueta, icono, clase, onClick({ cerrar, boton }) }], botones que se muestran abajo a la derecha.
+// `aviso`: { texto, icono, boton: { etiqueta, onClick({ quitar }) } }, una franja corta sobre el documento.
+export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, acciones = [], aviso = null }) {
   if (!documentos || !documentos.length) return null;
   if (visorAbierto) visorAbierto.cerrar();
   const origen = document.activeElement;
@@ -40,6 +43,11 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0 }) {
       <div class="visor-pestanas" role="tablist" aria-label="Documentos">
         ${documentos.map((d, i) => `<button type="button" class="visor-pestana" role="tab" data-visor-pestana-i="${i}" aria-selected="false">${escapeHtml(d.etiqueta)}</button>`).join('')}
       </div>` : ''}
+      ${aviso ? `<div class="visor-aviso" role="status">
+        <ion-icon name="${aviso.icono || 'alert-circle-outline'}" aria-hidden="true"></ion-icon>
+        <p>${escapeHtml(aviso.texto)}</p>
+        ${aviso.boton ? `<button type="button" class="btn btn--ghost btn--sm" data-visor-aviso-boton>${escapeHtml(aviso.boton.etiqueta)}</button>` : ''}
+      </div>` : ''}
       <div class="visor-cuerpo" role="tabpanel">
         <div class="visor-cargando" data-visor-cargando><ion-icon name="sync-outline" class="spin-animation" aria-hidden="true"></ion-icon><span>Cargando documento…</span></div>
         <div class="visor-error" data-visor-error hidden>
@@ -49,7 +57,10 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0 }) {
         </div>
         <div class="visor-contenido" data-visor-contenido></div>
       </div>
-      <p class="visor-pie">¿No se ve el documento? Usa «Abrir en pestaña».</p>
+      <div class="visor-pie">
+        <p class="visor-pie-ayuda" data-visor-ayuda>¿No se ve? Ábrelo en una pestaña.</p>
+        ${acciones.length ? `<div class="visor-pie-acciones">${acciones.map((a, i) => `<button type="button" class="btn ${a.clase || 'btn--ghost'}" data-visor-accion="${i}">${a.icono ? `<ion-icon name="${a.icono}" aria-hidden="true"></ion-icon>` : ''}<span>${escapeHtml(a.etiqueta)}</span></button>`).join('')}</div>` : ''}
+      </div>
     </div>`;
   const root = $('#modals-root') || document.body;
   root.appendChild(overlay);
@@ -79,7 +90,8 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0 }) {
     [pestana, descarga].forEach(a => { a.hidden = !url; if (url) a.href = url; });
     if (url) errorEnlace.href = url;
     errorEnlace.hidden = !url;
-    overlay.querySelector('.visor-pie').hidden = !url; // sin archivo incrustado no hay nada que "abrir en pestaña"
+    overlay.querySelector('[data-visor-ayuda]').hidden = !url; // sin archivo incrustado no hay nada que "abrir en pestaña"
+    overlay.querySelector('.visor-pie').hidden = !url && !acciones.length;
   }
 
   function mostrar(indice) {
@@ -94,6 +106,13 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0 }) {
     error.hidden = true;
     cargando.hidden = false;
     contenido.innerHTML = '';
+    if (doc.html !== undefined) {
+      // Pestaña sin archivo (p. ej. «Datos»): solo contenido, sin enlaces de abrir ni descargar.
+      fijarEnlaces(null);
+      cargando.hidden = true;
+      contenido.innerHTML = `<div class="visor-datos">${doc.html}</div>`;
+      return;
+    }
     if (!doc.cargar) {
       fijarEnlaces(doc.url);
       contenido.appendChild(crearElemento(doc.url, doc.etiqueta));
@@ -148,8 +167,11 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0 }) {
     }
   }
 
+  const botonAviso = overlay.querySelector('[data-visor-aviso-boton]');
+  if (botonAviso) botonAviso.addEventListener('click', () => aviso.boton.onClick({ quitar: () => { const franja = overlay.querySelector('.visor-aviso'); if (franja) franja.remove(); } }));
   overlay.querySelector('[data-visor-cerrar]').addEventListener('click', cerrar);
   overlay.querySelectorAll('[data-visor-pestana-i]').forEach(b => b.addEventListener('click', () => mostrar(Number(b.dataset.visorPestanaI))));
+  overlay.querySelectorAll('[data-visor-accion]').forEach(b => b.addEventListener('click', () => acciones[Number(b.dataset.visorAccion)].onClick({ cerrar, boton: b })));
   // Se cierra solo si el clic empezó y terminó sobre el fondo (arrastrar una selección hasta fuera no lo cierra).
   let mousedownEnFondo = false;
   overlay.addEventListener('mousedown', (e) => { mousedownEnFondo = (e.target === overlay); });
@@ -164,15 +186,21 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0 }) {
 
 // Atajo para un vale: su PDF y, si tiene, su propuesta (con nota y enlaces). `propuesta`: { tipo: 'taller' | 'general' | 'ultima',
 // disenadorId } o null; `activo`: 'vale' | 'propuesta'.
-export function abrirVisorVale({ id, correlativo, propuesta = null, activo = 'vale' }) {
+export function abrirVisorVale({ id, correlativo, propuesta = null, activo = 'vale', acciones = [], subtitulo = '', aviso = null }) {
   const documentos = [{ etiqueta: 'Vale de arte', url: `/api/vales/${id}/pdf` }];
   if (propuesta) documentos.push({ etiqueta: 'Propuesta', cargar: () => obtenerPropuestaVale(id, propuesta) });
   return abrirVisor({
     titulo: correlativo || 'Vale de arte',
+    subtitulo,
     documentos,
-    activo: activo === 'propuesta' && propuesta ? 1 : 0
+    activo: activo === 'propuesta' && propuesta ? 1 : 0,
+    acciones,
+    aviso
   });
 }
+
+// Pestañas a medida: cada documento es { etiqueta, url } | { etiqueta, html } | { etiqueta, cargar }.
+export const abrirVisorDocumentos = abrirVisor;
 
 // Solo la propuesta de un vale (sin pestaña del vale), por ejemplo desde la revisión del Encargado.
 export function abrirVisorPropuesta({ id, correlativo, propuesta }) {

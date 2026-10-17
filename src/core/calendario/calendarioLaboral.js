@@ -134,12 +134,29 @@ function minutosDelDia(ahora) {
   return (a - inicioDia(a)) / MS_MIN;
 }
 
+// Enésimo día que recibe vales contando desde hoy (hoy no cuenta); null si no hay tantos días configurados.
+function nesimoDiaHabil(cfg, ahora, n, paisId) {
+  let dia = inicioDia(aMs(ahora));
+  let contados = 0;
+  for (let i = 0; i < MAX_DIAS_BUSQUEDA && contados < n; i++) {
+    dia += MS_DIA;
+    if (recibeVales(cfg, isoDe(dia), paisId)) contados++;
+  }
+  return contados === n ? isoDe(dia) : null;
+}
+
 // `diasMinimos`: antelación mínima en días naturales (3 cuando el vale NO es urgente); no salta la hora máxima de recibimiento.
-function fechaMinimaParaTaller(cfg, tallerId, ahora, diasMinimos = 0) {
+// `diasHabiles`: antelación mínima en días que reciben vales (modificaciones: 2 media, 3 avanzada); null si no alcanza.
+function fechaMinimaParaTaller(cfg, tallerId, ahora, diasMinimos = 0, diasHabiles = 0) {
   const t = datosTaller(cfg, tallerId);
   let dia = inicioDia(aMs(ahora));
   if (minutosDelDia(ahora) >= t.horaMaxima) dia += MS_DIA;
   if (diasMinimos > 0) dia = Math.max(dia, inicioDia(aMs(ahora)) + diasMinimos * MS_DIA);
+  if (diasHabiles > 0) {
+    const habil = nesimoDiaHabil(cfg, ahora, diasHabiles, t.paisId);
+    if (!habil) return null;
+    dia = Math.max(dia, diaMs(habil));
+  }
   for (let n = 0; n < MAX_DIAS_BUSQUEDA; n++, dia += MS_DIA) {
     if (recibeVales(cfg, isoDe(dia), t.paisId)) return isoDe(dia);
   }
@@ -147,12 +164,32 @@ function fechaMinimaParaTaller(cfg, tallerId, ahora, diasMinimos = 0) {
 }
 
 // Con varios talleres rige el más restrictivo (la mínima más tardía). null si ningún día recibe vales.
-function fechaMinimaEntrega(cfg, talleresIds, ahora, diasMinimos = 0) {
+function fechaMinimaEntrega(cfg, talleresIds, ahora, diasMinimos = 0, diasHabiles = 0) {
   let minima = '';
   for (const id of talleresIds) {
-    const f = fechaMinimaParaTaller(cfg, id, ahora, diasMinimos);
+    const f = fechaMinimaParaTaller(cfg, id, ahora, diasMinimos, diasHabiles);
     if (!f) return null;
     if (f > minima) minima = f;
+  }
+  return minima || null;
+}
+
+// Modificación básica: el día base es el que recibiría un vale pedido ahora (hoy antes de la hora máxima del taller, o el siguiente
+// día que reciba vales) y la entrega es el día que reciba vales siguiente. Con varios talleres rige el más tardío.
+function fechaMinimaModificacionBasica(cfg, talleresIds, ahora) {
+  let minima = '';
+  for (const id of talleresIds) {
+    const base = fechaMinimaParaTaller(cfg, id, ahora);
+    if (!base) return null;
+    const t = datosTaller(cfg, id);
+    let dia = diaMs(base);
+    let entrega = null;
+    for (let n = 0; n < MAX_DIAS_BUSQUEDA && !entrega; n++) {
+      dia += MS_DIA;
+      if (recibeVales(cfg, isoDe(dia), t.paisId)) entrega = isoDe(dia);
+    }
+    if (!entrega) return null;
+    if (entrega > minima) minima = entrega;
   }
   return minima || null;
 }
@@ -163,7 +200,7 @@ function horaMaximaRestrictiva(cfg, talleresIds) {
 }
 
 // Primer motivo por el que `fecha` (YYYY-MM-DD) no se puede pedir para alguno de los talleres, o null.
-function razonNoDisponible(cfg, fecha, talleresIds, ahora, diasMinimos = 0) {
+function razonNoDisponible(cfg, fecha, talleresIds, ahora, diasMinimos = 0, diasHabiles = 0) {
   const hoy = isoDe(aMs(ahora));
   for (const id of talleresIds) {
     const t = datosTaller(cfg, id);
@@ -179,24 +216,28 @@ function razonNoDisponible(cfg, fecha, talleresIds, ahora, diasMinimos = 0) {
   if (diasMinimos > 0 && talleresIds.length && fecha < isoDe(inicioDia(aMs(ahora)) + diasMinimos * MS_DIA)) {
     return { motivo: 'REQUIERE_URGENTE', detalle: `Solo con «Urgente» (sin urgente, mínimo ${diasMinimos} días)` };
   }
+  if (diasHabiles > 0 && talleresIds.length) {
+    const minima = fechaMinimaEntrega(cfg, talleresIds, ahora, diasMinimos, diasHabiles);
+    if (minima && fecha < minima) return { motivo: 'ANTES_DE_MINIMA', detalle: `Mínimo ${textoDiasHabiles(diasHabiles)} desde hoy` };
+  }
   return null;
 }
 
-function fechasNoDisponibles(cfg, talleresIds, desde, hasta, ahora, diasMinimos = 0) {
+function fechasNoDisponibles(cfg, talleresIds, desde, hasta, ahora, diasMinimos = 0, diasHabiles = 0) {
   const lista = [];
   for (let dia = diaMs(desde); dia <= diaMs(hasta); dia += MS_DIA) {
     const fecha = isoDe(dia);
-    const r = razonNoDisponible(cfg, fecha, talleresIds, ahora, diasMinimos);
+    const r = razonNoDisponible(cfg, fecha, talleresIds, ahora, diasMinimos, diasHabiles);
     if (r) lista.push({ fecha, motivo: r.motivo, detalle: r.detalle });
   }
   return lista;
 }
 
 // Lanza un Error con mensaje para el usuario si la fecha de entrega no se puede pedir; si no, devuelve la mínima.
-function validarFechaEntrega(cfg, fecha, talleresIds, ahora, diasMinimos = 0) {
-  const minima = fechaMinimaEntrega(cfg, talleresIds, ahora, diasMinimos);
+function validarFechaEntrega(cfg, fecha, talleresIds, ahora, diasMinimos = 0, diasHabiles = 0) {
+  const minima = fechaMinimaEntrega(cfg, talleresIds, ahora, diasMinimos, diasHabiles);
   if (!minima) throw new ErrorDeNegocio('No hay ningún día configurado para recibir vales de arte. Avisa al administrador.');
-  const r = razonNoDisponible(cfg, fecha, talleresIds, ahora, diasMinimos);
+  const r = razonNoDisponible(cfg, fecha, talleresIds, ahora, diasMinimos, diasHabiles);
   if (!r) return minima;
   const legible = fmtFecha(fecha);
   if (r.motivo === 'FERIADO') throw new ErrorDeNegocio(`La fecha de entrega ${legible} es feriado (${r.detalle}). Elige otro día.`);
@@ -206,12 +247,17 @@ function validarFechaEntrega(cfg, fecha, talleresIds, ahora, diasMinimos = 0) {
   if (r.motivo === 'REQUIERE_URGENTE') {
     throw new ErrorDeNegocio(`Sin marcar «Urgente», la fecha de entrega mínima es ${fmtFecha(minima)}. Marca «Urgente» para pedir una fecha más cercana.`);
   }
+  if (r.motivo === 'ANTES_DE_MINIMA') {
+    throw new ErrorDeNegocio(`La entrega mínima es ${fmtFecha(minima)} (${textoDiasHabiles(diasHabiles)} desde hoy).`);
+  }
   if (r.hora) {
     const de = talleresIds.length > 1 ? ` de ${r.taller}` : '';
     throw new ErrorDeNegocio(`Ya pasó la hora máxima de recibimiento${de} (${r.hora}) para entregar hoy. La fecha de entrega mínima es ${fmtFecha(minima)}.`);
   }
   throw new ErrorDeNegocio(`La fecha de entrega ${legible} ya pasó. La fecha de entrega mínima es ${fmtFecha(minima)}.`);
 }
+
+const textoDiasHabiles = (n) => `${n} ${n === 1 ? 'día hábil' : 'días hábiles'}`;
 
 // '45 minutos', '1 hora', '2 h 30 min'.
 function formatearDuracion(minutos) {
@@ -226,5 +272,5 @@ function formatearDuracion(minutos) {
 module.exports = {
   ahoraUTC6, crearConfig, feriadoDe, esDiaLaboral, recibeVales,
   sumarHorasLaborales, minutosLaboralesRestantes, paisDeTalleres,
-  fechaMinimaEntrega, horaMaximaRestrictiva, fechasNoDisponibles, validarFechaEntrega, formatearDuracion
+  nesimoDiaHabil, fechaMinimaEntrega, fechaMinimaModificacionBasica, horaMaximaRestrictiva, fechasNoDisponibles, validarFechaEntrega, formatearDuracion
 };

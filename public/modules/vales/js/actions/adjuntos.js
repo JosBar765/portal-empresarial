@@ -6,6 +6,7 @@ import { state } from '../state.js';
 import { cargarBuzon } from '../views/buzon.js';
 
 const MAX_CARACTERES = 200;
+export const MAX_CARACTERES_CHAT = MAX_CARACTERES;
 const AVISO_CARACTERES = 170;
 const MENSAJE_POR_DEFECTO = 'Solventado';
 // Aviso en negrita en los paneles donde se escriben mensajes del rechazo.
@@ -17,7 +18,7 @@ const MOTIVOS_RAPIDOS = [
 ];
 
 // Contador «n/200» de un textarea con estados (normal, cerca del límite, excedido); habilita o no el botón.
-function wireContador(textarea, contador, boton, { obligatorio = true } = {}) {
+export function wireContador(textarea, contador, boton, { obligatorio = true } = {}) {
   const actualizar = () => {
     const n = Array.from(textarea.value).length;
     contador.textContent = `${n}/${MAX_CARACTERES}`;
@@ -127,7 +128,8 @@ function etiquetaDia(creadoEn) {
 
 const horaDe = (creadoEn) => String(creadoEn).replace('T', ' ').slice(11, 16);
 
-function htmlHilo(conversacion) {
+// `destacarMotivo`: en el chat de un rechazo el primer mensaje del taller es el motivo y se resalta; en otros chats no.
+export function htmlHilo(conversacion, { destacarMotivo = true } = {}) {
   if (!conversacion.mensajes.length) {
     return '<div class="chat-vacio"><ion-icon name="chatbubbles-outline" aria-hidden="true"></ion-icon><p>Aún no hay mensajes.</p></div>';
   }
@@ -139,7 +141,7 @@ function htmlHilo(conversacion) {
     diaActual = dia;
     const propio = m.autor_id === state.user.id;
     // El primer mensaje del taller es el motivo del rechazo: se destaca.
-    const esMotivo = !hayMotivo && m.lado === 'TALLER';
+    const esMotivo = destacarMotivo && !hayMotivo && m.lado === 'TALLER';
     if (esMotivo) hayMotivo = true;
     return `${separador}
       <div class="chat-fila ${propio ? 'chat-fila--propia' : ''}">

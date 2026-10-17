@@ -2187,6 +2187,60 @@
 .chip-estado--tiempo { background: #fef3c7; color: #92400e; }
 .chip-estado--taller { background: var(--color-surface-muted); color: var(--color-text); }
 .chip-estado--cerrado { background: var(--color-surface-muted); color: var(--color-text-muted); }
+/* Un botón con el atributo hidden (p. ej. las decisiones del chat de la modificación básica) no se muestra */
+.btn[hidden] { display: none; }
+
+/* Selector del tipo de modificación */
+.mod-intro { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
+.mod-tipos { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.mod-tipo { display: block; cursor: pointer; }
+.mod-tipo-cuerpo { display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 14px; background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: var(--radius-md); transition: border-color var(--transition-fast), background var(--transition-fast); }
+.mod-tipo:hover .mod-tipo-cuerpo { border-color: var(--color-border-focus); }
+.mod-tipo input:focus-visible + .mod-tipo-cuerpo { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.mod-tipo input:checked + .mod-tipo-cuerpo { border-color: var(--color-primary); background: var(--color-primary-light); }
+.mod-tipo-cab { display: flex; align-items: center; gap: 6px; font-size: 15px; }
+.mod-tipo-cab ion-icon { font-size: 20px; color: var(--color-primary); }
+.mod-tipo-dias { padding: 1px 8px; font-size: 11px; font-weight: 600; color: var(--color-text-secondary); background: var(--color-surface-muted); border-radius: var(--radius-full); }
+.mod-tipo input:checked + .mod-tipo-cuerpo .mod-tipo-dias { background: var(--color-surface); }
+.mod-tipo-marca { flex: none; width: 18px; height: 18px; margin-left: auto; background: var(--color-surface); border: 2px solid var(--color-border); border-radius: 50%; }
+.mod-tipo input:checked + .mod-tipo-cuerpo .mod-tipo-marca { background: var(--color-primary); border-color: var(--color-primary); box-shadow: inset 0 0 0 3px var(--color-surface); }
+.mod-tipo-resumen { font-size: 13px; font-weight: 500; }
+.mod-tipo-ejemplo { font-size: 12px; color: var(--color-text-muted); }
+.mod-tipo-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 6px; }
+.mod-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; font-size: 11.5px; color: var(--color-text-secondary); background: var(--color-surface-muted); border-radius: var(--radius-full); }
+.mod-chip ion-icon { font-size: 13px; }
+.mod-tipo input:checked + .mod-tipo-cuerpo .mod-chip { background: var(--color-surface); }
+.mod-aviso { display: flex; align-items: center; gap: 6px; margin: 12px 0 0; font-size: 12.5px; color: var(--color-text-secondary); }
+.mod-aviso ion-icon { flex: none; font-size: 16px; color: var(--color-primary); }
+.mod-info { margin-top: 12px; }
+.mod-info summary { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--color-primary); cursor: pointer; list-style: none; }
+.mod-info summary::-webkit-details-marker { display: none; }
+.mod-info summary ion-icon { font-size: 18px; }
+.mod-info-lista { margin: 8px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--color-text-secondary); }
+.mod-info-lista li { margin-bottom: 4px; }
+/* Modificación básica: solicitud, chat y lista de conversaciones */
+.campo-grupo { margin: 12px 0; padding: 0; border: 0; }
+.campo-grupo legend { margin-bottom: 6px; padding: 0; font-size: 13px; font-weight: 600; }
+.opcion-taller { display: flex; align-items: center; gap: 8px; padding: 9px 12px; margin-bottom: 6px; font-size: 13px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; }
+.opcion-taller:hover { border-color: var(--color-border-focus); }
+.opcion-taller:has(input:checked) { border-color: var(--color-primary); background: var(--color-primary-light); }
+.mb-taller-unico { display: inline-flex; align-items: center; gap: 6px; margin: 12px 0 4px; padding: 4px 10px; font-size: 13px; font-weight: 600; background: var(--color-surface-muted); border-radius: var(--radius-full); }
+.mb-taller-unico ion-icon { font-size: 15px; color: var(--color-primary); }
+/* Modificación básica (sin vale MOD): con borde, para no confundirla con las etiquetas MOD rellenas. El rechazo va en ámbar: el rojo es de urgente y atraso. */
+.badge-basica { padding: 3px 9px; background: var(--color-surface); color: var(--color-primary-dark); border: 1px solid var(--color-border-focus); margin-left: 6px; cursor: help; }
+.badge-rechazada { background: #fef3c7; color: #92400e; margin-left: 6px; cursor: help; }
+.mb-etiqueta { display: block; margin: 12px 0 6px; font-size: 13px; font-weight: 600; }
+.mb-estado { margin: 8px 0 4px; font-size: 13px; font-weight: 500; }
+.mb-fechas { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 12.5px; color: var(--color-text-secondary); }
+.mb-fechas[hidden] { display: none; }
+.mb-fechas ion-icon { flex: none; font-size: 15px; }
+.btn--texto-peligro { color: var(--color-danger); }
+.btn--texto-peligro:hover:not(:disabled) { background: var(--color-danger-bg); }
+.lista-conversaciones { display: flex; flex-direction: column; gap: 8px; }
+.fila-conversacion { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; font: inherit; font-size: 13px; text-align: left; color: var(--color-text); background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; }
+.fila-conversacion:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+.fila-conversacion-taller { display: inline-flex; align-items: center; flex: 1; gap: 6px; font-weight: 600; }
+.fila-conversacion ion-icon { font-size: 16px; color: var(--color-text-muted); }
 
 /* Modal del asesor: una tarjeta por taller */
 .rechazo-lista { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }

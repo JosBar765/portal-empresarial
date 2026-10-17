@@ -46,6 +46,14 @@ const escribirConversacion = (req, res, next) => {
     : res.status(403).json({ error: 'No tienes permiso para escribir en esta conversación.' });
 };
 const solicitarModificacionVale = requirePermission('vales.solicitar_modificacion');
+const responderModificacionBasica = requirePermission('vales.responder_modificacion_basica');
+// La conversación de una modificación básica la escribe el asesor (vales.solicitar_modificacion) o el taller (vales.responder_modificacion_basica).
+const escribirModificacionBasica = (req, res, next) => {
+  const permisos = req.user.permissions || [];
+  return permisos.includes('vales.responder_modificacion_basica') || permisos.includes('vales.solicitar_modificacion')
+    ? next()
+    : res.status(403).json({ error: 'No tienes permiso para escribir en esta conversación.' });
+};
 const aprobarModificacionVale = requirePermission('vales.aprobar_modificacion');
 // Un reporte recorre el historial del período: se acota por usuario (ya autenticado).
 const limitarReportes = rateLimit({
@@ -88,6 +96,13 @@ router.post('/:id/revisar', revisarVale, (req, res) => valeController.revisar(re
 router.post('/:id/aprobar-general', aprobacionGeneralVale, campoFusion, (req, res) => valeController.aprobarGeneral(req, res));
 router.post('/:id/confirmar', confirmarVale, (req, res) => valeController.confirmar(req, res));
 router.post('/:id/solicitar-modificacion', solicitarModificacionVale, camposAdjuntos, (req, res) => valeController.solicitarModificacion(req, res));
+router.get('/:id/modificaciones-basicas', verVales, (req, res) => valeController.listarModificacionesBasicas(req, res));
+router.post('/:id/modificaciones-basicas', solicitarModificacionVale, (req, res) => valeController.solicitarModificacionBasica(req, res));
+router.get('/:id/modificaciones-basicas/:modId/mensajes', verVales, (req, res) => valeController.conversacionModificacionBasica(req, res));
+router.post('/:id/modificaciones-basicas/:modId/mensajes', escribirModificacionBasica, (req, res) => valeController.enviarMensajeModificacionBasica(req, res));
+router.post('/:id/modificaciones-basicas/:modId/aceptar', responderModificacionBasica, (req, res) => valeController.aceptarModificacionBasica(req, res));
+router.post('/:id/modificaciones-basicas/:modId/rechazar', responderModificacionBasica, (req, res) => valeController.rechazarModificacionBasica(req, res));
+router.post('/:id/modificaciones-basicas/:modId/cancelar', solicitarModificacionVale, (req, res) => valeController.cancelarModificacionBasica(req, res));
 router.post('/:id/aprobar-modificacion', aprobarModificacionVale, (req, res) => valeController.aprobarModificacion(req, res));
 router.post('/:id/rechazar-modificacion', aprobarModificacionVale, (req, res) => valeController.rechazarModificacion(req, res));
 router.post('/:id/autorizar-creacion', autorizarCreacionVale, (req, res) => valeController.autorizarCreacion(req, res));

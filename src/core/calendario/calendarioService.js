@@ -101,17 +101,28 @@ class CalendarioService {
   }
 
   // `diasMinimos`: 3 cuando el vale no es urgente (antelación mínima en días naturales); 0 con «urgente».
-  async fechasNoDisponibles(talleresIds, desde, hasta, diasMinimos = 0, ahora = calendario.ahoraUTC6()) {
+  // `diasHabiles`: antelación mínima en días que reciben vales, para las modificaciones (media 2, avanzada 3).
+  async fechasNoDisponibles(talleresIds, desde, hasta, diasMinimos = 0, ahora = calendario.ahoraUTC6(), diasHabiles = 0) {
     const cfg = await cargar();
     return {
-      minima: calendario.fechaMinimaEntrega(cfg, talleresIds, ahora, diasMinimos),
+      minima: calendario.fechaMinimaEntrega(cfg, talleresIds, ahora, diasMinimos, diasHabiles),
       horaMaxima: calendario.horaMaximaRestrictiva(cfg, talleresIds),
-      noDisponibles: calendario.fechasNoDisponibles(cfg, talleresIds, desde, hasta, ahora, diasMinimos)
+      noDisponibles: calendario.fechasNoDisponibles(cfg, talleresIds, desde, hasta, ahora, diasMinimos, diasHabiles)
     };
   }
 
-  async validarFechaEntrega(fecha, talleresIds, diasMinimos = 0, ahora = calendario.ahoraUTC6()) {
-    return calendario.validarFechaEntrega(await cargar(), fecha, talleresIds, ahora, diasMinimos);
+  async validarFechaEntrega(fecha, talleresIds, diasMinimos = 0, ahora = calendario.ahoraUTC6(), diasHabiles = 0) {
+    return calendario.validarFechaEntrega(await cargar(), fecha, talleresIds, ahora, diasMinimos, diasHabiles);
+  }
+
+  // Primera fecha de entrega posible de una modificación: el enésimo día que recibe vales contando desde hoy.
+  async fechaMinimaModificacion(talleresIds, diasHabiles, ahora = calendario.ahoraUTC6()) {
+    return calendario.fechaMinimaEntrega(await cargar(), talleresIds, ahora, 0, diasHabiles);
+  }
+
+  // Entrega de una modificación básica: el siguiente día que recibe vales desde el día de la solicitud (con la hora de corte del taller).
+  async fechaMinimaModificacionBasica(talleresIds, ahora = calendario.ahoraUTC6()) {
+    return calendario.fechaMinimaModificacionBasica(await cargar(), talleresIds, ahora);
   }
 
   async existenTalleres(talleresIds) {
