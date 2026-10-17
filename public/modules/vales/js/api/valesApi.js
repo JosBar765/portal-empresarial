@@ -142,6 +142,10 @@ export async function obtenerDetalleVale(valeId) {
   return leerJSON(res);
 }
 
+export function marcarPropuestaOtroVisto(valeId, tallerId) {
+  return enviarPost(`/api/vales/${valeId}/propuestas-otros/${tallerId}/visto`);
+}
+
 export function revisarPropuesta(valeId, payload) {
   return enviarJSON(`/api/vales/${valeId}/revisar`, payload);
 }

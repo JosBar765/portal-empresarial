@@ -84,6 +84,7 @@ router.post('/', crearVale, camposAdjuntos, (req, res) => valeController.crear(r
 router.get('/:id', verVales, (req, res) => valeController.detalle(req, res));
 router.get('/:id/pdf', verVales, (req, res) => valeController.descargarPdf(req, res));
 router.get('/:id/propuesta', verVales, (req, res) => valeController.propuesta(req, res));
+router.post('/:id/propuestas-otros/:tallerId/visto', verVales, (req, res) => valeController.propuestaOtroTallerVista(req, res));
 
 router.post('/:id/asignar', asignarVale, (req, res) => valeController.asignar(req, res));
 router.post('/:id/comenzar', trabajarVale, (req, res) => valeController.comenzar(req, res));

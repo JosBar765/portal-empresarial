@@ -17,7 +17,7 @@ function htmlItem(it, extra) {
   return `
     <li class="vig-item${extra ? ' vig-item--extra' : ''}">
       <div class="vig-vale">
-        <span class="vig-correlativo"><strong>${escapeHtml(it.correlativo)}</strong>${it.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}</span>
+        <span class="vig-correlativo"><strong>${escapeHtml(it.correlativo)}</strong>${it.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${it.marcaHtml || ''}</span>
         ${it.sub ? `<span class="vig-sub">${escapeHtml(it.sub)}</span>` : ''}
       </div>
       <div class="vig-estado">

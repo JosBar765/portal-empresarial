@@ -10,6 +10,7 @@ const historialRepository = require('../repositories/historialRepository');
 const valeMensajeRepository = require('../repositories/valeMensajeRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
+const propuestasCompartidasService = require('./propuestasCompartidasService');
 const {
   ESTADOS, ROL, esDeTaller, esTallerODisenador,
   esAdministrador, enriquecer
@@ -92,8 +93,9 @@ class ValeDetalleService {
     const adjuntos = await this._adjuntosVisibles(usuario, talleresConNombre);
     // Registro de las conversaciones del rechazo (cerradas o no): solo con el permiso de historial; el buzón ya no las muestra.
     const conversaciones = (usuario.permissions || []).includes('vales.ver_historial') ? await this._registroConversaciones(valeId) : [];
+    const propuestasOtrosTalleres = await propuestasCompartidasService.obtenerParaDetalle(usuario, valeId);
     return {
-      ...enriquecer(vale), talleres: talleresConNombre, adjuntos, propuestas, documentos, historial: historialVisible, conversaciones,
+      ...enriquecer(vale), talleres: talleresConNombre, adjuntos, propuestas, propuestasOtrosTalleres, documentos, historial: historialVisible, conversaciones,
       enlacesFusion: enlacesFusion.map(e => ({ nombre: e.nombre, url: e.url }))
     };
   }
