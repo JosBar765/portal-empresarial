@@ -3,7 +3,7 @@ import { $ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import {
-  obtenerHorarios, guardarHorarios, obtenerParametrosHorario, guardarParametrosHorario, listarPaisesHorarios, listarFeriados,
+  obtenerHorarios, guardarHorarios, obtenerParametrosHorario, guardarParametrosHorario, guardarRetencionArchivos, listarPaisesHorarios, listarFeriados,
   crearFeriado, actualizarFeriado, eliminarFeriado
 } from '../api/adminApi.js';
 
@@ -15,6 +15,8 @@ export async function cargarHorarios() {
   const [horarios, paises, parametros] = await Promise.all([obtenerHorarios(), listarPaisesHorarios(), obtenerParametrosHorario()]);
   state.horarios = horarios;
   state.horasVencimientoVale = parametros.horasVencimientoVale;
+  state.diasRetencionPdfAdjuntos = parametros.diasRetencionPdfAdjuntos;
+  state.diasRetencionPropuestas = parametros.diasRetencionPropuestas;
   // Guatemala primero y por defecto.
   state.paisesHorarios = [...paises].sort((a, b) => (b.codigo === 'GT') - (a.codigo === 'GT') || a.nombre.localeCompare(b.nombre));
   if (!state.paisesHorarios.some(p => p.id === state.paisFeriadoId)) state.paisFeriadoId = state.paisesHorarios[0]?.id ?? null;
@@ -58,6 +60,26 @@ function renderHorarios() {
       </div>
     </section>
 
+    <section class="horario-seccion" aria-labelledby="retencion-titulo">
+      <div class="panel-toolbar">
+        <h3 id="retencion-titulo">Retención de archivos de vales de arte</h3>
+        <div class="panel-toolbar-acciones">
+          <button class="btn btn--primary" id="btn-guardar-retencion"><ion-icon name="save-outline"></ion-icon> Guardar</button>
+        </div>
+      </div>
+      <div id="retencion-error" class="form-error" role="alert" style="display:none;"></div>
+      <div class="form-field horario-pais">
+        <label for="input-dias-pdf-adjuntos">Días para borrar el PDF y los adjuntos</label>
+        <input type="number" id="input-dias-pdf-adjuntos" min="1" max="3650" step="1" inputmode="numeric" value="${state.diasRetencionPdfAdjuntos}">
+        <span class="form-hint">Se cuentan desde que el vale se confirma. Número entero de 1 a 3650.</span>
+      </div>
+      <div class="form-field horario-pais">
+        <label for="input-dias-propuestas">Días para borrar las propuestas</label>
+        <input type="number" id="input-dias-propuestas" min="1" max="3650" step="1" inputmode="numeric" value="${state.diasRetencionPropuestas}">
+        <span class="form-hint">No puede ser menor que los días del PDF y los adjuntos.</span>
+      </div>
+    </section>
+
     <section class="horario-seccion" aria-labelledby="feriados-titulo">
       <div class="panel-toolbar">
         <h3 id="feriados-titulo">Feriados</h3>
@@ -76,6 +98,7 @@ function renderHorarios() {
   document.querySelectorAll('.horario-laboral').forEach(chk => chk.addEventListener('change', () => alternarDia(chk)));
   $('#btn-guardar-horario').addEventListener('click', guardar);
   $('#btn-guardar-parametros').addEventListener('click', guardarParametros);
+  $('#btn-guardar-retencion').addEventListener('click', guardarRetencion);
   $('#btn-agregar-feriado').addEventListener('click', () => abrirModalFeriado());
   $('#select-pais-feriados').addEventListener('change', async (e) => {
     state.paisFeriadoId = Number(e.target.value);
@@ -179,6 +202,33 @@ async function guardarParametros() {
     $('#input-horas-vencimiento').value = state.horasVencimientoVale;
   } catch (error) {
     mostrarErrorParametros(error.message);
+  }
+  btn.disabled = false;
+}
+
+function mostrarErrorRetencion(msg) {
+  const box = $('#retencion-error');
+  box.textContent = msg || '';
+  box.style.display = msg ? '' : 'none';
+}
+
+async function guardarRetencion() {
+  const pdfAdjuntos = Number($('#input-dias-pdf-adjuntos').value.trim());
+  const propuestas = Number($('#input-dias-propuestas').value.trim());
+  const entero = (n) => Number.isInteger(n) && n >= 1 && n <= 3650;
+  const problema = !entero(pdfAdjuntos) || !entero(propuestas) ? 'Los días de retención deben ser números enteros de 1 a 3650.'
+    : propuestas < pdfAdjuntos ? 'Los días de las propuestas no pueden ser menores que los del PDF y los adjuntos.' : '';
+  mostrarErrorRetencion(problema);
+  if (problema) return;
+  const btn = $('#btn-guardar-retencion');
+  btn.disabled = true;
+  try {
+    const r = await guardarRetencionArchivos(pdfAdjuntos, propuestas);
+    state.diasRetencionPdfAdjuntos = r.diasRetencionPdfAdjuntos;
+    state.diasRetencionPropuestas = r.diasRetencionPropuestas;
+    window.toast.success('Parámetros guardados', 'Los días de retención de archivos quedaron actualizados.');
+  } catch (error) {
+    mostrarErrorRetencion(error.message);
   }
   btn.disabled = false;
 }
