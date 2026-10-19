@@ -28,7 +28,7 @@ Que «Buzón» y «Trabajo realizado» usen el mismo selector de período que la
 - [x] T2 (ea3f3bf) Estado y consulta: `state.ventana` con la forma de Reportes y `aplicarVentanaAQuery` para hoy, día, semana, mes y rango (ambas fechas).
 - [x] T3 (ea3f3bf) Reemplazar el bloque de ventana de la barra de Buzón y Trabajo (`index.html`, `toolbar.js`) por la barra compartida, conservando el filtro de tienda y el botón de nuevo vale.
 - [x] T4 (a34d2da) Retirar el código y el CSS que quede sin uso y revisar el diseño móvil.
-- [ ] T5 Verificación visual en el navegador por rol (supervisor, diseñador, encargado, asesor) y en Reportes (debe verse igual).
+- [x] T5 Verificación visual en el navegador (2026-10-19, `127.0.0.1:3000`, BD de pruebas): Supervisor (barra Hoy · Día · Semana · Mes · Desde–Hasta; modo Día con mapa de calor del cupo, detalle por taller y «Ver vales de este día», que cambia la ventana al día elegido; Semana «Semana 42 · 12–18 oct»; Mes; rango con los últimos 7 días y las dos fechas), Trabajo realizado comparte la ventana, Gerente (Reportes se ve y funciona igual; su ventana es independiente: «Semana» en Reportes no cambia el «Hoy» de Trabajo), Encargado de Diseño (conteo de vales por día). Consola sin errores. No se probó: diseño móvil, Diseñador, Asesor ni «Ver reporte de este día» (ningún rol cumple a la vez `vales.ver_reportes` y la info por día, igual que antes).
 - [x] T6 (ver commit de docs) Documentación en `.agents/modulos/vales de arte/documentacion/selector_ventana_tiempo.md`.
 
 ## Rutas
