@@ -24,15 +24,15 @@ Que «Buzón» y «Trabajo realizado» usen el mismo selector de período que la
 `.agents/reglas/reglas_implementacion.md`: no cambiar endpoints, payloads ni ids/clases/`data-*` que se usen fuera de esta zona; sin abstracciones nuevas; comentarios de una línea; archivos CRLF se editan conservando CRLF. Commits Conventional Commits en español, sin Co-Authored-By.
 
 ## Tareas
-- [ ] T1 Parametrizar con un prefijo las ids de `crearBarraPeriodo` y sumarle los ganchos del calendario del modo «Día» (info por día, «Ver vales de este día», «Ver reporte de este día») portados de `selectorPeriodo.js`, sin cambiar la barra de Reportes.
-- [ ] T2 Estado y consulta: `state.ventana` con la forma de Reportes y `aplicarVentanaAQuery` para hoy, día, semana, mes y rango (ambas fechas).
-- [ ] T3 Reemplazar el bloque de ventana de la barra de Buzón y Trabajo (`index.html`, `toolbar.js`) por la barra compartida, conservando el filtro de tienda y el botón de nuevo vale.
-- [ ] T4 Retirar el código y el CSS que quede sin uso y revisar el diseño móvil.
+- [x] T1 (2148c08) Parametrizar con un prefijo las ids de `crearBarraPeriodo` y sumarle los ganchos del calendario del modo «Día» (info por día, «Ver vales de este día», «Ver reporte de este día») portados de `selectorPeriodo.js`, sin cambiar la barra de Reportes.
+- [x] T2 (ea3f3bf) Estado y consulta: `state.ventana` con la forma de Reportes y `aplicarVentanaAQuery` para hoy, día, semana, mes y rango (ambas fechas).
+- [x] T3 (ea3f3bf) Reemplazar el bloque de ventana de la barra de Buzón y Trabajo (`index.html`, `toolbar.js`) por la barra compartida, conservando el filtro de tienda y el botón de nuevo vale.
+- [x] T4 (a34d2da) Retirar el código y el CSS que quede sin uso y revisar el diseño móvil.
 - [ ] T5 Verificación visual en el navegador por rol (supervisor, diseñador, encargado, asesor) y en Reportes (debe verse igual).
-- [ ] T6 Documentación en `.agents/modulos/vales de arte/documentacion/selector_ventana_tiempo.md`.
+- [x] T6 (ver commit de docs) Documentación en `.agents/modulos/vales de arte/documentacion/selector_ventana_tiempo.md`.
 
 ## Rutas
 Un writer delegado para T1-T4 y T6; T5 verificación visual aparte.
 
 ## Progreso
-Plan creado, sin código todavía.
+T1-T4 y T6 hechos (sin navegador ni servidor: solo `node --check` y lectura). `selectorPeriodo.js` se eliminó; `etiquetaDia`/`etiquetaMes` pasaron a `barraPeriodoReportes.js`. Pendiente T5, verificación visual por rol y en Reportes.
