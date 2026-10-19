@@ -32,4 +32,4 @@ Que el Buzón y Trabajo realizado dejen de cargar todo el historial en cada cons
 Un writer delegado para T1-T4 (13 archivos de código); T5 aparte.
 
 ## Progreso
-T1-T4 hechos en cinco commits de unidad; sin pushear. Pendientes T5 y T6.
+T1-T5 hechos (A/B contra `dev`: 802 casos idénticos) y prueba visual del usuario del caso de la modificación básica: correcto. Ajuste posterior: los mensajes del chat de una básica (`MOD_BASICA_MENSAJE`) ya no recargan la lista, porque ninguna fila depende de los mensajes (solo `id`, `taller_id` y `estado` de la básica); el chat abierto se refresca aparte. Sin pushear. Pendiente T6.
