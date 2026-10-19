@@ -146,7 +146,8 @@ const config = {
   supabase: {
     url: supabaseUrl,
     secretKey: leer('SUPABASE_SECRET_KEY').trim(),
-    bucket: leer('SUPABASE_STORAGE_BUCKET').trim()
+    bucket: leer('SUPABASE_STORAGE_BUCKET').trim(),
+    bucketBorradores: leer('SUPABASE_STORAGE_BUCKET_BORRADORES').trim()
   }
 };
 

@@ -10,13 +10,14 @@ const { StorageUploadError, DatabaseInsertError, StorageRollbackError } = requir
  * @param {string} datos.mimeType
  * @param {(subida: {path: string, url: string, size: number}) => Promise<any>} datos.registrar
  * @param {string} [datos.nombreObjeto] nombre del objeto sin extensión (ver nombreArchivo.js)
+ * @param {object} [datos.storage] bucket destino (por defecto el principal; ver supabaseStorage.borradores)
  */
-async function subirYRegistrarArchivo({ buffer, nombreOriginal, mimeType, registrar, nombreObjeto }) {
+async function subirYRegistrarArchivo({ buffer, nombreOriginal, mimeType, registrar, nombreObjeto, storage = supabaseStorage }) {
   const bufferOptimizado = await imageOptimizer.optimizar(buffer, mimeType);
 
   let subida;
   try {
-    subida = await supabaseStorage.subir(bufferOptimizado, nombreOriginal, mimeType, nombreObjeto);
+    subida = await storage.subir(bufferOptimizado, nombreOriginal, mimeType, nombreObjeto);
   } catch (error) {
     throw new StorageUploadError(`No se pudo subir "${nombreOriginal}" a Supabase Storage: ${error.message}`);
   }
@@ -25,7 +26,7 @@ async function subirYRegistrarArchivo({ buffer, nombreOriginal, mimeType, regist
     return await registrar(subida);
   } catch (error) {
     try {
-      await supabaseStorage.eliminar(subida.url);
+      await storage.eliminar(subida.url);
     } catch (errorRollback) {
       throw new StorageRollbackError(
         `El archivo "${nombreOriginal}" se subió pero falló su registro en la base de datos, y ADEMÁS falló el rollback ` +
