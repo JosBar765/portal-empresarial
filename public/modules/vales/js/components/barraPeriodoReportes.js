@@ -2,7 +2,7 @@
 // Un control segmentado elige el tipo; debajo, flechas ‹ › y una etiqueta que abre el calendario del tipo elegido
 // (día, semana o mes). El rango usa dos campos de fecha. Reusa el aspecto del calendario de los formularios (.dp-*).
 // Con `cargarInfoMes` el calendario del modo Día muestra información por día (cupo o cantidad de vales) y, al elegir un día,
-// ofrece «Ver vales de este día» (`alVerVales`) y «Ver reporte de este día» (`alVerReporte`).
+// ofrece «Ver vales de este día» (`alVerVales`) y «Ver reporte de este día» (`alVerReporte`). El de Semana solo pinta esos indicadores.
 import { hoyMedianoche, isoLocal, parseIsoLocal, primerDiaDelMes, sumarDiaLocal } from '../utils/fechas.js';
 import {
   MESES, DIAS_SEMANA_CORTO, htmlCampoFechaCompacto, wireCampoFecha, registrarPanelFechaActivo, liberarPanelFechaActivo
@@ -294,7 +294,9 @@ export function crearBarraPeriodo(contenedor, {
       panel.querySelector(`[data-nav-anio="${b.dataset.navAnio}"]`).focus();
     }));
     const conInfoDia = conInfo && p.tipo === 'dia' && vista === 'dias';
-    panel.classList.toggle('panel-periodo--info', conInfoDia);
+    // En Semana solo se pintan los indicadores de cada día, sin detalle ni acciones: un clic sigue eligiendo la semana.
+    const conIndicadores = conInfo && p.tipo === 'semana' && vista === 'dias';
+    panel.classList.toggle('panel-periodo--info', conInfoDia || conIndicadores);
     panel.querySelectorAll('.dp-day[data-fecha]').forEach(b => {
       if (!conInfoDia) { b.addEventListener('click', () => elegir(parseIsoLocal(b.dataset.fecha))); return; }
       b.addEventListener('click', () => previsualizar(b.dataset.fecha));
@@ -303,7 +305,7 @@ export function crearBarraPeriodo(contenedor, {
       b.addEventListener('mouseleave', () => mostrarInfo(previa, true));
       b.addEventListener('blur', () => mostrarInfo(previa, true));
     });
-    if (conInfoDia) { mostrarInfo(previa, true); cargarInfo(); }
+    if (conInfoDia) { mostrarInfo(previa, true); cargarInfo(); } else if (conIndicadores) cargarInfo();
     panel.querySelectorAll('.dp-mes').forEach(b => b.addEventListener('click', () => elegir(new Date(anioVisible, Number(b.dataset.mes), 1))));
     const titulo = panel.querySelector('[data-accion="meses"]');
     if (titulo) titulo.addEventListener('click', () => { anioVisible = mesVisible.getFullYear(); vista = 'meses'; pintar2(true); });

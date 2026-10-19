@@ -36,6 +36,10 @@
 .dp-barra--lleno { background: var(--color-danger); }
 .dp-day-n { position: absolute; left: 0; right: 0; bottom: 2px; text-align: center; font-size: 10px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; color: var(--color-primary-dark); pointer-events: none; }
 .dp-day.is-selected .dp-day-n { color: #fff; }
+/* Semana elegida: la fila va sobre fondo oscuro */
+.dp-semana-fila.is-semana-elegida .dp-day-n, .dp-semana-fila.is-semana-elegida .dp-day-mas { color: #fff; }
+.dp-semana-fila.is-semana-elegida .dp-pista { background: rgba(255, 255, 255, .35); }
+.dp-semana-fila.is-semana-elegida .dp-barra { background: #fff; }
 .dp-day-mas { position: absolute; top: 1px; right: 2px; font-size: 9px; font-weight: 700; line-height: 1; color: var(--color-text-secondary); pointer-events: none; }
 
 /* Detalle del día en el pie del calendario */
