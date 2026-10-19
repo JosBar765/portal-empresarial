@@ -21,10 +21,10 @@ Que el Buzón y Trabajo realizado dejen de cargar todo el historial en cada cons
 `.agents/reglas/reglas_implementacion.md`: no cambiar endpoints, payloads (salvo el campo aditivo), ids/clases/`data-*` ni textos salvo los decididos; sin abstracciones nuevas; SQL solo en repositorios; comentarios de una línea; archivos CRLF se editan conservando CRLF. Commits Conventional Commits en español, sin Co-Authored-By.
 
 ## Tareas
-- [ ] T1 Aplicar el cambio neto de código de `perf/buzon-prefiltro-sql` (`git diff ec4af71 origin/perf/buzon-prefiltro-sql -- src public`) sobre `dev` y revisar que cada hunk encaja con el código de `dev`.
-- [ ] T2 Ajuste de la modificación básica en el prefiltro del encargado y asistentes.
-- [ ] T3 Dejar el historial en commits de unidad: (a) prefiltro SQL del Buzón y Trabajo acotado con propuestas en lote, (b) ajuste de básicas, (c) sin «Todo» + «Hoy» + respuestas viejas, (d) recarga por evento + Reportes manual, (e) notificaciones.
-- [ ] T4 `node --check` de todo lo cambiado y relectura del diff contra `dev`.
+- [x] T1 Aplicar el cambio neto de código de `perf/buzon-prefiltro-sql` (`git diff ec4af71 origin/perf/buzon-prefiltro-sql -- src public`) sobre `dev` y revisar que cada hunk encaja con el código de `dev`. Aplicó limpio con `git apply --3way`; commit `f0a91a6`.
+- [x] T2 Ajuste de la modificación básica en el prefiltro del encargado y asistentes. `listarValeIdsAbiertosDeTaller` + `_conBasicasAbiertas`; commit `6387afc`.
+- [x] T3 (commits `f0a91a6`, `6387afc`, `d7d7dd3`, `d72aff4`, `fbaebdb`) Dejar el historial en commits de unidad: (a) prefiltro SQL del Buzón y Trabajo acotado con propuestas en lote, (b) ajuste de básicas, (c) sin «Todo» + «Hoy» + respuestas viejas, (d) recarga por evento + Reportes manual, (e) notificaciones.
+- [x] T4 `node --check` de todo lo cambiado y relectura del diff contra `dev`.
 - [ ] T5 Verificación A/B del mismo momento contra `origin/dev` (necesita los scripts de `database/` de `dev` en la BD de pruebas y básicas abiertas en el generador). Pendiente de aprobación del usuario por el tiempo que lleva.
 - [ ] T6 Documentar en `.agents/modulos/vales de arte/documentacion/` (adaptar el informe original a lo que quede).
 
@@ -32,4 +32,4 @@ Que el Buzón y Trabajo realizado dejen de cargar todo el historial en cada cons
 Un writer delegado para T1-T4 (13 archivos de código); T5 aparte.
 
 ## Progreso
-Plan creado, sin código todavía.
+T1-T4 hechos en cinco commits de unidad; sin pushear. Pendientes T5 y T6.
