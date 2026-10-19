@@ -1,12 +1,13 @@
 import { state } from '../state.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
-import { htmlSelectorTalleres, wireSelectorTalleres, validarTalleresSeleccionados } from '../components/selectorTalleres.js';
+import { htmlSelectorTalleres, wireSelectorTalleres, validarTalleresSeleccionados, talleresSeleccionablesAsesor } from '../components/selectorTalleres.js';
 import { htmlCampoFecha, wireCampoFecha, validarCampoFecha } from '../components/datepicker.js';
 import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dropzone.js';
 import { validarCamposNativos, wireLimpiezaValidacionInline, enfocarPrimerCampoInvalido } from '../components/validacion.js';
 import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js';
 import { escapeHtml, formatearFecha, siguienteCodigoMod } from '../utils/formato.js';
-import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega, obtenerFechasEntrega, obtenerDetalleVale } from '../api/valesApi.js';
+import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega, obtenerFechasEntrega, obtenerDetalleVale, guardarBorrador, actualizarBorrador } from '../api/valesApi.js';
+import { avisarCambioBorradores } from '../utils/eventosBorradores.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { limitarTelefono } from '/js/telefono.js';
 
@@ -55,13 +56,19 @@ export function abrirModalCorregirVale(vale) {
   abrirModalFormularioVale(vale);
 }
 
+// Borrador guardado (detalle de GET /api/vales/borradores/:id): el mismo formulario, precargado.
+export function abrirModalBorrador(borrador) {
+  abrirModalFormularioVale(borrador, 'borrador');
+}
+
 const NOTA_ENTREGA_SIN_TALLER = 'Elige primero un taller para ver la fecha mínima de entrega.';
 
 // `tipoModificacion` (MEDIA / AVANZADA): al pedir una modificación con vale MOD; al corregir un MOD sale del propio vale.
 function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipoModificacion = null) {
   const esCorreccion = modo === 'corregir';
   const esModificacion = modo === 'modificar';
-  const hayOriginal = !!vale;
+  const esBorrador = modo === 'borrador';
+  const hayOriginal = !!vale && !esBorrador;
   // Un formulario de modificación: pedirla, o corregir un vale MOD (talleres fijos, justificación obligatoria y sin «urgente»).
   const esMod = esModificacion || (hayOriginal && Number(vale.vale_original_id) > 0);
   const tipoMod = esMod ? (esModificacion ? tipoModificacion : vale.modificacion_tipo) : null;
@@ -71,11 +78,12 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
     : [];
   const tallerSeleccionados = new Set(esModificacion
     ? (talleresOriginales.length ? talleresOriginales : String(vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite))
-    : (esCorreccion ? String(vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite) : []));
+    : (esCorreccion ? String(vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite)
+      : (esBorrador ? vale.talleres_ids.filter(id => talleresSeleccionablesAsesor().some(t => t.id === id)) : [])));
   const documentosQuitar = new Set();
   const nombresTalleres = [...tallerSeleccionados]
     .map(id => ((state.catalogos.talleres || []).find(t => t.id === id) || {}).nombre || `#${id}`);
-  const titulos = { crear: 'Crear Vale de Arte', corregir: esMod ? 'Corregir modificación' : 'Corregir vale', modificar: 'Solicitar modificación' };
+  const titulos = { crear: 'Crear Vale de Arte', corregir: esMod ? 'Corregir modificación' : 'Corregir vale', modificar: 'Solicitar modificación', borrador: 'Borrador de Vale de Arte' };
   const { overlay, cerrar } = abrirModal({
     title: hayOriginal ? `${titulos[modo]} — ${vale.correlativo}` : titulos[modo],
     size: 'lg',
@@ -144,7 +152,8 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
     `,
     footerHtml: `
       <button class="btn btn--ghost" id="btn-cancelar-crear">Cancelar</button>
-      <button class="btn btn--primary" id="btn-guardar-crear">${{ crear: 'Crear Vale de Arte', corregir: 'Guardar cambios', modificar: 'Solicitar modificación' }[modo]}</button>
+      ${modo === 'crear' || esBorrador ? `<button class="btn btn--ghost" id="btn-guardar-borrador">${esBorrador ? 'Guardar borrador' : 'Guardar como borrador'}</button>` : ''}
+      <button class="btn btn--primary" id="btn-guardar-crear">${{ crear: 'Crear Vale de Arte', corregir: 'Guardar cambios', modificar: 'Solicitar modificación', borrador: 'Crear Vale de Arte' }[modo]}</button>
     `
   });
 
@@ -193,14 +202,14 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
     const { anio, mes } = mesVisible || { anio: new Date().getFullYear(), mes: new Date().getMonth() + 1 };
     cargarFechasEntrega(anio, mes, true);
   });
-  const mesInicial = hayOriginal && vale.fecha_entrega ? parseIsoLocal(String(vale.fecha_entrega).slice(0, 10)) : new Date();
+  const mesInicial = vale && vale.fecha_entrega ? parseIsoLocal(String(vale.fecha_entrega).slice(0, 10)) : new Date();
   cargarFechasEntrega(mesInicial.getFullYear(), mesInicial.getMonth() + 1, true);
   const apiFechaEvento = wireCampoFecha(overlay, 'fechaEvento', { minDate: sumarDiaLocal(hoyMedianoche(), 1) });
   overlay.querySelector('[name="fechaEntrega"]').addEventListener('change', () => {
     apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || hoyMedianoche(), 1));
   });
   // Al crear, la entrega espera a que haya al menos un taller (si se quitan todos, se borra).
-  if (modo === 'crear') {
+  if (modo === 'crear' || esBorrador) {
     const sincronizarEntrega = () => {
       apiFechaEntrega.setEnabled(tallerSeleccionados.size > 0, 'Elige primero un taller');
       const hoy = new Date();
@@ -216,7 +225,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
   const getDocumentos = wireDropzone(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
 
   const formCrear = overlay.querySelector('#form-crear-vale');
-  if (hayOriginal) precargarFormulario(overlay, formCrear, vale, { apiFechaEntrega, apiFechaEvento }, { conDescripcion: !esModificacion });
+  if (vale) precargarFormulario(overlay, formCrear, vale, { apiFechaEntrega, apiFechaEvento }, { conDescripcion: !esModificacion });
   if (esCorreccion && vale.estado === 'RECHAZADO') {
     const aviso = document.createElement('div');
     aviso.className = 'form-aviso';
@@ -225,14 +234,55 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
   }
   wireLimpiezaValidacionInline(formCrear);
   const actuales = { documentos: [] };
-  if (hayOriginal) cargarArchivosActuales(overlay, vale.id, documentosQuitar, actuales);
+  if (hayOriginal) cargarArchivosActuales(overlay, async () => (await obtenerDetalleVale(vale.id)).documentos || [], documentosQuitar, actuales);
+  if (esBorrador) cargarArchivosActuales(overlay, async () => vale.documentos, documentosQuitar, actuales);
   const errorAdjuntos = overlay.querySelector('#adjuntos-error');
   overlay.addEventListener('change', (e) => { if (e.target.type === 'file') errorAdjuntos.style.display = 'none'; });
   // Al menos un archivo: los nuevos más los que el vale ya tiene y no se quitan (la propuesta original de un MOD- no cuenta).
   const hayAdjuntos = () => getImagenes().length + getDocumentos().length
     + actuales.documentos.filter(d => !documentosQuitar.has(d.id) && !esPropuestaOriginal(d)).length > 0;
 
+  // Mismos campos y archivos para el vale y para el borrador.
+  const armarFormData = () => {
+    const formData = new FormData(formCrear);
+    const paisCodigo = formCrear.querySelector('[name="clienteTelefonoPais"]').value;
+    const telefonoNum = formCrear.querySelector('[name="clienteTelefono"]').value.trim();
+    formData.set('clienteTelefono', `${paisCodigo} ${telefonoNum}`);
+    formData.delete('clienteTelefonoPais');
+    formData.set('talleresIds', JSON.stringify([...tallerSeleccionados]));
+    // Las imágenes/documentos reales viven en los arrays de wireDropzone (el
+    // usuario pudo quitar alguno con la "×"), no en el input nativo.
+    formData.delete('imagenes');
+    formData.delete('documentos');
+    getImagenes().forEach(f => formData.append('imagenes', f));
+    getDocumentos().forEach(f => formData.append('documentos', f));
+    return formData;
+  };
+
   overlay.querySelector('#btn-cancelar-crear').addEventListener('click', cerrar);
+  const btnBorrador = overlay.querySelector('#btn-guardar-borrador');
+  if (btnBorrador) btnBorrador.addEventListener('click', async () => {
+    // Un borrador no se valida: se guarda lo que haya escrito.
+    const formData = armarFormData();
+    if (!formCrear.querySelector('[name="clienteTelefono"]').value.trim()) formData.set('clienteTelefono', '');
+    btnBorrador.disabled = true;
+    btnBorrador.classList.add('btn--loading');
+    try {
+      if (esBorrador) {
+        formData.set('documentosQuitar', JSON.stringify([...documentosQuitar]));
+        await actualizarBorrador(vale.id, formData);
+      } else {
+        await guardarBorrador(formData);
+      }
+      window.toast.success('Borrador guardado', 'Puedes terminarlo después desde «Borradores».');
+      cerrar();
+      avisarCambioBorradores();
+    } catch (error) {
+      mostrarErrorModal(overlay, error.message);
+      btnBorrador.disabled = false;
+      btnBorrador.classList.remove('btn--loading');
+    }
+  });
   overlay.querySelector('#btn-guardar-crear').addEventListener('click', () => {
     const form = formCrear;
     // validarCamposNativos limpia el estado de TODOS los campos nativos del
@@ -254,18 +304,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
       errorAdjuntos.scrollIntoView({ block: 'center', behavior: 'smooth' });
       return;
     }
-    const formData = new FormData(form);
-    const paisCodigo = form.querySelector('[name="clienteTelefonoPais"]').value;
-    const telefonoNum = form.querySelector('[name="clienteTelefono"]').value.trim();
-    formData.set('clienteTelefono', `${paisCodigo} ${telefonoNum}`);
-    formData.delete('clienteTelefonoPais');
-    formData.set('talleresIds', JSON.stringify([...tallerSeleccionados]));
-    // Las imágenes/documentos reales viven en los arrays de wireDropzone (el
-    // usuario pudo quitar alguno con la "×"), no en el input nativo.
-    formData.delete('imagenes');
-    formData.delete('documentos');
-    getImagenes().forEach(f => formData.append('imagenes', f));
-    getDocumentos().forEach(f => formData.append('documentos', f));
+    const formData = armarFormData();
     // Una sola key por intento de creación — si el envío falla (ej. corte de
     // red) y el usuario reintenta desde el mismo modal de confirmación, se
     // reenvía el mismo FormData con la misma key, para que el backend pueda
@@ -278,6 +317,11 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
       formData.set('documentosQuitar', JSON.stringify([...documentosQuitar]));
       guardarCambios(overlay, vale, formData, modo);
       return;
+    }
+    // Un borrador se envía con el mismo flujo; el servidor suma los archivos que conserva a los nuevos.
+    if (esBorrador) {
+      formData.set('borradorId', vale.id);
+      formData.set('documentosQuitar', JSON.stringify([...documentosQuitar]));
     }
     // Antes de crear el vale de verdad, se confirma con un modal resumen (el
     // modal de creación queda debajo, intacto, por si se cancela).
@@ -322,11 +366,13 @@ function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEve
     casilla.checked = Number(vale.urgente) === 1;
     casilla.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  // La entrega se precarga y, cuando llegan las reglas del servidor, se limpia si ya no está disponible.
-  const entrega = parseIsoLocal(String(vale.fecha_entrega).slice(0, 10));
-  if (apiFechaEntrega.esValida(entrega)) apiFechaEntrega.setDate(entrega, { silent: true });
+  // La entrega se precarga y, cuando llegan las reglas del servidor, se limpia si ya no está disponible (un borrador puede no tener fechas).
+  if (vale.fecha_entrega) {
+    const entrega = parseIsoLocal(String(vale.fecha_entrega).slice(0, 10));
+    if (apiFechaEntrega.esValida(entrega)) apiFechaEntrega.setDate(entrega, { silent: true });
+  }
   apiFechaEvento.setMinDate(sumarDiaLocal(apiFechaEntrega.getDate() || hoyMedianoche(), 1));
-  apiFechaEvento.setDate(parseIsoLocal(String(vale.fecha_evento).slice(0, 10)), { silent: true });
+  if (vale.fecha_evento) apiFechaEvento.setDate(parseIsoLocal(String(vale.fecha_evento).slice(0, 10)), { silent: true });
   form.querySelector('[name="descripcion"]').dispatchEvent(new Event('input'));
   form.querySelector('[name="fechaEntrega"]').dispatchEvent(new Event('change', { bubbles: true }));
 }
@@ -334,10 +380,10 @@ function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEve
 const esPropuestaOriginal = d => String(d.nombre_original || '').startsWith('Propuesta original - ');
 
 // Archivos ya guardados del vale: se muestran con su enlace y una "×" para quitarlos al guardar.
-async function cargarArchivosActuales(overlay, valeId, documentosQuitar, actuales) {
+async function cargarArchivosActuales(overlay, cargarDocumentos, documentosQuitar, actuales) {
   let documentos;
   try {
-    documentos = (await obtenerDetalleVale(valeId)).documentos || [];
+    documentos = await cargarDocumentos();
     actuales.documentos = documentos;
   } catch (error) {
     mostrarErrorModal(overlay, error.message);
@@ -400,6 +446,7 @@ function abrirModalConfirmarCreacion(formData) {
     try {
       const data = await crearVale(formData);
       window.toast.success('Vale de arte creado', `${data.correlativo} se creó correctamente, en espera de autorización.`);
+      if (formData.get('borradorId')) avisarCambioBorradores();
       cerrar();
       // El modal de creación original sigue debajo — se cierra también.
       document.querySelectorAll('.modal-overlay').forEach(o => o.remove());
