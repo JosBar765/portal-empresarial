@@ -16,6 +16,10 @@ const MAX_NOMBRE = 100;
 const CLAVE_HORAS_VENCIMIENTO = 'horas_vencimiento_vale';
 const HORAS_VENCIMIENTO_MIN = 1;
 const HORAS_VENCIMIENTO_MAX = 48;
+const CLAVE_MAX_BORRADORES = 'max_borradores_por_usuario';
+const MAX_BORRADORES_DEFECTO = 15;
+const MAX_BORRADORES_MIN = 1;
+const MAX_BORRADORES_MAX = 200;
 
 const err = (msg, status = 400) => new ErrorDeNegocio(msg, status);
 const vacio = (v) => v === undefined || v === null || v === '';
@@ -43,6 +47,16 @@ function validarDia(d) {
   const horaFin = validarHora(d.horaFin, `La hora de fin del ${nombre}`);
   if (horaInicio >= horaFin) throw err(`En el ${nombre}, la hora de inicio debe ser anterior a la hora de fin.`);
   return { diaSemana, laboral: true, recibeVales, horaInicio, horaFin };
+}
+
+// Entero dentro de un rango; acepta un número o un texto de dígitos.
+// `sujeto` lleva su verbo (p. ej. «Las horas de vencimiento deben»).
+function entero(crudo, quePedir, sujeto, min, max) {
+  if (vacio(crudo)) throw err(`Indica ${quePedir}.`);
+  const valor = typeof crudo === 'string' && /^\d+$/.test(crudo.trim()) ? Number(crudo) : crudo;
+  if (typeof valor !== 'number' || !Number.isInteger(valor)) throw err(`${sujeto} ser un número entero.`);
+  if (valor < min || valor > max) throw err(`${sujeto} estar entre ${min} y ${max}.`);
+  return valor;
 }
 
 function aHorario(fila) {
@@ -97,19 +111,24 @@ class HorarioService {
   }
 
   async obtenerParametros() {
-    return { horasVencimientoVale: Number(await repo.obtenerParametro(CLAVE_HORAS_VENCIMIENTO)) };
+    return {
+      horasVencimientoVale: Number(await repo.obtenerParametro(CLAVE_HORAS_VENCIMIENTO)),
+      maxBorradoresPorUsuario: Number(await repo.obtenerParametro(CLAVE_MAX_BORRADORES)) || MAX_BORRADORES_DEFECTO
+    };
   }
 
+  // Cada parámetro se guarda por separado: se actualiza solo el que llega en el cuerpo.
   async guardarParametros(body) {
-    const crudo = body && body.horasVencimientoVale;
-    if (vacio(crudo)) throw err('Indica las horas de vencimiento de un vale de arte.');
-    const horas = typeof crudo === 'string' && /^\d+$/.test(crudo.trim()) ? Number(crudo) : crudo;
-    if (typeof horas !== 'number' || !Number.isInteger(horas)) throw err('Las horas de vencimiento deben ser un número entero.');
-    if (horas < HORAS_VENCIMIENTO_MIN || horas > HORAS_VENCIMIENTO_MAX) {
-      throw err(`Las horas de vencimiento deben estar entre ${HORAS_VENCIMIENTO_MIN} y ${HORAS_VENCIMIENTO_MAX}.`);
+    const traeHoras = !!body && body.horasVencimientoVale !== undefined;
+    const traeTope = !!body && body.maxBorradoresPorUsuario !== undefined;
+    if (!traeHoras && !traeTope) throw err('Indica las horas de vencimiento de un vale de arte.');
+    const horas = traeHoras ? entero(body.horasVencimientoVale, 'las horas de vencimiento de un vale de arte', 'Las horas de vencimiento deben', HORAS_VENCIMIENTO_MIN, HORAS_VENCIMIENTO_MAX) : null;
+    const tope = traeTope ? entero(body.maxBorradoresPorUsuario, 'el máximo de borradores por usuario', 'El máximo de borradores debe', MAX_BORRADORES_MIN, MAX_BORRADORES_MAX) : null;
+    if (traeHoras) {
+      await repo.guardarParametro(CLAVE_HORAS_VENCIMIENTO, horas);
+      calendarioService.invalidar();
     }
-    await repo.guardarParametro(CLAVE_HORAS_VENCIMIENTO, horas);
-    calendarioService.invalidar();
+    if (traeTope) await repo.guardarParametro(CLAVE_MAX_BORRADORES, tope);
     return this.obtenerParametros();
   }
 
