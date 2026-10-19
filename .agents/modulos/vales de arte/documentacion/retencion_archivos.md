@@ -18,6 +18,7 @@ Storage es un bucket único y crece sin límite; pasado el plazo el archivo ya n
 - Un archivo que otro vale aún referencia (p. ej. la propuesta original dentro de un `MOD-`) no se borra de Storage: solo se anula la referencia de este vale. Se borra cuando ya nadie lo usa (`documentoRepository.contarReferenciasEnOtrosVales`).
 - Tras la purga: `pdf_url`, `propuesta_general_url`, `vale_propuestas.url` y `vale_documentos.ruta` quedan en NULL, y `vales.archivos_purgados_en` / `vales.propuestas_purgadas_en` guardan cuándo ocurrió (reloj de MySQL).
 - Se ejecuta al arrancar (cuando el pool de MySQL ya está listo) y cada 6 horas, con lotes de 50 vales por fase y ciclo.
+- Solo funciona con `NODE_ENV=production`; en `development` y `test` el vigilante no arranca y lo avisa en el log.
 - Sin PDF purgado, `GET /api/vales/:id/pdf` responde «aún no ha sido generado»; con el PDF purgado responde «El PDF de este vale ya expiró y fue eliminado.».
 - El formulario de corrección muestra un adjunto purgado como «(archivo eliminado)», sin enlace.
 - Solicitar una modificación Media/Avanzada de un vale cuyos archivos ya fueron purgados falla con un mensaje claro (el PDF del `MOD-` necesita los adjuntos y la propuesta del original).
