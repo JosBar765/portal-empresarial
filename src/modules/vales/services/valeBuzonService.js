@@ -20,7 +20,7 @@ const { calcularPipeline, prepararPipeline } = require('./valePipeline');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
   esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
-  ordenarPorFecha, esHoy, estadoVisibleAsesor,
+  ordenarPorFecha, esHoy, estadoVisibleAsesor, hoyISO,
   esDeTaller, rolEncargadoDe, esValeDeModificacion
 } = require('./valeHelpers');
 
@@ -124,23 +124,26 @@ class ValeBuzonService {
   // Adjunta a cada vale el nombre legible de sus talleres (columna "Taller"
   // del buzón) y sus filas crudas de `vale_talleres` (`_filasTaller`, usado
   // por varias vistas para saber en cuántos talleres trabajó un vale).
-  // Compartido por `obtenerBuzon`.
-  async _enriquecerConTaller(vales) {
+  // Compartido por `obtenerBuzon`. Con `valeTalleresPrecargados` (todas las filas de ESOS vales) no relee la tabla
+  // y acota las consultas de extras y modificaciones a esos vales.
+  async _enriquecerConTaller(vales, valeTalleresPrecargados = null) {
     // Incluye talleres inactivos: un vale terminado de un taller ya desactivado
     // debe seguir mostrando su nombre, no "#id".
     const talleresTodos = await tallerRepository.listarTodos();
-    const valeTalleresTodos = await valeTallerRepository.listarTodos();
+    const valeTalleresTodos = valeTalleresPrecargados || await valeTallerRepository.listarTodos();
+    const idsAcotados = valeTalleresPrecargados ? vales.map(v => v.id) : null;
     const mapaTalleresPorVale = new Map();
     valeTalleresTodos.forEach(vt => {
       const lista = mapaTalleresPorVale.get(vt.vale_id) || [];
       lista.push(vt);
       mapaTalleresPorVale.set(vt.vale_id, lista);
     });
-    const nombreTaller = (id) => (talleresTodos.find(t => t.id === id) || {}).nombre || `#${id}`;
+    const nombresTaller = new Map(talleresTodos.map(t => [t.id, t.nombre]));
+    const nombreTaller = (id) => nombresTaller.get(id) || `#${id}`;
     // Vales con nota o enlaces en su propuesta o fusión: «Ver propuesta» también aplica aunque no haya archivo.
-    const conExtra = await propuestaRepository.listarValesConExtra();
+    const conExtra = await propuestaRepository.listarValesConExtra(idsAcotados);
     // Un original con una modificación en trámite sigue en su estado: este dato permite avisarlo y bloquear "Confirmar".
-    const enTramite = new Map((await valeRepository.listarModificacionesEnTramite())
+    const enTramite = new Map((await valeRepository.listarModificacionesEnTramite(idsAcotados))
       .map(m => [m.vale_original_id, { id: m.id, correlativo: m.correlativo, estado: m.estado }]));
     // Conversaciones de modificación básica abiertas: el asesor no puede confirmar mientras tanto y el taller debe responder.
     const basicasAbiertas = new Map();
@@ -232,16 +235,70 @@ class ValeBuzonService {
     return resultado;
   }
 
+  // Cotas de fecha de entrega ('YYYY-MM-DD') de la ventana: inicio inclusivo y primer día posterior (exclusivo); null si no hay.
+  _limitesDeVentana(ventana) {
+    if (ventana.tipo === 'rango') {
+      const hasta = ventana.hasta ? new Date(Date.parse(`${ventana.hasta}T00:00:00Z`) + 86400000).toISOString().slice(0, 10) : null;
+      return { desdeInclusivo: ventana.desde || null, hastaExclusivo: hasta };
+    }
+    if (ventana.tipo === 'mes') {
+      const [anio, mes] = (ventana.fecha || hoyISO()).split('-').map(Number);
+      return {
+        desdeInclusivo: new Date(Date.UTC(anio, mes - 1, 1)).toISOString().slice(0, 10),
+        hastaExclusivo: new Date(Date.UTC(anio, mes, 1)).toISOString().slice(0, 10)
+      };
+    }
+    return { desdeInclusivo: null, hastaExclusivo: null };
+  }
+
+  // Vales abiertos que el Buzón de este rol puede llegar a mostrar (el JS de cada rol sigue decidiendo qué se ve).
+  async _cargarAbiertosDelBuzon(usuario, rol, ventana, talleresActivos) {
+    const base = { estadosTerminales: ESTADOS_TERMINALES, hastaExclusivo: this._limitesDeVentana(ventana).hastaExclusivo };
+    switch (rol) {
+      case ROL.ASESOR:
+        return valeRepository.listarParaBuzon({ ...base, asesorIds: [usuario.id] });
+      case ROL.SUPERVISOR: {
+        const asesores = await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id);
+        return valeRepository.listarParaBuzon({ ...base, asesorIds: [...asesores.map(a => a.id), usuario.id] });
+      }
+      case ROL.ENCARGADO_DISENO:
+      case ROL.ENCARGADO_UV3D:
+      case ROL.ENCARGADO_PROTEXTIL:
+      case ROL.ENCARGADO_DISENO_LOCAL: {
+        if (esAdministrador(usuario)) return valeRepository.listarParaBuzon(base);
+        const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
+        const miTaller = talleresActivos.find(t => t.encargado_id === idEfectivo);
+        const puedeFusionar = (usuario.permissions || []).includes('vales.aprobar_general');
+        if (!miTaller && !puedeFusionar) return [];
+        const ids = new Set(miTaller ? await valeTallerRepository.listarValeIdsDeTallerSinEstado(miTaller.id, ESTADOS_TALLER.APROBADO) : []);
+        if (puedeFusionar) (await valeRepository.listarIdsPorEstado(ESTADOS.APROBADO_DEPARTAMENTO)).forEach(id => ids.add(id));
+        return valeRepository.listarParaBuzon({ ...base, valeIds: [...ids] });
+      }
+      default: // Administrador, Gerente y demás: el buzón general
+        return valeRepository.listarParaBuzon(base);
+    }
+  }
+
   async obtenerBuzon(usuario, filtros = {}) {
     await prepararPipeline();
     const ventana = this._resolverVentana(filtros);
     const vista = filtros.vista === 'trabajo' ? 'trabajo' : 'buzon';
     if (vista === 'buzon') ventana.incluirArrastrados = true;
     const filtroContador = filtros.filtroContador || null;
-    const todos = (await valeRepository.listarTodos()).map(enriquecer);
-    const talleresTodos = await tallerRepository.listarActivos();
-    const valeTalleresTodos = await valeTallerRepository.listarTodos();
-    let todosConTaller = await this._enriquecerConTaller(todos);
+    const rol = rolEncargadoDe(usuario);
+    // El diseñador resuelve su lista con sus propias consultas: no necesita las tablas completas.
+    let talleresTodos = [];
+    let valeTalleresTodos = [];
+    let todosConTaller = [];
+    if (rol !== ROL.DISENADOR) {
+      talleresTodos = await tallerRepository.listarActivos();
+      // Trabajo realizado solo trae los vales cuya fecha de entrega cae en la ventana.
+      const cargados = (vista === 'buzon'
+        ? await this._cargarAbiertosDelBuzon(usuario, rol, ventana, talleresTodos)
+        : await valeRepository.listarParaBuzon(this._limitesDeVentana(ventana))).map(enriquecer);
+      valeTalleresTodos = await valeTallerRepository.listarPorVales(cargados.map(v => v.id));
+      todosConTaller = await this._enriquecerConTaller(cargados, valeTalleresTodos);
+    }
 
     // Filtro por tienda: solo lo manda el frontend del Supervisor (y,
     // opcionalmente, Administrador) para acotar el listado a una sola
@@ -273,11 +330,8 @@ class ValeBuzonService {
       .filter(v => !soloModificados || esModificado(v))
       .filter(v => !disenadorId || v.disenador_id === disenadorId);
 
-    // Búsqueda: corre sobre la lista COMPLETA ya filtrada por
-    // rol/ventana/contador (no solo sobre la página ya cargada en el
-    // navegador — `resultado.vales` en este punto no tiene límite todavía).
-    // Las contadores no se ven afectadas, mismo criterio que
-    // _aplicarFiltroContador.
+    // Búsqueda: corre sobre la lista COMPLETA ya filtrada por rol/ventana/contador, no solo sobre la página cargada en el
+    // navegador. Los contadores no se ven afectados.
     const busqueda = String(filtros.busqueda || '').trim().toLowerCase();
     const valesBuscados = busqueda
       ? valesConAtraso.filter(v => `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase().includes(busqueda))
@@ -373,7 +427,8 @@ class ValeBuzonService {
       contadores: resultado.contadores,
       total,
       hasMore: indiceInicio + limit < total,
-      nextCursor
+      nextCursor,
+      ...(resultado.mensajeVacio ? { mensajeVacio: resultado.mensajeVacio } : {})
     };
   }
 
@@ -522,12 +577,14 @@ class ValeBuzonService {
     const idEfectivo = esAdministrador(usuario) ? null : await valeCatalogoService.idEncargadoEfectivo(usuario);
     const miTaller = esAdministrador(usuario) ? null : talleresTodos.find(t => t.encargado_id === idEfectivo);
     if (!esAdministrador(usuario) && !miTaller && !puedeFusionar) {
-      return { vales: [], contadores: this._contadoresVaciosEncargado() };
+      return { vales: [], contadores: this._contadoresVaciosEncargado(), mensajeVacio: 'No tienes un taller asignado.' };
     }
     const misFilas = miTaller
       ? valeTalleresTodos.filter(f => f.taller_id === miTaller.id).filter(f => f.estado !== ESTADOS_TALLER.APROBADO)
       : (esAdministrador(usuario) ? valeTalleresTodos.filter(f => f.estado !== ESTADOS_TALLER.APROBADO) : []);
     const valeIdsVisibles = new Set(misFilas.map(f => f.vale_id));
+    const filaPorVale = new Map();
+    misFilas.forEach(f => { if (!filaPorVale.has(f.vale_id)) filaPorVale.set(f.vale_id, f); });
 
     // Cada vale se muestra con el estado DE SU FILA en este taller, no el
     // estado general del vale (que puede diferir si hay otro taller
@@ -535,7 +592,7 @@ class ValeBuzonService {
     const vistos = todosConTaller
       .filter(v => valeIdsVisibles.has(v.id))
       .map(v => {
-        const fila = misFilas.find(f => f.vale_id === v.id);
+        const fila = filaPorVale.get(v.id);
         return {
           ...enriquecer(v), estado_taller: fila.estado, disenador_id: fila.disenador_id, _filaTallerId: fila.id, taller_id: fila.taller_id,
           adjuntos_vence_en: fila.adjuntos_vence_en, adjuntos_mensaje: fila.adjuntos_mensaje, adjuntos_respondido_en: fila.adjuntos_respondido_en
@@ -645,9 +702,10 @@ class ValeBuzonService {
     // PROPUESTA propia del taller — necesario porque un mismo vale puede
     // además traer una fila de FUSIÓN (ver `fusionados` abajo) con el mismo
     // `v.id`.
-    const conPropuesta = await Promise.all(enVentana.map(async v => {
+    const propuestas = await propuestaRepository.obtenerUltimasPorValesYDisenadores(enVentana.map(v => v.id));
+    const conPropuesta = enVentana.map(v => {
       const fila = mapaFilaPorVale.get(v.id);
-      const propuesta = fila.disenador_id ? await propuestaRepository.obtenerUltimaPorValeYDisenador(v.id, fila.disenador_id) : null;
+      const propuesta = fila.disenador_id ? (propuestas.get(`${v.id}-${fila.disenador_id}`) || null) : null;
       const propuestaTallerUrl = propuesta ? propuesta.url : null;
       // La fecha de "aprobado hoy" debe ser la de ESTA fila de taller
       // (fila.actualizado_en), no la del vale general (v.actualizado_en) —
@@ -658,7 +716,7 @@ class ValeBuzonService {
         ...enriquecer(v), estado_taller: ESTADOS_TALLER.APROBADO, propuesta_taller_url: propuestaTallerUrl, propuesta_taller_extra: extraDe(propuesta), propuesta_disenador_id: fila.disenador_id || null, aprobado_en: fila.actualizado_en,
         _rowKey: `${v.id}-P`, _tipoRegistro: 'PROPUESTA'
       };
-    }));
+    });
 
     // Se filtra por la identidad real que dejó `aprobarGeneral`
     // (`vales.fusionado_por`) — adivinarlo a partir del estado/forma del
@@ -770,10 +828,14 @@ class ValeBuzonService {
   async obtenerBuzonDisenador(usuario, ventana, filtroContador) {
     const activas = (await valeTallerRepository.listarActivasPorDisenador(usuario.id))
       .filter(a => [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION].includes(a.estado));
-    const vales = (await Promise.all(activas.map(async a => {
-      const vale = await valeRepository.obtenerPorId(a.vale_id);
-      return vale ? { ...enriquecer(vale), estado_taller: a.estado } : null;
-    })))
+    // El Buzón arrastra lo anterior a la ventana: solo cuenta la cota superior.
+    const valesCargados = await valeRepository.listarParaBuzon({ hastaExclusivo: this._limitesDeVentana(ventana).hastaExclusivo, valeIds: activas.map(a => a.vale_id) });
+    const valePorId = new Map(valesCargados.map(v => [v.id, v]));
+    const vales = activas
+      .map(a => {
+        const vale = valePorId.get(a.vale_id);
+        return vale ? { ...enriquecer(vale), estado_taller: a.estado } : null;
+      })
       .filter(Boolean)
       .filter(v => dentroDeVentana(v, ventana));
 
@@ -810,10 +872,14 @@ class ValeBuzonService {
   async obtenerTrabajoDisenador(usuario, ventana, filtroContador) {
     const activas = (await valeTallerRepository.listarActivasPorDisenador(usuario.id))
       .filter(a => a.estado === ESTADOS_TALLER.APROBADO);
-    const vales = (await Promise.all(activas.map(async a => {
-      const vale = await valeRepository.obtenerPorId(a.vale_id);
+    // Solo los vales de la ventana: la lista de aprobados crece con todo el historial del diseñador.
+    const valesEnVentana = await valeRepository.listarParaBuzon({ ...this._limitesDeVentana(ventana), valeIds: activas.map(a => a.vale_id) });
+    const valePorId = new Map(valesEnVentana.map(v => [v.id, v]));
+    const propuestas = await propuestaRepository.obtenerUltimasPorValesYDisenadores(valesEnVentana.map(v => v.id));
+    const vales = activas.map(a => {
+      const vale = valePorId.get(a.vale_id);
       if (!vale) return null;
-      const propuesta = await propuestaRepository.obtenerUltimaPorValeYDisenador(a.vale_id, usuario.id);
+      const propuesta = propuestas.get(`${vale.id}-${usuario.id}`) || null;
       const propuestaTallerUrl = propuesta ? propuesta.url : null;
       // Estado lógico fijo — al diseñador no le importa qué pase con el vale
       // después de que le aprueben su trabajo (mismo criterio que
@@ -826,7 +892,7 @@ class ValeBuzonService {
         ...enriquecer(vale), propuesta_taller_url: propuestaTallerUrl, propuesta_taller_extra: extraDe(propuesta), propuesta_disenador_id: usuario.id, estado_taller: ESTADOS_TALLER.APROBADO,
         aprobado_en: a.actualizado_en, _rowKey: `${vale.id}-P`, _tipoRegistro: 'PROPUESTA'
       };
-    })))
+    })
       .filter(Boolean)
       .filter(v => dentroDeVentana(v, ventana));
 
