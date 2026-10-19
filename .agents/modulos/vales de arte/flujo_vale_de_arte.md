@@ -794,3 +794,7 @@ En un vale con varios talleres, los talleres que comparten propuestas ven la úl
 - El «?» es retroactivo: un vale cuyo hermano aprobó antes de la función aparece como nuevo hasta que se abra. Se dejó así porque en producción hay un solo vale en proceso y nadie ha entregado propuesta.
 - Al aprobar, el Administrador recibe dos avisos emergentes (conocido, sin cambio).
 - El botón flotante de acción se superpone en celular: ya existía y no tiene relación.
+
+## 15. Borradores de vales
+
+Quien puede crear vales (`vales.crear`) guarda el formulario a medias como borrador: no es un vale (sin correlativo, sin validaciones), es privado, vive 30 días desde su creación y se borra solo con sus archivos (bucket `SUPABASE_STORAGE_BUCKET_BORRADORES`). Hay un tope por usuario (`max_borradores_por_usuario`, 15 por defecto, editable en «Horarios y feriados»). Para mandarlo a autorización se abre en el mismo modal y se pulsa «Crear Vale de Arte»: corre el `crearVale` normal con todas sus validaciones; sus adjuntos pasan al bucket normal con el nombre `{CORR}_...` y el borrador se elimina. Detalle en `documentacion/borradores.md`.
