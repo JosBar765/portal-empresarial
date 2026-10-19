@@ -23,15 +23,15 @@ Para los vales multitaller, el ojo de Reportes muestra el mismo visor que usan a
 `.agents/reglas/reglas_implementacion.md`: no cambiar endpoints ni payloads salvo el campo aditivo; sin abstracciones nuevas; comentarios de una línea; archivos CRLF se editan conservando CRLF. Commits Conventional Commits en español, sin Co-Authored-By.
 
 ## Tareas
-- [ ] T1 Indicador `multitaller` en la ficha del reporte (`valeReporteGruposService.js`).
-- [ ] T2 Función que abre el visor con una pestaña por taller y la fusionada, reutilizando la lógica del modal de fusión sin duplicarla ni cambiarla.
-- [ ] T3 Conectar los tres ojos de Reportes a esa función cuando el vale es multitaller.
-- [ ] T4 `node --check`, relectura del diff y revisión de que los demás llamadores del visor no cambian.
+- [x] T1 Indicador `multitaller` en la ficha del reporte (`valeReporteGruposService.js`). Commit 8a2be39.
+- [x] T2 Función que abre el visor con una pestaña por taller y la fusionada, reutilizando la lógica del modal de fusión sin duplicarla ni cambiarla. Commit 6f496a5.
+- [x] T3 Conectar los tres ojos de Reportes a esa función cuando el vale es multitaller. Commit 6f496a5.
+- [x] T4 `node --check`, relectura del diff y revisión de que los demás llamadores del visor no cambian.
 - [ ] T5 Verificación visual en el navegador (gerente, supervisor, encargado) con un vale multitaller real de la BD de pruebas.
-- [ ] T6 Documentación breve en `.agents/modulos/vales de arte/documentacion/`.
+- [x] T6 Documentación breve en `.agents/modulos/vales de arte/documentacion/`.
 
 ## Rutas
 Un writer delegado para T1-T4 y T6; T5 verificación visual aparte.
 
 ## Progreso
-Plan creado, sin código todavía.
+T1-T4 y T6 hechas; T5 (verificación visual) pendiente. Helper en `public/modules/vales/js/actions/propuestasMultitaller.js`.
