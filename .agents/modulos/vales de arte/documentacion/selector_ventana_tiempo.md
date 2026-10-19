@@ -6,6 +6,7 @@ Buzón y Trabajo realizado usan la misma barra de período que la pestaña Repor
 - Tipos: Hoy · Día · Semana (lunes a domingo) · Mes · Desde – Hasta. Desaparece «Todo».
 - Se abre en «Hoy» (antes en «Todo»).
 - Desde – Hasta exige las dos fechas; al elegirlo se precarga los últimos 7 días.
+- Información por día del calendario (`GET /api/vales/calendario-buzon`, `capacidadEntregaService.obtenerCalendarioBuzon`): el Supervisor (`vales.ver_cupo`) ve el cupo de los talleres de sus tiendas; el **Asesor** ve el mismo mapa de calor, pero solo de los talleres a los que puede enviar (los generales y el Diseño Local de su propia tienda) y con sus propios vales por autorizar; el Encargado/Asistente ve cuántos vales entran a su taller; el **Diseñador** ve solo cuántas asignaciones activas suyas entran (ASIGNADO, EN_PROCESO, EN_PAUSA y EN_REVISION, las mismas que ve en su buzón).
 - Semana es nueva en Buzón y Trabajo realizado. Su calendario muestra solo los indicadores de cada día (mapa de calor del cupo o conteo de vales), sin detalle ni botones: un clic en cualquier día elige la semana completa. Los datos se piden por mes, así que los días de otro mes no traen indicador.
 - Se conservan en el calendario del modo «Día»: el mapa de calor del cupo de talleres (Supervisor, `vales.ver_cupo`), el conteo de vales por día (Diseñador y Encargado/Asistente) y las acciones «Ver vales de este día» y «Ver reporte de este día» (esta, con `vales.ver_reportes`).
 - Se pierde el pie «Todo <mes>»: el mes completo se elige con el tipo «Mes».

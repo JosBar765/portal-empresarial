@@ -17,9 +17,10 @@ function verReporteDelDia(iso) {
 export function wireToolbar() {
   // Misma barra de período que Reportes (Hoy · Día · Semana · Mes · Desde–Hasta), con su propio estado: state.ventana.
   const cambiarVentana = (ventana) => { state.ventana = ventana; barra.pintar(); cargarBuzon(); };
-  // El Supervisor (con vales.ver_cupo) ve el cupo de los talleres por día; el Diseñador y el Encargado/Asistente, cuántos vales tienen.
+  // El Supervisor (con vales.ver_cupo) y el Asesor ven el cupo de los talleres por día; el Encargado/Asistente, cuántos vales tiene
+  // su taller; el Diseñador, cuántas asignaciones suyas.
   const permisos = state.user.permissions || [];
-  const conInfoPorDia = permisos.includes('vales.ver_cupo') || ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user));
+  const conInfoPorDia = permisos.includes('vales.ver_cupo') || state.user.rolId === ROL.ASESOR || ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user));
   const barra = crearBarraPeriodo($('#ventana-barra'), {
     prefijo: 'vt',
     obtener: () => state.ventana,

@@ -35,19 +35,20 @@ class CapacidadRepository {
   }
 
   // Cuántos vales entran cada día (por fecha de entrega) a unos talleres o a un diseñador, para el calendario del Buzón.
-  // Devuelve { 'AAAA-MM-DD': n } con los días que tienen vales.
-  async contarPorDia({ fechaDesde, fechaHasta, talleresIds = null, disenadorId = null }) {
+  // `estadosTaller` limita las filas de taller a esos estados. Devuelve { 'AAAA-MM-DD': n } con los días que tienen vales.
+  async contarPorDia({ fechaDesde, fechaHasta, talleresIds = null, disenadorId = null, estadosTaller = null }) {
     if (talleresIds && !talleresIds.length) return {};
     const filtro = disenadorId
       ? 'AND vt.disenador_id = ?'
       : `AND vt.taller_id IN (${talleresIds.map(() => '?').join(',')})`;
+    const porEstado = estadosTaller ? ` AND vt.estado_id IN (SELECT id FROM estados_taller WHERE nombre IN (${estadosTaller.map(() => '?').join(',')}))` : '';
     const filas = await db.query(
       `SELECT DATE(v.fecha_entrega) AS fecha, COUNT(DISTINCT v.id) AS n
        FROM vale_talleres vt
        JOIN vales v ON v.id = vt.vale_id
-       WHERE vt.activo = 1 AND v.fecha_entrega BETWEEN ? AND ? ${filtro}
+       WHERE vt.activo = 1 AND v.fecha_entrega BETWEEN ? AND ? ${filtro}${porEstado}
        GROUP BY DATE(v.fecha_entrega)`,
-      [`${fechaDesde} 00:00:00`, `${fechaHasta} 23:59:59`, ...(disenadorId ? [disenadorId] : talleresIds)],
+      [`${fechaDesde} 00:00:00`, `${fechaHasta} 23:59:59`, ...(disenadorId ? [disenadorId] : talleresIds), ...(estadosTaller || [])],
       'capacidad:contar_por_dia'
     );
     return Object.fromEntries(filas.map(f => [String(f.fecha).slice(0, 10), Number(f.n)]));
