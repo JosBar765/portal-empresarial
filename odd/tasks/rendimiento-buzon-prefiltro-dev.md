@@ -26,7 +26,7 @@ Que el Buzón y Trabajo realizado dejen de cargar todo el historial en cada cons
 - [x] T3 (commits `f0a91a6`, `6387afc`, `d7d7dd3`, `d72aff4`, `fbaebdb`) Dejar el historial en commits de unidad: (a) prefiltro SQL del Buzón y Trabajo acotado con propuestas en lote, (b) ajuste de básicas, (c) sin «Todo» + «Hoy» + respuestas viejas, (d) recarga por evento + Reportes manual, (e) notificaciones.
 - [x] T4 `node --check` de todo lo cambiado y relectura del diff contra `dev`.
 - [x] T5 Verificación A/B del mismo momento contra `origin/dev` (`ab9cef0`) con la BD de pruebas al esquema de `dev` (`09_modificaciones_por_tipo.sql`) y 20 modificaciones básicas sembradas (14 `EN_CONVERSACION`, 4 `RECHAZADA`, 2 `ACEPTADA`, sobre vales pendientes de confirmación y cerrados de este mes, pasados y futuros, en los cuatro tipos de taller): 802 casos (11 roles, Buzón y Trabajo, ventanas hoy, mes y mes anterior), 802 idénticos, 0 diferencias. Chequeo crítico: los encargados y el asistente ven los mismos vales con básica abierta con ambos códigos, incluidos los cerrados y los de fecha futura. Mediana de la primera página: 62,6 → 20,8 ms (3,0×); Buzón del Diseñador 8,1×, Trabajo del Diseñador 25,6×, Buzón del Encargado de Diseño 1,9×. Una sola corrida por caso, datos sintéticos.
-- [ ] T6 Documentar en `.agents/modulos/vales de arte/documentacion/` (adaptar el informe original a lo que quede).
+- [x] T6 Informe en `.agents/modulos/vales de arte/documentacion/rendimiento_buzon_prefiltro.md` (traído de la rama de prueba y actualizado con el resultado final, sección 9). El plan original quedó en `odd/tasks/rendimiento-buzon-prefiltro.md`.
 
 ## Rutas
 Un writer delegado para T1-T4 (13 archivos de código); T5 aparte.
