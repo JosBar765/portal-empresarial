@@ -7,7 +7,7 @@ Que «Buzón» y «Trabajo realizado» usen el mismo selector de período que la
 
 ## Decisiones (usuario)
 - Una sola barra compartida por Buzón y Trabajo (`state.ventana`); la de Reportes sigue independiente (`state.reporte.ventana`) y debe quedar exactamente igual.
-- Tipos: Hoy, Día, Semana (lunes a domingo), Mes y Desde–Hasta. No existe «Todo»; se abre en «Hoy».
+- Tipos: Hoy, Día, Semana (lunes a domingo), Mes y Desde–Hasta. No existe «Todo»; se abre en la semana de hoy (decisión posterior: antes era «Hoy»).
 - Rango: se exigen las dos fechas (como Reportes). Antes el Buzón permitía una sola y vaciarlas volvía a «Todo».
 - El Buzón sigue incluyendo los vales anteriores aún abiertos (arrastrados); Trabajo realizado, ventana estricta.
 - Se conservan, en el calendario del modo «Día»: el mapa de calor del cupo de talleres (supervisor, `vales.ver_cupo`), el conteo de vales por día (diseñador y encargado) y las acciones «Ver vales de este día» y «Ver reporte de este día».
@@ -15,7 +15,7 @@ Que «Buzón» y «Trabajo realizado» usen el mismo selector de período que la
 
 ## Diseño
 - Sin tocar el backend (`_resolverVentana` acepta `todo`, `mes` y `rango`): el frontend manda Hoy y Día como un rango del mismo día, Semana como un rango de lunes a domingo, Mes como `mes` + `fecha` y Rango con `desde` y `hasta`.
-- `state.ventana` pasa a la misma forma que `state.reporte.ventana`: `{ tipo, fecha, desde, hasta }`, por defecto `tipo: 'hoy'`.
+- `state.ventana` pasa a la misma forma que `state.reporte.ventana`: `{ tipo, fecha, desde, hasta }`, por defecto `tipo: 'semana'` (la de Reportes sigue en `'hoy'`).
 - La barra de `.vales-toolbar` se reemplaza solo en su bloque de ventana; `#filtro-tienda` y `#btn-nuevo-vale` se quedan.
 - `verReporteDelDia` sigue escribiendo `state.reporte.ventana` y abre Reportes.
 - Código muerto (cuando nadie más lo use): `selectorPeriodo.js`, el marcado y los listeners del navegador de mes, y las reglas CSS de `.mes-nav*`, `.ventana-*` y `.chip`.
