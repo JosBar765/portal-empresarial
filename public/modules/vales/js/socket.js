@@ -70,7 +70,8 @@ export function initSocket() {
       window.toast[esAlerta ? 'error' : 'info'](esAlerta ? 'Atención' : 'Vale de arte', data.mensaje);
       if (data.beep !== false) reproducirBeep();
     }
-    programarRecarga();
+    // Un mensaje del chat de una básica no cambia ninguna fila de la lista: el chat abierto se actualiza arriba.
+    if (data.tipo !== 'MOD_BASICA_MENSAJE') programarRecarga();
   });
   // Solo refresco, sin toast ni beep (ver `refrescar` en events.js).
   state.socket.on('vale_refrescar', () => programarRecarga());
