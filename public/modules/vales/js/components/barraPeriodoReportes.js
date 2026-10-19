@@ -1,11 +1,12 @@
 // Barra de período de Reportes: Hoy · Día · Semana · Mes · Desde–Hasta.
 // Un control segmentado elige el tipo; debajo, flechas ‹ › y una etiqueta que abre el calendario del tipo elegido
 // (día, semana o mes). El rango usa dos campos de fecha. Reusa el aspecto del calendario de los formularios (.dp-*).
+// Con `cargarInfoMes` el calendario del modo Día muestra información por día (cupo o cantidad de vales) y, al elegir un día,
+// ofrece «Ver vales de este día» (`alVerVales`) y «Ver reporte de este día» (`alVerReporte`).
 import { hoyMedianoche, isoLocal, parseIsoLocal, primerDiaDelMes, sumarDiaLocal } from '../utils/fechas.js';
 import {
   MESES, DIAS_SEMANA_CORTO, htmlCampoFechaCompacto, wireCampoFecha, registrarPanelFechaActivo, liberarPanelFechaActivo
 } from './datepicker.js';
-import { etiquetaDia, etiquetaMes } from './selectorPeriodo.js';
 
 const TIPOS = [
   { id: 'hoy', texto: 'Hoy' },
@@ -14,6 +15,17 @@ const TIPOS = [
   { id: 'mes', texto: 'Mes' },
   { id: 'rango', texto: 'Desde – Hasta' }
 ];
+
+const DIAS_ABREV = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+
+// «mar 13 oct 2026»
+export function etiquetaDia(fecha) {
+  return `${DIAS_ABREV[fecha.getDay()]} ${fecha.getDate()} ${MESES[fecha.getMonth()].slice(0, 3).toLowerCase()} ${fecha.getFullYear()}`;
+}
+
+export function etiquetaMes(fecha) {
+  return `${MESES[fecha.getMonth()]} ${fecha.getFullYear()}`;
+}
 
 const corto = (f) => `${f.getDate()} ${MESES[f.getMonth()].slice(0, 3).toLowerCase()}`;
 
@@ -77,24 +89,33 @@ export function aplicarPeriodoAQuery(qs, p) {
 }
 
 // `soloCerrados()`: si devuelve true, Semana y Mes solo permiten períodos ya cerrados (reporte de Rendimiento).
-export function crearBarraPeriodo(contenedor, { obtener, alCambiar, soloCerrados = () => false }) {
+// `prefijo` (opcional) hace únicos los ids y nombres de campo cuando hay dos barras en la página; sin él se usan los de Reportes.
+export function crearBarraPeriodo(contenedor, {
+  obtener, alCambiar, soloCerrados = () => false, prefijo = null, cargarInfoMes = null, alVerReporte = null, alVerVales = null
+}) {
+  const idNavegador = `${prefijo || 'rp'}-navegador`;
+  const idEtiqueta = `${prefijo || 'rp'}-etiqueta`;
+  const idRango = `${prefijo || 'rp'}-rango`;
+  const campoDesde = `${prefijo || 'rep'}-desde`;
+  const campoHasta = `${prefijo || 'rep'}-hasta`;
+  const conInfo = typeof cargarInfoMes === 'function';
   contenedor.innerHTML = `
     <div class="rp-segmentos" role="group" aria-label="Tipo de período">
       ${TIPOS.map(t => `<button type="button" class="rp-segmento" data-tipo="${t.id}" aria-pressed="false">${t.texto}</button>`).join('')}
     </div>
-    <div class="rp-navegador" id="rp-navegador">
+    <div class="rp-navegador" id="${idNavegador}">
       <button type="button" class="rp-flecha" data-paso="-1" aria-label="Período anterior"><ion-icon name="chevron-back-outline"></ion-icon></button>
-      <button type="button" class="rp-etiqueta" id="rp-etiqueta" aria-haspopup="dialog" aria-expanded="false"><ion-icon name="calendar-outline" aria-hidden="true"></ion-icon><span></span></button>
+      <button type="button" class="rp-etiqueta" id="${idEtiqueta}" aria-haspopup="dialog" aria-expanded="false"><ion-icon name="calendar-outline" aria-hidden="true"></ion-icon><span></span></button>
       <button type="button" class="rp-flecha" data-paso="1" aria-label="Período siguiente"><ion-icon name="chevron-forward-outline"></ion-icon></button>
     </div>
-    <div class="rp-rango" id="rp-rango">
-      ${htmlCampoFechaCompacto('rep-desde', 'Desde')}<span class="rp-guion" aria-hidden="true">–</span>${htmlCampoFechaCompacto('rep-hasta', 'Hasta')}
+    <div class="rp-rango" id="${idRango}">
+      ${htmlCampoFechaCompacto(campoDesde, 'Desde')}<span class="rp-guion" aria-hidden="true">–</span>${htmlCampoFechaCompacto(campoHasta, 'Hasta')}
     </div>`;
-  const navegador = contenedor.querySelector('#rp-navegador');
-  const etiqueta = contenedor.querySelector('#rp-etiqueta');
-  const rango = contenedor.querySelector('#rp-rango');
-  const apiDesde = wireCampoFecha(rango, 'rep-desde', { placeholder: 'Desde' });
-  const apiHasta = wireCampoFecha(rango, 'rep-hasta', { placeholder: 'Hasta' });
+  const navegador = contenedor.querySelector(`#${idNavegador}`);
+  const etiqueta = contenedor.querySelector(`#${idEtiqueta}`);
+  const rango = contenedor.querySelector(`#${idRango}`);
+  const apiDesde = wireCampoFecha(rango, campoDesde, { placeholder: 'Desde' });
+  const apiHasta = wireCampoFecha(rango, campoHasta, { placeholder: 'Hasta' });
 
   const cambiar = (cambios) => alCambiar({ ...obtener(), ...cambios });
 
@@ -157,14 +178,17 @@ export function crearBarraPeriodo(contenedor, { obtener, alCambiar, soloCerrados
     if (d > h) { window.toast?.error('Período', 'La fecha «Desde» no puede ser posterior a «Hasta».'); return; }
     cambiar({ tipo: 'rango', desde: isoLocal(d), hasta: isoLocal(h) });
   };
-  rango.querySelector('[data-date-field="rep-desde"] input[type="hidden"]').addEventListener('change', alCambiarRango);
-  rango.querySelector('[data-date-field="rep-hasta"] input[type="hidden"]').addEventListener('change', alCambiarRango);
+  rango.querySelector(`[data-date-field="${campoDesde}"] input[type="hidden"]`).addEventListener('change', alCambiarRango);
+  rango.querySelector(`[data-date-field="${campoHasta}"] input[type="hidden"]`).addEventListener('change', alCambiarRango);
 
   // ---- Calendario del tipo elegido (día, semana o mes) ----
   let panel = null;
   let vista = 'dias';
   let mesVisible = new Date();
   let anioVisible = mesVisible.getFullYear();
+  let info = null; // respuesta del servidor para el mes visible: { tipo: 'cupo' | 'conteo' | null, ... }
+  let infoToken = 0;
+  let previa = null; // día marcado (ISO) cuando hay información por día
   const api = { cerrar: () => cerrar(false) };
 
   function elegir(fecha) {
@@ -178,6 +202,9 @@ export function crearBarraPeriodo(contenedor, { obtener, alCambiar, soloCerrados
     if (!panel) return;
     panel.remove();
     panel = null;
+    infoToken++;
+    info = null;
+    previa = null;
     etiqueta.setAttribute('aria-expanded', 'false');
     document.removeEventListener('keydown', onKeydown, true);
     document.removeEventListener('click', onClickFuera, true);
@@ -227,6 +254,7 @@ export function crearBarraPeriodo(contenedor, { obtener, alCambiar, soloCerrados
       </div>
       <div class="dp-weekdays">${DIAS_SEMANA_CORTO.map(d => `<span>${d}</span>`).join('')}</div>
       <div class="dp-grid${modo === 'semana' ? ' dp-grid--semanas' : ''}">${cuadricula}</div>
+      ${conInfo && modo === 'dia' ? '<div class="dp-info" id="dp-info" aria-live="polite"></div>' : ''}
       ${modo === 'semana' ? '<p class="dp-ayuda">Toca cualquier día para elegir su semana (lunes a domingo).</p>' : ''}`;
   }
 
@@ -265,7 +293,17 @@ export function crearBarraPeriodo(contenedor, { obtener, alCambiar, soloCerrados
       pintar2();
       panel.querySelector(`[data-nav-anio="${b.dataset.navAnio}"]`).focus();
     }));
-    panel.querySelectorAll('.dp-day[data-fecha]').forEach(b => b.addEventListener('click', () => elegir(parseIsoLocal(b.dataset.fecha))));
+    const conInfoDia = conInfo && p.tipo === 'dia' && vista === 'dias';
+    panel.classList.toggle('panel-periodo--info', conInfoDia);
+    panel.querySelectorAll('.dp-day[data-fecha]').forEach(b => {
+      if (!conInfoDia) { b.addEventListener('click', () => elegir(parseIsoLocal(b.dataset.fecha))); return; }
+      b.addEventListener('click', () => previsualizar(b.dataset.fecha));
+      b.addEventListener('mouseenter', () => mostrarInfo(b.dataset.fecha, false));
+      b.addEventListener('focus', () => mostrarInfo(b.dataset.fecha, false));
+      b.addEventListener('mouseleave', () => mostrarInfo(previa, true));
+      b.addEventListener('blur', () => mostrarInfo(previa, true));
+    });
+    if (conInfoDia) { mostrarInfo(previa, true); cargarInfo(); }
     panel.querySelectorAll('.dp-mes').forEach(b => b.addEventListener('click', () => elegir(new Date(anioVisible, Number(b.dataset.mes), 1))));
     const titulo = panel.querySelector('[data-accion="meses"]');
     if (titulo) titulo.addEventListener('click', () => { anioVisible = mesVisible.getFullYear(); vista = 'meses'; pintar2(true); });
@@ -275,6 +313,112 @@ export function crearBarraPeriodo(contenedor, { obtener, alCambiar, soloCerrados
         if (objetivo) { objetivo.focus(); break; }
       }
     }
+  }
+
+  // ---- Información por día (cupo o cantidad de vales) ----
+  const NIVELES = {
+    disponible: { texto: 'Con cupo', clase: 'dp-day--disponible' },
+    moderado: { texto: 'Medio', clase: 'dp-day--moderado' },
+    critico: { texto: 'Casi lleno', clase: 'dp-day--critico' },
+    lleno: { texto: 'Lleno', clase: 'dp-day--agotado' }
+  };
+  const ORDEN_NIVEL = ['disponible', 'moderado', 'critico', 'lleno'];
+  const nivelDeTaller = (t) => {
+    if (t.programados >= t.limite) return 'lleno';
+    const pct = t.programados / t.limite;
+    return pct >= 0.9 ? 'critico' : (pct >= 0.6 ? 'moderado' : 'disponible');
+  };
+  const nivelDelDia = (dia) => dia.talleres.map(nivelDeTaller).sort((a, b) => ORDEN_NIVEL.indexOf(b) - ORDEN_NIVEL.indexOf(a))[0];
+  const nombreTaller = (id) => ((info.talleres || []).find(t => t.id === id) || {}).nombre || `Taller ${id}`;
+  const esFinDeSemana = (iso) => [0, 6].includes(parseIsoLocal(iso).getDay());
+
+  async function cargarInfo() {
+    const token = ++infoToken;
+    info = null;
+    try {
+      const respuesta = await cargarInfoMes(mesVisible.getFullYear(), mesVisible.getMonth() + 1);
+      if (token !== infoToken || !panel) return;
+      info = respuesta;
+    } catch {
+      if (token !== infoToken || !panel) return;
+      info = { tipo: null }; // sin la información, el calendario sigue usable
+    }
+    aplicarInfo();
+    mostrarInfo(previa, true);
+  }
+
+  // Pinta cada celda del mes con la información recibida (sin volver a construir la cuadrícula).
+  function aplicarInfo() {
+    if (!info || !info.tipo) return;
+    const maximo = info.tipo === 'conteo' ? Math.max(1, ...Object.values(info.dias || {})) : 0;
+    panel.querySelectorAll('.dp-day[data-fecha]').forEach(boton => {
+      const iso = boton.dataset.fecha;
+      if (info.tipo === 'cupo') {
+        const dia = info.dias[iso];
+        if (!dia || !dia.talleres.length || (esFinDeSemana(iso) && !dia.talleres.some(t => t.programados || t.pendientes))) return;
+        const nivel = nivelDelDia(dia);
+        const pendientes = dia.talleres.reduce((s, t) => s + t.pendientes, 0);
+        boton.classList.add('tiene-info', NIVELES[nivel].clase);
+        boton.insertAdjacentHTML('beforeend', `<span class="dp-day-barras" aria-hidden="true">${dia.talleres.map(t => `<span class="dp-pista"><i class="dp-barra dp-barra--${nivelDeTaller(t)}" style="width:${Math.min(100, Math.round(t.programados / t.limite * 100))}%"></i></span>`).join('')}</span>${pendientes ? `<span class="dp-day-mas" aria-hidden="true">+${pendientes}</span>` : ''}`);
+      } else {
+        const n = info.dias[iso] || 0;
+        if (!n) return;
+        boton.classList.add('tiene-info', `dp-day--c${Math.max(1, Math.ceil(n / maximo * 4))}`);
+        boton.insertAdjacentHTML('beforeend', `<span class="dp-day-n" aria-hidden="true">${n}</span>`);
+      }
+      boton.setAttribute('aria-label', `${boton.getAttribute('aria-label')}: ${textoPlano(iso)}`);
+    });
+  }
+
+  function textoPlano(iso) {
+    if (!info || !info.tipo) return '';
+    if (info.tipo === 'conteo') { const n = info.dias[iso] || 0; return `${n} ${n === 1 ? 'vale' : 'vales'}`; }
+    const dia = info.dias[iso];
+    return dia ? dia.talleres.map(t => `${nombreTaller(t.tallerId)} ${t.programados} de ${t.limite}`).join('; ') : '';
+  }
+
+  // Detalle del día en el pie del calendario; con `conAcciones` ofrece ver los vales o abrir el reporte de ese día.
+  function mostrarInfo(iso, conAcciones) {
+    const cont = panel && panel.querySelector('#dp-info');
+    if (!cont) return;
+    if (!iso) {
+      cont.innerHTML = info && !info.tipo ? '' : '<p class="dp-info-ayuda">Elige un día para ver su detalle.</p>';
+      return;
+    }
+    const titulo = `<p class="dp-info-titulo">${etiquetaDia(parseIsoLocal(iso))}</p>`;
+    let cuerpo = '';
+    if (!info) cuerpo = '<p class="dp-info-ayuda">Cargando…</p>';
+    else if (info.tipo === 'conteo') {
+      const n = info.dias[iso] || 0;
+      cuerpo = n || !esFinDeSemana(iso)
+        ? `<p class="dp-info-cifra"><b>${n}</b> ${n === 1 ? 'vale' : 'vales'} con entrega este día</p>`
+        : '<p class="dp-info-ayuda">Fin de semana: sin entregas.</p>';
+    } else if (info.tipo === 'cupo') {
+      const dia = info.dias[iso];
+      cuerpo = dia && dia.talleres.length && !(esFinDeSemana(iso) && !dia.talleres.some(t => t.programados || t.pendientes))
+        ? `<ul class="dp-info-lista">${dia.talleres.map(t => {
+          const nivel = nivelDeTaller(t);
+          const libres = Math.max(0, t.limite - t.programados);
+          return `<li><span class="dp-info-taller">${nombreTaller(t.tallerId)}</span><span class="dp-info-cupo dp-info-cupo--${nivel}">${t.programados}/${t.limite} · ${libres > 0 ? `${libres} ${libres === 1 ? 'libre' : 'libres'}` : 'Lleno'}</span>${t.pendientes ? `<span class="dp-info-pend">+${t.pendientes} por autorizar</span>` : ''}</li>`;
+        }).join('')}</ul>`
+        : (esFinDeSemana(iso) ? '<p class="dp-info-ayuda">Fin de semana: sin entregas.</p>' : '<p class="dp-info-ayuda">Sin talleres con límite este día.</p>');
+    }
+    const botones = (alVerVales ? '<button type="button" class="btn btn--primary btn--sm" data-accion="ver-dia">Ver vales de este día</button>' : '')
+      + (alVerReporte ? '<button type="button" class="btn btn--ghost btn--sm" data-accion="ver-reporte">Ver reporte de este día</button>' : '');
+    const acciones = conAcciones && iso === previa && botones ? `<div class="dp-info-acciones">${botones}</div>` : '';
+    cont.innerHTML = titulo + cuerpo + acciones;
+    const verDia = cont.querySelector('[data-accion="ver-dia"]');
+    if (verDia) verDia.addEventListener('click', () => { cerrar(true); alVerVales(iso); });
+    const verReporte = cont.querySelector('[data-accion="ver-reporte"]');
+    if (verReporte) verReporte.addEventListener('click', () => { cerrar(false); alVerReporte(iso); });
+  }
+
+  function previsualizar(iso) {
+    previa = iso;
+    panel.querySelectorAll('.dp-day.is-previa').forEach(b => b.classList.remove('is-previa'));
+    const boton = panel.querySelector(`.dp-day[data-fecha="${iso}"]`);
+    if (boton) boton.classList.add('is-previa');
+    mostrarInfo(iso, true);
   }
 
   function posicionar() {
