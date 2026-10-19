@@ -375,6 +375,8 @@
 .dp-semana-fila.is-semana-elegida { background: var(--color-primary-dark); }
 .dp-semana-fila.is-semana-elegida .dp-day { color: #fff; }
 .dp-semana-fila .dp-day { background: transparent; }
+/* Sin indicadores: el día bajo el cursor dentro de la semana elegida sigue siendo legible (texto blanco sobre azul) */
+.date-picker-panel:not(.panel-periodo--info) .dp-semana-fila.is-semana-elegida .dp-day:hover:not(.is-disabled) { background: var(--color-primary-dark-hover); }
 .dp-ayuda { margin: 8px 4px 2px; font-size: 11px; color: var(--color-text-secondary); }
 
 /* Filtros de la tabla unificada */
