@@ -542,7 +542,7 @@ class ValeCreacionService {
     for (const doc of documentos) {
       try {
         // Un archivo que otro vale (el original de una modificación) también usa no se borra de Storage.
-        if (await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, valeId) > 0) continue;
+        if (!doc.ruta || await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, valeId) > 0) continue;
         await supabaseStorage.eliminar(doc.ruta);
       } catch { /* best-effort — el vale se borra de todas formas */ }
     }

@@ -185,7 +185,8 @@ class ValeController {
       const vale = await valeService.obtenerValeParaPdf(req.user, idObligatorio(req.params.id));
       valeService.marcarVisto(req.user, vale.id).catch(error => console.error('[Visto]', error.message));
       if (!vale.pdf_url) {
-        return res.status(404).json({ error: 'El PDF de este vale aún no ha sido generado.' });
+        const error = vale.archivos_purgados_en ? 'El PDF de este vale ya expiró y fue eliminado.' : 'El PDF de este vale aún no ha sido generado.';
+        return res.status(404).json({ error });
       }
       return res.redirect(vale.pdf_url);
     } catch (error) {

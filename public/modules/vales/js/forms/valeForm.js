@@ -348,12 +348,12 @@ async function cargarArchivosActuales(overlay, valeId, documentosQuitar, actuale
       const tipo = cont.dataset.tipo;
       cont.innerHTML = documentos.filter(d => d.tipo === tipo && !documentosQuitar.has(d.id)).map(d => `
         <span class="archivo-chip">
-          <a class="archivo-chip-ver" href="${escapeHtml(d.ruta)}" target="_blank" rel="noopener" title="Ver archivo">
-            ${tipo === 'imagen'
+          <${d.ruta ? 'a' : 'span'} class="archivo-chip-ver" ${d.ruta ? `href="${escapeHtml(d.ruta)}" target="_blank" rel="noopener" title="Ver archivo"` : 'title="Archivo eliminado"'}>
+            ${tipo === 'imagen' && d.ruta
               ? `<img class="archivo-chip-miniatura" src="${escapeHtml(d.ruta)}" alt="">`
               : '<ion-icon name="document-text-outline" class="archivo-chip-icon"></ion-icon>'}
-            <span class="archivo-chip-nombre">${escapeHtml(d.nombre_original)}</span>
-          </a>
+            <span class="archivo-chip-nombre">${escapeHtml(d.nombre_original)}${d.ruta ? '' : ' (archivo eliminado)'}</span>
+          </${d.ruta ? 'a' : 'span'}>
           ${esPropuestaOriginal(d)
             ? '<small class="form-nota" style="margin:0 0 0 6px;">Propuesta del vale original: no se puede quitar</small>'
             : `<button type="button" class="archivo-chip-quitar" data-id="${d.id}" title="Quitar">&times;</button>`}
