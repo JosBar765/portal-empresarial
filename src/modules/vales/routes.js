@@ -3,6 +3,7 @@ const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 const valeController = require('./controllers/valeController');
+const borradorController = require('./controllers/borradorController');
 const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
@@ -80,6 +81,13 @@ router.get('/', verVales, (req, res) => valeController.buzon(req, res));
 router.get('/reportes', verReportes, limitarReportes, (req, res) => valeController.reportes(req, res));
 router.get('/reportes/pdf', verReportes, limitarReportes, (req, res) => valeController.reportePdf(req, res));
 router.post('/', crearVale, camposAdjuntos, (req, res) => valeController.crear(req, res));
+
+// Borradores: privados de su dueño; van antes de /:id para que "borradores" no se lea como un id.
+router.get('/borradores', crearVale, (req, res) => borradorController.listar(req, res));
+router.get('/borradores/:id', crearVale, (req, res) => borradorController.obtener(req, res));
+router.post('/borradores', crearVale, camposAdjuntos, (req, res) => borradorController.crear(req, res));
+router.put('/borradores/:id', crearVale, camposAdjuntos, (req, res) => borradorController.actualizar(req, res));
+router.delete('/borradores/:id', crearVale, (req, res) => borradorController.eliminar(req, res));
 
 router.get('/:id', verVales, (req, res) => valeController.detalle(req, res));
 router.get('/:id/pdf', verVales, (req, res) => valeController.descargarPdf(req, res));
