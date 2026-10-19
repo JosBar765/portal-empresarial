@@ -265,18 +265,27 @@ class ValeBuzonService {
       case ROL.ENCARGADO_UV3D:
       case ROL.ENCARGADO_PROTEXTIL:
       case ROL.ENCARGADO_DISENO_LOCAL: {
-        if (esAdministrador(usuario)) return valeRepository.listarParaBuzon(base);
+        if (esAdministrador(usuario)) return this._conBasicasAbiertas(await valeRepository.listarParaBuzon(base), null);
         const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
         const miTaller = talleresActivos.find(t => t.encargado_id === idEfectivo);
         const puedeFusionar = (usuario.permissions || []).includes('vales.aprobar_general');
         if (!miTaller && !puedeFusionar) return [];
         const ids = new Set(miTaller ? await valeTallerRepository.listarValeIdsDeTallerSinEstado(miTaller.id, ESTADOS_TALLER.APROBADO) : []);
         if (puedeFusionar) (await valeRepository.listarIdsPorEstado(ESTADOS.APROBADO_DEPARTAMENTO)).forEach(id => ids.add(id));
-        return valeRepository.listarParaBuzon({ ...base, valeIds: [...ids] });
+        return this._conBasicasAbiertas(await valeRepository.listarParaBuzon({ ...base, valeIds: [...ids] }), miTaller ? miTaller.id : 0);
       }
       default: // Administrador, Gerente y demás: el buzón general
         return valeRepository.listarParaBuzon(base);
     }
+  }
+
+  // Suma, sin ventana ni estado, los vales con una modificación básica abierta con el taller (0 = sin taller: ninguno; null = cualquiera).
+  async _conBasicasAbiertas(vales, tallerId) {
+    if (tallerId === 0) return vales;
+    const yaIncluidos = new Set(vales.map(v => v.id));
+    const faltantes = (await modificacionBasicaRepository.listarValeIdsAbiertosDeTaller(tallerId)).filter(id => !yaIncluidos.has(id));
+    if (!faltantes.length) return vales;
+    return [...vales, ...await valeRepository.listarParaBuzon({ valeIds: faltantes })].sort((a, b) => a.id - b.id);
   }
 
   async obtenerBuzon(usuario, filtros = {}) {
