@@ -44,20 +44,27 @@ export function construirQueryBase() {
   return qs;
 }
 
+// Número de la última carga pedida: una respuesta anterior a la última no se pinta.
+let ultimaCarga = 0;
+
 export async function cargarBuzon() {
   // Reportes de actividad: tienen su propia vista y su propia consulta.
   if (state.vista === 'reportes') return cargarReportes();
   state.paginacion = { limit: 50, cursor: null, total: 0, hasMore: false, cargandoMas: false };
   const qs = construirQueryBase();
+  const numeroCarga = ++ultimaCarga;
 
   try {
     const data = await obtenerBuzon(qs);
+    if (numeroCarga !== ultimaCarga) return;
     state.vales = data.vales || [];
     state.contadores = data.contadores || {};
+    state.mensajeVacio = data.mensajeVacio || '';
     state.paginacion.total = data.total ?? state.vales.length;
     state.paginacion.hasMore = !!data.hasMore;
     state.paginacion.cursor = data.nextCursor ?? null;
   } catch (error) {
+    if (numeroCarga !== ultimaCarga) return;
     $('#buzon-tbody').innerHTML = `
       <tr><td colspan="${columnasVisibles()}" class="tabla-vacia">
         <div class="buzon-vacio buzon-vacio-error">
@@ -79,8 +86,11 @@ export async function cargarMasVales() {
   const qs = construirQueryBase();
   if (state.paginacion.cursor) qs.set('cursor', String(state.paginacion.cursor));
 
+  const numeroCarga = ultimaCarga;
+
   try {
     const data = await obtenerMasVales(qs);
+    if (numeroCarga !== ultimaCarga) return;
     // Si el cursor ya no aparece en el conjunto recalculado del servidor, este
     // cae a un respaldo por posición que en teoría podría repetir filas ya
     // mostradas — se descartan acá por clave de fila, nunca duplicando una
@@ -196,7 +206,7 @@ export function renderTabla() {
     const titulo = esBusqueda ? 'Sin resultados' : 'Buzón vacío';
     const mensaje = esBusqueda
       ? `No encontramos vales de arte para «${state.busqueda}».`
-      : 'No hay vales de arte para mostrar con los filtros actuales.';
+      : (state.mensajeVacio || 'No hay vales de arte para mostrar con los filtros actuales.');
     tbody.innerHTML = `
       <tr><td colspan="${columnasVisibles()}" class="tabla-vacia">
         <div class="buzon-vacio">
