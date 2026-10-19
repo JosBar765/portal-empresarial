@@ -365,6 +365,8 @@
 .rp-flecha:focus-visible, .rp-etiqueta:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .rp-rango { display: inline-flex; align-items: center; gap: 8px; }
 .rp-guion { color: var(--color-text-muted); }
+/* La misma barra dentro de la barra de herramientas del Buzón: sin margen propio y sin ensanchar la página. */
+.rp-barra--toolbar { margin-bottom: 0; max-width: 100%; min-width: 0; }
 
 /* Calendario de semanas: cada fila es una semana, resaltada completa */
 .dp-grid.dp-grid--semanas { display: flex; flex-direction: column; gap: 2px; }
