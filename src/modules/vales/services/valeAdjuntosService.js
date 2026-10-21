@@ -125,14 +125,23 @@ class ValeAdjuntosService {
   // El asesor dueño quita UN taller de un vale con 2 o más talleres mientras ese taller reclama los adjuntos; el vale
   // sigue para los demás. Revalida bajo el lock: el taller pudo verificar o responder entretanto.
   async darDeBajaTaller(usuario, valeId, tallerId) {
+    if (!puedeActuarComoAsesor(usuario)) {
+      throw new Error('Solo un asesor o un supervisor de ventas puede dar de baja un taller.');
+    }
+    return this.quitarTallerDeVale(valeId, tallerId, {
+      actor: usuario,
+      validarVale: (vale) => {
+        if (vale.asesor_id !== usuario.id) throw new Error('Solo puedes dar de baja talleres de tus propios vales.');
+      }
+    });
+  }
+
+  // Núcleo reutilizable: `actor` es { id, nombre } (puede ser el sistema); `validarVale` es la comprobación de quién llama.
+  async quitarTallerDeVale(valeId, tallerId, { actor, validarVale = null }) {
     return valeMutex.conLockDeVale(valeId, async () => {
-      if (!puedeActuarComoAsesor(usuario)) {
-        throw new Error('Solo un asesor o un supervisor de ventas puede dar de baja un taller.');
-      }
+      const usuario = actor;
       const vale = await requerirVale(valeId);
-      if (vale.asesor_id !== usuario.id) {
-        throw new Error('Solo puedes dar de baja talleres de tus propios vales.');
-      }
+      if (validarVale) validarVale(vale);
       if (esValeDeModificacion(vale)) {
         throw new Error('En una solicitud de modificación no se puede quitar un taller: da de baja la solicitud completa.');
       }
