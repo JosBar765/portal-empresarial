@@ -136,8 +136,9 @@ class ValeAdjuntosService {
     });
   }
 
-  // Núcleo reutilizable: `actor` es { id, nombre } (puede ser el sistema); `validarVale` es la comprobación de quién llama.
-  async quitarTallerDeVale(valeId, tallerId, { actor, validarVale = null }) {
+  // Núcleo reutilizable: `actor` es { id, nombre }; `validarVale` es la comprobación de quién llama; `automatico` es la baja
+  // por plazo vencido (devuelve null si ya no corresponde).
+  async quitarTallerDeVale(valeId, tallerId, { actor, validarVale = null, automatico = false }) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const usuario = actor;
       const vale = await requerirVale(valeId);
@@ -148,6 +149,7 @@ class ValeAdjuntosService {
       const talleres = await valeTallerRepository.listarPorVale(valeId);
       const fila = talleres.find(f => f.taller_id === Number(tallerId));
       if (!fila) throw new Error('Este vale no fue enviado a ese taller.');
+      if (automatico && !(await valeTallerRepository.listarAdjuntosVencidos(valeId)).some(f => f.taller_id === fila.taller_id)) return null;
       if (!ESTADOS_CONVERSACION_ABIERTA.includes(fila.estado)) {
         throw new Error('Solo se puede dar de baja un taller que tiene los adjuntos rechazados o respondidos.');
       }
@@ -160,11 +162,14 @@ class ValeAdjuntosService {
       await valeTallerService._recalcularEstadoVale(valeId, usuario.id);
       const nombre = await this._nombreTaller(fila.taller_id);
       const actualizado = await valeRepository.obtenerPorId(valeId);
-      await registrarHistorial(valeId, usuario.id, fila.taller_id, vale.estado, actualizado.estado,
-        `Asesor dio de baja al taller ${nombre} del vale (adjuntos). Conversación cerrada`);
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, vale.estado, actualizado.estado, automatico
+        ? `Taller ${nombre} dado de baja del vale: el asesor no envió los adjuntos a tiempo (automático)`
+        : `Asesor dio de baja al taller ${nombre} del vale (adjuntos). Conversación cerrada`);
       valeEvents.notificar({
-        vale: actualizado, texto: `${usuario.nombre} dio de baja al taller ${nombre}`, tipo: 'TALLER_DADO_DE_BAJA', actor: usuario.nombre, actorId: usuario.id,
-        nivel: 'alerta', salas: [...await this._salasAsesor(vale), `taller:${fila.taller_id}`]
+        vale: actualizado, nivel: 'alerta', salas: [...await this._salasAsesor(vale), `taller:${fila.taller_id}`],
+        ...(automatico
+          ? { tipo: 'TALLER_DADO_DE_BAJA_AUTOMATICA', texto: `el taller ${nombre} fue dado de baja del vale porque el asesor no envió los adjuntos a tiempo` }
+          : { tipo: 'TALLER_DADO_DE_BAJA', texto: `${usuario.nombre} dio de baja al taller ${nombre}`, actor: usuario.nombre, actorId: usuario.id })
       });
       // Los talleres que siguen (y quienes fusionan, si el vale quedó listo) solo refrescan su pantalla.
       const salasQueSiguen = talleres.filter(f => f.id !== fila.id).flatMap(f => [`taller:${f.taller_id}`, ...(f.disenador_id ? [`disenador:${f.disenador_id}`] : [])]);
@@ -230,10 +235,25 @@ class ValeAdjuntosService {
     return algunTallerProtege(talleres);
   }
 
-  // Venció el plazo sin respuesta del asesor: se borra el vale completo (el original de un MOD- no se toca), salvo que
-  // otro taller ya lo haya aceptado o el asesor ya le haya respondido: ese trabajo no se pierde (el taller trabado se quita a mano, runbook en Engram).
-  // Revalida bajo el lock: el asesor o el encargado pudieron actuar entretanto.
+  // Venció el plazo de un taller sin respuesta del asesor: en un vale con 2 o más talleres solo ese taller se da de baja
+  // (uno por uno); si es el último taller, o es una solicitud de modificación, se borra el vale completo.
   async expirarPorAdjuntos(valeId) {
+    for (;;) {
+      const vencidos = await valeTallerRepository.listarAdjuntosVencidos(valeId);
+      if (!vencidos.length) return false;
+      const vale = await valeRepository.obtenerPorId(valeId);
+      if (!vale) return false;
+      const talleres = await valeTallerRepository.listarPorVale(valeId);
+      if (talleres.length < 2 || esValeDeModificacion(vale)) return this._eliminarValeVencido(valeId);
+      const quitado = await this.quitarTallerDeVale(valeId, vencidos[0].taller_id, { actor: { id: vale.asesor_id, nombre: 'Sistema' }, automatico: true });
+      if (!quitado) return false;
+    }
+  }
+
+  // Se borra el vale completo (el original de un MOD- no se toca), salvo que otro taller ya lo haya aceptado o el asesor ya
+  // le haya respondido: ese trabajo no se pierde (el taller trabado se quita a mano, runbook en Engram).
+  // Revalida bajo el lock: el asesor o el encargado pudieron actuar entretanto.
+  async _eliminarValeVencido(valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await valeRepository.obtenerPorId(valeId);
       if (!vale || !(await valeTallerRepository.listarAdjuntosVencidos(valeId)).length) return false;

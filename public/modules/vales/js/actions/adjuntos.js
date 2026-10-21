@@ -265,9 +265,7 @@ export function abrirModalAdjuntosPendientes(vale) {
     }
     return `<li class="rechazo-tarjeta rechazo-tarjeta--alerta">
       <div class="rechazo-cab"><strong>${escapeHtml(a.taller)}</strong><span class="chip-estado chip-estado--alerta">Rechazado por el taller</span></div>
-      <p class="rechazo-texto">${a.protegido
-        ? 'Atiende el mensaje del taller, que sigue esperando tu respuesta. El vale no se eliminará mientras otro taller siga con él.'
-        : `Atiende el mensaje del taller. Si no se resuelve, el vale se elimina${a.vence_en ? ` el ${escapeHtml(formatearFechaHora(a.vence_en))}` : ''}.`}</p>
+      <p class="rechazo-texto">Atiende el mensaje del taller. Si no se resuelve, ${a.total_talleres >= 2 ? `el taller ${escapeHtml(a.taller)} se dará de baja de este vale` : 'el vale se elimina'}${a.vence_en ? ` el ${escapeHtml(formatearFechaHora(a.vence_en))}` : ''}.</p>
       ${puedeResponder ? `<div class="rechazo-acciones">
         <button class="btn btn--primary btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Leer y responder</button>
         <button class="btn btn--ghost btn--sm" data-responder="${Number(a.taller_id)}"><ion-icon name="checkmark-done-outline"></ion-icon> Ya lo atendí</button>

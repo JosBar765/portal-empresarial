@@ -23,9 +23,15 @@ Cuando un taller rechaza los adjuntos de un vale multitaller, el asesor dueño p
 - [x] T1 Backend: servicio, repositorio, controlador y ruta de baja de un taller (permiso `vales.dar_de_baja`, dueño). Commit d5a956a.
 - [x] T2 Frontend: botón y confirmación en la ventana de adjuntos del asesor + función de API. Commit dedbcb8.
 - [x] T3 Documentación (flujo §2.1 y documento propio). Commit: ver git log.
+- [x] T4 Baja automática del taller cuyo plazo de adjuntos vence (watcher) en vale multitaller; último taller o `MOD-` borra el vale como antes. Aviso del 25 % siempre en multitaller; se quita `protegido`. Commit: ver git log (feat baja automática).
+
+## Decisiones de T4 (del usuario)
+- Vence el plazo de un taller en «adjuntos rechazados» con 2+ talleres activos: se da de baja solo ese taller (núcleo `quitarTallerDeVale`, actor sistema), uno por uno; el último taller borra el vale.
+- Aviso del 25 % siempre en multitaller; el modal del asesor anuncia la baja del taller con fecha.
+- Historial: `usuario_id` es NOT NULL y el único precedente usa el asesor del vale; se registra el asesor con «(automático)». Sin migración.
 
 ## Checks
 Sin suite de tests (excepción a RED/GREEN). `node --check`; un script desechable contra una BD temporal para la lógica (dueño, estados, último taller, recálculo del estado). Verificación en navegador la decide el usuario.
 
 ## Progreso
-b3ef5d2, T1 (d5a956a), T2 (dedbcb8) y T3 hechos. Verificación: node --check y script contra BD temporal (dueño, estados, único taller, MOD-, recálculo a fusión/confirmación, historial); endpoints y UI sin probar. Pregunta abierta: MOD- se rechaza (no se quita taller de una solicitud de modificación).
+b3ef5d2, T1 (d5a956a), T2 (dedbcb8) y T3 hechos. Verificación: node --check y script contra BD temporal (dueño, estados, único taller, MOD-, recálculo a fusión/confirmación, historial); endpoints y UI sin probar. T4 hecho (commit ver git log (feat baja automática)): node --check y script contra BD temporal (baja de A con B en proceso y con B verificando, A y B vencidos, un taller, aviso del 25 % multitaller y de un taller); HTTP y UI sin probar. Pregunta abierta: MOD- se rechaza (no se quita taller de una solicitud de modificación).
