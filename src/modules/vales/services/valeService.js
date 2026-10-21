@@ -82,6 +82,7 @@ module.exports = {
   verificarAdjuntos: (...a) => valeAdjuntosService.verificarAdjuntos(...a),
   rechazarAdjuntos: (...a) => valeAdjuntosService.rechazarAdjuntos(...a),
   responderAdjuntos: (...a) => valeAdjuntosService.responderAdjuntos(...a),
+  darDeBajaTaller: (...a) => valeAdjuntosService.darDeBajaTaller(...a),
   listarConversacion: (...a) => valeAdjuntosService.listarConversacion(...a),
   enviarMensaje: (...a) => valeAdjuntosService.enviarMensaje(...a),
 

@@ -96,6 +96,7 @@ class ValeBuzonService {
       .filter(f => ESTADOS_ADJUNTOS_VISIBLES_ASESOR.includes(f.estado))
       .map(f => ({
         taller_id: f.taller_id, taller: nombres.get(f.taller_id) || `#${f.taller_id}`, estado: f.estado, protegido,
+        total_talleres: (vale._filasTaller || []).length,
         vence_en: f.adjuntos_vence_en, mensaje: f.adjuntos_mensaje, respondido_en: f.adjuntos_respondido_en
       }));
   }

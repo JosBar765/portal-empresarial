@@ -82,6 +82,11 @@ class ValeTallerRepository {
     );
   }
 
+  // Baja de un taller dentro del vale: la fila se conserva (historial y mensajes) pero deja de leerse.
+  async desactivar(id) {
+    await db.query('UPDATE vale_talleres SET activo = 0 WHERE id = ?', [id], 'vale_taller:desactivar');
+  }
+
   // Rechazo de adjuntos: el plazo se fija solo la primera vez (COALESCE) y el aviso se limpia solo entonces.
   async rechazarAdjuntos(id, venceEn) {
     await db.query(

@@ -14,7 +14,7 @@ const valeCreacionService = require('./valeCreacionService');
 const calendarioService = require('../../../core/calendario/calendarioService');
 const {
   ESTADOS_TALLER, esDeTaller, esValeDeModificacion, enriquecer, registrarHistorial,
-  requerirVale, puedeActuarComoAsesor, algunTallerProtege
+  requerirVale, puedeActuarComoAsesor, algunTallerProtege, SALA_FUSION
 } = require('./valeHelpers');
 
 const MAX_CARACTERES_MENSAJE = 200;
@@ -118,6 +118,48 @@ class ValeAdjuntosService {
       });
       // El equipo de ventas (supervisores y otras pestañas del asesor) solo refresca la pantalla, en silencio.
       valeEvents.refrescar({ vale: actualizado, salas: await this._salasAsesor(vale) });
+      return enriquecer(actualizado);
+    });
+  }
+
+  // El asesor dueño quita UN taller de un vale con 2 o más talleres mientras ese taller reclama los adjuntos; el vale
+  // sigue para los demás. Revalida bajo el lock: el taller pudo verificar o responder entretanto.
+  async darDeBajaTaller(usuario, valeId, tallerId) {
+    return valeMutex.conLockDeVale(valeId, async () => {
+      if (!puedeActuarComoAsesor(usuario)) {
+        throw new Error('Solo un asesor o un supervisor de ventas puede dar de baja un taller.');
+      }
+      const vale = await requerirVale(valeId);
+      if (vale.asesor_id !== usuario.id) {
+        throw new Error('Solo puedes dar de baja talleres de tus propios vales.');
+      }
+      if (esValeDeModificacion(vale)) {
+        throw new Error('En una solicitud de modificación no se puede quitar un taller: da de baja la solicitud completa.');
+      }
+      const talleres = await valeTallerRepository.listarPorVale(valeId);
+      const fila = talleres.find(f => f.taller_id === Number(tallerId));
+      if (!fila) throw new Error('Este vale no fue enviado a ese taller.');
+      if (!ESTADOS_CONVERSACION_ABIERTA.includes(fila.estado)) {
+        throw new Error('Solo se puede dar de baja un taller que tiene los adjuntos rechazados o respondidos.');
+      }
+      if (talleres.length < 2) {
+        throw new Error('Este es el único taller del vale: usa «Dar de baja» para eliminar el vale completo.');
+      }
+      await valeTallerRepository.desactivar(fila.id);
+      // El texto de talleres solicitados debe quedar igual que las filas activas.
+      await valeRepository.actualizarTalleresSolicitados(valeId, talleres.filter(f => f.id !== fila.id).map(f => f.taller_id).join(','));
+      await valeTallerService._recalcularEstadoVale(valeId, usuario.id);
+      const nombre = await this._nombreTaller(fila.taller_id);
+      const actualizado = await valeRepository.obtenerPorId(valeId);
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, vale.estado, actualizado.estado,
+        `Asesor dio de baja al taller ${nombre} del vale (adjuntos). Conversación cerrada`);
+      valeEvents.notificar({
+        vale: actualizado, texto: `${usuario.nombre} dio de baja al taller ${nombre}`, tipo: 'TALLER_DADO_DE_BAJA', actor: usuario.nombre, actorId: usuario.id,
+        nivel: 'alerta', salas: [...await this._salasAsesor(vale), `taller:${fila.taller_id}`]
+      });
+      // Los talleres que siguen (y quienes fusionan, si el vale quedó listo) solo refrescan su pantalla.
+      const salasQueSiguen = talleres.filter(f => f.id !== fila.id).flatMap(f => [`taller:${f.taller_id}`, ...(f.disenador_id ? [`disenador:${f.disenador_id}`] : [])]);
+      valeEvents.refrescar({ vale: actualizado, salas: [...new Set([...salasQueSiguen, SALA_FUSION])] });
       return enriquecer(actualizado);
     });
   }
