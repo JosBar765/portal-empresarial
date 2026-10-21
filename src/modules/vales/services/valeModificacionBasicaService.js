@@ -27,6 +27,12 @@ class ValeModificacionBasicaService {
     return [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)];
   }
 
+  // Quién debe refrescar su pantalla cuando cambia la fecha de entrega: el asesor, sus supervisores y todos los talleres del vale.
+  async _salasRefresco(vale) {
+    const filas = await valeTallerRepository.listarPorVale(vale.id);
+    return [...new Set([...(await this._salasAsesor(vale)), ...filas.map(f => `taller:${f.taller_id}`)])];
+  }
+
   // Fecha de entrega que regiría: el siguiente día que recibe vales desde la solicitud (con la hora de corte del taller), sin
   // adelantar nunca la que ya tiene el vale.
   async _fechaNueva(vale, talleresIds) {
@@ -89,7 +95,7 @@ class ValeModificacionBasicaService {
         vale: actualizado, texto: `${usuario.nombre} pidió una modificación: ${texto}`, tipo: 'MOD_BASICA_SOLICITADA', actor: usuario.nombre, actorId: usuario.id,
         salas: elegidas.map(f => `taller:${f.taller_id}`)
       });
-      valeEvents.refrescar({ vale: actualizado, salas: await this._salasAsesor(vale) });
+      valeEvents.refrescar({ vale: actualizado, salas: await this._salasRefresco(vale) });
       return this.listar(usuario, valeId);
     });
   }
@@ -169,7 +175,7 @@ class ValeModificacionBasicaService {
         salas: [`asesor:${vale.asesor_id}`, `taller:${fila.taller_id}`]
       });
       // El diseñador que lo tenía ya no lo ve: se le refresca la pantalla sin aviso.
-      const salasRefresco = await this._salasAsesor(vale);
+      const salasRefresco = await this._salasRefresco(vale);
       if (fila.disenador_id) salasRefresco.push(`disenador:${fila.disenador_id}`);
       valeEvents.refrescar({ vale: actualizado, salas: salasRefresco });
       return enriquecer(actualizado);
@@ -203,7 +209,7 @@ class ValeModificacionBasicaService {
       });
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({ vale: actualizado, texto: texto(mod, usuario), tipo, actor: usuario.nombre, actorId: usuario.id, nivel, salas: salasDe(vale, mod) });
-      valeEvents.refrescar({ vale: actualizado, salas: await this._salasAsesor(vale) });
+      valeEvents.refrescar({ vale: actualizado, salas: await this._salasRefresco(vale) });
       return enriquecer(actualizado);
     });
   }
