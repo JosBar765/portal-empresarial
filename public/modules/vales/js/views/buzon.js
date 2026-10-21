@@ -18,7 +18,7 @@ import { abrirVisorDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo,
 import { abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirSelectorModificacion } from '../actions/modificacionTipo.js';
 import { abrirModalHistorial } from '../actions/historial.js';
-import { abrirModalPropuestasOtros } from '../actions/propuestasOtros.js';
+import { abrirVisorPropuestasOtros } from '../actions/propuestasOtros.js';
 import { abrirConversacionesBasicas } from '../actions/modificacionBasica.js';
 import { rechazosSinLeer, textoRechazos } from '../utils/modificacionesVistas.js';
 
@@ -258,7 +258,7 @@ export function marcaPropuestaNueva(v) {
 function conectarMarcas(raiz, filas) {
   raiz.querySelectorAll('[data-pn-clave]').forEach(b => {
     const v = filas.find(f => claveFila(f) === b.dataset.pnClave);
-    if (v) b.addEventListener('click', () => abrirModalPropuestasOtros(v));
+    if (v) b.addEventListener('click', () => abrirVisorPropuestasOtros(v));
   });
 }
 
@@ -397,7 +397,7 @@ export function construirAcciones(v) {
   }
   // Propuestas aprobadas de los otros talleres (solo si aplica la regla de compartir), solo lectura.
   if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && (v.propuestaOtroTallerNueva || v.propuestasOtrosAplica)) {
-    acciones.push({ icono: 'documents-outline', titulo: 'Propuestas de otros talleres', onClick: abrirModalPropuestasOtros });
+    acciones.push({ icono: 'documents-outline', titulo: 'Propuestas de otros talleres', onClick: abrirVisorPropuestasOtros });
   }
   if (puede('verHistorial')) acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
   if (puede('darDeBaja') && (['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) || (v.adjuntos || []).length) && esMio) {
