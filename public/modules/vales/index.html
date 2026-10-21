@@ -89,16 +89,7 @@
       <main class="main-container">
 
         <section class="vales-toolbar">
-          <div class="ventana-selector" id="ventana-selector">
-            <button data-ventana="todo" class="chip">Todo</button>
-            <button data-ventana="hoy" class="chip">Hoy</button>
-            <div class="mes-nav" id="mes-nav">
-              <button type="button" class="mes-nav-flecha" id="mes-prev" title="Anterior" aria-label="Anterior"><ion-icon name="chevron-back-outline"></ion-icon></button>
-              <button type="button" class="mes-nav-etiqueta" id="mes-etiqueta" title="Elegir mes o día" aria-haspopup="dialog" aria-expanded="false"><span id="mes-etiqueta-texto"></span><ion-icon name="chevron-down-outline" aria-hidden="true"></ion-icon></button>
-              <button type="button" class="mes-nav-flecha" id="mes-next" title="Siguiente" aria-label="Siguiente"><ion-icon name="chevron-forward-outline"></ion-icon></button>
-            </div>
-            <div class="ventana-rango" id="ventana-rango"></div>
-          </div>
+          <div class="rp-barra rp-barra--toolbar" id="ventana-barra"></div>
           <!-- Solo Gerencia, Supervisor y Administrador: filtra por tienda la lista de Vales de Arte. -->
           <select id="filtro-tienda" class="filtro-tienda" style="display:none;">
             <option value="">Todas las tiendas</option>

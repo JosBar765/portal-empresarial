@@ -19,6 +19,7 @@ const idempotencyRepository = require('../../../core/idempotency/idempotencyRepo
 const calendarioService = require('../../../core/calendario/calendarioService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { validarTelefono } = require('../../../core/utils/validar');
+const { quitarInvisibles } = require('../../../core/utils/texto');
 
 const { idsDeCsv } = calendarioService;
 const valePdfService = require('./valePdfService');
@@ -390,13 +391,13 @@ class ValeCreacionService {
   // `modificacionTipo` (MEDIA / AVANZADA) marca un vale MOD: no admite «urgente» y su fecha de entrega
   // pide ese mínimo en días hábiles desde hoy, en lugar de los 3 días naturales de un vale normal.
   async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null, talleresFijos = [], modificacionTipo = null } = {}) {
-    const {
-      clienteEmpresa, clienteTelefono, clienteCorreo,
-      fechaEntrega, fechaEvento, tecnica, acabado,
-      cantidad, cotizacion, descripcion
-    } = payload;
+    const { fechaEntrega, fechaEvento, cantidad, cotizacion } = payload;
+    // Los invisibles de un texto pegado (espacio de ancho cero, word joiner…) se quitan solos, sin avisar.
+    const limpio = (valor) => (typeof valor === 'string' ? quitarInvisibles(valor) : valor);
+    const clienteEmpresa = limpio(payload.clienteEmpresa), clienteTelefono = limpio(payload.clienteTelefono), clienteCorreo = limpio(payload.clienteCorreo);
+    const tecnica = limpio(payload.tecnica), acabado = limpio(payload.acabado), descripcion = limpio(payload.descripcion);
     // Los obligatorios se validan ya sin espacios: "   " cuenta como vacío.
-    const recortar = (valor) => String(valor ?? '').trim();
+    const recortar = (valor) => quitarInvisibles(String(valor ?? '')).trim();
     const clienteNombre = recortar(payload.clienteNombre);
     const producto = recortar(payload.producto);
     const material = recortar(payload.material);
@@ -551,7 +552,7 @@ class ValeCreacionService {
     for (const doc of documentos) {
       try {
         // Un archivo que otro vale (el original de una modificación) también usa no se borra de Storage.
-        if (await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, valeId) > 0) continue;
+        if (!doc.ruta || await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, valeId) > 0) continue;
         await supabaseStorage.eliminar(doc.ruta);
       } catch { /* best-effort — el vale se borra de todas formas */ }
     }

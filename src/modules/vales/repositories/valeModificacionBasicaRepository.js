@@ -82,6 +82,17 @@ class ValeModificacionBasicaRepository {
   }
 
   // Para las listas del buzón: las conversaciones abiertas de varios vales en una sola consulta.
+  // Ids de los vales con una conversación abierta con un taller (o con cualquiera si no se indica).
+  async listarValeIdsAbiertosDeTaller(tallerId = null) {
+    const filtroTaller = tallerId ? ' AND vt.taller_id = ?' : '';
+    const filas = await db.query(
+      `SELECT DISTINCT m.vale_id FROM vale_modificaciones_basicas m JOIN vale_talleres vt ON vt.id = m.vale_taller_id
+       WHERE m.estado = 'EN_CONVERSACION'${filtroTaller}`,
+      tallerId ? [tallerId] : [], 'modificacion_basica:list_vale_ids_abiertos_taller'
+    );
+    return filas.map(f => f.vale_id);
+  }
+
   async listarAbiertasPorVales(valeIds) {
     if (!valeIds.length) return [];
     return db.query(

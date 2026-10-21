@@ -60,6 +60,9 @@ class ValeCorreccionService {
         }
         payloadEfectivo = { ...payload, descripcion: justificacion, talleresIds: fijos };
         const original = await valeRepository.obtenerPorId(vale.vale_original_id);
+        if (original && (original.archivos_purgados_en || original.propuestas_purgadas_en)) {
+          throw new Error('La propuesta del vale original ya fue eliminada por antigüedad, así que esta modificación no se puede corregir.');
+        }
         propuestaOriginal = original && (original.propuesta_general_url || (await propuestaRepository.obtenerUltimaPorVale(original.id))?.url);
       }
       const datos = await valeCreacionService.validarDatosVale(payloadEfectivo, { tiendaIdAsesor: esMod ? null : vale.tienda_id, modificacionTipo: esMod ? vale.modificacion_tipo : null });
@@ -113,7 +116,7 @@ class ValeCorreccionService {
       // Un archivo que otro vale (el original de una modificación) también usa no se borra de Storage.
       const aReemplazar = [vale.pdf_url].filter(Boolean);
       for (const doc of documentosActuales.filter(d => quitarIds.includes(d.id))) {
-        if (await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, valeId) === 0) aReemplazar.push(doc.ruta);
+        if (doc.ruta && await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, valeId) === 0) aReemplazar.push(doc.ruta);
       }
       await this._borrarDeStorage(aReemplazar);
 

@@ -1,14 +1,7 @@
-import { abrirModal } from '../components/modal.js';
 import { abrirVisor } from '../components/visorDocumento.js';
 import { hayExtras } from '../components/propuestaInfo.js';
 import { obtenerDetalleVale, marcarPropuestaOtroVisto } from '../api/valesApi.js';
-import { escapeHtml, formatearFechaHora } from '../utils/formato.js';
 import { cargarBuzon } from '../views/buzon.js';
-
-const ESTADOS = {
-  APROBADO: { texto: 'Aprobada', clase: 'chip-estado--info' },
-  EN_TRABAJO: { texto: 'En trabajo', clase: 'chip-estado--taller' }
-};
 
 const MARGEN = 16;
 const SEPARACION = 8;
@@ -52,26 +45,8 @@ document.addEventListener('scroll', ocultarTip, true);
 document.addEventListener('click', ocultarTip, true);
 window.addEventListener('resize', ocultarTip);
 
-function htmlItem(it, i, correlativo) {
-  const est = ESTADOS[it.estado] || ESTADOS.EN_TRABAJO;
-  const p = it.propuesta;
-  const verBtn = it.estado === 'APROBADO' && p && (p.url || hayExtras(p))
-    ? `<button type="button" class="btn btn--ghost btn--sm" data-pn-ver="${i}"><ion-icon name="document-text-outline" aria-hidden="true"></ion-icon><span>Ver propuesta</span><span class="sr-only"> de ${escapeHtml(it.tallerNombre)}</span></button>`
-    : '';
-  return `
-    <li class="pn-item">
-      <div class="pn-info">
-        <strong>${escapeHtml(it.tallerNombre)}</strong>
-        <span class="chip-estado ${est.clase}">${est.texto}</span>
-        ${it.visto === false ? '<span class="pn-nueva" data-pn-nueva><span class="pn-punto" aria-hidden="true"></span>Nueva</span>' : ''}
-        ${p && p.fecha ? `<small class="pn-fecha">${escapeHtml(formatearFechaHora(p.fecha))}</small>` : ''}
-      </div>
-      ${verBtn}
-    </li>`;
-}
-
-// Modal de solo lectura con la última propuesta aprobada de cada taller hermano.
-export async function abrirModalPropuestasOtros(vale) {
+// Visor con el vale y la última propuesta aprobada de cada taller hermano, una pestaña por taller (solo lectura).
+export async function abrirVisorPropuestasOtros(vale) {
   let lista = [];
   try {
     const detalle = await obtenerDetalleVale(vale.id);
@@ -81,35 +56,33 @@ export async function abrirModalPropuestasOtros(vale) {
     return;
   }
 
-  const { overlay } = abrirModal({
-    title: `Propuestas de otros talleres — ${vale.correlativo}`,
-    bodyHtml: lista.length
-      ? `<ul class="pn-lista">${lista.map((it, i) => htmlItem(it, i, vale.correlativo)).join('')}</ul>`
-      : '<p class="pn-vacio">No hay propuestas de otros talleres para mostrar en este vale.</p>'
-  });
-
-  overlay.querySelectorAll('[data-pn-ver]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const it = lista[Number(btn.dataset.pnVer)];
-      if (!it || !it.propuesta) return;
-      abrirVisor({
-        titulo: `Propuesta — ${vale.correlativo} · ${it.tallerNombre}`,
-        documentos: [{ etiqueta: 'Propuesta', cargar: () => Promise.resolve(it.propuesta) }]
-      });
-      if (it.visto === false) marcarVisto(it, vale, btn);
-    });
-  });
-}
-
-// Si falla el POST la propuesta igual se abre; solo se reintenta en el siguiente clic.
-async function marcarVisto(it, vale, btn) {
-  try {
-    await marcarPropuestaOtroVisto(vale.id, it.tallerId);
-  } catch {
+  const aprobadas = lista.filter(it => it.estado === 'APROBADO' && it.propuesta && (it.propuesta.url || hayExtras(it.propuesta)));
+  if (!aprobadas.length) {
+    window.toast.info('Sin propuestas aprobadas', 'Ningún otro taller tiene todavía una propuesta aprobada en este vale.');
     return;
   }
-  it.visto = true;
-  const marca = btn.closest('.pn-item').querySelector('[data-pn-nueva]');
-  if (marca) marca.remove();
-  cargarBuzon();
+
+  const documentos = [{ etiqueta: 'Vale de arte', url: `/api/vales/${vale.id}/pdf` }].concat(aprobadas.map(it => ({
+    etiqueta: `Propuesta ${it.tallerNombre}`,
+    // La pestaña se carga al mostrarse: ahí la propuesta nueva se da por vista.
+    cargar: () => { marcarVisto(it, vale); return Promise.resolve(it.propuesta); }
+  })));
+  // Abre en la primera propuesta que aún no se ha visto (o en la primera, si todas ya se vieron).
+  const primeraNueva = aprobadas.findIndex(it => it.visto === false);
+  abrirVisor({ titulo: vale.correlativo, subtitulo: 'Propuestas de otros talleres', documentos, activo: 1 + Math.max(primeraNueva, 0) });
+}
+
+// Si falla el POST la propuesta igual se abre; solo se reintenta la próxima vez que se muestre.
+async function marcarVisto(it, vale) {
+  if (it.visto !== false || it.marcando) return;
+  it.marcando = true;
+  try {
+    await marcarPropuestaOtroVisto(vale.id, it.tallerId);
+    it.visto = true;
+    cargarBuzon();
+  } catch {
+    /* se reintenta al volver a mostrar la pestaña */
+  } finally {
+    it.marcando = false;
+  }
 }

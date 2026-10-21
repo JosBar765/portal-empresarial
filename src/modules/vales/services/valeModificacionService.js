@@ -64,6 +64,7 @@ class ValeModificacionService {
       if (await valeRepository.obtenerModificacionEnTramite(valeId) || await valeRepository.obtenerPorCorrelativo(correlativo)) {
         throw new Error('Ya hay una solicitud de modificación en curso para este vale.');
       }
+      if (original.archivos_purgados_en || original.propuestas_purgadas_en) throw new Error('Los archivos de este vale ya fueron eliminados por antigüedad, así que no se puede solicitar una modificación.');
       // La propuesta del original va al final del PDF del MOD-; sin ella no se arma la solicitud.
       const propuestaOriginal = original.propuesta_general_url
         || (await propuestaRepository.obtenerUltimaPorVale(original.id))?.url;

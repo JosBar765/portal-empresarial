@@ -20,9 +20,23 @@ const CLAVE_MAX_BORRADORES = 'max_borradores_por_usuario';
 const MAX_BORRADORES_DEFECTO = 15;
 const MAX_BORRADORES_MIN = 1;
 const MAX_BORRADORES_MAX = 200;
+const CLAVE_DIAS_PDF_ADJUNTOS = 'dias_retencion_pdf_adjuntos';
+const CLAVE_DIAS_PROPUESTAS = 'dias_retencion_propuestas';
+const DIAS_PDF_ADJUNTOS_POR_DEFECTO = 30;
+const DIAS_PROPUESTAS_POR_DEFECTO = 60;
+const DIAS_RETENCION_MAX = 3650;
 
 const err = (msg, status = 400) => new ErrorDeNegocio(msg, status);
 const vacio = (v) => v === undefined || v === null || v === '';
+
+function validarDiasRetencion(crudo, etiqueta) {
+  if (vacio(crudo)) throw err(`${etiqueta} son obligatorios.`);
+  const dias = typeof crudo === 'string' && /^\d+$/.test(crudo.trim()) ? Number(crudo) : crudo;
+  if (typeof dias !== 'number' || !Number.isInteger(dias) || dias < 1 || dias > DIAS_RETENCION_MAX) {
+    throw err(`${etiqueta} deben ser un número entero de 1 a ${DIAS_RETENCION_MAX}.`);
+  }
+  return dias;
+}
 
 function validarHora(valor, etiqueta) {
   if (typeof valor !== 'string' || !RE_HORA.test(valor)) throw err(`${etiqueta} no es una hora válida (HH:MM, de 00:00 a 23:59).`);
@@ -113,8 +127,19 @@ class HorarioService {
   async obtenerParametros() {
     return {
       horasVencimientoVale: Number(await repo.obtenerParametro(CLAVE_HORAS_VENCIMIENTO)),
+      diasRetencionPdfAdjuntos: Number(await repo.obtenerParametro(CLAVE_DIAS_PDF_ADJUNTOS)) || DIAS_PDF_ADJUNTOS_POR_DEFECTO,
+      diasRetencionPropuestas: Number(await repo.obtenerParametro(CLAVE_DIAS_PROPUESTAS)) || DIAS_PROPUESTAS_POR_DEFECTO,
       maxBorradoresPorUsuario: Number(await repo.obtenerParametro(CLAVE_MAX_BORRADORES)) || MAX_BORRADORES_DEFECTO
     };
+  }
+
+  async guardarRetencion(body) {
+    const pdfAdjuntos = validarDiasRetencion(body && body.diasRetencionPdfAdjuntos, 'Los días de retención del PDF y los adjuntos');
+    const propuestas = validarDiasRetencion(body && body.diasRetencionPropuestas, 'Los días de retención de las propuestas');
+    if (propuestas < pdfAdjuntos) throw err('Los días de retención de las propuestas no pueden ser menores que los del PDF y los adjuntos.');
+    await repo.guardarParametro(CLAVE_DIAS_PDF_ADJUNTOS, pdfAdjuntos);
+    await repo.guardarParametro(CLAVE_DIAS_PROPUESTAS, propuestas);
+    return this.obtenerParametros();
   }
 
   // Cada parámetro se guarda por separado: se actualiza solo el que llega en el cuerpo.

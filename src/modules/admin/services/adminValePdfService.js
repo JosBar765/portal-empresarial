@@ -6,6 +6,7 @@ const valePdfService = require('../../vales/services/valePdfService');
 const subirYRegistrarArchivo = require('../../../core/files/subirYRegistrarArchivo');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idOpcional } = require('../../../core/utils/validar');
+const { quitarInvisibles } = require('../../../core/utils/texto');
 const repo = require('../repositories/valePdfGeneradoRepository');
 const nombreArchivo = require('../../../core/files/nombreArchivo');
 
@@ -17,7 +18,7 @@ const RE_HORA = /^\d{2}:\d{2}(:\d{2})?$/;
 const err = (msg, status = 400) => new ErrorDeNegocio(msg, status);
 
 function texto(body, campo, etiqueta, { max = 200, obligatorio = false } = {}) {
-  const v = body[campo] === undefined || body[campo] === null ? '' : String(body[campo]).trim();
+  const v = body[campo] === undefined || body[campo] === null ? '' : quitarInvisibles(body[campo]).trim();
   if (!v) {
     if (obligatorio) throw err(`${etiqueta} es obligatorio.`);
     return '';

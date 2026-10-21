@@ -194,6 +194,10 @@ export function guardarParametrosHorario(horasVencimientoVale) {
   return enviarConBody('/api/admin/horarios/parametros', 'PUT', { horasVencimientoVale });
 }
 
+export function guardarRetencionArchivos(diasRetencionPdfAdjuntos, diasRetencionPropuestas) {
+  return enviarConBody('/api/admin/horarios/retencion', 'PUT', { diasRetencionPdfAdjuntos, diasRetencionPropuestas });
+}
+
 export function listarPaisesHorarios() {
   return obtenerJson('/api/admin/horarios/paises');
 }

@@ -45,12 +45,15 @@ class PropuestaRepository {
 
   // Vales que tienen enlaces o notas en la fusión (`fusion`) o en alguna propuesta de taller (`propuestas`), en un solo viaje: dos Set
   // de ids. Para mostrar «Ver propuesta» aunque no haya archivo.
-  async listarValesConExtra() {
-    const fusion = await db.query('SELECT DISTINCT vale_id FROM vale_propuesta_enlaces WHERE propuesta_id IS NULL', [], 'propuesta:vales_con_enlaces_fusion');
+  // Con `valeIds` solo mira esos vales.
+  async listarValesConExtra(valeIds = null) {
+    if (valeIds && !valeIds.length) return { fusion: new Set(), propuestas: new Set() };
+    const filtro = valeIds ? ' AND vale_id IN (?)' : '';
+    const fusion = await db.query(`SELECT DISTINCT vale_id FROM vale_propuesta_enlaces WHERE propuesta_id IS NULL${filtro}`, valeIds ? [valeIds] : [], 'propuesta:vales_con_enlaces_fusion');
     const propuestas = await db.query(
-      `SELECT DISTINCT vale_id FROM vale_propuesta_enlaces WHERE propuesta_id IS NOT NULL
-       UNION SELECT DISTINCT vale_id FROM vale_propuestas WHERE nota IS NOT NULL`,
-      [],
+      `SELECT DISTINCT vale_id FROM vale_propuesta_enlaces WHERE propuesta_id IS NOT NULL${filtro}
+       UNION SELECT DISTINCT vale_id FROM vale_propuestas WHERE nota IS NOT NULL${filtro}`,
+      valeIds ? [valeIds, valeIds] : [],
       'propuesta:vales_con_extra'
     );
     return { fusion: new Set(fusion.map(f => f.vale_id)), propuestas: new Set(propuestas.map(f => f.vale_id)) };
@@ -79,6 +82,19 @@ class PropuestaRepository {
   // La última propuesta de UN taller específico (identificado por el diseñador que la
   // subió) — necesario porque con varios talleres puede haber varias propuestas vivas
   // para el mismo vale al mismo tiempo, una por taller.
+  // Última propuesta de cada par (vale, diseñador) de los vales dados, en un solo viaje; clave `${vale_id}-${disenador_id}`.
+  async obtenerUltimasPorValesYDisenadores(valeIds) {
+    if (!valeIds.length) return new Map();
+    const rows = await db.query(
+      `SELECT p.*, (SELECT COUNT(*) FROM vale_propuesta_enlaces e WHERE e.propuesta_id = p.id) AS n_enlaces
+       FROM vale_propuestas p
+       JOIN (SELECT MAX(id) AS id FROM vale_propuestas WHERE vale_id IN (?) AND disenador_id IS NOT NULL GROUP BY vale_id, disenador_id) u ON u.id = p.id`,
+      [valeIds],
+      'propuesta:latest_by_vales_disenadores'
+    );
+    return new Map(rows.map(p => [`${p.vale_id}-${p.disenador_id}`, p]));
+  }
+
   async obtenerUltimaPorValeYDisenador(valeId, disenadorId) {
     const rows = await db.query(
       `SELECT p.*, (SELECT COUNT(*) FROM vale_propuesta_enlaces e WHERE e.propuesta_id = p.id) AS n_enlaces
