@@ -56,7 +56,7 @@ class ValeController {
     }
   }
 
-  // Información por día del calendario desplegable del Buzón (cupo para el Supervisor, conteo para Diseñador y Encargado).
+  // Información por día del calendario desplegable del Buzón (cupo para el Supervisor y el Asesor, conteo para Encargado y Diseñador).
   async calendarioBuzon(req, res) {
     try {
       const anio = Number(req.query.anio);

@@ -8,7 +8,7 @@ const tallerRepository = require('../repositories/tallerRepository');
 const capacidadRepository = require('../repositories/capacidadRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
-const { ROL, esDeTaller } = require('./valeHelpers');
+const { ROL, ESTADOS_TALLER, esDeTaller } = require('./valeHelpers');
 
 const idsDe = (texto) => String(texto || '').split(',').map(Number).filter(Number.isInteger);
 
@@ -64,12 +64,19 @@ class CapacidadEntregaService {
   }
 
   // Alcance del calendario «Cupo de talleres»: el Supervisor ve los talleres de sus tiendas y los vales por autorizar de
-  // su equipo; quien tenga el permiso sin tiendas propias ve todos los talleres con límite y todos los vales.
+  // su equipo; el Asesor, los talleres a los que puede enviar (los generales y el Diseño Local de su tienda) y sus vales por
+  // autorizar; quien tenga el permiso sin tiendas propias ve todos los talleres con límite y todos los vales.
   async _alcanceCupo(usuario) {
     if (usuario.rolId === ROL.SUPERVISOR) {
       const talleresIds = (await tallerRepository.listarIdsPorSupervisor(usuario.id)).map(t => t.id);
       const asesores = await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id);
       return { conLimite: await this._talleresConLimite(talleresIds), asesorIds: [...new Set([...asesores.map(a => a.id), usuario.id])] };
+    }
+    if (usuario.rolId === ROL.ASESOR) {
+      const yo = await usuarioValeRepository.obtenerPorId(usuario.id);
+      const miTiendaId = yo ? yo.tienda_id : null;
+      const alcanzables = (await tallerRepository.listarActivos()).filter(t => t.tienda_id == null || t.tienda_id === miTiendaId).map(t => t.id);
+      return { conLimite: await this._talleresConLimite(alcanzables), asesorIds: [usuario.id] };
     }
     const todos = (await tallerRepository.listarActivos()).map(t => t.id);
     return { conLimite: await this._talleresConLimite(todos), asesorIds: null };
@@ -106,14 +113,18 @@ class CapacidadEntregaService {
   }
 
   // Información por día del calendario desplegable del Buzón, según el rol:
-  //  - con `vales.ver_cupo` (Supervisor): el cupo de los talleres con límite (ver obtenerCupoMes);
-  //  - Diseñador y Encargado/Asistente de taller: cuántos vales entran cada día (por fecha de entrega);
+  //  - con `vales.ver_cupo` (Supervisor) y el Asesor: el cupo de los talleres con límite que le corresponden (ver obtenerCupoMes);
+  //  - Encargado/Asistente de taller: cuántos vales entran cada día a su taller (por fecha de entrega);
+  //  - Diseñador: cuántas asignaciones activas suyas entran cada día (las mismas que ve en su buzón);
   //  - cualquier otro: nada (el calendario queda como siempre).
   async obtenerCalendarioBuzon(usuario, anio, mes) {
-    if ((usuario.permissions || []).includes('vales.ver_cupo')) return { tipo: 'cupo', ...(await this.obtenerCupoMes(usuario, anio, mes)) };
+    if ((usuario.permissions || []).includes('vales.ver_cupo') || usuario.rolId === ROL.ASESOR) return { tipo: 'cupo', ...(await this.obtenerCupoMes(usuario, anio, mes)) };
     const mesStr = String(mes).padStart(2, '0');
     const rango = { fechaDesde: `${anio}-${mesStr}-01`, fechaHasta: `${anio}-${mesStr}-${String(new Date(anio, mes, 0).getDate()).padStart(2, '0')}` };
-    if (usuario.rolId === ROL.DISENADOR) return { tipo: 'conteo', dias: await capacidadRepository.contarPorDia({ ...rango, disenadorId: usuario.id }) };
+    if (usuario.rolId === ROL.DISENADOR) {
+      const estadosTaller = [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION];
+      return { tipo: 'conteo', dias: await capacidadRepository.contarPorDia({ ...rango, disenadorId: usuario.id, estadosTaller }) };
+    }
     if (esDeTaller(usuario)) {
       const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
       const talleresIds = (await tallerRepository.listarActivos()).filter(t => t.encargado_id === idEfectivo).map(t => t.id);

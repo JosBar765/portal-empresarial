@@ -365,6 +365,8 @@
 .rp-flecha:focus-visible, .rp-etiqueta:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .rp-rango { display: inline-flex; align-items: center; gap: 8px; }
 .rp-guion { color: var(--color-text-muted); }
+/* La misma barra dentro de la barra de herramientas del Buzón: sin margen propio y sin ensanchar la página. */
+.rp-barra--toolbar { margin-bottom: 0; max-width: 100%; min-width: 0; }
 
 /* Calendario de semanas: cada fila es una semana, resaltada completa */
 .dp-grid.dp-grid--semanas { display: flex; flex-direction: column; gap: 2px; }
@@ -373,6 +375,8 @@
 .dp-semana-fila.is-semana-elegida { background: var(--color-primary-dark); }
 .dp-semana-fila.is-semana-elegida .dp-day { color: #fff; }
 .dp-semana-fila .dp-day { background: transparent; }
+/* Sin indicadores: el día bajo el cursor dentro de la semana elegida sigue siendo legible (texto blanco sobre azul) */
+.date-picker-panel:not(.panel-periodo--info) .dp-semana-fila.is-semana-elegida .dp-day:hover:not(.is-disabled) { background: var(--color-primary-dark-hover); }
 .dp-ayuda { margin: 8px 4px 2px; font-size: 11px; color: var(--color-text-secondary); }
 
 /* Filtros de la tabla unificada */

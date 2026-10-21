@@ -8,8 +8,8 @@ export const state = {
   vales: [],
   contadores: {},
   vista: 'buzon', // solo aplica a roles con sidebar
-  // Arranca en «Hoy»; `fecha` es el día o el primer día del mes que se elige en el selector.
-  ventana: { tipo: 'dia', fecha: isoLocal(new Date()), desde: null, hasta: null },
+  // Período de Buzón y Trabajo realizado (misma forma que el de Reportes); arranca en la semana de hoy.
+  ventana: { tipo: 'semana', fecha: isoLocal(new Date()), desde: '', hasta: '' },
   tiendaId: null, // Vista Gerencia: filtro de tienda
   filtroContador: null,
   soloAtrasados: false, // combinable con filtroContador
