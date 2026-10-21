@@ -6,6 +6,7 @@ import { abrirVisorVale, abrirVisorDocumentos } from '../components/visorDocumen
 import { htmlPropuestaExtras, hayExtras } from '../components/propuestaInfo.js';
 import { obtenerDisenadoresAsignables, asignarDisenador, obtenerDetalleVale, obtenerPropuestaVale, revisarPropuesta, aprobarGeneral } from '../api/valesApi.js';
 import { escapeHtml } from '../utils/formato.js';
+import { propuestaDe } from './propuestasMultitaller.js';
 import { cargarBuzon } from '../views/buzon.js';
 
 // Lista de diseñadores asignables, con la opción "(YO)" para un encargado
@@ -162,12 +163,6 @@ export async function abrirModalAprobarGeneral(vale) {
       detalleOriginal = null;
     }
   }
-  // Propuesta de cada taller: existe si trae su PDF; el botón abre el visor con su nota y enlaces.
-  const propuestaDe = (det, disenadorId) => {
-    const propias = (det.propuestas || []).filter(p => p.disenador_id === disenadorId);
-    const ultima = propias[propias.length - 1];
-    return ultima && ultima.url ? { id: det.id, disenadorId } : null;
-  };
   // Cada taller con propuesta es una pestaña del visor; la lista solo indica si la tiene.
   const itemsPropuesta = [];
   const filaPropuesta = (nombre, propuesta, corregido) => {

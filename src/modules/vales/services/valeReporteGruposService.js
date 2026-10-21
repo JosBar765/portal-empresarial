@@ -103,6 +103,8 @@ class ValeReporteGruposService {
       const urlPropuesta = v.propuesta_general_url || propuestas.get(v.id) || null;
       const conEnlaces = conExtra.fusion.has(v.id) || conExtra.propuestas.has(v.id) || !!v.propuesta_general_nota;
       const pipeline = calcularPipeline(v, { rolId: ROL.ADMINISTRADOR });
+      // Vale con 2+ talleres activos (sin filas aún, los solicitados): el ojo muestra la propuesta de cada taller.
+      const idsTaller = filas(v).length ? filas(v).map(f => f.taller_id) : String(v.talleres_solicitados || '').split(',').map(Number).filter(Boolean);
       const terminado = esTaller ? terminadoTaller(v) : pipeline.terminado;
       // Para el Encargado el atraso corre hasta que su taller aprueba (en revisión sigue contando).
       const aprobadoTaller = esTaller && (ESTADOS_VALE_TERMINADO_TALLER.includes(v.estado) || (propias(v).length > 0 && propias(v).every(f => f.estado === ESTADOS_TALLER.APROBADO)));
@@ -126,7 +128,7 @@ class ValeReporteGruposService {
         atrasado: abierto && vencido, diasAtraso: abierto ? (alCorte ? diasEntreFechas(fechaDe(v.fecha_entrega), corte) : (v.diasAtraso || 0)) : 0, venceHoy: abierto && !!v.venceHoy,
         // Días de atraso con que se entregó (hasta que la propuesta llegó al asesor, o hasta el corte); 0 si llegó a tiempo.
         diasTarde: entregado ? diasAtrasoAl(v, corte) : 0,
-        tienePropuesta: !!urlPropuesta || conEnlaces, urlPropuesta, conEnlaces
+        tienePropuesta: !!urlPropuesta || conEnlaces, urlPropuesta, conEnlaces, multitaller: new Set(idsTaller).size >= 2
       }];
     }));
 
