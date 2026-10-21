@@ -14,16 +14,13 @@ const valeCreacionService = require('./valeCreacionService');
 const calendarioService = require('../../../core/calendario/calendarioService');
 const {
   ESTADOS_TALLER, esDeTaller, esValeDeModificacion, enriquecer, registrarHistorial,
-  requerirVale, puedeActuarComoAsesor
+  requerirVale, puedeActuarComoAsesor, algunTallerProtege
 } = require('./valeHelpers');
 
 const MAX_CARACTERES_MENSAJE = 200;
 const ESTADOS_POR_VERIFICAR = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
 // Mientras el taller tiene el vale rechazado (o ya respondido) la conversación está abierta; después es de solo lectura.
 const ESTADOS_CONVERSACION_ABIERTA = [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
-// Un taller en cualquiera de estos no protege el vale del borrado por plazo vencido; en ADJUNTOS_RESPONDIDOS el asesor
-// ya hizo su parte, y en los demás estados (asignado, en proceso...) el taller ya aceptó o trabaja.
-const ESTADOS_SIN_PROTEGER = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RECHAZADOS];
 
 // Mensaje de la conversación: texto no vacío de hasta 200 caracteres (se cuentan caracteres, no palabras).
 function validarMensaje(mensaje, { obligatorio = true, porDefecto = null } = {}) {
@@ -179,7 +176,7 @@ class ValeAdjuntosService {
 
   // true si algún taller (filas de listarPorVale) protege el vale: el vencimiento de otro taller no lo borra.
   algunTallerProtege(talleres) {
-    return talleres.some(t => !ESTADOS_SIN_PROTEGER.includes(t.estado));
+    return algunTallerProtege(talleres);
   }
 
   // Venció el plazo sin respuesta del asesor: se borra el vale completo (el original de un MOD- no se toca), salvo que

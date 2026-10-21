@@ -21,7 +21,7 @@ const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
   esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
   ordenarPorFecha, esHoy, estadoVisibleAsesor, hoyISO,
-  esDeTaller, rolEncargadoDe, esValeDeModificacion
+  esDeTaller, rolEncargadoDe, esValeDeModificacion, algunTallerProtege
 } = require('./valeHelpers');
 
 // La propuesta del taller trae nota o enlaces (aunque no tenga archivo).
@@ -91,10 +91,11 @@ class ValeBuzonService {
   // Adjuntos reclamados por taller (rechazados/respondidos) para asesor y supervisor; VERIFICANDO no se muestra.
   _adjuntosDe(vale) {
     const nombres = new Map((vale._talleresDetalle || []).map(t => [t.taller_id, t.nombre]));
+    const protegido = algunTallerProtege(vale._filasTaller || []);
     return (vale._filasTaller || [])
       .filter(f => ESTADOS_ADJUNTOS_VISIBLES_ASESOR.includes(f.estado))
       .map(f => ({
-        taller_id: f.taller_id, taller: nombres.get(f.taller_id) || `#${f.taller_id}`, estado: f.estado,
+        taller_id: f.taller_id, taller: nombres.get(f.taller_id) || `#${f.taller_id}`, estado: f.estado, protegido,
         vence_en: f.adjuntos_vence_en, mensaje: f.adjuntos_mensaje, respondido_en: f.adjuntos_respondido_en
       }));
   }

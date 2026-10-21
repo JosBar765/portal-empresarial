@@ -17,11 +17,11 @@ async function avisarPorVencer() {
   for (const fila of await valeTallerRepository.listarAdjuntosSinAviso()) {
     const minutos = await calendarioService.minutosRestantes(fila.adjuntos_vence_en, [fila.taller_id]);
     if (minutos > umbral) continue;
-    if (!(await valeTallerRepository.marcarAvisoAdjuntos(fila.id))) continue;
     const vale = await valeRepository.obtenerPorId(fila.vale_id);
     if (!vale) continue;
     const talleres = await valeTallerRepository.listarPorVale(vale.id);
-    if (valeAdjuntosService.algunTallerProtege(talleres)) continue; // no se va a borrar: no se avisa
+    if (valeAdjuntosService.algunTallerProtege(talleres)) continue; // no se va a borrar: no se avisa ni se marca
+    if (!(await valeTallerRepository.marcarAvisoAdjuntos(fila.id))) continue;
     const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
     const salasTalleres = talleres.map(t => `taller:${t.taller_id}`);
     const taller = await tallerRepository.obtenerPorId(fila.taller_id);
