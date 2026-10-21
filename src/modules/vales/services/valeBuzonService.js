@@ -100,6 +100,12 @@ class ValeBuzonService {
       }));
   }
 
+  // Talleres activos del vale con su estado: el asesor los lista al dar de baja un taller.
+  _talleresEstadoDe(vale) {
+    const nombres = new Map((vale._talleresDetalle || []).map(t => [t.taller_id, t.nombre]));
+    return (vale._filasTaller || []).map(f => ({ taller_id: f.taller_id, taller: nombres.get(f.taller_id) || `#${f.taller_id}`, estado: f.estado }));
+  }
+
   // Ventana de tiempo del buzón; un valor inválido es un 400, no un error interno.
   _resolverVentana(filtros = {}) {
     const tipo = filtros.ventana || 'todo';
@@ -453,7 +459,7 @@ class ValeBuzonService {
   // ---- Asesor: sidebar Buzón (pipeline activo, sin recibidos/rechazados) ----
   // `usuario` null: la vista del administrador y del gerente, con los vales de todos los asesores.
   _buzonAsesor(usuario, todos, ventana, filtroContador) {
-    const propios = (usuario ? todos.filter(v => v.asesor_id === usuario.id) : todos).map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v), adjuntos: this._adjuntosDe(v) }));
+    const propios = (usuario ? todos.filter(v => v.asesor_id === usuario.id) : todos).map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v), adjuntos: this._adjuntosDe(v), talleres_estado: this._talleresEstadoDe(v) }));
     const activos = propios.filter(v => !ESTADOS_TERMINALES.includes(v.estado));
     const enVentana = conPaso(activos.filter(v => dentroDeVentana(v, ventana)));
 
