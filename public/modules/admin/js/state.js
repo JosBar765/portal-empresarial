@@ -11,6 +11,7 @@ export const state = {
   // cargados una vez y reusados por las distintas pestañas.
   catalogoTiendas: [], catalogoRoles: [],
   mantenimiento: null,
-  horarios: [], horasVencimientoVale: 4, diasRetencionPdfAdjuntos: 30, diasRetencionPropuestas: 60, paisesHorarios: [], paisFeriadoId: null, feriados: [],
+  horarios: [], horasVencimientoVale: 4, maxBorradoresPorUsuario: 15, diasRetencionPdfAdjuntos: 30, diasRetencionPropuestas: 60, paisesHorarios: [], paisFeriadoId: null, feriados: [],
+
   socket: null
 };

@@ -26,6 +26,7 @@ const valePdfService = require('./valePdfService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
 const valeVistoService = require('./valeVistoService');
+const borradorService = require('./borradorService');
 const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
   ESTADOS, hoyISO, horaActual, enriquecer,
@@ -60,6 +61,14 @@ class ValeCreacionService {
   // solo para tener un valor que guardar — no protege un reintento real
   // porque el cliente nunca la reutilizaría.
   async crearVale(usuario, payload, archivos) {
+    // Enviar un borrador: mismo flujo, con los adjuntos que conserva el borrador sumados a los nuevos.
+    if (payload.borradorId !== undefined && payload.borradorId !== '') {
+      return borradorService.enviar(usuario, payload, archivos, (combinados) => this.crearValeNuevo(usuario, payload, combinados));
+    }
+    return this.crearValeNuevo(usuario, payload, archivos);
+  }
+
+  async crearValeNuevo(usuario, payload, archivos) {
     const idempotencyKey = payload.idempotencyKey || crypto.randomUUID();
     // Misma key en paralelo: se serializa, y la comprobación va DENTRO de la cola para que nunca se cree dos veces.
     return valeMutex.conColaDeLlave(idempotencyKey, async () => {

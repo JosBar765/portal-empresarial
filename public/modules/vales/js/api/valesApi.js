@@ -272,6 +272,42 @@ export function rechazarModificacion(valeId, motivo) {
   return enviarJSON(`/api/vales/${valeId}/rechazar-modificacion`, { motivo });
 }
 
+// Borradores de vale: privados de quien los crea (permiso vales.crear).
+export async function listarBorradores() {
+  const res = await fetch('/api/vales/borradores');
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudieron cargar los borradores.');
+  return data;
+}
+
+export async function obtenerBorrador(borradorId) {
+  const res = await fetch(`/api/vales/borradores/${borradorId}`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo abrir el borrador.');
+  return data;
+}
+
+export async function guardarBorrador(formData) {
+  const res = await fetch('/api/vales/borradores', { method: 'POST', body: formData });
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo guardar el borrador.');
+  return data;
+}
+
+export async function actualizarBorrador(borradorId, formData) {
+  const res = await fetch(`/api/vales/borradores/${borradorId}`, { method: 'PUT', body: formData });
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo guardar el borrador.');
+  return data;
+}
+
+export async function eliminarBorrador(borradorId) {
+  const res = await fetch(`/api/vales/borradores/${borradorId}`, { method: 'DELETE' });
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo eliminar el borrador.');
+  return data;
+}
+
 export async function obtenerCargaTrabajo() {
   const res = await fetch('/api/vales/carga-trabajo');
   return leerJSON(res);
