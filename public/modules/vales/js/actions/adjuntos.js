@@ -251,7 +251,8 @@ export function abrirModalAdjuntosPendientes(vale) {
   const adjuntos = vale.adjuntos || [];
   const puedeResponder = puedeResponderAdjuntos(vale);
   const puedeQuitarTaller = puedeResponder && puede('darDeBaja');
-  const botonQuitarTaller = (a) => (puedeQuitarTaller && a.total_talleres >= 2
+  const esMod = Number(vale.vale_original_id) > 0;
+  const botonQuitarTaller = (a) => (puedeQuitarTaller && !esMod && a.total_talleres >= 2
     ? `<button class="btn btn--ghost btn--sm" data-baja-taller="${Number(a.taller_id)}"><ion-icon name="ban-outline"></ion-icon> Dar de baja a este taller</button>`
     : '');
   const tarjetas = adjuntos.map(a => {
@@ -265,7 +266,7 @@ export function abrirModalAdjuntosPendientes(vale) {
     }
     return `<li class="rechazo-tarjeta rechazo-tarjeta--alerta">
       <div class="rechazo-cab"><strong>${escapeHtml(a.taller)}</strong><span class="chip-estado chip-estado--alerta">Rechazado por el taller</span></div>
-      <p class="rechazo-texto">Atiende el mensaje del taller. Si no se resuelve, ${a.total_talleres >= 2 ? `el taller ${escapeHtml(a.taller)} se dará de baja de este vale` : 'el vale se elimina'}${a.vence_en ? ` el ${escapeHtml(formatearFechaHora(a.vence_en))}` : ''}.</p>
+      <p class="rechazo-texto">Atiende el mensaje del taller. Si no se resuelve, ${esMod ? 'la solicitud de modificación se elimina' : a.total_talleres >= 2 ? `el taller ${escapeHtml(a.taller)} se dará de baja de este vale` : 'el vale se elimina'}${a.vence_en ? ` el ${escapeHtml(formatearFechaHora(a.vence_en))}` : ''}.</p>
       ${puedeResponder ? `<div class="rechazo-acciones">
         <button class="btn btn--primary btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Leer y responder</button>
         <button class="btn btn--ghost btn--sm" data-responder="${Number(a.taller_id)}"><ion-icon name="checkmark-done-outline"></ion-icon> Ya lo atendí</button>
