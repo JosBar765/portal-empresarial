@@ -14,6 +14,24 @@ class NotificacionRepository {
     return rows[0];
   }
 
+  // Una notificación por usuario en un solo INSERT; devuelve las filas creadas por `usuario_id`.
+  async crearParaUsuarios(usuariosIds, { modulo, valeId = null, tipo = null, nivel = 'info', mensaje }) {
+    if (!usuariosIds.length) return new Map();
+    const res = await db.query(
+      'INSERT INTO notificaciones (usuario_id, modulo, vale_id, tipo, nivel, mensaje) VALUES ?',
+      [usuariosIds.map(id => [id, modulo, valeId, tipo, nivel, mensaje])],
+      'notificacion:insert_varias'
+    );
+    const filas = await db.query(
+      `SELECT ${COLUMNAS}, usuario_id FROM notificaciones WHERE id >= ? AND usuario_id IN (?) AND modulo = ? AND mensaje = ? ORDER BY id`,
+      [res.insertId, usuariosIds, modulo, mensaje],
+      'notificacion:find_varias'
+    );
+    const porUsuario = new Map();
+    filas.forEach(({ usuario_id, ...notificacion }) => { if (!porUsuario.has(usuario_id)) porUsuario.set(usuario_id, notificacion); });
+    return porUsuario;
+  }
+
   async listar(usuarioId, modulo, limite, desplazamiento) {
     return db.query(
       `SELECT ${COLUMNAS} FROM notificaciones WHERE usuario_id = ? AND modulo = ? ORDER BY id DESC LIMIT ? OFFSET ?`,
@@ -48,12 +66,12 @@ class NotificacionRepository {
     );
   }
 
-  // Borra las ya leídas con más de `dias` días (de todos los módulos); las no leídas nunca se tocan.
-  async purgarLeidasAntiguas(dias) {
+  // Borra las emitidas hace más de `dias` días (de todos los módulos), estén leídas o no.
+  async purgarAntiguas(dias) {
     const res = await db.query(
-      'DELETE FROM notificaciones WHERE leida_en IS NOT NULL AND leida_en < DATE_SUB(NOW(), INTERVAL ? DAY)',
+      'DELETE FROM notificaciones WHERE creado_en < DATE_SUB(NOW(), INTERVAL ? DAY)',
       [dias],
-      'notificacion:purgar_leidas'
+      'notificacion:purgar_antiguas'
     );
     return res.affectedRows;
   }

@@ -20,6 +20,7 @@ export const state = {
     agruparPor: '', tiendaId: '', tallerId: '', asesorIds: [], disenadorIds: [], expandidos: new Set()
   },
   busqueda: '',
+  mensajeVacio: '', // texto de la lista vacía que manda el servidor (p. ej. encargado sin taller)
   sort: { key: null, dir: null }, // ídem el orden por columna
   socket: null,
   cargaTrabajoModal: null,

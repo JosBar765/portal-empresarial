@@ -33,6 +33,22 @@ class ValeTallerRepository {
     return db.query(`${SELECT_VALE_TALLER} WHERE vt.activo = 1`, [], 'vale_taller:list_all');
   }
 
+  // Todas las filas activas de los vales dados (de todos sus talleres).
+  async listarPorVales(valeIds) {
+    if (!valeIds.length) return [];
+    return db.query(`${SELECT_VALE_TALLER} WHERE vt.vale_id IN (?) AND vt.activo = 1 ORDER BY vt.id ASC`, [valeIds], 'vale_taller:list_by_vales');
+  }
+
+  // Vales con una fila activa del taller que no está en `estadoExcluido`.
+  async listarValeIdsDeTallerSinEstado(tallerId, estadoExcluido) {
+    const filas = await db.query(
+      `SELECT DISTINCT vt.vale_id FROM vale_talleres vt LEFT JOIN estados_taller et ON et.id = vt.estado_id
+       WHERE vt.taller_id = ? AND vt.activo = 1 AND (et.nombre IS NULL OR et.nombre <> ?)`,
+      [tallerId, estadoExcluido], 'vale_taller:list_vale_ids_taller_sin_estado'
+    );
+    return filas.map(f => f.vale_id);
+  }
+
   async listarPorVale(valeId) {
     return db.query(`${SELECT_VALE_TALLER} WHERE vt.vale_id = ? AND vt.activo = 1 ORDER BY vt.id ASC`, [valeId], 'vale_taller:list_by_vale');
   }
