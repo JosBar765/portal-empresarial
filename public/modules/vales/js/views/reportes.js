@@ -131,6 +131,7 @@ function armarEsqueleto(cont) {
       <div>
         <h2 id="rep-titulo">Reportes</h2>
         <p class="rend-meta" id="rep-meta"></p>
+        <p class="rend-meta">Los reportes no se actualizan solos: usa «Actualizar» para ver los datos más recientes.</p>
       </div>
       <div class="rep-acciones">
         <button class="btn btn--ghost btn--sm" id="rep-actualizar" type="button"><ion-icon name="refresh-outline"></ion-icon> Actualizar</button>

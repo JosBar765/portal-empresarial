@@ -1,6 +1,6 @@
 // src/core/notifications/notificacionService.js
-// Centro de notificaciones: cada notificación pertenece a un módulo (`modulo`) y se guarda por usuario (las leídas se
-// purgan a los 60 días); se empuja en vivo a la sala personal `usuario:<id>` de cada destinatario.
+// Centro de notificaciones: cada notificación pertenece a un módulo (`modulo`) y se guarda por usuario (se purgan
+// a los 30 días de emitidas); se empuja en vivo a la sala personal `usuario:<id>` de cada destinatario.
 const notificacionRepository = require('./notificacionRepository');
 const socketManager = require('../websocket/socketManager');
 const { MODULOS } = require('../permissions/modulesCatalog');
@@ -17,10 +17,8 @@ function validarModulo(modulo) {
 class NotificacionService {
   async registrar(usuariosIds, datos) {
     validarModulo(datos.modulo);
-    for (const usuarioId of usuariosIds) {
-      const notificacion = await notificacionRepository.crear(usuarioId, datos);
-      socketManager.sendToRooms([`usuario:${usuarioId}`], 'notificacion_nueva', notificacion);
-    }
+    const porUsuario = await notificacionRepository.crearParaUsuarios([...new Set(usuariosIds)], datos);
+    porUsuario.forEach((notificacion, usuarioId) => socketManager.sendToRooms([`usuario:${usuarioId}`], 'notificacion_nueva', notificacion));
   }
 
   async listar(usuarioId, { modulo, limite, desplazamiento }) {
@@ -39,8 +37,8 @@ class NotificacionService {
     return notificacionRepository.marcarLeida(usuarioId, id);
   }
 
-  purgarLeidasAntiguas(dias) {
-    return notificacionRepository.purgarLeidasAntiguas(dias);
+  purgarAntiguas(dias) {
+    return notificacionRepository.purgarAntiguas(dias);
   }
 
   marcarTodasLeidas(usuarioId, modulo) {

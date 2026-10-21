@@ -70,10 +70,11 @@ export function initSocket() {
       window.toast[esAlerta ? 'error' : 'info'](esAlerta ? 'Atención' : 'Vale de arte', data.mensaje);
       if (data.beep !== false) reproducirBeep();
     }
-    refrescarPantalla();
+    // Un mensaje del chat de una básica no cambia ninguna fila de la lista: el chat abierto se actualiza arriba.
+    if (data.tipo !== 'MOD_BASICA_MENSAJE') programarRecarga();
   });
   // Solo refresco, sin toast ni beep (ver `refrescar` en events.js).
-  state.socket.on('vale_refrescar', () => refrescarPantalla());
+  state.socket.on('vale_refrescar', () => programarRecarga());
   // Canal aparte de `vale_evento` (ver events.js) — llega a CUALQUIER vista
   // que tenga abierto el historial de ESTE vale, sin importar el rol ni si
   // esa vista está en alguna de las salas por rol de `vale_evento`. Nunca
@@ -85,8 +86,25 @@ export function initSocket() {
   });
 }
 
+let recargaProgramada = null;
+let recargaDiferida = false;
+
+// Los eventos seguidos comparten una sola recarga; con la pestaña oculta se espera a que vuelva a verse.
+function programarRecarga() {
+  if (document.hidden) { recargaDiferida = true; return; }
+  if (recargaProgramada) return;
+  recargaProgramada = setTimeout(() => { recargaProgramada = null; refrescarPantalla(); }, 400);
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !recargaDiferida) return;
+  recargaDiferida = false;
+  programarRecarga();
+});
+
 function refrescarPantalla() {
-  cargarBuzon();
+  // Reportes se actualiza a mano con su botón «Actualizar».
+  if (state.vista !== 'reportes') cargarBuzon();
   if (state.cargaTrabajoModal) {
     if (state.cargaTrabajoModal.overlay.isConnected) {
       state.cargaTrabajoModal.actualizar();
