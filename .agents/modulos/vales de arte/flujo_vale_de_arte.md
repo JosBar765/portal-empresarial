@@ -794,3 +794,7 @@ En un vale con varios talleres, los talleres que comparten propuestas ven la úl
 - El «?» es retroactivo: un vale cuyo hermano aprobó antes de la función aparece como nuevo hasta que se abra. Se dejó así porque en producción hay un solo vale en proceso y nadie ha entregado propuesta.
 - Al aprobar, el Administrador recibe dos avisos emergentes (conocido, sin cambio).
 - El botón flotante de acción se superpone en celular: ya existía y no tiene relación.
+
+## 15. Retención de archivos
+
+A los 30 días de `confirmado_en` se borran de Storage el PDF y los adjuntos del vale, y a los 60 las propuestas (individuales y general); en la BD quedan los datos y las URLs en NULL. Los plazos son editables por el Administrador (`dias_retencion_pdf_adjuntos`, `dias_retencion_propuestas` en `parametros_sistema`). Detalle, reglas y pasos de producción (script `retencion_archivos`): `documentacion/retencion_archivos.md`.
