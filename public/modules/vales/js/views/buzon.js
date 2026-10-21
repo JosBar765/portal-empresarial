@@ -221,11 +221,16 @@ export function renderTabla() {
   pintarFilas(tbody, filas);
 }
 
+// La empresa del cliente va bajo el correlativo solo para quienes siguen el vale de punta a punta.
+const ROLES_CON_EMPRESA = [ROL.ASESOR, ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR];
+const empresaDeFila = (v) => (ROLES_CON_EMPRESA.includes(state.user.rolId) && v.cliente_empresa
+  ? `<span class="vale-empresa" title="${escapeHtml(v.cliente_empresa)}">${escapeHtml(v.cliente_empresa)}</span>` : '');
+
 // Dibuja las filas de vales (y sus botones de acción) en un <tbody>.
 function pintarFilas(tbody, filas) {
   tbody.innerHTML = filas.map(v => `
     <tr>
-      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${badgeBasica(v)}${rechazosSinLeer(v).length ? `<span class="badge badge-rechazada" title="${escapeHtml(textoRechazos(rechazosSinLeer(v)))}">Básica rechazada</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${marcaPropuestaNueva(v)}${badgePersona(v)}</td>
+      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${badgeBasica(v)}${rechazosSinLeer(v).length ? `<span class="badge badge-rechazada" title="${escapeHtml(textoRechazos(rechazosSinLeer(v)))}">Básica rechazada</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${marcaPropuestaNueva(v)}${badgePersona(v)}${empresaDeFila(v)}</td>
       <td data-label="Fecha Ingreso" class="col-fecha-ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
       <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
