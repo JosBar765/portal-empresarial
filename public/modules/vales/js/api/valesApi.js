@@ -202,6 +202,10 @@ export function darDeBajaVale(valeId) {
   return enviarPost(`/api/vales/${valeId}/dar-de-baja`);
 }
 
+export function darDeBajaTallerVale(valeId, tallerId) {
+  return enviarPost(`/api/vales/${valeId}/talleres/${tallerId}/baja`);
+}
+
 export function verificarAdjuntos(valeId) {
   return enviarJSON(`/api/vales/${valeId}/verificar-adjuntos`, {});
 }

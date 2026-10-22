@@ -2,6 +2,8 @@ import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { abrirVisorVale } from '../components/visorDocumento.js';
 import { confirmarRecibido, darDeBajaVale, reenviarVale } from '../api/valesApi.js';
 import { escapeHtml } from '../utils/formato.js';
+import { ESTADOS_LABEL } from '../config/estados.js';
+import { abrirModalBajaTaller } from './adjuntos.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { abrirSelectorModificacion } from './modificacionTipo.js';
 import { abrirConversacionesBasicas } from './modificacionBasica.js';
@@ -61,6 +63,44 @@ export function abrirModalDarDeBaja(vale) {
       btn.disabled = false;
       cargarBuzon();
     }
+  });
+}
+
+// Vale multitaller con algún taller en adjuntos rechazados/respondidos: se elige entre quitar un taller o todo el vale.
+const ofreceBajaPorTaller = (vale) => !(Number(vale.vale_original_id) > 0)
+  && (vale.talleres_estado || []).length >= 2 && (vale.adjuntos || []).length > 0;
+
+// Punto de entrada del icono «Dar de baja» del buzón.
+export function abrirDarDeBaja(vale) {
+  if (ofreceBajaPorTaller(vale)) abrirModalDarDeBajaMultitaller(vale);
+  else abrirModalDarDeBaja(vale);
+}
+
+function abrirModalDarDeBajaMultitaller(vale) {
+  const reclamados = new Map((vale.adjuntos || []).map(a => [a.taller_id, a]));
+  const tarjetas = vale.talleres_estado.map(t => {
+    const adjunto = reclamados.get(t.taller_id);
+    const clase = !adjunto ? '' : t.estado === 'ADJUNTOS_RESPONDIDOS' ? ' chip-estado--info' : ' chip-estado--alerta';
+    return `<li class="rechazo-tarjeta">
+      <div class="rechazo-cab"><strong>${escapeHtml(t.taller)}</strong><span class="chip-estado${clase}">${escapeHtml(ESTADOS_LABEL[t.estado] || t.estado)}</span></div>
+      ${adjunto ? `<div class="rechazo-acciones"><button class="btn btn--ghost btn--sm" data-baja-taller="${Number(t.taller_id)}"><ion-icon name="ban-outline"></ion-icon> Dar de baja a este taller</button></div>` : ''}
+    </li>`;
+  }).join('');
+  const { overlay, cerrar } = abrirModal({
+    title: `Dar de baja — ${vale.correlativo}`,
+    bodyHtml: `
+      <p style="font-size:13px;margin-bottom:10px;">Puedes quitar solo a un taller que rechazó o ya respondió sobre los adjuntos, o dar de baja el vale completo.</p>
+      <ul class="rechazo-lista">${tarjetas}</ul>
+    `,
+    footerHtml: '<button class="btn btn--ghost" id="btn-cerrar">Cerrar</button><button class="btn btn--danger" id="btn-vale-completo">Dar de baja el vale completo</button>'
+  });
+  overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
+  overlay.querySelector('#btn-vale-completo').addEventListener('click', () => { cerrar(); abrirModalDarDeBaja(vale); });
+  overlay.querySelectorAll('[data-baja-taller]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const adjunto = reclamados.get(Number(btn.dataset.bajaTaller));
+      if (adjunto) abrirModalBajaTaller(vale, adjunto, cerrar);
+    });
   });
 }
 

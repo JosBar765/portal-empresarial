@@ -232,6 +232,10 @@ class ValeRepository {
     );
   }
 
+  async actualizarTalleresSolicitados(id, csv) {
+    await db.query('UPDATE vales SET talleres_solicitados = ? WHERE id = ?', [csv, id], 'vale:update_talleres_solicitados');
+  }
+
   async actualizarPropuestaGeneral(id, url) {
     await db.query('UPDATE vales SET propuesta_general_url = ? WHERE id = ?', [url, id], 'vale:update_propuesta_general');
   }

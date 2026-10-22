@@ -124,6 +124,7 @@ router.post('/:id/mensajes', escribirConversacion, (req, res) => valeController.
 router.post('/:id/reenviar', corregirVale, (req, res) => valeController.reenviar(req, res));
 router.post('/:id/visto', requirePermission('vales.supervisar'), (req, res) => valeController.marcarVisto(req, res));
 router.post('/:id/dar-de-baja', darDeBajaVale, (req, res) => valeController.darDeBaja(req, res));
+router.post('/:id/talleres/:tallerId/baja', darDeBajaVale, (req, res) => valeController.darDeBajaTaller(req, res));
 router.post('/:id/corregir', corregirVale, camposAdjuntos, (req, res) => valeController.corregir(req, res));
 
 module.exports = router;

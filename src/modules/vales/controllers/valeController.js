@@ -400,6 +400,15 @@ class ValeController {
     }
   }
 
+  async darDeBajaTaller(req, res) {
+    try {
+      const vale = await valeService.darDeBajaTaller(req.user, idObligatorio(req.params.id), idObligatorio(req.params.tallerId));
+      return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async verificarAdjuntos(req, res) {
     try {
       const vale = await valeService.verificarAdjuntos(req.user, idObligatorio(req.params.id), idOpcional(req.body && req.body.tallerId, 'Taller'));
