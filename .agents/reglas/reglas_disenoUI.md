@@ -249,7 +249,7 @@ un tono de marca distinto (marketing/consumer) al de este proyecto.
 - `.agents/reglas_autenticacion.md` — arquitectura de auth (no relacionado a
   diseño, pero mismo criterio de "un agente debe poder leer esto y no
   romper el sistema").
-- `.agents/readme_modulo.md` — plantilla para módulos nuevos; su paso 2
+- `.agents/reglas/reglas_modulo.md` — plantilla para módulos nuevos; su paso 2
   ("frontend, estilizado para calzar con `global.css`") remite a este
   documento para el detalle de paleta.
 - Paleta oscura del sidebar/superficies de marca: tomada de una imagen de
