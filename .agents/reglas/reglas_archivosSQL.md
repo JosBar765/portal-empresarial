@@ -11,10 +11,10 @@ database/
 ├── schema.sql      # Estructura: CREATE TABLE, claves, índices. Cero datos.
 ├── seed.sql        # Datos reales mínimos para una instalación funcional.
 ├── users.sql       # Usuarios, talleres y sus asignaciones (solo desarrollo; ver su cabecera).
-└── migraciones/    # Scripts idempotentes NN_tema.sql para bases que ya están en producción.
+└── migrations/     # Scripts idempotentes NN_tema.sql para bases que ya están en producción.
 ```
 
-Los cambios sobre una base que ya está en producción **no** se hacen editando `schema.sql` ni `seed.sql`: van en un script idempotente nuevo dentro de `database/migraciones/`, que el dueño importa a mano. Su nombre empieza con un número correlativo, pero la documentación y los comentarios lo citan sin él.
+Los cambios sobre una base que ya está en producción **no** se hacen editando `schema.sql` ni `seed.sql`: van en un script idempotente nuevo dentro de `database/migrations/`, que el dueño importa a mano. Su nombre empieza con un número correlativo, pero la documentación y los comentarios lo citan sin él.
 
 Orden de importación sobre una base de datos vacía:
 
