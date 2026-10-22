@@ -50,7 +50,8 @@ portal-empresarial/
 ├── .agents/                      # Reglas de arquitectura y diseño para agentes de IA
 ├── database/
 │   ├── schema.sql                # Estructura (CREATE TABLE, claves, índices)
-│   └── seed.sql                  # Datos reales mínimos para una instalación funcional
+│   ├── seed.sql                  # Datos reales mínimos para una instalación funcional
+│   └── migraciones/              # Scripts idempotentes para bases que ya están en producción
 ├── public/                       # Contenido estático del Frontend
 │   ├── assets/
 │   │   └── logos/                # Logos corporativos e isotipos de MundiTrofeos
