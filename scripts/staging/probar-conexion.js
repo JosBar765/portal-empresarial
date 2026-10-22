@@ -1,6 +1,7 @@
 // Prueba de solo lectura: conecta a ORIGEN y DESTINO y muestra qué hay en cada uno. No escribe nada.
 const { leerArgumentos, cargarConfig, mismoDestino, describir, exigirDestinoNoProduccion } = require('./lib/config');
 const { conectar, activarSoloLectura, ident, cerrar } = require('./lib/conexiones');
+const marca = require('./lib/marca');
 
 const PRIVILEGIOS = ['CREATE', 'DROP', 'INSERT', 'ALTER', 'DELETE'];
 
@@ -21,7 +22,9 @@ function privilegiosDe(grants, db) {
   return encontrados;
 }
 
+// Devuelve null si todo está bien, o el motivo pendiente de la marca de esta base.
 async function inspeccionar(nombre, c, esOrigen) {
+  let pendiente = null;
   console.log(`\n[Refresco] ${nombre}: ${describir(c)}`);
   const conn = await conectar(c);
   try {
@@ -49,6 +52,16 @@ async function inspeccionar(nombre, c, esOrigen) {
       console.log('  schema_migrations: no existe');
     }
 
+    const valorMarca = await marca.leerMarca(marca.consultaDe(conn));
+    console.log(`  entorno: ${valorMarca === null ? 'sin marca' : valorMarca}`);
+    if (esOrigen && valorMarca === 'staging') {
+      throw new Error('el ORIGEN lleva la marca entorno = staging: es un staging, no producción (¿ORIGEN y DESTINO intercambiados?)');
+    }
+    if (!esOrigen && valorMarca !== 'staging') {
+      pendiente = valorMarca === null ? 'DESTINO sin marca: ejecuta npm run staging:marcar' : `DESTINO con marca «${valorMarca}» distinta de staging: ejecuta npm run staging:marcar`;
+      console.log(`  ${pendiente}`);
+    }
+
     if (esOrigen) {
       await activarSoloLectura(conn);
       console.log('  Sesión de solo lectura: OK (transaction_read_only = 1)');
@@ -62,6 +75,7 @@ async function inspeccionar(nombre, c, esOrigen) {
   } finally {
     await cerrar(conn);
   }
+  return pendiente;
 }
 
 (async () => {
@@ -71,9 +85,11 @@ async function inspeccionar(nombre, c, esOrigen) {
   exigirDestinoNoProduccion(destino);
 
   let fallos = 0;
+  const pendientes = [];
   for (const [nombre, c, esOrigen] of [['ORIGEN', origen, true], ['DESTINO', destino, false]]) {
     try {
-      await inspeccionar(nombre, c, esOrigen);
+      const pendiente = await inspeccionar(nombre, c, esOrigen);
+      if (pendiente) pendientes.push(pendiente);
     } catch (error) {
       fallos++;
       console.error(`[Refresco] ERROR en ${nombre}: [${error.code || 'sin código'}] ${error.sqlMessage || error.message}`);
@@ -83,7 +99,11 @@ async function inspeccionar(nombre, c, esOrigen) {
     console.error(`\n[Refresco] La prueba falló en ${fallos} de 2 conexiones.`);
     process.exit(1);
   }
-  console.log('\n[Refresco] Prueba correcta: ambas conexiones funcionan. No se escribió nada.');
+  if (pendientes.length) {
+    console.error(`\n[Refresco] Conexiones correctas, pero el refresco no puede correr aún: ${pendientes.join('; ')}. No se escribió nada.`);
+    process.exit(1);
+  }
+  console.log('\n[Refresco] Prueba correcta: ambas conexiones funcionan y las marcas son coherentes. No se escribió nada.');
   process.exit(0);
 })().catch(error => {
   console.error(`[Refresco] ERROR: ${error.message}`);

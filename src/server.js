@@ -4,6 +4,7 @@ const app = require('./app');
 const config = require('./config/env');
 const db = require('./config/database');
 const migraciones = require('./core/migrations/ejecutor');
+const { verificarMarca, leerMarcaDeBase } = require('./core/entorno/verificarMarca');
 const sesionRepository = require('./core/auth/sesionRepository');
 const socketManager = require('./core/websocket/socketManager');
 
@@ -18,6 +19,13 @@ const PORT = config.port;
 
 (async () => {
   await db.listo;
+  // Antes de migrar: un staging apuntando a la base de producción (o al revés) no debe tocarla.
+  const entorno = await verificarMarca({ nodeEnv: config.nodeEnv, leerMarca: () => leerMarcaDeBase(db.query) });
+  if (entorno.fatal) {
+    console.error(`[FATAL] ${entorno.mensaje}`);
+    process.exit(1);
+  }
+  if (entorno.mensaje) console.log(`[Entorno] ${entorno.mensaje}`);
   // Migraciones automáticas solo en staging y producción; antes de cualquier
   // otra consulta y sin escuchar: no se sirve tráfico con la base a medias.
   if (['staging', 'production'].includes(config.nodeEnv)) {
