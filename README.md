@@ -120,16 +120,25 @@ El portal estará disponible en la URL local: **`http://localhost:3000`**
 
 ## 4. ¿Cómo agregar un nuevo módulo empresarial?
 
-Agregar un nuevo módulo (por ejemplo, `inventario`) es un proceso directo que requiere seguir la estructura monolítica establecida en el proyecto:
+Ejemplo con el módulo `inventario`. Cambia `inventario` por el id de tu módulo. Plantillas de código completas: [Guía de Creación de Módulos](.agents/reglas/reglas_modulo.md). Ejemplos reales del patrón: `src/modules/vales/` y `src/modules/admin/`.
 
-1. **Crear carpeta del módulo en Backend**: Crea el subdirectorio `src/modules/inventario/` y estructura sus capas (controlador, servicio, repositorio, rutas y eventos). Puedes guiarte por las plantillas completas de código de la [Guía de Creación de Módulos](.agents/reglas/reglas_modulo.md) y por el paso a paso de [CLAUDE.md](CLAUDE.md).
-2. **Crear carpeta del módulo en Frontend**: Crea el subdirectorio `public/modules/inventario/` para albergar su interfaz estática (`index.html`, `js/app.js`, `css/styles.css`).
-3. **Registrar Rutas de la API**: Importa y monta tus rutas en [src/app.js](src/app.js) protegidas por el middleware de seguridad (ej: `app.use('/api/inventario', requireAuth, inventarioRoutes)`).
-4. **Agregar al Catálogo Dinámico**: Registra el módulo en `MODULOS` de `src/core/permissions/modulesCatalog.js` (lo consume `/api/modules`), asignándole el código de permiso necesario (ej. `inventario.ver`), icono vector y color representativo.
+1. **Backend**: crea `src/modules/inventario/{controllers,services,repositories}/`, `routes.js` y `events.js`.
+   - Rutas: cada endpoint declara `requirePermission('inventario.<accion>')`.
+   - Controlador: solo entrada y salida HTTP; errores con `responderError`; ids con `idObligatorio`/`idOpcional`.
+   - Servicio: reglas de negocio; sin SQL ni `req`/`res`.
+   - Repositorio: todo el SQL mediante `db.query(sql, params, tag)`.
+2. **Montar la API** en [src/app.js](src/app.js), después de `authenticateJWT`:
+   ```js
+   app.use('/api/inventario', requireAuth, requirePermission('inventario.ver'), require('./modules/inventario/routes'));
+   ```
+3. **Registrar el módulo** en `MODULOS` de `src/core/permissions/modulesCatalog.js` (id, nombre, descripción, icono, ruta, permiso, color). Lo consume `/api/modules` y el Dashboard lo lista solo; no hace falta tocar el frontend del Dashboard.
+4. **Permisos**: agrega los códigos (`inventario.ver`, `inventario.crear`, ...) a `database/seed.sql` y asígnalos a los roles. Para bases que ya están en producción, agrega además un script idempotente en `database/migrations/` (ver [reglas_archivosSQL.md](.agents/reglas/reglas_archivosSQL.md)).
+5. **Frontend**: crea `public/modules/inventario/{index.html,css/styles.css,js/app.js}` con los tokens de `public/css/global.css` (misma tipografía, colores y proporciones que el login y el Dashboard).
+6. **Tiempo real**: emite los eventos desde `events.js` con `socketManager.sendToModule`; el cliente se une con `register_module`.
+7. **Acciones críticas**: lo que toque datos o archivos fuera de las tablas del módulo (borrar en Storage, purgas, correos, servicios de terceros) corre solo en producción. Sigue [reglas_entornos.md](.agents/reglas/reglas_entornos.md).
+8. **Documentar el módulo**: crea `.agents/modulos/inventario/README.md` (propósito, dependencias, dónde vive el código, reglas clave, índice de documentos) y `.agents/modulos/inventario/documentacion/` (detalle técnico). Agrega el módulo al índice de [CLAUDE.md](CLAUDE.md).
 
-5. **Documentar el módulo**: Crea `.agents/modulos/inventario/README.md` y `.agents/modulos/inventario/documentacion/`.
-
-El Dashboard del usuario detectará automáticamente la adición del módulo y lo listará dinámicamente si el usuario autenticado cuenta con los permisos necesarios.
+El Dashboard detecta el módulo automáticamente y lo muestra a quien tenga los permisos necesarios.
 
 ---
 
