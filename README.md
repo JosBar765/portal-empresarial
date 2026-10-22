@@ -182,3 +182,16 @@ Desde el PC del dueño, sin `mysqldump`:
 Configuración, seguridad y límites: [reglas_refresco_staging.md](.agents/reglas/reglas_refresco_staging.md).
 
 Respaldo de producción antes de cada despliegue (solo descarga, sin `mysqldump`): `npm run main:backup`. Guía y restauración: [reglas_respaldo_produccion.md](.agents/reglas/reglas_respaldo_produccion.md).
+
+---
+
+## 8. Despliegue
+
+*   Cada cambio va en una rama nueva desde `dev` actualizado, con PR a `dev`, luego a `staging` y luego a `main`.
+*   `staging` y `main` solo aceptan merge commits y exigen el check `verificar` del CI.
+*   Hostinger despliega solo al fusionar en `staging` o `main`.
+*   Las migraciones de `database/migrations/` se aplican solas al arrancar en `staging` y `production`.
+*   Antes de producción: refresco de staging y respaldo (`npm run main:backup`), ambos desde el PC del dueño.
+*   Variables de entorno nuevas se cargan en el panel de Hostinger antes del merge.
+
+Runbook completo, riesgos y marcha atrás: [reglas_despliegue.md](.agents/reglas/reglas_despliegue.md).

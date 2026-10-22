@@ -64,3 +64,5 @@ Después de restaurar, reinicia el servidor.
 - Las vistas se exportan sin `DEFINER` ni el prefijo de la base; el esquema actual no tiene vistas.
 - Tablas muy grandes: se leen por streaming y se escriben por lotes, la memoria no crece con el tamaño; el tiempo depende de la red. Una fila mayor que `max_allowed_packet` del servidor donde se restaure fallará al importar.
 - Las columnas generadas no se insertan (el motor las recalcula). El DDL es el que devuelve `SHOW CREATE TABLE`: entre MariaDB y MariaDB es idéntico; restaurar en MySQL podría chocar con collations propias de MariaDB.
+
+Ver también: [reglas_despliegue.md](reglas_despliegue.md)

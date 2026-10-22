@@ -63,8 +63,6 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 - Conventional Commits, in Spanish; no AI attribution.
 - Every change goes on a new branch from an updated `dev` (pull first).
 - Never commit directly to `dev`, `staging`, or `main`.
-- Flow: feature branch, PR to `dev`, PR to `staging`, PR to `main`.
-- `staging` and `main` accept merge commits only.
 - Business rules live in module docs; update them with behavior.
 - CI runs on every PR: `.agents/reglas/reglas_ci.md`.
 
@@ -85,7 +83,7 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 - New actions: follow `.agents/reglas/reglas_entornos.md`; update its inventory.
 - Session cookies are `Secure` in staging and production.
 - Refresh staging from production: `npm run staging:probar-conexion` / `staging:refrescar`; rules: `.agents/reglas/reglas_refresco_staging.md`.
-- Environment mark: only the staging DB holds `parametros_sistema.entorno = 'staging'` (set once with `npm run staging:marcar`); production never has one. The refresh needs it in DESTINO and not in ORIGEN, and the server checks it at startup (staging without mark or production with it: `[FATAL]`).
+- Environment mark: only the staging DB holds `parametros_sistema.entorno = 'staging'` (set once with `npm run staging:marcar`); production never has one. Refresh needs it in DESTINO, not ORIGEN; startup mismatch: `[FATAL]`.
 
 ## 7. Migrations (directive for AI agents)
 
@@ -95,6 +93,15 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 - Applied automatically at server start in `staging` and `production` (failure: server exits). In `development`: `npm run migrate` / `npm run migrate:estado`.
 - Runner: `src/core/migrations/`; control table `schema_migrations`; rules: `.agents/reglas/reglas_archivosSQL.md`.
 - Docs and comments cite scripts **without** the correlativo.
+
+## 7.1 Deployments
+
+- Flow: feature branch, PR to `dev`, `staging`, `main`; merge commits only in the last two.
+- Hostinger deploys on merge.
+- Migrations apply at startup in staging/production.
+- Staging refresh and production backup run from the owner's PC.
+- AI agents never run them, push to protected branches, or touch production.
+- Full runbook: `.agents/reglas/reglas_despliegue.md`.
 
 ## 8. Pitfalls: mistakes to avoid
 
@@ -119,5 +126,5 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 | Administración Central (`admin`) | `.agents/modulos/admin/README.md` | Users, roles, talleres, maintenance, schedules, admin tools. |
 
 - New module: `README.md` section 4 and `.agents/reglas/reglas_modulo.md`; document it under `.agents/modulos/<name>/` (`README.md` + `documentacion/`).
-- Global rules: `.agents/reglas/` (architecture, module templates, auth, implementation style, UI, SQL files, environments, CI).
+- Global rules: `.agents/reglas/` (architecture, module templates, auth, implementation style, UI, SQL files, environments, CI, deployment).
 - Vales also has `flujo_vale_de_arte.md` (source of truth), `analisis_modulo.md` (history), `correcciones/` (changelog).

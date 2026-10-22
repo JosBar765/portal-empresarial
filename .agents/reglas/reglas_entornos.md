@@ -77,3 +77,5 @@ Hoy el código no envía correos, notificaciones push ni webhooks, ni llama a AP
 | `development`, `test` | cualquiera | No se comprueba (el humo de CI usa `test`) |
 
 Producción se identifica por la **ausencia** de la marca y nunca se escribe en ella. Si en producción no se puede leer la marca (error de MySQL), el servidor avisa y sigue: no se cae por una marca que no debe existir.
+
+Ver también: [reglas_despliegue.md](reglas_despliegue.md)
