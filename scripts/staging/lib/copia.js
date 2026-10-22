@@ -44,6 +44,35 @@ function pesoFila(fila) {
   return n;
 }
 
+// Descripción segura de un valor para el diagnóstico: tipo y largo, nunca el contenido completo.
+function resumenValor(v) {
+  if (v === null) return 'NULL';
+  if (Buffer.isBuffer(v)) return `binario(${v.length} bytes)`;
+  if (typeof v !== 'string') return typeof v;
+  let r = `texto(${v.length} caracteres)`;
+  if (v.startsWith('{') || v.startsWith('[')) {
+    try { JSON.parse(v); r += ', JSON.parse correcto'; } catch (e) { r += `, JSON.parse falla: ${e.message}`; }
+  }
+  return r;
+}
+
+// Un lote falló: reintenta fila por fila para nombrar la fila y la columna que el motor rechaza.
+async function diagnosticarLote(destino, tabla, columnas, lote, errorOriginal) {
+  const una = `INSERT INTO ${ident(tabla)} (${columnas.map(ident).join(', ')}) VALUES ?`;
+  for (const fila of lote) {
+    try {
+      await destino.query(una, [[fila]]);
+    } catch (error) {
+      const detalle = columnas
+        .map((c, i) => `${c}: ${resumenValor(fila[i])}`)
+        .filter(d => !/^[^:]+: (NULL|number|string)$/.test(d))
+        .join(' | ');
+      return new Error(`${error.message}\n  Fila rechazada: ${columnas[0]} = ${String(fila[0]).slice(0, 60)}\n  Columnas: ${detalle}`);
+    }
+  }
+  return errorOriginal;
+}
+
 async function copiarTabla(origen, destino, dbOrigen, tabla) {
   const [[fila]] = await origen.query(`SHOW CREATE TABLE ${ident(tabla)}`);
   await destino.query(fila['Create Table']);
@@ -59,7 +88,11 @@ async function copiarTabla(origen, destino, dbOrigen, tabla) {
   let total = 0;
   const volcar = async () => {
     if (!lote.length) return;
-    await destino.query(insertar, [lote]);
+    try {
+      await destino.query(insertar, [lote]);
+    } catch (error) {
+      throw await diagnosticarLote(destino, tabla, columnas, lote, error);
+    }
     total += lote.length;
     lote = [];
     bytes = 0;
