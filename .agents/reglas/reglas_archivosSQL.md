@@ -31,6 +31,8 @@ Cómo funciona (`src/core/migrations/ejecutor.js`):
 
 Primer despliegue: primero `staging` y después `production`. Producción ya tiene a mano los primeros scripts y la primera corrida los vuelve a ejecutar y registrar (son idempotentes, no hace falta línea base). El usuario de MySQL de la aplicación necesita permisos DDL (`CREATE`, `ALTER`, `DROP`, `INDEX`, `REFERENCES`) además de los de datos.
 
+Refrescar `staging` con un backup de producción: borrar la base completa (o todas sus tablas) **antes** de importar. Importar un volcado solo reemplaza las tablas que trae; una `schema_migrations` sobrante de una prueba anterior haría que el ejecutor diera por aplicados scripts que la base restaurada no tiene.
+
 Orden de importación sobre una base de datos vacía:
 
 ```text
