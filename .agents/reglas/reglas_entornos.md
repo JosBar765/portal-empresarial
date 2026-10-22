@@ -61,3 +61,4 @@ Hoy el código no envía correos, notificaciones push ni webhooks, ni llama a AP
 - `SOCKET_CORS_ORIGIN` con el dominio de pruebas.
 - Un bucket propio para `SUPABASE_STORAGE_BUCKET` y otro (o el mismo) para `SUPABASE_STORAGE_BUCKET_BORRADORES`; ninguno puede ser el de producción. Si las claves de Supabase son las de producción (mismo proyecto), ese par de variables es lo único que separa ambos entornos para las subidas.
 - Una base restaurada de producción guarda URLs de archivos reales: leerlas no modifica nada, pero generar un PDF viejo descarga esos archivos.
+- Para restaurar staging desde producción: `npm run staging:refrescar` (ver `reglas_refresco_staging.md`).

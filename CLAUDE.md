@@ -84,6 +84,7 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 - Guarded today: `supabaseStorage.eliminar`, retention watcher.
 - New actions: follow `.agents/reglas/reglas_entornos.md`; update its inventory.
 - Session cookies are `Secure` in staging and production.
+- Refresh staging from production: `npm run staging:probar-conexion` / `staging:refrescar`; rules: `.agents/reglas/reglas_refresco_staging.md`.
 
 ## 7. Migrations (directive for AI agents)
 

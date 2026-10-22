@@ -168,3 +168,14 @@ Cada pull request hacia `dev`, `staging` o `main` ejecuta el workflow `CI` (`.gi
 *   **Arranque del servidor** contra esa base (`npm run ci:arranque`, pensado para el CI).
 
 Detalle, lectura de fallos y cómo exigir el chequeo en los rulesets: [reglas_ci.md](.agents/reglas/reglas_ci.md).
+
+---
+
+## 7. Refresco de staging
+
+Desde el PC del dueño, sin `mysqldump`:
+
+*   `npm run staging:probar-conexion`: prueba de solo lectura de las conexiones a producción (ORIGEN) y staging (DESTINO).
+*   `npm run staging:refrescar`: reemplaza la base de staging por una copia de producción y la deja lista para que el ejecutor de migraciones aplique lo pendiente.
+
+Configuración, seguridad y límites: [reglas_refresco_staging.md](.agents/reglas/reglas_refresco_staging.md).
