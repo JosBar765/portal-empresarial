@@ -61,6 +61,10 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 - Storage objects named by correlativo; states written in full words.
 - Simple, cohesive code (SOLID, DRY, KISS); one-line "why" comments (`.agents/reglas/reglas_implementacion.md`).
 - Conventional Commits, in Spanish; no AI attribution.
+- Every change goes on a new branch from an updated `dev` (pull first).
+- Never commit directly to `dev`, `staging`, or `main`.
+- Flow: feature branch, PR to `dev`, PR to `staging`, PR to `main`.
+- `staging` and `main` accept merge commits only.
 - Business rules live in module docs; update them with behavior.
 
 ## 5. Security & auth
