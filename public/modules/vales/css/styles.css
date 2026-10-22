@@ -619,6 +619,17 @@
 }
 
 /* Un vale original con una solicitud de modificación en trámite. */
+.vale-empresa {
+  display: block;
+  max-width: 240px;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
 .badge-mod {
   background: var(--color-primary-light);
   color: var(--color-primary);
@@ -1982,6 +1993,7 @@
 .persona-badge--libre { color: var(--color-warning, #b45309); font-weight: 600; }
 @media (max-width: 560px) {
   .buzon-table td[data-label="Correlativo"] { flex-wrap: wrap; justify-content: flex-end; }
+  .buzon-table td[data-label="Correlativo"] .vale-empresa { flex-basis: 100%; max-width: none; text-align: right; }
   .persona-badge { margin-top: 0; }
 }
 
