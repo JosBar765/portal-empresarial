@@ -26,6 +26,20 @@ Gestión de usuarios, roles, permisos, talleres y tiendas del portal, más herra
 - **Crear Vale de Arte** (herramienta de corrección, solo Administrador): ver [`documentacion/crear_vale_de_arte.md`](documentacion/crear_vale_de_arte.md). Nunca crea ni edita un vale.
 - Los permisos se validan en el backend; ocultar una pestaña en el frontend no es control de acceso.
 
+## Roles del sistema
+
+- `rol_id` 1: Administrador.
+- 2: Asesor.
+- 3: Supervisor.
+- 4: Encargado de Diseño.
+- 5: Encargado de Diseño UV/3D.
+- 6: Diseñador.
+- 7: Asistente.
+- 8: Gerente.
+- 9: Encargado de Protextil.
+- 10: Encargado de Diseño Local.
+- Los asistentes heredan el rol de su encargado (`roles.hereda_de_rol_id`): ver [`documentacion/asistentes_por_taller.md`](documentacion/asistentes_por_taller.md).
+
 ## Documentos del módulo (`documentacion/`)
 
 - [`mantenimiento_cuenta_regresiva.md`](documentacion/mantenimiento_cuenta_regresiva.md): modo mantenimiento con cuenta regresiva.
