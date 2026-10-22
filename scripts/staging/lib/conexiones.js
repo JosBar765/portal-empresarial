@@ -41,8 +41,10 @@ async function activarSoloLectura(conn) {
   if (Number(rows[0].v) !== 1) throw new Error('La sesión de ORIGEN no quedó en solo lectura (transaction_read_only <> 1).');
 }
 
-async function conectarOrigen(c) {
+// `proteger(conn)` opcional: se aplica antes de la primera sentencia (el respaldo lo usa para su lista blanca).
+async function conectarOrigen(c, proteger = null) {
   const conn = await conectar(c);
+  if (proteger) proteger(conn);
   await activarSoloLectura(conn);
   await conn.query("SET time_zone = '+00:00'");
   // Hostinger (MariaDB con RocksDB) exige REPEATABLE READ explícito para el snapshot; su sesión puede venir en READ COMMITTED.

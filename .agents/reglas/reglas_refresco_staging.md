@@ -6,7 +6,7 @@ Comando local, ejecutado desde el PC del dueño, que reemplaza la base de **stag
 producción (ORIGEN, solo lectura)  ──►  PC del dueño  ──►  staging (DESTINO, se borra y reescribe)
 ```
 
-Código: `scripts/staging/` (`probar-conexion.js`, `marcar.js`, `refrescar.js`, `lib/`).
+Código: `scripts/staging/` (`probar-conexion.js`, `marcar.js`, `refrescar.js`, `lib/`). El respaldo de producción a archivo (`npm run main:backup`) reutiliza `lib/` y se describe en `reglas_respaldo_produccion.md`.
 
 ## Diseño de seguridad
 
@@ -144,3 +144,5 @@ Pide la misma confirmación (y exige la marca en DESTINO), se conecta solo a DES
 - **ORIGEN y DESTINO intercambiados:** el script (y la prueba de conexión) se niegan a seguir si el nombre de la base de DESTINO contiene «prod» (sin distinguir mayúsculas). El DESTINO es siempre staging; el ORIGEN es producción y solo se lee.
 - **Contraseñas con `#`:** `dotenv` corta un valor sin comillas en el `#`. Escribe el valor entre comillas simples, por ejemplo `ORIGEN_PASSWORD='ab#cd'`. Si la contraseña también tiene una comilla simple, usa comillas dobles.
 - **Cómo comprobarlo antes de copiar:** en la salida de `npm run staging:probar-conexion`, el ORIGEN debe ser producción (por ejemplo, sin la tabla `schema_migrations` hasta el primer despliegue con el ejecutor) y el DESTINO staging.
+
+Ver también: [reglas_despliegue.md](reglas_despliegue.md)
