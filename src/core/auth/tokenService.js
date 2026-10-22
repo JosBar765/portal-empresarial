@@ -53,7 +53,7 @@ function armarPayload(authData, sid) {
 function opcionesCookie(maxAge) {
   return {
     httpOnly: true,                              // el JavaScript de la página nunca lo lee (XSS)
-    secure: config.nodeEnv === 'production',
+    secure: ['production', 'staging'].includes(config.nodeEnv),
     sameSite: 'strict',                          // protección CSRF real de este proyecto
     path: '/',
     maxAge
