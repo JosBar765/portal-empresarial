@@ -146,4 +146,4 @@ async function programablesEnOrigen(conn, db) {
   return { triggers: triggers.map(r => r.nombre), rutinas: rutinas.map(r => r.nombre) };
 }
 
-module.exports = { listarTablas, listarVistas, vaciarDestino, copiarTabla, copiarVista, contarFilas, programablesEnOrigen };
+module.exports = { listarTablas, listarVistas, vaciarDestino, copiarTabla, copiarVista, contarFilas, programablesEnOrigen, columnasCopiables, normalizarValor };

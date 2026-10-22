@@ -62,4 +62,4 @@ function exigirDestinoNoProduccion(destino) {
   }
 }
 
-module.exports = { leerArgumentos, cargarConfig, mismoDestino, describir, exigirDestinoNoProduccion };
+module.exports = { ARCHIVO_POR_DEFECTO, leerArgumentos, cargarConfig, mismoDestino, describir, exigirDestinoNoProduccion };

@@ -11,6 +11,8 @@
     "staging:probar-conexion": "node scripts/staging/probar-conexion.js",
     "staging:marcar": "node scripts/staging/marcar.js",
     "staging:refrescar": "node scripts/staging/refrescar.js",
+    "main:backup": "node scripts/backup/respaldar.js",
+    "main:backup:probar-guarda": "node scripts/backup/probar-guarda.js",
     "ci:sintaxis": "node scripts/ci/sintaxis.js",
     "ci:migraciones": "node scripts/ci/migraciones.js",
     "ci:arranque": "node scripts/ci/arranque.js",

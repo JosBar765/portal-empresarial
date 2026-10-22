@@ -34,3 +34,5 @@ Cada pull request hacia `dev`, `staging` o `main` ejecuta el workflow `.github/w
 ## Hacer obligatorio el chequeo (lo aplica el dueño del repositorio)
 
 En GitHub: Settings > Rules > Rulesets, editar el ruleset de cada rama protegida (`dev`, `staging`, `main`), activar **Require status checks to pass** y añadir el check `verificar`. El check solo aparece en la lista después de haberse ejecutado al menos una vez.
+
+Ver también: [reglas_despliegue.md](reglas_despliegue.md)
