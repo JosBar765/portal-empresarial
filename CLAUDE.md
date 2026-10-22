@@ -87,10 +87,11 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 
 ## 7. Migrations (directive for AI agents)
 
-- Folder: **`database/migrations/`** (formerly `database/migraciones/`).
-- Use only the new name; never create or reference the old one.
-- Scripts: idempotent, named `NN_topic.sql`; the owner imports them by hand in production.
+- Folder: **`database/migrations/`** (formerly `database/migraciones/`); never create or reference the old name.
+- Scripts: additive, idempotent, named `NN_topic.sql`; never edit one already applied.
 - Never edit `schema.sql`/`seed.sql` for production changes.
+- Applied automatically at server start in `staging` and `production` (failure: server exits). In `development`: `npm run migrate` / `npm run migrate:estado`.
+- Runner: `src/core/migrations/`; control table `schema_migrations`; rules: `.agents/reglas/reglas_archivosSQL.md`.
 - Docs and comments cite scripts **without** the correlativo.
 
 ## 8. Pitfalls: mistakes to avoid
