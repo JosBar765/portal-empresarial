@@ -22,6 +22,8 @@ function conectar(c, extra = {}) {
     supportBigNumbers: true,
     bigNumberStrings: true,
     charset: 'utf8mb4',
+    // MariaDB avisa el tipo JSON en sus metadatos extendidos y mysql2 lo convertiría en objeto, que el INSERT rompe.
+    jsonStrings: true,
     typeCast,
     ...extra
   });
@@ -43,7 +45,14 @@ async function conectarOrigen(c) {
   const conn = await conectar(c);
   await activarSoloLectura(conn);
   await conn.query("SET time_zone = '+00:00'");
-  await conn.query('START TRANSACTION WITH CONSISTENT SNAPSHOT');
+  // Hostinger (MariaDB con RocksDB) exige REPEATABLE READ explícito para el snapshot; su sesión puede venir en READ COMMITTED.
+  await conn.query('SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+  try {
+    await conn.query('START TRANSACTION WITH CONSISTENT SNAPSHOT');
+  } catch (error) {
+    console.warn(`[Refresco] AVISO: el servidor no acepta START TRANSACTION WITH CONSISTENT SNAPSHOT (${error.message}). Se usa una transacción de solo lectura normal.`);
+    await conn.query('START TRANSACTION');
+  }
   return conn;
 }
 
