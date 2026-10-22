@@ -6,13 +6,16 @@ Comando local, ejecutado desde el PC del dueño, que reemplaza la base de **stag
 producción (ORIGEN, solo lectura)  ──►  PC del dueño  ──►  staging (DESTINO, se borra y reescribe)
 ```
 
-Código: `scripts/staging/` (`probar-conexion.js`, `refrescar.js`, `lib/`).
+Código: `scripts/staging/` (`probar-conexion.js`, `marcar.js`, `refrescar.js`, `lib/`).
 
 ## Diseño de seguridad
 
 - **ORIGEN solo se lee.** La sesión ejecuta `SET SESSION TRANSACTION READ ONLY` y se comprueba que el servidor la aplicó (`transaction_read_only = 1`); si no, el comando aborta. Cualquier `INSERT`/`UPDATE`/`DELETE` por esa conexión falla con `ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION`.
 - **Foto consistente.** `START TRANSACTION WITH CONSISTENT SNAPSHOT`: todas las tablas se leen del mismo instante, sin bloquear a los usuarios de producción.
 - **Nunca el mismo destino.** Si ORIGEN y DESTINO coinciden en servidor, puerto y base, ninguno de los dos comandos hace nada. Si solo coincide el nombre de la base (servidores distintos), avisa.
+- **Marca de entorno en la base.** Solo la base de staging tiene `parametros_sistema.entorno = 'staging'`. Antes de borrar nada, `refrescar` lee la marca de ambas bases: DESTINO debe tenerla (si no, aborta y manda a `npm run staging:marcar`) y ORIGEN no debe tenerla (si la tiene, es un staging: ORIGEN y DESTINO intercambiados). `--solo-limpieza` también exige la marca en DESTINO. Falla cerrado: sin marca, no se escribe. Al terminar, el refresco la vuelve a escribir (la copia de producción no la trae y el vaciado la borró).
+- **Producción nunca lleva marca y estas herramientas nunca la escriben:** se reconoce por la ausencia de la marca `staging`. Así nada que se haga a la base de producción (restaurar, importar) puede dejarla «marcada» por error, y una base de staging que llegara a producción hace fallar el arranque (ver `reglas_entornos.md`).
+- **Resumen previo al borrado.** Justo antes de pedir la confirmación se muestra qué se va a borrar de DESTINO (tablas, filas aproximadas, MB) para que un destino equivocado se note a simple vista.
 - **Confirmación obligatoria.** Antes de tocar nada hay que escribir el nombre exacto de la base DESTINO. Un error aborta sin haber modificado nada.
 - **Todo lo que escribe va a DESTINO.** Se borran todas sus tablas y vistas (así no queda un `schema_migrations` viejo que engañe al ejecutor), se recrean con el DDL exacto de ORIGEN (`SHOW CREATE TABLE`: motor, charset y claves foráneas) y se copian las filas en lotes por streaming.
 - **Fechas exactas.** Ambas sesiones usan `time_zone = '+00:00'` para que los `TIMESTAMP` queden idénticos; los `DATETIME` se copian como texto. Los `JSON` se copian como texto UTF-8.
@@ -31,6 +34,23 @@ Código: `scripts/staging/` (`probar-conexion.js`, `refrescar.js`, `lib/`).
    Claves: `ORIGEN_HOST|PORT|DB|USER|PASSWORD` (producción) y `DESTINO_HOST|PORT|DB|USER|PASSWORD` (staging). Todas son obligatorias; si falta alguna, el comando lista **todas** las que faltan y termina.
 4. **Nunca** subas ese archivo al repositorio (`git check-ignore scripts/staging/.env.refresco` debe imprimir la ruta). Para otro archivo usa `--archivo <ruta>`.
 
+## Marcar la base de staging (una sola vez, ANTES de desplegar esta versión en staging)
+
+```
+npm run staging:marcar
+```
+
+Desde el PC del dueño, con las claves `DESTINO_*` de `.env.refresco` (no usa ORIGEN). Muestra la base y su contenido, exige que la tabla `parametros_sistema` exista y que el nombre no contenga «prod», pide escribir el nombre exacto (o `--confirmar <nombre>`) y ejecuta `INSERT ... ON DUPLICATE KEY UPDATE` de `entorno = staging`. Repetirlo es inofensivo. Opciones: `--archivo <ruta>`, `--confirmar <nombre>`.
+
+Orden de salida a producción (mismo para cada versión que incluya la marca):
+
+1. Merge a `dev`.
+2. `npm run staging:marcar` contra la base de staging.
+3. Solo entonces desplegar `dev` a staging. Si no, el servidor de staging se niega a arrancar (por diseño): `[FATAL] El servidor de staging NO está conectado a una base de staging...`. En un arranque correcto se ve `[Entorno] Marca de entorno correcta (staging)`.
+4. Producción no requiere ninguna acción; su primer arranque registra `[Entorno] Marca de entorno correcta (sin marca: producción)`.
+
+Si la marca se pierde (por ejemplo, una importación manual que reemplaza `parametros_sistema`), staging no arranca y `refrescar` no escribe hasta volver a ejecutar `staging:marcar`.
+
 ## Plan de la prueba de conexión
 
 Primero se prueba, sin copiar nada:
@@ -47,13 +67,15 @@ Es de solo lectura: no escribe en ninguna base. Salida esperada, para ORIGEN y l
   Tablas: N | tamaño aproximado: X MB
   Las 5 tablas más grandes: ...
   schema_migrations: existe, N fila(s)
+  entorno: sin marca
   Sesión de solo lectura: OK (transaction_read_only = 1)
 [Refresco] DESTINO: ...
+  entorno: staging
   Privilegios sobre <base>: CREATE=sí, DROP=sí, INSERT=sí, ALTER=sí, DELETE=sí
-[Refresco] Prueba correcta: ambas conexiones funcionan. No se escribió nada.
+[Refresco] Prueba correcta: ambas conexiones funcionan y las marcas son coherentes. No se escribió nada.
 ```
 
-Qué revisar: que ORIGEN sea producción y DESTINO staging (no al revés), que ORIGEN muestre `Sesión de solo lectura: OK` y que DESTINO tenga los cinco privilegios en «sí». El código de salida es 0 solo si ambas conexiones funcionan.
+Qué revisar: que ORIGEN sea producción (`entorno: sin marca`) y DESTINO staging (`entorno: staging`), no al revés, que ORIGEN muestre `Sesión de solo lectura: OK` y que DESTINO tenga los cinco privilegios en «sí». El código de salida es 0 solo si ambas conexiones funcionan, ORIGEN no tiene la marca staging y DESTINO sí la tiene (si le falta, termina en 1 indicando `npm run staging:marcar`).
 
 | Síntoma | Causa probable |
 |---|---|
@@ -71,11 +93,14 @@ Qué revisar: que ORIGEN sea producción y DESTINO staging (no al revés), que O
 npm run staging:refrescar
 ```
 
-Muestra ambos destinos, pide escribir el nombre de la base DESTINO y empieza. Salida esperada (resumida):
+Muestra ambos destinos, verifica las marcas, resume lo que se va a borrar, pide escribir el nombre de la base DESTINO y empieza. Salida esperada (resumida):
 
 ```
 [Refresco] ORIGEN  (solo lectura): host:3306/<base prod> (usuario ...)
 [Refresco] DESTINO (se BORRA y reescribe): host:3306/<base staging> (usuario ...)
+[Refresco] ORIGEN: sin marca (producción).
+[Refresco] DESTINO: marca entorno = staging verificada.
+[Refresco] Se va a BORRAR el contenido actual de <base staging>: N tabla(s), ~F fila(s), ~X MB.
 Escribe el nombre exacto de la base DESTINO (<base staging>) para continuar: <base staging>
 [Refresco] DESTINO vaciado: N tabla(s) y 0 vista(s) eliminadas.
 [Refresco] tabla asesores: 49 fila(s) en 133 ms
@@ -84,6 +109,7 @@ Escribe el nombre exacto de la base DESTINO (<base staging>) para continuar: <ba
 [Refresco] Verificación correcta: N tabla(s) con el mismo COUNT(*) en ORIGEN y DESTINO.
 [Refresco] Limpieza «mantenimiento_config: ...»: 1 fila(s) afectada(s) (estaba apagado).
 [Refresco] Limpieza «sesiones_activas: ...»: K fila(s) afectada(s).
+[Refresco] Marca entorno = staging restablecida en DESTINO.
 ```
 
 Opciones: `--archivo <ruta>` (otro archivo de credenciales), `--confirmar <nombre>` (omite la pregunta; solo para pruebas automáticas) y `--solo-limpieza` (ver más abajo). Si un paso falla, el mensaje indica la tabla y el error de MySQL, y el código de salida es 1.
@@ -102,7 +128,7 @@ Si el comando no sirve en algún caso, exporta los datos a mano con DBeaver desd
 npm run staging:refrescar -- --solo-limpieza
 ```
 
-Pide la misma confirmación, se conecta solo a DESTINO (en este modo solo se exigen las claves `DESTINO_*`) y no copia nada. Igual hay que reiniciar staging después.
+Pide la misma confirmación (y exige la marca en DESTINO), se conecta solo a DESTINO (en este modo solo se exigen las claves `DESTINO_*`) y no copia nada. Igual hay que reiniciar staging después.
 
 ## Límites conocidos
 

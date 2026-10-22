@@ -62,3 +62,18 @@ Hoy el código no envía correos, notificaciones push ni webhooks, ni llama a AP
 - Un bucket propio para `SUPABASE_STORAGE_BUCKET` y otro (o el mismo) para `SUPABASE_STORAGE_BUCKET_BORRADORES`; ninguno puede ser el de producción. Si las claves de Supabase son las de producción (mismo proyecto), ese par de variables es lo único que separa ambos entornos para las subidas.
 - Una base restaurada de producción guarda URLs de archivos reales: leerlas no modifica nada, pero generar un PDF viejo descarga esos archivos.
 - Para restaurar staging desde producción: `npm run staging:refrescar` (ver `reglas_refresco_staging.md`).
+- La base de staging lleva la marca `parametros_sistema.entorno = 'staging'` (se pone una vez con `npm run staging:marcar`).
+
+## Alineación entorno y base al arrancar
+
+`src/server.js` llama a `verificarMarca` (`src/core/entorno/verificarMarca.js`) justo después de conectar y **antes de las migraciones**, para que un servidor apuntado a la base equivocada no la migre ni la sirva:
+
+| `NODE_ENV` | Marca en la base | Resultado |
+|---|---|---|
+| `staging` | `entorno = staging` | Arranca: `[Entorno] Marca de entorno correcta (staging)` |
+| `staging` | sin marca, sin tabla `parametros_sistema`, otro valor o error de lectura | `[FATAL]` y `process.exit(1)` |
+| `production` | `entorno = staging` | `[FATAL]` y `process.exit(1)` (una base de staging conectada a producción) |
+| `production` | sin marca, sin tabla u otro valor | Arranca: `[Entorno] Marca de entorno correcta (sin marca: producción)` |
+| `development`, `test` | cualquiera | No se comprueba (el humo de CI usa `test`) |
+
+Producción se identifica por la **ausencia** de la marca y nunca se escribe en ella. Si en producción no se puede leer la marca (error de MySQL), el servidor avisa y sigue: no se cae por una marca que no debe existir.

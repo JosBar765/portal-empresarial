@@ -1,24 +1,13 @@
 // Refresca la base de STAGING (DESTINO) con una copia de PRODUCCIÓN (ORIGEN), sin mysqldump.
 // ORIGEN solo se lee (sesión de solo lectura + snapshot); todo lo demás ocurre en DESTINO.
-const readline = require('readline');
 const { leerArgumentos, cargarConfig, mismoDestino, describir, exigirDestinoNoProduccion } = require('./lib/config');
-const { conectarOrigen, conectarDestino, cerrar } = require('./lib/conexiones');
+const { conectar, conectarOrigen, conectarDestino, cerrar } = require('./lib/conexiones');
+const { confirmarNombre } = require('./lib/confirmacion');
+const marca = require('./lib/marca');
 const copia = require('./lib/copia');
 const { ejecutarLimpiezas } = require('./lib/limpiezas');
 
 const log = mensaje => console.log(`[Refresco] ${mensaje}`);
-
-function preguntar(texto) {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise(resolve => rl.question(texto, r => { rl.close(); resolve(r.trim()); }));
-}
-
-async function confirmar(args, destino) {
-  const escrito = args.confirmar !== null
-    ? args.confirmar
-    : await preguntar(`Escribe el nombre exacto de la base DESTINO (${destino.db}) para continuar: `);
-  if (escrito !== destino.db) throw new Error(`La confirmación «${escrito}» no coincide con la base DESTINO «${destino.db}». No se tocó nada.`);
-}
 
 async function copiarTodo(origen, destino, cfg) {
   const inicio = Date.now();
@@ -83,13 +72,27 @@ async function verificar(origen, destino, tablas) {
   if (!args.soloLimpieza && cfg.origen.db === cfg.destino.db) log('AVISO: ORIGEN y DESTINO tienen el mismo nombre de base (en servidores distintos).');
   if (args.soloLimpieza) log('Solo se aplicarán las limpiezas de staging sobre DESTINO.');
 
-  await confirmar(args, cfg.destino);
-
   let origen = null;
   let destino = null;
   let codigo = 0;
   try {
     destino = await conectarDestino(cfg.destino);
+    const consultaDestino = marca.consultaDe(destino);
+
+    // Solo lecturas hasta aquí: marcas cruzadas y resumen de lo que se va a borrar, antes de pedir la confirmación.
+    let marcaOrigen = null;
+    if (!args.soloLimpieza) {
+      const lectura = await conectar(cfg.origen);
+      try { marcaOrigen = await marca.leerMarca(marca.consultaDe(lectura)); } finally { await cerrar(lectura); }
+    }
+    const marcaDestino = await marca.leerMarca(consultaDestino);
+    marca.exigirMarcas({ marcaDestino, marcaOrigen, soloLimpieza: args.soloLimpieza });
+    if (!args.soloLimpieza) log(`ORIGEN: ${marcaOrigen ? `marca «${marcaOrigen}»` : 'sin marca (producción)'}.`);
+    log('DESTINO: marca entorno = staging verificada.');
+    log(`Se va a BORRAR el contenido actual de ${cfg.destino.db}: ${marca.textoResumen(await marca.resumenBase(consultaDestino, cfg.destino.db))}.`);
+
+    await confirmarNombre(args, cfg.destino);
+
     if (!args.soloLimpieza) {
       origen = await conectarOrigen(cfg.origen);
       log('ORIGEN: sesión de solo lectura verificada y snapshot consistente abierto.');
@@ -99,6 +102,9 @@ async function verificar(origen, destino, tablas) {
     await destino.query('SET FOREIGN_KEY_CHECKS = 1');
     await destino.query('SET UNIQUE_CHECKS = 1');
     await ejecutarLimpiezas(destino);
+    // La copia de producción no trae la marca (y el vaciado la borró): se restablece.
+    await marca.escribirMarca(consultaDestino);
+    log('Marca entorno = staging restablecida en DESTINO.');
 
     log('Listo. Reinicia el servidor de staging: el ejecutor aplicará las migraciones pendientes.');
     log('Después revisa: SELECT nombre, aplicada_en FROM schema_migrations ORDER BY nombre;');

@@ -9,6 +9,7 @@
     "migrate": "node scripts/migrate.js",
     "migrate:estado": "node scripts/migrate.js --estado",
     "staging:probar-conexion": "node scripts/staging/probar-conexion.js",
+    "staging:marcar": "node scripts/staging/marcar.js",
     "staging:refrescar": "node scripts/staging/refrescar.js",
     "ci:sintaxis": "node scripts/ci/sintaxis.js",
     "ci:migraciones": "node scripts/ci/migraciones.js",

@@ -85,6 +85,7 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 - New actions: follow `.agents/reglas/reglas_entornos.md`; update its inventory.
 - Session cookies are `Secure` in staging and production.
 - Refresh staging from production: `npm run staging:probar-conexion` / `staging:refrescar`; rules: `.agents/reglas/reglas_refresco_staging.md`.
+- Environment mark: only the staging DB holds `parametros_sistema.entorno = 'staging'` (set once with `npm run staging:marcar`); production never has one. The refresh needs it in DESTINO and not in ORIGEN, and the server checks it at startup (staging without mark or production with it: `[FATAL]`).
 
 ## 7. Migrations (directive for AI agents)
 
