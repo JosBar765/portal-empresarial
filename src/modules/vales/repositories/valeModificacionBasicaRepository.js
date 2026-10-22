@@ -12,10 +12,14 @@ const SELECT_MODIFICACION = `
   JOIN usuarios u ON u.id = m.solicitante_id
 `;
 
+const fmtFecha = (valor) => String(valor).slice(0, 10).split('-').reverse().join('/');
+const mismoDia = (a, b) => String(a).slice(0, 10) === String(b).slice(0, 10);
+
 const SQL_HISTORIAL = 'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, disenador_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
 
 class ValeModificacionBasicaRepository {
   // Abre una solicitud por taller elegido, cada una con el primer mensaje del asesor, y deja el rastro en el historial.
+  // La nueva fecha de entrega se aplica al vale desde que se pide (los talleres la ven mientras responden); si la rechazan vuelve.
   async crear({ valeId, solicitanteId, filas, fechaAnterior, fechaNueva, mensaje, estadoVale }) {
     return db.transaccion(async (tx) => {
       const ids = [];
@@ -38,6 +42,12 @@ class ValeModificacionBasicaRepository {
           [valeId, solicitanteId, fila.taller_id, estadoVale, estadoVale, `Asesor pidió una modificación básica a ${fila.taller_nombre}: ${mensaje}`, fila.disenador_id || null],
           'historial:insert_modificacion_basica');
         ids.push(ins.insertId);
+      }
+      if (!mismoDia(fechaAnterior, fechaNueva)) {
+        await tx.query('UPDATE vales SET fecha_entrega = ?, actualizado_en = actualizado_en WHERE id = ?', [fechaNueva, valeId], 'modificacion_basica:aplicar_fecha');
+        await tx.query(SQL_HISTORIAL,
+          [valeId, solicitanteId, null, estadoVale, estadoVale, `La fecha de entrega pasa a ${fmtFecha(fechaNueva)} (antes ${fmtFecha(fechaAnterior)}) mientras el taller responde`, null],
+          'historial:insert_modificacion_basica_fecha');
       }
       return ids;
     });
@@ -145,7 +155,8 @@ class ValeModificacionBasicaRepository {
     });
   }
 
-  // Rechazada por el taller o cancelada por el asesor: el vale no cambia, solo se cierra la conversación.
+  // Rechazada por el taller o cancelada por el asesor: se cierra la conversación y, si no queda ninguna otra solicitud de esa petición en
+  // curso o aceptada, el vale recupera su fecha de entrega anterior. Devuelve la fecha restaurada (o null si no se tocó).
   async cerrar({ id, estado, usuarioId, valeId, tallerId, estadoVale, accion }) {
     return db.transaccion(async (tx) => {
       const res = await tx.query(
@@ -154,6 +165,20 @@ class ValeModificacionBasicaRepository {
       );
       if (res.affectedRows !== 1) throw new Error('Esta solicitud ya se cerró. Actualiza la pantalla.');
       await tx.query(SQL_HISTORIAL, [valeId, usuarioId, tallerId, estadoVale, estadoVale, accion, null], 'historial:insert_modificacion_basica_cerrada');
+      const [mod] = await tx.query('SELECT fecha_entrega_anterior AS anterior, fecha_entrega_nueva AS nueva FROM vale_modificaciones_basicas WHERE id = ?', [id], 'modificacion_basica:fechas');
+      if (mismoDia(mod.anterior, mod.nueva)) return null;
+      // Si otra solicitud de la misma petición sigue abierta o ya fue aceptada, la fecha propuesta se queda.
+      const vigentes = await tx.query(
+        "SELECT COUNT(*) AS total FROM vale_modificaciones_basicas WHERE vale_id = ? AND DATE(fecha_entrega_anterior) = DATE(?) AND DATE(fecha_entrega_nueva) = DATE(?) AND estado IN ('EN_CONVERSACION', 'ACEPTADA', 'ENTREGADA')",
+        [valeId, mod.anterior, mod.nueva], 'modificacion_basica:vigentes_misma_fecha'
+      );
+      if (Number(vigentes[0].total) > 0) return null;
+      // Solo se restaura si el vale sigue con la fecha propuesta (nada más la cambió mientras tanto). Mantener actualizado_en evita que
+      // un vale recibido cuente como «recibido hoy» solo por cambiar su fecha.
+      const res2 = await tx.query('UPDATE vales SET fecha_entrega = ?, actualizado_en = actualizado_en WHERE id = ? AND DATE(fecha_entrega) = DATE(?)', [mod.anterior, valeId, mod.nueva], 'modificacion_basica:restaurar_fecha');
+      if (res2.affectedRows !== 1) return null;
+      await tx.query(SQL_HISTORIAL, [valeId, usuarioId, null, estadoVale, estadoVale, `La fecha de entrega vuelve a ${fmtFecha(mod.anterior)}`, null], 'historial:insert_modificacion_basica_fecha_restaurada');
+      return String(mod.anterior).slice(0, 10);
     });
   }
 
