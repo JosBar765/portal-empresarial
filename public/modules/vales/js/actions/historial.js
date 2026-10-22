@@ -12,10 +12,10 @@ async function renderContenidoHistorial(overlay, valeId) {
   } catch {
     detalle = { historial: [] };
   }
-  // Registro de las conversaciones del rechazo (solo con el permiso de historial): hilo completo, de solo lectura.
-  const conversaciones = (detalle.conversaciones || []).map(c => `
+  // Registro de las conversaciones del rechazo y del rechazo de propuesta (solo con el permiso de historial): hilo completo, de solo lectura.
+  const hilos = (lista, titulo) => lista.map(c => `
     <details class="registro-conversacion">
-      <summary><ion-icon name="chatbubbles-outline" aria-hidden="true"></ion-icon>Conversación del rechazo — ${escapeHtml(c.taller)} <span>${c.mensajes.length} mensaje${c.mensajes.length === 1 ? '' : 's'}</span></summary>
+      <summary><ion-icon name="chatbubbles-outline" aria-hidden="true"></ion-icon>${titulo} — ${escapeHtml(c.taller)} <span>${c.mensajes.length} mensaje${c.mensajes.length === 1 ? '' : 's'}</span></summary>
       <ul class="registro-mensajes">
         ${c.mensajes.map(m => `<li class="registro-mensaje registro-mensaje--${m.lado === 'TALLER' ? 'taller' : 'asesor'}">
           <span class="registro-meta"><strong>${escapeHtml(m.autor)}</strong> · ${m.lado === 'TALLER' ? 'Taller' : 'Asesor'} · ${escapeHtml(formatearFechaHora(m.creado_en))}</span>
@@ -23,6 +23,7 @@ async function renderContenidoHistorial(overlay, valeId) {
         </li>`).join('')}
       </ul>
     </details>`).join('');
+  const conversaciones = hilos(detalle.conversaciones || [], 'Conversación del rechazo') + hilos(detalle.conversacionesPropuesta || [], 'Conversación del rechazo de propuesta');
   overlay.querySelector('.modal-body').innerHTML = `
     <ul class="historial-list">
       ${(detalle.historial || []).map(h => `<li><span class="fecha">${formatearFechaHora(h.creado_en)}</span>${h.actor_nombre ? `<strong>${escapeHtml(h.actor_nombre)}:</strong> ` : ''}${escapeHtml(h.accion)}</li>`).join('') || '<li>Sin movimientos registrados.</li>'}

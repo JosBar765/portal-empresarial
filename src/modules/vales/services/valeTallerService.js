@@ -6,7 +6,6 @@
 const crypto = require('crypto');
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
-const modificacionBasicaRepository = require('../repositories/valeModificacionBasicaRepository');
 const tallerRepository = require('../repositories/tallerRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
@@ -283,8 +282,6 @@ class ValeTallerService {
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.APROBADO);
       await valeTallerRepository.congelarAtraso(fila.id, `${hoyISO()} ${horaActual()}`); // momento en que su Encargado aprobó (cuándo se entregó el taller)
       fila.estado = ESTADOS_TALLER.APROBADO;
-      // Si el taller venía rehaciendo la propuesta por una modificación básica aceptada, esa modificación termina aquí.
-      await modificacionBasicaRepository.marcarEntregadaPorFila(fila.id);
       const taller = await tallerRepository.obtenerPorId(fila.taller_id);
       const accionHistorial = esAutoaprobacion
         ? 'Encargado aprobó su propio trabajo (autoasignación)'

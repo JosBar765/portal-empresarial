@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
 const valeModificacionRepository = require('../repositories/valeModificacionRepository');
-const modificacionBasicaRepository = require('../repositories/valeModificacionBasicaRepository');
+const rechazoPropuestaRepository = require('../repositories/valeRechazoPropuestaRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const documentoRepository = require('../repositories/documentoRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
@@ -48,8 +48,8 @@ class ValeModificacionService {
       }
       // Un MOD también se puede modificar (MOD2, MOD3…), pero cada vale tiene a lo sumo una modificación con vale.
       if (original.modificado) throw new Error('Este vale ya fue modificado. Pídela sobre el más reciente.');
-      if (await modificacionBasicaRepository.contarAbiertasPorVale(valeId)) {
-        throw new Error('Hay una modificación básica abierta. Espera la respuesta o cancélala.');
+      if (await rechazoPropuestaRepository.contarAbiertasPorVale(valeId)) {
+        throw new Error('Hay un rechazo de propuesta abierto. Espera la respuesta del taller antes de pedir una modificación.');
       }
       const justificacion = String(payload.descripcion || '').trim();
       if (!justificacion) throw new Error('Escribe la justificación de la modificación.');

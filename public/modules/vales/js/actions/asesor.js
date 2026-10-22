@@ -2,11 +2,13 @@ import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { abrirVisorVale } from '../components/visorDocumento.js';
 import { confirmarRecibido, darDeBajaVale, reenviarVale } from '../api/valesApi.js';
 import { escapeHtml } from '../utils/formato.js';
+import { state } from '../state.js';
+import { puede } from '../permisos.js';
 import { ESTADOS_LABEL } from '../config/estados.js';
 import { abrirModalBajaTaller } from './adjuntos.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { abrirSelectorModificacion } from './modificacionTipo.js';
-import { abrirConversacionesBasicas } from './modificacionBasica.js';
+import { abrirConversacionesRechazo, abrirModalRechazarPropuesta } from './rechazoPropuesta.js';
 import { rechazosSinLeer, textoRechazos } from '../utils/modificacionesVistas.js';
 
 // Asesor: ver el motivo con el que el supervisor rechazó su vale.
@@ -107,18 +109,20 @@ function abrirModalDarDeBajaMultitaller(vale) {
 // -----------------------------------------------------------------------
 // Asesor: decidir sobre un vale PENDIENTE_CONFIRMACION (paso 5)
 // -----------------------------------------------------------------------
-// Un solo botón abre el visor con el vale y la propuesta; abajo a la derecha van «Solicitar modificación» y «Confirmar recibido».
+// Un solo botón abre el visor con el vale y la propuesta; abajo a la derecha van «Rechazar propuesta», «Solicitar modificación» y «Confirmar recibido».
 export function abrirVisorDecisionAsesor(vale, propuesta) {
-  // Si un taller rechazó una modificación básica y el asesor aún no la abrió, el visor lo avisa con acceso a la conversación.
+  // Si un taller rechazó la solicitud del asesor y este aún no la abrió, el visor lo avisa con acceso a la conversación.
   const rechazos = rechazosSinLeer(vale);
   const aviso = rechazos.length ? {
-    texto: `${textoRechazos(rechazos)}. El vale sigue igual.`,
-    boton: { etiqueta: 'Ver chat', onClick: ({ quitar }) => { quitar(); abrirConversacionesBasicas(vale, { ids: rechazos.map(r => r.id) }); } }
+    texto: `${textoRechazos(rechazos)}. El vale sigue igual: puedes confirmarlo, rechazar de nuevo o pedir una modificación.`,
+    boton: { etiqueta: 'Ver chat', onClick: ({ quitar }) => { quitar(); abrirConversacionesRechazo(vale, { ids: rechazos.map(r => r.id) }); } }
   } : null;
+  const puedeRechazar = puede('rechazarPropuesta') && vale.asesor_id === state.user.id;
   return abrirVisorVale({
     aviso,
     id: vale.id, correlativo: vale.correlativo, propuesta, subtitulo: 'Revisa el vale y la propuesta, y decide.',
     acciones: [
+      ...(puedeRechazar ? [{ etiqueta: 'Rechazar propuesta', icono: 'close-circle-outline', clase: 'btn--ghost', onClick: ({ cerrar }) => { cerrar(); abrirModalRechazarPropuesta(vale); } }] : []),
       { etiqueta: 'Solicitar modificación', icono: 'create-outline', clase: 'btn--ghost', onClick: ({ cerrar }) => { cerrar(); abrirSelectorModificacion(vale); } },
       {
         etiqueta: 'Confirmar recibido', icono: 'checkmark-outline', clase: 'btn--primary',

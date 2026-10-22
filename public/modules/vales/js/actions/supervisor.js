@@ -139,7 +139,7 @@ export async function abrirModalAprobarModificacion(vale) {
   try { original = await obtenerDetalleVale(vale.vale_original_id); } catch { /* sin datos del vale que modifica */ }
   const correlativoOriginal = (original && original.correlativo) || correlativoBase(vale.correlativo);
   const hayPropuesta = !!(original && (original.propuesta_general_url || (original.propuestas || []).some(p => p.url)));
-  const tipo = { MEDIA: ' media', AVANZADA: ' avanzada' }[vale.modificacion_tipo] || '';
+  const tipo = { BASICA: ' básica', MEDIA: ' media', AVANZADA: ' avanzada' }[vale.modificacion_tipo] || '';
 
   const documentos = [
     {

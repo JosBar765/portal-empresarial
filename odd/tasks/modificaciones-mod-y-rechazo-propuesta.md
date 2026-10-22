@@ -51,8 +51,8 @@ Gerencia pide dos cambios en el módulo Vales de Arte:
 ## Tareas
 - [x] T1 · Reglas de fecha de modificación (nunca hoy para hoy; 1/2/3 días hábiles; urgente = siguiente día que reciba vales) en calendario, validación del servidor y calendario del formulario.
 - [x] T2 · La modificación BÁSICA crea un vale MOD (selector, formulario, servicio, plazos), `urgente` permitido en MOD, casilla «urgente» en el formulario de modificación, quitar el corrimiento de fecha y el flujo viejo del chat de la básica. Corregir el regex `PREFIJO_MOD`.
-- [ ] T3 · Rechazo de propuesta: hilo propio por taller, solicitar/aceptar/rechazar/cancelar, descongelar atraso, bloqueos del asesor, avisos y frontend.
-- [ ] T4 · Migración de datos y permisos (cierre de básicas abiertas en desarrollo, permisos nuevos si aplican) y documentación (`flujo_vale_de_arte.md`, changelog en `correcciones/`).
+- [x] T3 · Rechazo de propuesta: hilo propio por taller, solicitar/aceptar/rechazar/cancelar, descongelar atraso, bloqueos del asesor, avisos y frontend.
+- [x] T4 · Migración de datos y permisos (cierre de básicas abiertas en desarrollo, permisos nuevos si aplican) y documentación (`flujo_vale_de_arte.md`, changelog en `correcciones/`).
 
 ## Rutas
 Delegated direct, un escritor por vez: W1 = T1+T2, W2 = T3+T4 (commit entre ambos). Disparadores: 2+ archivos no triviales y lectura previa para escribir.
@@ -65,3 +65,5 @@ Sin tests ni linter. `node --check`; scripts de un solo uso contra la BD de desa
 
 ## Progreso
 W1 (T1+T2) hecho, sin commit, verificado con `node --check` y scripts de un solo uso (calendario con fechas fijas; HEAD vs trabajo en vales normales idénticos). Migración nueva `11_modificacion_basica_con_vale.sql` (ENUM de `vales.modificacion_tipo` ampliado a BASICA; aplicada en desarrollo). Regex `PREFIJO_MOD` corregido. Pendiente para T3: conservar el chat viejo; quitar `fechaMinimaModificacionBasica` (calendario) cuando se retire su servicio; etiqueta `BASICA` en `actions/supervisor.js:142`. Pendiente W2 (T3+T4).
+
+W2 (T3+T4) hecho, sin commit: renombres con git mv a valeRechazoPropuesta* y actions/rechazoPropuesta.js; tablas vale_rechazos_propuesta y vale_rechazo_propuesta_mensajes (hilo por vale_taller_id); permisos vales.rechazar_propuesta (Asesor) y vales.responder_rechazo_propuesta; migración 12_rechazo_propuesta.sql aplicada en desarrollo (segunda corrida sin cambios); changelog correcciones_56.md y flujo §1.1/§1.2/§3/§7. Verificado: node --check de todo lo editado y un script de un solo uso con 36 comprobaciones (36/36) con vales de prueba borrados al final. Sin probar: render en navegador y sockets en vivo.
