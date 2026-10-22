@@ -5,18 +5,22 @@ import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { aplicarVentanaAQuery } from '../utils/ventana.js';
 import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible } from '../permisos.js';
 import { celdaEstado } from '../components/pipeline.js';
-import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro, badgePersona } from '../utils/formato.js';
+import { abrirVisorVale } from '../components/visorDocumento.js';
+import { htmlBloqueVigentes, conectarBloqueVigentes } from '../components/atrasadosVigentes.js';
+import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro, badgePersona, escapeHtml } from '../utils/formato.js';
 import { obtenerBuzon, obtenerMasVales } from '../api/valesApi.js';
-import { cargarRendimientoGerencia } from './rendimientoGerencia.js';
 import { cargarReportes } from './reportes.js';
-import { cargarEncontrarVale } from './encontrarVale.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/disenador.js';
 import { abrirModalVerificarAdjuntos, abrirModalRechazarAdjuntos, abrirModalConversacion, abrirModalAdjuntosPendientes } from '../actions/adjuntos.js';
-import { abrirModalDecisionAsesor, abrirModalDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
-import { abrirModalSolicitarModificacion, abrirModalCorregirVale } from '../forms/valeForm.js';
+import { abrirVisorDecisionAsesor, abrirDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
+import { abrirModalCorregirVale } from '../forms/valeForm.js';
+import { abrirSelectorModificacion } from '../actions/modificacionTipo.js';
 import { abrirModalHistorial } from '../actions/historial.js';
+import { abrirVisorPropuestasOtros } from '../actions/propuestasOtros.js';
+import { abrirConversacionesBasicas } from '../actions/modificacionBasica.js';
+import { rechazosSinLeer, textoRechazos } from '../utils/modificacionesVistas.js';
 
 // -----------------------------------------------------------------------
 // Carga y render del buzón (paginado: 50 vales por petición, cargados por
@@ -40,29 +44,27 @@ export function construirQueryBase() {
   return qs;
 }
 
+// Número de la última carga pedida: una respuesta anterior a la última no se pinta.
+let ultimaCarga = 0;
+
 export async function cargarBuzon() {
   // Reportes de actividad: tienen su propia vista y su propia consulta.
   if (state.vista === 'reportes') return cargarReportes();
-  // Gerente y Supervisor en su vista "Rendimiento" no piden el buzón de
-  // vales — piden las métricas agregadas.
-  if ([ROL.SUPERVISOR, ROL.GERENTE].includes(rolEncargadoDe(state.user)) && state.vista === 'rendimiento') {
-    return cargarRendimientoGerencia();
-  }
-  // El Gerente no tiene buzón: solo busca vales por correlativo.
-  if (state.user.rolId === ROL.GERENTE && state.vista === 'encontrar') {
-    return cargarEncontrarVale();
-  }
   state.paginacion = { limit: 50, cursor: null, total: 0, hasMore: false, cargandoMas: false };
   const qs = construirQueryBase();
+  const numeroCarga = ++ultimaCarga;
 
   try {
     const data = await obtenerBuzon(qs);
+    if (numeroCarga !== ultimaCarga) return;
     state.vales = data.vales || [];
     state.contadores = data.contadores || {};
+    state.mensajeVacio = data.mensajeVacio || '';
     state.paginacion.total = data.total ?? state.vales.length;
     state.paginacion.hasMore = !!data.hasMore;
     state.paginacion.cursor = data.nextCursor ?? null;
   } catch (error) {
+    if (numeroCarga !== ultimaCarga) return;
     $('#buzon-tbody').innerHTML = `
       <tr><td colspan="${columnasVisibles()}" class="tabla-vacia">
         <div class="buzon-vacio buzon-vacio-error">
@@ -84,8 +86,11 @@ export async function cargarMasVales() {
   const qs = construirQueryBase();
   if (state.paginacion.cursor) qs.set('cursor', String(state.paginacion.cursor));
 
+  const numeroCarga = ultimaCarga;
+
   try {
     const data = await obtenerMasVales(qs);
+    if (numeroCarga !== ultimaCarga) return;
     // Si el cursor ya no aparece en el conjunto recalculado del servidor, este
     // cae a un respaldo por posición que en teoría podría repetir filas ya
     // mostradas — se descartan acá por clave de fila, nunca duplicando una
@@ -201,7 +206,7 @@ export function renderTabla() {
     const titulo = esBusqueda ? 'Sin resultados' : 'Buzón vacío';
     const mensaje = esBusqueda
       ? `No encontramos vales de arte para «${state.busqueda}».`
-      : 'No hay vales de arte para mostrar con los filtros actuales.';
+      : (state.mensajeVacio || 'No hay vales de arte para mostrar con los filtros actuales.');
     tbody.innerHTML = `
       <tr><td colspan="${columnasVisibles()}" class="tabla-vacia">
         <div class="buzon-vacio">
@@ -213,9 +218,19 @@ export function renderTabla() {
     return;
   }
 
+  pintarFilas(tbody, filas);
+}
+
+// La empresa del cliente va bajo el correlativo solo para quienes siguen el vale de punta a punta.
+const ROLES_CON_EMPRESA = [ROL.ASESOR, ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR];
+const empresaDeFila = (v) => (ROLES_CON_EMPRESA.includes(state.user.rolId) && v.cliente_empresa
+  ? `<span class="vale-empresa" title="${escapeHtml(v.cliente_empresa)}">${escapeHtml(v.cliente_empresa)}</span>` : '');
+
+// Dibuja las filas de vales (y sus botones de acción) en un <tbody>.
+function pintarFilas(tbody, filas) {
   tbody.innerHTML = filas.map(v => `
     <tr>
-      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${badgePersona(v)}</td>
+      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${badgeBasica(v)}${rechazosSinLeer(v).length ? `<span class="badge badge-rechazada" title="${escapeHtml(textoRechazos(rechazosSinLeer(v)))}">Básica rechazada</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${marcaPropuestaNueva(v)}${badgePersona(v)}${empresaDeFila(v)}</td>
       <td data-label="Fecha Ingreso" class="col-fecha-ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
       <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
@@ -233,51 +248,85 @@ export function renderTabla() {
     const wrap = document.createElement('div');
     wrap.className = 'acciones-wrap';
     cell.appendChild(wrap);
-    construirAcciones(v).forEach(accion => {
-      const btn = document.createElement('button');
-      btn.className = `btn-icon ${accion.clase || ''}`;
-      btn.title = accion.titulo;
-      btn.innerHTML = `<ion-icon name="${accion.icono}"></ion-icon>`;
-      btn.addEventListener('click', () => {
-        const clave = claveFila(v);
-        if (state.accionesEnCurso.has(clave)) return;
-        state.accionesEnCurso.add(clave);
-        Promise.resolve(accion.onClick(v)).finally(() => state.accionesEnCurso.delete(clave));
-      });
-      wrap.appendChild(btn);
-    });
+    crearBotonesAcciones(wrap, v);
   });
+  conectarMarcas(tbody, filas);
+}
+
+// Signo rojo «?»: otro taller del vale ya tiene su propuesta aprobada y este usuario aún no la ha visto.
+export function marcaPropuestaNueva(v) {
+  if (!v.propuestaOtroTallerNueva) return '';
+  const texto = 'Propuesta disponible. Otro taller ya tiene su propuesta aprobada. Puedes verla en el detalle del vale.';
+  return `<button type="button" class="pn-marca" data-pn-clave="${escapeAttr(claveFila(v))}" aria-label="${texto}"><span aria-hidden="true">?</span></button>`;
+}
+
+function conectarMarcas(raiz, filas) {
+  raiz.querySelectorAll('[data-pn-clave]').forEach(b => {
+    const v = filas.find(f => claveFila(f) === b.dataset.pnClave);
+    if (v) b.addEventListener('click', () => abrirVisorPropuestasOtros(v));
+  });
+}
+
+// Botones de acción de una fila.
+function crearBotonesAcciones(wrap, v) {
+  construirAcciones(v).forEach(accion => {
+    const btn = document.createElement('button');
+    btn.className = `btn-icon ${accion.clase || ''}`;
+    btn.title = accion.titulo;
+    btn.innerHTML = `<ion-icon name="${accion.icono}"></ion-icon>`;
+    btn.addEventListener('click', () => {
+      const clave = claveFila(v);
+      if (state.accionesEnCurso.has(clave)) return;
+      state.accionesEnCurso.add(clave);
+      Promise.resolve(accion.onClick(v)).finally(() => state.accionesEnCurso.delete(clave));
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+const escapeAttr = (t) => String(t).replace(/"/g, '&quot;');
+
+// Propuesta que este usuario puede ver en la fila (la fusión o la del propio taller; con archivo o solo con enlaces), o null.
+function propuestaGeneralVisible(v) {
+  const aplica = (usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || puede('aprobarGeneral')) && v._tipoRegistro !== 'PROPUESTA';
+  return aplica && (v.propuesta_general_url || v.propuesta_extra) ? { tipo: 'general' } : null;
+}
+function propuestaTallerVisible(v) {
+  return ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && (v.propuesta_taller_url || v.propuesta_taller_extra)
+    ? { tipo: 'taller', disenadorId: v.propuesta_disenador_id }
+    : null;
+}
+const propuestaVisible = (v) => propuestaGeneralVisible(v) || propuestaTallerVisible(v);
+
+const abrirVisorDeFila = (v, propuesta) => abrirVisorVale({ id: v.id, correlativo: v.correlativo, propuesta });
+
+// Modificaciones básicas del vale que ve quien mira: el asesor dueño ve todas; un taller solo las suyas.
+const basicasVisibles = (v) => (v.modificaciones_basicas || []).filter(m => v.taller_id == null || v.asesor_id === state.user.id || m.taller_id === v.taller_id);
+
+// Etiqueta mientras la modificación básica está en trámite: se conversa o el taller aceptó y rehace la propuesta.
+function badgeBasica(v) {
+  const basicas = basicasVisibles(v);
+  if (basicas.some(m => m.estado === 'EN_CONVERSACION')) return '<span class="badge badge-basica" title="Hay una modificación básica en conversación">Básica en chat</span>';
+  if (basicas.some(m => m.estado === 'ACEPTADA')) return '<span class="badge badge-basica" title="El taller aceptó: se está rehaciendo la propuesta">Básica en proceso</span>';
+  return '';
 }
 
 export function construirAcciones(v) {
   const esMio = v.asesor_id === state.user.id;
   // Un supervisor solo actúa como asesor sobre SUS vales: sobre los de su equipo solo autoriza y supervisa.
   const ajenoDeSupervisor = state.user.rolId === ROL.SUPERVISOR && !esMio;
+  // En el paso 5 (pendiente de confirmación) el «ojo» y el de confirmar son un solo botón: abre el vale y la propuesta con
+  // «Confirmar recibido» y «Solicitar modificación» abajo. Con una modificación en trámite hay un solo camino a la vez.
+  // Con una modificación básica abierta tampoco se confirma: se conversa con el taller hasta que responda.
+  const basicasAbiertas = v.modificaciones_basicas_abiertas || [];
+  const decideEnPaso5 = puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite && !basicasAbiertas.length && !ajenoDeSupervisor;
   // El supervisor abre un modal de elección (Ver info / Ver vale) en vez de ir
   // directo al PDF — a veces solo necesita los datos de encabezado. Vale también para los suyos, que él autoriza.
-  const acciones = state.user.rolId === ROL.SUPERVISOR
-    ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
-    : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => window.open(`/api/vales/${v.id}/pdf`, '_blank') }];
-  // El hipervínculo de la propuesta apunta al documento de propuesta real, no
-  // al vale (PDF) — disponible tanto en el buzón (trabajo realizado) como en
-  // cualquier vista donde ya exista una propuesta oficial para el vale. El
-  // supervisor también la necesita en Trabajo realizado. Quien fusiona
-  // (Encargado/Asistente de Diseño) también ve "Ver propuesta" con SU
-  // documento de fusión (propuesta_general_url) en Trabajo Realizado. Se
-  // excluye la fila de PROPUESTA propia (también trae propuesta_general_url,
-  // hereda todos los campos del vale) para no mostrar el botón de la fusión
-  // en las dos filas del mismo vale.
-  if ((usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || puede('aprobarGeneral')) && v.propuesta_general_url && v._tipoRegistro !== 'PROPUESTA') {
-    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_general_url, '_blank') });
-  }
-  // En "Trabajo realizado" el encargado de un taller (y el propio diseñador) ve
-  // la propuesta REAL que se aprobó (`propuesta_taller_url`, solo viene
-  // poblado en esa vista) — no `propuesta_general_url`, que en un vale
-  // multi-taller es la fusión, no el trabajo propio de este taller.
-  if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && v.propuesta_taller_url) {
-    acciones.push({ icono: 'document-attach-outline', titulo: 'Ver propuesta', onClick: () => window.open(v.propuesta_taller_url, '_blank') });
-  }
-
+  const acciones = decideEnPaso5
+    ? [{ icono: 'document-text-outline', titulo: 'Ver y decidir', clase: 'icon-success', onClick: (vale) => abrirVisorDecisionAsesor(vale, propuestaVisible(vale)) }]
+    : state.user.rolId === ROL.SUPERVISOR
+      ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
+      : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
   // El Supervisor autoriza el envío a talleres de un vale recién creado por
   // uno de sus asesores.
   if (puede('autorizarCreacion') && v.estado === 'ESPERANDO_AUTORIZACION') {
@@ -316,15 +365,23 @@ export function construirAcciones(v) {
   if (puede('aprobarGeneral') && v.estado === 'APROBADO_DEPARTAMENTO') {
     acciones.push({ icono: 'checkmark-done-circle-outline', titulo: 'Aprobar y fusionar', clase: 'icon-success', onClick: abrirModalAprobarGeneral });
   }
-  // Con una solicitud de modificación en trámite no se puede confirmar el original: se espera su decisión.
-  if (puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite && !ajenoDeSupervisor) {
-    acciones.push({ icono: 'document-text-outline', titulo: 'Confirmar o solicitar modificación', clase: 'icon-success', onClick: abrirModalDecisionAsesor });
+  // Un vale recibido se puede modificar si todavía no tiene un vale MOD hijo; un MOD recibido también (MOD2, MOD3…).
+  // Desde aquí solo se ofrecen la modificación media y la avanzada.
+  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.mod_en_tramite && !basicasAbiertas.length && !ajenoDeSupervisor) {
+    acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirSelectorModificacion });
   }
-  // Un vale MOD- (nacido de una modificación ya aprobada, `vale_original_id`
-  // seteado) nunca puede volver a solicitar modificación — solo se permite
-  // una por vale (analisis_correcciones_29.md #3).
-  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.vale_original_id && !v.mod_en_tramite && !ajenoDeSupervisor) {
-    acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirModalSolicitarModificacion });
+  // Chat de la modificación básica: queda en la fila mientras haya alguna visible para quien mira (asesor dueño o equipo del taller),
+  // también ya cerrada, para saber qué se pidió. Rojo si hay un rechazo sin leer; el servidor entrega solo las conversaciones del taller.
+  const basicas = basicasVisibles(v);
+  const equipoTaller = puede('responderModificacionBasica');
+  const rechazos = rechazosSinLeer(v);
+  if (basicas.length && ((puede('solicitarModificacion') && esMio) || equipoTaller)) {
+    acciones.push({
+      icono: 'chatbubbles-outline',
+      titulo: rechazos.length ? 'Ver chat del rechazo' : (equipoTaller && basicasAbiertas.length ? 'Responder modificación' : 'Chat de la modificación'),
+      clase: rechazos.length ? 'icon-danger' : (basicasAbiertas.length ? 'icon-success' : undefined),
+      onClick: (vale) => abrirConversacionesBasicas(vale, rechazos.length ? { ids: rechazos.map(r => r.id) } : {})
+    });
   }
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });
@@ -343,9 +400,13 @@ export function construirAcciones(v) {
   if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
     acciones.push({ icono: 'send-outline', titulo: 'Reenviar a autorización', clase: 'icon-success', onClick: accionReenviar });
   }
+  // Propuestas aprobadas de los otros talleres (solo si aplica la regla de compartir), solo lectura.
+  if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && (v.propuestaOtroTallerNueva || v.propuestasOtrosAplica)) {
+    acciones.push({ icono: 'documents-outline', titulo: 'Propuestas de otros talleres', onClick: abrirVisorPropuestasOtros });
+  }
   if (puede('verHistorial')) acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
   if (puede('darDeBaja') && (['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) || (v.adjuntos || []).length) && esMio) {
-    acciones.push({ icono: 'ban-outline', titulo: 'Dar de baja', clase: 'icon-danger', onClick: abrirModalDarDeBaja });
+    acciones.push({ icono: 'ban-outline', titulo: 'Dar de baja', clase: 'icon-danger', onClick: abrirDarDeBaja });
   }
 
   return acciones;

@@ -14,6 +14,8 @@ const valeRoutes = require('./modules/vales/routes');
 const atrasoWatcher = require('./modules/vales/atrasoWatcher');
 const vigenciaWatcher = require('./modules/vales/vigenciaWatcher');
 const adjuntosWatcher = require('./modules/vales/adjuntosWatcher');
+const borradorWatcher = require('./modules/vales/borradorWatcher');
+const retencionArchivosWatcher = require('./modules/vales/retencionArchivosWatcher');
 const notificacionLimpieza = require('./core/notifications/notificacionLimpieza');
 const adminRoutes = require('./modules/admin/routes');
 const notificacionRoutes = require('./core/notifications/notificacionRoutes');
@@ -133,6 +135,8 @@ app.use('/api/notificaciones', requireAuth, notificacionRoutes);
 atrasoWatcher.iniciar();
 vigenciaWatcher.iniciar();
 adjuntosWatcher.iniciar();
+borradorWatcher.iniciar();
+retencionArchivosWatcher.iniciar();
 notificacionLimpieza.iniciar();
 
 // Estado del mantenimiento para el aviso con cuenta regresiva (segundos restantes, sin depender del reloj del cliente).

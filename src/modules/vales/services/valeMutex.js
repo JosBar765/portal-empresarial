@@ -35,6 +35,7 @@ class ValeMutex {
     // Cola por diseñador (un solo vale EN_PROCESO): igual que la de
     // creación, el segundo en llegar espera su turno, para que leer el conteo y escribir sea atómico.
     this._colaPorDisenador = new Map();
+    this._colaPorLlave = new Map();
   }
 
   async conLockDeVale(valeId, fn) {
@@ -58,6 +59,17 @@ class ValeMutex {
     // siguiente en la fila debe poder correr igual; el error real lo sigue
     // recibiendo quien llamó a esta creación en particular a través de `actual`.
     this._colaCreacionPorAsesor.set(key, actual.catch(() => {}));
+    return actual;
+  }
+
+  // Cola por idempotency key: dos envíos simultáneos con la misma key se ejecutan uno tras otro,
+  // así el segundo ve el resultado ya registrado por el primero (o reintenta si el primero falló).
+  conColaDeLlave(llave, fn) {
+    const anterior = this._colaPorLlave.get(llave) || Promise.resolve();
+    const actual = anterior.then(fn, fn);
+    const cola = actual.catch(() => {});
+    this._colaPorLlave.set(llave, cola);
+    cola.then(() => { if (this._colaPorLlave.get(llave) === cola) this._colaPorLlave.delete(llave); });
     return actual;
   }
 

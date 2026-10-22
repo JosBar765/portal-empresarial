@@ -186,8 +186,16 @@ export function obtenerParametrosHorario() {
   return obtenerJson('/api/admin/horarios/parametros');
 }
 
+export function guardarTopeBorradores(maxBorradoresPorUsuario) {
+  return enviarConBody('/api/admin/horarios/parametros', 'PUT', { maxBorradoresPorUsuario });
+}
+
 export function guardarParametrosHorario(horasVencimientoVale) {
   return enviarConBody('/api/admin/horarios/parametros', 'PUT', { horasVencimientoVale });
+}
+
+export function guardarRetencionArchivos(diasRetencionPdfAdjuntos, diasRetencionPropuestas) {
+  return enviarConBody('/api/admin/horarios/retencion', 'PUT', { diasRetencionPdfAdjuntos, diasRetencionPropuestas });
 }
 
 export function listarPaisesHorarios() {

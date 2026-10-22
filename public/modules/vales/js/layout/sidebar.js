@@ -19,26 +19,19 @@ export function actualizarOffsetSidebar(sidebar) {
   document.documentElement.style.setProperty('--sidebar-offset', offset);
 }
 
-// El Gerente y el Supervisor reemplazan contadores-grid + buzon-section por
-// las gráficas de la vista "rendimiento" cuando entran a ella (para el
-// Supervisor es su tercer botón — sus otras dos vistas, Buzón/Trabajo
-// realizado, siguen normales). El Gerente no tiene buzón: su otra vista es
-// el buscador "encontrar" (que además oculta la barra de período y tienda,
-// que ahí no aplican). El resto de roles solo cambian el título.
+// Reportes reemplaza contadores-grid + buzon-section por su propia pantalla mientras está
+// activo. El resto de vistas solo cambian el título.
 export function actualizarTituloYSeccionesVista() {
   // El combobox de diseñadores es de los encargados y solo aplica al Buzón (Trabajo realizado y Reportes no lo usan).
   $('#filtro-disenador').style.display = ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)) && state.vista === 'buzon' ? '' : 'none';
-  const enRendimiento = state.vista === 'rendimiento';
-  const enEncontrar = state.vista === 'encontrar';
   const enReportes = state.vista === 'reportes';
   $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
-  $('#rendimiento-gerencia').style.display = enRendimiento ? 'block' : 'none';
-  $('#encontrar-vale').style.display = enEncontrar ? 'block' : 'none';
   $('#reportes-vista').style.display = enReportes ? 'block' : 'none';
-  const enVistaPropia = enRendimiento || enEncontrar || enReportes;
+  const enVistaPropia = enReportes;
   $('#contadores-grid').style.display = enVistaPropia ? 'none' : '';
   $('.buzon-section').style.display = enVistaPropia ? 'none' : '';
-  $('.vales-toolbar').style.display = enEncontrar ? 'none' : '';
+  // Reportes trae su propia barra de fechas.
+  $('.vales-toolbar').style.display = enReportes ? 'none' : '';
 }
 
 export function wireSidebar() {
@@ -55,36 +48,14 @@ export function wireSidebar() {
   // escritorio, visible <900px) tome el control.
   toggleMovil.style.display = '';
 
-  // El Gerente reusa los dos primeros botones del sidebar, pero con su propio
-  // par de vistas — Rendimiento (entrada por defecto) / Encontrar vale — en
-  // vez de Buzón/Trabajo realizado.
-  if (state.user.rolId === ROL.GERENTE) {
-    const configurar = (boton, vista, icono, texto) => {
-      boton.dataset.vista = vista;
-      boton.querySelector('ion-icon').setAttribute('name', icono);
-      boton.querySelector('span').textContent = texto;
-    };
-    configurar($('#sidebar-item-primario', sidebar), 'rendimiento', 'analytics-outline', 'Rendimiento');
-    configurar($('#sidebar-item-secundario', sidebar), 'encontrar', 'search-outline', 'Encontrar vale');
-    // Con vales.ver también ve el buzón general (todos los vales, solo lectura) como tercer botón.
-    if ((state.user.permissions || []).includes('vales.ver')) {
-      const buzon = $('#sidebar-item-terciario', sidebar);
-      configurar(buzon, 'buzon', 'file-tray-full-outline', 'Buzón');
-      buzon.style.display = '';
-    }
-    state.vista = 'rendimiento';
-  }
-  // Supervisor de Ventas: conserva sus dos botones normales y gana un tercero
-  // con la misma vista de Rendimiento del Gerente, acotada a las tiendas que
-  // cubre.
-  if (state.user.rolId === ROL.SUPERVISOR) {
-    $('#sidebar-item-terciario', sidebar).style.display = '';
-  }
-  // El Administrador no tiene «Trabajo realizado»: su barra solo lleva Buzón y Reportes.
-  if (state.user.rolId === ROL.ADMINISTRADOR) {
+  // El Gerente solo lee: con vales.ver ve el Buzón y Trabajo realizado generales (todos los vales) y con
+  // vales.ver_reportes la pestaña Reportes; sin vales.ver solo le queda Reportes.
+  if (state.user.rolId === ROL.GERENTE && !(state.user.permissions || []).includes('vales.ver')) {
+    $('#sidebar-item-primario', sidebar).style.display = 'none';
     $('#sidebar-item-secundario', sidebar).style.display = 'none';
+    state.vista = 'reportes';
   }
-  // Reportes de actividad: por permiso (el Gerente no lo tiene y conserva solo Rendimiento / Encontrar vale).
+  // Reportes de actividad: por permiso (vales.ver_reportes), para cualquier rol.
   if ((state.user.permissions || []).includes('vales.ver_reportes')) {
     $('#sidebar-item-reportes', sidebar).style.display = '';
   }

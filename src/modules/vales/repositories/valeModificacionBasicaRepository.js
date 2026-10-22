@@ -1,0 +1,221 @@
+// src/modules/vales/repositories/valeModificacionBasicaRepository.js
+// Modificación básica: no crea vale MOD, el asesor y un taller conversan y el taller acepta o rechaza el cambio.
+// Una fila por (vale, taller). Cuelga de `vales` y `vale_talleres` con ON DELETE CASCADE: al eliminarse el vale se van
+// la solicitud y su conversación.
+const db = require('../../../config/database');
+
+const SELECT_MODIFICACION = `
+  SELECT m.*, vt.taller_id, vt.disenador_id, t.nombre AS taller, u.nombre AS solicitante
+  FROM vale_modificaciones_basicas m
+  JOIN vale_talleres vt ON vt.id = m.vale_taller_id
+  JOIN talleres t ON t.id = vt.taller_id
+  JOIN usuarios u ON u.id = m.solicitante_id
+`;
+
+const fmtFecha = (valor) => String(valor).slice(0, 10).split('-').reverse().join('/');
+const mismoDia = (a, b) => String(a).slice(0, 10) === String(b).slice(0, 10);
+
+const SQL_HISTORIAL = 'INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, disenador_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
+
+class ValeModificacionBasicaRepository {
+  // Abre una solicitud por taller elegido, cada una con el primer mensaje del asesor, y deja el rastro en el historial.
+  // La nueva fecha de entrega se aplica al vale desde que se pide (los talleres la ven mientras responden); si la rechazan vuelve.
+  async crear({ valeId, solicitanteId, filas, fechaAnterior, fechaNueva, mensaje, estadoVale }) {
+    return db.transaccion(async (tx) => {
+      const ids = [];
+      // Una sola modificación básica en curso por vale: no se manda otra a ningún taller hasta que termine.
+      const enCurso = await tx.query(
+        "SELECT id FROM vale_modificaciones_basicas WHERE vale_id = ? AND estado IN ('EN_CONVERSACION', 'ACEPTADA') LIMIT 1",
+        [valeId], 'modificacion_basica:validar_en_curso'
+      );
+      if (enCurso.length) throw new Error('Ya hay una modificación en curso. Espera su resultado.');
+      for (const fila of filas) {
+        const ins = await tx.query(
+          'INSERT INTO vale_modificaciones_basicas (vale_id, vale_taller_id, solicitante_id, fecha_entrega_anterior, fecha_entrega_nueva) VALUES (?, ?, ?, ?, ?)',
+          [valeId, fila.id, solicitanteId, fechaAnterior, fechaNueva], 'modificacion_basica:insert'
+        );
+        await tx.query(
+          "INSERT INTO vale_modificacion_mensajes (modificacion_id, autor_id, lado, mensaje) VALUES (?, ?, 'ASESOR', ?)",
+          [ins.insertId, solicitanteId, mensaje], 'modificacion_basica:insert_mensaje'
+        );
+        await tx.query(SQL_HISTORIAL,
+          [valeId, solicitanteId, fila.taller_id, estadoVale, estadoVale, `Asesor pidió una modificación básica a ${fila.taller_nombre}: ${mensaje}`, fila.disenador_id || null],
+          'historial:insert_modificacion_basica');
+        ids.push(ins.insertId);
+      }
+      if (!mismoDia(fechaAnterior, fechaNueva)) {
+        await tx.query('UPDATE vales SET fecha_entrega = ?, actualizado_en = actualizado_en WHERE id = ?', [fechaNueva, valeId], 'modificacion_basica:aplicar_fecha');
+        await tx.query(SQL_HISTORIAL,
+          [valeId, solicitanteId, null, estadoVale, estadoVale, `La fecha de entrega pasa a ${fmtFecha(fechaNueva)} (antes ${fmtFecha(fechaAnterior)}) mientras el taller responde`, null],
+          'historial:insert_modificacion_basica_fecha');
+      }
+      return ids;
+    });
+  }
+
+  async obtenerPorId(id) {
+    const rows = await db.query(`${SELECT_MODIFICACION} WHERE m.id = ?`, [id], 'modificacion_basica:find_by_id');
+    return rows[0] || null;
+  }
+
+  async listarPorVale(valeId) {
+    return db.query(`${SELECT_MODIFICACION} WHERE m.vale_id = ? ORDER BY m.id ASC`, [valeId], 'modificacion_basica:list_by_vale');
+  }
+
+  // Cuántas conversaciones siguen abiertas en un vale (impiden confirmarlo o pedir otra modificación).
+  async contarAbiertasPorVale(valeId) {
+    const rows = await db.query(
+      "SELECT COUNT(*) AS total FROM vale_modificaciones_basicas WHERE vale_id = ? AND estado = 'EN_CONVERSACION'",
+      [valeId], 'modificacion_basica:count_abiertas_vale'
+    );
+    return Number(rows[0].total);
+  }
+
+  // Todas las solicitudes de varios vales (cualquier estado): el buzón deja el chat disponible aunque ya estén cerradas.
+  async listarPorVales(valeIds) {
+    if (!valeIds.length) return [];
+    return db.query(
+      `SELECT m.id, m.vale_id, vt.taller_id, m.estado
+       FROM vale_modificaciones_basicas m JOIN vale_talleres vt ON vt.id = m.vale_taller_id
+       WHERE m.vale_id IN (?) ORDER BY m.id`,
+      [valeIds], 'modificacion_basica:list_por_vales'
+    );
+  }
+
+  // Solicitudes que siguen en curso: en conversación o aceptadas y todavía sin su nueva propuesta aprobada.
+  async contarEnCursoPorVale(valeId) {
+    const rows = await db.query(
+      "SELECT COUNT(*) AS total FROM vale_modificaciones_basicas WHERE vale_id = ? AND estado IN ('EN_CONVERSACION', 'ACEPTADA')",
+      [valeId], 'modificacion_basica:count_en_curso_vale'
+    );
+    return Number(rows[0].total);
+  }
+
+  // Para las listas del buzón: las conversaciones abiertas de varios vales en una sola consulta.
+  // Ids de los vales con una conversación abierta con un taller (o con cualquiera si no se indica).
+  async listarValeIdsAbiertosDeTaller(tallerId = null) {
+    const filtroTaller = tallerId ? ' AND vt.taller_id = ?' : '';
+    const filas = await db.query(
+      `SELECT DISTINCT m.vale_id FROM vale_modificaciones_basicas m JOIN vale_talleres vt ON vt.id = m.vale_taller_id
+       WHERE m.estado = 'EN_CONVERSACION'${filtroTaller}`,
+      tallerId ? [tallerId] : [], 'modificacion_basica:list_vale_ids_abiertos_taller'
+    );
+    return filas.map(f => f.vale_id);
+  }
+
+  async listarAbiertasPorVales(valeIds) {
+    if (!valeIds.length) return [];
+    return db.query(
+      `SELECT m.id, m.vale_id, vt.taller_id, m.creado_en
+       FROM vale_modificaciones_basicas m JOIN vale_talleres vt ON vt.id = m.vale_taller_id
+       WHERE m.vale_id IN (?) AND m.estado = 'EN_CONVERSACION'`,
+      [valeIds], 'modificacion_basica:list_abiertas_vales'
+    );
+  }
+
+  // Rechazos más recientes de cada taller (sin una solicitud posterior al mismo taller): el asesor los ve en su buzón.
+  async listarRechazadasRecientesPorVales(valeIds) {
+    if (!valeIds.length) return [];
+    return db.query(
+      `SELECT m.id, m.vale_id, vt.taller_id, m.resuelto_en
+       FROM vale_modificaciones_basicas m JOIN vale_talleres vt ON vt.id = m.vale_taller_id
+       WHERE m.vale_id IN (?) AND m.estado = 'RECHAZADA'
+         AND NOT EXISTS (SELECT 1 FROM vale_modificaciones_basicas n WHERE n.vale_taller_id = m.vale_taller_id AND n.id > m.id)`,
+      [valeIds], 'modificacion_basica:list_rechazadas_vales'
+    );
+  }
+
+  // El taller aceptó: su fila vuelve a «Por asignar» (paso 2, sin diseñador) y el vale sale del paso 5 (o de Recibido) con la fecha fijada.
+  // Todo o nada; cada UPDATE exige el estado esperado por si algo cambió mientras tanto.
+  async aceptar({ id, valeId, valeTallerId, tallerId, usuarioId, estadoValeAnterior, fechaEntrega, accion }) {
+    return db.transaccion(async (tx) => {
+      const mod = await tx.query(
+        "UPDATE vale_modificaciones_basicas SET estado = 'ACEPTADA', resuelto_en = NOW(), resuelto_por = ? WHERE id = ? AND estado = 'EN_CONVERSACION'",
+        [usuarioId, id], 'modificacion_basica:aceptar'
+      );
+      if (mod.affectedRows !== 1) throw new Error('Esta solicitud ya se cerró. Actualiza la pantalla.');
+      const fila = await tx.query(
+        `UPDATE vale_talleres SET estado_id = (SELECT id FROM estados_taller WHERE nombre = 'PENDIENTE_ASIGNACION'),
+           disenador_id = NULL, fecha_asignacion = NULL, atraso_congelado_en = NULL
+         WHERE id = ? AND estado_id = (SELECT id FROM estados_taller WHERE nombre = 'APROBADO')`,
+        [valeTallerId], 'modificacion_basica:reabrir_taller'
+      );
+      if (fila.affectedRows !== 1) throw new Error('El taller ya no tiene la propuesta aprobada. Actualiza la pantalla.');
+      const vale = await tx.query(
+        `UPDATE vales SET estado_id = (SELECT id FROM estados_vale WHERE nombre = 'CREADO'),
+           fecha_entrega = ?, atraso_congelado_en = NULL, atraso_notificado_en = NULL, confirmado_en = NULL
+         WHERE id = ? AND estado_id IN (SELECT id FROM estados_vale WHERE nombre IN ('PENDIENTE_CONFIRMACION', 'CREADO', 'RECIBIDO'))`,
+        [fechaEntrega, valeId], 'modificacion_basica:reabrir_vale'
+      );
+      if (vale.affectedRows !== 1) throw new Error('El vale cambió de estado. Actualiza la pantalla.');
+      await tx.query(SQL_HISTORIAL, [valeId, usuarioId, tallerId, 'APROBADO', 'PENDIENTE_ASIGNACION', accion, null], 'historial:insert_modificacion_basica_aceptada');
+      if (estadoValeAnterior !== 'CREADO') {
+        await tx.query(SQL_HISTORIAL, [valeId, usuarioId, null, estadoValeAnterior, 'CREADO', 'El vale vuelve al taller por una modificación básica aceptada', null], 'historial:insert_vale_reabierto');
+      }
+    });
+  }
+
+  // Rechazada por el taller o cancelada por el asesor: se cierra la conversación y, si no queda ninguna otra solicitud de esa petición en
+  // curso o aceptada, el vale recupera su fecha de entrega anterior. Devuelve la fecha restaurada (o null si no se tocó).
+  async cerrar({ id, estado, usuarioId, valeId, tallerId, estadoVale, accion }) {
+    return db.transaccion(async (tx) => {
+      const res = await tx.query(
+        "UPDATE vale_modificaciones_basicas SET estado = ?, resuelto_en = NOW(), resuelto_por = ? WHERE id = ? AND estado = 'EN_CONVERSACION'",
+        [estado, usuarioId, id], 'modificacion_basica:cerrar'
+      );
+      if (res.affectedRows !== 1) throw new Error('Esta solicitud ya se cerró. Actualiza la pantalla.');
+      await tx.query(SQL_HISTORIAL, [valeId, usuarioId, tallerId, estadoVale, estadoVale, accion, null], 'historial:insert_modificacion_basica_cerrada');
+      const [mod] = await tx.query('SELECT fecha_entrega_anterior AS anterior, fecha_entrega_nueva AS nueva FROM vale_modificaciones_basicas WHERE id = ?', [id], 'modificacion_basica:fechas');
+      if (mismoDia(mod.anterior, mod.nueva)) return null;
+      // Si otra solicitud de la misma petición sigue abierta o ya fue aceptada, la fecha propuesta se queda.
+      const vigentes = await tx.query(
+        "SELECT COUNT(*) AS total FROM vale_modificaciones_basicas WHERE vale_id = ? AND DATE(fecha_entrega_anterior) = DATE(?) AND DATE(fecha_entrega_nueva) = DATE(?) AND estado IN ('EN_CONVERSACION', 'ACEPTADA', 'ENTREGADA')",
+        [valeId, mod.anterior, mod.nueva], 'modificacion_basica:vigentes_misma_fecha'
+      );
+      if (Number(vigentes[0].total) > 0) return null;
+      // Solo se restaura si el vale sigue con la fecha propuesta (nada más la cambió mientras tanto). Mantener actualizado_en evita que
+      // un vale recibido cuente como «recibido hoy» solo por cambiar su fecha.
+      const res2 = await tx.query('UPDATE vales SET fecha_entrega = ?, actualizado_en = actualizado_en WHERE id = ? AND DATE(fecha_entrega) = DATE(?)', [mod.anterior, valeId, mod.nueva], 'modificacion_basica:restaurar_fecha');
+      if (res2.affectedRows !== 1) return null;
+      await tx.query(SQL_HISTORIAL, [valeId, usuarioId, null, estadoVale, estadoVale, `La fecha de entrega vuelve a ${fmtFecha(mod.anterior)}`, null], 'historial:insert_modificacion_basica_fecha_restaurada');
+      return String(mod.anterior).slice(0, 10);
+    });
+  }
+
+  // La nueva propuesta ya fue aprobada por el encargado: la modificación termina. Devuelve cuántas filas cerró.
+  async marcarEntregadaPorFila(valeTallerId) {
+    const res = await db.query(
+      "UPDATE vale_modificaciones_basicas SET estado = 'ENTREGADA' WHERE vale_taller_id = ? AND estado = 'ACEPTADA'",
+      [valeTallerId], 'modificacion_basica:marcar_entregada'
+    );
+    return res.affectedRows;
+  }
+
+  async crearMensaje(modificacionId, autorId, lado, mensaje) {
+    const res = await db.query(
+      'INSERT INTO vale_modificacion_mensajes (modificacion_id, autor_id, lado, mensaje) VALUES (?, ?, ?, ?)',
+      [modificacionId, autorId, lado, mensaje], 'modificacion_basica:insert_mensaje_chat'
+    );
+    return res.insertId;
+  }
+
+  async listarMensajes(modificacionId) {
+    return db.query(
+      `SELECT m.id, m.lado, m.mensaje, m.creado_en, m.autor_id, u.nombre AS autor
+       FROM vale_modificacion_mensajes m JOIN usuarios u ON u.id = m.autor_id
+       WHERE m.modificacion_id = ? ORDER BY m.id ASC`,
+      [modificacionId], 'modificacion_basica:list_mensajes'
+    );
+  }
+
+  async contarMensajes(modificacionIds) {
+    if (!modificacionIds.length) return new Map();
+    const filas = await db.query(
+      'SELECT modificacion_id, COUNT(*) AS total FROM vale_modificacion_mensajes WHERE modificacion_id IN (?) GROUP BY modificacion_id',
+      [modificacionIds], 'modificacion_basica:count_mensajes'
+    );
+    return new Map(filas.map(f => [f.modificacion_id, Number(f.total)]));
+  }
+}
+
+module.exports = new ValeModificacionBasicaRepository();

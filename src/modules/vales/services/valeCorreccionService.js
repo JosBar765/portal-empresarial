@@ -60,9 +60,12 @@ class ValeCorreccionService {
         }
         payloadEfectivo = { ...payload, descripcion: justificacion, talleresIds: fijos };
         const original = await valeRepository.obtenerPorId(vale.vale_original_id);
+        if (original && (original.archivos_purgados_en || original.propuestas_purgadas_en)) {
+          throw new Error('La propuesta del vale original ya fue eliminada por antigüedad, así que esta modificación no se puede corregir.');
+        }
         propuestaOriginal = original && (original.propuesta_general_url || (await propuestaRepository.obtenerUltimaPorVale(original.id))?.url);
       }
-      const datos = await valeCreacionService.validarDatosVale(payloadEfectivo, { tiendaIdAsesor: esMod ? null : vale.tienda_id });
+      const datos = await valeCreacionService.validarDatosVale(payloadEfectivo, { tiendaIdAsesor: esMod ? null : vale.tienda_id, modificacionTipo: esMod ? vale.modificacion_tipo : null });
       const fechaEntregaISO = datos.fechaEntregaNorm.slice(0, 10);
       await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO);
 
@@ -74,6 +77,9 @@ class ValeCorreccionService {
       const conservados = documentosActuales.filter(d => !quitarIds.includes(d.id));
       const nuevosImagenes = (archivos && archivos.imagenes) || [];
       const nuevosDocumentos = (archivos && archivos.documentos) || [];
+      if (conservados.filter(d => !esPropuesta(d)).length + nuevosImagenes.length + nuevosDocumentos.length === 0) {
+        throw new Error('Adjunta al menos una imagen o un documento PDF.');
+      }
       if (conservados.filter(d => d.tipo === 'imagen').length + nuevosImagenes.length > MAX_IMAGENES
         || conservados.filter(d => d.tipo === 'documento' && !esPropuesta(d)).length + nuevosDocumentos.length > MAX_DOCUMENTOS) {
         throw new Error(`Un vale admite hasta ${MAX_IMAGENES} imágenes y ${MAX_DOCUMENTOS} documentos.`);
@@ -110,7 +116,7 @@ class ValeCorreccionService {
       // Un archivo que otro vale (el original de una modificación) también usa no se borra de Storage.
       const aReemplazar = [vale.pdf_url].filter(Boolean);
       for (const doc of documentosActuales.filter(d => quitarIds.includes(d.id))) {
-        if (await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, valeId) === 0) aReemplazar.push(doc.ruta);
+        if (doc.ruta && await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, valeId) === 0) aReemplazar.push(doc.ruta);
       }
       await this._borrarDeStorage(aReemplazar);
 

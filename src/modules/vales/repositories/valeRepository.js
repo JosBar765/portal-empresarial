@@ -108,11 +108,36 @@ class ValeRepository {
     return db.query(SELECT_VALE, [], 'vale:list_all');
   }
 
+  // Vales del Buzón o de Trabajo realizado; acotables por estados terminales, asesores, ids y fecha de entrega [`desdeInclusivo`, `hastaExclusivo`).
+  async listarParaBuzon({ estadosTerminales = [], asesorIds = null, valeIds = null, desdeInclusivo = null, hastaExclusivo = null } = {}) {
+    if ((asesorIds && !asesorIds.length) || (valeIds && !valeIds.length)) return [];
+    const condiciones = [];
+    const params = [];
+    if (estadosTerminales.length) { condiciones.push('(ev.nombre IS NULL OR ev.nombre NOT IN (?))'); params.push(estadosTerminales); }
+    if (asesorIds) { condiciones.push('v.asesor_id IN (?)'); params.push(asesorIds); }
+    if (valeIds) { condiciones.push('v.id IN (?)'); params.push(valeIds); }
+    if (desdeInclusivo) { condiciones.push('v.fecha_entrega >= ?'); params.push(desdeInclusivo); }
+    if (hastaExclusivo) { condiciones.push('v.fecha_entrega < ?'); params.push(hastaExclusivo); }
+    const donde = condiciones.length ? ` WHERE ${condiciones.join(' AND ')}` : '';
+    return db.query(`${SELECT_VALE}${donde} ORDER BY v.id ASC`, params, 'vale:list_para_buzon');
+  }
+
+  async listarIdsPorEstado(estado) {
+    const filas = await db.query(
+      'SELECT v.id FROM vales v INNER JOIN estados_vale ev ON ev.id = v.estado_id WHERE ev.nombre = ?',
+      [estado], 'vale:list_ids_por_estado'
+    );
+    return filas.map(f => f.id);
+  }
+
   // Vales MOD- todavía en trámite (esperando al supervisor): esta lista dice qué originales tienen una modificación en curso.
-  async listarModificacionesEnTramite() {
+  // Con `originalIds` solo trae los de esos originales.
+  async listarModificacionesEnTramite(originalIds = null) {
+    if (originalIds && !originalIds.length) return [];
+    const filtro = originalIds ? ' AND v.vale_original_id IN (?)' : '';
     return db.query(
-      `${SELECT_VALE} WHERE v.vale_original_id IS NOT NULL AND ev.nombre IN ('SOLICITANDO_MODIFICACION', 'RECHAZADO')`,
-      [], 'vale:list_modificaciones_en_tramite'
+      `${SELECT_VALE} WHERE v.vale_original_id IS NOT NULL AND ev.nombre IN ('SOLICITANDO_MODIFICACION', 'RECHAZADO')${filtro}`,
+      originalIds ? [originalIds] : [], 'vale:list_modificaciones_en_tramite'
     );
   }
 
@@ -207,8 +232,16 @@ class ValeRepository {
     );
   }
 
+  async actualizarTalleresSolicitados(id, csv) {
+    await db.query('UPDATE vales SET talleres_solicitados = ? WHERE id = ?', [csv, id], 'vale:update_talleres_solicitados');
+  }
+
   async actualizarPropuestaGeneral(id, url) {
     await db.query('UPDATE vales SET propuesta_general_url = ? WHERE id = ?', [url, id], 'vale:update_propuesta_general');
+  }
+
+  async actualizarNotaFusion(id, nota) {
+    await db.query('UPDATE vales SET propuesta_general_nota = ? WHERE id = ?', [nota || null, id], 'vale:update_nota_fusion');
   }
 
   // Deja rastro de quién fusionó y cuándo — sin esto sería imposible acotar

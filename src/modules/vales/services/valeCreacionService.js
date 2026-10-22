@@ -19,16 +19,18 @@ const idempotencyRepository = require('../../../core/idempotency/idempotencyRepo
 const calendarioService = require('../../../core/calendario/calendarioService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { validarTelefono } = require('../../../core/utils/validar');
+const { quitarInvisibles } = require('../../../core/utils/texto');
 
 const { idsDeCsv } = calendarioService;
 const valePdfService = require('./valePdfService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
 const valeVistoService = require('./valeVistoService');
+const borradorService = require('./borradorService');
 const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
   ESTADOS, hoyISO, horaActual, enriquecer,
-  normalizarDatetime, calcularUrgente, registrarHistorial,
+  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, DIAS_HABILES_MODIFICACION, registrarHistorial,
   esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
   esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor
 } = require('./valeHelpers');
@@ -59,9 +61,27 @@ class ValeCreacionService {
   // solo para tener un valor que guardar — no protege un reintento real
   // porque el cliente nunca la reutilizaría.
   async crearVale(usuario, payload, archivos) {
+    // Enviar un borrador: mismo flujo, con los adjuntos que conserva el borrador sumados a los nuevos.
+    if (payload.borradorId !== undefined && payload.borradorId !== '') {
+      return borradorService.enviar(usuario, payload, archivos, (combinados) => this.crearValeNuevo(usuario, payload, combinados));
+    }
+    return this.crearValeNuevo(usuario, payload, archivos);
+  }
+
+  async crearValeNuevo(usuario, payload, archivos) {
     const idempotencyKey = payload.idempotencyKey || crypto.randomUUID();
-    const previo = await idempotencyRepository.buscar(idempotencyKey);
-    if (previo) return previo.resultado;
+    // Misma key en paralelo: se serializa, y la comprobación va DENTRO de la cola para que nunca se cree dos veces.
+    return valeMutex.conColaDeLlave(idempotencyKey, async () => {
+      const previo = await idempotencyRepository.buscar(idempotencyKey);
+      if (previo) return previo.resultado;
+      return this._crearVale(usuario, payload, archivos, idempotencyKey);
+    });
+  }
+
+  async _crearVale(usuario, payload, archivos, idempotencyKey) {
+    if (!archivos || ((archivos.imagenes || []).length + (archivos.documentos || []).length) === 0) {
+      throw new Error('Adjunta al menos una imagen o un documento PDF.');
+    }
 
     const solicitante = await usuarioValeRepository.obtenerPorId(usuario.id);
     if (!solicitante || !solicitante.tienda_id) {
@@ -368,14 +388,16 @@ class ValeCreacionService {
   // modificación tiene su propia lógica, ver valeConfirmacionService — así
   // que crearVale() sigue exigiendo `talleresIds` aquí pero
   // solicitarModificacion() no pasa por este camino para elegir taller).
-  async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null, talleresFijos = [] } = {}) {
-    const {
-      clienteEmpresa, clienteTelefono, clienteCorreo,
-      fechaEntrega, fechaEvento, tecnica, acabado,
-      cantidad, cotizacion, descripcion
-    } = payload;
+  // `modificacionTipo` (MEDIA / AVANZADA) marca un vale MOD: no admite «urgente» y su fecha de entrega
+  // pide ese mínimo en días hábiles desde hoy, en lugar de los 3 días naturales de un vale normal.
+  async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null, talleresFijos = [], modificacionTipo = null } = {}) {
+    const { fechaEntrega, fechaEvento, cantidad, cotizacion } = payload;
+    // Los invisibles de un texto pegado (espacio de ancho cero, word joiner…) se quitan solos, sin avisar.
+    const limpio = (valor) => (typeof valor === 'string' ? quitarInvisibles(valor) : valor);
+    const clienteEmpresa = limpio(payload.clienteEmpresa), clienteTelefono = limpio(payload.clienteTelefono), clienteCorreo = limpio(payload.clienteCorreo);
+    const tecnica = limpio(payload.tecnica), acabado = limpio(payload.acabado), descripcion = limpio(payload.descripcion);
     // Los obligatorios se validan ya sin espacios: "   " cuenta como vacío.
-    const recortar = (valor) => String(valor ?? '').trim();
+    const recortar = (valor) => quitarInvisibles(String(valor ?? '')).trim();
     const clienteNombre = recortar(payload.clienteNombre);
     const producto = recortar(payload.producto);
     const material = recortar(payload.material);
@@ -431,13 +453,18 @@ class ValeCreacionService {
     if (!fechaReal(fechaEntregaNorm)) throw new Error('La fecha de entrega no es válida.');
     if (!fechaReal(fechaEventoNorm)) throw new Error('La fecha del evento no es válida.');
     const talleresIds = requiereTalleres ? await this.validarTalleresIds(payload.talleresIds, tiendaIdAsesor) : talleresFijos;
-    await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds);
+    const urgente = !modificacionTipo && esUrgente(payload.urgente);
+    if (modificacionTipo) {
+      await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, 0, undefined, DIAS_HABILES_MODIFICACION[modificacionTipo]);
+    } else {
+      await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, urgente ? 0 : DIAS_MINIMOS_SIN_URGENTE);
+    }
     if (!(new Date(fechaEventoNorm.replace(' ', 'T')) > new Date(fechaEntregaNorm.replace(' ', 'T')))) {
       throw new Error('La fecha del evento debe ser posterior a la fecha de entrega.');
     }
     const cantidadNum = Number(cantidad);
-    if (!Number.isFinite(cantidadNum) || cantidadNum <= 1) {
-      throw new Error('La cantidad debe ser mayor a 1.');
+    if (!Number.isFinite(cantidadNum) || cantidadNum < 1) {
+      throw new Error('La cantidad debe ser 1 o más.');
     }
     const cotizacionNum = Number(cotizacion);
     if (!Number.isFinite(cotizacionNum) || cotizacionNum <= 0) {
@@ -449,7 +476,7 @@ class ValeCreacionService {
       fechaEntregaNorm, fechaEventoNorm,
       fechaEntregaDate: new Date(fechaEntregaNorm.replace(' ', 'T')),
       fechaEventoDate: new Date(fechaEventoNorm.replace(' ', 'T')),
-      urgente: calcularUrgente(fechaEntregaNorm),
+      urgente,
       producto, material,
       tecnica: (tecnica || '').trim(), acabado: (acabado || '').trim(),
       cantidad: cantidadNum, cotizacion: cotizacionNum, descripcion,
@@ -525,7 +552,7 @@ class ValeCreacionService {
     for (const doc of documentos) {
       try {
         // Un archivo que otro vale (el original de una modificación) también usa no se borra de Storage.
-        if (await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, valeId) > 0) continue;
+        if (!doc.ruta || await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, valeId) > 0) continue;
         await supabaseStorage.eliminar(doc.ruta);
       } catch { /* best-effort — el vale se borra de todas formas */ }
     }

@@ -66,6 +66,16 @@ export function claveFila(v) {
   return v._rowKey || String(v.id);
 }
 
+// Código de un vale MOD: MOD-X, MOD2-X, MOD3-X… con X el correlativo del vale raíz (nunca cambia).
+export const PREFIJO_MOD = /^MOD\d*-/;
+export const esCorrelativoMod = (correlativo) => PREFIJO_MOD.test(String(correlativo || ''));
+export const correlativoBase = (correlativo) => String(correlativo || '').replace(PREFIJO_MOD, '');
+// Código que tendrá el vale MOD que nacería al modificar este vale.
+export function siguienteCodigoMod(vale) {
+  const numero = (Number(vale.modificacion_numero) || 0) + 1;
+  return `MOD${numero > 1 ? numero : ''}-${correlativoBase(vale.correlativo)}`;
+}
+
 export function marcadorTipoRegistro(v) {
   if (v._tipoRegistro === 'FUSION') {
     return ' <span class="tag-tipo-registro" title="Fusión final de las propuestas de los talleres">(F)</span>';
@@ -80,10 +90,13 @@ export function marcadorTipoRegistro(v) {
 export function badgePersona(v) {
   const p = v.persona;
   if (!p) return '';
+  const asesor = p.rol === 'disenador' && p.asesor
+    ? `<div class="persona-badge persona-badge--asesor" title="Asesor que creó el vale"><ion-icon name="person-outline" aria-hidden="true"></ion-icon>${escapeHtml(p.asesor)}</div>`
+    : '';
   if (p.rol === 'asesor') {
     return p.nombre ? `<div class="persona-badge persona-badge--asesor" title="Asesor que creó el vale"><ion-icon name="person-outline" aria-hidden="true"></ion-icon>${escapeHtml(p.nombre)}</div>` : '';
   }
-  return p.nombre
+  return `<div class="persona-badges">${asesor}${p.nombre
     ? `<div class="persona-badge persona-badge--disenador" title="Diseñador asignado"><ion-icon name="brush-outline" aria-hidden="true"></ion-icon>${escapeHtml(p.nombre)}</div>`
-    : '<div class="persona-badge persona-badge--libre" title="Aún sin diseñador asignado"><ion-icon name="person-add-outline" aria-hidden="true"></ion-icon>Sin asignar</div>';
+    : '<div class="persona-badge persona-badge--libre" title="Aún sin diseñador asignado"><ion-icon name="person-add-outline" aria-hidden="true"></ion-icon>Sin asignar</div>'}</div>`;
 }

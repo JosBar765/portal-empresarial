@@ -1,0 +1,19 @@
+/* Propuestas de otros talleres: signo «?» del buzón y su aviso. */
+.pn-marca {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  width: 18px; height: 18px; margin-left: 6px; padding: 0; font: inherit; font-size: 11px; font-weight: 700; line-height: 1;
+  color: #fff; background: var(--color-danger); border: 0; border-radius: 50%; cursor: pointer;
+}
+.pn-marca:focus-visible { outline: 2px solid var(--color-danger); outline-offset: 2px; }
+/* Área táctil de 44px sin cambiar el tamaño visible. */
+@media (max-width: 640px) { .pn-marca::after { content: ''; position: absolute; inset: -13px; } }
+/* Un único tooltip en <body> (position: fixed), fuera de los stacking contexts y overflow de la tabla. */
+.pn-tip {
+  position: fixed; z-index: 1000; top: 0; left: 0; display: none; width: 230px; max-width: calc(100vw - 2rem); padding: 8px 10px;
+  font-size: 12px; font-weight: 400; line-height: 1.4; text-align: left; white-space: normal; pointer-events: none;
+  color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-lg);
+}
+.pn-tip.is-visible { display: block; }
+.pn-tip strong { display: block; margin-bottom: 2px; font-size: 12px; color: var(--color-danger); }
+

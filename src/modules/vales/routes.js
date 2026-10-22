@@ -3,9 +3,9 @@ const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 const valeController = require('./controllers/valeController');
+const borradorController = require('./controllers/borradorController');
 const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
-const { ROL } = require('./services/valeHelpers');
 
 const TIPOS_PERMITIDOS = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']);
 const upload = multer({
@@ -32,7 +32,6 @@ const verVales = requirePermission('vales.ver');
 const autorizarCreacionVale = requirePermission('vales.autorizar_creacion');
 const crearVale = requirePermission('vales.crear');
 const asignarVale = requirePermission('vales.asignar');
-const verRendimiento = requirePermission('vales.ver_gerencia');
 const verReportes = requirePermission('vales.ver_reportes');
 const trabajarVale = requirePermission('vales.trabajar');
 const revisarVale = requirePermission('vales.revisar');
@@ -48,28 +47,15 @@ const escribirConversacion = (req, res, next) => {
     : res.status(403).json({ error: 'No tienes permiso para escribir en esta conversación.' });
 };
 const solicitarModificacionVale = requirePermission('vales.solicitar_modificacion');
-const aprobarModificacionVale = requirePermission('vales.aprobar_modificacion');
-// "Encontrar vale" es solo del Gerente: `vales.ver_gerencia` también lo tiene
-// el Supervisor (para su Rendimiento), así que el rol se exige aparte.
-const encontrarVale = (req, res, next) => (
-  req.user.rolId === ROL.GERENTE
+const responderModificacionBasica = requirePermission('vales.responder_modificacion_basica');
+// La conversación de una modificación básica la escribe el asesor (vales.solicitar_modificacion) o el taller (vales.responder_modificacion_basica).
+const escribirModificacionBasica = (req, res, next) => {
+  const permisos = req.user.permissions || [];
+  return permisos.includes('vales.responder_modificacion_basica') || permisos.includes('vales.solicitar_modificacion')
     ? next()
-    : res.status(403).json({ error: 'Solo el Gerente puede buscar vales por correlativo.' })
-);
-
-// La búsqueda de sugerencias recorre la tabla (LIKE '%…%'): se acota por
-// usuario (ya autenticado) para que una cuenta comprometida no la martille.
-const limitarBusquedas = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => `buscar:${req.user.id}`,
-  handler: (req, res) => {
-    res.status(429).json({ error: 'Demasiadas búsquedas seguidas. Espera un momento e inténtalo de nuevo.' });
-  }
-});
-
+    : res.status(403).json({ error: 'No tienes permiso para escribir en esta conversación.' });
+};
+const aprobarModificacionVale = requirePermission('vales.aprobar_modificacion');
 // Un reporte recorre el historial del período: se acota por usuario (ya autenticado).
 const limitarReportes = rateLimit({
   windowMs: 60 * 1000,
@@ -86,6 +72,7 @@ router.get('/catalogos', verVales, (req, res) => valeController.catalogos(req, r
 router.get('/talleres', verVales, (req, res) => valeController.talleres(req, res));
 router.get('/capacidad-entrega', crearVale, (req, res) => valeController.capacidadEntrega(req, res));
 router.get('/fechas-entrega', crearVale, (req, res) => valeController.fechasEntrega(req, res));
+router.get('/calendario-buzon', verVales, (req, res) => valeController.calendarioBuzon(req, res));
 router.get('/disenadores', asignarVale, (req, res) => valeController.disenadores(req, res));
 router.get('/carga-trabajo', asignarVale, (req, res) => valeController.cargaTrabajo(req, res));
 router.get('/carga-trabajo/:disenadorId', asignarVale, (req, res) => valeController.cargaTrabajoDisenador(req, res));
@@ -93,12 +80,19 @@ router.get('/carga-trabajo/:disenadorId', asignarVale, (req, res) => valeControl
 router.get('/', verVales, (req, res) => valeController.buzon(req, res));
 router.get('/reportes', verReportes, limitarReportes, (req, res) => valeController.reportes(req, res));
 router.get('/reportes/pdf', verReportes, limitarReportes, (req, res) => valeController.reportePdf(req, res));
-router.get('/rendimiento-gerencia', verRendimiento, (req, res) => valeController.rendimientoGerencia(req, res));
-router.get('/buscar', verRendimiento, encontrarVale, limitarBusquedas, (req, res) => valeController.buscarPorCorrelativo(req, res));
 router.post('/', crearVale, camposAdjuntos, (req, res) => valeController.crear(req, res));
+
+// Borradores: privados de su dueño; van antes de /:id para que "borradores" no se lea como un id.
+router.get('/borradores', crearVale, (req, res) => borradorController.listar(req, res));
+router.get('/borradores/:id', crearVale, (req, res) => borradorController.obtener(req, res));
+router.post('/borradores', crearVale, camposAdjuntos, (req, res) => borradorController.crear(req, res));
+router.put('/borradores/:id', crearVale, camposAdjuntos, (req, res) => borradorController.actualizar(req, res));
+router.delete('/borradores/:id', crearVale, (req, res) => borradorController.eliminar(req, res));
 
 router.get('/:id', verVales, (req, res) => valeController.detalle(req, res));
 router.get('/:id/pdf', verVales, (req, res) => valeController.descargarPdf(req, res));
+router.get('/:id/propuesta', verVales, (req, res) => valeController.propuesta(req, res));
+router.post('/:id/propuestas-otros/:tallerId/visto', verVales, (req, res) => valeController.propuestaOtroTallerVista(req, res));
 
 router.post('/:id/asignar', asignarVale, (req, res) => valeController.asignar(req, res));
 router.post('/:id/comenzar', trabajarVale, (req, res) => valeController.comenzar(req, res));
@@ -110,6 +104,13 @@ router.post('/:id/revisar', revisarVale, (req, res) => valeController.revisar(re
 router.post('/:id/aprobar-general', aprobacionGeneralVale, campoFusion, (req, res) => valeController.aprobarGeneral(req, res));
 router.post('/:id/confirmar', confirmarVale, (req, res) => valeController.confirmar(req, res));
 router.post('/:id/solicitar-modificacion', solicitarModificacionVale, camposAdjuntos, (req, res) => valeController.solicitarModificacion(req, res));
+router.get('/:id/modificaciones-basicas', verVales, (req, res) => valeController.listarModificacionesBasicas(req, res));
+router.post('/:id/modificaciones-basicas', solicitarModificacionVale, (req, res) => valeController.solicitarModificacionBasica(req, res));
+router.get('/:id/modificaciones-basicas/:modId/mensajes', verVales, (req, res) => valeController.conversacionModificacionBasica(req, res));
+router.post('/:id/modificaciones-basicas/:modId/mensajes', escribirModificacionBasica, (req, res) => valeController.enviarMensajeModificacionBasica(req, res));
+router.post('/:id/modificaciones-basicas/:modId/aceptar', responderModificacionBasica, (req, res) => valeController.aceptarModificacionBasica(req, res));
+router.post('/:id/modificaciones-basicas/:modId/rechazar', responderModificacionBasica, (req, res) => valeController.rechazarModificacionBasica(req, res));
+router.post('/:id/modificaciones-basicas/:modId/cancelar', solicitarModificacionVale, (req, res) => valeController.cancelarModificacionBasica(req, res));
 router.post('/:id/aprobar-modificacion', aprobarModificacionVale, (req, res) => valeController.aprobarModificacion(req, res));
 router.post('/:id/rechazar-modificacion', aprobarModificacionVale, (req, res) => valeController.rechazarModificacion(req, res));
 router.post('/:id/autorizar-creacion', autorizarCreacionVale, (req, res) => valeController.autorizarCreacion(req, res));
@@ -123,6 +124,7 @@ router.post('/:id/mensajes', escribirConversacion, (req, res) => valeController.
 router.post('/:id/reenviar', corregirVale, (req, res) => valeController.reenviar(req, res));
 router.post('/:id/visto', requirePermission('vales.supervisar'), (req, res) => valeController.marcarVisto(req, res));
 router.post('/:id/dar-de-baja', darDeBajaVale, (req, res) => valeController.darDeBaja(req, res));
+router.post('/:id/talleres/:tallerId/baja', darDeBajaVale, (req, res) => valeController.darDeBajaTaller(req, res));
 router.post('/:id/corregir', corregirVale, camposAdjuntos, (req, res) => valeController.corregir(req, res));
 
 module.exports = router;

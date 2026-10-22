@@ -3,7 +3,6 @@ import { ROL } from './config/roles.js';
 import { roomsParaUsuario } from './permisos.js';
 import { refreshToken, logout } from './api/authApi.js';
 import { cargarBuzon } from './views/buzon.js';
-import { actualizarRendimientoEnVivo } from './views/rendimientoGerencia.js';
 import { avisarCambioEnModalAutorizar } from './actions/supervisor.js';
 
 export function reproducirBeep() {
@@ -56,24 +55,26 @@ export function initSocket() {
     // notificación duplicada. Se sigue refrescando el buzón igual, solo se
     // omite el aviso.
     if (data.tipo === 'CORREGIDO') avisarCambioEnModalAutorizar(data.valeId);
-    if (['MENSAJE_RECHAZO', 'ADJUNTOS_VERIFICADOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'].includes(data.tipo) && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId) {
+    const EVENTOS_CHAT = ['MENSAJE_RECHAZO', 'ADJUNTOS_VERIFICADOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS', 'MOD_BASICA_MENSAJE', 'MOD_BASICA_ACEPTADA', 'MOD_BASICA_RECHAZADA', 'MOD_BASICA_CANCELADA'];
+    if (EVENTOS_CHAT.includes(data.tipo) && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId) {
       state.conversacionAbierta.refrescar();
     }
     // Cambió el estado del adjunto de este vale: el modal del asesor quedó desactualizado y se cierra (el buzón se refresca abajo).
     if (['ADJUNTOS_VERIFICADOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'].includes(data.tipo) && state.adjuntosModalAbierto && state.adjuntosModalAbierto.valeId === data.valeId) {
       state.adjuntosModalAbierto.cerrar();
     }
-    const conversacionVisible = data.tipo === 'MENSAJE_RECHAZO' && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId;
+    const conversacionVisible = ['MENSAJE_RECHAZO', 'MOD_BASICA_MENSAJE'].includes(data.tipo) && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId;
     const esPropiaAccion = data.actorId != null && data.actorId === state.user.id;
     if (!esPropiaAccion && !conversacionVisible) { // con la conversación abierta no se repite cartel ni beep
       const esAlerta = data.nivel === 'alerta';
       window.toast[esAlerta ? 'error' : 'info'](esAlerta ? 'Atención' : 'Vale de arte', data.mensaje);
       if (data.beep !== false) reproducirBeep();
     }
-    refrescarPantalla();
+    // Un mensaje del chat de una básica no cambia ninguna fila de la lista: el chat abierto se actualiza arriba.
+    if (data.tipo !== 'MOD_BASICA_MENSAJE') programarRecarga();
   });
   // Solo refresco, sin toast ni beep (ver `refrescar` en events.js).
-  state.socket.on('vale_refrescar', () => refrescarPantalla());
+  state.socket.on('vale_refrescar', () => programarRecarga());
   // Canal aparte de `vale_evento` (ver events.js) — llega a CUALQUIER vista
   // que tenga abierto el historial de ESTE vale, sin importar el rol ni si
   // esa vista está en alguna de las salas por rol de `vale_evento`. Nunca
@@ -85,16 +86,25 @@ export function initSocket() {
   });
 }
 
+let recargaProgramada = null;
+let recargaDiferida = false;
+
+// Los eventos seguidos comparten una sola recarga; con la pestaña oculta se espera a que vuelva a verse.
+function programarRecarga() {
+  if (document.hidden) { recargaDiferida = true; return; }
+  if (recargaProgramada) return;
+  recargaProgramada = setTimeout(() => { recargaProgramada = null; refrescarPantalla(); }, 400);
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !recargaDiferida) return;
+  recargaDiferida = false;
+  programarRecarga();
+});
+
 function refrescarPantalla() {
-  // La vista Rendimiento (Supervisor) se refresca en silencio y con rebote
-  // (ver actualizarRendimientoEnVivo) en vez de recargar un buzón que esa
-  // vista ni siquiera muestra.
-  const enVistaRendimiento = [ROL.SUPERVISOR, ROL.GERENTE].includes(state.user.rolId) && state.vista === 'rendimiento';
-  if (enVistaRendimiento) {
-    actualizarRendimientoEnVivo();
-  } else {
-    cargarBuzon();
-  }
+  // Reportes se actualiza a mano con su botón «Actualizar».
+  if (state.vista !== 'reportes') cargarBuzon();
   if (state.cargaTrabajoModal) {
     if (state.cargaTrabajoModal.overlay.isConnected) {
       state.cargaTrabajoModal.actualizar();

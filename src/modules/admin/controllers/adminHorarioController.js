@@ -35,6 +35,14 @@ class AdminHorarioController {
     }
   }
 
+  async guardarRetencion(req, res) {
+    try {
+      return res.json(await service.guardarRetencion(req.body));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async listarPaises(req, res) {
     try {
       return res.json(await service.listarPaises());

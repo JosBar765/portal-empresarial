@@ -17,12 +17,16 @@ const CONTADORES_POR_PASO = [
   { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
 ];
 
+// Trabajo realizado: vales entregados con atraso; se combina con las demás tarjetas y se recalcula con ellas.
+const ATRASADOS_TRABAJO = { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true };
+
 export const CONTADORES_CONFIG = {
   [ROL.ASESOR]: {
     buzon: CONTADORES_POR_PASO,
     trabajo: [
       { key: 'recibidosHoy', label: 'Recibidos hoy', filtro: 'recibidosHoy' },
-      { key: 'totalRecibidos', label: 'Total recibidos', filtro: 'totalRecibidos' }
+      { key: 'totalRecibidos', label: 'Total recibidos', filtro: 'totalRecibidos' },
+      ATRASADOS_TRABAJO
     ]
   },
   [ROL.SUPERVISOR]: {
@@ -32,9 +36,10 @@ export const CONTADORES_CONFIG = {
     // Dos grupos — lo que él autorizó, y lo que sus asesores confirmaron de recibido.
     trabajo: [
       { key: 'autorizadosHoy', label: 'Autorizados hoy', filtro: 'autorizadosHoy' },
-      { key: 'totalAutorizados', label: 'Total autorizados', filtro: 'totalAutorizados' },
       { key: 'confirmadosHoy', label: 'Confirmados hoy', filtro: 'confirmadosHoy' },
-      { key: 'totalConfirmados', label: 'Total confirmados', filtro: 'totalConfirmados' }
+      { key: 'totalAutorizados', label: 'Total autorizados', filtro: 'totalAutorizados' },
+      { key: 'totalConfirmados', label: 'Total confirmados', filtro: 'totalConfirmados' },
+      ATRASADOS_TRABAJO
     ]
   },
   // Encargado de un taller (cualquiera de los roles de encargado). Las
@@ -46,37 +51,35 @@ export const CONTADORES_CONFIG = {
     buzon: [
       { key: 'porAsignar', label: 'Por asignar', filtro: 'porAsignar' },
       { key: 'asignadosDisenadores', label: 'Asignado', quien: 'Diseñadores', filtro: 'asignadosDisenadores' },
-      { key: 'misAsignaciones', label: 'Mis asignaciones', filtro: 'misAsignaciones' },
       { key: 'porRevisar', label: 'Por revisar', filtro: 'porRevisar' },
       { key: 'pendientesFusion', label: 'Por fusionar', filtro: 'pendientesFusion', permiso: PERMISO_FUSION },
+      { key: 'misAsignaciones', label: 'Mis asignaciones', filtro: 'misAsignaciones' },
       { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
     ],
     trabajo: [
       { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' },
-      { key: 'totalAprobados', label: 'Total aprobados', filtro: 'totalAprobados' },
       { key: 'fusionadosHoy', label: 'Fusionados hoy', filtro: 'fusionadosHoy', permiso: PERMISO_FUSION },
-      { key: 'totalFusionados', label: 'Total fusionados', filtro: 'totalFusionados', permiso: PERMISO_FUSION }
+      { key: 'totalAprobados', label: 'Total aprobados', filtro: 'totalAprobados' },
+      { key: 'totalFusionados', label: 'Total fusionados', filtro: 'totalFusionados', permiso: PERMISO_FUSION },
+      ATRASADOS_TRABAJO
     ]
   },
   [ROL.DISENADOR]: {
     buzon: [
       { key: 'asignados', label: 'Mis asignaciones (Sin retraso)', filtro: 'asignados' },
       { key: 'asignadosAtrasados', label: 'Mis asignaciones (Con atraso)', alerta: true, filtro: 'asignadosAtrasados' },
+      { key: 'enRevision', label: 'En revisión', filtro: 'enRevision' },
       { key: 'enProceso', label: 'Vale en proceso', esTexto: true }
     ],
     trabajo: [
       { key: 'totalAprobados', label: 'Total aprobados' },
-      { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' }
+      { key: 'aprobadosHoy', label: 'Aprobados hoy', filtro: 'aprobadosHoy' },
+      ATRASADOS_TRABAJO
     ]
   }
 };
 CONTADORES_CONFIG[ROL.ENCARGADO_UV3D] = CONTADORES_CONFIG[ROL.ENCARGADO_DISENO];
 CONTADORES_CONFIG[ROL.ENCARGADO_PROTEXTIL] = CONTADORES_CONFIG[ROL.ENCARGADO_DISENO];
 CONTADORES_CONFIG[ROL.ENCARGADO_DISENO_LOCAL] = CONTADORES_CONFIG[ROL.ENCARGADO_DISENO];
-CONTADORES_CONFIG[ROL.ADMINISTRADOR] = [ // vista de control general
-  { key: 'total', label: 'Total vales' },
-  { key: 'pendientesConfirmacion', label: 'Pend. confirmación', filtro: 'pendientesConfirmacion' },
-  { key: 'aprobadoDepartamento', label: 'Por fusionar', filtro: 'aprobadoDepartamento' },
-  { key: 'atrasados', label: 'Atrasados', alerta: true, filtro: 'atrasados' }
-];
-CONTADORES_CONFIG[ROL.GERENTE] = CONTADORES_CONFIG[ROL.ADMINISTRADOR]; // solo lectura, misma vista general
+CONTADORES_CONFIG[ROL.ADMINISTRADOR] = CONTADORES_CONFIG[ROL.ASESOR]; // vista general: la misma del asesor, con los vales de todos
+CONTADORES_CONFIG[ROL.GERENTE] = CONTADORES_CONFIG[ROL.ADMINISTRADOR]; // solo lectura, misma vista

@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { $ } from './utils/dom.js';
 import { ROL, ROLES_TALLER_Y_DISENADOR, ROLES_ENCARGADO_TALLER, rolEncargadoDe } from './config/roles.js';
-import { puede } from './permisos.js';
+import { puede, tienePermiso } from './permisos.js';
 import { inicialesAvatar } from './utils/formato.js';
 import { sessionCheck, logout } from './api/authApi.js';
 import { obtenerCatalogos } from './api/valesApi.js';
@@ -15,6 +15,7 @@ import { initSocket } from './socket.js';
 import { iniciarTooltipPipeline } from './components/pipeline.js';
 import { cargarBuzon, wireScrollInfinito } from './views/buzon.js';
 import { abrirModalCrearVale } from './forms/valeForm.js';
+import { iniciarBorradores } from './forms/borradores.js';
 import { abrirModalCargaTrabajo } from './actions/cargaTrabajo.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -46,6 +47,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('.buzon-table').classList.toggle('oculta-fechas', ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)));
 
   $('#btn-nuevo-vale').style.display = puede('crear') ? 'flex' : 'none';
+  // Los borradores exigen el permiso vales.crear en el servidor (el administrador ve el botón de crear pero no lo tiene).
+  const conBorradores = puede('crear') && tienePermiso('vales.crear');
+  $('#btn-borradores').style.display = conBorradores ? 'flex' : 'none';
   // La carga de trabajo es una herramienta de gestión del propio equipo del
   // encargado de UN taller; el administrador ya ve todo desde el buzón
   // general, por lo que no aplica para él.
@@ -72,5 +76,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.location.href = '/login/';
   });
   $('#btn-nuevo-vale').addEventListener('click', () => abrirModalCrearVale());
+  if (conBorradores) iniciarBorradores();
   $('#btn-carga-trabajo').addEventListener('click', () => abrirModalCargaTrabajo());
 });

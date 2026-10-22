@@ -91,9 +91,50 @@ class ReporteRepository {
     );
   }
 
+  // Solo las tiendas que cubre un supervisor (mismo nombre derivado que `listarTiendas`).
+  async listarTiendasPorSupervisor(usuarioId) {
+    return db.query(
+      `SELECT t.id, CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS nombre
+       FROM tiendas t
+       JOIN empresas e ON e.id = t.empresa_id
+       LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
+       JOIN supervisor_tiendas st ON st.tienda_id = t.id AND st.usuario_id = ?
+       ORDER BY nombre`,
+      [usuarioId],
+      'reporte:tiendas_supervisor'
+    );
+  }
+
+  // Opciones de los filtros de Reportes.
+  async listarAsesores() {
+    return db.query(
+      `SELECT u.id, u.nombre FROM usuarios u JOIN asesores a ON a.usuario_id = u.id WHERE u.activo = 1 ORDER BY u.nombre`,
+      [], 'reporte:asesores'
+    );
+  }
+
+  // Quienes trabajan vales: diseñadores asignados a un taller, encargados de taller (también trabajan vales asignados a sí mismos),
+  // asistentes y cualquier persona con vales asignados; con su rol y los talleres (`taller_ids`, separados por coma) donde trabajan.
+  async listarDisenadores() {
+    return db.query(
+      `SELECT u.id, u.nombre, u.rol_id, r.hereda_de_rol_id, GROUP_CONCAT(DISTINCT x.taller_id) AS taller_ids
+       FROM usuarios u
+       JOIN roles r ON r.id = u.rol_id
+       JOIN (
+         SELECT usuario_id, taller_id FROM taller_disenadores
+         UNION SELECT encargado_id AS usuario_id, id AS taller_id FROM talleres WHERE encargado_id IS NOT NULL AND activo = 1
+         UNION SELECT disenador_id AS usuario_id, taller_id FROM vale_talleres WHERE disenador_id IS NOT NULL
+       ) x ON x.usuario_id = u.id
+       WHERE u.activo = 1
+       GROUP BY u.id, u.nombre, u.rol_id, r.hereda_de_rol_id
+       ORDER BY u.nombre`,
+      [], 'reporte:disenadores'
+    );
+  }
+
   async listarNombres(usuarioIds) {
     if (!usuarioIds.length) return [];
-    return db.query('SELECT id, nombre FROM usuarios WHERE id IN (?)', [usuarioIds], 'reporte:nombres');
+    return db.query('SELECT u.id, u.nombre, u.rol_id, r.hereda_de_rol_id FROM usuarios u JOIN roles r ON r.id = u.rol_id WHERE u.id IN (?)', [usuarioIds], 'reporte:nombres');
   }
 }
 

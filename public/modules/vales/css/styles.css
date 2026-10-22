@@ -1,8 +1,11 @@
 /* public/modules/vales/css/styles.css */
 @import url('/css/dashboard.css');
-@import url('/modules/vales/css/rendimiento.css');
-@import url('/modules/vales/css/encontrar-vale.css');
 @import url('/modules/vales/css/reportes.css');
+@import url('/modules/vales/css/calendario-info.css');
+@import url('/modules/vales/css/visor.css');
+@import url('/modules/vales/css/adjuntos.css');
+@import url('/modules/vales/css/vigentes.css');
+@import url('/modules/vales/css/propuestasOtros.css');
 
 .header-back {
   color: var(--color-text-secondary);
@@ -276,128 +279,6 @@
   flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 24px;
-}
-
-.ventana-selector {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.chip {
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
-  padding: 8px 16px;
-  border-radius: var(--radius-full);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
-  /* Evita que el resaltado táctil por defecto (móvil) pinte todo el botón oscuro
-     mientras se presiona, dejando el texto ilegible antes de soltar el toque. */
-  -webkit-tap-highlight-color: transparent;
-}
-
-.chip:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.chip-active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: #FFFFFF;
-}
-
-.chip-active:hover {
-  background: var(--color-primary);
-  border-color: var(--color-primary-light);
-  color: #FFFFFF;
-}
-
-.mes-nav {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  border-radius: var(--radius-full);
-  padding: 2px;
-  transition: border-color var(--transition-fast), opacity var(--transition-fast);
-}
-
-.mes-nav.is-activo {
-  border-color: var(--color-primary);
-}
-
-
-.mes-nav button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  border-radius: var(--radius-full);
-  color: var(--color-text-secondary);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.mes-nav button:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
-.mes-nav.is-activo .mes-nav-etiqueta {
-  color: var(--color-primary);
-}
-
-.mes-nav-flecha {
-  width: 30px;
-  height: 30px;
-}
-
-.mes-nav-etiqueta {
-  gap: 6px;
-  min-width: 130px;
-  padding: 0 10px;
-  height: 30px;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
-}
-
-.mes-nav-etiqueta:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-primary);
-}
-
-.mes-nav-etiqueta ion-icon {
-  font-size: 14px;
-  transition: transform var(--transition-fast);
-}
-
-.mes-nav-etiqueta[aria-expanded="true"] ion-icon {
-  transform: rotate(180deg);
-}
-
-.mes-nav-etiqueta:focus-visible,
-.mes-nav-flecha:focus-visible,
-.chip:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-.ventana-rango {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.ventana-rango-sep {
-  color: var(--color-text-muted);
-  font-size: 12px;
 }
 
 /* Contadores */
@@ -738,6 +619,17 @@
 }
 
 /* Un vale original con una solicitud de modificación en trámite. */
+.vale-empresa {
+  display: block;
+  max-width: 240px;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
 .badge-mod {
   background: var(--color-primary-light);
   color: var(--color-primary);
@@ -1459,8 +1351,9 @@
 }
 
 .dp-mes:hover { background: var(--color-surface-muted); }
-.dp-mes.is-actual { color: var(--color-primary); font-weight: 700; }
-.dp-mes.is-selected { background: var(--color-primary); color: #fff; font-weight: 700; }
+.dp-mes.is-actual { color: var(--color-primary-dark); font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--color-primary-dark); }
+.dp-mes.is-selected { background: var(--color-primary-dark); color: #fff; font-weight: 700; box-shadow: none; }
+.dp-mes.is-selected:hover { background: var(--color-primary-dark-hover); }
 
 .dp-pie {
   display: flex;
@@ -1532,15 +1425,22 @@
   background: var(--color-surface-muted);
 }
 
+/* Hoy: anillo fino; seleccionado: relleno azul oscuro (el de los botones y del segmento activo de Reportes), con texto blanco. */
 .dp-day.is-today {
-  color: var(--color-primary);
+  color: var(--color-primary-dark);
   font-weight: 700;
+  box-shadow: inset 0 0 0 1.5px var(--color-primary-dark);
 }
 
 .dp-day.is-selected {
-  background: var(--color-primary);
+  background: var(--color-primary-dark);
   color: #FFFFFF;
   font-weight: 700;
+  box-shadow: none;
+}
+
+.dp-day.is-selected:hover:not(.is-disabled) {
+  background: var(--color-primary-dark-hover);
 }
 
 .dp-day.is-disabled {
@@ -1654,23 +1554,6 @@
   font-size: 12px;
   color: var(--color-text-secondary);
 }
-
-/* Aviso bajo las fechas: el vale se marcará urgente solo, sin casilla. */
-.aviso-urgente {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
-  border-radius: var(--radius-sm);
-  background: var(--color-warning-bg);
-  color: var(--vale-estado-pendiente-confirmacion-fg);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.aviso-urgente[hidden] { display: none; }
-.aviso-urgente ion-icon { flex: 0 0 auto; font-size: 18px; color: var(--color-warning); }
 
 .motivo-rechazo {
   margin: 0;
@@ -1866,23 +1749,6 @@
     align-items: stretch;
   }
 
-  .ventana-selector {
-    justify-content: space-between;
-  }
-
-  .ventana-rango {
-    width: 100%;
-  }
-
-  .ventana-rango .date-field-compact {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .ventana-rango .date-field-compact .date-field-trigger {
-    width: 100%;
-  }
-
   .vales-toolbar .btn {
     width: 100%;
   }
@@ -2066,9 +1932,6 @@
     margin-right: 0;
   }
   .sidebar-item { min-height: 44px; }
-  .chip, .ventana-selector .chip { min-height: 44px; padding-left: 16px; padding-right: 16px; }
-  .mes-nav-flecha { min-width: 44px; min-height: 44px; }
-  .mes-nav-etiqueta { min-height: 44px; }
   .date-field-trigger, .filtro-tienda { min-height: 44px; }
   .btn-icon { width: 44px; height: 44px; }
   .btn { min-height: 44px; }
@@ -2094,11 +1957,8 @@
 }
 
 @media (max-width: 560px) {
-  /* La barra de período (Todo/Hoy/mes/rango + tienda) no debe ensanchar la página. */
-  .vales-toolbar, .ventana-selector, .ventana-rango { max-width: 100%; min-width: 0; }
-  .ventana-selector { flex-wrap: wrap; row-gap: 8px; }
-  .ventana-rango { flex-wrap: wrap; }
-  .mes-nav { max-width: 100%; }
+  /* La barra de período (Hoy/Día/Semana/Mes/rango + tienda) no debe ensanchar la página. */
+  .vales-toolbar { max-width: 100%; min-width: 0; }
   #filtro-tienda { width: 100%; max-width: 100%; }
 }
 
@@ -2107,29 +1967,33 @@
   .dp-day { width: 100%; min-width: 34px; height: 38px; }
 }
 
-/* Quién está detrás del vale, bajo el correlativo (asesor para el Supervisor; diseñador para el Encargado). */
+/* Quién está detrás del vale, bajo el correlativo (asesor para el Supervisor; diseñador y asesor para el Encargado). */
 .persona-badge {
   display: flex;
   width: fit-content;
   align-items: center;
   gap: 4px;
   max-width: 100%;
-  margin-top: 4px;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
+  margin-top: 2px;
+  padding: 0;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.persona-badge ion-icon { font-size: 13px; flex-shrink: 0; }
-.persona-badge--asesor { background: var(--color-surface-muted); color: var(--color-text-secondary); }
-.persona-badge--disenador { background: var(--color-primary-light); color: var(--color-primary-dark); }
-.persona-badge--libre { background: var(--color-warning-bg, #fef3c7); color: var(--color-warning, #b45309); }
+.persona-badge ion-icon { font-size: 12px; flex-shrink: 0; opacity: .75; }
+/* Información de apoyo: texto pequeño y apagado, sin fondo, para no competir con el correlativo */
+.persona-badge--asesor { color: var(--color-text-muted); }
+.persona-badge--disenador { color: var(--color-text-secondary); }
+/* Encargado: asesor y diseñador juntos, en pila compacta */
+.persona-badges { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; max-width: 100%; margin-top: 2px; }
+.persona-badges .persona-badge { margin-top: 0; }
+.persona-badge--libre { color: var(--color-warning, #b45309); font-weight: 600; }
 @media (max-width: 560px) {
   .buzon-table td[data-label="Correlativo"] { flex-wrap: wrap; justify-content: flex-end; }
+  .buzon-table td[data-label="Correlativo"] .vale-empresa { flex-basis: 100%; max-width: none; text-align: right; }
   .persona-badge { margin-top: 0; }
 }
 
@@ -2190,6 +2054,60 @@
 .chip-estado--tiempo { background: #fef3c7; color: #92400e; }
 .chip-estado--taller { background: var(--color-surface-muted); color: var(--color-text); }
 .chip-estado--cerrado { background: var(--color-surface-muted); color: var(--color-text-muted); }
+/* Un botón con el atributo hidden (p. ej. las decisiones del chat de la modificación básica) no se muestra */
+.btn[hidden] { display: none; }
+
+/* Selector del tipo de modificación */
+.mod-intro { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
+.mod-tipos { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.mod-tipo { display: block; cursor: pointer; }
+.mod-tipo-cuerpo { display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 14px; background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: var(--radius-md); transition: border-color var(--transition-fast), background var(--transition-fast); }
+.mod-tipo:hover .mod-tipo-cuerpo { border-color: var(--color-border-focus); }
+.mod-tipo input:focus-visible + .mod-tipo-cuerpo { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.mod-tipo input:checked + .mod-tipo-cuerpo { border-color: var(--color-primary); background: var(--color-primary-light); }
+.mod-tipo-cab { display: flex; align-items: center; gap: 6px; font-size: 15px; }
+.mod-tipo-cab ion-icon { font-size: 20px; color: var(--color-primary); }
+.mod-tipo-dias { padding: 1px 8px; font-size: 11px; font-weight: 600; color: var(--color-text-secondary); background: var(--color-surface-muted); border-radius: var(--radius-full); }
+.mod-tipo input:checked + .mod-tipo-cuerpo .mod-tipo-dias { background: var(--color-surface); }
+.mod-tipo-marca { flex: none; width: 18px; height: 18px; margin-left: auto; background: var(--color-surface); border: 2px solid var(--color-border); border-radius: 50%; }
+.mod-tipo input:checked + .mod-tipo-cuerpo .mod-tipo-marca { background: var(--color-primary); border-color: var(--color-primary); box-shadow: inset 0 0 0 3px var(--color-surface); }
+.mod-tipo-resumen { font-size: 13px; font-weight: 500; }
+.mod-tipo-ejemplo { font-size: 12px; color: var(--color-text-muted); }
+.mod-tipo-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 6px; }
+.mod-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; font-size: 11.5px; color: var(--color-text-secondary); background: var(--color-surface-muted); border-radius: var(--radius-full); }
+.mod-chip ion-icon { font-size: 13px; }
+.mod-tipo input:checked + .mod-tipo-cuerpo .mod-chip { background: var(--color-surface); }
+.mod-aviso { display: flex; align-items: center; gap: 6px; margin: 12px 0 0; font-size: 12.5px; color: var(--color-text-secondary); }
+.mod-aviso ion-icon { flex: none; font-size: 16px; color: var(--color-primary); }
+.mod-info { margin-top: 12px; }
+.mod-info summary { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--color-primary); cursor: pointer; list-style: none; }
+.mod-info summary::-webkit-details-marker { display: none; }
+.mod-info summary ion-icon { font-size: 18px; }
+.mod-info-lista { margin: 8px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--color-text-secondary); }
+.mod-info-lista li { margin-bottom: 4px; }
+/* Modificación básica: solicitud, chat y lista de conversaciones */
+.campo-grupo { margin: 12px 0; padding: 0; border: 0; }
+.campo-grupo legend { margin-bottom: 6px; padding: 0; font-size: 13px; font-weight: 600; }
+.opcion-taller { display: flex; align-items: center; gap: 8px; padding: 9px 12px; margin-bottom: 6px; font-size: 13px; border: 1.5px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; }
+.opcion-taller:hover { border-color: var(--color-border-focus); }
+.opcion-taller:has(input:checked) { border-color: var(--color-primary); background: var(--color-primary-light); }
+.mb-taller-unico { display: inline-flex; align-items: center; gap: 6px; margin: 12px 0 4px; padding: 4px 10px; font-size: 13px; font-weight: 600; background: var(--color-surface-muted); border-radius: var(--radius-full); }
+.mb-taller-unico ion-icon { font-size: 15px; color: var(--color-primary); }
+/* Modificación básica (sin vale MOD): con borde, para no confundirla con las etiquetas MOD rellenas. El rechazo va en ámbar: el rojo es de urgente y atraso. */
+.badge-basica { padding: 3px 9px; background: var(--color-surface); color: var(--color-primary-dark); border: 1px solid var(--color-border-focus); margin-left: 6px; cursor: help; }
+.badge-rechazada { background: #fef3c7; color: #92400e; margin-left: 6px; cursor: help; }
+.mb-etiqueta { display: block; margin: 12px 0 6px; font-size: 13px; font-weight: 600; }
+.mb-estado { margin: 8px 0 4px; font-size: 13px; font-weight: 500; }
+.mb-fechas { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 12.5px; color: var(--color-text-secondary); }
+.mb-fechas[hidden] { display: none; }
+.mb-fechas ion-icon { flex: none; font-size: 15px; }
+.btn--texto-peligro { color: var(--color-danger); }
+.btn--texto-peligro:hover:not(:disabled) { background: var(--color-danger-bg); }
+.lista-conversaciones { display: flex; flex-direction: column; gap: 8px; }
+.fila-conversacion { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; font: inherit; font-size: 13px; text-align: left; color: var(--color-text); background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; }
+.fila-conversacion:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+.fila-conversacion-taller { display: inline-flex; align-items: center; flex: 1; gap: 6px; font-weight: 600; }
+.fila-conversacion ion-icon { font-size: 16px; color: var(--color-text-muted); }
 
 /* Modal del asesor: una tarjeta por taller */
 .rechazo-lista { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
@@ -2325,3 +2243,23 @@
 .registro-mensaje { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; font-size: 13px; line-height: 1.4; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
 .registro-mensaje--taller { background: var(--color-primary-light); border-color: transparent; }
 .registro-meta { font-size: 11px; color: var(--color-text-secondary); }
+
+/* Casilla «Urgente» del formulario del vale */
+.urgente-opcion {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+.urgente-opcion:hover { background: var(--color-surface-muted); }
+.urgente-opcion:has(input:checked) { border-color: var(--color-warning); background: var(--color-warning-bg); }
+.urgente-opcion:has(input:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.urgente-opcion input { margin-top: 2px; flex: none; accent-color: var(--color-primary-dark); }
+.urgente-opcion, .urgente-opcion-texto { text-transform: none; letter-spacing: normal; }
+.urgente-opcion-texto { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
+.urgente-opcion-texto small { font-size: 12px; font-weight: 400; color: var(--color-text-secondary); }

@@ -1,11 +1,12 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
-import { verificarAdjuntos, rechazarAdjuntos, responderAdjuntos, obtenerConversacion, enviarMensajeRechazo } from '../api/valesApi.js';
+import { verificarAdjuntos, rechazarAdjuntos, responderAdjuntos, darDeBajaTallerVale, obtenerConversacion, enviarMensajeRechazo } from '../api/valesApi.js';
 import { escapeHtml, formatearFechaHora, inicialesAvatar } from '../utils/formato.js';
 import { puedeResponderAdjuntos } from '../permisos.js';
 import { state } from '../state.js';
 import { cargarBuzon } from '../views/buzon.js';
 
 const MAX_CARACTERES = 200;
+export const MAX_CARACTERES_CHAT = MAX_CARACTERES;
 const AVISO_CARACTERES = 170;
 const MENSAJE_POR_DEFECTO = 'Solventado';
 // Aviso en negrita en los paneles donde se escriben mensajes del rechazo.
@@ -17,7 +18,7 @@ const MOTIVOS_RAPIDOS = [
 ];
 
 // Contador «n/200» de un textarea con estados (normal, cerca del límite, excedido); habilita o no el botón.
-function wireContador(textarea, contador, boton, { obligatorio = true } = {}) {
+export function wireContador(textarea, contador, boton, { obligatorio = true } = {}) {
   const actualizar = () => {
     const n = Array.from(textarea.value).length;
     contador.textContent = `${n}/${MAX_CARACTERES}`;
@@ -127,7 +128,8 @@ function etiquetaDia(creadoEn) {
 
 const horaDe = (creadoEn) => String(creadoEn).replace('T', ' ').slice(11, 16);
 
-function htmlHilo(conversacion) {
+// `destacarMotivo`: en el chat de un rechazo el primer mensaje del taller es el motivo y se resalta; en otros chats no.
+export function htmlHilo(conversacion, { destacarMotivo = true } = {}) {
   if (!conversacion.mensajes.length) {
     return '<div class="chat-vacio"><ion-icon name="chatbubbles-outline" aria-hidden="true"></ion-icon><p>Aún no hay mensajes.</p></div>';
   }
@@ -139,7 +141,7 @@ function htmlHilo(conversacion) {
     diaActual = dia;
     const propio = m.autor_id === state.user.id;
     // El primer mensaje del taller es el motivo del rechazo: se destaca.
-    const esMotivo = !hayMotivo && m.lado === 'TALLER';
+    const esMotivo = destacarMotivo && !hayMotivo && m.lado === 'TALLER';
     if (esMotivo) hayMotivo = true;
     return `${separador}
       <div class="chat-fila ${propio ? 'chat-fila--propia' : ''}">
@@ -248,6 +250,7 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
 export function abrirModalAdjuntosPendientes(vale) {
   const adjuntos = vale.adjuntos || [];
   const puedeResponder = puedeResponderAdjuntos(vale);
+  const esMod = Number(vale.vale_original_id) > 0;
   const tarjetas = adjuntos.map(a => {
     if (a.estado === 'ADJUNTOS_RESPONDIDOS') {
       return `<li class="rechazo-tarjeta">
@@ -259,7 +262,7 @@ export function abrirModalAdjuntosPendientes(vale) {
     }
     return `<li class="rechazo-tarjeta rechazo-tarjeta--alerta">
       <div class="rechazo-cab"><strong>${escapeHtml(a.taller)}</strong><span class="chip-estado chip-estado--alerta">Rechazado por el taller</span></div>
-      <p class="rechazo-texto">Atiende el mensaje del taller. Si no se resuelve, el vale se elimina${a.vence_en ? ` el ${escapeHtml(formatearFechaHora(a.vence_en))}` : ''}.</p>
+      <p class="rechazo-texto">Atiende el mensaje del taller. Si no se resuelve, ${esMod ? 'la solicitud de modificación se elimina' : a.total_talleres >= 2 ? `el taller ${escapeHtml(a.taller)} se dará de baja de este vale` : 'el vale se elimina'}${a.vence_en ? ` el ${escapeHtml(formatearFechaHora(a.vence_en))}` : ''}.</p>
       ${puedeResponder ? `<div class="rechazo-acciones">
         <button class="btn btn--primary btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Leer y responder</button>
         <button class="btn btn--ghost btn--sm" data-responder="${Number(a.taller_id)}"><ion-icon name="checkmark-done-outline"></ion-icon> Ya lo atendí</button>
@@ -293,6 +296,34 @@ export function abrirModalAdjuntosPendientes(vale) {
       const adjunto = adjuntos.find(a => a.taller_id === Number(btn.dataset.responder));
       if (adjunto) abrirModalResponderAdjuntos(vale, adjunto, cerrarModal);
     });
+  });
+}
+
+// Confirmación de la baja de un solo taller; la abre el modal de «Dar de baja» del vale multitaller (asesor.js).
+export function abrirModalBajaTaller(vale, adjunto, cerrarPadre) {
+  const { overlay, cerrar } = abrirModal({
+    title: `Dar de baja a ${adjunto.taller} — ${vale.correlativo}`,
+    bodyHtml: `
+      <p style="font-size:14px;font-weight:600;margin-bottom:8px;">¿Estás seguro?</p>
+      <p style="font-size:13px;">Solo se quita a <strong>${escapeHtml(adjunto.taller)}</strong>: su conversación se cierra y deja de ver este vale. El vale sigue su curso con los demás talleres. Esta acción no se puede deshacer.</p>
+    `,
+    footerHtml: '<button class="btn btn--ghost" id="btn-volver">Cancelar</button><button class="btn btn--danger" id="btn-confirmar">Dar de baja al taller</button>'
+  });
+  overlay.querySelector('#btn-volver').addEventListener('click', cerrar);
+  const btn = overlay.querySelector('#btn-confirmar');
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try {
+      await darDeBajaTallerVale(vale.id, adjunto.taller_id);
+      window.toast.success('Taller dado de baja', `${adjunto.taller} ya no participa en ${vale.correlativo}.`);
+      cerrar();
+      cerrarPadre();
+      cargarBuzon();
+    } catch (error) {
+      mostrarErrorModal(overlay, error.message);
+      btn.disabled = false;
+      cargarBuzon();
+    }
   });
 }
 

@@ -127,6 +127,17 @@ function esValeDeModificacion(vale) {
   return vale.vale_original_id != null;
 }
 
+// Días hábiles mínimos (contados desde hoy) de la fecha de entrega según el tipo de modificación.
+// La básica no crea vale MOD: se resuelve conversando con el taller.
+const DIAS_HABILES_MODIFICACION = { BASICA: 1, MEDIA: 2, AVANZADA: 3 };
+const TIPOS_MODIFICACION_CON_VALE = ['MEDIA', 'AVANZADA'];
+
+// Código de un vale MOD: MOD-X, MOD2-X, MOD3-X… con X el correlativo del vale raíz, que nunca cambia.
+const PREFIJO_MOD = /^MODd*-/;
+const esCorrelativoMod = (correlativo) => PREFIJO_MOD.test(String(correlativo || ''));
+const correlativoBase = (correlativo) => String(correlativo || '').replace(PREFIJO_MOD, '');
+const armarCorrelativoMod = (base, numero) => `MOD${numero > 1 ? numero : ''}-${base}`;
+
 // El estado en que un vale espera la decisión del supervisor: un MOD- nace en SOLICITANDO_MODIFICACION.
 function estadoEnAutorizacion(vale) {
   return esValeDeModificacion(vale) ? ESTADOS.SOLICITANDO_MODIFICACION : ESTADOS.ESPERANDO_AUTORIZACION;
@@ -161,15 +172,18 @@ function estadoVisibleAsesor(vale) {
 function dentroDeVentana(vale, ventana) {
   if (!ventana || !ventana.tipo || ventana.tipo === 'todo') return true;
   const fv = new Date(`${String(vale.fecha_entrega).slice(0, 10)}T00:00:00`);
+  // Buzón: lo que se arrastra (entrega ANTERIOR al inicio del período) se ve igual; lo posterior no.
+  const arrastrado = () => !!ventana.incluirArrastrados;
 
   if (ventana.tipo === 'rango') {
     if (!ventana.desde && !ventana.hasta) return true;
-    if (ventana.desde && fv < new Date(`${ventana.desde}T00:00:00`)) return false;
+    if (ventana.desde && fv < new Date(`${ventana.desde}T00:00:00`)) return arrastrado();
     if (ventana.hasta && fv > new Date(`${ventana.hasta}T00:00:00`)) return false;
     return true;
   }
   if (ventana.tipo === 'mes') {
     const ref = new Date(`${ventana.fecha || hoyISO()}T00:00:00`);
+    if (fv < new Date(ref.getFullYear(), ref.getMonth(), 1)) return arrastrado();
     return fv.getFullYear() === ref.getFullYear() && fv.getMonth() === ref.getMonth();
   }
   return true;
@@ -190,7 +204,7 @@ function ordenarPorGrupos(vales, predicados) {
 
   const comparador = (a, b) => {
     if (a.atrasado !== b.atrasado) return a.atrasado ? -1 : 1;
-    if (a.atrasado) return new Date(a.fecha_entrega) - new Date(b.fecha_entrega);
+    if (a.atrasado) return (b.diasAtraso || 0) - (a.diasAtraso || 0) || new Date(a.fecha_entrega) - new Date(b.fecha_entrega);
     if (!!a.urgente !== !!b.urgente) return a.urgente ? -1 : 1;
     return new Date(a.fecha_entrega) - new Date(b.fecha_entrega);
   };
@@ -218,11 +232,20 @@ function normalizarDatetime(valor, finDelDia = false) {
   return limpio.length === 16 ? `${limpio}:00` : limpio;
 }
 
-// Urgente solo se calcula: entrega en menos de 3 días. El cliente no lo decide.
-function calcularUrgente(fechaEntregaNorm) {
-  const entrega = parsearUTC6(fechaEntregaNorm);
-  const diffDias = (entrega - new Date()) / (1000 * 60 * 60 * 24);
-  return diffDias < 3;
+// Urgente lo marca el asesor: sin urgente la entrega pide 3 días naturales de antelación; con urgente basta el mínimo del calendario
+// (no se salta la hora máxima de recibimiento). El formulario lo manda como casilla ('on' / 'true' / '1').
+const DIAS_MINIMOS_SIN_URGENTE = 3;
+function esUrgente(valor) {
+  return valor === true || valor === 1 || ['on', 'true', '1'].includes(String(valor).toLowerCase());
+}
+
+// Mensaje de un chat entre asesor y taller: texto no vacío de hasta 200 caracteres (se cuentan caracteres, no palabras).
+const MAX_CARACTERES_MENSAJE = 200;
+function validarMensajeChat(mensaje) {
+  const texto = String(mensaje == null ? '' : mensaje).trim();
+  if (!texto) throw new Error('Escribe un mensaje.');
+  if (Array.from(texto).length > MAX_CARACTERES_MENSAJE) throw new Error(`El mensaje no puede tener más de ${MAX_CARACTERES_MENSAJE} caracteres.`);
+  return texto;
 }
 
 const MAX_PALABRAS_MOTIVO = 50;
@@ -259,13 +282,18 @@ function assertPropioDelAsesor(usuario, vale) {
   }
 }
 
+// Un taller que ya respondió, aceptó o trabaja protege el vale del borrado por plazo de adjuntos vencido.
+const ESTADOS_SIN_PROTEGER = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RECHAZADOS];
+const algunTallerProtege = (filas) => filas.some(f => !ESTADOS_SIN_PROTEGER.includes(f.estado));
+
 module.exports = {
-  ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
+  algunTallerProtege, ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
   hoyISO, horaActual, calcularAtraso, enriquecer,
-  esValeDeModificacion, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
+  esValeDeModificacion, DIAS_HABILES_MODIFICACION, TIPOS_MODIFICACION_CON_VALE,
+  PREFIJO_MOD, esCorrelativoMod, correlativoBase, armarCorrelativoMod, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
-  normalizarDatetime, calcularUrgente, registrarHistorial,
-  requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo
+  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial,
+  requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo, validarMensajeChat
 };

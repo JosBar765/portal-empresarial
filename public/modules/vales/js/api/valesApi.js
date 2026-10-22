@@ -73,25 +73,33 @@ export async function obtenerCapacidadEntrega(talleresIds, anio, mes) {
 }
 
 // Mínima y días no disponibles (feriados, días sin recepción, hora máxima) de la fecha de entrega en un rango.
-export async function obtenerFechasEntrega(talleresIds, desde, hasta) {
+// `modificacion`: MEDIA o AVANZADA para el vale MOD (sin «urgente», con su mínimo en días hábiles).
+export async function obtenerFechasEntrega(talleresIds, desde, hasta, urgente = false, modificacion = null) {
   const qs = new URLSearchParams({ talleres: talleresIds.join(','), desde, hasta });
+  if (urgente) qs.set('urgente', '1');
+  if (modificacion) qs.set('modificacion', modificacion);
   const res = await fetch(`/api/vales/fechas-entrega?${qs.toString()}`);
   const data = await leerJSON(res);
   if (!res.ok) throw new Error(data.error || 'No se pudieron cargar las fechas de entrega disponibles.');
   return data;
 }
 
-export async function buscarValePorCorrelativo(correlativo) {
-  const res = await fetch(`/api/vales/buscar?correlativo=${encodeURIComponent(correlativo)}`);
+// Información por día del calendario desplegable del Buzón: cupo (Supervisor) o cantidad de vales (Diseñador y Encargado).
+export async function obtenerCalendarioBuzon(anio, mes) {
+  const res = await fetch(`/api/vales/calendario-buzon?anio=${anio}&mes=${mes}`);
   const data = await leerJSON(res);
-  if (!res.ok) throw new Error(data.error || 'No se pudo buscar el vale.');
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar la información del calendario.');
   return data;
 }
 
-export async function obtenerRendimientoGerencia(qs) {
-  const res = await fetch(`/api/vales/rendimiento-gerencia?${qs.toString()}`);
-  if (!res.ok) throw new Error('No se pudo cargar el rendimiento.');
-  return leerJSON(res);
+// Propuesta de un vale con su nota y enlaces: { tipo: 'taller' | 'general' | 'ultima', disenadorId }.
+export async function obtenerPropuestaVale(id, { tipo = 'ultima', disenadorId = null } = {}) {
+  const qs = new URLSearchParams({ tipo });
+  if (disenadorId) qs.set('disenadorId', disenadorId);
+  const res = await fetch(`/api/vales/${id}/propuesta?${qs.toString()}`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar la propuesta.');
+  return data;
 }
 
 export async function obtenerReporte(qs) {
@@ -132,6 +140,10 @@ export function asignarDisenador(valeId, disenadorId) {
 export async function obtenerDetalleVale(valeId) {
   const res = await fetch(`/api/vales/${valeId}`);
   return leerJSON(res);
+}
+
+export function marcarPropuestaOtroVisto(valeId, tallerId) {
+  return enviarPost(`/api/vales/${valeId}/propuestas-otros/${tallerId}/visto`);
 }
 
 export function revisarPropuesta(valeId, payload) {
@@ -190,6 +202,10 @@ export function darDeBajaVale(valeId) {
   return enviarPost(`/api/vales/${valeId}/dar-de-baja`);
 }
 
+export function darDeBajaTallerVale(valeId, tallerId) {
+  return enviarPost(`/api/vales/${valeId}/talleres/${tallerId}/baja`);
+}
+
 export function verificarAdjuntos(valeId) {
   return enviarJSON(`/api/vales/${valeId}/verificar-adjuntos`, {});
 }
@@ -217,12 +233,83 @@ export function corregirVale(valeId, formData) {
   return enviarFormData(`/api/vales/${valeId}/corregir`, formData);
 }
 
+// Modificación básica (sin vale MOD): solicitud y conversación entre el asesor y el taller.
+export function solicitarModificacionBasica(valeId, talleres, mensaje) {
+  return enviarJSON(`/api/vales/${valeId}/modificaciones-basicas`, { talleres, mensaje });
+}
+
+export async function listarModificacionesBasicas(valeId) {
+  const res = await fetch(`/api/vales/${valeId}/modificaciones-basicas`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudieron cargar las modificaciones.');
+  return data;
+}
+
+export async function obtenerConversacionBasica(valeId, modId) {
+  const res = await fetch(`/api/vales/${valeId}/modificaciones-basicas/${modId}/mensajes`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar la conversación.');
+  return data;
+}
+
+export function enviarMensajeBasica(valeId, modId, mensaje) {
+  return enviarJSON(`/api/vales/${valeId}/modificaciones-basicas/${modId}/mensajes`, { mensaje });
+}
+
+export function aceptarModificacionBasica(valeId, modId) {
+  return enviarPost(`/api/vales/${valeId}/modificaciones-basicas/${modId}/aceptar`);
+}
+
+export function rechazarModificacionBasica(valeId, modId) {
+  return enviarPost(`/api/vales/${valeId}/modificaciones-basicas/${modId}/rechazar`);
+}
+
+export function cancelarModificacionBasica(valeId, modId) {
+  return enviarPost(`/api/vales/${valeId}/modificaciones-basicas/${modId}/cancelar`);
+}
+
 export function aprobarModificacion(valeId) {
   return enviarPost(`/api/vales/${valeId}/aprobar-modificacion`);
 }
 
 export function rechazarModificacion(valeId, motivo) {
   return enviarJSON(`/api/vales/${valeId}/rechazar-modificacion`, { motivo });
+}
+
+// Borradores de vale: privados de quien los crea (permiso vales.crear).
+export async function listarBorradores() {
+  const res = await fetch('/api/vales/borradores');
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudieron cargar los borradores.');
+  return data;
+}
+
+export async function obtenerBorrador(borradorId) {
+  const res = await fetch(`/api/vales/borradores/${borradorId}`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo abrir el borrador.');
+  return data;
+}
+
+export async function guardarBorrador(formData) {
+  const res = await fetch('/api/vales/borradores', { method: 'POST', body: formData });
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo guardar el borrador.');
+  return data;
+}
+
+export async function actualizarBorrador(borradorId, formData) {
+  const res = await fetch(`/api/vales/borradores/${borradorId}`, { method: 'PUT', body: formData });
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo guardar el borrador.');
+  return data;
+}
+
+export async function eliminarBorrador(borradorId) {
+  const res = await fetch(`/api/vales/borradores/${borradorId}`, { method: 'DELETE' });
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo eliminar el borrador.');
+  return data;
 }
 
 export async function obtenerCargaTrabajo() {

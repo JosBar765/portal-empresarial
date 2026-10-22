@@ -1,91 +1,34 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
 import { ROL, ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
-import { obtenerDisenadoresAsignables } from '../api/valesApi.js';
-import { hoyMedianoche, isoLocal, parseIsoLocal, primerDiaDelMes, sumarDiaLocal } from '../utils/fechas.js';
-import { htmlCampoFechaCompacto, wireCampoFecha } from '../components/datepicker.js';
-import { wireSelectorPeriodo, etiquetaDia, etiquetaMes } from '../components/selectorPeriodo.js';
+import { obtenerDisenadoresAsignables, obtenerCalendarioBuzon } from '../api/valesApi.js';
+import { crearBarraPeriodo } from '../components/barraPeriodoReportes.js';
+import { ROLES_TALLER_Y_DISENADOR } from '../config/roles.js';
 import { cargarBuzon } from '../views/buzon.js';
 
+// «Ver reporte de este día»: abre la pestaña Reportes con período «Día» en esa fecha de entrega.
+function verReporteDelDia(iso) {
+  state.reporte.ventana = { tipo: 'dia', fecha: iso, desde: '', hasta: '' };
+  state.reporte.expandidos.clear();
+  const boton = document.querySelector('.sidebar-item[data-vista="reportes"]');
+  if (boton && boton.style.display !== 'none') boton.click();
+}
+
 export function wireToolbar() {
-  // El rango de fechas reusa el mismo componente de calendario propio de los
-  // modales (antes eran <input type="date"> nativos, cuyo ícono/calendario de
-  // fábrica del navegador desentonaba junto a los chips de la barra). Aquí sí
-  // necesita ser limpiable (filtro opcional, a diferencia de un campo de
-  // formulario requerido), de ahí el botón "×" propio de la variante compacta.
-  const rangoRoot = $('#ventana-rango');
-  rangoRoot.innerHTML = htmlCampoFechaCompacto('ventana-desde', 'Desde') +
-    '<span class="ventana-rango-sep">—</span>' +
-    htmlCampoFechaCompacto('ventana-hasta', 'Hasta');
-  const apiDesde = wireCampoFecha(rangoRoot, 'ventana-desde', { placeholder: 'Desde' });
-  const apiHasta = wireCampoFecha(rangoRoot, 'ventana-hasta', { placeholder: 'Hasta' });
-
-  const chipTodo = $('.chip[data-ventana="todo"]');
-  const chipHoy = $('.chip[data-ventana="hoy"]');
-  const mesNav = $('#mes-nav');
-
-  // Refleja state.ventana: «Todo» o «Hoy» resaltados; el selector resaltado con un mes o un día elegido (su
-  // etiqueta dice cuál) y las flechas solo activas en esos dos modos.
-  const pintarVentana = () => {
-    const { tipo, fecha } = state.ventana;
-    chipTodo.classList.toggle('chip-active', tipo === 'todo');
-    chipHoy.classList.toggle('chip-active', tipo === 'dia' && fecha === isoLocal(hoyMedianoche()));
-    mesNav.classList.toggle('is-activo', tipo === 'mes' || tipo === 'dia');
-    $('#mes-prev').disabled = $('#mes-next').disabled = tipo !== 'mes' && tipo !== 'dia';
-    const ref = parseIsoLocal(fecha) || new Date();
-    $('#mes-etiqueta-texto').textContent = tipo === 'dia' ? etiquetaDia(ref) : etiquetaMes(ref);
-  };
-  // Elegir un mes o un día reemplaza cualquier rango Desde/Hasta.
-  const limpiarRango = () => {
-    apiDesde.clear({ silent: true });
-    apiHasta.clear({ silent: true });
-    apiHasta.setMinDate(null);
-  };
-  const aplicarVentana = (ventana) => {
-    state.ventana = { desde: null, hasta: null, ...ventana };
-    limpiarRango();
-    pintarVentana();
-    cargarBuzon();
-  };
-  const irAlMes = (fechaMes) => aplicarVentana({ tipo: 'mes', fecha: isoLocal(primerDiaDelMes(fechaMes)) });
-  const irAlDia = (fechaDia) => aplicarVentana({ tipo: 'dia', fecha: isoLocal(fechaDia) });
-  const fechaElegida = () => parseIsoLocal(state.ventana.fecha);
-  // Las flechas avanzan de mes en mes o de día en día según lo elegido.
-  const mover = (paso) => {
-    const f = fechaElegida();
-    if (state.ventana.tipo === 'dia') irAlDia(sumarDiaLocal(f, paso));
-    else irAlMes(new Date(f.getFullYear(), f.getMonth() + paso, 1));
-  };
-
-  chipTodo.addEventListener('click', () => aplicarVentana({ tipo: 'todo', fecha: state.ventana.fecha }));
-  chipHoy.addEventListener('click', () => irAlDia(hoyMedianoche()));
-  $('#mes-prev').addEventListener('click', () => mover(-1));
-  $('#mes-next').addEventListener('click', () => mover(1));
-  wireSelectorPeriodo($('#mes-etiqueta'), {
+  // Misma barra de período que Reportes (Hoy · Día · Semana · Mes · Desde–Hasta), con su propio estado: state.ventana.
+  const cambiarVentana = (ventana) => { state.ventana = ventana; barra.pintar(); cargarBuzon(); };
+  // El Supervisor (con vales.ver_cupo) y el Asesor ven el cupo de los talleres por día; el Encargado/Asistente, cuántos vales tiene
+  // su taller; el Diseñador, cuántas asignaciones suyas.
+  const permisos = state.user.permissions || [];
+  const conInfoPorDia = permisos.includes('vales.ver_cupo') || state.user.rolId === ROL.ASESOR || ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user));
+  const barra = crearBarraPeriodo($('#ventana-barra'), {
+    prefijo: 'vt',
     obtener: () => state.ventana,
-    alElegir: ({ tipo, fecha }) => (tipo === 'dia' ? irAlDia(fecha) : irAlMes(fecha))
+    alCambiar: cambiarVentana,
+    cargarInfoMes: conInfoPorDia ? obtenerCalendarioBuzon : null,
+    alVerVales: (iso) => cambiarVentana({ ...state.ventana, tipo: 'dia', fecha: iso }),
+    alVerReporte: permisos.includes('vales.ver_reportes') ? verReporteDelDia : null
   });
-  pintarVentana();
-
-  const onRangoChange = () => {
-    const desde = apiDesde.getDate() ? isoLocal(apiDesde.getDate()) : null;
-    const hasta = apiHasta.getDate() ? isoLocal(apiHasta.getDate()) : null;
-    if (!desde && !hasta) {
-      // Al limpiar el rango, vuelve a "Todo", el valor por defecto.
-      state.ventana = { tipo: 'todo', fecha: state.ventana.fecha, desde: null, hasta: null };
-      pintarVentana();
-      cargarBuzon();
-      return;
-    }
-    state.ventana = { tipo: 'rango', fecha: state.ventana.fecha, desde, hasta };
-    pintarVentana();
-    cargarBuzon();
-  };
-  rangoRoot.querySelector('[data-date-field="ventana-desde"] input[type="hidden"]').addEventListener('change', () => {
-    apiHasta.setMinDate(apiDesde.getDate());
-    onRangoChange();
-  });
-  rangoRoot.querySelector('[data-date-field="ventana-hasta"] input[type="hidden"]').addEventListener('change', onRangoChange);
   // Búsqueda contra el servidor — corre sobre TODOS los vales del buzón, no
   // solo la página ya cargada; debounced para no disparar una petición por
   // cada tecla.
