@@ -28,13 +28,16 @@ const valeAdjuntosService = require('./valeAdjuntosService');
 module.exports = {
   // Reportes de actividad
   obtenerReporte: (...a) => valeReporteService.obtenerReporte(...a),
-  // `tipo`: 'actividad' (por defecto) o 'rendimiento' (no disponible para Asesor ni Diseñador).
-  generarReportePdf: async (usuario, filtros, tipo = 'actividad') => {
+  // `tipo`: 'actividad' (por defecto) o 'rendimiento' (no disponible para Asesor ni Diseñador). `enfoque` ('ventas' o 'taller'): qué reporte
+  // de Rendimiento imprimen el Administrador y el Gerente; los demás roles lo ignoran.
+  generarReportePdf: async (usuario, filtros, tipo = 'actividad', enfoque = 'ventas') => {
     if (!['actividad', 'rendimiento'].includes(tipo)) throw new ErrorDeNegocio('El tipo de reporte no es válido.');
+    if (!['ventas', 'taller'].includes(enfoque)) throw new ErrorDeNegocio('El enfoque del reporte no es válido.');
     const reporte = await valeReporteService.obtenerReporte(usuario, { ...filtros, tipo }, { maxFilas: valeReporteService.MAX_FILAS_PDF });
     if (tipo === 'rendimiento' && !(reporte.grupos && reporte.grupos.rendimiento)) throw new ErrorDeNegocio('El reporte de rendimiento no está disponible para tu rol.');
     reporte.tipo = tipo;
-    if (tipo === 'rendimiento') reporte.titulo = reporte.titulo.replace(/^Actividad/, 'Rendimiento');
+    reporte.enfoque = enfoque;
+    if (tipo === 'rendimiento') reporte.titulo = reporte.titulo.replace(/^Actividad/, 'Rendimiento') + (reporte.grupos.rendimiento.vistas ? ` · ${enfoque === 'taller' ? 'Taller' : 'Ventas'}` : '');
     const ahora = new Date(Date.now() - 6 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 16);
     const [f, h] = ahora.split(' ');
     const [y, m, d] = f.split('-');

@@ -94,12 +94,13 @@ class ValeReportePdfService {
     this._nuevaPagina(ctx);
     this._encabezado(ctx, reporte, generadoPor, ahora);
     if (reporte.tipo === 'rendimiento' && reporte.grupos && reporte.grupos.rendimiento) {
-      if (reporte.grupos.indicadoresTaller) this._contadores(ctx, reporte.grupos.indicadoresTaller);
-      // Administrador y Gerente traen dos bloques (asesores y diseñadores); los demás roles, uno.
-      for (const bloque of (reporte.grupos.rendimiento.bloques || [reporte.grupos.rendimiento])) {
-        this._grafica(ctx, bloque);
-        this._tablaRendimiento(ctx, bloque);
-      }
+      // Administrador y Gerente traen Ventas y Taller; se imprime el enfoque elegido y los contadores solo con el de Taller.
+      const { vistas } = reporte.grupos.rendimiento;
+      const enTaller = vistas ? reporte.enfoque === 'taller' : !!reporte.grupos.indicadoresTaller;
+      const bloque = vistas ? vistas[enTaller ? 'taller' : 'ventas'] : reporte.grupos.rendimiento;
+      if (enTaller) this._contadores(ctx, reporte.grupos.indicadoresTaller);
+      this._grafica(ctx, bloque);
+      this._tablaRendimiento(ctx, bloque);
     } else {
       this._actividad(ctx, reporte);
     }

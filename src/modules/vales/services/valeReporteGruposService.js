@@ -67,22 +67,30 @@ class ValeReporteGruposService {
 
     // Alcance y filtros: todo sobre los vales con entrega en el período.
     const filas = (v) => v._filasTaller || [];
-    const visibles = conTaller.filter(v => {
+    // El segundo parámetro apaga los filtros que no son de la vista (en Rendimiento global, Ventas no filtra por diseñador; Taller, ni por tienda ni por asesor).
+    const pasaFiltros = (v, { tienda = true, asesores = true, disenadores = true } = {}) => {
       if (alcance.rol === 'supervisor' && !(alcance.asesorIds || []).includes(v.asesor_id)) return false;
       if (alcance.rol === 'encargado' && !filas(v).some(f => (alcance.tallerIds || []).includes(f.taller_id))) return false;
-      if (tiendaId && v.tienda_id !== tiendaId) return false;
-      if (asesorSel.size && !asesorSel.has(v.asesor_id)) return false;
+      if (tienda && tiendaId && v.tienda_id !== tiendaId) return false;
+      if (asesores && asesorSel.size && !asesorSel.has(v.asesor_id)) return false;
       if (tallerId && !filas(v).some(f => f.taller_id === tallerId)) return false;
-      if (disSel.size && !filas(v).some(f => (!tallerId || f.taller_id === tallerId) && disSel.has(f.disenador_id))) return false;
+      if (disenadores && disSel.size && !filas(v).some(f => (!tallerId || f.taller_id === tallerId) && disSel.has(f.disenador_id))) return false;
       return true;
-    });
+    };
+    const visibles = conTaller.filter(v => pasaFiltros(v));
+    // Administrador/Gerente: Rendimiento reúne el reporte de Ventas (como el Supervisor) y el de Taller (como el Encargado), cada uno con sus filtros.
+    const esGlobal = alcance.rol === 'administrador';
+    const filasDelTaller = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : filas(v));
+    const visiblesVentas = esGlobal ? conTaller.filter(v => pasaFiltros(v, { disenadores: false })) : visibles;
+    const visiblesTaller = esGlobal ? conTaller.filter(v => pasaFiltros(v, { tienda: false, asesores: false }) && filasDelTaller(v).length) : visibles;
+    const paraFichas = esGlobal ? [...new Map([...visibles, ...visiblesVentas, ...visiblesTaller].map(v => [v.id, v])).values()] : visibles;
 
-    const propuestas = await propuestaRepository.listarUltimasPorVales(visibles.map(v => v.id));
+    const propuestas = await propuestaRepository.listarUltimasPorVales(paraFichas.map(v => v.id));
     const conExtra = await propuestaRepository.listarValesConExtra();
     const talleres = new Map((await tallerRepository.listarTodos()).map(t => [t.id, t.nombre]));
     const tiendas = new Map((await reporteRepository.listarTiendas()).map(t => [t.id, t.nombre]));
     const idsPersonas = new Set();
-    visibles.forEach(v => { idsPersonas.add(v.asesor_id); filas(v).forEach(f => { if (f.disenador_id) idsPersonas.add(f.disenador_id); }); });
+    paraFichas.forEach(v => { idsPersonas.add(v.asesor_id); filas(v).forEach(f => { if (f.disenador_id) idsPersonas.add(f.disenador_id); }); });
     const usuarios = await reporteRepository.listarNombres([...idsPersonas]);
     const nombres = new Map(usuarios.map(u => [u.id, u.nombre]));
     const nombresConRol = new Map(usuarios.map(u => [u.id, this.etiquetaNombre(u.nombre, u.rol_id, u.hereda_de_rol_id)]));
@@ -92,20 +100,20 @@ class ValeReporteGruposService {
     const propias = (v) => filas(v).filter(f => (alcance.tallerIds || []).includes(f.taller_id));
     // Al cierre, una parte cuenta como aprobada solo si el Encargado la aprobó a más tardar en el corte.
     const aprobadaAlCorte = (f) => f.estado === ESTADOS_TALLER.APROBADO && (!alCorte || !f.atraso_congelado_en || fechaDe(f.atraso_congelado_en) <= corte);
-    const terminadoTaller = (v) => {
+    const terminadoTaller = (v, propias) => {
       const p = propias(v);
       if (!p.length) return false;
       return (!alCorte && ESTADOS_VALE_TERMINADO_TALLER.includes(v.estado)) || p.every(aprobadaAlCorte);
     };
 
-    // Cada vale, con los datos que muestra la mini tabla.
-    const fichas = new Map(visibles.map(v => {
+    // Cada vale, con los datos que muestra la mini tabla; `esTaller` y `propias` fijan la definición de «entregado» (Ventas o Taller).
+    const fichar = (v, esTaller, propias) => {
       const urlPropuesta = v.propuesta_general_url || propuestas.get(v.id) || null;
       const conEnlaces = conExtra.fusion.has(v.id) || conExtra.propuestas.has(v.id) || !!v.propuesta_general_nota;
       const pipeline = calcularPipeline(v, { rolId: ROL.ADMINISTRADOR });
       // Vale con 2+ talleres activos (sin filas aún, los solicitados): el ojo muestra la propuesta de cada taller.
       const idsTaller = filas(v).length ? filas(v).map(f => f.taller_id) : String(v.talleres_solicitados || '').split(',').map(Number).filter(Boolean);
-      const terminado = esTaller ? terminadoTaller(v) : pipeline.terminado;
+      const terminado = esTaller ? terminadoTaller(v, propias) : pipeline.terminado;
       // Para el Encargado el atraso corre hasta que su taller aprueba (en revisión sigue contando).
       const aprobadoTaller = esTaller && (ESTADOS_VALE_TERMINADO_TALLER.includes(v.estado) || (propias(v).length > 0 && propias(v).every(f => f.estado === ESTADOS_TALLER.APROBADO)));
       // Foto al cierre del período (Rendimiento de un período cerrado), para todos los roles: «entregado» es lo que ya se había enviado al
@@ -119,7 +127,7 @@ class ValeReporteGruposService {
       const atrasadoFicha = abierto && vencido;
       // Precedencia: un vale atrasado va solo en su sección; luego entregado; el resto, no entregado.
       const seccion = atrasadoFicha ? 'atrasados' : (entregado ? 'entregados' : 'noEntregados');
-      return [v.id, {
+      return {
         seccion,
         id: v.id, correlativo: v.correlativo, cliente: v.cliente_nombre, esMod: esValeDeModificacion(v), urgente: !!Number(v.urgente),
         estado: v.estado, pipeline, terminado, disenadores: asignados.length ? asignados.join(', ') : 'Sin asignar',
@@ -129,8 +137,11 @@ class ValeReporteGruposService {
         // Días de atraso con que se entregó (hasta que la propuesta llegó al asesor, o hasta el corte); 0 si llegó a tiempo.
         diasTarde: entregado ? diasAtrasoAl(v, corte) : 0,
         tienePropuesta: !!urlPropuesta || conEnlaces, urlPropuesta, conEnlaces, multitaller: new Set(idsTaller).size >= 2
-      }];
-    }));
+      };
+    };
+    const fichas = new Map(paraFichas.map(v => [v.id, fichar(v, esTaller, propias)]));
+    // Rendimiento global de Taller: mismas reglas que el Encargado, sobre todas las filas de taller (o las del taller elegido).
+    const fichasTaller = esGlobal ? new Map(visiblesTaller.map(v => [v.id, fichar(v, true, filasDelTaller)])) : fichas;
 
     // Claves de agrupación de cada vale (un vale de varios talleres cuenta bajo cada uno).
     const clavesDe = (v) => {
@@ -191,7 +202,9 @@ class ValeReporteGruposService {
         .map(g => { const vales = g.vales.slice(0, Math.max(0, restanteVigentes)); restanteVigentes -= vales.length; return { ...g, vales }; })
         .filter(g => g.vales.length);
       // `sinEntregar`: de los atrasados que se arrastran, los que el taller aún no entrega (alimenta el contador «Atrasados sin entregar»).
-      return { total: todosVigentes.length, truncado: todosVigentes.length > MAX_VIGENTES, sinEntregar: todosVigentes.filter(v => !v.terminado).length, vales: todosVigentes.slice(0, MAX_VIGENTES), grupos: gruposVigentes };
+      // `sinEntregarTaller`: lo mismo con la definición de Taller (solo Administrador y Gerente, cuyas fichas son las de Ventas).
+      const sinEntregarTaller = esGlobal ? { sinEntregarTaller: visiblesTaller.filter(v => { const f = fichasTaller.get(v.id); return f.atrasado && !f.terminado; }).length } : {};
+      return { total: todosVigentes.length, truncado: todosVigentes.length > MAX_VIGENTES, sinEntregar: todosVigentes.filter(v => !v.terminado).length, ...sinEntregarTaller, vales: todosVigentes.slice(0, MAX_VIGENTES), grupos: gruposVigentes };
     }
 
     // Tres secciones (atrasados, no entregados, entregados): las mismas filas de la agrupación elegida, solo con los vales de cada una.
@@ -221,36 +234,21 @@ class ValeReporteGruposService {
       };
     }
     // Rendimiento «hasta hoy»: un vale cuya fecha de entrega aún no llega no puede contarse como no entregado; entra cuando llega su fecha.
-    const exigibles = visibles.filter(v => fechaDe(v.fecha_entrega) <= corte);
-    const indicadoresTaller = esTaller ? this._indicadoresTaller(exigibles, fichas) : null;
-    const hastaHoy = exigibles.length < visibles.length; // solo se anuncia «hasta hoy» si de verdad quedó algo fuera
-    // Administrador/Gerente: nombres de las personas elegidas en el filtro que no tienen vales en el período.
-    if (alcance.rol === 'administrador') {
-      const faltan = [...asesorSel, ...disSel].filter(id => !nombresConRol.has(id));
-      if (faltan.length) (await reporteRepository.listarNombres(faltan)).forEach(u => nombresConRol.set(u.id, this.etiquetaNombre(u.nombre, u.rol_id, u.hereda_de_rol_id)));
-    }
-    const datosRendimiento = this._rendimiento({ alcance, visibles: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol });
+    const exigiblesDe = (lista) => lista.filter(v => fechaDe(v.fecha_entrega) <= corte);
+    const exigibles = exigiblesDe(visiblesTaller);
+    const indicadoresTaller = esTaller || esGlobal ? this._indicadoresTaller(exigibles, fichasTaller) : null;
+    const hastaHoy = exigibles.length < visiblesTaller.length; // solo se anuncia «hasta hoy» si de verdad quedó algo fuera
+    const datosRendimiento = esGlobal
+      ? await this._rendimientoGlobal({ visiblesVentas: exigiblesDe(visiblesVentas), visiblesTaller: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, filasDe: filasDelTaller, tiendaId, tallerId, asesorSel, disSel, nombresConRol })
+      : this._rendimiento({ alcance, visibles: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol });
     return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento: datosRendimiento };
   }
 
   // Reporte de rendimiento: por persona, dos cifras comparadas, su % y sus atrasados, sobre los vales del período y con los filtros
-  // aplicados. Encargado/Asistente: asignados vs entregados por diseñador. Supervisor: creados vs autorizados por asesor. Administrador y
-  // Gerente: ambos bloques globales en `bloques`. Alimenta la gráfica y la tabla comparativa.
+  // aplicados. Encargado/Asistente: asignados vs entregados por diseñador. Supervisor: creados vs autorizados por asesor. Alimenta la
+  // gráfica y la tabla comparativa.
   _rendimiento({ alcance, visibles, hastaHoy, aprobada, corte, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol }) {
     if (!alcance.equipo) return null;
-    if (alcance.rol === 'administrador') {
-      // Sin lista fija de personas: las del período (o solo las elegidas en el filtro) y, en diseñadores, las filas del taller elegido.
-      const filasDe = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : filas(v));
-      const nombreDe = (id) => ({ id, nombre: nombresConRol.get(id) || `#${id}` });
-      const asesores = asesorSel.size ? [...asesorSel] : [...new Set(visibles.map(v => v.asesor_id))];
-      return {
-        clave: 'global',
-        bloques: [
-          this._bloqueAsesores({ personas: asesores.map(nombreDe), visibles, fichas }),
-          this._bloqueDisenadores({ personas: [...disSel].map(nombreDe), visibles, hastaHoy, aprobada, corte, filasDe, disSel, nombresConRol })
-        ]
-      };
-    }
     if (!(alcance.personas || []).length) return null;
     if (esTaller) {
       const filasDe = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : propias(v));
@@ -260,6 +258,34 @@ class ValeReporteGruposService {
       return this._bloqueAsesores({ personas: asesorSel.size ? alcance.personas.filter(p => asesorSel.has(p.id)) : alcance.personas, visibles, fichas });
     }
     return null;
+  }
+
+  // Administrador y Gerente: el reporte de Ventas y el de Taller completos, con todas las personas activas aunque no tengan vales.
+  async _rendimientoGlobal({ visiblesVentas, visiblesTaller, hastaHoy, aprobada, corte, fichas, filasDe, tiendaId, tallerId, asesorSel, disSel, nombresConRol }) {
+    const nombreDe = (id) => ({ id, nombre: nombresConRol.get(id) || `#${id}` });
+    // Quienes se eligieron en el filtro sin tener vales en el período se nombran con su etiqueta de rol.
+    const faltan = [...asesorSel, ...disSel].filter(id => !nombresConRol.has(id));
+    if (faltan.length) (await reporteRepository.listarNombres(faltan)).forEach(u => nombresConRol.set(u.id, this.etiquetaNombre(u.nombre, u.rol_id, u.hereda_de_rol_id)));
+    const activos = {
+      asesores: (await reporteRepository.listarAsesores(tiendaId)).map(a => ({ id: a.id, nombre: a.nombre })),
+      disenadores: (await reporteRepository.listarDisenadores())
+        .filter(d => !tallerId || String(d.taller_ids || '').split(',').map(Number).includes(tallerId))
+        .map(d => ({ id: d.id, nombre: this.etiquetaNombre(d.nombre, d.rol_id, d.hereda_de_rol_id) }))
+    };
+    const elegir = (lista, seleccion) => (seleccion.size ? [...seleccion].map(id => lista.find(p => p.id === id) || nombreDe(id)) : [...lista]);
+    const asesores = elegir(activos.asesores, asesorSel);
+    if (!asesorSel.size) {
+      // Quien tiene vales aunque ya no figure entre los asesores activos también tiene su fila.
+      const conocidos = new Set(asesores.map(p => p.id));
+      visiblesVentas.forEach(v => { if (!conocidos.has(v.asesor_id)) { conocidos.add(v.asesor_id); asesores.push(nombreDe(v.asesor_id)); } });
+    }
+    return {
+      clave: 'global',
+      vistas: {
+        ventas: this._bloqueAsesores({ personas: asesores, visibles: visiblesVentas, fichas }),
+        taller: this._bloqueDisenadores({ personas: elegir(activos.disenadores, disSel), visibles: visiblesTaller, hastaHoy, aprobada, corte, filasDe, disSel, nombresConRol })
+      }
+    };
   }
 
   // Asignados vs entregados por diseñador (entregado = aprobado por el Encargado al corte).
