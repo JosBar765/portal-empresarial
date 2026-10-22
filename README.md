@@ -147,3 +147,15 @@ El Dashboard detecta el módulo automáticamente y lo muestra a quien tenga los 
 *   **Autenticación**: El usuario ingresa a través del Login (`public/login/index.html`). El controlador central valida sus credenciales y emite un **JWT de acceso** de corta vida más un **refresh token** rotativo, ambos en cookies httpOnly; la identidad del usuario sale siempre de `req.user`, nunca del cuerpo de la petición. Especificación: `.agents/reglas/reglas_autenticacion.md`.
 *   **Permisos**: La plataforma implementa un control de acceso basado en permisos individuales (ej: `vales.crear`, `eventos.ver`), asignados jerárquicamente a roles (`Administrador`, `Diseñador`, `Asesor de Ventas`).
 *   **Protección**: Los botones del frontend se ocultan de forma dinámica y reactiva, y todas las peticiones a la API del backend se blindan a nivel de controlador mediante el middleware `requirePermission('permiso.codigo')`.
+
+---
+
+## 6. Integración Continua
+
+Cada pull request hacia `dev`, `staging` o `main` ejecuta el workflow `CI` (`.github/workflows/ci.yml`), que verifica:
+
+*   **Sintaxis** de todo el JS de `src/`, `scripts/` y `public/` (`npm run ci:sintaxis`).
+*   **Scripts SQL** sobre una MySQL temporal: instalación nueva y actualización estilo producción, con las migraciones aplicadas dos veces (`npm run ci:migraciones`).
+*   **Arranque del servidor** contra esa base (`npm run ci:arranque`, pensado para el CI).
+
+Detalle, lectura de fallos y cómo exigir el chequeo en los rulesets: [reglas_ci.md](.agents/reglas/reglas_ci.md).

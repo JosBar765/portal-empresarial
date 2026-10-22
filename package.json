@@ -5,7 +5,11 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "ci:sintaxis": "node scripts/ci/sintaxis.js",
+    "ci:migraciones": "node scripts/ci/migraciones.js",
+    "ci:arranque": "node scripts/ci/arranque.js",
+    "ci": "npm run ci:sintaxis && npm run ci:migraciones && npm run ci:arranque"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

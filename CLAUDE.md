@@ -66,6 +66,7 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 - Flow: feature branch, PR to `dev`, PR to `staging`, PR to `main`.
 - `staging` and `main` accept merge commits only.
 - Business rules live in module docs; update them with behavior.
+- CI runs on every PR: `.agents/reglas/reglas_ci.md`.
 
 ## 5. Security & auth
 
@@ -115,5 +116,5 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 | Administración Central (`admin`) | `.agents/modulos/admin/README.md` | Users, roles, talleres, maintenance, schedules, admin tools. |
 
 - New module: `README.md` section 4 and `.agents/reglas/reglas_modulo.md`; document it under `.agents/modulos/<name>/` (`README.md` + `documentacion/`).
-- Global rules: `.agents/reglas/` (architecture, module templates, auth, implementation style, UI, SQL files, environments).
+- Global rules: `.agents/reglas/` (architecture, module templates, auth, implementation style, UI, SQL files, environments, CI).
 - Vales also has `flujo_vale_de_arte.md` (source of truth), `analisis_modulo.md` (history), `correcciones/` (changelog).
