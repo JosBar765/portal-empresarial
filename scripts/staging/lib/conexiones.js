@@ -22,6 +22,8 @@ function conectar(c, extra = {}) {
     supportBigNumbers: true,
     bigNumberStrings: true,
     charset: 'utf8mb4',
+    // MariaDB avisa el tipo JSON en sus metadatos extendidos y mysql2 lo convertiría en objeto, que el INSERT rompe.
+    jsonStrings: true,
     typeCast,
     ...extra
   });

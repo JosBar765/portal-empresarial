@@ -33,6 +33,12 @@ async function columnasCopiables(conn, db, tabla) {
   return rows.filter(r => !/(VIRTUAL|STORED) GENERATED/i.test(r.extra || '')).map(r => r.nombre);
 }
 
+// Red de seguridad: un objeto (JSON ya interpretado) se reenvía como texto JSON, nunca como pares clave = valor.
+function normalizarValor(v) {
+  if (v !== null && typeof v === 'object' && !Buffer.isBuffer(v) && !(v instanceof Date)) return JSON.stringify(v);
+  return v;
+}
+
 function pesoFila(fila) {
   let n = 8;
   for (const v of fila) {
@@ -101,7 +107,7 @@ async function copiarTabla(origen, destino, dbOrigen, tabla) {
   await destino.query('START TRANSACTION');
   try {
     for await (const registro of stream) {
-      lote.push(registro);
+      lote.push(registro.map(normalizarValor));
       bytes += pesoFila(registro);
       if (lote.length >= FILAS_POR_LOTE || bytes >= BYTES_POR_LOTE) await volcar();
     }
