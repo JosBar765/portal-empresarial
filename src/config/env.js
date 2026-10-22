@@ -60,7 +60,7 @@ function leerSaltosDeProxy(nombre) {
   return Number(valor);
 }
 
-const AMBIENTES = ['development', 'production', 'test'];
+const AMBIENTES = ['development', 'staging', 'production', 'test'];
 const nodeEnv = leer('NODE_ENV').trim();
 if (nodeEnv && !AMBIENTES.includes(nodeEnv)) {
   problemas.push(`NODE_ENV debe ser uno de: ${AMBIENTES.join(', ')} (valor recibido: "${nodeEnv}").`);

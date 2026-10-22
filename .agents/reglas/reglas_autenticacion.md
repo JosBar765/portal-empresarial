@@ -103,7 +103,7 @@ Gestiona la creación y destrucción de las cookies seguras:
     ```javascript
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: ['production', 'staging'].includes(config.nodeEnv),
       sameSite: 'strict',
       maxAge: ACCESS_MAX_AGE   // (+ cookie refresh_token; ver tokenService.fijarCookies)
     });
