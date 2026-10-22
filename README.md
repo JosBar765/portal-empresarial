@@ -176,6 +176,7 @@ Detalle, lectura de fallos y cómo exigir el chequeo en los rulesets: [reglas_ci
 Desde el PC del dueño, sin `mysqldump`:
 
 *   `npm run staging:probar-conexion`: prueba de solo lectura de las conexiones a producción (ORIGEN) y staging (DESTINO).
+*   `npm run staging:marcar`: pone en la base de staging la marca `entorno = staging` (una sola vez; sin ella el refresco y el servidor de staging se niegan a trabajar).
 *   `npm run staging:refrescar`: reemplaza la base de staging por una copia de producción y la deja lista para que el ejecutor de migraciones aplique lo pendiente.
 
 Configuración, seguridad y límites: [reglas_refresco_staging.md](.agents/reglas/reglas_refresco_staging.md).
