@@ -37,7 +37,7 @@ Usuario (Navegador)
 *   **Base de Datos**: MySQL
 *   **Tiempo Real**: WebSockets mediante Socket.IO (transversal a todos los módulos)
 *   **Frontend**: HTML5, Vanilla CSS (diseño responsivo y adaptativo sin Tailwind), JavaScript nativo e Ionicons para iconos vectoriales.
-*   **Seguridad**: Hash de contraseñas con `bcryptjs`, sesiones protegidas con `express-session`, y control de acceso granular basado en permisos.
+*   **Seguridad**: Hash de contraseñas con `bcryptjs`, autenticación JWT sin estado (access token + refresh token rotativo en cookies httpOnly), y control de acceso granular basado en permisos.
 
 ---
 
@@ -47,11 +47,15 @@ El código está organizado de la siguiente manera:
 
 ```text
 portal-empresarial/
-├── .agents/                      # Reglas de arquitectura y diseño para agentes de IA
+├── .agents/                      # Documentación para personas y agentes de IA
+│   ├── reglas/                   # Reglas globales (arquitectura, auth, UI, entornos, SQL)
+│   └── modulos/                  # Un README y documentacion/ por módulo de negocio
+├── CLAUDE.md                     # Guía maestra del monolito modular
 ├── database/
 │   ├── schema.sql                # Estructura (CREATE TABLE, claves, índices)
-│   ├── seed.sql                  # Datos reales mínimos para una instalación funcional
-│   └── migraciones/              # Scripts idempotentes para bases que ya están en producción
+│   ├── seed.sql                  # Catálogos y datos de organización reales
+│   ├── users.sql                 # Usuarios, talleres y sus asignaciones (desarrollo)
+│   └── migrations/               # Scripts idempotentes para bases que ya están en producción
 ├── public/                       # Contenido estático del Frontend
 │   ├── assets/
 │   │   └── logos/                # Logos corporativos e isotipos de MundiTrofeos
@@ -71,12 +75,14 @@ portal-empresarial/
 │   │   ├── env.js                # Validación de variables de entorno
 │   │   └── database.js           # Pool de conexiones MySQL
 │   ├── core/                     # Capas nucleares transversales
-│   │   ├── auth/                 # Servicios, controladores y rutas de sesión
-│   │   ├── permissions/          # Middleware de validación de permisos
+│   │   ├── auth/                 # JWT, tokens de acceso/refresco y rutas de autenticación
+│   │   ├── permissions/          # Guards de permisos, catálogo de módulos, modo mantenimiento
 │   │   ├── websocket/            # Gestor central de WebSockets (Socket.IO)
-│   │   └── files/                # Gestor de subida de archivos física/nube
-│   ├── modules/                  # Espacio para la lógica de negocio de cada módulo
-│   │   └── readme_modulo.md      # Guía detallada con código plantilla para nuevos módulos
+│   │   ├── files/                # Supabase Storage y subida de archivos
+│   │   ├── idempotency/          # Claves de idempotencia
+│   │   ├── calendario/           # Horario laboral y feriados
+│   │   └── notifications/        # Notificaciones
+│   ├── modules/                  # Lógica de negocio de cada módulo (vales, admin)
 │   ├── app.js                    # Configuración de Express y middlewares
 │   └── server.js                 # Punto de entrada y levantamiento del puerto HTTP
 ├── .env.example                  # Plantilla de variables de entorno
@@ -99,7 +105,7 @@ npm install
 
 ### Paso 2: Configurar Base de Datos MySQL
 1. Crea una base de datos en tu servidor MySQL (local o hosting) llamada `portal_empresarial`.
-2. Importa, en este orden, los dos archivos de `database/`: `schema.sql` (estructura) y `seed.sql` (datos reales mínimos). No hay fallback: si MySQL no está disponible, el servidor no arranca.
+2. Importa, en este orden, los archivos de `database/`: `schema.sql` (estructura), `seed.sql` (catálogos y organización) y `users.sql` (usuarios). No hay fallback: si MySQL no está disponible, el servidor no arranca.
 3. Duplica el archivo `.env.example`, renombrándolo a `.env`, y edita las credenciales de conexión correspondientes (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, etc.).
 
 ### Paso 3: Arrancar en desarrollo
@@ -116,17 +122,19 @@ El portal estará disponible en la URL local: **`http://localhost:3000`**
 
 Agregar un nuevo módulo (por ejemplo, `inventario`) es un proceso directo que requiere seguir la estructura monolítica establecida en el proyecto:
 
-1. **Crear carpeta del módulo en Backend**: Crea el subdirectorio `src/modules/inventario/` y estructura sus capas (controlador, servicio, repositorio, rutas y eventos). Puedes guiarte por las plantillas completas de código redactadas en la [Guía de Creación de Módulos](file:///c:/Users/Usuario-PC/Desktop/Proyectos/portal-empresarial/src/modules/readme_modulo.md).
+1. **Crear carpeta del módulo en Backend**: Crea el subdirectorio `src/modules/inventario/` y estructura sus capas (controlador, servicio, repositorio, rutas y eventos). Puedes guiarte por las plantillas completas de código de la [Guía de Creación de Módulos](.agents/reglas/reglas_modulo.md) y por el paso a paso de [CLAUDE.md](CLAUDE.md).
 2. **Crear carpeta del módulo en Frontend**: Crea el subdirectorio `public/modules/inventario/` para albergar su interfaz estática (`index.html`, `js/app.js`, `css/styles.css`).
-3. **Registrar Rutas de la API**: Importa y monta tus rutas en [src/app.js](file:///c:/Users/Usuario-PC/Desktop/Proyectos/portal-empresarial/src/app.js) protegidas por el middleware de seguridad (ej: `app.use('/api/inventario', requireAuth, inventarioRoutes)`).
-4. **Agregar al Catálogo Dinámico**: Registra el módulo en la lista JSON retornada por el endpoint `/api/modules` en `src/app.js`, asignándole el código de permiso necesario (ej. `inventario.ver`), icono vector y color representativo.
+3. **Registrar Rutas de la API**: Importa y monta tus rutas en [src/app.js](src/app.js) protegidas por el middleware de seguridad (ej: `app.use('/api/inventario', requireAuth, inventarioRoutes)`).
+4. **Agregar al Catálogo Dinámico**: Registra el módulo en `MODULOS` de `src/core/permissions/modulesCatalog.js` (lo consume `/api/modules`), asignándole el código de permiso necesario (ej. `inventario.ver`), icono vector y color representativo.
+
+5. **Documentar el módulo**: Crea `.agents/modulos/inventario/README.md` y `.agents/modulos/inventario/documentacion/`.
 
 El Dashboard del usuario detectará automáticamente la adición del módulo y lo listará dinámicamente si el usuario autenticado cuenta con los permisos necesarios.
 
 ---
 
-## 5. Control de Acceso y Sesión Centralizada
+## 5. Control de Acceso y Autenticación Centralizada
 
-*   **Autenticación**: El usuario ingresa a través del Login (`public/login/index.html`). El controlador central valida sus credenciales y crea una sesión de Express guardando su información básica en `req.session.user`.
+*   **Autenticación**: El usuario ingresa a través del Login (`public/login/index.html`). El controlador central valida sus credenciales y emite un **JWT de acceso** de corta vida más un **refresh token** rotativo, ambos en cookies httpOnly; la identidad del usuario sale siempre de `req.user`, nunca del cuerpo de la petición. Especificación: `.agents/reglas/reglas_autenticacion.md`.
 *   **Permisos**: La plataforma implementa un control de acceso basado en permisos individuales (ej: `vales.crear`, `eventos.ver`), asignados jerárquicamente a roles (`Administrador`, `Diseñador`, `Asesor de Ventas`).
 *   **Protección**: Los botones del frontend se ocultan de forma dinámica y reactiva, y todas las peticiones a la API del backend se blindan a nivel de controlador mediante el middleware `requirePermission('permiso.codigo')`.
