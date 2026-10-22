@@ -95,8 +95,11 @@ class ValeReportePdfService {
     this._encabezado(ctx, reporte, generadoPor, ahora);
     if (reporte.tipo === 'rendimiento' && reporte.grupos && reporte.grupos.rendimiento) {
       if (reporte.grupos.indicadoresTaller) this._contadores(ctx, reporte.grupos.indicadoresTaller);
-      this._grafica(ctx, reporte.grupos.rendimiento);
-      this._tablaRendimiento(ctx, reporte.grupos.rendimiento);
+      // Administrador y Gerente traen dos bloques (asesores y diseñadores); los demás roles, uno.
+      for (const bloque of (reporte.grupos.rendimiento.bloques || [reporte.grupos.rendimiento])) {
+        this._grafica(ctx, bloque);
+        this._tablaRendimiento(ctx, bloque);
+      }
     } else {
       this._actividad(ctx, reporte);
     }
@@ -326,7 +329,7 @@ class ValeReportePdfService {
     this._tabla(ctx, columnas, filas, { altoFila: 16, tamano: 8 });
   }
 
-  // Barras dobles por persona (Encargado: asignados vs entregados; Supervisor: creados vs autorizados).
+  // Barras dobles por persona (diseñadores: asignados vs entregados; asesores: creados vs autorizados).
   _grafica(ctx, grafica) {
     if (!grafica.filas.length) return;
     this._titulo(ctx, grafica.titulo.toUpperCase());

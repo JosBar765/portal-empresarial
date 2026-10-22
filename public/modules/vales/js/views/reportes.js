@@ -27,11 +27,12 @@ let barraPeriodo = null;
 let tablaActiva = '';
 let menuExportar = null;
 
-// Pestaña del reporte (solo Encargado/Asistente y Supervisor tienen «Rendimiento»); se recuerda la última.
+// Pestaña del reporte («Rendimiento» no la tiene el Asesor ni el Diseñador); se recuerda la última.
 const CLAVE_VISTA_REPORTE = 'vales:repVista';
 const leerVista = () => { try { return localStorage.getItem(CLAVE_VISTA_REPORTE) === 'rendimiento' ? 'rendimiento' : 'actividad'; } catch { return 'actividad'; } };
-// Solo el Encargado/Asistente de taller y el Supervisor tienen la pestaña Rendimiento (la vista recordada puede venir de otro usuario del navegador).
-const tieneRendimiento = () => !!state.user && (state.user.rolId === ROL.SUPERVISOR || ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)));
+// Rendimiento: Encargado/Asistente de taller, Supervisor, Administrador y Gerente (la vista recordada puede venir de otro usuario del navegador).
+const esAlcanceGlobal = () => !!state.user && (state.user.rolId === ROL.ADMINISTRADOR || state.user.rolId === ROL.GERENTE);
+const tieneRendimiento = () => !!state.user && (esAlcanceGlobal() || state.user.rolId === ROL.SUPERVISOR || ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)));
 const guardarVista = (vista) => { try { localStorage.setItem(CLAVE_VISTA_REPORTE, vista); } catch { /* sin almacenamiento */ } };
 
 const ICONO_AGRUPAR = { asesor: 'people-outline', disenador: 'brush-outline', taller: 'construct-outline', tienda: 'storefront-outline' };
@@ -96,8 +97,8 @@ function formatear(valor, formato) {
 export async function cargarReportes() {
   if (!state.reporte.vista) state.reporte.vista = leerVista();
   if (state.reporte.vista === 'rendimiento' && !tieneRendimiento()) state.reporte.vista = 'actividad';
-  // En Rendimiento, Semana y Mes solo cerrados: si había uno en curso se pasa al último cerrado.
-  if (state.reporte.vista === 'rendimiento') state.reporte.ventana = normalizarPeriodoCerrado(state.reporte.ventana);
+  // En Rendimiento, Semana y Mes solo cerrados (salvo Administrador y Gerente): si había uno en curso se pasa al último cerrado.
+  if (state.reporte.vista === 'rendimiento' && !esAlcanceGlobal()) state.reporte.ventana = normalizarPeriodoCerrado(state.reporte.ventana);
   const cont = $('#reportes-vista');
   armarEsqueleto(cont);
   if (barraPeriodo) barraPeriodo.pintar();
@@ -148,7 +149,7 @@ function armarEsqueleto(cont) {
     </div>`;
   barraPeriodo = crearBarraPeriodo($('#rep-periodo', cont), {
     obtener: () => state.reporte.ventana,
-    soloCerrados: () => state.reporte.vista === 'rendimiento',
+    soloCerrados: () => state.reporte.vista === 'rendimiento' && !esAlcanceGlobal(),
     alCambiar: (ventana) => { state.reporte.ventana = ventana; barraPeriodo.pintar(); cargarReportes(); }
   });
   $('#rep-actualizar', cont).addEventListener('click', () => cargarReportes());
@@ -181,7 +182,7 @@ async function exportarPdf(tipo = 'actividad') {
   }
 }
 
-// Opciones del menú de descarga según el rol: Rendimiento solo existe para Encargado/Asistente y Supervisor.
+// Opciones del menú de descarga según el rol: Rendimiento no existe para el Asesor ni el Diseñador.
 function configurarExportacion(data, vista) {
   const opciones = [{ id: 'actividad', icono: 'list-outline', titulo: 'Reporte de actividad', detalle: 'Vales atrasados, no entregados y entregados' }];
   if (data.grupos && data.grupos.rendimiento) {
@@ -246,8 +247,7 @@ function renderTodo(data) {
   if (vista === 'rendimiento') {
     $('#rep-cuerpo').innerHTML = `
       ${data.grupos.indicadoresTaller ? htmlIndicadoresTaller(data.grupos.indicadoresTaller) : ''}
-      ${htmlGraficaBarrasDobles(data.grupos.rendimiento)}
-      ${htmlTablaRendimiento(data.grupos.rendimiento)}
+      ${bloquesRendimiento(data.grupos.rendimiento).map(b => `${htmlGraficaBarrasDobles(b)}${htmlTablaRendimiento(b)}`).join('')}
       <details class="rend-notas">
         <summary>Cómo funciona este reporte</summary>
         <ul>${notasRendimiento(data)}</ul>
@@ -271,8 +271,17 @@ function renderTodo(data) {
   if (data.grupos) renderGrupos(data); else { renderTablas(data); renderVales(data); }
 }
 
+// Administrador y Gerente reciben dos bloques (asesores y diseñadores); los demás roles, uno solo.
+const bloquesRendimiento = (r) => r.bloques || [r];
+
 // Notas del reporte de rendimiento.
 function notasRendimiento(data) {
+  if (data.grupos.rendimiento.bloques) {
+    return `<li><strong>Vales por asesor (Creados / Autorizados):</strong> vales con fecha de entrega en el período creados por cada asesor y, de ellos, los que ya fueron autorizados.</li>
+    <li><strong>Asignaciones por diseñador (Asignados / Entregados):</strong> vales con fecha de entrega en el período asignados a cada diseñador y, de ellos, los que su propuesta ya aprobó el Encargado. <strong>Sin asignar:</strong> vales que ningún diseñador tiene todavía.</li>
+    <li><strong>%:</strong> la segunda cifra entre la primera.</li>
+    <li>El período y los filtros de tienda, taller y personas se aplican igual que en Actividad. Semana y Mes en curso muestran las cifras de hoy.</li>`;
+  }
   const entregado = data.rol === 'encargado'
     ? '<strong>Asignados / Entregados:</strong> vales con fecha de entrega en el período asignados a cada diseñador (y a ti) y, de ellos, los que su propuesta ya aprobó el Encargado.'
     : '<strong>Creados / Autorizados:</strong> vales con fecha de entrega en el período creados por cada asesor (y por ti) y, de ellos, los que ya fueron autorizados.';

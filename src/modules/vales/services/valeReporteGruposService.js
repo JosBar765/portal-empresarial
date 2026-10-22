@@ -224,74 +224,105 @@ class ValeReporteGruposService {
     const exigibles = visibles.filter(v => fechaDe(v.fecha_entrega) <= corte);
     const indicadoresTaller = esTaller ? this._indicadoresTaller(exigibles, fichas) : null;
     const hastaHoy = exigibles.length < visibles.length; // solo se anuncia «hasta hoy» si de verdad quedó algo fuera
+    // Administrador/Gerente: nombres de las personas elegidas en el filtro que no tienen vales en el período.
+    if (alcance.rol === 'administrador') {
+      const faltan = [...asesorSel, ...disSel].filter(id => !nombresConRol.has(id));
+      if (faltan.length) (await reporteRepository.listarNombres(faltan)).forEach(u => nombresConRol.set(u.id, this.etiquetaNombre(u.nombre, u.rol_id, u.hereda_de_rol_id)));
+    }
     const datosRendimiento = this._rendimiento({ alcance, visibles: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol });
-    const rendimiento = datosRendimiento && { ...datosRendimiento, totales: this._totalesRendimiento(datosRendimiento.filas, datosRendimiento.sinAsignar) };
-    return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento };
+    return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento: datosRendimiento };
   }
 
-  // Reporte de rendimiento (solo Encargado/Asistente y Supervisor): por persona, dos cifras comparadas, su % y sus atrasados, sobre los
-  // vales del período y con los filtros aplicados. Encargado: asignados vs entregados por diseñador (y él mismo). Supervisor: creados vs
-  // autorizados por asesor (y él mismo). Alimenta la gráfica y la tabla comparativa.
+  // Reporte de rendimiento: por persona, dos cifras comparadas, su % y sus atrasados, sobre los vales del período y con los filtros
+  // aplicados. Encargado/Asistente: asignados vs entregados por diseñador. Supervisor: creados vs autorizados por asesor. Administrador y
+  // Gerente: ambos bloques globales en `bloques`. Alimenta la gráfica y la tabla comparativa.
   _rendimiento({ alcance, visibles, hastaHoy, aprobada, corte, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol }) {
-    if (!alcance.equipo || !(alcance.personas || []).length) return null;
+    if (!alcance.equipo) return null;
+    if (alcance.rol === 'administrador') {
+      // Sin lista fija de personas: las del período (o solo las elegidas en el filtro) y, en diseñadores, las filas del taller elegido.
+      const filasDe = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : filas(v));
+      const nombreDe = (id) => ({ id, nombre: nombresConRol.get(id) || `#${id}` });
+      const asesores = asesorSel.size ? [...asesorSel] : [...new Set(visibles.map(v => v.asesor_id))];
+      return {
+        clave: 'global',
+        bloques: [
+          this._bloqueAsesores({ personas: asesores.map(nombreDe), visibles, fichas }),
+          this._bloqueDisenadores({ personas: [...disSel].map(nombreDe), visibles, hastaHoy, aprobada, corte, filasDe, disSel, nombresConRol })
+        ]
+      };
+    }
+    if (!(alcance.personas || []).length) return null;
     if (esTaller) {
       const filasDe = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : propias(v));
-      const elegidas = disSel.size ? alcance.personas.filter(p => disSel.has(p.id)) : [...alcance.personas];
-      if (!disSel.size) {
-        // Quien tiene vales de la ventana aunque no figure entre los diseñadores del taller (p. ej. un asistente) también tiene su fila.
-        const conocidos = new Set(elegidas.map(p => p.id));
-        visibles.forEach(v => filasDe(v).forEach(f => {
-          if (f.disenador_id && !conocidos.has(f.disenador_id)) { conocidos.add(f.disenador_id); elegidas.push({ id: f.disenador_id, nombre: nombresConRol.get(f.disenador_id) || `#${f.disenador_id}` }); }
-        }));
-      }
-      const filasGrafica = elegidas.map(p => {
-        let a = 0; let b = 0; let tarde = 0;
-        for (const v of visibles) {
-          const propia = filasDe(v).filter(f => f.disenador_id === p.id);
-          if (!propia.length) continue;
-          a += 1;
-          if (propia.every(aprobada)) { // entregado = aprobado por el Encargado (al corte)
-             b += 1; if (diasAtrasoAl(v, corte) >= 1) tarde += 1; }
-        }
-        return { id: p.id, nombre: p.nombre, a, b, tarde, sinEntregar: a - b };
-      });
-      // Vales de la ventana que ningún diseñador tiene todavía: fila «Sin asignar» de la tabla (sin filtro de diseñadores).
-      let sinAsignar = null;
-      if (!disSel.size) {
-        const n = visibles.filter(v => { const f = filasDe(v); return f.length > 0 && f.every(x => !x.disenador_id); }).length;
-        sinAsignar = { nombre: 'Sin asignar', a: n, b: 0, tarde: 0, sinEntregar: n };
-      }
-      return {
-        clave: 'disenadores', sinAsignar, persona: 'Diseñador', titulo: 'Asignaciones por diseñador', subtitulo: hastaHoy ? 'Vales con entrega en el período, hasta hoy' : 'Vales con entrega en el período',
-        series: [
-          { clave: 'a', etiqueta: 'Asignados', ayuda: 'Vales con entrega en el período asignados a esa persona.' },
-          { clave: 'b', etiqueta: 'Entregados', ayuda: 'De esos vales, los que su propuesta ya aprobó el Encargado.' }
-        ],
-        filas: this._ordenarGrafica(filasGrafica)
-      };
+      return this._bloqueDisenadores({ personas: alcance.personas, visibles, hastaHoy, aprobada, corte, filasDe, disSel, nombresConRol });
     }
     if (alcance.rol === 'supervisor') {
-      const elegidas = asesorSel.size ? alcance.personas.filter(p => asesorSel.has(p.id)) : alcance.personas;
-      const filasGrafica = elegidas.map(p => {
-        const suyos = visibles.filter(v => v.asesor_id === p.id);
-        return {
-          id: p.id, nombre: p.nombre, a: suyos.length, b: suyos.filter(v => fichas.get(v.id).autorizado).length,
-          // Recibidos = propuesta ya enviada al asesor (sección Entregados), con o sin atraso; el resto está sin recibir.
-          recibidosATiempo: suyos.filter(v => fichas.get(v.id).seccion === 'entregados' && !fichas.get(v.id).diasTarde).length,
-          recibidosTarde: suyos.filter(v => fichas.get(v.id).seccion === 'entregados' && fichas.get(v.id).diasTarde > 0).length,
-          sinRecibir: suyos.filter(v => fichas.get(v.id).seccion !== 'entregados').length
-        };
-      });
-      return {
-        clave: 'asesores', persona: 'Asesor', titulo: 'Vales por asesor', subtitulo: 'Vales con entrega en el período',
-        series: [
-          { clave: 'a', etiqueta: 'Creados', ayuda: 'Vales con entrega en el período creados por esa persona.' },
-          { clave: 'b', etiqueta: 'Autorizados', ayuda: 'De esos vales, los que ya fueron autorizados.' }
-        ],
-        filas: this._ordenarGrafica(filasGrafica)
-      };
+      return this._bloqueAsesores({ personas: asesorSel.size ? alcance.personas.filter(p => asesorSel.has(p.id)) : alcance.personas, visibles, fichas });
     }
     return null;
+  }
+
+  // Asignados vs entregados por diseñador (entregado = aprobado por el Encargado al corte).
+  _bloqueDisenadores({ personas, visibles, hastaHoy, aprobada, corte, filasDe, disSel, nombresConRol }) {
+    const elegidas = disSel.size ? personas.filter(p => disSel.has(p.id)) : [...personas];
+    if (!disSel.size) {
+      // Quien tiene vales de la ventana aunque no figure entre los diseñadores del taller (p. ej. un asistente) también tiene su fila.
+      const conocidos = new Set(elegidas.map(p => p.id));
+      visibles.forEach(v => filasDe(v).forEach(f => {
+        if (f.disenador_id && !conocidos.has(f.disenador_id)) { conocidos.add(f.disenador_id); elegidas.push({ id: f.disenador_id, nombre: nombresConRol.get(f.disenador_id) || `#${f.disenador_id}` }); }
+      }));
+    }
+    const filasGrafica = elegidas.map(p => {
+      let a = 0; let b = 0; let tarde = 0;
+      for (const v of visibles) {
+        const propia = filasDe(v).filter(f => f.disenador_id === p.id);
+        if (!propia.length) continue;
+        a += 1;
+        if (propia.every(aprobada)) { // entregado = aprobado por el Encargado (al corte)
+           b += 1; if (diasAtrasoAl(v, corte) >= 1) tarde += 1; }
+      }
+      return { id: p.id, nombre: p.nombre, a, b, tarde, sinEntregar: a - b };
+    });
+    // Vales de la ventana que ningún diseñador tiene todavía: fila «Sin asignar» de la tabla (sin filtro de diseñadores).
+    let sinAsignar = null;
+    if (!disSel.size) {
+      const n = visibles.filter(v => { const f = filasDe(v); return f.length > 0 && f.every(x => !x.disenador_id); }).length;
+      sinAsignar = { nombre: 'Sin asignar', a: n, b: 0, tarde: 0, sinEntregar: n };
+    }
+    const filasOrdenadas = this._ordenarGrafica(filasGrafica);
+    return {
+      clave: 'disenadores', sinAsignar, persona: 'Diseñador', titulo: 'Asignaciones por diseñador', subtitulo: hastaHoy ? 'Vales con entrega en el período, hasta hoy' : 'Vales con entrega en el período',
+      series: [
+        { clave: 'a', etiqueta: 'Asignados', ayuda: 'Vales con entrega en el período asignados a esa persona.' },
+        { clave: 'b', etiqueta: 'Entregados', ayuda: 'De esos vales, los que su propuesta ya aprobó el Encargado.' }
+      ],
+      filas: filasOrdenadas,
+      totales: this._totalesRendimiento(filasOrdenadas, sinAsignar)
+    };
+  }
+
+  // Creados vs autorizados por asesor.
+  _bloqueAsesores({ personas, visibles, fichas }) {
+    const filasGrafica = personas.map(p => {
+      const suyos = visibles.filter(v => v.asesor_id === p.id);
+      return {
+        id: p.id, nombre: p.nombre, a: suyos.length, b: suyos.filter(v => fichas.get(v.id).autorizado).length,
+        // Recibidos = propuesta ya enviada al asesor (sección Entregados), con o sin atraso; el resto está sin recibir.
+        recibidosATiempo: suyos.filter(v => fichas.get(v.id).seccion === 'entregados' && !fichas.get(v.id).diasTarde).length,
+        recibidosTarde: suyos.filter(v => fichas.get(v.id).seccion === 'entregados' && fichas.get(v.id).diasTarde > 0).length,
+        sinRecibir: suyos.filter(v => fichas.get(v.id).seccion !== 'entregados').length
+      };
+    });
+    const filasOrdenadas = this._ordenarGrafica(filasGrafica);
+    return {
+      clave: 'asesores', persona: 'Asesor', titulo: 'Vales por asesor', subtitulo: 'Vales con entrega en el período',
+      series: [
+        { clave: 'a', etiqueta: 'Creados', ayuda: 'Vales con entrega en el período creados por esa persona.' },
+        { clave: 'b', etiqueta: 'Autorizados', ayuda: 'De esos vales, los que ya fueron autorizados.' }
+      ],
+      filas: filasOrdenadas,
+      totales: this._totalesRendimiento(filasOrdenadas)
+    };
   }
 
   // Más vales primero; a igualdad, por nombre. Quienes no tienen vales quedan al final con 0.

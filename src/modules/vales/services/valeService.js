@@ -28,7 +28,7 @@ const valeAdjuntosService = require('./valeAdjuntosService');
 module.exports = {
   // Reportes de actividad
   obtenerReporte: (...a) => valeReporteService.obtenerReporte(...a),
-  // `tipo`: 'actividad' (por defecto) o 'rendimiento' (solo Encargado/Asistente y Supervisor).
+  // `tipo`: 'actividad' (por defecto) o 'rendimiento' (no disponible para Asesor ni Diseñador).
   generarReportePdf: async (usuario, filtros, tipo = 'actividad') => {
     if (!['actividad', 'rendimiento'].includes(tipo)) throw new ErrorDeNegocio('El tipo de reporte no es válido.');
     const reporte = await valeReporteService.obtenerReporte(usuario, { ...filtros, tipo }, { maxFilas: valeReporteService.MAX_FILAS_PDF });
