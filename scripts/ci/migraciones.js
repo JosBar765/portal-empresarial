@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const mysql = require('mysql2/promise');
+const migrador = require('../../src/core/migrations/ejecutor');
 
 const RAIZ = path.join(__dirname, '..', '..');
 const DIR_BD = path.join(RAIZ, 'database');
@@ -65,22 +66,55 @@ function listarMigraciones() {
   return fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort();
 }
 
+// Aplica las migraciones con el ejecutor real, dos veces: la segunda no debe aplicar nada
+// y schema_migrations debe tener una fila por script.
+async function aplicarConEjecutor(db) {
+  const total = listarMigraciones().length;
+  for (const vuelta of [1, 2]) {
+    const etiqueta = `ejecutor de migraciones (pasada ${vuelta})`;
+    let resultado;
+    try {
+      resultado = await migrador.ejecutar({ conexion, log: () => {} });
+    } catch (error) {
+      console.error(`  FALLO ${etiqueta}\n        ${error.message}`);
+      throw error;
+    }
+    const esperadas = vuelta === 1 ? total : 0;
+    if (resultado.aplicadas.length !== esperadas) {
+      console.error(`  FALLO ${etiqueta}\n        aplicó ${resultado.aplicadas.length} script(s) y se esperaban ${esperadas}`);
+      throw new Error(`Falló ${etiqueta}`);
+    }
+    console.log(`  OK    ${etiqueta}: ${resultado.aplicadas.length} aplicada(s)`);
+  }
+  const [[{ filas }]] = await db.query('SELECT COUNT(*) AS filas FROM schema_migrations');
+  if (filas !== total) {
+    console.error(`  FALLO schema_migrations tiene ${filas} fila(s) y hay ${total} script(s)`);
+    throw new Error('Falló schema_migrations');
+  }
+  console.log(`  OK    schema_migrations: ${filas} fila(s), una por script`);
+}
+
+// El ejecutor no repite lo registrado: cada script se vuelve a correr a mano para comprobar que es idempotente.
+async function reejecutarDirecto(db) {
+  for (const archivo of listarMigraciones()) {
+    await ejecutar(db, `migrations/${archivo} (re-ejecución directa)`, leerArbol(path.join('migrations', archivo)));
+  }
+}
+
 async function escenarioA(db) {
-  console.log('Escenario A: instalación nueva (archivos del PR)');
+  console.log('Escenario A: instalación nueva (archivos del PR + ejecutor de migraciones)');
   await reiniciarBase(db);
   for (const archivo of BASE) await ejecutar(db, archivo, leerArbol(archivo));
+  await aplicarConEjecutor(db);
+  await reejecutarDirecto(db);
 }
 
 async function escenarioB(db) {
-  console.log('Escenario B: actualización estilo producción (base de origin/main + migraciones del PR, dos veces)');
+  console.log('Escenario B: actualización estilo producción (base de origin/main + ejecutor de migraciones del PR)');
   await reiniciarBase(db);
   for (const archivo of BASE) await ejecutar(db, `${archivo} (origin/main)`, leerDeMain(archivo));
-  const migraciones = listarMigraciones();
-  for (const vuelta of [1, 2]) {
-    for (const archivo of migraciones) {
-      await ejecutar(db, `migrations/${archivo} (pasada ${vuelta})`, leerArbol(path.join('migrations', archivo)));
-    }
-  }
+  await aplicarConEjecutor(db);
+  await reejecutarDirecto(db);
 }
 
 (async () => {
