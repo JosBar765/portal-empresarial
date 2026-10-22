@@ -112,3 +112,9 @@ Pide la misma confirmación, se conecta solo a DESTINO (en este modo solo se exi
 - **Tablas muy grandes:** se leen por streaming y se insertan en lotes de 500 filas o 4 MB, así que la memoria no crece con la tabla; el tiempo sí depende de la red (cada fila viaja por el PC). Una fila individual mayor que `max_allowed_packet` de DESTINO falla con un error claro.
 - **MariaDB / MySQL:** el DDL se reproduce tal cual lo devuelve `SHOW CREATE TABLE`. Entre MariaDB y MariaDB (Hostinger) es idéntico; entre MySQL y MariaDB podrían diferir collations (`utf8mb4_0900_ai_ci` no existe en MariaDB) o el tipo `JSON`. Para reducir fallos, la sesión de DESTINO usa un `sql_mode` permisivo (`NO_AUTO_VALUE_ON_ZERO,NO_ENGINE_SUBSTITUTION`), omite las columnas generadas al copiar filas y comprueba `transaction_read_only`/`tx_read_only` según la versión.
 - Los datos de producción quedan en el disco de staging: trátalos con el mismo cuidado.
+
+## Protecciones contra errores de configuración
+
+- **ORIGEN y DESTINO intercambiados:** el script (y la prueba de conexión) se niegan a seguir si el nombre de la base de DESTINO contiene «prod» (sin distinguir mayúsculas). El DESTINO es siempre staging; el ORIGEN es producción y solo se lee.
+- **Contraseñas con `#`:** `dotenv` corta un valor sin comillas en el `#`. Escribe el valor entre comillas simples, por ejemplo `ORIGEN_PASSWORD='ab#cd'`. Si la contraseña también tiene una comilla simple, usa comillas dobles.
+- **Cómo comprobarlo antes de copiar:** en la salida de `npm run staging:probar-conexion`, el ORIGEN debe ser producción (por ejemplo, sin la tabla `schema_migrations` hasta el primer despliegue con el ejecutor) y el DESTINO staging.

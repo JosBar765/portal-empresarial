@@ -1,7 +1,7 @@
 // Refresca la base de STAGING (DESTINO) con una copia de PRODUCCIÓN (ORIGEN), sin mysqldump.
 // ORIGEN solo se lee (sesión de solo lectura + snapshot); todo lo demás ocurre en DESTINO.
 const readline = require('readline');
-const { leerArgumentos, cargarConfig, mismoDestino, describir } = require('./lib/config');
+const { leerArgumentos, cargarConfig, mismoDestino, describir, exigirDestinoNoProduccion } = require('./lib/config');
 const { conectarOrigen, conectarDestino, cerrar } = require('./lib/conexiones');
 const copia = require('./lib/copia');
 const { ejecutarLimpiezas } = require('./lib/limpiezas');
@@ -72,6 +72,7 @@ async function verificar(origen, destino, tablas) {
 (async () => {
   const args = leerArgumentos(process.argv.slice(2));
   const cfg = cargarConfig(args.archivo, args.soloLimpieza ? ['DESTINO'] : ['ORIGEN', 'DESTINO']);
+  exigirDestinoNoProduccion(cfg.destino);
   if (!args.soloLimpieza && mismoDestino(cfg.origen, cfg.destino)) {
     throw new Error('ORIGEN y DESTINO son el mismo servidor y base de datos. Se aborta.');
   }

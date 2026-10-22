@@ -1,5 +1,5 @@
 // Prueba de solo lectura: conecta a ORIGEN y DESTINO y muestra qué hay en cada uno. No escribe nada.
-const { leerArgumentos, cargarConfig, mismoDestino, describir } = require('./lib/config');
+const { leerArgumentos, cargarConfig, mismoDestino, describir, exigirDestinoNoProduccion } = require('./lib/config');
 const { conectar, activarSoloLectura, ident, cerrar } = require('./lib/conexiones');
 
 const PRIVILEGIOS = ['CREATE', 'DROP', 'INSERT', 'ALTER', 'DELETE'];
@@ -68,6 +68,7 @@ async function inspeccionar(nombre, c, esOrigen) {
   const args = leerArgumentos(process.argv.slice(2));
   const { origen, destino } = cargarConfig(args.archivo, ['ORIGEN', 'DESTINO']);
   if (mismoDestino(origen, destino)) throw new Error('ORIGEN y DESTINO son el mismo servidor y base de datos. Se aborta.');
+  exigirDestinoNoProduccion(destino);
 
   let fallos = 0;
   for (const [nombre, c, esOrigen] of [['ORIGEN', origen, true], ['DESTINO', destino, false]]) {

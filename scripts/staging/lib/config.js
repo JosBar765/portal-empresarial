@@ -55,4 +55,11 @@ function mismoDestino(a, b) {
 
 const describir = c => `${c.host}:${c.port}/${c.db} (usuario ${c.user})`;
 
-module.exports = { leerArgumentos, cargarConfig, mismoDestino, describir };
+// Última defensa contra intercambiar ORIGEN y DESTINO: un destino cuyo nombre dice «prod» nunca se escribe.
+function exigirDestinoNoProduccion(destino) {
+  if (/prod/i.test(destino.db)) {
+    throw new Error(`El DESTINO (${destino.db}) parece producción: su nombre contiene «prod». Revisa que ORIGEN sea producción y DESTINO staging, sin intercambiar. Se aborta.`);
+  }
+}
+
+module.exports = { leerArgumentos, cargarConfig, mismoDestino, describir, exigirDestinoNoProduccion };
