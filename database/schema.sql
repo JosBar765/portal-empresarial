@@ -358,6 +358,14 @@ CREATE TABLE IF NOT EXISTS `idempotency_keys` (
   `creado_en`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Control de migraciones aplicadas (src/core/migrations); el ejecutor la crea si falta.
+CREATE TABLE IF NOT EXISTS `schema_migrations` (
+  `nombre`      VARCHAR(255) NOT NULL PRIMARY KEY,
+  `checksum`    CHAR(64) NOT NULL,
+  `aplicada_en` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `duracion_ms` INT DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `vale_vistos` (
   `vale_id`    INT NOT NULL,
   `usuario_id` INT NOT NULL,

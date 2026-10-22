@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, staging, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0
+        # Contraseña desechable: el contenedor vive solo durante este job.
+        env:
+          MYSQL_ROOT_PASSWORD: ci_password
+          MYSQL_DATABASE: portal_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci_password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      CI_DB_HOST: 127.0.0.1
+      CI_DB_PORT: 3306
+      CI_DB_USER: root
+      CI_DB_PASSWORD: ci_password
+      CI_DB_NAME: portal_ci
+    steps:
+      # Historial completo: el escenario de actualización lee origin/main con git show.
+      - name: Descargar el código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Instalación exacta desde package-lock.json.
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Todo el JS de src/, scripts/ y public/ debe parsear.
+      - name: Verificar sintaxis
+        run: npm run ci:sintaxis
+
+      # Instalación nueva y actualización estilo producción sobre una MySQL temporal.
+      - name: Verificar scripts de base de datos
+        run: npm run ci:migraciones
+
+      # El servidor arranca contra la base resultante y responde.
+      - name: Probar arranque del servidor
+        run: npm run ci:arranque
