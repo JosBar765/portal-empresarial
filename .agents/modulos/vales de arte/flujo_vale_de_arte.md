@@ -787,7 +787,7 @@ En un vale con varios talleres, los talleres que comparten propuestas ven la úl
 - **Qué se ve:** de cada taller hermano, el PDF de su última propuesta aprobada con su nota y enlaces. Si aún no la aprueba (o se desaprobó), «En trabajo» y sin archivo.
 - **Cuándo avisa:** solo cuando el **encargado aprueba** (entregar y desaprobar no avisan). Recibe el aviso (`valeEvents.notificar`, tipo `PROPUESTA_COMPARTIDA`, queda en el centro de notificaciones) el encargado, los asistentes y el diseñador **asignado** de cada taller hermano, una sola vez por persona; no al actor ni a otros diseñadores.
 - **Signo rojo «?» en el Buzón:** sobre el vale, con tooltip, mientras el usuario no haya abierto la propuesta nueva. El «visto» es por usuario (`vale_propuestas_otros_vistos`) y se guarda con el `propuesta_id`, por lo que una re-aprobación con otra propuesta vuelve a contar como nueva. Se marca con `POST /api/vales/:id/propuestas-otros/:tallerId/visto`; el detalle sale en `propuestasOtrosTalleres`.
-- **Script de BD:** `database/09_comparte_propuestas.sql` (columna y tabla de «visto»).
+- **Script de BD:** `database/migraciones/09_comparte_propuestas.sql` (columna y tabla de «visto»).
 
 **Límites conocidos**
 - La restricción es solo de interfaz: `obtenerDetalle` y `GET /:id/propuesta` siguen devolviendo las propuestas de todos los talleres (decisión de producto: los datos no son sensibles). Las URL de Supabase son públicas.

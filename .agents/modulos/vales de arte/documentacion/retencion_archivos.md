@@ -38,6 +38,6 @@ Son enteros de 1 a 3650. El servicio los lee de la base en cada ciclo; si la fil
 4. Abrir `/api/vales/<id>/pdf`: debe decir que el PDF expiró.
 
 ## Puesta en producción
-1. Importar `database/10_retencion_archivos.sql` (el archivo lleva un número delante; se cita sin él) **ANTES** de desplegar el código. Es idempotente: agrega las dos columnas de marca, deja `vale_documentos.ruta` nullable y siembra los dos parámetros sin pisar valores ya cambiados.
+1. Importar `database/migraciones/10_retencion_archivos.sql` (el archivo lleva un número delante; se cita sin él) **ANTES** de desplegar el código. Es idempotente: agrega las dos columnas de marca, deja `vale_documentos.ruta` nullable y siembra los dos parámetros sin pisar valores ya cambiados.
 2. Desplegar. Los vales confirmados hace más de 30 días se purgan en lotes desde el primer arranque.
 3. La purga es irreversible: los objetos borrados de Storage no se recuperan. Para revertir el esquema, ver el encabezado del script.
