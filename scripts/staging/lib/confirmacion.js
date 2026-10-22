@@ -13,4 +13,4 @@ async function confirmarNombre(args, destino) {
   if (escrito !== destino.db) throw new Error(`La confirmación «${escrito}» no coincide con la base DESTINO «${destino.db}». No se tocó nada.`);
 }
 
-module.exports = { confirmarNombre };
+module.exports = { confirmarNombre, preguntar };
