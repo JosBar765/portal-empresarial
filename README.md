@@ -180,3 +180,5 @@ Desde el PC del dueño, sin `mysqldump`:
 *   `npm run staging:refrescar`: reemplaza la base de staging por una copia de producción y la deja lista para que el ejecutor de migraciones aplique lo pendiente.
 
 Configuración, seguridad y límites: [reglas_refresco_staging.md](.agents/reglas/reglas_refresco_staging.md).
+
+Respaldo de producción antes de cada despliegue (solo descarga, sin `mysqldump`): `npm run main:backup`. Guía y restauración: [reglas_respaldo_produccion.md](.agents/reglas/reglas_respaldo_produccion.md).

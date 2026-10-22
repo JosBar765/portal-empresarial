@@ -6,7 +6,7 @@ Comando local, ejecutado desde el PC del dueño, que reemplaza la base de **stag
 producción (ORIGEN, solo lectura)  ──►  PC del dueño  ──►  staging (DESTINO, se borra y reescribe)
 ```
 
-Código: `scripts/staging/` (`probar-conexion.js`, `marcar.js`, `refrescar.js`, `lib/`).
+Código: `scripts/staging/` (`probar-conexion.js`, `marcar.js`, `refrescar.js`, `lib/`). El respaldo de producción a archivo (`npm run main:backup`) reutiliza `lib/` y se describe en `reglas_respaldo_produccion.md`.
 
 ## Diseño de seguridad
 
