@@ -11,10 +11,25 @@ database/
 ├── schema.sql      # Estructura: CREATE TABLE, claves, índices. Cero datos.
 ├── seed.sql        # Datos reales mínimos para una instalación funcional.
 ├── users.sql       # Usuarios, talleres y sus asignaciones (solo desarrollo; ver su cabecera).
-└── migrations/     # Scripts idempotentes NN_tema.sql para bases que ya están en producción.
+└── migrations/     # Scripts idempotentes NN_tema.sql; los aplica solo el ejecutor de migraciones.
 ```
 
-Los cambios sobre una base que ya está en producción **no** se hacen editando `schema.sql` ni `seed.sql`: van en un script idempotente nuevo dentro de `database/migrations/`, que el dueño importa a mano. Su nombre empieza con un número correlativo, pero la documentación y los comentarios lo citan sin él.
+Los cambios sobre una base que ya está en producción **no** se hacen editando `schema.sql` ni `seed.sql`: van en un script idempotente nuevo dentro de `database/migrations/`, que el ejecutor de migraciones aplica solo (ver abajo). Su nombre empieza con un número correlativo, pero la documentación y los comentarios lo citan sin él.
+
+## Ejecutor de migraciones
+
+Regla: el dueño ya no importa los scripts a mano. Un script de `database/migrations/` debe ser **aditivo e idempotente** (se puede correr dos veces sin daño) y **nunca se edita una vez aplicado**: un cambio posterior va en un script nuevo.
+
+Cómo funciona (`src/core/migrations/ejecutor.js`):
+
+- Al arrancar el servidor con `NODE_ENV` `staging` o `production`, antes de escuchar, aplica en orden de nombre los scripts que no constan en la tabla `schema_migrations` (`nombre`, `checksum` SHA-256 con saltos de línea LF, `aplicada_en`, `duracion_ms`).
+- Usa su propia conexión y un bloqueo de MySQL (`GET_LOCK('portal_migraciones')`): dos instancias nunca migran a la vez.
+- Registra un script solo cuando terminó entero. Si uno falla, el servidor no arranca y el log dice `[FATAL] Falló la migración <archivo>: <error de MySQL>`; al corregirlo y reiniciar se reintenta (por eso deben ser idempotentes).
+- Si un script ya aplicado cambió de contenido, avisa (`AVISO`) y no lo vuelve a correr.
+- En `development` y `test` no corre solo: `npm run migrate` aplica los pendientes a la base del `.env` y `npm run migrate:estado` lista aplicadas, pendientes y modificadas sin cambiar nada.
+- `schema_migrations` también está en `schema.sql` (igual que `sesiones_activas` o `idempotency_keys`, tablas de runtime), pero el ejecutor la crea si falta: sirve en bases de producción que nunca la tuvieron.
+
+Primer despliegue: primero `staging` y después `production`. Producción ya tiene a mano los primeros scripts y la primera corrida los vuelve a ejecutar y registrar (son idempotentes, no hace falta línea base). El usuario de MySQL de la aplicación necesita permisos DDL (`CREATE`, `ALTER`, `DROP`, `INDEX`, `REFERENCES`) además de los de datos.
 
 Orden de importación sobre una base de datos vacía:
 

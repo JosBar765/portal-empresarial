@@ -80,6 +80,7 @@ portal-empresarial/
 │   │   ├── websocket/            # Gestor central de WebSockets (Socket.IO)
 │   │   ├── files/                # Supabase Storage y subida de archivos
 │   │   ├── idempotency/          # Claves de idempotencia
+│   │   ├── migrations/           # Ejecutor de migraciones de database/migrations/
 │   │   ├── calendario/           # Horario laboral y feriados
 │   │   └── notifications/        # Notificaciones
 │   ├── modules/                  # Lógica de negocio de cada módulo (vales, admin)
@@ -115,6 +116,14 @@ npm run dev
 ```
 
 El portal estará disponible en la URL local: **`http://localhost:3000`**
+
+### Migraciones
+Los scripts de `database/migrations/` se aplican solos al arrancar el servidor en `staging` y `production`. En desarrollo:
+```bash
+npm run migrate          # aplica los scripts pendientes a la base del .env
+npm run migrate:estado   # lista aplicadas, pendientes y modificadas (solo lectura)
+```
+Reglas y funcionamiento: [reglas_archivosSQL.md](.agents/reglas/reglas_archivosSQL.md).
 
 ---
 
@@ -155,7 +164,7 @@ El Dashboard detecta el módulo automáticamente y lo muestra a quien tenga los 
 Cada pull request hacia `dev`, `staging` o `main` ejecuta el workflow `CI` (`.github/workflows/ci.yml`), que verifica:
 
 *   **Sintaxis** de todo el JS de `src/`, `scripts/` y `public/` (`npm run ci:sintaxis`).
-*   **Scripts SQL** sobre una MySQL temporal: instalación nueva y actualización estilo producción, con las migraciones aplicadas dos veces (`npm run ci:migraciones`).
+*   **Scripts SQL** sobre una MySQL temporal: instalación nueva y actualización estilo producción, con las migraciones aplicadas por el ejecutor, dos veces (`npm run ci:migraciones`).
 *   **Arranque del servidor** contra esa base (`npm run ci:arranque`, pensado para el CI).
 
 Detalle, lectura de fallos y cómo exigir el chequeo en los rulesets: [reglas_ci.md](.agents/reglas/reglas_ci.md).

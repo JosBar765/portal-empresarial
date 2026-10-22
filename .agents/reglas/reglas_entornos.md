@@ -29,6 +29,8 @@ La variable es obligatoria y no tiene valor por defecto: si falta o tiene un val
 
 No son críticas, y funcionan en todos los entornos: las operaciones sobre la base de datos del entorno, los sockets propios y las lecturas.
 
+Las migraciones de `database/migrations/` tocan solo la base del propio entorno, así que no son una acción crítica: el servidor las aplica al arrancar en `staging` y `production` (ver `reglas_archivosSQL.md`).
+
 ## Cómo se implementa
 
 1. Comprobar `config.nodeEnv === 'production'`. Se lee de `src/config/env.js`, nunca de `process.env` directamente, y sin ningún valor por defecto.
