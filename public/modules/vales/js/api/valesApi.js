@@ -73,7 +73,7 @@ export async function obtenerCapacidadEntrega(talleresIds, anio, mes) {
 }
 
 // Mínima y días no disponibles (feriados, días sin recepción, hora máxima) de la fecha de entrega en un rango.
-// `modificacion`: MEDIA o AVANZADA para el vale MOD (sin «urgente», con su mínimo en días hábiles).
+// `modificacion`: BASICA, MEDIA o AVANZADA para el vale MOD (mínimo en días hábiles; con `urgente`, el siguiente día disponible).
 export async function obtenerFechasEntrega(talleresIds, desde, hasta, urgente = false, modificacion = null) {
   const qs = new URLSearchParams({ talleres: talleresIds.join(','), desde, hasta });
   if (urgente) qs.set('urgente', '1');

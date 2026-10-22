@@ -146,13 +146,15 @@ function nesimoDiaHabil(cfg, ahora, n, paisId) {
 }
 
 // `diasMinimos`: antelación mínima en días naturales (3 cuando el vale NO es urgente); no salta la hora máxima de recibimiento.
-// `diasHabiles`: antelación mínima en días que reciben vales (modificaciones: 2 media, 3 avanzada); null si no alcanza.
+// `diasHabiles`: antelación mínima en días que reciben vales (modificaciones: básica 1, media 2, avanzada 3; urgente 1); null si no alcanza.
 function fechaMinimaParaTaller(cfg, tallerId, ahora, diasMinimos = 0, diasHabiles = 0) {
   const t = datosTaller(cfg, tallerId);
   let dia = inicioDia(aMs(ahora));
   if (minutosDelDia(ahora) >= t.horaMaxima) dia += MS_DIA;
   if (diasMinimos > 0) dia = Math.max(dia, inicioDia(aMs(ahora)) + diasMinimos * MS_DIA);
   if (diasHabiles > 0) {
+    // Una modificación nunca es para hoy, ni antes ni después de la hora máxima.
+    dia = Math.max(dia, inicioDia(aMs(ahora)) + MS_DIA);
     const habil = nesimoDiaHabil(cfg, ahora, diasHabiles, t.paisId);
     if (!habil) return null;
     dia = Math.max(dia, diaMs(habil));
@@ -209,6 +211,7 @@ function razonNoDisponible(cfg, fecha, talleresIds, ahora, diasMinimos = 0, dias
     if (feriado) return { motivo: 'FERIADO', detalle: feriado };
     const h = cfg.horarios[diaSemanaDe(diaMs(fecha))];
     if (!(h && h.recibeVales)) return { motivo: 'NO_RECIBE', detalle: 'No se reciben vales' };
+    if (fecha === hoy && diasHabiles > 0) return { motivo: 'HOY_MODIFICACION', detalle: 'Una modificación no se puede pedir para hoy' };
     if (fecha === hoy && minutosDelDia(ahora) >= t.horaMaxima) {
       return { motivo: 'PASADO', detalle: `Pasó la hora máxima de recibimiento (${aHHMM(t.horaMaxima)})`, hora: aHHMM(t.horaMaxima), taller: t.nombre };
     }
@@ -246,6 +249,9 @@ function validarFechaEntrega(cfg, fecha, talleresIds, ahora, diasMinimos = 0, di
   }
   if (r.motivo === 'REQUIERE_URGENTE') {
     throw new ErrorDeNegocio(`Sin marcar «Urgente», la fecha de entrega mínima es ${fmtFecha(minima)}. Marca «Urgente» para pedir una fecha más cercana.`);
+  }
+  if (r.motivo === 'HOY_MODIFICACION') {
+    throw new ErrorDeNegocio(`Una modificación no se puede pedir para hoy. La fecha de entrega mínima es ${fmtFecha(minima)}.`);
   }
   if (r.motivo === 'ANTES_DE_MINIMA') {
     throw new ErrorDeNegocio(`La entrega mínima es ${fmtFecha(minima)} (${textoDiasHabiles(diasHabiles)} desde hoy).`);

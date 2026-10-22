@@ -1,8 +1,8 @@
 // src/modules/vales/services/valeModificacionService.js
-// Modificación media o avanzada de un vale ya entregado: al solicitarla el vale modificado queda RECIBIDO y nace el vale MOD
+// Modificación básica, media o avanzada de un vale ya entregado: al solicitarla el vale modificado queda RECIBIDO y nace el vale MOD
 // (MOD-X, MOD2-X…), completo y con la propuesta del modificado al final de su PDF (esperando al supervisor, baja, vigencia en
 // horas laborales). Autorizarlo lo reparte a los mismos talleres; rechazarlo o vencerlo lo elimina (el modificado y sus archivos no
-// se tocan). La modificación básica no crea vale: ver valeModificacionBasicaService.
+// se tocan).
 const crypto = require('crypto');
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
@@ -40,7 +40,7 @@ class ValeModificacionService {
 
       if (!puedeActuarComoAsesor(usuario)) throw new Error('Solo un asesor o un supervisor de ventas puede solicitar una modificación.');
       const tipo = String(payload.tipo || '').toUpperCase();
-      if (!TIPOS_MODIFICACION_CON_VALE.includes(tipo)) throw new Error('Elige el tipo de modificación: media o avanzada.');
+      if (!TIPOS_MODIFICACION_CON_VALE.includes(tipo)) throw new Error('Elige el tipo de modificación: básica, media o avanzada.');
       const original = await requerirVale(valeId);
       assertPropioDelAsesor(usuario, original);
       if (![ESTADOS.RECIBIDO, ESTADOS.PENDIENTE_CONFIRMACION].includes(original.estado)) {

@@ -366,7 +366,7 @@ export function construirAcciones(v) {
     acciones.push({ icono: 'checkmark-done-circle-outline', titulo: 'Aprobar y fusionar', clase: 'icon-success', onClick: abrirModalAprobarGeneral });
   }
   // Un vale recibido se puede modificar si todavía no tiene un vale MOD hijo; un MOD recibido también (MOD2, MOD3…).
-  // Desde aquí solo se ofrecen la modificación media y la avanzada.
+  // El selector ofrece las tres modificaciones (básica, media y avanzada); todas crean un vale MOD.
   if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.mod_en_tramite && !basicasAbiertas.length && !ajenoDeSupervisor) {
     acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirSelectorModificacion });
   }

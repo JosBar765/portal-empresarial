@@ -101,7 +101,7 @@ class CalendarioService {
   }
 
   // `diasMinimos`: 3 cuando el vale no es urgente (antelación mínima en días naturales); 0 con «urgente».
-  // `diasHabiles`: antelación mínima en días que reciben vales, para las modificaciones (media 2, avanzada 3).
+  // `diasHabiles`: antelación mínima en días que reciben vales, para las modificaciones (básica 1, media 2, avanzada 3; urgente 1).
   async fechasNoDisponibles(talleresIds, desde, hasta, diasMinimos = 0, ahora = calendario.ahoraUTC6(), diasHabiles = 0) {
     const cfg = await cargar();
     return {

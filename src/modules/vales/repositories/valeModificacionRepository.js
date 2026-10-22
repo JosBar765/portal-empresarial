@@ -1,5 +1,5 @@
 // src/modules/vales/repositories/valeModificacionRepository.js
-// Solicitud de modificación media o avanzada: nace el vale MOD (esperando al supervisor, con vigencia en horas laborales) y el vale
+// Solicitud de modificación básica, media o avanzada: nace el vale MOD (esperando al supervisor, con vigencia en horas laborales) y el vale
 // modificado queda RECIBIDO.
 const db = require('../../../config/database');
 
