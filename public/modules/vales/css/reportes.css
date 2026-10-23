@@ -392,46 +392,9 @@
 .rep-agrupar-fijo::before { content: ''; display: inline-block; width: 1px; height: 14px; margin-right: 8px; vertical-align: -2px; background: var(--color-border); }
 .rep-filtros-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
-/* Tabla unificada: personas con sus vales desplegables */
-.rep-tabla { --rep-cols: minmax(210px, 2.2fr) 90px minmax(160px, 2fr); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
-.rep-grupo { border-top: 1px solid var(--color-border); }
-.rep-grupo:first-child { border-top: 0; }
-.rep-grupo-cab {
-  display: grid;
-  grid-template-columns: var(--rep-cols);
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-height: 52px;
-  padding: 8px 16px 8px 14px;
-  font: inherit;
-  text-align: left;
-  color: var(--color-text);
-  background: var(--color-surface);
-  border: 0;
-  cursor: pointer;
-  transition: background-color var(--transition-fast);
-}
-.rep-grupo-cab:hover { background: var(--color-surface-muted); }
-.rep-grupo-cab:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
-.rep-grupo.is-abierto > .rep-grupo-cab { background: var(--color-primary-light); }
-.rep-grupo-nombre { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.rep-grupo-nombre strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
-.rep-chevron { flex: 0 0 auto; font-size: 16px; color: var(--color-text-secondary); transition: transform var(--transition-fast); }
-.rep-grupo.is-abierto .rep-chevron { transform: rotate(90deg); }
-.rep-avatar { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; font-size: 11px; font-weight: 700; color: #fff; background: var(--color-primary-dark); border-radius: var(--radius-full); }
-.rep-celda { font-size: 14px; font-variant-numeric: tabular-nums; }
-.rep-celda--n { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
-.rep-celda--chips { display: flex; flex-wrap: wrap; gap: 6px; }
-
-.rep-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; font-size: 12px; font-weight: 600; border-radius: var(--radius-full); background: var(--color-surface-muted); color: var(--color-text-secondary); }
-.rep-chip ion-icon { font-size: 14px; }
-.rep-chip--alerta { background: var(--color-danger-bg); color: var(--color-danger); }
-.rep-chip--aviso { background: #fef3c7; color: #92400e; }
-.rep-chip--ok { background: #ecfdf5; color: #047857; }
-
-.rep-grupo-cuerpo { padding: 4px 14px 14px 56px; background: var(--color-surface-muted); }
-.rep-grupo-cuerpo[hidden] { display: none; }
+/* Tabla de vales por sección: la persona (o taller/tienda) es una columna */
+.rep-avatar { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; font-size: 10px; font-weight: 700; color: var(--color-surface); background: var(--color-primary-dark); border-radius: var(--radius-full); }
+.rep-grupo-nombre { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 600; }
 .rep-mini-wrap { overflow-x: auto; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .rep-mini { width: 100%; border-collapse: collapse; font-size: 13px; }
 .rep-mini th { padding: 9px 12px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-align: left; text-transform: uppercase; color: var(--color-text-secondary); background: var(--color-surface-muted); }
@@ -440,19 +403,49 @@
 .rep-acciones-celda { white-space: nowrap; }
 .rep-acciones-celda .btn-icon { margin-right: 4px; }
 .rep-sin-vales { margin: 10px 4px; font-size: 13px; color: var(--color-text-secondary); }
-.rep-expandir { display: inline-flex; gap: 14px; }
 .rep-propuesta { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; }
 .rep-propuesta ion-icon { font-size: 15px; }
 .rep-propuesta--si { color: #047857; }
 .rep-propuesta--no { color: var(--color-danger); }
 .rep-propuesta--na { color: var(--color-text-muted); font-weight: 500; }
 
-@media (max-width: 900px) {
-  .rep-tabla { --rep-cols: minmax(180px, 2fr) 70px 90px minmax(150px, 1.6fr); }
-    .rep-grupo-cuerpo { padding-left: 14px; }
-}
+/* Estados del reporte: sin vales y error */
+.rep-estado { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 16px; text-align: center; }
+.rep-estado--tarjeta { padding: 56px 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+.rep-estado-icono { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; color: var(--color-text-muted); background: var(--color-surface-muted); border-radius: var(--radius-full); }
+.rep-estado-icono ion-icon { font-size: 24px; }
+.rep-estado--error .rep-estado-icono { color: var(--color-danger); background: var(--color-danger-bg); }
+.rep-estado h4 { font-family: var(--font-title); font-size: 15px; font-weight: 700; color: var(--color-text); }
+.rep-estado p { max-width: 380px; font-size: var(--text-sm); color: var(--color-text-secondary); }
+.rep-estado .btn { margin-top: 6px; }
 
-/* Celulares: cada persona es una tarjeta y sus vales se apilan como tarjetas */
+/* Primera carga: esqueleto con la forma del reporte */
+.rep-esq { display: flex; flex-direction: column; gap: 14px; }
+.rep-esq-controles, .rep-esq-aviso, .rep-esq-seccion, .rep-esq-fila { display: flex; align-items: center; gap: 8px; }
+.rep-esq-aviso { padding: 14px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.rep-esq-tarjeta { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+.rep-esq-seccion { padding: 12px 0; border-bottom: 1px solid var(--color-border); }
+.rep-esq-tabla { overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.rep-esq-fila { gap: 12px; padding: 14px 12px; border-top: 1px solid var(--color-border); }
+.rep-esq-fila:first-child { border-top: 0; }
+.rep-esq-fila .rep-esq-barra--cuadro { margin-left: auto; }
+.rep-esq-barra { display: block; flex: none; height: 12px; background: var(--color-surface-muted); border-radius: var(--radius-xs); animation: rep-pulso 1.4s ease-in-out infinite; }
+.rep-esq-barra--s { width: 90px; }
+.rep-esq-barra--m { width: 150px; height: 16px; }
+.rep-esq-barra--l { width: 220px; height: 14px; }
+.rep-esq-barra--xl { width: 380px; }
+.rep-esq-barra--vale { width: 120px; height: 14px; }
+.rep-esq-barra--persona { width: 110px; }
+.rep-esq-barra--estado { width: 150px; height: 22px; border-radius: var(--radius-full); }
+.rep-esq-barra--corta { width: 80px; }
+.rep-esq-barra--pildora { height: 34px; border-radius: var(--radius-full); }
+.rep-esq-barra--pildora-s { width: 34px; height: 16px; border-radius: var(--radius-full); }
+.rep-esq-barra--campo { width: 170px; height: 36px; border-radius: var(--radius-sm); }
+.rep-esq-barra--circulo { width: 14px; height: 14px; border-radius: var(--radius-full); }
+.rep-esq-barra--cuadro { width: 30px; height: 30px; border-radius: var(--radius-sm); }
+@keyframes rep-pulso { 50% { opacity: .5; } }
+
+/* Celulares: cada vale es una tarjeta compacta (código y atraso, persona y entrega, estado y acción) */
 @media (max-width: 640px) {
   .rp-barra { gap: 10px; }
     .rp-segmentos { width: 100%; justify-content: space-between; }
@@ -467,28 +460,30 @@
     .rp-flecha { width: 44px; min-height: 44px; }
     .rp-etiqueta { min-height: 44px; flex: 1; }
     .rp-navegador { width: 100%; }
-    .rep-tabla { border: 0; }
-    .rep-grupo { margin-bottom: 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
-    .rep-grupo-cab { grid-template-columns: 1fr auto; gap: 6px 12px; padding: 12px; }
-    .rep-grupo-nombre { grid-column: 1; }
-    .rep-celda--n { grid-column: 2; grid-row: 1; }
-    .rep-celda--chips { grid-column: 1 / -1; }
-    .rep-celda--chips:empty { display: none; }
-    .rep-grupo-cuerpo { padding: 8px; }
     .rep-mini-wrap { overflow: visible; background: transparent; border: 0; }
     .rep-mini, .rep-mini tbody, .rep-mini tr { display: block; width: 100%; }
     .rep-mini thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
-    .rep-mini tr { margin-bottom: 8px; padding: 4px 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
-    .rep-mini td { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; text-align: right; border-top: 0; border-bottom: 1px solid var(--color-border); }
-    .rep-mini td:last-child { border-bottom: 0; }
-    .rep-mini td::before { content: attr(data-label); flex-shrink: 0; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-secondary); text-align: left; }
-    .rep-mini td[data-label="Estado"] { flex-direction: column; align-items: flex-start; text-align: left; gap: 6px; }
-    .rep-acciones-celda { justify-content: flex-end; }
-    .rep-acciones-celda::before { display: none; }
+    .rep-mini tr { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 12px; margin-bottom: 8px; padding: 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+    .rep-mini td { display: block; min-width: 0; padding: 0; text-align: left; border: 0; }
+    .rep-mini td::before { display: none; }
+    .rep-c-vale { grid-area: 1 / 1; }
+    .rep-c-atraso { grid-area: 1 / 2; justify-self: end; }
+    .rep-c-grupo { grid-area: 2 / 1; }
+    .rep-c-entrega, .rep-c-ingreso { font-size: 12px; color: var(--color-text-secondary); white-space: nowrap; }
+    .rep-c-entrega { grid-area: 2 / 2; text-align: right; }
+    .rep-c-ingreso { grid-area: 3 / 1 / 3 / -1; }
+    .rep-c-entrega::before, .rep-c-ingreso::before { content: attr(data-label) ' '; display: inline; font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+    .rep-c-estado { grid-area: 3 / 1; }
+    .rep-c-acciones { grid-area: 3 / 2; justify-self: end; }
+    .rep-mini--taller .rep-c-estado { grid-area: 4 / 1; }
+    .rep-mini--taller .rep-c-acciones { grid-area: 4 / 2; }
     .rep-mini .btn-icon { width: 44px; height: 44px; }
+    .rep-esq-barra--xl, .rep-esq-barra--campo { flex: 1 1 140px; width: auto; }
+    .rep-esq-controles { flex-wrap: wrap; }
+    .rep-esq-tarjeta { padding: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .rep-chevron { transition: none; }
+  .rep-esq-barra { animation: none; }
 }
 .rep-acciones-fila { display: flex; align-items: center; gap: 6px; }
 
@@ -513,10 +508,6 @@
 }
 .rep-ind-tarjeta:nth-child(even) .rep-info::after, .rep-ind-tarjeta:last-child .rep-info::after { left: auto; right: 0; }
 .rep-info:hover::after, .rep-info:focus-visible::after, .rep-info:focus::after { opacity: 1; transform: none; }
-
-@media (max-width: 900px) {
-  .rep-tabla { --rep-cols: minmax(170px, 2fr) 80px minmax(120px, 1.4fr); }
-}
 
 /* Gráfica de barras dobles por persona */
 .rep-grafica { margin-bottom: 16px; }
@@ -599,7 +590,6 @@
 .rep-rendimiento .rend-fila-vacia th { color: var(--color-text-muted); font-weight: 500; }
 .rep-rendimiento .rend-num--alerta { color: var(--color-danger); font-weight: 700; }
 .rep-rendimiento .rend-num--aviso { color: var(--color-warning); font-weight: 700; }
-.rep-chip--mini { margin-left: 8px; padding: 1px 8px; font-size: 11px; vertical-align: middle; }
 @media (max-width: 640px) {
   .rep-rendimiento thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
   .rep-rendimiento, .rep-rendimiento tbody, .rep-rendimiento tfoot, .rep-rendimiento tr { display: block; width: 100%; }

@@ -258,3 +258,11 @@ un tono de marca distinto (marketing/consumer) al de este proyecto.
   archivo sin relación (un documento personal). Los valores hex ya quedaron
   capturados en los tokens de `global.css` (§2.3), así que no depender de la
   imagen para reproducir la paleta.
+
+## Cambios de diseño: primero el mockup
+
+Todo cambio de diseño (pantallas, disposición, componentes visuales) empieza con un
+mockup en Figma, que se revisa y corrige ahí antes de escribir código: escritorio y
+celular, con los estados vacío, cargando y error. Solo con el mockup aprobado se
+implementa, tomando de él las medidas y los textos, y con los tokens de `global.css`.
+Los cambios de lógica sin efecto visual no lo requieren.
