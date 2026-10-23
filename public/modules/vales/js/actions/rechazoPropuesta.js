@@ -46,7 +46,8 @@ const talleresRechazables = (vale) => (vale._talleresDetalle || []).filter(t => 
 // -----------------------------------------------------------------------
 // Asesor: rechazar la propuesta (elige taller si hay varios y escribe el primer mensaje)
 // -----------------------------------------------------------------------
-export function abrirModalRechazarPropuesta(vale) {
+// `alCancelar` permite volver al modal desde el que se abrió (p. ej. el de decisión).
+export function abrirModalRechazarPropuesta(vale, { alCancelar } = {}) {
   const talleres = talleresRechazables(vale);
   const variosTalleres = talleres.length > 1;
   const { overlay, cerrar } = abrirModal({
@@ -74,7 +75,7 @@ export function abrirModalRechazarPropuesta(vale) {
   overlay.querySelectorAll('input[name="mb-taller"]').forEach(c => c.addEventListener('change', validar));
   textarea.addEventListener('input', validar);
   validar();
-  overlay.querySelector('#mb-cancelar').addEventListener('click', cerrar);
+  overlay.querySelector('#mb-cancelar').addEventListener('click', () => { cerrar(); if (alCancelar) alCancelar(); });
   enviar.addEventListener('click', async () => {
     const ids = variosTalleres
       ? [...overlay.querySelectorAll('input[name="mb-taller"]:checked')].map(c => Number(c.value))

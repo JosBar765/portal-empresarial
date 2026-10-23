@@ -25,7 +25,8 @@ const TIPOS = [
 ];
 
 // Asesor: elige el tipo de modificación y sigue con el formulario del vale MOD (los tres tipos lo comparten).
-export function abrirSelectorModificacion(vale) {
+// `alCancelar` permite volver al modal desde el que se abrió (p. ej. el de decisión).
+export function abrirSelectorModificacion(vale, { alCancelar } = {}) {
   const disponibles = TIPOS;
   const { overlay, cerrar } = abrirModal({
     title: `Solicitar modificación — ${vale.correlativo}`,
@@ -71,7 +72,7 @@ export function abrirSelectorModificacion(vale) {
     // Doble clic en una tarjeta: elige y continúa.
     r.closest('.mod-tipo').addEventListener('dblclick', () => { r.checked = true; seguir(); });
   });
-  overlay.querySelector('#mod-cancelar').addEventListener('click', cerrar);
+  overlay.querySelector('#mod-cancelar').addEventListener('click', () => { cerrar(); if (alCancelar) alCancelar(); });
   continuar.addEventListener('click', seguir);
   const primero = overlay.querySelector('input[name="mod-tipo"]');
   if (primero) primero.focus();

@@ -118,12 +118,14 @@ export function abrirVisorDecisionAsesor(vale, propuesta) {
     boton: { etiqueta: 'Ver chat', onClick: ({ quitar }) => { quitar(); abrirConversacionesRechazo(vale, { ids: rechazos.map(r => r.id) }); } }
   } : null;
   const puedeRechazar = puede('rechazarPropuesta') && vale.asesor_id === state.user.id;
+  // Cancelar en el modal que abre una acción devuelve al visor de decisión.
+  const volverALaDecision = () => abrirVisorDecisionAsesor(vale, propuesta);
   return abrirVisorVale({
     aviso,
     id: vale.id, correlativo: vale.correlativo, propuesta, subtitulo: 'Revisa el vale y la propuesta, y decide.',
     acciones: [
-      { etiqueta: 'Solicitar modificación', icono: 'create-outline', clase: 'btn--ghost', onClick: ({ cerrar }) => { cerrar(); abrirSelectorModificacion(vale); } },
-      ...(puedeRechazar ? [{ etiqueta: 'Rechazar propuesta', icono: 'close-circle-outline', clase: 'btn--danger', onClick: ({ cerrar }) => { cerrar(); abrirModalRechazarPropuesta(vale); } }] : []),
+      { etiqueta: 'Solicitar modificación', icono: 'create-outline', clase: 'btn--ghost', onClick: ({ cerrar }) => { cerrar(); abrirSelectorModificacion(vale, { alCancelar: volverALaDecision }); } },
+      ...(puedeRechazar ? [{ etiqueta: 'Rechazar propuesta', icono: 'close-circle-outline', clase: 'btn--danger', onClick: ({ cerrar }) => { cerrar(); abrirModalRechazarPropuesta(vale, { alCancelar: volverALaDecision }); } }] : []),
       {
         etiqueta: 'Confirmar recibido', icono: 'checkmark-outline', clase: 'btn--primary',
         onClick: async ({ cerrar, boton }) => {
