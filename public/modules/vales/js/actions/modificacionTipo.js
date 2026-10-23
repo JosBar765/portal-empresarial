@@ -65,7 +65,8 @@ export function abrirSelectorModificacion(vale, { alCancelar } = {}) {
     const elegido = overlay.querySelector('input[name="mod-tipo"]:checked');
     if (!elegido) return;
     cerrar();
-    abrirModalSolicitarModificacion(vale, elegido.value);
+    // Cancelar en el formulario regresa a este selector, que a su vez regresa a quien lo abrió.
+    abrirModalSolicitarModificacion(vale, elegido.value, { alCancelar: () => abrirSelectorModificacion(vale, { alCancelar }) });
   };
   overlay.querySelectorAll('input[name="mod-tipo"]').forEach(r => {
     r.addEventListener('change', () => { continuar.disabled = false; });

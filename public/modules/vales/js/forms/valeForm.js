@@ -71,7 +71,8 @@ const textoAyudaUrgente = (esMod, marcada) => {
 };
 
 // `tipoModificacion` (BASICA / MEDIA / AVANZADA): al pedir una modificación con vale MOD; al corregir un MOD sale del propio vale.
-function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipoModificacion = null) {
+// `alCancelar` permite volver al modal desde el que se abrió (p. ej. el selector de tipo de modificación).
+function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipoModificacion = null, { alCancelar } = {}) {
   const esCorreccion = modo === 'corregir';
   const esModificacion = modo === 'modificar';
   const esBorrador = modo === 'borrador';
@@ -264,7 +265,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
     return formData;
   };
 
-  overlay.querySelector('#btn-cancelar-crear').addEventListener('click', cerrar);
+  overlay.querySelector('#btn-cancelar-crear').addEventListener('click', () => { cerrar(); if (alCancelar) alCancelar(); });
   const btnBorrador = overlay.querySelector('#btn-guardar-borrador');
   if (btnBorrador) btnBorrador.addEventListener('click', async () => {
     // Un borrador no se valida: se guarda lo que haya escrito.
@@ -467,6 +468,6 @@ function abrirModalConfirmarCreacion(formData) {
 // Asesor: solicitar una modificación básica, media o avanzada de un vale (mismo formulario, precargado; los talleres
 // quedan fijos y la justificación es la descripción del nuevo vale MOD)
 // -----------------------------------------------------------------------
-export function abrirModalSolicitarModificacion(vale, tipo) {
-  abrirModalFormularioVale(vale, 'modificar', tipo);
+export function abrirModalSolicitarModificacion(vale, tipo, opciones) {
+  abrirModalFormularioVale(vale, 'modificar', tipo, opciones);
 }
