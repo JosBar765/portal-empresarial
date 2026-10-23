@@ -502,6 +502,10 @@ autorizar modificación»). El vale original ya pasó a `RECIBIDO` al
 solicitarse la modificación (§1.1): aparece en «Trabajo realizado» con la marca
 «MOD en trámite».
 
+**Insignia de empresa** (bajo el correlativo, `empresaDeFila`): el asesor, el supervisor, el gerente y el
+administrador ven la empresa del cliente; la empresa es opcional, así que cuando el asesor no la
+escribe la insignia muestra el nombre del cliente, para que el vale siempre se pueda identificar.
+
 **Insignia de persona** (bajo el correlativo, `badgePersona`): el supervisor ve el asesor
 que creó el vale; el encargado de taller (y el asistente, Protextil y Diseño Local) ve el
 diseñador asignado o «Sin asignar» (las filas de fusión no llevan insignia). Asesor,
