@@ -15,6 +15,7 @@ const reporteRepository = require('../repositories/reporteRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const propuestasCompartidasService = require('./propuestasCompartidasService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
+const { normalizarParaBusqueda } = require('../../../core/utils/texto');
 const valeVistoRepository = require('../repositories/valeVistoRepository');
 const { calcularPipeline, prepararPipeline } = require('./valePipeline');
 const {
@@ -348,9 +349,9 @@ class ValeBuzonService {
 
     // Búsqueda: corre sobre la lista COMPLETA ya filtrada por rol/ventana/contador, no solo sobre la página cargada en el
     // navegador. Los contadores no se ven afectados.
-    const busqueda = String(filtros.busqueda || '').trim().toLowerCase();
+    const busqueda = normalizarParaBusqueda(String(filtros.busqueda || '').trim());
     const valesBuscados = busqueda
-      ? valesConAtraso.filter(v => `${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`.toLowerCase().includes(busqueda))
+      ? valesConAtraso.filter(v => normalizarParaBusqueda(`${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`).includes(busqueda))
       : valesConAtraso;
 
     // Orden por columna: un clic en un encabezado de la tabla pide un orden

@@ -14,4 +14,9 @@ function quitarInvisibles(texto) {
     .replace(INVISIBLES, '');
 }
 
-module.exports = { quitarInvisibles };
+// Texto listo para comparar en búsquedas: sin tildes ni diéresis (e, é, ë y demás variantes pasan a «e»), sin mayúsculas.
+function normalizarParaBusqueda(texto) {
+  return String(texto ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+module.exports = { quitarInvisibles, normalizarParaBusqueda };
