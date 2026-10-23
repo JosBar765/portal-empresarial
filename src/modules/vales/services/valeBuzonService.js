@@ -267,8 +267,8 @@ class ValeBuzonService {
         if (puedeFusionar) (await valeRepository.listarIdsPorEstado(ESTADOS.APROBADO_DEPARTAMENTO)).forEach(id => ids.add(id));
         return this._conRechazosAbiertos(await valeRepository.listarParaBuzon({ ...base, valeIds: [...ids] }), miTaller ? miTaller.id : 0);
       }
-      default: // Administrador, Gerente y demás: el buzón general
-        return valeRepository.listarParaBuzon(base);
+      default: // Administrador, Gerente y demás: el buzón general, con los vales con rechazo de propuesta aunque caigan fuera de la ventana
+        return this._conRechazosAbiertos(await valeRepository.listarParaBuzon(base), null);
     }
   }
 
@@ -276,10 +276,14 @@ class ValeBuzonService {
   async _conRechazosAbiertos(vales, tallerId) {
     if (tallerId === 0) return vales;
     const yaIncluidos = new Set(vales.map(v => v.id));
-    const ids = new Set([...await rechazoPropuestaRepository.listarValeIdsAbiertosDeTaller(tallerId), ...await rechazoPropuestaRepository.listarValeIdsDevueltosDeTaller(tallerId)]);
+    const devueltos = new Set(await rechazoPropuestaRepository.listarValeIdsDevueltosDeTaller(tallerId));
+    const ids = new Set([...await rechazoPropuestaRepository.listarValeIdsAbiertosDeTaller(tallerId), ...devueltos]);
     const faltantes = [...ids].filter(id => !yaIncluidos.has(id));
-    if (!faltantes.length) return vales;
-    return [...vales, ...await valeRepository.listarParaBuzon({ valeIds: faltantes, estadosTerminales: ESTADOS_TERMINALES })].sort((a, b) => a.id - b.id);
+    const todos = faltantes.length
+      ? [...vales, ...await valeRepository.listarParaBuzon({ valeIds: faltantes, estadosTerminales: ESTADOS_TERMINALES })].sort((a, b) => a.id - b.id)
+      : vales;
+    // Vista general (cualquier taller): marca los devueltos para que _buzonAsesor los cuente sin ventana.
+    return tallerId === null ? todos.map(v => (devueltos.has(v.id) ? { ...v, _devueltoRechazo: true } : v)) : todos;
   }
 
   async obtenerBuzon(usuario, filtros = {}) {
@@ -450,13 +454,19 @@ class ValeBuzonService {
   _buzonAsesor(usuario, todos, ventana, filtroContador) {
     const propios = (usuario ? todos.filter(v => v.asesor_id === usuario.id) : todos).map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v), adjuntos: this._adjuntosDe(v), talleres_estado: this._talleresEstadoDe(v) }));
     const activos = propios.filter(v => !ESTADOS_TERMINALES.includes(v.estado));
-    const enVentana = conPaso(activos.filter(v => dentroDeVentana(v, ventana)));
+    // Vista general: el vale devuelto por un rechazo de propuesta se ve y cuenta siempre, sin ventana.
+    const enVentana = conPaso(activos.filter(v => dentroDeVentana(v, ventana) || (!usuario && v._devueltoRechazo)));
 
     // Contadores por paso del pipeline; "Atrasados" y "Modificados" no son filtros excluyentes: se combinan
     // con cualquiera, ver el manejo de `soloAtrasados`/`soloModificados` en obtenerBuzon().
     const contadores = contadoresPorPaso(enVentana);
-    const filtrados = this._aplicarFiltroContador(enVentana, filtroContador, PREDICADOS_POR_PASO);
+    // Vista general: el rechazo abierto se agrega después del filtro de contador (no depende de la ventana ni de la tarjeta).
+    const conRechazoAbierto = (v) => !usuario && (v.rechazos_propuesta || []).some(r => r.estado === 'ABIERTO');
+    const filtradosPorContador = this._aplicarFiltroContador(enVentana, filtroContador, PREDICADOS_POR_PASO);
+    const idsFiltrados = new Set(filtradosPorContador.map(v => v.id));
+    const filtrados = [...filtradosPorContador, ...conPaso(activos.filter(v => conRechazoAbierto(v) && !idsFiltrados.has(v.id)))];
     const vales = ordenarPorGrupos(filtrados, [
+      conRechazoAbierto, // un rechazo de propuesta por responder va primero
       v => v.estado_visible === 'RECHAZADO',
       v => v.estado_visible === 'PENDIENTE_CONFIRMACION',
       v => v.estado_visible === 'SOLICITANDO_MODIFICACION',
