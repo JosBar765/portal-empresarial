@@ -331,7 +331,7 @@ class ValeBuzonService {
     // de diseñadores (solo encargados) filtra por el diseñador de la fila de su taller.
     const soloAtrasados = ['1', 'true', true].includes(filtros.soloAtrasados);
     const soloModificados = ['1', 'true', true].includes(filtros.soloModificados);
-    // «Rechazos» (solo Encargado/Asistente en el Buzón): interruptor combinable con los vales con rechazo dentro de la ventana.
+    // «Rechazos» (Encargado, Asistente, Administrador y Gerente en el Buzón): interruptor combinable con los vales con rechazo dentro de la ventana.
     const soloRechazos = ['1', 'true', true].includes(filtros.soloRechazos) && resultado.idsRechazos instanceof Set;
     const disenadorId = esDeTaller(usuario) ? Number(filtros.disenadorId) || null : null;
     const valesConAtraso = resultado.vales
@@ -468,6 +468,9 @@ class ValeBuzonService {
     const filtradosPorContador = this._aplicarFiltroContador(enVentana, filtroContador, PREDICADOS_POR_PASO);
     const idsFiltrados = new Set(filtradosPorContador.map(v => v.id));
     const filtrados = [...filtradosPorContador, ...conPaso(activos.filter(v => conRechazoAbierto(v) && !idsFiltrados.has(v.id)))];
+    // «Rechazos» (solo vista general): vales con rechazo abierto o devuelto de cualquier taller cuya entrega cae en la ventana.
+    const idsRechazos = usuario ? null : new Set(activos.filter(v => (conRechazoAbierto(v) || v._devueltoRechazo) && dentroDeVentana(v, ventana)).map(v => v.id));
+    if (idsRechazos) contadores.rechazos = idsRechazos.size;
     const vales = ordenarPorGrupos(filtrados, [
       conRechazoAbierto, // un rechazo de propuesta por responder va primero
       v => v.estado_visible === 'RECHAZADO',
@@ -477,7 +480,7 @@ class ValeBuzonService {
       v => v.estado_visible === 'ESPERANDO_AUTORIZACION',
       v => v.estado_visible === 'CREADO'
     ]);
-    return { vales, contadores };
+    return { vales, contadores, ...(idsRechazos ? { idsRechazos } : {}) };
   }
 
   // ---- Asesor: sidebar Trabajo realizado (confirmados, orden por fecha) ----
