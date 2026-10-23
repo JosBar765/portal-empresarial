@@ -194,7 +194,7 @@ class BorradorService {
     await borradorRepository.eliminar(id);
   }
 
-  // Borra los vencidos, cada uno por separado. Devuelve cuántos se borraron.
+  // Borra los vencidos y los enviados pendientes de limpieza, cada uno por separado. Devuelve cuántos se borraron.
   async purgarVencidos() {
     let borrados = 0;
     for (const { id } of await borradorRepository.listarVencidos()) {
@@ -202,10 +202,30 @@ class BorradorService {
         await valeMutex.conColaDeLlave(`borrador:${id}`, () => this._purgar(id));
         borrados++;
       } catch (error) {
-        console.error(`[Borradores] No se pudo borrar el borrador vencido ${id}:`, error.message);
+        console.error(`[Borradores] No se pudo borrar el borrador vencido o enviado ${id}:`, error.message);
       }
     }
     return borrados;
+  }
+
+  // Marca primero (oculta el borrador) y borra Storage antes que la fila: si algo falla, el vigilante lo reintenta sin huérfanos.
+  async _limpiarEnviado(id, documentos) {
+    try {
+      await borradorRepository.marcarEnviado(id);
+      let pendientes = 0;
+      for (const doc of documentos) {
+        try {
+          await supabaseStorage.borradores.eliminar(doc.ruta);
+          await borradorRepository.eliminarDocumento(doc.id);
+        } catch (e) {
+          pendientes++;
+          console.error(`[Borradores] Archivo sin borrar de Storage: ${doc.ruta} (${e.message})`);
+        }
+      }
+      if (pendientes === 0) await borradorRepository.eliminar(id);
+    } catch (e) {
+      console.error(`[Borradores] Borrador enviado sin limpiar: ${id} (${e.message})`);
+    }
   }
 
   // `urlsExistentes` continúa la numeración y `subidos` permite deshacer si algo falla después.
@@ -267,10 +287,7 @@ class BorradorService {
       const vale = await crear(combinados);
 
       // El vale ya existe: limpiar es de mejor esfuerzo y nunca debe hacer fallar la respuesta.
-      try { await borradorRepository.eliminar(id); } catch (e) { console.error(`[Borradores] Borrador enviado sin borrar: ${id} (${e.message})`); }
-      for (const doc of documentos) {
-        try { await supabaseStorage.borradores.eliminar(doc.ruta); } catch (e) { console.error(`[Borradores] Archivo sin borrar de Storage: ${doc.ruta} (${e.message})`); }
-      }
+      await this._limpiarEnviado(id, documentos);
       return vale;
     });
   }

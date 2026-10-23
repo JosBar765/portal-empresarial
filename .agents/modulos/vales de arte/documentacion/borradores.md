@@ -12,10 +12,10 @@ Quien tiene el permiso `vales.crear` (asesores y supervisores) puede guardar el 
 - Sin sockets, sin notificaciones y sin aviso previo: la lista muestra «Vence en N días» (en rojo con 3 o menos).
 
 ## Envío
-El usuario abre el borrador (mismo modal, precargado) y pulsa «Crear Vale de Arte»: corre el `crearVale` normal con TODAS sus validaciones y `borradorId` en el formulario. Los adjuntos del borrador que no se quitaron se descargan y se suben al bucket normal con el nombre definitivo `{CORR}_...`, sumados a los nuevos (la regla de «al menos un adjunto» y el máximo de 10 imágenes y 5 PDF aplican al conjunto). Si el vale se crea, el borrador y sus archivos se borran (de mejor esfuerzo, con log `[Borradores]`); si falla, quedan intactos. Un lock por `borradorId` evita crear dos vales con un mismo borrador; un reintento con la misma `idempotencyKey` devuelve el vale ya creado.
+El usuario abre el borrador (mismo modal, precargado) y pulsa «Crear Vale de Arte»: corre el `crearVale` normal con TODAS sus validaciones y `borradorId` en el formulario. Los adjuntos del borrador que no se quitaron se descargan y se suben al bucket normal con el nombre definitivo `{CORR}_...`, sumados a los nuevos (la regla de «al menos un adjunto» y el máximo de 10 imágenes y 5 PDF aplican al conjunto). Si el vale se crea, el borrador se marca enviado (`vale_borradores.enviado_en`, migración `borradores_enviados`) y se borran sus archivos del bucket (también los que el usuario quitó), cada fila de documento en cuanto su archivo se borra y, si todos se borraron, la fila del borrador. Si algún archivo no se puede borrar, el borrador queda marcado como enviado y el vigilante lo reintenta; el error solo va al log `[Borradores]` y el usuario siempre recibe el vale. Un borrador enviado ya no existe para el usuario (no se lista, abre, edita, envía ni cuenta en el tope: «El borrador no existe»). Si `crearVale` falla, no se marca ni se borra nada: el borrador y sus archivos quedan intactos y se puede reenviar. Fuera de producción `eliminar` no borra de Storage (ver `storage_solo_produccion.md`), así que ahí la limpieza solo quita las filas. Un lock por `borradorId` evita crear dos vales con un mismo borrador; un reintento con la misma `idempotencyKey` devuelve el vale ya creado.
 
 ## Vencimiento
-`src/modules/vales/borradorWatcher.js` (arranca en `app.js`, espera `db.listo`, corre cada hora): por cada borrador vencido borra primero los objetos de Storage y luego la fila; si Storage falla deja la fila y reintenta en el siguiente ciclo.
+`src/modules/vales/borradorWatcher.js` (arranca en `app.js`, espera `db.listo`, corre cada hora): por cada borrador vencido, y por cada enviado pendiente de limpieza (sin esperar a su vencimiento), borra primero los objetos de Storage y luego la fila; si Storage falla deja la fila y reintenta en el siguiente ciclo. No cubre los archivos huérfanos de envíos anteriores a esta migración (no hay fila que los apunte).
 
 ## API (`/api/vales`, permiso `vales.crear`)
 `GET /borradores`, `GET /borradores/:id`, `POST /borradores`, `PUT /borradores/:id` (`documentosQuitar` como al corregir un vale), `DELETE /borradores/:id`. `POST /` acepta `borradorId` y `documentosQuitar`.
@@ -26,8 +26,9 @@ El usuario abre el borrador (mismo modal, precargado) y pulsa «Crear Vale de Ar
 3. Con el tope en 2, el tercer borrador nuevo falla; editar uno existente sigue permitido.
 4. Con otro usuario, el borrador ajeno no aparece.
 5. Abrir un borrador, completar y crear el vale: el vale tiene sus adjuntos con nombre `{CORR}_...` y el borrador desaparece. Si la fecha es inválida, el borrador queda.
+6. Si el borrado de Storage falla al enviar, el vale se crea igual, el borrador no aparece y su fila `enviado_en` se limpia en el siguiente ciclo del vigilante.
 
 ## Pasos en producción
-1. Importar `database/borradores_vales.sql` (idempotente) ANTES de desplegar.
+1. Importar `database/borradores_vales.sql` (idempotente) ANTES de desplegar. La columna `enviado_en` la agrega la migración `borradores_enviados`, que se aplica sola al arrancar en staging y producción.
 2. Crear en Supabase Storage el bucket de borradores y definir `SUPABASE_STORAGE_BUCKET_BORRADORES` en el `.env` (es obligatoria: sin ella el servidor no arranca).
 3. Desplegar. El tope se ajusta en Administración > Horarios y feriados.
