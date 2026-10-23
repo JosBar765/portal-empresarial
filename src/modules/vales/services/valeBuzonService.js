@@ -331,10 +331,13 @@ class ValeBuzonService {
     // de diseñadores (solo encargados) filtra por el diseñador de la fila de su taller.
     const soloAtrasados = ['1', 'true', true].includes(filtros.soloAtrasados);
     const soloModificados = ['1', 'true', true].includes(filtros.soloModificados);
+    // «Rechazos» (solo Encargado/Asistente en el Buzón): interruptor combinable con los vales con rechazo dentro de la ventana.
+    const soloRechazos = ['1', 'true', true].includes(filtros.soloRechazos) && resultado.idsRechazos instanceof Set;
     const disenadorId = esDeTaller(usuario) ? Number(filtros.disenadorId) || null : null;
     const valesConAtraso = resultado.vales
       .filter(v => !soloAtrasados || v.atrasado)
       .filter(v => !soloModificados || esModificado(v))
+      .filter(v => !soloRechazos || resultado.idsRechazos.has(v.id))
       .filter(v => !disenadorId || v.disenador_id === disenadorId);
 
     // Búsqueda: corre sobre la lista COMPLETA ya filtrada por rol/ventana/contador, no solo sobre la página cargada en el
@@ -666,6 +669,16 @@ class ValeBuzonService {
     // El trabajo activo de los diseñadores (en proceso/en pausa) y lo ya
     // asignado suben por encima de lo que requiere acción del propio
     // encargado (revisar/asignar). La cola de fusión se queda al final.
+    // «Rechazos»: vales con rechazo abierto o devuelto de MI taller cuya entrega cae en la ventana (por vale, no por ronda).
+    let idsRechazos;
+    if (miTaller) {
+      const idsConRechazo = new Set([
+        ...await rechazoPropuestaRepository.listarValeIdsAbiertosDeTaller(miTaller.id),
+        ...await rechazoPropuestaRepository.listarValeIdsDevueltosDeTaller(miTaller.id)
+      ]);
+      idsRechazos = new Set([...vistos, ...conRechazo].filter(v => idsConRechazo.has(v.id) && dentroDeVentana(v, ventana)).map(v => v.id));
+      contadores.rechazos = idsRechazos.size;
+    }
     const vales = ordenarPorGrupos(filtrados, [
       v => (v.rechazos_propuesta || []).some(r => r.estado === 'ABIERTO'), // un rechazo de propuesta por responder va primero
       v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO,
@@ -675,11 +688,11 @@ class ValeBuzonService {
       v => esPendienteAsignacion(v.estado_taller),
       v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO
     ]);
-    return { vales, contadores };
+    return { vales, contadores, ...(idsRechazos ? { idsRechazos } : {}) };
   }
 
   _contadoresVaciosEncargado() {
-    return { porAsignar: 0, asignadosDisenadores: 0, misAsignaciones: 0, porRevisar: 0, atrasados: 0 };
+    return { porAsignar: 0, asignadosDisenadores: 0, misAsignaciones: 0, porRevisar: 0, rechazos: 0, atrasados: 0 };
   }
 
   // ---- Encargado de un taller: sidebar Trabajo realizado — vales con una

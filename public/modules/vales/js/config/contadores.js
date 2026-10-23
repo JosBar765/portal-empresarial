@@ -2,8 +2,8 @@ import { ROL } from './roles.js';
 
 const PERMISO_FUSION = 'vales.aprobar_general';
 
-// "Atrasados" y "Modificados" (asesor y supervisor) y "Atrasados" (encargados) son contadores COMBINABLES
-// (`atrasadosGlobal` / `modificadosGlobal`) — renderContadores() los trata como interruptores aparte
+// "Atrasados" y "Modificados" (asesor y supervisor) y "Atrasados" y "Rechazos" (encargados) son contadores COMBINABLES
+// (`atrasadosGlobal` / `modificadosGlobal` / `rechazosGlobal`) — renderContadores() los trata como interruptores aparte
 // (state.soloAtrasados / state.soloModificados) que pueden activarse junto con cualquier otro filtro de
 // contador. El diseñador queda afuera: su "Mis asignaciones (con atraso)" es su propio filtro fijo.
 // `quien` es quién tiene que actuar en ese paso; se muestra pequeño bajo la etiqueta.
@@ -54,6 +54,7 @@ export const CONTADORES_CONFIG = {
       { key: 'porRevisar', label: 'Por revisar', filtro: 'porRevisar' },
       { key: 'pendientesFusion', label: 'Por fusionar', filtro: 'pendientesFusion', permiso: PERMISO_FUSION },
       { key: 'misAsignaciones', label: 'Mis asignaciones', filtro: 'misAsignaciones' },
+      { key: 'rechazos', label: 'Rechazos', icono: 'arrow-undo-outline', rechazosGlobal: true },
       { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
     ],
     trabajo: [

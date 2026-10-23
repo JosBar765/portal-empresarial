@@ -33,6 +33,7 @@ export function construirQueryBase() {
   if (ROLES_CON_SIDEBAR.includes(rolEncargadoDe(state.user))) qs.set('vista', state.vista);
   if (state.filtroContador) qs.set('filtroContador', state.filtroContador);
   if (state.soloAtrasados) qs.set('soloAtrasados', '1');
+  if (state.soloRechazos && state.vista !== 'trabajo') qs.set('soloRechazos', '1');
   if (state.soloModificados) qs.set('soloModificados', '1');
   if (state.disenadorFiltro && state.vista !== 'trabajo') qs.set('disenadorId', state.disenadorFiltro);
   if (state.busqueda) qs.set('busqueda', state.busqueda);
@@ -132,14 +133,15 @@ export function renderContadores() {
     const valor = state.contadores[c.key];
     const mostrado = c.esTexto ? (valor || '—') : (valor ?? 0);
     const alerta = c.alerta && Number(valor) > 0;
-    const esClickeable = !!c.filtro || !!c.atrasadosGlobal || !!c.modificadosGlobal;
+    const esClickeable = !!c.filtro || !!c.atrasadosGlobal || !!c.modificadosGlobal || !!c.rechazosGlobal;
     // "Atrasados" y "Modificados" son contadores combinables: se activan/desactivan con su propio
     // interruptor (state.soloAtrasados / state.soloModificados) en vez de competir por
     // state.filtroContador con el resto de las tarjetas, que siguen siendo mutuamente excluyentes.
     const activo = c.atrasadosGlobal ? state.soloAtrasados
-      : (c.modificadosGlobal ? state.soloModificados : (c.filtro && state.filtroContador === c.filtro));
+      : (c.modificadosGlobal ? state.soloModificados : (c.rechazosGlobal ? state.soloRechazos : (c.filtro && state.filtroContador === c.filtro)));
     const clases = ['contador-card'];
     if (alerta) clases.push('contador-alerta');
+    if (c.rechazosGlobal) clases.push('contador-rechazos');
     if (esClickeable) clases.push('contador-clickeable');
     if (activo) clases.push('contador-activo');
     // Un valor largo (p. ej. el correlativo del vale en proceso del diseñador,
@@ -147,11 +149,11 @@ export function renderContadores() {
     // — .valor-compacto lo reduce sin tocar los contadores numéricos ni los
     // "N/M" cortos.
     const valorLargo = String(mostrado).length > 6;
-    const atributos = `class="${clases.join(' ')}" data-key="${c.key}" data-filtro="${c.filtro || ''}" data-atrasados-global="${c.atrasadosGlobal ? '1' : ''}" data-modificados-global="${c.modificadosGlobal ? '1' : ''}"`;
+    const atributos = `class="${clases.join(' ')}" data-key="${c.key}" data-filtro="${c.filtro || ''}" data-atrasados-global="${c.atrasadosGlobal ? '1' : ''}" data-modificados-global="${c.modificadosGlobal ? '1' : ''}" data-rechazos-global="${c.rechazosGlobal ? '1' : ''}"`;
     // `quien`: quién tiene que actuar en ese paso, en pequeño bajo la etiqueta.
     const etiqueta = c.quien
       ? `<span class="etiqueta"><span class="etiqueta-texto">${c.label}</span><span class="etiqueta-quien">${c.quien}</span></span>`
-      : `<span class="etiqueta">${c.label}</span>`;
+      : `<span class="etiqueta">${c.icono ? `<ion-icon name="${c.icono}"></ion-icon> ` : ''}${c.label}</span>`;
     const contenido = `<span class="valor${valorLargo ? ' valor-compacto' : ''}">${mostrado}</span>${etiqueta}`;
     return esClickeable
       ? `<button type="button" ${atributos} aria-pressed="${activo ? 'true' : 'false'}">${contenido}</button>`
@@ -169,13 +171,16 @@ export function renderContadores() {
     const filtro = card.dataset.filtro;
     const esAtrasadosGlobal = card.dataset.atrasadosGlobal === '1';
     const esModificadosGlobal = card.dataset.modificadosGlobal === '1';
-    if (!filtro && !esAtrasadosGlobal && !esModificadosGlobal) return;
+    const esRechazosGlobal = card.dataset.rechazosGlobal === '1';
+    if (!filtro && !esAtrasadosGlobal && !esModificadosGlobal && !esRechazosGlobal) return;
     card.addEventListener('click', () => {
       contadorEnfocado = card.dataset.key;
       if (esAtrasadosGlobal) {
         state.soloAtrasados = !state.soloAtrasados;
       } else if (esModificadosGlobal) {
         state.soloModificados = !state.soloModificados;
+      } else if (esRechazosGlobal) {
+        state.soloRechazos = !state.soloRechazos;
       } else {
         state.filtroContador = state.filtroContador === filtro ? null : filtro;
       }

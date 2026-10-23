@@ -327,6 +327,15 @@
   color: var(--color-danger);
 }
 
+/* «Rechazos»: tono de advertencia (distinto del rojo de Atrasados) para lo que el asesor devolvió al taller. */
+.contador-card.contador-rechazos .valor,
+.contador-card.contador-rechazos .etiqueta ion-icon {
+  color: var(--color-warning);
+}
+.contador-card.contador-rechazos .etiqueta ion-icon {
+  vertical-align: -2px;
+}
+
 /* Los contadores con filtro asociado se activan/desactivan con un clic para filtrar el buzón. */
 .contador-card.contador-clickeable {
   cursor: pointer;

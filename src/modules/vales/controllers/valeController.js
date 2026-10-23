@@ -103,6 +103,7 @@ class ValeController {
         filtroContador: req.query.filtroContador,
         busqueda: req.query.busqueda,
         soloAtrasados: req.query.soloAtrasados,
+        soloRechazos: req.query.soloRechazos,
         soloModificados: req.query.soloModificados,
         disenadorId: req.query.disenadorId,
         tiendaId: req.query.tiendaId,
