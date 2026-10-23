@@ -109,7 +109,7 @@ function abrirModalDarDeBajaMultitaller(vale) {
 // -----------------------------------------------------------------------
 // Asesor: decidir sobre un vale PENDIENTE_CONFIRMACION (paso 5)
 // -----------------------------------------------------------------------
-// Un solo botón abre el visor con el vale y la propuesta; abajo a la derecha van «Rechazar propuesta», «Solicitar modificación» y «Confirmar recibido».
+// Un solo botón abre el visor con el vale y la propuesta; abajo a la derecha van «Solicitar modificación», «Rechazar propuesta» y «Confirmar recibido».
 export function abrirVisorDecisionAsesor(vale, propuesta) {
   // Si un taller rechazó la solicitud del asesor y este aún no la abrió, el visor lo avisa con acceso a la conversación.
   const rechazos = rechazosSinLeer(vale);
@@ -122,8 +122,8 @@ export function abrirVisorDecisionAsesor(vale, propuesta) {
     aviso,
     id: vale.id, correlativo: vale.correlativo, propuesta, subtitulo: 'Revisa el vale y la propuesta, y decide.',
     acciones: [
-      ...(puedeRechazar ? [{ etiqueta: 'Rechazar propuesta', icono: 'close-circle-outline', clase: 'btn--ghost', onClick: ({ cerrar }) => { cerrar(); abrirModalRechazarPropuesta(vale); } }] : []),
       { etiqueta: 'Solicitar modificación', icono: 'create-outline', clase: 'btn--ghost', onClick: ({ cerrar }) => { cerrar(); abrirSelectorModificacion(vale); } },
+      ...(puedeRechazar ? [{ etiqueta: 'Rechazar propuesta', icono: 'close-circle-outline', clase: 'btn--danger', onClick: ({ cerrar }) => { cerrar(); abrirModalRechazarPropuesta(vale); } }] : []),
       {
         etiqueta: 'Confirmar recibido', icono: 'checkmark-outline', clase: 'btn--primary',
         onClick: async ({ cerrar, boton }) => {
