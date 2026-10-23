@@ -18,6 +18,12 @@ Rama: `feat/modificaciones-mod-y-rechazo-propuesta` (desde `dev`). Pedido de ger
 - **Pantalla:** «Rechazar propuesta» en el visor del paso 5 del asesor dueño (selección de talleres y mensaje); etiqueta «Rechazo de propuesta» en la fila mientras está abierto, «Rechazo respondido» cuando el taller rechazó, y chat con «Cancelar rechazo» (asesor) o «Aceptar» / «Rechazar» (taller). La etiqueta del tipo de modificación en la autorización del supervisor ya incluye «básica».
 - **Corrección de un error:** la expresión `PREFIJO_MOD` de `valeHelpers.js` era `/^MODd*-/` (le faltaba la barra invertida de `\d`) y no reconocía `MOD2-`, `MOD3-`…; ahora es `/^MOD\d*-/`.
 
+## Visibilidad del rechazo en el Buzón del taller
+
+- Rechazo **abierto**: el vale se muestra siempre en el Buzón del Encargado/Asistente, también con una tarjeta de contador activa (se agrega después de aplicar el filtro de contador).
+- Tras **aceptar** (fila del taller en `PENDIENTE_ASIGNACION`, `ASIGNADO`, `EN_PROCESO`, `EN_PAUSA` o `EN_REVISION`): el vale se carga y se cuenta sin importar la ventana de fechas (un vale adelantado ya no queda fuera), con los contadores y tarjetas normales de su estado. Cuando la fila vuelve a `APROBADO` deja de ser excepción.
+- Servidor: `valeRechazoPropuestaRepository.listarValeIdsDevueltosDeTaller` y `valeBuzonService` (`_conRechazosAbiertos`, `_buzonEncargado`). Sin migración. La vista general del Administrador (formato de asesor) no cambia.
+
 ## Migración (importar ANTES de desplegar)
 
 `database/modificacion_basica_con_vale.sql` amplía el ENUM de `vales.modificacion_tipo` con `BASICA`.
@@ -39,4 +45,5 @@ Con la base local, un script de un solo uso con vales de prueba creados y borrad
 - El taller acepta: fila en `PENDIENTE_ASIGNACION` sin diseñador, vale `CREADO`, misma fecha de entrega, atraso descongelado y mensajes conservados.
 - Vale de dos talleres con uno elegido: solo ese regresa. Un vale MOD admite el rechazo.
 - Lectura permanente: tras aceptar el taller y con el vale en `RECIBIDO`, el asesor, el encargado, el asistente y el diseñador asignado leen el hilo completo (todas las rondas) y no pueden escribir, aceptar, rechazar ni cancelar; el supervisor, un taller ajeno y un diseñador ajeno reciben error; «Trabajo realizado» marca el hilo para el asesor, el encargado y el diseñador, y no para el supervisor; una nueva ronda sobre otra aceptada conserva los mensajes anteriores; el administrador lo recibe en el historial y el gerente solo si tiene `vales.ver_historial`.
+- Visibilidad en el Buzón del taller (Encargado y Asistente; ventanas Hoy, Semana, Mes y otra fecha; con y sin tarjeta de contador): entrega de hoy, pasada y adelantada; abierto y tras aceptar siempre aparecen (y cuentan +1 en «Por asignar»), tras el rechazo del taller no, al volver a `APROBADO` dejan de aparecer; un vale normal adelantado sin rechazo sigue fuera de su ventana.
 - No cubierto: el dibujo de las pantallas en el navegador y los avisos en tiempo real con el servidor corriendo.

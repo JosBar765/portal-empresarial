@@ -113,6 +113,20 @@ class ValeRechazoPropuestaRepository {
     return filas.map(f => f.vale_id);
   }
 
+  // Ids de los vales devueltos por una ronda aceptada que siguen en manos del taller (su fila ya no está aprobada): el buzón los muestra siempre.
+  async listarValeIdsDevueltosDeTaller(tallerId = null) {
+    const filtroTaller = tallerId ? ' AND rt.taller_id = ?' : '';
+    const filas = await db.query(
+      `SELECT DISTINCT r.vale_id FROM vale_rechazos_propuesta r
+       JOIN vale_talleres rt ON rt.id = r.vale_taller_id
+       JOIN vale_talleres vt ON vt.vale_id = rt.vale_id AND vt.taller_id = rt.taller_id AND vt.activo = 1
+       JOIN estados_taller et ON et.id = vt.estado_id
+       WHERE r.estado = 'ACEPTADO' AND et.nombre <> 'APROBADO'${filtroTaller}`,
+      tallerId ? [tallerId] : [], 'rechazo_propuesta:list_vale_ids_devueltos_taller'
+    );
+    return filas.map(f => f.vale_id);
+  }
+
   // El taller acepta: su fila vuelve a «Por asignar» (sin diseñador), el vale sale del paso 5 y el atraso vuelve a correr.
   // La fecha de entrega no se toca. Todo o nada; cada UPDATE exige el estado esperado por si algo cambió mientras tanto.
   async aceptar({ id, valeId, valeTallerId, tallerId, usuarioId, estadoValeAnterior, accion }) {

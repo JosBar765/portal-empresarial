@@ -272,13 +272,14 @@ class ValeBuzonService {
     }
   }
 
-  // Suma, sin ventana ni estado, los vales con un rechazo de propuesta abierto con el taller (0 = sin taller: ninguno; null = cualquiera).
+  // Suma, sin ventana, los vales con rechazo de propuesta abierto o devuelto y aún en manos del taller (0 = sin taller: ninguno; null = cualquiera).
   async _conRechazosAbiertos(vales, tallerId) {
     if (tallerId === 0) return vales;
     const yaIncluidos = new Set(vales.map(v => v.id));
-    const faltantes = (await rechazoPropuestaRepository.listarValeIdsAbiertosDeTaller(tallerId)).filter(id => !yaIncluidos.has(id));
+    const ids = new Set([...await rechazoPropuestaRepository.listarValeIdsAbiertosDeTaller(tallerId), ...await rechazoPropuestaRepository.listarValeIdsDevueltosDeTaller(tallerId)]);
+    const faltantes = [...ids].filter(id => !yaIncluidos.has(id));
     if (!faltantes.length) return vales;
-    return [...vales, ...await valeRepository.listarParaBuzon({ valeIds: faltantes })].sort((a, b) => a.id - b.id);
+    return [...vales, ...await valeRepository.listarParaBuzon({ valeIds: faltantes, estadosTerminales: ESTADOS_TERMINALES })].sort((a, b) => a.id - b.id);
   }
 
   async obtenerBuzon(usuario, filtros = {}) {
@@ -602,7 +603,9 @@ class ValeBuzonService {
           adjuntos_vence_en: fila.adjuntos_vence_en, adjuntos_mensaje: fila.adjuntos_mensaje, adjuntos_respondido_en: fila.adjuntos_respondido_en
         };
       });
-    const enVentana = vistos.filter(v => dentroDeVentana(v, ventana));
+    // Devuelto por un rechazo aceptado y aún en manos del taller (fila no aprobada): se ve siempre, sin ventana.
+    const devueltos = new Set(miTaller || esAdministrador(usuario) ? await rechazoPropuestaRepository.listarValeIdsDevueltosDeTaller(miTaller ? miTaller.id : null) : []);
+    const enVentana = vistos.filter(v => devueltos.has(v.id) || dentroDeVentana(v, ventana));
 
     // Un vale en el paso 5 cuyo asesor rechazó la propuesta de MI taller: su fila ya está aprobada (no entra arriba), pero el
     // taller debe responder, así que se muestra siempre, sin depender de la ventana de fechas.
@@ -648,7 +651,8 @@ class ValeBuzonService {
     if (puedeFusionar) contadores.pendientesFusion = pendientesFusion.length;
 
     if (puedeFusionar) predicados.pendientesFusion = v => v.estado === ESTADOS.APROBADO_DEPARTAMENTO;
-    const filtrados = this._aplicarFiltroContador([...enVentana, ...pendientesFusion, ...conRechazo], filtroContador, predicados);
+    // El rechazo abierto se agrega después del filtro de contador: el taller debe enterarse siempre.
+    const filtrados = [...this._aplicarFiltroContador([...enVentana, ...pendientesFusion], filtroContador, predicados), ...conRechazo];
     // El trabajo activo de los diseñadores (en proceso/en pausa) y lo ya
     // asignado suben por encima de lo que requiere acción del propio
     // encargado (revisar/asignar). La cola de fusión se queda al final.
