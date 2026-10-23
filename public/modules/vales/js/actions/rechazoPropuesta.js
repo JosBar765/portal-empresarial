@@ -17,17 +17,23 @@ const ESTADO_RECHAZO = {
   CANCELADO: { texto: 'Cancelado', clase: 'chip-estado--cerrado' }
 };
 
-// Frase corta bajo el título: qué pasa ahora y qué toca hacer, según quién la lee.
+// Cierre de la ronda: con la conversación cerrada el hilo queda como registro, solo para leer.
+const CIERRE_RECHAZO = {
+  ACEPTADO: 'Acuerdo: el taller aceptó el rechazo.',
+  RECHAZADO: 'El taller rechazó el rechazo.',
+  CANCELADO: 'El asesor canceló el rechazo.'
+};
+
+// Frase corta bajo el título: qué pasa ahora y qué toca hacer (ronda abierta) o cómo se cerró (solo lectura).
 function lineaDeEstado(c) {
-  switch (c.estado) {
-    case 'ABIERTO': return c.lado === 'TALLER'
-      ? 'Acepta para rehacer la propuesta, o rechaza escribiendo el motivo (por ejemplo, que tramite una modificación).'
-      : 'Esperando la respuesta del taller. Puedes cancelar el rechazo para confirmar el vale.';
-    case 'ACEPTADO': return 'El taller aceptó: rehace la propuesta.';
-    case 'RECHAZADO': return c.lado === 'ASESOR' ? 'El taller mantuvo su propuesta. Puedes confirmar el vale, rechazar de nuevo o pedir una modificación.' : 'Rechazo respondido.';
-    default: return 'Rechazo cancelado.';
-  }
+  if (c.cerrada) return `${CIERRE_RECHAZO[c.estado] || 'Rechazo cerrado.'} Conversación en solo lectura.`;
+  return c.lado === 'TALLER'
+    ? 'Acepta para rehacer la propuesta, o rechaza escribiendo el motivo (por ejemplo, que tramite una modificación).'
+    : 'Esperando la respuesta del taller. Puedes cancelar el rechazo para confirmar el vale.';
 }
+
+// La última ronda de cada taller (el hilo es uno por taller y continúa entre rondas); las rondas llegan en orden de creación.
+const ultimasPorTaller = (rondas) => [...new Map(rondas.map(r => [r.taller_id, r])).values()];
 
 const chipEstado = (estado) => {
   const e = ESTADO_RECHAZO[estado] || { texto: estado, clase: 'chip-estado--cerrado' };
@@ -197,7 +203,7 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
 }
 
 // -----------------------------------------------------------------------
-// Entrada desde el buzón: abre el rechazo abierto o, si hay varios (vale con varios talleres), deja elegir cuál
+// Entrada desde el buzón: abre el hilo del rechazo (abierto o cerrado, este último solo para leer) o, si hay varios talleres, deja elegir cuál
 // -----------------------------------------------------------------------
 export async function abrirConversacionesRechazo(vale, { ids = null } = {}) {
   let rechazos;
@@ -207,8 +213,8 @@ export async function abrirConversacionesRechazo(vale, { ids = null } = {}) {
     window.toast.error('No se pudo abrir', error.message);
     return;
   }
-  const abiertos = rechazos.filter(r => r.estado === 'ABIERTO');
-  const lista = ids ? rechazos.filter(r => ids.includes(r.id)) : abiertos.length ? abiertos : rechazos;
+  const hilos = ultimasPorTaller(rechazos);
+  const lista = ids ? hilos.filter(r => ids.includes(r.id)) : hilos;
   if (lista.length === 1) { abrirModalConversacionRechazo(vale, lista[0].id); return; }
   if (!lista.length) { window.toast.info('Sin conversaciones', 'Este vale no tiene rechazos de propuesta a la vista.'); return; }
   const { overlay, cerrar } = abrirModal({

@@ -54,6 +54,14 @@ Gerencia pide dos cambios en el módulo Vales de Arte:
 - [x] T3 · Rechazo de propuesta: hilo propio por taller, solicitar/aceptar/rechazar/cancelar, descongelar atraso, bloqueos del asesor, avisos y frontend.
 - [x] T4 · Migración de datos y permisos (cierre de básicas abiertas en desarrollo, permisos nuevos si aplican) y documentación (`flujo_vale_de_arte.md`, changelog en `correcciones/`).
 
+- [x] T5 · Chat de rechazo de propuesta permanente y de solo lectura (ajuste del usuario tras 6cdef28).
+
+## Ajuste del usuario: el chat permanece como registro
+- El chat de rechazo funciona por turnos, igual que el de adjuntos rechazados. Una vez aceptado el acuerdo (o cerrada la ronda por rechazo del taller o cancelación) ya no se pueden enviar mensajes, pero el chat PERMANECE VISIBLE en solo lectura, también después de que el taller entregue la corrección y el asesor marque el vale como recibido (`RECIBIDO`). Es el registro de que el vale fue rechazado y mandado a corregir y del motivo o el acuerdo.
+- Quién lo consulta: el asesor dueño y el taller completo (Encargado, asistentes y el diseñador asignado de ese taller). El supervisor NO. El Administrador y el Gerente lo ven en el historial del vale, igual que el chat de adjuntos (quien tenga `vales.ver_historial`).
+- Sin etiqueta visual extra: basta un acceso al hilo en el vale; ninguna marca «Rechazado y corregido».
+- Cada nueva ronda de rechazo continúa el mismo hilo del taller (el historial completo queda visible).
+
 ## Rutas
 Delegated direct, un escritor por vez: W1 = T1+T2, W2 = T3+T4 (commit entre ambos). Disparadores: 2+ archivos no triviales y lectura previa para escribir.
 
@@ -67,3 +75,5 @@ Sin tests ni linter. `node --check`; scripts de un solo uso contra la BD de desa
 W1 (T1+T2) hecho, sin commit, verificado con `node --check` y scripts de un solo uso (calendario con fechas fijas; HEAD vs trabajo en vales normales idénticos). Migración nueva `11_modificacion_basica_con_vale.sql` (ENUM de `vales.modificacion_tipo` ampliado a BASICA; aplicada en desarrollo). Regex `PREFIJO_MOD` corregido. Pendiente para T3: conservar el chat viejo; quitar `fechaMinimaModificacionBasica` (calendario) cuando se retire su servicio; etiqueta `BASICA` en `actions/supervisor.js:142`. Pendiente W2 (T3+T4).
 
 W2 (T3+T4) hecho, sin commit: renombres con git mv a valeRechazoPropuesta* y actions/rechazoPropuesta.js; tablas vale_rechazos_propuesta y vale_rechazo_propuesta_mensajes (hilo por vale_taller_id); permisos vales.rechazar_propuesta (Asesor) y vales.responder_rechazo_propuesta; migración 12_rechazo_propuesta.sql aplicada en desarrollo (segunda corrida sin cambios); changelog correcciones_56.md y flujo §1.1/§1.2/§3/§7. Verificado: node --check de todo lo editado y un script de un solo uso con 36 comprobaciones (36/36) con vales de prueba borrados al final. Sin probar: render en navegador y sockets en vivo.
+
+W3 (T5) hecho, sin commit: el hilo del rechazo permanece visible en solo lectura. Servidor: GET de rondas devuelve todas (abiertas y cerradas) y GET de mensajes sirve el hilo completo con el estado de la última ronda, en cualquier estado del vale; el diseñador asignado lee (nunca escribe, 403); supervisor y terceros 403; cada fila del buzón y de «Trabajo realizado» trae `hilos_rechazo_propuesta` (una consulta por página). Cliente: botón «Ver conversación del rechazo» y aviso de cierre sin caja ni botones. Sin migración ni permisos nuevos. Verificado con node --check y un script de un solo uso (82/82, incluidas las 36 anteriores adaptadas), vales de prueba borrados. Sin probar: render en navegador y sockets en vivo.

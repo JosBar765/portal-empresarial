@@ -360,19 +360,30 @@ Asesor; el supervisor no) puede rechazar la propuesta de **uno o varios talleres
 - **Respuesta por taller:** cada taller responde por separado; el que acepta regresa y el vale pasa a `CREADO`. Si otro taller
   aún tenía una ronda abierta, esa ronda sigue abierta y se puede responder mientras el vale no haya salido del trabajo del taller.
 - **Hilo propio por taller**, separado del de adjuntos (§2.1) y con la misma mecánica: un hilo por taller dentro del vale, sin límite de
-  mensajes, 200 caracteres por mensaje. Escriben el asesor dueño y el encargado o asistente de ese taller mientras la ronda esté abierta. Al
-  aceptar el taller (acuerdo) el hilo se cierra a la vista, pero los mensajes se conservan (caen en cascada con el vale) y los ve en el
-  historial quien tiene `vales.ver_historial`. Una nueva ronda de rechazo **continúa el mismo hilo** del taller. El supervisor no recibe
-  aviso ni lee el hilo.
+  mensajes, 200 caracteres por mensaje. Es un chat por turnos: escriben el asesor dueño y el encargado o asistente de ese taller solo mientras
+  la ronda esté `ABIERTO`. Al cerrarse la ronda (el taller acepta = acuerdo, el taller rechaza o el asesor cancela) ya no se puede escribir, pero
+  **el hilo permanece visible en solo lectura mientras el vale exista**, también cuando el taller entregó la corrección y el asesor marcó el vale
+  como recibido (`RECIBIDO`) y en «Trabajo realizado»: es el registro de que el vale fue rechazado y mandado a corregir, con el motivo y el acuerdo
+  (los mensajes se conservan, caen en cascada con el vale). Una nueva ronda de rechazo **continúa el mismo hilo** del taller (historial completo).
+- **Quién consulta el hilo (solo lectura una vez cerrada la ronda):** el asesor dueño (el de todos los talleres del vale), el equipo del taller
+  (encargado y asistentes, el de su taller) y el diseñador asignado a ese taller en ese vale (nunca escribe ni decide). El supervisor y un taller
+  ajeno no ven nada (403). El administrador y el gerente lo ven en el historial del vale (`conversacionesPropuesta`) si tienen `vales.ver_historial`,
+  como el chat de adjuntos. No hay etiqueta visual nueva: el acceso es el botón «Ver conversación del rechazo» de la fila del vale, visible solo si
+  el vale tiene al menos una ronda para ese usuario (campo `hilos_rechazo_propuesta` de cada fila del buzón y de «Trabajo realizado», una consulta
+  por página). Abierto desde una ronda cerrada, el chat muestra el hilo completo del taller y el cierre («Acuerdo: el taller aceptó el rechazo»,
+  «El taller rechazó el rechazo» o «El asesor canceló el rechazo») sin caja de texto ni botones de acción.
 - **A la vista:** la fila del asesor y la del taller llevan la etiqueta «Rechazo de propuesta» mientras la ronda está abierta; el buzón del encargado
   muestra primero estos vales aunque su fila ya esté aprobada. El asesor ve «Rechazo respondido» (y un botón de chat rojo) cuando el taller rechazó,
-  hasta que abre la conversación (lo leído se guarda en su navegador). Si la ronda está cerrada por acuerdo o cancelación, el chat deja de mostrarse.
+  hasta que abre la conversación (lo leído se guarda en su navegador). Con la ronda cerrada por acuerdo o cancelación el chat no se retira: queda el
+  botón «Ver conversación del rechazo» (solo lectura).
 - **Tablas:** `vale_rechazos_propuesta` (una ronda por taller: `ABIERTO`, `ACEPTADO`, `RECHAZADO`, `CANCELADO`) y
   `vale_rechazo_propuesta_mensajes` (el hilo por `vale_taller_id`). La modificación básica con chat anterior
   (`vale_modificaciones_basicas`, `vale_modificacion_mensajes` y el permiso `vales.responder_modificacion_basica`) quedó sin uso y no se borra.
 - **Avisos y tiempo real:** eventos `RECHAZO_PROPUESTA_SOLICITADO`, `_MENSAJE`, `_ACEPTADO`, `_RECHAZADO` y `_CANCELADO`, entre el asesor
-  y la sala del taller (encargado y asistentes, no los diseñadores). Cada paso queda en `vale_historial`. Rutas: `/api/vales/:id/rechazos-propuesta`
-  (listar y crear), `/:rechazoId/mensajes`, `/aceptar`, `/rechazar` y `/cancelar`.
+  y la sala del taller (encargado y asistentes; el diseñador asignado solo recibe el refresco silencioso para ver el cierre con el chat abierto).
+  Cada paso queda en `vale_historial`. Rutas: `/api/vales/:id/rechazos-propuesta` (GET: todas las rondas visibles para quien consulta, abiertas o
+  cerradas; POST: crear), `/:rechazoId/mensajes` (GET: el hilo completo del taller en cualquier estado de la ronda y del vale; POST: escribir, solo con la
+  ronda abierta), `/aceptar`, `/rechazar` y `/cancelar`.
 
 ## 2. Estado por TALLER (`vale_talleres.estado`)
 

@@ -60,6 +60,39 @@ class ValeRechazoPropuestaRepository {
     );
   }
 
+  // Todas las rondas de un vale, abiertas o cerradas: el hilo de cada taller permanece como registro mientras el vale exista.
+  async listarPorVale(valeId) {
+    return db.query(
+      `SELECT r.id, r.vale_id, r.vale_taller_id, vt.taller_id, vt.disenador_id, vt.activo, t.nombre AS taller, r.estado, r.creado_en, r.resuelto_en
+       FROM vale_rechazos_propuesta r
+       JOIN vale_talleres vt ON vt.id = r.vale_taller_id
+       JOIN talleres t ON t.id = vt.taller_id
+       WHERE r.vale_id = ? ORDER BY r.id ASC`,
+      [valeId], 'rechazo_propuesta:list_vale'
+    );
+  }
+
+  // Una consulta por lote: la última ronda de cada hilo (taller) de los vales dados, para mostrar el acceso al chat en los listados.
+  async listarHilosPorVales(valeIds) {
+    if (!valeIds.length) return [];
+    return db.query(
+      `SELECT r.id, r.vale_id, r.vale_taller_id, vt.taller_id, vt.disenador_id, vt.activo, t.nombre AS taller, r.estado
+       FROM vale_rechazos_propuesta r
+       JOIN vale_talleres vt ON vt.id = r.vale_taller_id
+       JOIN talleres t ON t.id = vt.taller_id
+       WHERE r.vale_id IN (?)
+         AND NOT EXISTS (SELECT 1 FROM vale_rechazos_propuesta n WHERE n.vale_taller_id = r.vale_taller_id AND n.id > r.id)
+       ORDER BY r.id ASC`,
+      [valeIds], 'rechazo_propuesta:list_hilos_vales'
+    );
+  }
+
+  // Última ronda de un hilo: dice si la conversación sigue abierta aunque se consulte desde una ronda anterior.
+  async obtenerUltimaDeHilo(valeTallerId) {
+    const rows = await db.query(`${SELECT_RECHAZO} WHERE r.vale_taller_id = ? ORDER BY r.id DESC LIMIT 1`, [valeTallerId], 'rechazo_propuesta:find_ultima_hilo');
+    return rows[0] || null;
+  }
+
   // Cuántas rondas siguen abiertas en un vale (impiden confirmarlo o pedir una modificación).
   async contarAbiertasPorVale(valeId) {
     const rows = await db.query(

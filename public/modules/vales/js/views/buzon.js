@@ -385,6 +385,9 @@ export function construirAcciones(v) {
       clase: rechazos.length ? 'icon-danger' : (abiertos.length ? 'icon-success' : undefined),
       onClick: (vale) => abrirConversacionesRechazo(vale, rechazos.length ? { ids: rechazos.map(r => r.id) } : {})
     });
+  } else if ((v.hilos_rechazo_propuesta || []).length) {
+    // Registro: con la ronda cerrada, y aun con el vale ya recibido, el chat sigue a la mano en solo lectura mientras el vale exista.
+    acciones.push({ icono: 'chatbubbles-outline', titulo: 'Ver conversación del rechazo', onClick: (vale) => abrirConversacionesRechazo(vale) });
   }
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });
