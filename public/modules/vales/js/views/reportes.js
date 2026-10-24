@@ -409,13 +409,22 @@ function renderFiltros(data, vista = 'actividad') {
   const agrupar = data.grupos.agruparPor;
   const permitidas = f.agrupaciones && f.agrupaciones.length ? f.agrupaciones : AGRUPACIONES.map(a => a.id);
   const disponibles = AGRUPACIONES.filter(a => permitidas.includes(a.id));
-  // El selector de diseñadores solo lista a quienes trabajan en el taller elegido (si hay uno).
+  // Con una tienda elegida, talleres, asesores y diseñadores se acotan a los de esa tienda; con un taller elegido,
+  // los diseñadores son solo los de ese taller.
+  const tiendaElegida = Number(r.tiendaId) || null;
   const tallerElegido = Number(r.tallerId) || null;
-  const delTaller = (d) => !tallerElegido || !d.tallerIds || d.tallerIds.includes(tallerElegido);
-  // Rendimiento de Administrador y Gerente: Ventas filtra por tienda, taller y asesor; Taller, por taller y diseñador.
+// Rendimiento de Administrador y Gerente: Ventas filtra por tienda, taller y asesor; Taller, por taller y diseñador.
   const enfoqueFiltros = vista === 'rendimiento' ? enfoqueGlobal(data) : null;
+  const tiendaEfectiva = enfoqueFiltros === 'taller' ? null : tiendaElegida;
+  const talleresVisibles = f.talleres.filter(t => !tiendaEfectiva || (t.tiendaIds || []).includes(tiendaEfectiva));
+  const idsTalleresVisibles = new Set(talleresVisibles.map(t => t.id));
+  const delTaller = (d) => {
+    if (!d.tallerIds) return true;
+    if (tallerElegido) return d.tallerIds.includes(tallerElegido);
+    return !tiendaEfectiva || d.tallerIds.some(id => idsTalleresVisibles.has(id));
+  };
   const disenadoresVisibles = enfoqueFiltros === 'ventas' ? [] : f.disenadores.filter(delTaller);
-  const asesoresVisibles = enfoqueFiltros === 'taller' ? [] : f.asesores;
+  const asesoresVisibles = enfoqueFiltros === 'taller' ? [] : f.asesores.filter(a => !tiendaEfectiva || a.tiendaId === tiendaEfectiva);
   const tiendasVisibles = enfoqueFiltros === 'taller' ? [] : f.tiendas;
   const evaluadosDelEnfoque = (data.evaluados || []).filter(p => !enfoqueFiltros || (enfoqueFiltros === 'ventas' ? f.asesores : f.disenadores).some(o => o.id === p.id));
   const opciones = (lista, valor, vacio) => `<option value="">${vacio}</option>${lista.map(o => `<option value="${o.id}"${String(o.id) === String(valor) ? ' selected' : ''}>${escapeHtml(o.nombre)}</option>`).join('')}`;
@@ -429,8 +438,8 @@ function renderFiltros(data, vista = 'actividad') {
         : `<span class="rep-agrupar-fijo">${escapeHtml((disponibles[0] || AGRUPACIONES.find(a => a.id === agrupar) || {}).texto || '')}</span>`}
     </div>`}
     <div class="rep-filtros-fila">
-      ${tiendasVisibles.length ? `<select id="rep-f-tienda" class="filtro-tienda" aria-label="Filtrar por tienda">${opciones(f.tiendas, r.tiendaId, 'Todas las tiendas')}</select>` : ''}
-      ${f.talleres.length ? `<select id="rep-f-taller" class="filtro-tienda" aria-label="Filtrar por taller">${opciones(f.talleres, r.tallerId, 'Todos los talleres')}</select>` : ''}
+${tiendasVisibles.length ? `<select id="rep-f-tienda" class="filtro-tienda" aria-label="Filtrar por tienda">${opciones(f.tiendas, r.tiendaId, 'Todas las tiendas')}</select>` : ''}
+      ${talleresVisibles.length ? `<select id="rep-f-taller" class="filtro-tienda" aria-label="Filtrar por taller">${opciones(talleresVisibles, r.tallerId, 'Todos los talleres')}</select>` : ''}
       <span id="rep-f-asesores"></span>
       <span id="rep-f-disenadores"></span>
       ${hayFiltros() ? '<button type="button" class="rep-link" id="rep-limpiar-filtros">Limpiar filtros</button>' : ''}
@@ -449,13 +458,30 @@ function renderFiltros(data, vista = 'actividad') {
     cargarReportes();
   }));
   const tienda = $('#rep-f-tienda', cont);
-  if (tienda) tienda.addEventListener('change', () => { r.tiendaId = tienda.value; r.expandidos.clear(); cargarReportes(); });
+  if (tienda) tienda.addEventListener('change', () => {
+    r.tiendaId = tienda.value;
+    // Se descarta lo elegido que no pertenece a la tienda nueva (mismo criterio que al cambiar de taller).
+    const nueva = Number(r.tiendaId) || null;
+    if (nueva) {
+      const talleresDeTienda = f.talleres.filter(t => (t.tiendaIds || []).includes(nueva)).map(t => t.id);
+      if (r.tallerId && !talleresDeTienda.includes(Number(r.tallerId))) r.tallerId = '';
+      r.asesorIds = r.asesorIds.filter(id => { const a = f.asesores.find(x => x.id === Number(id)); return !a || a.tiendaId === nueva; });
+      const tallerVigente = Number(r.tallerId) || null;
+      r.disenadorIds = r.disenadorIds.filter(id => {
+        const d = f.disenadores.find(x => x.id === Number(id));
+        if (!d || !d.tallerIds) return true;
+        return tallerVigente ? d.tallerIds.includes(tallerVigente) : d.tallerIds.some(t => talleresDeTienda.includes(t));
+      });
+    }
+    r.expandidos.clear();
+    cargarReportes();
+  });
   const taller = $('#rep-f-taller', cont);
   if (taller) taller.addEventListener('change', () => {
     r.tallerId = taller.value;
     // Las personas elegidas que no trabajan en el nuevo taller se quitan de la selección.
     const nuevo = Number(r.tallerId) || null;
-    if (nuevo) r.disenadorIds = r.disenadorIds.filter(id => { const d = f.disenadores.find(x => x.id === id); return !d || !d.tallerIds || d.tallerIds.includes(nuevo); });
+    if (nuevo) r.disenadorIds = r.disenadorIds.filter(id => { const d = f.disenadores.find(x => x.id === Number(id)); return !d || !d.tallerIds || d.tallerIds.includes(nuevo); });
     r.expandidos.clear();
     cargarReportes();
   });

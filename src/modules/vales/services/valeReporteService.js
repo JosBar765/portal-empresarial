@@ -277,7 +277,8 @@ async function resolverAlcance(usuario) {
       const tiendas = await reporteRepository.listarTiendasPorSupervisor(usuario.id);
       const tallerIdsVisibles = (await tallerRepository.listarIdsPorSupervisor(usuario.id)).map(t => t.id);
       // Él también crea vales: aparece como «(yo)» junto a sus asesores.
-      const personas = [{ id: usuario.id, nombre: `${usuario.nombre} (yo)` }, ...asesores.filter(a => a.id !== usuario.id).map(a => ({ id: a.id, nombre: a.nombre }))];
+      const propia = asesores.find(a => a.id === usuario.id);
+      const personas = [{ id: usuario.id, nombre: `${usuario.nombre} (yo)`, tiendaId: propia ? propia.tienda_id : null }, ...asesores.filter(a => a.id !== usuario.id).map(a => ({ id: a.id, nombre: a.nombre, tiendaId: a.tienda_id }))];
       return {
         rol: 'supervisor', equipo: true, agrupaciones: ['asesor'],
         asesorIds: [...new Set([...asesores.map(a => a.id), usuario.id])],
@@ -727,10 +728,17 @@ class ValeReporteService {
     const opciones = { personas: alcance.equipo ? (alcance.personas || []) : [], agrupaciones: alcance.agrupaciones || [], tiendas: [], talleres: [], asesores: [], disenadores: [] };
     if (!alcance.equipo) return opciones;
     const talleres = await tallerRepository.listarTodos();
+    // Cada taller lleva sus tiendas para que la barra acote talleres y diseñadores a la tienda elegida.
+    const tiendasDeTaller = new Map();
+    (await reporteRepository.listarTiendasPorTaller()).forEach(r => {
+      if (!tiendasDeTaller.has(r.taller_id)) tiendasDeTaller.set(r.taller_id, []);
+      tiendasDeTaller.get(r.taller_id).push(r.tienda_id);
+    });
+    const conTiendas = (t) => ({ id: t.id, nombre: t.nombre, tiendaIds: tiendasDeTaller.get(t.id) || [] });
     if (alcance.rol === 'supervisor') {
       opciones.tiendas = alcance.tiendas;
       opciones.asesores = alcance.personas;
-      opciones.talleres = talleres.filter(t => alcance.tallerIdsVisibles.includes(t.id)).map(t => ({ id: t.id, nombre: t.nombre }));
+      opciones.talleres = talleres.filter(t => alcance.tallerIdsVisibles.includes(t.id)).map(conTiendas);
       return opciones;
     }
     if (alcance.rol === 'encargado') {
@@ -740,11 +748,11 @@ class ValeReporteService {
       return opciones;
     }
     opciones.tiendas = await reporteRepository.listarTiendas();
-    opciones.asesores = await reporteRepository.listarAsesores();
+    opciones.asesores = (await reporteRepository.listarAsesores()).map(a => ({ id: a.id, nombre: a.nombre, tiendaId: a.tienda_id ?? null }));
     opciones.disenadores = (await reporteRepository.listarDisenadores()).map(d => ({
       id: d.id, nombre: valeReporteGruposService.etiquetaNombre(d.nombre, d.rol_id, d.hereda_de_rol_id), tallerIds: String(d.taller_ids || '').split(',').map(Number).filter(Boolean)
     }));
-    opciones.talleres = talleres.map(t => ({ id: t.id, nombre: t.nombre }));
+    opciones.talleres = talleres.map(conTiendas);
     return opciones;
   }
 }
