@@ -571,7 +571,7 @@ a cada fila (`valeBuzonService`); el diseño está en `documentacion/correccione
 
 "Atrasados" y "Modificados" (asesor y supervisor) son los únicos contadores que se **combinan** con cualquier otro filtro
 activo (los demás contadores son mutuamente excluyentes). Además hay búsqueda
-por correlativo/cliente/empresa, orden por columna
+por correlativo/cliente/empresa (sin distinguir mayúsculas ni tildes: «e» encuentra e, é, è, ê y ë), orden por columna
 (reemplaza la jerarquía de negocio mientras está activo), ventana de tiempo
 por **fecha de entrega** (`Todo` —el valor por defecto—, `Hoy`, un **mes** o un **día**
 elegidos en el selector de período, o rango Desde/Hasta; elegir mes o día reemplaza el
