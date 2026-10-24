@@ -61,12 +61,15 @@ export function renderUsuarios() {
     arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' }, ...construirArbolTiendas(state.catalogoTiendas)],
     valorActual: state.filtroTiendaUsuarios,
     etiquetaVacio: 'Todas las tiendas',
+    ariaLabel: 'Filtrar por tienda',
     onSeleccionar: (valor) => { state.filtroTiendaUsuarios = String(valor); renderFilasUsuarios(); }
   }).elemento);
   $('#filtro-rol-usuarios-cont').appendChild(crearMenuCascada({
     arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todos los roles' }, ...construirArbolRoles(state.catalogoRoles)],
     valorActual: state.filtroRolUsuarios,
     etiquetaVacio: 'Todos los roles',
+    ariaLabel: 'Filtrar por rol',
+    mensajeVacio: 'No hay roles disponibles.',
     onSeleccionar: (valor) => { state.filtroRolUsuarios = String(valor); renderFilasUsuarios(); }
   }).elemento);
   $('#buscar-usuarios').addEventListener('input', (e) => { state.busquedaUsuarios = e.target.value; renderFilasUsuarios(); });

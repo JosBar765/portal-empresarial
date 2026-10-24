@@ -17,6 +17,31 @@ class PropuestaCompartidaRepository {
     );
   }
 
+  // Todas las filas activas del vale, sin exigir que el taller comparta (lectura global de Administrador y Gerente).
+  async listarFilasActivas(valeId) {
+    return db.query(
+      `SELECT vt.id, vt.taller_id, vt.disenador_id, et.nombre AS estado, t.nombre AS taller_nombre
+       FROM vale_talleres vt
+       JOIN talleres t ON t.id = vt.taller_id
+       JOIN estados_taller et ON et.id = vt.estado_id
+       WHERE vt.vale_id = ? AND vt.activo = 1
+       ORDER BY vt.id`,
+      [valeId],
+      'propuesta_compartida:filas_activas'
+    );
+  }
+
+  // Ids (de `valeIds`) con 2 o más talleres activos.
+  async listarValesConVariosTalleres(valeIds) {
+    if (!valeIds.length) return new Set();
+    const filas = await db.query(
+      `SELECT vale_id FROM vale_talleres WHERE vale_id IN (?) AND activo = 1 GROUP BY vale_id HAVING COUNT(DISTINCT taller_id) >= 2`,
+      [valeIds],
+      'propuesta_compartida:vales_varios_talleres'
+    );
+    return new Set(filas.map(f => f.vale_id));
+  }
+
   // Map(tallerOrigenId -> propuestaId visto) del usuario en el vale.
   async listarVistos(usuarioId, valeId) {
     const filas = await db.query(

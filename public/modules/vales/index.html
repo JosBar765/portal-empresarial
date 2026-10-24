@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/modules/vales/css/styles.css">
   <link rel="stylesheet" href="/modules/vales/css/pipeline.css">
   <link rel="stylesheet" href="/modules/vales/css/borradores.css">
+  <link rel="stylesheet" href="/css/menu-cascada.css">
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
   <script src="/socket.io/socket.io.js"></script>
@@ -90,10 +91,8 @@
 
         <section class="vales-toolbar">
           <div class="rp-barra rp-barra--toolbar" id="ventana-barra"></div>
-          <!-- Solo Gerencia, Supervisor y Administrador: filtra por tienda la lista de Vales de Arte. -->
-          <select id="filtro-tienda" class="filtro-tienda" style="display:none;">
-            <option value="">Todas las tiendas</option>
-          </select>
+          <!-- Solo Gerencia, Supervisor y Administrador: filtra por tienda la lista de Vales de Arte (menú en cascada, lo monta toolbar.js). -->
+          <div id="filtro-tienda" style="display:none;"></div>
           <button class="btn btn--ghost" id="btn-borradores" style="display:none;">
             <ion-icon name="document-text-outline"></ion-icon>
             Borradores (<span id="borradores-contador">0</span>)

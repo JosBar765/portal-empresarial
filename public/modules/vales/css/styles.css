@@ -403,7 +403,8 @@
 }
 
 /* Filtro de tienda del Gerente (analisis_correcciones_7.md, Vista Gerencia) —
-   mismo tratamiento visual que los selects del buzón. */
+   mismo tratamiento visual que los selects del buzón. El de tienda ahora es el
+   menú en cascada (css/menu-cascada.css); esta clase queda para los demás selects. */
 .filtro-tienda {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);

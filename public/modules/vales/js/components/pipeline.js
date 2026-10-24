@@ -26,7 +26,7 @@ function lineasDelPaso(p, i) {
   if (nodo === 'pendiente') return ['Pendiente'];
   const lineas = [p.detalle ? `${p.etiqueta} · ${p.detalle}` : p.etiqueta];
   if (nodo === 'devuelto' && p.motivo) lineas.push(`Motivo: «${p.motivo}»`);
-  p.marcas.filter(m => m.tipo !== 'mod').forEach(m => lineas.push(m.texto));
+  p.marcas.forEach(m => lineas.push(m.texto));
   if (p.talleres.length && i >= 1 && i <= 3) p.talleres.forEach(t => lineas.push(`• ${t.nombre}: ${t.etiqueta}`));
   return lineas;
 }

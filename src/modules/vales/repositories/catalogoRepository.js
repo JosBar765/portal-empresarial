@@ -8,9 +8,12 @@ class CatalogoRepository {
   async listarTiendas() {
     return db.query(
       `SELECT t.id, t.codigo, e.pais_id, t.departamento_id, t.subdivision_id,
+              p.nombre AS pais_nombre, d.nombre AS departamento_nombre,
               CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS nombre
        FROM tiendas t
        JOIN empresas e ON e.id = t.empresa_id
+       LEFT JOIN paises p ON p.id = e.pais_id
+       LEFT JOIN departamentos d ON d.id = t.departamento_id
        LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
        WHERE t.activo = 1
        ORDER BY nombre`,

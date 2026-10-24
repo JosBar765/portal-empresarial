@@ -133,11 +133,6 @@
   white-space: nowrap;
 }
 
-.pl-marca--mod {
-  background: var(--color-primary-light);
-  color: var(--color-info-text);
-}
-
 .pl-marca--vence {
   background: var(--color-surface-muted);
   color: var(--color-text-secondary);

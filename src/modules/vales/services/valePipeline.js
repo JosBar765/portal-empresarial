@@ -4,7 +4,7 @@
 // Para agregar un estado nuevo basta una entrada en ETAPA_TALLER o un caso en calcularPipeline.
 const calendarioService = require('../../../core/calendario/calendarioService');
 const {
-  ESTADOS, ESTADOS_TALLER, esTallerODisenador, esValeDeModificacion
+  ESTADOS, ESTADOS_TALLER, esTallerODisenador
 } = require('./valeHelpers');
 
 const PASOS = ['Autorización', 'Asignación', 'Producción', 'Revisión', 'Confirmación'];
@@ -48,7 +48,6 @@ function etapaDeTalleres(vale, filas, estadoPropio) {
 
 function marcasDe(vale) {
   const marcas = [];
-  if (esValeDeModificacion(vale)) marcas.push({ tipo: 'mod', texto: 'MOD' });
   if (ESTADOS_CON_VIGENCIA.includes(vale.estado) && vale.vigencia_hasta != null) {
     // Tiempo laboral restante (se detiene fuera de horario); sin calendario cargado, el reloj corrido de la base.
     const laboral = calendarioService.minutosRestantesDeVale(vale.vigencia_hasta, vale.talleres_solicitados);

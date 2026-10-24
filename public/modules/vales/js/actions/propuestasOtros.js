@@ -1,6 +1,8 @@
 import { abrirVisor } from '../components/visorDocumento.js';
 import { hayExtras } from '../components/propuestaInfo.js';
 import { obtenerDetalleVale, marcarPropuestaOtroVisto } from '../api/valesApi.js';
+import { state } from '../state.js';
+import { ROL } from '../config/roles.js';
 import { cargarBuzon } from '../views/buzon.js';
 
 const MARGEN = 16;
@@ -45,6 +47,9 @@ document.addEventListener('scroll', ocultarTip, true);
 document.addEventListener('click', ocultarTip, true);
 window.addEventListener('resize', ocultarTip);
 
+// Administrador y Gerente solo leen: nunca marcan propuestas como vistas.
+const esLectorGlobal = () => state.user.rolId === ROL.ADMINISTRADOR || state.user.rolId === ROL.GERENTE;
+
 // Visor con el vale y la última propuesta aprobada de cada taller hermano, una pestaña por taller (solo lectura).
 export async function abrirVisorPropuestasOtros(vale) {
   let lista = [];
@@ -58,7 +63,7 @@ export async function abrirVisorPropuestasOtros(vale) {
 
   const aprobadas = lista.filter(it => it.estado === 'APROBADO' && it.propuesta && (it.propuesta.url || hayExtras(it.propuesta)));
   if (!aprobadas.length) {
-    window.toast.info('Sin propuestas aprobadas', 'Ningún otro taller tiene todavía una propuesta aprobada en este vale.');
+    window.toast.info('Sin propuestas aprobadas', esLectorGlobal() ? 'Ningún taller tiene todavía una propuesta aprobada en este vale.' : 'Ningún otro taller tiene todavía una propuesta aprobada en este vale.');
     return;
   }
 
@@ -74,7 +79,7 @@ export async function abrirVisorPropuestasOtros(vale) {
 
 // Si falla el POST la propuesta igual se abre; solo se reintenta la próxima vez que se muestre.
 async function marcarVisto(it, vale) {
-  if (it.visto !== false || it.marcando) return;
+  if (esLectorGlobal() || it.visto !== false || it.marcando) return;
   it.marcando = true;
   try {
     await marcarPropuestaOtroVisto(vale.id, it.tallerId);

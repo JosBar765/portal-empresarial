@@ -293,9 +293,12 @@ function crearBotonesAcciones(wrap, v) {
 
 const escapeAttr = (t) => String(t).replace(/"/g, '&quot;');
 
+// Administrador y Gerente: solo lectura, con tres acciones (ver vale con su propuesta, propuestas de otros talleres, historial).
+const esLectorGlobal = () => state.user.rolId === ROL.ADMINISTRADOR || state.user.rolId === ROL.GERENTE;
+
 // Propuesta que este usuario puede ver en la fila (la fusión o la del propio taller; con archivo o solo con enlaces), o null.
 function propuestaGeneralVisible(v) {
-  const aplica = (usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || puede('aprobarGeneral')) && v._tipoRegistro !== 'PROPUESTA';
+  const aplica = (usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || esLectorGlobal() || puede('aprobarGeneral')) && v._tipoRegistro !== 'PROPUESTA';
   return aplica && (v.propuesta_general_url || v.propuesta_extra) ? { tipo: 'general' } : null;
 }
 function propuestaTallerVisible(v) {
@@ -320,7 +323,16 @@ function badgeRechazoPropuesta(v) {
   return '<span class="badge badge-basica" title="El asesor rechazó la propuesta y espera la respuesta del taller">Rechazo de propuesta</span>';
 }
 
+// Acciones de solo lectura del Administrador y del Gerente.
+function construirAccionesDeLectura(v) {
+  const acciones = [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
+  if (v.propuestasOtrosAplica) acciones.push({ icono: 'documents-outline', titulo: 'Propuestas de otros talleres', onClick: abrirVisorPropuestasOtros });
+  if (puede('verHistorial')) acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
+  return acciones;
+}
+
 export function construirAcciones(v) {
+  if (esLectorGlobal()) return construirAccionesDeLectura(v);
   const esMio = v.asesor_id === state.user.id;
   // Un supervisor solo actúa como asesor sobre SUS vales: sobre los de su equipo solo autoriza y supervisa.
   const ajenoDeSupervisor = state.user.rolId === ROL.SUPERVISOR && !esMio;

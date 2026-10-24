@@ -53,18 +53,11 @@ export function normalizarPeriodoCerrado(p) {
   return periodoCerrado(p.tipo, f) ? p : { ...p, fecha: isoLocal(ultimoPeriodoCerrado(p.tipo, f)) };
 }
 
-function semanaIso(f) {
-  const d = new Date(Date.UTC(f.getFullYear(), f.getMonth(), f.getDate()));
-  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3);
-  const primerJueves = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
-  return 1 + Math.round(((d - primerJueves) / 86400000 - 3 + ((primerJueves.getUTCDay() + 6) % 7)) / 7);
-}
-
 export function etiquetaSemana(f) {
   const lunes = lunesDeSemana(f);
   const domingo = sumarDiaLocal(lunes, 6);
   const anio = domingo.getFullYear();
-  return `Semana ${semanaIso(lunes)} · ${corto(lunes)} – ${corto(domingo)} ${anio}`;
+  return `${corto(lunes)} – ${corto(domingo)} ${anio}`;
 }
 
 // Etiqueta legible del período elegido.
