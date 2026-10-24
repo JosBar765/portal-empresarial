@@ -1,6 +1,7 @@
 import { escapeHtml } from '../utils/formato.js';
 import { ROL_ENCARGADO_DISENO_LOCAL } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
+import { crearMenuCascada, construirArbolTiendas } from '../components/menuCascada.js';
 import { crearTaller, listarTiendas, listarTalleres, listarUsuariosRaw } from '../api/adminApi.js';
 import { cargarTalleres } from '../views/talleres.js';
 
@@ -43,10 +44,7 @@ export async function abrirModalNuevoTaller() {
       </div>
       <div class="form-field full">
         <label for="input-taller-tienda">Tienda *</label>
-        <select id="input-taller-tienda" ${tiendasDisponibles.length ? '' : 'disabled'}>
-          <option value="">${tiendasDisponibles.length ? 'Seleccionar tienda...' : 'No hay tiendas disponibles'}</option>
-          ${tiendasDisponibles.map(t => `<option value="${Number(t.id)}">${escapeHtml(t.nombre)} (${escapeHtml(t.codigo)})</option>`).join('')}
-        </select>
+        <div id="input-taller-tienda"></div>
         <span class="form-hint">${tiendasDisponibles.length
           ? 'Solo aparecen las tiendas activas que todavía no tienen su taller de Diseño Local.'
           : 'Todas las tiendas activas ya tienen su taller de Diseño Local.'}</span>
@@ -70,27 +68,39 @@ export async function abrirModalNuevoTaller() {
     footerHtml: `<button class="btn btn--ghost" id="btn-cancelar-taller" type="button">Cancelar</button><button class="btn btn--primary" id="btn-crear-taller" type="button" ${tiendasDisponibles.length ? '' : 'disabled'}>Crear taller</button>`
   });
 
-  const selectTienda = overlay.querySelector('#input-taller-tienda');
+  // El menú en cascada reemplaza al select: la tienda elegida vive en `tiendaId`.
+  let tiendaId = null;
+  const menuTienda = crearMenuCascada({
+    arbol: construirArbolTiendas(tiendasDisponibles),
+    valorActual: null,
+    etiquetaVacio: tiendasDisponibles.length ? 'Seleccionar tienda...' : 'No hay tiendas disponibles',
+    ariaLabel: 'Tienda del taller',
+    mensajeVacio: 'No hay tiendas disponibles.',
+    onSeleccionar: (valor) => {
+      tiendaId = Number(valor);
+      actualizarVistaPrevia();
+      limpiarError();
+    }
+  });
+  overlay.querySelector('#input-taller-tienda').appendChild(menuTienda.elemento);
   const selectEncargado = overlay.querySelector('#input-taller-encargado');
   const vistaPrevia = overlay.querySelector('#taller-vista-previa');
   function actualizarVistaPrevia() {
-    const tienda = tiendasDisponibles.find(t => Number(t.id) === Number(selectTienda.value));
+    const tienda = tiendasDisponibles.find(t => Number(t.id) === tiendaId);
     vistaPrevia.innerHTML = tienda
       ? `El taller se llamará <strong>Diseño Local - ${escapeHtml(tienda.codigo)}</strong>.`
       : 'El nombre del taller se genera a partir de la tienda que elijas.';
   }
   actualizarVistaPrevia();
-  selectTienda.addEventListener('change', actualizarVistaPrevia);
   // El aviso de error deja de ser cierto en cuanto el usuario cambia una elección.
   const limpiarError = () => overlay.querySelectorAll('.form-error').forEach(e => e.remove());
-  selectTienda.addEventListener('change', limpiarError);
   selectEncargado.addEventListener('change', limpiarError);
 
   overlay.querySelector('#btn-cancelar-taller').addEventListener('click', cerrar);
   overlay.querySelector('#btn-crear-taller').addEventListener('click', async () => {
-    if (!selectTienda.value) {
+    if (tiendaId == null) {
       mostrarErrorModal(overlay, 'Selecciona la tienda a la que pertenecerá el taller.');
-      selectTienda.focus();
+      menuTienda.elemento.querySelector('.menu-cascada-trigger').focus();
       return;
     }
     const btn = overlay.querySelector('#btn-crear-taller');
@@ -98,7 +108,7 @@ export async function abrirModalNuevoTaller() {
     btn.classList.add('btn--loading');
     try {
       const taller = await crearTaller({
-        tiendaId: Number(selectTienda.value),
+        tiendaId,
         encargadoId: selectEncargado.value ? Number(selectEncargado.value) : null
       });
       window.toast.success('Taller creado', taller.nombre);
@@ -110,5 +120,5 @@ export async function abrirModalNuevoTaller() {
       btn.classList.remove('btn--loading');
     }
   });
-  selectTienda.focus();
+  menuTienda.elemento.querySelector('.menu-cascada-trigger').focus();
 }

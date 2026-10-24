@@ -33,3 +33,7 @@ Solo se agregan columnas de lectura: sin cambios en la base de datos ni en los p
 - `construirArbolTalleres` (en `menuCascada.js`) agrupa por país; un taller con tiendas en varios países aparece en cada uno, y sin país va al final como «Sin país».
 - `_opcionesDeFiltro` agrega `paises` a cada taller (Administrador, Gerente, Supervisor y Encargado), derivados de sus tiendas (`taller_tiendas` → tiendas → empresa → país); `talleres.tienda_id` y `departamentos.pais_id` no sirven porque son nulos en los talleres centrales.
 - `onSeleccionar` hace lo mismo que el antiguo `change` (depura diseñadores, limpia expandidos y recarga). Solo lectura: sin cambios en la base de datos ni en los permisos.
+
+## Tienda en «Nuevo taller de Diseño Local»
+
+El combo de tienda del modal (`tallerForm.js`, `#input-taller-tienda`) pasó de `<select>` al menú en cascada compartido (país › tienda › grupo Trofex); con un solo país sube directo al nivel de tiendas. Solo ofrece las tiendas activas sin taller de Diseño Local; la tienda elegida se guarda en `tiendaId`.
