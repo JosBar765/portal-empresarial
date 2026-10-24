@@ -226,10 +226,13 @@ export function renderTabla() {
   pintarFilas(tbody, filas);
 }
 
-// La empresa del cliente va bajo el correlativo solo para quienes siguen el vale de punta a punta.
+// La empresa del cliente va bajo el correlativo solo para quienes siguen el vale de punta a punta; sin empresa, el nombre del cliente.
 const ROLES_CON_EMPRESA = [ROL.ASESOR, ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR];
-const empresaDeFila = (v) => (ROLES_CON_EMPRESA.includes(state.user.rolId) && v.cliente_empresa
-  ? `<span class="vale-empresa" title="${escapeHtml(v.cliente_empresa)}">${escapeHtml(v.cliente_empresa)}</span>` : '');
+const empresaDeFila = (v) => {
+  const identificador = v.cliente_empresa || v.cliente_nombre;
+  return ROLES_CON_EMPRESA.includes(state.user.rolId) && identificador
+    ? `<span class="vale-empresa" title="${escapeHtml(identificador)}">${escapeHtml(identificador)}</span>` : '';
+};
 
 // Dibuja las filas de vales (y sus botones de acción) en un <tbody>.
 function pintarFilas(tbody, filas) {
