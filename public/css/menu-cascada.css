@@ -1,0 +1,434 @@
+/* ------------------------------------------------------------------ */
+/* Menú en cascada compartido (Admin y Vales) — motor: /js/menuCascada.js */
+/* Solo usa tokens de global.css; requiere que la página lo cargue antes. */
+/* ------------------------------------------------------------------ */
+.menu-cascada {
+  position: relative;
+}
+
+.menu-cascada-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 260px;
+  min-width: 200px;
+  max-width: 100%;
+  height: 38px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: 0 10px 0 12px;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.menu-cascada-trigger:hover {
+  border-color: var(--color-primary);
+}
+
+.menu-cascada-trigger[aria-expanded="true"] {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.menu-cascada-trigger:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.menu-cascada-trigger ion-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: var(--color-text-secondary);
+  transition: transform var(--transition-fast);
+}
+
+.menu-cascada-trigger[aria-expanded="true"] ion-icon {
+  transform: rotate(180deg);
+}
+
+.menu-cascada-valor {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Paneles sueltos en document.body: top/left los calcula JS al abrir. Sin
+   transform en el panel principal para no crear un containing block nuevo. */
+.menu-cascada-panel,
+.menu-cascada-panel-nivel2 {
+  position: fixed;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  max-width: calc(100vw - 16px);
+}
+
+.menu-cascada-panel ul,
+.menu-cascada-panel-nivel2 ul,
+.menu-cascada-hoja ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.menu-cascada-panel {
+  min-width: 260px;
+  max-height: 360px;
+  overflow-y: auto;
+  z-index: 200; /* por encima de .modal-overlay (100): el menú también se usa dentro de modales */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+}
+
+.menu-cascada-panel.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.menu-cascada-panel-nivel2 {
+  display: none;
+  flex-direction: column;
+  width: 340px;
+  max-height: 360px;
+  overflow: hidden;
+  z-index: 201;
+  animation: menu-cascada-aparecer var(--transition-fast);
+}
+
+.menu-cascada-panel-nivel2[data-nivel="2"] { width: 380px; }
+.menu-cascada-panel-nivel2[data-nivel="3"] { z-index: 202; }
+.menu-cascada-panel-nivel2[data-nivel="4"] { z-index: 203; }
+
+.menu-cascada-panel-titulo,
+.menu-cascada-encabezado .menu-cascada-seccion-titulo {
+  display: block;
+  padding: 10px 12px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--color-text-muted);
+}
+
+.menu-cascada-panel-cuerpo {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.menu-cascada-seccion {
+  padding: 6px 4px 2px;
+}
+
+.menu-cascada-seccion-titulo {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--color-text-muted);
+  padding: 4px 8px;
+}
+
+.menu-cascada-divisor {
+  height: 1px;
+  margin: 4px;
+  background: var(--color-border);
+}
+
+/* Filas */
+.menu-cascada-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.menu-cascada-item-texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.menu-cascada-item:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+  color: var(--color-primary);
+}
+
+.menu-cascada-item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.menu-cascada-item:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+.menu-cascada-item-activo,
+.menu-cascada-item-ruta,
+.menu-cascada-item-ruta:hover:not(:disabled) {
+  color: var(--color-primary);
+  font-weight: 700;
+  background: var(--color-primary-light);
+}
+
+.menu-cascada-item-padre ion-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: var(--color-text-muted);
+}
+
+/* «Todas las tiendas» / «Todos los roles» (sin filtro) conservan el texto oscuro aun estando activas o con hover */
+.menu-cascada-item[data-valor=""],
+.menu-cascada-item[data-valor=""]:hover:not(:disabled) {
+  color: var(--color-text);
+}
+
+.menu-cascada-item-ruta ion-icon {
+  color: var(--color-primary);
+}
+
+.menu-cascada-check {
+  display: none;
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+/* Estados: vacío, cargando, error */
+.menu-cascada-vacio {
+  padding: 14px 12px;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.menu-cascada-esqueleto {
+  padding: 4px 0;
+}
+
+.menu-cascada-esqueleto-fila {
+  display: block;
+  height: 14px;
+  margin: 12px 10px;
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-muted);
+  animation: menu-cascada-pulso 1.2s ease-in-out infinite;
+}
+
+.menu-cascada-esqueleto-fila:nth-child(2n) { width: 70%; }
+.menu-cascada-esqueleto-fila:nth-child(3n) { width: 85%; }
+.menu-cascada-esqueleto-fila:nth-child(5n) { width: 55%; }
+
+.menu-cascada-estado-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 16px;
+  text-align: center;
+}
+
+.menu-cascada-estado-error ion-icon {
+  font-size: 28px;
+  color: var(--color-danger);
+}
+
+.menu-cascada-estado-mensaje {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.menu-cascada-estado-detalle {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.menu-cascada-estado-error .btn {
+  margin-top: 6px;
+}
+
+/* Hoja inferior (celular, < 640 px): la elige el JS al abrir. */
+.menu-cascada-hoja-raiz {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  visibility: hidden;
+  pointer-events: none;
+  transition: visibility 0s linear var(--transition-normal);
+}
+
+.menu-cascada-hoja-raiz.visible {
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+.menu-cascada-hoja-fondo {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-text) 50%, transparent);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.menu-cascada-hoja-raiz.visible .menu-cascada-hoja-fondo {
+  opacity: 1;
+}
+
+.menu-cascada-hoja {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  max-height: 85dvh;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--shadow-xl);
+  padding-bottom: env(safe-area-inset-bottom);
+  transform: translateY(100%);
+  transition: transform var(--transition-normal);
+}
+
+.menu-cascada-hoja-raiz.visible .menu-cascada-hoja {
+  transform: translateY(0);
+}
+
+.menu-cascada-hoja-asa {
+  flex-shrink: 0;
+  width: 40px;
+  height: 4px;
+  margin: 8px auto 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+}
+
+.menu-cascada-hoja-cabecera {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px 0 12px;
+}
+
+.menu-cascada-hoja-titulo {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-title);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.menu-cascada-hoja-volver,
+.menu-cascada-hoja-cerrar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 22px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.menu-cascada-hoja-volver[hidden],
+.menu-cascada-hoja-migas[hidden] {
+  display: none;
+}
+
+.menu-cascada-hoja-volver:focus-visible,
+.menu-cascada-hoja-cerrar:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.menu-cascada-hoja-migas {
+  flex-shrink: 0;
+  padding: 0 16px 8px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.menu-cascada-hoja-cuerpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 8px 12px;
+}
+
+.menu-cascada-hoja .menu-cascada-item {
+  min-height: 49px;
+  font-size: var(--text-base);
+}
+
+.menu-cascada-hoja .menu-cascada-item ion-icon {
+  font-size: 20px;
+}
+
+.menu-cascada-hoja .menu-cascada-item-activo .menu-cascada-check {
+  display: block;
+}
+
+@keyframes menu-cascada-aparecer {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes menu-cascada-pulso {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .45; }
+}
+
+/* Objetivo táctil de 44 px en el disparador de celulares. */
+@media (max-width: 640px) {
+  .menu-cascada-trigger {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-cascada-panel,
+  .menu-cascada-hoja,
+  .menu-cascada-hoja-fondo,
+  .menu-cascada-hoja-raiz {
+    transition: none;
+  }
+
+  .menu-cascada-panel-nivel2,
+  .menu-cascada-esqueleto-fila {
+    animation: none;
+  }
+}

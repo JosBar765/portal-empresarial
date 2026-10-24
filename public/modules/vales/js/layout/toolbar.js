@@ -5,6 +5,7 @@ import { obtenerDisenadoresAsignables, obtenerCalendarioBuzon } from '../api/val
 import { crearBarraPeriodo } from '../components/barraPeriodoReportes.js';
 import { ROLES_TALLER_Y_DISENADOR } from '../config/roles.js';
 import { cargarBuzon } from '../views/buzon.js';
+import { crearMenuCascada, construirArbolTiendas } from '/js/menuCascada.js';
 
 // «Ver reporte de este día»: abre la pestaña Reportes con período «Día» en esa fecha de entrega.
 function verReporteDelDia(iso) {
@@ -60,18 +61,23 @@ export function wireToolbar() {
   // completo para Gerente/Administrador, solo sus tiendas cubiertas para
   // Supervisor.
   if ([ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR].includes(rolEncargadoDe(state.user))) {
-    const selectTienda = $('#filtro-tienda');
-    selectTienda.style.display = '';
-    (state.catalogos.tiendasGerencia || state.catalogos.tiendas || []).forEach(t => {
-      const opt = document.createElement('option');
-      opt.value = t.id;
-      opt.textContent = t.nombre;
-      selectTienda.appendChild(opt);
+    const contenedorTienda = $('#filtro-tienda');
+    contenedorTienda.style.display = '';
+    const menuTienda = crearMenuCascada({
+      arbol: [
+        { tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' },
+        ...construirArbolTiendas(state.catalogos.tiendasGerencia || state.catalogos.tiendas || [])
+      ],
+      valorActual: state.tiendaId ? String(state.tiendaId) : '',
+      etiquetaVacio: 'Todas las tiendas',
+      ariaLabel: 'Filtrar por tienda',
+      // Misma semántica que el `change` del select anterior: vacío = sin filtro.
+      onSeleccionar: (valor) => {
+        state.tiendaId = valor ? String(valor) : null;
+        cargarBuzon();
+      }
     });
-    selectTienda.addEventListener('change', () => {
-      state.tiendaId = selectTienda.value || null;
-      cargarBuzon();
-    });
+    contenedorTienda.appendChild(menuTienda.elemento);
   }
 }
 
