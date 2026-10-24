@@ -401,9 +401,10 @@ class ValeBuzonService {
     } else {
       indiceInicio = Math.max(0, Number(filtros.offset) || 0);
     }
-    // Quién está detrás del vale (badge bajo el correlativo): al Supervisor, el asesor que lo creó; al Encargado de taller,
-    // el diseñador asignado a su taller.
+    // Quién está detrás del vale (badge bajo el correlativo): al Supervisor, al Administrador y al Gerente, el asesor que lo creó;
+    // al Encargado de taller, el diseñador asignado a su taller.
     const esSupervisor = usuario.rolId === ROL.SUPERVISOR;
+    const veAsesor = esSupervisor || esAdministrador(usuario) || usuario.rolId === ROL.GERENTE;
     const esEncargado = esDeTaller(usuario);
     const paginaCruda = valesOrdenados.slice(indiceInicio, indiceInicio + limit);
     // Fila de fusión: la etiquetada FUSION o el vale pendiente de fusionar (sin etiqueta); no tiene diseñador, solo asesor.
@@ -412,13 +413,13 @@ class ValeBuzonService {
     const disenadorDe = (v) => v.disenador_id || v.propuesta_disenador_id || null;
     const idsPersona = new Set();
     paginaCruda.forEach(v => {
-      if (esSupervisor && v.asesor_id) idsPersona.add(v.asesor_id);
+      if (veAsesor && v.asesor_id) idsPersona.add(v.asesor_id);
       if (esEncargado && !esFilaFusion(v) && disenadorDe(v)) idsPersona.add(disenadorDe(v));
       if (esEncargado && v.asesor_id) idsPersona.add(v.asesor_id);
     });
     const nombres = new Map((await reporteRepository.listarNombres([...idsPersona])).map(u => [u.id, u.nombre]));
     const personaDe = (v) => {
-      if (esSupervisor) return v.asesor_id ? { rol: 'asesor', nombre: nombres.get(v.asesor_id) || null } : null;
+      if (veAsesor) return v.asesor_id ? { rol: 'asesor', nombre: nombres.get(v.asesor_id) || null } : null;
       // El Encargado ve también al asesor que creó el vale (en las filas de fusión, solo al asesor).
       if (esEncargado) {
         const asesor = v.asesor_id ? (nombres.get(v.asesor_id) || null) : null;
