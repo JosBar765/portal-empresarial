@@ -791,7 +791,7 @@ No cambia ningún estado ni filtro: el desplegable de estado sigue usando los es
 - Desde que el encargado **asigna** a un diseñador el vale ya figura en el paso 3 «En proceso» (aunque el diseñador todavía no haya iniciado): así lo ven asesor, supervisor, gerente y administrador, y los contadores «Por asignar»/«En proceso» de asesor y supervisor lo cuentan en «En proceso». Los estados reales del taller y los contadores del encargado y del diseñador no cambian.
 - Con varios talleres se muestra el paso del taller más atrasado y «N de M talleres listos»; el tooltip lista el estado de cada uno. Encargados y diseñadores ven el paso de **su** taller.
 - El atraso (≥ 1 día) tiñe de rojo el paso actual; al estar `RECIBIDO` muestra «Atraso final».
-- Marcas bajo el pipeline: `MOD` (vale `MOD-`) y `Vence en N h` / `Vence en N min` (tiempo **laboral** restante, que se detiene fuera de horario; ámbar cuando queda el 25% del plazo o menos; lo calcula `valePipeline.js` con el calendario laboral a partir de `vigencia_hasta`).
+- Marcas bajo el pipeline: `Vence en N h` / `Vence en N min` (tiempo **laboral** restante, que se detiene fuera de horario; ámbar cuando queda el 25% del plazo o menos; lo calcula `valePipeline.js` con el calendario laboral a partir de `vigencia_hasta`). Un vale `MOD-` ya no lleva marca «MOD»: su correlativo lo identifica.
 - Si el vale tiene un taller en `ADJUNTOS_RECHAZADOS`, el paso 2 se dibuja en rojo con «Faltan adjuntos: <taller>» para asesor y supervisor (solo en pantalla, `pipelineConAdjuntos`).
 - Un estado nuevo se agrega en `ETAPA_TALLER` o como un `case` de `calcularPipeline`; una etapa nueva del recorrido es un paso más en `PASOS`.
 - Diseño: Figma, página «Pipeline de estado (Vales)» (archivo del prototipo de Incidencias).
