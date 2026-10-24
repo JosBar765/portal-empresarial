@@ -30,7 +30,7 @@ const borradorService = require('./borradorService');
 const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
   ESTADOS, hoyISO, horaActual, enriquecer,
-  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, DIAS_HABILES_MODIFICACION, registrarHistorial,
+  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, diasHabilesDeModificacion, registrarHistorial,
   esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
   esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor
 } = require('./valeHelpers');
@@ -388,8 +388,8 @@ class ValeCreacionService {
   // modificación tiene su propia lógica, ver valeConfirmacionService — así
   // que crearVale() sigue exigiendo `talleresIds` aquí pero
   // solicitarModificacion() no pasa por este camino para elegir taller).
-  // `modificacionTipo` (MEDIA / AVANZADA) marca un vale MOD: no admite «urgente» y su fecha de entrega
-  // pide ese mínimo en días hábiles desde hoy, en lugar de los 3 días naturales de un vale normal.
+  // `modificacionTipo` (BASICA / MEDIA / AVANZADA) marca un vale MOD: su fecha de entrega pide ese mínimo en días hábiles
+  // desde hoy (con «urgente», el siguiente día que reciba vales), en lugar de los 3 días naturales de un vale normal.
   async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null, talleresFijos = [], modificacionTipo = null } = {}) {
     const { fechaEntrega, fechaEvento, cantidad, cotizacion } = payload;
     // Los invisibles de un texto pegado (espacio de ancho cero, word joiner…) se quitan solos, sin avisar.
@@ -453,9 +453,9 @@ class ValeCreacionService {
     if (!fechaReal(fechaEntregaNorm)) throw new Error('La fecha de entrega no es válida.');
     if (!fechaReal(fechaEventoNorm)) throw new Error('La fecha del evento no es válida.');
     const talleresIds = requiereTalleres ? await this.validarTalleresIds(payload.talleresIds, tiendaIdAsesor) : talleresFijos;
-    const urgente = !modificacionTipo && esUrgente(payload.urgente);
+    const urgente = esUrgente(payload.urgente);
     if (modificacionTipo) {
-      await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, 0, undefined, DIAS_HABILES_MODIFICACION[modificacionTipo]);
+      await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, 0, undefined, diasHabilesDeModificacion(modificacionTipo, urgente));
     } else {
       await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, urgente ? 0 : DIAS_MINIMOS_SIN_URGENTE);
     }

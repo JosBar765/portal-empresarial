@@ -28,7 +28,7 @@ class BorradorRepository {
   }
 
   async contarPorUsuario(usuarioId) {
-    const rows = await db.query('SELECT COUNT(*) AS n FROM vale_borradores WHERE usuario_id = ?', [usuarioId], 'borrador:contar');
+    const rows = await db.query('SELECT COUNT(*) AS n FROM vale_borradores WHERE usuario_id = ? AND enviado_en IS NULL', [usuarioId], 'borrador:contar');
     return Number(rows[0].n);
   }
 
@@ -37,14 +37,14 @@ class BorradorRepository {
       `SELECT id, COALESCE(cliente_nombre, producto, 'Borrador sin título') AS titulo,
               DATE_FORMAT(creado_en, '%Y-%m-%d') AS creado_en, DATE_FORMAT(vence_en, '%Y-%m-%d') AS vence_en,
               ${DIAS_RESTANTES} AS dias_restantes
-       FROM vale_borradores WHERE usuario_id = ? ORDER BY creado_en DESC, id DESC`,
+       FROM vale_borradores WHERE usuario_id = ? AND enviado_en IS NULL ORDER BY creado_en DESC, id DESC`,
       [usuarioId], 'borrador:listar'
     );
   }
 
   async obtenerDeUsuario(id, usuarioId) {
     const rows = await db.query(
-      `SELECT ${COLUMNAS_DETALLE} FROM vale_borradores WHERE id = ? AND usuario_id = ?`,
+      `SELECT ${COLUMNAS_DETALLE} FROM vale_borradores WHERE id = ? AND usuario_id = ? AND enviado_en IS NULL`,
       [id, usuarioId], 'borrador:obtener'
     );
     return rows[0] || null;
@@ -71,8 +71,14 @@ class BorradorRepository {
     await db.query('DELETE FROM vale_borradores WHERE id = ?', [id], 'borrador:delete');
   }
 
+  // Los enviados solo esperan limpieza: se incluyen sin esperar a su vencimiento.
   listarVencidos() {
-    return db.query('SELECT id FROM vale_borradores WHERE vence_en <= NOW() ORDER BY vence_en', [], 'borrador:vencidos');
+    return db.query('SELECT id FROM vale_borradores WHERE vence_en <= NOW() OR enviado_en IS NOT NULL ORDER BY vence_en', [], 'borrador:vencidos');
+  }
+
+  // Un borrador enviado deja de existir para el usuario; su fila sobrevive solo hasta borrar sus archivos.
+  async marcarEnviado(id) {
+    await db.query('UPDATE vale_borradores SET enviado_en = NOW() WHERE id = ?', [id], 'borrador:marcar_enviado');
   }
 
   listarDocumentos(borradorId) {

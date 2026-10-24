@@ -56,6 +56,7 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 - Errors via `responderError`; ids via `idObligatorio`/`idOpcional`.
 - Gate actions by permission, not role name.
 - Frontend: vanilla HTML/CSS/JS, Ionicons, `public/css/global.css` tokens; UI rules in `.agents/reglas/reglas_disenoUI.md`.
+- Design changes start with a Figma mockup approved by the owner; no code before that.
 - Keep DOM ids, classes, `data-*` stable.
 - Names: Spanish domain terms; `<x>Controller.js`, `<x>Service.js`, `<x>Repository.js`; permissions `<modulo>.<accion>`.
 - Storage objects named by correlativo; states written in full words.

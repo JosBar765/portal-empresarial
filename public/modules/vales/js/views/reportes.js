@@ -17,8 +17,8 @@ import { crearSelectorMultiple } from '../components/selectorMultiple.js';
 
 // -----------------------------------------------------------------------
 // Reportes de actividad. Quienes ven a varias personas (Gerente, Administrador, Supervisor y Encargado/Asistente) reciben
-// una tabla unificada: personas (o talleres/tiendas) con sus vales con entrega en el período, que se despliegan al pulsar
-// la fila. Asesor y Diseñador ven su propio listado. El alcance lo decide el servidor según el rol.
+// una tabla por sección con los vales con entrega en el período, donde la persona (o taller/tienda) es una columna.
+// Asesor y Diseñador ven su propio listado. El alcance lo decide el servidor según el rol.
 // -----------------------------------------------------------------------
 
 let pedidoVigente = 0;
@@ -27,12 +27,20 @@ let barraPeriodo = null;
 let tablaActiva = '';
 let menuExportar = null;
 
-// Pestaña del reporte (solo Encargado/Asistente y Supervisor tienen «Rendimiento»); se recuerda la última.
+// Pestaña del reporte («Rendimiento» no la tiene el Asesor ni el Diseñador); se recuerda la última.
 const CLAVE_VISTA_REPORTE = 'vales:repVista';
 const leerVista = () => { try { return localStorage.getItem(CLAVE_VISTA_REPORTE) === 'rendimiento' ? 'rendimiento' : 'actividad'; } catch { return 'actividad'; } };
-// Solo el Encargado/Asistente de taller y el Supervisor tienen la pestaña Rendimiento (la vista recordada puede venir de otro usuario del navegador).
-const tieneRendimiento = () => !!state.user && (state.user.rolId === ROL.SUPERVISOR || ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)));
+// Rendimiento: Encargado/Asistente de taller, Supervisor, Administrador y Gerente (la vista recordada puede venir de otro usuario del navegador).
+const esAlcanceGlobal = () => !!state.user && (state.user.rolId === ROL.ADMINISTRADOR || state.user.rolId === ROL.GERENTE);
+const tieneRendimiento = () => !!state.user && (esAlcanceGlobal() || state.user.rolId === ROL.SUPERVISOR || ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)));
 const guardarVista = (vista) => { try { localStorage.setItem(CLAVE_VISTA_REPORTE, vista); } catch { /* sin almacenamiento */ } };
+// Administrador y Gerente: Rendimiento reúne el reporte de Ventas y el de Taller; se recuerda el último que vieron.
+const CLAVE_ENFOQUE_REPORTE = 'vales:repEnfoque';
+const leerEnfoque = () => { try { return localStorage.getItem(CLAVE_ENFOQUE_REPORTE) === 'taller' ? 'taller' : 'ventas'; } catch { return 'ventas'; } };
+const guardarEnfoque = (valor) => { try { localStorage.setItem(CLAVE_ENFOQUE_REPORTE, valor); } catch { /* sin almacenamiento */ } };
+let enfoque = leerEnfoque();
+// 'ventas' o 'taller' si el reporte trae ambos (Administrador y Gerente); null en los demás roles.
+const enfoqueGlobal = (data) => (data.grupos && data.grupos.rendimiento && data.grupos.rendimiento.vistas ? enfoque : null);
 
 const ICONO_AGRUPAR = { asesor: 'people-outline', disenador: 'brush-outline', taller: 'construct-outline', tienda: 'storefront-outline' };
 const AGRUPACIONES = [
@@ -103,7 +111,10 @@ export async function cargarReportes() {
   if (barraPeriodo) barraPeriodo.pintar();
   const pedido = ++pedidoVigente;
   const cuerpo = $('#rep-cuerpo', cont);
-  if (ultimaData) cuerpo.classList.add('is-refetching');
+  if (ultimaData) {
+    cuerpo.classList.add('is-refetching');
+    $('#rep-meta').textContent = `${$('#rep-meta').textContent.replace(SUFIJO_ACTUALIZANDO, '')}${SUFIJO_ACTUALIZANDO}`;
+  }
   try {
     const data = await obtenerReporte(construirQuery());
     if (pedido !== pedidoVigente) return;
@@ -113,16 +124,38 @@ export async function cargarReportes() {
   } catch (error) {
     if (pedido !== pedidoVigente) return;
     cuerpo.classList.remove('is-refetching');
-    if (ultimaData) { window.toast?.error('Reportes', error.message); return; }
+    const meta = $('#rep-meta');
+    if (meta) meta.textContent = meta.textContent.replace(SUFIJO_ACTUALIZANDO, '');
+    // Sin red, fetch lanza TypeError con un texto técnico: se cambia por uno que el usuario pueda aplicar.
+    const mensaje = error?.name === 'TypeError' ? 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.' : error.message;
+    if (ultimaData) { window.toast?.error('Reportes', mensaje); return; }
     cuerpo.innerHTML = `
-      <div class="buzon-vacio buzon-vacio-error">
-        <ion-icon name="alert-circle-outline"></ion-icon>
-        <h3>No se pudo cargar el reporte</h3>
-        <p>${escapeHtml(error.message)}</p>
+      <div class="rep-estado rep-estado--error rep-estado--tarjeta">
+        <span class="rep-estado-icono"><ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon></span>
+        <h4>No se pudo cargar el reporte</h4>
+        <p>${escapeHtml(mensaje)}</p>
         <button class="btn btn--ghost btn--sm" id="rep-reintentar" type="button">Reintentar</button>
       </div>`;
     $('#rep-reintentar', cuerpo).addEventListener('click', () => cargarReportes());
   }
+}
+
+const SUFIJO_ACTUALIZANDO = ' · Actualizando…';
+
+// Primera carga: barras grises con la forma del reporte (controles, aviso y tabla) en vez de un texto suelto.
+function htmlEsqueletoCuerpo() {
+  const barra = (...mod) => `<span class="rep-esq-barra ${mod.map(m => `rep-esq-barra--${m}`).join(' ')}"></span>`;
+  const fila = () => `<div class="rep-esq-fila">${barra('vale')}${barra('persona')}${barra('estado')}${barra('corta')}${barra('pildora-s')}${barra('cuadro')}</div>`;
+  return `<div class="rep-esq" role="status" aria-label="Calculando el reporte">
+    <div class="rep-esq-controles">${barra('pildora', 'xl')}</div>
+    <div class="rep-esq-controles">${barra('campo')}${barra('campo')}${barra('campo')}</div>
+    <div class="rep-esq-aviso">${barra('l')}${barra('pildora-s')}</div>
+    <div class="rep-esq-tarjeta">
+      ${barra('m')}${barra('s')}
+      <div class="rep-esq-seccion">${barra('circulo')}${barra('l')}${barra('pildora-s')}</div>
+      <div class="rep-esq-tabla">${fila()}${fila()}${fila()}${fila()}${fila()}</div>
+    </div>
+  </div>`;
 }
 
 function armarEsqueleto(cont) {
@@ -144,7 +177,7 @@ function armarEsqueleto(cont) {
     <div class="rep-filtros" id="rep-filtros" hidden></div>
     <div class="rep-fichas" id="rep-fichas" hidden></div>
     <div class="rend-cuerpo" id="rep-cuerpo" role="tabpanel">
-      <div class="buzon-vacio"><ion-icon name="sync-outline" class="spin-animation"></ion-icon><p>Calculando el reporte...</p></div>
+      ${htmlEsqueletoCuerpo()}
     </div>`;
   barraPeriodo = crearBarraPeriodo($('#rep-periodo', cont), {
     obtener: () => state.reporte.ventana,
@@ -162,6 +195,7 @@ async function exportarPdf(tipo = 'actividad') {
   try {
     const qs = construirQuery();
     qs.set('tipo', tipo);
+    if (tipo === 'rendimiento' && ultimaData && enfoqueGlobal(ultimaData)) qs.set('enfoque', enfoque); // el PDF imprime el reporte a la vista
     const { blob, nombre } = await descargarReportePdf(qs);
     const url = URL.createObjectURL(blob);
     const enlace = document.createElement('a');
@@ -181,11 +215,14 @@ async function exportarPdf(tipo = 'actividad') {
   }
 }
 
-// Opciones del menú de descarga según el rol: Rendimiento solo existe para Encargado/Asistente y Supervisor.
+// Opciones del menú de descarga según el rol: Rendimiento no existe para el Asesor ni el Diseñador; Administrador y Gerente descargan el enfoque a la vista.
 function configurarExportacion(data, vista) {
   const opciones = [{ id: 'actividad', icono: 'list-outline', titulo: 'Reporte de actividad', detalle: 'Vales atrasados, no entregados y entregados' }];
   if (data.grupos && data.grupos.rendimiento) {
-    opciones.push({ id: 'rendimiento', icono: 'bar-chart-outline', titulo: 'Reporte de rendimiento', detalle: 'Contadores, gráfica y tabla comparativa por persona' });
+    const actual = enfoqueGlobal(data);
+    opciones.push(actual
+      ? { id: 'rendimiento', icono: 'bar-chart-outline', titulo: `Reporte de rendimiento · ${actual === 'taller' ? 'Taller' : 'Ventas'}`, detalle: actual === 'taller' ? 'Contadores del taller, gráfica y tabla por diseñador' : 'Gráfica y tabla comparativa por asesor' }
+      : { id: 'rendimiento', icono: 'bar-chart-outline', titulo: 'Reporte de rendimiento', detalle: 'Contadores, gráfica y tabla comparativa por persona' });
   }
   menuExportar.configurar(opciones, vista);
 }
@@ -244,10 +281,10 @@ function renderTodo(data) {
   renderTabs(data, vista);
   configurarExportacion(data, vista);
   if (vista === 'rendimiento') {
+    const bloque = bloqueRendimiento(data);
     $('#rep-cuerpo').innerHTML = `
-      ${data.grupos.indicadoresTaller ? htmlIndicadoresTaller(data.grupos.indicadoresTaller) : ''}
-      ${htmlGraficaBarrasDobles(data.grupos.rendimiento)}
-      ${htmlTablaRendimiento(data.grupos.rendimiento)}
+      ${esRendimientoTaller(data) && data.grupos.indicadoresTaller ? htmlIndicadoresTaller(data.grupos.indicadoresTaller) : ''}
+      ${htmlGraficaBarrasDobles(bloque)}${htmlTablaRendimiento(bloque)}
       <details class="rend-notas">
         <summary>Cómo funciona este reporte</summary>
         <ul>${notasRendimiento(data)}</ul>
@@ -271,14 +308,21 @@ function renderTodo(data) {
   if (data.grupos) renderGrupos(data); else { renderTablas(data); renderVales(data); }
 }
 
+// Administrador y Gerente reciben Ventas y Taller completos (`vistas`) y ven el elegido; los demás roles, un solo reporte.
+const bloqueRendimiento = (data) => { const r = data.grupos.rendimiento; return r.vistas ? r.vistas[enfoque] : r; };
+// El reporte a la vista es el de Taller (contadores y diseñadores): el del Encargado/Asistente o el enfoque Taller de Administrador y Gerente.
+const esRendimientoTaller = (data) => (enfoqueGlobal(data) ? enfoque === 'taller' : data.rol === 'encargado');
+
 // Notas del reporte de rendimiento.
 function notasRendimiento(data) {
-  const entregado = data.rol === 'encargado'
-    ? '<strong>Asignados / Entregados:</strong> vales con fecha de entrega en el período asignados a cada diseñador (y a ti) y, de ellos, los que su propuesta ya aprobó el Encargado.'
-    : '<strong>Creados / Autorizados:</strong> vales con fecha de entrega en el período creados por cada asesor (y por ti) y, de ellos, los que ya fueron autorizados.';
+  const propio = !enfoqueGlobal(data); // «y a ti» solo cuando la persona que ve el reporte también aparece en él
+  const taller = esRendimientoTaller(data);
+  const entregado = taller
+    ? `<strong>Asignados / Entregados:</strong> vales con fecha de entrega en el período asignados a cada diseñador${propio ? ' (y a ti)' : ''} y, de ellos, los que su propuesta ya aprobó el Encargado.`
+    : `<strong>Creados / Autorizados:</strong> vales con fecha de entrega en el período creados por cada asesor${propio ? ' (y por ti)' : ''} y, de ellos, los que ya fueron autorizados.`;
   return `<li>${entregado}</li>
     <li><strong>%:</strong> la segunda cifra entre la primera.</li>
-    ${data.rol === 'encargado'
+    ${taller
       ? '<li><strong>Cómo se calcula:</strong> Semana y Mes solo se consultan cuando ya cerraron y muestran las cifras al cierre: no cambian después (un vale aprobado después del cierre cuenta como sin entregar en ese período). Día, Hoy y Desde–Hasta muestran las cifras de hoy y solo cuentan vales cuya fecha de entrega ya llegó. Un vale que vence hoy es «sin entregar» pero no «atrasado» hasta mañana; «atrasado» es todo vale vencido que el Encargado aún no aprueba.</li><li><strong>Entregas tarde:</strong> de los entregados (aprobados por el Encargado), los que tienen atraso en su taller. <strong>% a tiempo:</strong> entregados sin atraso entre entregados. <strong>Sin entregar:</strong> asignados de la ventana que esa persona aún no entrega (asignados menos entregados). <strong>Sin asignar:</strong> vales de la ventana que ningún diseñador tiene todavía.</li>'
       : '<li><strong>Atrasados:</strong> vales abiertos del período con fecha de entrega vencida (hasta hoy).</li>'}
     <li>El período y los filtros de tienda, taller y personas se aplican igual que en Actividad.</li>`;
@@ -347,6 +391,16 @@ function htmlIndicadoresTaller(i) {
 // -----------------------------------------------------------------------
 // Filtros: agrupar por, tienda, taller, asesores y diseñadores
 // -----------------------------------------------------------------------
+// Selector «Ventas | Taller» de Rendimiento (Administrador y Gerente), con el mismo estilo que «Agrupar por».
+function htmlSelectorEnfoque(actual) {
+  const opciones = [{ id: 'ventas', texto: 'Ventas', icono: 'people-outline' }, { id: 'taller', texto: 'Taller', icono: 'construct-outline' }];
+  return `<div class="rep-agrupar" role="group" aria-label="Reporte de rendimiento">
+      <ion-icon name="${actual === 'taller' ? 'construct-outline' : 'people-outline'}" aria-hidden="true"></ion-icon>
+      <span class="rep-filtro-rotulo">Reporte</span>
+      ${opciones.map(o => `<button type="button" class="rp-segmento${o.id === actual ? ' is-activo' : ''}" data-enfoque="${o.id}" aria-pressed="${o.id === actual}">${o.texto}</button>`).join('')}
+    </div>`;
+}
+
 function renderFiltros(data, vista = 'actividad') {
   const cont = $('#rep-filtros');
   const f = data.filtros;
@@ -355,14 +409,28 @@ function renderFiltros(data, vista = 'actividad') {
   const agrupar = data.grupos.agruparPor;
   const permitidas = f.agrupaciones && f.agrupaciones.length ? f.agrupaciones : AGRUPACIONES.map(a => a.id);
   const disponibles = AGRUPACIONES.filter(a => permitidas.includes(a.id));
-  // El selector de diseñadores solo lista a quienes trabajan en el taller elegido (si hay uno).
+  // Con una tienda elegida, talleres, asesores y diseñadores se acotan a los de esa tienda; con un taller elegido,
+  // los diseñadores son solo los de ese taller.
+  const tiendaElegida = Number(r.tiendaId) || null;
   const tallerElegido = Number(r.tallerId) || null;
-  const delTaller = (d) => !tallerElegido || !d.tallerIds || d.tallerIds.includes(tallerElegido);
-  const disenadoresVisibles = f.disenadores.filter(delTaller);
+// Rendimiento de Administrador y Gerente: Ventas filtra por tienda, taller y asesor; Taller, por taller y diseñador.
+  const enfoqueFiltros = vista === 'rendimiento' ? enfoqueGlobal(data) : null;
+  const tiendaEfectiva = enfoqueFiltros === 'taller' ? null : tiendaElegida;
+  const talleresVisibles = f.talleres.filter(t => !tiendaEfectiva || (t.tiendaIds || []).includes(tiendaEfectiva));
+  const idsTalleresVisibles = new Set(talleresVisibles.map(t => t.id));
+  const delTaller = (d) => {
+    if (!d.tallerIds) return true;
+    if (tallerElegido) return d.tallerIds.includes(tallerElegido);
+    return !tiendaEfectiva || d.tallerIds.some(id => idsTalleresVisibles.has(id));
+  };
+  const disenadoresVisibles = enfoqueFiltros === 'ventas' ? [] : f.disenadores.filter(delTaller);
+  const asesoresVisibles = enfoqueFiltros === 'taller' ? [] : f.asesores.filter(a => !tiendaEfectiva || a.tiendaId === tiendaEfectiva);
+  const tiendasVisibles = enfoqueFiltros === 'taller' ? [] : f.tiendas;
+  const evaluadosDelEnfoque = (data.evaluados || []).filter(p => !enfoqueFiltros || (enfoqueFiltros === 'ventas' ? f.asesores : f.disenadores).some(o => o.id === p.id));
   const opciones = (lista, valor, vacio) => `<option value="">${vacio}</option>${lista.map(o => `<option value="${o.id}"${String(o.id) === String(valor) ? ' selected' : ''}>${escapeHtml(o.nombre)}</option>`).join('')}`;
   cont.hidden = false;
   cont.innerHTML = `
-    ${vista === 'rendimiento' ? '' : `<div class="rep-agrupar${disponibles.length > 1 ? '' : ' rep-agrupar--fijo'}" role="group" aria-label="Agrupar por">
+    ${vista === 'rendimiento' ? (enfoqueFiltros ? htmlSelectorEnfoque(enfoqueFiltros) : '') : `<div class="rep-agrupar${disponibles.length > 1 ? '' : ' rep-agrupar--fijo'}" role="group" aria-label="Agrupar por">
       <ion-icon name="${ICONO_AGRUPAR[agrupar] || 'layers-outline'}" aria-hidden="true"></ion-icon>
       <span class="rep-filtro-rotulo">Agrupar por</span>
       ${disponibles.length > 1
@@ -370,12 +438,19 @@ function renderFiltros(data, vista = 'actividad') {
         : `<span class="rep-agrupar-fijo">${escapeHtml((disponibles[0] || AGRUPACIONES.find(a => a.id === agrupar) || {}).texto || '')}</span>`}
     </div>`}
     <div class="rep-filtros-fila">
-      ${f.tiendas.length ? `<select id="rep-f-tienda" class="filtro-tienda" aria-label="Filtrar por tienda">${opciones(f.tiendas, r.tiendaId, 'Todas las tiendas')}</select>` : ''}
-      ${f.talleres.length ? `<select id="rep-f-taller" class="filtro-tienda" aria-label="Filtrar por taller">${opciones(f.talleres, r.tallerId, 'Todos los talleres')}</select>` : ''}
+${tiendasVisibles.length ? `<select id="rep-f-tienda" class="filtro-tienda" aria-label="Filtrar por tienda">${opciones(f.tiendas, r.tiendaId, 'Todas las tiendas')}</select>` : ''}
+      ${talleresVisibles.length ? `<select id="rep-f-taller" class="filtro-tienda" aria-label="Filtrar por taller">${opciones(talleresVisibles, r.tallerId, 'Todos los talleres')}</select>` : ''}
       <span id="rep-f-asesores"></span>
       <span id="rep-f-disenadores"></span>
       ${hayFiltros() ? '<button type="button" class="rep-link" id="rep-limpiar-filtros">Limpiar filtros</button>' : ''}
     </div>`;
+  cont.querySelectorAll('[data-enfoque]').forEach(b => b.addEventListener('click', () => {
+    if (enfoque === b.dataset.enfoque) return;
+    enfoque = b.dataset.enfoque;
+    guardarEnfoque(enfoque);
+    renderTodo(data); // Ventas y Taller ya vienen en la misma respuesta: no hace falta pedirlos otra vez
+    $(`[data-enfoque="${enfoque}"]`)?.focus();
+  }));
   cont.querySelectorAll('[data-agrupar]').forEach(b => b.addEventListener('click', () => {
     if (r.agruparPor === b.dataset.agrupar) return;
     r.agruparPor = b.dataset.agrupar;
@@ -383,20 +458,37 @@ function renderFiltros(data, vista = 'actividad') {
     cargarReportes();
   }));
   const tienda = $('#rep-f-tienda', cont);
-  if (tienda) tienda.addEventListener('change', () => { r.tiendaId = tienda.value; r.expandidos.clear(); cargarReportes(); });
+  if (tienda) tienda.addEventListener('change', () => {
+    r.tiendaId = tienda.value;
+    // Se descarta lo elegido que no pertenece a la tienda nueva (mismo criterio que al cambiar de taller).
+    const nueva = Number(r.tiendaId) || null;
+    if (nueva) {
+      const talleresDeTienda = f.talleres.filter(t => (t.tiendaIds || []).includes(nueva)).map(t => t.id);
+      if (r.tallerId && !talleresDeTienda.includes(Number(r.tallerId))) r.tallerId = '';
+      r.asesorIds = r.asesorIds.filter(id => { const a = f.asesores.find(x => x.id === Number(id)); return !a || a.tiendaId === nueva; });
+      const tallerVigente = Number(r.tallerId) || null;
+      r.disenadorIds = r.disenadorIds.filter(id => {
+        const d = f.disenadores.find(x => x.id === Number(id));
+        if (!d || !d.tallerIds) return true;
+        return tallerVigente ? d.tallerIds.includes(tallerVigente) : d.tallerIds.some(t => talleresDeTienda.includes(t));
+      });
+    }
+    r.expandidos.clear();
+    cargarReportes();
+  });
   const taller = $('#rep-f-taller', cont);
   if (taller) taller.addEventListener('change', () => {
     r.tallerId = taller.value;
     // Las personas elegidas que no trabajan en el nuevo taller se quitan de la selección.
     const nuevo = Number(r.tallerId) || null;
-    if (nuevo) r.disenadorIds = r.disenadorIds.filter(id => { const d = f.disenadores.find(x => x.id === id); return !d || !d.tallerIds || d.tallerIds.includes(nuevo); });
+    if (nuevo) r.disenadorIds = r.disenadorIds.filter(id => { const d = f.disenadores.find(x => x.id === Number(id)); return !d || !d.tallerIds || d.tallerIds.includes(nuevo); });
     r.expandidos.clear();
     cargarReportes();
   });
-  if (f.asesores.length) {
+  if (asesoresVisibles.length) {
     crearSelectorMultiple($('#rep-f-asesores', cont), {
       uid: 'rep-sel-asesores', icono: 'people-outline', vacio: 'Todos los asesores', plural: ['asesor', 'asesores'],
-      opciones: f.asesores, seleccion: r.asesorIds, alAplicar: (ids) => { r.asesorIds = ids; r.expandidos.clear(); cargarReportes(); }
+      opciones: asesoresVisibles, seleccion: r.asesorIds, alAplicar: (ids) => { r.asesorIds = ids; r.expandidos.clear(); cargarReportes(); }
     });
   }
   if (disenadoresVisibles.length) {
@@ -411,13 +503,12 @@ function renderFiltros(data, vista = 'actividad') {
     r.expandidos.clear();
     cargarReportes();
   });
-  renderFichas(data);
+  renderFichas(data, evaluadosDelEnfoque);
 }
 
 // Fichas de quién se evalúa (asesores o diseñadores elegidos), con × para quitar a cada uno.
-function renderFichas(data) {
+function renderFichas(data, ev = data.evaluados || []) {
   const cont = $('#rep-fichas');
-  const ev = data.evaluados || [];
   cont.hidden = !ev.length;
   if (!ev.length) { cont.innerHTML = ''; return; }
   cont.innerHTML = `<span class="rep-fichas-rotulo">Evaluando a:</span>${ev.map(p => `<span class="rep-ficha">${escapeHtml(p.nombre)}<button type="button" data-quitar="${p.id}" aria-label="Quitar a ${escapeHtml(p.nombre)}"><ion-icon name="close" aria-hidden="true"></ion-icon></button></span>`).join('')}<button type="button" class="rep-link" id="rep-limpiar">Limpiar</button>`;
@@ -437,7 +528,7 @@ function cabeceraPanel(titulo, subtitulo, extra = '') {
 const vacio = (icono, titulo, texto) => `<div class="rend-vacio"><ion-icon name="${icono}"></ion-icon><h4>${titulo}</h4><p>${texto}</p></div>`;
 
 // -----------------------------------------------------------------------
-// Tabla unificada: personas con sus vales desplegables
+// Tabla de vales por sección
 // -----------------------------------------------------------------------
 function htmlAtraso(v) {
   if (v.venceHoy) return '<span class="badge badge-hoy">Vence hoy</span>';
@@ -453,38 +544,26 @@ function htmlAtrasoEntregado(v) {
 let vistaTaller = false;
 
 
-// Columnas según la sección: atrasados y entregados muestran el Atraso (en los entregados, los días con que se entregó).
-function htmlMiniTabla(g) {
-  if (!g.vales.length) return '<p class="rep-sin-vales">Sin vales con entrega en este período.</p>';
-  const sec = g.seccion || 'noEntregados';
-  const conAtraso = sec === 'atrasados' || sec === 'entregados';
-  const filas = g.vales.map(v => `
+// Una sola tabla por sección con todos sus vales: la persona (o taller/tienda) es una columna, no un desplegable.
+// Atrasados y entregados muestran el Atraso (en los entregados, los días con que se entregó).
+function htmlTablaSeccion(sec, info) {
+  const conAtraso = sec.clave === 'atrasados' || sec.clave === 'entregados';
+  const filas = sec.grupos.flatMap(g => g.vales.map(v => `
     <tr>
-      <td data-label="Vale"><strong>${escapeHtml(v.correlativo)}</strong>${v.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${vistaTaller ? '' : `<span class="rep-cliente">${escapeHtml(v.cliente)}</span>`}</td>
-      ${vistaTaller ? `<td data-label="Fecha de ingreso">${escapeHtml(formatearFechaHora(v.creadoEn))}</td>` : ''}
-      <td data-label="Estado">${celdaEstado(v)}</td>
-      <td data-label="Entrega">${escapeHtml(formatearFecha(v.fechaEntrega))}</td>
-      ${conAtraso ? `<td data-label="Atraso">${sec === 'entregados' ? htmlAtrasoEntregado(v) : htmlAtraso(v)}</td>` : ''}
-      <td data-label="Acciones" class="rep-acciones-celda"><div class="rep-acciones-fila">
+      <td class="rep-c-vale" data-label="Vale"><strong>${escapeHtml(v.correlativo)}</strong>${v.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${vistaTaller ? '' : `<span class="rep-cliente">${escapeHtml(v.cliente)}</span>`}</td>
+      <td class="rep-c-grupo" data-label="${info.texto}"><span class="rep-grupo-nombre"><span class="rep-avatar" aria-hidden="true">${escapeHtml(inicialesAvatar(g.nombre))}</span><span>${escapeHtml(g.nombre)}</span></span></td>
+      ${vistaTaller ? `<td class="rep-c-ingreso" data-label="Fecha de ingreso">${escapeHtml(formatearFechaHora(v.creadoEn))}</td>` : ''}
+      <td class="rep-c-estado" data-label="Estado">${celdaEstado(v)}</td>
+      <td class="rep-c-entrega fecha-entrega" data-label="Entrega">${escapeHtml(formatearFecha(v.fechaEntrega))}</td>
+      ${conAtraso ? `<td class="rep-c-atraso" data-label="Atraso">${sec.clave === 'entregados' ? htmlAtrasoEntregado(v) : htmlAtraso(v)}</td>` : ''}
+      <td class="rep-acciones-celda rep-c-acciones" data-label="Acciones"><div class="rep-acciones-fila">
         <button type="button" class="btn-icon" data-ver="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}"${v.tienePropuesta ? ' data-con-propuesta="1"' : ''}${v.multitaller ? ' data-multitaller="1"' : ''} title="Ver vale" aria-label="Ver vale ${escapeHtml(v.correlativo)}"><ion-icon name="eye-outline"></ion-icon></button>
       </div></td>
-    </tr>`).join('');
-  return `<div class="rep-mini-wrap"><table class="rep-mini"><thead><tr><th>Vale</th>${vistaTaller ? '<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
-    ${g.recortado ? '<p class="rep-nota">Se muestran los vales más urgentes; acota el período o los filtros para ver el resto.</p>' : ''}`;
-}
-
-// Fila de una persona: nombre y cuántos vales (el detalle va al desplegarla).
-function htmlGrupo(g, indice) {
-  const abierto = state.reporte.expandidos.has(g.clave);
-  return `
-    <div class="rep-grupo${abierto ? ' is-abierto' : ''}" data-clave="${escapeHtml(g.clave)}">
-      <button type="button" class="rep-grupo-cab" aria-expanded="${abierto}" aria-controls="rep-g-${indice}">
-        <span class="rep-grupo-nombre"><ion-icon name="chevron-forward-outline" class="rep-chevron" aria-hidden="true"></ion-icon><span class="rep-avatar" aria-hidden="true">${escapeHtml(inicialesAvatar(g.nombre))}</span><strong>${escapeHtml(g.nombre)}</strong></span>
-        <span class="rep-celda rep-celda--n">${g.total} vale${g.total === 1 ? '' : 's'}</span>
-        <span class="rep-celda rep-celda--chips"></span>
-      </button>
-      <div class="rep-grupo-cuerpo" id="rep-g-${indice}"${abierto ? '' : ' hidden'}>${abierto ? htmlMiniTabla(g) : ''}</div>
-    </div>`;
+    </tr>`)).join('');
+  if (!filas) return '<p class="rep-sin-vales">Sin vales con entrega en este período.</p>';
+  const recortado = sec.grupos.some(g => g.recortado);
+  return `<div class="rep-mini-wrap"><table class="rep-mini rep-mini--plana${vistaTaller ? ' rep-mini--taller' : ''}"><thead><tr><th>Vale</th><th>${info.texto}</th>${vistaTaller ? '<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
+    ${recortado ? '<p class="rep-nota">Se muestran los vales más urgentes; acota el período o los filtros para ver el resto.</p>' : ''}`;
 }
 
 // Secciones del reporte (tras «Atrasados antes del período»): cada una plegable, con su contador.
@@ -529,6 +608,24 @@ function conectarSecciones(panel) {
   });
 }
 
+// Sin vales en el período: si no está en «Mes», se ofrece ampliar al mes completo.
+function htmlEstadoVacio() {
+  const ampliar = state.reporte.ventana.tipo !== 'mes';
+  return `<div class="rep-estado">
+    <span class="rep-estado-icono"><ion-icon name="document-text-outline" aria-hidden="true"></ion-icon></span>
+    <h4>Sin vales con entrega en este período</h4>
+    <p>Cambia el período o los filtros para ver otros vales.</p>
+    ${ampliar ? '<button type="button" class="btn btn--ghost btn--sm" id="rep-ver-mes">Ver el mes completo</button>' : ''}
+  </div>`;
+}
+
+function verMesCompleto() {
+  const p = state.reporte.ventana;
+  state.reporte.ventana = { tipo: 'mes', fecha: p.tipo === 'rango' ? p.hasta : p.fecha };
+  barraPeriodo.pintar();
+  cargarReportes();
+}
+
 function renderGrupos(data) {
   const panel = $('#rep-panel-grupos');
   const g = data.grupos;
@@ -537,48 +634,20 @@ function renderGrupos(data) {
   const subEntregados = vistaTaller ? 'Propuesta aprobada por el Encargado' : 'Ya llegaron al asesor';
   const personas = new Set(secciones.flatMap(x => x.grupos.map(gr => gr.id))).size;
   const sub = `${g.totalVales} vale${g.totalVales === 1 ? '' : 's'} · ${personas} ${personas === 1 ? info.texto.toLowerCase() : info.plural}`;
-  const acciones = secciones.length
-    ? '<div class="rep-expandir"><button type="button" class="rep-link" id="rep-expandir-todo">Expandir todo</button><button type="button" class="rep-link" id="rep-contraer-todo">Contraer todo</button></div>'
-    : '';
   if (!secciones.length) {
-    panel.innerHTML = cabeceraPanel(`Vales por ${info.texto.toLowerCase()}`, sub) + vacio('document-text-outline', 'Sin vales con entrega en este período', 'Cambia el período o los filtros para ver otros vales.');
+    panel.innerHTML = cabeceraPanel(`Vales por ${info.texto.toLowerCase()}`, sub) + htmlEstadoVacio();
+    const ampliar = $('#rep-ver-mes', panel);
+    if (ampliar) ampliar.addEventListener('click', verMesCompleto);
     return;
   }
-  // La misma persona puede estar en varias secciones: su clave lleva la sección para recordar qué filas están abiertas.
-  const porClave = new Map();
-  const htmlTabla = (sec) => {
-    const grupos = sec.grupos.map(gr => ({ ...gr, seccion: sec.clave, clave: `${sec.clave}|${gr.clave}` }));
-    grupos.forEach(gr => porClave.set(gr.clave, gr));
-    return `<div class="rep-tabla rep-tabla--simple" role="list" aria-label="${escapeHtml(info.plural)}">
-      ${grupos.map((gr, i) => htmlGrupo(gr, `${sec.clave}-${i}`)).join('')}
-    </div>`;
-  };
-  panel.innerHTML = `${cabeceraPanel(`Vales por ${info.texto.toLowerCase()}`, sub, acciones)}
-    ${secciones.map(sec => htmlSeccion({ ...sec, sub: sec.clave === 'entregados' ? subEntregados : sec.sub, cuerpo: htmlTabla(sec) })).join('')}
+  panel.innerHTML = `${cabeceraPanel(`Vales por ${info.texto.toLowerCase()}`, sub)}
+    ${secciones.map(sec => htmlSeccion({ ...sec, sub: sec.clave === 'entregados' ? subEntregados : sec.sub, cuerpo: htmlTablaSeccion(sec, info) })).join('')}
     ${g.truncado ? `<p class="rep-nota">Hay ${g.totalVales} vales; se muestran los más urgentes. Acota el período o los filtros para ver el resto.</p>` : ''}`;
-
-  const alternar = (el, abrir) => {
-    const clave = el.dataset.clave;
-    const cuerpo = $('.rep-grupo-cuerpo', el);
-    const boton = $('.rep-grupo-cab', el);
-    if (abrir) { state.reporte.expandidos.add(clave); cuerpo.innerHTML = htmlMiniTabla(porClave.get(clave)); conectarAcciones(cuerpo); }
-    else state.reporte.expandidos.delete(clave);
-    cuerpo.hidden = !abrir;
-    boton.setAttribute('aria-expanded', String(abrir));
-    el.classList.toggle('is-abierto', abrir);
-  };
-  panel.querySelectorAll('.rep-grupo').forEach(el => {
-    $('.rep-grupo-cab', el).addEventListener('click', () => alternar(el, $('.rep-grupo-cab', el).getAttribute('aria-expanded') !== 'true'));
-    if (state.reporte.expandidos.has(el.dataset.clave)) conectarAcciones($('.rep-grupo-cuerpo', el));
-  });
+  conectarAcciones(panel);
   conectarSecciones(panel);
-  const todo = $('#rep-expandir-todo', panel);
-  if (todo) todo.addEventListener('click', () => panel.querySelectorAll('.rep-grupo').forEach(el => alternar(el, true)));
-  const nada = $('#rep-contraer-todo', panel);
-  if (nada) nada.addEventListener('click', () => panel.querySelectorAll('.rep-grupo').forEach(el => alternar(el, false)));
 }
 
-// Acciones de cada vale desplegado: ver el vale (PDF) y ver su propuesta.
+// Acciones de cada vale: ver el vale (PDF) y ver su propuesta.
 function conectarAcciones(cuerpo) {
   cuerpo.querySelectorAll('[data-ver]').forEach(b => b.addEventListener('click', () => (b.dataset.multitaller
     ? abrirVisorMultitaller({ id: b.dataset.ver, correlativo: b.dataset.correlativo })
@@ -620,7 +689,7 @@ function renderVales(data) {
       <td data-label="Correlativo"><strong>${escapeHtml(f.correlativo)}</strong>${f.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}</td>
       <td data-label="Cliente">${escapeHtml(f.cliente)}</td>
       <td data-label="Estado">${f.pipeline ? celdaEstado(f) : escapeHtml(ESTADOS_LABEL[f.estado] || f.estado)}</td>
-      <td data-label="Entrega">${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}${f.atrasado && f.diasAtraso >= 1 ? `<span class="badge badge-atraso">${f.diasAtraso}d</span>` : ''}</td>
+      <td data-label="Entrega" class="fecha-entrega">${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}${f.atrasado && f.diasAtraso >= 1 ? `<span class="badge badge-atraso">${f.diasAtraso}d</span>` : ''}</td>
       ${v.columnas.map(c => `<td class="rend-num" data-label="${escapeHtml(c.label)}">${formatear(f[c.clave], c.formato)}</td>`).join('')}
       <td data-label="Historial"><button type="button" class="btn-icon" data-historial="${f.id}" data-correlativo="${escapeHtml(f.correlativo)}" title="Ver historial" aria-label="Ver historial de ${escapeHtml(f.correlativo)}"><ion-icon name="time-outline"></ion-icon></button></td>
     </tr>`;

@@ -105,11 +105,20 @@ class ReporteRepository {
     );
   }
 
-  // Opciones de los filtros de Reportes.
-  async listarAsesores() {
+  // Opciones de los filtros de Reportes; con `tiendaId`, solo los asesores de esa tienda.
+  async listarAsesores(tiendaId = null) {
     return db.query(
-      `SELECT u.id, u.nombre FROM usuarios u JOIN asesores a ON a.usuario_id = u.id WHERE u.activo = 1 ORDER BY u.nombre`,
-      [], 'reporte:asesores'
+      `SELECT u.id, u.nombre, a.tienda_id FROM usuarios u JOIN asesores a ON a.usuario_id = u.id WHERE u.activo = 1 AND (? IS NULL OR a.tienda_id = ?) ORDER BY u.nombre`,
+       [tiendaId, tiendaId], 'reporte:asesores'
+    );
+  }
+
+  // Tiendas de cada taller: las que atiende (`taller_tiendas`) y la propia de un Diseño Local (`talleres.tienda_id`).
+  async listarTiendasPorTaller() {
+    return db.query(
+      `SELECT taller_id, tienda_id FROM taller_tiendas
+       UNION SELECT id AS taller_id, tienda_id FROM talleres WHERE tienda_id IS NOT NULL`,
+      [], 'reporte:tiendas_por_taller'
     );
   }
 

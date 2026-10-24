@@ -153,8 +153,7 @@ function requireModuleAccess(catalogo) {
     }
     const esPagina = !/\.[a-z0-9]+$/i.test(ruta) || ruta.endsWith('.html');
     if (esPagina) {
-      // ?vista=modulos evita que el Administrador rebote de vuelta a su panel.
-      return res.redirect('/dashboard/?vista=modulos');
+      return res.redirect('/dashboard/');
     }
     return res.status(403).json({ error: 'No tienes acceso a este módulo.' });
   };

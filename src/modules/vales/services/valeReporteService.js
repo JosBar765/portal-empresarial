@@ -277,7 +277,8 @@ async function resolverAlcance(usuario) {
       const tiendas = await reporteRepository.listarTiendasPorSupervisor(usuario.id);
       const tallerIdsVisibles = (await tallerRepository.listarIdsPorSupervisor(usuario.id)).map(t => t.id);
       // Él también crea vales: aparece como «(yo)» junto a sus asesores.
-      const personas = [{ id: usuario.id, nombre: `${usuario.nombre} (yo)` }, ...asesores.filter(a => a.id !== usuario.id).map(a => ({ id: a.id, nombre: a.nombre }))];
+      const propia = asesores.find(a => a.id === usuario.id);
+      const personas = [{ id: usuario.id, nombre: `${usuario.nombre} (yo)`, tiendaId: propia ? propia.tienda_id : null }, ...asesores.filter(a => a.id !== usuario.id).map(a => ({ id: a.id, nombre: a.nombre, tiendaId: a.tienda_id }))];
       return {
         rol: 'supervisor', equipo: true, agrupaciones: ['asesor'],
         asesorIds: [...new Set([...asesores.map(a => a.id), usuario.id])],
@@ -308,14 +309,14 @@ class ValeReporteService {
     const ventana = resolverVentanaReporte(filtros);
     const rango = rangoDe(ventana);
     const anterior = rangoAnterior(rango);
-    // Rendimiento: una semana o un mes solo se consulta cuando ya cerró; sus cifras son las del cierre (no cambian después).
+    // Rendimiento (todos los roles que lo tienen): una semana o un mes solo se consulta cuando ya cerró; sus cifras son las del cierre.
     // Día, Hoy y Desde–Hasta pueden estar en curso: cifras a hoy.
     const hoy = hoyISO();
     const esRendimiento = filtros.tipo === 'rendimiento';
     const cerrado = !!rango.hasta && rango.hasta < hoy;
     const corte = esRendimiento && cerrado ? rango.hasta : hoy;
     const alcance = await resolverAlcance(usuario);
-    if (esRendimiento && ['encargado', 'supervisor'].includes(alcance.rol) && ['semana', 'mes'].includes(rango.tipo) && rango.hasta >= hoy) {
+    if (esRendimiento && ['encargado', 'supervisor', 'administrador'].includes(alcance.rol) && ['semana', 'mes'].includes(rango.tipo) && rango.hasta >= hoy) {
       throw new ErrorDeNegocio('El rendimiento de una semana o de un mes solo está disponible cuando el período ya cerró. Elige el período anterior.');
     }
     const entero = v => (Number.isInteger(Number(v)) && Number(v) > 0 ? Number(v) : null);
@@ -406,7 +407,7 @@ class ValeReporteService {
       grupos = await valeReporteGruposService.armar(argumentos);
       atrasadosVigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosAntesDe: (f) => antesDe(f, rango) });
       // Contador «Atrasados sin entregar»: los vencidos de la ventana sin aprobar (ya contados) más los que se arrastran de antes de la ventana.
-      if (grupos.indicadoresTaller) grupos.indicadoresTaller.atrasadosSinEntregar += atrasadosVigentes.sinEntregar || 0;
+      if (grupos.indicadoresTaller) grupos.indicadoresTaller.atrasadosSinEntregar += (atrasadosVigentes.sinEntregarTaller ?? atrasadosVigentes.sinEntregar) || 0;
     } else {
       const nombres = await this._nombres(alcance, normalizados);
       tablas = await this._tablas(alcance, eventosPeriodo, paresAplicables, rango, { todos, filasTaller, nombres, personaIds });
@@ -727,10 +728,17 @@ class ValeReporteService {
     const opciones = { personas: alcance.equipo ? (alcance.personas || []) : [], agrupaciones: alcance.agrupaciones || [], tiendas: [], talleres: [], asesores: [], disenadores: [] };
     if (!alcance.equipo) return opciones;
     const talleres = await tallerRepository.listarTodos();
+    // Cada taller lleva sus tiendas para que la barra acote talleres y diseñadores a la tienda elegida.
+    const tiendasDeTaller = new Map();
+    (await reporteRepository.listarTiendasPorTaller()).forEach(r => {
+      if (!tiendasDeTaller.has(r.taller_id)) tiendasDeTaller.set(r.taller_id, []);
+      tiendasDeTaller.get(r.taller_id).push(r.tienda_id);
+    });
+    const conTiendas = (t) => ({ id: t.id, nombre: t.nombre, tiendaIds: tiendasDeTaller.get(t.id) || [] });
     if (alcance.rol === 'supervisor') {
       opciones.tiendas = alcance.tiendas;
       opciones.asesores = alcance.personas;
-      opciones.talleres = talleres.filter(t => alcance.tallerIdsVisibles.includes(t.id)).map(t => ({ id: t.id, nombre: t.nombre }));
+      opciones.talleres = talleres.filter(t => alcance.tallerIdsVisibles.includes(t.id)).map(conTiendas);
       return opciones;
     }
     if (alcance.rol === 'encargado') {
@@ -740,11 +748,11 @@ class ValeReporteService {
       return opciones;
     }
     opciones.tiendas = await reporteRepository.listarTiendas();
-    opciones.asesores = await reporteRepository.listarAsesores();
+    opciones.asesores = (await reporteRepository.listarAsesores()).map(a => ({ id: a.id, nombre: a.nombre, tiendaId: a.tienda_id ?? null }));
     opciones.disenadores = (await reporteRepository.listarDisenadores()).map(d => ({
       id: d.id, nombre: valeReporteGruposService.etiquetaNombre(d.nombre, d.rol_id, d.hereda_de_rol_id), tallerIds: String(d.taller_ids || '').split(',').map(Number).filter(Boolean)
     }));
-    opciones.talleres = talleres.map(t => ({ id: t.id, nombre: t.nombre }));
+    opciones.talleres = talleres.map(conTiendas);
     return opciones;
   }
 }
