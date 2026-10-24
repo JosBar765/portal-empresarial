@@ -98,6 +98,8 @@ export async function abrirModalUsuario(usuario) {
       arbol: construirArbolRoles(rolesAsignables),
       valorActual: rolIdActual,
       etiquetaVacio: 'Selecciona un rol',
+      ariaLabel: 'Rol del usuario',
+      mensajeVacio: 'No hay roles disponibles.',
       deshabilitar: deshabilitarRol,
       onSeleccionar: (valor) => {
         rolIdActual = Number(valor);

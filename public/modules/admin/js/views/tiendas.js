@@ -44,6 +44,7 @@ export function renderTiendas() {
     arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' }, ...construirArbolTiendas(state.tiendas)],
     valorActual: state.filtroTiendaTiendas,
     etiquetaVacio: 'Todas las tiendas',
+    ariaLabel: 'Filtrar por tienda',
     onSeleccionar: (valor) => { state.filtroTiendaTiendas = String(valor); renderTiendas(); }
   }).elemento);
 
