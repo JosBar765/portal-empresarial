@@ -308,14 +308,14 @@ class ValeReporteService {
     const ventana = resolverVentanaReporte(filtros);
     const rango = rangoDe(ventana);
     const anterior = rangoAnterior(rango);
-    // Rendimiento: una semana o un mes solo se consulta cuando ya cerró; sus cifras son las del cierre (no cambian después).
+    // Rendimiento (todos los roles que lo tienen): una semana o un mes solo se consulta cuando ya cerró; sus cifras son las del cierre.
     // Día, Hoy y Desde–Hasta pueden estar en curso: cifras a hoy.
     const hoy = hoyISO();
     const esRendimiento = filtros.tipo === 'rendimiento';
     const cerrado = !!rango.hasta && rango.hasta < hoy;
     const corte = esRendimiento && cerrado ? rango.hasta : hoy;
     const alcance = await resolverAlcance(usuario);
-    if (esRendimiento && ['encargado', 'supervisor'].includes(alcance.rol) && ['semana', 'mes'].includes(rango.tipo) && rango.hasta >= hoy) {
+    if (esRendimiento && ['encargado', 'supervisor', 'administrador'].includes(alcance.rol) && ['semana', 'mes'].includes(rango.tipo) && rango.hasta >= hoy) {
       throw new ErrorDeNegocio('El rendimiento de una semana o de un mes solo está disponible cuando el período ya cerró. Elige el período anterior.');
     }
     const entero = v => (Number.isInteger(Number(v)) && Number(v) > 0 ? Number(v) : null);
@@ -406,7 +406,7 @@ class ValeReporteService {
       grupos = await valeReporteGruposService.armar(argumentos);
       atrasadosVigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosAntesDe: (f) => antesDe(f, rango) });
       // Contador «Atrasados sin entregar»: los vencidos de la ventana sin aprobar (ya contados) más los que se arrastran de antes de la ventana.
-      if (grupos.indicadoresTaller) grupos.indicadoresTaller.atrasadosSinEntregar += atrasadosVigentes.sinEntregar || 0;
+      if (grupos.indicadoresTaller) grupos.indicadoresTaller.atrasadosSinEntregar += (atrasadosVigentes.sinEntregarTaller ?? atrasadosVigentes.sinEntregar) || 0;
     } else {
       const nombres = await this._nombres(alcance, normalizados);
       tablas = await this._tablas(alcance, eventosPeriodo, paresAplicables, rango, { todos, filasTaller, nombres, personaIds });

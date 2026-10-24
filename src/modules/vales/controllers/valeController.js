@@ -143,7 +143,7 @@ class ValeController {
 
   async reportePdf(req, res) {
     try {
-      const { reporte, pdf } = await valeService.generarReportePdf(req.user, this._filtrosReporte(req), String(req.query.tipo || 'actividad'));
+      const { reporte, pdf } = await valeService.generarReportePdf(req.user, this._filtrosReporte(req), String(req.query.tipo || 'actividad'), String(req.query.enfoque || 'ventas'));
       const fecha = reporte.periodo.desde && reporte.periodo.desde === reporte.periodo.hasta ? reporte.periodo.desde : (reporte.periodo.desde || 'historial');
       const quien = reporte.evaluados.length === 1
         ? reporte.evaluados[0].nombre.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
