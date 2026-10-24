@@ -7,13 +7,16 @@ const propuestaRepository = require('../repositories/propuestaRepository');
 const repo = require('../repositories/propuestaCompartidaRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
-const { ROL, ESTADOS_TALLER, esDeTaller, esTallerODisenador } = require('./valeHelpers');
+const { ROL, ESTADOS_TALLER, esDeTaller, esTallerODisenador, esAdministrador } = require('./valeHelpers');
 
 // Filas hermanas de `tallerId`: las demás filas que comparten, solo si la propia también comparte.
 function hermanosDe(filasQueComparten, tallerId) {
   if (!tallerId || !filasQueComparten.some(f => f.taller_id === tallerId)) return [];
   return filasQueComparten.filter(f => f.taller_id !== tallerId);
 }
+
+// Administrador y Gerente ven las aprobadas de todos los talleres del vale, solo lectura (sin la regla de compartir ni «visto»).
+const esLectorGlobal = (usuario) => esAdministrador(usuario) || usuario.rolId === ROL.GERENTE;
 
 class PropuestasCompartidasService {
   hermanosDe(filas, tallerId) { return hermanosDe(filas, tallerId); }
@@ -35,10 +38,17 @@ class PropuestasCompartidasService {
 
   // Filas hermanas del usuario en el vale (vacío para quien no es de taller/diseñador).
   async _hermanosDelUsuario(usuario, valeId) {
+    if (esLectorGlobal(usuario)) return this._filasGlobales(valeId);
     if (!esTallerODisenador(usuario)) return [];
     const tallerId = await this.tallerIdDe(usuario);
     if (!tallerId) return [];
     return hermanosDe(await repo.listarFilasQueComparten(valeId), tallerId);
+  }
+
+  // Lectura global: todos los talleres activos, pero solo con 2 o más (con uno no hay «otros»).
+  async _filasGlobales(valeId) {
+    const filas = await repo.listarFilasActivas(valeId);
+    return new Set(filas.map(f => f.taller_id)).size >= 2 ? filas : [];
   }
 
   async _ultimaAprobada(valeId, fila) {
@@ -49,7 +59,7 @@ class PropuestasCompartidasService {
   async obtenerParaDetalle(usuario, valeId) {
     const hermanos = await this._hermanosDelUsuario(usuario, valeId);
     if (!hermanos.length) return [];
-    const vistos = await repo.listarVistos(usuario.id, valeId);
+    const vistos = esLectorGlobal(usuario) ? new Map() : await repo.listarVistos(usuario.id, valeId);
     const propuestas = await Promise.all(hermanos.map(f => this._ultimaAprobada(valeId, f)));
     const enlaces = await propuestaRepository.listarEnlacesPorPropuestas(propuestas.filter(Boolean).map(p => p.id));
     return hermanos.map((f, i) => {
@@ -57,7 +67,7 @@ class PropuestasCompartidasService {
       const base = { tallerId: f.taller_id, tallerNombre: f.taller_nombre };
       if (!p) return { ...base, estado: 'EN_TRABAJO', propuesta: null, visto: true };
       return {
-        ...base, estado: 'APROBADO', visto: vistos.get(f.taller_id) === p.id,
+        ...base, estado: 'APROBADO', visto: esLectorGlobal(usuario) || vistos.get(f.taller_id) === p.id,
         propuesta: {
           url: p.url || null, nota: p.nota || null, fecha: p.creado_en,
           enlaces: enlaces.filter(e => e.propuesta_id === p.id).map(e => ({ nombre: e.nombre, url: e.url }))
@@ -67,6 +77,8 @@ class PropuestasCompartidasService {
   }
 
   async marcarVisto(usuario, valeId, tallerOrigenId) {
+    // Solo lectura: no hay «visto» para Administrador ni Gerente.
+    if (esLectorGlobal(usuario)) throw new ErrorDeNegocio('El Administrador y el Gerente consultan las propuestas en solo lectura.', 403);
     const hermanos = await this._hermanosDelUsuario(usuario, valeId);
     const origen = hermanos.find(f => f.taller_id === tallerOrigenId);
     if (!origen) throw new ErrorDeNegocio('No tienes acceso a la propuesta de ese taller.', 403);
@@ -84,16 +96,18 @@ class PropuestasCompartidasService {
 
   // Ids de vales con propuesta de otro taller sin ver para el usuario (encargado/asistente del taller, o diseñador asignado).
   async valesConPropuestaNueva(usuario, valeIds) {
-    if (!valeIds.length || !esTallerODisenador(usuario)) return new Set();
+    if (!valeIds.length || esLectorGlobal(usuario) || !esTallerODisenador(usuario)) return new Set();
     const tallerId = await this.tallerIdDe(usuario);
     if (!tallerId) return new Set();
     const disenadorId = usuario.rolId === ROL.DISENADOR ? usuario.id : null;
     return repo.listarValesConPropuestaNueva(usuario.id, tallerId, disenadorId, valeIds);
   }
 
-  // Ids de vales donde la sección de otros talleres aplica al usuario (misma regla que `hermanosDe`).
+  // Ids de vales donde la sección de otros talleres aplica al usuario (misma regla que `hermanosDe`; global: 2 o más talleres activos).
   async valesConHermano(usuario, valeIds) {
-    if (!valeIds.length || !esTallerODisenador(usuario)) return new Set();
+    if (!valeIds.length) return new Set();
+    if (esLectorGlobal(usuario)) return repo.listarValesConVariosTalleres(valeIds);
+    if (!esTallerODisenador(usuario)) return new Set();
     const tallerId = await this.tallerIdDe(usuario);
     if (!tallerId) return new Set();
     return repo.listarValesConHermano(tallerId, valeIds);
