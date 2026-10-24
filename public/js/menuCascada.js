@@ -48,7 +48,7 @@ export function construirArbolTiendas(tiendas) {
     return a.localeCompare(b);
   });
 
-  return paises.map((pais, indice) => {
+  const nodosPais = paises.map((pais, indice) => {
     const sueltas = [];
     const gruposPorDepto = new Map();
     porPais.get(pais).slice().sort(porEtiqueta).forEach(t => {
@@ -74,6 +74,12 @@ export function construirArbolTiendas(tiendas) {
     if (indice === 0) nodo.encabezadoAntes = 'País';
     return nodo;
   });
+  // Con un solo país el primer nivel sobra: sus tiendas suben al nivel 1 bajo el nombre del país.
+  if (nodosPais.length === 1) {
+    const [unico] = nodosPais;
+    return unico.hijos.map((h, i) => (i === 0 ? { ...h, encabezadoAntes: unico.etiqueta } : h));
+  }
+  return nodosPais;
 }
 
 // Orden y agrupación fijos — no se derivan genéricamente de la tabla de
