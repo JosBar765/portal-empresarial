@@ -12,6 +12,7 @@ import { htmlBloqueVigentes, conectarBloqueVigentes } from '../components/atrasa
 import { htmlGraficaBarrasDobles } from '../components/graficaBarrasDobles.js';
 import { htmlTablaRendimiento } from '../components/tablaRendimiento.js';
 import { crearMenuExportar } from '../components/menuExportar.js';
+import { crearMenuCascada, construirArbolTiendas } from '/js/menuCascada.js';
 import { crearBarraPeriodo, aplicarPeriodoAQuery, normalizarPeriodoCerrado } from '../components/barraPeriodoReportes.js';
 import { crearSelectorMultiple } from '../components/selectorMultiple.js';
 
@@ -438,7 +439,7 @@ function renderFiltros(data, vista = 'actividad') {
         : `<span class="rep-agrupar-fijo">${escapeHtml((disponibles[0] || AGRUPACIONES.find(a => a.id === agrupar) || {}).texto || '')}</span>`}
     </div>`}
     <div class="rep-filtros-fila">
-${tiendasVisibles.length ? `<select id="rep-f-tienda" class="filtro-tienda" aria-label="Filtrar por tienda">${opciones(f.tiendas, r.tiendaId, 'Todas las tiendas')}</select>` : ''}
+${tiendasVisibles.length ? '<div id="rep-f-tienda"></div>' : ''}
       ${talleresVisibles.length ? `<select id="rep-f-taller" class="filtro-tienda" aria-label="Filtrar por taller">${opciones(talleresVisibles, r.tallerId, 'Todos los talleres')}</select>` : ''}
       <span id="rep-f-asesores"></span>
       <span id="rep-f-disenadores"></span>
@@ -458,8 +459,19 @@ ${tiendasVisibles.length ? `<select id="rep-f-tienda" class="filtro-tienda" aria
     cargarReportes();
   }));
   const tienda = $('#rep-f-tienda', cont);
-  if (tienda) tienda.addEventListener('change', () => {
-    r.tiendaId = tienda.value;
+  if (tienda) {
+    // El bloque se recrea en cada render: el menú nace de nuevo con la tienda vigente.
+    const menuTienda = crearMenuCascada({
+      arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' }, ...construirArbolTiendas(f.tiendas)],
+      valorActual: r.tiendaId || '',
+      etiquetaVacio: 'Todas las tiendas',
+      ariaLabel: 'Filtrar por tienda',
+      onSeleccionar: (valor) => cambiarTienda(valor === '' || valor == null ? '' : String(valor))
+    });
+    tienda.appendChild(menuTienda.elemento);
+  }
+  function cambiarTienda(valor) {
+    r.tiendaId = valor;
     // Se descarta lo elegido que no pertenece a la tienda nueva (mismo criterio que al cambiar de taller).
     const nueva = Number(r.tiendaId) || null;
     if (nueva) {
@@ -475,7 +487,7 @@ ${tiendasVisibles.length ? `<select id="rep-f-tienda" class="filtro-tienda" aria
     }
     r.expandidos.clear();
     cargarReportes();
-  });
+  }
   const taller = $('#rep-f-taller', cont);
   if (taller) taller.addEventListener('change', () => {
     r.tallerId = taller.value;

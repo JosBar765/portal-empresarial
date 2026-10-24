@@ -78,12 +78,15 @@ class ReporteRepository {
     return filas;
   }
 
-  // `tiendas` no tiene nombre propio: se deriva de la empresa y la subdivisión (como en el catálogo).
+  // `tiendas` no tiene nombre propio: se deriva de la empresa y la subdivisión (como en el catálogo); país, código y departamento alimentan el menú en cascada.
   async listarTiendas() {
     return db.query(
-      `SELECT t.id, CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS nombre
+      `SELECT t.id, t.codigo, p.nombre AS pais_nombre, d.nombre AS departamento_nombre,
+              CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS nombre
        FROM tiendas t
        JOIN empresas e ON e.id = t.empresa_id
+       LEFT JOIN paises p ON p.id = e.pais_id
+       LEFT JOIN departamentos d ON d.id = t.departamento_id
        LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
        ORDER BY nombre`,
       [],
@@ -94,9 +97,12 @@ class ReporteRepository {
   // Solo las tiendas que cubre un supervisor (mismo nombre derivado que `listarTiendas`).
   async listarTiendasPorSupervisor(usuarioId) {
     return db.query(
-      `SELECT t.id, CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS nombre
+      `SELECT t.id, t.codigo, p.nombre AS pais_nombre, d.nombre AS departamento_nombre,
+              CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS nombre
        FROM tiendas t
        JOIN empresas e ON e.id = t.empresa_id
+       LEFT JOIN paises p ON p.id = e.pais_id
+       LEFT JOIN departamentos d ON d.id = t.departamento_id
        LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
        JOIN supervisor_tiendas st ON st.tienda_id = t.id AND st.usuario_id = ?
        ORDER BY nombre`,

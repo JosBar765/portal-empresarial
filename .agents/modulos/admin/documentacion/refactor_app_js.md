@@ -24,8 +24,7 @@ public/modules/admin/js/
 │   └── adminApi.js               Una función por endpoint de /api/admin
 ├── components/
 │   ├── modal.js                  Modal genérico (abrir/cerrar, backdrop, Escape)
-│   └── menuCascada.js             Motor del menú en cascada + construirArbolTiendas/
-│                                  construirArbolRoles + limpieza de huérfanos
+│   └── menuCascada.js             Re-exporta el menú en cascada compartido (public/js/menuCascada.js)
 ├── layout/
 │   ├── accountMenu.js             Menú desplegable de cuenta
 │   └── sidebar.js                 Sidebar de 5 pestañas + cargarTab (dispatcher)
@@ -96,10 +95,11 @@ logout. No contiene lógica de negocio ni de render.
   del mismo scope; poner el dispatcher en `sidebar.js` (que ya importa los 5
   `cargarX` de `views/`) evita crear un ciclo de imports `app.js` ⇄
   `sidebar.js` — `app.js` solo importa `cargarTab`, nunca al revés.
-- `components/menuCascada.js` agrupa el motor genérico CON sus dos
-  adaptadores de datos (`construirArbolTiendas`/`construirArbolRoles`)
-  porque ambos son readers puros de catálogo que solo tienen sentido junto a
-  la forma de árbol que consume el componente.
+- El motor del menú en cascada (`crearMenuCascada`) con sus dos adaptadores de
+  datos (`construirArbolTiendas`/`construirArbolRoles`) pasó a
+  `public/js/menuCascada.js` (estilos en `public/css/menu-cascada.css`) para
+  compartirlo con Vales; `components/menuCascada.js` solo lo re-exporta y los
+  imports del Admin no cambian. Ver `correcciones_59.md` de Vales de Arte.
 
 ### Ciclos de imports intencionales (permitidos por `reglas_implementacion.md`)
 

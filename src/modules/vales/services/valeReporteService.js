@@ -735,8 +735,10 @@ class ValeReporteService {
       tiendasDeTaller.get(r.taller_id).push(r.tienda_id);
     });
     const conTiendas = (t) => ({ id: t.id, nombre: t.nombre, tiendaIds: tiendasDeTaller.get(t.id) || [] });
+    // Además de id y nombre, el cliente recibe código, país y departamento para armar el menú en cascada.
+    const paraMenu = (t) => ({ id: t.id, nombre: t.nombre, codigo: t.codigo ?? null, pais_nombre: t.pais_nombre ?? null, departamento_nombre: t.departamento_nombre ?? null });
     if (alcance.rol === 'supervisor') {
-      opciones.tiendas = alcance.tiendas;
+      opciones.tiendas = alcance.tiendas.map(paraMenu);
       opciones.asesores = alcance.personas;
       opciones.talleres = talleres.filter(t => alcance.tallerIdsVisibles.includes(t.id)).map(conTiendas);
       return opciones;
@@ -747,7 +749,7 @@ class ValeReporteService {
       opciones.talleres = propios.length > 1 ? propios : [];
       return opciones;
     }
-    opciones.tiendas = await reporteRepository.listarTiendas();
+    opciones.tiendas = (await reporteRepository.listarTiendas()).map(paraMenu);
     opciones.asesores = (await reporteRepository.listarAsesores()).map(a => ({ id: a.id, nombre: a.nombre, tiendaId: a.tienda_id ?? null }));
     opciones.disenadores = (await reporteRepository.listarDisenadores()).map(d => ({
       id: d.id, nombre: valeReporteGruposService.etiquetaNombre(d.nombre, d.rol_id, d.hereda_de_rol_id), tallerIds: String(d.taller_ids || '').split(',').map(Number).filter(Boolean)
