@@ -198,6 +198,12 @@
   color: var(--color-text-muted);
 }
 
+/* «Todas las tiendas» / «Todos los roles» (sin filtro) conservan el texto oscuro aun estando activas o con hover */
+.menu-cascada-item[data-valor=""],
+.menu-cascada-item[data-valor=""]:hover:not(:disabled) {
+  color: var(--color-text);
+}
+
 .menu-cascada-item-ruta ion-icon {
   color: var(--color-primary);
 }
