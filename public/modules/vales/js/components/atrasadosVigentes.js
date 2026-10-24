@@ -24,7 +24,7 @@ function htmlItem(it, extra) {
         <span class="vig-etiqueta">${escapeHtml(p.etiqueta || '')}</span>
         ${paso ? `<span class="vig-paso">${paso}</span>` : ''}
       </div>
-      <div class="vig-fecha"><span class="vig-rotulo">Entrega</span>${escapeHtml(formatearFecha(it.fechaEntrega))}</div>
+      <div class="vig-fecha"><span class="vig-rotulo">Entrega</span><span class="fecha-entrega">${escapeHtml(formatearFecha(it.fechaEntrega))}</span></div>
       <span class="vig-atraso vig-atraso--${gravedad(it.diasAtraso)}" title="Atraso de ${escapeHtml(textoDias(it.diasAtraso))}"><span class="vig-punto" aria-hidden="true"></span>${escapeHtml(textoDias(it.diasAtraso))}</span>
       <div class="vig-acciones">${it.accionesHtml || ''}</div>
     </li>`;

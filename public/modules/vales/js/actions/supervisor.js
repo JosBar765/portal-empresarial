@@ -209,8 +209,8 @@ export function abrirModalVerSupervisor(fila) {
 
 // Datos del vale (fila del Buzón) en secciones de solo lectura. `destacado`: texto opcional que se muestra arriba (p. ej. la justificación).
 function htmlDatosVale(v, { destacado = null } = {}) {
-  const dato = (etiqueta, valor, { ancho = false } = {}) => `
-    <div class="dato${ancho ? ' dato--ancho' : ''}"><dt>${etiqueta}</dt><dd${valor ? '' : ' class="dato-vacio"'}>${valor ? escapeHtml(String(valor)) : 'Sin dato'}</dd></div>`;
+  const dato = (etiqueta, valor, { ancho = false, enNegrita = false } = {}) => `
+    <div class="dato${ancho ? ' dato--ancho' : ''}"><dt>${etiqueta}</dt><dd${valor ? (enNegrita ? ' class="fecha-entrega"' : '') : ' class="dato-vacio"'}>${valor ? escapeHtml(String(valor)) : 'Sin dato'}</dd></div>`;
   const seccion = (icono, titulo, contenido) => `
     <section class="datos-seccion">
       <h4><ion-icon name="${icono}" aria-hidden="true"></ion-icon>${titulo}</h4>
@@ -226,7 +226,7 @@ function htmlDatosVale(v, { destacado = null } = {}) {
       ${seccion('calendar-outline', 'Entrega', `
         ${dato('Estado', etiquetaEstado(v))}
         ${dato('Taller(es)', v.taller)}
-        ${dato('Fecha de entrega', formatearFecha(v.fecha_entrega))}
+        ${dato('Fecha de entrega', formatearFecha(v.fecha_entrega), { enNegrita: true })}
         ${dato('Fecha del evento', formatearFecha(v.fecha_evento))}
         ${dato('Urgente', v.urgente ? 'Sí' : 'No')}`)}
       ${seccion('person-outline', 'Cliente', `

@@ -518,6 +518,12 @@
   white-space: nowrap;
 }
 
+/* La fecha de entrega va en negrita en toda tabla o lista donde aparece. */
+.fecha-entrega,
+.dato dd.fecha-entrega {
+  font-weight: 700;
+}
+
 /* analisis_correcciones_11.md #4: en anchos intermedios (pantalla dividida,
    tablet en horizontal) la tabla no cabe completa y se scrollea
    horizontalmente dentro de `.tabla-wrapper` — sin esto, la columna de
