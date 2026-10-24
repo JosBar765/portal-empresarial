@@ -21,7 +21,7 @@ La fuente de verdad del flujo (estados, roles, permisos, buzón, límites, atras
 ## Reglas clave
 
 - **Dos niveles de estado:** general (`vales.estado`) y por taller (`vale_talleres.estado`). Un vale puede ir a varios talleres a la vez; la fusión manual (`APROBADO_DEPARTAMENTO`) solo existe con 2+ talleres. Catálogo completo en la sección 0.1 del flujo.
-- **Permisos, no roles:** cada acción se protege con `requirePermission` en `routes.js`. El Administrador ve todo pero no ejecuta acciones de escritura del flujo; el Gerente es solo lectura (buzón general y Reportes).
+- **Permisos, no roles:** cada acción se protege con `requirePermission` en `routes.js`. El Administrador ve todo pero no ejecuta acciones de escritura del flujo; el Gerente es solo lectura (buzón general, Reportes y, con `vales.ver_historial`, el historial). Ambos tienen en las filas solo tres acciones de lectura: ver el vale con su propuesta, «Propuestas de otros talleres» y «Ver historial».
 - **Toda transición** corre bajo `valeMutex` y escribe en `vale_historial`. El historial solo se muestra con `vales.ver_historial`.
 - **Verificación de adjuntos** (los adjuntos viajan por correo, fuera del módulo): cada taller empieza en `VERIFICANDO_ADJUNTOS`; ventana de horas laborales desde el primer rechazo y borrado del vale si vence (sección 2.1 del flujo).
 - **Modificaciones:** Básica, Media y Avanzada crean un vale `MOD-<correlativo>` (plazos de 1, 2 y 3 días hábiles; `urgente` = siguiente día disponible; nunca de hoy para hoy); sección 1.1 del flujo.
