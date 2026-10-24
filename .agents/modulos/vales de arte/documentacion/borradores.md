@@ -1,7 +1,7 @@
 # Borradores de vales de arte
 
 ## Qué es
-Quien tiene el permiso `vales.crear` (asesores y supervisores) puede guardar el formulario «Crear Vale de Arte» a medias con «Guardar como borrador». Un borrador NO es un vale: tablas aparte (`vale_borradores`, `vale_borrador_documentos`), sin correlativo, sin validaciones de vale.
+Quien tiene el permiso `vales.crear` (asesores y supervisores) puede guardar el formulario «Crear Vale de Arte» a medias con «Guardar como borrador». Un borrador NO es un vale: tablas aparte (`vale_borradores`, `vale_borrador_documentos`), sin correlativo, sin validaciones de vale. Al abrir un borrador desde la lista «Borradores», sus botones «Cancelar» y «Guardar borrador» regresan a esa lista (la «X» y Esc la cierran).
 
 ## Reglas
 - No se guarda un borrador completamente vacío (ningún campo y ningún adjunto). Todo lo demás es opcional.

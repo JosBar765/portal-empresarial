@@ -82,7 +82,8 @@ export async function abrirModalBorradores() {
     try {
       const borrador = await obtenerBorrador(id);
       cerrar();
-      abrirModalBorrador(borrador);
+      // Cancelar o guardar el borrador regresa a esta lista (que se vuelve a cargar al abrirse).
+      abrirModalBorrador(borrador, { alCancelar: abrirModalBorradores, alGuardar: abrirModalBorradores });
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
       btn.disabled = false;
