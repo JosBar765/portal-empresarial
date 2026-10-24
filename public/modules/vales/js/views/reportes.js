@@ -17,8 +17,8 @@ import { crearSelectorMultiple } from '../components/selectorMultiple.js';
 
 // -----------------------------------------------------------------------
 // Reportes de actividad. Quienes ven a varias personas (Gerente, Administrador, Supervisor y Encargado/Asistente) reciben
-// una tabla unificada: personas (o talleres/tiendas) con sus vales con entrega en el período, que se despliegan al pulsar
-// la fila. Asesor y Diseñador ven su propio listado. El alcance lo decide el servidor según el rol.
+// una tabla por sección con los vales con entrega en el período, donde la persona (o taller/tienda) es una columna.
+// Asesor y Diseñador ven su propio listado. El alcance lo decide el servidor según el rol.
 // -----------------------------------------------------------------------
 
 let pedidoVigente = 0;
@@ -111,7 +111,10 @@ export async function cargarReportes() {
   if (barraPeriodo) barraPeriodo.pintar();
   const pedido = ++pedidoVigente;
   const cuerpo = $('#rep-cuerpo', cont);
-  if (ultimaData) cuerpo.classList.add('is-refetching');
+  if (ultimaData) {
+    cuerpo.classList.add('is-refetching');
+    $('#rep-meta').textContent = `${$('#rep-meta').textContent.replace(SUFIJO_ACTUALIZANDO, '')}${SUFIJO_ACTUALIZANDO}`;
+  }
   try {
     const data = await obtenerReporte(construirQuery());
     if (pedido !== pedidoVigente) return;
@@ -121,16 +124,38 @@ export async function cargarReportes() {
   } catch (error) {
     if (pedido !== pedidoVigente) return;
     cuerpo.classList.remove('is-refetching');
-    if (ultimaData) { window.toast?.error('Reportes', error.message); return; }
+    const meta = $('#rep-meta');
+    if (meta) meta.textContent = meta.textContent.replace(SUFIJO_ACTUALIZANDO, '');
+    // Sin red, fetch lanza TypeError con un texto técnico: se cambia por uno que el usuario pueda aplicar.
+    const mensaje = error?.name === 'TypeError' ? 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.' : error.message;
+    if (ultimaData) { window.toast?.error('Reportes', mensaje); return; }
     cuerpo.innerHTML = `
-      <div class="buzon-vacio buzon-vacio-error">
-        <ion-icon name="alert-circle-outline"></ion-icon>
-        <h3>No se pudo cargar el reporte</h3>
-        <p>${escapeHtml(error.message)}</p>
+      <div class="rep-estado rep-estado--error rep-estado--tarjeta">
+        <span class="rep-estado-icono"><ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon></span>
+        <h4>No se pudo cargar el reporte</h4>
+        <p>${escapeHtml(mensaje)}</p>
         <button class="btn btn--ghost btn--sm" id="rep-reintentar" type="button">Reintentar</button>
       </div>`;
     $('#rep-reintentar', cuerpo).addEventListener('click', () => cargarReportes());
   }
+}
+
+const SUFIJO_ACTUALIZANDO = ' · Actualizando…';
+
+// Primera carga: barras grises con la forma del reporte (controles, aviso y tabla) en vez de un texto suelto.
+function htmlEsqueletoCuerpo() {
+  const barra = (...mod) => `<span class="rep-esq-barra ${mod.map(m => `rep-esq-barra--${m}`).join(' ')}"></span>`;
+  const fila = () => `<div class="rep-esq-fila">${barra('vale')}${barra('persona')}${barra('estado')}${barra('corta')}${barra('pildora-s')}${barra('cuadro')}</div>`;
+  return `<div class="rep-esq" role="status" aria-label="Calculando el reporte">
+    <div class="rep-esq-controles">${barra('pildora', 'xl')}</div>
+    <div class="rep-esq-controles">${barra('campo')}${barra('campo')}${barra('campo')}</div>
+    <div class="rep-esq-aviso">${barra('l')}${barra('pildora-s')}</div>
+    <div class="rep-esq-tarjeta">
+      ${barra('m')}${barra('s')}
+      <div class="rep-esq-seccion">${barra('circulo')}${barra('l')}${barra('pildora-s')}</div>
+      <div class="rep-esq-tabla">${fila()}${fila()}${fila()}${fila()}${fila()}</div>
+    </div>
+  </div>`;
 }
 
 function armarEsqueleto(cont) {
@@ -152,7 +177,7 @@ function armarEsqueleto(cont) {
     <div class="rep-filtros" id="rep-filtros" hidden></div>
     <div class="rep-fichas" id="rep-fichas" hidden></div>
     <div class="rend-cuerpo" id="rep-cuerpo" role="tabpanel">
-      <div class="buzon-vacio"><ion-icon name="sync-outline" class="spin-animation"></ion-icon><p>Calculando el reporte...</p></div>
+      ${htmlEsqueletoCuerpo()}
     </div>`;
   barraPeriodo = crearBarraPeriodo($('#rep-periodo', cont), {
     obtener: () => state.reporte.ventana,
@@ -477,7 +502,7 @@ function cabeceraPanel(titulo, subtitulo, extra = '') {
 const vacio = (icono, titulo, texto) => `<div class="rend-vacio"><ion-icon name="${icono}"></ion-icon><h4>${titulo}</h4><p>${texto}</p></div>`;
 
 // -----------------------------------------------------------------------
-// Tabla unificada: personas con sus vales desplegables
+// Tabla de vales por sección
 // -----------------------------------------------------------------------
 function htmlAtraso(v) {
   if (v.venceHoy) return '<span class="badge badge-hoy">Vence hoy</span>';
@@ -493,38 +518,26 @@ function htmlAtrasoEntregado(v) {
 let vistaTaller = false;
 
 
-// Columnas según la sección: atrasados y entregados muestran el Atraso (en los entregados, los días con que se entregó).
-function htmlMiniTabla(g) {
-  if (!g.vales.length) return '<p class="rep-sin-vales">Sin vales con entrega en este período.</p>';
-  const sec = g.seccion || 'noEntregados';
-  const conAtraso = sec === 'atrasados' || sec === 'entregados';
-  const filas = g.vales.map(v => `
+// Una sola tabla por sección con todos sus vales: la persona (o taller/tienda) es una columna, no un desplegable.
+// Atrasados y entregados muestran el Atraso (en los entregados, los días con que se entregó).
+function htmlTablaSeccion(sec, info) {
+  const conAtraso = sec.clave === 'atrasados' || sec.clave === 'entregados';
+  const filas = sec.grupos.flatMap(g => g.vales.map(v => `
     <tr>
-      <td data-label="Vale"><strong>${escapeHtml(v.correlativo)}</strong>${v.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${vistaTaller ? '' : `<span class="rep-cliente">${escapeHtml(v.cliente)}</span>`}</td>
-      ${vistaTaller ? `<td data-label="Fecha de ingreso">${escapeHtml(formatearFechaHora(v.creadoEn))}</td>` : ''}
-      <td data-label="Estado">${celdaEstado(v)}</td>
-      <td data-label="Entrega" class="fecha-entrega">${escapeHtml(formatearFecha(v.fechaEntrega))}</td>
-      ${conAtraso ? `<td data-label="Atraso">${sec === 'entregados' ? htmlAtrasoEntregado(v) : htmlAtraso(v)}</td>` : ''}
-      <td data-label="Acciones" class="rep-acciones-celda"><div class="rep-acciones-fila">
+      <td class="rep-c-vale" data-label="Vale"><strong>${escapeHtml(v.correlativo)}</strong>${v.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${vistaTaller ? '' : `<span class="rep-cliente">${escapeHtml(v.cliente)}</span>`}</td>
+      <td class="rep-c-grupo" data-label="${info.texto}"><span class="rep-grupo-nombre"><span class="rep-avatar" aria-hidden="true">${escapeHtml(inicialesAvatar(g.nombre))}</span><span>${escapeHtml(g.nombre)}</span></span></td>
+      ${vistaTaller ? `<td class="rep-c-ingreso" data-label="Fecha de ingreso">${escapeHtml(formatearFechaHora(v.creadoEn))}</td>` : ''}
+      <td class="rep-c-estado" data-label="Estado">${celdaEstado(v)}</td>
+      <td class="rep-c-entrega fecha-entrega" data-label="Entrega">${escapeHtml(formatearFecha(v.fechaEntrega))}</td>
+      ${conAtraso ? `<td class="rep-c-atraso" data-label="Atraso">${sec.clave === 'entregados' ? htmlAtrasoEntregado(v) : htmlAtraso(v)}</td>` : ''}
+      <td class="rep-acciones-celda rep-c-acciones" data-label="Acciones"><div class="rep-acciones-fila">
         <button type="button" class="btn-icon" data-ver="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}"${v.tienePropuesta ? ' data-con-propuesta="1"' : ''}${v.multitaller ? ' data-multitaller="1"' : ''} title="Ver vale" aria-label="Ver vale ${escapeHtml(v.correlativo)}"><ion-icon name="eye-outline"></ion-icon></button>
       </div></td>
-    </tr>`).join('');
-  return `<div class="rep-mini-wrap"><table class="rep-mini"><thead><tr><th>Vale</th>${vistaTaller ? '<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
-    ${g.recortado ? '<p class="rep-nota">Se muestran los vales más urgentes; acota el período o los filtros para ver el resto.</p>' : ''}`;
-}
-
-// Fila de una persona: nombre y cuántos vales (el detalle va al desplegarla).
-function htmlGrupo(g, indice) {
-  const abierto = state.reporte.expandidos.has(g.clave);
-  return `
-    <div class="rep-grupo${abierto ? ' is-abierto' : ''}" data-clave="${escapeHtml(g.clave)}">
-      <button type="button" class="rep-grupo-cab" aria-expanded="${abierto}" aria-controls="rep-g-${indice}">
-        <span class="rep-grupo-nombre"><ion-icon name="chevron-forward-outline" class="rep-chevron" aria-hidden="true"></ion-icon><span class="rep-avatar" aria-hidden="true">${escapeHtml(inicialesAvatar(g.nombre))}</span><strong>${escapeHtml(g.nombre)}</strong></span>
-        <span class="rep-celda rep-celda--n">${g.total} vale${g.total === 1 ? '' : 's'}</span>
-        <span class="rep-celda rep-celda--chips"></span>
-      </button>
-      <div class="rep-grupo-cuerpo" id="rep-g-${indice}"${abierto ? '' : ' hidden'}>${abierto ? htmlMiniTabla(g) : ''}</div>
-    </div>`;
+    </tr>`)).join('');
+  if (!filas) return '<p class="rep-sin-vales">Sin vales con entrega en este período.</p>';
+  const recortado = sec.grupos.some(g => g.recortado);
+  return `<div class="rep-mini-wrap"><table class="rep-mini rep-mini--plana${vistaTaller ? ' rep-mini--taller' : ''}"><thead><tr><th>Vale</th><th>${info.texto}</th>${vistaTaller ? '<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
+    ${recortado ? '<p class="rep-nota">Se muestran los vales más urgentes; acota el período o los filtros para ver el resto.</p>' : ''}`;
 }
 
 // Secciones del reporte (tras «Atrasados antes del período»): cada una plegable, con su contador.
@@ -569,6 +582,24 @@ function conectarSecciones(panel) {
   });
 }
 
+// Sin vales en el período: si no está en «Mes», se ofrece ampliar al mes completo.
+function htmlEstadoVacio() {
+  const ampliar = state.reporte.ventana.tipo !== 'mes';
+  return `<div class="rep-estado">
+    <span class="rep-estado-icono"><ion-icon name="document-text-outline" aria-hidden="true"></ion-icon></span>
+    <h4>Sin vales con entrega en este período</h4>
+    <p>Cambia el período o los filtros para ver otros vales.</p>
+    ${ampliar ? '<button type="button" class="btn btn--ghost btn--sm" id="rep-ver-mes">Ver el mes completo</button>' : ''}
+  </div>`;
+}
+
+function verMesCompleto() {
+  const p = state.reporte.ventana;
+  state.reporte.ventana = { tipo: 'mes', fecha: p.tipo === 'rango' ? p.hasta : p.fecha };
+  barraPeriodo.pintar();
+  cargarReportes();
+}
+
 function renderGrupos(data) {
   const panel = $('#rep-panel-grupos');
   const g = data.grupos;
@@ -577,48 +608,20 @@ function renderGrupos(data) {
   const subEntregados = vistaTaller ? 'Propuesta aprobada por el Encargado' : 'Ya llegaron al asesor';
   const personas = new Set(secciones.flatMap(x => x.grupos.map(gr => gr.id))).size;
   const sub = `${g.totalVales} vale${g.totalVales === 1 ? '' : 's'} · ${personas} ${personas === 1 ? info.texto.toLowerCase() : info.plural}`;
-  const acciones = secciones.length
-    ? '<div class="rep-expandir"><button type="button" class="rep-link" id="rep-expandir-todo">Expandir todo</button><button type="button" class="rep-link" id="rep-contraer-todo">Contraer todo</button></div>'
-    : '';
   if (!secciones.length) {
-    panel.innerHTML = cabeceraPanel(`Vales por ${info.texto.toLowerCase()}`, sub) + vacio('document-text-outline', 'Sin vales con entrega en este período', 'Cambia el período o los filtros para ver otros vales.');
+    panel.innerHTML = cabeceraPanel(`Vales por ${info.texto.toLowerCase()}`, sub) + htmlEstadoVacio();
+    const ampliar = $('#rep-ver-mes', panel);
+    if (ampliar) ampliar.addEventListener('click', verMesCompleto);
     return;
   }
-  // La misma persona puede estar en varias secciones: su clave lleva la sección para recordar qué filas están abiertas.
-  const porClave = new Map();
-  const htmlTabla = (sec) => {
-    const grupos = sec.grupos.map(gr => ({ ...gr, seccion: sec.clave, clave: `${sec.clave}|${gr.clave}` }));
-    grupos.forEach(gr => porClave.set(gr.clave, gr));
-    return `<div class="rep-tabla rep-tabla--simple" role="list" aria-label="${escapeHtml(info.plural)}">
-      ${grupos.map((gr, i) => htmlGrupo(gr, `${sec.clave}-${i}`)).join('')}
-    </div>`;
-  };
-  panel.innerHTML = `${cabeceraPanel(`Vales por ${info.texto.toLowerCase()}`, sub, acciones)}
-    ${secciones.map(sec => htmlSeccion({ ...sec, sub: sec.clave === 'entregados' ? subEntregados : sec.sub, cuerpo: htmlTabla(sec) })).join('')}
+  panel.innerHTML = `${cabeceraPanel(`Vales por ${info.texto.toLowerCase()}`, sub)}
+    ${secciones.map(sec => htmlSeccion({ ...sec, sub: sec.clave === 'entregados' ? subEntregados : sec.sub, cuerpo: htmlTablaSeccion(sec, info) })).join('')}
     ${g.truncado ? `<p class="rep-nota">Hay ${g.totalVales} vales; se muestran los más urgentes. Acota el período o los filtros para ver el resto.</p>` : ''}`;
-
-  const alternar = (el, abrir) => {
-    const clave = el.dataset.clave;
-    const cuerpo = $('.rep-grupo-cuerpo', el);
-    const boton = $('.rep-grupo-cab', el);
-    if (abrir) { state.reporte.expandidos.add(clave); cuerpo.innerHTML = htmlMiniTabla(porClave.get(clave)); conectarAcciones(cuerpo); }
-    else state.reporte.expandidos.delete(clave);
-    cuerpo.hidden = !abrir;
-    boton.setAttribute('aria-expanded', String(abrir));
-    el.classList.toggle('is-abierto', abrir);
-  };
-  panel.querySelectorAll('.rep-grupo').forEach(el => {
-    $('.rep-grupo-cab', el).addEventListener('click', () => alternar(el, $('.rep-grupo-cab', el).getAttribute('aria-expanded') !== 'true'));
-    if (state.reporte.expandidos.has(el.dataset.clave)) conectarAcciones($('.rep-grupo-cuerpo', el));
-  });
+  conectarAcciones(panel);
   conectarSecciones(panel);
-  const todo = $('#rep-expandir-todo', panel);
-  if (todo) todo.addEventListener('click', () => panel.querySelectorAll('.rep-grupo').forEach(el => alternar(el, true)));
-  const nada = $('#rep-contraer-todo', panel);
-  if (nada) nada.addEventListener('click', () => panel.querySelectorAll('.rep-grupo').forEach(el => alternar(el, false)));
 }
 
-// Acciones de cada vale desplegado: ver el vale (PDF) y ver su propuesta.
+// Acciones de cada vale: ver el vale (PDF) y ver su propuesta.
 function conectarAcciones(cuerpo) {
   cuerpo.querySelectorAll('[data-ver]').forEach(b => b.addEventListener('click', () => (b.dataset.multitaller
     ? abrirVisorMultitaller({ id: b.dataset.ver, correlativo: b.dataset.correlativo })
