@@ -57,8 +57,9 @@ export function abrirModalCorregirVale(vale) {
 }
 
 // Borrador guardado (detalle de GET /api/vales/borradores/:id): el mismo formulario, precargado.
-export function abrirModalBorrador(borrador) {
-  abrirModalFormularioVale(borrador, 'borrador');
+// `opciones.alCancelar` y `opciones.alGuardar` devuelven a la lista de borradores al cancelar o al guardar.
+export function abrirModalBorrador(borrador, opciones) {
+  abrirModalFormularioVale(borrador, 'borrador', null, opciones);
 }
 
 const NOTA_ENTREGA_SIN_TALLER = 'Elige primero un taller para ver la fecha mínima de entrega.';
@@ -71,8 +72,8 @@ const textoAyudaUrgente = (esMod, marcada) => {
 };
 
 // `tipoModificacion` (BASICA / MEDIA / AVANZADA): al pedir una modificación con vale MOD; al corregir un MOD sale del propio vale.
-// `alCancelar` permite volver al modal desde el que se abrió (p. ej. el selector de tipo de modificación).
-function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipoModificacion = null, { alCancelar } = {}) {
+// `alCancelar` permite volver al modal desde el que se abrió (p. ej. el selector de tipo de modificación); `alGuardar`, tras guardar un borrador.
+function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipoModificacion = null, { alCancelar, alGuardar } = {}) {
   const esCorreccion = modo === 'corregir';
   const esModificacion = modo === 'modificar';
   const esBorrador = modo === 'borrador';
@@ -283,6 +284,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
       window.toast.success('Borrador guardado', 'Puedes terminarlo después desde «Borradores».');
       cerrar();
       avisarCambioBorradores();
+      if (alGuardar) alGuardar();
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
       btnBorrador.disabled = false;
