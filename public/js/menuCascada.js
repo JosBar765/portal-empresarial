@@ -82,6 +82,37 @@ export function construirArbolTiendas(tiendas) {
   return nodosPais;
 }
 
+// Talleres por país: un taller con varios países aparece en cada uno; sin país va al final como «Sin país».
+export function construirArbolTalleres(talleres) {
+  const porPais = new Map();
+  talleres.forEach(t => {
+    const paisesDelTaller = t.paises && t.paises.length ? t.paises : ['Sin país'];
+    paisesDelTaller.forEach(pais => {
+      if (!porPais.has(pais)) porPais.set(pais, []);
+      porPais.get(pais).push(t);
+    });
+  });
+  const paises = [...porPais.keys()].sort((a, b) => {
+    if (a === 'Sin país' || b === 'Sin país') return a === b ? 0 : (a === 'Sin país' ? 1 : -1);
+    return a.localeCompare(b);
+  });
+  const nodosPais = paises.map((pais, indice) => {
+    const nodo = {
+      tipo: 'grupo',
+      etiqueta: pais,
+      hijos: porPais.get(pais).slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(t => ({ tipo: 'hoja', valor: t.id, etiqueta: t.nombre }))
+    };
+    if (indice === 0) nodo.encabezadoAntes = 'País';
+    return nodo;
+  });
+  // Con un solo país el primer nivel sobra: sus talleres suben al nivel 1 bajo el nombre del país.
+  if (nodosPais.length === 1) {
+    const [unico] = nodosPais;
+    return unico.hijos.map((h, i) => (i === 0 ? { ...h, encabezadoAntes: unico.etiqueta } : h));
+  }
+  return nodosPais;
+}
+
 // Orden y agrupación fijos — no se derivan genéricamente de la tabla de
 // roles porque el propio documento funcional define esta jerarquía puntual.
 export function construirArbolRoles(roles) {

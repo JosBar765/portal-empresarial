@@ -12,7 +12,7 @@ import { htmlBloqueVigentes, conectarBloqueVigentes } from '../components/atrasa
 import { htmlGraficaBarrasDobles } from '../components/graficaBarrasDobles.js';
 import { htmlTablaRendimiento } from '../components/tablaRendimiento.js';
 import { crearMenuExportar } from '../components/menuExportar.js';
-import { crearMenuCascada, construirArbolTiendas } from '/js/menuCascada.js';
+import { crearMenuCascada, construirArbolTiendas, construirArbolTalleres } from '/js/menuCascada.js';
 import { crearBarraPeriodo, aplicarPeriodoAQuery, normalizarPeriodoCerrado } from '../components/barraPeriodoReportes.js';
 import { crearSelectorMultiple } from '../components/selectorMultiple.js';
 
@@ -428,7 +428,6 @@ function renderFiltros(data, vista = 'actividad') {
   const asesoresVisibles = enfoqueFiltros === 'taller' ? [] : f.asesores.filter(a => !tiendaEfectiva || a.tiendaId === tiendaEfectiva);
   const tiendasVisibles = enfoqueFiltros === 'taller' ? [] : f.tiendas;
   const evaluadosDelEnfoque = (data.evaluados || []).filter(p => !enfoqueFiltros || (enfoqueFiltros === 'ventas' ? f.asesores : f.disenadores).some(o => o.id === p.id));
-  const opciones = (lista, valor, vacio) => `<option value="">${vacio}</option>${lista.map(o => `<option value="${o.id}"${String(o.id) === String(valor) ? ' selected' : ''}>${escapeHtml(o.nombre)}</option>`).join('')}`;
   cont.hidden = false;
   cont.innerHTML = `
     ${vista === 'rendimiento' ? (enfoqueFiltros ? htmlSelectorEnfoque(enfoqueFiltros) : '') : `<div class="rep-agrupar${disponibles.length > 1 ? '' : ' rep-agrupar--fijo'}" role="group" aria-label="Agrupar por">
@@ -440,7 +439,7 @@ function renderFiltros(data, vista = 'actividad') {
     </div>`}
     <div class="rep-filtros-fila">
 ${tiendasVisibles.length ? '<div id="rep-f-tienda"></div>' : ''}
-      ${talleresVisibles.length ? `<select id="rep-f-taller" class="filtro-tienda" aria-label="Filtrar por taller">${opciones(talleresVisibles, r.tallerId, 'Todos los talleres')}</select>` : ''}
+      ${talleresVisibles.length ? '<div id="rep-f-taller"></div>' : ''}
       <span id="rep-f-asesores"></span>
       <span id="rep-f-disenadores"></span>
       ${hayFiltros() ? '<button type="button" class="rep-link" id="rep-limpiar-filtros">Limpiar filtros</button>' : ''}
@@ -489,14 +488,25 @@ ${tiendasVisibles.length ? '<div id="rep-f-tienda"></div>' : ''}
     cargarReportes();
   }
   const taller = $('#rep-f-taller', cont);
-  if (taller) taller.addEventListener('change', () => {
-    r.tallerId = taller.value;
+  if (taller) {
+    // El bloque se recrea en cada render: el menú nace de nuevo con el taller vigente.
+    const menuTaller = crearMenuCascada({
+      arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todos los talleres' }, ...construirArbolTalleres(talleresVisibles)],
+      valorActual: r.tallerId || '',
+      etiquetaVacio: 'Todos los talleres',
+      ariaLabel: 'Filtrar por taller',
+      onSeleccionar: (valor) => cambiarTaller(valor === '' || valor == null ? '' : String(valor))
+    });
+    taller.appendChild(menuTaller.elemento);
+  }
+  function cambiarTaller(valor) {
+    r.tallerId = valor;
     // Las personas elegidas que no trabajan en el nuevo taller se quitan de la selección.
     const nuevo = Number(r.tallerId) || null;
     if (nuevo) r.disenadorIds = r.disenadorIds.filter(id => { const d = f.disenadores.find(x => x.id === Number(id)); return !d || !d.tallerIds || d.tallerIds.includes(nuevo); });
     r.expandidos.clear();
     cargarReportes();
-  });
+  }
   if (asesoresVisibles.length) {
     crearSelectorMultiple($('#rep-f-asesores', cont), {
       uid: 'rep-sel-asesores', icono: 'people-outline', vacio: 'Todos los asesores', plural: ['asesor', 'asesores'],

@@ -26,3 +26,10 @@ El filtro «Todas las tiendas» del Buzón y de Reportes era un `<select>` plano
 - `public/modules/vales/css/styles.css`: la clase `.filtro-tienda` queda solo para los demás selects.
 
 Solo se agregan columnas de lectura: sin cambios en la base de datos ni en los permisos. El backend se carga al reiniciar el servidor.
+
+## Filtro de taller en Reportes
+
+- `#rep-f-taller` pasó de `<select>` a un contenedor `<div>` (sin la clase `.filtro-tienda`) con el mismo menú en cascada: País › taller. Con un solo país se omite el primer nivel.
+- `construirArbolTalleres` (en `menuCascada.js`) agrupa por país; un taller con tiendas en varios países aparece en cada uno, y sin país va al final como «Sin país».
+- `_opcionesDeFiltro` agrega `paises` a cada taller (Administrador, Gerente, Supervisor y Encargado), derivados de sus tiendas (`taller_tiendas` → tiendas → empresa → país); `talleres.tienda_id` y `departamentos.pais_id` no sirven porque son nulos en los talleres centrales.
+- `onSeleccionar` hace lo mismo que el antiguo `change` (depura diseñadores, limpia expandidos y recarga). Solo lectura: sin cambios en la base de datos ni en los permisos.

@@ -734,7 +734,10 @@ class ValeReporteService {
       if (!tiendasDeTaller.has(r.taller_id)) tiendasDeTaller.set(r.taller_id, []);
       tiendasDeTaller.get(r.taller_id).push(r.tienda_id);
     });
-    const conTiendas = (t) => ({ id: t.id, nombre: t.nombre, tiendaIds: tiendasDeTaller.get(t.id) || [] });
+    // El país de un taller sale de sus tiendas (talleres.tienda_id es nulo en los centrales); se consulta todas las tiendas, no solo las del supervisor.
+    const paisDeTienda = new Map((await reporteRepository.listarTiendas()).map(t => [t.id, t.pais_nombre]));
+    const paisesDe = (id) => [...new Set((tiendasDeTaller.get(id) || []).map(tid => paisDeTienda.get(tid)).filter(Boolean))];
+    const conTiendas = (t) => ({ id: t.id, nombre: t.nombre, tiendaIds: tiendasDeTaller.get(t.id) || [], paises: paisesDe(t.id) });
     // Además de id y nombre, el cliente recibe código, país y departamento para armar el menú en cascada.
     const paraMenu = (t) => ({ id: t.id, nombre: t.nombre, codigo: t.codigo ?? null, pais_nombre: t.pais_nombre ?? null, departamento_nombre: t.departamento_nombre ?? null });
     if (alcance.rol === 'supervisor') {
@@ -745,7 +748,7 @@ class ValeReporteService {
     }
     if (alcance.rol === 'encargado') {
       opciones.disenadores = alcance.personas;
-      const propios = talleres.filter(t => alcance.tallerIds.includes(t.id)).map(t => ({ id: t.id, nombre: t.nombre }));
+      const propios = talleres.filter(t => alcance.tallerIds.includes(t.id)).map(t => ({ id: t.id, nombre: t.nombre, paises: paisesDe(t.id) }));
       opciones.talleres = propios.length > 1 ? propios : [];
       return opciones;
     }
