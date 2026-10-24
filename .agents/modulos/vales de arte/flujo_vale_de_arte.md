@@ -563,10 +563,10 @@ solicitarse la modificación (§1.1): aparece en «Trabajo realizado» con la ma
 administrador ven la empresa del cliente; la empresa es opcional, así que cuando el asesor no la
 escribe la insignia muestra el nombre del cliente, para que el vale siempre se pueda identificar.
 
-**Insignia de persona** (bajo el correlativo, `badgePersona`): el supervisor ve el asesor
+**Insignia de persona** (bajo el correlativo, `badgePersona`): el supervisor, el administrador y el gerente ven el asesor
 que creó el vale; el encargado de taller (y el asistente, Protextil y Diseño Local) ve el
-diseñador asignado o «Sin asignar» (las filas de fusión no llevan insignia). Asesor,
-diseñador, gerente y administrador no la ven. El servidor agrega `persona = {rol, nombre}`
+diseñador asignado o «Sin asignar» (las filas de fusión no llevan insignia). Asesor y
+diseñador no la ven. El servidor agrega `persona = {rol, nombre}`
 a cada fila (`valeBuzonService`); el diseño está en `documentacion/correcciones_46.md`.
 
 "Atrasados" y "Modificados" (asesor y supervisor) son los únicos contadores que se **combinan** con cualquier otro filtro
