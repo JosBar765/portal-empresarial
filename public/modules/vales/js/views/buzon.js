@@ -242,7 +242,6 @@ function pintarFilas(tbody, filas) {
       <td data-label="Fecha Ingreso" class="col-fecha-ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
       <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
-      <td data-label="Fecha Evento" class="col-fecha-evento">${formatearFecha(v.fecha_evento)}</td>
       <td data-label="Taller" class="col-taller">${celdaTaller(v)}</td>
       <td data-label="Estado" class="col-estado">${celdaEstado(v)}</td>
       <td data-label="Acciones" class="acciones-cell" data-row-key="${claveFila(v)}"></td>

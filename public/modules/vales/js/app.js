@@ -44,7 +44,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Encargados y diseñadores ya trabajan scoped a su propio taller — la columna
   // "Taller" (pensada para el asesor y roles de supervisión) sobra ahí.
   $('.buzon-table').classList.toggle('oculta-taller', ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)));
-  $('.buzon-table').classList.toggle('oculta-fechas', ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)));
 
   $('#btn-nuevo-vale').style.display = puede('crear') ? 'flex' : 'none';
   // Los borradores exigen el permiso vales.crear en el servidor (el administrador ve el botón de crear pero no lo tiene).
