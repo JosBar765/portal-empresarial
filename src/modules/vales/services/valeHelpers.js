@@ -127,13 +127,14 @@ function esValeDeModificacion(vale) {
   return vale.vale_original_id != null;
 }
 
-// Días hábiles mínimos (contados desde hoy) de la fecha de entrega según el tipo de modificación.
-// La básica no crea vale MOD: se resuelve conversando con el taller.
+// Días hábiles mínimos (contados desde hoy) de la fecha de entrega según el tipo de modificación; con «urgente» basta el siguiente día que reciba vales.
 const DIAS_HABILES_MODIFICACION = { BASICA: 1, MEDIA: 2, AVANZADA: 3 };
-const TIPOS_MODIFICACION_CON_VALE = ['MEDIA', 'AVANZADA'];
+const DIAS_HABILES_MODIFICACION_URGENTE = 1;
+const TIPOS_MODIFICACION_CON_VALE = Object.keys(DIAS_HABILES_MODIFICACION);
+const diasHabilesDeModificacion = (tipo, urgente) => (urgente ? DIAS_HABILES_MODIFICACION_URGENTE : DIAS_HABILES_MODIFICACION[tipo]);
 
 // Código de un vale MOD: MOD-X, MOD2-X, MOD3-X… con X el correlativo del vale raíz, que nunca cambia.
-const PREFIJO_MOD = /^MODd*-/;
+const PREFIJO_MOD = /^MOD\d*-/;
 const esCorrelativoMod = (correlativo) => PREFIJO_MOD.test(String(correlativo || ''));
 const correlativoBase = (correlativo) => String(correlativo || '').replace(PREFIJO_MOD, '');
 const armarCorrelativoMod = (base, numero) => `MOD${numero > 1 ? numero : ''}-${base}`;
@@ -291,7 +292,7 @@ module.exports = {
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
   hoyISO, horaActual, calcularAtraso, enriquecer,
-  esValeDeModificacion, DIAS_HABILES_MODIFICACION, TIPOS_MODIFICACION_CON_VALE,
+  esValeDeModificacion, DIAS_HABILES_MODIFICACION, diasHabilesDeModificacion, TIPOS_MODIFICACION_CON_VALE,
   PREFIJO_MOD, esCorrelativoMod, correlativoBase, armarCorrelativoMod, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
   normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial,

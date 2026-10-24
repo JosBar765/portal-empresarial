@@ -2,8 +2,8 @@ import { ROL } from './roles.js';
 
 const PERMISO_FUSION = 'vales.aprobar_general';
 
-// "Atrasados" y "Modificados" (asesor y supervisor) y "Atrasados" (encargados) son contadores COMBINABLES
-// (`atrasadosGlobal` / `modificadosGlobal`) — renderContadores() los trata como interruptores aparte
+// "Atrasados" y "Modificados" (asesor y supervisor) y "Atrasados" y "Rechazos" (encargados, Administrador y Gerente) son contadores COMBINABLES
+// (`atrasadosGlobal` / `modificadosGlobal` / `rechazosGlobal`) — renderContadores() los trata como interruptores aparte
 // (state.soloAtrasados / state.soloModificados) que pueden activarse junto con cualquier otro filtro de
 // contador. El diseñador queda afuera: su "Mis asignaciones (con atraso)" es su propio filtro fijo.
 // `quien` es quién tiene que actuar en ese paso; se muestra pequeño bajo la etiqueta.
@@ -16,6 +16,8 @@ const CONTADORES_POR_PASO = [
   { key: 'modificados', label: 'Modificados', modificadosGlobal: true },
   { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
 ];
+
+const CONTADOR_RECHAZOS = { key: 'rechazos', label: 'Rechazos', icono: 'arrow-undo-outline', rechazosGlobal: true };
 
 // Trabajo realizado: vales entregados con atraso; se combina con las demás tarjetas y se recalcula con ellas.
 const ATRASADOS_TRABAJO = { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true };
@@ -54,6 +56,7 @@ export const CONTADORES_CONFIG = {
       { key: 'porRevisar', label: 'Por revisar', filtro: 'porRevisar' },
       { key: 'pendientesFusion', label: 'Por fusionar', filtro: 'pendientesFusion', permiso: PERMISO_FUSION },
       { key: 'misAsignaciones', label: 'Mis asignaciones', filtro: 'misAsignaciones' },
+      CONTADOR_RECHAZOS,
       { key: 'atrasados', label: 'Atrasados', alerta: true, atrasadosGlobal: true }
     ],
     trabajo: [
@@ -81,5 +84,9 @@ export const CONTADORES_CONFIG = {
 CONTADORES_CONFIG[ROL.ENCARGADO_UV3D] = CONTADORES_CONFIG[ROL.ENCARGADO_DISENO];
 CONTADORES_CONFIG[ROL.ENCARGADO_PROTEXTIL] = CONTADORES_CONFIG[ROL.ENCARGADO_DISENO];
 CONTADORES_CONFIG[ROL.ENCARGADO_DISENO_LOCAL] = CONTADORES_CONFIG[ROL.ENCARGADO_DISENO];
-CONTADORES_CONFIG[ROL.ADMINISTRADOR] = CONTADORES_CONFIG[ROL.ASESOR]; // vista general: la misma del asesor, con los vales de todos
+// Vista general: la del asesor con los vales de todos y «Rechazos» a la izquierda de «Atrasados».
+CONTADORES_CONFIG[ROL.ADMINISTRADOR] = {
+  ...CONTADORES_CONFIG[ROL.ASESOR],
+  buzon: CONTADORES_POR_PASO.flatMap(c => (c.atrasadosGlobal ? [CONTADOR_RECHAZOS, c] : [c]))
+};
 CONTADORES_CONFIG[ROL.GERENTE] = CONTADORES_CONFIG[ROL.ADMINISTRADOR]; // solo lectura, misma vista

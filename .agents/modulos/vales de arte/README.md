@@ -9,7 +9,7 @@ La fuente de verdad del flujo (estados, roles, permisos, buzón, límites, atras
 - **Montaje:** `/api/vales` con `requireAuth` + `requirePermission('vales.ver')` en `src/app.js`; frontend en `/modules/vales`.
 - **Servicios del core:** `src/core/auth` y `permissions` (identidad y permisos), `websocket/socketManager`, `files` (Supabase Storage, `nombreArchivo.js`, `subirYRegistrarArchivo.js`), `idempotency`, `calendario` (horario laboral, feriados, fecha de entrega), `notifications`.
 - **Tablas principales:** `vales`, `vale_talleres`, `vale_historial`, `estados_vale`, `estados_taller`, `talleres`, `supervisores`, `asesores`, `supervisor_tiendas`, `idempotency_keys`; para el calendario `horarios_laborales`, `feriados`, `parametros_sistema`.
-- **Permisos:** prefijo `vales.*` (`ver`, `crear`, `confirmar`, `corregir`, `dar_de_baja`, `solicitar_modificacion`, `autorizar_creacion`, `aprobar_modificacion`, `verificar_adjuntos`, `aprobar_general`, `ver_historial`, `ver_reportes`, ...); se definen en `database/seed.sql`. Detalle por rol: sección 3 del flujo.
+- **Permisos:** prefijo `vales.*` (`ver`, `crear`, `confirmar`, `corregir`, `dar_de_baja`, `solicitar_modificacion`, `autorizar_creacion`, `aprobar_modificacion`, `verificar_adjuntos`, `rechazar_propuesta`, `responder_rechazo_propuesta`, `aprobar_general`, `ver_historial`, `ver_reportes`, ...); se definen en `database/seed.sql`. Detalle por rol: sección 3 del flujo.
 - **Variables de entorno:** las globales de `.env` (Supabase Storage incluido); no tiene variables propias.
 
 ## Dónde está el código
@@ -24,7 +24,8 @@ La fuente de verdad del flujo (estados, roles, permisos, buzón, límites, atras
 - **Permisos, no roles:** cada acción se protege con `requirePermission` en `routes.js`. El Administrador ve todo pero no ejecuta acciones de escritura del flujo; el Gerente es solo lectura (buzón general y Reportes).
 - **Toda transición** corre bajo `valeMutex` y escribe en `vale_historial`. El historial solo se muestra con `vales.ver_historial`.
 - **Verificación de adjuntos** (los adjuntos viajan por correo, fuera del módulo): cada taller empieza en `VERIFICANDO_ADJUNTOS`; ventana de horas laborales desde el primer rechazo y borrado del vale si vence (sección 2.1 del flujo).
-- **Modificaciones:** Básica (chat con el taller), Media y Avanzada (nuevo vale `MOD-<correlativo>`); sección 1.1 del flujo.
+- **Modificaciones:** Básica, Media y Avanzada crean un vale `MOD-<correlativo>` (plazos de 1, 2 y 3 días hábiles; `urgente` = siguiente día disponible; nunca de hoy para hoy); sección 1.1 del flujo.
+- **Rechazo de propuesta:** el asesor dueño rechaza la propuesta de uno o varios talleres con el vale en `PENDIENTE_CONFIRMACION` y conversa con cada taller, que acepta o rechaza; sección 1.2 del flujo.
 - **Horario laboral y fecha de entrega** (hora de Guatemala, UTC-6): plazos en horas laborales y fecha mínima de entrega según `src/core/calendario/`; sección 5.1 del flujo. Los vencimientos guardados se reinician con `scripts/recalcular-vencimientos.js`.
 - **Cupo:** solo el tope diario opcional por taller (`talleres.limite_diario`) sobre la fecha de entrega; no hay límite por asesor ni cupo colectivo de autorización (sección 5).
 - **Atraso** no es un estado: se deriva de `fecha_entrega` (`calcularAtraso()`) y se congela con `atraso_congelado_en` al confirmar o aprobar una modificación; `atrasoWatcher.js` lanza una alerta roja única (revisa cada 60 s). Sección 7.

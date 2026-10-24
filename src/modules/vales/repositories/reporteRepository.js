@@ -105,11 +105,11 @@ class ReporteRepository {
     );
   }
 
-  // Opciones de los filtros de Reportes.
-  async listarAsesores() {
+  // Opciones de los filtros de Reportes; con `tiendaId`, solo los asesores de esa tienda.
+  async listarAsesores(tiendaId = null) {
     return db.query(
-      `SELECT u.id, u.nombre, a.tienda_id FROM usuarios u JOIN asesores a ON a.usuario_id = u.id WHERE u.activo = 1 ORDER BY u.nombre`,
-      [], 'reporte:asesores'
+      `SELECT u.id, u.nombre, a.tienda_id FROM usuarios u JOIN asesores a ON a.usuario_id = u.id WHERE u.activo = 1 AND (? IS NULL OR a.tienda_id = ?) ORDER BY u.nombre`,
+       [tiendaId, tiendaId], 'reporte:asesores'
     );
   }
 

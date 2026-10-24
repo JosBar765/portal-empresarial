@@ -1,13 +1,13 @@
 // src/modules/vales/services/valeModificacionService.js
-// Modificación media o avanzada de un vale ya entregado: al solicitarla el vale modificado queda RECIBIDO y nace el vale MOD
+// Modificación básica, media o avanzada de un vale ya entregado: al solicitarla el vale modificado queda RECIBIDO y nace el vale MOD
 // (MOD-X, MOD2-X…), completo y con la propuesta del modificado al final de su PDF (esperando al supervisor, baja, vigencia en
 // horas laborales). Autorizarlo lo reparte a los mismos talleres; rechazarlo o vencerlo lo elimina (el modificado y sus archivos no
-// se tocan). La modificación básica no crea vale: ver valeModificacionBasicaService.
+// se tocan).
 const crypto = require('crypto');
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
 const valeModificacionRepository = require('../repositories/valeModificacionRepository');
-const modificacionBasicaRepository = require('../repositories/valeModificacionBasicaRepository');
+const rechazoPropuestaRepository = require('../repositories/valeRechazoPropuestaRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
 const documentoRepository = require('../repositories/documentoRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
@@ -40,7 +40,7 @@ class ValeModificacionService {
 
       if (!puedeActuarComoAsesor(usuario)) throw new Error('Solo un asesor o un supervisor de ventas puede solicitar una modificación.');
       const tipo = String(payload.tipo || '').toUpperCase();
-      if (!TIPOS_MODIFICACION_CON_VALE.includes(tipo)) throw new Error('Elige el tipo de modificación: media o avanzada.');
+      if (!TIPOS_MODIFICACION_CON_VALE.includes(tipo)) throw new Error('Elige el tipo de modificación: básica, media o avanzada.');
       const original = await requerirVale(valeId);
       assertPropioDelAsesor(usuario, original);
       if (![ESTADOS.RECIBIDO, ESTADOS.PENDIENTE_CONFIRMACION].includes(original.estado)) {
@@ -48,8 +48,8 @@ class ValeModificacionService {
       }
       // Un MOD también se puede modificar (MOD2, MOD3…), pero cada vale tiene a lo sumo una modificación con vale.
       if (original.modificado) throw new Error('Este vale ya fue modificado. Pídela sobre el más reciente.');
-      if (await modificacionBasicaRepository.contarAbiertasPorVale(valeId)) {
-        throw new Error('Hay una modificación básica abierta. Espera la respuesta o cancélala.');
+      if (await rechazoPropuestaRepository.contarAbiertasPorVale(valeId)) {
+        throw new Error('Hay un rechazo de propuesta abierto. Espera la respuesta del taller antes de pedir una modificación.');
       }
       const justificacion = String(payload.descripcion || '').trim();
       if (!justificacion) throw new Error('Escribe la justificación de la modificación.');

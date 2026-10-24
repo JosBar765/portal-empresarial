@@ -50,7 +50,7 @@ async function renderContenidoAsignacionesDisenador(overlay, disenadorId) {
     <table class="buzon-table data-table"><thead><tr><th>Correlativo</th><th>Entrega</th><th>Estado</th></tr></thead>
     <tbody>${vales.map(v => `
       <tr${v.atrasado ? ' style="color:var(--color-danger);"' : ''}>
-        <td>${v.correlativo}</td><td>${formatearFecha(v.fecha_entrega)}</td>
+        <td>${v.correlativo}</td><td class="fecha-entrega">${formatearFecha(v.fecha_entrega)}</td>
         <td><span class="estado-pill estado-${v.estado_taller}">${ESTADOS_LABEL[v.estado_taller] || v.estado_taller}</span></td>
       </tr>`).join('')}</tbody></table>
   ` : '<p style="font-size:13px;">Este diseñador no tiene asignaciones activas.</p>';

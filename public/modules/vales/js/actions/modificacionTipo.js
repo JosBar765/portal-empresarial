@@ -1,15 +1,14 @@
 import { abrirModal } from '../components/modal.js';
 import { escapeHtml, siguienteCodigoMod } from '../utils/formato.js';
 import { abrirModalSolicitarModificacion } from '../forms/valeForm.js';
-import { abrirModalModificacionBasica } from './modificacionBasica.js';
 
 // Tipos de modificación según el tamaño del cambio. Los días son mínimos y se cuentan en días hábiles desde hoy.
 const TIPOS = [
   {
     id: 'BASICA', nombre: 'Básica', dias: '+1 día', icono: 'chatbubbles-outline',
-    resumen: 'Un ajuste pequeño, acordado por chat con el taller.',
+    resumen: 'Un ajuste pequeño, con vale nuevo.',
     ejemplo: 'Ej.: cambiar un color o un texto.',
-    chips: () => [['chatbubble-outline', 'Chat con el taller'], ['documents-outline', 'Sin vale nuevo']]
+    chips: (vale) => [['document-text-outline', `Crea ${siguienteCodigoMod(vale)}`], ['person-outline', 'Autoriza tu supervisor']]
   },
   {
     id: 'MEDIA', nombre: 'Media', dias: '+2 días', icono: 'create-outline',
@@ -25,9 +24,9 @@ const TIPOS = [
   }
 ];
 
-// Asesor: elige el tipo de modificación y sigue con su flujo (chat con el taller, o formulario del vale MOD).
-// La básica se puede pedir en el paso 5 o con el vale ya recibido: el taller rehace la propuesta y se confirma otra vez.
-export function abrirSelectorModificacion(vale) {
+// Asesor: elige el tipo de modificación y sigue con el formulario del vale MOD (los tres tipos lo comparten).
+// `alCancelar` permite volver al modal desde el que se abrió (p. ej. el de decisión).
+export function abrirSelectorModificacion(vale, { alCancelar } = {}) {
   const disponibles = TIPOS;
   const { overlay, cerrar } = abrirModal({
     title: `Solicitar modificación — ${vale.correlativo}`,
@@ -53,9 +52,9 @@ export function abrirSelectorModificacion(vale) {
       <details class="mod-info">
         <summary><ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>¿Cuál elijo?</summary>
         <ul class="mod-info-lista">
-          <li><strong>Básica:</strong> sin vale nuevo. El taller acepta o rechaza por chat y la entrega sube 1 día hábil.</li>
-          <li><strong>Media y Avanzada:</strong> crean un vale MOD que autoriza tu supervisor.</li>
-          <li>Los días son <strong>mínimos</strong>, contados en días hábiles desde hoy. En Media y Avanzada puedes elegir más.</li>
+          <li><strong>Básica, Media y Avanzada:</strong> crean un vale MOD que autoriza tu supervisor.</li>
+          <li>Los días son <strong>mínimos</strong>, contados en días hábiles desde hoy (1, 2 y 3). Puedes elegir más.</li>
+          <li>Una modificación nunca es para hoy. Con «Pedido urgente» basta el siguiente día disponible.</li>
         </ul>
       </details>
     `,
@@ -66,15 +65,15 @@ export function abrirSelectorModificacion(vale) {
     const elegido = overlay.querySelector('input[name="mod-tipo"]:checked');
     if (!elegido) return;
     cerrar();
-    if (elegido.value === 'BASICA') abrirModalModificacionBasica(vale);
-    else abrirModalSolicitarModificacion(vale, elegido.value);
+    // Cancelar en el formulario regresa a este selector, que a su vez regresa a quien lo abrió.
+    abrirModalSolicitarModificacion(vale, elegido.value, { alCancelar: () => abrirSelectorModificacion(vale, { alCancelar }) });
   };
   overlay.querySelectorAll('input[name="mod-tipo"]').forEach(r => {
     r.addEventListener('change', () => { continuar.disabled = false; });
     // Doble clic en una tarjeta: elige y continúa.
     r.closest('.mod-tipo').addEventListener('dblclick', () => { r.checked = true; seguir(); });
   });
-  overlay.querySelector('#mod-cancelar').addEventListener('click', cerrar);
+  overlay.querySelector('#mod-cancelar').addEventListener('click', () => { cerrar(); if (alCancelar) alCancelar(); });
   continuar.addEventListener('click', seguir);
   const primero = overlay.querySelector('input[name="mod-tipo"]');
   if (primero) primero.focus();

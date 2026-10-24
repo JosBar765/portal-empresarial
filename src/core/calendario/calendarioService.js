@@ -101,7 +101,7 @@ class CalendarioService {
   }
 
   // `diasMinimos`: 3 cuando el vale no es urgente (antelación mínima en días naturales); 0 con «urgente».
-  // `diasHabiles`: antelación mínima en días que reciben vales, para las modificaciones (media 2, avanzada 3).
+  // `diasHabiles`: antelación mínima en días que reciben vales, para las modificaciones (básica 1, media 2, avanzada 3; urgente 1).
   async fechasNoDisponibles(talleresIds, desde, hasta, diasMinimos = 0, ahora = calendario.ahoraUTC6(), diasHabiles = 0) {
     const cfg = await cargar();
     return {
@@ -118,11 +118,6 @@ class CalendarioService {
   // Primera fecha de entrega posible de una modificación: el enésimo día que recibe vales contando desde hoy.
   async fechaMinimaModificacion(talleresIds, diasHabiles, ahora = calendario.ahoraUTC6()) {
     return calendario.fechaMinimaEntrega(await cargar(), talleresIds, ahora, 0, diasHabiles);
-  }
-
-  // Entrega de una modificación básica: el siguiente día que recibe vales desde el día de la solicitud (con la hora de corte del taller).
-  async fechaMinimaModificacionBasica(talleresIds, ahora = calendario.ahoraUTC6()) {
-    return calendario.fechaMinimaModificacionBasica(await cargar(), talleresIds, ahora);
   }
 
   async existenTalleres(talleresIds) {

@@ -1,7 +1,7 @@
 // src/modules/vales/services/valeConfirmacionService.js
 // Asesor: confirmar de recibido y descarga del PDF de un vale.
 const valeRepository = require('../repositories/valeRepository');
-const modificacionBasicaRepository = require('../repositories/valeModificacionBasicaRepository');
+const rechazoPropuestaRepository = require('../repositories/valeRechazoPropuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
@@ -23,8 +23,8 @@ class ValeConfirmacionService {
       if (modEnTramite) {
         throw new Error(`Este vale tiene la solicitud de modificación ${modEnTramite.correlativo} en trámite. Espera la decisión del supervisor o da de baja esa solicitud antes de confirmarlo.`);
       }
-      if (await modificacionBasicaRepository.contarAbiertasPorVale(valeId)) {
-        throw new Error('Hay una modificación básica abierta. Espera la respuesta o cancélala.');
+      if (await rechazoPropuestaRepository.contarAbiertasPorVale(valeId)) {
+        throw new Error('Hay un rechazo de propuesta abierto. Espera la respuesta del taller o cancélalo para confirmar el vale.');
       }
       await valeRepository.actualizarEstado(valeId, ESTADOS.RECIBIDO);
       const ahora = `${hoyISO()} ${horaActual()}`;
