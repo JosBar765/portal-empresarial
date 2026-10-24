@@ -13,6 +13,7 @@ export const state = {
   tiendaId: null, // Vista Gerencia: filtro de tienda
   filtroContador: null,
   soloAtrasados: false, // combinable con filtroContador
+  soloRechazos: false, // ídem: vales con rechazo de propuesta (Encargado y Asistente, en el Buzón)
   soloModificados: false, // ídem: vales MOD- y sus originales
   disenadorFiltro: '', // combobox de diseñadores (solo encargados)
   reporte: { // Reportes: su propio período (arranca en «Hoy»), agrupación, filtros y filas desplegadas

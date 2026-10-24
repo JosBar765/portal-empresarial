@@ -103,6 +103,7 @@ class ValeController {
         filtroContador: req.query.filtroContador,
         busqueda: req.query.busqueda,
         soloAtrasados: req.query.soloAtrasados,
+        soloRechazos: req.query.soloRechazos,
         soloModificados: req.query.soloModificados,
         disenadorId: req.query.disenadorId,
         tiendaId: req.query.tiendaId,
@@ -142,7 +143,7 @@ class ValeController {
 
   async reportePdf(req, res) {
     try {
-      const { reporte, pdf } = await valeService.generarReportePdf(req.user, this._filtrosReporte(req), String(req.query.tipo || 'actividad'));
+      const { reporte, pdf } = await valeService.generarReportePdf(req.user, this._filtrosReporte(req), String(req.query.tipo || 'actividad'), String(req.query.enfoque || 'ventas'));
       const fecha = reporte.periodo.desde && reporte.periodo.desde === reporte.periodo.hasta ? reporte.periodo.desde : (reporte.periodo.desde || 'historial');
       const quien = reporte.evaluados.length === 1
         ? reporte.evaluados[0].nombre.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
@@ -298,58 +299,58 @@ class ValeController {
     }
   }
 
-  // Modificación básica: sin vale MOD, el asesor y el taller conversan y el taller acepta o rechaza.
-  async solicitarModificacionBasica(req, res) {
+  // Rechazo de propuesta: el asesor dueño y el taller conversan; el taller acepta o rechaza.
+  async solicitarRechazoPropuesta(req, res) {
     try {
-      return res.json(await valeService.solicitarModificacionBasica(req.user, idObligatorio(req.params.id), req.body || {}));
+      return res.json(await valeService.solicitarRechazoPropuesta(req.user, idObligatorio(req.params.id), req.body || {}));
     } catch (error) {
       return responderError(res, error);
     }
   }
 
-  async listarModificacionesBasicas(req, res) {
+  async listarRechazosPropuesta(req, res) {
     try {
-      return res.json(await valeService.listarModificacionesBasicas(req.user, idObligatorio(req.params.id)));
+      return res.json(await valeService.listarRechazosPropuesta(req.user, idObligatorio(req.params.id)));
     } catch (error) {
       return responderError(res, error);
     }
   }
 
-  async conversacionModificacionBasica(req, res) {
+  async conversacionRechazoPropuesta(req, res) {
     try {
-      return res.json(await valeService.conversacionModificacionBasica(req.user, idObligatorio(req.params.id), idObligatorio(req.params.modId)));
+      return res.json(await valeService.conversacionRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId)));
     } catch (error) {
       return responderError(res, error);
     }
   }
 
-  async enviarMensajeModificacionBasica(req, res) {
+  async enviarMensajeRechazoPropuesta(req, res) {
     try {
-      return res.json(await valeService.enviarMensajeModificacionBasica(req.user, idObligatorio(req.params.id), idObligatorio(req.params.modId), req.body && req.body.mensaje));
+      return res.json(await valeService.enviarMensajeRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId), req.body && req.body.mensaje));
     } catch (error) {
       return responderError(res, error);
     }
   }
 
-  async aceptarModificacionBasica(req, res) {
+  async aceptarRechazoPropuesta(req, res) {
     try {
-      return res.json(await valeService.aceptarModificacionBasica(req.user, idObligatorio(req.params.id), idObligatorio(req.params.modId)));
+      return res.json(await valeService.aceptarRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId)));
     } catch (error) {
       return responderError(res, error);
     }
   }
 
-  async rechazarModificacionBasica(req, res) {
+  async rechazarRechazoPropuesta(req, res) {
     try {
-      return res.json(await valeService.rechazarModificacionBasica(req.user, idObligatorio(req.params.id), idObligatorio(req.params.modId)));
+      return res.json(await valeService.rechazarRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId), req.body && req.body.mensaje));
     } catch (error) {
       return responderError(res, error);
     }
   }
 
-  async cancelarModificacionBasica(req, res) {
+  async cancelarRechazoPropuesta(req, res) {
     try {
-      return res.json(await valeService.cancelarModificacionBasica(req.user, idObligatorio(req.params.id), idObligatorio(req.params.modId)));
+      return res.json(await valeService.cancelarRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId)));
     } catch (error) {
       return responderError(res, error);
     }

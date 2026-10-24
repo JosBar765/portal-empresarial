@@ -27,12 +27,20 @@ let barraPeriodo = null;
 let tablaActiva = '';
 let menuExportar = null;
 
-// Pestaña del reporte (solo Encargado/Asistente y Supervisor tienen «Rendimiento»); se recuerda la última.
+// Pestaña del reporte («Rendimiento» no la tiene el Asesor ni el Diseñador); se recuerda la última.
 const CLAVE_VISTA_REPORTE = 'vales:repVista';
 const leerVista = () => { try { return localStorage.getItem(CLAVE_VISTA_REPORTE) === 'rendimiento' ? 'rendimiento' : 'actividad'; } catch { return 'actividad'; } };
-// Solo el Encargado/Asistente de taller y el Supervisor tienen la pestaña Rendimiento (la vista recordada puede venir de otro usuario del navegador).
-const tieneRendimiento = () => !!state.user && (state.user.rolId === ROL.SUPERVISOR || ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)));
+// Rendimiento: Encargado/Asistente de taller, Supervisor, Administrador y Gerente (la vista recordada puede venir de otro usuario del navegador).
+const esAlcanceGlobal = () => !!state.user && (state.user.rolId === ROL.ADMINISTRADOR || state.user.rolId === ROL.GERENTE);
+const tieneRendimiento = () => !!state.user && (esAlcanceGlobal() || state.user.rolId === ROL.SUPERVISOR || ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)));
 const guardarVista = (vista) => { try { localStorage.setItem(CLAVE_VISTA_REPORTE, vista); } catch { /* sin almacenamiento */ } };
+// Administrador y Gerente: Rendimiento reúne el reporte de Ventas y el de Taller; se recuerda el último que vieron.
+const CLAVE_ENFOQUE_REPORTE = 'vales:repEnfoque';
+const leerEnfoque = () => { try { return localStorage.getItem(CLAVE_ENFOQUE_REPORTE) === 'taller' ? 'taller' : 'ventas'; } catch { return 'ventas'; } };
+const guardarEnfoque = (valor) => { try { localStorage.setItem(CLAVE_ENFOQUE_REPORTE, valor); } catch { /* sin almacenamiento */ } };
+let enfoque = leerEnfoque();
+// 'ventas' o 'taller' si el reporte trae ambos (Administrador y Gerente); null en los demás roles.
+const enfoqueGlobal = (data) => (data.grupos && data.grupos.rendimiento && data.grupos.rendimiento.vistas ? enfoque : null);
 
 const ICONO_AGRUPAR = { asesor: 'people-outline', disenador: 'brush-outline', taller: 'construct-outline', tienda: 'storefront-outline' };
 const AGRUPACIONES = [
@@ -187,6 +195,7 @@ async function exportarPdf(tipo = 'actividad') {
   try {
     const qs = construirQuery();
     qs.set('tipo', tipo);
+    if (tipo === 'rendimiento' && ultimaData && enfoqueGlobal(ultimaData)) qs.set('enfoque', enfoque); // el PDF imprime el reporte a la vista
     const { blob, nombre } = await descargarReportePdf(qs);
     const url = URL.createObjectURL(blob);
     const enlace = document.createElement('a');
@@ -206,11 +215,14 @@ async function exportarPdf(tipo = 'actividad') {
   }
 }
 
-// Opciones del menú de descarga según el rol: Rendimiento solo existe para Encargado/Asistente y Supervisor.
+// Opciones del menú de descarga según el rol: Rendimiento no existe para el Asesor ni el Diseñador; Administrador y Gerente descargan el enfoque a la vista.
 function configurarExportacion(data, vista) {
   const opciones = [{ id: 'actividad', icono: 'list-outline', titulo: 'Reporte de actividad', detalle: 'Vales atrasados, no entregados y entregados' }];
   if (data.grupos && data.grupos.rendimiento) {
-    opciones.push({ id: 'rendimiento', icono: 'bar-chart-outline', titulo: 'Reporte de rendimiento', detalle: 'Contadores, gráfica y tabla comparativa por persona' });
+    const actual = enfoqueGlobal(data);
+    opciones.push(actual
+      ? { id: 'rendimiento', icono: 'bar-chart-outline', titulo: `Reporte de rendimiento · ${actual === 'taller' ? 'Taller' : 'Ventas'}`, detalle: actual === 'taller' ? 'Contadores del taller, gráfica y tabla por diseñador' : 'Gráfica y tabla comparativa por asesor' }
+      : { id: 'rendimiento', icono: 'bar-chart-outline', titulo: 'Reporte de rendimiento', detalle: 'Contadores, gráfica y tabla comparativa por persona' });
   }
   menuExportar.configurar(opciones, vista);
 }
@@ -269,10 +281,10 @@ function renderTodo(data) {
   renderTabs(data, vista);
   configurarExportacion(data, vista);
   if (vista === 'rendimiento') {
+    const bloque = bloqueRendimiento(data);
     $('#rep-cuerpo').innerHTML = `
-      ${data.grupos.indicadoresTaller ? htmlIndicadoresTaller(data.grupos.indicadoresTaller) : ''}
-      ${htmlGraficaBarrasDobles(data.grupos.rendimiento)}
-      ${htmlTablaRendimiento(data.grupos.rendimiento)}
+      ${esRendimientoTaller(data) && data.grupos.indicadoresTaller ? htmlIndicadoresTaller(data.grupos.indicadoresTaller) : ''}
+      ${htmlGraficaBarrasDobles(bloque)}${htmlTablaRendimiento(bloque)}
       <details class="rend-notas">
         <summary>Cómo funciona este reporte</summary>
         <ul>${notasRendimiento(data)}</ul>
@@ -296,14 +308,21 @@ function renderTodo(data) {
   if (data.grupos) renderGrupos(data); else { renderTablas(data); renderVales(data); }
 }
 
+// Administrador y Gerente reciben Ventas y Taller completos (`vistas`) y ven el elegido; los demás roles, un solo reporte.
+const bloqueRendimiento = (data) => { const r = data.grupos.rendimiento; return r.vistas ? r.vistas[enfoque] : r; };
+// El reporte a la vista es el de Taller (contadores y diseñadores): el del Encargado/Asistente o el enfoque Taller de Administrador y Gerente.
+const esRendimientoTaller = (data) => (enfoqueGlobal(data) ? enfoque === 'taller' : data.rol === 'encargado');
+
 // Notas del reporte de rendimiento.
 function notasRendimiento(data) {
-  const entregado = data.rol === 'encargado'
-    ? '<strong>Asignados / Entregados:</strong> vales con fecha de entrega en el período asignados a cada diseñador (y a ti) y, de ellos, los que su propuesta ya aprobó el Encargado.'
-    : '<strong>Creados / Autorizados:</strong> vales con fecha de entrega en el período creados por cada asesor (y por ti) y, de ellos, los que ya fueron autorizados.';
+  const propio = !enfoqueGlobal(data); // «y a ti» solo cuando la persona que ve el reporte también aparece en él
+  const taller = esRendimientoTaller(data);
+  const entregado = taller
+    ? `<strong>Asignados / Entregados:</strong> vales con fecha de entrega en el período asignados a cada diseñador${propio ? ' (y a ti)' : ''} y, de ellos, los que su propuesta ya aprobó el Encargado.`
+    : `<strong>Creados / Autorizados:</strong> vales con fecha de entrega en el período creados por cada asesor${propio ? ' (y por ti)' : ''} y, de ellos, los que ya fueron autorizados.`;
   return `<li>${entregado}</li>
     <li><strong>%:</strong> la segunda cifra entre la primera.</li>
-    ${data.rol === 'encargado'
+    ${taller
       ? '<li><strong>Cómo se calcula:</strong> Semana y Mes solo se consultan cuando ya cerraron y muestran las cifras al cierre: no cambian después (un vale aprobado después del cierre cuenta como sin entregar en ese período). Día, Hoy y Desde–Hasta muestran las cifras de hoy y solo cuentan vales cuya fecha de entrega ya llegó. Un vale que vence hoy es «sin entregar» pero no «atrasado» hasta mañana; «atrasado» es todo vale vencido que el Encargado aún no aprueba.</li><li><strong>Entregas tarde:</strong> de los entregados (aprobados por el Encargado), los que tienen atraso en su taller. <strong>% a tiempo:</strong> entregados sin atraso entre entregados. <strong>Sin entregar:</strong> asignados de la ventana que esa persona aún no entrega (asignados menos entregados). <strong>Sin asignar:</strong> vales de la ventana que ningún diseñador tiene todavía.</li>'
       : '<li><strong>Atrasados:</strong> vales abiertos del período con fecha de entrega vencida (hasta hoy).</li>'}
     <li>El período y los filtros de tienda, taller y personas se aplican igual que en Actividad.</li>`;
@@ -372,6 +391,16 @@ function htmlIndicadoresTaller(i) {
 // -----------------------------------------------------------------------
 // Filtros: agrupar por, tienda, taller, asesores y diseñadores
 // -----------------------------------------------------------------------
+// Selector «Ventas | Taller» de Rendimiento (Administrador y Gerente), con el mismo estilo que «Agrupar por».
+function htmlSelectorEnfoque(actual) {
+  const opciones = [{ id: 'ventas', texto: 'Ventas', icono: 'people-outline' }, { id: 'taller', texto: 'Taller', icono: 'construct-outline' }];
+  return `<div class="rep-agrupar" role="group" aria-label="Reporte de rendimiento">
+      <ion-icon name="${actual === 'taller' ? 'construct-outline' : 'people-outline'}" aria-hidden="true"></ion-icon>
+      <span class="rep-filtro-rotulo">Reporte</span>
+      ${opciones.map(o => `<button type="button" class="rp-segmento${o.id === actual ? ' is-activo' : ''}" data-enfoque="${o.id}" aria-pressed="${o.id === actual}">${o.texto}</button>`).join('')}
+    </div>`;
+}
+
 function renderFiltros(data, vista = 'actividad') {
   const cont = $('#rep-filtros');
   const f = data.filtros;
@@ -383,11 +412,16 @@ function renderFiltros(data, vista = 'actividad') {
   // El selector de diseñadores solo lista a quienes trabajan en el taller elegido (si hay uno).
   const tallerElegido = Number(r.tallerId) || null;
   const delTaller = (d) => !tallerElegido || !d.tallerIds || d.tallerIds.includes(tallerElegido);
-  const disenadoresVisibles = f.disenadores.filter(delTaller);
+  // Rendimiento de Administrador y Gerente: Ventas filtra por tienda, taller y asesor; Taller, por taller y diseñador.
+  const enfoqueFiltros = vista === 'rendimiento' ? enfoqueGlobal(data) : null;
+  const disenadoresVisibles = enfoqueFiltros === 'ventas' ? [] : f.disenadores.filter(delTaller);
+  const asesoresVisibles = enfoqueFiltros === 'taller' ? [] : f.asesores;
+  const tiendasVisibles = enfoqueFiltros === 'taller' ? [] : f.tiendas;
+  const evaluadosDelEnfoque = (data.evaluados || []).filter(p => !enfoqueFiltros || (enfoqueFiltros === 'ventas' ? f.asesores : f.disenadores).some(o => o.id === p.id));
   const opciones = (lista, valor, vacio) => `<option value="">${vacio}</option>${lista.map(o => `<option value="${o.id}"${String(o.id) === String(valor) ? ' selected' : ''}>${escapeHtml(o.nombre)}</option>`).join('')}`;
   cont.hidden = false;
   cont.innerHTML = `
-    ${vista === 'rendimiento' ? '' : `<div class="rep-agrupar${disponibles.length > 1 ? '' : ' rep-agrupar--fijo'}" role="group" aria-label="Agrupar por">
+    ${vista === 'rendimiento' ? (enfoqueFiltros ? htmlSelectorEnfoque(enfoqueFiltros) : '') : `<div class="rep-agrupar${disponibles.length > 1 ? '' : ' rep-agrupar--fijo'}" role="group" aria-label="Agrupar por">
       <ion-icon name="${ICONO_AGRUPAR[agrupar] || 'layers-outline'}" aria-hidden="true"></ion-icon>
       <span class="rep-filtro-rotulo">Agrupar por</span>
       ${disponibles.length > 1
@@ -395,12 +429,19 @@ function renderFiltros(data, vista = 'actividad') {
         : `<span class="rep-agrupar-fijo">${escapeHtml((disponibles[0] || AGRUPACIONES.find(a => a.id === agrupar) || {}).texto || '')}</span>`}
     </div>`}
     <div class="rep-filtros-fila">
-      ${f.tiendas.length ? `<select id="rep-f-tienda" class="filtro-tienda" aria-label="Filtrar por tienda">${opciones(f.tiendas, r.tiendaId, 'Todas las tiendas')}</select>` : ''}
+      ${tiendasVisibles.length ? `<select id="rep-f-tienda" class="filtro-tienda" aria-label="Filtrar por tienda">${opciones(f.tiendas, r.tiendaId, 'Todas las tiendas')}</select>` : ''}
       ${f.talleres.length ? `<select id="rep-f-taller" class="filtro-tienda" aria-label="Filtrar por taller">${opciones(f.talleres, r.tallerId, 'Todos los talleres')}</select>` : ''}
       <span id="rep-f-asesores"></span>
       <span id="rep-f-disenadores"></span>
       ${hayFiltros() ? '<button type="button" class="rep-link" id="rep-limpiar-filtros">Limpiar filtros</button>' : ''}
     </div>`;
+  cont.querySelectorAll('[data-enfoque]').forEach(b => b.addEventListener('click', () => {
+    if (enfoque === b.dataset.enfoque) return;
+    enfoque = b.dataset.enfoque;
+    guardarEnfoque(enfoque);
+    renderTodo(data); // Ventas y Taller ya vienen en la misma respuesta: no hace falta pedirlos otra vez
+    $(`[data-enfoque="${enfoque}"]`)?.focus();
+  }));
   cont.querySelectorAll('[data-agrupar]').forEach(b => b.addEventListener('click', () => {
     if (r.agruparPor === b.dataset.agrupar) return;
     r.agruparPor = b.dataset.agrupar;
@@ -418,10 +459,10 @@ function renderFiltros(data, vista = 'actividad') {
     r.expandidos.clear();
     cargarReportes();
   });
-  if (f.asesores.length) {
+  if (asesoresVisibles.length) {
     crearSelectorMultiple($('#rep-f-asesores', cont), {
       uid: 'rep-sel-asesores', icono: 'people-outline', vacio: 'Todos los asesores', plural: ['asesor', 'asesores'],
-      opciones: f.asesores, seleccion: r.asesorIds, alAplicar: (ids) => { r.asesorIds = ids; r.expandidos.clear(); cargarReportes(); }
+      opciones: asesoresVisibles, seleccion: r.asesorIds, alAplicar: (ids) => { r.asesorIds = ids; r.expandidos.clear(); cargarReportes(); }
     });
   }
   if (disenadoresVisibles.length) {
@@ -436,13 +477,12 @@ function renderFiltros(data, vista = 'actividad') {
     r.expandidos.clear();
     cargarReportes();
   });
-  renderFichas(data);
+  renderFichas(data, evaluadosDelEnfoque);
 }
 
 // Fichas de quién se evalúa (asesores o diseñadores elegidos), con × para quitar a cada uno.
-function renderFichas(data) {
+function renderFichas(data, ev = data.evaluados || []) {
   const cont = $('#rep-fichas');
-  const ev = data.evaluados || [];
   cont.hidden = !ev.length;
   if (!ev.length) { cont.innerHTML = ''; return; }
   cont.innerHTML = `<span class="rep-fichas-rotulo">Evaluando a:</span>${ev.map(p => `<span class="rep-ficha">${escapeHtml(p.nombre)}<button type="button" data-quitar="${p.id}" aria-label="Quitar a ${escapeHtml(p.nombre)}"><ion-icon name="close" aria-hidden="true"></ion-icon></button></span>`).join('')}<button type="button" class="rep-link" id="rep-limpiar">Limpiar</button>`;
@@ -488,7 +528,7 @@ function htmlTablaSeccion(sec, info) {
       <td class="rep-c-grupo" data-label="${info.texto}"><span class="rep-grupo-nombre"><span class="rep-avatar" aria-hidden="true">${escapeHtml(inicialesAvatar(g.nombre))}</span><span>${escapeHtml(g.nombre)}</span></span></td>
       ${vistaTaller ? `<td class="rep-c-ingreso" data-label="Fecha de ingreso">${escapeHtml(formatearFechaHora(v.creadoEn))}</td>` : ''}
       <td class="rep-c-estado" data-label="Estado">${celdaEstado(v)}</td>
-      <td class="rep-c-entrega" data-label="Entrega">${escapeHtml(formatearFecha(v.fechaEntrega))}</td>
+      <td class="rep-c-entrega fecha-entrega" data-label="Entrega">${escapeHtml(formatearFecha(v.fechaEntrega))}</td>
       ${conAtraso ? `<td class="rep-c-atraso" data-label="Atraso">${sec.clave === 'entregados' ? htmlAtrasoEntregado(v) : htmlAtraso(v)}</td>` : ''}
       <td class="rep-acciones-celda rep-c-acciones" data-label="Acciones"><div class="rep-acciones-fila">
         <button type="button" class="btn-icon" data-ver="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}"${v.tienePropuesta ? ' data-con-propuesta="1"' : ''}${v.multitaller ? ' data-multitaller="1"' : ''} title="Ver vale" aria-label="Ver vale ${escapeHtml(v.correlativo)}"><ion-icon name="eye-outline"></ion-icon></button>
@@ -623,7 +663,7 @@ function renderVales(data) {
       <td data-label="Correlativo"><strong>${escapeHtml(f.correlativo)}</strong>${f.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}</td>
       <td data-label="Cliente">${escapeHtml(f.cliente)}</td>
       <td data-label="Estado">${f.pipeline ? celdaEstado(f) : escapeHtml(ESTADOS_LABEL[f.estado] || f.estado)}</td>
-      <td data-label="Entrega">${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}${f.atrasado && f.diasAtraso >= 1 ? `<span class="badge badge-atraso">${f.diasAtraso}d</span>` : ''}</td>
+      <td data-label="Entrega" class="fecha-entrega">${f.fechaEntrega.slice(8, 10)}/${f.fechaEntrega.slice(5, 7)}${f.atrasado && f.diasAtraso >= 1 ? `<span class="badge badge-atraso">${f.diasAtraso}d</span>` : ''}</td>
       ${v.columnas.map(c => `<td class="rend-num" data-label="${escapeHtml(c.label)}">${formatear(f[c.clave], c.formato)}</td>`).join('')}
       <td data-label="Historial"><button type="button" class="btn-icon" data-historial="${f.id}" data-correlativo="${escapeHtml(f.correlativo)}" title="Ver historial" aria-label="Ver historial de ${escapeHtml(f.correlativo)}"><ion-icon name="time-outline"></ion-icon></button></td>
     </tr>`;

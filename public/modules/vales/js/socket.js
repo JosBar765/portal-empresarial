@@ -55,7 +55,7 @@ export function initSocket() {
     // notificación duplicada. Se sigue refrescando el buzón igual, solo se
     // omite el aviso.
     if (data.tipo === 'CORREGIDO') avisarCambioEnModalAutorizar(data.valeId);
-    const EVENTOS_CHAT = ['MENSAJE_RECHAZO', 'ADJUNTOS_VERIFICADOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS', 'MOD_BASICA_MENSAJE', 'MOD_BASICA_ACEPTADA', 'MOD_BASICA_RECHAZADA', 'MOD_BASICA_CANCELADA'];
+    const EVENTOS_CHAT = ['MENSAJE_RECHAZO', 'ADJUNTOS_VERIFICADOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS', 'RECHAZO_PROPUESTA_MENSAJE', 'RECHAZO_PROPUESTA_ACEPTADO', 'RECHAZO_PROPUESTA_RECHAZADO', 'RECHAZO_PROPUESTA_CANCELADO'];
     if (EVENTOS_CHAT.includes(data.tipo) && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId) {
       state.conversacionAbierta.refrescar();
     }
@@ -63,15 +63,15 @@ export function initSocket() {
     if (['ADJUNTOS_VERIFICADOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'].includes(data.tipo) && state.adjuntosModalAbierto && state.adjuntosModalAbierto.valeId === data.valeId) {
       state.adjuntosModalAbierto.cerrar();
     }
-    const conversacionVisible = ['MENSAJE_RECHAZO', 'MOD_BASICA_MENSAJE'].includes(data.tipo) && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId;
+    const conversacionVisible = ['MENSAJE_RECHAZO', 'RECHAZO_PROPUESTA_MENSAJE'].includes(data.tipo) && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId;
     const esPropiaAccion = data.actorId != null && data.actorId === state.user.id;
     if (!esPropiaAccion && !conversacionVisible) { // con la conversación abierta no se repite cartel ni beep
       const esAlerta = data.nivel === 'alerta';
       window.toast[esAlerta ? 'error' : 'info'](esAlerta ? 'Atención' : 'Vale de arte', data.mensaje);
       if (data.beep !== false) reproducirBeep();
     }
-    // Un mensaje del chat de una básica no cambia ninguna fila de la lista: el chat abierto se actualiza arriba.
-    if (data.tipo !== 'MOD_BASICA_MENSAJE') programarRecarga();
+    // Un mensaje del chat del rechazo de propuesta no cambia ninguna fila de la lista: el chat abierto se actualiza arriba.
+    if (data.tipo !== 'RECHAZO_PROPUESTA_MENSAJE') programarRecarga();
   });
   // Solo refresco, sin toast ni beep (ver `refrescar` en events.js).
   state.socket.on('vale_refrescar', () => programarRecarga());

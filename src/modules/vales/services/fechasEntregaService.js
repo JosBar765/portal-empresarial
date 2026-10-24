@@ -3,7 +3,7 @@
 const calendarioService = require('../../../core/calendario/calendarioService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
-const { esUrgente, DIAS_MINIMOS_SIN_URGENTE, DIAS_HABILES_MODIFICACION, TIPOS_MODIFICACION_CON_VALE } = require('./valeHelpers');
+const { esUrgente, DIAS_MINIMOS_SIN_URGENTE, diasHabilesDeModificacion, TIPOS_MODIFICACION_CON_VALE } = require('./valeHelpers');
 
 const MAX_TALLERES = 20;
 const MAX_DIAS_RANGO = 93;
@@ -24,7 +24,7 @@ function parsearFecha(crudo, etiqueta) {
 }
 
 class FechasEntregaService {
-  // Un vale MOD (modificacion = MEDIA o AVANZADA) no tiene «urgente»: rige su mínimo en días hábiles desde hoy.
+  // Un vale MOD (modificacion = BASICA, MEDIA o AVANZADA) rige por días hábiles desde hoy; «urgente» lo baja al siguiente día que reciba vales.
   async obtenerFechasEntrega(talleresCrudo, desdeCrudo, hastaCrudo, urgenteCrudo, modificacionCrudo) {
     const talleresIds = parsearTalleres(talleresCrudo);
     const desde = parsearFecha(desdeCrudo, 'La fecha inicial');
@@ -33,10 +33,12 @@ class FechasEntregaService {
     if ((hasta - desde) / MS_DIA >= MAX_DIAS_RANGO) throw new ErrorDeNegocio(`El rango no puede superar ${MAX_DIAS_RANGO} días.`);
     if (!(await calendarioService.existenTalleres(talleresIds))) throw new ErrorDeNegocio('Alguno de los talleres elegidos no existe.');
     const tipo = String(modificacionCrudo || '').toUpperCase();
-    if (TIPOS_MODIFICACION_CON_VALE.includes(tipo)) {
-      return calendarioService.fechasNoDisponibles(talleresIds, desdeCrudo, hastaCrudo, 0, undefined, DIAS_HABILES_MODIFICACION[tipo]);
+    const urgente = esUrgente(urgenteCrudo);
+    if (tipo && !TIPOS_MODIFICACION_CON_VALE.includes(tipo)) throw new ErrorDeNegocio('El tipo de modificación no es válido.');
+    if (tipo) {
+      return calendarioService.fechasNoDisponibles(talleresIds, desdeCrudo, hastaCrudo, 0, undefined, diasHabilesDeModificacion(tipo, urgente));
     }
-    return calendarioService.fechasNoDisponibles(talleresIds, desdeCrudo, hastaCrudo, esUrgente(urgenteCrudo) ? 0 : DIAS_MINIMOS_SIN_URGENTE);
+    return calendarioService.fechasNoDisponibles(talleresIds, desdeCrudo, hastaCrudo, urgente ? 0 : DIAS_MINIMOS_SIN_URGENTE);
   }
 }
 
