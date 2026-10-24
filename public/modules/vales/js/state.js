@@ -8,8 +8,8 @@ export const state = {
   vales: [],
   contadores: {},
   vista: 'buzon', // solo aplica a roles con sidebar
-  // Período de Buzón y Trabajo realizado (misma forma que el de Reportes); arranca en la semana de hoy.
-  ventana: { tipo: 'semana', fecha: isoLocal(new Date()), desde: '', hasta: '' },
+  // Período de Buzón y Trabajo realizado (misma forma que el de Reportes); arranca en el mes de hoy.
+  ventana: { tipo: 'mes', fecha: isoLocal(new Date()), desde: '', hasta: '' },
   tiendaId: null, // Vista Gerencia: filtro de tienda
   filtroContador: null,
   soloAtrasados: false, // combinable con filtroContador
