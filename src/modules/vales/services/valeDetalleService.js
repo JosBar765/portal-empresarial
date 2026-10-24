@@ -8,6 +8,7 @@ const propuestaRepository = require('../repositories/propuestaRepository');
 const documentoRepository = require('../repositories/documentoRepository');
 const historialRepository = require('../repositories/historialRepository');
 const valeMensajeRepository = require('../repositories/valeMensajeRepository');
+const rechazoPropuestaRepository = require('../repositories/valeRechazoPropuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
 const propuestasCompartidasService = require('./propuestasCompartidasService');
@@ -92,10 +93,12 @@ class ValeDetalleService {
     // consulta que ya usa aprobarModificacion() en valeConfirmacionService.
     const adjuntos = await this._adjuntosVisibles(usuario, talleresConNombre);
     // Registro de las conversaciones del rechazo (cerradas o no): solo con el permiso de historial; el buzón ya no las muestra.
-    const conversaciones = (usuario.permissions || []).includes('vales.ver_historial') ? await this._registroConversaciones(valeId) : [];
+    const verHistorial = (usuario.permissions || []).includes('vales.ver_historial');
+    const conversaciones = verHistorial ? await this._registroConversaciones(valeMensajeRepository, valeId) : [];
+    const conversacionesPropuesta = verHistorial ? await this._registroConversaciones(rechazoPropuestaRepository, valeId) : [];
     const propuestasOtrosTalleres = await propuestasCompartidasService.obtenerParaDetalle(usuario, valeId);
     return {
-      ...enriquecer(vale), talleres: talleresConNombre, adjuntos, propuestas, propuestasOtrosTalleres, documentos, historial: historialVisible, conversaciones,
+      ...enriquecer(vale), talleres: talleresConNombre, adjuntos, propuestas, propuestasOtrosTalleres, documentos, historial: historialVisible, conversaciones, conversacionesPropuesta,
       enlacesFusion: enlacesFusion.map(e => ({ nombre: e.nombre, url: e.url }))
     };
   }
@@ -129,8 +132,9 @@ class ValeDetalleService {
     };
   }
 
-  async _registroConversaciones(valeId) {
-    const mensajes = await valeMensajeRepository.listarPorVale(valeId);
+  // Hilos por taller del rechazo de adjuntos (valeMensajeRepository) o del rechazo de propuesta (rechazoPropuestaRepository).
+  async _registroConversaciones(repositorio, valeId) {
+    const mensajes = await (repositorio.listarMensajesPorVale || repositorio.listarPorVale).call(repositorio, valeId);
     const porTaller = new Map();
     for (const m of mensajes) {
       if (!porTaller.has(m.taller_id)) porTaller.set(m.taller_id, { taller_id: m.taller_id, taller: m.taller, mensajes: [] });

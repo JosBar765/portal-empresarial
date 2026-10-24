@@ -19,7 +19,7 @@ import { abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirSelectorModificacion } from '../actions/modificacionTipo.js';
 import { abrirModalHistorial } from '../actions/historial.js';
 import { abrirVisorPropuestasOtros } from '../actions/propuestasOtros.js';
-import { abrirConversacionesBasicas } from '../actions/modificacionBasica.js';
+import { abrirConversacionesRechazo } from '../actions/rechazoPropuesta.js';
 import { rechazosSinLeer, textoRechazos } from '../utils/modificacionesVistas.js';
 
 // -----------------------------------------------------------------------
@@ -33,6 +33,7 @@ export function construirQueryBase() {
   if (ROLES_CON_SIDEBAR.includes(rolEncargadoDe(state.user))) qs.set('vista', state.vista);
   if (state.filtroContador) qs.set('filtroContador', state.filtroContador);
   if (state.soloAtrasados) qs.set('soloAtrasados', '1');
+  if (state.soloRechazos && state.vista !== 'trabajo') qs.set('soloRechazos', '1');
   if (state.soloModificados) qs.set('soloModificados', '1');
   if (state.disenadorFiltro && state.vista !== 'trabajo') qs.set('disenadorId', state.disenadorFiltro);
   if (state.busqueda) qs.set('busqueda', state.busqueda);
@@ -132,14 +133,15 @@ export function renderContadores() {
     const valor = state.contadores[c.key];
     const mostrado = c.esTexto ? (valor || '—') : (valor ?? 0);
     const alerta = c.alerta && Number(valor) > 0;
-    const esClickeable = !!c.filtro || !!c.atrasadosGlobal || !!c.modificadosGlobal;
+    const esClickeable = !!c.filtro || !!c.atrasadosGlobal || !!c.modificadosGlobal || !!c.rechazosGlobal;
     // "Atrasados" y "Modificados" son contadores combinables: se activan/desactivan con su propio
     // interruptor (state.soloAtrasados / state.soloModificados) en vez de competir por
     // state.filtroContador con el resto de las tarjetas, que siguen siendo mutuamente excluyentes.
     const activo = c.atrasadosGlobal ? state.soloAtrasados
-      : (c.modificadosGlobal ? state.soloModificados : (c.filtro && state.filtroContador === c.filtro));
+      : (c.modificadosGlobal ? state.soloModificados : (c.rechazosGlobal ? state.soloRechazos : (c.filtro && state.filtroContador === c.filtro)));
     const clases = ['contador-card'];
     if (alerta) clases.push('contador-alerta');
+    if (c.rechazosGlobal) clases.push('contador-rechazos');
     if (esClickeable) clases.push('contador-clickeable');
     if (activo) clases.push('contador-activo');
     // Un valor largo (p. ej. el correlativo del vale en proceso del diseñador,
@@ -147,11 +149,11 @@ export function renderContadores() {
     // — .valor-compacto lo reduce sin tocar los contadores numéricos ni los
     // "N/M" cortos.
     const valorLargo = String(mostrado).length > 6;
-    const atributos = `class="${clases.join(' ')}" data-key="${c.key}" data-filtro="${c.filtro || ''}" data-atrasados-global="${c.atrasadosGlobal ? '1' : ''}" data-modificados-global="${c.modificadosGlobal ? '1' : ''}"`;
+    const atributos = `class="${clases.join(' ')}" data-key="${c.key}" data-filtro="${c.filtro || ''}" data-atrasados-global="${c.atrasadosGlobal ? '1' : ''}" data-modificados-global="${c.modificadosGlobal ? '1' : ''}" data-rechazos-global="${c.rechazosGlobal ? '1' : ''}"`;
     // `quien`: quién tiene que actuar en ese paso, en pequeño bajo la etiqueta.
     const etiqueta = c.quien
       ? `<span class="etiqueta"><span class="etiqueta-texto">${c.label}</span><span class="etiqueta-quien">${c.quien}</span></span>`
-      : `<span class="etiqueta">${c.label}</span>`;
+      : `<span class="etiqueta">${c.icono ? `<ion-icon name="${c.icono}"></ion-icon> ` : ''}${c.label}</span>`;
     const contenido = `<span class="valor${valorLargo ? ' valor-compacto' : ''}">${mostrado}</span>${etiqueta}`;
     return esClickeable
       ? `<button type="button" ${atributos} aria-pressed="${activo ? 'true' : 'false'}">${contenido}</button>`
@@ -169,13 +171,16 @@ export function renderContadores() {
     const filtro = card.dataset.filtro;
     const esAtrasadosGlobal = card.dataset.atrasadosGlobal === '1';
     const esModificadosGlobal = card.dataset.modificadosGlobal === '1';
-    if (!filtro && !esAtrasadosGlobal && !esModificadosGlobal) return;
+    const esRechazosGlobal = card.dataset.rechazosGlobal === '1';
+    if (!filtro && !esAtrasadosGlobal && !esModificadosGlobal && !esRechazosGlobal) return;
     card.addEventListener('click', () => {
       contadorEnfocado = card.dataset.key;
       if (esAtrasadosGlobal) {
         state.soloAtrasados = !state.soloAtrasados;
       } else if (esModificadosGlobal) {
         state.soloModificados = !state.soloModificados;
+      } else if (esRechazosGlobal) {
+        state.soloRechazos = !state.soloRechazos;
       } else {
         state.filtroContador = state.filtroContador === filtro ? null : filtro;
       }
@@ -230,7 +235,7 @@ const empresaDeFila = (v) => (ROLES_CON_EMPRESA.includes(state.user.rolId) && v.
 function pintarFilas(tbody, filas) {
   tbody.innerHTML = filas.map(v => `
     <tr>
-      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${badgeBasica(v)}${rechazosSinLeer(v).length ? `<span class="badge badge-rechazada" title="${escapeHtml(textoRechazos(rechazosSinLeer(v)))}">Básica rechazada</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${marcaPropuestaNueva(v)}${badgePersona(v)}${empresaDeFila(v)}</td>
+      <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${badgeRechazoPropuesta(v)}${rechazosSinLeer(v).length ? `<span class="badge badge-rechazada" title="${escapeHtml(textoRechazos(rechazosSinLeer(v)))}">Rechazo respondido</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${marcaPropuestaNueva(v)}${badgePersona(v)}${empresaDeFila(v)}</td>
       <td data-label="Fecha Ingreso" class="col-fecha-ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
       <td data-label="Fecha Entrega">${formatearFecha(v.fecha_entrega)}</td>
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
@@ -300,15 +305,17 @@ const propuestaVisible = (v) => propuestaGeneralVisible(v) || propuestaTallerVis
 
 const abrirVisorDeFila = (v, propuesta) => abrirVisorVale({ id: v.id, correlativo: v.correlativo, propuesta });
 
-// Modificaciones básicas del vale que ve quien mira: el asesor dueño ve todas; un taller solo las suyas.
-const basicasVisibles = (v) => (v.modificaciones_basicas || []).filter(m => v.taller_id == null || v.asesor_id === state.user.id || m.taller_id === v.taller_id);
+// Rechazos de propuesta del vale que ve quien mira: el asesor dueño ve todos; el equipo de un taller solo los suyos; nadie más (ni el supervisor).
+const rechazosVisibles = (v) => {
+  const rechazos = v.rechazos_propuesta || [];
+  if (v.asesor_id === state.user.id) return puede('rechazarPropuesta') ? rechazos : [];
+  return puede('responderRechazoPropuesta') ? rechazos.filter(r => v.taller_id == null || r.taller_id === v.taller_id) : [];
+};
 
-// Etiqueta mientras la modificación básica está en trámite: se conversa o el taller aceptó y rehace la propuesta.
-function badgeBasica(v) {
-  const basicas = basicasVisibles(v);
-  if (basicas.some(m => m.estado === 'EN_CONVERSACION')) return '<span class="badge badge-basica" title="Hay una modificación básica en conversación">Básica en chat</span>';
-  if (basicas.some(m => m.estado === 'ACEPTADA')) return '<span class="badge badge-basica" title="El taller aceptó: se está rehaciendo la propuesta">Básica en proceso</span>';
-  return '';
+// Etiqueta mientras hay un rechazo de propuesta esperando la respuesta del taller.
+function badgeRechazoPropuesta(v) {
+  if (!rechazosVisibles(v).some(r => r.estado === 'ABIERTO')) return '';
+  return '<span class="badge badge-basica" title="El asesor rechazó la propuesta y espera la respuesta del taller">Rechazo de propuesta</span>';
 }
 
 export function construirAcciones(v) {
@@ -317,9 +324,9 @@ export function construirAcciones(v) {
   const ajenoDeSupervisor = state.user.rolId === ROL.SUPERVISOR && !esMio;
   // En el paso 5 (pendiente de confirmación) el «ojo» y el de confirmar son un solo botón: abre el vale y la propuesta con
   // «Confirmar recibido» y «Solicitar modificación» abajo. Con una modificación en trámite hay un solo camino a la vez.
-  // Con una modificación básica abierta tampoco se confirma: se conversa con el taller hasta que responda.
-  const basicasAbiertas = v.modificaciones_basicas_abiertas || [];
-  const decideEnPaso5 = puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite && !basicasAbiertas.length && !ajenoDeSupervisor;
+  // Con un rechazo de propuesta abierto tampoco se confirma ni se modifica: se conversa con el taller hasta que responda (o se cancela).
+  const rechazosAbiertos = (v.rechazos_propuesta || []).filter(r => r.estado === 'ABIERTO');
+  const decideEnPaso5 = puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite && !rechazosAbiertos.length && !ajenoDeSupervisor;
   // El supervisor abre un modal de elección (Ver info / Ver vale) en vez de ir
   // directo al PDF — a veces solo necesita los datos de encabezado. Vale también para los suyos, que él autoriza.
   const acciones = decideEnPaso5
@@ -366,22 +373,26 @@ export function construirAcciones(v) {
     acciones.push({ icono: 'checkmark-done-circle-outline', titulo: 'Aprobar y fusionar', clase: 'icon-success', onClick: abrirModalAprobarGeneral });
   }
   // Un vale recibido se puede modificar si todavía no tiene un vale MOD hijo; un MOD recibido también (MOD2, MOD3…).
-  // Desde aquí solo se ofrecen la modificación media y la avanzada.
-  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.mod_en_tramite && !basicasAbiertas.length && !ajenoDeSupervisor) {
+  // El selector ofrece las tres modificaciones (básica, media y avanzada); todas crean un vale MOD.
+  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.mod_en_tramite && !rechazosAbiertos.length && !ajenoDeSupervisor) {
     acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirSelectorModificacion });
   }
-  // Chat de la modificación básica: queda en la fila mientras haya alguna visible para quien mira (asesor dueño o equipo del taller),
-  // también ya cerrada, para saber qué se pidió. Rojo si hay un rechazo sin leer; el servidor entrega solo las conversaciones del taller.
-  const basicas = basicasVisibles(v);
-  const equipoTaller = puede('responderModificacionBasica');
+  // Chat del rechazo de propuesta: queda en la fila mientras haya un rechazo a la vista para quien mira (asesor dueño o equipo del taller).
+  // Rojo si el taller respondió y falta leerlo; verde para el taller cuando debe responder.
+  const hayRechazos = rechazosVisibles(v);
+  const equipoTaller = puede('responderRechazoPropuesta') && !esMio;
   const rechazos = rechazosSinLeer(v);
-  if (basicas.length && ((puede('solicitarModificacion') && esMio) || equipoTaller)) {
+  if (hayRechazos.length) {
+    const abiertos = hayRechazos.filter(r => r.estado === 'ABIERTO');
     acciones.push({
       icono: 'chatbubbles-outline',
-      titulo: rechazos.length ? 'Ver chat del rechazo' : (equipoTaller && basicasAbiertas.length ? 'Responder modificación' : 'Chat de la modificación'),
-      clase: rechazos.length ? 'icon-danger' : (basicasAbiertas.length ? 'icon-success' : undefined),
-      onClick: (vale) => abrirConversacionesBasicas(vale, rechazos.length ? { ids: rechazos.map(r => r.id) } : {})
+      titulo: rechazos.length ? 'Ver respuesta del taller' : (equipoTaller && abiertos.length ? 'Responder rechazo de propuesta' : 'Chat del rechazo de propuesta'),
+      clase: rechazos.length ? 'icon-danger' : (abiertos.length ? 'icon-success' : undefined),
+      onClick: (vale) => abrirConversacionesRechazo(vale, rechazos.length ? { ids: rechazos.map(r => r.id) } : {})
     });
+  } else if ((v.hilos_rechazo_propuesta || []).length) {
+    // Registro: con la ronda cerrada, y aun con el vale ya recibido, el chat sigue a la mano en solo lectura mientras el vale exista.
+    acciones.push({ icono: 'chatbubbles-outline', titulo: 'Ver conversación del rechazo', onClick: (vale) => abrirConversacionesRechazo(vale) });
   }
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });

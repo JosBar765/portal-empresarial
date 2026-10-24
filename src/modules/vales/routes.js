@@ -47,11 +47,12 @@ const escribirConversacion = (req, res, next) => {
     : res.status(403).json({ error: 'No tienes permiso para escribir en esta conversación.' });
 };
 const solicitarModificacionVale = requirePermission('vales.solicitar_modificacion');
-const responderModificacionBasica = requirePermission('vales.responder_modificacion_basica');
-// La conversación de una modificación básica la escribe el asesor (vales.solicitar_modificacion) o el taller (vales.responder_modificacion_basica).
-const escribirModificacionBasica = (req, res, next) => {
+const rechazarPropuesta = requirePermission('vales.rechazar_propuesta');
+const responderRechazoPropuesta = requirePermission('vales.responder_rechazo_propuesta');
+// La conversación del rechazo de propuesta la escribe el asesor dueño (vales.rechazar_propuesta) o el taller (vales.responder_rechazo_propuesta).
+const escribirRechazoPropuesta = (req, res, next) => {
   const permisos = req.user.permissions || [];
-  return permisos.includes('vales.responder_modificacion_basica') || permisos.includes('vales.solicitar_modificacion')
+  return permisos.includes('vales.responder_rechazo_propuesta') || permisos.includes('vales.rechazar_propuesta')
     ? next()
     : res.status(403).json({ error: 'No tienes permiso para escribir en esta conversación.' });
 };
@@ -104,13 +105,13 @@ router.post('/:id/revisar', revisarVale, (req, res) => valeController.revisar(re
 router.post('/:id/aprobar-general', aprobacionGeneralVale, campoFusion, (req, res) => valeController.aprobarGeneral(req, res));
 router.post('/:id/confirmar', confirmarVale, (req, res) => valeController.confirmar(req, res));
 router.post('/:id/solicitar-modificacion', solicitarModificacionVale, camposAdjuntos, (req, res) => valeController.solicitarModificacion(req, res));
-router.get('/:id/modificaciones-basicas', verVales, (req, res) => valeController.listarModificacionesBasicas(req, res));
-router.post('/:id/modificaciones-basicas', solicitarModificacionVale, (req, res) => valeController.solicitarModificacionBasica(req, res));
-router.get('/:id/modificaciones-basicas/:modId/mensajes', verVales, (req, res) => valeController.conversacionModificacionBasica(req, res));
-router.post('/:id/modificaciones-basicas/:modId/mensajes', escribirModificacionBasica, (req, res) => valeController.enviarMensajeModificacionBasica(req, res));
-router.post('/:id/modificaciones-basicas/:modId/aceptar', responderModificacionBasica, (req, res) => valeController.aceptarModificacionBasica(req, res));
-router.post('/:id/modificaciones-basicas/:modId/rechazar', responderModificacionBasica, (req, res) => valeController.rechazarModificacionBasica(req, res));
-router.post('/:id/modificaciones-basicas/:modId/cancelar', solicitarModificacionVale, (req, res) => valeController.cancelarModificacionBasica(req, res));
+router.get('/:id/rechazos-propuesta', verVales, (req, res) => valeController.listarRechazosPropuesta(req, res));
+router.post('/:id/rechazos-propuesta', rechazarPropuesta, (req, res) => valeController.solicitarRechazoPropuesta(req, res));
+router.get('/:id/rechazos-propuesta/:rechazoId/mensajes', verVales, (req, res) => valeController.conversacionRechazoPropuesta(req, res));
+router.post('/:id/rechazos-propuesta/:rechazoId/mensajes', escribirRechazoPropuesta, (req, res) => valeController.enviarMensajeRechazoPropuesta(req, res));
+router.post('/:id/rechazos-propuesta/:rechazoId/aceptar', responderRechazoPropuesta, (req, res) => valeController.aceptarRechazoPropuesta(req, res));
+router.post('/:id/rechazos-propuesta/:rechazoId/rechazar', responderRechazoPropuesta, (req, res) => valeController.rechazarRechazoPropuesta(req, res));
+router.post('/:id/rechazos-propuesta/:rechazoId/cancelar', rechazarPropuesta, (req, res) => valeController.cancelarRechazoPropuesta(req, res));
 router.post('/:id/aprobar-modificacion', aprobarModificacionVale, (req, res) => valeController.aprobarModificacion(req, res));
 router.post('/:id/rechazar-modificacion', aprobarModificacionVale, (req, res) => valeController.rechazarModificacion(req, res));
 router.post('/:id/autorizar-creacion', autorizarCreacionVale, (req, res) => valeController.autorizarCreacion(req, res));

@@ -243,35 +243,26 @@ Notas:
 ### 1.1 Modificación
 
 Hay **tres tipos** de modificación, según la complejidad del cambio. El asesor los elige en un selector con
-una explicación de cada uno (botón único del paso 5 → «Solicitar modificación»). Los días son **mínimos** y se
-cuentan en **días hábiles** (días que reciben vales: sin fines de semana ni feriados del país) desde el día de la
-solicitud:
+una explicación de cada uno (botón único del paso 5 → «Solicitar modificación»). **Las tres crean un vale MOD** con
+el mismo flujo (formulario completo, justificación, adjuntos y autorización del supervisor); solo cambia el plazo. Los
+días son **mínimos** y se cuentan en **días hábiles** (días que reciben vales: sin fines de semana, feriados del país
+ni días que el taller no recibe) desde el día de la solicitud, con la hora máxima del taller:
 
-| Tipo | Vale MOD | Quién decide | Fecha de entrega |
-|---|---|---|---|
-| **Básica** | No | El taller, por chat | +1 día hábil, fijo; no valida cupo |
-| **Media** | Sí (`MOD-X`, `MOD2-X`…) | El supervisor | Mínimo +2 días hábiles (puede ser más) |
-| **Avanzada** | Sí | El supervisor | Mínimo +3 días hábiles (puede ser más) |
+| Tipo | Vale MOD | Quién decide | Fecha de entrega mínima (sin urgente) | Con «urgente» |
+|---|---|---|---|---|
+| **Básica** | Sí (`MOD-X`, `MOD2-X`…) | El supervisor | +1 día hábil | El siguiente día que reciba vales |
+| **Media** | Sí | El supervisor | +2 días hábiles | El siguiente día que reciba vales |
+| **Avanzada** | Sí | El supervisor | +3 días hábiles | El siguiente día que reciba vales |
 
-Un vale MOD **no admite «urgente»** (se ignora aunque llegue) y su fecha mínima reemplaza la regla de 3 días del vale
-normal. Los MOD son **acumulables**: la primera modificación con vale es `MOD-X`, la segunda `MOD2-X` y así
-sucesivamente (`X` es el correlativo raíz). Se pide siempre sobre el **último** vale vigente (`vale_original_id`
-apunta al vale que modifica); un vale que ya tiene un MOD hijo (`modificado = 1`) no se vuelve a modificar. Se guardan
-`vales.modificacion_tipo` (`MEDIA`/`AVANZADA`) y `vales.modificacion_numero` (1, 2, 3…).
+**Una modificación nunca es de hoy para hoy**, a ninguna hora, ni básica ni urgente. El formulario de modificación
+tiene la casilla «Pedido urgente» (mismo mecanismo que al crear un vale). Los MOD son **acumulables**: la primera
+modificación con vale es `MOD-X`, la segunda `MOD2-X` y así sucesivamente (`X` es el correlativo raíz). Se pide
+siempre sobre el **último** vale vigente (`vale_original_id` apunta al vale que modifica); un vale que ya tiene un MOD
+hijo (`modificado = 1`) no se vuelve a modificar. Se guardan `vales.modificacion_tipo` (`BASICA`/`MEDIA`/`AVANZADA`)
+y `vales.modificacion_numero` (1, 2, 3…). Con un **rechazo de propuesta abierto** (§1.2) no se puede pedir una
+modificación hasta que el taller responda o el asesor cancele el rechazo.
 
-#### Modificación básica (sin vale MOD)
-
-Desde `PENDIENTE_CONFIRMACION` **o con el vale ya confirmado (`RECIBIDO`)**, también sobre un vale que ya es MOD (`MOD-X`, `MOD2-X`…). El original con un MOD hijo (`modificado = 1`) no la admite: se pide sobre el MOD más reciente. El asesor elige a qué taller(es) con propuesta aprobada se la pide (uno o varios en la misma solicitud) y escribe el primer mensaje (200 caracteres).
-**Solo hay una básica en curso por vale** (en conversación o aceptada y sin su nueva propuesta aprobada): mientras exista, no se manda otra a ningún taller. No se confirma el vale ni se pide otra modificación mientras se conversa. La fecha del evento no restringe. Tablas `vale_modificaciones_basicas` y `vale_modificacion_mensajes`; permiso `vales.responder_modificacion_basica` para el equipo del taller.
-
-- **Fecha de entrega (se fija al pedir):** el día base es el que recibiría un vale pedido ahora (hoy antes de la hora máxima del taller, o el siguiente día que reciba vales) y la entrega es el **siguiente día que reciba vales**; con varios talleres rige el más tardío y nunca adelanta la fecha que ya tenía. Si se pide después de la hora máxima del taller, cuenta desde el día siguiente. Al aceptar se usa esa fecha, sin recalcular: si ya pasó, el vale empieza con atraso.
-- **El taller acepta:** la fila de su taller vuelve a **«Por asignar» (paso 2)**, sin diseñador, y el vale pasa a `CREADO` (si estaba `RECIBIDO` también se borra su fecha de confirmación). El encargado lo asigna de nuevo (puede elegir otro diseñador) y sigue el flujo normal: en proceso, revisión y paso 5. No se crea vale MOD. El atraso se reinicia en ese momento.
-- **El taller rechaza / el asesor cancela:** nada cambia; el vale conserva su estado y se puede pedir otra básica sin límite de intentos. Si rechaza el taller, el asesor lo ve con la etiqueta «Básica rechazada» y un botón de chat rojo en la fila, y con una franja en el visor del paso 5, hasta que abre la conversación (lo leído se guarda en su navegador).
-- Cuando el diseñador entrega y el encargado aprueba la nueva propuesta, la modificación queda `ENTREGADA` y el vale vuelve a `PENDIENTE_CONFIRMACION` (con 2+ talleres vuelve a pasar por la fusión) para confirmarlo otra vez.
-- **El chat persiste:** el botón de chat queda en la fila del asesor dueño y del equipo del taller (cada taller ve solo las suyas) también después de aceptar, rechazar, entregar o confirmar, en solo lectura. Con varias solicitudes abre una lista con su estado. Mientras está en trámite la fila lleva la etiqueta **«Básica en chat»** (se conversa) o **«Básica en proceso»** (el taller aceptó y rehace la propuesta); las de básica llevan borde fino para no confundirlas con las etiquetas MOD rellenas, y el rechazo va en ámbar (el rojo queda para urgente y atraso).
-- Sin plazo automático. La conversación se muestra al asesor dueño y al equipo del taller; el supervisor no la lee. El buzón del encargado muestra primero estas solicitudes aunque su fila ya esté aprobada.
-
-#### Modificación media y avanzada (vale MOD)
+#### Vale MOD (básica, media y avanzada)
 
 La solicitud crea **un vale nuevo** (`MOD-<correlativo>`) y deja el vale modificado en
 `RECIBIDO`. El `MOD-` nace completo al solicitar; su estado de espera es
@@ -321,7 +312,7 @@ La solicitud crea **un vale nuevo** (`MOD-<correlativo>`) y deja el vale modific
 - Son **dos registros y dos PDF independientes**: el original nunca se sobreescribe; "Ver PDF"
   del original sirve siempre el del original.
 - Cada vale admite **una** modificación con vale a la vez: no puede modificarse un vale con `modificado = 1` ni uno
-  que ya tenga un `MOD` en trámite o una modificación básica en conversación. Un `MOD` recibido sí puede
+  que ya tenga un `MOD` en trámite o un rechazo de propuesta abierto. Un `MOD` recibido sí puede
   modificarse de nuevo (`MOD2-`, `MOD3-`…).
 - El **supervisor** autoriza o rechaza usando el id del propio `MOD-`
   (`aprobar-modificacion` / `rechazar-modificacion`), nunca el del original.
@@ -333,6 +324,68 @@ La solicitud crea **un vale nuevo** (`MOD-<correlativo>`) y deja el vale modific
 - Al asesor, el estado de un vale `MOD-` se le muestra como `SOLICITANDO_MODIFICACION`
   mientras está pendiente, `MODIFICADO` en talleres, y `CONFIRMADO` al recibirse; el de un
   vale normal `RECIBIDO` se le muestra como `CONFIRMADO` (`estadoVisibleAsesor`).
+
+### 1.2 Rechazo de propuesta
+
+Con el vale en `PENDIENTE_CONFIRMACION` (también un vale MOD), el **asesor dueño** (permiso `vales.rechazar_propuesta`, solo el rol
+Asesor; el supervisor no) puede rechazar la propuesta de **uno o varios talleres** (cada uno activo y con su propuesta
+`APROBADO`) escribiendo un mensaje obligatorio de 1 a 200 caracteres. Solo regresan los talleres elegidos; los demás siguen
+`APROBADO`. No se puede rechazar con una modificación en trámite.
+
+```
+ Asesor dueño rechaza la propuesta de un taller (vale en PENDIENTE_CONFIRMACION)
+   · se abre una ronda ABIERTO; el vale y la fila del taller no cambian; el atraso sigue detenido
+   · el asesor NO puede confirmar ni pedir una modificación mientras esté ABIERTO (sí puede CANCELARLO)
+        │
+        ▼  Encargado o asistente de ESE taller (permiso vales.responder_rechazo_propuesta)
+ ┌──────────────┴───────────────────────────────┐
+ │ RECHAZA (mensaje obligatorio, p. ej.          │ ACEPTA
+ │ «tramita una modificación»)                   │
+ ▼                                              ▼
+ Ronda RECHAZADO: el vale sigue en              Ronda ACEPTADO:
+ PENDIENTE_CONFIRMACION con el atraso           · la fila del taller pasa a PENDIENTE_ASIGNACION, sin
+ detenido. El asesor puede confirmar,             diseñador (el encargado decide a quién asignarlo)
+ pedir una modificación o volver a              · el vale vuelve a CREADO
+ rechazar sin límite (mismo hilo).              · la fecha de entrega NO cambia
+                                                · el atraso se DESCONGELA: `atraso_congelado_en = NULL` en
+                                                  la fila del taller y en el vale; corre desde la fecha
+                                                  original
+                                                        │
+                                                        ▼
+                      sigue el flujo normal del taller (§2): asignar, trabajar, revisar y, al aprobar, de nuevo
+                      el paso 5 (con 2+ talleres vuelve a pasar por la fusión)
+```
+
+- **Cancelar:** mientras la ronda está abierta el asesor dueño puede cancelarla (`CANCELADO`) y entonces confirmar el vale.
+- **Respuesta por taller:** cada taller responde por separado; el que acepta regresa y el vale pasa a `CREADO`. Si otro taller
+  aún tenía una ronda abierta, esa ronda sigue abierta y se puede responder mientras el vale no haya salido del trabajo del taller.
+- **Hilo propio por taller**, separado del de adjuntos (§2.1) y con la misma mecánica: un hilo por taller dentro del vale, sin límite de
+  mensajes, 200 caracteres por mensaje. Es un chat por turnos: escriben el asesor dueño y el encargado o asistente de ese taller solo mientras
+  la ronda esté `ABIERTO`. Al cerrarse la ronda (el taller acepta = acuerdo, el taller rechaza o el asesor cancela) ya no se puede escribir, pero
+  **el hilo permanece visible en solo lectura mientras el vale exista**, también cuando el taller entregó la corrección y el asesor marcó el vale
+  como recibido (`RECIBIDO`) y en «Trabajo realizado»: es el registro de que el vale fue rechazado y mandado a corregir, con el motivo y el acuerdo
+  (los mensajes se conservan, caen en cascada con el vale). Una nueva ronda de rechazo **continúa el mismo hilo** del taller (historial completo).
+- **Quién consulta el hilo (solo lectura una vez cerrada la ronda):** el asesor dueño (el de todos los talleres del vale), el equipo del taller
+  (encargado y asistentes, el de su taller) y el diseñador asignado a ese taller en ese vale (nunca escribe ni decide). El supervisor y un taller
+  ajeno no ven nada (403). El administrador y el gerente lo ven en el historial del vale (`conversacionesPropuesta`) si tienen `vales.ver_historial`,
+  como el chat de adjuntos. No hay etiqueta visual nueva: el acceso es el botón «Ver conversación del rechazo» de la fila del vale, visible solo si
+  el vale tiene al menos una ronda para ese usuario (campo `hilos_rechazo_propuesta` de cada fila del buzón y de «Trabajo realizado», una consulta
+  por página). Abierto desde una ronda cerrada, el chat muestra el hilo completo del taller y el cierre («Acuerdo: el taller aceptó el rechazo»,
+  «El taller rechazó el rechazo» o «El asesor canceló el rechazo») sin caja de texto ni botones de acción.
+- **Siempre en el Buzón del taller:** el vale con rechazo de propuesta aparece siempre en el Buzón del Encargado/Asistente de ese taller, sin importar la ventana de fechas: con la ronda **abierta** (también con una tarjeta de contador activa; solo los filtros de tienda, diseñador, «atrasados» y «modificados» lo pueden ocultar) y, tras **aceptar**, mientras la fila del taller no vuelva a `APROBADO` (cuenta en «Por asignar» u otro contador según su estado y respeta las tarjetas como cualquier vale, aunque la entrega sea futura). Al volver a aprobar deja de ser excepción de ventana; tras el **rechazo** del taller queda en «Trabajo realizado», como antes. El Administrador y el Gerente (vista general) tienen la misma garantía: el vale con la ronda **abierta** (agregado después del filtro de contador) o devuelto tras **aceptar** (cuenta en los contadores de su estado) siempre aparece en su Buzón, sin importar la ventana; tras el **rechazo** del taller sigue la regla normal de ventana.
+- **Contador «Rechazos» (solo Buzón del Encargado, del Asistente, del Administrador y del Gerente):** tarjeta a la izquierda de «Atrasados» (tono de advertencia, icono de devolución). Cuenta **por vale** los que el asesor rechazó y el taller debe corregir: con una ronda `ABIERTO` de su taller (aún sin responder; el Administrador y el Gerente cuentan los de cualquier taller, cada vale una sola vez) o devueltos (ronda `ACEPTADO` mientras la fila activa de su taller no vuelva a `APROBADO`); no cuenta si el taller rechazó el rechazo (`RECHAZADO`) ni tras `CANCELADO`. Respeta la ventana de fechas igual que «Atrasados» (un vale con entrega posterior a la ventana no cuenta ni se muestra al filtrar; los anteriores al inicio cuentan como arrastrados), pero la lista principal sigue mostrando siempre estos vales. Es un interruptor combinable (`soloRechazos`) con las demás tarjetas; un clic filtra y otro lo quita. En el Gerente (solo lectura) solo filtra la lista: no concede acceso al chat ni a ningún permiso. No existe en «Trabajo realizado» ni en las vistas del Supervisor, Asesor y Diseñador.
+- **A la vista:** la fila del asesor y la del taller llevan la etiqueta «Rechazo de propuesta» mientras la ronda está abierta; el buzón del encargado
+  muestra primero estos vales aunque su fila ya esté aprobada. El asesor ve «Rechazo respondido» (y un botón de chat rojo) cuando el taller rechazó,
+  hasta que abre la conversación (lo leído se guarda en su navegador). Con la ronda cerrada por acuerdo o cancelación el chat no se retira: queda el
+  botón «Ver conversación del rechazo» (solo lectura).
+- **Tablas:** `vale_rechazos_propuesta` (una ronda por taller: `ABIERTO`, `ACEPTADO`, `RECHAZADO`, `CANCELADO`) y
+  `vale_rechazo_propuesta_mensajes` (el hilo por `vale_taller_id`). La modificación básica con chat anterior
+  (`vale_modificaciones_basicas`, `vale_modificacion_mensajes` y el permiso `vales.responder_modificacion_basica`) quedó sin uso y no se borra.
+- **Avisos y tiempo real:** eventos `RECHAZO_PROPUESTA_SOLICITADO`, `_MENSAJE`, `_ACEPTADO`, `_RECHAZADO` y `_CANCELADO`, entre el asesor
+  y la sala del taller (encargado y asistentes; el diseñador asignado solo recibe el refresco silencioso para ver el cierre con el chat abierto).
+  Cada paso queda en `vale_historial`. Rutas: `/api/vales/:id/rechazos-propuesta` (GET: todas las rondas visibles para quien consulta, abiertas o
+  cerradas; POST: crear), `/:rechazoId/mensajes` (GET: el hilo completo del taller en cualquier estado de la ronda y del vale; POST: escribir, solo con la
+  ronda abierta), `/aceptar`, `/rechazar` y `/cancelar`.
 
 ## 2. Estado por TALLER (`vale_talleres.estado`)
 
@@ -427,7 +480,7 @@ cambia quién puede hacer cada acción.
 | Rol (id) | Permisos de vales | Qué hace |
 |---|---|---|
 | Administrador (1) | `vales.ver`, `vales.ver_reportes`, `vales.ver_historial` (+ `admin.*`) | Ve todo el buzón. **No** tiene permisos de escritura sobre vales: no puede autorizar, asignar, aprobar ni confirmar. |
-| Asesor de Ventas (2) | `ver`, `crear`, `editar`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir` | Crea vales; los corrige o da de baja antes de ser autorizados; confirma el recibido o solicita la modificación. |
+| Asesor de Ventas (2) | `ver`, `crear`, `editar`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir`, **`rechazar_propuesta`** | Crea vales; los corrige o da de baja antes de ser autorizados; confirma el recibido, rechaza la propuesta de un taller (§1.2) o solicita la modificación. |
 | Supervisor de Ventas (3) | `ver`, `autorizar_creacion`, `aprobar_modificacion`, `supervisar`, `ver_cupo`, y para sus propios vales `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`supervisor_tiendas`). También crea y gestiona **sus propios vales** (ver «Vales del supervisor» abajo). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
 | Encargado de Diseño (4) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Dueño del taller "Diseño". Asigna y revisa, puede trabajar vales él mismo, y **fusiona** los vales multi-taller. |
 | Encargado de Diseño UV/3D (5) | `ver`, `asignar`, `revisar`, `trabajar` | Dueño del taller "Diseño UV/3D". Sin fusión. |
@@ -436,6 +489,10 @@ cambia quién puede hacer cada acción.
 | Gerente (8) | `ver`, `ver_reportes` | Solo lectura (ver §6). |
 | Encargado de Protextil (9) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de su taller; puede trabajar vales él mismo, pero **sin fusión**. |
 | Diseño Local (10) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de un taller de Diseño Local (ligado a una tienda); sin fusión. |
+
+> **Rechazo de propuesta (§1.2).** `vales.rechazar_propuesta` lo tiene el rol Asesor (2). `vales.responder_rechazo_propuesta` lo tienen los
+> mismos roles que ya tenían `vales.verificar_adjuntos`: los encargados y asistentes de cada taller. Los usuarios deben cerrar sesión e iniciar de
+> nuevo para recibir los permisos. `vales.responder_modificacion_basica` quedó sin uso.
 
 > **Nombre del rol 6.** El rol que trabaja los vales en el taller se llama **Diseñador** (antes
 > «Técnico»), en pantalla, en la base y en el código: `vale_talleres.disenador_id`,
@@ -589,6 +646,8 @@ combinarse con cualquier filtro de estado.
   Después de congelado se queda fijo, aunque luego se pida una
   modificación (`vales.atraso_congelado_en`). Los vales ya
   `RECIBIDO` sin sello de congelamiento usan `actualizado_en` como respaldo.
+- Un **rechazo de propuesta** que el taller acepta (§1.2) **descongela** el atraso: `atraso_congelado_en` vuelve a `NULL` en la fila del taller y en el vale, y
+  corre otra vez desde la fecha de entrega original (que no cambia). Mientras el rechazo está abierto o el taller lo rechaza, sigue detenido.
 - **Alerta en vivo:** `atrasoWatcher.js` corre cada 60 s en el mismo proceso
   y detecta los vales con **1 día o más** de atraso (a partir de las 00:00 del
   día siguiente a su `fecha_entrega`; ese mismo día solo se muestra "Hoy"). Dispara

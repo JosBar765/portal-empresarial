@@ -327,6 +327,15 @@
   color: var(--color-danger);
 }
 
+/* «Rechazos»: tono de advertencia (distinto del rojo de Atrasados) para lo que el asesor devolvió al taller. */
+.contador-card.contador-rechazos .valor,
+.contador-card.contador-rechazos .etiqueta ion-icon {
+  color: var(--color-warning);
+}
+.contador-card.contador-rechazos .etiqueta ion-icon {
+  vertical-align: -2px;
+}
+
 /* Los contadores con filtro asociado se activan/desactivan con un clic para filtrar el buzón. */
 .contador-card.contador-clickeable {
   cursor: pointer;
@@ -2093,14 +2102,11 @@
 .opcion-taller:has(input:checked) { border-color: var(--color-primary); background: var(--color-primary-light); }
 .mb-taller-unico { display: inline-flex; align-items: center; gap: 6px; margin: 12px 0 4px; padding: 4px 10px; font-size: 13px; font-weight: 600; background: var(--color-surface-muted); border-radius: var(--radius-full); }
 .mb-taller-unico ion-icon { font-size: 15px; color: var(--color-primary); }
-/* Modificación básica (sin vale MOD): con borde, para no confundirla con las etiquetas MOD rellenas. El rechazo va en ámbar: el rojo es de urgente y atraso. */
+/* Rechazo de propuesta: con borde, para no confundirlo con las etiquetas MOD rellenas. El rechazo va en ámbar: el rojo es de urgente y atraso. */
 .badge-basica { padding: 3px 9px; background: var(--color-surface); color: var(--color-primary-dark); border: 1px solid var(--color-border-focus); margin-left: 6px; cursor: help; }
 .badge-rechazada { background: #fef3c7; color: #92400e; margin-left: 6px; cursor: help; }
 .mb-etiqueta { display: block; margin: 12px 0 6px; font-size: 13px; font-weight: 600; }
 .mb-estado { margin: 8px 0 4px; font-size: 13px; font-weight: 500; }
-.mb-fechas { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 12.5px; color: var(--color-text-secondary); }
-.mb-fechas[hidden] { display: none; }
-.mb-fechas ion-icon { flex: none; font-size: 15px; }
 .btn--texto-peligro { color: var(--color-danger); }
 .btn--texto-peligro:hover:not(:disabled) { background: var(--color-danger-bg); }
 .lista-conversaciones { display: flex; flex-direction: column; gap: 8px; }

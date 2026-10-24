@@ -62,14 +62,22 @@ export function abrirModalBorrador(borrador) {
 }
 
 const NOTA_ENTREGA_SIN_TALLER = 'Elige primero un taller para ver la fecha mínima de entrega.';
+const NOMBRE_TIPO_MOD = { BASICA: 'básica', MEDIA: 'media', AVANZADA: 'avanzada' };
 
-// `tipoModificacion` (MEDIA / AVANZADA): al pedir una modificación con vale MOD; al corregir un MOD sale del propio vale.
-function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipoModificacion = null) {
+// Ayuda de la casilla «urgente»: en una modificación baja el plazo al siguiente día disponible.
+const textoAyudaUrgente = (esMod, marcada) => {
+  if (esMod) return marcada ? 'Entrega al siguiente día disponible.' : 'Márcalo para entregar al siguiente día disponible.';
+  return marcada ? 'Puedes elegir una entrega con menos de 3 días; sigue aplicando la hora máxima de recibimiento.' : 'Márcalo si la entrega es en menos de 3 días.';
+};
+
+// `tipoModificacion` (BASICA / MEDIA / AVANZADA): al pedir una modificación con vale MOD; al corregir un MOD sale del propio vale.
+// `alCancelar` permite volver al modal desde el que se abrió (p. ej. el selector de tipo de modificación).
+function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipoModificacion = null, { alCancelar } = {}) {
   const esCorreccion = modo === 'corregir';
   const esModificacion = modo === 'modificar';
   const esBorrador = modo === 'borrador';
   const hayOriginal = !!vale && !esBorrador;
-  // Un formulario de modificación: pedirla, o corregir un vale MOD (talleres fijos, justificación obligatoria y sin «urgente»).
+  // Un formulario de modificación: pedirla, o corregir un vale MOD (talleres fijos y justificación obligatoria).
   const esMod = esModificacion || (hayOriginal && Number(vale.vale_original_id) > 0);
   const tipoMod = esMod ? (esModificacion ? tipoModificacion : vale.modificacion_tipo) : null;
   // Una modificación va a los mismos talleres del vale original (los de su reparto, o los solicitados).
@@ -89,7 +97,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
     size: 'lg',
     bodyHtml: `
       <form id="form-crear-vale">
-        ${esModificacion ? `<p class="mod-aviso"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon><span>Modificación <strong>${tipoMod === 'AVANZADA' ? 'avanzada' : 'media'}</strong>: crea <strong>${escapeHtml(siguienteCodigoMod(vale))}</strong> y lo autoriza tu supervisor.</span></p>` : ''}
+        ${esModificacion ? `<p class="mod-aviso"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon><span>Modificación <strong>${NOMBRE_TIPO_MOD[tipoMod] || 'media'}</strong>: crea <strong>${escapeHtml(siguienteCodigoMod(vale))}</strong> y lo autoriza tu supervisor.</span></p>` : ''}
         <div class="section-title">Información de Cliente</div>
         <div class="form-grid">
           <div class="form-field"><label>Empresa</label><input type="text" name="clienteEmpresa" maxlength="100" /></div>
@@ -115,12 +123,12 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
         <div class="form-grid">
           ${htmlCampoFecha('Fecha de entrega', 'fechaEntrega')}
           ${htmlCampoFecha('Fecha del evento', 'fechaEvento')}
-          ${esMod ? '' : `<div class="form-field full">
+          <div class="form-field full">
             <label class="urgente-opcion" for="vale-urgente">
               <input type="checkbox" name="urgente" id="vale-urgente" />
-              <span class="urgente-opcion-texto"><strong>Pedido urgente</strong><small id="urgente-ayuda">Márcalo si la entrega es en menos de 3 días.</small></span>
+              <span class="urgente-opcion-texto"><strong>Pedido urgente</strong><small id="urgente-ayuda">${textoAyudaUrgente(esMod, false)}</small></span>
             </label>
-          </div>`}
+          </div>
           <div class="form-field"><label>Código de producto *</label><input type="text" name="producto" required maxlength="40" placeholder="Ej. Trofeo" /></div>
           <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="40" placeholder="Ej. Acrílico" /></div>
           <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" maxlength="40" /></div>
@@ -196,9 +204,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
   // Marcar o desmarcar «Urgente» cambia la fecha mínima: se recargan las reglas y se borra la fecha si ya no vale.
   const ayudaUrgente = overlay.querySelector('#urgente-ayuda');
   if (casillaUrgente) casillaUrgente.addEventListener('change', () => {
-    ayudaUrgente.textContent = casillaUrgente.checked
-      ? 'Puedes elegir una entrega con menos de 3 días; sigue aplicando la hora máxima de recibimiento.'
-      : 'Márcalo si la entrega es en menos de 3 días.';
+    ayudaUrgente.textContent = textoAyudaUrgente(esMod, casillaUrgente.checked);
     const { anio, mes } = mesVisible || { anio: new Date().getFullYear(), mes: new Date().getMonth() + 1 };
     cargarFechasEntrega(anio, mes, true);
   });
@@ -225,7 +231,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
   const getDocumentos = wireDropzone(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
 
   const formCrear = overlay.querySelector('#form-crear-vale');
-  if (vale) precargarFormulario(overlay, formCrear, vale, { apiFechaEntrega, apiFechaEvento }, { conDescripcion: !esModificacion });
+  if (vale) precargarFormulario(overlay, formCrear, vale, { apiFechaEntrega, apiFechaEvento }, { conDescripcion: !esModificacion, conUrgente: !esModificacion });
   if (esCorreccion && vale.estado === 'RECHAZADO') {
     const aviso = document.createElement('div');
     aviso.className = 'form-aviso';
@@ -259,7 +265,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
     return formData;
   };
 
-  overlay.querySelector('#btn-cancelar-crear').addEventListener('click', cerrar);
+  overlay.querySelector('#btn-cancelar-crear').addEventListener('click', () => { cerrar(); if (alCancelar) alCancelar(); });
   const btnBorrador = overlay.querySelector('#btn-guardar-borrador');
   if (btnBorrador) btnBorrador.addEventListener('click', async () => {
     // Un borrador no se valida: se guarda lo que haya escrito.
@@ -311,7 +317,6 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
     // detectar el reintento y no duplicar el vale.
     formData.set('idempotencyKey', crypto.randomUUID());
     if (esModificacion) formData.set('tipo', tipoMod);
-    if (esMod) formData.delete('urgente');
 
     if (hayOriginal) {
       formData.set('documentosQuitar', JSON.stringify([...documentosQuitar]));
@@ -351,7 +356,7 @@ async function guardarCambios(overlay, vale, formData, modo) {
   }
 }
 
-function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEvento }, { conDescripcion }) {
+function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEvento }, { conDescripcion, conUrgente }) {
   const campos = ['clienteEmpresa', 'clienteNombre', 'clienteCorreo', 'producto', 'material', 'tecnica', 'acabado', 'cantidad', 'cotizacion'];
   if (conDescripcion) campos.push('descripcion');
   for (const campo of campos) {
@@ -361,8 +366,8 @@ function precargarFormulario(overlay, form, vale, { apiFechaEntrega, apiFechaEve
   const [pais, ...numero] = (vale.cliente_telefono || '').split(' ');
   if (pais) form.querySelector('[name="clienteTelefonoPais"]').value = pais;
   form.querySelector('[name="clienteTelefono"]').value = numero.join(' ');
-  const casilla = form.querySelector('[name="urgente"]'); // un vale MOD no tiene «urgente»
-  if (casilla) {
+  const casilla = form.querySelector('[name="urgente"]'); // al pedir una modificación no se hereda el «urgente» del original
+  if (casilla && conUrgente) {
     casilla.checked = Number(vale.urgente) === 1;
     casilla.dispatchEvent(new Event('change', { bubbles: true }));
   }
@@ -460,9 +465,9 @@ function abrirModalConfirmarCreacion(formData) {
 }
 
 // -----------------------------------------------------------------------
-// Asesor: solicitar una modificación media o avanzada de un vale (mismo formulario, precargado; los talleres
+// Asesor: solicitar una modificación básica, media o avanzada de un vale (mismo formulario, precargado; los talleres
 // quedan fijos y la justificación es la descripción del nuevo vale MOD)
 // -----------------------------------------------------------------------
-export function abrirModalSolicitarModificacion(vale, tipo) {
-  abrirModalFormularioVale(vale, 'modificar', tipo);
+export function abrirModalSolicitarModificacion(vale, tipo, opciones) {
+  abrirModalFormularioVale(vale, 'modificar', tipo, opciones);
 }
