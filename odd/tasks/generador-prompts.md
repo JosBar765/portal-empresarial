@@ -61,7 +61,7 @@ Decisión del usuario: el reverso es el espejo de la silueta del frente; lleva s
 Diseño:
 - Variables automáticas por grupo `grupo_<claveGrupo>_vacio`: verdadera cuando ningún parámetro visible del grupo (texto, texto_largo, numero, opciones, imagenes) tiene valor. Genéricas: la plantilla (dato) decide a qué grupo apuntan.
 - Plantilla v5 en la migración 19: reverso con la misma silueta y solo lo indicado (o liso); regla de no agregar elementos no indicados. La v4 queda archivada. La migración se salta si ya hay otra versión publicada (el usuario edita su plantilla desde el admin).
-- [ ] T15 Variables `grupo_<clave>_vacio`, plantilla v5, migración 19, chips del editor y contrato.
+- [x] T15 Variables `grupo_<clave>_vacio`, plantilla v5, migración 19, chips del editor y contrato. (commit «reverso estricto…»; t19 y pruebas anteriores OK; migración 19 sin ejecutar)
 
 ## Checks
 Sin suite de tests (excepción a RED/GREEN): `node --check` en todo JS tocado y comprobaciones con `node -e` de las funciones puras (validación de esquema, render de plantilla). El servidor lo levanta el usuario; las migraciones no se ejecutan contra bases reales desde aquí.
