@@ -39,6 +39,22 @@ Decisiones del usuario:
 - [x] T8 Front asesor: descripción y ubicación por imagen, copiado una por una, sin lámina ni íconos de forma. (commit «imágenes sueltas…»; sin verificar en navegador)
 - [x] T9 Front administración: ubicaciones y sugerencias por parámetro de imágenes, parámetros sin usar en la plantilla. (commit «administración con ubicaciones…»; sin verificar en navegador)
 
+## Ronda 3 (2026-10-26): plantilla en Supabase y sin hardcodeo
+Decisiones del usuario:
+- La plantilla de la imagen final la sube el usuario a Supabase (recursos). Trae la franja inferior con el diseño de la empresa, los espacios para los datos del asesor y el logo en la esquina superior derecha. El color de fondo lo decide el prompt.
+- La marca de agua exacta queda pendiente (segunda etapa); el logo ya viene en la plantilla, así que se elimina el logo fijo del código.
+- Nada hardcodeado: contenido de negocio y límites van a la tabla `prompt_ajustes` (pestaña «Ajustes» del admin); el front lee los límites de `GET /api/prompts/config` (una sola fuente). Los textos de interfaz y los mensajes de error se centralizan en archivos (`textos.js`, `mensajes.js`); solo los textos que el negocio querría ajustar viven en ajustes (`textos_asesor`).
+- Los mensajes de error deben ser explicativos: qué falló (nombrando el campo), la regla con sus números y cómo corregirlo.
+Diseño:
+- Recursos fijos por producto en `esquema.recursos` (clave, etiqueta, descripcion, url, posicion inicio/fin, activo). Variable `{{recurso_<clave>}}` = «imagen N». La plantilla base es la imagen 1.
+- El servidor entrega cada recurso por `GET /api/prompts/recursos/:productoId/:clave` (proxy de solo lectura; solo https del host de SUPABASE_URL o rutas `/assets/`), para no depender del CORS del bucket.
+- Plantilla v3 en la migración 17 (la v2 queda archivada); el recurso `plantilla_base` se siembra inactivo y sin URL hasta que el usuario la suba.
+- [ ] T10 Backend: ajustes, config, recursos fijos, proxy, migración 17 y contrato.
+- [ ] T11 Backend: mensajes de error centralizados y explicativos.
+- [ ] T12 Front asesor: config, recursos, textos centralizados y errores explicativos.
+- [ ] T13 Front administración: pestañas Recursos y Ajustes, config compartida, textos centralizados.
+- [ ] T14 Documentación y verificación.
+
 ## Checks
 Sin suite de tests (excepción a RED/GREEN): `node --check` en todo JS tocado y comprobaciones con `node -e` de las funciones puras (validación de esquema, render de plantilla). El servidor lo levanta el usuario; las migraciones no se ejecutan contra bases reales desde aquí.
 
