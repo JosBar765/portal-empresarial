@@ -55,6 +55,14 @@ Diseño:
 - [x] T13 Front administración: pestañas Recursos y Ajustes, config compartida, textos centralizados. (commit «administración con pestañas de recursos y ajustes…»)
 - [x] T14 Documentación y verificación. (ci:sintaxis 262 archivos OK; pruebas puras de plantilla, ajustes, mensajes, textos y operaciones del editor; claves de límites del front verificadas contra el backend; sin verificar en navegador ni contra Supabase real)
 
+## Ronda 4 (2026-10-26): reverso estricto
+Hallazgo (prueba real con Gemini): el reverso salió con el diseño del frente. Causa probable: la frase «Diseña el reverso en armonía con el frente» invitaba a copiarlo, y la imagen del reverso llegó «sin descripción».
+Decisión del usuario: el reverso es el espejo de la silueta del frente; lleva solo el diseño que se pide y, si no hay ninguno, es liso.
+Diseño:
+- Variables automáticas por grupo `grupo_<claveGrupo>_vacio`: verdadera cuando ningún parámetro visible del grupo (texto, texto_largo, numero, opciones, imagenes) tiene valor. Genéricas: la plantilla (dato) decide a qué grupo apuntan.
+- Plantilla v5 en la migración 19: reverso con la misma silueta y solo lo indicado (o liso); regla de no agregar elementos no indicados. La v4 queda archivada. La migración se salta si ya hay otra versión publicada (el usuario edita su plantilla desde el admin).
+- [ ] T15 Variables `grupo_<clave>_vacio`, plantilla v5, migración 19, chips del editor y contrato.
+
 ## Checks
 Sin suite de tests (excepción a RED/GREEN): `node --check` en todo JS tocado y comprobaciones con `node -e` de las funciones puras (validación de esquema, render de plantilla). El servidor lo levanta el usuario; las migraciones no se ejecutan contra bases reales desde aquí.
 
