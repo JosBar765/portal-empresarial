@@ -177,7 +177,7 @@ export function camposPorDefecto(tipo, { limites, formatosImagen }) {
     case 'texto': return { max_largo: limites.texto_max_largo_defecto };
     case 'texto_largo': return { max_largo: limites.texto_largo_max_largo_defecto };
     case 'opciones': return { opciones: [{ valor: '', etiqueta: '', texto_prompt: '' }] };
-    case 'imagenes': return { max: limites.imagenes_max_defecto, max_mb: limites.imagenes_mb_defecto, formatos: Object.keys(formatosImagen) };
+    case 'imagenes': return { max: limites.imagenes_max_defecto, max_mb: limites.imagenes_mb_defecto, formatos: Object.keys(formatosImagen), descripcion_requerida: false };
     default: return {};
   }
 }

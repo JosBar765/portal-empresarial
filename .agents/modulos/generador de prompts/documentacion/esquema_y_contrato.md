@@ -21,7 +21,7 @@ Los números entre paréntesis son el valor inicial del ajuste `limites` indicad
 | `numero` | `min`, `max`, `unidad_de` (clave de un parámetro `opciones`), `defecto` | number |
 | `opciones` | `opciones: [{valor, etiqueta, texto_prompt}]`, `defecto` | string (un `valor`) |
 | `si_no` | `defecto` | boolean |
-| `imagenes` | `max` (def. `imagenes_max_defecto`, 3), `max_mb` (def. `imagenes_mb_defecto`, 5), `formatos` (claves de `formatos_imagen`; sin ellas, todos), `ubicaciones` (opcional: hasta `lista_max_items` textos de 1 a `ubicacion_max` caracteres, únicos), `sugerencias` (opcional: hasta `lista_max_items` textos de 1 a `sugerencia_max` caracteres, únicos) | no va en `valores`; va en `imagenes` como `[{ nombre, descripcion, ubicacion }]` |
+| `imagenes` | `max` (def. `imagenes_max_defecto`, 3), `max_mb` (def. `imagenes_mb_defecto`, 5), `formatos` (claves de `formatos_imagen`; sin ellas, todos), `ubicaciones` (opcional: hasta `lista_max_items` textos de 1 a `ubicacion_max` caracteres, únicos), `sugerencias` (opcional: hasta `lista_max_items` textos de 1 a `sugerencia_max` caracteres, únicos), `descripcion_requerida` (opcional, booleano; por defecto falso) | no va en `valores`; va en `imagenes` como `[{ nombre, descripcion, ubicacion }]` |
 | `calculado` | `igual_a` (clave de otro parámetro) | no se envía |
 
 Reglas de validación del esquema (al guardar el borrador y al publicar):
@@ -30,7 +30,7 @@ Reglas de validación del esquema (al guardar el borrador y al publicar):
 - `visible_si.parametro`, `unidad_de` e `igual_a` deben apuntar a una clave existente, y no a sí mismo.
 - `opciones` exige al menos una opción con `valor` único y `texto_prompt` no vacío.
 - `texto` y `texto_largo`: `max_largo` entre 1 y `max_largo_tope`; `separador` de 1 a `separador_max` caracteres.
-- `imagenes`: `max` entre 1 y `imagenes_max_tope`; `max_mb` entre 1 y `imagenes_mb_tope`; `formatos` son claves de `formatos_imagen`; `ubicaciones` y `sugerencias`, si existen, son listas de textos únicos. Las listas viven en el esquema para que el administrador las edite; el código no trae ninguna.
+- `imagenes`: `max` entre 1 y `imagenes_max_tope`; `max_mb` entre 1 y `imagenes_mb_tope`; `formatos` son claves de `formatos_imagen`; `ubicaciones` y `sugerencias`, si existen, son listas de textos únicos; `descripcion_requerida`, si existe, es booleano (si no, error `param.descripcionRequerida`). Las listas viven en el esquema para que el administrador las edite; el código no trae ninguna.
 - Al publicar, además: al menos un parámetro y una plantilla válida (sección 3) de hasta `plantilla_max_largo` caracteres.
 
 ### Recursos fijos (`recursos`)
@@ -61,7 +61,7 @@ Variable `{{recurso_<clave>}}`: se escribe `imagen N` (formato `imagen_ref`) con
 - `opciones`: debe ser un `valor` declarado. `si_no`: boolean.
 - `imagenes[clave]`: arreglo que no supera `max` de objetos `{ nombre, descripcion, ubicacion }` (un string suelto se toma como `{ nombre }`):
   - `nombre`: 1 a `imagen_nombre_max` (150) caracteres y una extensión de alguno de los `formatos` del parámetro (cada formato aporta las `extensiones` de `formatos_imagen`).
-  - `descripcion`: opcional, se recorta, hasta `imagen_descripcion_max` (120) caracteres.
+  - `descripcion`: opcional, se recorta, hasta `imagen_descripcion_max` (120) caracteres. Si el parámetro tiene `descripcion_requerida: true`, es obligatoria: una descripción ausente o solo de espacios falla con `valor.imagenDescripcionFalta`, que nombra el archivo y el parámetro y trae un ejemplo («Logo de Sportline, texto blanco en cursiva sobre fondo negro»). Sin la marca, `sin descripción` sigue permitido. El formulario del asesor aplica la misma regla antes de generar.
   - `ubicacion`: opcional, se recorta. Si el parámetro define `ubicaciones`, debe ser una de ellas; si no define ninguna, se descarta.
   - La respuesta limpia conserva los objetos (sin los campos vacíos).
 

@@ -90,6 +90,7 @@ export function renderTabParametros(cont, ed) {
   function filaParametro(g, p, i) {
     const pills = [h('span', { class: 'pr-adm-pill', text: etiquetaDeTipo(p.tipo) })];
     if (p.requerido) pills.push(h('span', { class: 'pr-adm-pill pr-adm-pill--req', text: t('admin.parametros.obligatorio') }));
+    if (p.descripcion_requerida) pills.push(h('span', { class: 'pr-adm-pill pr-adm-pill--req', text: t('admin.parametros.descripcionObligatoria') }));
     if (p.visible_si) pills.push(h('span', { class: 'pr-adm-pill pr-adm-pill--cond', text: t('admin.parametros.visibleSi', { parametro: p.visible_si.parametro, valor: valorVisible(p.visible_si.igual) }) }));
     const bloqueado = !ed.editable;
     return h('div', { class: 'pr-adm-param' },

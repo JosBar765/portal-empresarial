@@ -120,6 +120,7 @@ function validarParametro(p, claves, errores, ajustes) {
       if (p.formatos !== undefined && !(Array.isArray(p.formatos) && p.formatos.length && p.formatos.every(f => tiene(ajustes.formatos_imagen, f)))) {
         err(msg('param.formatos', { parametro, validos: Object.keys(ajustes.formatos_imagen).join(', ') }));
       }
+      if (p.descripcion_requerida !== undefined && typeof p.descripcion_requerida !== 'boolean') err(msg('param.descripcionRequerida', { parametro }));
       validarListaTextos(p, 'ubicaciones', L.ubicacion_max, err, L.lista_max_items);
       validarListaTextos(p, 'sugerencias', L.sugerencia_max, err, L.lista_max_items);
       break;
@@ -307,6 +308,8 @@ function validarImagenes(p, lista, errores, ajustes) {
       if (descripcion.length > L.imagen_descripcion_max) return falla(msg('valor.imagenDescripcion', { nombre, max: L.imagen_descripcion_max, largo: descripcion.length }));
       if (descripcion) limpia.descripcion = descripcion;
     }
+    // La descripción es el segundo ancla para que el generador identifique cada imagen.
+    if (p.descripcion_requerida && !limpia.descripcion) return falla(msg('valor.imagenDescripcionFalta', { nombre, etiqueta }));
     if (item.ubicacion !== undefined && item.ubicacion !== null && ubicaciones.length) {
       const ubicacion = typeof item.ubicacion === 'string' ? item.ubicacion.trim() : null;
       if (ubicacion === null || (ubicacion && !ubicaciones.includes(ubicacion))) {

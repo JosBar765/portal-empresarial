@@ -30,6 +30,13 @@ export function reglasImagenes(p, config) {
   };
 }
 
+// Mensaje de la primera imagen sin descripción cuando el parámetro la exige, o ''.
+export function validarDescripciones(p, archivos) {
+  if (!p.descripcion_requerida) return '';
+  const sin = archivos.find(a => !String(a.descripcion || '').trim());
+  return sin ? t('asesor.errores.descripcionFalta', { archivo: sin.file.name, etiqueta: p.etiqueta }) : '';
+}
+
 // Devuelve '' si el archivo se puede agregar, o el motivo explicado; `cantidad` = imágenes ya subidas.
 export function validarArchivo(file, p, config, cantidad) {
   const r = reglasImagenes(p, config);

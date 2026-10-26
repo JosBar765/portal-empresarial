@@ -73,6 +73,7 @@ const CATALOGO = Object.freeze({
   'param.defectoBooleano': '{parametro}: «defecto» debe ser verdadero o falso. Corrige ese valor o quita el defecto.',
   'param.imagenesMax': '{parametro}: «max» debe ser un entero entre 1 y {tope}. Corrígelo.',
   'param.imagenesMb': '{parametro}: «max_mb» debe estar entre 1 y {tope}. Corrígelo.',
+  'param.descripcionRequerida': '{parametro}: «descripcion_requerida» debe ser verdadero o falso. Corrígelo o quítalo.',
   'param.formatos': '{parametro}: «formatos» debe ser una lista con valores de: {validos}. Corrígela.',
   'param.lista': '{parametro}: «{campo}» debe ser una lista de hasta {max} textos. Quita los que sobren.',
   'param.listaElemento': '{parametro}: cada elemento de «{campo}» debe tener entre 1 y {max} caracteres. Acorta o completa los que no cumplan.',
@@ -153,6 +154,7 @@ const CATALOGO = Object.freeze({
   'valor.imagenFormato': 'La imagen «{nombre}» de «{etiqueta}» tiene un formato no permitido. Usa uno de estos: {permitidas}.',
   'valor.imagenDescripcionTipo': 'La descripción de la imagen «{nombre}» debe ser un texto. Escríbela como texto o déjala vacía.',
   'valor.imagenDescripcion': 'La descripción de la imagen «{nombre}» no puede superar {max} caracteres (tiene {largo}). Acórtala.',
+  'valor.imagenDescripcionFalta': 'A la imagen «{nombre}» de «{etiqueta}» le falta la descripción. Escribe qué es y cómo se ve, por ejemplo: «Logo de Sportline, texto blanco en cursiva sobre fondo negro».',
   'valor.imagenUbicacion': 'La ubicación de la imagen «{nombre}» de «{etiqueta}» no es una de las permitidas (recibida: {valor}). Elige una de estas: {permitidas}.',
 
   // ---- Lado del asesor ----

@@ -3,7 +3,7 @@
 // Límites y formatos llegan en `config` (GET /api/prompts/config); aquí no hay reglas de negocio fijas.
 import { h, icono } from '../../utils/dom.js';
 import { t } from '../../textos.js';
-import { mimeAExtension, reglasImagenes, validarArchivo, listaConO } from './archivos.js';
+import { mimeAExtension, reglasImagenes, validarArchivo, validarDescripciones, listaConO } from './archivos.js';
 
 const LIMITE_TEXTO = { texto: 'texto_max_largo_defecto', texto_largo: 'texto_largo_max_largo_defecto' };
 
@@ -101,6 +101,8 @@ export function validarCampo(p, estado, config) {
       const r = reglasImagenes(p, config);
       if (archivos.length === 0) return p.requerido ? t('asesor.errores.imagenesRequeridas', { etiqueta }) : '';
       if (archivos.length > r.max) return t('asesor.errores.imagenesExceso', { etiqueta, n: archivos.length, max: r.max });
+      const falta = validarDescripciones(p, archivos);
+      if (falta) return falta;
       const larga = archivos.find(a => a.descripcion.trim().length > r.maxDescripcion);
       return larga ? t('asesor.errores.descripcionLarga', { etiqueta, archivo: larga.file.name, largo: larga.descripcion.trim().length, max: r.maxDescripcion }) : '';
     }
@@ -178,7 +180,7 @@ function tarjetaImagen(p, item, n, r, alQuitar) {
 
   const desc = h('input', {
     type: 'text', id: `${base}-desc`, class: 'pr-img-campo', autocomplete: 'off', maxlength: String(r.maxDescripcion),
-    placeholder: t('asesor.campos.descripcionEjemplo'), 'aria-label': t('asesor.campos.descripcionAria', { archivo }), list: sugerencias.length ? listaId : null
+    placeholder: t('asesor.campos.descripcionEjemplo'), 'aria-required': p.descripcion_requerida ? 'true' : null, 'aria-label': t('asesor.campos.descripcionAria', { archivo }), list: sugerencias.length ? listaId : null
   });
   desc.value = item.descripcion;
   desc.addEventListener('input', () => { item.descripcion = desc.value; });
@@ -197,7 +199,7 @@ function tarjetaImagen(p, item, n, r, alQuitar) {
       h('div', { class: 'pr-miniatura-img' }, h('img', { src: item.url, alt: '' })),
       h('span', { class: 'pr-miniatura-nombre', text: archivo, title: archivo })),
     h('button', { type: 'button', class: 'pr-miniatura-quitar', 'aria-label': t('asesor.campos.quitar', { archivo }), text: '×', onclick: alQuitar }),
-    h('label', { class: 'pr-img-etiqueta', for: `${base}-desc`, text: t('asesor.campos.descripcionEtiqueta') }),
+    h('label', { class: 'pr-img-etiqueta', for: `${base}-desc`, text: t(p.descripcion_requerida ? 'asesor.campos.descripcionObligatoria' : 'asesor.campos.descripcionEtiqueta') }),
     desc,
     sugerencias.length ? h('datalist', { id: listaId }, sugerencias.map(s => h('option', { value: s }))) : null,
     selector ? h('label', { class: 'pr-img-etiqueta', for: `${base}-ubic`, text: t('asesor.campos.ubicacionEtiqueta') }) : null,

@@ -101,6 +101,9 @@ export function abrirModalParametro(ed, { original = null, grupoClave, alGuardar
       <div class="form-field"><label for="pr-adm-p-defecto">${escapeHtml(t('admin.parametro.opcionDefecto'))}</label><span id="pr-adm-p-defecto-caja">${selectDefectoOpciones()}</span></div>`;
     else if (tipo === 'si_no') html = `<div class="form-field"><label for="pr-adm-p-defecto">${escapeHtml(t('admin.parametro.valorDefecto'))}</label><select id="pr-adm-p-defecto">${opcionesHtml([['', t('admin.parametro.sinValorDefecto')], ['true', t('comun.si')], ['false', t('comun.no')]], v.defecto == null ? '' : String(v.defecto))}</select></div>`;
     else if (tipo === 'imagenes') html = `<div class="form-grid">${campoNumero('max', t('admin.parametro.imagenesMax', { tope: limites.imagenes_max_tope }), v.max, `min="1" max="${limites.imagenes_max_tope}" step="1"`)}${campoNumero('max_mb', t('admin.parametro.imagenesMb', { tope: limites.imagenes_mb_tope }), v.max_mb, `min="1" max="${limites.imagenes_mb_tope}" step="1"`)}</div>
+      <div class="form-field full"><span class="pr-etiqueta">${escapeHtml(t('admin.parametro.descripcionObligatoria'))}</span>
+        <div class="pr-chips" id="pr-adm-p-desc-req"><button type="button" class="pr-chip" data-valor="1">${escapeHtml(t('comun.si'))}</button><button type="button" class="pr-chip" data-valor="0">${escapeHtml(t('comun.no'))}</button></div>
+        <span class="form-hint">${escapeHtml(t('admin.parametro.descripcionObligatoriaAyuda'))}</span></div>
       <div class="form-field"><span class="pr-etiqueta">${escapeHtml(t('admin.parametro.formatos'))}</span><div class="pr-chips" id="pr-adm-p-formatos">${formatos.map(f => `<button type="button" class="pr-chip" data-formato="${escapeHtml(f)}">${escapeHtml(f)}</button>`).join('')}</div></div>
       <div class="form-grid">
         <div class="form-field"><label for="pr-adm-p-ubicaciones">${escapeHtml(t('admin.parametro.ubicaciones'))}</label><textarea id="pr-adm-p-ubicaciones" rows="4">${escapeHtml(textoDesdeLista(v.ubicaciones))}</textarea><span class="form-hint">${escapeHtml(t('admin.parametro.listaAyuda'))}</span></div>
@@ -109,6 +112,7 @@ export function abrirModalParametro(ed, { original = null, grupoClave, alGuardar
     else if (tipo === 'calculado') html = `<div class="form-field"><label for="pr-adm-p-igual_a">${escapeHtml(t('admin.parametro.igualA'))}</label>${selectParametros('pr-adm-p-igual_a', otros, v.igual_a, t('admin.parametro.elegirParametro'))}<span class="form-hint">${escapeHtml(t('admin.parametro.igualAAyuda'))}</span></div>`;
     caja.innerHTML = html;
     $$('#pr-adm-p-formatos .pr-chip', overlay).forEach(b => b.classList.toggle('is-activo', (v.formatos || []).includes(b.dataset.formato)));
+    $$('#pr-adm-p-desc-req .pr-chip', overlay).forEach(b => b.classList.toggle('is-activo', (b.dataset.valor === '1') === !!v.descripcion_requerida));
   }
 
   q('#pr-adm-p-etiqueta').addEventListener('input', (e) => {
@@ -147,6 +151,12 @@ export function abrirModalParametro(ed, { original = null, grupoClave, alGuardar
     if (e.target.closest('#pr-adm-p-opcion-agregar')) {
       v.opciones.push({ valor: '', etiqueta: '', texto_prompt: '' });
       pintarTipo();
+      return;
+    }
+    const descReq = e.target.closest('#pr-adm-p-desc-req .pr-chip');
+    if (descReq) {
+      v.descripcion_requerida = descReq.dataset.valor === '1';
+      $$('#pr-adm-p-desc-req .pr-chip', overlay).forEach(b => b.classList.toggle('is-activo', (b.dataset.valor === '1') === v.descripcion_requerida));
       return;
     }
     const formato = e.target.closest('[data-formato]');
@@ -203,6 +213,7 @@ export function abrirModalParametro(ed, { original = null, grupoClave, alGuardar
       if (!entero(mb, 1, limites.imagenes_mb_tope)) errores.push(t('admin.errores.imagenesMb', { nombre, tope: limites.imagenes_mb_tope }));
       if (!(v.formatos || []).length) errores.push(t('admin.errores.formatosVacios', { nombre, formatos: formatos.join(', ') }));
       out.max = max; out.max_mb = mb; out.formatos = formatos.filter(f => (v.formatos || []).includes(f));
+      if (v.descripcion_requerida) out.descripcion_requerida = true;
       ['ubicaciones', 'sugerencias'].forEach((campo) => {
         const r = listaDesdeTexto(q(`#pr-adm-p-${campo}`).value, limitesLista(limites, campo));
         r.errores.forEach(e => errores.push(e));
