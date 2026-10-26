@@ -1,14 +1,14 @@
 // src/modules/prompts/services/plantillaService.js
 // Funciones puras: validan y renderizan la plantilla de un producto. Todo texto que arma el código viene de `ajustes`.
-const { VARIABLES_AUTOMATICAS } = require('../constantes');
+const { VARIABLES_AUTOMATICAS, PREFIJO_RECURSO, PREFIJO_GRUPO, SUFIJO_GRUPO_VACIO, variableGrupoVacio } = require('../constantes');
 const { msg, rellenar } = require('../mensajes');
-const { resolverVisibilidad, indexarPorClave, recursosDelEsquema } = require('./esquemaService');
+const { resolverVisibilidad, indexarPorClave, recursosDelEsquema, clavesDeGrupos } = require('./esquemaService');
 
 const ETIQUETA_RE = /\{\{([^{}]*)\}\}/g;
 const MARCA_BLOQUE = '\u0001'; // señala dónde hubo una etiqueta de bloque, para eliminar líneas que quedan vacías
 const MAX_PROFUNDIDAD_CALCULADO = 5;
 const VARIABLE_OTROS = 'otros_parametros';
-const PREFIJO_RECURSO = 'recurso_';
+const TIPOS_CON_DATO = new Set(['texto', 'texto_largo', 'numero', 'opciones', 'imagenes']); // los que cuentan para grupo_<clave>_vacio
 const EJ_VARIABLE = '{{clave}}'; // ejemplos de sintaxis que muestran los mensajes
 const EJ_BLOQUE = '{{#si clave}}';
 
@@ -21,7 +21,7 @@ const aLinea = texto => sinControl(texto).replace(/\s+/g, ' ').trim(); // un dat
 const textoApertura = (condicion, clave) => `{{#${condicion} ${clave}}}`;
 
 /** @returns {{ nodos: object[], errores: {mensaje: string}[] }} nodos: texto | variable | bloque */
-function analizar(plantilla, clavesValidas, clavesRecursos = []) {
+function analizar(plantilla, clavesValidas, clavesRecursos = [], clavesGrupos = []) {
   const errores = [];
   const raiz = [];
   let actual = raiz;
@@ -36,15 +36,23 @@ function analizar(plantilla, clavesValidas, clavesRecursos = []) {
   };
   const exigirClave = clave => {
     if (clavesValidas.has(clave)) return;
-    errores.push({
-      mensaje: clave.startsWith(PREFIJO_RECURSO)
-        ? msg('plantilla.recursoDesconocido', {
-          variable: clave,
-          clave: clave.slice(PREFIJO_RECURSO.length),
-          disponibles: clavesRecursos.length ? clavesRecursos.map(c => PREFIJO_RECURSO + c).join(', ') : 'ninguno'
-        })
-        : msg('plantilla.variableNoExiste', { variable: clave, sistema: VARIABLES_AUTOMATICAS.join(', ') })
-    });
+    let mensaje;
+    if (clave.startsWith(PREFIJO_RECURSO)) {
+      mensaje = msg('plantilla.recursoDesconocido', {
+        variable: clave,
+        clave: clave.slice(PREFIJO_RECURSO.length),
+        disponibles: clavesRecursos.length ? clavesRecursos.map(c => PREFIJO_RECURSO + c).join(', ') : 'ninguno'
+      });
+    } else if (clave.startsWith(PREFIJO_GRUPO) && clave.endsWith(SUFIJO_GRUPO_VACIO) && clave.length > PREFIJO_GRUPO.length + SUFIJO_GRUPO_VACIO.length) {
+      mensaje = msg('plantilla.grupoDesconocido', {
+        variable: clave,
+        grupo: clave.slice(PREFIJO_GRUPO.length, -SUFIJO_GRUPO_VACIO.length),
+        disponibles: clavesGrupos.length ? clavesGrupos.join(', ') : 'ninguno'
+      });
+    } else {
+      mensaje = msg('plantilla.variableNoExiste', { variable: clave, sistema: VARIABLES_AUTOMATICAS.join(', ') });
+    }
+    errores.push({ mensaje });
   };
 
   for (const m of texto.matchAll(ETIQUETA_RE)) {
@@ -79,14 +87,14 @@ const clavesDeRecursos = esquema => recursosDelEsquema(esquema).map(r => r.clave
 
 function clavesDelEsquema(esquema) {
   const parametros = indexarPorClave(resolverVisibilidad(esquema).parametros);
-  return new Set([...parametros.keys(), ...VARIABLES_AUTOMATICAS, ...clavesDeRecursos(esquema).map(c => PREFIJO_RECURSO + c)]);
+  return new Set([...parametros.keys(), ...VARIABLES_AUTOMATICAS, ...clavesDeRecursos(esquema).map(c => PREFIJO_RECURSO + c), ...clavesDeGrupos(esquema).map(variableGrupoVacio)]);
 }
 
 /** @returns {{mensaje: string}[]} lista vacía si la plantilla es válida */
 function validarPlantilla(plantilla, esquema) {
   if (typeof plantilla !== 'string' || !plantilla.trim()) return [{ mensaje: msg('plantilla.vacia') }];
   const unicos = new Map();
-  analizar(plantilla, clavesDelEsquema(esquema), clavesDeRecursos(esquema)).errores.forEach(e => unicos.set(e.mensaje, e));
+  analizar(plantilla, clavesDelEsquema(esquema), clavesDeRecursos(esquema), clavesDeGrupos(esquema)).errores.forEach(e => unicos.set(e.mensaje, e));
   return [...unicos.values()];
 }
 
@@ -193,8 +201,13 @@ function crearContexto({ esquema, valores, imagenes, contacto, referenciadas, aj
     [VARIABLE_OTROS]: () => otrosParametros()
   };
 
+  // grupo_<clave>_vacio: verdadera si ningún parámetro visible con dato del grupo tiene valor (se resuelve al usarla).
+  const gruposVacios = new Map(grupos.filter(g => g && typeof g.clave === 'string').map(g => [variableGrupoVacio(g.clave),
+    () => !(Array.isArray(g.parametros) ? g.parametros : []).some(p => p && TIPOS_CON_DATO.has(p.tipo) && tieneValor(p.clave))]));
+
   // Valor formateado de un parámetro ('' si está oculto o sin valor).
   function formatear(clave, profundidad = 0) {
+    if (gruposVacios.has(clave)) return gruposVacios.get(clave)() ? T.si : T.no;
     if (Object.prototype.hasOwnProperty.call(automaticas, clave)) {
       const valor = automaticas[clave]();
       return sinControl(valor == null ? '' : String(valor)).trim();
@@ -235,6 +248,7 @@ function crearContexto({ esquema, valores, imagenes, contacto, referenciadas, aj
 
   // «Tiene valor»: si_no solo cuando es verdadero; un recurso, solo cuando está activo.
   function tieneValor(clave, profundidad = 0) {
+    if (gruposVacios.has(clave)) return gruposVacios.get(clave)();
     const p = porClave.get(clave);
     if (p && visibles.get(clave)) {
       if (p.tipo === 'si_no') return crudos.get(clave) === true;
@@ -284,7 +298,7 @@ function renderizar({ plantilla, esquema, valores = {}, imagenes = {}, contacto 
   const referenciadas = clavesReferenciadas(plantilla, esquema);
   // Sin {{otros_parametros}} en la plantilla, la sección se agrega al final.
   const completa = referenciadas.has(VARIABLE_OTROS) ? plantilla : `${plantilla}\n\n{{${VARIABLE_OTROS}}}`;
-  const { nodos } = analizar(completa, clavesDelEsquema(esquema), clavesDeRecursos(esquema));
+  const { nodos } = analizar(completa, clavesDelEsquema(esquema), clavesDeRecursos(esquema), clavesDeGrupos(esquema));
   const ctx = crearContexto({ esquema, valores, imagenes, contacto, referenciadas, ajustes, urlRecurso });
   const cuerpo = limpiarLineas(renderizarNodos(nodos, ctx)).replace(/\n{3,}/g, '\n\n').trim();
   return {

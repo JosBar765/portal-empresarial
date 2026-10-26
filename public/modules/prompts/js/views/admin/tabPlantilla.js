@@ -2,7 +2,7 @@
 import { h, icono } from '../../utils/dom.js';
 import { t } from '../../textos.js';
 import { previsualizar } from '../../api/promptsAdminApi.js';
-import { insertarEnPosicion, clavesDelEsquema } from './esquemaOps.js';
+import { insertarEnPosicion, clavesDelEsquema, variableGrupoVacio } from './esquemaOps.js';
 import { recursosDe, variableDeRecurso } from './recursosOps.js';
 import { mensajesDeError } from './comun.js';
 
@@ -73,6 +73,7 @@ export function renderTabPlantilla(cont, ed) {
 
   const claves = clavesDelEsquema(ed.esquema);
   const recursos = recursosDe(ed.esquema).map(r => variableDeRecurso(r.clave));
+  const gruposVacios = ed.esquema.grupos.map(g => variableGrupoVacio(g.clave));
   cont.replaceChildren(h('div', { class: 'pr-adm-dos-col' },
     h('section', { class: 'pr-card' },
       h('h3', { class: 'pr-card-titulo', text: t('admin.plantilla.titulo') }),
@@ -84,6 +85,9 @@ export function renderTabPlantilla(cont, ed) {
         h('div', { class: 'pr-adm-vars' }, claves.map(chip)),
         recursos.length ? h('span', { class: 'form-hint', text: t('admin.plantilla.variablesRecursos') }) : null,
         recursos.length ? h('div', { class: 'pr-adm-vars' }, recursos.map(chip)) : null,
+        gruposVacios.length ? h('span', { class: 'form-hint', text: t('admin.plantilla.variablesGrupos') }) : null,
+        gruposVacios.length ? h('div', { class: 'pr-adm-vars' }, gruposVacios.map(chip)) : null,
+        gruposVacios.length ? h('span', { class: 'form-hint', text: t('admin.plantilla.variablesGruposAyuda', { variable: 'grupo_<clave>_vacio', ejemplo: '{{#si grupo_<clave>_vacio}}' }) }) : null,
         h('span', { class: 'form-hint', text: t('admin.plantilla.variablesAutomaticas') }),
         h('div', { class: 'pr-adm-vars' }, ed.config.variablesAutomaticas.map(chip)),
         h('div', { class: 'pr-adm-bloques' },

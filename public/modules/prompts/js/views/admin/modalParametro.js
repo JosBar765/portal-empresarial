@@ -7,7 +7,7 @@ import { t } from '../../textos.js';
 import { TIPOS, LARGOS, CLAVE_LARGO_MAX } from './reglasEsquema.js';
 import {
   camposPorDefecto, claveDesdeEtiqueta, claveDisponible, claveValida, dependientesDe, listaDesdeTexto,
-  textoDesdeLista, limitesLista, clavesDeRecursos
+  textoDesdeLista, limitesLista, clavesDeRecursos, claveReservadaPorSistema
 } from './esquemaOps.js';
 
 const opcionesHtml = (pares, seleccionado) => pares
@@ -236,6 +236,7 @@ export function abrirModalParametro(ed, { original = null, grupoClave, alGuardar
     if (!claveValida(clave)) errores.push(t('admin.errores.claveInvalida', { nombre, clave }));
     else if (cfg.variablesAutomaticas.includes(clave)) errores.push(t('admin.errores.claveReservada', { nombre, clave, lista: cfg.variablesAutomaticas.join(', ') }));
     else if (clavesDeRecursos(ed.esquema).includes(clave)) errores.push(t('admin.errores.claveDeRecurso', { nombre, clave }));
+    else if (clave !== claveOriginal && claveReservadaPorSistema(ed.esquema, clave)) errores.push(t('admin.errores.claveDerivada', { nombre, clave }));
     else if (!claveDisponible(ed.esquema, clave, claveOriginal)) errores.push(t('admin.errores.claveRepetida', { nombre, clave }));
     if (original && original.tipo === 'opciones' && tipo !== 'opciones') {
       const usa = dependientesDe(ed.esquema, '', claveOriginal).find(d => d.tipo === 'unidad_de');

@@ -39,7 +39,7 @@ Imágenes que siempre acompañan al prompt de un producto (por ejemplo, la plant
 
 | Campo | Regla |
 |---|---|
-| `clave` | mismo formato que la de un parámetro; única entre parámetros Y recursos; no puede ser una variable automática; tampoco puede existir un parámetro llamado `recurso_<clave>` |
+| `clave` | mismo formato que la de un parámetro; única entre parámetros Y recursos; no puede ser una variable automática; tampoco puede existir un parámetro llamado `recurso_<clave>`, ni una clave igual a `grupo_<g>_vacio` o al `recurso_<otro>` de otro recurso |
 | `etiqueta` | obligatoria, hasta `recurso_etiqueta_max` (80) caracteres; es el «origen» en la lista de imágenes |
 | `descripcion` | opcional, hasta `recurso_descripcion_max` (300) caracteres; se escribe en la lista de imágenes del prompt |
 | `url` | texto; `https://…` (se lee con `new URL`) o una ruta que empiece por `/assets/` |
@@ -89,7 +89,7 @@ Formato por tipo:
 | `imagenes` | `imagen_ref` + `imagen_detalle`: `imagen 1 (Logo del organizador; ubicación: Centro)`; sin ubicación: `imagen 1 (Logo del organizador)`; sin descripción: `imagen 1` (o `imagen 1 (ubicación: Centro)`). Varias, unidas con `union` y la última con `union_final`: `imagen 1 (A), imagen 2 (B) e imagen 3 (C)`. La ubicación se escribe tal como está en el esquema |
 | `calculado` | el valor formateado del parámetro `igual_a` |
 
-Variables automáticas (nombres reservados; no pueden ser clave de un parámetro ni de un recurso):
+Variables automáticas (nombres reservados; no pueden ser clave de un parámetro, de un recurso ni de un grupo):
 
 | Variable | Valor |
 |---|---|
@@ -98,8 +98,11 @@ Variables automáticas (nombres reservados; no pueden ser clave de un parámetro
 | `lista_imagenes` | una línea por imagen en orden de numeración, con `lista_linea`: `- Imagen 1 (Parte frontal): Logo del organizador. Ubicación: Centro.`. El origen es la etiqueta del grupo (imágenes del asesor) o la etiqueta del recurso; la descripción es la de la imagen o la del recurso, o `lista_sin_descripcion`; `lista_ubicacion` solo si hay ubicación. **Cadena vacía si no hay ninguna imagen** |
 | `otros_parametros` | los parámetros visibles con valor que la plantilla no nombra (ver abajo); vacío si no queda ninguno |
 | `recurso_<clave>` | familia derivada de los recursos del esquema (ver sección 1); no es una variable fija |
+| `grupo_<clave>_vacio` | familia derivada de los grupos del esquema, una por grupo (ver abajo); no es una variable fija |
 
 Ya no existe `logo_marca_agua`: el logo viene dentro de la imagen de la plantilla (un recurso).
+
+`grupo_<clave>_vacio` (una por grupo del esquema; la plantilla decide a qué grupo apunta, el código no sabe de ningún grupo concreto): es **verdadera cuando ningún parámetro visible del grupo de tipo `texto`, `texto_largo`, `numero`, `opciones` o `imagenes` tiene valor**, con la misma regla de «tiene valor» de `{{#si}}`. Los parámetros `si_no` y `calculado` se ignoran, y un parámetro oculto por `visible_si` cuenta como sin valor. Se usa en `{{#si grupo_x_vacio}}` y `{{#no grupo_x_vacio}}`; escrita como `{{grupo_x_vacio}}` se reemplaza por `sí` o `no` (ajustes `textos_prompt.si` / `textos_prompt.no`). Nombres reservados: ningún parámetro, recurso ni grupo puede tener una clave igual a `grupo_<g>_vacio` (de cualquier grupo) ni a `recurso_<r>` (de cualquier recurso); el esquema no se puede guardar y el mensaje dice qué variable choca y cómo corregirlo. Una plantilla que nombre `grupo_x_vacio` con un grupo `x` inexistente no se puede guardar: el mensaje lista los grupos disponibles. No afecta a `otros_parametros` ni a los parámetros «sin usar».
 
 `otros_parametros`: «nombrado» es aparecer como `{{clave}}`, `{{#si clave}}` o `{{#no clave}}`; el parámetro `unidad_de` de un `numero` nombrado y el `igual_a` de un `calculado` nombrado también cuentan como nombrados, y los `calculado` nunca se agregan. Formato: el título `extras_titulo` y, por cada grupo con al menos un parámetro pendiente (orden del esquema), su encabezado `extras_grupo` y una línea `extras_linea` por parámetro; el código no cambia mayúsculas ni minúsculas:
 
@@ -122,13 +125,15 @@ Reglas de render:
 
 Numeración de las imágenes: no hay lámina; el asesor copia cada imagen por separado y luego el prompt. Orden: recursos activos `inicio`, imágenes del asesor (parámetros `imagenes` visibles en el orden del esquema y, dentro de cada uno, en el orden de `imagenes[clave]`) y recursos activos `fin`.
 
-## 4. Plantilla v3/v4 de la medalla (optimizada para Gemini, con plantilla en Supabase)
+## 4. Plantilla v3/v4/v5 de la medalla (optimizada para Gemini, con plantilla en Supabase)
 
 Criterios: referencias primero (cada imagen numerada y descrita, porque el modelo las asocia mejor por rol que por posición), luego la escena; pedir la imagen de forma explícita, formato 16:9, texto exacto entre comillas, fondo plano y redacción en positivo. Sin imágenes de listón, el modelo inventa un diseño con los colores de los logos. Con el recurso `plantilla_base` activo, la imagen final se compone sobre la plantilla (franja inferior de la empresa, espacios para los datos del asesor y logo arriba a la derecha); inactivo, el prompt pide un fondo liso y una franja al pie.
 
 La versión 2 pasó a la versión 3 mediante la migración `prompts_ajustes` (crea y siembra `prompt_ajustes`, archiva la v2 y publica la v3 solo si el producto no tiene ya una versión 3 ni otra versión publicada). Esa migración agrega el recurso `plantilla_base` **inactivo y sin URL**: el administrador sube la imagen a Supabase, pega la URL en la pestaña Recursos y lo activa. La versión 2 (con lámina, luego con logo de marca de agua) quedó en el historial.
 
 La sección `MARCA DE AGUA` llegó en la **versión 4** (migración `prompts_marca_de_agua`: archiva la v3 y publica la v4 con el mismo esquema, solo si el producto no tiene ya una versión 4 ni otra versión publicada). Regla: la marca de agua es únicamente el texto «GRUPO PREMIA»; el logo de la empresa viene dentro de la imagen de la plantilla base y el prompt nunca lo agrega, lo repite ni lo modifica (cuando la plantilla base está activa, además prohíbe cualquier otro logo o símbolo como marca de agua).
+
+El reverso estricto llegó en la **versión 5** (migración `prompts_reverso_estricto`: archiva la v4 y publica la v5 con el mismo esquema, solo si el producto no tiene ya una versión 5 ni otra versión publicada). Regla: el reverso es el espejo horizontal de la silueta del frente (misma forma, contorno, argolla y grosor) y lleva ÚNICAMENTE el diseño que se pidió; si no se pidió nada (o `trasera_lisa` está marcada), queda totalmente liso. La v4 decía «diseña el reverso en armonía con el frente» y la IA copiaba el frente; la v5 lo reemplaza con la variable `grupo_trasera_vacio` y agrega una línea en `IMPORTANTE` que prohíbe elementos no indicados. La plantilla de abajo es la v5.
 
 ```text
 {{#si lista_imagenes}}IMÁGENES DE REFERENCIA{{/si}}
@@ -154,11 +159,12 @@ FRENTE (cara izquierda)
 {{#si frente_indicaciones}}- Indicaciones de diseño: {{frente_indicaciones}}{{/si}}
 
 REVERSO (cara derecha)
-{{#si trasera_lisa}}- Reverso totalmente liso, sin grabados ni imágenes.{{/si}}
+- El reverso tiene exactamente la misma silueta, contorno, argolla y grosor que el frente: es su espejo horizontal visto por detrás. No cambies la forma.
+{{#si grupo_trasera_vacio}}- La superficie del reverso es totalmente lisa: sin imágenes, textos, grabados ni elementos decorativos. No copies ni repitas el diseño del frente.{{/si}}
+{{#no grupo_trasera_vacio}}- Sobre esa silueta coloca ÚNICAMENTE lo siguiente y nada más; no copies ni repitas el diseño del frente:{{/no}}
 {{#si trasera_imagenes}}- Coloca {{trasera_imagenes}}.{{/si}}
 {{#si trasera_frases}}- Frases exactas, con esta ortografía: {{trasera_frases}}.{{/si}}
 {{#si trasera_indicaciones}}- Indicaciones de diseño: {{trasera_indicaciones}}{{/si}}
-{{#no trasera_lisa}}- Diseña el reverso en armonía con el frente.{{/no}}
 
 LISTÓN
 {{#si liston_imagenes}}- Usa {{liston_imagenes}} como motivo del listón, repetido a lo largo de la cinta.{{/si}}
@@ -183,10 +189,11 @@ PIE DE LA IMAGEN
 
 IMPORTANTE
 - El resultado es una MEDALLA, no una moneda, un trofeo ni una insignia.
+- No agregues textos, logos, símbolos ni elementos decorativos que no estén indicados en este mensaje, ni en el frente ni en el reverso.
 - Escribe los textos exactamente como aparecen entre comillas.
 ```
 
-## 5. Parámetros de la medalla (versiones 1 a 4; la 4 usa el esquema de la 3)
+## 5. Parámetros de la medalla (versiones 1 a 5; la 4 y la 5 usan el esquema de la 3)
 
 La versión 2 usa el mismo esquema que la 1 más `ubicaciones` y `sugerencias` en los tres parámetros de imágenes (abajo). La versión 3 suma el recurso `plantilla_base` (etiqueta «Plantilla base», descripción «plantilla de la imagen final, con la franja inferior del diseño de la empresa, los espacios para los datos del asesor y el logo en la esquina superior derecha», `posicion: "inicio"`, `activo: false`, `url` vacía).
 

@@ -1,7 +1,7 @@
 // Operaciones puras (sin DOM) sobre el esquema del producto; nunca mutan sus argumentos.
 // Los mensajes salen de textos.js (también sin DOM); los límites llegan por parámetro desde /config.
 import { t } from '../../textos.js';
-import { CLAVE_RE, TIPOS, PREFIJO_RECURSO } from './reglasEsquema.js';
+import { CLAVE_RE, TIPOS, PREFIJO_RECURSO, PREFIJO_GRUPO, SUFIJO_GRUPO_VACIO } from './reglasEsquema.js';
 
 export const etiquetaDeTipo = (tipo) => (TIPOS.includes(tipo) ? t(`admin.tipos.${tipo}`) : tipo);
 
@@ -11,16 +11,34 @@ export const clavesDelEsquema = (esquema) => esquema.grupos.flatMap(g => g.param
 
 export const clavesDeRecursos = (esquema) => (esquema.recursos || []).map(r => r.clave);
 
+// Variable que el sistema genera por cada grupo: verdadera cuando el grupo no tiene ningún dato.
+export const variableGrupoVacio = (clave) => `${PREFIJO_GRUPO}${clave}${SUFIJO_GRUPO_VACIO}`;
+
+// Nombres que genera el sistema (grupo_<g>_vacio y recurso_<r>): ninguna clave puede ser uno de ellos.
+export const claveReservadaPorSistema = (esquema, clave) =>
+  esquema.grupos.some(g => variableGrupoVacio(g.clave) === clave) || clavesDeRecursos(esquema).some(r => PREFIJO_RECURSO + r === clave);
+
 // `claveActual` permite conservar la propia clave al editar un parámetro.
-// Un parámetro tampoco puede llamarse como un recurso ni «recurso_<clave>» (esa es la variable del recurso).
+// Un parámetro tampoco puede llamarse como un recurso ni como una variable que genera el sistema.
 export function claveDisponible(esquema, clave, claveActual = null) {
   if (!claveValida(clave)) return false;
   if (clave === claveActual) return true;
-  const recursos = clavesDeRecursos(esquema);
-  return !clavesDelEsquema(esquema).includes(clave) && !recursos.includes(clave) && !recursos.some(r => clave === PREFIJO_RECURSO + r);
+  return !clavesDelEsquema(esquema).includes(clave) && !clavesDeRecursos(esquema).includes(clave) && !claveReservadaPorSistema(esquema, clave);
 }
 
-export const claveGrupoDisponible = (esquema, clave) => claveValida(clave) && !esquema.grupos.some(g => g.clave === clave);
+// Un grupo nuevo crearía grupo_<clave>_vacio: no puede chocar con una clave que ya exista.
+const variableGrupoOcupada = (esquema, clave) =>
+  [...clavesDelEsquema(esquema), ...clavesDeRecursos(esquema)].includes(variableGrupoVacio(clave));
+
+export const claveGrupoDisponible = (esquema, clave) =>
+  claveValida(clave) && !esquema.grupos.some(g => g.clave === clave) && !claveReservadaPorSistema(esquema, clave) && !variableGrupoOcupada(esquema, clave);
+
+// Mensaje explicativo de por qué no sirve la clave de un grupo.
+export function errorClaveGrupo(esquema, clave) {
+  if (claveValida(clave) && claveReservadaPorSistema(esquema, clave)) return t('admin.errores.claveDerivada', { nombre: clave, clave });
+  if (claveValida(clave) && variableGrupoOcupada(esquema, clave)) return t('admin.errores.grupoClaveChoque', { clave, variable: variableGrupoVacio(clave) });
+  return t('admin.errores.grupoClave', { clave });
+}
 
 export const contarParametros = (esquema) => esquema.grupos.reduce((n, g) => n + g.parametros.length, 0);
 
@@ -32,6 +50,10 @@ export function claveDesdeEtiqueta(etiqueta) {
     .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   return (/^[a-z]/.test(base) ? base : base ? `p_${base}` : '').slice(0, 60);
 }
+
+const errorClaveParametro = (esquema, clave) => (claveValida(clave) && claveReservadaPorSistema(esquema, clave)
+  ? t('admin.errores.claveDerivada', { nombre: clave, clave })
+  : t('admin.errores.parametroClaveNoDisponible', { clave }));
 
 function buscarGrupo(esquema, clave) {
   const i = esquema.grupos.findIndex(g => g.clave === clave);
@@ -51,7 +73,7 @@ export function intercambiar(lista, i, delta) {
 
 export function agregarGrupo(esquema, { clave, etiqueta }) {
   if (!String(etiqueta || '').trim()) throw new Error(t('admin.errores.grupoEtiquetaVacia'));
-  if (!claveGrupoDisponible(esquema, clave)) throw new Error(t('admin.errores.grupoClave', { clave }));
+  if (!claveGrupoDisponible(esquema, clave)) throw new Error(errorClaveGrupo(esquema, clave));
   return conGrupos(esquema, [...esquema.grupos, { clave, etiqueta: etiqueta.trim(), parametros: [] }]);
 }
 
@@ -74,7 +96,7 @@ export function moverGrupo(esquema, clave, delta) {
 
 export function agregarParametro(esquema, grupoClave, parametro) {
   const i = buscarGrupo(esquema, grupoClave);
-  if (!claveDisponible(esquema, parametro.clave)) throw new Error(t('admin.errores.parametroClaveNoDisponible', { clave: parametro.clave }));
+  if (!claveDisponible(esquema, parametro.clave)) throw new Error(errorClaveParametro(esquema, parametro.clave));
   return conGrupos(esquema, esquema.grupos.map((g, k) => (k === i ? { ...g, parametros: [...g.parametros, parametro] } : g)));
 }
 
@@ -98,7 +120,7 @@ function reapuntar(p, vieja, nueva) {
 // grupoDestino opcional: mueve el parámetro (al final) si es otro grupo.
 export function actualizarParametro(esquema, claveOriginal, parametro, grupoDestino = null) {
   const { gi, pi } = ubicar(esquema, claveOriginal);
-  if (!claveDisponible(esquema, parametro.clave, claveOriginal)) throw new Error(t('admin.errores.parametroClaveNoDisponible', { clave: parametro.clave }));
+  if (!claveDisponible(esquema, parametro.clave, claveOriginal)) throw new Error(errorClaveParametro(esquema, parametro.clave));
   const destino = grupoDestino ? buscarGrupo(esquema, grupoDestino) : gi;
   const renombrada = parametro.clave !== claveOriginal;
   const grupos = esquema.grupos.map((g, k) => {

@@ -2,7 +2,7 @@
 // Los mensajes salen de textos.js; los límites llegan por parámetro desde /config.
 import { t } from '../../textos.js';
 import { PREFIJO_RECURSO, POSICIONES, URL_RECURSO_RE } from './reglasEsquema.js';
-import { claveValida, clavesDelEsquema, clavesDeRecursos, intercambiar, renombrarEnPlantilla } from './esquemaOps.js';
+import { claveValida, clavesDelEsquema, clavesDeRecursos, claveReservadaPorSistema, intercambiar, renombrarEnPlantilla } from './esquemaOps.js';
 
 export const recursosDe = (esquema) => esquema.recursos || [];
 
@@ -14,14 +14,15 @@ export const recursoVacio = () => ({ clave: '', etiqueta: '', descripcion: '', u
 
 const conRecursos = (esquema, recursos) => ({ ...esquema, recursos });
 
-// Una clave de recurso no puede repetir un parámetro, otro recurso, una variable automática ni ser «recurso_<clave>» de un parámetro.
+// Una clave de recurso no puede repetir un parámetro, otro recurso, una variable automática ni una variable que genera el sistema.
 export function claveRecursoDisponible(esquema, clave, automaticas = [], claveActual = null) {
   if (!claveValida(clave)) return false;
   if (clave === claveActual) return true;
   if (automaticas.includes(clave)) return false;
   return !clavesDelEsquema(esquema).includes(clave)
     && !clavesDeRecursos(esquema).includes(clave)
-    && !clavesDelEsquema(esquema).includes(variableDeRecurso(clave));
+    && !clavesDelEsquema(esquema).includes(variableDeRecurso(clave))
+    && !claveReservadaPorSistema(esquema, clave);
 }
 
 function buscar(esquema, clave) {
@@ -76,6 +77,7 @@ export function validarRecurso(recurso, limites, esquema, { claveActual = null, 
 
   if (!claveValida(clave)) errores.push(t('admin.errores.recursoClaveInvalida', { nombre, clave }));
   else if (automaticas.includes(clave)) errores.push(t('admin.errores.recursoClaveReservada', { nombre, clave, lista: automaticas.join(', ') }));
+  else if (clave !== claveActual && claveReservadaPorSistema(esquema, clave)) errores.push(t('admin.errores.claveDerivada', { nombre, clave }));
   else if (!claveRecursoDisponible(esquema, clave, automaticas, claveActual)) errores.push(t('admin.errores.recursoClaveRepetida', { nombre, clave }));
 
   const descripcion = String(recurso.descripcion || '').trim();

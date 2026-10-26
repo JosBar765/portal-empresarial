@@ -6,6 +6,8 @@ export const CODIGO_PRODUCTO_RE = /^[a-z][a-z0-9_]{1,49}$/;
 export const CODIGO_PRODUCTO_LARGO_MAX = 50;
 export const CLAVE_LARGO_MAX = 60;
 export const PREFIJO_RECURSO = 'recurso_';
+export const PREFIJO_GRUPO = 'grupo_';
+export const SUFIJO_GRUPO_VACIO = '_vacio';
 export const POSICIONES = ['inicio', 'fin'];
 export const URL_RECURSO_RE = /^(https:\/\/\S+|\/assets\/\S+)$/;
 

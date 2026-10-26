@@ -1,6 +1,6 @@
 // src/modules/prompts/services/esquemaService.js
 // Funciones puras: validan el esquema de un producto y lo que envía el asesor.
-const { VARIABLES_AUTOMATICAS } = require('../constantes');
+const { VARIABLES_AUTOMATICAS, PREFIJO_RECURSO, variableGrupoVacio } = require('../constantes');
 const { msg } = require('../mensajes');
 const { urlDeRecursoValida } = require('./recursos');
 
@@ -20,6 +20,12 @@ function parametrosPlanos(esquema) {
 
 function indexarPorClave(parametros) {
   return new Map(parametros.filter(p => p && typeof p.clave === 'string').map(p => [p.clave, p]));
+}
+
+// Claves de los grupos con forma válida (de ellas se derivan las variables grupo_<clave>_vacio).
+function clavesDeGrupos(esquema) {
+  const grupos = esquema && Array.isArray(esquema.grupos) ? esquema.grupos : [];
+  return grupos.filter(g => esObjeto(g) && typeof g.clave === 'string').map(g => g.clave);
 }
 
 // Recursos fijos del producto (imágenes que siempre acompañan al prompt); los mal formados los reporta validarEsquema.
@@ -154,7 +160,7 @@ function validarRecursos(esquema, claves, ajustes, errores) {
     if (VARIABLES_AUTOMATICAS.includes(r.clave)) falla(msg('recurso.claveReservada', { clave: r.clave, recurso }));
     else if (claves.has(r.clave) || vistos.has(r.clave)) falla(msg('recurso.claveRepetida', { clave: r.clave, recurso }));
     vistos.add(r.clave);
-    const variable = `recurso_${r.clave}`;
+    const variable = `${PREFIJO_RECURSO}${r.clave}`;
     if (claves.has(variable)) falla(msg('recurso.choqueVariable', { variable, recurso }));
 
     if (!esTextoNoVacio(r.etiqueta) || r.etiqueta.trim().length > L.recurso_etiqueta_max) falla(msg('recurso.etiqueta', { recurso, max: L.recurso_etiqueta_max }));
@@ -169,6 +175,25 @@ function validarRecursos(esquema, claves, ajustes, errores) {
       if (!url) falla(msg('recurso.activoSinUrl', { recurso }));
       else if (!urlDeRecursoValida(url)) falla(msg('recurso.activoUrlInvalida', { recurso, url }));
     }
+  });
+}
+
+// Los nombres que el sistema deriva (grupo_<g>_vacio y recurso_<r>) no pueden ser la clave de un grupo, parámetro o recurso.
+function validarClavesDerivadas(esquema, claves, errores) {
+  const vacios = new Map(clavesDeGrupos(esquema).map(g => [variableGrupoVacio(g), msg('esquema.origenGrupoVacio', { grupo: g })]));
+  const recursos = new Map(recursosDelEsquema(esquema).map(r => [PREFIJO_RECURSO + r.clave, msg('esquema.origenRecurso', { recurso: r.clave })]));
+  const choque = (clave, derivadas) => (typeof clave === 'string' ? derivadas.get(clave) : undefined);
+  clavesDeGrupos(esquema).forEach(g => {
+    const origen = choque(g, vacios) || choque(g, recursos);
+    if (origen) errores.push({ clave: g, mensaje: msg('grupo.claveDerivada', { clave: g, variable: g, origen }) });
+  });
+  claves.forEach((p, clave) => {
+    const origen = choque(clave, vacios);
+    if (origen) errores.push({ clave, mensaje: msg('param.claveDerivada', { parametro: nombreDe(p), variable: clave, origen }) });
+  });
+  recursosDelEsquema(esquema).forEach(r => {
+    const origen = choque(r.clave, vacios) || choque(r.clave, recursos);
+    if (origen) errores.push({ clave: 'recursos', mensaje: msg('recurso.claveDerivada', { clave: r.clave, recurso: esTextoNoVacio(r.etiqueta) ? r.etiqueta.trim() : r.clave, variable: r.clave, origen }) });
   });
 }
 
@@ -207,6 +232,7 @@ function validarEsquema(esquema, ajustes) {
     if (hayCicloVisibilidad(claves, p.clave)) errores.push({ clave: p.clave, mensaje: msg('param.ciclo', { parametro: nombreDe(p) }) });
   });
   validarRecursos(esquema, claves, ajustes, errores);
+  validarClavesDerivadas(esquema, claves, errores);
   return errores;
 }
 
@@ -381,6 +407,7 @@ module.exports = {
   resolverVisibilidad,
   listarImagenesVisibles,
   parametrosPlanos,
+  clavesDeGrupos,
   recursosDelEsquema,
   indexarPorClave
 };

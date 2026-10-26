@@ -8,7 +8,7 @@ import { LARGOS, CLAVE_LARGO_MAX } from './reglasEsquema.js';
 import {
   agregarGrupo, renombrarGrupo, eliminarGrupo, moverGrupo, agregarParametro, actualizarParametro,
   eliminarParametro, moverParametro, dependientesDe, renombrarEnPlantilla, etiquetaDeTipo,
-  claveDesdeEtiqueta, claveGrupoDisponible
+  claveDesdeEtiqueta, claveGrupoDisponible, errorClaveGrupo
 } from './esquemaOps.js';
 
 const TEXTO_DEPENDENCIA = {
@@ -131,7 +131,7 @@ export function renderTabParametros(cont, ed) {
         onclick: () => modalGrupo({
           titulo: t('admin.parametros.agregarGrupo'), conClave: true,
           alAceptar: ({ etiqueta, clave }) => {
-            if (!claveGrupoDisponible(ed.esquema, clave)) throw new Error(t('admin.errores.grupoClave', { clave }));
+            if (!claveGrupoDisponible(ed.esquema, clave)) throw new Error(errorClaveGrupo(ed.esquema, clave));
             aplicar(e => agregarGrupo(e, { clave, etiqueta }));
           }
         })
