@@ -49,8 +49,8 @@ Diseño:
 - Recursos fijos por producto en `esquema.recursos` (clave, etiqueta, descripcion, url, posicion inicio/fin, activo). Variable `{{recurso_<clave>}}` = «imagen N». La plantilla base es la imagen 1.
 - El servidor entrega cada recurso por `GET /api/prompts/recursos/:productoId/:clave` (proxy de solo lectura; solo https del host de SUPABASE_URL o rutas `/assets/`), para no depender del CORS del bucket.
 - Plantilla v3 en la migración 17 (la v2 queda archivada); el recurso `plantilla_base` se siembra inactivo y sin URL hasta que el usuario la suba.
-- [ ] T10 Backend: ajustes, config, recursos fijos, proxy, migración 17 y contrato.
-- [ ] T11 Backend: mensajes de error centralizados y explicativos.
+- [x] T10 Backend: ajustes, config, recursos fijos, proxy, migración 17 y contrato. (commit «ajustes en base de datos, recursos fijos…»)
+- [x] T11 Backend: mensajes de error centralizados y explicativos. (commit «catálogo central de mensajes…»; 146 claves)
 - [ ] T12 Front asesor: config, recursos, textos centralizados y errores explicativos.
 - [ ] T13 Front administración: pestañas Recursos y Ajustes, config compartida, textos centralizados.
 - [ ] T14 Documentación y verificación.
