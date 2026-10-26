@@ -51,9 +51,9 @@ Diseño:
 - Plantilla v3 en la migración 17 (la v2 queda archivada); el recurso `plantilla_base` se siembra inactivo y sin URL hasta que el usuario la suba.
 - [x] T10 Backend: ajustes, config, recursos fijos, proxy, migración 17 y contrato. (commit «ajustes en base de datos, recursos fijos…»)
 - [x] T11 Backend: mensajes de error centralizados y explicativos. (commit «catálogo central de mensajes…»; 146 claves)
-- [ ] T12 Front asesor: config, recursos, textos centralizados y errores explicativos.
-- [ ] T13 Front administración: pestañas Recursos y Ajustes, config compartida, textos centralizados.
-- [ ] T14 Documentación y verificación.
+- [x] T12 Front asesor: config, recursos, textos centralizados y errores explicativos. (commit «vista del asesor con configuración del servidor…»)
+- [x] T13 Front administración: pestañas Recursos y Ajustes, config compartida, textos centralizados. (commit «administración con pestañas de recursos y ajustes…»)
+- [x] T14 Documentación y verificación. (ci:sintaxis 262 archivos OK; pruebas puras de plantilla, ajustes, mensajes, textos y operaciones del editor; claves de límites del front verificadas contra el backend; sin verificar en navegador ni contra Supabase real)
 
 ## Checks
 Sin suite de tests (excepción a RED/GREEN): `node --check` en todo JS tocado y comprobaciones con `node -e` de las funciones puras (validación de esquema, render de plantilla). El servidor lo levanta el usuario; las migraciones no se ejecutan contra bases reales desde aquí.
