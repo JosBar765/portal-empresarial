@@ -1,18 +1,12 @@
 // src/modules/prompts/services/esquemaService.js
 // Funciones puras: validan el esquema de un producto y lo que envía el asesor.
 const { VARIABLES_AUTOMATICAS } = require('../constantes');
+const { msg } = require('../mensajes');
+const { urlDeRecursoValida } = require('./recursos');
 
 const TIPOS = ['texto', 'texto_largo', 'numero', 'opciones', 'si_no', 'imagenes', 'calculado'];
-const FORMATOS = ['png', 'jpg', 'svg', 'webp'];
 const CLAVE_RE = /^[a-z][a-z0-9_]{1,59}$/;
-const MAX_LARGO_TEXTO = 150;
-const MAX_LARGO_TEXTO_LARGO = 600;
-const MAX_LARGO_NOMBRE_IMAGEN = 150;
-const MAX_IMAGENES_DEFECTO = 10;
-const MAX_LARGO_DESCRIPCION_IMAGEN = 120;
-const MAX_LISTA_TEXTOS = 12;
-const MAX_LARGO_UBICACION = 40;
-const MAX_LARGO_SUGERENCIA = 60;
+const POSICIONES_RECURSO = ['inicio', 'fin'];
 
 const tiene = (objeto, clave) => Object.prototype.hasOwnProperty.call(objeto, clave);
 const esObjeto = valor => valor !== null && typeof valor === 'object' && !Array.isArray(valor);
@@ -28,22 +22,34 @@ function indexarPorClave(parametros) {
   return new Map(parametros.filter(p => p && typeof p.clave === 'string').map(p => [p.clave, p]));
 }
 
+// Recursos fijos del producto (imágenes que siempre acompañan al prompt); los mal formados los reporta validarEsquema.
+function recursosDelEsquema(esquema) {
+  const lista = esquema && Array.isArray(esquema.recursos) ? esquema.recursos : [];
+  return lista.filter(r => esObjeto(r) && typeof r.clave === 'string');
+}
+
+// «Etiqueta» (clave): así el mensaje nombra el parámetro como lo ve el administrador.
+const nombreDe = p => (esTextoNoVacio(p.etiqueta) ? `«${p.etiqueta.trim()}» (${p.clave})` : `«${p.clave}»`);
+
 // ---------- Validación del esquema ----------
 
 // Lista opcional de textos cortos y únicos (ubicaciones, sugerencias).
-function validarListaTextos(p, nombre, maxLargo, err) {
-  const lista = p[nombre];
+function validarListaTextos(p, campo, maxLargo, err, maxItems) {
+  const lista = p[campo];
   if (lista === undefined) return;
-  if (!Array.isArray(lista) || lista.length > MAX_LISTA_TEXTOS) return err(`«${nombre}» debe ser una lista de hasta ${MAX_LISTA_TEXTOS} textos.`);
+  const parametro = nombreDe(p);
+  if (!Array.isArray(lista) || lista.length > maxItems) return err(msg('param.lista', { parametro, campo, max: maxItems }));
   const vistos = new Set();
   for (const texto of lista) {
-    if (!esTextoNoVacio(texto) || texto.trim().length > maxLargo) return err(`Cada elemento de «${nombre}» debe tener entre 1 y ${maxLargo} caracteres.`);
-    if (vistos.has(texto.trim())) return err(`«${nombre}» tiene el texto «${texto.trim()}» repetido.`);
+    if (!esTextoNoVacio(texto) || texto.trim().length > maxLargo) return err(msg('param.listaElemento', { parametro, campo, max: maxLargo }));
+    if (vistos.has(texto.trim())) return err(msg('param.listaRepetido', { parametro, campo, texto: texto.trim() }));
     vistos.add(texto.trim());
   }
 }
 
-function validarParametro(p, claves, errores) {
+function validarParametro(p, claves, errores, ajustes) {
+  const L = ajustes.limites;
+  const parametro = nombreDe(p);
   const err = mensaje => errores.push({ clave: p.clave, mensaje });
   if (!esTextoNoVacio(p.etiqueta)) err('La etiqueta es obligatoria.');
   if (p.requerido !== undefined && typeof p.requerido !== 'boolean') err('«requerido» debe ser verdadero o falso.');
@@ -59,8 +65,12 @@ function validarParametro(p, claves, errores) {
   switch (p.tipo) {
     case 'texto':
     case 'texto_largo':
-      if (p.max_largo !== undefined && !(Number.isInteger(p.max_largo) && p.max_largo >= 1 && p.max_largo <= 5000)) err('«max_largo» debe ser un entero entre 1 y 5000.');
-      if (p.separador !== undefined && !(typeof p.separador === 'string' && p.separador.length >= 1 && p.separador.length <= 5)) err('«separador» debe ser un texto de 1 a 5 caracteres.');
+      if (p.max_largo !== undefined && !(Number.isInteger(p.max_largo) && p.max_largo >= 1 && p.max_largo <= L.max_largo_tope)) {
+        err(msg('param.maxLargo', { parametro, tope: L.max_largo_tope, valor: JSON.stringify(p.max_largo) }));
+      }
+      if (p.separador !== undefined && !(typeof p.separador === 'string' && p.separador.length >= 1 && p.separador.length <= L.separador_max)) {
+        err(msg('param.separador', { parametro, max: L.separador_max }));
+      }
       break;
     case 'numero': {
       if (p.min !== undefined && !esNumero(p.min)) err('«min» debe ser un número.');
@@ -96,13 +106,13 @@ function validarParametro(p, claves, errores) {
       if (p.defecto !== undefined && typeof p.defecto !== 'boolean') err('«defecto» debe ser verdadero o falso.');
       break;
     case 'imagenes':
-      if (p.max !== undefined && !(Number.isInteger(p.max) && p.max >= 1 && p.max <= 20)) err('«max» debe ser un entero entre 1 y 20.');
-      if (p.max_mb !== undefined && !(esNumero(p.max_mb) && p.max_mb >= 1 && p.max_mb <= 10)) err('«max_mb» debe estar entre 1 y 10.');
-      if (p.formatos !== undefined && !(Array.isArray(p.formatos) && p.formatos.length && p.formatos.every(f => FORMATOS.includes(f)))) {
-        err(`«formatos» debe ser una lista con valores de: ${FORMATOS.join(', ')}.`);
+      if (p.max !== undefined && !(Number.isInteger(p.max) && p.max >= 1 && p.max <= L.imagenes_max_tope)) err(msg('param.imagenesMax', { parametro, tope: L.imagenes_max_tope }));
+      if (p.max_mb !== undefined && !(esNumero(p.max_mb) && p.max_mb >= 1 && p.max_mb <= L.imagenes_mb_tope)) err(msg('param.imagenesMb', { parametro, tope: L.imagenes_mb_tope }));
+      if (p.formatos !== undefined && !(Array.isArray(p.formatos) && p.formatos.length && p.formatos.every(f => tiene(ajustes.formatos_imagen, f)))) {
+        err(msg('param.formatos', { parametro, validos: Object.keys(ajustes.formatos_imagen).join(', ') }));
       }
-      validarListaTextos(p, 'ubicaciones', MAX_LARGO_UBICACION, err);
-      validarListaTextos(p, 'sugerencias', MAX_LARGO_SUGERENCIA, err);
+      validarListaTextos(p, 'ubicaciones', L.ubicacion_max, err, L.lista_max_items);
+      validarListaTextos(p, 'sugerencias', L.sugerencia_max, err, L.lista_max_items);
       break;
     case 'calculado':
       if (!claves.has(p.igual_a)) err(`«igual_a» apunta a «${p.igual_a}», que no existe.`);
@@ -125,8 +135,42 @@ function hayCicloVisibilidad(porClave, clave) {
   return false;
 }
 
+// Un recurso activo exige una URL usable; uno inactivo puede esperar su imagen con la URL vacía.
+function validarRecursos(esquema, claves, ajustes, errores) {
+  if (esquema.recursos === undefined) return;
+  const L = ajustes.limites;
+  const falla = mensaje => errores.push({ clave: 'recursos', mensaje });
+  if (!Array.isArray(esquema.recursos)) return falla(msg('recurso.lista', { max: L.recursos_max, total: 0 }));
+  if (esquema.recursos.length > L.recursos_max) falla(msg('recurso.lista', { max: L.recursos_max, total: esquema.recursos.length }));
+
+  const vistos = new Set();
+  esquema.recursos.forEach((r, i) => {
+    if (!esObjeto(r)) return falla(msg('recurso.invalido', { numero: i + 1 }));
+    if (typeof r.clave !== 'string' || !CLAVE_RE.test(r.clave)) return falla(msg('recurso.claveInvalida', { numero: i + 1 }));
+    const recurso = esTextoNoVacio(r.etiqueta) ? r.etiqueta.trim() : r.clave;
+    if (VARIABLES_AUTOMATICAS.includes(r.clave)) falla(msg('recurso.claveReservada', { clave: r.clave, recurso }));
+    else if (claves.has(r.clave) || vistos.has(r.clave)) falla(msg('recurso.claveRepetida', { clave: r.clave, recurso }));
+    vistos.add(r.clave);
+    const variable = `recurso_${r.clave}`;
+    if (claves.has(variable)) falla(msg('recurso.choqueVariable', { variable, recurso }));
+
+    if (!esTextoNoVacio(r.etiqueta) || r.etiqueta.trim().length > L.recurso_etiqueta_max) falla(msg('recurso.etiqueta', { recurso, max: L.recurso_etiqueta_max }));
+    if (r.descripcion !== undefined && (typeof r.descripcion !== 'string' || r.descripcion.trim().length > L.recurso_descripcion_max)) {
+      falla(msg('recurso.descripcion', { recurso, max: L.recurso_descripcion_max }));
+    }
+    if (!POSICIONES_RECURSO.includes(r.posicion)) falla(msg('recurso.posicion', { recurso, valor: typeof r.posicion === 'string' ? r.posicion : '' }));
+    if (typeof r.activo !== 'boolean') falla(msg('recurso.activoTipo', { recurso }));
+    if (r.url !== undefined && typeof r.url !== 'string') falla(msg('recurso.urlTipo', { recurso }));
+    else if (r.activo === true) {
+      const url = typeof r.url === 'string' ? r.url.trim() : '';
+      if (!url) falla(msg('recurso.activoSinUrl', { recurso }));
+      else if (!urlDeRecursoValida(url)) falla(msg('recurso.activoUrlInvalida', { recurso, url }));
+    }
+  });
+}
+
 /** @returns {{clave?: string, mensaje: string}[]} lista vacía si el esquema es válido */
-function validarEsquema(esquema) {
+function validarEsquema(esquema, ajustes) {
   const errores = [];
   if (!esObjeto(esquema)) return [{ mensaje: 'El esquema debe ser un objeto.' }];
   if (esquema.esquema_version !== undefined && esquema.esquema_version !== 1) errores.push({ mensaje: 'Versión de esquema no soportada.' });
@@ -155,9 +199,10 @@ function validarEsquema(esquema) {
     validos.push(p);
   });
   validos.forEach(p => {
-    validarParametro(p, claves, errores);
+    validarParametro(p, claves, errores, ajustes);
     if (hayCicloVisibilidad(claves, p.clave)) errores.push({ clave: p.clave, mensaje: 'Las condiciones «visible_si» forman un ciclo.' });
   });
+  validarRecursos(esquema, claves, ajustes, errores);
   return errores;
 }
 
@@ -206,26 +251,30 @@ function listarImagenesVisibles(esquema, valores = {}, imagenes = {}) {
 // ---------- Validación de lo que envía el asesor ----------
 
 // Cada imagen es { nombre, descripcion?, ubicacion? }; un texto suelto se toma como el nombre.
-function validarImagenes(p, lista, errores) {
+function validarImagenes(p, lista, errores, ajustes) {
+  const L = ajustes.limites;
   if (!Array.isArray(lista)) { errores[p.clave] = 'Debe ser una lista de imágenes.'; return []; }
-  const max = p.max || MAX_IMAGENES_DEFECTO;
-  const formatos = p.formatos || FORMATOS;
+  const max = p.max || L.imagenes_max_defecto;
+  const formatos = p.formatos || Object.keys(ajustes.formatos_imagen);
+  const extensiones = formatos.flatMap(f => (ajustes.formatos_imagen[f] ? ajustes.formatos_imagen[f].extensiones : []));
   const ubicaciones = Array.isArray(p.ubicaciones) ? p.ubicaciones : [];
-  if (lista.length > max) { errores[p.clave] = `Máximo ${max} imágenes.`; return []; }
+  const etiqueta = esTextoNoVacio(p.etiqueta) ? p.etiqueta.trim() : p.clave;
+  if (lista.length > max) { errores[p.clave] = msg('valor.imagenesMax', { etiqueta, max, total: lista.length, sobran: lista.length - max }); return []; }
   const falla = mensaje => { errores[p.clave] = mensaje; return []; };
   const limpias = [];
   for (const crudo of lista) {
     const item = typeof crudo === 'string' ? { nombre: crudo } : crudo;
     if (!esObjeto(item)) return falla('Cada imagen debe tener nombre, descripción y ubicación.');
     const nombre = typeof item.nombre === 'string' ? item.nombre.trim() : '';
-    if (!nombre || nombre.length > MAX_LARGO_NOMBRE_IMAGEN) return falla(`Cada nombre de imagen debe tener entre 1 y ${MAX_LARGO_NOMBRE_IMAGEN} caracteres.`);
+    if (!nombre || nombre.length > L.imagen_nombre_max) return falla(msg('valor.imagenNombre', { etiqueta, max: L.imagen_nombre_max }));
     const extension = nombre.includes('.') ? nombre.split('.').pop().toLowerCase() : '';
-    if (!formatos.includes(extension)) return falla(`Formato no permitido (${formatos.join(', ')}).`);
+    if (!extensiones.includes(extension)) return falla(msg('valor.imagenFormato', { nombre, etiqueta, permitidas: extensiones.join(', ') }));
 
     const limpia = { nombre };
     if (item.descripcion !== undefined && item.descripcion !== null) {
       const descripcion = typeof item.descripcion === 'string' ? item.descripcion.trim() : null;
-      if (descripcion === null || descripcion.length > MAX_LARGO_DESCRIPCION_IMAGEN) return falla(`La descripción de la imagen no puede superar ${MAX_LARGO_DESCRIPCION_IMAGEN} caracteres.`);
+      if (descripcion === null) return falla('La descripción de la imagen debe ser texto.');
+      if (descripcion.length > L.imagen_descripcion_max) return falla(msg('valor.imagenDescripcion', { nombre, max: L.imagen_descripcion_max, largo: descripcion.length }));
       if (descripcion) limpia.descripcion = descripcion;
     }
     if (item.ubicacion !== undefined && item.ubicacion !== null && ubicaciones.length) {
@@ -238,7 +287,7 @@ function validarImagenes(p, lista, errores) {
   return limpias;
 }
 
-function validarValorSimple(p, crudo, errores) {
+function validarValorSimple(p, crudo, errores, ajustes) {
   const falta = () => { if (p.requerido) errores[p.clave] = 'Este dato es obligatorio.'; };
   switch (p.tipo) {
     case 'texto':
@@ -247,8 +296,8 @@ function validarValorSimple(p, crudo, errores) {
       if (typeof crudo !== 'string') { errores[p.clave] = 'Debe ser texto.'; return undefined; }
       const texto = crudo.trim();
       if (!texto) return falta();
-      const max = p.max_largo || (p.tipo === 'texto' ? MAX_LARGO_TEXTO : MAX_LARGO_TEXTO_LARGO);
-      if (texto.length > max) { errores[p.clave] = `No puede superar ${max} caracteres.`; return undefined; }
+      const max = p.max_largo || (p.tipo === 'texto' ? ajustes.limites.texto_max_largo_defecto : ajustes.limites.texto_largo_max_largo_defecto);
+      if (texto.length > max) { errores[p.clave] = msg('valor.textoLargo', { etiqueta: nombreDe(p), max, largo: texto.length }); return undefined; }
       return texto;
     }
     case 'numero':
@@ -275,7 +324,7 @@ function validarValorSimple(p, crudo, errores) {
  * Valida lo que envía el asesor contra el esquema publicado.
  * @returns {{ errores: Object<string,string>, valores: object, imagenes: object }} valores e imágenes limpios (solo parámetros visibles)
  */
-function validarValores(esquema, valores, imagenes) {
+function validarValores(esquema, valores, imagenes, ajustes) {
   const errores = {};
   const vals = valores === undefined || valores === null ? {} : valores;
   const imgs = imagenes === undefined || imagenes === null ? {} : imagenes;
@@ -303,12 +352,12 @@ function validarValores(esquema, valores, imagenes) {
     if (errores[p.clave]) return;
     const crudo = crudos.get(p.clave);
     if (p.tipo === 'imagenes') {
-      const lista = validarImagenes(p, crudo, errores);
+      const lista = validarImagenes(p, crudo, errores, ajustes);
       if (lista.length) limpiasImagenes[p.clave] = lista;
       else if (p.requerido && !errores[p.clave]) errores[p.clave] = 'Agrega al menos una imagen.';
       return;
     }
-    const valor = validarValorSimple(p, crudo, errores);
+    const valor = validarValorSimple(p, crudo, errores, ajustes);
     if (valor !== undefined) limpios[p.clave] = valor;
   });
   return { errores, valores: limpios, imagenes: limpiasImagenes };
@@ -316,11 +365,12 @@ function validarValores(esquema, valores, imagenes) {
 
 module.exports = {
   TIPOS,
-  FORMATOS,
+  POSICIONES_RECURSO,
   validarEsquema,
   validarValores,
   resolverVisibilidad,
   listarImagenesVisibles,
   parametrosPlanos,
+  recursosDelEsquema,
   indexarPorClave
 };

@@ -70,7 +70,7 @@ class AdminProductoController {
 
   async previsualizar(req, res) {
     try {
-      return res.json(service.previsualizar(req.body));
+      return res.json(await service.previsualizar(req.body));
     } catch (error) {
       return responderError(res, error, 400, extraDeError(error));
     }

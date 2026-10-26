@@ -1,12 +1,14 @@
 // src/modules/prompts/services/plantillaService.js
-// Funciones puras: validan y renderizan la plantilla de un producto.
-const { ENCABEZADO_SISTEMA, LOGO_MARCA_AGUA, DESCRIPCION_LOGO, VARIABLES_AUTOMATICAS } = require('../constantes');
-const { resolverVisibilidad, indexarPorClave } = require('./esquemaService');
+// Funciones puras: validan y renderizan la plantilla de un producto. Todo texto que arma el código viene de `ajustes`.
+const { VARIABLES_AUTOMATICAS } = require('../constantes');
+const { msg, rellenar } = require('../mensajes');
+const { resolverVisibilidad, indexarPorClave, recursosDelEsquema } = require('./esquemaService');
 
 const ETIQUETA_RE = /\{\{([^{}]*)\}\}/g;
 const MARCA_BLOQUE = '\u0001'; // señala dónde hubo una etiqueta de bloque, para eliminar líneas que quedan vacías
 const MAX_PROFUNDIDAD_CALCULADO = 5;
 const VARIABLE_OTROS = 'otros_parametros';
+const PREFIJO_RECURSO = 'recurso_';
 
 const normalizar = texto => String(texto).replace(/\r\n?/g, '\n');
 const sinControl = texto => String(texto).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
@@ -15,7 +17,7 @@ const aLinea = texto => sinControl(texto).replace(/\s+/g, ' ').trim(); // un dat
 // ---------- Análisis ----------
 
 /** @returns {{ nodos: object[], errores: {mensaje: string}[] }} nodos: texto | variable | bloque */
-function analizar(plantilla, clavesValidas) {
+function analizar(plantilla, clavesValidas, clavesRecursos = []) {
   const errores = [];
   const raiz = [];
   let actual = raiz;
@@ -29,7 +31,16 @@ function analizar(plantilla, clavesValidas) {
     actual.push({ tipo: 'texto', valor: fragmento });
   };
   const exigirClave = clave => {
-    if (!clavesValidas.has(clave)) errores.push({ mensaje: `La variable «${clave}» no existe en el esquema.` });
+    if (clavesValidas.has(clave)) return;
+    errores.push({
+      mensaje: clave.startsWith(PREFIJO_RECURSO)
+        ? msg('plantilla.recursoDesconocido', {
+          variable: clave,
+          clave: clave.slice(PREFIJO_RECURSO.length),
+          disponibles: clavesRecursos.length ? clavesRecursos.map(c => PREFIJO_RECURSO + c).join(', ') : 'ninguno'
+        })
+        : `La variable «${clave}» no existe en el esquema.`
+    });
   };
 
   for (const m of texto.matchAll(ETIQUETA_RE)) {
@@ -60,16 +71,18 @@ function analizar(plantilla, clavesValidas) {
   return { nodos: raiz, errores };
 }
 
+const clavesDeRecursos = esquema => recursosDelEsquema(esquema).map(r => r.clave);
+
 function clavesDelEsquema(esquema) {
   const parametros = indexarPorClave(resolverVisibilidad(esquema).parametros);
-  return new Set([...parametros.keys(), ...VARIABLES_AUTOMATICAS]);
+  return new Set([...parametros.keys(), ...VARIABLES_AUTOMATICAS, ...clavesDeRecursos(esquema).map(c => PREFIJO_RECURSO + c)]);
 }
 
 /** @returns {{mensaje: string}[]} lista vacía si la plantilla es válida */
 function validarPlantilla(plantilla, esquema) {
   if (typeof plantilla !== 'string' || !plantilla.trim()) return [{ mensaje: 'La plantilla no puede estar vacía.' }];
   const unicos = new Map();
-  analizar(plantilla, clavesDelEsquema(esquema)).errores.forEach(e => unicos.set(e.mensaje, e));
+  analizar(plantilla, clavesDelEsquema(esquema), clavesDeRecursos(esquema)).errores.forEach(e => unicos.set(e.mensaje, e));
   return [...unicos.values()];
 }
 
@@ -105,12 +118,6 @@ function parametrosSinUsar(esquema, plantilla) {
 
 const aTexto = n => String(Math.round(n * 100) / 100);
 
-// Se usa «e» y no «y» porque la siguiente palabra siempre empieza con «i» de «imagen».
-function unirConE(partes) {
-  if (partes.length <= 1) return partes.join('');
-  return `${partes.slice(0, -1).join(', ')} e ${partes[partes.length - 1]}`;
-}
-
 function itemDeImagen(crudo) {
   const item = typeof crudo === 'string' ? { nombre: crudo } : crudo;
   if (!item || typeof item.nombre !== 'string' || !item.nombre.trim()) return null;
@@ -118,45 +125,67 @@ function itemDeImagen(crudo) {
   return { nombre: aLinea(item.nombre), descripcion: texto(item.descripcion), ubicacion: texto(item.ubicacion) };
 }
 
-function referenciaDeImagen(item) {
-  const detalle = [item.descripcion, item.ubicacion && `ubicación: ${item.ubicacion}`].filter(Boolean).join('; ');
-  return detalle ? `imagen ${item.numero} (${detalle})` : `imagen ${item.numero}`;
-}
-
-function crearContexto({ esquema, valores, imagenes, contacto, referenciadas }) {
+function crearContexto({ esquema, valores, imagenes, contacto, referenciadas, ajustes, urlRecurso }) {
   const { visibles, crudos, parametros } = resolverVisibilidad(esquema, valores, imagenes);
   const porClave = indexarPorClave(parametros);
   const grupos = esquema && Array.isArray(esquema.grupos) ? esquema.grupos : [];
+  const T = ajustes.textos_prompt;
+  const t = (clave, params) => rellenar(T[clave], params);
 
-  // Imágenes numeradas: parámetros `imagenes` visibles en orden del esquema y, dentro, en orden de envío.
+  // Se une con «e» (y no «y») cuando la siguiente palabra empieza con «i»; el conector lo define el ajuste «union_final».
+  const unir = partes => (partes.length <= 1 ? partes.join('') : `${partes.slice(0, -1).join(T.union)}${T.union_final}${partes[partes.length - 1]}`);
+
+  // Imágenes numeradas: recursos «inicio», imágenes del asesor (parámetros visibles en orden del esquema y de envío) y recursos «fin».
   const items = [];
+  const activos = recursosDelEsquema(esquema).filter(r => r.activo === true);
+  const recursoPorVariable = new Map();
+  const agregarRecursos = posicion => activos.filter(r => r.posicion === posicion).forEach(r => {
+    const item = {
+      numero: items.length + 1,
+      origen: 'recurso',
+      clave: r.clave,
+      etiqueta: aLinea(r.etiqueta || r.clave),
+      descripcion: typeof r.descripcion === 'string' ? aLinea(r.descripcion) : '',
+      url: urlRecurso(r)
+    };
+    items.push(item);
+    recursoPorVariable.set(PREFIJO_RECURSO + r.clave, item);
+  });
+
+  agregarRecursos('inicio');
   const itemsPorParametro = new Map();
   grupos.forEach(g => (Array.isArray(g.parametros) ? g.parametros : []).forEach(p => {
     if (!p || p.tipo !== 'imagenes' || !visibles.get(p.clave)) return;
     const crudo = crudos.get(p.clave);
     const propios = (Array.isArray(crudo) ? crudo : []).map(itemDeImagen).filter(Boolean).map(i => {
-      const item = { numero: items.length + 1, parametro: p.clave, grupo: g.etiqueta, ...i };
+      const item = { numero: items.length + 1, origen: 'asesor', parametro: p.clave, grupo: g.etiqueta, ...i };
       items.push(item);
       return item;
     });
     itemsPorParametro.set(p.clave, propios);
   }));
-  const logo = { numero: items.length + 1, url: LOGO_MARCA_AGUA, descripcion: DESCRIPCION_LOGO };
-  const totalImagenes = items.length + 1;
+  agregarRecursos('fin');
   const datos = contacto || {};
 
-  const listaImagenes = () => [
-    ...items.map(i => `- Imagen ${i.numero} (${aLinea(i.grupo).toLowerCase()}): ${i.descripcion || 'sin descripción'}.${i.ubicacion ? ` Ubicación: ${i.ubicacion}.` : ''}`),
-    `- Imagen ${logo.numero} (marca de agua): ${logo.descripcion}.`
-  ].join('\n');
+  const referenciaDeImagen = item => {
+    const detalle = [item.descripcion, item.ubicacion && t('detalle_ubicacion', { ubicacion: item.ubicacion })].filter(Boolean).join(T.detalle_union);
+    return t('imagen_ref', { numero: item.numero }) + (detalle ? t('imagen_detalle', { detalle }) : '');
+  };
 
+  const lineaDeLista = i => t('lista_linea', {
+    numero: i.numero,
+    origen: i.origen === 'recurso' ? i.etiqueta : aLinea(i.grupo),
+    descripcion: i.descripcion || T.lista_sin_descripcion,
+    ubicacion: i.ubicacion ? t('lista_ubicacion', { ubicacion: i.ubicacion }) : ''
+  });
+
+  // Sin imágenes ni recursos activos, la lista y el total quedan vacíos para que la plantilla los oculte.
   const automaticas = {
     asesor_nombre: () => datos.nombre,
     asesor_telefono: () => datos.telefono,
     asesor_correo: () => datos.email,
-    logo_marca_agua: () => `imagen ${logo.numero}`,
-    total_imagenes: () => (totalImagenes === 1 ? '1 imagen' : `${totalImagenes} imágenes`),
-    lista_imagenes: listaImagenes,
+    total_imagenes: () => (items.length ? t(items.length === 1 ? 'total_uno' : 'total_varios', { n: items.length }) : ''),
+    lista_imagenes: () => items.map(lineaDeLista).join('\n'),
     [VARIABLE_OTROS]: () => otrosParametros()
   };
 
@@ -166,6 +195,7 @@ function crearContexto({ esquema, valores, imagenes, contacto, referenciadas }) 
       const valor = automaticas[clave]();
       return sinControl(valor == null ? '' : String(valor)).trim();
     }
+    if (recursoPorVariable.has(clave)) return t('imagen_ref', { numero: recursoPorVariable.get(clave).numero });
     const p = porClave.get(clave);
     if (!p || !visibles.get(clave)) return '';
     const crudo = crudos.get(clave);
@@ -176,22 +206,22 @@ function crearContexto({ esquema, valores, imagenes, contacto, referenciadas }) 
         if (typeof crudo !== 'string') return '';
         const texto = sinControl(crudo).trim();
         if (!p.separador) return texto;
-        return texto.split(p.separador).map(f => f.trim()).filter(Boolean).map(f => `"${f}"`).join(', ');
+        return texto.split(p.separador).map(f => f.trim()).filter(Boolean).map(f => t('frase_comillas', { frase: f })).join(T.frases_union);
       }
       case 'numero': {
         if (typeof crudo !== 'number' || !Number.isFinite(crudo)) return '';
         const unidad = p.unidad_de ? porClave.get(p.unidad_de) : null;
         const opcion = unidad && (unidad.opciones || []).find(o => o.valor === crudos.get(unidad.clave));
-        return opcion ? `${aTexto(crudo)} ${sinControl(opcion.texto_prompt)}` : aTexto(crudo);
+        return opcion ? t('numero_unidad', { valor: aTexto(crudo), unidad: sinControl(opcion.texto_prompt) }) : aTexto(crudo);
       }
       case 'opciones': {
         const opcion = (p.opciones || []).find(o => o.valor === crudo);
         return opcion ? sinControl(opcion.texto_prompt) : '';
       }
       case 'si_no':
-        return crudo === true ? 'sí' : 'no';
+        return crudo === true ? T.si : T.no;
       case 'imagenes':
-        return unirConE((itemsPorParametro.get(clave) || []).map(referenciaDeImagen));
+        return unir((itemsPorParametro.get(clave) || []).map(referenciaDeImagen));
       case 'calculado':
         return profundidad < MAX_PROFUNDIDAD_CALCULADO ? formatear(p.igual_a, profundidad + 1) : '';
       default:
@@ -199,7 +229,7 @@ function crearContexto({ esquema, valores, imagenes, contacto, referenciadas }) 
     }
   }
 
-  // «Tiene valor»: si_no solo cuando es verdadero.
+  // «Tiene valor»: si_no solo cuando es verdadero; un recurso, solo cuando está activo.
   function tieneValor(clave, profundidad = 0) {
     const p = porClave.get(clave);
     if (p && visibles.get(clave)) {
@@ -214,13 +244,13 @@ function crearContexto({ esquema, valores, imagenes, contacto, referenciadas }) 
     const secciones = grupos.map(g => {
       const lineas = (Array.isArray(g.parametros) ? g.parametros : [])
         .filter(p => p && p.tipo !== 'calculado' && !referenciadas.has(p.clave) && tieneValor(p.clave))
-        .map(p => `- ${aLinea(p.etiqueta)}: ${formatear(p.clave)}`);
-      return lineas.length ? `${aLinea(g.etiqueta).toUpperCase()}\n${lineas.join('\n')}` : '';
+        .map(p => t('extras_linea', { etiqueta: aLinea(p.etiqueta), valor: formatear(p.clave) }));
+      return lineas.length ? `${t('extras_grupo', { grupo: aLinea(g.etiqueta) })}\n${lineas.join('\n')}` : '';
     }).filter(Boolean);
-    return secciones.length ? `ESPECIFICACIONES ADICIONALES\n${secciones.join('\n')}` : '';
+    return secciones.length ? `${T.extras_titulo}\n${secciones.join('\n')}` : '';
   }
 
-  return { formatear, tieneValor, items, logo, totalImagenes };
+  return { formatear, tieneValor, items };
 }
 
 // ---------- Render ----------
@@ -242,22 +272,21 @@ function limpiarLineas(texto) {
 }
 
 /**
- * Arma el prompt final y la lista numerada de imágenes. Los valores se insertan en una sola pasada.
- * @returns {{ prompt: string, imagenes: {numero:number, parametro:string, grupo:string, nombre:string, descripcion:string, ubicacion:string}[],
- *   logo: {numero:number, url:string, descripcion:string}, totalImagenes: number }}
+ * Arma el prompt final y la lista numerada de imágenes (recursos activos y del asesor). Los valores se insertan en una sola pasada.
+ * `urlRecurso(recurso)` decide la URL que ve el cliente (por defecto, la guardada).
+ * @returns {{ prompt: string, imagenes: object[], totalImagenes: number }}
  */
-function renderizar({ plantilla, esquema, valores = {}, imagenes = {}, contacto = {} }) {
+function renderizar({ plantilla, esquema, valores = {}, imagenes = {}, contacto = {}, ajustes, urlRecurso = r => r.url }) {
   const referenciadas = clavesReferenciadas(plantilla, esquema);
   // Sin {{otros_parametros}} en la plantilla, la sección se agrega al final.
   const completa = referenciadas.has(VARIABLE_OTROS) ? plantilla : `${plantilla}\n\n{{${VARIABLE_OTROS}}}`;
-  const { nodos } = analizar(completa, clavesDelEsquema(esquema));
-  const ctx = crearContexto({ esquema, valores, imagenes, contacto, referenciadas });
+  const { nodos } = analizar(completa, clavesDelEsquema(esquema), clavesDeRecursos(esquema));
+  const ctx = crearContexto({ esquema, valores, imagenes, contacto, referenciadas, ajustes, urlRecurso });
   const cuerpo = limpiarLineas(renderizarNodos(nodos, ctx)).replace(/\n{3,}/g, '\n\n').trim();
   return {
-    prompt: `${ENCABEZADO_SISTEMA}\n\n${cuerpo}`,
+    prompt: `${ajustes.encabezado_sistema}\n\n${cuerpo}`,
     imagenes: ctx.items,
-    logo: ctx.logo,
-    totalImagenes: ctx.totalImagenes
+    totalImagenes: ctx.items.length
   };
 }
 

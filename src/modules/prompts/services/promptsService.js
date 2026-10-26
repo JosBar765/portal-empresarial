@@ -8,7 +8,9 @@ const { idObligatorio } = require('../../../core/utils/validar');
 const { validarValores } = require('./esquemaService');
 const { renderizar } = require('./plantillaService');
 const { leerJson } = require('./documento');
-const { ESTADOS_VERSION } = require('../constantes');
+const ajustesService = require('./ajustesService');
+const { urlParaCliente } = require('./recursos');
+const { ESTADOS_VERSION, VARIABLES_AUTOMATICAS } = require('../constantes');
 const { errorDeValidacion } = require('../errores');
 
 const telefonoOnull = telefono => (typeof telefono === 'string' && telefono.trim() ? telefono.trim() : null);
@@ -23,6 +25,17 @@ class PromptsService {
       descripcion: f.descripcion,
       version: { id: f.version_id, numero: f.numero, esquema: leerJson(f.esquema) }
     }));
+  }
+
+  // Todo lo que el formulario necesita saber de los límites y formatos, desde un solo lugar.
+  async obtenerConfig() {
+    const ajustes = await ajustesService.obtenerTodos();
+    return {
+      limites: ajustes.limites,
+      formatosImagen: ajustes.formatos_imagen,
+      textosAsesor: ajustes.textos_asesor,
+      variablesAutomaticas: [...VARIABLES_AUTOMATICAS]
+    };
   }
 
   async obtenerContacto(usuarioId) {
@@ -40,7 +53,8 @@ class PromptsService {
     if (!version) throw new ErrorDeNegocio('El producto no está disponible.', 404);
 
     const esquema = leerJson(version.esquema);
-    const validado = validarValores(esquema, valores, imagenes);
+    const ajustes = await ajustesService.obtenerTodos();
+    const validado = validarValores(esquema, valores, imagenes, ajustes);
     if (Object.keys(validado.errores).length) throw errorDeValidacion('Revisa los datos del formulario.', validado.errores);
 
     const contacto = await this.obtenerContacto(usuarioId);
@@ -55,7 +69,9 @@ class PromptsService {
       esquema,
       valores: validado.valores,
       imagenes: validado.imagenes,
-      contacto
+      contacto,
+      ajustes,
+      urlRecurso: recurso => urlParaCliente(recurso, id)
     });
     return { ...resultado, contacto };
   }

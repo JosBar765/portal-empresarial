@@ -457,4 +457,11 @@ CREATE TABLE IF NOT EXISTS `prompt_producto_versiones` (
   FOREIGN KEY (`creado_por`)  REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `prompt_ajustes` (
+  `clave`          VARCHAR(60)  NOT NULL PRIMARY KEY,
+  `valor`          JSON         NOT NULL,
+  `descripcion`    VARCHAR(255) NOT NULL,
+  `actualizado_en` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

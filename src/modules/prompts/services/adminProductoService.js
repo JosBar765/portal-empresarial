@@ -8,11 +8,12 @@ const { idObligatorio } = require('../../../core/utils/validar');
 const { validarEsquema, validarValores, parametrosPlanos } = require('./esquemaService');
 const { validarPlantilla, renderizar, parametrosSinUsar } = require('./plantillaService');
 const { leerJson } = require('./documento');
-const { ESTADOS_PRODUCTO, ESTADOS_VERSION, CODIGO_PRODUCTO_RE, CONTACTO_EJEMPLO } = require('../constantes');
+const ajustesService = require('./ajustesService');
+const { ESTADOS_PRODUCTO, ESTADOS_VERSION, CODIGO_PRODUCTO_RE } = require('../constantes');
 const { errorDeValidacion } = require('../errores');
+const { msg } = require('../mensajes');
 
 const ESQUEMA_VACIO = Object.freeze({ esquema_version: 1, grupos: [] });
-const MAX_LARGO_PLANTILLA = 50000;
 
 const aProducto = p => ({
   id: p.id, codigo: p.codigo, nombre: p.nombre, descripcion: p.descripcion,
@@ -33,14 +34,17 @@ function aCampos(erroresEsquema, erroresPlantilla) {
   return campos;
 }
 
-function exigirContenido(esquema, plantilla, { alMenosUnParametro }) {
-  const erroresEsquema = validarEsquema(esquema);
+const errorDeLargo = (plantilla, ajustes) => (typeof plantilla === 'string' && plantilla.length > ajustes.limites.plantilla_max_largo
+  ? [{ mensaje: msg('plantilla.larga', { max: ajustes.limites.plantilla_max_largo, largo: plantilla.length }) }]
+  : []);
+
+function exigirContenido(esquema, plantilla, ajustes, { alMenosUnParametro }) {
+  const erroresEsquema = validarEsquema(esquema, ajustes);
   if (alMenosUnParametro && !erroresEsquema.length && !parametrosPlanos(esquema).length) {
     erroresEsquema.push({ mensaje: 'Agrega al menos un parámetro.' });
   }
-  const erroresPlantilla = typeof plantilla === 'string' && plantilla.length > MAX_LARGO_PLANTILLA
-    ? [{ mensaje: `La plantilla no puede superar ${MAX_LARGO_PLANTILLA} caracteres.` }]
-    : (erroresEsquema.length ? [] : validarPlantilla(plantilla, esquema));
+  const largo = errorDeLargo(plantilla, ajustes);
+  const erroresPlantilla = largo.length ? largo : (erroresEsquema.length ? [] : validarPlantilla(plantilla, esquema));
   return { erroresEsquema, erroresPlantilla };
 }
 
@@ -60,13 +64,18 @@ class AdminProductoService {
   }
 
   async crear({ codigo, nombre, descripcion } = {}, usuarioId) {
+    const { limites } = await ajustesService.obtenerTodos();
     const campos = {};
     const codigoLimpio = typeof codigo === 'string' ? codigo.trim() : '';
     const nombreLimpio = typeof nombre === 'string' ? nombre.trim() : '';
     const descripcionLimpia = typeof descripcion === 'string' ? descripcion.trim() : '';
     if (!CODIGO_PRODUCTO_RE.test(codigoLimpio)) campos.codigo = 'Usa minúsculas, números y guion bajo (2 a 50 caracteres), empezando con letra.';
-    if (!nombreLimpio || nombreLimpio.length > 100) campos.nombre = 'El nombre es obligatorio (máximo 100 caracteres).';
-    if (descripcionLimpia.length > 255) campos.descripcion = 'La descripción no puede superar 255 caracteres.';
+    if (!nombreLimpio || nombreLimpio.length > limites.producto_nombre_max) {
+      campos.nombre = msg('producto.nombre', { max: limites.producto_nombre_max, largo: nombreLimpio.length });
+    }
+    if (descripcionLimpia.length > limites.producto_descripcion_max) {
+      campos.descripcion = msg('producto.descripcion', { max: limites.producto_descripcion_max, largo: descripcionLimpia.length });
+    }
     if (Object.keys(campos).length) throw errorDeValidacion('Revisa los datos del producto.', campos);
 
     const id = await db.transaccion(async tx => {
@@ -117,8 +126,9 @@ class AdminProductoService {
     if (typeof plantilla !== 'string') throw errorDeValidacion('Revisa el borrador.', { plantilla: 'La plantilla debe ser texto.' });
 
     // Guardar solo exige un esquema bien formado; la plantilla se valida completa al publicar.
-    const erroresEsquema = validarEsquema(esquema);
-    const largo = plantilla.length > MAX_LARGO_PLANTILLA ? [{ mensaje: `La plantilla no puede superar ${MAX_LARGO_PLANTILLA} caracteres.` }] : [];
+    const ajustes = await ajustesService.obtenerTodos();
+    const erroresEsquema = validarEsquema(esquema, ajustes);
+    const largo = errorDeLargo(plantilla, ajustes);
     if (erroresEsquema.length || largo.length) throw errorDeValidacion('Revisa el borrador.', aCampos(erroresEsquema, largo));
 
     if (!await versionRepository.guardarBorrador(borrador.id, esquema, plantilla)) {
@@ -140,6 +150,7 @@ class AdminProductoService {
 
   async publicar(idCrudo) {
     const id = idObligatorio(idCrudo, 'Producto');
+    const ajustes = await ajustesService.obtenerTodos();
     await db.transaccion(async tx => {
       const producto = await productoRepository.obtenerBloqueado(id, tx);
       if (!producto) throw new ErrorDeNegocio('Producto no encontrado.', 404);
@@ -147,7 +158,7 @@ class AdminProductoService {
       if (!borrador) throw new ErrorDeNegocio('El producto no tiene un borrador para publicar.', 409);
 
       const esquema = leerJson(borrador.esquema);
-      const { erroresEsquema, erroresPlantilla } = exigirContenido(esquema, borrador.plantilla, { alMenosUnParametro: true });
+      const { erroresEsquema, erroresPlantilla } = exigirContenido(esquema, borrador.plantilla, ajustes, { alMenosUnParametro: true });
       if (erroresEsquema.length || erroresPlantilla.length) {
         throw errorDeValidacion('El borrador tiene errores y no se puede publicar.', aCampos(erroresEsquema, erroresPlantilla));
       }
@@ -173,17 +184,21 @@ class AdminProductoService {
     return this.obtener(id);
   }
 
-  // Sin persistir nada: renderiza con los valores enviados (o los defectos) y un contacto de ejemplo.
-  previsualizar({ esquema, plantilla, valores, imagenes } = {}) {
-    const erroresEsquema = validarEsquema(esquema);
+  // Sin persistir nada: renderiza con los valores enviados (o los defectos) y el contacto de ejemplo de los ajustes.
+  async previsualizar({ esquema, plantilla, valores, imagenes } = {}) {
+    const ajustes = await ajustesService.obtenerTodos();
+    const erroresEsquema = validarEsquema(esquema, ajustes);
     const erroresPlantilla = erroresEsquema.length ? [] : validarPlantilla(plantilla, esquema);
     const errores = [...erroresEsquema, ...erroresPlantilla];
-    if (errores.length) return { prompt: '', sinUsar: erroresEsquema.length ? [] : parametrosSinUsar(esquema, plantilla), errores };
+    if (errores.length) {
+      return { prompt: '', imagenes: [], totalImagenes: 0, sinUsar: erroresEsquema.length ? [] : parametrosSinUsar(esquema, plantilla), errores };
+    }
 
-    const validado = validarValores(esquema, valores, imagenes);
+    const validado = validarValores(esquema, valores, imagenes, ajustes);
     const erroresValores = Object.entries(validado.errores).map(([clave, mensaje]) => ({ clave, mensaje }));
+    const { nombre, correo, telefono } = ajustes.contacto_ejemplo;
     const resultado = renderizar({
-      plantilla, esquema, valores: validado.valores, imagenes: validado.imagenes, contacto: CONTACTO_EJEMPLO
+      plantilla, esquema, valores: validado.valores, imagenes: validado.imagenes, contacto: { nombre, email: correo, telefono }, ajustes
     });
     return { ...resultado, sinUsar: parametrosSinUsar(esquema, plantilla), errores: erroresValores };
   }
