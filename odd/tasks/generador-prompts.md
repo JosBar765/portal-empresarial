@@ -24,8 +24,8 @@ Módulo nuevo e independiente. El asesor completa los parámetros de un producto
 - [x] T2 Backend: `src/modules/prompts` (esquema, plantilla, contacto, productos, versiones, rutas), catálogo `MODULOS` y montaje en `app.js`. (commit «backend del módulo»)
 - [x] T3 Front asesor: formulario dinámico, lámina numerada, copiar todo, modal sin teléfono. (commit «vista del asesor»)
 - [x] T4 Front administración: lista, editor de parámetros, plantilla, vista previa y JSON. (commit «vista de administración»)
-- [ ] T5 Documentación del módulo y mapa de docs de `CLAUDE.md`.
-- [ ] T6 Verificación final (sintaxis, pruebas de funciones puras) y resumen.
+- [x] T5 Documentación del módulo y mapa de docs de `CLAUDE.md`. (commit «README del módulo»)
+- [x] T6 Verificación final (sintaxis, pruebas de funciones puras) y resumen. (ci:sintaxis 245 archivos OK; 40 aserciones de plantilla/esquema; esquemaOps y calcularLayout probados; router con 12 rutas carga con config simulada)
 
 ## Checks
 Sin suite de tests (excepción a RED/GREEN): `node --check` en todo JS tocado y comprobaciones con `node -e` de las funciones puras (validación de esquema, render de plantilla). El servidor lo levanta el usuario; las migraciones no se ejecutan contra bases reales desde aquí.
@@ -34,4 +34,4 @@ Sin suite de tests (excepción a RED/GREEN): `node --check` en todo JS tocado y 
 - T1 a T5: delegated direct (un escritor por tarea, varias carpetas y archivos no triviales), tras un mapeo de patrones por un explorador de solo lectura.
 
 ## Progreso
-T0, T1 y T2 hechas. Contrato técnico en .agents/modulos/generador de prompts/documentacion/esquema_y_contrato.md. Verificado: node --check y 40 aserciones de funciones puras (plantilla y esquema); la migración no se ejecutó (la corre el usuario con npm run migrate). T3 hecha (ci:sintaxis 236 archivos OK; calcularLayout probado; comportamiento en navegador sin verificar). T4 hecha (ci:sintaxis 245 archivos OK; esquemaOps probado; navegador sin verificar). Pendiente: T5 docs y T6 verificación.
+T0, T1 y T2 hechas. Contrato técnico en .agents/modulos/generador de prompts/documentacion/esquema_y_contrato.md. Verificado: node --check y 40 aserciones de funciones puras (plantilla y esquema); la migración no se ejecutó (la corre el usuario con npm run migrate). T3 hecha (ci:sintaxis 236 archivos OK; calcularLayout probado; comportamiento en navegador sin verificar). T4 hecha (ci:sintaxis 245 archivos OK; esquemaOps probado; navegador sin verificar). Todas las tareas hechas. Falta la prueba manual en el navegador (el usuario corre npm run migrate, reinicia el servidor y vuelve a iniciar sesión). Sin push.
