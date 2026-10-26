@@ -9,6 +9,10 @@ const MAX_LARGO_TEXTO = 150;
 const MAX_LARGO_TEXTO_LARGO = 600;
 const MAX_LARGO_NOMBRE_IMAGEN = 150;
 const MAX_IMAGENES_DEFECTO = 10;
+const MAX_LARGO_DESCRIPCION_IMAGEN = 120;
+const MAX_LISTA_TEXTOS = 12;
+const MAX_LARGO_UBICACION = 40;
+const MAX_LARGO_SUGERENCIA = 60;
 
 const tiene = (objeto, clave) => Object.prototype.hasOwnProperty.call(objeto, clave);
 const esObjeto = valor => valor !== null && typeof valor === 'object' && !Array.isArray(valor);
@@ -25,6 +29,19 @@ function indexarPorClave(parametros) {
 }
 
 // ---------- Validación del esquema ----------
+
+// Lista opcional de textos cortos y únicos (ubicaciones, sugerencias).
+function validarListaTextos(p, nombre, maxLargo, err) {
+  const lista = p[nombre];
+  if (lista === undefined) return;
+  if (!Array.isArray(lista) || lista.length > MAX_LISTA_TEXTOS) return err(`«${nombre}» debe ser una lista de hasta ${MAX_LISTA_TEXTOS} textos.`);
+  const vistos = new Set();
+  for (const texto of lista) {
+    if (!esTextoNoVacio(texto) || texto.trim().length > maxLargo) return err(`Cada elemento de «${nombre}» debe tener entre 1 y ${maxLargo} caracteres.`);
+    if (vistos.has(texto.trim())) return err(`«${nombre}» tiene el texto «${texto.trim()}» repetido.`);
+    vistos.add(texto.trim());
+  }
+}
 
 function validarParametro(p, claves, errores) {
   const err = mensaje => errores.push({ clave: p.clave, mensaje });
@@ -84,6 +101,8 @@ function validarParametro(p, claves, errores) {
       if (p.formatos !== undefined && !(Array.isArray(p.formatos) && p.formatos.length && p.formatos.every(f => FORMATOS.includes(f)))) {
         err(`«formatos» debe ser una lista con valores de: ${FORMATOS.join(', ')}.`);
       }
+      validarListaTextos(p, 'ubicaciones', MAX_LARGO_UBICACION, err);
+      validarListaTextos(p, 'sugerencias', MAX_LARGO_SUGERENCIA, err);
       break;
     case 'calculado':
       if (!claves.has(p.igual_a)) err(`«igual_a» apunta a «${p.igual_a}», que no existe.`);
@@ -186,18 +205,35 @@ function listarImagenesVisibles(esquema, valores = {}, imagenes = {}) {
 
 // ---------- Validación de lo que envía el asesor ----------
 
+// Cada imagen es { nombre, descripcion?, ubicacion? }; un texto suelto se toma como el nombre.
 function validarImagenes(p, lista, errores) {
-  if (!Array.isArray(lista)) { errores[p.clave] = 'Debe ser una lista de nombres de archivo.'; return []; }
+  if (!Array.isArray(lista)) { errores[p.clave] = 'Debe ser una lista de imágenes.'; return []; }
   const max = p.max || MAX_IMAGENES_DEFECTO;
   const formatos = p.formatos || FORMATOS;
+  const ubicaciones = Array.isArray(p.ubicaciones) ? p.ubicaciones : [];
   if (lista.length > max) { errores[p.clave] = `Máximo ${max} imágenes.`; return []; }
+  const falla = mensaje => { errores[p.clave] = mensaje; return []; };
   const limpias = [];
-  for (const nombre of lista) {
-    const limpio = typeof nombre === 'string' ? nombre.trim() : '';
-    if (!limpio || limpio.length > MAX_LARGO_NOMBRE_IMAGEN) { errores[p.clave] = `Cada nombre de imagen debe tener entre 1 y ${MAX_LARGO_NOMBRE_IMAGEN} caracteres.`; return []; }
-    const extension = limpio.includes('.') ? limpio.split('.').pop().toLowerCase() : '';
-    if (!formatos.includes(extension)) { errores[p.clave] = `Formato no permitido (${formatos.join(', ')}).`; return []; }
-    limpias.push(limpio);
+  for (const crudo of lista) {
+    const item = typeof crudo === 'string' ? { nombre: crudo } : crudo;
+    if (!esObjeto(item)) return falla('Cada imagen debe tener nombre, descripción y ubicación.');
+    const nombre = typeof item.nombre === 'string' ? item.nombre.trim() : '';
+    if (!nombre || nombre.length > MAX_LARGO_NOMBRE_IMAGEN) return falla(`Cada nombre de imagen debe tener entre 1 y ${MAX_LARGO_NOMBRE_IMAGEN} caracteres.`);
+    const extension = nombre.includes('.') ? nombre.split('.').pop().toLowerCase() : '';
+    if (!formatos.includes(extension)) return falla(`Formato no permitido (${formatos.join(', ')}).`);
+
+    const limpia = { nombre };
+    if (item.descripcion !== undefined && item.descripcion !== null) {
+      const descripcion = typeof item.descripcion === 'string' ? item.descripcion.trim() : null;
+      if (descripcion === null || descripcion.length > MAX_LARGO_DESCRIPCION_IMAGEN) return falla(`La descripción de la imagen no puede superar ${MAX_LARGO_DESCRIPCION_IMAGEN} caracteres.`);
+      if (descripcion) limpia.descripcion = descripcion;
+    }
+    if (item.ubicacion !== undefined && item.ubicacion !== null && ubicaciones.length) {
+      const ubicacion = typeof item.ubicacion === 'string' ? item.ubicacion.trim() : null;
+      if (ubicacion === null || (ubicacion && !ubicaciones.includes(ubicacion))) return falla('La ubicación de la imagen no es una de las permitidas.');
+      if (ubicacion) limpia.ubicacion = ubicacion;
+    }
+    limpias.push(limpia);
   }
   return limpias;
 }

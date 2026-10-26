@@ -6,7 +6,7 @@ const versionRepository = require('../repositories/versionRepository');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
 const { validarEsquema, validarValores, parametrosPlanos } = require('./esquemaService');
-const { validarPlantilla, renderizar } = require('./plantillaService');
+const { validarPlantilla, renderizar, parametrosSinUsar } = require('./plantillaService');
 const { leerJson } = require('./documento');
 const { ESTADOS_PRODUCTO, ESTADOS_VERSION, CODIGO_PRODUCTO_RE, CONTACTO_EJEMPLO } = require('../constantes');
 const { errorDeValidacion } = require('../errores');
@@ -178,14 +178,14 @@ class AdminProductoService {
     const erroresEsquema = validarEsquema(esquema);
     const erroresPlantilla = erroresEsquema.length ? [] : validarPlantilla(plantilla, esquema);
     const errores = [...erroresEsquema, ...erroresPlantilla];
-    if (errores.length) return { prompt: '', errores };
+    if (errores.length) return { prompt: '', sinUsar: erroresEsquema.length ? [] : parametrosSinUsar(esquema, plantilla), errores };
 
     const validado = validarValores(esquema, valores, imagenes);
     const erroresValores = Object.entries(validado.errores).map(([clave, mensaje]) => ({ clave, mensaje }));
-    const { prompt, lamina } = renderizar({
+    const resultado = renderizar({
       plantilla, esquema, valores: validado.valores, imagenes: validado.imagenes, contacto: CONTACTO_EJEMPLO
     });
-    return { prompt, lamina, errores: erroresValores };
+    return { ...resultado, sinUsar: parametrosSinUsar(esquema, plantilla), errores: erroresValores };
   }
 
   async _exigirProducto(id) {
