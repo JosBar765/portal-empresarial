@@ -152,6 +152,25 @@ function construirOpciones(p, ctx, id) {
   return { nodo: select, usaInput: true, refrescar: () => { select.value = leer(); } };
 }
 
+let zonaActiva = null; // recuadro bajo el cursor o con foco: destino del Ctrl+V
+let contadorPegadas = 0;
+const EXT_POR_MIME = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/svg+xml': 'svg', 'image/gif': 'gif' };
+
+// El portapapeles entrega capturas como «image.png»: se renombran para distinguirlas en la lámina.
+function nombrarPegada(f) {
+  if (f.name && !/^image\.\w+$/i.test(f.name)) return f;
+  const ext = EXT_POR_MIME[f.type] || f.type.split('/')[1] || 'png';
+  return new File([f], `imagen-pegada-${++contadorPegadas}.${ext}`, { type: f.type });
+}
+
+document.addEventListener('paste', (e) => {
+  if (!zonaActiva || !zonaActiva.isConnected) return;
+  const imagenes = Array.from(e.clipboardData?.files || []).filter(f => f.type.startsWith('image/'));
+  if (!imagenes.length) return;
+  e.preventDefault();
+  zonaActiva.pegar(imagenes.map(nombrarPegada));
+});
+
 function construirImagenes(p, ctx, id) {
   const { estado } = ctx;
   const max = p.max || 1;
@@ -163,8 +182,8 @@ function construirImagenes(p, ctx, id) {
   const input = h('input', { type: 'file', id, class: 'pr-file-input', multiple: true, tabindex: '-1', accept: permitidas.map(e => `.${e}`).join(',') });
   const zona = h('div', { class: 'pr-dropzone', role: 'button', tabindex: '0', 'aria-controls': id },
     icono('cloud-upload-outline'),
-    h('strong', { text: 'Arrastra imágenes o haz clic para subir' }),
-    h('span', { class: 'form-hint', text: `Hasta ${max} imágenes · ${formatos.map(f => f.toUpperCase()).join(', ')} · máx. ${maxMb} MB cada una` }));
+    h('strong', { text: 'Arrastra, haz clic o pega (Ctrl+V) imágenes' }),
+    h('span', { class: 'form-hint', text: `Para pegar, pon el cursor sobre este recuadro · Hasta ${max} imágenes · ${formatos.map(f => f.toUpperCase()).join(', ')} · máx. ${maxMb} MB cada una` }));
   const grilla = h('div', { class: 'pr-miniaturas' });
   const contador = h('span', { class: 'pr-contador' });
 
@@ -199,6 +218,11 @@ function construirImagenes(p, ctx, id) {
     zona.classList.remove('is-arrastre');
     if (lista().length < max) agregar(Array.from(e.dataTransfer.files));
   });
+  zona.pegar = (archivos) => agregar(archivos);
+  zona.addEventListener('mouseenter', () => { zonaActiva = zona; });
+  zona.addEventListener('focus', () => { zonaActiva = zona; });
+  zona.addEventListener('mouseleave', () => { if (zonaActiva === zona && document.activeElement !== zona) zonaActiva = null; });
+  zona.addEventListener('blur', () => { if (zonaActiva === zona) zonaActiva = null; });
 
   let firma = null; // evita reconstruir las miniaturas si la lista no cambió
   const refrescar = () => {
