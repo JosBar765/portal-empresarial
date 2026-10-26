@@ -35,8 +35,8 @@ Decisiones del usuario:
 - Todo parámetro o grupo nuevo del esquema entra solo al prompt: variable automática `{{otros_parametros}}` (y se agrega al final si la plantilla no la usa).
 - Quitar los íconos de la forma (nada hardcodeado en el formulario).
 - Migración 16 con la plantilla v2 (no se edita la 15, ya aplicada en local).
-- [ ] T7 Backend: formato de imágenes, variables automáticas, otros_parametros, API sin lámina, migración plantilla v2 y contrato.
-- [ ] T8 Front asesor: descripción y ubicación por imagen, copiado una por una, sin lámina ni íconos de forma.
+- [x] T7 Backend: formato de imágenes, variables automáticas, otros_parametros, API sin lámina, migración plantilla v2 y contrato. (commit «imágenes descritas, otros parámetros…»)
+- [x] T8 Front asesor: descripción y ubicación por imagen, copiado una por una, sin lámina ni íconos de forma. (commit «imágenes sueltas…»; sin verificar en navegador)
 - [ ] T9 Front administración: ubicaciones y sugerencias por parámetro de imágenes, parámetros sin usar en la plantilla.
 
 ## Checks
