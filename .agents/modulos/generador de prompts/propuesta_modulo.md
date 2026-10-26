@@ -1,6 +1,6 @@
 # Propuesta del módulo Generador de Prompts
 
-Estado: **propuesta para refinar**. No hay código ni migraciones; se construye solo cuando esta propuesta se apruebe.
+Estado: **propuesta inicial, ya implementada** en la rama `module/generador-prompts`. Decisiones posteriores del usuario (2026-10-26): no se guardan propuestas (sin tabla `prompt_propuestas`, historial ni número), las imágenes viven solo en el navegador y la marca de agua se pide en el prompt. El esquema, la plantilla y la API vigentes están en `documentacion/esquema_y_contrato.md`.
 Base: `analisis_modulo.md`. Mockup: [Figma](https://www.figma.com/design/XB3lOHqrqObxxQnr78rIiT).
 
 ## 1. Resumen
