@@ -63,6 +63,11 @@ Diseño:
 - Plantilla v5 en la migración 19: reverso con la misma silueta y solo lo indicado (o liso); regla de no agregar elementos no indicados. La v4 queda archivada. La migración se salta si ya hay otra versión publicada (el usuario edita su plantilla desde el admin).
 - [x] T15 Variables `grupo_<clave>_vacio`, plantilla v5, migración 19, chips del editor y contrato. (commit «reverso estricto…»; t19 y pruebas anteriores OK; migración 19 sin ejecutar)
 
+## Ronda 5 (2026-10-26): pruebas con Gemini
+Decisiones del usuario: opción «Al corte», texto principal solo en el frente y regla en positivo (publicadas como v11 en su BD local); descripción de imagen obligatoria y configurable por parámetro (código + v12).
+- [x] T16 Descripción obligatoria por parámetro de imágenes (commit «descripción obligatoria configurable…»; pruebas puras OK; sin verificar en navegador).
+- [ ] T17 Prueba real en Gemini con el prompt generado, aprobación del usuario y documento de hallazgos.
+
 ## Checks
 Sin suite de tests (excepción a RED/GREEN): `node --check` en todo JS tocado y comprobaciones con `node -e` de las funciones puras (validación de esquema, render de plantilla). El servidor lo levanta el usuario; las migraciones no se ejecutan contra bases reales desde aquí.
 
