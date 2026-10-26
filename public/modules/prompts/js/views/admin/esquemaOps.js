@@ -1,53 +1,47 @@
 // Operaciones puras (sin DOM) sobre el esquema del producto; nunca mutan sus argumentos.
-export const CLAVE_RE = /^[a-z][a-z0-9_]{1,59}$/;
-export const FORMATOS = ['png', 'jpg', 'svg', 'webp'];
-export const TIPOS = [
-  { valor: 'texto', etiqueta: 'Texto corto' },
-  { valor: 'texto_largo', etiqueta: 'Texto largo' },
-  { valor: 'numero', etiqueta: 'Número' },
-  { valor: 'opciones', etiqueta: 'Opciones' },
-  { valor: 'si_no', etiqueta: 'Sí / No' },
-  { valor: 'imagenes', etiqueta: 'Imágenes' },
-  { valor: 'calculado', etiqueta: 'Calculado' }
-];
-export const VARIABLES_AUTOMATICAS = ['asesor_nombre', 'asesor_telefono', 'asesor_correo', 'total_imagenes', 'lista_imagenes', 'logo_marca_agua', 'otros_parametros'];
-// Límites de las listas opcionales de un parámetro de imágenes (el servidor valida lo mismo).
-export const LISTAS_IMAGENES = {
-  ubicaciones: { maxItems: 12, maxLargo: 40 },
-  sugerencias: { maxItems: 12, maxLargo: 60 }
-};
-export const etiquetaDeTipo = (tipo) => (TIPOS.find(t => t.valor === tipo) || { etiqueta: tipo }).etiqueta;
+// Los mensajes salen de textos.js (también sin DOM); los límites llegan por parámetro desde /config.
+import { t } from '../../textos.js';
+import { CLAVE_RE, TIPOS, PREFIJO_RECURSO } from './reglasEsquema.js';
+
+export const etiquetaDeTipo = (tipo) => (TIPOS.includes(tipo) ? t(`admin.tipos.${tipo}`) : tipo);
 
 export const claveValida = (clave) => CLAVE_RE.test(clave || '');
 
 export const clavesDelEsquema = (esquema) => esquema.grupos.flatMap(g => g.parametros.map(p => p.clave));
 
+export const clavesDeRecursos = (esquema) => (esquema.recursos || []).map(r => r.clave);
+
 // `claveActual` permite conservar la propia clave al editar un parámetro.
+// Un parámetro tampoco puede llamarse como un recurso ni «recurso_<clave>» (esa es la variable del recurso).
 export function claveDisponible(esquema, clave, claveActual = null) {
   if (!claveValida(clave)) return false;
-  return clave === claveActual || !clavesDelEsquema(esquema).includes(clave);
+  if (clave === claveActual) return true;
+  const recursos = clavesDeRecursos(esquema);
+  return !clavesDelEsquema(esquema).includes(clave) && !recursos.includes(clave) && !recursos.some(r => clave === PREFIJO_RECURSO + r);
 }
 
 export const claveGrupoDisponible = (esquema, clave) => claveValida(clave) && !esquema.grupos.some(g => g.clave === clave);
 
 export const contarParametros = (esquema) => esquema.grupos.reduce((n, g) => n + g.parametros.length, 0);
 
+export const contarRecursos = (esquema) => (esquema.recursos || []).length;
+
 // Sugiere una clave snake_case a partir de la etiqueta.
 export function claveDesdeEtiqueta(etiqueta) {
-  const base = String(etiqueta || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  const base = String(etiqueta || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   return (/^[a-z]/.test(base) ? base : base ? `p_${base}` : '').slice(0, 60);
 }
 
 function buscarGrupo(esquema, clave) {
   const i = esquema.grupos.findIndex(g => g.clave === clave);
-  if (i < 0) throw new Error('El grupo no existe.');
+  if (i < 0) throw new Error(t('admin.errores.grupoNoExiste', { clave }));
   return i;
 }
 
 const conGrupos = (esquema, grupos) => ({ ...esquema, grupos });
 
-function intercambiar(lista, i, delta) {
+export function intercambiar(lista, i, delta) {
   const j = i + delta;
   if (j < 0 || j >= lista.length) return lista;
   const copia = lista.slice();
@@ -56,20 +50,21 @@ function intercambiar(lista, i, delta) {
 }
 
 export function agregarGrupo(esquema, { clave, etiqueta }) {
-  if (!String(etiqueta || '').trim()) throw new Error('La etiqueta del grupo es obligatoria.');
-  if (!claveGrupoDisponible(esquema, clave)) throw new Error('La clave del grupo no es válida o ya existe.');
+  if (!String(etiqueta || '').trim()) throw new Error(t('admin.errores.grupoEtiquetaVacia'));
+  if (!claveGrupoDisponible(esquema, clave)) throw new Error(t('admin.errores.grupoClave', { clave }));
   return conGrupos(esquema, [...esquema.grupos, { clave, etiqueta: etiqueta.trim(), parametros: [] }]);
 }
 
 export function renombrarGrupo(esquema, clave, etiqueta) {
-  if (!String(etiqueta || '').trim()) throw new Error('La etiqueta del grupo es obligatoria.');
+  if (!String(etiqueta || '').trim()) throw new Error(t('admin.errores.grupoEtiquetaVacia'));
   const i = buscarGrupo(esquema, clave);
   return conGrupos(esquema, esquema.grupos.map((g, k) => (k === i ? { ...g, etiqueta: etiqueta.trim() } : g)));
 }
 
 export function eliminarGrupo(esquema, clave) {
   const i = buscarGrupo(esquema, clave);
-  if (esquema.grupos[i].parametros.length) throw new Error('Solo se puede eliminar un grupo vacío.');
+  const grupo = esquema.grupos[i];
+  if (grupo.parametros.length) throw new Error(t('admin.errores.grupoNoVacio', { etiqueta: grupo.etiqueta, n: grupo.parametros.length }));
   return conGrupos(esquema, esquema.grupos.filter((_, k) => k !== i));
 }
 
@@ -79,7 +74,7 @@ export function moverGrupo(esquema, clave, delta) {
 
 export function agregarParametro(esquema, grupoClave, parametro) {
   const i = buscarGrupo(esquema, grupoClave);
-  if (!claveDisponible(esquema, parametro.clave)) throw new Error('La clave no es válida o ya existe.');
+  if (!claveDisponible(esquema, parametro.clave)) throw new Error(t('admin.errores.parametroClaveNoDisponible', { clave: parametro.clave }));
   return conGrupos(esquema, esquema.grupos.map((g, k) => (k === i ? { ...g, parametros: [...g.parametros, parametro] } : g)));
 }
 
@@ -88,7 +83,7 @@ function ubicar(esquema, clave) {
     const pi = esquema.grupos[gi].parametros.findIndex(p => p.clave === clave);
     if (pi >= 0) return { gi, pi };
   }
-  throw new Error('El parámetro no existe.');
+  throw new Error(t('admin.errores.parametroNoExiste', { clave }));
 }
 
 // Si la clave cambia, actualiza las referencias de los demás parámetros.
@@ -103,7 +98,7 @@ function reapuntar(p, vieja, nueva) {
 // grupoDestino opcional: mueve el parámetro (al final) si es otro grupo.
 export function actualizarParametro(esquema, claveOriginal, parametro, grupoDestino = null) {
   const { gi, pi } = ubicar(esquema, claveOriginal);
-  if (!claveDisponible(esquema, parametro.clave, claveOriginal)) throw new Error('La clave no es válida o ya existe.');
+  if (!claveDisponible(esquema, parametro.clave, claveOriginal)) throw new Error(t('admin.errores.parametroClaveNoDisponible', { clave: parametro.clave }));
   const destino = grupoDestino ? buscarGrupo(esquema, grupoDestino) : gi;
   const renombrada = parametro.clave !== claveOriginal;
   const grupos = esquema.grupos.map((g, k) => {
@@ -137,7 +132,7 @@ export function dependientesDe(esquema, plantilla, clave) {
     if (p.unidad_de === clave) lista.push({ tipo: 'unidad_de', clave: p.clave, etiqueta: p.etiqueta });
     if (p.igual_a === clave) lista.push({ tipo: 'igual_a', clave: p.clave, etiqueta: p.etiqueta });
   }));
-  if (claveValida(clave) && regexUso(clave).test(plantilla || '')) lista.push({ tipo: 'plantilla', clave: null, etiqueta: 'Plantilla del prompt' });
+  if (claveValida(clave) && regexUso(clave).test(plantilla || '')) lista.push({ tipo: 'plantilla', clave: null, etiqueta: t('admin.plantilla.titulo') });
   return lista;
 }
 
@@ -148,30 +143,37 @@ export function renombrarEnPlantilla(plantilla, vieja, nueva) {
 }
 
 export function insertarEnPosicion(texto, inicio, fin, fragmento) {
-  const t = String(texto || '');
-  const a = Math.max(0, Math.min(inicio, t.length));
-  const b = Math.max(a, Math.min(fin, t.length));
-  return { texto: t.slice(0, a) + fragmento + t.slice(b), cursor: a + fragmento.length };
+  const base = String(texto || '');
+  const a = Math.max(0, Math.min(inicio, base.length));
+  const b = Math.max(a, Math.min(fin, base.length));
+  return { texto: base.slice(0, a) + fragmento + base.slice(b), cursor: a + fragmento.length };
 }
 
-// Campos propios de cada tipo al crearlo o cambiarlo.
-export function camposPorDefecto(tipo) {
+// Campos propios de cada tipo al crearlo o cambiarlo; los valores iniciales vienen de /config.
+export function camposPorDefecto(tipo, { limites, formatosImagen }) {
   switch (tipo) {
-    case 'texto': return { max_largo: 150 };
-    case 'texto_largo': return { max_largo: 600 };
+    case 'texto': return { max_largo: limites.texto_max_largo_defecto };
+    case 'texto_largo': return { max_largo: limites.texto_largo_max_largo_defecto };
     case 'opciones': return { opciones: [{ valor: '', etiqueta: '', texto_prompt: '' }] };
-    case 'imagenes': return { max: 3, max_mb: 5, formatos: FORMATOS.slice() };
+    case 'imagenes': return { max: limites.imagenes_max_defecto, max_mb: limites.imagenes_mb_defecto, formatos: Object.keys(formatosImagen) };
     default: return {};
   }
 }
 
+// Límites de las listas opcionales de un parámetro de imágenes (`campo`: ubicaciones o sugerencias).
+export const limitesLista = (limites, campo) => ({
+  maxItems: limites.lista_max_items,
+  maxLargo: campo === 'ubicaciones' ? limites.ubicacion_max : limites.sugerencia_max,
+  nombre: t(`admin.parametro.${campo}`)
+});
+
 // Texto de un recuadro (una por línea) a lista: recorta, quita vacías y repetidas y valida los límites.
-export function listaDesdeTexto(texto, { maxItems, maxLargo }) {
+export function listaDesdeTexto(texto, { maxItems, maxLargo, nombre = '' }) {
   const lista = [...new Set(String(texto || '').split('\n').map(l => l.trim()).filter(Boolean))];
   const errores = [];
-  if (lista.length > maxItems) errores.push(`Máximo ${maxItems} líneas.`);
-  const largas = lista.filter(l => l.length > maxLargo);
-  if (largas.length) errores.push(`Cada línea admite hasta ${maxLargo} caracteres («${largas[0].slice(0, 20)}…» es más larga).`);
+  if (lista.length > maxItems) errores.push(t('admin.errores.listaExceso', { nombre, n: lista.length, max: maxItems }));
+  const larga = lista.find(l => l.length > maxLargo);
+  if (larga) errores.push(t('admin.errores.listaLarga', { nombre, linea: larga.slice(0, 20), largo: larga.length, max: maxLargo }));
   return { lista, errores };
 }
 
@@ -182,7 +184,7 @@ export function imagenesDeEjemplo(esquema) {
   const out = {};
   let n = 0;
   esquema.grupos.forEach(g => g.parametros.filter(p => p.tipo === 'imagenes').forEach(p => {
-    const imagen = { nombre: `ejemplo-${++n}.png`, descripcion: (p.sugerencias || [])[0] || 'Imagen de ejemplo' };
+    const imagen = { nombre: `ejemplo-${++n}.png`, descripcion: (p.sugerencias || [])[0] || t('admin.vistaPrevia.imagenEjemplo') };
     if ((p.ubicaciones || []).length) imagen.ubicacion = p.ubicaciones[0];
     out[p.clave] = [imagen];
   }));

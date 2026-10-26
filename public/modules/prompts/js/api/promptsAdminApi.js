@@ -12,3 +12,5 @@ export const descartarBorrador = (id) => pedir(`${base}/productos/${id}/borrador
 export const publicar = (id) => pedir(`${base}/productos/${id}/publicar`, { method: 'POST' });
 export const cambiarEstado = (id, estado) => pedir(`${base}/productos/${id}/estado`, enJson('PATCH', { estado }));
 export const previsualizar = (payload) => pedir(`${base}/previsualizar`, enJson('POST', payload));
+export const listarAjustes = () => pedir(`${base}/ajustes`);
+export const guardarAjuste = (clave, valor) => pedir(`${base}/ajustes/${encodeURIComponent(clave)}`, enJson('PUT', { valor }));

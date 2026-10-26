@@ -4,6 +4,7 @@ import { escapeHtml } from '../utils/formato.js';
 import { t } from '../textos.js';
 import { cargarAsesor, liberarAsesor } from '../views/asesor/formulario.js';
 import { renderAdminProductos } from '../views/adminProductos.js';
+import { renderAdminAjustes } from '../views/adminAjustes.js';
 
 // Mismo patrón colapsable/cajón móvil que Administración.
 const SIDEBAR_ANCHO = '224px';
@@ -15,7 +16,7 @@ function actualizarOffsetSidebar(sidebar) {
 
 const TAB_ACTIVA_KEY = 'prompts:tabActiva';
 const COLAPSO_KEY = 'prompts:sidebarColapsado';
-const PERMISO_POR_TAB = { asesor: 'prompts.generar', admin: 'prompts.administrar' };
+const PERMISO_POR_TAB = { asesor: 'prompts.generar', admin: 'prompts.administrar', ajustes: 'prompts.administrar' };
 
 // localStorage puede fallar (modo privado, datos bloqueados): es solo comodidad.
 const leer = (clave) => { try { return localStorage.getItem(clave); } catch (e) { return null; } };
@@ -35,6 +36,7 @@ export async function cargarTab() {
   try {
     if (state.tab === 'asesor') await cargarAsesor(cont);
     else if (state.tab === 'admin') await renderAdminProductos(cont);
+    else if (state.tab === 'ajustes') await renderAdminAjustes(cont);
   } catch (error) {
     cont.innerHTML = `<div class="buzon-vacio buzon-vacio-error"><ion-icon name="alert-circle-outline"></ion-icon><h3>${escapeHtml(t('shell.errorCarga.titulo'))}</h3><p>${escapeHtml(error.message)}</p></div>`;
   }

@@ -1,8 +1,10 @@
 // Pestaña «Parámetros»: grupos y parámetros del esquema en memoria.
 import { h, icono, $ } from '../../utils/dom.js';
 import { escapeHtml } from '../../utils/formato.js';
+import { t } from '../../textos.js';
 import { abrirModal, mostrarErrorModal, confirmarModal } from '../../components/modal.js';
 import { abrirModalParametro } from './modalParametro.js';
+import { LARGOS, CLAVE_LARGO_MAX } from './reglasEsquema.js';
 import {
   agregarGrupo, renombrarGrupo, eliminarGrupo, moverGrupo, agregarParametro, actualizarParametro,
   eliminarParametro, moverParametro, dependientesDe, renombrarEnPlantilla, etiquetaDeTipo,
@@ -10,13 +12,13 @@ import {
 } from './esquemaOps.js';
 
 const TEXTO_DEPENDENCIA = {
-  visible_si: (d) => `«${d.etiqueta}» depende de él en «Visible si».`,
-  unidad_de: (d) => `«${d.etiqueta}» lo usa como unidad.`,
-  igual_a: (d) => `«${d.etiqueta}» se calcula a partir de él.`,
-  plantilla: () => 'La plantilla del prompt lo usa.'
+  visible_si: (d) => t('admin.parametros.depVisibleSi', { etiqueta: d.etiqueta }),
+  unidad_de: (d) => t('admin.parametros.depUnidad', { etiqueta: d.etiqueta }),
+  igual_a: (d) => t('admin.parametros.depCalculado', { etiqueta: d.etiqueta }),
+  plantilla: () => t('admin.parametros.depPlantilla')
 };
 
-const valorVisible = (igual) => (igual === true ? 'Sí' : igual === false ? 'No' : String(igual));
+const valorVisible = (igual) => (igual === true ? t('comun.si') : igual === false ? t('comun.no') : String(igual));
 
 function botonIcono(nombre, titulo, onclick, { peligro = false, deshabilitado = false } = {}) {
   return h('button', { type: 'button', class: `btn-icon${peligro ? ' icon-danger' : ''}`, title: titulo, 'aria-label': titulo, disabled: deshabilitado, onclick }, icono(nombre));
@@ -25,10 +27,10 @@ function botonIcono(nombre, titulo, onclick, { peligro = false, deshabilitado = 
 // Pide etiqueta (y clave si es nuevo) para crear o renombrar un grupo.
 function modalGrupo({ titulo, etiqueta = '', conClave, alAceptar }) {
   const cuerpo = `<div class="form-grid">
-    <div class="form-field full"><label for="pr-adm-g-etiqueta">Etiqueta</label><input id="pr-adm-g-etiqueta" maxlength="80" value="${escapeHtml(etiqueta)}"></div>
-    ${conClave ? '<div class="form-field full"><label for="pr-adm-g-clave">Clave</label><input id="pr-adm-g-clave" class="pr-adm-mono" maxlength="60"><span class="form-hint">Minúsculas, números y guion bajo; empieza con una letra.</span></div>' : ''}
+    <div class="form-field full"><label for="pr-adm-g-etiqueta">${escapeHtml(t('admin.parametros.grupoEtiqueta'))}</label><input id="pr-adm-g-etiqueta" maxlength="${LARGOS.grupoEtiqueta}" value="${escapeHtml(etiqueta)}"></div>
+    ${conClave ? `<div class="form-field full"><label for="pr-adm-g-clave">${escapeHtml(t('admin.parametros.grupoClave'))}</label><input id="pr-adm-g-clave" class="pr-adm-mono" maxlength="${CLAVE_LARGO_MAX}"><span class="form-hint">${escapeHtml(t('admin.parametros.grupoClaveAyuda'))}</span></div>` : ''}
   </div>`;
-  const pie = '<button class="btn btn--ghost" type="button" id="pr-adm-g-cancelar">Cancelar</button><button class="btn btn--primary" type="button" id="pr-adm-g-aceptar">Guardar</button>';
+  const pie = `<button class="btn btn--ghost" type="button" id="pr-adm-g-cancelar">${escapeHtml(t('comun.cancelar'))}</button><button class="btn btn--primary" type="button" id="pr-adm-g-aceptar">${escapeHtml(t('admin.parametros.guardar'))}</button>`;
   const { overlay, cerrar } = abrirModal({ title: titulo, bodyHtml: cuerpo, footerHtml: pie });
   let claveTocada = false;
   const inputClave = $('#pr-adm-g-clave', overlay);
@@ -53,7 +55,7 @@ export function renderTabParametros(cont, ed) {
     pintar();
   };
   const seguro = (fn) => {
-    try { fn(); } catch (error) { window.toast.warning('No se pudo aplicar', error.message); }
+    try { fn(); } catch (error) { window.toast.warning(t('admin.parametros.toastNoAplicado'), error.message); }
   };
 
   function eliminarParam(p) {
@@ -61,14 +63,14 @@ export function renderTabParametros(cont, ed) {
     if (deps.length) {
       const lista = deps.map(d => `<li>${escapeHtml(TEXTO_DEPENDENCIA[d.tipo](d))}</li>`).join('');
       const { overlay, cerrar } = abrirModal({
-        title: 'No se puede eliminar',
-        bodyHtml: `<p>«${escapeHtml(p.etiqueta)}» se usa en otros lugares. Quita esas referencias primero:</p><ul class="pr-adm-lista-dep">${lista}</ul>`,
-        footerHtml: '<button class="btn btn--primary" type="button" id="pr-adm-dep-ok">Entendido</button>'
+        title: t('admin.parametros.noEliminarTitulo'),
+        bodyHtml: `<p>${escapeHtml(t('admin.parametros.noEliminarIntro', { etiqueta: p.etiqueta }))}</p><ul class="pr-adm-lista-dep">${lista}</ul>`,
+        footerHtml: `<button class="btn btn--primary" type="button" id="pr-adm-dep-ok">${escapeHtml(t('comun.entendido'))}</button>`
       });
       $('#pr-adm-dep-ok', overlay).addEventListener('click', cerrar);
       return;
     }
-    confirmarModal({ title: 'Eliminar parámetro', mensaje: `¿Eliminar «${p.etiqueta}»? Esta acción cambia el borrador.`, aceptar: 'Eliminar' })
+    confirmarModal({ title: t('admin.parametros.eliminarTitulo'), mensaje: t('admin.parametros.eliminarMensaje', { etiqueta: p.etiqueta }), aceptar: t('admin.parametros.eliminarAceptar') })
       .then((ok) => { if (ok) seguro(() => aplicar(e => eliminarParametro(e, p.clave))); });
   }
 
@@ -87,20 +89,20 @@ export function renderTabParametros(cont, ed) {
 
   function filaParametro(g, p, i) {
     const pills = [h('span', { class: 'pr-adm-pill', text: etiquetaDeTipo(p.tipo) })];
-    if (p.requerido) pills.push(h('span', { class: 'pr-adm-pill pr-adm-pill--req', text: 'Obligatorio' }));
-    if (p.visible_si) pills.push(h('span', { class: 'pr-adm-pill pr-adm-pill--cond', text: `Visible si ${p.visible_si.parametro} = ${valorVisible(p.visible_si.igual)}` }));
+    if (p.requerido) pills.push(h('span', { class: 'pr-adm-pill pr-adm-pill--req', text: t('admin.parametros.obligatorio') }));
+    if (p.visible_si) pills.push(h('span', { class: 'pr-adm-pill pr-adm-pill--cond', text: t('admin.parametros.visibleSi', { parametro: p.visible_si.parametro, valor: valorVisible(p.visible_si.igual) }) }));
     const bloqueado = !ed.editable;
     return h('div', { class: 'pr-adm-param' },
       h('div', { class: 'pr-adm-flechas' },
-        botonIcono('chevron-up-outline', 'Subir', () => seguro(() => aplicar(e => moverParametro(e, p.clave, -1))), { deshabilitado: bloqueado || i === 0 }),
-        botonIcono('chevron-down-outline', 'Bajar', () => seguro(() => aplicar(e => moverParametro(e, p.clave, 1))), { deshabilitado: bloqueado || i === g.parametros.length - 1 })),
+        botonIcono('chevron-up-outline', t('admin.parametros.subir'), () => seguro(() => aplicar(e => moverParametro(e, p.clave, -1))), { deshabilitado: bloqueado || i === 0 }),
+        botonIcono('chevron-down-outline', t('admin.parametros.bajar'), () => seguro(() => aplicar(e => moverParametro(e, p.clave, 1))), { deshabilitado: bloqueado || i === g.parametros.length - 1 })),
       h('div', { class: 'pr-adm-param-nombre' },
         h('span', { class: 'pr-adm-param-etiqueta', text: p.etiqueta }),
         h('span', { class: 'pr-adm-mono pr-adm-muted', text: p.clave })),
       h('div', { class: 'pr-adm-pills' }, pills),
       h('div', { class: 'pr-adm-param-acciones' },
-        botonIcono('create-outline', 'Editar parámetro', () => abrirParam(p, g.clave), { deshabilitado: bloqueado }),
-        botonIcono('trash-outline', 'Eliminar parámetro', () => eliminarParam(p), { peligro: true, deshabilitado: bloqueado })));
+        botonIcono('create-outline', t('admin.parametros.editarParametro'), () => abrirParam(p, g.clave), { deshabilitado: bloqueado }),
+        botonIcono('trash-outline', t('admin.parametros.eliminarParametro'), () => eliminarParam(p), { peligro: true, deshabilitado: bloqueado })));
   }
 
   function tarjetaGrupo(g, i, total) {
@@ -110,14 +112,14 @@ export function renderTabParametros(cont, ed) {
       h('div', { class: 'pr-adm-grupo-cab' },
         h('div', { class: 'pr-adm-grupo-titulo' },
           h('span', { class: 'pr-adm-grupo-etiqueta', text: g.etiqueta }),
-          h('span', { class: 'pr-adm-muted', text: `${g.parametros.length} ${g.parametros.length === 1 ? 'parámetro' : 'parámetros'}` })),
+          h('span', { class: 'pr-adm-muted', text: t(g.parametros.length === 1 ? 'admin.parametros.cuentaUno' : 'admin.parametros.cuentaVarios', { n: g.parametros.length }) })),
         h('div', { class: 'pr-adm-grupo-acciones' },
-          botonIcono('chevron-up-outline', 'Subir grupo', () => seguro(() => aplicar(e => moverGrupo(e, g.clave, -1))), { deshabilitado: bloqueado || i === 0 }),
-          botonIcono('chevron-down-outline', 'Bajar grupo', () => seguro(() => aplicar(e => moverGrupo(e, g.clave, 1))), { deshabilitado: bloqueado || i === total - 1 }),
-          botonIcono('create-outline', 'Renombrar grupo', () => modalGrupo({ titulo: 'Renombrar grupo', etiqueta: g.etiqueta, conClave: false, alAceptar: ({ etiqueta }) => aplicar(e => renombrarGrupo(e, g.clave, etiqueta)) }), { deshabilitado: bloqueado }),
-          botonIcono('trash-outline', vacio ? 'Eliminar grupo' : 'Solo se elimina un grupo vacío', () => seguro(() => aplicar(e => eliminarGrupo(e, g.clave))), { peligro: true, deshabilitado: bloqueado || !vacio }),
-          h('button', { type: 'button', class: 'btn btn--ghost btn--sm', disabled: bloqueado, onclick: () => abrirParam(null, g.clave) }, icono('add-outline'), ' Agregar parámetro'))),
-      vacio ? h('p', { class: 'pr-adm-grupo-vacio', text: 'Este grupo no tiene parámetros.' }) : h('div', { class: 'pr-adm-params' }, g.parametros.map((p, k) => filaParametro(g, p, k))));
+          botonIcono('chevron-up-outline', t('admin.parametros.subirGrupo'), () => seguro(() => aplicar(e => moverGrupo(e, g.clave, -1))), { deshabilitado: bloqueado || i === 0 }),
+          botonIcono('chevron-down-outline', t('admin.parametros.bajarGrupo'), () => seguro(() => aplicar(e => moverGrupo(e, g.clave, 1))), { deshabilitado: bloqueado || i === total - 1 }),
+          botonIcono('create-outline', t('admin.parametros.renombrarGrupo'), () => modalGrupo({ titulo: t('admin.parametros.renombrarGrupo'), etiqueta: g.etiqueta, conClave: false, alAceptar: ({ etiqueta }) => aplicar(e => renombrarGrupo(e, g.clave, etiqueta)) }), { deshabilitado: bloqueado }),
+          botonIcono('trash-outline', vacio ? t('admin.parametros.eliminarGrupo') : t('admin.parametros.soloGrupoVacio'), () => seguro(() => aplicar(e => eliminarGrupo(e, g.clave))), { peligro: true, deshabilitado: bloqueado || !vacio }),
+          h('button', { type: 'button', class: 'btn btn--ghost btn--sm', disabled: bloqueado, onclick: () => abrirParam(null, g.clave) }, icono('add-outline'), ` ${t('admin.parametros.agregarParametro')}`))),
+      vacio ? h('p', { class: 'pr-adm-grupo-vacio', text: t('admin.parametros.grupoVacio') }) : h('div', { class: 'pr-adm-params' }, g.parametros.map((p, k) => filaParametro(g, p, k))));
   }
 
   function contenido() {
@@ -127,13 +129,13 @@ export function renderTabParametros(cont, ed) {
       h('div', null, h('button', {
         type: 'button', class: 'btn btn--ghost', disabled: !ed.editable,
         onclick: () => modalGrupo({
-          titulo: 'Agregar grupo', conClave: true,
+          titulo: t('admin.parametros.agregarGrupo'), conClave: true,
           alAceptar: ({ etiqueta, clave }) => {
-            if (!claveGrupoDisponible(ed.esquema, clave)) throw new Error('La clave del grupo no es válida o ya existe.');
+            if (!claveGrupoDisponible(ed.esquema, clave)) throw new Error(t('admin.errores.grupoClave', { clave }));
             aplicar(e => agregarGrupo(e, { clave, etiqueta }));
           }
         })
-      }, icono('add-outline'), ' Agregar grupo'))
+      }, icono('add-outline'), ` ${t('admin.parametros.agregarGrupo')}`))
     ];
   }
 

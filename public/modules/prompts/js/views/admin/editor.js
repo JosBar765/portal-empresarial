@@ -2,50 +2,56 @@
 import { state } from '../../state.js';
 import { h, icono } from '../../utils/dom.js';
 import { escapeHtml } from '../../utils/formato.js';
+import { t } from '../../textos.js';
+import { cargarConfig } from '../../config.js';
 import { abrirModal, confirmarModal } from '../../components/modal.js';
 import { obtenerProducto, crearBorrador, guardarBorrador, descartarBorrador, publicar } from '../../api/promptsAdminApi.js';
-import { clavesDelEsquema, contarParametros } from './esquemaOps.js';
+import { clavesDelEsquema, clavesDeRecursos, contarParametros, contarRecursos } from './esquemaOps.js';
+import { ESQUEMA_VERSION } from './reglasEsquema.js';
 import { badgeEstado, mensajesDeError } from './comun.js';
 import { renderTabParametros } from './tabParametros.js';
+import { renderTabRecursos } from './tabRecursos.js';
 import { renderTabPlantilla } from './tabPlantilla.js';
 import { renderTabVistaPrevia } from './tabVistaPrevia.js';
 import { renderTabEsquemaJson } from './tabEsquemaJson.js';
 
 const clonar = (x) => JSON.parse(JSON.stringify(x));
-const ESQUEMA_VACIO = { esquema_version: 1, grupos: [] };
+const ESQUEMA_VACIO = { esquema_version: ESQUEMA_VERSION, grupos: [], recursos: [] };
 
 function modalErroresPublicar(errores) {
   const lista = errores.map(e => `<li>${escapeHtml(e)}</li>`).join('');
   const { overlay, cerrar } = abrirModal({
-    title: 'No se pudo publicar',
-    bodyHtml: `<p>Corrige lo siguiente y vuelve a publicar:</p><ul class="pr-adm-lista-dep">${lista}</ul>`,
-    footerHtml: '<button class="btn btn--primary" type="button" id="pr-adm-pub-ok">Entendido</button>'
+    title: t('admin.editor.noPublicadoTitulo'),
+    bodyHtml: `<p>${escapeHtml(t('admin.editor.noPublicadoIntro'))}</p><ul class="pr-adm-lista-dep">${lista}</ul>`,
+    footerHtml: `<button class="btn btn--primary" type="button" id="pr-adm-pub-ok">${escapeHtml(t('comun.entendido'))}</button>`
   });
   overlay.querySelector('#pr-adm-pub-ok').addEventListener('click', cerrar);
 }
 
 export async function renderEditor(cont, { id, alVolver }) {
   let data;
+  let config;
   try {
-    data = await obtenerProducto(id);
+    [data, config] = await Promise.all([obtenerProducto(id), cargarConfig()]);
   } catch (error) {
     cont.replaceChildren(
-      h('div', { class: 'buzon-vacio buzon-vacio-error' }, icono('alert-circle-outline'), h('h3', { text: 'No se pudo cargar el producto' }), h('p', { text: error.message }),
-        h('button', { type: 'button', class: 'btn btn--ghost', onclick: alVolver }, 'Volver a productos')));
+      h('div', { class: 'buzon-vacio buzon-vacio-error' }, icono('alert-circle-outline'), h('h3', { text: t('admin.editor.cargaError') }), h('p', { text: error.message }),
+        h('button', { type: 'button', class: 'btn btn--ghost', onclick: alVolver }, t('admin.editor.volverProductos'))));
     return;
   }
-  montar(cont, data, { id, alVolver });
+  montar(cont, data, { id, alVolver, config });
 }
 
-function montar(cont, { producto, borrador, publicada }, { id, alVolver }) {
+function montar(cont, { producto, borrador, publicada }, { id, alVolver, config }) {
   const base = borrador || publicada;
   const ed = {
-    producto, borrador, publicada,
+    producto, borrador, publicada, config,
     esquema: base ? clonar(base.esquema) : clonar(ESQUEMA_VACIO),
     plantilla: base ? base.plantilla || '' : '',
     editable: !!borrador,
-    // Las claves ya publicadas no se renombran.
+    // Las claves ya publicadas (parámetros y recursos) no se renombran.
     clavesPublicadas: new Set(publicada ? clavesDelEsquema(publicada.esquema) : []),
+    clavesRecursosPublicadas: new Set(publicada ? clavesDeRecursos(publicada.esquema) : []),
     sucio: false,
     ultimaVariable: null,
     cambiarEsquema(esquema) { this.esquema = esquema; marcar(); },
@@ -56,10 +62,10 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver }) {
   let tabActiva = 'parametros';
 
   const confirmarSalida = async () => !ed.sucio || confirmarModal({
-    title: 'Cambios sin guardar',
-    mensaje: 'Tienes cambios sin guardar en el borrador. Si sales, se perderán.',
-    aceptar: 'Salir sin guardar',
-    cancelar: 'Seguir editando'
+    title: t('admin.editor.salirTitulo'),
+    mensaje: t('admin.editor.salirMensaje'),
+    aceptar: t('admin.editor.salirAceptar'),
+    cancelar: t('admin.editor.salirCancelar')
   });
   const alCerrarPagina = (e) => { if (ed.sucio) { e.preventDefault(); e.returnValue = ''; } };
   const liberar = () => window.removeEventListener('beforeunload', alCerrarPagina);
@@ -68,11 +74,12 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver }) {
 
   const recargar = async () => { liberar(); state.salidaVista = null; await renderEditor(cont, { id, alVolver }); };
 
-  const aviso = h('span', { class: 'pr-adm-sucio', id: 'pr-adm-sucio', hidden: true, text: 'Cambios sin guardar' });
+  const aviso = h('span', { class: 'pr-adm-sucio', id: 'pr-adm-sucio', hidden: true, text: t('admin.editor.sucio') });
   const etiquetaTabParametros = h('span');
-  const botonGuardar = h('button', { type: 'button', class: 'btn btn--ghost', id: 'pr-adm-guardar', text: 'Guardar borrador' });
-  const botonDescartar = h('button', { type: 'button', class: 'btn btn--ghost', id: 'pr-adm-descartar', text: 'Descartar cambios' });
-  const botonPublicar = h('button', { type: 'button', class: 'btn btn--primary', id: 'pr-adm-publicar', text: borrador ? `Publicar versión ${borrador.numero}` : 'Publicar' });
+  const etiquetaTabRecursos = h('span');
+  const botonGuardar = h('button', { type: 'button', class: 'btn btn--ghost', id: 'pr-adm-guardar', text: t('admin.editor.guardar') });
+  const botonDescartar = h('button', { type: 'button', class: 'btn btn--ghost', id: 'pr-adm-descartar', text: t('admin.editor.descartar') });
+  const botonPublicar = h('button', { type: 'button', class: 'btn btn--primary', id: 'pr-adm-publicar', text: borrador ? t('admin.editor.publicarVersion', { numero: borrador.numero }) : t('admin.editor.publicar') });
   const panel = h('div', { class: 'pr-adm-tab-panel', id: 'pr-adm-tab-panel' });
 
   function actualizarControles() {
@@ -80,9 +87,10 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver }) {
     botonGuardar.disabled = sinBorrador || ocupado;
     botonPublicar.disabled = sinBorrador || ocupado;
     botonDescartar.disabled = sinBorrador || ocupado || !publicada;
-    botonDescartar.title = !sinBorrador && !publicada ? 'Es la única versión del producto' : '';
+    botonDescartar.title = !sinBorrador && !publicada ? t('admin.editor.unicaVersion') : '';
     aviso.hidden = !ed.sucio;
-    etiquetaTabParametros.textContent = `Parámetros (${contarParametros(ed.esquema)})`;
+    etiquetaTabParametros.textContent = t('admin.editor.tabParametros', { n: contarParametros(ed.esquema) });
+    etiquetaTabRecursos.textContent = t('admin.editor.tabRecursos', { n: contarRecursos(ed.esquema) });
   }
 
   function marcar() {
@@ -102,22 +110,22 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver }) {
       ed.sucio = false;
       return true;
     } catch (error) {
-      window.toast.error('No se pudo guardar el borrador', mensajesDeError(error).join(' · '));
+      window.toast.error(t('admin.editor.toastNoGuardado'), mensajesDeError(error).join(' · '));
       return false;
     }
   });
 
-  botonGuardar.addEventListener('click', async () => { if (await guardar()) window.toast.success('Borrador guardado', 'Tus cambios quedaron guardados.'); });
+  botonGuardar.addEventListener('click', async () => { if (await guardar()) window.toast.success(t('admin.editor.toastGuardado'), t('admin.editor.toastGuardadoTexto')); });
 
   botonDescartar.addEventListener('click', async () => {
-    const ok = await confirmarModal({ title: 'Descartar cambios', mensaje: 'Se eliminará el borrador y volverás a la versión vigente. ¿Continuar?', aceptar: 'Descartar' });
+    const ok = await confirmarModal({ title: t('admin.editor.descartarTitulo'), mensaje: t('admin.editor.descartarMensaje'), aceptar: t('admin.editor.descartarAceptar') });
     if (!ok) return;
     try {
       await ejecutar(() => descartarBorrador(id));
-      window.toast.success('Borrador descartado', 'Volviste a la versión vigente.');
+      window.toast.success(t('admin.editor.toastDescartado'), t('admin.editor.toastDescartadoTexto'));
       await recargar();
     } catch (error) {
-      window.toast.error('No se pudo descartar', error.message);
+      window.toast.error(t('admin.editor.toastNoDescartado'), error.message);
     }
   });
 
@@ -125,7 +133,7 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver }) {
     if (!(await guardar())) return;
     try {
       await ejecutar(() => publicar(id));
-      window.toast.success('Versión publicada', `La versión ${borrador.numero} ya está vigente.`);
+      window.toast.success(t('admin.editor.toastPublicado'), t('admin.editor.toastPublicadoTexto', { numero: borrador.numero }));
       await recargar();
     } catch (error) {
       modalErroresPublicar(mensajesDeError(error));
@@ -134,42 +142,44 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver }) {
 
   const pintadores = {
     parametros: renderTabParametros,
+    recursos: renderTabRecursos,
     plantilla: renderTabPlantilla,
     vista: renderTabVistaPrevia,
     esquema: renderTabEsquemaJson
   };
   const tabs = [
     { id: 'parametros', contenido: etiquetaTabParametros },
-    { id: 'plantilla', contenido: 'Plantilla del prompt' },
-    { id: 'vista', contenido: 'Vista previa' },
-    { id: 'esquema', contenido: 'Esquema JSON' }
+    { id: 'recursos', contenido: etiquetaTabRecursos },
+    { id: 'plantilla', contenido: t('admin.editor.tabPlantilla') },
+    { id: 'vista', contenido: t('admin.editor.tabVistaPrevia') },
+    { id: 'esquema', contenido: t('admin.editor.tabEsquema') }
   ];
-  const botonesTab = tabs.map(t => h('button', {
-    type: 'button', role: 'tab', class: 'pr-adm-tab', id: `pr-adm-tab-${t.id}`,
-    onclick: () => { tabActiva = t.id; pintarTab(); }
-  }, t.contenido));
+  const botonesTab = tabs.map(tab => h('button', {
+    type: 'button', role: 'tab', class: 'pr-adm-tab', id: `pr-adm-tab-${tab.id}`,
+    onclick: () => { tabActiva = tab.id; pintarTab(); }
+  }, tab.contenido));
   function pintarTab() {
-    tabs.forEach((t, i) => botonesTab[i].classList.toggle('is-activo', t.id === tabActiva));
+    tabs.forEach((tab, i) => botonesTab[i].classList.toggle('is-activo', tab.id === tabActiva));
     pintadores[tabActiva](panel, ed);
   }
 
   const subtitulo = borrador
-    ? `Editando el borrador de la versión ${borrador.numero}${publicada ? ` (vigente: v${publicada.numero})` : ' (sin versión vigente)'}`
-    : `Versión vigente: v${publicada ? publicada.numero : '—'}`;
+    ? t(publicada ? 'admin.editor.subtituloBorradorConVigente' : 'admin.editor.subtituloBorradorSinVigente', { numero: borrador.numero, vigente: publicada ? publicada.numero : '' })
+    : t('admin.editor.subtituloVigente', { numero: publicada ? publicada.numero : '—' });
 
   const bannerSinBorrador = ed.editable ? null : h('div', { class: 'pr-banner pr-adm-banner-borrador' },
     icono('information-circle-outline'),
-    h('span', { text: 'Este producto no tiene un borrador. Crea uno para editarlo.' }),
+    h('span', { text: t('admin.editor.sinBorrador') }),
     h('button', {
-      type: 'button', class: 'btn btn--primary btn--sm', id: 'pr-adm-crear-borrador', text: 'Crear borrador',
+      type: 'button', class: 'btn btn--primary btn--sm', id: 'pr-adm-crear-borrador', text: t('admin.editor.crearBorrador'),
       onclick: async () => {
-        try { await crearBorrador(id); await recargar(); } catch (error) { window.toast.error('No se pudo crear el borrador', error.message); }
+        try { await crearBorrador(id); await recargar(); } catch (error) { window.toast.error(t('admin.editor.toastNoCreadoBorrador'), error.message); }
       }
     }));
 
   cont.replaceChildren(
     h('button', {
-      type: 'button', class: 'pr-adm-volver', id: 'pr-adm-volver', text: '‹ Productos',
+      type: 'button', class: 'pr-adm-volver', id: 'pr-adm-volver', text: t('admin.editor.volver'),
       onclick: async () => { if (await confirmarSalida()) { liberar(); state.salidaVista = null; alVolver(); } }
     }),
     h('div', { class: 'panel-toolbar' },
