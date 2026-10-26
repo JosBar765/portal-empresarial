@@ -12,6 +12,7 @@ const ajustesService = require('./ajustesService');
 const { urlParaCliente } = require('./recursos');
 const { ESTADOS_VERSION, VARIABLES_AUTOMATICAS } = require('../constantes');
 const { errorDeValidacion } = require('../errores');
+const { msg } = require('../mensajes');
 
 const telefonoOnull = telefono => (typeof telefono === 'string' && telefono.trim() ? telefono.trim() : null);
 
@@ -40,7 +41,7 @@ class PromptsService {
 
   async obtenerContacto(usuarioId) {
     const fila = await contactoRepository.obtenerPorUsuario(usuarioId);
-    if (!fila) throw new ErrorDeNegocio('No se encontró tu usuario.', 404);
+    if (!fila) throw new ErrorDeNegocio(msg('asesor.usuarioNoEncontrado'), 404);
     return { nombre: fila.nombre, email: fila.email, telefono: telefonoOnull(fila.telefono) };
   }
 
@@ -50,16 +51,16 @@ class PromptsService {
     const version = producto && producto.estado === 'activo'
       ? await versionRepository.obtenerPorEstado(id, ESTADOS_VERSION.PUBLICADA)
       : null;
-    if (!version) throw new ErrorDeNegocio('El producto no está disponible.', 404);
+    if (!version) throw new ErrorDeNegocio(msg('asesor.productoNoDisponible'), 404);
 
     const esquema = leerJson(version.esquema);
     const ajustes = await ajustesService.obtenerTodos();
     const validado = validarValores(esquema, valores, imagenes, ajustes);
-    if (Object.keys(validado.errores).length) throw errorDeValidacion('Revisa los datos del formulario.', validado.errores);
+    if (Object.keys(validado.errores).length) throw errorDeValidacion(msg('asesor.revisarFormulario'), validado.errores);
 
     const contacto = await this.obtenerContacto(usuarioId);
     if (!contacto.telefono && sinTelefono !== true) {
-      const error = new ErrorDeNegocio('Tu perfil no tiene teléfono. ¿Quieres generar el prompt sin número?', 409);
+      const error = new ErrorDeNegocio(msg('asesor.sinTelefono'), 409);
       error.codigo = 'TELEFONO_FALTANTE';
       throw error;
     }

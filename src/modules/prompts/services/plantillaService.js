@@ -9,12 +9,16 @@ const MARCA_BLOQUE = '\u0001'; // señala dónde hubo una etiqueta de bloque, pa
 const MAX_PROFUNDIDAD_CALCULADO = 5;
 const VARIABLE_OTROS = 'otros_parametros';
 const PREFIJO_RECURSO = 'recurso_';
+const EJ_VARIABLE = '{{clave}}'; // ejemplos de sintaxis que muestran los mensajes
+const EJ_BLOQUE = '{{#si clave}}';
 
 const normalizar = texto => String(texto).replace(/\r\n?/g, '\n');
 const sinControl = texto => String(texto).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
 const aLinea = texto => sinControl(texto).replace(/\s+/g, ' ').trim(); // un dato de usuario no puede romper la estructura del prompt
 
 // ---------- Análisis ----------
+
+const textoApertura = (condicion, clave) => `{{#${condicion} ${clave}}}`;
 
 /** @returns {{ nodos: object[], errores: {mensaje: string}[] }} nodos: texto | variable | bloque */
 function analizar(plantilla, clavesValidas, clavesRecursos = []) {
@@ -27,7 +31,7 @@ function analizar(plantilla, clavesValidas, clavesRecursos = []) {
 
   const agregarTexto = fragmento => {
     if (!fragmento) return;
-    if (/\{\{|\}\}/.test(fragmento)) errores.push({ mensaje: 'Hay una llave «{{» o «}}» sin cerrar o mal escrita.' });
+    if (/\{\{|\}\}/.test(fragmento)) errores.push({ mensaje: msg('plantilla.llaveSuelta', { abre: '{{', cierra: '}}', ejemplo: EJ_VARIABLE }) });
     actual.push({ tipo: 'texto', valor: fragmento });
   };
   const exigirClave = clave => {
@@ -39,7 +43,7 @@ function analizar(plantilla, clavesValidas, clavesRecursos = []) {
           clave: clave.slice(PREFIJO_RECURSO.length),
           disponibles: clavesRecursos.length ? clavesRecursos.map(c => PREFIJO_RECURSO + c).join(', ') : 'ninguno'
         })
-        : `La variable «${clave}» no existe en el esquema.`
+        : msg('plantilla.variableNoExiste', { variable: clave, sistema: VARIABLES_AUTOMATICAS.join(', ') })
     });
   };
 
@@ -51,23 +55,23 @@ function analizar(plantilla, clavesValidas, clavesRecursos = []) {
     const cierre = interior.match(/^\/(si|no)$/);
     if (apertura) {
       exigirClave(apertura[2]);
-      if (abierto) { errores.push({ mensaje: `No se pueden anidar bloques: «${apertura[2]}» está dentro de «${abierto.clave}».` }); continue; }
+      if (abierto) { errores.push({ mensaje: msg('plantilla.anidado', { interno: textoApertura(apertura[1], apertura[2]), externo: textoApertura(abierto.condicion, abierto.clave) }) }); continue; }
       abierto = { tipo: 'bloque', condicion: apertura[1], clave: apertura[2], hijos: [] };
       actual.push(abierto);
       actual = abierto.hijos;
     } else if (cierre) {
-      if (!abierto) errores.push({ mensaje: `«{{/${cierre[1]}}}» no tiene su apertura.` });
-      else if (abierto.condicion !== cierre[1]) errores.push({ mensaje: `«{{#${abierto.condicion} ${abierto.clave}}}» se cierra con «{{/${cierre[1]}}}».` });
+      if (!abierto) errores.push({ mensaje: msg('plantilla.cierreSinApertura', { cierre: `{{/${cierre[1]}}}`, ejemplo: EJ_BLOQUE }) });
+      else if (abierto.condicion !== cierre[1]) errores.push({ mensaje: msg('plantilla.cierreDistinto', { apertura: textoApertura(abierto.condicion, abierto.clave), cierre: `{{/${cierre[1]}}}`, esperado: `{{/${abierto.condicion}}}` }) });
       if (abierto) { abierto = null; actual = raiz; }
     } else if (/^[a-z][a-z0-9_]*$/.test(interior)) {
       exigirClave(interior);
       actual.push({ tipo: 'variable', clave: interior });
     } else {
-      errores.push({ mensaje: `Etiqueta no válida: «{{${interior}}}».` });
+      errores.push({ mensaje: msg('plantilla.etiquetaInvalida', { etiqueta: `{{${interior}}}`, ejVariable: EJ_VARIABLE, ejBloque: EJ_BLOQUE, ejCierre: '{{/si}}' }) });
     }
   }
   agregarTexto(texto.slice(ultimo));
-  if (abierto) errores.push({ mensaje: `El bloque «{{#${abierto.condicion} ${abierto.clave}}}» no está cerrado.` });
+  if (abierto) errores.push({ mensaje: msg('plantilla.bloqueSinCerrar', { apertura: textoApertura(abierto.condicion, abierto.clave), cierre: `{{/${abierto.condicion}}}` }) });
   return { nodos: raiz, errores };
 }
 
@@ -80,7 +84,7 @@ function clavesDelEsquema(esquema) {
 
 /** @returns {{mensaje: string}[]} lista vacía si la plantilla es válida */
 function validarPlantilla(plantilla, esquema) {
-  if (typeof plantilla !== 'string' || !plantilla.trim()) return [{ mensaje: 'La plantilla no puede estar vacía.' }];
+  if (typeof plantilla !== 'string' || !plantilla.trim()) return [{ mensaje: msg('plantilla.vacia') }];
   const unicos = new Map();
   analizar(plantilla, clavesDelEsquema(esquema), clavesDeRecursos(esquema)).errores.forEach(e => unicos.set(e.mensaje, e));
   return [...unicos.values()];

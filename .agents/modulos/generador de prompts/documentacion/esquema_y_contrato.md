@@ -287,4 +287,13 @@ Estados en palabras completas: producto `borrador`, `activo`, `inactivo`; versi�
 
 ## 9. Estilo de los mensajes de error
 
-Todo mensaje que el usuario pueda leer debe ser explicativo: (1) qué falló, nombrando el campo por su etiqueta (y la clave cuando ayude), (2) la regla con sus números, y (3) cómo corregirlo. Ejemplo: «El límite «imagenes_max_defecto» (25) no puede superar «imagenes_max_tope» (20).» Los mensajes nuevos salen de `src/modules/prompts/mensajes.js` con `msg(clave, params)`: un catálogo con marcadores `{nombre}`; una clave o un parámetro ausentes lanzan un error interno claro. Los mensajes antiguos se migran al catálogo en una ronda posterior.
+Todo mensaje que el usuario pueda leer debe ser explicativo: (1) qué falló, nombrando el campo por su etiqueta (y la clave cuando ayude), (2) la regla con sus números, y (3) cómo corregirlo. Ejemplo: «El límite «imagenes_max_defecto» (25) no puede superar «imagenes_max_tope» (20).» Los mensajes nuevos salen de `src/modules/prompts/mensajes.js` con `msg(clave, params)`: un catálogo con marcadores `{nombre}`; una clave o un parámetro ausentes lanzan un error interno claro. Todos los mensajes del módulo (esquema, plantilla, valores del asesor, productos, versiones, ajustes y lectura de recursos) salen ya de ese catálogo; los servicios puros lo cargan porque no importa base de datos ni configuración.
+
+Guía de estilo, válida para todo mensaje nuevo:
+
+- Qué falló: nombra el campo por su etiqueta (y la clave entre paréntesis si ayuda al administrador) y dónde está (grupo, parámetro o pestaña Parámetros, Plantilla, Recursos, Ajustes).
+- Por qué: la regla con sus números reales; si el número es un ajuste, se pasa como parámetro y nunca se escribe en el catálogo.
+- Cómo corregirlo: una frase en imperativo ("Acórtala", "Elige otra clave").
+- Español con «tú», frases completas que terminan en punto, sin jerga técnica, sin texto crudo de errores de librerías, SQL ni trazas.
+- Los errores de negocio mantienen su código HTTP (400, 403, 404, 409; nunca 401) y la forma de la respuesta (`{ error, campos }`, `codigo`).
+- Para el asesor se nombra solo la etiqueta; la clave solo se muestra en la administración.

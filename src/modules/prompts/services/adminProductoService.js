@@ -41,7 +41,7 @@ const errorDeLargo = (plantilla, ajustes) => (typeof plantilla === 'string' && p
 function exigirContenido(esquema, plantilla, ajustes, { alMenosUnParametro }) {
   const erroresEsquema = validarEsquema(esquema, ajustes);
   if (alMenosUnParametro && !erroresEsquema.length && !parametrosPlanos(esquema).length) {
-    erroresEsquema.push({ mensaje: 'Agrega al menos un parámetro.' });
+    erroresEsquema.push({ mensaje: msg('version.sinParametros') });
   }
   const largo = errorDeLargo(plantilla, ajustes);
   const erroresPlantilla = largo.length ? largo : (erroresEsquema.length ? [] : validarPlantilla(plantilla, esquema));
@@ -69,17 +69,17 @@ class AdminProductoService {
     const codigoLimpio = typeof codigo === 'string' ? codigo.trim() : '';
     const nombreLimpio = typeof nombre === 'string' ? nombre.trim() : '';
     const descripcionLimpia = typeof descripcion === 'string' ? descripcion.trim() : '';
-    if (!CODIGO_PRODUCTO_RE.test(codigoLimpio)) campos.codigo = 'Usa minúsculas, números y guion bajo (2 a 50 caracteres), empezando con letra.';
+    if (!CODIGO_PRODUCTO_RE.test(codigoLimpio)) campos.codigo = msg('producto.codigo', { valor: JSON.stringify(codigoLimpio) });
     if (!nombreLimpio || nombreLimpio.length > limites.producto_nombre_max) {
       campos.nombre = msg('producto.nombre', { max: limites.producto_nombre_max, largo: nombreLimpio.length });
     }
     if (descripcionLimpia.length > limites.producto_descripcion_max) {
       campos.descripcion = msg('producto.descripcion', { max: limites.producto_descripcion_max, largo: descripcionLimpia.length });
     }
-    if (Object.keys(campos).length) throw errorDeValidacion('Revisa los datos del producto.', campos);
+    if (Object.keys(campos).length) throw errorDeValidacion(msg('producto.revisar'), campos);
 
     const id = await db.transaccion(async tx => {
-      if (await productoRepository.existeCodigo(codigoLimpio, tx)) throw new ErrorDeNegocio('Ya existe un producto con ese código.', 409);
+      if (await productoRepository.existeCodigo(codigoLimpio, tx)) throw new ErrorDeNegocio(msg('producto.codigoRepetido', { codigo: codigoLimpio }), 409);
       const productoId = await productoRepository.crear({
         codigo: codigoLimpio, nombre: nombreLimpio, descripcion: descripcionLimpia || null, creadoPor: usuarioId
       }, tx);
@@ -104,10 +104,10 @@ class AdminProductoService {
   async crearBorrador(idCrudo, usuarioId) {
     const id = idObligatorio(idCrudo, 'Producto');
     await db.transaccion(async tx => {
-      if (!await productoRepository.obtenerBloqueado(id, tx)) throw new ErrorDeNegocio('Producto no encontrado.', 404);
-      if (await versionRepository.obtenerPorEstado(id, ESTADOS_VERSION.BORRADOR, tx)) throw new ErrorDeNegocio('El producto ya tiene un borrador.', 409);
+      if (!await productoRepository.obtenerBloqueado(id, tx)) throw new ErrorDeNegocio(msg('producto.noEncontrado'), 404);
+      if (await versionRepository.obtenerPorEstado(id, ESTADOS_VERSION.BORRADOR, tx)) throw new ErrorDeNegocio(msg('producto.yaTieneBorrador'), 409);
       const publicada = await versionRepository.obtenerPorEstado(id, ESTADOS_VERSION.PUBLICADA, tx);
-      if (!publicada) throw new ErrorDeNegocio('El producto no tiene una versión publicada para copiar.', 409);
+      if (!publicada) throw new ErrorDeNegocio(msg('producto.sinPublicada'), 409);
       await versionRepository.crearBorrador({
         productoId: id,
         numero: await versionRepository.siguienteNumero(id, tx),
@@ -123,16 +123,16 @@ class AdminProductoService {
     const id = idObligatorio(idCrudo, 'Producto');
     await this._exigirProducto(id);
     const borrador = await this._exigirBorrador(id);
-    if (typeof plantilla !== 'string') throw errorDeValidacion('Revisa el borrador.', { plantilla: 'La plantilla debe ser texto.' });
+    if (typeof plantilla !== 'string') throw errorDeValidacion(msg('version.revisarBorrador'), { plantilla: msg('version.plantillaTexto') });
 
     // Guardar solo exige un esquema bien formado; la plantilla se valida completa al publicar.
     const ajustes = await ajustesService.obtenerTodos();
     const erroresEsquema = validarEsquema(esquema, ajustes);
     const largo = errorDeLargo(plantilla, ajustes);
-    if (erroresEsquema.length || largo.length) throw errorDeValidacion('Revisa el borrador.', aCampos(erroresEsquema, largo));
+    if (erroresEsquema.length || largo.length) throw errorDeValidacion(msg('version.revisarBorrador'), aCampos(erroresEsquema, largo));
 
     if (!await versionRepository.guardarBorrador(borrador.id, esquema, plantilla)) {
-      throw new ErrorDeNegocio('El borrador ya no existe. Recarga la página.', 409);
+      throw new ErrorDeNegocio(msg('version.borradorDesaparecido'), 409);
     }
     return this.obtener(id);
   }
@@ -142,7 +142,7 @@ class AdminProductoService {
     await this._exigirProducto(id);
     const borrador = await this._exigirBorrador(id);
     if (await versionRepository.contarPorProducto(id) <= 1) {
-      throw new ErrorDeNegocio('No se puede descartar el borrador: es la única versión del producto.', 409);
+      throw new ErrorDeNegocio(msg('version.unicaVersion'), 409);
     }
     await versionRepository.eliminarBorrador(borrador.id);
     return this.obtener(id);
@@ -153,14 +153,14 @@ class AdminProductoService {
     const ajustes = await ajustesService.obtenerTodos();
     await db.transaccion(async tx => {
       const producto = await productoRepository.obtenerBloqueado(id, tx);
-      if (!producto) throw new ErrorDeNegocio('Producto no encontrado.', 404);
+      if (!producto) throw new ErrorDeNegocio(msg('producto.noEncontrado'), 404);
       const borrador = await versionRepository.obtenerPorEstado(id, ESTADOS_VERSION.BORRADOR, tx);
-      if (!borrador) throw new ErrorDeNegocio('El producto no tiene un borrador para publicar.', 409);
+      if (!borrador) throw new ErrorDeNegocio(msg('version.sinBorradorParaPublicar'), 409);
 
       const esquema = leerJson(borrador.esquema);
       const { erroresEsquema, erroresPlantilla } = exigirContenido(esquema, borrador.plantilla, ajustes, { alMenosUnParametro: true });
       if (erroresEsquema.length || erroresPlantilla.length) {
-        throw errorDeValidacion('El borrador tiene errores y no se puede publicar.', aCampos(erroresEsquema, erroresPlantilla));
+        throw errorDeValidacion(msg('version.errores'), aCampos(erroresEsquema, erroresPlantilla));
       }
 
       const anterior = await versionRepository.obtenerPorEstado(id, ESTADOS_VERSION.PUBLICADA, tx);
@@ -174,11 +174,12 @@ class AdminProductoService {
   async cambiarEstado(idCrudo, estado) {
     const id = idObligatorio(idCrudo, 'Producto');
     if (estado !== ESTADOS_PRODUCTO.ACTIVO && estado !== ESTADOS_PRODUCTO.INACTIVO) {
-      throw errorDeValidacion('Estado no válido.', { estado: 'Usa «activo» o «inactivo».' });
+      const texto = msg('producto.estadoInvalido', { valor: JSON.stringify(estado) ?? 'ninguno' });
+      throw errorDeValidacion(texto, { estado: texto });
     }
     await this._exigirProducto(id);
     if (estado === ESTADOS_PRODUCTO.ACTIVO && !await versionRepository.obtenerPorEstado(id, ESTADOS_VERSION.PUBLICADA)) {
-      throw new ErrorDeNegocio('Para activar el producto primero publica una versión.', 409);
+      throw new ErrorDeNegocio(msg('producto.activarSinPublicada'), 409);
     }
     await productoRepository.actualizarEstado(id, estado);
     return this.obtener(id);
@@ -205,13 +206,13 @@ class AdminProductoService {
 
   async _exigirProducto(id) {
     const producto = await productoRepository.obtenerPorId(id);
-    if (!producto) throw new ErrorDeNegocio('Producto no encontrado.', 404);
+    if (!producto) throw new ErrorDeNegocio(msg('producto.noEncontrado'), 404);
     return producto;
   }
 
   async _exigirBorrador(productoId) {
     const borrador = await versionRepository.obtenerPorEstado(productoId, ESTADOS_VERSION.BORRADOR);
-    if (!borrador) throw new ErrorDeNegocio('El producto no tiene borrador.', 409);
+    if (!borrador) throw new ErrorDeNegocio(msg('version.sinBorrador'), 409);
     return borrador;
   }
 }
