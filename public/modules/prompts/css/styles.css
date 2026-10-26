@@ -846,6 +846,15 @@
   border-color: var(--color-success);
 }
 
+.pr-adjunto-error {
+  color: var(--color-danger);
+  font-size: 12px;
+}
+
+.pr-reintentar {
+  margin-top: 12px;
+}
+
 .pr-banner--aviso {
   background: var(--color-warning-bg);
   color: var(--color-warning);

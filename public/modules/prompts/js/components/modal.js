@@ -1,5 +1,6 @@
 import { $ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
+import { t } from '../textos.js';
 
 export function abrirModal({ title, bodyHtml, footerHtml, size, onCerrar }) {
   const root = $('#modals-root');
@@ -9,7 +10,7 @@ export function abrirModal({ title, bodyHtml, footerHtml, size, onCerrar }) {
     <div class="modal-box ${size === 'lg' ? 'modal-lg' : ''}">
       <div class="modal-header">
         <h3>${escapeHtml(title)}</h3>
-        <button class="modal-close" type="button" aria-label="Cerrar">&times;</button>
+        <button class="modal-close" type="button" aria-label="${escapeHtml(t('comun.cerrar'))}">&times;</button>
       </div>
       <div class="modal-body">${bodyHtml}</div>
       ${footerHtml ? `<div class="modal-footer">${footerHtml}</div>` : ''}
@@ -44,7 +45,7 @@ export function mostrarErrorModal(overlay, mensaje) {
 }
 
 // Confirmación sí/no; cerrar por cualquier otra vía equivale a cancelar.
-export function confirmarModal({ title, mensaje, aceptar = 'Aceptar', cancelar = 'Cancelar' }) {
+export function confirmarModal({ title, mensaje, aceptar = t('comun.aceptar'), cancelar = t('comun.cancelar') }) {
   return new Promise((resolve) => {
     const { overlay, cerrar } = abrirModal({
       title,

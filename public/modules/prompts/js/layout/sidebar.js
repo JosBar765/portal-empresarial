@@ -1,6 +1,7 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
+import { t } from '../textos.js';
 import { cargarAsesor, liberarAsesor } from '../views/asesor/formulario.js';
 import { renderAdminProductos } from '../views/adminProductos.js';
 
@@ -27,15 +28,15 @@ export async function cargarTab() {
   liberarAsesor();
   if (state.salidaVista) { state.salidaVista.liberar(); state.salidaVista = null; }
   if (!state.tab) {
-    cont.innerHTML = `<div class="buzon-vacio"><ion-icon name="lock-closed-outline"></ion-icon><h3>Sin secciones asignadas</h3><p>Tu rol puede ver el módulo, pero no tiene ningún permiso de uso asignado todavía.</p></div>`;
+    cont.innerHTML = `<div class="buzon-vacio"><ion-icon name="lock-closed-outline"></ion-icon><h3>${escapeHtml(t('shell.sinSecciones.titulo'))}</h3><p>${escapeHtml(t('shell.sinSecciones.texto'))}</p></div>`;
     return;
   }
-  cont.innerHTML = `<div class="buzon-vacio"><ion-icon name="sync-outline" class="spin-animation"></ion-icon><p>Cargando...</p></div>`;
+  cont.innerHTML = `<div class="buzon-vacio"><ion-icon name="sync-outline" class="spin-animation"></ion-icon><p>${escapeHtml(t('shell.cargando'))}</p></div>`;
   try {
     if (state.tab === 'asesor') await cargarAsesor(cont);
     else if (state.tab === 'admin') await renderAdminProductos(cont);
   } catch (error) {
-    cont.innerHTML = `<div class="buzon-vacio buzon-vacio-error"><ion-icon name="alert-circle-outline"></ion-icon><h3>No se pudo cargar</h3><p>${escapeHtml(error.message)}</p></div>`;
+    cont.innerHTML = `<div class="buzon-vacio buzon-vacio-error"><ion-icon name="alert-circle-outline"></ion-icon><h3>${escapeHtml(t('shell.errorCarga.titulo'))}</h3><p>${escapeHtml(error.message)}</p></div>`;
   }
 }
 

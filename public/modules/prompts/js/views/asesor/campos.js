@@ -1,12 +1,11 @@
 // Campos dinámicos del formulario del asesor, según el esquema del producto.
 // El estado vive solo en memoria: { valores: {clave: valor}, archivos: {clave: [{file, url, descripcion, ubicacion}]} }.
+// Límites y formatos llegan en `config` (GET /api/prompts/config); aquí no hay reglas de negocio fijas.
 import { h, icono } from '../../utils/dom.js';
+import { t } from '../../textos.js';
+import { mimeAExtension, reglasImagenes, validarArchivo, listaConO } from './archivos.js';
 
-const MAX_LARGO = { texto: 150, texto_largo: 600 };
-const FORMATOS_DEFECTO = ['png', 'jpg', 'svg', 'webp'];
-const EXTENSIONES = { png: ['png'], jpg: ['jpg', 'jpeg'], svg: ['svg'], webp: ['webp'] };
-const MAX_NOMBRE = 150;
-const MAX_DESCRIPCION = 120;
+const LIMITE_TEXTO = { texto: 'texto_max_largo_defecto', texto_largo: 'texto_largo_max_largo_defecto' };
 
 // ---------- Esquema y estado ----------
 export function indexarEsquema(esquema) {
@@ -59,49 +58,51 @@ function etiquetaUnidad(p, indice, estado) {
 }
 
 // Texto legible del valor de un parámetro ('' si no tiene valor).
-export function formatearValor(p, indice, estado) {
+export function formatearValor(p, indice, estado, config) {
   const v = estado.valores[p.clave];
   switch (p.tipo) {
     case 'texto':
     case 'texto_largo': return String(v || '').trim();
     case 'numero': return v === '' || v == null ? '' : `${v} ${etiquetaUnidad(p, indice, estado)}`.trim();
     case 'opciones': { const o = (p.opciones || []).find(x => x.valor === v); return o ? o.etiqueta : ''; }
-    case 'si_no': return v ? 'Sí' : 'No';
-    case 'imagenes': { const n = estado.archivos[p.clave].length; return n ? `${n} de ${p.max || 1}` : ''; }
+    case 'si_no': return t(v ? 'comun.si' : 'comun.no');
+    case 'imagenes': { const n = estado.archivos[p.clave].length; return n ? t('asesor.campos.contador', { n, max: reglasImagenes(p, config).max }) : ''; }
     case 'calculado': {
       const ref = indice.porClave[p.igual_a];
-      return ref && ref.tipo !== 'calculado' ? formatearValor(ref, indice, estado) : '';
+      return ref && ref.tipo !== 'calculado' ? formatearValor(ref, indice, estado, config) : '';
     }
     default: return '';
   }
 }
 
 // Mismas reglas que el contrato (sección 2); el servidor vuelve a validar.
-export function validarCampo(p, estado) {
+export function validarCampo(p, estado, config) {
   const v = estado.valores[p.clave];
+  const etiqueta = p.etiqueta;
   switch (p.tipo) {
     case 'texto':
     case 'texto_largo': {
-      const t = String(v || '').trim();
-      if (!t) return p.requerido ? 'Este campo es obligatorio.' : '';
-      const max = p.max_largo || MAX_LARGO[p.tipo];
-      return t.length > max ? `No puede superar ${max} caracteres.` : '';
+      const texto = String(v || '').trim();
+      if (!texto) return p.requerido ? t('asesor.errores.requerido', { etiqueta }) : '';
+      const max = p.max_largo || config.limites[LIMITE_TEXTO[p.tipo]];
+      return texto.length > max ? t('asesor.errores.textoLargo', { etiqueta, largo: texto.length, max, exceso: texto.length - max }) : '';
     }
     case 'numero': {
-      if (v === '' || v == null) return p.requerido ? 'Ingresa un número.' : '';
+      if (v === '' || v == null) return p.requerido ? t('asesor.errores.numeroRequerido', { etiqueta }) : '';
       const n = Number(v);
-      if (!Number.isFinite(n)) return 'Ingresa un número válido.';
-      if (p.min != null && n < p.min) return `Debe ser al menos ${p.min}.`;
-      if (p.max != null && n > p.max) return `No puede ser mayor que ${p.max}.`;
+      if (!Number.isFinite(n)) return t('asesor.errores.numeroInvalido', { etiqueta });
+      if (p.min != null && n < p.min) return t('asesor.errores.numeroMin', { etiqueta, min: p.min, valor: n });
+      if (p.max != null && n > p.max) return t('asesor.errores.numeroMax', { etiqueta, max: p.max, valor: n });
       return '';
     }
-    case 'opciones': return !v && p.requerido ? 'Elige una opción.' : '';
+    case 'opciones': return !v && p.requerido ? t('asesor.errores.opcionRequerida', { etiqueta }) : '';
     case 'imagenes': {
-      const n = estado.archivos[p.clave].length;
-      if (n === 0) return p.requerido ? 'Sube al menos una imagen.' : '';
-      if (n > (p.max || 1)) return `Máximo ${p.max || 1} imágenes.`;
-      return estado.archivos[p.clave].some(a => a.descripcion.trim().length > MAX_DESCRIPCION)
-        ? `La descripción de cada imagen no puede superar ${MAX_DESCRIPCION} caracteres.` : '';
+      const archivos = estado.archivos[p.clave];
+      const r = reglasImagenes(p, config);
+      if (archivos.length === 0) return p.requerido ? t('asesor.errores.imagenesRequeridas', { etiqueta }) : '';
+      if (archivos.length > r.max) return t('asesor.errores.imagenesExceso', { etiqueta, n: archivos.length, max: r.max });
+      const larga = archivos.find(a => a.descripcion.trim().length > r.maxDescripcion);
+      return larga ? t('asesor.errores.descripcionLarga', { etiqueta, archivo: larga.file.name, largo: larga.descripcion.trim().length, max: r.maxDescripcion }) : '';
     }
     default: return '';
   }
@@ -143,7 +144,7 @@ function construirOpciones(p, ctx, id) {
   if (esUnidad) return segmentado(opciones, leer, escribir);
   if (opciones.length <= 3) return tarjetas(p, leer, escribir);
   const select = h('select', { id, onchange: () => escribir(select.value) },
-    h('option', { value: '', text: 'Selecciona una opción' }),
+    h('option', { value: '', text: t('asesor.campos.seleccionaOpcion') }),
     opciones.map(o => h('option', { value: o.valor, text: o.etiqueta })));
   select.value = leer();
   return { nodo: select, usaInput: true, refrescar: () => { select.value = leer(); } };
@@ -151,13 +152,12 @@ function construirOpciones(p, ctx, id) {
 
 let zonaActiva = null; // recuadro bajo el cursor o con foco: destino del Ctrl+V
 let contadorPegadas = 0;
-const EXT_POR_MIME = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/svg+xml': 'svg', 'image/gif': 'gif' };
 
 // El portapapeles entrega capturas como «image.png»: se renombran para distinguirlas en la lista.
-function nombrarPegada(f) {
+function nombrarPegada(f, extPorMime) {
   if (f.name && !/^image\.\w+$/i.test(f.name)) return f;
-  const ext = EXT_POR_MIME[f.type] || f.type.split('/')[1] || 'png';
-  return new File([f], `imagen-pegada-${++contadorPegadas}.${ext}`, { type: f.type });
+  const ext = extPorMime[f.type] || f.type.split('/')[1].split('+')[0];
+  return new File([f], t('asesor.campos.imagenPegada', { n: ++contadorPegadas, ext }), { type: f.type });
 }
 
 document.addEventListener('paste', (e) => {
@@ -165,27 +165,28 @@ document.addEventListener('paste', (e) => {
   const imagenes = Array.from(e.clipboardData?.files || []).filter(f => f.type.startsWith('image/'));
   if (!imagenes.length) return;
   e.preventDefault();
-  zonaActiva.pegar(imagenes.map(nombrarPegada));
+  zonaActiva.pegar(imagenes);
 });
 
 // Tarjeta de una imagen subida: edita descripción y ubicación sobre el mismo objeto, sin reconstruir la grilla.
-function tarjetaImagen(p, item, n, alQuitar) {
+function tarjetaImagen(p, item, n, r, alQuitar) {
   const base = `pr-img-${p.clave}-${n}`;
   const listaId = `${base}-lista`;
   const sugerencias = Array.isArray(p.sugerencias) ? p.sugerencias : [];
   const ubicaciones = Array.isArray(p.ubicaciones) ? p.ubicaciones : [];
+  const archivo = item.file.name;
 
   const desc = h('input', {
-    type: 'text', id: `${base}-desc`, class: 'pr-img-campo', autocomplete: 'off', maxlength: String(MAX_DESCRIPCION),
-    placeholder: 'Ej.: Logo del organizador', 'aria-label': `¿Qué es? (${item.file.name})`, list: sugerencias.length ? listaId : null
+    type: 'text', id: `${base}-desc`, class: 'pr-img-campo', autocomplete: 'off', maxlength: String(r.maxDescripcion),
+    placeholder: t('asesor.campos.descripcionEjemplo'), 'aria-label': t('asesor.campos.descripcionAria', { archivo }), list: sugerencias.length ? listaId : null
   });
   desc.value = item.descripcion;
   desc.addEventListener('input', () => { item.descripcion = desc.value; });
 
   let selector = null;
   if (ubicaciones.length) {
-    selector = h('select', { id: `${base}-ubic`, class: 'pr-img-campo', 'aria-label': `Ubicación (${item.file.name})` },
-      h('option', { value: '', text: 'Sin ubicación específica' }),
+    selector = h('select', { id: `${base}-ubic`, class: 'pr-img-campo', 'aria-label': t('asesor.campos.ubicacionAria', { archivo }) },
+      h('option', { value: '', text: t('asesor.campos.sinUbicacion') }),
       ubicaciones.map(u => h('option', { value: u, text: u })));
     selector.value = item.ubicacion;
     selector.addEventListener('change', () => { item.ubicacion = selector.value; });
@@ -194,40 +195,37 @@ function tarjetaImagen(p, item, n, alQuitar) {
   return h('div', { class: 'pr-img-item' },
     h('div', { class: 'pr-img-item-cab' },
       h('div', { class: 'pr-miniatura-img' }, h('img', { src: item.url, alt: '' })),
-      h('span', { class: 'pr-miniatura-nombre', text: item.file.name, title: item.file.name })),
-    h('button', { type: 'button', class: 'pr-miniatura-quitar', 'aria-label': `Quitar ${item.file.name}`, text: '×', onclick: alQuitar }),
-    h('label', { class: 'pr-img-etiqueta', for: `${base}-desc`, text: '¿Qué es?' }),
+      h('span', { class: 'pr-miniatura-nombre', text: archivo, title: archivo })),
+    h('button', { type: 'button', class: 'pr-miniatura-quitar', 'aria-label': t('asesor.campos.quitar', { archivo }), text: '×', onclick: alQuitar }),
+    h('label', { class: 'pr-img-etiqueta', for: `${base}-desc`, text: t('asesor.campos.descripcionEtiqueta') }),
     desc,
     sugerencias.length ? h('datalist', { id: listaId }, sugerencias.map(s => h('option', { value: s }))) : null,
-    selector ? h('label', { class: 'pr-img-etiqueta', for: `${base}-ubic`, text: 'Ubicación' }) : null,
+    selector ? h('label', { class: 'pr-img-etiqueta', for: `${base}-ubic`, text: t('asesor.campos.ubicacionEtiqueta') }) : null,
     selector);
 }
 
 function construirImagenes(p, ctx, id) {
-  const { estado } = ctx;
-  const max = p.max || 1;
-  const maxMb = p.max_mb || 5;
-  const formatos = p.formatos && p.formatos.length ? p.formatos : FORMATOS_DEFECTO;
-  const permitidas = formatos.flatMap(f => EXTENSIONES[f] || [f]);
+  const { estado, config } = ctx;
+  const r = reglasImagenes(p, config);
+  const extPorMime = mimeAExtension(config.formatosImagen);
   const lista = () => estado.archivos[p.clave];
 
-  const input = h('input', { type: 'file', id, class: 'pr-file-input', multiple: true, tabindex: '-1', accept: permitidas.map(e => `.${e}`).join(',') });
+  const input = h('input', { type: 'file', id, class: 'pr-file-input', multiple: true, tabindex: '-1', accept: r.extensiones.map(e => `.${e}`).join(',') });
   const zona = h('div', { class: 'pr-dropzone', role: 'button', tabindex: '0', 'aria-controls': id },
     icono('cloud-upload-outline'),
-    h('strong', { text: 'Arrastra, haz clic o pega (Ctrl+V) imágenes' }),
-    h('span', { class: 'form-hint', text: `Para pegar, pon el cursor sobre este recuadro · Hasta ${max} imágenes · ${formatos.map(f => f.toUpperCase()).join(', ')} · máx. ${maxMb} MB cada una` }));
+    h('strong', { text: t('asesor.campos.zonaTitulo') }),
+    h('span', { class: 'form-hint', text: t('asesor.campos.zonaAyuda', { max: r.max, formatos: listaConO(r.formatos), maxMb: r.maxMb }) }));
   const grilla = h('div', { class: 'pr-miniaturas' });
   const contador = h('span', { class: 'pr-contador' });
 
-  const rechazar = (nombre, motivo) => window.toast.warning(nombre, motivo);
-
   function agregar(archivos) {
     for (const f of archivos) {
-      if (lista().length >= max) { rechazar('Límite alcanzado', `Solo puedes subir hasta ${max} imágenes.`); break; }
-      const ext = (f.name.split('.').pop() || '').toLowerCase();
-      if (!permitidas.includes(ext)) { rechazar(f.name, `Formato no permitido. Usa: ${formatos.map(x => x.toUpperCase()).join(', ')}.`); continue; }
-      if (f.size > maxMb * 1024 * 1024) { rechazar(f.name, `La imagen supera los ${maxMb} MB.`); continue; }
-      if (f.name.length > MAX_NOMBRE) { rechazar(f.name, `El nombre del archivo supera los ${MAX_NOMBRE} caracteres.`); continue; }
+      const motivo = validarArchivo(f, p, config, lista().length);
+      if (motivo) {
+        window.toast.warning(t('asesor.campos.archivoRechazado'), motivo);
+        if (lista().length >= r.max) break; // con el límite alcanzado el resto tampoco cabe
+        continue;
+      }
       lista().push({ file: f, url: URL.createObjectURL(f), descripcion: '', ubicacion: '' });
     }
     ctx.alCambiar(p.clave);
@@ -239,18 +237,18 @@ function construirImagenes(p, ctx, id) {
     ctx.alCambiar(p.clave);
   }
 
-  const abrirSelector = () => { if (lista().length < max) input.click(); };
+  const abrirSelector = () => { if (lista().length < r.max) input.click(); };
   zona.addEventListener('click', abrirSelector);
   zona.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirSelector(); } });
   input.addEventListener('change', () => { agregar(Array.from(input.files)); input.value = ''; });
-  zona.addEventListener('dragover', (e) => { e.preventDefault(); if (lista().length < max) zona.classList.add('is-arrastre'); });
+  zona.addEventListener('dragover', (e) => { e.preventDefault(); if (lista().length < r.max) zona.classList.add('is-arrastre'); });
   zona.addEventListener('dragleave', () => zona.classList.remove('is-arrastre'));
   zona.addEventListener('drop', (e) => {
     e.preventDefault();
     zona.classList.remove('is-arrastre');
-    if (lista().length < max) agregar(Array.from(e.dataTransfer.files));
+    if (lista().length < r.max) agregar(Array.from(e.dataTransfer.files));
   });
-  zona.pegar = (archivos) => agregar(archivos);
+  zona.pegar = (archivos) => agregar(archivos.map(f => nombrarPegada(f, extPorMime)));
   zona.addEventListener('mouseenter', () => { zonaActiva = zona; });
   zona.addEventListener('focus', () => { zonaActiva = zona; });
   zona.addEventListener('mouseleave', () => { if (zonaActiva === zona && document.activeElement !== zona) zonaActiva = null; });
@@ -258,15 +256,15 @@ function construirImagenes(p, ctx, id) {
 
   let firma = null; // evita reconstruir las miniaturas si la lista no cambió
   const refrescar = () => {
-    const lleno = lista().length >= max;
+    const lleno = lista().length >= r.max;
     zona.classList.toggle('is-deshabilitada', lleno);
     zona.setAttribute('aria-disabled', String(lleno));
     input.disabled = lleno;
-    contador.textContent = `${lista().length} de ${max}`;
+    contador.textContent = t('asesor.campos.contador', { n: lista().length, max: r.max });
     const nueva = lista().map(a => a.url).join('|');
     if (nueva === firma) return;
     firma = nueva;
-    grilla.replaceChildren(...lista().map((a, i) => tarjetaImagen(p, a, i, () => quitar(i))));
+    grilla.replaceChildren(...lista().map((a, i) => tarjetaImagen(p, a, i, r, () => quitar(i))));
   };
   refrescar();
   return { nodo: h('div', { class: 'pr-imagenes' }, zona, input, grilla), extra: contador, refrescar };
@@ -275,9 +273,9 @@ function construirImagenes(p, ctx, id) {
 function construirCalculado(p, ctx, id) {
   const input = h('input', { type: 'text', id, disabled: true });
   const origen = ctx.indice.porClave[p.igual_a];
-  const refrescar = () => { input.value = formatearValor(p, ctx.indice, ctx.estado); };
+  const refrescar = () => { input.value = formatearValor(p, ctx.indice, ctx.estado, ctx.config); };
   refrescar();
-  return { nodo: input, usaInput: true, refrescar, ayudaDefecto: origen ? `Se calcula a partir de «${origen.etiqueta}».` : '' };
+  return { nodo: input, usaInput: true, refrescar, ayudaDefecto: origen ? t('asesor.campos.calculado', { origen: origen.etiqueta }) : '' };
 }
 
 function construirControl(p, ctx, id) {
@@ -294,7 +292,7 @@ function construirControl(p, ctx, id) {
       const area = h('textarea', { id, rows: '3' });
       area.value = estado.valores[p.clave];
       area.addEventListener('input', () => escribir(area.value));
-      return { nodo: area, usaInput: true, ayudaDefecto: p.separador ? 'Sepáralas con comas' : '' };
+      return { nodo: area, usaInput: true, ayudaDefecto: p.separador ? t('asesor.campos.separador') : '' };
     }
     case 'numero': {
       const input = h('input', { type: 'number', id, step: '0.1', inputmode: 'decimal', min: p.min, max: p.max });
@@ -304,16 +302,16 @@ function construirControl(p, ctx, id) {
     }
     case 'opciones': return construirOpciones(p, ctx, id);
     case 'si_no': return segmentado(
-      [{ valor: true, etiqueta: 'Sí' }, { valor: false, etiqueta: 'No' }],
+      [{ valor: true, etiqueta: t('comun.si') }, { valor: false, etiqueta: t('comun.no') }],
       () => estado.valores[p.clave], escribir);
     case 'imagenes': return construirImagenes(p, ctx, id);
     case 'calculado': return construirCalculado(p, ctx, id);
-    default: return { nodo: h('span', { text: `Tipo no soportado: ${p.tipo}` }) };
+    default: return { nodo: h('span', { class: 'form-hint', text: t('asesor.errores.tipoNoSoportado', { etiqueta: p.etiqueta, tipo: p.tipo }) }) };
   }
 }
 
 // Devuelve { el, refrescar, setError, ocultoPorVisibilidad }.
-// ctx: { indice, estado, alCambiar(clave) }
+// ctx: { indice, estado, config, alCambiar(clave) }
 export function crearCampo(p, ctx) {
   const idInput = `pr-input-${p.clave}`;
   const control = construirControl(p, ctx, idInput);

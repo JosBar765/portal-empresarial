@@ -1,5 +1,9 @@
 // Portapapeles y canvas: imagen a PNG en su resolución natural, texto con respaldo.
+import { t } from '../../textos.js';
+
+// Constantes técnicas del canvas (no son reglas de negocio).
 const LADO_SVG = 1024; // un SVG sin tamaño propio se dibuja con este lado mayor
+const MIME_COPIA = 'image/png';
 
 export const puedeCopiarImagen = () => !!(window.isSecureContext && window.ClipboardItem && navigator.clipboard && navigator.clipboard.write);
 
@@ -8,7 +12,7 @@ function cargarImagen(blob) {
     const url = URL.createObjectURL(blob);
     const img = new Image();
     img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('imagen no legible')); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(t('asesor.errores.imagenNoLegible'))); };
     img.src = url;
   });
 }
@@ -23,13 +27,18 @@ export async function aPng(blob) {
   canvas.width = ancho;
   canvas.height = alto;
   canvas.getContext('2d').drawImage(img, 0, 0, ancho, alto);
-  return new Promise((resolve, reject) => canvas.toBlob(b => (b ? resolve(b) : reject(new Error('sin PNG'))), 'image/png'));
+  return new Promise((resolve, reject) => canvas.toBlob(b => (b ? resolve(b) : reject(new Error(t('asesor.errores.imagenNoLegible')))), MIME_COPIA));
 }
 
+// Los errores ya vienen explicados: quien llama solo los muestra.
 export async function copiarImagen(blob) {
-  if (!puedeCopiarImagen()) throw new Error('portapapeles de imágenes no disponible');
+  if (!puedeCopiarImagen()) throw new Error(t('asesor.errores.copiaImagenNoPermitida'));
   const png = await aPng(blob);
-  await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ [MIME_COPIA]: png })]);
+  } catch (e) {
+    throw new Error(t('asesor.errores.copiaImagenNoPermitida'));
+  }
 }
 
 // Respaldo sin API de portapapeles: deja el texto seleccionado para Ctrl+C.
