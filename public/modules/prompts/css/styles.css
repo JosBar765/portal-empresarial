@@ -1407,6 +1407,16 @@
   line-height: 1.6;
 }
 
+.pr-adm-lista {
+  margin-left: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.pr-adm-sin-usar {
+  margin-bottom: 10px;
+}
+
 .pr-adm-json {
   margin: 0;
   padding: 16px;

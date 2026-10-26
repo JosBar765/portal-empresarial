@@ -3,8 +3,8 @@ import { abrirModal, mostrarErrorModal } from '../../components/modal.js';
 import { $, $$ } from '../../utils/dom.js';
 import { escapeHtml } from '../../utils/formato.js';
 import {
-  TIPOS, FORMATOS, VARIABLES_AUTOMATICAS, camposPorDefecto, claveDesdeEtiqueta,
-  claveDisponible, claveValida, dependientesDe
+  TIPOS, FORMATOS, VARIABLES_AUTOMATICAS, LISTAS_IMAGENES, camposPorDefecto, claveDesdeEtiqueta,
+  claveDisponible, claveValida, dependientesDe, listaDesdeTexto, textoDesdeLista
 } from './esquemaOps.js';
 
 const opcionesHtml = (pares, seleccionado) => pares
@@ -93,7 +93,11 @@ export function abrirModalParametro(ed, { original = null, grupoClave, alGuardar
       <div class="form-field"><label for="pr-adm-p-defecto">Opción por defecto</label><span id="pr-adm-p-defecto-caja">${selectDefectoOpciones()}</span></div>`;
     else if (tipo === 'si_no') html = `<div class="form-field"><label for="pr-adm-p-defecto">Valor por defecto</label><select id="pr-adm-p-defecto">${opcionesHtml([['', 'Sin valor por defecto'], ['true', 'Sí'], ['false', 'No']], v.defecto == null ? '' : String(v.defecto))}</select></div>`;
     else if (tipo === 'imagenes') html = `<div class="form-grid">${campoNumero('max', 'Máximo de imágenes (1 a 20)', v.max, 'min="1" max="20" step="1"')}${campoNumero('max_mb', 'Peso máximo en MB (1 a 10)', v.max_mb, 'min="1" max="10" step="1"')}</div>
-      <div class="form-field"><span class="pr-etiqueta">Formatos permitidos</span><div class="pr-chips" id="pr-adm-p-formatos">${FORMATOS.map(f => `<button type="button" class="pr-chip" data-formato="${f}">${f}</button>`).join('')}</div></div>`;
+      <div class="form-field"><span class="pr-etiqueta">Formatos permitidos</span><div class="pr-chips" id="pr-adm-p-formatos">${FORMATOS.map(f => `<button type="button" class="pr-chip" data-formato="${f}">${f}</button>`).join('')}</div></div>
+      <div class="form-grid">
+        <div class="form-field"><label for="pr-adm-p-ubicaciones">Ubicaciones posibles</label><textarea id="pr-adm-p-ubicaciones" rows="4">${escapeHtml(textoDesdeLista(v.ubicaciones))}</textarea><span class="form-hint">Una por línea. Déjalo vacío si no aplica.</span></div>
+        <div class="form-field"><label for="pr-adm-p-sugerencias">Sugerencias de descripción</label><textarea id="pr-adm-p-sugerencias" rows="4">${escapeHtml(textoDesdeLista(v.sugerencias))}</textarea><span class="form-hint">Una por línea. Déjalo vacío si no aplica.</span></div>
+      </div>`;
     else if (tipo === 'calculado') html = `<div class="form-field"><label for="pr-adm-p-igual_a">Igual a</label>${selectParametros('pr-adm-p-igual_a', otros, v.igual_a, 'Elige un parámetro')}<span class="form-hint">Toma el valor formateado de otro parámetro.</span></div>`;
     caja.innerHTML = html;
     $$('#pr-adm-p-formatos .pr-chip', overlay).forEach(b => b.classList.toggle('is-activo', (v.formatos || []).includes(b.dataset.formato)));
@@ -141,6 +145,8 @@ export function abrirModalParametro(ed, { original = null, grupoClave, alGuardar
     if (formato) {
       const f = formato.dataset.formato;
       v.formatos = (v.formatos || []).includes(f) ? v.formatos.filter(x => x !== f) : [...(v.formatos || []), f];
+      // Repintar borraría lo escrito en los recuadros: se conserva antes.
+      ['ubicaciones', 'sugerencias'].forEach(c => { v[c] = listaDesdeTexto(q('#pr-adm-p-' + c).value, { maxItems: 1e6, maxLargo: 1e6 }).lista; });
       pintarTipo();
     }
   });
@@ -189,6 +195,11 @@ export function abrirModalParametro(ed, { original = null, grupoClave, alGuardar
       if (!entero(mb, 1, 10)) errores.push('El peso máximo debe estar entre 1 y 10 MB.');
       if (!(v.formatos || []).length) errores.push('Elige al menos un formato.');
       out.max = max; out.max_mb = mb; out.formatos = FORMATOS.filter(f => (v.formatos || []).includes(f));
+      [['ubicaciones', 'Ubicaciones posibles'], ['sugerencias', 'Sugerencias de descripción']].forEach(([campo, nombre]) => {
+        const r = listaDesdeTexto(q(`#pr-adm-p-${campo}`).value, LISTAS_IMAGENES[campo]);
+        r.errores.forEach(e => errores.push(`${nombre}: ${e}`));
+        if (r.lista.length) out[campo] = r.lista;
+      });
     } else if (tipo === 'calculado') {
       const igual = q('#pr-adm-p-igual_a').value;
       if (!igual) errores.push('Elige el parámetro del que se calcula.'); else out.igual_a = igual;

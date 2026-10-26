@@ -10,7 +10,12 @@ export const TIPOS = [
   { valor: 'imagenes', etiqueta: 'Imágenes' },
   { valor: 'calculado', etiqueta: 'Calculado' }
 ];
-export const VARIABLES_AUTOMATICAS = ['asesor_nombre', 'asesor_telefono', 'asesor_correo', 'logo_marca_agua'];
+export const VARIABLES_AUTOMATICAS = ['asesor_nombre', 'asesor_telefono', 'asesor_correo', 'total_imagenes', 'lista_imagenes', 'logo_marca_agua', 'otros_parametros'];
+// Límites de las listas opcionales de un parámetro de imágenes (el servidor valida lo mismo).
+export const LISTAS_IMAGENES = {
+  ubicaciones: { maxItems: 12, maxLargo: 40 },
+  sugerencias: { maxItems: 12, maxLargo: 60 }
+};
 export const etiquetaDeTipo = (tipo) => (TIPOS.find(t => t.valor === tipo) || { etiqueta: tipo }).etiqueta;
 
 export const claveValida = (clave) => CLAVE_RE.test(clave || '');
@@ -160,7 +165,26 @@ export function camposPorDefecto(tipo) {
   }
 }
 
-// Parámetros de imágenes en el orden de la lámina (grupos y parámetros).
-export function parametrosDeImagenes(esquema) {
-  return esquema.grupos.flatMap(g => g.parametros.filter(p => p.tipo === 'imagenes').map(p => ({ grupo: g.etiqueta, parametro: p })));
+// Texto de un recuadro (una por línea) a lista: recorta, quita vacías y repetidas y valida los límites.
+export function listaDesdeTexto(texto, { maxItems, maxLargo }) {
+  const lista = [...new Set(String(texto || '').split('\n').map(l => l.trim()).filter(Boolean))];
+  const errores = [];
+  if (lista.length > maxItems) errores.push(`Máximo ${maxItems} líneas.`);
+  const largas = lista.filter(l => l.length > maxLargo);
+  if (largas.length) errores.push(`Cada línea admite hasta ${maxLargo} caracteres («${largas[0].slice(0, 20)}…» es más larga).`);
+  return { lista, errores };
+}
+
+export const textoDesdeLista = (lista) => (Array.isArray(lista) ? lista.join('\n') : '');
+
+// Una imagen de ejemplo por parámetro de imágenes; el servidor descarta las de parámetros ocultos.
+export function imagenesDeEjemplo(esquema) {
+  const out = {};
+  let n = 0;
+  esquema.grupos.forEach(g => g.parametros.filter(p => p.tipo === 'imagenes').forEach(p => {
+    const imagen = { nombre: `ejemplo-${++n}.png`, descripcion: (p.sugerencias || [])[0] || 'Imagen de ejemplo' };
+    if ((p.ubicaciones || []).length) imagen.ubicacion = p.ubicaciones[0];
+    out[p.clave] = [imagen];
+  }));
+  return out;
 }
