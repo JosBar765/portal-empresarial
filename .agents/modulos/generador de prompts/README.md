@@ -51,7 +51,7 @@ Arma, a partir de los parámetros que llena un asesor, un prompt de texto para p
 ## Probar en local
 
 1. Estar en la rama del módulo y detener el servidor.
-2. `npm run migrate` (aplica `prompts`, `prompts_plantilla_v2` y `prompts_ajustes`). La migración `prompts_ajustes` publica la versión 3 de la Medalla solo si no existe ya una versión 3 u otra publicada; si hay versiones de prueba con número 3 o mayor, bórralas antes (SQL en la cabecera de la migración).
+2. `npm run migrate` (aplica `prompts`, `prompts_plantilla_v2`, `prompts_ajustes` y `prompts_marca_de_agua`). Las migraciones `prompts_ajustes` y `prompts_marca_de_agua` publican las versiones 3 y 4 de la Medalla solo si no existe ya una versión 3 u otra publicada; si hay versiones de prueba con número 3 o mayor, bórralas antes (SQL en la cabecera de la migración).
 3. Iniciar el servidor, cerrar sesión y volver a entrar con un Asesor (ver `database/users.sql`) y con el Administrador.
 4. Sube la imagen de la plantilla a un bucket público de Supabase, copia su URL pública y, como Administrador, entra a Productos → Medalla → «Crear borrador» → pestaña Recursos → «Plantilla base»: pega la URL, actívala y publica.
 5. Asesor: crear una propuesta de medalla con imágenes descritas, copiar cada imagen y luego el prompt en un chat nuevo de Gemini, y probar un usuario sin teléfono.

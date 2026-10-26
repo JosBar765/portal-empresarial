@@ -122,11 +122,13 @@ Reglas de render:
 
 Numeración de las imágenes: no hay lámina; el asesor copia cada imagen por separado y luego el prompt. Orden: recursos activos `inicio`, imágenes del asesor (parámetros `imagenes` visibles en el orden del esquema y, dentro de cada uno, en el orden de `imagenes[clave]`) y recursos activos `fin`.
 
-## 4. Plantilla v3 de la medalla (optimizada para Gemini, con plantilla en Supabase)
+## 4. Plantilla v3/v4 de la medalla (optimizada para Gemini, con plantilla en Supabase)
 
 Criterios: referencias primero (cada imagen numerada y descrita, porque el modelo las asocia mejor por rol que por posición), luego la escena; pedir la imagen de forma explícita, formato 16:9, texto exacto entre comillas, fondo plano y redacción en positivo. Sin imágenes de listón, el modelo inventa un diseño con los colores de los logos. Con el recurso `plantilla_base` activo, la imagen final se compone sobre la plantilla (franja inferior de la empresa, espacios para los datos del asesor y logo arriba a la derecha); inactivo, el prompt pide un fondo liso y una franja al pie.
 
 La versión 2 pasó a la versión 3 mediante la migración `prompts_ajustes` (crea y siembra `prompt_ajustes`, archiva la v2 y publica la v3 solo si el producto no tiene ya una versión 3 ni otra versión publicada). Esa migración agrega el recurso `plantilla_base` **inactivo y sin URL**: el administrador sube la imagen a Supabase, pega la URL en la pestaña Recursos y lo activa. La versión 2 (con lámina, luego con logo de marca de agua) quedó en el historial.
+
+La sección `MARCA DE AGUA` llegó en la **versión 4** (migración `prompts_marca_de_agua`: archiva la v3 y publica la v4 con el mismo esquema, solo si el producto no tiene ya una versión 4 ni otra versión publicada). Regla: la marca de agua es únicamente el texto «GRUPO PREMIA»; el logo de la empresa viene dentro de la imagen de la plantilla base y el prompt nunca lo agrega, lo repite ni lo modifica (cuando la plantilla base está activa, además prohíbe cualquier otro logo o símbolo como marca de agua).
 
 ```text
 {{#si lista_imagenes}}IMÁGENES DE REFERENCIA{{/si}}
@@ -168,6 +170,10 @@ COMPOSICIÓN
 - Iluminación suave de estudio, sombras suaves y detalle nítido del relieve.
 - Cada cara completa y centrada en su mitad del área central, con el listón colgando de la argolla.
 
+MARCA DE AGUA
+- Coloca como marca de agua únicamente el texto exacto "GRUPO PREMIA", en letras mayúsculas, discreto y semitransparente, en la parte baja del área central, sin tapar la medalla ni la franja inferior de la plantilla.
+{{#si recurso_plantilla_base}}- No agregues ningún otro logo ni símbolo como marca de agua: el logo de la empresa ya está en la plantilla y no debe repetirse ni modificarse.{{/si}}
+
 PIE DE LA IMAGEN
 {{#si recurso_plantilla_base}}- Escribe en los espacios de la franja inferior de la plantilla, en texto blanco y uno debajo del otro:{{/si}}
 {{#no recurso_plantilla_base}}- Al pie, una franja horizontal con los colores del logo de Grupo Premia y, en texto blanco apilado (uno debajo del otro):{{/no}}
@@ -180,7 +186,7 @@ IMPORTANTE
 - Escribe los textos exactamente como aparecen entre comillas.
 ```
 
-## 5. Parámetros de la medalla (versiones 1 a 3)
+## 5. Parámetros de la medalla (versiones 1 a 4; la 4 usa el esquema de la 3)
 
 La versión 2 usa el mismo esquema que la 1 más `ubicaciones` y `sugerencias` en los tres parámetros de imágenes (abajo). La versión 3 suma el recurso `plantilla_base` (etiqueta «Plantilla base», descripción «plantilla de la imagen final, con la franja inferior del diseño de la empresa, los espacios para los datos del asesor y el logo en la esquina superior derecha», `posicion: "inicio"`, `activo: false`, `url` vacía).
 
