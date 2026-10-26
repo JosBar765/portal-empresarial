@@ -27,6 +27,18 @@ Módulo nuevo e independiente. El asesor completa los parámetros de un producto
 - [x] T5 Documentación del módulo y mapa de docs de `CLAUDE.md`. (commit «README del módulo»)
 - [x] T6 Verificación final (sintaxis, pruebas de funciones puras) y resumen. (ci:sintaxis 245 archivos OK; 40 aserciones de plantilla/esquema; esquemaOps y calcularLayout probados; router con 12 rutas carga con config simulada)
 
+## Ronda 2 (2026-10-26, tras probar con Gemini)
+Decisiones del usuario:
+- Imágenes sueltas en lugar de la lámina: el asesor copia y pega cada imagen y luego el prompt. Sin preparación de imágenes (sin recortes ni avisos de resolución).
+- Cada imagen lleva una descripción corta y, si el parámetro lo define, una ubicación (listas definidas en el esquema, nada hardcodeado). El prompt las numera y las describe por rol.
+- Prompt reordenado: primero las referencias, después la escena. Si no hay imágenes de listón: diseño arbitrario con los colores de los logos.
+- Todo parámetro o grupo nuevo del esquema entra solo al prompt: variable automática `{{otros_parametros}}` (y se agrega al final si la plantilla no la usa).
+- Quitar los íconos de la forma (nada hardcodeado en el formulario).
+- Migración 16 con la plantilla v2 (no se edita la 15, ya aplicada en local).
+- [ ] T7 Backend: formato de imágenes, variables automáticas, otros_parametros, API sin lámina, migración plantilla v2 y contrato.
+- [ ] T8 Front asesor: descripción y ubicación por imagen, copiado una por una, sin lámina ni íconos de forma.
+- [ ] T9 Front administración: ubicaciones y sugerencias por parámetro de imágenes, parámetros sin usar en la plantilla.
+
 ## Checks
 Sin suite de tests (excepción a RED/GREEN): `node --check` en todo JS tocado y comprobaciones con `node -e` de las funciones puras (validación de esquema, render de plantilla). El servidor lo levanta el usuario; las migraciones no se ejecutan contra bases reales desde aquí.
 
