@@ -179,8 +179,14 @@ function construirPayload(sinTelefono) {
     else if (p.tipo === 'opciones') { if (v) valores[p.clave] = v; }
     else if (p.tipo === 'si_no') valores[p.clave] = !!v;
     else if (p.tipo === 'imagenes') {
-      const nombres = estado.archivos[p.clave].map(a => a.file.name);
-      if (nombres.length) imagenes[p.clave] = nombres;
+      const items = estado.archivos[p.clave].map((a) => {
+        const item = { nombre: a.file.name };
+        const descripcion = a.descripcion.trim();
+        if (descripcion) item.descripcion = descripcion;
+        if (a.ubicacion) item.ubicacion = a.ubicacion;
+        return item;
+      });
+      if (items.length) imagenes[p.clave] = items;
     }
   }
   return { productoId: ctx.producto.id, valores, imagenes, sinTelefono };

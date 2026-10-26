@@ -5,11 +5,11 @@ import { parametrosDeImagenes } from './esquemaOps.js';
 import { mensajesDeError } from './comun.js';
 
 // El servidor no recibe imágenes aquí: se lista el orden en que se numerarían.
-function listaLamina(esquema) {
+function listaImagenes(esquema) {
   const filas = parametrosDeImagenes(esquema).map(({ grupo, parametro }) =>
-    h('li', { text: `${grupo} · ${parametro.etiqueta} (${parametro.clave}), hasta ${parametro.max || 1} recuadros${parametro.visible_si ? ', según «Visible si»' : ''}` }));
-  filas.push(h('li', { text: 'Logo de marca de agua: siempre el último recuadro' }));
-  return h('ol', { class: 'pr-adm-lamina' }, filas);
+    h('li', { text: `${grupo} · ${parametro.etiqueta} (${parametro.clave}), hasta ${parametro.max || 1} imágenes${parametro.visible_si ? ', según «Visible si»' : ''}` }));
+  filas.push(h('li', { text: 'Logo de marca de agua: siempre la última imagen' }));
+  return h('ol', { class: 'pr-adm-imagenes' }, filas);
 }
 
 export function renderTabVistaPrevia(cont, ed) {
@@ -39,7 +39,7 @@ export function renderTabVistaPrevia(cont, ed) {
       resultado),
     h('aside', { class: 'pr-adm-lateral' },
       h('section', { class: 'pr-card' },
-        h('h3', { class: 'pr-card-titulo', text: 'Numeración de la lámina' }),
-        listaLamina(ed.esquema),
-        h('span', { class: 'form-hint', text: 'Los recuadros se numeran en este orden, según las imágenes que cargue el asesor.' })))));
+        h('h3', { class: 'pr-card-titulo', text: 'Numeración de las imágenes' }),
+        listaImagenes(ed.esquema),
+        h('span', { class: 'form-hint', text: 'Las imágenes se numeran en este orden, según las imágenes que cargue el asesor.' })))));
 }

@@ -1,139 +1,139 @@
-// Vista del prompt generado: texto, adjuntos de la lámina y acciones de copiado.
+// Vista del prompt generado: copiado guiado de cada imagen (en orden) y del prompt.
 import { h, icono } from '../../utils/dom.js';
-import { armarRecuadros, dibujarLamina } from './lamina.js';
+import { construirPasos, claveDePaso, siguientePendiente, etiquetaBoton } from './pasosCopiado.js';
+import { copiarImagen, copiarTexto, descargarBlob } from './portapapeles.js';
 
-const puedeCopiarImagen = () => !!(window.isSecureContext && window.ClipboardItem && navigator.clipboard && navigator.clipboard.write);
+const MAX_GEMINI = 14;
 
-function marcarCopiado(boton) {
-  const original = boton.dataset.original || boton.textContent;
-  boton.dataset.original = original;
-  boton.textContent = 'Copiado';
-  setTimeout(() => { boton.textContent = original; }, 2000);
+// Cada imagen de la respuesta se empareja con su archivo por parámetro y posición.
+function armarItems(resultado, estado) {
+  const usados = {};
+  const items = resultado.imagenes.map((r) => {
+    const pos = usados[r.parametro] = (usados[r.parametro] ?? -1) + 1;
+    const archivo = (estado.archivos[r.parametro] || [])[pos];
+    const sub = [r.grupo, r.ubicacion].filter(Boolean).join(' · ');
+    return {
+      url: archivo && archivo.url,
+      blob: async () => archivo.file,
+      nombre: archivo ? archivo.file.name : `imagen-${r.numero}.png`,
+      titulo: `Imagen ${r.numero} · ${r.descripcion || 'sin descripción'}`,
+      sub
+    };
+  });
+  const { logo } = resultado;
+  let blobLogo = null;
+  items.push({
+    url: logo.url,
+    blob: async () => {
+      if (!blobLogo) blobLogo = await (await fetch(logo.url)).blob();
+      return blobLogo;
+    },
+    nombre: 'logo-grupo-premia.png',
+    titulo: `Imagen ${logo.numero} · Logo de Grupo Premia (marca de agua)`,
+    sub: ''
+  });
+  return { items, liberar: () => { blobLogo = null; } };
 }
 
-// Fallback sin API de portapapeles: deja el texto seleccionado para Ctrl+C.
-function seleccionarTexto(nodo) {
-  const rango = document.createRange();
-  rango.selectNodeContents(nodo);
-  const seleccion = window.getSelection();
-  seleccion.removeAllRanges();
-  seleccion.addRange(rango);
-  try { return document.execCommand('copy'); } catch (e) { return false; }
-}
-
-function filaAdjunto({ titulo, zona, url }) {
-  return h('li', { class: 'pr-adjunto' },
-    h('div', { class: 'pr-adjunto-img' }, url ? h('img', { src: url, alt: '' }) : icono('close-outline')),
-    h('div', { class: 'pr-adjunto-texto' },
-      h('strong', { text: titulo }),
-      zona ? h('span', { class: 'form-hint', text: zona }) : null));
-}
-
-// Devuelve liberar(): revoca las URLs propias de esta vista.
+// Devuelve liberar(): suelta los blobs propios de esta vista.
 export function renderResultado(cont, { producto, indice, estado, resultado, alEditar }) {
-  const { prompt, lamina } = resultado;
-  const recuadros = armarRecuadros(lamina, estado.archivos);
-  let urlVistaPrevia = null;
-  let blobLamina = null;
+  const { prompt, totalImagenes } = resultado;
+  const { items, liberar } = armarItems(resultado, estado);
+  const pasos = construirPasos(items.length);
+  const hechos = new Set();
+  let ocupado = false;
 
   const primerTexto = indice.lista.find(p => p.tipo === 'texto' && String(estado.valores[p.clave] || '').trim());
   const titulo = primerTexto ? String(estado.valores[primerTexto.clave]).trim() : '';
   const subtitulo = titulo ? `${producto.nombre} · ${titulo}` : producto.nombre;
 
   const cajaPrompt = h('div', { class: 'pr-prompt-texto', text: prompt });
-  const vistaPrevia = h('div', { class: 'pr-lamina-preview' }, h('span', { class: 'form-hint', text: 'Preparando lámina...' }));
-
-  const btnTodo = h('button', { type: 'button', class: 'btn btn--primary btn--lg', text: 'Copiar todo (lámina + prompt)', disabled: true });
+  const btnGuiado = h('button', { type: 'button', class: 'btn btn--primary btn--lg pr-guiado-boton' });
+  const btnReiniciar = h('button', { type: 'button', class: 'pr-enlace', text: 'Empezar de nuevo' });
   const btnPrompt = h('button', { type: 'button', class: 'btn btn--ghost', text: 'Copiar prompt' });
-  const btnImagen = h('button', { type: 'button', class: 'btn btn--ghost', text: 'Copiar lámina', disabled: true });
-  const btnDescarga = h('button', { type: 'button', class: 'btn btn--ghost', text: 'Descargar lámina', disabled: true });
 
-  btnTodo.addEventListener('click', async () => {
-    const aviso = () => window.toast.warning('No se pudo copiar todo junto', 'Tu navegador no permitió copiar la lámina y el prompt a la vez. Usa «Copiar prompt» y «Copiar lámina» por separado.');
-    if (!puedeCopiarImagen()) { aviso(); return; }
-    try {
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobLamina, 'text/plain': new Blob([prompt], { type: 'text/plain' }) })]);
-      marcarCopiado(btnTodo);
-      window.toast.success('Copiado', 'Pega la lámina y el prompt en un chat nuevo.');
-    } catch (e) { aviso(); }
+  const filas = items.map((it, i) => {
+    const btnCopiar = h('button', { type: 'button', class: 'btn btn--ghost btn--sm', text: 'Copiar' });
+    const btnDescarga = h('button', { type: 'button', class: 'btn-icon', title: 'Descargar imagen', 'aria-label': `Descargar imagen ${i + 1}` }, icono('download-outline'));
+    btnCopiar.addEventListener('click', () => copiarPaso(pasos[i]));
+    btnDescarga.addEventListener('click', async () => {
+      try { descargarBlob(await it.blob(), it.nombre); } catch (e) { window.toast.warning('No se pudo descargar', 'Inténtalo de nuevo.'); }
+    });
+    const nodo = h('li', { class: 'pr-pegar-fila' },
+      h('div', { class: 'pr-adjunto-img' }, it.url ? h('img', { src: it.url, alt: '' }) : icono('image-outline')),
+      h('div', { class: 'pr-adjunto-texto' },
+        h('strong', { text: it.titulo }),
+        it.sub ? h('span', { class: 'form-hint', text: it.sub }) : null),
+      btnCopiar, btnDescarga);
+    return { nodo, btnCopiar };
   });
 
-  btnPrompt.addEventListener('click', async () => {
+  function pintar() {
+    const siguiente = siguientePendiente(pasos, hechos);
+    btnGuiado.textContent = etiquetaBoton(pasos, hechos, totalImagenes);
+    btnGuiado.disabled = !siguiente || ocupado;
+    btnReiniciar.hidden = !!siguiente;
+    filas.forEach((f, i) => {
+      const hecho = hechos.has(claveDePaso(pasos[i]));
+      f.btnCopiar.textContent = hecho ? 'Copiada' : 'Copiar';
+      f.nodo.classList.toggle('is-copiada', hecho);
+    });
+    btnPrompt.textContent = hechos.has('prompt') ? 'Copiado' : 'Copiar prompt';
+  }
+
+  async function copiarPaso(paso) {
+    if (ocupado) return;
+    ocupado = true;
+    pintar();
     try {
-      if (!(navigator.clipboard && navigator.clipboard.writeText)) throw new Error('sin portapapeles');
-      await navigator.clipboard.writeText(prompt);
-    } catch (e) {
-      if (!seleccionarTexto(cajaPrompt)) {
-        window.toast.warning('Copia manual', 'El texto quedó seleccionado: cópialo con Ctrl+C.');
-        return;
+      if (paso.tipo === 'prompt') {
+        if (!(await copiarTexto(prompt, cajaPrompt))) {
+          window.toast.warning('Copia manual', 'El texto quedó seleccionado: cópialo con Ctrl+C.');
+          return;
+        }
+        window.toast.success('Prompt copiado', 'Pégalo en el chat después de las imágenes.');
+      } else {
+        try {
+          await copiarImagen(await items[paso.indice].blob());
+        } catch (e) {
+          window.toast.warning('No se pudo copiar la imagen', 'Tu navegador no lo permitió. Usa el botón de descarga y adjúntala a mano.');
+          return;
+        }
+        window.toast.success(`Imagen ${paso.indice + 1} copiada`, 'Pégala en el chat de tu generador de imágenes.');
       }
+      hechos.add(claveDePaso(paso));
+    } finally {
+      ocupado = false;
+      pintar();
     }
-    marcarCopiado(btnPrompt);
-    window.toast.success('Prompt copiado', 'Pégalo en un chat nuevo de tu generador de imágenes.');
-  });
+  }
 
-  btnImagen.addEventListener('click', async () => {
-    if (!puedeCopiarImagen()) {
-      window.toast.warning('No se pudo copiar la lámina', 'Tu navegador no permite copiar imágenes. Usa «Descargar lámina».');
-      return;
-    }
-    try {
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobLamina })]);
-      marcarCopiado(btnImagen);
-      window.toast.success('Lámina copiada', 'Pégala en un chat nuevo de tu generador de imágenes.');
-    } catch (e) {
-      window.toast.warning('No se pudo copiar la lámina', 'El navegador no lo permitió. Usa «Descargar lámina».');
-    }
-  });
-
-  btnDescarga.addEventListener('click', () => {
-    const url = URL.createObjectURL(blobLamina);
-    const enlace = h('a', { href: url, download: 'lamina-referencia.png' });
-    document.body.append(enlace);
-    enlace.click();
-    enlace.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  });
-
-  const filas = recuadros.map(r => {
-    if (r.esLogo) return filaAdjunto({ titulo: `Recuadro ${r.numero} · Logo Grupo Premia (marca de agua)`, url: r.url });
-    const g = indice.grupoDe[r.parametro];
-    const p = indice.porClave[r.parametro];
-    return filaAdjunto({ titulo: `Recuadro ${r.numero} · ${r.nombre}`, zona: [g && g.etiqueta, p && p.etiqueta].filter(Boolean).join(' · '), url: r.url });
-  });
+  btnGuiado.addEventListener('click', () => { const s = siguientePendiente(pasos, hechos); if (s) copiarPaso(s); });
+  btnPrompt.addEventListener('click', () => copiarPaso({ tipo: 'prompt' }));
+  btnReiniciar.addEventListener('click', () => { hechos.clear(); pintar(); });
 
   cont.replaceChildren(
     h('div', { class: 'panel-toolbar' },
       h('div', null, h('h2', { text: 'Prompt generado' }), h('p', { class: 'pr-subtitulo', text: subtitulo })),
       h('button', { type: 'button', class: 'btn btn--ghost', onclick: alEditar }, icono('create-outline'), ' Editar y generar otra propuesta')),
     h('div', { class: 'pr-banner' }, icono('information-circle-outline'),
-      h('span', { text: 'Pega el prompt y la lámina en un chat nuevo de tu generador de imágenes. El prompt le indica que ignore cualquier propuesta anterior.' })),
+      h('span', { text: 'Abre un chat nuevo en tu generador de imágenes y pega primero las imágenes, una por una y en este orden; al final pega el prompt. El prompt le indica que ignore cualquier propuesta anterior.' })),
+    totalImagenes > MAX_GEMINI
+      ? h('div', { class: 'pr-banner pr-banner--aviso' }, icono('warning-outline'),
+        h('span', { text: `Gemini admite hasta ${MAX_GEMINI} imágenes de referencia y este pedido tiene ${totalImagenes}. Quita algunas imágenes para mejores resultados.` }))
+      : null,
+    h('div', { class: 'pr-guiado' }, btnGuiado, btnReiniciar),
     h('div', { class: 'pr-resultado-layout' },
       h('section', { class: 'pr-card' },
         h('h3', { class: 'pr-card-titulo', text: 'Prompt' }),
         cajaPrompt,
-        h('span', { class: 'form-hint', text: `${prompt.length} caracteres` })),
-      h('aside', { class: 'pr-lateral-resultado' },
-        h('section', { class: 'pr-card' },
-          h('h3', { class: 'pr-card-titulo', text: 'Adjuntos' }),
-          h('ul', { class: 'pr-adjuntos' }, filas),
-          vistaPrevia,
-          h('span', { class: 'form-hint', text: 'Las imágenes se copian juntas como una sola lámina numerada.' })),
-        h('div', { class: 'pr-acciones' }, btnTodo, btnPrompt, btnImagen, btnDescarga))));
+        h('span', { class: 'form-hint', text: `${prompt.length} caracteres` }),
+        h('div', { class: 'pr-acciones' }, btnPrompt)),
+      h('section', { class: 'pr-card' },
+        h('h3', { class: 'pr-card-titulo', text: 'Imágenes para pegar' }),
+        h('span', { class: 'form-hint', text: 'Se copian en orden. La última es el logo de Grupo Premia para la marca de agua.' }),
+        h('ul', { class: 'pr-adjuntos' }, filas.map(f => f.nodo)))));
 
-  let cancelado = false;
-  dibujarLamina(recuadros).then(({ blob }) => {
-    if (cancelado) return;
-    blobLamina = blob;
-    urlVistaPrevia = URL.createObjectURL(blob);
-    vistaPrevia.replaceChildren(h('img', { src: urlVistaPrevia, alt: 'Lámina de referencia generada' }));
-    [btnTodo, btnImagen, btnDescarga].forEach(b => { b.disabled = false; });
-  }).catch(() => {
-    if (!cancelado) vistaPrevia.replaceChildren(h('span', { class: 'form-hint', text: 'No se pudo crear la lámina. Inténtalo de nuevo.' }));
-  });
-
-  return () => {
-    cancelado = true;
-    if (urlVistaPrevia) URL.revokeObjectURL(urlVistaPrevia);
-  };
+  pintar();
+  return liberar;
 }

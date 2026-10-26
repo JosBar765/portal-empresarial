@@ -1,17 +1,12 @@
 // Campos dinámicos del formulario del asesor, según el esquema del producto.
-// El estado vive solo en memoria: { valores: {clave: valor}, archivos: {clave: [{file, url}]} }.
+// El estado vive solo en memoria: { valores: {clave: valor}, archivos: {clave: [{file, url, descripcion, ubicacion}]} }.
 import { h, icono } from '../../utils/dom.js';
 
 const MAX_LARGO = { texto: 150, texto_largo: 600 };
 const FORMATOS_DEFECTO = ['png', 'jpg', 'svg', 'webp'];
 const EXTENSIONES = { png: ['png'], jpg: ['jpg', 'jpeg'], svg: ['svg'], webp: ['webp'] };
 const MAX_NOMBRE = 150;
-
-const GLIFOS = {
-  cuadrada: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="6" y="6" width="20" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
-  circular: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="10" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
-  irregular: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 11 L15 5 L26 9 L27 20 L19 27 L8 23 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
-};
+const MAX_DESCRIPCION = 120;
 
 // ---------- Esquema y estado ----------
 export function indexarEsquema(esquema) {
@@ -104,7 +99,9 @@ export function validarCampo(p, estado) {
     case 'imagenes': {
       const n = estado.archivos[p.clave].length;
       if (n === 0) return p.requerido ? 'Sube al menos una imagen.' : '';
-      return n > (p.max || 1) ? `Máximo ${p.max || 1} imágenes.` : '';
+      if (n > (p.max || 1)) return `Máximo ${p.max || 1} imágenes.`;
+      return estado.archivos[p.clave].some(a => a.descripcion.trim().length > MAX_DESCRIPCION)
+        ? `La descripción de cada imagen no puede superar ${MAX_DESCRIPCION} caracteres.` : '';
     }
     default: return '';
   }
@@ -127,7 +124,7 @@ function segmentado(opciones, leer, escribir) {
 function tarjetas(p, leer, escribir) {
   const botones = p.opciones.map(o => h('button', {
     type: 'button', class: 'pr-opcion', role: 'radio', onclick: () => escribir(o.valor)
-  }, GLIFOS[o.valor] ? h('span', { class: 'pr-glifo', html: GLIFOS[o.valor] }) : null, h('span', { text: o.etiqueta })));
+  }, h('span', { text: o.etiqueta })));
   const pintar = () => botones.forEach((b, i) => {
     const activo = leer() === p.opciones[i].valor;
     b.classList.toggle('is-activo', activo);
@@ -156,7 +153,7 @@ let zonaActiva = null; // recuadro bajo el cursor o con foco: destino del Ctrl+V
 let contadorPegadas = 0;
 const EXT_POR_MIME = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/svg+xml': 'svg', 'image/gif': 'gif' };
 
-// El portapapeles entrega capturas como «image.png»: se renombran para distinguirlas en la lámina.
+// El portapapeles entrega capturas como «image.png»: se renombran para distinguirlas en la lista.
 function nombrarPegada(f) {
   if (f.name && !/^image\.\w+$/i.test(f.name)) return f;
   const ext = EXT_POR_MIME[f.type] || f.type.split('/')[1] || 'png';
@@ -170,6 +167,41 @@ document.addEventListener('paste', (e) => {
   e.preventDefault();
   zonaActiva.pegar(imagenes.map(nombrarPegada));
 });
+
+// Tarjeta de una imagen subida: edita descripción y ubicación sobre el mismo objeto, sin reconstruir la grilla.
+function tarjetaImagen(p, item, n, alQuitar) {
+  const base = `pr-img-${p.clave}-${n}`;
+  const listaId = `${base}-lista`;
+  const sugerencias = Array.isArray(p.sugerencias) ? p.sugerencias : [];
+  const ubicaciones = Array.isArray(p.ubicaciones) ? p.ubicaciones : [];
+
+  const desc = h('input', {
+    type: 'text', id: `${base}-desc`, class: 'pr-img-campo', autocomplete: 'off', maxlength: String(MAX_DESCRIPCION),
+    placeholder: 'Ej.: Logo del organizador', 'aria-label': `¿Qué es? (${item.file.name})`, list: sugerencias.length ? listaId : null
+  });
+  desc.value = item.descripcion;
+  desc.addEventListener('input', () => { item.descripcion = desc.value; });
+
+  let selector = null;
+  if (ubicaciones.length) {
+    selector = h('select', { id: `${base}-ubic`, class: 'pr-img-campo', 'aria-label': `Ubicación (${item.file.name})` },
+      h('option', { value: '', text: 'Sin ubicación específica' }),
+      ubicaciones.map(u => h('option', { value: u, text: u })));
+    selector.value = item.ubicacion;
+    selector.addEventListener('change', () => { item.ubicacion = selector.value; });
+  }
+
+  return h('div', { class: 'pr-img-item' },
+    h('div', { class: 'pr-img-item-cab' },
+      h('div', { class: 'pr-miniatura-img' }, h('img', { src: item.url, alt: '' })),
+      h('span', { class: 'pr-miniatura-nombre', text: item.file.name, title: item.file.name })),
+    h('button', { type: 'button', class: 'pr-miniatura-quitar', 'aria-label': `Quitar ${item.file.name}`, text: '×', onclick: alQuitar }),
+    h('label', { class: 'pr-img-etiqueta', for: `${base}-desc`, text: '¿Qué es?' }),
+    desc,
+    sugerencias.length ? h('datalist', { id: listaId }, sugerencias.map(s => h('option', { value: s }))) : null,
+    selector ? h('label', { class: 'pr-img-etiqueta', for: `${base}-ubic`, text: 'Ubicación' }) : null,
+    selector);
+}
 
 function construirImagenes(p, ctx, id) {
   const { estado } = ctx;
@@ -196,7 +228,7 @@ function construirImagenes(p, ctx, id) {
       if (!permitidas.includes(ext)) { rechazar(f.name, `Formato no permitido. Usa: ${formatos.map(x => x.toUpperCase()).join(', ')}.`); continue; }
       if (f.size > maxMb * 1024 * 1024) { rechazar(f.name, `La imagen supera los ${maxMb} MB.`); continue; }
       if (f.name.length > MAX_NOMBRE) { rechazar(f.name, `El nombre del archivo supera los ${MAX_NOMBRE} caracteres.`); continue; }
-      lista().push({ file: f, url: URL.createObjectURL(f) });
+      lista().push({ file: f, url: URL.createObjectURL(f), descripcion: '', ubicacion: '' });
     }
     ctx.alCambiar(p.clave);
   }
@@ -234,10 +266,7 @@ function construirImagenes(p, ctx, id) {
     const nueva = lista().map(a => a.url).join('|');
     if (nueva === firma) return;
     firma = nueva;
-    grilla.replaceChildren(...lista().map((a, i) => h('div', { class: 'pr-miniatura' },
-      h('div', { class: 'pr-miniatura-img' }, h('img', { src: a.url, alt: '' })),
-      h('span', { class: 'pr-miniatura-nombre', text: a.file.name, title: a.file.name }),
-      h('button', { type: 'button', class: 'pr-miniatura-quitar', 'aria-label': `Quitar ${a.file.name}`, text: '×', onclick: () => quitar(i) }))));
+    grilla.replaceChildren(...lista().map((a, i) => tarjetaImagen(p, a, i, () => quitar(i))));
   };
   refrescar();
   return { nodo: h('div', { class: 'pr-imagenes' }, zona, input, grilla), extra: contador, refrescar };
