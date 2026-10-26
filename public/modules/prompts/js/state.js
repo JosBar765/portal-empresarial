@@ -1,1 +1,1 @@
-export const state = { user: null, tab: null };
+export const state = { user: null, tab: null, salidaVista: null };

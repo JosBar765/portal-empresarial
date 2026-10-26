@@ -25,6 +25,7 @@ const tienePermisoDeTab = (tab) => (state.user.permissions || []).includes(PERMI
 export async function cargarTab() {
   const cont = $('#panel-content');
   liberarAsesor();
+  if (state.salidaVista) { state.salidaVista.liberar(); state.salidaVista = null; }
   if (!state.tab) {
     cont.innerHTML = `<div class="buzon-vacio"><ion-icon name="lock-closed-outline"></ion-icon><h3>Sin secciones asignadas</h3><p>Tu rol puede ver el módulo, pero no tiene ningún permiso de uso asignado todavía.</p></div>`;
     return;
@@ -53,9 +54,11 @@ export function wireSidebar() {
   botones.forEach(b => b.classList.toggle('sidebar-item-active', b.dataset.tab === state.tab));
 
   botonesVisibles.forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       cerrarSidebarMovil();
       if (btn.dataset.tab === state.tab) return;
+      // Una vista con cambios sin guardar (editor de productos) pide confirmar antes de salir.
+      if (state.salidaVista && !(await state.salidaVista.confirmar())) return;
       $$('.sidebar-item', sidebar).forEach(b => b.classList.remove('sidebar-item-active'));
       btn.classList.add('sidebar-item-active');
       state.tab = btn.dataset.tab;
