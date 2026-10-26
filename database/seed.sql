@@ -77,16 +77,19 @@ INSERT INTO `permisos` (`id`, `codigo`, `nombre`, `modulo`, `descripcion`) VALUE
 (25, 'vales.corregir', 'Corregir Vales de Arte', 'vales', 'Permite al asesor corregir los datos de un vale de arte propio antes de que sea autorizado'),
 (26, 'vales.verificar_adjuntos', 'Verificar Adjuntos', 'vales', 'Permite al encargado de taller confirmar que recibió los adjuntos de un vale de arte o rechazarlo por no haberlos recibido'),
 (27, 'vales.ver_historial', 'Ver Historial del Vale', 'vales', 'Permite ver la acción y el contenido del historial de movimientos de un vale de arte'),
-(28, 'vales.ver_reportes', 'Ver Reportes de Actividad', 'vales', 'Permite ver la pestaña Reportes (actividad propia o de su equipo según el rol) y exportarla a PDF');
+(28, 'vales.ver_reportes', 'Ver Reportes de Actividad', 'vales', 'Permite ver la pestaña Reportes (actividad propia o de su equipo según el rol) y exportarla a PDF'),
+(29, 'prompts.ver', 'Ver Generador de Prompts', 'prompts', 'Permite acceder al módulo Generador de Prompts'),
+(30, 'prompts.generar', 'Generar prompts', 'prompts', 'Permite completar los parámetros de un producto y generar su prompt'),
+(31, 'prompts.administrar', 'Administrar productos del Generador de Prompts', 'prompts', 'Permite crear productos y definir sus parámetros y plantilla');
 
 INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`) VALUES
 -- Administrador: único rol con el historial de vales (27)
-(1, 1), (1, 8), (1, 19), (1, 20), (1, 21), (1, 22), (1, 23), (1, 27), (1, 28),
+(1, 1), (1, 8), (1, 19), (1, 20), (1, 21), (1, 22), (1, 23), (1, 27), (1, 28), (1, 29), (1, 30), (1, 31),
 -- Asesor de Ventas
-(2, 1), (2, 2), (2, 3), (2, 12), (2, 13), (2, 24), (2, 25),
+(2, 1), (2, 2), (2, 3), (2, 12), (2, 13), (2, 24), (2, 25), (2, 29), (2, 30),
 -- Supervisor de Ventas: además de supervisar, crea y gestiona sus propios vales (2 crear, 12 confirmar,
 -- 13 solicitar modificación, 24 dar de baja, 25 corregir)
-(3, 1), (3, 14), (3, 15), (3, 17), (3, 18), (3, 2), (3, 12), (3, 13), (3, 24), (3, 25),
+(3, 1), (3, 14), (3, 15), (3, 17), (3, 18), (3, 2), (3, 12), (3, 13), (3, 24), (3, 25), (3, 29), (3, 30),
 -- Encargado de taller de diseño: dueño del taller "Diseño", con fusión (16) y "trabajar" (11)
 (4, 1), (4, 9), (4, 10), (4, 11), (4, 16), (4, 26),
 -- Encargado de taller de diseño 3d: dueño del taller "Diseño UV/3D", sin fusión

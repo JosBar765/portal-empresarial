@@ -429,4 +429,32 @@ CREATE TABLE IF NOT EXISTS `notificaciones` (
   INDEX `idx_notificaciones_usuario` (`usuario_id`, `modulo`, `leida_en`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `prompt_productos` (
+  `id`             INT AUTO_INCREMENT PRIMARY KEY,
+  `codigo`         VARCHAR(50)  NOT NULL UNIQUE,
+  `nombre`         VARCHAR(100) NOT NULL,
+  `descripcion`    VARCHAR(255) DEFAULT NULL,
+  `estado`         VARCHAR(20)  NOT NULL DEFAULT 'borrador',
+  `creado_por`     INT NOT NULL,
+  `creado_en`      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `actualizado_en` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `prompt_producto_versiones` (
+  `id`             INT AUTO_INCREMENT PRIMARY KEY,
+  `producto_id`    INT NOT NULL,
+  `numero`         INT NOT NULL,
+  `estado`         VARCHAR(20) NOT NULL DEFAULT 'borrador',
+  `esquema`        JSON NOT NULL,
+  `plantilla`      MEDIUMTEXT NOT NULL,
+  `creado_por`     INT NOT NULL,
+  `creado_en`      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `publicado_en`   TIMESTAMP NULL DEFAULT NULL,
+  `actualizado_en` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `uq_prompt_version` (`producto_id`, `numero`),
+  FOREIGN KEY (`producto_id`) REFERENCES `prompt_productos` (`id`),
+  FOREIGN KEY (`creado_por`)  REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
