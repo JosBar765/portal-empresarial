@@ -19,10 +19,10 @@ Módulo nuevo e independiente. El asesor completa los parámetros de un producto
 - Sin sockets ni `events.js`. El único acoplamiento con otro módulo es leer el contacto del asesor.
 
 ## Tareas
-- [ ] T0 Documentos de análisis y propuesta en la rama.
-- [ ] T1 BD: tablas en `schema.sql`, permisos en `seed.sql` y migración idempotente (tablas, permisos, producto Medalla v1 publicada con esquema y plantilla).
-- [ ] T2 Backend: `src/modules/prompts` (esquema, plantilla, contacto, productos, versiones, rutas), catálogo `MODULOS` y montaje en `app.js`.
-- [ ] T3 Front asesor: formulario dinámico, lámina numerada, copiar todo, modal sin teléfono.
+- [x] T0 Documentos de análisis y propuesta en la rama. (cae7a0d)
+- [x] T1 BD: tablas en `schema.sql`, permisos en `seed.sql` y migración idempotente (tablas, permisos, producto Medalla v1 publicada con esquema y plantilla). (commit «tablas, permisos y migración»)
+- [x] T2 Backend: `src/modules/prompts` (esquema, plantilla, contacto, productos, versiones, rutas), catálogo `MODULOS` y montaje en `app.js`. (commit «backend del módulo»)
+- [x] T3 Front asesor: formulario dinámico, lámina numerada, copiar todo, modal sin teléfono. (commit «vista del asesor»)
 - [ ] T4 Front administración: lista, editor de parámetros, plantilla, vista previa y JSON.
 - [ ] T5 Documentación del módulo y mapa de docs de `CLAUDE.md`.
 - [ ] T6 Verificación final (sintaxis, pruebas de funciones puras) y resumen.
@@ -34,4 +34,4 @@ Sin suite de tests (excepción a RED/GREEN): `node --check` en todo JS tocado y 
 - T1 a T5: delegated direct (un escritor por tarea, varias carpetas y archivos no triviales), tras un mapeo de patrones por un explorador de solo lectura.
 
 ## Progreso
-Rama creada. Pendiente T0.
+T0, T1 y T2 hechas. Contrato técnico en .agents/modulos/generador de prompts/documentacion/esquema_y_contrato.md. Verificado: node --check y 40 aserciones de funciones puras (plantilla y esquema); la migración no se ejecutó (la corre el usuario con npm run migrate). T3 hecha (ci:sintaxis 236 archivos OK; calcularLayout probado; comportamiento en navegador sin verificar). Pendiente: T4 front admin.
