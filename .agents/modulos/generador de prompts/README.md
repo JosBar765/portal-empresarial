@@ -20,9 +20,9 @@ Arma, a partir de los parámetros que llena un asesor, un prompt de texto para p
   - `services/esquemaService.js` y `plantillaService.js` son puros (sin base de datos): validan el esquema y los valores, y arman el prompt.
   - `services/promptsService.js` (asesor) y `adminProductoService.js` (productos, borradores, publicación).
   - `repositories/` (`productoRepository`, `versionRepository`, `contactoRepository`) con todo el SQL.
-- **Base de datos:** tablas al final de `database/schema.sql`; permisos 29 a 31 en `database/seed.sql`; migración `prompts` (tablas, permisos y el producto Medalla con su versión 1 publicada).
+- **Base de datos:** tablas al final de `database/schema.sql`; permisos 29 a 31 en `database/seed.sql`; migración `prompts` (tablas, permisos y el producto Medalla con su versión 1 publicada) y `prompts_plantilla_v2` (publica la versión 2 de la Medalla: imágenes descritas, plantilla reordenada).
 - **Frontend:** `public/modules/prompts/`
-  - `js/views/asesor/`: formulario dinámico (`formulario.js`, `campos.js`), vista de resultado (`resultado.js`) y lámina numerada por canvas (`lamina.js`).
+  - `js/views/asesor/`: formulario dinámico (`formulario.js`, `campos.js`), vista de resultado con copiado guiado, una imagen a la vez (`resultado.js`, `pasosCopiado.js`, `portapapeles.js`).
   - `js/views/adminProductos.js` y `js/views/admin/`: lista de productos, editor, pestañas de parámetros, plantilla, vista previa y JSON, y `esquemaOps.js` (operaciones puras sobre el esquema).
   - `js/api/` (`promptsApi.js`, `promptsAdminApi.js`).
 
@@ -33,6 +33,8 @@ Arma, a partir de los parámetros que llena un asesor, un prompt de texto para p
 - La identidad y el contacto salen siempre de `req.user`, nunca del cuerpo. Si el usuario no tiene teléfono, `POST /generar` responde 409 con `codigo: TELEFONO_FALTANTE`; el asesor puede aceptar generar sin número.
 - El servidor valida los valores contra el esquema de la versión publicada: rechaza claves desconocidas e ignora los parámetros ocultos por `visible_si`.
 - Los valores del asesor se insertan en una sola pasada: lo que escriba nunca se interpreta como plantilla.
+- Todo parámetro o grupo nuevo del esquema entra solo al prompt: los que la plantilla no nombra se agregan en «ESPECIFICACIONES ADICIONALES» (donde se ponga `{{otros_parametros}}` o al final).
+- Cada imagen lleva una descripción y, si el parámetro define `ubicaciones`, una ubicación; ambas listas (`ubicaciones` y `sugerencias`) viven en el esquema, nada está fijo en el código. No hay lámina: el asesor copia cada imagen por separado y al final el prompt, y el logo de Grupo Premia va siempre como última imagen.
 - La marca de agua («Grupo Premia» y el logo) es regla de gerencia. Hoy solo se pide en el prompt; si Gemini no la respeta bien, se analiza una segunda etapa que la aplique de forma exacta.
 - UI en español neutro (tú). Estados en palabras completas.
 
@@ -45,15 +47,16 @@ Arma, a partir de los parámetros que llena un asesor, un prompt de texto para p
 ## Probar en local
 
 1. Estar en la rama del módulo y detener el servidor.
-2. `npm run migrate` (aplica la migración `prompts` en la base local).
+2. `npm run migrate` (aplica las migraciones `prompts` y `prompts_plantilla_v2`). Si ya habías creado un borrador de la versión 2 de la Medalla, descártalo antes: la migración no publica la plantilla v2 si hay una versión 2.
 3. Iniciar el servidor, cerrar sesión y volver a entrar con un Asesor (ver `database/users.sql`) y con el Administrador.
-4. Asesor: crear una propuesta de medalla, probar «Copiar todo» pegando en Gemini en un chat nuevo, y probar un usuario sin teléfono.
+4. Asesor: crear una propuesta de medalla con imágenes descritas, copiar cada imagen y luego el prompt en un chat nuevo de Gemini, y probar un usuario sin teléfono.
 5. Administrador: abrir Productos, crear un borrador de la Medalla, editar un parámetro, revisar la plantilla y publicar.
 
 ## Pendientes y puntos por probar
 
 - Todo el comportamiento del navegador (formulario, lámina, copiado, modales, editor) está verificado solo por sintaxis y pruebas de funciones puras; falta una prueba manual.
-- El copiado conjunto de imagen y texto (`image/png` más `text/plain`) puede no funcionar en todos los generadores; el respaldo son los botones «Copiar prompt» y «Copiar lámina».
+- Gemini no tiene una forma oficial de referirse a una imagen por su número (Google las nombra por rol), por eso cada imagen se numera y se describe; falta comprobar con pedidos reales si respeta el orden y la marca de agua.
+- Si un pedido supera las 14 imágenes de referencia de Gemini, la pantalla de resultado solo avisa.
 - La clave de un parámetro no se bloquea todavía entre versiones en el servidor; el editor solo la bloquea si ya existe en la versión publicada.
 - El mockup de Figma quedó desactualizado en tres puntos: ya no hay historial ni número de propuesta, el aviso de teléfono ausente es un modal y no hay KPI de propuestas generadas.
 

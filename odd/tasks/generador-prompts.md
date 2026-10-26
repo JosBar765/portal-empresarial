@@ -37,7 +37,7 @@ Decisiones del usuario:
 - Migración 16 con la plantilla v2 (no se edita la 15, ya aplicada en local).
 - [x] T7 Backend: formato de imágenes, variables automáticas, otros_parametros, API sin lámina, migración plantilla v2 y contrato. (commit «imágenes descritas, otros parámetros…»)
 - [x] T8 Front asesor: descripción y ubicación por imagen, copiado una por una, sin lámina ni íconos de forma. (commit «imágenes sueltas…»; sin verificar en navegador)
-- [ ] T9 Front administración: ubicaciones y sugerencias por parámetro de imágenes, parámetros sin usar en la plantilla.
+- [x] T9 Front administración: ubicaciones y sugerencias por parámetro de imágenes, parámetros sin usar en la plantilla. (commit «administración con ubicaciones…»; sin verificar en navegador)
 
 ## Checks
 Sin suite de tests (excepción a RED/GREEN): `node --check` en todo JS tocado y comprobaciones con `node -e` de las funciones puras (validación de esquema, render de plantilla). El servidor lo levanta el usuario; las migraciones no se ejecutan contra bases reales desde aquí.
