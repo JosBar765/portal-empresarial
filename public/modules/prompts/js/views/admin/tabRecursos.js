@@ -7,7 +7,7 @@ import { abrirModalRecurso } from './modalRecurso.js';
 import { copiarTexto, miniaturaRecurso } from './comun.js';
 import {
   recursosDe, variableDeRecurso, agregarRecurso, actualizarRecurso, eliminarRecurso, moverRecurso,
-  usosEnPlantilla, renombrarRecursoEnPlantilla
+  usosEnReglas, renombrarRecursoEnReglas
 } from './recursosOps.js';
 
 function botonIcono(nombre, titulo, onclick, { peligro = false, deshabilitado = false } = {}) {
@@ -35,9 +35,9 @@ export function renderTabRecursos(cont, ed) {
   };
 
   function eliminar(r) {
-    const usos = usosEnPlantilla(ed.plantilla, r.clave);
+    const usos = usosEnReglas(ed.esquema, r.clave);
     if (usos.length) {
-      const lista = usos.map(u => `<li><code>${escapeHtml(u)}</code></li>`).join('');
+      const lista = usos.map(u => `<li>${escapeHtml(t('admin.recursos.usoEnRegla', { regla: u.regla }))} <code>${escapeHtml(u.fragmento)}</code></li>`).join('');
       const { overlay, cerrar } = abrirModal({
         title: t('admin.recursos.noEliminarTitulo'),
         bodyHtml: `<p>${escapeHtml(t('admin.recursos.noEliminarIntro', { etiqueta: r.etiqueta }))}</p><ul class="pr-adm-lista-dep">${lista}</ul>`,
@@ -55,9 +55,11 @@ export function renderTabRecursos(cont, ed) {
       original,
       alGuardar: (recurso) => {
         if (!original) { aplicar(e => agregarRecurso(e, recurso, { automaticas: variablesAutomaticas, limites })); return; }
-        aplicar(e => actualizarRecurso(e, original.clave, recurso, { automaticas: variablesAutomaticas }));
-        // Si la clave cambió, la plantilla sigue nombrando el recurso.
-        if (recurso.clave !== original.clave) ed.cambiarPlantilla(renombrarRecursoEnPlantilla(ed.plantilla, original.clave, recurso.clave));
+        // Si la clave cambió, las reglas siguen nombrando el recurso.
+        aplicar(e => {
+          const nuevo = actualizarRecurso(e, original.clave, recurso, { automaticas: variablesAutomaticas });
+          return recurso.clave !== original.clave ? renombrarRecursoEnReglas(nuevo, original.clave, recurso.clave) : nuevo;
+        });
       }
     });
   }

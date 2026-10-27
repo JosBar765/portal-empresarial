@@ -11,6 +11,8 @@ export const clavesDelEsquema = (esquema) => esquema.grupos.flatMap(g => g.param
 
 export const clavesDeRecursos = (esquema) => (esquema.recursos || []).map(r => r.clave);
 
+export const clavesDeReglas = (esquema) => (esquema.reglas || []).map(r => r.clave);
+
 // Variable que el sistema genera por cada grupo: verdadera cuando el grupo no tiene ningún dato.
 export const variableGrupoVacio = (clave) => `${PREFIJO_GRUPO}${clave}${SUFIJO_GRUPO_VACIO}`;
 
@@ -23,15 +25,15 @@ export const claveReservadaPorSistema = (esquema, clave) =>
 export function claveDisponible(esquema, clave, claveActual = null) {
   if (!claveValida(clave)) return false;
   if (clave === claveActual) return true;
-  return !clavesDelEsquema(esquema).includes(clave) && !clavesDeRecursos(esquema).includes(clave) && !claveReservadaPorSistema(esquema, clave);
+  return !clavesDelEsquema(esquema).includes(clave) && !clavesDeRecursos(esquema).includes(clave) && !clavesDeReglas(esquema).includes(clave) && !claveReservadaPorSistema(esquema, clave);
 }
 
 // Un grupo nuevo crearía grupo_<clave>_vacio: no puede chocar con una clave que ya exista.
 const variableGrupoOcupada = (esquema, clave) =>
-  [...clavesDelEsquema(esquema), ...clavesDeRecursos(esquema)].includes(variableGrupoVacio(clave));
+  [...clavesDelEsquema(esquema), ...clavesDeRecursos(esquema), ...clavesDeReglas(esquema)].includes(variableGrupoVacio(clave));
 
 export const claveGrupoDisponible = (esquema, clave) =>
-  claveValida(clave) && !esquema.grupos.some(g => g.clave === clave) && !claveReservadaPorSistema(esquema, clave) && !variableGrupoOcupada(esquema, clave);
+  claveValida(clave) && !esquema.grupos.some(g => g.clave === clave) && !clavesDeReglas(esquema).includes(clave) && !claveReservadaPorSistema(esquema, clave) && !variableGrupoOcupada(esquema, clave);
 
 // Mensaje explicativo de por qué no sirve la clave de un grupo.
 export function errorClaveGrupo(esquema, clave) {
@@ -43,6 +45,8 @@ export function errorClaveGrupo(esquema, clave) {
 export const contarParametros = (esquema) => esquema.grupos.reduce((n, g) => n + g.parametros.length, 0);
 
 export const contarRecursos = (esquema) => (esquema.recursos || []).length;
+
+export const contarReglas = (esquema) => (esquema.reglas || []).length;
 
 // Sugiere una clave snake_case a partir de la etiqueta.
 export function claveDesdeEtiqueta(etiqueta) {
@@ -145,8 +149,8 @@ export function moverParametro(esquema, clave, delta) {
 
 const regexUso = (clave) => new RegExp(`\\{\\{\\s*(?:#(?:si|no)\\s+)?${clave}\\s*\\}\\}`);
 
-// Lista quién usa la clave: otros parámetros y la plantilla.
-export function dependientesDe(esquema, plantilla, clave) {
+// Lista quién usa la clave: otros parámetros y el texto de las reglas.
+export function dependientesDe(esquema, clave) {
   const lista = [];
   esquema.grupos.forEach(g => g.parametros.forEach(p => {
     if (p.clave === clave) return;
@@ -154,14 +158,15 @@ export function dependientesDe(esquema, plantilla, clave) {
     if (p.unidad_de === clave) lista.push({ tipo: 'unidad_de', clave: p.clave, etiqueta: p.etiqueta });
     if (p.igual_a === clave) lista.push({ tipo: 'igual_a', clave: p.clave, etiqueta: p.etiqueta });
   }));
-  if (claveValida(clave) && regexUso(clave).test(plantilla || '')) lista.push({ tipo: 'plantilla', clave: null, etiqueta: t('admin.plantilla.titulo') });
+  if (claveValida(clave)) (esquema.reglas || []).filter(r => regexUso(clave).test(r.texto || '')).forEach(r => lista.push({ tipo: 'regla', clave: r.clave, etiqueta: r.etiqueta }));
   return lista;
 }
 
-// Mantiene la plantilla coherente cuando una clave cambia de nombre.
-export function renombrarEnPlantilla(plantilla, vieja, nueva) {
+// Mantiene el texto de las reglas coherente cuando una clave cambia de nombre.
+export function renombrarEnReglas(esquema, vieja, nueva) {
   const re = new RegExp(`(\\{\\{\\s*(?:#(?:si|no)\\s+)?)${vieja}(\\s*\\}\\})`, 'g');
-  return String(plantilla || '').replace(re, (_, a, b) => `${a}${nueva}${b}`);
+  if (!esquema.reglas) return esquema;
+  return { ...esquema, reglas: esquema.reglas.map(r => ({ ...r, texto: String(r.texto || '').replace(re, (_, a, b) => `${a}${nueva}${b}`) })) };
 }
 
 export function insertarEnPosicion(texto, inicio, fin, fragmento) {

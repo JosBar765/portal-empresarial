@@ -14,7 +14,7 @@ Eliminar la plantilla editable. El prompt se arma solo con: encabezado del siste
 
 ## Tareas
 - [x] T20 Backend: esquema `reglas`, validación, render del prompt autogenerado, ajuste `recursos_min_publicar`, publicación sin plantilla. (Implementado y verificado con script temporal; commit 0e8c4cf. La FORMA de ajustes exige las claves nuevas: ya sembradas por la migración de T22 en la BD local.)
-- [ ] T21 Frontend admin: pestaña Reglas, vista previa del prompt completo, quitar el editor de plantilla.
+- [ ] T21 Frontend admin: pestaña Reglas, vista previa del prompt completo, quitar el editor de plantilla. (Implementada, pendiente de verificar en navegador.)
 - [x] T22 Migración `prompts_reglas` (ajustes nuevos + plantillas existentes partidas en reglas) y prueba de equivalencia. (18/18 prompts idénticos, local v18 y producción v5. Aplicada en la BD local `munditrofeos` (development/localhost): la medalla pasó a v19 publicada con 11 reglas, v18 archivada. Sin probar en MariaDB: confirmar versión 10.3.15+ del hosting antes del deploy.)
 - [ ] T23 Documentación (`esquema_y_contrato.md`, README del módulo).
 - [ ] T24 Duplicar producto: acción en la fila de Productos y/o opción en «Nuevo producto»; copia el esquema (grupos, parámetros, recursos, reglas) como borrador v1 de un producto con código y nombre nuevos.

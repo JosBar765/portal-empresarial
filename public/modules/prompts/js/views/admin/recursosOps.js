@@ -2,7 +2,7 @@
 // Los mensajes salen de textos.js; los límites llegan por parámetro desde /config.
 import { t } from '../../textos.js';
 import { PREFIJO_RECURSO, POSICIONES, URL_RECURSO_RE } from './reglasEsquema.js';
-import { claveValida, clavesDelEsquema, clavesDeRecursos, claveReservadaPorSistema, intercambiar, renombrarEnPlantilla } from './esquemaOps.js';
+import { claveValida, clavesDelEsquema, clavesDeRecursos, clavesDeReglas, claveReservadaPorSistema, intercambiar, renombrarEnReglas } from './esquemaOps.js';
 
 export const recursosDe = (esquema) => esquema.recursos || [];
 
@@ -21,6 +21,7 @@ export function claveRecursoDisponible(esquema, clave, automaticas = [], claveAc
   if (automaticas.includes(clave)) return false;
   return !clavesDelEsquema(esquema).includes(clave)
     && !clavesDeRecursos(esquema).includes(clave)
+    && !clavesDeReglas(esquema).includes(clave)
     && !clavesDelEsquema(esquema).includes(variableDeRecurso(clave))
     && !claveReservadaPorSistema(esquema, clave);
 }
@@ -52,15 +53,15 @@ export function moverRecurso(esquema, clave, delta) {
   return conRecursos(esquema, intercambiar(recursosDe(esquema), buscar(esquema, clave), delta));
 }
 
-// Fragmentos de la plantilla que nombran la variable del recurso: {{recurso_x}}, {{#si recurso_x}} o {{#no recurso_x}}.
-export function usosEnPlantilla(plantilla, clave) {
+// Fragmentos de las reglas que nombran la variable del recurso: {{recurso_x}}, {{#si recurso_x}} o {{#no recurso_x}}.
+export function usosEnReglas(esquema, clave) {
   if (!claveValida(clave)) return [];
   const re = new RegExp(`\\{\\{\\s*(?:#(?:si|no)\\s+)?${variableDeRecurso(clave)}\\s*\\}\\}`, 'g');
-  return [...new Set(String(plantilla || '').match(re) || [])];
+  return (esquema.reglas || []).flatMap(r => [...new Set(String(r.texto || '').match(re) || [])].map(fragmento => ({ regla: r.etiqueta, fragmento })));
 }
 
-export const renombrarRecursoEnPlantilla = (plantilla, vieja, nueva) =>
-  renombrarEnPlantilla(plantilla, variableDeRecurso(vieja), variableDeRecurso(nueva));
+export const renombrarRecursoEnReglas = (esquema, vieja, nueva) =>
+  renombrarEnReglas(esquema, variableDeRecurso(vieja), variableDeRecurso(nueva));
 
 // Devuelve los mensajes (explicados) de lo que impide guardar el recurso; vacío si está bien.
 // `claveActual` = clave original al editar; null al crear (entonces también se revisa el máximo de recursos).

@@ -7,7 +7,7 @@ import { abrirModalParametro } from './modalParametro.js';
 import { LARGOS, CLAVE_LARGO_MAX } from './reglasEsquema.js';
 import {
   agregarGrupo, renombrarGrupo, eliminarGrupo, moverGrupo, agregarParametro, actualizarParametro,
-  eliminarParametro, moverParametro, dependientesDe, renombrarEnPlantilla, etiquetaDeTipo,
+  eliminarParametro, moverParametro, dependientesDe, renombrarEnReglas, etiquetaDeTipo,
   claveDesdeEtiqueta, claveGrupoDisponible, errorClaveGrupo
 } from './esquemaOps.js';
 
@@ -15,7 +15,7 @@ const TEXTO_DEPENDENCIA = {
   visible_si: (d) => t('admin.parametros.depVisibleSi', { etiqueta: d.etiqueta }),
   unidad_de: (d) => t('admin.parametros.depUnidad', { etiqueta: d.etiqueta }),
   igual_a: (d) => t('admin.parametros.depCalculado', { etiqueta: d.etiqueta }),
-  plantilla: () => t('admin.parametros.depPlantilla')
+  regla: (d) => t('admin.parametros.depRegla', { etiqueta: d.etiqueta })
 };
 
 const valorVisible = (igual) => (igual === true ? t('comun.si') : igual === false ? t('comun.no') : String(igual));
@@ -59,7 +59,7 @@ export function renderTabParametros(cont, ed) {
   };
 
   function eliminarParam(p) {
-    const deps = dependientesDe(ed.esquema, ed.plantilla, p.clave);
+    const deps = dependientesDe(ed.esquema, p.clave);
     if (deps.length) {
       const lista = deps.map(d => `<li>${escapeHtml(TEXTO_DEPENDENCIA[d.tipo](d))}</li>`).join('');
       const { overlay, cerrar } = abrirModal({
@@ -81,8 +81,11 @@ export function renderTabParametros(cont, ed) {
       alGuardar: (parametro, grupoDestino) => {
         if (!original) { aplicar(e => agregarParametro(e, grupoDestino, parametro)); return; }
         const renombrada = parametro.clave !== original.clave;
-        aplicar(e => actualizarParametro(e, original.clave, parametro, grupoDestino));
-        if (renombrada) ed.cambiarPlantilla(renombrarEnPlantilla(ed.plantilla, original.clave, parametro.clave));
+        // Si la clave cambió, las reglas siguen nombrando el parámetro.
+        aplicar(e => {
+          const nuevo = actualizarParametro(e, original.clave, parametro, grupoDestino);
+          return renombrada ? renombrarEnReglas(nuevo, original.clave, parametro.clave) : nuevo;
+        });
       }
     });
   }

@@ -6,17 +6,17 @@ import { t } from '../../textos.js';
 import { cargarConfig } from '../../config.js';
 import { abrirModal, confirmarModal } from '../../components/modal.js';
 import { obtenerProducto, crearBorrador, guardarBorrador, descartarBorrador, publicar } from '../../api/promptsAdminApi.js';
-import { clavesDelEsquema, clavesDeRecursos, contarParametros, contarRecursos } from './esquemaOps.js';
+import { clavesDelEsquema, clavesDeRecursos, clavesDeReglas, contarParametros, contarRecursos, contarReglas } from './esquemaOps.js';
 import { ESQUEMA_VERSION } from './reglasEsquema.js';
 import { badgeEstado, mensajesDeError } from './comun.js';
 import { renderTabParametros } from './tabParametros.js';
 import { renderTabRecursos } from './tabRecursos.js';
-import { renderTabPlantilla } from './tabPlantilla.js';
+import { renderTabReglas } from './tabReglas.js';
 import { renderTabVistaPrevia } from './tabVistaPrevia.js';
 import { renderTabEsquemaJson } from './tabEsquemaJson.js';
 
 const clonar = (x) => JSON.parse(JSON.stringify(x));
-const ESQUEMA_VACIO = { esquema_version: ESQUEMA_VERSION, grupos: [], recursos: [] };
+const ESQUEMA_VACIO = { esquema_version: ESQUEMA_VERSION, grupos: [], recursos: [], reglas: [] };
 
 function modalErroresPublicar(errores) {
   const lista = errores.map(e => `<li>${escapeHtml(e)}</li>`).join('');
@@ -47,15 +47,15 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver, config 
   const ed = {
     producto, borrador, publicada, config,
     esquema: base ? clonar(base.esquema) : clonar(ESQUEMA_VACIO),
-    plantilla: base ? base.plantilla || '' : '',
     editable: !!borrador,
     // Las claves ya publicadas (parámetros y recursos) no se renombran.
     clavesPublicadas: new Set(publicada ? clavesDelEsquema(publicada.esquema) : []),
     clavesRecursosPublicadas: new Set(publicada ? clavesDeRecursos(publicada.esquema) : []),
+    clavesReglasPublicadas: new Set(publicada ? clavesDeReglas(publicada.esquema) : []),
     sucio: false,
-    ultimaVariable: null,
     cambiarEsquema(esquema) { this.esquema = esquema; marcar(); },
-    cambiarPlantilla(plantilla) { this.plantilla = plantilla; marcar(); }
+    // Guarda los cambios pendientes antes de una acción que depende del borrador; false si no se pudo.
+    guardarPendientes: async () => !ed.sucio || guardar()
   };
 
   let ocupado = false;
@@ -77,6 +77,7 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver, config 
   const aviso = h('span', { class: 'pr-adm-sucio', id: 'pr-adm-sucio', hidden: true, text: t('admin.editor.sucio') });
   const etiquetaTabParametros = h('span');
   const etiquetaTabRecursos = h('span');
+  const etiquetaTabReglas = h('span');
   const botonGuardar = h('button', { type: 'button', class: 'btn btn--ghost', id: 'pr-adm-guardar', text: t('admin.editor.guardar') });
   const botonDescartar = h('button', { type: 'button', class: 'btn btn--ghost', id: 'pr-adm-descartar', text: t('admin.editor.descartar') });
   const botonPublicar = h('button', { type: 'button', class: 'btn btn--primary', id: 'pr-adm-publicar', text: borrador ? t('admin.editor.publicarVersion', { numero: borrador.numero }) : t('admin.editor.publicar') });
@@ -91,6 +92,7 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver, config 
     aviso.hidden = !ed.sucio;
     etiquetaTabParametros.textContent = t('admin.editor.tabParametros', { n: contarParametros(ed.esquema) });
     etiquetaTabRecursos.textContent = t('admin.editor.tabRecursos', { n: contarRecursos(ed.esquema) });
+    etiquetaTabReglas.textContent = t('admin.editor.tabReglas', { n: contarReglas(ed.esquema) });
   }
 
   function marcar() {
@@ -106,7 +108,7 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver, config 
 
   const guardar = () => ejecutar(async () => {
     try {
-      await guardarBorrador(id, { esquema: ed.esquema, plantilla: ed.plantilla });
+      await guardarBorrador(id, { esquema: ed.esquema });
       ed.sucio = false;
       return true;
     } catch (error) {
@@ -143,14 +145,14 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver, config 
   const pintadores = {
     parametros: renderTabParametros,
     recursos: renderTabRecursos,
-    plantilla: renderTabPlantilla,
+    reglas: renderTabReglas,
     vista: renderTabVistaPrevia,
     esquema: renderTabEsquemaJson
   };
   const tabs = [
     { id: 'parametros', contenido: etiquetaTabParametros },
     { id: 'recursos', contenido: etiquetaTabRecursos },
-    { id: 'plantilla', contenido: t('admin.editor.tabPlantilla') },
+    { id: 'reglas', contenido: etiquetaTabReglas },
     { id: 'vista', contenido: t('admin.editor.tabVistaPrevia') },
     { id: 'esquema', contenido: t('admin.editor.tabEsquema') }
   ];
