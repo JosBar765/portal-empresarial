@@ -190,7 +190,7 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver, config 
         h('div', { class: 'pr-adm-titulo' }, h('h2', { text: producto.nombre }), badgeEstado(producto.estado), aviso),
         h('p', { class: 'pr-subtitulo', text: subtitulo })),
       h('div', { class: 'pr-adm-acciones' }, botonDescartar, botonGuardar, botonPublicar)),
-    bannerSinBorrador,
+    ...(bannerSinBorrador ? [bannerSinBorrador] : []),
     h('div', { class: 'pr-adm-tabs', role: 'tablist' }, botonesTab),
     panel);
 
