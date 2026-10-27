@@ -814,15 +814,15 @@
   color: var(--color-warning);
 }
 
-.pr-guiado {
+.pr-copiar-acciones {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
+  gap: 8px;
 }
 
-.pr-guiado-boton {
-  min-width: 260px;
+.pr-copiar-guiado {
+  width: 100%;
 }
 
 .pr-enlace {
@@ -836,21 +836,48 @@
   cursor: pointer;
 }
 
-.pr-acciones {
+.pr-card-cabecera,
+.pr-card-herramientas,
+.pr-resultado-titulo {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
-.pr-acciones .btn {
-  width: 100%;
+.pr-card-cabecera {
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.pr-card-herramientas {
+  gap: 8px 12px;
+}
+
+.pr-resultado-titulo {
+  align-items: baseline;
+  gap: 2px 12px;
+}
+
+.pr-resultado-titulo .pr-subtitulo {
+  margin-top: 0;
+}
+
+/* Tarjetas del resultado más compactas que las del formulario */
+.pr-resultado-layout {
+  gap: 16px;
+}
+
+.pr-resultado-layout .pr-card {
+  gap: 12px;
+  padding: 16px;
 }
 
 /* Resultado en pantalla ancha: la página no hace scroll, lo hacen el prompt y la lista de imágenes */
 @media (min-width: 1100px) {
   .app-shell:has(.pr-resultado-layout) {
     height: calc(100vh - var(--header-height));
-    height: calc(100dvh - var(--header-height));
+    /* El piso evita que el contenido se solape con el pie en pantallas muy bajas: ahí scrollea la página */
+    height: max(calc(100dvh - var(--header-height)), 34rem);
     min-height: 0;
   }
 
@@ -872,13 +899,13 @@
 
   .app-shell:has(.pr-resultado-layout) .panel-content {
     flex: 1;
-    gap: 12px;
+    gap: 10px;
     min-height: 0;
   }
 
   .pr-resultado-layout {
     flex: 1;
-    grid-template-rows: minmax(0, 1fr);
+    grid-template-rows: minmax(20rem, 1fr);
     align-items: stretch;
     min-height: 0;
   }
@@ -892,6 +919,15 @@
     flex: 1 1 auto;
     max-height: none;
     min-height: 0;
+  }
+
+  /* Si la pantalla es muy baja, scrollea la página en vez de aplastar el prompt */
+  .pr-resultado-layout .pr-prompt-texto {
+    min-height: 12rem;
+  }
+
+  .pr-resultado-layout--solo {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

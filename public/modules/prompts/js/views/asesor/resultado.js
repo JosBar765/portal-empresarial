@@ -58,7 +58,7 @@ export function renderResultado(cont, { producto, indice, estado, config, result
   const subtitulo = titulo ? `${producto.nombre} · ${titulo}` : producto.nombre;
 
   const cajaPrompt = h('div', { class: 'pr-prompt-texto', text: prompt });
-  const btnGuiado = h('button', { type: 'button', class: 'btn btn--primary btn--lg pr-guiado-boton' });
+  const btnGuiado = h('button', { type: 'button', class: 'btn btn--primary pr-copiar-guiado' });
   const btnReiniciar = h('button', { type: 'button', class: 'pr-enlace', text: t('asesor.resultado.empezarDeNuevo') });
   const btnPrompt = h('button', { type: 'button', class: 'btn btn--ghost', text: t('asesor.resultado.copiarPrompt') });
 
@@ -152,9 +152,10 @@ export function renderResultado(cont, { producto, indice, estado, config, result
   btnReiniciar.addEventListener('click', () => { hechos.clear(); pintar(); });
 
   const { textosAsesor, limites } = config;
+  const hayImagenes = items.length > 0;
   montar(cont,
     h('div', { class: 'panel-toolbar' },
-      h('div', null, h('h2', { text: t('asesor.resultado.titulo') }), h('p', { class: 'pr-subtitulo', text: subtitulo })),
+      h('div', { class: 'pr-resultado-titulo' }, h('h2', { text: t('asesor.resultado.titulo') }), h('p', { class: 'pr-subtitulo', text: subtitulo })),
       h('button', { type: 'button', class: 'btn btn--ghost', onclick: alEditar }, icono('create-outline'), ` ${t('asesor.resultado.editar')}`)),
     h('div', { class: 'pr-banner' }, icono('information-circle-outline'),
       h('span', { text: textosAsesor.aviso_pegado })),
@@ -162,17 +163,21 @@ export function renderResultado(cont, { producto, indice, estado, config, result
       ? h('div', { class: 'pr-banner pr-banner--aviso' }, icono('warning-outline'),
         h('span', { text: rellenar(textosAsesor.aviso_exceso_imagenes, { limite: limites.gemini_max_imagenes, total: totalImagenes }) }))
       : null,
-    h('div', { class: 'pr-guiado' }, btnGuiado, btnReiniciar),
-    h('div', { class: 'pr-resultado-layout' },
+    h('div', { class: hayImagenes ? 'pr-resultado-layout' : 'pr-resultado-layout pr-resultado-layout--solo' },
       h('section', { class: 'pr-card' },
-        h('h3', { class: 'pr-card-titulo', text: t('asesor.resultado.seccionPrompt') }),
-        cajaPrompt,
-        h('span', { class: 'form-hint', text: t('asesor.resultado.caracteres', { n: prompt.length }) }),
-        h('div', { class: 'pr-acciones' }, btnPrompt)),
-      h('section', { class: 'pr-card' },
-        h('h3', { class: 'pr-card-titulo', text: t('asesor.resultado.seccionImagenes') }),
-        h('span', { class: 'form-hint', text: textosAsesor.nota_orden_imagenes }),
-        h('ul', { class: 'pr-adjuntos' }, filas.map(f => f.nodo)))));
+        h('div', { class: 'pr-card-cabecera' },
+          h('h3', { class: 'pr-card-titulo', text: t('asesor.resultado.seccionPrompt') }),
+          h('div', { class: 'pr-card-herramientas' },
+            h('span', { class: 'form-hint', text: t('asesor.resultado.caracteres', { n: prompt.length }) }),
+            btnPrompt)),
+        cajaPrompt),
+      hayImagenes
+        ? h('section', { class: 'pr-card' },
+          h('h3', { class: 'pr-card-titulo', text: t('asesor.resultado.seccionImagenes') }),
+          h('span', { class: 'form-hint', text: textosAsesor.nota_orden_imagenes }),
+          h('div', { class: 'pr-copiar-acciones' }, btnGuiado, btnReiniciar),
+          h('ul', { class: 'pr-adjuntos' }, filas.map(f => f.nodo)))
+        : null));
 
   pintar();
   // Las miniaturas de los recursos se cargan al mostrar; un fallo queda escrito en su fila.
