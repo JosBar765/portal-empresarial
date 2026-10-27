@@ -1522,44 +1522,155 @@
   overflow-wrap: anywhere;
 }
 
-.pr-adm-vp-reglas {
+/* Listas de la vista previa: filas compactas con separador sutil */
+.pr-adm-vp-grupos {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 0 0 10px;
+  gap: 14px;
+}
+
+.pr-adm-vp-subtitulo {
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.pr-adm-vp-lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.pr-adm-vp-regla {
+.pr-adm-vp-fila {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  background: var(--color-surface-muted);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 2px;
+  border-bottom: 1px solid var(--color-border);
 }
 
-.pr-adm-vp-regla-etiqueta {
+.pr-adm-vp-fila:last-child {
+  border-bottom: none;
+}
+
+.pr-adm-vp-fila.is-omitida .pr-adm-vp-etiqueta,
+.pr-adm-vp-fila.is-omitida .pr-adm-vp-orden {
+  color: var(--color-text-muted);
+}
+
+.pr-adm-vp-orden {
+  flex-shrink: 0;
+  min-width: 1.5em;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.pr-adm-vp-etiqueta {
+  flex: 1;
+  min-width: 0;
   font-size: 14px;
-  font-weight: 500;
   line-height: 1.4;
   color: var(--color-text);
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
-.pr-adm-vp-regla-desc {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--color-text-secondary);
-  overflow-wrap: break-word;
+.pr-adm-vp-ok {
+  flex-shrink: 0;
+  display: inline-flex;
+  font-size: 16px;
+  color: var(--color-success);
 }
 
-.pr-adm-vp-regla-pills {
+.pr-adm-vp-pills {
   display: flex;
+  flex-shrink: 0;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 6px;
+}
+
+/* Cada bloque scrollea por dentro; en pantalla estrecha se limita su altura */
+.pr-adm-vp-scroll {
+  max-height: 24rem;
+  overflow: auto;
+}
+
+/* Vista previa en pantalla ancha: la página no hace scroll, lo hacen el prompt y las listas (mismo patrón que el resultado del asesor) */
+@media (min-width: 1100px) {
+  .app-shell:has(.pr-adm-tab-panel--vista) {
+    height: calc(100vh - var(--header-height));
+    /* El piso evita que el contenido se solape con el pie en pantallas muy bajas: ahí scrollea la página */
+    height: max(calc(100dvh - var(--header-height)), 34rem);
+    min-height: 0;
+  }
+
+  .app-shell:has(.pr-adm-tab-panel--vista) .app-layout {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .app-shell:has(.pr-adm-tab-panel--vista) .main-container {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+    padding: 20px 0;
+  }
+
+  .app-shell:has(.pr-adm-tab-panel--vista) .panel-content {
+    flex: 1;
+    gap: 10px;
+    min-height: 0;
+  }
+
+  .app-shell:has(.pr-adm-tab-panel--vista) .panel-content > * {
+    flex-shrink: 0;
+  }
+
+  .app-shell:has(.pr-adm-tab-panel--vista) .panel-content > .pr-adm-tab-panel {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .pr-adm-tab-panel--vista .pr-adm-vp-layout {
+    flex: 1;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    min-height: 0;
+  }
+
+  .pr-adm-tab-panel--vista .pr-adm-lateral {
+    min-height: 0;
+  }
+
+  .pr-adm-tab-panel--vista .pr-adm-lateral .pr-card {
+    flex: 1 1 0;
+  }
+
+  .pr-adm-tab-panel--vista .pr-card {
+    min-height: 0;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .pr-adm-tab-panel--vista .pr-adm-vp-scroll {
+    flex: 1 1 auto;
+    max-height: none;
+    min-height: 6rem;
+  }
+
+  .pr-adm-tab-panel--vista .pr-prompt-texto {
+    max-height: none;
+  }
 }
 
 /* Recursos fijos y ajustes */

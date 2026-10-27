@@ -161,6 +161,7 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver, config 
     onclick: () => { tabActiva = tab.id; pintarTab(); }
   }, tab.contenido));
   function pintarTab() {
+    panel.classList.toggle('pr-adm-tab-panel--vista', tabActiva === 'vista');
     tabs.forEach((tab, i) => botonesTab[i].classList.toggle('is-activo', tab.id === tabActiva));
     pintadores[tabActiva](panel, ed);
   }

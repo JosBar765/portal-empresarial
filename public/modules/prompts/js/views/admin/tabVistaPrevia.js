@@ -6,32 +6,36 @@ import { imagenesDeEjemplo, valoresDeEjemplo } from './esquemaOps.js';
 import { mensajesDeError } from './comun.js';
 
 // Una regla inactiva no se incluye; una activa que quedó vacía tampoco (sus variables no tenían datos).
-function estadoRegla(r) {
-  if (r.incluida) return { texto: t('admin.vistaPrevia.reglaIncluida'), incluida: true };
-  return { texto: t(r.activo ? 'admin.vistaPrevia.reglaOmitidaVacia' : 'admin.vistaPrevia.reglaOmitidaInactiva'), incluida: false };
+const motivoOmitida = (r) => t(r.activo ? 'admin.vistaPrevia.reglaOmitidaVacia' : 'admin.vistaPrevia.reglaOmitidaInactiva');
+
+function filaRegla(r, n) {
+  return h('li', { class: `pr-adm-vp-fila ${r.incluida ? '' : 'is-omitida'}`, 'data-regla': r.clave },
+    h('span', { class: 'pr-adm-vp-orden', text: String(n) }),
+    h('span', { class: 'pr-adm-vp-etiqueta', text: r.etiqueta }),
+    r.incluida
+      ? h('span', { class: 'pr-adm-vp-ok', title: t('admin.vistaPrevia.reglaIncluida') }, icono('checkmark-circle-outline'))
+      : h('span', { class: 'pr-adm-pill pr-adm-pill--cond', text: motivoOmitida(r) }));
 }
 
+// Las reglas se agrupan por posición; el número conserva el orden en que se aplican.
 function listaReglas(reglas) {
   if (!reglas.length) return h('p', { class: 'form-hint', text: t('admin.vistaPrevia.sinReglas') });
-  return h('ul', { class: 'pr-adm-vp-reglas' }, reglas.map(r => {
-    const estado = estadoRegla(r);
-    return h('li', { class: 'pr-adm-vp-regla', 'data-regla': r.clave },
-      h('span', { class: 'pr-adm-vp-regla-etiqueta', text: r.etiqueta }),
-      h('div', { class: 'pr-adm-vp-regla-pills' },
-        h('span', { class: 'pr-adm-pill', text: t(r.posicion === 'fin' ? 'admin.reglas.posicionFin' : 'admin.reglas.posicionInicio') }),
-        h('span', { class: `pr-adm-pill ${estado.incluida ? 'pr-adm-pill--req' : ''}`, text: estado.texto })));
-  }));
+  const grupos = [['inicio', 'admin.vistaPrevia.grupoInicio'], ['fin', 'admin.vistaPrevia.grupoFin']]
+    .map(([pos, clave]) => ({ clave, filas: reglas.map((r, i) => ({ r, n: i + 1 })).filter(x => (x.r.posicion === 'fin' ? 'fin' : 'inicio') === pos) }))
+    .filter(g => g.filas.length);
+  return h('div', { class: 'pr-adm-vp-grupos' }, grupos.map(g => h('div', null,
+    h('h4', { class: 'pr-adm-vp-subtitulo', text: t(g.clave) }),
+    h('ul', { class: 'pr-adm-vp-lista' }, g.filas.map(x => filaRegla(x.r, x.n))))));
 }
 
 // Recursos fijos tal como están en el borrador del editor (no dependen de la respuesta del servidor).
 function listaRecursos(recursos, minimo) {
   if (!recursos.length) return h('p', { class: 'form-hint', text: t('admin.vistaPrevia.recursosVacio', { min: minimo }) });
-  return h('ul', { class: 'pr-adm-vp-reglas' }, recursos.map(r => h('li', { class: 'pr-adm-vp-regla', 'data-recurso': r.clave },
-    h('span', { class: 'pr-adm-vp-regla-etiqueta', text: r.etiqueta }),
-    r.descripcion ? h('span', { class: 'pr-adm-vp-regla-desc', text: r.descripcion }) : null,
-    h('div', { class: 'pr-adm-vp-regla-pills' },
-      h('span', { class: 'pr-adm-pill', text: t(r.posicion === 'fin' ? 'admin.recursos.posicionFin' : 'admin.recursos.posicionInicio') }),
+  return h('ul', { class: 'pr-adm-vp-lista' }, recursos.map(r => h('li', { class: `pr-adm-vp-fila ${r.activo ? '' : 'is-omitida'}`, 'data-recurso': r.clave },
+    h('span', { class: 'pr-adm-vp-etiqueta', text: r.etiqueta }),
+    h('div', { class: 'pr-adm-vp-pills' },
       h('span', { class: `pr-adm-pill ${r.activo ? 'pr-adm-pill--req' : ''}`, text: t(r.activo ? 'admin.recursos.estadoActivo' : 'admin.recursos.estadoInactivo') }),
+      h('span', { class: 'pr-adm-pill', text: t(r.posicion === 'fin' ? 'admin.recursos.posicionFin' : 'admin.recursos.posicionInicio') }),
       String(r.url || '').trim() ? null : h('span', { class: 'pr-adm-pill pr-adm-pill--cond', text: t('admin.vistaPrevia.recursoSinUrl') })))));
 }
 
@@ -67,19 +71,19 @@ export function renderTabVistaPrevia(cont, ed) {
 
   boton.addEventListener('click', actualizar);
 
-  montar(cont, h('div', { class: 'pr-adm-dos-col' },
+  montar(cont, h('div', { class: 'pr-adm-dos-col pr-adm-vp-layout' },
     h('section', { class: 'pr-card' },
       h('div', { class: 'pr-adm-vp-cab' }, h('h3', { class: 'pr-card-titulo', text: t('admin.vistaPrevia.titulo') }), boton),
       h('p', { class: 'form-hint', text: t('admin.vistaPrevia.nota') }),
-      resultado),
+      h('div', { class: 'pr-adm-vp-scroll' }, resultado)),
     h('aside', { class: 'pr-adm-lateral' },
       h('section', { class: 'pr-card' },
         h('h3', { class: 'pr-card-titulo', text: t('admin.vistaPrevia.reglasTitulo') }),
-        reglas,
+        h('div', { class: 'pr-adm-vp-scroll' }, reglas),
         h('span', { class: 'form-hint', text: t('admin.vistaPrevia.reglasNota') })),
       h('section', { class: 'pr-card' },
         h('h3', { class: 'pr-card-titulo', text: t('admin.vistaPrevia.recursosTitulo') }),
-        recursos,
+        h('div', { class: 'pr-adm-vp-scroll' }, recursos),
         h('span', { class: 'form-hint', text: t('admin.vistaPrevia.recursosNota') })))));
 
   // Al abrir la pestaña se genera sola.
