@@ -68,6 +68,15 @@ Decisiones del usuario: opción «Al corte», texto principal solo en el frente 
 - [x] T16 Descripción obligatoria por parámetro de imágenes (commit «descripción obligatoria configurable…»; pruebas puras OK; sin verificar en navegador).
 - [ ] T17 Prueba real en Gemini con el prompt generado, aprobación del usuario y documento de hallazgos.
 
+## Ronda 6 (2026-10-27): ajustes de UI/UX y primer push
+Rama publicada en origin (31 commits). Regla del usuario: todo cambio no experimental se commitea y se pushea a `module/generador-prompts`.
+Decisiones del usuario (solo estos cambios):
+- La pestaña «Nueva propuesta» pasa a llamarse «Genera tu prompt».
+- Se quita la tarjeta «Pie de la imagen» y la tarjeta «Resumen».
+- El selector de producto pasa de chips a un combobox con el mismo diseño del portal.
+- En «Prompt generado» el scroll no es de toda la pantalla: la ventana mantiene su alto y el scroll es interno en el apartado del prompt y en el de imágenes para pegar; menos padding en el aviso «Abre un chat nuevo…».
+- [ ] T18 UI/UX del módulo según la lista anterior.
+
 ## Checks
 Sin suite de tests (excepción a RED/GREEN): `node --check` en todo JS tocado y comprobaciones con `node -e` de las funciones puras (validación de esquema, render de plantilla). El servidor lo levanta el usuario; las migraciones no se ejecutan contra bases reales desde aquí.
 
