@@ -25,11 +25,12 @@ Eliminar la plantilla editable. El prompt se arma solo con: encabezado del siste
 - [x] T23 Documentación (`esquema_y_contrato.md`, README del módulo). (Commit d6d3d65.)
 - [ ] T24 Duplicar producto: botón en la fila de Productos; copia el esquema (grupos, parámetros, recursos, reglas) de la versión publicada (o del borrador) como borrador v1 de un producto con código y nombre nuevos. (Commit fa58509. Modal verificado en navegador; falta probar `POST /admin/productos/:id/duplicar` por HTTP tras reiniciar el servidor.)
 - [x] T25 Registro de tipos de parámetro en `src/modules/prompts/services/tipos/`. (Commit e19a88b. 13.667 casos idénticos contra el código anterior; regresiones t20 y t24 sin cambios.)
+- [ ] T26 Migración `prompts_medalla_inicial`: v20 local como versión inicial de staging/producción (plantilla inactiva y sin URL) y encabezado del sistema. (Aplicada en la BD local el 2026-10-27 sin cambios en versiones ni ajustes, como se esperaba: la guarda da «no aplicar» porque la v20 la publicó el dueño. Falta probarla en una base nueva. Verificado solo con SELECT: literal igual a la v20 salvo el recurso, esquema válido, prompt idéntico, la guarda da «no aplicar» en la BD local y «aplicar» en una base nueva simulada. Sin probar INSERT/UPDATE reales ni MariaDB.)
 
 ## Pendientes
 - Probar «Duplicar» por HTTP (reiniciar el servidor).
 - Confirmar la versión de MariaDB del hosting (10.3.15 o superior) antes del deploy.
-- Las reglas actuales de la medalla (v20/v21 locales) solo existen en la BD local: producción recibirá la v5 convertida en reglas. Hace falta una migración nueva con las reglas vigentes antes de promover a producción.
+- T26: aplicar y probar `prompts_medalla_inicial` en una base nueva (CI de migraciones) antes de promover a producción.
 - Subir la imagen de `plantilla_base` a Supabase y activarla.
 - Detalle visual menor: en el modal de duplicar, el aviso queda pegado a las etiquetas.
 
