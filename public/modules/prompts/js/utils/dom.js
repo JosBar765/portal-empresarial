@@ -21,3 +21,8 @@ export function h(tag, props, ...hijos) {
 }
 
 export const icono = (nombre) => h('ion-icon', { name: nombre });
+
+// replaceChildren nativo escribe «null» si recibe null: se descartan los valores vacíos.
+export function montar(cont, ...hijos) {
+  cont.replaceChildren(...hijos.flat().filter(x => x != null && x !== false));
+}

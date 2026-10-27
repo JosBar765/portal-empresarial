@@ -1,5 +1,5 @@
 // Vista del prompt generado: copiado guiado de cada imagen (en el orden de la respuesta) y del prompt.
-import { h, icono } from '../../utils/dom.js';
+import { h, icono, montar } from '../../utils/dom.js';
 import { t, rellenar } from '../../textos.js';
 import { descargarRecurso } from '../../api/promptsApi.js';
 import { construirPasos, claveDePaso, siguientePendiente, etiquetaBoton } from './pasosCopiado.js';
@@ -152,7 +152,7 @@ export function renderResultado(cont, { producto, indice, estado, config, result
   btnReiniciar.addEventListener('click', () => { hechos.clear(); pintar(); });
 
   const { textosAsesor, limites } = config;
-  cont.replaceChildren(
+  montar(cont,
     h('div', { class: 'panel-toolbar' },
       h('div', null, h('h2', { text: t('asesor.resultado.titulo') }), h('p', { class: 'pr-subtitulo', text: subtitulo })),
       h('button', { type: 'button', class: 'btn btn--ghost', onclick: alEditar }, icono('create-outline'), ` ${t('asesor.resultado.editar')}`)),
