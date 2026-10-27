@@ -54,7 +54,7 @@ export function renderTabPlantilla(cont, ed) {
       const errores = r.errores || [];
       pintarSinUsar(r.sinUsar || []);
       revision.replaceChildren(errores.length
-        ? h('ul', { class: 'pr-adm-errores' }, errores.map(e => h('li', { text: String(e) })))
+        ? h('ul', { class: 'pr-adm-errores' }, errores.map(e => h('li', { text: typeof e === 'string' ? e : (e && e.mensaje) || '' })))
         : h('p', { class: 'pr-adm-ok' }, icono('checkmark-circle-outline'), ` ${t('admin.plantilla.revisionOk')}`));
     } catch (error) {
       if (mio !== token || !cont.isConnected) return;

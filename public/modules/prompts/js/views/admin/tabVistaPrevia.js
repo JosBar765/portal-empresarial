@@ -30,7 +30,7 @@ export function renderTabVistaPrevia(cont, ed) {
       const errores = r.errores || [];
       const sinUsar = r.sinUsar || [];
       resultado.replaceChildren(...[
-        errores.length ? h('ul', { class: 'pr-adm-errores' }, errores.map(e => h('li', { text: String(e) }))) : null,
+        errores.length ? h('ul', { class: 'pr-adm-errores' }, errores.map(e => h('li', { text: typeof e === 'string' ? e : (e && e.mensaje) || '' }))) : null,
         h('div', { class: 'pr-prompt-texto', text: r.prompt || '' }),
         h('span', { class: 'form-hint', text: t('admin.vistaPrevia.caracteres', { n: (r.prompt || '').length }) }),
         sinUsar.length ? h('p', { class: 'pr-nota', text: t('admin.vistaPrevia.sinUsar', { lista: sinUsar.map(s => s.etiqueta).join(', ') }) }) : null
