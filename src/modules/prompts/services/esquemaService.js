@@ -7,6 +7,7 @@ const { urlDeRecursoValida } = require('./recursos');
 const TIPOS = ['texto', 'texto_largo', 'numero', 'opciones', 'si_no', 'imagenes', 'calculado'];
 const CLAVE_RE = /^[a-z][a-z0-9_]{1,59}$/;
 const POSICIONES_RECURSO = ['inicio', 'fin'];
+const POSICIONES_REGLA = ['inicio', 'fin']; // antes o después de lo que generan los parámetros
 
 const tiene = (objeto, clave) => Object.prototype.hasOwnProperty.call(objeto, clave);
 const esObjeto = valor => valor !== null && typeof valor === 'object' && !Array.isArray(valor);
@@ -31,6 +32,12 @@ function clavesDeGrupos(esquema) {
 // Recursos fijos del producto (imágenes que siempre acompañan al prompt); los mal formados los reporta validarEsquema.
 function recursosDelEsquema(esquema) {
   const lista = esquema && Array.isArray(esquema.recursos) ? esquema.recursos : [];
+  return lista.filter(r => esObjeto(r) && typeof r.clave === 'string');
+}
+
+// Reglas específicas del producto; las mal formadas las reporta validarEsquema.
+function reglasDelEsquema(esquema) {
+  const lista = esquema && Array.isArray(esquema.reglas) ? esquema.reglas : [];
   return lista.filter(r => esObjeto(r) && typeof r.clave === 'string');
 }
 
@@ -179,6 +186,33 @@ function validarRecursos(esquema, claves, ajustes, errores) {
   });
 }
 
+// Cada regla tiene clave propia (única entre parámetros, grupos, recursos y reglas) y un texto con la sintaxis de la sección 3.
+function validarReglas(esquema, claves, ajustes, errores) {
+  if (esquema.reglas === undefined) return;
+  const L = ajustes.limites;
+  const falla = mensaje => errores.push({ clave: 'reglas', mensaje });
+  if (!Array.isArray(esquema.reglas)) return falla(msg('regla.lista', { max: L.reglas_max, total: 0 }));
+  if (esquema.reglas.length > L.reglas_max) falla(msg('regla.lista', { max: L.reglas_max, total: esquema.reglas.length }));
+
+  const ocupadas = new Set([...claves.keys(), ...clavesDeGrupos(esquema), ...recursosDelEsquema(esquema).map(r => r.clave)]);
+  const vistos = new Set();
+  esquema.reglas.forEach((r, i) => {
+    if (!esObjeto(r)) return falla(msg('regla.invalida', { numero: i + 1 }));
+    if (typeof r.clave !== 'string' || !CLAVE_RE.test(r.clave)) return falla(msg('regla.claveInvalida', { numero: i + 1 }));
+    const regla = esTextoNoVacio(r.etiqueta) ? r.etiqueta.trim() : r.clave;
+    if (VARIABLES_AUTOMATICAS.includes(r.clave)) falla(msg('regla.claveReservada', { clave: r.clave, regla }));
+    else if (ocupadas.has(r.clave) || vistos.has(r.clave)) falla(msg('regla.claveRepetida', { clave: r.clave, regla }));
+    vistos.add(r.clave);
+
+    if (!esTextoNoVacio(r.etiqueta) || r.etiqueta.trim().length > L.regla_etiqueta_max) falla(msg('regla.etiqueta', { regla, max: L.regla_etiqueta_max }));
+    if (!POSICIONES_REGLA.includes(r.posicion)) falla(msg('regla.posicion', { regla, valor: typeof r.posicion === 'string' ? r.posicion : '' }));
+    if (typeof r.activo !== 'boolean') falla(msg('regla.activoTipo', { regla }));
+    if (typeof r.texto !== 'string') falla(msg('regla.textoTipo', { regla }));
+    else if (r.texto.length > L.regla_texto_max) falla(msg('regla.textoLargo', { regla, max: L.regla_texto_max, largo: r.texto.length }));
+    else if (r.activo === true && !r.texto.trim()) falla(msg('regla.textoVacio', { regla }));
+  });
+}
+
 // Los nombres que el sistema deriva (grupo_<g>_vacio y recurso_<r>) no pueden ser la clave de un grupo, parámetro o recurso.
 function validarClavesDerivadas(esquema, claves, errores) {
   const vacios = new Map(clavesDeGrupos(esquema).map(g => [variableGrupoVacio(g), msg('esquema.origenGrupoVacio', { grupo: g })]));
@@ -195,6 +229,10 @@ function validarClavesDerivadas(esquema, claves, errores) {
   recursosDelEsquema(esquema).forEach(r => {
     const origen = choque(r.clave, vacios) || choque(r.clave, recursos);
     if (origen) errores.push({ clave: 'recursos', mensaje: msg('recurso.claveDerivada', { clave: r.clave, recurso: esTextoNoVacio(r.etiqueta) ? r.etiqueta.trim() : r.clave, variable: r.clave, origen }) });
+  });
+  reglasDelEsquema(esquema).forEach(r => {
+    const origen = choque(r.clave, vacios) || choque(r.clave, recursos);
+    if (origen) errores.push({ clave: 'reglas', mensaje: msg('regla.claveDerivada', { clave: r.clave, regla: esTextoNoVacio(r.etiqueta) ? r.etiqueta.trim() : r.clave, variable: r.clave, origen }) });
   });
 }
 
@@ -233,6 +271,7 @@ function validarEsquema(esquema, ajustes) {
     if (hayCicloVisibilidad(claves, p.clave)) errores.push({ clave: p.clave, mensaje: msg('param.ciclo', { parametro: nombreDe(p) }) });
   });
   validarRecursos(esquema, claves, ajustes, errores);
+  validarReglas(esquema, claves, ajustes, errores);
   validarClavesDerivadas(esquema, claves, errores);
   return errores;
 }
@@ -405,6 +444,7 @@ function validarValores(esquema, valores, imagenes, ajustes) {
 module.exports = {
   TIPOS,
   POSICIONES_RECURSO,
+  POSICIONES_REGLA,
   validarEsquema,
   validarValores,
   resolverVisibilidad,
@@ -412,5 +452,6 @@ module.exports = {
   parametrosPlanos,
   clavesDeGrupos,
   recursosDelEsquema,
+  reglasDelEsquema,
   indexarPorClave
 };

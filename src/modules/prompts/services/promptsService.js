@@ -65,8 +65,7 @@ class PromptsService {
       throw error;
     }
 
-    const resultado = renderizar({
-      plantilla: version.plantilla,
+    const { prompt, imagenes: lista, totalImagenes } = renderizar({
       esquema,
       valores: validado.valores,
       imagenes: validado.imagenes,
@@ -74,7 +73,7 @@ class PromptsService {
       ajustes,
       urlRecurso: recurso => urlParaCliente(recurso, id)
     });
-    return { ...resultado, contacto };
+    return { prompt, imagenes: lista, totalImagenes, contacto };
   }
 }
 

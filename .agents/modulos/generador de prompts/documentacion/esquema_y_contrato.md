@@ -1,4 +1,4 @@
-# Esquema, plantilla y contrato de API del Generador de Prompts
+# Esquema, reglas y contrato de API del Generador de Prompts
 
 Fuente única para backend, frontend y administración. Si algo cambia, se actualiza aquí primero.
 
@@ -7,7 +7,7 @@ Principio: en el código no queda contenido de negocio ni límites numéricos. E
 ## 1. Esquema de un producto (JSON)
 
 ```json
-{ "esquema_version": 1, "grupos": [ { "clave": "frente", "etiqueta": "Parte frontal", "parametros": [ { "clave": "...", "etiqueta": "...", "tipo": "..." } ] } ], "recursos": [ { "clave": "plantilla_base", "etiqueta": "Plantilla base", "descripcion": "...", "url": "https://...", "posicion": "inicio", "activo": true } ] }
+{ "esquema_version": 1, "grupos": [ { "clave": "frente", "etiqueta": "Parte frontal", "parametros": [ { "clave": "...", "etiqueta": "...", "tipo": "..." } ] } ], "recursos": [ { "clave": "plantilla_base", "etiqueta": "Plantilla base", "descripcion": "...", "url": "https://...", "posicion": "inicio", "activo": true } ], "reglas": [ { "clave": "marca_de_agua", "etiqueta": "Marca de agua", "texto": "...", "posicion": "fin", "activo": true } ] }
 ```
 
 Campos comunes de un parámetro: `clave` (snake_case, única en el producto, inmutable al publicar), `etiqueta`, `tipo`, `requerido` (bool), `ayuda` (texto corto), `visible_si` (`{ "parametro": "<clave>", "igual": <valor> }`).
@@ -31,7 +31,22 @@ Reglas de validación del esquema (al guardar el borrador y al publicar):
 - `opciones` exige al menos una opción con `valor` único y `texto_prompt` no vacío.
 - `texto` y `texto_largo`: `max_largo` entre 1 y `max_largo_tope`; `separador` de 1 a `separador_max` caracteres.
 - `imagenes`: `max` entre 1 y `imagenes_max_tope`; `max_mb` entre 1 y `imagenes_mb_tope`; `formatos` son claves de `formatos_imagen`; `ubicaciones` y `sugerencias`, si existen, son listas de textos únicos; `descripcion_requerida`, si existe, es booleano (si no, error `param.descripcionRequerida`). Las listas viven en el esquema para que el administrador las edite; el código no trae ninguna.
-- Al publicar, además: al menos un parámetro y una plantilla válida (sección 3) de hasta `plantilla_max_largo` caracteres.
+- Reglas específicas (`reglas`, ver abajo): estructura y límites al guardar; la sintaxis de cada texto (sección 3) también al guardar y al publicar.
+- Al publicar, además: al menos un parámetro y al menos `recursos_min_publicar` recursos activos con URL válida (error bajo el campo `recursos` con el mínimo y la cantidad actual).
+
+### Reglas específicas del producto (`reglas`)
+
+Texto que el administrador escribe para ESTE producto y que viaja versionado con él. Es opcional y admite hasta `reglas_max` (30). Ya no existe una plantilla editable: el prompt se arma solo (sección 3) y las reglas lo enmarcan por delante y por detrás.
+
+| Campo | Regla |
+|---|---|
+| `clave` | mismo formato que la de un parámetro; única entre reglas Y parámetros, grupos y recursos; no puede ser una variable automática, ni `recurso_<r>`, ni `grupo_<g>_vacio` |
+| `etiqueta` | obligatoria, hasta `regla_etiqueta_max` (80) caracteres; nombra la regla en los mensajes y en la vista previa |
+| `texto` | texto con la sintaxis de la sección 3 (variables, `{{#si}}`, `{{#no}}`, `recurso_<clave>`, `grupo_<g>_vacio`; sin anidar bloques); hasta `regla_texto_max` (3000) caracteres; no vacío si la regla está activa |
+| `posicion` | `inicio` (después del encabezado y antes de lo generado) o `fin` (después de lo generado) |
+| `activo` | booleano; solo una regla activa se renderiza |
+
+Los errores nombran la regla por su etiqueta, por ejemplo: «En la regla «Marca de agua»: La variable «nada» no existe: …». Los errores de reglas se agrupan bajo el campo `reglas`.
 
 ### Recursos fijos (`recursos`)
 
@@ -65,9 +80,18 @@ Variable `{{recurso_<clave>}}`: se escribe `imagen N` (formato `imagen_ref`) con
   - `ubicacion`: opcional, se recorta. Si el parámetro define `ubicaciones`, debe ser una de ellas; si no define ninguna, se descarta.
   - La respuesta limpia conserva los objetos (sin los campos vacíos).
 
-## 3. Plantilla del prompt
+## 3. Prompt autogenerado y sintaxis de las reglas
 
-Texto con esta sintaxis, sin evaluar código y sin anidar bloques:
+El prompt completo se arma siempre por un único camino (`renderizar` en `plantillaService`), sin plantilla editable:
+
+1. `encabezado_sistema` (ajuste global).
+2. Reglas activas con `posicion: "inicio"`, en el orden del esquema. Cada una se renderiza por separado; si queda vacía (todo condicional sin valor), se omite.
+3. Sección generada, separada por una línea en blanco: (a) el bloque de imágenes, si hay alguna (`imagenes_titulo`, `imagenes_intro` con `{total}` y la `lista_imagenes` numerada); (b) la sección de parámetros (`extras_titulo`, y por cada grupo con datos su `extras_grupo` y una `extras_linea` por parámetro visible con valor, en el orden del esquema).
+4. Reglas activas con `posicion: "fin"`.
+
+Las partes se unen con una línea en blanco. Un parámetro que alguna regla activa nombra (`{{clave}}`, `{{#si clave}}` o `{{#no clave}}`) no se repite en la sección generada; tampoco las unidades (`unidad_de`) de los parámetros `numero` (la unidad ya acompaña al número) ni los `calculado`. Si una regla nombra `{{lista_imagenes}}`, el bloque de imágenes generado se omite; si nombra `{{otros_parametros}}`, esa regla es el lugar de la sección de parámetros y no se agrega otra. La numeración y el formato de cada dato son los de abajo.
+
+El texto de cada regla usa esta sintaxis, sin evaluar código y sin anidar bloques:
 
 - `{{clave}}` inserta el valor formateado.
 - `{{#si clave}}…{{/si}}` solo sale si la variable tiene valor.
@@ -96,7 +120,7 @@ Variables automáticas (nombres reservados; no pueden ser clave de un parámetro
 | `asesor_nombre`, `asesor_telefono`, `asesor_correo` | datos de contacto del asesor |
 | `total_imagenes` | `1 imagen` o `N imágenes` (`total_uno` / `total_varios`), contando recursos activos e imágenes del asesor; **cadena vacía si no hay ninguna** |
 | `lista_imagenes` | una línea por imagen en orden de numeración, con `lista_linea`: `- Imagen 1 (Parte frontal): Logo del organizador. Ubicación: Centro.`. El origen es la etiqueta del grupo (imágenes del asesor) o la etiqueta del recurso; la descripción es la de la imagen o la del recurso, o `lista_sin_descripcion`; `lista_ubicacion` solo si hay ubicación. **Cadena vacía si no hay ninguna imagen** |
-| `otros_parametros` | los parámetros visibles con valor que la plantilla no nombra (ver abajo); vacío si no queda ninguno |
+| `otros_parametros` | la sección de parámetros generada: los visibles con valor que ninguna regla nombra (ver abajo); vacío si no queda ninguno |
 | `recurso_<clave>` | familia derivada de los recursos del esquema (ver sección 1); no es una variable fija |
 | `grupo_<clave>_vacio` | familia derivada de los grupos del esquema, una por grupo (ver abajo); no es una variable fija |
 
@@ -104,7 +128,7 @@ Ya no existe `logo_marca_agua`: el logo viene dentro de la imagen de la plantill
 
 `grupo_<clave>_vacio` (una por grupo del esquema; la plantilla decide a qué grupo apunta, el código no sabe de ningún grupo concreto): es **verdadera cuando ningún parámetro visible del grupo de tipo `texto`, `texto_largo`, `numero`, `opciones` o `imagenes` tiene valor**, con la misma regla de «tiene valor» de `{{#si}}`. Los parámetros `si_no` y `calculado` se ignoran, y un parámetro oculto por `visible_si` cuenta como sin valor. Se usa en `{{#si grupo_x_vacio}}` y `{{#no grupo_x_vacio}}`; escrita como `{{grupo_x_vacio}}` se reemplaza por `sí` o `no` (ajustes `textos_prompt.si` / `textos_prompt.no`). Nombres reservados: ningún parámetro, recurso ni grupo puede tener una clave igual a `grupo_<g>_vacio` (de cualquier grupo) ni a `recurso_<r>` (de cualquier recurso); el esquema no se puede guardar y el mensaje dice qué variable choca y cómo corregirlo. Una plantilla que nombre `grupo_x_vacio` con un grupo `x` inexistente no se puede guardar: el mensaje lista los grupos disponibles. No afecta a `otros_parametros` ni a los parámetros «sin usar».
 
-`otros_parametros`: «nombrado» es aparecer como `{{clave}}`, `{{#si clave}}` o `{{#no clave}}`; el parámetro `unidad_de` de un `numero` nombrado y el `igual_a` de un `calculado` nombrado también cuentan como nombrados, y los `calculado` nunca se agregan. Formato: el título `extras_titulo` y, por cada grupo con al menos un parámetro pendiente (orden del esquema), su encabezado `extras_grupo` y una línea `extras_linea` por parámetro; el código no cambia mayúsculas ni minúsculas:
+`otros_parametros` (la sección de parámetros generada): «nombrado» es aparecer como `{{clave}}`, `{{#si clave}}` o `{{#no clave}}`; el parámetro `unidad_de` de un `numero` nombrado y el `igual_a` de un `calculado` nombrado también cuentan como nombrados, y los `calculado` nunca se agregan. Formato: el título `extras_titulo` y, por cada grupo con al menos un parámetro pendiente (orden del esquema), su encabezado `extras_grupo` y una línea `extras_linea` por parámetro; el código no cambia mayúsculas ni minúsculas:
 
 ```text
 ESPECIFICACIONES ADICIONALES
@@ -113,19 +137,19 @@ Extra
 - Empaque regalo: sí
 ```
 
-Los valores se escriben igual que con `{{clave}}`. Si la plantilla no contiene `{{otros_parametros}}`, el sistema agrega una línea en blanco y `{{otros_parametros}}` al final antes de renderizar; así un grupo o parámetro nuevo del editor nunca queda fuera del prompt. En la vista previa de administración, `sinUsar` lista los parámetros (visibles o no, sin `calculado`) que la plantilla no nombra.
+Los valores se escriben igual que con `{{clave}}`. Así un grupo o parámetro nuevo del editor nunca queda fuera del prompt. `sinUsar` de la vista previa ya no tiene sentido y se devuelve siempre vacío.
 
 Reglas de render:
 
 1. Los valores se insertan en una sola pasada: el texto del usuario nunca se vuelve a interpretar como plantilla ni como marcador.
 2. Una línea que contenía una etiqueta `{{#si}}` o `{{#no}}` y quedó vacía se elimina completa.
 3. Tres o más saltos de línea seguidos se reducen a dos.
-4. Una variable inexistente impide publicar; en el render queda vacía.
-5. El sistema antepone siempre el ajuste `encabezado_sistema` y una línea en blanco.
+4. Una variable inexistente en el texto de una regla impide guardar y publicar; en el render queda vacía.
+5. El sistema antepone siempre el ajuste `encabezado_sistema` y una línea en blanco (el encabezado no se reformatea).
 
 Numeración de las imágenes: no hay lámina; el asesor copia cada imagen por separado y luego el prompt. Orden: recursos activos `inicio`, imágenes del asesor (parámetros `imagenes` visibles en el orden del esquema y, dentro de cada uno, en el orden de `imagenes[clave]`) y recursos activos `fin`.
 
-## 4. Plantilla v3/v4/v5 de la medalla (optimizada para Gemini, con plantilla en Supabase)
+## 4. Plantilla v3/v4/v5 de la medalla (histórica: la plantilla editable se eliminó en T20; la migración de T22 la parte en reglas)
 
 Criterios: referencias primero (cada imagen numerada y descrita, porque el modelo las asocia mejor por rol que por posición), luego la escena; pedir la imagen de forma explícita, formato 16:9, texto exacto entre comillas, fondo plano y redacción en positivo. Sin imágenes de listón, el modelo inventa un diseño con los colores de los logos. Con el recurso `plantilla_base` activo, la imagen final se compone sobre la plantilla (franja inferior de la empresa, espacios para los datos del asesor y logo arriba a la derecha); inactivo, el prompt pide un fondo liso y una franja al pie.
 
@@ -219,8 +243,8 @@ Tabla `prompt_ajustes` (`clave` PK, `valor` JSON, `descripcion`, `actualizado_en
 | Clave | Qué controla | Forma |
 |---|---|---|
 | `encabezado_sistema` | Instrucción que se antepone a todo prompt | texto no vacío |
-| `textos_prompt` | Frases que arma el código dentro del prompt | objeto con exactamente las 19 claves siguientes |
-| `limites` | Límites numéricos | objeto con exactamente las 22 claves de abajo, enteros ≥ 1 |
+| `textos_prompt` | Frases que arma el código dentro del prompt | objeto con exactamente las 21 claves siguientes |
+| `limites` | Límites numéricos | objeto con exactamente las 26 claves de abajo, enteros ≥ 1 |
 | `formatos_imagen` | Formatos de imagen admitidos | objeto `{ <formato>: { extensiones: [..], mime } }` |
 | `textos_asesor` | Avisos y notas que ve el asesor | objeto con exactamente 4 textos |
 | `contacto_ejemplo` | Datos del asesor en la vista previa del administrador | `{ nombre, correo, telefono }` |
@@ -247,8 +271,12 @@ Tabla `prompt_ajustes` (`clave` PK, `valor` JSON, `descripcion`, `actualizado_en
 | `extras_titulo` | `ESPECIFICACIONES ADICIONALES` | ninguno |
 | `extras_grupo` | `{grupo}` | `{grupo}` |
 | `extras_linea` | `- {etiqueta}: {valor}` | `{etiqueta}`, `{valor}` |
+| `imagenes_titulo` | `IMÁGENES DE REFERENCIA` | ninguno |
+| `imagenes_intro` | `Adjunté {total} en este orden. Son elementos reales del cliente: reprodúcelos con la mayor fidelidad posible (formas, colores y letras) y no los reemplaces ni los reinventes.` | `{total}` (el texto de `total_imagenes`, p. ej. `2 imágenes`) |
 
-`limites` (valor inicial): `gemini_max_imagenes` 14; `plantilla_max_largo` 50000; `texto_max_largo_defecto` 150; `texto_largo_max_largo_defecto` 600; `max_largo_tope` 5000; `separador_max` 5; `imagenes_max_defecto` 3; `imagenes_max_tope` 20; `imagenes_mb_defecto` 5; `imagenes_mb_tope` 10; `imagen_nombre_max` 150; `imagen_descripcion_max` 120; `lista_max_items` 12; `ubicacion_max` 40; `sugerencia_max` 60; `producto_nombre_max` 100; `producto_descripcion_max` 255; `recurso_max_mb` 8; `recurso_timeout_ms` 10000; `recursos_max` 10; `recurso_etiqueta_max` 80; `recurso_descripcion_max` 300. Validación: cada `*_defecto` no supera su `*_tope` (`texto_max_largo_defecto` y `texto_largo_max_largo_defecto` con `max_largo_tope`); `producto_nombre_max` ≤ 100 y `producto_descripcion_max` ≤ 255 (tamaño de las columnas); `imagenes_mb_tope` ≤ 20; `recurso_timeout_ms` entre 1000 y 60000.
+T20 agrega `imagenes_titulo` e `imagenes_intro` a la FORMA; los valores iniciales de arriba los siembra la migración de T22 (hasta entonces, la tabla existente no los trae y el servicio avisa que falta aplicarla).
+
+`limites` (valor inicial): `gemini_max_imagenes` 14; `plantilla_max_largo` 50000; `texto_max_largo_defecto` 150; `texto_largo_max_largo_defecto` 600; `max_largo_tope` 5000; `separador_max` 5; `imagenes_max_defecto` 3; `imagenes_max_tope` 20; `imagenes_mb_defecto` 5; `imagenes_mb_tope` 10; `imagen_nombre_max` 150; `imagen_descripcion_max` 120; `lista_max_items` 12; `ubicacion_max` 40; `sugerencia_max` 60; `producto_nombre_max` 100; `producto_descripcion_max` 255; `recurso_max_mb` 8; `recurso_timeout_ms` 10000; `recursos_max` 10; `recurso_etiqueta_max` 80; `recurso_descripcion_max` 300; `regla_etiqueta_max` 80; `regla_texto_max` 3000; `reglas_max` 30; `recursos_min_publicar` 1 (T20 los agrega a la FORMA; la migración de T22 los siembra). `plantilla_max_largo` queda sin uso (deprecado) pero sigue en la forma. Validación: `recursos_min_publicar` no supera `recursos_max`; cada `*_defecto` no supera su `*_tope` (`texto_max_largo_defecto` y `texto_largo_max_largo_defecto` con `max_largo_tope`); `producto_nombre_max` ≤ 100 y `producto_descripcion_max` ≤ 255 (tamaño de las columnas); `imagenes_mb_tope` ≤ 20; `recurso_timeout_ms` entre 1000 y 60000.
 
 `formatos_imagen` (valor inicial): `png` (`png`, `image/png`), `jpg` (`jpg`, `jpeg`, `image/jpeg`), `svg` (`svg`, `image/svg+xml`), `webp` (`webp`, `image/webp`). Validación: al menos un formato; clave `^[a-z0-9]{2,10}$`; `extensiones` lista no vacía de minúsculas y números sin punto; `mime` con `^image/[a-z0-9.+-]+$`.
 
@@ -286,13 +314,13 @@ Administración (`prompts.administrar`):
 |---|---|---|
 | `GET /admin/productos` | — | `[{ id, codigo, nombre, estado, numeroVigente, tieneBorrador, totalParametros, actualizadoEn }]` |
 | `POST /admin/productos` | `{ codigo, nombre, descripcion }` | producto creado con `estado: borrador` y borrador de versión 1 vacío |
-| `GET /admin/productos/:id` | — | `{ producto, borrador, publicada }` (cada versión: `{ id, numero, estado, esquema, plantilla }` o `null`) |
+| `GET /admin/productos/:id` | — | `{ producto, borrador, publicada }` (cada versión: `{ id, numero, estado, esquema, plantilla }` o `null`; `plantilla` está deprecada y siempre es `""`) |
 | `POST /admin/productos/:id/borrador` | — | crea el borrador copiando la versión publicada; 409 si ya existe |
-| `PUT /admin/productos/:id/borrador` | `{ esquema, plantilla }` | guarda el borrador (valida la estructura del esquema, incluidos los recursos) |
+| `PUT /admin/productos/:id/borrador` | `{ esquema }` | guarda el borrador (valida la estructura del esquema, incluidos recursos y reglas, y la sintaxis del texto de las reglas); un campo `plantilla` en el cuerpo se ignora |
 | `DELETE /admin/productos/:id/borrador` | — | descarta el borrador (no si es la única versión del producto) |
-| `POST /admin/productos/:id/publicar` | — | valida esquema y plantilla; el borrador pasa a `publicada`, la anterior a `archivada`; un producto en `borrador` pasa a `activo` |
+| `POST /admin/productos/:id/publicar` | — | valida el esquema, la sintaxis de las reglas, al menos un parámetro y `recursos_min_publicar` recursos activos; el borrador pasa a `publicada`, la anterior a `archivada`; un producto en `borrador` pasa a `activo` |
 | `PATCH /admin/productos/:id/estado` | `{ estado: "activo" \| "inactivo" }` | `activo` exige una versión publicada |
-| `POST /admin/previsualizar` | `{ esquema, plantilla, valores?, imagenes? }` | `{ prompt, imagenes, totalImagenes, sinUsar: [{clave, etiqueta, grupo}], errores: [] }` con los mismos elementos de `imagenes`, los recursos activos del borrador (con la `url` tal como está guardada, porque el borrador aún no se sirve por el proxy), valores por defecto y el contacto de `contacto_ejemplo` si no se envían; si el esquema o la plantilla tienen errores, `prompt` es `""`, `imagenes` `[]`, `totalImagenes` `0` y `errores` los lista (más `sinUsar` si se puede calcular) |
+| `POST /admin/previsualizar` | `{ esquema, valores?, imagenes? }` | `{ prompt, imagenes, totalImagenes, reglas: [{clave, etiqueta, posicion, activo, incluida}], sinUsar: [], errores: [] }`: el prompt completo autogenerado desde el esquema del borrador (encabezado, reglas `inicio`, sección generada, reglas `fin`; sección 3), con valores por defecto y el contacto de `contacto_ejemplo` si no se envían; `reglas` indica qué reglas están activas e `incluida` si aportaron texto al prompt; `imágenes` con los mismos elementos de `/generar`, usando la `url` guardada de los recursos activos (el borrador aún no se sirve por el proxy); `sinUsar` queda siempre vacío (compatibilidad) y un campo `plantilla` en el cuerpo se ignora; si el esquema o el texto de una regla tienen errores, `prompt` es `""`, `imagenes` `[]`, `totalImagenes` `0`, `reglas` `[]` y `errores` los lista |
 | `GET /admin/ajustes` | — | `[{ clave, descripcion, valor, actualizadoEn }]` de los seis ajustes |
 | `PUT /admin/ajustes/:clave` | `{ valor }` | la fila actualizada `{ clave, descripcion, valor, actualizadoEn }`; clave desconocida: 404; valor con forma incorrecta: 400 con `{ error, campos: { <clave>: mensajes } }` |
 

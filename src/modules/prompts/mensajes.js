@@ -98,10 +98,8 @@ const CATALOGO = Object.freeze({
   'recurso.activoSinUrl': 'El recurso «{recurso}» está activo pero no tiene URL. Pega la URL pública de la imagen en Supabase o desactívalo.',
   'recurso.activoUrlInvalida': 'El recurso «{recurso}» está activo pero su URL «{url}» no es válida. Usa una dirección que empiece por https:// o por /assets/, o desactiva el recurso.',
 
-  // ---- Plantilla (pestaña Plantilla) ----
-  'plantilla.vacia': 'La plantilla está vacía. Escribe en la pestaña Plantilla el texto del prompt, usando las variables de los parámetros.',
-  'plantilla.larga': 'La plantilla no puede superar {max} caracteres (tiene {largo}). Acórtala.',
-  'plantilla.llaveSuelta': 'Hay una llave doble «{abre}» o «{cierra}» sin cerrar o mal escrita en la plantilla. Cada variable debe tener la forma «{ejemplo}»; corrige la llave.',
+  // ---- Sintaxis de variables y bloques (texto de las reglas) ----
+  'plantilla.llaveSuelta': 'Hay una llave doble «{abre}» o «{cierra}» sin cerrar o mal escrita en el texto. Cada variable debe tener la forma «{ejemplo}»; corrige la llave.',
   'plantilla.variableNoExiste': 'La variable «{variable}» no existe: no es la clave de un parámetro ni una variable del sistema ({sistema}). Corrige el nombre o crea el parámetro en la pestaña Parámetros.',
   'plantilla.recursoDesconocido': 'La variable «{variable}» no existe: el producto no tiene un recurso con la clave «{clave}». Recursos disponibles: {disponibles}. Agrega el recurso en la pestaña Recursos o corrige el nombre.',
   'plantilla.grupoDesconocido': 'La variable «{variable}» apunta al grupo «{grupo}», que no existe. Grupos disponibles: {disponibles}. Corrige el nombre o crea el grupo.',
@@ -110,6 +108,21 @@ const CATALOGO = Object.freeze({
   'plantilla.cierreDistinto': 'El bloque «{apertura}» se cierra con «{cierre}», que no le corresponde. Ciérralo con «{esperado}».',
   'plantilla.etiquetaInvalida': 'La etiqueta «{etiqueta}» no es válida: entre llaves dobles solo van una clave en minúsculas (por ejemplo «{ejVariable}») o un bloque condicional («{ejBloque}» … «{ejCierre}»). Corrígela.',
   'plantilla.bloqueSinCerrar': 'El bloque «{apertura}» no está cerrado. Agrega «{cierre}» donde termine el bloque.',
+
+  // ---- Reglas específicas del producto (pestaña Reglas) ----
+  'regla.lista': '«reglas» debe ser una lista de hasta {max} reglas; este producto tiene {total}. Quita las que sobren en la pestaña Reglas.',
+  'regla.invalida': 'La regla {numero} no es válida: debe tener clave, etiqueta, texto, posición y «activo». Corrígela o quítala en la pestaña Reglas.',
+  'regla.claveInvalida': 'La clave de la regla {numero} no es válida. Usa minúsculas, números y guion bajo (2 a 60 caracteres, empezando por una letra), por ejemplo: marca_de_agua.',
+  'regla.claveReservada': 'La clave «{clave}» de la regla «{regla}» es una variable reservada del sistema. Elige otra clave.',
+  'regla.claveRepetida': 'La clave «{clave}» de la regla «{regla}» ya la usa un parámetro, un grupo, un recurso u otra regla. Elige una clave distinta.',
+  'regla.claveDerivada': 'La clave «{clave}» de la regla «{regla}» coincide con la variable «{variable}», que el sistema deriva de {origen}. Elige otra clave.',
+  'regla.etiqueta': 'La regla «{regla}» necesita una etiqueta de 1 a {max} caracteres. Escríbela o acórtala en la pestaña Reglas.',
+  'regla.textoTipo': 'El texto de la regla «{regla}» debe ser un texto. Corrígelo en la pestaña Reglas.',
+  'regla.textoVacio': 'La regla «{regla}» está activa pero no tiene texto. Escribe el texto de la regla o desactívala.',
+  'regla.textoLargo': 'El texto de la regla «{regla}» no puede superar {max} caracteres (tiene {largo}). Acórtalo o divídelo en dos reglas.',
+  'regla.posicion': 'La posición de la regla «{regla}» debe ser «inicio» (antes de lo generado por los parámetros) o «fin» (después); se recibió «{valor}». Elige una de las dos.',
+  'regla.activoTipo': 'El campo «activo» de la regla «{regla}» debe ser verdadero o falso. Corrige ese valor.',
+  'regla.sintaxis': 'En la regla «{regla}»: {detalle}',
 
   // ---- Productos y versiones (administración) ----
   'producto.revisar': 'Revisa los datos del producto: hay campos con errores. Corrígelos y vuelve a guardar.',
@@ -124,12 +137,12 @@ const CATALOGO = Object.freeze({
   'producto.activarSinPublicada': 'No se puede activar el producto porque no tiene una versión publicada. Publica una versión y vuelve a activarlo.',
   'version.sinBorrador': 'El producto no tiene borrador. Crea un borrador desde la versión publicada para poder editarlo.',
   'version.revisarBorrador': 'Revisa el borrador: tiene datos que no se pueden guardar. Corrige los campos indicados y vuelve a guardar.',
-  'version.plantillaTexto': 'La plantilla debe ser un texto. Escríbela en la pestaña Plantilla y vuelve a guardar.',
   'version.borradorDesaparecido': 'El borrador ya no existe: alguien lo publicó o lo descartó mientras lo editabas. Recarga la página para ver el estado actual.',
   'version.unicaVersion': 'No se puede descartar el borrador porque es la única versión del producto. Publícalo o sigue editándolo.',
   'version.sinBorradorParaPublicar': 'El producto no tiene un borrador para publicar. Crea un borrador desde la versión publicada y vuelve a intentarlo.',
   'version.errores': 'El borrador tiene errores y no se puede publicar. Corrige los campos indicados y vuelve a publicar.',
   'version.sinParametros': 'Agrega al menos un parámetro: un producto sin parámetros no se puede publicar. Crea un grupo y un parámetro en la pestaña Parámetros.',
+  'version.recursosMinimos': 'Para publicar el producto se exige un mínimo de {min} recursos activos con URL válida y hay {activos}. Agrega o activa recursos en la pestaña Recursos y pega la URL pública de cada imagen en Supabase.',
 
   // ---- Valores del asesor ----
   'valor.valoresObjeto': 'Los valores del formulario deben enviarse como un objeto, un dato por parámetro. Recarga el formulario e inténtalo de nuevo.',

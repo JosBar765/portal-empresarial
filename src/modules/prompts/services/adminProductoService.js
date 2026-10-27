@@ -5,8 +5,8 @@ const productoRepository = require('../repositories/productoRepository');
 const versionRepository = require('../repositories/versionRepository');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
-const { validarEsquema, validarValores, parametrosPlanos } = require('./esquemaService');
-const { validarPlantilla, renderizar, parametrosSinUsar } = require('./plantillaService');
+const { validarEsquema, validarValores, parametrosPlanos, recursosDelEsquema } = require('./esquemaService');
+const { validarTextosDeReglas, renderizar } = require('./plantillaService');
 const { leerJson } = require('./documento');
 const ajustesService = require('./ajustesService');
 const { ESTADOS_PRODUCTO, ESTADOS_VERSION, CODIGO_PRODUCTO_RE } = require('../constantes');
@@ -21,31 +21,31 @@ const aProducto = p => ({
 });
 
 const aVersion = v => (v ? {
-  id: v.id, numero: v.numero, estado: v.estado, esquema: leerJson(v.esquema), plantilla: v.plantilla,
+  id: v.id, numero: v.numero, estado: v.estado, esquema: leerJson(v.esquema), plantilla: '', // plantilla: deprecado, sin uso desde que el prompt se autogenera
   publicadoEn: v.publicado_en, actualizadoEn: v.actualizado_en
 } : null);
 
-// Agrupa los errores de esquema por clave y los de plantilla bajo «plantilla».
-function aCampos(erroresEsquema, erroresPlantilla) {
+// Agrupa los errores por clave del esquema (las reglas bajo «reglas», los recursos bajo «recursos»).
+function aCampos(errores) {
   const campos = {};
-  const sumar = (campo, mensaje) => { campos[campo] = campos[campo] ? `${campos[campo]} ${mensaje}` : mensaje; };
-  erroresEsquema.forEach(e => sumar(e.clave || 'esquema', e.mensaje));
-  erroresPlantilla.forEach(e => sumar('plantilla', e.mensaje));
+  errores.forEach(e => {
+    const campo = e.clave || 'esquema';
+    campos[campo] = campos[campo] ? `${campos[campo]} ${e.mensaje}` : e.mensaje;
+  });
   return campos;
 }
 
-const errorDeLargo = (plantilla, ajustes) => (typeof plantilla === 'string' && plantilla.length > ajustes.limites.plantilla_max_largo
-  ? [{ mensaje: msg('plantilla.larga', { max: ajustes.limites.plantilla_max_largo, largo: plantilla.length }) }]
-  : []);
-
-function exigirContenido(esquema, plantilla, ajustes, { alMenosUnParametro }) {
-  const erroresEsquema = validarEsquema(esquema, ajustes);
-  if (alMenosUnParametro && !erroresEsquema.length && !parametrosPlanos(esquema).length) {
-    erroresEsquema.push({ mensaje: msg('version.sinParametros') });
+// Esquema bien formado y reglas con sintaxis válida; al publicar, además parámetros y recursos mínimos.
+function exigirContenido(esquema, ajustes, { paraPublicar }) {
+  const errores = validarEsquema(esquema, ajustes);
+  if (errores.length) return errores;
+  if (paraPublicar) {
+    if (!parametrosPlanos(esquema).length) errores.push({ mensaje: msg('version.sinParametros') });
+    const activos = recursosDelEsquema(esquema).filter(r => r.activo === true).length;
+    const minimo = ajustes.limites.recursos_min_publicar;
+    if (activos < minimo) errores.push({ clave: 'recursos', mensaje: msg('version.recursosMinimos', { min: minimo, activos }) });
   }
-  const largo = errorDeLargo(plantilla, ajustes);
-  const erroresPlantilla = largo.length ? largo : (erroresEsquema.length ? [] : validarPlantilla(plantilla, esquema));
-  return { erroresEsquema, erroresPlantilla };
+  return [...errores, ...validarTextosDeReglas(esquema)];
 }
 
 class AdminProductoService {
@@ -84,7 +84,7 @@ class AdminProductoService {
         codigo: codigoLimpio, nombre: nombreLimpio, descripcion: descripcionLimpia || null, creadoPor: usuarioId
       }, tx);
       await versionRepository.crearBorrador({
-        productoId, numero: 1, esquema: ESQUEMA_VACIO, plantilla: '', creadoPor: usuarioId
+        productoId, numero: 1, esquema: ESQUEMA_VACIO, creadoPor: usuarioId
       }, tx);
       return productoId;
     });
@@ -112,26 +112,23 @@ class AdminProductoService {
         productoId: id,
         numero: await versionRepository.siguienteNumero(id, tx),
         esquema: leerJson(publicada.esquema),
-        plantilla: publicada.plantilla,
         creadoPor: usuarioId
       }, tx);
     });
     return this.obtener(id);
   }
 
-  async guardarBorrador(idCrudo, { esquema, plantilla } = {}) {
+  async guardarBorrador(idCrudo, { esquema } = {}) {
     const id = idObligatorio(idCrudo, 'Producto');
     await this._exigirProducto(id);
     const borrador = await this._exigirBorrador(id);
-    if (typeof plantilla !== 'string') throw errorDeValidacion(msg('version.revisarBorrador'), { plantilla: msg('version.plantillaTexto') });
 
-    // Guardar solo exige un esquema bien formado; la plantilla se valida completa al publicar.
+    // Guardar exige un esquema bien formado y reglas con sintaxis válida; publicar suma los mínimos de contenido.
     const ajustes = await ajustesService.obtenerTodos();
-    const erroresEsquema = validarEsquema(esquema, ajustes);
-    const largo = errorDeLargo(plantilla, ajustes);
-    if (erroresEsquema.length || largo.length) throw errorDeValidacion(msg('version.revisarBorrador'), aCampos(erroresEsquema, largo));
+    const errores = exigirContenido(esquema, ajustes, { paraPublicar: false });
+    if (errores.length) throw errorDeValidacion(msg('version.revisarBorrador'), aCampos(errores));
 
-    if (!await versionRepository.guardarBorrador(borrador.id, esquema, plantilla)) {
+    if (!await versionRepository.guardarBorrador(borrador.id, esquema)) {
       throw new ErrorDeNegocio(msg('version.borradorDesaparecido'), 409);
     }
     return this.obtener(id);
@@ -158,10 +155,8 @@ class AdminProductoService {
       if (!borrador) throw new ErrorDeNegocio(msg('version.sinBorradorParaPublicar'), 409);
 
       const esquema = leerJson(borrador.esquema);
-      const { erroresEsquema, erroresPlantilla } = exigirContenido(esquema, borrador.plantilla, ajustes, { alMenosUnParametro: true });
-      if (erroresEsquema.length || erroresPlantilla.length) {
-        throw errorDeValidacion(msg('version.errores'), aCampos(erroresEsquema, erroresPlantilla));
-      }
+      const errores = exigirContenido(esquema, ajustes, { paraPublicar: true });
+      if (errores.length) throw errorDeValidacion(msg('version.errores'), aCampos(errores));
 
       const anterior = await versionRepository.obtenerPorEstado(id, ESTADOS_VERSION.PUBLICADA, tx);
       if (anterior) await versionRepository.archivar(anterior.id, tx);
@@ -185,23 +180,20 @@ class AdminProductoService {
     return this.obtener(id);
   }
 
-  // Sin persistir nada: renderiza con los valores enviados (o los defectos) y el contacto de ejemplo de los ajustes.
-  async previsualizar({ esquema, plantilla, valores, imagenes } = {}) {
+  // Sin persistir nada: autogenera el prompt completo del esquema del borrador con los valores enviados (o los defectos) y el contacto de ejemplo.
+  // `sinUsar` ya no existe como concepto (todo parámetro con valor sale en el prompt) y se devuelve vacío por compatibilidad.
+  async previsualizar({ esquema, valores, imagenes } = {}) {
     const ajustes = await ajustesService.obtenerTodos();
-    const erroresEsquema = validarEsquema(esquema, ajustes);
-    const erroresPlantilla = erroresEsquema.length ? [] : validarPlantilla(plantilla, esquema);
-    const errores = [...erroresEsquema, ...erroresPlantilla];
-    if (errores.length) {
-      return { prompt: '', imagenes: [], totalImagenes: 0, sinUsar: erroresEsquema.length ? [] : parametrosSinUsar(esquema, plantilla), errores };
-    }
+    const errores = exigirContenido(esquema, ajustes, { paraPublicar: false });
+    if (errores.length) return { prompt: '', imagenes: [], totalImagenes: 0, reglas: [], sinUsar: [], errores };
 
     const validado = validarValores(esquema, valores, imagenes, ajustes);
     const erroresValores = Object.entries(validado.errores).map(([clave, mensaje]) => ({ clave, mensaje }));
     const { nombre, correo, telefono } = ajustes.contacto_ejemplo;
     const resultado = renderizar({
-      plantilla, esquema, valores: validado.valores, imagenes: validado.imagenes, contacto: { nombre, email: correo, telefono }, ajustes
+      esquema, valores: validado.valores, imagenes: validado.imagenes, contacto: { nombre, email: correo, telefono }, ajustes
     });
-    return { ...resultado, sinUsar: parametrosSinUsar(esquema, plantilla), errores: erroresValores };
+    return { ...resultado, sinUsar: [], errores: erroresValores };
   }
 
   async _exigirProducto(id) {

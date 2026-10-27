@@ -1,13 +1,15 @@
 // src/modules/prompts/services/plantillaService.js
-// Funciones puras: validan y renderizan la plantilla de un producto. Todo texto que arma el código viene de `ajustes`.
+// Funciones puras: validan las reglas de un producto y arman el prompt completo (encabezado + reglas «inicio» + sección generada + reglas «fin»).
+// Todo texto que arma el código viene de `ajustes`.
 const { VARIABLES_AUTOMATICAS, PREFIJO_RECURSO, PREFIJO_GRUPO, SUFIJO_GRUPO_VACIO, variableGrupoVacio } = require('../constantes');
 const { msg, rellenar } = require('../mensajes');
-const { resolverVisibilidad, indexarPorClave, recursosDelEsquema, clavesDeGrupos } = require('./esquemaService');
+const { resolverVisibilidad, indexarPorClave, recursosDelEsquema, clavesDeGrupos, reglasDelEsquema } = require('./esquemaService');
 
 const ETIQUETA_RE = /\{\{([^{}]*)\}\}/g;
 const MARCA_BLOQUE = '\u0001'; // señala dónde hubo una etiqueta de bloque, para eliminar líneas que quedan vacías
 const MAX_PROFUNDIDAD_CALCULADO = 5;
-const VARIABLE_OTROS = 'otros_parametros';
+const VARIABLE_OTROS = 'otros_parametros'; // la sección de parámetros que genera el sistema
+const VARIABLE_LISTA = 'lista_imagenes';
 const TIPOS_CON_DATO = new Set(['texto', 'texto_largo', 'numero', 'opciones', 'imagenes']); // los que cuentan para grupo_<clave>_vacio
 const EJ_VARIABLE = '{{clave}}'; // ejemplos de sintaxis que muestran los mensajes
 const EJ_BLOQUE = '{{#si clave}}';
@@ -90,12 +92,16 @@ function clavesDelEsquema(esquema) {
   return new Set([...parametros.keys(), ...VARIABLES_AUTOMATICAS, ...clavesDeRecursos(esquema).map(c => PREFIJO_RECURSO + c), ...clavesDeGrupos(esquema).map(variableGrupoVacio)]);
 }
 
-/** @returns {{mensaje: string}[]} lista vacía si la plantilla es válida */
-function validarPlantilla(plantilla, esquema) {
-  if (typeof plantilla !== 'string' || !plantilla.trim()) return [{ mensaje: msg('plantilla.vacia') }];
-  const unicos = new Map();
-  analizar(plantilla, clavesDelEsquema(esquema), clavesDeRecursos(esquema), clavesDeGrupos(esquema)).errores.forEach(e => unicos.set(e.mensaje, e));
-  return [...unicos.values()];
+/** Sintaxis del texto de cada regla con texto (variables existentes, bloques sin anidar). @returns {{clave: string, mensaje: string}[]} */
+function validarTextosDeReglas(esquema) {
+  const claves = clavesDelEsquema(esquema);
+  const errores = [];
+  reglasDelEsquema(esquema).filter(r => typeof r.texto === 'string' && r.texto.trim()).forEach(r => {
+    const regla = typeof r.etiqueta === 'string' && r.etiqueta.trim() ? r.etiqueta.trim() : r.clave;
+    const unicos = new Set(analizar(r.texto, claves, clavesDeRecursos(esquema), clavesDeGrupos(esquema)).errores.map(e => e.mensaje));
+    unicos.forEach(detalle => errores.push({ clave: 'reglas', mensaje: msg('regla.sintaxis', { regla, detalle }) }));
+  });
+  return errores;
 }
 
 // ---------- Parámetros referenciados ----------
@@ -115,15 +121,6 @@ function clavesReferenciadas(plantilla, esquema) {
     if (p && p.tipo === 'calculado' && p.igual_a) usadas.add(p.igual_a);
   });
   return usadas;
-}
-
-/** Parámetros (visibles o no, sin «calculado») que la plantilla no nombra. */
-function parametrosSinUsar(esquema, plantilla) {
-  const usadas = clavesReferenciadas(plantilla, esquema);
-  const grupos = esquema && Array.isArray(esquema.grupos) ? esquema.grupos : [];
-  return grupos.flatMap(g => (Array.isArray(g.parametros) ? g.parametros : [])
-    .filter(p => p && p.tipo !== 'calculado' && !usadas.has(p.clave))
-    .map(p => ({ clave: p.clave, etiqueta: p.etiqueta, grupo: g.etiqueta })));
 }
 
 // ---------- Formato de valores ----------
@@ -268,7 +265,12 @@ function crearContexto({ esquema, valores, imagenes, contacto, referenciadas, aj
     return secciones.length ? `${T.extras_titulo}\n${secciones.join('\n')}` : '';
   }
 
-  return { formatear, tieneValor, items };
+  // Bloque generado de imágenes: título, introducción y lista numerada; vacío si no hay ninguna imagen.
+  const seccionImagenes = () => (items.length
+    ? [T.imagenes_titulo, t('imagenes_intro', { total: formatear('total_imagenes') }), formatear(VARIABLE_LISTA)].join('\n')
+    : '');
+
+  return { formatear, tieneValor, items, seccionImagenes };
 }
 
 // ---------- Render ----------
@@ -289,23 +291,43 @@ function limpiarLineas(texto) {
     .join('\n');
 }
 
+// Parámetros que la sección generada no repite: los que alguna regla nombra y las unidades que ya acompañan a un número.
+function clavesNombradas(esquema, reglas) {
+  const nombradas = new Set();
+  reglas.forEach(r => clavesReferenciadas(r.texto, esquema).forEach(c => nombradas.add(c)));
+  resolverVisibilidad(esquema).parametros.forEach(p => { if (p && p.tipo === 'numero' && p.unidad_de) nombradas.add(p.unidad_de); });
+  return nombradas;
+}
+
 /**
- * Arma el prompt final y la lista numerada de imágenes (recursos activos y del asesor). Los valores se insertan en una sola pasada.
+ * Único camino del prompt: encabezado + reglas activas «inicio» + sección generada (imágenes y parámetros) + reglas activas «fin».
+ * Cada regla se renderiza con las reglas de render de la sección 3 del contrato; los valores se insertan en una sola pasada.
+ * Una regla que nombre {{lista_imagenes}} o {{otros_parametros}} reemplaza esa parte de la sección generada.
  * `urlRecurso(recurso)` decide la URL que ve el cliente (por defecto, la guardada).
- * @returns {{ prompt: string, imagenes: object[], totalImagenes: number }}
+ * @returns {{ prompt: string, imagenes: object[], totalImagenes: number, reglas: {clave: string, etiqueta: string, posicion: string, activo: boolean, incluida: boolean}[] }}
  */
-function renderizar({ plantilla, esquema, valores = {}, imagenes = {}, contacto = {}, ajustes, urlRecurso = r => r.url }) {
-  const referenciadas = clavesReferenciadas(plantilla, esquema);
-  // Sin {{otros_parametros}} en la plantilla, la sección se agrega al final.
-  const completa = referenciadas.has(VARIABLE_OTROS) ? plantilla : `${plantilla}\n\n{{${VARIABLE_OTROS}}}`;
-  const { nodos } = analizar(completa, clavesDelEsquema(esquema), clavesDeRecursos(esquema), clavesDeGrupos(esquema));
-  const ctx = crearContexto({ esquema, valores, imagenes, contacto, referenciadas, ajustes, urlRecurso });
-  const cuerpo = limpiarLineas(renderizarNodos(nodos, ctx)).replace(/\n{3,}/g, '\n\n').trim();
+function renderizar({ esquema, valores = {}, imagenes = {}, contacto = {}, ajustes, urlRecurso = r => r.url }) {
+  const todas = reglasDelEsquema(esquema);
+  const activas = todas.filter(r => r.activo === true && typeof r.texto === 'string' && r.texto.trim());
+  const nombradas = clavesNombradas(esquema, activas);
+  const ctx = crearContexto({ esquema, valores, imagenes, contacto, referenciadas: nombradas, ajustes, urlRecurso });
+  const claves = clavesDelEsquema(esquema);
+  const renderRegla = r => limpiarLineas(renderizarNodos(analizar(r.texto, claves, clavesDeRecursos(esquema), clavesDeGrupos(esquema)).nodos, ctx)).replace(/\n{3,}/g, '\n\n').trim();
+  const renderizadas = new Map(activas.map(r => [r.clave, renderRegla(r)]));
+  const deRegla = posicion => activas.filter(r => r.posicion === posicion).map(r => renderizadas.get(r.clave));
+
+  const generada = [
+    nombradas.has(VARIABLE_LISTA) ? '' : ctx.seccionImagenes(),
+    nombradas.has(VARIABLE_OTROS) ? '' : ctx.formatear(VARIABLE_OTROS)
+  ].filter(Boolean).join('\n\n');
+
+  const prompt = [ajustes.encabezado_sistema, ...deRegla('inicio'), generada, ...deRegla('fin')].filter(Boolean).join('\n\n');
   return {
-    prompt: `${ajustes.encabezado_sistema}\n\n${cuerpo}`,
+    prompt,
     imagenes: ctx.items,
-    totalImagenes: ctx.items.length
+    totalImagenes: ctx.items.length,
+    reglas: todas.map(r => ({ clave: r.clave, etiqueta: typeof r.etiqueta === 'string' ? r.etiqueta.trim() : r.clave, posicion: r.posicion, activo: r.activo === true, incluida: Boolean(renderizadas.get(r.clave)) }))
   };
 }
 
-module.exports = { validarPlantilla, renderizar, parametrosSinUsar };
+module.exports = { validarTextosDeReglas, renderizar };

@@ -1,7 +1,7 @@
 // src/modules/prompts/repositories/versionRepository.js
 const db = require('../../../config/database');
 
-const COLUMNAS = 'id, producto_id, numero, estado, esquema, plantilla, creado_en, publicado_en, actualizado_en';
+const COLUMNAS = 'id, producto_id, numero, estado, esquema, creado_en, publicado_en, actualizado_en'; // «plantilla» deprecada: ya no se lee
 
 class VersionRepository {
   async obtenerPorEstado(productoId, estado, ejecutor = db) {
@@ -28,19 +28,20 @@ class VersionRepository {
     return Number(filas[0].numero);
   }
 
-  async crearBorrador({ productoId, numero, esquema, plantilla, creadoPor }, ejecutor = db) {
+  // La columna «plantilla» (NOT NULL, deprecada) se escribe siempre vacía.
+  async crearBorrador({ productoId, numero, esquema, creadoPor }, ejecutor = db) {
     const resultado = await ejecutor.query(
-      "INSERT INTO prompt_producto_versiones (producto_id, numero, estado, esquema, plantilla, creado_por) VALUES (?, ?, 'borrador', ?, ?, ?)",
-      [productoId, numero, JSON.stringify(esquema), plantilla, creadoPor], 'prompts:crearBorrador'
+      "INSERT INTO prompt_producto_versiones (producto_id, numero, estado, esquema, plantilla, creado_por) VALUES (?, ?, 'borrador', ?, '', ?)",
+      [productoId, numero, JSON.stringify(esquema), creadoPor], 'prompts:crearBorrador'
     );
     return resultado.insertId;
   }
 
   // Solo toca borradores: una versión publicada o archivada es inmutable.
-  async guardarBorrador(id, esquema, plantilla, ejecutor = db) {
+  async guardarBorrador(id, esquema, ejecutor = db) {
     const resultado = await ejecutor.query(
-      "UPDATE prompt_producto_versiones SET esquema = ?, plantilla = ? WHERE id = ? AND estado = 'borrador'",
-      [JSON.stringify(esquema), plantilla, id], 'prompts:guardarBorrador'
+      "UPDATE prompt_producto_versiones SET esquema = ? WHERE id = ? AND estado = 'borrador'",
+      [JSON.stringify(esquema), id], 'prompts:guardarBorrador'
     );
     return resultado.affectedRows > 0;
   }
