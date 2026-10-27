@@ -217,3 +217,33 @@ export function imagenesDeEjemplo(esquema) {
   }));
   return out;
 }
+
+// Un valor por parámetro con dato (los de imágenes y calculados no van en `valores`); el servidor ignora los ocultos por «visible_si».
+export function valoresDeEjemplo(esquema) {
+  const out = {};
+  esquema.grupos.forEach(g => g.parametros.forEach(p => {
+    switch (p.tipo) {
+      case 'texto':
+      case 'texto_largo': {
+        const marcador = t('admin.vistaPrevia.valorEjemplo', { etiqueta: p.etiqueta || p.clave });
+        out[p.clave] = p.max_largo ? marcador.slice(0, p.max_largo) : marcador;
+        break;
+      }
+      case 'numero': {
+        // Sin defecto ni mínimo se usa 1, ajustado al rango del parámetro.
+        const base = Number.isFinite(p.defecto) ? p.defecto : (Number.isFinite(p.min) ? p.min : 1);
+        const piso = Number.isFinite(p.min) ? Math.max(base, p.min) : base;
+        out[p.clave] = Number.isFinite(p.max) ? Math.min(piso, p.max) : piso;
+        break;
+      }
+      case 'opciones':
+        out[p.clave] = p.defecto !== undefined && p.defecto !== null && p.defecto !== '' ? p.defecto : ((p.opciones || [])[0] || {}).valor;
+        break;
+      case 'si_no':
+        out[p.clave] = typeof p.defecto === 'boolean' ? p.defecto : false;
+        break;
+      default:
+    }
+  }));
+  return out;
+}

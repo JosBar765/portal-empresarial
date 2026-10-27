@@ -1452,12 +1452,6 @@
   gap: 10px;
 }
 
-.pr-adm-imagenes {
-  margin-left: 18px;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
 .pr-adm-lista {
   margin-left: 18px;
   font-size: 13px;
@@ -1532,15 +1526,40 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 10px;
+  margin: 0 0 10px;
+  padding: 0;
   list-style: none;
 }
 
 .pr-adm-vp-regla {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.pr-adm-vp-regla-etiqueta {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--color-text);
+  overflow-wrap: break-word;
+}
+
+.pr-adm-vp-regla-desc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  overflow-wrap: break-word;
+}
+
+.pr-adm-vp-regla-pills {
+  display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 /* Recursos fijos y ajustes */
