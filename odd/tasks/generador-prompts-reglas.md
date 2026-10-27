@@ -13,10 +13,12 @@ Eliminar la plantilla editable. El prompt se arma solo con: encabezado del siste
 - La plantilla v18 de la medalla se parte en reglas con una migración; el prompt resultante debe ser idéntico al actual (verificar con un script de comparación).
 
 ## Tareas
-- [x] T20 Backend: esquema `reglas`, validación, render del prompt autogenerado, ajuste `recursos_min_publicar`, publicación sin plantilla. (Implementado y verificado con script temporal; pendiente de commit. La FORMA de ajustes ya exige las claves nuevas: aplicar la migración de T22 antes de arrancar el servidor local.)
+- [x] T20 Backend: esquema `reglas`, validación, render del prompt autogenerado, ajuste `recursos_min_publicar`, publicación sin plantilla. (Implementado y verificado con script temporal; commit 0e8c4cf. La FORMA de ajustes exige las claves nuevas: ya sembradas por la migración de T22 en la BD local.)
 - [ ] T21 Frontend admin: pestaña Reglas, vista previa del prompt completo, quitar el editor de plantilla.
-- [ ] T22 Migración que parte la plantilla v18 en reglas y prueba de equivalencia.
+- [x] T22 Migración `prompts_reglas` (ajustes nuevos + plantillas existentes partidas en reglas) y prueba de equivalencia. (18/18 prompts idénticos, local v18 y producción v5. Aplicada en la BD local `munditrofeos` (development/localhost): la medalla pasó a v19 publicada con 11 reglas, v18 archivada. Sin probar en MariaDB: confirmar versión 10.3.15+ del hosting antes del deploy.)
 - [ ] T23 Documentación (`esquema_y_contrato.md`, README del módulo).
+- [ ] T24 Duplicar producto: acción en la fila de Productos y/o opción en «Nuevo producto»; copia el esquema (grupos, parámetros, recursos, reglas) como borrador v1 de un producto con código y nombre nuevos.
+- [ ] T25 Registro de tipos de parámetro: cada tipo declara en un solo lugar su validación del esquema, validación del valor, formato y cuándo está vacío; sin cadenas de `if`/`switch` repartidas. Solo estructura interna: no se agregan tipos nuevos.
 
 ## Rutas de trabajo
 - Cada tarea cierra con un commit convencional en español en `module/generador-prompts` y push.
