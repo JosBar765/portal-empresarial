@@ -20,6 +20,14 @@ class AdminProductoController {
     }
   }
 
+  async duplicar(req, res) {
+    try {
+      return res.status(201).json(await service.duplicar(req.params.id, req.body, req.user.id));
+    } catch (error) {
+      return responderError(res, error, 400, extraDeError(error));
+    }
+  }
+
   async obtener(req, res) {
     try {
       return res.json(await service.obtener(req.params.id));

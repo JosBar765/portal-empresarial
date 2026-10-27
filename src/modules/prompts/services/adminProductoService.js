@@ -48,6 +48,31 @@ function exigirContenido(esquema, ajustes, { paraPublicar }) {
   return [...errores, ...validarTextosDeReglas(esquema)];
 }
 
+// Limpia y valida código, nombre y descripción de un producto nuevo (alta y duplicado) con los límites de los ajustes.
+function validarDatosDeProducto({ codigo, nombre, descripcion } = {}, limites) {
+  const campos = {};
+  const codigoLimpio = typeof codigo === 'string' ? codigo.trim() : '';
+  const nombreLimpio = typeof nombre === 'string' ? nombre.trim() : '';
+  const descripcionLimpia = typeof descripcion === 'string' ? descripcion.trim() : '';
+  if (!CODIGO_PRODUCTO_RE.test(codigoLimpio)) campos.codigo = msg('producto.codigo', { valor: JSON.stringify(codigoLimpio) });
+  if (!nombreLimpio || nombreLimpio.length > limites.producto_nombre_max) {
+    campos.nombre = msg('producto.nombre', { max: limites.producto_nombre_max, largo: nombreLimpio.length });
+  }
+  if (descripcionLimpia.length > limites.producto_descripcion_max) {
+    campos.descripcion = msg('producto.descripcion', { max: limites.producto_descripcion_max, largo: descripcionLimpia.length });
+  }
+  if (Object.keys(campos).length) throw errorDeValidacion(msg('producto.revisar'), campos);
+  return { codigo: codigoLimpio, nombre: nombreLimpio, descripcion: descripcionLimpia || null };
+}
+
+// Producto en «borrador» con su versión 1 en borrador, dentro de la transacción del llamador.
+async function insertarProductoConBorrador(datos, esquema, usuarioId, tx) {
+  if (await productoRepository.existeCodigo(datos.codigo, tx)) throw new ErrorDeNegocio(msg('producto.codigoRepetido', { codigo: datos.codigo }), 409);
+  const productoId = await productoRepository.crear({ ...datos, creadoPor: usuarioId }, tx);
+  await versionRepository.crearBorrador({ productoId, numero: 1, esquema, creadoPor: usuarioId }, tx);
+  return productoId;
+}
+
 class AdminProductoService {
   async listar() {
     const filas = await productoRepository.listarConResumen();
@@ -63,30 +88,24 @@ class AdminProductoService {
     }));
   }
 
-  async crear({ codigo, nombre, descripcion } = {}, usuarioId) {
+  async crear(datos, usuarioId) {
     const { limites } = await ajustesService.obtenerTodos();
-    const campos = {};
-    const codigoLimpio = typeof codigo === 'string' ? codigo.trim() : '';
-    const nombreLimpio = typeof nombre === 'string' ? nombre.trim() : '';
-    const descripcionLimpia = typeof descripcion === 'string' ? descripcion.trim() : '';
-    if (!CODIGO_PRODUCTO_RE.test(codigoLimpio)) campos.codigo = msg('producto.codigo', { valor: JSON.stringify(codigoLimpio) });
-    if (!nombreLimpio || nombreLimpio.length > limites.producto_nombre_max) {
-      campos.nombre = msg('producto.nombre', { max: limites.producto_nombre_max, largo: nombreLimpio.length });
-    }
-    if (descripcionLimpia.length > limites.producto_descripcion_max) {
-      campos.descripcion = msg('producto.descripcion', { max: limites.producto_descripcion_max, largo: descripcionLimpia.length });
-    }
-    if (Object.keys(campos).length) throw errorDeValidacion(msg('producto.revisar'), campos);
+    const validos = validarDatosDeProducto(datos, limites);
+    const id = await db.transaccion(tx => insertarProductoConBorrador(validos, ESQUEMA_VACIO, usuarioId, tx));
+    return this.obtener(id);
+  }
 
+  // Producto nuevo con una copia del esquema del origen (publicada, o el borrador si no hay) como borrador v1; nunca queda publicado.
+  async duplicar(idCrudo, datos, usuarioId) {
+    const origenId = idObligatorio(idCrudo, 'Producto');
+    const { limites } = await ajustesService.obtenerTodos();
+    const validos = validarDatosDeProducto(datos, limites);
     const id = await db.transaccion(async tx => {
-      if (await productoRepository.existeCodigo(codigoLimpio, tx)) throw new ErrorDeNegocio(msg('producto.codigoRepetido', { codigo: codigoLimpio }), 409);
-      const productoId = await productoRepository.crear({
-        codigo: codigoLimpio, nombre: nombreLimpio, descripcion: descripcionLimpia || null, creadoPor: usuarioId
-      }, tx);
-      await versionRepository.crearBorrador({
-        productoId, numero: 1, esquema: ESQUEMA_VACIO, creadoPor: usuarioId
-      }, tx);
-      return productoId;
+      if (!await productoRepository.obtenerBloqueado(origenId, tx)) throw new ErrorDeNegocio(msg('producto.noEncontrado'), 404);
+      const origen = await versionRepository.obtenerPorEstado(origenId, ESTADOS_VERSION.PUBLICADA, tx)
+        || await versionRepository.obtenerPorEstado(origenId, ESTADOS_VERSION.BORRADOR, tx);
+      if (!origen) throw new ErrorDeNegocio(msg('producto.duplicarSinVersion'), 409);
+      return insertarProductoConBorrador(validos, leerJson(origen.esquema), usuarioId, tx); // leerJson parsea de nuevo: la copia no comparte referencias
     });
     return this.obtener(id);
   }

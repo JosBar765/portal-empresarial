@@ -21,6 +21,7 @@ router.post('/generar', generar, (req, res) => promptsController.generar(req, re
 router.get('/admin/productos', administrar, (req, res) => adminController.listar(req, res));
 router.post('/admin/productos', administrar, (req, res) => adminController.crear(req, res));
 router.get('/admin/productos/:id', administrar, (req, res) => adminController.obtener(req, res));
+router.post('/admin/productos/:id/duplicar', administrar, (req, res) => adminController.duplicar(req, res));
 router.post('/admin/productos/:id/borrador', administrar, (req, res) => adminController.crearBorrador(req, res));
 router.put('/admin/productos/:id/borrador', administrar, (req, res) => adminController.guardarBorrador(req, res));
 router.delete('/admin/productos/:id/borrador', administrar, (req, res) => adminController.descartarBorrador(req, res));

@@ -316,6 +316,7 @@ Administración (`prompts.administrar`):
 |---|---|---|
 | `GET /admin/productos` | — | `[{ id, codigo, nombre, estado, numeroVigente, tieneBorrador, totalParametros, actualizadoEn }]` |
 | `POST /admin/productos` | `{ codigo, nombre, descripcion }` | producto creado con `estado: borrador` y borrador de versión 1 vacío |
+| `POST /admin/productos/:id/duplicar` | `{ codigo, nombre, descripcion }` | igual que crear: producto `borrador` con una única versión borrador número 1, cuyo esquema (grupos, parámetros, recursos con su URL y estado activo, y reglas) es una copia de la versión publicada del origen o, si no tiene, de su borrador; 409 si el origen no tiene ninguna. Mismas validaciones que `POST /admin/productos`; nunca queda publicado |
 | `GET /admin/productos/:id` | — | `{ producto, borrador, publicada }` (cada versión: `{ id, numero, estado, esquema, plantilla }` o `null`; `plantilla` está deprecada y siempre es `""`) |
 | `POST /admin/productos/:id/borrador` | — | crea el borrador copiando la versión publicada; 409 si ya existe |
 | `PUT /admin/productos/:id/borrador` | `{ esquema }` | guarda el borrador (valida la estructura del esquema, incluidos recursos y reglas, y la sintaxis del texto de las reglas); un campo `plantilla` en el cuerpo se ignora |

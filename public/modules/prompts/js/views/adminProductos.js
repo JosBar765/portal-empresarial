@@ -4,7 +4,7 @@ import { escapeHtml } from '../utils/formato.js';
 import { t } from '../textos.js';
 import { cargarConfig } from '../config.js';
 import { abrirModal, mostrarErrorModal, confirmarModal } from '../components/modal.js';
-import { listarProductos, crearProducto, cambiarEstado } from '../api/promptsAdminApi.js';
+import { listarProductos, crearProducto, duplicarProducto, obtenerProducto, cambiarEstado } from '../api/promptsAdminApi.js';
 import { renderEditor } from './admin/editor.js';
 import { CODIGO_PRODUCTO_RE, CODIGO_PRODUCTO_LARGO_MAX } from './admin/reglasEsquema.js';
 import { badgeEstado, fechaGt, mensajesDeError } from './admin/comun.js';
@@ -45,14 +45,15 @@ export async function renderAdminProductos(contenedor) {
     return errores;
   }
 
-  function abrirNuevo() {
-    const cuerpo = `<div class="form-grid">
-      <div class="form-field"><label for="pr-adm-n-codigo">${escapeHtml(t('admin.productos.codigo'))}</label><input id="pr-adm-n-codigo" class="pr-adm-mono" maxlength="${CODIGO_PRODUCTO_LARGO_MAX}"><span class="form-hint">${escapeHtml(t('admin.productos.codigoAyuda'))}</span></div>
-      <div class="form-field"><label for="pr-adm-n-nombre">${escapeHtml(t('admin.productos.nombre'))}</label><input id="pr-adm-n-nombre" maxlength="${limites.producto_nombre_max}"></div>
-      <div class="form-field full"><label for="pr-adm-n-descripcion">${escapeHtml(t('admin.productos.descripcion'))}</label><textarea id="pr-adm-n-descripcion" rows="3" maxlength="${limites.producto_descripcion_max}"></textarea></div>
+  // Formulario de alta compartido por «Nuevo» y «Duplicar»; `enviar` crea el producto con los datos validados.
+  function abrirFormularioProducto({ titulo, aceptar, aviso = '', descripcion = '', sugerencias = {}, enviar }) {
+    const cuerpo = `${aviso ? `<p class="pr-adm-muted">${escapeHtml(aviso)}</p>` : ''}<div class="form-grid">
+      <div class="form-field"><label for="pr-adm-n-codigo">${escapeHtml(t('admin.productos.codigo'))}</label><input id="pr-adm-n-codigo" class="pr-adm-mono" maxlength="${CODIGO_PRODUCTO_LARGO_MAX}" placeholder="${escapeHtml(sugerencias.codigo || '')}"><span class="form-hint">${escapeHtml(t('admin.productos.codigoAyuda'))}</span></div>
+      <div class="form-field"><label for="pr-adm-n-nombre">${escapeHtml(t('admin.productos.nombre'))}</label><input id="pr-adm-n-nombre" maxlength="${limites.producto_nombre_max}" placeholder="${escapeHtml(sugerencias.nombre || '')}"></div>
+      <div class="form-field full"><label for="pr-adm-n-descripcion">${escapeHtml(t('admin.productos.descripcion'))}</label><textarea id="pr-adm-n-descripcion" rows="3" maxlength="${limites.producto_descripcion_max}">${escapeHtml(descripcion)}</textarea></div>
     </div>`;
-    const pie = `<button class="btn btn--ghost" type="button" id="pr-adm-n-cancelar">${escapeHtml(t('comun.cancelar'))}</button><button class="btn btn--primary" type="button" id="pr-adm-n-crear">${escapeHtml(t('admin.productos.crear'))}</button>`;
-    const { overlay, cerrar } = abrirModal({ title: t('admin.productos.nuevoTitulo'), bodyHtml: cuerpo, footerHtml: pie });
+    const pie = `<button class="btn btn--ghost" type="button" id="pr-adm-n-cancelar">${escapeHtml(t('comun.cancelar'))}</button><button class="btn btn--primary" type="button" id="pr-adm-n-crear">${escapeHtml(aceptar)}</button>`;
+    const { overlay, cerrar } = abrirModal({ title: titulo, bodyHtml: cuerpo, footerHtml: pie });
     $('#pr-adm-n-cancelar', overlay).addEventListener('click', cerrar);
     $('#pr-adm-n-crear', overlay).addEventListener('click', async (e) => {
       const payload = {
@@ -64,9 +65,9 @@ export async function renderAdminProductos(contenedor) {
       if (errores.length) { mostrarErrorModal(overlay, errores[0]); return; }
       e.target.disabled = true;
       try {
-        const creado = await crearProducto(payload);
+        const { creado, toast } = await enviar(payload);
         cerrar();
-        window.toast.success(t('admin.productos.toastCreado'), payload.nombre);
+        window.toast.success(toast, payload.nombre);
         const nuevoId = creado.id ?? (creado.producto && creado.producto.id);
         if (nuevoId) await abrirEditor(nuevoId); else await recargar();
       } catch (error) {
@@ -75,6 +76,31 @@ export async function renderAdminProductos(contenedor) {
       }
     });
     $('#pr-adm-n-codigo', overlay).focus();
+  }
+
+  const abrirNuevo = () => abrirFormularioProducto({
+    titulo: t('admin.productos.nuevoTitulo'),
+    aceptar: t('admin.productos.crear'),
+    enviar: async (payload) => ({ creado: await crearProducto(payload), toast: t('admin.productos.toastCreado') })
+  });
+
+  // La lista no trae la descripción ni el detalle de versiones: se consulta el producto antes de abrir el modal.
+  async function abrirDuplicar(p) {
+    let origen;
+    try {
+      origen = await obtenerProducto(p.id);
+    } catch (error) {
+      window.toast.error(t('admin.productos.toastNoDuplicar'), error.message);
+      return;
+    }
+    abrirFormularioProducto({
+      titulo: t('admin.productos.duplicarTitulo'),
+      aceptar: t('admin.productos.duplicarAceptar'),
+      aviso: t(origen.publicada ? 'admin.productos.duplicarAvisoPublicada' : 'admin.productos.duplicarAvisoBorrador', { nombre: p.nombre }),
+      descripcion: origen.producto.descripcion || '',
+      sugerencias: { codigo: t('admin.productos.duplicarCodigoSugerido', { codigo: p.codigo }), nombre: t('admin.productos.duplicarNombreSugerido', { nombre: p.nombre }) },
+      enviar: async (payload) => ({ creado: await duplicarProducto(p.id, payload), toast: t('admin.productos.toastDuplicado') })
+    });
   }
 
   function fila(p) {
@@ -90,6 +116,7 @@ export async function renderAdminProductos(contenedor) {
       h('td', { text: fechaGt(p.actualizadoEn) }),
       h('td', null, h('div', { class: 'acciones-cell' },
         h('button', { type: 'button', class: 'btn-icon', title: t('admin.productos.editar'), 'aria-label': t('admin.productos.editar'), onclick: () => abrirEditor(p.id) }, icono('create-outline')),
+        h('button', { type: 'button', class: 'btn-icon', title: t('admin.productos.duplicar'), 'aria-label': t('admin.productos.duplicar'), onclick: () => abrirDuplicar(p) }, icono('copy-outline')),
         h('button', {
           type: 'button', class: 'btn-icon', disabled: !activo && !puedeActivar,
           title: activo ? t('admin.productos.desactivar') : puedeActivar ? t('admin.productos.activar') : t('admin.productos.activarSinVersion'),

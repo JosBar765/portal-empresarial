@@ -5,6 +5,7 @@ const base = '/api/prompts/admin';
 
 export const listarProductos = () => pedir(`${base}/productos`);
 export const crearProducto = (payload) => pedir(`${base}/productos`, enJson('POST', payload));
+export const duplicarProducto = (id, payload) => pedir(`${base}/productos/${id}/duplicar`, enJson('POST', payload));
 export const obtenerProducto = (id) => pedir(`${base}/productos/${id}`);
 export const crearBorrador = (id) => pedir(`${base}/productos/${id}/borrador`, { method: 'POST' });
 export const guardarBorrador = (id, payload) => pedir(`${base}/productos/${id}/borrador`, enJson('PUT', payload));

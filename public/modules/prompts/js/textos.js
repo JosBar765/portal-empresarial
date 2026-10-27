@@ -164,6 +164,15 @@ export const TEXTOS = {
   'admin.productos.nombre': 'Nombre',
   'admin.productos.descripcion': 'Descripción',
   'admin.productos.crear': 'Crear producto',
+  'admin.productos.duplicar': 'Duplicar producto',
+  'admin.productos.duplicarTitulo': 'Duplicar producto',
+  'admin.productos.duplicarAceptar': 'Duplicar producto',
+  'admin.productos.duplicarAvisoPublicada': 'Se copian los parámetros, recursos y reglas de la versión publicada de «{nombre}». Se crea como borrador: revísalo y publícalo cuando esté listo.',
+  'admin.productos.duplicarAvisoBorrador': '«{nombre}» aún no tiene versión publicada, así que se copian los parámetros, recursos y reglas de su borrador. Se crea como borrador: revísalo y publícalo cuando esté listo.',
+  'admin.productos.duplicarCodigoSugerido': '{codigo}_copia',
+  'admin.productos.duplicarNombreSugerido': 'Copia de {nombre}',
+  'admin.productos.toastDuplicado': 'Producto duplicado',
+  'admin.productos.toastNoDuplicar': 'No se pudo preparar el duplicado',
 
   // ---------- Administración: editor ----------
   'admin.editor.noPublicadoTitulo': 'No se pudo publicar',
