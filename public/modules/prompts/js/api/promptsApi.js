@@ -31,7 +31,6 @@ export const logout = () => fetch('/api/auth.php?action=logout');
 // Asesor
 export const obtenerConfig = () => pedir('/api/prompts/config');
 export const listarProductos = () => pedir('/api/prompts/productos');
-export const obtenerContacto = () => pedir('/api/prompts/contacto');
 export const generarPrompt = (payload) => pedir('/api/prompts/generar', enJson('POST', payload));
 
 // Imagen fija del producto (misma origen): ante un fallo se muestra el motivo explicado por el servidor.

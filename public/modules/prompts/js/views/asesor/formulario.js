@@ -1,15 +1,16 @@
-// Vista del asesor: formulario dinámico, resumen, pie de imagen y generación.
+// Vista del asesor: formulario dinámico y generación.
 // Nada se guarda: el estado vive en memoria y las imágenes no salen del navegador.
 import { h, icono } from '../../utils/dom.js';
 import { t } from '../../textos.js';
 import { cargarConfig } from '../../config.js';
-import { listarProductos, obtenerContacto, generarPrompt } from '../../api/promptsApi.js';
+import { listarProductos, generarPrompt } from '../../api/promptsApi.js';
 import { confirmarModal } from '../../components/modal.js';
 import {
   indexarEsquema, crearEstado, liberarArchivos, hayCambios, esVisible,
-  crearCampo, validarCampo, formatearValor
+  crearCampo, validarCampo
 } from './campos.js';
 import { renderResultado } from './resultado.js';
+import { crearMenuCascada } from '/js/menuCascada.js';
 
 let ctx = null;
 let liberarResultado = null;
@@ -30,9 +31,9 @@ function mostrarErrorCarga(cont, error) {
 
 export async function cargarAsesor(cont, recargarConfig = false) {
   if (recargarConfig) cont.replaceChildren(h('div', { class: 'buzon-vacio' }, h('ion-icon', { name: 'sync-outline', class: 'spin-animation' }), h('p', { text: t('comun.cargando') })));
-  let config, productos, contacto;
+  let config, productos;
   try {
-    [config, productos, contacto] = await Promise.all([cargarConfig(recargarConfig), listarProductos(), obtenerContacto()]);
+    [config, productos] = await Promise.all([cargarConfig(recargarConfig), listarProductos()]);
   } catch (error) {
     mostrarErrorCarga(cont, error);
     return;
@@ -42,7 +43,7 @@ export async function cargarAsesor(cont, recargarConfig = false) {
       h('p', { text: t('asesor.formulario.sinProductos') })));
     return;
   }
-  ctx = { cont, config, productos, contacto, producto: null, indice: null, estado: null, campos: {}, grupos: [], enviando: false };
+  ctx = { cont, config, productos, menuProducto: null, producto: null, indice: null, estado: null, campos: {}, grupos: [], enviando: false };
   seleccionarProducto(productos[0]);
   renderFormulario();
 }
@@ -55,6 +56,7 @@ function seleccionarProducto(producto) {
 
 async function cambiarProducto(producto) {
   if (producto.id === ctx.producto.id) return;
+  const menu = ctx.menuProducto;
   if (hayCambios(ctx.estado, ctx.indice)) {
     const ok = await confirmarModal({
       title: t('asesor.formulario.cambiarProducto.titulo'),
@@ -62,7 +64,7 @@ async function cambiarProducto(producto) {
       aceptar: t('asesor.formulario.cambiarProducto.aceptar'),
       cancelar: t('comun.cancelar')
     });
-    if (!ok) return;
+    if (!ok) { menu.actualizar(ctx.producto.id); return; } // el combobox ya mostraba el producto nuevo
   }
   liberarArchivos(ctx.estado);
   seleccionarProducto(producto);
@@ -70,8 +72,26 @@ async function cambiarProducto(producto) {
 }
 
 // ---------- Render ----------
+// Combobox compartido del portal (/js/menuCascada.js) con los productos como lista plana.
+function construirSelectorProducto() {
+  const menu = crearMenuCascada({
+    arbol: ctx.productos.map(pr => ({ tipo: 'hoja', valor: pr.id, etiqueta: pr.nombre })),
+    valorActual: ctx.producto.id,
+    etiquetaVacio: ctx.producto.nombre,
+    ariaLabel: t('asesor.formulario.productoAria'),
+    onSeleccionar: (id) => {
+      const elegido = ctx.productos.find(pr => String(pr.id) === String(id));
+      if (elegido) cambiarProducto(elegido);
+    }
+  });
+  ctx.menuProducto = menu;
+  return h('div', { class: 'pr-selector-producto' },
+    h('span', { class: 'pr-etiqueta-chip', text: t('asesor.formulario.producto') }),
+    menu.elemento);
+}
+
 function renderFormulario() {
-  const { cont, indice, estado, producto, contacto, config } = ctx;
+  const { cont, indice, estado, producto, config } = ctx;
   ctx.campos = {};
   ctx.grupos = [];
   const campoCtx = { indice, estado, config, alCambiar };
@@ -90,41 +110,22 @@ function renderFormulario() {
     return tarjeta;
   });
 
-  ctx.resumen = h('ul', { class: 'pr-resumen', id: 'pr-resumen' });
   ctx.btnGenerar = h('button', { type: 'button', class: 'btn btn--primary btn--lg', id: 'pr-generar', onclick: () => generar(false) },
     icono('sparkles-outline'), ` ${t('asesor.formulario.generar')}`);
-
-  const chips = ctx.productos.map(pr => h('button', {
-    type: 'button', class: `pr-chip${pr.id === producto.id ? ' is-activo' : ''}`, role: 'radio',
-    'aria-checked': String(pr.id === producto.id), text: pr.nombre, onclick: () => cambiarProducto(pr)
-  }));
 
   cont.replaceChildren(
     h('div', { class: 'panel-toolbar' },
       h('div', null,
         h('h2', { text: t('asesor.formulario.titulo') }),
         h('p', { class: 'pr-subtitulo', text: t('asesor.formulario.subtitulo') })),
-      h('div', { class: 'pr-selector-producto' },
-        h('span', { class: 'pr-etiqueta-chip', text: t('asesor.formulario.producto') }),
-        h('div', { class: 'pr-chips', role: 'radiogroup', 'aria-label': t('asesor.formulario.productoAria') }, chips))),
+      construirSelectorProducto()),
     h('div', { class: 'pr-layout' },
       h('div', { class: 'pr-columna-form' }, tarjetas),
       h('aside', { class: 'pr-lateral' },
-        h('section', { class: 'pr-card' }, h('h3', { class: 'pr-card-titulo', text: t('asesor.formulario.resumen') }), ctx.resumen),
-        h('section', { class: 'pr-card' }, h('h3', { class: 'pr-card-titulo', text: t('asesor.formulario.pie') }), construirPie(contacto)),
         h('div', { class: 'pr-generar' }, ctx.btnGenerar),
         h('p', { class: 'pr-nota', text: config.textosAsesor.nota_prompt_nuevo }))));
 
   refrescarTodo();
-}
-
-function construirPie(contacto) {
-  return h('div', { class: 'pr-pie' },
-    h('div', { class: 'pr-pie-datos' },
-      h('strong', { text: contacto.nombre }),
-      contacto.telefono ? h('span', { text: contacto.telefono }) : null,
-      h('span', { text: contacto.email })),
-    contacto.telefono ? null : h('p', { class: 'pr-pie-nota', text: t('asesor.formulario.pieSinTelefono') }));
 }
 
 function alCambiar(clave) {
@@ -142,20 +143,6 @@ function refrescarTodo() {
   for (const { g, tarjeta } of ctx.grupos) {
     tarjeta.style.display = (g.parametros || []).some(p => esVisible(p, estado.valores)) ? '' : 'none';
   }
-  pintarResumen();
-}
-
-function pintarResumen() {
-  const { indice, estado, config } = ctx;
-  const filas = indice.lista
-    .filter(p => esVisible(p, estado.valores))
-    .map(p => [p.etiqueta, formatearValor(p, indice, estado, config)])
-    .filter(([, valor]) => valor);
-  ctx.resumen.replaceChildren(...(filas.length
-    ? filas.map(([etiqueta, valor]) => h('li', { class: 'pr-resumen-fila' },
-      h('span', { class: 'pr-resumen-etiqueta', text: etiqueta }),
-      h('strong', { class: 'pr-resumen-valor', text: valor, title: valor })))
-    : [h('li', { class: 'form-hint', text: t('asesor.formulario.resumenVacio') })]));
 }
 
 // ---------- Validación y envío ----------
