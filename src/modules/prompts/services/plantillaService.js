@@ -4,20 +4,17 @@
 const { VARIABLES_AUTOMATICAS, PREFIJO_RECURSO, PREFIJO_GRUPO, SUFIJO_GRUPO_VACIO, variableGrupoVacio } = require('../constantes');
 const { msg, rellenar } = require('../mensajes');
 const { resolverVisibilidad, indexarPorClave, recursosDelEsquema, clavesDeGrupos, reglasDelEsquema } = require('./esquemaService');
+const { tipoDe } = require('./tipos');
+const { sinControl, aLinea } = require('./tipos/_utilidades');
 
 const ETIQUETA_RE = /\{\{([^{}]*)\}\}/g;
 const MARCA_BLOQUE = '\u0001'; // señala dónde hubo una etiqueta de bloque, para eliminar líneas que quedan vacías
-const MAX_PROFUNDIDAD_CALCULADO = 5;
 const VARIABLE_OTROS = 'otros_parametros'; // la sección de parámetros que genera el sistema
 const VARIABLE_LISTA = 'lista_imagenes';
-const TIPOS_CON_DATO = new Set(['texto', 'texto_largo', 'numero', 'opciones', 'imagenes']); // los que cuentan para grupo_<clave>_vacio
 const EJ_VARIABLE = '{{clave}}'; // ejemplos de sintaxis que muestran los mensajes
 const EJ_BLOQUE = '{{#si clave}}';
 
 const normalizar = texto => String(texto).replace(/\r\n?/g, '\n');
-const sinControl = texto => String(texto).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
-const aLinea = texto => sinControl(texto).replace(/\s+/g, ' ').trim(); // un dato de usuario no puede romper la estructura del prompt
-
 // ---------- Análisis ----------
 
 const textoApertura = (condicion, clave) => `{{#${condicion} ${clave}}}`;
@@ -117,22 +114,12 @@ function clavesReferenciadas(plantilla, esquema) {
   const porClave = indexarPorClave(resolverVisibilidad(esquema).parametros);
   [...usadas].forEach(clave => {
     const p = porClave.get(clave);
-    if (p && p.tipo === 'numero' && p.unidad_de) usadas.add(p.unidad_de);
-    if (p && p.tipo === 'calculado' && p.igual_a) usadas.add(p.igual_a);
+    if (p) tipoDe(p).referencias(p).forEach(destino => usadas.add(destino));
   });
   return usadas;
 }
 
 // ---------- Formato de valores ----------
-
-const aTexto = n => String(Math.round(n * 100) / 100);
-
-function itemDeImagen(crudo) {
-  const item = typeof crudo === 'string' ? { nombre: crudo } : crudo;
-  if (!item || typeof item.nombre !== 'string' || !item.nombre.trim()) return null;
-  const texto = valor => (typeof valor === 'string' ? aLinea(valor) : '');
-  return { nombre: aLinea(item.nombre), descripcion: texto(item.descripcion), ubicacion: texto(item.ubicacion) };
-}
 
 function crearContexto({ esquema, valores, imagenes, contacto, referenciadas, ajustes, urlRecurso }) {
   const { visibles, crudos, parametros } = resolverVisibilidad(esquema, valores, imagenes);
@@ -164,9 +151,9 @@ function crearContexto({ esquema, valores, imagenes, contacto, referenciadas, aj
   agregarRecursos('inicio');
   const itemsPorParametro = new Map();
   grupos.forEach(g => (Array.isArray(g.parametros) ? g.parametros : []).forEach(p => {
-    if (!p || p.tipo !== 'imagenes' || !visibles.get(p.clave)) return;
-    const crudo = crudos.get(p.clave);
-    const propios = (Array.isArray(crudo) ? crudo : []).map(itemDeImagen).filter(Boolean).map(i => {
+    const tipo = tipoDe(p);
+    if (!p || tipo.destino !== 'imagenes' || !visibles.get(p.clave)) return;
+    const propios = tipo.adjuntos(p, crudos.get(p.clave)).map(i => {
       const item = { numero: items.length + 1, origen: 'asesor', parametro: p.clave, grupo: g.etiqueta, ...i };
       items.push(item);
       return item;
@@ -188,6 +175,19 @@ function crearContexto({ esquema, valores, imagenes, contacto, referenciadas, aj
     ubicacion: i.ubicacion ? t('lista_ubicacion', { ubicacion: i.ubicacion }) : ''
   });
 
+  // Lo que las definiciones de tipo pueden usar al formatear.
+  const contextoTipos = {
+    T,
+    t,
+    unir,
+    referenciaDeImagen,
+    parametro: clave => porClave.get(clave),
+    crudoDe: clave => crudos.get(clave),
+    adjuntosDe: clave => itemsPorParametro.get(clave) || [],
+    formatear: (clave, profundidad) => formatear(clave, profundidad),
+    tieneValor: (clave, profundidad) => tieneValor(clave, profundidad)
+  };
+
   // Sin imágenes ni recursos activos, la lista y el total quedan vacíos para que la plantilla los oculte.
   const automaticas = {
     asesor_nombre: () => datos.nombre,
@@ -200,7 +200,7 @@ function crearContexto({ esquema, valores, imagenes, contacto, referenciadas, aj
 
   // grupo_<clave>_vacio: verdadera si ningún parámetro visible con dato del grupo tiene valor (se resuelve al usarla).
   const gruposVacios = new Map(grupos.filter(g => g && typeof g.clave === 'string').map(g => [variableGrupoVacio(g.clave),
-    () => !(Array.isArray(g.parametros) ? g.parametros : []).some(p => p && TIPOS_CON_DATO.has(p.tipo) && tieneValor(p.clave))]));
+    () => !(Array.isArray(g.parametros) ? g.parametros : []).some(p => p && tipoDe(p).cuentaParaGrupoVacio && tieneValor(p.clave))]));
 
   // Valor formateado de un parámetro ('' si está oculto o sin valor).
   function formatear(clave, profundidad = 0) {
@@ -212,45 +212,14 @@ function crearContexto({ esquema, valores, imagenes, contacto, referenciadas, aj
     if (recursoPorVariable.has(clave)) return t('imagen_ref', { numero: recursoPorVariable.get(clave).numero });
     const p = porClave.get(clave);
     if (!p || !visibles.get(clave)) return '';
-    const crudo = crudos.get(clave);
-    switch (p.tipo) {
-      case 'texto':
-        return typeof crudo === 'string' ? sinControl(crudo).trim() : '';
-      case 'texto_largo': {
-        if (typeof crudo !== 'string') return '';
-        const texto = sinControl(crudo).trim();
-        if (!p.separador) return texto;
-        return texto.split(p.separador).map(f => f.trim()).filter(Boolean).map(f => t('frase_comillas', { frase: f })).join(T.frases_union);
-      }
-      case 'numero': {
-        if (typeof crudo !== 'number' || !Number.isFinite(crudo)) return '';
-        const unidad = p.unidad_de ? porClave.get(p.unidad_de) : null;
-        const opcion = unidad && (unidad.opciones || []).find(o => o.valor === crudos.get(unidad.clave));
-        return opcion ? t('numero_unidad', { valor: aTexto(crudo), unidad: sinControl(opcion.texto_prompt) }) : aTexto(crudo);
-      }
-      case 'opciones': {
-        const opcion = (p.opciones || []).find(o => o.valor === crudo);
-        return opcion ? sinControl(opcion.texto_prompt) : '';
-      }
-      case 'si_no':
-        return crudo === true ? T.si : T.no;
-      case 'imagenes':
-        return unir((itemsPorParametro.get(clave) || []).map(referenciaDeImagen));
-      case 'calculado':
-        return profundidad < MAX_PROFUNDIDAD_CALCULADO ? formatear(p.igual_a, profundidad + 1) : '';
-      default:
-        return '';
-    }
+    return tipoDe(p).formatear(p, crudos.get(clave), contextoTipos, profundidad);
   }
 
-  // «Tiene valor»: si_no solo cuando es verdadero; un recurso, solo cuando está activo.
+  // «Tiene valor»: lo decide el tipo del parámetro (si_no solo cuando es verdadero); lo demás, que su texto no sea vacío.
   function tieneValor(clave, profundidad = 0) {
     if (gruposVacios.has(clave)) return gruposVacios.get(clave)();
     const p = porClave.get(clave);
-    if (p && visibles.get(clave)) {
-      if (p.tipo === 'si_no') return crudos.get(clave) === true;
-      if (p.tipo === 'calculado') return profundidad < MAX_PROFUNDIDAD_CALCULADO && tieneValor(p.igual_a, profundidad + 1);
-    }
+    if (p && visibles.get(clave)) return tipoDe(p).tieneValor(p, crudos.get(clave), contextoTipos, profundidad);
     return formatear(clave, profundidad) !== '';
   }
 
@@ -258,7 +227,7 @@ function crearContexto({ esquema, valores, imagenes, contacto, referenciadas, aj
   function otrosParametros() {
     const secciones = grupos.map(g => {
       const lineas = (Array.isArray(g.parametros) ? g.parametros : [])
-        .filter(p => p && p.tipo !== 'calculado' && !referenciadas.has(p.clave) && tieneValor(p.clave))
+        .filter(p => p && tipoDe(p).enOtrosParametros && !referenciadas.has(p.clave) && tieneValor(p.clave))
         .map(p => t('extras_linea', { etiqueta: aLinea(p.etiqueta), valor: formatear(p.clave) }));
       return lineas.length ? `${t('extras_grupo', { grupo: aLinea(g.etiqueta) })}\n${lineas.join('\n')}` : '';
     }).filter(Boolean);
@@ -295,7 +264,7 @@ function limpiarLineas(texto) {
 function clavesNombradas(esquema, reglas) {
   const nombradas = new Set();
   reglas.forEach(r => clavesReferenciadas(r.texto, esquema).forEach(c => nombradas.add(c)));
-  resolverVisibilidad(esquema).parametros.forEach(p => { if (p && p.tipo === 'numero' && p.unidad_de) nombradas.add(p.unidad_de); });
+  resolverVisibilidad(esquema).parametros.forEach(p => { if (p) tipoDe(p).acompanantes(p).forEach(c => nombradas.add(c)); });
   return nombradas;
 }
 

@@ -3,16 +3,13 @@
 const { VARIABLES_AUTOMATICAS, PREFIJO_RECURSO, variableGrupoVacio } = require('../constantes');
 const { msg } = require('../mensajes');
 const { urlDeRecursoValida } = require('./recursos');
+const { obtenerTipo, clavesDeTipos, tipoDe } = require('./tipos');
+const { tiene, esObjeto, esTextoNoVacio, nombreDe, etiquetaDe, verValor } = require('./tipos/_utilidades');
 
-const TIPOS = ['texto', 'texto_largo', 'numero', 'opciones', 'si_no', 'imagenes', 'calculado'];
+const TIPOS = clavesDeTipos();
 const CLAVE_RE = /^[a-z][a-z0-9_]{1,59}$/;
 const POSICIONES_RECURSO = ['inicio', 'fin'];
 const POSICIONES_REGLA = ['inicio', 'fin']; // antes o después de lo que generan los parámetros
-
-const tiene = (objeto, clave) => Object.prototype.hasOwnProperty.call(objeto, clave);
-const esObjeto = valor => valor !== null && typeof valor === 'object' && !Array.isArray(valor);
-const esTextoNoVacio = valor => typeof valor === 'string' && valor.trim() !== '';
-const esNumero = valor => typeof valor === 'number' && Number.isFinite(valor);
 
 function parametrosPlanos(esquema) {
   const grupos = esquema && Array.isArray(esquema.grupos) ? esquema.grupos : [];
@@ -41,27 +38,7 @@ function reglasDelEsquema(esquema) {
   return lista.filter(r => esObjeto(r) && typeof r.clave === 'string');
 }
 
-// «Etiqueta» (clave): así el mensaje nombra el parámetro como lo ve el administrador.
-const nombreDe = p => (esTextoNoVacio(p.etiqueta) ? `«${p.etiqueta.trim()}» (${p.clave})` : `«${p.clave}»`);
-// El asesor ve solo la etiqueta; la clave no le dice nada.
-const etiquetaDe = p => (esTextoNoVacio(p.etiqueta) ? p.etiqueta.trim() : p.clave);
-const verValor = valor => (valor === undefined ? 'ninguno' : JSON.stringify(valor)); // el dato recibido, tal cual, para que se vea el error
-
 // ---------- Validación del esquema ----------
-
-// Lista opcional de textos cortos y únicos (ubicaciones, sugerencias).
-function validarListaTextos(p, campo, maxLargo, err, maxItems) {
-  const lista = p[campo];
-  if (lista === undefined) return;
-  const parametro = nombreDe(p);
-  if (!Array.isArray(lista) || lista.length > maxItems) return err(msg('param.lista', { parametro, campo, max: maxItems }));
-  const vistos = new Set();
-  for (const texto of lista) {
-    if (!esTextoNoVacio(texto) || texto.trim().length > maxLargo) return err(msg('param.listaElemento', { parametro, campo, max: maxLargo }));
-    if (vistos.has(texto.trim())) return err(msg('param.listaRepetido', { parametro, campo, texto: texto.trim() }));
-    vistos.add(texto.trim());
-  }
-}
 
 function validarParametro(p, claves, errores, ajustes) {
   const L = ajustes.limites;
@@ -78,66 +55,9 @@ function validarParametro(p, claves, errores, ajustes) {
     else if (v.parametro === p.clave) err(msg('param.visibleSiMismo', { parametro }));
   }
 
-  switch (p.tipo) {
-    case 'texto':
-    case 'texto_largo':
-      if (p.max_largo !== undefined && !(Number.isInteger(p.max_largo) && p.max_largo >= 1 && p.max_largo <= L.max_largo_tope)) {
-        err(msg('param.maxLargo', { parametro, tope: L.max_largo_tope, valor: JSON.stringify(p.max_largo) }));
-      }
-      if (p.separador !== undefined && !(typeof p.separador === 'string' && p.separador.length >= 1 && p.separador.length <= L.separador_max)) {
-        err(msg('param.separador', { parametro, max: L.separador_max }));
-      }
-      break;
-    case 'numero': {
-      if (p.min !== undefined && !esNumero(p.min)) err(msg('param.minTipo', { parametro }));
-      if (p.max !== undefined && !esNumero(p.max)) err(msg('param.maxTipo', { parametro }));
-      if (esNumero(p.min) && esNumero(p.max) && p.min > p.max) err(msg('param.minMayorQueMax', { parametro, min: p.min, max: p.max }));
-      if (p.defecto !== undefined) {
-        if (!esNumero(p.defecto)) err(msg('param.defectoNumero', { parametro }));
-        else if ((esNumero(p.min) && p.defecto < p.min) || (esNumero(p.max) && p.defecto > p.max)) err(msg('param.defectoFueraDeRango', { parametro, defecto: p.defecto }));
-      }
-      if (p.unidad_de !== undefined) {
-        const unidad = claves.get(p.unidad_de);
-        if (!unidad) err(msg('param.unidadNoExiste', { parametro, destino: String(p.unidad_de) }));
-        else if (p.unidad_de === p.clave) err(msg('param.unidadMismo', { parametro }));
-        else if (unidad.tipo !== 'opciones') err(msg('param.unidadTipo', { parametro, destino: p.unidad_de, tipo: String(unidad.tipo) }));
-      }
-      break;
-    }
-    case 'opciones': {
-      const opciones = Array.isArray(p.opciones) ? p.opciones : [];
-      if (!opciones.length) { err(msg('param.opcionesVacio', { parametro })); break; }
-      const vistos = new Set();
-      opciones.forEach(o => {
-        if (!esObjeto(o) || !esTextoNoVacio(o.valor)) return err(msg('param.opcionValor', { parametro }));
-        if (vistos.has(o.valor)) err(msg('param.opcionRepetida', { parametro, valor: o.valor }));
-        vistos.add(o.valor);
-        if (!esTextoNoVacio(o.etiqueta)) err(msg('param.opcionEtiqueta', { parametro, valor: o.valor }));
-        if (!esTextoNoVacio(o.texto_prompt)) err(msg('param.opcionTexto', { parametro, valor: o.valor }));
-      });
-      if (p.defecto !== undefined && !vistos.has(p.defecto)) err(msg('param.defectoOpcion', { parametro }));
-      break;
-    }
-    case 'si_no':
-      if (p.defecto !== undefined && typeof p.defecto !== 'boolean') err(msg('param.defectoBooleano', { parametro }));
-      break;
-    case 'imagenes':
-      if (p.max !== undefined && !(Number.isInteger(p.max) && p.max >= 1 && p.max <= L.imagenes_max_tope)) err(msg('param.imagenesMax', { parametro, tope: L.imagenes_max_tope }));
-      if (p.max_mb !== undefined && !(esNumero(p.max_mb) && p.max_mb >= 1 && p.max_mb <= L.imagenes_mb_tope)) err(msg('param.imagenesMb', { parametro, tope: L.imagenes_mb_tope }));
-      if (p.formatos !== undefined && !(Array.isArray(p.formatos) && p.formatos.length && p.formatos.every(f => tiene(ajustes.formatos_imagen, f)))) {
-        err(msg('param.formatos', { parametro, validos: Object.keys(ajustes.formatos_imagen).join(', ') }));
-      }
-      if (p.descripcion_requerida !== undefined && typeof p.descripcion_requerida !== 'boolean') err(msg('param.descripcionRequerida', { parametro }));
-      validarListaTextos(p, 'ubicaciones', L.ubicacion_max, err, L.lista_max_items);
-      validarListaTextos(p, 'sugerencias', L.sugerencia_max, err, L.lista_max_items);
-      break;
-    case 'calculado':
-      if (!claves.has(p.igual_a)) err(msg('param.igualANoExiste', { parametro, destino: String(p.igual_a) }));
-      else if (p.igual_a === p.clave) err(msg('param.igualAMismo', { parametro }));
-      break;
-    default:
-      err(msg('param.tipoInvalido', { parametro, tipo: String(p.tipo), tipos: TIPOS.join(', ') }));
-  }
+  const tipo = obtenerTipo(p.tipo);
+  if (!tipo) err(msg('param.tipoInvalido', { parametro, tipo: String(p.tipo), tipos: TIPOS.join(', ') }));
+  else tipo.validarEsquema(p, { parametro, claves, ajustes, err, tipoDe });
 }
 
 // Un ciclo de «visible_si» dejaría el parámetro oculto para siempre.
@@ -279,10 +199,11 @@ function validarEsquema(esquema, ajustes) {
 // ---------- Valores efectivos y visibilidad ----------
 
 function valorCrudo(p, valores, imagenes) {
-  if (p.tipo === 'imagenes') return tiene(imagenes, p.clave) ? imagenes[p.clave] : [];
+  const tipo = tipoDe(p);
+  if (tipo.destino === 'imagenes') return tiene(imagenes, p.clave) ? imagenes[p.clave] : tipo.valorAusente(p);
   if (tiene(valores, p.clave)) return valores[p.clave];
   if (p.defecto !== undefined) return p.defecto;
-  return p.tipo === 'si_no' ? false : undefined;
+  return tipo.valorAusente(p);
 }
 
 /**
@@ -315,88 +236,10 @@ function resolverVisibilidad(esquema, valores = {}, imagenes = {}) {
 // Parámetros `imagenes` visibles, en el orden del esquema.
 function listarImagenesVisibles(esquema, valores = {}, imagenes = {}) {
   const { visibles, parametros } = resolverVisibilidad(esquema, valores, imagenes);
-  return parametros.filter(p => p.tipo === 'imagenes' && visibles.get(p.clave));
+  return parametros.filter(p => tipoDe(p).destino === 'imagenes' && visibles.get(p.clave));
 }
 
 // ---------- Validación de lo que envía el asesor ----------
-
-// Cada imagen es { nombre, descripcion?, ubicacion? }; un texto suelto se toma como el nombre.
-function validarImagenes(p, lista, errores, ajustes) {
-  const L = ajustes.limites;
-  const etiqueta = etiquetaDe(p);
-  if (!Array.isArray(lista)) { errores[p.clave] = msg('valor.imagenesLista', { etiqueta }); return []; }
-  const max = p.max || L.imagenes_max_defecto;
-  const formatos = p.formatos || Object.keys(ajustes.formatos_imagen);
-  const extensiones = formatos.flatMap(f => (ajustes.formatos_imagen[f] ? ajustes.formatos_imagen[f].extensiones : []));
-  const ubicaciones = Array.isArray(p.ubicaciones) ? p.ubicaciones : [];
-  if (lista.length > max) { errores[p.clave] = msg('valor.imagenesMax', { etiqueta, max, total: lista.length, sobran: lista.length - max }); return []; }
-  const falla = mensaje => { errores[p.clave] = mensaje; return []; };
-  const limpias = [];
-  for (const crudo of lista) {
-    const item = typeof crudo === 'string' ? { nombre: crudo } : crudo;
-    if (!esObjeto(item)) return falla(msg('valor.imagenForma', { etiqueta }));
-    const nombre = typeof item.nombre === 'string' ? item.nombre.trim() : '';
-    if (!nombre || nombre.length > L.imagen_nombre_max) return falla(msg('valor.imagenNombre', { etiqueta, max: L.imagen_nombre_max }));
-    const extension = nombre.includes('.') ? nombre.split('.').pop().toLowerCase() : '';
-    if (!extensiones.includes(extension)) return falla(msg('valor.imagenFormato', { nombre, etiqueta, permitidas: extensiones.join(', ') }));
-
-    const limpia = { nombre };
-    if (item.descripcion !== undefined && item.descripcion !== null) {
-      const descripcion = typeof item.descripcion === 'string' ? item.descripcion.trim() : null;
-      if (descripcion === null) return falla(msg('valor.imagenDescripcionTipo', { nombre }));
-      if (descripcion.length > L.imagen_descripcion_max) return falla(msg('valor.imagenDescripcion', { nombre, max: L.imagen_descripcion_max, largo: descripcion.length }));
-      if (descripcion) limpia.descripcion = descripcion;
-    }
-    // La descripción es el segundo ancla para que el generador identifique cada imagen.
-    if (p.descripcion_requerida && !limpia.descripcion) return falla(msg('valor.imagenDescripcionFalta', { nombre, etiqueta }));
-    if (item.ubicacion !== undefined && item.ubicacion !== null && ubicaciones.length) {
-      const ubicacion = typeof item.ubicacion === 'string' ? item.ubicacion.trim() : null;
-      if (ubicacion === null || (ubicacion && !ubicaciones.includes(ubicacion))) {
-        return falla(msg('valor.imagenUbicacion', { nombre, etiqueta, valor: verValor(item.ubicacion), permitidas: ubicaciones.join(', ') }));
-      }
-      if (ubicacion) limpia.ubicacion = ubicacion;
-    }
-    limpias.push(limpia);
-  }
-  return limpias;
-}
-
-function validarValorSimple(p, crudo, errores, ajustes) {
-  const etiqueta = etiquetaDe(p);
-  const falta = () => { if (p.requerido) errores[p.clave] = msg('valor.obligatorio', { etiqueta }); };
-  switch (p.tipo) {
-    case 'texto':
-    case 'texto_largo': {
-      if (crudo === undefined || crudo === null) return falta();
-      if (typeof crudo !== 'string') { errores[p.clave] = msg('valor.texto', { etiqueta }); return undefined; }
-      const texto = crudo.trim();
-      if (!texto) return falta();
-      const max = p.max_largo || (p.tipo === 'texto' ? ajustes.limites.texto_max_largo_defecto : ajustes.limites.texto_largo_max_largo_defecto);
-      if (texto.length > max) { errores[p.clave] = msg('valor.textoLargo', { etiqueta, max, largo: texto.length }); return undefined; }
-      return texto;
-    }
-    case 'numero':
-      if (crudo === undefined || crudo === null) return falta();
-      if (!esNumero(crudo)) { errores[p.clave] = msg('valor.numero', { etiqueta }); return undefined; }
-      if ((esNumero(p.min) && crudo < p.min) || (esNumero(p.max) && crudo > p.max)) {
-        const clave = esNumero(p.min) && esNumero(p.max) ? 'valor.rangoEntre' : (esNumero(p.min) ? 'valor.rangoMinimo' : 'valor.rangoMaximo');
-        errores[p.clave] = msg(clave, { etiqueta, min: p.min, max: p.max, valor: crudo });
-        return undefined;
-      }
-      return crudo;
-    case 'opciones': {
-      if (crudo === undefined || crudo === null || crudo === '') return falta();
-      const permitidas = (p.opciones || []).map(o => o.valor);
-      if (!permitidas.includes(crudo)) { errores[p.clave] = msg('valor.opcion', { etiqueta, valor: verValor(crudo), permitidas: permitidas.join(', ') }); return undefined; }
-      return crudo;
-    }
-    case 'si_no':
-      if (typeof crudo !== 'boolean') { errores[p.clave] = msg('valor.siNo', { etiqueta }); return undefined; }
-      return crudo;
-    default:
-      return undefined;
-  }
-}
 
 /**
  * Valida lo que envía el asesor contra el esquema publicado.
@@ -416,27 +259,22 @@ function validarValores(esquema, valores, imagenes, ajustes) {
   Object.keys(vals).forEach(k => {
     const p = porClave.get(k);
     if (!p) errores[k] = msg('valor.desconocido', { clave: k });
-    else if (p.tipo === 'imagenes') errores[k] = msg('valor.imagenesEnValores', { etiqueta: etiquetaDe(p) });
+    else if (tipoDe(p).destino === 'imagenes') errores[k] = msg('valor.imagenesEnValores', { etiqueta: etiquetaDe(p) });
   });
   Object.keys(imgs).forEach(k => {
     const p = porClave.get(k);
-    if (!p || p.tipo !== 'imagenes') errores[k] = msg('valor.imagenesDesconocido', { clave: k });
+    if (!p || tipoDe(p).destino !== 'imagenes') errores[k] = msg('valor.imagenesDesconocido', { clave: k });
   });
 
   const limpios = {};
   const limpiasImagenes = {};
   parametros.forEach(p => {
-    if (!visibles.get(p.clave) || p.tipo === 'calculado') return;
+    const tipo = tipoDe(p);
+    if (!visibles.get(p.clave) || tipo.destino === 'ninguno') return;
     if (errores[p.clave]) return;
-    const crudo = crudos.get(p.clave);
-    if (p.tipo === 'imagenes') {
-      const lista = validarImagenes(p, crudo, errores, ajustes);
-      if (lista.length) limpiasImagenes[p.clave] = lista;
-      else if (p.requerido && !errores[p.clave]) errores[p.clave] = msg('valor.imagenesObligatorio', { etiqueta: etiquetaDe(p) });
-      return;
-    }
-    const valor = validarValorSimple(p, crudo, errores, ajustes);
-    if (valor !== undefined) limpios[p.clave] = valor;
+    const { valor, error } = tipo.validarValor(p, crudos.get(p.clave), { ajustes });
+    if (error) errores[p.clave] = error;
+    else if (valor !== undefined) (tipo.destino === 'imagenes' ? limpiasImagenes : limpios)[p.clave] = valor;
   });
   return { errores, valores: limpios, imagenes: limpiasImagenes };
 }

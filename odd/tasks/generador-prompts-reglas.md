@@ -18,7 +18,7 @@ Eliminar la plantilla editable. El prompt se arma solo con: encabezado del siste
 - [x] T22 Migración `prompts_reglas` (ajustes nuevos + plantillas existentes partidas en reglas) y prueba de equivalencia. (18/18 prompts idénticos, local v18 y producción v5. Aplicada en la BD local `munditrofeos` (development/localhost): la medalla pasó a v19 publicada con 11 reglas, v18 archivada. Sin probar en MariaDB: confirmar versión 10.3.15+ del hosting antes del deploy.)
 - [x] T23 Documentación (`esquema_y_contrato.md`, README del módulo). (Contrato actualizado por T20 y T22; README sin la plantilla editable, con reglas, migración `prompts_reglas` y requisito de MariaDB.)
 - [ ] T24 Duplicar producto: acción en la fila de Productos y/o opción en «Nuevo producto»; copia el esquema (grupos, parámetros, recursos, reglas) como borrador v1 de un producto con código y nombre nuevos. (Implementada, pendiente de verificar en navegador: `POST /admin/productos/:id/duplicar` y botón «Duplicar» en la fila.)
-- [ ] T25 Registro de tipos de parámetro: cada tipo declara en un solo lugar su validación del esquema, validación del valor, formato y cuándo está vacío; sin cadenas de `if`/`switch` repartidas. Solo estructura interna: no se agregan tipos nuevos.
+- [x] T25 Registro de tipos de parámetro: cada tipo declara en un solo lugar su validación del esquema, validación del valor, formato y cuándo está vacío; sin cadenas de `if`/`switch` repartidas. Solo estructura interna: no se agregan tipos nuevos. (Implementada en `services/tipos/`, pendiente de verificar y de commit: el frontend del asesor y del admin aún ramifica por tipo.)
 
 ## Rutas de trabajo
 - Cada tarea cierra con un commit convencional en español en `module/generador-prompts` y push.

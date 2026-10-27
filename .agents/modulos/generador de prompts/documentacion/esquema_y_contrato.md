@@ -24,6 +24,24 @@ Los números entre paréntesis son el valor inicial del ajuste `limites` indicad
 | `imagenes` | `max` (def. `imagenes_max_defecto`, 3), `max_mb` (def. `imagenes_mb_defecto`, 5), `formatos` (claves de `formatos_imagen`; sin ellas, todos), `ubicaciones` (opcional: hasta `lista_max_items` textos de 1 a `ubicacion_max` caracteres, únicos), `sugerencias` (opcional: hasta `lista_max_items` textos de 1 a `sugerencia_max` caracteres, únicos), `descripcion_requerida` (opcional, booleano; por defecto falso) | no va en `valores`; va en `imagenes` como `[{ nombre, descripcion, ubicacion }]` |
 | `calculado` | `igual_a` (clave de otro parámetro) | no se envía |
 
+### Cómo agregar un tipo de parámetro
+
+El comportamiento de cada tipo vive en un solo archivo de `src/modules/prompts/services/tipos/`; `esquemaService`, `plantillaService` y `promptsService` no ramifican por nombre de tipo, consultan el registro (`tipos/index.js`: `obtenerTipo(clave)`, `tipoDe(parametro)`, `clavesDeTipos()`).
+
+1. Crear `tipos/<tipo>.js` con `module.exports = definirTipo({ clave: '<tipo>', ... })` (contrato completo y valores por defecto en `tipos/_base.js`).
+2. Sumar UNA línea `require('./<tipo>')` a `DEFINICIONES` en `tipos/index.js`. El orden de la lista es el de los mensajes («Elige uno de estos: ...»).
+
+La definición declara solo lo propio del tipo:
+
+- `validarEsquema(p, ctx)`: errores de sus campos propios y límites (los límites salen de `ajustes.limites`; los textos, de `mensajes.js`).
+- `validarValor(p, crudo, ctx)`: devuelve `{ valor }` limpio, `{ error }` o `{}` si falta un dato opcional (`faltante(p)` aplica `requerido`).
+- `formatear(p, crudo, ctx, profundidad)`: texto del valor en el prompt, con las frases de `textos_prompt` (`ctx.t`, `ctx.T`); `''` si no hay valor.
+- `tieneValor(...)`: opcional; por defecto, que `formatear` no devuelva `''`. Lo usan `{{#si}}`, `{{#no}}`, `grupo_<g>_vacio` y `otros_parametros`.
+- `destino`: `'valores'` (por defecto), `'imagenes'` (viaja en `imagenes` y aporta imágenes numeradas con `adjuntos`) o `'ninguno'` (no se envía, como `calculado`).
+- Peculiaridades como propiedades: `cuentaParaGrupoVacio` (si cuenta para `grupo_<g>_vacio`; `si_no` y `calculado` no), `enOtrosParametros`, `ofreceUnidades` (puede ser el destino de `unidad_de`), `valorAusente(p)` (valor sin envío ni defecto; `si_no` vale `false`), `referencias(p)` y `acompanantes(p)` (claves que un parámetro arrastra consigo).
+
+Un tipo fuera del registro sigue dando el error `param.tipoInvalido` al validar el esquema. El frontend (`public/modules/prompts/js`: formulario del asesor y editor del esquema) todavía ramifica por tipo; un tipo nuevo se agrega ahí por separado.
+
 Reglas de validación del esquema (al guardar el borrador y al publicar):
 
 - `clave` única por producto y con formato `^[a-z][a-z0-9_]{1,59}$`; `etiqueta` obligatoria.
