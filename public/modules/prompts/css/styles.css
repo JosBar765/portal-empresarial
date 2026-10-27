@@ -905,7 +905,7 @@
 
   .pr-resultado-layout {
     flex: 1;
-    grid-template-rows: minmax(20rem, 1fr);
+    grid-template-rows: minmax(22rem, 1fr);
     align-items: stretch;
     min-height: 0;
   }
@@ -921,9 +921,13 @@
     min-height: 0;
   }
 
-  /* Si la pantalla es muy baja, scrollea la página en vez de aplastar el prompt */
+  /* Si la pantalla es muy baja, scrollea la página en vez de aplastar el prompt o la lista de imágenes */
   .pr-resultado-layout .pr-prompt-texto {
     min-height: 12rem;
+  }
+
+  .pr-resultado-layout .pr-adjuntos {
+    min-height: 10rem;
   }
 
   .pr-resultado-layout--solo {
