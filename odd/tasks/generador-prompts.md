@@ -76,6 +76,7 @@ Decisiones del usuario (solo estos cambios):
 - El selector de producto pasa de chips a un combobox con el mismo diseño del portal.
 - En «Prompt generado» el scroll no es de toda la pantalla: la ventana mantiene su alto y el scroll es interno en el apartado del prompt y en el de imágenes para pegar; menos padding en el aviso «Abre un chat nuevo…».
 - [x] T18 UI/UX del módulo según la lista anterior. (commit «pestaña Genera tu prompt, combobox…»; reutiliza public/js/menuCascada.js; layout y combobox sin verificar en navegador)
+- [x] T19 Compactar «Prompt generado» para 1366x768: botón y contador de copiar en el encabezado del prompt, botón guiado dentro de la tarjeta de imágenes, menos padding, sin tarjeta de imágenes si no hay imágenes, piso de alto 34rem (commit «compactar la pantalla del prompt generado…»; alturas sin verificar en navegador).
 
 ## Checks
 Sin suite de tests (excepción a RED/GREEN): `node --check` en todo JS tocado y comprobaciones con `node -e` de las funciones puras (validación de esquema, render de plantilla). El servidor lo levanta el usuario; las migraciones no se ejecutan contra bases reales desde aquí.
