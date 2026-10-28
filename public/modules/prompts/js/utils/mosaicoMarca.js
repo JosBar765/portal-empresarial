@@ -3,8 +3,7 @@
 // Constantes técnicas de dibujo (no son reglas de negocio).
 export const DISENO = Object.freeze({
   letra: 0.62, // alto de la letra relativo al alto de la baldosa
-  hueco: 0.28, // espacio entre el logo y el texto, en altos de baldosa
-  contorno: 0.08 // grosor del contorno relativo al alto de la letra
+  hueco: 0.28 // espacio entre el logo y el texto, en altos de baldosa
 });
 export const MAX_BALDOSAS = 2500; // tope de baldosas: en imágenes muy alargadas se agrandan para no colgar el navegador
 
@@ -16,11 +15,10 @@ export function medidasBaldosa({ proporcionLogo, anchoTextoPorLetra }) {
   const logo = Math.max(proporcionLogo, 0);
   const texto = anchoTextoPorLetra * DISENO.letra;
   const hueco = logo > 0 ? DISENO.hueco : 0;
-  const borde = DISENO.letra * DISENO.contorno; // el contorno sobresale medio grosor a cada lado del texto
   return {
-    anchoPorAlto: logo + hueco + texto + borde,
+    anchoPorAlto: logo + hueco + texto,
     logo: { x: 0, ancho: logo },
-    texto: { x: logo + hueco + borde / 2, ancho: texto, letra: DISENO.letra }
+    texto: { x: logo + hueco, ancho: texto, letra: DISENO.letra }
   };
 }
 
@@ -60,12 +58,4 @@ export function calcularMosaico({ ancho, alto, angulo, escala, separacion, ancho
     }
   }
   return { rad, baldosa: { ancho: baldosaAncho, alto: m.bAlto }, paso: m.paso, centros };
-}
-
-// Contorno derivado del color del texto: oscuro sobre un color claro y claro sobre uno oscuro.
-export function colorDeContorno(hex) {
-  const n = parseInt(String(hex).slice(1), 16);
-  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  const luminancia = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminancia > 0.5 ? '#000000' : '#FFFFFF';
 }

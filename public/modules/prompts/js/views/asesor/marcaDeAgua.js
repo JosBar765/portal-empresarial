@@ -3,7 +3,7 @@
 import { h, icono, montar } from '../../utils/dom.js';
 import { t } from '../../textos.js';
 import { abrirModal } from '../../components/modal.js';
-import { DISENO, medidasBaldosa, calcularMosaico, colorDeContorno } from '../../utils/mosaicoMarca.js';
+import { medidasBaldosa, calcularMosaico } from '../../utils/mosaicoMarca.js';
 import { cargarImagen, tamanoNatural, copiarImagen, descargarBlob } from './portapapeles.js';
 import { validarImagenMarca, reglasImagenes, mimeAExtension, listaConO } from './archivos.js';
 
@@ -24,7 +24,7 @@ function cargarLogo(url) {
 const familiaTitulo = () => getComputedStyle(document.documentElement).getPropertyValue('--font-title').trim() || 'sans-serif';
 const fuente = (px, familia) => `700 ${px}px ${familia}`;
 
-// Una baldosa opaca (logo + texto con contorno); la opacidad se aplica al estamparla.
+// Una baldosa opaca (logo + texto relleno); la opacidad se aplica al estamparla.
 function dibujarBaldosa(marca, logo, familia, baldosa, medidas) {
   const { ancho, alto } = baldosa;
   const lienzo = document.createElement('canvas');
@@ -35,11 +35,7 @@ function dibujarBaldosa(marca, logo, familia, baldosa, medidas) {
   const letra = medidas.texto.letra * alto;
   ctx.font = fuente(letra, familia);
   ctx.textBaseline = 'middle';
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = letra * DISENO.contorno;
-  ctx.strokeStyle = colorDeContorno(marca.color);
   ctx.fillStyle = marca.color;
-  ctx.strokeText(marca.texto, medidas.texto.x * alto, alto / 2);
   ctx.fillText(marca.texto, medidas.texto.x * alto, alto / 2);
   return lienzo;
 }
