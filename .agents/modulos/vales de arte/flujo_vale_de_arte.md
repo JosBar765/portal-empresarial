@@ -246,7 +246,7 @@ Hay **tres tipos** de modificación, según la complejidad del cambio. El asesor
 una explicación de cada uno (botón único del paso 5 → «Solicitar modificación»). **Las tres crean un vale MOD** con
 el mismo flujo (formulario completo, justificación, adjuntos y autorización del supervisor); solo cambia el plazo. Los
 días son **mínimos** y se cuentan en **días hábiles** (días que reciben vales: sin fines de semana, feriados del país
-ni días que el taller no recibe) desde el día de la solicitud, con la hora máxima del taller:
+ni días que el taller no recibe) desde el día de la solicitud; pasada la hora máxima del taller, la solicitud cuenta como del siguiente día que recibe vales (se corre un día, respetando fines de semana y feriados):
 
 | Tipo | Vale MOD | Quién decide | Fecha de entrega mínima (sin urgente) | Con «urgente» |
 |---|---|---|---|---|
@@ -277,7 +277,9 @@ La solicitud crea **un vale nuevo** (`MOD-<correlativo>`) y deja el vale modific
    · se valida el cupo diario de los talleres destino (como aviso)
    · nace el vale MOD- en SOLICITANDO_MODIFICACION, con N horas laborales de vigencia y su PDF ya armado:
      el vale con sus campos e imágenes, luego la «Propuesta original - <correlativo>.pdf»
-     del vale original y por último los demás PDF adjuntos. Si la propuesta no se puede
+     del vale que se modifica y por último los demás PDF adjuntos. Un MOD lleva **una sola**
+     «Propuesta original» (la del vale directamente modificado: MOD3 → la del MOD2); las de MOD
+     anteriores no se heredan ni cuentan para el límite de documentos. Si la propuesta no se puede
      descargar, no se crea nada y el original no cambia.
         │
         ▼  Supervisor del asesor (debe abrir "Ver" el MOD-; ve la justificación)
@@ -303,12 +305,16 @@ La solicitud crea **un vale nuevo** (`MOD-<correlativo>`) y deja el vale modific
 - **Corregir un `MOD-` pendiente** (permiso `vales.corregir`, mientras espera autorización) se
   permite, pero la «Propuesta original» **no se puede quitar ni mover** y los **talleres no se
   pueden cambiar** (son los del original). Un `MOD-` ya autorizado no se puede corregir.
+  Los errores de permiso o pertenencia (vale ajeno, asesor que no está a cargo del supervisor, rol sin permiso)
+  responden **403**, nunca 401; los conflictos de estado (ya autorizado, solicitud en curso, fechas) siguen en 400.
   No hay «reenviar» para las modificaciones: una rechazada se elimina y se pide una nueva.
 - **Baja** (permiso `vales.dar_de_baja`; antes de autorizar, o ya autorizado mientras un taller
   reclama adjuntos) o **vencimiento** (N horas laborales sin autorizar, o el plazo de adjuntos): el `MOD-`
   se borra con sus archivos, **sin tocar los del original** (ni su PDF ni su propuesta). Si el
   `MOD-` ya estaba autorizado y se elimina después, el original vuelve a `modificado = 0` y
   puede pedir otra modificación (la primera nunca se trabajó); queda una fila en su historial.
+  Borrar el `MOD-`, reabrir el original y escribir ese historial son **una sola transacción** (con el original bloqueado);
+  los archivos de Storage se borran solo después de confirmar la base.
 - Son **dos registros y dos PDF independientes**: el original nunca se sobreescribe; "Ver PDF"
   del original sirve siempre el del original.
 - Cada vale admite **una** modificación con vale a la vez: no puede modificarse un vale con `modificado = 1` ni uno
@@ -378,6 +384,7 @@ Asesor; el supervisor no) puede rechazar la propuesta de **uno o varios talleres
   muestra primero estos vales aunque su fila ya esté aprobada. El asesor ve «Rechazo respondido» (y un botón de chat rojo) cuando el taller rechazó,
   hasta que abre la conversación (lo leído se guarda en su navegador). Con la ronda cerrada por acuerdo o cancelación el chat no se retira: queda el
   botón «Ver conversación del rechazo» (solo lectura).
+- **Códigos HTTP:** ronda inexistente o de otro vale, 404; ronda ya cerrada o vale/taller en otro estado, 409; sin acceso, 403; mensaje vacío o largo, 400 (siempre después de comprobar el acceso).
 - **Tablas:** `vale_rechazos_propuesta` (una ronda por taller: `ABIERTO`, `ACEPTADO`, `RECHAZADO`, `CANCELADO`) y
   `vale_rechazo_propuesta_mensajes` (el hilo por `vale_taller_id`). La modificación básica con chat anterior
   (`vale_modificaciones_basicas`, `vale_modificacion_mensajes` y el permiso `vales.responder_modificacion_basica`) quedó sin uso y no se borra.

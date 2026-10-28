@@ -3,6 +3,7 @@
 // Una ronda por (vale, taller) en `vale_rechazos_propuesta`; el hilo es uno por taller (`vale_rechazo_propuesta_mensajes`) y lo
 // comparten todas sus rondas. Cuelga de `vales` y `vale_talleres` con ON DELETE CASCADE: al eliminarse el vale se va todo.
 const db = require('../../../config/database');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 
 const SELECT_RECHAZO = `
   SELECT r.*, vt.taller_id, vt.disenador_id, t.nombre AS taller, u.nombre AS solicitante
@@ -19,13 +20,16 @@ class ValeRechazoPropuestaRepository {
   // Abre una ronda por taller elegido, cada una con el mensaje del asesor en el hilo de ese taller, y deja el rastro en el historial.
   async crear({ valeId, solicitanteId, filas, mensaje, estadoVale }) {
     return db.transaccion(async (tx) => {
+      // Bloquea las filas de los talleres (siempre en orden de id) para que dos procesos no abran la misma ronda a la vez.
+      const bloqueo = filas.map(f => f.id).sort((a, b) => a - b);
+      await tx.query(`SELECT id FROM vale_talleres WHERE id IN (${bloqueo.map(() => '?').join(', ')}) ORDER BY id FOR UPDATE`, bloqueo, 'rechazo_propuesta:bloquear_talleres');
       const ids = [];
       for (const fila of filas) {
         const abierto = await tx.query(
-          "SELECT id FROM vale_rechazos_propuesta WHERE vale_taller_id = ? AND estado = 'ABIERTO' LIMIT 1",
+          "SELECT id FROM vale_rechazos_propuesta WHERE vale_taller_id = ? AND estado = 'ABIERTO' LIMIT 1 FOR UPDATE",
           [fila.id], 'rechazo_propuesta:validar_abierto'
         );
-        if (abierto.length) throw new Error(`Ya hay un rechazo abierto con ${fila.taller_nombre}. Espera su respuesta.`);
+        if (abierto.length) throw new ErrorDeNegocio(`Ya hay un rechazo abierto con ${fila.taller_nombre}. Espera su respuesta.`, 409);
         const ins = await tx.query(
           'INSERT INTO vale_rechazos_propuesta (vale_id, vale_taller_id, solicitante_id) VALUES (?, ?, ?)',
           [valeId, fila.id, solicitanteId], 'rechazo_propuesta:insert'
@@ -135,21 +139,21 @@ class ValeRechazoPropuestaRepository {
         "UPDATE vale_rechazos_propuesta SET estado = 'ACEPTADO', resuelto_en = NOW(), resuelto_por = ? WHERE id = ? AND estado = 'ABIERTO'",
         [usuarioId, id], 'rechazo_propuesta:aceptar'
       );
-      if (ronda.affectedRows !== 1) throw new Error('Este rechazo ya se cerró. Actualiza la pantalla.');
+      if (ronda.affectedRows !== 1) throw new ErrorDeNegocio('Este rechazo ya se cerró. Actualiza la pantalla.', 409);
       const fila = await tx.query(
         `UPDATE vale_talleres SET estado_id = (SELECT id FROM estados_taller WHERE nombre = 'PENDIENTE_ASIGNACION'),
            disenador_id = NULL, fecha_asignacion = NULL, atraso_congelado_en = NULL
          WHERE id = ? AND estado_id = (SELECT id FROM estados_taller WHERE nombre = 'APROBADO')`,
         [valeTallerId], 'rechazo_propuesta:reabrir_taller'
       );
-      if (fila.affectedRows !== 1) throw new Error('El taller ya no tiene la propuesta aprobada. Actualiza la pantalla.');
+      if (fila.affectedRows !== 1) throw new ErrorDeNegocio('El taller ya no tiene la propuesta aprobada. Actualiza la pantalla.', 409);
       const vale = await tx.query(
         `UPDATE vales SET estado_id = (SELECT id FROM estados_vale WHERE nombre = 'CREADO'),
            atraso_congelado_en = NULL, atraso_notificado_en = NULL
          WHERE id = ? AND estado_id IN (SELECT id FROM estados_vale WHERE nombre IN ('PENDIENTE_CONFIRMACION', 'CREADO', 'APROBADO_DEPARTAMENTO'))`,
         [valeId], 'rechazo_propuesta:reabrir_vale'
       );
-      if (vale.affectedRows !== 1) throw new Error('El vale cambió de estado. Actualiza la pantalla.');
+      if (vale.affectedRows !== 1) throw new ErrorDeNegocio('El vale cambió de estado. Actualiza la pantalla.', 409);
       await tx.query(SQL_HISTORIAL, [valeId, usuarioId, tallerId, 'APROBADO', 'PENDIENTE_ASIGNACION', accion, null], 'historial:insert_rechazo_propuesta_aceptado');
       if (estadoValeAnterior !== 'CREADO') {
         await tx.query(SQL_HISTORIAL, [valeId, usuarioId, null, estadoValeAnterior, 'CREADO', 'El vale vuelve al taller por un rechazo de propuesta aceptado', null], 'historial:insert_vale_reabierto');
@@ -164,7 +168,7 @@ class ValeRechazoPropuestaRepository {
         "UPDATE vale_rechazos_propuesta SET estado = ?, resuelto_en = NOW(), resuelto_por = ? WHERE id = ? AND estado = 'ABIERTO'",
         [estado, usuarioId, id], 'rechazo_propuesta:cerrar'
       );
-      if (res.affectedRows !== 1) throw new Error('Este rechazo ya se cerró. Actualiza la pantalla.');
+      if (res.affectedRows !== 1) throw new ErrorDeNegocio('Este rechazo ya se cerró. Actualiza la pantalla.', 409);
       if (mensaje) await tx.query(SQL_MENSAJE, [valeTallerId, usuarioId, 'TALLER', mensaje], 'rechazo_propuesta:insert_mensaje_cierre');
       await tx.query(SQL_HISTORIAL, [valeId, usuarioId, tallerId, estadoVale, estadoVale, accion, null], 'historial:insert_rechazo_propuesta_cerrado');
     });

@@ -84,8 +84,12 @@ function prefijoPropuesta(correlativo, taller) {
   return `${sanitizarCorrelativo(correlativo)}_PROPUESTA_${codigoTaller(taller)}`;
 }
 
-function propuestaFusion(correlativo) {
+function prefijoPropuestaFusion(correlativo) {
   return `${sanitizarCorrelativo(correlativo)}_PROPUESTA_FUSION`;
+}
+
+function propuestaFusion(correlativo, contador) {
+  return `${prefijoPropuestaFusion(correlativo)}_${contador}`;
 }
 
 // Máximo X + 1 entre las URLs/nombres que empiezan por `${prefijo}_` seguido solo de dígitos
@@ -105,6 +109,6 @@ function siguienteContador(urlsExistentes, prefijo) {
 module.exports = {
   sanitizarCorrelativo, codigoTaller, siguienteContador,
   pdfCreacion, pdfAutorizacion, prefijoCorreccionPreAutorizacion, pdfCorreccionPreAutorizacion,
-  adjunto, prefijoAdjunto, borrador, prefijoBorrador, propuesta, prefijoPropuesta, propuestaFusion,
+  adjunto, prefijoAdjunto, borrador, prefijoBorrador, propuesta, prefijoPropuesta, prefijoPropuestaFusion, propuestaFusion,
   prefijoCorreccionAdmin, correccionAdmin
 };
