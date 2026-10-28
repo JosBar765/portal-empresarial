@@ -44,7 +44,7 @@ function armarItems(resultado, estado, config) {
 }
 
 // Devuelve liberar(): suelta los blobs y URLs propios de esta vista.
-export function renderResultado(cont, { producto, indice, estado, config, resultado, alEditar }) {
+export function renderResultado(cont, { estado, config, resultado, alEditar }) {
   const { prompt, totalImagenes } = resultado;
   const items = armarItems(resultado, estado, config);
   const pasos = construirPasos(resultado.imagenes);
@@ -53,14 +53,10 @@ export function renderResultado(cont, { producto, indice, estado, config, result
   let vivo = true;
   let ocupado = false;
 
-  const primerTexto = indice.lista.find(p => p.tipo === 'texto' && String(estado.valores[p.clave] || '').trim());
-  const titulo = primerTexto ? String(estado.valores[primerTexto.clave]).trim() : '';
-  const subtitulo = titulo ? `${producto.nombre} · ${titulo}` : producto.nombre;
-
   const cajaPrompt = h('div', { class: 'pr-prompt-texto', text: prompt });
-  const btnGuiado = h('button', { type: 'button', class: 'btn btn--primary pr-copiar-guiado' });
+  const btnGuiado = h('button', { type: 'button', class: 'btn btn--primary btn--sm pr-copiar-guiado' });
   const btnReiniciar = h('button', { type: 'button', class: 'pr-enlace', text: t('asesor.resultado.empezarDeNuevo') });
-  const btnPrompt = h('button', { type: 'button', class: 'btn btn--ghost', text: t('asesor.resultado.copiarPrompt') });
+  const btnPrompt = h('button', { type: 'button', class: 'btn btn--ghost btn--sm', text: t('asesor.resultado.copiarPrompt') });
 
   const filas = items.map((it, i) => {
     const numero = pasos[i].numero;
@@ -107,17 +103,29 @@ export function renderResultado(cont, { producto, indice, estado, config, result
     try { descargarBlob(blob, items[i].nombre(blob)); } catch (e) { window.toast.warning(t('asesor.resultado.toastNoDescargada'), t('asesor.errores.descargaFallo')); }
   }
 
+  // Botón de copia suelta: check y color de éxito cuando ya se copió.
+  function pintarCopia(btn, hecho, clave) {
+    montar(btn, hecho ? icono('checkmark-circle') : null, t(clave));
+    btn.classList.toggle('is-copiado', hecho);
+  }
+
   function pintar() {
     const siguiente = siguientePendiente(pasos, hechos);
-    btnGuiado.textContent = etiquetaBoton(pasos, hechos);
+    const claveSiguiente = siguiente ? claveDePaso(siguiente) : null;
+    montar(btnGuiado, icono(siguiente ? 'copy-outline' : 'checkmark-done-outline'), h('span', { text: etiquetaBoton(pasos, hechos) }));
     btnGuiado.disabled = !siguiente || ocupado;
+    btnGuiado.classList.toggle('is-completo', !siguiente);
     btnReiniciar.hidden = !!siguiente;
     filas.forEach((f, i) => {
-      const hecho = hechos.has(claveDePaso(pasos[i]));
-      f.btnCopiar.textContent = t(hecho ? 'asesor.resultado.copiada' : 'asesor.resultado.copiar');
+      const clave = claveDePaso(pasos[i]);
+      const hecho = hechos.has(clave);
+      pintarCopia(f.btnCopiar, hecho, hecho ? 'asesor.resultado.copiada' : 'asesor.resultado.copiar');
       f.nodo.classList.toggle('is-copiada', hecho);
+      f.nodo.classList.toggle('is-siguiente', clave === claveSiguiente);
     });
-    btnPrompt.textContent = t(hechos.has('prompt') ? 'asesor.resultado.promptCopiado' : 'asesor.resultado.copiarPrompt');
+    const promptHecho = hechos.has('prompt');
+    pintarCopia(btnPrompt, promptHecho, promptHecho ? 'asesor.resultado.promptCopiado' : 'asesor.resultado.copiarPrompt');
+    tarjetaPrompt.classList.toggle('is-siguiente', claveSiguiente === 'prompt');
   }
 
   async function copiarPaso(paso) {
@@ -153,10 +161,18 @@ export function renderResultado(cont, { producto, indice, estado, config, result
 
   const { textosAsesor, limites } = config;
   const hayImagenes = items.length > 0;
+  const tarjetaPrompt = h('section', { class: 'pr-card' },
+    h('div', { class: 'pr-card-cabecera' },
+      h('h3', { class: 'pr-card-titulo', text: t('asesor.resultado.seccionPrompt') }),
+      h('div', { class: 'pr-card-herramientas' },
+        h('span', { class: 'form-hint', text: t('asesor.resultado.caracteres', { n: prompt.length }) }),
+        ...(hayImagenes ? [btnPrompt] : [btnReiniciar, btnGuiado]))),
+    cajaPrompt);
+  // El botón guiado vive en la cabecera de la tarjeta de imágenes; «Editar datos» queda arriba a la derecha.
   montar(cont,
     h('div', { class: 'panel-toolbar' },
-      h('div', { class: 'pr-resultado-titulo' }, h('h2', { text: t('asesor.resultado.titulo') }), h('p', { class: 'pr-subtitulo', text: subtitulo })),
-      h('button', { type: 'button', class: 'btn btn--ghost', onclick: alEditar }, icono('create-outline'), ` ${t('asesor.resultado.editar')}`)),
+      h('div', { class: 'pr-resultado-titulo' }, h('h2', { text: t('asesor.resultado.titulo') })),
+      h('button', { type: 'button', class: 'pr-enlace pr-enlace--icono', onclick: alEditar }, icono('arrow-back-outline'), h('span', { text: t('asesor.resultado.editar') }))),
     h('div', { class: 'pr-banner' }, icono('information-circle-outline'),
       h('span', { text: textosAsesor.aviso_pegado })),
     totalImagenes > limites.gemini_max_imagenes
@@ -164,18 +180,13 @@ export function renderResultado(cont, { producto, indice, estado, config, result
         h('span', { text: rellenar(textosAsesor.aviso_exceso_imagenes, { limite: limites.gemini_max_imagenes, total: totalImagenes }) }))
       : null,
     h('div', { class: hayImagenes ? 'pr-resultado-layout' : 'pr-resultado-layout pr-resultado-layout--solo' },
-      h('section', { class: 'pr-card' },
-        h('div', { class: 'pr-card-cabecera' },
-          h('h3', { class: 'pr-card-titulo', text: t('asesor.resultado.seccionPrompt') }),
-          h('div', { class: 'pr-card-herramientas' },
-            h('span', { class: 'form-hint', text: t('asesor.resultado.caracteres', { n: prompt.length }) }),
-            btnPrompt)),
-        cajaPrompt),
+      tarjetaPrompt,
       hayImagenes
         ? h('section', { class: 'pr-card' },
-          h('h3', { class: 'pr-card-titulo', text: t('asesor.resultado.seccionImagenes') }),
+          h('div', { class: 'pr-card-cabecera' },
+            h('h3', { class: 'pr-card-titulo', text: t('asesor.resultado.seccionImagenes') }),
+            h('div', { class: 'pr-card-herramientas pr-copiar-acciones' }, btnReiniciar, btnGuiado)),
           h('span', { class: 'form-hint', text: textosAsesor.nota_orden_imagenes }),
-          h('div', { class: 'pr-copiar-acciones' }, btnGuiado, btnReiniciar),
           h('ul', { class: 'pr-adjuntos' }, filas.map(f => f.nodo)))
         : null));
 

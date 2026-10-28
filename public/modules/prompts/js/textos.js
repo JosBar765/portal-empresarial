@@ -57,12 +57,12 @@ export const TEXTOS = {
 
   // ---------- Asesor: resultado ----------
   'asesor.resultado.titulo': 'Prompt generado',
-  'asesor.resultado.editar': 'Editar y generar otra propuesta',
+  'asesor.resultado.editar': 'Editar datos',
   'asesor.resultado.empezarDeNuevo': 'Empezar de nuevo',
   'asesor.resultado.todoCopiado': 'Todo copiado',
   'asesor.resultado.copiarImagenN': 'Copiar imagen {numero} de {total}',
   'asesor.resultado.copiarPrompt': 'Copiar prompt',
-  'asesor.resultado.promptCopiado': 'Copiado',
+  'asesor.resultado.promptCopiado': 'Prompt copiado',
   'asesor.resultado.copiar': 'Copiar',
   'asesor.resultado.copiada': 'Copiada',
   'asesor.resultado.descargar': 'Descargar imagen',

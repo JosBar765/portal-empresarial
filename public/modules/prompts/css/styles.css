@@ -790,14 +790,43 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .pr-pegar-fila .pr-adjunto-texto {
   flex: 1;
 }
 
+.pr-pegar-fila.is-copiada {
+  background: var(--color-success-bg);
+}
+
 .pr-pegar-fila.is-copiada .pr-adjunto-img {
   border-color: var(--color-success);
+}
+
+/* Lo que el botón principal copiará a continuación */
+.pr-pegar-fila.is-siguiente,
+.pr-resultado-layout .pr-card.is-siguiente {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.pr-card.is-siguiente .pr-prompt-texto {
+  background: var(--color-surface);
+}
+
+/* Copia suelta ya hecha: check y texto en color de éxito */
+.btn.is-copiado {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.btn.is-copiado ion-icon {
+  font-size: 1.1em;
 }
 
 .pr-adjunto-error {
@@ -816,13 +845,21 @@
 
 .pr-copiar-acciones {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 8px 16px;
 }
 
-.pr-copiar-guiado {
-  width: 100%;
+/* Copiado completo: se queda deshabilitado pero se lee como éxito, no como apagado */
+.pr-copiar-guiado.is-completo:disabled {
+  opacity: 1;
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.pr-copiar-guiado ion-icon {
+  font-size: 1.15em;
 }
 
 .pr-enlace {
@@ -834,6 +871,21 @@
   font-size: 13px;
   text-decoration: underline;
   cursor: pointer;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.pr-enlace:hover {
+  color: var(--color-primary-hover);
+}
+
+.pr-enlace:active {
+  transform: translateY(1px);
+}
+
+.pr-enlace--icono {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .pr-card-cabecera,
@@ -870,6 +922,7 @@
 .pr-resultado-layout .pr-card {
   gap: 12px;
   padding: 16px;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 /* Resultado en pantalla ancha: la página no hace scroll, lo hacen el prompt y la lista de imágenes */
@@ -959,6 +1012,19 @@
     background: var(--color-surface);
     border-top: 1px solid var(--color-border);
     box-shadow: var(--shadow-lg);
+  }
+
+  /* El botón principal del resultado ocupa todo el ancho */
+  .pr-copiar-acciones {
+    width: 100%;
+  }
+
+  .pr-copiar-guiado {
+    flex: 1 1 100%;
+  }
+
+  .pr-copiar-acciones .pr-enlace {
+    order: 1;
   }
 }
 
