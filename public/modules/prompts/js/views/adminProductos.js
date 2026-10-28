@@ -129,7 +129,7 @@ export async function renderAdminProductos(contenedor) {
   function fila(p) {
     const puedeActivar = p.numeroVigente != null;
     const activo = p.estado === 'activo';
-    const borrable = p.estado === 'inactivo';
+    const borrable = p.estado === 'inactivo' || p.estado === 'borrador';
     // data-label repite el encabezado: en celular cada fila se muestra como tarjeta.
     const etiqueta = (c) => t(`admin.productos.col.${c}`);
     return h('tr', { class: p.estado === 'inactivo' ? 'fila-inactiva' : '' },

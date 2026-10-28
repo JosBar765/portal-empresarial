@@ -199,13 +199,13 @@ class AdminProductoService {
     return this.obtener(id);
   }
 
-  // Borrado real y solo de inactivos; la fila bloqueada impide que alguien lo reactive mientras se borra.
+  // Borrado real de inactivos o de borradores nunca publicados; la fila bloqueada impide que alguien lo reactive mientras se borra.
   async borrar(idCrudo) {
     const id = idObligatorio(idCrudo, 'Producto');
     await db.transaccion(async tx => {
       const producto = await productoRepository.obtenerBloqueado(id, tx);
       if (!producto) throw new ErrorDeNegocio(msg('producto.noEncontrado'), 404);
-      if (producto.estado !== ESTADOS_PRODUCTO.INACTIVO) {
+      if (producto.estado !== ESTADOS_PRODUCTO.INACTIVO && producto.estado !== ESTADOS_PRODUCTO.BORRADOR) {
         throw new ErrorDeNegocio(msg('producto.borrarNoInactivo', { nombre: producto.nombre, estado: producto.estado }), 409);
       }
       await versionRepository.eliminarPorProducto(id, tx); // la FK de versiones no tiene ON DELETE CASCADE: van primero

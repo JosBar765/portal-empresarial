@@ -203,7 +203,7 @@ export const TEXTOS = {
   'admin.productos.toastNoDuplicar': 'No se pudo preparar el duplicado',
   'admin.productos.borrar': 'Borrar producto',
   'admin.productos.borrarActivo': 'Desactiva el producto para poder borrarlo',
-  'admin.productos.borrarNoInactivo': 'Solo se pueden borrar productos inactivos',
+  'admin.productos.borrarNoInactivo': 'Solo se pueden borrar productos inactivos o en borrador',
   'admin.productos.borrarTitulo': 'Borrar producto',
   'admin.productos.borrarMensaje': 'Se borrarán «{nombre}» y todas sus versiones (publicada, archivadas y borrador). Los asesores ya no lo verán. Esta acción no se puede deshacer.',
   'admin.productos.borrarAceptar': 'Borrar producto',
