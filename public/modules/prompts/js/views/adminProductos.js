@@ -106,15 +106,17 @@ export async function renderAdminProductos(contenedor) {
   function fila(p) {
     const puedeActivar = p.numeroVigente != null;
     const activo = p.estado === 'activo';
+    // data-label repite el encabezado: en celular cada fila se muestra como tarjeta.
+    const etiqueta = (c) => t(`admin.productos.col.${c}`);
     return h('tr', { class: p.estado === 'inactivo' ? 'fila-inactiva' : '' },
-      h('td', null, h('div', { class: 'pr-adm-producto' },
+      h('td', { 'data-label': etiqueta('producto') }, h('div', { class: 'pr-adm-producto' },
         h('span', { class: 'pr-adm-producto-icono' }, icono('cube-outline')),
         h('div', null, h('strong', { text: p.nombre }), h('div', { class: 'pr-adm-muted pr-adm-mono', text: p.codigo })))),
-      h('td', { text: String(p.totalParametros ?? 0) }),
-      h('td', { text: puedeActivar ? t('admin.productos.versionVigente', { numero: p.numeroVigente }) : t('admin.productos.sinPublicar') }),
-      h('td', null, badgeEstado(p.estado)),
-      h('td', { text: fechaGt(p.actualizadoEn) }),
-      h('td', null, h('div', { class: 'acciones-cell' },
+      h('td', { 'data-label': etiqueta('parametros'), text: String(p.totalParametros ?? 0) }),
+      h('td', { 'data-label': etiqueta('version'), text: puedeActivar ? t('admin.productos.versionVigente', { numero: p.numeroVigente }) : t('admin.productos.sinPublicar') }),
+      h('td', { 'data-label': etiqueta('estado') }, badgeEstado(p.estado)),
+      h('td', { 'data-label': etiqueta('actualizado'), text: fechaGt(p.actualizadoEn) }),
+      h('td', { 'data-label': etiqueta('acciones') }, h('div', { class: 'acciones-cell' },
         h('button', { type: 'button', class: 'btn-icon', title: t('admin.productos.editar'), 'aria-label': t('admin.productos.editar'), onclick: () => abrirEditor(p.id) }, icono('create-outline')),
         h('button', { type: 'button', class: 'btn-icon', title: t('admin.productos.duplicar'), 'aria-label': t('admin.productos.duplicar'), onclick: () => abrirDuplicar(p) }, icono('copy-outline')),
         h('button', {
@@ -127,7 +129,7 @@ export async function renderAdminProductos(contenedor) {
 
   const tabla = productos.length
     ? h('div', { class: 'pr-adm-tabla-wrap' },
-      h('table', { class: 'data-table' },
+      h('table', { class: 'data-table pr-adm-tabla-productos' },
         h('thead', null, h('tr', null, COLUMNAS.map(c => h('th', { text: t(`admin.productos.col.${c}`) })))),
         h('tbody', null, productos.map(fila))))
     : h('div', { class: 'buzon-vacio' }, icono('cube-outline'), h('p', { text: t('admin.productos.vacio') }));

@@ -106,6 +106,8 @@ export function abrirMarcaDeAgua(config) {
   const btnCopiar = h('button', { type: 'button', class: 'btn btn--primary' });
 
   const { overlay, cerrar } = abrirModal({ title: t('asesor.marca.titulo'), bodyHtml: '', footerHtml: ' ', size: 'lg', onCerrar: liberar });
+  // Clase propia para acotar el pie apilado en celular a este modal.
+  overlay.classList.add('pr-marca-modal');
   montar(overlay.querySelector('.modal-body'), h('div', { class: 'pr-marca' }, input, zona, error, estado, vista));
   montar(overlay.querySelector('.modal-footer'), btnCambiar, btnDescargar, btnCopiar);
 

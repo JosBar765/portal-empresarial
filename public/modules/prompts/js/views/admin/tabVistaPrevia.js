@@ -77,11 +77,11 @@ export function renderTabVistaPrevia(cont, ed) {
       h('p', { class: 'form-hint', text: t('admin.vistaPrevia.nota') }),
       h('div', { class: 'pr-adm-vp-scroll' }, resultado)),
     h('aside', { class: 'pr-adm-lateral' },
-      h('section', { class: 'pr-card' },
+      h('section', { class: 'pr-card pr-adm-vp-tarjeta-reglas' },
         h('h3', { class: 'pr-card-titulo', text: t('admin.vistaPrevia.reglasTitulo') }),
         h('div', { class: 'pr-adm-vp-scroll' }, reglas),
         h('span', { class: 'form-hint', text: t('admin.vistaPrevia.reglasNota') })),
-      h('section', { class: 'pr-card' },
+      h('section', { class: 'pr-card pr-adm-vp-tarjeta-recursos' },
         h('h3', { class: 'pr-card-titulo', text: t('admin.vistaPrevia.recursosTitulo') }),
         h('div', { class: 'pr-adm-vp-scroll' }, recursos),
         h('span', { class: 'form-hint', text: t('admin.vistaPrevia.recursosNota') })))));

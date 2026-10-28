@@ -802,6 +802,13 @@
   flex: 1;
 }
 
+.pr-pegar-acciones {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+}
+
 .pr-pegar-fila.is-copiada {
   background: var(--color-success-bg);
 }
@@ -1087,6 +1094,36 @@
     align-items: stretch;
     width: 100%;
   }
+
+  /* Imágenes para pegar: miniatura y texto arriba, botones en una fila debajo a la derecha */
+  .pr-pegar-fila {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .pr-pegar-acciones {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
+
+  /* Marca de agua: los tres botones del pie apilados, el primario arriba */
+  .pr-marca-modal .modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pr-marca-modal .modal-footer .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pr-marca-modal .modal-footer .btn--primary {
+    order: -1;
+  }
+
+  .pr-marca-modal .modal-footer > :first-child {
+    order: 1;
+  }
 }
 
 /* Administración de productos (prefijo pr-adm-) */
@@ -1223,6 +1260,100 @@
   color: var(--color-text-secondary);
 }
 
+/* Productos en celular: cada fila es una tarjeta con etiquetas y las acciones al pie */
+@media (max-width: 640px) {
+  .pr-adm-tabla-wrap {
+    overflow-x: visible;
+  }
+
+  .pr-adm-tabla-wrap .pr-adm-tabla-productos {
+    min-width: 0;
+  }
+
+  .pr-adm-tabla-productos,
+  .pr-adm-tabla-productos tbody,
+  .pr-adm-tabla-productos tr {
+    display: block;
+    width: 100%;
+  }
+
+  /* Encabezado oculto a la vista pero disponible para lectores de pantalla */
+  .pr-adm-tabla-productos thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .pr-adm-tabla-productos tbody tr {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .pr-adm-tabla-productos tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .pr-adm-tabla-wrap .pr-adm-tabla-productos tbody tr:hover td {
+    background: transparent;
+  }
+
+  .pr-adm-tabla-wrap .pr-adm-tabla-productos td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+    padding: 6px 4px;
+    border-bottom: none;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  .pr-adm-tabla-productos td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    text-align: left;
+  }
+
+  /* El producto encabeza la tarjeta sin etiqueta; las acciones cierran sin etiqueta */
+  .pr-adm-tabla-productos td:first-child::before,
+  .pr-adm-tabla-productos td:last-child::before {
+    content: none;
+  }
+
+  .pr-adm-tabla-wrap .pr-adm-tabla-productos td:first-child {
+    justify-content: flex-start;
+    padding-bottom: 10px;
+    text-align: left;
+  }
+
+  .pr-adm-tabla-wrap .pr-adm-tabla-productos td:last-child {
+    justify-content: flex-end;
+    margin-top: 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .pr-adm-tabla-productos .acciones-cell {
+    gap: 8px;
+  }
+
+  .pr-adm-tabla-productos .btn-icon {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    align-items: center;
+  }
+}
+
 /* Editor */
 .pr-adm-volver {
   align-self: flex-start;
@@ -1267,7 +1398,15 @@
   display: flex;
   gap: 4px;
   overflow-x: auto;
+  /* La pestaña llevada a la vista no queda bajo el desvanecido */
+  scroll-padding-inline: 2.5rem;
   border-bottom: 1px solid var(--color-border);
+}
+
+/* Pista de que hay más pestañas a la derecha: la máscara solo usa transparencia, no color */
+.pr-adm-tabs.is-mas-derecha {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
 }
 
 .pr-adm-tab {
@@ -1732,7 +1871,7 @@
 @media (min-width: 1100px) {
   .app-shell:has(.pr-adm-tab-panel--vista) {
     height: calc(100vh - var(--header-height));
-    /* El piso evita que el contenido se solape con el pie en pantallas muy bajas: ahí scrollea la página */
+    /* El piso evita aplastar el prompt en pantallas muy bajas: ahí scrollea la página */
     height: max(calc(100dvh - var(--header-height)), 34rem);
     min-height: 0;
   }
@@ -1775,12 +1914,28 @@
     min-height: 0;
   }
 
+  /* Si las tarjetas no caben, scrollea la columna lateral entera: nada se recorta */
   .pr-adm-tab-panel--vista .pr-adm-lateral {
     min-height: 0;
+    overflow-y: auto;
   }
 
   .pr-adm-tab-panel--vista .pr-adm-lateral .pr-card {
-    flex: 1 1 0;
+    min-height: auto;
+  }
+
+  /* Reglas toma el alto que sobra; recursos queda a su tamaño natural */
+  .pr-adm-tab-panel--vista .pr-adm-vp-tarjeta-reglas {
+    flex: 1 1 auto;
+  }
+
+  .pr-adm-tab-panel--vista .pr-adm-vp-tarjeta-recursos {
+    flex: 0 0 auto;
+  }
+
+  /* Solo encoge la lista con scroll: título y notas nunca se recortan */
+  .pr-adm-tab-panel--vista .pr-card > :not(.pr-adm-vp-scroll) {
+    flex-shrink: 0;
   }
 
   .pr-adm-tab-panel--vista .pr-card {
@@ -1793,6 +1948,18 @@
     flex: 1 1 auto;
     max-height: none;
     min-height: 6rem;
+  }
+
+  /* ~4 filas de reglas siempre visibles */
+  .pr-adm-tab-panel--vista .pr-adm-vp-tarjeta-reglas .pr-adm-vp-scroll {
+    min-height: 9.5rem;
+  }
+
+  /* Recursos topado (~3 filas) para no quitarle alto a las reglas */
+  .pr-adm-tab-panel--vista .pr-adm-vp-tarjeta-recursos .pr-adm-vp-scroll {
+    flex: 0 1 auto;
+    max-height: 8rem;
+    min-height: 0;
   }
 
   .pr-adm-tab-panel--vista .pr-prompt-texto {

@@ -74,7 +74,7 @@ export function renderResultado(cont, { estado, config, resultado, alEditar }) {
         h('strong', { text: it.titulo }),
         it.sub ? h('span', { class: 'form-hint', text: it.sub }) : null,
         error),
-      btnCopiar, btnDescarga);
+      h('div', { class: 'pr-pegar-acciones' }, btnCopiar, btnDescarga));
     return { nodo, btnCopiar, miniatura, error };
   });
 

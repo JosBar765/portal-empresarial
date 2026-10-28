@@ -158,11 +158,20 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver, config 
   ];
   const botonesTab = tabs.map(tab => h('button', {
     type: 'button', role: 'tab', class: 'pr-adm-tab', id: `pr-adm-tab-${tab.id}`,
-    onclick: () => { tabActiva = tab.id; pintarTab(); }
+    onclick: () => { tabActiva = tab.id; pintarTab(true); }
   }, tab.contenido));
-  function pintarTab() {
+  const barraTabs = h('div', { class: 'pr-adm-tabs', role: 'tablist' }, botonesTab);
+  // Desvanece el borde derecho mientras queden pestañas ocultas a la derecha.
+  const marcarDesborde = () => barraTabs.classList.toggle('is-mas-derecha', barraTabs.scrollLeft + barraTabs.clientWidth < barraTabs.scrollWidth - 1);
+  barraTabs.addEventListener('scroll', marcarDesborde, { passive: true });
+  if (window.ResizeObserver) new ResizeObserver(marcarDesborde).observe(barraTabs);
+  function pintarTab(animar = false) {
     panel.classList.toggle('pr-adm-tab-panel--vista', tabActiva === 'vista');
     tabs.forEach((tab, i) => botonesTab[i].classList.toggle('is-activo', tab.id === tabActiva));
+    // En celular la barra se desliza: la pestaña activa siempre queda a la vista.
+    const suave = animar && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    botonesTab[tabs.findIndex(tab => tab.id === tabActiva)].scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: suave ? 'smooth' : 'auto' });
+    marcarDesborde();
     pintadores[tabActiva](panel, ed);
   }
 
@@ -191,7 +200,7 @@ function montar(cont, { producto, borrador, publicada }, { id, alVolver, config 
         h('p', { class: 'pr-subtitulo', text: subtitulo })),
       h('div', { class: 'pr-adm-acciones' }, botonDescartar, botonGuardar, botonPublicar)),
     ...(bannerSinBorrador ? [bannerSinBorrador] : []),
-    h('div', { class: 'pr-adm-tabs', role: 'tablist' }, botonesTab),
+    barraTabs,
     panel);
 
   actualizarControles();
