@@ -15,6 +15,7 @@ const historialRepository = require('../repositories/historialRepository');
 const supabaseStorage = require('../../../core/files/supabaseStorage');
 const nombreArchivo = require('../../../core/files/nombreArchivo');
 const idempotencyRepository = require('../../../core/idempotency/idempotencyRepository');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const capacidadEntregaService = require('./capacidadEntregaService');
 const valeCreacionService = require('./valeCreacionService');
 const valeCorreccionService = require('./valeCorreccionService');
@@ -38,7 +39,7 @@ class ValeModificacionService {
       const previo = await idempotencyRepository.buscar(key);
       if (previo) return previo.resultado;
 
-      if (!puedeActuarComoAsesor(usuario)) throw new Error('Solo un asesor o un supervisor de ventas puede solicitar una modificación.');
+      if (!puedeActuarComoAsesor(usuario)) throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede solicitar una modificación.', 403);
       const tipo = String(payload.tipo || '').toUpperCase();
       if (!TIPOS_MODIFICACION_CON_VALE.includes(tipo)) throw new Error('Elige el tipo de modificación: básica, media o avanzada.');
       const original = await requerirVale(valeId);
@@ -49,7 +50,7 @@ class ValeModificacionService {
       // Un MOD también se puede modificar (MOD2, MOD3…), pero cada vale tiene a lo sumo una modificación con vale.
       if (original.modificado) throw new Error('Este vale ya fue modificado. Pídela sobre el más reciente.');
       if (await rechazoPropuestaRepository.contarAbiertasPorVale(valeId)) {
-        throw new Error('Hay un rechazo de propuesta abierto. Espera la respuesta del taller antes de pedir una modificación.');
+        throw new ErrorDeNegocio('Hay un rechazo de propuesta abierto. Espera la respuesta del taller antes de pedir una modificación.', 409);
       }
       const justificacion = String(payload.descripcion || '').trim();
       if (!justificacion) throw new Error('Escribe la justificación de la modificación.');
@@ -73,7 +74,10 @@ class ValeModificacionService {
       }
       const documentosOriginal = await documentoRepository.listarPorVale(valeId);
       const quitarIds = valeCorreccionService._idsAQuitar(payload.documentosQuitar, documentosOriginal);
-      const conservados = documentosOriginal.filter(d => !quitarIds.includes(d.id)).map(d => ({ ...d, nuevo: false }));
+      // Una "Propuesta original" heredada de un MOD anterior no pasa: solo viaja la del vale que se modifica.
+      const conservados = documentosOriginal
+        .filter(d => !quitarIds.includes(d.id) && !/^Propuesta original/.test(d.nombre_original))
+        .map(d => ({ ...d, nuevo: false }));
       const nuevasImagenes = (archivos && archivos.imagenes) || [];
       const nuevosDocumentos = (archivos && archivos.documentos) || [];
       if (conservados.length + nuevasImagenes.length + nuevosDocumentos.length === 0) {
@@ -129,7 +133,7 @@ class ValeModificacionService {
   async _validarSupervisor(usuario, vale) {
     if (esAdministrador(usuario)) return;
     const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
-    if (!supervisores.some(s => s.id === usuario.id)) throw new Error('Este vale es de un asesor que no está a tu cargo.');
+    if (!supervisores.some(s => s.id === usuario.id)) throw new ErrorDeNegocio('Este vale es de un asesor que no está a tu cargo.', 403);
   }
 
   // `valeId` es el del vale MOD-: solo lo manda a los talleres y estampa la firma del supervisor en su PDF.

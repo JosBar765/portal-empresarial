@@ -11,6 +11,7 @@ const imageOptimizer = require('../../../core/files/imageOptimizer');
 const nombreArchivo = require('../../../core/files/nombreArchivo');
 const { StorageUploadError } = require('../../../core/files/errores');
 const idempotencyRepository = require('../../../core/idempotency/idempotencyRepository');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const capacidadEntregaService = require('./capacidadEntregaService');
 const valeCreacionService = require('./valeCreacionService');
 const valeEvents = require('../events');
@@ -32,11 +33,11 @@ class ValeCorreccionService {
       if (previo) return previo.resultado;
 
       if (!puedeActuarComoAsesor(usuario)) {
-        throw new Error('Solo un asesor o un supervisor de ventas puede corregir un vale.');
+        throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede corregir un vale.', 403);
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {
-        throw new Error('Solo puedes corregir tus propios vales.');
+        throw new ErrorDeNegocio('Solo puedes corregir tus propios vales.', 403);
       }
       const esMod = esValeDeModificacion(vale);
       if (!ESTADOS_EDITABLES_ASESOR.includes(vale.estado)) {
