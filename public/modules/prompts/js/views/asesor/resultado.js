@@ -6,6 +6,7 @@ import { construirPasos, claveDePaso, siguientePendiente, etiquetaBoton } from '
 import { copiarImagen, copiarTexto, descargarBlob } from './portapapeles.js';
 import { mimeAExtension } from './archivos.js';
 import { abrirMarcaDeAgua } from './marcaDeAgua.js';
+import { cargarConfig } from '../../config.js';
 
 // Cada elemento de la respuesta es del asesor (se empareja con su archivo por parámetro y posición) o un recurso fijo.
 function armarItems(resultado, estado, config) {
@@ -160,6 +161,11 @@ export function renderResultado(cont, { estado, config, resultado, alEditar }) {
   btnPrompt.addEventListener('click', () => copiarPaso({ tipo: 'prompt' }));
   btnReiniciar.addEventListener('click', () => { hechos.clear(); pintar(); });
 
+  // Ajustes pudo cambiar la marca después de generar: se pide la configuración vigente al abrir.
+  async function abrirMarca() {
+    try { abrirMarcaDeAgua(await cargarConfig(true)); } catch (e) { window.toast.error(t('asesor.marca.toastSinConfig'), e.message); }
+  }
+
   const { textosAsesor, limites } = config;
   const hayImagenes = items.length > 0;
   const tarjetaPrompt = h('section', { class: 'pr-card' },
@@ -175,7 +181,7 @@ export function renderResultado(cont, { estado, config, resultado, alEditar }) {
       h('div', { class: 'pr-resultado-titulo' }, h('h2', { text: t('asesor.resultado.titulo') })),
       h('div', { class: 'pr-resultado-acciones' },
         h('button', { type: 'button', class: 'btn btn--ghost', onclick: alEditar }, icono('arrow-back-outline'), h('span', { text: t('asesor.resultado.editar') })),
-        h('button', { type: 'button', class: 'btn btn--primary', onclick: () => abrirMarcaDeAgua(config) }, icono('water-outline'), h('span', { text: t('asesor.resultado.marcaDeAgua') })))),
+        h('button', { type: 'button', class: 'btn btn--primary', onclick: abrirMarca }, icono('water-outline'), h('span', { text: t('asesor.resultado.marcaDeAgua') })))),
     h('div', { class: 'pr-banner' }, icono('information-circle-outline'),
       h('span', { text: textosAsesor.aviso_pegado })),
     totalImagenes > limites.gemini_max_imagenes

@@ -113,6 +113,7 @@ export const TEXTOS = {
   // ---------- Asesor: errores y validaciones ----------
   'asesor.formulario.cargaTitulo': 'No se pudo cargar el generador',
   'asesor.errores.cargaAyuda': 'Pulsa «Reintentar» para volver a cargarlo; si el problema continúa, avisa al administrador.',
+  'asesor.marca.toastSinConfig': 'No se pudo abrir la marca de agua',
   'asesor.errores.configIncompleta': 'El servidor devolvió una configuración incompleta del generador (falta «{parte}»). Avisa al administrador para que revise los ajustes del módulo.',
   'asesor.errores.requerido': 'Falta completar «{etiqueta}»: es un dato obligatorio. Escríbelo para poder generar el prompt.',
   'asesor.errores.textoLargo': '«{etiqueta}» tiene {largo} caracteres y el máximo permitido es {max}. Acórtalo al menos {exceso} caracteres.',
