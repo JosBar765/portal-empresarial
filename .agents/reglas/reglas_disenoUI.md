@@ -209,6 +209,17 @@ Para no duplicar CSS entre páginas, existen utilidades reusables en
   `--ease-out` en 3 velocidades (`--transition-fast/-normal/-slow`).
   Respetar siempre `prefers-reduced-motion` (ya resuelto a nivel global).
 
+- **Pantallas de lista con tabla ancha (laptops de 1366×768)**: el layout es **fijo**. La página no se
+  desplaza: la barra de fecha, los contadores y el título con el buscador quedan siempre visibles y
+  solo la tabla hace scroll, con su encabezado fijo y sus columnas clave (identificador y acciones)
+  ancladas a los costados. La barra de scroll horizontal vive al pie de la zona de la tabla (siempre
+  a la vista, no al final de la lista), es más gruesa que las del sistema y la zona se puede recorrer
+  con el teclado (`tabindex="0"`, `role="region"` y etiqueta). Una sombra en el borde indica que hay más
+  contenido a ese lado. Todas las separaciones salen de una sola variable (`--sep-buzon`: 16 px; 24 px
+  en monitores de 1000 px de alto o más) para que queden empatadas; el aire de arriba del título se mide
+  hasta la letra. Solo desde 901 px de ancho: en pantallas angostas la página se desplaza como siempre.
+  Ejemplo real: Buzón y Trabajo realizado de Vales de Arte (`body.vista-tabla-fija`).
+
 ---
 
 ## 6. Filosofía de diseño (qué evitar)

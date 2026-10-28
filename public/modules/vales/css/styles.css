@@ -490,6 +490,27 @@
 
 .tabla-wrapper {
   overflow-x: auto;
+  /* Barras más visibles que las finas del sistema: son el medio principal para recorrer una tabla ancha. */
+  scrollbar-width: auto;
+  scrollbar-color: var(--color-text-muted) var(--color-surface-muted);
+}
+
+.tabla-wrapper::-webkit-scrollbar { width: 12px; height: 12px; }
+.tabla-wrapper::-webkit-scrollbar-track { background: var(--color-surface-muted); border-radius: var(--radius-full); }
+.tabla-wrapper::-webkit-scrollbar-thumb { background-color: var(--color-text-muted); border: 2px solid var(--color-surface-muted); border-radius: var(--radius-full); }
+.tabla-wrapper::-webkit-scrollbar-thumb:hover { background-color: var(--color-text-secondary); }
+
+/* Se puede recorrer con el teclado (flechas, Inicio/Fin, Re Pág): foco visible. */
+.tabla-wrapper:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+
+/* Sombra en el borde que indica que hay más tabla en ese lado; la proyectan las columnas fijas (Correlativo y Acciones). */
+.tabla-wrapper.tiene-scroll-izq .buzon-table th:first-child,
+.tabla-wrapper.tiene-scroll-izq .buzon-table td:first-child {
+  box-shadow: 1px 0 0 var(--color-border), 10px 0 12px -8px rgba(15, 23, 42, .28);
+}
+.tabla-wrapper.tiene-scroll-der .buzon-table th:last-child,
+.tabla-wrapper.tiene-scroll-der .buzon-table td:last-child {
+  box-shadow: -1px 0 0 var(--color-border), -10px 0 12px -8px rgba(15, 23, 42, .28);
 }
 
 /* .buzon-table extiende .data-table.sticky-header (global.css) — solo se
@@ -2271,3 +2292,103 @@
 .urgente-opcion, .urgente-opcion-texto { text-transform: none; letter-spacing: normal; }
 .urgente-opcion-texto { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
 .urgente-opcion-texto small { font-size: 12px; font-weight: 400; color: var(--color-text-secondary); }
+
+/* -----------------------------------------------------------------------
+   Layout fijo del Buzón y de Trabajo realizado (desde 901 px de ancho): la página no se desplaza; barra de fecha, contadores y
+   título/buscador quedan fijos y solo la tabla de vales hace scroll (vertical y horizontal) dentro de su propia zona. Lo activa
+   sidebar.js con la clase `vista-tabla-fija` en el body; Reportes y pantallas angostas conservan el scroll normal de la página.
+   ----------------------------------------------------------------------- */
+@media (min-width: 901px) {
+  /* Una sola separación para todo el layout fijo: navbar → barra de fecha → contadores → tarjeta, y el aire interno de la tarjeta
+     (arriba, a los lados y entre título y tabla). En monitores muy altos se agranda. */
+  body.vista-tabla-fija { --sep-buzon: 16px; }
+
+  body.vista-tabla-fija {
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body.vista-tabla-fija .app-header { flex: none; }
+
+  body.vista-tabla-fija .app-shell {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  body.vista-tabla-fija .app-layout {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0 var(--sep-buzon);
+  }
+
+  body.vista-tabla-fija .main-container {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: var(--sep-buzon) 0;
+  }
+
+  body.vista-tabla-fija .vales-toolbar,
+  body.vista-tabla-fija .contadores-grid { flex: none; margin-bottom: var(--sep-buzon); }
+  body.vista-tabla-fija .buzon-toolbar { flex: none; }
+
+  /* El aire de arriba se mide hasta la letra del título (no hasta su caja): se descuenta lo que la caja deja encima, para que quede
+     igual que el de la izquierda. */
+  body.vista-tabla-fija .buzon-section { padding: calc(var(--sep-buzon) - 8px) var(--sep-buzon) var(--sep-buzon); }
+  body.vista-tabla-fija .buzon-toolbar { align-items: center; margin-bottom: calc(var(--sep-buzon) - 8px); }
+  body.vista-tabla-fija .buzon-toolbar h2 { line-height: 1.25; margin: 0; }
+  body.vista-tabla-fija .buzon-filtros input,
+  body.vista-tabla-fija .buzon-filtros select { padding-top: 6px; padding-bottom: 6px; }
+
+  body.vista-tabla-fija .buzon-section {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  body.vista-tabla-fija .tabla-wrapper {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  @media (min-height: 1000px) { body.vista-tabla-fija { --sep-buzon: 24px; } }
+
+  /* Contadores siempre en UNA fila (los de cada rol se reparten el ancho); si no caben los textos se recortan, no se pasan a otra fila. */
+  body.vista-tabla-fija .contadores-grid {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  body.vista-tabla-fija .contador-card { min-width: 0; padding-left: 12px; padding-right: 12px; }
+  body.vista-tabla-fija .contador-card .etiqueta { min-width: 0; overflow: hidden; }
+  body.vista-tabla-fija .contador-card .etiqueta-texto,
+  body.vista-tabla-fija .contador-card .etiqueta-quien { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Poco alto (laptops 1366×768 o menos): tarjetas y filas más bajas para darle más espacio a la tabla. */
+  @media (max-height: 800px) {
+    body.vista-tabla-fija .contador-card { min-height: 40px; padding-top: 5px; padding-bottom: 5px; }
+    body.vista-tabla-fija .buzon-table th { padding-top: 8px; padding-bottom: 8px; }
+    body.vista-tabla-fija .buzon-table td { padding-top: 8px; padding-bottom: 8px; }
+  }
+
+  /* Pie de una sola línea: no le quita alto a la tabla. */
+  body.vista-tabla-fija .app-footer { flex: none; padding: 6px 24px; }
+}
+
+/* Navbar del módulo más bajo en pantallas anchas: menos aire arriba y abajo del logo y del nombre del módulo. --header-height lo usa el
+   menú lateral para arrancar justo debajo, por eso se redefine junto con el relleno. */
+@media (min-width: 901px) {
+  :root { --header-height: 70px; }
+  .app-header { padding-top: 10px; padding-bottom: 10px; }
+}
