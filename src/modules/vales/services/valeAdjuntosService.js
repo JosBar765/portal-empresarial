@@ -14,7 +14,7 @@ const valeCreacionService = require('./valeCreacionService');
 const calendarioService = require('../../../core/calendario/calendarioService');
 const {
   ESTADOS_TALLER, esDeTaller, esValeDeModificacion, enriquecer, registrarHistorial,
-  requerirVale, puedeActuarComoAsesor
+  requerirVale, puedeActuarComoAsesor, algunTallerProtege, SALA_FUSION
 } = require('./valeHelpers');
 
 const MAX_CARACTERES_MENSAJE = 200;
@@ -94,11 +94,11 @@ class ValeAdjuntosService {
   async responderAdjuntos(usuario, valeId, tallerId, mensaje) {
     return valeMutex.conLockDeVale(valeId, async () => {
       if (!puedeActuarComoAsesor(usuario)) {
-        throw new Error('Solo un asesor o un supervisor de ventas puede responder sobre los adjuntos.');
+        throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede responder sobre los adjuntos.', 403);
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {
-        throw new Error('Solo puedes responder sobre tus propios vales.');
+        throw new ErrorDeNegocio('Solo puedes responder sobre tus propios vales.', 403);
       }
       const fila = (await valeTallerRepository.listarPorVale(valeId)).find(f => f.taller_id === Number(tallerId));
       if (!fila) throw new Error('Este vale no fue enviado a ese taller.');
@@ -118,6 +118,62 @@ class ValeAdjuntosService {
       });
       // El equipo de ventas (supervisores y otras pestañas del asesor) solo refresca la pantalla, en silencio.
       valeEvents.refrescar({ vale: actualizado, salas: await this._salasAsesor(vale) });
+      return enriquecer(actualizado);
+    });
+  }
+
+  // El asesor dueño quita UN taller de un vale con 2 o más talleres mientras ese taller reclama los adjuntos; el vale
+  // sigue para los demás. Revalida bajo el lock: el taller pudo verificar o responder entretanto.
+  async darDeBajaTaller(usuario, valeId, tallerId) {
+    if (!puedeActuarComoAsesor(usuario)) {
+      throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede dar de baja un taller.', 403);
+    }
+    return this.quitarTallerDeVale(valeId, tallerId, {
+      actor: usuario,
+      validarVale: (vale) => {
+        if (vale.asesor_id !== usuario.id) throw new ErrorDeNegocio('Solo puedes dar de baja talleres de tus propios vales.', 403);
+      }
+    });
+  }
+
+  // Núcleo reutilizable: `actor` es { id, nombre }; `validarVale` es la comprobación de quién llama; `automatico` es la baja
+  // por plazo vencido (devuelve null si ya no corresponde).
+  async quitarTallerDeVale(valeId, tallerId, { actor, validarVale = null, automatico = false }) {
+    return valeMutex.conLockDeVale(valeId, async () => {
+      const usuario = actor;
+      const vale = await requerirVale(valeId);
+      if (validarVale) validarVale(vale);
+      if (esValeDeModificacion(vale)) {
+        throw new Error('En una solicitud de modificación no se puede quitar un taller: da de baja la solicitud completa.');
+      }
+      const talleres = await valeTallerRepository.listarPorVale(valeId);
+      const fila = talleres.find(f => f.taller_id === Number(tallerId));
+      if (!fila) throw new Error('Este vale no fue enviado a ese taller.');
+      if (automatico && !(await valeTallerRepository.listarAdjuntosVencidos(valeId)).some(f => f.taller_id === fila.taller_id)) return null;
+      if (!ESTADOS_CONVERSACION_ABIERTA.includes(fila.estado)) {
+        throw new Error('Solo se puede dar de baja un taller que tiene los adjuntos rechazados o respondidos.');
+      }
+      if (talleres.length < 2) {
+        throw new Error('Este es el único taller del vale: usa «Dar de baja» para eliminar el vale completo.');
+      }
+      await valeTallerRepository.desactivar(fila.id);
+      // El texto de talleres solicitados debe quedar igual que las filas activas.
+      await valeRepository.actualizarTalleresSolicitados(valeId, talleres.filter(f => f.id !== fila.id).map(f => f.taller_id).join(','));
+      await valeTallerService._recalcularEstadoVale(valeId, usuario.id);
+      const nombre = await this._nombreTaller(fila.taller_id);
+      const actualizado = await valeRepository.obtenerPorId(valeId);
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, vale.estado, actualizado.estado, automatico
+        ? `Taller ${nombre} dado de baja del vale: el asesor no envió los adjuntos a tiempo (automático)`
+        : `Asesor dio de baja al taller ${nombre} del vale (adjuntos). Conversación cerrada`);
+      valeEvents.notificar({
+        vale: actualizado, nivel: 'alerta', salas: [...await this._salasAsesor(vale), `taller:${fila.taller_id}`],
+        ...(automatico
+          ? { tipo: 'TALLER_DADO_DE_BAJA_AUTOMATICA', texto: `el taller ${nombre} fue dado de baja del vale porque el asesor no envió los adjuntos a tiempo` }
+          : { tipo: 'TALLER_DADO_DE_BAJA', texto: `${usuario.nombre} dio de baja al taller ${nombre}`, actor: usuario.nombre, actorId: usuario.id })
+      });
+      // Los talleres que siguen (y quienes fusionan, si el vale quedó listo) solo refrescan su pantalla.
+      const salasQueSiguen = talleres.filter(f => f.id !== fila.id).flatMap(f => [`taller:${f.taller_id}`, ...(f.disenador_id ? [`disenador:${f.disenador_id}`] : [])]);
+      valeEvents.refrescar({ vale: actualizado, salas: [...new Set([...salasQueSiguen, SALA_FUSION])] });
       return enriquecer(actualizado);
     });
   }
@@ -159,7 +215,7 @@ class ValeAdjuntosService {
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await requerirVale(valeId);
       const { fila, escribe } = await this._resolverAcceso(usuario, vale, tallerId);
-      if (!escribe) throw new Error('Solo el taller y el asesor del vale pueden escribir en la conversación.');
+      if (!escribe) throw new ErrorDeNegocio('Solo el taller y el asesor del vale pueden escribir en la conversación.', 403);
       if (!ESTADOS_CONVERSACION_ABIERTA.includes(fila.estado)) {
         throw new Error('La conversación se cerró: se llegó a un acuerdo.');
       }
@@ -174,13 +230,35 @@ class ValeAdjuntosService {
     });
   }
 
-  // Venció el plazo sin respuesta del asesor: se borra el vale completo (el original de un MOD- no se toca).
-  // Revalida bajo el lock: el asesor o el encargado pudieron actuar entretanto.
+  // true si algún taller (filas de listarPorVale) protege el vale: el vencimiento de otro taller no lo borra.
+  algunTallerProtege(talleres) {
+    return algunTallerProtege(talleres);
+  }
+
+  // Venció el plazo de un taller sin respuesta del asesor: en un vale con 2 o más talleres solo ese taller se da de baja
+  // (uno por uno); si es el último taller, o es una solicitud de modificación, se borra el vale completo.
   async expirarPorAdjuntos(valeId) {
+    for (;;) {
+      const vencidos = await valeTallerRepository.listarAdjuntosVencidos(valeId);
+      if (!vencidos.length) return false;
+      const vale = await valeRepository.obtenerPorId(valeId);
+      if (!vale) return false;
+      const talleres = await valeTallerRepository.listarPorVale(valeId);
+      if (talleres.length < 2 || esValeDeModificacion(vale)) return this._eliminarValeVencido(valeId);
+      const quitado = await this.quitarTallerDeVale(valeId, vencidos[0].taller_id, { actor: { id: vale.asesor_id, nombre: 'Sistema' }, automatico: true });
+      if (!quitado) return false;
+    }
+  }
+
+  // Se borra el vale completo (el original de un MOD- no se toca), salvo que otro taller ya lo haya aceptado o el asesor ya
+  // le haya respondido: ese trabajo no se pierde (el taller trabado se quita a mano, runbook en Engram).
+  // Revalida bajo el lock: el asesor o el encargado pudieron actuar entretanto.
+  async _eliminarValeVencido(valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await valeRepository.obtenerPorId(valeId);
       if (!vale || !(await valeTallerRepository.listarAdjuntosVencidos(valeId)).length) return false;
       const talleres = await valeTallerRepository.listarPorVale(valeId);
+      if (this.algunTallerProtege(talleres)) return false;
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       const original = esValeDeModificacion(vale) ? await valeRepository.obtenerPorId(vale.vale_original_id) : null;
       const horas = await calendarioService.horasVencimiento();

@@ -1,68 +1,131 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Master guide of the MundiTrofeos portal. Platform-wide rules only. Module details live in `.agents/modulos/<module>/`.
 
-## Commands
+## 1. Project overview
 
-There is no test suite, linter, or build step configured in `package.json`.
+- Corporate portal hosting internal modules.
+- One Node/Express **modular monolith**; never split into services.
+- Hosting: managed Node + MySQL; no Docker/VPS/root.
+- MySQL is mandatory: no fallback, fatal exit.
+- Stack: Express, MySQL, Socket.IO, vanilla JS, Supabase Storage.
 
-Database: create a MySQL database named `portal_empresarial`, then import `database/schema.sql` (structure only), `database/seed.sql` (real catalogs/org data) and `database/users.sql` (users, talleres and their assignments) in that order — see `.agents/reglas/reglas_archivosSQL.md` for the split's rationale. **Existing (production) databases are updated with idempotent scripts in `database/`** that the owner imports by hand, with comments explaining each table/column; never by editing `schema.sql`/`seed.sql`. Their file names start with a correlativo, but docs and comments cite them by name without it (e.g. `script.sql`), because several people work in parallel and correlativos can collide. Then copy `.env.example` to `.env` and fill in every variable — **all are required, there are no defaults**: `src/config/env.js` prints a `[FATAL]` line per missing/invalid variable and exits (`NODE_ENV` must be `development|production|test`, `JWT_SECRET` ≥ 32 chars, token lifetimes `<int><s|m|h|d>`, `SOCKET_CORS_ORIGIN` exact origin(s) without trailing slash or `*`, `TRUST_PROXY` hops of reverse proxy (0 = none), `DB_PASSWORD` may be empty only outside production). **MySQL is a hard requirement, not an optional dependency** — `src/config/database.js` has no fallback; if the initial connection fails, the process logs a fatal error and exits (`process.exit(1)`) instead of starting in a degraded state.
+## 2. Quick start
 
-Controllers answer errors with `responderError` (`src/core/utils/erroresHttp.js`): business errors (plain `Error`s thrown by services) keep their message; MySQL/Storage/bug errors become a generic 500 and only the log has the detail — never `res.json({ error: error.message })` directly. Ids from URLs/bodies go through `idObligatorio`/`idOpcional` (`src/core/utils/validar.js`). Security tests live in `scripts/security/` and need a disposable DB (see `plan_remediacion_30.md`).
+- Full walkthrough and new-module guide: `README.md`.
+- No tests, linter, or build step.
+- Create MySQL database `portal_empresarial`.
+- Import `database/schema.sql`, `seed.sql`, `users.sql`, in order.
+- Copy `.env.example` to `.env`; fill every variable.
+- Run `npm run dev`: `http://localhost:3000`.
+- Env vars: all required, no defaults; missing or invalid: `[FATAL]`, exit.
+- `NODE_ENV`: `development|staging|production|test`.
+- `JWT_SECRET` ≥ 32 chars; `SOCKET_CORS_ORIGIN` exact origins, never `*`.
+- `DB_PASSWORD` empty only outside production; other formats: `src/config/env.js`.
+- Accounts: header of `database/users.sql`; admin is `admin@grupopremia.com`.
+- Change dev passwords in production.
+- Roles (rol_id 1-10): `.agents/modulos/admin/README.md`.
 
-Query code (repositories) always goes through `db.query(sql, params, tag)`. The 3rd `tag` argument (e.g. `'vale:insert'`, `'usuario:find_by_id'`) is passed through to every call for consistency/documentation, but MySQL itself ignores it and just runs the parameterized SQL as-is.
+## 3. Folder map
 
-Accounts: all users (asesores, supervisores, encargados, diseñadores, asistente, gerente) are loaded by `database/users.sql`, with `@grupopremia.com` / `@trofex.com` emails; the shared development password of each role is written in the comment at the top of that file and **must be changed in production**. The Administrador (rol_id 1) is `admin@grupopremia.com`. Roles: 1 Administrador, 2 Asesor, 3 Supervisor, 4 Encargado de Diseño, 5 Encargado de Diseño UV/3D, 6 Diseñador, 7 Asistente, 8 Gerente, 9 Encargado de Protextil, 10 Encargado de Diseño Local. Los asistentes (rol 7 y los de UV/3D, Protextil y Diseño Local) son roles con `roles.hereda_de_rol_id` apuntando al rol de su encargado por tipo de taller: ver `.agents/modulos/admin/documentacion/asistentes_por_taller.md`.
+```text
+src/
+  app.js              # mounts everything; order matters
+  config/             # env.js (fail-fast), database.js (MySQL pool)
+  core/               # shared: auth, permissions, websocket, files, idempotency, calendario, notifications, utils
+  modules/<name>/     # controllers/ services/ repositories/ routes.js events.js
+public/
+  css/global.css      # shared design tokens
+  modules/<name>/     # index.html, css/styles.css, js/app.js
+database/             # schema.sql, seed.sql, users.sql, migrations/
+.agents/              # reglas/ (global rules), modulos/<name>/ (README.md + documentacion/)
+```
 
-## Architecture
+- `src/app.js` order: public routes and `/api/auth`, then `authenticateJWT`, then maintenance gate.
+- Everything after `authenticateJWT` is protected.
+- Register modules in `MODULOS` (`src/core/permissions/modulesCatalog.js`), never inline in `app.js`.
+- Real-time: `socketManager.sendToModule(module, event, data)`; clients join with `register_module`.
+- Files never live in MySQL; store only the Storage URL.
+- Upload + DB endpoints accept `idempotencyKey`.
 
-Single Node/Express **modular monolith** — never split modules into separate services/servers. This constraint is intentional: the target hosting is a managed Node host with MySQL, no Docker/VPS/root access. Do not introduce infrastructure that requires that.
+## 4. Code conventions
 
-### Auth is JWT, not sessions
+- Controllers: HTTP only.
+- Services: business rules; no SQL, no `req`/`res`.
+- Repositories: all SQL, via `db.query(sql, params, tag)`, parameterized.
+- Errors via `responderError`; ids via `idObligatorio`/`idOpcional`.
+- Gate actions by permission, not role name.
+- Frontend: vanilla HTML/CSS/JS, Ionicons, `public/css/global.css` tokens; UI rules in `.agents/reglas/reglas_disenoUI.md`.
+- Design changes start with a Figma mockup approved by the owner; no code before that.
+- Keep DOM ids, classes, `data-*` stable.
+- Names: Spanish domain terms; `<x>Controller.js`, `<x>Service.js`, `<x>Repository.js`; permissions `<modulo>.<accion>`.
+- Storage objects named by correlativo; states written in full words.
+- Simple, cohesive code (SOLID, DRY, KISS); one-line "why" comments (`.agents/reglas/reglas_implementacion.md`).
+- Conventional Commits, in Spanish; no AI attribution.
+- Every change goes on a new branch from an updated `dev` (pull first).
+- Never commit directly to `dev`, `staging`, or `main`.
+- Business rules live in module docs; update them with behavior.
+- CI runs on every PR: `.agents/reglas/reglas_ci.md`.
 
-Despite `express-session` conventions elsewhere, this app uses **stateless JWT in an httpOnly cookie** (`README.md`'s architecture diagram is stale on this point — `.agents/reglas/reglas_autenticacion.md` is the authoritative spec). Key points:
+## 5. Security & auth
 
-- The JWT payload (`{ id, nombre, email, rolId, rolNombre, modulosPermitidos, permissions }`) is the single source of truth for identity — never trust `req.body`/`req.query` for who the current user is.
-- `src/core/auth/jwtHelper.js` signs/verifies tokens with `JWT_SECRET`.
-- The JWT is a short-lived **access token** (`ACCESS_TOKEN_EXPIRES_IN`, default 15m, cookie `token`) paired with an opaque, rotating **refresh token** (`REFRESH_TOKEN_EXPIRES_IN`, default 12h absolute session ceiling, cookie `refresh_token`, only its SHA-256 hash is stored in `sesiones_activas`). Both cookies are httpOnly + sameSite strict. `src/core/auth/tokenService.js` owns issuing/rotating them; `authenticateJWT` renews an expired access token transparently from the refresh cookie (re-reading role/permissions/`activo` from the DB each time). Presenting an already-rotated refresh token revokes the whole session. `sesiones_activas` presence tracking (socket count) no longer deletes the row — it only decides whether a new login gets 409.
-- `src/core/permissions/permissionMiddleware.js` exports the guards used everywhere:
-  - `authenticateJWT` — global interceptor (mounted in `app.js` after public static routes, before protected ones). Reads the `token` cookie or `Authorization: Bearer`, sets `Cache-Control: no-store` on every response to prevent viewing protected pages via browser back/forward cache, and redirects HTML requests to `/login/?expired=true` (or 401s API requests) when the token is missing/invalid.
-  - `requireAuth` — asserts `req.user` was set by `authenticateJWT`.
-  - `requirePermission('modulo.accion')` — 403s unless `req.user.permissions` includes the code.
-  - `requireModule('modulo')` — 403s unless `req.user.modulosPermitidos` includes it; rol_id 1 (Administrador) always bypasses this.
-- Static routes must be registered **before** `app.use(authenticateJWT)` in `app.js` if they should be public (see the ordering there); anything registered after is implicitly protected.
-- **Maintenance mode** (`maintenanceMiddleware.js`, `maintenanceGate` after `authenticateJWT`): activating it starts a 10-minute countdown (`inicia_en`, MySQL clock) during which users keep working and see a notice (`public/js/mantenimientoAviso.js`, `GET /api/mantenimiento/estado`); at 0 the gate blocks non-Administrators (503 page with a logout button; `/api/auth` is mounted before the gate) and the `sesiones_activas` rows of every rol_id <> 1 user are deleted once (`sesiones_cerradas_en`, resumed on restart) plus `sesion_revocada` over sockets. Details and production steps (import `mantenimiento_cuenta_regresiva.sql` BEFORE deploying): `.agents/modulos/admin/documentacion/mantenimiento_cuenta_regresiva.md`.
-- Permission checks belong in the backend only — hiding a button in the frontend is not access control.
+- Stateless JWT (cookie `token`) + rotating refresh token (`refresh_token`); httpOnly, sameSite strict.
+- Identity only from `req.user`; never from body/query.
+- Permissions enforced in the backend only.
+- Guards in `src/core/permissions/permissionMiddleware.js`: `authenticateJWT`, `requireAuth`, `requirePermission('modulo.accion')`, `requireModule`.
+- Spec: `.agents/reglas/reglas_autenticacion.md`.
 
-### Adding a new business module
+## 6. Environments & critical actions
 
-Follow `.agents/reglas/reglas_modulo.md` exactly (the README's pointer to `src/modules/reglas_modulo.md` is stale — the guide lives under `.agents/reglas/`) — it has full code templates, and `src/modules/vales/` and `src/modules/admin/` are concrete examples of the pattern. Modules are registered in `src/core/permissions/modulesCatalog.js` (consumed by `/api/modules` and the `/modules/<id>` gate), not inline in `app.js`. Summary:
+- `development`: local. `staging`: testing domain, production backup, own bucket. `production`. `test`: automated.
+- Critical actions run **only in production**; elsewhere do nothing and log it.
+- Critical: Storage delete/replace, purges, emails, push, webhooks, third-party calls, external resources located by DB values.
+- Guarded today: `supabaseStorage.eliminar`, retention watcher.
+- New actions: follow `.agents/reglas/reglas_entornos.md`; update its inventory.
+- Session cookies are `Secure` in staging and production.
+- Refresh staging from production: `npm run staging:probar-conexion` / `staging:refrescar`; rules: `.agents/reglas/reglas_refresco_staging.md`.
+- Environment mark: only the staging DB holds `parametros_sistema.entorno = 'staging'` (set once with `npm run staging:marcar`); production never has one. Refresh needs it in DESTINO, not ORIGEN; startup mismatch: `[FATAL]`.
 
-1. Backend: `src/modules/<name>/{controllers,services,repositories}/`, plus `routes.js` and `events.js`. Controllers stay thin (HTTP in/out only), services hold business rules, repositories hold all SQL.
-2. Frontend: `public/modules/<name>/{index.html, css/styles.css, js/app.js}`, styled to match `public/css/global.css` (shared design tokens) — same typography/colors/proportions as login and dashboard.
-3. Register in `src/app.js`: mount `app.use('/api/<name>', requireAuth, require('./modules/<name>/routes'))`, and add an entry to `MODULOS` in `src/core/permissions/modulesCatalog.js` (id, nombre, descripcion, icono, path, `permission` code, color) — the dashboard lists modules dynamically from this endpoint based on the user's permissions, no frontend changes needed.
-4. Add new permission codes (`<modulo>.ver`, `.crear`, etc.) to `database/seed.sql` and assign them to roles.
-5. Real-time updates for a module go through `socketManager.sendToModule(moduleName, event, data)`; clients join with `socket.emit('register_module', '<name>')`.
+## 7. Migrations (directive for AI agents)
 
-### Business domain: Vales de Arte
+- Folder: **`database/migrations/`** (formerly `database/migraciones/`); never create or reference the old name.
+- Scripts: additive, idempotent, named `NN_topic.sql`; never edit one already applied.
+- Never edit `schema.sql`/`seed.sql` for production changes.
+- Applied automatically at server start in `staging` and `production` (failure: server exits). In `development`: `npm run migrate` / `npm run migrate:estado`.
+- Runner: `src/core/migrations/`; control table `schema_migrations`; rules: `.agents/reglas/reglas_archivosSQL.md`.
+- Docs and comments cite scripts **without** the correlativo.
 
-`.agents/modulos/vales de arte/flujo_vale_de_arte.md` is the source of truth for the real flow (states, roles/permissions, buzón per role, limits, atraso, real-time). `analisis_modulo.md` in the same folder is the original spec, kept only as history (it still mentions `VENDIDO`/`CANCELADO` and a single-taller flow that no longer exist); `correcciones/` and `documentacion/` explain why each change was made. The module is under `src/modules/vales/` and `public/modules/vales/` (one adaptive `app.js`/`index.html` that renders different counters/actions per `rolId`). Core points:
+## 7.1 Deployments
 
-- Two state levels: general (`vales.estado`: `ESPERANDO_AUTORIZACION → CREADO → [APROBADO_DEPARTAMENTO] → PENDIENTE_CONFIRMACION → RECIBIDO`, plus `SOLICITANDO_MODIFICACION`/`MODIFICADO`) and per-taller (`vale_talleres.estado`: `VERIFICANDO_ADJUNTOS ⇄ ADJUNTOS_RECHAZADOS → ADJUNTOS_RESPONDIDOS → PENDIENTE_ASIGNACION → ASIGNADO → EN_PROCESO ⇄ EN_PAUSA → EN_REVISION → APROBADO`, with a rejection loop back to `ASIGNADO`). A vale can go to several talleres at once; `APROBADO_DEPARTAMENTO` (manual fusion) only happens with 2+ talleres, or for a modification whose original had 2+.
-- The supervisor of the asesor authorizes creation (which creates the `vale_talleres` rows) or rejects it (which deletes the vale entirely). A rejection returns the vale to the asesor (`RECHAZADO`, justified, ≤ 50 words) to correct/resend/cancel it. A modification creates a *new* vale `MOD-<correlativo>` and the original becomes `RECIBIDO` **at request time** (atraso frozen, `confirmado_en` set). The `MOD-` is born complete (24 h validity, `SOLICITANDO_MODIFICACION`) with the original proposal PDF appended after the vale body in its PDF; the supervisor authorizes it (only fan-out to the same talleres + the PDF is regenerated just to stamp the signature) or rejects it, and a rejected/expired/dado-de-baja `MOD-` is **deleted** (never the original's files). A pending `MOD-` can be corrected (original proposal and talleres locked); if an already authorized `MOD-` is deleted later the original can request a new one (`modificado` resets to 0).
-- Actions are gated by **permission**, not role (`requirePermission` in `routes.js`): e.g. fusing multi-taller vales needs `vales.aprobar_general` (today roles 4 and 7); there is no "Encargado General" role. Roles/permissions live in `database/seed.sql` (Administrador holds `vales.ver`, `admin.*`, `vales.ver_historial`, `vales.ver_reportes` and `admin.vales.generar` but none of the write permissions of the vale flow, so it can see everything but not run write actions — known and accepted). Gerente has no buzón: only the Rendimiento view and "Encontrar vale". Supervisors can also create their own vales (they need rows in both `supervisores` and `asesores`, the rol-3 permissions `vales.crear`/`confirmar`/`corregir`/`dar_de_baja`/`solicitar_modificacion`, and at least one supervisor covering their tienda — possibly themselves): they authorize their own vales. There is no collective daily authorization quota anymore (removed at management's request).
-- **Attachment verification:** the attachments of a vale travel by email, outside the module. Every taller starts in `VERIFICANDO_ADJUNTOS` and its encargado (permission `vales.verificar_adjuntos`) must verify it before assigning, or reject it (per taller, no message). The asesor answers per taller (`vales.corregir`, message ≤ 200 words) and the vale returns to the encargado. One 24 h window from the first rejection (`vale_talleres.adjuntos_vence_en`): if it expires while the taller is still `ADJUNTOS_RECHAZADOS`, `adjuntosWatcher.js` deletes the **whole** vale (a 6 h warning is sent first); the asesor may also cancel an authorized vale while a taller has rejected/answered. Details in section 2.1 of `flujo_vale_de_arte.md`.
-- The vale history ("Ver historial" action and the `historial` field of the detail endpoint) requires `vales.ver_historial`, held only by Administrador for now; without it the action is hidden and the API returns an empty history.
-- **No partial PDFs:** attached PDFs are downloaded with up to 3 attempts; if one cannot be read the PDF is not generated and the user sees an error with the file name (log `[ValePdfService]` states the cause: 404, 403, 5xx, network, not a PDF, damaged). Authorization builds the signed PDF before touching the DB and commits everything in one transaction.
-- **Admin "Crear Vale de Arte" tab** (`public/modules/admin/js/views/crearVale.js`, `src/modules/admin/*/adminValePdf*`, permission `admin.vales.generar`, only Administrador; table + permission in `admin_generar_vale.sql`): a correction tool that builds the PDF of a vale from arbitrary fields with `valePdfService.generarPdfVale`, uploads it to Storage and shows the link; it never creates or edits a vale nor touches `vales.pdf_url` (the owner updates it by hand). It asks for the account password first (`bcrypt.compare`; a wrong password answers **403**, not 401, because `sessionGuard.js` treats any 401 from `/api/` as an expired session; 5 failures per 15 min per user lock the action only) and logs every PDF in `vale_pdf_generados`. It applies no vale business rules (Sunday/12:00 etc.).
-- **Admin "Horarios y feriados" tab** (`public/modules/admin/js/views/horarios.js`, `src/modules/admin/*/*orario*`, permission `admin.horarios.gestionar`, only Administrador; tables + permission in `horarios_laborales.sql`): CRUD of the global weekly working hours (`horarios_laborales`, 7 rows, a non-working day carries no hours) and of the holidays per country (`feriados`, optionally yearly). **The tables exist but no vale logic (deadlines, delivery dates) reads them yet**; see `.agents/modulos/admin/documentacion/horarios_feriados.md`.
-- Business logic is split across `services/vale*Service.js` (Creacion, Taller, Confirmacion, Buzon, Detalle, Rendimiento, Busqueda, Catalogo, `capacidadEntregaService`); `valeService.js` is only a facade re-exporting them. Every transition runs under `valeMutex` and writes `vale_historial`.
-- Limits: an optional per-taller daily cap `talleres.limite_diario` on the delivery date (blocks create / request / approve-modification). There is no per-asesor limit anymore.
-- **Working hours and delivery date (Guatemala time, UTC-6):** `src/core/calendario/` (pure rules + cached service, invalidated by the admin services) reads `horarios_laborales`, `feriados`, `parametros_sistema.horas_vencimiento_vale` and `talleres.hora_maxima_recepcion`. The three old 24 h deadlines (`vales.vigencia_hasta` of a pending vale/`MOD-`, `vale_talleres.adjuntos_vence_en`) are now N working hours (`sumarHorasLaborales`), counted only inside working hours and skipping non-working days and holidays of the vale's country (Diseño/UV3D/Protextil = Guatemala; Diseño Local = its store's country); the "about to expire" notice fires once at 25% of the deadline in working time and the inbox "Vence en…" tag shows remaining working time. The fecha de entrega cannot be a day that does not receive vales or a holiday, and each taller's cutoff time (default 12:00) blocks "today" from that time on; with several talleres the most restrictive applies (`GET /api/vales/fechas-entrega`, `validarFechaEntrega`). There are no weekday/hour restrictions on operating anymore; authorizing a vale (or approving a `MOD-`) whose fecha de entrega is below the current minimum still fails and the supervisor must reject it. Atraso is unchanged. When creating a vale the fecha de entrega field stays disabled until a taller is selected. Stored deadlines are restarted with `scripts/recalcular-vencimientos.js`. Details in section 5.1 of `flujo_vale_de_arte.md`.
-- "Atraso" is derived from `fecha_entrega` (`calcularAtraso()`), frozen via `atraso_congelado_en` on confirm / modification approval; `atrasoWatcher.js` fires a one-time red alert every 60 s.
-- The generated PDF (`valePdfService.js`, via `pdf-lib`) is the administrative document of the vale; proposals/fusion documents are never merged into it. Files are never stored in MySQL, only their Supabase Storage URL (`src/core/files/supabaseStorage.js`, `subirYRegistrarArchivo.js`). Storage objects are named after the vale correlativo (`src/core/files/nombreArchivo.js`, see `.agents/modulos/vales de arte/documentacion/correlativo_documentos_supabase.md`); **when adding a new taller, add it to `codigoTaller` there**, or delivering a proposal with a file fails. The endpoints that combine upload + DB write (crear vale, entregar propuesta, aprobar general) accept an `idempotencyKey` form field checked against `idempotency_keys`.
-- Real-time: `events.js` / `socketManager` send each event only to the rooms it concerns (`asesor:<id>`, `supervisor:<id>`, `taller:<id>`, `disenador:<id>`, `vales:fusion` for anyone with `vales.aprobar_general`, `vales:admin`), validated server-side per connection; clients refetch their buzón on every event.
+- Flow: feature branch, PR to `dev`, `staging`, `main`; merge commits only in the last two.
+- Hostinger deploys on merge.
+- Migrations apply at startup in staging/production.
+- Staging refresh and production backup run from the owner's PC.
+- AI agents never run them, push to protected branches, or touch production.
+- Full runbook: `.agents/reglas/reglas_despliegue.md`.
 
-### Frontend conventions
+## 8. Pitfalls: mistakes to avoid
 
-No frontend framework or Tailwind — vanilla HTML/CSS/JS with Ionicons for icons. `public/css/global.css` holds shared design tokens; module CSS should import/extend it rather than redefine colors/typography, to keep visual consistency with `public/login` and `public/dashboard`. `.agents/reglas/reglas_disenoUI.md` is the high-level reference for the color palette (including the `--color-primary` vs `--color-primary-dark` role split — light blue for selection/emphasis, dark navy for primary-action surfaces/buttons) and overall design line — read it before touching colors, typography, or shared UI patterns.
+- Don't use `database/migraciones/`.
+- Don't hardcode defaults for env variables.
+- Don't return raw `error.message` from MySQL/Storage.
+- Don't answer 401 for business errors: `public/js/sessionGuard.js` treats any 401 from `/api/` as an expired session. Use 403.
+- Don't register protected routes before `authenticateJWT`, or public ones after it.
+- Don't delete Storage files outside production.
+- Don't add frameworks, Tailwind, bundlers, or TypeScript.
+- Don't rename DOM ids, classes, `data-*` in refactors.
+- Don't abbreviate states in UI, docs, or reports.
+- Don't rewrite whole files: keep line endings (most are CRLF).
+- Don't skip documenting a new module in `.agents/modulos/`.
+- Module-specific pitfalls: that module's `README.md`.
+
+## 9. Docs map
+
+| Module | Docs | Purpose |
+|---|---|---|
+| Vales de Arte (`vales`) | `.agents/modulos/vales de arte/README.md` | Vouchers: create, authorize, assign, deliver, confirm. |
+| Administración Central (`admin`) | `.agents/modulos/admin/README.md` | Users, roles, talleres, maintenance, schedules, admin tools. |
+
+- New module: `README.md` section 4 and `.agents/reglas/reglas_modulo.md`; document it under `.agents/modulos/<name>/` (`README.md` + `documentacion/`).
+- Global rules: `.agents/reglas/` (architecture, module templates, auth, implementation style, UI, SQL files, environments, CI, deployment).
+- Vales also has `flujo_vale_de_arte.md` (source of truth), `analisis_modulo.md` (history), `correcciones/` (changelog).

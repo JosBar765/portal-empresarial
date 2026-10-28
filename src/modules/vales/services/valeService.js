@@ -13,13 +13,14 @@ const valeDetalleService = require('./valeDetalleService');
 const valeBuzonService = require('./valeBuzonService');
 const valeTallerService = require('./valeTallerService');
 const valeConfirmacionService = require('./valeConfirmacionService');
-const valeRendimientoService = require('./valeRendimientoService');
-const valeBusquedaService = require('./valeBusquedaService');
 const capacidadEntregaService = require('./capacidadEntregaService');
 const fechasEntregaService = require('./fechasEntregaService');
 const valeCorreccionService = require('./valeCorreccionService');
 const valeVistoService = require('./valeVistoService');
+const propuestasCompartidasService = require('./propuestasCompartidasService');
 const valeModificacionService = require('./valeModificacionService');
+const valeRechazoPropuestaService = require('./valeRechazoPropuestaService');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeReporteService = require('./valeReporteService');
 const valeReportePdfService = require('./valeReportePdfService');
 const valeAdjuntosService = require('./valeAdjuntosService');
@@ -27,12 +28,20 @@ const valeAdjuntosService = require('./valeAdjuntosService');
 module.exports = {
   // Reportes de actividad
   obtenerReporte: (...a) => valeReporteService.obtenerReporte(...a),
-  generarReportePdf: async (usuario, filtros) => {
-    const reporte = await valeReporteService.obtenerReporte(usuario, filtros, { maxFilas: valeReporteService.MAX_FILAS_PDF });
+  // `tipo`: 'actividad' (por defecto) o 'rendimiento' (no disponible para Asesor ni Diseñador). `enfoque` ('ventas' o 'taller'): qué reporte
+  // de Rendimiento imprimen el Administrador y el Gerente; los demás roles lo ignoran.
+  generarReportePdf: async (usuario, filtros, tipo = 'actividad', enfoque = 'ventas') => {
+    if (!['actividad', 'rendimiento'].includes(tipo)) throw new ErrorDeNegocio('El tipo de reporte no es válido.');
+    if (!['ventas', 'taller'].includes(enfoque)) throw new ErrorDeNegocio('El enfoque del reporte no es válido.');
+    const reporte = await valeReporteService.obtenerReporte(usuario, { ...filtros, tipo }, { maxFilas: valeReporteService.MAX_FILAS_PDF });
+    if (tipo === 'rendimiento' && !(reporte.grupos && reporte.grupos.rendimiento)) throw new ErrorDeNegocio('El reporte de rendimiento no está disponible para tu rol.');
+    reporte.tipo = tipo;
+    reporte.enfoque = enfoque;
+    if (tipo === 'rendimiento') reporte.titulo = reporte.titulo.replace(/^Actividad/, 'Rendimiento') + (reporte.grupos.rendimiento.vistas ? ` · ${enfoque === 'taller' ? 'Taller' : 'Ventas'}` : '');
     const ahora = new Date(Date.now() - 6 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 16);
     const [f, h] = ahora.split(' ');
     const [y, m, d] = f.split('-');
-    return { reporte, pdf: await valeReportePdfService.generar(reporte, { generadoPor: usuario.nombre, ahora: `${d}/${m}/${y} ${h}` }) };
+    return { reporte, pdf: await valeReportePdfService.generar(reporte, { generadoPor: usuario.nombre, ahora: `${d}/${m}/${y} ${h}`, tipo }) };
   },
 
   // Catálogo
@@ -40,6 +49,7 @@ module.exports = {
   obtenerTalleres: (...a) => valeCatalogoService.obtenerTalleres(...a),
   obtenerCapacidadEntrega: (...a) => capacidadEntregaService.obtenerCapacidadMes(...a),
   obtenerFechasEntrega: (...a) => fechasEntregaService.obtenerFechasEntrega(...a),
+  obtenerCalendarioBuzon: (...a) => capacidadEntregaService.obtenerCalendarioBuzon(...a),
 
   // Creación
   crearVale: (...a) => valeCreacionService.crearVale(...a),
@@ -52,11 +62,11 @@ module.exports = {
 
   // Detalle
   obtenerDetalle: (...a) => valeDetalleService.obtenerDetalle(...a),
+  obtenerPropuesta: (...a) => valeDetalleService.obtenerPropuesta(...a),
+  marcarPropuestaOtroTallerVista: (...a) => propuestasCompartidasService.marcarVisto(...a),
 
-  // Buzón / listado por rol + Vista Gerencia
+  // Buzón / listado por rol
   obtenerBuzon: (...a) => valeBuzonService.obtenerBuzon(...a),
-  obtenerRendimientoGerencia: (...a) => valeRendimientoService.obtenerRendimiento(...a),
-  buscarValePorCorrelativo: (...a) => valeBusquedaService.buscarPorCorrelativo(...a),
   obtenerDisenadoresAsignables: (...a) => valeBuzonService.obtenerDisenadoresAsignables(...a),
   obtenerCargaTrabajo: (...a) => valeBuzonService.obtenerCargaTrabajo(...a),
   obtenerAsignacionesDeDisenador: (...a) => valeBuzonService.obtenerAsignacionesDeDisenador(...a),
@@ -75,6 +85,7 @@ module.exports = {
   verificarAdjuntos: (...a) => valeAdjuntosService.verificarAdjuntos(...a),
   rechazarAdjuntos: (...a) => valeAdjuntosService.rechazarAdjuntos(...a),
   responderAdjuntos: (...a) => valeAdjuntosService.responderAdjuntos(...a),
+  darDeBajaTaller: (...a) => valeAdjuntosService.darDeBajaTaller(...a),
   listarConversacion: (...a) => valeAdjuntosService.listarConversacion(...a),
   enviarMensaje: (...a) => valeAdjuntosService.enviarMensaje(...a),
 
@@ -82,6 +93,14 @@ module.exports = {
   confirmarRecibido: (...a) => valeConfirmacionService.confirmarRecibido(...a),
   solicitarModificacion: (...a) => valeModificacionService.solicitarModificacion(...a),
   aprobarModificacion: (...a) => valeModificacionService.aprobarModificacion(...a),
+  // Rechazo de propuesta: el asesor dueño lo pide y conversa con cada taller, que acepta o rechaza
+  solicitarRechazoPropuesta: (...a) => valeRechazoPropuestaService.solicitar(...a),
+  listarRechazosPropuesta: (...a) => valeRechazoPropuestaService.listar(...a),
+  conversacionRechazoPropuesta: (...a) => valeRechazoPropuestaService.listarConversacion(...a),
+  enviarMensajeRechazoPropuesta: (...a) => valeRechazoPropuestaService.enviarMensaje(...a),
+  aceptarRechazoPropuesta: (...a) => valeRechazoPropuestaService.aceptar(...a),
+  rechazarRechazoPropuesta: (...a) => valeRechazoPropuestaService.rechazar(...a),
+  cancelarRechazoPropuesta: (...a) => valeRechazoPropuestaService.cancelar(...a),
   rechazarModificacion: (...a) => valeModificacionService.rechazarModificacion(...a),
   obtenerValeParaPdf: (...a) => valeConfirmacionService.obtenerValeParaPdf(...a),
 

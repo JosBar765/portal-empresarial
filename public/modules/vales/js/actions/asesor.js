@@ -1,8 +1,15 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
+import { abrirVisorVale } from '../components/visorDocumento.js';
 import { confirmarRecibido, darDeBajaVale, reenviarVale } from '../api/valesApi.js';
 import { escapeHtml } from '../utils/formato.js';
+import { state } from '../state.js';
+import { puede } from '../permisos.js';
+import { ESTADOS_LABEL } from '../config/estados.js';
+import { abrirModalBajaTaller } from './adjuntos.js';
 import { cargarBuzon } from '../views/buzon.js';
-import { abrirModalSolicitarModificacion } from '../forms/valeForm.js';
+import { abrirSelectorModificacion } from './modificacionTipo.js';
+import { abrirConversacionesRechazo, abrirModalRechazarPropuesta } from './rechazoPropuesta.js';
+import { rechazosSinLeer, textoRechazos } from '../utils/modificacionesVistas.js';
 
 // Asesor: ver el motivo con el que el supervisor rechazó su vale.
 export function abrirModalMotivoRechazo(vale) {
@@ -61,44 +68,80 @@ export function abrirModalDarDeBaja(vale) {
   });
 }
 
-// -----------------------------------------------------------------------
-// Asesor: decidir sobre un vale PENDIENTE_CONFIRMACION (confirmar / corregir)
-// -----------------------------------------------------------------------
-// Rechazar no es una acción separada de "solicitar corrección": un solo botón
-// "Rechazar" pide el motivo y manda el vale a corrección — cae al buzón del
-// encargado, nunca queda como un estado "Rechazado" persistido.
-export function abrirModalDecisionAsesor(vale) {
+// Vale multitaller con algún taller en adjuntos rechazados/respondidos: se elige entre quitar un taller o todo el vale.
+const ofreceBajaPorTaller = (vale) => !(Number(vale.vale_original_id) > 0)
+  && (vale.talleres_estado || []).length >= 2 && (vale.adjuntos || []).length > 0;
+
+// Punto de entrada del icono «Dar de baja» del buzón.
+export function abrirDarDeBaja(vale) {
+  if (ofreceBajaPorTaller(vale)) abrirModalDarDeBajaMultitaller(vale);
+  else abrirModalDarDeBaja(vale);
+}
+
+function abrirModalDarDeBajaMultitaller(vale) {
+  const reclamados = new Map((vale.adjuntos || []).map(a => [a.taller_id, a]));
+  const tarjetas = vale.talleres_estado.map(t => {
+    const adjunto = reclamados.get(t.taller_id);
+    const clase = !adjunto ? '' : t.estado === 'ADJUNTOS_RESPONDIDOS' ? ' chip-estado--info' : ' chip-estado--alerta';
+    return `<li class="rechazo-tarjeta">
+      <div class="rechazo-cab"><strong>${escapeHtml(t.taller)}</strong><span class="chip-estado${clase}">${escapeHtml(ESTADOS_LABEL[t.estado] || t.estado)}</span></div>
+      ${adjunto ? `<div class="rechazo-acciones"><button class="btn btn--ghost btn--sm" data-baja-taller="${Number(t.taller_id)}"><ion-icon name="ban-outline"></ion-icon> Dar de baja a este taller</button></div>` : ''}
+    </li>`;
+  }).join('');
   const { overlay, cerrar } = abrirModal({
-    title: `Vale pendiente de confirmación — ${vale.correlativo}`,
+    title: `Dar de baja — ${vale.correlativo}`,
     bodyHtml: `
-      <p style="font-size:13px;margin-bottom:14px;">Revisa el vale de arte final y decide qué hacer.</p>
-      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-        <a href="/api/vales/${vale.id}/pdf" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver vale de arte (PDF)</a>
-        ${vale.propuesta_general_url ? `<a href="${vale.propuesta_general_url}" target="_blank" class="btn btn--ghost" style="text-decoration:none;display:inline-flex;">Ver propuesta</a>` : ''}
-      </div>
-      <p class="form-nota">Si solicitas una modificación, este vale pasará a «Recibido» de inmediato y se creará un vale de modificación (MOD-) con la propuesta original adjunta. El supervisor debe autorizarlo; si lo rechaza o vence, el MOD- se elimina y puedes solicitar uno nuevo.</p>
+      <p style="font-size:13px;margin-bottom:10px;">Puedes quitar solo a un taller que rechazó o ya respondió sobre los adjuntos, o dar de baja el vale completo.</p>
+      <ul class="rechazo-lista">${tarjetas}</ul>
     `,
-    footerHtml: `
-      <button class="btn btn--danger" id="btn-solicitar-modificacion">Solicitar Modificación</button>
-      <button class="btn btn--primary" id="btn-confirmar-recibido">Confirmar Recibido</button>
-    `
+    footerHtml: '<button class="btn btn--ghost" id="btn-cerrar">Cerrar</button><button class="btn btn--danger" id="btn-vale-completo">Dar de baja el vale completo</button>'
   });
-
-  overlay.querySelector('#btn-confirmar-recibido').addEventListener('click', async () => {
-    try {
-      await confirmarRecibido(vale.id);
-      window.toast.success('Recibido', `${vale.correlativo} confirmado como recibido.`);
-      cerrar();
-      cargarBuzon();
-    } catch (error) {
-      mostrarErrorModal(overlay, error.message);
-    }
+  overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
+  overlay.querySelector('#btn-vale-completo').addEventListener('click', () => { cerrar(); abrirModalDarDeBaja(vale); });
+  overlay.querySelectorAll('[data-baja-taller]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const adjunto = reclamados.get(Number(btn.dataset.bajaTaller));
+      if (adjunto) abrirModalBajaTaller(vale, adjunto, cerrar);
+    });
   });
+}
 
-  // Reusa el modal completo de solicitar modificación, que ya sabe pedir la
-  // justificación y talleres y llamar al endpoint correspondiente.
-  overlay.querySelector('#btn-solicitar-modificacion').addEventListener('click', () => {
-    cerrar();
-    abrirModalSolicitarModificacion(vale);
+// -----------------------------------------------------------------------
+// Asesor: decidir sobre un vale PENDIENTE_CONFIRMACION (paso 5)
+// -----------------------------------------------------------------------
+// Un solo botón abre el visor con el vale y la propuesta; abajo a la derecha van «Solicitar modificación», «Rechazar propuesta» y «Confirmar recibido».
+export function abrirVisorDecisionAsesor(vale, propuesta) {
+  // Si un taller rechazó la solicitud del asesor y este aún no la abrió, el visor lo avisa con acceso a la conversación.
+  const rechazos = rechazosSinLeer(vale);
+  const aviso = rechazos.length ? {
+    texto: `${textoRechazos(rechazos)}. El vale sigue igual: puedes confirmarlo, rechazar de nuevo o pedir una modificación.`,
+    boton: { etiqueta: 'Ver chat', onClick: ({ quitar }) => { quitar(); abrirConversacionesRechazo(vale, { ids: rechazos.map(r => r.id) }); } }
+  } : null;
+  const puedeRechazar = puede('rechazarPropuesta') && vale.asesor_id === state.user.id;
+  // Cancelar en el modal que abre una acción devuelve al visor de decisión.
+  const volverALaDecision = () => abrirVisorDecisionAsesor(vale, propuesta);
+  return abrirVisorVale({
+    aviso,
+    id: vale.id, correlativo: vale.correlativo, propuesta, subtitulo: 'Revisa el vale y la propuesta, y decide.',
+    acciones: [
+      { etiqueta: 'Solicitar modificación', icono: 'create-outline', clase: 'btn--ghost', onClick: ({ cerrar }) => { cerrar(); abrirSelectorModificacion(vale, { alCancelar: volverALaDecision }); } },
+      ...(puedeRechazar ? [{ etiqueta: 'Rechazar propuesta', icono: 'close-circle-outline', clase: 'btn--danger', onClick: ({ cerrar }) => { cerrar(); abrirModalRechazarPropuesta(vale, { alCancelar: volverALaDecision }); } }] : []),
+      {
+        etiqueta: 'Confirmar recibido', icono: 'checkmark-outline', clase: 'btn--primary',
+        onClick: async ({ cerrar, boton }) => {
+          boton.disabled = true;
+          try {
+            await confirmarRecibido(vale.id);
+            window.toast.success('Recibido', `${vale.correlativo} confirmado.`);
+            cerrar();
+            cargarBuzon();
+          } catch (error) {
+            window.toast.error('No se pudo confirmar', error.message);
+            boton.disabled = false;
+            cargarBuzon();
+          }
+        }
+      }
+    ]
   });
 }

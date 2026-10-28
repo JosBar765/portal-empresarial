@@ -1,6 +1,7 @@
 // src/modules/vales/services/valeDetalleService.js
 // Detalle de un vale: control de acceso por rol y filtrado del historial de
 // auditoría según qué le corresponde ver a cada rol.
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
 const tallerRepository = require('../repositories/tallerRepository');
@@ -8,8 +9,10 @@ const propuestaRepository = require('../repositories/propuestaRepository');
 const documentoRepository = require('../repositories/documentoRepository');
 const historialRepository = require('../repositories/historialRepository');
 const valeMensajeRepository = require('../repositories/valeMensajeRepository');
+const rechazoPropuestaRepository = require('../repositories/valeRechazoPropuestaRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
+const propuestasCompartidasService = require('./propuestasCompartidasService');
 const {
   ESTADOS, ROL, esDeTaller, esTallerODisenador,
   esAdministrador, enriquecer
@@ -63,16 +66,22 @@ class ValeDetalleService {
 
   async obtenerDetalle(usuario, valeId) {
     const vale = await valeRepository.obtenerPorId(valeId);
-    if (!vale) throw new Error('Vale de arte no encontrado.');
+    if (!vale) throw new ErrorDeNegocio('Vale de arte no encontrado.', 404);
     const talleres = await valeTallerRepository.listarPorVale(valeId);
     if (!(await this._puedeVerVale(usuario, vale, talleres))) {
       throw new Error('No tienes acceso a este vale de arte.');
     }
-    const [propuestas, documentos, historial] = await Promise.all([
+    const [propuestasCrudas, documentos, historial, enlacesFusion] = await Promise.all([
       propuestaRepository.listarPorVale(valeId),
       documentoRepository.listarPorVale(valeId),
-      historialRepository.listarPorVale(valeId)
+      historialRepository.listarPorVale(valeId),
+      propuestaRepository.listarEnlacesDeFusion(valeId)
     ]);
+    // Cada propuesta trae su nota y sus enlaces.
+    const enlacesPorPropuesta = new Map();
+    (await propuestaRepository.listarEnlacesPorPropuestas(propuestasCrudas.map(p => p.id)))
+      .forEach(e => { if (!enlacesPorPropuesta.has(e.propuesta_id)) enlacesPorPropuesta.set(e.propuesta_id, []); enlacesPorPropuesta.get(e.propuesta_id).push({ nombre: e.nombre, url: e.url }); });
+    const propuestas = propuestasCrudas.map(p => ({ ...p, enlaces: enlacesPorPropuesta.get(p.id) || [] }));
     const talleresConNombre = await this._enriquecerTalleresConNombre(talleres);
     const historialConActor = await this._enriquecerHistorialConActor(historial);
     // Sin `vales.ver_historial` el historial no sale del servidor.
@@ -85,12 +94,59 @@ class ValeDetalleService {
     // consulta que ya usa aprobarModificacion() en valeConfirmacionService.
     const adjuntos = await this._adjuntosVisibles(usuario, talleresConNombre);
     // Registro de las conversaciones del rechazo (cerradas o no): solo con el permiso de historial; el buzón ya no las muestra.
-    const conversaciones = (usuario.permissions || []).includes('vales.ver_historial') ? await this._registroConversaciones(valeId) : [];
-    return { ...enriquecer(vale), talleres: talleresConNombre, adjuntos, propuestas, documentos, historial: historialVisible, conversaciones };
+    const verHistorial = (usuario.permissions || []).includes('vales.ver_historial');
+    const conversaciones = verHistorial ? await this._registroConversaciones(valeMensajeRepository, valeId) : [];
+    const conversacionesPropuesta = verHistorial ? await this._registroConversaciones(rechazoPropuestaRepository, valeId) : [];
+    const propuestasOtrosTalleres = await propuestasCompartidasService.obtenerParaDetalle(usuario, valeId);
+    return {
+      ...enriquecer(vale), talleres: talleresConNombre, adjuntos, propuestas, propuestasOtrosTalleres, documentos, historial: historialVisible, conversaciones, conversacionesPropuesta,
+      enlacesFusion: enlacesFusion.map(e => ({ nombre: e.nombre, url: e.url }))
+    };
   }
 
-  async _registroConversaciones(valeId) {
-    const mensajes = await valeMensajeRepository.listarPorVale(valeId);
+  // Propuesta de un vale con su nota y enlaces, con la misma regla de acceso que el detalle. `tipo`: 'taller' (con `disenadorId`),
+  // 'general' (la fusión o, si no hay, la propuesta de un único taller) o 'ultima'.
+  async obtenerPropuesta(usuario, valeId, { tipo = 'ultima', disenadorId = null } = {}) {
+    const vale = await valeRepository.obtenerPorId(valeId);
+    if (!vale) throw new ErrorDeNegocio('Vale de arte no encontrado.', 404);
+    const talleres = await valeTallerRepository.listarPorVale(valeId);
+    if (!(await this._puedeVerVale(usuario, vale, talleres))) throw new Error('No tienes acceso a este vale de arte.');
+
+    if (tipo === 'general') {
+      const enlaces = await propuestaRepository.listarEnlacesDeFusion(valeId);
+      if (vale.propuesta_general_url || vale.propuesta_general_nota || enlaces.length) {
+        return {
+          origen: 'fusion', url: vale.propuesta_general_url || null, nota: vale.propuesta_general_nota || null,
+          enlaces: enlaces.map(e => ({ nombre: e.nombre, url: e.url })), entregadoPor: null, fecha: vale.fusionado_en || null
+        };
+      }
+    }
+    // Quien actúa como taller no ve propuestas de otros talleres que no estén aprobadas y compartidas (misma regla del visor).
+    const alcance = await propuestasCompartidasService.alcanceDePropuestas(usuario, vale, talleres);
+    let propuesta;
+    if (tipo === 'taller' && disenadorId) {
+      propuesta = await propuestaRepository.obtenerUltimaPorValeYDisenador(valeId, disenadorId);
+      if (propuesta && alcance && !(await propuestasCompartidasService.filtrarPropuestas(alcance, [propuesta])).length) {
+        throw new ErrorDeNegocio('No tienes acceso a la propuesta de ese taller.', 403);
+      }
+    } else if (alcance) {
+      const visibles = await propuestasCompartidasService.filtrarPropuestas(alcance, await propuestaRepository.listarPorVale(valeId));
+      propuesta = visibles[visibles.length - 1]; // listarPorVale va en orden ascendente de id
+    } else {
+      propuesta = await propuestaRepository.obtenerUltimaPorVale(valeId);
+    }
+    if (!propuesta) return { origen: 'ninguna', url: null, nota: null, enlaces: [], entregadoPor: null, fecha: null };
+    const enlaces = await propuestaRepository.listarEnlacesPorPropuestas([propuesta.id]);
+    const autor = await usuarioValeRepository.obtenerPorId(propuesta.disenador_id);
+    return {
+      origen: 'propuesta', url: propuesta.url || null, nota: propuesta.nota || null,
+      enlaces: enlaces.map(e => ({ nombre: e.nombre, url: e.url })), entregadoPor: autor ? autor.nombre : null, fecha: propuesta.creado_en
+    };
+  }
+
+  // Hilos por taller del rechazo de adjuntos (valeMensajeRepository) o del rechazo de propuesta (rechazoPropuestaRepository).
+  async _registroConversaciones(repositorio, valeId) {
+    const mensajes = await (repositorio.listarMensajesPorVale || repositorio.listarPorVale).call(repositorio, valeId);
     const porTaller = new Map();
     for (const m of mensajes) {
       if (!porTaller.has(m.taller_id)) porTaller.set(m.taller_id, { taller_id: m.taller_id, taller: m.taller, mensajes: [] });

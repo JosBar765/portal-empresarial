@@ -1,0 +1,31 @@
+# Selector de ventana de tiempo único
+
+Buzón y Trabajo realizado usan la misma barra de período que la pestaña Reportes (`crearBarraPeriodo`). Solo frontend: el backend no cambia.
+
+## Qué cambió para el usuario
+- Tipos: Hoy · Día · Semana (lunes a domingo) · Mes · Desde – Hasta. Desaparece «Todo».
+- Se abre en el mes de hoy (antes en la semana de hoy y, antes de eso, en «Todo»). Reportes mantiene su período inicial «Hoy».
+- Desde – Hasta exige las dos fechas; al elegirlo se precarga los últimos 7 días.
+- Información por día del calendario (`GET /api/vales/calendario-buzon`, `capacidadEntregaService.obtenerCalendarioBuzon`): el Supervisor (`vales.ver_cupo`) ve el cupo de los talleres de sus tiendas; el **Asesor** ve el mismo mapa de calor, pero solo de los talleres a los que puede enviar (los generales y el Diseño Local de su propia tienda) y con sus propios vales por autorizar; el Encargado/Asistente ve cuántos vales entran a su taller; el **Diseñador** ve solo cuántas asignaciones activas suyas entran (ASIGNADO, EN_PROCESO, EN_PAUSA y EN_REVISION, las mismas que ve en su buzón).
+- Semana es nueva en Buzón y Trabajo realizado. Su calendario muestra solo los indicadores de cada día (mapa de calor del cupo o conteo de vales), sin detalle ni botones: un clic en cualquier día elige la semana completa. Los datos se piden por mes, así que los días de otro mes no traen indicador.
+- Se conservan en el calendario del modo «Día»: el mapa de calor del cupo de talleres (Supervisor, `vales.ver_cupo`), el conteo de vales por día (Diseñador y Encargado/Asistente) y las acciones «Ver vales de este día» y «Ver reporte de este día» (esta, con `vales.ver_reportes`).
+- Se pierde el pie «Todo <mes>»: el mes completo se elige con el tipo «Mes».
+- Buzón y Trabajo comparten la barra (`state.ventana`); Reportes mantiene la suya (`state.reporte.ventana`), sin cambios.
+- El Buzón sigue mostrando los vales anteriores aún abiertos (arrastrados); Trabajo realizado, ventana estricta.
+
+## Cómo viaja al servidor
+`js/utils/ventana.js` (`aplicarVentanaAQuery`) manda solo lo que acepta `_resolverVentana` (`mes` y `rango`):
+
+| Tipo | Parámetros |
+|---|---|
+| Hoy / Día | `ventana=rango&desde=F&hasta=F` (F = hoy o el día elegido) |
+| Semana | `ventana=rango&desde=<lunes>&hasta=<domingo>` |
+| Mes | `ventana=mes&fecha=<primer día del mes>` |
+| Desde – Hasta | `ventana=rango&desde&hasta` |
+
+## Archivos
+- `js/components/barraPeriodoReportes.js`: `crearBarraPeriodo` admite `prefijo` (ids y nombres de campo únicos; sin él, los de Reportes: `rp-navegador`, `rp-etiqueta`, `rp-rango`, `rep-desde`, `rep-hasta`) y los ganchos opcionales `cargarInfoMes`, `alVerVales` y `alVerReporte` (solo calendario del modo Día). Aloja ahora `etiquetaDia` y `etiquetaMes`.
+- `js/layout/toolbar.js`: crea la barra con prefijo `vt` en `#ventana-barra`; el permiso de la información por día se decide aquí.
+- `js/state.js`, `js/utils/ventana.js`, `index.html`, `css/reportes.css`.
+- Retirados: `js/components/selectorPeriodo.js` y las reglas `.chip`, `.mes-nav*`, `.ventana-*` de `css/styles.css`.
+- Intactos: `#filtro-tienda`, `#btn-nuevo-vale`, `verReporteDelDia`.

@@ -1,5 +1,6 @@
 // src/modules/vales/controllers/valeController.js
 const valeService = require('../services/valeService');
+const { leerAdjuntos } = require('../services/propuestaAdjuntos');
 const { validarArchivos, tipoRealCoincide } = require('../../../core/files/fileSignature');
 const { responderError, responderErrorInterno } = require('../../../core/utils/erroresHttp');
 const { idObligatorio, idOpcional } = require('../../../core/utils/validar');
@@ -48,8 +49,22 @@ class ValeController {
   // Mínima y días no disponibles (feriados, días sin recepción, hora máxima) para los talleres elegidos.
   async fechasEntrega(req, res) {
     try {
-      const data = await valeService.obtenerFechasEntrega(req.query.talleres, req.query.desde, req.query.hasta);
+      const data = await valeService.obtenerFechasEntrega(req.query.talleres, req.query.desde, req.query.hasta, req.query.urgente, req.query.modificacion);
       return res.json(data);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  // Información por día del calendario desplegable del Buzón (cupo para el Supervisor y el Asesor, conteo para Encargado y Diseñador).
+  async calendarioBuzon(req, res) {
+    try {
+      const anio = Number(req.query.anio);
+      const mes = Number(req.query.mes);
+      if (!Number.isInteger(anio) || !Number.isInteger(mes) || mes < 1 || mes > 12 || anio < 2000 || anio > 2100) {
+        return res.status(400).json({ error: 'Parámetros inválidos: se requieren anio y mes.' });
+      }
+      return res.json(await valeService.obtenerCalendarioBuzon(req.user, anio, mes));
     } catch (error) {
       return responderError(res, error);
     }
@@ -88,6 +103,7 @@ class ValeController {
         filtroContador: req.query.filtroContador,
         busqueda: req.query.busqueda,
         soloAtrasados: req.query.soloAtrasados,
+        soloRechazos: req.query.soloRechazos,
         soloModificados: req.query.soloModificados,
         disenadorId: req.query.disenadorId,
         tiendaId: req.query.tiendaId,
@@ -101,8 +117,6 @@ class ValeController {
     }
   }
 
-  // Vista Rendimiento (Gerente y Supervisor): KPIs, tendencia, ciclo por
-  // etapa, ranking por taller/tienda y vales críticos. Solo lectura.
   _filtrosReporte(req) {
     return {
       ventana: req.query.ventana,
@@ -111,7 +125,11 @@ class ValeController {
       hasta: req.query.hasta,
       tiendaId: req.query.tiendaId,
       tallerId: req.query.tallerId,
-      personaIds: req.query.personaIds
+      personaIds: req.query.personaIds,
+      asesorIds: req.query.asesorIds,
+      disenadorIds: req.query.disenadorIds,
+      agruparPor: req.query.agruparPor,
+      tipo: req.query.tipo
     };
   }
 
@@ -125,14 +143,14 @@ class ValeController {
 
   async reportePdf(req, res) {
     try {
-      const { reporte, pdf } = await valeService.generarReportePdf(req.user, this._filtrosReporte(req));
+      const { reporte, pdf } = await valeService.generarReportePdf(req.user, this._filtrosReporte(req), String(req.query.tipo || 'actividad'), String(req.query.enfoque || 'ventas'));
       const fecha = reporte.periodo.desde && reporte.periodo.desde === reporte.periodo.hasta ? reporte.periodo.desde : (reporte.periodo.desde || 'historial');
       const quien = reporte.evaluados.length === 1
         ? reporte.evaluados[0].nombre.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
         : (reporte.evaluados.length > 1 ? `${reporte.evaluados.length}-personas` : '');
       const sufijo = quien ? `${fecha}-${quien}` : fecha;
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="reporte-vales-${sufijo}.pdf"`);
+      res.setHeader('Content-Disposition', `attachment; filename="reporte-${req.query.tipo === 'rendimiento' ? 'rendimiento' : 'actividad'}-${sufijo}.pdf"`);
       res.setHeader('Content-Length', pdf.length);
       return res.end(pdf);
     } catch (error) {
@@ -140,30 +158,15 @@ class ValeController {
     }
   }
 
-  async rendimientoGerencia(req, res) {
+  // Propuesta de un vale con su nota y enlaces: tipo `taller` (con disenadorId), `general` (la fusión) o `ultima`.
+  async propuesta(req, res) {
     try {
-      const filtros = {
-        ventana: req.query.ventana,
-        fecha: req.query.fecha,
-        desde: req.query.desde,
-        hasta: req.query.hasta,
-        tiendaId: req.query.tiendaId
-      };
-      const data = await valeService.obtenerRendimientoGerencia(req.user, filtros);
+      const data = await valeService.obtenerPropuesta(req.user, idObligatorio(req.params.id), {
+        tipo: String(req.query.tipo || 'ultima'), disenadorId: Number(req.query.disenadorId) || null
+      });
       return res.json(data);
     } catch (error) {
-      return responderErrorInterno(res, error);
-    }
-  }
-
-  // "Encontrar vale" (solo Gerente, ver el guard en routes.js): un vale por
-  // correlativo exacto, con sugerencias si no hay coincidencia.
-  async buscarPorCorrelativo(req, res) {
-    try {
-      const data = await valeService.buscarValePorCorrelativo(req.query.correlativo);
-      return res.json(data);
-    } catch (error) {
-      return responderError(res, error);
+      return responderError(res, error, 404);
     }
   }
 
@@ -183,7 +186,8 @@ class ValeController {
       const vale = await valeService.obtenerValeParaPdf(req.user, idObligatorio(req.params.id));
       valeService.marcarVisto(req.user, vale.id).catch(error => console.error('[Visto]', error.message));
       if (!vale.pdf_url) {
-        return res.status(404).json({ error: 'El PDF de este vale aún no ha sido generado.' });
+        const error = vale.archivos_purgados_en ? 'El PDF de este vale ya expiró y fue eliminado.' : 'El PDF de este vale aún no ha sido generado.';
+        return res.status(404).json({ error });
       }
       return res.redirect(vale.pdf_url);
     } catch (error) {
@@ -215,7 +219,7 @@ class ValeController {
       if (propuesta && (propuesta.mimetype !== 'application/pdf' || !tipoRealCoincide(propuesta.buffer, propuesta.mimetype))) {
         throw new Error('La propuesta debe adjuntarse en formato PDF.');
       }
-      const vale = await valeService.entregar(req.user, idObligatorio(req.params.id), propuesta, req.body.idempotencyKey);
+      const vale = await valeService.entregar(req.user, idObligatorio(req.params.id), propuesta, req.body.idempotencyKey, leerAdjuntos(req.body));
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
@@ -269,7 +273,7 @@ class ValeController {
       if (archivo && (archivo.mimetype !== 'application/pdf' || !tipoRealCoincide(archivo.buffer, archivo.mimetype))) {
         throw new Error('El documento de fusión debe adjuntarse en formato PDF.');
       }
-      const vale = await valeService.aprobarGeneral(req.user, idObligatorio(req.params.id), archivo, req.body.idempotencyKey);
+      const vale = await valeService.aprobarGeneral(req.user, idObligatorio(req.params.id), archivo, req.body.idempotencyKey, leerAdjuntos(req.body));
       return res.json(vale);
     } catch (error) {
       return responderError(res, error);
@@ -290,6 +294,63 @@ class ValeController {
       const archivos = validarArchivos(req.files);
       const vale = await valeService.solicitarModificacion(req.user, idObligatorio(req.params.id), req.body, archivos);
       return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  // Rechazo de propuesta: el asesor dueño y el taller conversan; el taller acepta o rechaza.
+  async solicitarRechazoPropuesta(req, res) {
+    try {
+      return res.json(await valeService.solicitarRechazoPropuesta(req.user, idObligatorio(req.params.id), req.body || {}));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async listarRechazosPropuesta(req, res) {
+    try {
+      return res.json(await valeService.listarRechazosPropuesta(req.user, idObligatorio(req.params.id)));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async conversacionRechazoPropuesta(req, res) {
+    try {
+      return res.json(await valeService.conversacionRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId)));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async enviarMensajeRechazoPropuesta(req, res) {
+    try {
+      return res.json(await valeService.enviarMensajeRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId), req.body && req.body.mensaje));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async aceptarRechazoPropuesta(req, res) {
+    try {
+      return res.json(await valeService.aceptarRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId)));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async rechazarRechazoPropuesta(req, res) {
+    try {
+      return res.json(await valeService.rechazarRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId), req.body && req.body.mensaje));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async cancelarRechazoPropuesta(req, res) {
+    try {
+      return res.json(await valeService.cancelarRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId)));
     } catch (error) {
       return responderError(res, error);
     }
@@ -335,6 +396,15 @@ class ValeController {
     try {
       const resultado = await valeService.darDeBaja(req.user, idObligatorio(req.params.id));
       return res.json(resultado);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async darDeBajaTaller(req, res) {
+    try {
+      const vale = await valeService.darDeBajaTaller(req.user, idObligatorio(req.params.id), idObligatorio(req.params.tallerId));
+      return res.json(vale);
     } catch (error) {
       return responderError(res, error);
     }
@@ -390,6 +460,16 @@ class ValeController {
     try {
       const vale = await valeService.reenviarAutorizacion(req.user, idObligatorio(req.params.id));
       return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  // Marca como vista la propuesta aprobada de otro taller del vale.
+  async propuestaOtroTallerVista(req, res) {
+    try {
+      const data = await valeService.marcarPropuestaOtroTallerVista(req.user, idObligatorio(req.params.id), idObligatorio(req.params.tallerId, 'Taller'));
+      return res.json(data);
     } catch (error) {
       return responderError(res, error);
     }

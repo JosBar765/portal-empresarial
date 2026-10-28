@@ -284,6 +284,7 @@ Toda implementación nueva debe poder responder afirmativamente a las siguientes
 * ¿Es fácil de entender y mantener?
 * ¿Respeta el análisis funcional?
 * ¿Respeta la arquitectura existente?
+* ¿Aísla las acciones críticas fuera de producción (ver `reglas_entornos.md`)?
 
 La prioridad es:
 

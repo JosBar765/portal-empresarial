@@ -166,3 +166,7 @@ En la vista HTML del módulo, puedes cargar `socket.io.js` y conectar con el bac
   });
 </script>
 ```
+
+## Entornos y acciones críticas
+
+Toda acción del módulo que cambie algo fuera de la base de datos del entorno (borrar o reemplazar archivos, enviar correos o notificaciones, llamar a servicios de terceros, purgas automáticas) debe actuar **solo con `NODE_ENV=production`**. Las reglas, la forma de implementarlo y el inventario están en `.agents/reglas/reglas_entornos.md`.

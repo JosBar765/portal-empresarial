@@ -222,6 +222,8 @@ CREATE TABLE IF NOT EXISTS `vales` (
   `autorizado_en`         DATETIME DEFAULT NULL,
   `autorizacion_tipo_id`  INT DEFAULT NULL,
   `confirmado_en`         DATETIME DEFAULT NULL,
+  `archivos_purgados_en`  DATETIME DEFAULT NULL,
+  `propuestas_purgadas_en` DATETIME DEFAULT NULL,
   `vigencia_hasta`        DATETIME DEFAULT NULL,
   `vigencia_aviso_en`     DATETIME DEFAULT NULL,
   `rechazo_motivo`        VARCHAR(500) DEFAULT NULL,
@@ -309,7 +311,7 @@ CREATE TABLE IF NOT EXISTS `vale_documentos` (
   `id`              INT AUTO_INCREMENT PRIMARY KEY,
   `vale_id`         INT NOT NULL,
   `nombre_original` VARCHAR(255) NOT NULL,
-  `ruta`            VARCHAR(500) NOT NULL,
+  `ruta`            VARCHAR(500) DEFAULT NULL,
   `tipo_id`         INT NOT NULL,
   `mime_type`       VARCHAR(100) NOT NULL,
   `tamano`          INT NOT NULL,
@@ -356,6 +358,14 @@ CREATE TABLE IF NOT EXISTS `idempotency_keys` (
   `creado_en`        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Control de migraciones aplicadas (src/core/migrations); el ejecutor la crea si falta.
+CREATE TABLE IF NOT EXISTS `schema_migrations` (
+  `nombre`      VARCHAR(255) NOT NULL PRIMARY KEY,
+  `checksum`    CHAR(64) NOT NULL,
+  `aplicada_en` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `duracion_ms` INT DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `vale_vistos` (
   `vale_id`    INT NOT NULL,
   `usuario_id` INT NOT NULL,
@@ -363,6 +373,45 @@ CREATE TABLE IF NOT EXISTS `vale_vistos` (
   PRIMARY KEY (`vale_id`, `usuario_id`),
   FOREIGN KEY (`vale_id`)    REFERENCES `vales` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `vale_borradores` (
+  `id`               INT AUTO_INCREMENT PRIMARY KEY,
+  `usuario_id`       INT NOT NULL,
+  `cliente_empresa`  VARCHAR(150) DEFAULT NULL,
+  `cliente_nombre`   VARCHAR(150) DEFAULT NULL,
+  `cliente_telefono` VARCHAR(30)  DEFAULT NULL,
+  `cliente_correo`   VARCHAR(150) DEFAULT NULL,
+  `talleres_ids`     VARCHAR(100) DEFAULT NULL COMMENT 'Ids de talleres separados por coma, como vales.talleres_solicitados',
+  `fecha_entrega`    DATETIME DEFAULT NULL,
+  `fecha_evento`     DATETIME DEFAULT NULL,
+  `urgente`          TINYINT(1) NOT NULL DEFAULT 0,
+  `producto`         VARCHAR(150) DEFAULT NULL,
+  `material`         VARCHAR(150) DEFAULT NULL,
+  `tecnica`          VARCHAR(150) DEFAULT NULL,
+  `acabado`          VARCHAR(150) DEFAULT NULL,
+  `cantidad`         INT DEFAULT NULL,
+  `cotizacion`       DECIMAL(10,2) DEFAULT NULL,
+  `descripcion`      TEXT,
+  `creado_en`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `actualizado_en`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `vence_en`         DATETIME NOT NULL,
+  FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  INDEX `idx_borradores_usuario` (`usuario_id`),
+  INDEX `idx_borradores_vence` (`vence_en`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `vale_borrador_documentos` (
+  `id`              INT AUTO_INCREMENT PRIMARY KEY,
+  `borrador_id`     INT NOT NULL,
+  `nombre_original` VARCHAR(255) NOT NULL,
+  `ruta`            VARCHAR(500) NOT NULL,
+  `tipo`            ENUM('imagen','documento') NOT NULL,
+  `mime_type`       VARCHAR(100) NOT NULL,
+  `tamano`          INT NOT NULL,
+  `creado_en`       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`borrador_id`) REFERENCES `vale_borradores` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  INDEX `idx_borrador_documentos_borrador` (`borrador_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `notificaciones` (

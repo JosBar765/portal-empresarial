@@ -12,6 +12,13 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# Credenciales del refresco de staging (ver refresco.env.example)
+scripts/staging/.env.refresco
+
+# Respaldos de producción (datos reales de clientes: nunca a git)
+respaldos/
+*.sql.gz
+
 # IDEs y Editores
 .vscode/
 .idea/

@@ -37,7 +37,7 @@ Usuario (Navegador)
 *   **Base de Datos**: MySQL
 *   **Tiempo Real**: WebSockets mediante Socket.IO (transversal a todos los módulos)
 *   **Frontend**: HTML5, Vanilla CSS (diseño responsivo y adaptativo sin Tailwind), JavaScript nativo e Ionicons para iconos vectoriales.
-*   **Seguridad**: Hash de contraseñas con `bcryptjs`, sesiones protegidas con `express-session`, y control de acceso granular basado en permisos.
+*   **Seguridad**: Hash de contraseñas con `bcryptjs`, autenticación JWT sin estado (access token + refresh token rotativo en cookies httpOnly), y control de acceso granular basado en permisos.
 
 ---
 
@@ -47,10 +47,15 @@ El código está organizado de la siguiente manera:
 
 ```text
 portal-empresarial/
-├── .agents/                      # Reglas de arquitectura y diseño para agentes de IA
+├── .agents/                      # Documentación para personas y agentes de IA
+│   ├── reglas/                   # Reglas globales (arquitectura, auth, UI, entornos, SQL)
+│   └── modulos/                  # Un README y documentacion/ por módulo de negocio
+├── CLAUDE.md                     # Guía maestra del monolito modular
 ├── database/
 │   ├── schema.sql                # Estructura (CREATE TABLE, claves, índices)
-│   └── seed.sql                  # Datos reales mínimos para una instalación funcional
+│   ├── seed.sql                  # Catálogos y datos de organización reales
+│   ├── users.sql                 # Usuarios, talleres y sus asignaciones (desarrollo)
+│   └── migrations/               # Scripts idempotentes para bases que ya están en producción
 ├── public/                       # Contenido estático del Frontend
 │   ├── assets/
 │   │   └── logos/                # Logos corporativos e isotipos de MundiTrofeos
@@ -70,12 +75,15 @@ portal-empresarial/
 │   │   ├── env.js                # Validación de variables de entorno
 │   │   └── database.js           # Pool de conexiones MySQL
 │   ├── core/                     # Capas nucleares transversales
-│   │   ├── auth/                 # Servicios, controladores y rutas de sesión
-│   │   ├── permissions/          # Middleware de validación de permisos
+│   │   ├── auth/                 # JWT, tokens de acceso/refresco y rutas de autenticación
+│   │   ├── permissions/          # Guards de permisos, catálogo de módulos, modo mantenimiento
 │   │   ├── websocket/            # Gestor central de WebSockets (Socket.IO)
-│   │   └── files/                # Gestor de subida de archivos física/nube
-│   ├── modules/                  # Espacio para la lógica de negocio de cada módulo
-│   │   └── readme_modulo.md      # Guía detallada con código plantilla para nuevos módulos
+│   │   ├── files/                # Supabase Storage y subida de archivos
+│   │   ├── idempotency/          # Claves de idempotencia
+│   │   ├── migrations/           # Ejecutor de migraciones de database/migrations/
+│   │   ├── calendario/           # Horario laboral y feriados
+│   │   └── notifications/        # Notificaciones
+│   ├── modules/                  # Lógica de negocio de cada módulo (vales, admin)
 │   ├── app.js                    # Configuración de Express y middlewares
 │   └── server.js                 # Punto de entrada y levantamiento del puerto HTTP
 ├── .env.example                  # Plantilla de variables de entorno
@@ -98,7 +106,7 @@ npm install
 
 ### Paso 2: Configurar Base de Datos MySQL
 1. Crea una base de datos en tu servidor MySQL (local o hosting) llamada `portal_empresarial`.
-2. Importa, en este orden, los dos archivos de `database/`: `schema.sql` (estructura) y `seed.sql` (datos reales mínimos). No hay fallback: si MySQL no está disponible, el servidor no arranca.
+2. Importa, en este orden, los archivos de `database/`: `schema.sql` (estructura), `seed.sql` (catálogos y organización) y `users.sql` (usuarios). No hay fallback: si MySQL no está disponible, el servidor no arranca.
 3. Duplica el archivo `.env.example`, renombrándolo a `.env`, y edita las credenciales de conexión correspondientes (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, etc.).
 
 ### Paso 3: Arrancar en desarrollo
@@ -109,23 +117,81 @@ npm run dev
 
 El portal estará disponible en la URL local: **`http://localhost:3000`**
 
+### Migraciones
+Los scripts de `database/migrations/` se aplican solos al arrancar el servidor en `staging` y `production`. En desarrollo:
+```bash
+npm run migrate          # aplica los scripts pendientes a la base del .env
+npm run migrate:estado   # lista aplicadas, pendientes y modificadas (solo lectura)
+```
+Reglas y funcionamiento: [reglas_archivosSQL.md](.agents/reglas/reglas_archivosSQL.md).
+
 ---
 
 ## 4. ¿Cómo agregar un nuevo módulo empresarial?
 
-Agregar un nuevo módulo (por ejemplo, `inventario`) es un proceso directo que requiere seguir la estructura monolítica establecida en el proyecto:
+Ejemplo con el módulo `inventario`. Cambia `inventario` por el id de tu módulo. Plantillas de código completas: [Guía de Creación de Módulos](.agents/reglas/reglas_modulo.md). Ejemplos reales del patrón: `src/modules/vales/` y `src/modules/admin/`.
 
-1. **Crear carpeta del módulo en Backend**: Crea el subdirectorio `src/modules/inventario/` y estructura sus capas (controlador, servicio, repositorio, rutas y eventos). Puedes guiarte por las plantillas completas de código redactadas en la [Guía de Creación de Módulos](file:///c:/Users/Usuario-PC/Desktop/Proyectos/portal-empresarial/src/modules/readme_modulo.md).
-2. **Crear carpeta del módulo en Frontend**: Crea el subdirectorio `public/modules/inventario/` para albergar su interfaz estática (`index.html`, `js/app.js`, `css/styles.css`).
-3. **Registrar Rutas de la API**: Importa y monta tus rutas en [src/app.js](file:///c:/Users/Usuario-PC/Desktop/Proyectos/portal-empresarial/src/app.js) protegidas por el middleware de seguridad (ej: `app.use('/api/inventario', requireAuth, inventarioRoutes)`).
-4. **Agregar al Catálogo Dinámico**: Registra el módulo en la lista JSON retornada por el endpoint `/api/modules` en `src/app.js`, asignándole el código de permiso necesario (ej. `inventario.ver`), icono vector y color representativo.
+1. **Backend**: crea `src/modules/inventario/{controllers,services,repositories}/`, `routes.js` y `events.js`.
+   - Rutas: cada endpoint declara `requirePermission('inventario.<accion>')`.
+   - Controlador: solo entrada y salida HTTP; errores con `responderError`; ids con `idObligatorio`/`idOpcional`.
+   - Servicio: reglas de negocio; sin SQL ni `req`/`res`.
+   - Repositorio: todo el SQL mediante `db.query(sql, params, tag)`.
+2. **Montar la API** en [src/app.js](src/app.js), después de `authenticateJWT`:
+   ```js
+   app.use('/api/inventario', requireAuth, requirePermission('inventario.ver'), require('./modules/inventario/routes'));
+   ```
+3. **Registrar el módulo** en `MODULOS` de `src/core/permissions/modulesCatalog.js` (id, nombre, descripción, icono, ruta, permiso, color). Lo consume `/api/modules` y el Dashboard lo lista solo; no hace falta tocar el frontend del Dashboard.
+4. **Permisos**: agrega los códigos (`inventario.ver`, `inventario.crear`, ...) a `database/seed.sql` y asígnalos a los roles. Para bases que ya están en producción, agrega además un script idempotente en `database/migrations/` (ver [reglas_archivosSQL.md](.agents/reglas/reglas_archivosSQL.md)).
+5. **Frontend**: crea `public/modules/inventario/{index.html,css/styles.css,js/app.js}` con los tokens de `public/css/global.css` (misma tipografía, colores y proporciones que el login y el Dashboard).
+6. **Tiempo real**: emite los eventos desde `events.js` con `socketManager.sendToModule`; el cliente se une con `register_module`.
+7. **Acciones críticas**: lo que toque datos o archivos fuera de las tablas del módulo (borrar en Storage, purgas, correos, servicios de terceros) corre solo en producción. Sigue [reglas_entornos.md](.agents/reglas/reglas_entornos.md).
+8. **Documentar el módulo**: crea `.agents/modulos/inventario/README.md` (propósito, dependencias, dónde vive el código, reglas clave, índice de documentos) y `.agents/modulos/inventario/documentacion/` (detalle técnico). Agrega el módulo al índice de [CLAUDE.md](CLAUDE.md).
 
-El Dashboard del usuario detectará automáticamente la adición del módulo y lo listará dinámicamente si el usuario autenticado cuenta con los permisos necesarios.
+El Dashboard detecta el módulo automáticamente y lo muestra a quien tenga los permisos necesarios.
 
 ---
 
-## 5. Control de Acceso y Sesión Centralizada
+## 5. Control de Acceso y Autenticación Centralizada
 
-*   **Autenticación**: El usuario ingresa a través del Login (`public/login/index.html`). El controlador central valida sus credenciales y crea una sesión de Express guardando su información básica en `req.session.user`.
+*   **Autenticación**: El usuario ingresa a través del Login (`public/login/index.html`). El controlador central valida sus credenciales y emite un **JWT de acceso** de corta vida más un **refresh token** rotativo, ambos en cookies httpOnly; la identidad del usuario sale siempre de `req.user`, nunca del cuerpo de la petición. Especificación: `.agents/reglas/reglas_autenticacion.md`.
 *   **Permisos**: La plataforma implementa un control de acceso basado en permisos individuales (ej: `vales.crear`, `eventos.ver`), asignados jerárquicamente a roles (`Administrador`, `Diseñador`, `Asesor de Ventas`).
 *   **Protección**: Los botones del frontend se ocultan de forma dinámica y reactiva, y todas las peticiones a la API del backend se blindan a nivel de controlador mediante el middleware `requirePermission('permiso.codigo')`.
+
+---
+
+## 6. Integración Continua
+
+Cada pull request hacia `dev`, `staging` o `main` ejecuta el workflow `CI` (`.github/workflows/ci.yml`), que verifica:
+
+*   **Sintaxis** de todo el JS de `src/`, `scripts/` y `public/` (`npm run ci:sintaxis`).
+*   **Scripts SQL** sobre una MySQL temporal: instalación nueva y actualización estilo producción, con las migraciones aplicadas por el ejecutor, dos veces (`npm run ci:migraciones`).
+*   **Arranque del servidor** contra esa base (`npm run ci:arranque`, pensado para el CI).
+
+Detalle, lectura de fallos y cómo exigir el chequeo en los rulesets: [reglas_ci.md](.agents/reglas/reglas_ci.md).
+
+---
+
+## 7. Refresco de staging
+
+Desde el PC del dueño, sin `mysqldump`:
+
+*   `npm run staging:probar-conexion`: prueba de solo lectura de las conexiones a producción (ORIGEN) y staging (DESTINO).
+*   `npm run staging:marcar`: pone en la base de staging la marca `entorno = staging` (una sola vez; sin ella el refresco y el servidor de staging se niegan a trabajar).
+*   `npm run staging:refrescar`: reemplaza la base de staging por una copia de producción y la deja lista para que el ejecutor de migraciones aplique lo pendiente.
+
+Configuración, seguridad y límites: [reglas_refresco_staging.md](.agents/reglas/reglas_refresco_staging.md).
+
+Respaldo de producción antes de cada despliegue (solo descarga, sin `mysqldump`): `npm run main:backup`. Guía y restauración: [reglas_respaldo_produccion.md](.agents/reglas/reglas_respaldo_produccion.md).
+
+---
+
+## 8. Despliegue
+
+*   Cada cambio va en una rama nueva desde `dev` actualizado, con PR a `dev`, luego a `staging` y luego a `main`.
+*   `staging` y `main` solo aceptan merge commits y exigen el check `verificar` del CI.
+*   Hostinger despliega solo al fusionar en `staging` o `main`.
+*   Las migraciones de `database/migrations/` se aplican solas al arrancar en `staging` y `production`.
+*   Antes de producción: refresco de staging y respaldo (`npm run main:backup`), ambos desde el PC del dueño.
+*   Variables de entorno nuevas se cargan en el panel de Hostinger antes del merge.
+
+Runbook completo, riesgos y marcha atrás: [reglas_despliegue.md](.agents/reglas/reglas_despliegue.md).

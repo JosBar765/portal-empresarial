@@ -6,8 +6,6 @@ const config = require('../../config/env');
 const { extensionParaTipo } = require('./fileSignature');
 const { StorageUploadError } = require('./errores');
 
-const bucket = config.supabase.bucket;
-
 // Supabase se construye una sola vez, en el primer uso real.
 let client = null;
 function obtenerCliente() {
@@ -34,12 +32,22 @@ function esDuplicado(error) {
   return Number(error.status || error.statusCode) === 409 || /already exists/i.test(error.message || '');
 }
 
-function prefijoUrlPublica() {
+function prefijoUrlPublica(bucket) {
   const { data } = obtenerCliente().storage.from(bucket).getPublicUrl('');
   return data.publicUrl;
 }
 
+// Un objeto se identifica por la URL pública guardada en BD, dentro del bucket de esta instancia.
+function rutaDeObjeto(url, bucket) {
+  const prefijo = prefijoUrlPublica(bucket);
+  return url.startsWith(prefijo) ? url.slice(prefijo.length) : path.basename(url);
+}
+
 class SupabaseStorage {
+  constructor(bucket) {
+    this.bucket = bucket;
+  }
+
   /**
    * Sube un archivo ya optimizado (ver imageOptimizer, aplicado por
    * subirYRegistrarArchivo antes de llegar aquí) al bucket. Lanza un Error
@@ -62,6 +70,7 @@ class SupabaseStorage {
       throw new StorageUploadError(`Nombre de archivo no válido para Storage: "${nombreObjeto}".`);
     }
     const objectPath = (nombreObjeto || crypto.randomBytes(16).toString('hex')) + extension;
+    const bucket = this.bucket;
     const subirObjeto = () => obtenerCliente().storage.from(bucket).upload(objectPath, buffer, {
       contentType: mimeType,
       upsert: false
@@ -75,7 +84,7 @@ class SupabaseStorage {
       try { huerfano = await esHuerfano(); } catch (e) { throw sinBorrar; }
       if (!huerfano) throw sinBorrar;
       try {
-        await this.eliminar(objectPath);
+        if (!(await this.eliminar(objectPath))) throw sinBorrar;
       } catch (e) {
         throw sinBorrar;
       }
@@ -95,16 +104,37 @@ class SupabaseStorage {
    * Lanza un Error genérico — quien llama decide qué significa un fallo
    * aquí (p. ej. subirYRegistrarArchivo lo reclasifica como
    * StorageRollbackError cuando la eliminación es un rollback).
+   * Fuera de producción no borra nada y devuelve false: una BD de desarrollo restaurada de un
+   * backup apunta a los archivos reales de producción.
    */
   async eliminar(url) {
-    const prefijo = prefijoUrlPublica();
-    const objectPath = url.startsWith(prefijo) ? url.slice(prefijo.length) : path.basename(url);
+    if (config.nodeEnv !== 'production') {
+      console.log(`[Storage] NODE_ENV=${config.nodeEnv}: no se borra el archivo de Storage (solo se borra en producción).`);
+      return false;
+    }
+    const bucket = this.bucket;
+    const objectPath = rutaDeObjeto(url, bucket);
     const { error } = await obtenerCliente().storage.from(bucket).remove([objectPath]);
     if (error) {
       throw new StorageUploadError(`No se pudo eliminar "${objectPath}" de Supabase Storage: ${detalleError(error, bucket)}`);
     }
     return true;
   }
+
+  /** Descarga un objeto de este bucket a partir de su URL guardada en BD. */
+  async descargar(url) {
+    const bucket = this.bucket;
+    const objectPath = rutaDeObjeto(url, bucket);
+    const { data, error } = await obtenerCliente().storage.from(bucket).download(objectPath);
+    if (error) {
+      throw new StorageUploadError(`No se pudo descargar "${objectPath}" de Supabase Storage: ${detalleError(error, bucket)}`);
+    }
+    return Buffer.from(await data.arrayBuffer());
+  }
 }
 
-module.exports = new SupabaseStorage();
+// El bucket de siempre; `borradores` es la misma clase apuntando al bucket de los adjuntos de borradores.
+const storage = new SupabaseStorage(config.supabase.bucket);
+storage.borradores = new SupabaseStorage(config.supabase.bucketBorradores);
+
+module.exports = storage;

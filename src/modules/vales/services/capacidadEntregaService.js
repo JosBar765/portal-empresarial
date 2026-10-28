@@ -6,6 +6,11 @@
 // solo la anticipa para UX, nunca reemplaza esta verificación.
 const tallerRepository = require('../repositories/tallerRepository');
 const capacidadRepository = require('../repositories/capacidadRepository');
+const usuarioValeRepository = require('../repositories/usuarioValeRepository');
+const valeCatalogoService = require('./valeCatalogoService');
+const { ROL, ESTADOS_TALLER, esDeTaller } = require('./valeHelpers');
+
+const idsDe = (texto) => String(texto || '').split(',').map(Number).filter(Number.isInteger);
 
 class CapacidadEntregaService {
   async _talleresConLimite(talleresIds) {
@@ -56,6 +61,76 @@ class CapacidadEntregaService {
       resultado[fechaISO] = { bloqueado: detalle.some(d => d.restantes <= 0), detalle };
     }
     return resultado;
+  }
+
+  // Alcance del calendario «Cupo de talleres»: el Supervisor ve los talleres de sus tiendas y los vales por autorizar de
+  // su equipo; el Asesor, los talleres a los que puede enviar (los generales y el Diseño Local de su tienda) y sus vales por
+  // autorizar; quien tenga el permiso sin tiendas propias ve todos los talleres con límite y todos los vales.
+  async _alcanceCupo(usuario) {
+    if (usuario.rolId === ROL.SUPERVISOR) {
+      const talleresIds = (await tallerRepository.listarIdsPorSupervisor(usuario.id)).map(t => t.id);
+      const asesores = await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id);
+      return { conLimite: await this._talleresConLimite(talleresIds), asesorIds: [...new Set([...asesores.map(a => a.id), usuario.id])] };
+    }
+    if (usuario.rolId === ROL.ASESOR) {
+      const yo = await usuarioValeRepository.obtenerPorId(usuario.id);
+      const miTiendaId = yo ? yo.tienda_id : null;
+      const alcanzables = (await tallerRepository.listarActivos()).filter(t => t.tienda_id == null || t.tienda_id === miTiendaId).map(t => t.id);
+      return { conLimite: await this._talleresConLimite(alcanzables), asesorIds: [usuario.id] };
+    }
+    const todos = (await tallerRepository.listarActivos()).map(t => t.id);
+    return { conLimite: await this._talleresConLimite(todos), asesorIds: null };
+  }
+
+  // Cupo de un mes: por día y taller con límite, los vales autorizados (`programados`) y los que esperan autorización
+  // (`pendientes`). El semáforo de la pantalla solo usa los autorizados.
+  async obtenerCupoMes(usuario, anio, mes) {
+    const { conLimite, asesorIds } = await this._alcanceCupo(usuario);
+    const talleres = conLimite.map(t => ({ id: t.id, nombre: t.nombre, limite: t.limite_diario }));
+    if (!talleres.length) return { anio, mes, talleres, dias: {} };
+
+    const ids = talleres.map(t => t.id);
+    const capacidad = await this.obtenerCapacidadMes(ids, anio, mes);
+    const mesStr = String(mes).padStart(2, '0');
+    const desde = `${anio}-${mesStr}-01`;
+    const hasta = `${anio}-${mesStr}-${String(new Date(anio, mes, 0).getDate()).padStart(2, '0')}`;
+    const pendientes = {};
+    for (const v of await capacidadRepository.listarPendientesEnRango(asesorIds, desde, hasta)) {
+      const fecha = String(v.fecha_entrega).slice(0, 10);
+      for (const tallerId of idsDe(v.talleres_solicitados).filter(id => ids.includes(id))) {
+        pendientes[fecha] = pendientes[fecha] || {};
+        pendientes[fecha][tallerId] = (pendientes[fecha][tallerId] || 0) + 1;
+      }
+    }
+    const dias = {};
+    for (const [fecha, dia] of Object.entries(capacidad)) {
+      dias[fecha] = {
+        bloqueado: dia.bloqueado,
+        talleres: dia.detalle.map(d => ({ tallerId: d.tallerId, programados: d.programados, limite: d.limite, pendientes: (pendientes[fecha] || {})[d.tallerId] || 0 }))
+      };
+    }
+    return { anio, mes, talleres, dias };
+  }
+
+  // Información por día del calendario desplegable del Buzón, según el rol:
+  //  - con `vales.ver_cupo` (Supervisor) y el Asesor: el cupo de los talleres con límite que le corresponden (ver obtenerCupoMes);
+  //  - Encargado/Asistente de taller: cuántos vales entran cada día a su taller (por fecha de entrega);
+  //  - Diseñador: cuántas asignaciones activas suyas entran cada día (las mismas que ve en su buzón);
+  //  - cualquier otro: nada (el calendario queda como siempre).
+  async obtenerCalendarioBuzon(usuario, anio, mes) {
+    if ((usuario.permissions || []).includes('vales.ver_cupo') || usuario.rolId === ROL.ASESOR) return { tipo: 'cupo', ...(await this.obtenerCupoMes(usuario, anio, mes)) };
+    const mesStr = String(mes).padStart(2, '0');
+    const rango = { fechaDesde: `${anio}-${mesStr}-01`, fechaHasta: `${anio}-${mesStr}-${String(new Date(anio, mes, 0).getDate()).padStart(2, '0')}` };
+    if (usuario.rolId === ROL.DISENADOR) {
+      const estadosTaller = [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION];
+      return { tipo: 'conteo', dias: await capacidadRepository.contarPorDia({ ...rango, disenadorId: usuario.id, estadosTaller }) };
+    }
+    if (esDeTaller(usuario)) {
+      const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
+      const talleresIds = (await tallerRepository.listarActivos()).filter(t => t.encargado_id === idEfectivo).map(t => t.id);
+      return { tipo: 'conteo', dias: await capacidadRepository.contarPorDia({ ...rango, talleresIds }) };
+    }
+    return { tipo: null };
   }
 
   // Validación real de backend — usada por crearVale, solicitarModificacion

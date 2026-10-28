@@ -6,6 +6,7 @@
   <title>Administración | Portal Empresarial</title>
   <link rel="icon" type="image/png" href="/assets/logos/LOGO_GP_isotipo.png">
   <link rel="stylesheet" href="/modules/admin/css/styles.css">
+  <link rel="stylesheet" href="/css/menu-cascada.css">
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
   <script src="/socket.io/socket.io.js"></script>
@@ -17,10 +18,7 @@
       <button class="sidebar-toggle-mobile" id="sidebar-toggle-mobile" type="button" title="Menú">
         <ion-icon name="menu-outline"></ion-icon>
       </button>
-      <!-- analisis_correcciones_13.md #6: el Administrador no "vuelve" al
-           dashboard normal (/dashboard/ lo devuelve aquí mismo) — este enlace
-           pide explícitamente la vista de módulos. -->
-      <a href="/dashboard/?vista=modulos" class="header-back" title="Ver dashboard de módulos">
+      <a href="/dashboard/" class="header-back" title="Volver al dashboard">
         <ion-icon name="arrow-back-outline"></ion-icon>
       </a>
       <div class="header-logo-container">

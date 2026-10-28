@@ -60,7 +60,7 @@ function leerSaltosDeProxy(nombre) {
   return Number(valor);
 }
 
-const AMBIENTES = ['development', 'production', 'test'];
+const AMBIENTES = ['development', 'staging', 'production', 'test'];
 const nodeEnv = leer('NODE_ENV').trim();
 if (nodeEnv && !AMBIENTES.includes(nodeEnv)) {
   problemas.push(`NODE_ENV debe ser uno de: ${AMBIENTES.join(', ')} (valor recibido: "${nodeEnv}").`);
@@ -146,7 +146,8 @@ const config = {
   supabase: {
     url: supabaseUrl,
     secretKey: leer('SUPABASE_SECRET_KEY').trim(),
-    bucket: leer('SUPABASE_STORAGE_BUCKET').trim()
+    bucket: leer('SUPABASE_STORAGE_BUCKET').trim(),
+    bucketBorradores: leer('SUPABASE_STORAGE_BUCKET_BORRADORES').trim()
   }
 };
 

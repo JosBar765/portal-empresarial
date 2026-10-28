@@ -1,6 +1,6 @@
 // Estado global del módulo de vales — un solo objeto mutable compartido por
 // todas las vistas/acciones (no hay accessors: se lee y escribe directo).
-import { isoLocal, primerDiaDelMes } from './utils/fechas.js';
+import { isoLocal } from './utils/fechas.js';
 
 export const state = {
   user: null,
@@ -8,15 +8,20 @@ export const state = {
   vales: [],
   contadores: {},
   vista: 'buzon', // solo aplica a roles con sidebar
-  // Arranca en "Todo"; `fecha` es el primer día del mes que se elige al pulsar el selector de mes.
-  ventana: { tipo: 'todo', fecha: isoLocal(primerDiaDelMes(new Date())), desde: null, hasta: null },
+  // Período de Buzón y Trabajo realizado (misma forma que el de Reportes); arranca en el mes de hoy.
+  ventana: { tipo: 'mes', fecha: isoLocal(new Date()), desde: '', hasta: '' },
   tiendaId: null, // Vista Gerencia: filtro de tienda
   filtroContador: null,
   soloAtrasados: false, // combinable con filtroContador
+  soloRechazos: false, // ídem: vales con rechazo de propuesta (Encargado y Asistente, en el Buzón)
   soloModificados: false, // ídem: vales MOD- y sus originales
   disenadorFiltro: '', // combobox de diseñadores (solo encargados)
-  reporte: { personaIds: [], tallerId: '', iniciado: false }, // Reportes: personas evaluadas y taller y arranque en «Hoy»
+  reporte: { // Reportes: su propio período (arranca en «Hoy»), agrupación, filtros y filas desplegadas
+    ventana: { tipo: 'hoy', fecha: isoLocal(new Date()), desde: '', hasta: '' },
+    agruparPor: '', tiendaId: '', tallerId: '', asesorIds: [], disenadorIds: [], expandidos: new Set()
+  },
   busqueda: '',
+  mensajeVacio: '', // texto de la lista vacía que manda el servidor (p. ej. encargado sin taller)
   sort: { key: null, dir: null }, // ídem el orden por columna
   socket: null,
   cargaTrabajoModal: null,

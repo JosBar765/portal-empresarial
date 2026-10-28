@@ -19,16 +19,18 @@ const idempotencyRepository = require('../../../core/idempotency/idempotencyRepo
 const calendarioService = require('../../../core/calendario/calendarioService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { validarTelefono } = require('../../../core/utils/validar');
+const { quitarInvisibles } = require('../../../core/utils/texto');
 
 const { idsDeCsv } = calendarioService;
 const valePdfService = require('./valePdfService');
 const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
 const valeVistoService = require('./valeVistoService');
+const borradorService = require('./borradorService');
 const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
   ESTADOS, hoyISO, horaActual, enriquecer,
-  normalizarDatetime, calcularUrgente, registrarHistorial,
+  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, diasHabilesDeModificacion, registrarHistorial,
   esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
   esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor
 } = require('./valeHelpers');
@@ -59,9 +61,27 @@ class ValeCreacionService {
   // solo para tener un valor que guardar — no protege un reintento real
   // porque el cliente nunca la reutilizaría.
   async crearVale(usuario, payload, archivos) {
+    // Enviar un borrador: mismo flujo, con los adjuntos que conserva el borrador sumados a los nuevos.
+    if (payload.borradorId !== undefined && payload.borradorId !== '') {
+      return borradorService.enviar(usuario, payload, archivos, (combinados) => this.crearValeNuevo(usuario, payload, combinados));
+    }
+    return this.crearValeNuevo(usuario, payload, archivos);
+  }
+
+  async crearValeNuevo(usuario, payload, archivos) {
     const idempotencyKey = payload.idempotencyKey || crypto.randomUUID();
-    const previo = await idempotencyRepository.buscar(idempotencyKey);
-    if (previo) return previo.resultado;
+    // Misma key en paralelo: se serializa, y la comprobación va DENTRO de la cola para que nunca se cree dos veces.
+    return valeMutex.conColaDeLlave(idempotencyKey, async () => {
+      const previo = await idempotencyRepository.buscar(idempotencyKey);
+      if (previo) return previo.resultado;
+      return this._crearVale(usuario, payload, archivos, idempotencyKey);
+    });
+  }
+
+  async _crearVale(usuario, payload, archivos, idempotencyKey) {
+    if (!archivos || ((archivos.imagenes || []).length + (archivos.documentos || []).length) === 0) {
+      throw new Error('Adjunta al menos una imagen o un documento PDF.');
+    }
 
     const solicitante = await usuarioValeRepository.obtenerPorId(usuario.id);
     if (!solicitante || !solicitante.tienda_id) {
@@ -185,7 +205,7 @@ class ValeCreacionService {
       // apareciendo accionable en su buzón hasta que recargan a mano).
       const supervisoresDelAsesor = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       if (!esAdministrador(usuario) && !supervisoresDelAsesor.some(s => s.id === usuario.id)) {
-        throw new Error('Este vale es de un asesor que no está a tu cargo.');
+        throw new ErrorDeNegocio('Este vale es de un asesor que no está a tu cargo.', 403);
       }
       await this.exigirFechaAutorizable(vale);
       await valeVistoService.exigirVisto(usuario, valeId);
@@ -246,7 +266,7 @@ class ValeCreacionService {
       }
       const supervisoresDelAsesor = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       if (!esAdministrador(usuario) && !supervisoresDelAsesor.some(s => s.id === usuario.id)) {
-        throw new Error('Este vale es de un asesor que no está a tu cargo.');
+        throw new ErrorDeNegocio('Este vale es de un asesor que no está a tu cargo.', 403);
       }
       const motivoLimpio = validarMotivoRechazo(motivo);
       if (modificacion) {
@@ -303,11 +323,11 @@ class ValeCreacionService {
   async darDeBaja(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       if (!puedeActuarComoAsesor(usuario)) {
-        throw new Error('Solo un asesor o un supervisor de ventas puede dar de baja un vale.');
+        throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede dar de baja un vale.', 403);
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {
-        throw new Error('Solo puedes dar de baja tus propios vales.');
+        throw new ErrorDeNegocio('Solo puedes dar de baja tus propios vales.', 403);
       }
       const talleres = await valeTallerRepository.listarPorVale(valeId);
       if (!ESTADOS_EDITABLES_ASESOR.includes(vale.estado)
@@ -329,11 +349,11 @@ class ValeCreacionService {
   async reenviarAutorizacion(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       if (!puedeActuarComoAsesor(usuario)) {
-        throw new Error('Solo un asesor o un supervisor de ventas puede reenviar un vale a autorización.');
+        throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede reenviar un vale a autorización.', 403);
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {
-        throw new Error('Solo puedes reenviar tus propios vales.');
+        throw new ErrorDeNegocio('Solo puedes reenviar tus propios vales.', 403);
       }
       if (esValeDeModificacion(vale)) throw new Error('Las modificaciones rechazadas se eliminan: solicita una nueva.');
       if (vale.estado !== ESTADOS.RECHAZADO) {
@@ -368,14 +388,16 @@ class ValeCreacionService {
   // modificación tiene su propia lógica, ver valeConfirmacionService — así
   // que crearVale() sigue exigiendo `talleresIds` aquí pero
   // solicitarModificacion() no pasa por este camino para elegir taller).
-  async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null, talleresFijos = [] } = {}) {
-    const {
-      clienteEmpresa, clienteTelefono, clienteCorreo,
-      fechaEntrega, fechaEvento, tecnica, acabado,
-      cantidad, cotizacion, descripcion
-    } = payload;
+  // `modificacionTipo` (BASICA / MEDIA / AVANZADA) marca un vale MOD: su fecha de entrega pide ese mínimo en días hábiles
+  // desde hoy (con «urgente», el siguiente día que reciba vales), en lugar de los 3 días naturales de un vale normal.
+  async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null, talleresFijos = [], modificacionTipo = null } = {}) {
+    const { fechaEntrega, fechaEvento, cantidad, cotizacion } = payload;
+    // Los invisibles de un texto pegado (espacio de ancho cero, word joiner…) se quitan solos, sin avisar.
+    const limpio = (valor) => (typeof valor === 'string' ? quitarInvisibles(valor) : valor);
+    const clienteEmpresa = limpio(payload.clienteEmpresa), clienteTelefono = limpio(payload.clienteTelefono), clienteCorreo = limpio(payload.clienteCorreo);
+    const tecnica = limpio(payload.tecnica), acabado = limpio(payload.acabado), descripcion = limpio(payload.descripcion);
     // Los obligatorios se validan ya sin espacios: "   " cuenta como vacío.
-    const recortar = (valor) => String(valor ?? '').trim();
+    const recortar = (valor) => quitarInvisibles(String(valor ?? '')).trim();
     const clienteNombre = recortar(payload.clienteNombre);
     const producto = recortar(payload.producto);
     const material = recortar(payload.material);
@@ -431,13 +453,18 @@ class ValeCreacionService {
     if (!fechaReal(fechaEntregaNorm)) throw new Error('La fecha de entrega no es válida.');
     if (!fechaReal(fechaEventoNorm)) throw new Error('La fecha del evento no es válida.');
     const talleresIds = requiereTalleres ? await this.validarTalleresIds(payload.talleresIds, tiendaIdAsesor) : talleresFijos;
-    await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds);
+    const urgente = esUrgente(payload.urgente);
+    if (modificacionTipo) {
+      await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, 0, undefined, diasHabilesDeModificacion(modificacionTipo, urgente));
+    } else {
+      await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, urgente ? 0 : DIAS_MINIMOS_SIN_URGENTE);
+    }
     if (!(new Date(fechaEventoNorm.replace(' ', 'T')) > new Date(fechaEntregaNorm.replace(' ', 'T')))) {
       throw new Error('La fecha del evento debe ser posterior a la fecha de entrega.');
     }
     const cantidadNum = Number(cantidad);
-    if (!Number.isFinite(cantidadNum) || cantidadNum <= 1) {
-      throw new Error('La cantidad debe ser mayor a 1.');
+    if (!Number.isFinite(cantidadNum) || cantidadNum < 1) {
+      throw new Error('La cantidad debe ser 1 o más.');
     }
     const cotizacionNum = Number(cotizacion);
     if (!Number.isFinite(cotizacionNum) || cotizacionNum <= 0) {
@@ -449,7 +476,7 @@ class ValeCreacionService {
       fechaEntregaNorm, fechaEventoNorm,
       fechaEntregaDate: new Date(fechaEntregaNorm.replace(' ', 'T')),
       fechaEventoDate: new Date(fechaEventoNorm.replace(' ', 'T')),
-      urgente: calcularUrgente(fechaEntregaNorm),
+      urgente,
       producto, material,
       tecnica: (tecnica || '').trim(), acabado: (acabado || '').trim(),
       cantidad: cantidadNum, cotizacion: cotizacionNum, descripcion,
@@ -521,27 +548,29 @@ class ValeCreacionService {
   async eliminarValeConArchivos(valeId) {
     const vale = await valeRepository.obtenerPorId(valeId);
     if (!vale) return;
-    const documentos = await documentoRepository.listarPorVale(valeId);
+    // Un MOD- toma también el lock del original (mismo orden que aprobarModificacion).
+    if (vale.vale_original_id) {
+      return valeMutex.conLockDeVale(vale.vale_original_id, () => this._eliminarValeYArchivos(vale));
+    }
+    return this._eliminarValeYArchivos(vale);
+  }
+
+  async _eliminarValeYArchivos(vale) {
+    const documentos = await documentoRepository.listarPorVale(vale.id);
+    // Un archivo que otro vale (el original de una modificación) también usa no se borra de Storage.
+    const rutas = [];
     for (const doc of documentos) {
-      try {
-        // Un archivo que otro vale (el original de una modificación) también usa no se borra de Storage.
-        if (await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, valeId) > 0) continue;
-        await supabaseStorage.eliminar(doc.ruta);
-      } catch { /* best-effort — el vale se borra de todas formas */ }
+      if (doc.ruta && await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, vale.id) === 0) rutas.push(doc.ruta);
     }
-    if (vale.pdf_url) {
-      try {
-        await supabaseStorage.eliminar(vale.pdf_url);
-      } catch { /* best-effort */ }
-    }
-    await valeRepository.eliminar(valeId);
-    // Un MOD- ya autorizado que se elimina nunca se trabajó: el original puede pedir otra modificación.
-    if (vale.vale_original_id && await valeRepository.reabrirModificacion(vale.vale_original_id)) {
-      const original = await valeRepository.obtenerPorId(vale.vale_original_id);
-      if (original) {
-        await registrarHistorial(original.id, vale.asesor_id, null, original.estado, original.estado,
-          'Solicitud de modificación eliminada: puede solicitar una nueva');
-      }
+    if (vale.pdf_url) rutas.push(vale.pdf_url);
+    // Borrar el vale y reabrir el original (si era su único MOD-) es una sola transacción.
+    await valeRepository.eliminarYReabrirOriginal({
+      valeId: vale.id, valeOriginalId: vale.vale_original_id || null, usuarioId: vale.asesor_id,
+      accionHistorial: 'Solicitud de modificación eliminada: puede solicitar una nueva'
+    });
+    // Storage solo tras confirmar la base; best-effort.
+    for (const ruta of rutas) {
+      try { await supabaseStorage.eliminar(ruta); } catch { /* best-effort */ }
     }
   }
 

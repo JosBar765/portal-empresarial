@@ -5,7 +5,18 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "migrate": "node scripts/migrate.js",
+    "migrate:estado": "node scripts/migrate.js --estado",
+    "staging:probar-conexion": "node scripts/staging/probar-conexion.js",
+    "staging:marcar": "node scripts/staging/marcar.js",
+    "staging:refrescar": "node scripts/staging/refrescar.js",
+    "main:backup": "node scripts/backup/respaldar.js",
+    "main:backup:probar-guarda": "node scripts/backup/probar-guarda.js",
+    "ci:sintaxis": "node scripts/ci/sintaxis.js",
+    "ci:migraciones": "node scripts/ci/migraciones.js",
+    "ci:arranque": "node scripts/ci/arranque.js",
+    "ci": "npm run ci:sintaxis && npm run ci:migraciones && npm run ci:arranque"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

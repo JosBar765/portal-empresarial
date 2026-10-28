@@ -78,12 +78,15 @@ class ReporteRepository {
     return filas;
   }
 
-  // `tiendas` no tiene nombre propio: se deriva de la empresa y la subdivisión (como en el catálogo).
+  // `tiendas` no tiene nombre propio: se deriva de la empresa y la subdivisión (como en el catálogo); país, código y departamento alimentan el menú en cascada.
   async listarTiendas() {
     return db.query(
-      `SELECT t.id, CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS nombre
+      `SELECT t.id, t.codigo, p.nombre AS pais_nombre, d.nombre AS departamento_nombre,
+              CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS nombre
        FROM tiendas t
        JOIN empresas e ON e.id = t.empresa_id
+       LEFT JOIN paises p ON p.id = e.pais_id
+       LEFT JOIN departamentos d ON d.id = t.departamento_id
        LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
        ORDER BY nombre`,
       [],
@@ -91,9 +94,62 @@ class ReporteRepository {
     );
   }
 
+  // Solo las tiendas que cubre un supervisor (mismo nombre derivado que `listarTiendas`).
+  async listarTiendasPorSupervisor(usuarioId) {
+    return db.query(
+      `SELECT t.id, t.codigo, p.nombre AS pais_nombre, d.nombre AS departamento_nombre,
+              CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS nombre
+       FROM tiendas t
+       JOIN empresas e ON e.id = t.empresa_id
+       LEFT JOIN paises p ON p.id = e.pais_id
+       LEFT JOIN departamentos d ON d.id = t.departamento_id
+       LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
+       JOIN supervisor_tiendas st ON st.tienda_id = t.id AND st.usuario_id = ?
+       ORDER BY nombre`,
+      [usuarioId],
+      'reporte:tiendas_supervisor'
+    );
+  }
+
+  // Opciones de los filtros de Reportes; con `tiendaId`, solo los asesores de esa tienda.
+  async listarAsesores(tiendaId = null) {
+    return db.query(
+      `SELECT u.id, u.nombre, a.tienda_id FROM usuarios u JOIN asesores a ON a.usuario_id = u.id WHERE u.activo = 1 AND (? IS NULL OR a.tienda_id = ?) ORDER BY u.nombre`,
+       [tiendaId, tiendaId], 'reporte:asesores'
+    );
+  }
+
+  // Tiendas de cada taller: las que atiende (`taller_tiendas`) y la propia de un Diseño Local (`talleres.tienda_id`).
+  async listarTiendasPorTaller() {
+    return db.query(
+      `SELECT taller_id, tienda_id FROM taller_tiendas
+       UNION SELECT id AS taller_id, tienda_id FROM talleres WHERE tienda_id IS NOT NULL`,
+      [], 'reporte:tiendas_por_taller'
+    );
+  }
+
+  // Quienes trabajan vales: diseñadores asignados a un taller, encargados de taller (también trabajan vales asignados a sí mismos),
+  // asistentes y cualquier persona con vales asignados; con su rol y los talleres (`taller_ids`, separados por coma) donde trabajan.
+  async listarDisenadores() {
+    return db.query(
+      `SELECT u.id, u.nombre, u.rol_id, r.hereda_de_rol_id, GROUP_CONCAT(DISTINCT x.taller_id) AS taller_ids
+       FROM usuarios u
+       JOIN roles r ON r.id = u.rol_id
+       JOIN (
+         SELECT usuario_id, taller_id FROM taller_disenadores
+         UNION SELECT encargado_id AS usuario_id, id AS taller_id FROM talleres WHERE encargado_id IS NOT NULL AND activo = 1
+         UNION SELECT disenador_id AS usuario_id, taller_id FROM vale_talleres WHERE disenador_id IS NOT NULL
+       ) x ON x.usuario_id = u.id
+       WHERE u.activo = 1
+       GROUP BY u.id, u.nombre, u.rol_id, r.hereda_de_rol_id
+       ORDER BY u.nombre`,
+      [], 'reporte:disenadores'
+    );
+  }
+
   async listarNombres(usuarioIds) {
     if (!usuarioIds.length) return [];
-    return db.query('SELECT id, nombre FROM usuarios WHERE id IN (?)', [usuarioIds], 'reporte:nombres');
+    return db.query('SELECT u.id, u.nombre, u.rol_id, r.hereda_de_rol_id FROM usuarios u JOIN roles r ON r.id = u.rol_id WHERE u.id IN (?)', [usuarioIds], 'reporte:nombres');
   }
 }
 

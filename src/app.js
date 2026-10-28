@@ -14,6 +14,8 @@ const valeRoutes = require('./modules/vales/routes');
 const atrasoWatcher = require('./modules/vales/atrasoWatcher');
 const vigenciaWatcher = require('./modules/vales/vigenciaWatcher');
 const adjuntosWatcher = require('./modules/vales/adjuntosWatcher');
+const borradorWatcher = require('./modules/vales/borradorWatcher');
+const retencionArchivosWatcher = require('./modules/vales/retencionArchivosWatcher');
 const notificacionLimpieza = require('./core/notifications/notificacionLimpieza');
 const adminRoutes = require('./modules/admin/routes');
 const notificacionRoutes = require('./core/notifications/notificacionRoutes');
@@ -53,15 +55,13 @@ app.use('/js', express.static(path.join(__dirname, '../public/js')));
 // Si ya hay una sesión válida, /login redirige al dashboard en vez de
 // mostrar el formulario — corre antes del estático para cubrir también
 // /login/index.html servido directo (mismo patrón que GET '/' más abajo).
-// El Administrador cae al panel en vez del dashboard de módulos — es su
-// "inicio".
 // tokenService.autenticar cuenta como sesión viva también una que solo tiene
 // refresh token válido (access vencido), para no mostrar el login a alguien
 // que aún tiene sesión única activa.
 app.use('/login', async (req, res, next) => {
   const decoded = await tokenService.autenticar(req, res);
   if (decoded) {
-    return res.redirect(decoded.rolId === 1 ? '/modules/admin/' : '/dashboard/');
+    return res.redirect('/dashboard/');
   }
   next();
 });
@@ -76,7 +76,7 @@ app.get('/', async (req, res) => {
   const decoded = await tokenService.autenticar(req, res);
 
   if (decoded) {
-    return res.redirect(decoded.rolId === 1 ? '/modules/admin/' : '/dashboard/');
+    return res.redirect('/dashboard/');
   }
   return res.redirect('/login/');
 });
@@ -101,16 +101,6 @@ app.use(maintenanceGate);
 // Los adjuntos/PDFs de Vales de Arte ya no se sirven desde aquí — viven en
 // Supabase Storage (bucket público), ver src/core/files/supabaseStorage.js.
 
-// El Administrador tiene su propio panel en vez del dashboard de módulos —
-// si escribe /dashboard/ a mano, se le redirige al panel salvo que pida
-// explícitamente ver los módulos.
-app.use('/dashboard', (req, res, next) => {
-  if (req.user.rolId === 1 && req.query.vista !== 'modulos') {
-    return res.redirect('/modules/admin/');
-  }
-  next();
-});
-
 // Servir la carpeta de vistas protegidas del dashboard
 app.use('/dashboard', express.static(path.join(__dirname, '../public/dashboard')));
 
@@ -133,6 +123,8 @@ app.use('/api/notificaciones', requireAuth, notificacionRoutes);
 atrasoWatcher.iniciar();
 vigenciaWatcher.iniciar();
 adjuntosWatcher.iniciar();
+borradorWatcher.iniciar();
+retencionArchivosWatcher.iniciar();
 notificacionLimpieza.iniciar();
 
 // Estado del mantenimiento para el aviso con cuenta regresiva (segundos restantes, sin depender del reloj del cliente).

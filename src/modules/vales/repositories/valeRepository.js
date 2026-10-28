@@ -95,24 +95,40 @@ class ValeRepository {
     );
   }
 
-  // Solo para revertir una creación fallida o un rechazo explícito del
-  // Supervisor (ver valeCreacionService.eliminarValeConArchivos) — el
-  // resto del ciclo de vida del vale nunca borra filas, solo cambia
-  // estado. El cascade de FKs (vale_talleres, vale_documentos,
-  // vale_historial, etc.) se encarga del resto.
-  async eliminar(id) {
-    await db.query('DELETE FROM vales WHERE id = ?', [id], 'vale:delete');
-  }
-
   async listarTodos() {
     return db.query(SELECT_VALE, [], 'vale:list_all');
   }
 
+  // Vales del Buzón o de Trabajo realizado; acotables por estados terminales, asesores, ids y fecha de entrega [`desdeInclusivo`, `hastaExclusivo`).
+  async listarParaBuzon({ estadosTerminales = [], asesorIds = null, valeIds = null, desdeInclusivo = null, hastaExclusivo = null } = {}) {
+    if ((asesorIds && !asesorIds.length) || (valeIds && !valeIds.length)) return [];
+    const condiciones = [];
+    const params = [];
+    if (estadosTerminales.length) { condiciones.push('(ev.nombre IS NULL OR ev.nombre NOT IN (?))'); params.push(estadosTerminales); }
+    if (asesorIds) { condiciones.push('v.asesor_id IN (?)'); params.push(asesorIds); }
+    if (valeIds) { condiciones.push('v.id IN (?)'); params.push(valeIds); }
+    if (desdeInclusivo) { condiciones.push('v.fecha_entrega >= ?'); params.push(desdeInclusivo); }
+    if (hastaExclusivo) { condiciones.push('v.fecha_entrega < ?'); params.push(hastaExclusivo); }
+    const donde = condiciones.length ? ` WHERE ${condiciones.join(' AND ')}` : '';
+    return db.query(`${SELECT_VALE}${donde} ORDER BY v.id ASC`, params, 'vale:list_para_buzon');
+  }
+
+  async listarIdsPorEstado(estado) {
+    const filas = await db.query(
+      'SELECT v.id FROM vales v INNER JOIN estados_vale ev ON ev.id = v.estado_id WHERE ev.nombre = ?',
+      [estado], 'vale:list_ids_por_estado'
+    );
+    return filas.map(f => f.id);
+  }
+
   // Vales MOD- todavía en trámite (esperando al supervisor): esta lista dice qué originales tienen una modificación en curso.
-  async listarModificacionesEnTramite() {
+  // Con `originalIds` solo trae los de esos originales.
+  async listarModificacionesEnTramite(originalIds = null) {
+    if (originalIds && !originalIds.length) return [];
+    const filtro = originalIds ? ' AND v.vale_original_id IN (?)' : '';
     return db.query(
-      `${SELECT_VALE} WHERE v.vale_original_id IS NOT NULL AND ev.nombre IN ('SOLICITANDO_MODIFICACION', 'RECHAZADO')`,
-      [], 'vale:list_modificaciones_en_tramite'
+      `${SELECT_VALE} WHERE v.vale_original_id IS NOT NULL AND ev.nombre IN ('SOLICITANDO_MODIFICACION', 'RECHAZADO')${filtro}`,
+      originalIds ? [originalIds] : [], 'vale:list_modificaciones_en_tramite'
     );
   }
 
@@ -180,14 +196,28 @@ class ValeRepository {
     });
   }
 
-  // Si el MOD- autorizado se eliminó y no queda otro, el original puede volver a pedir una modificación.
-  async reabrirModificacion(id) {
-    const res = await db.query(
-      `UPDATE vales SET modificado = 0 WHERE id = ? AND modificado = 1
-         AND NOT EXISTS (SELECT 1 FROM (SELECT id FROM vales WHERE vale_original_id = ?) m)`,
-      [id, id], 'vale:reabrir_modificacion'
-    );
-    return res.affectedRows === 1;
+  // Solo para revertir una creación fallida, un rechazo, una baja o un vencimiento (ver valeCreacionService.eliminarValeConArchivos):
+  // el resto del ciclo nunca borra filas; el cascade de FKs limpia lo demás.
+  // Si era un MOD- sin hermanos, reabre el original con su historial: todo o nada.
+  async eliminarYReabrirOriginal({ valeId, valeOriginalId, usuarioId, accionHistorial }) {
+    return db.transaccion(async (tx) => {
+      // Bloquea al original para que no compita con una aprobación concurrente.
+      if (valeOriginalId) await tx.query('SELECT id FROM vales WHERE id = ? FOR UPDATE', [valeOriginalId], 'vale:bloquear_original');
+      await tx.query('DELETE FROM vales WHERE id = ?', [valeId], 'vale:delete');
+      if (!valeOriginalId) return false;
+      const res = await tx.query(
+        `UPDATE vales SET modificado = 0 WHERE id = ? AND modificado = 1
+           AND NOT EXISTS (SELECT 1 FROM (SELECT id FROM vales WHERE vale_original_id = ?) m)`,
+        [valeOriginalId, valeOriginalId], 'vale:reabrir_modificacion'
+      );
+      if (res.affectedRows !== 1) return false;
+      await tx.query(
+        `INSERT INTO vale_historial (vale_id, usuario_id, taller_id, estado_anterior, estado_nuevo, accion, disenador_id)
+         SELECT v.id, ?, NULL, ev.nombre, ev.nombre, ?, NULL FROM vales v JOIN estados_vale ev ON ev.id = v.estado_id WHERE v.id = ?`,
+        [usuarioId, accionHistorial, valeOriginalId], 'historial:insert_reapertura_original'
+      );
+      return true;
+    });
   }
 
   async marcarModificado(id) {
@@ -207,8 +237,16 @@ class ValeRepository {
     );
   }
 
+  async actualizarTalleresSolicitados(id, csv) {
+    await db.query('UPDATE vales SET talleres_solicitados = ? WHERE id = ?', [csv, id], 'vale:update_talleres_solicitados');
+  }
+
   async actualizarPropuestaGeneral(id, url) {
     await db.query('UPDATE vales SET propuesta_general_url = ? WHERE id = ?', [url, id], 'vale:update_propuesta_general');
+  }
+
+  async actualizarNotaFusion(id, nota) {
+    await db.query('UPDATE vales SET propuesta_general_nota = ? WHERE id = ?', [nota || null, id], 'vale:update_nota_fusion');
   }
 
   // Deja rastro de quién fusionó y cuándo — sin esto sería imposible acotar

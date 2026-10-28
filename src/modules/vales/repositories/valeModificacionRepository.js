@@ -1,10 +1,11 @@
 // src/modules/vales/repositories/valeModificacionRepository.js
-// Solicitud de modificación: nace el vale MOD- (esperando al supervisor, con vigencia en horas laborales) y el original queda RECIBIDO.
+// Solicitud de modificación básica, media o avanzada: nace el vale MOD (esperando al supervisor, con vigencia en horas laborales) y el vale
+// modificado queda RECIBIDO.
 const db = require('../../../config/database');
 
 class ValeModificacionRepository {
  // Crea el vale MOD- con sus documentos, pasa el original a RECIBIDO y registra el historial de ambos en una sola transacción.
-  async crear({ original, datos, correlativo, fechaCreacion, horaCreacion, pdfUrl, documentos, usuarioId, talleresIds, vigenciaHasta }) {
+  async crear({ original, datos, correlativo, tipo, numero, fechaCreacion, horaCreacion, pdfUrl, documentos, usuarioId, talleresIds, vigenciaHasta }) {
     const ahora = `${fechaCreacion} ${horaCreacion}`;
     return db.transaccion(async (tx) => {
       // El original debe seguir entregado o recibido, y sin otra modificación en trámite.
@@ -19,15 +20,16 @@ class ValeModificacionRepository {
         `INSERT INTO vales (
           correlativo, asesor_id, tienda_id, vale_original_id, fecha_creacion, hora_creacion, fecha_entrega, fecha_evento, urgente,
           cliente_empresa, cliente_nombre, cliente_telefono, cliente_correo,
-          producto, material, tecnica, acabado, cantidad, cotizacion, descripcion, talleres_solicitados, pdf_url, estado_id, vigencia_hasta
+          producto, material, tecnica, acabado, cantidad, cotizacion, descripcion, talleres_solicitados, pdf_url, estado_id, vigencia_hasta,
+          modificacion_tipo, modificacion_numero
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-          (SELECT id FROM estados_vale WHERE nombre = 'SOLICITANDO_MODIFICACION'), ?)`,
+          (SELECT id FROM estados_vale WHERE nombre = 'SOLICITANDO_MODIFICACION'), ?, ?, ?)`,
         [
           correlativo, original.asesor_id, original.tienda_id, original.id, fechaCreacion, horaCreacion,
           datos.fechaEntregaNorm, datos.fechaEventoNorm, datos.urgente ? 1 : 0,
           datos.clienteEmpresa || null, datos.clienteNombre, datos.clienteTelefono, datos.clienteCorreo,
           datos.producto, datos.material, datos.tecnica, datos.acabado, datos.cantidad, datos.cotizacion,
-          datos.descripcion, talleresIds.join(','), pdfUrl, vigenciaHasta
+          datos.descripcion, talleresIds.join(','), pdfUrl, vigenciaHasta, tipo, numero
         ],
         'vale:insert_modificacion'
       );

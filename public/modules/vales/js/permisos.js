@@ -25,6 +25,9 @@ export function puede(accion) {
     case 'corregir': return (r === ROL.ASESOR || r === ROL.SUPERVISOR) && tienePermiso('vales.corregir');
     case 'darDeBaja': return (r === ROL.ASESOR || r === ROL.SUPERVISOR) && tienePermiso('vales.dar_de_baja');
     case 'verificarAdjuntos': return tienePermiso('vales.verificar_adjuntos');
+    // Rechazar la propuesta: el asesor dueño. Responder el rechazo: el equipo del taller (el administrador no participa).
+    case 'rechazarPropuesta': return !admin && tienePermiso('vales.rechazar_propuesta');
+    case 'responderRechazoPropuesta': return !admin && tienePermiso('vales.responder_rechazo_propuesta');
     case 'verHistorial': return tienePermiso('vales.ver_historial');
     case 'aprobarGeneral': return admin || tienePermiso('vales.aprobar_general');
     default: return false;

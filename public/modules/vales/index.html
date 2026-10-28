@@ -7,6 +7,8 @@
   <link rel="icon" type="image/png" href="/assets/logos/LOGO_GP_isotipo.png">
   <link rel="stylesheet" href="/modules/vales/css/styles.css">
   <link rel="stylesheet" href="/modules/vales/css/pipeline.css">
+  <link rel="stylesheet" href="/modules/vales/css/borradores.css">
+  <link rel="stylesheet" href="/css/menu-cascada.css">
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
   <script src="/socket.io/socket.io.js"></script>
@@ -61,8 +63,7 @@
        .app-shell a propósito (position:fixed no depende del padre, y así el
        resto del layout solo necesita compensarlo con --sidebar-offset). -->
   <aside class="sidebar-vales" id="sidebar-vales" style="display:none;">
-    <!-- Para el Gerente estos dos botones se reescriben en JS como
-         Rendimiento/Encontrar vale — ver wireSidebar() en layout/sidebar.js. -->
+    <!-- Qué botones se ven depende del rol y de sus permisos — ver wireSidebar() en layout/sidebar.js. -->
     <button class="sidebar-item sidebar-item-active" id="sidebar-item-primario" data-vista="buzon">
       <ion-icon name="file-tray-full-outline"></ion-icon>
       <span>Buzón</span>
@@ -70,13 +71,6 @@
     <button class="sidebar-item" id="sidebar-item-secundario" data-vista="trabajo">
       <ion-icon name="checkmark-done-circle-outline"></ion-icon>
       <span>Trabajo realizado</span>
-    </button>
-    <!-- Solo Supervisor de Ventas: entrada extra a la vista Rendimiento,
-         además de sus otros dos botones — a diferencia del Gerente, que los
-         reemplaza. -->
-    <button class="sidebar-item" id="sidebar-item-terciario" data-vista="rendimiento" style="display:none;">
-      <ion-icon name="analytics-outline"></ion-icon>
-      <span>Rendimiento</span>
     </button>
     <!-- Reportes de actividad: lo ven los roles con el permiso vales.ver_reportes (se muestra desde sidebar.js). -->
     <button class="sidebar-item" id="sidebar-item-reportes" data-vista="reportes" style="display:none;">
@@ -96,21 +90,13 @@
       <main class="main-container">
 
         <section class="vales-toolbar">
-          <div class="ventana-selector" id="ventana-selector">
-            <button data-ventana="todo" class="chip">Todo</button>
-            <button data-ventana="hoy" class="chip">Hoy</button>
-            <div class="mes-nav" id="mes-nav">
-              <button type="button" class="mes-nav-flecha" id="mes-prev" title="Anterior" aria-label="Anterior"><ion-icon name="chevron-back-outline"></ion-icon></button>
-              <button type="button" class="mes-nav-etiqueta" id="mes-etiqueta" title="Elegir mes o día" aria-haspopup="dialog" aria-expanded="false"><span id="mes-etiqueta-texto"></span><ion-icon name="chevron-down-outline" aria-hidden="true"></ion-icon></button>
-              <button type="button" class="mes-nav-flecha" id="mes-next" title="Siguiente" aria-label="Siguiente"><ion-icon name="chevron-forward-outline"></ion-icon></button>
-            </div>
-            <div class="ventana-rango" id="ventana-rango"></div>
-          </div>
-          <!-- Solo Gerencia y Supervisor: filtra por tienda tanto la vista
-               Rendimiento como la lista de Vales de Arte. -->
-          <select id="filtro-tienda" class="filtro-tienda" style="display:none;">
-            <option value="">Todas las tiendas</option>
-          </select>
+          <div class="rp-barra rp-barra--toolbar" id="ventana-barra"></div>
+          <!-- Solo Gerencia, Supervisor y Administrador: filtra por tienda la lista de Vales de Arte (menú en cascada, lo monta toolbar.js). -->
+          <div id="filtro-tienda" style="display:none;"></div>
+          <button class="btn btn--ghost" id="btn-borradores" style="display:none;">
+            <ion-icon name="document-text-outline"></ion-icon>
+            Borradores (<span id="borradores-contador">0</span>)
+          </button>
           <button class="btn btn--primary" id="btn-nuevo-vale" style="display:none;">
             <ion-icon name="add-outline"></ion-icon>
             Crear Vale de Arte
@@ -119,17 +105,9 @@
 
         <section class="contadores-grid" id="contadores-grid"></section>
 
-        <!-- Vista Rendimiento (Gerente y Supervisor) — gráficas de atrasos,
-             ciclo y desempeño por taller/tienda; reemplaza a contadores-grid +
-             buzon-section mientras state.vista === 'rendimiento'. -->
-        <section class="rendimiento-gerencia" id="rendimiento-gerencia" style="display:none;"></section>
-
         <!-- Reportes de actividad (según el rol) — reemplaza al buzón mientras state.vista === 'reportes'. -->
-        <section class="rendimiento-gerencia reportes-vista" id="reportes-vista" style="display:none;"></section>
+        <section class="vista-propia reportes-vista" id="reportes-vista" style="display:none;"></section>
 
-        <!-- Encontrar vale (solo Gerente) — buscador por correlativo que
-             reemplaza al buzón mientras state.vista === 'encontrar'. -->
-        <section class="encontrar-vale" id="encontrar-vale" style="display:none;"></section>
 
         <section class="buzon-section">
           <div class="buzon-toolbar">
@@ -142,7 +120,8 @@
             </div>
           </div>
 
-          <div class="tabla-wrapper">
+
+          <div class="tabla-wrapper" tabindex="0" role="region" aria-label="Tabla de vales: se desplaza con las flechas del teclado">
             <table class="buzon-table data-table sticky-header">
               <thead>
                 <tr>
@@ -150,14 +129,13 @@
                   <th data-sort-key="fecha_ingreso" class="col-fecha-ingreso">Fecha Ingreso</th>
                   <th data-sort-key="fecha_entrega">Fecha Entrega</th>
                   <th>Atraso</th>
-                  <th data-sort-key="fecha_evento" class="col-fecha-evento">Fecha Evento</th>
                   <th class="col-taller">Taller</th>
                   <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody id="buzon-tbody">
-                <tr><td colspan="8" class="tabla-vacia">
+                <tr><td colspan="7" class="tabla-vacia">
                   <div class="buzon-vacio">
                     <ion-icon name="sync-outline" class="spin-animation"></ion-icon>
                     <p>Cargando vales de arte...</p>

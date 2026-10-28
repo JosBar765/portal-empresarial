@@ -16,6 +16,8 @@ const valeEvents = require('../events');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeMutex = require('./valeMutex');
 const valeCatalogoService = require('./valeCatalogoService');
+const propuestasCompartidasService = require('./propuestasCompartidasService');
+const { describirAdjuntos } = require('./propuestaAdjuntos');
 const {
   ESTADOS, ESTADOS_TALLER, hoyISO, horaActual, enriquecer,
   etiquetaActorTaller, registrarHistorial, esAdministrador,
@@ -131,7 +133,11 @@ class ValeTallerService {
   // solo confiando en que el frontend evite el doble envío. El chequeo vive
   // DENTRO del lock de valeMutex (no antes) para que dos requests casi
   // simultáneos con la misma key nunca lo evalúen en paralelo.
-  async entregar(usuario, valeId, archivoPropuesta, idempotencyKey) {
+  async entregar(usuario, valeId, archivoPropuesta, idempotencyKey, adjuntos = { nota: null, enlaces: [] }) {
+    // Entregar exige siempre un documento PDF; los enlaces y la nota son complementos opcionales.
+    if (!archivoPropuesta) {
+      throw new Error('Adjunta el documento PDF de la propuesta para poder entregarla.');
+    }
     return valeMutex.conLockDeVale(valeId, async () => {
       const key = idempotencyKey || crypto.randomUUID();
       const previo = await idempotencyRepository.buscar(key);
@@ -143,38 +149,32 @@ class ValeTallerService {
         throw new Error('Para entregar la propuesta, el vale debe estar en proceso.');
       }
       let url = null;
-      if (archivoPropuesta) {
-        // X = siguiente número de las propuestas ya subidas de este taller para el vale.
-        const tallerPropuesta = await tallerRepository.obtenerPorId(fila.taller_id);
-        const previas = await propuestaRepository.listarPorVale(valeId);
-        const numero = nombreArchivo.siguienteContador(previas.map(p => p.url), nombreArchivo.prefijoPropuesta(vale.correlativo, tallerPropuesta));
-        await subirYRegistrarArchivo({
-          buffer: archivoPropuesta.buffer, nombreOriginal: archivoPropuesta.originalname, mimeType: archivoPropuesta.mimetype,
-          nombreObjeto: nombreArchivo.propuesta(vale.correlativo, tallerPropuesta, numero),
-          registrar: async (subida) => { url = subida.url; return propuestaRepository.crear(valeId, usuario.id, url); }
-        });
-      } else {
-        await propuestaRepository.crear(valeId, usuario.id, null);
-      }
+      // X = siguiente número de las propuestas ya subidas de este taller para el vale.
+      const tallerPropuesta = await tallerRepository.obtenerPorId(fila.taller_id);
+      const previas = await propuestaRepository.listarPorVale(valeId);
+      const numero = nombreArchivo.siguienteContador(previas.map(p => p.url), nombreArchivo.prefijoPropuesta(vale.correlativo, tallerPropuesta));
+      const propuestaId = await subirYRegistrarArchivo({
+        buffer: archivoPropuesta.buffer, nombreOriginal: archivoPropuesta.originalname, mimeType: archivoPropuesta.mimetype,
+        nombreObjeto: nombreArchivo.propuesta(vale.correlativo, tallerPropuesta, numero),
+        registrar: async (subida) => { url = subida.url; return propuestaRepository.crear(valeId, usuario.id, url, adjuntos.nota); }
+      });
+      await propuestaRepository.crearEnlaces(valeId, propuestaId, adjuntos.enlaces);
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_REVISION);
       fila.estado = ESTADOS_TALLER.EN_REVISION;
-      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, `${etiquetaActorTaller(usuario)} entregó propuesta`);
+      const detalleAdjuntos = describirAdjuntos({ archivo: !!url, enlaces: adjuntos.enlaces.length, nota: !!adjuntos.nota });
+      await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_REVISION, `${etiquetaActorTaller(usuario)} entregó propuesta${detalleAdjuntos ? ` (${detalleAdjuntos})` : ''}`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       // Si quien entrega es el ENCARGADO de este mismo taller (se autoasignó
       // el vale), su trabajo se autoaprueba — no pasa por un período de
       // revisión de sí mismo.
-      let autoaprueba = false;
-      if (url) {
-        const taller = await tallerRepository.obtenerPorId(fila.taller_id);
-        const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
-        autoaprueba = !!taller && taller.encargado_id === idEfectivo;
-      }
-      // Alerta roja si la propuesta va vacía. Con autoaprobación solo se emite el aviso de aprobación (una notificación por persona).
+      const idEfectivo = await valeCatalogoService.idEncargadoEfectivo(usuario);
+      const autoaprueba = !!tallerPropuesta && tallerPropuesta.encargado_id === idEfectivo;
+      // Con autoaprobación solo se emite el aviso de aprobación (una notificación por persona).
       if (!autoaprueba) {
         valeEvents.notificar({
           vale: actualizado, accion: 'entregado (propuesta)', actor: usuario.nombre, actorId: usuario.id,
           salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`, ...await this._salasEquipo(actualizado.asesor_id)],
-          nivel: url ? 'info' : 'alerta'
+          nivel: 'info'
         });
       }
 
@@ -276,10 +276,11 @@ class ValeTallerService {
     }
     if (aprobar) {
       const ultimaPropuesta = await propuestaRepository.obtenerUltimaPorValeYDisenador(valeId, fila.disenador_id);
-      if (!ultimaPropuesta || !ultimaPropuesta.url) {
-        throw new Error('No se puede aprobar una propuesta en blanco: el diseñador debe adjuntar su documento.');
+      if (!ultimaPropuesta || !(ultimaPropuesta.url || Number(ultimaPropuesta.n_enlaces) > 0)) {
+        throw new Error('No se puede aprobar una propuesta en blanco: el diseñador debe adjuntar su documento o un enlace.');
       }
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.APROBADO);
+      await valeTallerRepository.congelarAtraso(fila.id, `${hoyISO()} ${horaActual()}`); // momento en que su Encargado aprobó (cuándo se entregó el taller)
       fila.estado = ESTADOS_TALLER.APROBADO;
       const taller = await tallerRepository.obtenerPorId(fila.taller_id);
       const accionHistorial = esAutoaprobacion
@@ -296,6 +297,14 @@ class ValeTallerService {
         ? { texto: `${usuario.nombre} aprobó el taller ${taller ? taller.nombre : fila.taller_id}: todos los talleres terminaron, el vale está listo para fusionar` }
         : { accion: 'aprobado (taller)' };
       valeEvents.notificar({ vale: actualizado, ...aviso, actor: usuario.nombre, actorId: usuario.id, salas: targets });
+      // Aviso a los talleres hermanos que comparten propuestas (encargado, asistentes y diseñador asignado).
+      const salasHermanos = await propuestasCompartidasService.salasDeAviso(valeId, fila.taller_id);
+      if (salasHermanos.length) {
+        valeEvents.notificar({
+          vale: actualizado, texto: `tiene aprobada la propuesta del taller ${taller ? taller.nombre : fila.taller_id}`,
+          actorId: usuario.id, salas: salasHermanos, tipo: 'PROPUESTA_COMPARTIDA'
+        });
+      }
       return enriquecer(actualizado);
     }
 
@@ -354,6 +363,8 @@ class ValeTallerService {
     }
     const requiereEncargadoGeneral = filas.length > 1 || talleresOriginales > 1;
     const nuevoEstado = requiereEncargadoGeneral ? ESTADOS.APROBADO_DEPARTAMENTO : ESTADOS.PENDIENTE_CONFIRMACION;
+    // Un solo atraso: termina cuando la propuesta llega al asesor. Con un taller, al aprobar; con varios, en la fusión final (aprobarGeneral).
+    if (nuevoEstado === ESTADOS.PENDIENTE_CONFIRMACION) await valeRepository.congelarAtraso(valeId, `${hoyISO()} ${horaActual()}`);
     if (vale.estado === nuevoEstado) return;
 
     // Con un solo taller y sin ser modificación no hay fusión que hacer (el
@@ -380,7 +391,7 @@ class ValeTallerService {
   // Misma idempotency key por FormData que entregar() — un reintento de red
   // sobre esta fusión no debe volver a subir el documento ni volver a sellar
   // fusionado_por/fusionado_en con una fecha distinta.
-  async aprobarGeneral(usuario, valeId, archivoFusion, idempotencyKey) {
+  async aprobarGeneral(usuario, valeId, archivoFusion, idempotencyKey, adjuntos = { nota: null, enlaces: [] }) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const key = idempotencyKey || crypto.randomUUID();
       const previo = await idempotencyRepository.buscar(key);
@@ -388,15 +399,17 @@ class ValeTallerService {
 
       const vale = await requerirVale(valeId);
       if (vale.estado !== ESTADOS.APROBADO_DEPARTAMENTO) {
-        throw new Error(vale.fusionado_por
+        // fusionado_por queda sellado aunque el vale vuelva al taller (rechazo de propuesta aceptado): solo en estos estados la fusión es vigente.
+        const yaFusionado = vale.fusionado_por && [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO].includes(vale.estado);
+        throw new ErrorDeNegocio(yaFusionado
           ? 'Este vale ya fue fusionado por otro encargado. Actualiza la página para ver su estado.'
-          : 'Este vale aún no está listo para fusionar.');
+          : 'Este vale aún no está listo para fusionar.', 409);
       }
       // La fusión de las propuestas de los talleres NO la hace el sistema —
       // es trabajo manual de quien fusiona, que debe adjuntar su
       // propio documento final, aun cuando solo hubo un taller involucrado.
       if (!archivoFusion) {
-        throw new Error('Debe adjuntar el documento de fusión antes de aprobar.');
+        throw new Error('Debe adjuntar el documento de fusión (PDF) antes de aprobar; los enlaces y la nota son solo complementos.');
       }
 
       // El documento que sube aquí quien fusiona queda disponible
@@ -404,19 +417,26 @@ class ValeTallerService {
       // (copyPages) dentro del PDF oficial del vale: ese PDF es el
       // documento ADMINISTRATIVO del vale (encabezado, cliente, venta,
       // firma), no el lugar donde vive el diseño/propuesta.
+      // X = siguiente número de la fusión; la anterior (si el vale volvió al taller) sigue en propuesta_general_url.
+      const numeroFusion = nombreArchivo.siguienteContador([vale.propuesta_general_url], nombreArchivo.prefijoPropuestaFusion(vale.correlativo));
       await subirYRegistrarArchivo({
         buffer: archivoFusion.buffer, nombreOriginal: archivoFusion.originalname, mimeType: archivoFusion.mimetype,
-        nombreObjeto: nombreArchivo.propuestaFusion(vale.correlativo),
+        nombreObjeto: nombreArchivo.propuestaFusion(vale.correlativo, numeroFusion),
         registrar: (subida) => valeRepository.actualizarPropuestaGeneral(valeId, subida.url)
       });
+      await valeRepository.actualizarNotaFusion(valeId, adjuntos.nota);
+      await propuestaRepository.borrarEnlacesDeFusion(valeId);
+      await propuestaRepository.crearEnlaces(valeId, null, adjuntos.enlaces);
       // Sella quién fusionó y cuándo — es lo que le permite a
       // _trabajoEncargadoTaller mostrarle a ESE encargado (y solo a él) una
       // fila de fusión con fecha propia, sin depender del estado del vale
       // (que sigue cambiando después).
       await valeRepository.sellarFusion(valeId, { fusionadoPor: usuario.id, fusionadoEn: `${hoyISO()} ${horaActual()}` });
       await valeRepository.actualizarEstado(valeId, ESTADOS.PENDIENTE_CONFIRMACION);
+      await valeRepository.congelarAtraso(valeId, `${hoyISO()} ${horaActual()}`); // fusión final: la propuesta llega al asesor
+      const detalleFusion = describirAdjuntos({ archivo: true, enlaces: adjuntos.enlaces.length, nota: !!adjuntos.nota });
       await registrarHistorial(valeId, usuario.id, null, vale.estado, ESTADOS.PENDIENTE_CONFIRMACION,
-        'Se adjuntó la fusión final del trabajo de los talleres y se aprobó el vale');
+        `Se adjuntó la fusión final del trabajo de los talleres${detalleFusion ? ` (${detalleFusion})` : ''} y se aprobó el vale`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({ vale: actualizado, accion: 'aprobado (fusión general)', actor: usuario.nombre, actorId: usuario.id, salas: [SALA_FUSION, ...await this._salasEquipo(vale.asesor_id)] });
       const resultado = enriquecer(actualizado);

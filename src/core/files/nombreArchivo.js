@@ -58,6 +58,15 @@ function prefijoAdjunto(correlativo, tipo, etapa) {
   return `${sanitizarCorrelativo(correlativo)}_${tipo}_${etapa}`;
 }
 
+// Borradores (bucket aparte): tipo 'IMAGEN'|'PDF'; el id es el del borrador, no hay correlativo todavía.
+function prefijoBorrador(borradorId, tipo) {
+  return `BORRADOR-${Number(borradorId)}_${tipo}`;
+}
+
+function borrador(borradorId, tipo, contador) {
+  return `${prefijoBorrador(borradorId, tipo)}_${contador}`;
+}
+
 // Herramienta admin: tipo 'CREACION'|'AUTORIZACION'.
 function prefijoCorreccionAdmin(correlativo, tipo) {
   return `${sanitizarCorrelativo(correlativo)}_CORRECCION_${tipo}_ADMIN`;
@@ -75,8 +84,12 @@ function prefijoPropuesta(correlativo, taller) {
   return `${sanitizarCorrelativo(correlativo)}_PROPUESTA_${codigoTaller(taller)}`;
 }
 
-function propuestaFusion(correlativo) {
+function prefijoPropuestaFusion(correlativo) {
   return `${sanitizarCorrelativo(correlativo)}_PROPUESTA_FUSION`;
+}
+
+function propuestaFusion(correlativo, contador) {
+  return `${prefijoPropuestaFusion(correlativo)}_${contador}`;
 }
 
 // Máximo X + 1 entre las URLs/nombres que empiezan por `${prefijo}_` seguido solo de dígitos
@@ -96,6 +109,6 @@ function siguienteContador(urlsExistentes, prefijo) {
 module.exports = {
   sanitizarCorrelativo, codigoTaller, siguienteContador,
   pdfCreacion, pdfAutorizacion, prefijoCorreccionPreAutorizacion, pdfCorreccionPreAutorizacion,
-  adjunto, prefijoAdjunto, propuesta, prefijoPropuesta, propuestaFusion,
+  adjunto, prefijoAdjunto, borrador, prefijoBorrador, propuesta, prefijoPropuesta, prefijoPropuestaFusion, propuestaFusion,
   prefijoCorreccionAdmin, correccionAdmin
 };
