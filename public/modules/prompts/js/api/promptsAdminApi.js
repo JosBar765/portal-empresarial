@@ -11,6 +11,7 @@ export const crearBorrador = (id) => pedir(`${base}/productos/${id}/borrador`, {
 export const guardarBorrador = (id, payload) => pedir(`${base}/productos/${id}/borrador`, enJson('PUT', payload));
 export const descartarBorrador = (id) => pedir(`${base}/productos/${id}/borrador`, { method: 'DELETE' });
 export const publicar = (id) => pedir(`${base}/productos/${id}/publicar`, { method: 'POST' });
+export const borrarProducto = (id) => pedir(`${base}/productos/${id}`, { method: 'DELETE' });
 export const cambiarEstado = (id, estado) => pedir(`${base}/productos/${id}/estado`, enJson('PATCH', { estado }));
 export const previsualizar = (payload) => pedir(`${base}/previsualizar`, enJson('POST', payload));
 export const listarAjustes = () => pedir(`${base}/ajustes`);

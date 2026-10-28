@@ -27,6 +27,7 @@ router.put('/admin/productos/:id/borrador', administrar, (req, res) => adminCont
 router.delete('/admin/productos/:id/borrador', administrar, (req, res) => adminController.descartarBorrador(req, res));
 router.post('/admin/productos/:id/publicar', administrar, (req, res) => adminController.publicar(req, res));
 router.patch('/admin/productos/:id/estado', administrar, (req, res) => adminController.cambiarEstado(req, res));
+router.delete('/admin/productos/:id', administrar, (req, res) => adminController.borrar(req, res));
 router.post('/admin/previsualizar', administrar, (req, res) => adminController.previsualizar(req, res));
 
 // Ajustes globales

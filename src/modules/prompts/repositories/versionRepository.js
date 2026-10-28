@@ -54,6 +54,15 @@ class VersionRepository {
     return resultado.affectedRows > 0;
   }
 
+  // Todas las versiones del producto (borrador, publicada y archivadas); solo se usa al borrar el producto.
+  async eliminarPorProducto(productoId, ejecutor = db) {
+    const resultado = await ejecutor.query(
+      'DELETE FROM prompt_producto_versiones WHERE producto_id = ?',
+      [productoId], 'prompts:eliminarVersionesDeProducto'
+    );
+    return resultado.affectedRows;
+  }
+
   async archivar(id, ejecutor = db) {
     await ejecutor.query(
       "UPDATE prompt_producto_versiones SET estado = 'archivada' WHERE id = ? AND estado = 'publicada'",

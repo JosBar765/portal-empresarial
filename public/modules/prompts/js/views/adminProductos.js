@@ -4,7 +4,7 @@ import { escapeHtml } from '../utils/formato.js';
 import { t } from '../textos.js';
 import { cargarConfig } from '../config.js';
 import { abrirModal, mostrarErrorModal, confirmarModal } from '../components/modal.js';
-import { listarProductos, crearProducto, duplicarProducto, obtenerProducto, cambiarEstado } from '../api/promptsAdminApi.js';
+import { listarProductos, crearProducto, duplicarProducto, obtenerProducto, cambiarEstado, borrarProducto } from '../api/promptsAdminApi.js';
 import { renderEditor } from './admin/editor.js';
 import { CODIGO_PRODUCTO_RE, CODIGO_PRODUCTO_LARGO_MAX } from './admin/reglasEsquema.js';
 import { badgeEstado, fechaGt, mensajesDeError } from './admin/comun.js';
@@ -32,6 +32,29 @@ export async function renderAdminProductos(contenedor) {
     } catch (error) {
       window.toast.error(t('admin.productos.toastNoEstado'), error.message);
     }
+  }
+
+  // Confirmación propia (no confirmarModal) para usar el botón de peligro.
+  function confirmarBorrado(p) {
+    const pie = `<button class="btn btn--ghost" type="button" id="pr-adm-b-cancelar">${escapeHtml(t('comun.cancelar'))}</button><button class="btn btn--danger" type="button" id="pr-adm-b-borrar">${escapeHtml(t('admin.productos.borrarAceptar'))}</button>`;
+    const { overlay, cerrar } = abrirModal({
+      title: t('admin.productos.borrarTitulo'),
+      bodyHtml: `<p>${escapeHtml(t('admin.productos.borrarMensaje', { nombre: p.nombre }))}</p>`,
+      footerHtml: pie
+    });
+    $('#pr-adm-b-cancelar', overlay).addEventListener('click', cerrar);
+    $('#pr-adm-b-borrar', overlay).addEventListener('click', async (e) => {
+      e.target.disabled = true;
+      try {
+        await borrarProducto(p.id);
+        cerrar();
+        window.toast.success(t('admin.productos.toastBorrado'), p.nombre);
+        await recargar();
+      } catch (error) {
+        cerrar();
+        window.toast.error(t('admin.productos.toastNoBorrado'), error.message);
+      }
+    });
   }
 
   // Mensajes explicativos del alta; el servidor vuelve a validar.
@@ -106,6 +129,7 @@ export async function renderAdminProductos(contenedor) {
   function fila(p) {
     const puedeActivar = p.numeroVigente != null;
     const activo = p.estado === 'activo';
+    const borrable = p.estado === 'inactivo';
     // data-label repite el encabezado: en celular cada fila se muestra como tarjeta.
     const etiqueta = (c) => t(`admin.productos.col.${c}`);
     return h('tr', { class: p.estado === 'inactivo' ? 'fila-inactiva' : '' },
@@ -124,7 +148,13 @@ export async function renderAdminProductos(contenedor) {
           title: activo ? t('admin.productos.desactivar') : puedeActivar ? t('admin.productos.activar') : t('admin.productos.activarSinVersion'),
           'aria-label': activo ? t('admin.productos.desactivar') : t('admin.productos.activar'),
           onclick: () => alternarEstado(p)
-        }, icono(activo ? 'eye-off-outline' : 'eye-outline')))));
+        }, icono(activo ? 'eye-off-outline' : 'eye-outline')),
+        h('button', {
+          type: 'button', class: 'btn-icon icon-danger', disabled: !borrable,
+          title: borrable ? t('admin.productos.borrar') : activo ? t('admin.productos.borrarActivo') : t('admin.productos.borrarNoInactivo'),
+          'aria-label': t('admin.productos.borrar'),
+          onclick: () => confirmarBorrado(p)
+        }, icono('trash-outline')))));
   }
 
   const tabla = productos.length

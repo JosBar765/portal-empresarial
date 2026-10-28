@@ -76,6 +76,14 @@ class AdminProductoController {
     }
   }
 
+  async borrar(req, res) {
+    try {
+      return res.json(await service.borrar(req.params.id));
+    } catch (error) {
+      return responderError(res, error, 400, extraDeError(error));
+    }
+  }
+
   async previsualizar(req, res) {
     try {
       return res.json(await service.previsualizar(req.body));

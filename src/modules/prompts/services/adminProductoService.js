@@ -199,6 +199,21 @@ class AdminProductoService {
     return this.obtener(id);
   }
 
+  // Borrado real y solo de inactivos; la fila bloqueada impide que alguien lo reactive mientras se borra.
+  async borrar(idCrudo) {
+    const id = idObligatorio(idCrudo, 'Producto');
+    await db.transaccion(async tx => {
+      const producto = await productoRepository.obtenerBloqueado(id, tx);
+      if (!producto) throw new ErrorDeNegocio(msg('producto.noEncontrado'), 404);
+      if (producto.estado !== ESTADOS_PRODUCTO.INACTIVO) {
+        throw new ErrorDeNegocio(msg('producto.borrarNoInactivo', { nombre: producto.nombre, estado: producto.estado }), 409);
+      }
+      await versionRepository.eliminarPorProducto(id, tx); // la FK de versiones no tiene ON DELETE CASCADE: van primero
+      await productoRepository.eliminar(id, tx);
+    });
+    return { ok: true };
+  }
+
   // Sin persistir nada: autogenera el prompt completo del esquema del borrador con los valores enviados (o los defectos) y el contacto de ejemplo.
   // `sinUsar` ya no existe como concepto (todo parámetro con valor sale en el prompt) y se devuelve vacío por compatibilidad.
   async previsualizar({ esquema, valores, imagenes } = {}) {

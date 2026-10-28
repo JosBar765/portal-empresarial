@@ -59,6 +59,15 @@ class ProductoRepository {
     return resultado.insertId;
   }
 
+  // Solo borra inactivos: la condición repite la regla del servicio como resguardo.
+  async eliminar(id, ejecutor = db) {
+    const resultado = await ejecutor.query(
+      "DELETE FROM prompt_productos WHERE id = ? AND estado = 'inactivo'",
+      [id], 'prompts:eliminarProducto'
+    );
+    return resultado.affectedRows > 0;
+  }
+
   async actualizarEstado(id, estado, ejecutor = db) {
     await ejecutor.query('UPDATE prompt_productos SET estado = ? WHERE id = ?', [estado, id], 'prompts:estadoProducto');
   }

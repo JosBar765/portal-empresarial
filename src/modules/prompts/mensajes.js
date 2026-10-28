@@ -139,6 +139,7 @@ const CATALOGO = Object.freeze({
   'producto.sinPublicada': 'El producto no tiene una versión publicada para copiar. Publica primero su borrador.',
   'producto.duplicarSinVersion': 'El producto que quieres duplicar no tiene versión publicada ni borrador, así que no hay nada que copiar. Abre el producto, crea su contenido y vuelve a duplicarlo.',
   'producto.estadoInvalido': 'El estado del producto no es válido (recibido: {valor}). Usa «activo» o «inactivo».',
+  'producto.borrarNoInactivo': 'No se puede borrar «{nombre}» porque está en estado «{estado}»: solo se pueden borrar productos inactivos. Desactívalo primero con el botón de la fila y vuelve a intentarlo.',
   'producto.activarSinPublicada': 'No se puede activar el producto porque no tiene una versión publicada. Publica una versión y vuelve a activarlo.',
   'version.sinBorrador': 'El producto no tiene borrador. Crea un borrador desde la versión publicada para poder editarlo.',
   'version.revisarBorrador': 'Revisa el borrador: tiene datos que no se pueden guardar. Corrige los campos indicados y vuelve a guardar.',
