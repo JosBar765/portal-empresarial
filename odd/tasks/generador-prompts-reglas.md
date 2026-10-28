@@ -29,7 +29,7 @@ Eliminar la plantilla editable. El prompt se arma solo con: encabezado del siste
 
 - [x] T27a Jerarquía de botones en «Prompt generado» (commit e1bf30f): botón guiado en la cabecera de «Imágenes para pegar», «Editar datos» arriba a la derecha, sin subtítulo, estados copiado/siguiente visibles.
 - [ ] T27b «Copiar prompt» negro, «Editar datos» como botón blanco (ghost) y botón negro «Agregar marca de agua» arriba a la derecha.
-- [ ] T28 Marca de agua en el navegador: el asesor carga una imagen y obtiene la misma imagen con «GRUPO PREMIA» y el isotipo (LOGO_GP_isotipo.png) en diagonal y repetidos; botones copiar y descargar. Texto, logo, opacidad, ángulo y escala en el ajuste nuevo  (migración nueva) editable en Ajustes.
+- [ ] T28 Marca de agua en el navegador: el asesor carga una imagen y obtiene la misma imagen con «GRUPO PREMIA» y el isotipo (LOGO_GP_isotipo.png) en diagonal y repetidos; botones copiar y descargar. Texto, logo, opacidad, ángulo y escala en el ajuste nuevo `marca_de_agua` (migración nueva) editable en Ajustes.
 
 ## Pendientes
 - Probar «Duplicar» por HTTP (reiniciar el servidor).
