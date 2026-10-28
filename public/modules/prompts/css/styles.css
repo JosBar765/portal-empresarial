@@ -33,6 +33,8 @@
   max-width: 1800px;
   margin: 0 auto;
   padding: 48px 0;
+  /* Sin el transform final de la entrada: si queda, el botón fijo de móvil deja de fijarse a la pantalla */
+  animation-fill-mode: backwards;
 }
 
 .sidebar-vales {
