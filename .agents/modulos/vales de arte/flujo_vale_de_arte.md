@@ -246,7 +246,7 @@ Hay **tres tipos** de modificación, según la complejidad del cambio. El asesor
 una explicación de cada uno (botón único del paso 5 → «Solicitar modificación»). **Las tres crean un vale MOD** con
 el mismo flujo (formulario completo, justificación, adjuntos y autorización del supervisor); solo cambia el plazo. Los
 días son **mínimos** y se cuentan en **días hábiles** (días que reciben vales: sin fines de semana, feriados del país
-ni días que el taller no recibe) desde el día de la solicitud, con la hora máxima del taller:
+ni días que el taller no recibe) desde el día de la solicitud; pasada la hora máxima del taller, la solicitud cuenta como del siguiente día que recibe vales (se corre un día, respetando fines de semana y feriados):
 
 | Tipo | Vale MOD | Quién decide | Fecha de entrega mínima (sin urgente) | Con «urgente» |
 |---|---|---|---|---|

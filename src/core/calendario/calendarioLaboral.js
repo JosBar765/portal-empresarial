@@ -145,6 +145,14 @@ function nesimoDiaHabil(cfg, ahora, n, paisId) {
   return contados === n ? isoDe(dia) : null;
 }
 
+// Pasada la hora máxima del taller, la solicitud cuenta como del siguiente día que recibe vales.
+function diaDeSolicitud(cfg, ahora, t) {
+  const hoy = inicioDia(aMs(ahora));
+  if (minutosDelDia(ahora) < t.horaMaxima) return hoy;
+  const siguiente = nesimoDiaHabil(cfg, ahora, 1, t.paisId);
+  return siguiente ? diaMs(siguiente) : hoy;
+}
+
 // `diasMinimos`: antelación mínima en días naturales (3 cuando el vale NO es urgente); no salta la hora máxima de recibimiento.
 // `diasHabiles`: antelación mínima en días que reciben vales (modificaciones: básica 1, media 2, avanzada 3; urgente 1); null si no alcanza.
 function fechaMinimaParaTaller(cfg, tallerId, ahora, diasMinimos = 0, diasHabiles = 0) {
@@ -154,8 +162,9 @@ function fechaMinimaParaTaller(cfg, tallerId, ahora, diasMinimos = 0, diasHabile
   if (diasMinimos > 0) dia = Math.max(dia, inicioDia(aMs(ahora)) + diasMinimos * MS_DIA);
   if (diasHabiles > 0) {
     // Una modificación nunca es para hoy, ni antes ni después de la hora máxima.
-    dia = Math.max(dia, inicioDia(aMs(ahora)) + MS_DIA);
-    const habil = nesimoDiaHabil(cfg, ahora, diasHabiles, t.paisId);
+    const base = diaDeSolicitud(cfg, ahora, t);
+    dia = Math.max(dia, base + MS_DIA);
+    const habil = nesimoDiaHabil(cfg, new Date(base), diasHabiles, t.paisId);
     if (!habil) return null;
     dia = Math.max(dia, diaMs(habil));
   }
