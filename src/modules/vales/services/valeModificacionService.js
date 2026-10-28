@@ -50,7 +50,7 @@ class ValeModificacionService {
       // Un MOD también se puede modificar (MOD2, MOD3…), pero cada vale tiene a lo sumo una modificación con vale.
       if (original.modificado) throw new Error('Este vale ya fue modificado. Pídela sobre el más reciente.');
       if (await rechazoPropuestaRepository.contarAbiertasPorVale(valeId)) {
-        throw new Error('Hay un rechazo de propuesta abierto. Espera la respuesta del taller antes de pedir una modificación.');
+        throw new ErrorDeNegocio('Hay un rechazo de propuesta abierto. Espera la respuesta del taller antes de pedir una modificación.', 409);
       }
       const justificacion = String(payload.descripcion || '').trim();
       if (!justificacion) throw new Error('Escribe la justificación de la modificación.');

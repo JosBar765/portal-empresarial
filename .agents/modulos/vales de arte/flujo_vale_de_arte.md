@@ -384,6 +384,7 @@ Asesor; el supervisor no) puede rechazar la propuesta de **uno o varios talleres
   muestra primero estos vales aunque su fila ya esté aprobada. El asesor ve «Rechazo respondido» (y un botón de chat rojo) cuando el taller rechazó,
   hasta que abre la conversación (lo leído se guarda en su navegador). Con la ronda cerrada por acuerdo o cancelación el chat no se retira: queda el
   botón «Ver conversación del rechazo» (solo lectura).
+- **Códigos HTTP:** ronda inexistente o de otro vale, 404; ronda ya cerrada o vale/taller en otro estado, 409; sin acceso, 403; mensaje vacío o largo, 400 (siempre después de comprobar el acceso).
 - **Tablas:** `vale_rechazos_propuesta` (una ronda por taller: `ABIERTO`, `ACEPTADO`, `RECHAZADO`, `CANCELADO`) y
   `vale_rechazo_propuesta_mensajes` (el hilo por `vale_taller_id`). La modificación básica con chat anterior
   (`vale_modificaciones_basicas`, `vale_modificacion_mensajes` y el permiso `vales.responder_modificacion_basica`) quedó sin uso y no se borra.

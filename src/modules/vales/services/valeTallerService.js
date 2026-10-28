@@ -415,9 +415,11 @@ class ValeTallerService {
       // (copyPages) dentro del PDF oficial del vale: ese PDF es el
       // documento ADMINISTRATIVO del vale (encabezado, cliente, venta,
       // firma), no el lugar donde vive el diseño/propuesta.
+      // X = siguiente número de la fusión; la anterior (si el vale volvió al taller) sigue en propuesta_general_url.
+      const numeroFusion = nombreArchivo.siguienteContador([vale.propuesta_general_url], nombreArchivo.prefijoPropuestaFusion(vale.correlativo));
       await subirYRegistrarArchivo({
         buffer: archivoFusion.buffer, nombreOriginal: archivoFusion.originalname, mimeType: archivoFusion.mimetype,
-        nombreObjeto: nombreArchivo.propuestaFusion(vale.correlativo),
+        nombreObjeto: nombreArchivo.propuestaFusion(vale.correlativo, numeroFusion),
         registrar: (subida) => valeRepository.actualizarPropuestaGeneral(valeId, subida.url)
       });
       await valeRepository.actualizarNotaFusion(valeId, adjuntos.nota);

@@ -57,20 +57,21 @@ class ValeRechazoPropuestaService {
   async _cargar(valeId, rondaId) {
     const vale = await requerirVale(valeId);
     const ronda = await rechazoRepository.obtenerPorId(Number(rondaId));
-    if (!ronda || ronda.vale_id !== vale.id) throw new Error('Ese rechazo no existe.');
+    if (!ronda || ronda.vale_id !== vale.id) throw new ErrorDeNegocio('Ese rechazo no existe.', 404);
     return { vale, ronda };
   }
 
   async solicitar(usuario, valeId, { talleres, mensaje }) {
-    const texto = validarMensajeChat(mensaje);
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await requerirVale(valeId);
       if (!esAsesorDuenio(usuario, vale)) throw new ErrorDeNegocio('Solo el asesor dueño del vale puede rechazar la propuesta.', 403);
+      // Primero la propiedad (403) y después el contenido (400).
+      const texto = validarMensajeChat(mensaje);
       if (vale.estado !== ESTADOS.PENDIENTE_CONFIRMACION) {
-        throw new Error('La propuesta solo se puede rechazar mientras el vale espera tu confirmación.');
+        throw new ErrorDeNegocio('La propuesta solo se puede rechazar mientras el vale espera tu confirmación.', 409);
       }
       if (await valeRepository.obtenerModificacionEnTramite(valeId)) {
-        throw new Error('Ya hay una modificación en trámite. Espera la decisión del supervisor.');
+        throw new ErrorDeNegocio('Ya hay una modificación en trámite. Espera la decisión del supervisor.', 409);
       }
       const filas = await valeTallerRepository.listarPorVale(valeId);
       const pedidos = [...new Set((Array.isArray(talleres) ? talleres : []).map(Number).filter(Number.isFinite))];
@@ -78,8 +79,8 @@ class ValeRechazoPropuestaService {
       if (!elegidas.length || (pedidos.length && elegidas.length !== pedidos.length)) throw new Error('Elige al menos un taller.');
       const nombres = new Map((await tallerRepository.listarActivos()).map(t => [t.id, t.nombre]));
       for (const fila of elegidas) {
-        if (!nombres.has(fila.taller_id)) throw new Error('Ese taller ya no está activo.');
-        if (fila.estado !== ESTADOS_TALLER.APROBADO) throw new Error('Ese taller aún no tiene su propuesta aprobada.');
+        if (!nombres.has(fila.taller_id)) throw new ErrorDeNegocio('Ese taller ya no está activo.', 409);
+        if (fila.estado !== ESTADOS_TALLER.APROBADO) throw new ErrorDeNegocio('Ese taller aún no tiene su propuesta aprobada.', 409);
       }
       const nuevas = await rechazoRepository.crear({
         valeId, solicitanteId: usuario.id, mensaje: texto, estadoVale: vale.estado,
@@ -154,11 +155,11 @@ class ValeRechazoPropuestaService {
   }
 
   async enviarMensaje(usuario, valeId, rondaId, mensaje) {
-    const texto = validarMensajeChat(mensaje);
     return valeMutex.conLockDeVale(valeId, async () => {
       const { vale, ronda } = await this._cargar(valeId, rondaId);
       const { lado } = await this._resolverAcceso(usuario, vale, ronda, { escritura: true });
-      if (ronda.estado !== ABIERTO) throw new Error('La conversación ya se cerró.');
+      const texto = validarMensajeChat(mensaje);
+      if (ronda.estado !== ABIERTO) throw new ErrorDeNegocio('La conversación ya se cerró.', 409);
       await rechazoRepository.crearMensaje(ronda.vale_taller_id, usuario.id, lado, texto);
       valeEvents.notificar({
         vale, texto: `${usuario.nombre} escribió en el rechazo de propuesta (${ronda.taller})`, tipo: 'RECHAZO_PROPUESTA_MENSAJE', actor: usuario.nombre, actorId: usuario.id,
@@ -174,9 +175,9 @@ class ValeRechazoPropuestaService {
       const { vale, ronda } = await this._cargar(valeId, rondaId);
       const { lado, fila } = await this._resolverAcceso(usuario, vale, ronda, { escritura: true });
       if (lado !== 'TALLER') throw new ErrorDeNegocio('Solo el taller puede aceptar o rechazar.', 403);
-      if (ronda.estado !== ABIERTO) throw new Error('Este rechazo ya se cerró.');
-      if (!ESTADOS_RESPONDIBLES.includes(vale.estado)) throw new Error('El vale ya no admite este rechazo.');
-      if (fila.estado !== ESTADOS_TALLER.APROBADO) throw new Error('Tu propuesta de este vale ya no está aprobada.');
+      if (ronda.estado !== ABIERTO) throw new ErrorDeNegocio('Este rechazo ya se cerró.', 409);
+      if (!ESTADOS_RESPONDIBLES.includes(vale.estado)) throw new ErrorDeNegocio('El vale ya no admite este rechazo.', 409);
+      if (fila.estado !== ESTADOS_TALLER.APROBADO) throw new ErrorDeNegocio('Tu propuesta de este vale ya no está aprobada.', 409);
       await rechazoRepository.aceptar({
         id: ronda.id, valeId, valeTallerId: fila.id, tallerId: fila.taller_id, usuarioId: usuario.id, estadoValeAnterior: vale.estado,
         accion: `Taller ${ronda.taller} aceptó el rechazo de propuesta: vuelve a Por asignar`
@@ -196,9 +197,14 @@ class ValeRechazoPropuestaService {
 
   // El taller rechaza el rechazo: su mensaje queda en el hilo, el vale sigue en el paso 5 y el atraso sigue detenido.
   async rechazar(usuario, valeId, rondaId, mensaje) {
-    if (!String(mensaje == null ? '' : mensaje).trim()) throw new Error('Escribe el motivo del rechazo (por ejemplo, que tramite una modificación).');
-    const texto = validarMensajeChat(mensaje);
-    return this._cerrar(usuario, valeId, rondaId, { lado: 'TALLER', estado: 'RECHAZADO', mensaje: texto,
+    let texto;
+    // Se valida tras comprobar el acceso (403 antes que 400).
+    const validar = () => {
+      if (!String(mensaje == null ? '' : mensaje).trim()) throw new Error('Escribe el motivo del rechazo (por ejemplo, que tramite una modificación).');
+      texto = validarMensajeChat(mensaje);
+      return texto;
+    };
+    return this._cerrar(usuario, valeId, rondaId, { lado: 'TALLER', estado: 'RECHAZADO', validar,
       accion: (ronda) => `Taller ${ronda.taller} rechazó el rechazo de propuesta: ${texto}`,
       texto: (ronda) => `${ronda.taller} rechazó tu solicitud: ${texto}`,
       tipo: 'RECHAZO_PROPUESTA_RECHAZADO', salasDe: (vale) => [`asesor:${vale.asesor_id}`], nivel: 'alerta' });
@@ -211,14 +217,15 @@ class ValeRechazoPropuestaService {
       tipo: 'RECHAZO_PROPUESTA_CANCELADO', salasDe: (vale, ronda) => [`taller:${ronda.taller_id}`], nivel: 'info' });
   }
 
-  async _cerrar(usuario, valeId, rondaId, { lado, estado, mensaje = null, accion, texto, tipo, salasDe, nivel }) {
+  async _cerrar(usuario, valeId, rondaId, { lado, estado, validar = null, accion, texto, tipo, salasDe, nivel }) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const { vale, ronda } = await this._cargar(valeId, rondaId);
       const acceso = await this._resolverAcceso(usuario, vale, ronda, { escritura: true });
       if (acceso.lado !== lado) {
         throw new ErrorDeNegocio(lado === 'TALLER' ? 'Solo el taller puede aceptar o rechazar.' : 'Solo el asesor puede cancelarlo.', 403);
       }
-      if (ronda.estado !== ABIERTO) throw new Error('Este rechazo ya se cerró.');
+      const mensaje = validar ? validar() : null;
+      if (ronda.estado !== ABIERTO) throw new ErrorDeNegocio('Este rechazo ya se cerró.', 409);
       await rechazoRepository.cerrar({
         id: ronda.id, estado, usuarioId: usuario.id, valeId, tallerId: ronda.taller_id, valeTallerId: ronda.vale_taller_id,
         estadoVale: vale.estado, accion: accion(ronda), mensaje
