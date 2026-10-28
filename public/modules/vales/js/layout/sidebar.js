@@ -32,6 +32,8 @@ export function actualizarTituloYSeccionesVista() {
   $('.buzon-section').style.display = enVistaPropia ? 'none' : '';
   // Reportes trae su propia barra de fechas.
   $('.vales-toolbar').style.display = enReportes ? 'none' : '';
+  // Buzón y Trabajo realizado: layout fijo con scroll solo en la tabla (ver «Layout fijo» en styles.css).
+  document.body.classList.toggle('vista-tabla-fija', !enVistaPropia);
 }
 
 export function wireSidebar() {
