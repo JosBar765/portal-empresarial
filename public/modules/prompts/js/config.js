@@ -1,8 +1,8 @@
-// Configuración compartida del servidor (límites, formatos, textos del asesor y variables automáticas): una carga por sesión.
+// Configuración compartida del servidor (límites, formatos, textos del asesor, marca de agua y variables automáticas): una carga por sesión.
 import { obtenerConfig } from './api/promptsApi.js';
 import { t } from './textos.js';
 
-const PARTES = ['limites', 'formatosImagen', 'textosAsesor', 'variablesAutomaticas'];
+const PARTES = ['limites', 'formatosImagen', 'textosAsesor', 'marcaDeAgua', 'variablesAutomaticas'];
 let promesa = null;
 
 async function leer() {

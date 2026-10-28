@@ -2,7 +2,8 @@
 // Ajustes globales del módulo (contenido y límites editables). Se leen en cada petición: la tabla es diminuta.
 const ajustesRepository = require('../repositories/ajustesRepository');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
-const { CLAVES, validarAjuste } = require('./ajustesEsquema');
+const config = require('../../../config/env');
+const { CLAVES, validarAjuste, migracionDe } = require('./ajustesEsquema');
 const { msg } = require('../mensajes');
 const { errorDeValidacion } = require('../errores');
 
@@ -26,7 +27,7 @@ class AjustesService {
     const ajustes = {};
     filas.forEach(f => { ajustes[f.clave] = leerValor(f.valor); });
     const falta = CLAVES.find(clave => !Object.prototype.hasOwnProperty.call(ajustes, clave));
-    if (falta) throw new ErrorDeNegocio(msg('ajuste.faltante', { clave: falta }), 500);
+    if (falta) throw new ErrorDeNegocio(msg('ajuste.faltante', { clave: falta, migracion: migracionDe(falta) }), 500);
     return ajustes;
   }
 
@@ -38,9 +39,9 @@ class AjustesService {
   async guardar(clave, valor) {
     if (!CLAVES.includes(clave)) throw new ErrorDeNegocio(msg('ajuste.noExiste', { clave, disponibles: CLAVES.join(', ') }), 404);
     if (valor === undefined) throw errorDeValidacion(msg('ajuste.sinValor', { clave }), { [clave]: msg('ajuste.sinValor', { clave }) });
-    const errores = validarAjuste(clave, valor);
+    const errores = validarAjuste(clave, valor, { urlSupabase: config.supabase.url });
     if (errores.length) throw errorDeValidacion(errores.join(' '), { [clave]: errores.join(' ') });
-    if (!await ajustesRepository.obtenerPorClave(clave)) throw new ErrorDeNegocio(msg('ajuste.faltante', { clave }), 500);
+    if (!await ajustesRepository.obtenerPorClave(clave)) throw new ErrorDeNegocio(msg('ajuste.faltante', { clave, migracion: migracionDe(clave) }), 500);
     await ajustesRepository.guardarValor(clave, valor);
     return aFila(await ajustesRepository.obtenerPorClave(clave));
   }

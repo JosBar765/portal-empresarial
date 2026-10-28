@@ -7,7 +7,7 @@ const CATALOGO = Object.freeze({
   // ---- Ajustes ----
   'ajuste.noExiste': 'No existe el ajuste «{clave}». Elige uno de los ajustes disponibles: {disponibles}.',
   'ajuste.sinValor': 'Envía el nuevo valor del ajuste «{clave}» en el campo «valor».',
-  'ajuste.faltante': 'Falta el ajuste «{clave}» en la tabla prompt_ajustes. Aplica la migración «prompts_ajustes» (en desarrollo: npm run migrate; en staging y producción se aplica al iniciar el servidor).',
+  'ajuste.faltante': 'Falta el ajuste «{clave}» en la tabla prompt_ajustes. Aplica la migración «{migracion}» (en desarrollo: npm run migrate; en staging y producción se aplica al iniciar el servidor).',
   'ajuste.texto': 'El texto «{clave}» debe tener entre 1 y {max} caracteres. Escríbelo dentro de ese largo.',
   'ajuste.objeto': '«{clave}» debe ser un objeto con estos textos: {claves}. Envía un objeto con todos ellos.',
   'ajuste.subtextoFalta': 'Falta el texto «{subclave}» dentro de «{clave}». Agrégalo para poder guardar.',
@@ -27,6 +27,10 @@ const CATALOGO = Object.freeze({
   'ajuste.formatoClave': 'La clave de formato «{formato}» no es válida: usa de 2 a 10 minúsculas o números. Corrígela.',
   'ajuste.formatoExtensiones': 'El formato «{formato}» necesita una lista «extensiones» con al menos una extensión en minúsculas y sin punto (por ejemplo: jpg).',
   'ajuste.formatoMime': 'El formato «{formato}» necesita un «mime» que empiece por image/ (por ejemplo: image/png); se recibió «{valor}». Corrígelo.',
+  'ajuste.marcaRango': '«marca_de_agua.{subclave}» debe ser un número entre {min} y {max} (recibido: {valor}). Escribe un valor dentro del rango.',
+  'ajuste.marcaColor': '«marca_de_agua.color» debe ser un color hexadecimal de 6 cifras con «#», por ejemplo #FFFFFF (recibido: {valor}). Corrígelo.',
+  'ajuste.marcaLogo': '«marca_de_agua.logo_url» debe ser una ruta que empiece por /assets/ (por ejemplo /assets/logos/LOGO_GP_isotipo.png) o una dirección https del almacenamiento de imágenes ({host}); se recibió «{valor}». Corrígela.',
+  'ajuste.marcaLogoSinAlmacenamiento': '«marca_de_agua.logo_url» debe ser una ruta que empiece por /assets/ (por ejemplo /assets/logos/LOGO_GP_isotipo.png): el almacenamiento de imágenes no está configurado en este servidor (SUPABASE_URL), así que no se acepta una dirección https; se recibió «{valor}». Corrígela.',
 
   // ---- Estructura del esquema (pestaña Parámetros) ----
   'esquema.noObjeto': 'El esquema del producto debe ser un objeto con una lista de grupos. Recarga la pestaña Parámetros e inténtalo de nuevo.',

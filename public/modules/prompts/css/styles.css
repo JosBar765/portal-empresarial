@@ -829,6 +829,14 @@
   font-size: 1.1em;
 }
 
+/* Botón negro ya copiado: fondo de éxito como el guiado completo, pero sigue habilitado para volver a copiar */
+.btn--primary.is-copiado,
+.btn--primary.is-copiado:hover:not(:disabled) {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border-color: transparent;
+}
+
 .pr-adjunto-error {
   color: var(--color-danger);
   font-size: 12px;
@@ -882,10 +890,54 @@
   transform: translateY(1px);
 }
 
-.pr-enlace--icono {
-  display: inline-flex;
+/* Acciones de la barra del resultado: compactas para que la barra no crezca */
+.pr-resultado-acciones {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+}
+
+.pr-resultado-acciones .btn {
+  padding-top: .375rem;
+  padding-bottom: .375rem;
+}
+
+/* Modal de marca de agua */
+.pr-marca {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* En pantallas angostas los tres botones del pie bajan de línea */
+.modal-box:has(.pr-marca) .modal-footer {
+  flex-wrap: wrap;
+}
+
+.pr-marca-zona {
+  padding: 40px 16px;
+}
+
+.pr-marca-estado {
+  margin: 0;
+}
+
+.pr-marca-vista {
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.pr-marca-vista img {
+  display: block;
+  max-width: 100%;
+  max-height: 55vh;
+  object-fit: contain;
 }
 
 .pr-card-cabecera,
@@ -1025,6 +1077,13 @@
 
   .pr-copiar-acciones .pr-enlace {
     order: 1;
+  }
+
+  /* Acciones de la barra apiladas a ancho completo */
+  .pr-resultado-acciones {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
   }
 }
 

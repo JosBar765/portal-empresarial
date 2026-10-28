@@ -260,7 +260,7 @@ Orden de grupos y parámetros (17):
 
 ## 7. Ajustes globales (`prompt_ajustes`)
 
-Tabla `prompt_ajustes` (`clave` PK, `valor` JSON, `descripcion`, `actualizado_en`), creada y sembrada por la migración `prompts_ajustes` (no pisa lo que el administrador ya editó). Los seis ajustes son obligatorios: si falta alguno el servicio responde un error que indica cuál y que hay que aplicar la migración; nunca usa un valor por defecto del código. Se leen en cada petición (sin caché). El administrador los edita con `PUT /admin/ajustes/:clave`; cada valor se valida contra su forma (el código valida la FORMA, el contenido es del administrador).
+Tabla `prompt_ajustes` (`clave` PK, `valor` JSON, `descripcion`, `actualizado_en`), creada y sembrada por la migración `prompts_ajustes` (no pisa lo que el administrador ya editó); `marca_de_agua` la siembra la migración `prompts_ajuste_marca_de_agua`. Los siete ajustes son obligatorios: si falta alguno el servicio responde un error que indica cuál y que hay que aplicar la migración; nunca usa un valor por defecto del código. Se leen en cada petición (sin caché). El administrador los edita con `PUT /admin/ajustes/:clave`; cada valor se valida contra su forma (el código valida la FORMA, el contenido es del administrador).
 
 | Clave | Qué controla | Forma |
 |---|---|---|
@@ -270,6 +270,7 @@ Tabla `prompt_ajustes` (`clave` PK, `valor` JSON, `descripcion`, `actualizado_en
 | `formatos_imagen` | Formatos de imagen admitidos | objeto `{ <formato>: { extensiones: [..], mime } }` |
 | `textos_asesor` | Avisos y notas que ve el asesor | objeto con exactamente 4 textos |
 | `contacto_ejemplo` | Datos del asesor en la vista previa del administrador | `{ nombre, correo, telefono }` |
+| `marca_de_agua` | Marca de agua que el asesor aplica a una imagen en su navegador | `{ texto, logo_url, opacidad, angulo, escala, separacion, color }` |
 
 `textos_prompt` (marcadores entre llaves simples; todos los obligatorios deben aparecer y no se admiten otros):
 
@@ -306,6 +307,8 @@ La migración `prompts_reglas` siembra `imagenes_titulo` e `imagenes_intro` (los
 
 `contacto_ejemplo` (valor inicial): `nombre` «Nombre Apellido», `correo` «asesor@grupopremia.com», `telefono` «+502 5555 5555» (`nombre` y `correo` obligatorios; `telefono` puede quedar vacío).
 
+`marca_de_agua` (valor inicial, lo siembra `prompts_ajuste_marca_de_agua` solo si no existe): `texto` «GRUPO PREMIA» (texto no vacío de hasta 60 caracteres); `logo_url` `/assets/logos/LOGO_GP_isotipo.png` (ruta `/assets/` sin `..` o `https` del host exacto de `SUPABASE_URL`, la misma regla de los recursos; si `SUPABASE_URL` no está configurado solo se acepta `/assets/`); `opacidad` 0.18 (de 0.05 a 0.6); `angulo` -30 (grados, de -90 a 90); `escala` 0.3 (ancho de cada baldosa relativo al lado menor de la imagen, de 0.1 a 0.8); `separacion` 1.5 (espacio entre baldosas en altos de baldosa, de 0.5 a 5); `color` `#FFFFFF` (hexadecimal de 6 cifras con `#`). El contorno del texto no es un ajuste: se deriva del color (negro para un color claro, blanco para uno oscuro), así el texto se lee sobre fondos claros y oscuros. Cada baldosa es el logo y, a su derecha, el texto; se repite en filas alternadas (ladrillo) girada `angulo` grados y cubre toda la imagen. Como es obligatorio, sin esa migración `GET /config` y `POST /generar` responden 500 con el mensaje que pide aplicar `prompts_ajuste_marca_de_agua` (el asesor no puede generar), la pestaña Ajustes no muestra su tarjeta y guardarlo responde el mismo error.
+
 ## 8. API (`/api/prompts`, ya detrás de `requireAuth` y `requirePermission('prompts.ver')`)
 
 Errores: `{ "error": "mensaje" }`; los de validación suman `campos: { clave: "mensaje" }`. Nunca 401 por reglas de negocio.
@@ -314,7 +317,7 @@ Asesor (`prompts.generar`):
 
 | Ruta | Cuerpo | Respuesta |
 |---|---|---|
-| `GET /config` | — | `{ limites, formatosImagen, textosAsesor, variablesAutomaticas }`: `limites` = ajuste `limites`; `formatosImagen` = `formatos_imagen`; `textosAsesor` = `textos_asesor`; `variablesAutomaticas` = nombres fijos del código (`asesor_nombre`, `asesor_telefono`, `asesor_correo`, `total_imagenes`, `lista_imagenes`, `otros_parametros`). El frontend toma de aquí todos los límites y formatos |
+| `GET /config` | — | `{ limites, formatosImagen, textosAsesor, marcaDeAgua, variablesAutomaticas }`: `limites` = ajuste `limites`; `formatosImagen` = `formatos_imagen`; `textosAsesor` = `textos_asesor`; `marcaDeAgua` = `marca_de_agua` (el navegador del asesor compone la marca: la imagen no se sube ni se guarda); `variablesAutomaticas` = nombres fijos del código (`asesor_nombre`, `asesor_telefono`, `asesor_correo`, `total_imagenes`, `lista_imagenes`, `otros_parametros`). El frontend toma de aquí todos los límites y formatos |
 | `GET /productos` | — | `[{ id, codigo, nombre, descripcion, version: { id, numero, esquema } }]` solo de productos `activo` con versión `publicada` (el esquema incluye `recursos`) |
 | `GET /contacto` | — | `{ nombre, email, telefono }` (`telefono` es `null` si falta) |
 | `POST /generar` | `{ productoId, valores: {clave: valor}, imagenes: {clave: [{nombre, descripcion, ubicacion}]}, sinTelefono: bool }` | `{ prompt, imagenes: [ … ], totalImagenes, contacto }` (sin `logo` ni `lamina`) |
@@ -344,7 +347,7 @@ Administración (`prompts.administrar`):
 | `POST /admin/productos/:id/publicar` | — | valida el esquema, la sintaxis de las reglas, al menos un parámetro y `recursos_min_publicar` recursos activos; el borrador pasa a `publicada`, la anterior a `archivada`; un producto en `borrador` pasa a `activo` |
 | `PATCH /admin/productos/:id/estado` | `{ estado: "activo" \| "inactivo" }` | `activo` exige una versión publicada |
 | `POST /admin/previsualizar` | `{ esquema, valores?, imagenes? }` | `{ prompt, imagenes, totalImagenes, reglas: [{clave, etiqueta, posicion, activo, incluida}], sinUsar: [], errores: [] }`: el prompt completo autogenerado desde el esquema del borrador (encabezado, reglas `inicio`, sección generada, reglas `fin`; sección 3), con valores por defecto y el contacto de `contacto_ejemplo` si no se envían; `reglas` indica qué reglas están activas e `incluida` si aportaron texto al prompt; `imágenes` con los mismos elementos de `/generar`, usando la `url` guardada de los recursos activos (el borrador aún no se sirve por el proxy); `sinUsar` queda siempre vacío (compatibilidad) y un campo `plantilla` en el cuerpo se ignora; si el esquema o el texto de una regla tienen errores, `prompt` es `""`, `imagenes` `[]`, `totalImagenes` `0`, `reglas` `[]` y `errores` los lista |
-| `GET /admin/ajustes` | — | `[{ clave, descripcion, valor, actualizadoEn }]` de los seis ajustes |
+| `GET /admin/ajustes` | — | `[{ clave, descripcion, valor, actualizadoEn }]` de los siete ajustes |
 | `PUT /admin/ajustes/:clave` | `{ valor }` | la fila actualizada `{ clave, descripcion, valor, actualizadoEn }`; clave desconocida: 404; valor con forma incorrecta: 400 con `{ error, campos: { <clave>: mensajes } }` |
 
 Estados en palabras completas: producto `borrador`, `activo`, `inactivo`; versión `borrador`, `publicada`, `archivada`.

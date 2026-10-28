@@ -53,3 +53,15 @@ export function validarArchivo(file, p, config, cantidad) {
   if (file.name.length > r.maxNombre) return t('asesor.errores.archivoNombreLargo', { ...base, largo: file.name.length, max: r.maxNombre });
   return '';
 }
+
+// Imagen para la marca de agua: todos los formatos de /config y el peso tope de imágenes; '' si se puede usar.
+export function validarImagenMarca(file, config) {
+  const r = reglasImagenes({ max_mb: config.limites.imagenes_mb_tope }, config);
+  const punto = file.name.lastIndexOf('.');
+  const ext = punto >= 0 ? file.name.slice(punto + 1).toLowerCase() : '';
+  const base = { archivo: file.name, formatos: listaConO(r.formatos) };
+  if (!ext) return t('asesor.marca.errores.sinExtension', { ...base, extensiones: listaConO(r.extensiones.map(e => e.toUpperCase())) });
+  if (!r.extensiones.includes(ext)) return t('asesor.marca.errores.formato', { ...base, extension: ext.toUpperCase() });
+  if (file.size > r.maxMb * BYTES_POR_MB) return t('asesor.marca.errores.pesada', { ...base, mb: (file.size / BYTES_POR_MB).toFixed(1), maxMb: r.maxMb });
+  return '';
+}

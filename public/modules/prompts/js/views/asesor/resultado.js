@@ -5,6 +5,7 @@ import { descargarRecurso } from '../../api/promptsApi.js';
 import { construirPasos, claveDePaso, siguientePendiente, etiquetaBoton } from './pasosCopiado.js';
 import { copiarImagen, copiarTexto, descargarBlob } from './portapapeles.js';
 import { mimeAExtension } from './archivos.js';
+import { abrirMarcaDeAgua } from './marcaDeAgua.js';
 
 // Cada elemento de la respuesta es del asesor (se empareja con su archivo por parámetro y posición) o un recurso fijo.
 function armarItems(resultado, estado, config) {
@@ -56,7 +57,7 @@ export function renderResultado(cont, { estado, config, resultado, alEditar }) {
   const cajaPrompt = h('div', { class: 'pr-prompt-texto', text: prompt });
   const btnGuiado = h('button', { type: 'button', class: 'btn btn--primary btn--sm pr-copiar-guiado' });
   const btnReiniciar = h('button', { type: 'button', class: 'pr-enlace', text: t('asesor.resultado.empezarDeNuevo') });
-  const btnPrompt = h('button', { type: 'button', class: 'btn btn--ghost btn--sm', text: t('asesor.resultado.copiarPrompt') });
+  const btnPrompt = h('button', { type: 'button', class: 'btn btn--primary btn--sm', text: t('asesor.resultado.copiarPrompt') });
 
   const filas = items.map((it, i) => {
     const numero = pasos[i].numero;
@@ -168,11 +169,13 @@ export function renderResultado(cont, { estado, config, resultado, alEditar }) {
         h('span', { class: 'form-hint', text: t('asesor.resultado.caracteres', { n: prompt.length }) }),
         ...(hayImagenes ? [btnPrompt] : [btnReiniciar, btnGuiado]))),
     cajaPrompt);
-  // El botón guiado vive en la cabecera de la tarjeta de imágenes; «Editar datos» queda arriba a la derecha.
+  // El botón guiado vive en la cabecera de la tarjeta de imágenes; «Editar datos» y la marca de agua quedan arriba a la derecha.
   montar(cont,
     h('div', { class: 'panel-toolbar' },
       h('div', { class: 'pr-resultado-titulo' }, h('h2', { text: t('asesor.resultado.titulo') })),
-      h('button', { type: 'button', class: 'pr-enlace pr-enlace--icono', onclick: alEditar }, icono('arrow-back-outline'), h('span', { text: t('asesor.resultado.editar') }))),
+      h('div', { class: 'pr-resultado-acciones' },
+        h('button', { type: 'button', class: 'btn btn--ghost', onclick: alEditar }, icono('arrow-back-outline'), h('span', { text: t('asesor.resultado.editar') })),
+        h('button', { type: 'button', class: 'btn btn--primary', onclick: () => abrirMarcaDeAgua(config) }, icono('water-outline'), h('span', { text: t('asesor.resultado.marcaDeAgua') })))),
     h('div', { class: 'pr-banner' }, icono('information-circle-outline'),
       h('span', { text: textosAsesor.aviso_pegado })),
     totalImagenes > limites.gemini_max_imagenes

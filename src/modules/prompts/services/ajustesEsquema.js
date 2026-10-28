@@ -1,6 +1,7 @@
 // src/modules/prompts/services/ajustesEsquema.js
 // Funciones puras: la FORMA permitida de cada ajuste global (el contenido vive en la tabla prompt_ajustes).
 const { msg } = require('../mensajes');
+const { decidirOrigen } = require('./recursos');
 
 const MAX_TEXTO = 2000;
 const MAX_TEXTO_CORTO = 300;
@@ -58,9 +59,23 @@ const PARES_DEFECTO_TOPE = Object.freeze([
 
 const CONTACTO = Object.freeze({ nombre: false, correo: false, telefono: true }); // true = puede quedar vacío
 
+// Rangos de la marca de agua: [mínimo, máximo] de cada número.
+const MARCA_TEXTO_MAX = 60;
+const MARCA_RANGOS = Object.freeze({
+  opacidad: [0.05, 0.6],
+  angulo: [-90, 90],
+  escala: [0.1, 0.8],
+  separacion: [0.5, 5]
+});
+const MARCA_CAMPOS = Object.freeze(['texto', 'logo_url', ...Object.keys(MARCA_RANGOS), 'color']);
+
 const CLAVES = Object.freeze([
-  'encabezado_sistema', 'textos_prompt', 'limites', 'formatos_imagen', 'textos_asesor', 'contacto_ejemplo'
+  'encabezado_sistema', 'textos_prompt', 'limites', 'formatos_imagen', 'textos_asesor', 'contacto_ejemplo', 'marca_de_agua'
 ]);
+
+// Migración que siembra cada ajuste (para el mensaje cuando falta).
+const MIGRACION_DE = Object.freeze({ marca_de_agua: 'prompts_ajuste_marca_de_agua' });
+const migracionDe = clave => MIGRACION_DE[clave] || 'prompts_ajustes';
 
 const esObjeto = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const tiene = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -172,10 +187,47 @@ function validarContacto(valor) {
   return errores;
 }
 
+// ---------- Marca de agua ----------
+
+// El logo sigue la regla de los recursos: ruta /assets/ o https del host de SUPABASE_URL.
+function validarLogo(url, urlSupabase) {
+  if (typeof url === 'string' && decidirOrigen(url, urlSupabase).tipo !== 'rechazada') return [];
+  let host = '';
+  try { host = new URL(urlSupabase).host; } catch { host = ''; }
+  return [msg(host ? 'ajuste.marcaLogo' : 'ajuste.marcaLogoSinAlmacenamiento', { valor: typeof url === 'string' ? url : '', host })];
+}
+
+function validarMarca(valor, urlSupabase) {
+  if (!esObjeto(valor)) return [msg('ajuste.objeto', { clave: 'marca_de_agua', claves: lista(MARCA_CAMPOS) })];
+  const errores = [];
+  Object.keys(valor).forEach(k => {
+    if (!MARCA_CAMPOS.includes(k)) errores.push(msg('ajuste.subtextoDesconocido', { clave: 'marca_de_agua', subclave: k, validas: lista(MARCA_CAMPOS) }));
+  });
+  MARCA_CAMPOS.filter(k => !tiene(valor, k)).forEach(k => errores.push(msg('ajuste.subtextoFalta', { clave: 'marca_de_agua', subclave: k })));
+  if (tiene(valor, 'texto') && (typeof valor.texto !== 'string' || !valor.texto.trim() || valor.texto.length > MARCA_TEXTO_MAX)) {
+    errores.push(msg('ajuste.subtextoTipo', { clave: 'marca_de_agua', subclave: 'texto', max: MARCA_TEXTO_MAX }));
+  }
+  if (tiene(valor, 'logo_url')) errores.push(...validarLogo(valor.logo_url, urlSupabase));
+  Object.entries(MARCA_RANGOS).forEach(([k, [min, max]]) => {
+    if (!tiene(valor, k)) return;
+    const v = valor[k];
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) {
+      errores.push(msg('ajuste.marcaRango', { subclave: k, min, max, valor: JSON.stringify(v) }));
+    }
+  });
+  if (tiene(valor, 'color') && (typeof valor.color !== 'string' || !/^#[0-9A-Fa-f]{6}$/.test(valor.color))) {
+    errores.push(msg('ajuste.marcaColor', { valor: JSON.stringify(valor.color) }));
+  }
+  return errores;
+}
+
 // ---------- API ----------
 
-/** @returns {string[]} mensajes explicativos; lista vacía si el valor tiene la forma correcta */
-function validarAjuste(clave, valor) {
+/**
+ * @param {{urlSupabase?: string}} [contexto] host permitido para el logo de la marca de agua
+ * @returns {string[]} mensajes explicativos; lista vacía si el valor tiene la forma correcta
+ */
+function validarAjuste(clave, valor, contexto = {}) {
   switch (clave) {
     case 'encabezado_sistema':
       return typeof valor === 'string' && valor.trim() && valor.length <= MAX_TEXTO ? [] : [msg('ajuste.texto', { clave, max: MAX_TEXTO })];
@@ -184,15 +236,16 @@ function validarAjuste(clave, valor) {
     case 'limites': return validarLimites(valor);
     case 'formatos_imagen': return validarFormatos(valor);
     case 'contacto_ejemplo': return validarContacto(valor);
+    case 'marca_de_agua': return validarMarca(valor, contexto.urlSupabase);
     default: return [msg('ajuste.noExiste', { clave, disponibles: lista(CLAVES) })];
   }
 }
 
 /** Valida el conjunto completo ya leído de la tabla: {clave: valor}. */
-function validarConjunto(ajustes) {
+function validarConjunto(ajustes, contexto = {}) {
   return CLAVES.flatMap(clave => (ajustes && tiene(ajustes, clave)
-    ? validarAjuste(clave, ajustes[clave])
-    : [msg('ajuste.faltante', { clave })]));
+    ? validarAjuste(clave, ajustes[clave], contexto)
+    : [msg('ajuste.faltante', { clave, migracion: migracionDe(clave) })]));
 }
 
-module.exports = { CLAVES, TEXTOS_PROMPT, TEXTOS_ASESOR, LIMITES, validarAjuste, validarConjunto };
+module.exports = { CLAVES, TEXTOS_PROMPT, TEXTOS_ASESOR, LIMITES, MARCA_RANGOS, migracionDe, validarAjuste, validarConjunto };

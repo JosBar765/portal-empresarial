@@ -28,13 +28,14 @@ class PromptsService {
     }));
   }
 
-  // Todo lo que el formulario necesita saber de los límites y formatos, desde un solo lugar.
+  // Todo lo que el asesor necesita de los ajustes (límites, formatos, textos y marca de agua), desde un solo lugar.
   async obtenerConfig() {
     const ajustes = await ajustesService.obtenerTodos();
     return {
       limites: ajustes.limites,
       formatosImagen: ajustes.formatos_imagen,
       textosAsesor: ajustes.textos_asesor,
+      marcaDeAgua: ajustes.marca_de_agua,
       variablesAutomaticas: [...VARIABLES_AUTOMATICAS]
     };
   }

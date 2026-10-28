@@ -7,7 +7,7 @@ const MIME_COPIA = 'image/png';
 
 export const puedeCopiarImagen = () => !!(window.isSecureContext && window.ClipboardItem && navigator.clipboard && navigator.clipboard.write);
 
-function cargarImagen(blob) {
+export function cargarImagen(blob) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob);
     const img = new Image();
@@ -17,12 +17,15 @@ function cargarImagen(blob) {
   });
 }
 
+// Tamaño natural en píxeles; un SVG sin tamaño propio usa LADO_SVG.
+export const tamanoNatural = (img) => (img.naturalWidth && img.naturalHeight
+  ? { ancho: img.naturalWidth, alto: img.naturalHeight }
+  : { ancho: LADO_SVG, alto: LADO_SVG });
+
 // Convierte cualquier formato a PNG sin redimensionar (resolución natural).
 export async function aPng(blob) {
   const img = await cargarImagen(blob);
-  let ancho = img.naturalWidth;
-  let alto = img.naturalHeight;
-  if (!ancho || !alto) { ancho = LADO_SVG; alto = LADO_SVG; }
+  const { ancho, alto } = tamanoNatural(img);
   const canvas = document.createElement('canvas');
   canvas.width = ancho;
   canvas.height = alto;
