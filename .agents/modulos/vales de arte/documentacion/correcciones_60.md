@@ -13,6 +13,7 @@ Rama: `fix/correcciones` (desde `dev`).
 - **Orden de validación:** en `solicitar`, `enviarMensaje` y `rechazar` primero se comprueba quién es el usuario y su acceso (403) y después el mensaje (400); antes un tercero con un mensaje vacío recibía 400.
 - **Mensaje de fusión según el estado:** `aprobarGeneral` solo dice «ya fue fusionado por otro encargado» si el vale está en `PENDIENTE_CONFIRMACION`, `RECIBIDO` o `CONFIRMADO` con `fusionado_por`; si volvió al taller por un rechazo de propuesta aceptado (el sello de la fusión anterior se conserva) dice «aún no está listo para fusionar». Responde 409.
 - **Una sola ronda abierta por taller, también entre procesos:** `valeRechazoPropuestaRepository.crear` bloquea las filas de `vale_talleres` elegidas (`FOR UPDATE`, siempre en orden de id) antes de comprobar si ya hay una ronda `ABIERTO`; el candado en memoria solo valía dentro de un proceso. Sin migración ni índice. Probado con tres aperturas simultáneas directas al repositorio: antes se creaban las tres, ahora una y dos respuestas 409.
+- **404 cuando el vale no existe:** «Vale de arte no encontrado.» (detalle) y «Este vale ya no existe: fue dado de baja o rechazado.» (`requerirVale`, acciones sobre un vale borrado entretanto) eran `Error` simple y respondían 400; ahora son `ErrorDeNegocio` con 404. Los mensajes no cambian.
 
 ## Por qué
 

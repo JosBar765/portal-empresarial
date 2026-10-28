@@ -1,6 +1,7 @@
 // src/modules/vales/services/valeDetalleService.js
 // Detalle de un vale: control de acceso por rol y filtrado del historial de
 // auditoría según qué le corresponde ver a cada rol.
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
 const tallerRepository = require('../repositories/tallerRepository');
@@ -65,7 +66,7 @@ class ValeDetalleService {
 
   async obtenerDetalle(usuario, valeId) {
     const vale = await valeRepository.obtenerPorId(valeId);
-    if (!vale) throw new Error('Vale de arte no encontrado.');
+    if (!vale) throw new ErrorDeNegocio('Vale de arte no encontrado.', 404);
     const talleres = await valeTallerRepository.listarPorVale(valeId);
     if (!(await this._puedeVerVale(usuario, vale, talleres))) {
       throw new Error('No tienes acceso a este vale de arte.');
@@ -107,7 +108,7 @@ class ValeDetalleService {
   // 'general' (la fusión o, si no hay, la propuesta de un único taller) o 'ultima'.
   async obtenerPropuesta(usuario, valeId, { tipo = 'ultima', disenadorId = null } = {}) {
     const vale = await valeRepository.obtenerPorId(valeId);
-    if (!vale) throw new Error('Vale de arte no encontrado.');
+    if (!vale) throw new ErrorDeNegocio('Vale de arte no encontrado.', 404);
     const talleres = await valeTallerRepository.listarPorVale(valeId);
     if (!(await this._puedeVerVale(usuario, vale, talleres))) throw new Error('No tienes acceso a este vale de arte.');
 
