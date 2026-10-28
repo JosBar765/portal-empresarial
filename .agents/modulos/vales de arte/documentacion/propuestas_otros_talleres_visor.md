@@ -21,4 +21,7 @@ La propuesta se da por vista cuando su pestaña se muestra (antes, al pulsar «V
 - `public/modules/vales/js/views/buzon.js`: la acción de la fila y el clic del signo «?» llaman a esa función.
 - `public/modules/vales/css/propuestasOtros.css`.
 
-El backend no cambia: sigue usando `detalle.propuestasOtrosTalleres` de `GET /api/vales/:id`.
+El visor sigue usando `detalle.propuestasOtrosTalleres` de `GET /api/vales/:id`.
+
+## El API aplica la misma regla
+`GET /api/vales/:id/propuesta` (`tipo=taller`, `ultima` y el respaldo de `general`) también la aplica a encargados, asistentes y diseñadores: ven las propuestas de su propio taller en cualquier estado y las de otro taller solo si es hermano (ambos comparten, filas activas) y su fila está `APROBADO`; si no, responde 403 («No tienes acceso a la propuesta de ese taller.»). Con `tipo=ultima` no falla: devuelve la última de las permitidas, o `origen: 'ninguna'`. Quien tiene `vales.aprobar_general` (fusión), el asesor, el supervisor, el Administrador y el Gerente no cambian.
