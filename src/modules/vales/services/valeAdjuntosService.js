@@ -94,11 +94,11 @@ class ValeAdjuntosService {
   async responderAdjuntos(usuario, valeId, tallerId, mensaje) {
     return valeMutex.conLockDeVale(valeId, async () => {
       if (!puedeActuarComoAsesor(usuario)) {
-        throw new Error('Solo un asesor o un supervisor de ventas puede responder sobre los adjuntos.');
+        throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede responder sobre los adjuntos.', 403);
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {
-        throw new Error('Solo puedes responder sobre tus propios vales.');
+        throw new ErrorDeNegocio('Solo puedes responder sobre tus propios vales.', 403);
       }
       const fila = (await valeTallerRepository.listarPorVale(valeId)).find(f => f.taller_id === Number(tallerId));
       if (!fila) throw new Error('Este vale no fue enviado a ese taller.');
@@ -126,12 +126,12 @@ class ValeAdjuntosService {
   // sigue para los demás. Revalida bajo el lock: el taller pudo verificar o responder entretanto.
   async darDeBajaTaller(usuario, valeId, tallerId) {
     if (!puedeActuarComoAsesor(usuario)) {
-      throw new Error('Solo un asesor o un supervisor de ventas puede dar de baja un taller.');
+      throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede dar de baja un taller.', 403);
     }
     return this.quitarTallerDeVale(valeId, tallerId, {
       actor: usuario,
       validarVale: (vale) => {
-        if (vale.asesor_id !== usuario.id) throw new Error('Solo puedes dar de baja talleres de tus propios vales.');
+        if (vale.asesor_id !== usuario.id) throw new ErrorDeNegocio('Solo puedes dar de baja talleres de tus propios vales.', 403);
       }
     });
   }
@@ -215,7 +215,7 @@ class ValeAdjuntosService {
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await requerirVale(valeId);
       const { fila, escribe } = await this._resolverAcceso(usuario, vale, tallerId);
-      if (!escribe) throw new Error('Solo el taller y el asesor del vale pueden escribir en la conversación.');
+      if (!escribe) throw new ErrorDeNegocio('Solo el taller y el asesor del vale pueden escribir en la conversación.', 403);
       if (!ESTADOS_CONVERSACION_ABIERTA.includes(fila.estado)) {
         throw new Error('La conversación se cerró: se llegó a un acuerdo.');
       }
