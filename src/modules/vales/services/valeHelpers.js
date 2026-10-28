@@ -2,6 +2,7 @@
 const valeRepository = require('../repositories/valeRepository');
 const historialRepository = require('../repositories/historialRepository');
 const { ahoraUTC6 } = require('../../../core/calendario/calendarioLaboral');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 
 const ESTADOS = {
   ESPERANDO_AUTORIZACION: 'ESPERANDO_AUTORIZACION',
@@ -279,7 +280,7 @@ function puedeActuarComoAsesor(usuario) {
 function assertPropioDelAsesor(usuario, vale) {
   if (esAdministrador(usuario)) return;
   if (vale.asesor_id !== usuario.id) {
-    throw new Error('Este vale fue creado por otro asesor.');
+    throw new ErrorDeNegocio('Este vale fue creado por otro asesor.', 403);
   }
 }
 
