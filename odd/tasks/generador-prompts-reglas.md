@@ -27,6 +27,10 @@ Eliminar la plantilla editable. El prompt se arma solo con: encabezado del siste
 - [x] T25 Registro de tipos de parámetro en `src/modules/prompts/services/tipos/`. (Commit e19a88b. 13.667 casos idénticos contra el código anterior; regresiones t20 y t24 sin cambios.)
 - [ ] T26 Migración `prompts_medalla_inicial`: v20 local como versión inicial de staging/producción (plantilla inactiva y sin URL) y encabezado del sistema. (Aplicada en la BD local el 2026-10-27 sin cambios en versiones ni ajustes, como se esperaba: la guarda da «no aplicar» porque la v20 la publicó el dueño. Falta probarla en una base nueva. Verificado solo con SELECT: literal igual a la v20 salvo el recurso, esquema válido, prompt idéntico, la guarda da «no aplicar» en la BD local y «aplicar» en una base nueva simulada. Sin probar INSERT/UPDATE reales ni MariaDB.)
 
+- [x] T27a Jerarquía de botones en «Prompt generado» (commit e1bf30f): botón guiado en la cabecera de «Imágenes para pegar», «Editar datos» arriba a la derecha, sin subtítulo, estados copiado/siguiente visibles.
+- [ ] T27b «Copiar prompt» negro, «Editar datos» como botón blanco (ghost) y botón negro «Agregar marca de agua» arriba a la derecha.
+- [ ] T28 Marca de agua en el navegador: el asesor carga una imagen y obtiene la misma imagen con «GRUPO PREMIA» y el isotipo (LOGO_GP_isotipo.png) en diagonal y repetidos; botones copiar y descargar. Texto, logo, opacidad, ángulo y escala en el ajuste nuevo  (migración nueva) editable en Ajustes.
+
 ## Pendientes
 - Probar «Duplicar» por HTTP (reiniciar el servidor).
 - Confirmar la versión de MariaDB del hosting (10.3.15 o superior) antes del deploy.
