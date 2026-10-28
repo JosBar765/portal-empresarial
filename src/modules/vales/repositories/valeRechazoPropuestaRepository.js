@@ -20,10 +20,13 @@ class ValeRechazoPropuestaRepository {
   // Abre una ronda por taller elegido, cada una con el mensaje del asesor en el hilo de ese taller, y deja el rastro en el historial.
   async crear({ valeId, solicitanteId, filas, mensaje, estadoVale }) {
     return db.transaccion(async (tx) => {
+      // Bloquea las filas de los talleres (siempre en orden de id) para que dos procesos no abran la misma ronda a la vez.
+      const bloqueo = filas.map(f => f.id).sort((a, b) => a - b);
+      await tx.query(`SELECT id FROM vale_talleres WHERE id IN (${bloqueo.map(() => '?').join(', ')}) ORDER BY id FOR UPDATE`, bloqueo, 'rechazo_propuesta:bloquear_talleres');
       const ids = [];
       for (const fila of filas) {
         const abierto = await tx.query(
-          "SELECT id FROM vale_rechazos_propuesta WHERE vale_taller_id = ? AND estado = 'ABIERTO' LIMIT 1",
+          "SELECT id FROM vale_rechazos_propuesta WHERE vale_taller_id = ? AND estado = 'ABIERTO' LIMIT 1 FOR UPDATE",
           [fila.id], 'rechazo_propuesta:validar_abierto'
         );
         if (abierto.length) throw new ErrorDeNegocio(`Ya hay un rechazo abierto con ${fila.taller_nombre}. Espera su respuesta.`, 409);
