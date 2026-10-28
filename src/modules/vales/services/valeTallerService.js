@@ -399,9 +399,11 @@ class ValeTallerService {
 
       const vale = await requerirVale(valeId);
       if (vale.estado !== ESTADOS.APROBADO_DEPARTAMENTO) {
-        throw new Error(vale.fusionado_por
+        // fusionado_por queda sellado aunque el vale vuelva al taller (rechazo de propuesta aceptado): solo en estos estados la fusión es vigente.
+        const yaFusionado = vale.fusionado_por && [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO].includes(vale.estado);
+        throw new ErrorDeNegocio(yaFusionado
           ? 'Este vale ya fue fusionado por otro encargado. Actualiza la página para ver su estado.'
-          : 'Este vale aún no está listo para fusionar.');
+          : 'Este vale aún no está listo para fusionar.', 409);
       }
       // La fusión de las propuestas de los talleres NO la hace el sistema —
       // es trabajo manual de quien fusiona, que debe adjuntar su

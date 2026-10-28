@@ -11,6 +11,7 @@ Rama: `fix/correcciones` (desde `dev`).
 - **Contador en la fusión:** el archivo de la fusión se llama `{corr}_PROPUESTA_FUSION_X` (`nombreArchivo.propuestaFusion(correlativo, contador)`). Si el vale vuelve al taller por un rechazo de propuesta aceptado y se fusiona otra vez, ya no choca con el archivo anterior. X sale de `siguienteContador` sobre `propuesta_general_url`; la fusión anterior queda en Storage sin borrarse.
 - **Códigos HTTP del rechazo de propuesta:** «Ese rechazo no existe.» responde 404; los conflictos de estado (rechazo ya cerrado, vale o taller en otro estado, rechazo abierto, modificación en trámite, vale en proceso por el lock) responden 409 con `ErrorDeNegocio`, también los lanzados por `valeRechazoPropuestaRepository`. La validación del mensaje y del motivo sigue en 400. Mensajes sin cambios; el frontend no depende del código.
 - **Orden de validación:** en `solicitar`, `enviarMensaje` y `rechazar` primero se comprueba quién es el usuario y su acceso (403) y después el mensaje (400); antes un tercero con un mensaje vacío recibía 400.
+- **Mensaje de fusión según el estado:** `aprobarGeneral` solo dice «ya fue fusionado por otro encargado» si el vale está en `PENDIENTE_CONFIRMACION`, `RECIBIDO` o `CONFIRMADO` con `fusionado_por`; si volvió al taller por un rechazo de propuesta aceptado (el sello de la fusión anterior se conserva) dice «aún no está listo para fusionar». Responde 409.
 
 ## Por qué
 
