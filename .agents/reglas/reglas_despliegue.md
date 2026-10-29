@@ -80,12 +80,13 @@ Todos los comandos `npm run staging:*` los ejecuta el dueño en su PC.
 
 ## Versionado de estáticos
 
-La CDN de Hostinger sirve `/css`, `/js` y los estáticos de módulos sin `Cache-Control` ni `ETag`, y el navegador los conserva por caché heurístico: un cambio visual desplegado no llega a los usuarios hasta que se fuerza la recarga. Vaciar la CDN no lo arregla, porque no limpia el caché del navegador.
+Hostinger copia `public/` a `public_html` y su CDN sirve `/css`, `/js` y los estáticos de módulos directo, sin `Cache-Control` ni `ETag`: el navegador los conserva por caché heurístico y un cambio visual desplegado no llega hasta que se fuerza la recarga. Vaciar la CDN no lo arregla, porque no limpia el caché del navegador.
 
-- Cada referencia local a CSS o JS lleva `?v=<hash del contenido>`; si el archivo cambia, la URL cambia y se descarga de nuevo.
-- Los `import` relativos de los módulos ES se resuelven con un import map generado entre `<!-- importmap:inicio -->` y `<!-- importmap:fin -->` en el HTML del módulo.
-- **Tras cambiar cualquier CSS o JS**, correr `npm run estaticos:versionar` y commitear el resultado en la misma rama. Es idempotente: sin cambios no modifica nada.
-- Un módulo nuevo con módulos ES copia las dos marcas del import map en su `index.html`.
+- **Build command de Hostinger: `npm run estaticos:versionar`.** Se configura en el panel de cada app (staging y producción) y corre antes de `Syncing public_html`. Sin él, los estáticos salen sin versionar.
+- El script añade `?v=<hash del contenido>` a las referencias de los HTML y a los `@import` de los CSS, y rellena el import map que resuelve los `import` relativos de los módulos ES. El repositorio no guarda esos hashes: los genera el build.
+- Un módulo con módulos ES copia las marcas `<!-- importmap:inicio -->` y `<!-- importmap:fin -->` en su `index.html`.
+- En local no hace falta correrlo. Si se corre para probar, descartar el resultado (`git checkout -- public`).
+- Comprobación tras desplegar: `/css/dashboard.css` debe contener `global.css?v=`.
 
 ## 5. Dónde y cómo configurar
 
@@ -155,7 +156,7 @@ Reglas por entorno:
 | `npm run staging:refrescar` | PC del dueño | Reemplaza staging por copia de producción | Solo lee producción |
 | `npm run main:backup` | PC del dueño | Respaldo de producción a archivo local | Solo lee |
 | `npm run main:backup:probar-guarda` | Cualquier PC, sin base | Prueba la lista blanca de sentencias | No |
-| `npm run estaticos:versionar` | Cualquier PC, sin base | Añade `?v=<hash>` a CSS y JS de los HTML y regenera el import map | No |
+| `npm run estaticos:versionar` | Build command de Hostinger | Añade `?v=<hash>` a CSS y JS de los HTML y regenera el import map | No |
 | `npm run ci:sintaxis` | Cualquier PC | Verifica la sintaxis del JS | No |
 | `npm run ci:migraciones` | Solo con base desechable (`CI_DB_*`) | Escenarios A y B de migraciones; borra la base | No (jamás apuntarlo a una base de trabajo) |
 | `npm run ci:arranque` | El CI | Arranca el servidor con `NODE_ENV=test` | No |

@@ -116,7 +116,7 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 - Don't rename DOM ids, classes, `data-*` in refactors.
 - Don't abbreviate states in UI, docs, or reports.
 - Don't rewrite whole files: keep line endings (most are CRLF).
-- Don't ship CSS/JS changes without `npm run estaticos:versionar`: the CDN serves them without cache headers and users keep stale files.
+- Don't remove the importmap markers from module HTML or the Hostinger Build command `npm run estaticos:versionar`: the CDN serves statics without cache headers.
 - Don't skip documenting a new module in `.agents/modulos/`.
 - Module-specific pitfalls: that module's `README.md`.
 
