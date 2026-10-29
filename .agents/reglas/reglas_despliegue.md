@@ -82,7 +82,7 @@ Todos los comandos `npm run staging:*` los ejecuta el dueño en su PC.
 
 Hostinger copia `public/` a `public_html` y su CDN sirve `/css`, `/js` y los estáticos de módulos directo, sin `Cache-Control` ni `ETag`: el navegador los conserva por caché heurístico y un cambio visual desplegado no llega hasta que se fuerza la recarga. Vaciar la CDN no lo arregla, porque no limpia el caché del navegador.
 
-- **Script `build` de `package.json` (`npm run estaticos:versionar`).** El hPanel no tiene un campo de Build command visible: se confía en que Hostinger ejecute `build` antes de `Syncing public_html`. Comprobar en el log del deploy que la línea `Build command` ya no diga `none`. Si no lo ejecuta, no hay versionado.
+- **Script `postinstall` de `package.json`.** Hostinger no ejecuta el script `build` (su log dice `Build command: none` y el hPanel no tiene el campo), pero sí `npm install`, que corre antes de `Syncing public_html`. El `postinstall` versiona solo si `NODE_ENV` es `staging` o `production`; en local y en el CI se omite.
 - El script añade `?v=<hash del contenido>` a las referencias de los HTML y a los `@import` de los CSS, y rellena el import map que resuelve los `import` relativos de los módulos ES. El repositorio no guarda esos hashes: los genera el build.
 - Un módulo con módulos ES copia las marcas `<!-- importmap:inicio -->` y `<!-- importmap:fin -->` en su `index.html`.
 - En local no hace falta correrlo. Si se corre para probar, descartar el resultado (`git checkout -- public`).
@@ -156,7 +156,7 @@ Reglas por entorno:
 | `npm run staging:refrescar` | PC del dueño | Reemplaza staging por copia de producción | Solo lee producción |
 | `npm run main:backup` | PC del dueño | Respaldo de producción a archivo local | Solo lee |
 | `npm run main:backup:probar-guarda` | Cualquier PC, sin base | Prueba la lista blanca de sentencias | No |
-| `npm run estaticos:versionar` | Script `build` en el deploy de Hostinger | Añade `?v=<hash>` a CSS y JS de los HTML y regenera el import map | No |
+| `npm run estaticos:versionar` | `postinstall` en el deploy de Hostinger; a mano en cualquier PC | Añade `?v=<hash>` a CSS y JS de los HTML y regenera el import map | No |
 | `npm run ci:sintaxis` | Cualquier PC | Verifica la sintaxis del JS | No |
 | `npm run ci:migraciones` | Solo con base desechable (`CI_DB_*`) | Escenarios A y B de migraciones; borra la base | No (jamás apuntarlo a una base de trabajo) |
 | `npm run ci:arranque` | El CI | Arranca el servidor con `NODE_ENV=test` | No |
