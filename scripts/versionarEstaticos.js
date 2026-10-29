@@ -8,6 +8,12 @@ const PUBLIC = path.join(__dirname, '..', 'public');
 const MARCA_INICIO = '<!-- importmap:inicio -->';
 const MARCA_FIN = '<!-- importmap:fin -->';
 
+// Como postinstall solo versiona en los hosts desplegados; en local y en el CI lo omite para no ensuciar el árbol.
+if (process.argv.includes('--solo-despliegue') && !['staging', 'production'].includes(process.env.NODE_ENV)) {
+  console.log(`Versionado omitido (NODE_ENV=${process.env.NODE_ENV || 'sin definir'}).`);
+  process.exit(0);
+}
+
 function listar(dir, extension, salida) {
   for (const entrada of fs.readdirSync(dir, { withFileTypes: true })) {
     const ruta = path.join(dir, entrada.name);
