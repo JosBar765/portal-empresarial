@@ -4,9 +4,9 @@
   "description": "Portal Web de Herramientas Empresariales modular e interactivo.",
   "main": "src/server.js",
   "scripts": {
+    "postinstall": "node scripts/versionarEstaticos.js --solo-despliegue",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "build": "npm run estaticos:versionar",
     "estaticos:versionar": "node scripts/versionarEstaticos.js",
     "migrate": "node scripts/migrate.js",
     "migrate:estado": "node scripts/migrate.js --estado",
