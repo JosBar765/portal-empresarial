@@ -78,6 +78,15 @@ Todos los comandos `npm run staging:*` los ejecuta el dueño en su PC.
 9. Verificar `SELECT nombre, aplicada_en FROM schema_migrations ORDER BY nombre;`, iniciar sesión de nuevo (el administrador entra aunque haya mantenimiento) y hacer una prueba rápida del flujo que cambió.
 10. Apagar el modo mantenimiento desde la cuenta Administrador.
 
+## Versionado de estáticos
+
+La CDN de Hostinger sirve `/css`, `/js` y los estáticos de módulos sin `Cache-Control` ni `ETag`, y el navegador los conserva por caché heurístico: un cambio visual desplegado no llega a los usuarios hasta que se fuerza la recarga. Vaciar la CDN no lo arregla, porque no limpia el caché del navegador.
+
+- Cada referencia local a CSS o JS lleva `?v=<hash del contenido>`; si el archivo cambia, la URL cambia y se descarga de nuevo.
+- Los `import` relativos de los módulos ES se resuelven con un import map generado entre `<!-- importmap:inicio -->` y `<!-- importmap:fin -->` en el HTML del módulo.
+- **Tras cambiar cualquier CSS o JS**, correr `npm run estaticos:versionar` y commitear el resultado en la misma rama. Es idempotente: sin cambios no modifica nada.
+- Un módulo nuevo con módulos ES copia las dos marcas del import map en su `index.html`.
+
 ## 5. Dónde y cómo configurar
 
 | Qué | Dónde vive | Notas |
@@ -146,6 +155,7 @@ Reglas por entorno:
 | `npm run staging:refrescar` | PC del dueño | Reemplaza staging por copia de producción | Solo lee producción |
 | `npm run main:backup` | PC del dueño | Respaldo de producción a archivo local | Solo lee |
 | `npm run main:backup:probar-guarda` | Cualquier PC, sin base | Prueba la lista blanca de sentencias | No |
+| `npm run estaticos:versionar` | Cualquier PC, sin base | Añade `?v=<hash>` a CSS y JS de los HTML y regenera el import map | No |
 | `npm run ci:sintaxis` | Cualquier PC | Verifica la sintaxis del JS | No |
 | `npm run ci:migraciones` | Solo con base desechable (`CI_DB_*`) | Escenarios A y B de migraciones; borra la base | No (jamás apuntarlo a una base de trabajo) |
 | `npm run ci:arranque` | El CI | Arranca el servidor con `NODE_ENV=test` | No |
