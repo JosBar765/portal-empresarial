@@ -13,7 +13,7 @@ import { wireSidebar } from './layout/sidebar.js';
 import { wireToolbar, wireSortHeaders } from './layout/toolbar.js';
 import { initSocket } from './socket.js';
 import { iniciarTooltipPipeline } from './components/pipeline.js';
-import { cargarBuzon, wireScrollInfinito } from './views/buzon.js';
+import { cargarBuzon, wireScrollInfinito, wireIndicadoresScrollHorizontal } from './views/buzon.js';
 import { abrirModalCrearVale } from './forms/valeForm.js';
 import { iniciarBorradores } from './forms/borradores.js';
 import { abrirModalCargaTrabajo } from './actions/cargaTrabajo.js';
@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireToolbar();
   wireSortHeaders();
   wireScrollInfinito();
+  wireIndicadoresScrollHorizontal();
   iniciarTooltipPipeline();
   initSocket();
 

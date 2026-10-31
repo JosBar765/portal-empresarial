@@ -2,6 +2,7 @@
 const valeRepository = require('../repositories/valeRepository');
 const historialRepository = require('../repositories/historialRepository');
 const { ahoraUTC6 } = require('../../../core/calendario/calendarioLaboral');
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 
 const ESTADOS = {
   ESPERANDO_AUTORIZACION: 'ESPERANDO_AUTORIZACION',
@@ -266,7 +267,7 @@ async function registrarHistorial(valeId, usuarioId, tallerId, estadoAnterior, e
 
 async function requerirVale(valeId) {
   const vale = await valeRepository.obtenerPorId(valeId);
-  if (!vale) throw new Error('Este vale ya no existe: fue dado de baja o rechazado.');
+  if (!vale) throw new ErrorDeNegocio('Este vale ya no existe: fue dado de baja o rechazado.', 404);
   return vale;
 }
 
@@ -279,7 +280,7 @@ function puedeActuarComoAsesor(usuario) {
 function assertPropioDelAsesor(usuario, vale) {
   if (esAdministrador(usuario)) return;
   if (vale.asesor_id !== usuario.id) {
-    throw new Error('Este vale fue creado por otro asesor.');
+    throw new ErrorDeNegocio('Este vale fue creado por otro asesor.', 403);
   }
 }
 

@@ -1,6 +1,7 @@
 // src/modules/vales/services/valeDetalleService.js
 // Detalle de un vale: control de acceso por rol y filtrado del historial de
 // auditoría según qué le corresponde ver a cada rol.
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeRepository = require('../repositories/valeRepository');
 const valeTallerRepository = require('../repositories/valeTallerRepository');
 const tallerRepository = require('../repositories/tallerRepository');
@@ -65,7 +66,7 @@ class ValeDetalleService {
 
   async obtenerDetalle(usuario, valeId) {
     const vale = await valeRepository.obtenerPorId(valeId);
-    if (!vale) throw new Error('Vale de arte no encontrado.');
+    if (!vale) throw new ErrorDeNegocio('Vale de arte no encontrado.', 404);
     const talleres = await valeTallerRepository.listarPorVale(valeId);
     if (!(await this._puedeVerVale(usuario, vale, talleres))) {
       throw new Error('No tienes acceso a este vale de arte.');
@@ -107,7 +108,7 @@ class ValeDetalleService {
   // 'general' (la fusión o, si no hay, la propuesta de un único taller) o 'ultima'.
   async obtenerPropuesta(usuario, valeId, { tipo = 'ultima', disenadorId = null } = {}) {
     const vale = await valeRepository.obtenerPorId(valeId);
-    if (!vale) throw new Error('Vale de arte no encontrado.');
+    if (!vale) throw new ErrorDeNegocio('Vale de arte no encontrado.', 404);
     const talleres = await valeTallerRepository.listarPorVale(valeId);
     if (!(await this._puedeVerVale(usuario, vale, talleres))) throw new Error('No tienes acceso a este vale de arte.');
 
@@ -120,9 +121,20 @@ class ValeDetalleService {
         };
       }
     }
-    const propuesta = tipo === 'taller' && disenadorId
-      ? await propuestaRepository.obtenerUltimaPorValeYDisenador(valeId, disenadorId)
-      : await propuestaRepository.obtenerUltimaPorVale(valeId);
+    // Quien actúa como taller no ve propuestas de otros talleres que no estén aprobadas y compartidas (misma regla del visor).
+    const alcance = await propuestasCompartidasService.alcanceDePropuestas(usuario, vale, talleres);
+    let propuesta;
+    if (tipo === 'taller' && disenadorId) {
+      propuesta = await propuestaRepository.obtenerUltimaPorValeYDisenador(valeId, disenadorId);
+      if (propuesta && alcance && !(await propuestasCompartidasService.filtrarPropuestas(alcance, [propuesta])).length) {
+        throw new ErrorDeNegocio('No tienes acceso a la propuesta de ese taller.', 403);
+      }
+    } else if (alcance) {
+      const visibles = await propuestasCompartidasService.filtrarPropuestas(alcance, await propuestaRepository.listarPorVale(valeId));
+      propuesta = visibles[visibles.length - 1]; // listarPorVale va en orden ascendente de id
+    } else {
+      propuesta = await propuestaRepository.obtenerUltimaPorVale(valeId);
+    }
     if (!propuesta) return { origen: 'ninguna', url: null, nota: null, enlaces: [], entregadoPor: null, fecha: null };
     const enlaces = await propuestaRepository.listarEnlacesPorPropuestas([propuesta.id]);
     const autor = await usuarioValeRepository.obtenerPorId(propuesta.disenador_id);

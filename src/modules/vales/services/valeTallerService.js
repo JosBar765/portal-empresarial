@@ -399,9 +399,11 @@ class ValeTallerService {
 
       const vale = await requerirVale(valeId);
       if (vale.estado !== ESTADOS.APROBADO_DEPARTAMENTO) {
-        throw new Error(vale.fusionado_por
+        // fusionado_por queda sellado aunque el vale vuelva al taller (rechazo de propuesta aceptado): solo en estos estados la fusión es vigente.
+        const yaFusionado = vale.fusionado_por && [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO].includes(vale.estado);
+        throw new ErrorDeNegocio(yaFusionado
           ? 'Este vale ya fue fusionado por otro encargado. Actualiza la página para ver su estado.'
-          : 'Este vale aún no está listo para fusionar.');
+          : 'Este vale aún no está listo para fusionar.', 409);
       }
       // La fusión de las propuestas de los talleres NO la hace el sistema —
       // es trabajo manual de quien fusiona, que debe adjuntar su
@@ -415,9 +417,11 @@ class ValeTallerService {
       // (copyPages) dentro del PDF oficial del vale: ese PDF es el
       // documento ADMINISTRATIVO del vale (encabezado, cliente, venta,
       // firma), no el lugar donde vive el diseño/propuesta.
+      // X = siguiente número de la fusión; la anterior (si el vale volvió al taller) sigue en propuesta_general_url.
+      const numeroFusion = nombreArchivo.siguienteContador([vale.propuesta_general_url], nombreArchivo.prefijoPropuestaFusion(vale.correlativo));
       await subirYRegistrarArchivo({
         buffer: archivoFusion.buffer, nombreOriginal: archivoFusion.originalname, mimeType: archivoFusion.mimetype,
-        nombreObjeto: nombreArchivo.propuestaFusion(vale.correlativo),
+        nombreObjeto: nombreArchivo.propuestaFusion(vale.correlativo, numeroFusion),
         registrar: (subida) => valeRepository.actualizarPropuestaGeneral(valeId, subida.url)
       });
       await valeRepository.actualizarNotaFusion(valeId, adjuntos.nota);

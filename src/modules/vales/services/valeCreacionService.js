@@ -205,7 +205,7 @@ class ValeCreacionService {
       // apareciendo accionable en su buzón hasta que recargan a mano).
       const supervisoresDelAsesor = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       if (!esAdministrador(usuario) && !supervisoresDelAsesor.some(s => s.id === usuario.id)) {
-        throw new Error('Este vale es de un asesor que no está a tu cargo.');
+        throw new ErrorDeNegocio('Este vale es de un asesor que no está a tu cargo.', 403);
       }
       await this.exigirFechaAutorizable(vale);
       await valeVistoService.exigirVisto(usuario, valeId);
@@ -266,7 +266,7 @@ class ValeCreacionService {
       }
       const supervisoresDelAsesor = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       if (!esAdministrador(usuario) && !supervisoresDelAsesor.some(s => s.id === usuario.id)) {
-        throw new Error('Este vale es de un asesor que no está a tu cargo.');
+        throw new ErrorDeNegocio('Este vale es de un asesor que no está a tu cargo.', 403);
       }
       const motivoLimpio = validarMotivoRechazo(motivo);
       if (modificacion) {
@@ -323,11 +323,11 @@ class ValeCreacionService {
   async darDeBaja(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       if (!puedeActuarComoAsesor(usuario)) {
-        throw new Error('Solo un asesor o un supervisor de ventas puede dar de baja un vale.');
+        throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede dar de baja un vale.', 403);
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {
-        throw new Error('Solo puedes dar de baja tus propios vales.');
+        throw new ErrorDeNegocio('Solo puedes dar de baja tus propios vales.', 403);
       }
       const talleres = await valeTallerRepository.listarPorVale(valeId);
       if (!ESTADOS_EDITABLES_ASESOR.includes(vale.estado)
@@ -349,11 +349,11 @@ class ValeCreacionService {
   async reenviarAutorizacion(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       if (!puedeActuarComoAsesor(usuario)) {
-        throw new Error('Solo un asesor o un supervisor de ventas puede reenviar un vale a autorización.');
+        throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede reenviar un vale a autorización.', 403);
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {
-        throw new Error('Solo puedes reenviar tus propios vales.');
+        throw new ErrorDeNegocio('Solo puedes reenviar tus propios vales.', 403);
       }
       if (esValeDeModificacion(vale)) throw new Error('Las modificaciones rechazadas se eliminan: solicita una nueva.');
       if (vale.estado !== ESTADOS.RECHAZADO) {
@@ -548,27 +548,29 @@ class ValeCreacionService {
   async eliminarValeConArchivos(valeId) {
     const vale = await valeRepository.obtenerPorId(valeId);
     if (!vale) return;
-    const documentos = await documentoRepository.listarPorVale(valeId);
+    // Un MOD- toma también el lock del original (mismo orden que aprobarModificacion).
+    if (vale.vale_original_id) {
+      return valeMutex.conLockDeVale(vale.vale_original_id, () => this._eliminarValeYArchivos(vale));
+    }
+    return this._eliminarValeYArchivos(vale);
+  }
+
+  async _eliminarValeYArchivos(vale) {
+    const documentos = await documentoRepository.listarPorVale(vale.id);
+    // Un archivo que otro vale (el original de una modificación) también usa no se borra de Storage.
+    const rutas = [];
     for (const doc of documentos) {
-      try {
-        // Un archivo que otro vale (el original de una modificación) también usa no se borra de Storage.
-        if (!doc.ruta || await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, valeId) > 0) continue;
-        await supabaseStorage.eliminar(doc.ruta);
-      } catch { /* best-effort — el vale se borra de todas formas */ }
+      if (doc.ruta && await documentoRepository.contarReferenciasEnOtrosVales(doc.ruta, vale.id) === 0) rutas.push(doc.ruta);
     }
-    if (vale.pdf_url) {
-      try {
-        await supabaseStorage.eliminar(vale.pdf_url);
-      } catch { /* best-effort */ }
-    }
-    await valeRepository.eliminar(valeId);
-    // Un MOD- ya autorizado que se elimina nunca se trabajó: el original puede pedir otra modificación.
-    if (vale.vale_original_id && await valeRepository.reabrirModificacion(vale.vale_original_id)) {
-      const original = await valeRepository.obtenerPorId(vale.vale_original_id);
-      if (original) {
-        await registrarHistorial(original.id, vale.asesor_id, null, original.estado, original.estado,
-          'Solicitud de modificación eliminada: puede solicitar una nueva');
-      }
+    if (vale.pdf_url) rutas.push(vale.pdf_url);
+    // Borrar el vale y reabrir el original (si era su único MOD-) es una sola transacción.
+    await valeRepository.eliminarYReabrirOriginal({
+      valeId: vale.id, valeOriginalId: vale.vale_original_id || null, usuarioId: vale.asesor_id,
+      accionHistorial: 'Solicitud de modificación eliminada: puede solicitar una nueva'
+    });
+    // Storage solo tras confirmar la base; best-effort.
+    for (const ruta of rutas) {
+      try { await supabaseStorage.eliminar(ruta); } catch { /* best-effort */ }
     }
   }
 

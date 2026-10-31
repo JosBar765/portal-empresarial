@@ -47,6 +47,8 @@ export function construirQueryBase() {
 
 // Número de la última carga pedida: una respuesta anterior a la última no se pinta.
 let ultimaCarga = 0;
+// Consulta de la última carga: si cambia (período, filtro, orden) la tabla vuelve arriba; un refresco en vivo no la mueve.
+let ultimaConsulta = '';
 
 export async function cargarBuzon() {
   // Reportes de actividad: tienen su propia vista y su propia consulta.
@@ -79,6 +81,8 @@ export async function cargarBuzon() {
 
   renderContadores();
   renderTabla();
+  const consulta = qs.toString();
+  if (consulta !== ultimaConsulta) { ultimaConsulta = consulta; $('.tabla-wrapper').scrollTop = 0; }
 }
 
 export async function cargarMasVales() {
@@ -109,12 +113,36 @@ export async function cargarMasVales() {
   state.paginacion.cargandoMas = false;
 }
 
+// Con el layout fijo (≥ 901 px) la que se desplaza es la zona de la tabla; en pantallas angostas, la página.
 export function wireScrollInfinito() {
-  window.addEventListener('scroll', () => {
+  const pedirMasSiCorresponde = (cercaDelFinal) => {
     if (state.paginacion.cargandoMas || !state.paginacion.hasMore) return;
-    const cercaDelFinal = window.innerHeight + window.scrollY >= document.body.offsetHeight - 300;
     if (cercaDelFinal) cargarMasVales();
+  };
+  $('.tabla-wrapper').addEventListener('scroll', (e) => {
+    if (!document.body.classList.contains('vista-tabla-fija')) return;
+    const z = e.currentTarget;
+    pedirMasSiCorresponde(z.scrollTop + z.clientHeight >= z.scrollHeight - 300);
+  }, { passive: true });
+  window.addEventListener('scroll', () => {
+    if (document.body.classList.contains('vista-tabla-fija') && window.matchMedia('(min-width: 901px)').matches) return;
+    pedirMasSiCorresponde(window.innerHeight + window.scrollY >= document.body.offsetHeight - 300);
   });
+}
+
+// Indicadores del scroll horizontal: clases que encienden la sombra del borde (izquierdo o derecho) cuando hay más tabla en ese lado.
+export function wireIndicadoresScrollHorizontal() {
+  const zona = $('.tabla-wrapper');
+  const actualizar = () => {
+    const maximo = zona.scrollWidth - zona.clientWidth;
+    zona.classList.toggle('tiene-scroll-izq', zona.scrollLeft > 2);
+    zona.classList.toggle('tiene-scroll-der', maximo > 2 && zona.scrollLeft < maximo - 2);
+  };
+  zona.addEventListener('scroll', actualizar, { passive: true });
+  const observador = new ResizeObserver(actualizar);
+  observador.observe(zona);
+  observador.observe($('.buzon-table'));
+  actualizar();
 }
 
 // Cada tarjeta con `filtro` es clickeable para filtrar el buzón por ese

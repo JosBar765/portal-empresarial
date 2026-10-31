@@ -246,7 +246,7 @@ Hay **tres tipos** de modificación, según la complejidad del cambio. El asesor
 una explicación de cada uno (botón único del paso 5 → «Solicitar modificación»). **Las tres crean un vale MOD** con
 el mismo flujo (formulario completo, justificación, adjuntos y autorización del supervisor); solo cambia el plazo. Los
 días son **mínimos** y se cuentan en **días hábiles** (días que reciben vales: sin fines de semana, feriados del país
-ni días que el taller no recibe) desde el día de la solicitud, con la hora máxima del taller:
+ni días que el taller no recibe) desde el día de la solicitud; pasada la hora máxima del taller, la solicitud cuenta como del siguiente día que recibe vales (se corre un día, respetando fines de semana y feriados):
 
 | Tipo | Vale MOD | Quién decide | Fecha de entrega mínima (sin urgente) | Con «urgente» |
 |---|---|---|---|---|
@@ -277,7 +277,9 @@ La solicitud crea **un vale nuevo** (`MOD-<correlativo>`) y deja el vale modific
    · se valida el cupo diario de los talleres destino (como aviso)
    · nace el vale MOD- en SOLICITANDO_MODIFICACION, con N horas laborales de vigencia y su PDF ya armado:
      el vale con sus campos e imágenes, luego la «Propuesta original - <correlativo>.pdf»
-     del vale original y por último los demás PDF adjuntos. Si la propuesta no se puede
+     del vale que se modifica y por último los demás PDF adjuntos. Un MOD lleva **una sola**
+     «Propuesta original» (la del vale directamente modificado: MOD3 → la del MOD2); las de MOD
+     anteriores no se heredan ni cuentan para el límite de documentos. Si la propuesta no se puede
      descargar, no se crea nada y el original no cambia.
         │
         ▼  Supervisor del asesor (debe abrir "Ver" el MOD-; ve la justificación)
@@ -303,12 +305,16 @@ La solicitud crea **un vale nuevo** (`MOD-<correlativo>`) y deja el vale modific
 - **Corregir un `MOD-` pendiente** (permiso `vales.corregir`, mientras espera autorización) se
   permite, pero la «Propuesta original» **no se puede quitar ni mover** y los **talleres no se
   pueden cambiar** (son los del original). Un `MOD-` ya autorizado no se puede corregir.
+  Los errores de permiso o pertenencia (vale ajeno, asesor que no está a cargo del supervisor, rol sin permiso)
+  responden **403**, nunca 401; los conflictos de estado (ya autorizado, solicitud en curso, fechas) siguen en 400.
   No hay «reenviar» para las modificaciones: una rechazada se elimina y se pide una nueva.
 - **Baja** (permiso `vales.dar_de_baja`; antes de autorizar, o ya autorizado mientras un taller
   reclama adjuntos) o **vencimiento** (N horas laborales sin autorizar, o el plazo de adjuntos): el `MOD-`
   se borra con sus archivos, **sin tocar los del original** (ni su PDF ni su propuesta). Si el
   `MOD-` ya estaba autorizado y se elimina después, el original vuelve a `modificado = 0` y
   puede pedir otra modificación (la primera nunca se trabajó); queda una fila en su historial.
+  Borrar el `MOD-`, reabrir el original y escribir ese historial son **una sola transacción** (con el original bloqueado);
+  los archivos de Storage se borran solo después de confirmar la base.
 - Son **dos registros y dos PDF independientes**: el original nunca se sobreescribe; "Ver PDF"
   del original sirve siempre el del original.
 - Cada vale admite **una** modificación con vale a la vez: no puede modificarse un vale con `modificado = 1` ni uno
@@ -378,6 +384,7 @@ Asesor; el supervisor no) puede rechazar la propuesta de **uno o varios talleres
   muestra primero estos vales aunque su fila ya esté aprobada. El asesor ve «Rechazo respondido» (y un botón de chat rojo) cuando el taller rechazó,
   hasta que abre la conversación (lo leído se guarda en su navegador). Con la ronda cerrada por acuerdo o cancelación el chat no se retira: queda el
   botón «Ver conversación del rechazo» (solo lectura).
+- **Códigos HTTP:** ronda inexistente o de otro vale, 404; ronda ya cerrada o vale/taller en otro estado, 409; sin acceso, 403; mensaje vacío o largo, 400 (siempre después de comprobar el acceso).
 - **Tablas:** `vale_rechazos_propuesta` (una ronda por taller: `ABIERTO`, `ACEPTADO`, `RECHAZADO`, `CANCELADO`) y
   `vale_rechazo_propuesta_mensajes` (el hilo por `vale_taller_id`). La modificación básica con chat anterior
   (`vale_modificaciones_basicas`, `vale_modificacion_mensajes` y el permiso `vales.responder_modificacion_basica`) quedó sin uso y no se borra.
@@ -687,6 +694,7 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
 - **Conversación del rechazo — acceso:** solo el encargado del taller del vale y los asistentes vinculados a él; el encargado o asistente de **otro** taller del mismo vale, aunque el vale también vaya a su taller, recibe 403 («Ese taller no es el tuyo.»). Con la conversación abierta en pantalla, los mensajes nuevos no sacan cartel ni beep (la campana los guarda).
 - **Asignar a un diseñador:** en el combobox cada diseñador aparece como «(**Asignaciones actuales**: N) - Nombre» (en negrita con letras Unicode, porque un `<option>` no admite HTML), con N = sus asignaciones vigentes (asignado, en proceso, en pausa o en revisión; las mismas de «Carga de trabajo»). El encargado o asistente también se ofrece como «(Asignaciones actuales: N) - Nombre (YO)»; los demás diseñadores no llevan «(YO)» con su propio conteo. Igual en el modal de reasignar al desaprobar.
 - **Último taller aprobado:** cuando la aprobación de un taller deja al vale en `APROBADO_DEPARTAMENTO`, el aviso (una sola notificación por persona, a las mismas salas de siempre) dice «{actor} aprobó el taller {taller}: todos los talleres terminaron, el vale está listo para fusionar». Las demás aprobaciones conservan el texto «fue aprobado (taller)».
+- **Confirmación previa:** en el modal «Revisar propuesta», tanto «Aprobar» como «Desaprobar y reasignar» abren un modal «¿Estás seguro?» con el correlativo (y, al desaprobar, el diseñador de destino); solo al confirmar se envía la revisión. Componente: `components/confirmar.js`.
 - **Desaprobar y reasignar:** con cartel y campana solo se entera el diseñador nuevo (y el taller). El asesor, sus supervisores y el diseñador anterior **refrescan su pantalla en silencio** (evento `vale_refrescar`, sin cartel, beep ni campana), para que el paso y los contadores no queden desfasados.
 - El texto sale de `accion` («fue {acción} por {actor}») o, si el movimiento no cabe en esa frase, de `texto` (p. ej. «{actor} pausó el proceso»).
 
@@ -849,12 +857,12 @@ Al entregar su propuesta, el Diseñador (y el Encargado/Asistente al adjuntar la
 En un vale con varios talleres, los talleres que comparten propuestas ven la última propuesta **aprobada** de los demás y reciben un aviso cuando otro termina. No bloquea nada: cada taller avanza por su cuenta.
 
 - **Regla:** columna `talleres.comparte_propuestas` (0/1). Es simétrica: un taller ve a otro solo si **ambos** la tienen en 1. Valores iniciales: Diseño, Diseño UV/3D y Protextil = 1; Diseño Local = 0 (todas sus tiendas). Se evalúa al leer, así que cambiar la columna afecta de inmediato a los vales en curso. Un taller «hermano» es otra fila **activa** (`vale_talleres.activo = 1`) del mismo vale; en un `MOD-` solo cuentan las filas del propio `MOD-`. Vale de un solo taller, o con solo talleres sin la marca: no hay sección ni signo.
-- **Quién lo ve:** encargado, asistentes y diseñadores del taller (Asesor y Supervisor no). En el Buzón aparece la acción «Propuestas de otros talleres» (el backend manda `propuestasOtrosAplica` con la misma regla) que abre un modal de solo lectura.
+- **Quién lo ve:** encargado, asistentes y diseñadores del taller (Asesor y Supervisor no). En el Buzón aparece la acción «Propuestas de otros talleres» (el backend manda `propuestasOtrosAplica` con la misma regla) que abre un visor con pestañas (el vale y la propuesta aprobada de cada taller hermano), de solo lectura.
 - **Administrador y Gerente:** ven las propuestas ya **aprobadas de todos los talleres activos** del vale (una pestaña por taller y el PDF del vale), sin exigir `talleres.comparte_propuestas` y solo en vales con 2 o más talleres activos. Son de solo lectura: no hay «visto» (`visto` siempre verdadero, `propuestaOtroTallerNueva` falso, sin signo «?») y `POST .../visto` responde 403 sin escribir.
 - **Qué se ve:** de cada taller hermano, el PDF de su última propuesta aprobada con su nota y enlaces. Si aún no la aprueba (o se desaprobó), «En trabajo» y sin archivo.
 - **Cuándo avisa:** solo cuando el **encargado aprueba** (entregar y desaprobar no avisan). Recibe el aviso (`valeEvents.notificar`, tipo `PROPUESTA_COMPARTIDA`, queda en el centro de notificaciones) el encargado, los asistentes y el diseñador **asignado** de cada taller hermano, una sola vez por persona; no al actor ni a otros diseñadores.
 - **Signo rojo «?» en el Buzón:** sobre el vale, con tooltip, mientras el usuario no haya abierto la propuesta nueva. El «visto» es por usuario (`vale_propuestas_otros_vistos`) y se guarda con el `propuesta_id`, por lo que una re-aprobación con otra propuesta vuelve a contar como nueva. Se marca con `POST /api/vales/:id/propuestas-otros/:tallerId/visto`; el detalle sale en `propuestasOtrosTalleres`.
-- **Script de BD:** `database/migraciones/09_comparte_propuestas.sql` (columna y tabla de «visto»).
+- **Script de BD:** `database/migrations/comparte_propuestas.sql` (columna y tabla de «visto»).
 
 **Límites conocidos**
 - La restricción es solo de interfaz: `obtenerDetalle` y `GET /:id/propuesta` siguen devolviendo las propuestas de todos los talleres (decisión de producto: los datos no son sensibles). Las URL de Supabase son públicas.

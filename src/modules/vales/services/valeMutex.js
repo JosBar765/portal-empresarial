@@ -7,6 +7,8 @@
 // Confirmación/Modificación y usar SIEMPRE esta misma instancia es lo que
 // hace que una operación desde cualquiera de esos servicios bloquee a las
 // demás sobre el mismo vale — una instancia por archivo rompería esa garantía.
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
+
 class ValeMutex {
   constructor() {
     this._locksEnVale = new Set();
@@ -41,7 +43,7 @@ class ValeMutex {
   async conLockDeVale(valeId, fn) {
     const key = Number(valeId);
     if (this._locksEnVale.has(key)) {
-      throw new Error('Este vale se está procesando en este momento. Espera unos segundos e inténtalo de nuevo.');
+      throw new ErrorDeNegocio('Este vale se está procesando en este momento. Espera unos segundos e inténtalo de nuevo.', 409);
     }
     this._locksEnVale.add(key);
     try {

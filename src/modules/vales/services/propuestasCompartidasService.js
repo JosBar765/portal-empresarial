@@ -56,6 +56,30 @@ class PropuestasCompartidasService {
     return propuestaRepository.obtenerUltimaPorValeYDisenador(valeId, fila.disenador_id);
   }
 
+  // Alcance de `GET /:id/propuesta` para quien actúa como miembro de taller: null = sin restricción (otros roles, o quien fusiona con
+  // `vales.aprobar_general` mientras el vale espera la fusión). Se ve todo lo del propio taller y, de los hermanos, solo su última propuesta aprobada (misma regla del visor).
+  async alcanceDePropuestas(usuario, vale, filasVale) {
+    const valeId = vale.id;
+    // Solo en la fusión se necesitan las propuestas de todos los talleres; en otro estado rige la regla de taller.
+    const fusionando = vale.estado === 'APROBADO_DEPARTAMENTO' && (usuario.permissions || []).includes('vales.aprobar_general');
+    if (!esTallerODisenador(usuario) || fusionando) return null;
+    const tallerId = await this.tallerIdDe(usuario);
+    const hermanos = hermanosDe(await repo.listarFilasQueComparten(valeId), tallerId);
+    const aprobadas = (await Promise.all(hermanos.map(f => this._ultimaAprobada(valeId, f)))).filter(Boolean);
+    // Una propuesta es del taller de su autor (`taller_disenadores`) o de su fila asignada en el vale si el diseñador cambió de taller.
+    const propios = new Set(filasVale.filter(f => f.taller_id === tallerId && f.disenador_id).map(f => f.disenador_id));
+    return { tallerId, propios, idsHermanas: new Set(aprobadas.map(p => p.id)) };
+  }
+
+  // Filtra `propuestas` a las que el alcance permite ver.
+  async filtrarPropuestas(alcance, propuestas) {
+    const autores = new Map();
+    for (const id of new Set(propuestas.map(p => p.disenador_id))) {
+      autores.set(id, alcance.propios.has(id) || (await usuarioValeRepository.obtenerPorId(id))?.taller_id === alcance.tallerId);
+    }
+    return propuestas.filter(p => autores.get(p.disenador_id) || alcance.idsHermanas.has(p.id));
+  }
+
   async obtenerParaDetalle(usuario, valeId) {
     const hermanos = await this._hermanosDelUsuario(usuario, valeId);
     if (!hermanos.length) return [];
