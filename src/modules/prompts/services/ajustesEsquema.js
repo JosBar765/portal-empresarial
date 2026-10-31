@@ -45,7 +45,7 @@ const LIMITES = Object.freeze([
   'separador_max', 'imagenes_max_defecto', 'imagenes_max_tope', 'imagenes_mb_defecto', 'imagenes_mb_tope',
   'imagen_nombre_max', 'imagen_descripcion_max', 'lista_max_items', 'ubicacion_max', 'sugerencia_max',
   'producto_nombre_max', 'producto_descripcion_max', 'recurso_max_mb', 'recurso_timeout_ms', 'recursos_max',
-  'recurso_etiqueta_max', 'recurso_descripcion_max', 'regla_etiqueta_max', 'regla_texto_max', 'reglas_max', 'recursos_min_publicar'
+  'recurso_etiqueta_max', 'recurso_descripcion_max', 'regla_etiqueta_max', 'regla_texto_max', 'reglas_max'
 ]); // plantilla_max_largo quedó sin uso (deprecado) pero sigue en la forma hasta que una migración la retire
 
 // Cada «*_defecto» no puede superar su «*_tope».
@@ -53,8 +53,7 @@ const PARES_DEFECTO_TOPE = Object.freeze([
   ['texto_max_largo_defecto', 'max_largo_tope'],
   ['texto_largo_max_largo_defecto', 'max_largo_tope'],
   ['imagenes_max_defecto', 'imagenes_max_tope'],
-  ['imagenes_mb_defecto', 'imagenes_mb_tope'],
-  ['recursos_min_publicar', 'recursos_max']
+  ['imagenes_mb_defecto', 'imagenes_mb_tope']
 ]);
 
 const CONTACTO = Object.freeze({ nombre: false, correo: false, telefono: true }); // true = puede quedar vacío

@@ -29,8 +29,8 @@ function listaReglas(reglas) {
 }
 
 // Recursos fijos tal como están en el borrador del editor (no dependen de la respuesta del servidor).
-function listaRecursos(recursos, minimo) {
-  if (!recursos.length) return h('p', { class: 'form-hint', text: t('admin.vistaPrevia.recursosVacio', { min: minimo }) });
+function listaRecursos(recursos) {
+  if (!recursos.length) return h('p', { class: 'form-hint', text: t('admin.vistaPrevia.recursosVacio') });
   return h('ul', { class: 'pr-adm-vp-lista' }, recursos.map(r => h('li', { class: `pr-adm-vp-fila ${r.activo ? '' : 'is-omitida'}`, 'data-recurso': r.clave },
     h('span', { class: 'pr-adm-vp-etiqueta', text: r.etiqueta }),
     h('div', { class: 'pr-adm-vp-pills' },
@@ -61,7 +61,7 @@ export function renderTabVistaPrevia(cont, ed) {
         r.prompt ? h('div', { class: 'pr-prompt-texto', text: r.prompt }) : null,
         r.prompt ? h('span', { class: 'form-hint', text: t('admin.vistaPrevia.caracteres', { n: r.prompt.length }) }) : null);
       montar(reglas, listaReglas(r.reglas || []));
-      montar(recursos, listaRecursos(ed.esquema.recursos || [], ed.config.limites.recursos_min_publicar));
+      montar(recursos, listaRecursos(ed.esquema.recursos || []));
     } catch (error) {
       montar(resultado, h('ul', { class: 'pr-adm-errores' }, mensajesDeError(error).map(m => h('li', { text: m }))));
     } finally {

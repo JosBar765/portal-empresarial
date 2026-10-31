@@ -5,7 +5,7 @@ const productoRepository = require('../repositories/productoRepository');
 const versionRepository = require('../repositories/versionRepository');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
-const { validarEsquema, validarValores, parametrosPlanos, recursosDelEsquema } = require('./esquemaService');
+const { validarEsquema, validarValores, parametrosPlanos } = require('./esquemaService');
 const { validarTextosDeReglas, renderizar } = require('./plantillaService');
 const { leerJson } = require('./documento');
 const ajustesService = require('./ajustesService');
@@ -35,15 +35,12 @@ function aCampos(errores) {
   return campos;
 }
 
-// Esquema bien formado y reglas con sintaxis válida; al publicar, además parámetros y recursos mínimos.
+// Esquema bien formado y reglas con sintaxis válida; al publicar, además al menos un parámetro.
 function exigirContenido(esquema, ajustes, { paraPublicar }) {
   const errores = validarEsquema(esquema, ajustes);
   if (errores.length) return errores;
   if (paraPublicar) {
     if (!parametrosPlanos(esquema).length) errores.push({ mensaje: msg('version.sinParametros') });
-    const activos = recursosDelEsquema(esquema).filter(r => r.activo === true).length;
-    const minimo = ajustes.limites.recursos_min_publicar;
-    if (activos < minimo) errores.push({ clave: 'recursos', mensaje: msg('version.recursosMinimos', { min: minimo, activos }) });
   }
   return [...errores, ...validarTextosDeReglas(esquema)];
 }

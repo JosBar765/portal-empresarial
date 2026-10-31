@@ -148,7 +148,6 @@ const CATALOGO = Object.freeze({
   'version.sinBorradorParaPublicar': 'El producto no tiene un borrador para publicar. Crea un borrador desde la versión publicada y vuelve a intentarlo.',
   'version.errores': 'El borrador tiene errores y no se puede publicar. Corrige los campos indicados y vuelve a publicar.',
   'version.sinParametros': 'Agrega al menos un parámetro: un producto sin parámetros no se puede publicar. Crea un grupo y un parámetro en la pestaña Parámetros.',
-  'version.recursosMinimos': 'Para publicar el producto se exige un mínimo de {min} recursos activos con URL válida y hay {activos}. Agrega o activa recursos en la pestaña Recursos y pega la URL pública de cada imagen en Supabase.',
 
   // ---- Valores del asesor ----
   'valor.valoresObjeto': 'Los valores del formulario deben enviarse como un objeto, un dato por parámetro. Recarga el formulario e inténtalo de nuevo.',

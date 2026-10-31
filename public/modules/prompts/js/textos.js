@@ -432,7 +432,7 @@ export const TEXTOS = {
   'admin.vistaPrevia.recursosTitulo': 'Recursos cargados',
   'admin.vistaPrevia.recursosInicial': 'Aparecen al generar la vista previa.',
   'admin.vistaPrevia.recursosNota': 'Imágenes fijas del producto tomadas del borrador. Solo las activas con URL se envían con el prompt.',
-  'admin.vistaPrevia.recursosVacio': 'Este producto no tiene recursos fijos. Agrégalos en la pestaña «Recursos»; para publicar se exigen al menos {min} activos.',
+  'admin.vistaPrevia.recursosVacio': 'Este producto no tiene recursos fijos. Si los necesitas, agrégalos en la pestaña «Recursos».',
   'admin.vistaPrevia.recursoSinUrl': 'Sin URL',
 
   // ---------- Administración: pestaña Esquema JSON ----------
