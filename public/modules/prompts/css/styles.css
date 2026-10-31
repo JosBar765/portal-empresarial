@@ -610,15 +610,25 @@
 }
 
 .pr-dropzone:hover,
+.pr-dropzone:focus,
 .pr-dropzone.is-arrastre {
   border-color: var(--color-primary);
   background: var(--color-primary-light);
 }
 
+/* Con foco (listo para Ctrl+V) el borde pasa a continuo para distinguirlo del simple hover. */
+.pr-dropzone:focus {
+  outline: none;
+  border-style: solid;
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
 .pr-dropzone.is-deshabilitada,
-.pr-dropzone.is-deshabilitada:hover {
+.pr-dropzone.is-deshabilitada:hover,
+.pr-dropzone.is-deshabilitada:focus {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
   border-color: var(--color-border);
   background: var(--color-surface-muted);
 }
