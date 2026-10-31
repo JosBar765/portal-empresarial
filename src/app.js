@@ -18,6 +18,7 @@ const borradorWatcher = require('./modules/vales/borradorWatcher');
 const retencionArchivosWatcher = require('./modules/vales/retencionArchivosWatcher');
 const notificacionLimpieza = require('./core/notifications/notificacionLimpieza');
 const adminRoutes = require('./modules/admin/routes');
+const promptsRoutes = require('./modules/prompts/routes');
 const notificacionRoutes = require('./core/notifications/notificacionRoutes');
 const { MENSAJE_INTERNO } = require('./core/utils/erroresHttp');
 
@@ -113,6 +114,9 @@ app.use('/api/vales', requireAuth, requirePermission('vales.ver'), valeRoutes);
 
 // Rutas de API del panel de Administrador
 app.use('/api/admin', requireAuth, requirePermission('admin.ver'), adminRoutes);
+
+// Rutas de API del Generador de Prompts
+app.use('/api/prompts', requireAuth, requirePermission('prompts.ver'), promptsRoutes);
 
 // Centro de notificaciones (de cualquier usuario autenticado, sin permiso de módulo)
 app.use('/api/notificaciones', requireAuth, notificacionRoutes);

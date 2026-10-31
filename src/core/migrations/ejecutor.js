@@ -57,6 +57,16 @@ function leerScripts(carpeta) {
 
 const descripcionError = e => `[${e.code || 'sin código'}] ${e.sqlMessage || e.message}`;
 
+const CODIGOS_DE_VERSION = new Set(['ER_SP_DOES_NOT_EXIST', 'ER_PARSE_ERROR']);
+// Función o sintaxis ausente: casi siempre es una base más vieja de lo que el script exige.
+async function pistaDeVersion(db, error) {
+  if (!CODIGOS_DE_VERSION.has(error.code)) return '';
+  try {
+    const [[fila]] = await db.query('SELECT VERSION() AS version');
+    return `. Posible causa: la base (${fila.version}) no soporta una función o sintaxis del script, como JSON_MERGE_PATCH o las funciones de ventana; se necesita MySQL 8.0 o MariaDB 10.3.15 o superior. Actualiza la versión de la base en el hosting o pide ajustar el script.`;
+  } catch { return ''; }
+}
+
 // Conexión propia (el pool de la app no se toca), con la misma zona horaria que el pool.
 async function abrir(conexion) {
   const db = await mysql.createConnection({
@@ -122,7 +132,7 @@ async function ejecutar({ conexion, carpeta = CARPETA_POR_DEFECTO, log = console
         await db.query('SET NAMES utf8mb4');
         await db.query(sql);
       } catch (error) {
-        throw new Error(`Falló la migración ${nombre}: ${descripcionError(error)}`);
+        throw new Error(`Falló la migración ${nombre}: ${descripcionError(error)}${await pistaDeVersion(db, error)}`);
       }
       const duracion = Date.now() - inicio;
       // Se registra solo si el script terminó entero; uno a medias se repite (son idempotentes).
