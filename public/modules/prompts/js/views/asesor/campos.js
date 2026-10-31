@@ -240,7 +240,14 @@ function construirImagenes(p, ctx, id) {
   }
 
   const abrirSelector = () => { if (lista().length < r.max) input.click(); };
-  zona.addEventListener('click', abrirSelector);
+  // Con mouse, el primer clic solo da foco (para Ctrl+V) y el segundo, ya con foco, abre el selector; en táctil abre al primero.
+  let tenia = false;
+  zona.addEventListener('mousedown', () => { tenia = document.activeElement === zona; });
+  zona.addEventListener('click', () => {
+    if (!window.matchMedia('(hover: hover)').matches || tenia) abrirSelector();
+    else zona.focus();
+    tenia = false;
+  });
   zona.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirSelector(); } });
   input.addEventListener('change', () => { agregar(Array.from(input.files)); input.value = ''; });
   zona.addEventListener('dragover', (e) => { e.preventDefault(); if (lista().length < r.max) zona.classList.add('is-arrastre'); });
