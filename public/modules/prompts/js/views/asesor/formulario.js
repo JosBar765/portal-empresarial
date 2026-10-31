@@ -1,5 +1,5 @@
 // Vista del asesor: formulario dinámico y generación.
-// Nada se guarda: el estado vive en memoria y las imágenes no salen del navegador.
+// Los datos del formulario viven en memoria y las imágenes no salen del navegador; solo se recuerda el producto elegido.
 import { h, icono } from '../../utils/dom.js';
 import { t } from '../../textos.js';
 import { cargarConfig } from '../../config.js';
@@ -14,6 +14,11 @@ import { crearMenuCascada } from '/js/menuCascada.js';
 
 let ctx = null;
 let liberarResultado = null;
+
+// Solo se recuerda qué producto eligió el asesor; localStorage puede fallar (modo privado) y es solo comodidad.
+const PRODUCTO_KEY = 'prompts:productoSeleccionado';
+const leerProductoGuardado = () => { try { return localStorage.getItem(PRODUCTO_KEY); } catch (e) { return null; } };
+const guardarProducto = (id) => { try { localStorage.setItem(PRODUCTO_KEY, String(id)); } catch (e) { /* sin persistencia */ } };
 
 // Libera URLs de objeto de las imágenes y de la vista de resultado.
 export function liberarAsesor() {
@@ -44,7 +49,8 @@ export async function cargarAsesor(cont, recargarConfig = false) {
     return;
   }
   ctx = { cont, config, productos, menuProducto: null, producto: null, indice: null, estado: null, campos: {}, grupos: [], enviando: false };
-  seleccionarProducto(productos[0]);
+  // Si el producto guardado ya no está disponible (inactivo o sin acceso), se usa el primero.
+  seleccionarProducto(productos.find(pr => String(pr.id) === leerProductoGuardado()) || productos[0]);
   renderFormulario();
 }
 
@@ -68,6 +74,7 @@ async function cambiarProducto(producto) {
   }
   liberarArchivos(ctx.estado);
   seleccionarProducto(producto);
+  guardarProducto(producto.id);
   renderFormulario();
 }
 
