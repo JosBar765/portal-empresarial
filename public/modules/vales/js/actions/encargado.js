@@ -1,6 +1,7 @@
 import { state } from '../state.js';
 import { ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
+import { confirmarAccion } from '../components/confirmar.js';
 import { htmlAdjuntosPropuesta, wireAdjuntosPropuesta } from '../components/adjuntosPropuesta.js';
 import { abrirVisorVale, abrirVisorDocumentos } from '../components/visorDocumento.js';
 import { htmlPropuestaExtras, hayExtras } from '../components/propuestaInfo.js';
@@ -123,8 +124,22 @@ export async function abrirModalRevisar(vale) {
   if (verPropuesta) verPropuesta.addEventListener('click', () => abrirVisorVale({
     id: vale.id, correlativo: vale.correlativo, propuesta: { tipo: 'taller', disenadorId: vale.disenador_id }, activo: 'propuesta'
   }));
-  overlay.querySelector('#btn-aprobar').addEventListener('click', () => enviarRevision(true));
-  overlay.querySelector('#btn-desaprobar').addEventListener('click', () => enviarRevision(false));
+  overlay.querySelector('#btn-aprobar').addEventListener('click', () => confirmarAccion({
+    title: 'Aprobar propuesta',
+    mensaje: `Se aprobará la propuesta del vale ${vale.correlativo}.`,
+    textoConfirmar: 'Aprobar',
+    alConfirmar: () => enviarRevision(true)
+  }));
+  overlay.querySelector('#btn-desaprobar').addEventListener('click', () => {
+    const destino = overlay.querySelector('#select-disenador-reasignar').selectedOptions[0]?.textContent.trim();
+    confirmarAccion({
+      title: 'Desaprobar propuesta',
+      mensaje: `Se desaprobará la propuesta del vale ${vale.correlativo}${destino ? ` y se reasignará a ${destino}` : ''}.`,
+      textoConfirmar: 'Desaprobar y reasignar',
+      claseConfirmar: 'btn--danger',
+      alConfirmar: () => enviarRevision(false)
+    });
+  });
 
   async function enviarRevision(aprobarValor) {
     const disenadorReasignadoId = overlay.querySelector('#select-disenador-reasignar').value;

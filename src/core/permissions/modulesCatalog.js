@@ -21,6 +21,15 @@ const MODULOS = [
     path: '/modules/admin',
     permission: 'admin.ver',
     color: '#52525B'
+  },
+  {
+    id: 'prompts',
+    nombre: 'Generador de Prompts',
+    descripcion: 'Arma prompts para generar imágenes de productos a partir de sus parámetros.',
+    icono: 'sparkles-outline',
+    path: '/modules/prompts',
+    permission: 'prompts.ver',
+    color: '#0E7C7B'
   }
 ];
 
