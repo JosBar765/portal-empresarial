@@ -1,12 +1,12 @@
 # Vales: notificaciones de baja/vencimiento, chats del supervisor y ajustes de modales
 
-Rama: `feat/vales-notificaciones-chat-supervisor-modales` (desde `dev` 3b94fbf). Sin push (lo pide el dueño).
+Rama: `feat/vales-notificaciones-chat-supervisor-modales` (desde `dev` 3b94fbf). Pusheada a origin a pedido del dueño; el PR a `dev` lo hace él.
 
 ## Objetivo
 Cinco ajustes pedidos por el dueño sobre el módulo vales y la administración.
 
 ## Alcance autorizado
-Solo lo listado en cada tarea. Sin migraciones de BD (el `tipo` de notificación es texto libre de hasta 30 caracteres).
+Solo lo listado en cada tarea. Una migración (`26_supervisor_rechazar_propuesta`, commit baef7df) que asigna `vales.rechazar_propuesta` al rol Supervisor de Ventas; el `tipo` de notificación es texto libre de hasta 30 caracteres y no requiere migración.
 
 ## Ruta y evidencia
 Delegada: un escritor para todas las tareas (2+ archivos no triviales por tarea). Mapeo previo por un explorador de solo lectura y verificación del padre en `valeCreacionService.js:262-346` y `valeAdjuntosService.js:150-278`.
@@ -29,7 +29,9 @@ Forecast ~250 líneas autorizadas cambiadas (< 400): una sola rama, un commit po
 ## Criterios de aceptación
 - T1: baja manual, baja de taller y vencimientos notifican a todos los involucrados; la campana muestra el `tipo` nuevo; `vale_id` queda en NULL si el vale se borró.
 - T2: el supervisor ve ambos hilos sin poder escribir, decidir ni cancelar; un supervisor ajeno recibe 403.
-- T3: rechazar el rechazo funciona habiendo enviado antes el mensaje; sin ningún mensaje del taller sigue el error claro.
+- T3 (reemplazada por T6): rechazar el rechazo funciona habiendo enviado antes el mensaje.
+- T6: «Rechazar» abre un modal con su propia caja; el motivo se guarda una sola vez, sin duplicados ni mensajes de otra ronda; Escape cierra solo el modal pequeño.
+- T7: el supervisor dueño ve «Rechazar propuesta» en su vale en pendiente de confirmación y solo puede rechazar los vales que creó.
 - T4: los tres modos de cierre reabren el modal general; el resto de modales no cambia.
 - T5: tras agregar o quitar, el modal sigue abierto con la lista actualizada y la lista de la página al fondo también.
 
@@ -44,7 +46,9 @@ Forecast ~250 líneas autorizadas cambiadas (< 400): una sola rama, un commit po
 - T5 (77ab409): tiendaPersonal.js y tallerPersonal.js repintan el cuerpo del mismo modal tras cada alta o baja y refrescan la lista de la página al fondo, sin segundo overlay. node --check OK sobre copias .mjs. UI no verificada.
 - T6 (0cf988a): rechazoPropuesta.js con abrirModalMotivoRechazo (abrirModal + wireContador, 200 caracteres); flujo §1.2 actualizado. node --check OK sobre copia .mjs; imports verificados contra valesApi.js y adjuntos.js. UI no verificada (sin navegador).
 - T7 (ed1cdbe): flujo §1.2 y §3 (fila del Supervisor de Ventas y nota). Solo documentación.
-- Ruta: delegada (un escritor). Un commit por tarea; sin push.
+- Permiso (baef7df): migración 26 idempotente; aplicada en la BD local `munditrofeos` (development) solo con un INSERT directo, porque `24` y `25` (prompts) seguían pendientes. Vale de prueba 9142 (`GT-MTC-1126-9142`, supervisor `ventas1@grupopremia.com`, en pendiente de confirmación) creado en la BD local para probar el rechazo.
+- Revisión nativa (RDD activo): el riesgo salió alto por archivos sin seguimiento (`.atl/`); el STATUS pidió declarar la selección de archivos sin seguimiento y no se completó. Pendiente de decisión del dueño.
+- Ruta: delegada (escritores y un agente de pruebas). Un commit por tarea.
 
 ## Siguiente paso
-Prueba funcional del dueño en su servidor (reiniciar para cargar el backend); push y PR a decisión del dueño.
+Prueba funcional del dueño en su servidor (reiniciar para cargar el backend; cerrar sesión y volver a entrar para recibir el permiso); PR a `dev` a decisión del dueño.
