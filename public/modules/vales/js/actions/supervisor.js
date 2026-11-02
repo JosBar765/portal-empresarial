@@ -203,7 +203,8 @@ export function abrirModalVerSupervisor(fila) {
   overlay.querySelector('#btn-ver-info').addEventListener('click', () => {
     registrarVisto(fila);
     cerrar();
-    abrirModalInfoVale(v);
+    // Cerrar la información (X, Escape, fondo o «Cerrar») vuelve a este modal de elección.
+    abrirModalInfoVale(v, { alCerrar: () => abrirModalVerSupervisor(fila) });
   });
 }
 
@@ -244,10 +245,11 @@ function htmlDatosVale(v, { destacado = null } = {}) {
     </div>`;
 }
 
-export function abrirModalInfoVale(v) {
+export function abrirModalInfoVale(v, { alCerrar } = {}) {
   const { overlay, cerrar } = abrirModal({
     title: `Información — ${v.correlativo}`,
     size: 'lg',
+    alCerrar,
     bodyHtml: htmlDatosVale(v),
     footerHtml: `<button class="btn btn--primary" id="btn-cerrar-info">Cerrar</button>`
   });

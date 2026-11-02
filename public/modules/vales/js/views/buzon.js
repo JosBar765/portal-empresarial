@@ -338,7 +338,7 @@ const propuestaVisible = (v) => propuestaGeneralVisible(v) || propuestaTallerVis
 
 const abrirVisorDeFila = (v, propuesta) => abrirVisorVale({ id: v.id, correlativo: v.correlativo, propuesta });
 
-// Rechazos de propuesta del vale que ve quien mira: el asesor dueño ve todos; el equipo de un taller solo los suyos; nadie más (ni el supervisor).
+// Rechazos de propuesta del vale que ve quien mira: el asesor dueño ve todos; el equipo de un taller solo los suyos; el supervisor los lee desde el registro de hilos (hilos_rechazo_propuesta).
 const rechazosVisibles = (v) => {
   const rechazos = v.rechazos_propuesta || [];
   if (v.asesor_id === state.user.id) return puede('rechazarPropuesta') ? rechazos : [];

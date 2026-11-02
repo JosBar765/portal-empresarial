@@ -1,7 +1,7 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { verificarAdjuntos, rechazarAdjuntos, responderAdjuntos, darDeBajaTallerVale, obtenerConversacion, enviarMensajeRechazo } from '../api/valesApi.js';
 import { escapeHtml, formatearFechaHora, inicialesAvatar } from '../utils/formato.js';
-import { puedeResponderAdjuntos } from '../permisos.js';
+import { puedeResponderAdjuntos, puedeLeerConversacionAdjuntos } from '../permisos.js';
 import { state } from '../state.js';
 import { cargarBuzon } from '../views/buzon.js';
 
@@ -245,11 +245,12 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
 }
 
 // -----------------------------------------------------------------------
-// Asesor (y supervisor): vale rechazado por un taller. Solo el dueño escribe.
+// Asesor (y supervisor): vale rechazado por un taller. Solo el dueño escribe; el supervisor lee la conversación.
 // -----------------------------------------------------------------------
 export function abrirModalAdjuntosPendientes(vale) {
   const adjuntos = vale.adjuntos || [];
   const puedeResponder = puedeResponderAdjuntos(vale);
+  const puedeLeer = puedeLeerConversacionAdjuntos(vale);
   const esMod = Number(vale.vale_original_id) > 0;
   const tarjetas = adjuntos.map(a => {
     if (a.estado === 'ADJUNTOS_RESPONDIDOS') {
@@ -257,7 +258,7 @@ export function abrirModalAdjuntosPendientes(vale) {
         <div class="rechazo-cab"><strong>${escapeHtml(a.taller)}</strong><span class="chip-estado chip-estado--info">Esperando revisión del taller</span></div>
         <p class="rechazo-texto">Ya avisaste al taller. Tu mensaje:</p>
         <p class="mensaje-adjuntos">${escapeHtml(a.mensaje || MENSAJE_POR_DEFECTO)}</p>
-        ${puedeResponder ? `<div class="rechazo-acciones"><button class="btn btn--ghost btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Ver conversación</button></div>` : ''}
+        ${puedeLeer ? `<div class="rechazo-acciones"><button class="btn btn--ghost btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Ver conversación</button></div>` : ''}
       </li>`;
     }
     return `<li class="rechazo-tarjeta rechazo-tarjeta--alerta">
@@ -266,7 +267,7 @@ export function abrirModalAdjuntosPendientes(vale) {
       ${puedeResponder ? `<div class="rechazo-acciones">
         <button class="btn btn--primary btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Leer y responder</button>
         <button class="btn btn--ghost btn--sm" data-responder="${Number(a.taller_id)}"><ion-icon name="checkmark-done-outline"></ion-icon> Ya lo atendí</button>
-      </div>` : ''}
+      </div>` : puedeLeer ? `<div class="rechazo-acciones"><button class="btn btn--ghost btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Ver conversación</button></div>` : ''}
     </li>`;
   }).join('');
 

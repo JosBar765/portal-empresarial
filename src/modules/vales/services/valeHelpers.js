@@ -3,6 +3,7 @@ const valeRepository = require('../repositories/valeRepository');
 const historialRepository = require('../repositories/historialRepository');
 const { ahoraUTC6 } = require('../../../core/calendario/calendarioLaboral');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
+const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 
 const ESTADOS = {
   ESPERANDO_AUTORIZACION: 'ESPERANDO_AUTORIZACION',
@@ -284,6 +285,19 @@ function assertPropioDelAsesor(usuario, vale) {
   }
 }
 
+// Salas de todos los involucrados: asesor dueño, sus supervisores y los talleres y diseñadores de las filas dadas (calcular antes de borrar el vale).
+async function salasDeInvolucrados(vale, talleres) {
+  const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
+  const salasTalleres = talleres.flatMap(t => [`taller:${t.taller_id}`, ...(t.disenador_id ? [`disenador:${t.disenador_id}`] : [])]);
+  return [...new Set([`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`), ...salasTalleres])];
+}
+
+// Supervisor (rol 3) que cubre la tienda del asesor dueño del vale: lee sus chats, nunca escribe.
+async function esSupervisorDelAsesor(usuario, vale) {
+  if (usuario.rolId !== ROL.SUPERVISOR) return false;
+  return (await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id)).some(s => s.id === usuario.id);
+}
+
 // Un taller que ya respondió, aceptó o trabaja protege el vale del borrado por plazo de adjuntos vencido.
 const ESTADOS_SIN_PROTEGER = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RECHAZADOS];
 const algunTallerProtege = (filas) => filas.some(f => !ESTADOS_SIN_PROTEGER.includes(f.estado));
@@ -297,5 +311,5 @@ module.exports = {
   PREFIJO_MOD, esCorrelativoMod, correlativoBase, armarCorrelativoMod, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
   normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial,
-  requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo, validarMensajeChat
+  requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo, validarMensajeChat, salasDeInvolucrados, esSupervisorDelAsesor
 };

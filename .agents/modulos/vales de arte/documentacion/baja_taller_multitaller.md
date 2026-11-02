@@ -13,7 +13,7 @@ Antes, si un asesor mandaba el vale a un taller equivocado y este rechazaba los 
 - No aplica a una solicitud de modificación (`MOD-`): se da de baja la solicitud completa.
 - Se revalida bajo el candado del vale: si el taller verificó o respondió entretanto, la baja se rechaza con un mensaje claro.
 - Efecto: la fila de `vale_talleres` queda con `activo = 0`, `vales.talleres_solicitados` se actualiza, el estado general se recalcula con la lógica normal (`_recalcularEstadoVale`) y se escribe una fila en `vale_historial`. No se borra el vale ni a los demás talleres.
-- Avisos: el taller dado de baja, el asesor y sus supervisores reciben la notificación; los talleres que siguen (y quienes fusionan) solo refrescan la pantalla.
+- Avisos: el taller dado de baja (y el diseñador asignado en esa fila), el asesor y sus supervisores reciben la notificación; los talleres que siguen (y quienes fusionan) solo refrescan la pantalla.
 - No hace falta ningún script SQL.
 
 ## Dónde está el botón
@@ -25,7 +25,7 @@ Cuando vence el plazo de adjuntos de un taller (`vale_talleres.adjuntos_vence_en
 - Si el taller vencido es el **último activo** (también tras bajas previas del mismo ciclo), se borra el vale completo como siempre. Un vale de un solo taller y las solicitudes `MOD-` no cambian.
 - El aviso del 25 % del plazo se envía siempre en un vale multitaller («… si no, ese taller se dará de baja del vale»); en un vale de un taller o `MOD-` sigue igual.
 - La baja se revalida bajo el candado: si el asesor respondió entretanto, no se hace nada.
-- Historial: `vale_historial.usuario_id` es obligatorio, así que se registra el asesor dueño con el texto «… (automático)». Notificación de tipo `TALLER_DADO_DE_BAJA_AUTOMATICA` al taller, al asesor y a sus supervisores; los demás talleres solo refrescan.
+- Historial: `vale_historial.usuario_id` es obligatorio, así que se registra el asesor dueño con el texto «… (automático)». Notificación de tipo `TALLER_DADO_DE_BAJA_AUTOMATICA` al taller (y su diseñador asignado), al asesor y a sus supervisores; los demás talleres solo refrescan.
 - Límite conocido: si el taller rechaza otra vez con el plazo ya vencido, la siguiente pasada lo da de baja de inmediato (el plazo no se reinicia).
 
 ## Cómo verificarlo a mano

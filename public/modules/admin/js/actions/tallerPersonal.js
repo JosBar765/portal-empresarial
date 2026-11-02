@@ -41,7 +41,8 @@ export async function abrirModalVerPersonalTaller(taller) {
   overlay.querySelector('#btn-cerrar-ver-personal-taller').addEventListener('click', cerrar);
 }
 
-export async function abrirModalPersonalTaller(taller) {
+// Datos del modal «Gestionar personal» del taller y su cuerpo HTML; se recalculan tras cada cambio para refrescar el modal en su sitio.
+async function cargarDatosPersonalTaller(taller) {
   const [personal, usuariosRaw, rolesRaw] = await Promise.all([
     listarPersonalDeTaller(taller.id),
     listarUsuariosRaw(),
@@ -86,13 +87,34 @@ export async function abrirModalPersonalTaller(taller) {
       </div>
     </div>
   `;
+  return { bodyHtml, encargadoActual, encargadosDisponibles };
+}
+
+export async function abrirModalPersonalTaller(taller) {
+  let datos = await cargarDatosPersonalTaller(taller);
   const { overlay, cerrar } = abrirModal({
     title: `Personal — ${taller.nombre}`,
-    bodyHtml,
+    bodyHtml: datos.bodyHtml,
     footerHtml: `<button class="btn btn--ghost" id="btn-cerrar-taller">Cerrar</button><button class="btn btn--primary" id="btn-agregar-disenador">Agregar diseñador</button>`
   });
+  const cuerpo = overlay.querySelector('.modal-body');
+
+  // Tras cada cambio: la lista de la página se actualiza al fondo y este mismo modal se repinta con los datos nuevos.
+  // Nunca lanza: el cambio ya se guardó.
+  const refrescar = async () => {
+    cargarTalleres();
+    try {
+      datos = await cargarDatosPersonalTaller(taller);
+    } catch (error) {
+      window.toast.error('No se pudo actualizar la lista', error.message);
+      return;
+    }
+    cuerpo.innerHTML = datos.bodyHtml;
+    conectar();
+  };
 
   function renderZonaEncargado() {
+    const { encargadoActual, encargadosDisponibles } = datos;
     const zona = overlay.querySelector('#zona-encargado-taller');
     if (encargadoActual) {
       zona.innerHTML = `
@@ -106,13 +128,14 @@ export async function abrirModalPersonalTaller(taller) {
       btnQuitar.title = 'Quitar';
       btnQuitar.innerHTML = '<ion-icon name="close-outline"></ion-icon>';
       btnQuitar.addEventListener('click', async () => {
+        btnQuitar.disabled = true;
         try {
           await quitarEncargadoTaller(taller.id);
           window.toast.success('Encargado actualizado', 'Se quitó al encargado del taller.');
-          cerrar();
-          cargarTalleres();
+          await refrescar();
         } catch (error) {
           window.toast.error('No se pudo quitar', error.message);
+          btnQuitar.disabled = false;
         }
       });
       item.appendChild(btnQuitar);
@@ -130,40 +153,46 @@ export async function abrirModalPersonalTaller(taller) {
         zona.innerHTML = '<p class="form-hint">No hay usuarios disponibles con el rol correcto para este taller.</p>';
         return;
       }
-      overlay.querySelector('#btn-asignar-encargado').addEventListener('click', async () => {
+      const btnAsignar = overlay.querySelector('#btn-asignar-encargado');
+      btnAsignar.addEventListener('click', async () => {
         const usuarioId = overlay.querySelector('#input-asignar-encargado').value;
         if (!usuarioId) return;
+        btnAsignar.disabled = true;
         try {
           await asignarEncargadoTaller(taller.id, usuarioId);
           window.toast.success('Encargado actualizado', 'Se asignó el encargado del taller.');
-          cerrar();
-          cargarTalleres();
+          await refrescar();
         } catch (error) {
           mostrarErrorModal(overlay, error.message);
+          btnAsignar.disabled = false;
         }
       });
     }
   }
-  renderZonaEncargado();
 
-  $$('#disenadores-actual .personal-item', overlay).forEach(item => {
-    const btnQuitar = document.createElement('button');
-    btnQuitar.className = 'btn-icon icon-danger';
-    btnQuitar.title = 'Quitar';
-    btnQuitar.innerHTML = '<ion-icon name="close-outline"></ion-icon>';
-    btnQuitar.addEventListener('click', async () => {
-      const usuarioId = item.dataset.usuarioId;
-      try {
-        await quitarDisenadorDeTaller(taller.id, usuarioId);
-        window.toast.success('Personal actualizado', 'Se quitó del taller.');
-        cerrar();
-        cargarTalleres();
-      } catch (error) {
-        window.toast.error('No se pudo quitar', error.message);
-      }
+  const conectar = () => {
+    renderZonaEncargado();
+    $$('#disenadores-actual .personal-item', overlay).forEach(item => {
+      const btnQuitar = document.createElement('button');
+      btnQuitar.className = 'btn-icon icon-danger';
+      btnQuitar.title = 'Quitar';
+      btnQuitar.innerHTML = '<ion-icon name="close-outline"></ion-icon>';
+      btnQuitar.addEventListener('click', async () => {
+        const usuarioId = item.dataset.usuarioId;
+        btnQuitar.disabled = true;
+        try {
+          await quitarDisenadorDeTaller(taller.id, usuarioId);
+          window.toast.success('Personal actualizado', 'Se quitó del taller.');
+          await refrescar();
+        } catch (error) {
+          window.toast.error('No se pudo quitar', error.message);
+          btnQuitar.disabled = false;
+        }
+      });
+      item.appendChild(btnQuitar);
     });
-    item.appendChild(btnQuitar);
-  });
+  };
+  conectar();
 
   overlay.querySelector('#btn-cerrar-taller').addEventListener('click', cerrar);
   overlay.querySelector('#btn-agregar-disenador').addEventListener('click', async () => {
@@ -174,11 +203,10 @@ export async function abrirModalPersonalTaller(taller) {
     try {
       await agregarDisenadorATaller(taller.id, usuarioId);
       window.toast.success('Personal actualizado', 'Se agregó al taller.');
-      cerrar();
-      cargarTalleres();
+      await refrescar();
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
-      btn.disabled = false;
     }
+    btn.disabled = false;
   });
 }
