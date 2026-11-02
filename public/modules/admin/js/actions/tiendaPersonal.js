@@ -65,7 +65,8 @@ export async function abrirModalVerPersonal(tienda) {
   overlay.querySelector('#btn-cerrar-ver-personal').addEventListener('click', cerrar);
 }
 
-export async function abrirModalPersonal(tienda) {
+// Datos del modal «Gestionar personal» y su cuerpo HTML; se recalculan tras cada cambio para refrescar el modal en su sitio.
+async function cargarCuerpoPersonal(tienda) {
   const [personal, usuariosRaw] = await Promise.all([
     listarPersonalDeTienda(tienda.id),
     listarUsuariosRaw()
@@ -136,44 +137,74 @@ export async function abrirModalPersonal(tienda) {
       </div>
     </div>
   `;
-  const { overlay, cerrar } = abrirModal({
+  return { bodyHtml, gruposDisponibles };
+}
+
+export async function abrirModalPersonal(tienda) {
+  let { bodyHtml, gruposDisponibles } = await cargarCuerpoPersonal(tienda);
+  const { overlay } = abrirModal({
     title: `Personal — ${tienda.nombre}`,
     bodyHtml,
     footerHtml: `<button class="btn btn--primary" id="btn-agregar">Agregar</button>`
   });
+  const cuerpo = overlay.querySelector('.modal-body');
 
-  overlay.querySelector('#input-categoria-personal').addEventListener('change', (e) => {
-    const selectPersona = overlay.querySelector('#input-agregar-personal');
-    const rol = e.target.value;
-    const personas = gruposDisponibles[rol] || [];
-    if (!rol) {
-      selectPersona.innerHTML = '<option value="">Elige una categoría primero...</option>';
-      selectPersona.disabled = true;
+  // Tras agregar o quitar: la lista de la página se actualiza al fondo y este mismo modal se repinta con los datos nuevos,
+  // conservando la categoría elegida. Nunca lanza: el cambio ya se guardó.
+  const refrescar = async () => {
+    const categoria = overlay.querySelector('#input-categoria-personal').value;
+    cargarTiendas();
+    try {
+      ({ bodyHtml, gruposDisponibles } = await cargarCuerpoPersonal(tienda));
+    } catch (error) {
+      window.toast.error('No se pudo actualizar la lista', error.message);
       return;
     }
-    selectPersona.disabled = false;
-    selectPersona.innerHTML = '<option value="">Seleccionar persona...</option>' +
-      personas.map(u => `<option value="${u.id}">${escapeHtml(u.nombre)}</option>`).join('');
-  });
+    cuerpo.innerHTML = bodyHtml;
+    conectar();
+    if (gruposDisponibles[categoria]) {
+      const selectCategoria = overlay.querySelector('#input-categoria-personal');
+      selectCategoria.value = categoria;
+      selectCategoria.dispatchEvent(new Event('change'));
+    }
+  };
 
-  $$('.personal-item', overlay).forEach(item => {
-    const btnQuitar = document.createElement('button');
-    btnQuitar.className = 'btn-icon icon-danger';
-    btnQuitar.title = 'Quitar';
-    btnQuitar.innerHTML = '<ion-icon name="close-outline"></ion-icon>';
-    btnQuitar.addEventListener('click', async () => {
-      const usuarioId = item.dataset.usuarioId;
-      try {
-        await quitarPersonalDeTienda(tienda.id, usuarioId);
-        window.toast.success('Personal actualizado', 'Se quitó de la tienda.');
-        cerrar();
-        cargarTiendas();
-      } catch (error) {
-        window.toast.error('No se pudo quitar', error.message);
+  const conectar = () => {
+    overlay.querySelector('#input-categoria-personal').addEventListener('change', (e) => {
+      const selectPersona = overlay.querySelector('#input-agregar-personal');
+      const rol = e.target.value;
+      const personas = gruposDisponibles[rol] || [];
+      if (!rol) {
+        selectPersona.innerHTML = '<option value="">Elige una categoría primero...</option>';
+        selectPersona.disabled = true;
+        return;
       }
+      selectPersona.disabled = false;
+      selectPersona.innerHTML = '<option value="">Seleccionar persona...</option>' +
+        personas.map(u => `<option value="${u.id}">${escapeHtml(u.nombre)}</option>`).join('');
     });
-    item.appendChild(btnQuitar);
-  });
+
+    $$('.personal-item', overlay).forEach(item => {
+      const btnQuitar = document.createElement('button');
+      btnQuitar.className = 'btn-icon icon-danger';
+      btnQuitar.title = 'Quitar';
+      btnQuitar.innerHTML = '<ion-icon name="close-outline"></ion-icon>';
+      btnQuitar.addEventListener('click', async () => {
+        const usuarioId = item.dataset.usuarioId;
+        btnQuitar.disabled = true;
+        try {
+          await quitarPersonalDeTienda(tienda.id, usuarioId);
+          window.toast.success('Personal actualizado', 'Se quitó de la tienda.');
+          await refrescar();
+        } catch (error) {
+          window.toast.error('No se pudo quitar', error.message);
+          btnQuitar.disabled = false;
+        }
+      });
+      item.appendChild(btnQuitar);
+    });
+  };
+  conectar();
 
   overlay.querySelector('#btn-agregar').addEventListener('click', async () => {
     const usuarioId = overlay.querySelector('#input-agregar-personal').value;
@@ -183,11 +214,10 @@ export async function abrirModalPersonal(tienda) {
     try {
       await agregarPersonalATienda(tienda.id, usuarioId);
       window.toast.success('Personal actualizado', 'Se agregó a la tienda.');
-      cerrar();
-      cargarTiendas();
+      await refrescar();
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
-      btn.disabled = false;
     }
+    btn.disabled = false;
   });
 }
