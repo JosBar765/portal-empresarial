@@ -29,7 +29,7 @@ function lineaDeEstado(c) {
   if (c.cerrada) return `${CIERRE_RECHAZO[c.estado] || 'Rechazo cerrado.'} Conversación en solo lectura.`;
   if (c.lado === 'SUPERVISOR') return 'Esperando la respuesta del taller. Conversación en solo lectura.';
   return c.lado === 'TALLER'
-    ? 'Acepta para rehacer la propuesta, o rechaza con un motivo: lo que escribas o, si la caja está vacía, tu último mensaje (por ejemplo, que tramite una modificación).'
+    ? 'Acepta para rehacer la propuesta, o rechaza: «Rechazar» te pedirá el motivo (por ejemplo, que tramite una modificación).'
     : 'Esperando la respuesta del taller. Puedes cancelar el rechazo para confirmar el vale.';
 }
 
@@ -143,9 +143,7 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
   overlay.querySelector('#mb-cerrar').addEventListener('click', cerrar);
   const ajustarAlto = () => { textarea.style.height = 'auto'; textarea.style.height = `${Math.min(textarea.scrollHeight, 110)}px`; };
 
-  let hiloActual = null; // el último hilo pintado: de ahí sale el motivo si la caja está vacía
   const pintar = (c) => {
-    hiloActual = c;
     cabecera.innerHTML = `<span class="chip-estado chip-estado--taller"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon>${escapeHtml(c.taller)}</span>${chipEstado(c.estado)}`;
     estado.textContent = lineaDeEstado(c);
     hilo.innerHTML = htmlHilo(c, { destacarMotivo: false });
@@ -181,24 +179,11 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); mandar(); }
   });
 
-  // Decisiones: aceptar y rechazar son del taller; cancelar, del asesor. Cierran la conversación y refrescan el buzón.
-  // Rechazar usa como motivo (obligatorio) lo escrito en el chat o, si la caja está vacía, el último mensaje del taller en el hilo.
-  const ultimoMensajeDelTaller = () => {
-    const delTaller = ((hiloActual && hiloActual.mensajes) || []).filter(m => m.lado === 'TALLER');
-    return delTaller.length ? delTaller[delTaller.length - 1].mensaje : '';
-  };
-  const decidir = (boton, accion, exito, { motivo = false } = {}) => boton.addEventListener('click', async () => {
-    const escrito = textarea.value.trim();
-    // Con texto escrito rige el contador (límite de caracteres); sin él, vale el último mensaje del taller.
-    const textoMotivo = motivo ? (escrito ? (actualizar() ? escrito : '') : ultimoMensajeDelTaller()) : escrito;
-    if (motivo && !textoMotivo) {
-      mostrarErrorModal(overlay, 'Escribe en el chat el motivo del rechazo (por ejemplo, que tramite una modificación).');
-      textarea.focus();
-      return;
-    }
+  // Decisiones: aceptar es del taller; cancelar, del asesor. Cierran la conversación y refrescan el buzón.
+  const decidir = (boton, accion, exito) => boton.addEventListener('click', async () => {
     [btnAceptar, btnRechazar, btnCancelar].forEach(b => { b.disabled = true; });
     try {
-      await accion(vale.id, rechazoId, textoMotivo);
+      await accion(vale.id, rechazoId, textarea.value.trim());
       window.toast.success(exito.titulo, exito.texto);
       cerrar();
     } catch (error) {
@@ -208,9 +193,50 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
     cargarBuzon();
   });
   decidir(btnAceptar, aceptarRechazoPropuesta, { titulo: 'Aceptado', texto: 'Asigna el vale a un diseñador.' });
-  decidir(btnRechazar, rechazarRechazoPropuesta, { titulo: 'Rechazado', texto: 'El asesor fue avisado.' }, { motivo: true });
+  btnRechazar.addEventListener('click', () => abrirModalMotivoRechazo(vale, rechazoId, cerrar));
   decidir(btnCancelar, cancelarRechazoPropuesta, { titulo: 'Cancelado', texto: 'Ya puedes confirmar el vale.' });
   if (!zonaEscribir.hidden) textarea.focus();
+}
+
+// -----------------------------------------------------------------------
+// Taller: el motivo del «Rechazar» se escribe en un modal propio, aparte del chat
+// -----------------------------------------------------------------------
+function abrirModalMotivoRechazo(vale, rechazoId, cerrarConversacion) {
+  let quitarEscape = () => {};
+  const { overlay, cerrar } = abrirModal({
+    title: 'Motivo del rechazo',
+    bodyHtml: `
+      <label for="mb-motivo" class="mb-etiqueta">¿Por qué rechazas? El asesor lo verá (por ejemplo, que tramite una modificación).</label>
+      <div class="chat-caja">
+        <textarea id="mb-motivo" rows="3" maxlength="${MAX_CARACTERES_CHAT}"></textarea>
+      </div>
+      <div class="campo-pie"><span class="campo-ayuda">Obligatorio.</span><span class="contador-mensaje" id="mb-motivo-contador"></span></div>
+    `,
+    footerHtml: '<button class="btn btn--ghost" id="mb-motivo-cancelar">Cancelar</button><button class="btn btn--ghost btn--texto-peligro" id="mb-motivo-rechazar">Rechazar</button>',
+    alCerrar: () => quitarEscape()
+  });
+  // Escape cierra solo este modal: el listener del componente cerraría también el chat de debajo.
+  const alEscape = (e) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); cerrar(); } };
+  window.addEventListener('keydown', alEscape, true);
+  quitarEscape = () => window.removeEventListener('keydown', alEscape, true);
+  const textarea = overlay.querySelector('#mb-motivo');
+  const confirmar = overlay.querySelector('#mb-motivo-rechazar');
+  const actualizar = wireContador(textarea, overlay.querySelector('#mb-motivo-contador'), confirmar);
+  overlay.querySelector('#mb-motivo-cancelar').addEventListener('click', cerrar);
+  confirmar.addEventListener('click', async () => {
+    confirmar.disabled = true;
+    try {
+      await rechazarRechazoPropuesta(vale.id, rechazoId, textarea.value.trim());
+      window.toast.success('Rechazado', 'El asesor fue avisado.');
+      cerrar();
+      cerrarConversacion();
+    } catch (error) {
+      mostrarErrorModal(overlay, error.message);
+      actualizar();
+    }
+    cargarBuzon();
+  });
+  textarea.focus();
 }
 
 // -----------------------------------------------------------------------
