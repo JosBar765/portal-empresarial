@@ -13,7 +13,7 @@ const valeMutex = require('./valeMutex');
 const valeTallerService = require('./valeTallerService');
 const valeCatalogoService = require('./valeCatalogoService');
 const {
-  ESTADOS, ESTADOS_TALLER, ROL, esDeTaller, enriquecer, requerirVale, validarMensajeChat
+  ESTADOS, ESTADOS_TALLER, ROL, esDeTaller, enriquecer, requerirVale, validarMensajeChat, esSupervisorDelAsesor
 } = require('./valeHelpers');
 
 const ABIERTO = 'ABIERTO';
@@ -34,8 +34,8 @@ class ValeRechazoPropuestaService {
     return [...new Set([`asesor:${vale.asesor_id}`, ...supervisores, ...filas.map(f => `taller:${f.taller_id}`), ...disenadores])];
   }
 
-  // Quién ve la conversación: el asesor dueño, el equipo del taller (escriben) y el diseñador asignado a ese taller en el vale (solo lee).
-  // `escritura` rechaza al diseñador; el supervisor y los terceros no entran nunca.
+  // Quién ve la conversación: el asesor dueño y el equipo del taller (escriben); el diseñador asignado a ese taller y el supervisor
+  // que cubre al asesor (solo leen). `escritura` rechaza a estos dos; los terceros no entran nunca.
   async _resolverAcceso(usuario, vale, ronda, { escritura = false } = {}) {
     if (esDeTaller(usuario) && tienePermiso(usuario, PERMISO_RESPONDER)) {
       const fila = await valeTallerService._resolverFilaTallerParaEncargado(usuario, vale.id, ronda.taller_id);
@@ -50,6 +50,10 @@ class ValeRechazoPropuestaService {
       if (!fila || !Number(fila.activo) || fila.disenador_id !== usuario.id) throw new ErrorDeNegocio('No tienes acceso a esta conversación.', 403);
       if (escritura) throw new ErrorDeNegocio('El diseñador solo puede consultar esta conversación.', 403);
       return { fila, lado: 'TALLER', soloLectura: true };
+    }
+    if (await esSupervisorDelAsesor(usuario, vale)) {
+      if (escritura) throw new ErrorDeNegocio('El supervisor solo puede consultar esta conversación.', 403);
+      return { fila: await valeTallerRepository.obtenerPorId(ronda.vale_taller_id), lado: 'SUPERVISOR', soloLectura: true };
     }
     throw new ErrorDeNegocio('No tienes acceso a esta conversación.', 403);
   }
@@ -97,8 +101,8 @@ class ValeRechazoPropuestaService {
     });
   }
 
-  // Todas las rondas del vale (abiertas y cerradas: el hilo queda como registro) a la vista del usuario: el asesor dueño las de todos
-  // los talleres; el equipo del taller y su diseñador asignado, las de su taller; el supervisor y los terceros, ninguna.
+  // Todas las rondas del vale (abiertas y cerradas: el hilo queda como registro) a la vista del usuario: el asesor dueño y el supervisor
+  // que lo cubre las de todos los talleres; el equipo del taller y su diseñador asignado, las de su taller; los terceros, ninguna.
   async listar(usuario, valeId) {
     const vale = await requerirVale(valeId);
     let rondas = await rechazoRepository.listarPorVale(vale.id);
@@ -107,7 +111,7 @@ class ValeRechazoPropuestaService {
       rondas = rondas.filter(r => r.vale_taller_id === fila.id);
     } else if (usuario.rolId === ROL.DISENADOR) {
       rondas = rondas.filter(r => r.disenador_id === usuario.id && Number(r.activo));
-    } else if (!esAsesorDuenio(usuario, vale)) {
+    } else if (!esAsesorDuenio(usuario, vale) && !(await esSupervisorDelAsesor(usuario, vale))) {
       throw new ErrorDeNegocio('No tienes acceso a los rechazos de este vale.', 403);
     }
     return rondas.map(r => ({ id: r.id, taller_id: r.taller_id, taller: r.taller, estado: r.estado, creado_en: r.creado_en, resuelto_en: r.resuelto_en }));
@@ -119,7 +123,8 @@ class ValeRechazoPropuestaService {
     const visibles = new Map();
     const equipo = esDeTaller(usuario) && tienePermiso(usuario, PERMISO_RESPONDER);
     const asesor = tienePermiso(usuario, PERMISO_RECHAZAR);
-    if (!vales.length || (!equipo && !asesor && usuario.rolId !== ROL.DISENADOR)) return visibles;
+    const supervisor = usuario.rolId === ROL.SUPERVISOR;
+    if (!vales.length || (!equipo && !asesor && !supervisor && usuario.rolId !== ROL.DISENADOR)) return visibles;
     const duenios = new Map(vales.map(v => [v.id, v.asesor_id]));
     let miTallerId = null;
     if (equipo) {
@@ -127,10 +132,11 @@ class ValeRechazoPropuestaService {
       const miTaller = (await tallerRepository.listarActivos()).find(t => t.encargado_id === idEfectivo);
       miTallerId = miTaller ? miTaller.id : null;
     }
+    const asesoresACargo = supervisor ? new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id)) : new Set();
     for (const h of await rechazoRepository.listarHilosPorVales([...duenios.keys()])) {
       const propio = usuario.rolId === ROL.DISENADOR
         ? Number(h.activo) === 1 && h.disenador_id === usuario.id
-        : (asesor && duenios.get(h.vale_id) === usuario.id) || (equipo && Number(h.activo) === 1 && h.taller_id === miTallerId);
+        : (asesor && duenios.get(h.vale_id) === usuario.id) || (equipo && Number(h.activo) === 1 && h.taller_id === miTallerId) || asesoresACargo.has(duenios.get(h.vale_id));
       if (!propio) continue;
       const lista = visibles.get(h.vale_id) || [];
       lista.push({ id: h.id, taller_id: h.taller_id, taller: h.taller, estado: h.estado });

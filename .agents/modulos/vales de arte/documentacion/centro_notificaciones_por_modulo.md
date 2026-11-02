@@ -17,6 +17,10 @@ El centro de notificaciones dejó de ser global: **cada notificación pertenece 
   - **Dashboard:** ya no tiene campana. Cada tarjeta de módulo muestra una **burbuja roja con el número de no leídas** (como las apps del celular; «99+» a partir de 100; oculta si es 0), que sube en vivo y se recalcula al volver a la página.
 - **Limpieza de 60 días:** sin cambios, aplica a las leídas de todos los módulos.
 
+## Avisos de baja de vales
+
+- `VALE_DADO_DE_BAJA` (`notificaciones.tipo` es `VARCHAR(30)`, sin migración): la baja del vale completo avisa al asesor dueño, a sus supervisores, a los talleres activos y a sus diseñadores asignados. Los destinatarios se calculan antes del borrado con `salasDeInvolucrados` (`valeHelpers.js`), la misma regla del vencimiento de adjuntos (`ADJUNTOS_VENCIDOS`); la notificación queda con `vale_id` en NULL.
+
 ## Para sumar notificaciones a un módulo nuevo
 
 1. Que el módulo esté en `modulesCatalog.js`.

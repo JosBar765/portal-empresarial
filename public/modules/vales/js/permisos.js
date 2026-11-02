@@ -39,6 +39,11 @@ export function puedeResponderAdjuntos(v) {
   return puede('corregir') && v.asesor_id === state.user.id;
 }
 
+// Leer la conversación de adjuntos: el dueño la escribe y el supervisor que lo cubre solo la lee (el servidor valida la cobertura).
+export function puedeLeerConversacionAdjuntos(v) {
+  return puedeResponderAdjuntos(v) || state.user.rolId === ROL.SUPERVISOR;
+}
+
 // Un encargado de taller ve en su buzón TODOS los vales de su taller,
 // incluidos los asignados a sus propios diseñadores — las acciones de diseñador
 // (Comenzar/Entregar/Pausar/Cancelar) solo deben mostrarse cuando el vale es

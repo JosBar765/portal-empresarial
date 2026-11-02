@@ -32,7 +32,7 @@ const {
   ESTADOS, hoyISO, horaActual, enriquecer,
   normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, diasHabilesDeModificacion, registrarHistorial,
   esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
-  esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor
+  esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor, salasDeInvolucrados
 } = require('./valeHelpers');
 
 class ValeCreacionService {
@@ -334,12 +334,10 @@ class ValeCreacionService {
         && !talleres.some(t => [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS].includes(t.estado))) {
         throw new Error(`${esValeDeModificacion(vale) ? 'Esta modificación ya fue autorizada' : 'Este vale ya fue autorizado'}: solo se puede dar de baja mientras un taller reclame sus adjuntos.`);
       }
-      const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
+      const salas = await salasDeInvolucrados(vale, talleres);
       await this.eliminarValeConArchivos(valeId);
-      const salasTalleres = [...new Set(talleres.flatMap(t => [`taller:${t.taller_id}`, ...(t.disenador_id ? [`disenador:${t.disenador_id}`] : [])]))];
       valeEvents.notificar({
-        vale, accion: 'dado de baja', valeBorrado: true, actor: usuario.nombre, actorId: usuario.id,
-        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`), ...salasTalleres]
+        vale, accion: 'dado de baja', tipo: 'VALE_DADO_DE_BAJA', valeBorrado: true, actor: usuario.nombre, actorId: usuario.id, salas
       });
       return { valeId: vale.id, correlativo: vale.correlativo };
     });
