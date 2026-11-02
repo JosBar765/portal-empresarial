@@ -29,7 +29,7 @@ function lineaDeEstado(c) {
   if (c.cerrada) return `${CIERRE_RECHAZO[c.estado] || 'Rechazo cerrado.'} Conversación en solo lectura.`;
   if (c.lado === 'SUPERVISOR') return 'Esperando la respuesta del taller. Conversación en solo lectura.';
   return c.lado === 'TALLER'
-    ? 'Acepta para rehacer la propuesta, o rechaza escribiendo el motivo (por ejemplo, que tramite una modificación).'
+    ? 'Acepta para rehacer la propuesta, o rechaza con un motivo: lo que escribas o, si la caja está vacía, tu último mensaje (por ejemplo, que tramite una modificación).'
     : 'Esperando la respuesta del taller. Puedes cancelar el rechazo para confirmar el vale.';
 }
 
@@ -143,7 +143,9 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
   overlay.querySelector('#mb-cerrar').addEventListener('click', cerrar);
   const ajustarAlto = () => { textarea.style.height = 'auto'; textarea.style.height = `${Math.min(textarea.scrollHeight, 110)}px`; };
 
+  let hiloActual = null; // el último hilo pintado: de ahí sale el motivo si la caja está vacía
   const pintar = (c) => {
+    hiloActual = c;
     cabecera.innerHTML = `<span class="chip-estado chip-estado--taller"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon>${escapeHtml(c.taller)}</span>${chipEstado(c.estado)}`;
     estado.textContent = lineaDeEstado(c);
     hilo.innerHTML = htmlHilo(c, { destacarMotivo: false });
@@ -180,16 +182,23 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
   });
 
   // Decisiones: aceptar y rechazar son del taller; cancelar, del asesor. Cierran la conversación y refrescan el buzón.
-  // Rechazar usa lo escrito en el chat como motivo (obligatorio).
+  // Rechazar usa como motivo (obligatorio) lo escrito en el chat o, si la caja está vacía, el último mensaje del taller en el hilo.
+  const ultimoMensajeDelTaller = () => {
+    const delTaller = ((hiloActual && hiloActual.mensajes) || []).filter(m => m.lado === 'TALLER');
+    return delTaller.length ? delTaller[delTaller.length - 1].mensaje : '';
+  };
   const decidir = (boton, accion, exito, { motivo = false } = {}) => boton.addEventListener('click', async () => {
-    if (motivo && !actualizar()) {
+    const escrito = textarea.value.trim();
+    // Con texto escrito rige el contador (límite de caracteres); sin él, vale el último mensaje del taller.
+    const textoMotivo = motivo ? (escrito ? (actualizar() ? escrito : '') : ultimoMensajeDelTaller()) : escrito;
+    if (motivo && !textoMotivo) {
       mostrarErrorModal(overlay, 'Escribe en el chat el motivo del rechazo (por ejemplo, que tramite una modificación).');
       textarea.focus();
       return;
     }
     [btnAceptar, btnRechazar, btnCancelar].forEach(b => { b.disabled = true; });
     try {
-      await accion(vale.id, rechazoId, textarea.value.trim());
+      await accion(vale.id, rechazoId, textoMotivo);
       window.toast.success(exito.titulo, exito.texto);
       cerrar();
     } catch (error) {

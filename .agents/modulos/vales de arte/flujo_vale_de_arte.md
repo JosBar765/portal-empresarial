@@ -363,6 +363,7 @@ Asesor; el supervisor no) puede rechazar la propuesta de **uno o varios talleres
 ```
 
 - **Cancelar:** mientras la ronda está abierta el asesor dueño puede cancelarla (`CANCELADO`) y entonces confirmar el vale.
+- **Motivo del «Rechazar» del taller:** es el texto de la caja del chat o, si está vacía (p. ej. porque ya envió el mensaje), el último mensaje del taller en el hilo; sin ninguno de los dos el modal pide escribirlo. «Aceptar» no lleva motivo.
 - **Respuesta por taller:** cada taller responde por separado; el que acepta regresa y el vale pasa a `CREADO`. Si otro taller
   aún tenía una ronda abierta, esa ronda sigue abierta y se puede responder mientras el vale no haya salido del trabajo del taller.
 - **Hilo propio por taller**, separado del de adjuntos (§2.1) y con la misma mecánica: un hilo por taller dentro del vale, sin límite de
