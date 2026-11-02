@@ -23,6 +23,8 @@ Forecast ~250 líneas autorizadas cambiadas (< 400): una sola rama, un commit po
 - [x] T3 (43134e1) Bug «rechazo del rechazo»: el motivo se lee del textarea del chat, que se vacía al enviar el mensaje. Si el textarea está vacío, usar el último mensaje del taller del hilo. `aceptar` no cambia.
 - [x] T4 (c19a006) Al cerrar el modal «Ver info» del supervisor se vuelve al modal general («Ver vale» / «Ver info»), también con X, Escape y clic en el fondo: `alCerrar` opcional en `components/modal.js`.
 - [x] T5 (77ab409) Los modales de personal de tiendas y de talleres (admin) no se cierran tras agregar o quitar: se refresca la lista y se limpia el formulario sin reabrir otro overlay.
+- [x] T6 (0cf988a) «Rechazar» del taller abre un modal propio para el motivo (opción C): se retira el atajo de T3 (último mensaje del hilo) y el motivo se guarda una sola vez. Escape cierra solo el modal pequeño (listener en captura, porque el componente cierra todos los modales abiertos).
+- [x] T7 (ed1cdbe) Docs: el supervisor dueño puede rechazar la propuesta de sus vales (migración 26 del padre).
 
 ## Criterios de aceptación
 - T1: baja manual, baja de taller y vencimientos notifican a todos los involucrados; la campana muestra el `tipo` nuevo; `vale_id` queda en NULL si el vale se borró.
@@ -40,6 +42,8 @@ Forecast ~250 líneas autorizadas cambiadas (< 400): una sola rama, un commit po
 - T3 (43134e1): en rechazoPropuesta.js el motivo de «Rechazar» sale de la caja o, si está vacía, del último mensaje del taller del hilo cargado. node --check OK sobre copia .mjs. UI no verificada.
 - T4 (c19a006): alCerrar opcional en abrirModal (una sola ejecución, tras retirar el overlay) y uso en «Ver info» del supervisor. node --check OK sobre copias .mjs. UI no verificada.
 - T5 (77ab409): tiendaPersonal.js y tallerPersonal.js repintan el cuerpo del mismo modal tras cada alta o baja y refrescan la lista de la página al fondo, sin segundo overlay. node --check OK sobre copias .mjs. UI no verificada.
+- T6 (0cf988a): rechazoPropuesta.js con abrirModalMotivoRechazo (abrirModal + wireContador, 200 caracteres); flujo §1.2 actualizado. node --check OK sobre copia .mjs; imports verificados contra valesApi.js y adjuntos.js. UI no verificada (sin navegador).
+- T7 (ed1cdbe): flujo §1.2 y §3 (fila del Supervisor de Ventas y nota). Solo documentación.
 - Ruta: delegada (un escritor). Un commit por tarea; sin push.
 
 ## Siguiente paso
