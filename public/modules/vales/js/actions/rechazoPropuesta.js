@@ -27,6 +27,7 @@ const CIERRE_RECHAZO = {
 // Frase corta bajo el título: qué pasa ahora y qué toca hacer (ronda abierta) o cómo se cerró (solo lectura).
 function lineaDeEstado(c) {
   if (c.cerrada) return `${CIERRE_RECHAZO[c.estado] || 'Rechazo cerrado.'} Conversación en solo lectura.`;
+  if (c.lado === 'SUPERVISOR') return 'Esperando la respuesta del taller. Conversación en solo lectura.';
   return c.lado === 'TALLER'
     ? 'Acepta para rehacer la propuesta, o rechaza escribiendo el motivo (por ejemplo, que tramite una modificación).'
     : 'Esperando la respuesta del taller. Puedes cancelar el rechazo para confirmar el vale.';

@@ -14,7 +14,7 @@ const valeCreacionService = require('./valeCreacionService');
 const calendarioService = require('../../../core/calendario/calendarioService');
 const {
   ESTADOS_TALLER, esDeTaller, esValeDeModificacion, enriquecer, registrarHistorial,
-  requerirVale, puedeActuarComoAsesor, algunTallerProtege, salasDeInvolucrados, SALA_FUSION
+  requerirVale, puedeActuarComoAsesor, algunTallerProtege, salasDeInvolucrados, esSupervisorDelAsesor, SALA_FUSION
 } = require('./valeHelpers');
 
 const MAX_CARACTERES_MENSAJE = 200;
@@ -178,8 +178,8 @@ class ValeAdjuntosService {
     });
   }
 
-  // Quién puede leer y escribir la conversación de un taller dentro de un vale: solo el taller (encargado/asistente) y el
-  // asesor dueño, mientras está abierta.
+  // Quién puede leer y escribir la conversación de un taller dentro de un vale: el taller (encargado/asistente) y el asesor
+  // dueño escriben; el supervisor que cubre al asesor solo lee. Todo mientras está abierta.
   async _resolverAcceso(usuario, vale, tallerId) {
     const fila = (await valeTallerRepository.listarPorVale(vale.id)).find(f => f.taller_id === Number(tallerId));
     if (!fila) throw new Error('Este vale no fue enviado a ese taller.');
@@ -188,7 +188,8 @@ class ValeAdjuntosService {
       return { fila, escribe: 'TALLER' };
     }
     if (vale.asesor_id === usuario.id && puedeActuarComoAsesor(usuario)) return { fila, escribe: 'ASESOR' };
-    // Nadie más la ve mientras está abierta (ni supervisor, ni administrador, ni gerente); ya cerrada, solo queda el registro
+    if (await esSupervisorDelAsesor(usuario, vale)) return { fila, escribe: null };
+    // Nadie más la ve mientras está abierta (ni administrador, ni gerente); ya cerrada, solo queda el registro
     // del historial para quien tenga `vales.ver_historial`.
     throw new ErrorDeNegocio('No tienes acceso a esta conversación.', 403);
   }
@@ -204,7 +205,7 @@ class ValeAdjuntosService {
     const mensajes = await valeMensajeRepository.listarPorValeTaller(fila.id);
     return {
       taller_id: fila.taller_id, estado: fila.estado, vence_en: fila.adjuntos_vence_en, cerrada: false,
-      puede_escribir: !!escribe, lado: escribe,
+      puede_escribir: !!escribe, lado: escribe || 'SUPERVISOR',
       total: mensajes.length,
       mensajes: mensajes.map(m => ({ id: m.id, lado: m.lado, autor: m.autor, autor_id: m.autor_id, mensaje: m.mensaje, creado_en: m.creado_en }))
     };
@@ -224,7 +225,7 @@ class ValeAdjuntosService {
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: `comentado en la conversación del rechazo (${nombre})`, tipo: 'MENSAJE_RECHAZO', actor: usuario.nombre, actorId: usuario.id,
-        salas: escribe === 'TALLER' ? [`asesor:${vale.asesor_id}`] : [`taller:${fila.taller_id}`] // el supervisor no lee la conversación: sin aviso ni campana
+        salas: escribe === 'TALLER' ? [`asesor:${vale.asesor_id}`] : [`taller:${fila.taller_id}`] // el supervisor solo lee: sin aviso ni campana
       });
       return this.listarConversacion(usuario, valeId, tallerId);
     });
