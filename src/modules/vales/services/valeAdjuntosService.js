@@ -14,7 +14,7 @@ const valeCreacionService = require('./valeCreacionService');
 const calendarioService = require('../../../core/calendario/calendarioService');
 const {
   ESTADOS_TALLER, esDeTaller, esValeDeModificacion, enriquecer, registrarHistorial,
-  requerirVale, puedeActuarComoAsesor, algunTallerProtege, SALA_FUSION
+  requerirVale, puedeActuarComoAsesor, algunTallerProtege, salasDeInvolucrados, SALA_FUSION
 } = require('./valeHelpers');
 
 const MAX_CARACTERES_MENSAJE = 200;
@@ -166,7 +166,7 @@ class ValeAdjuntosService {
         ? `Taller ${nombre} dado de baja del vale: el asesor no envió los adjuntos a tiempo (automático)`
         : `Asesor dio de baja al taller ${nombre} del vale (adjuntos). Conversación cerrada`);
       valeEvents.notificar({
-        vale: actualizado, nivel: 'alerta', salas: [...await this._salasAsesor(vale), `taller:${fila.taller_id}`],
+        vale: actualizado, nivel: 'alerta', salas: [...await this._salasAsesor(vale), `taller:${fila.taller_id}`, ...(fila.disenador_id ? [`disenador:${fila.disenador_id}`] : [])],
         ...(automatico
           ? { tipo: 'TALLER_DADO_DE_BAJA_AUTOMATICA', texto: `el taller ${nombre} fue dado de baja del vale porque el asesor no envió los adjuntos a tiempo` }
           : { tipo: 'TALLER_DADO_DE_BAJA', texto: `${usuario.nombre} dio de baja al taller ${nombre}`, actor: usuario.nombre, actorId: usuario.id })
@@ -259,15 +259,14 @@ class ValeAdjuntosService {
       if (!vale || !(await valeTallerRepository.listarAdjuntosVencidos(valeId)).length) return false;
       const talleres = await valeTallerRepository.listarPorVale(valeId);
       if (this.algunTallerProtege(talleres)) return false;
-      const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
+      const salas = await salasDeInvolucrados(vale, talleres);
       const original = esValeDeModificacion(vale) ? await valeRepository.obtenerPorId(vale.vale_original_id) : null;
       const horas = await calendarioService.horasVencimiento();
       await valeCreacionService.eliminarValeConArchivos(valeId);
-      const salasTalleres = [...new Set(talleres.flatMap(t => [`taller:${t.taller_id}`, ...(t.disenador_id ? [`disenador:${t.disenador_id}`] : [])]))];
       valeEvents.notificar({
         vale, tipo: 'ADJUNTOS_VENCIDOS', valeBorrado: true, nivel: 'alerta',
         texto: `${original ? '(solicitud de modificación) ' : ''}fue eliminado automáticamente: el asesor no envió los adjuntos en ${horas} ${horas === 1 ? 'hora laboral' : 'horas laborales'}${original ? `. ${original.correlativo} ya quedó como Recibido` : ''}`,
-        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`), ...salasTalleres]
+        salas
       });
       return true;
     });
