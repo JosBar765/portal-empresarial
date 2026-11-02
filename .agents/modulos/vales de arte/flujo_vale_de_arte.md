@@ -333,8 +333,8 @@ La solicitud crea **un vale nuevo** (`MOD-<correlativo>`) y deja el vale modific
 
 ### 1.2 Rechazo de propuesta
 
-Con el vale en `PENDIENTE_CONFIRMACION` (también un vale MOD), el **asesor dueño** (permiso `vales.rechazar_propuesta`, solo el rol
-Asesor; el supervisor no) puede rechazar la propuesta de **uno o varios talleres** (cada uno activo y con su propuesta
+Con el vale en `PENDIENTE_CONFIRMACION` (también un vale MOD), el **asesor dueño** o el **supervisor dueño** (permiso `vales.rechazar_propuesta`, roles
+Asesor y Supervisor de Ventas; cada uno solo en los vales que creó) puede rechazar la propuesta de **uno o varios talleres** (cada uno activo y con su propuesta
 `APROBADO`) escribiendo un mensaje obligatorio de 1 a 200 caracteres. Solo regresan los talleres elegidos; los demás siguen
 `APROBADO`. No se puede rechazar con una modificación en trámite.
 
@@ -490,7 +490,7 @@ cambia quién puede hacer cada acción.
 |---|---|---|
 | Administrador (1) | `vales.ver`, `vales.ver_reportes`, `vales.ver_historial` (+ `admin.*`) | Ve todo el buzón. **No** tiene permisos de escritura sobre vales: no puede autorizar, asignar, aprobar ni confirmar. En las filas solo tiene tres acciones de lectura (ver §6). |
 | Asesor de Ventas (2) | `ver`, `crear`, `editar`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir`, **`rechazar_propuesta`** | Crea vales; los corrige o da de baja antes de ser autorizados; confirma el recibido, rechaza la propuesta de un taller (§1.2) o solicita la modificación. |
-| Supervisor de Ventas (3) | `ver`, `autorizar_creacion`, `aprobar_modificacion`, `supervisar`, `ver_cupo`, y para sus propios vales `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`supervisor_tiendas`). También crea y gestiona **sus propios vales** (ver «Vales del supervisor» abajo). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
+| Supervisor de Ventas (3) | `ver`, `autorizar_creacion`, `aprobar_modificacion`, `supervisar`, `ver_cupo`, y para sus propios vales `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir`, `rechazar_propuesta` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`supervisor_tiendas`). También crea y gestiona **sus propios vales** (ver «Vales del supervisor» abajo). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
 | Encargado de Diseño (4) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Dueño del taller "Diseño". Asigna y revisa, puede trabajar vales él mismo, y **fusiona** los vales multi-taller. |
 | Encargado de Diseño UV/3D (5) | `ver`, `asignar`, `revisar`, `trabajar` | Dueño del taller "Diseño UV/3D". Sin fusión. |
 | Diseñador (6) | `ver`, `trabajar` | Comienza, pausa, reanuda, cancela y entrega sus vales. |
@@ -499,7 +499,7 @@ cambia quién puede hacer cada acción.
 | Encargado de Protextil (9) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de su taller; puede trabajar vales él mismo, pero **sin fusión**. |
 | Diseño Local (10) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de un taller de Diseño Local (ligado a una tienda); sin fusión. |
 
-> **Rechazo de propuesta (§1.2).** `vales.rechazar_propuesta` lo tiene el rol Asesor (2). `vales.responder_rechazo_propuesta` lo tienen los
+> **Rechazo de propuesta (§1.2).** `vales.rechazar_propuesta` lo tienen los roles Asesor (2) y Supervisor de Ventas (3); este último solo sobre la propuesta de los vales que él mismo creó. `vales.responder_rechazo_propuesta` lo tienen los
 > mismos roles que ya tenían `vales.verificar_adjuntos`: los encargados y asistentes de cada taller. Los usuarios deben cerrar sesión e iniciar de
 > nuevo para recibir los permisos. `vales.responder_modificacion_basica` quedó sin uso.
 
