@@ -31,7 +31,8 @@ function escapeHtml(valor) {
 const esVacio = (valor) => valor === '' || valor == null;
 const enfocar = (el) => { if (el) el.focus({ preventScroll: true }); };
 
-export function construirArbolTiendas(tiendas) {
+// `conTodas`: primera fila «Todas — <país|grupo>» en cada submenú de 2 o más tiendas, con valor «pais:X» o «grupo:Y».
+export function construirArbolTiendas(tiendas, { conTodas = false } = {}) {
   const etiquetaTienda = t => (t.codigo ? `${t.codigo} - ${t.nombre}` : t.nombre);
   const porEtiqueta = (a, b) => etiquetaTienda(a).localeCompare(etiquetaTienda(b));
   const hojaDe = t => ({ tipo: 'hoja', valor: t.id, etiqueta: etiquetaTienda(t) });
@@ -48,26 +49,35 @@ export function construirArbolTiendas(tiendas) {
     return a.localeCompare(b);
   });
 
+  // Con un solo país su nivel se colapsa y no lleva fila «Todas».
+  const conFilaPais = conTodas && paises.length > 1;
+  const filaTodas = (valor, etiqueta) => ({ tipo: 'hoja', valor, etiqueta: `Todas — ${etiqueta}` });
+
   const nodosPais = paises.map((pais, indice) => {
     const sueltas = [];
     const gruposPorDepto = new Map();
+    const deptoDeGrupo = new Map();
     porPais.get(pais).slice().sort(porEtiqueta).forEach(t => {
       const depto = t.departamento_nombre || '';
       // Los departamentos Trofex (Ruta 1/Ruta 2) van como grupo de nivel 3; el resto queda suelto.
       if (/trofex/i.test(depto)) {
         const etiquetaGrupo = depto.replace(/^Ventas\s+/i, '');
-        if (!gruposPorDepto.has(etiquetaGrupo)) gruposPorDepto.set(etiquetaGrupo, []);
+        if (!gruposPorDepto.has(etiquetaGrupo)) { gruposPorDepto.set(etiquetaGrupo, []); deptoDeGrupo.set(etiquetaGrupo, depto); }
         gruposPorDepto.get(etiquetaGrupo).push(t);
       } else {
         sueltas.push(t);
       }
     });
     const hijos = [
+      ...(conFilaPais && porPais.get(pais).length >= 2 ? [filaTodas(`pais:${pais}`, pais)] : []),
       ...sueltas.map(hojaDe),
       ...[...gruposPorDepto.keys()].sort((a, b) => a.localeCompare(b)).map(etiqueta => ({
         tipo: 'grupo',
         etiqueta,
-        hijos: gruposPorDepto.get(etiqueta).map(hojaDe)
+        hijos: [
+          ...(conTodas && gruposPorDepto.get(etiqueta).length >= 2 ? [filaTodas(`grupo:${deptoDeGrupo.get(etiqueta)}`, etiqueta)] : []),
+          ...gruposPorDepto.get(etiqueta).map(hojaDe)
+        ]
       }))
     ];
     const nodo = { tipo: 'grupo', etiqueta: pais, hijos };

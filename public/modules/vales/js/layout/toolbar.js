@@ -66,7 +66,7 @@ export function wireToolbar() {
     const menuTienda = crearMenuCascada({
       arbol: [
         { tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' },
-        ...construirArbolTiendas(state.catalogos.tiendasGerencia || state.catalogos.tiendas || [])
+        ...construirArbolTiendas(state.catalogos.tiendasGerencia || state.catalogos.tiendas || [], { conTodas: true })
       ],
       valorActual: state.tiendaId ? String(state.tiendaId) : '',
       etiquetaVacio: 'Todas las tiendas',

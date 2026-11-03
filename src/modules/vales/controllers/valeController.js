@@ -107,6 +107,7 @@ class ValeController {
         soloModificados: req.query.soloModificados,
         disenadorId: req.query.disenadorId,
         tiendaId: req.query.tiendaId,
+        tiendaIds: req.query.tiendaIds,
         sortKey: req.query.sortKey,
         sortDir: req.query.sortDir
       };

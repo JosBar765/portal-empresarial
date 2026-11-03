@@ -89,6 +89,14 @@ const ESTADOS_ADJUNTOS = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.AD
 const ESTADOS_ADJUNTOS_VISIBLES_ASESOR = [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
 const esPendienteAsignacion = (estado) => estado === ESTADOS_TALLER.PENDIENTE_ASIGNACION || ESTADOS_ADJUNTOS.includes(estado);
 
+const MAX_TIENDAS_FILTRO = 500;
+
+// Une la lista `tiendaIds` (CSV) con el `tiendaId` anterior; lo que no sea entero positivo se ignora.
+function idsDeTiendaFiltro({ tiendaIds, tiendaId } = {}) {
+  const ids = [...String(tiendaIds ?? '').split(','), String(tiendaId ?? '')].map(Number).filter(n => Number.isInteger(n) && n > 0);
+  return new Set([...new Set(ids)].slice(0, MAX_TIENDAS_FILTRO));
+}
+
 class ValeBuzonService {
   // Adjuntos reclamados por taller (rechazados/respondidos) para asesor y supervisor; VERIFICANDO no se muestra.
   _adjuntosDe(vale) {
@@ -308,13 +316,9 @@ class ValeBuzonService {
       todosConTaller = await this._enriquecerConTaller(cargados, valeTalleresTodos);
     }
 
-    // Filtro por tienda: solo lo manda el frontend del Supervisor (y,
-    // opcionalmente, Administrador) para acotar el listado a una sola
-    // tienda; el resto de roles nunca lo envían.
-    if (filtros.tiendaId) {
-      const tiendaId = Number(filtros.tiendaId);
-      todosConTaller = todosConTaller.filter(v => v.tienda_id === tiendaId);
-    }
+    // Filtro por tienda (una, un país o un grupo Trofex): solo lo manda el frontend de Supervisor, Gerente y Administrador.
+    const tiendasFiltro = idsDeTiendaFiltro(filtros);
+    if (tiendasFiltro.size) todosConTaller = todosConTaller.filter(v => tiendasFiltro.has(v.tienda_id));
 
     let resultado = await this._resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador);
     // «Atrasados» se combina con las demás tarjetas: con otra activa cuenta los atrasados de esa selección. En Trabajo
@@ -943,3 +947,4 @@ class ValeBuzonService {
 }
 
 module.exports = new ValeBuzonService();
+module.exports.idsDeTiendaFiltro = idsDeTiendaFiltro;

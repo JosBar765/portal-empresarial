@@ -3,6 +3,7 @@ import { $, $$ } from '../utils/dom.js';
 import { ROL, ROLES_CON_SIDEBAR, ROLES_TALLER_Y_DISENADOR, rolEncargadoDe } from '../config/roles.js';
 import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { aplicarVentanaAQuery } from '../utils/ventana.js';
+import { paramsDeTienda } from '../utils/filtroTiendas.js';
 import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible } from '../permisos.js';
 import { celdaEstado } from '../components/pipeline.js';
 import { abrirVisorVale } from '../components/visorDocumento.js';
@@ -37,7 +38,9 @@ export function construirQueryBase() {
   if (state.soloModificados) qs.set('soloModificados', '1');
   if (state.disenadorFiltro && state.vista !== 'trabajo') qs.set('disenadorId', state.disenadorFiltro);
   if (state.busqueda) qs.set('busqueda', state.busqueda);
-  if (state.tiendaId) qs.set('tiendaId', state.tiendaId);
+  // Mismas tiendas con las que se armó el menú, para convertir país o grupo en la lista de ids.
+  const tiendasMenu = (state.catalogos && (state.catalogos.tiendasGerencia || state.catalogos.tiendas)) || [];
+  Object.entries(paramsDeTienda(state.tiendaId, tiendasMenu)).forEach(([clave, valor]) => qs.set(clave, valor));
   if (state.sort.key && state.sort.dir) {
     qs.set('sortKey', state.sort.key);
     qs.set('sortDir', state.sort.dir);
