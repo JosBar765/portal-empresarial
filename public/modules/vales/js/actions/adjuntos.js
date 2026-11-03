@@ -216,7 +216,9 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
     hilo.scrollTop = hilo.scrollHeight;
     zonaEscribir.hidden = !conversacion.puede_escribir;
     cerrada.hidden = conversacion.puede_escribir;
-    cerrada.querySelector('span').textContent = 'Solo lectura.';
+    cerrada.querySelector('span').textContent = conversacion.lado === 'ASESOR' && conversacion.estado === 'ADJUNTOS_RESPONDIDOS'
+      ? 'Ya avisaste al taller: espera su revisión.'
+      : 'Solo lectura.';
     btnYaAtendi.hidden = !(puedeResponderAdjuntos(vale) && conversacion.puede_escribir && conversacion.lado === 'ASESOR' && conversacion.estado === 'ADJUNTOS_RECHAZADOS');
   };
   const refrescar = async () => {
