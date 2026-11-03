@@ -1,7 +1,7 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { verificarAdjuntos, rechazarAdjuntos, responderAdjuntos, darDeBajaTallerVale, obtenerConversacion, enviarMensajeRechazo } from '../api/valesApi.js';
-import { escapeHtml, formatearFechaHora, inicialesAvatar } from '../utils/formato.js';
-import { puedeResponderAdjuntos, puedeLeerConversacionAdjuntos } from '../permisos.js';
+import { escapeHtml, inicialesAvatar } from '../utils/formato.js';
+import { puedeResponderAdjuntos } from '../permisos.js';
 import { state } from '../state.js';
 import { cargarBuzon } from '../views/buzon.js';
 
@@ -194,10 +194,7 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
   };
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
   // «Ya lo atendí» vive también en el chat: los asesores olvidaban salir a avisar al taller al terminar de conversar.
-  btnYaAtendi.addEventListener('click', () => abrirModalResponderAdjuntos(vale, { taller_id: tallerId, taller: nombreTaller || 'el taller' }, () => {
-    cerrar();
-    if (state.adjuntosModalAbierto && state.adjuntosModalAbierto.valeId === vale.id) state.adjuntosModalAbierto.cerrar();
-  }));
+  btnYaAtendi.addEventListener('click', () => abrirModalResponderAdjuntos(vale, { taller_id: tallerId, taller: nombreTaller || 'el taller' }, cerrar));
 
   const ajustarAlto = () => { textarea.style.height = 'auto'; textarea.style.height = `${Math.min(textarea.scrollHeight, 110)}px`; };
 
@@ -253,59 +250,34 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
 }
 
 // -----------------------------------------------------------------------
-// Asesor (y supervisor): vale rechazado por un taller. Solo el dueño escribe; el supervisor lee la conversación.
+// Ícono rojo del buzón (asesor y supervisor): abre directo el chat del taller o, si hay varios, deja elegir cuál
 // -----------------------------------------------------------------------
-export function abrirModalAdjuntosPendientes(vale) {
+export function abrirConversacionAdjuntos(vale) {
   const adjuntos = vale.adjuntos || [];
-  const puedeResponder = puedeResponderAdjuntos(vale);
-  const puedeLeer = puedeLeerConversacionAdjuntos(vale);
-  const esMod = Number(vale.vale_original_id) > 0;
-  const tarjetas = adjuntos.map(a => {
-    if (a.estado === 'ADJUNTOS_RESPONDIDOS') {
-      return `<li class="rechazo-tarjeta">
-        <div class="rechazo-cab"><strong>${escapeHtml(a.taller)}</strong><span class="chip-estado chip-estado--info">Esperando revisión del taller</span></div>
-        <p class="rechazo-texto">Ya avisaste al taller. Tu mensaje:</p>
-        <p class="mensaje-adjuntos">${escapeHtml(a.mensaje || MENSAJE_POR_DEFECTO)}</p>
-        ${puedeLeer ? `<div class="rechazo-acciones"><button class="btn btn--ghost btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Ver conversación</button></div>` : ''}
-      </li>`;
-    }
-    return `<li class="rechazo-tarjeta rechazo-tarjeta--alerta">
-      <div class="rechazo-cab"><strong>${escapeHtml(a.taller)}</strong><span class="chip-estado chip-estado--alerta">Rechazado por el taller</span></div>
-      <p class="rechazo-texto">Atiende el mensaje del taller. Si no se resuelve, ${esMod ? 'la solicitud de modificación se elimina' : a.total_talleres >= 2 ? `el taller ${escapeHtml(a.taller)} se dará de baja de este vale` : 'el vale se elimina'}${a.vence_en ? ` el ${escapeHtml(formatearFechaHora(a.vence_en))}` : ''}.</p>
-      ${puedeResponder ? `<div class="rechazo-acciones">
-        <button class="btn btn--primary btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Leer y responder</button>
-        <button class="btn btn--ghost btn--sm" data-responder="${Number(a.taller_id)}"><ion-icon name="checkmark-done-outline"></ion-icon> Ya lo atendí</button>
-      </div>` : puedeLeer ? `<div class="rechazo-acciones"><button class="btn btn--ghost btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Ver conversación</button></div>` : ''}
-    </li>`;
-  }).join('');
-
-  const hayRechazados = adjuntos.some(a => a.estado === 'ADJUNTOS_RECHAZADOS');
+  if (!adjuntos.length) return;
+  if (adjuntos.length === 1) { abrirModalConversacion(vale, adjuntos[0].taller_id, adjuntos[0].taller); return; }
   const { overlay, cerrar } = abrirModal({
-    title: `${hayRechazados ? 'Vale rechazado por un taller' : 'Aviso enviado al taller'} — ${vale.correlativo}`,
+    title: `Conversaciones — ${vale.correlativo}`,
     bodyHtml: `
-      <ul class="rechazo-lista">${tarjetas}</ul>
-      ${hayRechazados && !puedeResponder ? '<p class="campo-ayuda" style="margin-top:10px;">Solo el asesor del vale puede responder.</p>' : ''}
-    `,
+      <p class="mod-intro">¿Cuál quieres abrir?</p>
+      <div class="lista-conversaciones">${adjuntos.map(a => {
+        const estado = ESTADO_CHAT[a.estado];
+        return `
+        <button type="button" class="fila-conversacion" data-taller="${Number(a.taller_id)}">
+          <span class="fila-conversacion-taller"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon>${escapeHtml(a.taller)}</span>
+          ${estado ? `<span class="chip-estado ${estado.clase}">${escapeHtml(estado.texto)}</span>` : ''}
+          <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+        </button>`;
+      }).join('')}</div>`,
     footerHtml: '<button class="btn btn--ghost" id="btn-cerrar">Cerrar</button>'
   });
-  const cerrarModal = () => {
-    if (state.adjuntosModalAbierto && state.adjuntosModalAbierto.overlay === overlay) state.adjuntosModalAbierto = null;
+  overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
+  overlay.querySelectorAll('[data-taller]').forEach(btn => btn.addEventListener('click', () => {
+    const adjunto = adjuntos.find(a => a.taller_id === Number(btn.dataset.taller));
+    if (!adjunto) return;
     cerrar();
-  };
-  state.adjuntosModalAbierto = { overlay, valeId: vale.id, cerrar: cerrarModal };
-  overlay.querySelector('#btn-cerrar').addEventListener('click', cerrarModal);
-  overlay.querySelectorAll('[data-conversacion]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const adjunto = adjuntos.find(a => a.taller_id === Number(btn.dataset.conversacion));
-      if (adjunto) abrirModalConversacion(vale, adjunto.taller_id, adjunto.taller);
-    });
-  });
-  overlay.querySelectorAll('[data-responder]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const adjunto = adjuntos.find(a => a.taller_id === Number(btn.dataset.responder));
-      if (adjunto) abrirModalResponderAdjuntos(vale, adjunto, cerrarModal);
-    });
-  });
+    abrirModalConversacion(vale, adjunto.taller_id, adjunto.taller);
+  }));
 }
 
 // Confirmación de la baja de un solo taller; la abre el modal de «Dar de baja» del vale multitaller (asesor.js).
