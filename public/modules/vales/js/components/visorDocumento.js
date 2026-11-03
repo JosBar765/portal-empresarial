@@ -18,11 +18,13 @@ let visorAbierto = null;
 // `activo`: índice del documento que se muestra primero.
 // `acciones`: [{ etiqueta, icono, clase, onClick({ cerrar, boton }) }], botones que se muestran abajo a la derecha.
 // `aviso`: { texto, icono, boton: { etiqueta, onClick({ quitar }) } }, una franja corta sobre el documento.
-export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, acciones = [], aviso = null }) {
+// `alCerrar`: se ejecuta una vez al cerrar el visor (X, Escape, fondo o acción), no cuando otro visor lo reemplaza.
+export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, acciones = [], aviso = null, alCerrar = null }) {
   if (!documentos || !documentos.length) return null;
-  if (visorAbierto) visorAbierto.cerrar();
+  if (visorAbierto) { visorAbierto.descartarAlCerrar(); visorAbierto.cerrar(); }
   const origen = document.activeElement;
   let actual = Math.min(Math.max(activo, 0), documentos.length - 1);
+  let alCerrarPendiente = alCerrar;
 
   const overlay = document.createElement('div');
   overlay.className = 'visor-overlay';
@@ -145,6 +147,9 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, acc
     overlay.remove();
     if (visorAbierto && visorAbierto.overlay === overlay) visorAbierto = null;
     if (origen && origen.isConnected && typeof origen.focus === 'function') origen.focus();
+    const despues = alCerrarPendiente;
+    alCerrarPendiente = null;
+    if (despues) despues();
   }
 
   // Esc cierra; Tab se queda dentro del visor; las flechas cambian de pestaña.
@@ -180,13 +185,13 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, acc
 
   mostrar(actual);
   (overlay.querySelector('.visor-pestana.is-activa') || overlay.querySelector('[data-visor-cerrar]')).focus();
-  visorAbierto = { overlay, cerrar };
+  visorAbierto = { overlay, cerrar, descartarAlCerrar: () => { alCerrarPendiente = null; } };
   return visorAbierto;
 }
 
 // Atajo para un vale: su PDF y, si tiene, su propuesta (con nota y enlaces). `propuesta`: { tipo: 'taller' | 'general' | 'ultima',
 // disenadorId } o null; `activo`: 'vale' | 'propuesta'.
-export function abrirVisorVale({ id, correlativo, propuesta = null, activo = 'vale', acciones = [], subtitulo = '', aviso = null }) {
+export function abrirVisorVale({ id, correlativo, propuesta = null, activo = 'vale', acciones = [], subtitulo = '', aviso = null, alCerrar = null }) {
   const documentos = [{ etiqueta: 'Vale de arte', url: `/api/vales/${id}/pdf` }];
   if (propuesta) documentos.push({ etiqueta: 'Propuesta', cargar: () => obtenerPropuestaVale(id, propuesta) });
   return abrirVisor({
@@ -195,7 +200,8 @@ export function abrirVisorVale({ id, correlativo, propuesta = null, activo = 'va
     documentos,
     activo: activo === 'propuesta' && propuesta ? 1 : 0,
     acciones,
-    aviso
+    aviso,
+    alCerrar
   });
 }
 

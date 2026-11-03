@@ -22,7 +22,7 @@ class ValeController {
 
   async talleres(req, res) {
     try {
-      const data = await valeService.obtenerTalleres();
+      const data = await valeService.obtenerTalleres(req.user);
       return res.json(data);
     } catch (error) {
       return responderErrorInterno(res, error);
@@ -39,17 +39,17 @@ class ValeController {
       if (!talleresIds.length || !Number.isInteger(anio) || !Number.isInteger(mes) || mes < 1 || mes > 12) {
         return res.status(400).json({ error: 'Parámetros inválidos: se requieren talleres, anio y mes.' });
       }
-      const data = await valeService.obtenerCapacidadEntrega(talleresIds, anio, mes);
+      const data = await valeService.obtenerCapacidadEntrega(talleresIds, anio, mes, req.user);
       return res.json(data);
     } catch (error) {
-      return responderErrorInterno(res, error);
+      return responderError(res, error);
     }
   }
 
   // Mínima y días no disponibles (feriados, días sin recepción, hora máxima) para los talleres elegidos.
   async fechasEntrega(req, res) {
     try {
-      const data = await valeService.obtenerFechasEntrega(req.query.talleres, req.query.desde, req.query.hasta, req.query.urgente, req.query.modificacion);
+      const data = await valeService.obtenerFechasEntrega(req.query.talleres, req.query.desde, req.query.hasta, req.query.urgente, req.query.modificacion, req.user);
       return res.json(data);
     } catch (error) {
       return responderError(res, error);
@@ -107,6 +107,7 @@ class ValeController {
         soloModificados: req.query.soloModificados,
         disenadorId: req.query.disenadorId,
         tiendaId: req.query.tiendaId,
+        tiendaIds: req.query.tiendaIds,
         sortKey: req.query.sortKey,
         sortDir: req.query.sortDir
       };
@@ -124,7 +125,9 @@ class ValeController {
       desde: req.query.desde,
       hasta: req.query.hasta,
       tiendaId: req.query.tiendaId,
+      tiendaIds: req.query.tiendaIds,
       tallerId: req.query.tallerId,
+      tallerIds: req.query.tallerIds,
       personaIds: req.query.personaIds,
       asesorIds: req.query.asesorIds,
       disenadorIds: req.query.disenadorIds,
@@ -334,7 +337,7 @@ class ValeController {
 
   async aceptarRechazoPropuesta(req, res) {
     try {
-      return res.json(await valeService.aceptarRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId)));
+      return res.json(await valeService.aceptarRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId), req.body && req.body.mensaje));
     } catch (error) {
       return responderError(res, error);
     }

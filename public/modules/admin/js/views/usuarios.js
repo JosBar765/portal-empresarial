@@ -2,7 +2,8 @@ import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
 import { ROL_ADMINISTRADOR } from '../config/roles.js';
-import { crearMenuCascada, construirArbolTiendas, construirArbolRoles } from '../components/menuCascada.js';
+import { crearMenuCascada, crearFiltroTiendas, construirArbolRoles } from '../components/menuCascada.js';
+import { resolverTiendaIds, valorVigente } from '/js/filtroCascada.js';
 import { listarUsuariosRaw, listarTiendas, listarRolesRaw, toggleActivoUsuario as apiToggleActivoUsuario } from '../api/adminApi.js';
 import { abrirModalUsuario } from '../forms/usuarioForm.js';
 
@@ -33,6 +34,7 @@ export async function cargarUsuarios() {
 // desmontado a media escritura y solo se veía el primer carácter tecleado.
 export function renderUsuarios() {
   const r = state.usuariosResumen;
+  state.filtroTiendaUsuarios = valorVigente(state.filtroTiendaUsuarios, v => resolverTiendaIds(v, state.catalogoTiendas));
   $('#panel-content').innerHTML = `
     <div class="panel-toolbar">
       <h2>Gestionar Usuarios</h2>
@@ -57,11 +59,9 @@ export function renderUsuarios() {
     </div>
   `;
   renderFilasUsuarios();
-  $('#filtro-tienda-usuarios-cont').appendChild(crearMenuCascada({
-    arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' }, ...construirArbolTiendas(state.catalogoTiendas)],
+  $('#filtro-tienda-usuarios-cont').appendChild(crearFiltroTiendas({
+    tiendas: state.catalogoTiendas,
     valorActual: state.filtroTiendaUsuarios,
-    etiquetaVacio: 'Todas las tiendas',
-    ariaLabel: 'Filtrar por tienda',
     onSeleccionar: (valor) => { state.filtroTiendaUsuarios = String(valor); renderFilasUsuarios(); }
   }).elemento);
   $('#filtro-rol-usuarios-cont').appendChild(crearMenuCascada({
@@ -78,12 +78,13 @@ export function renderUsuarios() {
 
 export function renderFilasUsuarios() {
   const filtro = state.busquedaUsuarios.trim().toLowerCase();
+  const tiendasFiltro = new Set(resolverTiendaIds(state.filtroTiendaUsuarios, state.catalogoTiendas));
   const filas = state.usuarios.filter(u => {
     const coincideBusqueda = !filtro ||
       u.nombre.toLowerCase().includes(filtro) ||
       u.email.toLowerCase().includes(filtro) ||
       (u.rol_nombre || '').toLowerCase().includes(filtro);
-    const coincideTienda = !state.filtroTiendaUsuarios || String(u.tienda_id) === state.filtroTiendaUsuarios;
+    const coincideTienda = !state.filtroTiendaUsuarios || tiendasFiltro.has(Number(u.tienda_id));
     const coincideRol = !state.filtroRolUsuarios || String(u.rol_id) === state.filtroRolUsuarios;
     return coincideBusqueda && coincideTienda && coincideRol;
   });

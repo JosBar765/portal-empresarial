@@ -144,6 +144,12 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-warning) 50%, transparent);
 }
 
+.pl-marca--vence-adjuntos {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-danger) 50%, transparent);
+}
+
 .pl-tooltip {
   position: fixed;
   z-index: 1000;

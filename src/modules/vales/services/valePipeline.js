@@ -46,7 +46,21 @@ function etapaDeTalleres(vale, filas, estadoPropio) {
   return { paso: ref.paso, nodo: ref.nodo || 'actual', etiqueta, detalle, tono: ref.tono || 'info' };
 }
 
-function marcasDe(vale) {
+const textoVence = (minutos) => (minutos >= 60 ? `Vence en ${Math.ceil(minutos / 60)} h` : `Vence en ${minutos} min`);
+
+// Plazo de los adjuntos rechazados: el del taller que vence primero, con el mismo tiempo laboral que la vigencia.
+function marcaVenceAdjuntos(vale) {
+  const restantes = (vale._filasTaller || [])
+    .filter(f => f.estado === ESTADOS_TALLER.ADJUNTOS_RECHAZADOS && f.adjuntos_vence_en != null)
+    .map(f => {
+      const laboral = calendarioService.minutosRestantesDeVale(f.adjuntos_vence_en, vale.talleres_solicitados);
+      return laboral ? laboral.minutos : Math.ceil((new Date(f.adjuntos_vence_en).getTime() - Date.now()) / 60000);
+    })
+    .filter(Number.isFinite);
+  return restantes.length ? { tipo: 'vence-adjuntos', texto: textoVence(Math.max(0, Math.min(...restantes))) } : null;
+}
+
+function marcasDe(vale, { conAdjuntos = false } = {}) {
   const marcas = [];
   if (ESTADOS_CON_VIGENCIA.includes(vale.estado) && vale.vigencia_hasta != null) {
     // Tiempo laboral restante (se detiene fuera de horario); sin calendario cargado, el reloj corrido de la base.
@@ -55,9 +69,11 @@ function marcasDe(vale) {
     const urgente = laboral ? laboral.umbralUrgente : MINUTOS_VENCE_URGENTE_RESPALDO;
     marcas.push({
       tipo: minutos <= urgente ? 'vence-urgente' : 'vence',
-      texto: minutos >= 60 ? `Vence en ${Math.ceil(minutos / 60)} h` : `Vence en ${minutos} min`
+      texto: textoVence(minutos)
     });
   }
+  const adjuntos = conAdjuntos ? marcaVenceAdjuntos(vale) : null;
+  if (adjuntos) marcas.push(adjuntos);
   return marcas;
 }
 
@@ -105,7 +121,7 @@ function calcularPipeline(vale, opciones = {}) {
     r.detalle = `${plural(vale.diasAtraso, 'día', 'días')} de atraso`;
   }
   const nodos = r.nodos || (terminado ? PASOS.map(() => 'completado') : nodosHasta(r.paso, r.nodo));
-  const marcas = marcasDe(vale);
+  const marcas = marcasDe(vale, { conAdjuntos: !esTallerODisenador(opciones) });
   const talleres = filas.length > 1
     ? filas.map(f => ({ nombre: f.nombre || `Taller ${f.taller_id}`, etiqueta: (ETAPA_TALLER[f.estado] || {}).etiqueta || 'Aprobado', estado: f.estado }))
     : [];

@@ -302,7 +302,69 @@ async function esSupervisorDelAsesor(usuario, vale) {
 const ESTADOS_SIN_PROTEGER = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RECHAZADOS];
 const algunTallerProtege = (filas) => filas.some(f => !ESTADOS_SIN_PROTEGER.includes(f.estado));
 
+// Topes técnicos de las columnas INT (cantidad) y DECIMAL(10,2) (cotización) de `vales`; el borrador los comparte.
+const MAX_ENTERO = 2147483647;
+const MAX_COTIZACION = 99999999.99;
+const conMiles = (texto) => texto.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const TEXTO_MAX_ENTERO = conMiles(String(MAX_ENTERO));
+const TEXTO_MAX_COTIZACION = (([entero, decimales]) => `${conMiles(entero)},${decimales}`)(MAX_COTIZACION.toFixed(2).split('.'));
+
+// Sin tope, un valor enorme llegaba a MySQL y respondía un 500 genérico.
+function validarCantidadYCotizacion(cantidad, cotizacion) {
+  const cantidadNum = Number(cantidad);
+  if (!Number.isInteger(cantidadNum) || cantidadNum < 1 || cantidadNum > MAX_ENTERO) {
+    throw new Error(`La cantidad debe ser un número entero de 1 en adelante (máximo ${TEXTO_MAX_ENTERO}). Revisa el valor ingresado.`);
+  }
+  const cotizacionNum = Number(cotizacion);
+  if (!Number.isFinite(cotizacionNum) || cotizacionNum <= 0 || cotizacionNum > MAX_COTIZACION) {
+    throw new Error(`La cotización debe ser un número mayor a 0 y de hasta ${TEXTO_MAX_COTIZACION}. Revisa el valor ingresado.`);
+  }
+  return { cantidad: cantidadNum, cotizacion: cotizacionNum };
+}
+
+// Máximos de texto del vale: los que caben en su celda del PDF aun con letras anchas (la descripción se autoajusta); el borrador los comparte.
+const LIMITES_TEXTO_VALE = {
+  clienteNombre: 100, clienteEmpresa: 100, clienteTelefono: 20, clienteCorreo: 100,
+  producto: 40, material: 40, tecnica: 40, acabado: 40, descripcion: 600
+};
+const ETIQUETAS_TEXTO_VALE = {
+  clienteNombre: 'El nombre del cliente', clienteEmpresa: 'La empresa', clienteTelefono: 'El teléfono',
+  clienteCorreo: 'El correo', producto: 'El código de producto', material: 'El material',
+  tecnica: 'La técnica', acabado: 'El acabado', descripcion: 'La descripción'
+};
+
+// Sin esto, un texto demasiado largo llegaba a MySQL y su error nombraba la columna.
+function validarLongitudCampo(campo, valor) {
+  const maximo = LIMITES_TEXTO_VALE[campo];
+  if (!valor || String(valor).length <= maximo) return;
+  const etiqueta = ETIQUETAS_TEXTO_VALE[campo];
+  throw new Error(`${etiqueta} es demasiad${etiqueta.startsWith('La ') ? 'a larga' : 'o largo'} (máximo ${maximo} caracteres).`);
+}
+
+// Talleres a los que un asesor puede enviar: los generales y el Diseño Local de su propia tienda.
+const talleresElegiblesDeTienda = (talleres, tiendaId) => talleres.filter(t => t.tienda_id == null || t.tienda_id === tiendaId);
+
+// Elegibilidad de los talleres de un vale (ids ya numéricos): los mismos mensajes al crear, al guardar un borrador y al consultar fechas.
+// `tiendaIdAsesor` activa las reglas de Diseño Local: nunca se mezcla con los generales ni se elige el de otra tienda.
+function validarEleccionTalleres(talleresIds, talleresActivos, tiendaIdAsesor = null) {
+  const idsValidos = new Set(talleresActivos.map(t => t.id));
+  if (!talleresIds.every(id => idsValidos.has(id))) {
+    throw new Error('Alguno de los talleres elegidos ya no está disponible. Vuelve a elegirlos.');
+  }
+  if (tiendaIdAsesor === null) return;
+  const seleccionados = talleresIds.map(id => talleresActivos.find(t => t.id === id));
+  const locales = seleccionados.filter(t => t.tienda_id !== null);
+  const generales = seleccionados.filter(t => t.tienda_id === null);
+  if (locales.length > 0 && generales.length > 0) {
+    throw new Error('El Diseño Local no se puede combinar con los talleres generales (Diseño, Diseño UV/3D y Protextil). Elige solo uno de los dos tipos.');
+  }
+  if (locales.some(t => t.tienda_id !== tiendaIdAsesor)) {
+    throw new Error('Solo se puede enviar a Diseño Local de su propia tienda.');
+  }
+}
+
 module.exports = {
+  LIMITES_TEXTO_VALE, ETIQUETAS_TEXTO_VALE, validarLongitudCampo, validarEleccionTalleres, talleresElegiblesDeTienda,
   algunTallerProtege, ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
@@ -310,6 +372,6 @@ module.exports = {
   esValeDeModificacion, DIAS_HABILES_MODIFICACION, diasHabilesDeModificacion, TIPOS_MODIFICACION_CON_VALE,
   PREFIJO_MOD, esCorrelativoMod, correlativoBase, armarCorrelativoMod, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
-  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial,
+  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial, MAX_ENTERO, MAX_COTIZACION, validarCantidadYCotizacion,
   requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo, validarMensajeChat, salasDeInvolucrados, esSupervisorDelAsesor
 };

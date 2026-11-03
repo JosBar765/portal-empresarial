@@ -1,7 +1,8 @@
 import { state } from '../state.js';
 import { $ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
-import { crearMenuCascada, construirArbolTiendas } from '../components/menuCascada.js';
+import { crearFiltroTiendas } from '../components/menuCascada.js';
+import { resolverTiendaIds, valorVigente } from '/js/filtroCascada.js';
 import { listarTiendas, obtenerOrganizacion } from '../api/adminApi.js';
 import { abrirModalTienda } from '../forms/tiendaForm.js';
 import { abrirModalVerPersonal, abrirModalPersonal } from '../actions/tiendaPersonal.js';
@@ -40,16 +41,16 @@ export function renderTiendas() {
       </table>
     </div>
   `;
-  $('#filtro-tienda-tiendas-cont').appendChild(crearMenuCascada({
-    arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' }, ...construirArbolTiendas(state.tiendas)],
+  state.filtroTiendaTiendas = valorVigente(state.filtroTiendaTiendas, v => resolverTiendaIds(v, state.tiendas));
+  $('#filtro-tienda-tiendas-cont').appendChild(crearFiltroTiendas({
+    tiendas: state.tiendas,
     valorActual: state.filtroTiendaTiendas,
-    etiquetaVacio: 'Todas las tiendas',
-    ariaLabel: 'Filtrar por tienda',
     onSeleccionar: (valor) => { state.filtroTiendaTiendas = String(valor); renderTiendas(); }
   }).elemento);
 
   // Filtro por tienda en vez de reordenar manualmente el catálogo.
-  const tiendasFiltradas = state.tiendas.filter(t => !state.filtroTiendaTiendas || String(t.id) === state.filtroTiendaTiendas);
+  const tiendasFiltro = new Set(resolverTiendaIds(state.filtroTiendaTiendas, state.tiendas));
+  const tiendasFiltradas = state.tiendas.filter(t => !state.filtroTiendaTiendas || tiendasFiltro.has(Number(t.id)));
   const tbody = $('#tiendas-tbody');
   tbody.innerHTML = tiendasFiltradas.map(t => `
     <tr>
