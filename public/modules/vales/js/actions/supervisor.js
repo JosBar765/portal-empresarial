@@ -12,6 +12,9 @@ import { abrirVisorVale, abrirVisorDocumentos } from '../components/visorDocumen
 // ids); recién aquí se reparten de verdad.
 // -----------------------------------------------------------------------
 const MAX_PALABRAS_MOTIVO = 50;
+const MENSAJE_RECHAZO_POR_DEFECTO = 'Rechazado';
+const MOTIVOS_RAPIDOS_CREACION = ['Corrige los datos del cliente y reenvía.', 'La fecha de entrega no es viable: elige otra.', 'Falta información o archivos: complétalos y reenvía.'];
+const MOTIVOS_RAPIDOS_MODIFICACION = ['Esta modificación no procede.', 'Crea una nueva con el cambio completo.'];
 
 // El supervisor debe haber abierto "Ver" en el vale antes de autorizarlo (también se exige en el servidor).
 function htmlAvisoVisto(vale) {
@@ -90,12 +93,18 @@ function abrirModalRechazarCreacion(vale, cerrarAutorizacion, { modificacion = f
   const { overlay, cerrar } = abrirModal({
     title: `${modificacion ? 'Rechazar modificación' : 'Rechazar vale'} — ${vale.correlativo}`,
     bodyHtml: `
-      <p style="font-size:13px;margin-bottom:10px;">${modificacion
-        ? 'Se elimina la modificación y el asesor verá tu justificación. El vale anterior sigue Recibido.'
-        : 'El asesor lo corrige y lo reenvía con tu justificación.'}</p>
+      <div class="aviso-rechazo">
+        <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
+        <p>${modificacion
+          ? 'Se elimina la modificación y el asesor verá tu mensaje. El vale anterior sigue Recibido.'
+          : 'El asesor lo corrige y lo reenvía con tu mensaje.'}</p>
+      </div>
       <div class="form-field full">
-        <label>Justificación *</label>
-        <textarea id="motivo-rechazo" rows="4" maxlength="400"></textarea>
+        <label for="motivo-rechazo">Mensaje para el asesor *</label>
+        <div class="motivos-rapidos" role="group" aria-label="Mensajes sugeridos">
+          ${(modificacion ? MOTIVOS_RAPIDOS_MODIFICACION : MOTIVOS_RAPIDOS_CREACION).map(m => `<button type="button" class="chip-motivo" data-motivo="${escapeHtml(m)}">${escapeHtml(m)}</button>`).join('')}
+        </div>
+        <textarea id="motivo-rechazo" rows="4" maxlength="400">${MENSAJE_RECHAZO_POR_DEFECTO}</textarea>
         <div class="contador-palabras" id="motivo-palabras">0/${MAX_PALABRAS_MOTIVO} palabras</div>
       </div>
     `,
@@ -113,12 +122,18 @@ function abrirModalRechazarCreacion(vale, cerrarAutorizacion, { modificacion = f
   };
   textarea.addEventListener('input', actualizar);
   actualizar();
+  overlay.querySelectorAll('[data-motivo]').forEach(chip => chip.addEventListener('click', () => {
+    textarea.value = chip.dataset.motivo;
+    actualizar();
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  }));
   overlay.querySelector('#btn-volver').addEventListener('click', cerrar);
   btn.addEventListener('click', async () => {
     btn.disabled = true;
     try {
       await (modificacion ? rechazarModificacion : rechazarCreacion)(vale.id, textarea.value.trim());
-      window.toast.success(modificacion ? 'Modificación rechazada' : 'Vale rechazado', modificacion ? `${vale.correlativo} eliminada. El asesor verá tu justificación.` : `${vale.correlativo} volvió al asesor con tu justificación.`);
+      window.toast.success(modificacion ? 'Modificación rechazada' : 'Vale rechazado', modificacion ? `${vale.correlativo} eliminada. El asesor verá tu mensaje.` : `${vale.correlativo} volvió al asesor con tu mensaje.`);
       cerrar();
       cerrarAutorizacion();
       cargarBuzon();

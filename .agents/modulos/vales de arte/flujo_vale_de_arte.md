@@ -195,7 +195,7 @@ Diagrama general (flujo feliz y desvíos):
 Notas:
 
 - **Rechazo (`RECHAZADO`):** el supervisor debe escribir un motivo (máx. 50
-  palabras / 400 caracteres). El vale vuelve al asesor, que recibe una
+  palabras / 400 caracteres); el modal trae «Rechazado» escrito (editable) y mensajes sugeridos que se aplican con un clic (en una modificación, otros dos). El vale vuelve al asesor, que recibe una
   notificación y ve "Ver motivo del rechazo", "Corregir" y "Reenviar a
   autorización" (permiso `vales.corregir`) o puede darlo de baja. Al reenviar
   vuelve a `ESPERANDO_AUTORIZACION` y la marca de "visto" del supervisor se
