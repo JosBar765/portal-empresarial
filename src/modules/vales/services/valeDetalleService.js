@@ -53,6 +53,11 @@ function categoriaHistorial(h) {
 }
 
 class ValeDetalleService {
+  // Un vale que existe pero no se puede ver responde 403 (nunca 401: sessionGuard lo toma por sesión vencida); el inexistente sigue en 404.
+  errorSinAcceso() {
+    return new ErrorDeNegocio('No tienes acceso a este vale: solo lo ven su dueño, su supervisor y los talleres a los que se envió.', 403);
+  }
+
   // Wrapper de _puedeVerVale que resuelve el vale y sus talleres a partir
   // del id — reusado por obtenerValeParaPdf (cierre del IDOR de descarga de
   // PDF) y por la validación de la sala `vale:<id>` en el WebSocket (ver
@@ -68,9 +73,7 @@ class ValeDetalleService {
     const vale = await valeRepository.obtenerPorId(valeId);
     if (!vale) throw new ErrorDeNegocio('Vale de arte no encontrado.', 404);
     const talleres = await valeTallerRepository.listarPorVale(valeId);
-    if (!(await this._puedeVerVale(usuario, vale, talleres))) {
-      throw new Error('No tienes acceso a este vale de arte.');
-    }
+    if (!(await this._puedeVerVale(usuario, vale, talleres))) throw this.errorSinAcceso();
     const [propuestasCrudas, documentos, historial, enlacesFusion] = await Promise.all([
       propuestaRepository.listarPorVale(valeId),
       documentoRepository.listarPorVale(valeId),
@@ -110,7 +113,7 @@ class ValeDetalleService {
     const vale = await valeRepository.obtenerPorId(valeId);
     if (!vale) throw new ErrorDeNegocio('Vale de arte no encontrado.', 404);
     const talleres = await valeTallerRepository.listarPorVale(valeId);
-    if (!(await this._puedeVerVale(usuario, vale, talleres))) throw new Error('No tienes acceso a este vale de arte.');
+    if (!(await this._puedeVerVale(usuario, vale, talleres))) throw this.errorSinAcceso();
 
     if (tipo === 'general') {
       const enlaces = await propuestaRepository.listarEnlacesDeFusion(valeId);

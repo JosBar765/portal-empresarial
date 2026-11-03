@@ -306,7 +306,7 @@ La solicitud crea **un vale nuevo** (`MOD-<correlativo>`) y deja el vale modific
   permite, pero la «Propuesta original» **no se puede quitar ni mover** y los **talleres no se
   pueden cambiar** (son los del original). Un `MOD-` ya autorizado no se puede corregir.
   Los errores de permiso o pertenencia (vale ajeno, asesor que no está a cargo del supervisor, rol sin permiso)
-  responden **403**, nunca 401; los conflictos de estado (ya autorizado, solicitud en curso, fechas) siguen en 400.
+  responden **403**, nunca 401: también abrir el detalle, el PDF o la propuesta de un vale que existe pero no puedes ver («No tienes acceso a este vale: solo lo ven su dueño, su supervisor y los talleres a los que se envió.»); un vale que no existe sigue en 404. Los conflictos de estado (ya autorizado, solicitud en curso, fechas) siguen en 400.
   No hay «reenviar» para las modificaciones: una rechazada se elimina y se pide una nueva.
 - **Baja** (permiso `vales.dar_de_baja`; antes de autorizar, o ya autorizado mientras un taller
   reclama adjuntos) o **vencimiento** (N horas laborales sin autorizar, o el plazo de adjuntos): el `MOD-`
