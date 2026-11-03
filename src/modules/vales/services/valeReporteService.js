@@ -351,6 +351,8 @@ class ValeReporteService {
     const lista = v => [...new Set(String(v ?? '').split(',').map(entero).filter(Boolean))].slice(0, MAX_PERSONAS);
     const tiendaSel = alcance.equipo ? valeBuzonService.idsDeTiendaFiltro(filtros) : new Set();
     const tallerSel = alcance.equipo ? valeBuzonService.idsDeTallerFiltro(filtros) : new Set();
+    // Un valor que no existe es un parámetro mal formado (400); uno válido pero ajeno al rol es de alcance (403).
+    if (alcance.equipo && filtros.agruparPor && !AGRUPACIONES_GLOBAL.includes(filtros.agruparPor)) throw new ErrorDeNegocio('La agrupación no es válida: usa tienda, taller, asesor o disenador.');
     if (alcance.equipo && filtros.agruparPor && !alcance.agrupaciones.includes(filtros.agruparPor)) throw new ErrorDeNegocio('Esa agrupación no está disponible para tu rol.', 403);
     if (alcance.rol === 'encargado') {
       if ([...tallerSel].some(id => !alcance.tallerIds.includes(id))) throw new ErrorDeNegocio('Ese taller no está a tu cargo.', 403);
