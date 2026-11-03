@@ -216,8 +216,11 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
     hilo.scrollTop = hilo.scrollHeight;
     zonaEscribir.hidden = !conversacion.puede_escribir;
     cerrada.hidden = conversacion.puede_escribir;
-    const textoEspera = { ASESOR: 'Ya avisaste al taller: espera su revisión.', TALLER: 'El asesor ya avisó: verifica los adjuntos o vuelve a rechazarlos.' };
-    cerrada.querySelector('span').textContent = (conversacion.estado === 'ADJUNTOS_RESPONDIDOS' && textoEspera[conversacion.lado]) || 'Solo lectura.';
+    const textoEspera = {
+      'ASESOR:ADJUNTOS_RESPONDIDOS': 'Ya avisaste al taller: espera su revisión.',
+      'TALLER:ADJUNTOS_RECHAZADOS': 'Ya rechazaste los adjuntos: espera la respuesta del asesor.'
+    };
+    cerrada.querySelector('span').textContent = textoEspera[`${conversacion.lado}:${conversacion.estado}`] || 'Solo lectura.';
     btnYaAtendi.hidden = !(puedeResponderAdjuntos(vale) && conversacion.puede_escribir && conversacion.lado === 'ASESOR' && conversacion.estado === 'ADJUNTOS_RECHAZADOS');
   };
   const refrescar = async () => {
