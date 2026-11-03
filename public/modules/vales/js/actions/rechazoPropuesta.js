@@ -1,4 +1,5 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
+import { confirmarAccion } from '../components/confirmar.js';
 import {
   solicitarRechazoPropuesta, listarRechazosPropuesta, obtenerConversacionRechazoPropuesta, enviarMensajeRechazoPropuesta,
   aceptarRechazoPropuesta, rechazarRechazoPropuesta, cancelarRechazoPropuesta
@@ -182,19 +183,29 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
   });
 
   // Decisiones: aceptar es del taller; cancelar, del asesor. Cierran la conversación y refrescan el buzón.
-  const decidir = (boton, accion, exito) => boton.addEventListener('click', async () => {
-    [btnAceptar, btnRechazar, btnCancelar].forEach(b => { b.disabled = true; });
-    try {
-      await accion(vale.id, rechazoId, textarea.value.trim());
-      window.toast.success(exito.titulo, exito.texto);
-      cerrar();
-    } catch (error) {
-      mostrarErrorModal(overlay, error.message);
-      [btnAceptar, btnRechazar, btnCancelar].forEach(b => { b.disabled = false; });
-    }
-    cargarBuzon();
+  // `confirmacion` (opcional) pide un «¿Estás seguro?» antes de enviar; es una función porque el nombre del taller llega al pintar el hilo.
+  const decidir = (boton, accion, exito, { confirmacion = null } = {}) => {
+    const ejecutar = async () => {
+      [btnAceptar, btnRechazar, btnCancelar].forEach(b => { b.disabled = true; });
+      try {
+        await accion(vale.id, rechazoId, textarea.value.trim());
+        window.toast.success(exito.titulo, exito.texto);
+        cerrar();
+      } catch (error) {
+        mostrarErrorModal(overlay, error.message);
+        [btnAceptar, btnRechazar, btnCancelar].forEach(b => { b.disabled = false; });
+      }
+      cargarBuzon();
+    };
+    boton.addEventListener('click', () => (confirmacion ? confirmarAccion({ ...confirmacion(), alConfirmar: ejecutar }) : ejecutar()));
+  };
+  decidir(btnAceptar, aceptarRechazoPropuesta, { titulo: 'Aceptado', texto: 'Asigna el vale a un diseñador.' }, {
+    confirmacion: () => ({
+      title: 'Aceptar el rechazo',
+      mensaje: `Aceptarás el rechazo del vale ${vale.correlativo}: vuelve a ${tallerNombre} como «Pendiente Asignación» y el atraso vuelve a correr.`,
+      textoConfirmar: 'Aceptar'
+    })
   });
-  decidir(btnAceptar, aceptarRechazoPropuesta, { titulo: 'Aceptado', texto: 'Asigna el vale a un diseñador.' });
   btnRechazar.addEventListener('click', () => abrirModalMotivoRechazo(vale, rechazoId, tallerNombre, cerrar));
   decidir(btnCancelar, cancelarRechazoPropuesta, { titulo: 'Cancelado', texto: 'Ya puedes confirmar el vale.' });
   if (!zonaEscribir.hidden) textarea.focus();
