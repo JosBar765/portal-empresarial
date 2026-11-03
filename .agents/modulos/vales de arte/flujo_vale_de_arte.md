@@ -96,7 +96,7 @@ Diagrama general (flujo feliz y desvíos):
 | 2 | `ASIGNADO` | Asignado | Tiene diseñador, aún no empieza. | Asignación · el encargado **desaprueba** y reasigna | Diseñador comienza → `EN_PROCESO` |
 | 3 | `EN_PROCESO` | En Proceso | El diseñador trabaja (solo 1 por diseñador). | Comenzar · reanudar | Entregar o cancelar → `EN_REVISION` · Pausar → `EN_PAUSA` |
 | 4 | `EN_PAUSA` | En Pausa | El diseñador detuvo el trabajo. | Pausar | Reanudar → `EN_PROCESO` |
-| 5 | `EN_REVISION` | En Revisión | Entregó propuesta (o canceló sin propuesta) y espera al encargado. | Entregar / cancelar | Aprobar → `APROBADO` · Desaprobar → `ASIGNADO` |
+| 5 | `EN_REVISION` | En Revisión | Entregó propuesta (o canceló sin haber entregado nunca) y espera al encargado. | Entregar / cancelar | Aprobar → `APROBADO` · Desaprobar → `ASIGNADO` |
 | 6 | `APROBADO` | Aprobado | El taller terminó (con propuesta con archivo). | Aprobación del encargado (o autoaprobación si se autoasignó y entregó con archivo) | — |
 | 7 | `VERIFICANDO_ADJUNTOS` | Verificar adjuntos | Estado inicial de todo taller: el encargado debe confirmar que recibió los adjuntos por correo. | El supervisor autoriza (una fila por taller) | Verifica → `PENDIENTE_ASIGNACION` · Rechaza → `ADJUNTOS_RECHAZADOS` |
 | 8 | `ADJUNTOS_RECHAZADOS` | Esperando adjuntos | El encargado rechazó el taller por no haber recibido los adjuntos; espera al asesor (plazo único de N horas laborales). | Rechazo del encargado | El asesor responde → `ADJUNTOS_RESPONDIDOS` · Vence → baja del taller (vale multitaller) o se borra el vale (último taller) |
@@ -419,8 +419,8 @@ Nace cuando el Supervisor autoriza la creación (o aprueba la modificación), en
           └───┬───────────┬───┘  reanudar   └────────────┘         │
               │           │   (también exige no tener otro        │
               │           │    EN_PROCESO)                        │
-   entrega    │           │ cancela el proceso                    │
-   propuesta  │           │ (sin propuesta, alerta roja)          │
+   entrega    │           │ cancela el proceso (solo si nunca     │
+   propuesta  │           │ entregó propuesta, alerta roja)       │
               ▼           ▼                                       │
           ┌─────────────────────┐                                 │
           │     EN_REVISION     │─────────────────────────────────┘
@@ -440,7 +440,11 @@ Reglas:
   se dispara una alerta roja y el encargado no podrá aprobar, solo
   desaprobar/reasignar. Cancelar el proceso deja el taller en `EN_REVISION`
   igual que una entrega vacía (no crea fila en `vale_propuestas`; solo queda
-  en el historial).
+  en el historial). «Cancelar proceso» solo está disponible mientras el
+  diseñador no haya entregado ninguna propuesta de ese vale: tras una entrega
+  ya no es posible (el botón se oculta y el backend lo rechaza), así que el
+  diseñador entrega la nueva versión o el encargado reasigna. Vale igual para
+  el encargado que trabaja su propio vale.
 - **Autoasignación:** un encargado puede asignarse el vale (o reasignárselo
   tras desaprobar) a sí mismo. Si luego entrega **con archivo**, su trabajo se
   **autoaprueba** en el mismo paso (no pasa por revisión de sí mismo).

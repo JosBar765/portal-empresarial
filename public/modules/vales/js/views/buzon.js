@@ -410,7 +410,7 @@ export function construirAcciones(v) {
   if (puedeTrabajarEste && v.estado_taller === 'EN_PROCESO') {
     acciones.push({ icono: 'checkmark-done-outline', titulo: 'Entregar propuesta', clase: 'icon-success', onClick: abrirModalEntregar });
     acciones.push({ icono: 'pause-outline', titulo: 'Pausar proceso', onClick: accionPausar });
-    acciones.push({ icono: 'close-outline', titulo: 'Cancelar proceso', clase: 'icon-danger', onClick: accionCancelarProceso });
+    if (!v.ya_entrego_propuesta) acciones.push({ icono: 'close-outline', titulo: 'Cancelar proceso', clase: 'icon-danger', onClick: accionCancelarProceso });
   }
   if (puedeTrabajarEste && v.estado_taller === 'EN_PAUSA') {
     acciones.push({ icono: 'play-outline', titulo: 'Reanudar proceso', clase: 'icon-success', onClick: accionReanudar });

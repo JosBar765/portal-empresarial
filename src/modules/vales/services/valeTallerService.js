@@ -245,6 +245,10 @@ class ValeTallerService {
       if (fila.estado !== ESTADOS_TALLER.EN_PROCESO) {
         throw new Error('Solo se puede cancelar un vale que esté en proceso.');
       }
+      // Tras una entrega, cancelar dejaría aprobable la propuesta vieja de una ronda desaprobada.
+      if (await propuestaRepository.obtenerUltimaPorValeYDisenador(valeId, fila.disenador_id)) {
+        throw new Error('Ya entregaste una propuesta de este vale, así que no puedes cancelar el proceso: entrega la nueva versión o pide al encargado que lo reasigne.');
+      }
       // La cancelación no crea una fila "en blanco" en vale_propuestas — el
       // registro de auditoría de este evento vive únicamente en
       // vale_historial, igual que cualquier otra transición de estado.
