@@ -125,6 +125,7 @@ class ValeController {
       desde: req.query.desde,
       hasta: req.query.hasta,
       tiendaId: req.query.tiendaId,
+      tiendaIds: req.query.tiendaIds,
       tallerId: req.query.tallerId,
       personaIds: req.query.personaIds,
       asesorIds: req.query.asesorIds,

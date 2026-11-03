@@ -54,7 +54,7 @@ class ValeReporteGruposService {
   // `soloAtrasadosAntesDe(fechaIso)` (opcional): en lugar del período, devuelve los vales atrasados y abiertos cuya fecha de entrega
   // es ANTERIOR al período («atrasados antes del período») con las mismas reglas de alcance y filtros, como { total, truncado, vales }.
   // `corte`: fecha de la «foto». Es hoy salvo en un período ya cerrado, donde es su último día (cifras al cierre: no cambian después).
-  async armar({ alcance, dentroDelRango, agruparPor, tiendaId, tallerId, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO() }) {
+  async armar({ alcance, dentroDelRango, agruparPor, tiendaSel, tallerId, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO() }) {
     const alCorte = corte < hoyISO();
     const todos = (await valeRepository.listarTodos())
       .filter(v => (soloAtrasadosAntesDe ? soloAtrasadosAntesDe(fechaDe(v.fecha_entrega)) : dentroDelRango(fechaDe(v.fecha_entrega))))
@@ -71,7 +71,7 @@ class ValeReporteGruposService {
     const pasaFiltros = (v, { tienda = true, asesores = true, disenadores = true } = {}) => {
       if (alcance.rol === 'supervisor' && !(alcance.asesorIds || []).includes(v.asesor_id)) return false;
       if (alcance.rol === 'encargado' && !filas(v).some(f => (alcance.tallerIds || []).includes(f.taller_id))) return false;
-      if (tienda && tiendaId && v.tienda_id !== tiendaId) return false;
+      if (tienda && tiendaSel.size && !tiendaSel.has(v.tienda_id)) return false;
       if (asesores && asesorSel.size && !asesorSel.has(v.asesor_id)) return false;
       if (tallerId && !filas(v).some(f => f.taller_id === tallerId)) return false;
       if (disenadores && disSel.size && !filas(v).some(f => (!tallerId || f.taller_id === tallerId) && disSel.has(f.disenador_id))) return false;
@@ -239,7 +239,7 @@ class ValeReporteGruposService {
     const indicadoresTaller = esTaller || esGlobal ? this._indicadoresTaller(exigibles, fichasTaller) : null;
     const hastaHoy = exigibles.length < visiblesTaller.length; // solo se anuncia «hasta hoy» si de verdad quedó algo fuera
     const datosRendimiento = esGlobal
-      ? await this._rendimientoGlobal({ visiblesVentas: exigiblesDe(visiblesVentas), visiblesTaller: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, filasDe: filasDelTaller, tiendaId, tallerId, asesorSel, disSel, nombresConRol })
+      ? await this._rendimientoGlobal({ visiblesVentas: exigiblesDe(visiblesVentas), visiblesTaller: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, filasDe: filasDelTaller, tiendaSel, tallerId, asesorSel, disSel, nombresConRol })
       : this._rendimiento({ alcance, visibles: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol });
     return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento: datosRendimiento };
   }
@@ -261,13 +261,13 @@ class ValeReporteGruposService {
   }
 
   // Administrador y Gerente: el reporte de Ventas y el de Taller completos, con todas las personas activas aunque no tengan vales.
-  async _rendimientoGlobal({ visiblesVentas, visiblesTaller, hastaHoy, aprobada, corte, fichas, filasDe, tiendaId, tallerId, asesorSel, disSel, nombresConRol }) {
+  async _rendimientoGlobal({ visiblesVentas, visiblesTaller, hastaHoy, aprobada, corte, fichas, filasDe, tiendaSel, tallerId, asesorSel, disSel, nombresConRol }) {
     const nombreDe = (id) => ({ id, nombre: nombresConRol.get(id) || `#${id}` });
     // Quienes se eligieron en el filtro sin tener vales en el período se nombran con su etiqueta de rol.
     const faltan = [...asesorSel, ...disSel].filter(id => !nombresConRol.has(id));
     if (faltan.length) (await reporteRepository.listarNombres(faltan)).forEach(u => nombresConRol.set(u.id, this.etiquetaNombre(u.nombre, u.rol_id, u.hereda_de_rol_id)));
     const activos = {
-      asesores: (await reporteRepository.listarAsesores(tiendaId)).map(a => ({ id: a.id, nombre: a.nombre })),
+      asesores: (await reporteRepository.listarAsesores([...tiendaSel])).map(a => ({ id: a.id, nombre: a.nombre })),
       disenadores: (await reporteRepository.listarDisenadores())
         .filter(d => !tallerId || String(d.taller_ids || '').split(',').map(Number).includes(tallerId))
         .map(d => ({ id: d.id, nombre: this.etiquetaNombre(d.nombre, d.rol_id, d.hereda_de_rol_id) }))

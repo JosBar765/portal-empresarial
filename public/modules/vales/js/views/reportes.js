@@ -15,6 +15,7 @@ import { crearMenuExportar } from '../components/menuExportar.js';
 import { crearMenuCascada, construirArbolTiendas, construirArbolTalleres } from '/js/menuCascada.js';
 import { crearBarraPeriodo, aplicarPeriodoAQuery, normalizarPeriodoCerrado } from '../components/barraPeriodoReportes.js';
 import { crearSelectorMultiple } from '../components/selectorMultiple.js';
+import { paramsDeTienda, resolverTiendaIds } from '../utils/filtroTiendas.js';
 
 // -----------------------------------------------------------------------
 // Reportes de actividad. Quienes ven a varias personas (Gerente, Administrador, Supervisor y Encargado/Asistente) reciben
@@ -51,13 +52,16 @@ const AGRUPACIONES = [
   { id: 'disenador', texto: 'Diseñador', plural: 'diseñadores' }
 ];
 
+// Las tiendas con las que se armó el menú: sirven para convertir un país o un grupo en su lista de ids.
+const tiendasDelMenu = () => (ultimaData && ultimaData.filtros && ultimaData.filtros.tiendas) || [];
+
 function construirQuery() {
   const r = state.reporte;
   const qs = new URLSearchParams();
   aplicarPeriodoAQuery(qs, r.ventana);
   if (r.vista === 'rendimiento') qs.set('tipo', 'rendimiento'); // Rendimiento: períodos cerrados y cifras al cierre
   if (r.agruparPor) qs.set('agruparPor', r.agruparPor);
-  if (r.tiendaId) qs.set('tiendaId', r.tiendaId);
+  Object.entries(paramsDeTienda(r.tiendaId, tiendasDelMenu())).forEach(([clave, valor]) => qs.set(clave, valor));
   if (r.tallerId) qs.set('tallerId', r.tallerId);
   if (r.asesorIds.length) qs.set('asesorIds', r.asesorIds.join(','));
   if (r.disenadorIds.length) qs.set('disenadorIds', r.disenadorIds.join(','));
@@ -412,20 +416,20 @@ function renderFiltros(data, vista = 'actividad') {
   const disponibles = AGRUPACIONES.filter(a => permitidas.includes(a.id));
   // Con una tienda elegida, talleres, asesores y diseñadores se acotan a los de esa tienda; con un taller elegido,
   // los diseñadores son solo los de ese taller.
-  const tiendaElegida = Number(r.tiendaId) || null;
+  const tiendasElegidas = new Set(resolverTiendaIds(r.tiendaId, f.tiendas));
   const tallerElegido = Number(r.tallerId) || null;
 // Rendimiento de Administrador y Gerente: Ventas filtra por tienda, taller y asesor; Taller, por taller y diseñador.
   const enfoqueFiltros = vista === 'rendimiento' ? enfoqueGlobal(data) : null;
-  const tiendaEfectiva = enfoqueFiltros === 'taller' ? null : tiendaElegida;
-  const talleresVisibles = f.talleres.filter(t => !tiendaEfectiva || (t.tiendaIds || []).includes(tiendaEfectiva));
+  const tiendaEfectiva = enfoqueFiltros === 'taller' ? new Set() : tiendasElegidas;
+  const talleresVisibles = f.talleres.filter(t => !tiendaEfectiva.size || (t.tiendaIds || []).some(id => tiendaEfectiva.has(id)));
   const idsTalleresVisibles = new Set(talleresVisibles.map(t => t.id));
   const delTaller = (d) => {
     if (!d.tallerIds) return true;
     if (tallerElegido) return d.tallerIds.includes(tallerElegido);
-    return !tiendaEfectiva || d.tallerIds.some(id => idsTalleresVisibles.has(id));
+    return !tiendaEfectiva.size || d.tallerIds.some(id => idsTalleresVisibles.has(id));
   };
   const disenadoresVisibles = enfoqueFiltros === 'ventas' ? [] : f.disenadores.filter(delTaller);
-  const asesoresVisibles = enfoqueFiltros === 'taller' ? [] : f.asesores.filter(a => !tiendaEfectiva || a.tiendaId === tiendaEfectiva);
+  const asesoresVisibles = enfoqueFiltros === 'taller' ? [] : f.asesores.filter(a => !tiendaEfectiva.size || tiendaEfectiva.has(a.tiendaId));
   const tiendasVisibles = enfoqueFiltros === 'taller' ? [] : f.tiendas;
   const evaluadosDelEnfoque = (data.evaluados || []).filter(p => !enfoqueFiltros || (enfoqueFiltros === 'ventas' ? f.asesores : f.disenadores).some(o => o.id === p.id));
   cont.hidden = false;
@@ -461,7 +465,7 @@ ${tiendasVisibles.length ? '<div id="rep-f-tienda"></div>' : ''}
   if (tienda) {
     // El bloque se recrea en cada render: el menú nace de nuevo con la tienda vigente.
     const menuTienda = crearMenuCascada({
-      arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' }, ...construirArbolTiendas(f.tiendas)],
+      arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' }, ...construirArbolTiendas(f.tiendas, { conTodas: true })],
       valorActual: r.tiendaId || '',
       etiquetaVacio: 'Todas las tiendas',
       ariaLabel: 'Filtrar por tienda',
@@ -472,11 +476,11 @@ ${tiendasVisibles.length ? '<div id="rep-f-tienda"></div>' : ''}
   function cambiarTienda(valor) {
     r.tiendaId = valor;
     // Se descarta lo elegido que no pertenece a la tienda nueva (mismo criterio que al cambiar de taller).
-    const nueva = Number(r.tiendaId) || null;
-    if (nueva) {
-      const talleresDeTienda = f.talleres.filter(t => (t.tiendaIds || []).includes(nueva)).map(t => t.id);
+    const nueva = new Set(resolverTiendaIds(r.tiendaId, f.tiendas));
+    if (nueva.size) {
+      const talleresDeTienda = f.talleres.filter(t => (t.tiendaIds || []).some(id => nueva.has(id))).map(t => t.id);
       if (r.tallerId && !talleresDeTienda.includes(Number(r.tallerId))) r.tallerId = '';
-      r.asesorIds = r.asesorIds.filter(id => { const a = f.asesores.find(x => x.id === Number(id)); return !a || a.tiendaId === nueva; });
+      r.asesorIds = r.asesorIds.filter(id => { const a = f.asesores.find(x => x.id === Number(id)); return !a || nueva.has(a.tiendaId); });
       const tallerVigente = Number(r.tallerId) || null;
       r.disenadorIds = r.disenadorIds.filter(id => {
         const d = f.disenadores.find(x => x.id === Number(id));
