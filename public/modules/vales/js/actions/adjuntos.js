@@ -178,7 +178,7 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
       </div>
       <p class="chat-cerrada" id="chat-cerrada" hidden><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon><span>Solo lectura.</span></p>
     `,
-    footerHtml: '<button class="btn btn--ghost" id="btn-cerrar">Cerrar</button>'
+    footerHtml: '<button class="btn btn--ghost" id="btn-cerrar" style="margin-right:auto;">Cerrar</button><button class="btn btn--primary" id="btn-ya-atendi" hidden><ion-icon name="checkmark-done-outline"></ion-icon> Ya lo atendí</button>'
   });
   const cabecera = overlay.querySelector('#chat-cabecera');
   const hilo = overlay.querySelector('#chat-hilo');
@@ -186,12 +186,18 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
   const cerrada = overlay.querySelector('#chat-cerrada');
   const textarea = overlay.querySelector('#chat-mensaje');
   const enviar = overlay.querySelector('#chat-enviar');
+  const btnYaAtendi = overlay.querySelector('#btn-ya-atendi');
 
   const cerrar = () => {
     if (state.conversacionAbierta && state.conversacionAbierta.overlay === overlay) state.conversacionAbierta = null;
     cerrarModal();
   };
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
+  // «Ya lo atendí» vive también en el chat: los asesores olvidaban salir a avisar al taller al terminar de conversar.
+  btnYaAtendi.addEventListener('click', () => abrirModalResponderAdjuntos(vale, { taller_id: tallerId, taller: nombreTaller || 'el taller' }, () => {
+    cerrar();
+    if (state.adjuntosModalAbierto && state.adjuntosModalAbierto.valeId === vale.id) state.adjuntosModalAbierto.cerrar();
+  }));
 
   const ajustarAlto = () => { textarea.style.height = 'auto'; textarea.style.height = `${Math.min(textarea.scrollHeight, 110)}px`; };
 
@@ -202,6 +208,7 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
       hilo.innerHTML = '<div class="chat-vacio"><ion-icon name="checkmark-done-circle-outline" aria-hidden="true"></ion-icon><p><strong>Se llegó a un acuerdo.</strong><br>La conversación se cerró y quedó solo como registro en el historial del vale.</p></div>';
       zonaEscribir.hidden = true;
       cerrada.hidden = true;
+      btnYaAtendi.hidden = true;
       return;
     }
     const estado = ESTADO_CHAT[conversacion.estado];
@@ -213,6 +220,7 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
     zonaEscribir.hidden = !conversacion.puede_escribir;
     cerrada.hidden = conversacion.puede_escribir;
     cerrada.querySelector('span').textContent = 'Solo lectura.';
+    btnYaAtendi.hidden = !(puedeResponderAdjuntos(vale) && conversacion.puede_escribir && conversacion.lado === 'ASESOR' && conversacion.estado === 'ADJUNTOS_RECHAZADOS');
   };
   const refrescar = async () => {
     try { pintar(await obtenerConversacion(vale.id, tallerId)); } catch (error) { hilo.innerHTML = `<div class="chat-vacio"><p>${escapeHtml(error.message)}</p></div>`; }
