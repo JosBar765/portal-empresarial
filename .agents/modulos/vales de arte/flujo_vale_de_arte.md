@@ -436,17 +436,18 @@ Nace cuando el Supervisor autoriza la creación (o aprueba la modificación), en
 
 Reglas:
 
-- **Entregar con archivo vs. sin archivo:** si el diseñador entrega sin archivo,
-  se dispara una alerta roja y el encargado no podrá aprobar, solo
-  desaprobar/reasignar. Cancelar el proceso deja el taller en `EN_REVISION`
-  igual que una entrega vacía (no crea fila en `vale_propuestas`; solo queda
-  en el historial). «Cancelar proceso» solo está disponible mientras el
+- **Entregar exige siempre el PDF:** sin documento PDF la entrega responde 400
+  «Adjunta el documento PDF de la propuesta para poder entregarla.»; la nota y
+  los enlaces son complementos opcionales. Lo único que deja un taller en
+  `EN_REVISION` sin propuesta es «Cancelar proceso» (alerta roja; no crea fila
+  en `vale_propuestas`, solo queda en el historial), y entonces el encargado no
+  podrá aprobar, solo desaprobar/reasignar. «Cancelar proceso» solo está disponible mientras el
   diseñador no haya entregado ninguna propuesta de ese vale: tras una entrega
   ya no es posible (el botón se oculta y el backend lo rechaza), así que el
   diseñador entrega la nueva versión o el encargado reasigna. Vale igual para
   el encargado que trabaja su propio vale.
 - **Autoasignación:** un encargado puede asignarse el vale (o reasignárselo
-  tras desaprobar) a sí mismo. Si luego entrega **con archivo**, su trabajo se
+  tras desaprobar) a sí mismo. Si luego entrega, su trabajo se
   **autoaprueba** en el mismo paso (no pasa por revisión de sí mismo).
 - **Asistente de Diseño:** opera como "clon" del encargado del taller al que
   esté vinculado (`taller_disenadores`), para asignar, revisar y ver el buzón.
@@ -687,8 +688,8 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
   Administrador ve todo).
 - El servidor valida en cada conexión que el usuario tenga derecho a la sala
   que pide; no confía en la lista que arma el cliente.
-- Nivel `alerta` (toast rojo): atrasos, propuesta entregada sin archivo y
-  cancelación de proceso.
+- Nivel `alerta` (toast rojo): atrasos y cancelación de
+  proceso.
 - Los destinatarios de una baja o de un vencimiento que borra el vale se calculan con `salasDeInvolucrados` (`valeHelpers.js`) antes del borrado; la notificación guarda `vale_id` en NULL al desaparecer el vale.
 - Al recibir un evento, el cliente refresca su buzón.
 - **Quién recibe qué** (el actor nunca se avisa a sí mismo; cada persona recibe una sola notificación por movimiento):
@@ -696,7 +697,7 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
   - **Taller** (encargado + asistentes): lo que llega a su taller, la cancelación del proceso (alerta roja) y el atraso, también con el proceso en `EN_PAUSA`. La confirmación de recibido no les llega: su flujo termina en la aprobación.
   - **Diseñador:** asignación, propuesta aprobada y atraso, también en pausa.
   - **Fusión:** al fusionar, se avisa al asesor, a sus supervisores y a `vales:fusion` (los demás con `vales.aprobar_general` actualizan su cola en tiempo real).
-  - **Autoaprobación** (el encargado entrega con archivo): solo el aviso de aprobación, sin el de entrega.
+  - **Autoaprobación** (el encargado entrega su propia propuesta): solo el aviso de aprobación, sin el de entrega.
   - **Gerente:** nada. **Administrador:** solo carteles (`vales:admin`).
 - **Textos del vale y PDF.** Los textos se validan antes de generar el PDF: caracteres que la fuente estándar no puede dibujar (emoji, flechas, Ł, chino, ✓, Ω, espacios de ancho cero…) rechazan la creación, corrección o modificación con «Se están usando caracteres innecesarios en «<campo>» (…)»; acentos, ñ, €, ™, © y los saltos de línea de la descripción sí se permiten. Máximos para que cada dato quepa en su celda del PDF (también con letras anchas): empresa, cliente y correo **100** caracteres, teléfono **8 números** (sin el código de país; solo números y un «+» inicial, con el espacio y el guion como separadores; el campo del formulario descarta cualquier otro carácter), código de producto, material, técnica y acabado **40**. La **descripción** admite hasta **600** y se autoajusta en el PDF: respeta los párrafos, parte por carácter las palabras o URLs sin espacios y reduce la letra (9 → 8 → 7 pt) si es muy larga.
 - **Conversación del rechazo — acceso:** el encargado del taller del vale y los asistentes vinculados a él (el supervisor del asesor solo lee); el encargado o asistente de **otro** taller del mismo vale, aunque el vale también vaya a su taller, recibe 403 («Ese taller no es el tuyo.»). Con la conversación abierta en pantalla, los mensajes nuevos no sacan cartel ni beep (la campana los guarda).
