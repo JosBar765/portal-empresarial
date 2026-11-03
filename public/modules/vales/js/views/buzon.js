@@ -420,16 +420,17 @@ export function construirAcciones(v) {
     acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirSelectorModificacion });
   }
   // Chat del rechazo de propuesta: queda en la fila mientras haya un rechazo a la vista para quien mira (asesor dueño o equipo del taller).
-  // Rojo si el taller respondió y falta leerlo; verde para el taller cuando debe responder.
+  // Rojo si el taller respondió y falta leerlo, y el ícono rojo de información para el taller cuando debe responder.
   const hayRechazos = rechazosVisibles(v);
   const equipoTaller = puede('responderRechazoPropuesta') && !esMio;
   const rechazos = rechazosSinLeer(v);
   if (hayRechazos.length) {
     const abiertos = hayRechazos.filter(r => r.estado === 'ABIERTO');
+    const debeResponder = equipoTaller && abiertos.length > 0;
     acciones.push({
-      icono: 'chatbubbles-outline',
-      titulo: rechazos.length ? 'Ver respuesta del taller' : (equipoTaller && abiertos.length ? 'Responder rechazo de propuesta' : 'Chat del rechazo de propuesta'),
-      clase: rechazos.length ? 'icon-danger' : (abiertos.length ? 'icon-success' : undefined),
+      icono: debeResponder ? 'alert-circle-outline' : 'chatbubbles-outline',
+      titulo: rechazos.length ? 'Ver respuesta del taller' : (debeResponder ? 'Responder rechazo de propuesta' : 'Chat del rechazo de propuesta'),
+      clase: rechazos.length || debeResponder ? 'icon-danger' : (abiertos.length ? 'icon-success' : undefined),
       onClick: (vale) => abrirConversacionesRechazo(vale, rechazos.length ? { ids: rechazos.map(r => r.id) } : {})
     });
   } else if ((v.hilos_rechazo_propuesta || []).length) {
