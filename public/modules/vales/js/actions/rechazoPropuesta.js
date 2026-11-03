@@ -143,7 +143,9 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
   overlay.querySelector('#mb-cerrar').addEventListener('click', cerrar);
   const ajustarAlto = () => { textarea.style.height = 'auto'; textarea.style.height = `${Math.min(textarea.scrollHeight, 110)}px`; };
 
+  let tallerNombre = ''; // el modal de «Rechazar» lo muestra en su título
   const pintar = (c) => {
+    tallerNombre = c.taller;
     cabecera.innerHTML = `<span class="chip-estado chip-estado--taller"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon>${escapeHtml(c.taller)}</span>${chipEstado(c.estado)}`;
     estado.textContent = lineaDeEstado(c);
     hilo.innerHTML = htmlHilo(c, { destacarMotivo: false });
@@ -193,7 +195,7 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
     cargarBuzon();
   });
   decidir(btnAceptar, aceptarRechazoPropuesta, { titulo: 'Aceptado', texto: 'Asigna el vale a un diseñador.' });
-  btnRechazar.addEventListener('click', () => abrirModalMotivoRechazo(vale, rechazoId, cerrar));
+  btnRechazar.addEventListener('click', () => abrirModalMotivoRechazo(vale, rechazoId, tallerNombre, cerrar));
   decidir(btnCancelar, cancelarRechazoPropuesta, { titulo: 'Cancelado', texto: 'Ya puedes confirmar el vale.' });
   if (!zonaEscribir.hidden) textarea.focus();
 }
@@ -201,18 +203,28 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
 // -----------------------------------------------------------------------
 // Taller: el motivo del «Rechazar» se escribe en un modal propio, aparte del chat
 // -----------------------------------------------------------------------
-function abrirModalMotivoRechazo(vale, rechazoId, cerrarConversacion) {
+const MENSAJE_RECHAZO_POR_DEFECTO = 'Rechazado';
+const MOTIVOS_RAPIDOS_RECHAZO = ['Favor solicitar una modificación'];
+
+function abrirModalMotivoRechazo(vale, rechazoId, taller, cerrarConversacion) {
   let quitarEscape = () => {};
   const { overlay, cerrar } = abrirModal({
-    title: 'Motivo del rechazo',
+    title: `Rechazar — ${taller}`,
     bodyHtml: `
-      <label for="mb-motivo" class="mb-etiqueta">¿Por qué rechazas? El asesor lo verá (por ejemplo, que tramite una modificación).</label>
-      <div class="chat-caja">
-        <textarea id="mb-motivo" rows="3" maxlength="${MAX_CARACTERES_CHAT}"></textarea>
+      <div class="aviso-rechazo">
+        <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
+        <p>El asesor verá este mensaje y el vale seguirá <strong>pendiente de su confirmación</strong>.</p>
       </div>
-      <div class="campo-pie"><span class="campo-ayuda">Obligatorio.</span><span class="contador-mensaje" id="mb-motivo-contador"></span></div>
+      <div class="form-field full">
+        <label for="mb-motivo">Mensaje para el asesor</label>
+        <div class="motivos-rapidos" role="group" aria-label="Mensajes sugeridos">
+          ${MOTIVOS_RAPIDOS_RECHAZO.map(m => `<button type="button" class="chip-motivo" data-motivo="${escapeHtml(m)}">${escapeHtml(m)}</button>`).join('')}
+        </div>
+        <textarea id="mb-motivo" rows="3" maxlength="${MAX_CARACTERES_CHAT}">${MENSAJE_RECHAZO_POR_DEFECTO}</textarea>
+        <div class="campo-pie"><span class="campo-ayuda">Obligatorio.</span><span class="contador-mensaje" id="mb-motivo-contador"></span></div>
+      </div>
     `,
-    footerHtml: '<button class="btn btn--ghost" id="mb-motivo-cancelar">Cancelar</button><button class="btn btn--ghost btn--texto-peligro" id="mb-motivo-rechazar">Rechazar</button>',
+    footerHtml: '<button class="btn btn--ghost" id="mb-motivo-cancelar">Volver</button><button class="btn btn--primary" id="mb-motivo-rechazar"><ion-icon name="send-outline"></ion-icon> Rechazar</button>',
     alCerrar: () => quitarEscape()
   });
   // Escape cierra solo este modal: el listener del componente cerraría también el chat de debajo.
@@ -222,6 +234,12 @@ function abrirModalMotivoRechazo(vale, rechazoId, cerrarConversacion) {
   const textarea = overlay.querySelector('#mb-motivo');
   const confirmar = overlay.querySelector('#mb-motivo-rechazar');
   const actualizar = wireContador(textarea, overlay.querySelector('#mb-motivo-contador'), confirmar);
+  overlay.querySelectorAll('[data-motivo]').forEach(chip => chip.addEventListener('click', () => {
+    textarea.value = chip.dataset.motivo;
+    actualizar();
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  }));
   overlay.querySelector('#mb-motivo-cancelar').addEventListener('click', cerrar);
   confirmar.addEventListener('click', async () => {
     confirmar.disabled = true;

@@ -363,7 +363,7 @@ Asesor y Supervisor de Ventas; cada uno solo en los vales que creó) puede recha
 ```
 
 - **Cancelar:** mientras la ronda está abierta el asesor dueño puede cancelarla (`CANCELADO`) y entonces confirmar el vale.
-- **Motivo del «Rechazar» del taller:** «Rechazar» abre un modal propio («Motivo del rechazo», 1 a 200 caracteres) y el texto se guarda una sola vez como mensaje del taller en el hilo; la caja del chat queda solo para conversar. Cancelar o Escape cierran ese modal y vuelven al chat. «Aceptar» no lleva motivo.
+- **Motivo del «Rechazar» del taller:** «Rechazar» abre un modal igual al «Solventado» del asesor en adjuntos («Rechazar — taller»): el mensaje viene escrito como «Rechazado», se puede editar, hay un mensaje sugerido («Favor solicitar una modificación») que se aplica con un clic, es obligatorio (1 a 200 caracteres) y se guarda una sola vez como mensaje del taller en el hilo; la caja del chat queda solo para conversar. Volver o Escape cierran ese modal y vuelven al chat. «Aceptar» no lleva motivo.
 - **Respuesta por taller:** cada taller responde por separado; el que acepta regresa y el vale pasa a `CREADO`. Si otro taller
   aún tenía una ronda abierta, esa ronda sigue abierta y se puede responder mientras el vale no haya salido del trabajo del taller.
 - **Hilo propio por taller**, separado del de adjuntos (§2.1) y con la misma mecánica: un hilo por taller dentro del vale, sin límite de
