@@ -13,7 +13,7 @@ Antes, si un asesor mandaba el vale a un taller equivocado y este rechazaba los 
 - No aplica a una solicitud de modificación (`MOD-`): se da de baja la solicitud completa.
 - Se revalida bajo el candado del vale: si el taller verificó o respondió entretanto, la baja se rechaza con un mensaje claro.
 - Efecto: la fila de `vale_talleres` queda con `activo = 0`, `vales.talleres_solicitados` se actualiza, el estado general se recalcula con la lógica normal (`_recalcularEstadoVale`) y se escribe una fila en `vale_historial`. No se borra el vale ni a los demás talleres.
-- Avisos: el taller dado de baja (y el diseñador asignado en esa fila), el asesor y sus supervisores reciben la notificación; los talleres que siguen (y quienes fusionan) solo refrescan la pantalla.
+- Avisos: el taller dado de baja (y el diseñador asignado en esa fila), los supervisores y, en la baja automática por vencimiento de adjuntos, también el asesor reciben la notificación (en la baja manual, el asesor que la ejecuta no recibe su propio aviso); los talleres que siguen (y quienes fusionan) solo refrescan la pantalla.
 - No hace falta ningún script SQL.
 
 ## Dónde está el botón
