@@ -11,29 +11,37 @@ import { abrirSelectorModificacion } from './modificacionTipo.js';
 import { abrirConversacionesRechazo, abrirModalRechazarPropuesta } from './rechazoPropuesta.js';
 import { rechazosSinLeer, textoRechazos } from '../utils/modificacionesVistas.js';
 
-// Asesor: ver el motivo con el que el supervisor rechazó su vale.
+// Asesor: ver el motivo con el que el supervisor rechazó su vale y, desde ahí mismo, reenviarlo a autorización.
 export function abrirModalMotivoRechazo(vale) {
   const { overlay, cerrar } = abrirModal({
     title: `Vale rechazado — ${vale.correlativo}`,
     bodyHtml: `
       <p style="font-size:13px;margin-bottom:8px;">El supervisor devolvió este vale con el siguiente motivo:</p>
       <p class="motivo-rechazo">${escapeHtml(vale.rechazo_motivo || 'Sin motivo registrado.')}</p>
-      <p style="font-size:13px;margin-top:12px;">Corrígelo con el botón de la tuerca y luego reenvíalo a autorización, o dalo de baja.</p>
+      <p style="font-size:13px;margin-top:12px;">Corrígelo con el botón de la tuerca y luego reenvíalo a autorización con el botón de abajo, o dalo de baja.</p>
     `,
-    footerHtml: '<button class="btn btn--primary" id="btn-cerrar">Entendido</button>'
+    footerHtml: '<button class="btn btn--primary" id="btn-reenviar" style="margin-right:auto;"><ion-icon name="send-outline"></ion-icon> Reenviar a autorización</button><button class="btn btn--ghost" id="btn-cerrar">Entendido</button>'
   });
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
+  const btnReenviar = overlay.querySelector('#btn-reenviar');
+  btnReenviar.addEventListener('click', async () => {
+    btnReenviar.disabled = true;
+    if (await accionReenviar(vale)) cerrar();
+    else btnReenviar.disabled = false;
+  });
 }
 
 // Asesor: volver a mandar a autorización un vale rechazado.
-export async function accionReenviar(vale) {
+async function accionReenviar(vale) {
   try {
     await reenviarVale(vale.id);
     window.toast.success('Vale reenviado', `${vale.correlativo} volvió a quedar en espera de autorización.`);
     cargarBuzon();
+    return true;
   } catch (error) {
     window.toast.error('No se pudo reenviar', error.message);
     cargarBuzon();
+    return false;
   }
 }
 

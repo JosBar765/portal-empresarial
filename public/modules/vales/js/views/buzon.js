@@ -14,7 +14,7 @@ import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalV
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/disenador.js';
 import { abrirModalVerificarAdjuntos, abrirModalRechazarAdjuntos, abrirModalConversacion, abrirConversacionAdjuntos } from '../actions/adjuntos.js';
-import { abrirVisorDecisionAsesor, abrirDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
+import { abrirVisorDecisionAsesor, abrirDarDeBaja, abrirModalMotivoRechazo } from '../actions/asesor.js';
 import { abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirSelectorModificacion } from '../actions/modificacionTipo.js';
 import { abrirModalHistorial } from '../actions/historial.js';
@@ -450,9 +450,6 @@ export function construirAcciones(v) {
   }
   if (puede('corregir') && ['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) && esMio) {
     acciones.push({ icono: 'settings-outline', titulo: 'Corregir', onClick: abrirModalCorregirVale });
-  }
-  if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
-    acciones.push({ icono: 'send-outline', titulo: 'Reenviar a autorización', clase: 'icon-success', onClick: accionReenviar });
   }
   // Propuestas aprobadas de los otros talleres (solo si aplica la regla de compartir), solo lectura.
   if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && (v.propuestaOtroTallerNueva || v.propuestasOtrosAplica)) {
