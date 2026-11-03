@@ -8,7 +8,7 @@ const tallerRepository = require('../repositories/tallerRepository');
 const capacidadRepository = require('../repositories/capacidadRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
-const { ROL, ESTADOS_TALLER, esDeTaller } = require('./valeHelpers');
+const { ROL, ESTADOS_TALLER, esDeTaller, talleresElegiblesDeTienda } = require('./valeHelpers');
 
 const idsDe = (texto) => String(texto || '').split(',').map(Number).filter(Number.isInteger);
 
@@ -34,7 +34,9 @@ class CapacidadEntregaService {
   // Capacidad día por día de un mes completo, para el calendario del
   // formulario de creación/modificación. Solo incluye los talleres del
   // subconjunto pedido que sí tienen límite configurado.
-  async obtenerCapacidadMes(talleresIds, anio, mes) {
+  async obtenerCapacidadMes(talleresIds, anio, mes, usuario) {
+    // Con `usuario` (la consulta del formulario) los talleres pedidos deben ser elegibles para él; las llamadas internas no lo pasan.
+    if (usuario) await valeCatalogoService.validarTalleresElegibles(usuario, talleresIds);
     const conLimite = await this._talleresConLimite(talleresIds);
     if (conLimite.length === 0) return {};
 
@@ -75,7 +77,7 @@ class CapacidadEntregaService {
     if (usuario.rolId === ROL.ASESOR) {
       const yo = await usuarioValeRepository.obtenerPorId(usuario.id);
       const miTiendaId = yo ? yo.tienda_id : null;
-      const alcanzables = (await tallerRepository.listarActivos()).filter(t => t.tienda_id == null || t.tienda_id === miTiendaId).map(t => t.id);
+      const alcanzables = talleresElegiblesDeTienda(await tallerRepository.listarActivos(), miTiendaId).map(t => t.id);
       return { conLimite: await this._talleresConLimite(alcanzables), asesorIds: [usuario.id] };
     }
     const todos = (await tallerRepository.listarActivos()).map(t => t.id);

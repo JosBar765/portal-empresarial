@@ -341,6 +341,9 @@ function validarLongitudCampo(campo, valor) {
   throw new Error(`${etiqueta} es demasiad${etiqueta.startsWith('La ') ? 'a larga' : 'o largo'} (máximo ${maximo} caracteres).`);
 }
 
+// Talleres a los que un asesor puede enviar: los generales y el Diseño Local de su propia tienda.
+const talleresElegiblesDeTienda = (talleres, tiendaId) => talleres.filter(t => t.tienda_id == null || t.tienda_id === tiendaId);
+
 // Elegibilidad de los talleres de un vale (ids ya numéricos): los mismos mensajes al crear, al guardar un borrador y al consultar fechas.
 // `tiendaIdAsesor` activa las reglas de Diseño Local: nunca se mezcla con los generales ni se elige el de otra tienda.
 function validarEleccionTalleres(talleresIds, talleresActivos, tiendaIdAsesor = null) {
@@ -361,7 +364,7 @@ function validarEleccionTalleres(talleresIds, talleresActivos, tiendaIdAsesor = 
 }
 
 module.exports = {
-  LIMITES_TEXTO_VALE, ETIQUETAS_TEXTO_VALE, validarLongitudCampo, validarEleccionTalleres,
+  LIMITES_TEXTO_VALE, ETIQUETAS_TEXTO_VALE, validarLongitudCampo, validarEleccionTalleres, talleresElegiblesDeTienda,
   algunTallerProtege, ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
