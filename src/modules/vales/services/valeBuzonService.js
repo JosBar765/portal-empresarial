@@ -89,13 +89,16 @@ const ESTADOS_ADJUNTOS = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.AD
 const ESTADOS_ADJUNTOS_VISIBLES_ASESOR = [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
 const esPendienteAsignacion = (estado) => estado === ESTADOS_TALLER.PENDIENTE_ASIGNACION || ESTADOS_ADJUNTOS.includes(estado);
 
-const MAX_TIENDAS_FILTRO = 500;
+const MAX_IDS_FILTRO = 500;
 
-// Une la lista `tiendaIds` (CSV) con el `tiendaId` anterior; lo que no sea entero positivo se ignora.
-function idsDeTiendaFiltro({ tiendaIds, tiendaId } = {}) {
-  const ids = [...String(tiendaIds ?? '').split(','), String(tiendaId ?? '')].map(Number).filter(n => Number.isInteger(n) && n > 0);
-  return new Set([...new Set(ids)].slice(0, MAX_TIENDAS_FILTRO));
+// Une una lista CSV con un id suelto; lo que no sea entero positivo se ignora.
+function idsDeFiltro(lista, uno) {
+  const ids = [...String(lista ?? '').split(','), String(uno ?? '')].map(Number).filter(n => Number.isInteger(n) && n > 0);
+  return new Set([...new Set(ids)].slice(0, MAX_IDS_FILTRO));
 }
+
+const idsDeTiendaFiltro = ({ tiendaIds, tiendaId } = {}) => idsDeFiltro(tiendaIds, tiendaId);
+const idsDeTallerFiltro = ({ tallerIds, tallerId } = {}) => idsDeFiltro(tallerIds, tallerId);
 
 class ValeBuzonService {
   // Adjuntos reclamados por taller (rechazados/respondidos) para asesor y supervisor; VERIFICANDO no se muestra.
@@ -948,3 +951,4 @@ class ValeBuzonService {
 
 module.exports = new ValeBuzonService();
 module.exports.idsDeTiendaFiltro = idsDeTiendaFiltro;
+module.exports.idsDeTallerFiltro = idsDeTallerFiltro;

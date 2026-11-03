@@ -42,6 +42,16 @@ function etiquetaTiendasFiltro(ids, tiendas = []) {
   return `Tiendas: ${ids.length} seleccionadas`;
 }
 
+// Rótulo de los talleres elegidos, derivado del catálogo: «País: X» si son exactamente los talleres de ese país.
+function etiquetaTalleresFiltro(ids, talleres = []) {
+  if (ids.length === 1) return `Taller: ${((talleres.find(t => t.id === ids[0])) || {}).nombre || ids[0]}`;
+  const elegidos = new Set(ids);
+  const porPais = new Map();
+  talleres.forEach(t => (t.paises && t.paises.length ? t.paises : [SIN_PAIS]).forEach(p => porPais.set(p, [...(porPais.get(p) || []), t])));
+  for (const [pais, grupo] of porPais) if (grupo.length === elegidos.size && grupo.every(t => elegidos.has(t.id))) return `País: ${pais}`;
+  return `Talleres: ${ids.length} seleccionados`;
+}
+
 // Explicación de cada indicador, por rol (si un rol no define una clave, se usa la de `comunes`).
 const AYUDAS_KPI = {
   comunes: {
@@ -340,15 +350,15 @@ class ValeReporteService {
     const entero = v => (Number.isInteger(Number(v)) && Number(v) > 0 ? Number(v) : null);
     const lista = v => [...new Set(String(v ?? '').split(',').map(entero).filter(Boolean))].slice(0, MAX_PERSONAS);
     const tiendaSel = alcance.equipo ? valeBuzonService.idsDeTiendaFiltro(filtros) : new Set();
-    const tallerId = alcance.equipo ? entero(filtros.tallerId) : null;
+    const tallerSel = alcance.equipo ? valeBuzonService.idsDeTallerFiltro(filtros) : new Set();
     if (alcance.equipo && filtros.agruparPor && !alcance.agrupaciones.includes(filtros.agruparPor)) throw new ErrorDeNegocio('Esa agrupación no está disponible para tu rol.');
     if (alcance.rol === 'encargado') {
-      if (tallerId && !alcance.tallerIds.includes(tallerId)) throw new ErrorDeNegocio('Ese taller no está a tu cargo.');
+      if ([...tallerSel].some(id => !alcance.tallerIds.includes(id))) throw new ErrorDeNegocio('Ese taller no está a tu cargo.');
       if (tiendaSel.size || lista(filtros.asesorIds).length) throw new ErrorDeNegocio('Ese filtro no está disponible para tu rol.');
     }
     if (alcance.rol === 'supervisor') {
       if ([...tiendaSel].some(id => !alcance.tiendaIds.includes(id))) throw new ErrorDeNegocio('Esa tienda no está a tu cargo.');
-      if (tallerId && !alcance.tallerIdsVisibles.includes(tallerId)) throw new ErrorDeNegocio('Ese taller no está a tu cargo.');
+      if ([...tallerSel].some(id => !alcance.tallerIdsVisibles.includes(id))) throw new ErrorDeNegocio('Ese taller no está a tu cargo.');
       if (lista(filtros.disenadorIds).length) throw new ErrorDeNegocio('Ese filtro no está disponible para tu rol.');
     }
     // Quién se evalúa: asesores y diseñadores (el parámetro anterior `personaIds` se sigue aceptando).
@@ -371,7 +381,7 @@ class ValeReporteService {
       tallerIds: alcance.tallerIds || null,
       actorId: alcance.actorId || null,
       valesDeDisenadorId: alcance.valesDeDisenadorId || null,
-      tiendaIds: tiendaSel.size ? [...tiendaSel] : null, tallerId
+      tiendaIds: tiendaSel.size ? [...tiendaSel] : null, tallerFiltroIds: tallerSel.size ? [...tallerSel] : null
     });
     const normalizados = crudos.map(normalizar).filter(Boolean);
     const valeIds = [...new Set(crudos.map(h => h.vale_id))];
@@ -409,7 +419,7 @@ class ValeReporteService {
     const todos = (await valeRepository.listarTodos()).map(enriquecer);
     const porId = new Map(todos.map(v => [v.id, v]));
     const filasTaller = await valeTallerRepository.listarTodos();
-    const ahora = await this._instantanea(alcance, usuario, { todos, porId, filasTaller, personaIds, asesorSel, disSel, tiendaSel, tallerId });
+    const ahora = await this._instantanea(alcance, usuario, { todos, porId, filasTaller, personaIds, asesorSel, disSel, tiendaSel, tallerSel });
 
     const kpis = await this._armarKpis(alcance, usuario, ind, indAnt, ahora, eventosPeriodo, rango);
     // Quienes ven a varias personas reciben la tabla unificada (personas con sus vales); asesor y diseñador, su listado simple.
@@ -420,7 +430,7 @@ class ValeReporteService {
     if (alcance.equipo) {
       const agruparPor = valeReporteGruposService.agrupacionValida(filtros.agruparPor, alcance.agrupaciones.includes('asesor') ? 'asesor' : alcance.agrupaciones[0]);
       const argumentos = {
-        alcance, dentroDelRango: (f) => dentro(f, rango), agruparPor, tiendaSel, tallerId, asesorSel, disSel, corte
+        alcance, dentroDelRango: (f) => dentro(f, rango), agruparPor, tiendaSel, tallerSel, asesorSel, disSel, corte
       };
       grupos = await valeReporteGruposService.armar(argumentos);
       atrasadosVigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosAntesDe: (f) => antesDe(f, rango) });
@@ -441,19 +451,18 @@ class ValeReporteService {
       evaluados,
       periodo: { ...rango, corte, cerrado, etiqueta: etiquetaPeriodo(rango), titulo: `Fecha de entrega: ${etiquetaPeriodo(rango)}`, anterior: anterior ? etiquetaPeriodo(anterior) : null },
       kpis, tablas, vales, grupos, atrasadosVigentes,
-      resumenFiltros: grupos ? this._resumenFiltros(grupos.agruparPor, opcionesFiltro, { tiendaIds: [...tiendaSel], tallerId }) : [],
+      resumenFiltros: grupos ? this._resumenFiltros(grupos.agruparPor, opcionesFiltro, { tiendaIds: [...tiendaSel], tallerIds: [...tallerSel] }) : [],
       filtros: opcionesFiltro
     };
   }
 
   // Texto de los filtros activos para el encabezado del PDF.
-  _resumenFiltros(agruparPor, opciones, { tiendaIds, tallerId }) {
-    const nombre = (lista, id) => ((lista || []).find(o => o.id === id) || {}).nombre;
+  _resumenFiltros(agruparPor, opciones, { tiendaIds, tallerIds = [] }) {
     const etiqueta = { asesor: 'asesor', disenador: 'diseñador', taller: 'taller', tienda: 'tienda' }[agruparPor];
     return [
       `Agrupado por ${etiqueta}`,
       ...(tiendaIds.length ? [etiquetaTiendasFiltro(tiendaIds, opciones.tiendas)] : []),
-      ...(tallerId ? [`Taller: ${nombre(opciones.talleres, tallerId) || tallerId}`] : [])
+      ...(tallerIds.length ? [etiquetaTalleresFiltro(tallerIds, opciones.talleres)] : [])
     ];
   }
 
@@ -468,7 +477,7 @@ class ValeReporteService {
   }
 
   // ---- Fotografía de hoy ----
-  async _instantanea(alcance, usuario, { todos, porId, filasTaller, personaIds, asesorSel = new Set(), disSel = new Set(), tiendaSel = new Set(), tallerId }) {
+  async _instantanea(alcance, usuario, { todos, porId, filasTaller, personaIds, asesorSel = new Set(), disSel = new Set(), tiendaSel = new Set(), tallerSel = new Set() }) {
     const abierto = v => !ESTADOS_TERMINALES.includes(v.estado);
     if (alcance.rol === 'disenador') {
       const mias = filasTaller.filter(f => f.disenador_id === usuario.id && ESTADOS_COLA_DISENADOR.includes(f.estado));
@@ -496,8 +505,8 @@ class ValeReporteService {
       propios = propios.filter(v => idsVale.has(v.id));
     }
     if (tiendaSel.size) propios = propios.filter(v => tiendaSel.has(v.tienda_id));
-    if (tallerId) {
-      const ids = new Set(filasTaller.filter(f => f.taller_id === tallerId).map(f => f.vale_id));
+    if (tallerSel.size) {
+      const ids = new Set(filasTaller.filter(f => tallerSel.has(f.taller_id)).map(f => f.vale_id));
       propios = propios.filter(v => ids.has(v.id));
     }
     // Vales abiertos que ya están en los talleres y todavía no tienen propuesta adjunta.
@@ -783,3 +792,4 @@ class ValeReporteService {
 module.exports = new ValeReporteService();
 module.exports.MAX_FILAS_PDF = MAX_FILAS_PDF;
 module.exports.etiquetaTiendasFiltro = etiquetaTiendasFiltro;
+module.exports.etiquetaTalleresFiltro = etiquetaTalleresFiltro;
