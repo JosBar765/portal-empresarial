@@ -334,7 +334,7 @@ class ValeController {
 
   async aceptarRechazoPropuesta(req, res) {
     try {
-      return res.json(await valeService.aceptarRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId)));
+      return res.json(await valeService.aceptarRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId), req.body && req.body.mensaje));
     } catch (error) {
       return responderError(res, error);
     }

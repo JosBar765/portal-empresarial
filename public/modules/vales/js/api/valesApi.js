@@ -256,8 +256,8 @@ export function enviarMensajeRechazoPropuesta(valeId, rechazoId, mensaje) {
   return enviarJSON(`/api/vales/${valeId}/rechazos-propuesta/${rechazoId}/mensajes`, { mensaje });
 }
 
-export function aceptarRechazoPropuesta(valeId, rechazoId) {
-  return enviarPost(`/api/vales/${valeId}/rechazos-propuesta/${rechazoId}/aceptar`);
+export function aceptarRechazoPropuesta(valeId, rechazoId, mensaje) {
+  return enviarJSON(`/api/vales/${valeId}/rechazos-propuesta/${rechazoId}/aceptar`, { mensaje });
 }
 
 export function rechazarRechazoPropuesta(valeId, rechazoId, mensaje) {

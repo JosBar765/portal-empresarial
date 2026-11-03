@@ -176,17 +176,19 @@ class ValeRechazoPropuestaService {
   }
 
   // El taller acepta: su fila vuelve a «Por asignar» (el encargado decide el diseñador) y el vale sale del paso 5 con su fecha intacta.
-  async aceptar(usuario, valeId, rondaId) {
+  async aceptar(usuario, valeId, rondaId, mensaje) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const { vale, ronda } = await this._cargar(valeId, rondaId);
       const { lado, fila } = await this._resolverAcceso(usuario, vale, ronda, { escritura: true });
       if (lado !== 'TALLER') throw new ErrorDeNegocio('Solo el taller puede aceptar o rechazar.', 403);
+      // El mensaje es opcional en la API (la interfaz siempre lo envía); se valida antes de los 409 (403, 400, 409).
+      const texto = String(mensaje == null ? '' : mensaje).trim() ? validarMensajeChat(mensaje) : null;
       if (ronda.estado !== ABIERTO) throw new ErrorDeNegocio('Este rechazo ya se cerró.', 409);
       if (!ESTADOS_RESPONDIBLES.includes(vale.estado)) throw new ErrorDeNegocio('El vale ya no admite este rechazo.', 409);
       if (fila.estado !== ESTADOS_TALLER.APROBADO) throw new ErrorDeNegocio('Tu propuesta de este vale ya no está aprobada.', 409);
       await rechazoRepository.aceptar({
         id: ronda.id, valeId, valeTallerId: fila.id, tallerId: fila.taller_id, usuarioId: usuario.id, estadoValeAnterior: vale.estado,
-        accion: `Taller ${ronda.taller} aceptó el rechazo de propuesta: vuelve a Por asignar`
+        accion: `Taller ${ronda.taller} aceptó el rechazo de propuesta: vuelve a Por asignar`, mensaje: texto
       });
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({

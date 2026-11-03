@@ -1,5 +1,4 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
-import { confirmarAccion } from '../components/confirmar.js';
 import {
   solicitarRechazoPropuesta, listarRechazosPropuesta, obtenerConversacionRechazoPropuesta, enviarMensajeRechazoPropuesta,
   aceptarRechazoPropuesta, rechazarRechazoPropuesta, cancelarRechazoPropuesta
@@ -144,7 +143,7 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
   overlay.querySelector('#mb-cerrar').addEventListener('click', cerrar);
   const ajustarAlto = () => { textarea.style.height = 'auto'; textarea.style.height = `${Math.min(textarea.scrollHeight, 110)}px`; };
 
-  let tallerNombre = ''; // el modal de «Rechazar» lo muestra en su título
+  let tallerNombre = ''; // los modales de «Aceptar» y «Rechazar» lo muestran en su título
   const pintar = (c) => {
     tallerNombre = c.taller;
     cabecera.innerHTML = `<span class="chip-estado chip-estado--taller"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon>${escapeHtml(c.taller)}</span>${chipEstado(c.estado)}`;
@@ -182,13 +181,12 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); mandar(); }
   });
 
-  // Decisiones: aceptar es del taller; cancelar, del asesor. Cierran la conversación y refrescan el buzón.
-  // `confirmacion` (opcional) pide un «¿Estás seguro?» antes de enviar; es una función porque el nombre del taller llega al pintar el hilo.
-  const decidir = (boton, accion, exito, { confirmacion = null } = {}) => {
-    const ejecutar = async () => {
+  // Cancelar es del asesor: cierra la conversación y refresca el buzón. Aceptar y rechazar (del taller) piden su mensaje en un modal aparte.
+  const decidir = (boton, accion, exito) => {
+    boton.addEventListener('click', async () => {
       [btnAceptar, btnRechazar, btnCancelar].forEach(b => { b.disabled = true; });
       try {
-        await accion(vale.id, rechazoId, textarea.value.trim());
+        await accion(vale.id, rechazoId);
         window.toast.success(exito.titulo, exito.texto);
         cerrar();
       } catch (error) {
@@ -196,46 +194,59 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
         [btnAceptar, btnRechazar, btnCancelar].forEach(b => { b.disabled = false; });
       }
       cargarBuzon();
-    };
-    boton.addEventListener('click', () => (confirmacion ? confirmarAccion({ ...confirmacion(), alConfirmar: ejecutar }) : ejecutar()));
+    });
   };
-  decidir(btnAceptar, aceptarRechazoPropuesta, { titulo: 'Aceptado', texto: 'Asigna el vale a un diseñador.' }, {
-    confirmacion: () => ({
-      title: 'Aceptar el rechazo',
-      mensaje: `Aceptarás el rechazo del vale ${vale.correlativo}: vuelve a ${tallerNombre} como «Pendiente Asignación» y el atraso vuelve a correr.`,
-      textoConfirmar: 'Aceptar'
-    })
-  });
-  btnRechazar.addEventListener('click', () => abrirModalMotivoRechazo(vale, rechazoId, tallerNombre, cerrar));
+  btnAceptar.addEventListener('click', () => abrirModalMensajeTaller('aceptar', vale, rechazoId, tallerNombre, cerrar));
+  btnRechazar.addEventListener('click', () => abrirModalMensajeTaller('rechazar', vale, rechazoId, tallerNombre, cerrar));
   decidir(btnCancelar, cancelarRechazoPropuesta, { titulo: 'Cancelado', texto: 'Ya puedes confirmar el vale.' });
   if (!zonaEscribir.hidden) textarea.focus();
 }
 
 // -----------------------------------------------------------------------
-// Taller: el motivo del «Rechazar» se escribe en un modal propio, aparte del chat
+// Taller: el mensaje de «Aceptar» y el de «Rechazar» se escriben en un modal propio, aparte del chat
 // -----------------------------------------------------------------------
-const MENSAJE_RECHAZO_POR_DEFECTO = 'Rechazado';
-const MOTIVOS_RAPIDOS_RECHAZO = ['Favor solicitar una modificación'];
+// Un solo modal para ambas decisiones: cambian el aviso, el mensaje de partida, los sugeridos y la llamada.
+const DECISIONES_TALLER = {
+  aceptar: {
+    titulo: 'Aceptar',
+    aviso: 'El vale vuelve a tu taller como <strong>Pendiente Asignación</strong>, el atraso vuelve a correr y el asesor verá este mensaje.',
+    porDefecto: 'Lo corregiré',
+    sugeridos: [],
+    textoConfirmar: 'Aceptar',
+    llamar: aceptarRechazoPropuesta,
+    exito: { titulo: 'Aceptado', texto: 'Asigna el vale a un diseñador.' }
+  },
+  rechazar: {
+    titulo: 'Rechazar',
+    aviso: 'El asesor verá este mensaje y el vale seguirá <strong>pendiente de su confirmación</strong>.',
+    porDefecto: 'Rechazado',
+    sugeridos: ['Favor solicitar una modificación'],
+    textoConfirmar: 'Rechazar',
+    llamar: rechazarRechazoPropuesta,
+    exito: { titulo: 'Rechazado', texto: 'El asesor fue avisado.' }
+  }
+};
 
-function abrirModalMotivoRechazo(vale, rechazoId, taller, cerrarConversacion) {
+function abrirModalMensajeTaller(decision, vale, rechazoId, taller, cerrarConversacion) {
+  const cfg = DECISIONES_TALLER[decision];
   let quitarEscape = () => {};
   const { overlay, cerrar } = abrirModal({
-    title: `Rechazar — ${taller}`,
+    title: `${cfg.titulo} — ${taller}`,
     bodyHtml: `
       <div class="aviso-rechazo">
         <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
-        <p>El asesor verá este mensaje y el vale seguirá <strong>pendiente de su confirmación</strong>.</p>
+        <p>${cfg.aviso}</p>
       </div>
       <div class="form-field full">
         <label for="mb-motivo">Mensaje para el asesor</label>
-        <div class="motivos-rapidos" role="group" aria-label="Mensajes sugeridos">
-          ${MOTIVOS_RAPIDOS_RECHAZO.map(m => `<button type="button" class="chip-motivo" data-motivo="${escapeHtml(m)}">${escapeHtml(m)}</button>`).join('')}
-        </div>
-        <textarea id="mb-motivo" rows="3" maxlength="${MAX_CARACTERES_CHAT}">${MENSAJE_RECHAZO_POR_DEFECTO}</textarea>
+        ${cfg.sugeridos.length ? `<div class="motivos-rapidos" role="group" aria-label="Mensajes sugeridos">
+          ${cfg.sugeridos.map(m => `<button type="button" class="chip-motivo" data-motivo="${escapeHtml(m)}">${escapeHtml(m)}</button>`).join('')}
+        </div>` : ''}
+        <textarea id="mb-motivo" rows="3" maxlength="${MAX_CARACTERES_CHAT}">${escapeHtml(cfg.porDefecto)}</textarea>
         <div class="campo-pie"><span class="campo-ayuda">Obligatorio.</span><span class="contador-mensaje" id="mb-motivo-contador"></span></div>
       </div>
     `,
-    footerHtml: '<button class="btn btn--ghost" id="mb-motivo-cancelar">Volver</button><button class="btn btn--primary" id="mb-motivo-rechazar"><ion-icon name="send-outline"></ion-icon> Rechazar</button>',
+    footerHtml: `<button class="btn btn--ghost" id="mb-motivo-cancelar">Volver</button><button class="btn btn--primary" id="mb-motivo-rechazar"><ion-icon name="send-outline"></ion-icon> ${cfg.textoConfirmar}</button>`,
     alCerrar: () => quitarEscape()
   });
   // Escape cierra solo este modal: el listener del componente cerraría también el chat de debajo.
@@ -255,8 +266,8 @@ function abrirModalMotivoRechazo(vale, rechazoId, taller, cerrarConversacion) {
   confirmar.addEventListener('click', async () => {
     confirmar.disabled = true;
     try {
-      await rechazarRechazoPropuesta(vale.id, rechazoId, textarea.value.trim());
-      window.toast.success('Rechazado', 'El asesor fue avisado.');
+      await cfg.llamar(vale.id, rechazoId, textarea.value.trim());
+      window.toast.success(cfg.exito.titulo, cfg.exito.texto);
       cerrar();
       cerrarConversacion();
     } catch (error) {

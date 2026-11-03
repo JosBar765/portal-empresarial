@@ -363,7 +363,7 @@ Asesor y Supervisor de Ventas; cada uno solo en los vales que creó) puede recha
 ```
 
 - **Cancelar:** mientras la ronda está abierta el asesor dueño puede cancelarla (`CANCELADO`) y entonces confirmar el vale.
-- **Motivo del «Rechazar» del taller:** «Rechazar» abre un modal igual al «Solventado» del asesor en adjuntos («Rechazar — taller»): el mensaje viene escrito como «Rechazado», se puede editar, hay un mensaje sugerido («Favor solicitar una modificación») que se aplica con un clic, es obligatorio (1 a 200 caracteres) y se guarda una sola vez como mensaje del taller en el hilo; la caja del chat queda solo para conversar. Volver o Escape cierran ese modal y vuelven al chat. «Aceptar» no lleva motivo y pide una confirmación («¿Estás seguro?») antes de enviarse.
+- **Motivo del «Rechazar» del taller:** «Rechazar» abre un modal igual al «Solventado» del asesor en adjuntos («Rechazar — taller»): el mensaje viene escrito como «Rechazado», se puede editar, hay un mensaje sugerido («Favor solicitar una modificación») que se aplica con un clic, es obligatorio (1 a 200 caracteres) y se guarda una sola vez como mensaje del taller en el hilo; la caja del chat queda solo para conversar. Volver o Escape cierran ese modal y vuelven al chat. «Aceptar» abre el mismo modal («Aceptar — taller»): el mensaje viene escrito como «Lo corregiré», se puede editar, no tiene mensajes sugeridos, es obligatorio (1 a 200 caracteres) y se guarda una sola vez como mensaje del taller en el hilo, para que el asesor lo vea; ya no hay confirmación «¿Estás seguro?».
 - **Respuesta por taller:** cada taller responde por separado; el que acepta regresa y el vale pasa a `CREADO`. Si otro taller
   aún tenía una ronda abierta, esa ronda sigue abierta y se puede responder mientras el vale no haya salido del trabajo del taller.
 - **Hilo propio por taller**, separado del de adjuntos (§2.1) y con la misma mecánica: un hilo por taller dentro del vale, sin límite de
@@ -394,7 +394,7 @@ Asesor y Supervisor de Ventas; cada uno solo en los vales que creó) puede recha
   y la sala del taller (encargado y asistentes; el diseñador asignado solo recibe el refresco silencioso para ver el cierre con el chat abierto).
   Cada paso queda en `vale_historial`. Rutas: `/api/vales/:id/rechazos-propuesta` (GET: todas las rondas visibles para quien consulta, abiertas o
   cerradas; POST: crear), `/:rechazoId/mensajes` (GET: el hilo completo del taller en cualquier estado de la ronda y del vale; POST: escribir, solo con la
-  ronda abierta), `/aceptar`, `/rechazar` y `/cancelar`.
+  ronda abierta), `/aceptar` (acepta un `mensaje` opcional que se guarda como mensaje del taller; la interfaz siempre lo envía), `/rechazar` y `/cancelar`.
 
 ## 2. Estado por TALLER (`vale_talleres.estado`)
 
