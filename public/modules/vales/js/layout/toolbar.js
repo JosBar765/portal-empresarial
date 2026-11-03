@@ -16,6 +16,16 @@ function verReporteDelDia(iso) {
   if (boton && boton.style.display !== 'none') boton.click();
 }
 
+// El filtro de tienda del Buzón y de Trabajo realizado se recuerda por usuario en este navegador (Reportes no).
+const claveFiltroTienda = () => `vales.filtroTienda.${state.user.id}`;
+const leerFiltroTienda = () => { try { return localStorage.getItem(claveFiltroTienda()); } catch { return null; } };
+function guardarFiltroTienda(valor) {
+  try {
+    if (valor) localStorage.setItem(claveFiltroTienda(), String(valor));
+    else localStorage.removeItem(claveFiltroTienda());
+  } catch { /* sin almacenamiento el filtro simplemente no se recuerda */ }
+}
+
 export function wireToolbar() {
   // Misma barra de período que Reportes (Hoy · Día · Semana · Mes · Desde–Hasta), con su propio estado: state.ventana.
   const cambiarVentana = (ventana) => { state.ventana = ventana; barra.pintar(); cargarBuzon(); };
@@ -65,6 +75,12 @@ export function wireToolbar() {
     const contenedorTienda = $('#filtro-tienda');
     contenedorTienda.style.display = '';
     const tiendasMenu = state.catalogos.tiendasGerencia || state.catalogos.tiendas || [];
+    // Un valor recordado solo vale si todavía existe en el catálogo de este usuario (por ejemplo, ya no cubre esa tienda).
+    const recordado = state.tiendaId == null ? leerFiltroTienda() : null;
+    if (recordado) {
+      const existe = resolverTiendaIds(recordado, tiendasMenu).some(id => tiendasMenu.some(t => Number(t.id) === Number(id)));
+      if (existe) state.tiendaId = recordado; else guardarFiltroTienda(null);
+    }
     state.tiendaId = valorVigente(state.tiendaId, v => resolverTiendaIds(v, tiendasMenu)) || null;
     const menuTienda = crearFiltroTiendas({
       tiendas: tiendasMenu,
@@ -72,6 +88,7 @@ export function wireToolbar() {
       // Misma semántica que el `change` del select anterior: vacío = sin filtro.
       onSeleccionar: (valor) => {
         state.tiendaId = valor ? String(valor) : null;
+        guardarFiltroTienda(state.tiendaId);
         cargarBuzon();
       }
     });
