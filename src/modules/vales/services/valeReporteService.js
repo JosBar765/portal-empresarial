@@ -351,23 +351,23 @@ class ValeReporteService {
     const lista = v => [...new Set(String(v ?? '').split(',').map(entero).filter(Boolean))].slice(0, MAX_PERSONAS);
     const tiendaSel = alcance.equipo ? valeBuzonService.idsDeTiendaFiltro(filtros) : new Set();
     const tallerSel = alcance.equipo ? valeBuzonService.idsDeTallerFiltro(filtros) : new Set();
-    if (alcance.equipo && filtros.agruparPor && !alcance.agrupaciones.includes(filtros.agruparPor)) throw new ErrorDeNegocio('Esa agrupación no está disponible para tu rol.');
+    if (alcance.equipo && filtros.agruparPor && !alcance.agrupaciones.includes(filtros.agruparPor)) throw new ErrorDeNegocio('Esa agrupación no está disponible para tu rol.', 403);
     if (alcance.rol === 'encargado') {
-      if ([...tallerSel].some(id => !alcance.tallerIds.includes(id))) throw new ErrorDeNegocio('Ese taller no está a tu cargo.');
-      if (tiendaSel.size || lista(filtros.asesorIds).length) throw new ErrorDeNegocio('Ese filtro no está disponible para tu rol.');
+      if ([...tallerSel].some(id => !alcance.tallerIds.includes(id))) throw new ErrorDeNegocio('Ese taller no está a tu cargo.', 403);
+      if (tiendaSel.size || lista(filtros.asesorIds).length) throw new ErrorDeNegocio('Ese filtro no está disponible para tu rol.', 403);
     }
     if (alcance.rol === 'supervisor') {
-      if ([...tiendaSel].some(id => !alcance.tiendaIds.includes(id))) throw new ErrorDeNegocio('Esa tienda no está a tu cargo.');
-      if ([...tallerSel].some(id => !alcance.tallerIdsVisibles.includes(id))) throw new ErrorDeNegocio('Ese taller no está a tu cargo.');
-      if (lista(filtros.disenadorIds).length) throw new ErrorDeNegocio('Ese filtro no está disponible para tu rol.');
+      if ([...tiendaSel].some(id => !alcance.tiendaIds.includes(id))) throw new ErrorDeNegocio('Esa tienda no está a tu cargo.', 403);
+      if ([...tallerSel].some(id => !alcance.tallerIdsVisibles.includes(id))) throw new ErrorDeNegocio('Ese taller no está a tu cargo.', 403);
+      if (lista(filtros.disenadorIds).length) throw new ErrorDeNegocio('Ese filtro no está disponible para tu rol.', 403);
     }
     // Quién se evalúa: asesores y diseñadores (el parámetro anterior `personaIds` se sigue aceptando).
     const asesorSel = new Set(lista(filtros.asesorIds));
     const disSel = new Set(lista(filtros.disenadorIds));
     lista(filtros.personaIds).forEach(id => (alcance.rol === 'encargado' ? disSel : asesorSel).add(id));
     const propias = new Set((alcance.personas || []).map(p => p.id));
-    if (alcance.rol === 'supervisor' && [...asesorSel].some(id => !propias.has(id))) throw new ErrorDeNegocio('Esa persona no está a tu cargo.');
-    if (alcance.rol === 'encargado' && [...disSel].some(id => !propias.has(id))) throw new ErrorDeNegocio('Esa persona no está a tu cargo.');
+    if (alcance.rol === 'supervisor' && [...asesorSel].some(id => !propias.has(id))) throw new ErrorDeNegocio('Esa persona no está a tu cargo.', 403);
+    if (alcance.rol === 'encargado' && [...disSel].some(id => !propias.has(id))) throw new ErrorDeNegocio('Esa persona no está a tu cargo.', 403);
     if (!alcance.equipo) { asesorSel.clear(); disSel.clear(); }
     const personaIds = alcance.rol === 'supervisor' ? asesorSel : (alcance.rol === 'encargado' ? disSel : new Set());
     const evaluados = (await reporteRepository.listarNombres([...asesorSel, ...disSel])).map(u => ({ id: u.id, nombre: valeReporteGruposService.etiquetaNombre(u.nombre, u.rol_id, u.hereda_de_rol_id) }));
