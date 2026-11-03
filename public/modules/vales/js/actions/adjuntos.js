@@ -201,8 +201,12 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
   const pintar = (conversacion) => {
     // Con el acuerdo (el taller verificó los adjuntos) la conversación deja de verse: el servidor ya no manda mensajes.
     if (conversacion.cerrada) {
-      cabecera.innerHTML = '<span class="chip-estado chip-estado--cerrado">Cerrada</span>';
-      hilo.innerHTML = '<div class="chat-vacio"><ion-icon name="checkmark-done-circle-outline" aria-hidden="true"></ion-icon><p><strong>Se llegó a un acuerdo.</strong><br>La conversación se cerró y quedó solo como registro en el historial del vale.</p></div>';
+      // El taller que aún no revisa los adjuntos nunca rechazó: no hubo acuerdo que cerrar.
+      const sinConversacion = conversacion.estado === 'VERIFICANDO_ADJUNTOS';
+      cabecera.innerHTML = `<span class="chip-estado chip-estado--cerrado">${sinConversacion ? 'Sin conversación' : 'Cerrada'}</span>`;
+      hilo.innerHTML = sinConversacion
+        ? '<div class="chat-vacio"><ion-icon name="chatbubbles-outline" aria-hidden="true"></ion-icon><p><strong>Todavía no hay conversación.</strong><br>El taller aún no revisa los adjuntos de este vale.</p></div>'
+        : '<div class="chat-vacio"><ion-icon name="checkmark-done-circle-outline" aria-hidden="true"></ion-icon><p><strong>Se llegó a un acuerdo.</strong><br>La conversación se cerró y quedó solo como registro en el historial del vale.</p></div>';
       zonaEscribir.hidden = true;
       cerrada.hidden = true;
       btnYaAtendi.hidden = true;

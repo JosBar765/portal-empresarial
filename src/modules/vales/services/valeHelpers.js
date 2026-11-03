@@ -356,7 +356,7 @@ function validarEleccionTalleres(talleresIds, talleresActivos, tiendaIdAsesor = 
   const locales = seleccionados.filter(t => t.tienda_id !== null);
   const generales = seleccionados.filter(t => t.tienda_id === null);
   if (locales.length > 0 && generales.length > 0) {
-    throw new Error('No se puede combinar Diseño Local con talleres de Munditrofeos en el mismo vale.');
+    throw new Error('El Diseño Local no se puede combinar con los talleres generales (Diseño, Diseño UV/3D y Protextil). Elige solo uno de los dos tipos.');
   }
   if (locales.some(t => t.tienda_id !== tiendaIdAsesor)) {
     throw new Error('Solo se puede enviar a Diseño Local de su propia tienda.');
