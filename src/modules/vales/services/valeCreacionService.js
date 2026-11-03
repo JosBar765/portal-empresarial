@@ -32,7 +32,7 @@ const {
   ESTADOS, hoyISO, horaActual, enriquecer,
   normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, diasHabilesDeModificacion, registrarHistorial,
   esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
-  esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor, salasDeInvolucrados
+  esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor, salasDeInvolucrados, validarCantidadYCotizacion
 } = require('./valeHelpers');
 
 class ValeCreacionService {
@@ -460,14 +460,7 @@ class ValeCreacionService {
     if (!(new Date(fechaEventoNorm.replace(' ', 'T')) > new Date(fechaEntregaNorm.replace(' ', 'T')))) {
       throw new Error('La fecha del evento debe ser posterior a la fecha de entrega.');
     }
-    const cantidadNum = Number(cantidad);
-    if (!Number.isFinite(cantidadNum) || cantidadNum < 1) {
-      throw new Error('La cantidad debe ser 1 o más.');
-    }
-    const cotizacionNum = Number(cotizacion);
-    if (!Number.isFinite(cotizacionNum) || cotizacionNum <= 0) {
-      throw new Error('La cotización debe ser un valor numérico mayor a 0.');
-    }
+    const { cantidad: cantidadNum, cotizacion: cotizacionNum } = validarCantidadYCotizacion(cantidad, cotizacion);
 
     return {
       clienteEmpresa, clienteNombre, clienteTelefono, clienteCorreo,

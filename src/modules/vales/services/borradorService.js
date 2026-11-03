@@ -10,13 +10,11 @@ const { validarArchivos } = require('../../../core/files/fileSignature');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
 const valeMutex = require('./valeMutex');
-const { esUrgente } = require('./valeHelpers');
+const { esUrgente, MAX_ENTERO, MAX_COTIZACION } = require('./valeHelpers');
 
 const DIAS_VIGENCIA = 30;
 const MAX_IMAGENES = 10;
 const MAX_DOCUMENTOS = 5;
-const MAX_ENTERO = 2147483647;
-const MAX_COTIZACION = 99999999.99;
 
 // [campo del formulario, columna, máximo de caracteres, etiqueta]; los máximos son los de las columnas (descripción: el del formulario).
 const CAMPOS_TEXTO = [

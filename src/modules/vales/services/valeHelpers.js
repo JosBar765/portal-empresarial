@@ -302,6 +302,26 @@ async function esSupervisorDelAsesor(usuario, vale) {
 const ESTADOS_SIN_PROTEGER = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RECHAZADOS];
 const algunTallerProtege = (filas) => filas.some(f => !ESTADOS_SIN_PROTEGER.includes(f.estado));
 
+// Topes técnicos de las columnas INT (cantidad) y DECIMAL(10,2) (cotización) de `vales`; el borrador los comparte.
+const MAX_ENTERO = 2147483647;
+const MAX_COTIZACION = 99999999.99;
+const conMiles = (texto) => texto.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const TEXTO_MAX_ENTERO = conMiles(String(MAX_ENTERO));
+const TEXTO_MAX_COTIZACION = (([entero, decimales]) => `${conMiles(entero)},${decimales}`)(MAX_COTIZACION.toFixed(2).split('.'));
+
+// Sin tope, un valor enorme llegaba a MySQL y respondía un 500 genérico.
+function validarCantidadYCotizacion(cantidad, cotizacion) {
+  const cantidadNum = Number(cantidad);
+  if (!Number.isInteger(cantidadNum) || cantidadNum < 1 || cantidadNum > MAX_ENTERO) {
+    throw new Error(`La cantidad debe ser un número entero de 1 en adelante (máximo ${TEXTO_MAX_ENTERO}). Revisa el valor ingresado.`);
+  }
+  const cotizacionNum = Number(cotizacion);
+  if (!Number.isFinite(cotizacionNum) || cotizacionNum <= 0 || cotizacionNum > MAX_COTIZACION) {
+    throw new Error(`La cotización debe ser un número mayor a 0 y de hasta ${TEXTO_MAX_COTIZACION}. Revisa el valor ingresado.`);
+  }
+  return { cantidad: cantidadNum, cotizacion: cotizacionNum };
+}
+
 module.exports = {
   algunTallerProtege, ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
@@ -310,6 +330,6 @@ module.exports = {
   esValeDeModificacion, DIAS_HABILES_MODIFICACION, diasHabilesDeModificacion, TIPOS_MODIFICACION_CON_VALE,
   PREFIJO_MOD, esCorrelativoMod, correlativoBase, armarCorrelativoMod, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
-  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial,
+  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial, MAX_ENTERO, MAX_COTIZACION, validarCantidadYCotizacion,
   requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo, validarMensajeChat, salasDeInvolucrados, esSupervisorDelAsesor
 };

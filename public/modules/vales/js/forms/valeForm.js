@@ -134,7 +134,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
           <div class="form-field"><label>Material *</label><input type="text" name="material" required maxlength="40" placeholder="Ej. Acrílico" /></div>
           <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" maxlength="40" /></div>
           <div class="form-field"><label>Acabado</label><input type="text" name="acabado" maxlength="40" /></div>
-          <div class="form-field"><label>Cantidad *</label><input type="number" name="cantidad" min="1" step="1" required /></div>
+          <div class="form-field"><label>Cantidad *</label><input type="number" name="cantidad" min="1" max="2147483647" step="1" required /></div>
           <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>        </div>
 
         <div class="section-title">Boceto y Descripción</div>
@@ -227,7 +227,13 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
     sincronizarEntrega();
   }
   wireContadorCampo(overlay, 'descripcion', DESCRIPCION_MAX_CARACTERES);
-  limitarTelefono(overlay.querySelector('[name="clienteTelefono"]'));
+  const inputTelefono = overlay.querySelector('[name="clienteTelefono"]');
+  limitarTelefono(inputTelefono);
+  inputTelefono.addEventListener('input', () => { inputTelefono.value = inputTelefono.value.replace(/[^\d+]/g, ''); });
+  const inputCantidad = overlay.querySelector('[name="cantidad"]');
+  // La cantidad es entera: un separador decimal se descarta al teclear o pegar.
+  inputCantidad.addEventListener('keydown', e => { if (['.', ',', 'e', 'E', '+', '-'].includes(e.key)) e.preventDefault(); });
+  inputCantidad.addEventListener('input', () => { inputCantidad.value = inputCantidad.value.replace(/\D/g, ''); });
   const getImagenes = wireDropzone(overlay, '[name="imagenes"]', '.form-field:has([name="imagenes"]) .archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
   const getDocumentos = wireDropzone(overlay, '[name="documentos"]', '.form-field:has([name="documentos"]) .archivo-lista', { maxBytes: ARCHIVO_MAX_BYTES });
 
