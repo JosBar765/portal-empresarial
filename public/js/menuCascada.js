@@ -93,7 +93,8 @@ export function construirArbolTiendas(tiendas, { conTodas = false } = {}) {
 }
 
 // Talleres por país: un taller con varios países aparece en cada uno; sin país va al final como «Sin país».
-export function construirArbolTalleres(talleres) {
+// `conTodas` (solo filtros): primera fila «Todas — <país>» con valor «pais:X» en cada país de 2 o más talleres.
+export function construirArbolTalleres(talleres, { conTodas = false } = {}) {
   const porPais = new Map();
   talleres.forEach(t => {
     const paisesDelTaller = t.paises && t.paises.length ? t.paises : ['Sin país'];
@@ -106,11 +107,16 @@ export function construirArbolTalleres(talleres) {
     if (a === 'Sin país' || b === 'Sin país') return a === b ? 0 : (a === 'Sin país' ? 1 : -1);
     return a.localeCompare(b);
   });
+  // Con un solo país su nivel se colapsa y no lleva fila «Todas».
+  const conFilaPais = conTodas && paises.length > 1;
   const nodosPais = paises.map((pais, indice) => {
     const nodo = {
       tipo: 'grupo',
       etiqueta: pais,
-      hijos: porPais.get(pais).slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(t => ({ tipo: 'hoja', valor: t.id, etiqueta: t.nombre }))
+      hijos: [
+        ...(conFilaPais && porPais.get(pais).length >= 2 ? [{ tipo: 'hoja', valor: `pais:${pais}`, etiqueta: `Todas — ${pais}` }] : []),
+        ...porPais.get(pais).slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(t => ({ tipo: 'hoja', valor: t.id, etiqueta: t.nombre }))
+      ]
     };
     if (indice === 0) nodo.encabezadoAntes = 'País';
     return nodo;
@@ -737,3 +743,16 @@ export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilit
     cerrar() { cerrarTodo(); }
   };
 }
+
+// Solo para filtros: un campo de formulario exige un solo valor y por eso no usa «Todas — <país o grupo>».
+const crearFiltro = (construirArbol, lista, { etiquetaVacio, ...resto }) => crearMenuCascada({
+  ...resto,
+  etiquetaVacio,
+  arbol: [{ tipo: 'hoja', valor: '', etiqueta: etiquetaVacio }, ...construirArbol(lista, { conTodas: true })]
+});
+
+export const crearFiltroTiendas = ({ tiendas, etiquetaVacio = 'Todas las tiendas', ariaLabel = 'Filtrar por tienda', ...resto }) =>
+  crearFiltro(construirArbolTiendas, tiendas || [], { etiquetaVacio, ariaLabel, ...resto });
+
+export const crearFiltroTalleres = ({ talleres, etiquetaVacio = 'Todos los talleres', ariaLabel = 'Filtrar por taller', ...resto }) =>
+  crearFiltro(construirArbolTalleres, talleres || [], { etiquetaVacio, ariaLabel, ...resto });

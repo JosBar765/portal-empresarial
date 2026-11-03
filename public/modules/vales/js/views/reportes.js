@@ -12,10 +12,10 @@ import { htmlBloqueVigentes, conectarBloqueVigentes } from '../components/atrasa
 import { htmlGraficaBarrasDobles } from '../components/graficaBarrasDobles.js';
 import { htmlTablaRendimiento } from '../components/tablaRendimiento.js';
 import { crearMenuExportar } from '../components/menuExportar.js';
-import { crearMenuCascada, construirArbolTiendas, construirArbolTalleres } from '/js/menuCascada.js';
+import { crearMenuCascada, crearFiltroTiendas, construirArbolTalleres } from '/js/menuCascada.js';
 import { crearBarraPeriodo, aplicarPeriodoAQuery, normalizarPeriodoCerrado } from '../components/barraPeriodoReportes.js';
 import { crearSelectorMultiple } from '../components/selectorMultiple.js';
-import { paramsDeTienda, resolverTiendaIds } from '../utils/filtroTiendas.js';
+import { paramsDeTienda, resolverTiendaIds, valorVigente } from '../utils/filtroTiendas.js';
 
 // -----------------------------------------------------------------------
 // Reportes de actividad. Quienes ven a varias personas (Gerente, Administrador, Supervisor y Encargado/Asistente) reciben
@@ -416,6 +416,7 @@ function renderFiltros(data, vista = 'actividad') {
   const disponibles = AGRUPACIONES.filter(a => permitidas.includes(a.id));
   // Con una tienda elegida, talleres, asesores y diseñadores se acotan a los de esa tienda; con un taller elegido,
   // los diseñadores son solo los de ese taller.
+  r.tiendaId = valorVigente(r.tiendaId, v => resolverTiendaIds(v, f.tiendas));
   const tiendasElegidas = new Set(resolverTiendaIds(r.tiendaId, f.tiendas));
   const tallerElegido = Number(r.tallerId) || null;
 // Rendimiento de Administrador y Gerente: Ventas filtra por tienda, taller y asesor; Taller, por taller y diseñador.
@@ -464,11 +465,9 @@ ${tiendasVisibles.length ? '<div id="rep-f-tienda"></div>' : ''}
   const tienda = $('#rep-f-tienda', cont);
   if (tienda) {
     // El bloque se recrea en cada render: el menú nace de nuevo con la tienda vigente.
-    const menuTienda = crearMenuCascada({
-      arbol: [{ tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' }, ...construirArbolTiendas(f.tiendas, { conTodas: true })],
+    const menuTienda = crearFiltroTiendas({
+      tiendas: f.tiendas,
       valorActual: r.tiendaId || '',
-      etiquetaVacio: 'Todas las tiendas',
-      ariaLabel: 'Filtrar por tienda',
       onSeleccionar: (valor) => cambiarTienda(valor === '' || valor == null ? '' : String(valor))
     });
     tienda.appendChild(menuTienda.elemento);
