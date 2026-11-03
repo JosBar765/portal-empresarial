@@ -21,8 +21,8 @@ const MAX_CARACTERES_MENSAJE = 200;
 const ESTADOS_POR_VERIFICAR = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
 // Mientras el taller tiene el vale rechazado (o ya respondido) la conversación está abierta; después es de solo lectura.
 const ESTADOS_CONVERSACION_ABIERTA = [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
-// Tras «Ya lo atendí» la pelota está en el taller: el asesor no escribe hasta que el taller rechace de nuevo.
-const asesorEnEspera = (escribe, fila) => escribe === 'ASESOR' && fila.estado === ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS;
+// Tras «Ya lo atendí» la pelota está en el taller: nadie escribe hasta que el taller verifique o rechace de nuevo.
+const enRevisionDelTaller = (fila) => fila.estado === ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS;
 
 // Mensaje de la conversación: texto no vacío de hasta 200 caracteres (se cuentan caracteres, no palabras).
 function validarMensaje(mensaje, { obligatorio = true, porDefecto = null } = {}) {
@@ -207,7 +207,7 @@ class ValeAdjuntosService {
     const mensajes = await valeMensajeRepository.listarPorValeTaller(fila.id);
     return {
       taller_id: fila.taller_id, estado: fila.estado, vence_en: fila.adjuntos_vence_en, cerrada: false,
-      puede_escribir: !!escribe && !asesorEnEspera(escribe, fila), lado: escribe || 'SUPERVISOR',
+      puede_escribir: !!escribe && !enRevisionDelTaller(fila), lado: escribe || 'SUPERVISOR',
       total: mensajes.length,
       mensajes: mensajes.map(m => ({ id: m.id, lado: m.lado, autor: m.autor, autor_id: m.autor_id, mensaje: m.mensaje, creado_en: m.creado_en }))
     };
@@ -219,7 +219,11 @@ class ValeAdjuntosService {
       const vale = await requerirVale(valeId);
       const { fila, escribe } = await this._resolverAcceso(usuario, vale, tallerId);
       if (!escribe) throw new ErrorDeNegocio('Solo el taller y el asesor del vale pueden escribir en la conversación.', 403);
-      if (asesorEnEspera(escribe, fila)) throw new Error('Ya avisaste al taller: espera su revisión. Si lo rechaza otra vez podrás escribir de nuevo.');
+      if (enRevisionDelTaller(fila)) {
+        throw new Error(escribe === 'ASESOR'
+          ? 'Ya avisaste al taller: espera su revisión. Si lo rechaza otra vez podrás escribir de nuevo.'
+          : 'El asesor ya avisó que atendió el rechazo: verifica los adjuntos o vuelve a rechazarlos.');
+      }
       if (!ESTADOS_CONVERSACION_ABIERTA.includes(fila.estado)) {
         throw new Error('La conversación se cerró: se llegó a un acuerdo.');
       }
