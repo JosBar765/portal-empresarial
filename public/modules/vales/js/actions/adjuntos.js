@@ -1,7 +1,7 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { verificarAdjuntos, rechazarAdjuntos, responderAdjuntos, darDeBajaTallerVale, obtenerConversacion, enviarMensajeRechazo } from '../api/valesApi.js';
-import { escapeHtml, formatearFechaHora, inicialesAvatar } from '../utils/formato.js';
-import { puedeResponderAdjuntos, puedeLeerConversacionAdjuntos } from '../permisos.js';
+import { escapeHtml, inicialesAvatar } from '../utils/formato.js';
+import { puedeResponderAdjuntos } from '../permisos.js';
 import { state } from '../state.js';
 import { cargarBuzon } from '../views/buzon.js';
 
@@ -178,7 +178,7 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
       </div>
       <p class="chat-cerrada" id="chat-cerrada" hidden><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon><span>Solo lectura.</span></p>
     `,
-    footerHtml: '<button class="btn btn--ghost" id="btn-cerrar">Cerrar</button>'
+    footerHtml: '<button class="btn btn--ghost" id="btn-cerrar" style="margin-right:auto;">Cerrar</button><button class="btn btn--primary" id="btn-ya-atendi" hidden><ion-icon name="checkmark-done-outline"></ion-icon> Ya lo atendí</button>'
   });
   const cabecera = overlay.querySelector('#chat-cabecera');
   const hilo = overlay.querySelector('#chat-hilo');
@@ -186,22 +186,30 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
   const cerrada = overlay.querySelector('#chat-cerrada');
   const textarea = overlay.querySelector('#chat-mensaje');
   const enviar = overlay.querySelector('#chat-enviar');
+  const btnYaAtendi = overlay.querySelector('#btn-ya-atendi');
 
   const cerrar = () => {
     if (state.conversacionAbierta && state.conversacionAbierta.overlay === overlay) state.conversacionAbierta = null;
     cerrarModal();
   };
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
+  // «Ya lo atendí» vive también en el chat: los asesores olvidaban salir a avisar al taller al terminar de conversar.
+  btnYaAtendi.addEventListener('click', () => abrirModalResponderAdjuntos(vale, { taller_id: tallerId, taller: nombreTaller || 'el taller' }, cerrar));
 
   const ajustarAlto = () => { textarea.style.height = 'auto'; textarea.style.height = `${Math.min(textarea.scrollHeight, 110)}px`; };
 
   const pintar = (conversacion) => {
     // Con el acuerdo (el taller verificó los adjuntos) la conversación deja de verse: el servidor ya no manda mensajes.
     if (conversacion.cerrada) {
-      cabecera.innerHTML = '<span class="chip-estado chip-estado--cerrado">Cerrada</span>';
-      hilo.innerHTML = '<div class="chat-vacio"><ion-icon name="checkmark-done-circle-outline" aria-hidden="true"></ion-icon><p><strong>Se llegó a un acuerdo.</strong><br>La conversación se cerró y quedó solo como registro en el historial del vale.</p></div>';
+      // El taller que aún no revisa los adjuntos nunca rechazó: no hubo acuerdo que cerrar.
+      const sinConversacion = conversacion.estado === 'VERIFICANDO_ADJUNTOS';
+      cabecera.innerHTML = `<span class="chip-estado chip-estado--cerrado">${sinConversacion ? 'Sin conversación' : 'Cerrada'}</span>`;
+      hilo.innerHTML = sinConversacion
+        ? '<div class="chat-vacio"><ion-icon name="chatbubbles-outline" aria-hidden="true"></ion-icon><p><strong>Todavía no hay conversación.</strong><br>El taller aún no revisa los adjuntos de este vale.</p></div>'
+        : '<div class="chat-vacio"><ion-icon name="checkmark-done-circle-outline" aria-hidden="true"></ion-icon><p><strong>Se llegó a un acuerdo.</strong><br>La conversación se cerró y quedó solo como registro en el historial del vale.</p></div>';
       zonaEscribir.hidden = true;
       cerrada.hidden = true;
+      btnYaAtendi.hidden = true;
       return;
     }
     const estado = ESTADO_CHAT[conversacion.estado];
@@ -212,7 +220,12 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
     hilo.scrollTop = hilo.scrollHeight;
     zonaEscribir.hidden = !conversacion.puede_escribir;
     cerrada.hidden = conversacion.puede_escribir;
-    cerrada.querySelector('span').textContent = 'Solo lectura.';
+    const textoEspera = {
+      'ASESOR:ADJUNTOS_RESPONDIDOS': 'Ya avisaste al taller: espera su revisión.',
+      'TALLER:ADJUNTOS_RECHAZADOS': 'Ya rechazaste los adjuntos: espera la respuesta del asesor.'
+    };
+    cerrada.querySelector('span').textContent = textoEspera[`${conversacion.lado}:${conversacion.estado}`] || 'Solo lectura.';
+    btnYaAtendi.hidden = !(puedeResponderAdjuntos(vale) && conversacion.puede_escribir && conversacion.lado === 'ASESOR' && conversacion.estado === 'ADJUNTOS_RECHAZADOS');
   };
   const refrescar = async () => {
     try { pintar(await obtenerConversacion(vale.id, tallerId)); } catch (error) { hilo.innerHTML = `<div class="chat-vacio"><p>${escapeHtml(error.message)}</p></div>`; }
@@ -245,59 +258,34 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
 }
 
 // -----------------------------------------------------------------------
-// Asesor (y supervisor): vale rechazado por un taller. Solo el dueño escribe; el supervisor lee la conversación.
+// Ícono rojo del buzón (asesor y supervisor): abre directo el chat del taller o, si hay varios, deja elegir cuál
 // -----------------------------------------------------------------------
-export function abrirModalAdjuntosPendientes(vale) {
+export function abrirConversacionAdjuntos(vale) {
   const adjuntos = vale.adjuntos || [];
-  const puedeResponder = puedeResponderAdjuntos(vale);
-  const puedeLeer = puedeLeerConversacionAdjuntos(vale);
-  const esMod = Number(vale.vale_original_id) > 0;
-  const tarjetas = adjuntos.map(a => {
-    if (a.estado === 'ADJUNTOS_RESPONDIDOS') {
-      return `<li class="rechazo-tarjeta">
-        <div class="rechazo-cab"><strong>${escapeHtml(a.taller)}</strong><span class="chip-estado chip-estado--info">Esperando revisión del taller</span></div>
-        <p class="rechazo-texto">Ya avisaste al taller. Tu mensaje:</p>
-        <p class="mensaje-adjuntos">${escapeHtml(a.mensaje || MENSAJE_POR_DEFECTO)}</p>
-        ${puedeLeer ? `<div class="rechazo-acciones"><button class="btn btn--ghost btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Ver conversación</button></div>` : ''}
-      </li>`;
-    }
-    return `<li class="rechazo-tarjeta rechazo-tarjeta--alerta">
-      <div class="rechazo-cab"><strong>${escapeHtml(a.taller)}</strong><span class="chip-estado chip-estado--alerta">Rechazado por el taller</span></div>
-      <p class="rechazo-texto">Atiende el mensaje del taller. Si no se resuelve, ${esMod ? 'la solicitud de modificación se elimina' : a.total_talleres >= 2 ? `el taller ${escapeHtml(a.taller)} se dará de baja de este vale` : 'el vale se elimina'}${a.vence_en ? ` el ${escapeHtml(formatearFechaHora(a.vence_en))}` : ''}.</p>
-      ${puedeResponder ? `<div class="rechazo-acciones">
-        <button class="btn btn--primary btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Leer y responder</button>
-        <button class="btn btn--ghost btn--sm" data-responder="${Number(a.taller_id)}"><ion-icon name="checkmark-done-outline"></ion-icon> Ya lo atendí</button>
-      </div>` : puedeLeer ? `<div class="rechazo-acciones"><button class="btn btn--ghost btn--sm" data-conversacion="${Number(a.taller_id)}"><ion-icon name="chatbubbles-outline"></ion-icon> Ver conversación</button></div>` : ''}
-    </li>`;
-  }).join('');
-
-  const hayRechazados = adjuntos.some(a => a.estado === 'ADJUNTOS_RECHAZADOS');
+  if (!adjuntos.length) return;
+  if (adjuntos.length === 1) { abrirModalConversacion(vale, adjuntos[0].taller_id, adjuntos[0].taller); return; }
   const { overlay, cerrar } = abrirModal({
-    title: `${hayRechazados ? 'Vale rechazado por un taller' : 'Aviso enviado al taller'} — ${vale.correlativo}`,
+    title: `Conversaciones — ${vale.correlativo}`,
     bodyHtml: `
-      <ul class="rechazo-lista">${tarjetas}</ul>
-      ${hayRechazados && !puedeResponder ? '<p class="campo-ayuda" style="margin-top:10px;">Solo el asesor del vale puede responder.</p>' : ''}
-    `,
+      <p class="mod-intro">¿Cuál quieres abrir?</p>
+      <div class="lista-conversaciones">${adjuntos.map(a => {
+        const estado = ESTADO_CHAT[a.estado];
+        return `
+        <button type="button" class="fila-conversacion" data-taller="${Number(a.taller_id)}">
+          <span class="fila-conversacion-taller"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon>${escapeHtml(a.taller)}</span>
+          ${estado ? `<span class="chip-estado ${estado.clase}">${escapeHtml(estado.texto)}</span>` : ''}
+          <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+        </button>`;
+      }).join('')}</div>`,
     footerHtml: '<button class="btn btn--ghost" id="btn-cerrar">Cerrar</button>'
   });
-  const cerrarModal = () => {
-    if (state.adjuntosModalAbierto && state.adjuntosModalAbierto.overlay === overlay) state.adjuntosModalAbierto = null;
+  overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
+  overlay.querySelectorAll('[data-taller]').forEach(btn => btn.addEventListener('click', () => {
+    const adjunto = adjuntos.find(a => a.taller_id === Number(btn.dataset.taller));
+    if (!adjunto) return;
     cerrar();
-  };
-  state.adjuntosModalAbierto = { overlay, valeId: vale.id, cerrar: cerrarModal };
-  overlay.querySelector('#btn-cerrar').addEventListener('click', cerrarModal);
-  overlay.querySelectorAll('[data-conversacion]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const adjunto = adjuntos.find(a => a.taller_id === Number(btn.dataset.conversacion));
-      if (adjunto) abrirModalConversacion(vale, adjunto.taller_id, adjunto.taller);
-    });
-  });
-  overlay.querySelectorAll('[data-responder]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const adjunto = adjuntos.find(a => a.taller_id === Number(btn.dataset.responder));
-      if (adjunto) abrirModalResponderAdjuntos(vale, adjunto, cerrarModal);
-    });
-  });
+    abrirModalConversacion(vale, adjunto.taller_id, adjunto.taller);
+  }));
 }
 
 // Confirmación de la baja de un solo taller; la abre el modal de «Dar de baja» del vale multitaller (asesor.js).

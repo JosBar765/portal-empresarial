@@ -27,9 +27,15 @@ function idOpcional(valor, etiqueta = 'Identificador') {
 
 const MAX_DIGITOS_TELEFONO = 8;
 
+// Solo números y un «+» inicial; el espacio (tras el código de país) y el guion son los separadores que arma el formulario.
+const FORMATO_TELEFONO = /^\+?[\d\s-]*$/;
+
 // Teléfono "+código número": el número (sin el código de país) admite hasta 8 dígitos.
 function validarTelefono(valor, etiqueta = 'El teléfono') {
   if (!valor) return;
+  if (!FORMATO_TELEFONO.test(String(valor).trim())) {
+    throw new ErrorDeNegocio(`${etiqueta} solo puede contener números y el signo +, por ejemplo +502 12345678. Quita las letras y los demás símbolos.`, 400);
+  }
   const numero = String(valor).trim().replace(/^\+\d{1,4}\s+/, '');
   if (numero.replace(/\D/g, '').length > MAX_DIGITOS_TELEFONO) {
     throw new ErrorDeNegocio(`${etiqueta} no puede tener más de ${MAX_DIGITOS_TELEFONO} números.`, 400);

@@ -52,9 +52,7 @@ class ValeConfirmacionService {
   // dos vales independientes). Mismo chequeo de pertenencia que el detalle del vale.
   async obtenerValeParaPdf(usuario, valeId) {
     const vale = await requerirVale(valeId);
-    if (!(await valeDetalleService.puedeVerValePorId(usuario, valeId))) {
-      throw new Error('No tienes acceso a este vale de arte.');
-    }
+    if (!(await valeDetalleService.puedeVerValePorId(usuario, valeId))) throw valeDetalleService.errorSinAcceso();
     return vale;
   }
 }
