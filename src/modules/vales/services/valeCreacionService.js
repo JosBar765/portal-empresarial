@@ -32,7 +32,8 @@ const {
   ESTADOS, hoyISO, horaActual, enriquecer,
   normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, diasHabilesDeModificacion, registrarHistorial,
   esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
-  esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor, salasDeInvolucrados, validarCantidadYCotizacion
+  esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor, salasDeInvolucrados, validarCantidadYCotizacion,
+  ETIQUETAS_TEXTO_VALE, validarLongitudCampo, validarEleccionTalleres
 } = require('./valeHelpers');
 
 class ValeCreacionService {
@@ -408,28 +409,10 @@ class ValeCreacionService {
     if (!fechaEntrega || !fechaEvento) {
       throw new Error('Las fechas de entrega y de evento son obligatorias.');
     }
-    // Límites de longitud alineados a las columnas reales de `vales` — sin
-    // esto, un valor demasiado largo llega intacto hasta MySQL y el error
-    // de "Data too long for column" (con el nombre de la columna) podía
-    // filtrarse hasta el cliente.
-    const limitesLongitud = {
-      // Máximos que caben en su celda del PDF aun con letras anchas (ver valePdfService); la descripción se autoajusta.
-      clienteNombre: 100, clienteEmpresa: 100, clienteTelefono: 20, clienteCorreo: 100,
-      producto: 40, material: 40, tecnica: 40, acabado: 40, descripcion: 600
-    };
-    const etiquetasCampo = {
-      clienteNombre: 'El nombre del cliente', clienteEmpresa: 'La empresa', clienteTelefono: 'El teléfono',
-      clienteCorreo: 'El correo', producto: 'El código de producto', material: 'El material',
-      tecnica: 'La técnica', acabado: 'El acabado', descripcion: 'La descripción'
-    };
-    for (const [campo, valor] of Object.entries({ clienteNombre, clienteEmpresa, clienteTelefono, clienteCorreo, producto, material, tecnica, acabado, descripcion })) {
-      if (valor && String(valor).length > limitesLongitud[campo]) {
-        const fem = etiquetasCampo[campo].startsWith('La ');
-        throw new Error(`${etiquetasCampo[campo]} es demasiad${fem ? 'a larga' : 'o largo'} (máximo ${limitesLongitud[campo]} caracteres).`);
-      }
-    }
-    await valePdfService.validarTextos(Object.entries({ clienteNombre, clienteEmpresa, clienteTelefono, clienteCorreo, producto, material, tecnica, acabado, descripcion })
-      .map(([campo, valor]) => ({ etiqueta: etiquetasCampo[campo].replace(/^(El|La) /, ''), valor })));
+    const textos = { clienteNombre, clienteEmpresa, clienteTelefono, clienteCorreo, producto, material, tecnica, acabado, descripcion };
+    for (const [campo, valor] of Object.entries(textos)) validarLongitudCampo(campo, valor);
+    await valePdfService.validarTextos(Object.entries(textos)
+      .map(([campo, valor]) => ({ etiqueta: ETIQUETAS_TEXTO_VALE[campo].replace(/^(El|La) /, ''), valor })));
     validarTelefono(clienteTelefono, 'El teléfono del cliente');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clienteCorreo)) {
       throw new Error('El correo del cliente no tiene un formato válido.');
@@ -497,22 +480,7 @@ class ValeCreacionService {
     if (talleresIds.length === 0) {
       throw new Error('Debe seleccionar al menos un taller para el vale de arte.');
     }
-    const talleresActivos = await tallerRepository.listarActivos();
-    const idsValidos = new Set(talleresActivos.map(t => t.id));
-    if (!talleresIds.every(id => idsValidos.has(id))) {
-      throw new Error('Alguno de los talleres elegidos ya no está disponible. Vuelve a elegirlos.');
-    }
-    if (tiendaIdAsesor !== null) {
-      const seleccionados = talleresIds.map(id => talleresActivos.find(t => t.id === id));
-      const locales = seleccionados.filter(t => t.tienda_id !== null);
-      const generales = seleccionados.filter(t => t.tienda_id === null);
-      if (locales.length > 0 && generales.length > 0) {
-        throw new Error('No se puede combinar Diseño Local con talleres de Munditrofeos en el mismo vale.');
-      }
-      if (locales.some(t => t.tienda_id !== tiendaIdAsesor)) {
-        throw new Error('Solo se puede enviar a Diseño Local de su propia tienda.');
-      }
-    }
+    validarEleccionTalleres(talleresIds, await tallerRepository.listarActivos(), tiendaIdAsesor);
     return talleresIds;
   }
 

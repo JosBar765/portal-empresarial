@@ -322,7 +322,46 @@ function validarCantidadYCotizacion(cantidad, cotizacion) {
   return { cantidad: cantidadNum, cotizacion: cotizacionNum };
 }
 
+// Máximos de texto del vale: los que caben en su celda del PDF aun con letras anchas (la descripción se autoajusta); el borrador los comparte.
+const LIMITES_TEXTO_VALE = {
+  clienteNombre: 100, clienteEmpresa: 100, clienteTelefono: 20, clienteCorreo: 100,
+  producto: 40, material: 40, tecnica: 40, acabado: 40, descripcion: 600
+};
+const ETIQUETAS_TEXTO_VALE = {
+  clienteNombre: 'El nombre del cliente', clienteEmpresa: 'La empresa', clienteTelefono: 'El teléfono',
+  clienteCorreo: 'El correo', producto: 'El código de producto', material: 'El material',
+  tecnica: 'La técnica', acabado: 'El acabado', descripcion: 'La descripción'
+};
+
+// Sin esto, un texto demasiado largo llegaba a MySQL y su error nombraba la columna.
+function validarLongitudCampo(campo, valor) {
+  const maximo = LIMITES_TEXTO_VALE[campo];
+  if (!valor || String(valor).length <= maximo) return;
+  const etiqueta = ETIQUETAS_TEXTO_VALE[campo];
+  throw new Error(`${etiqueta} es demasiad${etiqueta.startsWith('La ') ? 'a larga' : 'o largo'} (máximo ${maximo} caracteres).`);
+}
+
+// Elegibilidad de los talleres de un vale (ids ya numéricos): los mismos mensajes al crear, al guardar un borrador y al consultar fechas.
+// `tiendaIdAsesor` activa las reglas de Diseño Local: nunca se mezcla con los generales ni se elige el de otra tienda.
+function validarEleccionTalleres(talleresIds, talleresActivos, tiendaIdAsesor = null) {
+  const idsValidos = new Set(talleresActivos.map(t => t.id));
+  if (!talleresIds.every(id => idsValidos.has(id))) {
+    throw new Error('Alguno de los talleres elegidos ya no está disponible. Vuelve a elegirlos.');
+  }
+  if (tiendaIdAsesor === null) return;
+  const seleccionados = talleresIds.map(id => talleresActivos.find(t => t.id === id));
+  const locales = seleccionados.filter(t => t.tienda_id !== null);
+  const generales = seleccionados.filter(t => t.tienda_id === null);
+  if (locales.length > 0 && generales.length > 0) {
+    throw new Error('No se puede combinar Diseño Local con talleres de Munditrofeos en el mismo vale.');
+  }
+  if (locales.some(t => t.tienda_id !== tiendaIdAsesor)) {
+    throw new Error('Solo se puede enviar a Diseño Local de su propia tienda.');
+  }
+}
+
 module.exports = {
+  LIMITES_TEXTO_VALE, ETIQUETAS_TEXTO_VALE, validarLongitudCampo, validarEleccionTalleres,
   algunTallerProtege, ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
   esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
