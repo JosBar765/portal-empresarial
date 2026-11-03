@@ -836,7 +836,7 @@ El calendario desplegable de la barra del Buzón (el que filtra por día o mes) 
 - **API:** `GET /api/vales/calendario-buzon?anio=&mes=` (`vales.ver`) devuelve `{ tipo: 'cupo' | 'conteo' | null, ... }` según el rol; reutiliza `capacidadEntregaService.obtenerCupoMes` y `capacidadRepository.contarPorDia`.
 - Migración: `cupo_talleres.sql` (permiso `vales.ver_cupo` y asignación al Supervisor).
 
-**Visor emergente.** «Ver vale» y «Ver propuesta» (Buzón, modal del Supervisor y Reportes) abren una ventana emergente (`components/visorDocumento.js`) con pestañas «Vale de arte» / «Propuesta», en lugar de una pestaña nueva; incluye «Abrir en pestaña» y «Descargar» como respaldo.
+**Visor emergente.** «Ver vale» y «Ver propuesta» (Buzón, modal del Supervisor y Reportes) abren una ventana emergente (`components/visorDocumento.js`) con pestañas «Vale de arte» / «Propuesta», en lugar de una pestaña nueva; incluye «Abrir en pestaña» y «Descargar» como respaldo. En el Supervisor, cerrar el visor abierto desde «Ver vale» (X, Escape o fondo) vuelve al modal «Ver vale de arte», igual que «Ver info».
 
 ## 13. Propuesta con nota y enlaces
 

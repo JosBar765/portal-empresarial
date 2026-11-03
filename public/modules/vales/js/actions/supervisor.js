@@ -213,7 +213,8 @@ export function abrirModalVerSupervisor(fila) {
   overlay.querySelector('#btn-ver-pdf').addEventListener('click', () => {
     registrarVisto(fila);
     cerrar();
-    abrirVisorVale({ id: v.id, correlativo: v.correlativo, propuesta: v.propuesta_general_url || v.propuesta_extra ? { tipo: 'general' } : null });
+    // Cerrar el visor (X, Escape o fondo) vuelve a este modal de elección, igual que «Ver info».
+    abrirVisorVale({ id: v.id, correlativo: v.correlativo, propuesta: v.propuesta_general_url || v.propuesta_extra ? { tipo: 'general' } : null, alCerrar: () => abrirModalVerSupervisor(fila) });
   });
   overlay.querySelector('#btn-ver-info').addEventListener('click', () => {
     registrarVisto(fila);
