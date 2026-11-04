@@ -59,10 +59,6 @@ export function initSocket() {
     if (EVENTOS_CHAT.includes(data.tipo) && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId) {
       state.conversacionAbierta.refrescar();
     }
-    // Cambió el estado del adjunto de este vale: el modal del asesor quedó desactualizado y se cierra (el buzón se refresca abajo).
-    if (['ADJUNTOS_VERIFICADOS', 'ADJUNTOS_RECHAZADOS', 'ADJUNTOS_RESPONDIDOS'].includes(data.tipo) && state.adjuntosModalAbierto && state.adjuntosModalAbierto.valeId === data.valeId) {
-      state.adjuntosModalAbierto.cerrar();
-    }
     const conversacionVisible = ['MENSAJE_RECHAZO', 'RECHAZO_PROPUESTA_MENSAJE'].includes(data.tipo) && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId;
     const esPropiaAccion = data.actorId != null && data.actorId === state.user.id;
     if (!esPropiaAccion && !conversacionVisible) { // con la conversación abierta no se repite cartel ni beep

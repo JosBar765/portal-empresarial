@@ -14,13 +14,19 @@ const valeCreacionService = require('./valeCreacionService');
 const calendarioService = require('../../../core/calendario/calendarioService');
 const {
   ESTADOS_TALLER, esDeTaller, esValeDeModificacion, enriquecer, registrarHistorial,
-  requerirVale, puedeActuarComoAsesor, algunTallerProtege, SALA_FUSION
+  requerirVale, puedeActuarComoAsesor, algunTallerProtege, salasDeInvolucrados, esSupervisorDelAsesor, SALA_FUSION
 } = require('./valeHelpers');
 
 const MAX_CARACTERES_MENSAJE = 200;
 const ESTADOS_POR_VERIFICAR = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
 // Mientras el taller tiene el vale rechazado (o ya respondido) la conversación está abierta; después es de solo lectura.
 const ESTADOS_CONVERSACION_ABIERTA = [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
+// Un taller que nunca rechazó los adjuntos no tiene conversación: «cerrada por acuerdo» sería falso.
+const MENSAJE_SIN_CONVERSACION = 'Todavía no hay conversación: el taller aún no revisa los adjuntos de este vale.';
+// Conversación por turnos: con los adjuntos rechazados escribe el asesor; con los respondidos, el taller. Quien ya respondió espera.
+const esSuTurno = (escribe, fila) => (escribe === 'ASESOR'
+  ? fila.estado === ESTADOS_TALLER.ADJUNTOS_RECHAZADOS
+  : escribe === 'TALLER' && fila.estado === ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS);
 
 // Mensaje de la conversación: texto no vacío de hasta 200 caracteres (se cuentan caracteres, no palabras).
 function validarMensaje(mensaje, { obligatorio = true, porDefecto = null } = {}) {
@@ -166,7 +172,7 @@ class ValeAdjuntosService {
         ? `Taller ${nombre} dado de baja del vale: el asesor no envió los adjuntos a tiempo (automático)`
         : `Asesor dio de baja al taller ${nombre} del vale (adjuntos). Conversación cerrada`);
       valeEvents.notificar({
-        vale: actualizado, nivel: 'alerta', salas: [...await this._salasAsesor(vale), `taller:${fila.taller_id}`],
+        vale: actualizado, nivel: 'alerta', salas: [...await this._salasAsesor(vale), `taller:${fila.taller_id}`, ...(fila.disenador_id ? [`disenador:${fila.disenador_id}`] : [])],
         ...(automatico
           ? { tipo: 'TALLER_DADO_DE_BAJA_AUTOMATICA', texto: `el taller ${nombre} fue dado de baja del vale porque el asesor no envió los adjuntos a tiempo` }
           : { tipo: 'TALLER_DADO_DE_BAJA', texto: `${usuario.nombre} dio de baja al taller ${nombre}`, actor: usuario.nombre, actorId: usuario.id })
@@ -178,8 +184,8 @@ class ValeAdjuntosService {
     });
   }
 
-  // Quién puede leer y escribir la conversación de un taller dentro de un vale: solo el taller (encargado/asistente) y el
-  // asesor dueño, mientras está abierta.
+  // Quién puede leer y escribir la conversación de un taller dentro de un vale: el taller (encargado/asistente) y el asesor
+  // dueño escriben; el supervisor que cubre al asesor solo lee. Todo mientras está abierta.
   async _resolverAcceso(usuario, vale, tallerId) {
     const fila = (await valeTallerRepository.listarPorVale(vale.id)).find(f => f.taller_id === Number(tallerId));
     if (!fila) throw new Error('Este vale no fue enviado a ese taller.');
@@ -188,7 +194,8 @@ class ValeAdjuntosService {
       return { fila, escribe: 'TALLER' };
     }
     if (vale.asesor_id === usuario.id && puedeActuarComoAsesor(usuario)) return { fila, escribe: 'ASESOR' };
-    // Nadie más la ve mientras está abierta (ni supervisor, ni administrador, ni gerente); ya cerrada, solo queda el registro
+    if (await esSupervisorDelAsesor(usuario, vale)) return { fila, escribe: null };
+    // Nadie más la ve mientras está abierta (ni administrador, ni gerente); ya cerrada, solo queda el registro
     // del historial para quien tenga `vales.ver_historial`.
     throw new ErrorDeNegocio('No tienes acceso a esta conversación.', 403);
   }
@@ -204,7 +211,7 @@ class ValeAdjuntosService {
     const mensajes = await valeMensajeRepository.listarPorValeTaller(fila.id);
     return {
       taller_id: fila.taller_id, estado: fila.estado, vence_en: fila.adjuntos_vence_en, cerrada: false,
-      puede_escribir: !!escribe, lado: escribe,
+      puede_escribir: esSuTurno(escribe, fila), lado: escribe || 'SUPERVISOR',
       total: mensajes.length,
       mensajes: mensajes.map(m => ({ id: m.id, lado: m.lado, autor: m.autor, autor_id: m.autor_id, mensaje: m.mensaje, creado_en: m.creado_en }))
     };
@@ -217,14 +224,19 @@ class ValeAdjuntosService {
       const { fila, escribe } = await this._resolverAcceso(usuario, vale, tallerId);
       if (!escribe) throw new ErrorDeNegocio('Solo el taller y el asesor del vale pueden escribir en la conversación.', 403);
       if (!ESTADOS_CONVERSACION_ABIERTA.includes(fila.estado)) {
-        throw new Error('La conversación se cerró: se llegó a un acuerdo.');
+        throw new Error(fila.estado === ESTADOS_TALLER.VERIFICANDO_ADJUNTOS ? MENSAJE_SIN_CONVERSACION : 'La conversación se cerró: se llegó a un acuerdo.');
+      }
+      if (!esSuTurno(escribe, fila)) {
+        throw new Error(escribe === 'ASESOR'
+          ? 'Ya avisaste al taller: espera su revisión. Si lo rechaza otra vez podrás escribir de nuevo.'
+          : 'Ya rechazaste los adjuntos: espera la respuesta del asesor.');
       }
       await valeMensajeRepository.crear(fila.id, usuario.id, escribe, texto);
       const nombre = await this._nombreTaller(fila.taller_id);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
         vale: actualizado, accion: `comentado en la conversación del rechazo (${nombre})`, tipo: 'MENSAJE_RECHAZO', actor: usuario.nombre, actorId: usuario.id,
-        salas: escribe === 'TALLER' ? [`asesor:${vale.asesor_id}`] : [`taller:${fila.taller_id}`] // el supervisor no lee la conversación: sin aviso ni campana
+        salas: escribe === 'TALLER' ? [`asesor:${vale.asesor_id}`] : [`taller:${fila.taller_id}`] // el supervisor solo lee: sin aviso ni campana
       });
       return this.listarConversacion(usuario, valeId, tallerId);
     });
@@ -259,15 +271,14 @@ class ValeAdjuntosService {
       if (!vale || !(await valeTallerRepository.listarAdjuntosVencidos(valeId)).length) return false;
       const talleres = await valeTallerRepository.listarPorVale(valeId);
       if (this.algunTallerProtege(talleres)) return false;
-      const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
+      const salas = await salasDeInvolucrados(vale, talleres);
       const original = esValeDeModificacion(vale) ? await valeRepository.obtenerPorId(vale.vale_original_id) : null;
       const horas = await calendarioService.horasVencimiento();
       await valeCreacionService.eliminarValeConArchivos(valeId);
-      const salasTalleres = [...new Set(talleres.flatMap(t => [`taller:${t.taller_id}`, ...(t.disenador_id ? [`disenador:${t.disenador_id}`] : [])]))];
       valeEvents.notificar({
         vale, tipo: 'ADJUNTOS_VENCIDOS', valeBorrado: true, nivel: 'alerta',
         texto: `${original ? '(solicitud de modificación) ' : ''}fue eliminado automáticamente: el asesor no envió los adjuntos en ${horas} ${horas === 1 ? 'hora laboral' : 'horas laborales'}${original ? `. ${original.correlativo} ya quedó como Recibido` : ''}`,
-        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`), ...salasTalleres]
+        salas
       });
       return true;
     });

@@ -5,7 +5,8 @@ import { obtenerDisenadoresAsignables, obtenerCalendarioBuzon } from '../api/val
 import { crearBarraPeriodo } from '../components/barraPeriodoReportes.js';
 import { ROLES_TALLER_Y_DISENADOR } from '../config/roles.js';
 import { cargarBuzon } from '../views/buzon.js';
-import { crearMenuCascada, construirArbolTiendas } from '/js/menuCascada.js';
+import { crearFiltroTiendas } from '/js/menuCascada.js';
+import { resolverTiendaIds, valorVigente } from '/js/filtroCascada.js';
 
 // «Ver reporte de este día»: abre la pestaña Reportes con período «Día» en esa fecha de entrega.
 function verReporteDelDia(iso) {
@@ -13,6 +14,16 @@ function verReporteDelDia(iso) {
   state.reporte.expandidos.clear();
   const boton = document.querySelector('.sidebar-item[data-vista="reportes"]');
   if (boton && boton.style.display !== 'none') boton.click();
+}
+
+// El filtro de tienda del Buzón y de Trabajo realizado se recuerda por usuario en este navegador (Reportes no).
+const claveFiltroTienda = () => `vales.filtroTienda.${state.user.id}`;
+const leerFiltroTienda = () => { try { return localStorage.getItem(claveFiltroTienda()); } catch { return null; } };
+function guardarFiltroTienda(valor) {
+  try {
+    if (valor) localStorage.setItem(claveFiltroTienda(), String(valor));
+    else localStorage.removeItem(claveFiltroTienda());
+  } catch { /* sin almacenamiento el filtro simplemente no se recuerda */ }
 }
 
 export function wireToolbar() {
@@ -63,17 +74,21 @@ export function wireToolbar() {
   if ([ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR].includes(rolEncargadoDe(state.user))) {
     const contenedorTienda = $('#filtro-tienda');
     contenedorTienda.style.display = '';
-    const menuTienda = crearMenuCascada({
-      arbol: [
-        { tipo: 'hoja', valor: '', etiqueta: 'Todas las tiendas' },
-        ...construirArbolTiendas(state.catalogos.tiendasGerencia || state.catalogos.tiendas || [])
-      ],
+    const tiendasMenu = state.catalogos.tiendasGerencia || state.catalogos.tiendas || [];
+    // Un valor recordado solo vale si todavía existe en el catálogo de este usuario (por ejemplo, ya no cubre esa tienda).
+    const recordado = state.tiendaId == null ? leerFiltroTienda() : null;
+    if (recordado) {
+      const existe = resolverTiendaIds(recordado, tiendasMenu).some(id => tiendasMenu.some(t => Number(t.id) === Number(id)));
+      if (existe) state.tiendaId = recordado; else guardarFiltroTienda(null);
+    }
+    state.tiendaId = valorVigente(state.tiendaId, v => resolverTiendaIds(v, tiendasMenu)) || null;
+    const menuTienda = crearFiltroTiendas({
+      tiendas: tiendasMenu,
       valorActual: state.tiendaId ? String(state.tiendaId) : '',
-      etiquetaVacio: 'Todas las tiendas',
-      ariaLabel: 'Filtrar por tienda',
       // Misma semántica que el `change` del select anterior: vacío = sin filtro.
       onSeleccionar: (valor) => {
         state.tiendaId = valor ? String(valor) : null;
+        guardarFiltroTienda(state.tiendaId);
         cargarBuzon();
       }
     });

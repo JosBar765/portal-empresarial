@@ -27,8 +27,9 @@ const CIERRE_RECHAZO = {
 // Frase corta bajo el título: qué pasa ahora y qué toca hacer (ronda abierta) o cómo se cerró (solo lectura).
 function lineaDeEstado(c) {
   if (c.cerrada) return `${CIERRE_RECHAZO[c.estado] || 'Rechazo cerrado.'} Conversación en solo lectura.`;
+  if (c.lado === 'SUPERVISOR') return 'Esperando la respuesta del taller. Conversación en solo lectura.';
   return c.lado === 'TALLER'
-    ? 'Acepta para rehacer la propuesta, o rechaza escribiendo el motivo (por ejemplo, que tramite una modificación).'
+    ? 'Acepta para rehacer la propuesta, o rechaza: «Rechazar» te pedirá el motivo (por ejemplo, que tramite una modificación).'
     : 'Esperando la respuesta del taller. Puedes cancelar el rechazo para confirmar el vale.';
 }
 
@@ -142,7 +143,9 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
   overlay.querySelector('#mb-cerrar').addEventListener('click', cerrar);
   const ajustarAlto = () => { textarea.style.height = 'auto'; textarea.style.height = `${Math.min(textarea.scrollHeight, 110)}px`; };
 
+  let tallerNombre = ''; // los modales de «Aceptar» y «Rechazar» lo muestran en su título
   const pintar = (c) => {
+    tallerNombre = c.taller;
     cabecera.innerHTML = `<span class="chip-estado chip-estado--taller"><ion-icon name="storefront-outline" aria-hidden="true"></ion-icon>${escapeHtml(c.taller)}</span>${chipEstado(c.estado)}`;
     estado.textContent = lineaDeEstado(c);
     hilo.innerHTML = htmlHilo(c, { destacarMotivo: false });
@@ -178,29 +181,102 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); mandar(); }
   });
 
-  // Decisiones: aceptar y rechazar son del taller; cancelar, del asesor. Cierran la conversación y refrescan el buzón.
-  // Rechazar usa lo escrito en el chat como motivo (obligatorio).
-  const decidir = (boton, accion, exito, { motivo = false } = {}) => boton.addEventListener('click', async () => {
-    if (motivo && !actualizar()) {
-      mostrarErrorModal(overlay, 'Escribe en el chat el motivo del rechazo (por ejemplo, que tramite una modificación).');
-      textarea.focus();
-      return;
-    }
-    [btnAceptar, btnRechazar, btnCancelar].forEach(b => { b.disabled = true; });
+  // Cancelar es del asesor: cierra la conversación y refresca el buzón. Aceptar y rechazar (del taller) piden su mensaje en un modal aparte.
+  const decidir = (boton, accion, exito) => {
+    boton.addEventListener('click', async () => {
+      [btnAceptar, btnRechazar, btnCancelar].forEach(b => { b.disabled = true; });
+      try {
+        await accion(vale.id, rechazoId);
+        window.toast.success(exito.titulo, exito.texto);
+        cerrar();
+      } catch (error) {
+        mostrarErrorModal(overlay, error.message);
+        [btnAceptar, btnRechazar, btnCancelar].forEach(b => { b.disabled = false; });
+      }
+      cargarBuzon();
+    });
+  };
+  btnAceptar.addEventListener('click', () => abrirModalMensajeTaller('aceptar', vale, rechazoId, tallerNombre, cerrar));
+  btnRechazar.addEventListener('click', () => abrirModalMensajeTaller('rechazar', vale, rechazoId, tallerNombre, cerrar));
+  decidir(btnCancelar, cancelarRechazoPropuesta, { titulo: 'Cancelado', texto: 'Ya puedes confirmar el vale.' });
+  if (!zonaEscribir.hidden) textarea.focus();
+}
+
+// -----------------------------------------------------------------------
+// Taller: el mensaje de «Aceptar» y el de «Rechazar» se escriben en un modal propio, aparte del chat
+// -----------------------------------------------------------------------
+// Un solo modal para ambas decisiones: cambian el aviso, el mensaje de partida, los sugeridos y la llamada.
+const DECISIONES_TALLER = {
+  aceptar: {
+    titulo: 'Aceptar',
+    aviso: 'El vale vuelve a tu taller como <strong>Pendiente Asignación</strong>, el atraso vuelve a correr y el asesor verá este mensaje.',
+    porDefecto: 'Lo corregiré',
+    sugeridos: [],
+    textoConfirmar: 'Aceptar',
+    llamar: aceptarRechazoPropuesta,
+    exito: { titulo: 'Aceptado', texto: 'Asigna el vale a un diseñador.' }
+  },
+  rechazar: {
+    titulo: 'Rechazar',
+    aviso: 'El asesor verá este mensaje y el vale seguirá <strong>pendiente de su confirmación</strong>.',
+    porDefecto: 'Rechazado',
+    sugeridos: ['Favor solicitar una modificación'],
+    textoConfirmar: 'Rechazar',
+    llamar: rechazarRechazoPropuesta,
+    exito: { titulo: 'Rechazado', texto: 'El asesor fue avisado.' }
+  }
+};
+
+function abrirModalMensajeTaller(decision, vale, rechazoId, taller, cerrarConversacion) {
+  const cfg = DECISIONES_TALLER[decision];
+  let quitarEscape = () => {};
+  const { overlay, cerrar } = abrirModal({
+    title: `${cfg.titulo} — ${taller}`,
+    bodyHtml: `
+      <div class="aviso-rechazo">
+        <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
+        <p>${cfg.aviso}</p>
+      </div>
+      <div class="form-field full">
+        <label for="mb-motivo">Mensaje para el asesor</label>
+        ${cfg.sugeridos.length ? `<div class="motivos-rapidos" role="group" aria-label="Mensajes sugeridos">
+          ${cfg.sugeridos.map(m => `<button type="button" class="chip-motivo" data-motivo="${escapeHtml(m)}">${escapeHtml(m)}</button>`).join('')}
+        </div>` : ''}
+        <textarea id="mb-motivo" rows="3" maxlength="${MAX_CARACTERES_CHAT}">${escapeHtml(cfg.porDefecto)}</textarea>
+        <div class="campo-pie"><span class="campo-ayuda">Obligatorio.</span><span class="contador-mensaje" id="mb-motivo-contador"></span></div>
+      </div>
+    `,
+    footerHtml: `<button class="btn btn--ghost" id="mb-motivo-cancelar">Volver</button><button class="btn btn--primary" id="mb-motivo-rechazar"><ion-icon name="send-outline"></ion-icon> ${cfg.textoConfirmar}</button>`,
+    alCerrar: () => quitarEscape()
+  });
+  // Escape cierra solo este modal: el listener del componente cerraría también el chat de debajo.
+  const alEscape = (e) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); cerrar(); } };
+  window.addEventListener('keydown', alEscape, true);
+  quitarEscape = () => window.removeEventListener('keydown', alEscape, true);
+  const textarea = overlay.querySelector('#mb-motivo');
+  const confirmar = overlay.querySelector('#mb-motivo-rechazar');
+  const actualizar = wireContador(textarea, overlay.querySelector('#mb-motivo-contador'), confirmar);
+  overlay.querySelectorAll('[data-motivo]').forEach(chip => chip.addEventListener('click', () => {
+    textarea.value = chip.dataset.motivo;
+    actualizar();
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  }));
+  overlay.querySelector('#mb-motivo-cancelar').addEventListener('click', cerrar);
+  confirmar.addEventListener('click', async () => {
+    confirmar.disabled = true;
     try {
-      await accion(vale.id, rechazoId, textarea.value.trim());
-      window.toast.success(exito.titulo, exito.texto);
+      await cfg.llamar(vale.id, rechazoId, textarea.value.trim());
+      window.toast.success(cfg.exito.titulo, cfg.exito.texto);
       cerrar();
+      cerrarConversacion();
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
-      [btnAceptar, btnRechazar, btnCancelar].forEach(b => { b.disabled = false; });
+      actualizar();
     }
     cargarBuzon();
   });
-  decidir(btnAceptar, aceptarRechazoPropuesta, { titulo: 'Aceptado', texto: 'Asigna el vale a un diseñador.' });
-  decidir(btnRechazar, rechazarRechazoPropuesta, { titulo: 'Rechazado', texto: 'El asesor fue avisado.' }, { motivo: true });
-  decidir(btnCancelar, cancelarRechazoPropuesta, { titulo: 'Cancelado', texto: 'Ya puedes confirmar el vale.' });
-  if (!zonaEscribir.hidden) textarea.focus();
+  textarea.focus();
 }
 
 // -----------------------------------------------------------------------

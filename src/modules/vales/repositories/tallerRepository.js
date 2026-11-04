@@ -13,16 +13,15 @@ class TallerRepository {
     return db.query('SELECT id, nombre, encargado_id, tienda_id, activo, limite_diario FROM talleres ORDER BY nombre', [], 'taller:list_all');
   }
 
-  // Talleres de las tiendas que cubre un supervisor: los que atienden alguna
-  // de esas tiendas (`taller_tiendas`) o que son propios de una de ellas
-  // (`talleres.tienda_id`, los Diseño Local). Una tienda sin talleres no
-  // aporta ninguno.
+  // Talleres activos de un supervisor: todos los generales (`tienda_id` nulo), los Diseño Local de sus tiendas
+  // y los vinculados a ellas en `taller_tiendas`; los generales no dependen de esa tabla para que toda tienda los vea.
   async listarIdsPorSupervisor(supervisorId) {
     return db.query(
-      `SELECT t.id
+      `SELECT DISTINCT t.id
        FROM talleres t
-       WHERE (
-         EXISTS (
+       WHERE t.activo = 1 AND (
+         t.tienda_id IS NULL
+         OR EXISTS (
            SELECT 1 FROM taller_tiendas tt
            JOIN supervisor_tiendas st ON st.tienda_id = tt.tienda_id
            WHERE tt.taller_id = t.id AND st.usuario_id = ?

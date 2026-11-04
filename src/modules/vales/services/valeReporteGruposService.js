@@ -54,7 +54,7 @@ class ValeReporteGruposService {
   // `soloAtrasadosAntesDe(fechaIso)` (opcional): en lugar del período, devuelve los vales atrasados y abiertos cuya fecha de entrega
   // es ANTERIOR al período («atrasados antes del período») con las mismas reglas de alcance y filtros, como { total, truncado, vales }.
   // `corte`: fecha de la «foto». Es hoy salvo en un período ya cerrado, donde es su último día (cifras al cierre: no cambian después).
-  async armar({ alcance, dentroDelRango, agruparPor, tiendaId, tallerId, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO() }) {
+  async armar({ alcance, dentroDelRango, agruparPor, tiendaSel, tallerSel, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO() }) {
     const alCorte = corte < hoyISO();
     const todos = (await valeRepository.listarTodos())
       .filter(v => (soloAtrasadosAntesDe ? soloAtrasadosAntesDe(fechaDe(v.fecha_entrega)) : dentroDelRango(fechaDe(v.fecha_entrega))))
@@ -71,16 +71,16 @@ class ValeReporteGruposService {
     const pasaFiltros = (v, { tienda = true, asesores = true, disenadores = true } = {}) => {
       if (alcance.rol === 'supervisor' && !(alcance.asesorIds || []).includes(v.asesor_id)) return false;
       if (alcance.rol === 'encargado' && !filas(v).some(f => (alcance.tallerIds || []).includes(f.taller_id))) return false;
-      if (tienda && tiendaId && v.tienda_id !== tiendaId) return false;
+      if (tienda && tiendaSel.size && !tiendaSel.has(v.tienda_id)) return false;
       if (asesores && asesorSel.size && !asesorSel.has(v.asesor_id)) return false;
-      if (tallerId && !filas(v).some(f => f.taller_id === tallerId)) return false;
-      if (disenadores && disSel.size && !filas(v).some(f => (!tallerId || f.taller_id === tallerId) && disSel.has(f.disenador_id))) return false;
+      if (tallerSel.size && !filas(v).some(f => tallerSel.has(f.taller_id))) return false;
+      if (disenadores && disSel.size && !filas(v).some(f => (!tallerSel.size || tallerSel.has(f.taller_id)) && disSel.has(f.disenador_id))) return false;
       return true;
     };
     const visibles = conTaller.filter(v => pasaFiltros(v));
     // Administrador/Gerente: Rendimiento reúne el reporte de Ventas (como el Supervisor) y el de Taller (como el Encargado), cada uno con sus filtros.
     const esGlobal = alcance.rol === 'administrador';
-    const filasDelTaller = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : filas(v));
+    const filasDelTaller = (v) => (tallerSel.size ? filas(v).filter(f => tallerSel.has(f.taller_id)) : filas(v));
     const visiblesVentas = esGlobal ? conTaller.filter(v => pasaFiltros(v, { disenadores: false })) : visibles;
     const visiblesTaller = esGlobal ? conTaller.filter(v => pasaFiltros(v, { tienda: false, asesores: false }) && filasDelTaller(v).length) : visibles;
     const paraFichas = esGlobal ? [...new Map([...visibles, ...visiblesVentas, ...visiblesTaller].map(v => [v.id, v])).values()] : visibles;
@@ -149,11 +149,11 @@ class ValeReporteGruposService {
       if (agruparPor === 'tienda') return [{ id: v.tienda_id, nombre: tiendas.get(v.tienda_id) || `Tienda ${v.tienda_id}` }];
       if (agruparPor === 'taller') {
         const ids = filas(v).length ? filas(v).map(f => f.taller_id) : String(v.talleres_solicitados || '').split(',').map(Number).filter(Boolean);
-        const unicos = [...new Set(ids)].filter(id => !tallerId || id === tallerId);
+        const unicos = [...new Set(ids)].filter(id => !tallerSel.size || tallerSel.has(id));
         return unicos.length ? unicos.map(id => ({ id, nombre: talleres.get(id) || `Taller ${id}` })) : [{ id: 0, nombre: 'Sin taller' }];
       }
       // Con un taller elegido (o para el Encargado, sus talleres) solo cuentan las filas de ese taller, no las de otros talleres del vale.
-      const delTaller = tallerId ? filas(v).filter(f => f.taller_id === tallerId) : (esTaller ? propias(v) : filas(v));
+      const delTaller = tallerSel.size ? filas(v).filter(f => tallerSel.has(f.taller_id)) : (esTaller ? propias(v) : filas(v));
       const dis = [...new Set(delTaller.map(f => f.disenador_id).filter(Boolean))].filter(id => !disSel.size || disSel.has(id));
       return dis.length ? dis.map(id => ({ id, nombre: nombresConRol.get(id) || `#${id}` })) : [{ id: 0, nombre: 'Sin diseñador asignado' }];
     };
@@ -239,19 +239,19 @@ class ValeReporteGruposService {
     const indicadoresTaller = esTaller || esGlobal ? this._indicadoresTaller(exigibles, fichasTaller) : null;
     const hastaHoy = exigibles.length < visiblesTaller.length; // solo se anuncia «hasta hoy» si de verdad quedó algo fuera
     const datosRendimiento = esGlobal
-      ? await this._rendimientoGlobal({ visiblesVentas: exigiblesDe(visiblesVentas), visiblesTaller: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, filasDe: filasDelTaller, tiendaId, tallerId, asesorSel, disSel, nombresConRol })
-      : this._rendimiento({ alcance, visibles: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol });
+      ? await this._rendimientoGlobal({ visiblesVentas: exigiblesDe(visiblesVentas), visiblesTaller: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, filasDe: filasDelTaller, tiendaSel, tallerSel, asesorSel, disSel, nombresConRol })
+      : this._rendimiento({ alcance, visibles: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, esTaller, propias, filas, tallerSel, asesorSel, disSel, nombresConRol });
     return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento: datosRendimiento };
   }
 
   // Reporte de rendimiento: por persona, dos cifras comparadas, su % y sus atrasados, sobre los vales del período y con los filtros
   // aplicados. Encargado/Asistente: asignados vs entregados por diseñador. Supervisor: creados vs autorizados por asesor. Alimenta la
   // gráfica y la tabla comparativa.
-  _rendimiento({ alcance, visibles, hastaHoy, aprobada, corte, fichas, esTaller, propias, filas, tallerId, asesorSel, disSel, nombresConRol }) {
+  _rendimiento({ alcance, visibles, hastaHoy, aprobada, corte, fichas, esTaller, propias, filas, tallerSel, asesorSel, disSel, nombresConRol }) {
     if (!alcance.equipo) return null;
     if (!(alcance.personas || []).length) return null;
     if (esTaller) {
-      const filasDe = (v) => (tallerId ? filas(v).filter(f => f.taller_id === tallerId) : propias(v));
+      const filasDe = (v) => (tallerSel.size ? filas(v).filter(f => tallerSel.has(f.taller_id)) : propias(v));
       return this._bloqueDisenadores({ personas: alcance.personas, visibles, hastaHoy, aprobada, corte, filasDe, disSel, nombresConRol });
     }
     if (alcance.rol === 'supervisor') {
@@ -261,15 +261,15 @@ class ValeReporteGruposService {
   }
 
   // Administrador y Gerente: el reporte de Ventas y el de Taller completos, con todas las personas activas aunque no tengan vales.
-  async _rendimientoGlobal({ visiblesVentas, visiblesTaller, hastaHoy, aprobada, corte, fichas, filasDe, tiendaId, tallerId, asesorSel, disSel, nombresConRol }) {
+  async _rendimientoGlobal({ visiblesVentas, visiblesTaller, hastaHoy, aprobada, corte, fichas, filasDe, tiendaSel, tallerSel, asesorSel, disSel, nombresConRol }) {
     const nombreDe = (id) => ({ id, nombre: nombresConRol.get(id) || `#${id}` });
     // Quienes se eligieron en el filtro sin tener vales en el período se nombran con su etiqueta de rol.
     const faltan = [...asesorSel, ...disSel].filter(id => !nombresConRol.has(id));
     if (faltan.length) (await reporteRepository.listarNombres(faltan)).forEach(u => nombresConRol.set(u.id, this.etiquetaNombre(u.nombre, u.rol_id, u.hereda_de_rol_id)));
     const activos = {
-      asesores: (await reporteRepository.listarAsesores(tiendaId)).map(a => ({ id: a.id, nombre: a.nombre })),
+      asesores: (await reporteRepository.listarAsesores([...tiendaSel])).map(a => ({ id: a.id, nombre: a.nombre })),
       disenadores: (await reporteRepository.listarDisenadores())
-        .filter(d => !tallerId || String(d.taller_ids || '').split(',').map(Number).includes(tallerId))
+        .filter(d => !tallerSel.size || String(d.taller_ids || '').split(',').map(Number).some(id => tallerSel.has(id)))
         .map(d => ({ id: d.id, nombre: this.etiquetaNombre(d.nombre, d.rol_id, d.hereda_de_rol_id) }))
     };
     const elegir = (lista, seleccion) => (seleccion.size ? [...seleccion].map(id => lista.find(p => p.id === id) || nombreDe(id)) : [...lista]);

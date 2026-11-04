@@ -3,6 +3,7 @@
 const calendarioService = require('../../../core/calendario/calendarioService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
+const valeCatalogoService = require('./valeCatalogoService');
 const { esUrgente, DIAS_MINIMOS_SIN_URGENTE, diasHabilesDeModificacion, TIPOS_MODIFICACION_CON_VALE } = require('./valeHelpers');
 
 const MAX_TALLERES = 20;
@@ -25,13 +26,13 @@ function parsearFecha(crudo, etiqueta) {
 
 class FechasEntregaService {
   // Un vale MOD (modificacion = BASICA, MEDIA o AVANZADA) rige por días hábiles desde hoy; «urgente» lo baja al siguiente día que reciba vales.
-  async obtenerFechasEntrega(talleresCrudo, desdeCrudo, hastaCrudo, urgenteCrudo, modificacionCrudo) {
+  async obtenerFechasEntrega(talleresCrudo, desdeCrudo, hastaCrudo, urgenteCrudo, modificacionCrudo, usuario) {
     const talleresIds = parsearTalleres(talleresCrudo);
     const desde = parsearFecha(desdeCrudo, 'La fecha inicial');
     const hasta = parsearFecha(hastaCrudo, 'La fecha final');
     if (hasta < desde) throw new ErrorDeNegocio('La fecha final no puede ser anterior a la inicial.');
     if ((hasta - desde) / MS_DIA >= MAX_DIAS_RANGO) throw new ErrorDeNegocio(`El rango no puede superar ${MAX_DIAS_RANGO} días.`);
-    if (!(await calendarioService.existenTalleres(talleresIds))) throw new ErrorDeNegocio('Alguno de los talleres elegidos no existe.');
+    await valeCatalogoService.validarTalleresElegibles(usuario, talleresIds);
     const tipo = String(modificacionCrudo || '').toUpperCase();
     const urgente = esUrgente(urgenteCrudo);
     if (tipo && !TIPOS_MODIFICACION_CON_VALE.includes(tipo)) throw new ErrorDeNegocio('El tipo de modificación no es válido.');

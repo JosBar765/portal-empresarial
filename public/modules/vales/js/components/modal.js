@@ -2,7 +2,8 @@ import { $ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
 import { cerrarPanelFechaActivo } from './datepicker.js';
 
-export function abrirModal({ title, bodyHtml, footerHtml, size }) {
+// `alCerrar` (opcional) se ejecuta una sola vez, con el modal ya retirado, sea cual sea la forma de cerrarlo.
+export function abrirModal({ title, bodyHtml, footerHtml, size, alCerrar }) {
   const root = $('#modals-root');
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -21,10 +22,15 @@ export function abrirModal({ title, bodyHtml, footerHtml, size }) {
   // al cerrar para no dejar huérfanos con modales anidados.
   const onKeydown = (e) => { if (e.key === 'Escape') cerrar(); };
   document.addEventListener('keydown', onKeydown);
+  let alCerrarEjecutado = false;
   const cerrar = () => {
     document.removeEventListener('keydown', onKeydown);
     cerrarPanelFechaActivo(); // por si el modal se cierra con un calendario todavía abierto
     overlay.remove();
+    if (alCerrar && !alCerrarEjecutado) {
+      alCerrarEjecutado = true;
+      alCerrar();
+    }
   };
   overlay.querySelector('.modal-close').addEventListener('click', cerrar);
   // Cerrar solo si el click EMPEZÓ (mousedown) y TERMINÓ (click) sobre el

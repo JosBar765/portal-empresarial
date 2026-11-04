@@ -133,7 +133,7 @@ class ValeRechazoPropuestaRepository {
 
   // El taller acepta: su fila vuelve a «Por asignar» (sin diseñador), el vale sale del paso 5 y el atraso vuelve a correr.
   // La fecha de entrega no se toca. Todo o nada; cada UPDATE exige el estado esperado por si algo cambió mientras tanto.
-  async aceptar({ id, valeId, valeTallerId, tallerId, usuarioId, estadoValeAnterior, accion }) {
+  async aceptar({ id, valeId, valeTallerId, tallerId, usuarioId, estadoValeAnterior, accion, mensaje = null }) {
     return db.transaccion(async (tx) => {
       const ronda = await tx.query(
         "UPDATE vale_rechazos_propuesta SET estado = 'ACEPTADO', resuelto_en = NOW(), resuelto_por = ? WHERE id = ? AND estado = 'ABIERTO'",
@@ -158,6 +158,7 @@ class ValeRechazoPropuestaRepository {
       if (estadoValeAnterior !== 'CREADO') {
         await tx.query(SQL_HISTORIAL, [valeId, usuarioId, null, estadoValeAnterior, 'CREADO', 'El vale vuelve al taller por un rechazo de propuesta aceptado', null], 'historial:insert_vale_reabierto');
       }
+      if (mensaje) await tx.query(SQL_MENSAJE, [valeTallerId, usuarioId, 'TALLER', mensaje], 'rechazo_propuesta:insert_mensaje_aceptar');
     });
   }
 

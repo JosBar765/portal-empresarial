@@ -3,6 +3,7 @@ import { $, $$ } from '../utils/dom.js';
 import { ROL, ROLES_CON_SIDEBAR, ROLES_TALLER_Y_DISENADOR, rolEncargadoDe } from '../config/roles.js';
 import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { aplicarVentanaAQuery } from '../utils/ventana.js';
+import { paramsDeTienda, resolverTiendaIds, valorVigente } from '../utils/filtroTiendas.js';
 import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible } from '../permisos.js';
 import { celdaEstado } from '../components/pipeline.js';
 import { abrirVisorVale } from '../components/visorDocumento.js';
@@ -13,8 +14,8 @@ import { cargarReportes } from './reportes.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
 import { accionComenzar, abrirModalEntregar, accionPausar, accionReanudar, accionCancelarProceso } from '../actions/disenador.js';
-import { abrirModalVerificarAdjuntos, abrirModalRechazarAdjuntos, abrirModalConversacion, abrirModalAdjuntosPendientes } from '../actions/adjuntos.js';
-import { abrirVisorDecisionAsesor, abrirDarDeBaja, abrirModalMotivoRechazo, accionReenviar } from '../actions/asesor.js';
+import { abrirModalVerificarAdjuntos, abrirModalRechazarAdjuntos, abrirModalConversacion, abrirConversacionAdjuntos } from '../actions/adjuntos.js';
+import { abrirVisorDecisionAsesor, abrirDarDeBaja, abrirModalMotivoRechazo } from '../actions/asesor.js';
 import { abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirSelectorModificacion } from '../actions/modificacionTipo.js';
 import { abrirModalHistorial } from '../actions/historial.js';
@@ -37,7 +38,10 @@ export function construirQueryBase() {
   if (state.soloModificados) qs.set('soloModificados', '1');
   if (state.disenadorFiltro && state.vista !== 'trabajo') qs.set('disenadorId', state.disenadorFiltro);
   if (state.busqueda) qs.set('busqueda', state.busqueda);
-  if (state.tiendaId) qs.set('tiendaId', state.tiendaId);
+  // Mismas tiendas con las que se armó el menú, para convertir país o grupo en la lista de ids.
+  const tiendasMenu = (state.catalogos && (state.catalogos.tiendasGerencia || state.catalogos.tiendas)) || [];
+  state.tiendaId = valorVigente(state.tiendaId, v => resolverTiendaIds(v, tiendasMenu)) || null;
+  Object.entries(paramsDeTienda(state.tiendaId, tiendasMenu)).forEach(([clave, valor]) => qs.set(clave, valor));
   if (state.sort.key && state.sort.dir) {
     qs.set('sortKey', state.sort.key);
     qs.set('sortDir', state.sort.dir);
@@ -338,7 +342,7 @@ const propuestaVisible = (v) => propuestaGeneralVisible(v) || propuestaTallerVis
 
 const abrirVisorDeFila = (v, propuesta) => abrirVisorVale({ id: v.id, correlativo: v.correlativo, propuesta });
 
-// Rechazos de propuesta del vale que ve quien mira: el asesor dueño ve todos; el equipo de un taller solo los suyos; nadie más (ni el supervisor).
+// Rechazos de propuesta del vale que ve quien mira: el asesor dueño ve todos; el equipo de un taller solo los suyos; el supervisor los lee desde el registro de hilos (hilos_rechazo_propuesta).
 const rechazosVisibles = (v) => {
   const rechazos = v.rechazos_propuesta || [];
   if (v.asesor_id === state.user.id) return puede('rechazarPropuesta') ? rechazos : [];
@@ -406,7 +410,7 @@ export function construirAcciones(v) {
   if (puedeTrabajarEste && v.estado_taller === 'EN_PROCESO') {
     acciones.push({ icono: 'checkmark-done-outline', titulo: 'Entregar propuesta', clase: 'icon-success', onClick: abrirModalEntregar });
     acciones.push({ icono: 'pause-outline', titulo: 'Pausar proceso', onClick: accionPausar });
-    acciones.push({ icono: 'close-outline', titulo: 'Cancelar proceso', clase: 'icon-danger', onClick: accionCancelarProceso });
+    if (!v.ya_entrego_propuesta) acciones.push({ icono: 'close-outline', titulo: 'Cancelar proceso', clase: 'icon-danger', onClick: accionCancelarProceso });
   }
   if (puedeTrabajarEste && v.estado_taller === 'EN_PAUSA') {
     acciones.push({ icono: 'play-outline', titulo: 'Reanudar proceso', clase: 'icon-success', onClick: accionReanudar });
@@ -420,16 +424,17 @@ export function construirAcciones(v) {
     acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirSelectorModificacion });
   }
   // Chat del rechazo de propuesta: queda en la fila mientras haya un rechazo a la vista para quien mira (asesor dueño o equipo del taller).
-  // Rojo si el taller respondió y falta leerlo; verde para el taller cuando debe responder.
+  // Rojo si el taller respondió y falta leerlo, y el ícono rojo de información para el taller cuando debe responder.
   const hayRechazos = rechazosVisibles(v);
   const equipoTaller = puede('responderRechazoPropuesta') && !esMio;
   const rechazos = rechazosSinLeer(v);
   if (hayRechazos.length) {
     const abiertos = hayRechazos.filter(r => r.estado === 'ABIERTO');
+    const debeResponder = equipoTaller && abiertos.length > 0;
     acciones.push({
-      icono: 'chatbubbles-outline',
-      titulo: rechazos.length ? 'Ver respuesta del taller' : (equipoTaller && abiertos.length ? 'Responder rechazo de propuesta' : 'Chat del rechazo de propuesta'),
-      clase: rechazos.length ? 'icon-danger' : (abiertos.length ? 'icon-success' : undefined),
+      icono: debeResponder ? 'alert-circle-outline' : 'chatbubbles-outline',
+      titulo: rechazos.length ? 'Ver respuesta del taller' : (debeResponder ? 'Responder rechazo de propuesta' : 'Chat del rechazo de propuesta'),
+      clase: rechazos.length || debeResponder ? 'icon-danger' : (abiertos.length ? 'icon-success' : undefined),
       onClick: (vale) => abrirConversacionesRechazo(vale, rechazos.length ? { ids: rechazos.map(r => r.id) } : {})
     });
   } else if ((v.hilos_rechazo_propuesta || []).length) {
@@ -442,16 +447,13 @@ export function construirAcciones(v) {
   if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
     acciones.push({ icono: 'alert-circle-outline', titulo: 'Ver motivo del rechazo', clase: 'icon-danger', onClick: abrirModalMotivoRechazo });
   }
-  // Adjuntos reclamados por talleres: lo ven el dueño y su supervisor; solo el dueño responde (en el modal).
+  // Adjuntos reclamados por talleres: lo ven el dueño y su supervisor; solo el dueño responde (en el chat).
   if ((v.adjuntos || []).length && (state.user.rolId === ROL.ASESOR || state.user.rolId === ROL.SUPERVISOR)) {
     const hayRechazados = v.adjuntos.some(a => a.estado === 'ADJUNTOS_RECHAZADOS');
-    acciones.push({ icono: 'alert-circle-outline', titulo: hayRechazados ? 'Ver adjuntos faltantes' : 'Ver adjuntos enviados', clase: hayRechazados ? 'icon-danger' : '', onClick: abrirModalAdjuntosPendientes });
+    acciones.push({ icono: 'alert-circle-outline', titulo: hayRechazados ? 'Ver adjuntos faltantes' : 'Ver adjuntos enviados', clase: hayRechazados ? 'icon-danger' : '', onClick: abrirConversacionAdjuntos });
   }
   if (puede('corregir') && ['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) && esMio) {
     acciones.push({ icono: 'settings-outline', titulo: 'Corregir', onClick: abrirModalCorregirVale });
-  }
-  if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
-    acciones.push({ icono: 'send-outline', titulo: 'Reenviar a autorización', clase: 'icon-success', onClick: accionReenviar });
   }
   // Propuestas aprobadas de los otros talleres (solo si aplica la regla de compartir), solo lectura.
   if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && (v.propuestaOtroTallerNueva || v.propuestasOtrosAplica)) {

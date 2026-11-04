@@ -95,6 +95,17 @@ class PropuestaRepository {
     return new Map(rows.map(p => [`${p.vale_id}-${p.disenador_id}`, p]));
   }
 
+  // Pares (vale, diseñador) que ya entregaron alguna propuesta, en un solo viaje; clave `${vale_id}-${disenador_id}`.
+  async listarParesConPropuesta(valeIds, disenadorIds) {
+    if (!valeIds.length || !disenadorIds.length) return new Set();
+    const rows = await db.query(
+      'SELECT DISTINCT vale_id, disenador_id FROM vale_propuestas WHERE vale_id IN (?) AND disenador_id IN (?)',
+      [valeIds, disenadorIds],
+      'propuesta:pares_con_propuesta'
+    );
+    return new Set(rows.map(p => `${p.vale_id}-${p.disenador_id}`));
+  }
+
   async obtenerUltimaPorValeYDisenador(valeId, disenadorId) {
     const rows = await db.query(
       `SELECT p.*, (SELECT COUNT(*) FROM vale_propuesta_enlaces e WHERE e.propuesta_id = p.id) AS n_enlaces

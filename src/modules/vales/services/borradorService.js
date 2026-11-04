@@ -2,6 +2,8 @@
 // Borradores de vale: el formulario guardado a medias, sin correlativo y sin las validaciones de un vale.
 // Son privados de su dueño y viven DIAS_VIGENCIA días desde su creación. Al enviarse pasan por crearVale.
 const borradorRepository = require('../repositories/borradorRepository');
+const tallerRepository = require('../repositories/tallerRepository');
+const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const supabaseStorage = require('../../../core/files/supabaseStorage');
 const subirYRegistrarArchivo = require('../../../core/files/subirYRegistrarArchivo');
 const nombreArchivo = require('../../../core/files/nombreArchivo');
@@ -10,25 +12,23 @@ const { validarArchivos } = require('../../../core/files/fileSignature');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
 const valeMutex = require('./valeMutex');
-const { esUrgente } = require('./valeHelpers');
+const { esUrgente, MAX_ENTERO, MAX_COTIZACION, validarLongitudCampo, validarEleccionTalleres } = require('./valeHelpers');
 
 const DIAS_VIGENCIA = 30;
 const MAX_IMAGENES = 10;
 const MAX_DOCUMENTOS = 5;
-const MAX_ENTERO = 2147483647;
-const MAX_COTIZACION = 99999999.99;
 
-// [campo del formulario, columna, máximo de caracteres, etiqueta]; los máximos son los de las columnas (descripción: el del formulario).
+// [campo del formulario, columna]; los máximos son los del vale (valeHelpers).
 const CAMPOS_TEXTO = [
-  ['clienteEmpresa', 'cliente_empresa', 150, 'La empresa'],
-  ['clienteNombre', 'cliente_nombre', 150, 'El nombre del cliente'],
-  ['clienteTelefono', 'cliente_telefono', 30, 'El teléfono'],
-  ['clienteCorreo', 'cliente_correo', 150, 'El correo'],
-  ['producto', 'producto', 150, 'El código de producto'],
-  ['material', 'material', 150, 'El material'],
-  ['tecnica', 'tecnica', 150, 'La técnica'],
-  ['acabado', 'acabado', 150, 'El acabado'],
-  ['descripcion', 'descripcion', 600, 'La descripción']
+  ['clienteEmpresa', 'cliente_empresa'],
+  ['clienteNombre', 'cliente_nombre'],
+  ['clienteTelefono', 'cliente_telefono'],
+  ['clienteCorreo', 'cliente_correo'],
+  ['producto', 'producto'],
+  ['material', 'material'],
+  ['tecnica', 'tecnica'],
+  ['acabado', 'acabado'],
+  ['descripcion', 'descripcion']
 ];
 
 const vacio = (v) => v === undefined || v === null || String(v).trim() === '';
@@ -74,9 +74,9 @@ function idsAQuitar(crudo, documentos) {
 // Convierte lo que manda el formulario a columnas; `contenido` dice si hay algo escrito.
 function leerDatos(payload) {
   const datos = {};
-  for (const [campo, columna, maximo, etiqueta] of CAMPOS_TEXTO) {
+  for (const [campo, columna] of CAMPOS_TEXTO) {
     const texto = String(payload[campo] ?? '').trim();
-    if (texto.length > maximo) throw new Error(`${etiqueta} es demasiad${etiqueta.startsWith('La ') ? 'a larga' : 'o largo'} (máximo ${maximo} caracteres).`);
+    validarLongitudCampo(campo, texto);
     datos[columna] = texto || null;
   }
   datos.talleres_ids = leerTalleres(payload.talleresIds);
@@ -103,6 +103,14 @@ function leerDatos(payload) {
 const errorVacio = () => new Error('El borrador está vacío: escribe algún dato o adjunta un archivo.');
 
 class BorradorService {
+  // Un borrador no puede guardar talleres que el vale rechazaría al enviarse.
+  async _validarTalleres(usuario, csv) {
+    if (!csv) return;
+    const [solicitante, activos] = await Promise.all([usuarioValeRepository.obtenerPorId(usuario.id), tallerRepository.listarActivos()]);
+    // Sin tienda asignada ningún Diseño Local es elegible (0 no coincide con ninguna tienda).
+    validarEleccionTalleres(csv.split(',').map(Number), activos, Number(solicitante && solicitante.tienda_id) || 0);
+  }
+
   async _obtenerPropio(usuarioId, id) {
     const borrador = await borradorRepository.obtenerDeUsuario(id, usuarioId);
     if (!borrador) throw new ErrorDeNegocio('El borrador no existe.', 404);
@@ -131,6 +139,7 @@ class BorradorService {
 
   async crear(usuario, payload, archivos) {
     const datos = leerDatos(payload);
+    await this._validarTalleres(usuario, datos.talleres_ids);
     if (!datos.contenido && totalNuevos(archivos) === 0) throw errorVacio();
     // Contar e insertar van en la misma cola para que dos guardados seguidos no superen el tope.
     const id = await valeMutex.conColaDeLlave(`borradores-usuario:${usuario.id}`, async () => {
@@ -158,6 +167,7 @@ class BorradorService {
     await valeMutex.conColaDeLlave(`borrador:${id}`, async () => {
       await this._obtenerPropio(usuario.id, id);
       const datos = leerDatos(payload);
+      await this._validarTalleres(usuario, datos.talleres_ids);
       const documentos = await borradorRepository.listarDocumentos(id);
       const quitarIds = idsAQuitar(payload.documentosQuitar, documentos);
       if (!datos.contenido && documentos.length - quitarIds.length + totalNuevos(archivos) === 0) throw errorVacio();

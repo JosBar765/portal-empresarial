@@ -89,6 +89,17 @@ const ESTADOS_ADJUNTOS = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.AD
 const ESTADOS_ADJUNTOS_VISIBLES_ASESOR = [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
 const esPendienteAsignacion = (estado) => estado === ESTADOS_TALLER.PENDIENTE_ASIGNACION || ESTADOS_ADJUNTOS.includes(estado);
 
+const MAX_IDS_FILTRO = 500;
+
+// Une una lista CSV con un id suelto; lo que no sea entero positivo se ignora.
+function idsDeFiltro(lista, uno) {
+  const ids = [...String(lista ?? '').split(','), String(uno ?? '')].map(Number).filter(n => Number.isInteger(n) && n > 0);
+  return new Set([...new Set(ids)].slice(0, MAX_IDS_FILTRO));
+}
+
+const idsDeTiendaFiltro = ({ tiendaIds, tiendaId } = {}) => idsDeFiltro(tiendaIds, tiendaId);
+const idsDeTallerFiltro = ({ tallerIds, tallerId } = {}) => idsDeFiltro(tallerIds, tallerId);
+
 class ValeBuzonService {
   // Adjuntos reclamados por taller (rechazados/respondidos) para asesor y supervisor; VERIFICANDO no se muestra.
   _adjuntosDe(vale) {
@@ -308,13 +319,9 @@ class ValeBuzonService {
       todosConTaller = await this._enriquecerConTaller(cargados, valeTalleresTodos);
     }
 
-    // Filtro por tienda: solo lo manda el frontend del Supervisor (y,
-    // opcionalmente, Administrador) para acotar el listado a una sola
-    // tienda; el resto de roles nunca lo envían.
-    if (filtros.tiendaId) {
-      const tiendaId = Number(filtros.tiendaId);
-      todosConTaller = todosConTaller.filter(v => v.tienda_id === tiendaId);
-    }
+    // Filtro por tienda (una, un país o un grupo Trofex): solo lo manda el frontend de Supervisor, Gerente y Administrador.
+    const tiendasFiltro = idsDeTiendaFiltro(filtros);
+    if (tiendasFiltro.size) todosConTaller = todosConTaller.filter(v => tiendasFiltro.has(v.tienda_id));
 
     let resultado = await this._resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador);
     // «Atrasados» se combina con las demás tarjetas: con otra activa cuenta los atrasados de esa selección. En Trabajo
@@ -434,7 +441,11 @@ class ValeBuzonService {
     const conHermano = await propuestasCompartidasService.valesConHermano(usuario, idsBuzon);
     // Hilos del rechazo de propuesta que este usuario puede consultar (el chat queda como registro aunque la ronda esté cerrada).
     const hilosRechazo = await valeRechazoPropuestaService.hilosVisibles(usuario, paginaCruda.map(v => ({ id: v.id, asesor_id: v.asesor_id })));
-    const pagina = paginaCruda.map(v => ({ ...v, hilos_rechazo_propuesta: hilosRechazo.get(v.id) || [], propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
+    // «Cancelar proceso» no aplica si el diseñador ya entregó propuesta: una sola consulta para toda la página.
+    const disenadorDeTrabajo = (v) => v.disenador_id || (usuario.rolId === ROL.DISENADOR ? usuario.id : null);
+    const enProceso = paginaCruda.filter(v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO && disenadorDeTrabajo(v));
+    const yaEntregaron = await propuestaRepository.listarParesConPropuesta([...new Set(enProceso.map(v => v.id))], [...new Set(enProceso.map(disenadorDeTrabajo))]);
+    const pagina = paginaCruda.map(v => ({ ...v, ya_entrego_propuesta: yaEntregaron.has(`${v.id}-${disenadorDeTrabajo(v)}`), hilos_rechazo_propuesta: hilosRechazo.get(v.id) || [], propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
     const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
     return {
       vales: pagina,
@@ -943,3 +954,5 @@ class ValeBuzonService {
 }
 
 module.exports = new ValeBuzonService();
+module.exports.idsDeTiendaFiltro = idsDeTiendaFiltro;
+module.exports.idsDeTallerFiltro = idsDeTallerFiltro;

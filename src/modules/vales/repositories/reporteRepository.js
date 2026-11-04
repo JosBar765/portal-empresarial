@@ -7,10 +7,10 @@ const COLUMNAS_EVENTO = `h.id, h.vale_id, h.usuario_id, h.taller_id, h.disenador
 
 class ReporteRepository {
   // Eventos del período. `desde`/`hasta` son datetimes 'AAAA-MM-DD hh:mm:ss' (hora de Guatemala, igual que la sesión
-  // de MySQL) o null. El alcance (`asesorIds`, `tallerIds`, `actorId`) se combina con OR; `tiendaId` y `tallerId` restan.
+  // de MySQL) o null. El alcance (`asesorIds`, `tallerIds`, `actorId`) se combina con OR; `tiendaId`, `tiendaIds`, `tallerId` y `tallerFiltroIds` restan.
   // `valesDeDisenadorId`: todo lo ocurrido en los vales donde esa persona trabajó (también las devoluciones, que
   // registra el encargado).
-  async listarEventos({ desde = null, hasta = null, asesorIds = null, tallerIds = null, actorId = null, valesDeDisenadorId = null, tiendaId = null, tallerId = null } = {}) {
+  async listarEventos({ desde = null, hasta = null, asesorIds = null, tallerIds = null, actorId = null, valesDeDisenadorId = null, tiendaId = null, tiendaIds = null, tallerId = null, tallerFiltroIds = null } = {}) {
     const condiciones = [];
     const params = [];
     if (desde) { condiciones.push('h.creado_en >= ?'); params.push(desde); }
@@ -30,10 +30,12 @@ class ReporteRepository {
     }
     if (alcance.length) condiciones.push(`(${alcance.join(' OR ')})`);
     if (tiendaId) { condiciones.push('v.tienda_id = ?'); params.push(tiendaId); }
-    if (tallerId) {
-      // Solo los vales que pasaron por ese taller; sus acciones de otros talleres quedan fuera.
-      condiciones.push('h.vale_id IN (SELECT vale_id FROM vale_historial WHERE taller_id = ?) AND (h.taller_id = ? OR h.taller_id IS NULL)');
-      params.push(tallerId, tallerId);
+    if (tiendaIds && tiendaIds.length) { condiciones.push('v.tienda_id IN (?)'); params.push(tiendaIds); }
+    const talleresFiltro = [...new Set([...[].concat(tallerFiltroIds ?? []), ...(tallerId ? [tallerId] : [])])];
+    if (talleresFiltro.length) {
+      // Solo los vales que pasaron por esos talleres; sus acciones de otros talleres quedan fuera.
+      condiciones.push('h.vale_id IN (SELECT vale_id FROM vale_historial WHERE taller_id IN (?)) AND (h.taller_id IN (?) OR h.taller_id IS NULL)');
+      params.push(talleresFiltro, talleresFiltro);
     }
 
     return db.query(
@@ -111,11 +113,12 @@ class ReporteRepository {
     );
   }
 
-  // Opciones de los filtros de Reportes; con `tiendaId`, solo los asesores de esa tienda.
-  async listarAsesores(tiendaId = null) {
+  // Opciones de los filtros de Reportes; con una tienda o una lista de tiendas, solo los asesores de ellas.
+  async listarAsesores(tiendaIds = null) {
+    const ids = [].concat(tiendaIds ?? []).filter(Boolean);
     return db.query(
-      `SELECT u.id, u.nombre, a.tienda_id FROM usuarios u JOIN asesores a ON a.usuario_id = u.id WHERE u.activo = 1 AND (? IS NULL OR a.tienda_id = ?) ORDER BY u.nombre`,
-       [tiendaId, tiendaId], 'reporte:asesores'
+      `SELECT u.id, u.nombre, a.tienda_id FROM usuarios u JOIN asesores a ON a.usuario_id = u.id WHERE u.activo = 1${ids.length ? ' AND a.tienda_id IN (?)' : ''} ORDER BY u.nombre`,
+      ids.length ? [ids] : [], 'reporte:asesores'
     );
   }
 
