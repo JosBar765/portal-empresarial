@@ -15,8 +15,9 @@ candidato más obvio hoy es `public/modules/admin/js/app.js`).
 - Frontend: HTML/CSS/JS vanilla servido como archivos estáticos
   (`express.static`), sin framework, sin bundler, sin TypeScript.
 - Backend: `controllers → services → repositories`, SQL vive solo en
-  repositorios, `db.query(sql, params, tag)` con fallback a una base de datos
-  en memoria (mock) que dispatch por `tag`, no por SQL real.
+  repositorios, `db.query(sql, params, tag)` contra MySQL real (sin fallback ni
+  base en memoria: si MySQL no responde, el servidor no arranca); el `tag`
+  identifica la consulta en el log de errores.
 - Comunicación en tiempo real vía Socket.IO (`src/core/websocket`), rooms por
   rol/usuario/taller.
 - No hay test suite ni linter configurado — la única verificación disponible
@@ -245,21 +246,11 @@ La solución más compleja no es necesariamente la mejor solución.
 
 Los errores deben manejarse de manera consistente.
 
-Evitar:
+Evitar un `catch` que solo hace `console.log` o devuelve `error.message` crudo.
 
-```java
-try {
-    ...
-} catch (Exception e) {
-    e.printStackTrace();
-}
-```
+En el backend, el `catch` de cada controlador responde con `responderError` (o `responderErrorInterno`) de `src/core/utils/erroresHttp.js`: los errores de negocio (`ErrorDeNegocio` o un `throw new Error(...)` de un servicio) devuelven su mensaje; los internos (MySQL, Storage, bugs) devuelven un 500 genérico y el detalle va al log.
 
-sin una estrategia clara de manejo.
-
-El Backend debe utilizar el mecanismo de manejo global de excepciones definido para el proyecto.
-
-Los errores enviados al Frontend deben ser claros y apropiados para el contexto de la API.
+Los errores enviados al Frontend deben ser claros y apropiados para el contexto de la API. No uses 401 para errores de negocio (usa 403): `public/js/sessionGuard.js` trata cualquier 401 de `/api/` como sesión vencida.
 
 No exponer información sensible como:
 

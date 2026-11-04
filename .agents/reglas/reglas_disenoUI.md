@@ -108,7 +108,7 @@ estado nuevo al dominio.
 
 ### 2.6 Colores por módulo (catálogo del dashboard)
 
-Cada módulo del catálogo (`src/app.js`, endpoint `/api/modules`) trae su
+Cada módulo del catálogo (`MODULOS` en `src/core/permissions/modulesCatalog.js`, que sirve `/api/modules`) trae su
 propio color de acento, usado como `--module-color` inline en cada
 `.module-card`:
 
