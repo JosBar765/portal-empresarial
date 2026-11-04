@@ -117,7 +117,9 @@ class ValeDetalleService {
 
     if (tipo === 'general') {
       const enlaces = await propuestaRepository.listarEnlacesDeFusion(valeId);
-      if (vale.propuesta_general_url || vale.propuesta_general_nota || enlaces.length) {
+      // Con un solo taller la «general» es solo una copia de su PDF (sin nota ni enlaces): ahí se devuelve la propuesta del taller completa.
+      const unSoloTaller = talleres.length === 1;
+      if (vale.propuesta_general_nota || enlaces.length || (vale.propuesta_general_url && !unSoloTaller)) {
         return {
           origen: 'fusion', url: vale.propuesta_general_url || null, nota: vale.propuesta_general_nota || null,
           enlaces: enlaces.map(e => ({ nombre: e.nombre, url: e.url })), entregadoPor: null, fecha: vale.fusionado_en || null
