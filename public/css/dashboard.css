@@ -626,6 +626,8 @@ body {
   .notif-root { margin-right: 2px; }
   .account-widget { gap: 6px; padding: 4px 6px 4px 4px; min-height: 44px; }
   .account-dropdown { max-width: calc(100vw - 24px); }
+  /* El panel absoluto se salia por la izquierda: en el celular ocupa el ancho de la pantalla */
+  .notif-panel { position: fixed; top: calc(var(--safe-top, 0px) + 64px); left: 12px; right: 12px; width: auto; max-width: none; max-height: calc(100dvh - 140px); }
 }
 
 @media (max-width: 380px) {
