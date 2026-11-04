@@ -257,12 +257,12 @@ un tono de marca distinto (marketing/consumer) al de este proyecto.
 
 ## 7. Referencias cruzadas
 
-- `.agents/reglas_autenticacion.md` — arquitectura de auth (no relacionado a
+- `.agents/reglas/reglas_autenticacion.md` — arquitectura de auth (no relacionado a
   diseño, pero mismo criterio de "un agente debe poder leer esto y no
   romper el sistema").
-- `.agents/reglas/reglas_modulo.md` — plantilla para módulos nuevos; su paso 2
-  ("frontend, estilizado para calzar con `global.css`") remite a este
-  documento para el detalle de paleta.
+- `.agents/reglas/reglas_modulo.md` — plantilla para módulos nuevos; su sección
+  «Estructura del Módulo en el Frontend» remite a este documento para el
+  detalle de paleta.
 - Paleta oscura del sidebar/superficies de marca: tomada de una imagen de
   referencia (`Pruebas/imagen sidebar.avif`) que **no está versionada en el
   repo** — esa carpeta se dejó fuera de git a propósito porque contenía otro
