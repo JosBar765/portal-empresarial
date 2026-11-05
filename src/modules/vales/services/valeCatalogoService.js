@@ -40,15 +40,15 @@ class ValeCatalogoService {
     return { tiendas, paises, talleres, miTiendaId: (solicitante && solicitante.tienda_id) || null, miTallerId, tiendasGerencia, horasVencimientoVale };
   }
 
-  // Tienda con la que elige talleres quien crea vales (asesor, supervisor o cualquier rol con vales.crear y fila en asesores); 0 si no tiene, y entonces ningún Diseño Local es elegible. Otros roles: null.
+  // Tienda con la que elige talleres quien crea vales (asesor, supervisor o cualquier rol con vales.crear salvo administrador); 0 si no tiene tienda, y entonces ningún Diseño Local es elegible. Otros roles: null.
   async _tiendaComoAsesor(usuario) {
     if (!usuario) return null;
     const esAsesorOSupervisor = [ROL.ASESOR, ROL.SUPERVISOR].includes(usuario.rolId);
-    // Otro rol con vales.crear se trata como asesor solo si tiene tienda en asesores; si no, conserva el catálogo completo de siempre.
+    // Otro rol con vales.crear se trata como asesor; sin tienda en asesores recibe 0 (solo talleres generales).
     if (!esAsesorOSupervisor && (esAdministrador(usuario) || !puedeActuarComoAsesor(usuario))) return null;
     const yo = await usuarioValeRepository.obtenerPorId(usuario.id);
     const tiendaId = Number(yo && yo.tienda_id) || 0;
-    return esAsesorOSupervisor || tiendaId ? tiendaId : null;
+    return tiendaId;
   }
 
   // El asesor solo recibe lo que puede elegir (los generales y el Diseño Local de su tienda); los demás roles, el catálogo completo.
