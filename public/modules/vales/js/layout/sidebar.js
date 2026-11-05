@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
+import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, rolEncargadoDe } from '../config/roles.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { actualizarIndicadoresOrden } from './toolbar.js';
 
@@ -25,7 +25,9 @@ export function actualizarTituloYSeccionesVista() {
   // El combobox de diseñadores es de los encargados y solo aplica al Buzón (Trabajo realizado y Reportes no lo usan).
   $('#filtro-disenador').style.display = ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)) && state.vista === 'buzon' ? '' : 'none';
   const enReportes = state.vista === 'reportes';
-  $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
+  $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : (state.vista === 'mios' ? 'Mis vales' : 'Buzón de Vales de Arte');
+  // «Mis vales» es la vista del asesor: la columna Taller se ve aunque el rol sea de taller.
+  $('.buzon-table').classList.toggle('oculta-taller', ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && state.vista !== 'mios');
   $('#reportes-vista').style.display = enReportes ? 'block' : 'none';
   const enVistaPropia = enReportes;
   $('#contadores-grid').style.display = enVistaPropia ? 'none' : '';
@@ -60,6 +62,12 @@ export function wireSidebar() {
   // Reportes de actividad: por permiso (vales.ver_reportes), para cualquier rol.
   if ((state.user.permissions || []).includes('vales.ver_reportes')) {
     $('#sidebar-item-reportes', sidebar).style.display = '';
+  }
+
+  // «Mis vales»: quien crea vales con otro rol (Gerente, Diseñador, Encargado…) los ve aparte; Asesor y Supervisor ya los tienen en su Buzón.
+  const permisos = state.user.permissions || [];
+  if (permisos.includes('vales.crear') && permisos.includes('vales.ver') && ![ROL.ADMINISTRADOR, ROL.ASESOR, ROL.SUPERVISOR].includes(rolEncargadoDe(state.user))) {
+    $('#sidebar-item-mios', sidebar).style.display = '';
   }
 
   // No perder la vista activa al recargar — se valida contra las vistas que

@@ -74,6 +74,11 @@
       <ion-icon name="checkmark-done-circle-outline"></ion-icon>
       <span>Trabajo realizado</span>
     </button>
+    <!-- «Mis vales»: lo ven los roles con vales.crear que no son asesor ni supervisor (se muestra desde sidebar.js). -->
+    <button class="sidebar-item" id="sidebar-item-mios" data-vista="mios" style="display:none;">
+      <ion-icon name="document-text-outline"></ion-icon>
+      <span>Mis vales</span>
+    </button>
     <!-- Reportes de actividad: lo ven los roles con el permiso vales.ver_reportes (se muestra desde sidebar.js). -->
     <button class="sidebar-item" id="sidebar-item-reportes" data-vista="reportes" style="display:none;">
       <ion-icon name="stats-chart-outline"></ion-icon>

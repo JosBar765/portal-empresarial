@@ -566,6 +566,8 @@ Cada rol tiene dos vistas en la barra lateral: **Buzón** (lo pendiente /
 activo) y **Trabajo realizado** (lo ya hecho, ordenado por fecha). Las tablas
 tienen las mismas columnas para todos; cambian filtros, orden y acciones.
 
+**«Mis vales».** Un rol con `vales.crear` y `vales.ver` que no es Asesor, Supervisor ni Administrador (Gerente, Diseñador, Encargado, Asistente…) ve en la barra lateral una tercera vista, «Mis vales» (`GET /api/vales?vista=mios`, que exige `vales.crear`; sin él responde 403). Es el Buzón del asesor aplicado solo a los vales que creó el propio usuario: los mismos contadores por paso del pipeline (Por autorizar… Por recibir, Modificados, Atrasados), el estado «lógico» del asesor, la columna Taller visible y un pipeline sin las etiquetas de acción del taller. Se carga aparte de su Buzón de rol, así que incluye sus vales aunque estén en otro taller, y las únicas acciones son las del dueño (ver y decidir, solicitar modificación, rechazo de propuesta, corregir, dar de baja, historial). Sus Buzón y Trabajo realizado no cambian. El **Trabajo realizado** mezclado con los vales propios queda para una etapa posterior.
+
 | Rol | Buzón (contadores) | Trabajo realizado |
 |---|---|---|
 | Asesor | Por autorizar · Por asignar · En proceso · En revisión · Por recibir (uno por paso del pipeline, §10) + los interruptores **Modificados** y **Atrasados**, que se combinan con cualquiera (al combinar **Atrasados** con otra tarjeta, su número se recalcula con los atrasados de esa selección; las demás tarjetas no cambian). Excluye RECIBIDO. | Vales `RECIBIDO` (un vale confirmado sigue ahí aunque tenga una modificación en curso). Total y recibidos hoy. |

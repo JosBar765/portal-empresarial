@@ -55,9 +55,9 @@ export function esAccionDeTrabajoVisible(v) {
 }
 
 // El supervisor también usa el estado "lógico" (estado_visible), pero solo en
-// su vista de Trabajo realizado.
+// su vista de Trabajo realizado; «Mis vales» (otros roles con vales.crear) también.
 export function usaEstadosVisibles() {
-  return state.user.rolId === ROL.ASESOR || (state.user.rolId === ROL.SUPERVISOR && state.vista === 'trabajo');
+  return state.user.rolId === ROL.ASESOR || state.vista === 'mios' || (state.user.rolId === ROL.SUPERVISOR && state.vista === 'trabajo');
 }
 
 // El estado que corresponde MOSTRAR depende del rol: el asesor ve su versión

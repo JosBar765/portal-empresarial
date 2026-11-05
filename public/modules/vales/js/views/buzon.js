@@ -157,8 +157,9 @@ export function wireIndicadoresScrollHorizontal() {
 let contadorEnfocado = null;
 
 export function renderContadores() {
-  let config = CONTADORES_CONFIG[rolEncargadoDe(state.user)] || CONTADORES_CONFIG[ROL.ADMINISTRADOR] || [];
-  if (!Array.isArray(config)) config = config[state.vista] || [];
+  const esMios = state.vista === 'mios'; // «Mis vales» usa las tarjetas del Buzón del asesor
+  let config = CONTADORES_CONFIG[esMios ? ROL.ASESOR : rolEncargadoDe(state.user)] || CONTADORES_CONFIG[ROL.ADMINISTRADOR] || [];
+  if (!Array.isArray(config)) config = config[esMios ? 'buzon' : state.vista] || [];
   config = config.filter(c => !c.permiso || tienePermiso(c.permiso));
   const grid = $('#contadores-grid');
   grid.innerHTML = config.map(c => {
@@ -433,7 +434,17 @@ function construirAccionesLectorDueno(v) {
   return [decideEnPaso5(v) ? accionVerYDecidir : ver, ...accionesDeModificacion(v), ...accionesChatRechazo(v), ...accionesDeCorreccion(v), ...lectura, ...accionesDeBaja(v)];
 }
 
+// «Mis vales»: solo las acciones del dueño, nunca las del rol (taller, supervisor o lectura global).
+function construirAccionesMios(v) {
+  const acciones = [decideEnPaso5(v) ? accionVerYDecidir : { icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
+  acciones.push(...accionesDeModificacion(v), ...accionesChatRechazo(v), ...accionesDeCorreccion(v));
+  if (puede('verHistorial')) acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
+  acciones.push(...accionesDeBaja(v));
+  return acciones;
+}
+
 export function construirAcciones(v) {
+  if (state.vista === 'mios') return construirAccionesMios(v);
   if (esLectorGlobal()) return esDuenoDe(v) ? construirAccionesLectorDueno(v) : construirAccionesDeLectura(v);
   // El supervisor abre un modal de elección (Ver info / Ver vale) en vez de ir
   // directo al PDF — a veces solo necesita los datos de encabezado. Vale también para los suyos, que él autoriza.

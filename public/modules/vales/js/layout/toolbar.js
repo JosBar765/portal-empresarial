@@ -32,7 +32,7 @@ export function wireToolbar() {
   // El Supervisor (con vales.ver_cupo) y el Asesor ven el cupo de los talleres por día; el Encargado/Asistente, cuántos vales tiene
   // su taller; el Diseñador, cuántas asignaciones suyas.
   const permisos = state.user.permissions || [];
-  const conInfoPorDia = permisos.includes('vales.ver_cupo') || state.user.rolId === ROL.ASESOR || ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user));
+  const conInfoPorDia = permisos.includes('vales.ver_cupo') || state.user.rolId === ROL.ASESOR || (permisos.includes('vales.crear') && state.user.rolId !== ROL.ADMINISTRADOR) || ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user));
   const barra = crearBarraPeriodo($('#ventana-barra'), {
     prefijo: 'vt',
     obtener: () => state.ventana,
