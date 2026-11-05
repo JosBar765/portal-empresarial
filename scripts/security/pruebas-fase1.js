@@ -139,7 +139,7 @@ function multipart(archivos) {
     chk('POST asignar con disenadorId=[1,2] → 400 sin SQL', x.s === 400 && !filtra(x.t), `${x.s} ${x.t}`);
     x = await pedir('POST', '/api/vales/1/revisar', { cookies: { token: token(4, ['vales.ver', 'vales.revisar'], 5) }, json: { aprobar: false, disenadorReasignadoId: { a: 1 } } });
     chk('POST revisar con disenadorReasignadoId=objeto → 400 sin SQL', x.s === 400 && !filtra(x.t), `${x.s} ${x.t}`);
-    x = await pedir('POST', '/api/vales/999999/confirmar', { cookies: { token: token(2, ['vales.ver', 'vales.confirmar'], 63) } });
+    x = await pedir('POST', '/api/vales/999999/confirmar', { cookies: { token: token(2, ['vales.ver', 'vales.crear'], 63) } });
     chk('error de negocio se conserva (vale inexistente → mensaje legible)', [400, 404].includes(x.s) && x.j && /vale/i.test(x.j.error), `${x.s} ${x.t}`);
 
     // ------------------------------------------------------------------
