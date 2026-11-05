@@ -61,7 +61,7 @@ function pipelineConAdjuntos(v) {
     const nodos = p.nodos.map((_, i) => (i === 0 ? 'completado' : (i === 1 ? 'devuelto' : 'pendiente')));
     return { ...p, nodos, tono: 'danger', etiqueta: 'Esperando adjuntos', detalle: texto, motivo: texto };
   }
-  if (state.vista === 'mios' || !ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user))) return p; // «Mis vales» se ve como el asesor
+  if (state.vista === 'mios' || v._propio || !ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user))) return p; // «Mis vales» se ve como el asesor
   if (v.estado_taller === 'VERIFICANDO_ADJUNTOS') return { ...p, etiqueta: 'Verificar adjuntos' };
   if (v.estado_taller === 'ADJUNTOS_RESPONDIDOS') return { ...p, etiqueta: 'Adjuntos enviados, verificar' };
   if (v.estado_taller === 'ADJUNTOS_RECHAZADOS') {

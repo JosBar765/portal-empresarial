@@ -331,7 +331,7 @@ const esLectorGlobal = () => state.user.rolId === ROL.ADMINISTRADOR || state.use
 
 // Propuesta que este usuario puede ver en la fila (la fusión o la del propio taller; con archivo o solo con enlaces), o null.
 function propuestaGeneralVisible(v) {
-  const aplica = (usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || esLectorGlobal() || puede('aprobarGeneral')) && v._tipoRegistro !== 'PROPUESTA';
+  const aplica = (usaEstadosVisibles(v) ||state.user.rolId === ROL.SUPERVISOR || esLectorGlobal() || puede('aprobarGeneral')) && v._tipoRegistro !== 'PROPUESTA';
   return aplica && (v.propuesta_general_url || v.propuesta_extra) ? { tipo: 'general' } : null;
 }
 function propuestaTallerVisible(v) {
@@ -444,7 +444,7 @@ function construirAccionesMios(v) {
 }
 
 export function construirAcciones(v) {
-  if (state.vista === 'mios') return construirAccionesMios(v);
+  if (state.vista === 'mios' || v._propio) return construirAccionesMios(v); // las filas propias de Trabajo realizado también
   if (esLectorGlobal()) return esDuenoDe(v) ? construirAccionesLectorDueno(v) : construirAccionesDeLectura(v);
   // El supervisor abre un modal de elección (Ver info / Ver vale) en vez de ir
   // directo al PDF — a veces solo necesita los datos de encabezado. Vale también para los suyos, que él autoriza.

@@ -450,7 +450,7 @@ class ValeBuzonService {
     const disenadorDeTrabajo = (v) => v.disenador_id || (usuario.rolId === ROL.DISENADOR ? usuario.id : null);
     const enProceso = paginaCruda.filter(v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO && disenadorDeTrabajo(v));
     const yaEntregaron = await propuestaRepository.listarParesConPropuesta([...new Set(enProceso.map(v => v.id))], [...new Set(enProceso.map(disenadorDeTrabajo))]);
-    const pagina = paginaCruda.map(v => ({ ...v, ya_entrego_propuesta: yaEntregaron.has(`${v.id}-${disenadorDeTrabajo(v)}`), hilos_rechazo_propuesta: hilosRechazo.get(v.id) || [], propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: personaDe(v), pipeline: calcularPipeline(v, esMios ? { rolId: ROL.ASESOR } : { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
+    const pagina = paginaCruda.map(v => ({ ...v, ya_entrego_propuesta: yaEntregaron.has(`${v.id}-${disenadorDeTrabajo(v)}`), hilos_rechazo_propuesta: hilosRechazo.get(v.id) || [], propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: v._propio ? null : personaDe(v), pipeline: calcularPipeline(v, esMios || v._propio ? { rolId: ROL.ASESOR } : { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
     const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
     return {
       vales: pagina,
@@ -789,9 +789,11 @@ class ValeBuzonService {
           }))
       : [];
 
+    // Los vales propios ya confirmados se suman a las propuestas del taller (mismo contador, ventana y orden).
+    const propuestasYPropios = this._mezclarPropios(conPropuesta, this._propiosConfirmados(usuario, todosConTaller, ventana));
     const contadores = {
-      aprobadosHoy: conPropuesta.filter(v => esHoy(v.aprobado_en)).length,
-      totalAprobados: conPropuesta.length
+      aprobadosHoy: propuestasYPropios.filter(v => esHoy(v.aprobado_en)).length,
+      totalAprobados: propuestasYPropios.length
     };
     if (puedeFusionar) {
       contadores.fusionadosHoy = fusionados.filter(v => esHoy(v.fusionado_en)).length;
@@ -805,8 +807,29 @@ class ValeBuzonService {
       predicados.fusionadosHoy = v => !!v._esFusion && esHoy(v.fusionado_en);
       predicados.totalFusionados = v => !!v._esFusion;
     }
-    const filtrados = this._aplicarFiltroContador([...conPropuesta, ...fusionados], filtroContador, predicados);
+    const filtrados = this._aplicarFiltroContador([...propuestasYPropios, ...fusionados], filtroContador, predicados);
     return { vales: ordenarPorFecha(filtrados), contadores };
+  }
+
+  // Vales propios ya confirmados de quien trabaja vales y también crea (vales.crear): salen en su Trabajo realizado con la presentación del asesor.
+  _propiosConfirmados(usuario, vales, ventana) {
+    if (!puedeActuarComoAsesor(usuario)) return [];
+    return vales
+      .filter(v => v.asesor_id === usuario.id && ESTADOS_CONFIRMADOS.includes(v.estado) && dentroDeVentana(v, ventana))
+      .map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v), aprobado_en: v.actualizado_en, _propio: true, _rowKey: `${v.id}-O` }));
+  }
+
+  // Une los propios a las filas de trabajo: si el vale ya está por haberlo trabajado, esa fila pasa a presentarse como de dueño (sin duplicar).
+  _mezclarPropios(filas, propios) {
+    const porVale = new Map(propios.map(p => [p.id, p]));
+    const fusionados = new Set();
+    const mezcladas = filas.map(f => {
+      const propio = f._tipoRegistro === 'PROPUESTA' ? porVale.get(f.id) : null;
+      if (!propio) return f;
+      fusionados.add(f.id);
+      return { ...f, estado_visible: propio.estado_visible, _propio: true };
+    });
+    return [...mezcladas, ...propios.filter(p => !fusionados.has(p.id))];
   }
 
   // Asignaciones vigentes de un diseñador (las mismas que cuenta la carga de trabajo).
@@ -928,7 +951,7 @@ class ValeBuzonService {
     const valesEnVentana = await valeRepository.listarParaBuzon({ ...this._limitesDeVentana(ventana), valeIds: activas.map(a => a.vale_id) });
     const valePorId = new Map(valesEnVentana.map(v => [v.id, v]));
     const propuestas = await propuestaRepository.obtenerUltimasPorValesYDisenadores(valesEnVentana.map(v => v.id));
-    const vales = activas.map(a => {
+    const trabajados = activas.map(a => {
       const vale = valePorId.get(a.vale_id);
       if (!vale) return null;
       const propuesta = propuestas.get(`${vale.id}-${usuario.id}`) || null;
@@ -947,6 +970,12 @@ class ValeBuzonService {
     })
       .filter(Boolean)
       .filter(v => dentroDeVentana(v, ventana));
+
+    // Sus vales propios ya confirmados (si también crea vales) salen aquí con la presentación del asesor.
+    const propios = puedeActuarComoAsesor(usuario)
+      ? this._propiosConfirmados(usuario, await this._enriquecerConTaller((await valeRepository.listarParaBuzon({ ...this._limitesDeVentana(ventana), asesorIds: [usuario.id] })).map(enriquecer)), ventana)
+      : [];
+    const vales = this._mezclarPropios(trabajados, propios);
 
     const contadores = {
       totalAprobados: vales.length,

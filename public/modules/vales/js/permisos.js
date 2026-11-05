@@ -55,16 +55,16 @@ export function esAccionDeTrabajoVisible(v) {
 }
 
 // El supervisor también usa el estado "lógico" (estado_visible), pero solo en
-// su vista de Trabajo realizado; «Mis vales» (otros roles con vales.crear) también.
-export function usaEstadosVisibles() {
-  return state.user.rolId === ROL.ASESOR || state.vista === 'mios' || (state.user.rolId === ROL.SUPERVISOR && state.vista === 'trabajo');
+// su vista de Trabajo realizado; «Mis vales» (otros roles con vales.crear) también, y las filas propias (`_propio`) de Trabajo realizado.
+export function usaEstadosVisibles(v) {
+  return state.user.rolId === ROL.ASESOR || state.vista === 'mios' || !!(v && v._propio) || (state.user.rolId === ROL.SUPERVISOR && state.vista === 'trabajo');
 }
 
 // El estado que corresponde MOSTRAR depende del rol: el asesor ve su versión
 // lógica; encargados y diseñadores ven el progreso DENTRO de su taller
 // (v.estado_taller); el resto ve el estado general del vale (v.estado).
 export function estadoActivo(v) {
-  if (usaEstadosVisibles()) return v.estado_visible;
+  if (usaEstadosVisibles(v)) return v.estado_visible;
   if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user))) return v.estado_taller || v.estado;
   return v.estado;
 }
@@ -74,7 +74,7 @@ export function claseEstado(v) {
 }
 
 export function etiquetaEstado(v) {
-  if (usaEstadosVisibles()) return ESTADOS_VISIBLES_LABEL[v.estado_visible] || v.estado_visible;
+  if (usaEstadosVisibles(v)) return ESTADOS_VISIBLES_LABEL[v.estado_visible] || v.estado_visible;
   const clave = estadoActivo(v);
   return ESTADOS_LABEL[clave] || clave;
 }
