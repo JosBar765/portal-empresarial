@@ -189,11 +189,17 @@ class ValeAdjuntosService {
   async _resolverAcceso(usuario, vale, tallerId) {
     const fila = (await valeTallerRepository.listarPorVale(vale.id)).find(f => f.taller_id === Number(tallerId));
     if (!fila) throw new Error('Este vale no fue enviado a ese taller.');
+    const esDueno = vale.asesor_id === usuario.id && puedeActuarComoAsesor(usuario);
     if (esDeTaller(usuario)) {
-      await valeTallerService._resolverFilaTallerParaEncargado(usuario, vale.id, fila.taller_id);
-      return { fila, escribe: 'TALLER' };
+      try {
+        await valeTallerService._resolverFilaTallerParaEncargado(usuario, vale.id, fila.taller_id);
+        return { fila, escribe: 'TALLER' };
+      } catch (error) {
+        // Dueño de un vale enviado a otro taller: la conversación es de otro taller, entra como asesor.
+        if (!(esDueno && error instanceof ErrorDeNegocio && error.status === 403)) throw error;
+      }
     }
-    if (vale.asesor_id === usuario.id && puedeActuarComoAsesor(usuario)) return { fila, escribe: 'ASESOR' };
+    if (esDueno) return { fila, escribe: 'ASESOR' };
     if (await esSupervisorDelAsesor(usuario, vale)) return { fila, escribe: null };
     // Nadie más la ve mientras está abierta (ni administrador, ni gerente); ya cerrada, solo queda el registro
     // del historial para quien tenga `vales.ver_historial`.

@@ -827,7 +827,8 @@ class ValeBuzonService {
       const propio = f._tipoRegistro === 'PROPUESTA' ? porVale.get(f.id) : null;
       if (!propio) return f;
       fusionados.add(f.id);
-      return { ...f, estado_visible: propio.estado_visible, _propio: true };
+      // Los campos de dueño que la fila trabajada no trae deciden las acciones del frontend (modificar, chat de rechazo, adjuntos).
+      return { ...f, estado_visible: propio.estado_visible, _propio: true, mod_en_tramite: propio.mod_en_tramite ?? f.mod_en_tramite, rechazos_propuesta: propio.rechazos_propuesta ?? f.rechazos_propuesta, adjuntos: propio.adjuntos ?? f.adjuntos, talleres_estado: propio.talleres_estado ?? f.talleres_estado };
     });
     return [...mezcladas, ...propios.filter(p => !fusionados.has(p.id))];
   }
