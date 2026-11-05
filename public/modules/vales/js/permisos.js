@@ -34,9 +34,9 @@ export function puede(accion) {
   }
 }
 
-// Responder adjuntos: solo el asesor dueño (o el supervisor en su PROPIO vale).
+// Responder adjuntos: solo el dueño del vale (con vales.crear), sea cual sea su rol.
 export function puedeResponderAdjuntos(v) {
-  return puede('corregir') && v.asesor_id === state.user.id;
+  return puede('corregir') && Number(v.asesor_id) === Number(state.user.id);
 }
 
 // Leer la conversación de adjuntos: el dueño la escribe y el supervisor que lo cubre solo la lee (el servidor valida la cobertura).
