@@ -23,7 +23,7 @@ export function puede(accion) {
     case 'autorizarCreacion': return admin || r === ROL.SUPERVISOR;
     // La fusión depende del permiso, no del rol.
     case 'corregir': return tienePermiso('vales.crear');
-    case 'darDeBaja': return (r === ROL.ASESOR || r === ROL.SUPERVISOR) && tienePermiso('vales.dar_de_baja');
+    case 'darDeBaja': return !admin && tienePermiso('vales.crear') && tienePermiso('vales.dar_de_baja');
     case 'verificarAdjuntos': return tienePermiso('vales.verificar_adjuntos');
     // Rechazar la propuesta: el asesor dueño. Responder el rechazo: el equipo del taller (el administrador no participa).
     case 'rechazarPropuesta': return !admin && tienePermiso('vales.crear');
@@ -114,6 +114,9 @@ function salasPorRol(user) {
 // sea cual sea su rol o taller: el aviso sigue al permiso.
 export function roomsParaUsuario(user) {
   const salas = salasPorRol(user);
+  // Quien crea vales (vales.crear) recibe lo de los suyos en su sala de asesor, sea cual sea su rol.
+  const sala = `asesor:${user.id}`;
+  if ((user.permissions || []).includes('vales.crear') && !salas.includes(sala)) salas.push(sala);
   if ((user.permissions || []).includes('vales.aprobar_general')) salas.push('vales:fusion');
   return salas;
 }

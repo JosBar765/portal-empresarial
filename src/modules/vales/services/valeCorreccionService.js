@@ -33,7 +33,7 @@ class ValeCorreccionService {
       if (previo) return previo.resultado;
 
       if (!puedeActuarComoAsesor(usuario)) {
-        throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede corregir un vale.', 403);
+        throw new ErrorDeNegocio('Solo quien puede crear vales puede corregir un vale.', 403);
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {

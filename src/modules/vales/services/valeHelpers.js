@@ -272,10 +272,10 @@ async function requerirVale(valeId) {
   return vale;
 }
 
-// Quien puede crear y gestionar vales propios: el asesor y también el supervisor de ventas (que debe tener además
-// una fila en `asesores` para saber de qué tienda es). Autorizar su propio vale es una regla aparte: ver autorizarCreacion.
+// Quien puede crear y gestionar vales propios depende del permiso `vales.crear`, no del rol (debe tener además una fila en
+// `asesores` para saber de qué tienda es); cada uso lo combina con el chequeo de dueño. Autorizar su propio vale es una regla aparte.
 function puedeActuarComoAsesor(usuario) {
-  return usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR;
+  return (usuario.permissions || []).includes('vales.crear');
 }
 
 function assertPropioDelAsesor(usuario, vale) {

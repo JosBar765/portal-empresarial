@@ -15,7 +15,7 @@ const valeCatalogoService = require('./valeCatalogoService');
 const propuestasCompartidasService = require('./propuestasCompartidasService');
 const {
   ESTADOS, ROL, esDeTaller, esTallerODisenador,
-  esAdministrador, enriquecer
+  esAdministrador, enriquecer, puedeActuarComoAsesor
 } = require('./valeHelpers');
 
 // Clasifica cada fila de vale_historial en una categoría estable, a partir
@@ -186,9 +186,10 @@ class ValeDetalleService {
   // de cualquier vale por id sin importar su rol/cobertura.
   async _puedeVerVale(usuario, vale, talleres) {
     if (esAdministrador(usuario) || usuario.rolId === ROL.GERENTE) return true; // Gerente: solo lectura de todo
+    // El dueño ve su vale sea cual sea su rol, mientras conserve `vales.crear`.
+    if (vale.asesor_id === usuario.id && puedeActuarComoAsesor(usuario)) return true;
     if (usuario.rolId === ROL.ASESOR) return vale.asesor_id === usuario.id;
     if (usuario.rolId === ROL.SUPERVISOR) {
-      if (vale.asesor_id === usuario.id) return true; // un vale que él mismo creó
       const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
       return misAsesoresIds.has(vale.asesor_id);
     }

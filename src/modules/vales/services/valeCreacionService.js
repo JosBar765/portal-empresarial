@@ -324,7 +324,7 @@ class ValeCreacionService {
   async darDeBaja(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       if (!puedeActuarComoAsesor(usuario)) {
-        throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede dar de baja un vale.', 403);
+        throw new ErrorDeNegocio('Solo quien puede crear vales puede darlos de baja.', 403);
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {
@@ -348,7 +348,7 @@ class ValeCreacionService {
   async reenviarAutorizacion(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       if (!puedeActuarComoAsesor(usuario)) {
-        throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede reenviar un vale a autorización.', 403);
+        throw new ErrorDeNegocio('Solo quien puede crear vales puede reenviar un vale a autorización.', 403);
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {

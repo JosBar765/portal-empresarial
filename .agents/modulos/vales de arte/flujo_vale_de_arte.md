@@ -20,6 +20,10 @@ discrepan, manda el código: corrige este archivo.
   nombres de rol de este documento describen quién tiene hoy ese permiso en
   `database/seed.sql`, pero el backend solo valida el permiso
   (`routes.js` → `requirePermission`).
+- Las acciones del **dueño** del vale (corregir, reenviar, dar de baja, responder adjuntos, solicitar modificación, confirmar,
+  rechazar propuesta) exigen el permiso `vales.crear` **y** ser el dueño (`vale.asesor_id`), no el rol asesor o supervisor:
+  cualquier rol con `vales.crear` y fila en `asesores` las ejerce sobre sus propios vales, ve su detalle y recibe sus eventos en
+  la sala `asesor:<id>`. La supervisión (autorizar, aprobar modificación, `/visto`) sigue siendo exclusiva del supervisor.
 - Toda transición se serializa con un lock por vale (`valeMutex`); además, el cupo del supervisor y el "un solo vale en proceso" del diseñador se serializan en colas por supervisor y por diseñador (`conColaDeSupervisor`, `conColaDeDisenador`). Se anota en
   `vale_historial`.
 - Hora de referencia: UTC-6 fijo (Guatemala), calculado por offset, no por la

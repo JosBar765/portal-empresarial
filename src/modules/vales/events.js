@@ -27,6 +27,8 @@ async function puedeUnirseASala(socket, sala) {
   const usuario = socket.user;
   if (sala === SALA_ADMIN) return esAdministrador(usuario);
   if (sala === SALA_FUSION) return (usuario.permissions || []).includes(PERMISO_FUSION);
+  // Quien crea vales (vales.crear), sea cual sea su rol, recibe lo de los suyos en su sala de asesor.
+  if (sala === `asesor:${usuario.id}` && (usuario.permissions || []).includes('vales.crear')) return true;
   if (usuario.rolId === ROL.ASESOR) return sala === `asesor:${usuario.id}`;
   // El supervisor también puede crear vales: recibe lo de los suyos en su sala de asesor.
   if (usuario.rolId === ROL.SUPERVISOR) return sala === `supervisor:${usuario.id}` || sala === `asesor:${usuario.id}`;

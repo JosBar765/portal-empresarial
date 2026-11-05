@@ -100,7 +100,7 @@ class ValeAdjuntosService {
   async responderAdjuntos(usuario, valeId, tallerId, mensaje) {
     return valeMutex.conLockDeVale(valeId, async () => {
       if (!puedeActuarComoAsesor(usuario)) {
-        throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede responder sobre los adjuntos.', 403);
+        throw new ErrorDeNegocio('Solo quien puede crear vales puede responder sobre los adjuntos.', 403);
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {
@@ -132,7 +132,7 @@ class ValeAdjuntosService {
   // sigue para los demás. Revalida bajo el lock: el taller pudo verificar o responder entretanto.
   async darDeBajaTaller(usuario, valeId, tallerId) {
     if (!puedeActuarComoAsesor(usuario)) {
-      throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede dar de baja un taller.', 403);
+      throw new ErrorDeNegocio('Solo quien puede crear vales puede dar de baja un taller.', 403);
     }
     return this.quitarTallerDeVale(valeId, tallerId, {
       actor: usuario,
