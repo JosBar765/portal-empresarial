@@ -80,6 +80,12 @@ class CapacidadEntregaService {
       const alcanzables = talleresElegiblesDeTienda(await tallerRepository.listarActivos(), miTiendaId).map(t => t.id);
       return { conLimite: await this._talleresConLimite(alcanzables), asesorIds: [usuario.id] };
     }
+    // Otro rol con vales.crear y tienda en asesores (sin ver_cupo) ve el cupo como el asesor: los talleres que puede elegir y sus vales.
+    const miTiendaId = (usuario.permissions || []).includes('vales.ver_cupo') ? null : await valeCatalogoService._tiendaComoAsesor(usuario);
+    if (miTiendaId) {
+      const alcanzables = talleresElegiblesDeTienda(await tallerRepository.listarActivos(), miTiendaId).map(t => t.id);
+      return { conLimite: await this._talleresConLimite(alcanzables), asesorIds: [usuario.id] };
+    }
     const todos = (await tallerRepository.listarActivos()).map(t => t.id);
     return { conLimite: await this._talleresConLimite(todos), asesorIds: null };
   }
@@ -118,6 +124,7 @@ class CapacidadEntregaService {
   //  - con `vales.ver_cupo` (Supervisor) y el Asesor: el cupo de los talleres con límite que le corresponden (ver obtenerCupoMes);
   //  - Encargado/Asistente de taller: cuántos vales entran cada día a su taller (por fecha de entrega);
   //  - Diseñador: cuántas asignaciones activas suyas entran cada día (las mismas que ve en su buzón);
+  //  - otro rol con vales.crear y tienda en asesores: el cupo como el Asesor;
   //  - cualquier otro: nada (el calendario queda como siempre).
   async obtenerCalendarioBuzon(usuario, anio, mes) {
     if ((usuario.permissions || []).includes('vales.ver_cupo') || usuario.rolId === ROL.ASESOR) return { tipo: 'cupo', ...(await this.obtenerCupoMes(usuario, anio, mes)) };
@@ -132,6 +139,7 @@ class CapacidadEntregaService {
       const talleresIds = (await tallerRepository.listarActivos()).filter(t => t.encargado_id === idEfectivo).map(t => t.id);
       return { tipo: 'conteo', dias: await capacidadRepository.contarPorDia({ ...rango, talleresIds }) };
     }
+    if (await valeCatalogoService._tiendaComoAsesor(usuario)) return { tipo: 'cupo', ...(await this.obtenerCupoMes(usuario, anio, mes)) };
     return { tipo: null };
   }
 
