@@ -394,7 +394,7 @@ Asesor y Supervisor de Ventas; cada uno solo en los vales que creó) puede recha
 - **Códigos HTTP:** ronda inexistente o de otro vale, 404; ronda ya cerrada o vale/taller en otro estado, 409; sin acceso, 403; mensaje vacío o largo, 400 (siempre después de comprobar el acceso).
 - **Tablas:** `vale_rechazos_propuesta` (una ronda por taller: `ABIERTO`, `ACEPTADO`, `RECHAZADO`, `CANCELADO`) y
   `vale_rechazo_propuesta_mensajes` (el hilo por `vale_taller_id`). La modificación básica con chat anterior
-  (`vale_modificaciones_basicas`, `vale_modificacion_mensajes` y el permiso `vales.responder_modificacion_basica`) quedó sin uso y no se borra.
+  (`vale_modificaciones_basicas`, `vale_modificacion_mensajes` y el permiso `vales.responder_modificacion_basica`) quedó sin uso; el permiso lo retiró la migración `quitar_permisos_sin_uso` y las tablas no se borran.
 - **Avisos y tiempo real:** eventos `RECHAZO_PROPUESTA_SOLICITADO`, `_MENSAJE`, `_ACEPTADO`, `_RECHAZADO` y `_CANCELADO`, entre el asesor
   y la sala del taller (encargado y asistentes; el diseñador asignado solo recibe el refresco silencioso para ver el cierre con el chat abierto).
   Cada paso queda en `vale_historial`. Rutas: `/api/vales/:id/rechazos-propuesta` (GET: todas las rondas visibles para quien consulta, abiertas o
@@ -513,7 +513,7 @@ cambia quién puede hacer cada acción.
 
 > **Rechazo de propuesta (§1.2).** `vales.crear` (que cubre rechazar la propuesta) lo tienen los roles Asesor (2) y Supervisor de Ventas (3); este último solo sobre la propuesta de los vales que él mismo creó. `vales.responder_rechazo_propuesta` lo tienen los
 > mismos roles que ya tenían `vales.verificar_adjuntos`: los encargados y asistentes de cada taller. Los usuarios deben cerrar sesión e iniciar de
-> nuevo para recibir los permisos. `vales.responder_modificacion_basica` quedó sin uso.
+> nuevo para recibir los permisos. `vales.responder_modificacion_basica` quedó sin uso y lo retiró la migración `quitar_permisos_sin_uso`.
 
 > **Nombre del rol 6.** El rol que trabaja los vales en el taller se llama **Diseñador** (antes
 > «Técnico»), en pantalla, en la base y en el código: `vale_talleres.disenador_id`,
