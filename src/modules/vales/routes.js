@@ -36,23 +36,23 @@ const verReportes = requirePermission('vales.ver_reportes');
 const trabajarVale = requirePermission('vales.trabajar');
 const revisarVale = requirePermission('vales.revisar');
 const aprobacionGeneralVale = requirePermission('vales.aprobar_general');
-const confirmarVale = requirePermission('vales.confirmar');
+const confirmarVale = requirePermission('vales.crear');
 const darDeBajaVale = requirePermission('vales.dar_de_baja');
 const verificarAdjuntosVale = requirePermission('vales.verificar_adjuntos');
-const corregirVale =requirePermission('vales.corregir');
+const corregirVale = requirePermission('vales.crear');
 const escribirConversacion = (req, res, next) => {
   const permisos = req.user.permissions || [];
-  return permisos.includes('vales.verificar_adjuntos') || permisos.includes('vales.corregir')
+  return permisos.includes('vales.verificar_adjuntos') || permisos.includes('vales.crear')
     ? next()
     : res.status(403).json({ error: 'No tienes permiso para escribir en esta conversación.' });
 };
-const solicitarModificacionVale = requirePermission('vales.solicitar_modificacion');
-const rechazarPropuesta = requirePermission('vales.rechazar_propuesta');
+const solicitarModificacionVale = requirePermission('vales.crear');
+const rechazarPropuesta = requirePermission('vales.crear');
 const responderRechazoPropuesta = requirePermission('vales.responder_rechazo_propuesta');
-// La conversación del rechazo de propuesta la escribe el asesor dueño (vales.rechazar_propuesta) o el taller (vales.responder_rechazo_propuesta).
+// La conversación del rechazo de propuesta la escribe el asesor dueño (vales.crear) o el taller (vales.responder_rechazo_propuesta).
 const escribirRechazoPropuesta = (req, res, next) => {
   const permisos = req.user.permissions || [];
-  return permisos.includes('vales.responder_rechazo_propuesta') || permisos.includes('vales.rechazar_propuesta')
+  return permisos.includes('vales.responder_rechazo_propuesta') || permisos.includes('vales.crear')
     ? next()
     : res.status(403).json({ error: 'No tienes permiso para escribir en esta conversación.' });
 };
@@ -119,7 +119,7 @@ router.post('/:id/rechazar-creacion', autorizarCreacionVale, (req, res) => valeC
 router.post('/:id/verificar-adjuntos', verificarAdjuntosVale, (req, res) => valeController.verificarAdjuntos(req, res));
 router.post('/:id/rechazar-adjuntos', verificarAdjuntosVale, (req, res) => valeController.rechazarAdjuntos(req, res));
 router.post('/:id/responder-adjuntos', corregirVale, (req, res) => valeController.responderAdjuntos(req, res));
-// Conversación del rechazo: la leen quienes ven el vale y escribe el taller (vales.verificar_adjuntos) o el asesor (vales.corregir).
+// Conversación del rechazo: la leen quienes ven el vale y escribe el taller (vales.verificar_adjuntos) o el asesor (vales.crear).
 router.get('/:id/mensajes', verVales, (req, res) => valeController.conversacion(req, res));
 router.post('/:id/mensajes', escribirConversacion, (req, res) => valeController.enviarMensaje(req, res));
 router.post('/:id/reenviar', corregirVale, (req, res) => valeController.reenviar(req, res));

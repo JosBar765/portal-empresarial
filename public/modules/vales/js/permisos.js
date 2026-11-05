@@ -11,22 +11,22 @@ export function puede(accion) {
   const admin = r === ROL.ADMINISTRADOR;
   switch (accion) {
     // El supervisor también crea y gestiona sus propios vales (si su rol tiene el permiso).
-    case 'crear': return admin || r === ROL.ASESOR || (r === ROL.SUPERVISOR && tienePermiso('vales.crear'));
+    case 'crear': return admin || tienePermiso('vales.crear');
     case 'asignar': return admin || ROLES_ENCARGADO_TALLER.includes(r);
     case 'revisar': return admin || ROLES_ENCARGADO_TALLER.includes(r);
     // Un encargado de taller también puede trabajar un vale — pero SOLO si se
     // lo autoasignó (ver esAccionDeTrabajoVisible).
     case 'trabajar': return admin || ROLES_TALLER_Y_DISENADOR.includes(r);
-    case 'confirmar': return admin || r === ROL.ASESOR || (r === ROL.SUPERVISOR && tienePermiso('vales.confirmar'));
-    case 'solicitarModificacion': return admin || r === ROL.ASESOR || (r === ROL.SUPERVISOR && tienePermiso('vales.solicitar_modificacion'));
+    case 'confirmar': return admin || tienePermiso('vales.crear');
+    case 'solicitarModificacion': return admin || tienePermiso('vales.crear');
     case 'aprobarModificacion': return admin || r === ROL.SUPERVISOR;
     case 'autorizarCreacion': return admin || r === ROL.SUPERVISOR;
     // La fusión depende del permiso, no del rol.
-    case 'corregir': return (r === ROL.ASESOR || r === ROL.SUPERVISOR) && tienePermiso('vales.corregir');
+    case 'corregir': return tienePermiso('vales.crear');
     case 'darDeBaja': return (r === ROL.ASESOR || r === ROL.SUPERVISOR) && tienePermiso('vales.dar_de_baja');
     case 'verificarAdjuntos': return tienePermiso('vales.verificar_adjuntos');
     // Rechazar la propuesta: el asesor dueño. Responder el rechazo: el equipo del taller (el administrador no participa).
-    case 'rechazarPropuesta': return !admin && tienePermiso('vales.rechazar_propuesta');
+    case 'rechazarPropuesta': return !admin && tienePermiso('vales.crear');
     case 'responderRechazoPropuesta': return !admin && tienePermiso('vales.responder_rechazo_propuesta');
     case 'verHistorial': return tienePermiso('vales.ver_historial');
     case 'aprobarGeneral': return admin || tienePermiso('vales.aprobar_general');

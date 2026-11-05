@@ -128,7 +128,7 @@ class ValeCorreccionService {
         salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
       });
       const resultado = enriquecer(actualizado);
-      await idempotencyRepository.registrar(key, 'vales.corregir', resultado);
+      await idempotencyRepository.registrar(key, 'vales.correccion', resultado);
       return resultado;
     });
   }

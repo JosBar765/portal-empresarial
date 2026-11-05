@@ -17,7 +17,7 @@ const {
 } = require('./valeHelpers');
 
 const ABIERTO = 'ABIERTO';
-const PERMISO_RECHAZAR = 'vales.rechazar_propuesta';
+const PERMISO_RECHAZAR = 'vales.crear';
 const PERMISO_RESPONDER = 'vales.responder_rechazo_propuesta';
 // El taller puede responder mientras el vale no haya salido de su trabajo (otro taller pudo aceptar antes).
 const ESTADOS_RESPONDIBLES = [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.CREADO, ESTADOS.APROBADO_DEPARTAMENTO];

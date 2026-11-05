@@ -197,7 +197,7 @@ Notas:
 - **Rechazo (`RECHAZADO`):** el supervisor debe escribir un motivo (máx. 50
   palabras / 400 caracteres); el modal trae «Rechazado» escrito (editable) y mensajes sugeridos que se aplican con un clic (en una modificación, otros dos). El vale vuelve al asesor, que recibe una
   notificación y ve "Ver motivo del rechazo", "Corregir" y "Reenviar a
-  autorización" (este último dentro del modal del motivo, abajo a la izquierda; permiso `vales.corregir`) o puede darlo de baja. Al reenviar
+  autorización" (este último dentro del modal del motivo, abajo a la izquierda; permiso `vales.crear`) o puede darlo de baja. Al reenviar
   vuelve a `ESPERANDO_AUTORIZACION` y la marca de "visto" del supervisor se
   reinicia. Nada se borra al rechazar.
 - **Ver antes de autorizar:** el supervisor solo puede autorizar (creación o
@@ -216,7 +216,7 @@ Notas:
   rechaza un vale ya dado de baja, o el asesor da de baja uno ya autorizado, el
   sistema avisa con un mensaje claro y no cambia nada.
 - También mientras está en `ESPERANDO_AUTORIZACION` o `RECHAZADO`, el asesor dueño puede **corregir**
-  sus datos (permiso `vales.corregir`): cliente, talleres, fechas, venta, descripción y
+  sus datos (permiso `vales.crear`): cliente, talleres, fechas, venta, descripción y
   archivos. El vale conserva su id, correlativo y estado; el PDF se regenera y la
   corrección queda en el historial. Una vez autorizado ya no es posible (después solo
   existe la solicitud de modificación).
@@ -302,7 +302,7 @@ La solicitud crea **un vale nuevo** (`MOD-<correlativo>`) y deja el vale modific
                       Luego el asesor lo confirma → RECIBIDO.
 ```
 
-- **Corregir un `MOD-` pendiente** (permiso `vales.corregir`, mientras espera autorización) se
+- **Corregir un `MOD-` pendiente** (permiso `vales.crear`, mientras espera autorización) se
   permite, pero la «Propuesta original» **no se puede quitar ni mover** y los **talleres no se
   pueden cambiar** (son los del original). Un `MOD-` ya autorizado no se puede corregir.
   Los errores de permiso o pertenencia (vale ajeno, asesor que no está a cargo del supervisor, rol sin permiso)
@@ -333,7 +333,7 @@ La solicitud crea **un vale nuevo** (`MOD-<correlativo>`) y deja el vale modific
 
 ### 1.2 Rechazo de propuesta
 
-Con el vale en `PENDIENTE_CONFIRMACION` (también un vale MOD), el **asesor dueño** o el **supervisor dueño** (permiso `vales.rechazar_propuesta`, roles
+Con el vale en `PENDIENTE_CONFIRMACION` (también un vale MOD), el **asesor dueño** o el **supervisor dueño** (permiso `vales.crear`, roles
 Asesor y Supervisor de Ventas; cada uno solo en los vales que creó) puede rechazar la propuesta de **uno o varios talleres** (cada uno activo y con su propuesta
 `APROBADO`) escribiendo un mensaje obligatorio de 1 a 200 caracteres. Solo regresan los talleres elegidos; los demás siguen
 `APROBADO`. No se puede rechazar con una modificación en trámite.
@@ -479,7 +479,7 @@ Los adjuntos de un vale (vectores, fuentes, etc.) viajan por **correo**, fuera d
 
 - **Quién:** el permiso `vales.verificar_adjuntos` lo tienen los roles 4, 5, 9 y 10 (encargados de taller) y el 7 (asistente, solo Diseño). Cada uno actúa solo sobre **su** taller. **Rechazar es un rechazo general con mensaje obligatorio** (1 a 200 caracteres) para el asesor, que abre la conversación de ese taller (ver «Conversación del rechazo»). **Verificar** pide confirmación en un modal («¿Estás seguro que recibiste los adjuntos del vale de arte antes de trabajar?»); rechazar también tiene su modal.
 - **Por taller:** un taller que rechaza no frena a los demás del mismo vale; el asesor responde **una vez por taller** rechazado.
-- **Respuesta del asesor** (permiso `vales.corregir`, solo el dueño del vale): botón «Solventado», con un mensaje editable de hasta 200 caracteres, prellenado con «Solventado». El botón «Ya lo atendí» también está en el pie del chat de la conversación (mientras el taller espera su respuesta), para que el asesor no olvide avisar al taller al terminar de conversar. El mensaje es **obligatorio**: vacío o solo espacios se rechaza («Escribe un mensaje.») y el botón «Enviar» se deshabilita sin texto; si falta el taller, el error dice «Indica a qué taller respondes.». El vale vuelve al encargado, que ve el mensaje y puede verificar o rechazar otra vez (el ciclo se repite). Mientras el asesor no responde, el encargado no tiene acciones; un supervisor que no es el dueño no responde, pero que cubra al asesor puede leer la conversación (con el mismo ícono rojo, solo lectura).
+- **Respuesta del asesor** (permiso `vales.crear`, solo el dueño del vale): botón «Solventado», con un mensaje editable de hasta 200 caracteres, prellenado con «Solventado». El botón «Ya lo atendí» también está en el pie del chat de la conversación (mientras el taller espera su respuesta), para que el asesor no olvide avisar al taller al terminar de conversar. El mensaje es **obligatorio**: vacío o solo espacios se rechaza («Escribe un mensaje.») y el botón «Enviar» se deshabilita sin texto; si falta el taller, el error dice «Indica a qué taller respondes.». El vale vuelve al encargado, que ve el mensaje y puede verificar o rechazar otra vez (el ciclo se repite). Mientras el asesor no responde, el encargado no tiene acciones; un supervisor que no es el dueño no responde, pero que cubra al asesor puede leer la conversación (con el mismo ícono rojo, solo lectura).
 - **Plazo único de N horas laborales** desde el **primer** rechazo del taller (`vale_talleres.adjuntos_vence_en`): no se reinicia con rechazos posteriores. Cuando queda el 25% del plazo (en tiempo laboral) se avisa **una sola vez por taller** al asesor, a sus supervisores y al encargado de **cada** taller del vale (encargado + asistentes, no a los diseñadores); si dos talleres tienen adjuntos rechazados en esa ventana, cada persona recibe un aviso por taller. En cambio, cuando un taller **verifica** sus adjuntos el aviso va solo a ese taller (más el asesor y los supervisores): los demás talleres no se enteran. Si vence con el taller todavía en `ADJUNTOS_RECHAZADOS`, en un vale con **2 o más talleres activos** se **da de baja solo a ese taller** (`activo = 0`, mismo núcleo que la baja manual del asesor, ver `documentacion/baja_taller_multitaller.md`) y el vale sigue para los demás, estén o no avanzados; se hace taller por taller. Si es el **último taller activo** (un vale de un solo taller o, en uno multitaller, el que queda tras las bajas anteriores) se **borra el vale completo** con sus archivos y se libera el cupo del supervisor; un vale `MOD-` conserva el comportamiento anterior (se borra, salvo que otro taller lo proteja, y deja el original intacto). El aviso del 25% se envía siempre en un vale multitaller («ese taller se dará de baja del vale»); en un vale de un taller o `MOD-` solo si se va a borrar. Si el asesor ya respondió, la baja no se hace, aunque el encargado rechace después de pasado el plazo (en ese caso la siguiente pasada la hace). Lo hace `adjuntosWatcher.js` (60 s), calcado de `vigenciaWatcher.js`.
 - **Dar de baja:** el asesor puede dar de baja un vale **ya autorizado** mientras algún taller esté en `ADJUNTOS_RECHAZADOS` o `ADJUNTOS_RESPONDIDOS` (no en `VERIFICANDO_ADJUNTOS`). Cancela el vale completo; los talleres que ya trabajaban, sus encargados y el diseñador asignado reciben un aviso (tipo `VALE_DADO_DE_BAJA`, calculado antes de borrar el vale) y el vale desaparece de su vista.
 - **Dar de baja un solo taller** (`POST /api/vales/:id/talleres/:tallerId/baja`, permiso `vales.dar_de_baja`, solo el asesor dueño): en un vale con **2 o más talleres activos**, el asesor puede quitar únicamente a un taller que esté en `ADJUNTOS_RECHAZADOS` o `ADJUNTOS_RESPONDIDOS`; el vale sigue para los demás. La fila del taller queda con `activo = 0` (se conservan historial y mensajes), su conversación se cierra, se actualiza `vales.talleres_solicitados`, se recalcula el estado general con la misma regla de siempre (si los que quedan ya están aprobados, pasa a `APROBADO_DEPARTAMENTO` con 2 o más talleres o a `PENDIENTE_CONFIRMACION` con uno) y el vale **no** se borra. El botón está en el modal del icono «Dar de baja» del buzón, que lista los talleres con su estado y también ofrece dar de baja el vale completo. No aplica a un `MOD-` ni a un vale de un solo taller (ahí el icono abre directo la baja del vale completo). Detalle en `documentacion/baja_taller_multitaller.md`.
@@ -506,7 +506,7 @@ cambia quién puede hacer cada acción.
 | Encargado de Protextil (9) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de su taller; puede trabajar vales él mismo, pero **sin fusión**. |
 | Diseño Local (10) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de un taller de Diseño Local (ligado a una tienda); sin fusión. |
 
-> **Rechazo de propuesta (§1.2).** `vales.rechazar_propuesta` lo tienen los roles Asesor (2) y Supervisor de Ventas (3); este último solo sobre la propuesta de los vales que él mismo creó. `vales.responder_rechazo_propuesta` lo tienen los
+> **Rechazo de propuesta (§1.2).** `vales.crear` (que cubre rechazar la propuesta) lo tienen los roles Asesor (2) y Supervisor de Ventas (3); este último solo sobre la propuesta de los vales que él mismo creó. `vales.responder_rechazo_propuesta` lo tienen los
 > mismos roles que ya tenían `vales.verificar_adjuntos`: los encargados y asistentes de cada taller. Los usuarios deben cerrar sesión e iniciar de
 > nuevo para recibir los permisos. `vales.responder_modificacion_basica` quedó sin uso.
 
@@ -883,7 +883,7 @@ En un vale con varios talleres, los talleres que comparten propuestas ven la úl
 
 ## 15. Borradores de vales
 
-Quien puede crear vales (`vales.crear`) guarda el formulario a medias como borrador: no es un vale (sin correlativo y sin las validaciones de envío), es privado, vive 30 días desde su creación y se borra solo con sus archivos (bucket `SUPABASE_STORAGE_BUCKET_BORRADORES`). Al guardarlo se aplican los mismos topes de texto del vale (nombre, empresa y correo 100; teléfono 20; código de producto, material, técnica y acabado 40; descripción 600), los de cantidad y cotización, y la misma elegibilidad de talleres (existentes y activos; Diseño Local solo el de la tienda del usuario y nunca mezclado con los generales), con los mismos mensajes; lo demás queda libre. Hay un tope por usuario (`max_borradores_por_usuario`, 15 por defecto, editable en «Horarios y feriados»). Para mandarlo a autorización se abre en el mismo modal y se pulsa «Crear Vale de Arte»: corre el `crearVale` normal con todas sus validaciones; sus adjuntos pasan al bucket normal con el nombre `{CORR}_...` y el borrador se marca enviado (`enviado_en`, oculto para el usuario) y se borra con sus archivos: Storage primero, la fila después; si Storage falla, el vigilante lo reintenta. Detalle en `documentacion/borradores.md`.
+`vales.crear` es el permiso único del asesor dueño: cubre crear, borradores, corregir, reenviar, responder adjuntos, confirmar, solicitar modificación y rechazar propuesta (solo sobre sus propios vales; el chequeo de dueño sigue en el servidor). `vales.dar_de_baja` sigue aparte. Quien puede crear vales (`vales.crear`) guarda el formulario a medias como borrador: no es un vale (sin correlativo y sin las validaciones de envío), es privado, vive 30 días desde su creación y se borra solo con sus archivos (bucket `SUPABASE_STORAGE_BUCKET_BORRADORES`). Al guardarlo se aplican los mismos topes de texto del vale (nombre, empresa y correo 100; teléfono 20; código de producto, material, técnica y acabado 40; descripción 600), los de cantidad y cotización, y la misma elegibilidad de talleres (existentes y activos; Diseño Local solo el de la tienda del usuario y nunca mezclado con los generales), con los mismos mensajes; lo demás queda libre. Hay un tope por usuario (`max_borradores_por_usuario`, 15 por defecto, editable en «Horarios y feriados»). Para mandarlo a autorización se abre en el mismo modal y se pulsa «Crear Vale de Arte»: corre el `crearVale` normal con todas sus validaciones; sus adjuntos pasan al bucket normal con el nombre `{CORR}_...` y el borrador se marca enviado (`enviado_en`, oculto para el usuario) y se borra con sus archivos: Storage primero, la fila después; si Storage falla, el vigilante lo reintenta. Detalle en `documentacion/borradores.md`.
 
 ## 16. Retención de archivos
 
