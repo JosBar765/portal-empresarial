@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, rolEncargadoDe, rolVista } from '../config/roles.js';
+import { ROL, ROLES_CON_SIDEBAR, esEncargadoTaller, esDeTallerODisenador, rolVista } from '../config/roles.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { actualizarIndicadoresOrden } from './toolbar.js';
 
@@ -23,11 +23,11 @@ export function actualizarOffsetSidebar(sidebar) {
 // activo. El resto de vistas solo cambian el título.
 export function actualizarTituloYSeccionesVista() {
   // El combobox de diseñadores es de los encargados y solo aplica al Buzón (Trabajo realizado y Reportes no lo usan).
-  $('#filtro-disenador').style.display = ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)) && state.vista === 'buzon' ? '' : 'none';
+  $('#filtro-disenador').style.display = esEncargadoTaller(state.user) && state.vista === 'buzon' ? '' : 'none';
   const enReportes = state.vista === 'reportes';
   $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : (state.vista === 'mios' ? 'Mis vales' : 'Buzón de Vales de Arte');
   // «Mis vales» es la vista del asesor: la columna Taller se ve aunque el rol sea de taller.
-  $('.buzon-table').classList.toggle('oculta-taller', ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && state.vista !== 'mios');
+  $('.buzon-table').classList.toggle('oculta-taller', esDeTallerODisenador(state.user) && state.vista !== 'mios');
   $('#reportes-vista').style.display = enReportes ? 'block' : 'none';
   const enVistaPropia = enReportes;
   $('#contadores-grid').style.display = enVistaPropia ? 'none' : '';

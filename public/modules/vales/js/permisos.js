@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, rolEncargadoDe, rolVista, esSupervisor, esAsistente } from './config/roles.js';
+import { ROL, rolVista, esSupervisor, esAsistente, esEncargadoTaller, esDeTallerODisenador } from './config/roles.js';
 import { ESTADOS_LABEL, ESTADOS_VISIBLES_LABEL } from './config/estados.js';
 
 export function tienePermiso(codigo) {
@@ -12,11 +12,12 @@ export function puede(accion) {
   switch (accion) {
     // El supervisor también crea y gestiona sus propios vales (si su rol tiene el permiso).
     case 'crear': return admin || tienePermiso('vales.crear');
-    case 'asignar': return admin || ROLES_ENCARGADO_TALLER.includes(r);
-    case 'revisar': return admin || ROLES_ENCARGADO_TALLER.includes(r);
+    // Asignar, revisar, verificar adjuntos y responder el rechazo de propuesta son un solo permiso: vales.gestionar_taller.
+    case 'asignar': return admin || tienePermiso('vales.gestionar_taller');
+    case 'revisar': return admin || tienePermiso('vales.gestionar_taller');
     // Un encargado de taller también puede trabajar un vale — pero SOLO si se
     // lo autoasignó (ver esAccionDeTrabajoVisible).
-    case 'trabajar': return admin || ROLES_TALLER_Y_DISENADOR.includes(r);
+    case 'trabajar': return admin || tienePermiso('vales.trabajar');
     case 'confirmar': return admin || tienePermiso('vales.crear');
     case 'solicitarModificacion': return admin || tienePermiso('vales.crear');
     case 'aprobarModificacion': return admin || tienePermiso('vales.supervisar');
@@ -24,10 +25,10 @@ export function puede(accion) {
     // La fusión depende del permiso, no del rol.
     case 'corregir': return tienePermiso('vales.crear');
     case 'darDeBaja': return !admin && tienePermiso('vales.crear') && tienePermiso('vales.dar_de_baja');
-    case 'verificarAdjuntos': return tienePermiso('vales.verificar_adjuntos');
+    case 'verificarAdjuntos': return tienePermiso('vales.gestionar_taller');
     // Rechazar la propuesta: el asesor dueño. Responder el rechazo: el equipo del taller (el administrador no participa).
     case 'rechazarPropuesta': return !admin && tienePermiso('vales.crear');
-    case 'responderRechazoPropuesta': return !admin && tienePermiso('vales.responder_rechazo_propuesta');
+    case 'responderRechazoPropuesta': return !admin && tienePermiso('vales.gestionar_taller');
     case 'verHistorial': return tienePermiso('vales.ver_historial');
     case 'aprobarGeneral': return admin || tienePermiso('vales.aprobar_general');
     default: return false;
@@ -50,7 +51,7 @@ export function puedeLeerConversacionAdjuntos(v) {
 // el que ÉL MISMO se autoasignó. El Diseñador y el Administrador siempre ven
 // su/cualquier vale asignado, sin este filtro.
 export function esAccionDeTrabajoVisible(v) {
-  if (state.user.rolId === ROL.DISENADOR || state.user.rolId === ROL.ADMINISTRADOR) return true;
+  if (state.user.rolId === ROL.ADMINISTRADOR || (tienePermiso('vales.trabajar') && !esEncargadoTaller(state.user))) return true;
   return Number(v.disenador_id) === Number(state.user.id);
 }
 
@@ -71,7 +72,7 @@ export function ladoDeChat(v) {
 // (v.estado_taller); el resto ve el estado general del vale (v.estado).
 export function estadoActivo(v) {
   if (usaEstadosVisibles(v)) return v.estado_visible;
-  if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user))) return v.estado_taller || v.estado;
+  if (esDeTallerODisenador(state.user)) return v.estado_taller || v.estado;
   return v.estado;
 }
 
@@ -100,10 +101,8 @@ function salasPorRol(user) {
     case ROL.ASESOR: return [`asesor:${user.id}`];
     // Además de su sala de supervisor, recibe lo de sus propios vales (sala de asesor).
     case ROL.SUPERVISOR: return [`supervisor:${user.id}`, `asesor:${user.id}`];
-    case ROL.ENCARGADO_DISENO:
-    case ROL.ENCARGADO_UV3D:
-    case ROL.ENCARGADO_PROTEXTIL:
-    case ROL.ENCARGADO_DISENO_LOCAL: {
+    // Quien tiene vales.gestionar_taller (rolVista lo unifica); su taller sale del dato, no del rol.
+    case ROL.ENCARGADO_DISENO: {
       const taller = miTaller();
       return taller ? [`taller:${taller.id}`] : [];
     }

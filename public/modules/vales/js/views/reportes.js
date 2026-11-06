@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { ROL, ROLES_ENCARGADO_TALLER, rolEncargadoDe, esSupervisor } from '../config/roles.js';
+import { ROL, esEncargadoTaller, esSupervisor } from '../config/roles.js';
 import { $ } from '../utils/dom.js';
 import { escapeHtml, formatearFecha, formatearFechaHora, inicialesAvatar } from '../utils/formato.js';
 import { ESTADOS_LABEL } from '../config/estados.js';
@@ -34,7 +34,7 @@ const CLAVE_VISTA_REPORTE = 'vales:repVista';
 const leerVista = () => { try { return localStorage.getItem(CLAVE_VISTA_REPORTE) === 'rendimiento' ? 'rendimiento' : 'actividad'; } catch { return 'actividad'; } };
 // Rendimiento: Encargado/Asistente de taller, Supervisor, Administrador y Gerente (la vista recordada puede venir de otro usuario del navegador).
 const esAlcanceGlobal = () => !!state.user && (state.user.rolId === ROL.ADMINISTRADOR || state.user.rolId === ROL.GERENTE);
-const tieneRendimiento = () => !!state.user && (esAlcanceGlobal() || esSupervisor(state.user) || ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)));
+const tieneRendimiento = () => !!state.user && (esAlcanceGlobal() || esSupervisor(state.user) || esEncargadoTaller(state.user));
 const guardarVista = (vista) => { try { localStorage.setItem(CLAVE_VISTA_REPORTE, vista); } catch { /* sin almacenamiento */ } };
 // Administrador y Gerente: Rendimiento reúne el reporte de Ventas y el de Taller; se recuerda el último que vieron.
 const CLAVE_ENFOQUE_REPORTE = 'vales:repEnfoque';

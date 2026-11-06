@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_CON_SIDEBAR, ROLES_TALLER_Y_DISENADOR, rolEncargadoDe, rolVista, esSupervisor } from '../config/roles.js';
+import { ROL, ROLES_CON_SIDEBAR, esDeTallerODisenador, rolVista, esSupervisor } from '../config/roles.js';
 import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { aplicarVentanaAQuery } from '../utils/ventana.js';
 import { paramsDeTienda, resolverTiendaIds, valorVigente } from '../utils/filtroTiendas.js';
@@ -335,7 +335,7 @@ function propuestaGeneralVisible(v) {
   return aplica && (v.propuesta_general_url || v.propuesta_extra) ? { tipo: 'general' } : null;
 }
 function propuestaTallerVisible(v) {
-  return ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && (v.propuesta_taller_url || v.propuesta_taller_extra)
+  return esDeTallerODisenador(state.user) && (v.propuesta_taller_url || v.propuesta_taller_extra)
     ? { tipo: 'taller', disenadorId: v.propuesta_disenador_id }
     : null;
 }
@@ -498,7 +498,7 @@ export function construirAcciones(v) {
   }
   acciones.push(...accionesDeCorreccion(v));
   // Propuestas aprobadas de los otros talleres (solo si aplica la regla de compartir), solo lectura.
-  if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && (v.propuestaOtroTallerNueva || v.propuestasOtrosAplica)) {
+  if (esDeTallerODisenador(state.user) && (v.propuestaOtroTallerNueva || v.propuestasOtrosAplica)) {
     acciones.push({ icono: 'documents-outline', titulo: 'Propuestas de otros talleres', onClick: abrirVisorPropuestasOtros });
   }
   if (puede('verHistorial')) acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
