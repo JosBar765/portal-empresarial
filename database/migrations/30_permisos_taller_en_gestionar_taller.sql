@@ -11,7 +11,7 @@
 --
 -- Qué hace (solo datos; no cambia el esquema):
 --   1. Crea `vales.gestionar_taller` si no existe.
---   2. Lo da a todo rol que tenga alguno de los cuatro permisos y aún no lo tenga.
+--   2. Lo da a todo rol que tenga `vales.asignar` o `vales.revisar` (los que definen al encargado y a su asistente) y aún no lo tenga. Un rol que tenga suelto `vales.verificar_adjuntos` o `vales.responder_rechazo_propuesta` (p. ej. un asesor) NO lo recibe: esos dos se retiran sin sustituirlos.
 --   3. Borra los cuatro permisos de `rol_permisos` y de `permisos`.
 --
 -- Cómo se importa (una sola vez, o las veces que haga falta: es idempotente):
@@ -43,12 +43,12 @@ SELECT 'vales.gestionar_taller', 'Gestionar Taller', 'vales',
        'Permite al encargado de taller y a su asistente asignar vales a diseñadores, revisar propuestas, verificar adjuntos y responder los rechazos de propuesta de su taller'
 WHERE NOT EXISTS (SELECT 1 FROM `permisos` WHERE `codigo` = 'vales.gestionar_taller');
 
--- 2. Todo rol con alguno de los cuatro recibe `vales.gestionar_taller`.
+-- 2. Todo rol que asigna o revisa (encargado y asistente) recibe `vales.gestionar_taller`; los permisos sueltos de otros roles no cuentan.
 INSERT INTO `rol_permisos` (`rol_id`, `permiso_id`)
 SELECT DISTINCT rp.`rol_id`, pc.`id`
 FROM `rol_permisos` rp
 JOIN `permisos` pv ON pv.`id` = rp.`permiso_id`
-  AND pv.`codigo` IN ('vales.asignar', 'vales.revisar', 'vales.verificar_adjuntos', 'vales.responder_rechazo_propuesta')
+  AND pv.`codigo` IN ('vales.asignar', 'vales.revisar')
 JOIN `permisos` pc ON pc.`codigo` = 'vales.gestionar_taller'
 WHERE NOT EXISTS (SELECT 1 FROM `rol_permisos` x WHERE x.`rol_id` = rp.`rol_id` AND x.`permiso_id` = pc.`id`);
 
