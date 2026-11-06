@@ -9,7 +9,7 @@ La fuente de verdad del flujo (estados, roles, permisos, buzón, límites, atras
 - **Montaje:** `/api/vales` con `requireAuth` + `requirePermission('vales.ver')` en `src/app.js`; frontend en `/modules/vales`.
 - **Servicios del core:** `src/core/auth` y `permissions` (identidad y permisos), `websocket/socketManager`, `files` (Supabase Storage, `nombreArchivo.js`, `subirYRegistrarArchivo.js`), `idempotency`, `calendario` (horario laboral, feriados, fecha de entrega), `notifications`.
 - **Tablas principales:** `vales`, `vale_talleres`, `vale_historial`, `estados_vale`, `estados_taller`, `talleres`, `supervisores`, `asesores`, `supervisor_tiendas`, `idempotency_keys`; para el calendario `horarios_laborales`, `feriados`, `parametros_sistema`.
-- **Permisos:** prefijo `vales.*` (`ver`, `crear`, `confirmar`, `corregir`, `dar_de_baja`, `solicitar_modificacion`, `autorizar_creacion`, `aprobar_modificacion`, `verificar_adjuntos`, `rechazar_propuesta`, `responder_rechazo_propuesta`, `aprobar_general`, `ver_historial`, `ver_reportes`, ...); se definen en `database/seed.sql`. Detalle por rol: sección 3 del flujo.
+- **Permisos:** prefijo `vales.*` (`ver`, `crear`, `confirmar`, `corregir`, `dar_de_baja`, `solicitar_modificacion`, `supervisar` (supervisor: visto, autorizar creación y aprobar modificación), `verificar_adjuntos`, `rechazar_propuesta`, `responder_rechazo_propuesta`, `aprobar_general`, `ver_historial`, `ver_reportes`, ...); se definen en `database/seed.sql`. Detalle por rol: sección 3 del flujo.
 - **Variables de entorno:** las globales de `.env` (Supabase Storage incluido); no tiene variables propias.
 
 ## Dónde está el código
