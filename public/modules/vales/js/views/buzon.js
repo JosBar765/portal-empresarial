@@ -259,11 +259,11 @@ export function renderTabla() {
   pintarFilas(tbody, filas);
 }
 
-// La empresa del cliente va bajo el correlativo solo para quienes siguen el vale de punta a punta; sin empresa, el nombre del cliente.
+// La empresa del cliente va bajo el correlativo para quienes siguen el vale de punta a punta y en «Mis vales» y las filas propias de cualquier rol; sin empresa, el nombre del cliente.
 const ROLES_CON_EMPRESA = [ROL.ASESOR, ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR];
 const empresaDeFila = (v) => {
   const identificador = v.cliente_empresa || v.cliente_nombre;
-  return ROLES_CON_EMPRESA.includes(rolVista(state.user)) && identificador
+  return (ROLES_CON_EMPRESA.includes(rolVista(state.user)) || state.vista === 'mios' || v._propio) && identificador
     ? `<span class="vale-empresa" title="${escapeHtml(identificador)}">${escapeHtml(identificador)}</span>` : '';
 };
 
