@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, rolEncargadoDe } from '../config/roles.js';
+import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, rolEncargadoDe, rolVista } from '../config/roles.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { actualizarIndicadoresOrden } from './toolbar.js';
 
@@ -13,7 +13,7 @@ const SIDEBAR_ANCHO = '224px';
 const SIDEBAR_ANCHO_COLAPSADO = '68px';
 
 export function actualizarOffsetSidebar(sidebar) {
-  const offset = !ROLES_CON_SIDEBAR.includes(rolEncargadoDe(state.user))
+  const offset = !ROLES_CON_SIDEBAR.includes(rolVista(state.user))
     ? '0px'
     : (sidebar.classList.contains('colapsado') ? SIDEBAR_ANCHO_COLAPSADO : SIDEBAR_ANCHO);
   document.documentElement.style.setProperty('--sidebar-offset', offset);
@@ -41,7 +41,7 @@ export function actualizarTituloYSeccionesVista() {
 export function wireSidebar() {
   const sidebar = $('#sidebar-vales');
   const toggleMovil = $('#sidebar-toggle-mobile');
-  if (!ROLES_CON_SIDEBAR.includes(rolEncargadoDe(state.user))) {
+  if (!ROLES_CON_SIDEBAR.includes(rolVista(state.user))) {
     sidebar.style.display = 'none';
     actualizarOffsetSidebar(sidebar);
     return;
@@ -66,7 +66,7 @@ export function wireSidebar() {
 
   // «Mis vales»: quien crea vales con otro rol (Gerente, Diseñador, Encargado…) los ve aparte; Asesor y Supervisor ya los tienen en su Buzón.
   const permisos = state.user.permissions || [];
-  if (permisos.includes('vales.crear') && permisos.includes('vales.ver') && ![ROL.ADMINISTRADOR, ROL.ASESOR, ROL.SUPERVISOR].includes(rolEncargadoDe(state.user))) {
+  if (permisos.includes('vales.crear') && permisos.includes('vales.ver') && ![ROL.ADMINISTRADOR, ROL.ASESOR, ROL.SUPERVISOR].includes(rolVista(state.user))) {
     $('#sidebar-item-mios', sidebar).style.display = '';
   }
 

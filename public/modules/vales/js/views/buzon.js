@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_CON_SIDEBAR, ROLES_TALLER_Y_DISENADOR, rolEncargadoDe } from '../config/roles.js';
+import { ROL, ROLES_CON_SIDEBAR, ROLES_TALLER_Y_DISENADOR, rolEncargadoDe, rolVista, esSupervisor } from '../config/roles.js';
 import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { aplicarVentanaAQuery } from '../utils/ventana.js';
 import { paramsDeTienda, resolverTiendaIds, valorVigente } from '../utils/filtroTiendas.js';
@@ -31,7 +31,7 @@ import { rechazosSinLeer, textoRechazos } from '../utils/modificacionesVistas.js
 export function construirQueryBase() {
   const qs = new URLSearchParams();
   aplicarVentanaAQuery(qs);
-  if (ROLES_CON_SIDEBAR.includes(rolEncargadoDe(state.user))) qs.set('vista', state.vista);
+  if (ROLES_CON_SIDEBAR.includes(rolVista(state.user))) qs.set('vista', state.vista);
   if (state.filtroContador) qs.set('filtroContador', state.filtroContador);
   if (state.soloAtrasados) qs.set('soloAtrasados', '1');
   if (state.soloRechazos && state.vista !== 'trabajo') qs.set('soloRechazos', '1');
@@ -158,7 +158,7 @@ let contadorEnfocado = null;
 
 export function renderContadores() {
   const esMios = state.vista === 'mios'; // «Mis vales» usa las tarjetas del Buzón del asesor
-  let config = CONTADORES_CONFIG[esMios ? ROL.ASESOR : rolEncargadoDe(state.user)] || CONTADORES_CONFIG[ROL.ADMINISTRADOR] || [];
+  let config = CONTADORES_CONFIG[esMios ? ROL.ASESOR : rolVista(state.user)] || CONTADORES_CONFIG[ROL.ADMINISTRADOR] || [];
   if (!Array.isArray(config)) config = config[esMios ? 'buzon' : state.vista] || [];
   config = config.filter(c => !c.permiso || tienePermiso(c.permiso));
   const grid = $('#contadores-grid');
@@ -263,7 +263,7 @@ export function renderTabla() {
 const ROLES_CON_EMPRESA = [ROL.ASESOR, ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR];
 const empresaDeFila = (v) => {
   const identificador = v.cliente_empresa || v.cliente_nombre;
-  return ROLES_CON_EMPRESA.includes(state.user.rolId) && identificador
+  return ROLES_CON_EMPRESA.includes(rolVista(state.user)) && identificador
     ? `<span class="vale-empresa" title="${escapeHtml(identificador)}">${escapeHtml(identificador)}</span>` : '';
 };
 
@@ -331,7 +331,7 @@ const esLectorGlobal = () => state.user.rolId === ROL.ADMINISTRADOR || state.use
 
 // Propuesta que este usuario puede ver en la fila (la fusión o la del propio taller; con archivo o solo con enlaces), o null.
 function propuestaGeneralVisible(v) {
-  const aplica = (usaEstadosVisibles(v) ||state.user.rolId === ROL.SUPERVISOR || esLectorGlobal() || puede('aprobarGeneral')) && v._tipoRegistro !== 'PROPUESTA';
+  const aplica = (usaEstadosVisibles(v) || esSupervisor(state.user) || esLectorGlobal() || puede('aprobarGeneral')) && v._tipoRegistro !== 'PROPUESTA';
   return aplica && (v.propuesta_general_url || v.propuesta_extra) ? { tipo: 'general' } : null;
 }
 function propuestaTallerVisible(v) {
@@ -450,7 +450,7 @@ export function construirAcciones(v) {
   // directo al PDF — a veces solo necesita los datos de encabezado. Vale también para los suyos, que él autoriza.
   const acciones = decideEnPaso5(v)
     ? [accionVerYDecidir]
-    : state.user.rolId === ROL.SUPERVISOR
+    : esSupervisor(state.user)
       ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
       : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
   // El Supervisor autoriza el envío a talleres de un vale recién creado por

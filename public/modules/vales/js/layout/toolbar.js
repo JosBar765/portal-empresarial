@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
+import { ROL, ROLES_ENCARGADO_TALLER, rolEncargadoDe, rolVista } from '../config/roles.js';
 import { obtenerDisenadoresAsignables, obtenerCalendarioBuzon } from '../api/valesApi.js';
 import { crearBarraPeriodo } from '../components/barraPeriodoReportes.js';
 import { ROLES_TALLER_Y_DISENADOR } from '../config/roles.js';
@@ -71,7 +71,7 @@ export function wireToolbar() {
   // (catalogos) ya viene acotado a lo que cada uno puede filtrar: el catálogo
   // completo para Gerente/Administrador, solo sus tiendas cubiertas para
   // Supervisor.
-  if ([ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR].includes(rolEncargadoDe(state.user))) {
+  if ([ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR].includes(rolVista(state.user))) {
     const contenedorTienda = $('#filtro-tienda');
     contenedorTienda.style.display = '';
     const tiendasMenu = state.catalogos.tiendasGerencia || state.catalogos.tiendas || [];

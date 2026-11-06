@@ -22,6 +22,19 @@ export function rolEncargadoDe(user) {
   return user.rolId === ROL.ASISTENTE_DISENO ? ROL.ENCARGADO_DISENO : user.rolId;
 }
 
+// El supervisor es quien tiene `vales.supervisar` (solo el rol 3), no el rol en sí; se lee del token en cada uso.
+export function esSupervisor(user) {
+  return (user.permissions || []).includes('vales.supervisar');
+}
+
+// Rol cuya vista usa el usuario: igual que rolEncargadoDe, pero el supervisor sale del permiso y el rol 3 sin él se ve como asesor (solo lo propio).
+export function rolVista(user) {
+  const rol = rolEncargadoDe(user);
+  if (rol === ROL.ADMINISTRADOR) return rol;
+  if (esSupervisor(user)) return ROL.SUPERVISOR;
+  return rol === ROL.SUPERVISOR ? ROL.ASESOR : rol;
+}
+
 export function esAsistente(user) {
   return rolEncargadoDe(user) !== user.rolId;
 }
