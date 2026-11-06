@@ -23,7 +23,7 @@ const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
   esAdministrador, esSupervisor, enriquecer, dentroDeVentana, ordenarPorGrupos,
   ordenarPorFecha, esHoy, estadoVisibleAsesor, hoyISO,
-  esDeTaller, rolEncargadoDe, esValeDeModificacion, puedeActuarComoAsesor
+  esDeTaller, rolEncargadoDe, ROLES_ENCARGADO_TALLER, esValeDeModificacion, puedeActuarComoAsesor
 } = require('./valeHelpers');
 
 // La propuesta del taller trae nota o enlaces (aunque no tenga archivo).
@@ -194,12 +194,14 @@ class ValeBuzonService {
     });
   }
 
-  // Rol con el que se arma el buzón: el supervisor se reconoce por `vales.supervisar`, no por el rol 3.
+  // Rol con el que se arma el buzón: el supervisor se reconoce por `vales.supervisar` y el taller por `vales.gestionar_taller`, no por el rol.
   _rolDelBuzon(usuario) {
     if (esSupervisor(usuario) && !esAdministrador(usuario)) return ROL.SUPERVISOR;
+    // Cualquier encargado o asistente usa el buzón de taller (el taller sale del dato, no del rol).
+    if (esDeTaller(usuario)) return ROL.ENCARGADO_DISENO;
     const rol = rolEncargadoDe(usuario);
-    // Rol 3 sin el permiso: nunca cae en el buzón general (default), solo ve lo propio como un asesor.
-    return rol === ROL.SUPERVISOR ? ROL.ASESOR : rol;
+    // Rol 3 o de taller sin su permiso: nunca cae en el buzón general (default), solo ve lo propio como un asesor.
+    return rol === ROL.SUPERVISOR || ROLES_ENCARGADO_TALLER.includes(rol) ? ROL.ASESOR : rol;
   }
 
   // Selección del buzón (o de Trabajo realizado) según el rol, para una ventana de tiempo dada.
@@ -457,7 +459,7 @@ class ValeBuzonService {
     const disenadorDeTrabajo = (v) => v.disenador_id || (usuario.rolId === ROL.DISENADOR ? usuario.id : null);
     const enProceso = paginaCruda.filter(v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO && disenadorDeTrabajo(v));
     const yaEntregaron = await propuestaRepository.listarParesConPropuesta([...new Set(enProceso.map(v => v.id))], [...new Set(enProceso.map(disenadorDeTrabajo))]);
-    const pagina = paginaCruda.map(v => ({ ...v, ya_entrego_propuesta: yaEntregaron.has(`${v.id}-${disenadorDeTrabajo(v)}`), hilos_rechazo_propuesta: hilosRechazo.get(v.id) || [], propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: v._propio ? null : personaDe(v), pipeline: calcularPipeline(v, esMios || v._propio ? { rolId: ROL.ASESOR } : { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
+    const pagina = paginaCruda.map(v => ({ ...v, ya_entrego_propuesta: yaEntregaron.has(`${v.id}-${disenadorDeTrabajo(v)}`), hilos_rechazo_propuesta: hilosRechazo.get(v.id) || [], propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: v._propio ? null : personaDe(v), pipeline: calcularPipeline(v, esMios || v._propio ? { rolId: ROL.ASESOR } : { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId, permissions: usuario.permissions }) }));
     const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
     return {
       vales: pagina,

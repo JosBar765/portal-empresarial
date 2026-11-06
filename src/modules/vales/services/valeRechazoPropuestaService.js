@@ -18,7 +18,6 @@ const {
 
 const ABIERTO = 'ABIERTO';
 const PERMISO_RECHAZAR = 'vales.crear';
-const PERMISO_RESPONDER = 'vales.responder_rechazo_propuesta';
 // El taller puede responder mientras el vale no haya salido de su trabajo (otro taller pudo aceptar antes).
 const ESTADOS_RESPONDIBLES = [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.CREADO, ESTADOS.APROBADO_DEPARTAMENTO];
 
@@ -42,7 +41,7 @@ class ValeRechazoPropuestaService {
     if (ladoPedido === 'ASESOR' && duenio) {
       return { fila: await valeTallerRepository.obtenerPorId(ronda.vale_taller_id), lado: 'ASESOR' };
     }
-    if (esDeTaller(usuario) && tienePermiso(usuario, PERMISO_RESPONDER)) {
+    if (esDeTaller(usuario)) {
       try {
         const fila = await valeTallerService._resolverFilaTallerParaEncargado(usuario, vale.id, ronda.taller_id);
         if (fila.id !== ronda.vale_taller_id) throw new ErrorDeNegocio('No tienes acceso a esta conversación.', 403);
@@ -118,7 +117,7 @@ class ValeRechazoPropuestaService {
     let rondas = await rechazoRepository.listarPorVale(vale.id);
     // Las ramas se combinan: ser dueño no se pierde por ser también del taller o diseñador.
     if (!esAsesorDuenio(usuario, vale)) {
-      if (esDeTaller(usuario) && tienePermiso(usuario, PERMISO_RESPONDER)) {
+      if (esDeTaller(usuario)) {
         const fila = await valeTallerService._resolverFilaTallerParaEncargado(usuario, valeId);
         rondas = rondas.filter(r => r.vale_taller_id === fila.id);
       } else if (usuario.rolId === ROL.DISENADOR) {
@@ -134,7 +133,7 @@ class ValeRechazoPropuestaService {
   // Devuelve vale_id -> [{ id (última ronda del hilo), taller_id, taller, estado }]. `vales`: [{ id, asesor_id }].
   async hilosVisibles(usuario, vales) {
     const visibles = new Map();
-    const equipo = esDeTaller(usuario) && tienePermiso(usuario, PERMISO_RESPONDER);
+    const equipo = esDeTaller(usuario);
     const asesor = tienePermiso(usuario, PERMISO_RECHAZAR);
     const supervisor = esSupervisor(usuario);
     if (!vales.length || (!equipo && !asesor && !supervisor && usuario.rolId !== ROL.DISENADOR)) return visibles;

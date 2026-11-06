@@ -55,6 +55,9 @@ const ROL = {
 const PERMISO_FUSION = 'vales.aprobar_general';
 const SALA_FUSION = 'vales:fusion';
 
+// Permiso que agrupa asignar, revisar, verificar adjuntos y responder rechazos de propuesta del taller.
+const PERMISO_GESTIONAR_TALLER = 'vales.gestionar_taller';
+
 const ROLES_ENCARGADO_TALLER = [ROL.ENCARGADO_DISENO, ROL.ENCARGADO_UV3D, ROL.ASISTENTE_DISENO, ROL.ENCARGADO_PROTEXTIL, ROL.ENCARGADO_DISENO_LOCAL];
 const ROLES_TALLER_Y_DISENADOR = [...ROLES_ENCARGADO_TALLER, ROL.DISENADOR];
 
@@ -73,9 +76,9 @@ function rolEncargadoDe(usuario) {
   return usuario.heredaDeRolId != null ? usuario.heredaDeRolId : ROL.ENCARGADO_DISENO;
 }
 
-// Encargado de taller o asistente de cualquier taller.
+// Quien gestiona un taller (encargado o asistente) lo es por el permiso, no por el rol; el administrador no cuenta. Se lee del token en cada petición.
 function esDeTaller(usuario) {
-  return ROLES_ENCARGADO_TALLER.includes(usuario.rolId) || esAsistente(usuario);
+  return !esAdministrador(usuario) && (usuario.permissions || []).includes(PERMISO_GESTIONAR_TALLER);
 }
 
 function esTallerODisenador(usuario) {
@@ -371,7 +374,7 @@ function validarEleccionTalleres(talleresIds, talleresActivos, tiendaIdAsesor = 
 module.exports = {
   LIMITES_TEXTO_VALE, ETIQUETAS_TEXTO_VALE, validarLongitudCampo, validarEleccionTalleres, talleresElegiblesDeTienda,
   algunTallerProtege, ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
-  ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
+  ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION, PERMISO_GESTIONAR_TALLER,
   esAdministrador, esSupervisor, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
   hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, DIAS_HABILES_MODIFICACION, diasHabilesDeModificacion, TIPOS_MODIFICACION_CON_VALE,
