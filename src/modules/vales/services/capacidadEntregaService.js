@@ -80,9 +80,9 @@ class CapacidadEntregaService {
       const alcanzables = talleresElegiblesDeTienda(await tallerRepository.listarActivos(), miTiendaId).map(t => t.id);
       return { conLimite: await this._talleresConLimite(alcanzables), asesorIds: [usuario.id] };
     }
-    // Otro rol con vales.crear y tienda en asesores (sin ver_cupo) ve el cupo como el asesor: los talleres que puede elegir y sus vales.
-    const miTiendaId = (usuario.permissions || []).includes('vales.ver_cupo') ? null : await valeCatalogoService._tiendaComoAsesor(usuario);
-    if (miTiendaId) {
+    // Otro rol con ver_cupo que crea vales (tienda 0 = sin tienda: solo generales) ve lo mismo que el asesor; sin vales.crear, todo.
+    const miTiendaId = await valeCatalogoService._tiendaComoAsesor(usuario);
+    if (miTiendaId !== null) {
       const alcanzables = talleresElegiblesDeTienda(await tallerRepository.listarActivos(), miTiendaId).map(t => t.id);
       return { conLimite: await this._talleresConLimite(alcanzables), asesorIds: [usuario.id] };
     }
@@ -121,13 +121,12 @@ class CapacidadEntregaService {
   }
 
   // Información por día del calendario desplegable del Buzón, según el rol:
-  //  - con `vales.ver_cupo` (Supervisor) y el Asesor: el cupo de los talleres con límite que le corresponden (ver obtenerCupoMes);
+  //  - con `vales.ver_cupo` (único requisito; Supervisor y Asesor lo traen por migración): el cupo de los talleres con límite que le corresponden (ver obtenerCupoMes);
   //  - Encargado/Asistente de taller: cuántos vales entran cada día a su taller (por fecha de entrega);
   //  - Diseñador: cuántas asignaciones activas suyas entran cada día (las mismas que ve en su buzón);
-  //  - otro rol con vales.crear y tienda en asesores: el cupo como el Asesor;
   //  - cualquier otro: nada (el calendario queda como siempre).
   async obtenerCalendarioBuzon(usuario, anio, mes) {
-    if ((usuario.permissions || []).includes('vales.ver_cupo') || usuario.rolId === ROL.ASESOR) return { tipo: 'cupo', ...(await this.obtenerCupoMes(usuario, anio, mes)) };
+    if ((usuario.permissions || []).includes('vales.ver_cupo')) return { tipo: 'cupo', ...(await this.obtenerCupoMes(usuario, anio, mes)) };
     const mesStr = String(mes).padStart(2, '0');
     const rango = { fechaDesde: `${anio}-${mesStr}-01`, fechaHasta: `${anio}-${mesStr}-${String(new Date(anio, mes, 0).getDate()).padStart(2, '0')}` };
     if (usuario.rolId === ROL.DISENADOR) {
@@ -139,7 +138,6 @@ class CapacidadEntregaService {
       const talleresIds = (await tallerRepository.listarActivos()).filter(t => t.encargado_id === idEfectivo).map(t => t.id);
       return { tipo: 'conteo', dias: await capacidadRepository.contarPorDia({ ...rango, talleresIds }) };
     }
-    if (await valeCatalogoService._tiendaComoAsesor(usuario)) return { tipo: 'cupo', ...(await this.obtenerCupoMes(usuario, anio, mes)) };
     return { tipo: null };
   }
 
