@@ -132,12 +132,12 @@ function multipart(archivos) {
       x = await pedir('GET', r, { cookies: admin });
       chk(`GET ${r} → 400`, x.s === 400 && !filtra(x.t), `${x.s} ${x.t}`);
     }
-    const asignador = { token: token(4, ['vales.ver', 'vales.asignar'], 5) };
+    const asignador = { token: token(4, ['vales.ver', 'vales.gestionar_taller'], 5) };
     x = await pedir('POST', '/api/vales/1/asignar', { cookies: asignador, json: { disenadorId: 'abc' } });
     chk('POST asignar con disenadorId="abc" → 400 sin SQL', x.s === 400 && !filtra(x.t), `${x.s} ${x.t}`);
     x = await pedir('POST', '/api/vales/1/asignar', { cookies: asignador, json: { disenadorId: [1, 2] } });
     chk('POST asignar con disenadorId=[1,2] → 400 sin SQL', x.s === 400 && !filtra(x.t), `${x.s} ${x.t}`);
-    x = await pedir('POST', '/api/vales/1/revisar', { cookies: { token: token(4, ['vales.ver', 'vales.revisar'], 5) }, json: { aprobar: false, disenadorReasignadoId: { a: 1 } } });
+    x = await pedir('POST', '/api/vales/1/revisar', { cookies: { token: token(4, ['vales.ver', 'vales.gestionar_taller'], 5) }, json: { aprobar: false, disenadorReasignadoId: { a: 1 } } });
     chk('POST revisar con disenadorReasignadoId=objeto → 400 sin SQL', x.s === 400 && !filtra(x.t), `${x.s} ${x.t}`);
     x = await pedir('POST', '/api/vales/999999/confirmar', { cookies: { token: token(2, ['vales.ver', 'vales.crear'], 63) } });
     chk('error de negocio se conserva (vale inexistente → mensaje legible)', [400, 404].includes(x.s) && x.j && /vale/i.test(x.j.error), `${x.s} ${x.t}`);
