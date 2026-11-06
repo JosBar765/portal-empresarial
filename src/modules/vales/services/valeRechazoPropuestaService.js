@@ -36,13 +36,23 @@ class ValeRechazoPropuestaService {
 
   // Quién ve la conversación: el asesor dueño y el equipo del taller (escriben); el diseñador asignado a ese taller y el supervisor
   // que cubre al asesor (solo leen). `escritura` rechaza a estos dos; los terceros no entran nunca.
-  async _resolverAcceso(usuario, vale, ronda, { escritura = false } = {}) {
-    if (esDeTaller(usuario) && tienePermiso(usuario, PERMISO_RESPONDER)) {
-      const fila = await valeTallerService._resolverFilaTallerParaEncargado(usuario, vale.id, ronda.taller_id);
-      if (fila.id !== ronda.vale_taller_id) throw new ErrorDeNegocio('No tienes acceso a esta conversación.', 403);
-      return { fila, lado: 'TALLER' };
+  async _resolverAcceso(usuario, vale, ronda, { escritura = false, lado: ladoPedido = null } = {}) {
+    const duenio = esAsesorDuenio(usuario, vale);
+    // `lado` solo se honra si el usuario es de verdad el dueño; el dueño que también es del taller lo pide desde «Mis vales».
+    if (ladoPedido === 'ASESOR' && duenio) {
+      return { fila: await valeTallerRepository.obtenerPorId(ronda.vale_taller_id), lado: 'ASESOR' };
     }
-    if (esAsesorDuenio(usuario, vale)) {
+    if (esDeTaller(usuario) && tienePermiso(usuario, PERMISO_RESPONDER)) {
+      try {
+        const fila = await valeTallerService._resolverFilaTallerParaEncargado(usuario, vale.id, ronda.taller_id);
+        if (fila.id !== ronda.vale_taller_id) throw new ErrorDeNegocio('No tienes acceso a esta conversación.', 403);
+        return { fila, lado: 'TALLER' };
+      } catch (error) {
+        // Dueño de un vale enviado a otro taller: el hilo es de otro taller, entra como asesor.
+        if (!(duenio && error instanceof ErrorDeNegocio && error.status === 403)) throw error;
+      }
+    }
+    if (duenio) {
       return { fila: await valeTallerRepository.obtenerPorId(ronda.vale_taller_id), lado: 'ASESOR' };
     }
     if (usuario.rolId === ROL.DISENADOR) {
@@ -106,13 +116,16 @@ class ValeRechazoPropuestaService {
   async listar(usuario, valeId) {
     const vale = await requerirVale(valeId);
     let rondas = await rechazoRepository.listarPorVale(vale.id);
-    if (esDeTaller(usuario) && tienePermiso(usuario, PERMISO_RESPONDER)) {
-      const fila = await valeTallerService._resolverFilaTallerParaEncargado(usuario, valeId);
-      rondas = rondas.filter(r => r.vale_taller_id === fila.id);
-    } else if (usuario.rolId === ROL.DISENADOR) {
-      rondas = rondas.filter(r => r.disenador_id === usuario.id && Number(r.activo));
-    } else if (!esAsesorDuenio(usuario, vale) && !(await esSupervisorDelAsesor(usuario, vale))) {
-      throw new ErrorDeNegocio('No tienes acceso a los rechazos de este vale.', 403);
+    // Las ramas se combinan: ser dueño no se pierde por ser también del taller o diseñador.
+    if (!esAsesorDuenio(usuario, vale)) {
+      if (esDeTaller(usuario) && tienePermiso(usuario, PERMISO_RESPONDER)) {
+        const fila = await valeTallerService._resolverFilaTallerParaEncargado(usuario, valeId);
+        rondas = rondas.filter(r => r.vale_taller_id === fila.id);
+      } else if (usuario.rolId === ROL.DISENADOR) {
+        rondas = rondas.filter(r => r.disenador_id === usuario.id && Number(r.activo));
+      } else if (!(await esSupervisorDelAsesor(usuario, vale))) {
+        throw new ErrorDeNegocio('No tienes acceso a los rechazos de este vale.', 403);
+      }
     }
     return rondas.map(r => ({ id: r.id, taller_id: r.taller_id, taller: r.taller, estado: r.estado, creado_en: r.creado_en, resuelto_en: r.resuelto_en }));
   }
@@ -134,9 +147,10 @@ class ValeRechazoPropuestaService {
     }
     const asesoresACargo = supervisor ? new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id)) : new Set();
     for (const h of await rechazoRepository.listarHilosPorVales([...duenios.keys()])) {
-      const propio = usuario.rolId === ROL.DISENADOR
-        ? Number(h.activo) === 1 && h.disenador_id === usuario.id
-        : (asesor && duenios.get(h.vale_id) === usuario.id) || (equipo && Number(h.activo) === 1 && h.taller_id === miTallerId) || asesoresACargo.has(duenios.get(h.vale_id));
+      const propio = (asesor && duenios.get(h.vale_id) === usuario.id)
+        || (equipo && Number(h.activo) === 1 && h.taller_id === miTallerId)
+        || (usuario.rolId === ROL.DISENADOR && Number(h.activo) === 1 && h.disenador_id === usuario.id)
+        || asesoresACargo.has(duenios.get(h.vale_id));
       if (!propio) continue;
       const lista = visibles.get(h.vale_id) || [];
       lista.push({ id: h.id, taller_id: h.taller_id, taller: h.taller, estado: h.estado });
@@ -146,9 +160,9 @@ class ValeRechazoPropuestaService {
   }
 
   // Lectura: permitida con la ronda y el vale en cualquier estado. El hilo es del taller (todas sus rondas) y su estado de cierre es el de la última.
-  async listarConversacion(usuario, valeId, rondaId) {
+  async listarConversacion(usuario, valeId, rondaId, ladoPedido = null) {
     const { vale, ronda: consultada } = await this._cargar(valeId, rondaId);
-    const { lado, soloLectura = false } = await this._resolverAcceso(usuario, vale, consultada);
+    const { lado, soloLectura = false } = await this._resolverAcceso(usuario, vale, consultada, { lado: ladoPedido });
     const ronda = (await rechazoRepository.obtenerUltimaDeHilo(consultada.vale_taller_id)) || consultada;
     const abierta = ronda.estado === ABIERTO;
     const mensajes = await rechazoRepository.listarMensajes(ronda.vale_taller_id);
@@ -160,10 +174,10 @@ class ValeRechazoPropuestaService {
     };
   }
 
-  async enviarMensaje(usuario, valeId, rondaId, mensaje) {
+  async enviarMensaje(usuario, valeId, rondaId, mensaje, ladoPedido = null) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const { vale, ronda } = await this._cargar(valeId, rondaId);
-      const { lado } = await this._resolverAcceso(usuario, vale, ronda, { escritura: true });
+      const { lado } = await this._resolverAcceso(usuario, vale, ronda, { escritura: true, lado: ladoPedido });
       const texto = validarMensajeChat(mensaje);
       if (ronda.estado !== ABIERTO) throw new ErrorDeNegocio('La conversación ya se cerró.', 409);
       await rechazoRepository.crearMensaje(ronda.vale_taller_id, usuario.id, lado, texto);
@@ -171,7 +185,7 @@ class ValeRechazoPropuestaService {
         vale, texto: `${usuario.nombre} escribió en el rechazo de propuesta (${ronda.taller})`, tipo: 'RECHAZO_PROPUESTA_MENSAJE', actor: usuario.nombre, actorId: usuario.id,
         salas: lado === 'TALLER' ? [`asesor:${vale.asesor_id}`] : [`taller:${ronda.taller_id}`]
       });
-      return this.listarConversacion(usuario, valeId, rondaId);
+      return this.listarConversacion(usuario, valeId, rondaId, ladoPedido);
     });
   }
 
@@ -228,7 +242,8 @@ class ValeRechazoPropuestaService {
   async _cerrar(usuario, valeId, rondaId, { lado, estado, validar = null, accion, texto, tipo, salasDe, nivel }) {
     return valeMutex.conLockDeVale(valeId, async () => {
       const { vale, ronda } = await this._cargar(valeId, rondaId);
-      const acceso = await this._resolverAcceso(usuario, vale, ronda, { escritura: true });
+      // Cancelar es del dueño y aceptar/rechazar del taller: el lado de la acción decide, sin depender de la pantalla.
+      const acceso = await this._resolverAcceso(usuario, vale, ronda, { escritura: true, lado });
       if (acceso.lado !== lado) {
         throw new ErrorDeNegocio(lado === 'TALLER' ? 'Solo el taller puede aceptar o rechazar.' : 'Solo el asesor puede cancelarlo.', 403);
       }

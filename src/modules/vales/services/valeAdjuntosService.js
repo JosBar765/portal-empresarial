@@ -186,10 +186,12 @@ class ValeAdjuntosService {
 
   // Quién puede leer y escribir la conversación de un taller dentro de un vale: el taller (encargado/asistente) y el asesor
   // dueño escriben; el supervisor que cubre al asesor solo lee. Todo mientras está abierta.
-  async _resolverAcceso(usuario, vale, tallerId) {
+  async _resolverAcceso(usuario, vale, tallerId, lado = null) {
     const fila = (await valeTallerRepository.listarPorVale(vale.id)).find(f => f.taller_id === Number(tallerId));
     if (!fila) throw new Error('Este vale no fue enviado a ese taller.');
     const esDueno = vale.asesor_id === usuario.id && puedeActuarComoAsesor(usuario);
+    // `lado` solo se honra si el usuario es de verdad el dueño; el dueño del taller lo pide desde «Mis vales».
+    if (lado === 'ASESOR' && esDueno) return { fila, escribe: 'ASESOR' };
     if (esDeTaller(usuario)) {
       try {
         await valeTallerService._resolverFilaTallerParaEncargado(usuario, vale.id, fila.taller_id);
@@ -208,9 +210,9 @@ class ValeAdjuntosService {
 
   // Mientras el taller tiene el vale rechazado o respondido la conversación está abierta. Al llegar a un acuerdo (el taller
   // verifica los adjuntos) deja de verse: el servidor no devuelve ningún mensaje y solo queda el registro del historial.
-  async listarConversacion(usuario, valeId, tallerId) {
+  async listarConversacion(usuario, valeId, tallerId, lado = null) {
     const vale = await requerirVale(valeId);
-    const { fila, escribe } = await this._resolverAcceso(usuario, vale, tallerId);
+    const { fila, escribe } = await this._resolverAcceso(usuario, vale, tallerId, lado);
     if (!ESTADOS_CONVERSACION_ABIERTA.includes(fila.estado)) {
       return { taller_id: fila.taller_id, estado: fila.estado, cerrada: true, puede_escribir: false, total: 0, mensajes: [] };
     }
@@ -223,11 +225,11 @@ class ValeAdjuntosService {
     };
   }
 
-  async enviarMensaje(usuario, valeId, tallerId, mensaje) {
+  async enviarMensaje(usuario, valeId, tallerId, mensaje, lado = null) {
     const texto = validarMensaje(mensaje);
     return valeMutex.conLockDeVale(valeId, async () => {
       const vale = await requerirVale(valeId);
-      const { fila, escribe } = await this._resolverAcceso(usuario, vale, tallerId);
+      const { fila, escribe } = await this._resolverAcceso(usuario, vale, tallerId, lado);
       if (!escribe) throw new ErrorDeNegocio('Solo el taller y el asesor del vale pueden escribir en la conversación.', 403);
       if (!ESTADOS_CONVERSACION_ABIERTA.includes(fila.estado)) {
         throw new Error(fila.estado === ESTADOS_TALLER.VERIFICANDO_ADJUNTOS ? MENSAJE_SIN_CONVERSACION : 'La conversación se cerró: se llegó a un acuerdo.');
@@ -244,7 +246,7 @@ class ValeAdjuntosService {
         vale: actualizado, accion: `comentado en la conversación del rechazo (${nombre})`, tipo: 'MENSAJE_RECHAZO', actor: usuario.nombre, actorId: usuario.id,
         salas: escribe === 'TALLER' ? [`asesor:${vale.asesor_id}`] : [`taller:${fila.taller_id}`] // el supervisor solo lee: sin aviso ni campana
       });
-      return this.listarConversacion(usuario, valeId, tallerId);
+      return this.listarConversacion(usuario, valeId, tallerId, lado);
     });
   }
 
