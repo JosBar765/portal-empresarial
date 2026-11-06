@@ -60,6 +60,12 @@ export function usaEstadosVisibles(v) {
   return state.user.rolId === ROL.ASESOR || state.vista === 'mios' || !!(v && v._propio) || (state.user.rolId === ROL.SUPERVISOR && state.vista === 'trabajo');
 }
 
+// Desde qué lado actúa el usuario en los chats: 'ASESOR' en «Mis vales» o en una fila propia; el servidor solo lo honra si es el dueño.
+// Se calcula en cada petición (nunca se guarda), así F5 y las reconexiones no lo dejan viejo.
+export function ladoDeChat(v) {
+  return (state.vista === 'mios' || !!(v && v._propio)) ? 'ASESOR' : null;
+}
+
 // El estado que corresponde MOSTRAR depende del rol: el asesor ve su versión
 // lógica; encargados y diseñadores ven el progreso DENTRO de su taller
 // (v.estado_taller); el resto ve el estado general del vale (v.estado).
