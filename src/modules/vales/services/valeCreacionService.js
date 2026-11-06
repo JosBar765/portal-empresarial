@@ -31,7 +31,7 @@ const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
   ESTADOS, hoyISO, horaActual, enriquecer,
   normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, diasHabilesDeModificacion, registrarHistorial,
-  esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
+  esAdministrador, esSupervisor, requerirVale, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
   esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor, salasDeInvolucrados, validarCantidadYCotizacion,
   ETIQUETAS_TEXTO_VALE, validarLongitudCampo, validarEleccionTalleres
 } = require('./valeHelpers');
@@ -93,7 +93,7 @@ class ValeCreacionService {
       throw new Error('No se encontró la tienda asignada a tu usuario. Avisa al administrador.');
     }
     // Un supervisor autoriza también sus propios vales, pero solo si su tienda tiene algún supervisor que la cubra.
-    if (Number(solicitante.rol_id) === ROL.SUPERVISOR && (await usuarioValeRepository.obtenerSupervisoresDeAsesor(usuario.id)).length === 0) {
+    if (esSupervisor(usuario) && (await usuarioValeRepository.obtenerSupervisoresDeAsesor(usuario.id)).length === 0) {
       throw new Error('Tu tienda no tiene ningún supervisor que pueda autorizar tus vales, así que no se puede crear. Avisa al administrador.');
     }
     // El prefijo del correlativo es el país de la empresa de la tienda, salvo que la empresa defina uno propio (Trofex: TX).

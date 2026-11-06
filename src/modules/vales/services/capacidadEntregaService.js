@@ -8,7 +8,7 @@ const tallerRepository = require('../repositories/tallerRepository');
 const capacidadRepository = require('../repositories/capacidadRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
-const { ROL, ESTADOS_TALLER, esDeTaller, talleresElegiblesDeTienda } = require('./valeHelpers');
+const { ROL, ESTADOS_TALLER, esDeTaller, esSupervisor, talleresElegiblesDeTienda } = require('./valeHelpers');
 
 const idsDe = (texto) => String(texto || '').split(',').map(Number).filter(Number.isInteger);
 
@@ -69,7 +69,7 @@ class CapacidadEntregaService {
   // su equipo; el Asesor, los talleres a los que puede enviar (los generales y el Diseño Local de su tienda) y sus vales por
   // autorizar; quien tenga el permiso sin tiendas propias ve todos los talleres con límite y todos los vales.
   async _alcanceCupo(usuario) {
-    if (usuario.rolId === ROL.SUPERVISOR) {
+    if (esSupervisor(usuario)) {
       const talleresIds = (await tallerRepository.listarIdsPorSupervisor(usuario.id)).map(t => t.id);
       const asesores = await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id);
       return { conLimite: await this._talleresConLimite(talleresIds), asesorIds: [...new Set([...asesores.map(a => a.id), usuario.id])] };

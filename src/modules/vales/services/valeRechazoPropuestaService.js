@@ -13,7 +13,7 @@ const valeMutex = require('./valeMutex');
 const valeTallerService = require('./valeTallerService');
 const valeCatalogoService = require('./valeCatalogoService');
 const {
-  ESTADOS, ESTADOS_TALLER, ROL, esDeTaller, enriquecer, requerirVale, validarMensajeChat, esSupervisorDelAsesor
+  ESTADOS, ESTADOS_TALLER, ROL, esDeTaller, enriquecer, requerirVale, validarMensajeChat, esSupervisor, esSupervisorDelAsesor
 } = require('./valeHelpers');
 
 const ABIERTO = 'ABIERTO';
@@ -136,7 +136,7 @@ class ValeRechazoPropuestaService {
     const visibles = new Map();
     const equipo = esDeTaller(usuario) && tienePermiso(usuario, PERMISO_RESPONDER);
     const asesor = tienePermiso(usuario, PERMISO_RECHAZAR);
-    const supervisor = usuario.rolId === ROL.SUPERVISOR;
+    const supervisor = esSupervisor(usuario);
     if (!vales.length || (!equipo && !asesor && !supervisor && usuario.rolId !== ROL.DISENADOR)) return visibles;
     const duenios = new Map(vales.map(v => [v.id, v.asesor_id]));
     let miTallerId = null;

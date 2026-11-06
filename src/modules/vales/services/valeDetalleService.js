@@ -15,7 +15,7 @@ const valeCatalogoService = require('./valeCatalogoService');
 const propuestasCompartidasService = require('./propuestasCompartidasService');
 const {
   ESTADOS, ROL, esDeTaller, esTallerODisenador,
-  esAdministrador, enriquecer, puedeActuarComoAsesor
+  esAdministrador, esSupervisor, enriquecer, puedeActuarComoAsesor
 } = require('./valeHelpers');
 
 // Clasifica cada fila de vale_historial en una categoría estable, a partir
@@ -167,7 +167,7 @@ class ValeDetalleService {
     let filas = talleres.filter(t => ESTADOS_ADJ.includes(t.estado));
     if (esAdministrador(usuario) || usuario.rolId === ROL.GERENTE) {
       // todos
-    } else if (usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR) {
+    } else if (usuario.rolId === ROL.ASESOR || esSupervisor(usuario)) {
       filas = filas.filter(t => t.estado !== 'VERIFICANDO_ADJUNTOS');
     } else if (esDeTaller(usuario)) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
@@ -189,7 +189,7 @@ class ValeDetalleService {
     // El dueño ve su vale sea cual sea su rol, mientras conserve `vales.crear`.
     if (vale.asesor_id === usuario.id && puedeActuarComoAsesor(usuario)) return true;
     if (usuario.rolId === ROL.ASESOR) return vale.asesor_id === usuario.id;
-    if (usuario.rolId === ROL.SUPERVISOR) {
+    if (esSupervisor(usuario)) {
       const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
       return misAsesoresIds.has(vale.asesor_id);
     }
@@ -242,7 +242,7 @@ class ValeDetalleService {
     const conCategoria = historial.map(h => ({ ...h, _categoria: categoriaHistorial(h) }));
     const sinCategoria = (h) => { const { _categoria, ...resto } = h; return resto; };
 
-    if (usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR) {
+    if (usuario.rolId === ROL.ASESOR || esSupervisor(usuario)) {
       const permitidas = new Set([
         'CREACION', 'CORRECCION', 'RECHAZO_CREACION', 'REENVIO_AUTORIZACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER', 'RETORNO_ASESOR',
         'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL', 'ADJUNTOS'

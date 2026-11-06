@@ -292,9 +292,14 @@ async function salasDeInvolucrados(vale, talleres) {
   return [...new Set([`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`), ...salasTalleres])];
 }
 
-// Supervisor (rol 3) que cubre la tienda del asesor dueño del vale: lee sus chats, nunca escribe.
+// Supervisor = quien tiene el permiso `vales.supervisar` (solo el rol 3), no el rol en sí; se lee del token en cada petición.
+function esSupervisor(usuario) {
+  return (usuario.permissions || []).includes('vales.supervisar');
+}
+
+// Supervisor que cubre la tienda del asesor dueño del vale: lee sus chats, nunca escribe.
 async function esSupervisorDelAsesor(usuario, vale) {
-  if (usuario.rolId !== ROL.SUPERVISOR) return false;
+  if (!esSupervisor(usuario)) return false;
   return (await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id)).some(s => s.id === usuario.id);
 }
 
@@ -367,7 +372,7 @@ module.exports = {
   LIMITES_TEXTO_VALE, ETIQUETAS_TEXTO_VALE, validarLongitudCampo, validarEleccionTalleres, talleresElegiblesDeTienda,
   algunTallerProtege, ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
-  esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
+  esAdministrador, esSupervisor, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
   hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, DIAS_HABILES_MODIFICACION, diasHabilesDeModificacion, TIPOS_MODIFICACION_CON_VALE,
   PREFIJO_MOD, esCorrelativoMod, correlativoBase, armarCorrelativoMod, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,

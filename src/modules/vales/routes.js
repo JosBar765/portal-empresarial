@@ -29,7 +29,7 @@ const campoFusion = upload.fields([{ name: 'fusion', maxCount: 1 }]);
 
 // Permisos
 const verVales = requirePermission('vales.ver');
-const autorizarCreacionVale = requirePermission('vales.autorizar_creacion');
+const autorizarCreacionVale = requirePermission('vales.supervisar');
 const crearVale = requirePermission('vales.crear');
 const asignarVale = requirePermission('vales.asignar');
 const verReportes = requirePermission('vales.ver_reportes');
@@ -56,7 +56,7 @@ const escribirRechazoPropuesta = (req, res, next) => {
     ? next()
     : res.status(403).json({ error: 'No tienes permiso para escribir en esta conversación.' });
 };
-const aprobarModificacionVale = requirePermission('vales.aprobar_modificacion');
+const aprobarModificacionVale = requirePermission('vales.supervisar');
 // Un reporte recorre el historial del período: se acota por usuario (ya autenticado).
 const limitarReportes = rateLimit({
   windowMs: 60 * 1000,

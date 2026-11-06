@@ -21,7 +21,7 @@ const valeVistoRepository = require('../repositories/valeVistoRepository');
 const { calcularPipeline, prepararPipeline } = require('./valePipeline');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
-  esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
+  esAdministrador, esSupervisor, enriquecer, dentroDeVentana, ordenarPorGrupos,
   ordenarPorFecha, esHoy, estadoVisibleAsesor, hoyISO,
   esDeTaller, rolEncargadoDe, esValeDeModificacion, puedeActuarComoAsesor
 } = require('./valeHelpers');
@@ -194,13 +194,21 @@ class ValeBuzonService {
     });
   }
 
+  // Rol con el que se arma el buzón: el supervisor se reconoce por `vales.supervisar`, no por el rol 3.
+  _rolDelBuzon(usuario) {
+    if (esSupervisor(usuario) && !esAdministrador(usuario)) return ROL.SUPERVISOR;
+    const rol = rolEncargadoDe(usuario);
+    // Rol 3 sin el permiso: nunca cae en el buzón general (default), solo ve lo propio como un asesor.
+    return rol === ROL.SUPERVISOR ? ROL.ASESOR : rol;
+  }
+
   // Selección del buzón (o de Trabajo realizado) según el rol, para una ventana de tiempo dada.
   async _resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador) {
     let resultado;
     // «Mis vales»: lo propio de quien crea vales con otro rol, con el mismo buzón del asesor.
     if (vista === 'mios') return this._buzonAsesor(usuario, todosConTaller, ventana, filtroContador);
     // El asistente se rige por el rol de su encargado (y su taller sale de idEncargadoEfectivo).
-    switch (rolEncargadoDe(usuario)) {
+    switch (this._rolDelBuzon(usuario)) {
       case ROL.ADMINISTRADOR: // ve todo
         resultado = vista === 'trabajo'
           ? this._trabajoAsesor(null, todosConTaller, ventana, filtroContador)
@@ -307,7 +315,7 @@ class ValeBuzonService {
     if (vista === 'mios' && !puedeActuarComoAsesor(usuario)) throw new ErrorDeNegocio('No tienes permiso para ver tus vales.', 403);
     if (vista !== 'trabajo') ventana.incluirArrastrados = true;
     const filtroContador = filtros.filtroContador || null;
-    const rol = rolEncargadoDe(usuario);
+    const rol = this._rolDelBuzon(usuario);
     // El diseñador resuelve su lista con sus propias consultas: no necesita las tablas completas.
     let talleresTodos = [];
     let valeTalleresTodos = [];
@@ -415,8 +423,7 @@ class ValeBuzonService {
     // Quién está detrás del vale (badge bajo el correlativo): al Supervisor, al Administrador y al Gerente, el asesor que lo creó;
     // al Encargado de taller, el diseñador asignado a su taller.
     const esMios = vista === 'mios'; // «Mis vales» no muestra a la persona: son todos del propio usuario.
-    const esSupervisor = usuario.rolId === ROL.SUPERVISOR;
-    const veAsesor = !esMios && (esSupervisor || esAdministrador(usuario) || usuario.rolId === ROL.GERENTE);
+    const veAsesor = !esMios && (esSupervisor(usuario) ||esAdministrador(usuario) || usuario.rolId === ROL.GERENTE);
     const esEncargado = !esMios && esDeTaller(usuario);
     const paginaCruda = valesOrdenados.slice(indiceInicio, indiceInicio + limit);
     // Fila de fusión: la etiquetada FUSION o el vale pendiente de fusionar (sin etiqueta); no tiene diseñador, solo asesor.

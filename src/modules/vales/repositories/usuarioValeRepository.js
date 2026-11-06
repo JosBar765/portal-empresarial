@@ -59,7 +59,7 @@ class UsuarioValeRepository {
     );
   }
 
-  // Inverso de la anterior: todos los supervisores (rol 3) que cubren la
+  // Inverso de la anterior: todos los supervisores (con el permiso `vales.supervisar`) que cubren la
   // tienda de un asesor dado — puede haber MÁS de uno (supervisores
   // rotativos).
   async obtenerSupervisoresDeAsesor(asesorId) {
@@ -68,7 +68,7 @@ class UsuarioValeRepository {
        FROM usuarios u
        JOIN supervisor_tiendas st ON st.usuario_id = u.id
        JOIN asesores a ON a.tienda_id = st.tienda_id
-       WHERE u.rol_id = 3 AND u.activo = 1 AND a.usuario_id = ?
+       WHERE EXISTS (SELECT 1 FROM rol_permisos rp JOIN permisos p ON p.id = rp.permiso_id WHERE rp.rol_id = u.rol_id AND p.codigo = 'vales.supervisar') AND u.activo = 1 AND a.usuario_id = ?
        ORDER BY u.nombre`,
       [asesorId],
       'usuario:find_supervisores_by_asesor'

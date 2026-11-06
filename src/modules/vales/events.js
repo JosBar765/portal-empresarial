@@ -14,7 +14,7 @@ const destinatariosRepository = require('./repositories/destinatariosRepository'
 const tallerRepository = require('./repositories/tallerRepository');
 const valeCatalogoService = require('./services/valeCatalogoService');
 const valeDetalleService = require('./services/valeDetalleService');
-const { ROL, esDeTaller, PERMISO_FUSION, SALA_FUSION, esAdministrador } = require('./services/valeHelpers');
+const { ROL, esDeTaller, PERMISO_FUSION, SALA_FUSION, esAdministrador, esSupervisor } = require('./services/valeHelpers');
 
 const SALA_ADMIN = 'vales:admin';
 
@@ -31,7 +31,7 @@ async function puedeUnirseASala(socket, sala) {
   if (sala === `asesor:${usuario.id}` && (usuario.permissions || []).includes('vales.crear')) return true;
   if (usuario.rolId === ROL.ASESOR) return sala === `asesor:${usuario.id}`;
   // El supervisor también puede crear vales: recibe lo de los suyos en su sala de asesor.
-  if (usuario.rolId === ROL.SUPERVISOR) return sala === `supervisor:${usuario.id}` || sala === `asesor:${usuario.id}`;
+  if (esSupervisor(usuario)) return sala === `supervisor:${usuario.id}` || sala === `asesor:${usuario.id}`;
   if (usuario.rolId === ROL.DISENADOR) return sala === `disenador:${usuario.id}`;
   if (esDeTaller(usuario) && sala.startsWith('taller:')) {
     const tallerId = Number(sala.slice('taller:'.length));
