@@ -62,14 +62,14 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 
 ### Fase 1 · Base de datos y catálogos — `feature/proyectos-01-base-datos`
 
-- [ ] Migración con todas las tablas `proy_*` (catálogos, base global, proyecto y reparto, trabajo del asesor, soporte).
-- [ ] Columnas generadas `VIRTUAL`: `proy_participaciones.cliente_abierto_id` y `proy_proyecto_tiendas.tienda_abierta_id`, con índice único; marcas `abierta` y `proyecto_abierto`.
-- [ ] `referencia`, `anulada_en`, `anulada_por`, `anulacion_motivo` en cotizaciones y ventas; importes `DECIMAL(12,2)`.
-- [ ] Índices desde el inicio: `proy_gestiones (participacion_id, creado_en)` y `(usuario_id, creado_en)`; `proy_participaciones (asesor_id, abierta, proxima_gestion_en)`.
-- [ ] Semillas: nichos del Excel de 2020 + Hospitales y Farmacias; Medalla, Llavero, Posavasos; seis áreas; cuatro canales; resultados y motivos básicos; monedas GTQ, USD, HNL, NIO, CRC y su relación con el país.
-- [ ] Permisos (`modulo = 'proyectos'`) sin asignar a roles, incluido `proyectos.corregir`.
-- [ ] Entrada en `MODULOS` (`modulesCatalog.js`) desde esta fase (lo exigen las notificaciones); nadie ve la tarjeta.
-- [ ] Migración aditiva de `notificaciones`: `referencia_tipo` y `referencia_id`.
+- [x] Migración con todas las tablas `proy_*` (catálogos, base global, proyecto y reparto, trabajo del asesor, soporte).
+- [x] Columnas generadas `VIRTUAL`: `proy_participaciones.cliente_abierto_id` y `proy_proyecto_tiendas.tienda_abierta_id`, con índice único; marcas `abierta` y `proyecto_abierto`.
+- [x] `referencia`, `anulada_en`, `anulada_por`, `anulacion_motivo` en cotizaciones y ventas; importes `DECIMAL(12,2)`.
+- [x] Índices desde el inicio: `proy_gestiones (participacion_id, creado_en)` y `(usuario_id, creado_en)`; `proy_participaciones (asesor_id, abierta, proxima_gestion_en)`.
+- [x] Semillas: nichos del Excel de 2020 + Hospitales y Farmacias; Medalla, Llavero, Posavasos; seis áreas; cuatro canales; resultados y motivos básicos; monedas GTQ, USD, HNL, NIO, CRC y su relación con el país.
+- [x] Permisos (`modulo = 'proyectos'`) sin asignar a roles, incluido `proyectos.corregir`.
+- [x] Entrada en `MODULOS` (`modulesCatalog.js`) desde esta fase (lo exigen las notificaciones); nadie ve la tarjeta.
+- [x] Migración aditiva de `notificaciones`: `referencia_tipo` y `referencia_id`.
 - [ ] Catálogos administrables (A1 y pestañas de F7).
 - [ ] Tablas de configuración (`proy_estructuras`, `proy_pais_config`, `proy_config_historial`), registro de parámetros `parametros.js` sobre `parametros_sistema` y pantallas A0, A3, A5 y A10 (ver `documentacion/configuracion_administrador.md`).
 - **Terminado cuando:** la migración corre dos veces sin error, los índices únicos funcionan **en staging** (MariaDB) y los catálogos se editan.
