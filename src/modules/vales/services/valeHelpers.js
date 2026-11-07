@@ -55,6 +55,9 @@ const ROL = {
 const PERMISO_FUSION = 'vales.aprobar_general';
 const SALA_FUSION = 'vales:fusion';
 
+// Permiso que agrupa asignar, revisar, verificar adjuntos y responder rechazos de propuesta del taller.
+const PERMISO_GESTIONAR_TALLER = 'vales.gestionar_taller';
+
 const ROLES_ENCARGADO_TALLER = [ROL.ENCARGADO_DISENO, ROL.ENCARGADO_UV3D, ROL.ASISTENTE_DISENO, ROL.ENCARGADO_PROTEXTIL, ROL.ENCARGADO_DISENO_LOCAL];
 const ROLES_TALLER_Y_DISENADOR = [...ROLES_ENCARGADO_TALLER, ROL.DISENADOR];
 
@@ -73,9 +76,9 @@ function rolEncargadoDe(usuario) {
   return usuario.heredaDeRolId != null ? usuario.heredaDeRolId : ROL.ENCARGADO_DISENO;
 }
 
-// Encargado de taller o asistente de cualquier taller.
+// Quien gestiona un taller (encargado o asistente) lo es por el permiso, no por el rol; el administrador no cuenta. Se lee del token en cada petición.
 function esDeTaller(usuario) {
-  return ROLES_ENCARGADO_TALLER.includes(usuario.rolId) || esAsistente(usuario);
+  return !esAdministrador(usuario) && (usuario.permissions || []).includes(PERMISO_GESTIONAR_TALLER);
 }
 
 function esTallerODisenador(usuario) {
@@ -272,10 +275,10 @@ async function requerirVale(valeId) {
   return vale;
 }
 
-// Quien puede crear y gestionar vales propios: el asesor y también el supervisor de ventas (que debe tener además
-// una fila en `asesores` para saber de qué tienda es). Autorizar su propio vale es una regla aparte: ver autorizarCreacion.
+// Quien puede crear y gestionar vales propios depende del permiso `vales.crear`, no del rol (debe tener además una fila en
+// `asesores` para saber de qué tienda es); cada uso lo combina con el chequeo de dueño. Autorizar su propio vale es una regla aparte.
 function puedeActuarComoAsesor(usuario) {
-  return usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR;
+  return (usuario.permissions || []).includes('vales.crear');
 }
 
 function assertPropioDelAsesor(usuario, vale) {
@@ -292,9 +295,14 @@ async function salasDeInvolucrados(vale, talleres) {
   return [...new Set([`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`), ...salasTalleres])];
 }
 
-// Supervisor (rol 3) que cubre la tienda del asesor dueño del vale: lee sus chats, nunca escribe.
+// Supervisor = quien tiene el permiso `vales.supervisar` (solo el rol 3), no el rol en sí; se lee del token en cada petición.
+function esSupervisor(usuario) {
+  return (usuario.permissions || []).includes('vales.supervisar');
+}
+
+// Supervisor que cubre la tienda del asesor dueño del vale: lee sus chats, nunca escribe.
 async function esSupervisorDelAsesor(usuario, vale) {
-  if (usuario.rolId !== ROL.SUPERVISOR) return false;
+  if (!esSupervisor(usuario)) return false;
   return (await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id)).some(s => s.id === usuario.id);
 }
 
@@ -366,8 +374,8 @@ function validarEleccionTalleres(talleresIds, talleresActivos, tiendaIdAsesor = 
 module.exports = {
   LIMITES_TEXTO_VALE, ETIQUETAS_TEXTO_VALE, validarLongitudCampo, validarEleccionTalleres, talleresElegiblesDeTienda,
   algunTallerProtege, ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
-  ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
-  esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
+  ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION, PERMISO_GESTIONAR_TALLER,
+  esAdministrador, esSupervisor, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
   hoyISO, horaActual, calcularAtraso, enriquecer,
   esValeDeModificacion, DIAS_HABILES_MODIFICACION, diasHabilesDeModificacion, TIPOS_MODIFICACION_CON_VALE,
   PREFIJO_MOD, esCorrelativoMod, correlativoBase, armarCorrelativoMod, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,

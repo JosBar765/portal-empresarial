@@ -21,9 +21,9 @@ const valeVistoRepository = require('../repositories/valeVistoRepository');
 const { calcularPipeline, prepararPipeline } = require('./valePipeline');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
-  esAdministrador, enriquecer, dentroDeVentana, ordenarPorGrupos,
+  esAdministrador, esSupervisor, enriquecer, dentroDeVentana, ordenarPorGrupos,
   ordenarPorFecha, esHoy, estadoVisibleAsesor, hoyISO,
-  esDeTaller, rolEncargadoDe, esValeDeModificacion
+  esDeTaller, rolEncargadoDe, ROLES_ENCARGADO_TALLER, esValeDeModificacion, puedeActuarComoAsesor
 } = require('./valeHelpers');
 
 // La propuesta del taller trae nota o enlaces (aunque no tenga archivo).
@@ -194,11 +194,23 @@ class ValeBuzonService {
     });
   }
 
+  // Rol con el que se arma el buzón: el supervisor se reconoce por `vales.supervisar` y el taller por `vales.gestionar_taller`, no por el rol.
+  _rolDelBuzon(usuario) {
+    if (esSupervisor(usuario) && !esAdministrador(usuario)) return ROL.SUPERVISOR;
+    // Cualquier encargado o asistente usa el buzón de taller (el taller sale del dato, no del rol).
+    if (esDeTaller(usuario)) return ROL.ENCARGADO_DISENO;
+    const rol = rolEncargadoDe(usuario);
+    // Rol 3 o de taller sin su permiso: nunca cae en el buzón general (default), solo ve lo propio como un asesor.
+    return rol === ROL.SUPERVISOR || ROLES_ENCARGADO_TALLER.includes(rol) ? ROL.ASESOR : rol;
+  }
+
   // Selección del buzón (o de Trabajo realizado) según el rol, para una ventana de tiempo dada.
   async _resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador) {
     let resultado;
+    // «Mis vales»: lo propio de quien crea vales con otro rol, con el mismo buzón del asesor.
+    if (vista === 'mios') return this._buzonAsesor(usuario, todosConTaller, ventana, filtroContador);
     // El asistente se rige por el rol de su encargado (y su taller sale de idEncargadoEfectivo).
-    switch (rolEncargadoDe(usuario)) {
+    switch (this._rolDelBuzon(usuario)) {
       case ROL.ADMINISTRADOR: // ve todo
         resultado = vista === 'trabajo'
           ? this._trabajoAsesor(null, todosConTaller, ventana, filtroContador)
@@ -301,19 +313,21 @@ class ValeBuzonService {
   async obtenerBuzon(usuario, filtros = {}) {
     await prepararPipeline();
     const ventana = this._resolverVentana(filtros);
-    const vista = filtros.vista === 'trabajo' ? 'trabajo' : 'buzon';
-    if (vista === 'buzon') ventana.incluirArrastrados = true;
+    const vista = ['trabajo', 'mios'].includes(filtros.vista) ? filtros.vista : 'buzon';
+    if (vista === 'mios' && !puedeActuarComoAsesor(usuario)) throw new ErrorDeNegocio('No tienes permiso para ver tus vales.', 403);
+    if (vista !== 'trabajo') ventana.incluirArrastrados = true;
     const filtroContador = filtros.filtroContador || null;
-    const rol = rolEncargadoDe(usuario);
+    const rol = this._rolDelBuzon(usuario);
     // El diseñador resuelve su lista con sus propias consultas: no necesita las tablas completas.
     let talleresTodos = [];
     let valeTalleresTodos = [];
     let todosConTaller = [];
-    if (rol !== ROL.DISENADOR) {
+    if (rol !== ROL.DISENADOR || vista === 'mios') {
       talleresTodos = await tallerRepository.listarActivos();
       // Trabajo realizado solo trae los vales cuya fecha de entrega cae en la ventana.
-      const cargados = (vista === 'buzon'
-        ? await this._cargarAbiertosDelBuzon(usuario, rol, ventana, talleresTodos)
+      // «Mis vales» carga aparte los vales propios (la lista de un encargado no incluye los de otros talleres).
+      const cargados = (vista !== 'trabajo'
+        ? await this._cargarAbiertosDelBuzon(usuario, vista === 'mios' ? ROL.ASESOR : rol, ventana, talleresTodos)
         : await valeRepository.listarParaBuzon(this._limitesDeVentana(ventana))).map(enriquecer);
       valeTalleresTodos = await valeTallerRepository.listarPorVales(cargados.map(v => v.id));
       todosConTaller = await this._enriquecerConTaller(cargados, valeTalleresTodos);
@@ -380,7 +394,7 @@ class ValeBuzonService {
 
     // Buzón sin orden por columna: del más al menos atrasado (los filtros de estado ya están en los contadores); sin atraso,
     // por fecha de entrega.
-    if (vista === 'buzon' && !sortKey) {
+    if (vista !== 'trabajo' && !sortKey) {
       valesOrdenados = [...valesOrdenados]
         .sort((a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || String(a.fecha_entrega).localeCompare(String(b.fecha_entrega)));
     }
@@ -410,9 +424,9 @@ class ValeBuzonService {
     }
     // Quién está detrás del vale (badge bajo el correlativo): al Supervisor, al Administrador y al Gerente, el asesor que lo creó;
     // al Encargado de taller, el diseñador asignado a su taller.
-    const esSupervisor = usuario.rolId === ROL.SUPERVISOR;
-    const veAsesor = esSupervisor || esAdministrador(usuario) || usuario.rolId === ROL.GERENTE;
-    const esEncargado = esDeTaller(usuario);
+    const esMios = vista === 'mios'; // «Mis vales» no muestra a la persona: son todos del propio usuario.
+    const veAsesor = !esMios && (esSupervisor(usuario) ||esAdministrador(usuario) || usuario.rolId === ROL.GERENTE);
+    const esEncargado = !esMios && esDeTaller(usuario);
     const paginaCruda = valesOrdenados.slice(indiceInicio, indiceInicio + limit);
     // Fila de fusión: la etiquetada FUSION o el vale pendiente de fusionar (sin etiqueta); no tiene diseñador, solo asesor.
     const esFilaFusion = (v) => v._tipoRegistro === 'FUSION' || (!v._tipoRegistro && v.estado === ESTADOS.APROBADO_DEPARTAMENTO);
@@ -445,7 +459,7 @@ class ValeBuzonService {
     const disenadorDeTrabajo = (v) => v.disenador_id || (usuario.rolId === ROL.DISENADOR ? usuario.id : null);
     const enProceso = paginaCruda.filter(v => v.estado_taller === ESTADOS_TALLER.EN_PROCESO && disenadorDeTrabajo(v));
     const yaEntregaron = await propuestaRepository.listarParesConPropuesta([...new Set(enProceso.map(v => v.id))], [...new Set(enProceso.map(disenadorDeTrabajo))]);
-    const pagina = paginaCruda.map(v => ({ ...v, ya_entrego_propuesta: yaEntregaron.has(`${v.id}-${disenadorDeTrabajo(v)}`), hilos_rechazo_propuesta: hilosRechazo.get(v.id) || [], propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: personaDe(v), pipeline: calcularPipeline(v, { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId }) }));
+    const pagina = paginaCruda.map(v => ({ ...v, ya_entrego_propuesta: yaEntregaron.has(`${v.id}-${disenadorDeTrabajo(v)}`), hilos_rechazo_propuesta: hilosRechazo.get(v.id) || [], propuestaOtroTallerNueva: conPropuestaNueva.has(v.id), propuestasOtrosAplica: conHermano.has(v.id), persona: v._propio ? null : personaDe(v), pipeline: calcularPipeline(v, esMios || v._propio ? { rolId: ROL.ASESOR } : { rolId: usuario.rolId, heredaDeRolId: usuario.heredaDeRolId, permissions: usuario.permissions }) }));
     const nextCursor = pagina.length ? claveFila(pagina[pagina.length - 1]) : null;
     return {
       vales: pagina,
@@ -784,9 +798,11 @@ class ValeBuzonService {
           }))
       : [];
 
+    // Los vales propios ya confirmados se suman a las propuestas del taller (mismo contador, ventana y orden).
+    const propuestasYPropios = this._mezclarPropios(conPropuesta, this._propiosConfirmados(usuario, todosConTaller, ventana));
     const contadores = {
-      aprobadosHoy: conPropuesta.filter(v => esHoy(v.aprobado_en)).length,
-      totalAprobados: conPropuesta.length
+      aprobadosHoy: propuestasYPropios.filter(v => esHoy(v.aprobado_en)).length,
+      totalAprobados: propuestasYPropios.length
     };
     if (puedeFusionar) {
       contadores.fusionadosHoy = fusionados.filter(v => esHoy(v.fusionado_en)).length;
@@ -800,8 +816,30 @@ class ValeBuzonService {
       predicados.fusionadosHoy = v => !!v._esFusion && esHoy(v.fusionado_en);
       predicados.totalFusionados = v => !!v._esFusion;
     }
-    const filtrados = this._aplicarFiltroContador([...conPropuesta, ...fusionados], filtroContador, predicados);
+    const filtrados = this._aplicarFiltroContador([...propuestasYPropios, ...fusionados], filtroContador, predicados);
     return { vales: ordenarPorFecha(filtrados), contadores };
+  }
+
+  // Vales propios ya confirmados de quien trabaja vales y también crea (vales.crear): salen en su Trabajo realizado con la presentación del asesor.
+  _propiosConfirmados(usuario, vales, ventana) {
+    if (!puedeActuarComoAsesor(usuario)) return [];
+    return vales
+      .filter(v => v.asesor_id === usuario.id && ESTADOS_CONFIRMADOS.includes(v.estado) && dentroDeVentana(v, ventana))
+      .map(v => ({ ...v, estado_visible: estadoVisibleAsesor(v), aprobado_en: v.actualizado_en, _propio: true, _rowKey: `${v.id}-O` }));
+  }
+
+  // Une los propios a las filas de trabajo: si el vale ya está por haberlo trabajado, esa fila pasa a presentarse como de dueño (sin duplicar).
+  _mezclarPropios(filas, propios) {
+    const porVale = new Map(propios.map(p => [p.id, p]));
+    const fusionados = new Set();
+    const mezcladas = filas.map(f => {
+      const propio = f._tipoRegistro === 'PROPUESTA' ? porVale.get(f.id) : null;
+      if (!propio) return f;
+      fusionados.add(f.id);
+      // Los campos de dueño que la fila trabajada no trae deciden las acciones del frontend (modificar, chat de rechazo, adjuntos).
+      return { ...f, estado_visible: propio.estado_visible, _propio: true, mod_en_tramite: propio.mod_en_tramite ?? f.mod_en_tramite, rechazos_propuesta: propio.rechazos_propuesta ?? f.rechazos_propuesta, adjuntos: propio.adjuntos ?? f.adjuntos, talleres_estado: propio.talleres_estado ?? f.talleres_estado };
+    });
+    return [...mezcladas, ...propios.filter(p => !fusionados.has(p.id))];
   }
 
   // Asignaciones vigentes de un diseñador (las mismas que cuenta la carga de trabajo).
@@ -923,7 +961,7 @@ class ValeBuzonService {
     const valesEnVentana = await valeRepository.listarParaBuzon({ ...this._limitesDeVentana(ventana), valeIds: activas.map(a => a.vale_id) });
     const valePorId = new Map(valesEnVentana.map(v => [v.id, v]));
     const propuestas = await propuestaRepository.obtenerUltimasPorValesYDisenadores(valesEnVentana.map(v => v.id));
-    const vales = activas.map(a => {
+    const trabajados = activas.map(a => {
       const vale = valePorId.get(a.vale_id);
       if (!vale) return null;
       const propuesta = propuestas.get(`${vale.id}-${usuario.id}`) || null;
@@ -942,6 +980,12 @@ class ValeBuzonService {
     })
       .filter(Boolean)
       .filter(v => dentroDeVentana(v, ventana));
+
+    // Sus vales propios ya confirmados (si también crea vales) salen aquí con la presentación del asesor.
+    const propios = puedeActuarComoAsesor(usuario)
+      ? this._propiosConfirmados(usuario, await this._enriquecerConTaller((await valeRepository.listarParaBuzon({ ...this._limitesDeVentana(ventana), asesorIds: [usuario.id] })).map(enriquecer)), ventana)
+      : [];
+    const vales = this._mezclarPropios(trabajados, propios);
 
     const contadores = {
       totalAprobados: vales.length,

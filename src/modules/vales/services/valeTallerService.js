@@ -56,6 +56,14 @@ class ValeTallerService {
     return fila;
   }
 
+  // El mutex evita que dos peticiones del mismo proceso se crucen; esta escritura condicional (ver
+  // valeTallerRepository.asignar) es la que garantiza un solo ganador. Si otra petición ya asignó la fila, falla
+  // aquí, antes de escribir historial o avisar: nunca hay una segunda asignación ni un segundo aviso.
+  async _asignarOFallar(fila, disenadorId, estadoEsperado) {
+    const cambiadas = await valeTallerRepository.asignar(fila.id, disenadorId, `${hoyISO()} ${horaActual()}`, [estadoEsperado]);
+    if (cambiadas !== 1) throw new ErrorDeNegocio('Este vale ya fue asignado a otra persona. Actualiza la pantalla.', 409);
+  }
+
   async asignar(usuario, valeId, disenadorId, tallerIdHint) {
     return valeMutex.conLockDeVale(valeId, async () => {
       await requerirVale(valeId);
@@ -74,7 +82,7 @@ class ValeTallerService {
       if (!esAdministrador(usuario) && !esAutoasignacion && !disenadores.some(t => t.id === Number(disenadorId))) {
         throw new Error('Ese diseñador no está a tu cargo.');
       }
-      await valeTallerRepository.asignar(fila.id, disenadorId, `${hoyISO()} ${horaActual()}`);
+      await this._asignarOFallar(fila, disenadorId, ESTADOS_TALLER.PENDIENTE_ASIGNACION);
       const disenador = await usuarioValeRepository.obtenerPorId(disenadorId);
       const taller = await tallerRepository.obtenerPorId(fila.taller_id);
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.PENDIENTE_ASIGNACION, ESTADOS_TALLER.ASIGNADO,
@@ -322,7 +330,7 @@ class ValeTallerService {
     if (!esAdministrador(usuario) && !esAutoasignacion && !disenadores.some(t => t.id === Number(disenadorReasignadoId))) {
       throw new Error('Ese diseñador no está a tu cargo.');
     }
-    await valeTallerRepository.asignar(fila.id, disenadorReasignadoId, `${hoyISO()} ${horaActual()}`);
+    await this._asignarOFallar(fila, disenadorReasignadoId, ESTADOS_TALLER.EN_REVISION);
     const disenador = await usuarioValeRepository.obtenerPorId(disenadorReasignadoId);
     const accionReasignacion = esAutoasignacion
       ? 'Encargado desaprobó la propuesta y se reasignó el trabajo a sí mismo'
