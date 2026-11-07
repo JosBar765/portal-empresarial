@@ -11,6 +11,8 @@ export async function pedir(url, opciones) {
     const error = new Error((data && data.error) || `No se pudo completar la acción (código ${res.status}).`);
     error.status = res.status;
     error.campos = data && data.campos;
+    error.codigo = data && data.codigo;
+    error.duplicados = data && data.duplicados;
     throw error;
   }
   return data;
@@ -46,3 +48,15 @@ export const listarCatalogo = (catalogo) => pedir(`${BASE}/catalogos/${catalogo}
 export const crearEnCatalogo = (catalogo, datos) => pedir(`${BASE}/catalogos/${catalogo}`, enJson('POST', datos));
 export const editarEnCatalogo = (catalogo, id, datos) => pedir(`${BASE}/catalogos/${catalogo}/${encodeURIComponent(id)}`, enJson('PUT', datos));
 export const cambiarActivoEnCatalogo = (catalogo, id, activo) => pedir(`${BASE}/catalogos/${catalogo}/${encodeURIComponent(id)}/activo`, enJson('PATCH', { activo }));
+
+// Empresas de la base global
+export const obtenerOpcionesClientes = () => pedir(`${BASE}/clientes/opciones`);
+export const listarClientes = (filtros) => pedir(`${BASE}/clientes${consulta(filtros)}`);
+export const obtenerCliente = (id) => pedir(`${BASE}/clientes/${encodeURIComponent(id)}`);
+export const revisarDuplicados = (datos) => pedir(`${BASE}/clientes/duplicados`, enJson('POST', datos));
+export const crearCliente = (datos, confirmarDuplicado) => pedir(`${BASE}/clientes`, enJson('POST', { ...datos, confirmarDuplicado }));
+export const editarCliente = (id, datos, confirmarDuplicado) => pedir(`${BASE}/clientes/${encodeURIComponent(id)}`, enJson('PUT', { ...datos, confirmarDuplicado }));
+export const cambiarEstadoCliente = (id, datos) => pedir(`${BASE}/clientes/${encodeURIComponent(id)}/estado`, enJson('POST', datos));
+export const agregarContacto = (clienteId, datos) => pedir(`${BASE}/clientes/${encodeURIComponent(clienteId)}/contactos`, enJson('POST', datos));
+export const editarContacto = (contactoId, datos) => pedir(`${BASE}/clientes/contactos/${encodeURIComponent(contactoId)}`, enJson('PUT', datos));
+export const cambiarActivoContacto = (contactoId, activo) => pedir(`${BASE}/clientes/contactos/${encodeURIComponent(contactoId)}/activo`, enJson('PATCH', { activo }));

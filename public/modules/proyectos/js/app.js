@@ -4,24 +4,25 @@ import { $, montar } from './utils/dom.js';
 import { inicialesAvatar } from './utils/formato.js';
 import { sessionCheck, logout, refreshToken } from './api/api.js';
 import { wireSidebar, wireAccountMenu, marcarRuta, mostrarSoloPermitidas } from './layout/sidebar.js';
-import { cargando, estadoError, estadoVacio } from './components/ui.js';
+import { cargando, estadoError } from './components/ui.js';
 import { liberarSalida } from './components/salida.js';
 import { renderInicio } from './views/inicio.js';
 import { renderCatalogos } from './views/catalogos.js';
 import { renderParametros } from './views/parametros.js';
 import { renderReglas } from './views/reglas.js';
 import { renderHistorial } from './views/historial.js';
+import { renderClientes } from './views/clientes.js';
 
-// Hoy el módulo solo tiene el Centro de configuración; las pantallas del asesor y del supervisor llegan por fases.
-const PERMISO_ADMINISTRAR = 'proyectos.administrar';
+// Cada pantalla pide su propio permiso: entrar a Proyectos solo exige `proyectos.ver`, y la configuración, `proyectos.administrar`.
 const RUTAS = {
-  inicio: renderInicio,
-  parametros: renderParametros,
-  reglas: renderReglas,
-  historial: renderHistorial,
-  catalogos: renderCatalogos
+  clientes: { render: renderClientes, permiso: 'proyectos.ver' },
+  inicio: { render: renderInicio, permiso: 'proyectos.administrar' },
+  parametros: { render: renderParametros, permiso: 'proyectos.administrar' },
+  reglas: { render: renderReglas, permiso: 'proyectos.administrar' },
+  historial: { render: renderHistorial, permiso: 'proyectos.administrar' },
+  catalogos: { render: renderCatalogos, permiso: 'proyectos.administrar' }
 };
-const RUTA_INICIAL = 'inicio';
+const permitidas = () => Object.keys(RUTAS).filter(r => state.user.permissions.includes(RUTAS[r].permiso));
 
 // El encabezado se achica en celulares: el menú lateral y los altos fijos usan su alto real.
 function seguirAltoEncabezado() {
@@ -48,18 +49,23 @@ function iniciarConexionEnVivo() {
   });
 }
 
-const rutaDelHash = () => {
-  const coincide = /^#\/([a-z]+)/.exec(window.location.hash);
-  return coincide && RUTAS[coincide[1]] ? coincide[1] : RUTA_INICIAL;
-};
+// «#/clientes/12» → { ruta: 'clientes', parametro: '12' }. Una ruta desconocida o sin permiso cae en la primera permitida.
+function destinoDelHash() {
+  const coincide = /^#\/([a-z]+)(?:\/([a-z0-9]+))?/.exec(window.location.hash);
+  const habilitadas = permitidas();
+  if (coincide && habilitadas.includes(coincide[1])) return { ruta: coincide[1], parametro: coincide[2] || null };
+  return { ruta: habilitadas[0], parametro: null };
+}
+const claveDe = ({ ruta, parametro }) => (parametro ? `${ruta}/${parametro}` : ruta);
 
-async function mostrar(ruta) {
-  state.ruta = ruta;
-  marcarRuta(ruta);
+async function mostrar(destino) {
+  state.ruta = destino.ruta;
+  state.clave = claveDe(destino);
+  marcarRuta(destino.ruta);
   const contenedor = $('#panel-content');
   montar(contenedor, cargando());
   try {
-    await RUTAS[ruta](contenedor);
+    await RUTAS[destino.ruta].render(contenedor, destino.parametro);
   } catch (error) {
     montar(contenedor, estadoError(error));
   }
@@ -68,11 +74,11 @@ async function mostrar(ruta) {
 let revirtiendo = false;
 async function alCambiarElHash() {
   if (revirtiendo) { revirtiendo = false; return; }
-  const destino = rutaDelHash();
-  if (destino === state.ruta) return;
+  const destino = destinoDelHash();
+  if (claveDe(destino) === state.clave) return;
   if (state.salidaVista && !(await state.salidaVista.confirmar())) {
     revirtiendo = true;
-    window.location.hash = `#/${state.ruta}`;
+    window.location.hash = `#/${state.clave}`;
     return;
   }
   liberarSalida();
@@ -105,13 +111,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   iniciarConexionEnVivo();
 
-  if (!state.user.permissions.includes(PERMISO_ADMINISTRAR)) {
-    mostrarSoloPermitidas([]);
-    montar($('#panel-content'), estadoVacio('Todavía no hay pantallas para tu rol', 'Las pantallas de Proyectos se habilitan por fases. Te avisaremos cuando estén listas.', 'lock-closed-outline'));
-    return;
-  }
-
-  mostrarSoloPermitidas(Object.keys(RUTAS));
+  mostrarSoloPermitidas(permitidas());
   window.addEventListener('hashchange', alCambiarElHash);
-  await mostrar(rutaDelHash());
+  await mostrar(destinoDelHash());
 });

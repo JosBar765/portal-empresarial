@@ -50,6 +50,12 @@ export const CATALOGOS = {
     campos: [nombre('Motivo')],
     aviso: { titulo: 'Alimenta un informe', texto: 'El informe agrupa las perdidas por motivo.' }
   },
+  no_contactar: {
+    titulo: 'No contactar', singular: 'motivo', nuevo: 'Nuevo motivo',
+    columnas: [{ titulo: 'Motivo', tipo: 'nombre' }, { titulo: 'Empresas', tipo: 'usos' }, { titulo: 'Activo', tipo: 'activo' }, { titulo: 'Orden', tipo: 'orden' }],
+    campos: [nombre('Motivo')],
+    aviso: { titulo: 'Se elige al marcar una empresa', texto: 'Quien marca «No contactar» o inactiva una empresa elige uno de estos motivos.' }
+  },
   estructuras: {
     titulo: 'Estructuras', singular: 'estructura', nuevo: 'Nueva estructura',
     columnas: [{ titulo: 'Estructura', tipo: 'nombre' }, { titulo: 'Empresas', tipo: 'usos' }, { titulo: 'Activa', tipo: 'activo' }, { titulo: 'Orden', tipo: 'orden' }],

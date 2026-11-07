@@ -4,5 +4,6 @@ export const state = {
   user: null,
   socket: null,
   ruta: null,
+  clave: null,
   salidaVista: null
 };
