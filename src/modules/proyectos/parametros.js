@@ -7,28 +7,27 @@ const { errorDeValidacion } = require('./errores');
 const PREFIJO = 'proyectos.';
 
 const GRUPOS = [
-  { id: 'reparto', nombre: 'Reparto' },
-  { id: 'seguimiento', nombre: 'Seguimiento' },
-  { id: 'semaforo', nombre: 'Semáforo' },
-  { id: 'importacion', nombre: 'Importación' },
-  { id: 'empresas', nombre: 'Empresas' },
-  { id: 'proyecto', nombre: 'Proyecto' },
-  { id: 'informe', nombre: 'Informe' },
-  { id: 'reglas', nombre: 'Reglas e interruptores' },
-  { id: 'automatizacion', nombre: 'Automatización' }
+  { id: 'reparto', nombre: 'Reparto', descripcion: 'Cómo se reparten las empresas.' },
+  { id: 'seguimiento', nombre: 'Seguimiento', descripcion: 'Cuándo una empresa o un proyecto necesita atención.' },
+  { id: 'semaforo', nombre: 'Semáforo', descripcion: 'Desde qué porcentaje es verde o ámbar.' },
+  { id: 'importacion', nombre: 'Importación', descripcion: 'Límites de los archivos CSV.' },
+  { id: 'empresas', nombre: 'Empresas', descripcion: 'Qué datos se piden y cuándo se avisa de un duplicado.' },
+  { id: 'informe', nombre: 'Código e informe', descripcion: 'El código de cada proyecto y lo que lleva el informe.' },
+  { id: 'reglas', nombre: 'Reglas e interruptores', descripcion: 'Pasos del flujo que se encienden o se apagan.' },
+  { id: 'automatizacion', nombre: 'Automatización', descripcion: 'Activación automática con el plan del año.' }
 ];
 
 const SECCIONES_INFORME = ['embudo', 'montos', 'canal', 'muestras', 'por_asesor', 'por_tienda'];
 const MARCADORES_CODIGO = ['{AAAA}', '{MM}', '{NICHO}', '{N}'];
 
-// `pantalla`: dónde se edita (parametros = A3, reglas = A5). `unidad` solo orienta el texto de la pantalla.
+// `pantalla`: dónde se edita (parametros = A3, reglas = A5, automatizacion = A2). `nota` y `permiso` solo orientan en reglas. `unidad` solo orienta el texto de la pantalla.
 const PARAMETROS = [
   { clave: 'reparto.reciben_supervisores', grupo: 'reparto', tipo: 'booleano', defecto: false,
-    etiqueta: 'Los supervisores también reciben empresas', ayuda: 'Si se apaga, solo reparten los asesores.' },
+    etiqueta: 'Los supervisores también reciben empresas', ayuda: 'Apagado: solo reciben los asesores.' },
   { clave: 'reparto.afinidad_tienda', grupo: 'reparto', tipo: 'booleano', defecto: true,
-    etiqueta: 'Preferir la tienda que registró la empresa', ayuda: 'Desempata a favor de la tienda de origen.' },
+    etiqueta: 'Preferir la tienda que registró la empresa', ayuda: 'Solo desempata; no rompe el reparto equitativo.' },
   { clave: 'reparto.tope_por_asesor', grupo: 'reparto', tipo: 'entero_opcional', defecto: null, min: 1, max: 500, unidad: 'empresas',
-    etiqueta: 'Tope de empresas por asesor', ayuda: 'Lo propone cada plantilla. Vacío = sin tope; lo que sobra queda en reserva.' },
+    etiqueta: 'Tope inicial de empresas por asesor', ayuda: 'Lo propone cada plantilla. Lo que sobra queda en reserva.' },
   { clave: 'reparto.rondas', grupo: 'reparto', tipo: 'booleano', defecto: false,
     etiqueta: 'Repartir la reserva en una segunda ronda', ayuda: 'Permite repartir lo que sobró cuando alguien termina.' },
   { clave: 'reparto.descanso_meses', grupo: 'reparto', tipo: 'entero', defecto: 3, min: 0, max: 36, unidad: 'meses',
@@ -70,7 +69,7 @@ const PARAMETROS = [
   { clave: 'empresas.similitud_minima', grupo: 'empresas', tipo: 'porcentaje', defecto: 85, min: 50, max: 100, unidad: '%',
     etiqueta: 'Parecido mínimo del nombre', ayuda: 'Qué tan parecido debe ser un nombre para avisar.' },
 
-  { clave: 'codigo.formato', grupo: 'proyecto', tipo: 'formato_codigo', defecto: 'PRY-{AAAA}-{MM}-{NICHO}', longitudMax: 50,
+  { clave: 'codigo.formato', grupo: 'informe', tipo: 'formato_codigo', defecto: 'PRY-{AAAA}-{MM}-{NICHO}', longitudMax: 50,
     etiqueta: 'Formato del código del proyecto', ayuda: 'Marcadores: {AAAA} año, {MM} mes, {NICHO} iniciales del nicho, {N} número.' },
 
   { clave: 'informe.filas_por_tabla', grupo: 'informe', tipo: 'entero', defecto: 20, min: 5, max: 100, unidad: 'filas',
@@ -81,17 +80,20 @@ const PARAMETROS = [
     etiqueta: 'Línea bajo el título del PDF', ayuda: 'Aparece bajo el título del PDF. Puede quedar vacía.' },
 
   { clave: 'reglas.visto_bueno_cierre', grupo: 'reglas', pantalla: 'reglas', tipo: 'booleano', defecto: true,
-    etiqueta: 'Visto bueno del gerente al cerrar', ayuda: 'El cierre queda a la espera del gerente. Apagado, el proyecto se cierra directo.' },
+    etiqueta: 'Visto bueno del gerente al cerrar', ayuda: 'El cierre espera al gerente (S10 y G2).',
+    nota: 'Apagado: el proyecto se cierra sin visto bueno.', permiso: 'proyectos.dar_visto_bueno' },
   { clave: 'reglas.aprobar_activacion', grupo: 'reglas', pantalla: 'reglas', tipo: 'booleano', defecto: false,
-    etiqueta: 'Aprobación del gerente antes de activar', ayuda: 'El supervisor pide activar y el gerente aprueba; luego se reparte.' },
+    etiqueta: 'Aprobación del gerente antes de activar', ayuda: 'El supervisor pide activar y el gerente aprueba; luego se reparte.',
+    nota: 'Encendido: nuevo estado «esperando aprobación».', permiso: 'proyectos.aprobar_activacion' },
   { clave: 'reglas.confirmar_ventas', grupo: 'reglas', pantalla: 'reglas', tipo: 'booleano', defecto: false,
-    etiqueta: 'Confirmación de ventas por el supervisor', ayuda: 'La venta no cuenta en informes hasta que el supervisor la confirma.' },
+    etiqueta: 'Confirmación de ventas por el supervisor', ayuda: 'La venta queda «por confirmar» y no cuenta hasta que se confirme.',
+    nota: 'Valor general; cada país puede cambiarlo.', permiso: 'proyectos.confirmar_ventas' },
 
-  { clave: 'activacion_auto.activa', grupo: 'automatizacion', tipo: 'booleano', defecto: false,
+  { clave: 'activacion_auto.activa', grupo: 'automatizacion', pantalla: 'automatizacion', tipo: 'booleano', defecto: false,
     etiqueta: 'Activar proyectos con el plan del año', ayuda: 'Activa solo el proyecto del plan, en el día y la hora elegidos.' },
-  { clave: 'activacion_auto.dia', grupo: 'automatizacion', tipo: 'entero', defecto: 0, min: 0, max: 28, unidad: 'día del mes',
+  { clave: 'activacion_auto.dia', grupo: 'automatizacion', pantalla: 'automatizacion', tipo: 'entero', defecto: 0, min: 0, max: 28, unidad: 'día del mes',
     etiqueta: 'Día de la activación', ayuda: '0 = primer día hábil del mes.' },
-  { clave: 'activacion_auto.hora', grupo: 'automatizacion', tipo: 'hora', defecto: '07:00',
+  { clave: 'activacion_auto.hora', grupo: 'automatizacion', pantalla: 'automatizacion', tipo: 'hora', defecto: '07:00',
     etiqueta: 'Hora de la activación', ayuda: 'Hora de Guatemala, formato 24 horas.' }
 ];
 

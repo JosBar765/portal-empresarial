@@ -111,6 +111,9 @@ async function main() {
     prueba('un nombre vacío responde 400 con el campo marcado', r.status === 400 && !!r.datos.campos.nombre);
     r = await llamar('POST', '/catalogos/nichos', { cuerpo: { nombre: 'x'.repeat(101) } });
     prueba('un nombre demasiado largo responde 400', r.status === 400 && !!r.datos.campos.nombre);
+    r = await llamar('POST', '/catalogos/nichos', { cuerpo: { nombre: 'Nicho de prueba API inactivo', activo: false } });
+    prueba('un nicho se puede crear ya inactivo', r.status === 201 && r.datos.item.activo === false);
+    prueba('un valor de activo inválido al crear responde 400', (await llamar('POST', '/catalogos/nichos', { cuerpo: { nombre: 'Otro', activo: 'quizá' } })).status === 400);
     r = await llamar('PUT', `/catalogos/nichos/${nicho.id}`, { cuerpo: { nombre: 'Nicho de prueba API 2', orden: 99 } });
     prueba('editar cambia el nombre y el orden', r.status === 200 && r.datos.item.nombre === 'Nicho de prueba API 2' && r.datos.item.orden === 99);
     r = await llamar('PATCH', `/catalogos/nichos/${nicho.id}/activo`, { cuerpo: { activo: false } });

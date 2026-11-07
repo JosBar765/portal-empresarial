@@ -8,13 +8,24 @@ const { CATALOGOS } = require('../catalogos');
 const CAMBIOS_RECIENTES = 5;
 
 class ResumenService {
+  // Quién tocó por última vez cada área y cuándo, para la tarjeta de cada una.
+  async ultimoCambioPorArea() {
+    const areas = ['parametros', 'reglas', 'catalogos', 'paises'];
+    const filas = await Promise.all(areas.map(area => historialService.listar({ area }, 1)));
+    return Object.fromEntries(areas.map((area, i) => {
+      const ultimo = filas[i].items[0];
+      return [area, ultimo ? { usuario: ultimo.usuario, fecha: ultimo.fecha } : null];
+    }));
+  }
+
   async obtener() {
-    const [conteos, paises, parametros, reglas, historial] = await Promise.all([
+    const [conteos, paises, parametros, reglas, historial, ultimos] = await Promise.all([
       Promise.all(Object.values(CATALOGOS).map(def => catalogoRepository.contar(def))),
       configService.paises(),
       configService.describir('parametros'),
       configService.describir('reglas'),
-      historialService.listar({}, CAMBIOS_RECIENTES)
+      historialService.listar({}, CAMBIOS_RECIENTES),
+      this.ultimoCambioPorArea()
     ]);
     const ajustes = parametros.flatMap(g => g.parametros);
     const sinMoneda = paises.filter(p => !p.monedaCodigo);
@@ -30,6 +41,7 @@ class ResumenService {
       reglas: reglas.flatMap(g => g.parametros).map(r => ({ clave: r.clave, etiqueta: r.etiqueta, valor: r.valor })),
       paises: { total: paises.length, sinMoneda: sinMoneda.map(p => p.nombre) },
       historial: { total: historial.total, recientes: historial.items },
+      ultimos,
       // Cosas que el administrador debe resolver; hoy solo los países sin moneda local.
       pendientes: sinMoneda.length ? [{ tipo: 'pais_sin_moneda', paises: sinMoneda.map(p => p.nombre) }] : []
     };

@@ -114,7 +114,9 @@ class CatalogoService {
   async crear(id, datos, usuarioId) {
     const def = catalogo(id);
     const valores = validar(def, datos, { completo: true });
-    valores[def.activo] = 1;
+    const trajoActivo = datos && Object.prototype.hasOwnProperty.call(datos, 'activo');
+    if (trajoActivo && !esBooleano(datos.activo)) throw errorDeValidacion('Revisa los datos marcados.', { activo: 'Elige sí o no.' });
+    valores[def.activo] = trajoActivo ? (datos.activo === true || datos.activo === 1 || datos.activo === '1' ? 1 : 0) : 1;
     try {
       return await db.transaccion(async tx => {
         if (def.orden) valores[def.orden] = await catalogoRepository.siguienteOrden(tx, def);

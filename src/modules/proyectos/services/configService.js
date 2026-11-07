@@ -64,10 +64,11 @@ class ConfigService {
       .map(grupo => ({
         id: grupo.id,
         nombre: grupo.nombre,
+        descripcion: grupo.descripcion,
         parametros: P.PARAMETROS
           .filter(p => p.grupo === grupo.id && (p.pantalla || 'parametros') === pantalla)
           .map(p => ({
-            clave: p.clave, tipo: p.tipo, etiqueta: p.etiqueta, ayuda: p.ayuda, unidad: p.unidad || null,
+            clave: p.clave, tipo: p.tipo, etiqueta: p.etiqueta, ayuda: p.ayuda, nota: p.nota || null, permiso: p.permiso || null, unidad: p.unidad || null,
             min: p.min ?? null, max: p.max ?? null, opciones: p.opciones || null, longitudMax: p.longitudMax || null,
             valor: valores[p.clave], defecto: copiar(p.defecto), esDefecto: iguales(valores[p.clave], p.defecto)
           }))
