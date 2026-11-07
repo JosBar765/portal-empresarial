@@ -75,8 +75,18 @@ class ConfigService {
       .filter(grupo => grupo.parametros.length);
   }
 
-  // Guarda solo lo que cambió. Devuelve las claves modificadas.
-  async guardar(cambios, usuarioId) {
+  // Guarda solo lo que cambió. Devuelve las claves modificadas. Con `pantalla` rechaza los ajustes de otra pantalla
+  // (los parámetros se editan en A3 y las reglas en A5).
+  async guardar(cambios, usuarioId, pantalla = null) {
+    if (pantalla) {
+      const ajenos = Object.keys(cambios || {}).filter(clave => {
+        const def = P.definicion(clave);
+        return def && (def.pantalla || 'parametros') !== pantalla;
+      });
+      if (ajenos.length) {
+        throw errorDeValidacion('Revisa los ajustes marcados.', Object.fromEntries(ajenos.map(clave => [clave, 'Este ajuste no se edita en esta pantalla.'])));
+      }
+    }
     this.invalidar();
     const actuales = await this.valores();
     const nuevos = P.validarCambios(cambios, actuales);

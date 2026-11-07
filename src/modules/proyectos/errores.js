@@ -8,4 +8,9 @@ function errorDeValidacion(mensaje, campos) {
   return error;
 }
 
-module.exports = { errorDeValidacion };
+// Campos extra del cuerpo de error para que la pantalla marque cada campo.
+function extraDeError(error) {
+  return error && error.campos ? { campos: error.campos } : {};
+}
+
+module.exports = { errorDeValidacion, extraDeError };

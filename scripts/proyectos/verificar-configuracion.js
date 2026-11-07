@@ -64,6 +64,7 @@ async function verificarServicio() {
   const config = require('../../src/modules/proyectos/services/configService');
   const [{ id: usuarioId }] = await db.query('SELECT id FROM usuarios ORDER BY id LIMIT 1', [], 'verificar:usuario');
   const [{ n: historialAntes }] = await db.query('SELECT COUNT(*) AS n FROM proy_config_historial', [], 'verificar:historial_antes');
+  const ajustesAntes = await db.query('SELECT clave, valor FROM parametros_sistema WHERE clave IN (?)', [['proyectos.seguimiento.dias_estancado', 'proyectos.informe.texto_encabezado']], 'verificar:ajustes_antes');
   const historial = clave => db.query('SELECT accion, antes, despues FROM proy_config_historial WHERE entidad = ? AND clave = ? ORDER BY id', ['parametro', clave], 'verificar:historial');
   const CLAVE = 'seguimiento.dias_estancado';
 
@@ -113,6 +114,9 @@ async function verificarServicio() {
   } finally {
     // Limpieza, pase lo que pase: el ajuste de prueba y sus filas de historial no deben quedar en la base.
     await db.query('DELETE FROM parametros_sistema WHERE clave IN (?)', [[P.claveCompleta(CLAVE), P.claveCompleta('informe.texto_encabezado')]], 'verificar:limpiar_parametro');
+    for (const { clave, valor } of ajustesAntes) {
+      await db.query('INSERT INTO parametros_sistema (clave, valor) VALUES (?, ?)', [clave, valor], 'verificar:restaurar_ajuste');
+    }
     const [{ n: historialDespues }] = await db.query('SELECT COUNT(*) AS n FROM proy_config_historial', [], 'verificar:historial_despues');
     if (historialDespues > historialAntes) {
       await db.query('DELETE FROM proy_config_historial ORDER BY id DESC LIMIT ?', [historialDespues - historialAntes], 'verificar:limpiar');
