@@ -70,8 +70,11 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 - [x] Permisos (`modulo = 'proyectos'`) sin asignar a roles, incluido `proyectos.corregir`.
 - [x] Entrada en `MODULOS` (`modulesCatalog.js`) desde esta fase (lo exigen las notificaciones); nadie ve la tarjeta.
 - [x] Migración aditiva de `notificaciones`: `referencia_tipo` y `referencia_id`.
-- [ ] Catálogos administrables (A1 y pestañas de F7).
-- [ ] Tablas de configuración (`proy_estructuras`, `proy_pais_config`, `proy_config_historial`), registro de parámetros `parametros.js` sobre `parametros_sistema` y pantallas A0, A3, A5 y A10 (ver `documentacion/configuracion_administrador.md`).
+- [x] Catálogos administrables (A1 y pestañas de F7): API `/api/proyectos/catalogos` y pantalla con 9 pestañas; nunca se borra, se desactiva.
+- [x] Tablas de configuración (`proy_estructuras`, `proy_pais_config`, `proy_config_historial`), registro de parámetros `parametros.js` sobre `parametros_sistema` (el valor admite 255 caracteres) y pantallas A0, A3, A5 y A10 (ver `documentacion/configuracion_administrador.md`).
+- [x] Historial de cambios con filtros y «restaurar» (cada restauración es un cambio nuevo, también auditado) y resumen del inicio.
+- [x] Scripts de verificación en `scripts/proyectos/` (registro, servicio y API por HTTP), probados en MySQL 8.4 y MariaDB 11.8.
+- [ ] Pendiente en staging: aplicar las migraciones `proyectos_*` y confirmar los índices únicos en la MariaDB del hosting (hoy probados en MariaDB 11.8 local).
 - **Terminado cuando:** la migración corre dos veces sin error, los índices únicos funcionan **en staging** (MariaDB) y los catálogos se editan.
 
 ### Fase 2 · Clientes — `feature/proyectos-02-catalogos-clientes`
@@ -99,6 +102,7 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 ### Fase 4 · Gestión del asesor — `feature/proyectos-04-gestion-asesor`
 
 - [ ] Gestiones, entregas de muestra con control de existencias, cotizaciones y ventas con referencia (venta sin OV no se guarda; OV repetida avisa).
+- [ ] País sin moneda local (hoy Belice): sus cotizaciones y ventas salen en dólares hasta que el administrador elija una (lo anuncian A0 y A1 › Países).
 - [ ] Venta «por confirmar» cuando el interruptor está encendido (no cuenta en informes hasta confirmarse); referencia obligatoria según el país.
 - [ ] Estado de la participación derivado de lo registrado; «perdida» y «descartada» explícitas.
 - [ ] «Para hoy» con orden fijo y filtro por el asesor de la sesión; listas de 50 en 50.
