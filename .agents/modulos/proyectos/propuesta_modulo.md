@@ -185,7 +185,7 @@ SIEMPRE ABIERTO                      CADA MES
 2. **Contacta**: llama o abre WhatsApp con un toque (el portal no envía nada por sí solo). Registra la gestión: canal, con quién habló, resultado, nota y, si aplica, la fecha del próximo seguimiento.
 3. Si entregó la **muestra**, la registra (cantidad y área). El stock del artículo baja solo.
 4. Si hay interés, registra la **cotización** con su monto, moneda y número (la referencia es obligatoria salvo que el país la haya vuelto opcional).
-5. Si compra, registra la **venta** (monto y número de orden de venta)$1 Si el administrador encendió la confirmación de ventas, la venta queda **por confirmar** hasta que el supervisor la confirme.
+5. Si compra, registra la **venta** (monto y número de orden de venta). Si el administrador encendió la confirmación de ventas, la venta queda **por confirmar** hasta que el supervisor la confirme.
 6. «Para hoy» le muestra los seguimientos que vencen y los clientes que lleva días sin tocar.
 
 **D. Dar seguimiento (supervisor).**
@@ -238,7 +238,7 @@ Las etapas **orientan, no bloquean**: el asesor puede registrar en cualquier eta
 17. Una **venta no se guarda sin referencia** (el número de orden de venta) y una **cotización lleva su número de cotización**, salvo en los países donde el administrador desactivó la referencia obligatoria. Si la referencia ya existe en otra venta no anulada, se avisa y se pide confirmar.
 18. Un proyecto `activo` cuya `fecha_fin` ya pasó, más los **días hábiles de gracia** (parámetro `vencimiento.gracia_dias_habiles`; por defecto 3), está **vencido**: se avisa al supervisor y al gerente, y mientras no se cierre sus tiendas no pueden iniciar otro. **No se cierra solo**, porque el cierre pide las conclusiones.
 19. Una acción **notifica solo si quien la hace es distinto del destinatario**. En una reasignación se avisa a quien recibe y a quien pierde la empresa.
-$1
+20. Las cifras salen de **una sola función** de informe y son acumulativas (sección 11).
 21. Todo lo que el administrador configura aplica a **proyectos nuevos**: cada proyecto guarda una foto de su configuración al activarse y la lee de ahí (sección 20).
 22. Los **7 estados** de la empresa son fijos; los **resultados de gestión** son configurables y solo pueden subir el estado hasta `interesada`. `cotizada` y `vendida` las fijan la cotización y la venta.
 23. Con la confirmación de ventas encendida, una venta cuenta en los informes y lleva la empresa a `vendida` solo cuando está `confirmada`.
@@ -260,7 +260,7 @@ borrador ──activar──▶ activo ──cerrar──▶ cerrado
 
 | Estado | Significado | Quién lo cambia |
 |---|---|---|
-$1
+| `borrador` | Se está preparando; aún no hay reparto. | `proyectos.activar` |
 | `pendiente_aprobacion` | Solo existe si el administrador encendió la aprobación antes de activar: el supervisor pidió activar y espera al gerente. Rechazada, vuelve a `borrador` con comentario. | Pedir: `proyectos.activar`. Aprobar o rechazar: `proyectos.aprobar_activacion`. |
 | `activo` | Ya se repartió; los asesores gestionan. | `proyectos.activar` |
 | `cerrado` | Terminado, con informe y conclusiones. | `proyectos.activar` |
@@ -584,20 +584,20 @@ El PDF del informe incluye: encabezado del proyecto (nicho, periodo, alcance, ar
 
 | # | Mejora | Valor | Fase |
 |---|---|---|---|
-$19$2
-$19$2
-| 3 | **Para hoy**: seguimientos con fecha y empresas sin tocar. | Evita que se enfríen los clientes. | 3 |
-$19$2
-| 5 | **Detección de duplicados** y normalización de teléfonos por país (+502, +503, +504, +505, +506). | Base limpia desde el inicio. | 1 |
-| 6 | ¿Cuántos meses «descansa» un cliente ya contactado antes de volver a repartirse? | **Resuelta:** parámetro `reparto.descanso_meses`; por defecto 3; 0 lo apaga. |
-| 7 | ¿Qué cuenta como **estancado**? | **Resuelta:** parámetro `seguimiento.dias_estancado`; por defecto 7 días naturales sin gestión. |
-| 8 | ¿El **gerente** puede devolver el cierre con comentarios para que el supervisor lo corrija? | **Resuelta:** sí (pantalla G2); el supervisor corrige y reenvía. |
-| 9 | **Control de existencias** del artículo con alerta cuando quede poco. | Hoy el Excel lo anotaba a mano. | 3 |
-| 10 | **Exportar a Excel/CSV** la base y los resultados. | Análisis fuera del portal. | 5 |
-| 11 | ¿Qué otros **datos de la empresa** importan (número de empleados, si ya es cliente de Premia)? | **Resuelta:** campo propio sembrado «¿Ya es cliente de Premia?»; cualquier otro dato se agrega desde A6. |
-$19$2
-| 13 | ¿Quién confirma una **venta**? En Eventos el asesor sin permiso de cierre solicita y el supervisor aprueba. | **Resuelta:** por defecto la registra el asesor y el supervisor puede anularla; el administrador puede encender la confirmación del supervisor (la venta queda «por confirmar»). |
-| 14 | ¿Cuántos **días de gracia** tras la `fecha_fin` antes de marcar un proyecto como vencido? | **Resuelta:** parámetro `vencimiento.gracia_dias_habiles`; por defecto 3 días hábiles. |
+| 1 | **Plan del año** (nicho + mes + artículo), heredado del «Enero–Abril» de 2020. Sugiere el nicho al crear el proyecto. | Planificar con tiempo y comparar años. | 9 |
+| 2 | **Activación automática** el primer día hábil del mes usando el plan, con el supervisor avisado y el reparto ya calculado. Responde al «automático o manual» de la idea. | Que el mes arranque aunque nadie se acuerde. | 9 |
+| 3 | **Para hoy**: seguimientos con fecha y empresas sin tocar. | Evita que se enfríen los clientes. | 4 |
+| 4 | **Kit del nicho**: guion de llamada y plantillas de mensaje (WhatsApp, correo) con variables `{empresa}` `{contacto}` `{asesor}`. El mensaje se abre prellenado en WhatsApp; el asesor lo envía. | Calidad pareja y menos tiempo escribiendo. | 9 |
+| 5 | **Detección de duplicados** y normalización de teléfonos por país (+502, +503, +504, +505, +506). | Base limpia desde el inicio. | 2 |
+| 6 | **Semáforo** por asesor y tienda frente a la etapa vigente. | Supervisar de un vistazo. | 5 |
+| 7 | **Periodo de descanso** entre proyectos para no saturar a un cliente. | Mejor trato al cliente. | 3 |
+| 8 | **Tope por asesor y rondas**: repartir por tandas conforme se avanza. | Evita listas imposibles de trabajar. | 9 |
+| 9 | **Control de existencias** del artículo con alerta cuando quede poco. | Hoy el Excel lo anotaba a mano. | 4 |
+| 10 | **Exportar a Excel/CSV** la base y los resultados. | Análisis fuera del portal. | 9 |
+| 11 | **Comparación de nichos**: cuál rindió más (cotizado, vendido, efectividad) para decidir el próximo. | Elegir mejor cada mes. | 9 |
+| 12 | **Metas** por asesor y tienda con avance visible. | Motivación y seguimiento. | 9 |
+| 13 | **Cartera de clientes ganados** para posventa y recompra. | Vender más al mismo cliente. | 9 |
+| 14 | **Ruta de visitas**: enlace a Google Maps por dirección. | Ahorra tiempo al visitar. | 9 |
 
 ### 13.2 Puntos de extensión (para que los cambios sean solo aditivos)
 
@@ -637,7 +637,7 @@ dev
 - Cada subrama sale de `module/proyectos` **actualizada** y vuelve a ella por pull request. Nunca se comitea directo en `dev`, `staging`, `main` ni en `module/proyectos`.
 - Cada cierto tiempo se trae `dev` a `module/proyectos` para que no se aleje.
 - **Invisible hasta el final**: el módulo se registra en `MODULOS` desde la primera subrama (lo exigen las notificaciones), pero nadie tiene el permiso `proyectos.ver` hasta `feature/proyectos-08-activacion`; sin ese permiso no aparece la tarjeta ni se puede entrar.
-- Las migraciones de cada subrama son aditivas e idempotentes y usan el siguiente número libre al momento de crearlas (hoy la última es la 26). Una migración ya aplicada nunca se edita.
+- Las migraciones de cada subrama son aditivas e idempotentes y usan el siguiente número libre al momento de crearlas (la fase 1 usa de la 33 a la 36). Una migración ya aplicada nunca se edita.
 - Commits en español con Conventional Commits, sin atribución de IA. No se hacen commits ni push sin que lo pidas.
 
 ### 14.2 Fases
@@ -688,7 +688,7 @@ public/modules/proyectos/
     reparto_equitativo.md        algoritmo, casos límite y pruebas
     permisos_y_alcance.md        matriz de permisos y alcance por tienda
     informe_de_cierre.md         fórmulas, ejemplo numérico y PDF
-$1
+    mockup_pantallas.md          lista de pantallas y estados, con enlaces a Figma
     configuracion_administrador.md   todo lo que configura el administrador y cómo
 ```
 
@@ -711,22 +711,22 @@ Todas están resueltas: unas con tu respuesta y otras como **parámetro con valo
 
 | # | Pregunta | Recomendación |
 |---|---|---|
-| 1 | ¿Los **supervisores** también reciben empresas en el reparto, o solo los asesores? | Solo asesores; el supervisor puede incluirse a mano. |
-| 2 | ¿Quién puede crear un **nicho nuevo**? | Solo el Administrador, para evitar «Bancos», «Banco» y «Bancos y cooperativas» a la vez. |
-| 3 | ¿Datos mínimos para registrar una empresa? | Nombre, nicho, país y al menos un teléfono o correo. |
+| 1 | ¿Los **supervisores** también reciben empresas en el reparto, o solo los asesores? | **Resuelta:** parámetro `reparto.reciben_supervisores`; por defecto solo asesores. |
+| 2 | ¿Quién puede crear un **nicho nuevo**? | **Resuelta:** quien tenga `proyectos.administrar` (por defecto solo el Administrador; se amplía desde Roles). |
+| 3 | ¿Datos mínimos para registrar una empresa? | **Resuelta:** parámetros `empresas.*`; por defecto nombre, nicho, país y teléfono o correo. |
 | 4 | ¿La **moneda** de cotizaciones y ventas es la local de cada país, o todo en dólares? | **Respondida:** local por defecto; en cada registro se puede cambiar a US$. |
 | 5 | ¿Una tienda puede tener **más de un proyecto activo** a la vez? | **Respondida:** no; un solo proyecto activo por tienda. |
-| 6 | ¿Cuántos meses «descansa» un cliente ya contactado antes de volver a repartirse? | 3 meses; 0 desactiva la regla. |
-| 7 | ¿Qué cuenta como **estancado**? | 7 días naturales sin gestión durante el proyecto. |
-| 8 | ¿El **gerente** puede devolver el cierre con comentarios para que el supervisor lo corrija? | Sí. Queda el comentario y el supervisor vuelve a enviar. |
+| 6 | ¿Cuántos meses «descansa» un cliente ya contactado antes de volver a repartirse? | **Resuelta:** parámetro `reparto.descanso_meses`; por defecto 3; 0 lo apaga. |
+| 7 | ¿Qué cuenta como **estancado**? | **Resuelta:** parámetro `seguimiento.dias_estancado`; por defecto 7 días naturales sin gestión. |
+| 8 | ¿El **gerente** puede devolver el cierre con comentarios para que el supervisor lo corrija? | **Resuelta:** sí (pantalla G2); el supervisor corrige y reenvía. |
 | 9 | **Importación**: ¿solo CSV o también `.xlsx`? | **Respondida:** CSV. |
 | 10 | ¿Dónde está el documento del módulo de **Eventos** al que se refiere la idea? | **Respondida:** `acople_flujo_eventos.md`; evaluado en `decisiones_acople_eventos.md`. |
-| 11 | ¿Qué otros **datos de la empresa** importan (número de empleados, si ya es cliente de Premia)? | «¿Ya es cliente?» sí; empleados no en la primera versión. |
+| 11 | ¿Qué otros **datos de la empresa** importan (número de empleados, si ya es cliente de Premia)? | **Resuelta:** campo propio sembrado «¿Ya es cliente de Premia?»; cualquier otro dato se agrega desde A6. |
 | 12 | ¿Los proyectos pasados de **2020** se cargan como histórico o se empieza desde cero? | **Resuelta:** se empieza desde cero; el Excel sirvió para diseñar. |
 | 13 | ¿Quién confirma una **venta**? En Eventos el asesor sin permiso de cierre solicita y el supervisor aprueba. | **Respondida:** el asesor la registra con la referencia obligatoria y el supervisor puede anularla. Sin aprobación previa. |
 | 14 | ¿Cuántos **días de gracia** tras la `fecha_fin` antes de marcar un proyecto como vencido? | **Respondida:** 3 días hábiles. |
 | 15 | ¿Todas las tiendas, incluida Centroamérica, cotizan y facturan en el mismo sistema, de modo que siempre hay número de cotización y de orden de venta? | **Resuelta:** referencia obligatoria por defecto; el administrador la desactiva país por país (pantalla A5). |
-$1
+| 16 | ¿Desde qué porcentaje el semáforo es verde o ámbar? | **Respondida:** parámetros de cobertura y de efectividad: verde desde 75 % y ámbar desde 50 %; el administrador los ajusta en A3. |
 | 17 | ¿Qué tanto puede cambiar el administrador el embudo? | **Respondida:** los 7 estados son fijos; los resultados de gestión son configurables y deciden a qué estado empuja cada uno. |
 | 18 | ¿Puede agregar campos propios a la empresa por nicho? | **Respondida:** sí, desde la primera versión (fase 2). |
 | 19 | ¿Cómo controla la creación de proyectos? | **Respondida:** plantillas de proyecto (A4) que también definen qué puede cambiar el supervisor. |

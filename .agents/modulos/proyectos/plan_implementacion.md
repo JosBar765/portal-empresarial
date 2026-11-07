@@ -2,7 +2,7 @@
 
 Estado: **mockup aprobado por el dueño el 2026-11-07**; falta empezar la fase 1 de código. Es el plan de trabajo de la Parte B de `Documento_Idea_Modulo_Proyectos.docx`, en formato de seguimiento. Fuentes: `propuesta_modulo.md`, `acople_flujo_eventos.md`, `decisiones_acople_eventos.md` y el mockup en Figma (`https://www.figma.com/design/3OvP90pDHgudd6fVYjsoZu`).
 
-Reglas de trabajo (de `CLAUDE.md` del portal): cada cambio en una rama nueva desde `dev` actualizado; nunca commit directo en `dev`, `staging`, `main` ni `module/proyectos`; Conventional Commits en español sin atribución de IA; migraciones aditivas e idempotentes con el siguiente número libre (hoy la última es la 26); no hay commit ni push sin que se pida.
+Reglas de trabajo (de `CLAUDE.md` del portal): cada cambio en una rama nueva desde `dev` actualizado; nunca commit directo en `dev`, `staging`, `main` ni `module/proyectos`; Conventional Commits en español sin atribución de IA; migraciones aditivas e idempotentes con el siguiente número libre (la fase 1 usa de la 33 a la 36); no hay commit ni push sin que se pida.
 
 ## 0. Camino recomendado
 
