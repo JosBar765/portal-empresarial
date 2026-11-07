@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
+import { esEncargadoTaller } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { confirmarAccion } from '../components/confirmar.js';
 import { htmlAdjuntosPropuesta, wireAdjuntosPropuesta } from '../components/adjuntosPropuesta.js';
@@ -30,7 +30,7 @@ export async function cargarDisenadoresAsignables() {
     disenadores = await obtenerDisenadoresAsignables();
   } catch { /* se muestra select vacío si falla */ }
 
-  if (ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)) && !disenadores.some(t => t.id === state.user.id)) {
+  if (esEncargadoTaller(state.user) && !disenadores.some(t => t.id === state.user.id)) {
     disenadores = [{ id: state.user.id, nombre: `${state.user.nombre} (YO)` }, ...disenadores];
   }
   return disenadores;

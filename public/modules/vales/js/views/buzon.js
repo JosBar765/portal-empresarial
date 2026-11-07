@@ -1,10 +1,10 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_CON_SIDEBAR, ROLES_TALLER_Y_DISENADOR, rolEncargadoDe } from '../config/roles.js';
+import { ROL, ROLES_CON_SIDEBAR, esDeTallerODisenador, rolVista, esSupervisor } from '../config/roles.js';
 import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { aplicarVentanaAQuery } from '../utils/ventana.js';
 import { paramsDeTienda, resolverTiendaIds, valorVigente } from '../utils/filtroTiendas.js';
-import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible } from '../permisos.js';
+import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible, puedeLeerConversacionAdjuntos } from '../permisos.js';
 import { celdaEstado } from '../components/pipeline.js';
 import { abrirVisorVale } from '../components/visorDocumento.js';
 import { htmlBloqueVigentes, conectarBloqueVigentes } from '../components/atrasadosVigentes.js';
@@ -31,7 +31,7 @@ import { rechazosSinLeer, textoRechazos } from '../utils/modificacionesVistas.js
 export function construirQueryBase() {
   const qs = new URLSearchParams();
   aplicarVentanaAQuery(qs);
-  if (ROLES_CON_SIDEBAR.includes(rolEncargadoDe(state.user))) qs.set('vista', state.vista);
+  if (ROLES_CON_SIDEBAR.includes(rolVista(state.user))) qs.set('vista', state.vista);
   if (state.filtroContador) qs.set('filtroContador', state.filtroContador);
   if (state.soloAtrasados) qs.set('soloAtrasados', '1');
   if (state.soloRechazos && state.vista !== 'trabajo') qs.set('soloRechazos', '1');
@@ -157,8 +157,9 @@ export function wireIndicadoresScrollHorizontal() {
 let contadorEnfocado = null;
 
 export function renderContadores() {
-  let config = CONTADORES_CONFIG[rolEncargadoDe(state.user)] || CONTADORES_CONFIG[ROL.ADMINISTRADOR] || [];
-  if (!Array.isArray(config)) config = config[state.vista] || [];
+  const esMios = state.vista === 'mios'; // «Mis vales» usa las tarjetas del Buzón del asesor
+  let config = CONTADORES_CONFIG[esMios ? ROL.ASESOR : rolVista(state.user)] || CONTADORES_CONFIG[ROL.ADMINISTRADOR] || [];
+  if (!Array.isArray(config)) config = config[esMios ? 'buzon' : state.vista] || [];
   config = config.filter(c => !c.permiso || tienePermiso(c.permiso));
   const grid = $('#contadores-grid');
   grid.innerHTML = config.map(c => {
@@ -258,11 +259,11 @@ export function renderTabla() {
   pintarFilas(tbody, filas);
 }
 
-// La empresa del cliente va bajo el correlativo solo para quienes siguen el vale de punta a punta; sin empresa, el nombre del cliente.
+// La empresa del cliente va bajo el correlativo para quienes siguen el vale de punta a punta y en «Mis vales» y las filas propias de cualquier rol; sin empresa, el nombre del cliente.
 const ROLES_CON_EMPRESA = [ROL.ASESOR, ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR];
 const empresaDeFila = (v) => {
   const identificador = v.cliente_empresa || v.cliente_nombre;
-  return ROLES_CON_EMPRESA.includes(state.user.rolId) && identificador
+  return (ROLES_CON_EMPRESA.includes(rolVista(state.user)) || state.vista === 'mios' || v._propio) && identificador
     ? `<span class="vale-empresa" title="${escapeHtml(identificador)}">${escapeHtml(identificador)}</span>` : '';
 };
 
@@ -330,11 +331,11 @@ const esLectorGlobal = () => state.user.rolId === ROL.ADMINISTRADOR || state.use
 
 // Propuesta que este usuario puede ver en la fila (la fusión o la del propio taller; con archivo o solo con enlaces), o null.
 function propuestaGeneralVisible(v) {
-  const aplica = (usaEstadosVisibles() || state.user.rolId === ROL.SUPERVISOR || esLectorGlobal() || puede('aprobarGeneral')) && v._tipoRegistro !== 'PROPUESTA';
+  const aplica = (usaEstadosVisibles(v) || esSupervisor(state.user) || esLectorGlobal() || puede('aprobarGeneral')) && v._tipoRegistro !== 'PROPUESTA';
   return aplica && (v.propuesta_general_url || v.propuesta_extra) ? { tipo: 'general' } : null;
 }
 function propuestaTallerVisible(v) {
-  return ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && (v.propuesta_taller_url || v.propuesta_taller_extra)
+  return esDeTallerODisenador(state.user) && (v.propuesta_taller_url || v.propuesta_taller_extra)
     ? { tipo: 'taller', disenadorId: v.propuesta_disenador_id }
     : null;
 }
@@ -363,21 +364,93 @@ function construirAccionesDeLectura(v) {
   return acciones;
 }
 
+// Las acciones del dueño del vale siguen al permiso y a la propiedad, no al rol.
+const esDuenoDe = (v) => Number(v.asesor_id) === Number(state.user.id);
+
+// En el paso 5 (pendiente de confirmación) el «ojo» y el de confirmar son un solo botón: abre el vale y la propuesta con
+// «Confirmar recibido» y «Solicitar modificación» abajo. Con una modificación en trámite hay un solo camino a la vez.
+// Con un rechazo de propuesta abierto tampoco se confirma ni se modifica: se conversa con el taller hasta que responda (o se cancela).
+const rechazosAbiertosDe = (v) => (v.rechazos_propuesta || []).filter(r => r.estado === 'ABIERTO');
+const decideEnPaso5 = (v) => puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite && !rechazosAbiertosDe(v).length && esDuenoDe(v);
+const accionVerYDecidir = { icono: 'document-text-outline', titulo: 'Ver y decidir', clase: 'icon-success', onClick: (vale) => abrirVisorDecisionAsesor(vale, propuestaVisible(vale)) };
+
+// Un vale recibido se puede modificar si todavía no tiene un vale MOD hijo; un MOD recibido también (MOD2, MOD3…).
+// El selector ofrece las tres modificaciones (básica, media y avanzada); todas crean un vale MOD. Solo el dueño (el supervisor no modifica los de su equipo).
+function accionesDeModificacion(v) {
+  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.mod_en_tramite && !rechazosAbiertosDe(v).length && esDuenoDe(v)) {
+    return [{ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirSelectorModificacion }];
+  }
+  return [];
+}
+
+// Chat del rechazo de propuesta: queda en la fila mientras haya un rechazo a la vista para quien mira (asesor dueño o equipo del taller).
+// Rojo si el taller respondió y falta leerlo, y el ícono rojo de información para el taller cuando debe responder.
+function accionesChatRechazo(v) {
+  const hayRechazos = rechazosVisibles(v);
+  const equipoTaller = puede('responderRechazoPropuesta') && !esDuenoDe(v);
+  const rechazos = rechazosSinLeer(v);
+  if (hayRechazos.length) {
+    const abiertos = hayRechazos.filter(r => r.estado === 'ABIERTO');
+    const debeResponder = equipoTaller && abiertos.length > 0;
+    return [{
+      icono: debeResponder ? 'alert-circle-outline' : 'chatbubbles-outline',
+      titulo: rechazos.length ? 'Ver respuesta del taller' : (debeResponder ? 'Responder rechazo de propuesta' : 'Chat del rechazo de propuesta'),
+      clase: rechazos.length || debeResponder ? 'icon-danger' : (abiertos.length ? 'icon-success' : undefined),
+      onClick: (vale) => abrirConversacionesRechazo(vale, rechazos.length ? { ids: rechazos.map(r => r.id) } : {})
+    }];
+  }
+  // Registro: con la ronda cerrada, y aun con el vale ya recibido, el chat sigue a la mano en solo lectura mientras el vale exista.
+  if ((v.hilos_rechazo_propuesta || []).length) {
+    return [{ icono: 'chatbubbles-outline', titulo: 'Ver conversación del rechazo', onClick: (vale) => abrirConversacionesRechazo(vale) }];
+  }
+  return [];
+}
+
+// Motivo del rechazo, chat de adjuntos y corrección: del dueño (el supervisor solo lee los adjuntos de su equipo).
+function accionesDeCorreccion(v) {
+  const acciones = [];
+  const esMio = esDuenoDe(v);
+  if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
+    acciones.push({ icono: 'alert-circle-outline', titulo: 'Ver motivo del rechazo', clase: 'icon-danger', onClick: abrirModalMotivoRechazo });
+  }
+  // Adjuntos reclamados por talleres: lo ven el dueño y su supervisor; solo el dueño responde (en el chat).
+  if ((v.adjuntos || []).length && puedeLeerConversacionAdjuntos(v)) {
+    const hayRechazados = v.adjuntos.some(a => a.estado === 'ADJUNTOS_RECHAZADOS');
+    acciones.push({ icono: 'alert-circle-outline', titulo: hayRechazados ? 'Ver adjuntos faltantes' : 'Ver adjuntos enviados', clase: hayRechazados ? 'icon-danger' : '', onClick: abrirConversacionAdjuntos });
+  }
+  if (puede('corregir') && ['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) && esMio) {
+    acciones.push({ icono: 'settings-outline', titulo: 'Corregir', onClick: abrirModalCorregirVale });
+  }
+  return acciones;
+}
+
+const accionesDeBaja = (v) => puede('darDeBaja') && (['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) || (v.adjuntos || []).length) && esDuenoDe(v)
+  ? [{ icono: 'ban-outline', titulo: 'Dar de baja', clase: 'icon-danger', onClick: abrirDarDeBaja }]
+  : [];
+
+// Lector global dueño de su vale: la lectura de siempre más las acciones de dueño; nunca las de taller ni de supervisor.
+function construirAccionesLectorDueno(v) {
+  const [ver, ...lectura] = construirAccionesDeLectura(v);
+  return [decideEnPaso5(v) ? accionVerYDecidir : ver, ...accionesDeModificacion(v), ...accionesChatRechazo(v), ...accionesDeCorreccion(v), ...lectura, ...accionesDeBaja(v)];
+}
+
+// «Mis vales»: solo las acciones del dueño, nunca las del rol (taller, supervisor o lectura global).
+function construirAccionesMios(v) {
+  const acciones = [decideEnPaso5(v) ? accionVerYDecidir : { icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
+  acciones.push(...accionesDeModificacion(v), ...accionesChatRechazo(v), ...accionesDeCorreccion(v));
+  if (puede('verHistorial')) acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
+  acciones.push(...accionesDeBaja(v));
+  return acciones;
+}
+
 export function construirAcciones(v) {
-  if (esLectorGlobal()) return construirAccionesDeLectura(v);
-  const esMio = v.asesor_id === state.user.id;
-  // Un supervisor solo actúa como asesor sobre SUS vales: sobre los de su equipo solo autoriza y supervisa.
-  const ajenoDeSupervisor = state.user.rolId === ROL.SUPERVISOR && !esMio;
-  // En el paso 5 (pendiente de confirmación) el «ojo» y el de confirmar son un solo botón: abre el vale y la propuesta con
-  // «Confirmar recibido» y «Solicitar modificación» abajo. Con una modificación en trámite hay un solo camino a la vez.
-  // Con un rechazo de propuesta abierto tampoco se confirma ni se modifica: se conversa con el taller hasta que responda (o se cancela).
-  const rechazosAbiertos = (v.rechazos_propuesta || []).filter(r => r.estado === 'ABIERTO');
-  const decideEnPaso5 = puede('confirmar') && v.estado === 'PENDIENTE_CONFIRMACION' && !v.mod_en_tramite && !rechazosAbiertos.length && !ajenoDeSupervisor;
+  if (state.vista === 'mios' || v._propio) return construirAccionesMios(v); // las filas propias de Trabajo realizado también
+  if (esLectorGlobal()) return esDuenoDe(v) ? construirAccionesLectorDueno(v) : construirAccionesDeLectura(v);
   // El supervisor abre un modal de elección (Ver info / Ver vale) en vez de ir
   // directo al PDF — a veces solo necesita los datos de encabezado. Vale también para los suyos, que él autoriza.
-  const acciones = decideEnPaso5
-    ? [{ icono: 'document-text-outline', titulo: 'Ver y decidir', clase: 'icon-success', onClick: (vale) => abrirVisorDecisionAsesor(vale, propuestaVisible(vale)) }]
-    : state.user.rolId === ROL.SUPERVISOR
+  const acciones = decideEnPaso5(v)
+    ? [accionVerYDecidir]
+    : esSupervisor(state.user)
       ? [{ icono: 'eye-outline', titulo: 'Ver', onClick: abrirModalVerSupervisor }]
       : [{ icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
   // El Supervisor autoriza el envío a talleres de un vale recién creado por
@@ -418,51 +491,18 @@ export function construirAcciones(v) {
   if (puede('aprobarGeneral') && v.estado === 'APROBADO_DEPARTAMENTO') {
     acciones.push({ icono: 'checkmark-done-circle-outline', titulo: 'Aprobar y fusionar', clase: 'icon-success', onClick: abrirModalAprobarGeneral });
   }
-  // Un vale recibido se puede modificar si todavía no tiene un vale MOD hijo; un MOD recibido también (MOD2, MOD3…).
-  // El selector ofrece las tres modificaciones (básica, media y avanzada); todas crean un vale MOD.
-  if (puede('solicitarModificacion') && v.estado === 'RECIBIDO' && !Number(v.modificado) && !v.mod_en_tramite && !rechazosAbiertos.length && !ajenoDeSupervisor) {
-    acciones.push({ icono: 'create-outline', titulo: 'Solicitar modificación', onClick: abrirSelectorModificacion });
-  }
-  // Chat del rechazo de propuesta: queda en la fila mientras haya un rechazo a la vista para quien mira (asesor dueño o equipo del taller).
-  // Rojo si el taller respondió y falta leerlo, y el ícono rojo de información para el taller cuando debe responder.
-  const hayRechazos = rechazosVisibles(v);
-  const equipoTaller = puede('responderRechazoPropuesta') && !esMio;
-  const rechazos = rechazosSinLeer(v);
-  if (hayRechazos.length) {
-    const abiertos = hayRechazos.filter(r => r.estado === 'ABIERTO');
-    const debeResponder = equipoTaller && abiertos.length > 0;
-    acciones.push({
-      icono: debeResponder ? 'alert-circle-outline' : 'chatbubbles-outline',
-      titulo: rechazos.length ? 'Ver respuesta del taller' : (debeResponder ? 'Responder rechazo de propuesta' : 'Chat del rechazo de propuesta'),
-      clase: rechazos.length || debeResponder ? 'icon-danger' : (abiertos.length ? 'icon-success' : undefined),
-      onClick: (vale) => abrirConversacionesRechazo(vale, rechazos.length ? { ids: rechazos.map(r => r.id) } : {})
-    });
-  } else if ((v.hilos_rechazo_propuesta || []).length) {
-    // Registro: con la ronda cerrada, y aun con el vale ya recibido, el chat sigue a la mano en solo lectura mientras el vale exista.
-    acciones.push({ icono: 'chatbubbles-outline', titulo: 'Ver conversación del rechazo', onClick: (vale) => abrirConversacionesRechazo(vale) });
-  }
+  acciones.push(...accionesDeModificacion(v));
+  acciones.push(...accionesChatRechazo(v));
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {
     acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Aprobar modificación', clase: 'icon-success', onClick: abrirModalAprobarModificacion });
   }
-  if (puede('corregir') && v.estado === 'RECHAZADO' && esMio) {
-    acciones.push({ icono: 'alert-circle-outline', titulo: 'Ver motivo del rechazo', clase: 'icon-danger', onClick: abrirModalMotivoRechazo });
-  }
-  // Adjuntos reclamados por talleres: lo ven el dueño y su supervisor; solo el dueño responde (en el chat).
-  if ((v.adjuntos || []).length && (state.user.rolId === ROL.ASESOR || state.user.rolId === ROL.SUPERVISOR)) {
-    const hayRechazados = v.adjuntos.some(a => a.estado === 'ADJUNTOS_RECHAZADOS');
-    acciones.push({ icono: 'alert-circle-outline', titulo: hayRechazados ? 'Ver adjuntos faltantes' : 'Ver adjuntos enviados', clase: hayRechazados ? 'icon-danger' : '', onClick: abrirConversacionAdjuntos });
-  }
-  if (puede('corregir') && ['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) && esMio) {
-    acciones.push({ icono: 'settings-outline', titulo: 'Corregir', onClick: abrirModalCorregirVale });
-  }
+  acciones.push(...accionesDeCorreccion(v));
   // Propuestas aprobadas de los otros talleres (solo si aplica la regla de compartir), solo lectura.
-  if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user)) && (v.propuestaOtroTallerNueva || v.propuestasOtrosAplica)) {
+  if (esDeTallerODisenador(state.user) && (v.propuestaOtroTallerNueva || v.propuestasOtrosAplica)) {
     acciones.push({ icono: 'documents-outline', titulo: 'Propuestas de otros talleres', onClick: abrirVisorPropuestasOtros });
   }
   if (puede('verHistorial')) acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
-  if (puede('darDeBaja') && (['ESPERANDO_AUTORIZACION', 'SOLICITANDO_MODIFICACION', 'RECHAZADO'].includes(v.estado) || (v.adjuntos || []).length) && esMio) {
-    acciones.push({ icono: 'ban-outline', titulo: 'Dar de baja', clase: 'icon-danger', onClick: abrirDarDeBaja });
-  }
+  acciones.push(...accionesDeBaja(v));
 
   return acciones;
 }

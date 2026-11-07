@@ -13,7 +13,7 @@ const valeReporteGruposService = require('./valeReporteGruposService');
 const { calcularPipeline } = require('./valePipeline');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const {
-  ROL, ESTADOS, ESTADOS_TERMINALES, ESTADOS_TALLER, esDeTaller, hoyISO, enriquecer, esValeDeModificacion
+  ROL, ESTADOS, ESTADOS_TERMINALES, ESTADOS_TALLER, esDeTaller, esAdministrador, esSupervisor, hoyISO, enriquecer, esValeDeModificacion
 } = require('./valeHelpers');
 
 // Un solo atraso, el del vale (termina cuando la propuesta llega al asesor).
@@ -295,7 +295,9 @@ const filtrarPares = (pares, pred) => ({
 const AGRUPACIONES_GLOBAL = ['tienda', 'taller', 'asesor', 'disenador'];
 
 async function resolverAlcance(usuario) {
-  switch (usuario.rolId) {
+  // El supervisor se reconoce por `vales.supervisar`; el rol 3 sin el permiso queda con alcance de asesor, nunca el global.
+  const rolAlcance = esSupervisor(usuario) && !esAdministrador(usuario) ? ROL.SUPERVISOR : (usuario.rolId === ROL.SUPERVISOR ? ROL.ASESOR : usuario.rolId);
+  switch (rolAlcance) {
     case ROL.ADMINISTRADOR:
       return { rol: 'administrador', equipo: true, agrupaciones: AGRUPACIONES_GLOBAL };
     case ROL.ASESOR:
