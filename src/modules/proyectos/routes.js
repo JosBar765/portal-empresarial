@@ -4,9 +4,23 @@ const express = require('express');
 const router = express.Router();
 const configController = require('./controllers/configController');
 const catalogoController = require('./controllers/catalogoController');
+const clienteController = require('./controllers/clienteController');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
 const administrar = requirePermission('proyectos.administrar');
+const registrar = requirePermission('proyectos.clientes.registrar');
+
+// Empresas de la base global (las lecturas solo exigen proyectos.ver; cada una ve los países de su alcance)
+router.get('/clientes/opciones', clienteController.opciones);
+router.get('/clientes', clienteController.listar);
+router.post('/clientes/duplicados', registrar, clienteController.duplicados);
+router.post('/clientes', registrar, clienteController.crear);
+router.put('/clientes/contactos/:contactoId', registrar, clienteController.actualizarContacto);
+router.patch('/clientes/contactos/:contactoId/activo', registrar, clienteController.cambiarActivoContacto);
+router.get('/clientes/:id', clienteController.obtener);
+router.put('/clientes/:id', registrar, clienteController.actualizar);
+router.post('/clientes/:id/estado', clienteController.cambiarEstado);
+router.post('/clientes/:id/contactos', registrar, clienteController.agregarContacto);
 
 // Centro de configuración: inicio (A0), parámetros (A3), reglas e interruptores (A5), historial (A10) y país
 router.get('/config/parametros', administrar, configController.listar('parametros'));

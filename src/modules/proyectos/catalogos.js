@@ -49,6 +49,12 @@ const CATALOGOS = {
     campos: [nombre],
     usos: '(SELECT COUNT(*) FROM proy_participaciones x WHERE x.motivo_perdida_id = t.id)'
   },
+  no_contactar: {
+    plural: 'Motivos de «No contactar»',
+    tabla: 'proy_motivos_no_contactar', pk: 'id', activo: 'activo', orden: 'orden', singular: 'un motivo',
+    campos: [nombre],
+    usos: '(SELECT COUNT(*) FROM proy_cliente_eventos x WHERE x.motivo = t.nombre)'
+  },
   estructuras: {
     plural: 'Estructuras de empresa',
     tabla: 'proy_estructuras', pk: 'id', activo: 'activa', orden: 'orden', singular: 'una estructura',

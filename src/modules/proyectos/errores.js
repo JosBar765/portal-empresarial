@@ -8,9 +8,21 @@ function errorDeValidacion(mensaje, campos) {
   return error;
 }
 
-// Campos extra del cuerpo de error para que la pantalla marque cada campo.
-function extraDeError(error) {
-  return error && error.campos ? { campos: error.campos } : {};
+// Error 409 que lleva las empresas parecidas para que la pantalla las muestre: { error, codigo, duplicados }.
+function errorDePosibleDuplicado(duplicados) {
+  const error = new ErrorDeNegocio('Esta empresa se parece a una que ya está en la base.', 409);
+  error.codigo = 'POSIBLE_DUPLICADO';
+  error.duplicados = duplicados;
+  return error;
 }
 
-module.exports = { errorDeValidacion, extraDeError };
+// Campos extra del cuerpo de error para que la pantalla marque cada campo o muestre los duplicados.
+function extraDeError(error) {
+  const extra = {};
+  if (error && error.campos) extra.campos = error.campos;
+  if (error && error.codigo) extra.codigo = error.codigo;
+  if (error && error.duplicados) extra.duplicados = error.duplicados;
+  return extra;
+}
+
+module.exports = { errorDeValidacion, errorDePosibleDuplicado, extraDeError };
