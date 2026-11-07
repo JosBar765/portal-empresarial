@@ -80,6 +80,10 @@
   --vale-estado-solicitando-modificacion-bg: #FFDAD6;  --vale-estado-solicitando-modificacion-fg: #93000A;
   --vale-estado-modificado-bg: #ADC8F5;                --vale-estado-modificado-fg: #022448;
 
+  /* Módulo Proyectos: acento ciruela contenido (mismo valor que su entrada en MODULOS) */
+  --modulo-proyectos: #7A3F5C;
+  --modulo-proyectos-light: #F5ECF1;
+
   /* Radios */
   --radius-xs: 4px;      /* detalles pequeños */
   --radius-sm: 6px;      /* botones, inputs, chips pequeños */
