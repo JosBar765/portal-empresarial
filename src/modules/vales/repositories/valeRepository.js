@@ -199,10 +199,28 @@ class ValeRepository {
   // Solo para revertir una creación fallida, un rechazo, una baja o un vencimiento (ver valeCreacionService.eliminarValeConArchivos):
   // el resto del ciclo nunca borra filas; el cascade de FKs limpia lo demás.
   // Si era un MOD- sin hermanos, reabre el original con su historial: todo o nada.
-  async eliminarYReabrirOriginal({ valeId, valeOriginalId, usuarioId, accionHistorial }) {
+  // Con `baja` ({ motivo, razon, actorId, actorCorreo }) deja además el registro permanente en `vale_bajas`, antes del
+  // DELETE y en la misma transacción: si el registro falla, el vale no se borra. Sin `baja` (revertir una creación
+  // fallida) no registra nada.
+  async eliminarYReabrirOriginal({ valeId, valeOriginalId, usuarioId, accionHistorial, baja = null }) {
     return db.transaccion(async (tx) => {
       // Bloquea al original para que no compita con una aprobación concurrente.
       if (valeOriginalId) await tx.query('SELECT id FROM vales WHERE id = ? FOR UPDATE', [valeOriginalId], 'vale:bloquear_original');
+      if (baja) {
+        const registro = await tx.query(
+          `INSERT INTO vale_bajas (correlativo, cliente_empresa, cliente_nombre, asesor_id, asesor_nombre, asesor_correo,
+             vale_original_correlativo, estado, motivo, razon, eliminado_por_id, eliminado_por_correo, creado_en_vale)
+           SELECT v.correlativo, v.cliente_empresa, v.cliente_nombre, v.asesor_id, a.nombre, a.email,
+             o.correlativo, ev.nombre, ?, ?, ?, ?, v.creado_en
+           FROM vales v
+           LEFT JOIN estados_vale ev ON ev.id = v.estado_id
+           LEFT JOIN usuarios a ON a.id = v.asesor_id
+           LEFT JOIN vales o ON o.id = v.vale_original_id
+           WHERE v.id = ?`,
+          [baja.motivo, baja.razon, baja.actorId || null, baja.actorCorreo || null, valeId], 'vale:registrar_baja'
+        );
+        if (registro.affectedRows !== 1) throw new Error('No se pudo registrar la baja del vale.');
+      }
       await tx.query('DELETE FROM vales WHERE id = ?', [valeId], 'vale:delete');
       if (!valeOriginalId) return false;
       const res = await tx.query(
