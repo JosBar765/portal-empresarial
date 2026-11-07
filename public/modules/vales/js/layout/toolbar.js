@@ -1,9 +1,8 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
+import { ROL, esEncargadoTaller, esDeTallerODisenador, rolVista } from '../config/roles.js';
 import { obtenerDisenadoresAsignables, obtenerCalendarioBuzon } from '../api/valesApi.js';
 import { crearBarraPeriodo } from '../components/barraPeriodoReportes.js';
-import { ROLES_TALLER_Y_DISENADOR } from '../config/roles.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { crearFiltroTiendas } from '/js/menuCascada.js';
 import { resolverTiendaIds, valorVigente } from '/js/filtroCascada.js';
@@ -29,10 +28,10 @@ function guardarFiltroTienda(valor) {
 export function wireToolbar() {
   // Misma barra de período que Reportes (Hoy · Día · Semana · Mes · Desde–Hasta), con su propio estado: state.ventana.
   const cambiarVentana = (ventana) => { state.ventana = ventana; barra.pintar(); cargarBuzon(); };
-  // El Supervisor (con vales.ver_cupo) y el Asesor ven el cupo de los talleres por día; el Encargado/Asistente, cuántos vales tiene
+  // Quien tiene vales.ver_cupo ve el cupo de los talleres por día; el Encargado/Asistente, cuántos vales tiene
   // su taller; el Diseñador, cuántas asignaciones suyas.
   const permisos = state.user.permissions || [];
-  const conInfoPorDia = permisos.includes('vales.ver_cupo') || state.user.rolId === ROL.ASESOR || ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user));
+  const conInfoPorDia = permisos.includes('vales.ver_cupo') || esDeTallerODisenador(state.user);
   const barra = crearBarraPeriodo($('#ventana-barra'), {
     prefijo: 'vt',
     obtener: () => state.ventana,
@@ -51,7 +50,7 @@ export function wireToolbar() {
     debounceBusqueda = setTimeout(() => { state.busqueda = valor; cargarBuzon(); }, 300);
   });
   // Combobox de diseñadores del encargado: filtra el Buzón por el diseñador asignado (se combina con los contadores).
-  if (ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user))) {
+  if (esEncargadoTaller(state.user)) {
     const selectDisenador = $('#filtro-disenador');
     obtenerDisenadoresAsignables().then(disenadores => {
       (Array.isArray(disenadores) ? disenadores : []).forEach(d => {
@@ -71,7 +70,7 @@ export function wireToolbar() {
   // (catalogos) ya viene acotado a lo que cada uno puede filtrar: el catálogo
   // completo para Gerente/Administrador, solo sus tiendas cubiertas para
   // Supervisor.
-  if ([ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR].includes(rolEncargadoDe(state.user))) {
+  if ([ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR].includes(rolVista(state.user))) {
     const contenedorTienda = $('#filtro-tienda');
     contenedorTienda.style.display = '';
     const tiendasMenu = state.catalogos.tiendasGerencia || state.catalogos.tiendas || [];

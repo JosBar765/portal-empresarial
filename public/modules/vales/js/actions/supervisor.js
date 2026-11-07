@@ -17,19 +17,50 @@ const MOTIVOS_RAPIDOS_CREACION = ['Corrige los datos del cliente y reenvía.', '
 const MOTIVOS_RAPIDOS_MODIFICACION = ['Esta modificación no procede.', 'Crea una nueva con el cambio completo.'];
 
 // El supervisor debe haber abierto "Ver" en el vale antes de autorizarlo (también se exige en el servidor).
-function htmlAvisoVisto(vale) {
-  return vale.visto
+function htmlAvisoVisto(visto) {
+  return visto
     ? '<p class="nota-visto"><ion-icon name="checkmark-circle-outline"></ion-icon> Ya revisaste este vale.</p>'
     : '<div class="form-aviso"><ion-icon name="alert-circle-outline"></ion-icon><span>Antes de autorizar, abre el vale con «Ver».</span></div>';
 }
 
-function registrarVisto(vale) {
-  vale.visto = true;
-  return marcarValeVisto(vale.id).catch(() => { /* el servidor lo exigirá al autorizar */ });
-}
-
 // Modal de autorización abierto en este momento (para avisarle si el asesor corrige el vale).
 let modalAutorizarAbierto = null;
+
+// Marcas de «visto» cuyo POST aún no responde, por id del vale (se vacían solas al terminar).
+const vistosEnCurso = new Map();
+
+// El «visto» sale de la fila vigente (la que trajo el último refresco del servidor); el objeto que llegó al clic puede ser una copia vieja.
+function estaVisto(vale) {
+  const fila = state.vales.find(f => f.id === vale.id);
+  return !!(fila ? fila.visto : vale.visto) || vistosEnCurso.has(vale.id);
+}
+
+function marcarVistoEnFilas(valeId) {
+  state.vales.forEach(f => { if (f.id === valeId) f.visto = true; });
+}
+
+// Con el POST ya confirmado, un modal de autorización abierto deja de exigir «Ver».
+function habilitarAutorizarAbierto(valeId) {
+  const abierto = modalAutorizarAbierto;
+  if (!abierto || abierto.valeId !== valeId || !abierto.overlay.isConnected) return;
+  const btn = abierto.overlay.querySelector('#btn-confirmar');
+  if (!btn || btn.dataset.enviando) return;
+  btn.disabled = false;
+  const aviso = abierto.overlay.querySelector('.form-aviso');
+  if (aviso) aviso.outerHTML = htmlAvisoVisto(true);
+}
+
+// El servidor guarda el visto; aquí se refleja por id en la fila vigente (no solo en el objeto recibido) y en el modal abierto.
+function registrarVisto(vale) {
+  vale.visto = true;
+  marcarVistoEnFilas(vale.id);
+  const envio = marcarValeVisto(vale.id)
+    .then(() => { marcarVistoEnFilas(vale.id); habilitarAutorizarAbierto(vale.id); })
+    .catch(() => { /* el servidor lo exigirá al autorizar */ })
+    .finally(() => { if (vistosEnCurso.get(vale.id) === envio) vistosEnCurso.delete(vale.id); });
+  vistosEnCurso.set(vale.id, envio);
+  return envio;
+}
 
 export function avisarCambioEnModalAutorizar(valeId) {
   const abierto = modalAutorizarAbierto;
@@ -55,7 +86,7 @@ export function abrirModalAutorizarCreacion(vale) {
   const { overlay, cerrar } = abrirModal({
     title: `Autorizar creación — ${vale.correlativo}`,
     bodyHtml: `
-      ${htmlAvisoVisto(vale)}
+      ${htmlAvisoVisto(estaVisto(vale))}
       <p style="font-size:13px;margin-bottom:10px;">Taller${talleresIds.length > 1 ? 'es' : ''} solicitado${talleresIds.length > 1 ? 's' : ''}: <strong>${nombresTalleres || 'Ninguno'}</strong></p>
       <p style="font-size:13px;">¿Autorizar? Se envía ahora al taller y queda firmado con tu nombre.</p>
     `,
@@ -66,12 +97,14 @@ export function abrirModalAutorizarCreacion(vale) {
     `
   });
   modalAutorizarAbierto = { valeId: vale.id, overlay };
-  overlay.querySelector('#btn-confirmar').disabled = !vale.visto;
+  overlay.querySelector('#btn-confirmar').disabled = !estaVisto(vale);
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
   overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
     const btn = overlay.querySelector('#btn-confirmar');
     btn.disabled = true;
+    btn.dataset.enviando = '1';
     try {
+      await vistosEnCurso.get(vale.id); // el servidor exige el visto ya guardado
       await autorizarCreacion(vale.id);
       window.toast.success('Creación autorizada', `${vale.correlativo} ya está ${talleresIds.length > 1 ? 'en los talleres' : 'en el taller'}.`);
       cerrar();
@@ -79,6 +112,7 @@ export function abrirModalAutorizarCreacion(vale) {
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
       btn.disabled = false;
+      delete btn.dataset.enviando;
       // Otro supervisor pudo haberlo autorizado un instante antes — refresca
       // el buzón para que este vale deje de aparecer accionable de inmediato,
       // sin esperar a que el evento de socket llegue o a un refresco manual.
@@ -167,7 +201,7 @@ export async function abrirModalAprobarModificacion(vale) {
   if (hayPropuesta) documentos.push({ etiqueta: 'Propuesta', cargar: () => obtenerPropuestaVale(vale.vale_original_id, { tipo: 'general' }) });
 
   // Abrir el visor cuenta como haber visto el vale nuevo (pestaña inicial); el servidor lo exige al autorizar.
-  const visto = vale.visto ? Promise.resolve() : registrarVisto(vale);
+  const visto = estaVisto(vale) ? (vistosEnCurso.get(vale.id) || Promise.resolve()) : registrarVisto(vale);
   const autorizar = async ({ cerrar, boton }) => {
     boton.disabled = true;
     try {

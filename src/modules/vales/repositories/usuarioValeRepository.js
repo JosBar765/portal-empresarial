@@ -46,20 +46,20 @@ class UsuarioValeRepository {
     );
   }
 
-  async listarAsesoresPorSupervisor(supervisorId) {
+  async listarAsesoresPorSupervisor(supervisorId) { // Asesor = fila en asesores + permiso vales.crear (no el rol); los supervisores se excluyen, ven lo suyo por otra vía.
     return db.query(
       `SELECT DISTINCT u.id, u.nombre, u.email, a.tienda_id
        FROM usuarios u
        JOIN asesores a ON a.usuario_id = u.id
        JOIN supervisor_tiendas st ON st.tienda_id = a.tienda_id
-       WHERE u.rol_id = 2 AND u.activo = 1 AND st.usuario_id = ?
+       WHERE EXISTS (SELECT 1 FROM rol_permisos rp JOIN permisos p ON p.id = rp.permiso_id WHERE rp.rol_id = u.rol_id AND p.codigo = 'vales.crear') AND NOT EXISTS (SELECT 1 FROM supervisor_tiendas s WHERE s.usuario_id = u.id) AND u.activo = 1 AND st.usuario_id = ?
        ORDER BY u.nombre`,
       [supervisorId],
       'usuario:find_asesores_by_supervisor'
     );
   }
 
-  // Inverso de la anterior: todos los supervisores (rol 3) que cubren la
+  // Inverso de la anterior: todos los supervisores (con el permiso `vales.supervisar`) que cubren la
   // tienda de un asesor dado — puede haber MÁS de uno (supervisores
   // rotativos).
   async obtenerSupervisoresDeAsesor(asesorId) {
@@ -68,7 +68,7 @@ class UsuarioValeRepository {
        FROM usuarios u
        JOIN supervisor_tiendas st ON st.usuario_id = u.id
        JOIN asesores a ON a.tienda_id = st.tienda_id
-       WHERE u.rol_id = 3 AND u.activo = 1 AND a.usuario_id = ?
+       WHERE EXISTS (SELECT 1 FROM rol_permisos rp JOIN permisos p ON p.id = rp.permiso_id WHERE rp.rol_id = u.rol_id AND p.codigo = 'vales.supervisar') AND u.activo = 1 AND a.usuario_id = ?
        ORDER BY u.nombre`,
       [asesorId],
       'usuario:find_supervisores_by_asesor'

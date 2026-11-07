@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, rolEncargadoDe, esAsistente } from './config/roles.js';
+import { ROL, rolVista, esSupervisor, esAsistente, esEncargadoTaller, esDeTallerODisenador } from './config/roles.js';
 import { ESTADOS_LABEL, ESTADOS_VISIBLES_LABEL } from './config/estados.js';
 
 export function tienePermiso(codigo) {
@@ -7,41 +7,42 @@ export function tienePermiso(codigo) {
 }
 
 export function puede(accion) {
-  const r = rolEncargadoDe(state.user);
+  const r = rolVista(state.user);
   const admin = r === ROL.ADMINISTRADOR;
   switch (accion) {
     // El supervisor también crea y gestiona sus propios vales (si su rol tiene el permiso).
-    case 'crear': return admin || r === ROL.ASESOR || (r === ROL.SUPERVISOR && tienePermiso('vales.crear'));
-    case 'asignar': return admin || ROLES_ENCARGADO_TALLER.includes(r);
-    case 'revisar': return admin || ROLES_ENCARGADO_TALLER.includes(r);
+    case 'crear': return admin || tienePermiso('vales.crear');
+    // Asignar, revisar, verificar adjuntos y responder el rechazo de propuesta son un solo permiso: vales.gestionar_taller.
+    case 'asignar': return admin || tienePermiso('vales.gestionar_taller');
+    case 'revisar': return admin || tienePermiso('vales.gestionar_taller');
     // Un encargado de taller también puede trabajar un vale — pero SOLO si se
     // lo autoasignó (ver esAccionDeTrabajoVisible).
-    case 'trabajar': return admin || ROLES_TALLER_Y_DISENADOR.includes(r);
-    case 'confirmar': return admin || r === ROL.ASESOR || (r === ROL.SUPERVISOR && tienePermiso('vales.confirmar'));
-    case 'solicitarModificacion': return admin || r === ROL.ASESOR || (r === ROL.SUPERVISOR && tienePermiso('vales.solicitar_modificacion'));
-    case 'aprobarModificacion': return admin || r === ROL.SUPERVISOR;
-    case 'autorizarCreacion': return admin || r === ROL.SUPERVISOR;
+    case 'trabajar': return admin || tienePermiso('vales.trabajar');
+    case 'confirmar': return admin || tienePermiso('vales.crear');
+    case 'solicitarModificacion': return admin || tienePermiso('vales.crear');
+    case 'aprobarModificacion': return admin || tienePermiso('vales.supervisar');
+    case 'autorizarCreacion': return admin || tienePermiso('vales.supervisar');
     // La fusión depende del permiso, no del rol.
-    case 'corregir': return (r === ROL.ASESOR || r === ROL.SUPERVISOR) && tienePermiso('vales.corregir');
-    case 'darDeBaja': return (r === ROL.ASESOR || r === ROL.SUPERVISOR) && tienePermiso('vales.dar_de_baja');
-    case 'verificarAdjuntos': return tienePermiso('vales.verificar_adjuntos');
+    case 'corregir': return tienePermiso('vales.crear');
+    case 'darDeBaja': return !admin && tienePermiso('vales.crear') && tienePermiso('vales.dar_de_baja');
+    case 'verificarAdjuntos': return tienePermiso('vales.gestionar_taller');
     // Rechazar la propuesta: el asesor dueño. Responder el rechazo: el equipo del taller (el administrador no participa).
-    case 'rechazarPropuesta': return !admin && tienePermiso('vales.rechazar_propuesta');
-    case 'responderRechazoPropuesta': return !admin && tienePermiso('vales.responder_rechazo_propuesta');
+    case 'rechazarPropuesta': return !admin && tienePermiso('vales.crear');
+    case 'responderRechazoPropuesta': return !admin && tienePermiso('vales.gestionar_taller');
     case 'verHistorial': return tienePermiso('vales.ver_historial');
     case 'aprobarGeneral': return admin || tienePermiso('vales.aprobar_general');
     default: return false;
   }
 }
 
-// Responder adjuntos: solo el asesor dueño (o el supervisor en su PROPIO vale).
+// Responder adjuntos: solo el dueño del vale (con vales.crear), sea cual sea su rol.
 export function puedeResponderAdjuntos(v) {
-  return puede('corregir') && v.asesor_id === state.user.id;
+  return puede('corregir') && Number(v.asesor_id) === Number(state.user.id);
 }
 
 // Leer la conversación de adjuntos: el dueño la escribe y el supervisor que lo cubre solo la lee (el servidor valida la cobertura).
 export function puedeLeerConversacionAdjuntos(v) {
-  return puedeResponderAdjuntos(v) || state.user.rolId === ROL.SUPERVISOR;
+  return puedeResponderAdjuntos(v) || esSupervisor(state.user);
 }
 
 // Un encargado de taller ve en su buzón TODOS los vales de su taller,
@@ -50,22 +51,28 @@ export function puedeLeerConversacionAdjuntos(v) {
 // el que ÉL MISMO se autoasignó. El Diseñador y el Administrador siempre ven
 // su/cualquier vale asignado, sin este filtro.
 export function esAccionDeTrabajoVisible(v) {
-  if (state.user.rolId === ROL.DISENADOR || state.user.rolId === ROL.ADMINISTRADOR) return true;
+  if (state.user.rolId === ROL.ADMINISTRADOR || (tienePermiso('vales.trabajar') && !esEncargadoTaller(state.user))) return true;
   return Number(v.disenador_id) === Number(state.user.id);
 }
 
 // El supervisor también usa el estado "lógico" (estado_visible), pero solo en
-// su vista de Trabajo realizado.
-export function usaEstadosVisibles() {
-  return state.user.rolId === ROL.ASESOR || (state.user.rolId === ROL.SUPERVISOR && state.vista === 'trabajo');
+// su vista de Trabajo realizado; «Mis vales» (otros roles con vales.crear) también, y las filas propias (`_propio`) de Trabajo realizado.
+export function usaEstadosVisibles(v) {
+  return state.user.rolId === ROL.ASESOR || state.vista === 'mios' || !!(v && v._propio) || (esSupervisor(state.user) && state.vista === 'trabajo');
+}
+
+// Desde qué lado actúa el usuario en los chats: 'ASESOR' en «Mis vales» o en una fila propia; el servidor solo lo honra si es el dueño.
+// Se calcula en cada petición (nunca se guarda), así F5 y las reconexiones no lo dejan viejo.
+export function ladoDeChat(v) {
+  return (state.vista === 'mios' || !!(v && v._propio)) ? 'ASESOR' : null;
 }
 
 // El estado que corresponde MOSTRAR depende del rol: el asesor ve su versión
 // lógica; encargados y diseñadores ven el progreso DENTRO de su taller
 // (v.estado_taller); el resto ve el estado general del vale (v.estado).
 export function estadoActivo(v) {
-  if (usaEstadosVisibles()) return v.estado_visible;
-  if (ROLES_TALLER_Y_DISENADOR.includes(rolEncargadoDe(state.user))) return v.estado_taller || v.estado;
+  if (usaEstadosVisibles(v)) return v.estado_visible;
+  if (esDeTallerODisenador(state.user)) return v.estado_taller || v.estado;
   return v.estado;
 }
 
@@ -74,7 +81,7 @@ export function claseEstado(v) {
 }
 
 export function etiquetaEstado(v) {
-  if (usaEstadosVisibles()) return ESTADOS_VISIBLES_LABEL[v.estado_visible] || v.estado_visible;
+  if (usaEstadosVisibles(v)) return ESTADOS_VISIBLES_LABEL[v.estado_visible] || v.estado_visible;
   const clave = estadoActivo(v);
   return ESTADOS_LABEL[clave] || clave;
 }
@@ -89,15 +96,13 @@ export function miTaller() {
 }
 
 function salasPorRol(user) {
-  switch (rolEncargadoDe(user)) {
+  switch (rolVista(user)) {
     case ROL.ADMINISTRADOR: return ['vales:admin'];
     case ROL.ASESOR: return [`asesor:${user.id}`];
     // Además de su sala de supervisor, recibe lo de sus propios vales (sala de asesor).
     case ROL.SUPERVISOR: return [`supervisor:${user.id}`, `asesor:${user.id}`];
-    case ROL.ENCARGADO_DISENO:
-    case ROL.ENCARGADO_UV3D:
-    case ROL.ENCARGADO_PROTEXTIL:
-    case ROL.ENCARGADO_DISENO_LOCAL: {
+    // Quien tiene vales.gestionar_taller (rolVista lo unifica); su taller sale del dato, no del rol.
+    case ROL.ENCARGADO_DISENO: {
       const taller = miTaller();
       return taller ? [`taller:${taller.id}`] : [];
     }
@@ -114,6 +119,9 @@ function salasPorRol(user) {
 // sea cual sea su rol o taller: el aviso sigue al permiso.
 export function roomsParaUsuario(user) {
   const salas = salasPorRol(user);
+  // Quien crea vales (vales.crear) recibe lo de los suyos en su sala de asesor, sea cual sea su rol.
+  const sala = `asesor:${user.id}`;
+  if ((user.permissions || []).includes('vales.crear') && !salas.includes(sala)) salas.push(sala);
   if ((user.permissions || []).includes('vales.aprobar_general')) salas.push('vales:fusion');
   return salas;
 }

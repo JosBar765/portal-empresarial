@@ -20,6 +20,11 @@ discrepan, manda el código: corrige este archivo.
   nombres de rol de este documento describen quién tiene hoy ese permiso en
   `database/seed.sql`, pero el backend solo valida el permiso
   (`routes.js` → `requirePermission`).
+- Las acciones del **dueño** del vale (corregir, reenviar, dar de baja, responder adjuntos, solicitar modificación, confirmar,
+  rechazar propuesta) exigen el permiso `vales.crear` **y** ser el dueño (`vale.asesor_id`), no el rol asesor o supervisor:
+  cualquier rol con `vales.crear` y fila en `asesores` las ejerce sobre sus propios vales, ve su detalle y recibe sus eventos en
+  la sala `asesor:<id>`. La supervisión (autorizar, aprobar modificación, `/visto`) sigue siendo exclusiva del supervisor.
+  En la UI el dueño del vale ve sus acciones en el buzón sea cual sea su rol (lectores globales incluidos); el resto de roles conserva las suyas.
 - Toda transición se serializa con un lock por vale (`valeMutex`); además, el cupo del supervisor y el "un solo vale en proceso" del diseñador se serializan en colas por supervisor y por diseñador (`conColaDeSupervisor`, `conColaDeDisenador`). Se anota en
   `vale_historial`.
 - Hora de referencia: UTC-6 fijo (Guatemala), calculado por offset, no por la
@@ -197,7 +202,7 @@ Notas:
 - **Rechazo (`RECHAZADO`):** el supervisor debe escribir un motivo (máx. 50
   palabras / 400 caracteres); el modal trae «Rechazado» escrito (editable) y mensajes sugeridos que se aplican con un clic (en una modificación, otros dos). El vale vuelve al asesor, que recibe una
   notificación y ve "Ver motivo del rechazo", "Corregir" y "Reenviar a
-  autorización" (este último dentro del modal del motivo, abajo a la izquierda; permiso `vales.corregir`) o puede darlo de baja. Al reenviar
+  autorización" (este último dentro del modal del motivo, abajo a la izquierda; permiso `vales.crear`) o puede darlo de baja. Al reenviar
   vuelve a `ESPERANDO_AUTORIZACION` y la marca de "visto" del supervisor se
   reinicia. Nada se borra al rechazar.
 - **Ver antes de autorizar:** el supervisor solo puede autorizar (creación o
@@ -216,7 +221,7 @@ Notas:
   rechaza un vale ya dado de baja, o el asesor da de baja uno ya autorizado, el
   sistema avisa con un mensaje claro y no cambia nada.
 - También mientras está en `ESPERANDO_AUTORIZACION` o `RECHAZADO`, el asesor dueño puede **corregir**
-  sus datos (permiso `vales.corregir`): cliente, talleres, fechas, venta, descripción y
+  sus datos (permiso `vales.crear`): cliente, talleres, fechas, venta, descripción y
   archivos. El vale conserva su id, correlativo y estado; el PDF se regenera y la
   corrección queda en el historial. Una vez autorizado ya no es posible (después solo
   existe la solicitud de modificación).
@@ -302,7 +307,7 @@ La solicitud crea **un vale nuevo** (`MOD-<correlativo>`) y deja el vale modific
                       Luego el asesor lo confirma → RECIBIDO.
 ```
 
-- **Corregir un `MOD-` pendiente** (permiso `vales.corregir`, mientras espera autorización) se
+- **Corregir un `MOD-` pendiente** (permiso `vales.crear`, mientras espera autorización) se
   permite, pero la «Propuesta original» **no se puede quitar ni mover** y los **talleres no se
   pueden cambiar** (son los del original). Un `MOD-` ya autorizado no se puede corregir.
   Los errores de permiso o pertenencia (vale ajeno, asesor que no está a cargo del supervisor, rol sin permiso)
@@ -333,7 +338,7 @@ La solicitud crea **un vale nuevo** (`MOD-<correlativo>`) y deja el vale modific
 
 ### 1.2 Rechazo de propuesta
 
-Con el vale en `PENDIENTE_CONFIRMACION` (también un vale MOD), el **asesor dueño** o el **supervisor dueño** (permiso `vales.rechazar_propuesta`, roles
+Con el vale en `PENDIENTE_CONFIRMACION` (también un vale MOD), el **asesor dueño** o el **supervisor dueño** (permiso `vales.crear`, roles
 Asesor y Supervisor de Ventas; cada uno solo en los vales que creó) puede rechazar la propuesta de **uno o varios talleres** (cada uno activo y con su propuesta
 `APROBADO`) escribiendo un mensaje obligatorio de 1 a 200 caracteres. Solo regresan los talleres elegidos; los demás siguen
 `APROBADO`. No se puede rechazar con una modificación en trámite.
@@ -343,7 +348,7 @@ Asesor y Supervisor de Ventas; cada uno solo en los vales que creó) puede recha
    · se abre una ronda ABIERTO; el vale y la fila del taller no cambian; el atraso sigue detenido
    · el asesor NO puede confirmar ni pedir una modificación mientras esté ABIERTO (sí puede CANCELARLO)
         │
-        ▼  Encargado o asistente de ESE taller (permiso vales.responder_rechazo_propuesta)
+        ▼  Encargado o asistente de ESE taller (permiso vales.gestionar_taller)
  ┌──────────────┴───────────────────────────────┐
  │ RECHAZA (mensaje obligatorio, p. ej.          │ ACEPTA
  │ «tramita una modificación»)                   │
@@ -389,7 +394,7 @@ Asesor y Supervisor de Ventas; cada uno solo en los vales que creó) puede recha
 - **Códigos HTTP:** ronda inexistente o de otro vale, 404; ronda ya cerrada o vale/taller en otro estado, 409; sin acceso, 403; mensaje vacío o largo, 400 (siempre después de comprobar el acceso).
 - **Tablas:** `vale_rechazos_propuesta` (una ronda por taller: `ABIERTO`, `ACEPTADO`, `RECHAZADO`, `CANCELADO`) y
   `vale_rechazo_propuesta_mensajes` (el hilo por `vale_taller_id`). La modificación básica con chat anterior
-  (`vale_modificaciones_basicas`, `vale_modificacion_mensajes` y el permiso `vales.responder_modificacion_basica`) quedó sin uso y no se borra.
+  (`vale_modificaciones_basicas`, `vale_modificacion_mensajes` y el permiso `vales.responder_modificacion_basica`) quedó sin uso; el permiso lo retiró la migración `quitar_permisos_sin_uso` y las tablas no se borran.
 - **Avisos y tiempo real:** eventos `RECHAZO_PROPUESTA_SOLICITADO`, `_MENSAJE`, `_ACEPTADO`, `_RECHAZADO` y `_CANCELADO`, entre el asesor
   y la sala del taller (encargado y asistentes; el diseñador asignado solo recibe el refresco silencioso para ver el cierre con el chat abierto).
   Cada paso queda en `vale_historial`. Rutas: `/api/vales/:id/rechazos-propuesta` (GET: todas las rondas visibles para quien consulta, abiertas o
@@ -477,9 +482,9 @@ Los adjuntos de un vale (vectores, fuentes, etc.) viajan por **correo**, fuera d
               PENDIENTE_ASIGNACION  →  (flujo normal de la sección 2)
 ```
 
-- **Quién:** el permiso `vales.verificar_adjuntos` lo tienen los roles 4, 5, 9 y 10 (encargados de taller) y el 7 (asistente, solo Diseño). Cada uno actúa solo sobre **su** taller. **Rechazar es un rechazo general con mensaje obligatorio** (1 a 200 caracteres) para el asesor, que abre la conversación de ese taller (ver «Conversación del rechazo»). **Verificar** pide confirmación en un modal («¿Estás seguro que recibiste los adjuntos del vale de arte antes de trabajar?»); rechazar también tiene su modal.
+- **Quién:** el permiso `vales.gestionar_taller` lo tienen los roles 4, 5, 9 y 10 (encargados de taller) y los asistentes (7, 11, 12 y 13). Cada uno actúa solo sobre **su** taller (qué taller es el suyo es dato: `talleres.encargado_id` y `taller_disenadores`). **Rechazar es un rechazo general con mensaje obligatorio** (1 a 200 caracteres) para el asesor, que abre la conversación de ese taller (ver «Conversación del rechazo»). **Verificar** pide confirmación en un modal («¿Estás seguro que recibiste los adjuntos del vale de arte antes de trabajar?»); rechazar también tiene su modal.
 - **Por taller:** un taller que rechaza no frena a los demás del mismo vale; el asesor responde **una vez por taller** rechazado.
-- **Respuesta del asesor** (permiso `vales.corregir`, solo el dueño del vale): botón «Solventado», con un mensaje editable de hasta 200 caracteres, prellenado con «Solventado». El botón «Ya lo atendí» también está en el pie del chat de la conversación (mientras el taller espera su respuesta), para que el asesor no olvide avisar al taller al terminar de conversar. El mensaje es **obligatorio**: vacío o solo espacios se rechaza («Escribe un mensaje.») y el botón «Enviar» se deshabilita sin texto; si falta el taller, el error dice «Indica a qué taller respondes.». El vale vuelve al encargado, que ve el mensaje y puede verificar o rechazar otra vez (el ciclo se repite). Mientras el asesor no responde, el encargado no tiene acciones; un supervisor que no es el dueño no responde, pero que cubra al asesor puede leer la conversación (con el mismo ícono rojo, solo lectura).
+- **Respuesta del asesor** (permiso `vales.crear`, solo el dueño del vale): botón «Solventado», con un mensaje editable de hasta 200 caracteres, prellenado con «Solventado». El botón «Ya lo atendí» también está en el pie del chat de la conversación (mientras el taller espera su respuesta), para que el asesor no olvide avisar al taller al terminar de conversar. El mensaje es **obligatorio**: vacío o solo espacios se rechaza («Escribe un mensaje.») y el botón «Enviar» se deshabilita sin texto; si falta el taller, el error dice «Indica a qué taller respondes.». El vale vuelve al encargado, que ve el mensaje y puede verificar o rechazar otra vez (el ciclo se repite). Mientras el asesor no responde, el encargado no tiene acciones; un supervisor que no es el dueño no responde, pero que cubra al asesor puede leer la conversación (con el mismo ícono rojo, solo lectura).
 - **Plazo único de N horas laborales** desde el **primer** rechazo del taller (`vale_talleres.adjuntos_vence_en`): no se reinicia con rechazos posteriores. Cuando queda el 25% del plazo (en tiempo laboral) se avisa **una sola vez por taller** al asesor, a sus supervisores y al encargado de **cada** taller del vale (encargado + asistentes, no a los diseñadores); si dos talleres tienen adjuntos rechazados en esa ventana, cada persona recibe un aviso por taller. En cambio, cuando un taller **verifica** sus adjuntos el aviso va solo a ese taller (más el asesor y los supervisores): los demás talleres no se enteran. Si vence con el taller todavía en `ADJUNTOS_RECHAZADOS`, en un vale con **2 o más talleres activos** se **da de baja solo a ese taller** (`activo = 0`, mismo núcleo que la baja manual del asesor, ver `documentacion/baja_taller_multitaller.md`) y el vale sigue para los demás, estén o no avanzados; se hace taller por taller. Si es el **último taller activo** (un vale de un solo taller o, en uno multitaller, el que queda tras las bajas anteriores) se **borra el vale completo** con sus archivos y se libera el cupo del supervisor; un vale `MOD-` conserva el comportamiento anterior (se borra, salvo que otro taller lo proteja, y deja el original intacto). El aviso del 25% se envía siempre en un vale multitaller («ese taller se dará de baja del vale»); en un vale de un taller o `MOD-` solo si se va a borrar. Si el asesor ya respondió, la baja no se hace, aunque el encargado rechace después de pasado el plazo (en ese caso la siguiente pasada la hace). Lo hace `adjuntosWatcher.js` (60 s), calcado de `vigenciaWatcher.js`.
 - **Dar de baja:** el asesor puede dar de baja un vale **ya autorizado** mientras algún taller esté en `ADJUNTOS_RECHAZADOS` o `ADJUNTOS_RESPONDIDOS` (no en `VERIFICANDO_ADJUNTOS`). Cancela el vale completo; los talleres que ya trabajaban, sus encargados y el diseñador asignado reciben un aviso (tipo `VALE_DADO_DE_BAJA`, calculado antes de borrar el vale) y el vale desaparece de su vista.
 - **Dar de baja un solo taller** (`POST /api/vales/:id/talleres/:tallerId/baja`, permiso `vales.dar_de_baja`, solo el asesor dueño): en un vale con **2 o más talleres activos**, el asesor puede quitar únicamente a un taller que esté en `ADJUNTOS_RECHAZADOS` o `ADJUNTOS_RESPONDIDOS`; el vale sigue para los demás. La fila del taller queda con `activo = 0` (se conservan historial y mensajes), su conversación se cierra, se actualiza `vales.talleres_solicitados`, se recalcula el estado general con la misma regla de siempre (si los que quedan ya están aprobados, pasa a `APROBADO_DEPARTAMENTO` con 2 o más talleres o a `PENDIENTE_CONFIRMACION` con uno) y el vale **no** se borra. El botón está en el modal del icono «Dar de baja» del buzón, que lista los talleres con su estado y también ofrece dar de baja el vale completo. No aplica a un `MOD-` ni a un vale de un solo taller (ahí el icono abre directo la baja del vale completo). Detalle en `documentacion/baja_taller_multitaller.md`.
@@ -497,18 +502,18 @@ cambia quién puede hacer cada acción.
 |---|---|---|
 | Administrador (1) | `vales.ver`, `vales.ver_reportes`, `vales.ver_historial` (+ `admin.*`) | Ve todo el buzón. **No** tiene permisos de escritura sobre vales: no puede autorizar, asignar, aprobar ni confirmar. En las filas solo tiene tres acciones de lectura (ver §6). |
 | Asesor de Ventas (2) | `ver`, `crear`, `editar`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir`, **`rechazar_propuesta`** | Crea vales; los corrige o da de baja antes de ser autorizados; confirma el recibido, rechaza la propuesta de un taller (§1.2) o solicita la modificación. |
-| Supervisor de Ventas (3) | `ver`, `autorizar_creacion`, `aprobar_modificacion`, `supervisar`, `ver_cupo`, y para sus propios vales `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir`, `rechazar_propuesta` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`supervisor_tiendas`). También crea y gestiona **sus propios vales** (ver «Vales del supervisor» abajo). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
-| Encargado de Diseño (4) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Dueño del taller "Diseño". Asigna y revisa, puede trabajar vales él mismo, y **fusiona** los vales multi-taller. |
-| Encargado de Diseño UV/3D (5) | `ver`, `asignar`, `revisar`, `trabajar` | Dueño del taller "Diseño UV/3D". Sin fusión. |
+| Supervisor de Ventas (3) | `ver`, `supervisar` (marcar visto, autorizar/rechazar creaciones y aprobar/rechazar modificaciones; fusiona los antiguos `autorizar_creacion` y `aprobar_modificacion` en la migración `permisos_supervisor_en_supervisar`, y solo lo tiene este rol), `ver_cupo`, y para sus propios vales `crear`, `confirmar`, `solicitar_modificacion`, `dar_de_baja`, `corregir`, `rechazar_propuesta` | Autoriza/rechaza creaciones y aprueba/rechaza modificaciones **solo de los asesores bajo su mando** (`supervisor_tiendas`). También crea y gestiona **sus propios vales** (ver «Vales del supervisor» abajo). Puede haber varios supervisores por tienda (rotativos). Ve su vista Rendimiento. |
+| Encargado de Diseño (4) | `ver`, `gestionar_taller`, `trabajar`, **`aprobar_general`** | Dueño del taller "Diseño". Asigna y revisa, puede trabajar vales él mismo, y **fusiona** los vales multi-taller. |
+| Encargado de Diseño UV/3D (5) | `ver`, `gestionar_taller`, `trabajar` | Dueño del taller "Diseño UV/3D". Sin fusión. |
 | Diseñador (6) | `ver`, `trabajar` | Comienza, pausa, reanuda, cancela y entrega sus vales. |
-| Asistente de Diseño (7) | `ver`, `asignar`, `revisar`, `trabajar`, **`aprobar_general`** | Clon operativo completo del Encargado de Diseño. |
+| Asistente de Diseño (7) | `ver`, `gestionar_taller`, `trabajar`, **`aprobar_general`** | Clon operativo completo del Encargado de Diseño. |
 | Gerente (8) | `ver`, `ver_reportes`, `ver_historial` | Solo lectura, con las mismas tres acciones de lectura que el Administrador (ver §6). |
-| Encargado de Protextil (9) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de su taller; puede trabajar vales él mismo, pero **sin fusión**. |
-| Diseño Local (10) | `ver`, `asignar`, `revisar`, `trabajar` | Encargado de un taller de Diseño Local (ligado a una tienda); sin fusión. |
+| Encargado de Protextil (9) | `ver`, `gestionar_taller`, `trabajar` | Encargado de su taller; puede trabajar vales él mismo, pero **sin fusión**. |
+| Diseño Local (10) | `ver`, `gestionar_taller`, `trabajar` | Encargado de un taller de Diseño Local (ligado a una tienda); sin fusión. |
 
-> **Rechazo de propuesta (§1.2).** `vales.rechazar_propuesta` lo tienen los roles Asesor (2) y Supervisor de Ventas (3); este último solo sobre la propuesta de los vales que él mismo creó. `vales.responder_rechazo_propuesta` lo tienen los
-> mismos roles que ya tenían `vales.verificar_adjuntos`: los encargados y asistentes de cada taller. Los usuarios deben cerrar sesión e iniciar de
-> nuevo para recibir los permisos. `vales.responder_modificacion_basica` quedó sin uso.
+> **Rechazo de propuesta (§1.2).** `vales.crear` (que cubre rechazar la propuesta) lo tienen los roles Asesor (2) y Supervisor de Ventas (3); este último solo sobre la propuesta de los vales que él mismo creó. `vales.gestionar_taller` (que fusiona los antiguos `asignar`, `revisar`, `verificar_adjuntos` y
+> `responder_rechazo_propuesta` en la migración `permisos_taller_en_gestionar_taller`) lo tienen los encargados y asistentes de cada taller (roles 4, 5, 7, 9, 10, 11, 12 y 13). Los usuarios deben cerrar sesión e iniciar de
+> nuevo para recibir los permisos. `vales.trabajar` (también del diseñador) y `vales.aprobar_general` siguen siendo permisos propios. `vales.responder_modificacion_basica` quedó sin uso y lo retiró la migración `quitar_permisos_sin_uso`.
 
 > **Nombre del rol 6.** El rol que trabaja los vales en el taller se llama **Diseñador** (antes
 > «Técnico»), en pantalla, en la base y en el código: `vale_talleres.disenador_id`,
@@ -561,12 +566,14 @@ Cada rol tiene dos vistas en la barra lateral: **Buzón** (lo pendiente /
 activo) y **Trabajo realizado** (lo ya hecho, ordenado por fecha). Las tablas
 tienen las mismas columnas para todos; cambian filtros, orden y acciones.
 
+**«Mis vales».** Un rol con `vales.crear` y `vales.ver` que no es Asesor, Supervisor ni Administrador (Gerente, Diseñador, Encargado, Asistente…) ve en la barra lateral una tercera vista, «Mis vales» (`GET /api/vales?vista=mios`, que exige `vales.crear`; sin él responde 403). Es el Buzón del asesor aplicado solo a los vales que creó el propio usuario: los mismos contadores por paso del pipeline (Por autorizar… Por recibir, Modificados, Atrasados), el estado «lógico» del asesor, la columna Taller visible y un pipeline sin las etiquetas de acción del taller. Se carga aparte de su Buzón de rol, así que incluye sus vales aunque estén en otro taller, y las únicas acciones son las del dueño (ver y decidir, solicitar modificación, rechazo de propuesta, corregir, dar de baja, historial). Sus Buzón y Trabajo realizado no cambian. El **Trabajo realizado** mezclado con los vales propios queda para una etapa posterior. El dueño que también es del taller (encargado, asistente) actúa como asesor desde «Mis vales» y como taller desde su Buzón: la pantalla pide `lado=ASESOR` en los chats (`/mensajes` y `/rechazos-propuesta/:rid/mensajes`) y el servidor solo lo honra si es el dueño; cancelar el rechazo es siempre del dueño.
+
 | Rol | Buzón (contadores) | Trabajo realizado |
 |---|---|---|
 | Asesor | Por autorizar · Por asignar · En proceso · En revisión · Por recibir (uno por paso del pipeline, §10) + los interruptores **Modificados** y **Atrasados**, que se combinan con cualquiera (al combinar **Atrasados** con otra tarjeta, su número se recalcula con los atrasados de esa selección; las demás tarjetas no cambian). Excluye RECIBIDO. | Vales `RECIBIDO` (un vale confirmado sigue ahí aunque tenga una modificación en curso). Total y recibidos hoy. |
 | Supervisor | Los mismos contadores por paso, Modificados y Atrasados que el asesor, sobre **todos los vales activos de su equipo** (y los que crea él). | Dos grupos: lo que **él** autorizó (por fecha de autorización) y lo que sus asesores confirmaron (por `confirmado_en`). Un vale que cae en ambos aparece una vez. |
-| Encargado de taller | Por asignar · Asignado (en manos de diseñadores: asignado, en proceso o en pausa) · Mis asignaciones (los que él mismo se asignó) · Por revisar · Atrasados (+ **Por fusionar** si tiene `aprobar_general`), y un combobox para filtrar por diseñador. Muestra el estado **de la fila de su taller**, no el general. | Vales con fila `APROBADO` en su taller (con "Ver propuesta" de su diseñador), + sus fusiones si fusiona. |
-| Diseñador | Mis asignaciones (sin retraso) · Mis asignaciones (con atraso) · Vale en proceso (ve también `EN_PAUSA` y `EN_REVISION` en la lista). | Vales que su taller aprobó, con su propuesta. |
+| Encargado de taller | Por asignar · Asignado (en manos de diseñadores: asignado, en proceso o en pausa) · Mis asignaciones (los que él mismo se asignó) · Por revisar · Atrasados (+ **Por fusionar** si tiene `aprobar_general`), y un combobox para filtrar por diseñador. Muestra el estado **de la fila de su taller**, no el general. | Vales con fila `APROBADO` en su taller (con "Ver propuesta" de su diseñador), + sus fusiones si fusiona. Con `vales.crear`, suma sus **vales propios ya confirmados** (`RECIBIDO`), con estado, pipeline y acciones de dueño (incluida «Solicitar modificación»); sin duplicar el que además trabajó su taller. |
+| Diseñador | Mis asignaciones (sin retraso) · Mis asignaciones (con atraso) · Vale en proceso (ve también `EN_PAUSA` y `EN_REVISION` en la lista). | Vales que su taller aprobó, con su propuesta. Con `vales.crear`, suma sus vales propios ya confirmados, presentados como los de un asesor (igual que el Encargado). |
 | Administrador | Todo, con contadores generales (total, atrasados, recibidos hoy, pendientes de confirmación, por fusionar). | — |
 | Gerente | Buzón y Trabajo realizado del Asesor con los vales de todos, en solo lectura (como el Administrador, sin acciones): ver §6. | — |
 
@@ -835,13 +842,14 @@ Tabla unificada (correcciones 53): Gerente, Administrador, Supervisor y Encargad
 
 ## 12. Información por día en el calendario del Buzón
 
-El calendario desplegable de la barra del Buzón (el que filtra por día o mes) puede mostrar información de cada día según el rol. Ya **no existe** la pestaña «Cupo de talleres».
+El calendario desplegable de la barra del Buzón (el que filtra por día o mes) puede mostrar información de cada día según el rol y los permisos. Ya **no existe** la pestaña «Cupo de talleres».
 
-- **Supervisor** (permiso `vales.ver_cupo`, que se asigna desde «Roles y Permisos»): cupo diario de los talleres que tienen `limite_diario`, de los talleres de Munditrofeos (los generales, sin tienda) y del Diseño Local de sus tiendas (`tallerRepository.listarIdsPorSupervisor`; no depende de `taller_tiendas`, así que ve el cupo aunque su tienda no tenga talleres vinculados), con la misma regla del calendario de «Fecha de entrega»: verde con menos del 60 %, amarillo de 60 % a 89 %, naranja desde el 90 % y rojo si algún taller está lleno. Cada día lleva una barra por taller y un «+N» con los vales de su equipo que esperan autorización (no cuentan para el semáforo). Un rol con el permiso y sin tiendas propias ve todos los talleres con límite.
+- **Cupo de talleres (permiso `vales.ver_cupo`, que se asigna desde «Roles y Permisos»; es el único requisito para verlo):** el Supervisor (rol 3) y el Asesor (rol 2) lo reciben por migración (`cupo_talleres.sql` y `cupo_taller_al_asesor.sql`); cualquier otro rol lo ve solo si se le asigna. Para el Supervisor: cupo diario de los talleres que tienen `limite_diario`, de los talleres de Munditrofeos (los generales, sin tienda) y del Diseño Local de sus tiendas (`tallerRepository.listarIdsPorSupervisor`; no depende de `taller_tiendas`, así que ve el cupo aunque su tienda no tenga talleres vinculados), con la misma regla del calendario de «Fecha de entrega»: verde con menos del 60 %, amarillo de 60 % a 89 %, naranja desde el 90 % y rojo si algún taller está lleno. Cada día lleva una barra por taller y un «+N» con los vales de su equipo que esperan autorización (no cuentan para el semáforo). El Asesor ve los talleres que puede elegir (los generales y el Diseño Local de su tienda) y el «+N» de sus propios vales. Otro rol con el permiso que cree vales (`vales.crear`) ve lo mismo que el Asesor, con la tienda de su fila en `asesores` (sin tienda, solo los generales); un rol con el permiso que no cree vales ve todos los talleres con límite.
 - **Diseñador:** número de sus vales (los que tiene asignados) con entrega ese día. **Encargado/Asistente de taller:** número de vales de su taller con entrega ese día. Los días más cargados del mes se marcan con más intensidad.
-- **Pie del calendario:** detalle del día enfocado o elegido (`<taller> <programados>/<límite> · <libres> libres`, o `5 vales con entrega este día`). Al elegir un día, el pie ofrece **«Ver vales de este día»** (filtra el Buzón) y **«Ver reporte de este día»** (abre Reportes con período «Día» en esa fecha de entrega; solo con `vales.ver_reportes`). Asesor, Gerente y Administrador no ven información y un clic filtra y cierra como siempre.
+- **Pie del calendario:** detalle del día enfocado o elegido (`<taller> <programados>/<límite> · <libres> libres`, o `5 vales con entrega este día`). Al elegir un día, el pie ofrece **«Ver vales de este día»** (filtra el Buzón) y **«Ver reporte de este día»** (abre Reportes con período «Día» en esa fecha de entrega; solo con `vales.ver_reportes`). Quien no tiene `vales.ver_cupo` ni es Diseñador, Encargado o Asistente (p. ej. Gerente y Administrador sin el permiso) no ve información y un clic filtra y cierra como siempre.
+- **Otro rol con `vales.crear`** (Gerente, Diseñador, Encargado…) **que tiene fila en `asesores`:** crea vales como el Asesor. Sus talleres elegibles (selector, `capacidad-entrega` y `fechas-entrega`) son los generales y el Diseño Local de **su** tienda (la de `asesores`); sin fila en `asesores` (o sin tienda) solo recibe los talleres generales, ningún Diseño Local, igual que el Asesor sin tienda. Ver el cupo en el calendario del Buzón ya no depende de esto: requiere `vales.ver_cupo`. El Administrador no cambia.
 - **API:** `GET /api/vales/calendario-buzon?anio=&mes=` (`vales.ver`) devuelve `{ tipo: 'cupo' | 'conteo' | null, ... }` según el rol; reutiliza `capacidadEntregaService.obtenerCupoMes` y `capacidadRepository.contarPorDia`.
-- Migración: `cupo_talleres.sql` (permiso `vales.ver_cupo` y asignación al Supervisor).
+- Migraciones: `cupo_talleres.sql` (permiso `vales.ver_cupo` y asignación al Supervisor) y `cupo_taller_al_asesor.sql` (se lo da al Asesor, para que el cupo dependa solo del permiso). Los usuarios deben cerrar sesión e iniciar de nuevo para refrescar el token.
 
 **Visor emergente.** «Ver vale» y «Ver propuesta» (Buzón, modal del Supervisor y Reportes) abren una ventana emergente (`components/visorDocumento.js`) con pestañas «Vale de arte» / «Propuesta», en lugar de una pestaña nueva; incluye «Abrir en pestaña» y «Descargar» como respaldo. En el Supervisor, cerrar el visor abierto desde «Ver vale» (X, Escape o fondo) vuelve al modal «Ver vale de arte», igual que «Ver info».
 
@@ -883,7 +891,7 @@ En un vale con varios talleres, los talleres que comparten propuestas ven la úl
 
 ## 15. Borradores de vales
 
-Quien puede crear vales (`vales.crear`) guarda el formulario a medias como borrador: no es un vale (sin correlativo y sin las validaciones de envío), es privado, vive 30 días desde su creación y se borra solo con sus archivos (bucket `SUPABASE_STORAGE_BUCKET_BORRADORES`). Al guardarlo se aplican los mismos topes de texto del vale (nombre, empresa y correo 100; teléfono 20; código de producto, material, técnica y acabado 40; descripción 600), los de cantidad y cotización, y la misma elegibilidad de talleres (existentes y activos; Diseño Local solo el de la tienda del usuario y nunca mezclado con los generales), con los mismos mensajes; lo demás queda libre. Hay un tope por usuario (`max_borradores_por_usuario`, 15 por defecto, editable en «Horarios y feriados»). Para mandarlo a autorización se abre en el mismo modal y se pulsa «Crear Vale de Arte»: corre el `crearVale` normal con todas sus validaciones; sus adjuntos pasan al bucket normal con el nombre `{CORR}_...` y el borrador se marca enviado (`enviado_en`, oculto para el usuario) y se borra con sus archivos: Storage primero, la fila después; si Storage falla, el vigilante lo reintenta. Detalle en `documentacion/borradores.md`.
+`vales.crear` es el permiso único del asesor dueño: cubre crear, borradores, corregir, reenviar, responder adjuntos, confirmar, solicitar modificación y rechazar propuesta (solo sobre sus propios vales; el chequeo de dueño sigue en el servidor). `vales.dar_de_baja` sigue aparte. Quien puede crear vales (`vales.crear`) guarda el formulario a medias como borrador: no es un vale (sin correlativo y sin las validaciones de envío), es privado, vive 30 días desde su creación y se borra solo con sus archivos (bucket `SUPABASE_STORAGE_BUCKET_BORRADORES`). Al guardarlo se aplican los mismos topes de texto del vale (nombre, empresa y correo 100; teléfono 20; código de producto, material, técnica y acabado 40; descripción 600), los de cantidad y cotización, y la misma elegibilidad de talleres (existentes y activos; Diseño Local solo el de la tienda del usuario y nunca mezclado con los generales), con los mismos mensajes; lo demás queda libre. Hay un tope por usuario (`max_borradores_por_usuario`, 15 por defecto, editable en «Horarios y feriados»). Para mandarlo a autorización se abre en el mismo modal y se pulsa «Crear Vale de Arte»: corre el `crearVale` normal con todas sus validaciones; sus adjuntos pasan al bucket normal con el nombre `{CORR}_...` y el borrador se marca enviado (`enviado_en`, oculto para el usuario) y se borra con sus archivos: Storage primero, la fila después; si Storage falla, el vigilante lo reintenta. Detalle en `documentacion/borradores.md`.
 
 ## 16. Retención de archivos
 
