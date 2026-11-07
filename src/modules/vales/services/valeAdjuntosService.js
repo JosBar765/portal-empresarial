@@ -11,6 +11,7 @@ const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeMutex = require('./valeMutex');
 const valeTallerService = require('./valeTallerService');
 const valeCreacionService = require('./valeCreacionService');
+const { MOTIVOS_BAJA, armarBaja } = require('./valeBajas');
 const calendarioService = require('../../../core/calendario/calendarioService');
 const {
   ESTADOS_TALLER, esDeTaller, esValeDeModificacion, enriquecer, registrarHistorial,
@@ -282,7 +283,7 @@ class ValeAdjuntosService {
       const salas = await salasDeInvolucrados(vale, talleres);
       const original = esValeDeModificacion(vale) ? await valeRepository.obtenerPorId(vale.vale_original_id) : null;
       const horas = await calendarioService.horasVencimiento();
-      await valeCreacionService.eliminarValeConArchivos(valeId);
+      await valeCreacionService.eliminarValeConArchivos(valeId, await armarBaja(MOTIVOS_BAJA.VENCIMIENTO_ADJUNTOS));
       valeEvents.notificar({
         vale, tipo: 'ADJUNTOS_VENCIDOS', valeBorrado: true, nivel: 'alerta',
         texto: `${original ? '(solicitud de modificación) ' : ''}fue eliminado automáticamente: el asesor no envió los adjuntos en ${horas} ${horas === 1 ? 'hora laboral' : 'horas laborales'}${original ? `. ${original.correlativo} ya quedó como Recibido` : ''}`,

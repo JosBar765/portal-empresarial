@@ -27,6 +27,7 @@ const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
 const valeVistoService = require('./valeVistoService');
 const borradorService = require('./borradorService');
+const { MOTIVOS_BAJA, armarBaja } = require('./valeBajas');
 const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
   ESTADOS, hoyISO, horaActual, enriquecer,
@@ -272,7 +273,7 @@ class ValeCreacionService {
       const motivoLimpio = validarMotivoRechazo(motivo);
       if (modificacion) {
         const original = await valeRepository.obtenerPorId(vale.vale_original_id);
-        await this.eliminarValeConArchivos(valeId);
+        await this.eliminarValeConArchivos(valeId, await armarBaja(MOTIVOS_BAJA.MODIFICACION_RECHAZADA, usuario.id));
         const codigoOriginal = original ? original.correlativo : 'El vale original';
         valeEvents.notificar({
           vale, tipo: 'RECHAZADO', valeBorrado: true, nivel: 'alerta', actorId: usuario.id,
@@ -307,7 +308,7 @@ class ValeCreacionService {
       const original = esValeDeModificacion(vale) ? await valeRepository.obtenerPorId(vale.vale_original_id) : null;
       const horas = await calendarioService.horasVencimiento();
       const plazo = `${horas} ${horas === 1 ? 'hora laboral' : 'horas laborales'}`;
-      await this.eliminarValeConArchivos(valeId);
+      await this.eliminarValeConArchivos(valeId, await armarBaja(MOTIVOS_BAJA.VENCIMIENTO_VIGENCIA));
       valeEvents.notificar({
         vale, tipo: 'EXPIRADO', valeBorrado: true, nivel: 'alerta',
         texto: original
@@ -336,7 +337,7 @@ class ValeCreacionService {
         throw new Error(`${esValeDeModificacion(vale) ? 'Esta modificación ya fue autorizada' : 'Este vale ya fue autorizado'}: solo se puede dar de baja mientras un taller reclame sus adjuntos.`);
       }
       const salas = await salasDeInvolucrados(vale, talleres);
-      await this.eliminarValeConArchivos(valeId);
+      await this.eliminarValeConArchivos(valeId, await armarBaja(MOTIVOS_BAJA.BAJA_ASESOR, usuario.id));
       valeEvents.notificar({
         vale, accion: 'dado de baja', tipo: 'VALE_DADO_DE_BAJA', valeBorrado: true, actor: usuario.nombre, actorId: usuario.id, salas
       });
@@ -504,17 +505,19 @@ class ValeCreacionService {
   // best-effort: si Supabase sigue caído no hay forma de borrar ahí, pero
   // igual se borra el vale de MySQL (no vale la pena bloquear el borrado
   // completo por un archivo que de todas formas queda inalcanzable).
-  async eliminarValeConArchivos(valeId) {
+  // `baja` (ver valeBajas.armarBaja) deja el registro permanente de la eliminación; sin ella no se registra nada
+  // (revertir una creación fallida: el vale nunca llegó a existir).
+  async eliminarValeConArchivos(valeId, baja = null) {
     const vale = await valeRepository.obtenerPorId(valeId);
     if (!vale) return;
     // Un MOD- toma también el lock del original (mismo orden que aprobarModificacion).
     if (vale.vale_original_id) {
-      return valeMutex.conLockDeVale(vale.vale_original_id, () => this._eliminarValeYArchivos(vale));
+      return valeMutex.conLockDeVale(vale.vale_original_id, () => this._eliminarValeYArchivos(vale, baja));
     }
-    return this._eliminarValeYArchivos(vale);
+    return this._eliminarValeYArchivos(vale, baja);
   }
 
-  async _eliminarValeYArchivos(vale) {
+  async _eliminarValeYArchivos(vale, baja) {
     const documentos = await documentoRepository.listarPorVale(vale.id);
     // Un archivo que otro vale (el original de una modificación) también usa no se borra de Storage.
     const rutas = [];
@@ -525,7 +528,7 @@ class ValeCreacionService {
     // Borrar el vale y reabrir el original (si era su único MOD-) es una sola transacción.
     await valeRepository.eliminarYReabrirOriginal({
       valeId: vale.id, valeOriginalId: vale.vale_original_id || null, usuarioId: vale.asesor_id,
-      accionHistorial: 'Solicitud de modificación eliminada: puede solicitar una nueva'
+      accionHistorial: 'Solicitud de modificación eliminada: puede solicitar una nueva', baja
     });
     // Storage solo tras confirmar la base; best-effort.
     for (const ruta of rutas) {
