@@ -61,12 +61,18 @@ class ValeTallerRepository {
     return db.query(`${SELECT_VALE_TALLER} WHERE vt.taller_id = ? AND vt.activo = 1`, [tallerId], 'vale_taller:list_activas_by_taller');
   }
 
-  async asignar(id, disenadorId, fechaAsignacion) {
-    await db.query(
-      "UPDATE vale_talleres SET disenador_id = ?, estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ASIGNADO'), fecha_asignacion = ?, atraso_congelado_en = NULL WHERE id = ?",
-      [disenadorId, fechaAsignacion, id],
+  // Escritura condicional: solo cambia la fila si todavía está en uno de `estadosPermitidos`. Devuelve cuántas filas
+  // cambió (1 o 0). Si dos peticiones compiten, la base atiende una primero y la segunda ya no encuentra ese estado;
+  // no depende del mutex en memoria, así que vale aunque haya más de un proceso Node.
+  async asignar(id, disenadorId, fechaAsignacion, estadosPermitidos) {
+    const res = await db.query(
+      `UPDATE vale_talleres SET disenador_id = ?, estado_id = (SELECT id FROM estados_taller WHERE nombre = 'ASIGNADO'),
+              fecha_asignacion = ?, atraso_congelado_en = NULL
+       WHERE id = ? AND estado_id IN (SELECT id FROM estados_taller WHERE nombre IN (?))`,
+      [disenadorId, fechaAsignacion, id, estadosPermitidos],
       'vale_taller:asignar'
     );
+    return res.affectedRows;
   }
 
   // El taller entregó su propuesta: su atraso se detiene en ese momento (hora de pared UTC-6, 'YYYY-MM-DD HH:MM:SS').
