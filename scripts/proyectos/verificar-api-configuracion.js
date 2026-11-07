@@ -148,6 +148,57 @@ async function main() {
     await llamar('POST', '/catalogos/nichos', { cuerpo: { nombre: '' } });
     const [{ n: total }] = await db.query('SELECT COUNT(*) AS n FROM proy_config_historial', [], 'api:historial_total');
     prueba('las peticiones rechazadas no dejan historial', total - historialAntes === antesDeFallos);
+
+    console.log('Resumen e historial (A0 y A10)');
+    r = await llamar('GET', '/config/resumen');
+    prueba('el resumen trae catálogos, parámetros, reglas, países e historial',
+      r.status === 200 && r.datos.catalogos.tipos === 9 && r.datos.parametros.total > 20 && r.datos.reglas.length === 3
+      && r.datos.paises.total >= 6 && r.datos.historial.total > 0 && r.datos.historial.recientes.length <= 5);
+    prueba('un país sin moneda local aparece como pendiente', r.datos.pendientes.some(p => p.tipo === 'pais_sin_moneda' && p.paises.includes('Belice')));
+
+    r = await llamar('GET', '/config/historial');
+    const primero = r.datos.items[0];
+    prueba('el historial lista con fecha, persona, área, objeto y cambios',
+      r.status === 200 && r.datos.items.length > 0 && !!primero.fecha && !!primero.usuario && !!primero.area && !!primero.objeto && Array.isArray(primero.cambios) && r.datos.total >= r.datos.items.length);
+    prueba('el historial trae las personas para el filtro', r.datos.personas.some(p => p.id === usuarioId));
+    r = await llamar('GET', '/config/historial?area=catalogos');
+    prueba('filtrar por área solo trae esa área', r.status === 200 && r.datos.items.length > 0 && r.datos.items.every(i => i.area === 'Catálogos'));
+    r = await llamar('GET', '/config/historial?area=reglas');
+    prueba('filtrar por reglas solo trae interruptores', r.datos.items.length > 0 && r.datos.items.every(i => i.area === 'Reglas'));
+    prueba('un área inexistente responde 400', (await llamar('GET', '/config/historial?area=otra')).status === 400);
+    prueba('una persona inválida responde 400', (await llamar('GET', '/config/historial?usuario=abc')).status === 400);
+    prueba('una fecha inválida responde 400', (await llamar('GET', '/config/historial?desde=2026-13-45')).status === 400);
+    prueba('una fecha futura no trae nada', (await llamar('GET', '/config/historial?desde=2999-01-01')).datos.items.length === 0);
+    prueba('una página que no existe viene vacía', (await llamar('GET', '/config/historial?pagina=999')).datos.items.length === 0);
+    prueba('filtrar por persona la encuentra', (await llamar('GET', `/config/historial?usuario=${usuarioId}`)).datos.items.length > 0);
+
+    const valorDe = async clave => (await llamar('GET', '/config/parametros')).datos.grupos.flatMap(g => g.parametros).find(p => p.clave === clave).valor;
+    await llamar('PUT', '/config/parametros', { cuerpo: { cambios: { 'seguimiento.dias_estancado': 20 } } });
+    await llamar('PUT', '/config/parametros', { cuerpo: { cambios: { 'seguimiento.dias_estancado': 30 } } });
+    r = await llamar('GET', '/config/historial?area=parametros');
+    const cambioDias = r.datos.items.find(i => i.objeto.startsWith('Días sin gestión'));
+    prueba('un cambio de parámetro es restaurable y muestra el antes y el después', cambioDias.restaurable && cambioDias.cambios[0].antes === '20 días' && cambioDias.cambios[0].despues === '30 días');
+    r = await llamar('POST', `/config/historial/${cambioDias.id}/restaurar`);
+    prueba('restaurar devuelve el parámetro a su valor anterior', r.status === 200 && (await valorDe('seguimiento.dias_estancado')) === 20);
+    r = await llamar('POST', `/config/historial/${cambioDias.id}/restaurar`);
+    prueba('restaurar dos veces el mismo cambio responde 409', r.status === 409);
+
+    await llamar('PUT', `/config/paises/${paisId}`, { cuerpo: { referenciaObligatoria: true, confirmacionVentas: null } });
+    await llamar('PUT', `/config/paises/${paisId}`, { cuerpo: { referenciaObligatoria: false } });
+    const cambioPais = (await llamar('GET', '/config/historial?area=paises')).datos.items[0];
+    prueba('un cambio de país muestra qué campo cambió', cambioPais.restaurable && cambioPais.cambios.some(c => c.campo === 'Referencia obligatoria' && c.antes === 'Sí' && c.despues === 'No'));
+    await llamar('POST', `/config/historial/${cambioPais.id}/restaurar`);
+    prueba('restaurar un país devuelve su valor anterior', (await llamar('GET', '/config/paises')).datos.paises.find(p => p.paisId === paisId).referenciaObligatoria === true);
+
+    await llamar('PUT', `/catalogos/nichos/${nicho.id}`, { cuerpo: { nombre: 'Nicho de prueba API 3' } });
+    const cambioNicho = (await llamar('GET', '/config/historial?area=catalogos')).datos.items.find(i => i.accionCodigo === 'editar');
+    prueba('editar un catálogo es restaurable y muestra el nombre anterior', cambioNicho.restaurable && cambioNicho.cambios.some(c => c.campo === 'Nombre' && c.antes === 'Nicho de prueba API 2'));
+    await llamar('POST', `/config/historial/${cambioNicho.id}/restaurar`);
+    prueba('restaurar un catálogo devuelve su nombre anterior', (await llamar('GET', '/catalogos/nichos')).datos.items.find(i => i.id === nicho.id).nombre === 'Nicho de prueba API 2');
+    const alta = (await llamar('GET', '/config/historial?area=catalogos&pagina=1')).datos.items.find(i => i.accionCodigo === 'crear');
+    prueba('un alta no se restaura', alta && alta.restaurable === false && (await llamar('POST', `/config/historial/${alta.id}/restaurar`)).status === 409);
+    prueba('un cambio que no existe responde 404', (await llamar('POST', '/config/historial/999999/restaurar')).status === 404);
+    prueba('un id de cambio inválido responde 400', (await llamar('POST', '/config/historial/abc/restaurar')).status === 400);
   } finally {
     // Limpieza, pase lo que pase: nada de esta prueba debe quedar en la base.
     await db.query('DELETE FROM proy_nichos WHERE nombre LIKE ?', ['Nicho de prueba API%'], 'api:limpiar_nichos');

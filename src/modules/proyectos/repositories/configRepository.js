@@ -30,6 +30,50 @@ class ConfigRepository {
     );
   }
 
+  // Condiciones fijas según el área; nada del texto de la petición entra en el SQL.
+  filtrosHistorial({ area, usuarioId, desde, hasta }) {
+    const condiciones = [];
+    const params = [];
+    if (area === 'parametros') condiciones.push("h.entidad = 'parametro' AND h.clave NOT LIKE 'reglas.%'");
+    else if (area === 'reglas') condiciones.push("h.entidad = 'parametro' AND h.clave LIKE 'reglas.%'");
+    else if (area === 'catalogos') condiciones.push("h.entidad LIKE 'catalogo:%'");
+    else if (area === 'paises') condiciones.push("h.entidad = 'pais'");
+    if (usuarioId) { condiciones.push('h.usuario_id = ?'); params.push(usuarioId); }
+    if (desde) { condiciones.push('DATE(h.creado_en) >= ?'); params.push(desde); }
+    if (hasta) { condiciones.push('DATE(h.creado_en) <= ?'); params.push(hasta); }
+    return { donde: condiciones.length ? `WHERE ${condiciones.join(' AND ')}` : '', params };
+  }
+
+  listarHistorial(filtros, limite, desplazamiento) {
+    const { donde, params } = this.filtrosHistorial(filtros);
+    return db.query(
+      `SELECT h.id, h.creado_en, h.usuario_id, u.nombre AS usuario, h.entidad, h.clave, h.accion, h.antes, h.despues
+       FROM proy_config_historial h JOIN usuarios u ON u.id = h.usuario_id ${donde} ORDER BY h.id DESC LIMIT ? OFFSET ?`,
+      [...params, limite, desplazamiento], 'proyectos_config:historial_listar'
+    );
+  }
+
+  async contarHistorial(filtros) {
+    const { donde, params } = this.filtrosHistorial(filtros);
+    const filas = await db.query(`SELECT COUNT(*) AS n FROM proy_config_historial h ${donde}`, params, 'proyectos_config:historial_contar');
+    return Number(filas[0].n);
+  }
+
+  async obtenerHistorial(id) {
+    const filas = await db.query(
+      `SELECT h.id, h.creado_en, h.usuario_id, u.nombre AS usuario, h.entidad, h.clave, h.accion, h.antes, h.despues
+       FROM proy_config_historial h JOIN usuarios u ON u.id = h.usuario_id WHERE h.id = ?`, [id], 'proyectos_config:historial_obtener'
+    );
+    return filas[0] || null;
+  }
+
+  listarPersonasConCambios() {
+    return db.query(
+      `SELECT DISTINCT u.id, u.nombre FROM proy_config_historial h JOIN usuarios u ON u.id = h.usuario_id ORDER BY u.nombre`,
+      [], 'proyectos_config:historial_personas'
+    );
+  }
+
   listarPaises() {
     return db.query(
       `SELECT ${COLUMNAS_PAIS} FROM paises p LEFT JOIN proy_pais_config c ON c.pais_id = p.id ORDER BY p.nombre`,

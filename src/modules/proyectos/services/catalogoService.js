@@ -71,7 +71,7 @@ function validar(def, datos, { completo, actual = null }) {
 function resumen(def, fila) {
   if (!fila) return null;
   const datos = Object.fromEntries(def.campos.map(c => [c.clave, fila[c.clave]]));
-  return { ...datos, activo: !!fila.activo, ...(def.orden ? { orden: fila.orden } : {}) };
+  return { id: fila.id, ...datos, activo: !!fila.activo, ...(def.orden ? { orden: fila.orden } : {}) };
 }
 
 const claveHistorial = (def, fila) => String(fila[def.campos.find(c => c.clave === 'nombre') ? 'nombre' : def.campos[0].clave]);

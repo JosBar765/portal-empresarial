@@ -22,6 +22,13 @@ class CatalogoRepository {
     return db.query(`SELECT ${columnasSelect(def)} FROM ${col(def.tabla)} t ORDER BY ${ordenPor(def)}`, [], `proyectos_catalogo:listar:${def.tabla}`);
   }
 
+  async contar(def) {
+    const filas = await db.query(
+      `SELECT COUNT(*) AS total, COALESCE(SUM(${col(def.activo)}), 0) AS activas FROM ${col(def.tabla)}`, [], `proyectos_catalogo:contar:${def.tabla}`
+    );
+    return { total: Number(filas[0].total), activas: Number(filas[0].activas) };
+  }
+
   async obtener(def, id, ejecutor = db) {
     const filas = await ejecutor.query(
       `SELECT ${columnasSelect(def)} FROM ${col(def.tabla)} t WHERE t.${col(def.pk)} = ?`, [id], `proyectos_catalogo:obtener:${def.tabla}`

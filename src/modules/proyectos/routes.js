@@ -8,12 +8,15 @@ const { requirePermission } = require('../../core/permissions/permissionMiddlewa
 
 const administrar = requirePermission('proyectos.administrar');
 
-// Centro de configuración: parámetros (A3), reglas e interruptores (A5) y configuración por país
+// Centro de configuración: inicio (A0), parámetros (A3), reglas e interruptores (A5), historial (A10) y país
 router.get('/config/parametros', administrar, configController.listar('parametros'));
 router.put('/config/parametros', administrar, configController.guardar('parametros'));
 router.get('/config/reglas', administrar, configController.listar('reglas'));
 router.put('/config/reglas', administrar, configController.guardar('reglas'));
 router.post('/config/ajustes/:clave/restaurar', administrar, (req, res) => configController.restaurar(req, res));
+router.get('/config/resumen', administrar, (req, res) => configController.resumen(req, res));
+router.get('/config/historial', administrar, (req, res) => configController.historial(req, res));
+router.post('/config/historial/:id/restaurar', administrar, (req, res) => configController.restaurarCambio(req, res));
 router.get('/config/paises', administrar, (req, res) => configController.listarPaises(req, res));
 router.put('/config/paises/:id', administrar, (req, res) => configController.guardarPais(req, res));
 

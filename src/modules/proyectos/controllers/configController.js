@@ -1,6 +1,8 @@
 // src/modules/proyectos/controllers/configController.js
 // HTTP de los ajustes del módulo (parámetros, reglas y país). Solo quien tiene proyectos.administrar llega aquí.
 const configService = require('../services/configService');
+const historialService = require('../services/historialService');
+const resumenService = require('../services/resumenService');
 const { responderError } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
 const { extraDeError } = require('../errores');
@@ -34,6 +36,30 @@ class ConfigController {
     try {
       const valor = await configService.restaurar(req.params.clave, req.user.id);
       return res.json({ clave: req.params.clave, valor });
+    } catch (error) {
+      return responderError(res, error, 400, extraDeError(error));
+    }
+  }
+
+  async resumen(req, res) {
+    try {
+      return res.json(await resumenService.obtener());
+    } catch (error) {
+      return responderError(res, error, 500);
+    }
+  }
+
+  async historial(req, res) {
+    try {
+      return res.json(await historialService.listar(req.query));
+    } catch (error) {
+      return responderError(res, error, 400, extraDeError(error));
+    }
+  }
+
+  async restaurarCambio(req, res) {
+    try {
+      return res.json(await historialService.restaurar(idObligatorio(req.params.id, 'El cambio'), req.user.id));
     } catch (error) {
       return responderError(res, error, 400, extraDeError(error));
     }
