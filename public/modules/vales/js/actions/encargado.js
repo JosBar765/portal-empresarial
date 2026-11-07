@@ -70,6 +70,8 @@ export async function abrirModalAsignar(vale) {
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
       btn.disabled = false;
+      // Si otra persona asignó el vale primero, el buzón ya cambió: se recarga para mostrar el estado real.
+      cargarBuzon();
     }
   });
 }
@@ -150,6 +152,7 @@ export async function abrirModalRevisar(vale) {
       cargarBuzon();
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
+      cargarBuzon(); // si otra persona ya actuó, el buzón cambió: se recarga para mostrar el estado real
     }
   }
 }
