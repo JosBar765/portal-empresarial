@@ -79,10 +79,10 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 
 ### Fase 2 · Clientes — `feature/proyectos-02-catalogos-clientes`
 
-- [ ] Registrar, buscar y filtrar empresas por nicho, país y estado; solo países del usuario.
-- [ ] Detección de duplicados (país + nombre normalizado + ciudad, o mismo teléfono) y normalización de teléfonos por país.
-- [ ] «No contactar» y «inactiva»; reactivar con motivo.
-- [ ] Contactos por área; empresa de un nicho del proyecto activo se asigna al asesor si participa.
+- [x] Registrar, buscar y filtrar empresas por nicho, país y estado; solo países del usuario. (2a)
+- [x] Detección de duplicados (país + nombre normalizado + ciudad, o mismo teléfono) y normalización de teléfonos por país. (2a)
+- [x] «No contactar» y «inactiva»; reactivar con motivo (solo `proyectos.corregir`). (2a)
+- [x] Contactos por área (2a); empresa de un nicho del proyecto activo se asigna al asesor si participa.
 - [ ] Importación CSV con plantilla, vista previa (nuevas, duplicadas, con error) y confirmación; límite de 2,000 filas y 5 MB; límite de frecuencia.
 - [ ] Campos propios por nicho (A6, `proy_campos`, `datos_extra`) y alcance de usuarios por país (A7, `proy_usuario_paises`).
 - [ ] Pantallas: M8, M9, T8, S8, S9 + paso 3 (F2) + escritorio (F4, F5).
