@@ -83,7 +83,7 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 - [x] Detección de duplicados (país + nombre normalizado + ciudad, o mismo teléfono) y normalización de teléfonos por país. (2a)
 - [x] «No contactar» y «inactiva»; reactivar con motivo (solo `proyectos.corregir`). (2a)
 - [x] Contactos por área (2a); empresa de un nicho del proyecto activo se asigna al asesor si participa.
-- [ ] Importación CSV con plantilla, vista previa (nuevas, duplicadas, con error) y confirmación; límite de 2,000 filas y 5 MB; límite de frecuencia.
+- [x] Importación CSV con plantilla, vista previa (nuevas, duplicadas, con error) y confirmación; límite de 2,000 filas y 5 MB; límite de frecuencia. (2b)
 - [ ] Campos propios por nicho (A6, `proy_campos`, `datos_extra`) y alcance de usuarios por país (A7, `proy_usuario_paises`).
 - [ ] Pantallas: M8, M9, T8, S8, S9 + paso 3 (F2) + escritorio (F4, F5).
 - **Terminado cuando:** un asesor registra una empresa y una importación de prueba muestra duplicadas y errores.
