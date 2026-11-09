@@ -1,6 +1,6 @@
 # Seguimiento del supervisor (fase 5)
 
-El supervisor ve el avance de su equipo, mueve empresas entre asesores, corrige registros equivocados y confirma las ventas «por confirmar». Aquí se describe el **servidor** (rama 5a).
+El supervisor ve el avance de su equipo, mueve empresas entre asesores, corrige registros equivocados y confirma las ventas «por confirmar». Primero se describe el **servidor** (rama 5a) y al final las **pantallas** (rama 5b).
 
 ## Alcance: tres niveles
 
@@ -42,10 +42,21 @@ Anular una **cotización** o una **venta** con motivo: quedan quién, cuándo y 
 | `POST /participaciones/:id/cotizaciones/:cid/anular` · `/ventas/:vid/anular` | `proyectos.corregir` |
 | `GET /ventas` · `POST /ventas/:id/confirmar` · `/rechazar` | `proyectos.confirmar_ventas` |
 
+## Pantallas del supervisor (rama 5b)
+
+El menú lateral trae «Seguimiento» y «Ventas por confirmar» según el permiso.
+
+- **Seguimiento** (`#/seguimiento` y `#/seguimiento/<proyectoId>`; S6, S14, S15): cabecera con nicho, mes, etapa y cobertura; seis cifras; pestañas **Por asesor** (barra de gestionadas con el color del semáforo, reacción y «Reasignar»), **Por tienda** y **Estancados** (selección múltiple y «Reasignar seleccionadas», «Ver las N»). Las filas de otra tienda salen en gris con candado y sin acciones. Si hay varios proyectos activos aparece un selector. Desde el detalle de un proyecto activo hay un botón «Seguimiento».
+- **Reasignar** (S7, ventana; hoja inferior en celular): una empresa, las elegidas o todas las pendientes de un asesor; destino «repartir equitativamente» (con la vista previa «X recibe +N») o un asesor de las tiendas del supervisor; motivo obligatorio; el botón dice cuántas empresas mueve.
+- **Una empresa vista por el supervisor** (`#/participacion/<id>`; T4 y T3c): historial y contactos de las de sus tiendas, con «Reasignar» y «Anular» en cada cotización o venta (pide el motivo); si es de otra tienda, la fila «Otra tienda» con la nota «ver no da poder de actuar».
+- **Ventas por confirmar** (`#/ventas`; S19): pestañas Por confirmar / Confirmadas / Rechazadas, «Confirmar» directo y «Rechazar» con motivo.
+- **Tiempo real:** al reasignar o anular, el asesor y el supervisor reciben el evento `proyectos_reasignacion` y su pantalla (Mi proyecto, Para hoy o Seguimiento) se repinta sola; la campana trae el aviso.
+
 ## Código
 
-`alcanceSeguimiento.js` (reglas puras) · `repositories/seguimientoRepository.js` (SQL) · `services/seguimientoService.js` · `controllers/seguimientoController.js` · rutas en `routes.js`.
+
+`alcanceSeguimiento.js` (reglas puras) · `repositories/seguimientoRepository.js` (SQL) · `services/seguimientoService.js` · `controllers/seguimientoController.js` · rutas en `routes.js` · frontend en `public/modules/proyectos/js/views/` (`seguimiento.js`, `supervisionEmpresa.js`, `ventasPorConfirmar.js`).
 
 ## Verificación
 
-`node scripts/proyectos/verificar-seguimiento.js` (base desechable; 69 comprobaciones, también en MariaDB 11.8): niveles de alcance, fila «Otra tienda», cifras y semáforo, estancados, reasignación (una, masiva, equitativa, carrera), anulaciones con recálculo, cola de ventas y avisos.
+`node scripts/proyectos/verificar-seguimiento.js` (base desechable; 71 comprobaciones, también en MariaDB 11.8): niveles de alcance, fila «Otra tienda», cifras y semáforo, estancados, reasignación (una, masiva, equitativa, carrera), anulaciones con recálculo, cola de ventas y avisos.

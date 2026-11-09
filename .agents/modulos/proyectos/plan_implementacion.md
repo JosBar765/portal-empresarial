@@ -116,9 +116,9 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 - [x] Reasignación individual y masiva con historial y aviso a quien recibe y a quien pierde. (5a)
 - [x] Anulación con motivo y recálculo de estado (`proyectos.corregir`): cotizaciones y ventas; las gestiones quedan para la fase 9. (5a)
 - [x] Alcance de tres niveles sobre `supervisor_tiendas`; filas «Otra tienda» con datos vacíos desde el servidor. (5a)
-- [ ] Tiempo real por socket.
-- [x] Cola de confirmación de ventas del supervisor (S19, `proyectos.confirmar_ventas`): servidor (5a); pantalla en la 5b.
-- [ ] Pantallas: S6, S7, T4, T3c + F6.
+- [x] Tiempo real por socket (evento `proyectos_reasignacion` y notificaciones). (5b)
+- [x] Cola de confirmación de ventas del supervisor (S19, `proyectos.confirmar_ventas`): servidor (5a) y pantalla (5b).
+- [x] Pantallas: S6, S7, S14, S15, S19, T4, T3c. (5b)
 - **Terminado cuando:** reasignar se ve al instante en el asesor y una fila de otra tienda no lleva datos sensibles.
 
 ### Fase 6 · Cierre, informe y gerencia — `feature/proyectos-06-cierre-informe-gerencia`
