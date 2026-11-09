@@ -98,7 +98,7 @@ async function verificarServicio() {
     const bytesPlantilla = Buffer.from(await resPlantilla.arrayBuffer()); // text() quitaría el BOM
     const textoPlantilla = bytesPlantilla.toString('utf8');
     prueba('la plantilla baja como CSV con BOM, encabezado y una fila de ejemplo', resPlantilla.status === 200 && /text\/csv/.test(resPlantilla.headers.get('content-type')) && bytesPlantilla[0] === 0xEF && textoPlantilla.startsWith('﻿empresa,nicho,pais') && textoPlantilla.trim().split('\r\n').length === 2);
-    prueba('la plantilla se lee de vuelta con el mismo lector', csv.leer(csv.decodificar(bytesPlantilla)).filas[0].length === 12);
+    prueba('la plantilla se lee de vuelta con el mismo lector', csv.leer(csv.decodificar(bytesPlantilla)).filas[0].length >= 12);
     prueba('la plantilla también exige permiso (403)', (await fetch(`${base}/clientes/importar/plantilla`, { headers: cabeceras(asesorGT, PERM_ASESOR) })).status === 403);
     let r = await previa(null);
     prueba('sin archivo, error claro (400)', r.status === 400 && !!r.datos.error, JSON.stringify(r.datos));

@@ -3,7 +3,7 @@
 // módulo de empresas vive aquí. Las consultas que lee una persona filtran siempre por los países de su alcance.
 const db = require('../../../config/database');
 
-const COLUMNAS_LISTA = `c.id, c.nombre, c.nicho_id, n.nombre AS nicho, c.pais_id, p.nombre AS pais, c.ciudad, c.telefono,
+const COLUMNAS_LISTA = `c.id, c.datos_extra, c.nombre, c.nicho_id, n.nombre AS nicho, c.pais_id, p.nombre AS pais, c.ciudad, c.telefono,
   c.estructura_id, es.nombre AS estructura, c.estado,
   EXISTS (SELECT 1 FROM proy_participaciones pa WHERE pa.cliente_id = c.id AND pa.abierta = 1) AS en_proyecto,
   (SELECT COUNT(*) FROM proy_contactos ct WHERE ct.cliente_id = c.id AND ct.activo = 1) AS contactos`;
@@ -16,7 +16,7 @@ const DESDE_LISTA = `FROM proy_clientes c
 const escaparLike = (texto) => String(texto).replace(/[\\%_]/g, '\\$&');
 
 // Arma el WHERE del listado: alcance + búsqueda por nombre o teléfono + filtros. Nada del texto entra al SQL sin `?`.
-function filtros({ paisIds, busqueda, nichoId, paisId, estado }) {
+function filtros({ paisIds, busqueda, nichoId, paisId, estado, extras = [] }) {
   const donde = [];
   const params = [];
   donde.push('c.pais_id IN (?)');
@@ -24,6 +24,11 @@ function filtros({ paisIds, busqueda, nichoId, paisId, estado }) {
   if (paisId) { donde.push('c.pais_id = ?'); params.push(paisId); }
   if (nichoId) { donde.push('c.nicho_id = ?'); params.push(nichoId); }
   if (estado) { donde.push('c.estado = ?'); params.push(estado); }
+  // Campo propio: la clave solo lleva a-z, 0-9 y _ (la valida camposPropios) y viaja como parámetro; sí/no se guarda como true/false.
+  for (const { clave, valor } of extras) {
+    donde.push('JSON_UNQUOTE(JSON_EXTRACT(c.datos_extra, ?)) = ?');
+    params.push(`$."${clave}"`, valor);
+  }
   if (busqueda) {
     const digitos = busqueda.replace(/\D/g, '');
     const piezas = ['c.nombre LIKE ?'];
@@ -48,7 +53,7 @@ class ClienteRepository {
   // Una empresa dentro del alcance; `null` si no existe o es de un país que la persona no ve.
   async obtener(id, paisIds, ejecutor = db) {
     const filas = await ejecutor.query(
-      `SELECT ${COLUMNAS_LISTA}, c.direccion, c.sitio_web, c.datos_extra, c.origen, c.tienda_origen_id, c.creado_en, c.actualizado_en,
+      `SELECT ${COLUMNAS_LISTA}, c.direccion, c.sitio_web, c.origen, c.tienda_origen_id, c.creado_en, c.actualizado_en,
               u.nombre AS creado_por_nombre, t.codigo AS tienda_origen
        ${DESDE_LISTA}
        JOIN usuarios u ON u.id = c.creado_por

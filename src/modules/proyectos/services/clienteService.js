@@ -10,6 +10,8 @@ const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero } = require('../../../core/utils/validar');
 const { errorDeValidacion, errorDePosibleDuplicado } = require('../errores');
 const { definicion } = require('../catalogos');
+const campoService = require('./campoService');
+const camposPropios = require('../camposPropios');
 const duplicados = require('../duplicados');
 const telefonos = require('../telefonos');
 
@@ -42,18 +44,22 @@ async function catalogoActivo(id, valor) {
   return fila && fila.activo ? fila : null;
 }
 
+// MySQL entrega la columna JSON ya convertida; MariaDB (producción) la entrega como texto.
+const datosExtraDe = (valor) => (valor ? (typeof valor === 'string' ? JSON.parse(valor) : valor) : {});
+
 class ClienteService {
   // --- Lectura ---
 
   async opciones(usuario) {
     const alcance = await alcanceService.paisesDe(usuario);
-    const [nichos, estructuras, areas, motivos, paises, ajustes] = await Promise.all([
+    const [nichos, estructuras, areas, motivos, paises, ajustes, campos] = await Promise.all([
       catalogoRepository.listar(definicion('nichos')),
       catalogoRepository.listar(definicion('estructuras')),
       catalogoRepository.listar(definicion('areas')),
       catalogoRepository.listar(definicion('no_contactar')),
       configService.paises(),
-      configService.valores()
+      configService.valores(),
+      campoService.activos()
     ]);
     const activas = (filas) => filas.filter(f => f.activo).map(f => ({ id: f.id, nombre: f.nombre }));
     return {
@@ -61,6 +67,8 @@ class ClienteService {
       paises: paises.filter(p => alcance.ids.includes(p.paisId)).map(p => ({
         id: p.paisId, codigo: p.codigo, nombre: p.nombre, prefijoTelefono: p.prefijoTelefono, formatoTelefono: p.formatoTelefono
       })),
+      // Los campos propios activos: el formulario muestra los del nicho elegido; la lista, filtros y plantilla usan los suyos.
+      campos: campos.map(c => ({ id: c.id, clave: c.clave, etiqueta: c.etiqueta, tipo: c.tipo, opciones: c.opciones, obligatorio: c.obligatorio, nichoId: c.nichoId, visibleEnLista: c.visibleEnLista })),
       // Todos los países con prefijo: el selector del teléfono deja elegir uno distinto al del país de la empresa.
       prefijos: paises.filter(p => p.prefijoTelefono).map(p => ({ id: p.paisId, codigo: p.codigo, nombre: p.nombre, prefijoTelefono: p.prefijoTelefono, formatoTelefono: p.formatoTelefono })),
       ajustes: {
@@ -98,14 +106,28 @@ class ClienteService {
     const alcance = await alcanceService.paisesDe(usuario);
     const pagina = Math.max(aEntero(consulta.pagina) || 1, 1);
     const estado = ESTADOS.includes(consulta.estado) ? consulta.estado : (consulta.estado === 'todas' ? null : 'activa');
+    const campos = await campoService.activos();
+    // Filtros por campo propio (solo sí/no y lista): `extra_<clave>=si|no|<opción>`; lo que no cuadra se ignora.
+    const extras = [];
+    for (const c of campos.filter(x => ['si_no', 'lista'].includes(x.tipo))) {
+      const crudo = consulta[`extra_${c.clave}`];
+      if (crudo === undefined || crudo === '') continue;
+      const r = camposPropios.validarValor(c, crudo);
+      if (r.valor !== undefined) extras.push({ clave: c.clave, valor: String(r.valor) });
+    }
     const filtrosConsulta = {
       paisIds: alcance.ids, busqueda: limpio(consulta.busqueda).slice(0, 100),
-      nichoId: aEntero(consulta.nicho), paisId: aEntero(consulta.pais), estado
+      nichoId: aEntero(consulta.nicho), paisId: aEntero(consulta.pais), estado, extras
     };
     const { filas, total } = await clienteRepository.listar(filtrosConsulta, POR_PAGINA, (pagina - 1) * POR_PAGINA);
     const paises = await this._configuracionDePaises();
+    const columnas = campos.filter(c => c.visibleEnLista);
     return {
-      items: filas.map(f => this._aEmpresa(f, paises)), total, pagina, porPagina: POR_PAGINA,
+      items: filas.map(f => {
+        const extra = datosExtraDe(f.datos_extra);
+        return { ...this._aEmpresa(f, paises), extras: Object.fromEntries(columnas.map(c => [c.clave, camposPropios.aplica(c, f.nicho_id) ? camposPropios.textoDe(c, extra[c.clave]) : ''])) };
+      }),
+      columnasExtra: columnas.map(c => ({ clave: c.clave, etiqueta: c.etiqueta })), total, pagina, porPagina: POR_PAGINA,
       hayMas: pagina * POR_PAGINA < total, paisesVisibles: alcance.ids.length
     };
   }
@@ -117,9 +139,14 @@ class ClienteService {
     if (!fila) throw noExiste();
     const paises = await this._configuracionDePaises();
     const pais = paises.get(fila.pais_id);
-    const [contactos, eventos] = await Promise.all([clienteRepository.listarContactos(fila.id), clienteRepository.listarEventos(fila.id)]);
+    const [contactos, eventos, campos] = await Promise.all([clienteRepository.listarContactos(fila.id), clienteRepository.listarEventos(fila.id), campoService.activos()]);
+    const extra = datosExtraDe(fila.datos_extra);
     return {
       ...this._aEmpresa(fila, paises),
+      datosExtra: extra,
+      datosNicho: campos.filter(c => camposPropios.aplica(c, fila.nicho_id)).map(c => ({
+        clave: c.clave, etiqueta: c.etiqueta, tipo: c.tipo, valor: extra[c.clave] === undefined ? null : extra[c.clave], texto: camposPropios.textoDe(c, extra[c.clave])
+      })),
       direccion: fila.direccion, sitioWeb: fila.sitio_web, origen: fila.origen, tiendaOrigen: fila.tienda_origen,
       creadoPor: fila.creado_por_nombre, creadoEn: fila.creado_en,
       contactos: contactos.map(c => ({
@@ -140,13 +167,14 @@ class ClienteService {
   // Lo que hace falta para validar una empresa, leído una sola vez: sirve para validar muchas seguidas (importación)
   // sin repetir las mismas consultas por fila.
   async _contexto(usuario) {
-    const [ajustes, alcance, paises, nichos, areas, estructuras] = await Promise.all([
+    const [ajustes, alcance, paises, nichos, areas, estructuras, campos] = await Promise.all([
       configService.valores(), alcanceService.paisesDe(usuario), this._configuracionDePaises(),
-      catalogoRepository.listar(definicion('nichos')), catalogoRepository.listar(definicion('areas')), catalogoRepository.listar(definicion('estructuras'))
+      catalogoRepository.listar(definicion('nichos')), catalogoRepository.listar(definicion('areas')), catalogoRepository.listar(definicion('estructuras')),
+      campoService.activos()
     ]);
     const activos = (filas) => new Map(filas.filter(f => f.activo).map(f => [f.id, f]));
     return {
-      ajustes, alcance, paises,
+      ajustes, alcance, paises, campos,
       catalogos: { nichos: activos(nichos), areas: activos(areas), estructuras: activos(estructuras) },
       estructuraPorDefecto: estructuras.find(e => e.activo) || null
     };
@@ -164,7 +192,7 @@ class ClienteService {
 
   // Valida y normaliza una empresa (y su contacto al crear). Devuelve los valores listos para guardar o lanza un 400
   // con el error de cada campo.
-  async _validar(usuario, datos, { crear, contexto = null }) {
+  async _validar(usuario, datos, { crear, contexto = null, previoExtra = {} }) {
     const campos = {};
     const ctx = contexto || await this._contexto(usuario);
     const { ajustes, alcance } = ctx;
@@ -219,11 +247,16 @@ class ClienteService {
       if (!contactoSirve) campos.telefono = 'Escribe un teléfono (o un contacto con teléfono o correo).';
     }
 
+    // Campos propios del nicho (A6): se validan por tipo; lo que ya estaba guardado y no viene se conserva.
+    const extra = camposPropios.validarDatosExtra(ctx.campos, datos.datosExtra, aEntero(datos.nichoId), previoExtra);
+    Object.assign(campos, extra.errores);
+
     if (Object.keys(campos).length) throw errorDeValidacion('Revisa los datos marcados.', campos);
     return {
       valores: {
         nombre, nombreNormalizado: duplicados.normalizarNombre(nombre), nichoId: aEntero(datos.nichoId), paisId, ciudad: ciudad || null,
-        direccion: direccion || null, sitioWeb: sitioWeb || null, telefono, estructuraId
+        direccion: direccion || null, sitioWeb: sitioWeb || null, telefono, estructuraId,
+        datosExtra: Object.keys(extra.valores).length ? extra.valores : null
       },
       contacto
     };
@@ -305,7 +338,7 @@ class ClienteService {
       nombre: actual.nombre, nichoId: actual.nichoId, paisId: actual.paisId, ciudad: actual.ciudad, direccion: actual.direccion,
       sitioWeb: actual.sitioWeb, telefono: actual.telefono, estructuraId: actual.estructuraId, ...datos
     };
-    const { valores } = await this._validar(usuario, mezcla, { crear: false });
+    const { valores } = await this._validar(usuario, mezcla, { crear: false, previoExtra: actual.datosExtra || {} });
     const cambioDeIdentidad = valores.nombreNormalizado !== duplicados.normalizarNombre(actual.nombre) || valores.paisId !== actual.paisId
       || (valores.ciudad || '') !== (actual.ciudad || '') || valores.telefono !== actual.telefono;
     if (cambioDeIdentidad && !confirmarDuplicado) {
@@ -314,7 +347,8 @@ class ClienteService {
     }
     await db.transaccion(tx => clienteRepository.actualizar(tx, actual.id, {
       nombre: valores.nombre, nombre_normalizado: valores.nombreNormalizado, nicho_id: valores.nichoId, pais_id: valores.paisId,
-      ciudad: valores.ciudad, direccion: valores.direccion, sitio_web: valores.sitioWeb, telefono: valores.telefono, estructura_id: valores.estructuraId
+      ciudad: valores.ciudad, direccion: valores.direccion, sitio_web: valores.sitioWeb, telefono: valores.telefono, estructura_id: valores.estructuraId,
+      datos_extra: valores.datosExtra ? JSON.stringify(valores.datosExtra) : null
     }));
     return this.obtener(usuario, actual.id);
   }

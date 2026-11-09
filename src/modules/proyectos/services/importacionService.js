@@ -5,6 +5,7 @@ const db = require('../../../config/database');
 const clienteRepository = require('../repositories/clienteRepository');
 const clienteService = require('./clienteService');
 const configService = require('./configService');
+const campoService = require('./campoService');
 const alcanceService = require('./alcanceService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { definicion } = require('../catalogos');
@@ -39,8 +40,13 @@ const normal = (texto) => csv.clave(texto);
 const celda = (fila, indice) => (indice === undefined ? '' : String(fila[indice] == null ? '' : fila[indice]).trim().replace(/^'/, ''));
 
 class ImportacionService {
-  plantilla() {
-    return `﻿${[ENCABEZADO_PLANTILLA, FILA_EJEMPLO].map(f => f.map(csv.escapar).join(',')).join('\r\n')}\r\n`;
+  // Las columnas de la plantilla son las fijas más una por cada campo propio activo (con su clave como encabezado).
+  async plantilla() {
+    const campos = await campoService.activos();
+    const ejemplo = { texto: 'Dato de ejemplo', numero: '12', si_no: 'Sí', fecha: '2026-01-31' };
+    const encabezado = [...ENCABEZADO_PLANTILLA, ...campos.map(c => c.clave)];
+    const fila = [...FILA_EJEMPLO, ...campos.map(c => (c.tipo === 'lista' ? c.opciones[0] : ejemplo[c.tipo]))];
+    return `﻿${[encabezado, fila].map(f => f.map(csv.escapar).join(',')).join('\r\n')}\r\n`;
   }
 
   // Lee el archivo y devuelve { filas } (arreglos de celdas, sin encabezado) con el índice de cada columna, o lanza un 400.
@@ -59,18 +65,25 @@ class ImportacionService {
       const posicion = encabezado.findIndex(c => alias.includes(c));
       if (posicion >= 0) indice[nombre] = posicion;
     }
+    // Columnas de campos propios: se reconocen por su clave o por su etiqueta (sin acentos ni mayúsculas).
+    const campos = await campoService.activos();
+    const indiceCampos = {};
+    for (const c of campos) {
+      const posicion = encabezado.findIndex(e => e === c.clave || e === normal(c.etiqueta));
+      if (posicion >= 0) indiceCampos[c.clave] = posicion;
+    }
     const faltan = OBLIGATORIAS.filter(c => indice[c] === undefined);
     if (faltan.length) throw new ErrorDeNegocio(`Al archivo le faltan las columnas: ${faltan.join(', ')}. Usa la plantilla.`, 400);
 
     const filas = leido.filas.slice(1);
     const maxFilas = ajustes['importacion.max_filas'];
     if (filas.length > maxFilas) throw new ErrorDeNegocio(`El archivo tiene ${filas.length} filas y el máximo es ${maxFilas}. Divídelo en partes.`, 400);
-    return { filas, indice, ajustes };
+    return { filas, indice, indiceCampos, ajustes };
   }
 
   // Revisa cada fila: nueva, duplicada (con la empresa existente) o con error (con el motivo por columna).
   async _analizar(usuario, archivo) {
-    const { filas, indice, ajustes } = await this._leerArchivo(archivo);
+    const { filas, indice, indiceCampos, ajustes } = await this._leerArchivo(archivo);
     const ctx = await clienteService.contextoDeImportacion(usuario);
     const nichos = new Map([...ctx.catalogos.nichos.values()].map(n => [normal(n.nombre), n]));
     const areas = new Map([...ctx.catalogos.areas.values()].map(a => [normal(a.nombre), a]));
@@ -97,7 +110,9 @@ class ImportacionService {
       else if (!pais) errores.pais = `El país «${crudo.pais}» no existe.`;
       else if (!ctx.alcance.ids.includes(pais.paisId)) errores.pais = 'País no asignado a tu usuario.';
 
+      const extraCrudo = Object.fromEntries(Object.keys(indiceCampos).map(c => [c, celda(fila, indiceCampos[c])]));
       const datos = {
+        datosExtra: extraCrudo,
         nombre: crudo.empresa, nichoId: nicho ? nicho.id : '', paisId: pais ? pais.paisId : '', ciudad: crudo.ciudad,
         telefono: crudo.telefono, direccion: crudo.direccion, sitioWeb: crudo.sitio_web
       };
@@ -115,7 +130,7 @@ class ImportacionService {
         if (!error.campos) throw error;
         const traduccion = { nombre: 'empresa', paisId: 'pais', nichoId: 'nicho', sitioWeb: 'sitio_web', 'contacto.nombre': 'contacto_nombre', 'contacto.areaId': 'contacto_area', 'contacto.cargo': 'contacto_cargo', 'contacto.telefono': 'contacto_telefono', 'contacto.correo': 'contacto_correo' };
         for (const [campo, mensaje] of Object.entries(error.campos)) {
-          const columna = traduccion[campo] || campo;
+          const columna = traduccion[campo] || campo.replace(/^datosExtra\./, '');
           if (!errores[columna]) errores[columna] = mensaje;
         }
       }
@@ -220,7 +235,7 @@ class ImportacionService {
 
   // Completa una empresa que ya existía con lo que el archivo trae, sin pisar nada y sin guardar vacíos.
   async _completar(tx, usuario, fila) {
-    const existente = (await tx.query('SELECT id, ciudad, direccion, sitio_web, telefono FROM proy_clientes WHERE id = ? FOR UPDATE', [fila.duplicadaDe.id], 'proyectos_importacion:existente'))[0];
+    const existente = (await tx.query('SELECT id, ciudad, direccion, sitio_web, telefono, datos_extra FROM proy_clientes WHERE id = ? FOR UPDATE', [fila.duplicadaDe.id], 'proyectos_importacion:existente'))[0];
     if (!existente) return false;
     const { valores, contacto } = fila.valido;
     const cambios = {};
@@ -228,6 +243,10 @@ class ImportacionService {
     if (!existente.direccion && valores.direccion) cambios.direccion = valores.direccion;
     if (!existente.sitio_web && valores.sitioWeb) cambios.sitio_web = valores.sitioWeb;
     if (!existente.telefono && valores.telefono) cambios.telefono = valores.telefono;
+    // Campos propios: solo los que la empresa todavía no tenía.
+    const previo = existente.datos_extra ? (typeof existente.datos_extra === 'string' ? JSON.parse(existente.datos_extra) : existente.datos_extra) : {};
+    const faltantes = Object.fromEntries(Object.entries(valores.datosExtra || {}).filter(([k]) => previo[k] === undefined));
+    if (Object.keys(faltantes).length) cambios.datos_extra = JSON.stringify({ ...previo, ...faltantes });
     let contactoNuevo = false;
     if (contacto) {
       const contactos = await clienteRepository.listarContactos(existente.id, tx);

@@ -45,9 +45,14 @@ class ImportacionController {
     }));
   }
 
-  plantilla(req, res) {
-    res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="plantilla_empresas.csv"' });
-    res.send(importacionService.plantilla());
+  async plantilla(req, res) {
+    try {
+      const contenido = await importacionService.plantilla();
+      res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="plantilla_empresas.csv"' });
+      res.send(contenido);
+    } catch (error) {
+      responderError(res, error, 500);
+    }
   }
 }
 
