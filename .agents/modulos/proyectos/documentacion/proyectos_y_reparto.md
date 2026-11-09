@@ -37,9 +37,15 @@ Borrador → `cancelado`. Un proyecto **activo** exige motivo y, al cancelarlo, 
 - **Vencido:** proyecto `activo` cuya fecha de fin más `vencimiento.gracia_dias_habiles` (lunes a viernes) ya pasó. No se cierra solo.
 - **Regla 16:** la empresa que registra un asesor que participa en el proyecto activo de ese nicho (y país) queda **asignada a él**; si no participa, queda disponible.
 
+## Pantallas del supervisor (fase 3c)
+
+- **Proyectos (S1):** lista con filtros (Todos, Activos, Vencidos, Cerrados) y año, alerta de proyectos vencidos y pestaña **Borradores** (S17: «Paso 2 de 4», «Continuar» y «Descartar»). Rutas `#/proyectos`, `#/proyectos/nuevo`, `#/proyectos/<id>` y `#/proyectos/<id>/editar`; el menú «Proyectos» aparece con `proyectos.activar` (y lectura para gerente y administrador).
+- **Asistente de 4 pasos (S2–S5):** (1) plantilla, nicho (con las empresas elegibles de cada uno) y mes, con el código automático; (2) alcance — una tienda, un país o toda la región, con las tiendas ocupadas bloqueadas — y participantes con exclusión y motivo; (3) artículo, existencia, tope, meta y etapas con sus fechas (lo que la plantilla bloquea sale con candado y deshabilitado, lo obligatorio lleva *); (4) **vista previa** del reparto —empresas elegibles, se repartirán, sin asesor, en reserva, asesores, avisos por país y la tabla por asesor— y **Activar proyecto** (o **Pedir aprobación** si la regla está encendida). Cada «Continuar» guarda el borrador; salir con cambios sin guardar pide confirmación; en celular va en una columna.
+- **Detalle del proyecto:** datos, tiendas y reparto entre asesores; un proyecto que **espera aprobación** muestra «Pediste la activación el…» (T12) y puede cancelarse; un borrador devuelto por el gerente muestra su comentario en el asistente. **Cancelar** pide motivo en un proyecto activo.
+
 ## API (`/api/proyectos/proyectos`)
 
-`GET /opciones`, `POST /candidatos`, `GET /` (`?estado=todos|activos|vencidos|cerrados|borradores|cancelados&anio=`), `POST /`, `GET /:id`, `PUT /:id`, `POST /:id/vista-previa`, `POST /:id/activar` (con `idempotencyKey`), `POST /:id/cancelar`.
+`GET /opciones` (nichos con sus empresas elegibles, tiendas con su ocupación, artículos, monedas, plantillas), `POST /candidatos`, `GET /` (`?estado=todos|activos|vencidos|cerrados|borradores|cancelados&anio=`), `POST /`, `GET /:id`, `PUT /:id`, `POST /:id/vista-previa`, `POST /:id/activar` (con `idempotencyKey`), `POST /:id/cancelar`.
 
 ## Verificación
 
