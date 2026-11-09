@@ -60,3 +60,14 @@ export const cambiarEstadoCliente = (id, datos) => pedir(`${BASE}/clientes/${enc
 export const agregarContacto = (clienteId, datos) => pedir(`${BASE}/clientes/${encodeURIComponent(clienteId)}/contactos`, enJson('POST', datos));
 export const editarContacto = (contactoId, datos) => pedir(`${BASE}/clientes/contactos/${encodeURIComponent(contactoId)}`, enJson('PUT', datos));
 export const cambiarActivoContacto = (contactoId, activo) => pedir(`${BASE}/clientes/contactos/${encodeURIComponent(contactoId)}/activo`, enJson('PATCH', { activo }));
+
+// Importación (el archivo viaja como formulario, no como JSON)
+const conArchivo = (archivo, campos = {}) => {
+  const formulario = new FormData();
+  Object.entries(campos).forEach(([k, v]) => formulario.append(k, v));
+  formulario.append('archivo', archivo, archivo.name);
+  return { method: 'POST', body: formulario };
+};
+export const URL_PLANTILLA = `${BASE}/clientes/importar/plantilla`;
+export const previsualizarImportacion = (archivo) => pedir(`${BASE}/clientes/importar/previsualizar`, conArchivo(archivo));
+export const confirmarImportacion = (archivo, duplicadas, idempotencyKey) => pedir(`${BASE}/clientes/importar/confirmar`, conArchivo(archivo, { duplicadas, idempotencyKey }));
