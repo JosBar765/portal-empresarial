@@ -65,6 +65,7 @@ class ClienteService {
         ciudadObligatoria: ajustes['empresas.ciudad_obligatoria'], contactoObligatorio: ajustes['empresas.contacto_obligatorio'],
         telefonoOCorreoObligatorio: ajustes['empresas.telefono_o_correo_obligatorio'], sitioWebObligatorio: ajustes['empresas.sitio_web_obligatorio']
       },
+      importacion: { maxFilas: ajustes['importacion.max_filas'], maxMb: ajustes['importacion.max_mb'], duplicadasPorDefecto: ajustes['importacion.duplicadas_por_defecto'] },
       permisos: this._permisos(usuario)
     };
   }
@@ -134,12 +135,37 @@ class ClienteService {
 
   // --- Validación ---
 
+  // Lo que hace falta para validar una empresa, leído una sola vez: sirve para validar muchas seguidas (importación)
+  // sin repetir las mismas consultas por fila.
+  async _contexto(usuario) {
+    const [ajustes, alcance, paises, nichos, areas, estructuras] = await Promise.all([
+      configService.valores(), alcanceService.paisesDe(usuario), this._configuracionDePaises(),
+      catalogoRepository.listar(definicion('nichos')), catalogoRepository.listar(definicion('areas')), catalogoRepository.listar(definicion('estructuras'))
+    ]);
+    const activos = (filas) => new Map(filas.filter(f => f.activo).map(f => [f.id, f]));
+    return {
+      ajustes, alcance, paises,
+      catalogos: { nichos: activos(nichos), areas: activos(areas), estructuras: activos(estructuras) },
+      estructuraPorDefecto: estructuras.find(e => e.activo) || null
+    };
+  }
+
+  _catalogo(ctx, id, valor) {
+    const n = aEntero(valor);
+    return n === null ? null : (ctx.catalogos[id].get(n) || null);
+  }
+
+  // Para la importación: el contexto, la validación y la búsqueda de duplicados de una fila.
+  contextoDeImportacion(usuario) { return this._contexto(usuario); }
+  validarEmpresa(usuario, datos, contexto) { return this._validar(usuario, datos, { crear: true, contexto }); }
+  coincidenciasDe(usuario, valores, contexto) { return this._coincidencias(usuario, valores, null, contexto); }
+
   // Valida y normaliza una empresa (y su contacto al crear). Devuelve los valores listos para guardar o lanza un 400
   // con el error de cada campo.
-  async _validar(usuario, datos, { crear }) {
+  async _validar(usuario, datos, { crear, contexto = null }) {
     const campos = {};
-    const ajustes = await configService.valores();
-    const alcance = await alcanceService.paisesDe(usuario);
+    const ctx = contexto || await this._contexto(usuario);
+    const { ajustes, alcance } = ctx;
 
     const nombre = limpio(datos.nombre);
     if (!nombre) campos.nombre = 'Escribe el nombre de la empresa.';
@@ -149,13 +175,12 @@ class ClienteService {
     if (paisId === null) campos.paisId = 'Elige un país.';
     else if (!alcance.ids.includes(paisId)) campos.paisId = 'Solo registras empresas de tus países.';
 
-    if (!await catalogoActivo('nichos', datos.nichoId)) campos.nichoId = 'Elige un nicho de la lista.';
+    if (!this._catalogo(ctx, 'nichos', datos.nichoId)) campos.nichoId = 'Elige un nicho de la lista.';
 
     let estructuraId = aEntero(datos.estructuraId);
     if (datos.estructuraId === undefined || datos.estructuraId === null || datos.estructuraId === '') {
-      const primera = (await catalogoRepository.listar(definicion('estructuras'))).find(e => e.activo);
-      estructuraId = primera ? primera.id : null;
-    } else if (!await catalogoActivo('estructuras', datos.estructuraId)) campos.estructuraId = 'Elige una estructura de la lista.';
+      estructuraId = ctx.estructuraPorDefecto ? ctx.estructuraPorDefecto.id : null;
+    } else if (!this._catalogo(ctx, 'estructuras', datos.estructuraId)) campos.estructuraId = 'Elige una estructura de la lista.';
 
     const ciudad = limpio(datos.ciudad);
     if (ciudad.length > 100) campos.ciudad = 'Máximo 100 caracteres.';
@@ -169,7 +194,7 @@ class ClienteService {
     else if (sitioWeb.length > 255) campos.sitioWeb = 'Máximo 255 caracteres.';
     else if (!sitioWeb && ajustes['empresas.sitio_web_obligatorio']) campos.sitioWeb = 'Escribe el sitio web.';
 
-    const pais = paisId !== null && !campos.paisId ? (await this._configuracionDePaises()).get(paisId) : null;
+    const pais = paisId !== null && !campos.paisId ? ctx.paises.get(paisId) : null;
     let telefono = null;
     if (limpio(datos.telefono)) {
       const r = telefonos.normalizar(datos.telefono, pais || {});
@@ -179,7 +204,7 @@ class ClienteService {
     let contacto = null;
     const c = datos.contacto || {};
     if (crear && [c.nombre, c.cargo, c.telefono, c.correo].some(v => limpio(v))) {
-      const valido = await this._validarContacto(c, pais, campos, 'contacto.');
+      const valido = await this._validarContacto(c, pais, campos, 'contacto.', ctx);
       contacto = valido;
     }
     if (crear && !contacto && ajustes['empresas.contacto_obligatorio'] && !campos['contacto.nombre']) {
@@ -203,12 +228,12 @@ class ClienteService {
   }
 
   // Valida un contacto; deja los errores en `campos` con el prefijo dado y devuelve el contacto normalizado (o null).
-  async _validarContacto(c, pais, campos, prefijo = '') {
+  async _validarContacto(c, pais, campos, prefijo = '', ctx = null) {
     const marca = (clave, mensaje) => { campos[`${prefijo}${clave}`] = mensaje; };
     const nombre = limpio(c.nombre);
     if (!nombre) marca('nombre', 'Escribe el nombre del contacto.');
     else if (nombre.length > 150) marca('nombre', 'Máximo 150 caracteres.');
-    const area = await catalogoActivo('areas', c.areaId);
+    const area = ctx ? this._catalogo(ctx, 'areas', c.areaId) : await catalogoActivo('areas', c.areaId);
     if (!area) marca('areaId', 'Elige el área del contacto.');
     const cargo = limpio(c.cargo);
     if (cargo.length > 100) marca('cargo', 'Máximo 100 caracteres.');
@@ -225,13 +250,13 @@ class ClienteService {
 
   // --- Duplicados ---
 
-  async _coincidencias(usuario, { nombre, ciudad, telefono, paisId }, excluirId = null) {
-    const alcance = await alcanceService.paisesDe(usuario);
-    const ajustes = await configService.valores();
+  async _coincidencias(usuario, { nombre, ciudad, telefono, paisId }, excluirId = null, ctx = null) {
+    const alcance = ctx ? ctx.alcance : await alcanceService.paisesDe(usuario);
+    const ajustes = ctx ? ctx.ajustes : await configService.valores();
     const normalizado = duplicados.normalizarNombre(nombre);
     const palabra = normalizado.split(' ').filter(t => t.length >= 3).sort((a, b) => b.length - a.length)[0] || null;
     const candidatos = await clienteRepository.candidatosDeDuplicado({ paisIds: alcance.ids, paisId, palabra, telefono, excluirId });
-    const paises = await this._configuracionDePaises();
+    const paises = ctx ? ctx.paises : await this._configuracionDePaises();
     return duplicados.coincidencias({ nombre, ciudad, telefono, paisId }, candidatos, {
       similitudMinima: ajustes['empresas.similitud_minima'],
       porNombreCiudad: ajustes['empresas.duplicado_por_nombre_ciudad'],

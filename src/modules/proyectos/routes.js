@@ -5,12 +5,27 @@ const router = express.Router();
 const configController = require('./controllers/configController');
 const catalogoController = require('./controllers/catalogoController');
 const clienteController = require('./controllers/clienteController');
+const importacionController = require('./controllers/importacionController');
+const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
 const administrar = requirePermission('proyectos.administrar');
 const registrar = requirePermission('proyectos.clientes.registrar');
+const importar = requirePermission('proyectos.clientes.importar');
+
+// Límite por persona (no por IP): una importación es pesada y se puede repetir por error.
+const limitarImportacion = (max, mensaje) => rateLimit({
+  windowMs: 10 * 60 * 1000, max, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (req) => `proy-importar:${req.user.id}`,
+  handler: (req, res) => res.status(429).json({ error: mensaje })
+});
+const limitarPrevia = limitarImportacion(30, 'Hiciste muchas vistas previas seguidas. Espera unos minutos e inténtalo de nuevo.');
+const limitarConfirmar = limitarImportacion(10, 'Hiciste muchas importaciones seguidas. Espera unos minutos e inténtalo de nuevo.');
 
 // Empresas de la base global (las lecturas solo exigen proyectos.ver; cada una ve los países de su alcance)
+router.get('/clientes/importar/plantilla', importar, (req, res) => importacionController.plantilla(req, res));
+router.post('/clientes/importar/previsualizar', importar, limitarPrevia, importacionController.recibirArchivo, importacionController.previsualizar);
+router.post('/clientes/importar/confirmar', importar, limitarConfirmar, importacionController.recibirArchivo, importacionController.confirmar);
 router.get('/clientes/opciones', clienteController.opciones);
 router.get('/clientes', clienteController.listar);
 router.post('/clientes/duplicados', registrar, clienteController.duplicados);
