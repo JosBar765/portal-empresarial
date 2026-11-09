@@ -7,12 +7,14 @@ const catalogoController = require('./controllers/catalogoController');
 const clienteController = require('./controllers/clienteController');
 const importacionController = require('./controllers/importacionController');
 const campoController = require('./controllers/campoController');
+const proyectoController = require('./controllers/proyectoController');
 const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
 const administrar = requirePermission('proyectos.administrar');
 const registrar = requirePermission('proyectos.clientes.registrar');
 const importar = requirePermission('proyectos.clientes.importar');
+const activar = requirePermission('proyectos.activar');
 
 // Límite por persona (no por IP): una importación es pesada y se puede repetir por error.
 const limitarImportacion = (max, mensaje) => rateLimit({
@@ -22,6 +24,18 @@ const limitarImportacion = (max, mensaje) => rateLimit({
 });
 const limitarPrevia = limitarImportacion(30, 'Hiciste muchas vistas previas seguidas. Espera unos minutos e inténtalo de nuevo.');
 const limitarConfirmar = limitarImportacion(10, 'Hiciste muchas importaciones seguidas. Espera unos minutos e inténtalo de nuevo.');
+
+// Proyectos del mes: crear (borrador), vista previa del reparto, activar y cancelar. La lista y la ficha se limitan a las
+// tiendas de cada persona dentro del servicio.
+router.get('/proyectos/opciones', activar, proyectoController.opciones);
+router.post('/proyectos/candidatos', activar, proyectoController.candidatos);
+router.get('/proyectos', proyectoController.listar);
+router.post('/proyectos', activar, proyectoController.crear);
+router.get('/proyectos/:id', proyectoController.obtener);
+router.put('/proyectos/:id', activar, proyectoController.editar);
+router.post('/proyectos/:id/vista-previa', activar, proyectoController.vistaPrevia);
+router.post('/proyectos/:id/activar', activar, proyectoController.activar);
+router.post('/proyectos/:id/cancelar', activar, proyectoController.cancelar);
 
 // Empresas de la base global (las lecturas solo exigen proyectos.ver; cada una ve los países de su alcance)
 router.get('/clientes/importar/plantilla', importar, (req, res) => importacionController.plantilla(req, res));
