@@ -1,6 +1,6 @@
 # Cierre, informe y gerencia (fase 6)
 
-Cerrar un proyecto congela su informe, libera las tiendas y las empresas y lo deja de solo lectura; el gerente da o devuelve el visto bueno; el panel gerencial resume el año. Aquí se describe el **servidor del cierre y del informe** (rama 6a).
+Cerrar un proyecto congela su informe, libera las tiendas y las empresas y lo deja de solo lectura; el gerente da o devuelve el visto bueno; el panel gerencial resume el año. Primero se describe el **servidor** (rama 6a) y al final las **pantallas** (rama 6b).
 
 ## Una sola función de informe
 
@@ -40,9 +40,17 @@ Cerrar un proyecto congela su informe, libera las tiendas y las empresas y lo de
 | `POST /proyectos/:id/visto-bueno` · `/devolver` | `proyectos.dar_visto_bueno` |
 | `GET /gerencia/panel` · `/gerencia/visto-bueno` | ver_gerencia · administrar |
 
+## Pantallas (rama 6b)
+
+- **Cierre** (`#/proyectos/<id>/cierre`; S10): informe al momento (seis cifras con porcentajes, montos por moneda, presencial frente a remoto, muestras por área), las conclusiones, el aviso de empresas sin gestionar, el estado del visto bueno y «Descargar PDF». «Cerrar proyecto» abre la confirmación (T3b): casilla «Revisé las conclusiones y el informe»; sin conclusiones avisa y no cierra. Desde el detalle de un proyecto activo y desde Seguimiento hay un botón «Ir al cierre».
+- **Proyecto cerrado** (S16, solo lectura, mismo enlace): banner del visto bueno (dado en verde, esperando en ámbar, devuelto en rojo con el comentario y las conclusiones editables con «Reenviar al gerente»), informe congelado, conclusiones y tabla por tienda.
+- **Panel gerencial** (`#/panel`; G1): proyectos activos, vencidos y por revisar, vendido del año por moneda, efectividad promedio, vendido por mes (con selector de moneda si hay varias), efectividad por país, comparación de nichos con semáforo y los cierres por revisar; filtro por país.
+- **Por dar visto bueno** (`#/vistobueno`; G4): pestañas Cierres y Activaciones (esta lleva a «Por aprobar»). **Revisión** (`#/vistobueno/<id>`; G2): cifras, tabla por tienda, conclusiones, «Tu decisión» (dar el visto bueno o devolver con comentarios, obligatorios al devolver) e historial del cierre.
+- Las barras y la gráfica son CSS puro; en celular las columnas pasan a una sola.
+
 ## Código
 
-`informeService.js` · `cierreService.js` · `informePdfService.js` · `gerenciaService.js` · `repositories/informeRepository.js` y `gerenciaRepository.js` · `controllers/cierreController.js` · migración `39_proyectos_visto_bueno` (columna `visto_bueno_estado`: pendiente, dado, devuelto; vacío = sin visto bueno).
+`informeService.js` · `cierreService.js` · `informePdfService.js` · `gerenciaService.js` · `repositories/informeRepository.js` y `gerenciaRepository.js` · `controllers/cierreController.js` · frontend en `public/modules/proyectos/js/views/` (`cierreProyecto.js`, `gerencia.js`) · migración `39_proyectos_visto_bueno` (columna `visto_bueno_estado`: pendiente, dado, devuelto; vacío = sin visto bueno).
 
 ## Verificación
 

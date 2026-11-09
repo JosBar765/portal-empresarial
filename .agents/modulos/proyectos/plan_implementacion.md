@@ -128,7 +128,7 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 - [x] Cierre con conclusiones; visto bueno (dar y devolver con comentarios); panel del gerente: servidor (6a); pantallas en la 6b.
 - [ ] Matriz de notificaciones configurable (A8) y visto bueno opcional según el interruptor.
 - [ ] Revisión periódica de proyectos vencidos (gracia configurable, 3 días hábiles por defecto) con `aviso_vencido_en`; notificaciones de todo el módulo.
-- [ ] Pantallas: S10, G1, G2, T3b, T6 + F3, F8.
+- [x] Pantallas: S10, S16, G1, G2, G3, G4, T3b. (6b; la campana T6 y los avisos, en la 6c)
 - **Terminado cuando:** el informe coincide con un conteo manual de los mismos datos.
 
 ### Fase 7 · Integración con Vales — `feature/proyectos-07-integracion-vales`
