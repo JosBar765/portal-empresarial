@@ -23,6 +23,9 @@ import { renderParaHoy } from './views/paraHoy.js';
 import { renderEmpresaAsesor } from './views/empresaAsesor.js';
 import { renderAnteriores } from './views/anteriores.js';
 import { montarBarraInferior } from './layout/barraInferior.js';
+import { renderSeguimiento } from './views/seguimiento.js';
+import { renderSupervisionEmpresa } from './views/supervisionEmpresa.js';
+import { renderVentasPorConfirmar } from './views/ventasPorConfirmar.js';
 
 // Cada pantalla pide su propio permiso: entrar a Proyectos solo exige `proyectos.ver`, y la configuración, `proyectos.administrar`.
 const RUTAS = {
@@ -36,6 +39,9 @@ const RUTAS = {
   parametros: { render: renderParametros, permiso: 'proyectos.administrar' },
   reglas: { render: renderReglas, permiso: 'proyectos.administrar' },
   proyectos: { render: renderProyectos, permiso: ['proyectos.activar', 'proyectos.ver_gerencia', 'proyectos.administrar'] },
+  seguimiento: { render: renderSeguimiento, permiso: ['proyectos.supervisar', 'proyectos.ver_gerencia', 'proyectos.administrar'] },
+  participacion: { render: renderSupervisionEmpresa, permiso: ['proyectos.supervisar', 'proyectos.ver_gerencia', 'proyectos.administrar'] },
+  ventas: { render: renderVentasPorConfirmar, permiso: 'proyectos.confirmar_ventas' },
   aprobaciones: { render: renderAprobaciones, permiso: 'proyectos.aprobar_activacion' },
   plantillas: { render: renderPlantillas, permiso: 'proyectos.administrar' },
   campos: { render: renderCampos, permiso: 'proyectos.administrar' },
@@ -65,6 +71,13 @@ function iniciarConexionEnVivo() {
   state.socket.on('permisos_actualizados', async () => {
     await refreshToken();
     window.location.reload();
+  });
+  // Una reasignación o una anulación cambia lo que ve el asesor y el supervisor: se repinta la pantalla sin recargar la página.
+  state.socket.on('proyectos_reasignacion', () => {
+    if (['miproyecto', 'parahoy', 'seguimiento'].includes(state.ruta) && !(state.salidaVista && state.salidaVista.sucio())) {
+      mostrar(destinoDelHash());
+      window.toast && window.toast.info('Proyectos', 'Se actualizó tu trabajo: hubo una reasignación.');
+    }
   });
   state.socket.on('sesion_revocada', async () => {
     await logout();

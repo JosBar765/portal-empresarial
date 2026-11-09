@@ -113,3 +113,18 @@ export const registrarVenta = (id, datos) => pedir(`${BASE}/participaciones/${en
 export const marcarEmpresaPerdida = (id, datos) => pedir(`${BASE}/participaciones/${encodeURIComponent(id)}/perdida`, enJson('POST', datos));
 export const descartarEmpresa = (id, datos) => pedir(`${BASE}/participaciones/${encodeURIComponent(id)}/descartar`, enJson('POST', datos));
 export const listarMisProyectosAnteriores = () => pedir(`${BASE}/mis-proyectos-anteriores`);
+
+// Seguimiento del supervisor
+export const listarProyectosEnSeguimiento = () => pedir(`${BASE}/seguimiento/proyectos`);
+export const obtenerSeguimiento = (id) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/seguimiento`);
+export const obtenerSeguimientoPorAsesor = (id) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/seguimiento/asesores`);
+export const obtenerSeguimientoPorTienda = (id) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/seguimiento/tiendas`);
+export const obtenerEstancados = (id, todos) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/seguimiento/estancados${todos ? '?todos=1' : ''}`);
+export const obtenerDestinosDeReasignacion = (id) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/seguimiento/destinos`);
+export const reasignarEmpresas = (id, datos) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/reasignar`, enJson('POST', datos));
+export const obtenerSupervision = (id) => pedir(`${BASE}/participaciones/${encodeURIComponent(id)}/supervision`);
+export const anularCotizacion = (id, cotizacionId, datos) => pedir(`${BASE}/participaciones/${encodeURIComponent(id)}/cotizaciones/${encodeURIComponent(cotizacionId)}/anular`, enJson('POST', datos));
+export const anularVenta = (id, ventaId, datos) => pedir(`${BASE}/participaciones/${encodeURIComponent(id)}/ventas/${encodeURIComponent(ventaId)}/anular`, enJson('POST', datos));
+export const listarVentasPorConfirmar = (estado) => pedir(`${BASE}/ventas${consulta({ estado })}`);
+export const confirmarVenta = (id, idempotencyKey) => pedir(`${BASE}/ventas/${encodeURIComponent(id)}/confirmar`, enJson('POST', { idempotencyKey }));
+export const rechazarVenta = (id, datos) => pedir(`${BASE}/ventas/${encodeURIComponent(id)}/rechazar`, enJson('POST', datos));

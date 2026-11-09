@@ -17,7 +17,7 @@ function actualizarOffsetSidebar(sidebar) {
 
 export function marcarRuta(ruta) {
   // La ficha de una empresa pertenece a Mi proyecto.
-  const activa = ruta === 'empresa' ? 'miproyecto' : ruta;
+  const activa = ruta === 'empresa' ? 'miproyecto' : ruta === 'participacion' ? 'seguimiento' : ruta;
   $$('.sidebar-item[data-ruta]').forEach(item => item.classList.toggle('sidebar-item-active', item.dataset.ruta === activa));
   marcarBarraInferior(activa);
 }

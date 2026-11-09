@@ -130,6 +130,7 @@ async function renderDetalle(cont, id) {
     cabecera({
       titulo: p.nombre, subtitulo: `${p.codigo} · ${pluralizar(p.tiendas.length, 'tienda', 'tiendas')} · ${pluralizar(p.asesores, 'asesor', 'asesores')}${p.estado === 'pendiente_aprobacion' ? '' : ` · ${pluralizar(p.empresas, 'empresa', 'empresas')}`}`,
       acciones: h('div', { class: 'acciones-cabecera' }, h('a', { class: 'btn btn--ghost', href: '#/proyectos' }, icono('arrow-back-outline'), 'Proyectos'),
+        p.estado === 'activo' && ['proyectos.supervisar', 'proyectos.ver_gerencia', 'proyectos.administrar'].some(x => state.user.permissions.includes(x)) ? h('a', { class: 'btn btn--ghost', href: `#/seguimiento/${p.id}` }, icono('trending-up-outline'), 'Seguimiento') : null,
         puedeCancelar ? h('button', { class: 'btn btn--danger', type: 'button', onclick: () => cancelar(p, () => renderDetalle(cont, id)) }, icono('close-circle-outline'), 'Cancelar proyecto') : null)
     }),
     h('div', { class: 'chips chips--ficha' }, chipDe(p)),
