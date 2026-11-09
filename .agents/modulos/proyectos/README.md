@@ -28,7 +28,7 @@ Proyectos de venta por nicho: una base global de empresas (bancos, colegios, hos
   - `index.html` (con las marcas `importmap` del versionado), `css/styles.css`, `js/app.js` (sesión y rutas por `#/`).
   - `js/views/`: `proyectos.js` (lista, borradores y detalle) y `proyectoAsistente.js` (asistente de 4 pasos), `plantillas.js` (A4/A4b), `aprobaciones.js` (G5), `campos.js` (A6), `alcance.js` (A7), `importar.js` (importación), `clientes.js`, `clienteFormulario.js` y `clienteFicha.js` (base de clientes), `inicio.js` (A0), `catalogos.js` y `catalogosConfig.js` (A1), `parametros.js` (A3), `reglas.js` (A5), `historial.js` (A10) y `cambios.js`.
   - `js/api/api.js`, `js/components/` (`ui.js`, `modal.js`, `salida.js` para avisar de cambios sin guardar), `js/layout/sidebar.js`, `js/utils/`.
-- **Verificación:** `scripts/proyectos/` (`verificar-configuracion.js`, `verificar-api-configuracion.js` y `verificar-clientes.js`, `verificar-importacion.js`, `verificar-campos-alcance.js`, `verificar-reparto.js`, `verificar-plantillas-aprobacion.js`, `verificar-gestion.js`; ver «Probar en local»).
+- **Verificación:** `scripts/proyectos/` (`verificar-configuracion.js`, `verificar-api-configuracion.js` y `verificar-clientes.js`, `verificar-importacion.js`, `verificar-campos-alcance.js`, `verificar-reparto.js`, `verificar-plantillas-aprobacion.js`, `verificar-gestion.js`, `verificar-seguimiento.js`; ver «Probar en local»).
 
 ## Reglas clave
 
@@ -66,6 +66,7 @@ Proyectos de venta por nicho: una base global de empresas (bancos, colegios, hos
 - `documentacion/clientes.md`: base de clientes (alcance, duplicados, estados, contactos, API y pantallas).
 - `documentacion/importacion.md`: importación de empresas por CSV.
 - `documentacion/plantillas_y_aprobacion.md`: plantillas de proyecto (A4/A4b), foto de la configuración y aprobación del gerente.
+- `documentacion/seguimiento_supervisor.md`: alcance de tres niveles, avance, reasignación, anulaciones y ventas por confirmar (servidor de la fase 5).
 - `documentacion/gestion_del_asesor.md`: gestiones, muestras, cotizaciones, ventas, perdida y descartada, «Para hoy» y reglas de estado (servidor de la fase 4).
 - `documentacion/proyectos_y_reparto.md`: proyectos del mes, reparto equitativo, activar y cancelar.
 - `documentacion/campos_y_alcance.md`: campos propios (A6) y alcance de usuarios por país (A7).

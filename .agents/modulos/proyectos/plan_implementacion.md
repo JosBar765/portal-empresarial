@@ -112,12 +112,12 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 
 ### Fase 5 · Seguimiento del supervisor — `feature/proyectos-05-seguimiento-supervisor`
 
-- [ ] Avance por asesor y tienda, semáforo, estancados (7 días), tiempo de reacción.
-- [ ] Reasignación individual y masiva con historial y aviso a quien recibe y a quien pierde.
-- [ ] Anulación con motivo y recálculo de estado (`proyectos.corregir`).
-- [ ] Alcance de tres niveles sobre `supervisor_tiendas`; filas «Otra tienda» con datos vacíos desde el servidor.
+- [x] Avance por asesor y tienda, semáforo, estancados (7 días), tiempo de reacción. (5a, servidor)
+- [x] Reasignación individual y masiva con historial y aviso a quien recibe y a quien pierde. (5a)
+- [x] Anulación con motivo y recálculo de estado (`proyectos.corregir`): cotizaciones y ventas; las gestiones quedan para la fase 9. (5a)
+- [x] Alcance de tres niveles sobre `supervisor_tiendas`; filas «Otra tienda» con datos vacíos desde el servidor. (5a)
 - [ ] Tiempo real por socket.
-- [ ] Cola de confirmación de ventas del supervisor (S19, `proyectos.confirmar_ventas`).
+- [x] Cola de confirmación de ventas del supervisor (S19, `proyectos.confirmar_ventas`): servidor (5a); pantalla en la 5b.
 - [ ] Pantallas: S6, S7, T4, T3c + F6.
 - **Terminado cuando:** reasignar se ve al instante en el asesor y una fila de otra tienda no lleva datos sensibles.
 
