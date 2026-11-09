@@ -11,6 +11,7 @@ const proyectoController = require('./controllers/proyectoController');
 const plantillaController = require('./controllers/plantillaController');
 const gestionController = require('./controllers/gestionController');
 const seguimientoController = require('./controllers/seguimientoController');
+const cierreController = require('./controllers/cierreController');
 const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
@@ -23,6 +24,7 @@ const gestionar = requirePermission('proyectos.gestionar');
 const reasignar = requirePermission('proyectos.reasignar');
 const corregir = requirePermission('proyectos.corregir');
 const confirmarVentas = requirePermission('proyectos.confirmar_ventas');
+const vistoBueno = requirePermission('proyectos.dar_visto_bueno');
 // Ver el seguimiento: supervisores, gerencia y administración (el alcance de cada quien lo decide el servicio).
 const supervisa = (req, res, siguiente) => {
   const permisos = (req.user && req.user.permissions) || [];
@@ -85,6 +87,16 @@ router.post('/participaciones/:id/ventas/:ventaId/anular', corregir, seguimiento
 router.get('/ventas', confirmarVentas, seguimientoController.ventas);
 router.post('/ventas/:id/confirmar', confirmarVentas, seguimientoController.confirmarVenta);
 router.post('/ventas/:id/rechazar', confirmarVentas, seguimientoController.rechazarVenta);
+
+// Informe, cierre y visto bueno del proyecto, y el panel gerencial (solo lectura). El alcance de cada quien lo decide el servicio.
+router.get('/proyectos/:id/informe', cierreController.informe);
+router.get('/proyectos/:id/informe.pdf', (req, res) => cierreController.pdf(req, res));
+router.post('/proyectos/:id/cerrar', activar, cierreController.cerrar);
+router.post('/proyectos/:id/visto-bueno', vistoBueno, cierreController.vistoBueno);
+router.post('/proyectos/:id/devolver', vistoBueno, cierreController.devolver);
+router.post('/proyectos/:id/reenviar', activar, cierreController.reenviar);
+router.get('/gerencia/panel', cierreController.panel);
+router.get('/gerencia/visto-bueno', cierreController.porDarVistoBueno);
 
 // Empresas de la base global (las lecturas solo exigen proyectos.ver; cada una ve los países de su alcance)
 router.get('/clientes/importar/plantilla', importar, (req, res) => importacionController.plantilla(req, res));
