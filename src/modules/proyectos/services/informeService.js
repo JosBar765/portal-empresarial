@@ -68,6 +68,7 @@ class InformeService {
     const proyecto = await informeRepository.proyecto(Number(proyectoId));
     const congelado = proyecto.estado === 'cerrado' && proyecto.resumen_cierre;
     const informe = congelado ? objeto(proyecto.resumen_cierre) : await this.calcular(proyecto.id);
+    const vistoBuenoActivo = Boolean(await configService.obtener('reglas.visto_bueno_cierre'));
     const [historial, sinGestionar] = await Promise.all([informeRepository.historial(proyecto.id), proyecto.estado === 'activo' ? informeRepository.sinGestionar(proyecto.id) : Promise.resolve(informe.cifras.sinGestionar)]);
     return {
       proyecto: {
@@ -80,6 +81,7 @@ class InformeService {
       cierre: proyecto.estado === 'cerrado' ? { por: proyecto.cerrado_por, en: proyecto.cerrado_en } : null,
       vistoBueno: proyecto.visto_bueno_estado ? { estado: proyecto.visto_bueno_estado, por: proyecto.visto_bueno_por, en: proyecto.visto_bueno_en, comentario: proyecto.visto_bueno_comentario } : null,
       historial: historial.map(h => ({ accion: h.accion, en: h.creado_en, usuario: h.usuario })),
+      reglas: { vistoBueno: vistoBuenoActivo },
       permisos: {
         cerrar: proyecto.estado === 'activo' && tiene(usuario, 'proyectos.activar'),
         reenviar: proyecto.estado === 'cerrado' && proyecto.visto_bueno_estado === 'devuelto' && tiene(usuario, 'proyectos.activar'),

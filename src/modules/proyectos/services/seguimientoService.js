@@ -84,6 +84,7 @@ class SeguimientoService {
       permisos: {
         reasignar: tiene(usuario, 'proyectos.reasignar') && proyecto.estado === 'activo',
         corregir: tiene(usuario, 'proyectos.corregir') && proyecto.estado === 'activo',
+        cerrar: tiene(usuario, 'proyectos.activar') && proyecto.estado === 'activo',
         confirmarVentas: tiene(usuario, 'proyectos.confirmar_ventas'), gerencia: niveles.gerencia
       }
     };
