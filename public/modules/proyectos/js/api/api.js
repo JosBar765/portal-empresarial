@@ -71,3 +71,11 @@ const conArchivo = (archivo, campos = {}) => {
 export const URL_PLANTILLA = `${BASE}/clientes/importar/plantilla`;
 export const previsualizarImportacion = (archivo) => pedir(`${BASE}/clientes/importar/previsualizar`, conArchivo(archivo));
 export const confirmarImportacion = (archivo, duplicadas, idempotencyKey) => pedir(`${BASE}/clientes/importar/confirmar`, conArchivo(archivo, { duplicadas, idempotencyKey }));
+
+// Campos propios (A6) y alcance de usuarios (A7)
+export const listarCampos = () => pedir(`${BASE}/config/campos`);
+export const crearCampo = (datos) => pedir(`${BASE}/config/campos`, enJson('POST', datos));
+export const editarCampo = (id, datos) => pedir(`${BASE}/config/campos/${encodeURIComponent(id)}`, enJson('PUT', datos));
+export const cambiarActivoCampo = (id, activo) => pedir(`${BASE}/config/campos/${encodeURIComponent(id)}/activo`, enJson('PATCH', { activo }));
+export const listarAlcance = (filtros) => pedir(`${BASE}/config/alcance${consulta(filtros || {})}`);
+export const guardarAlcance = (usuarioId, paises) => pedir(`${BASE}/config/alcance/${encodeURIComponent(usuarioId)}`, enJson('PUT', { paises }));

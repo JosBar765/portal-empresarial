@@ -20,21 +20,23 @@ export function renderClientes(cont, parametro) {
 
 const lugar = (e) => [e.ciudad, e.pais].filter(Boolean).join(' · ');
 
-function filaDeTabla(e) {
+function filaDeTabla(e, columnas = []) {
   return h('tr', null,
     h('td', null, h('a', { class: 'cliente-enlace', href: `#/clientes/${e.id}`, text: e.nombre })),
     h('td', { text: e.nicho }),
     h('td', { text: lugar(e) || '—' }),
     h('td', { text: e.telefonoTexto || '—' }),
     h('td', { class: 'num', text: String(e.contactos) }),
+    columnas.map(c => h('td', { text: e.extras[c.clave] || '—' })),
     h('td', null, h('div', { class: 'chips' }, chipEstado(e.estado), e.enProyecto ? chipEnProyecto() : null)));
 }
 
-function tarjetaDeCliente(e) {
+function tarjetaDeCliente(e, columnas = []) {
   return h('a', { class: 'cliente-tarjeta', href: `#/clientes/${e.id}` },
     h('div', { class: 'cliente-tarjeta-cabecera' }, h('span', { class: 'cliente-tarjeta-nombre', text: e.nombre }), icono('chevron-forward-outline')),
     h('div', { class: 'cliente-tarjeta-detalle', text: [e.nicho, lugar(e)].filter(Boolean).join(' · ') }),
     h('div', { class: 'cliente-tarjeta-detalle', text: e.telefonoTexto || 'Sin teléfono' }),
+    columnas.filter(c => e.extras[c.clave]).map(c => h('div', { class: 'cliente-tarjeta-detalle', text: `${c.etiqueta}: ${e.extras[c.clave]}` })),
     h('div', { class: 'chips' }, chipEstado(e.estado), e.enProyecto ? chipEnProyecto() : null));
 }
 
@@ -46,6 +48,7 @@ async function renderLista(cont) {
   let total = 0;
   let pagina = 0;
   let hayMas = false;
+  let columnasExtra = [];
   let numeroConsulta = 0;
   let temporizador = null;
 
@@ -74,6 +77,7 @@ async function renderLista(cont) {
       pagina = r.pagina;
       total = r.total;
       hayMas = r.hayMas;
+      columnasExtra = r.columnasExtra || [];
       items.push(...r.items);
       dibujarResultados();
     } catch (error) {
@@ -93,9 +97,9 @@ async function renderLista(cont) {
     }
     montar(zonaResultados,
       h('div', { class: 'tabla-caja clientes-tabla' }, h('div', { class: 'tabla-scroll' }, h('table', { class: 'data-table' },
-        h('thead', null, h('tr', null, ['Empresa', 'Nicho', 'Ubicación', 'Teléfono', 'Contactos', 'Estado'].map(t => h('th', { class: t === 'Contactos' ? 'num' : null, text: t })))),
-        h('tbody', null, items.map(filaDeTabla))))),
-      h('div', { class: 'clientes-tarjetas' }, items.map(tarjetaDeCliente)));
+        h('thead', null, h('tr', null, ['Empresa', 'Nicho', 'Ubicación', 'Teléfono', 'Contactos', ...columnasExtra.map(c => c.etiqueta), 'Estado'].map(t => h('th', { class: t === 'Contactos' ? 'num' : null, text: t })))),
+        h('tbody', null, items.map(e => filaDeTabla(e, columnasExtra)))))),
+      h('div', { class: 'clientes-tarjetas' }, items.map(e => tarjetaDeCliente(e, columnasExtra))));
     montar(zonaPie,
       h('span', { text: `Mostrando ${items.length} de ${total} ${total === 1 ? 'empresa' : 'empresas'}` }),
       hayMas ? h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => cargar(false) }, 'Cargar más') : null);
@@ -117,7 +121,12 @@ async function renderLista(cont) {
       h('div', { class: 'campo campo--busqueda' }, h('label', { text: 'Buscar' }), entradaBusqueda),
       lista('nicho', 'Nicho', opciones.nichos.map(n => [n.id, n.nombre]), 'Todos los nichos'),
       opciones.paises.length > 1 ? lista('pais', 'País', opciones.paises.map(p => [p.id, p.nombre]), 'Todos los países') : null,
-      lista('estado', 'Estado', ESTADOS_FILTRO)),
+      lista('estado', 'Estado', ESTADOS_FILTRO),
+      // Filtros de los campos propios de tipo sí/no o lista.
+      (opciones.campos || []).filter(c => ['si_no', 'lista'].includes(c.tipo)).map(c => {
+        filtros[`extra_${c.clave}`] = filtros[`extra_${c.clave}`] || '';
+        return lista(`extra_${c.clave}`, c.etiqueta, c.tipo === 'si_no' ? [['si', 'Sí'], ['no', 'No']] : c.opciones.map(o => [o, o]), 'Todos');
+      })),
     zonaResultados, zonaPie);
   await cargar(true);
 }

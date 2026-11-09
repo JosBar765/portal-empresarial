@@ -9,8 +9,6 @@ import { textoDeCambio } from './cambios.js';
 const AREAS_PRONTO = [
   { titulo: 'Plan del año', icono: 'calendar-outline', texto: 'Nicho y plantilla por mes · activación automática', fase: 9 },
   { titulo: 'Plantillas de proyecto', icono: 'document-text-outline', texto: 'Duración, etapas y qué puede cambiar el supervisor', fase: 3 },
-  { titulo: 'Campos propios', icono: 'create-outline', texto: 'Datos extra de la empresa según el nicho', fase: 2 },
-  { titulo: 'Alcance de usuarios', icono: 'globe-outline', texto: 'Los países que ve cada persona', fase: 2 },
   { titulo: 'Notificaciones', icono: 'notifications-outline', texto: 'Qué avisos recibe cada rol', fase: 6 },
   { titulo: 'Kit del nicho', icono: 'chatbox-outline', texto: 'Guiones y mensajes por nicho', fase: 9 }
 ];
@@ -68,6 +66,14 @@ function tarjetas(resumen) {
     tarjeta({
       titulo: 'Reglas y aprobaciones', nombreIcono: 'checkmark-circle-outline', ruta: 'reglas',
       texto: reglas, pie: pieDe(resumen.ultimos.reglas, 'Todo en su valor por defecto')
+    }),
+    tarjeta({
+      titulo: 'Campos propios', nombreIcono: 'create-outline', ruta: 'campos', texto: 'Datos extra de la empresa según el nicho',
+      pie: pieDe(resumen.ultimos.campos, `${pluralizar(resumen.campos.activos, 'campo activo', 'campos activos')}`)
+    }),
+    tarjeta({
+      titulo: 'Alcance de usuarios', nombreIcono: 'globe-outline', ruta: 'alcance', texto: 'Los países que ve cada persona',
+      pie: pieDe(resumen.ultimos.alcance, resumen.alcance.personasConExcepciones ? `${pluralizar(resumen.alcance.personasConExcepciones, 'persona con ajustes', 'personas con ajustes')}` : 'Cada persona ve el país de su tienda')
     }),
     ...AREAS_PRONTO.slice(2).map(a => tarjeta({ titulo: a.titulo, nombreIcono: a.icono, texto: a.texto, fase: a.fase, pie: `Disponible en la fase ${a.fase}` })),
     tarjeta({

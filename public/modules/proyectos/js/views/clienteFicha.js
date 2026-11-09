@@ -61,7 +61,7 @@ function armar(empresa, opciones, alActualizar) {
     h('div', { class: 'chips chips--ficha' }, chipEstado(empresa.estado), empresa.enProyecto ? chipEnProyecto() : null),
     avisoEstado,
     h('div', { class: 'ficha-cuerpo' },
-      h('div', { class: 'ficha-columna' }, panelDatos(empresa), panelHistorial(empresa)),
+      h('div', { class: 'ficha-columna' }, panelDatos(empresa), panelNicho(empresa), panelHistorial(empresa)),
       h('div', { class: 'ficha-columna' }, panelContactos(empresa, opciones, puedeEditar, alActualizar)))
   ];
 }
@@ -77,6 +77,14 @@ function panelDatos(e) {
       dato('Teléfono', e.telefonoTexto), dato('Sitio web', web), dato('Dirección', e.direccion),
       dato('Origen', `${ORIGEN[e.origen] || e.origen}${e.tiendaOrigen ? ` · ${e.tiendaOrigen}` : ''}`),
       dato('Registrada por', `${e.creadoPor}, ${hace(e.creadoEn)}`)));
+}
+
+// Los campos propios que el administrador definió para el nicho de la empresa (A6).
+function panelNicho(e) {
+  if (!e.datosNicho || !e.datosNicho.length) return null;
+  return h('section', { class: 'panel' },
+    h('h2', { class: 'panel-titulo', text: 'Datos del nicho' }),
+    h('dl', { class: 'datos' }, e.datosNicho.map(d => dato(d.etiqueta, d.texto))));
 }
 
 function panelHistorial(e) {

@@ -13,6 +13,8 @@ import { renderReglas } from './views/reglas.js';
 import { renderHistorial } from './views/historial.js';
 import { renderClientes } from './views/clientes.js';
 import { renderImportar } from './views/importar.js';
+import { renderCampos } from './views/campos.js';
+import { renderAlcance } from './views/alcance.js';
 
 // Cada pantalla pide su propio permiso: entrar a Proyectos solo exige `proyectos.ver`, y la configuración, `proyectos.administrar`.
 const RUTAS = {
@@ -21,6 +23,8 @@ const RUTAS = {
   inicio: { render: renderInicio, permiso: 'proyectos.administrar' },
   parametros: { render: renderParametros, permiso: 'proyectos.administrar' },
   reglas: { render: renderReglas, permiso: 'proyectos.administrar' },
+  campos: { render: renderCampos, permiso: 'proyectos.administrar' },
+  alcance: { render: renderAlcance, permiso: 'proyectos.administrar' },
   historial: { render: renderHistorial, permiso: 'proyectos.administrar' },
   catalogos: { render: renderCatalogos, permiso: 'proyectos.administrar' }
 };
