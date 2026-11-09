@@ -13,9 +13,18 @@ function error(mensaje) {
   return { ok: false, error: mensaje };
 }
 
+// El país de la lista (`otros`) cuyo prefijo abre este número; si hay varios, el de prefijo más largo (+501 antes que +50).
+function paisDelPrefijo(todos, otros) {
+  return otros
+    .map(p => ({ p, prefijo: digitos(p.prefijoTelefono) }))
+    .filter(x => x.prefijo && todos.startsWith(x.prefijo))
+    .sort((a, b) => b.prefijo.length - a.prefijo.length)[0]?.p || null;
+}
+
 // `pais`: { nombre, prefijoTelefono: '+502', formatoTelefono: '#### ####' }. Sin país o sin prefijo se acepta un
-// número internacional completo (+ y de 8 a 15 dígitos).
-function normalizar(texto, pais = {}) {
+// número internacional completo (+ y de 8 a 15 dígitos). `otros`: los demás países configurados; si el número trae
+// el prefijo de uno de ellos (elegido a propósito, p. ej. un contacto de otro país), se valida con las reglas de ese país.
+function normalizar(texto, pais = {}, otros = []) {
   const crudo = String(texto == null ? '' : texto).trim();
   if (!crudo) return error('Escribe el teléfono.');
   if (/[^0-9+\s().-]/.test(crudo)) return error('El teléfono solo puede tener números, espacios y el signo +.');
@@ -33,7 +42,11 @@ function normalizar(texto, pais = {}) {
 
   let local;
   if (traePrefijo) {
-    if (!todos.startsWith(prefijo)) return error(`El prefijo no es de ${pais.nombre || 'este país'}: usa +${prefijo}.`);
+    if (!todos.startsWith(prefijo)) {
+      const otro = paisDelPrefijo(todos, otros);
+      if (otro) return normalizar(texto, otro);
+      return error(`El prefijo no es de ${pais.nombre || 'este país'}: usa +${prefijo}.`);
+    }
     local = todos.slice(prefijo.length);
   } else if (largo && todos.length === prefijo.length + largo && todos.startsWith(prefijo)) {
     local = todos.slice(prefijo.length); // «50277654400» escrito sin el +
@@ -48,10 +61,11 @@ function normalizar(texto, pais = {}) {
 }
 
 // Pinta un teléfono canónico con la máscara del país; si no coincide, lo devuelve tal cual.
-function formatear(telefono, pais = {}) {
+function formatear(telefono, pais = {}, otros = []) {
   if (!telefono) return '';
-  const prefijo = digitos(pais.prefijoTelefono);
   const todos = digitos(telefono);
+  if (!digitos(pais.prefijoTelefono) || !todos.startsWith(digitos(pais.prefijoTelefono))) pais = paisDelPrefijo(todos, otros) || pais;
+  const prefijo = digitos(pais.prefijoTelefono);
   if (!prefijo || !todos.startsWith(prefijo)) return String(telefono);
   const local = todos.slice(prefijo.length);
   const mascara = pais.formatoTelefono;

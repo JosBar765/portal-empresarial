@@ -61,6 +61,8 @@ class ClienteService {
       paises: paises.filter(p => alcance.ids.includes(p.paisId)).map(p => ({
         id: p.paisId, codigo: p.codigo, nombre: p.nombre, prefijoTelefono: p.prefijoTelefono, formatoTelefono: p.formatoTelefono
       })),
+      // Todos los países con prefijo: el selector del teléfono deja elegir uno distinto al del país de la empresa.
+      prefijos: paises.filter(p => p.prefijoTelefono).map(p => ({ id: p.paisId, codigo: p.codigo, nombre: p.nombre, prefijoTelefono: p.prefijoTelefono, formatoTelefono: p.formatoTelefono })),
       ajustes: {
         ciudadObligatoria: ajustes['empresas.ciudad_obligatoria'], contactoObligatorio: ajustes['empresas.contacto_obligatorio'],
         telefonoOCorreoObligatorio: ajustes['empresas.telefono_o_correo_obligatorio'], sitioWebObligatorio: ajustes['empresas.sitio_web_obligatorio']
@@ -86,7 +88,7 @@ class ClienteService {
     const pais = paises.get(fila.pais_id);
     return {
       id: fila.id, nombre: fila.nombre, nichoId: fila.nicho_id, nicho: fila.nicho, paisId: fila.pais_id, pais: fila.pais,
-      ciudad: fila.ciudad, telefono: fila.telefono, telefonoTexto: telefonos.formatear(fila.telefono, pais),
+      ciudad: fila.ciudad, telefono: fila.telefono, telefonoTexto: telefonos.formatear(fila.telefono, pais, [...paises.values()]),
       estructuraId: fila.estructura_id, estructura: fila.estructura, estado: fila.estado,
       enProyecto: Boolean(Number(fila.en_proyecto)), contactos: Number(fila.contactos)
     };
@@ -122,7 +124,7 @@ class ClienteService {
       creadoPor: fila.creado_por_nombre, creadoEn: fila.creado_en,
       contactos: contactos.map(c => ({
         id: c.id, areaId: c.area_id, area: c.area, nombre: c.nombre, cargo: c.cargo, telefono: c.telefono,
-        telefonoTexto: telefonos.formatear(c.telefono, pais), correo: c.correo, principal: Boolean(c.principal), activo: Boolean(c.activo)
+        telefonoTexto: telefonos.formatear(c.telefono, pais, [...paises.values()]), correo: c.correo, principal: Boolean(c.principal), activo: Boolean(c.activo)
       })),
       eventos: eventos.map(e => ({
         accion: e.accion, estadoAnterior: e.estado_anterior, estadoNuevo: e.estado_nuevo, motivo: e.motivo, nota: e.nota,
@@ -197,7 +199,7 @@ class ClienteService {
     const pais = paisId !== null && !campos.paisId ? ctx.paises.get(paisId) : null;
     let telefono = null;
     if (limpio(datos.telefono)) {
-      const r = telefonos.normalizar(datos.telefono, pais || {});
+      const r = telefonos.normalizar(datos.telefono, pais || {}, [...ctx.paises.values()]);
       if (r.ok) telefono = r.telefono; else campos.telefono = r.error;
     }
 
@@ -239,7 +241,7 @@ class ClienteService {
     if (cargo.length > 100) marca('cargo', 'Máximo 100 caracteres.');
     let telefono = null;
     if (limpio(c.telefono)) {
-      const r = telefonos.normalizar(c.telefono, pais || {});
+      const r = telefonos.normalizar(c.telefono, pais || {}, ctx ? [...ctx.paises.values()] : [...(await this._configuracionDePaises()).values()]);
       if (r.ok) telefono = r.telefono; else marca('telefono', r.error);
     }
     const correo = limpio(c.correo);
@@ -263,7 +265,7 @@ class ClienteService {
       porTelefono: ajustes['empresas.duplicado_por_telefono']
     }).map(({ cliente, razones, similitud }) => ({
       id: cliente.id, nombre: cliente.nombre, ciudad: cliente.ciudad, pais: cliente.pais, nicho: cliente.nicho, estado: cliente.estado,
-      telefonoTexto: telefonos.formatear(cliente.telefono, paises.get(cliente.pais_id)), razones, similitud
+      telefonoTexto: telefonos.formatear(cliente.telefono, paises.get(cliente.pais_id), [...paises.values()]), razones, similitud
     }));
   }
 
@@ -274,7 +276,7 @@ class ClienteService {
     const alcance = await alcanceService.paisesDe(usuario);
     if (paisId === null || !alcance.ids.includes(paisId) || !limpio(datos.nombre)) return { duplicados: [] };
     const pais = (await this._configuracionDePaises()).get(paisId);
-    const r = limpio(datos.telefono) ? telefonos.normalizar(datos.telefono, pais || {}) : { ok: false };
+    const r = limpio(datos.telefono) ? telefonos.normalizar(datos.telefono, pais || {}, [...(await this._configuracionDePaises()).values()]) : { ok: false };
     return { duplicados: await this._coincidencias(usuario, { nombre: datos.nombre, ciudad: datos.ciudad, telefono: r.ok ? r.telefono : null, paisId }, aEntero(datos.excluirId)) };
   }
 

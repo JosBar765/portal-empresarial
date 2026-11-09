@@ -34,6 +34,12 @@ function verificarPuras() {
   prueba('el prefijo de otro país se rechaza', /no es de Guatemala/.test(telefonos.normalizar('+503 2222 3333', gt).error));
   prueba('las letras se rechazan', !telefonos.normalizar('77a5 4400', gt).ok);
   prueba('vacío se rechaza', !telefonos.normalizar('  ', gt).ok);
+  const sv = { nombre: 'El Salvador', prefijoTelefono: '+503', formatoTelefono: '#### ####' };
+  const todos = [gt, sv, bz];
+  prueba('con el prefijo de otro país elegido a propósito se valida con las reglas de ese país', telefonos.normalizar('+503 2222 3344', gt, todos).telefono === '+50322223344');
+  prueba('…y si el número no cumple el formato de ese país, se rechaza con su prefijo', telefonos.normalizar('+503 2222 33', gt, todos).error === 'Formato inválido: usa +503 y 8 dígitos.');
+  prueba('un prefijo que no es de ningún país configurado se rechaza', !telefonos.normalizar('+999 2222 3344', gt, todos).ok);
+  prueba('se muestra con el formato del país del prefijo', telefonos.formatear('+50322223344', gt, todos) === '+503 2222 3344');
   prueba('Belice usa 7 dígitos', telefonos.normalizar('222 3344', bz).telefono === '+5012223344');
   prueba('se muestra con el formato del país', telefonos.formatear('+50277654400', gt) === '+502 7765 4400' && telefonos.formatear('+5012223344', bz) === '+501 222 3344');
 
@@ -126,6 +132,7 @@ async function verificarServicio() {
     prueba('un asesor de Guatemala solo ve su país y los catálogos activos', r.status === 200 && r.datos.paises.map(p => p.codigo).join() === 'GT'
       && r.datos.nichos.length >= 17 && r.datos.areas.length === 7 && r.datos.motivosNoContactar.length === 4 && r.datos.permisos.registrar === true && r.datos.permisos.reactivar === false,
       JSON.stringify(r.datos && r.datos.paises));
+    prueba('el selector de teléfono trae los prefijos de todos los países, no solo los del alcance', r.datos.prefijos.length >= 6 && r.datos.prefijos.some(p => p.codigo === 'SV' && p.prefijoTelefono === '+503'), JSON.stringify(r.datos.prefijos));
     r = await llamar('GET', '/clientes/opciones', { usuario: gerente, permisos: PERM_GERENTE });
     prueba('el gerente ve todos los países y no puede registrar', r.datos.paises.length >= 6 && r.datos.permisos.registrar === false);
     r = await llamar('GET', '/clientes/opciones', { usuario: supervisor, permisos: PERM_SUPERVISOR });
@@ -238,12 +245,18 @@ async function verificarServicio() {
     prueba('agregar un contacto como principal deja un solo principal', r.status === 201 && luis.principal === true && r.datos.contactos.filter(c => c.principal).length === 1);
     r = await llamar('POST', `/clientes/${creada.id}/contactos`, { cuerpo: { nombre: '', areaId: 999999 } });
     prueba('un contacto sin nombre ni área válida se rechaza', r.status === 400 && r.datos.campos.nombre && r.datos.campos.areaId);
+    r = await llamar('POST', `/clientes/${creada.id}/contactos`, { cuerpo: { nombre: 'Marta Rivas', areaId, telefono: '+503 2222 3344' } });
+    const marta = r.datos && r.datos.contactos && r.datos.contactos.find(c => c.nombre === 'Marta Rivas');
+    prueba('un contacto puede tener teléfono de otro país si se eligió su prefijo', r.status === 201 && marta.telefono === '+50322223344' && marta.telefonoTexto === '+503 2222 3344', JSON.stringify(r.datos));
+    r = await llamar('POST', `/clientes/${creada.id}/contactos`, { cuerpo: { nombre: 'Pedro Sola', areaId, telefono: '+503 2222 33' } });
+    prueba('…pero se valida con el formato de ese país', r.status === 400 && r.datos.campos.telefono === 'Formato inválido: usa +503 y 8 dígitos.', JSON.stringify(r.datos));
     const carolina = (await llamar('GET', `/clientes/${creada.id}`)).datos.contactos.find(c => c.nombre === 'Carolina Méndez');
     r = await llamar('PUT', `/clientes/contactos/${carolina.id}`, { cuerpo: { cargo: 'Jefa de compras', principal: true } });
     prueba('editar un contacto y hacerlo principal quita el principal anterior', r.status === 200 && r.datos.contactos.find(c => c.id === carolina.id).cargo === 'Jefa de compras'
       && r.datos.contactos.find(c => c.id === carolina.id).principal === true && r.datos.contactos.find(c => c.id === luis.id).principal === false);
     r = await llamar('PATCH', `/clientes/contactos/${carolina.id}/activo`, { cuerpo: { activo: false } });
     prueba('desactivar al principal pasa el principal a otro contacto activo', r.status === 200 && r.datos.contactos.find(c => c.id === carolina.id).activo === false && r.datos.contactos.find(c => c.id === luis.id).principal === true);
+    await llamar('PATCH', `/clientes/contactos/${marta.id}/activo`, { cuerpo: { activo: false } });
     r = await llamar('PATCH', `/clientes/contactos/${luis.id}/activo`, { cuerpo: { activo: false } });
     prueba('no se puede desactivar el último contacto activo mientras el ajuste lo exija (409)', r.status === 409);
     prueba('un contacto de otro país no se toca (404)', (await llamar('PUT', `/clientes/contactos/${(await db.query('SELECT id FROM proy_contactos WHERE cliente_id = ?', [salvadorena.id], 'cli:contacto_sv'))[0].id}`, { cuerpo: { cargo: 'X' } })).status === 404);
