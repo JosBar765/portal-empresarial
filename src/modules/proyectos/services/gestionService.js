@@ -6,6 +6,7 @@ const db = require('../../../config/database');
 const repo = require('../repositories/participacionRepository');
 const proyectoRepository = require('../repositories/proyectoRepository');
 const configService = require('./configService');
+const avisosService = require('./avisosService');
 const { derivar, FINALES } = require('../estadoParticipacion');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero } = require('../../../core/utils/validar');
@@ -286,7 +287,7 @@ class GestionService {
     const { campos, moneda, importe, referencia } = await this._datosDeDinero(datos, previa.pais_id);
     if (Object.keys(campos).length) throw errorDeValidacion('Revisa los datos de la venta.', campos);
     const porConfirmar = Boolean(await configService.confirmacionVentas(previa.pais_id));
-    return this._registrar(usuario, id, datos.idempotencyKey, 'venta', async ({ tx, participacion }) => {
+    const ficha = await this._registrar(usuario, id, datos.idempotencyKey, 'venta', async ({ tx, participacion }) => {
       // Una misma orden puede cubrir varias empresas del grupo, pero hay que decirlo: si no, se avisa y no se guarda.
       const otra = referencia ? await repo.ventaConReferencia(tx, referencia) : null;
       if (otra && datos.confirmarReferenciaRepetida !== true) {
@@ -298,6 +299,13 @@ class GestionService {
       await repo.insertarVenta(tx, { participacionId: participacion.id, monto: importe, moneda, referencia, estado: porConfirmar ? 'por_confirmar' : 'confirmada', usuarioId: usuario.id });
       await this._recalcular(tx, participacion.id, { motivo_perdida_id: null });
     });
+    // Con la confirmación de ventas encendida, los supervisores de las tiendas del proyecto se enteran de que hay una venta esperando.
+    if (porConfirmar && !ficha.repetida) {
+      try {
+        await avisosService.notificar('venta_por_confirmar', { proyectoId: previa.proyecto_id, autorId: usuario.id, referenciaId: previa.id, mensaje: `Venta por confirmar de «${previa.nombre}»${referencia ? ` (${referencia})` : ''}.` });
+      } catch (error) { console.error('[Proyectos] No se pudo avisar de la venta por confirmar:', error.message); }
+    }
+    return ficha;
   }
 
   async marcarPerdida(usuario, id, datos = {}) {

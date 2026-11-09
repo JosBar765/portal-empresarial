@@ -185,7 +185,7 @@ async function verificar() {
     prueba('reasignar una empresa: cambia de asesor, conserva su estado y queda en el historial', r.status === 200 && r.datos.reasignadas === 1 && despues.asesor_id === A1 && despues.estado === 'pendiente' && Number((await db.query('SELECT COUNT(*) AS n FROM proy_reasignaciones WHERE participacion_id = ? AND de_usuario_id = ? AND a_usuario_id = ? AND por_usuario_id = ?', [mias2[2], A2, A1, SUP1], 'seg:hist'))[0].n) === 1, JSON.stringify(r.datos));
     r = await sup1('POST', `/proyectos/${proyectoId}/reasignar`, { empresaIds: [mias2[2]], aAsesorId: A1, motivo: 'De vacaciones hasta el 20 nov', idempotencyKey: k1 });
     prueba('repetir la clave no reasigna otra vez', r.status === 200 && r.datos.repetida === true && Number((await db.query('SELECT COUNT(*) AS n FROM proy_reasignaciones WHERE participacion_id = ?', [mias2[2]], 'seg:hist2'))[0].n) === 1);
-    prueba('se avisó a quien recibe y a quien cede', (await avisos('reasignacion_recibida')) >= 1 && (await avisos('reasignacion_cedida')) >= 1);
+    prueba('se avisó a quien recibe y a quien cede', (await avisos('reasignada_recibe')) >= 1 && (await avisos('reasignada_pierde')) >= 1);
     const antesA2 = (await propias(A2)).length;
     r = await sup1('POST', `/proyectos/${proyectoId}/reasignar`, { deAsesorId: A2, todasLasPendientes: true, aAsesorId: 'equitativo', motivo: 'Ausente', idempotencyKey: clave() });
     const cargaTienda1 = (await db.query('SELECT asesor_id, COUNT(*) AS n FROM proy_participaciones WHERE proyecto_id = ? AND tienda_id = 1 AND asesor_id <> ? GROUP BY asesor_id', [proyectoId, A2], 'seg:carga')).map(x => Number(x.n));
@@ -219,7 +219,7 @@ async function verificar() {
     prueba('repetir la clave devuelve el mismo resultado', r.status === 200 && r.datos.repetida === true);
     r = await sup1('POST', `/participaciones/${a1}/cotizaciones/${cotA1}/anular`, { motivo: 'Cotización equivocada', idempotencyKey: clave() });
     prueba('anular la cotización devuelve la empresa a «interesada»', r.status === 200 && r.datos.estado === 'interesada', JSON.stringify(r.datos.estado));
-    prueba('se avisó al asesor de las anulaciones', (await avisos('anulacion_%')) >= 2);
+    prueba('se avisó al asesor de las anulaciones', (await avisos('registro_anulado')) >= 2);
 
     console.log('Ventas por confirmar');
     prueba('sin proyectos.confirmar_ventas → 403', (await llamar('GET', '/ventas', { usuario: SUP1, permisos: PERM_SUPERVISOR_SOLO_VER })).status === 403);
@@ -247,7 +247,7 @@ async function verificar() {
     prueba('rechazar con motivo: la venta queda «rechazada», no cuenta y la empresa no pasa a vendida', r.status === 200 && (await filaDe(a3)).estado !== 'vendida' && (await db.query('SELECT estado, revision_motivo FROM proy_ventas WHERE id = ?', [ventaMala], 'seg:rechazada'))[0].estado === 'rechazada', JSON.stringify(r.datos));
     r = await sup1('GET', '/ventas?estado=rechazada');
     prueba('la pestaña «Rechazadas» la lista', r.datos.ventas.some(v => v.id === ventaMala) && r.datos.conteos.rechazada >= 1);
-    prueba('se avisó al asesor de la confirmación y del rechazo', (await avisos('venta_confirmada')) >= 1 && (await avisos('venta_rechazada')) >= 1);
+    prueba('se avisó al asesor de la confirmación y del rechazo', (await avisos('venta_revisada')) >= 2);
     await configService.guardar({ 'reglas.confirmar_ventas': false }, admin);
 
     console.log('Proyecto cerrado: solo lectura');

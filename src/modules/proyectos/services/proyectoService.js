@@ -5,6 +5,8 @@ const db = require('../../../config/database');
 const proyectoRepository = require('../repositories/proyectoRepository');
 const catalogoRepository = require('../repositories/catalogoRepository');
 const configService = require('./configService');
+const avisosService = require('./avisosService');
+const avisosRepository = require('../repositories/avisosRepository');
 const plantillaService = require('./plantillaService');
 const plantillaRepository = require('../repositories/plantillaRepository');
 const reparto = require('../repartoService');
@@ -480,7 +482,18 @@ class ProyectoService {
       if (esDuplicado(error, 'idempotency_keys')) return { ...(await this.obtener(usuario, id)), repetida: true };
       throw error;
     }
-    return { ...(await this.obtener(usuario, id)), repetida: false };
+    const resultado = { ...(await this.obtener(usuario, id)), repetida: false };
+    await this._avisarReparto(usuario, resultado);
+    return resultado;
+  }
+
+  // Cada asesor se entera de cuántas empresas recibió. Un fallo al avisar no deshace la activación.
+  async _avisarReparto(usuario, proyecto) {
+    try {
+      for (const f of await avisosRepository.repartoPorAsesor(proyecto.id)) {
+        await avisosService.notificar('reparto_recibido', { proyectoId: proyecto.id, autorId: usuario.id, explicitos: { asesor: [f.asesor_id] }, referenciaTipo: 'proyecto', referenciaId: proyecto.id, mensaje: `Te asignaron ${f.n} ${Number(f.n) === 1 ? 'empresa' : 'empresas'} en «${proyecto.nombre}».` });
+      }
+    } catch (error) { console.error('[Proyectos] No se pudo avisar del reparto:', error.message); }
   }
 
   _exigirCompleto(proyecto, plantilla = null) {
@@ -515,16 +528,21 @@ class ProyectoService {
       if (cambiado !== 1) throw new ErrorDeNegocio('Este proyecto ya no está en borrador.', 409);
       await proyectoRepository.registrarHistorial(tx, { proyectoId: proyecto.id, usuarioId: usuario.id, accion: 'pedir_aprobacion', detalle: null });
     });
+    try {
+      await avisosService.notificar('activacion_pedida', { proyectoId: proyecto.id, autorId: usuario.id, referenciaTipo: 'proyecto', referenciaId: proyecto.id, mensaje: `Piden aprobar la activación de «${proyecto.nombre}».` });
+    } catch (error) { console.error('[Proyectos] No se pudo avisar de la activación pedida:', error.message); }
     return this.obtener(usuario, proyecto.id);
   }
 
   // Aprobar es activar: se reparte en ese mismo momento, con las mismas garantías (idempotencia, una tienda, una empresa).
   async aprobar(usuario, id, { idempotencyKey } = {}) {
     exigir(usuario, 'proyectos.aprobar_activacion', 'No tienes permiso para aprobar la activación.');
-    return this._activacion(usuario, id, {
+    const resultado = await this._activacion(usuario, id, {
       idempotencyKey, desde: 'pendiente_aprobacion', prefijo: 'proy-aprobar', accion: 'aprobar',
       extra: { aprobada_por: usuario.id, aprobada_en: new Date(), aprobacion_comentario: null }
     });
+    if (!resultado.repetida) await this._avisarResolucion(usuario, resultado, `Aprobaron la activación de «${resultado.nombre}».`);
+    return resultado;
   }
 
   async rechazar(usuario, id, { comentario } = {}) {
@@ -537,7 +555,16 @@ class ProyectoService {
       if (cambiado !== 1) throw new ErrorDeNegocio('Este proyecto ya no espera aprobación.', 409);
       await proyectoRepository.registrarHistorial(tx, { proyectoId: proyecto.id, usuarioId: usuario.id, accion: 'rechazar', detalle: { comentario: texto } });
     });
+    await this._avisarResolucion(usuario, proyecto, `Rechazaron la activación de «${proyecto.nombre}»: ${texto}`);
     return this.obtener(usuario, proyecto.id);
+  }
+
+  // La activación aprobada o rechazada se le avisa a quien la pidió.
+  async _avisarResolucion(usuario, proyecto, mensaje) {
+    try {
+      const fila = await proyectoRepository.obtener(proyecto.id, null);
+      await avisosService.notificar('activacion_resuelta', { proyectoId: proyecto.id, autorId: usuario.id, explicitos: { supervisor: [fila.creado_por] }, referenciaTipo: 'proyecto', referenciaId: proyecto.id, mensaje });
+    } catch (error) { console.error('[Proyectos] No se pudo avisar de la resolución:', error.message); }
   }
 
   // --- Cancelar ---

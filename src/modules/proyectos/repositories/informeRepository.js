@@ -90,7 +90,7 @@ class InformeRepository {
     const filas = await db.query(
       `SELECT y.id, y.codigo, y.nombre, y.estado, y.anio, y.mes, y.fecha_inicio, y.fecha_fin, y.activado_en, y.cerrado_en, y.conclusiones, y.resumen_cierre, y.config_snapshot,
               y.existencia_muestras, y.articulo_id, a.nombre AS articulo, n.nombre AS nicho, y.visto_bueno_estado, y.visto_bueno_en, y.visto_bueno_comentario,
-              uc.nombre AS cerrado_por, uv.nombre AS visto_bueno_por, ua.nombre AS activado_por,
+              y.cerrado_por AS cerrado_por_id, uc.nombre AS cerrado_por, uv.nombre AS visto_bueno_por, ua.nombre AS activado_por,
               (SELECT COUNT(*) FROM proy_proyecto_tiendas pt WHERE pt.proyecto_id = y.id) AS tiendas,
               (SELECT GROUP_CONCAT(DISTINCT pa.nombre ORDER BY pa.nombre SEPARATOR ', ') FROM proy_proyecto_tiendas pt JOIN tiendas t ON t.id = pt.tienda_id JOIN empresas e ON e.id = t.empresa_id JOIN paises pa ON pa.id = e.pais_id WHERE pt.proyecto_id = y.id) AS paises
        FROM proy_proyectos y JOIN proy_nichos n ON n.id = y.nicho_id LEFT JOIN proy_articulos a ON a.id = y.articulo_id

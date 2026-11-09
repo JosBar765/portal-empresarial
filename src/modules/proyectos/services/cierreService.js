@@ -6,6 +6,7 @@ const seguimientoService = require('./seguimientoService');
 const configService = require('./configService');
 const proyectoRepository = require('../repositories/proyectoRepository');
 const informeRepository = require('../repositories/informeRepository');
+const avisosService = require('./avisosService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { errorDeValidacion } = require('../errores');
 
@@ -15,6 +16,11 @@ const exigir = (usuario, permiso, mensaje) => { if (!tiene(usuario, permiso)) th
 const limpio = (v) => String(v == null ? '' : v).trim();
 
 class CierreService {
+  // Avisa sin hacer fallar la operación si la notificación no sale.
+  async _avisar(clave, datos) {
+    try { await avisosService.notificar(clave, { referenciaTipo: 'proyecto', ...datos }); } catch (error) { console.error('[Proyectos] No se pudo enviar el aviso:', error.message); }
+  }
+
   _conclusiones(valor, campos) {
     const texto = limpio(valor);
     if (!texto) campos.conclusiones = 'Escribe las conclusiones: qué funcionó, qué no y qué recomiendas.';
@@ -46,6 +52,7 @@ class CierreService {
       await proyectoRepository.registrarHistorial(tx, { proyectoId: proyecto.id, usuarioId: usuario.id, accion: 'cerrar', detalle: { sinGestionar: informe.cifras.sinGestionar, vendidas: informe.cifras.vendidas, vistoBueno: conVistoBueno } });
       return { proyectoId: proyecto.id, estado: 'cerrado', vistoBueno: conVistoBueno ? 'pendiente' : null, sinGestionar: informe.cifras.sinGestionar };
     });
+    if (!resultado.repetida && conVistoBueno) await this._avisar('cierre_pendiente', { proyectoId: proyecto.id, autorId: usuario.id, referenciaId: proyecto.id, mensaje: `Cierre pendiente de tu visto bueno: «${proyecto.nombre}».` });
     return { ...resultado, ...(await informeService.obtener(usuario, proyecto.id)) };
   }
 
@@ -70,6 +77,7 @@ class CierreService {
       await proyectoRepository.registrarHistorial(tx, { proyectoId: proyecto.id, usuarioId: usuario.id, accion: 'visto_bueno', detalle: { comentario: comentario || null } });
       return { proyectoId: proyecto.id, vistoBueno: 'dado' };
     });
+    if (!resultado.repetida) await this._avisar('visto_bueno_resuelto', { proyectoId: proyecto.id, autorId: usuario.id, explicitos: { supervisor: [proyecto.cerrado_por_id] }, referenciaId: proyecto.id, mensaje: `Dieron el visto bueno a «${proyecto.nombre}».` });
     return { ...resultado, ...(await informeService.obtener(usuario, proyecto.id)) };
   }
 
@@ -87,6 +95,7 @@ class CierreService {
       await proyectoRepository.registrarHistorial(tx, { proyectoId: proyecto.id, usuarioId: usuario.id, accion: 'devolver', detalle: { comentario } });
       return { proyectoId: proyecto.id, vistoBueno: 'devuelto' };
     });
+    if (!resultado.repetida) await this._avisar('visto_bueno_resuelto', { proyectoId: proyecto.id, autorId: usuario.id, explicitos: { supervisor: [proyecto.cerrado_por_id] }, referenciaId: proyecto.id, nivel: 'alerta', mensaje: `Devolvieron el cierre de «${proyecto.nombre}» con comentarios: ${comentario}` });
     return { ...resultado, ...(await informeService.obtener(usuario, proyecto.id)) };
   }
 
@@ -104,6 +113,7 @@ class CierreService {
       await proyectoRepository.registrarHistorial(tx, { proyectoId: proyecto.id, usuarioId: usuario.id, accion: 'reenviar', detalle: null });
       return { proyectoId: proyecto.id, vistoBueno: 'pendiente' };
     });
+    if (!resultado.repetida) await this._avisar('cierre_pendiente', { proyectoId: proyecto.id, autorId: usuario.id, referenciaId: proyecto.id, mensaje: `Cierre reenviado para tu visto bueno: «${proyecto.nombre}».` });
     return { ...resultado, ...(await informeService.obtener(usuario, proyecto.id)) };
   }
 }

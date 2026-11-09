@@ -9,9 +9,10 @@ const { aEntero } = require('../../../core/utils/validar');
 const { errorDeValidacion } = require('../errores');
 const P = require('../parametros');
 const { definicion: catalogo } = require('../catalogos');
+const { EVENTOS: EVENTOS_AVISO } = require('../eventos');
 
 const POR_PAGINA = 20;
-const AREAS = ['parametros', 'reglas', 'catalogos', 'paises', 'campos', 'alcance', 'plantillas'];
+const AREAS = ['parametros', 'reglas', 'catalogos', 'paises', 'campos', 'alcance', 'plantillas', 'avisos'];
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
 const ETIQUETAS_PAIS = {
@@ -90,6 +91,15 @@ function describirFila(fila, nombresPais) {
     return {
       ...base, area: 'Plantillas de proyecto', objeto: fuente.nombre || fila.clave,
       cambios: fila.accion === 'crear' ? [] : diferencias(antes, despues, ETIQUETAS_PLANTILLA), restaurable: false
+    };
+  }
+  if (fila.entidad === 'aviso') {
+    const [eventoClave, que] = fila.clave.split(':');
+    const e = EVENTOS_AVISO.find(x => x.clave === eventoClave);
+    const rotulo = e ? e.nombre : (eventoClave === 'todos' ? 'Toda la matriz' : eventoClave);
+    return {
+      ...base, area: 'Notificaciones', objeto: que && que !== 'anticipacion' ? `${rotulo} · ${que}` : rotulo,
+      cambios: fila.accion === 'restaurar' ? [] : (antes && 'activo' in antes ? [{ campo: 'Avisa', antes: texto(antes.activo), despues: texto(despues && despues.activo) }] : [{ campo: 'Anticipación', antes: texto(antes && antes.valor), despues: texto(despues && despues.valor) }]), restaurable: false
     };
   }
   if (fila.entidad === 'alcance') {

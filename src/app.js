@@ -16,6 +16,7 @@ const vigenciaWatcher = require('./modules/vales/vigenciaWatcher');
 const adjuntosWatcher = require('./modules/vales/adjuntosWatcher');
 const borradorWatcher = require('./modules/vales/borradorWatcher');
 const retencionArchivosWatcher = require('./modules/vales/retencionArchivosWatcher');
+const proyectosWatcher = require('./modules/proyectos/proyectosWatcher');
 const notificacionLimpieza = require('./core/notifications/notificacionLimpieza');
 const adminRoutes = require('./modules/admin/routes');
 const promptsRoutes = require('./modules/prompts/routes');
@@ -133,6 +134,7 @@ vigenciaWatcher.iniciar();
 adjuntosWatcher.iniciar();
 borradorWatcher.iniciar();
 retencionArchivosWatcher.iniciar();
+proyectosWatcher.iniciar();
 notificacionLimpieza.iniciar();
 
 // Estado del mantenimiento para el aviso con cuenta regresiva (segundos restantes, sin depender del reloj del cliente).

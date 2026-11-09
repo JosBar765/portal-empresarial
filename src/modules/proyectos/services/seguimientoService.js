@@ -10,7 +10,7 @@ const gestionService = require('./gestionService');
 const reparto = require('../repartoService');
 const { derivar, FINALES } = require('../estadoParticipacion');
 const { nivelesDe, enmascararFila, semaforo, porcentaje, diasDeReaccion } = require('../alcanceSeguimiento');
-const notificacionService = require('../../../core/notifications/notificacionService');
+const avisosService = require('./avisosService');
 const socketManager = require('../../../core/websocket/socketManager');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero } = require('../../../core/utils/validar');
@@ -186,10 +186,10 @@ class SeguimientoService {
   }
 
   // Avisa sin hacer fallar la operación si la notificación no sale.
-  async _avisar(usuarioIds, datos, evento = null) {
+  async _avisar(clave, datos, evento = null) {
     try {
-      await notificacionService.registrar(usuarioIds, { modulo: 'proyectos', referenciaTipo: 'participacion', nivel: 'info', ...datos });
-      if (evento) socketManager.sendToUsers(usuarioIds, evento.nombre, evento.datos);
+      const avisados = await avisosService.notificar(clave, datos);
+      if (evento && avisados.length) socketManager.sendToUsers(avisados, evento.nombre, evento.datos);
     } catch (error) {
       console.error('[Proyectos] No se pudo enviar la notificación:', error.message);
     }
@@ -277,8 +277,8 @@ class SeguimientoService {
     if (!resultado.repetida) {
       const plural = (n) => `${n} ${n === 1 ? 'empresa' : 'empresas'}`;
       const afectados = new Set();
-      for (const r of resultado.porAsesor) if (r.asesorId !== usuario.id) { afectados.add(r.asesorId); await this._avisar([r.asesorId], { tipo: 'reasignacion_recibida', mensaje: `Te asignaron ${plural(r.recibe)} en «${proyecto.nombre}».` }); }
-      for (const c of resultado.cede) if (c.asesorId !== usuario.id) { afectados.add(c.asesorId); await this._avisar([c.asesorId], { tipo: 'reasignacion_cedida', mensaje: `${plural(c.cede)} de «${proyecto.nombre}» pasaron a otro asesor. Motivo: ${motivo}` }); }
+      for (const r of resultado.porAsesor) if (r.asesorId !== usuario.id) { afectados.add(r.asesorId); await this._avisar('reasignada_recibe', { proyectoId: proyecto.id, autorId: usuario.id, explicitos: { asesor: [r.asesorId] }, mensaje: `Te asignaron ${plural(r.recibe)} en «${proyecto.nombre}».` }); }
+      for (const c of resultado.cede) if (c.asesorId !== usuario.id) { afectados.add(c.asesorId); await this._avisar('reasignada_pierde', { proyectoId: proyecto.id, autorId: usuario.id, explicitos: { asesor: [c.asesorId] }, mensaje: `${plural(c.cede)} de «${proyecto.nombre}» pasaron a otro asesor. Motivo: ${motivo}` }); }
       socketManager.sendToUsers([...afectados], 'proyectos_reasignacion', { proyectoId: proyecto.id });
     }
     return resultado;
@@ -316,7 +316,7 @@ class SeguimientoService {
       return { estado };
     });
     if (!resultado.repetida && p.asesor_id && p.asesor_id !== usuario.id) {
-      await this._avisar([p.asesor_id], { tipo: `anulacion_${tipo}`, referenciaId: p.id, mensaje: `Anularon ${tipo === 'cotizacion' ? 'una cotización' : 'una venta'} de «${p.nombre}». Motivo: ${motivo}` }, { nombre: 'proyectos_reasignacion', datos: { proyectoId: proyecto.id } });
+      await this._avisar('registro_anulado', { proyectoId: proyecto.id, autorId: usuario.id, explicitos: { asesor: [p.asesor_id] }, referenciaId: p.id, mensaje: `Anularon ${tipo === 'cotizacion' ? 'una cotización' : 'una venta'} de «${p.nombre}». Motivo: ${motivo}` }, { nombre: 'proyectos_reasignacion', datos: { proyectoId: proyecto.id } });
     }
     return { ...(await this.supervision(usuario, p.id)), repetida: resultado.repetida };
   }
@@ -363,7 +363,7 @@ class SeguimientoService {
       return { ventaId: v.id, estado };
     });
     if (!resultado.repetida && v.asesor_id && v.asesor_id !== usuario.id) {
-      await this._avisar([v.asesor_id], { tipo: `venta_${accion === 'confirmar' ? 'confirmada' : 'rechazada'}`, referenciaId: v.participacion_id,
+      await this._avisar('venta_revisada', { proyectoId: v.proyecto_id, autorId: usuario.id, explicitos: { asesor: [v.asesor_id] }, referenciaId: v.participacion_id,
         mensaje: accion === 'confirmar' ? `Confirmaron tu venta ${v.referencia || ''} de «${v.empresa}».`.replace('  ', ' ') : `Rechazaron tu venta de «${v.empresa}». Motivo: ${motivo}`, nivel: accion === 'confirmar' ? 'info' : 'alerta' });
     }
     return resultado;
