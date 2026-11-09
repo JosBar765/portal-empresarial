@@ -82,10 +82,11 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 - [x] Registrar, buscar y filtrar empresas por nicho, país y estado; solo países del usuario. (2a)
 - [x] Detección de duplicados (país + nombre normalizado + ciudad, o mismo teléfono) y normalización de teléfonos por país. (2a)
 - [x] «No contactar» y «inactiva»; reactivar con motivo (solo `proyectos.corregir`). (2a)
-- [x] Contactos por área (2a); empresa de un nicho del proyecto activo se asigna al asesor si participa.
+- [x] Contactos por área (2a).
+- [ ] Una empresa del nicho del proyecto activo se asigna al asesor que participa (necesita proyectos: pasa a la fase 3).
 - [x] Importación CSV con plantilla, vista previa (nuevas, duplicadas, con error) y confirmación; límite de 2,000 filas y 5 MB; límite de frecuencia. (2b)
-- [x] Campos propios por nicho (A6, `proy_campos`, `datos_extra`) y alcance de usuarios por país (A7, `proy_usuario_paises`). (2c; falta la sección «Datos del nicho» en el formulario, pendiente de aprobar el mockup M9c/T8c)
-- [ ] Pantallas: M8, M9, T8, S8, S9 + paso 3 (F2) + escritorio (F4, F5).
+- [x] Campos propios por nicho (A6, `proy_campos`, `datos_extra`) y alcance de usuarios por país (A7, `proy_usuario_paises`). (2c; el formulario muestra la sección «Datos del nicho»)
+- [x] Pantallas: M8, M9, T8, S8, S9 y escritorio; formulario rediseñado (T8b/M9b, T8c/M9c), Cartera, importación, A6 y A7.
 - **Terminado cuando:** un asesor registra una empresa y una importación de prueba muestra duplicadas y errores.
 
 ### Fase 3 · Proyectos y reparto — `feature/proyectos-03-proyectos-reparto`

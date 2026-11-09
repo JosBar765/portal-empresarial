@@ -723,3 +723,13 @@ a.tarjeta-config:active { transform: scale(.985); }
 .opcion-pais { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: var(--text-sm); cursor: pointer; }
 .opcion-pais:has(input:checked) { border-color: var(--color-primary); background: var(--color-primary-light); }
 .opcion-pais-nombre { flex: 1; font-weight: 600; }
+
+/* ---------- Datos del nicho en el formulario ---------- */
+.zona-nicho:empty { display: none; }
+.form-seccion-titulo-fila { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.etiqueta-nicho { padding: 2px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-full); background: var(--color-surface-muted); font-size: var(--text-xs); font-weight: 600; color: var(--color-text-secondary); }
+.campo--sino .sino { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; min-height: 44px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); cursor: pointer; }
+.sino-texto { display: flex; flex-direction: column; gap: 2px; }
+.sino-etiqueta { font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
+.sino-ayuda { font-size: var(--text-xs); color: var(--color-text-muted); }
+.campo input[type="date"] { min-height: 44px; }

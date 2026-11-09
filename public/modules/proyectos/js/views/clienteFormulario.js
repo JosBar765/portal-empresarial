@@ -5,7 +5,7 @@
 //   «Es otra empresa» guarda de todos modos.
 import { h, icono, montar } from '../utils/dom.js';
 import { aviso, avisar } from '../components/ui.js';
-import { campoTexto, campoLista, campoTelefono, campoSitioWeb, telefonoCompleto } from '../components/campos.js';
+import { campoTexto, campoLista, campoTelefono, campoSitioWeb, campoSiNo, telefonoCompleto } from '../components/campos.js';
 import { revisarDuplicados } from '../api/api.js';
 import { chipEstado } from '../utils/clientes.js';
 import { CORREO, vacio, validarTexto, separarTelefono } from '../utils/validar.js';
@@ -46,6 +46,8 @@ export function construirFormulario({ opciones, inicial = {}, creando, alEnviar,
   let numeroBusqueda = 0;
   let duplicados = [];
 
+  const zonaNicho = h('div', { class: 'zona-nicho' });
+  let camposNicho = [];
   const zonaDuplicados = h('div', { class: 'zona-duplicados', 'aria-live': 'polite' });
   const cuerpo = h('div', { class: 'formulario-cuerpo' });
   const formulario = h('form', { class: 'formulario-empresa', novalidate: '' }, cuerpo, zonaDuplicados);
@@ -100,7 +102,7 @@ export function construirFormulario({ opciones, inicial = {}, creando, alEnviar,
       validar: (v) => (vacio(v) ? 'Elige un país.' : ''),
       alCambiar: () => { telefonoEmpresa.sincronizarPais(); if (telefonoContacto) telefonoContacto.sincronizarPais(); buscarPronto(); } }));
     const nicho = reg('nichoId', campoLista({ ...base, clave: 'nichoId', etiqueta: 'Nicho', opciones: opciones.nichos, vacio: 'Elige el nicho', obligatorio: true,
-      validar: (v) => (vacio(v) ? 'Elige un nicho de la lista.' : '') }));
+      validar: (v) => (vacio(v) ? 'Elige un nicho de la lista.' : ''), alCambiar: dibujarNicho }));
     const estructura = reg('estructuraId', campoLista({ ...base, clave: 'estructuraId', etiqueta: 'Estructura', opciones: opciones.estructuras, vacio: 'Elige la estructura' }));
     const ciudad = reg('ciudad', campoTexto({ ...base, clave: 'ciudad', etiqueta: 'Ciudad', maximo: 100, obligatorio: ajustes.ciudadObligatoria, alCambiar: buscarPronto,
       validar: (v) => validarTexto(v, { maximo: 100, obligatorio: ajustes.ciudadObligatoria, mensajeObligatorio: 'Escribe la ciudad.' }) }));
@@ -127,10 +129,49 @@ export function construirFormulario({ opciones, inicial = {}, creando, alEnviar,
       contacto = seccion(ajustes.contactoObligatorio ? 'Contacto principal' : 'Contacto principal (opcional)', 'Después podrás agregar más contactos desde la ficha de la empresa.', contactoNombre, contactoArea, cargo, telefonoContacto, correo);
     }
 
-    montar(cuerpo, datos, ubicacion, contacto,
+    montar(cuerpo, datos, ubicacion, zonaNicho, contacto,
       h('div', { class: 'formulario-acciones' },
         alCancelar ? h('button', { class: 'btn btn--ghost', type: 'button', onclick: alCancelar }, 'Cancelar') : null,
         botonGuardar));
+  }
+
+  // --- Datos del nicho (campos propios, A6) ---
+
+  const defsDelNicho = () => (valores.nichoId ? (opciones.campos || []).filter(c => c.nichoId === null || c.nichoId === valores.nichoId) : []);
+  const claveExtra = (c) => `extra.${c.clave}`;
+  const extrasGuardados = inicial.datosExtra || {};
+
+  // Cada campo propio según su tipo; el valor inicial sale de lo ya guardado (al editar) o de lo que se escribió antes.
+  function campoPropio(def) {
+    const clave = claveExtra(def);
+    if (valores[clave] === undefined && extrasGuardados[def.clave] !== undefined) valores[clave] = extrasGuardados[def.clave];
+    if (valores[clave] === undefined && def.tipo !== 'si_no') valores[clave] = '';
+    const base = { valores, errores, clave, etiqueta: def.etiqueta, obligatorio: def.obligatorio, prefijoId: 'extra' };
+    const faltante = def.tipo === 'lista' ? 'Elige una opción.' : 'Este dato es obligatorio.';
+    const comun = (v) => (vacio(v) && def.obligatorio ? faltante : '');
+    if (def.tipo === 'si_no') return campoSiNo({ ...base });
+    if (def.tipo === 'lista') return campoLista({ ...base, opciones: def.opciones.map(o => ({ id: o, nombre: o })), vacio: 'Elige…', textoIds: true, validar: comun });
+    if (def.tipo === 'numero') {
+      return campoTexto({ ...base, tipo: 'text', maximo: 20, ayuda: 'Solo números.',
+        validar: (v) => comun(v) || (vacio(v) || Number.isFinite(Number(String(v).trim().replace(',', '.'))) ? '' : 'Escribe un número.') });
+    }
+    if (def.tipo === 'fecha') return campoTexto({ ...base, tipo: 'date', maximo: 10, validar: (v) => comun(v) || (vacio(v) || !Number.isNaN(Date.parse(String(v))) ? '' : 'Escribe una fecha válida.') });
+    return campoTexto({ ...base, maximo: 255, validar: (v) => comun(v) || validarTexto(v, { maximo: 255 }) });
+  }
+
+  // La sección aparece al elegir el nicho y muestra los campos de todos los nichos y los de ese nicho.
+  function dibujarNicho() {
+    Object.keys(porClave).filter(k => k.startsWith('datosExtra.')).forEach(k => delete porClave[k]);
+    const defs = defsDelNicho();
+    camposNicho = defs.map(campoPropio);
+    defs.forEach((d, i) => { porClave[`datosExtra.${d.clave}`] = camposNicho[i]; });
+    if (!defs.length) { montar(zonaNicho); return; }
+    const nombreNicho = (opciones.nichos.find(n => n.id === valores.nichoId) || {}).nombre;
+    montar(zonaNicho, h('section', { class: 'form-seccion' },
+      h('header', { class: 'form-seccion-cabecera' },
+        h('div', { class: 'form-seccion-titulo-fila' }, h('h2', { class: 'form-seccion-titulo', text: 'Datos del nicho' }), nombreNicho ? h('span', { class: 'etiqueta-nicho', text: nombreNicho }) : null),
+        h('p', { class: 'form-seccion-ayuda', text: 'Datos extra que pide el administrador para este nicho. Aparecen al elegir el nicho.' })),
+      h('div', { class: 'form-rejilla' }, camposNicho)));
   }
 
   // --- Envío ---
@@ -140,6 +181,10 @@ export function construirFormulario({ opciones, inicial = {}, creando, alEnviar,
       nombre: valores.nombre, nichoId: valores.nichoId, paisId: valores.paisId, ciudad: valores.ciudad, telefono: telefonoCompleto(valores, 'telefono', prefijos),
       direccion: valores.direccion, sitioWeb: valores.sitioWeb, estructuraId: valores.estructuraId
     };
+    // Campos propios: lo vacío se manda vacío para que el servidor lo borre; los sí/no siempre llevan respuesta.
+    const extra = {};
+    defsDelNicho().forEach(d => { const v = valores[claveExtra(d)]; if (v !== undefined) extra[d.clave] = v; });
+    if (Object.keys(extra).length) envio.datosExtra = extra;
     if (creando && hayContacto(valores)) {
       envio.contacto = {
         nombre: valores['contacto.nombre'], areaId: valores['contacto.areaId'], cargo: valores['contacto.cargo'],
@@ -152,7 +197,7 @@ export function construirFormulario({ opciones, inicial = {}, creando, alEnviar,
   // Revisa todos los campos (los marca como tocados) y manda el cursor al primero con error.
   function revisarTodo() {
     let primero = null;
-    campos.forEach(c => { if (!c.revisar() && !primero) primero = c; });
+    [...campos, ...camposNicho].forEach(c => { if (!c.revisar() && !primero) primero = c; });
     return primero;
   }
 
@@ -198,5 +243,6 @@ export function construirFormulario({ opciones, inicial = {}, creando, alEnviar,
     enviar(false);
   });
   dibujar();
+  dibujarNicho();
   return formulario;
 }

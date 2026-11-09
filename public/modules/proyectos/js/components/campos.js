@@ -59,14 +59,31 @@ export function campoTexto({ clave, etiqueta, valores, errores, alCambiar, maxim
 }
 
 // `opciones`: [{ id, nombre }]. Si hay una sola y es obligatoria, queda elegida.
-export function campoLista({ clave, etiqueta, valores, errores, opciones, alCambiar, vacio = 'Elige…', obligatorio, prefijoId = 'f', validar }) {
+// Con `textoIds` los identificadores son textos (las opciones de un campo propio); si no, números.
+export function campoLista({ clave, etiqueta, valores, errores, opciones, alCambiar, vacio = 'Elige…', obligatorio, prefijoId = 'f', validar, textoIds = false }) {
   const id = idDe(prefijoId, clave);
   const control = h('select', { id }, h('option', { value: '', text: vacio }), opciones.map(o => h('option', { value: String(o.id), text: o.nombre })));
   if (!valores[clave] && opciones.length === 1 && obligatorio) valores[clave] = opciones[0].id;
   control.value = valores[clave] ? String(valores[clave]) : '';
   const nodo = campoBase({ id, etiqueta, obligatorio, control, foco: control, clave, valores, errores, validar });
-  control.addEventListener('change', () => { valores[clave] = control.value ? Number(control.value) : ''; nodo.alEscribir(); nodo.alSalir(); if (alCambiar) alCambiar(); });
+  control.addEventListener('change', () => { valores[clave] = control.value ? (textoIds ? control.value : Number(control.value)) : ''; nodo.alEscribir(); nodo.alSalir(); if (alCambiar) alCambiar(); });
   control.addEventListener('blur', () => nodo.alSalir());
+  return nodo;
+}
+
+// Campo sí/no (un interruptor): siempre tiene respuesta, así que nunca queda «sin llenar».
+export function campoSiNo({ clave, etiqueta, ayuda = 'Sí / No', valores, prefijoId = 'f' }) {
+  const id = idDe(prefijoId, clave);
+  const entrada = h('input', { id, type: 'checkbox', role: 'switch', 'aria-label': etiqueta });
+  entrada.checked = valores[clave] === true;
+  valores[clave] = entrada.checked;
+  entrada.addEventListener('change', () => { valores[clave] = entrada.checked; });
+  const nodo = h('div', { class: 'campo campo--sino' },
+    h('label', { class: 'sino', for: id }, h('span', { class: 'sino-texto' }, h('span', { class: 'sino-etiqueta', text: etiqueta }), h('span', { class: 'sino-ayuda', text: ayuda })),
+      h('span', { class: 'interruptor' }, entrada, h('span', { class: 'interruptor-pista' }))));
+  nodo.revisar = () => true;
+  nodo.revisarSiTocado = () => {};
+  nodo.control = entrada;
   return nodo;
 }
 

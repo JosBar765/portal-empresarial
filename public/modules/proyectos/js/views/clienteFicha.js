@@ -143,6 +143,7 @@ function ventanaEditar(empresa, opciones, alActualizar) {
     opciones, creando: false, etiquetaGuardar: 'Guardar cambios', alCancelar: () => cerrar(),
     inicial: {
       id: empresa.id, nombre: empresa.nombre, nichoId: empresa.nichoId, paisId: empresa.paisId, ciudad: empresa.ciudad || '',
+      datosExtra: empresa.datosExtra || {},
       telefono: empresa.telefonoTexto || '', direccion: empresa.direccion || '', sitioWeb: empresa.sitioWeb || '', estructuraId: empresa.estructuraId
     },
     alEnviar: async (datos, confirmarDuplicado) => {
