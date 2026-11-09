@@ -22,6 +22,7 @@ function extraDeError(error) {
   if (error && error.campos) extra.campos = error.campos;
   if (error && error.codigo) extra.codigo = error.codigo;
   if (error && error.duplicados) extra.duplicados = error.duplicados;
+  if (error && error.detalle) extra.detalle = error.detalle;
   return extra;
 }
 
