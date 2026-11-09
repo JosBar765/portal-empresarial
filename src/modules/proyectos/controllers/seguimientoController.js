@@ -21,6 +21,7 @@ class SeguimientoController {
     this.porAsesor = accion(200, req => seguimientoService.porAsesor(req.user, req.params.id));
     this.porTienda = accion(200, req => seguimientoService.porTienda(req.user, req.params.id));
     this.estancados = accion(200, req => seguimientoService.estancados(req.user, req.params.id, { todos: req.query.todos === '1' }));
+    this.destinos = accion(200, req => seguimientoService.destinos(req.user, req.params.id));
     this.supervision = accion(200, req => seguimientoService.supervision(req.user, req.params.id));
     this.reasignar = accion(200, req => seguimientoService.reasignar(req.user, req.params.id, comoObjeto(req.body)));
     this.anularCotizacion = accion(200, req => seguimientoService.anularCotizacion(req.user, req.params.id, req.params.cotizacionId, comoObjeto(req.body)));

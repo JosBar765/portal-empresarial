@@ -157,6 +157,9 @@ async function verificar() {
     prueba('gerencia ve el detalle pero sin acciones', r.status === 200 && r.datos.otraTienda === false && r.datos.permisos.reasignar === false && r.datos.permisos.anular === false);
 
     console.log('Reasignación');
+    r = await sup1('GET', `/proyectos/${proyectoId}/seguimiento/destinos`);
+    prueba('los destinos son solo los participantes de SUS tiendas', r.status === 200 && r.datos.destinos.length >= 2 && r.datos.destinos.every(d => d.asesorId !== B1) && r.datos.destinos.some(d => d.asesorId === A2), JSON.stringify(r.datos));
+    prueba('sin proyectos.reasignar no se piden los destinos (403)', (await llamar('GET', `/proyectos/${proyectoId}/seguimiento/destinos`, { usuario: SUP1, permisos: PERM_SUPERVISOR_SOLO_VER })).status === 403);
     const idsAnt = mias2.slice(2, 4);
     r = await supSin('POST', `/proyectos/${proyectoId}/reasignar`, { empresaIds: [mias2[2]], aAsesorId: A1, motivo: 'x', idempotencyKey: clave() });
     prueba('un supervisor ajeno al proyecto recibe 404', r.status === 404);

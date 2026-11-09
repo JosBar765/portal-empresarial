@@ -131,6 +131,14 @@ class SeguimientoService {
     };
   }
 
+  // Los asesores a quienes puede reasignar: participantes activos del proyecto en las tiendas donde actúa la persona.
+  async destinos(usuario, proyectoId) {
+    exigir(usuario, 'proyectos.reasignar', 'No tienes permiso para reasignar empresas.');
+    const { proyecto, niveles } = await this._acceso(usuario, proyectoId);
+    const participantes = await repo.participantes(proyecto.id);
+    return { destinos: participantes.filter(p => niveles.tiendasAccion === null || niveles.tiendasAccion.has(p.tienda_id)).map(p => ({ asesorId: p.usuario_id, nombre: p.nombre, tienda: p.tienda })) };
+  }
+
   // La ficha de una empresa vista por un supervisor: completa si es de sus tiendas; si no, «Otra tienda» sin datos sensibles.
   async supervision(usuario, participacionId) {
     this._exigirVer(usuario);

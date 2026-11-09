@@ -77,6 +77,7 @@ router.get('/proyectos/:id/seguimiento', supervisa, seguimientoController.resume
 router.get('/proyectos/:id/seguimiento/asesores', supervisa, seguimientoController.porAsesor);
 router.get('/proyectos/:id/seguimiento/tiendas', supervisa, seguimientoController.porTienda);
 router.get('/proyectos/:id/seguimiento/estancados', supervisa, seguimientoController.estancados);
+router.get('/proyectos/:id/seguimiento/destinos', reasignar, seguimientoController.destinos);
 router.post('/proyectos/:id/reasignar', reasignar, seguimientoController.reasignar);
 router.get('/participaciones/:id/supervision', supervisa, seguimientoController.supervision);
 router.post('/participaciones/:id/cotizaciones/:cotizacionId/anular', corregir, seguimientoController.anularCotizacion);
