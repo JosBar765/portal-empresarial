@@ -11,13 +11,17 @@ const P = require('../parametros');
 const { definicion: catalogo } = require('../catalogos');
 
 const POR_PAGINA = 20;
-const AREAS = ['parametros', 'reglas', 'catalogos', 'paises'];
+const AREAS = ['parametros', 'reglas', 'catalogos', 'paises', 'campos', 'alcance'];
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
 const ETIQUETAS_PAIS = {
   monedaCodigo: 'Moneda', prefijoTelefono: 'Prefijo', formatoTelefono: 'Formato de teléfono',
   referenciaObligatoria: 'Referencia obligatoria', confirmacionVentas: 'Confirmar ventas'
 };
+const ETIQUETAS_CAMPO = {
+  etiqueta: 'Etiqueta', nicho: 'Nicho', tipo: 'Tipo', opciones: 'Opciones', obligatorio: 'Obligatorio', visibleEnLista: 'Visible en la lista', activo: 'Activo'
+};
+const ETIQUETAS_ALCANCE = { agregados: 'Países agregados', quitados: 'Países quitados' };
 const ACCIONES = {
   crear: 'Creó', editar: 'Cambió', activar: 'Activó', desactivar: 'Desactivó', cambiar: 'Cambió', restaurar: 'Volvió al valor por defecto'
 };
@@ -28,7 +32,7 @@ const dato = valor => (typeof valor === 'string' ? JSON.parse(valor) : valor);
 function texto(valor, unidad) {
   if (valor === null || valor === undefined || valor === '') return '—';
   if (typeof valor === 'boolean') return valor ? 'Sí' : 'No';
-  if (Array.isArray(valor)) return valor.join(', ');
+  if (Array.isArray(valor)) return valor.length ? valor.join(', ') : '—';
   return unidad ? `${valor} ${unidad}` : String(valor);
 }
 
@@ -67,6 +71,19 @@ function describirFila(fila, nombresPais) {
     return {
       ...base, area: 'Países', objeto: nombresPais.get(fila.clave) || fila.clave,
       cambios: diferencias(antes, despues, ETIQUETAS_PAIS), restaurable: fila.accion === 'cambiar' && antes !== null
+    };
+  }
+  if (fila.entidad === 'campo') {
+    const fuente = despues || antes || {};
+    return {
+      ...base, area: 'Campos propios', objeto: fuente.etiqueta || fila.clave,
+      cambios: fila.accion === 'crear' ? [] : diferencias(antes, despues, ETIQUETAS_CAMPO), restaurable: false
+    };
+  }
+  if (fila.entidad === 'alcance') {
+    return {
+      ...base, area: 'Alcance de usuarios', objeto: (despues || antes || {}).persona || fila.clave,
+      cambios: diferencias(antes, despues, ETIQUETAS_ALCANCE), restaurable: false
     };
   }
   const def = catalogo(fila.entidad.replace('catalogo:', ''));

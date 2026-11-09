@@ -22,6 +22,28 @@ class AlcanceRepository {
     return (await db.query('SELECT id FROM paises ORDER BY id', [], 'proyectos_alcance:todos')).map(f => f.id);
   }
 
+  // Para A7: una fila por persona y tienda (asesores y supervisores) con el país de esa tienda.
+  personasConTienda() {
+    return db.query(
+      `SELECT x.usuario_id, u.nombre, u.rol_id, r.nombre AS rol, t.codigo AS tienda, e.pais_id
+       FROM (SELECT usuario_id, tienda_id FROM asesores WHERE tienda_id IS NOT NULL UNION SELECT usuario_id, tienda_id FROM supervisor_tiendas) x
+       JOIN usuarios u ON u.id = x.usuario_id AND u.activo = 1
+       JOIN roles r ON r.id = u.rol_id
+       JOIN tiendas t ON t.id = x.tienda_id
+       JOIN empresas e ON e.id = t.empresa_id`,
+      [], 'proyectos_alcance:personas'
+    );
+  }
+
+  // Para A7: las excepciones de todas las personas (con su nombre y rol por si no tienen tienda).
+  todasLasExcepciones() {
+    return db.query(
+      `SELECT x.usuario_id, x.pais_id, x.accion, u.nombre, u.rol_id, r.nombre AS rol
+       FROM proy_usuario_paises x JOIN usuarios u ON u.id = x.usuario_id JOIN roles r ON r.id = u.rol_id`,
+      [], 'proyectos_alcance:excepciones_todas'
+    );
+  }
+
   // La tienda desde la que alguien trabaja (la suya, o la primera que supervisa): para saber de dónde salió una empresa.
   async tiendaDe(usuarioId) {
     const filas = await db.query(

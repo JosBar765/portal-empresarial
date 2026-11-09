@@ -38,6 +38,8 @@ class ConfigRepository {
     else if (area === 'reglas') condiciones.push("h.entidad = 'parametro' AND h.clave LIKE 'reglas.%'");
     else if (area === 'catalogos') condiciones.push("h.entidad LIKE 'catalogo:%'");
     else if (area === 'paises') condiciones.push("h.entidad = 'pais'");
+    else if (area === 'campos') condiciones.push("h.entidad = 'campo'");
+    else if (area === 'alcance') condiciones.push("h.entidad = 'alcance'");
     if (usuarioId) { condiciones.push('h.usuario_id = ?'); params.push(usuarioId); }
     if (desde) { condiciones.push('DATE(h.creado_en) >= ?'); params.push(desde); }
     if (hasta) { condiciones.push('DATE(h.creado_en) <= ?'); params.push(hasta); }

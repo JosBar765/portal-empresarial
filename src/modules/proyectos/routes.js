@@ -6,6 +6,7 @@ const configController = require('./controllers/configController');
 const catalogoController = require('./controllers/catalogoController');
 const clienteController = require('./controllers/clienteController');
 const importacionController = require('./controllers/importacionController');
+const campoController = require('./controllers/campoController');
 const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
@@ -50,6 +51,14 @@ router.get('/config/paises', administrar, (req, res) => configController.listarP
 router.put('/config/paises/:id', administrar, (req, res) => configController.guardarPais(req, res));
 
 // Catálogos (A1): nichos, artículos, áreas, canales, resultados, motivos, estructuras y monedas
+// Campos propios de la empresa (A6) y alcance de usuarios por país (A7)
+router.get('/config/campos', administrar, campoController.listar);
+router.post('/config/campos', administrar, campoController.crear);
+router.put('/config/campos/:id', administrar, campoController.editar);
+router.patch('/config/campos/:id/activo', administrar, campoController.cambiarActivo);
+router.get('/config/alcance', administrar, campoController.listarAlcance);
+router.put('/config/alcance/:usuarioId', administrar, campoController.guardarAlcance);
+
 router.get('/catalogos/:catalogo', administrar, (req, res) => catalogoController.listar(req, res));
 router.post('/catalogos/:catalogo', administrar, (req, res) => catalogoController.crear(req, res));
 router.put('/catalogos/:catalogo/:id', administrar, (req, res) => catalogoController.editar(req, res));
