@@ -83,7 +83,7 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 - [x] Detección de duplicados (país + nombre normalizado + ciudad, o mismo teléfono) y normalización de teléfonos por país. (2a)
 - [x] «No contactar» y «inactiva»; reactivar con motivo (solo `proyectos.corregir`). (2a)
 - [x] Contactos por área (2a).
-- [ ] Una empresa del nicho del proyecto activo se asigna al asesor que participa (necesita proyectos: pasa a la fase 3).
+- [x] Una empresa del nicho del proyecto activo se asigna al asesor que participa (3a).
 - [x] Importación CSV con plantilla, vista previa (nuevas, duplicadas, con error) y confirmación; límite de 2,000 filas y 5 MB; límite de frecuencia. (2b)
 - [x] Campos propios por nicho (A6, `proy_campos`, `datos_extra`) y alcance de usuarios por país (A7, `proy_usuario_paises`). (2c; el formulario muestra la sección «Datos del nicho»)
 - [x] Pantallas: M8, M9, T8, S8, S9 y escritorio; formulario rediseñado (T8b/M9b, T8c/M9c), Cartera, importación, A6 y A7.
@@ -91,11 +91,11 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 
 ### Fase 3 · Proyectos y reparto — `feature/proyectos-03-proyectos-reparto`
 
-- [ ] Crear, borrador, vista previa, activar y cancelar proyectos.
-- [ ] `repartoService` aislado en un solo archivo (por país; una por una al asesor con menos; desempate por tienda de origen; orden determinista; tope y reserva).
-- [ ] Bloqueo en orden fijo: proyecto → tiendas → clientes → participaciones.
-- [ ] Activar idempotente (`UPDATE … WHERE estado = 'borrador'` + `idempotencyKey`); captura de duplicado con mensaje claro.
-- [ ] Alcance: el supervisor solo incluye tiendas que supervisa; tienda ocupada bloqueada.
+- [x] Crear, borrador, vista previa, activar y cancelar proyectos. (3a, servidor)
+- [x] `repartoService` aislado en un solo archivo (por país; una por una al asesor con menos; desempate por tienda de origen; orden determinista; tope y reserva).
+- [x] Bloqueo en orden fijo: proyecto → tiendas → clientes → participaciones.
+- [x] Activar idempotente (`UPDATE … WHERE estado = 'borrador'` + `idempotencyKey`); captura de duplicado con mensaje claro.
+- [x] Alcance: el supervisor solo incluye tiendas que supervisa; tienda ocupada bloqueada.
 - [ ] Plantillas de proyecto (A4, `proy_plantillas`, `config_snapshot` al activar) y aprobación opcional de la activación (`pendiente_aprobacion`, G5, T12).
 - [ ] Pantallas: S1–S5, T3a, T5, F9.
 - **Terminado cuando:** con datos de prueba la diferencia entre asesores nunca pasa de una empresa, y dos activaciones a la vez dejan un solo ganador.

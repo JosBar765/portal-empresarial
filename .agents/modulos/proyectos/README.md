@@ -18,7 +18,7 @@ Proyectos de venta por nicho: una base global de empresas (bancos, colegios, hos
 
 - **Backend:** `src/modules/proyectos/`
   - `routes.js`, `controllers/` (`configController.js`, `catalogoController.js`, `clienteController.js`).
-  - `telefonos.js` y `duplicados.js` (puros: normalizar teléfonos por país; nombre normalizado y similitud), `csv.js` (lector CSV puro), `camposPropios.js` (validación de los campos propios), `services/clienteService.js`, `importacionService.js` y `alcanceService.js` (países que ve cada persona). Detalle en `documentacion/clientes.md`.
+  - `telefonos.js` y `duplicados.js` (puros: normalizar teléfonos por país; nombre normalizado y similitud), `repartoService.js` (el reparto equitativo, puro y aislado), `csv.js` (lector CSV puro), `camposPropios.js` (validación de los campos propios), `services/clienteService.js`, `importacionService.js` y `alcanceService.js` (países que ve cada persona). Detalle en `documentacion/clientes.md`.
   - `parametros.js`: **registro de ajustes** (clave, grupo, tipo, rango, valor por defecto, etiqueta y ayuda). Un ajuste nuevo es una entrada más; la pantalla A3 se dibuja desde ahí. Contiene también la validación pura.
   - `catalogos.js`: **registro de catálogos** (nichos, artículos, áreas, canales, resultados, motivos, estructuras y monedas). Los nombres de tabla y columna del SQL genérico salen solo de este archivo.
   - `services/configService.js` (lectura con caché, guardado, restaurar y configuración por país), `catalogoService.js`, `historialService.js` (listado con filtros y restauración) y `resumenService.js` (inicio).
@@ -28,7 +28,7 @@ Proyectos de venta por nicho: una base global de empresas (bancos, colegios, hos
   - `index.html` (con las marcas `importmap` del versionado), `css/styles.css`, `js/app.js` (sesión y rutas por `#/`).
   - `js/views/`: `campos.js` (A6), `alcance.js` (A7), `importar.js` (importación), `clientes.js`, `clienteFormulario.js` y `clienteFicha.js` (base de clientes), `inicio.js` (A0), `catalogos.js` y `catalogosConfig.js` (A1), `parametros.js` (A3), `reglas.js` (A5), `historial.js` (A10) y `cambios.js`.
   - `js/api/api.js`, `js/components/` (`ui.js`, `modal.js`, `salida.js` para avisar de cambios sin guardar), `js/layout/sidebar.js`, `js/utils/`.
-- **Verificación:** `scripts/proyectos/` (`verificar-configuracion.js`, `verificar-api-configuracion.js` y `verificar-clientes.js`, `verificar-importacion.js`, `verificar-campos-alcance.js`; ver «Probar en local»).
+- **Verificación:** `scripts/proyectos/` (`verificar-configuracion.js`, `verificar-api-configuracion.js` y `verificar-clientes.js`, `verificar-importacion.js`, `verificar-campos-alcance.js`, `verificar-reparto.js`; ver «Probar en local»).
 
 ## Reglas clave
 
@@ -65,6 +65,7 @@ Proyectos de venta por nicho: una base global de empresas (bancos, colegios, hos
 - `propuesta_modulo.md`: propuesta completa (flujo, permisos, modelo de datos, informe, fases). Fuente de verdad del diseño.
 - `documentacion/clientes.md`: base de clientes (alcance, duplicados, estados, contactos, API y pantallas).
 - `documentacion/importacion.md`: importación de empresas por CSV.
+- `documentacion/proyectos_y_reparto.md`: proyectos del mes, reparto equitativo, activar y cancelar.
 - `documentacion/campos_y_alcance.md`: campos propios (A6) y alcance de usuarios por país (A7).
 - `documentacion/configuracion_administrador.md`: inventario de lo configurable, diseño interno, matriz de trazabilidad y lo que queda fijo.
 - `plan_implementacion.md`: fases, casillas de avance y decisiones resueltas.
