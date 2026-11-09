@@ -1,6 +1,6 @@
 # Gestión del asesor (fase 4)
 
-El asesor trabaja las empresas que le tocaron en el proyecto activo: registra gestiones, entrega muestras, cotiza, vende, y marca las que se pierden o se descartan. Aquí se describe el **servidor** (rama 4a); las pantallas llegan en la 4b.
+El asesor trabaja las empresas que le tocaron en el proyecto activo: registra gestiones, entrega muestras, cotiza, vende, y marca las que se pierden o se descartan. Primero se describe el **servidor** (rama 4a) y al final las **pantallas** (rama 4b).
 
 ## Reglas
 
@@ -28,9 +28,20 @@ El asesor trabaja las empresas que le tocaron en el proyecto activo: registra ge
 | `POST /participaciones/:id/perdida` · `/descartar` | `motivoId` (+ `nota?`) · `motivo`; ambas quedan en el historial del proyecto. |
 | `GET /mis-proyectos-anteriores` | Proyectos cerrados o cancelados donde la persona tuvo empresas, con sus cifras. |
 
+## Pantallas del asesor (rama 4b)
+
+Rutas con `proyectos.gestionar`; el menú lateral trae el grupo **Mi trabajo** y, en celular, una **barra inferior** (Mi proyecto, Para hoy, Cartera y Más —que abre el menú—). En escritorio manda el menú lateral.
+
+- **Mi proyecto** (`#/miproyecto`, M1/D1): proyecto, etapa vigente (barra de etapas), muestra restante, seis cifras (asignadas, gestionadas, interesadas, cotizadas, vendidas y efectividad), «Para hoy» y la lista de sus empresas con filtros por estado, buscador y «Cargar más» de 50 en 50. Sin proyecto activo muestra M11 con acceso a la cartera.
+- **Para hoy** (`#/parahoy`, M2): vencidos, de hoy y sin tocar hace N días o más, con Llamar y WhatsApp (enlaces `tel:` y `wa.me`; el portal no envía nada por sí solo).
+- **Ficha de la empresa** (`#/empresa/<id>`, M3/D2): datos, contactos por área con llamada directa, historial (gestiones, muestras, cotizaciones y ventas, con «Por confirmar» y «Anulada») y tabla de cotizaciones y ventas. En escritorio la gestión es un panel fijo a la derecha; en celular, una hoja inferior. El menú «···» abre cotización, venta, perdida y descartar. Una empresa de un proyecto cerrado (o descartada) queda solo para consulta. El botón «Crear vale» llega con la fase 7.
+- **Hojas de registro** (`views/registrosAsesor.js`): gestión (M4: canal, contacto, resultado, nota, próximo seguimiento obligatorio según el resultado y muestra con cantidad y área), cotización (M5) y venta (M6: moneda local o dólares, referencia obligatoria según el país y el aviso de OV repetida con la casilla «es la misma orden para varias empresas»), perdida (M7) y descarte. Ventana en escritorio, hoja inferior en celular; cada hoja lleva su clave de operación.
+- **Mis proyectos anteriores** (`#/anteriores`, M10/D3): tarjetas por año con asignadas, vendidas, efectividad y lo vendido **por moneda** (nunca se suman monedas distintas).
+
 ## Código
 
-`estadoParticipacion.js` (derivar el estado) · `repositories/participacionRepository.js` (todo el SQL) · `services/gestionService.js` (reglas) · `controllers/gestionController.js` · rutas al final del bloque de proyectos en `routes.js`. No hay migración nueva: usa las tablas de la migración 35.
+
+`estadoParticipacion.js` (derivar el estado) · `repositories/participacionRepository.js` (todo el SQL) · `services/gestionService.js` (reglas) · `controllers/gestionController.js` · frontend en `public/modules/proyectos/js/views/` (`miProyecto.js`, `paraHoy.js`, `empresaAsesor.js`, `registrosAsesor.js`, `anteriores.js`), `layout/barraInferior.js` y `utils/gestion.js` · rutas al final del bloque de proyectos en `routes.js`. No hay migración nueva: usa las tablas de la migración 35.
 
 ## Verificación
 

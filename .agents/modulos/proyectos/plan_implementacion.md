@@ -103,11 +103,11 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 ### Fase 4 · Gestión del asesor — `feature/proyectos-04-gestion-asesor`
 
 - [x] Gestiones, entregas de muestra con control de existencias, cotizaciones y ventas con referencia (venta sin OV no se guarda; OV repetida avisa). (4a)
-- [x] País sin moneda local (hoy Belice): sus cotizaciones y ventas salen en dólares hasta que el administrador elija una (lo anuncian A0 y A1 › Países). (4a, el servidor; el aviso en pantalla lo trae la 4b)
+- [x] País sin moneda local (hoy Belice): sus cotizaciones y ventas salen en dólares hasta que el administrador elija una (lo anuncian A0 y A1 › Países). (4a servidor y 4b hoja de registro; el aviso de A0 ya existía)
 - [x] Venta «por confirmar» cuando el interruptor está encendido (no cuenta en informes hasta confirmarse); referencia obligatoria según el país. (4a)
 - [x] Estado de la participación derivado de lo registrado; «perdida» y «descartada» explícitas. (4a)
 - [x] «Para hoy» con orden fijo y filtro por el asesor de la sesión; listas de 50 en 50. (4a)
-- [ ] Pantallas: M1–M7, M10, M11, D1, D2.
+- [x] Pantallas: M1–M7, M10, M11, D1, D2, D3 y la barra inferior del celular. (4b)
 - **Terminado cuando:** un asesor recorre una empresa de pendiente a vendida y no puede leer participaciones ajenas.
 
 ### Fase 5 · Seguimiento del supervisor — `feature/proyectos-05-seguimiento-supervisor`
