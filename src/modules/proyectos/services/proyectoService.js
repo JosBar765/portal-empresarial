@@ -85,14 +85,15 @@ class ProyectoService {
       proyectoRepository.tiendasPosibles({ todas, usuarioId: usuario.id }), configService.valores(), plantillaService.activas()
     ]);
     const activas = (filas) => filas.filter(f => f.activo || f.activa).map(f => ({ id: f.id, nombre: f.nombre, codigo: f.codigo, simbolo: f.simbolo }));
+    const elegibles = await proyectoRepository.contarElegiblesPorNicho({ paisIds: [...new Set(tiendas.map(t => t.pais_id))], descansoMeses: ajustes['reparto.descanso_meses'] });
     return {
-      nichos: activas(nichos), articulos: activas(articulos), monedas: activas(monedas),
+      nichos: activas(nichos).map(n => ({ ...n, empresas: elegibles.get(n.id) || 0 })), articulos: activas(articulos), monedas: activas(monedas),
       tiendas: tiendas.map(t => ({
         id: t.id, codigo: t.codigo, empresa: t.empresa, paisId: t.pais_id, pais: t.pais,
         ocupada: t.ocupada_por_id ? { proyectoId: t.ocupada_por_id, proyecto: t.ocupada_por, fin: t.ocupada_fin } : null
       })),
       plantillas, todasLasTiendas: todas,
-      ajustes: { topePorAsesor: ajustes['reparto.tope_por_asesor'], recibenSupervisores: ajustes['reparto.reciben_supervisores'], aprobarActivacion: ajustes['reglas.aprobar_activacion'] },
+      ajustes: { codigoFormato: ajustes['codigo.formato'], topePorAsesor: ajustes['reparto.tope_por_asesor'], recibenSupervisores: ajustes['reparto.reciben_supervisores'], aprobarActivacion: ajustes['reglas.aprobar_activacion'] },
       permisos: { activar: true, aprobar: tiene(usuario, 'proyectos.aprobar_activacion') }
     };
   }
@@ -287,11 +288,11 @@ class ProyectoService {
     const inicio = limpio(salida.fechaInicio);
     if (FECHA.test(inicio) && !Number.isNaN(Date.parse(inicio))) {
       const calendario = calendarioDeEtapas(inicio, plantilla.etapas);
-      const bloqueadas = plantilla.controles.fechas_etapas === 'bloqueado';
+      const bloqueadas = plantilla.controles.fechas_etapas === 'bloqueado' || datos.recalcularEtapas === true;
       salida.etapas = salida.etapas.map((e, i) => ({
         ...e, fechaInicio: bloqueadas || !e.fechaInicio ? (calendario[i] || {}).inicio : e.fechaInicio, fechaFin: bloqueadas || !e.fechaFin ? (calendario[i] || {}).fin : e.fechaFin
       }));
-      if (!limpio(salida.fechaFin) && calendario.length) salida.fechaFin = calendario[calendario.length - 1].fin;
+      if ((!limpio(salida.fechaFin) || datos.recalcularEtapas === true) && calendario.length) salida.fechaFin = calendario[calendario.length - 1].fin;
     }
     return { datos: salida, plantilla };
   }

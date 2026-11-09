@@ -146,6 +146,22 @@ class ProyectoRepository {
     );
   }
 
+  // Cuántas empresas elegibles hay por nicho en esos países (para elegir el nicho del mes en el asistente).
+  async contarElegiblesPorNicho({ paisIds, descansoMeses }, ejecutor = db) {
+    if (!paisIds.length) return new Map();
+    const filas = await ejecutor.query(
+      `SELECT c.nicho_id, COUNT(*) AS n FROM proy_clientes c
+       WHERE c.estado = 'activa' AND c.pais_id IN (?)
+         AND NOT EXISTS (SELECT 1 FROM proy_participaciones p WHERE p.cliente_id = c.id AND p.abierta = 1)
+         AND (? = 0 OR NOT EXISTS (SELECT 1 FROM proy_participaciones p JOIN proy_proyectos y ON y.id = p.proyecto_id
+              WHERE p.cliente_id = c.id AND p.estado = 'vendida' AND y.nicho_id = c.nicho_id AND y.cerrado_en IS NOT NULL
+                AND y.cerrado_en >= DATE_SUB(NOW(), INTERVAL ? MONTH)))
+       GROUP BY c.nicho_id`,
+      [paisIds, descansoMeses, descansoMeses], 'proyectos_proyecto:elegibles_por_nicho'
+    );
+    return new Map(filas.map(f => [f.nicho_id, Number(f.n)]));
+  }
+
   async insertarParticipaciones(tx, proyectoId, asignaciones, reserva) {
     const filas = [
       ...asignaciones.map(a => [proyectoId, a.clienteId, a.asesorId, a.tiendaId]),
