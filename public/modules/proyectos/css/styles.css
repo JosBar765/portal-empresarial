@@ -733,3 +733,21 @@ a.tarjeta-config:active { transform: scale(.985); }
 .sino-etiqueta { font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
 .sino-ayuda { font-size: var(--text-xs); color: var(--color-text-muted); }
 .campo input[type="date"] { min-height: 44px; }
+
+/* ---------- Plantillas (A4) y aprobación (G5) ---------- */
+.campo-item--columna { flex-direction: column; align-items: stretch; gap: 4px; }
+.campo-item-fila { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.entrada-tabla { width: 100%; min-height: 36px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 6px 10px; font: inherit; font-size: var(--text-sm); background: var(--color-surface); color: var(--color-text); }
+.entrada-tabla:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1); }
+.entrada-corta { max-width: 70px; text-align: center; }
+.mover { display: flex; flex-direction: column; }
+.mover .boton-icono { padding: 1px 4px; font-size: 14px; }
+.mover .boton-icono:disabled { opacity: .3; cursor: not-allowed; }
+.filas-acciones { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: var(--text-sm); }
+.aprobacion-cuerpo { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: start; margin-bottom: 16px; }
+@media (max-width: 900px) { .aprobacion-cuerpo { grid-template-columns: minmax(0, 1fr); } }
+.aprobacion-lado { display: flex; flex-direction: column; gap: 16px; }
+.dato-fila { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--color-border); font-size: var(--text-sm); }
+.dato-fila:last-child { border-bottom: none; }
+.dato-fila-titulo { width: 110px; flex-shrink: 0; color: var(--color-text-muted); }
+.dato-fila-valor { font-weight: 600; overflow-wrap: anywhere; }

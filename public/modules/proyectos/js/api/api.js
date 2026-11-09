@@ -79,3 +79,14 @@ export const editarCampo = (id, datos) => pedir(`${BASE}/config/campos/${encodeU
 export const cambiarActivoCampo = (id, activo) => pedir(`${BASE}/config/campos/${encodeURIComponent(id)}/activo`, enJson('PATCH', { activo }));
 export const listarAlcance = (filtros) => pedir(`${BASE}/config/alcance${consulta(filtros || {})}`);
 export const guardarAlcance = (usuarioId, paises) => pedir(`${BASE}/config/alcance/${encodeURIComponent(usuarioId)}`, enJson('PUT', { paises }));
+
+// Plantillas de proyecto (A4 y A4b) y proyectos (aprobación)
+export const listarPlantillas = () => pedir(`${BASE}/config/plantillas`);
+export const crearPlantilla = (datos) => pedir(`${BASE}/config/plantillas`, enJson('POST', datos));
+export const editarPlantilla = (id, datos) => pedir(`${BASE}/config/plantillas/${encodeURIComponent(id)}`, enJson('PUT', datos));
+export const cambiarActivaPlantilla = (id, activa) => pedir(`${BASE}/config/plantillas/${encodeURIComponent(id)}/activa`, enJson('PATCH', { activa }));
+export const listarProyectos = (filtros) => pedir(`${BASE}/proyectos${consulta(filtros || {})}`);
+export const obtenerProyecto = (id) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}`);
+export const vistaPreviaProyecto = (id) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/vista-previa`, { method: 'POST' });
+export const aprobarProyecto = (id, idempotencyKey) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/aprobar`, enJson('POST', { idempotencyKey }));
+export const rechazarProyecto = (id, comentario) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/rechazar`, enJson('POST', { comentario }));

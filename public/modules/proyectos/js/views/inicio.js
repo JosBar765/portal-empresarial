@@ -8,7 +8,6 @@ import { textoDeCambio } from './cambios.js';
 // Las áreas que llegan en fases posteriores se muestran apagadas, con su fase, para que se vea el camino completo.
 const AREAS_PRONTO = [
   { titulo: 'Plan del año', icono: 'calendar-outline', texto: 'Nicho y plantilla por mes · activación automática', fase: 9 },
-  { titulo: 'Plantillas de proyecto', icono: 'document-text-outline', texto: 'Duración, etapas y qué puede cambiar el supervisor', fase: 3 },
   { titulo: 'Notificaciones', icono: 'notifications-outline', texto: 'Qué avisos recibe cada rol', fase: 6 },
   { titulo: 'Kit del nicho', icono: 'chatbox-outline', texto: 'Guiones y mensajes por nicho', fase: 9 }
 ];
@@ -62,7 +61,10 @@ function tarjetas(resumen) {
       texto: 'Reparto, seguimiento, semáforo, importación…',
       pie: pieDe(resumen.ultimos.parametros, `${pluralizar(resumen.parametros.total, 'ajuste', 'ajustes')} en su valor por defecto`)
     }),
-    tarjeta({ titulo: AREAS_PRONTO[1].titulo, nombreIcono: AREAS_PRONTO[1].icono, texto: AREAS_PRONTO[1].texto, fase: AREAS_PRONTO[1].fase, pie: `Disponible en la fase ${AREAS_PRONTO[1].fase}` }),
+    tarjeta({
+      titulo: 'Plantillas de proyecto', nombreIcono: 'document-text-outline', ruta: 'plantillas', texto: 'Duración, etapas y qué puede cambiar el supervisor',
+      pie: pieDe(resumen.ultimos.plantillas, pluralizar(resumen.plantillas.activas, 'plantilla activa', 'plantillas activas'))
+    }),
     tarjeta({
       titulo: 'Reglas y aprobaciones', nombreIcono: 'checkmark-circle-outline', ruta: 'reglas',
       texto: reglas, pie: pieDe(resumen.ultimos.reglas, 'Todo en su valor por defecto')
@@ -75,7 +77,7 @@ function tarjetas(resumen) {
       titulo: 'Alcance de usuarios', nombreIcono: 'globe-outline', ruta: 'alcance', texto: 'Los países que ve cada persona',
       pie: pieDe(resumen.ultimos.alcance, resumen.alcance.personasConExcepciones ? `${pluralizar(resumen.alcance.personasConExcepciones, 'persona con ajustes', 'personas con ajustes')}` : 'Cada persona ve el país de su tienda')
     }),
-    ...AREAS_PRONTO.slice(2).map(a => tarjeta({ titulo: a.titulo, nombreIcono: a.icono, texto: a.texto, fase: a.fase, pie: `Disponible en la fase ${a.fase}` })),
+    ...AREAS_PRONTO.slice(1).map(a => tarjeta({ titulo: a.titulo, nombreIcono: a.icono, texto: a.texto, fase: a.fase, pie: `Disponible en la fase ${a.fase}` })),
     tarjeta({
       titulo: 'Historial de cambios', nombreIcono: 'time-outline', ruta: 'historial',
       texto: 'Quién cambió qué, antes y después', pie: pluralizar(resumen.historial.total, 'cambio', 'cambios')
