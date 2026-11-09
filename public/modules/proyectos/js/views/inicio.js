@@ -8,7 +8,6 @@ import { textoDeCambio } from './cambios.js';
 // Las áreas que llegan en fases posteriores se muestran apagadas, con su fase, para que se vea el camino completo.
 const AREAS_PRONTO = [
   { titulo: 'Plan del año', icono: 'calendar-outline', texto: 'Nicho y plantilla por mes · activación automática', fase: 9 },
-  { titulo: 'Notificaciones', icono: 'notifications-outline', texto: 'Qué avisos recibe cada rol', fase: 6 },
   { titulo: 'Kit del nicho', icono: 'chatbox-outline', texto: 'Guiones y mensajes por nicho', fase: 9 }
 ];
 
@@ -76,6 +75,10 @@ function tarjetas(resumen) {
     tarjeta({
       titulo: 'Alcance de usuarios', nombreIcono: 'globe-outline', ruta: 'alcance', texto: 'Los países que ve cada persona',
       pie: pieDe(resumen.ultimos.alcance, resumen.alcance.personasConExcepciones ? `${pluralizar(resumen.alcance.personasConExcepciones, 'persona con ajustes', 'personas con ajustes')}` : 'Cada persona ve el país de su tienda')
+    }),
+    tarjeta({
+      titulo: 'Notificaciones', nombreIcono: 'notifications-outline', ruta: 'notificaciones', texto: 'Qué avisos recibe cada rol y con cuánta anticipación',
+      pie: pieDe(resumen.ultimos.avisos, resumen.avisos.personalizada ? 'Con ajustes propios' : 'Todo en su valor por defecto')
     }),
     ...AREAS_PRONTO.slice(1).map(a => tarjeta({ titulo: a.titulo, nombreIcono: a.icono, texto: a.texto, fase: a.fase, pie: `Disponible en la fase ${a.fase}` })),
     tarjeta({

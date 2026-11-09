@@ -27,6 +27,7 @@ import { renderSeguimiento } from './views/seguimiento.js';
 import { renderSupervisionEmpresa } from './views/supervisionEmpresa.js';
 import { renderVentasPorConfirmar } from './views/ventasPorConfirmar.js';
 import { renderPanel, renderVistoBueno } from './views/gerencia.js';
+import { renderAvisos } from './views/avisos.js';
 
 // Cada pantalla pide su propio permiso: entrar a Proyectos solo exige `proyectos.ver`, y la configuración, `proyectos.administrar`.
 const RUTAS = {
@@ -47,6 +48,7 @@ const RUTAS = {
   vistobueno: { render: renderVistoBueno, permiso: 'proyectos.dar_visto_bueno' },
   aprobaciones: { render: renderAprobaciones, permiso: 'proyectos.aprobar_activacion' },
   plantillas: { render: renderPlantillas, permiso: 'proyectos.administrar' },
+  notificaciones: { render: renderAvisos, permiso: 'proyectos.administrar' },
   campos: { render: renderCampos, permiso: 'proyectos.administrar' },
   alcance: { render: renderAlcance, permiso: 'proyectos.administrar' },
   historial: { render: renderHistorial, permiso: 'proyectos.administrar' },

@@ -5,7 +5,7 @@ import { cabecera, cargando, avisar, estadoVacio } from '../components/ui.js';
 import { listarHistorial, restaurarCambio } from '../api/api.js';
 import { confirmarModal } from '../components/modal.js';
 
-const AREAS = [['', 'Todas'], ['parametros', 'Parámetros'], ['reglas', 'Reglas'], ['catalogos', 'Catálogos'], ['paises', 'Países'], ['campos', 'Campos propios'], ['alcance', 'Alcance de usuarios'], ['plantillas', 'Plantillas de proyecto']];
+const AREAS = [['', 'Todas'], ['parametros', 'Parámetros'], ['reglas', 'Reglas'], ['catalogos', 'Catálogos'], ['paises', 'Países'], ['campos', 'Campos propios'], ['alcance', 'Alcance de usuarios'], ['plantillas', 'Plantillas de proyecto'], ['avisos', 'Notificaciones']];
 const FECHAS = [['todo', 'Todo el historial'], ['hoy', 'Hoy'], ['7', 'Últimos 7 días'], ['30', 'Últimos 30 días'], ['mes', 'Este mes']];
 
 const aISO = (fecha) => `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;

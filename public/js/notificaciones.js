@@ -43,6 +43,15 @@
     document.title = estado.noLeidas ? `(${total}) ${tituloBase}` : tituloBase;
   }
 
+  // Avisos de Proyectos: un ícono por tipo para reconocerlos de un vistazo.
+  const ICONOS_PROYECTOS = {
+    reparto_recibido: 'people-outline', reasignada_recibe: 'swap-horizontal-outline', reasignada_pierde: 'swap-horizontal-outline', seguimiento_vence: 'time-outline',
+    seguimiento_vencido: 'alert-circle-outline', proyecto_por_cerrar: 'flag-outline', proyecto_vencido: 'warning-outline', activacion_pedida: 'rocket-outline',
+    activacion_resuelta: 'checkmark-circle-outline', cierre_pendiente: 'flag-outline', visto_bueno_resuelto: 'checkmark-circle-outline', venta_por_confirmar: 'cash-outline',
+    venta_revisada: 'cash-outline', registro_anulado: 'close-circle-outline', existencia_baja: 'gift-outline'
+  };
+  const iconoDeAviso = (n) => (n.modulo === 'proyectos' && ICONOS_PROYECTOS[n.tipo] ? `<ion-icon class="notif-icono" name="${ICONOS_PROYECTOS[n.tipo]}"></ion-icon>` : '');
+
   function render() {
     if (!root) return;
     actualizarTituloPestana();
@@ -50,7 +59,7 @@
     const scrollPrevio = root.querySelector('.notif-lista')?.scrollTop || 0;
     const lista = estado.items.map(n => `
       <li class="notif-item${n.leida_en ? '' : ' is-no-leida'}${n.nivel === 'alerta' ? ' is-alerta' : ''}" data-id="${n.id}">
-        <span class="notif-contenido">${escapar(n.mensaje)}</span>
+        <span class="notif-contenido">${iconoDeAviso(n)}${escapar(n.mensaje)}</span>
         <span class="notif-fecha">${formatearFecha(n.creado_en)}</span>
       </li>`).join('');
     root.innerHTML = `

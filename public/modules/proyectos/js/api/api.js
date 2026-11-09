@@ -137,3 +137,8 @@ export const devolverCierre = (id, datos) => pedir(`${BASE}/proyectos/${encodeUR
 export const reenviarCierre = (id, datos) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/reenviar`, enJson('POST', datos));
 export const obtenerPanelGerencial = (filtros) => pedir(`${BASE}/gerencia/panel${consulta(filtros)}`);
 export const listarPorDarVistoBueno = () => pedir(`${BASE}/gerencia/visto-bueno`);
+
+// Notificaciones (matriz de avisos)
+export const obtenerAvisos = () => pedir(`${BASE}/config/avisos`);
+export const guardarAvisos = (cambios) => pedir(`${BASE}/config/avisos`, enJson('PUT', cambios));
+export const restaurarAvisos = () => pedir(`${BASE}/config/avisos/restaurar`, { method: 'POST' });
