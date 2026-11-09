@@ -9,6 +9,7 @@ const importacionController = require('./controllers/importacionController');
 const campoController = require('./controllers/campoController');
 const proyectoController = require('./controllers/proyectoController');
 const plantillaController = require('./controllers/plantillaController');
+const gestionController = require('./controllers/gestionController');
 const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
@@ -17,6 +18,7 @@ const registrar = requirePermission('proyectos.clientes.registrar');
 const importar = requirePermission('proyectos.clientes.importar');
 const activar = requirePermission('proyectos.activar');
 const aprobar = requirePermission('proyectos.aprobar_activacion');
+const gestionar = requirePermission('proyectos.gestionar');
 // Ver la vista previa de un proyecto: quien lo crea o quien debe aprobarlo.
 const creaOAprueba = (req, res, siguiente) => {
   const permisos = (req.user && req.user.permissions) || [];
@@ -46,6 +48,19 @@ router.post('/proyectos/:id/cancelar', activar, proyectoController.cancelar);
 router.post('/proyectos/:id/pedir-aprobacion', activar, proyectoController.pedirAprobacion);
 router.post('/proyectos/:id/aprobar', aprobar, proyectoController.aprobar);
 router.post('/proyectos/:id/rechazar', aprobar, proyectoController.rechazar);
+
+// Trabajo del asesor: solo sobre SUS empresas (lo ajeno responde 404). Mi proyecto, Para hoy, ficha y registros.
+router.get('/mi-proyecto', gestionar, gestionController.miProyecto);
+router.get('/mi-proyecto/para-hoy', gestionar, gestionController.paraHoy);
+router.get('/mis-proyectos-anteriores', gestionar, gestionController.anteriores);
+router.get('/participaciones/opciones', gestionar, gestionController.opciones);
+router.get('/participaciones', gestionar, gestionController.listar);
+router.get('/participaciones/:id', gestionar, gestionController.ficha);
+router.post('/participaciones/:id/gestiones', gestionar, gestionController.gestion);
+router.post('/participaciones/:id/cotizaciones', gestionar, gestionController.cotizacion);
+router.post('/participaciones/:id/ventas', gestionar, gestionController.venta);
+router.post('/participaciones/:id/perdida', gestionar, gestionController.perdida);
+router.post('/participaciones/:id/descartar', gestionar, gestionController.descartar);
 
 // Empresas de la base global (las lecturas solo exigen proyectos.ver; cada una ve los países de su alcance)
 router.get('/clientes/importar/plantilla', importar, (req, res) => importacionController.plantilla(req, res));
