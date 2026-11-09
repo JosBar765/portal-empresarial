@@ -90,3 +90,12 @@ export const obtenerProyecto = (id) => pedir(`${BASE}/proyectos/${encodeURICompo
 export const vistaPreviaProyecto = (id) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/vista-previa`, { method: 'POST' });
 export const aprobarProyecto = (id, idempotencyKey) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/aprobar`, enJson('POST', { idempotencyKey }));
 export const rechazarProyecto = (id, comentario) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/rechazar`, enJson('POST', { comentario }));
+
+// Asistente de proyectos
+export const obtenerOpcionesProyectos = () => pedir(`${BASE}/proyectos/opciones`);
+export const candidatosDeTiendas = (tiendaIds) => pedir(`${BASE}/proyectos/candidatos`, enJson('POST', { tiendaIds }));
+export const crearProyecto = (datos) => pedir(`${BASE}/proyectos`, enJson('POST', datos));
+export const editarProyecto = (id, datos) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}`, enJson('PUT', datos));
+export const activarProyecto = (id, idempotencyKey) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/activar`, enJson('POST', { idempotencyKey }));
+export const pedirAprobacionProyecto = (id) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/pedir-aprobacion`, { method: 'POST' });
+export const cancelarProyecto = (id, motivo) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/cancelar`, enJson('POST', { motivo }));

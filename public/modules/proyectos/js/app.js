@@ -17,6 +17,7 @@ import { renderCampos } from './views/campos.js';
 import { renderAlcance } from './views/alcance.js';
 import { renderPlantillas } from './views/plantillas.js';
 import { renderAprobaciones } from './views/aprobaciones.js';
+import { renderProyectos } from './views/proyectos.js';
 
 // Cada pantalla pide su propio permiso: entrar a Proyectos solo exige `proyectos.ver`, y la configuración, `proyectos.administrar`.
 const RUTAS = {
@@ -25,6 +26,7 @@ const RUTAS = {
   inicio: { render: renderInicio, permiso: 'proyectos.administrar' },
   parametros: { render: renderParametros, permiso: 'proyectos.administrar' },
   reglas: { render: renderReglas, permiso: 'proyectos.administrar' },
+  proyectos: { render: renderProyectos, permiso: ['proyectos.activar', 'proyectos.ver_gerencia', 'proyectos.administrar'] },
   aprobaciones: { render: renderAprobaciones, permiso: 'proyectos.aprobar_activacion' },
   plantillas: { render: renderPlantillas, permiso: 'proyectos.administrar' },
   campos: { render: renderCampos, permiso: 'proyectos.administrar' },
@@ -32,7 +34,9 @@ const RUTAS = {
   historial: { render: renderHistorial, permiso: 'proyectos.administrar' },
   catalogos: { render: renderCatalogos, permiso: 'proyectos.administrar' }
 };
-const permitidas = () => Object.keys(RUTAS).filter(r => state.user.permissions.includes(RUTAS[r].permiso));
+// Una ruta puede pedir un permiso o varios (basta con uno).
+const puedeVer = (ruta) => [].concat(RUTAS[ruta].permiso).some(p => state.user.permissions.includes(p));
+const permitidas = () => Object.keys(RUTAS).filter(puedeVer);
 
 // El encabezado se achica en celulares: el menú lateral y los altos fijos usan su alto real.
 function seguirAltoEncabezado() {
@@ -61,7 +65,7 @@ function iniciarConexionEnVivo() {
 
 // «#/clientes/12» → { ruta: 'clientes', parametro: '12' }. Una ruta desconocida o sin permiso cae en la primera permitida.
 function destinoDelHash() {
-  const coincide = /^#\/([a-z]+)(?:\/([a-z0-9]+))?/.exec(window.location.hash);
+  const coincide = /^#\/([a-z]+)(?:\/([a-z0-9]+(?:\/[a-z]+)?))?/.exec(window.location.hash);
   const habilitadas = permitidas();
   if (coincide && habilitadas.includes(coincide[1])) return { ruta: coincide[1], parametro: coincide[2] || null };
   return { ruta: habilitadas[0], parametro: null };
