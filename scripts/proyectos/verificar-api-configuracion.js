@@ -155,7 +155,7 @@ async function main() {
     console.log('Resumen e historial (A0 y A10)');
     r = await llamar('GET', '/config/resumen');
     prueba('el resumen trae catálogos, parámetros, reglas, países e historial',
-      r.status === 200 && r.datos.catalogos.tipos === 9 && r.datos.parametros.total > 20 && r.datos.reglas.length === 3
+      r.status === 200 && r.datos.catalogos.tipos === 10 && r.datos.parametros.total > 20 && r.datos.reglas.length === 3
       && r.datos.paises.total >= 6 && r.datos.historial.total > 0 && r.datos.historial.recientes.length <= 5);
     prueba('un país sin moneda local aparece como pendiente', r.datos.pendientes.some(p => p.tipo === 'pais_sin_moneda' && p.paises.includes('Belice')));
 
