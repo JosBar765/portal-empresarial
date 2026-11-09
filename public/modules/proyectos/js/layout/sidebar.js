@@ -1,4 +1,5 @@
 import { $, $$ } from '../utils/dom.js';
+import { marcarBarraInferior } from './barraInferior.js';
 
 // Mismo patrón colapsable y cajón móvil que Administración.
 const SIDEBAR_ANCHO = '224px';
@@ -15,7 +16,10 @@ function actualizarOffsetSidebar(sidebar) {
 }
 
 export function marcarRuta(ruta) {
-  $$('.sidebar-item[data-ruta]').forEach(item => item.classList.toggle('sidebar-item-active', item.dataset.ruta === ruta));
+  // La ficha de una empresa pertenece a Mi proyecto.
+  const activa = ruta === 'empresa' ? 'miproyecto' : ruta;
+  $$('.sidebar-item[data-ruta]').forEach(item => item.classList.toggle('sidebar-item-active', item.dataset.ruta === activa));
+  marcarBarraInferior(activa);
 }
 
 // Oculta lo que el rol no puede usar, y los títulos de grupo que quedaron sin elementos.

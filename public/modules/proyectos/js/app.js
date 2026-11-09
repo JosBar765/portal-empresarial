@@ -18,9 +18,18 @@ import { renderAlcance } from './views/alcance.js';
 import { renderPlantillas } from './views/plantillas.js';
 import { renderAprobaciones } from './views/aprobaciones.js';
 import { renderProyectos } from './views/proyectos.js';
+import { renderMiProyecto } from './views/miProyecto.js';
+import { renderParaHoy } from './views/paraHoy.js';
+import { renderEmpresaAsesor } from './views/empresaAsesor.js';
+import { renderAnteriores } from './views/anteriores.js';
+import { montarBarraInferior } from './layout/barraInferior.js';
 
 // Cada pantalla pide su propio permiso: entrar a Proyectos solo exige `proyectos.ver`, y la configuración, `proyectos.administrar`.
 const RUTAS = {
+  miproyecto: { render: renderMiProyecto, permiso: 'proyectos.gestionar' },
+  parahoy: { render: renderParaHoy, permiso: 'proyectos.gestionar' },
+  empresa: { render: renderEmpresaAsesor, permiso: 'proyectos.gestionar' },
+  anteriores: { render: renderAnteriores, permiso: 'proyectos.gestionar' },
   clientes: { render: renderClientes, permiso: 'proyectos.ver' },
   importar: { render: renderImportar, permiso: 'proyectos.clientes.importar' },
   inicio: { render: renderInicio, permiso: 'proyectos.administrar' },
@@ -126,6 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   iniciarConexionEnVivo();
 
   mostrarSoloPermitidas(permitidas());
+  if (state.user.permissions.includes('proyectos.gestionar')) montarBarraInferior();
   window.addEventListener('hashchange', alCambiarElHash);
   await mostrar(destinoDelHash());
 });
