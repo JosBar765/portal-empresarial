@@ -11,6 +11,7 @@ const { aEntero } = require('../../../core/utils/validar');
 const { errorDeValidacion, errorDePosibleDuplicado } = require('../errores');
 const { definicion } = require('../catalogos');
 const campoService = require('./campoService');
+const proyectoRepository = require('../repositories/proyectoRepository');
 const camposPropios = require('../camposPropios');
 const duplicados = require('../duplicados');
 const telefonos = require('../telefonos');
@@ -326,6 +327,9 @@ class ClienteService {
     const id = await db.transaccion(async (tx) => {
       const clienteId = await clienteRepository.insertar(tx, { ...valores, creadoPor: usuario.id, tiendaOrigenId, origen: 'asesor' });
       if (contacto) await clienteRepository.insertarContacto(tx, { ...contacto, clienteId, principal: true, creadoPor: usuario.id });
+      // Regla 16: si es del nicho del proyecto activo en el que participa quien la registra, queda asignada a esa persona.
+      const proyecto = await proyectoRepository.proyectoActivoDe(usuario.id, valores.nichoId, valores.paisId, tx);
+      if (proyecto) await proyectoRepository.asignarEmpresa(tx, { proyectoId: proyecto.id, clienteId, asesorId: usuario.id, tiendaId: proyecto.tienda_id, asignadaPor: usuario.id });
       return clienteId;
     });
     return this.obtener(usuario, id);
