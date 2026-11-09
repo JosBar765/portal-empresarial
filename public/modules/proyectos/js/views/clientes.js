@@ -145,5 +145,5 @@ async function renderRegistro(cont) {
       subtitulo: 'Los campos con * son obligatorios. Si ya existe una parecida, te avisamos antes de guardar.',
       acciones: h('a', { class: 'btn btn--ghost', href: '#/clientes' }, icono('arrow-back-outline'), 'Volver a la cartera')
     }),
-    h('section', { class: 'panel' }, formulario));
+    h('section', { class: 'panel panel--formulario' }, formulario));
 }

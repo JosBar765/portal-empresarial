@@ -5,7 +5,8 @@ import { hace, fechaCorta, nombreCorto } from '../utils/formato.js';
 import { cabecera, aviso, cargando, avisar, interruptor } from '../components/ui.js';
 import { abrirModal } from '../components/modal.js';
 import { modalFormulario } from '../components/modalFormulario.js';
-import { campoTexto, campoLista, campoArea } from '../components/campos.js';
+import { campoTexto, campoLista, campoArea, campoTelefono, telefonoCompleto } from '../components/campos.js';
+import { CORREO, vacio, validarTexto, separarTelefono } from '../utils/validar.js';
 import {
   obtenerCliente, obtenerOpcionesClientes, editarCliente, cambiarEstadoCliente, agregarContacto, editarContacto, cambiarActivoContacto
 } from '../api/api.js';
@@ -134,7 +135,7 @@ function ventanaEditar(empresa, opciones, alActualizar) {
     opciones, creando: false, etiquetaGuardar: 'Guardar cambios', alCancelar: () => cerrar(),
     inicial: {
       id: empresa.id, nombre: empresa.nombre, nichoId: empresa.nichoId, paisId: empresa.paisId, ciudad: empresa.ciudad || '',
-      telefono: empresa.telefonoTexto === '—' ? '' : (empresa.telefonoTexto || ''), direccion: empresa.direccion || '', sitioWeb: empresa.sitioWeb || '', estructuraId: empresa.estructuraId
+      telefono: empresa.telefonoTexto || '', direccion: empresa.direccion || '', sitioWeb: empresa.sitioWeb || '', estructuraId: empresa.estructuraId
     },
     alEnviar: async (datos, confirmarDuplicado) => {
       alActualizar(await editarCliente(empresa.id, datos, confirmarDuplicado));
@@ -142,6 +143,7 @@ function ventanaEditar(empresa, opciones, alActualizar) {
       avisar('success', 'Empresa actualizada', empresa.nombre);
     }
   });
+  overlay.querySelector('.modal-box').classList.add('modal-lg'); // el formulario va en dos columnas
   overlay.querySelector('.modal-body').append(formulario);
 }
 
@@ -175,30 +177,44 @@ function ventanaEstado(empresa, opciones, accion, alActualizar) {
 }
 
 function ventanaContacto(empresa, opciones, contacto, alActualizar) {
+  const prefijos = opciones.prefijos || [];
   const valores = contacto
-    ? { nombre: contacto.nombre, areaId: contacto.areaId, cargo: contacto.cargo || '', telefono: contacto.telefonoTexto || '', correo: contacto.correo || '', principal: contacto.principal }
+    ? { nombre: contacto.nombre, areaId: contacto.areaId, cargo: contacto.cargo || '', telefono: '', correo: contacto.correo || '', principal: contacto.principal }
     : { nombre: '', areaId: '', cargo: '', telefono: '', correo: '', principal: false };
-  let errores = {};
+  valores.paisId = empresa.paisId; // el código del teléfono parte del país de la empresa
+  const separado = contacto && contacto.telefono ? separarTelefono(contacto.telefono, prefijos) : null;
+  if (separado) { valores.telefono = separado.numero; valores.telefono__pais = separado.pais.id; valores.telefono__manual = separado.pais.id !== empresa.paisId; }
+  const errores = {};
+  const porClave = {};
   const nodo = h('form', { class: 'formulario-modal', novalidate: '' });
-  const dibujar = () => montar(nodo,
-    campoTexto({ valores, errores, clave: 'nombre', etiqueta: 'Nombre', obligatorio: true, prefijoId: 'contacto' }),
-    campoLista({ valores, errores, clave: 'areaId', etiqueta: 'Área', opciones: opciones.areas, vacio: 'Elige el área', obligatorio: true, prefijoId: 'contacto' }),
-    campoTexto({ valores, errores, clave: 'cargo', etiqueta: 'Cargo', maximo: 100, prefijoId: 'contacto' }),
-    campoTexto({ valores, errores, clave: 'telefono', etiqueta: 'Teléfono', maximo: 30, tipo: 'tel', prefijoId: 'contacto' }),
-    campoTexto({ valores, errores, clave: 'correo', etiqueta: 'Correo', tipo: 'email', prefijoId: 'contacto' }),
+  const base = { valores, errores, prefijoId: 'contacto' };
+  const reg = (clave, campo) => { porClave[clave] = campo; return campo; };
+  montar(nodo,
+    reg('nombre', campoTexto({ ...base, clave: 'nombre', etiqueta: 'Nombre', obligatorio: true, validar: (v) => validarTexto(v, { maximo: 150, obligatorio: true, mensajeObligatorio: 'Escribe el nombre del contacto.' }) })),
+    reg('areaId', campoLista({ ...base, clave: 'areaId', etiqueta: 'Área', opciones: opciones.areas, vacio: 'Elige el área', obligatorio: true, validar: (v) => (vacio(v) ? 'Elige el área del contacto.' : '') })),
+    reg('cargo', campoTexto({ ...base, clave: 'cargo', etiqueta: 'Cargo', maximo: 100, validar: (v) => validarTexto(v, { maximo: 100 }) })),
+    reg('telefono', campoTelefono({ ...base, clave: 'telefono', etiqueta: 'Teléfono', prefijos, paisPorDefecto: () => empresa.paisId })),
+    reg('correo', campoTexto({ ...base, clave: 'correo', etiqueta: 'Correo', tipo: 'email',
+      validar: (v) => (vacio(v) ? '' : (!CORREO.test(String(v).trim()) || String(v).trim().length > 150 ? 'Escribe un correo válido, por ejemplo nombre@empresa.com.' : '')) })),
     h('div', { class: 'campo-fila' }, h('span', { text: 'Contacto principal' }),
       interruptor({ marcado: valores.principal, etiqueta: 'Contacto principal', alCambiar: (v) => { valores.principal = v; } })));
-  dibujar();
   modalFormulario({
     title: contacto ? 'Editar contacto' : 'Agregar contacto', nodo, aceptar: 'Guardar contacto',
     enviar: async () => {
-      errores = {};
-      const actualizada = contacto ? await editarContacto(contacto.id, valores) : await agregarContacto(empresa.id, valores);
-      alActualizar(actualizada);
+      Object.keys(errores).forEach(k => delete errores[k]);
+      let primero = null;
+      Object.values(porClave).forEach(c => { if (!c.revisar() && !primero) primero = c; });
+      if (primero) { primero.control.focus(); throw Object.assign(new Error('Revisa los datos marcados.'), { silencioso: true }); }
+      const envio = { nombre: valores.nombre, areaId: valores.areaId, cargo: valores.cargo, telefono: telefonoCompleto(valores, 'telefono', prefijos), correo: valores.correo, principal: valores.principal };
+      alActualizar(contacto ? await editarContacto(contacto.id, envio) : await agregarContacto(empresa.id, envio));
       avisar('success', 'Contacto guardado', valores.nombre);
     },
     alError: (error) => {
-      if (error.campos) { errores = error.campos; dibujar(); } else avisar('error', 'No se pudo guardar el contacto', error.message);
+      if (error.silencioso) return;
+      if (error.campos) {
+        Object.assign(errores, error.campos);
+        Object.keys(error.campos).forEach(k => porClave[k] && porClave[k].revisar());
+      } else avisar('error', 'No se pudo guardar el contacto', error.message);
     }
   });
 }
