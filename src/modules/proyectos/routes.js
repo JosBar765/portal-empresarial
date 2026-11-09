@@ -10,6 +10,7 @@ const campoController = require('./controllers/campoController');
 const proyectoController = require('./controllers/proyectoController');
 const plantillaController = require('./controllers/plantillaController');
 const gestionController = require('./controllers/gestionController');
+const seguimientoController = require('./controllers/seguimientoController');
 const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
@@ -19,6 +20,14 @@ const importar = requirePermission('proyectos.clientes.importar');
 const activar = requirePermission('proyectos.activar');
 const aprobar = requirePermission('proyectos.aprobar_activacion');
 const gestionar = requirePermission('proyectos.gestionar');
+const reasignar = requirePermission('proyectos.reasignar');
+const corregir = requirePermission('proyectos.corregir');
+const confirmarVentas = requirePermission('proyectos.confirmar_ventas');
+// Ver el seguimiento: supervisores, gerencia y administración (el alcance de cada quien lo decide el servicio).
+const supervisa = (req, res, siguiente) => {
+  const permisos = (req.user && req.user.permissions) || [];
+  return ['proyectos.supervisar', 'proyectos.ver_gerencia', 'proyectos.administrar'].some(p => permisos.includes(p)) ? siguiente() : res.status(403).json({ error: 'No tienes permiso para realizar esta acción.' });
+};
 // Ver la vista previa de un proyecto: quien lo crea o quien debe aprobarlo.
 const creaOAprueba = (req, res, siguiente) => {
   const permisos = (req.user && req.user.permissions) || [];
@@ -61,6 +70,20 @@ router.post('/participaciones/:id/cotizaciones', gestionar, gestionController.co
 router.post('/participaciones/:id/ventas', gestionar, gestionController.venta);
 router.post('/participaciones/:id/perdida', gestionar, gestionController.perdida);
 router.post('/participaciones/:id/descartar', gestionar, gestionController.descartar);
+
+// Seguimiento del supervisor: ver no da poder de actuar; reasignar, anular y confirmar piden su permiso y las tiendas de la persona.
+router.get('/seguimiento/proyectos', supervisa, seguimientoController.proyectos);
+router.get('/proyectos/:id/seguimiento', supervisa, seguimientoController.resumen);
+router.get('/proyectos/:id/seguimiento/asesores', supervisa, seguimientoController.porAsesor);
+router.get('/proyectos/:id/seguimiento/tiendas', supervisa, seguimientoController.porTienda);
+router.get('/proyectos/:id/seguimiento/estancados', supervisa, seguimientoController.estancados);
+router.post('/proyectos/:id/reasignar', reasignar, seguimientoController.reasignar);
+router.get('/participaciones/:id/supervision', supervisa, seguimientoController.supervision);
+router.post('/participaciones/:id/cotizaciones/:cotizacionId/anular', corregir, seguimientoController.anularCotizacion);
+router.post('/participaciones/:id/ventas/:ventaId/anular', corregir, seguimientoController.anularVenta);
+router.get('/ventas', confirmarVentas, seguimientoController.ventas);
+router.post('/ventas/:id/confirmar', confirmarVentas, seguimientoController.confirmarVenta);
+router.post('/ventas/:id/rechazar', confirmarVentas, seguimientoController.rechazarVenta);
 
 // Empresas de la base global (las lecturas solo exigen proyectos.ver; cada una ve los países de su alcance)
 router.get('/clientes/importar/plantilla', importar, (req, res) => importacionController.plantilla(req, res));
