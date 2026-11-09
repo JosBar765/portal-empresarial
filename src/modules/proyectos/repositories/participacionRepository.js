@@ -117,6 +117,15 @@ class ParticipacionRepository {
     );
   }
 
+  // Lo vendido (ventas confirmadas y vigentes) por proyecto y moneda: nunca se suman monedas distintas.
+  vendidoPorMoneda(asesorId) {
+    return db.query(
+      `SELECT p.proyecto_id, v.moneda, SUM(v.monto) AS total FROM proy_ventas v JOIN proy_participaciones p ON p.id = v.participacion_id
+       WHERE p.asesor_id = ? AND v.anulada_en IS NULL AND v.estado = 'confirmada' GROUP BY p.proyecto_id, v.moneda ORDER BY v.moneda`,
+      [asesorId], 'proyectos_gestion:vendido_por_moneda'
+    );
+  }
+
   // --- Ficha ---
 
   async participacion(id, asesorId, ejecutor = db) {
@@ -172,13 +181,14 @@ class ParticipacionRepository {
   // --- Catálogos que usan las hojas de registro ---
 
   async catalogos() {
-    const [canales, resultados, motivos, monedas] = await Promise.all([
+    const [canales, resultados, motivos, monedas, areas] = await Promise.all([
       db.query('SELECT id, nombre, presencial FROM proy_canales WHERE activo = 1 ORDER BY id', [], 'proyectos_gestion:canales'),
       db.query('SELECT id, nombre, contacto_logrado, requiere_proxima, efecto_estado FROM proy_resultados_gestion WHERE activo = 1 ORDER BY orden, id', [], 'proyectos_gestion:resultados'),
       db.query('SELECT id, nombre FROM proy_motivos_perdida WHERE activo = 1 ORDER BY orden, id', [], 'proyectos_gestion:motivos'),
-      db.query('SELECT codigo, nombre, simbolo FROM proy_monedas WHERE activa = 1 ORDER BY codigo', [], 'proyectos_gestion:monedas')
+      db.query('SELECT codigo, nombre, simbolo FROM proy_monedas WHERE activa = 1 ORDER BY codigo', [], 'proyectos_gestion:monedas'),
+      db.query('SELECT id, nombre FROM proy_areas_contacto WHERE activo = 1 ORDER BY orden, id', [], 'proyectos_gestion:areas')
     ]);
-    return { canales, resultados, motivos, monedas };
+    return { canales, resultados, motivos, monedas, areas };
   }
 
   async resultado(id, ejecutor = db) {

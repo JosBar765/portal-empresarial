@@ -257,7 +257,7 @@ async function verificar() {
     prueba('sin proyecto activo, Mi proyecto responde «proyecto: null»', r.status === 200 && r.datos.proyecto === null);
     r = await asesor('GET', '/mis-proyectos-anteriores');
     const anterior = r.datos.proyectos.find(p => p.id === proyectoId);
-    prueba('Mis proyectos anteriores lo lista con sus cifras', r.status === 200 && anterior && anterior.vendidas === 2 && anterior.asignadas >= asesores[0].n, JSON.stringify(anterior));
+    prueba('Mis proyectos anteriores lo lista con sus cifras y lo vendido por moneda', r.status === 200 && anterior && anterior.vendidas === 2 && anterior.asignadas >= asesores[0].n && anterior.vendido.length === 1 && anterior.vendido[0].moneda === 'GTQ' && anterior.vendido[0].monto === 12300, JSON.stringify(anterior));
     r = await asesor('GET', '/mis-proyectos-anteriores', undefined, B);
     prueba('otro asesor solo ve los suyos: sus cifras no incluyen las de A', r.datos.proyectos.find(p => p.id === proyectoId).vendidas === 0);
   } finally {

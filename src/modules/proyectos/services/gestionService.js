@@ -114,12 +114,13 @@ class GestionService {
   }
 
   async proyectosAnteriores(usuario) {
-    const filas = await repo.proyectosAnteriores(usuario.id);
+    const [filas, vendido] = await Promise.all([repo.proyectosAnteriores(usuario.id), repo.vendidoPorMoneda(usuario.id)]);
     return {
       proyectos: filas.map(f => ({
         id: f.id, nombre: f.nombre, nicho: f.nicho, anio: f.anio, mes: f.mes, estado: f.estado, cerradoEn: f.cerrado_en,
         asignadas: Number(f.asignadas), gestionadas: Number(f.gestionadas || 0), interesadas: Number(f.interesadas || 0), vendidas: Number(f.vendidas || 0),
-        efectividad: Number(f.asignadas) ? Math.round((Number(f.interesadas || 0) / Number(f.asignadas)) * 100) : 0
+        efectividad: Number(f.asignadas) ? Math.round((Number(f.interesadas || 0) / Number(f.asignadas)) * 100) : 0,
+        vendido: vendido.filter(v => v.proyecto_id === f.id).map(v => ({ moneda: v.moneda, monto: Number(v.total) }))
       }))
     };
   }
