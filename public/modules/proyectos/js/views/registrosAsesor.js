@@ -3,7 +3,7 @@
 import { h, icono, montar } from '../utils/dom.js';
 import { avisar } from '../components/ui.js';
 import { modalFormulario } from '../components/modalFormulario.js';
-import { campoLista, campoTexto, campoArea } from '../components/campos.js';
+import { campoLista, campoTexto, campoArea, campoFechaHora } from '../components/campos.js';
 import { registrarGestion, registrarCotizacion, registrarVenta, marcarEmpresaPerdida, descartarEmpresa } from '../api/api.js';
 import { simboloDe } from '../utils/gestion.js';
 
@@ -50,8 +50,8 @@ export function formularioGestion(ficha, opciones, { alCambiar } = {}) {
       campoLista({ valores, errores, clave: 'contactoId', etiqueta: 'Con quién habló', vacio: contactos.length ? 'Elige un contacto' : 'Esta empresa no tiene contactos', opciones: contactos.map(c => ({ id: c.id, nombre: `${c.nombre} · ${c.area}` })), prefijoId: 'gestion' }),
       campoLista({ valores, errores, clave: 'resultadoId', etiqueta: 'Resultado', obligatorio: true, vacio: 'Elige el resultado', opciones: opciones.resultados, prefijoId: 'gestion', alCambiar: dibujar, validar: (v) => (vacio(v) ? 'Elige el resultado.' : '') }),
       campoArea({ valores, errores, clave: 'nota', etiqueta: 'Nota', maximo: 1000, prefijoId: 'gestion' }),
-      campoTexto({
-        valores, errores, clave: 'proximaEn', etiqueta: 'Próximo seguimiento', tipo: 'datetime-local', obligatorio: Boolean(r && r.requiere_proxima), prefijoId: 'gestion',
+      campoFechaHora({
+        valores, errores, clave: 'proximaEn', etiqueta: 'Próximo seguimiento', obligatorio: Boolean(r && r.requiere_proxima), prefijoId: 'gestion',
         ayuda: r && r.requiere_proxima ? 'Obligatorio con este resultado.' : 'Opcional.',
         validar: (v) => (r && r.requiere_proxima && vacio(v) ? 'Con este resultado hay que fijar la fecha del próximo seguimiento.' : '')
       }),

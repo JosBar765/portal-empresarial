@@ -231,3 +231,82 @@ export function campoSitioWeb({ clave, etiqueta, valores, errores, obligatorio, 
   abrir.addEventListener('click', () => { const url = direccion(); if (url) window.open(url, '_blank', 'noopener,noreferrer'); });
   return nodo;
 }
+
+// --- Fecha y hora con calendario propio ---
+// Reemplaza el selector nativo del navegador: un campo con ícono de calendario («Jue 12 nov · 10:00») que abre un calendario
+// (no deja elegir días pasados) y la hora en pasos de 15 minutos. `valores[clave]` guarda «AAAA-MM-DDTHH:mm» o vacío.
+const MESES_FECHA = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const dos = (n) => String(n).padStart(2, '0');
+
+function leerFechaHora(texto) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(String(texto || ''));
+  return m ? { y: +m[1], m: +m[2], d: +m[3], hh: m[4] ? +m[4] : 9, mi: m[5] ? +m[5] : 0 } : null;
+}
+
+export function campoFechaHora({ clave, etiqueta, valores, errores, obligatorio, ayuda, validar, alCambiar, prefijoId = 'f' }) {
+  const id = idDe(prefijoId, clave);
+  const valor = h('span', { class: 'fecha-valor' });
+  const boton = h('button', { id, class: 'fecha-disparador', type: 'button', 'aria-haspopup': 'dialog', 'aria-expanded': 'false' }, valor, icono('calendar-outline'));
+  const panel = h('div', { class: 'fecha-panel', role: 'dialog', 'aria-label': etiqueta, hidden: '' });
+  const control = h('div', { class: 'fecha-campo' }, boton, panel);
+  const nodo = campoBase({ id, etiqueta, obligatorio, control, foco: boton, clave, valores, errores, validar, ayuda });
+  const hoy = leerFechaHora(new Date(Date.now() - 6 * 3600 * 1000).toISOString());
+  let seleccion = leerFechaHora(valores[clave]);
+  let vista = { y: (seleccion || hoy).y, m: (seleccion || hoy).m };
+
+  const guardar = () => {
+    valores[clave] = seleccion ? `${seleccion.y}-${dos(seleccion.m)}-${dos(seleccion.d)}T${dos(seleccion.hh)}:${dos(seleccion.mi)}` : '';
+    pintarValor();
+    nodo.alEscribir();
+    if (alCambiar) alCambiar();
+  };
+  function pintarValor() {
+    const hay = Boolean(seleccion);
+    valor.textContent = hay ? `${DIAS_CORTOS[new Date(seleccion.y, seleccion.m - 1, seleccion.d).getDay()]} ${seleccion.d} ${MESES_FECHA[seleccion.m - 1].slice(0, 3).toLowerCase()} · ${dos(seleccion.hh)}:${dos(seleccion.mi)}` : 'Elige fecha y hora';
+    valor.classList.toggle('fecha-valor--vacio', !hay);
+  }
+  const esPasado = (y, m, d) => y < hoy.y || (y === hoy.y && (m < hoy.m || (m === hoy.m && d < hoy.d)));
+
+  function dibujar() {
+    const primero = new Date(vista.y, vista.m - 1, 1);
+    const desfase = (primero.getDay() + 6) % 7;
+    const total = new Date(vista.y, vista.m, 0).getDate();
+    const celdas = [...Array(desfase).fill(null), ...Array.from({ length: total }, (_, i) => i + 1)];
+    const mover = (delta) => { const f = new Date(vista.y, vista.m - 1 + delta, 1); vista = { y: f.getFullYear(), m: f.getMonth() + 1 }; dibujar(); };
+    const anterior = h('button', { class: 'fecha-mes-boton', type: 'button', 'aria-label': 'Mes anterior', onclick: () => mover(-1) }, icono('chevron-back-outline'));
+    anterior.disabled = vista.y === hoy.y && vista.m === hoy.m;
+    const opcionesHora = (n, paso, actual) => Array.from({ length: n / paso }, (_, i) => h('option', { value: String(i * paso), selected: i * paso === actual ? '' : null, text: dos(i * paso) }));
+    const hora = h('select', { 'aria-label': 'Hora' }, opcionesHora(24, 1, seleccion ? seleccion.hh : 9));
+    const minuto = h('select', { 'aria-label': 'Minutos' }, opcionesHora(60, 15, seleccion ? seleccion.mi - (seleccion.mi % 15) : 0));
+    const cambiarHora = () => { if (seleccion) { seleccion.hh = Number(hora.value); seleccion.mi = Number(minuto.value); guardar(); } };
+    hora.addEventListener('change', cambiarHora);
+    minuto.addEventListener('change', cambiarHora);
+    montar(panel,
+      h('div', { class: 'fecha-mes' }, anterior, h('strong', { text: `${MESES_FECHA[vista.m - 1]} ${vista.y}` }),
+        h('button', { class: 'fecha-mes-boton', type: 'button', 'aria-label': 'Mes siguiente', onclick: () => mover(1) }, icono('chevron-forward-outline'))),
+      h('div', { class: 'fecha-rejilla fecha-rejilla--semana', 'aria-hidden': 'true' }, ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map(t => h('span', { text: t }))),
+      h('div', { class: 'fecha-rejilla' }, celdas.map(d => {
+        if (!d) return h('span');
+        const elegido = seleccion && seleccion.y === vista.y && seleccion.m === vista.m && seleccion.d === d;
+        const esHoy = hoy.y === vista.y && hoy.m === vista.m && hoy.d === d;
+        const dia = h('button', { class: `fecha-dia${elegido ? ' fecha-dia--elegido' : ''}${esHoy ? ' fecha-dia--hoy' : ''}`, type: 'button', text: String(d), 'aria-pressed': String(Boolean(elegido)) });
+        dia.disabled = esPasado(vista.y, vista.m, d);
+        dia.addEventListener('click', () => { seleccion = { y: vista.y, m: vista.m, d, hh: seleccion ? seleccion.hh : 9, mi: seleccion ? seleccion.mi : 0 }; guardar(); dibujar(); });
+        return dia;
+      })),
+      h('div', { class: 'fecha-hora' }, h('span', { text: 'Hora' }), hora, h('span', { text: ':' }), minuto),
+      h('div', { class: 'fecha-pie' },
+        h('button', { class: 'btn btn--ghost btn--chico', type: 'button', onclick: () => { seleccion = null; guardar(); cerrar(); } }, 'Quitar'),
+        h('button', { class: 'btn btn--primary btn--chico', type: 'button', onclick: cerrar }, 'Listo')));
+  }
+
+  function abrir() { dibujar(); panel.hidden = false; boton.setAttribute('aria-expanded', 'true'); }
+  function cerrar() { if (panel.hidden) return; panel.hidden = true; boton.setAttribute('aria-expanded', 'false'); nodo.alSalir(); }
+  boton.addEventListener('click', () => (panel.hidden ? abrir() : cerrar()));
+  const afuera = (e) => { if (!control.isConnected) { document.removeEventListener('mousedown', afuera); return; } if (!control.contains(e.target)) cerrar(); };
+  document.addEventListener('mousedown', afuera);
+  control.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) { e.stopPropagation(); cerrar(); boton.focus(); } });
+  pintarValor();
+  return nodo;
+}
