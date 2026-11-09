@@ -11,7 +11,7 @@ const P = require('../parametros');
 const { definicion: catalogo } = require('../catalogos');
 
 const POR_PAGINA = 20;
-const AREAS = ['parametros', 'reglas', 'catalogos', 'paises', 'campos', 'alcance'];
+const AREAS = ['parametros', 'reglas', 'catalogos', 'paises', 'campos', 'alcance', 'plantillas'];
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
 const ETIQUETAS_PAIS = {
@@ -20,6 +20,10 @@ const ETIQUETAS_PAIS = {
 };
 const ETIQUETAS_CAMPO = {
   etiqueta: 'Etiqueta', nicho: 'Nicho', tipo: 'Tipo', opciones: 'Opciones', obligatorio: 'Obligatorio', visibleEnLista: 'Visible en la lista', activo: 'Activo'
+};
+const ETIQUETAS_PLANTILLA = {
+  nombre: 'Nombre', descripcion: 'Descripción', activa: 'Activa', predeterminada: 'Predeterminada', duracionSemanas: 'Duración (semanas)', articulo: 'Artículo',
+  existenciaSugerida: 'Existencia sugerida', topePorAsesor: 'Tope por asesor', meta: 'Meta', etapas: 'Etapas', controles: 'Qué puede cambiar el supervisor'
 };
 const ETIQUETAS_ALCANCE = { agregados: 'Países agregados', quitados: 'Países quitados' };
 const ACCIONES = {
@@ -32,6 +36,7 @@ const dato = valor => (typeof valor === 'string' ? JSON.parse(valor) : valor);
 function texto(valor, unidad) {
   if (valor === null || valor === undefined || valor === '') return '—';
   if (typeof valor === 'boolean') return valor ? 'Sí' : 'No';
+  if (valor && typeof valor === 'object' && !Array.isArray(valor)) return Object.entries(valor).map(([k, v]) => `${k}: ${v}`).join(' · ');
   if (Array.isArray(valor)) return valor.length ? valor.join(', ') : '—';
   return unidad ? `${valor} ${unidad}` : String(valor);
 }
@@ -78,6 +83,13 @@ function describirFila(fila, nombresPais) {
     return {
       ...base, area: 'Campos propios', objeto: fuente.etiqueta || fila.clave,
       cambios: fila.accion === 'crear' ? [] : diferencias(antes, despues, ETIQUETAS_CAMPO), restaurable: false
+    };
+  }
+  if (fila.entidad === 'plantilla') {
+    const fuente = despues || antes || {};
+    return {
+      ...base, area: 'Plantillas de proyecto', objeto: fuente.nombre || fila.clave,
+      cambios: fila.accion === 'crear' ? [] : diferencias(antes, despues, ETIQUETAS_PLANTILLA), restaurable: false
     };
   }
   if (fila.entidad === 'alcance') {

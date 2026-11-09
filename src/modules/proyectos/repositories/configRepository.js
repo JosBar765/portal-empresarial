@@ -40,6 +40,7 @@ class ConfigRepository {
     else if (area === 'paises') condiciones.push("h.entidad = 'pais'");
     else if (area === 'campos') condiciones.push("h.entidad = 'campo'");
     else if (area === 'alcance') condiciones.push("h.entidad = 'alcance'");
+    else if (area === 'plantillas') condiciones.push("h.entidad = 'plantilla'");
     if (usuarioId) { condiciones.push('h.usuario_id = ?'); params.push(usuarioId); }
     if (desde) { condiciones.push('DATE(h.creado_en) >= ?'); params.push(desde); }
     if (hasta) { condiciones.push('DATE(h.creado_en) <= ?'); params.push(hasta); }
