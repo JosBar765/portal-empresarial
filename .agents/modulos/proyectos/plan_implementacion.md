@@ -123,9 +123,9 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 
 ### Fase 6 · Cierre, informe y gerencia — `feature/proyectos-06-cierre-informe-gerencia`
 
-- [ ] `informeService` único (pantalla, PDF y exportación), congelado en `resumen_cierre`; tasas acumulativas; lo anulado no cuenta.
-- [ ] PDF con `pdf-lib`; tablas largas a 20 filas con «y N más».
-- [ ] Cierre con conclusiones; visto bueno (dar y devolver con comentarios); panel del gerente.
+- [x] `informeService` único (pantalla, PDF y exportación), congelado en `resumen_cierre`; tasas acumulativas; lo anulado no cuenta. (6a)
+- [x] PDF con `pdf-lib`; tablas largas a 20 filas con «y N más». (6a)
+- [x] Cierre con conclusiones; visto bueno (dar y devolver con comentarios); panel del gerente: servidor (6a); pantallas en la 6b.
 - [ ] Matriz de notificaciones configurable (A8) y visto bueno opcional según el interruptor.
 - [ ] Revisión periódica de proyectos vencidos (gracia configurable, 3 días hábiles por defecto) con `aviso_vencido_en`; notificaciones de todo el módulo.
 - [ ] Pantallas: S10, G1, G2, T3b, T6 + F3, F8.
