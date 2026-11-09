@@ -25,8 +25,8 @@ export async function renderFicha(cont, id) {
     empresa = await obtenerCliente(id);
   } catch (error) {
     if (error.status !== 404) throw error;
-    montar(cont, cabecera({ titulo: 'Empresa no encontrada', acciones: h('a', { class: 'btn btn--ghost', href: '#/clientes' }, icono('arrow-back-outline'), 'Volver a la lista') }),
-      aviso({ tipo: 'advertencia', titulo: 'No existe o no es de tus países', texto: 'Revisa el enlace o búscala en la base de clientes.' }));
+    montar(cont, cabecera({ titulo: 'Empresa no encontrada', acciones: h('a', { class: 'btn btn--ghost', href: '#/clientes' }, icono('arrow-back-outline'), 'Volver a la cartera') }),
+      aviso({ tipo: 'advertencia', titulo: 'No existe o no es de tus países', texto: 'Revisa el enlace o búscala en la cartera.' }));
     return;
   }
 
@@ -38,7 +38,7 @@ function armar(empresa, opciones, alActualizar) {
   const puedeEditar = opciones.permisos.registrar;
   const puedeReactivar = opciones.permisos.reactivar;
   const acciones = h('div', { class: 'acciones-cabecera' },
-    h('a', { class: 'btn btn--ghost', href: '#/clientes' }, icono('arrow-back-outline'), 'Base de clientes'),
+    h('a', { class: 'btn btn--ghost', href: '#/clientes' }, icono('arrow-back-outline'), 'Cartera'),
     puedeEditar ? h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => ventanaEditar(empresa, opciones, alActualizar) }, icono('create-outline'), 'Editar') : null,
     puedeEditar && empresa.estado === 'activa' ? h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => ventanaEstado(empresa, opciones, 'inactivar', alActualizar) }, icono('pause-outline'), 'Marcar inactiva') : null,
     puedeEditar && empresa.estado !== 'no_contactar' ? h('button', { class: 'btn btn--danger', type: 'button', onclick: () => ventanaEstado(empresa, opciones, 'no_contactar', alActualizar) }, icono('ban-outline'), 'No contactar') : null,

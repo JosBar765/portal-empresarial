@@ -109,7 +109,7 @@ async function renderLista(cont) {
   const alcanceTexto = opciones.paises.length === 1 ? opciones.paises[0].nombre : `${opciones.paises.length} países`;
   montar(cont,
     cabecera({
-      titulo: 'Base de clientes',
+      titulo: 'Cartera',
       subtitulo: `Empresas de ${alcanceTexto}. Cualquier asesor puede registrarlas; el sistema avisa si ya existe una parecida.`,
       acciones: opciones.permisos.registrar ? h('a', { class: 'btn btn--primary', href: '#/clientes/nuevo' }, icono('add-outline'), 'Registrar empresa') : null
     }),
@@ -128,7 +128,7 @@ async function renderRegistro(cont) {
   montar(cont, cargando());
   const opciones = await obtenerOpcionesClientes();
   if (!opciones.permisos.registrar) {
-    montar(cont, cabecera({ titulo: 'Registrar empresa' }), aviso({ tipo: 'error', titulo: 'No puedes registrar empresas', texto: 'Tu rol solo consulta la base de clientes.' }));
+    montar(cont, cabecera({ titulo: 'Registrar empresa' }), aviso({ tipo: 'error', titulo: 'No puedes registrar empresas', texto: 'Tu rol solo consulta la cartera.' }));
     return;
   }
   const formulario = construirFormulario({
@@ -143,7 +143,7 @@ async function renderRegistro(cont) {
     cabecera({
       titulo: 'Registrar empresa',
       subtitulo: 'Los campos con * son obligatorios. Si ya existe una parecida, te avisamos antes de guardar.',
-      acciones: h('a', { class: 'btn btn--ghost', href: '#/clientes' }, icono('arrow-back-outline'), 'Volver a la lista')
+      acciones: h('a', { class: 'btn btn--ghost', href: '#/clientes' }, icono('arrow-back-outline'), 'Volver a la cartera')
     }),
     h('section', { class: 'panel' }, formulario));
 }

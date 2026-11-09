@@ -22,7 +22,7 @@ export async function renderImportar(cont) {
   montar(cont, cargando());
   const opciones = await obtenerOpcionesClientes();
   if (!opciones.permisos.importar) {
-    montar(cont, cabecera({ titulo: 'Importar clientes' }), aviso({ tipo: 'error', titulo: 'No puedes importar empresas', texto: 'Tu rol no tiene este permiso.' }));
+    montar(cont, cabecera({ titulo: 'Importar empresas' }), aviso({ tipo: 'error', titulo: 'No puedes importar empresas', texto: 'Tu rol no tiene este permiso.' }));
     return;
   }
   const limites = opciones.importacion;
@@ -178,11 +178,11 @@ export async function renderImportar(cont) {
       h('div', { class: 'formulario-acciones' },
         r.conError ? h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => descargarErrores(r) }, icono('download-outline'), 'Descargar errores (CSV)') : null,
         h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => { archivo = null; previa = null; errorArchivo = null; dibujarArchivo(); } }, 'Importar otro archivo'),
-        h('a', { class: 'btn btn--primary', href: '#/clientes' }, icono('business-outline'), 'Ver la base de clientes'))));
+        h('a', { class: 'btn btn--primary', href: '#/clientes' }, icono('business-outline'), 'Ver la cartera'))));
   }
 
   montar(cont,
-    cabecera({ titulo: 'Importar clientes', subtitulo: 'Carga muchas empresas a la vez desde un archivo CSV.' }),
+    cabecera({ titulo: 'Importar empresas', subtitulo: 'Carga muchas empresas a la vez desde un archivo CSV.' }),
     zona);
   dibujarArchivo();
 }
