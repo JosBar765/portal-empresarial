@@ -8,9 +8,9 @@ const dato = (v) => (typeof v === 'string' ? JSON.parse(v) : v);
 
 const COLUMNAS = `y.id, y.codigo, y.nombre, y.nicho_id, n.nombre AS nicho, y.anio, y.mes, y.articulo_id, a.nombre AS articulo, y.existencia_muestras,
   y.plantilla_id, y.meta_monto, y.meta_moneda, y.estado, y.fecha_inicio, y.fecha_fin, y.tope_por_asesor, y.activado_en, y.cerrado_en,
-  y.aprobacion_pedida_en, y.aprobacion_comentario, y.config_snapshot, y.creado_por, u.nombre AS creado_por_nombre, y.creado_en`;
+  y.aprobacion_pedida_en, up.nombre AS aprobacion_pedida_por_nombre, y.aprobada_en, y.aprobacion_comentario, y.config_snapshot, y.creado_por, u.nombre AS creado_por_nombre, y.creado_en`;
 const DESDE = `FROM proy_proyectos y JOIN proy_nichos n ON n.id = y.nicho_id LEFT JOIN proy_articulos a ON a.id = y.articulo_id
-  JOIN usuarios u ON u.id = y.creado_por`;
+  JOIN usuarios u ON u.id = y.creado_por LEFT JOIN usuarios up ON up.id = y.aprobacion_pedida_por`;
 
 // Quien no ve todo, ve los proyectos con al menos una de SUS tiendas en el alcance, y los que él mismo creó.
 const SOLO_MIOS = `(y.creado_por = ? OR EXISTS (SELECT 1 FROM proy_proyecto_tiendas pt WHERE pt.proyecto_id = y.id

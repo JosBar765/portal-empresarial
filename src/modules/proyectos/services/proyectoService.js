@@ -5,6 +5,8 @@ const db = require('../../../config/database');
 const proyectoRepository = require('../repositories/proyectoRepository');
 const catalogoRepository = require('../repositories/catalogoRepository');
 const configService = require('./configService');
+const plantillaService = require('./plantillaService');
+const plantillaRepository = require('../repositories/plantillaRepository');
 const reparto = require('../repartoService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero } = require('../../../core/utils/validar');
@@ -21,7 +23,9 @@ const exigir = (usuario, permiso, mensaje) => { if (!tiene(usuario, permiso)) th
 const noExiste = () => new ErrorDeNegocio('Ese proyecto no existe o no es de tus tiendas.', 404);
 const limpio = (v) => String(v == null ? '' : v).trim();
 const quitarAcentos = (t) => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '');
-const alcanceDe = (usuario) => ({ todos: tiene(usuario, 'proyectos.administrar') || tiene(usuario, 'proyectos.ver_gerencia'), usuarioId: usuario.id });
+const alcanceDe = (usuario) => ({
+  todos: tiene(usuario, 'proyectos.administrar') || tiene(usuario, 'proyectos.ver_gerencia') || tiene(usuario, 'proyectos.aprobar_activacion'), usuarioId: usuario.id
+});
 
 // «2026-11-27» → «27 nov» (las fechas llegan como texto AAAA-MM-DD, en la hora de Guatemala).
 function fechaCorta(fecha) {
@@ -42,6 +46,25 @@ function sumarDiasHabiles(fecha, dias) {
   return d.toISOString().slice(0, 10);
 }
 
+const proximoHabil = (fecha) => {
+  const d = new Date(`${fecha}T00:00:00Z`);
+  while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
+
+// Las fechas de cada etapa de una plantilla a partir de la fecha de inicio: una tras otra, en días hábiles.
+function calendarioDeEtapas(inicio, etapas) {
+  let desde = proximoHabil(inicio);
+  return etapas.map((e) => {
+    const fin = sumarDiasHabiles(desde, e.duracionDiasHabiles - 1);
+    const fila = { inicio: desde, fin };
+    desde = proximoHabil(sumarDiasHabiles(fin, 1));
+    return fila;
+  });
+}
+
+const mismoValor = (a, b) => (Number.isFinite(Number(a)) && Number.isFinite(Number(b)) && String(a) !== '' && String(b) !== '' ? Number(a) === Number(b) : String(a == null ? '' : a) === String(b == null ? '' : b));
+
 const esDuplicado = (error, indice) => Boolean(error) && error.code === 'ER_DUP_ENTRY' && String(error.sqlMessage || error.message).includes(indice);
 
 function fechaOpcional(valor, campo, campos) {
@@ -57,9 +80,9 @@ class ProyectoService {
   async opciones(usuario) {
     exigir(usuario, 'proyectos.activar', 'No tienes permiso para crear proyectos.');
     const todas = tiene(usuario, 'proyectos.administrar');
-    const [nichos, articulos, monedas, tiendas, ajustes] = await Promise.all([
+    const [nichos, articulos, monedas, tiendas, ajustes, plantillas] = await Promise.all([
       catalogoRepository.listar(definicion('nichos')), catalogoRepository.listar(definicion('articulos')), catalogoRepository.listar(definicion('monedas')),
-      proyectoRepository.tiendasPosibles({ todas, usuarioId: usuario.id }), configService.valores()
+      proyectoRepository.tiendasPosibles({ todas, usuarioId: usuario.id }), configService.valores(), plantillaService.activas()
     ]);
     const activas = (filas) => filas.filter(f => f.activo || f.activa).map(f => ({ id: f.id, nombre: f.nombre, codigo: f.codigo, simbolo: f.simbolo }));
     return {
@@ -68,7 +91,7 @@ class ProyectoService {
         id: t.id, codigo: t.codigo, empresa: t.empresa, paisId: t.pais_id, pais: t.pais,
         ocupada: t.ocupada_por_id ? { proyectoId: t.ocupada_por_id, proyecto: t.ocupada_por, fin: t.ocupada_fin } : null
       })),
-      todasLasTiendas: todas,
+      plantillas, todasLasTiendas: todas,
       ajustes: { topePorAsesor: ajustes['reparto.tope_por_asesor'], recibenSupervisores: ajustes['reparto.reciben_supervisores'], aprobarActivacion: ajustes['reglas.aprobar_activacion'] },
       permisos: { activar: true, aprobar: tiene(usuario, 'proyectos.aprobar_activacion') }
     };
@@ -86,9 +109,14 @@ class ProyectoService {
   }
 
   async _marcarVencidos(filas) {
-    const gracia = (await configService.valores())['vencimiento.gracia_dias_habiles'];
+    const vivo = (await configService.valores())['vencimiento.gracia_dias_habiles'];
     const dia = hoy();
-    return filas.map(f => ({ ...f, vencido: f.estado === 'activo' && Boolean(f.fecha_fin) && sumarDiasHabiles(f.fecha_fin, gracia) < dia }));
+    // Un proyecto ya activo usa los días de gracia que tenía al activarse (su foto de configuración), no los de hoy.
+    return filas.map((f) => {
+      const gracia = f.config_snapshot && f.config_snapshot.parametros && f.config_snapshot.parametros['vencimiento.gracia_dias_habiles'] !== undefined
+        ? f.config_snapshot.parametros['vencimiento.gracia_dias_habiles'] : vivo;
+      return { ...f, vencido: f.estado === 'activo' && Boolean(f.fecha_fin) && sumarDiasHabiles(f.fecha_fin, gracia) < dia };
+    });
   }
 
   _aItem(f) {
@@ -104,8 +132,8 @@ class ProyectoService {
     const anio = aEntero(consulta.anio);
     const todos = await this._marcarVencidos(await proyectoRepository.listar({ anio, alcance }));
     const grupos = {
-      todos: todos, activos: todos.filter(p => ['activo', 'pendiente_aprobacion'].includes(p.estado) && !p.vencido), vencidos: todos.filter(p => p.vencido),
-      cerrados: todos.filter(p => p.estado === 'cerrado'), borradores: todos.filter(p => p.estado === 'borrador'), cancelados: todos.filter(p => p.estado === 'cancelado')
+      todos: todos, activos: todos.filter(p => p.estado === 'activo' && !p.vencido), vencidos: todos.filter(p => p.vencido),
+      aprobacion: todos.filter(p => p.estado === 'pendiente_aprobacion'), cerrados: todos.filter(p => p.estado === 'cerrado'), borradores: todos.filter(p => p.estado === 'borrador'), cancelados: todos.filter(p => p.estado === 'cancelado')
     };
     const filtro = Object.prototype.hasOwnProperty.call(grupos, consulta.estado) ? consulta.estado : 'todos';
     const visibles = grupos[filtro].filter(p => filtro !== 'todos' || p.estado !== 'cancelado');
@@ -130,7 +158,8 @@ class ProyectoService {
       ...this._aItem({ ...marcado, tiendas: tiendas.length, asesores: participantes.filter(p => p.estado === 'activo').length, empresas: resumen.reduce((s, r) => s + Number(r.empresas), 0) }),
       articuloId: fila.articulo_id, articulo: fila.articulo, existenciaMuestras: fila.existencia_muestras, plantillaId: fila.plantilla_id,
       metaMonto: fila.meta_monto === null ? null : Number(fila.meta_monto), metaMoneda: fila.meta_moneda, topePorAsesor: fila.tope_por_asesor,
-      activadoEn: fila.activado_en, aprobacionPedidaEn: fila.aprobacion_pedida_en, aprobacionComentario: fila.aprobacion_comentario,
+      activadoEn: fila.activado_en, aprobacionPedidaEn: fila.aprobacion_pedida_en, aprobacionPedidaPor: fila.aprobacion_pedida_por_nombre, aprobadaEn: fila.aprobada_en, aprobacionComentario: fila.aprobacion_comentario,
+      fotoConfiguracion: fila.config_snapshot ? { plantilla: fila.config_snapshot.plantilla ? fila.config_snapshot.plantilla.nombre : null, creadaEn: fila.config_snapshot.creadaEn } : null,
       tiendas: tiendas.map(t => ({ id: t.id, codigo: t.codigo, empresa: t.empresa, paisId: t.pais_id, pais: t.pais })),
       participantes: participantes.map(p => ({ usuarioId: p.usuario_id, nombre: p.nombre, tiendaId: p.tienda_id, tienda: p.tienda, paisId: p.pais_id, pais: p.pais, estado: p.estado, motivo: p.motivo })),
       etapas: etapas.map(e => ({ orden: e.orden, nombre: e.nombre, descripcion: e.descripcion, fechaInicio: e.fecha_inicio, fechaFin: e.fecha_fin })),
@@ -158,8 +187,9 @@ class ProyectoService {
     return ids;
   }
 
-  async _validar(usuario, datos, proyectoId, { completo = false } = {}) {
+  async _validar(usuario, datosCrudos, proyectoId, { completo = false } = {}) {
     const campos = {};
+    const { datos, plantilla } = await this._conPlantilla(datosCrudos, campos);
     const nicho = await this._catalogoActivo('nichos', datos.nichoId);
     if (!nicho) campos.nichoId = 'Elige un nicho de la lista.';
     const anio = aEntero(datos.anio);
@@ -227,9 +257,43 @@ class ProyectoService {
 
     if (Object.keys(campos).length) throw errorDeValidacion('Revisa los datos marcados.', campos);
     return {
-      valores: { nombre, nichoId: nicho.id, nichoNombre: nicho.nombre, anio, mes, articuloId, existenciaMuestras: existencia, plantillaId: aEntero(datos.plantillaId), metaMonto, metaMoneda, fechaInicio, fechaFin, topePorAsesor: tope },
+      valores: { nombre, nichoId: nicho.id, nichoNombre: nicho.nombre, anio, mes, articuloId, existenciaMuestras: existencia, plantillaId: plantilla ? plantilla.id : null, metaMonto, metaMoneda, fechaInicio, fechaFin, topePorAsesor: tope },
       tiendaIds, etapas, excluidos
     };
+  }
+
+  // Aplica la plantilla elegida: completa lo que no se mandó con sus valores y respeta lo que el administrador bloqueó.
+  async _conPlantilla(datos, campos) {
+    if (datos.plantillaId === undefined || datos.plantillaId === null || datos.plantillaId === '') return { datos, plantilla: null };
+    const plantilla = await plantillaService.paraAplicar(datos.plantillaId);
+    if (!plantilla) { campos.plantillaId = 'Elige una plantilla activa de la lista.'; return { datos, plantilla: null }; }
+    const salida = { ...datos };
+    const ausente = (k) => !Object.prototype.hasOwnProperty.call(datos, k) || datos[k] === undefined;
+    const fijar = (control, pares) => {
+      const bloqueado = plantilla.controles[control] === 'bloqueado';
+      for (const [k, valor] of pares) {
+        if (bloqueado) {
+          const dado = datos[k];
+          if (dado !== undefined && dado !== null && dado !== '' && !mismoValor(dado, valor)) campos[k] = 'Este dato lo fija la plantilla y no se puede cambiar.';
+          salida[k] = valor;
+        } else if (ausente(k)) salida[k] = valor;
+      }
+    };
+    fijar('articulo', [['articuloId', plantilla.articuloId]]);
+    fijar('existencia', [['existenciaMuestras', plantilla.existenciaSugerida]]);
+    fijar('meta', [['metaMonto', plantilla.metaMonto], ['metaMoneda', plantilla.metaMoneda]]);
+    fijar('tope', [['topePorAsesor', plantilla.topePorAsesor]]);
+    if (!Array.isArray(datos.etapas) || !datos.etapas.length) salida.etapas = plantilla.etapas.map(e => ({ nombre: e.nombre, descripcion: e.descripcion }));
+    const inicio = limpio(salida.fechaInicio);
+    if (FECHA.test(inicio) && !Number.isNaN(Date.parse(inicio))) {
+      const calendario = calendarioDeEtapas(inicio, plantilla.etapas);
+      const bloqueadas = plantilla.controles.fechas_etapas === 'bloqueado';
+      salida.etapas = salida.etapas.map((e, i) => ({
+        ...e, fechaInicio: bloqueadas || !e.fechaInicio ? (calendario[i] || {}).inicio : e.fechaInicio, fechaFin: bloqueadas || !e.fechaFin ? (calendario[i] || {}).fin : e.fechaFin
+      }));
+      if (!limpio(salida.fechaFin) && calendario.length) salida.fechaFin = calendario[calendario.length - 1].fin;
+    }
+    return { datos: salida, plantilla };
   }
 
   async _catalogoActivo(id, valor) {
@@ -328,7 +392,7 @@ class ProyectoService {
   }
 
   async vistaPrevia(usuario, id) {
-    exigir(usuario, 'proyectos.activar', 'No tienes permiso para crear proyectos.');
+    if (!tiene(usuario, 'proyectos.activar') && !tiene(usuario, 'proyectos.aprobar_activacion')) throw new ErrorDeNegocio('No tienes permiso para ver la vista previa.', 403);
     const proyecto = await this.obtener(usuario, id);
     if (!['borrador', 'pendiente_aprobacion'].includes(proyecto.estado)) throw new ErrorDeNegocio('El reparto de este proyecto ya se hizo.', 409);
     const fila = await proyectoRepository.obtener(proyecto.id, null);
@@ -352,37 +416,53 @@ class ProyectoService {
 
   // --- Activar ---
 
+  // La foto de la configuración al activar: así lo que el administrador cambie después solo aplica a proyectos nuevos.
+  async _foto(proyecto, plantilla) {
+    const [parametros, paises] = await Promise.all([configService.valores(), configService.paises()]);
+    const idsPais = new Set(proyecto.tiendas.map(t => t.paisId));
+    return {
+      version: 1, creadaEn: new Date().toISOString(), parametros, paises: paises.filter(p => idsPais.has(p.paisId)),
+      plantilla: plantilla ? { id: plantilla.id, nombre: plantilla.nombre, duracionSemanas: plantilla.duracionSemanas, controles: plantilla.controles, etapas: plantilla.etapas } : null
+    };
+  }
+
   // Activar es idempotente (`idempotencyKey`) y atómico: el UPDATE compara el estado de partida, las tiendas y las empresas
   // las protegen los índices únicos de la base y, ante un conflicto, se dice qué tienda o empresa lo causó.
   async activar(usuario, id, { idempotencyKey } = {}) {
     exigir(usuario, 'proyectos.activar', 'No tienes permiso para activar proyectos.');
+    const ajustes = await configService.valores();
+    if (ajustes['reglas.aprobar_activacion']) throw new ErrorDeNegocio('Este proyecto necesita la aprobación del gerente antes de activarse: pídela primero.', 409);
+    return this._activacion(usuario, id, { idempotencyKey, desde: 'borrador', prefijo: 'proy-activar', extra: {}, accion: 'activar' });
+  }
+
+  async _activacion(usuario, id, { idempotencyKey, desde, prefijo, extra, accion }) {
     if (!/^[A-Za-z0-9_-]{8,64}$/.test(String(idempotencyKey || ''))) throw new ErrorDeNegocio('Falta la clave de la operación. Recarga la página e inténtalo de nuevo.', 400);
-    const llave = `proy-activar:${usuario.id}:${idempotencyKey}`;
+    const llave = `${prefijo}:${usuario.id}:${idempotencyKey}`;
     const previo = await db.query('SELECT resultado FROM idempotency_keys WHERE idempotency_key = ?', [llave], 'proyectos_proyecto:clave_previa');
     if (previo[0]) return { ...(await this.obtener(usuario, id)), repetida: true };
 
     const proyecto = await this.obtener(usuario, id);
-    const ajustes = await configService.valores();
-    if (ajustes['reglas.aprobar_activacion']) throw new ErrorDeNegocio('Este proyecto necesita la aprobación del gerente antes de activarse.', 409);
-    if (proyecto.estado !== 'borrador') throw new ErrorDeNegocio('Este proyecto ya no está en borrador.', 409);
-    this._exigirCompleto(proyecto);
+    if (proyecto.estado !== desde) throw new ErrorDeNegocio(desde === 'borrador' ? 'Este proyecto ya no está en borrador.' : 'Este proyecto ya no espera aprobación.', 409);
+    const plantilla = proyecto.plantillaId ? await plantillaRepository.obtener(proyecto.plantillaId) : null;
+    this._exigirCompleto(proyecto, plantilla);
+    const foto = await this._foto(proyecto, plantilla);
 
     try {
       await db.transaccion(async (tx) => {
         // Orden fijo de bloqueo: proyecto → tiendas → empresas → participaciones.
         const bloqueado = await proyectoRepository.obtener(proyecto.id, null, tx);
         await tx.query('SELECT id FROM proy_proyectos WHERE id = ? FOR UPDATE', [proyecto.id], 'proyectos_proyecto:bloquear');
-        const cambiado = await proyectoRepository.cambiarEstado(tx, proyecto.id, ['borrador'], 'activo', { activado_por: usuario.id, activado_en: new Date() });
-        if (cambiado !== 1) throw new ErrorDeNegocio('Este proyecto ya no está en borrador.', 409);
+        const cambiado = await proyectoRepository.cambiarEstado(tx, proyecto.id, [desde], 'activo', { ...extra, activado_por: usuario.id, activado_en: new Date(), config_snapshot: JSON.stringify(foto) });
+        if (cambiado !== 1) throw new ErrorDeNegocio(desde === 'borrador' ? 'Este proyecto ya no está en borrador.' : 'Este proyecto ya no espera aprobación.', 409);
         await proyectoRepository.abrirTiendas(tx, proyecto.id);
         const { resultado } = await this._calcular(bloqueado, { bloquear: true, ejecutor: tx });
         await proyectoRepository.insertarParticipaciones(tx, proyecto.id, resultado.asignaciones, resultado.reserva);
         await proyectoRepository.registrarHistorial(tx, {
-          proyectoId: proyecto.id, usuarioId: usuario.id, accion: 'activar',
+          proyectoId: proyecto.id, usuarioId: usuario.id, accion,
           detalle: { asignadas: resultado.asignaciones.length, reserva: resultado.reserva.length, sinAsesor: resultado.sinAsesor.length }
         });
         // La clave se guarda en la misma transacción: dos activaciones a la vez con la misma clave dejan un solo ganador.
-        await tx.query('INSERT INTO idempotency_keys (idempotency_key, endpoint, resultado) VALUES (?, ?, ?)', [llave, 'proyectos.activar', JSON.stringify({ proyectoId: proyecto.id })], 'proyectos_proyecto:clave');
+        await tx.query('INSERT INTO idempotency_keys (idempotency_key, endpoint, resultado) VALUES (?, ?, ?)', [llave, `proyectos.${accion}`, JSON.stringify({ proyectoId: proyecto.id })], 'proyectos_proyecto:clave');
       });
     } catch (error) {
       // Otra petición con esta misma clave ya activó el proyecto mientras esta esperaba: se devuelve su resultado.
@@ -402,13 +482,61 @@ class ProyectoService {
     return { ...(await this.obtener(usuario, id)), repetida: false };
   }
 
-  _exigirCompleto(proyecto) {
+  _exigirCompleto(proyecto, plantilla = null) {
     const campos = {};
     if (!proyecto.tiendas.length) campos.tiendaIds = 'Elige al menos una tienda.';
     if (!proyecto.participantes.some(p => p.estado === 'activo')) campos.excluidos = 'Debe participar al menos un asesor.';
     if (!proyecto.fechaInicio) campos.fechaInicio = 'Elige la fecha de inicio.';
     if (!proyecto.fechaFin) campos.fechaFin = 'Elige la fecha de fin.';
+    // Lo que la plantilla marcó como obligatorio hay que completarlo antes de activar.
+    const controles = (plantilla && plantilla.controles) || {};
+    const valores = { articulo: proyecto.articuloId, existencia: proyecto.existenciaMuestras, meta: proyecto.metaMonto, tope: proyecto.topePorAsesor };
+    const campoDe = { articulo: 'articuloId', existencia: 'existenciaMuestras', meta: 'metaMonto', tope: 'topePorAsesor' };
+    for (const c of Object.keys(valores)) {
+      if (controles[c] === 'obligatorio' && (valores[c] === null || valores[c] === undefined)) campos[campoDe[c]] = 'La plantilla pide completar este dato antes de activar.';
+    }
     if (Object.keys(campos).length) throw errorDeValidacion('Faltan datos para activar el proyecto.', campos);
+  }
+
+  // --- Aprobación del gerente (opcional: reglas.aprobar_activacion) ---
+
+  async pedirAprobacion(usuario, id) {
+    exigir(usuario, 'proyectos.activar', 'No tienes permiso para pedir la activación.');
+    const ajustes = await configService.valores();
+    if (!ajustes['reglas.aprobar_activacion']) throw new ErrorDeNegocio('Este proyecto no necesita aprobación: se activa directamente.', 409);
+    const proyecto = await this.obtener(usuario, id);
+    if (proyecto.estado !== 'borrador') throw new ErrorDeNegocio('Solo un proyecto en borrador puede pedir aprobación.', 409);
+    this._exigirCompleto(proyecto, proyecto.plantillaId ? await plantillaRepository.obtener(proyecto.plantillaId) : null);
+    await db.transaccion(async (tx) => {
+      const cambiado = await proyectoRepository.cambiarEstado(tx, proyecto.id, ['borrador'], 'pendiente_aprobacion', {
+        aprobacion_pedida_por: usuario.id, aprobacion_pedida_en: new Date(), aprobada_por: null, aprobada_en: null, aprobacion_comentario: null
+      });
+      if (cambiado !== 1) throw new ErrorDeNegocio('Este proyecto ya no está en borrador.', 409);
+      await proyectoRepository.registrarHistorial(tx, { proyectoId: proyecto.id, usuarioId: usuario.id, accion: 'pedir_aprobacion', detalle: null });
+    });
+    return this.obtener(usuario, proyecto.id);
+  }
+
+  // Aprobar es activar: se reparte en ese mismo momento, con las mismas garantías (idempotencia, una tienda, una empresa).
+  async aprobar(usuario, id, { idempotencyKey } = {}) {
+    exigir(usuario, 'proyectos.aprobar_activacion', 'No tienes permiso para aprobar la activación.');
+    return this._activacion(usuario, id, {
+      idempotencyKey, desde: 'pendiente_aprobacion', prefijo: 'proy-aprobar', accion: 'aprobar',
+      extra: { aprobada_por: usuario.id, aprobada_en: new Date(), aprobacion_comentario: null }
+    });
+  }
+
+  async rechazar(usuario, id, { comentario } = {}) {
+    exigir(usuario, 'proyectos.aprobar_activacion', 'No tienes permiso para rechazar la activación.');
+    const texto = limpio(comentario);
+    if (texto.length < 3 || texto.length > 500) throw errorDeValidacion('Revisa los datos marcados.', { comentario: 'Escribe un comentario de 3 a 500 caracteres.' });
+    const proyecto = await this.obtener(usuario, id);
+    await db.transaccion(async (tx) => {
+      const cambiado = await proyectoRepository.cambiarEstado(tx, proyecto.id, ['pendiente_aprobacion'], 'borrador', { aprobada_por: usuario.id, aprobada_en: new Date(), aprobacion_comentario: texto });
+      if (cambiado !== 1) throw new ErrorDeNegocio('Este proyecto ya no espera aprobación.', 409);
+      await proyectoRepository.registrarHistorial(tx, { proyectoId: proyecto.id, usuarioId: usuario.id, accion: 'rechazar', detalle: { comentario: texto } });
+    });
+    return this.obtener(usuario, proyecto.id);
   }
 
   // --- Cancelar ---

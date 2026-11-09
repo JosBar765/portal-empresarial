@@ -25,6 +25,9 @@ class ProyectoController {
     this.vistaPrevia = accion(200, req => proyectoService.vistaPrevia(req.user, req.params.id));
     this.activar = accion(200, req => proyectoService.activar(req.user, req.params.id, { idempotencyKey: comoObjeto(req.body).idempotencyKey }));
     this.cancelar = accion(200, req => proyectoService.cancelar(req.user, req.params.id, comoObjeto(req.body)));
+    this.pedirAprobacion = accion(200, req => proyectoService.pedirAprobacion(req.user, req.params.id));
+    this.aprobar = accion(200, req => proyectoService.aprobar(req.user, req.params.id, { idempotencyKey: comoObjeto(req.body).idempotencyKey }));
+    this.rechazar = accion(200, req => proyectoService.rechazar(req.user, req.params.id, comoObjeto(req.body)));
   }
 }
 
