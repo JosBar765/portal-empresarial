@@ -96,7 +96,7 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 - [x] Bloqueo en orden fijo: proyecto → tiendas → clientes → participaciones.
 - [x] Activar idempotente (`UPDATE … WHERE estado = 'borrador'` + `idempotencyKey`); captura de duplicado con mensaje claro.
 - [x] Alcance: el supervisor solo incluye tiendas que supervisa; tienda ocupada bloqueada.
-- [ ] Plantillas de proyecto (A4, `proy_plantillas`, `config_snapshot` al activar) y aprobación opcional de la activación (`pendiente_aprobacion`, G5, T12).
+- [x] Plantillas de proyecto (A4, `proy_plantillas`, `config_snapshot` al activar) y aprobación opcional de la activación (`pendiente_aprobacion`, G5). (3b; T12 llega con el asistente, 3c)
 - [ ] Pantallas: S1–S5, T3a, T5, F9.
 - **Terminado cuando:** con datos de prueba la diferencia entre asesores nunca pasa de una empresa, y dos activaciones a la vez dejan un solo ganador.
 
