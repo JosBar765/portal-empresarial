@@ -126,8 +126,8 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 - [x] `informeService` único (pantalla, PDF y exportación), congelado en `resumen_cierre`; tasas acumulativas; lo anulado no cuenta. (6a)
 - [x] PDF con `pdf-lib`; tablas largas a 20 filas con «y N más». (6a)
 - [x] Cierre con conclusiones; visto bueno (dar y devolver con comentarios); panel del gerente: servidor (6a); pantallas en la 6b.
-- [ ] Matriz de notificaciones configurable (A8) y visto bueno opcional según el interruptor.
-- [ ] Revisión periódica de proyectos vencidos (gracia configurable, 3 días hábiles por defecto) con `aviso_vencido_en`; notificaciones de todo el módulo.
+- [x] Matriz de notificaciones configurable (A8) y visto bueno opcional según el interruptor. (6c; el visto bueno, en la 6a)
+- [x] Revisión periódica de proyectos vencidos (gracia configurable, 3 días hábiles por defecto) con `aviso_vencido_en`; notificaciones de todo el módulo. (6c)
 - [x] Pantallas: S10, S16, G1, G2, G3, G4, T3b. (6b; la campana T6 y los avisos, en la 6c)
 - **Terminado cuando:** el informe coincide con un conteo manual de los mismos datos.
 
