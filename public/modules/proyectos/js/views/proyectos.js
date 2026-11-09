@@ -7,6 +7,7 @@ import { modalFormulario } from '../components/modalFormulario.js';
 import { campoArea } from '../components/campos.js';
 import { listarProyectos, obtenerProyecto, cancelarProyecto } from '../api/api.js';
 import { renderAsistente } from './proyectoAsistente.js';
+import { renderCierre } from './cierreProyecto.js';
 import { state } from '../state.js';
 
 const FILTROS = [['todos', 'Todos'], ['activos', 'Activos'], ['vencidos', 'Vencidos'], ['cerrados', 'Cerrados'], ['borradores', 'Borradores']];
@@ -22,6 +23,7 @@ export function renderProyectos(cont, parametro) {
   if (parametro === 'nuevo') return renderAsistente(cont, null);
   const [id, accion] = parametro.split('/');
   if (accion === 'editar') return renderAsistente(cont, id);
+  if (accion === 'cierre') return renderCierre(cont, id);
   return renderDetalle(cont, id);
 }
 
@@ -123,6 +125,7 @@ async function renderDetalle(cont, id) {
     return;
   }
   if (p.estado === 'borrador') { window.location.hash = `#/proyectos/${p.id}/editar`; return; }
+  if (p.estado === 'cerrado') return renderCierre(cont, id);
   const maximo = Math.max(1, ...p.reparto.map(r => r.empresas));
   const dato = (titulo, valor) => h('div', { class: 'dato' }, h('dt', { text: titulo }), h('dd', null, valor || '—'));
   const puedeCancelar = ['activo', 'pendiente_aprobacion'].includes(p.estado);
@@ -130,6 +133,7 @@ async function renderDetalle(cont, id) {
     cabecera({
       titulo: p.nombre, subtitulo: `${p.codigo} · ${pluralizar(p.tiendas.length, 'tienda', 'tiendas')} · ${pluralizar(p.asesores, 'asesor', 'asesores')}${p.estado === 'pendiente_aprobacion' ? '' : ` · ${pluralizar(p.empresas, 'empresa', 'empresas')}`}`,
       acciones: h('div', { class: 'acciones-cabecera' }, h('a', { class: 'btn btn--ghost', href: '#/proyectos' }, icono('arrow-back-outline'), 'Proyectos'),
+        p.estado === 'activo' && state.user.permissions.includes('proyectos.activar') ? h('a', { class: 'btn btn--ghost', href: `#/proyectos/${p.id}/cierre` }, icono('checkmark-done-outline'), 'Ir al cierre') : null,
         p.estado === 'activo' && ['proyectos.supervisar', 'proyectos.ver_gerencia', 'proyectos.administrar'].some(x => state.user.permissions.includes(x)) ? h('a', { class: 'btn btn--ghost', href: `#/seguimiento/${p.id}` }, icono('trending-up-outline'), 'Seguimiento') : null,
         puedeCancelar ? h('button', { class: 'btn btn--danger', type: 'button', onclick: () => cancelar(p, () => renderDetalle(cont, id)) }, icono('close-circle-outline'), 'Cancelar proyecto') : null)
     }),

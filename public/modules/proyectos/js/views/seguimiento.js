@@ -114,6 +114,7 @@ export async function renderSeguimiento(cont, parametro) {
           s.addEventListener('change', () => { window.location.hash = `#/seguimiento/${s.value}`; });
           return s;
         })() : null,
+        r.permisos.cerrar ? h('a', { class: 'btn btn--ghost', href: `#/proyectos/${r.proyecto.id}/cierre` }, icono('checkmark-done-outline'), 'Ir al cierre') : null,
         pestanaRecordada === 'estancados' && r.permisos.reasignar ? h('button', { class: 'btn btn--primary', type: 'button', disabled: seleccionables ? null : '', onclick: () => reasignar({ empresas: datos.estancados.empresas.filter(x => seleccion.has(x.id)) }) }, icono('swap-horizontal-outline'), seleccionables ? `Reasignar seleccionadas (${seleccionables})` : 'Reasignar seleccionadas') : null),
       h('div', { class: 'cifras-asesor' },
         cifra(r.cifras.asignadas, 'Asignadas'), cifra(r.cifras.gestionadas, 'Gestionadas'), cifra(r.cifras.interesadas, 'Interesadas'), cifra(r.cifras.cotizadas, 'Cotizadas'),

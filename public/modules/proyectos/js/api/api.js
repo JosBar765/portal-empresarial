@@ -128,3 +128,12 @@ export const anularVenta = (id, ventaId, datos) => pedir(`${BASE}/participacione
 export const listarVentasPorConfirmar = (estado) => pedir(`${BASE}/ventas${consulta({ estado })}`);
 export const confirmarVenta = (id, idempotencyKey) => pedir(`${BASE}/ventas/${encodeURIComponent(id)}/confirmar`, enJson('POST', { idempotencyKey }));
 export const rechazarVenta = (id, datos) => pedir(`${BASE}/ventas/${encodeURIComponent(id)}/rechazar`, enJson('POST', datos));
+
+// Cierre, informe, visto bueno y panel gerencial
+export const obtenerInforme = (id) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/informe`);
+export const cerrarProyectoConInforme = (id, datos) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/cerrar`, enJson('POST', datos));
+export const darVistoBueno = (id, datos) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/visto-bueno`, enJson('POST', datos));
+export const devolverCierre = (id, datos) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/devolver`, enJson('POST', datos));
+export const reenviarCierre = (id, datos) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/reenviar`, enJson('POST', datos));
+export const obtenerPanelGerencial = (filtros) => pedir(`${BASE}/gerencia/panel${consulta(filtros)}`);
+export const listarPorDarVistoBueno = () => pedir(`${BASE}/gerencia/visto-bueno`);

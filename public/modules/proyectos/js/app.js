@@ -26,6 +26,7 @@ import { montarBarraInferior } from './layout/barraInferior.js';
 import { renderSeguimiento } from './views/seguimiento.js';
 import { renderSupervisionEmpresa } from './views/supervisionEmpresa.js';
 import { renderVentasPorConfirmar } from './views/ventasPorConfirmar.js';
+import { renderPanel, renderVistoBueno } from './views/gerencia.js';
 
 // Cada pantalla pide su propio permiso: entrar a Proyectos solo exige `proyectos.ver`, y la configuración, `proyectos.administrar`.
 const RUTAS = {
@@ -42,6 +43,8 @@ const RUTAS = {
   seguimiento: { render: renderSeguimiento, permiso: ['proyectos.supervisar', 'proyectos.ver_gerencia', 'proyectos.administrar'] },
   participacion: { render: renderSupervisionEmpresa, permiso: ['proyectos.supervisar', 'proyectos.ver_gerencia', 'proyectos.administrar'] },
   ventas: { render: renderVentasPorConfirmar, permiso: 'proyectos.confirmar_ventas' },
+  panel: { render: renderPanel, permiso: ['proyectos.ver_gerencia', 'proyectos.administrar'] },
+  vistobueno: { render: renderVistoBueno, permiso: 'proyectos.dar_visto_bueno' },
   aprobaciones: { render: renderAprobaciones, permiso: 'proyectos.aprobar_activacion' },
   plantillas: { render: renderPlantillas, permiso: 'proyectos.administrar' },
   campos: { render: renderCampos, permiso: 'proyectos.administrar' },
