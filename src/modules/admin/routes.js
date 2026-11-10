@@ -58,6 +58,10 @@ router.get('/tiendas/:id/personal', verAdmin, (req, res) => adminController.list
 router.post('/tiendas/:id/personal', gestionarTiendas, (req, res) => adminController.agregarPersonalATienda(req, res));
 router.delete('/tiendas/:id/personal/:usuarioId', gestionarTiendas, (req, res) => adminController.quitarPersonalDeTienda(req, res));
 
+// Supervisión especial de un asesor (mismo permiso que asignar personal a tiendas)
+router.get('/asesores/:id/supervisores', verAdmin, (req, res) => adminController.obtenerSupervisionAsesor(req, res));
+router.put('/asesores/:id/supervisores', gestionarTiendas, (req, res) => adminController.reemplazarSupervisionAsesor(req, res));
+
 // Mantenimiento
 router.get('/mantenimiento', verAdmin, (req, res) => adminController.obtenerMantenimiento(req, res));
 router.put('/mantenimiento', gestionarMantenimiento, (req, res) => adminController.actualizarMantenimiento(req, res));
