@@ -40,7 +40,12 @@ class TallerRepository {
   }
 
   async obtenerPorId(id) {
-    const rows = await db.query('SELECT id, nombre, encargado_id, tienda_id, activo, limite_diario FROM talleres WHERE id = ?', [id], 'taller:find_by_id');
+    // `tienda_codigo`: código de la sede de un Diseño Local; nombra sus archivos en Storage.
+    const rows = await db.query(
+      `SELECT t.id, t.nombre, t.encargado_id, t.tienda_id, t.activo, t.limite_diario, ti.codigo AS tienda_codigo
+       FROM talleres t LEFT JOIN tiendas ti ON ti.id = t.tienda_id WHERE t.id = ?`,
+      [id], 'taller:find_by_id'
+    );
     return rows[0] || null;
   }
 }

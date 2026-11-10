@@ -38,12 +38,6 @@ class TallerAdminRepository {
     return rows[0] || null;
   }
 
-  // El Diseño Local cuya SEDE es la tienda (activo o no): una sede tiene uno solo.
-  async obtenerLocalDeTienda(tiendaId) {
-    const rows = await db.query('SELECT id, nombre, activo FROM talleres WHERE tienda_id = ? LIMIT 1', [tiendaId], 'taller_admin:find_local_by_tienda');
-    return rows[0] || null;
-  }
-
   // El taller del que ya es encargado un usuario, sin contar `excluirTallerId`
   // (al reasignarlo al mismo taller no debe chocar consigo mismo).
   async obtenerTallerDeEncargado(usuarioId, excluirTallerId = 0) {

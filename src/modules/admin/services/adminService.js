@@ -25,11 +25,13 @@ const ROL_ADMINISTRADOR = 1;
 const PERMISO_SUPERVISAR = 'vales.supervisar';
 const MODULO_ADMIN = 'admin';
 // Diseño, Diseño 3D y Protextil son talleres únicos a nivel de toda la
-// empresa (a diferencia de Diseño Local, que tiene uno por tienda) — un solo
+// empresa (a diferencia de Diseño Local, que pertenece a una tienda sede) — un solo
 // encargado activo a la vez. Los roles de asistente (hereda_de_rol_id) no son únicos.
 const ROLES_ENCARGADO_UNICO = [4, 5, 9];
 const ROL_DISENADOR = 6;
 const ROL_ENCARGADO_DISENO_LOCAL = 10;
+// Igual al VARCHAR de `talleres.nombre`.
+const LONGITUD_MAXIMA_NOMBRE_TALLER = 100;
 // Diseño/Diseño UV-3D/Protextil son de toda la empresa — cada uno mapea a
 // exactamente un taller.
 const TALLER_FIJO_POR_ROL = { 4: 'Diseño', 5: 'Diseño UV/3D', 9: 'Protextil' };
@@ -415,24 +417,30 @@ class AdminService {
     }
   }
 
+  // Devuelve el nombre válido; la unicidad se comprueba antes para no exponer el error de MySQL.
+  async _validarNombreTaller(valor) {
+    const nombre = typeof valor === 'string' ? valor : '';
+    if (!nombre.trim()) throw new Error('Escribe el nombre del taller.');
+    if (nombre !== nombre.trim()) throw new Error('El nombre del taller no puede empezar ni terminar con espacios. Quita los espacios sobrantes.');
+    if (nombre.length > LONGITUD_MAXIMA_NOMBRE_TALLER) {
+      throw new Error(`El nombre del taller tiene ${nombre.length} caracteres y el máximo es ${LONGITUD_MAXIMA_NOMBRE_TALLER}. Acórtalo.`);
+    }
+    if (await tallerAdminRepository.obtenerPorNombre(nombre)) {
+      throw new Error(`Ya existe un taller llamado "${nombre}". Elige un nombre distinto.`);
+    }
+    return nombre;
+  }
+
   // Los únicos talleres que se crean desde el panel son los de Diseño Local:
-  // uno por tienda, con nombre derivado del código de esa tienda (como el
-  // nombre de la tienda se deriva de su empresa y subdivisión), y con un
-  // encargado opcional que debe tener el rol Diseño Local y no encargarse ya
+  // nombre libre y tienda principal (la sede, que puede repetirse entre Locales),
+  // con un encargado opcional que debe tener el rol Diseño Local y no encargarse ya
   // de otro taller.
-  async crearTallerLocal({ tiendaId, encargadoId } = {}) {
+  async crearTallerLocal({ nombre: nombreIngresado, tiendaId, encargadoId } = {}) {
+    const nombre = await this._validarNombreTaller(nombreIngresado);
     const idTienda = aEntero(tiendaId);
     const tienda = idTienda ? await tiendaAdminRepository.obtenerPorId(idTienda) : null;
     if (!tienda) throw new Error('Selecciona la tienda a la que pertenecerá el taller.');
     if (!tienda.activo) throw new Error('La tienda seleccionada está inactiva.');
-    const existente = await tallerAdminRepository.obtenerLocalDeTienda(tienda.id);
-    if (existente) {
-      throw new Error(`La tienda ${tienda.codigo} ya tiene su taller de Diseño Local (${existente.nombre}${existente.activo ? '' : ', inactivo — reactívalo en lugar de crear otro'}).`);
-    }
-    const nombre = `Diseño Local - ${tienda.codigo}`;
-    if (await tallerAdminRepository.obtenerPorNombre(nombre)) {
-      throw new Error(`Ya existe un taller llamado ${nombre}.`);
-    }
     let encargado = null;
     if (encargadoId !== undefined && encargadoId !== null && encargadoId !== '') {
       const idEncargado = aEntero(encargadoId);
