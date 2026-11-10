@@ -3,7 +3,7 @@
 import { h, icono, montar } from '../utils/dom.js';
 import { cargando, estadoVacio } from '../components/ui.js';
 import { obtenerMiProyecto, listarMisEmpresas } from '../api/api.js';
-import { chipGestion, nombreDelMes, diaCorto, textoSeguimiento, textoUltimaGestion, hrefLlamar, hrefWhatsApp } from '../utils/gestion.js';
+import { chipGestion, nombreDelMes, diaCorto, textoSeguimiento, textoUltimaGestion, hrefLlamar, hrefWhatsApp, formatoMonto } from '../utils/gestion.js';
 
 const FILTROS = [['', 'Todas'], ['pendiente', 'Pendientes'], ['en_gestion', 'En gestión'], ['interesada', 'Interesadas'], ['cotizada', 'Cotizadas'], ['vendida', 'Vendidas'], ['perdida', 'Perdidas'], ['descartada', 'Descartadas']];
 const ESTADOS_ETAPA = { hecha: 'etapa--hecha', actual: 'etapa--actual', proxima: '' };
@@ -27,6 +27,18 @@ export function accionesDeContacto(telefono, { texto = false, enlaceMapa = null 
   // «Cómo llegar» abre Google Maps con la dirección de la empresa; sin dirección registrada no se muestra.
   const llegar = enlaceMapa ? h('a', { class: 'btn btn--ghost btn--chico', href: enlaceMapa, target: '_blank', rel: 'noopener', 'aria-label': 'Cómo llegar' }, icono('location-outline'), texto ? 'Cómo llegar' : null) : null;
   return h('div', { class: 'contacto-acciones' }, boton(llamar, 'call-outline', 'Llamar', texto), boton(wa, 'logo-whatsapp', 'WhatsApp', false), llegar);
+}
+
+// La meta de ventas del asesor (M16): su parte del proyecto, lo que lleva vendido y lo que falta. Solo si el proyecto tiene meta.
+function tarjetaMeta(meta) {
+  if (!meta) return null;
+  const monto = (v) => formatoMonto(v, meta.moneda);
+  const color = meta.avance >= 100 ? 'verde' : meta.avance >= 50 ? 'ambar' : 'rojo';
+  return h('section', { class: 'panel meta-asesor' },
+    h('div', { class: 'meta-asesor-fila' }, h('h2', { class: 'panel-titulo', text: 'Mi meta de ventas' }), h('strong', { text: `${meta.avance} %` })),
+    h('span', { class: 'barra-avance-pista meta-asesor-barra' }, h('span', { class: `barra-avance-relleno barra-avance-relleno--${color}`, style: `width:${Math.min(meta.avance, 100)}%` })),
+    h('p', { text: meta.enMeta ? `Meta cumplida: ${monto(meta.vendido)} de ${monto(meta.meta)}.` : `Vendido ${monto(meta.vendido)} de ${monto(meta.meta)} · Falta ${monto(meta.falta)}` }),
+    h('p', { class: 'texto-tenue texto-tenue--chico', text: `${meta.ajustada ? 'Tu supervisor ajustó tu meta. ' : 'Es tu parte igual de la meta del proyecto. Tu supervisor puede ajustarla. '}Cuenta lo vendido y confirmado.` }));
 }
 
 export async function renderMiProyecto(cont) {
@@ -104,7 +116,7 @@ export async function renderMiProyecto(cont) {
       h('label', { class: 'buscador' }, icono('search-outline'), entrada));
   }
 
-  montar(cont, encabezado, cifras6, h('div', { class: 'mi-proyecto-cuerpo' }, bloqueHoy, zonaLista));
+  montar(cont, encabezado, cifras6, tarjetaMeta(datos.meta), h('div', { class: 'mi-proyecto-cuerpo' }, bloqueHoy, zonaLista));
   montar(zonaLista, h('h2', { class: 'panel-titulo', text: 'Mis empresas' }), pintarControles(), filas);
   await traer(1);
 }

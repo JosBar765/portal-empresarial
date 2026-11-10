@@ -129,6 +129,10 @@ export const obtenerSeguimiento = (id) => pedir(`${BASE}/proyectos/${encodeURICo
 export const obtenerSeguimientoPorAsesor = (id) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/seguimiento/asesores`);
 export const obtenerSeguimientoPorTienda = (id) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/seguimiento/tiendas`);
 export const obtenerEstancados = (id, todos) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/seguimiento/estancados${todos ? '?todos=1' : ''}`);
+export const obtenerMetas = (id) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/metas`);
+export const ajustarMeta = (id, asesorId, monto) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/metas/asesores/${encodeURIComponent(asesorId)}`, enJson('PUT', { monto }));
+export const obtenerReserva = (id) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/reserva`);
+export const repartirReserva = (id, datos) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/reserva/repartir`, enJson('POST', datos));
 export const obtenerDestinosDeReasignacion = (id) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/seguimiento/destinos`);
 export const reasignarEmpresas = (id, datos) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/reasignar`, enJson('POST', datos));
 export const obtenerSupervision = (id) => pedir(`${BASE}/participaciones/${encodeURIComponent(id)}/supervision`);

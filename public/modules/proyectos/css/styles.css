@@ -1107,3 +1107,9 @@ a.tarjeta-hoy:hover { border-color: var(--color-text-muted); }
 .plan-mes-fila { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .plan-mes-nicho { font-weight: 600; font-size: var(--text-md, 15px); }
 .plan-mes-enlace { font-size: var(--text-sm); }
+.aviso-reserva { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; padding: 10px 14px; border-radius: var(--radius-md); background: #FFF7E6; color: #6B4E00; font-size: var(--text-sm); }
+.meta-asesor { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.meta-asesor-fila { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.meta-asesor-fila .panel-titulo { margin: 0; }
+.meta-asesor-barra { display: block; width: 100%; height: 10px; }
+.meta-asesor p { margin: 0; }

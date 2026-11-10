@@ -7,9 +7,9 @@ import { modalFormulario } from '../components/modalFormulario.js';
 import { campoArea } from '../components/campos.js';
 import {
   listarProyectosEnSeguimiento, obtenerSeguimiento, obtenerSeguimientoPorAsesor, obtenerSeguimientoPorTienda, obtenerEstancados,
-  obtenerDestinosDeReasignacion, reasignarEmpresas
+  obtenerDestinosDeReasignacion, reasignarEmpresas, obtenerMetas, ajustarMeta, obtenerReserva, repartirReserva
 } from '../api/api.js';
-import { chipGestion, nombreDelMes, diaCorto } from '../utils/gestion.js';
+import { chipGestion, nombreDelMes, diaCorto, formatoMonto } from '../utils/gestion.js';
 
 const ETIQUETA_SEMAFORO = { verde: 'Verde', ambar: 'Ámbar', rojo: 'Rojo' };
 const iniciales = (nombre) => String(nombre || '').trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase() || '··';
@@ -36,14 +36,15 @@ export async function renderSeguimiento(cont, parametro) {
       estadoVacio('No hay proyectos activos en tus tiendas', 'Cuando actives un proyecto, aquí verás cómo avanza cada asesor y cada tienda.', 'trending-up-outline'));
     return;
   }
-  const [resumen, asesores, tiendas, estancados] = await Promise.all([obtenerSeguimiento(id), obtenerSeguimientoPorAsesor(id), obtenerSeguimientoPorTienda(id), obtenerEstancados(id, false)]);
-  const datos = { resumen, asesores: asesores.asesores, tiendas: tiendas.tiendas, estancados };
+  const [resumen, asesores, tiendas, estancados, metas, reserva] = await Promise.all([obtenerSeguimiento(id), obtenerSeguimientoPorAsesor(id), obtenerSeguimientoPorTienda(id), obtenerEstancados(id, false), obtenerMetas(id), obtenerReserva(id)]);
+  const datos = { resumen, asesores: asesores.asesores, tiendas: tiendas.tiendas, estancados, metas, reserva };
+  if (pestanaRecordada === 'metas' && !metas.habilitada) pestanaRecordada = 'asesores';
   const seleccion = new Set();
   const zona = h('div');
 
   async function recargar() {
-    const [r, a, t, e] = await Promise.all([obtenerSeguimiento(id), obtenerSeguimientoPorAsesor(id), obtenerSeguimientoPorTienda(id), obtenerEstancados(id, datos.estancados.mostrando > 7)]);
-    Object.assign(datos, { resumen: r, asesores: a.asesores, tiendas: t.tiendas, estancados: e });
+    const [r, a, t, e, m, v] = await Promise.all([obtenerSeguimiento(id), obtenerSeguimientoPorAsesor(id), obtenerSeguimientoPorTienda(id), obtenerEstancados(id, datos.estancados.mostrando > 7), obtenerMetas(id), obtenerReserva(id)]);
+    Object.assign(datos, { resumen: r, asesores: a.asesores, tiendas: t.tiendas, estancados: e, metas: m, reserva: v });
     seleccion.clear();
     dibujar();
   }
@@ -63,6 +64,68 @@ export async function renderSeguimiento(cont, parametro) {
             h('td', { class: `num${a.yaGestiono ? '' : ' texto-rojo'}`, title: a.yaGestiono ? 'Días entre la asignación y la primera gestión' : 'Todavía no registra ninguna gestión', text: `${a.reaccionDias} d` }), h('td', null, chipSemaforo(a.semaforo))]),
         h('td', { class: 'acciones-fila' }, a.otraTienda ? candado('Solo lectura')
           : puede ? h('button', { class: 'btn btn--ghost btn--chico', type: 'button', onclick: () => reasignar({ asesor: a }) }, icono('swap-horizontal-outline'), 'Reasignar') : null)))))));
+  }
+
+  // --- Metas (S20) ---
+
+  const monedaMeta = () => datos.metas.moneda;
+  const dinero = (v) => (v === null || v === undefined ? '—' : formatoMonto(v, monedaMeta()));
+
+  function ajustar(a) {
+    const valores = { monto: a.ajustada ? String(a.meta) : '' };
+    const errores = {};
+    const nodo = h('form', { class: 'formulario-modal', novalidate: '' });
+    const dibujarForm = () => {
+      const entrada = h('input', { id: 'meta-monto', type: 'text', inputmode: 'decimal', maxlength: 14, placeholder: `Parte igual: ${dinero(datos.metas.total.meta / datos.metas.asesores.length)}`, 'aria-label': 'Meta del asesor' });
+      entrada.value = valores.monto;
+      entrada.addEventListener('input', () => { valores.monto = entrada.value; });
+      montar(nodo,
+        h('p', { class: 'hoja-subtitulo', text: `${a.nombre} · ${a.empresa}. Ajustar una meta no cambia la de los demás.` }),
+        h('div', { class: `campo${errores.monto ? ' campo--error' : ''}` }, h('label', { for: 'meta-monto', text: `Meta (${monedaMeta()})` }), entrada,
+          errores.monto ? h('span', { class: 'campo-error', text: errores.monto }) : h('span', { class: 'campo-ayuda', text: 'Déjalo vacío para volver a la parte igual del proyecto.' })));
+    };
+    dibujarForm();
+    const { overlay } = modalFormulario({
+      title: 'Ajustar meta', nodo, aceptar: 'Guardar meta',
+      enviar: async () => {
+        await ajustarMeta(id, a.asesorId, String(valores.monto).trim() === '' ? null : valores.monto);
+        avisar('success', 'Meta guardada', `La meta de ${a.nombre} quedó actualizada.`);
+        await recargar();
+      },
+      alError: (error) => { if (error.campos) { Object.assign(errores, error.campos); dibujarForm(); } else avisar('error', 'No se pudo guardar', error.message); }
+    });
+    overlay.classList.add('hoja');
+  }
+
+  function tablaMetas() {
+    return h('div', { class: 'tabla-caja' }, h('div', { class: 'tabla-scroll' }, h('table', { class: 'data-table tabla-seguimiento' },
+      h('thead', null, h('tr', null, ['Asesor', 'Meta', 'Avance', 'Vendido', 'Falta', ''].map((t, i) => h('th', { class: i === 1 || i === 3 || i === 4 ? 'num' : null, text: t })))),
+      h('tbody', null, datos.metas.asesores.map(a => h('tr', { class: a.otraTienda ? 'fila-otra-tienda' : null },
+        h('td', null, h('div', { class: 'celda-persona' }, h('span', { class: 'avatar-contacto', text: iniciales(a.nombre) }), h('div', null, h('strong', { text: a.nombre }), h('div', { class: 'texto-tenue', text: a.otraTienda ? `Otra tienda · ${a.empresa}` : `${a.empresa} ${a.tienda}` })))),
+        h('td', { class: 'num', text: dinero(a.meta) }),
+        h('td', null, a.otraTienda ? h('span', { class: 'texto-tenue', text: '—' }) : h('div', { class: 'barra-avance' },
+          h('span', { class: 'barra-avance-pista' }, h('span', { class: `barra-avance-relleno barra-avance-relleno--${a.avance >= 100 ? 'verde' : a.avance >= 50 ? 'ambar' : 'rojo'}`, style: `width:${Math.min(a.avance, 100)}%` })), h('span', { class: 'barra-avance-valor', text: `${a.avance} %` }))),
+        h('td', { class: 'num', text: dinero(a.vendido) }), h('td', { class: 'num', text: a.falta === 0 && !a.otraTienda ? '—' : dinero(a.falta) }),
+        h('td', { class: 'acciones-fila' }, a.otraTienda ? candado('Solo lectura') : a.puedeAjustar ? h('button', { class: 'btn btn--ghost btn--chico', type: 'button', onclick: () => ajustar(a) }, icono('create-outline'), a.ajustada ? 'Meta ajustada' : 'Ajustar meta') : null)))))),
+    datos.metas.otrasMonedas.length ? h('p', { class: 'texto-tenue texto-tenue--chico', text: `También se vendió en otras monedas (no cuenta para la meta): ${datos.metas.otrasMonedas.map(o => formatoMonto(o.monto, o.moneda)).join(' · ')}.` }) : null);
+  }
+
+  function cifrasMetas() {
+    const m = datos.metas;
+    const cifra = (valor, texto, clase) => h('div', { class: 'cifra' }, h('div', { class: `cifra-valor${clase ? ` ${clase}` : ''}`, text: String(valor) }), h('div', { class: 'cifra-texto', text: texto }));
+    return h('div', { class: 'cifras-asesor' },
+      cifra(dinero(m.total.meta), 'Meta del proyecto'), cifra(dinero(m.total.vendido), 'Vendido'), cifra(`${m.total.avance} %`, 'Avance'), cifra(dinero(m.total.falta), 'Falta'),
+      cifra(`${m.asesoresEnMeta.n} de ${m.asesoresEnMeta.de}`, 'Asesores en meta', 'cifra-valor--verde'), cifra(`${m.tiendasEnMeta.n} de ${m.tiendasEnMeta.de}`, 'Tiendas en meta', m.tiendasEnMeta.n < m.tiendasEnMeta.de ? 'cifra-valor--ambar' : 'cifra-valor--verde'));
+  }
+
+  // --- Reserva (S21) ---
+
+  function avisoReserva() {
+    const v = datos.reserva;
+    if (!v.habilitada || !v.enReserva) return null;
+    return h('div', { class: 'aviso-reserva' },
+      h('span', { text: `Hay ${pluralizar(v.enReserva, 'empresa', 'empresas')} en reserva. ${v.elegibles ? `${pluralizar(v.elegibles, 'asesor ya llegó', 'asesores ya llegaron')} al ${v.umbral} % de avance: puedes repartirles una tanda.` : `Cuando un asesor de tus tiendas gestione el ${v.umbral} % de las suyas, podrás repartirle una tanda.`}` }),
+      v.puedeRepartir ? h('button', { class: 'btn btn--primary', type: 'button', disabled: v.elegibles ? null : '', onclick: () => abrirRepartirReserva({ proyectoId: id, reserva: v, alTerminar: recargar }) }, icono('arrow-forward-outline'), 'Repartir reserva') : null);
   }
 
   function tablaTiendas() {
@@ -116,11 +179,12 @@ export async function renderSeguimiento(cont, parametro) {
         })() : null,
         r.permisos.cerrar ? h('a', { class: 'btn btn--ghost', href: `#/proyectos/${r.proyecto.id}/cierre` }, icono('checkmark-done-outline'), 'Ir al cierre') : null,
         pestanaRecordada === 'estancados' && r.permisos.reasignar ? h('button', { class: 'btn btn--primary', type: 'button', disabled: seleccionables ? null : '', onclick: () => reasignar({ empresas: datos.estancados.empresas.filter(x => seleccion.has(x.id)) }) }, icono('swap-horizontal-outline'), seleccionables ? `Reasignar seleccionadas (${seleccionables})` : 'Reasignar seleccionadas') : null),
-      h('div', { class: 'cifras-asesor' },
+      pestanaRecordada === 'metas' && datos.metas.habilitada ? cifrasMetas() : h('div', { class: 'cifras-asesor' },
         cifra(r.cifras.asignadas, 'Asignadas'), cifra(r.cifras.gestionadas, 'Gestionadas'), cifra(r.cifras.interesadas, 'Interesadas'), cifra(r.cifras.cotizadas, 'Cotizadas'),
         cifra(r.cifras.vendidas, 'Vendidas', 'cifra-valor--verde'), cifra(`${r.cifras.efectividad} %`, 'Efectividad', r.cifras.efectividad < 50 ? 'cifra-valor--ambar' : '')),
-      h('div', { class: 'pestanas', role: 'tablist' }, pestana('asesores', 'Por asesor', r.conteos.asesores), pestana('tiendas', 'Por tienda', r.conteos.tiendas), pestana('estancados', 'Estancados', datos.estancados.total)),
-      pestanaRecordada === 'asesores' ? tablaAsesores() : pestanaRecordada === 'tiendas' ? tablaTiendas() : vistaEstancados());
+      avisoReserva(),
+      h('div', { class: 'pestanas', role: 'tablist' }, pestana('asesores', 'Por asesor', r.conteos.asesores), pestana('tiendas', 'Por tienda', r.conteos.tiendas), datos.metas.habilitada ? pestana('metas', 'Metas', null) : null, pestana('estancados', 'Estancados', datos.estancados.total)),
+      pestanaRecordada === 'asesores' ? tablaAsesores() : pestanaRecordada === 'tiendas' ? tablaTiendas() : pestanaRecordada === 'metas' && datos.metas.habilitada ? tablaMetas() : vistaEstancados());
   }
 
   montar(cont, zona);
@@ -174,6 +238,54 @@ export async function abrirReasignar({ proyectoId, asesor = null, empresas = nul
       await alTerminar();
     },
     alError: (error) => { if (error.campos) { Object.assign(errores, error.campos); dibujar(); } else avisar('error', 'No se pudo reasignar', error.message); }
+  });
+  overlay.classList.add('hoja');
+  botonAceptar = overlay.querySelector('[data-accion="aceptar"]');
+  dibujar();
+}
+
+// --- Repartir reserva (S21) ---
+// El supervisor elige la tanda (cuántas empresas más recibe cada asesor que ya avanzó) y ve la vista previa antes de repartir.
+export async function abrirRepartirReserva({ proyectoId, reserva, alTerminar }) {
+  const valores = { tanda: '10' };
+  const errores = {};
+  const clave = claveNueva();
+  let vista = null;
+  let pidiendo = 0;
+  const nodo = h('form', { class: 'formulario-modal', novalidate: '' });
+  let botonAceptar = null;
+
+  async function pedirVista() {
+    const mia = ++pidiendo;
+    try { const r = await repartirReserva(proyectoId, { tanda: valores.tanda, soloVistaPrevia: true }); if (mia !== pidiendo) return; vista = r; errores.tanda = ''; } catch (error) { if (mia !== pidiendo) return; vista = null; errores.tanda = (error.campos && error.campos.tanda) || error.message; }
+    dibujar();
+  }
+
+  function dibujar() {
+    if (botonAceptar) { botonAceptar.textContent = vista ? `Repartir ${pluralizar(vista.total, 'empresa', 'empresas')}` : 'Repartir'; botonAceptar.disabled = !vista; }
+    const entrada = h('input', { id: 'reserva-tanda', type: 'text', inputmode: 'numeric', maxlength: 3, 'aria-label': 'Empresas más por asesor' });
+    entrada.value = valores.tanda;
+    entrada.addEventListener('input', () => { valores.tanda = entrada.value.trim(); clearTimeout(entrada.__t); entrada.__t = setTimeout(pedirVista, 300); });
+    montar(nodo,
+      h('p', { class: 'hoja-subtitulo', text: `${pluralizar(reserva.enReserva, 'empresa', 'empresas')} en reserva. Reparte a la equidad de siempre; lo que sobre sigue en reserva.` }),
+      h('div', { class: `campo${errores.tanda ? ' campo--error' : ''}` }, h('label', { for: 'reserva-tanda', text: 'Empresas más por asesor (tanda)' }), entrada,
+        errores.tanda ? h('span', { class: 'campo-error', text: errores.tanda }) : null),
+      h('div', { class: 'campo' }, h('span', { class: 'campo-etiqueta', text: 'Quiénes reciben (solo asesores de tus tiendas)' }),
+        h('div', { class: 'texto-tenue', text: `Los que ya gestionaron el ${reserva.umbral} % o más de sus empresas · ${reserva.elegibles} de ${reserva.asesores.length}` })),
+      vista && vista.porAsesor.length ? h('div', { class: 'vista-reparto' }, vista.porAsesor.map(p => h('span', { class: 'vista-reparto-item' }, h('span', { class: 'avatar-contacto', text: iniciales(p.nombre) }), `${p.nombre} recibe +${p.recibe}`))) : null,
+      vista ? h('p', { class: 'texto-tenue texto-tenue--chico', text: `Quedarían ${pluralizar(vista.enReservaDespues, 'empresa', 'empresas')} en reserva. Queda en el historial y se avisa a cada asesor que recibe.` }) : null);
+  }
+  dibujar();
+  pedirVista();
+
+  const { overlay } = modalFormulario({
+    title: 'Repartir reserva', nodo, aceptar: 'Repartir',
+    enviar: async () => {
+      const r = await repartirReserva(proyectoId, { tanda: valores.tanda, idempotencyKey: clave });
+      avisar('success', 'Reserva repartida', `${pluralizar(r.repartidas, 'empresa', 'empresas')} para ${pluralizar(r.porAsesor.length, 'asesor', 'asesores')}.`);
+      await alTerminar();
+    },
+    alError: (error) => { if (error.campos) { Object.assign(errores, error.campos); dibujar(); } else avisar('error', 'No se pudo repartir', error.message); }
   });
   overlay.classList.add('hoja');
   botonAceptar = overlay.querySelector('[data-accion="aceptar"]');
