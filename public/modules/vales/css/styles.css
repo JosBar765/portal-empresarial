@@ -2392,3 +2392,8 @@
   :root { --header-height: 70px; }
   .app-header { padding-top: 10px; padding-bottom: 10px; }
 }
+
+/* Vale prellenado desde Proyectos: banner y campos que vienen de la base de clientes */
+.form-aviso--proyectos { background: #F5ECF1; border-color: #E5CFDA; color: #5C2E45; }
+.form-aviso--proyectos ion-icon { color: #7A3F5C; }
+input.campo-bloqueado { background: var(--color-surface-muted); color: var(--color-text-secondary); cursor: not-allowed; }

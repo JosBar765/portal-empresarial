@@ -6,7 +6,7 @@ import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dro
 import { validarCamposNativos, wireLimpiezaValidacionInline, enfocarPrimerCampoInvalido } from '../components/validacion.js';
 import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js';
 import { escapeHtml, formatearFecha, siguienteCodigoMod } from '../utils/formato.js';
-import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega, obtenerFechasEntrega, obtenerDetalleVale, guardarBorrador, actualizarBorrador } from '../api/valesApi.js';
+import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega, obtenerFechasEntrega, obtenerDetalleVale, guardarBorrador, actualizarBorrador, obtenerPrefillProyectos, vincularValeProyectos } from '../api/valesApi.js';
 import { avisarCambioBorradores } from '../utils/eventosBorradores.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { limitarTelefono } from '/js/telefono.js';
@@ -51,6 +51,39 @@ export function abrirModalCrearVale() {
   abrirModalFormularioVale(null);
 }
 
+// Crear un vale desde Proyectos (`?prellenar=proyectos:<id>`): los datos del cliente se piden a la API con la sesión del asesor.
+// Si no se pueden traer, no se abre nada raro: se avisa y el asesor puede crear el vale a mano.
+export async function abrirModalCrearValeDesdeProyectos(participacionId) {
+  try {
+    const prellenado = await obtenerPrefillProyectos(participacionId);
+    abrirModalFormularioVale(null, 'crear', null, { prellenado });
+  } catch (error) {
+    window.toast.error('No se pudo prellenar el vale', error.message);
+  }
+}
+
+// Datos de Proyectos en el formulario: empresa y cliente bloqueados (vienen de la base de clientes), el resto editable.
+function aplicarPrellenado(overlay, form, prellenado) {
+  const poner = (nombre, valor, bloquear = false) => {
+    const campo = form.querySelector(`[name="${nombre}"]`);
+    if (!campo) return;
+    campo.value = valor || '';
+    if (bloquear) { campo.readOnly = true; campo.classList.add('campo-bloqueado'); campo.setAttribute('aria-readonly', 'true'); }
+  };
+  poner('clienteEmpresa', prellenado.empresa.nombre, true);
+  poner('clienteNombre', prellenado.contacto.nombre, true);
+  poner('clienteTelefono', prellenado.contacto.telefono);
+  poner('clienteCorreo', prellenado.contacto.correo);
+  poner('descripcion', prellenado.descripcion);
+  const pais = form.querySelector('[name="clienteTelefonoPais"]');
+  if (pais && prellenado.contacto.telefonoPrefijo && [...pais.options].some(o => o.value === prellenado.contacto.telefonoPrefijo)) pais.value = prellenado.contacto.telefonoPrefijo;
+  const aviso = document.createElement('div');
+  aviso.className = 'form-aviso form-aviso--proyectos';
+  aviso.innerHTML = `<ion-icon name="link-outline"></ion-icon><span>Datos de Proyectos · <strong>${escapeHtml(prellenado.empresa.nombre)}</strong>. Al guardar, el vale se vincula${prellenado.referencia ? ` a <strong>${escapeHtml(prellenado.referencia)}</strong>` : ' a esta empresa'}.</span>`;
+  overlay.querySelector('.modal-body').prepend(aviso);
+  form.querySelector('[name="descripcion"]')?.dispatchEvent(new Event('input'));
+}
+
 // Asesor: corregir un vale propio que aún no fue autorizado (mismo formulario, precargado).
 export function abrirModalCorregirVale(vale) {
   abrirModalFormularioVale(vale);
@@ -73,7 +106,7 @@ const textoAyudaUrgente = (esMod, marcada) => {
 
 // `tipoModificacion` (BASICA / MEDIA / AVANZADA): al pedir una modificación con vale MOD; al corregir un MOD sale del propio vale.
 // `alCancelar` permite volver al modal desde el que se abrió (p. ej. el selector de tipo de modificación); `alGuardar`, tras guardar un borrador.
-function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipoModificacion = null, { alCancelar, alGuardar } = {}) {
+function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipoModificacion = null, { alCancelar, alGuardar, prellenado = null } = {}) {
   const esCorreccion = modo === 'corregir';
   const esModificacion = modo === 'modificar';
   const esBorrador = modo === 'borrador';
@@ -239,6 +272,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
 
   const formCrear = overlay.querySelector('#form-crear-vale');
   if (vale) precargarFormulario(overlay, formCrear, vale, { apiFechaEntrega, apiFechaEvento }, { conDescripcion: !esModificacion, conUrgente: !esModificacion });
+  if (prellenado) aplicarPrellenado(overlay, formCrear, prellenado);
   if (esCorreccion && vale.estado === 'RECHAZADO') {
     const aviso = document.createElement('div');
     aviso.className = 'form-aviso';
@@ -338,7 +372,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
     }
     // Antes de crear el vale de verdad, se confirma con un modal resumen (el
     // modal de creación queda debajo, intacto, por si se cancela).
-    abrirModalConfirmarCreacion(formData);
+    abrirModalConfirmarCreacion(formData, prellenado);
   });
 }
 
@@ -429,7 +463,7 @@ async function cargarArchivosActuales(overlay, cargarDocumentos, documentosQuita
   render();
 }
 
-function abrirModalConfirmarCreacion(formData) {
+function abrirModalConfirmarCreacion(formData, prellenado = null) {
   const nombresTalleres = JSON.parse(formData.get('talleresIds') || '[]')
     .map(id => ((state.catalogos.talleres || []).find(t => t.id === id) || {}).nombre || id)
     .join(', ');
@@ -459,6 +493,12 @@ function abrirModalConfirmarCreacion(formData) {
     try {
       const data = await crearVale(formData);
       window.toast.success('Vale de arte creado', `${data.correlativo} se creó correctamente, en espera de autorización.`);
+      // Desde Proyectos, el vale se liga a la empresa. Si el aviso falla, el vale ya existe: se dice con claridad.
+      if (prellenado) {
+        try { await vincularValeProyectos(prellenado.participacionId, data.id); } catch (errorVinculo) {
+          window.toast.error('El vale se creó, pero no se ligó a la empresa', errorVinculo.message);
+        }
+      }
       if (formData.get('borradorId')) avisarCambioBorradores();
       cerrar();
       // El modal de creación original sigue debajo — se cierra también.

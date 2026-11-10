@@ -14,7 +14,7 @@ import { wireToolbar, wireSortHeaders } from './layout/toolbar.js';
 import { initSocket } from './socket.js';
 import { iniciarTooltipPipeline } from './components/pipeline.js';
 import { cargarBuzon, wireScrollInfinito, wireIndicadoresScrollHorizontal } from './views/buzon.js';
-import { abrirModalCrearVale } from './forms/valeForm.js';
+import { abrirModalCrearVale, abrirModalCrearValeDesdeProyectos } from './forms/valeForm.js';
 import { iniciarBorradores } from './forms/borradores.js';
 import { abrirModalCargaTrabajo } from './actions/cargaTrabajo.js';
 
@@ -78,4 +78,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('#btn-nuevo-vale').addEventListener('click', () => abrirModalCrearVale());
   if (conBorradores) iniciarBorradores();
   $('#btn-carga-trabajo').addEventListener('click', () => abrirModalCargaTrabajo());
+
+  // Desde Proyectos llega `?prellenar=proyectos:<id>`: solo el id de la participación, nunca datos personales en la dirección.
+  const desdeProyectos = /^proyectos:(\d+)$/.exec(new URLSearchParams(window.location.search).get('prellenar') || '');
+  if (desdeProyectos) {
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
+    if (puede('crear')) abrirModalCrearValeDesdeProyectos(Number(desdeProyectos[1]));
+  }
 });

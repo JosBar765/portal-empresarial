@@ -321,3 +321,21 @@ export async function obtenerAsignacionesDisenador(disenadorId) {
   const res = await fetch(`/api/vales/carga-trabajo/${disenadorId}`);
   return leerJSON(res);
 }
+
+// Integración con Proyectos: los datos del cliente llegan por la API con la sesión del asesor (nunca por la dirección) y,
+// al crear el vale, se avisa para ligarlo a su empresa. El backend de Vales no depende de esto.
+export async function obtenerPrefillProyectos(participacionId) {
+  const res = await fetch(`/api/proyectos/participaciones/${encodeURIComponent(participacionId)}/prefill-vale`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudieron traer los datos de Proyectos.');
+  return data;
+}
+
+export async function vincularValeProyectos(participacionId, valeId) {
+  const res = await fetch(`/api/proyectos/participaciones/${encodeURIComponent(participacionId)}/vincular-vale`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valeId })
+  });
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudo ligar el vale a la empresa.');
+  return data;
+}
