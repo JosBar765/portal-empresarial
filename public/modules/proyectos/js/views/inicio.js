@@ -5,12 +5,6 @@ import { cabecera, aviso, cargando } from '../components/ui.js';
 import { obtenerResumen } from '../api/api.js';
 import { textoDeCambio } from './cambios.js';
 
-// Las áreas que llegan en fases posteriores se muestran apagadas, con su fase, para que se vea el camino completo.
-const AREAS_PRONTO = [
-  { titulo: 'Plan del año', icono: 'calendar-outline', texto: 'Nicho y plantilla por mes · activación automática', fase: 9 },
-  { titulo: 'Kit del nicho', icono: 'chatbox-outline', texto: 'Guiones y mensajes por nicho', fase: 9 }
-];
-
 const NOMBRES_CORTOS_REGLA = {
   'reglas.visto_bueno_cierre': 'Visto bueno',
   'reglas.aprobar_activacion': 'Aprobar activación',
@@ -54,7 +48,7 @@ function tarjetas(resumen) {
       texto: `${resumen.catalogos.tipos} listas: nichos, artículos, canales, resultados…`,
       pie: pieDe(masReciente(resumen.ultimos.catalogos, resumen.ultimos.paises), `${resumen.catalogos.activas} opciones activas`)
     }),
-    tarjeta({ titulo: AREAS_PRONTO[0].titulo, nombreIcono: AREAS_PRONTO[0].icono, texto: AREAS_PRONTO[0].texto, fase: AREAS_PRONTO[0].fase, pie: `Disponible en la fase ${AREAS_PRONTO[0].fase}` }),
+    tarjeta({ titulo: 'Plan del año', nombreIcono: 'calendar-outline', ruta: 'plan', texto: 'Nicho y plantilla por mes · activación automática', pie: 'Un nicho por mes para toda la región' }),
     tarjeta({
       titulo: 'Parámetros', nombreIcono: 'list-outline', ruta: 'parametros',
       texto: 'Reparto, seguimiento, semáforo, importación…',
@@ -80,7 +74,7 @@ function tarjetas(resumen) {
       titulo: 'Notificaciones', nombreIcono: 'notifications-outline', ruta: 'notificaciones', texto: 'Qué avisos recibe cada rol y con cuánta anticipación',
       pie: pieDe(resumen.ultimos.avisos, resumen.avisos.personalizada ? 'Con ajustes propios' : 'Todo en su valor por defecto')
     }),
-    ...AREAS_PRONTO.slice(1).map(a => tarjeta({ titulo: a.titulo, nombreIcono: a.icono, texto: a.texto, fase: a.fase, pie: `Disponible en la fase ${a.fase}` })),
+    tarjeta({ titulo: 'Kit del nicho', nombreIcono: 'chatbox-outline', ruta: 'kit', texto: 'Guiones y mensajes por nicho', pie: 'El asesor los abre prellenados' }),
     tarjeta({
       titulo: 'Historial de cambios', nombreIcono: 'time-outline', ruta: 'historial',
       texto: 'Quién cambió qué, antes y después', pie: pluralizar(resumen.historial.total, 'cambio', 'cambios')

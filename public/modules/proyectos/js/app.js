@@ -30,6 +30,7 @@ import { renderPanel, renderVistoBueno } from './views/gerencia.js';
 import { renderAvisos } from './views/avisos.js';
 import { renderClientesGanados } from './views/clientesGanados.js';
 import { renderKitNicho } from './views/kitNicho.js';
+import { renderPlanAnio } from './views/planAnio.js';
 
 // Cada pantalla pide su propio permiso: entrar a Proyectos solo exige `proyectos.ver`, y la configuración, `proyectos.administrar`.
 const RUTAS = {
@@ -54,6 +55,7 @@ const RUTAS = {
   notificaciones: { render: renderAvisos, permiso: 'proyectos.administrar' },
   campos: { render: renderCampos, permiso: 'proyectos.administrar' },
   kit: { render: renderKitNicho, permiso: 'proyectos.administrar' },
+  plan: { render: renderPlanAnio, permiso: 'proyectos.administrar' },
   alcance: { render: renderAlcance, permiso: 'proyectos.administrar' },
   historial: { render: renderHistorial, permiso: 'proyectos.administrar' },
   catalogos: { render: renderCatalogos, permiso: 'proyectos.administrar' }

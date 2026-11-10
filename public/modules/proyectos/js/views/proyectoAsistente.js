@@ -51,6 +51,16 @@ export async function renderAsistente(cont, id) {
   };
   if (proyecto) cargarEnEstado(proyecto);
 
+  // El plan del año sugiere el nicho (y el artículo y la plantilla) del mes. En un proyecto nuevo se aplica solo; la persona puede cambiarlo.
+  const sugerencia = () => (opciones.plan || []).find(p => p.anio === e.anio && p.mes === e.mes && opciones.nichos.some(n => n.id === p.nichoId)) || null;
+  const aplicarSugerencia = (s) => {
+    e.nichoId = s.nichoId;
+    e.nichoDelPlan = true;
+    if (s.articuloId && opciones.articulos.some(a => a.id === s.articuloId)) e.articuloId = s.articuloId;
+    if (s.plantillaId && opciones.plantillas.some(p => p.id === s.plantillaId)) e.plantillaId = s.plantillaId;
+  };
+  if (!proyecto && sugerencia()) aplicarSugerencia(sugerencia());
+
   let paso = proyecto ? (e.tiendaIds.length ? 3 : 2) : 1;
   let errores = {};
   let candidatos = [];
@@ -170,17 +180,26 @@ export async function renderAsistente(cont, id) {
     const pl = plantilla();
     const mes = h('select', { id: 'asistente-mes', 'aria-label': 'Mes del proyecto' }, opcionesMes().map(([v, t]) => h('option', { value: v, text: t })));
     mes.value = `${e.anio}-${e.mes}`;
-    mes.addEventListener('change', () => { const [a, m] = mes.value.split('-').map(Number); e.anio = a; e.mes = m; sucio = true; dibujar(); });
+    mes.addEventListener('change', () => {
+      const [a, m] = mes.value.split('-').map(Number); e.anio = a; e.mes = m; sucio = true;
+      // Si el nicho venía del plan y nadie lo cambió, sigue al plan del mes nuevo.
+      if (!e.id && (e.nichoDelPlan || !e.nichoId) && sugerencia()) aplicarSugerencia(sugerencia());
+      dibujar();
+    });
+    const plan = sugerencia();
+    const nichoPlan = plan ? opciones.nichos.find(n => n.id === plan.nichoId) : null;
     return [
       opciones.plantillas.length ? h('section', { class: 'panel' },
         h('div', { class: 'campo' }, h('label', { for: 'asistente-plantilla', text: 'Plantilla de proyecto' }), selector),
         pl ? h('p', { class: 'panel-descripcion' }, pl.predeterminada ? h('span', { class: 'chip-estado chip-estado--principal', text: 'Predeterminada' }) : null,
           ` ${pluralizar(pl.duracionSemanas, 'semana', 'semanas')} · ${pluralizar(pl.etapas.length, 'etapa', 'etapas')}${Object.values(pl.controles || {}).includes('bloqueado') ? ' · algunos datos los fija el administrador' : ''}`) : null) : null,
+      nichoPlan && !e.id ? aviso({ tipo: 'info', titulo: `El plan del año sugiere ${nichoPlan.nombre} para este mes`, texto: e.nichoId === plan.nichoId ? 'Ya lo tienes elegido; puedes cambiarlo si hace falta.' : 'Elegiste otro nicho. Puedes volver a la sugerencia con un clic.' }) : null,
+      nichoPlan && !e.id && e.nichoId !== plan.nichoId ? h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => { aplicarSugerencia(plan); sucio = true; dibujar(); } }, icono('calendar-outline'), 'Usar la sugerencia del plan') : null,
       h('section', { class: 'panel' },
         h('h2', { class: 'panel-titulo', text: '¿Qué nicho se trabaja este mes?' }),
         h('div', { class: 'tarjetas-nicho', role: 'radiogroup', 'aria-label': 'Nicho' }, opciones.nichos.map(n => h('button', {
           class: `tarjeta-nicho${e.nichoId === n.id ? ' tarjeta-nicho--activa' : ''}`, type: 'button', role: 'radio', 'aria-checked': String(e.nichoId === n.id),
-          onclick: () => { e.nichoId = n.id; delete errores.nichoId; sucio = true; dibujar(); }
+          onclick: () => { e.nichoId = n.id; e.nichoDelPlan = false; delete errores.nichoId; sucio = true; dibujar(); }
         }, h('span', { class: 'tarjeta-nicho-nombre', text: n.nombre }), h('span', { class: 'tarjeta-nicho-detalle', text: pluralizar(n.empresas, 'empresa elegible', 'empresas elegibles') }), h('span', { class: 'tarjeta-nicho-radio' })))),
         errores.nichoId ? h('p', { class: 'campo-error', text: errores.nichoId }) : null),
       h('section', { class: 'panel' }, h('div', { class: 'form-rejilla' },

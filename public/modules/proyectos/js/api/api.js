@@ -75,6 +75,10 @@ export const previsualizarImportacion = (archivo) => pedir(`${BASE}/clientes/imp
 export const confirmarImportacion = (archivo, duplicadas, idempotencyKey) => pedir(`${BASE}/clientes/importar/confirmar`, conArchivo(archivo, { duplicadas, idempotencyKey }));
 
 // Campos propios (A6) y alcance de usuarios (A7)
+export const obtenerPlan = (anio) => pedir(`${BASE}/config/plan/${encodeURIComponent(anio)}`);
+export const guardarPlanMes = (anio, mes, datos) => pedir(`${BASE}/config/plan/${encodeURIComponent(anio)}/${encodeURIComponent(mes)}`, enJson('PUT', datos));
+export const quitarPlanMes = (anio, mes) => pedir(`${BASE}/config/plan/${encodeURIComponent(anio)}/${encodeURIComponent(mes)}`, { method: 'DELETE' });
+export const guardarAutomatizacion = (cambios) => pedir(`${BASE}/config/automatizacion`, enJson('PUT', { cambios }));
 export const listarKits = () => pedir(`${BASE}/config/kits`);
 export const obtenerKit = (nichoId) => pedir(`${BASE}/config/kits/${encodeURIComponent(nichoId)}`);
 export const guardarKit = (nichoId, datos) => pedir(`${BASE}/config/kits/${encodeURIComponent(nichoId)}`, enJson('PUT', datos));
