@@ -32,6 +32,8 @@ const PARAMETROS = [
     etiqueta: 'Meses para sugerir la recompra', ayuda: 'En Clientes ganados, la recompra se sugiere este tiempo después de la última venta.' },
   { clave: 'reparto.rondas', grupo: 'reparto', tipo: 'booleano', defecto: false,
     etiqueta: 'Repartir la reserva en una segunda ronda', ayuda: 'Permite repartir lo que sobró cuando alguien termina.' },
+  { clave: 'reparto.ronda_umbral', grupo: 'reparto', tipo: 'porcentaje', defecto: 80, min: 1, max: 100, unidad: '%',
+    etiqueta: 'Avance para recibir una tanda de la reserva', ayuda: 'Un asesor recibe empresas de la reserva cuando ya gestionó este porcentaje de las suyas.' },
   { clave: 'reparto.descanso_meses', grupo: 'reparto', tipo: 'entero', defecto: 3, min: 0, max: 36, unidad: 'meses',
     etiqueta: 'Descanso de una empresa con venta', ayuda: 'Meses antes de repetir empresa en el nicho. 0 lo apaga.' },
 

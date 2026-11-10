@@ -11,6 +11,7 @@ const { derivar, FINALES } = require('../estadoParticipacion');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero } = require('../../../core/utils/validar');
 const { enlaceDeLugar, enlaceDeRuta, MAX_PARADAS } = require('../mapas');
+const metasCalculoService = require('./metasCalculoService');
 const { errorDeValidacion } = require('../errores');
 
 const MONTO_MAXIMO = 9999999999.99;
@@ -55,6 +56,7 @@ class GestionService {
     const [proyecto, etapas, entregadas, cifras, conteos, hoyFilas] = await Promise.all([
       repo.proyecto(id), repo.etapas(id), repo.muestrasEntregadas(id), repo.cifras(id, usuario.id), repo.conteosPorEstado(id, usuario.id), this._paraHoyDe(id, usuario.id)
     ]);
+    const meta = await metasCalculoService.deAsesor(proyecto, usuario.id);
     const hoy = hoyGT();
     const vigente = etapas.find(e => e.fecha_inicio && e.fecha_fin && sinHora(e.fecha_inicio) <= hoy && hoy <= sinHora(e.fecha_fin)) || null;
     return {
@@ -66,7 +68,7 @@ class GestionService {
       etapas: etapas.map(e => ({ orden: e.orden, nombre: e.nombre, fechaInicio: e.fecha_inicio, fechaFin: e.fecha_fin, estado: !e.fecha_fin ? 'proxima' : sinHora(e.fecha_fin) < hoy ? 'hecha' : sinHora(e.fecha_inicio) > hoy ? 'proxima' : 'actual' })),
       muestra: proyecto.articulo_id ? { articulo: proyecto.articulo, quedan: proyecto.existencia_muestras, total: proyecto.existencia_muestras === null ? null : proyecto.existencia_muestras + entregadas } : null,
       cifras: { ...cifras, efectividad: cifras.asignadas ? Math.round((cifras.interesadas / cifras.asignadas) * 100) : 0 },
-      conteos: { todas: Object.values(conteos).reduce((a, b) => a + b, 0), ...conteos },
+      meta, conteos: { todas: Object.values(conteos).reduce((a, b) => a + b, 0), ...conteos },
       paraHoy: { total: hoyFilas.total, primeras: [...hoyFilas.vencidos, ...hoyFilas.hoy, ...hoyFilas.sinTocar].slice(0, 4) }
     };
   }

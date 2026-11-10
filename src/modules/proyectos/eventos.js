@@ -7,6 +7,7 @@ const ROLES = ['asesor', 'supervisor', 'gerente'];
 // `anticipacion`: { valor por defecto, unidad, texto, min, max }, solo en los recordatorios.
 const EVENTOS = [
   { clave: 'reparto_recibido', nombre: 'Reparto recibido', grupo: 'Reparto', roles: { asesor: true } },
+  { clave: 'meta_ajustada', nombre: 'Meta de ventas ajustada', grupo: 'Reparto', roles: { asesor: true } },
   { clave: 'reasignada_recibe', nombre: 'Empresa reasignada: la recibe', grupo: 'Reparto', roles: { asesor: true } },
   { clave: 'reasignada_pierde', nombre: 'Empresa reasignada: la pierde', grupo: 'Reparto', roles: { asesor: true } },
   { clave: 'seguimiento_vence', nombre: 'Seguimiento que vence', grupo: 'Seguimiento', roles: { asesor: true }, anticipacion: { valor: 0, unidad: 'horas', texto: 'horas antes', min: 0, max: 72 } },

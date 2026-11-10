@@ -18,6 +18,7 @@ const exportacionController = require('./controllers/exportacionController');
 const ganadosController = require('./controllers/ganadosController');
 const kitController = require('./controllers/kitController');
 const planController = require('./controllers/planController');
+const metasController = require('./controllers/metasController');
 const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
@@ -91,6 +92,11 @@ router.get('/proyectos/:id/seguimiento/asesores', supervisa, seguimientoControll
 router.get('/proyectos/:id/seguimiento/tiendas', supervisa, seguimientoController.porTienda);
 router.get('/proyectos/:id/seguimiento/estancados', supervisa, seguimientoController.estancados);
 router.get('/proyectos/:id/seguimiento/destinos', reasignar, seguimientoController.destinos);
+// Metas por asesor y rondas de reparto de la reserva (fase 9f).
+router.get('/proyectos/:id/metas', supervisa, metasController.metas);
+router.put('/proyectos/:id/metas/asesores/:asesorId', reasignar, metasController.ajustar);
+router.get('/proyectos/:id/reserva', supervisa, metasController.reserva);
+router.post('/proyectos/:id/reserva/repartir', reasignar, metasController.repartir);
 router.post('/proyectos/:id/reasignar', reasignar, seguimientoController.reasignar);
 router.get('/participaciones/:id/supervision', supervisa, seguimientoController.supervision);
 router.post('/participaciones/:id/cotizaciones/:cotizacionId/anular', corregir, seguimientoController.anularCotizacion);
