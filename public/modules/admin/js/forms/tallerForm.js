@@ -31,6 +31,7 @@ export async function abrirModalNuevoTaller() {
     return;
   }
 
+  // La sede (`tienda_id`) manda: una tienda sin Local propio puede crear el suyo aunque ya la atienda el Local de otra (`taller_local_tiendas`).
   const tiendasConLocal = new Set(talleres.filter(t => t.tienda_id != null).map(t => Number(t.tienda_id)));
   const tiendasDisponibles = tiendas.filter(t => t.activo && !tiendasConLocal.has(Number(t.id)));
   const encargadosDisponibles = usuariosRaw.data.usuarios.filter(u => u.activo && Number(u.rol_id) === ROL_ENCARGADO_DISENO_LOCAL && !u.taller_id);

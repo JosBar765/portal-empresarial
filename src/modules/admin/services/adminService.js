@@ -497,6 +497,73 @@ class AdminService {
     return resultado;
   }
 
+  // Un Local siempre atiende su sede; solo los Locales tienen tiendas asignadas.
+  async _obtenerLocal(tallerId) {
+    const taller = await tallerAdminRepository.obtenerPorId(tallerId);
+    if (!taller) throw new ErrorDeNegocio('Taller no encontrado.', 404);
+    if (taller.tienda_id == null) {
+      throw new ErrorDeNegocio(`${taller.nombre} es un taller general y atiende a todas las tiendas: solo los talleres de Diseño Local tienen tiendas asignadas.`);
+    }
+    return taller;
+  }
+
+  async listarTiendasDeLocal(tallerId) {
+    await this._obtenerLocal(tallerId);
+    return { tiendas: await tallerAdminRepository.listarTiendasDeLocal(tallerId) };
+  }
+
+  // Cualquier tienda activa, de cualquier país y aunque ya use otro Local.
+  async agregarTiendaALocal(tallerId, tiendaId) {
+    const taller = await this._obtenerLocal(tallerId);
+    const tienda = await tiendaAdminRepository.obtenerPorId(tiendaId);
+    if (!tienda) throw new ErrorDeNegocio('La tienda seleccionada ya no existe. Recarga la página e inténtalo de nuevo.', 404);
+    if (!tienda.activo) throw new ErrorDeNegocio(`La tienda ${tienda.codigo} está inactiva: actívala antes de asignarla a ${taller.nombre}.`);
+    const actuales = await tallerAdminRepository.listarTiendasDeLocal(taller.id);
+    if (actuales.some(t => Number(t.id) === Number(tienda.id))) {
+      throw new ErrorDeNegocio(`La tienda ${tienda.codigo} ya está asignada a ${taller.nombre}.`, 409);
+    }
+    await tallerAdminRepository.agregarTiendaALocal(taller.id, tienda.id);
+    return { ok: true };
+  }
+
+  // La sede no se quita (define nombre, país y feriados). Quitar otra tienda solo afecta a los vales nuevos: los abiertos conservan sus talleres.
+  async quitarTiendaDeLocal(tallerId, tiendaId) {
+    const taller = await this._obtenerLocal(tallerId);
+    if (Number(taller.tienda_id) === Number(tiendaId)) {
+      throw new ErrorDeNegocio(`No se puede quitar la tienda sede de ${taller.nombre}: de ella salen su nombre, su país y sus feriados. Solo se pueden quitar las tiendas que agregaste después.`);
+    }
+    const actuales = await tallerAdminRepository.listarTiendasDeLocal(taller.id);
+    if (!actuales.some(t => Number(t.id) === Number(tiendaId))) {
+      throw new ErrorDeNegocio(`Esa tienda no está asignada a ${taller.nombre}. Recarga la página para ver la lista actual.`, 404);
+    }
+    await tallerAdminRepository.quitarTiendaDeLocal(taller.id, tiendaId);
+    return { ok: true };
+  }
+
+  // Grupos que pueden compartir propuestas: los generales juntos y los Locales por país de su sede (misma regla que el módulo de vales).
+  async listarGruposPropuestasCompartidas() {
+    const filas = await tallerAdminRepository.listarParaPropuestasCompartidas();
+    const grupos = new Map();
+    for (const f of filas) {
+      const esLocal = f.tienda_id != null;
+      // Un Local sin país definido no comparte con nadie: queda en su propio grupo.
+      const clave = !esLocal ? 'general' : (f.pais_id != null ? `local:${f.pais_id}` : `local:sin-pais:${f.id}`);
+      const etiqueta = !esLocal ? 'Talleres generales' : `Diseño Local — ${f.pais_nombre || 'país sin definir'}`;
+      if (!grupos.has(clave)) grupos.set(clave, { clave, etiqueta, talleres: [] });
+      grupos.get(clave).talleres.push({ id: f.id, nombre: f.nombre, activo: !!f.activo, comparte: !!f.comparte_propuestas });
+    }
+    const lista = [...grupos.values()].sort((a, b) => (b.clave === 'general') - (a.clave === 'general') || a.etiqueta.localeCompare(b.etiqueta));
+    return { grupos: lista };
+  }
+
+  async actualizarComparteDePropuestas(tallerId, comparte) {
+    if (typeof comparte !== 'boolean') throw new ErrorDeNegocio('Indica si el taller comparte propuestas (sí o no).');
+    const taller = await tallerAdminRepository.obtenerPorId(tallerId);
+    if (!taller) throw new ErrorDeNegocio('Taller no encontrado.', 404);
+    await tallerAdminRepository.actualizarComparteDePropuestas(tallerId, comparte);
+    return { ok: true };
+  }
+
   async asignarDisenadorATaller(tallerId, usuarioId) {
     const taller = await tallerAdminRepository.obtenerPorId(tallerId);
     if (!taller) throw new Error('Taller no encontrado.');

@@ -250,6 +250,49 @@ class AdminController {
     }
   }
 
+  async listarTiendasDeLocal(req, res) {
+    try {
+      return res.json(await adminService.listarTiendasDeLocal(idObligatorio(req.params.id)));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async agregarTiendaALocal(req, res) {
+    try {
+      await adminService.agregarTiendaALocal(idObligatorio(req.params.id), idObligatorio(req.body.tiendaId, 'Tienda'));
+      return res.status(201).json({ ok: true });
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async quitarTiendaDeLocal(req, res) {
+    try {
+      await adminService.quitarTiendaDeLocal(idObligatorio(req.params.id), idObligatorio(req.params.tiendaId, 'Tienda'));
+      return res.json({ ok: true });
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async listarGruposPropuestasCompartidas(req, res) {
+    try {
+      return res.json(await adminService.listarGruposPropuestasCompartidas());
+    } catch (error) {
+      return responderErrorInterno(res, error);
+    }
+  }
+
+  async actualizarComparteDePropuestas(req, res) {
+    try {
+      await adminService.actualizarComparteDePropuestas(idObligatorio(req.params.id), req.body && req.body.comparte);
+      return res.json({ ok: true });
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async asignarDisenadorATaller(req, res) {
     try {
       await adminService.asignarDisenadorATaller(idObligatorio(req.params.id), idObligatorio(req.body.usuarioId, 'Usuario'));
