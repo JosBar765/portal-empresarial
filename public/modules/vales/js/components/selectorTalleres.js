@@ -2,14 +2,14 @@
 // el de solicitud de modificación (este último con un `opcionesTalleres`
 // restringido a los talleres del vale original). `opcionesTalleres` por
 // defecto es el catálogo completo filtrado a lo que el asesor puede elegir:
-// talleres de toda la empresa + el Diseño Local de SU propia tienda, si tiene
-// uno — la validación real e inapelable sigue siendo la del backend.
+// talleres de toda la empresa + los Diseño Local que atienden SU tienda
+// (`tiendas_atendidas_ids`) — la validación real e inapelable sigue siendo la del backend.
 import { state } from '../state.js';
 import { limpiarErrorCampo, marcarErrorCampo } from './validacion.js';
 
 export function talleresSeleccionablesAsesor() {
   const miTiendaId = state.catalogos.miTiendaId ?? null;
-  return (state.catalogos.talleres || []).filter(t => t.tienda_id == null || t.tienda_id === miTiendaId);
+  return (state.catalogos.talleres || []).filter(t => t.tienda_id == null || (t.tiendas_atendidas_ids || []).includes(miTiendaId));
 }
 
 export function htmlSelectorTalleres(opcionesTalleres) {
