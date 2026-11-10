@@ -52,6 +52,20 @@ Cerrar un proyecto congela su informe, libera las tiendas y las empresas y lo de
 
 `informeService.js` · `cierreService.js` · `informePdfService.js` · `gerenciaService.js` · `repositories/informeRepository.js` y `gerenciaRepository.js` · `controllers/cierreController.js` · frontend en `public/modules/proyectos/js/views/` (`cierreProyecto.js`, `gerencia.js`) · migración `39_proyectos_visto_bueno` (columna `visto_bueno_estado`: pendiente, dado, devuelto; vacío = sin visto bueno).
 
+## Exportar a CSV (fase 9b)
+
+Con `proyectos.ver_reportes` aparece «Exportar CSV» en la Cartera, en el cierre del proyecto y en la ficha de gerencia. Los archivos salen en UTF-8 con BOM (Excel lee bien los acentos), con comillas donde hacen falta y con las celdas que parecen fórmula (`=`, `+`, `-`, `@`) neutralizadas con un apóstrofo.
+
+| Archivo | Ruta | Contenido |
+|---|---|---|
+| Cartera | `GET /api/proyectos/clientes/exportar.csv` | Empresas con los mismos filtros y el mismo alcance por país que la lista, más los campos propios. Tope de 20 000 filas: si se supera, la respuesta lleva `X-Exportacion-Truncada`. |
+| Resultados del proyecto | `GET /api/proyectos/proyectos/:id/exportar.csv` | Una fila por empresa asignada: asesor, tienda, estado, gestiones, muestras, última y próxima gestión, y cotizado y vendido en una columna por moneda, con sus referencias. |
+| Informe | `GET /api/proyectos/proyectos/:id/informe.csv?tabla=resumen\|asesores\|tiendas` | Las tablas del informe, con las mismas cifras que la pantalla y el PDF. |
+
+Reglas: lo anulado, rechazado o por confirmar no cuenta; las monedas no se mezclan; quien supervisa solo ve en detalle las tiendas de su alcance (las filas de otras tiendas salen sin ciudad, gestiones ni montos, como en el seguimiento) y gerencia ve todo. Sin el permiso la respuesta es 403.
+
 ## Verificación
 
 `node scripts/proyectos/verificar-cierre.js` (base desechable; 62 comprobaciones, también en MariaDB 11.8). El informe se compara con un **conteo manual** que el propio script lleva aparte mientras los asesores registran: cada cifra, los montos por moneda, presencial y remoto, muestras, lo anulado, lo rechazado y lo «por confirmar». También prueba el cierre, el congelado, la liberación, el visto bueno (dar, devolver, reenviar), el cierre sin visto bueno, el PDF y el panel.
+
+También `node scripts/proyectos/verificar-exportacion.js` (24 comprobaciones): formato, permisos por rol, alcance, dinero por moneda y que lo anulado no cuenta.
