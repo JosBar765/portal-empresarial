@@ -96,9 +96,9 @@ class ParticipacionRepository {
   // Todas las empresas abiertas, sin vendida, perdida ni descartada: el servicio las reparte en vencidas, de hoy y sin tocar.
   paraHoy(proyectoId, asesorId) {
     return db.query(
-      `SELECT p.id, p.estado, p.ultima_gestion_en, p.proxima_gestion_en, p.asignada_en, c.nombre, c.ciudad, c.telefono,
+      `SELECT p.id, p.estado, p.ultima_gestion_en, p.proxima_gestion_en, p.asignada_en, c.nombre, c.ciudad, c.direccion, pa.nombre AS pais, c.telefono,
          (SELECT t.telefono FROM proy_contactos t WHERE t.cliente_id = c.id AND t.activo = 1 AND t.telefono IS NOT NULL ORDER BY t.principal DESC, t.id LIMIT 1) AS contacto_telefono
-       FROM proy_participaciones p JOIN proy_clientes c ON c.id = p.cliente_id
+       FROM proy_participaciones p JOIN proy_clientes c ON c.id = p.cliente_id JOIN paises pa ON pa.id = c.pais_id
        WHERE p.proyecto_id = ? AND p.asesor_id = ? AND p.abierta = 1 AND p.estado NOT IN (?) ORDER BY p.id LIMIT 500`,
       [proyectoId, asesorId, TERMINALES], 'proyectos_gestion:para_hoy'
     );
@@ -143,6 +143,11 @@ class ParticipacionRepository {
   // Bloquea la fila para que dos registros a la vez sobre la misma empresa no se pisen.
   async bloquear(tx, id, asesorId) {
     const filas = await tx.query('SELECT id, proyecto_id, estado, abierta, proxima_gestion_en FROM proy_participaciones WHERE id = ? AND asesor_id = ? FOR UPDATE', [id, asesorId], 'proyectos_gestion:bloquear');
+    return filas[0] || null;
+  }
+
+  async cliente(id) {
+    const filas = await db.query('SELECT id, nombre, telefono FROM proy_clientes WHERE id = ?', [id], 'proyectos_gestion:cliente');
     return filas[0] || null;
   }
 

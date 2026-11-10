@@ -7,6 +7,7 @@ const participacionRepository = require('../repositories/participacionRepository
 const valeRepository = require('../repositories/valeRepository');
 const proyectoRepository = require('../repositories/proyectoRepository');
 const gestionService = require('./gestionService');
+const ganadosService = require('./ganadosService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero } = require('../../../core/utils/validar');
 const { errorDeValidacion } = require('../errores');
@@ -42,6 +43,23 @@ class ValeVinculoService {
       contacto: { nombre: (contacto && contacto.nombre) || p.nombre, cargo: contacto ? contacto.cargo : null, telefonoPrefijo: telefono.prefijo, telefono: telefono.numero, correo: (contacto && contacto.correo) || '' },
       referencia: (venta && venta.referencia) || (cotizacion && cotizacion.referencia) || null,
       descripcion: String(nota || '').slice(0, DESCRIPCION_MAXIMA)
+    };
+  }
+
+  // Recompra desde Clientes ganados: los mismos datos del vale, pero sin proyecto: el vale no se liga a ninguna participación.
+  async prefillRecompra(usuario, clienteId) {
+    if (!(await ganadosService.enAlcance(usuario, clienteId))) throw new ErrorDeNegocio('Esa empresa no está en tus clientes ganados.', 404);
+    const id = aEntero(clienteId);
+    const [cliente, contactos] = await Promise.all([participacionRepository.cliente(id), participacionRepository.contactos(id)]);
+    if (!cliente) throw new ErrorDeNegocio('Esa empresa no existe.', 404);
+    const conDatos = (c) => c.telefono || c.correo;
+    const contacto = contactos.find(c => c.principal && conDatos(c)) || contactos.find(conDatos) || contactos[0] || null;
+    const telefono = separarTelefono((contacto && contacto.telefono) || cliente.telefono);
+    return {
+      participacionId: null, recompra: true,
+      empresa: { nombre: cliente.nombre },
+      contacto: { nombre: (contacto && contacto.nombre) || cliente.nombre, cargo: contacto ? contacto.cargo : null, telefonoPrefijo: telefono.prefijo, telefono: telefono.numero, correo: (contacto && contacto.correo) || '' },
+      referencia: null, descripcion: ''
     };
   }
 

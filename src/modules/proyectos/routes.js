@@ -15,6 +15,7 @@ const cierreController = require('./controllers/cierreController');
 const avisosController = require('./controllers/avisosController');
 const valeVinculoController = require('./controllers/valeVinculoController');
 const exportacionController = require('./controllers/exportacionController');
+const ganadosController = require('./controllers/ganadosController');
 const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
@@ -112,6 +113,10 @@ router.get('/clientes/importar/plantilla', importar, (req, res) => importacionCo
 router.post('/clientes/importar/previsualizar', importar, limitarPrevia, importacionController.recibirArchivo, importacionController.previsualizar);
 router.post('/clientes/importar/confirmar', importar, limitarConfirmar, importacionController.recibirArchivo, importacionController.confirmar);
 router.get('/clientes/exportar.csv', exportar, exportacionController.cartera);
+// Clientes ganados: el servicio decide el alcance de cada quien (asesor, supervisor, gerencia).
+router.get('/clientes-ganados', ganadosController.listar);
+router.get('/clientes-ganados/exportar.csv', exportar, exportacionController.ganados);
+router.get('/clientes-ganados/:clienteId/prefill-vale', gestionar, valeVinculoController.prefillRecompra);
 router.get('/clientes/opciones', clienteController.opciones);
 router.get('/clientes', clienteController.listar);
 router.post('/clientes/duplicados', registrar, clienteController.duplicados);

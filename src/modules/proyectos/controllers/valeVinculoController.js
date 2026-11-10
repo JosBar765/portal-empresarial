@@ -17,6 +17,7 @@ const accion = (estado, fn) => async (req, res) => {
 class ValeVinculoController {
   constructor() {
     this.prefill = accion(200, req => valeVinculoService.prefill(req.user, req.params.id));
+    this.prefillRecompra = accion(200, req => valeVinculoService.prefillRecompra(req.user, req.params.clienteId));
     this.vincular = accion(200, req => valeVinculoService.vincular(req.user, req.params.id, comoObjeto(req.body)));
   }
 }

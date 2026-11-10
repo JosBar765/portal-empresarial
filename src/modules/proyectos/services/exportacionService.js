@@ -7,6 +7,7 @@ const exportacionRepository = require('../repositories/exportacionRepository');
 const clienteService = require('./clienteService');
 const informeService = require('./informeService');
 const seguimientoService = require('./seguimientoService');
+const ganadosService = require('./ganadosService');
 const { armar } = require('../csv');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { errorDeValidacion } = require('../errores');
@@ -30,6 +31,16 @@ class ExportacionService {
     this._exigir(usuario);
     const { encabezados, filas, truncado } = await clienteService.paraExportar(usuario, consulta);
     return { nombre: `cartera-${hoy()}.csv`, contenido: armar([encabezados, ...filas]), truncado };
+  }
+
+  // Clientes ganados con los filtros de la pantalla; el total vendido sale por moneda, sin mezclarlas.
+  async ganados(usuario, consulta = {}) {
+    this._exigir(usuario);
+    const empresas = await ganadosService.paraExportar(usuario, consulta);
+    const etiqueta = { vencida: 'Vencida', proxima: 'Próxima', lejana: 'Lejana' };
+    const filas = empresas.map(e => [e.nombre, e.nicho, e.pais, e.ciudad || '', e.telefono || '', e.asesor || '', e.ultimaVenta.fecha, `${e.ultimaVenta.moneda} ${monto(e.ultimaVenta.monto)}`,
+      e.ultimaVenta.referencia || '', e.ventas, porMoneda(e.totales), e.recompra.fecha, etiqueta[e.recompra.estado]]);
+    return { nombre: `clientes-ganados-${hoy()}.csv`, contenido: armar([['Empresa', 'Nicho', 'País', 'Ciudad', 'Teléfono', 'Asesor de la última venta', 'Última venta', 'Monto de la última venta', 'Referencia', 'Ventas', 'Total por moneda', 'Recompra sugerida', 'Estado de la recompra'], ...filas]) };
   }
 
   // Una fila por empresa asignada del proyecto. Las de tiendas que la persona no puede ver salen sin contactos ni montos.

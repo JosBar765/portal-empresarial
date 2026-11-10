@@ -20,6 +20,7 @@ const descargar = (fn) => async (req, res) => {
 class ExportacionController {
   constructor() {
     this.cartera = descargar(req => exportacionService.cartera(req.user, req.query));
+    this.ganados = descargar(req => exportacionService.ganados(req.user, req.query));
     this.resultados = descargar(req => exportacionService.resultados(req.user, req.params.id));
     this.informe = descargar(req => exportacionService.informe(req.user, req.params.id, req.query.tabla));
   }

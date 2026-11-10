@@ -10,6 +10,7 @@ const avisosService = require('./avisosService');
 const { derivar, FINALES } = require('../estadoParticipacion');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero } = require('../../../core/utils/validar');
+const { enlaceDeLugar, enlaceDeRuta, MAX_PARADAS } = require('../mapas');
 const { errorDeValidacion } = require('../errores');
 
 const MONTO_MAXIMO = 9999999999.99;
@@ -86,6 +87,8 @@ class GestionService {
     return {
       id: f.id, nombre: f.nombre, ciudad: f.ciudad, estado: f.estado, contacto: f.contacto || null, telefono: f.contacto_telefono || f.telefono || null,
       ultimaGestion: f.ultima_gestion_en || null, proximaGestion: proxima,
+      // `enlaceMapa` solo existe si la empresa tiene dirección: sin ella el botón «Cómo llegar» no se muestra.
+      tieneDireccion: Boolean(f.direccion), enlaceMapa: enlaceDeLugar({ direccion: f.direccion, ciudad: f.ciudad, pais: f.pais }),
       seguimientoVencido: Boolean(proxima) && sinHora(proxima) < hoy && !FINALES.includes(f.estado),
       diasSinGestion: diasEntre(f.ultima_gestion_en || f.asignada_en, hoy)
     };
@@ -104,13 +107,26 @@ class GestionService {
       else if (fila.diasSinGestion >= limite) sinTocar.push(fila);
     }
     const porFecha = (a, b) => String(a.proximaGestion).localeCompare(String(b.proximaGestion)) || a.id - b.id;
-    vencidos.sort(porFecha); deHoy.sort(porFecha); sinTocar.sort((a, b) => b.diasSinGestion - a.diasSinGestion || a.id - b.id);
-    return { vencidos, hoy: deHoy, sinTocar, limiteDias: limite, total: vencidos.length + deHoy.length + sinTocar.length };
+    vencidos.sort(porFecha); deHoy.sort(porFecha);
+    const ruta = this._rutaDeHoy(deHoy, filas); sinTocar.sort((a, b) => b.diasSinGestion - a.diasSinGestion || a.id - b.id);
+    return { vencidos, hoy: deHoy, sinTocar, ruta, limiteDias: limite, total: vencidos.length + deHoy.length + sinTocar.length };
+  }
+
+  // La ruta del día: las empresas con seguimiento hoy que tienen dirección, en el orden de su hora. Las que no la tienen se cuentan aparte.
+  _rutaDeHoy(deHoy, filas) {
+    const lugares = new Map(filas.map(f => [f.id, { direccion: f.direccion, ciudad: f.ciudad, pais: f.pais }]));
+    const conDireccion = deHoy.filter(f => f.tieneDireccion).slice(0, MAX_PARADAS);
+    return {
+      paradas: conDireccion.map(f => ({ id: f.id, nombre: f.nombre, ciudad: f.ciudad, proximaGestion: f.proximaGestion })),
+      sinDireccion: deHoy.length - deHoy.filter(f => f.tieneDireccion).length,
+      recortada: deHoy.filter(f => f.tieneDireccion).length > MAX_PARADAS,
+      enlace: enlaceDeRuta(conDireccion.map(f => lugares.get(f.id)))
+    };
   }
 
   async paraHoy(usuario) {
     const id = await this._proyectoDe(usuario);
-    if (!id) return { total: 0, vencidos: [], hoy: [], sinTocar: [], limiteDias: null };
+    if (!id) return { total: 0, vencidos: [], hoy: [], sinTocar: [], ruta: { paradas: [], sinDireccion: 0, recortada: false, enlace: null }, limiteDias: null };
     return this._paraHoyDe(id, usuario.id);
   }
 

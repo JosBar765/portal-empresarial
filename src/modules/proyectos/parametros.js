@@ -28,6 +28,8 @@ const PARAMETROS = [
     etiqueta: 'Preferir la tienda que registró la empresa', ayuda: 'Solo desempata; no rompe el reparto equitativo.' },
   { clave: 'reparto.tope_por_asesor', grupo: 'reparto', tipo: 'entero_opcional', defecto: null, min: 1, max: 500, unidad: 'empresas',
     etiqueta: 'Tope inicial de empresas por asesor', ayuda: 'Lo propone cada plantilla. Lo que sobra queda en reserva.' },
+  { clave: 'ganados.meses_recompra', grupo: 'empresas', tipo: 'entero', defecto: 6, min: 1, max: 36, unidad: 'meses',
+    etiqueta: 'Meses para sugerir la recompra', ayuda: 'En Clientes ganados, la recompra se sugiere este tiempo después de la última venta.' },
   { clave: 'reparto.rondas', grupo: 'reparto', tipo: 'booleano', defecto: false,
     etiqueta: 'Repartir la reserva en una segunda ronda', ayuda: 'Permite repartir lo que sobró cuando alguien termina.' },
   { clave: 'reparto.descanso_meses', grupo: 'reparto', tipo: 'entero', defecto: 3, min: 0, max: 36, unidad: 'meses',
