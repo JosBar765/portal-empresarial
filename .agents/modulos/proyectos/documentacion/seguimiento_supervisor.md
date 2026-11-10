@@ -25,7 +25,7 @@ Una empresa, varias o **todas las pendientes de un asesor** (hasta 500), a un as
 
 ## Anulación (`proyectos.corregir`)
 
-Anular una **cotización** o una **venta** con motivo: quedan quién, cuándo y por qué (`anulada_*`), no cuentan, y el estado de la empresa se **recalcula** con `estadoParticipacion.derivar` (la venta anulada deja «cotizada»; luego, «interesada»). Una perdida o descartada conserva su marca. Solo en proyectos activos y de tiendas del supervisor; avisa al asesor. *Las gestiones no tienen columnas de anulación (migración 35): se verá en la fase 9.*
+Anular una **cotización**, una **venta** o una **gestión** con motivo: quedan quién, cuándo y por qué (`anulada_*`), no cuentan, y el estado de la empresa se **recalcula** con `estadoParticipacion.derivar` (la venta anulada deja «cotizada»; luego, «interesada»). Una perdida o descartada conserva su marca. Solo en proyectos activos y de tiendas del supervisor; avisa al asesor. **Una gestión anulada** (migración 42) deja de contar en todo: estado de la empresa, cifras, informe (contactadas, presencial y remoto, primera gestión) y tiempo de reacción; el último contacto y el próximo seguimiento vuelven a los de la última gestión vigente. **Las muestras entregadas en esa gestión no se devuelven a la existencia** (las entregas no están ligadas a la gestión); la pantalla lo avisa.
 
 ## Ventas por confirmar (`proyectos.confirmar_ventas`)
 
@@ -39,7 +39,7 @@ Anular una **cotización** o una **venta** con motivo: quedan quién, cuándo y 
 | `GET /proyectos/:id/seguimiento` (+ `/asesores`, `/tiendas`, `/estancados`) | ídem |
 | `GET /participaciones/:id/supervision` | ídem |
 | `POST /proyectos/:id/reasignar` | `proyectos.reasignar` |
-| `POST /participaciones/:id/cotizaciones/:cid/anular` · `/ventas/:vid/anular` | `proyectos.corregir` |
+| `POST /participaciones/:id/cotizaciones/:cid/anular` · `/ventas/:vid/anular` · `/gestiones/:gid/anular` | `proyectos.corregir` |
 | `GET /ventas` · `POST /ventas/:id/confirmar` · `/rechazar` | `proyectos.confirmar_ventas` |
 
 ## Pantallas del supervisor (rama 5b)

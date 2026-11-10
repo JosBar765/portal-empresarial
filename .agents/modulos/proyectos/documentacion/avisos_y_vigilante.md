@@ -20,7 +20,7 @@ Qué eventos avisan, a quién y con cuánta anticipación lo decide el administr
 | Ventas | Venta por confirmar (`venta_por_confirmar`) | supervisor | |
 | | Venta confirmada o rechazada (`venta_revisada`) | asesor | |
 | | Cotización o venta anulada (`registro_anulado`) | asesor | |
-| Muestras | Existencia baja (`existencia_baja`, fase 9) | supervisor | 20 unidades |
+| Muestras | Existencia baja (`existencia_baja`) | supervisor | 20 unidades |
 
 ## Cómo se decide a quién se avisa (`avisosService.notificar`)
 
@@ -29,6 +29,10 @@ Qué eventos avisan, a quién y con cuánta anticipación lo decide el administr
 - **Nunca se avisa a quien hace la acción**, y quien cae en dos roles recibe un solo aviso.
 - Se entrega por el centro de notificaciones (campana, con un ícono por tipo) y por socket; las reasignaciones y anulaciones repintan además la pantalla del asesor.
 - Un fallo al avisar nunca deshace la operación.
+
+## Existencia de muestras baja
+
+Cuando una entrega de muestra hace que la existencia **cruce hacia abajo** el umbral configurado (20 unidades por defecto, editable en A8), se avisa **una sola vez** a los supervisores de las tiendas del proyecto («Quedan N muestras de …», o «Se acabaron…» al llegar a cero). Mientras siga por debajo no se repite.
 
 ## Matriz A8 (`#/notificaciones`, `proyectos.administrar`)
 

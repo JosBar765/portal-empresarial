@@ -121,6 +121,12 @@ async function verificar() {
     const ventaMala = (await db.query("SELECT id FROM proy_ventas WHERE referencia = 'OV-PC-2'", [], 'cie:venta_mala'))[0].id;
     await sup('POST', `/ventas/${ventaMala}/rechazar`, { motivo: 'OV inexistente', idempotencyKey: clave() }); libro.get(ids0[2]).ventas.push({ moneda: 'GTQ', monto: 888, estado: 'rechazada' });
     await configService.guardar({ 'reglas.confirmar_ventas': false }, admin);
+    // Una gestión anulada tampoco cuenta: ni como gestionada, ni como contactada, ni en presencial o remoto.
+    const gestionAnulada = (await db.query('SELECT id FROM proy_gestiones WHERE participacion_id = ?', [ids0[1]], 'cie:gestion_a_anular'))[0].id;
+    r = await sup('POST', `/participaciones/${ids0[1]}/gestiones/${gestionAnulada}/anular`, { motivo: 'Gestión de otra empresa', idempotencyKey: clave() });
+    prueba('el supervisor anula una gestión', r.status === 200, JSON.stringify(r.datos));
+    Object.assign(libro.get(ids0[1]), { gestion: false, contacto: false });
+    cuenta.remoto -= 1;
 
     // --- El conteo manual ---
     const todas = [...libro.values()];

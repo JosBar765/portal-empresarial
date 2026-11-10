@@ -221,6 +221,24 @@ async function verificar() {
     prueba('anular la cotización devuelve la empresa a «interesada»', r.status === 200 && r.datos.estado === 'interesada', JSON.stringify(r.datos.estado));
     prueba('se avisó al asesor de las anulaciones', (await avisos('registro_anulado')) >= 2);
 
+    console.log('Anular una gestión');
+    r = await sup1('GET', `/participaciones/${a3}/supervision`);
+    const gestionA3 = r.datos.historial.find(h => h.tipo === 'gestion');
+    const interesadasAntes = (await sup1('GET', `/proyectos/${proyectoId}/seguimiento`)).datos.cifras.interesadas;
+    prueba('la empresa de la prueba solo tiene esa gestión y está «interesada»', !!gestionA3 && r.datos.estado === 'interesada' && !gestionA3.anulada, JSON.stringify(r.datos.estado));
+    r = await sup1('POST', `/participaciones/${a3}/gestiones/${gestionA3.id}/anular`, { idempotencyKey: clave() });
+    prueba('anular una gestión sin motivo → 400', r.status === 400 && !!r.datos.campos.motivo);
+    r = await sup2('POST', `/participaciones/${a3}/gestiones/${gestionA3.id}/anular`, { motivo: 'No es mi tienda', idempotencyKey: clave() });
+    prueba('anular la gestión de una tienda que no es la suya → 403', r.status === 403);
+    r = await sup1('POST', `/participaciones/${a3}/gestiones/${gestionA3.id}/anular`, { motivo: 'La gestión era de otra empresa', idempotencyKey: clave() });
+    prueba('anular la gestión recalcula el estado: sin gestiones vuelve a «pendiente»', r.status === 200 && r.datos.estado === 'pendiente' && r.datos.historial.find(h => h.tipo === 'gestion').anulada === true, JSON.stringify(r.datos.estado));
+    const filaA3 = await filaDe(a3);
+    prueba('el último contacto y el próximo seguimiento se despejan', filaA3.ultima_gestion_en === null && filaA3.proxima_gestion_en === null, JSON.stringify(filaA3));
+    prueba('la gestión guarda quién, cuándo y por qué, y ya no cuenta en las cifras', (await db.query('SELECT anulada_por, anulacion_motivo FROM proy_gestiones WHERE id = ?', [gestionA3.id], 'seg:gestion_anulada'))[0].anulada_por === SUP1 && (await sup1('GET', `/proyectos/${proyectoId}/seguimiento`)).datos.cifras.interesadas === interesadasAntes - 1);
+    r = await sup1('POST', `/participaciones/${a3}/gestiones/${gestionA3.id}/anular`, { motivo: 'otra vez', idempotencyKey: clave() });
+    prueba('anular dos veces la misma gestión → 409', r.status === 409);
+    prueba('se avisó al asesor de la anulación de la gestión', (await avisos('registro_anulado')) >= 3);
+
     console.log('Ventas por confirmar');
     prueba('sin proyectos.confirmar_ventas → 403', (await llamar('GET', '/ventas', { usuario: SUP1, permisos: PERM_SUPERVISOR_SOLO_VER })).status === 403);
     await configService.guardar({ 'reglas.confirmar_ventas': true }, admin);

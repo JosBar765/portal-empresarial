@@ -137,6 +137,15 @@ async function verificar() {
     await sup('POST', `/ventas/${venta}/confirmar`, { idempotencyKey: clave() });
     prueba('confirmarla le avisa al asesor', (await cuenta('venta_revisada', A)) === 1);
     await configService.guardar({ 'reglas.confirmar_ventas': false }, admin);
+    await adm('PUT', '/config/avisos', { anticipaciones: { existencia_baja: 5 } });
+    const entregar = (id, cantidad) => asesor('POST', `/participaciones/${id}/gestiones`, { canalId: canal, resultadoId: rSinRespuesta, proximaEn: gt(1), muestra: { cantidad }, idempotencyKey: clave() }, A);
+    r = await entregar(a3, 3);
+    prueba('una entrega que deja la existencia por encima del umbral no avisa (10 → 7 con umbral 5)', r.status === 201 && (await cuenta('existencia_baja')) === 0);
+    r = await entregar(a3, 3);
+    prueba('al cruzar el umbral hacia abajo (7 → 4) avisa a los supervisores del proyecto', r.status === 201 && (await cuenta('existencia_baja', SUP)) === 1 && (await cuenta('existencia_baja', A)) === 0);
+    r = await entregar(a3, 2);
+    prueba('mientras siga por debajo no vuelve a avisar (4 → 2)', r.status === 201 && (await cuenta('existencia_baja')) === 1);
+    await adm('POST', '/config/avisos/restaurar');
     r = await sup('POST', `/proyectos/${proyectoId}/cerrar`, { conclusiones: 'Todo bien.', confirmado: true, idempotencyKey: clave() });
     prueba('cerrar avisa a gerencia que hay un visto bueno pendiente', r.status === 200 && (await cuenta('cierre_pendiente', gerente)) === 1 && (await cuenta('cierre_pendiente', SUP)) === 0);
     await ger('POST', `/proyectos/${proyectoId}/devolver`, { comentario: 'Falta detallar.', idempotencyKey: clave() });
