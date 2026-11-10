@@ -14,6 +14,7 @@ const seguimientoController = require('./controllers/seguimientoController');
 const cierreController = require('./controllers/cierreController');
 const avisosController = require('./controllers/avisosController');
 const valeVinculoController = require('./controllers/valeVinculoController');
+const exportacionController = require('./controllers/exportacionController');
 const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
@@ -27,6 +28,7 @@ const reasignar = requirePermission('proyectos.reasignar');
 const corregir = requirePermission('proyectos.corregir');
 const confirmarVentas = requirePermission('proyectos.confirmar_ventas');
 const vistoBueno = requirePermission('proyectos.dar_visto_bueno');
+const exportar = requirePermission('proyectos.ver_reportes');
 // Ver el seguimiento: supervisores, gerencia y administración (el alcance de cada quien lo decide el servicio).
 const supervisa = (req, res, siguiente) => {
   const permisos = (req.user && req.user.permissions) || [];
@@ -95,6 +97,8 @@ router.post('/ventas/:id/rechazar', confirmarVentas, seguimientoController.recha
 
 // Informe, cierre y visto bueno del proyecto, y el panel gerencial (solo lectura). El alcance de cada quien lo decide el servicio.
 router.get('/proyectos/:id/informe', cierreController.informe);
+router.get('/proyectos/:id/informe.csv', exportar, exportacionController.informe);
+router.get('/proyectos/:id/exportar.csv', exportar, exportacionController.resultados);
 router.get('/proyectos/:id/informe.pdf', (req, res) => cierreController.pdf(req, res));
 router.post('/proyectos/:id/cerrar', activar, cierreController.cerrar);
 router.post('/proyectos/:id/visto-bueno', vistoBueno, cierreController.vistoBueno);
@@ -107,6 +111,7 @@ router.get('/gerencia/visto-bueno', cierreController.porDarVistoBueno);
 router.get('/clientes/importar/plantilla', importar, (req, res) => importacionController.plantilla(req, res));
 router.post('/clientes/importar/previsualizar', importar, limitarPrevia, importacionController.recibirArchivo, importacionController.previsualizar);
 router.post('/clientes/importar/confirmar', importar, limitarConfirmar, importacionController.recibirArchivo, importacionController.confirmar);
+router.get('/clientes/exportar.csv', exportar, exportacionController.cartera);
 router.get('/clientes/opciones', clienteController.opciones);
 router.get('/clientes', clienteController.listar);
 router.post('/clientes/duplicados', registrar, clienteController.duplicados);

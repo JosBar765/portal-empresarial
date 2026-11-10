@@ -79,4 +79,9 @@ function escapar(valor) {
   return /[",\n\r;]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
 }
 
-module.exports = { decodificar, leer, clave, escapar, MAX_COLUMNAS, MAX_LARGO_CELDA };
+// Arma un CSV para descargar: UTF-8 con BOM (Excel lee bien los acentos), líneas con CRLF y cada celda escapada.
+function armar(filas) {
+  return `\uFEFF${filas.map(fila => fila.map(escapar).join(',')).join('\r\n')}\r\n`;
+}
+
+module.exports = { decodificar, leer, clave, escapar, armar, MAX_COLUMNAS, MAX_LARGO_CELDA };

@@ -17,6 +17,9 @@ const duplicados = require('../duplicados');
 const telefonos = require('../telefonos');
 
 const POR_PAGINA = 50;
+const POR_LOTE_EXPORTACION = 500;
+const TOPE_EXPORTACION = 20000; // la exportación se corta aquí y avisa; más allá conviene filtrar
+const ETIQUETA_ESTADO = { activa: 'Activa', inactiva: 'Inactiva', no_contactar: 'No contactar' };
 const ESTADOS = ['activa', 'inactiva', 'no_contactar'];
 const CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -103,9 +106,9 @@ class ClienteService {
     };
   }
 
-  async listar(usuario, consulta = {}) {
+  // Los filtros de la lista (alcance por país, búsqueda, nicho, país, estado y campos propios); los usan la lista y la exportación.
+  async _filtrosDe(usuario, consulta) {
     const alcance = await alcanceService.paisesDe(usuario);
-    const pagina = Math.max(aEntero(consulta.pagina) || 1, 1);
     const estado = ESTADOS.includes(consulta.estado) ? consulta.estado : (consulta.estado === 'todas' ? null : 'activa');
     const campos = await campoService.activos();
     // Filtros por campo propio (solo sí/no y lista): `extra_<clave>=si|no|<opción>`; lo que no cuadra se ignora.
@@ -120,6 +123,12 @@ class ClienteService {
       paisIds: alcance.ids, busqueda: limpio(consulta.busqueda).slice(0, 100),
       nichoId: aEntero(consulta.nicho), paisId: aEntero(consulta.pais), estado, extras
     };
+    return { alcance, campos, filtrosConsulta };
+  }
+
+  async listar(usuario, consulta = {}) {
+    const pagina = Math.max(aEntero(consulta.pagina) || 1, 1);
+    const { alcance, campos, filtrosConsulta } = await this._filtrosDe(usuario, consulta);
     const { filas, total } = await clienteRepository.listar(filtrosConsulta, POR_PAGINA, (pagina - 1) * POR_PAGINA);
     const paises = await this._configuracionDePaises();
     const columnas = campos.filter(c => c.visibleEnLista);
@@ -130,6 +139,30 @@ class ClienteService {
       }),
       columnasExtra: columnas.map(c => ({ clave: c.clave, etiqueta: c.etiqueta })), total, pagina, porPagina: POR_PAGINA,
       hayMas: pagina * POR_PAGINA < total, paisesVisibles: alcance.ids.length
+    };
+  }
+
+  // La tabla de la exportación a CSV: los mismos filtros y alcance que la lista, hasta un tope de filas.
+  async paraExportar(usuario, consulta = {}) {
+    const { campos, filtrosConsulta } = await this._filtrosDe(usuario, consulta);
+    const paises = await this._configuracionDePaises();
+    const filas = [];
+    let truncado = false;
+    for (let desplazamiento = 0; ; desplazamiento += POR_LOTE_EXPORTACION) {
+      const lote = await clienteRepository.listar(filtrosConsulta, POR_LOTE_EXPORTACION, desplazamiento);
+      lote.filas.forEach(f => filas.push(f));
+      if (desplazamiento + POR_LOTE_EXPORTACION >= lote.total) break;
+      if (filas.length >= TOPE_EXPORTACION) { truncado = true; break; }
+    }
+    return {
+      truncado,
+      encabezados: ['Empresa', 'Nicho', 'País', 'Ciudad', 'Teléfono', 'Estructura', 'Estado', 'En proyecto', 'Contactos', ...campos.map(c => c.etiqueta)],
+      filas: filas.map((f) => {
+        const e = this._aEmpresa(f, paises);
+        const extra = datosExtraDe(f.datos_extra);
+        return [e.nombre, e.nicho, e.pais, e.ciudad || '', e.telefonoTexto || '', e.estructura, ETIQUETA_ESTADO[e.estado] || e.estado, e.enProyecto ? 'Sí' : 'No', e.contactos,
+          ...campos.map(c => (camposPropios.aplica(c, f.nicho_id) ? camposPropios.textoDe(c, extra[c.clave]) : ''))];
+      })
     };
   }
 
