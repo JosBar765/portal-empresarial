@@ -131,7 +131,7 @@ class ParticipacionRepository {
   async participacion(id, asesorId, ejecutor = db) {
     const filas = await ejecutor.query(
       `SELECT p.id, p.proyecto_id, p.cliente_id, p.estado, p.abierta, p.ultima_gestion_en, p.proxima_gestion_en, p.motivo_perdida_id, p.asignada_en,
-              c.nombre, c.ciudad, c.direccion, c.sitio_web, c.telefono, c.pais_id, pa.nombre AS pais, n.nombre AS nicho, e.nombre AS estructura
+              c.nombre, c.ciudad, c.direccion, c.sitio_web, c.telefono, c.pais_id, c.nicho_id, pa.nombre AS pais, n.nombre AS nicho, e.nombre AS estructura
        FROM proy_participaciones p JOIN proy_clientes c ON c.id = p.cliente_id JOIN paises pa ON pa.id = c.pais_id
          JOIN proy_nichos n ON n.id = c.nicho_id JOIN proy_estructuras e ON e.id = c.estructura_id
        WHERE p.id = ? AND p.asesor_id = ?`,

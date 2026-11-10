@@ -16,6 +16,7 @@ const avisosController = require('./controllers/avisosController');
 const valeVinculoController = require('./controllers/valeVinculoController');
 const exportacionController = require('./controllers/exportacionController');
 const ganadosController = require('./controllers/ganadosController');
+const kitController = require('./controllers/kitController');
 const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
@@ -68,6 +69,8 @@ router.post('/proyectos/:id/rechazar', aprobar, proyectoController.rechazar);
 // Trabajo del asesor: solo sobre SUS empresas (lo ajeno responde 404). Mi proyecto, Para hoy, ficha y registros.
 router.get('/mi-proyecto', gestionar, gestionController.miProyecto);
 router.get('/mi-proyecto/para-hoy', gestionar, gestionController.paraHoy);
+// Kit del nicho con los datos de la empresa (M15): mensajes prellenados y guion de llamada.
+router.get('/participaciones/:id/kit', gestionar, kitController.deLaEmpresa);
 router.get('/mis-proyectos-anteriores', gestionar, gestionController.anteriores);
 router.get('/participaciones/opciones', gestionar, gestionController.opciones);
 router.get('/participaciones', gestionar, gestionController.listar);
@@ -155,6 +158,9 @@ router.get('/config/campos', administrar, campoController.listar);
 router.post('/config/campos', administrar, campoController.crear);
 router.put('/config/campos/:id', administrar, campoController.editar);
 router.patch('/config/campos/:id/activo', administrar, campoController.cambiarActivo);
+router.get('/config/kits', administrar, kitController.listar);
+router.get('/config/kits/:nichoId', administrar, kitController.obtener);
+router.put('/config/kits/:nichoId', administrar, kitController.guardar);
 router.get('/config/alcance', administrar, campoController.listarAlcance);
 router.put('/config/alcance/:usuarioId', administrar, campoController.guardarAlcance);
 
