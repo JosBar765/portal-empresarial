@@ -140,9 +140,9 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 
 ### Fase 8 · Activación — `feature/proyectos-08-activacion`
 
-- [ ] Asignar los permisos a los roles (preferible desde la pantalla de roles, que refresca la sesión).
-- [ ] Probar en staging con cada rol y con dos supervisores activando a la vez.
-- [ ] Avisar que quien tenga sesión abierta debe volver a entrar para ver el módulo.
+- [x] Asignar los permisos a los roles (preferible desde la pantalla de roles, que refresca la sesión): mapa, herramienta y guía listos; **la asignación real la hace el dueño** (`documentacion/activacion.md`).
+- [x] Probar con cada rol y con dos supervisores activando a la vez: `verificar-activacion.js` en base desechable; la prueba en staging con las cuentas reales la hace el dueño.
+- [x] Avisar que quien tenga sesión abierta debe volver a entrar para ver el módulo: texto sugerido en la guía.
 - **Terminado cuando:** el módulo aparece solo para los roles previstos.
 
 ### Fase 9 · Mejoras
