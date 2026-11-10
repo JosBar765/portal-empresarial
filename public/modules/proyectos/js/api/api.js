@@ -53,6 +53,7 @@ export const cambiarActivoEnCatalogo = (catalogo, id, activo) => pedir(`${BASE}/
 // Empresas de la base global
 export const obtenerOpcionesClientes = () => pedir(`${BASE}/clientes/opciones`);
 export const listarClientes = (filtros) => pedir(`${BASE}/clientes${consulta(filtros)}`);
+export const listarClientesGanados = (filtros) => pedir(`${BASE}/clientes-ganados${consulta(filtros)}`);
 export const obtenerCliente = (id) => pedir(`${BASE}/clientes/${encodeURIComponent(id)}`);
 export const revisarDuplicados = (datos) => pedir(`${BASE}/clientes/duplicados`, enJson('POST', datos));
 export const crearCliente = (datos, confirmarDuplicado) => pedir(`${BASE}/clientes`, enJson('POST', { ...datos, confirmarDuplicado }));

@@ -6,7 +6,7 @@ import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dro
 import { validarCamposNativos, wireLimpiezaValidacionInline, enfocarPrimerCampoInvalido } from '../components/validacion.js';
 import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js';
 import { escapeHtml, formatearFecha, siguienteCodigoMod } from '../utils/formato.js';
-import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega, obtenerFechasEntrega, obtenerDetalleVale, guardarBorrador, actualizarBorrador, obtenerPrefillProyectos, vincularValeProyectos } from '../api/valesApi.js';
+import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega, obtenerFechasEntrega, obtenerDetalleVale, guardarBorrador, actualizarBorrador, obtenerPrefillProyectos, obtenerPrefillRecompra, vincularValeProyectos } from '../api/valesApi.js';
 import { avisarCambioBorradores } from '../utils/eventosBorradores.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { limitarTelefono } from '/js/telefono.js';
@@ -62,6 +62,16 @@ export async function abrirModalCrearValeDesdeProyectos(participacionId) {
   }
 }
 
+// Recompra desde Clientes ganados (`?prellenar=clientes:<id>`): los mismos datos, sin proyecto al que ligar el vale.
+export async function abrirModalCrearValeRecompra(clienteId) {
+  try {
+    const prellenado = await obtenerPrefillRecompra(clienteId);
+    abrirModalFormularioVale(null, 'crear', null, { prellenado });
+  } catch (error) {
+    window.toast.error('No se pudo prellenar el vale', error.message);
+  }
+}
+
 // Datos de Proyectos en el formulario: empresa y cliente bloqueados (vienen de la base de clientes), el resto editable.
 function aplicarPrellenado(overlay, form, prellenado) {
   const poner = (nombre, valor, bloquear = false) => {
@@ -79,7 +89,7 @@ function aplicarPrellenado(overlay, form, prellenado) {
   if (pais && prellenado.contacto.telefonoPrefijo && [...pais.options].some(o => o.value === prellenado.contacto.telefonoPrefijo)) pais.value = prellenado.contacto.telefonoPrefijo;
   const aviso = document.createElement('div');
   aviso.className = 'form-aviso form-aviso--proyectos';
-  aviso.innerHTML = `<ion-icon name="link-outline"></ion-icon><span>Datos de Proyectos · <strong>${escapeHtml(prellenado.empresa.nombre)}</strong>. Al guardar, el vale se vincula${prellenado.referencia ? ` a <strong>${escapeHtml(prellenado.referencia)}</strong>` : ' a esta empresa'}.</span>`;
+  aviso.innerHTML = `<ion-icon name="link-outline"></ion-icon><span>Datos de Proyectos · <strong>${escapeHtml(prellenado.empresa.nombre)}</strong>. ${prellenado.recompra ? 'Recompra de un cliente ganado: este vale no se liga a ningún proyecto.' : `Al guardar, el vale se vincula${prellenado.referencia ? ` a <strong>${escapeHtml(prellenado.referencia)}</strong>` : ' a esta empresa'}.`}</span>`;
   overlay.querySelector('.modal-body').prepend(aviso);
   form.querySelector('[name="descripcion"]')?.dispatchEvent(new Event('input'));
 }
@@ -494,7 +504,7 @@ function abrirModalConfirmarCreacion(formData, prellenado = null) {
       const data = await crearVale(formData);
       window.toast.success('Vale de arte creado', `${data.correlativo} se creó correctamente, en espera de autorización.`);
       // Desde Proyectos, el vale se liga a la empresa. Si el aviso falla, el vale ya existe: se dice con claridad.
-      if (prellenado) {
+      if (prellenado && prellenado.participacionId) {
         try { await vincularValeProyectos(prellenado.participacionId, data.id); } catch (errorVinculo) {
           window.toast.error('El vale se creó, pero no se ligó a la empresa', errorVinculo.message);
         }

@@ -331,6 +331,13 @@ export async function obtenerPrefillProyectos(participacionId) {
   return data;
 }
 
+export async function obtenerPrefillRecompra(clienteId) {
+  const res = await fetch(`/api/proyectos/clientes-ganados/${encodeURIComponent(clienteId)}/prefill-vale`);
+  const data = await leerJSON(res);
+  if (!res.ok) throw new Error(data.error || 'No se pudieron traer los datos de Proyectos.');
+  return data;
+}
+
 export async function vincularValeProyectos(participacionId, valeId) {
   const res = await fetch(`/api/proyectos/participaciones/${encodeURIComponent(participacionId)}/vincular-vale`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valeId })

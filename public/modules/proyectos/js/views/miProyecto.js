@@ -18,13 +18,15 @@ export function sinProyectoActivo() {
 }
 
 // Llamar y WhatsApp con un toque: el portal no envía nada por sí solo.
-export function accionesDeContacto(telefono, { texto = false } = {}) {
+export function accionesDeContacto(telefono, { texto = false, enlaceMapa = null } = {}) {
   const llamar = hrefLlamar(telefono);
   const wa = hrefWhatsApp(telefono);
   const boton = (href, nombre, etiqueta, primario) => (href
     ? h('a', { class: `btn ${primario ? 'btn--primary' : 'btn--ghost'} btn--chico`, href, target: nombre === 'logo-whatsapp' ? '_blank' : null, rel: 'noopener', 'aria-label': etiqueta }, icono(nombre), texto ? etiqueta : null)
     : h('span', { class: 'btn btn--ghost btn--chico btn--inactivo', 'aria-label': `${etiqueta} (sin teléfono)` }, icono(nombre), texto ? etiqueta : null));
-  return h('div', { class: 'contacto-acciones' }, boton(llamar, 'call-outline', 'Llamar', texto), boton(wa, 'logo-whatsapp', 'WhatsApp', false));
+  // «Cómo llegar» abre Google Maps con la dirección de la empresa; sin dirección registrada no se muestra.
+  const llegar = enlaceMapa ? h('a', { class: 'btn btn--ghost btn--chico', href: enlaceMapa, target: '_blank', rel: 'noopener', 'aria-label': 'Cómo llegar' }, icono('location-outline'), texto ? 'Cómo llegar' : null) : null;
+  return h('div', { class: 'contacto-acciones' }, boton(llamar, 'call-outline', 'Llamar', texto), boton(wa, 'logo-whatsapp', 'WhatsApp', false), llegar);
 }
 
 export async function renderMiProyecto(cont) {
