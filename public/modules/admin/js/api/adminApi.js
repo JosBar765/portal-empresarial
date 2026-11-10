@@ -139,6 +139,34 @@ export function actualizarHoraMaximaTaller(tallerId, horaMaxima) {
   return enviarConBody(`/api/admin/talleres/${tallerId}/hora-maxima`, 'PUT', { horaMaxima });
 }
 
+// Tiendas que atiende un taller de Diseño Local.
+export async function listarTiendasDeLocal(tallerId) {
+  const res = await fetch(`/api/admin/talleres/${tallerId}/tiendas`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar las tiendas del taller.');
+  return data;
+}
+
+export function agregarTiendaALocal(tallerId, tiendaId) {
+  return enviarConBody(`/api/admin/talleres/${tallerId}/tiendas`, 'POST', { tiendaId: Number(tiendaId) });
+}
+
+export function quitarTiendaDeLocal(tallerId, tiendaId) {
+  return enviarSinBody(`/api/admin/talleres/${tallerId}/tiendas/${tiendaId}`, 'DELETE');
+}
+
+// Propuestas compartidas entre talleres.
+export async function listarGruposPropuestasCompartidas() {
+  const res = await fetch('/api/admin/talleres/propuestas-compartidas');
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar los talleres.');
+  return data;
+}
+
+export function actualizarComparteDePropuestas(tallerId, comparte) {
+  return enviarConBody(`/api/admin/talleres/${tallerId}/comparte-propuestas`, 'PUT', { comparte });
+}
+
 // ---- Crear Vale de Arte (PDF) ----
 // multipart: sin Content-Type a mano, el navegador pone el boundary.
 async function enviarFormData(url, formData) {

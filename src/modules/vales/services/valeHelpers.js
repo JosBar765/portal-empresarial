@@ -349,11 +349,11 @@ function validarLongitudCampo(campo, valor) {
   throw new Error(`${etiqueta} es demasiad${etiqueta.startsWith('La ') ? 'a larga' : 'o largo'} (máximo ${maximo} caracteres).`);
 }
 
-// Talleres a los que un asesor puede enviar: los generales y el Diseño Local de su propia tienda.
-const talleresElegiblesDeTienda = (talleres, tiendaId) => talleres.filter(t => t.tienda_id == null || t.tienda_id === tiendaId);
+// Talleres a los que un asesor puede enviar: los generales y los Diseño Local que atienden su tienda (`tiendas_atendidas_ids`).
+const talleresElegiblesDeTienda = (talleres, tiendaId) => talleres.filter(t => t.tienda_id == null || (t.tiendas_atendidas_ids || []).includes(tiendaId));
 
 // Elegibilidad de los talleres de un vale (ids ya numéricos): los mismos mensajes al crear, al guardar un borrador y al consultar fechas.
-// `tiendaIdAsesor` activa las reglas de Diseño Local: nunca se mezcla con los generales ni se elige el de otra tienda.
+// `tiendaIdAsesor` activa las reglas de Diseño Local: nunca se mezcla con los generales y todos deben atender la tienda del asesor.
 function validarEleccionTalleres(talleresIds, talleresActivos, tiendaIdAsesor = null) {
   const idsValidos = new Set(talleresActivos.map(t => t.id));
   if (!talleresIds.every(id => idsValidos.has(id))) {
@@ -364,10 +364,10 @@ function validarEleccionTalleres(talleresIds, talleresActivos, tiendaIdAsesor = 
   const locales = seleccionados.filter(t => t.tienda_id !== null);
   const generales = seleccionados.filter(t => t.tienda_id === null);
   if (locales.length > 0 && generales.length > 0) {
-    throw new Error('El Diseño Local no se puede combinar con los talleres generales (Diseño, Diseño UV/3D y Protextil). Elige solo uno de los dos tipos.');
+    throw new Error('Los talleres de Diseño Local no se pueden combinar con los talleres generales. Elige solo Diseño Local o solo talleres generales.');
   }
-  if (locales.some(t => t.tienda_id !== tiendaIdAsesor)) {
-    throw new Error('Solo se puede enviar a Diseño Local de su propia tienda.');
+  if (locales.some(t => !(t.tiendas_atendidas_ids || []).includes(tiendaIdAsesor))) {
+    throw new Error('Solo se puede enviar a un Diseño Local que atienda tu tienda.');
   }
 }
 
