@@ -152,20 +152,23 @@ class GestionService {
         monedaLocal: pais ? pais.monedaCodigo : null, monedaPorDefecto: (pais && pais.monedaCodigo) || 'USD',
         referenciaObligatoria: pais ? pais.referenciaObligatoria : true, ventaPorConfirmar: Boolean(porConfirmar),
         muestra: proyecto.articulo_id ? { articulo: proyecto.articulo, quedan: proyecto.existencia_muestras, total: proyecto.existencia_muestras === null ? null : proyecto.existencia_muestras + entregadas } : null,
-        diasEstancado: ajustes['seguimiento.dias_estancado']
+        diasEstancado: ajustes['seguimiento.dias_estancado'],
+        // El botón «Crear vale» solo sale a quien puede crear vales de arte y mientras la empresa siga abierta.
+        puedeCrearVale: abierta && (usuario.permissions || []).includes('vales.crear')
       }
     };
   }
 
-  _lineaDeTiempo({ gestiones, muestras, cotizaciones, ventas }) {
+  _lineaDeTiempo({ gestiones, muestras, cotizaciones, ventas, vales = [] }) {
     const filas = [
       ...gestiones.map(g => ({ tipo: 'gestion', id: g.id, fecha: g.creado_en, usuario: g.usuario, canal: g.canal, resultado: g.resultado, contacto: g.contacto, nota: g.nota, proximaEn: g.proxima_en })),
       ...muestras.map(m => ({ tipo: 'muestra', id: m.id, fecha: m.creado_en, usuario: m.usuario, cantidad: m.cantidad, area: m.area })),
       ...cotizaciones.map(c => ({ tipo: 'cotizacion', id: c.id, fecha: c.creado_en, usuario: c.usuario, monto: Number(c.monto), moneda: c.moneda, referencia: c.referencia, nota: c.nota, anulada: Boolean(c.anulada_en) })),
+      ...vales.map(v => ({ tipo: 'vale', id: v.id, fecha: v.vinculado_en, usuario: v.usuario, valeId: v.vale_id, correlativo: v.correlativo })),
       ...ventas.map(v => ({ tipo: 'venta', id: v.id, fecha: v.creado_en, usuario: v.usuario, monto: Number(v.monto), moneda: v.moneda, referencia: v.referencia, estadoVenta: v.estado, anulada: Boolean(v.anulada_en) }))
     ];
     // Lo más nuevo primero; en el mismo segundo, lo que ocurre más tarde en el trabajo (venta, cotización, muestra, gestión).
-    const peso = { venta: 3, cotizacion: 2, muestra: 1, gestion: 0 };
+    const peso = { vale: 4, venta: 3, cotizacion: 2, muestra: 1, gestion: 0 };
     return filas.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)) || peso[b.tipo] - peso[a.tipo] || b.id - a.id);
   }
 

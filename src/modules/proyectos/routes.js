@@ -13,6 +13,7 @@ const gestionController = require('./controllers/gestionController');
 const seguimientoController = require('./controllers/seguimientoController');
 const cierreController = require('./controllers/cierreController');
 const avisosController = require('./controllers/avisosController');
+const valeVinculoController = require('./controllers/valeVinculoController');
 const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
@@ -68,6 +69,8 @@ router.get('/mis-proyectos-anteriores', gestionar, gestionController.anteriores)
 router.get('/participaciones/opciones', gestionar, gestionController.opciones);
 router.get('/participaciones', gestionar, gestionController.listar);
 router.get('/participaciones/:id', gestionar, gestionController.ficha);
+router.get('/participaciones/:id/prefill-vale', gestionar, valeVinculoController.prefill);
+router.post('/participaciones/:id/vincular-vale', gestionar, valeVinculoController.vincular);
 router.post('/participaciones/:id/gestiones', gestionar, gestionController.gestion);
 router.post('/participaciones/:id/cotizaciones', gestionar, gestionController.cotizacion);
 router.post('/participaciones/:id/ventas', gestionar, gestionController.venta);

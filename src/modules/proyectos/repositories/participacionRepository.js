@@ -156,7 +156,7 @@ class ParticipacionRepository {
 
   // Gestiones, muestras, cotizaciones y ventas de una empresa; el servicio las junta en una línea de tiempo.
   async historial(participacionId) {
-    const [gestiones, muestras, cotizaciones, ventas] = await Promise.all([
+    const [gestiones, muestras, cotizaciones, ventas, vales] = await Promise.all([
       db.query(
         `SELECT g.id, g.creado_en, g.nota, g.proxima_en, ca.nombre AS canal, r.nombre AS resultado, t.nombre AS contacto, u.nombre AS usuario
          FROM proy_gestiones g JOIN proy_canales ca ON ca.id = g.canal_id JOIN proy_resultados_gestion r ON r.id = g.resultado_id
@@ -173,9 +173,13 @@ class ParticipacionRepository {
       db.query(
         `SELECT v.id, v.creado_en, v.monto, v.moneda, v.referencia, v.estado, v.anulada_en, u.nombre AS usuario
          FROM proy_ventas v JOIN usuarios u ON u.id = v.creado_por WHERE v.participacion_id = ? ORDER BY v.id DESC`,
-        [participacionId], 'proyectos_gestion:historial_ventas')
+        [participacionId], 'proyectos_gestion:historial_ventas'),
+      db.query(
+        `SELECT pv.id, pv.vale_id, pv.vinculado_en, va.correlativo, u.nombre AS usuario FROM proy_vales pv JOIN vales va ON va.id = pv.vale_id JOIN usuarios u ON u.id = pv.vinculado_por
+         WHERE pv.participacion_id = ? ORDER BY pv.id DESC`,
+        [participacionId], 'proyectos_gestion:historial_vales')
     ]);
-    return { gestiones, muestras, cotizaciones, ventas };
+    return { gestiones, muestras, cotizaciones, ventas, vales };
   }
 
   // --- Catálogos que usan las hojas de registro ---
