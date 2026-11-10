@@ -152,7 +152,7 @@ Una por una, cada una en su subrama, en este orden (valor frente a esfuerzo, aco
 - [x] **9a** Alerta de existencias bajas y anular gestiones (`feature/proyectos-09a-existencias-y-gestiones`).
 - [x] **9b** Exportar a CSV: base de empresas, resultados del proyecto y desglose del informe (`feature/proyectos-09b-exportar-csv`).
 - [x] **9c** Ruta de visitas (enlace a Google Maps por dirección) y cartera de clientes ganados (`feature/proyectos-09c-ruta-visitas-y-cartera-ganados`).
-- [ ] **9d** Kit del nicho (A9): guion de llamada y plantillas de mensaje con variables; WhatsApp prellenado.
+- [x] **9d** Kit del nicho (A9): guion de llamada y plantillas de mensaje con variables; WhatsApp prellenado (`feature/proyectos-09d-kit-del-nicho`).
 - [ ] **9e** Plan del año (A2) con sugerencia de nicho y activación automática del primer día hábil.
 - [ ] **9f** Metas por asesor y tienda, y rondas de reparto (repartir la reserva por tandas).
 (Ya hechas antes: Para hoy, duplicados, semáforo, descanso, control de existencias y comparación de nichos en el panel gerencial.)

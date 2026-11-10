@@ -71,6 +71,7 @@ Proyectos de venta por nicho: una base global de empresas (bancos, colegios, hos
 - `documentacion/avisos_y_vigilante.md`: matriz de avisos (A8), a quién avisa cada evento y el vigilante de recordatorios y vencidos (fase 6c).
 - `documentacion/cierre_e_informe.md`: informe único, cierre, visto bueno, PDF y panel gerencial (servidor de la fase 6).
 - `documentacion/ruta_y_clientes_ganados.md`: ruta de visitas con Google Maps y cartera de clientes ganados con recompra (fase 9c).
+- `documentacion/kit_del_nicho.md`: guion de llamada y mensajes de WhatsApp o correo por nicho, con variables (fase 9d).
 - `documentacion/seguimiento_supervisor.md`: alcance de tres niveles, avance, reasignación, anulaciones y ventas por confirmar (servidor de la fase 5).
 - `documentacion/gestion_del_asesor.md`: gestiones, muestras, cotizaciones, ventas, perdida y descartada, «Para hoy» y reglas de estado (servidor de la fase 4).
 - `documentacion/proyectos_y_reparto.md`: proyectos del mes, reparto equitativo, activar y cancelar.
