@@ -5,7 +5,7 @@ import { hace } from '../utils/formato.js';
 import { aviso, cargando, avisar } from '../components/ui.js';
 import { modalFormulario } from '../components/modalFormulario.js';
 import { campoArea } from '../components/campos.js';
-import { obtenerSupervision, anularCotizacion, anularVenta } from '../api/api.js';
+import { obtenerSupervision, anularCotizacion, anularVenta, anularGestion } from '../api/api.js';
 import { chipGestion, formatoMonto, hrefLlamar, diaCorto, horaDe } from '../utils/gestion.js';
 import { abrirReasignar } from './seguimiento.js';
 
@@ -31,20 +31,22 @@ export async function renderSupervisionEmpresa(cont, parametro) {
 // T3c: pide el motivo y anula. Recibe la fila del historial (cotización o venta).
 function pedirAnulacion(ficha, fila, alTerminar) {
   const esVenta = fila.tipo === 'venta';
+  const esGestion = fila.tipo === 'gestion';
+  const nombre = esVenta ? 'venta' : esGestion ? 'gestión' : 'cotización';
   const valores = { motivo: '' };
   const errores = {};
   const clave = claveNueva();
   const nodo = h('form', { class: 'formulario-modal', novalidate: '' });
   const dibujar = () => montar(nodo,
-    h('p', { class: 'hoja-subtitulo', text: `${fila.referencia ? `${fila.referencia} · ` : ''}${formatoMonto(fila.monto, fila.moneda)} · ${ficha.empresa.nombre}` }),
-    campoArea({ valores, errores, clave: 'motivo', etiqueta: 'Motivo (obligatorio)', maximo: 255, prefijoId: 'anular', ayuda: `No cuenta en informes y queda en el historial. La empresa vuelve a «${esVenta ? 'Cotizada' : 'Interesada'}» si no tiene otros registros.` }));
+    h('p', { class: 'hoja-subtitulo', text: esGestion ? `${fila.canal}: ${fila.resultado} · ${ficha.empresa.nombre}` : `${fila.referencia ? `${fila.referencia} · ` : ''}${formatoMonto(fila.monto, fila.moneda)} · ${ficha.empresa.nombre}` }),
+    campoArea({ valores, errores, clave: 'motivo', etiqueta: 'Motivo (obligatorio)', maximo: 255, prefijoId: 'anular', ayuda: esGestion ? 'No cuenta en informes y queda en el historial. La empresa vuelve al estado que le corresponde sin esta gestión. Las muestras entregadas en ella no se devuelven a la existencia.' : `No cuenta en informes y queda en el historial. La empresa vuelve a «${esVenta ? 'Cotizada' : 'Interesada'}» si no tiene otros registros.` }));
   dibujar();
   const { overlay } = modalFormulario({
-    title: esVenta ? 'Anular venta' : 'Anular cotización', nodo, aceptar: esVenta ? 'Anular venta' : 'Anular cotización', peligro: true,
+    title: `Anular ${nombre}`, nodo, aceptar: `Anular ${nombre}`, peligro: true,
     enviar: async () => {
       if (!valores.motivo.trim()) { errores.motivo = 'Cuenta el motivo de la anulación: queda en el historial.'; dibujar(); throw Object.assign(new Error('Revisa los datos.'), { campos: { motivo: errores.motivo } }); }
-      const nueva = await (esVenta ? anularVenta : anularCotizacion)(ficha.id, fila.id, { motivo: valores.motivo, idempotencyKey: clave });
-      avisar('success', esVenta ? 'Venta anulada' : 'Cotización anulada', ficha.empresa.nombre);
+      const nueva = await (esVenta ? anularVenta : esGestion ? anularGestion : anularCotizacion)(ficha.id, fila.id, { motivo: valores.motivo, idempotencyKey: clave });
+      avisar('success', `${nombre.charAt(0).toUpperCase()}${nombre.slice(1)} anulada`, ficha.empresa.nombre);
       alTerminar(nueva);
     },
     alError: (error) => { if (error.campos) { Object.assign(errores, error.campos); dibujar(); } else avisar('error', 'No se pudo anular', error.message); }
@@ -81,7 +83,7 @@ function pintar(cont, ficha) {
       e.nota ? h('div', { class: 'linea-nota', text: e.nota }) : null,
       e.proximaEn ? h('div', { class: 'linea-nota', text: `Próximo seguimiento: ${diaCorto(e.proximaEn)} ${horaDe(e.proximaEn)}` }) : null,
       h('div', { class: 'texto-tenue', text: `${hace(e.fecha)} · ${e.usuario}` })),
-    ficha.permisos.anular && (e.tipo === 'cotizacion' || e.tipo === 'venta') && !e.anulada && e.estadoVenta !== 'rechazada'
+    ficha.permisos.anular && ['cotizacion', 'venta', 'gestion'].includes(e.tipo) && !e.anulada && e.estadoVenta !== 'rechazada'
       ? h('button', { class: 'btn-enlace btn-enlace--peligro', type: 'button', onclick: () => pedirAnulacion(ficha, e, alActualizar) }, icono('close-circle-outline'), 'Anular') : null)) : h('p', { class: 'texto-tenue', text: 'Todavía no hay nada registrado.' }));
 
   const contactos = ficha.contactos.length ? ficha.contactos.map(c => h('div', { class: 'contacto-tarjeta' },

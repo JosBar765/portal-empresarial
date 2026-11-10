@@ -124,6 +124,7 @@ export const obtenerDestinosDeReasignacion = (id) => pedir(`${BASE}/proyectos/${
 export const reasignarEmpresas = (id, datos) => pedir(`${BASE}/proyectos/${encodeURIComponent(id)}/reasignar`, enJson('POST', datos));
 export const obtenerSupervision = (id) => pedir(`${BASE}/participaciones/${encodeURIComponent(id)}/supervision`);
 export const anularCotizacion = (id, cotizacionId, datos) => pedir(`${BASE}/participaciones/${encodeURIComponent(id)}/cotizaciones/${encodeURIComponent(cotizacionId)}/anular`, enJson('POST', datos));
+export const anularGestion = (id, gestionId, datos) => pedir(`${BASE}/participaciones/${encodeURIComponent(id)}/gestiones/${encodeURIComponent(gestionId)}/anular`, enJson('POST', datos));
 export const anularVenta = (id, ventaId, datos) => pedir(`${BASE}/participaciones/${encodeURIComponent(id)}/ventas/${encodeURIComponent(ventaId)}/anular`, enJson('POST', datos));
 export const listarVentasPorConfirmar = (estado) => pedir(`${BASE}/ventas${consulta({ estado })}`);
 export const confirmarVenta = (id, idempotencyKey) => pedir(`${BASE}/ventas/${encodeURIComponent(id)}/confirmar`, enJson('POST', { idempotencyKey }));
