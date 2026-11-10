@@ -47,8 +47,8 @@ class SeguimientoRepository {
     const filas = await db.query(
       `SELECT p.asesor_id, u.nombre, p.tienda_id, t.codigo AS tienda, e.nombre AS empresa, ${CIFRAS},
          TIMESTAMPDIFF(MINUTE, MIN(p.asignada_en), COALESCE((SELECT MIN(g.creado_en) FROM proy_gestiones g JOIN proy_participaciones q ON q.id = g.participacion_id
-           WHERE q.proyecto_id = p.proyecto_id AND q.asesor_id = p.asesor_id), NOW())) AS minutos_reaccion,
-         EXISTS (SELECT 1 FROM proy_gestiones g JOIN proy_participaciones q ON q.id = g.participacion_id WHERE q.proyecto_id = p.proyecto_id AND q.asesor_id = p.asesor_id) AS ya_gestiono
+           WHERE q.proyecto_id = p.proyecto_id AND q.asesor_id = p.asesor_id AND g.anulada_en IS NULL), NOW())) AS minutos_reaccion,
+         EXISTS (SELECT 1 FROM proy_gestiones g JOIN proy_participaciones q ON q.id = g.participacion_id WHERE q.proyecto_id = p.proyecto_id AND q.asesor_id = p.asesor_id AND g.anulada_en IS NULL) AS ya_gestiono
        FROM proy_participaciones p JOIN usuarios u ON u.id = p.asesor_id JOIN tiendas t ON t.id = p.tienda_id JOIN empresas e ON e.id = t.empresa_id
        WHERE p.proyecto_id = ? AND p.asesor_id IS NOT NULL
        GROUP BY p.proyecto_id, p.asesor_id, u.nombre, p.tienda_id, t.codigo, e.nombre ORDER BY u.nombre, p.asesor_id`,

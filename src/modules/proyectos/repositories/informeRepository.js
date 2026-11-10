@@ -8,7 +8,7 @@ class InformeRepository {
   async contactadas(proyectoId) {
     const filas = await db.query(
       `SELECT COUNT(*) AS n FROM proy_participaciones p WHERE p.proyecto_id = ? AND p.asesor_id IS NOT NULL
-         AND EXISTS (SELECT 1 FROM proy_gestiones g JOIN proy_resultados_gestion r ON r.id = g.resultado_id WHERE g.participacion_id = p.id AND r.contacto_logrado = 1)`,
+         AND EXISTS (SELECT 1 FROM proy_gestiones g JOIN proy_resultados_gestion r ON r.id = g.resultado_id WHERE g.participacion_id = p.id AND g.anulada_en IS NULL AND r.contacto_logrado = 1)`,
       [proyectoId], 'proyectos_informe:contactadas'
     );
     return Number(filas[0].n);
@@ -59,7 +59,7 @@ class InformeRepository {
   async canales(proyectoId) {
     const filas = await db.query(
       `SELECT ca.presencial, COUNT(*) AS n FROM proy_gestiones g JOIN proy_canales ca ON ca.id = g.canal_id JOIN proy_participaciones p ON p.id = g.participacion_id
-       WHERE p.proyecto_id = ? AND p.asesor_id IS NOT NULL GROUP BY ca.presencial`, [proyectoId], 'proyectos_informe:canales'
+       WHERE p.proyecto_id = ? AND p.asesor_id IS NOT NULL AND g.anulada_en IS NULL GROUP BY ca.presencial`, [proyectoId], 'proyectos_informe:canales'
     );
     const presencial = Number((filas.find(f => Number(f.presencial) === 1) || {}).n || 0);
     const remoto = Number((filas.find(f => Number(f.presencial) === 0) || {}).n || 0);
@@ -75,7 +75,7 @@ class InformeRepository {
   }
 
   async primeraGestion(proyectoId) {
-    const filas = await db.query('SELECT MIN(g.creado_en) AS primera FROM proy_gestiones g JOIN proy_participaciones p ON p.id = g.participacion_id WHERE p.proyecto_id = ?', [proyectoId], 'proyectos_informe:primera_gestion');
+    const filas = await db.query('SELECT MIN(g.creado_en) AS primera FROM proy_gestiones g JOIN proy_participaciones p ON p.id = g.participacion_id WHERE p.proyecto_id = ? AND g.anulada_en IS NULL', [proyectoId], 'proyectos_informe:primera_gestion');
     return filas[0].primera || null;
   }
 

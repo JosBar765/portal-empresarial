@@ -19,8 +19,8 @@ const EVENTOS = [
   { clave: 'visto_bueno_resuelto', nombre: 'Visto bueno dado o devuelto', grupo: 'Aprobaciones', roles: { supervisor: true } },
   { clave: 'venta_por_confirmar', nombre: 'Venta por confirmar', grupo: 'Ventas', roles: { supervisor: true } },
   { clave: 'venta_revisada', nombre: 'Venta confirmada o rechazada', grupo: 'Ventas', roles: { asesor: true } },
-  { clave: 'registro_anulado', nombre: 'Cotización o venta anulada', grupo: 'Ventas', roles: { asesor: true } },
-  { clave: 'existencia_baja', nombre: 'Existencia de muestras baja (fase 9)', grupo: 'Muestras', roles: { supervisor: true }, fase9: true, anticipacion: { valor: 20, unidad: 'unidades', texto: 'unidades', min: 1, max: 5000 } }
+  { clave: 'registro_anulado', nombre: 'Cotización, venta o gestión anulada', grupo: 'Ventas', roles: { asesor: true } },
+  { clave: 'existencia_baja', nombre: 'Existencia de muestras baja', grupo: 'Muestras', roles: { supervisor: true }, anticipacion: { valor: 20, unidad: 'unidades', texto: 'unidades', min: 1, max: 5000 } }
 ];
 
 const porClave = new Map(EVENTOS.map(e => [e.clave, e]));

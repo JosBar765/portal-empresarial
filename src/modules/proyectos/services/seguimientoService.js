@@ -30,6 +30,8 @@ const sinHora = (t) => String(t || '').slice(0, 10);
 const diasEntre = (desde, hasta) => Math.floor((Date.parse(`${sinHora(hasta)}T00:00:00Z`) - Date.parse(`${sinHora(desde)}T00:00:00Z`)) / DIA_MS);
 const objeto = (v) => (typeof v === 'string' ? JSON.parse(v) : v);
 const noExiste = () => new ErrorDeNegocio('Ese proyecto o esa empresa no existe o no es de tus tiendas.', 404);
+const NOMBRE_DE = { cotizacion: 'cotización', venta: 'venta', gestion: 'gestión' };
+const ARTICULO_DE = { cotizacion: 'una cotización', venta: 'una venta', gestion: 'una gestión' };
 
 class SeguimientoService {
   // --- Alcance ---
@@ -309,20 +311,23 @@ class SeguimientoService {
       const bloqueada = await repo.bloquearParticipacion(tx, p.id);
       if (!bloqueada || !bloqueada.abierta) throw new ErrorDeNegocio('Esta empresa ya no admite cambios.', 409);
       const datosAnulacion = { usuarioId: usuario.id, ahora: aTexto(ahoraGT()), motivo };
-      const hecho = tipo === 'cotizacion' ? await repo.anularCotizacion(tx, id, p.id, datosAnulacion) : await repo.anularVenta(tx, id, p.id, datosAnulacion);
-      if (!hecho) throw new ErrorDeNegocio(`Esa ${tipo === 'cotizacion' ? 'cotización' : 'venta'} no existe o ya estaba anulada.`, 409);
+      const anulador = { cotizacion: repo.anularCotizacion, venta: repo.anularVenta, gestion: participacionRepository.anularGestion }[tipo];
+      const hecho = await anulador.call(tipo === 'gestion' ? participacionRepository : repo, tx, id, p.id, datosAnulacion);
+      if (!hecho) throw new ErrorDeNegocio(`Esa ${NOMBRE_DE[tipo]} no existe o ya estaba anulada.`, 409);
       const estado = await this._recalcular(tx, p.id, bloqueada.estado);
+      if (tipo === 'gestion') await participacionRepository.refrescarSeguimiento(tx, p.id, aTexto(ahoraGT()));
       await proyectoRepository.registrarHistorial(tx, { proyectoId: proyecto.id, usuarioId: usuario.id, accion: `anular_${tipo}`, detalle: { participacionId: p.id, id, motivo } });
       return { estado };
     });
     if (!resultado.repetida && p.asesor_id && p.asesor_id !== usuario.id) {
-      await this._avisar('registro_anulado', { proyectoId: proyecto.id, autorId: usuario.id, explicitos: { asesor: [p.asesor_id] }, referenciaId: p.id, mensaje: `Anularon ${tipo === 'cotizacion' ? 'una cotización' : 'una venta'} de «${p.nombre}». Motivo: ${motivo}` }, { nombre: 'proyectos_reasignacion', datos: { proyectoId: proyecto.id } });
+      await this._avisar('registro_anulado', { proyectoId: proyecto.id, autorId: usuario.id, explicitos: { asesor: [p.asesor_id] }, referenciaId: p.id, mensaje: `Anularon ${ARTICULO_DE[tipo]} de «${p.nombre}». Motivo: ${motivo}` }, { nombre: 'proyectos_reasignacion', datos: { proyectoId: proyecto.id } });
     }
     return { ...(await this.supervision(usuario, p.id)), repetida: resultado.repetida };
   }
 
   anularCotizacion(usuario, participacionId, cotizacionId, datos = {}) { return this._anular(usuario, 'cotizacion', participacionId, cotizacionId, datos); }
   anularVenta(usuario, participacionId, ventaId, datos = {}) { return this._anular(usuario, 'venta', participacionId, ventaId, datos); }
+  anularGestion(usuario, participacionId, gestionId, datos = {}) { return this._anular(usuario, 'gestion', participacionId, gestionId, datos); }
 
   // --- Ventas por confirmar (proyectos.confirmar_ventas) ---
 

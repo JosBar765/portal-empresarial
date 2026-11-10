@@ -161,7 +161,7 @@ class GestionService {
 
   _lineaDeTiempo({ gestiones, muestras, cotizaciones, ventas, vales = [] }) {
     const filas = [
-      ...gestiones.map(g => ({ tipo: 'gestion', id: g.id, fecha: g.creado_en, usuario: g.usuario, canal: g.canal, resultado: g.resultado, contacto: g.contacto, nota: g.nota, proximaEn: g.proxima_en })),
+      ...gestiones.map(g => ({ tipo: 'gestion', id: g.id, fecha: g.creado_en, usuario: g.usuario, canal: g.canal, resultado: g.resultado, contacto: g.contacto, nota: g.nota, proximaEn: g.proxima_en, anulada: Boolean(g.anulada_en) })),
       ...muestras.map(m => ({ tipo: 'muestra', id: m.id, fecha: m.creado_en, usuario: m.usuario, cantidad: m.cantidad, area: m.area })),
       ...cotizaciones.map(c => ({ tipo: 'cotizacion', id: c.id, fecha: c.creado_en, usuario: c.usuario, monto: Number(c.monto), moneda: c.moneda, referencia: c.referencia, nota: c.nota, anulada: Boolean(c.anulada_en) })),
       ...vales.map(v => ({ tipo: 'vale', id: v.id, fecha: v.vinculado_en, usuario: v.usuario, valeId: v.vale_id, correlativo: v.correlativo })),
@@ -235,7 +235,8 @@ class GestionService {
     }
     if (Object.keys(campos).length) throw errorDeValidacion('Revisa los datos de la gestión.', campos);
 
-    return this._registrar(usuario, id, datos.idempotencyKey, 'gestion', async ({ tx, participacion, proyecto }) => {
+    let existencia = null; // solo se llena si esta llamada entregó muestras (una repetida no entra a la función)
+    const ficha = await this._registrar(usuario, id, datos.idempotencyKey, 'gestion', async ({ tx, participacion, proyecto }) => {
       const resultado = await repo.resultado(resultadoId, tx);
       if (!resultado) throw errorDeValidacion('Revisa los datos de la gestión.', { resultadoId: 'Ese resultado ya no está disponible.' });
       if (!(await repo.canalActivo(canalId, tx))) throw errorDeValidacion('Revisa los datos de la gestión.', { canalId: 'Ese canal ya no está disponible.' });
@@ -249,11 +250,27 @@ class GestionService {
           throw new ErrorDeNegocio(`Solo quedan ${quedan} muestras de ${proyecto.articulo}. Entrega menos o avisa a tu supervisor.`, 409);
         }
         await repo.insertarEntrega(tx, { participacionId: participacion.id, areaId: muestra.areaId, cantidad: muestra.cantidad, usuarioId: usuario.id });
+        if (proyecto.existencia_muestras !== null) existencia = { antes: proyecto.existencia_muestras, despues: proyecto.existencia_muestras - muestra.cantidad, proyecto };
       }
       await repo.insertarGestion(tx, { participacionId: participacion.id, usuarioId: usuario.id, canalId, contactoId, resultadoId, nota, proximaEn });
       // La gestión fija la fecha vigente de seguimiento (o la despeja) y reabre la empresa si estaba perdida.
       await this._recalcular(tx, participacion.id, { ultima_gestion_en: aTexto(ahoraGT()), proxima_gestion_en: proximaEn, motivo_perdida_id: null });
     }, { bloquearProyecto: Boolean(muestra) });
+    if (existencia) await this._avisarExistencia(usuario, existencia);
+    return ficha;
+  }
+
+  // Avisa a los supervisores una sola vez: cuando la existencia cruza el umbral configurado (A8) hacia abajo.
+  async _avisarExistencia(usuario, { antes, despues, proyecto }) {
+    try {
+      const umbral = await avisosService.anticipacion('existencia_baja');
+      if (antes > umbral && despues <= umbral) {
+        await avisosService.notificar('existencia_baja', {
+          proyectoId: proyecto.id, autorId: usuario.id, referenciaTipo: 'proyecto', referenciaId: proyecto.id, nivel: 'alerta',
+          mensaje: despues <= 0 ? `Se acabaron las muestras de ${proyecto.articulo} en «${proyecto.nombre}».` : `Quedan ${despues} muestras de ${proyecto.articulo} en «${proyecto.nombre}».`
+        });
+      }
+    } catch (error) { console.error('[Proyectos] No se pudo avisar de la existencia baja:', error.message); }
   }
 
   // Cotización y venta comparten moneda, monto y referencia.

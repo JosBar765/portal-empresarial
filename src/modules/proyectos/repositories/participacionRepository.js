@@ -158,7 +158,7 @@ class ParticipacionRepository {
   async historial(participacionId) {
     const [gestiones, muestras, cotizaciones, ventas, vales] = await Promise.all([
       db.query(
-        `SELECT g.id, g.creado_en, g.nota, g.proxima_en, ca.nombre AS canal, r.nombre AS resultado, t.nombre AS contacto, u.nombre AS usuario
+        `SELECT g.id, g.creado_en, g.nota, g.proxima_en, g.anulada_en, ca.nombre AS canal, r.nombre AS resultado, t.nombre AS contacto, u.nombre AS usuario
          FROM proy_gestiones g JOIN proy_canales ca ON ca.id = g.canal_id JOIN proy_resultados_gestion r ON r.id = g.resultado_id
            JOIN usuarios u ON u.id = g.usuario_id LEFT JOIN proy_contactos t ON t.id = g.contacto_id WHERE g.participacion_id = ? ORDER BY g.id DESC`,
         [participacionId], 'proyectos_gestion:historial_gestiones'),
@@ -218,6 +218,24 @@ class ParticipacionRepository {
 
   // --- Registros (siempre dentro de una transacción) ---
 
+  async anularGestion(tx, id, participacionId, { usuarioId, ahora, motivo }) {
+    const res = await tx.query('UPDATE proy_gestiones SET anulada_en = ?, anulada_por = ?, anulacion_motivo = ? WHERE id = ? AND participacion_id = ? AND anulada_en IS NULL',
+      [ahora, usuarioId, motivo, id, participacionId], 'proyectos_gestion:anular_gestion');
+    return res.affectedRows === 1;
+  }
+
+  // Tras anular una gestión, el último contacto y el próximo seguimiento vuelven a ser los de la última gestión que sigue vigente.
+  // `ultima_gestion_en` se guarda en hora de Guatemala; `creado_en` va en la hora de la base: se corrige con la diferencia entre ambos relojes.
+  refrescarSeguimiento(tx, participacionId, ahoraGT) {
+    return tx.query(
+      `UPDATE proy_participaciones SET
+         ultima_gestion_en = (SELECT DATE_ADD(MAX(g.creado_en), INTERVAL ROUND(TIMESTAMPDIFF(MINUTE, NOW(), ?) / 60) * 60 MINUTE) FROM proy_gestiones g WHERE g.participacion_id = proy_participaciones.id AND g.anulada_en IS NULL),
+         proxima_gestion_en = (SELECT g.proxima_en FROM proy_gestiones g WHERE g.participacion_id = proy_participaciones.id AND g.anulada_en IS NULL ORDER BY g.id DESC LIMIT 1)
+       WHERE id = ?`,
+      [ahoraGT, participacionId], 'proyectos_gestion:refrescar_seguimiento'
+    );
+  }
+
   async insertarGestion(tx, d) {
     const res = await tx.query(
       `INSERT INTO proy_gestiones (participacion_id, usuario_id, canal_id, contacto_id, resultado_id, nota, proxima_en) VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -270,8 +288,8 @@ class ParticipacionRepository {
   // Lo registrado sin lo anulado: de aquí sale el estado de la participación.
   async hechos(tx, participacionId) {
     const filas = await tx.query(
-      `SELECT (SELECT COUNT(*) FROM proy_gestiones WHERE participacion_id = ?) AS gestiones,
-              (SELECT COUNT(*) FROM proy_gestiones g JOIN proy_resultados_gestion r ON r.id = g.resultado_id WHERE g.participacion_id = ? AND r.efecto_estado = 'interesada') AS interesadas,
+      `SELECT (SELECT COUNT(*) FROM proy_gestiones WHERE participacion_id = ? AND anulada_en IS NULL) AS gestiones,
+              (SELECT COUNT(*) FROM proy_gestiones g JOIN proy_resultados_gestion r ON r.id = g.resultado_id WHERE g.participacion_id = ? AND g.anulada_en IS NULL AND r.efecto_estado = 'interesada') AS interesadas,
               (SELECT COUNT(*) FROM proy_cotizaciones WHERE participacion_id = ? AND anulada_en IS NULL) AS cotizaciones,
               (SELECT COUNT(*) FROM proy_ventas WHERE participacion_id = ? AND anulada_en IS NULL AND estado = 'confirmada') AS ventas`,
       [participacionId, participacionId, participacionId, participacionId], 'proyectos_gestion:hechos'
