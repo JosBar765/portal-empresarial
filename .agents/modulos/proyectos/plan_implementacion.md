@@ -133,9 +133,9 @@ Cada fase = una subrama desde `module/proyectos` actualizada, un pull request, d
 
 ### Fase 7 · Integración con Vales — `feature/proyectos-07-integracion-vales`
 
-- [ ] `GET /api/proyectos/participaciones/:id/prefill-vale` y `POST …/vincular-vale`.
-- [ ] Cambio pequeño en el formulario de Vales (`?prellenar=proyectos:<id>`, sin datos personales en la dirección).
-- [ ] Pantalla: M12.
+- [x] `GET /api/proyectos/participaciones/:id/prefill-vale` y `POST …/vincular-vale`.
+- [x] Cambio pequeño en el formulario de Vales (`?prellenar=proyectos:<id>`, sin datos personales en la dirección).
+- [x] Pantalla: M12 (el formulario de Vales prellenado, con su banner) y el botón «Crear vale» de la ficha.
 - **Terminado cuando:** un vale creado desde Proyectos queda ligado a su cliente.
 
 ### Fase 8 · Activación — `feature/proyectos-08-activacion`
