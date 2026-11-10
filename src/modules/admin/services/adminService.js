@@ -25,11 +25,13 @@ const ROL_ADMINISTRADOR = 1;
 const PERMISO_SUPERVISAR = 'vales.supervisar';
 const MODULO_ADMIN = 'admin';
 // Diseño, Diseño 3D y Protextil son talleres únicos a nivel de toda la
-// empresa (a diferencia de Diseño Local, que tiene uno por tienda) — un solo
+// empresa (a diferencia de Diseño Local, que pertenece a una tienda sede) — un solo
 // encargado activo a la vez. Los roles de asistente (hereda_de_rol_id) no son únicos.
 const ROLES_ENCARGADO_UNICO = [4, 5, 9];
 const ROL_DISENADOR = 6;
 const ROL_ENCARGADO_DISENO_LOCAL = 10;
+// Igual al VARCHAR de `talleres.nombre`.
+const LONGITUD_MAXIMA_NOMBRE_TALLER = 100;
 // Diseño/Diseño UV-3D/Protextil son de toda la empresa — cada uno mapea a
 // exactamente un taller.
 const TALLER_FIJO_POR_ROL = { 4: 'Diseño', 5: 'Diseño UV/3D', 9: 'Protextil' };
@@ -415,24 +417,30 @@ class AdminService {
     }
   }
 
+  // Devuelve el nombre válido; la unicidad se comprueba antes para no exponer el error de MySQL.
+  async _validarNombreTaller(valor) {
+    const nombre = typeof valor === 'string' ? valor : '';
+    if (!nombre.trim()) throw new Error('Escribe el nombre del taller.');
+    if (nombre !== nombre.trim()) throw new Error('El nombre del taller no puede empezar ni terminar con espacios. Quita los espacios sobrantes.');
+    if (nombre.length > LONGITUD_MAXIMA_NOMBRE_TALLER) {
+      throw new Error(`El nombre del taller tiene ${nombre.length} caracteres y el máximo es ${LONGITUD_MAXIMA_NOMBRE_TALLER}. Acórtalo.`);
+    }
+    if (await tallerAdminRepository.obtenerPorNombre(nombre)) {
+      throw new Error(`Ya existe un taller llamado "${nombre}". Elige un nombre distinto.`);
+    }
+    return nombre;
+  }
+
   // Los únicos talleres que se crean desde el panel son los de Diseño Local:
-  // uno por tienda, con nombre derivado del código de esa tienda (como el
-  // nombre de la tienda se deriva de su empresa y subdivisión), y con un
-  // encargado opcional que debe tener el rol Diseño Local y no encargarse ya
+  // nombre libre y tienda principal (la sede, que puede repetirse entre Locales),
+  // con un encargado opcional que debe tener el rol Diseño Local y no encargarse ya
   // de otro taller.
-  async crearTallerLocal({ tiendaId, encargadoId } = {}) {
+  async crearTallerLocal({ nombre: nombreIngresado, tiendaId, encargadoId } = {}) {
+    const nombre = await this._validarNombreTaller(nombreIngresado);
     const idTienda = aEntero(tiendaId);
     const tienda = idTienda ? await tiendaAdminRepository.obtenerPorId(idTienda) : null;
     if (!tienda) throw new Error('Selecciona la tienda a la que pertenecerá el taller.');
     if (!tienda.activo) throw new Error('La tienda seleccionada está inactiva.');
-    const existente = await tallerAdminRepository.obtenerLocalDeTienda(tienda.id);
-    if (existente) {
-      throw new Error(`La tienda ${tienda.codigo} ya tiene su taller de Diseño Local (${existente.nombre}${existente.activo ? '' : ', inactivo — reactívalo en lugar de crear otro'}).`);
-    }
-    const nombre = `Diseño Local - ${tienda.codigo}`;
-    if (await tallerAdminRepository.obtenerPorNombre(nombre)) {
-      throw new Error(`Ya existe un taller llamado ${nombre}.`);
-    }
     let encargado = null;
     if (encargadoId !== undefined && encargadoId !== null && encargadoId !== '') {
       const idEncargado = aEntero(encargadoId);
@@ -495,6 +503,73 @@ class AdminService {
     const resultado = await tallerAdminRepository.actualizarHoraMaxima(tallerId, horaRaw);
     calendarioService.invalidar();
     return resultado;
+  }
+
+  // Un Local siempre atiende su sede; solo los Locales tienen tiendas asignadas.
+  async _obtenerLocal(tallerId) {
+    const taller = await tallerAdminRepository.obtenerPorId(tallerId);
+    if (!taller) throw new ErrorDeNegocio('Taller no encontrado.', 404);
+    if (taller.tienda_id == null) {
+      throw new ErrorDeNegocio(`${taller.nombre} es un taller general y atiende a todas las tiendas: solo los talleres de Diseño Local tienen tiendas asignadas.`);
+    }
+    return taller;
+  }
+
+  async listarTiendasDeLocal(tallerId) {
+    await this._obtenerLocal(tallerId);
+    return { tiendas: await tallerAdminRepository.listarTiendasDeLocal(tallerId) };
+  }
+
+  // Cualquier tienda activa, de cualquier país y aunque ya use otro Local.
+  async agregarTiendaALocal(tallerId, tiendaId) {
+    const taller = await this._obtenerLocal(tallerId);
+    const tienda = await tiendaAdminRepository.obtenerPorId(tiendaId);
+    if (!tienda) throw new ErrorDeNegocio('La tienda seleccionada ya no existe. Recarga la página e inténtalo de nuevo.', 404);
+    if (!tienda.activo) throw new ErrorDeNegocio(`La tienda ${tienda.codigo} está inactiva: actívala antes de asignarla a ${taller.nombre}.`);
+    const actuales = await tallerAdminRepository.listarTiendasDeLocal(taller.id);
+    if (actuales.some(t => Number(t.id) === Number(tienda.id))) {
+      throw new ErrorDeNegocio(`La tienda ${tienda.codigo} ya está asignada a ${taller.nombre}.`, 409);
+    }
+    await tallerAdminRepository.agregarTiendaALocal(taller.id, tienda.id);
+    return { ok: true };
+  }
+
+  // La sede no se quita (define nombre, país y feriados). Quitar otra tienda solo afecta a los vales nuevos: los abiertos conservan sus talleres.
+  async quitarTiendaDeLocal(tallerId, tiendaId) {
+    const taller = await this._obtenerLocal(tallerId);
+    if (Number(taller.tienda_id) === Number(tiendaId)) {
+      throw new ErrorDeNegocio(`No se puede quitar la tienda sede de ${taller.nombre}: de ella salen su nombre, su país y sus feriados. Solo se pueden quitar las tiendas que agregaste después.`);
+    }
+    const actuales = await tallerAdminRepository.listarTiendasDeLocal(taller.id);
+    if (!actuales.some(t => Number(t.id) === Number(tiendaId))) {
+      throw new ErrorDeNegocio(`Esa tienda no está asignada a ${taller.nombre}. Recarga la página para ver la lista actual.`, 404);
+    }
+    await tallerAdminRepository.quitarTiendaDeLocal(taller.id, tiendaId);
+    return { ok: true };
+  }
+
+  // Grupos que pueden compartir propuestas: los generales juntos y los Locales por país de su sede (misma regla que el módulo de vales).
+  async listarGruposPropuestasCompartidas() {
+    const filas = await tallerAdminRepository.listarParaPropuestasCompartidas();
+    const grupos = new Map();
+    for (const f of filas) {
+      const esLocal = f.tienda_id != null;
+      // Un Local sin país definido no comparte con nadie: queda en su propio grupo.
+      const clave = !esLocal ? 'general' : (f.pais_id != null ? `local:${f.pais_id}` : `local:sin-pais:${f.id}`);
+      const etiqueta = !esLocal ? 'Talleres generales' : `Diseño Local — ${f.pais_nombre || 'país sin definir'}`;
+      if (!grupos.has(clave)) grupos.set(clave, { clave, etiqueta, talleres: [] });
+      grupos.get(clave).talleres.push({ id: f.id, nombre: f.nombre, activo: !!f.activo, comparte: !!f.comparte_propuestas });
+    }
+    const lista = [...grupos.values()].sort((a, b) => (b.clave === 'general') - (a.clave === 'general') || a.etiqueta.localeCompare(b.etiqueta));
+    return { grupos: lista };
+  }
+
+  async actualizarComparteDePropuestas(tallerId, comparte) {
+    if (typeof comparte !== 'boolean') throw new ErrorDeNegocio('Indica si el taller comparte propuestas (sí o no).');
+    const taller = await tallerAdminRepository.obtenerPorId(tallerId);
+    if (!taller) throw new ErrorDeNegocio('Taller no encontrado.', 404);
+    await tallerAdminRepository.actualizarComparteDePropuestas(tallerId, comparte);
+    return { ok: true };
   }
 
   async asignarDisenadorATaller(tallerId, usuarioId) {

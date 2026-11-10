@@ -122,11 +122,11 @@ class ReporteRepository {
     );
   }
 
-  // Tiendas de cada taller: las que atiende (`taller_tiendas`) y la propia de un Diseño Local (`talleres.tienda_id`).
+  // Tiendas de cada taller: las de los generales (`taller_tiendas`) y las de un Diseño Local (`taller_local_tiendas`, incluida su sede).
   async listarTiendasPorTaller() {
     return db.query(
-      `SELECT taller_id, tienda_id FROM taller_tiendas
-       UNION SELECT id AS taller_id, tienda_id FROM talleres WHERE tienda_id IS NOT NULL`,
+      `SELECT tt.taller_id, tt.tienda_id FROM taller_tiendas tt JOIN talleres t ON t.id = tt.taller_id WHERE t.tienda_id IS NULL
+       UNION SELECT taller_id, tienda_id FROM taller_local_tiendas`,
       [], 'reporte:tiendas_por_taller'
     );
   }

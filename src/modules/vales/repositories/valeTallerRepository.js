@@ -49,6 +49,17 @@ class ValeTallerRepository {
     return filas.map(f => f.vale_id);
   }
 
+  // Vales con una fila activa del taller en alguno de `estados` (por nombre de estado del taller).
+  async listarValeIdsDeTallerConEstados(tallerId, estados) {
+    if (!estados.length) return [];
+    const filas = await db.query(
+      `SELECT DISTINCT vt.vale_id FROM vale_talleres vt INNER JOIN estados_taller et ON et.id = vt.estado_id
+       WHERE vt.taller_id = ? AND vt.activo = 1 AND et.nombre IN (?)`,
+      [tallerId, estados], 'vale_taller:list_vale_ids_taller_con_estados'
+    );
+    return filas.map(f => f.vale_id);
+  }
+
   async listarPorVale(valeId) {
     return db.query(`${SELECT_VALE_TALLER} WHERE vt.vale_id = ? AND vt.activo = 1 ORDER BY vt.id ASC`, [valeId], 'vale_taller:list_by_vale');
   }
