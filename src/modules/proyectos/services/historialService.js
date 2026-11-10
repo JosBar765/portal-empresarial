@@ -12,7 +12,7 @@ const { definicion: catalogo } = require('../catalogos');
 const { EVENTOS: EVENTOS_AVISO } = require('../eventos');
 
 const POR_PAGINA = 20;
-const AREAS = ['parametros', 'reglas', 'catalogos', 'paises', 'campos', 'alcance', 'plantillas', 'avisos', 'kits'];
+const AREAS = ['parametros', 'reglas', 'catalogos', 'paises', 'campos', 'alcance', 'plantillas', 'avisos', 'kits', 'plan'];
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
 const ETIQUETAS_PAIS = {
@@ -27,6 +27,7 @@ const ETIQUETAS_PLANTILLA = {
   existenciaSugerida: 'Existencia sugerida', topePorAsesor: 'Tope por asesor', meta: 'Meta', etapas: 'Etapas', controles: 'Qué puede cambiar el supervisor'
 };
 const ETIQUETAS_KIT = { activo: 'Activo', guion: 'Guion de llamada', mensajes: 'Mensajes' };
+const ETIQUETAS_PLAN = { nicho: 'Nicho', articulo: 'Artículo', plantilla: 'Plantilla' };
 const ETIQUETAS_ALCANCE = { agregados: 'Países agregados', quitados: 'Países quitados' };
 const ACCIONES = {
   crear: 'Creó', editar: 'Cambió', activar: 'Activó', desactivar: 'Desactivó', cambiar: 'Cambió', restaurar: 'Volvió al valor por defecto'
@@ -101,6 +102,13 @@ function describirFila(fila, nombresPais) {
     return {
       ...base, area: 'Notificaciones', objeto: que && que !== 'anticipacion' ? `${rotulo} · ${que}` : rotulo,
       cambios: fila.accion === 'restaurar' ? [] : (antes && 'activo' in antes ? [{ campo: 'Avisa', antes: texto(antes.activo), despues: texto(despues && despues.activo) }] : [{ campo: 'Anticipación', antes: texto(antes && antes.valor), despues: texto(despues && despues.valor) }]), restaurable: false
+    };
+  }
+  if (fila.entidad === 'plan') {
+    const fuente = despues || antes || {};
+    return {
+      ...base, area: 'Plan del año', objeto: `${fuente.mes || fila.clave} ${fuente.anio || ''}`.trim(),
+      cambios: fila.accion === 'crear' ? [] : diferencias(antes, despues, ETIQUETAS_PLAN), restaurable: false
     };
   }
   if (fila.entidad === 'kit') {

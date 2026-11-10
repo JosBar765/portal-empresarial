@@ -5,6 +5,7 @@
 const avisosRepository = require('./repositories/avisosRepository');
 const avisosService = require('./services/avisosService');
 const configService = require('./services/configService');
+const activacionAutomaticaService = require('./services/activacionAutomaticaService');
 const { sumarDiasHabiles } = require('./services/proyectoService');
 
 const INTERVALO_MS = 15 * 60 * 1000;
@@ -69,7 +70,8 @@ async function revisar() {
   const ahora = ahoraGT();
   try {
     const [porVencer, vencidos, proy] = [await seguimientosPorVencer(ahora), await seguimientosVencidos(ahora), await proyectos(ahora)];
-    return { seguimientosPorVencer: porVencer, seguimientosVencidos: vencidos, ...proy };
+    const automatica = await activacionAutomaticaService.revisar();
+    return { seguimientosPorVencer: porVencer, seguimientosVencidos: vencidos, ...proy, activacionAutomatica: automatica.estado };
   } catch (error) {
     console.error('[ProyectosWatcher] Error revisando avisos:', error);
     return null;

@@ -13,6 +13,7 @@ const EVENTOS = [
   { clave: 'seguimiento_vencido', nombre: 'Seguimiento vencido', grupo: 'Seguimiento', roles: { asesor: true, supervisor: true } },
   { clave: 'proyecto_por_cerrar', nombre: 'Proyecto por cerrar', grupo: 'Proyecto', roles: { supervisor: true }, anticipacion: { valor: 3, unidad: 'días', texto: 'días antes', min: 0, max: 30 } },
   { clave: 'proyecto_vencido', nombre: 'Proyecto vencido', grupo: 'Proyecto', roles: { supervisor: true, gerente: true } },
+  { clave: 'activacion_automatica', nombre: 'Proyecto activado por el plan del año', grupo: 'Aprobaciones', roles: { supervisor: true, gerente: true } },
   { clave: 'activacion_pedida', nombre: 'Activación pedida', grupo: 'Aprobaciones', roles: { gerente: true } },
   { clave: 'activacion_resuelta', nombre: 'Activación aprobada o rechazada', grupo: 'Aprobaciones', roles: { supervisor: true } },
   { clave: 'cierre_pendiente', nombre: 'Cierre pendiente de visto bueno', grupo: 'Aprobaciones', roles: { gerente: true } },

@@ -8,6 +8,7 @@ const configService = require('./configService');
 const avisosService = require('./avisosService');
 const avisosRepository = require('../repositories/avisosRepository');
 const plantillaService = require('./plantillaService');
+const planService = require('./planService');
 const plantillaRepository = require('../repositories/plantillaRepository');
 const reparto = require('../repartoService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
@@ -82,9 +83,9 @@ class ProyectoService {
   async opciones(usuario) {
     exigir(usuario, 'proyectos.activar', 'No tienes permiso para crear proyectos.');
     const todas = tiene(usuario, 'proyectos.administrar');
-    const [nichos, articulos, monedas, tiendas, ajustes, plantillas] = await Promise.all([
+    const [nichos, articulos, monedas, tiendas, ajustes, plantillas, plan] = await Promise.all([
       catalogoRepository.listar(definicion('nichos')), catalogoRepository.listar(definicion('articulos')), catalogoRepository.listar(definicion('monedas')),
-      proyectoRepository.tiendasPosibles({ todas, usuarioId: usuario.id }), configService.valores(), plantillaService.activas()
+      proyectoRepository.tiendasPosibles({ todas, usuarioId: usuario.id }), configService.valores(), plantillaService.activas(), planService.sugerencias()
     ]);
     const activas = (filas) => filas.filter(f => f.activo || f.activa).map(f => ({ id: f.id, nombre: f.nombre, codigo: f.codigo, simbolo: f.simbolo }));
     const elegibles = await proyectoRepository.contarElegiblesPorNicho({ paisIds: [...new Set(tiendas.map(t => t.pais_id))], descansoMeses: ajustes['reparto.descanso_meses'] });
@@ -94,7 +95,7 @@ class ProyectoService {
         id: t.id, codigo: t.codigo, empresa: t.empresa, paisId: t.pais_id, pais: t.pais,
         ocupada: t.ocupada_por_id ? { proyectoId: t.ocupada_por_id, proyecto: t.ocupada_por, fin: t.ocupada_fin } : null
       })),
-      plantillas, todasLasTiendas: todas,
+      plantillas, plan, todasLasTiendas: todas,
       ajustes: { codigoFormato: ajustes['codigo.formato'], topePorAsesor: ajustes['reparto.tope_por_asesor'], recibenSupervisores: ajustes['reparto.reciben_supervisores'], aprobarActivacion: ajustes['reglas.aprobar_activacion'] },
       permisos: { activar: true, aprobar: tiene(usuario, 'proyectos.aprobar_activacion') }
     };
