@@ -75,6 +75,10 @@ export const previsualizarImportacion = (archivo) => pedir(`${BASE}/clientes/imp
 export const confirmarImportacion = (archivo, duplicadas, idempotencyKey) => pedir(`${BASE}/clientes/importar/confirmar`, conArchivo(archivo, { duplicadas, idempotencyKey }));
 
 // Campos propios (A6) y alcance de usuarios (A7)
+export const listarKits = () => pedir(`${BASE}/config/kits`);
+export const obtenerKit = (nichoId) => pedir(`${BASE}/config/kits/${encodeURIComponent(nichoId)}`);
+export const guardarKit = (nichoId, datos) => pedir(`${BASE}/config/kits/${encodeURIComponent(nichoId)}`, enJson('PUT', datos));
+export const obtenerKitDeEmpresa = (participacionId) => pedir(`${BASE}/participaciones/${encodeURIComponent(participacionId)}/kit`);
 export const listarCampos = () => pedir(`${BASE}/config/campos`);
 export const crearCampo = (datos) => pedir(`${BASE}/config/campos`, enJson('POST', datos));
 export const editarCampo = (id, datos) => pedir(`${BASE}/config/campos/${encodeURIComponent(id)}`, enJson('PUT', datos));

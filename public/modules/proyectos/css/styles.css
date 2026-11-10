@@ -1079,3 +1079,19 @@ a.tarjeta-hoy:hover { border-color: var(--color-text-muted); }
 .recompra { font-size: var(--text-sm); font-weight: 500; }
 .recompra--vencida { color: #DC2626; }
 .recompra--proxima { color: #B45309; }
+.kit-variables { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 12px; }
+.chip-variable { font: inherit; font-size: var(--text-sm); padding: 2px 10px; border-radius: 999px; border: 1px solid var(--color-border); background: var(--color-surface-muted); cursor: pointer; }
+.chip-variable:hover { border-color: var(--color-text-muted); }
+.kit-mensaje { display: flex; flex-direction: column; gap: 8px; padding: 12px; margin-bottom: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.kit-mensaje--apagado { opacity: .6; }
+.kit-mensaje-cabecera { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.kit-mensaje-cabecera input[type="text"] { flex: 1 1 200px; }
+.kit-mensaje textarea { width: 100%; }
+.kit-vista { padding: 8px 10px; border-radius: var(--radius-sm); background: var(--color-surface-muted); font-size: var(--text-sm); }
+.kit-vista p { margin: 4px 0 0; white-space: pre-wrap; }
+.kit-vista-rotulo { color: var(--color-text-muted); font-size: var(--text-xs); }
+.kit-zona { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.kit-tarjeta { gap: 8px; }
+.kit-texto { margin: 0; white-space: pre-wrap; }
+.kit-tarjeta--oculta { opacity: .75; }
+.kit-guion p { margin: 0 0 8px; }
