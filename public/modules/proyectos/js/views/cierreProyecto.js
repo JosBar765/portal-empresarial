@@ -7,11 +7,26 @@ import { modalFormulario } from '../components/modalFormulario.js';
 import { campoArea } from '../components/campos.js';
 import { obtenerInforme, cerrarProyectoConInforme, reenviarCierre } from '../api/api.js';
 import { formatoMonto, diaCorto, nombreDelMes } from '../utils/gestion.js';
+import { state } from '../state.js';
 
 const claveNueva = () => (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID().replace(/-/g, '') : `${Date.now()}${Math.random().toString(36).slice(2)}`).slice(0, 40);
 const ETIQUETA_SEMAFORO = { verde: 'Verde', ambar: 'Ámbar', rojo: 'Rojo' };
 
 export const enlacePdf = (id) => h('a', { class: 'btn btn--ghost', href: `/api/proyectos/proyectos/${encodeURIComponent(id)}/informe.pdf`, download: '' }, icono('download-outline'), 'Descargar PDF');
+// «Exportar CSV»: los resultados del proyecto y las tablas del informe. Solo con `proyectos.ver_reportes` (el servidor también lo exige).
+export function menuExportar(id) {
+  if (!state.user.permissions.includes('proyectos.ver_reportes')) return null;
+  const base = `/api/proyectos/proyectos/${encodeURIComponent(id)}`;
+  const opciones = [['Resultados del proyecto', `${base}/exportar.csv`], ['Informe · resumen', `${base}/informe.csv?tabla=resumen`], ['Informe · por asesor', `${base}/informe.csv?tabla=asesores`], ['Informe · por tienda', `${base}/informe.csv?tabla=tiendas`]];
+  const menu = h('div', { class: 'menu-acciones', hidden: '' }, opciones.map(([texto, href]) => h('a', { href, download: '' }, icono('document-outline'), texto)));
+  const boton = h('button', { class: 'btn btn--ghost', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false' }, icono('grid-outline'), 'Exportar CSV');
+  const cerrar = () => { menu.hidden = true; boton.setAttribute('aria-expanded', 'false'); };
+  boton.addEventListener('click', (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; boton.setAttribute('aria-expanded', String(!menu.hidden)); });
+  document.addEventListener('click', function alClic(e) { if (!menu.isConnected) { document.removeEventListener('click', alClic); return; } if (!menu.contains(e.target)) cerrar(); });
+  menu.addEventListener('click', cerrar);
+  return h('div', { class: 'menu-contenedor' }, boton, menu);
+}
+
 export const montosPorMoneda = (lista) => (lista.length ? lista.map(m => formatoMonto(m.monto, m.moneda)).join(' · ') : '—');
 const chipSemaforo = (s) => h('span', { class: `chip-semaforo chip-semaforo--${s}`, text: ETIQUETA_SEMAFORO[s] });
 
@@ -85,7 +100,7 @@ function pintarCierre(cont, datos) {
     h('div', { class: 'pagina-cabecera' },
       h('div', null, h('div', { class: 'mi-proyecto-titulo' }, h('h1', { class: 'pagina-titulo', text: `Cierre · ${proyecto.nicho}` }), h('span', { class: 'chip-estado chip-estado--activa', text: 'Activo' })),
         h('p', { class: 'pagina-subtitulo', text: `${nombreDelMes(proyecto.anio, proyecto.mes)} · ${proyecto.paises || ''} · ${pluralizar(proyecto.tiendas, 'tienda', 'tiendas')} · informe al momento` })),
-      h('div', { class: 'acciones-cabecera' }, h('a', { class: 'btn btn--ghost', href: `#/proyectos/${proyecto.id}` }, icono('arrow-back-outline'), 'Proyecto'), enlacePdf(proyecto.id))),
+      h('div', { class: 'acciones-cabecera' }, h('a', { class: 'btn btn--ghost', href: `#/proyectos/${proyecto.id}` }, icono('arrow-back-outline'), 'Proyecto'), menuExportar(proyecto.id), enlacePdf(proyecto.id))),
     cifrasDelInforme(informe),
     h('div', { class: 'cierre-cuerpo' },
       h('div', { class: 'cierre-columna' },
@@ -124,7 +139,7 @@ export function pintarCerrado(cont, datos) {
     h('div', { class: 'pagina-cabecera' },
       h('div', null, h('div', { class: 'mi-proyecto-titulo' }, h('h1', { class: 'pagina-titulo', text: `${proyecto.nicho} · ${nombreDelMes(proyecto.anio, proyecto.mes)}` }), h('span', { class: 'chip-oscuro', text: 'Cerrado' })),
         h('p', { class: 'pagina-subtitulo', text: `${proyecto.codigo} · cerrado el ${diaCorto(datos.cierre.en)} por ${datos.cierre.por}` })),
-      h('div', { class: 'acciones-cabecera' }, h('a', { class: 'btn btn--ghost', href: '#/proyectos' }, icono('arrow-back-outline'), 'Proyectos'), enlacePdf(proyecto.id))),
+      h('div', { class: 'acciones-cabecera' }, h('a', { class: 'btn btn--ghost', href: '#/proyectos' }, icono('arrow-back-outline'), 'Proyectos'), menuExportar(proyecto.id), enlacePdf(proyecto.id))),
     banner(),
     cifrasDelInforme(informe),
     h('div', { class: 'cierre-cuerpo cierre-cuerpo--iguales' },

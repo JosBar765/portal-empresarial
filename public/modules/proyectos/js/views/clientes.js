@@ -3,11 +3,23 @@
 import { h, icono, montar } from '../utils/dom.js';
 import { cabecera, aviso, cargando, estadoVacio, avisar } from '../components/ui.js';
 import { listarClientes, obtenerOpcionesClientes, crearCliente } from '../api/api.js';
+import { state } from '../state.js';
 import { chipEstado, chipEnProyecto, ESTADOS_FILTRO } from '../utils/clientes.js';
 import { construirFormulario } from './clienteFormulario.js';
 import { renderFicha } from './clienteFicha.js';
 
 const ESPERA_BUSQUEDA_MS = 350;
+// Descarga la cartera con los filtros que se están viendo (el servidor aplica el mismo alcance por país que la lista).
+function exportarCartera(filtros) {
+  const limpios = Object.entries(filtros).filter(([, v]) => v !== '' && v != null);
+  const enlace = document.createElement('a');
+  enlace.href = `/api/proyectos/clientes/exportar.csv${limpios.length ? `?${new URLSearchParams(limpios)}` : ''}`;
+  enlace.download = '';
+  document.body.append(enlace);
+  enlace.click();
+  enlace.remove();
+}
+
 let filtrosRecordados = { busqueda: '', nicho: '', pais: '', estado: 'activa' };
 
 export function renderClientes(cont, parametro) {
@@ -115,7 +127,9 @@ async function renderLista(cont) {
     cabecera({
       titulo: 'Cartera',
       subtitulo: `Empresas de ${alcanceTexto}. Cualquier asesor puede registrarlas; el sistema avisa si ya existe una parecida.`,
-      acciones: opciones.permisos.registrar ? h('a', { class: 'btn btn--primary', href: '#/clientes/nuevo' }, icono('add-outline'), 'Registrar empresa') : null
+      acciones: h('div', { class: 'acciones-cabecera' },
+        state.user.permissions.includes('proyectos.ver_reportes') ? h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => exportarCartera(filtros) }, icono('grid-outline'), 'Exportar CSV') : null,
+        opciones.permisos.registrar ? h('a', { class: 'btn btn--primary', href: '#/clientes/nuevo' }, icono('add-outline'), 'Registrar empresa') : null)
     }),
     h('div', { class: 'panel filtros filtros--clientes' },
       h('div', { class: 'campo campo--busqueda' }, h('label', { text: 'Buscar' }), entradaBusqueda),

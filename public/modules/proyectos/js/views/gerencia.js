@@ -6,7 +6,7 @@ import { aviso, cargando, estadoVacio, avisar } from '../components/ui.js';
 import { campoArea } from '../components/campos.js';
 import { obtenerPanelGerencial, listarPorDarVistoBueno, obtenerInforme, darVistoBueno, devolverCierre } from '../api/api.js';
 import { formatoMonto, diaCorto, nombreDelMes } from '../utils/gestion.js';
-import { enlacePdf, cifrasDelInforme, montosPorMoneda } from './cierreProyecto.js';
+import { enlacePdf, menuExportar, cifrasDelInforme, montosPorMoneda } from './cierreProyecto.js';
 
 const claveNueva = () => (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID().replace(/-/g, '') : `${Date.now()}${Math.random().toString(36).slice(2)}`).slice(0, 40);
 const ETIQUETA_SEMAFORO = { verde: 'Verde', ambar: 'Ámbar', rojo: 'Rojo' };
@@ -124,7 +124,7 @@ async function renderRevision(cont, id) {
     h('div', { class: 'pagina-cabecera' },
       h('div', null, h('div', { class: 'mi-proyecto-titulo' }, h('h1', { class: 'pagina-titulo', text: `${proyecto.nicho} · ${nombreDelMes(proyecto.anio, proyecto.mes)}` }), h('span', { class: 'chip-oscuro', text: proyecto.estado === 'cerrado' ? 'Cerrado' : 'Activo' }), chipVB),
         h('p', { class: 'pagina-subtitulo', text: `${proyecto.paises || ''} · ${proyecto.tiendas} tiendas${datos.cierre ? ` · cerrado el ${diaCorto(datos.cierre.en)} por ${datos.cierre.por}` : ''}` })),
-      enlacePdf(proyecto.id)),
+      h('div', { class: 'acciones-cabecera' }, menuExportar(proyecto.id), enlacePdf(proyecto.id))),
     h('div', { class: 'cierre-cuerpo' },
       h('div', { class: 'cierre-columna' },
         cifrasDelInforme(informe),
