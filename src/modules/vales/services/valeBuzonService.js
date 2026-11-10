@@ -89,6 +89,11 @@ const ESTADOS_ADJUNTOS = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.AD
 const ESTADOS_ADJUNTOS_VISIBLES_ASESOR = [ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
 const esPendienteAsignacion = (estado) => estado === ESTADOS_TALLER.PENDIENTE_ASIGNACION || ESTADOS_ADJUNTOS.includes(estado);
 
+// Lo que espera la atención del taller con plazo (adjuntos por verificar o ya respondidos): llega con notificación y se ve siempre,
+// aunque la entrega del vale caiga en un mes posterior al de la ventana.
+const ESTADOS_QUE_ESPERAN_AL_TALLER = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS];
+const esperaAlTaller = (estadoTaller) => ESTADOS_QUE_ESPERAN_AL_TALLER.includes(estadoTaller);
+
 const MAX_IDS_FILTRO = 500;
 
 // Une una lista CSV con un id suelto; lo que no sea entero positivo se ignora.
@@ -289,7 +294,15 @@ class ValeBuzonService {
         if (!miTaller && !puedeFusionar) return [];
         const ids = new Set(miTaller ? await valeTallerRepository.listarValeIdsDeTallerSinEstado(miTaller.id, ESTADOS_TALLER.APROBADO) : []);
         if (puedeFusionar) (await valeRepository.listarIdsPorEstado(ESTADOS.APROBADO_DEPARTAMENTO)).forEach(id => ids.add(id));
-        return this._conRechazosAbiertos(await valeRepository.listarParaBuzon({ ...base, valeIds: [...ids] }), miTaller ? miTaller.id : 0);
+        const cargados = await valeRepository.listarParaBuzon({ ...base, valeIds: [...ids] });
+        // Los que esperan al taller entran aunque su entrega quede fuera de la ventana (la consulta de arriba la recorta por fecha).
+        const esperando = miTaller ? await valeTallerRepository.listarValeIdsDeTallerConEstados(miTaller.id, ESTADOS_QUE_ESPERAN_AL_TALLER) : [];
+        const yaCargados = new Set(cargados.map(v => v.id));
+        const faltantes = esperando.filter(id => !yaCargados.has(id));
+        const conEsperando = faltantes.length
+          ? [...cargados, ...await valeRepository.listarParaBuzon({ estadosTerminales: ESTADOS_TERMINALES, valeIds: faltantes })].sort((a, b) => a.id - b.id)
+          : cargados;
+        return this._conRechazosAbiertos(conEsperando, miTaller ? miTaller.id : 0);
       }
       default: // Administrador, Gerente y demás: el buzón general, con los vales con rechazo de propuesta aunque caigan fuera de la ventana
         return this._conRechazosAbiertos(await valeRepository.listarParaBuzon(base), null);
@@ -648,7 +661,7 @@ class ValeBuzonService {
       });
     // Devuelto por un rechazo aceptado y aún en manos del taller (fila no aprobada): se ve siempre, sin ventana.
     const devueltos = new Set(miTaller || esAdministrador(usuario) ? await rechazoPropuestaRepository.listarValeIdsDevueltosDeTaller(miTaller ? miTaller.id : null) : []);
-    const enVentana = vistos.filter(v => devueltos.has(v.id) || dentroDeVentana(v, ventana));
+    const enVentana = vistos.filter(v => devueltos.has(v.id) || esperaAlTaller(v.estado_taller) || dentroDeVentana(v, ventana));
 
     // Un vale en el paso 5 cuyo asesor rechazó la propuesta de MI taller: su fila ya está aprobada (no entra arriba), pero el
     // taller debe responder, así que se muestra siempre, sin depender de la ventana de fechas.
