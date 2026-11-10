@@ -96,7 +96,7 @@ class ReporteRepository {
     );
   }
 
-  // Solo las tiendas que cubre un supervisor (mismo nombre derivado que `listarTiendas`).
+  // Solo las tiendas que cubre un supervisor, más las de sus asesores asignados (mismo nombre derivado que `listarTiendas`).
   async listarTiendasPorSupervisor(usuarioId) {
     return db.query(
       `SELECT t.id, t.codigo, p.nombre AS pais_nombre, d.nombre AS departamento_nombre,
@@ -106,9 +106,10 @@ class ReporteRepository {
        LEFT JOIN paises p ON p.id = e.pais_id
        LEFT JOIN departamentos d ON d.id = t.departamento_id
        LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
-       JOIN supervisor_tiendas st ON st.tienda_id = t.id AND st.usuario_id = ?
+       JOIN (SELECT st0.tienda_id FROM supervisor_tiendas st0 WHERE st0.usuario_id = ?
+         UNION SELECT a0.tienda_id FROM asesor_supervisores x0 JOIN asesores a0 ON a0.usuario_id = x0.asesor_id WHERE x0.supervisor_id = ? AND a0.tienda_id IS NOT NULL) st ON st.tienda_id = t.id
        ORDER BY nombre`,
-      [usuarioId],
+      [usuarioId, usuarioId],
       'reporte:tiendas_supervisor'
     );
   }
