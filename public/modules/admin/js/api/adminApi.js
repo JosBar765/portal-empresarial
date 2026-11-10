@@ -96,6 +96,18 @@ export function quitarPersonalDeTienda(tiendaId, usuarioId) {
   return enviarSinBody(`/api/admin/tiendas/${tiendaId}/personal/${usuarioId}`, 'DELETE');
 }
 
+// ---- Supervisión especial de un asesor ----
+export async function obtenerSupervisionAsesor(asesorId) {
+  const res = await fetch(`/api/admin/asesores/${asesorId}/supervisores`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar la supervisión del asesor. Inténtalo de nuevo.');
+  return data;
+}
+
+export function guardarSupervisionAsesor(asesorId, supervisorIds) {
+  return enviarConBody(`/api/admin/asesores/${asesorId}/supervisores`, 'PUT', { supervisorIds });
+}
+
 // ---- Talleres ----
 export async function listarTalleres() {
   const res = await fetch('/api/admin/talleres');

@@ -21,7 +21,7 @@ class TallerRepository {
   }
 
   // Talleres activos de un supervisor: todos los generales (`tienda_id` nulo, sin depender de `taller_tiendas` para que toda tienda los vea)
-  // y los Diseño Local que atienden sus tiendas (`taller_local_tiendas`).
+  // y los Diseño Local que atienden sus tiendas (`taller_local_tiendas`), incluidas las de los asesores que se le asignaron en `asesor_supervisores`.
   async listarIdsPorSupervisor(supervisorId) {
     return db.query(
       `SELECT DISTINCT t.id
@@ -30,11 +30,12 @@ class TallerRepository {
          t.tienda_id IS NULL
          OR EXISTS (
            SELECT 1 FROM taller_local_tiendas lt
-           JOIN supervisor_tiendas st ON st.tienda_id = lt.tienda_id
-           WHERE lt.taller_id = t.id AND st.usuario_id = ?
+           JOIN (SELECT st0.tienda_id FROM supervisor_tiendas st0 WHERE st0.usuario_id = ?
+         UNION SELECT a0.tienda_id FROM asesor_supervisores x0 JOIN asesores a0 ON a0.usuario_id = x0.asesor_id WHERE x0.supervisor_id = ? AND a0.tienda_id IS NOT NULL) st ON st.tienda_id = lt.tienda_id
+           WHERE lt.taller_id = t.id
          )
        )`,
-      [supervisorId],
+      [supervisorId, supervisorId],
       'taller:list_ids_by_supervisor'
     );
   }

@@ -412,6 +412,19 @@
   margin-bottom: 12px;
 }
 
+.form-warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin: 12px 0;
+}
+
+.form-warning[hidden] {
+  display: none;
+}
+
 .section-title {
   font-size: 12px;
   font-weight: 700;

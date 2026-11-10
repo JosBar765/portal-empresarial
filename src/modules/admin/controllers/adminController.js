@@ -1,5 +1,6 @@
 // src/modules/admin/controllers/adminController.js
 const adminService = require('../services/adminService');
+const supervisionAsesorService = require('../services/supervisionAsesorService');
 const { responderError, responderErrorInterno } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
 
@@ -164,6 +165,22 @@ class AdminController {
     try {
       await adminService.quitarPersonalDeTienda(idObligatorio(req.params.id), idObligatorio(req.params.usuarioId, 'Usuario'));
       return res.json({ ok: true });
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async obtenerSupervisionAsesor(req, res) {
+    try {
+      return res.json(await supervisionAsesorService.obtener(idObligatorio(req.params.id, 'Asesor')));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async reemplazarSupervisionAsesor(req, res) {
+    try {
+      return res.json(await supervisionAsesorService.reemplazar(req.user, idObligatorio(req.params.id, 'Asesor'), req.body.supervisorIds));
     } catch (error) {
       return responderError(res, error);
     }
