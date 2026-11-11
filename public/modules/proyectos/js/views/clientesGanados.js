@@ -41,8 +41,8 @@ function tarjeta(e, puedeVale) {
     h('a', { class: 'tarjeta-hoy-enlace', href: `#/clientes/${e.id}` },
       h('div', { class: 'tarjeta-hoy-fila' }, h('strong', { text: e.nombre })),
       h('div', { class: 'texto-tenue', text: ubicacion(e) }),
-      h('div', { class: 'alerta-linea' }, icono('cash-outline'), `Última venta ${ultimaVenta(e)}`),
-      h('div', { class: `alerta-linea${e.recompra.estado === 'vencida' ? ' alerta-linea--roja' : ''}` }, icono('refresh-outline'), textoRecompra(e.recompra))),
+      h('div', { class: 'alerta-linea alerta-linea--neutra' }, icono('cash-outline'), `Última venta ${ultimaVenta(e)}`),
+      h('div', { class: `alerta-linea${e.recompra.estado === 'vencida' ? ' alerta-linea--roja' : ' alerta-linea--neutra'}` }, icono('refresh-outline'), textoRecompra(e.recompra))),
     h('div', { class: 'contacto-acciones' }, accionesDeContacto(e.telefono, { texto: true }), puedeVale ? h('a', { class: 'btn btn--ghost btn--chico', href: hrefCrearVale(e) }, icono('document-text-outline'), 'Crear vale') : null));
 }
 

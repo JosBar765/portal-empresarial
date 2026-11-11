@@ -1113,3 +1113,6 @@ a.tarjeta-hoy:hover { border-color: var(--color-text-muted); }
 .meta-asesor-fila .panel-titulo { margin: 0; }
 .meta-asesor-barra { display: block; width: 100%; height: 10px; }
 .meta-asesor p { margin: 0; }
+.alerta-linea--neutra { color: var(--color-text-muted); }
+.cifras-asesor--metas .cifra-valor { overflow-wrap: anywhere; }
+@media (max-width: 640px) { .cifras-asesor--metas .cifra-valor { font-size: 18px; } }

@@ -110,11 +110,14 @@ export async function renderSeguimiento(cont, parametro) {
     datos.metas.otrasMonedas.length ? h('p', { class: 'texto-tenue texto-tenue--chico', text: `También se vendió en otras monedas (no cuenta para la meta): ${datos.metas.otrasMonedas.map(o => formatoMonto(o.monto, o.moneda)).join(' · ')}.` }) : null);
   }
 
+  // En las cifras el dinero va sin centavos: así cabe en el celular.
+  const dineroCorto = (v) => formatoMonto(Math.round(v), monedaMeta()).replace(/\.00$/, '');
+
   function cifrasMetas() {
     const m = datos.metas;
     const cifra = (valor, texto, clase) => h('div', { class: 'cifra' }, h('div', { class: `cifra-valor${clase ? ` ${clase}` : ''}`, text: String(valor) }), h('div', { class: 'cifra-texto', text: texto }));
-    return h('div', { class: 'cifras-asesor' },
-      cifra(dinero(m.total.meta), 'Meta del proyecto'), cifra(dinero(m.total.vendido), 'Vendido'), cifra(`${m.total.avance} %`, 'Avance'), cifra(dinero(m.total.falta), 'Falta'),
+    return h('div', { class: 'cifras-asesor cifras-asesor--metas' },
+      cifra(dineroCorto(m.total.meta), 'Meta del proyecto'), cifra(dineroCorto(m.total.vendido), 'Vendido'), cifra(`${m.total.avance} %`, 'Avance'), cifra(dineroCorto(m.total.falta), 'Falta'),
       cifra(`${m.asesoresEnMeta.n} de ${m.asesoresEnMeta.de}`, 'Asesores en meta', 'cifra-valor--verde'), cifra(`${m.tiendasEnMeta.n} de ${m.tiendasEnMeta.de}`, 'Tiendas en meta', m.tiendasEnMeta.n < m.tiendasEnMeta.de ? 'cifra-valor--ambar' : 'cifra-valor--verde'));
   }
 
