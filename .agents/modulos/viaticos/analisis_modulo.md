@@ -36,7 +36,24 @@ Para ambos tipos de modalidad se puede usar algún vehículo de la empresa o veh
 1. `ESPERANDO_AUTORIZACIÓN`: Aquí se crea la solicitud de viáticos y cae al buzón de los que pueden autorizar
 2. `RECHAZADO`: Aquí es cuando se rechaza la solicitud de viáticos; igual que en los vales de arte, el que rechaza puede enviar una razón de por qué rechazo. Solo que acá ya no es un chat, solo una razón
 3. `AUTORIZADO`: Cuando se autoriza la solicitud de viáticos. Para este punto, los viáticos ya pueden entrar en curso.
-3. 
+4. `LIQUIDADO`: El solicitante terminó de liquidar los viajes mayores a un día.
+5. `VENCIDA`: La fecha de inicio ya pasó y la solicitud no fue autorizada. Lo que la vuelve imposible de autorizar.
+  
+Estos son los estados lógicos de una solicitud de viáticos, sin embargo, los estados visibles en el pipeline de estos para una solicitud de viáticos mayor a un día serán:
+1. Esperando autorización -> `ESPERANDO AUTORIZACIÓN`  
+    1.1 Rechazada -> `RECHAZADO`. 
+2. Autorizado -> `AUTORIZADO`
+3. En curso -> Cuando se llega a la fecha de inicio del viaje
+    3.1 Terminado -> Cuando se llega a la fecha final del viaje
+4. Liquidado -> `LIQUIDADO`  
+Nótese como son 4 pasos los que muestra el pipeline, donde el paso 1 y 3 tienen dos facetas en el mismo estado.  
+  
+Y las solicitudes de viáticos menores a un día mostrarán:
+1. Esperando autorización -> `ESPERANDO AUTORIZACIÓN`  
+    1.1 Rechazada -> `RECHAZADO`. 
+2. Autorizado -> `AUTORIZADO`
+  
+Los rechazos mostrarán en el paso 1 una equis (similar a como se muestra un rechazo en el pipeline de estado de un vale de arte).
   
 # Permisos
 
@@ -44,13 +61,13 @@ Como el propósito de este módulo es que ciertas personas puedan solicitar viá
   
 - Es necesario un permiso único que permita **ver y usar** el módulo. Muchos módulos de la plataforma actualmente tienen el permiso `{modulo}.ver`; para este caso, considero que el permiso `viaticos.ver` es más que suficiente y que dicho permiso controle si el módulo en visible en el dashboard de módulos de la plataforma y su interacción con el mismo (uso de la pestania ***Solicitudes***).  
 
-- Otro permiso será `viaticos.gestionar`. Este permiso solo permitirá **ver** la solicitud de los viáticos y el estado en el que se encuentran en una vista tipo lista; **no permite** autorizar ni rechazar (pestania ***Gestiones***, incluye únicamente la acción de ver).  
+- Otro permiso será `viaticos.gestionar`. Este permiso solo permitirá **ver** la solicitud de los viáticos y el estado en el que se encuentran en una vista tipo lista; **no permite** autorizar ni rechazar (pestania ***Gestiones***, incluye acciones nativas de la vista). Este permiso controla exclusivamente la acción.  
    
-- Otro permiso será `viaticos.autorizar`. Este permiso permitirá **ver** las solicitudes de viáticos enviadas para su autorización, además de la **autorización** y **rechazo** de la solicitud de viáticos (pestania ***Gestiones***, incluye la acción autorizar y rechazar).  
+- Otro permiso será `viaticos.autorizar`. Este permiso permitirá la **autorización** y **rechazo** de las solicitudes de viáticos (pestania ***Gestiones***, acción autorizar y rechazar). Este permiso controla exclusivamente la acción.  
 
-- Otro permiso será `viaticos.liquidar`. Este permiso permitirá **ver** la liquidación de una solicitud de viáticos realizada por el solicitante (pestania ***Gestiones***, incluye la acción liquidar).
+- Otro permiso será `viaticos.liquidar`. Este permiso permitirá **ver** la liquidación de una solicitud de viáticos realizada por el solicitante (pestania ***Gestiones***, acción liquidar). Este permiso controla exclusivamente la acción.  
   
-- Otro permiso será `viáticos.configurar`. Este permiso permitirá **ver y usar** la pestania de ***Configuración***.
+- Otro permiso será `viáticos.configurar`. Este permiso permitirá **ver y usar** la pestania de ***Configuración***.  
   
 Estos permisos son tentativos, quiere decir, en el camino puede surgir algún otro permiso que necesitemos delimitar. La regla de los permisos es que controlen las acciones que realizan los usuarios, y que ningún usuario podrá hacer alguna acción que requiera un permiso en específico. Los permisos tienen que ser atómicos y **totalmente independientes**, no deben ser hardcodeados o depender de código hardcodeado. La finalidad, es que si surgen nuevos roles se les pueda asignar dicho permiso de manera libre, y que con eso baste para que pueda interactuar con la acción.
 
@@ -89,7 +106,7 @@ Este modal permitirá ir agregando facturas a modo de liquidar todo aquello que 
   
 A lo largo de este modal, el usuario no solo podrá ver el monto de cuanto le falta por liquidar, si no, también el monto de lo que va liquidando. Cada item de liquidación tendra los siguientes campos:
 1. **Qué está liquidando**: Un combobox que tenga lo que tenga que liquidar (hotel, gasolina, peaje, ferry, otro - campo de texto libre)
-2. **Monto a liquidar**: Cifra en quetzales
+2. **Monto a liquidar**: Cifra en moneda local
 3. **Foto/Archivo**: Le permite tomar una foto a algún voucher/factura, subir una imágen o documento .pdf
 
 ### Modal de solicitud de viáticos
@@ -105,13 +122,13 @@ El modal tendrá las siguientes secciones con los siguientes campos:
             1.1.1.2 Precio por galón (moneda, mayor a cero)  
             1.1.1.3 Depreciación por km (moneda, mayor a cero)  
             1.1.1.4 Galones requeridos (numérico, mayor a cero, calculado en base a la distancia)  
-            1.1.1.5 Costo de Gasolina (moneda, mayor a cero, parametrizado en el sistema)  
+            1.1.1.5 Costo de Gasolina (moneda, mayor a cero, calculado por el sistema)  
             1.1.1.6 Costo Depreciación (moneda, mayor a cero, calculado en base a la distancia)  
         1.1.2 Si el vehículo es propiedad de la empresa  
             1.1.2.1 Rendimiento KM/Galón (numérico, mayor a cero)  
             1.1.2.2 Precio por galón (moneda, mayor a cero)
             1.1.2.3 Galones requeridos (numérico, mayor a cero, calculado en base a la distancia)  
-            1.1.2.4 Costo de Gasolina (moneda, mayor a cero, parametrizado en el sistema)  
+            1.1.2.4 Costo de Gasolina (moneda, mayor a cero, calculado por el sistema)  
 
     1.2 Fechas de viaje
         1.2.1 Fecha de salida y fecha de entrada
@@ -251,12 +268,12 @@ Esta vista contendrá subpestanias en una vista horizontal, donde cada pestania 
 
 * No se puede crear una solicitud de viáticos para fechas pasadas 
 
-* Si una solicitud de viáticos, no ha sido autorizada para la fecha en que debe dar inicio el viaje, esa solicitud se vuelve imposible de autorizar, ya que es inválida y se tiene que modificar
+* Si una solicitud de viáticos, no ha sido autorizada para la fecha en que debe dar inicio el viaje, esa solicitud se vuelve imposible de autorizar, ya que es inválida y se tiene que modificar. Esto **quiere decir** que la acción de `modificar` y `dar de baja` solo existen para las solicitudes que están esperando autorización, han sido rechazadas o han vencido.
 
 * Para los viajes de menos de un día, no se podrá sacar ningún auto si este tiene vencida la tarjeta de circulación
 
 * Al momento de seleccionar el tiempo de viaje (viajes mayores a 1 día) debe salir una advertencia por si la tarjeta de circulación vence durante el trayecto. El sistema permitirá continuar posterior a la advertencia. Esta salvedad queda marcada en el pdf generado, la salvedad aparecerá como: `La tarjeta de circulación vencerá durante el trayecto`.
 
-* Si el carro tiene vencida la póliza del seguro o vence dentro de la ventana de tiempo del viaje, mostrar una advertencia. Esto no restringe la solicitud de vehículos, sin embargo, esta salvedad queda marcada en el pdf generado. La salvedad aparecerá como: `El seguro vencerá durante el trayecto`.
+* Si el carro tiene vencida la póliza del seguro o vence dentro de la ventana de tiempo del viaje, mostrar una advertencia. Esto no restringe la solicitud de vehículos, sin embargo, esta salvedad queda marcada en el pdf generado. La salvedad aparecerá como: `El seguro vencerá durante el trayecto`.  
   
 Las salvedades van registradas en el pie del PDF generado en la sección de **SALVEDADES**.
