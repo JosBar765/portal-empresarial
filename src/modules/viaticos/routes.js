@@ -1,8 +1,9 @@
 // src/modules/viaticos/routes.js
 // Montado en /api/viaticos detrás de requireAuth y viaticos.ver.
 const express = require('express');
+const multer = require('multer');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
-const { PERMISOS, RECURSOS } = require('./constantes');
+const { PERMISOS, RECURSOS, ARCHIVOS } = require('./constantes');
 const contextoController = require('./controllers/contextoController');
 const configController = require('./controllers/configController');
 const solicitudController = require('./controllers/solicitudController');
@@ -10,6 +11,10 @@ const { crearCrud } = require('./controllers/crudController');
 const catalogoService = require('./services/catalogoService');
 const tramoService = require('./services/tramoService');
 const vehiculoService = require('./services/vehiculoService');
+
+// En memoria y con el tope duro: el tipo y el tamaño efectivos los valida el servicio contra viaticos_ajustes.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: ARCHIVOS.MAX_MB_DURO * 1024 * 1024 } });
+const fotosDefectos = upload.fields([{ name: ARCHIVOS.CAMPO_DEFECTOS, maxCount: ARCHIVOS.MAX_DEFECTOS }]);
 
 const router = express.Router();
 router.get('/contexto', contextoController.obtener);
@@ -19,6 +24,10 @@ router.get('/catalogos/solicitud', solicitudController.catalogos);
 router.post('/solicitudes/calcular', solicitudController.calcular);
 router.get('/solicitudes', solicitudController.listar);
 router.get('/solicitudes/:id', solicitudController.obtener);
+router.post('/solicitudes', fotosDefectos, solicitudController.crear);
+router.put('/solicitudes/:id', fotosDefectos, solicitudController.modificar);
+router.delete('/solicitudes/:id', solicitudController.darDeBaja);
+router.get('/solicitudes/:id/documentos', solicitudController.documentos);
 
 // Configuración: todo el subárbol exige viaticos.configurar.
 const config = express.Router();

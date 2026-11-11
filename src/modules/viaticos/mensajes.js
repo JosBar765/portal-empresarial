@@ -131,6 +131,28 @@ const CATALOGO = Object.freeze({
   'solicitud.defectoInactivo': 'El tipo de defecto «{nombre}» está desactivado. Elige otro tipo.',
   'solicitud.defectoDescripcion': 'Describe el defecto «{nombre}» (hasta {max} caracteres): con el tipo «otros» la descripción es obligatoria.',
 
+  // ---- Solicitudes: guardado ----
+  'solicitud.datosFalta': 'Envía los datos de la solicitud en el campo «datos» (JSON) o como cuerpo JSON.',
+  'solicitud.datosJson': 'El campo «datos» no es un JSON válido. Corrige el formato e inténtalo de nuevo.',
+  'solicitud.llaveIdempotencia': 'La clave de reintento («idempotencyKey») debe ser un texto de 1 a {max} caracteres. Corrígela o no la envíes.',
+  'solicitud.noModificable': 'La solicitud {correlativo} está «{estado}» y ya no se puede modificar: solo se modifica mientras espera autorización, está rechazada o venció.',
+  'solicitud.noSeDaDeBaja': 'La solicitud {correlativo} está «{estado}» y ya no se puede dar de baja: solo se da de baja mientras espera autorización, está rechazada o venció.',
+  'archivo.ajustesFaltan': 'Los ajustes de archivos del módulo no están configurados. Avisa a un administrador.',
+  'archivo.tipoNoPermitido': 'El archivo «{nombre}» es de un tipo no permitido ({tipo}). Sube uno de estos tipos: {permitidos}.',
+  'archivo.contenidoNoCoincide': 'El contenido del archivo «{nombre}» no corresponde al tipo {tipo}. Súbelo de nuevo en un formato válido.',
+  'archivo.demasiadoGrande': 'El archivo «{nombre}» pesa {tamano} MB y el máximo permitido es {max} MB. Reduce su tamaño y vuelve a subirlo.',
+  'archivo.dimensiones': 'La imagen «{nombre}» tiene dimensiones demasiado grandes o no se puede leer. Sube una foto de menor resolución.',
+  'defecto.sinArchivo': 'El defecto {numero} no tiene foto en la posición {indice} del campo «defectos». Adjunta una foto por cada defecto.',
+  'defecto.archivoRepetido': 'La foto en la posición {indice} está asignada a más de un defecto. Cada defecto lleva su propia foto.',
+  'defecto.archivoSobrante': 'Adjuntaste {cantidad} fotos pero solo {usadas} están asignadas a un defecto. Quita las que sobran o registra su defecto.',
+  'defecto.archivosSinInspeccion': 'Un viaje de más de 1 día no lleva fotos de defectos. Quita los archivos adjuntos.',
+
+  // ---- Notificaciones y documentos ----
+  'notificacion.solicitudNueva': 'Nueva solicitud de viáticos {correlativo} de {solicitante}: espera tu autorización.',
+  'notificacion.solicitudModificada': 'La solicitud de viáticos {correlativo} de {solicitante} fue modificada y espera tu autorización.',
+  'documento.tituloPdf': 'Solicitud {correlativo}',
+  'documento.tituloDefecto': 'Defecto {numero}: {tipo}',
+
   // ---- Solicitudes: advertencias (salvedades) ----
   'advertencia.licenciaVence': 'Tu licencia vence el {fecha}, antes de que termine el viaje. Puedes continuar; quedará como salvedad en el PDF.',
   'advertencia.tarjetaVence': 'La tarjeta de circulación del vehículo {placa} vence el {fecha}, antes de que termine el viaje. Puedes continuar; quedará como salvedad en el PDF.',

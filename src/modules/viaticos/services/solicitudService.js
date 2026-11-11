@@ -1,5 +1,5 @@
 // src/modules/viaticos/services/solicitudService.js
-// Casos de uso del solicitante que solo leen: catálogos del formulario, cálculo en vivo, lista y detalle.
+// Casos de uso del solicitante que solo leen: catálogos del formulario, cálculo en vivo, lista y detalle (el guardado está en solicitudGuardadoService).
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
 const { ahoraUTC6 } = require('../../../core/calendario/calendarioLaboral');
@@ -146,16 +146,16 @@ class SolicitudService {
     };
   }
 
-  // Lee de la base lo que `evaluar` necesita según la modalidad. Solo lecturas.
-  async cargarContexto(usuarioId, datos, { excluirSolicitudId = null } = {}) {
+  // Lee de la base lo que `evaluar` necesita según la modalidad. Solo lecturas; `ejecutor` permite leer dentro de una transacción.
+  async cargarContexto(usuarioId, datos, { excluirSolicitudId = null, ejecutor } = {}) {
     const esLargo = datos.modalidad === MODALIDADES.MAS_DE_UN_DIA;
     const [paises, licencia, moneda, motivo, vehiculo, salvedades] = await Promise.all([
-      personaRepo.listarPaisesDe(usuarioId),
-      personaRepo.obtenerLicencia(usuarioId),
-      esLargo ? catalogoRepo.monedaPorId(datos.monedaId) : null,
-      catalogoRepo.motivoPorId(datos.motivoId),
-      catalogoRepo.vehiculoPorId(datos.vehiculoId),
-      catalogoRepo.listarSalvedades()
+      personaRepo.listarPaisesDe(usuarioId, ejecutor),
+      personaRepo.obtenerLicencia(usuarioId, ejecutor),
+      esLargo ? catalogoRepo.monedaPorId(datos.monedaId, ejecutor) : null,
+      catalogoRepo.motivoPorId(datos.motivoId, ejecutor),
+      catalogoRepo.vehiculoPorId(datos.vehiculoId, ejecutor),
+      catalogoRepo.listarSalvedades(ejecutor)
     ]);
     const { desde, hasta } = rangoDelViaje(datos);
     const ctx = {
@@ -165,27 +165,27 @@ class SolicitudService {
       licencia, moneda, motivo, vehiculo,
       regla: null,
       salvedades: new Map(salvedades.map(s => [s.nombre, s.id])),
-      traslapes: await solicitudRepo.buscarTraslapes(usuarioId, desde, hasta, excluirSolicitudId),
+      traslapes: await solicitudRepo.buscarTraslapes(usuarioId, desde, hasta, excluirSolicitudId, ejecutor),
       ubicaciones: new Map(), tramosPorPar: new Map(), tiposComida: [], valoresPorTipo: {}, tiposGasto: new Map(),
       fluidos: [], niveles: new Map(), kitItems: new Map(), tiposDefecto: new Map()
     };
     if (licencia && vehiculo) {
-      const reglas = await catalogoRepo.listarReglasDeLicencia(datos.paisId, licencia.tipoLicenciaId);
+      const reglas = await catalogoRepo.listarReglasDeLicencia(datos.paisId, licencia.tipoLicenciaId, ejecutor);
       ctx.regla = reglas.find(r => r.tipoPlacaId === vehiculo.tipoPlacaId) || null;
     }
-    if (esLargo) await this.cargarContextoLargo(datos, ctx);
-    else await this.cargarContextoCorto(datos, ctx);
+    if (esLargo) await this.cargarContextoLargo(datos, ctx, ejecutor);
+    else await this.cargarContextoCorto(datos, ctx, ejecutor);
     return ctx;
   }
 
-  async cargarContextoLargo(datos, ctx) {
+  async cargarContextoLargo(datos, ctx, ejecutor) {
     const ubicacionIds = [...new Set(datos.tramos.flatMap(t => [t.origenId, t.destinoId]))];
     const [ubicaciones, tramos, tiposComida, tiposGasto, valores] = await Promise.all([
-      catalogoRepo.ubicacionesPorIds(ubicacionIds),
-      catalogoRepo.tramosEntre(ubicacionIds),
-      catalogoRepo.listarTiposComida(),
-      catalogoRepo.tiposGastoPorIds([...new Set(datos.gastos.map(g => g.tipoGastoId))]),
-      ctx.moneda ? catalogoRepo.valoresComidaDeMoneda(ctx.moneda.id) : []
+      catalogoRepo.ubicacionesPorIds(ubicacionIds, ejecutor),
+      catalogoRepo.tramosEntre(ubicacionIds, ejecutor),
+      catalogoRepo.listarTiposComida(ejecutor),
+      catalogoRepo.tiposGastoPorIds([...new Set(datos.gastos.map(g => g.tipoGastoId))], ejecutor),
+      ctx.moneda ? catalogoRepo.valoresComidaDeMoneda(ctx.moneda.id, ejecutor) : []
     ]);
     ctx.ubicaciones = new Map(ubicaciones.map(u => [u.id, u]));
     ctx.tramosPorPar = new Map(tramos.map(t => [claveDePar(t.ubicacionAId, t.ubicacionBId), t]));
@@ -194,13 +194,13 @@ class SolicitudService {
     ctx.valoresPorTipo = Object.fromEntries(valores.map(x => [x.tipoComidaId, x.valor]));
   }
 
-  async cargarContextoCorto(datos, ctx) {
+  async cargarContextoCorto(datos, ctx, ejecutor) {
     const defectos = datos.inspeccion ? datos.inspeccion.defectos : [];
     const [fluidos, niveles, kit, tiposDefecto] = await Promise.all([
-      catalogoRepo.listarFluidos(),
-      catalogoRepo.listarNiveles(),
-      catalogoRepo.listarKit(),
-      catalogoRepo.tiposDefectoPorIds([...new Set(defectos.map(d => d.tipoDefectoId))])
+      catalogoRepo.listarFluidos(ejecutor),
+      catalogoRepo.listarNiveles(ejecutor),
+      catalogoRepo.listarKit(ejecutor),
+      catalogoRepo.tiposDefectoPorIds([...new Set(defectos.map(d => d.tipoDefectoId))], ejecutor)
     ]);
     ctx.fluidos = fluidos;
     ctx.niveles = new Map(niveles.map(n => [n.id, { ...n, esNoAplica: n.nombre === NIVEL_NO_APLICA }]));
@@ -260,15 +260,22 @@ class SolicitudService {
     return { desde, hasta, solicitudes: items };
   }
 
-  async obtener(usuario, idCrudo) {
+  // Encabezado de una solicitud del propio usuario: 404 si no existe y 403 si es de otra persona.
+  async obtenerPropia(usuario, idCrudo, ejecutor) {
     const id = idObligatorio(idCrudo, 'Identificador de la solicitud');
-    const fila = await solicitudRepo.obtenerEncabezado(id);
+    const fila = await solicitudRepo.obtenerEncabezado(id, ejecutor);
     if (!fila) throw new ErrorDeNegocio(msg('solicitud.noExiste', { id }), 404);
     if (fila.solicitanteId !== usuario.id) throw new ErrorDeNegocio(msg('solicitud.ajena'), 403);
+    return fila;
+  }
+
+  async obtener(usuario, idCrudo, ejecutor) {
+    const fila = await this.obtenerPropia(usuario, idCrudo, ejecutor);
+    const id = fila.id;
     const [tramos, hospedajes, comidas, gastos, salvedades, fluidos, kit, defectos, historial] = await Promise.all([
-      solicitudRepo.listarTramos(id), solicitudRepo.listarHospedajes(id), solicitudRepo.listarComidas(id),
-      solicitudRepo.listarGastos(id), solicitudRepo.listarSalvedades(id), solicitudRepo.listarFluidos(id),
-      solicitudRepo.listarKit(id), solicitudRepo.listarDefectos(id), solicitudRepo.listarHistorial(id)
+      solicitudRepo.listarTramos(id, ejecutor), solicitudRepo.listarHospedajes(id, ejecutor), solicitudRepo.listarComidas(id, ejecutor),
+      solicitudRepo.listarGastos(id, ejecutor), solicitudRepo.listarSalvedades(id, ejecutor), solicitudRepo.listarFluidos(id, ejecutor),
+      solicitudRepo.listarKit(id, ejecutor), solicitudRepo.listarDefectos(id, ejecutor), solicitudRepo.listarHistorial(id, ejecutor)
     ]);
     const { hoy } = instante();
     const esLargo = fila.modalidad === MODALIDADES.MAS_DE_UN_DIA;
@@ -336,4 +343,6 @@ function respuestaDeCalculo(modalidad, { errores = [], advertencias = [], desglo
 
 module.exports = new SolicitudService();
 module.exports.semanaDe = semanaDe;
+module.exports.instante = instante;
+module.exports.pipelineDe = pipelineDe;
 module.exports.interpretarBusqueda = interpretarBusqueda;

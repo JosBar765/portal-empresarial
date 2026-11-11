@@ -36,8 +36,8 @@ class PersonaRepository {
     return filasACamel(await db.query(SELECT_LICENCIA, [], 'viaticos:listarLicencias'));
   }
 
-  async obtenerLicencia(usuarioId) {
-    const filas = await db.query(`${SELECT_LICENCIA} WHERE l.usuario_id = ?`, [usuarioId], 'viaticos:obtenerLicencia');
+  async obtenerLicencia(usuarioId, ejecutor = db) {
+    const filas = await ejecutor.query(`${SELECT_LICENCIA} WHERE l.usuario_id = ?`, [usuarioId], 'viaticos:obtenerLicencia');
     return filas[0] ? filasACamel(filas)[0] : null;
   }
 
@@ -45,8 +45,8 @@ class PersonaRepository {
     return filasACamel(await db.query(`${SELECT_PAISES} ORDER BY p.nombre`, [], 'viaticos:listarPaisesPersonas'));
   }
 
-  async listarPaisesDe(usuarioId) {
-    return filasACamel(await db.query(`${SELECT_PAISES} WHERE up.usuario_id = ? ORDER BY p.nombre`, [usuarioId], 'viaticos:paisesDeUsuario'));
+  async listarPaisesDe(usuarioId, ejecutor = db) {
+    return filasACamel(await ejecutor.query(`${SELECT_PAISES} WHERE up.usuario_id = ? ORDER BY p.nombre`, [usuarioId], 'viaticos:paisesDeUsuario'));
   }
 
   async guardarLicencia(usuarioId, { tipoLicenciaId, numero, venceEl }, tx) {

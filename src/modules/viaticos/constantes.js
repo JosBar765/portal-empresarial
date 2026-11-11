@@ -73,6 +73,36 @@ const LIMITES_SOLICITUD = Object.freeze({
   MAX_RENGLONES_INSPECCION: 50
 });
 
+// Archivos: el tope duro de multer es el máximo configurable; el tipo y tamaño efectivos salen de viaticos_ajustes.
+const ARCHIVOS = Object.freeze({
+  CAMPO_DEFECTOS: 'defectos',
+  CAMPO_ARCHIVO: 'archivo',
+  MAX_MB_DURO: AJUSTES.max_archivo_mb.max,
+  MAX_DEFECTOS: LIMITES_SOLICITUD.MAX_DEFECTOS,
+  AJUSTE_TIPOS: 'tipos_archivo_permitidos',
+  AJUSTE_MAX_MB: 'max_archivo_mb'
+});
+
+const SENTIDOS_TRAMO = Object.freeze({ IDA: 'ida', VUELTA: 'vuelta' });
+
+// La llave de idempotencia llega del cliente; se acota para caber en idempotency_keys junto al prefijo del usuario.
+const IDEMPOTENCIA = Object.freeze({ ENDPOINT_CREAR: 'viaticos:crear', MAX_LLAVE: 64 });
+
+const NOTIFICACION = Object.freeze({
+  MODULO: 'viaticos',
+  NIVEL: 'info',
+  TIPO_NUEVA: 'solicitud_nueva',
+  TIPO_MODIFICADA: 'solicitud_modificada'
+});
+
+const ROL_ADMINISTRADOR_ID = 1;
+
+// Correlativo: VIA-<código país>-<número con ceros a la izquierda>.
+const CORRELATIVO = Object.freeze({ PREFIJO: 'VIA', DIGITOS: 6 });
+
+// Estados guardados en los que la solicitud todavía se modifica o se da de baja (coinciden con las acciones del pipeline).
+const ESTADOS_EDITABLES = Object.freeze([ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.RECHAZADA]);
+
 // Nombre del nivel «no aplica» de viaticos_niveles (solo lo admiten los fluidos con permite_no_aplica).
 const NIVEL_NO_APLICA = 'N/A';
 
@@ -128,5 +158,5 @@ const MESES_ABREVIADOS = Object.freeze(['ene', 'feb', 'mar', 'abr', 'may', 'jun'
 
 module.exports = {
   PERMISOS, PREFIJO_PERMISOS, ESTADOS, MODALIDADES, RECURSOS, AJUSTES, MIME_PERMITIDOS, LIMITES,
-  LIMITES_SOLICITUD, NIVEL_NO_APLICA, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS
+  LIMITES_SOLICITUD, ARCHIVOS, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS
 };

@@ -45,6 +45,7 @@ Las migraciones de `database/migrations/` tocan solo la base del propio entorno,
 |---|---|---|
 | Borrar objetos de Storage (incluye el bucket de borradores y los huérfanos) | `supabaseStorage.eliminar` | Solo en producción |
 | Purga de PDF, adjuntos y propuestas por antigüedad | `retencionArchivosWatcher` | Solo en producción |
+| Borrar archivos de Viáticos (fotos de defectos, PDF y comprobantes) al modificar o dar de baja una solicitud | `supabaseStorage.eliminar` (vía `archivosViaticoService.eliminarArchivos`) | Solo en producción |
 
 Hoy el código no envía correos, notificaciones push ni webhooks, ni llama a APIs de terceros. Detalle del borrado de archivos: `.agents/modulos/vales de arte/documentacion/storage_solo_produccion.md`.
 

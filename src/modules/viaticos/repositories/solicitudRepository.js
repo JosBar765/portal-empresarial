@@ -1,5 +1,5 @@
 // src/modules/viaticos/repositories/solicitudRepository.js
-// Lecturas de solicitudes y sus partes. Las escrituras llegan con la parte B.
+// Lecturas de solicitudes y sus partes. Las escrituras están en solicitudEscrituraRepository.
 const db = require('../../../config/database');
 const { ESTADOS } = require('../constantes');
 const { filaACamel, filasACamel } = require('../utilidades');
@@ -10,7 +10,7 @@ const ENCABEZADO = `SELECT s.id, s.correlativo, s.pais_id, p.codigo AS pais_codi
        s.motivo_id, mt.nombre AS motivo_nombre, s.vehiculo_id, v.marca AS vehiculo_marca, v.modelo AS vehiculo_modelo,
        v.anio AS vehiculo_anio, v.placa AS vehiculo_placa, v.propietario_id AS vehiculo_propietario_id,
        s.fecha_salida, s.fecha_regreso, s.rendimiento_km_galon, s.precio_galon, s.depreciacion_por_km, s.odometro,
-       s.total_solicitado, s.creado_en, s.actualizado_en,
+       s.total_solicitado, s.pdf_ruta, s.creado_en, s.actualizado_en,
        (SELECT h.motivo FROM viaticos_historial h WHERE h.solicitud_id = s.id AND h.motivo IS NOT NULL ORDER BY h.id DESC LIMIT 1) AS motivo_rechazo,
        (SELECT MAX(h.creado_en) FROM viaticos_historial h JOIN viaticos_estados he ON he.id = h.estado_id
          WHERE h.solicitud_id = s.id AND he.nombre = ?) AS liquidada_en
@@ -138,6 +138,16 @@ class SolicitudRepository {
        FROM viaticos_defectos d JOIN viaticos_tipos_defecto td ON td.id = d.tipo_defecto_id
        WHERE d.solicitud_id = ? ORDER BY d.id`,
       [solicitudId], 'viaticos:defectosDeSolicitud'
+    ));
+  }
+
+  // Con la ruta de Storage: para el visor de documentos y para borrar los archivos.
+  async listarArchivosDefectos(solicitudId, ejecutor = db) {
+    return filasACamel(await ejecutor.query(
+      `SELECT d.id, td.nombre AS tipo_defecto_nombre, d.ruta, d.mime_type
+       FROM viaticos_defectos d JOIN viaticos_tipos_defecto td ON td.id = d.tipo_defecto_id
+       WHERE d.solicitud_id = ? ORDER BY d.id`,
+      [solicitudId], 'viaticos:archivosDeDefectos'
     ));
   }
 

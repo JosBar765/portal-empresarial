@@ -121,3 +121,30 @@ Siempre 200 si el cuerpo es un objeto (el cliente decide con `valido`). Los erro
 ### Pipeline derivado
 
 `{ fase, pasos: [{ clave, etiqueta, estado }], etiqueta, detalle, vencida, acciones }`. `fase` es esperando, vencida, rechazada, autorizada, en_curso, terminada o liquidada. Más de 1 día: 4 pasos (Esperando autorización, Autorizado, En curso o Terminado, Liquidado); 1 día o menos: 2. `estado` de cada paso: `pendiente`, `actual`, `completado` o `rechazado` (el paso 1 de una rechazada). Terminado deja el paso 3 completado y el 4 actual. «Vencida»: esperando autorización con salida anterior a hoy (se compara por día). En curso desde la salida hasta el día del regreso inclusive; terminado después. `acciones`: `ver` siempre; `modificar` y `darDeBaja` solo en esperando, vencida y rechazada; `liquidar` solo en más de 1 día, terminada.
+
+
+## Solicitudes: guardado (F3.3 parte B)
+
+### Formato de `POST /solicitudes` y `PUT /solicitudes/:id`
+
+- `multipart/form-data`: campo `datos` (texto con el JSON del payload) y campo de archivos `defectos` (una foto por defecto, hasta 20); cada defecto de `inspeccion.defectos` referencia su foto con `archivoIndice` (posición en `defectos`). Sin archivos también se acepta JSON puro: el payload directo o envuelto en `{ "datos": { … } }`.
+- `idempotencyKey` (texto de 1 a 64 caracteres) va dentro de `datos`; si falta, el servidor genera una. La llave se guarda por usuario con el endpoint `viaticos:crear`: repetir un `POST` con la misma llave devuelve el detalle ya creado, sin crear otra solicitud ni subir de nuevo las fotos. Dos envíos simultáneos con la misma llave se serializan.
+- El servidor ignora todo importe o total que mande el cliente y recalcula; `estado` siempre es «esperando autorización».
+- Archivos: el tope duro de multer es 25 MB por archivo (máximo configurable); el tipo (`tipos_archivo_permitidos`) y el tamaño (`max_archivo_mb`) efectivos salen de `viaticos_ajustes`. Además del tipo declarado se verifica la firma real del contenido y, en imágenes, el tope de megapíxeles.
+
+### Respuestas
+
+- `POST`: 201 con el detalle (misma forma que `GET /solicitudes/:id`). `PUT`: 200 con el detalle; conserva el correlativo, reemplaza todas las partes, agrega un renglón de historial y vuelve a «esperando autorización». Las fotos anteriores se borran de Storage después del commit y las nuevas siguen el contador `<CORRELATIVO>_DEFECTO_<n>` (nunca repiten un nombre previo).
+- `DELETE`: 200 con `{ id, correlativo }`; borra el registro (las partes caen por `CASCADE`) y después los archivos de Storage (fotos y PDF).
+- `GET /solicitudes/:id/documentos`: lista `[ { titulo, tipo: 'pdf' | 'imagen', url } ]` con el PDF (si existe) y las fotos de defectos, en ese orden; `url` es la URL pública guardada en `ruta`.
+
+### Errores
+
+- 400 `{ error, campos }`: datos inválidos; `campos` acumula los errores de formato, de negocio y de archivos por campo (`inspeccion.defectos[0]`, `defectos`, `idempotencyKey`…). Las advertencias no bloquean y se guardan como salvedades. Archivos: tipo no permitido, contenido que no corresponde al tipo, tamaño sobre `max_archivo_mb`, defecto sin foto, foto repetida, fotos sobrantes y fotos en un viaje de más de 1 día.
+- 400 sin `campos`: `datos` ausente o con JSON inválido; ajustes de archivos sin configurar. Multer (global): más de 20 fotos, archivo sobre 25 MB.
+- 403: la solicitud es de otra persona o su estado ya no admite modificar ni dar de baja (autorizada, liquidada); 404 si no existe. El estado se revalida dentro de la transacción con la fila bloqueada.
+
+### Efectos
+
+- Todo se guarda en una transacción: correlativo (`INSERT … ON DUPLICATE KEY UPDATE ultimo = LAST_INSERT_ID(ultimo + 1)`; la fila del país se crea si no existe y queda bloqueada hasta el commit), solicitud, partes, subida de fotos y historial. Si algo falla se revierte y se intenta borrar lo ya subido (el borrado solo actúa en producción).
+- Después del commit: `documentoService.regenerarPdf` (por ahora no hace nada) y notificación `modulo = 'viaticos'`, `nivel = 'info'`, sin `vale_id`, a los usuarios activos con `viaticos.autorizar` (sin el rol Administrador). Un fallo de cualquiera de los dos se registra y no deshace la solicitud.

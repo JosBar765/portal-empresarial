@@ -162,7 +162,14 @@ const MENSAJES_EXCESO_POR_CAMPO = {
   imagenes: 'Un vale admite hasta 10 imágenes.',
   documentos: 'Un vale admite hasta 5 documentos.',
   propuesta: 'Adjunta un solo archivo de propuesta.',
-  fusion: 'Adjunta un solo documento de fusión.'
+  fusion: 'Adjunta un solo documento de fusión.',
+  defectos: 'Una solicitud de viáticos admite hasta 20 fotos de defectos.',
+  archivo: 'Adjunta un solo archivo.'
+};
+// Los archivos de viáticos admiten hasta 25 MB (el máximo configurable), no los 5 MB de Vales.
+const MENSAJES_TAMANO_POR_CAMPO = {
+  defectos: 'El archivo adjunto supera el tamaño máximo absoluto permitido (25 MB).',
+  archivo: 'El archivo adjunto supera el tamaño máximo absoluto permitido (25 MB).'
 };
 
 app.use((err, req, res, next) => {
@@ -172,7 +179,7 @@ app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     const mensaje = err.code === 'TIPO_NO_PERMITIDO'
       ? `Formato de archivo no permitido${err.archivo ? `: ${err.archivo}` : ''}. Solo se aceptan JPG, PNG, WEBP y PDF.`
-      : (err.code === 'LIMIT_UNEXPECTED_FILE' && MENSAJES_EXCESO_POR_CAMPO[err.field]) || MENSAJES_MULTER[err.code] || 'No se pudo procesar el archivo adjunto.';
+      : (err.code === 'LIMIT_UNEXPECTED_FILE' && MENSAJES_EXCESO_POR_CAMPO[err.field]) || (err.code === 'LIMIT_FILE_SIZE' && MENSAJES_TAMANO_POR_CAMPO[err.field]) || MENSAJES_MULTER[err.code] || 'No se pudo procesar el archivo adjunto.';
     return res.status(400).json({ error: mensaje });
   }
   // Errores de lectura del cuerpo: mensaje fijo, sin el texto del analizador.

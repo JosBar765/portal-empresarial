@@ -91,6 +91,15 @@ function propuestaFusion(correlativo, contador) {
   return `${prefijoPropuestaFusion(correlativo)}_${contador}`;
 }
 
+// Viáticos: foto de un defecto del vehículo; el contador sigue creciendo entre modificaciones para no repetir nombres.
+function prefijoDefectoViatico(correlativo) {
+  return `${sanitizarCorrelativo(correlativo)}_DEFECTO`;
+}
+
+function defectoViatico(correlativo, contador) {
+  return `${prefijoDefectoViatico(correlativo)}_${contador}`;
+}
+
 // Máximo X + 1 entre las URLs/nombres que empiezan por `${prefijo}_` seguido solo de dígitos
 // (se ignoran carpeta, extensión y querystring); 1 si no hay ninguno.
 function siguienteContador(urlsExistentes, prefijo) {
@@ -109,5 +118,5 @@ module.exports = {
   sanitizarCorrelativo, codigoTaller, siguienteContador,
   pdfCreacion, pdfAutorizacion, prefijoCorreccionPreAutorizacion, pdfCorreccionPreAutorizacion,
   adjunto, prefijoAdjunto, borrador, prefijoBorrador, propuesta, prefijoPropuesta, prefijoPropuestaFusion, propuestaFusion,
-  prefijoCorreccionAdmin, correccionAdmin
+  prefijoCorreccionAdmin, correccionAdmin, prefijoDefectoViatico, defectoViatico
 };
