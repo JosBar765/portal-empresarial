@@ -8,6 +8,7 @@ const { msg } = require('./mensajes');
 const FECHA_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DECIMAL_RE = /^\d{1,10}(\.\d{1,2})?$/;
 const ENTERO_RE = /^-?\d{1,10}$/;
+const FECHA_HORA_RE = /^(\d{4}-\d{2}-\d{2}) ([01]\d|2[0-3]):([0-5]\d)$/;
 
 function vacio(valor) {
   return valor === undefined || valor === null || (typeof valor === 'string' && valor.trim() === '');
@@ -115,6 +116,18 @@ class Validador {
     return valor.trim();
   }
 
+  // «AAAA-MM-DD HH:mm» (hora de Guatemala); devuelve el texto sin cambios.
+  fechaHora(cuerpo, campo, etiqueta, { requerido = true } = {}) {
+    const valor = cuerpo[campo];
+    if (vacio(valor)) return this.faltante(campo, etiqueta, requerido);
+    const partes = typeof valor === 'string' ? FECHA_HORA_RE.exec(valor.trim()) : null;
+    if (!partes || !fechaValida(partes[1])) {
+      this.falla(campo, msg('campo.fechaHora', { etiqueta, valor: mostrar(valor) }));
+      return null;
+    }
+    return valor.trim();
+  }
+
   // Devuelve 1 o 0; undefined si no vino y no es obligatorio.
   booleano(cuerpo, campo, etiqueta, { requerido = false } = {}) {
     const valor = cuerpo[campo];
@@ -141,4 +154,4 @@ function validarActivo(cuerpo) {
   return activo;
 }
 
-module.exports = { Validador, cuerpoObjeto, validarActivo, vacio, mostrar };
+module.exports = { Validador, cuerpoObjeto, validarActivo, vacio, mostrar, fechaValida };

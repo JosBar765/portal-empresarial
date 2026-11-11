@@ -1,7 +1,10 @@
 // src/modules/viaticos/utilidades.js
 // Las columnas de MySQL llegan en snake_case; la API habla camelCase.
-const BOOLEANAS = new Set(['activo', 'esOtros', 'seleccionableEnGastos']);
-const NUMERICAS = new Set(['km', 'horas', 'valor', 'tonelaje', 'tonelajeMax']); // mysql2 devuelve los DECIMAL como texto
+const BOOLEANAS = new Set(['activo', 'esOtros', 'seleccionableEnGastos', 'permiteNoAplica', 'bajoLaMitad', 'presente']);
+const NUMERICAS = new Set([
+  'km', 'horas', 'valor', 'tonelaje', 'tonelajeMax', 'rendimientoKmGalon', 'precioGalon', 'depreciacionPorKm',
+  'odometro', 'totalSolicitado', 'valorNoche', 'monto', 'valorUnitario'
+]); // mysql2 devuelve los DECIMAL como texto
 
 function aCamel(nombre) {
   return nombre.replace(/_([a-z])/g, (_, letra) => letra.toUpperCase());

@@ -52,3 +52,72 @@ Recursos de `/config`: `paises` (solo lectura), `monedas`, `valores-comida` (mat
 - `tramos`: el `POST` recibe `origenId` y `destinoId` y guarda el par ordenado; el `PUT` solo edita `km` y `horas`.
 - No se pueden cambiar al editar: `paisId` (ubicaciones y tipos de placa), `esOtros` y `seleccionableEnGastos`.
 - `personas`: `PUT /config/personas/:usuarioId` recibe `{ licencia: { tipoLicenciaId, numero, venceEl } | null, paisIds: [] }`; `paisIds` es obligatorio.
+
+## Solicitudes: payload, cálculo y lectura (F3.3 parte A)
+
+### Payload `datos`
+
+Lo comparten `POST /solicitudes/calcular` (cuerpo JSON, el payload directo, sin envoltura), `crear` y `modificar` (campo `datos` del multipart). camelCase; los importes aceptan número o texto con hasta 2 decimales.
+
+```json
+{
+  "paisId": 1, "modalidad": "mas_de_un_dia", "vehiculoId": 2, "motivoId": 3,
+  "monedaId": 1,
+  "fechaSalida": "2026-12-01", "fechaRegreso": "2026-12-04",
+  "rendimientoKmGalon": 35, "precioGalon": 32.5, "depreciacionPorKm": 1.25,
+  "tramos": [{ "origenId": 1, "destinoId": 2 }],
+  "hospedajes": [{ "hotel": "Hotel X", "lugar": "Xela", "noches": 2, "valorNoche": 350 }],
+  "comidas": [{ "fecha": "2026-12-01", "tipoComidaId": 1 }],
+  "gastos": [{ "tipoGastoId": 3, "descripcion": "Peaje", "monto": 50 }],
+  "inspeccion": {
+    "odometro": 15000,
+    "fluidos": [{ "fluidoId": 1, "nivelId": 2 }],
+    "kit": [{ "kitItemId": 1, "presente": true }],
+    "defectos": [{ "tipoDefectoId": 1, "descripcion": "Rayón", "archivoIndice": 0 }]
+  }
+}
+```
+
+- `modalidad`: `mas_de_un_dia` o `hasta_un_dia`. En más de 1 día: `monedaId`, `fechaSalida` (`AAAA-MM-DD`), `fechaRegreso`, `rendimientoKmGalon`, `precioGalon`, `tramos` (al menos uno) y, si el vehículo es propio, `depreciacionPorKm`; `hospedajes`, `comidas` y `gastos` son opcionales; `inspeccion` no se admite. En 1 día o menos: `fechaSalida` es `AAAA-MM-DD HH:mm` (hora de Guatemala), `inspeccion` es obligatoria y no se admiten tramos, hospedajes, comidas ni gastos; el combustible no se calcula (`rendimientoKmGalon` y `precioGalon` se ignoran).
+- Longitudes: hotel y lugar 50, descripciones 100. Noches, montos y valores mayores que cero. Cada fluido debe informarse; el nivel `N/A` solo en los fluidos con `permiteNoAplica`. `archivoIndice` es la posición de la foto en el campo `defectos` del multipart (en `calcular` solo se valida el formato).
+- Supuesto: «más de 1 día» significa con pernocta; el regreso debe ser posterior a la salida (si regresas el mismo día es «1 día o menos»).
+- Las ubicaciones de un tramo se eligen en cualquier sentido: el servidor busca el par ordenado en `viaticos_tramos`. Convención para guardar `viaticos_solicitud_tramos.sentido`: `ida` si el origen es la ubicación A del tramo, `vuelta` si es la B.
+- No traslape: se compara por días completos e inclusivos (salida y regreso), contra solicitudes del mismo solicitante en cualquier estado menos rechazada; al modificar se excluye la propia. Un viaje corto ocupa solo su día.
+
+### Respuesta de `POST /solicitudes/calcular`
+
+Siempre 200 si el cuerpo es un objeto (el cliente decide con `valido`). Los errores de formato y de negocio se acumulan.
+
+```json
+{
+  "modalidad": "mas_de_un_dia",
+  "valido": true,
+  "errores": [{ "campo": "tramos[1]", "mensaje": "…" }],
+  "advertencias": [{ "clave": "licencia", "salvedadId": 1, "mensaje": "…" }],
+  "salvedadIds": [1],
+  "desglose": {
+    "ruta": { "tramos": [{ "orden": 1, "tramoId": 7, "origenId": 1, "origenNombre": "…", "destinoId": 2, "destinoNombre": "…", "km": 205, "horas": 8 }], "kmTotal": 660, "horasTotal": 24 },
+    "combustible": { "rendimientoKmGalon": 35, "precioGalon": 32.5, "galones": 18.86, "importe": 612.86 },
+    "depreciacion": { "depreciacionPorKm": 1.25, "importe": 825 },
+    "hospedaje": { "lineas": [{ "hotel": "…", "lugar": "…", "noches": 2, "valorNoche": 350, "total": 700 }], "totalNoches": 3, "importe": 1000 },
+    "comidas": { "lineas": [{ "tipoComidaId": 1, "nombre": "desayuno", "cantidad": 3, "valorUnitario": 35, "total": 105 }], "importe": 510 },
+    "otrosGastos": { "lineas": [{ "tipoGastoId": 3, "descripcion": "…", "monto": 50 }], "importe": 90 }
+  },
+  "totales": { "combustible": 612.86, "depreciacion": 0, "hospedaje": 1000, "comidas": 510, "otrosGastos": 90, "totalSolicitado": 2212.86 }
+}
+```
+
+- `desglose` y `totales` son `null` si el formato del payload es inválido o si hay errores que impiden calcular (tramos, comidas, gastos, depreciación, vehículo o moneda inexistentes). Los demás errores (licencia, fechas, traslape) no impiden mostrar el desglose. En viaje corto: `desglose: null` y `totales: { totalSolicitado: 0 }`.
+- `depreciacion` es `null` (y su total 0) con vehículo de la empresa; con vehículo propio es obligatoria y se calcula km totales × depreciación por km.
+- Aritmética en centavos enteros, redondeo half-up solo al final de cada importe; los galones se muestran redondeados pero el combustible parte de la razón exacta.
+- Advertencias: licencia, tarjeta de circulación o seguro que vencen antes de terminar el viaje (o tarjeta y seguro ya vencidos); el seguro sin póliza no advierte. Una licencia vencida o no registrada es un error, no una advertencia.
+
+### Lectura
+
+- `GET /catalogos/solicitud?paisId=`: 403 si el usuario no tiene países o el país no es suyo. Devuelve `pais`, `motivos`, `vehiculos` (cada uno con `esPropio`, `tarjetaVenceEl`, `polizaVenceEl`, `bloqueo` —motivo por el que su licencia no permite manejarlo, o `null`— y `bloqueoViajeCorto` —vehículo propio o tarjeta vencida, o `null`—), `ubicaciones`, `tramos` (activos), `monedas`, `valoresComida` (`monedaId`, `tipoComidaId`, `valor`), `tiposComida`, `tiposGasto` (seleccionables), `tiposDefecto`, `fluidos` (cada uno con sus `niveles`), `kit` y `ajustesArchivo`.
+- `GET /solicitudes?desde=&hasta=&q=`: solo las del usuario. `desde` y `hasta` (`AAAA-MM-DD`) filtran por la fecha de creación y por defecto son la semana actual (lunes a domingo). `q` (hasta 50 caracteres) busca por correlativo parcial o por fecha de viáticos (`AAAA-MM-DD` o `DD/MM/AAAA`: la fecha cae dentro del viaje). Responde `{ desde, hasta, solicitudes }`; cada solicitud trae `pipeline` y se ordena por estados: primero vencida, rechazada y esperando autorización; luego autorizada, en curso, terminada y liquidada; en cada grupo, la más reciente primero.
+- `GET /solicitudes/:id`: detalle completo del propio solicitante (tramos con origen y destino, hospedajes, comidas, gastos, salvedades, inspección, historial y `pipeline`); 404 si no existe y 403 si es de otra persona.
+
+### Pipeline derivado
+
+`{ fase, pasos: [{ clave, etiqueta, estado }], etiqueta, detalle, vencida, acciones }`. `fase` es esperando, vencida, rechazada, autorizada, en_curso, terminada o liquidada. Más de 1 día: 4 pasos (Esperando autorización, Autorizado, En curso o Terminado, Liquidado); 1 día o menos: 2. `estado` de cada paso: `pendiente`, `actual`, `completado` o `rechazado` (el paso 1 de una rechazada). Terminado deja el paso 3 completado y el 4 actual. «Vencida»: esperando autorización con salida anterior a hoy (se compara por día). En curso desde la salida hasta el día del regreso inclusive; terminado después. `acciones`: `ver` siempre; `modificar` y `darDeBaja` solo en esperando, vencida y rechazada; `liquidar` solo en más de 1 día, terminada.

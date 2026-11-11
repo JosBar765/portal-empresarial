@@ -5,6 +5,7 @@ const { requirePermission } = require('../../core/permissions/permissionMiddlewa
 const { PERMISOS, RECURSOS } = require('./constantes');
 const contextoController = require('./controllers/contextoController');
 const configController = require('./controllers/configController');
+const solicitudController = require('./controllers/solicitudController');
 const { crearCrud } = require('./controllers/crudController');
 const catalogoService = require('./services/catalogoService');
 const tramoService = require('./services/tramoService');
@@ -12,6 +13,12 @@ const vehiculoService = require('./services/vehiculoService');
 
 const router = express.Router();
 router.get('/contexto', contextoController.obtener);
+
+// Solicitudes del propio usuario (solo exigen viaticos.ver, el permiso de montaje).
+router.get('/catalogos/solicitud', solicitudController.catalogos);
+router.post('/solicitudes/calcular', solicitudController.calcular);
+router.get('/solicitudes', solicitudController.listar);
+router.get('/solicitudes/:id', solicitudController.obtener);
 
 // Configuración: todo el subárbol exige viaticos.configurar.
 const config = express.Router();
