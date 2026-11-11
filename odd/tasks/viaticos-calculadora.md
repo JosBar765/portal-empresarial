@@ -38,8 +38,9 @@ Módulo nuevo para solicitar, autorizar y liquidar viáticos (viajes de 1 día o
 - [ ] F2 Base de datos normalizada (F1 aprobada por el dueño el 2026-11-11). Decisión del dueño: solo migraciones (sin tocar `schema.sql` ni `seed.sql`): dos scripts con el mismo correlativo, `NN_viaticos_esquema.sql` y `NN_viaticos_semilla.sql`; correlativo previsto 37 (dev llega a 34, `module/proyectos` a 36)
   - [x] F2.1 Exploración de convenciones de `database/` y diseño del modelo: `.agents/modulos/viaticos/documentacion/modelo_datos.md` (borrador)
   - [ ] F2.2 Aprobación del modelo por el dueño y cierre de los 5 pendientes del documento
-  - [ ] F2.3 Escribir `database/migrations/37_viaticos_esquema.sql` (catálogos, entidades, solicitud y partes) y `37_viaticos_semilla.sql` (permisos, rol Piloto, monedas, tipos de comida, estados, salvedades y los 14 tramos de prueba); previo: integrar `dev` en `module/viaticos` (la rama va en 31)
-  - [ ] F2.4 Verificación: `npm run ci:sintaxis`, CI de migraciones en BD desechable (dos pasadas, idempotencia) con autorización del dueño; documentar en `documentacion/`
+  - [x] F2.2 Modelo aprobado y sus 5 pendientes resueltos (2026-11-11); póliza opcional, tarjeta de circulación obligatoria
+  - [x] F2.3 (ejecutadas en la BD local `munditrofeos`, NODE_ENV=development, 2026-11-11; 33 tablas, 5 permisos, rol Piloto con `viaticos.ver`, Administrador con los 5, 7 monedas, 15 ubicaciones y 14 tramos; re-ejecución directa idempotente y CHECK de tramos verificado) Escribir `database/migrations/37_viaticos_esquema.sql` (catálogos, entidades, solicitud y partes) y `37_viaticos_semilla.sql` (permisos, rol Piloto, monedas, tipos de comida, estados, salvedades y los 14 tramos de prueba); previo: integrar `dev` en `module/viaticos` (la rama va en 31)
+  - [~] F2.4 Verificación: idempotencia y CHECK ya comprobados en la BD local; falta el CI del PR (escenarios A y B con MySQL 8) y documentar el esquema en `documentacion/` en F5
 - [ ] F3 Backend (`src/modules/viaticos`, registro en `modulesCatalog.js` y `app.js`, notificaciones, PDF, Storage solo en producción)
 - [ ] F4 Frontend con los mockups aprobados (`public/modules/viaticos`)
 - [ ] F5 Documentación del módulo (`.agents/modulos/viaticos/README.md`, `documentacion/`, fila en `CLAUDE.md` §9) y verificación

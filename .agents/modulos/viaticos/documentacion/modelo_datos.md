@@ -40,7 +40,7 @@ Prefijo de tablas: `viaticos_`. Convenciones del proyecto: español, `snake_case
 | `viaticos_reglas_licencia` | `pais_id`, `tipo_licencia_id`, `tipo_placa_id` (PK compuesta), `tonelaje_max` NULL, `pasajeros_max` NULL — qué placa permite manejar cada tipo de licencia en cada país |
 | `viaticos_licencias` | `usuario_id` (PK, FK `usuarios`), `tipo_licencia_id`, `numero`, `vence_el` — **una por persona (supuesto)** |
 | `viaticos_usuario_paises` | `usuario_id`, `pais_id` (PK compuesta) — países en los que puede solicitar |
-| `viaticos_vehiculos` | `id`, `pais_id`, `propietario_id` NULL (NULL = de la empresa; si no, FK `usuarios`), `marca`, `modelo`, `anio`, `placa`, `tipo_placa_id`, `combustible_id`, `tonelaje` NULL, `pasajeros` NULL, `poliza_numero`, `poliza_vence_el`, `tarjeta_vence_el`, `activo`; UNIQUE (`pais_id`, `placa`) |
+| `viaticos_vehiculos` | `id`, `pais_id`, `propietario_id` NULL (NULL = de la empresa; si no, FK `usuarios`), `marca`, `modelo`, `anio`, `placa`, `tipo_placa_id`, `combustible_id`, `tonelaje` NULL, `pasajeros` NULL, `poliza_numero` NULL, `poliza_vence_el` NULL (la póliza es opcional), `tarjeta_vence_el` (obligatoria), `activo`; UNIQUE (`pais_id`, `placa`) |
 
 ## Solicitud y sus partes
 
