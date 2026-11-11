@@ -44,21 +44,24 @@ Como el propósito de este módulo es que ciertas personas puedan solicitar viá
   
 - Es necesario un permiso único que permita **ver y usar** el módulo. Muchos módulos de la plataforma actualmente tienen el permiso `{modulo}.ver`; para este caso, considero que el permiso `viaticos.ver` es más que suficiente y que dicho permiso controle si el módulo en visible en el dashboard de módulos de la plataforma y su interacción con el mismo (uso de la pestania ***Solicitudes***).  
 
-- Otro permiso será `viaticos.supervisar`. Este permiso solo permitirá **ver** la solicitud de los viáticos y el estado en el que se encuentran en una vista tipo lista; **no permite** autorizar ni rechazar (pestania ***Gestiones***, incluye únicamente la acción de ver).  
+- Otro permiso será `viaticos.gestionar`. Este permiso solo permitirá **ver** la solicitud de los viáticos y el estado en el que se encuentran en una vista tipo lista; **no permite** autorizar ni rechazar (pestania ***Gestiones***, incluye únicamente la acción de ver).  
    
-- Otro permiso será `viaticos.autorizar`. Este permiso permitirá **ver** las solicitudes de viáticos enviadas para su autorización, además de la **autorización** y **rechazo** de la solicitud de viáticos (pestania ***Gestiones***, incluye la acción de ver, autorizar y rechazar).  
+- Otro permiso será `viaticos.autorizar`. Este permiso permitirá **ver** las solicitudes de viáticos enviadas para su autorización, además de la **autorización** y **rechazo** de la solicitud de viáticos (pestania ***Gestiones***, incluye la acción autorizar y rechazar).  
+
+- Otro permiso será `viaticos.liquidar`. Este permiso permitirá **ver** la liquidación de una solicitud de viáticos realizada por el solicitante (pestania ***Gestiones***, incluye la acción liquidar).
   
-- Otro permiso será `viáticos.gestionar`. Este permiso permitirá **ver y usar** la pestania de ***Configuración***.
+- Otro permiso será `viáticos.configurar`. Este permiso permitirá **ver y usar** la pestania de ***Configuración***.
   
 Estos permisos son tentativos, quiere decir, en el camino puede surgir algún otro permiso que necesitemos delimitar. La regla de los permisos es que controlen las acciones que realizan los usuarios, y que ningún usuario podrá hacer alguna acción que requiera un permiso en específico. Los permisos tienen que ser atómicos y **totalmente independientes**, no deben ser hardcodeados o depender de código hardcodeado. La finalidad, es que si surgen nuevos roles se les pueda asignar dicho permiso de manera libre, y que con eso baste para que pueda interactuar con la acción.
 
 # Vistas
 
-A continuación, te detallaré cómo quiero que sean las vistas y qué contienen cada una de ellas. Cada vista está amarrada a un permiso el cuál se detalló en: **Permisos**.
+A continuación, te detallaré cómo quiero que sean las vistas y qué contienen cada una de ellas. Cada vista está amarrada a un permiso el cuál se detalló en: **Permisos**.  
+Cada vista es una pestania que se aparecerá en el sidebar.
 
 ## Solicitudes
 
-Vista similar al buzón de los asesores en el módulo de `vales de arte`. Lo que se busca con esta vista es listar las solicitudes realizadas durante la ventana de tiempo seleccionada.   
+Vista similar al buzón de los asesores en el módulo de `vales de arte`. Lo que se busca con esta vista es listar las solicitudes realizadas durante la ventana de tiempo seleccionada. Esta vista será visible para los usuarios que tengan `viaticos.ver`, también se incluye a las acciones nativas de esta vista.   
   
 En el encabezado tendremos:
 * Un selector de ventana de tiempo (usaremos el mismo que se usa para los vales de arte y reportes; este será un componente que usaremos a lo largo del portal)
@@ -150,53 +153,110 @@ El modal tendrá las siguientes secciones con los siguientes campos:
     2.2 Fecha de viaje
         2.2.1 Fecha y hora de salida
 
-    2.3 Nivel de Fluidos y Odómetro
-        2.3.1 Nivel de Combustible (F, 3/4, 1/2, 1/4, E)
-        2.3.2 Nivel de Aceite del Motor (F, 3/4, 1/2, 1/4, E)
-        2.3.3 Nivel de Agua del Radiador (F, 3/4, 1/2, 1/4, E)
-        2.3.4 Nivel de Líquido de Frenos (F, 3/4, 1/2, 1/4, E)
-        2.3.5 Nivel de Líquido Hidráulico (F, 3/4, 1/2, 1/4, E, N/A)
-        2.3.6 Odómetro (numérico, mayor a 0)
+    2.3 Motivo del viaje
+        2.3.1 Podrá seleccionar de un combobox los motivos de viaje registrados en el sistema.
+
+    2.4 Nivel de Fluidos y Odómetro
+        2.4.1 Nivel de Combustible (F, 3/4, 1/2, 1/4, E)
+        2.4.2 Nivel de Aceite del Motor (F, 3/4, 1/2, 1/4, E)
+        2.4.3 Nivel de Agua del Radiador (F, 3/4, 1/2, 1/4, E)
+        2.4.4 Nivel de Líquido de Frenos (F, 3/4, 1/2, 1/4, E)
+        2.4.5 Nivel de Líquido Hidráulico (F, 3/4, 1/2, 1/4, E, N/A)
+        2.4.6 Odómetro (numérico, mayor a 0)
 
         Si algún campo está por debajo de la mitad, debe quedar registro en el pdf generado.
 
-    2.4 Kit de Emergencia
-        2.4.1 Llanta de repuesto (Sí/No)
-        2.4.2 Triquet/Gato hidráulico (Sí/No)
-        2.4.3 Triángulo de señalización (Sí/No)
-        2.4.4 Extintor recargado (Sí/No)
+    2.5 Kit de Emergencia
+        2.5.1 Llanta de repuesto (Sí/No)
+        2.5.2 Triquet/Gato hidráulico (Sí/No)
+        2.5.3 Triángulo de señalización (Sí/No)
+        2.5.4 Extintor recargado (Sí/No)
 
         Estos campos no restringen nada, únicamente sirven para registro.
+    
+    2.6 Inspeccion de carrocería y defectos mecánicos
+        2.6.1 Una lista donde se pondrán agregar y quitar defectos encontrados. Cada item debe tener los siguientes campos
+            2.6.1.1 Tipo de defectos (combobox de los tipos de defectos en el sistema). Este, tendrá la opción de `otros` la cuál permite poner cualquier otro gasto. Si se selecciona la opción de `otros` mostrará un textfield
+                2.6.1.1.1 Descripción (texto, 100 caractéres)
+            2.6.1.2 Imagen. Abre la cámara para tomar una foto
 ```
 
 ### PDF Generado
 
 Este PDF, seguirá la misma línea de generación de PDF que usan los `vales de arte`, acá cambiaremos "VALE DE ARTE" por reporte "SOLICITUD DE VIÁTICOS". Ajusta el tamanio de letra para que ocupe el mismo espacio que lo hace actualmente el título "VALE DE ARTE". Puedes comparar visualmente.  
   
-La primer sección contendrá la información del usuario que realiza la solicitud de viáticos, los campos son: Solicitante (nombre y apellido), Puesto (rol) y Licencia (número de licencia y tipo). Estos datos se obtienen del sistema.  
+La primer sección contendrá la **información del usuario** que realiza la solicitud de viáticos, los campos son: Solicitante (nombre y apellido), Puesto (rol) y Licencia (número de licencia y tipo). Estos datos se obtienen del sistema.  
   
-La segunda sección contendrá los datos del vehículo: Placa y Vehículo (marca, modelo y año), No. Póliza del seguro, Combustible (Gasolina o Diésel)
+La segunda sección contendrá los **información del vehículo**: Vehículo (marca, modelo y año), Placa, No. Póliza del seguro, Combustible (Gasolina o Diésel) y Empresarial (Sí/No).  
+  
+La tercera sección contendrá la **información del viaje**: 
+* Si el viaje es *mayor a un día* -> **información del viaje**: fecha salida, fecha regreso y motivo del viaje 
+* Si el viaje es *menor a un día* -> **información del viaje**: fecha y hora de salida, y motivo del viaje
+  
+Si el viaje es de duración *mayor a un día*, la cuarta sección contendrá la siguiente información:
+* **Ruta y kilometraje `km totales`**: En una lista cada fila tendrá: {no. de tramo} {origen} -> {destino} {horas de ese tramo} {km de ese tramo} 
+* **Combustible `monto total`**: ({km totales} / {rendimiento}) X {precio por galón} = {costo de gasolina}
+* **Depreciación `monto total`**: {km totales} X {depreciación por km} = {costo por depreciación}. Esta subsección *no aparecerá* si el carro Sí es empresarial.
+* **Hotel y hospedaje `monto total`**: En una lista cada fila tendrá: {no. de hotel }{nombre hotel} {lugar} {no. noches} {valor noche} {total}
+* **Comidas `monto total`**: En una lista cada fila tendrá: {no. de comidas} Desayunos/Almuerzos/Cena X {precio de comidas} = {total de esa comida}
+* **Otros gastos `monto total`**: En una lista cada fila tendrá: {tipo de gasto} {descripción} {monto individual}
+* **TOTAL SOLICITADO `suma de todos los montos`**: Esta subsección será una caja de borde negro con el título de la subsección y la sumatoria en negrita.
+Todas estas son subsecciones, algunas subsecciones contienen algún cálculo, el título del a subsección está alineado a la izquierda y el cálculo está alineado a la derecha. El formato de representación usado es: **nombre sección `cálculo`**. Dicho calculo es opcional, quiere decir, habrán subsecciones que lo tendrán y otras que no.  
+  
+Si el viaje es *menor a un día*, la cuarta sección contrendrá la siguiente información:
+* **Nivel de Fluidos**: En una lista cada fila tendrá: {Nombre fluido} {nivel}. El {nombre fluido} va alineado a la izquierda; y el {nivel} va alineado a la derecha. Por cada fluido marcado como 1/4, pintar el texto "1/4" en amarillo. Por cada fluido marcado como E, pintar el texto "E" en rojo.
+* **Lectura odómetro `lectura registrada`**
+* **Kit de emergencia**: En una lista cada fila tendrá: {item} {si/no}. Por cada item en No, colocar el "No" en rojo.
+* **Defectos Encontrados `SÍ ({no. defectos})/NO`**: En una lista cada fila tedrá: {item} {descripción} {correlativo imagen}. Recordar, que la {descripción} aparecerá solo para los defectos marcados como `otros`. Para el cálculo, si sí hay defectos encontrados marcar las letras de "Sí" en rojo.
+* **Imágenes**: Mostrar las imágenes con su correlativo por debajo. Máximo 3 imágenes por fila. Cada fila ocupa en tamanio del ancho de la hoja. Esta sección se coloca en una nueva hoja.
+  
+Exisitirá una quinta sección la cuál se llama **Salvedades**. Esta sección aparecerá solo si hay salvedades, las cuales se mencionan en **Restricciones**. Al final de la sección, colocar el texto con subrayado doble: "TOMAR EN CUENTA".  
+  
+La sexta sección tendrá dos campos para firmar: solicitante (poner el nombre del registro en el sistema) y administración (solo poner el título de adiministración). Como ejemplo podés usar los campos que usaron para las firmar de los reportes de los vales de arte.
+
+## Gestiones
+
+Similar al buzón de vales de arte para el gerente/administrador. Lo que se busca con esta vista es listar todas las solicitudes de viáticos para visualizarlas. Esta vista solo será visible para los usuarios que tengan el permiso de `viaticos.gestionar`.  
+  
+En el encabezado tendremos:
+* Un selector de ventana de tiempo (usaremos el mismo que se usa para los vales de arte y reportes; este será un componente que usaremos a lo largo del portal)
+
+La lista tendrá las siguientes columnas:
+* **Correlativo**: Correlativo generado por el sistema
+* **Fecha creación**: Fecha y hora registrada por el sistema en el momento que se creó la solicitud
+* **Fecha viáticos**: Marco de fechas o fecha que se solicitan los viáticos
+* **Tipo**: <1 Día o +1 Día
+* **Estado**: Pipeline de estados (similar al de vales de arte)
+* **Acciones**: Para esta vista/pestania tendremos las acciones:  
+    - `ver`: ícono del ojo para ver el pdf generado (más detalles del PDF en **PDF a generar**) de la solicitud de viáticos; posterior a que la solicitud haya sido liquidada también se podrá ver los recibos/facturas adjuntos a la liquidación.
+    - `autorizar`: ícono de doble palomita color verde. Esta acción aparecerá solo a los usuarios que tengan el permiso de `viaticos.autorizar`. Mostrará un modal de confirmacion: Estas seguro que deseas autorizar esta solicitud de viáticos?
+    - `rechazar`: ícono de una equis color rojo. Esta acción aparecerá solo a los usuarios que tengan el permiso de `viaticos.autorizar`. Mostrará un modal de rechazo: Estas seguro que deseas rechazar esta solicitud de viáticos? Usa el mismo disenio de modal que se usa para el rechazo de los vales de arte por parte del `supervisor`.
+    - `liquidar`: Esta acción se habilitará **solo** para los viáticos de viajes mayores a 1 día y se habilita una vez terminado el período de viaje; además, que solo los usuarios con el permiso `viaticos.liquidar` podran usarla. Esta acción abrirá un modal el cuál permitirá ver las fotos/pdf de facturas que adjuntó el solicitante de los gastos realizados durante el viaje. El propósito de este modal, es que contabilidad pueda ver la cantidad total que se solicitó el solicitante, ver cuánto debería liquidar y cuánto liquidó. Ellos realizarán el cálculo de manera externa, esto solo sirve para tener la información centralizada. Como se puede intuir, en este mismo modal siempre se puede abrir pdf generado para la solicitud de viáticos. Esta acción es totalmente diferente a la liquidación que hace el solicitante en su vista.
+
+## Configuración
+
+Esta vista contendrá subpestanias en una vista horizontal, donde cada pestania servirá para configurar las tablas catálogo del sistema. Identifica todo aquello que se puede evitar configurando en vez de hardcodeando, y agrega una pestania a esta vista. Esta vista solo será visible para aquellos que tienen el permiso `viaticos.configurar`.
 
 # Restricciones
 
-1. Cada persona que pueda solicitar viáticos, deberá tener una licencia registrada; de lo contrario, no podrá solicitar viáticos
+* Cada persona que pueda solicitar viáticos, deberá tener una licencia registrada; de lo contrario, no podrá solicitar viáticos
 
-2. La licencia tiene que estar vigente ANTES de solicitar viáticos; de lo contrario, no podrá crear una nueva solicitud de viáticos
+* La licencia tiene que estar vigente ANTES de solicitar viáticos; de lo contrario, no podrá crear una nueva solicitud de viáticos de ningún tipo
 
-3. Al momento de seleccionar el tiempo de viaje (viajes mayores a 1 día) debe salir una advertencia por si la licencia vence durante el trayecto. El sistema permitirá continuar posterior a la advertencia. Esta salvedad queda marcada en el pdf generado.
+* La licencia es limitante para el tipo de auto (placa) que pueda manejar. Este parámetro tiene que ser configurable, debido a que depende por el país las reglas que aplican. En guatemala, es muy marcado el tipo de placas que te permiten manejar según el tipo de tu licencia. En El Salvador, no basta solo con el tipo de placa, el tonelaje manda mucho y en otras ocasiones los pasajeros. Por lo que las limitaciones de los tipos de licencias deben ser configurable por país
 
-4. La licencia es limitante para el tipo de auto (placa) que pueda manejar. Este parámetro tiene que ser configurable, debido a que depende por el país las reglas que aplican. En guatemala, es muy marcado el tipo de placas que te permiten manejar según el tipo de tu licencia. En El Salvador, no basta solo con el tipo de placa, el tonelaje manda mucho y en otras ocasiones los pasajeros. Por lo que las limitaciones de los tipos de licencias deben ser configurable por país
+* Al momento de seleccionar el tiempo de viaje (viajes mayores a 1 día) debe salir una advertencia por si la licencia vence durante el trayecto. El sistema permitirá continuar posterior a la advertencia. Esta salvedad queda marcada en el pdf generado, la salvedad aparecerá como: `La licencia vencerá durante el trayecto`.
 
-5. NO se puede tramitar una solicitud de viáticos donde se cruzen las fechas de una solicitud activa. Quiere decir, si alguien mete una solicitud de viáticos para el 9 Nov al 11 de Nov. No se puede tramitar una del 10 Nov para el 12 Nov.
+* NO se puede tramitar una solicitud de viáticos donde se traslapen las fechas de una solicitud activa. Quiere decir, si alguien mete una solicitud de viáticos para el 9 Nov al 11 de Nov. No se puede tramitar una del 10 Nov para el 12 Nov.
 
-6. No se puede crear una solicitud de viáticos para fechas pasadas 
+* No se puede crear una solicitud de viáticos para fechas pasadas 
 
-7. Si una solicitud de viáticos, no ha sido autorizada para la fecha en que debe dar inicio el viaje, esa solicitud se vuelve inválida y se tiene que modificar
+* Si una solicitud de viáticos, no ha sido autorizada para la fecha en que debe dar inicio el viaje, esa solicitud se vuelve imposible de autorizar, ya que es inválida y se tiene que modificar
 
-8. Al momento de seleccionar el tiempo de viaje (viajes mayores a 1 día) debe salir una advertencia por si la tarjeta de circulación vence durante el trayecto. El sistema permitirá continuar posterior a la advertencia. Esta salvedad queda marcada en el pdf generado.
+* Para los viajes de menos de un día, no se podrá sacar ningún auto si este tiene vencida la tarjeta de circulación
 
-9. Para los viajes de menos de un día, no se podrá sacar ningún auto si este tiene vencida la tarjeta de circulación
+* Al momento de seleccionar el tiempo de viaje (viajes mayores a 1 día) debe salir una advertencia por si la tarjeta de circulación vence durante el trayecto. El sistema permitirá continuar posterior a la advertencia. Esta salvedad queda marcada en el pdf generado, la salvedad aparecerá como: `La tarjeta de circulación vencerá durante el trayecto`.
 
-10. Para los viajes de menos de un día, ningún piloto podrá sacar algún carro si este tiene vencida la licencia
-
-11. Si el carro tiene vencida la póliza del seguro o vence dentro de la ventana de tiempo del viaje, mostrar una advertencia. Esto no restringe la solicitud de vehículos, sin embargo, esta salvedad queda marcada en el pdf generado.
+* Si el carro tiene vencida la póliza del seguro o vence dentro de la ventana de tiempo del viaje, mostrar una advertencia. Esto no restringe la solicitud de vehículos, sin embargo, esta salvedad queda marcada en el pdf generado. La salvedad aparecerá como: `El seguro vencerá durante el trayecto`.
+  
+Las salvedades van registradas en el pie del PDF generado en la sección de **SALVEDADES**.
