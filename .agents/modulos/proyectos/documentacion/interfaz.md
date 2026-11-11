@@ -8,7 +8,7 @@ Mockups aprobados en Figma: **N1** (barra lateral de escritorio, página «06 ·
 - Al entrar a una pantalla se abre **la categoría donde estás**, con tu opción resaltada. Si la pantalla no está en el menú (por ejemplo, la ficha de una empresa), queda abierta la categoría anterior.
 - La categoría abierta se recuerda entre visitas (`localStorage`, solo comodidad: si falla, el menú funciona igual).
 - Cada rol ve solo lo que puede usar: una categoría sin opciones permitidas no aparece. «Catálogos» pasó a ser una opción de Configuración.
-- Con la barra **colapsada** (solo íconos, escritorio) se ven todas las opciones, porque no hay categorías que abrir. En el **celular** es un cajón con el mismo comportamiento.
+- Con la barra **colapsada** (solo íconos, escritorio) queda **un ícono por categoría** (Mi trabajo, Cartera, Proyectos, Configuración; mockup N3). Tocar un ícono abre una **ventanita** al costado con el nombre de la categoría y sus opciones; se cierra al elegir una, con Esc, al tocar fuera o al expandir la barra. Pasar el cursor (o enfocar con el teclado) muestra un tooltip «Nombre · N opciones». La categoría donde estás lleva el ícono azul y una barrita. Cada opción tiene un ícono distinto. En el **celular** es un cajón con el comportamiento de acordeón.
 - Se maneja con el teclado (Enter o Espacio en la cabecera) y avisa su estado con `aria-expanded`.
 - Código: `index.html` (estructura), `js/layout/sidebar.js` (`abrirCategoria`, `marcarRuta`, `mostrarSoloPermitidas`) y `css/styles.css`.
 

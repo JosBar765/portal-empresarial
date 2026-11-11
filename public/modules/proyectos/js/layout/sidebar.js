@@ -36,6 +36,49 @@ export function marcarRuta(ruta) {
   const item = $$('.sidebar-item[data-ruta]').find(i => i.dataset.ruta === activa);
   const categoria = item && item.closest('.sidebar-categoria');
   if (categoria && !categoria.classList.contains('abierta')) abrirCategoria(categoria, true);
+  // Con la barra colapsada, el ícono de la categoría donde estás queda resaltado.
+  $$('.sidebar-categoria').forEach(c => c.classList.toggle('con-activa', c === categoria));
+}
+
+// Barra colapsada: cada categoría es un ícono; al tocarlo se abre una ventanita con sus opciones.
+const esColapsada = () => $('#sidebar-proyectos').classList.contains('colapsado') && window.matchMedia('(min-width: 901px)').matches;
+
+function cerrarVolante() {
+  $$('.sidebar-categoria.volante').forEach(c => {
+    c.classList.remove('volante');
+    c.querySelector('.sidebar-categoria-cab').setAttribute('aria-expanded', String(c.classList.contains('abierta')));
+  });
+}
+
+// Un solo tooltip compartido (la barra recorta lo que sobresale de ella).
+let tip = null;
+function ocultarTip() { if (tip) tip.classList.remove('visible'); }
+function mostrarTip(cab) {
+  const categoria = cab.closest('.sidebar-categoria');
+  if (!esColapsada() || categoria.classList.contains('volante')) return;
+  if (!tip) { tip = document.createElement('div'); tip.className = 'sidebar-tip'; tip.setAttribute('role', 'tooltip'); document.body.appendChild(tip); }
+  const nombre = categoria.querySelector('.sidebar-categoria-nombre').textContent;
+  const n = categoria.querySelector('.sidebar-categoria-n').textContent;
+  tip.textContent = nombre;
+  const sub = document.createElement('span'); sub.textContent = `${n} opciones`; tip.appendChild(sub);
+  const r = cab.getBoundingClientRect();
+  tip.style.left = `${r.right + 8}px`;
+  tip.style.top = `${r.top + r.height / 2}px`;
+  tip.classList.add('visible');
+}
+
+function abrirVolante(categoria) {
+  cerrarVolante();
+  const cab = categoria.querySelector('.sidebar-categoria-cab');
+  const items = categoria.querySelector('.sidebar-categoria-items');
+  const r = cab.getBoundingClientRect();
+  // La ventanita nace a la altura del ícono, pero sin salirse de la pantalla.
+  items.style.maxHeight = `${window.innerHeight - 24}px`;
+  items.dataset.titulo = `${categoria.querySelector('.sidebar-categoria-nombre').textContent} · ${categoria.querySelector('.sidebar-categoria-n').textContent} opciones`;
+  categoria.classList.add('volante');
+  items.style.top = `${Math.max(12, Math.min(r.top - 4, window.innerHeight - items.offsetHeight - 12))}px`;
+  cab.setAttribute('aria-expanded', 'true');
+  ocultarTip();
 }
 
 // Oculta lo que el rol no puede usar, y las categorías que quedaron sin opciones; cada categoría cuenta sus opciones.
@@ -66,6 +109,8 @@ export function wireSidebar() {
     const colapsado = sidebar.classList.toggle('colapsado');
     guardar(COLAPSO_KEY, colapsado ? '1' : '0');
     actualizarOffsetSidebar(sidebar);
+    cerrarVolante();
+    ocultarTip();
   });
 
   function abrirMovil() {
@@ -88,10 +133,27 @@ export function wireSidebar() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarMovil(); });
   $$('.sidebar-item[data-ruta]').forEach(item => item.addEventListener('click', cerrarMovil));
   // Tocar la cabecera de una categoría la abre (y cierra la otra); tocarla de nuevo, la cierra.
-  $$('.sidebar-categoria-cab').forEach((cab) => cab.addEventListener('click', () => {
-    const categoria = cab.closest('.sidebar-categoria');
-    abrirCategoria(categoria, !categoria.classList.contains('abierta'));
-  }));
+  $$('.sidebar-categoria-cab').forEach((cab) => {
+    cab.addEventListener('click', () => {
+      const categoria = cab.closest('.sidebar-categoria');
+      if (esColapsada()) { if (categoria.classList.contains('volante')) cerrarVolante(); else abrirVolante(categoria); return; }
+      abrirCategoria(categoria, !categoria.classList.contains('abierta'));
+    });
+    cab.addEventListener('mouseenter', () => mostrarTip(cab));
+    cab.addEventListener('focus', () => { if (cab.matches(':focus-visible')) mostrarTip(cab); });
+    cab.addEventListener('mouseleave', ocultarTip);
+    cab.addEventListener('blur', ocultarTip);
+  });
+  // La ventanita se cierra al elegir una opción, con Esc, al tocar fuera o al cambiar el tamaño.
+  $$('.sidebar-item[data-ruta]').forEach(item => item.addEventListener('click', cerrarVolante));
+  document.addEventListener('click', (e) => { if (!e.target.closest('.sidebar-categoria')) cerrarVolante(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const abierta = $('.sidebar-categoria.volante .sidebar-categoria-cab');
+    cerrarVolante();
+    if (abierta) abierta.focus();
+  });
+  window.addEventListener('resize', cerrarVolante);
 }
 
 export function wireAccountMenu() {
