@@ -117,9 +117,16 @@ export async function renderPlanAnio(cont, parametro) {
   function tarjetaMes(m) {
     const [etiqueta, clase] = ESTADOS[m.estado] || ESTADOS.sin_plan;
     if (!m.plan) {
-      return h('div', { class: 'plan-mes plan-mes--vacio' },
+      // Un mes con proyecto pero sin plan (se creó a mano) muestra su proyecto; uno que ya pasó, sin plan, queda apagado y sin invitación.
+      if (m.proyecto) {
+        return h('div', { class: 'plan-mes plan-mes--vacio' },
+          h('div', { class: 'plan-mes-fila' }, h('strong', { text: mayuscula(m.nombre) }), h('span', { class: `chip-estado${clase ? ` chip-estado--${clase}` : ''}`, text: etiqueta })),
+          h('div', { class: 'plan-mes-nicho', text: m.proyecto.nombre.replace(/ · .*/, '') }),
+          h('a', { class: 'plan-mes-enlace', href: `#/proyectos/${m.proyecto.id}`, text: 'Ver proyecto' }));
+      }
+      return h('div', { class: `plan-mes plan-mes--vacio${m.editable ? '' : ' plan-mes--pasado'}` },
         h('div', { class: 'plan-mes-fila' }, h('strong', { text: mayuscula(m.nombre) }), h('span', { class: 'texto-tenue', text: etiqueta })),
-        h('p', { class: 'texto-tenue', text: 'Elige un nicho y un artículo' }),
+        m.editable ? h('p', { class: 'texto-tenue', text: 'Elige un nicho y un artículo' }) : null,
         m.editable ? h('button', { class: 'btn btn--ghost btn--chico', type: 'button', onclick: () => abrirMes(m) }, icono('add-outline'), 'Planificar') : null);
     }
     return h(m.editable ? 'button' : 'div', { class: `plan-mes${m.estado === 'activo' ? ' plan-mes--activo' : ''}${m.editable ? ' plan-mes--editable' : ''}`, type: m.editable ? 'button' : null, onclick: m.editable ? () => abrirMes(m) : null },

@@ -106,6 +106,9 @@ function destinoDelHash() {
 const claveDe = ({ ruta, parametro }) => (parametro ? `${ruta}/${parametro}` : ruta);
 
 async function mostrar(destino) {
+  // Una ventana que quedó abierta (el kit, un repartir, un ajuste…) no sigue encima de la pantalla nueva.
+  document.querySelectorAll('#modals-root .modal-overlay').forEach(o => o.remove());
+  document.body.style.overflow = '';
   state.ruta = destino.ruta;
   state.clave = claveDe(destino);
   marcarRuta(destino.ruta);

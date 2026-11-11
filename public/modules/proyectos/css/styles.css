@@ -1146,3 +1146,8 @@ body { font-size: var(--text-sm); line-height: 1.45; }
 .hoja-subtitulo, .panel-descripcion { font-size: var(--text-sm); }
 .barra-item span { font-size: var(--text-xs); }
 .zona-pagina > .pagina-cabecera { margin-bottom: 16px; }
+.kit-mensaje input[type="text"], .kit-mensaje select, .kit-mensaje textarea, .plan-controles input[type="time"] { font: inherit; font-size: var(--text-sm); color: var(--color-text); padding: 8px 10px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.kit-mensaje textarea { resize: vertical; min-height: 72px; line-height: 1.45; }
+.plan-mes--pasado { opacity: .55; }
+/* El título de una pantalla que vive dentro de un contenedor sin separación no se pega a lo de abajo. */
+.pagina-cabecera:not(.panel-content > .pagina-cabecera) { margin-bottom: 16px; }
