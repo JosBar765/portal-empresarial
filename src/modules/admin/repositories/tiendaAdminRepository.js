@@ -98,14 +98,20 @@ class TiendaAdminRepository {
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
        JOIN talleres tal ON tal.encargado_id = u.id
-       JOIN taller_tiendas et ON et.taller_id = tal.id AND et.tienda_id = ?
+       JOIN (
+         SELECT tt.taller_id, tt.tienda_id FROM taller_tiendas tt JOIN talleres g ON g.id = tt.taller_id WHERE g.tienda_id IS NULL
+         UNION SELECT taller_id, tienda_id FROM taller_local_tiendas
+       ) et ON et.taller_id = tal.id AND et.tienda_id = ?
        WHERE u.activo = 1
        UNION ALL
        SELECT u.id, u.nombre, u.email, r.nombre AS rol_nombre, u.rol_id, 'directo' AS tipo_vinculo
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
        JOIN taller_disenadores tt ON tt.usuario_id = u.id
-       JOIN taller_tiendas et ON et.taller_id = tt.taller_id AND et.tienda_id = ?
+       JOIN (
+         SELECT tt2.taller_id, tt2.tienda_id FROM taller_tiendas tt2 JOIN talleres g ON g.id = tt2.taller_id WHERE g.tienda_id IS NULL
+         UNION SELECT taller_id, tienda_id FROM taller_local_tiendas
+       ) et ON et.taller_id = tt.taller_id AND et.tienda_id = ?
        WHERE u.activo = 1
        UNION ALL
        SELECT u.id, u.nombre, u.email, r.nombre AS rol_nombre, u.rol_id, 'supervisor' AS tipo_vinculo

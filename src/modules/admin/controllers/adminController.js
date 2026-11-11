@@ -1,5 +1,6 @@
 // src/modules/admin/controllers/adminController.js
 const adminService = require('../services/adminService');
+const supervisionAsesorService = require('../services/supervisionAsesorService');
 const { responderError, responderErrorInterno } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
 
@@ -169,6 +170,22 @@ class AdminController {
     }
   }
 
+  async obtenerSupervisionAsesor(req, res) {
+    try {
+      return res.json(await supervisionAsesorService.obtener(idObligatorio(req.params.id, 'Asesor')));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async reemplazarSupervisionAsesor(req, res) {
+    try {
+      return res.json(await supervisionAsesorService.reemplazar(req.user, idObligatorio(req.params.id, 'Asesor'), req.body.supervisorIds));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async obtenerOrganizacion(req, res) {
     try {
       const data = await adminService.obtenerOrganizacion();
@@ -244,6 +261,49 @@ class AdminController {
   async actualizarHoraMaximaTaller(req, res) {
     try {
       await adminService.actualizarHoraMaximaTaller(idObligatorio(req.params.id), req.body.horaMaxima);
+      return res.json({ ok: true });
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async listarTiendasDeLocal(req, res) {
+    try {
+      return res.json(await adminService.listarTiendasDeLocal(idObligatorio(req.params.id)));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async agregarTiendaALocal(req, res) {
+    try {
+      await adminService.agregarTiendaALocal(idObligatorio(req.params.id), idObligatorio(req.body.tiendaId, 'Tienda'));
+      return res.status(201).json({ ok: true });
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async quitarTiendaDeLocal(req, res) {
+    try {
+      await adminService.quitarTiendaDeLocal(idObligatorio(req.params.id), idObligatorio(req.params.tiendaId, 'Tienda'));
+      return res.json({ ok: true });
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async listarGruposPropuestasCompartidas(req, res) {
+    try {
+      return res.json(await adminService.listarGruposPropuestasCompartidas());
+    } catch (error) {
+      return responderErrorInterno(res, error);
+    }
+  }
+
+  async actualizarComparteDePropuestas(req, res) {
+    try {
+      await adminService.actualizarComparteDePropuestas(idObligatorio(req.params.id), req.body && req.body.comparte);
       return res.json({ ok: true });
     } catch (error) {
       return responderError(res, error);

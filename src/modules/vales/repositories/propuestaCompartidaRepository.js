@@ -2,11 +2,20 @@
 // Propuestas aprobadas compartidas entre talleres con `talleres.comparte_propuestas = 1`.
 const db = require('../../../config/database');
 
+// Grupo que comparte propuestas: todos los generales juntos y los Locales por país de su tienda sede (nunca un Local con un general ni
+// Locales de países distintos; sin país, el Local queda solo). País como en el calendario.
+const grupoDe = (t) => `COALESCE((SELECT CONCAT('local:', COALESCE(d.pais_id, s.pais_id, e.pais_id, CONCAT('taller', ${t}.id)))
+  FROM tiendas ti
+  LEFT JOIN departamentos d ON d.id = ti.departamento_id
+  LEFT JOIN subdivisiones s ON s.id = ti.subdivision_id
+  LEFT JOIN empresas e ON e.id = ti.empresa_id
+  WHERE ti.id = ${t}.tienda_id), 'general')`;
+
 class PropuestaCompartidaRepository {
-  // Filas activas del vale cuyo taller comparte propuestas.
+  // Filas activas del vale cuyo taller comparte propuestas, con su grupo.
   async listarFilasQueComparten(valeId) {
     return db.query(
-      `SELECT vt.id, vt.taller_id, vt.disenador_id, et.nombre AS estado, t.nombre AS taller_nombre
+      `SELECT vt.id, vt.taller_id, vt.disenador_id, et.nombre AS estado, t.nombre AS taller_nombre, ${grupoDe('t')} AS grupo
        FROM vale_talleres vt
        JOIN talleres t ON t.id = vt.taller_id
        JOIN estados_taller et ON et.id = vt.estado_id
@@ -69,7 +78,7 @@ class PropuestaCompartidaRepository {
        FROM vale_talleres mine
        JOIN talleres tm ON tm.id = mine.taller_id AND tm.comparte_propuestas = 1
        JOIN vale_talleres sib ON sib.vale_id = mine.vale_id AND sib.activo = 1 AND sib.taller_id <> mine.taller_id
-       JOIN talleres ts ON ts.id = sib.taller_id AND ts.comparte_propuestas = 1
+       JOIN talleres ts ON ts.id = sib.taller_id AND ts.comparte_propuestas = 1 AND ${grupoDe('ts')} = ${grupoDe('tm')}
        WHERE mine.vale_id IN (?) AND mine.activo = 1 AND mine.taller_id = ?`,
       [valeIds, tallerId],
       'propuesta_compartida:vales_con_hermano'
@@ -86,7 +95,7 @@ class PropuestaCompartidaRepository {
        FROM vale_talleres mine
        JOIN talleres tm ON tm.id = mine.taller_id AND tm.comparte_propuestas = 1
        JOIN vale_talleres sib ON sib.vale_id = mine.vale_id AND sib.activo = 1 AND sib.taller_id <> mine.taller_id
-       JOIN talleres ts ON ts.id = sib.taller_id AND ts.comparte_propuestas = 1
+       JOIN talleres ts ON ts.id = sib.taller_id AND ts.comparte_propuestas = 1 AND ${grupoDe('ts')} = ${grupoDe('tm')}
        JOIN estados_taller es ON es.id = sib.estado_id AND es.nombre = 'APROBADO'
        JOIN vale_propuestas lp ON lp.id = (
          SELECT MAX(p.id) FROM vale_propuestas p WHERE p.vale_id = sib.vale_id AND p.disenador_id = sib.disenador_id

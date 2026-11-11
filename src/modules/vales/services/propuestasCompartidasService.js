@@ -1,6 +1,6 @@
 // src/modules/vales/services/propuestasCompartidasService.js
 // Propuestas aprobadas visibles entre talleres de un mismo vale. Regla única (`hermanosDe`): se ve a otro taller solo si
-// ambos tienen `talleres.comparte_propuestas = 1`; se evalúa al leer.
+// ambos tienen `talleres.comparte_propuestas = 1` y son del mismo grupo (generales juntos; Locales del mismo país); se evalúa al leer.
 const tallerRepository = require('../repositories/tallerRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const propuestaRepository = require('../repositories/propuestaRepository');
@@ -9,10 +9,11 @@ const valeCatalogoService = require('./valeCatalogoService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { ROL, ESTADOS_TALLER, esDeTaller, esTallerODisenador, esAdministrador } = require('./valeHelpers');
 
-// Filas hermanas de `tallerId`: las demás filas que comparten, solo si la propia también comparte.
+// Filas hermanas de `tallerId`: las demás filas que comparten y son de su grupo, solo si la propia también comparte.
 function hermanosDe(filasQueComparten, tallerId) {
-  if (!tallerId || !filasQueComparten.some(f => f.taller_id === tallerId)) return [];
-  return filasQueComparten.filter(f => f.taller_id !== tallerId);
+  const propia = tallerId ? filasQueComparten.find(f => f.taller_id === tallerId) : null;
+  if (!propia) return [];
+  return filasQueComparten.filter(f => f.taller_id !== tallerId && f.grupo === propia.grupo);
 }
 
 // Administrador y Gerente ven las aprobadas de todos los talleres del vale, solo lectura (sin la regla de compartir ni «visto»).
