@@ -43,6 +43,7 @@ async function verificar() {
   const [{ id: estructuraId }] = await db.query('SELECT id FROM proy_estructuras ORDER BY id LIMIT 1', [], 'plan:estructura');
   const [{ id: paisGT }] = await db.query("SELECT id FROM paises WHERE codigo = 'GT'", [], 'plan:pais_gt');
   const [{ id: admin }] = await db.query('SELECT id FROM usuarios WHERE rol_id = 1 ORDER BY id LIMIT 1', [], 'plan:admin');
+  const [{ id: gerente }] = await db.query("SELECT id FROM usuarios WHERE email = 'gerente@grupopremia.com'", [], 'plan:gerente');
   const [{ id: articuloId }] = await db.query('SELECT id FROM proy_articulos WHERE activo = 1 ORDER BY id LIMIT 1', [], 'plan:articulo');
   const [{ id: plantillaId }] = await db.query('SELECT id FROM proy_plantillas WHERE activa = 1 ORDER BY predeterminada DESC, id LIMIT 1', [], 'plan:plantilla');
   const hoyGT = new Date(Date.now() - 6 * 3600 * 1000).toISOString().slice(0, 10);
@@ -53,6 +54,18 @@ async function verificar() {
   const mesSig = sig.getUTCMonth() + 1;
   const dia0 = plan.fechaDeActivacion(anio, mes, 0);
   const diaSig = plan.fechaDeActivacion(anioSig, mesSig, 0);
+
+  // En una base nueva ningún rol tiene todavía los permisos de Proyectos (se asignan al activar el módulo): se dan y se quitan al terminar.
+  const rolAdmin = (await db.query('SELECT rol_id FROM usuarios WHERE id = ?', [admin], 'plan:rol_admin'))[0].rol_id;
+  const rolGerente = (await db.query('SELECT rol_id FROM usuarios WHERE id = ?', [gerente], 'plan:rol_gerente'))[0].rol_id;
+  const prestados = [];
+  for (const [rol, codigo] of [[rolAdmin, 'proyectos.administrar'], [rolGerente, 'proyectos.ver_gerencia']]) {
+    const [{ id: permisoId }] = await db.query('SELECT id FROM permisos WHERE codigo = ?', [codigo], 'plan:permiso');
+    if (!(await db.query('SELECT 1 AS ya FROM rol_permisos WHERE rol_id = ? AND permiso_id = ?', [rol, permisoId], 'plan:ya_tenia')).length) {
+      await db.query('INSERT INTO rol_permisos (rol_id, permiso_id) VALUES (?, ?)', [rol, permisoId], 'plan:dar_permiso');
+      prestados.push([rol, permisoId]);
+    }
+  }
 
   const filas = Array.from({ length: 30 }, (_, i) => [`PLN Empresa ${i}`, `pln empresa ${i}`, nichoId, paisGT, estructuraId, 'activa', admin, 'Guatemala']);
   await db.query('INSERT INTO proy_clientes (nombre, nombre_normalizado, nicho_id, pais_id, estructura_id, estado, creado_por, ciudad) VALUES ?', [filas], 'plan:empresas');
@@ -176,6 +189,7 @@ async function verificar() {
     prueba('con el mes en aprobación, no se crea otro proyecto', v.estado === 'ya_existe' && (await proyectosDelMes(anioSig, mesSig)).length === 1);
   } finally {
     // Limpieza, pase lo que pase: nada de esta prueba debe quedar en la base.
+    for (const [rol, permisoId] of prestados) await db.query('DELETE FROM rol_permisos WHERE rol_id = ? AND permiso_id = ?', [rol, permisoId], 'plan:quitar_permiso');
     await db.query('DELETE FROM proy_proyectos WHERE creado_en >= ? AND creado_por = ?', [inicio, admin], 'plan:limpiar_proyectos');
     await db.query('DELETE FROM proy_plan_nichos WHERE pais_id IS NULL AND ((anio = ? AND mes = ?) OR (anio = ? AND mes = ?))', [anio, mes, anioSig, mesSig], 'plan:limpiar_plan');
     await db.query("DELETE FROM proy_clientes WHERE nombre LIKE 'PLN %'", [], 'plan:limpiar_clientes');
