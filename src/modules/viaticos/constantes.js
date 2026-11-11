@@ -106,6 +106,12 @@ const ESTADOS_EDITABLES = Object.freeze([ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS
 // Nombre del nivel «no aplica» de viaticos_niveles (solo lo admiten los fluidos con permite_no_aplica).
 const NIVEL_NO_APLICA = 'N/A';
 
+// Niveles de fluido que el PDF resalta en color (nombres de viaticos_niveles).
+const NIVELES_RESALTADOS = Object.freeze({ '1/4': 'amarillo', E: 'rojo' });
+
+// Tipos de imagen que el PDF puede incrustar.
+const MIME_IMAGEN_PDF = Object.freeze({ PNG: 'image/png', JPEG: 'image/jpeg' });
+
 // Nombres de viaticos_salvedades (los carga la semilla).
 const SALVEDADES = Object.freeze({
   LICENCIA: 'licencia',
@@ -158,5 +164,5 @@ const MESES_ABREVIADOS = Object.freeze(['ene', 'feb', 'mar', 'abr', 'may', 'jun'
 
 module.exports = {
   PERMISOS, PREFIJO_PERMISOS, ESTADOS, MODALIDADES, RECURSOS, AJUSTES, MIME_PERMITIDOS, LIMITES,
-  LIMITES_SOLICITUD, ARCHIVOS, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS
+  LIMITES_SOLICITUD, ARCHIVOS, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, NIVELES_RESALTADOS, MIME_IMAGEN_PDF, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS
 };

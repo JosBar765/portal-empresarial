@@ -18,6 +18,7 @@ const { calcularSolicitud } = require('./calculoService');
 const { normalizarDatos, evaluar, claveDePar } = require('./validacionSolicitudService');
 const archivosService = require('./archivosViaticoService');
 const documentoService = require('./documentoService');
+const { erroresDeTextos } = require('./pdf/solicitudPdfService');
 const solicitudService = require('./solicitudService');
 
 // Cola por llave: dos envíos simultáneos con la misma llave se ejecutan uno tras otro para que el segundo vea el resultado del primero.
@@ -68,6 +69,19 @@ function aCampos(errores) {
   const campos = {};
   errores.forEach(e => { if (!Object.prototype.hasOwnProperty.call(campos, e.campo)) campos[e.campo] = e.mensaje; });
   return campos;
+}
+
+// Textos escritos a mano que terminan en el PDF: se rechazan los caracteres que su fuente no dibuja.
+function textosLibres(datos) {
+  const defectos = datos.inspeccion ? datos.inspeccion.defectos : [];
+  return [
+    ...datos.hospedajes.flatMap((h, i) => [
+      { campo: `hospedajes[${i}].hotel`, etiqueta: `Hotel del renglón ${i + 1}`, valor: h.hotel },
+      { campo: `hospedajes[${i}].lugar`, etiqueta: `Lugar del renglón ${i + 1}`, valor: h.lugar }
+    ]),
+    ...datos.gastos.map((g, i) => ({ campo: `gastos[${i}].descripcion`, etiqueta: `Descripción del gasto ${i + 1}`, valor: g.descripcion })),
+    ...defectos.map((d, i) => ({ campo: `inspeccion.defectos[${i}].descripcion`, etiqueta: `Descripción del defecto ${i + 1}`, valor: d.descripcion }))
+  ];
 }
 
 const formatearCorrelativo = (codigoPais, numero) => `${CORRELATIVO.PREFIJO}-${codigoPais}-${String(numero).padStart(CORRELATIVO.DIGITOS, '0')}`;
@@ -147,6 +161,7 @@ class SolicitudGuardadoService {
       ctx = await solicitudService.cargarContexto(usuario.id, datos, { excluirSolicitudId: previa ? previa.id : null, ejecutor: externo });
       evaluacion = evaluar({ datos, ctx, hoy, ahora });
       errores.push(...evaluacion.errores, ...archivosService.validarDefectos({ datos, archivos, ajustes: await archivosService.leerAjustes() }));
+      errores.push(...await erroresDeTextos(textosLibres(datos)));
     }
     if (errores.length > 0) throw errorDeValidacion(msg('validacion.revisar'), aCampos(errores));
 

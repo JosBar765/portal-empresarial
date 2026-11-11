@@ -131,6 +131,14 @@ class SolicitudEscrituraRepository {
     );
   }
 
+  async guardarPdfRuta(id, ruta, ejecutor = db) {
+    await ejecutor.query('UPDATE viaticos_solicitudes SET pdf_ruta = ? WHERE id = ?', [ruta, id], 'viaticos:guardarPdfRuta');
+  }
+
+  async guardarPdfRuta(id, ruta, ejecutor = db) {
+    await ejecutor.query('UPDATE viaticos_solicitudes SET pdf_ruta = ? WHERE id = ?', [ruta, id], 'viaticos:guardarPdfRuta');
+  }
+
   async insertarDefecto(solicitudId, { tipoDefectoId, descripcion, ruta, mimeType, tamano }, ejecutor = db) {
     await ejecutor.query(
       'INSERT INTO viaticos_defectos (solicitud_id, tipo_defecto_id, descripcion, ruta, mime_type, tamano) VALUES (?, ?, ?, ?, ?, ?)',

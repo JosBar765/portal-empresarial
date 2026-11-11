@@ -100,6 +100,15 @@ function defectoViatico(correlativo, contador) {
   return `${prefijoDefectoViatico(correlativo)}_${contador}`;
 }
 
+// Viáticos: PDF de la solicitud; la primera versión es <CORRELATIVO>_SOLICITUD y cada regeneración agrega _2, _3… (upsert:false no sobrescribe).
+function prefijoPdfSolicitudViatico(correlativo) {
+  return `${sanitizarCorrelativo(correlativo)}_SOLICITUD`;
+}
+
+function pdfSolicitudViatico(correlativo, contador = 1) {
+  return contador > 1 ? `${prefijoPdfSolicitudViatico(correlativo)}_${contador}` : prefijoPdfSolicitudViatico(correlativo);
+}
+
 // Máximo X + 1 entre las URLs/nombres que empiezan por `${prefijo}_` seguido solo de dígitos
 // (se ignoran carpeta, extensión y querystring); 1 si no hay ninguno.
 function siguienteContador(urlsExistentes, prefijo) {
@@ -118,5 +127,5 @@ module.exports = {
   sanitizarCorrelativo, codigoTaller, siguienteContador,
   pdfCreacion, pdfAutorizacion, prefijoCorreccionPreAutorizacion, pdfCorreccionPreAutorizacion,
   adjunto, prefijoAdjunto, borrador, prefijoBorrador, propuesta, prefijoPropuesta, prefijoPropuestaFusion, propuestaFusion,
-  prefijoCorreccionAdmin, correccionAdmin, prefijoDefectoViatico, defectoViatico
+  prefijoCorreccionAdmin, correccionAdmin, prefijoDefectoViatico, defectoViatico, prefijoPdfSolicitudViatico, pdfSolicitudViatico
 };

@@ -151,6 +151,24 @@ class SolicitudRepository {
     ));
   }
 
+  // Datos que el detalle no trae y el PDF necesita: puesto y licencia del solicitante, póliza y combustible del vehículo.
+  async obtenerDatosDocumento(id, ejecutor = db) {
+    const filas = await ejecutor.query(
+      `SELECT r.nombre AS puesto, l.numero AS licencia_numero, tl.codigo AS licencia_tipo,
+              v.poliza_numero, c.nombre AS combustible
+       FROM viaticos_solicitudes s
+       JOIN usuarios u ON u.id = s.solicitante_id
+       JOIN roles r ON r.id = u.rol_id
+       LEFT JOIN viaticos_licencias l ON l.usuario_id = s.solicitante_id
+       LEFT JOIN viaticos_tipos_licencia tl ON tl.id = l.tipo_licencia_id
+       JOIN viaticos_vehiculos v ON v.id = s.vehiculo_id
+       JOIN viaticos_combustibles c ON c.id = v.combustible_id
+       WHERE s.id = ?`,
+      [id], 'viaticos:datosDocumento'
+    );
+    return filas[0] ? filaACamel(filas[0]) : null;
+  }
+
   async listarHistorial(solicitudId, ejecutor = db) {
     return filasACamel(await ejecutor.query(
       `SELECT h.id, e.nombre AS estado, h.usuario_id, u.nombre AS usuario_nombre, h.motivo, h.creado_en
