@@ -58,103 +58,134 @@
   </header>
 
   <aside class="sidebar-vales" id="sidebar-proyectos">
-    <span class="sidebar-grupo" data-grupo="trabajo">Mi trabajo</span>
-    <a class="sidebar-item" href="#/miproyecto" data-ruta="miproyecto">
-      <ion-icon name="home-outline"></ion-icon>
-      <span>Mi proyecto</span>
-    </a>
-    <a class="sidebar-item" href="#/parahoy" data-ruta="parahoy">
-      <ion-icon name="time-outline"></ion-icon>
-      <span>Para hoy</span>
-    </a>
-    <a class="sidebar-item" href="#/anteriores" data-ruta="anteriores">
-      <ion-icon name="folder-outline"></ion-icon>
-      <span>Mis proyectos anteriores</span>
-    </a>
-    <span class="sidebar-grupo" data-grupo="clientes">Cartera</span>
-    <a class="sidebar-item" href="#/clientes" data-ruta="clientes">
-      <ion-icon name="business-outline"></ion-icon>
-      <span>Empresas</span>
-    </a>
-    <a class="sidebar-item" href="#/ganados" data-ruta="ganados">
-      <ion-icon name="trophy-outline"></ion-icon>
-      <span>Clientes ganados</span>
-    </a>
-    <a class="sidebar-item" href="#/importar" data-ruta="importar">
-      <ion-icon name="cloud-upload-outline"></ion-icon>
-      <span>Importar empresas</span>
-    </a>
-    <span class="sidebar-grupo" data-grupo="proyectos">Proyectos</span>
-    <a class="sidebar-item" href="#/proyectos" data-ruta="proyectos">
-      <ion-icon name="folder-open-outline"></ion-icon>
-      <span>Proyectos</span>
-    </a>
-    <a class="sidebar-item" href="#/seguimiento" data-ruta="seguimiento">
-      <ion-icon name="trending-up-outline"></ion-icon>
-      <span>Seguimiento</span>
-    </a>
-    <a class="sidebar-item" href="#/ventas" data-ruta="ventas">
-      <ion-icon name="cash-outline"></ion-icon>
-      <span>Ventas por confirmar</span>
-    </a>
-    <a class="sidebar-item" href="#/panel" data-ruta="panel">
-      <ion-icon name="bar-chart-outline"></ion-icon>
-      <span>Panel gerencial</span>
-    </a>
-    <a class="sidebar-item" href="#/vistobueno" data-ruta="vistobueno">
-      <ion-icon name="ribbon-outline"></ion-icon>
-      <span>Por dar visto bueno</span>
-    </a>
-    <a class="sidebar-item" href="#/aprobaciones" data-ruta="aprobaciones">
-      <ion-icon name="checkmark-circle-outline"></ion-icon>
-      <span>Por aprobar</span>
-    </a>
-    <span class="sidebar-grupo" data-grupo="configuracion">Configuración</span>
-    <a class="sidebar-item" href="#/inicio" data-ruta="inicio">
-      <ion-icon name="options-outline"></ion-icon>
-      <span>Centro de configuración</span>
-    </a>
-    <a class="sidebar-item" href="#/parametros" data-ruta="parametros">
-      <ion-icon name="list-outline"></ion-icon>
-      <span>Parámetros</span>
-    </a>
-    <a class="sidebar-item" href="#/plantillas" data-ruta="plantillas">
-      <ion-icon name="document-text-outline"></ion-icon>
-      <span>Plantillas de proyecto</span>
-    </a>
-    <a class="sidebar-item" href="#/reglas" data-ruta="reglas">
-      <ion-icon name="checkmark-circle-outline"></ion-icon>
-      <span>Reglas y aprobaciones</span>
-    </a>
-    <a class="sidebar-item" href="#/notificaciones" data-ruta="notificaciones">
-      <ion-icon name="notifications-outline"></ion-icon>
-      <span>Notificaciones</span>
-    </a>
-    <a class="sidebar-item" href="#/kit" data-ruta="kit">
-      <ion-icon name="chatbubbles-outline"></ion-icon>
-      <span>Kit del nicho</span>
-    </a>
-    <a class="sidebar-item" href="#/campos" data-ruta="campos">
-      <ion-icon name="create-outline"></ion-icon>
-      <span>Campos propios</span>
-    </a>
-    <a class="sidebar-item" href="#/plan" data-ruta="plan">
-      <ion-icon name="calendar-outline"></ion-icon>
-      <span>Plan del año</span>
-    </a>
-    <a class="sidebar-item" href="#/alcance" data-ruta="alcance">
-      <ion-icon name="globe-outline"></ion-icon>
-      <span>Alcance de usuarios</span>
-    </a>
-    <a class="sidebar-item" href="#/historial" data-ruta="historial">
-      <ion-icon name="time-outline"></ion-icon>
-      <span>Historial de cambios</span>
-    </a>
-    <span class="sidebar-grupo" data-grupo="catalogos">Catálogos</span>
-    <a class="sidebar-item" href="#/catalogos" data-ruta="catalogos">
-      <ion-icon name="grid-outline"></ion-icon>
-      <span>Catálogos</span>
-    </a>
+    <div class="sidebar-categoria" data-grupo="trabajo">
+      <button class="sidebar-categoria-cab" type="button" aria-expanded="false" aria-controls="categoria-trabajo">
+        <span class="sidebar-categoria-nombre">Mi trabajo</span>
+        <span class="sidebar-categoria-n"></span>
+        <ion-icon name="chevron-forward-outline" class="sidebar-categoria-flecha"></ion-icon>
+      </button>
+      <div class="sidebar-categoria-items" id="categoria-trabajo">
+        <a class="sidebar-item" href="#/miproyecto" data-ruta="miproyecto">
+          <ion-icon name="home-outline"></ion-icon>
+          <span>Mi proyecto</span>
+        </a>
+        <a class="sidebar-item" href="#/parahoy" data-ruta="parahoy">
+          <ion-icon name="time-outline"></ion-icon>
+          <span>Para hoy</span>
+        </a>
+        <a class="sidebar-item" href="#/anteriores" data-ruta="anteriores">
+          <ion-icon name="folder-outline"></ion-icon>
+          <span>Mis proyectos anteriores</span>
+        </a>
+      </div>
+    </div>
+    <div class="sidebar-categoria" data-grupo="clientes">
+      <button class="sidebar-categoria-cab" type="button" aria-expanded="false" aria-controls="categoria-clientes">
+        <span class="sidebar-categoria-nombre">Cartera</span>
+        <span class="sidebar-categoria-n"></span>
+        <ion-icon name="chevron-forward-outline" class="sidebar-categoria-flecha"></ion-icon>
+      </button>
+      <div class="sidebar-categoria-items" id="categoria-clientes">
+        <a class="sidebar-item" href="#/clientes" data-ruta="clientes">
+          <ion-icon name="business-outline"></ion-icon>
+          <span>Empresas</span>
+        </a>
+        <a class="sidebar-item" href="#/ganados" data-ruta="ganados">
+          <ion-icon name="trophy-outline"></ion-icon>
+          <span>Clientes ganados</span>
+        </a>
+        <a class="sidebar-item" href="#/importar" data-ruta="importar">
+          <ion-icon name="cloud-upload-outline"></ion-icon>
+          <span>Importar empresas</span>
+        </a>
+      </div>
+    </div>
+    <div class="sidebar-categoria" data-grupo="proyectos">
+      <button class="sidebar-categoria-cab" type="button" aria-expanded="false" aria-controls="categoria-proyectos">
+        <span class="sidebar-categoria-nombre">Proyectos</span>
+        <span class="sidebar-categoria-n"></span>
+        <ion-icon name="chevron-forward-outline" class="sidebar-categoria-flecha"></ion-icon>
+      </button>
+      <div class="sidebar-categoria-items" id="categoria-proyectos">
+        <a class="sidebar-item" href="#/proyectos" data-ruta="proyectos">
+          <ion-icon name="folder-open-outline"></ion-icon>
+          <span>Proyectos</span>
+        </a>
+        <a class="sidebar-item" href="#/seguimiento" data-ruta="seguimiento">
+          <ion-icon name="trending-up-outline"></ion-icon>
+          <span>Seguimiento</span>
+        </a>
+        <a class="sidebar-item" href="#/ventas" data-ruta="ventas">
+          <ion-icon name="cash-outline"></ion-icon>
+          <span>Ventas por confirmar</span>
+        </a>
+        <a class="sidebar-item" href="#/panel" data-ruta="panel">
+          <ion-icon name="bar-chart-outline"></ion-icon>
+          <span>Panel gerencial</span>
+        </a>
+        <a class="sidebar-item" href="#/vistobueno" data-ruta="vistobueno">
+          <ion-icon name="ribbon-outline"></ion-icon>
+          <span>Por dar visto bueno</span>
+        </a>
+        <a class="sidebar-item" href="#/aprobaciones" data-ruta="aprobaciones">
+          <ion-icon name="checkmark-circle-outline"></ion-icon>
+          <span>Por aprobar</span>
+        </a>
+      </div>
+    </div>
+    <div class="sidebar-categoria" data-grupo="configuracion">
+      <button class="sidebar-categoria-cab" type="button" aria-expanded="false" aria-controls="categoria-configuracion">
+        <span class="sidebar-categoria-nombre">Configuración</span>
+        <span class="sidebar-categoria-n"></span>
+        <ion-icon name="chevron-forward-outline" class="sidebar-categoria-flecha"></ion-icon>
+      </button>
+      <div class="sidebar-categoria-items" id="categoria-configuracion">
+        <a class="sidebar-item" href="#/inicio" data-ruta="inicio">
+          <ion-icon name="options-outline"></ion-icon>
+          <span>Centro de configuración</span>
+        </a>
+        <a class="sidebar-item" href="#/parametros" data-ruta="parametros">
+          <ion-icon name="list-outline"></ion-icon>
+          <span>Parámetros</span>
+        </a>
+        <a class="sidebar-item" href="#/plantillas" data-ruta="plantillas">
+          <ion-icon name="document-text-outline"></ion-icon>
+          <span>Plantillas de proyecto</span>
+        </a>
+        <a class="sidebar-item" href="#/reglas" data-ruta="reglas">
+          <ion-icon name="checkmark-circle-outline"></ion-icon>
+          <span>Reglas y aprobaciones</span>
+        </a>
+        <a class="sidebar-item" href="#/notificaciones" data-ruta="notificaciones">
+          <ion-icon name="notifications-outline"></ion-icon>
+          <span>Notificaciones</span>
+        </a>
+        <a class="sidebar-item" href="#/kit" data-ruta="kit">
+          <ion-icon name="chatbubbles-outline"></ion-icon>
+          <span>Kit del nicho</span>
+        </a>
+        <a class="sidebar-item" href="#/campos" data-ruta="campos">
+          <ion-icon name="create-outline"></ion-icon>
+          <span>Campos propios</span>
+        </a>
+        <a class="sidebar-item" href="#/plan" data-ruta="plan">
+          <ion-icon name="calendar-outline"></ion-icon>
+          <span>Plan del año</span>
+        </a>
+        <a class="sidebar-item" href="#/alcance" data-ruta="alcance">
+          <ion-icon name="globe-outline"></ion-icon>
+          <span>Alcance de usuarios</span>
+        </a>
+        <a class="sidebar-item" href="#/historial" data-ruta="historial">
+          <ion-icon name="time-outline"></ion-icon>
+          <span>Historial de cambios</span>
+        </a>
+        <a class="sidebar-item" href="#/catalogos" data-ruta="catalogos">
+          <ion-icon name="grid-outline"></ion-icon>
+          <span>Catálogos</span>
+        </a>
+      </div>
+    </div>
     <a class="sidebar-item sidebar-item-salida" href="/dashboard/">
       <ion-icon name="log-out-outline"></ion-icon>
       <span>Volver al portal</span>

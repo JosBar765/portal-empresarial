@@ -40,7 +40,7 @@ export async function renderSeguimiento(cont, parametro) {
   const datos = { resumen, asesores: asesores.asesores, tiendas: tiendas.tiendas, estancados, metas, reserva };
   if (pestanaRecordada === 'metas' && !metas.habilitada) pestanaRecordada = 'asesores';
   const seleccion = new Set();
-  const zona = h('div');
+  const zona = h('div', { class: 'zona-pagina' });
 
   async function recargar() {
     const [r, a, t, e, m, v] = await Promise.all([obtenerSeguimiento(id), obtenerSeguimientoPorAsesor(id), obtenerSeguimientoPorTienda(id), obtenerEstancados(id, datos.estancados.mostrando > 7), obtenerMetas(id), obtenerReserva(id)]);
