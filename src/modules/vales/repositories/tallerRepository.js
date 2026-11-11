@@ -2,8 +2,15 @@
 const db = require('../../../config/database');
 
 class TallerRepository {
+  // Cada Diseño Local trae las tiendas que atiende (`taller_local_tiendas`); los generales, un arreglo vacío (los ven todas).
   async listarActivos() {
-    return db.query('SELECT id, nombre, encargado_id, tienda_id, limite_diario FROM talleres WHERE activo = 1 ORDER BY nombre', [], 'taller:list');
+    const filas = await db.query(
+      `SELECT t.id, t.nombre, t.encargado_id, t.tienda_id, t.limite_diario,
+              (SELECT GROUP_CONCAT(lt.tienda_id) FROM taller_local_tiendas lt WHERE lt.taller_id = t.id) AS tiendas_atendidas
+       FROM talleres t WHERE t.activo = 1 ORDER BY t.nombre`,
+      [], 'taller:list'
+    );
+    return filas.map(({ tiendas_atendidas, ...taller }) => ({ ...taller, tiendas_atendidas_ids: tiendas_atendidas ? tiendas_atendidas.split(',').map(Number) : [] }));
   }
 
   // Todos los talleres, incluidos los inactivos: para mostrar el NOMBRE de un
@@ -13,8 +20,8 @@ class TallerRepository {
     return db.query('SELECT id, nombre, encargado_id, tienda_id, activo, limite_diario FROM talleres ORDER BY nombre', [], 'taller:list_all');
   }
 
-  // Talleres activos de un supervisor: todos los generales (`tienda_id` nulo), los Diseño Local de sus tiendas
-  // y los vinculados a ellas en `taller_tiendas`; los generales no dependen de esa tabla para que toda tienda los vea.
+  // Talleres activos de un supervisor: todos los generales (`tienda_id` nulo, sin depender de `taller_tiendas` para que toda tienda los vea)
+  // y los Diseño Local que atienden sus tiendas (`taller_local_tiendas`), incluidas las de los asesores que se le asignaron en `asesor_supervisores`.
   async listarIdsPorSupervisor(supervisorId) {
     return db.query(
       `SELECT DISTINCT t.id
@@ -22,13 +29,10 @@ class TallerRepository {
        WHERE t.activo = 1 AND (
          t.tienda_id IS NULL
          OR EXISTS (
-           SELECT 1 FROM taller_tiendas tt
-           JOIN supervisor_tiendas st ON st.tienda_id = tt.tienda_id
-           WHERE tt.taller_id = t.id AND st.usuario_id = ?
-         )
-         OR EXISTS (
-           SELECT 1 FROM supervisor_tiendas st
-           WHERE st.tienda_id = t.tienda_id AND st.usuario_id = ?
+           SELECT 1 FROM taller_local_tiendas lt
+           JOIN (SELECT st0.tienda_id FROM supervisor_tiendas st0 WHERE st0.usuario_id = ?
+         UNION SELECT a0.tienda_id FROM asesor_supervisores x0 JOIN asesores a0 ON a0.usuario_id = x0.asesor_id WHERE x0.supervisor_id = ? AND a0.tienda_id IS NOT NULL) st ON st.tienda_id = lt.tienda_id
+           WHERE lt.taller_id = t.id
          )
        )`,
       [supervisorId, supervisorId],
@@ -37,7 +41,12 @@ class TallerRepository {
   }
 
   async obtenerPorId(id) {
-    const rows = await db.query('SELECT id, nombre, encargado_id, tienda_id, activo, limite_diario FROM talleres WHERE id = ?', [id], 'taller:find_by_id');
+    // `tienda_codigo`: código de la sede de un Diseño Local; nombra sus archivos en Storage.
+    const rows = await db.query(
+      `SELECT t.id, t.nombre, t.encargado_id, t.tienda_id, t.activo, t.limite_diario, ti.codigo AS tienda_codigo
+       FROM talleres t LEFT JOIN tiendas ti ON ti.id = t.tienda_id WHERE t.id = ?`,
+      [id], 'taller:find_by_id'
+    );
     return rows[0] || null;
   }
 }

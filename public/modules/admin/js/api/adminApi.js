@@ -96,6 +96,18 @@ export function quitarPersonalDeTienda(tiendaId, usuarioId) {
   return enviarSinBody(`/api/admin/tiendas/${tiendaId}/personal/${usuarioId}`, 'DELETE');
 }
 
+// ---- Supervisión especial de un asesor ----
+export async function obtenerSupervisionAsesor(asesorId) {
+  const res = await fetch(`/api/admin/asesores/${asesorId}/supervisores`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar la supervisión del asesor. Inténtalo de nuevo.');
+  return data;
+}
+
+export function guardarSupervisionAsesor(asesorId, supervisorIds) {
+  return enviarConBody(`/api/admin/asesores/${asesorId}/supervisores`, 'PUT', { supervisorIds });
+}
+
 // ---- Talleres ----
 export async function listarTalleres() {
   const res = await fetch('/api/admin/talleres');
@@ -137,6 +149,34 @@ export function actualizarLimiteDiarioTaller(tallerId, limiteDiario) {
 
 export function actualizarHoraMaximaTaller(tallerId, horaMaxima) {
   return enviarConBody(`/api/admin/talleres/${tallerId}/hora-maxima`, 'PUT', { horaMaxima });
+}
+
+// Tiendas que atiende un taller de Diseño Local.
+export async function listarTiendasDeLocal(tallerId) {
+  const res = await fetch(`/api/admin/talleres/${tallerId}/tiendas`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar las tiendas del taller.');
+  return data;
+}
+
+export function agregarTiendaALocal(tallerId, tiendaId) {
+  return enviarConBody(`/api/admin/talleres/${tallerId}/tiendas`, 'POST', { tiendaId: Number(tiendaId) });
+}
+
+export function quitarTiendaDeLocal(tallerId, tiendaId) {
+  return enviarSinBody(`/api/admin/talleres/${tallerId}/tiendas/${tiendaId}`, 'DELETE');
+}
+
+// Propuestas compartidas entre talleres.
+export async function listarGruposPropuestasCompartidas() {
+  const res = await fetch('/api/admin/talleres/propuestas-compartidas');
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'No se pudo cargar los talleres.');
+  return data;
+}
+
+export function actualizarComparteDePropuestas(tallerId, comparte) {
+  return enviarConBody(`/api/admin/talleres/${tallerId}/comparte-propuestas`, 'PUT', { comparte });
 }
 
 // ---- Crear Vale de Arte (PDF) ----

@@ -17,19 +17,18 @@ function segmento(texto) {
 }
 
 // Un taller nuevo debe agregarse aquí; si no, entregar una propuesta con archivo falla.
-// `taller`: { nombre, tienda_codigo? }. Diseño Local usa el código de su tienda; si no viene,
-// se toma del nombre ('Diseño Local - ECL' -> ECL), que coincide con tiendas.codigo.
+// `taller`: { nombre, tienda_id?, tienda_codigo? }. Un Diseño Local (`tienda_id` no nulo) usa el código de su tienda sede, nunca su nombre (es libre).
 function codigoTaller(taller) {
   const nombre = String((taller && taller.nombre) || '').trim();
+  if (taller && taller.tienda_id != null) {
+    const tienda = segmento(taller.tienda_codigo || '');
+    if (!tienda) throw new Error(`No se pudo determinar el código de tienda del taller "${nombre}".`);
+    return `DISENIO_${tienda}`;
+  }
   const base = segmento(nombre);
   if (base === 'DISENO') return 'DISENIO';
   if (/^DISENO_UV_?3D$/.test(base)) return 'DISENIO_UV3D';
   if (base === 'PROTEXTIL') return 'PROTEXTIL';
-  if (/^DISENO_LOCAL/.test(base)) {
-    const tienda = segmento((taller && taller.tienda_codigo) || nombre.split(' - ').slice(1).join(' ') || '');
-    if (!tienda) throw new Error(`No se pudo determinar el código de tienda del taller "${nombre}".`);
-    return `DISENIO_${tienda}`;
-  }
   throw new Error(`El taller "${nombre}" no tiene código para nombrar archivos en Storage. Agrégalo en codigoTaller (src/core/files/nombreArchivo.js).`);
 }
 

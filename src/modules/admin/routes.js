@@ -39,6 +39,11 @@ router.patch('/talleres/:id/activo', gestionarTalleres, (req, res) => adminContr
 router.get('/talleres/:id/personal', verAdmin, (req, res) => adminController.listarPersonalTaller(req, res));
 router.post('/talleres/:id/encargado', gestionarTalleres, (req, res) => adminController.asignarEncargadoDeTaller(req, res));
 router.delete('/talleres/:id/encargado', gestionarTalleres, (req, res) => adminController.quitarEncargadoDeTaller(req, res));
+router.get('/talleres/propuestas-compartidas', verAdmin, (req, res) => adminController.listarGruposPropuestasCompartidas(req, res));
+router.put('/talleres/:id/comparte-propuestas', gestionarTalleres, (req, res) => adminController.actualizarComparteDePropuestas(req, res));
+router.get('/talleres/:id/tiendas', verAdmin, (req, res) => adminController.listarTiendasDeLocal(req, res));
+router.post('/talleres/:id/tiendas', gestionarTalleres, (req, res) => adminController.agregarTiendaALocal(req, res));
+router.delete('/talleres/:id/tiendas/:tiendaId', gestionarTalleres, (req, res) => adminController.quitarTiendaDeLocal(req, res));
 router.post('/talleres/:id/disenadores', gestionarTalleres, (req, res) => adminController.asignarDisenadorATaller(req, res));
 router.delete('/talleres/:id/disenadores/:usuarioId', gestionarTalleres, (req, res) => adminController.quitarDisenadorDeTaller(req, res));
 router.put('/talleres/:id/limite-diario', gestionarTalleres, (req, res) => adminController.actualizarLimiteDiarioTaller(req, res));
@@ -52,6 +57,10 @@ router.put('/tiendas/:id', gestionarTiendas, (req, res) => adminController.actua
 router.get('/tiendas/:id/personal', verAdmin, (req, res) => adminController.listarPersonalTienda(req, res));
 router.post('/tiendas/:id/personal', gestionarTiendas, (req, res) => adminController.agregarPersonalATienda(req, res));
 router.delete('/tiendas/:id/personal/:usuarioId', gestionarTiendas, (req, res) => adminController.quitarPersonalDeTienda(req, res));
+
+// Supervisión especial de un asesor (mismo permiso que asignar personal a tiendas)
+router.get('/asesores/:id/supervisores', verAdmin, (req, res) => adminController.obtenerSupervisionAsesor(req, res));
+router.put('/asesores/:id/supervisores', gestionarTiendas, (req, res) => adminController.reemplazarSupervisionAsesor(req, res));
 
 // Mantenimiento
 router.get('/mantenimiento', verAdmin, (req, res) => adminController.obtenerMantenimiento(req, res));
