@@ -1,0 +1,143 @@
+/* Formulario de solicitud de viáticos (modal grande): secciones, renglones dinámicos, avisos, campos calculados y resumen fijo.
+   Solo variables de global.css. Prefijo `vi-`. */
+
+.vi-modal-solicitud .modal-header { align-items: flex-start; }
+.modal-titulos { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.modal-subtitulo { margin: 0; font-size: var(--text-xs); color: var(--color-text-muted); }
+
+/* El cuerpo se desplaza; el resumen y el pie quedan fijos debajo. */
+.vi-modal-solicitud .modal-body { flex: 1 1 auto; min-height: 0; padding-top: 4px; }
+.vi-modal-solicitud .field-error { animation: none; }
+
+.vi-form { display: flex; flex-direction: column; }
+.vi-form-detalle { display: flex; flex-direction: column; }
+
+/* ---------- Secciones ---------- */
+.vi-form-seccion { display: flex; flex-direction: column; gap: 12px; padding: 20px 0; border-bottom: 1px solid var(--color-border); }
+.vi-form-seccion:last-child { border-bottom: none; }
+.vi-form-seccion__titulo { margin: 0; font-family: var(--font-title); font-size: var(--text-base); font-weight: 700; color: var(--color-text); }
+.vi-ayuda { margin: 0; font-size: var(--text-xs); color: var(--color-text-secondary); }
+.vi-vacio { color: var(--color-text-muted); }
+.vi-etiqueta, .form-field .vi-etiqueta {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-text-secondary);
+}
+
+.vi-grid, .vi-grid--3 { display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+.vi-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.vi-solo-movil { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.vi-solo-lector { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- Control segmentado (tipo de viaje) ---------- */
+.vi-segmentado { display: flex; border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; background: var(--color-surface); }
+.vi-segmentado__opcion {
+  flex: 1; min-height: 36px; padding: 0 10px; border: none; background: transparent; cursor: pointer;
+  font-family: var(--font-body); font-size: var(--text-sm); color: var(--color-text-secondary);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+.vi-segmentado__opcion + .vi-segmentado__opcion { border-left: 1px solid var(--color-border); }
+.vi-segmentado__opcion.is-activa { background: var(--color-primary-dark); color: var(--color-surface); font-weight: 600; }
+.vi-segmentado__opcion:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+
+/* ---------- Campo calculado ---------- */
+.vi-calculado {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; padding: 0 12px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-muted);
+  font-size: 13px; color: var(--color-text-secondary);
+}
+.vi-calculado__valor { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text); }
+.vi-calculado__marca { flex: none; font-size: 11px; color: var(--color-text-muted); }
+
+/* ---------- Avisos ---------- */
+.vi-avisos { display: flex; flex-direction: column; gap: 10px; }
+.vi-avisos:empty { display: none; }
+#vi-sol-bloqueos { margin: 16px 0 0; }
+.vi-aviso {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm); font-size: var(--text-sm); color: var(--color-text);
+}
+.vi-aviso > ion-icon { flex: none; font-size: 18px; margin-top: 1px; }
+.vi-aviso__cuerpo { min-width: 0; }
+.vi-aviso__titulo, .vi-aviso__texto { margin: 0; }
+.vi-aviso__titulo { font-weight: 700; }
+.vi-aviso--warning { background: var(--color-warning-bg); border-color: var(--color-warning); }
+.vi-aviso--warning > ion-icon, .vi-aviso--warning .vi-aviso__titulo { color: var(--color-warning); }
+.vi-aviso--error { background: var(--color-danger-bg); border-color: var(--color-danger); }
+.vi-aviso--error > ion-icon, .vi-aviso--error .vi-aviso__titulo { color: var(--color-danger); }
+.vi-aviso--info { background: var(--color-info-bg); border-color: var(--color-border-focus); }
+.vi-aviso--info > ion-icon, .vi-aviso--info .vi-aviso__titulo { color: var(--color-info-text); }
+
+/* ---------- Renglones (tramos, hospedajes, otros gastos) ---------- */
+/* El envoltorio de una lista recibe sus errores generales sin teñir los campos de cada renglón. */
+.vi-lista-campo.form-field.is-invalid input,
+.vi-lista-campo.form-field.is-invalid select { border-color: var(--color-border); }
+.vi-lista-campo.form-field.is-invalid { gap: 6px; }
+
+.vi-renglones { display: flex; flex-direction: column; gap: 8px; }
+.vi-renglon { display: grid; gap: 10px; align-items: start; }
+.vi-renglon--cabecera { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-text-secondary); margin-bottom: 4px; }
+.vi-renglon--tramo { grid-template-columns: 24px minmax(0, 1fr) 16px minmax(0, 1fr) 76px 60px 36px; }
+.vi-renglon--hospedaje { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 90px 140px 36px; }
+.vi-renglon--gasto { grid-template-columns: 180px minmax(0, 1fr) 120px 36px; }
+.vi-renglon__num { min-height: 36px; display: flex; align-items: center; font-size: var(--text-sm); color: var(--color-text-secondary); }
+.vi-renglon__flecha { min-height: 36px; display: flex; align-items: center; justify-content: center; color: var(--color-text-muted); }
+.vi-celda-dato { min-height: 36px; display: flex; align-items: center; font-size: var(--text-sm); }
+.vi-renglon__titulo, .vi-renglon__distancia { display: none; }
+.vi-renglon__quitar { align-self: start; }
+.vi-renglon__quitar:disabled { opacity: 0.4; cursor: not-allowed; }
+.vi-renglon__quitar:disabled:hover { background: var(--color-surface); color: var(--color-danger); border-color: var(--color-border); }
+.vi-renglon .form-field input, .vi-renglon .form-field select { min-height: 36px; }
+.vi-agregar { display: flex; }
+.vi-btn-agregar { align-self: flex-start; }
+
+/* ---------- Cajas de totales ---------- */
+.vi-totales { display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg); font-size: var(--text-sm); color: var(--color-text-secondary); }
+.vi-totales__fila { display: flex; justify-content: space-between; gap: 12px; }
+.vi-totales__fila strong { color: var(--color-text); font-weight: 500; }
+.vi-totales__fila strong.vi-totales__fuerte { font-weight: 700; }
+
+/* ---------- Comidas por día ---------- */
+.vi-comidas { display: flex; flex-direction: column; }
+.vi-comidas__fila { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, 100px); align-items: center; border-bottom: 1px solid var(--color-border); min-height: 44px; }
+.vi-comidas__fila--cabecera { min-height: 0; padding-bottom: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-text-secondary); }
+.vi-comidas__tipo { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.vi-comidas__tipo small { font-size: 10px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--color-warning); }
+.vi-comidas__dia { font-size: var(--text-sm); }
+.vi-check { display: flex; align-items: center; justify-content: center; min-height: 44px; cursor: pointer; }
+.vi-check input { width: 20px; height: 20px; accent-color: var(--color-primary); cursor: pointer; }
+.vi-check input:disabled { cursor: not-allowed; opacity: 0.5; }
+
+/* ---------- Resumen fijo y pie ---------- */
+.vi-resumen { flex: none; display: flex; flex-direction: column; gap: 4px; padding: 14px 24px; border-top: 1px solid var(--color-border); background: var(--color-bg); font-size: var(--text-sm); color: var(--color-text-secondary); }
+.vi-resumen__fila { display: flex; justify-content: space-between; gap: 12px; }
+.vi-resumen__fila span:last-child { color: var(--color-text); }
+.vi-resumen__total { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; padding: 10px 16px; border: 2px solid var(--color-text); border-radius: var(--radius-md); background: var(--color-surface); }
+.vi-resumen__total > span:first-child { font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-text); }
+.vi-resumen__total-valor { font-family: var(--font-title); font-size: var(--text-md); font-weight: 700; color: var(--color-text); }
+.vi-resumen__estado { display: flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--color-text-secondary); }
+.vi-resumen__estado:empty { display: none; }
+.vi-pie-motivo { margin-right: auto; align-self: center; font-size: var(--text-xs); color: var(--color-text-secondary); }
+
+/* ---------- Celulares ---------- */
+@media (max-width: 640px) {
+  .vi-grid, .vi-grid--2 { grid-template-columns: minmax(0, 1fr); }
+  .vi-solo-movil { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
+  .vi-renglon--cabecera { display: none; }
+  .vi-renglon--tramo, .vi-renglon--hospedaje, .vi-renglon--gasto {
+    grid-template-columns: minmax(0, 1fr) 44px; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); gap: 8px;
+  }
+  .vi-renglon__num, .vi-renglon__flecha, .vi-celda-dato { display: none; }
+  .vi-renglon__titulo { display: block; grid-column: 1; grid-row: 1; align-self: center; font-weight: 700; font-size: var(--text-sm); }
+  .vi-renglon__quitar { grid-column: 2; grid-row: 1; }
+  .vi-renglon > .form-field, .vi-renglon__distancia { grid-column: 1 / -1; }
+  .vi-renglon__distancia { display: block; font-size: var(--text-xs); color: var(--color-text-secondary); }
+  .vi-renglon__distancia:empty { display: none; }
+  .vi-comidas__fila { grid-template-columns: minmax(0, 1fr) repeat(3, 64px); }
+  .vi-segmentado__opcion { min-height: 44px; }
+  .vi-calculado { min-height: 44px; }
+  .vi-resumen { padding: 10px 16px; }
+  .vi-pie-motivo { flex: 1 1 100%; margin-right: 0; }
+  .vi-modal-solicitud .modal-footer { flex-wrap: wrap; }
+  .vi-modal-solicitud .modal-footer .btn { flex: 1; }
+  .vi-modal-solicitud .vi-btn-agregar { min-height: 44px; }
+  .vi-modal-solicitud .date-field-trigger { min-height: 44px; }
+}

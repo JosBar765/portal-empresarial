@@ -107,3 +107,13 @@ export const ACCIONES_AVISABLES = Object.freeze({
   [TABS.GESTIONES]: Object.freeze(['creada', 'modificada', 'dada_de_baja', 'autorizada', 'rechazada', 'liquidada']),
   [TABS.SOLICITUDES]: Object.freeze(['autorizada', 'rechazada'])
 });
+
+// Límites del formulario de solicitud; coinciden con LIMITES_SOLICITUD del servidor (que es quien decide).
+export const LIMITES_SOLICITUD = Object.freeze({
+  HOTEL: 50,
+  LUGAR: 50,
+  DESCRIPCION: 100,
+  MAX_TRAMOS: 60,
+  MAX_HOSPEDAJES: 30,
+  MAX_GASTOS: 60
+});

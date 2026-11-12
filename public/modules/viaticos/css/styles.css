@@ -2,6 +2,7 @@
 @import url('/css/dashboard.css');
 @import url('/modules/viaticos/css/periodo.css');
 @import url('/modules/viaticos/css/pipeline.css');
+@import url('/modules/viaticos/css/formulario.css');
 
 .header-back {
   color: var(--color-text-secondary);

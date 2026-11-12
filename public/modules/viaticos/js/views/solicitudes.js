@@ -123,7 +123,7 @@ export function renderSolicitudes(contenedor) {
   hayDatos = false;
 
   const barraPeriodo = h('div', { class: 'rp-barra rp-barra--toolbar', id: 'vi-periodo-barra' });
-  const botonNueva = h('button', { class: 'btn btn--primary vi-btn-nueva', type: 'button', onclick: () => abrirFormularioSolicitud({ modo: 'crear' }) },
+  const botonNueva = h('button', { class: 'btn btn--primary vi-btn-nueva', type: 'button', onclick: () => abrirFormularioSolicitud({ modo: 'crear', alTerminar: () => cargarSolicitudes() }) },
     icono('add-outline'), t('solicitudes.nueva'));
   const buscador = h('input', {
     type: 'text', id: 'vi-solicitudes-buscar', placeholder: t('solicitudes.buscar'), 'aria-label': t('solicitudes.buscarAria'),

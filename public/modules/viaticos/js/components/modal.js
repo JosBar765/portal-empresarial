@@ -2,14 +2,16 @@ import { $ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
 import { t } from '../textos.js';
 
-export function abrirModal({ title, bodyHtml, footerHtml, size, alCerrar }) {
+// `subtitle` va bajo el título; `clase` se suma a la caja; `antesDeCerrar()` (sí/no, puede ser asíncrona) filtra X, Escape y clic fuera,
+// y `cerrar()` siempre cierra sin preguntar.
+export function abrirModal({ title, subtitle, bodyHtml, footerHtml, size, clase, alCerrar, antesDeCerrar }) {
   const root = $('#modals-root');
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
-    <div class="modal-box ${size === 'lg' ? 'modal-lg' : ''}">
+    <div class="modal-box ${size === 'lg' ? 'modal-lg' : ''} ${clase ? escapeHtml(clase) : ''}">
       <div class="modal-header">
-        <h3>${escapeHtml(title)}</h3>
+        ${subtitle ? `<div class="modal-titulos"><h3>${escapeHtml(title)}</h3><p class="modal-subtitulo">${escapeHtml(subtitle)}</p></div>` : `<h3>${escapeHtml(title)}</h3>`}
         <button class="modal-close" type="button" aria-label="${escapeHtml(t('comun.cerrar'))}">&times;</button>
       </div>
       <div class="modal-body">${bodyHtml}</div>
@@ -17,21 +19,32 @@ export function abrirModal({ title, bodyHtml, footerHtml, size, alCerrar }) {
     </div>
   `;
   root.appendChild(overlay);
-  const onKeydown = (e) => { if (e.key === 'Escape') cerrar(); };
+  const onKeydown = (e) => { if (e.key === 'Escape') intentarCerrar(); };
   document.addEventListener('keydown', onKeydown);
   const cerrar = () => {
     document.removeEventListener('keydown', onKeydown);
     overlay.remove();
     if (alCerrar) alCerrar();
   };
-  overlay.querySelector('.modal-close').addEventListener('click', cerrar);
+  let consultando = false;
+  const intentarCerrar = async () => {
+    if (!antesDeCerrar) { cerrar(); return; }
+    if (consultando) return; // una confirmación abierta ya está decidiendo
+    consultando = true;
+    try {
+      if (await antesDeCerrar()) cerrar();
+    } finally {
+      consultando = false;
+    }
+  };
+  overlay.querySelector('.modal-close').addEventListener('click', intentarCerrar);
   let mousedownEnOverlay = false;
   overlay.addEventListener('mousedown', (e) => { mousedownEnOverlay = (e.target === overlay); });
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay && mousedownEnOverlay) cerrar();
+    if (e.target === overlay && mousedownEnOverlay) intentarCerrar();
     mousedownEnOverlay = false;
   });
-  return { overlay, cerrar };
+  return { overlay, cerrar, intentarCerrar };
 }
 
 export function mostrarErrorModal(overlay, mensaje) {
