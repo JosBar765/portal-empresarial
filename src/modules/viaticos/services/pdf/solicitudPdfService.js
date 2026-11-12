@@ -6,7 +6,7 @@ const path = require('path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const { ErrorDeNegocio } = require('../../../../core/utils/erroresHttp');
 const { ahoraUTC6 } = require('../../../../core/calendario/calendarioLaboral');
-const { MODALIDADES, NIVELES_RESALTADOS, MIME_IMAGEN_PDF } = require('../../constantes');
+const { MODALIDADES, ESTADOS, NIVELES_RESALTADOS, MIME_IMAGEN_PDF } = require('../../constantes');
 const { aCentavos } = require('../../dinero');
 const { msg, CATALOGO } = require('../../mensajes');
 const { sumarTramos, calcularCombustible, calcularDepreciacion, calcularHospedaje, calcularOtrosGastos } = require('../calculoService');
@@ -391,10 +391,12 @@ function dibujarCierre(ctx, detalle, total) {
   const yFirma = ctx.y - 28;
   const anchoCaja = 240;
   const xAdministracion = PAGINA.MARGEN + ANCHO_CONTENIDO - anchoCaja;
-  [[PAGINA.MARGEN, t('firmaSolicitante'), detalle.solicitante.nombre], [xAdministracion, t('firmaAdministracion'), null]].forEach(([x, etiqueta, nombre]) => {
+  // El nombre va sobre la línea; el de administración aparece cuando la solicitud ya fue autorizada.
+  const autorizacion = [...(detalle.historial || [])].reverse().find(h => h.estado === ESTADOS.AUTORIZADA);
+  [[PAGINA.MARGEN, t('firmaSolicitante'), detalle.solicitante.nombre], [xAdministracion, t('firmaAdministracion'), autorizacion && autorizacion.usuarioNombre]].forEach(([x, etiqueta, nombre]) => {
     ctx.page.drawLine({ start: { x, y: yFirma }, end: { x: x + anchoCaja, y: yFirma }, thickness: 1, color: COLOR.texto });
     texto(ctx, etiqueta, x, yFirma - 9, { size: 6.5, bold: true, color: COLOR.etiqueta });
-    if (nombre) texto(ctx, nombre, x, yFirma - 21, { size: 9 });
+    if (nombre) texto(ctx, nombre, x, yFirma + 4, { size: 9 });
   });
   ctx.y = yFirma - 24;
 }

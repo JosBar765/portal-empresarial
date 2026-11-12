@@ -91,22 +91,15 @@ function propuestaFusion(correlativo, contador) {
   return `${prefijoPropuestaFusion(correlativo)}_${contador}`;
 }
 
-// Viáticos: foto de un defecto del vehículo; el contador sigue creciendo entre modificaciones para no repetir nombres.
-function prefijoDefectoViatico(correlativo) {
-  return `${sanitizarCorrelativo(correlativo)}_DEFECTO`;
+// Viáticos: comprobante de liquidación; el rubro sale del nombre del tipo de gasto (sin acentos, en mayúsculas).
+function prefijoLiquidacion(correlativo, rubro) {
+  const codigo = segmento(rubro);
+  if (!codigo) throw new Error('El rubro de la liquidación no tiene un nombre válido para nombrar el archivo en Storage.');
+  return `${sanitizarCorrelativo(correlativo)}_LIQUIDACION_${codigo}`;
 }
 
-function defectoViatico(correlativo, contador) {
-  return `${prefijoDefectoViatico(correlativo)}_${contador}`;
-}
-
-// Viáticos: PDF de la solicitud; la primera versión es <CORRELATIVO>_SOLICITUD y cada regeneración agrega _2, _3… (upsert:false no sobrescribe).
-function prefijoPdfSolicitudViatico(correlativo) {
-  return `${sanitizarCorrelativo(correlativo)}_SOLICITUD`;
-}
-
-function pdfSolicitudViatico(correlativo, contador = 1) {
-  return contador > 1 ? `${prefijoPdfSolicitudViatico(correlativo)}_${contador}` : prefijoPdfSolicitudViatico(correlativo);
+function liquidacion(correlativo, rubro, contador) {
+  return `${prefijoLiquidacion(correlativo, rubro)}_${contador}`;
 }
 
 // Máximo X + 1 entre las URLs/nombres que empiezan por `${prefijo}_` seguido solo de dígitos
@@ -127,5 +120,5 @@ module.exports = {
   sanitizarCorrelativo, codigoTaller, siguienteContador,
   pdfCreacion, pdfAutorizacion, prefijoCorreccionPreAutorizacion, pdfCorreccionPreAutorizacion,
   adjunto, prefijoAdjunto, borrador, prefijoBorrador, propuesta, prefijoPropuesta, prefijoPropuestaFusion, propuestaFusion,
-  prefijoCorreccionAdmin, correccionAdmin, prefijoDefectoViatico, defectoViatico, prefijoPdfSolicitudViatico, pdfSolicitudViatico
+  prefijoCorreccionAdmin, correccionAdmin, prefijoLiquidacion, liquidacion
 };

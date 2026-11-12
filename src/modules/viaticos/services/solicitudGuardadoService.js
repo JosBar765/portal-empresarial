@@ -10,7 +10,7 @@ const solicitudRepo = require('../repositories/solicitudRepository');
 const escrituraRepo = require('../repositories/solicitudEscrituraRepository');
 const destinatarioRepo = require('../repositories/destinatarioRepository');
 const {
-  MODALIDADES, ESTADOS, ESTADOS_EDITABLES, ACCIONES, PERMISOS, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, CORRELATIVO
+  MODALIDADES, ESTADOS, ESTADOS_EDITABLES, ACCIONES, PERMISOS, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, CORRELATIVO, ETAPAS_DOCUMENTO
 } = require('../constantes');
 const { errorDeValidacion } = require('../errores');
 const { msg } = require('../mensajes');
@@ -214,7 +214,8 @@ class SolicitudGuardadoService {
     await escrituraRepo.insertarFluidos(id, partes.fluidos, tx);
     await escrituraRepo.insertarKit(id, partes.kit, tx);
     await archivosService.subirDefectos({
-      correlativo, defectos: partes.defectos, archivos, existentes: fotosAnteriores, subidas,
+      correlativo, etapa: previa ? ETAPAS_DOCUMENTO.CORRECCION : ETAPAS_DOCUMENTO.CREACION,
+      defectos: partes.defectos, archivos, existentes: fotosAnteriores, subidas,
       registrar: defecto => escrituraRepo.insertarDefecto(id, defecto, tx)
     });
     await escrituraRepo.insertarHistorial(id, estadoId, usuario.id, tx);
@@ -230,7 +231,7 @@ class SolicitudGuardadoService {
 
   async despuesDelCommit(usuario, id, esModificacion) {
     try {
-      await documentoService.regenerarPdf(id);
+      await documentoService.regenerarPdf(id, { etapa: esModificacion ? ETAPAS_DOCUMENTO.CORRECCION : ETAPAS_DOCUMENTO.CREACION });
     } catch (error) {
       console.error('[Viáticos] No se pudo regenerar el PDF de la solicitud:', error.message);
     }

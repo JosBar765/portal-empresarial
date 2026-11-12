@@ -134,7 +134,7 @@ Siempre 200 si el cuerpo es un objeto (el cliente decide con `valido`). Los erro
 
 ### Respuestas
 
-- `POST`: 201 con el detalle (misma forma que `GET /solicitudes/:id`). `PUT`: 200 con el detalle; conserva el correlativo, reemplaza todas las partes, agrega un renglón de historial y vuelve a «esperando autorización». Las fotos anteriores se borran de Storage después del commit y las nuevas siguen el contador `<CORRELATIVO>_DEFECTO_<n>` (nunca repiten un nombre previo).
+- `POST`: 201 con el detalle (misma forma que `GET /solicitudes/:id`). `PUT`: 200 con el detalle; conserva el correlativo, reemplaza todas las partes, agrega un renglón de historial y vuelve a «esperando autorización». Las fotos anteriores se borran de Storage después del commit y las nuevas se nombran `<CORRELATIVO>_DEFECTO_CREACION_<n>` al crear y `<CORRELATIVO>_DEFECTO_CORRECCION_<n>` al modificar (ver «Archivos en Storage»).
 - `DELETE`: 200 con `{ id, correlativo }`; borra el registro (las partes caen por `CASCADE`) y después los archivos de Storage (fotos y PDF).
 - `GET /solicitudes/:id/documentos`: lista `[ { titulo, tipo: 'pdf' | 'imagen', url } ]` con el PDF (si existe) y las fotos de defectos, en ese orden; `url` es la URL pública guardada en `ruta`.
 
@@ -152,9 +152,24 @@ Siempre 200 si el cuerpo es un objeto (el cliente decide con `valido`). Los erro
 ### PDF de la solicitud
 
 - Lo genera `services/pdf/solicitudPdfService.js` (`pdf-lib`, Carta, estilo «recibo» en blanco y negro como el vale de arte) tras crear o modificar; no se guarda el binario en la base: solo la URL pública en `viaticos_solicitudes.pdf_ruta`.
-- Nombre en Storage: `<CORRELATIVO>_SOLICITUD` la primera vez; cada regeneración sube `<CORRELATIVO>_SOLICITUD_2`, `_3`… (Storage no sobrescribe), actualiza `pdf_ruta` y borra el anterior (el borrado solo actúa en producción).
+- Nombre en Storage según la etapa (ver «Archivos en Storage»); cada regeneración actualiza `pdf_ruta` y borra el anterior (el borrado solo actúa en producción).
 - Encabezado: título «SOLICITUD DE VIÁTICOS» con la letra calculada para ocupar el mismo ancho que «VALE DE ARTE» a 18 pt, correlativo, «MundiTrofeos S.A. · Generado dd/mm/aaaa» y logo; se repite en cada hoja. Pie de todas las hojas: `n/total`.
-- Contenido: información del solicitante (puesto = rol; licencia = tipo · número), del vehículo (póliza vacía si no tiene) y del viaje. Más de 1 día: ruta y kilometraje, combustible, depreciación (solo vehículo propio), hotel y hospedaje, comidas, otros gastos y caja TOTAL SOLICITADO (el total guardado). 1 día o menos: nivel de fluidos (`1/4` amarillo, `E` rojo), odómetro, kit de emergencia (cada «No» en rojo), defectos `SÍ (n)/NO` y, solo si hay defectos, una última hoja con sus fotos (3 por fila con su correlativo `<CORRELATIVO>_DEFECTO_<n>`; una foto que no se pueda bajar o que no sea PNG/JPEG se reemplaza por un recuadro «Imagen no disponible»). Después, SALVEDADES (solo si hay, con `texto_pdf` y «TOMAR EN CUENTA» con doble subrayado) y las firmas Solicitante (con su nombre) y Administración.
+- Contenido: información del solicitante (puesto = rol; licencia = tipo · número), del vehículo (póliza vacía si no tiene) y del viaje. Más de 1 día: ruta y kilometraje, combustible, depreciación (solo vehículo propio), hotel y hospedaje, comidas, otros gastos y caja TOTAL SOLICITADO (el total guardado). 1 día o menos: nivel de fluidos (`1/4` amarillo, `E` rojo), odómetro, kit de emergencia (cada «No» en rojo), defectos `SÍ (n)/NO` y, solo si hay defectos, una última hoja con sus fotos (3 por fila con el nombre de su archivo, p. ej. `<CORRELATIVO>_DEFECTO_CREACION_<n>`; una foto que no se pueda bajar o que no sea PNG/JPEG se reemplaza por un recuadro «Imagen no disponible»). Después, SALVEDADES (solo si hay, con `texto_pdf` y «TOMAR EN CUENTA» con doble subrayado) y las firmas: el nombre del solicitante sobre su línea y, al autorizarse la solicitud, el nombre de quien autorizó sobre la línea de Administración (tentativo: gerencia aún no define el proceso).
 - Desbordamiento: normalmente una sola hoja. Las listas (tramos, hoteles, comidas, otros gastos, defectos) no tienen límite de filas y siguen en otra hoja con el mismo encabezado; la caja TOTAL SOLICITADO, las salvedades y las firmas van siempre juntas: si no caben en la hoja actual pasan juntas a la siguiente.
 - Textos: Helvetica solo dibuja WinAnsi. Al guardar, hotel, lugar y descripciones con caracteres que no se pueden dibujar (emoji, flechas, chino…) se rechazan con 400 por campo; el generador además sustituye cualquier carácter restante por «?» para no fallar.
 - Si la regeneración falla, la solicitud queda guardada sin PDF (el error se registra) y `GET /solicitudes/:id/documentos` lista solo las fotos.
+
+## Archivos en Storage
+
+Todo archivo de viáticos va al bucket propio `SUPABASE_STORAGE_BUCKET_VIATICOS` (`supabaseStorage.viaticos`; variable obligatoria, distinta entre staging y producción). Nombres con el mismo esquema que Vales (`src/core/files/nombreArchivo.js`; la extensión sale del tipo verificado del archivo; `X` es un contador que empieza en 1 por etapa y nunca repite un nombre porque Storage no sobrescribe):
+
+| Archivo | Nombre |
+|---|---|
+| PDF al crear la solicitud | `<CORRELATIVO>_CREACION` |
+| PDF al modificarla (siempre antes de autorizar) | `<CORRELATIVO>_CORRECCION_PRE_AUTORIZACION_X` |
+| PDF al autorizarla (tentativo) | `<CORRELATIVO>_AUTORIZACION` |
+| Foto de defecto al crear | `<CORRELATIVO>_DEFECTO_CREACION_X` |
+| Foto de defecto añadida al modificar | `<CORRELATIVO>_DEFECTO_CORRECCION_X` |
+| Comprobante de liquidación | `<CORRELATIVO>_LIQUIDACION_<RUBRO>_X` (el rubro sale del nombre del tipo de gasto, sin acentos y en mayúsculas: `HOSPEDAJE`, `COMBUSTIBLE`, `PEAJE`…) |
+
+Limitación conocida (solo staging y desarrollo, donde el borrado de Storage no actúa): si en una modificación se quitan todas las fotos de una etapa y en otra posterior se vuelven a agregar, el contador reinicia y el nombre puede chocar con un archivo que quedó sin borrar.

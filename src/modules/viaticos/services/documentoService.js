@@ -8,15 +8,26 @@ const solicitudService = require('./solicitudService');
 const archivosService = require('./archivosViaticoService');
 const { generarPdfSolicitud } = require('./pdf/solicitudPdfService');
 const { msg } = require('../mensajes');
+const { ETAPAS_DOCUMENTO } = require('../constantes');
 
 const TIPO_PDF = 'application/pdf';
+
+// Nombre del PDF según la etapa, como en Vales: <CORR>_CREACION, <CORR>_CORRECCION_PRE_AUTORIZACION_X y <CORR>_AUTORIZACION.
+function nombreDelPdf(correlativo, etapa, anterior) {
+  if (etapa === ETAPAS_DOCUMENTO.AUTORIZACION) return nombreArchivo.pdfAutorizacion(correlativo);
+  if (etapa === ETAPAS_DOCUMENTO.CORRECCION) {
+    const contador = nombreArchivo.siguienteContador([anterior], nombreArchivo.prefijoCorreccionPreAutorizacion(correlativo));
+    return nombreArchivo.pdfCorreccionPreAutorizacion(correlativo, contador);
+  }
+  return nombreArchivo.pdfCreacion(correlativo);
+}
 
 // Nombre del objeto en Storage sin carpeta, extensión ni querystring: es el correlativo de la imagen.
 const nombreDeObjeto = ruta => String(ruta).split(/[?#]/)[0].split('/').pop().replace(/\.[A-Za-z0-9]+$/, '');
 
 class DocumentoService {
   // Genera el PDF con el estado actual de la solicitud, lo sube y guarda su URL; después borra el anterior.
-  async regenerarPdf(solicitudId) {
+  async regenerarPdf(solicitudId, { etapa = ETAPAS_DOCUMENTO.CREACION } = {}) {
     const encabezado = await solicitudRepo.obtenerEncabezado(solicitudId);
     if (!encabezado) return null;
     const [detalle, extra, archivos] = await Promise.all([
@@ -37,17 +48,16 @@ class DocumentoService {
     };
     for (const defecto of completo.inspeccion ? completo.inspeccion.defectos : []) {
       try {
-        imagenes.push({ defectoId: defecto.id, mimeType: defecto.mimeType, buffer: await supabaseStorage.descargar(archivoDe.get(defecto.id).ruta) });
+        imagenes.push({ defectoId: defecto.id, mimeType: defecto.mimeType, buffer: await supabaseStorage.viaticos.descargar(archivoDe.get(defecto.id).ruta) });
       } catch (error) {
         console.error(`[Viáticos] No se pudo bajar la imagen ${defecto.correlativoImagen} para el PDF:`, error.message);
       }
     }
 
     const pdf = await generarPdfSolicitud(completo, { imagenes });
-    // Storage no sobrescribe: cada versión lleva un número más (_2, _3…) y la anterior se borra al final.
+    // Storage no sobrescribe: cada etapa tiene su nombre y la versión anterior se borra al final.
     const anterior = encabezado.pdfRuta;
-    const contador = anterior ? Math.max(2, nombreArchivo.siguienteContador([anterior], nombreArchivo.prefijoPdfSolicitudViatico(encabezado.correlativo))) : 1;
-    const subida = await supabaseStorage.subir(pdf, `${encabezado.correlativo}.pdf`, TIPO_PDF, nombreArchivo.pdfSolicitudViatico(encabezado.correlativo, contador));
+    const subida = await supabaseStorage.viaticos.subir(pdf, `${encabezado.correlativo}.pdf`, TIPO_PDF, nombreDelPdf(encabezado.correlativo, etapa, anterior));
     try {
       await escrituraRepo.guardarPdfRuta(solicitudId, subida.url);
     } catch (error) {

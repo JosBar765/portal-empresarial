@@ -62,7 +62,7 @@ Todos los comandos `npm run staging:*` los ejecuta el dueño en su PC.
 
 1. **Staging validado**: el cambio se probó allí con el refresco reciente y las migraciones aplicadas sin error.
 2. **Respaldo primero**: `npm run main:backup -- --salida <carpeta>` (añadir `--comprimir` si es grande). Elegir una carpeta fuera del repositorio o `respaldos/` (ignorada por git). Verificar «Verificación correcta» y guardar el archivo; no se commitea ni se comparte.
-3. **Variables de entorno nuevas en el panel de Hostinger, ANTES del merge.** Hoy: `SUPABASE_STORAGE_BUCKET_BORRADORES`, más su bucket creado en Supabase (distinto al de staging). Sin la variable, `src/config/env.js` imprime `[FATAL]` y el servidor **no arranca**. Para descubrir variables nuevas: comparar `src/config/env.js` entre `main` y `staging` (`git diff main staging -- src/config/env.js`) y revisar `.env.example`.
+3. **Variables de entorno nuevas en el panel de Hostinger, ANTES del merge.** Hoy: `SUPABASE_STORAGE_BUCKET_BORRADORES` y `SUPABASE_STORAGE_BUCKET_VIATICOS`, más sus buckets creados en Supabase (distintos a los de staging). Sin la variable, `src/config/env.js` imprime `[FATAL]` y el servidor **no arranca**. Para descubrir variables nuevas: comparar `src/config/env.js` entre `main` y `staging` (`git diff main staging -- src/config/env.js`) y revisar `.env.example`.
 4. **Decisión sobre la retención de archivos.** El vigilante de retención (`src/modules/vales/retencionArchivosWatcher.js`) corre solo con `NODE_ENV=production` y **al arrancar** purga los archivos de vales confirmados hace más de 30 días (PDF y adjuntos) y 60 días (propuestas). **Es irreversible** (borra en Storage; el respaldo no incluye archivos). Los días viven en `parametros_sistema` (`dias_retencion_pdf_adjuntos`, `dias_retencion_propuestas`) y se editan en Admin > Horarios y feriados. Para evitar sorpresas, precargar valores altos (por ejemplo 3650) antes del primer despliegue: la migración nunca sobrescribe valores existentes. Dimensionar el impacto con `SELECT COUNT(*) FROM vales WHERE confirmado_en IS NOT NULL AND confirmado_en < NOW() - INTERVAL 30 DAY;`. Detalle: `.agents/modulos/vales de arte/documentacion/retencion_archivos.md`.
 5. **Producción sin marca de entorno:** `SELECT valor FROM parametros_sistema WHERE clave = 'entorno';` debe devolver **cero filas**. Si devuelve `staging`, el servidor de producción no arrancará (`[FATAL]`): no seguir.
 6. **Modo mantenimiento** desde la cuenta Administrador: inicia una cuenta regresiva de 10 minutos y luego bloquea a los demás usuarios. Ver `.agents/modulos/admin/documentacion/mantenimiento_cuenta_regresiva.md`.
@@ -98,7 +98,7 @@ Hostinger copia `public/` a `public_html` y su CDN sirve `/css`, `/js` y los est
 | Reglas de ramas | GitHub > Settings > Rules > Rulesets: `dev_ruleset`, `staging_ruleset`, `main_ruleset` | Check `verificar`, merge commits, aprobaciones de `main` |
 | Buckets de archivos | Supabase Storage | Mismo proyecto en staging y producción |
 
-Variables obligatorias (todas, sin valores por defecto; si falta una o es inválida el proceso lista todas las que fallan y sale): `NODE_ENV`, `PORT`, `JWT_SECRET`, `ACCESS_TOKEN_EXPIRES_IN`, `REFRESH_TOKEN_EXPIRES_IN`, `SOCKET_CORS_ORIGIN`, `TRUST_PROXY`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_BUCKET_BORRADORES`.
+Variables obligatorias (todas, sin valores por defecto; si falta una o es inválida el proceso lista todas las que fallan y sale): `NODE_ENV`, `PORT`, `JWT_SECRET`, `ACCESS_TOKEN_EXPIRES_IN`, `REFRESH_TOKEN_EXPIRES_IN`, `SOCKET_CORS_ORIGIN`, `TRUST_PROXY`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_BUCKET_BORRADORES`, `SUPABASE_STORAGE_BUCKET_VIATICOS`.
 
 Reglas por entorno:
 
@@ -106,7 +106,7 @@ Reglas por entorno:
 - `JWT_SECRET` (≥ 32 caracteres) **distinto en cada entorno**: con el mismo, un token de producción valdría en staging.
 - `SOCKET_CORS_ORIGIN` con el dominio exacto de cada entorno (sin barra final ni `*`; HTTPS en producción).
 - `DB_*` apuntan a la base de **su** entorno; `DB_PASSWORD` solo puede estar vacía fuera de producción.
-- Las claves de Supabase son del **mismo proyecto** en staging y producción: solo los nombres de bucket separan los entornos. `SUPABASE_STORAGE_BUCKET` y `SUPABASE_STORAGE_BUCKET_BORRADORES` deben ser **distintos** entre staging y producción.
+- Las claves de Supabase son del **mismo proyecto** en staging y producción: solo los nombres de bucket separan los entornos. `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_BUCKET_BORRADORES` y `SUPABASE_STORAGE_BUCKET_VIATICOS` deben ser **distintos** entre staging y producción.
 
 ## 6. Riesgos y qué hacer
 

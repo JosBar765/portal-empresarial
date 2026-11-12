@@ -66,9 +66,9 @@ function validarDefectos({ datos, archivos, ajustes }) {
 }
 
 // Sube las fotos en orden y registra cada defecto; `subidas` acumula las URLs para poder deshacer si algo falla después.
-// `existentes` son las URLs de fotos previas de la solicitud: el contador sigue desde ellas para no repetir nombres.
-async function subirDefectos({ correlativo, defectos, archivos, existentes = [], registrar, subidas }) {
-  let contador = nombreArchivo.siguienteContador(existentes, nombreArchivo.prefijoDefectoViatico(correlativo));
+// `etapa` es CREACION o CORRECCION (ETAPAS_DOCUMENTO). `existentes` son las URLs de fotos previas: el contador de la etapa sigue desde ellas para no repetir nombres.
+async function subirDefectos({ correlativo, etapa, defectos, archivos, existentes = [], registrar, subidas }) {
+  let contador = nombreArchivo.siguienteContador(existentes, nombreArchivo.prefijoAdjunto(correlativo, ARCHIVOS.TIPO_NOMBRE_DEFECTO, etapa));
   for (const defecto of defectos) {
     const archivo = archivos[defecto.archivoIndice];
     const mimeType = tipoCanonico(archivo.mimetype);
@@ -76,7 +76,8 @@ async function subirDefectos({ correlativo, defectos, archivos, existentes = [],
       buffer: archivo.buffer,
       nombreOriginal: archivo.originalname,
       mimeType,
-      nombreObjeto: nombreArchivo.defectoViatico(correlativo, contador),
+      storage: supabaseStorage.viaticos,
+      nombreObjeto: nombreArchivo.adjunto(correlativo, ARCHIVOS.TIPO_NOMBRE_DEFECTO, etapa, contador),
       registrar: async subida => {
         await registrar({ ...defecto, ruta: subida.url, mimeType, tamano: subida.size });
         subidas.push(subida.url);
@@ -90,7 +91,7 @@ async function subirDefectos({ correlativo, defectos, archivos, existentes = [],
 async function eliminarArchivos(urls) {
   for (const url of urls.filter(Boolean)) {
     try {
-      await supabaseStorage.eliminar(url);
+      await supabaseStorage.viaticos.eliminar(url);
     } catch (error) {
       console.error('[Viáticos] No se pudo borrar un archivo de Storage:', error.message);
     }

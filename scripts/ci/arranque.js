@@ -71,7 +71,8 @@ async function verificar(base) {
     SUPABASE_URL: 'https://ci-falso.supabase.co',
     SUPABASE_SECRET_KEY: 'ci-clave-falsa',
     SUPABASE_STORAGE_BUCKET: 'ci-bucket',
-    SUPABASE_STORAGE_BUCKET_BORRADORES: 'ci-bucket-borradores'
+    SUPABASE_STORAGE_BUCKET_BORRADORES: 'ci-bucket-borradores',
+    SUPABASE_STORAGE_BUCKET_VIATICOS: 'ci-bucket-viaticos'
   };
 
   console.log(`Arranque: node src/server.js en el puerto ${puerto}`);
