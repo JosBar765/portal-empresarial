@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { TIEMPO_REAL, ACCIONES_AVISABLES, PERMISOS } from './config/constantes.js';
+import { TIEMPO_REAL, ACCIONES_AVISABLES, PERMISOS, TABS } from './config/constantes.js';
 import { t } from './textos.js';
 import { refreshToken, logout } from './api/authApi.js';
 
@@ -27,12 +27,15 @@ function esAccionPropia(id) {
   return true;
 }
 
-// Aviso solo si la vista afectada es la abierta y la acción no es propia.
+// Aviso solo si la vista afectada es la abierta y la acción no es propia. En Solicitudes solo importan las decisiones sobre lo del propio usuario (`solicitanteId`).
 function avisarSiAplica(data) {
   const avisables = ACCIONES_AVISABLES[state.tab] || [];
   if (!avisables.includes(data.accion) || esAccionPropia(data.id) || !window.toast) return;
+  const enSolicitudes = state.tab === TABS.SOLICITUDES;
+  if (enSolicitudes && Number(data.solicitanteId) !== Number(state.user.id)) return;
   const tipo = data.accion === 'rechazada' ? 'warning' : 'info';
-  window.toast[tipo](t('socket.titulo'), t(`socket.accion.${data.accion}`, { correlativo: data.correlativo }));
+  const clave = enSolicitudes ? `socket.propia.${data.accion}` : `socket.accion.${data.accion}`;
+  window.toast[tipo](t('socket.titulo'), t(clave, { correlativo: data.correlativo }));
 }
 
 // Los eventos seguidos comparten una sola recarga; con la pestaña oculta se espera a que vuelva a verse.

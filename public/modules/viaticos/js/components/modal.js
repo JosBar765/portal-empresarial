@@ -44,13 +44,13 @@ export function mostrarErrorModal(overlay, mensaje) {
   box.textContent = mensaje;
 }
 
-// Confirmación sí/no; cerrar por cualquier otra vía equivale a cancelar.
-export function confirmarModal({ title, mensaje, aceptar = t('comun.aceptar'), cancelar = t('comun.cancelar') }) {
+// Confirmación sí/no; cerrar por cualquier otra vía equivale a cancelar. Con `peligro` el botón de aceptar es rojo (acciones que no se pueden deshacer).
+export function confirmarModal({ title, mensaje, aceptar = t('comun.aceptar'), cancelar = t('comun.cancelar'), peligro = false }) {
   return new Promise((resolve) => {
     const { overlay, cerrar } = abrirModal({
       title,
       bodyHtml: `<p>${escapeHtml(mensaje)}</p>`,
-      footerHtml: `<button class="btn btn--ghost" type="button" data-accion="cancelar">${escapeHtml(cancelar)}</button><button class="btn btn--primary" type="button" data-accion="aceptar">${escapeHtml(aceptar)}</button>`,
+      footerHtml: `<button class="btn btn--ghost" type="button" data-accion="cancelar">${escapeHtml(cancelar)}</button><button class="btn ${peligro ? 'btn--danger' : 'btn--primary'}" type="button" data-accion="aceptar">${escapeHtml(aceptar)}</button>`,
       alCerrar: () => resolve(false)
     });
     overlay.querySelector('[data-accion="cancelar"]').addEventListener('click', cerrar);

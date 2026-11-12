@@ -1,0 +1,349 @@
+/* Barra de período y calendario: copia de los estilos `.rp-*`, `.dp-*` y `.date-field*` de Vales (styles.css y reportes.css), sin cupos ni feriados.
+   Se mantienen los nombres de clase para poder sincronizarlos con el original. */
+
+/* ---- Campo de fecha (calendario propio en lugar del nativo) ---- */
+.date-field {
+  position: relative;
+}
+
+.date-field-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.date-field-trigger:hover {
+  border-color: var(--color-text-muted);
+}
+
+.date-field-trigger[aria-expanded="true"] {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.date-field-trigger:disabled {
+  background: var(--color-surface-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.date-field-trigger:disabled:hover {
+  border-color: var(--color-border);
+}
+
+.date-field-trigger ion-icon {
+  font-size: 16px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.date-field-value.is-placeholder {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.form-field.is-invalid .date-field-trigger {
+  border-color: var(--color-danger);
+}
+
+.form-field.is-invalid .date-field-trigger:focus {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px rgba(var(--color-danger-rgb), 0.12);
+}
+
+/* Variante compacta para barras de filtros: ancho al contenido y con su propio botón para limpiar la fecha. */
+.date-field-compact {
+  width: auto;
+}
+
+.date-field-compact .date-field-trigger {
+  width: auto;
+  min-width: 132px;
+  padding: 7px 12px;
+  font-size: 13px;
+}
+
+/* Hermano del trigger (nunca anidado en el <button>) que se superpone al ícono cuando hay una fecha elegida. */
+.date-field-clear {
+  display: none;
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.date-field-clear:hover {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.date-field-compact.has-value .date-field-clear {
+  display: flex;
+}
+
+/* ---- Panel del calendario (fixed en <body>, por encima de los modales) ---- */
+.date-picker-panel {
+  position: fixed;
+  z-index: 200;
+  width: 264px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 12px;
+  animation: fadeIn .12s var(--ease-out);
+}
+
+.dp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.dp-month-label {
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-transform: capitalize;
+}
+
+.dp-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.dp-nav:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-primary);
+}
+
+/* Título del mes pulsable que lleva a la cuadrícula de meses. */
+.dp-titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.dp-titulo:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-primary);
+}
+
+.dp-titulo ion-icon { font-size: 14px; }
+
+.dp-meses {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.dp-mes {
+  padding: 12px 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.dp-mes:hover { background: var(--color-surface-muted); }
+.dp-mes.is-actual { color: var(--color-primary-dark); font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--color-primary-dark); }
+.dp-mes.is-selected { background: var(--color-primary-dark); color: var(--color-surface); font-weight: 700; box-shadow: none; }
+.dp-mes.is-selected:hover { background: var(--color-primary-dark-hover); }
+
+.dp-nav:focus-visible,
+.dp-titulo:focus-visible,
+.dp-day:focus-visible,
+.dp-mes:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.dp-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.dp-weekdays span {
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.dp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.dp-day {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 12.5px;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.dp-day:hover:not(.is-disabled) {
+  background: var(--color-surface-muted);
+}
+
+/* Hoy: anillo fino; seleccionado: relleno azul oscuro con texto blanco. */
+.dp-day.is-today {
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1.5px var(--color-primary-dark);
+}
+
+.dp-day.is-selected {
+  background: var(--color-primary-dark);
+  color: var(--color-surface);
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.dp-day.is-selected:hover:not(.is-disabled) {
+  background: var(--color-primary-dark-hover);
+}
+
+.dp-day.is-disabled {
+  color: var(--color-text-muted);
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dp-day.is-outside {
+  cursor: default;
+}
+
+/* Calendario de semanas: cada fila es una semana, resaltada completa. */
+.dp-grid.dp-grid--semanas { display: flex; flex-direction: column; gap: 2px; }
+.dp-grid .dp-semana-fila { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; border-radius: var(--radius-sm); }
+.dp-semana-fila:hover, .dp-semana-fila:focus-within { background: var(--color-primary-light); }
+.dp-semana-fila.is-semana-elegida { background: var(--color-primary-dark); }
+.dp-semana-fila.is-semana-elegida .dp-day { color: var(--color-surface); }
+.dp-semana-fila .dp-day { background: transparent; }
+/* El día bajo el cursor dentro de la semana elegida sigue siendo legible (texto blanco sobre azul). */
+.dp-semana-fila.is-semana-elegida .dp-day:hover:not(.is-disabled) { background: var(--color-primary-dark-hover); }
+.dp-ayuda { margin: 8px 4px 2px; font-size: 11px; color: var(--color-text-secondary); }
+
+/* ---- Barra de período: Hoy · Día · Semana · Mes · Desde–Hasta ---- */
+.rp-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-bottom: 14px; }
+.rp-segmentos { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 3px; background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-full); }
+.rp-segmento {
+  min-height: 34px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+.rp-segmento:hover { color: var(--color-text); }
+.rp-segmento.is-activo { color: var(--color-surface); background: var(--color-primary-dark); }
+.rp-segmento:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.rp-navegador { display: inline-flex; align-items: center; gap: 4px; }
+.rp-navegador[hidden], .rp-rango[hidden] { display: none; }
+.rp-flecha, .rp-etiqueta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.rp-flecha { width: 38px; }
+.rp-flecha[hidden] { display: none; }
+.rp-flecha:disabled { opacity: 0.4; cursor: not-allowed; }
+.rp-etiqueta { gap: 8px; padding: 0 14px; font-size: 13px; font-weight: 600; }
+.rp-etiqueta ion-icon { font-size: 16px; color: var(--color-text-secondary); }
+.rp-etiqueta:disabled { cursor: default; opacity: 1; background: transparent; border-color: transparent; }
+.rp-flecha:hover, .rp-etiqueta:not(:disabled):hover { border-color: var(--color-text-muted); }
+.rp-flecha:focus-visible, .rp-etiqueta:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.rp-rango { display: inline-flex; align-items: center; gap: 8px; }
+.rp-guion { color: var(--color-text-muted); }
+/* La misma barra dentro de la barra de herramientas de la vista: sin margen propio y sin ensanchar la página. */
+.rp-barra--toolbar { margin-bottom: 0; max-width: 100%; min-width: 0; }
+
+/* Celulares (≤640 px): todo lo pulsable mide 44 px; el calendario se ensancha para que sus días también lo midan. */
+@media (max-width: 640px) {
+  .rp-barra { gap: 10px; }
+  .rp-segmentos { width: 100%; justify-content: space-between; }
+  .rp-segmento { flex: 1 1 auto; min-height: 44px; padding: 0 8px; }
+  .rp-flecha { width: 44px; min-height: 44px; }
+  .rp-etiqueta { min-height: 44px; flex: 1; }
+  .rp-navegador { width: 100%; }
+  .rp-rango { width: 100%; }
+  .rp-rango .date-field { flex: 1; }
+  .rp-rango .date-field-compact .date-field-trigger { width: 100%; min-width: 0; min-height: 44px; }
+  .date-field-clear { width: 32px; height: 32px; right: 6px; }
+  .date-picker-panel { width: min(344px, calc(100vw - 24px)); }
+  .dp-nav { width: 44px; height: 44px; }
+  .dp-titulo, .dp-mes { min-height: 44px; }
+}

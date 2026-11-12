@@ -1,0 +1,108 @@
+/* Pipeline de estado de las solicitudes (columna «Estado»). Medidas del diseño en Figma: nodo 24 px, conector 16×2 px, separación 4 px, halo 3 px. */
+.vi-pipeline {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 4px 3px;
+}
+
+.vi-pl-pasos {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vi-pl-nodo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  cursor: default;
+}
+
+.vi-pl-nodo svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.vi-pl-nodo--completado svg { width: 12px; height: 10px; stroke-width: 2.4; }
+.vi-pl-nodo--rechazado svg { width: 9px; height: 9px; stroke-width: 2.2; }
+.vi-pl-nodo--vencida svg { width: 4px; height: 12px; stroke-width: 2.4; }
+
+.vi-pl-nodo--pendiente {
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1.5px var(--color-border);
+}
+
+/* Paso actual: círculo del color primario con un punto blanco al centro y un halo suave. */
+.vi-pl-nodo--actual {
+  background: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 28%, transparent);
+}
+
+.vi-pl-nodo--actual::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+}
+
+.vi-pl-nodo--completado {
+  background: var(--color-success);
+  color: var(--color-surface);
+}
+
+.vi-pl-nodo--rechazado {
+  background: var(--color-danger-bg);
+  box-shadow: inset 0 0 0 1.5px var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* Vencida: el nodo del paso actual cambia a aviso (ámbar) con un signo de exclamación. */
+.vi-pl-nodo--vencida {
+  background: var(--color-warning-bg);
+  box-shadow: inset 0 0 0 1.5px var(--color-warning);
+  color: var(--color-warning);
+}
+
+.vi-pl-conector {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-border);
+}
+
+.vi-pl-conector--completado { background: var(--color-success); }
+
+/* Estado y detalle son solo texto, sin fondo: rojo si fue rechazada, ámbar si venció. */
+.vi-pl-estado {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  color: var(--color-text);
+}
+
+.vi-pl-estado--rechazada { color: var(--color-danger); }
+.vi-pl-estado--vencida { color: var(--color-warning); }
+
+/* El motivo de un rechazo puede ser largo (hasta 300 caracteres): se parte en líneas en vez de ensanchar la tabla. */
+.vi-pl-estado,
+.vi-pl-detalle {
+  max-width: 260px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.vi-pl-detalle {
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--color-text-secondary);
+}

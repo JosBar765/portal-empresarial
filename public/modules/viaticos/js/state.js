@@ -9,6 +9,8 @@ export const state = {
   contexto: null,
   // Período de las listas (desde, hasta, q); lo fija la barra de filtros de cada vista.
   ventana: null,
+  // Texto del buscador de la lista abierta (sin espacios sobrantes).
+  busqueda: '',
   // id de solicitud -> marca de tiempo de la acción propia, para no avisarle al usuario lo que él mismo hizo.
   accionesPropias: new Map()
 };
