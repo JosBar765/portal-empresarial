@@ -91,7 +91,7 @@ const ACCIONES_FILA = {
   [ACCIONES.VER]: (solicitud) => abrirVisorSolicitud(solicitud),
   [ACCIONES.MODIFICAR]: (solicitud) => abrirFormularioSolicitud({ modo: 'modificar', solicitud, alTerminar: () => cargarSolicitudes() }),
   [ACCIONES.DAR_DE_BAJA]: (solicitud) => darDeBaja(solicitud, cargarSolicitudes),
-  [ACCIONES.LIQUIDAR]: (solicitud) => abrirLiquidacion(solicitud)
+  [ACCIONES.LIQUIDAR]: (solicitud) => abrirLiquidacion(solicitud, { alTerminar: () => cargarSolicitudes() })
 };
 
 // Delegación en el tbody: la fila se repinta en cada carga y sus botones no llevan listeners propios.

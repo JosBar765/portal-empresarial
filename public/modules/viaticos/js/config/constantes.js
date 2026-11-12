@@ -118,3 +118,6 @@ export const LIMITES_SOLICITUD = Object.freeze({
   MAX_GASTOS: 60,
   MAX_DEFECTOS: 20
 });
+
+// Rubro de la liquidación que se cuenta por noches (el servidor lo identifica por este nombre exacto: RUBROS_FIJOS).
+export const RUBRO_HOSPEDAJE = 'Hospedaje';

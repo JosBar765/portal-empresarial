@@ -3,6 +3,8 @@
 @import url('/modules/viaticos/css/periodo.css');
 @import url('/modules/viaticos/css/pipeline.css');
 @import url('/modules/viaticos/css/formulario.css');
+@import url('/modules/viaticos/css/visor.css');
+@import url('/modules/viaticos/css/liquidacion.css');
 
 .header-back {
   color: var(--color-text-secondary);

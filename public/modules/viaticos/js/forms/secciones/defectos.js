@@ -5,12 +5,12 @@ import { LIMITES_SOLICITUD } from '../../config/constantes.js';
 import { crearCombo, opcionesDe } from '../../components/comboAgrupado.js';
 import { crearCampo, crearSeccionForm } from '../../components/campo.js';
 import { crearBotonAgregar, crearBotonQuitar } from '../../components/renglones.js';
+import { abrirVisorImagen } from '../../components/visorDocumento.js';
+import { urlSegura } from '../../utils/documentos.js';
 import { aId } from '../datos.js';
 import { defectoNuevo, limitesDeFoto, validarFoto } from '../datosCorto.js';
 import { t } from '../../textos.js';
 
-// Solo se pintan como imagen o enlace las URLs de Storage (https) o las temporales del propio navegador.
-const urlSegura = (url) => /^(https?:|blob:)/i.test(String(url || ''));
 
 export function crearSeccionDefectos(ctx) {
   const { estado, catalogos } = ctx;
@@ -40,7 +40,7 @@ export function crearSeccionDefectos(ctx) {
     const tiene = !!fila.foto || fila.defectoId !== null;
     const src = fila.foto ? urlDe(fila.foto) : fila.url;
     const miniatura = urlSegura(src)
-      ? h('button', { type: 'button', class: 'vi-foto__vista', title: t('formulario.foto.ampliar'), 'aria-label': t('formulario.foto.ampliarDe', { n: i + 1 }), onclick: () => window.open(src, '_blank', 'noopener') },
+      ? h('button', { type: 'button', class: 'vi-foto__vista', title: t('formulario.foto.ampliar'), 'aria-label': t('formulario.foto.ampliarDe', { n: i + 1 }), onclick: (e) => abrirVisorImagen({ titulo: t('formulario.foto.de', { n: i + 1 }), url: src, origen: e.currentTarget }) },
         h('img', { src, alt: t('formulario.foto.de', { n: i + 1 }) }))
       : h('div', { class: 'vi-foto__vista vi-foto__vista--vacia', role: 'img', 'aria-label': t('formulario.foto.sinFoto') }, icono('image-outline'));
     const entrada = (id, capture) => {

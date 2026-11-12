@@ -1,0 +1,85 @@
+/* Liquidación del solicitante (modal grande): resumen, rubros pendientes y comprobantes. Solo variables de global.css. Prefijo `vi-`. */
+.vi-modal-liquidacion .modal-header { align-items: flex-start; }
+.vi-modal-liquidacion .modal-body { display: flex; flex-direction: column; gap: 16px; }
+.vi-modal-liquidacion .field-error { animation: none; }
+.vi-liq-seccion { display: flex; flex-direction: column; gap: 12px; }
+.vi-liq-seccion + .vi-liq-seccion, .vi-liq-resumen > .vi-liq-seccion { padding-top: 16px; border-top: 1px solid var(--color-border); }
+.vi-liq-resumen { display: flex; flex-direction: column; gap: 14px; }
+
+/* ---------- Tarjetas y avance ---------- */
+.vi-liq-tarjetas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.vi-liq-tarjeta { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
+.vi-liq-tarjeta__etiqueta { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-text-secondary); }
+.vi-liq-tarjeta__valor { font-family: var(--font-title); font-size: var(--text-md); font-weight: 700; color: var(--color-text); }
+.vi-liq-avance { display: flex; flex-direction: column; gap: 6px; }
+.vi-liq-avance__texto { display: flex; justify-content: space-between; gap: 12px; font-size: var(--text-xs); color: var(--color-text-secondary); }
+.vi-liq-avance__valor { font-weight: 700; color: var(--color-text); }
+.vi-liq-avance__barra { height: 6px; overflow: hidden; border-radius: var(--radius-full); background: var(--color-surface-muted); }
+.vi-liq-avance__relleno { height: 100%; width: 0; border-radius: var(--radius-full); background: var(--color-primary); transition: width var(--transition-normal); }
+
+/* ---------- Rubros pendientes ---------- */
+.vi-liq-pendientes { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.vi-liq-rubro { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); font-size: var(--text-sm); }
+.vi-liq-rubro__cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--color-text); }
+.vi-liq-rubro__progreso { color: var(--color-text-secondary); }
+.vi-liq-rubro__visto { display: inline-flex; font-size: 18px; }
+.vi-liq-rubro.is-completo { border-color: var(--color-success); background: var(--color-success-bg); }
+.vi-liq-rubro.is-completo .vi-liq-rubro__progreso, .vi-liq-rubro.is-completo .vi-liq-rubro__visto { color: var(--color-success); }
+
+/* ---------- Comprobantes: cada uno en una sola fila (información + miniatura) ---------- */
+.vi-comp { display: grid; grid-template-columns: minmax(0, 1fr) auto 36px; align-items: center; gap: 16px; padding: 14px 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.vi-comp__titulo { display: none; font-weight: 700; font-size: var(--text-sm); color: var(--color-text); }
+.vi-comp__info { display: flex; flex-wrap: wrap; gap: 12px 28px; min-width: 0; }
+.vi-comp__dato { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.vi-comp__dato--ancho { flex-basis: 100%; }
+.vi-comp__etiqueta, .vi-comp .vi-etiqueta { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-text-secondary); }
+.vi-comp__valor { font-size: var(--text-base); font-weight: 500; color: var(--color-text); overflow-wrap: anywhere; }
+.vi-comp__archivo { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.vi-comp__meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--text-sm); }
+.vi-comp__meta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text); }
+.vi-comp__meta small { font-size: var(--text-xs); color: var(--color-text-muted); }
+.vi-comp__miniatura {
+  display: flex; flex: none; align-items: center; justify-content: center; width: 72px; height: 54px; padding: 0; overflow: hidden;
+  border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-muted); color: var(--color-text-muted); font-size: 24px;
+}
+button.vi-comp__miniatura { cursor: zoom-in; }
+button.vi-comp__miniatura:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.vi-comp__miniatura img { width: 100%; height: 100%; object-fit: cover; }
+.vi-comp__miniatura--vacia { border-style: dashed; }
+.vi-comp .vi-renglon__quitar { justify-self: end; }
+
+/* Borrador: campos, archivo y pie con «Guardar comprobante» */
+.vi-comp--borrador { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; border-style: dashed; }
+.vi-comp__campos { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 12px; min-width: 0; }
+.vi-comp__descripcion { grid-column: 1 / -1; }
+.vi-comp--borrador .vi-comp__archivo { flex-direction: column; align-items: stretch; gap: 8px; }
+.vi-comp--borrador .vi-comp__archivo-cuerpo { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.vi-comp__botones { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.vi-comp__pie { grid-column: 1 / -1; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.vi-comp__aviso, .vi-comp--borrador > .form-error { grid-column: 1 / -1; }
+.vi-comp--borrador > .form-error { margin: 0; }
+.vi-comp--borrador .form-field .field-error { grid-column: auto; }
+
+/* ---------- Celulares: información a la izquierda, miniatura de 56 px a la derecha, objetivos táctiles de 44 px ---------- */
+@media (max-width: 640px) {
+  .vi-liq-tarjetas { grid-template-columns: minmax(0, 1fr); }
+  .vi-liq-pendientes { grid-template-columns: minmax(0, 1fr); }
+  .vi-comp { grid-template-columns: minmax(0, 1fr) 56px; grid-template-areas: 'titulo quitar' 'info foto' 'meta meta'; gap: 10px 12px; padding: 12px; align-items: start; }
+  .vi-comp__titulo { display: block; grid-area: titulo; align-self: center; }
+  .vi-comp__info { grid-area: info; flex-direction: column; gap: 10px; }
+  .vi-comp .vi-renglon__quitar { grid-area: quitar; justify-self: end; width: 44px; height: 44px; }
+  .vi-comp:not(.vi-comp--borrador) .vi-comp__archivo { display: contents; }
+  .vi-comp:not(.vi-comp--borrador) .vi-comp__miniatura { grid-area: foto; width: 56px; height: 56px; justify-self: end; }
+  .vi-comp:not(.vi-comp--borrador) .vi-comp__meta { grid-area: meta; }
+  button.vi-comp__miniatura { min-width: 44px; min-height: 44px; }
+  .vi-comp--borrador { grid-template-columns: minmax(0, 1fr); grid-template-areas: none; }
+  .vi-comp__campos { grid-template-columns: minmax(0, 1fr); }
+  .vi-comp__pie { flex-direction: row-reverse; justify-content: space-between; }
+  .vi-comp__pie .vi-renglon__quitar { grid-area: auto; }
+  .vi-comp__botones .btn, .vi-comp__guardar { min-height: 44px; }
+  .vi-comp--borrador .vi-comp__miniatura { width: 56px; height: 56px; }
+  .vi-modal-liquidacion .modal-footer { flex-wrap: wrap; }
+  .vi-modal-liquidacion .modal-footer .btn { flex: 1; }
+  .vi-modal-liquidacion .vi-btn-agregar { min-height: 44px; width: 100%; }
+  .vi-modal-liquidacion .form-field input, .vi-modal-liquidacion .form-field select { min-height: 44px; }
+}
