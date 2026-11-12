@@ -5,7 +5,7 @@ Mockups aprobados en Figma: **S20** (Seguimiento · pestaña «Metas»), **S21**
 ## Metas de ventas
 
 - **Quién tiene metas:** solo un proyecto con **meta de monto** (`meta_monto` y `meta_moneda`, de la plantilla o del asistente). Sin ella no hay pestaña ni tarjeta.
-- **Cómo se fija:** la meta del proyecto se reparte en **partes iguales** entre los asesores que tienen empresas en él. El supervisor puede **ajustar** la de cada asesor de sus tiendas (`proy_metas_asesor`, solo guarda lo ajustado); dejar el monto vacío vuelve a la parte igual. Ajustar una meta **no cambia las demás**: la suma puede pasar de la meta del proyecto o quedar por debajo.
+- **Cómo se fija:** la meta del proyecto se reparte en **partes iguales** entre los **participantes activos** del proyecto, tengan o no empresas en ese momento (reasignar o quedarse sin empresas no cambia la meta de nadie). El supervisor puede **ajustar** la de cada asesor de sus tiendas (`proy_metas_asesor`, solo guarda lo ajustado); dejar el monto vacío vuelve a la parte igual. Ajustar una meta **no cambia las demás**: la suma puede pasar de la meta del proyecto o quedar por debajo.
 - **Tienda:** su meta es la suma de la de sus asesores.
 - **Avance:** lo vendido con venta **confirmada y vigente** (no anulada, rechazada ni «por confirmar») en la **moneda de la meta**. Las ventas en otras monedas se muestran aparte; nunca se mezclan ni se convierten. «Falta» no baja de cero.
 - **Quién ve qué:** el supervisor y gerencia ven la pestaña «Metas» del Seguimiento (cifras: meta del proyecto, vendido, avance, falta, asesores en meta, tiendas en meta). Los asesores de otra tienda salen **sin montos y con candado**, como en el resto del seguimiento. El asesor ve su propia meta en **Mi proyecto** (tarjeta con barra).

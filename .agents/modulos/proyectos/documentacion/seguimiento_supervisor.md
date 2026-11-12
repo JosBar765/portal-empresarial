@@ -16,6 +16,7 @@ El supervisor ve el avance de su equipo, mueve empresas entre asesores, corrige 
 
 - **Cifras** del proyecto: asignadas, gestionadas, interesadas, cotizadas, vendidas y efectividad; acumulativas, sin lo anulado y sin las ventas «por confirmar».
 - **Semáforo de cobertura** (gestionadas ÷ asignadas): verde desde `semaforo.cobertura_verde` %, ámbar desde `semaforo.cobertura_ambar` %, rojo debajo. Usa los valores de la **foto de configuración** del proyecto.
+- **Participantes sin empresas:** la tabla Por asesor lista a todos los participantes activos; quien quedó sin empresas (por ejemplo, tras reasignar todo) sigue en la lista con 0 asignadas y sin tiempo de reacción.
 - **Tiempo de reacción** por asesor: días entre su primera asignación y su primera gestión (si aún no gestiona, los días desde que se le asignó).
 - **Estancados**: sin gestión desde `seguimiento.dias_estancado` días (la asignación cuenta si nunca se gestionó); de la más antigua a la más reciente; por defecto 7 filas y `?todos=1` trae todas. Vendidas, perdidas y descartadas no cuentan.
 

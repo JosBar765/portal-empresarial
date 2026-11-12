@@ -4,11 +4,12 @@ const db = require('../../../config/database');
 
 class MetasRepository {
   // Los asesores con empresas en el proyecto, con su tienda.
+  // Los participantes activos del proyecto, tengan o no empresas hoy: reasignar no cambia cuántos asesores se reparten la meta.
   asesores(proyectoId, ejecutor = db) {
     return ejecutor.query(
-      `SELECT DISTINCT p.asesor_id, u.nombre, p.tienda_id, t.codigo AS tienda, e.nombre AS empresa
-       FROM proy_participaciones p JOIN usuarios u ON u.id = p.asesor_id JOIN tiendas t ON t.id = p.tienda_id JOIN empresas e ON e.id = t.empresa_id
-       WHERE p.proyecto_id = ? AND p.asesor_id IS NOT NULL ORDER BY u.nombre, p.asesor_id`,
+      `SELECT pp.usuario_id AS asesor_id, u.nombre, pp.tienda_id, t.codigo AS tienda, e.nombre AS empresa
+       FROM proy_participantes pp JOIN usuarios u ON u.id = pp.usuario_id JOIN tiendas t ON t.id = pp.tienda_id JOIN empresas e ON e.id = t.empresa_id
+       WHERE pp.proyecto_id = ? AND pp.estado = 'activo' ORDER BY u.nombre, pp.usuario_id`,
       [proyectoId], 'proyectos_metas:asesores'
     );
   }

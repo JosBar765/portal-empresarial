@@ -132,6 +132,17 @@ async function verificar() {
     prueba('una meta de 0 no rompe el avance', (await sup('PUT', `/proyectos/${proyectoId}/metas/asesores/${A}`, { monto: 0 })).datos.avance === 0);
     await sup('PUT', `/proyectos/${proyectoId}/metas/asesores/${A}`, { monto: '' });
 
+    console.log('Metas: quedarse sin empresas no cambia la meta de nadie');
+    const sinEmpresas = asesoresT1[1];
+    const suyas = delAsesor(sinEmpresas).map(p => p.id);
+    await db.query('UPDATE proy_participaciones SET asesor_id = ? WHERE id IN (?)', [A, suyas], 'met:vaciar');
+    r = await sup('GET', `/proyectos/${proyectoId}/metas`);
+    prueba('si un asesor queda sin empresas, la meta de los demás sigue siendo la parte igual', r.status === 200 && r.datos.asesores.length === todos.length && r.datos.asesores.filter(a => !a.otraTienda).every(a => a.meta === parte), JSON.stringify(r.datos));
+    r = await sup('GET', `/proyectos/${proyectoId}/seguimiento/asesores`);
+    const filaVacia = (r.datos.asesores || []).find(f => f.asesorId === sinEmpresas);
+    prueba('…y sigue en Seguimiento con 0 asignadas', r.status === 200 && !!filaVacia && filaVacia.asignadas === 0 && r.datos.asesores.length === todos.length, JSON.stringify(r.datos));
+    await db.query('UPDATE proy_participaciones SET asesor_id = ? WHERE id IN (?)', [sinEmpresas, suyas], 'met:devolver');
+
     console.log('Rondas: apagadas y umbral');
     r = await sup('GET', `/proyectos/${proyectoId}/reserva`);
     prueba('las rondas vienen apagadas: la pantalla lo sabe y no ofrece repartir', r.status === 200 && r.datos.habilitada === false && r.datos.puedeRepartir === false && r.datos.enReserva === reserva0 && r.datos.umbral === 80, JSON.stringify(r.datos).slice(0, 200));

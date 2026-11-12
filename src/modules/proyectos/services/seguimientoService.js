@@ -106,7 +106,7 @@ class SeguimientoService {
         const base = { asesorId: f.asesorId, nombre: f.nombre, tienda: f.tienda, empresa: f.empresa, asignadas: f.asignadas, gestionadas: f.gestionadas };
         // Otra tienda: solo cuántas tiene y cuántas gestionó; lo demás va vacío y no admite acciones.
         if (!niveles.veDetalleEn(f.tiendaId)) return { ...base, interesadas: null, cotizadas: null, vendidas: null, reaccionDias: null, semaforo: null, otraTienda: true };
-        return { ...base, interesadas: f.interesadas, cotizadas: f.cotizadas, vendidas: f.vendidas, reaccionDias: diasDeReaccion(f.minutosReaccion), yaGestiono: f.yaGestiono,
+        return { ...base, interesadas: f.interesadas, cotizadas: f.cotizadas, vendidas: f.vendidas, reaccionDias: f.asignadas ? diasDeReaccion(f.minutosReaccion) : null, yaGestiono: f.yaGestiono,
           semaforo: semaforo(porcentaje(f.gestionadas, f.asignadas), umbrales.verde, umbrales.ambar), otraTienda: false };
       })
     };

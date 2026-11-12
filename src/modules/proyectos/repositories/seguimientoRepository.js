@@ -44,14 +44,16 @@ class SeguimientoRepository {
 
   // Por asesor, con el tiempo de reacción: minutos entre su primera asignación y su primera gestión (o hasta ahora si aún no gestiona).
   async porAsesor(proyectoId) {
+    // Parte de los participantes activos (no de las empresas): quien quedó sin empresas sigue en la tabla con 0 asignadas.
     const filas = await db.query(
-      `SELECT p.asesor_id, u.nombre, p.tienda_id, t.codigo AS tienda, e.nombre AS empresa, ${CIFRAS},
+      `SELECT pp.usuario_id AS asesor_id, u.nombre, pp.tienda_id, t.codigo AS tienda, e.nombre AS empresa, ${CIFRAS.replace('COUNT(*)', 'COUNT(p.id)')},
          TIMESTAMPDIFF(MINUTE, MIN(p.asignada_en), COALESCE((SELECT MIN(g.creado_en) FROM proy_gestiones g JOIN proy_participaciones q ON q.id = g.participacion_id
-           WHERE q.proyecto_id = p.proyecto_id AND q.asesor_id = p.asesor_id AND g.anulada_en IS NULL), NOW())) AS minutos_reaccion,
-         EXISTS (SELECT 1 FROM proy_gestiones g JOIN proy_participaciones q ON q.id = g.participacion_id WHERE q.proyecto_id = p.proyecto_id AND q.asesor_id = p.asesor_id AND g.anulada_en IS NULL) AS ya_gestiono
-       FROM proy_participaciones p JOIN usuarios u ON u.id = p.asesor_id JOIN tiendas t ON t.id = p.tienda_id JOIN empresas e ON e.id = t.empresa_id
-       WHERE p.proyecto_id = ? AND p.asesor_id IS NOT NULL
-       GROUP BY p.proyecto_id, p.asesor_id, u.nombre, p.tienda_id, t.codigo, e.nombre ORDER BY u.nombre, p.asesor_id`,
+           WHERE q.proyecto_id = pp.proyecto_id AND q.asesor_id = pp.usuario_id AND g.anulada_en IS NULL), NOW())) AS minutos_reaccion,
+         EXISTS (SELECT 1 FROM proy_gestiones g JOIN proy_participaciones q ON q.id = g.participacion_id WHERE q.proyecto_id = pp.proyecto_id AND q.asesor_id = pp.usuario_id AND g.anulada_en IS NULL) AS ya_gestiono
+       FROM proy_participantes pp JOIN usuarios u ON u.id = pp.usuario_id JOIN tiendas t ON t.id = pp.tienda_id JOIN empresas e ON e.id = t.empresa_id
+         LEFT JOIN proy_participaciones p ON p.proyecto_id = pp.proyecto_id AND p.asesor_id = pp.usuario_id
+       WHERE pp.proyecto_id = ? AND pp.estado = 'activo'
+       GROUP BY pp.proyecto_id, pp.usuario_id, u.nombre, pp.tienda_id, t.codigo, e.nombre ORDER BY u.nombre, pp.usuario_id`,
       [proyectoId], 'proyectos_seguimiento:por_asesor'
     );
     return filas.map(f => ({ asesorId: f.asesor_id, nombre: f.nombre, tiendaId: f.tienda_id, tienda: f.tienda, empresa: f.empresa, ...numeros(f), minutosReaccion: Math.max(0, Number(f.minutos_reaccion || 0)), yaGestiono: Boolean(f.ya_gestiono) }));
