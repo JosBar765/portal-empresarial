@@ -184,7 +184,7 @@ También puedes **Descargar PDF** del informe y **Exportar CSV**: los resultados
 
 | Aviso | Cuándo te llega |
 |---|---|
-| **Existencia de muestras baja** | Quedan pocas unidades del artículo |
+| **Existencia de muestras baja** | La existencia del artículo baja a 20 unidades o menos (una sola vez; el administrador puede cambiar el número) |
 | **Seguimiento vencido** | Un asesor de tus tiendas dejó pasar un seguimiento |
 | **Venta por confirmar** | Un asesor registró una venta que debes revisar |
 | **Proyecto por cerrar / vencido** | Se acerca o pasó la fecha de fin |

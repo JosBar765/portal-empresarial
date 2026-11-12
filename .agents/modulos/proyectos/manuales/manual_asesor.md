@@ -113,9 +113,11 @@ Una gestión es cada contacto que tienes con la empresa.
 
 > **Tip:** pon siempre un próximo seguimiento. Así la empresa aparecerá en **Para hoy** el día que toca y no se te olvida.
 
+> **Importante:** cada gestión que registras **reemplaza** el seguimiento anterior de esa empresa. Si la dejas sin fecha, el seguimiento que tenía se borra y la empresa deja de aparecer en **Para hoy**. Cuando existe uno programado, el formulario te lo recuerda debajo del campo.
+
 ### Si entregaste una muestra
 
-En el mismo panel activa **Entregué muestra**, escribe la **cantidad** y el **área** (por ejemplo, gerencia o compras). La existencia del artículo baja sola. Si quedan pocas, tu supervisor recibe un aviso.
+En el mismo panel activa **Entregué muestra**, escribe la **cantidad** y el **área** (por ejemplo, gerencia o compras). La existencia del artículo baja sola. Cuando quedan 20 unidades o menos (el administrador puede cambiar ese número), tu supervisor recibe un aviso.
 
 ## Mensajes y guion de llamada
 
