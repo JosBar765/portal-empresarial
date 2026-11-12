@@ -1,6 +1,7 @@
 // src/modules/viaticos/repositories/solicitudEscrituraRepository.js
 // Escrituras de solicitudes y sus partes. Reciben el ejecutor de la transacción del caso de uso.
 const db = require('../../../config/database');
+const { filaACamel } = require('../utilidades');
 
 const TABLAS_DE_PARTES = [
   'viaticos_solicitud_tramos', 'viaticos_solicitud_hospedajes', 'viaticos_solicitud_comidas', 'viaticos_solicitud_gastos',
@@ -34,12 +35,29 @@ class SolicitudEscrituraRepository {
   }
 
   // Bloquea la solicitud hasta el fin de la transacción y devuelve su estado actual (null si ya no existe).
+  // El estado sale de una subconsulta: un JOIN bloquearía también la fila compartida del catálogo y serializaría solicitudes distintas.
   async bloquear(id, ejecutor = db) {
     const filas = await ejecutor.query(
-      'SELECT e.nombre AS estado FROM viaticos_solicitudes s JOIN viaticos_estados e ON e.id = s.estado_id WHERE s.id = ? FOR UPDATE',
+      'SELECT (SELECT e.nombre FROM viaticos_estados e WHERE e.id = s.estado_id) AS estado FROM viaticos_solicitudes s WHERE s.id = ? FOR UPDATE',
       [id], 'viaticos:bloquearSolicitud'
     );
     return filas[0] ? filas[0].estado : null;
+  }
+
+  // Bloquea la solicitud y devuelve lo que decide si se puede autorizar o rechazar. El nombre del estado sale de una subconsulta
+  // para no bloquear también la fila compartida del catálogo de estados (el bloqueo solo alcanza a la consulta externa).
+  async bloquearParaDecidir(id, ejecutor = db) {
+    const filas = await ejecutor.query(
+      `SELECT s.id, s.correlativo, s.solicitante_id, s.modalidad, s.fecha_salida, s.fecha_regreso,
+              (SELECT e.nombre FROM viaticos_estados e WHERE e.id = s.estado_id) AS estado
+       FROM viaticos_solicitudes s WHERE s.id = ? FOR UPDATE`,
+      [id], 'viaticos:bloquearParaDecidir'
+    );
+    return filas[0] ? filaACamel(filas[0]) : null;
+  }
+
+  async actualizarEstado(id, estadoId, ejecutor = db) {
+    await ejecutor.query('UPDATE viaticos_solicitudes SET estado_id = ? WHERE id = ?', [estadoId, id], 'viaticos:actualizarEstado');
   }
 
   async insertarEncabezado(solicitud, ejecutor = db) {
@@ -68,10 +86,11 @@ class SolicitudEscrituraRepository {
     await ejecutor.query('DELETE FROM viaticos_solicitudes WHERE id = ?', [id], 'viaticos:eliminarSolicitud');
   }
 
-  async insertarHistorial(solicitudId, estadoId, usuarioId, ejecutor = db) {
+  // `motivo`: razón libre del rechazo; NULL en los demás renglones.
+  async insertarHistorial(solicitudId, estadoId, usuarioId, motivo, ejecutor = db) {
     await ejecutor.query(
-      'INSERT INTO viaticos_historial (solicitud_id, estado_id, usuario_id) VALUES (?, ?, ?)',
-      [solicitudId, estadoId, usuarioId], 'viaticos:insertarHistorial'
+      'INSERT INTO viaticos_historial (solicitud_id, estado_id, usuario_id, motivo) VALUES (?, ?, ?, ?)',
+      [solicitudId, estadoId, usuarioId, motivo], 'viaticos:insertarHistorial'
     );
   }
 

@@ -31,7 +31,7 @@ class DocumentoService {
     const encabezado = await solicitudRepo.obtenerEncabezado(solicitudId);
     if (!encabezado) return null;
     const [detalle, extra, archivos] = await Promise.all([
-      solicitudService.obtener({ id: encabezado.solicitanteId }, solicitudId),
+      solicitudService.leerDetalle(solicitudId),
       solicitudRepo.obtenerDatosDocumento(solicitudId),
       solicitudRepo.listarArchivosDefectos(solicitudId)
     ]);
@@ -68,9 +68,17 @@ class DocumentoService {
     return subida.url;
   }
 
-  // Las rutas guardadas ya son las URLs públicas de Storage. El PDF va primero y las fotos de defectos después.
   async listar(usuario, idCrudo) {
-    const fila = await solicitudService.obtenerPropia(usuario, idCrudo);
+    return this.documentosDe(await solicitudService.obtenerPropia(usuario, idCrudo));
+  }
+
+  // Igual que `listar` pero de cualquier solicitud: lo usa Gestiones.
+  async listarDeGestion(idCrudo) {
+    return this.documentosDe(await solicitudService.leerEncabezado(idCrudo));
+  }
+
+  // Las rutas guardadas ya son las URLs públicas de Storage. El PDF va primero y las fotos de defectos después.
+  async documentosDe(fila) {
     const defectos = await solicitudRepo.listarArchivosDefectos(fila.id);
     const documentos = [];
     if (fila.pdfRuta) documentos.push({ titulo: msg('documento.tituloPdf', { correlativo: fila.correlativo }), tipo: 'pdf', url: fila.pdfRuta });

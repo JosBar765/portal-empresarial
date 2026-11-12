@@ -10,8 +10,9 @@ const solicitudRepo = require('../repositories/solicitudRepository');
 const escrituraRepo = require('../repositories/solicitudEscrituraRepository');
 const destinatarioRepo = require('../repositories/destinatarioRepository');
 const {
-  MODALIDADES, ESTADOS, ESTADOS_EDITABLES, ACCIONES, PERMISOS, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, CORRELATIVO, ETAPAS_DOCUMENTO
+  MODALIDADES, ESTADOS, ESTADOS_EDITABLES, ACCIONES, PERMISOS, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, TIEMPO_REAL, CORRELATIVO, ETAPAS_DOCUMENTO
 } = require('../constantes');
+const events = require('../events');
 const { errorDeValidacion } = require('../errores');
 const { msg } = require('../mensajes');
 const { calcularSolicitud } = require('./calculoService');
@@ -218,7 +219,7 @@ class SolicitudGuardadoService {
       defectos: partes.defectos, archivos, existentes: fotosAnteriores, subidas,
       registrar: defecto => escrituraRepo.insertarDefecto(id, defecto, tx)
     });
-    await escrituraRepo.insertarHistorial(id, estadoId, usuario.id, tx);
+    await escrituraRepo.insertarHistorial(id, estadoId, usuario.id, null, tx);
     return { id, correlativo, fotosAnteriores };
   }
 
@@ -249,6 +250,10 @@ class SolicitudGuardadoService {
     } catch (error) {
       console.error('[Viáticos] No se pudo notificar la solicitud:', error.message);
     }
+    events.emitirActualizacion({
+      id: detalle.id, correlativo: detalle.correlativo, estado: detalle.estado, solicitanteId: usuario.id,
+      accion: esModificacion ? TIEMPO_REAL.ACCION_MODIFICADA : TIEMPO_REAL.ACCION_CREADA
+    });
     return detalle;
   }
 
@@ -267,7 +272,12 @@ class SolicitudGuardadoService {
       return [...urls, actual.pdfRuta];
     };
     const urls = await (externo ? borrar(externo) : db.transaccion(borrar));
-    if (!externo) await archivosService.eliminarArchivos(urls);
+    if (!externo) {
+      await archivosService.eliminarArchivos(urls);
+      events.emitirActualizacion({
+        id: fila.id, correlativo: fila.correlativo, estado: null, solicitanteId: usuario.id, accion: TIEMPO_REAL.ACCION_DADA_DE_BAJA
+      });
+    }
     return { id: fila.id, correlativo: fila.correlativo };
   }
 }

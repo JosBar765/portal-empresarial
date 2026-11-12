@@ -30,14 +30,24 @@ function escaparLike(texto) {
 }
 
 class SolicitudRepository {
-  // `fecha` (AAAA-MM-DD) y `correlativo` son filtros opcionales de la búsqueda; ambos se combinan con OR.
-  async listarDelSolicitante(usuarioId, { desde, hasta, correlativo = null, fecha = null }, ejecutor = db) {
-    const filtros = ['s.solicitante_id = ?', 'DATE(s.creado_en) BETWEEN ? AND ?'];
-    const params = [ESTADOS.LIQUIDADA, usuarioId, desde, hasta];
+  // Sin `solicitanteId` lista las de todos. `fecha` (AAAA-MM-DD), `correlativo` y `nombre` (del solicitante) son filtros opcionales de la búsqueda; se combinan con OR.
+  async listar({ solicitanteId = null, desde, hasta, correlativo = null, fecha = null, nombre = null }, ejecutor = db) {
+    const filtros = [];
+    const params = [ESTADOS.LIQUIDADA];
+    if (solicitanteId !== null) {
+      filtros.push('s.solicitante_id = ?');
+      params.push(solicitanteId);
+    }
+    filtros.push('DATE(s.creado_en) BETWEEN ? AND ?');
+    params.push(desde, hasta);
     const busqueda = [];
     if (correlativo) {
       busqueda.push('s.correlativo LIKE ?');
       params.push(`%${escaparLike(correlativo)}%`);
+    }
+    if (nombre) {
+      busqueda.push('u.nombre LIKE ?');
+      params.push(`%${escaparLike(nombre)}%`);
     }
     if (fecha) {
       busqueda.push(`(${RANGO_VIAJE})`);

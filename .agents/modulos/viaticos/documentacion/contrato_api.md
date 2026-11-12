@@ -173,3 +173,36 @@ Todo archivo de viáticos va al bucket propio `SUPABASE_STORAGE_BUCKET_VIATICOS`
 | Comprobante de liquidación | `<CORRELATIVO>_LIQUIDACION_<RUBRO>_X` (el rubro sale del nombre del tipo de gasto, sin acentos y en mayúsculas: `HOSPEDAJE`, `COMBUSTIBLE`, `PEAJE`…) |
 
 Limitación conocida (solo staging y desarrollo, donde el borrado de Storage no actúa): si en una modificación se quitan todas las fotos de una etapa y en otra posterior se vuelven a agregar, el contador reinicia y el nombre puede chocar con un archivo que quedó sin borrar.
+
+## Gestiones (F3.5)
+
+Las solicitudes de Gestiones son las de todas las personas y países (no se comprueba propiedad); `GET /solicitudes/*` sigue siendo solo del propio usuario. Los permisos se exigen por ruta: ver con `viaticos.gestionar`, decidir con `viaticos.autorizar` (un usuario puede autorizar su propia solicitud: el análisis no lo prohíbe).
+
+### Lectura
+
+- `GET /gestiones?desde=&hasta=&q=` (`gestionar`): mismos filtros que `GET /solicitudes` (`desde`/`hasta` sobre la fecha de creación, por defecto la semana actual de Guatemala; `q` hasta 50 caracteres). `q` busca por correlativo parcial, por nombre del solicitante (parcial) o por fecha de viáticos (`AAAA-MM-DD` o `DD/MM/AAAA`). Responde `{ desde, hasta, solicitudes }`; cada ítem trae lo de la lista de Solicitudes (`id`, `correlativo`, `fechaCreacion`, `modalidad`, `fechaSalida`, `fechaRegreso`, `totalSolicitado`, `pipeline`) más `solicitante { id, nombre }` y `pais { codigo, nombre }`.
+- Orden «según estados»: primero «Esperando autorización» (la más antigua primero, para atender en orden); luego vencida y rechazada, autorizada, en curso, terminada y liquidada (en cada grupo, la más reciente primero).
+- `pipeline.acciones` de Gestiones depende de los permisos de quien consulta (no son las del dueño: aquí no hay `modificar` ni `darDeBaja`): `ver` siempre; `autorizar` y `rechazar` con `viaticos.autorizar` y solo en «esperando autorización» sin vencer; `liquidar` con `viaticos.liquidar` solo en viajes de más de 1 día autorizados cuyo viaje ya terminó (la liquidación en sí es F3.6).
+- `GET /gestiones/:id` (`gestionar`): el mismo detalle que `GET /solicitudes/:id` (incluye `solicitante`, `pais` e `historial` con el usuario de cada paso y el motivo del rechazo) de cualquier solicitud, con las `acciones` de Gestiones; 404 si no existe.
+- `GET /gestiones/:id/documentos` (`gestionar`): igual que `GET /solicitudes/:id/documentos` de cualquier solicitud.
+
+### Autorizar y rechazar
+
+- `POST /gestiones/:id/autorizar` (`autorizar`, sin cuerpo) y `POST /gestiones/:id/rechazar` (`autorizar`, cuerpo `{ motivo }`). Responden 200 con el detalle de Gestiones ya actualizado (`estado` «autorizada» o «rechazada», `historial` con el renglón nuevo).
+- `motivo` es texto libre y obligatorio (no hay motivos predeterminados): se recorta, no puede quedar vacío y admite hasta 300 caracteres (`LIMITES_SOLICITUD.MOTIVO_RECHAZO`). Si falta, queda en blanco o se excede: 400 `{ error, campos: { motivo } }` con la regla y cómo corregirla.
+- Condición: la solicitud debe estar «esperando autorización» y no vencida (salida anterior a hoy, hora de Guatemala). Si no, 403 con un mensaje que nombra el estado actual («Vencida», «Rechazada», «Autorizado»…); 404 si no existe.
+- Bloqueo transaccional: una sola transacción con `SELECT … FOR UPDATE` sobre la solicitud (sin bloquear la fila compartida de `viaticos_estados`); con la fila bloqueada se vuelve a comprobar el estado y el vencimiento, cambia `estado_id` e inserta el renglón de `viaticos_historial` (estado nuevo, usuario que decide y, al rechazar, el `motivo`). Dos decisiones simultáneas o un doble clic no se aplican dos veces: la segunda recibe el 403.
+- Una solicitud rechazada se modifica con `PUT /solicitudes/:id` y vuelve a «esperando autorización»; el motivo queda en el historial y el pipeline solo lo muestra mientras esté rechazada.
+
+### Efectos posteriores al commit
+
+Un fallo de cualquiera se registra con `console.error` y no deshace la decisión.
+
+- Autorizar: se regenera el PDF con la etapa `AUTORIZACION` (`<CORRELATIVO>_AUTORIZACION`); el detalle que recibe el generador ya incluye el renglón «autorizada» del historial y de ahí sale el nombre que se imprime sobre la línea de Administración.
+- Notificación al solicitante (`modulo = 'viaticos'`, `vale_id` NULL): «Tu solicitud VIA-GT-000123 fue autorizada.» (`tipo` `solicitud_autorizada`, `nivel` `info`) o «Tu solicitud … fue rechazada. Motivo: …» (`tipo` `solicitud_rechazada`, `nivel` `alerta`).
+- Tiempo real: ver abajo.
+
+### Tiempo real
+
+- Sala `viaticos:gestion`: un cliente se une con `register_module('viaticos:gestion')`; el validador de sala (`events.js`, registrado con `registrarValidadorSala`) solo la concede a quien tenga `viaticos.gestionar` en el socket ya autenticado.
+- Evento `viaticos_actualizada` con `{ id, correlativo, estado, accion }`; `accion` es `creada`, `modificada`, `dada_de_baja`, `autorizada` o `rechazada`, y `estado` es el estado guardado (`null` al dar de baja, porque la solicitud ya no existe). Se envía a la sala de gestión (`sendToModule`) y al solicitante (`sendToUsers`) después del commit al crear, modificar, dar de baja, autorizar y rechazar; quien está en ambos puede recibirlo dos veces (el cliente solo refresca). Un fallo al emitir se registra y no deshace la operación.

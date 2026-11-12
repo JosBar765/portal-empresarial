@@ -1,6 +1,6 @@
 // src/modules/viaticos/services/pipelineService.js
 // Estado visible de una solicitud: se deriva del estado guardado y de las fechas; nada de esto se guarda.
-const { ESTADOS, MODALIDADES, FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS } = require('../constantes');
+const { PERMISOS, ESTADOS, MODALIDADES, FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS } = require('../constantes');
 const { msg } = require('../mensajes');
 
 // Las fechas pueden venir como «AAAA-MM-DD» o «AAAA-MM-DD HH:mm:ss»; el pipeline solo compara días.
@@ -79,6 +79,14 @@ function accionesDe(fase, esLargo) {
   return acciones;
 }
 
+// Acciones de la pestaña Gestiones según los permisos de quien consulta: decidir solo mientras espera autorización (una vencida ya no se decide).
+function accionesDeGestion({ fase, esLargo, permisos }) {
+  const acciones = [ACCIONES.VER];
+  if (permisos.includes(PERMISOS.AUTORIZAR) && fase === FASES.ESPERANDO) acciones.push(ACCIONES.AUTORIZAR, ACCIONES.RECHAZAR);
+  if (permisos.includes(PERMISOS.LIQUIDAR) && esLargo && fase === FASES.TERMINADA) acciones.push(ACCIONES.LIQUIDAR);
+  return acciones;
+}
+
 // `hoy` es la fecha de Guatemala; motivoRechazo (último motivo del historial) y fechaLiquidacion solo adornan el detalle.
 function calcularPipeline({ estado, modalidad, fechaSalida, fechaRegreso, hoy, motivoRechazo = null, fechaLiquidacion = null }) {
   const esLargo = modalidad === MODALIDADES.MAS_DE_UN_DIA;
@@ -93,4 +101,4 @@ function calcularPipeline({ estado, modalidad, fechaSalida, fechaRegreso, hoy, m
   };
 }
 
-module.exports = { calcularPipeline, faseDe, formatearFecha };
+module.exports = { calcularPipeline, accionesDeGestion, faseDe, formatearFecha };

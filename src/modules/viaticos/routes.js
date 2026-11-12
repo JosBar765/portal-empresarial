@@ -7,6 +7,7 @@ const { PERMISOS, RECURSOS, ARCHIVOS } = require('./constantes');
 const contextoController = require('./controllers/contextoController');
 const configController = require('./controllers/configController');
 const solicitudController = require('./controllers/solicitudController');
+const gestionController = require('./controllers/gestionController');
 const { crearCrud } = require('./controllers/crudController');
 const catalogoService = require('./services/catalogoService');
 const tramoService = require('./services/tramoService');
@@ -28,6 +29,13 @@ router.post('/solicitudes', fotosDefectos, solicitudController.crear);
 router.put('/solicitudes/:id', fotosDefectos, solicitudController.modificar);
 router.delete('/solicitudes/:id', solicitudController.darDeBaja);
 router.get('/solicitudes/:id/documentos', solicitudController.documentos);
+
+// Gestiones: ver todo exige viaticos.gestionar; autorizar y rechazar, viaticos.autorizar.
+router.get('/gestiones', requirePermission(PERMISOS.GESTIONAR), gestionController.listar);
+router.get('/gestiones/:id', requirePermission(PERMISOS.GESTIONAR), gestionController.obtener);
+router.get('/gestiones/:id/documentos', requirePermission(PERMISOS.GESTIONAR), gestionController.documentos);
+router.post('/gestiones/:id/autorizar', requirePermission(PERMISOS.AUTORIZAR), gestionController.autorizar);
+router.post('/gestiones/:id/rechazar', requirePermission(PERMISOS.AUTORIZAR), gestionController.rechazar);
 
 // Configuración: todo el subárbol exige viaticos.configurar.
 const config = express.Router();

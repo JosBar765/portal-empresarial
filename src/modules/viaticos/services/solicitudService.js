@@ -63,6 +63,34 @@ function pipelineDe(fila, hoy) {
   });
 }
 
+// Rango de fechas de creación (por defecto la semana actual) y búsqueda de las listas de Solicitudes y de Gestiones.
+function leerParametrosDeLista(query) {
+  const parametros = cuerpoObjeto(query);
+  const v = new Validador();
+  const { hoy } = instante();
+  const semana = semanaDe(hoy);
+  const desde = v.fecha(parametros, 'desde', 'Desde', { requerido: false }) || semana.desde;
+  const hasta = v.fecha(parametros, 'hasta', 'Hasta', { requerido: false }) || semana.hasta;
+  const texto = typeof parametros.q === 'string' ? parametros.q.trim() : '';
+  if (texto.length > MAX_BUSQUEDA) v.falla('q', msg('solicitud.busquedaLarga', { max: MAX_BUSQUEDA, largo: texto.length }));
+  if (!v.campos.desde && !v.campos.hasta && desde > hasta) v.falla('desde', msg('solicitud.rangoFechas', { desde, hasta }));
+  v.lanzar();
+  return { desde, hasta, hoy, busqueda: texto ? interpretarBusqueda(texto) : {} };
+}
+
+function itemDeLista(fila, pipeline) {
+  return {
+    id: fila.id,
+    correlativo: fila.correlativo,
+    fechaCreacion: fila.creadoEn,
+    modalidad: fila.modalidad,
+    fechaSalida: fechaDeViaje(fila.fechaSalida, fila.modalidad),
+    fechaRegreso: fila.fechaRegreso,
+    totalSolicitado: fila.totalSolicitado,
+    pipeline
+  };
+}
+
 class SolicitudService {
   // Países del solicitante; exige que el elegido esté entre ellos.
   async paisDelSolicitante(usuarioId, paisId) {
@@ -231,46 +259,39 @@ class SolicitudService {
   }
 
   async listar(usuario, query) {
-    const parametros = cuerpoObjeto(query);
-    const v = new Validador();
-    const { hoy } = instante();
-    const semana = semanaDe(hoy);
-    const desde = v.fecha(parametros, 'desde', 'Desde', { requerido: false }) || semana.desde;
-    const hasta = v.fecha(parametros, 'hasta', 'Hasta', { requerido: false }) || semana.hasta;
-    const texto = typeof parametros.q === 'string' ? parametros.q.trim() : '';
-    if (texto.length > MAX_BUSQUEDA) v.falla('q', msg('solicitud.busquedaLarga', { max: MAX_BUSQUEDA, largo: texto.length }));
-    if (!v.campos.desde && !v.campos.hasta && desde > hasta) v.falla('desde', msg('solicitud.rangoFechas', { desde, hasta }));
-    v.lanzar();
-    const filas = await solicitudRepo.listarDelSolicitante(usuario.id, { desde, hasta, ...(texto ? interpretarBusqueda(texto) : {}) });
-    const items = filas.map(fila => {
-      const pipeline = pipelineDe(fila, hoy);
-      return {
-        id: fila.id,
-        correlativo: fila.correlativo,
-        fechaCreacion: fila.creadoEn,
-        modalidad: fila.modalidad,
-        fechaSalida: fechaDeViaje(fila.fechaSalida, fila.modalidad),
-        fechaRegreso: fila.fechaRegreso,
-        totalSolicitado: fila.totalSolicitado,
-        pipeline
-      };
-    });
+    const { desde, hasta, hoy, busqueda } = leerParametrosDeLista(query);
+    const filas = await solicitudRepo.listar({ solicitanteId: usuario.id, desde, hasta, ...busqueda });
+    const items = filas.map(fila => itemDeLista(fila, pipelineDe(fila, hoy)));
     items.sort((a, b) => ORDEN_FASES[a.pipeline.fase] - ORDEN_FASES[b.pipeline.fase]
       || (a.fechaCreacion < b.fechaCreacion ? 1 : a.fechaCreacion > b.fechaCreacion ? -1 : b.id - a.id));
     return { desde, hasta, solicitudes: items };
   }
 
-  // Encabezado de una solicitud del propio usuario: 404 si no existe y 403 si es de otra persona.
-  async obtenerPropia(usuario, idCrudo, ejecutor) {
+  // Encabezado de cualquier solicitud, sin comprobar de quién es: 404 si no existe.
+  async leerEncabezado(idCrudo, ejecutor) {
     const id = idObligatorio(idCrudo, 'Identificador de la solicitud');
     const fila = await solicitudRepo.obtenerEncabezado(id, ejecutor);
     if (!fila) throw new ErrorDeNegocio(msg('solicitud.noExiste', { id }), 404);
+    return fila;
+  }
+
+  // Encabezado de una solicitud del propio usuario: 404 si no existe y 403 si es de otra persona.
+  async obtenerPropia(usuario, idCrudo, ejecutor) {
+    const fila = await this.leerEncabezado(idCrudo, ejecutor);
     if (fila.solicitanteId !== usuario.id) throw new ErrorDeNegocio(msg('solicitud.ajena'), 403);
     return fila;
   }
 
   async obtener(usuario, idCrudo, ejecutor) {
-    const fila = await this.obtenerPropia(usuario, idCrudo, ejecutor);
+    return this.armarDetalle(await this.obtenerPropia(usuario, idCrudo, ejecutor), ejecutor);
+  }
+
+  // Detalle de cualquier solicitud (Gestiones, PDF): quien lo llama decide si el usuario puede verla.
+  async leerDetalle(idCrudo, ejecutor) {
+    return this.armarDetalle(await this.leerEncabezado(idCrudo, ejecutor), ejecutor);
+  }
+
+  async armarDetalle(fila, ejecutor) {
     const id = fila.id;
     const [tramos, hospedajes, comidas, gastos, salvedades, fluidos, kit, defectos, historial] = await Promise.all([
       solicitudRepo.listarTramos(id, ejecutor), solicitudRepo.listarHospedajes(id, ejecutor), solicitudRepo.listarComidas(id, ejecutor),
@@ -343,6 +364,8 @@ function respuestaDeCalculo(modalidad, { errores = [], advertencias = [], desglo
 
 module.exports = new SolicitudService();
 module.exports.semanaDe = semanaDe;
+module.exports.leerParametrosDeLista = leerParametrosDeLista;
+module.exports.itemDeLista = itemDeLista;
 module.exports.instante = instante;
 module.exports.pipelineDe = pipelineDe;
 module.exports.interpretarBusqueda = interpretarBusqueda;

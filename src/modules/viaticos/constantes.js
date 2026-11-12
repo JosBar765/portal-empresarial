@@ -70,7 +70,8 @@ const LIMITES_SOLICITUD = Object.freeze({
   MAX_GASTOS: 60,
   MAX_DEFECTOS: 20,
   MAX_NOCHES: 365,
-  MAX_RENGLONES_INSPECCION: 50
+  MAX_RENGLONES_INSPECCION: 50,
+  MOTIVO_RECHAZO: 300
 });
 
 // Archivos: el tope duro de multer es el máximo configurable; el tipo y tamaño efectivos salen de viaticos_ajustes.
@@ -96,7 +97,21 @@ const NOTIFICACION = Object.freeze({
   MODULO: 'viaticos',
   NIVEL: 'info',
   TIPO_NUEVA: 'solicitud_nueva',
-  TIPO_MODIFICADA: 'solicitud_modificada'
+  TIPO_MODIFICADA: 'solicitud_modificada',
+  TIPO_AUTORIZADA: 'solicitud_autorizada',
+  TIPO_RECHAZADA: 'solicitud_rechazada',
+  NIVEL_RECHAZO: 'alerta'
+});
+
+// Sala de quienes gestionan y evento que avisa que una solicitud cambió (el cliente refresca su lista).
+const TIEMPO_REAL = Object.freeze({
+  SALA_GESTION: 'viaticos:gestion',
+  EVENTO_ACTUALIZADA: 'viaticos_actualizada',
+  ACCION_CREADA: 'creada',
+  ACCION_MODIFICADA: 'modificada',
+  ACCION_DADA_DE_BAJA: 'dada_de_baja',
+  ACCION_AUTORIZADA: 'autorizada',
+  ACCION_RECHAZADA: 'rechazada'
 });
 
 const ROL_ADMINISTRADOR_ID = 1;
@@ -160,6 +175,8 @@ const ACCIONES = Object.freeze({
   VER: 'ver',
   MODIFICAR: 'modificar',
   DAR_DE_BAJA: 'darDeBaja',
+  AUTORIZAR: 'autorizar',
+  RECHAZAR: 'rechazar',
   LIQUIDAR: 'liquidar'
 });
 
@@ -168,5 +185,5 @@ const MESES_ABREVIADOS = Object.freeze(['ene', 'feb', 'mar', 'abr', 'may', 'jun'
 
 module.exports = {
   PERMISOS, PREFIJO_PERMISOS, ESTADOS, MODALIDADES, RECURSOS, AJUSTES, MIME_PERMITIDOS, LIMITES,
-  LIMITES_SOLICITUD, ARCHIVOS, ETAPAS_DOCUMENTO, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, NIVELES_RESALTADOS, MIME_IMAGEN_PDF, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS
+  LIMITES_SOLICITUD, ARCHIVOS, ETAPAS_DOCUMENTO, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, TIEMPO_REAL, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, NIVELES_RESALTADOS, MIME_IMAGEN_PDF, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS
 };
