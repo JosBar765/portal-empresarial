@@ -44,21 +44,43 @@ function erroresDeArchivo(archivo, ajustes, campo) {
   return [];
 }
 
-// Cada defecto referencia su foto por `archivoIndice`; no pueden sobrar fotos ni repetirse.
-function validarDefectos({ datos, archivos, ajustes }) {
+// Los defectos con `defectoId` conservan su foto: solo al modificar (`previos` es el Set de ids de la solicitud; null al crear), existentes y sin repetir.
+function validarConservados(defectos, previos) {
+  const errores = [];
+  const vistos = new Set();
+  defectos.forEach((defecto, i) => {
+    if (defecto.defectoId === null || defecto.defectoId === undefined) return;
+    const campo = `inspeccion.defectos[${i}]`;
+    const numero = i + 1;
+    if (previos === null) errores.push({ campo, mensaje: msg('defecto.conservarSoloAlModificar', { numero }) });
+    else if (!previos.has(defecto.defectoId)) errores.push({ campo, mensaje: msg('defecto.noEsDeLaSolicitud', { numero, id: defecto.defectoId }) });
+    else if (vistos.has(defecto.defectoId)) errores.push({ campo, mensaje: msg('defecto.conservadoRepetido', { id: defecto.defectoId }) });
+    vistos.add(defecto.defectoId);
+  });
+  return errores;
+}
+
+// Cada defecto trae una foto nueva (`archivoIndice`) o conserva la suya (`defectoId`), nunca ambas; no pueden sobrar fotos ni repetirse.
+function validarDefectos({ datos, archivos, ajustes, previos = null }) {
   if (datos.modalidad === MODALIDADES.MAS_DE_UN_DIA) {
     return archivos.length > 0 ? [{ campo: ARCHIVOS.CAMPO_DEFECTOS, mensaje: msg('defecto.archivosSinInspeccion') }] : [];
   }
-  const errores = [];
   const defectos = datos.inspeccion ? datos.inspeccion.defectos : [];
+  const errores = validarConservados(defectos, previos);
   const usados = new Set();
   defectos.forEach((defecto, i) => {
     const campo = `inspeccion.defectos[${i}]`;
+    const nueva = defecto.archivoIndice !== null && defecto.archivoIndice !== undefined;
+    const conserva = defecto.defectoId !== null && defecto.defectoId !== undefined;
+    if (nueva && conserva) return errores.push({ campo, mensaje: msg('defecto.ambosOrigenes', { numero: i + 1 }) });
+    if (!nueva && !conserva) return errores.push({ campo, mensaje: msg('defecto.sinOrigen', { numero: i + 1 }) });
+    if (conserva) return undefined;
     const archivo = archivos[defecto.archivoIndice];
     if (!archivo) errores.push({ campo, mensaje: msg('defecto.sinArchivo', { numero: i + 1, indice: defecto.archivoIndice }) });
     else if (usados.has(defecto.archivoIndice)) errores.push({ campo, mensaje: msg('defecto.archivoRepetido', { indice: defecto.archivoIndice }) });
     else errores.push(...erroresDeArchivo(archivo, ajustes, campo));
     usados.add(defecto.archivoIndice);
+    return undefined;
   });
   if (archivos.some((_, indice) => !usados.has(indice))) {
     errores.push({ campo: ARCHIVOS.CAMPO_DEFECTOS, mensaje: msg('defecto.archivoSobrante', { cantidad: archivos.length, usadas: usados.size }) });
@@ -66,11 +88,17 @@ function validarDefectos({ datos, archivos, ajustes }) {
   return errores;
 }
 
-// Sube las fotos en orden y registra cada defecto; `subidas` acumula las URLs para poder deshacer si algo falla después.
-// `etapa` es CREACION o CORRECCION (ETAPAS_DOCUMENTO). `existentes` son las URLs de fotos previas: el contador de la etapa sigue desde ellas para no repetir nombres.
-async function subirDefectos({ correlativo, etapa, defectos, archivos, existentes = [], registrar, subidas }) {
+// Sube las fotos nuevas en orden y registra cada defecto; `subidas` acumula las URLs para poder deshacer si algo falla después.
+// `etapa` es CREACION o CORRECCION (ETAPAS_DOCUMENTO). `existentes` son las URLs de todas las fotos previas: el contador de la etapa sigue desde ellas para no repetir nombres.
+// `conservados` mapea defectoId a su fila previa (ruta, mimeType, tamano): esos defectos se registran con la misma foto y sin tocar Storage.
+async function subirDefectos({ correlativo, etapa, defectos, archivos, existentes = [], conservados = new Map(), registrar, subidas }) {
   let contador = nombreArchivo.siguienteContador(existentes, nombreArchivo.prefijoAdjunto(correlativo, ARCHIVOS.TIPO_NOMBRE_DEFECTO, etapa));
   for (const defecto of defectos) {
+    if (defecto.defectoId !== null && defecto.defectoId !== undefined) {
+      const previo = conservados.get(defecto.defectoId);
+      await registrar({ ...defecto, ruta: previo.ruta, mimeType: previo.mimeType, tamano: previo.tamano });
+      continue;
+    }
     const archivo = archivos[defecto.archivoIndice];
     const mimeType = tipoCanonico(archivo.mimetype);
     await subirYRegistrarArchivo({
@@ -129,4 +157,4 @@ async function eliminarArchivos(urls) {
   }
 }
 
-module.exports = { leerAjustes, erroresDeArchivo, validarDefectos, subirDefectos, subirComprobante, eliminarArchivos, tipoCanonico };
+module.exports = { leerAjustes, erroresDeArchivo, validarConservados, validarDefectos, subirDefectos, subirComprobante, eliminarArchivos, tipoCanonico };

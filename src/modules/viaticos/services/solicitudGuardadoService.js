@@ -126,7 +126,9 @@ class SolicitudGuardadoService {
       const { hoy, ahora } = solicitudService.instante();
       ctx = await solicitudService.cargarContexto(usuario.id, datos, { excluirSolicitudId: previa ? previa.id : null, ejecutor: externo });
       evaluacion = evaluar({ datos, ctx, hoy, ahora });
-      errores.push(...evaluacion.errores, ...archivosService.validarDefectos({ datos, archivos, ajustes: await archivosService.leerAjustes() }));
+      // Al modificar, los defectos cuya foto se puede conservar son los que la solicitud tiene hoy.
+      const previos = previa ? new Set((await solicitudRepo.listarArchivosDefectos(previa.id, externo)).map(d => d.id)) : null;
+      errores.push(...evaluacion.errores, ...archivosService.validarDefectos({ datos, archivos, ajustes: await archivosService.leerAjustes(), previos }));
       errores.push(...await erroresDeTextos(textosLibres(datos)));
     }
     if (errores.length > 0) throw errorDeValidacion(msg('validacion.revisar'), aCampos(errores));
@@ -152,7 +154,7 @@ class SolicitudGuardadoService {
     }
     if (externo) return { id: guardado.id, correlativo: guardado.correlativo };
 
-    await archivosService.eliminarArchivos(guardado.fotosAnteriores);
+    await archivosService.eliminarArchivos(guardado.fotosDescartadas);
     return this.despuesDelCommit(usuario, guardado.id, Boolean(previa));
   }
 
@@ -161,11 +163,16 @@ class SolicitudGuardadoService {
     let id;
     let correlativo;
     let fotosAnteriores = [];
+    let previos = [];
     if (previa) {
       await this.bloquearEditable(previa.id, previa.correlativo, 'solicitud.noModificable', tx);
       id = previa.id;
       correlativo = previa.correlativo;
-      fotosAnteriores = (await solicitudRepo.listarArchivosDefectos(id, tx)).map(d => d.ruta);
+      previos = await solicitudRepo.listarArchivosDefectos(id, tx);
+      fotosAnteriores = previos.map(d => d.ruta);
+      // Se revalida con la fila bloqueada: los defectos pudieron cambiar desde la lectura previa.
+      const invalidos = archivosService.validarConservados(partes.defectos, new Set(previos.map(d => d.id)));
+      if (invalidos.length > 0) throw errorDeValidacion(msg('validacion.revisar'), aCampos(invalidos));
       await escrituraRepo.borrarPartes(id, tx);
       await escrituraRepo.actualizarEncabezado(id, { ...partes.encabezado, estadoId }, tx);
     } else {
@@ -179,13 +186,16 @@ class SolicitudGuardadoService {
     await escrituraRepo.insertarSalvedades(id, partes.salvedadIds, tx);
     await escrituraRepo.insertarFluidos(id, partes.fluidos, tx);
     await escrituraRepo.insertarKit(id, partes.kit, tx);
+    const conservados = new Map(previos.map(d => [d.id, d]));
     await archivosService.subirDefectos({
       correlativo, etapa: previa ? ETAPAS_DOCUMENTO.CORRECCION : ETAPAS_DOCUMENTO.CREACION,
-      defectos: partes.defectos, archivos, existentes: fotosAnteriores, subidas,
+      defectos: partes.defectos, archivos, existentes: fotosAnteriores, conservados, subidas,
       registrar: defecto => escrituraRepo.insertarDefecto(id, defecto, tx)
     });
     await escrituraRepo.insertarHistorial(id, estadoId, usuario.id, null, tx);
-    return { id, correlativo, fotosAnteriores };
+    // Solo se borran de Storage las fotos de los defectos que ya no están; las conservadas siguen en uso.
+    const enUso = new Set(partes.defectos.filter(d => conservados.has(d.defectoId)).map(d => conservados.get(d.defectoId).ruta));
+    return { id, correlativo, fotosDescartadas: fotosAnteriores.filter(ruta => !enUso.has(ruta)) };
   }
 
   // Bloquea la fila y confirma que sigue en un estado editable (pudo cambiar desde la lectura previa).

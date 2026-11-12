@@ -109,7 +109,9 @@ function normalizarInspeccion(v, cuerpo) {
   inspeccion.defectos = lista(sub, bruto, 'defectos', 'Defectos', LIMITES_SOLICITUD.MAX_DEFECTOS).map((d, i) => enRenglon(sub, `defectos[${i}]`, s => ({
     tipoDefectoId: s.id(d, 'tipoDefectoId', `Tipo del defecto ${i + 1}`),
     descripcion: s.texto(d, 'descripcion', `Descripción del defecto ${i + 1}`, { max: LIMITES_SOLICITUD.DESCRIPCION, requerido: false }),
-    archivoIndice: s.entero(d, 'archivoIndice', `Foto del defecto ${i + 1}`, { min: 0, max: LIMITES_SOLICITUD.MAX_DEFECTOS - 1 })
+    // Foto nueva (archivoIndice) o defecto existente a conservar (defectoId): la exclusión se valida con los archivos.
+    defectoId: s.id(d, 'defectoId', `Defecto existente ${i + 1}`, { requerido: false }),
+    archivoIndice: s.entero(d, 'archivoIndice', `Foto del defecto ${i + 1}`, { min: 0, max: LIMITES_SOLICITUD.MAX_DEFECTOS - 1, requerido: false })
   })));
   Object.entries(sub.campos).forEach(([campo, mensaje]) => v.falla(`inspeccion.${campo}`, mensaje));
   return inspeccion;

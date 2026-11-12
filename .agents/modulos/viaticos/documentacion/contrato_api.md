@@ -73,13 +73,13 @@ Lo comparten `POST /solicitudes/calcular` (cuerpo JSON, el payload directo, sin 
     "odometro": 15000,
     "fluidos": [{ "fluidoId": 1, "nivelId": 2 }],
     "kit": [{ "kitItemId": 1, "presente": true }],
-    "defectos": [{ "tipoDefectoId": 1, "descripcion": "Rayón", "archivoIndice": 0 }]
+    "defectos": [{ "tipoDefectoId": 1, "descripcion": "Rayón", "archivoIndice": 0 }, { "tipoDefectoId": 2, "descripcion": "Golpe", "defectoId": 41 }]
   }
 }
 ```
 
 - `modalidad`: `mas_de_un_dia` o `hasta_un_dia`. En más de 1 día: `monedaId`, `fechaSalida` (`AAAA-MM-DD`), `fechaRegreso`, `rendimientoKmGalon`, `precioGalon`, `tramos` (al menos uno) y, si el vehículo es propio, `depreciacionPorKm`; `hospedajes`, `comidas` y `gastos` son opcionales; `inspeccion` no se admite. En 1 día o menos: `fechaSalida` es `AAAA-MM-DD HH:mm` (hora de Guatemala), `inspeccion` es obligatoria y no se admiten tramos, hospedajes, comidas ni gastos; el combustible no se calcula (`rendimientoKmGalon` y `precioGalon` se ignoran).
-- Longitudes: hotel y lugar 50, descripciones 100. Noches, montos y valores mayores que cero. Cada fluido debe informarse; el nivel `N/A` solo en los fluidos con `permiteNoAplica`. `archivoIndice` es la posición de la foto en el campo `defectos` del multipart (en `calcular` solo se valida el formato).
+- Longitudes: hotel y lugar 50, descripciones 100. Noches, montos y valores mayores que cero. Cada fluido debe informarse; el nivel `N/A` solo en los fluidos con `permiteNoAplica`. Cada defecto es de una de dos formas excluyentes: NUEVO, con `archivoIndice` (posición de su foto en el campo `defectos` del multipart), o EXISTENTE, con `defectoId` (id de un defecto de la propia solicitud, solo al modificar) para conservar su foto actual; ver «Conservar la foto de un defecto» (en `calcular` solo se valida el formato).
 - Supuesto: «más de 1 día» significa con pernocta; el regreso debe ser posterior a la salida (si regresas el mismo día es «1 día o menos»).
 - Las ubicaciones de un tramo se eligen en cualquier sentido: el servidor busca el par ordenado en `viaticos_tramos`. Convención para guardar `viaticos_solicitud_tramos.sentido`: `ida` si el origen es la ubicación A del tramo, `vuelta` si es la B.
 - No traslape: se compara por días completos e inclusivos (salida y regreso), contra solicitudes del mismo solicitante en cualquier estado menos rechazada; al modificar se excluye la propia. Un viaje corto ocupa solo su día.
@@ -127,20 +127,31 @@ Siempre 200 si el cuerpo es un objeto (el cliente decide con `valido`). Los erro
 
 ### Formato de `POST /solicitudes` y `PUT /solicitudes/:id`
 
-- `multipart/form-data`: campo `datos` (texto con el JSON del payload) y campo de archivos `defectos` (una foto por defecto, hasta 20); cada defecto de `inspeccion.defectos` referencia su foto con `archivoIndice` (posición en `defectos`). Sin archivos también se acepta JSON puro: el payload directo o envuelto en `{ "datos": { … } }`.
+- `multipart/form-data`: campo `datos` (texto con el JSON del payload) y campo de archivos `defectos` (una foto por defecto, hasta 20); cada defecto de `inspeccion.defectos` referencia su foto nueva con `archivoIndice` (posición en `defectos`) o, al modificar, conserva la actual con `defectoId`. Sin archivos también se acepta JSON puro: el payload directo o envuelto en `{ "datos": { … } }`.
 - `idempotencyKey` (texto de 1 a 64 caracteres) va dentro de `datos`; si falta, el servidor genera una. La llave se guarda por usuario con el endpoint `viaticos:crear`: repetir un `POST` con la misma llave devuelve el detalle ya creado, sin crear otra solicitud ni subir de nuevo las fotos. Dos envíos simultáneos con la misma llave se serializan.
 - El servidor ignora todo importe o total que mande el cliente y recalcula; `estado` siempre es «esperando autorización».
 - Archivos: el tope duro de multer es 25 MB por archivo (máximo configurable); el tipo (`tipos_archivo_permitidos`) y el tamaño (`max_archivo_mb`) efectivos salen de `viaticos_ajustes`. Además del tipo declarado se verifica la firma real del contenido y, en imágenes, el tope de megapíxeles.
 
+### Conservar la foto de un defecto
+
+Al modificar una solicitud de 1 día o menos no hay que volver a subir las fotos. Cada elemento de `inspeccion.defectos` es de una de dos formas, nunca ambas ni ninguna:
+
+- Nuevo: lleva `archivoIndice` y no `defectoId`; se sube la foto y se nombra `<CORRELATIVO>_DEFECTO_CORRECCION_<n>` (al crear, `…_CREACION_<n>`).
+- Existente (solo en `PUT`): lleva `defectoId` y no `archivoIndice`. Conserva la misma foto (`ruta`, `mime_type` y `tamano`), sin tocar Storage ni renombrarla; `tipoDefectoId` y `descripcion` sí se pueden cambiar.
+- `defectoId` debe ser el `id` de un defecto de esta solicitud (el de `GET /solicitudes/:id`), sin repetir; se valida antes de guardar y otra vez dentro de la transacción con la fila bloqueada. Con `POST` se rechaza («solo se puede conservar al modificar»). Un viaje de más de 1 día no lleva inspección, así que no conserva nada.
+- Contador de nombres: los nuevos continúan desde todas las fotos actuales de la solicitud (conservadas o no), así que ningún nombre se repite.
+- Borrado: tras el commit y solo en producción se borran de Storage únicamente las fotos de los defectos que no se conservaron (reemplazados o quitados). Quitar todos los defectos borra todas sus fotos; reenviar todos los `defectoId` no borra ninguna. Si la transacción falla, solo se deshacen las fotos nuevas.
+- Lectura: cada defecto de `inspeccion.defectos` en `GET /solicitudes/:id` (y en el detalle de Gestiones) trae `id`, `tipoDefectoId`, `tipoDefectoNombre`, `descripcion`, `mimeType`, `tamano` y `url` (URL pública de la foto, para la miniatura). Cada guardado reinserta los defectos, por lo que los `id` cambian y hay que usar los del detalle devuelto.
+
 ### Respuestas
 
-- `POST`: 201 con el detalle (misma forma que `GET /solicitudes/:id`). `PUT`: 200 con el detalle; conserva el correlativo, reemplaza todas las partes, agrega un renglón de historial y vuelve a «esperando autorización». Las fotos anteriores se borran de Storage después del commit y las nuevas se nombran `<CORRELATIVO>_DEFECTO_CREACION_<n>` al crear y `<CORRELATIVO>_DEFECTO_CORRECCION_<n>` al modificar (ver «Archivos en Storage»).
+- `POST`: 201 con el detalle (misma forma que `GET /solicitudes/:id`). `PUT`: 200 con el detalle; conserva el correlativo, reemplaza todas las partes (los defectos se vuelven a insertar, así que sus `id` cambian: el cliente debe releer el detalle), agrega un renglón de historial y vuelve a «esperando autorización». Solo se borran de Storage, después del commit, las fotos de los defectos que ya no están (ver «Conservar la foto de un defecto»); las fotos nuevas se nombran `<CORRELATIVO>_DEFECTO_CREACION_<n>` al crear y `<CORRELATIVO>_DEFECTO_CORRECCION_<n>` al modificar (ver «Archivos en Storage»).
 - `DELETE`: 200 con `{ id, correlativo }`; borra el registro (las partes caen por `CASCADE`) y después los archivos de Storage (fotos y PDF).
 - `GET /solicitudes/:id/documentos`: lista `[ { titulo, tipo: 'pdf' | 'imagen', url } ]` con el PDF (si existe) y las fotos de defectos, en ese orden; `url` es la URL pública guardada en `ruta`.
 
 ### Errores
 
-- 400 `{ error, campos }`: datos inválidos; `campos` acumula los errores de formato, de negocio y de archivos por campo (`inspeccion.defectos[0]`, `defectos`, `idempotencyKey`…). Las advertencias no bloquean y se guardan como salvedades. Archivos: tipo no permitido, contenido que no corresponde al tipo, tamaño sobre `max_archivo_mb`, defecto sin foto, foto repetida, fotos sobrantes y fotos en un viaje de más de 1 día.
+- 400 `{ error, campos }`: datos inválidos; `campos` acumula los errores de formato, de negocio y de archivos por campo (`inspeccion.defectos[0]`, `defectos`, `idempotencyKey`…). Las advertencias no bloquean y se guardan como salvedades. Archivos: tipo no permitido, contenido que no corresponde al tipo, tamaño sobre `max_archivo_mb`, defecto sin foto ni `defectoId`, con ambos a la vez, foto repetida, fotos sobrantes, fotos en un viaje de más de 1 día y, en `defectoId`, que no sea de la solicitud, esté repetido o se envíe al crear (cada uno con su mensaje explicativo en `inspeccion.defectos[i]`).
 - 400 sin `campos`: `datos` ausente o con JSON inválido; ajustes de archivos sin configurar. Multer (global): más de 20 fotos, archivo sobre 25 MB.
 - 403: la solicitud es de otra persona o su estado ya no admite modificar ni dar de baja (autorizada, liquidada); 404 si no existe. El estado se revalida dentro de la transacción con la fila bloqueada.
 
@@ -169,7 +180,7 @@ Todo archivo de viáticos va al bucket propio `SUPABASE_STORAGE_BUCKET_VIATICOS`
 | PDF al modificarla (siempre antes de autorizar) | `<CORRELATIVO>_CORRECCION_PRE_AUTORIZACION_X` |
 | PDF al autorizarla (tentativo) | `<CORRELATIVO>_AUTORIZACION` |
 | Foto de defecto al crear | `<CORRELATIVO>_DEFECTO_CREACION_X` |
-| Foto de defecto añadida al modificar | `<CORRELATIVO>_DEFECTO_CORRECCION_X` |
+| Foto de defecto añadida al modificar | `<CORRELATIVO>_DEFECTO_CORRECCION_X` (las fotos conservadas mantienen su nombre) |
 | Comprobante de liquidación | `<CORRELATIVO>_LIQUIDACION_<RUBRO>_X` (el rubro sale del nombre del tipo de gasto, sin acentos y en mayúsculas: `HOSPEDAJE`, `COMBUSTIBLE`, `PEAJE`…) |
 
 Limitación conocida (solo staging y desarrollo, donde el borrado de Storage no actúa): si en una modificación se quitan todas las fotos de una etapa y en otra posterior se vuelven a agregar, el contador reinicia y el nombre puede chocar con un archivo que quedó sin borrar. Los comprobantes sí lo resuelven (ver «Nombres ante duplicados» en «Liquidación (F3.6)»).

@@ -141,10 +141,10 @@ class SolicitudRepository {
     ));
   }
 
-  // Sin la ruta de Storage: los archivos se abren por el endpoint de documentos.
+  // `url` es la URL pública de la foto: con `id` permite la miniatura y reenviar `defectoId` para conservarla.
   async listarDefectos(solicitudId, ejecutor = db) {
     return filasACamel(await ejecutor.query(
-      `SELECT d.id, d.tipo_defecto_id, td.nombre AS tipo_defecto_nombre, d.descripcion, d.mime_type, d.tamano
+      `SELECT d.id, d.tipo_defecto_id, td.nombre AS tipo_defecto_nombre, d.descripcion, d.mime_type, d.tamano, d.ruta AS url
        FROM viaticos_defectos d JOIN viaticos_tipos_defecto td ON td.id = d.tipo_defecto_id
        WHERE d.solicitud_id = ? ORDER BY d.id`,
       [solicitudId], 'viaticos:defectosDeSolicitud'
@@ -154,7 +154,7 @@ class SolicitudRepository {
   // Con la ruta de Storage: para el visor de documentos y para borrar los archivos.
   async listarArchivosDefectos(solicitudId, ejecutor = db) {
     return filasACamel(await ejecutor.query(
-      `SELECT d.id, td.nombre AS tipo_defecto_nombre, d.ruta, d.mime_type
+      `SELECT d.id, td.nombre AS tipo_defecto_nombre, d.ruta, d.mime_type, d.tamano
        FROM viaticos_defectos d JOIN viaticos_tipos_defecto td ON td.id = d.tipo_defecto_id
        WHERE d.solicitud_id = ? ORDER BY d.id`,
       [solicitudId], 'viaticos:archivosDeDefectos'

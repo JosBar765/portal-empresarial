@@ -147,6 +147,11 @@ const CATALOGO = Object.freeze({
   'defecto.sinArchivo': 'El defecto {numero} no tiene foto en la posición {indice} del campo «defectos». Adjunta una foto por cada defecto.',
   'defecto.archivoRepetido': 'La foto en la posición {indice} está asignada a más de un defecto. Cada defecto lleva su propia foto.',
   'defecto.archivoSobrante': 'Adjuntaste {cantidad} fotos pero solo {usadas} están asignadas a un defecto. Quita las que sobran o registra su defecto.',
+  'defecto.ambosOrigenes': 'El defecto {numero} trae a la vez una foto nueva (archivoIndice) y un defecto a conservar (defectoId). Envía solo uno de los dos.',
+  'defecto.sinOrigen': 'El defecto {numero} no indica su foto. Envía archivoIndice con una foto nueva o defectoId para conservar la actual.',
+  'defecto.conservarSoloAlModificar': 'El defecto {numero} trae defectoId, pero una foto solo se puede conservar al modificar una solicitud. Al crear, adjunta una foto nueva con archivoIndice.',
+  'defecto.noEsDeLaSolicitud': 'El defecto {numero} conserva el defectoId {id}, que no existe en esta solicitud. Usa el id de un defecto de la solicitud o adjunta una foto nueva.',
+  'defecto.conservadoRepetido': 'El defectoId {id} se conserva más de una vez. Cada defecto existente solo puede aparecer una vez.',
   'defecto.archivosSinInspeccion': 'Un viaje de más de 1 día no lleva fotos de defectos. Quita los archivos adjuntos.',
 
   // ---- Liquidación ----
