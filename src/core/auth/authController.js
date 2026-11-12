@@ -33,6 +33,7 @@ class AuthController {
       const parts = req.headers.authorization.split(' ');
       if (parts.length === 2 && parts[0] === 'Bearer') {
         decoded = jwtHelper.verifyToken(parts[1]);
+        if (decoded && !(await tokenService.sesionViva(decoded))) decoded = null;
       }
     }
 

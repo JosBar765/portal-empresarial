@@ -139,10 +139,18 @@ function limpiarCookies(res) {
  * venció o falta — se renueva con el refresh token (fijando las cookies
  * nuevas en `res`). Devuelve el payload o null.
  */
+// Un access token solo vale mientras su sesión siga viva en sesiones_activas (mismo `sid`): al cerrar sesión, iniciar otra o revocarla,
+// el token anterior deja de servir en el acto en vez de seguir vivo hasta que venza. Un token sin `sid` no se acepta.
+async function sesionViva(payload) {
+  if (!payload || !payload.sid) return false;
+  const sesion = await sesionRepository.obtenerVigente(payload.id);
+  return !!sesion && sesion.token_id === payload.sid;
+}
+
 async function autenticar(req, res) {
   const access = req.cookies ? req.cookies[ACCESS_COOKIE] : null;
   const decoded = access ? jwtHelper.verifyToken(access) : null;
-  if (decoded) return decoded;
+  if (decoded && await sesionViva(decoded)) return decoded;
 
   const refresh = req.cookies ? req.cookies[REFRESH_COOKIE] : null;
   if (!refresh) return null;
@@ -164,5 +172,6 @@ module.exports = {
   hashDe,
   fijarCookies,
   limpiarCookies,
-  autenticar
+  autenticar,
+  sesionViva
 };

@@ -61,7 +61,11 @@ function pedir(metodo, ruta, { cookies = {}, json, cuerpo, tipo } = {}) {
   });
 }
 const login = (email, password) => pedir('POST', '/api/auth/login', { json: { email, password } });
-const token = (rolId, permissions, id = 1) => jwtHelper.generateToken({ id, nombre: 'Prueba', email: 'p@p', rolId, rolNombre: 'X', modulosPermitidos: [], permissions });
+// Un access token solo vale mientras su sesión siga viva en sesiones_activas (mismo `sid`): los tokens forjados de estas pruebas llevan un
+// `sid` fijo y la prueba crea esa sesión para cada usuario forjado (ver `SESIONES_FORJADAS`).
+const SID_FORJADO = 'sid-pruebas-fase1';
+const SESIONES_FORJADAS = [1, 5, 63];
+const token = (rolId, permissions, id = 1) => jwtHelper.generateToken({ id, nombre: 'Prueba', email: 'p@p', rolId, rolNombre: 'X', modulosPermitidos: [], permissions, sid: SID_FORJADO });
 
 // ---- PNG "bomba": pocos bytes que declaran muchísimos píxeles ----
 function crc32(buf) { let c; let crc = 0xFFFFFFFF; for (let n = 0; n < buf.length; n++) { c = (crc ^ buf[n]) & 0xFF; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; crc = (crc >>> 8) ^ c; } return (crc ^ 0xFFFFFFFF) >>> 0; }
@@ -81,6 +85,9 @@ function multipart(archivos) {
   const db = await mysql.createConnection({ host: config.db.host, port: config.db.port, user: config.db.user, password: config.db.password, database: config.db.database });
   await db.query("SET time_zone = '-06:00'");
   const creados = []; // usuarios de prueba a borrar al final
+  for (const uid of SESIONES_FORJADAS) {
+    await db.query('INSERT INTO sesiones_activas (usuario_id, token_id, iniciada_en, expira_en, conexiones_activas, sin_conexiones_desde) VALUES (?, ?, NOW(), NOW() + INTERVAL 2 HOUR, 0, NOW() - INTERVAL 1 HOUR) ON DUPLICATE KEY UPDATE token_id = VALUES(token_id), expira_en = VALUES(expira_en), sin_conexiones_desde = VALUES(sin_conexiones_desde)', [uid, SID_FORJADO]);
+  }
 
   try {
     // ------------------------------------------------------------------
@@ -240,6 +247,7 @@ function multipart(archivos) {
     x = await login(ADMIN.email, ADMIN.password);
     chk('con el límite por IP agotado, incluso un login correcto recibe 429 (y responde JSON)', x.s === 429 && x.j && x.j.ok === false, x.s);
   } finally {
+    await db.query('DELETE FROM sesiones_activas WHERE token_id = ?', [SID_FORJADO]);
     for (const id of creados) { await db.query('DELETE FROM sesiones_activas WHERE usuario_id = ?', [id]); await db.query('DELETE FROM usuarios WHERE id = ?', [id]); }
     await db.query('UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL');
     await db.end();
