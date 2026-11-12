@@ -80,18 +80,29 @@ export async function renderCierre(cont, id) {
   if (datos.proyecto.estado === 'cerrado') pintarCerrado(cont, datos); else if (datos.proyecto.estado === 'activo') pintarCierre(cont, datos); else window.location.hash = `#/proyectos/${datos.proyecto.id}`;
 }
 
+// Presencial vs. remoto y muestras entregadas: se usan al cerrar y también en el cierre ya congelado.
+function panelCanales(informe) {
+  const total = informe.canales.total;
+  const barras = h('section', { class: 'panel' }, h('h2', { class: 'panel-titulo', text: 'Presencial vs. remoto' }),
+    [['Presencial', informe.canales.porcentajePresencial, 'azul'], ['Remoto', informe.canales.porcentajeRemoto, 'oscuro']].map(([t, pct, color]) => h('div', { class: 'barra-fila' }, h('span', { class: 'barra-avance-pista' }, h('span', { class: `barra-avance-relleno barra-avance-relleno--${color}`, style: `width:${total ? pct : 0}%` })), h('span', { class: 'barra-fila-texto', text: `${t} · ${total ? pct : 0} %` }))),
+    total ? null : h('p', { class: 'texto-tenue', text: 'Todavía no hay gestiones registradas.' }));
+  return barras;
+}
+
+function panelMuestras(informe) {
+  const muestras = h('section', { class: 'panel' }, h('h2', { class: 'panel-titulo', text: 'Entregadas por área' }),
+    informe.muestras.porArea.length ? informe.muestras.porArea.map(m => h('div', { class: 'fila-dato' }, h('span', { text: m.area }), h('strong', { text: String(m.cantidad) }))) : h('p', { class: 'texto-tenue', text: 'Sin entregas de muestra.' }),
+    informe.muestras.total !== null ? h('div', { class: 'fila-dato' }, h('span', { text: 'Quedan' }), h('strong', { text: `${informe.muestras.existencia} de ${informe.muestras.total}` })) : null);
+  return muestras;
+}
+
 // --- S10: cerrar ---
 function pintarCierre(cont, datos) {
   const { informe, proyecto } = datos;
   const valores = { conclusiones: datos.conclusiones || '' };
   const errores = {};
-  const total = informe.canales.total;
-  const barras = h('section', { class: 'panel' }, h('h2', { class: 'panel-titulo', text: 'Presencial vs. remoto' }),
-    [['Presencial', informe.canales.porcentajePresencial, 'azul'], ['Remoto', informe.canales.porcentajeRemoto, 'oscuro']].map(([t, pct, color]) => h('div', { class: 'barra-fila' }, h('span', { class: 'barra-avance-pista' }, h('span', { class: `barra-avance-relleno barra-avance-relleno--${color}`, style: `width:${total ? pct : 0}%` })), h('span', { class: 'barra-fila-texto', text: `${t} · ${total ? pct : 0} %` }))),
-    total ? null : h('p', { class: 'texto-tenue', text: 'Todavía no hay gestiones registradas.' }));
-  const muestras = h('section', { class: 'panel' }, h('h2', { class: 'panel-titulo', text: 'Entregadas por área' }),
-    informe.muestras.porArea.length ? informe.muestras.porArea.map(m => h('div', { class: 'fila-dato' }, h('span', { text: m.area }), h('strong', { text: String(m.cantidad) }))) : h('p', { class: 'texto-tenue', text: 'Sin entregas de muestra.' }),
-    informe.muestras.total !== null ? h('div', { class: 'fila-dato' }, h('span', { text: 'Quedan' }), h('strong', { text: `${informe.muestras.existencia} de ${informe.muestras.total}` })) : null);
+  const barras = panelCanales(informe);
+  const muestras = panelMuestras(informe);
   const conclusiones = h('section', { class: 'panel' }, h('h2', { class: 'panel-titulo', text: 'Conclusiones del supervisor' }));
   const dibujarConclusiones = () => montar(conclusiones, h('h2', { class: 'panel-titulo', text: 'Conclusiones del supervisor' }), campoArea({ valores, errores, clave: 'conclusiones', etiqueta: 'Qué funcionó, qué no y qué recomiendas', maximo: 4000, prefijoId: 'cierre' }));
   dibujarConclusiones();
@@ -123,7 +134,7 @@ export function pintarCerrado(cont, datos) {
   const banner = () => {
     if (!vistoBueno) return null;
     if (vistoBueno.estado === 'dado') return h('div', { class: 'aviso aviso--ok', role: 'note' }, icono('checkmark-circle-outline'), h('div', null, h('div', { class: 'aviso-titulo', text: 'Visto bueno dado' }), h('div', { class: 'aviso-texto', text: `${vistoBueno.por} · ${diaCorto(vistoBueno.en)}${vistoBueno.comentario ? ` · «${vistoBueno.comentario}»` : ''}` })));
-    if (vistoBueno.estado === 'devuelto') return aviso({ tipo: 'error', titulo: 'El gerente devolvió el cierre con comentarios', texto: `${vistoBueno.por} · ${diaCorto(vistoBueno.en)} · «${vistoBueno.comentario}». Ajusta las conclusiones y reenvíalo.` });
+    if (vistoBueno.estado === 'devuelto') return aviso({ tipo: 'error', titulo: 'El gerente devolvió el cierre con comentarios', texto: `${vistoBueno.por} · ${diaCorto(vistoBueno.en)} · «${String(vistoBueno.comentario || '').trim().replace(/[.\s]+$/, '')}». Ajusta las conclusiones y reenvíalo.` });
     return aviso({ tipo: 'advertencia', titulo: 'Esperando el visto bueno del gerente', texto: 'Se te avisará cuando lo dé o lo devuelva con comentarios.' });
   };
   const editable = datos.permisos.reenviar;
@@ -147,5 +158,6 @@ export function pintarCerrado(cont, datos) {
       h('div', { class: 'tabla-caja' }, h('div', { class: 'tabla-scroll' }, h('table', { class: 'data-table' },
         h('thead', null, h('tr', null, ['Tienda', 'Cotizado', 'Vendido'].map((t, i) => h('th', { class: i ? 'num' : null, text: t })))),
         h('tbody', null, informe.porTienda.map(t => h('tr', null, h('td', null, h('strong', { text: t.empresa })), h('td', { class: 'num', text: montosPorMoneda(t.cotizado) }), h('td', { class: 'num', text: montosPorMoneda(t.vendido) })))))))),
+    informe.canales && informe.muestras ? h('div', { class: 'cierre-fila' }, panelCanales(informe), panelMuestras(informe)) : null,
     h('p', { class: 'texto-tenue', text: `Solo lectura. El informe quedó congelado el ${diaCorto(datos.cierre.en)}.` }));
 }
