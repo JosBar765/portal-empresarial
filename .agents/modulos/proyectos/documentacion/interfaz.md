@@ -23,3 +23,9 @@ Mockups aprobados en Figma: **N1** (barra lateral de escritorio, página «06 ·
 | Rótulos pequeños (encabezados de tabla, chips, pestañas de la barra inferior) | 12 px, el mínimo |
 
 Antes, un texto sin tamaño propio salía en 16 px (el del navegador) junto a otros de 13 px; ahora la base del módulo es 13 px (`body` en `css/styles.css`). En celular la cabecera muestra el logo y el chip «Proyectos», sin el texto «Portal Empresarial» cortado.
+
+## Accesibilidad (QA fase 5)
+
+- **Ventanas (modales):** llevan `role="dialog"`, `aria-modal="true"` y `aria-labelledby` con su título. Al abrir, el foco entra a la ventana; el Tab no se escapa a la página de atrás (si estás en el último control, vuelve al primero); Esc la cierra y el foco regresa al botón que la abrió.
+- **Contraste:** el texto secundario del módulo usa `--color-text-muted: #5B6B80` (5.4:1 sobre blanco, 5.2:1 sobre el fondo general), en vez del gris del portal (#94A3B8, 2.5:1). Las etiquetas de estado (Activa, Inactiva, No contactar) usan texto más oscuro para pasar 4.5:1. El cambio vive en `styles.css` del módulo, no en `global.css`.
+
