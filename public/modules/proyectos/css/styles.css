@@ -10,7 +10,10 @@
   font-size: 20px;
   display: flex;
   align-items: center;
-  margin-right: 4px;
+  justify-content: center;
+  min-width: 40px; /* área táctil mínima: antes medía 20 x 20 */
+  min-height: 40px;
+  margin-right: 0;
   opacity: 0.85;
   transition: opacity var(--transition-fast);
 }
@@ -209,6 +212,9 @@
   margin-right: 4px;
   border-radius: var(--radius-sm);
   transition: background-color var(--transition-fast), color var(--transition-fast);
+  min-width: 40px;
+  min-height: 40px;
+  justify-content: center;
 }
 
 .sidebar-toggle-mobile:hover { background: var(--color-surface-muted); color: var(--color-primary); }
@@ -1190,3 +1196,9 @@ body { font-size: var(--text-sm); line-height: 1.45; }
 .plan-mes--pasado { opacity: .55; }
 /* El título de una pantalla que vive dentro de un contenedor sin separación no se pega a lo de abajo. */
 .pagina-cabecera:not(.panel-content > .pagina-cabecera) { margin-bottom: 16px; }
+
+/* Quien pide menos movimiento: sin transiciones ni avisos que se deslizan (los indicadores de carga se conservan: informan, no decoran). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  .toast, .modal-box, .sidebar-vales { animation: none !important; }
+}
