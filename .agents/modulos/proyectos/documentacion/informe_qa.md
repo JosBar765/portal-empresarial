@@ -19,9 +19,9 @@ Verificado también en **MariaDB 11.8** (49 migraciones y las 18 verificaciones 
 | | Total | Corregidos | Abiertos | Otros |
 |---|---|---|---|---|
 | **Alta** | 1 | 1 | 0 | |
-| **Media** | 7 | 6 | 1 | |
+| **Media** | 7 | 7 | 0 | |
 | **Baja** | 20 | 11 | 7 | 1 no reproducible, 1 informativo |
-| **Total** | **28** | **18** | **8** | **2** |
+| **Total** | **28** | **19** | **7** | **2** |
 
 - **Pruebas automáticas:** 18 scripts de verificación con unas 905 comprobaciones; pasan todas menos una (la prueba de avisos, que es frágil; ver E-05).
 - **Pruebas adicionales de este QA:** unos 400 casos por HTTP (integración, valores límite, entradas especiales, permisos, importación y exportación), 96 combinaciones de permisos, 12 afirmaciones de los manuales y 36 mediciones de rendimiento.
@@ -39,7 +39,7 @@ Severidad: Alta, Media o Baja. Estado: **Corregido**, **Abierto**, **No reproduc
 | E-01 | `npm audit` reportó 8 vulnerabilidades en dependencias de producción, una crítica (`proxy-addr`, suplantación de IP) y cuatro altas (`multer`, `sharp`, `body-parser`, `engine.io`). | Esperado: 0. Obtenido: 8. | Alta | **Corregido** | `npm audit fix` sin `--force`: 0 vulnerabilidades. Solo cambió el archivo de bloqueo. |
 | S-01 | La aplicación no enviaba política de seguridad de contenido (`helmet({ contentSecurityPolicy: false })`). | Esperado: cabecera CSP. Obtenido: ninguna. | Media | **Corregido** | Nueva política (`src/core/seguridad/csp.js`): scripts solo del sitio, de unpkg y los en línea existentes por hash; sin `unsafe-inline` ni `unsafe-eval` en scripts; `object-src none`. Verificada en login, dashboard, vales, administración y proyectos, con el importmap del despliegue simulado. |
 | S-02 | Tras cerrar sesión, el token anterior seguía siendo válido hasta que vencía (15 minutos). El token no se ligaba a la sesión activa. | Esperado: 401 tras el cierre de sesión. Obtenido: 200. | Media | **Corregido** | El access token solo vale si su `sid` coincide con `sesiones_activas` (cookie y Bearer); un token sin `sid` no se acepta. Tres comprobaciones nuevas, que fallan con el código anterior. |
-| E-02 | 22 consultas SQL directas en 7 servicios (`cierre`, `proyecto`, `importación`, `seguimiento`, `alcanceAdmin`, `gestión`, `rondas`). Rompe la regla «servicios sin SQL». | Esperado: todo el SQL en repositorios. | Media | Abierto | Mover las consultas a sus repositorios (refactor sin cambio de comportamiento). |
+| E-02 | 22 consultas SQL directas en 7 servicios (`cierre`, `proyecto`, `importación`, `seguimiento`, `alcanceAdmin`, `gestión`, `rondas`). Rompía la regla «servicios sin SQL». | Esperado: todo el SQL en repositorios. | Media | **Corregido** | Todo el SQL pasó a los repositorios (nuevo `operacionRepository` para claves de operación y bloqueos; `resolverVistoBueno`, `actualizarCodigo`, `registrarImportacion`, `bloquearParaCompletar`, `reemplazarExcepciones`). Sin cambio de comportamiento: las 18 verificaciones dan el mismo resultado. |
 | E-03 | El endpoint de CSRF devuelve un valor fijo y decorativo. El código lo documenta; la protección real es `SameSite=Strict`. | Sin riesgo directo. | Baja | Abierto | Retirarlo cuando el login deje de usarlo. |
 | E-04 | Un usuario con solo `proyectos.ver` puede listar la Cartera de su país. | A decidir con el dueño del producto. | Baja | Abierto | Confirmar si es lo deseado. |
 | E-05 | La prueba `verificar-avisos` espera 2 destinatarios para «proyecto vencido», pero el aviso llega a todos los supervisores que cubren una tienda del proyecto (13 en la base de prueba). | Esperado: 2. Obtenido: 13. Es la prueba la que depende de los datos. | Baja | Abierto | Ajustar la prueba para contar a los supervisores de las tiendas del proyecto. |
@@ -137,7 +137,6 @@ Se resumen por técnica. El detalle de cada caso queda en los scripts.
 
 ## 2. Mantenibilidad
 
-- **E-02:** mover el SQL de los servicios a repositorios.
 - **E-05:** arreglar la prueba de avisos.
 
 ## 3. Pequeños y de experiencia
