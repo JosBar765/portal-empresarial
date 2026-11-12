@@ -44,7 +44,7 @@ export function subtituloLiquidacion(solicitud, liq) {
   return t('gestiones.liq.subtitulo', { solicitante, pais });
 }
 
-// Filas del resumen de la confirmación de autorizar. La lista de Gestiones no trae la moneda, así que el total va sin símbolo;
+// Filas del resumen de la confirmación de autorizar: el total lleva el símbolo de la moneda de la solicitud;
 // un viaje de 1 día o menos no tiene importes y no muestra total.
 export function detallesAutorizar(solicitud) {
   const detalles = [
@@ -54,7 +54,7 @@ export function detallesAutorizar(solicitud) {
   ];
   const total = Number(solicitud.totalSolicitado);
   if (solicitud.modalidad === MODALIDADES.MAS_DE_UN_DIA && Number.isFinite(total) && total > 0) {
-    detalles.push({ etiqueta: t('gestiones.detalle.total'), valor: formatearDinero('', total), destacado: true });
+    detalles.push({ etiqueta: t('gestiones.detalle.total'), valor: formatearDinero(solicitud.moneda ? solicitud.moneda.simbolo : '', total), destacado: true });
   }
   return detalles;
 }

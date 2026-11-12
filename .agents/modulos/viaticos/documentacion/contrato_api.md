@@ -191,6 +191,7 @@ Las solicitudes de Gestiones son las de todas las personas y países (no se comp
 
 ### Lectura
 
+- Cada ítem de las listas (Solicitudes y Gestiones) incluye `moneda` `{ id, codigo, nombre, simbolo }`, o `null` en el viaje de 1 día o menos (no tiene importes), para mostrar `totalSolicitado` con su símbolo.
 - `GET /gestiones?desde=&hasta=&q=` (`gestionar`): mismos filtros que `GET /solicitudes` (`desde`/`hasta` sobre la fecha de creación, por defecto la semana actual de Guatemala; `q` hasta 50 caracteres). `q` busca por correlativo parcial, por nombre del solicitante (parcial) o por fecha de viáticos (`AAAA-MM-DD` o `DD/MM/AAAA`). Responde `{ desde, hasta, solicitudes }`; cada ítem trae lo de la lista de Solicitudes (`id`, `correlativo`, `fechaCreacion`, `modalidad`, `fechaSalida`, `fechaRegreso`, `totalSolicitado`, `pipeline`) más `solicitante { id, nombre }` y `pais { codigo, nombre }`.
 - Orden «según estados»: primero «Esperando autorización» (la más antigua primero, para atender en orden); luego vencida y rechazada, autorizada, en curso, terminada y liquidada (en cada grupo, la más reciente primero).
 - `pipeline.acciones` de Gestiones depende de los permisos de quien consulta (no son las del dueño: aquí no hay `modificar` ni `darDeBaja`): `ver` siempre; `autorizar` y `rechazar` con `viaticos.autorizar` y solo en «esperando autorización» sin vencer; `liquidar` (abrir la vista de solo lectura de contabilidad, ver «Liquidación (F3.6)») con `viaticos.liquidar` solo en viajes de más de 1 día con el viaje ya terminado o ya liquidados.

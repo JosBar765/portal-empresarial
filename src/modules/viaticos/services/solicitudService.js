@@ -87,6 +87,8 @@ function itemDeLista(fila, pipeline) {
     fechaSalida: fechaDeViaje(fila.fechaSalida, fila.modalidad),
     fechaRegreso: fila.fechaRegreso,
     totalSolicitado: fila.totalSolicitado,
+    // Sin moneda en el viaje de 1 día o menos (no tiene importes).
+    moneda: fila.monedaId ? { id: fila.monedaId, codigo: fila.monedaCodigo, nombre: fila.monedaNombre, simbolo: fila.monedaSimbolo } : null,
     pipeline
   };
 }
