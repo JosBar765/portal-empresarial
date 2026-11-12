@@ -60,7 +60,8 @@
         <h2>Inicia sesión</h2>
         <p class="form-subtitle">Ingresa tus credenciales para acceder al portal de herramientas</p>
 
-        <form id="login-form" novalidate>
+        <!-- method/action: si el script no llega a correr, el envío nativo va por POST (las credenciales nunca quedan en la URL) -->
+        <form id="login-form" method="post" action="/api/auth.php?action=login" novalidate>
           <div class="form-group">
             <label for="email">Correo electrónico</label>
             <div class="input-wrapper">
