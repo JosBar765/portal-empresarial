@@ -109,6 +109,7 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 - Don't use `database/migraciones/`.
 - Don't hardcode defaults for env variables.
 - Don't return raw `error.message` from MySQL/Storage.
+- Don't write inline handlers (`onclick="..."`) or load scripts/fonts/images from a new domain without adding it to `src/core/seguridad/csp.js`: the CSP blocks them (`.agents/reglas/reglas_autenticacion.md` §9).
 - Don't answer 401 for business errors: `public/js/sessionGuard.js` treats any 401 from `/api/` as an expired session. Use 403.
 - Don't register protected routes before `authenticateJWT`, or public ones after it.
 - Don't delete Storage files outside production.

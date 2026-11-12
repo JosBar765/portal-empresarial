@@ -96,6 +96,7 @@ Sesión = **access token corto** (cookie `token`) + **refresh token opaco y rota
 *   Presentar un refresh token ya rotado (fuera de esa ventana) = posible robo: se elimina la sesión completa.
 *   `POST /api/auth/refresh` fuerza una renovación (lo usa el evento de socket `permisos_actualizados`).
 *   La presencia por sockets (`conexiones_activas`) ya no borra la fila al llegar a 0: solo marca `sin_conexiones_desde`. Un login nuevo recibe 409 si la sesión tiene sockets o los perdió hace menos de 30 s; una sesión abandonada se reemplaza y su refresh deja de servir. Los reinicios del servidor conservan las sesiones vigentes.
+*   **El access token solo vale con su sesión viva.** `tokenService.autenticar` (cookie) y la cabecera Bearer exigen que el `sid` del token coincida con la fila de `sesiones_activas`: al cerrar sesión, iniciar otra, desactivar al usuario o activar el mantenimiento, el token anterior deja de servir en el acto (401), en vez de seguir vivo hasta vencer. Un token firmado sin `sid` no se acepta. Cuesta una consulta por llave primaria por petición. Pruebas: `scripts/security/pruebas-sesion.js` (9b).
 
 ### C. Controlador de Autenticación: [`src/core/auth/authController.js`]
 Gestiona la creación y destrucción de las cookies seguras:
@@ -135,3 +136,10 @@ Si como agente necesitas crear un nuevo módulo (ej. `inventario`):
    app.use('/api/inventario', requireAuth, require('./modules/inventario/routes'));
    ```
 4. **Agregar permisos a la semilla**: Añade los permisos correspondientes (ej. `inventario.ver`) en [`database/seed.sql`] y asígnalos a los roles autorizados.
+
+## 9. Política de seguridad de contenido (CSP)
+
+*   Vive en `src/core/seguridad/csp.js` y se aplica con Helmet en `src/app.js`. Scripts solo de este sitio, de `https://unpkg.com` (íconos) y los `<script>` en línea que ya están en los HTML, identificados por su **hash SHA-256** calculado al arrancar (con CRLF convertido en LF, como lo hace el navegador). Sin `unsafe-inline` ni `unsafe-eval` en scripts; sin `onclick=""` ni similares (`script-src-attr 'none'`); `object-src 'none'`; `frame-ancestors 'self'`.
+*   Imágenes, marcos y conexiones admiten el origen de `SUPABASE_URL` (archivos de los vales). Los estilos en línea (atributos `style`) están permitidos: no ejecutan código.
+*   **Al programar:** no escribas manejadores en línea (`onclick="..."`); usa `addEventListener`. Un `<script>` en línea nuevo en un HTML queda cubierto solo; un script, fuente, imagen o conexión a un dominio nuevo hay que agregarlo en `csp.js`.
+*   Prueba: `node scripts/security/pruebas-csp.js` (con `BASE_URL=...` también revisa la cabecera del servidor).

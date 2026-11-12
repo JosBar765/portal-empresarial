@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const config = require('./config/env');
+const csp = require('./core/seguridad/csp');
 const authRoutes = require('./core/auth/authRoutes');
 const tokenService = require('./core/auth/tokenService');
 const { authenticateJWT, requireAuth, requirePermission, requireModuleAccess } = require('./core/permissions/permissionMiddleware');
@@ -33,12 +34,14 @@ if (config.trustProxy > 0) {
   app.set('trust proxy', config.trustProxy);
 }
 
-// Cabeceras de seguridad HTTP (X-Frame-Options, X-Content-Type-Options,
-// etc.) — CSP desactivada por ahora: el frontend carga Ionicons y
-// Socket.IO client desde rutas propias/CDN sin una política ya definida
-// para ellas, y activar CSP con los defaults de Helmet sin esa revisión
-// aparte podría bloquearlos.
-app.use(helmet({ contentSecurityPolicy: false }));
+// Cabeceras de seguridad HTTP (X-Frame-Options, X-Content-Type-Options, etc.) y política de seguridad de contenido (src/core/seguridad/csp.js):
+// scripts solo de este sitio, del CDN de los íconos y los que ya están en los HTML (por hash); sin unsafe-inline ni unsafe-eval en scripts.
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: csp.directivas({ carpetaPublica: path.join(__dirname, '../public'), urlAlmacenamiento: config.supabase.url })
+  }
+}));
 
 // Middlewares para parsear cuerpos de solicitudes y cookies. Límite
 // explícito de tamaño de body (el default de Express ya es 100kb, esto
