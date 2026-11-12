@@ -162,6 +162,21 @@ class ProyectoRepository {
     return new Map(filas.map(f => [f.nicho_id, Number(f.n)]));
   }
 
+  async actualizarCodigo(tx, proyectoId, codigo) {
+    await tx.query('UPDATE proy_proyectos SET codigo = ? WHERE id = ?', [codigo, proyectoId], 'proyectos_proyecto:codigo');
+  }
+
+  // Resuelve el visto bueno del cierre (dar, devolver o reenviar) solo si sigue en el estado de partida; devuelve las filas cambiadas.
+  async resolverVistoBueno(tx, proyectoId, { desde, hacia, por = null, comentario = null, conclusiones }) {
+    const asignarConclusiones = conclusiones === undefined ? '' : ', conclusiones = ?';
+    const extra = conclusiones === undefined ? [] : [conclusiones];
+    const r = await tx.query(
+      `UPDATE proy_proyectos SET visto_bueno_estado = ?, visto_bueno_por = ?, visto_bueno_en = ?, visto_bueno_comentario = ?${asignarConclusiones}
+       WHERE id = ? AND estado = 'cerrado' AND visto_bueno_estado = ?`,
+      [hacia, por, por ? new Date() : null, comentario, ...extra, proyectoId, desde], 'proyectos_proyecto:visto_bueno');
+    return r.affectedRows;
+  }
+
   async insertarParticipaciones(tx, proyectoId, asignaciones, reserva) {
     const filas = [
       ...asignaciones.map(a => [proyectoId, a.clienteId, a.asesorId, a.tiendaId]),

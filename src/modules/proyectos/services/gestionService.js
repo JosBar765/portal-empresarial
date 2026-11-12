@@ -4,6 +4,7 @@
 // Una participación ajena responde 404, igual que una que no existe: nadie puede saber qué empresas tienen los demás.
 const db = require('../../../config/database');
 const repo = require('../repositories/participacionRepository');
+const operacionRepository = require('../repositories/operacionRepository');
 const proyectoRepository = require('../repositories/proyectoRepository');
 const configService = require('./configService');
 const avisosService = require('./avisosService');
@@ -201,7 +202,7 @@ class GestionService {
     if (!CLAVE.test(String(idempotencyKey || ''))) throw new ErrorDeNegocio('Falta la clave de la operación. Recarga la página e inténtalo de nuevo.', 400);
     const participacionId = aEntero(id) || 0;
     const llave = `proy-${prefijo}:${usuario.id}:${participacionId}:${idempotencyKey}`;
-    const ya = async () => (await db.query('SELECT 1 AS ya FROM idempotency_keys WHERE idempotency_key = ?', [llave], 'proyectos_gestion:clave'))[0];
+    const ya = () => operacionRepository.resultadoDe(llave);
     if (await ya()) return { ...(await this.ficha(usuario, participacionId)), repetida: true };
     try {
       await db.transaccion(async (tx) => {
@@ -212,7 +213,7 @@ class GestionService {
         if (bloqueada.estado === 'descartada') throw new ErrorDeNegocio('Esta empresa fue descartada del proyecto.', 409);
         const participacion = await repo.participacion(participacionId, usuario.id, tx);
         await fn({ tx, participacion, proyecto, bloqueada });
-        await tx.query('INSERT INTO idempotency_keys (idempotency_key, endpoint, resultado) VALUES (?, ?, ?)', [llave, `proyectos.${prefijo}`, JSON.stringify({ participacionId })], 'proyectos_gestion:clave_nueva');
+        await operacionRepository.registrar(tx, llave, `proyectos.${prefijo}`, { participacionId });
       });
     } catch (error) {
       if (await ya()) return { ...(await this.ficha(usuario, participacionId)), repetida: true };

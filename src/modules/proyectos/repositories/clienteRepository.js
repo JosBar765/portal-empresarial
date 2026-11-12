@@ -171,6 +171,18 @@ class ClienteRepository {
     const filas = await ejecutor.query('SELECT COUNT(*) AS n FROM proy_contactos WHERE cliente_id = ? AND activo = 1', [clienteId], 'proyectos_clientes:contar_contactos');
     return Number(filas[0].n);
   }
+
+  // Bloquea la empresa y devuelve los datos que la importación puede completar.
+  async bloquearParaCompletar(tx, clienteId) {
+    const filas = await tx.query('SELECT id, ciudad, direccion, sitio_web, telefono, datos_extra FROM proy_clientes WHERE id = ? FOR UPDATE', [clienteId], 'proyectos_importacion:existente');
+    return filas[0] || null;
+  }
+
+  async registrarImportacion(tx, d) {
+    await tx.query(
+      'INSERT INTO proy_importaciones (usuario_id, archivo, filas, creadas, actualizadas, duplicadas, con_error) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [d.usuarioId, d.archivo, d.filas, d.creadas, d.actualizadas, d.duplicadas, d.conError], 'proyectos_importacion:registrar');
+  }
 }
 
 module.exports = new ClienteRepository();

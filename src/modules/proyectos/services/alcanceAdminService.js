@@ -71,9 +71,7 @@ class AlcanceAdminService {
     const nombres = (ids) => ids.map(p => paises.find(x => x.id === p).nombre);
 
     await db.transaccion(async (tx) => {
-      await tx.query('DELETE FROM proy_usuario_paises WHERE usuario_id = ?', [persona.id], 'proyectos_alcance:borrar');
-      for (const paisId of agregar) await tx.query("INSERT INTO proy_usuario_paises (usuario_id, pais_id, accion, creado_por) VALUES (?, ?, 'agregar', ?)", [persona.id, paisId, adminId], 'proyectos_alcance:agregar');
-      for (const paisId of quitar) await tx.query("INSERT INTO proy_usuario_paises (usuario_id, pais_id, accion, creado_por) VALUES (?, ?, 'quitar', ?)", [persona.id, paisId, adminId], 'proyectos_alcance:quitar');
+      await alcanceRepository.reemplazarExcepciones(tx, persona.id, { agregar, quitar, creadoPor: adminId });
       const antes = { persona: persona.nombre, agregados: persona.agregados.map(p => p.nombre), quitados: persona.quitados.map(p => p.nombre) };
       const despues = { persona: persona.nombre, agregados: nombres(agregar), quitados: nombres(quitar) };
       if (JSON.stringify(antes) !== JSON.stringify(despues)) {

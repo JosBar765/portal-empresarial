@@ -5,6 +5,7 @@ const informeService = require('./informeService');
 const seguimientoService = require('./seguimientoService');
 const configService = require('./configService');
 const proyectoRepository = require('../repositories/proyectoRepository');
+const operacionRepository = require('../repositories/operacionRepository');
 const informeRepository = require('../repositories/informeRepository');
 const avisosService = require('./avisosService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
@@ -40,8 +41,8 @@ class CierreService {
 
     const resultado = await seguimientoService._unaVez(usuario, 'cerrar', proyecto.id, datos.idempotencyKey, async (tx) => {
       // Orden fijo de bloqueo: proyecto → participaciones. Con todo bloqueado no queda ningún registro a medias al congelar el informe.
-      await tx.query('SELECT id FROM proy_proyectos WHERE id = ? FOR UPDATE', [proyecto.id], 'proyectos_cierre:bloquear_proyecto');
-      await tx.query('SELECT id FROM proy_participaciones WHERE proyecto_id = ? ORDER BY id FOR UPDATE', [proyecto.id], 'proyectos_cierre:bloquear_participaciones');
+      await operacionRepository.bloquearProyecto(tx, proyecto.id);
+      await operacionRepository.bloquearParticipaciones(tx, proyecto.id);
       const informe = await informeService.calcular(proyecto.id);
       const cambiado = await proyectoRepository.cambiarEstado(tx, proyecto.id, ['activo'], 'cerrado', {
         cerrado_por: usuario.id, cerrado_en: new Date(), conclusiones, resumen_cierre: JSON.stringify(informe), visto_bueno_estado: conVistoBueno ? 'pendiente' : null
@@ -70,10 +71,8 @@ class CierreService {
     const comentario = limpio(datos.comentario);
     if (comentario.length > 500) throw errorDeValidacion('Revisa los datos.', { comentario: 'El comentario admite hasta 500 caracteres.' });
     const resultado = await seguimientoService._unaVez(usuario, 'visto-bueno', proyecto.id, datos.idempotencyKey, async (tx) => {
-      const cambiado = await tx.query(
-        "UPDATE proy_proyectos SET visto_bueno_estado = 'dado', visto_bueno_por = ?, visto_bueno_en = ?, visto_bueno_comentario = ? WHERE id = ? AND estado = 'cerrado' AND visto_bueno_estado = 'pendiente'",
-        [usuario.id, new Date(), comentario || null, proyecto.id], 'proyectos_cierre:visto_bueno');
-      if (cambiado.affectedRows !== 1) throw new ErrorDeNegocio('Este cierre ya no está esperando el visto bueno.', 409);
+      const cambiado = await proyectoRepository.resolverVistoBueno(tx, proyecto.id, { desde: 'pendiente', hacia: 'dado', por: usuario.id, comentario: comentario || null });
+      if (cambiado !== 1) throw new ErrorDeNegocio('Este cierre ya no está esperando el visto bueno.', 409);
       await proyectoRepository.registrarHistorial(tx, { proyectoId: proyecto.id, usuarioId: usuario.id, accion: 'visto_bueno', detalle: { comentario: comentario || null } });
       return { proyectoId: proyecto.id, vistoBueno: 'dado' };
     });
@@ -88,10 +87,8 @@ class CierreService {
     if (!comentario) throw errorDeValidacion('Revisa los datos.', { comentario: 'Escribe qué debe corregir el supervisor.' });
     if (comentario.length > 500) throw errorDeValidacion('Revisa los datos.', { comentario: 'El comentario admite hasta 500 caracteres.' });
     const resultado = await seguimientoService._unaVez(usuario, 'devolver', proyecto.id, datos.idempotencyKey, async (tx) => {
-      const cambiado = await tx.query(
-        "UPDATE proy_proyectos SET visto_bueno_estado = 'devuelto', visto_bueno_por = ?, visto_bueno_en = ?, visto_bueno_comentario = ? WHERE id = ? AND estado = 'cerrado' AND visto_bueno_estado = 'pendiente'",
-        [usuario.id, new Date(), comentario, proyecto.id], 'proyectos_cierre:devolver');
-      if (cambiado.affectedRows !== 1) throw new ErrorDeNegocio('Este cierre ya no está esperando el visto bueno.', 409);
+      const cambiado = await proyectoRepository.resolverVistoBueno(tx, proyecto.id, { desde: 'pendiente', hacia: 'devuelto', por: usuario.id, comentario });
+      if (cambiado !== 1) throw new ErrorDeNegocio('Este cierre ya no está esperando el visto bueno.', 409);
       await proyectoRepository.registrarHistorial(tx, { proyectoId: proyecto.id, usuarioId: usuario.id, accion: 'devolver', detalle: { comentario } });
       return { proyectoId: proyecto.id, vistoBueno: 'devuelto' };
     });
@@ -106,10 +103,8 @@ class CierreService {
     const conclusiones = datos.conclusiones === undefined ? proyecto.conclusiones : this._conclusiones(datos.conclusiones, campos);
     if (Object.keys(campos).length) throw errorDeValidacion('Revisa los datos.', campos);
     const resultado = await seguimientoService._unaVez(usuario, 'reenviar', proyecto.id, datos.idempotencyKey, async (tx) => {
-      const cambiado = await tx.query(
-        "UPDATE proy_proyectos SET visto_bueno_estado = 'pendiente', visto_bueno_por = NULL, visto_bueno_en = NULL, visto_bueno_comentario = NULL, conclusiones = ? WHERE id = ? AND estado = 'cerrado' AND visto_bueno_estado = 'devuelto'",
-        [conclusiones, proyecto.id], 'proyectos_cierre:reenviar');
-      if (cambiado.affectedRows !== 1) throw new ErrorDeNegocio('Este cierre ya no está devuelto.', 409);
+      const cambiado = await proyectoRepository.resolverVistoBueno(tx, proyecto.id, { desde: 'devuelto', hacia: 'pendiente', conclusiones });
+      if (cambiado !== 1) throw new ErrorDeNegocio('Este cierre ya no está devuelto.', 409);
       await proyectoRepository.registrarHistorial(tx, { proyectoId: proyecto.id, usuarioId: usuario.id, accion: 'reenviar', detalle: null });
       return { proyectoId: proyecto.id, vistoBueno: 'pendiente' };
     });

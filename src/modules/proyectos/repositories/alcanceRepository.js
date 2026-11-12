@@ -54,6 +54,13 @@ class AlcanceRepository {
     );
     return filas[0] ? filas[0].tienda_id : null;
   }
+
+  // Deja las excepciones de la persona exactamente como el administrador las eligió (reemplaza las anteriores).
+  async reemplazarExcepciones(tx, usuarioId, { agregar, quitar, creadoPor }) {
+    await tx.query('DELETE FROM proy_usuario_paises WHERE usuario_id = ?', [usuarioId], 'proyectos_alcance:borrar');
+    for (const paisId of agregar) await tx.query("INSERT INTO proy_usuario_paises (usuario_id, pais_id, accion, creado_por) VALUES (?, ?, 'agregar', ?)", [usuarioId, paisId, creadoPor], 'proyectos_alcance:agregar');
+    for (const paisId of quitar) await tx.query("INSERT INTO proy_usuario_paises (usuario_id, pais_id, accion, creado_por) VALUES (?, ?, 'quitar', ?)", [usuarioId, paisId, creadoPor], 'proyectos_alcance:quitar');
+  }
 }
 
 module.exports = new AlcanceRepository();

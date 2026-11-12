@@ -3,6 +3,7 @@
 // Ver no da poder de actuar: lo de otras tiendas sale enmascarado desde aquí (no basta con ocultarlo en pantalla).
 const db = require('../../../config/database');
 const repo = require('../repositories/seguimientoRepository');
+const operacionRepository = require('../repositories/operacionRepository');
 const participacionRepository = require('../repositories/participacionRepository');
 const proyectoRepository = require('../repositories/proyectoRepository');
 const configService = require('./configService');
@@ -170,18 +171,18 @@ class SeguimientoService {
   async _unaVez(usuario, prefijo, ambito, idempotencyKey, fn) {
     if (!CLAVE.test(String(idempotencyKey || ''))) throw new ErrorDeNegocio('Falta la clave de la operación. Recarga la página e inténtalo de nuevo.', 400);
     const llave = `proy-${prefijo}:${usuario.id}:${ambito}:${idempotencyKey}`;
-    const previa = async () => (await db.query('SELECT resultado FROM idempotency_keys WHERE idempotency_key = ?', [llave], 'proyectos_seguimiento:clave'))[0];
+    const previa = () => operacionRepository.resultadoDe(llave);
     const yaHecha = await previa();
-    if (yaHecha) return { ...objeto(yaHecha.resultado), repetida: true };
+    if (yaHecha) return { ...yaHecha, repetida: true };
     let resultado;
     try {
       await db.transaccion(async (tx) => {
         resultado = await fn(tx);
-        await tx.query('INSERT INTO idempotency_keys (idempotency_key, endpoint, resultado) VALUES (?, ?, ?)', [llave, `proyectos.${prefijo}`, JSON.stringify(resultado)], 'proyectos_seguimiento:clave_nueva');
+        await operacionRepository.registrar(tx, llave, `proyectos.${prefijo}`, resultado);
       });
     } catch (error) {
       const ganadora = await previa();
-      if (ganadora) return { ...objeto(ganadora.resultado), repetida: true };
+      if (ganadora) return { ...ganadora, repetida: true };
       throw error;
     }
     return { ...resultado, repetida: false };
@@ -266,7 +267,7 @@ class SeguimientoService {
     }
 
     const resultado = await this._unaVez(usuario, 'reasignar', proyecto.id, datos.idempotencyKey, async (tx) => {
-      await tx.query('SELECT id FROM proy_proyectos WHERE id = ? FOR UPDATE', [proyecto.id], 'proyectos_seguimiento:bloquear_proyecto');
+      await operacionRepository.bloquearProyecto(tx, proyecto.id);
       const { plan, porAsesor } = await this._planReasignacion(tx, proyecto, niveles, ids, destino, true);
       for (const a of plan) await repo.moverEmpresa(tx, a.participacionId, a.aAsesorId, a.aTiendaId);
       await repo.insertarReasignaciones(tx, plan.map(a => ({ participacionId: a.participacionId, deAsesorId: a.deAsesorId, aAsesorId: a.aAsesorId, motivo, porUsuarioId: usuario.id })));

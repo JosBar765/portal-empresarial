@@ -3,6 +3,7 @@
 // El reparto lo calcula `repartoService.js`; aquí solo se arman sus datos, se valida el alcance y se guarda el resultado.
 const db = require('../../../config/database');
 const proyectoRepository = require('../repositories/proyectoRepository');
+const operacionRepository = require('../repositories/operacionRepository');
 const catalogoRepository = require('../repositories/catalogoRepository');
 const configService = require('./configService');
 const avisosService = require('./avisosService');
@@ -370,7 +371,7 @@ class ProyectoService {
       const cambioDeCodigo = valores.nichoId !== actual.nichoId || valores.anio !== actual.anio || valores.mes !== actual.mes;
       const filas = await proyectoRepository.actualizar(tx, actual.id, valores);
       if (filas.affectedRows !== 1) throw new ErrorDeNegocio('Este proyecto ya no está en borrador.', 409);
-      if (cambioDeCodigo) await tx.query('UPDATE proy_proyectos SET codigo = ? WHERE id = ?', [await this._codigo(valores, tx), actual.id], 'proyectos_proyecto:codigo');
+      if (cambioDeCodigo) await proyectoRepository.actualizarCodigo(tx, actual.id, await this._codigo(valores, tx));
       await proyectoRepository.reemplazarTiendas(tx, actual.id, tiendaIds);
       await proyectoRepository.reemplazarParticipantes(tx, actual.id, await this._filasDeParticipantes(tiendaIds, excluidos, tx));
       await proyectoRepository.reemplazarEtapas(tx, actual.id, etapas);
@@ -442,8 +443,7 @@ class ProyectoService {
   async _activacion(usuario, id, { idempotencyKey, desde, prefijo, extra, accion }) {
     if (!/^[A-Za-z0-9_-]{8,64}$/.test(String(idempotencyKey || ''))) throw new ErrorDeNegocio('Falta la clave de la operación. Recarga la página e inténtalo de nuevo.', 400);
     const llave = `${prefijo}:${usuario.id}:${idempotencyKey}`;
-    const previo = await db.query('SELECT resultado FROM idempotency_keys WHERE idempotency_key = ?', [llave], 'proyectos_proyecto:clave_previa');
-    if (previo[0]) return { ...(await this.obtener(usuario, id)), repetida: true };
+    if (await operacionRepository.resultadoDe(llave)) return { ...(await this.obtener(usuario, id)), repetida: true };
 
     const proyecto = await this.obtener(usuario, id);
     if (proyecto.estado !== desde) throw new ErrorDeNegocio(desde === 'borrador' ? 'Este proyecto ya no está en borrador.' : 'Este proyecto ya no espera aprobación.', 409);
@@ -455,7 +455,7 @@ class ProyectoService {
       await db.transaccion(async (tx) => {
         // Orden fijo de bloqueo: proyecto → tiendas → empresas → participaciones.
         const bloqueado = await proyectoRepository.obtener(proyecto.id, null, tx);
-        await tx.query('SELECT id FROM proy_proyectos WHERE id = ? FOR UPDATE', [proyecto.id], 'proyectos_proyecto:bloquear');
+        await operacionRepository.bloquearProyecto(tx, proyecto.id);
         const cambiado = await proyectoRepository.cambiarEstado(tx, proyecto.id, [desde], 'activo', { ...extra, activado_por: usuario.id, activado_en: new Date(), config_snapshot: JSON.stringify(foto) });
         if (cambiado !== 1) throw new ErrorDeNegocio(desde === 'borrador' ? 'Este proyecto ya no está en borrador.' : 'Este proyecto ya no espera aprobación.', 409);
         await proyectoRepository.abrirTiendas(tx, proyecto.id);
@@ -466,12 +466,11 @@ class ProyectoService {
           detalle: { asignadas: resultado.asignaciones.length, reserva: resultado.reserva.length, sinAsesor: resultado.sinAsesor.length }
         });
         // La clave se guarda en la misma transacción: dos activaciones a la vez con la misma clave dejan un solo ganador.
-        await tx.query('INSERT INTO idempotency_keys (idempotency_key, endpoint, resultado) VALUES (?, ?, ?)', [llave, `proyectos.${accion}`, JSON.stringify({ proyectoId: proyecto.id })], 'proyectos_proyecto:clave');
+        await operacionRepository.registrar(tx, llave, `proyectos.${accion}`, { proyectoId: proyecto.id });
       });
     } catch (error) {
       // Otra petición con esta misma clave ya activó el proyecto mientras esta esperaba: se devuelve su resultado.
-      const ganada = await db.query('SELECT 1 AS ya FROM idempotency_keys WHERE idempotency_key = ?', [llave], 'proyectos_proyecto:clave_ganadora');
-      if (ganada[0]) return { ...(await this.obtener(usuario, id)), repetida: true };
+      if (await operacionRepository.resultadoDe(llave)) return { ...(await this.obtener(usuario, id)), repetida: true };
       if (esDuplicado(error, 'uq_proy_tienda_abierta')) {
         const { tiendas } = await proyectoRepository.conflictosDeActivacion(proyecto.id);
         const t = tiendas[0];

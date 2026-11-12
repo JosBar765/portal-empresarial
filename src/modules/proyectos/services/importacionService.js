@@ -3,6 +3,7 @@
 // archivo completo y lo revalidan todo, así que la confirmación nunca confía en lo que mostró la vista previa.
 const db = require('../../../config/database');
 const clienteRepository = require('../repositories/clienteRepository');
+const operacionRepository = require('../repositories/operacionRepository');
 const clienteService = require('./clienteService');
 const configService = require('./configService');
 const campoService = require('./campoService');
@@ -189,8 +190,8 @@ class ImportacionService {
     if (!['omitir', 'actualizar'].includes(duplicadas)) throw new ErrorDeNegocio('Elige qué hacer con las empresas duplicadas.', 400);
     const llave = `proy-import:${usuario.id}:${idempotencyKey}`;
 
-    const previo = await db.query('SELECT resultado FROM idempotency_keys WHERE idempotency_key = ?', [llave], 'proyectos_importacion:previo');
-    if (previo[0]) return { ...(typeof previo[0].resultado === 'string' ? JSON.parse(previo[0].resultado) : previo[0].resultado), repetida: true };
+    const previo = await operacionRepository.resultadoDe(llave);
+    if (previo) return { ...previo, repetida: true };
 
     const analisis = await this._analizar(usuario, archivo);
     const tiendaOrigenId = await alcanceService.tiendaDe(usuario.id);
@@ -215,19 +216,16 @@ class ImportacionService {
           errores: analisis.filas.filter(f => f.estado === 'error').slice(0, MAX_ERRORES_VISIBLES).map(({ valido, ...f }) => f)
         };
         const archivoNombre = String(archivo.originalname || 'importacion.csv').replace(/[<>"'&]/g, '').slice(0, 255);
-        await tx.query(
-          'INSERT INTO proy_importaciones (usuario_id, archivo, filas, creadas, actualizadas, duplicadas, con_error) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [usuario.id, archivoNombre, resumen.total, creadas, actualizadas, resumen.duplicadas, resumen.conError], 'proyectos_importacion:registrar'
-        );
+        await clienteRepository.registrarImportacion(tx, { usuarioId: usuario.id, archivo: archivoNombre, filas: resumen.total, creadas, actualizadas, duplicadas: resumen.duplicadas, conError: resumen.conError });
         // La clave se guarda dentro de la misma transacción: dos confirmaciones a la vez (incluso en procesos distintos)
         // no pueden crear dos veces, porque la segunda choca con la clave primaria y se deshace.
-        await tx.query('INSERT INTO idempotency_keys (idempotency_key, endpoint, resultado) VALUES (?, ?, ?)', [llave, 'proyectos.importar', JSON.stringify(resultado)], 'proyectos_importacion:clave');
+        await operacionRepository.registrar(tx, llave, 'proyectos.importar', resultado);
         return resultado;
       });
     } catch (error) {
       if (error && error.code === 'ER_DUP_ENTRY') {
-        const ganadora = await db.query('SELECT resultado FROM idempotency_keys WHERE idempotency_key = ?', [llave], 'proyectos_importacion:ganadora');
-        if (ganadora[0]) return { ...(typeof ganadora[0].resultado === 'string' ? JSON.parse(ganadora[0].resultado) : ganadora[0].resultado), repetida: true };
+        const ganadora = await operacionRepository.resultadoDe(llave);
+        if (ganadora) return { ...ganadora, repetida: true };
       }
       throw error;
     }
@@ -235,7 +233,7 @@ class ImportacionService {
 
   // Completa una empresa que ya existía con lo que el archivo trae, sin pisar nada y sin guardar vacíos.
   async _completar(tx, usuario, fila) {
-    const existente = (await tx.query('SELECT id, ciudad, direccion, sitio_web, telefono, datos_extra FROM proy_clientes WHERE id = ? FOR UPDATE', [fila.duplicadaDe.id], 'proyectos_importacion:existente'))[0];
+    const existente = await clienteRepository.bloquearParaCompletar(tx, fila.duplicadaDe.id);
     if (!existente) return false;
     const { valores, contacto } = fila.valido;
     const cambios = {};

@@ -6,6 +6,7 @@ const db = require('../../../config/database');
 const metasRepository = require('../repositories/metasRepository');
 const seguimientoRepository = require('../repositories/seguimientoRepository');
 const proyectoRepository = require('../repositories/proyectoRepository');
+const operacionRepository = require('../repositories/operacionRepository');
 const configService = require('./configService');
 const seguimientoService = require('./seguimientoService');
 const reparto = require('../repartoService');
@@ -80,7 +81,7 @@ class RondasService {
     }
 
     const resultado = await seguimientoService._unaVez(usuario, 'repartir-reserva', proyecto.id, datos.idempotencyKey, async (tx) => {
-      await tx.query('SELECT id FROM proy_proyectos WHERE id = ? FOR UPDATE', [proyecto.id], 'proyectos_rondas:bloquear_proyecto');
+      await operacionRepository.bloquearProyecto(tx, proyecto.id);
       const { asignaciones, porAsesor, enReservaDespues } = await this._plan(tx, proyecto, niveles, tanda, true);
       let movidas = 0;
       for (const a of asignaciones) movidas += await metasRepository.entregar(tx, a.clienteId, a.asesorId, a.tiendaId, usuario.id);
