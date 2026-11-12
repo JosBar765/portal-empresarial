@@ -1,0 +1,903 @@
+/* public/modules/viaticos/css/styles.css */
+@import url('/css/dashboard.css');
+
+.header-back {
+  color: var(--color-text-secondary);
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  margin-right: 4px;
+  opacity: 0.85;
+  transition: opacity var(--transition-fast);
+}
+
+.header-back:hover {
+  opacity: 1;
+  color: var(--color-primary);
+}
+
+/* Cascarón del contenido: va a la derecha del sidebar fijo (--sidebar-offset lo fija sidebar.js). */
+.app-shell {
+  min-height: calc(100vh - var(--header-height));
+  display: flex;
+  flex-direction: column;
+  margin-left: var(--sidebar-offset, 0px);
+  transition: margin-left var(--transition-normal);
+}
+
+.app-layout {
+  padding: 0 24px;
+}
+
+.main-container {
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 48px 0;
+  /* Sin el transform final de la entrada: si queda, el botón fijo de móvil deja de fijarse a la pantalla. */
+  animation-fill-mode: backwards;
+}
+
+/* Sidebar: anclado al borde izquierdo, debajo del navbar; colapsable en escritorio y cajón en móvil. */
+.sidebar-vales {
+  position: fixed;
+  top: var(--header-height);
+  left: 0;
+  /* `dvh` mide el área visible real en móvil; el `vh` anterior es el respaldo de navegadores sin soporte. */
+  height: calc(100vh - var(--header-height));
+  height: calc(100dvh - var(--header-height));
+  width: 224px;
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  padding: 20px 14px;
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  transition: width var(--transition-normal);
+}
+
+.sidebar-vales.colapsado {
+  width: 68px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: transparent;
+  color: var(--sidebar-text-muted);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.sidebar-item ion-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.sidebar-item:hover {
+  background: var(--sidebar-hover-bg);
+  color: var(--sidebar-text);
+}
+
+.sidebar-item-active,
+.sidebar-item-active:hover {
+  background: var(--color-primary);
+  color: var(--color-surface);
+}
+
+.sidebar-collapse-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  border-top: 1px solid var(--sidebar-border);
+  background: var(--sidebar-bg-footer);
+  border-radius: var(--radius-sm);
+  color: var(--sidebar-text-muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 12px;
+  margin-top: auto;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.sidebar-collapse-toggle:hover {
+  background: var(--sidebar-hover-bg);
+  color: var(--sidebar-text);
+}
+
+.sidebar-collapse-toggle ion-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.sidebar-vales.colapsado .sidebar-collapse-toggle ion-icon {
+  transform: rotate(180deg);
+}
+
+/* Con el sidebar colapsado solo quedan los iconos centrados. */
+.sidebar-vales.colapsado .sidebar-item,
+.sidebar-vales.colapsado .sidebar-collapse-toggle {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.sidebar-vales.colapsado .sidebar-item span,
+.sidebar-vales.colapsado .sidebar-collapse-toggle span {
+  display: none;
+}
+
+.sidebar-toggle-mobile {
+  display: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 22px;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px;
+  margin-right: 4px;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.sidebar-toggle-mobile:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-primary);
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .app-layout {
+    padding: 0 16px;
+  }
+
+  /* En móvil el sidebar deja de empujar el contenido y se vuelve un cajón por encima de todo. */
+  .app-shell {
+    margin-left: 0;
+  }
+
+  .sidebar-vales {
+    width: 260px;
+    max-width: 80vw;
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal);
+  }
+
+  .sidebar-vales.abierto-movil {
+    transform: translateX(0);
+  }
+
+  /* El colapso de escritorio no aplica dentro del cajón móvil. */
+  .sidebar-vales.colapsado {
+    width: 260px;
+    max-width: 80vw;
+  }
+
+  .sidebar-vales.colapsado .sidebar-item,
+  .sidebar-vales.colapsado .sidebar-collapse-toggle {
+    justify-content: flex-start;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .sidebar-vales.colapsado .sidebar-item span,
+  .sidebar-vales.colapsado .sidebar-collapse-toggle span {
+    display: inline;
+  }
+
+  .sidebar-collapse-toggle {
+    display: none;
+  }
+
+  .sidebar-toggle-mobile {
+    display: inline-flex;
+  }
+
+  /* El fondo oscuro empieza debajo del navbar, como el propio sidebar. */
+  .sidebar-backdrop.visible {
+    display: block;
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    height: calc(100vh - var(--header-height));
+    height: calc(100dvh - var(--header-height));
+    background: rgba(15, 23, 42, .45);
+    z-index: 90;
+    animation: fadeIn var(--transition-normal);
+  }
+}
+
+/* ------------------------------------------------------------------------
+   Panel, estados vacíos y barra de título
+   ------------------------------------------------------------------------ */
+.panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.panel-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.panel-toolbar h2 {
+  font-family: var(--font-title);
+  font-size: 20px;
+  color: var(--color-text);
+}
+
+/* Estado vacío, de carga o de error: ícono, título y descripción. */
+.buzon-vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 40px 0;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.buzon-vacio ion-icon {
+  font-size: 32px;
+  margin-bottom: 6px;
+}
+
+.buzon-vacio h3 {
+  font-family: var(--font-title);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.buzon-vacio p {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  max-width: 360px;
+}
+
+.buzon-vacio .btn {
+  margin-top: 8px;
+}
+
+.buzon-vacio-error ion-icon,
+.buzon-vacio-error h3 {
+  color: var(--color-danger);
+}
+
+/* Subpestañas horizontales (base de las de Configuración). */
+.vi-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  /* La pestaña llevada a la vista no queda bajo el desvanecido. */
+  scroll-padding-inline: 2.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Pista de que hay más pestañas a la derecha: la máscara solo usa transparencia, no color. */
+.vi-tabs.is-mas-derecha {
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent);
+  mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent);
+}
+
+.vi-tab {
+  flex-shrink: 0;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.vi-tab:hover {
+  color: var(--color-text);
+}
+
+.vi-tab.is-activo {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* ------------------------------------------------------------------------
+   Sección con tabla: tarjeta con cabecera (título y filtros) y la tabla
+   ------------------------------------------------------------------------ */
+.vi-seccion {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.vi-seccion-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.vi-seccion-cabecera h2 {
+  font-family: var(--font-title);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.vi-filtros {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vi-filtros input,
+.vi-filtros select {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.vi-filtros input:hover,
+.vi-filtros select:hover {
+  border-color: var(--color-text-muted);
+}
+
+.vi-filtros input:focus,
+.vi-filtros select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
+/* ------------------------------------------------------------------------
+   Tabla (extiende .data-table de global.css)
+   ------------------------------------------------------------------------ */
+.tabla-wrapper {
+  overflow-x: auto;
+  /* Barras más visibles que las finas del sistema: son el medio principal para recorrer una tabla ancha. */
+  scrollbar-width: auto;
+  scrollbar-color: var(--color-text-muted) var(--color-surface-muted);
+}
+
+.tabla-wrapper::-webkit-scrollbar { width: 12px; height: 12px; }
+.tabla-wrapper::-webkit-scrollbar-track { background: var(--color-surface-muted); border-radius: var(--radius-full); }
+.tabla-wrapper::-webkit-scrollbar-thumb { background-color: var(--color-text-muted); border: 2px solid var(--color-surface-muted); border-radius: var(--radius-full); }
+.tabla-wrapper::-webkit-scrollbar-thumb:hover { background-color: var(--color-text-secondary); }
+
+/* Se recorre con el teclado (flechas, Inicio/Fin, Re Pág): foco visible. */
+.tabla-wrapper:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+
+.buzon-table th,
+.buzon-table td {
+  white-space: nowrap;
+}
+
+/* Primera y última columna fijas: en anchos intermedios la tabla se desplaza y Acciones debe seguir a la vista. */
+.buzon-table th:first-child,
+.buzon-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--color-surface);
+  box-shadow: 1px 0 0 var(--color-border);
+}
+
+.buzon-table th:last-child,
+.buzon-table td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--color-surface);
+  box-shadow: -1px 0 0 var(--color-border);
+}
+
+/* Las celdas de encabezado fijas van sobre las demás; el selector repite `.sticky-header` para ganar en especificidad a global.css. */
+.buzon-table.sticky-header th:first-child,
+.buzon-table.sticky-header th:last-child {
+  background: var(--color-bg);
+  z-index: 2;
+}
+
+.tabla-vacia {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 40px 0 !important;
+  white-space: normal !important;
+}
+
+.tabla-vacia .buzon-vacio {
+  padding: 0;
+}
+
+.acciones-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 108px; /* 3 íconos de 32px + 2 gaps de 6px */
+}
+
+.btn-icon {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-primary);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.btn-icon:hover {
+  background: var(--color-primary);
+  color: var(--color-surface);
+  border-color: var(--color-primary);
+}
+
+.btn-icon.icon-danger {
+  color: var(--color-danger);
+}
+
+.btn-icon.icon-danger:hover {
+  background: var(--color-danger);
+  color: var(--color-surface);
+  border-color: var(--color-danger);
+}
+
+.btn-icon.icon-success {
+  color: var(--color-success);
+}
+
+.btn-icon.icon-success:hover {
+  background: var(--color-success);
+  color: var(--color-surface);
+  border-color: var(--color-success);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-atraso {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.badge-hoy {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.badge-ok {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+
+/* ------------------------------------------------------------------------
+   Formularios (modales y paneles)
+   ------------------------------------------------------------------------ */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.form-grid .full {
+  grid-column: 1 / -1;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.form-field input:hover,
+.form-field select:hover {
+  border-color: var(--color-text-muted);
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.form-field textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Desplegables: la flecha nativa varía entre navegadores; esta se dibuja con el color de un token. */
+.form-field select,
+.vi-filtros select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 32px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-text-secondary) 50%),
+    linear-gradient(135deg, var(--color-text-secondary) 50%, transparent 50%);
+  background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+/* Validación inline: borde rojo en el campo y el mensaje debajo (lo pinta components/validacion.js). */
+.form-field.is-invalid input,
+.form-field.is-invalid select,
+.form-field.is-invalid textarea {
+  border-color: var(--color-danger);
+}
+
+.form-field.is-invalid input:focus,
+.form-field.is-invalid select:focus,
+.form-field.is-invalid textarea:focus {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px rgba(var(--color-danger-rgb), 0.12);
+}
+
+@keyframes fieldErrorIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+
+.field-error {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-danger);
+  animation: fieldErrorIn 0.15s var(--ease-out) both;
+}
+
+.field-error ion-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.form-error {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.form-error p {
+  margin: 0;
+}
+
+.form-error p + p {
+  margin-top: 4px;
+}
+
+.form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-checkbox label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* ------------------------------------------------------------------------
+   Responsive
+   ------------------------------------------------------------------------ */
+@media (max-width: 560px) {
+  .panel-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .panel-toolbar .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vi-seccion {
+    padding: 14px;
+  }
+
+  .vi-seccion-cabecera {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vi-filtros {
+    flex-direction: column;
+  }
+
+  .vi-filtros input,
+  .vi-filtros select {
+    width: 100%;
+  }
+
+  /* Tabla -> lista de tarjetas: el encabezado queda solo para lectores de pantalla y cada celda
+     se etiqueta con su columna vía `data-label`. */
+  .tabla-wrapper {
+    overflow-x: visible;
+  }
+
+  .buzon-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .buzon-table,
+  .buzon-table tbody,
+  .buzon-table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .buzon-table tbody tr {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    margin-bottom: 12px;
+    padding: 4px 14px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .buzon-table tbody tr:hover td {
+    background: transparent;
+  }
+
+  .buzon-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-border);
+    white-space: normal;
+    text-align: right;
+  }
+
+  .buzon-table td:last-child {
+    border-bottom: none;
+  }
+
+  .buzon-table td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--color-text-secondary);
+    text-align: left;
+    flex-shrink: 0;
+  }
+
+  .buzon-table td.acciones-cell {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  /* En tarjeta ya no hace falta forzar 3 íconos por fila: el ancho fijo de escritorio no aplica. */
+  .buzon-table .acciones-wrap {
+    width: auto;
+    justify-content: flex-end;
+  }
+
+  .buzon-table td.acciones-cell::before {
+    content: none;
+  }
+
+  .buzon-table td.tabla-vacia {
+    display: block;
+    text-align: center;
+  }
+
+  .buzon-table td.tabla-vacia::before {
+    content: none;
+  }
+
+  /* El modo tarjeta no se desplaza en horizontal: se anulan las columnas fijas y su sombra. */
+  .buzon-table th:first-child,
+  .buzon-table td:first-child,
+  .buzon-table th:last-child,
+  .buzon-table td:last-child {
+    position: static;
+    box-shadow: none;
+  }
+}
+
+/* Celulares (≤640 px): objetivos táctiles de 44 px; escritorio y tablet no cambian. */
+@media (max-width: 640px) {
+  .header-back, .sidebar-toggle-mobile, .notif-bell {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    align-items: center;
+    margin-right: 0;
+  }
+  .sidebar-item { min-height: 44px; }
+  .btn-icon { width: 44px; height: 44px; }
+  .btn, .btn--sm { min-height: 44px; }
+  .vi-tab { min-height: 44px; }
+  .vi-filtros input, .vi-filtros select { min-height: 44px; }
+  .buzon-table .acciones-wrap { gap: 8px; }
+  .notif-badge { font-size: 11px; }
+}
+
+@media (max-width: 640px) and (orientation: landscape) {
+  .app-header { padding-top: 6px; padding-bottom: 6px; }
+}
+
+/* ------------------------------------------------------------------------
+   Layout fijo de las vistas con tabla (desde 901 px): la página no se desplaza y solo la tabla
+   hace scroll dentro de su zona. Una vista lo activa con la clase `vista-tabla-fija` en el body;
+   las pantallas angostas conservan el scroll normal de la página.
+   ------------------------------------------------------------------------ */
+@media (min-width: 901px) {
+  /* Una sola separación para todo el layout fijo; en monitores muy altos se agranda. */
+  body.vista-tabla-fija { --sep-buzon: 16px; }
+
+  body.vista-tabla-fija {
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body.vista-tabla-fija .app-header { flex: none; }
+
+  body.vista-tabla-fija .app-shell {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  body.vista-tabla-fija .app-layout {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0 var(--sep-buzon);
+  }
+
+  body.vista-tabla-fija .main-container {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: var(--sep-buzon) 0;
+  }
+
+  body.vista-tabla-fija .panel-content {
+    flex: 1;
+    min-height: 0;
+    gap: var(--sep-buzon);
+  }
+
+  body.vista-tabla-fija .panel-toolbar { flex: none; }
+
+  body.vista-tabla-fija .vi-seccion {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: calc(var(--sep-buzon) - 8px) var(--sep-buzon) var(--sep-buzon);
+  }
+
+  body.vista-tabla-fija .vi-seccion-cabecera {
+    flex: none;
+    margin-bottom: calc(var(--sep-buzon) - 8px);
+  }
+
+  body.vista-tabla-fija .vi-seccion-cabecera h2 { line-height: 1.25; margin: 0; }
+
+  body.vista-tabla-fija .vi-filtros input,
+  body.vista-tabla-fija .vi-filtros select { padding-top: 6px; padding-bottom: 6px; }
+
+  body.vista-tabla-fija .tabla-wrapper {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  @media (min-height: 1000px) { body.vista-tabla-fija { --sep-buzon: 24px; } }
+
+  /* Poco alto (laptops 1366×768 o menos): filas más bajas para darle más espacio a la tabla. */
+  @media (max-height: 800px) {
+    body.vista-tabla-fija .buzon-table th { padding-top: 8px; padding-bottom: 8px; }
+    body.vista-tabla-fija .buzon-table td { padding-top: 8px; padding-bottom: 8px; }
+  }
+
+  /* Pie de una sola línea: no le quita alto a la tabla. */
+  body.vista-tabla-fija .app-footer { flex: none; padding: 6px 24px; }
+}
+
+/* Navbar más bajo en pantallas anchas; --header-height lo usa el menú lateral para arrancar justo debajo. */
+@media (min-width: 901px) {
+  :root { --header-height: 70px; }
+  .app-header { padding-top: 10px; padding-bottom: 10px; }
+}
