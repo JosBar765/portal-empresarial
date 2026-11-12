@@ -12,7 +12,7 @@ Todo se ejecutó en un ambiente local de desarrollo: una base de datos desechabl
 
 **El módulo está en buen estado y listo para pasar a staging.** El recorrido completo de un proyecto (configurar, crear, aprobar, repartir, gestionar, vender, confirmar, reasignar, cerrar y dar el visto bueno) funciona. No quedan hallazgos críticos ni altos, y los de seguridad de severidad media están corregidos.
 
-Antes de producción conviene repetir la verificación en **MariaDB 11.8** y en **staging** (cookies `Secure`, HTTPS y la política de seguridad de contenido con el despliegue real), que no se pudieron probar aquí.
+Verificado también en **MariaDB 11.8** (49 migraciones y las 18 verificaciones pasan). Antes de producción queda repetir la prueba en **staging** (cookies `Secure`, HTTPS y la política de seguridad de contenido con el despliegue real), que no se pudo hacer aquí.
 
 ## Cifras
 
@@ -131,7 +131,7 @@ Se resumen por técnica. El detalle de cada caso queda en los scripts.
 
 ## 1. Antes de producción
 
-- Repetir las 18 verificaciones en **MariaDB 11.8**.
+- ~~Repetir las 18 verificaciones en MariaDB 11.8~~: hecho, pasan todas (ver «No probado»).
 - Probar en **staging**: cookies `Secure`, HTTPS y la política de seguridad de contenido con el despliegue real (el importmap se inyecta al instalar; aquí se simuló y funcionó).
 - Asignar los permisos `proyectos.*` en la pantalla Roles de staging y producción (tarea del dueño del portal).
 
@@ -159,7 +159,7 @@ Se resumen por técnica. El detalle de cada caso queda en los scripts.
 
 # 7. Qué no se pudo probar
 
-- **MariaDB 11.8:** todo se ejecutó en MySQL 8.4.
+- **MariaDB 11.8:** se ejecutaron después en MariaDB 11.8.9: 49 migraciones aplicadas, las 18 verificaciones (905 comprobaciones) y las pruebas de integración y de límites pasan, sin diferencias de comportamiento. Los 4 casos de límites que «fallan» son los mismos supuestos del arnés que en MySQL (no del producto). Falta solo probar contra la base real de staging.
 - **Navegadores distintos al usado**, lector de pantalla y navegación completa solo con teclado.
 - **Staging y producción:** cookies `Secure`, HTTPS, acciones críticas (borrado en almacenamiento, correos) y envío real de mensajes de WhatsApp o correo.
 - **Un CSV de exactamente 5 MB válido:** se confirmó el rechazo por encima del límite, pero no la aceptación en el límite exacto.
