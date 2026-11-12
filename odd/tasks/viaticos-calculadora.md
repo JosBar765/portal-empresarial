@@ -62,7 +62,7 @@ Módulo nuevo para solicitar, autorizar y liquidar viáticos (viajes de 1 día o
   - [ ] F4.5 Gestiones: lista, autorizar, rechazar y liquidación de contabilidad (solo lectura)
   - [ ] F4.6 Configuración: las 11 subpestañas de catálogos
   - [ ] F4.7 Verificación en el navegador (escritorio y celular) y revisión final
-- [ ] F5 Documentación del módulo (`.agents/modulos/viaticos/README.md`, `documentacion/`, fila en `CLAUDE.md` §9) y verificación
+- [~] F5 (README del módulo, fila en CLAUDE.md §9 y rol Piloto en la documentación de roles: hecho 2026-11-12; falta la revisión final de la documentación contra el código al cerrar F4) Documentación del módulo (`.agents/modulos/viaticos/README.md`, `documentacion/`, fila en `CLAUDE.md` §9) y verificación
 
 ## Reglas
 `.agents/reglas/reglas_modulo.md`, `reglas_disenoUI.md` (mockup primero), `reglas_archivosSQL.md`, `reglas_entornos.md` (borrado en Storage solo en producción). Conventional Commits en español, sin atribución de IA.

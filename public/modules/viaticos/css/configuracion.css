@@ -1,0 +1,82 @@
+/* Pestaña «Configuración»: subpestañas, listas de catálogos, tramos y matriz de valores de comidas. Solo variables de global.css. Prefijo `vi-`. */
+
+/* ---------- Tira de subpestañas: en escritorio se parte en líneas; en celular se desliza ---------- */
+.vi-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.vi-subtab {
+  flex: none;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.vi-subtab:hover { color: var(--color-text); }
+.vi-subtab:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.vi-subtab.is-activa { background: var(--color-primary-dark); color: var(--color-surface); }
+
+/* ---------- Tarjeta de una subpestaña ---------- */
+.vi-config-panel { display: flex; flex-direction: column; min-width: 0; }
+/* Sin min-width la tabla ancha ensancha la tarjeta en vez de desplazarse dentro de su zona. */
+.vi-config-seccion { min-width: 0; }
+.vi-config-titulos { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.vi-config-subtitulo { margin: 0; font-size: var(--text-xs); color: var(--color-text-muted); }
+.vi-config-herramientas { align-items: center; }
+.vi-config-agregar { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.vi-config-nota { margin-bottom: 16px; }
+
+/* ---------- Estado y filas inactivas ---------- */
+.vi-estado { font-size: var(--text-xs); font-weight: 700; color: var(--color-text); }
+.vi-estado--inactivo { color: var(--color-text-muted); }
+.vi-config-tabla tr.is-inactiva td { color: var(--color-text-muted); }
+
+/* ---------- Modal de alta y edición ---------- */
+.vi-modal-config { max-width: 640px; }
+.vi-config-form .form-hint { margin: 0; }
+.vi-config-form input:disabled { background: var(--color-surface-muted); color: var(--color-text-secondary); cursor: not-allowed; }
+
+/* ---------- Matriz de valores de comidas ---------- */
+.vi-matriz .vi-celda-valor { max-width: 150px; }
+.vi-matriz .vi-celda-valor input { width: 100%; }
+.vi-config-leyenda { margin: 12px 0 0; font-size: var(--text-xs); color: var(--color-text-secondary); }
+.vi-config-pie { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+/* ---------- Celulares: tira deslizable, tarjetas y objetivos de 44 px ---------- */
+@media (max-width: 640px) {
+  .vi-subtabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    /* La subpestaña llevada a la vista no queda bajo el desvanecido. */
+    scroll-padding-inline: 2.5rem;
+  }
+
+  .vi-subtabs.is-mas-derecha {
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent);
+    mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent);
+  }
+
+  .vi-subtab { min-height: 44px; }
+  .vi-config-agregar { width: 100%; min-height: 44px; }
+  .vi-config-form input, .vi-config-form select { min-height: 44px; }
+  .vi-matriz .vi-celda-valor { max-width: none; width: 55%; }
+  .vi-matriz .vi-celda-valor input { min-height: 44px; }
+  .vi-config-pie { flex-direction: column-reverse; }
+  .vi-config-pie .btn { width: 100%; }
+  .buzon-table td.vi-acciones-vacia { display: none; }
+}
