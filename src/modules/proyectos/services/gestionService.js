@@ -13,6 +13,7 @@ const { aEntero } = require('../../../core/utils/validar');
 const { enlaceDeLugar, enlaceDeRuta, MAX_PARADAS } = require('../mapas');
 const metasCalculoService = require('./metasCalculoService');
 const { errorDeValidacion } = require('../errores');
+const { esFechaReal } = require('../fechas');
 
 const MONTO_MAXIMO = 9999999999.99;
 const CLAVE = /^[A-Za-z0-9_-]{8,64}$/;
@@ -247,7 +248,7 @@ class GestionService {
     let proximaEn = null;
     if (datos.proximaEn !== null && datos.proximaEn !== undefined && datos.proximaEn !== '') {
       const m = FECHA_HORA.exec(limpio(datos.proximaEn));
-      if (!m || Number.isNaN(Date.parse(`${m[1]}T${m[2] || '00:00'}:00Z`))) campos.proximaEn = 'Escribe una fecha válida para el seguimiento.';
+      if (!m || !esFechaReal(m[1]) || Number.isNaN(Date.parse(`${m[1]}T${m[2] || '00:00'}:00Z`))) campos.proximaEn = 'Escribe una fecha válida para el seguimiento.';
       else if (m[1] < hoyGT()) campos.proximaEn = 'El seguimiento no puede ser en una fecha pasada.';
       else proximaEn = `${m[1]} ${m[2] || '09:00'}:00`;
     }

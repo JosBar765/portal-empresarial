@@ -132,6 +132,10 @@ async function verificarServicio() {
     prueba('una tienda que no supervisa no se puede incluir', r.status === 400 && /supervisas/.test(r.datos.campos.tiendaIds), JSON.stringify(r.datos));
     r = await llamar('POST', '/proyectos', { cuerpo: borrador({ fechaInicio: '2026-11-20', fechaFin: '2026-11-02' }) });
     prueba('una fecha de fin anterior a la de inicio → 400', r.status === 400 && !!r.datos.campos.fechaFin);
+    for (const [campo, valor] of [['fechaInicio', '2026-02-31'], ['fechaFin', '2027-02-29']]) {
+      r = await llamar('POST', '/proyectos', { cuerpo: borrador({ [campo]: valor }) });
+      prueba(`una fecha que no existe en el calendario (${valor}) → 400, no 500`, r.status === 400 && !!r.datos.campos[campo], JSON.stringify(r.datos));
+    }
     r = await llamar('POST', '/proyectos', { cuerpo: borrador({ metaMonto: 5000 }) });
     prueba('una meta sin moneda → 400', r.status === 400 && !!r.datos.campos.metaMoneda);
     r = await llamar('POST', '/proyectos', { cuerpo: borrador() });

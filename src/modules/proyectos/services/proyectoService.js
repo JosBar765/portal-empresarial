@@ -14,11 +14,11 @@ const reparto = require('../repartoService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero } = require('../../../core/utils/validar');
 const { errorDeValidacion } = require('../errores');
+const { esFechaReal } = require('../fechas');
 const { definicion } = require('../catalogos');
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_ETAPAS = 12;
 
 const tiene = (usuario, permiso) => (usuario.permissions || []).includes(permiso);
@@ -73,7 +73,7 @@ const esDuplicado = (error, indice) => Boolean(error) && error.code === 'ER_DUP_
 function fechaOpcional(valor, campo, campos) {
   const f = limpio(valor);
   if (!f) return null;
-  if (!FECHA.test(f) || Number.isNaN(Date.parse(f))) { campos[campo] = 'Escribe la fecha como AAAA-MM-DD.'; return null; }
+  if (!esFechaReal(f)) { campos[campo] = 'Escribe la fecha como AAAA-MM-DD.'; return null; }
   return f;
 }
 
@@ -289,7 +289,7 @@ class ProyectoService {
     fijar('tope', [['topePorAsesor', plantilla.topePorAsesor]]);
     if (!Array.isArray(datos.etapas) || !datos.etapas.length) salida.etapas = plantilla.etapas.map(e => ({ nombre: e.nombre, descripcion: e.descripcion }));
     const inicio = limpio(salida.fechaInicio);
-    if (FECHA.test(inicio) && !Number.isNaN(Date.parse(inicio))) {
+    if (esFechaReal(inicio)) {
       const calendario = calendarioDeEtapas(inicio, plantilla.etapas);
       const bloqueadas = plantilla.controles.fechas_etapas === 'bloqueado' || datos.recalcularEtapas === true;
       salida.etapas = salida.etapas.map((e, i) => ({

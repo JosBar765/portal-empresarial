@@ -7,13 +7,13 @@ const catalogoService = require('./catalogoService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero } = require('../../../core/utils/validar');
 const { errorDeValidacion } = require('../errores');
+const { esFechaReal } = require('../fechas');
 const P = require('../parametros');
 const { definicion: catalogo } = require('../catalogos');
 const { EVENTOS: EVENTOS_AVISO } = require('../eventos');
 
 const POR_PAGINA = 20;
 const AREAS = ['parametros', 'reglas', 'catalogos', 'paises', 'campos', 'alcance', 'plantillas', 'avisos', 'kits', 'plan'];
-const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
 const ETIQUETAS_PAIS = {
   monedaCodigo: 'Moneda', prefijoTelefono: 'Prefijo', formatoTelefono: 'Formato de teléfono',
@@ -135,7 +135,7 @@ function describirFila(fila, nombresPais) {
 
 function fechaValida(valor, campo) {
   if (valor === undefined || valor === null || valor === '') return null;
-  if (!FECHA.test(valor) || Number.isNaN(Date.parse(valor))) throw errorDeValidacion('Revisa los filtros.', { [campo]: 'Escribe la fecha como AAAA-MM-DD.' });
+  if (!esFechaReal(valor)) throw errorDeValidacion('Revisa los filtros.', { [campo]: 'Escribe la fecha como AAAA-MM-DD.' });
   return valor;
 }
 
