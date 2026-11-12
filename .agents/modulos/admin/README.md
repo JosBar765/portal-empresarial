@@ -43,6 +43,7 @@ Gestión de usuarios, roles, permisos, talleres y tiendas del portal, más herra
 - 8: Gerente.
 - 9: Encargado de Protextil.
 - 10: Encargado de Diseño Local.
+- Piloto: lo crea la migración de viáticos (`viaticos_semilla`), sin id fijo y con solo `viaticos.ver`; no necesita tabla de perfil ni tienda.
 - Los asistentes heredan el rol de su encargado (`roles.hereda_de_rol_id`): ver [`documentacion/asistentes_por_taller.md`](documentacion/asistentes_por_taller.md).
 
 ## Documentos del módulo (`documentacion/`)
