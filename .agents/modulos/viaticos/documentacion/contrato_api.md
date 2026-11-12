@@ -42,7 +42,7 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | `PUT /config/<recurso>/:id` | configurar | Edita |
 | `PATCH /config/<recurso>/:id/activo` | configurar | Activa o desactiva |
 
-Recursos de `/config`: `paises` (solo lectura), `monedas`, `valores-comida` (matriz moneda × comida, `PUT` completo), `ubicaciones`, `tramos`, `motivos`, `tipos-gasto`, `tipos-defecto`, `tipos-licencia`, `tipos-placa`, `reglas-licencia`, `vehiculos`, `personas` (lista de usuarios con licencia y países; `PUT /config/personas/:usuarioId`) y `ajustes` (`GET` y `PUT /config/ajustes/:clave`). Fluidos, niveles, kit, combustibles, estados y salvedades no se editan desde la interfaz.
+Recursos de `/config`: `paises` y `combustibles` (solo lectura; este último lo necesita el formulario de vehículos), `monedas`, `valores-comida` (matriz moneda × comida, `PUT` completo), `ubicaciones`, `tramos`, `motivos`, `tipos-gasto`, `tipos-defecto`, `tipos-licencia`, `tipos-placa`, `reglas-licencia`, `vehiculos`, `personas` (lista de usuarios con licencia y países; `PUT /config/personas/:usuarioId`) y `ajustes` (`GET` y `PUT /config/ajustes/:clave`). Fluidos, niveles, kit, combustibles, estados y salvedades no se editan desde la interfaz.
 
 ## Ajustes de implementación de `/config` (F3.2)
 

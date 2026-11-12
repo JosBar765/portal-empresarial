@@ -8,6 +8,10 @@ class ReferenciaRepository {
     return filasACamel(await db.query('SELECT id, codigo, nombre FROM paises ORDER BY nombre', [], 'viaticos:listarPaises'));
   }
 
+  async listarCombustibles() {
+    return filasACamel(await db.query('SELECT id, nombre FROM viaticos_combustibles ORDER BY id', [], 'viaticos:listarCombustibles'));
+  }
+
   async paisExiste(id, ejecutor = db) {
     const filas = await ejecutor.query('SELECT id FROM paises WHERE id = ?', [id], 'viaticos:paisExiste');
     return filas.length > 0;

@@ -59,6 +59,8 @@ function registrarCrud(recurso, servicio) {
 }
 
 config.get(`/${RECURSOS.PAISES}`, configController.listarPaises);
+// Combustibles: catálogo del sistema de solo lectura (lo necesita el formulario de vehículos).
+config.get(`/${RECURSOS.COMBUSTIBLES}`, configController.listarCombustibles);
 
 Object.entries(catalogoService.servicios).forEach(([recurso, servicio]) => registrarCrud(recurso, servicio));
 registrarCrud(RECURSOS.TRAMOS, tramoService);

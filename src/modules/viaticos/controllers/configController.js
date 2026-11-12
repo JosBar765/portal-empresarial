@@ -19,6 +19,7 @@ function claveDeRegla(params) {
 
 module.exports = {
   listarPaises: manejar(() => referencias.listarPaises()),
+  listarCombustibles: manejar(() => referencias.listarCombustibles()),
 
   obtenerValoresComida: manejar(() => valorComidaService.obtener()),
   guardarValoresComida: manejar(req => valorComidaService.guardar(req.body)),

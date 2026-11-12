@@ -27,6 +27,7 @@ const MODALIDADES = Object.freeze({
 // Recursos de /config (el segmento de la URL).
 const RECURSOS = Object.freeze({
   PAISES: 'paises',
+  COMBUSTIBLES: 'combustibles',
   MONEDAS: 'monedas',
   VALORES_COMIDA: 'valores-comida',
   UBICACIONES: 'ubicaciones',
