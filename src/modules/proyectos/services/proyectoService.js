@@ -160,7 +160,7 @@ class ProyectoService {
     const resumen = fila.estado === 'borrador' || fila.estado === 'pendiente_aprobacion' ? [] : await proyectoRepository.resumenReparto(fila.id);
     return {
       ...this._aItem({ ...marcado, tiendas: tiendas.length, asesores: participantes.filter(p => p.estado === 'activo').length, empresas: resumen.reduce((s, r) => s + Number(r.empresas), 0) }),
-      articuloId: fila.articulo_id, articulo: fila.articulo, existenciaMuestras: fila.existencia_muestras, plantillaId: fila.plantilla_id,
+      articuloId: fila.articulo_id, articulo: fila.articulo, existenciaMuestras: fila.existencia_muestras, plantillaId: fila.plantilla_id, plantillaNombre: fila.plantilla_nombre || null,
       metaMonto: fila.meta_monto === null ? null : Number(fila.meta_monto), metaMoneda: fila.meta_moneda, topePorAsesor: fila.tope_por_asesor,
       activadoEn: fila.activado_en, aprobacionPedidaEn: fila.aprobacion_pedida_en, aprobacionPedidaPor: fila.aprobacion_pedida_por_nombre, aprobadaEn: fila.aprobada_en, aprobacionComentario: fila.aprobacion_comentario,
       fotoConfiguracion: fila.config_snapshot ? { plantilla: fila.config_snapshot.plantilla ? fila.config_snapshot.plantilla.nombre : null, creadaEn: fila.config_snapshot.creadaEn } : null,

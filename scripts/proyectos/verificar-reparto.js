@@ -142,6 +142,8 @@ async function verificarServicio() {
     const p1 = r.datos;
     prueba('crea el borrador con su código, nombre, tienda y todos los asesores como participantes',
       r.status === 201 && p1.estado === 'borrador' && /^PRY-2026-11-BAN/.test(p1.codigo) && /Bancos/.test(p1.nombre) && p1.tiendas.length === 1 && p1.participantes.length === 6 && p1.participantes.every(x => x.estado === 'activo'), JSON.stringify(r.datos));
+    r = await llamar('GET', `/proyectos/${p1.id}`, {});
+    prueba('antes de activar, la ficha del borrador ya trae el nombre de su plantilla (no solo el id)', r.status === 200 && (r.datos.plantillaId === null || (typeof r.datos.plantillaNombre === 'string' && r.datos.plantillaNombre.length > 0)), JSON.stringify({ id: r.datos.plantillaId, nombre: r.datos.plantillaNombre }));
     r = await llamar('POST', '/proyectos', { cuerpo: borrador({ tiendaIds: [T2] }) });
     prueba('un segundo proyecto del mismo nicho y mes recibe otro código', r.status === 201 && r.datos.codigo !== p1.codigo, JSON.stringify(r.datos));
     const p2Id = r.datos.id;

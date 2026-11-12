@@ -79,7 +79,8 @@ export async function renderAsistente(cont, id) {
 
   // En el primer guardado solo se mandan los datos del paso 1: lo demás lo completa la plantilla en el servidor.
   function envio({ recalcular = false } = {}) {
-    if (!e.id) return { nichoId: e.nichoId, anio: e.anio, mes: e.mes, plantillaId: e.plantillaId, fechaInicio: primerDiaHabil(e.anio, e.mes) };
+    // El artículo que sugiere el plan viaja en el primer guardado: si no, al volver del servidor el borrador lo traía vacío y se perdía.
+    if (!e.id) return { nichoId: e.nichoId, anio: e.anio, mes: e.mes, plantillaId: e.plantillaId, articuloId: e.articuloId === '' ? null : e.articuloId, fechaInicio: primerDiaHabil(e.anio, e.mes) };
     const vacioANulo = (v) => (v === '' ? null : v);
     return {
       nichoId: e.nichoId, anio: e.anio, mes: e.mes, tiendaIds: e.tiendaIds, excluidos: [...e.excluidos].map(([usuarioId, motivo]) => ({ usuarioId, motivo })),
