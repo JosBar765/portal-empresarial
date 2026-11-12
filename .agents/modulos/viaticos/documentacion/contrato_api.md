@@ -11,7 +11,7 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 - Vehículo propio: solo el del solicitante; con depreciación. Vehículo de la empresa: sin depreciación (`depreciacion_por_km` NULL). Viaje corto: solo vehículos de la empresa.
 - Correlativo `VIA-<código país>-<n de 6 dígitos>`: `viaticos_secuencias` incrementada dentro de la transacción con `FOR UPDATE`.
 - «En curso», «Terminado» y «Vencida» se calculan con las fechas y la hora de Guatemala (`calendarioLaboral.ahoraUTC6`). `modificar` y `dar de baja` solo en esperando autorización, rechazada o vencida; modificar regenera el PDF y vuelve a esperando autorización. Autorizar solo si está esperando autorización y no está vencida.
-- Liquidar: solo más de 1 día, autorizada y terminado el viaje; cada rubro admite como máximo los comprobantes solicitados (noches de hotel, combustible, y cada gasto por tipo); comidas y depreciación no se liquidan; «Liquidar» solo cuando no falta ningún comprobante (decisión a confirmar con el dueño; ver «Liquidación (F3.6)»).
+- Liquidar: solo más de 1 día, autorizada y terminado el viaje; cada rubro admite como máximo los comprobantes solicitados (noches de hotel, combustible, y cada gasto por tipo); comidas y depreciación no se liquidan; «Liquidar» lo marca el solicitante cuando quiere, aunque falten comprobantes (decisión del dueño; ver «Liquidación (F3.6)»).
 - Borrar archivos en Storage solo en producción (`supabaseStorage.eliminar`). Creación y subidas aceptan `idempotencyKey`.
 - Notificaciones (`modulo = 'viaticos'`, `vale_id` NULL, el correlativo va en el mensaje): al crear o modificar, a los usuarios con `viaticos.autorizar`; al autorizar o rechazar, al solicitante; al liquidar, a los usuarios con `viaticos.liquidar`. Tiempo real: eventos por `sendToUsers` y la sala `viaticos:gestion` (validada con `viaticos.gestionar`).
 
@@ -222,7 +222,7 @@ Los endpoints del solicitante (`/solicitudes/:id/…`) son solo del propio usuar
 
 `resumen = { solicitadoALiquidar, liquidado, faltaPorLiquidar }`: solicitado = hospedaje + combustible + otros gastos de la solicitud; liquidado = suma de los montos de los comprobantes; `faltaPorLiquidar` = max(0, solicitado − liquidado). Además `pendientes` (un renglón por rubro, completo o no) `{ tipoGastoId, nombre, esOtros, solicitados, liquidados }` y `faltanComprobantes` (suma de lo que falta de cada rubro). Los montos son informativos: contabilidad hace el cálculo definitivo fuera del sistema.
 
-**Decisión de diseño, a confirmar con el dueño:** «Liquidar» se habilita cuando no falta ningún comprobante (todos los rubros completos), no cuando el monto liquidado es exactamente igual al solicitado, porque los montos reales casi nunca coinciden con lo solicitado.
+**Decisión del dueño:** «Liquidar» lo marca el solicitante cuando quiere, aunque falten comprobantes: exigir todos los comprobantes (o un monto exacto) es una limitación demasiado estricta. Lo que sí se mantiene es el tope por rubro (no se pueden cargar más comprobantes de los solicitados). Lo que falte solo se informa (`avisoFaltantes`); contabilidad ve los comprobantes cargados y hace el cálculo definitivo fuera del sistema.
 
 ### `GET /solicitudes/:id/liquidacion`
 
@@ -235,12 +235,13 @@ Los endpoints del solicitante (`/solicitudes/:id/…`) son solo del propio usuar
   "faltanComprobantes": 6,
   "comprobantes": [ { "id": 5, "tipoGastoId": 1, "rubro": "Hospedaje", "descripcion": null, "monto": 301, "nombreArchivo": "hotel.png", "tipoArchivo": "image/png", "tamano": 1024, "url": "https://…/VIA-GT-000123_LIQUIDACION_HOSPEDAJE_1.png", "subidoEn": "2026-11-12 09:30:00" } ],
   "editable": true,
-  "puedeLiquidar": false,
-  "motivoNoPuedeLiquidar": "Aún faltan comprobantes para liquidar la solicitud VIA-GT-000123 (Hospedaje: faltan 2 de 3; …). Agrega un comprobante por cada uno y vuelve a liquidar."
+  "puedeLiquidar": true,
+  "motivoNoPuedeLiquidar": null,
+  "avisoFaltantes": "Aún faltan comprobantes de la solicitud VIA-GT-000123 (Hospedaje: faltan 2 de 3; …). Puedes liquidarla igual; contabilidad verá los que hayas cargado."
 }
 ```
 
-- `editable`: se pueden agregar y quitar comprobantes (autorizada con el viaje terminado). `puedeLiquidar`: `editable` y sin comprobantes faltantes; si es `false`, `motivoNoPuedeLiquidar` dice por qué (el viaje aún no termina, faltan comprobantes, ya está liquidada…); si es `true`, es `null`.
+- `editable`: se pueden agregar y quitar comprobantes (autorizada con el viaje terminado). `puedeLiquidar`: igual a `editable` (los comprobantes que falten no lo impiden); si es `false`, `motivoNoPuedeLiquidar` dice por qué (el viaje aún no termina, ya está liquidada…); si es `true`, es `null`. `avisoFaltantes` es un texto informativo (o `null` si no falta ninguno) para que la interfaz advierta antes de confirmar.
 - 403 explicativo si la solicitud es ajena, de 1 día o menos o no está autorizada ni liquidada; 404 si no existe. Con el viaje aún en curso responde 200 con `puedeLiquidar: false`.
 
 ### `POST /solicitudes/:id/comprobantes`
@@ -261,8 +262,8 @@ Los endpoints del solicitante (`/solicitudes/:id/…`) son solo del propio usuar
 
 ### `POST /solicitudes/:id/liquidar`
 
-- Una transacción con la fila bloqueada (`SELECT … FOR UPDATE`, con el estado en una subconsulta, no en un JOIN): vuelve a comprobar estado, fin del viaje y que no falte ningún comprobante; pasa a «liquidada» e inserta el renglón de `viaticos_historial` (usuario = solicitante, sin motivo). Responde 200 con el detalle de la solicitud (como `GET /solicitudes/:id`).
-- 403 explicativo si falta algún comprobante (nombra los rubros y cuántos faltan), si el viaje aún no termina o si ya está liquidada. Una segunda liquidación o un doble clic no se aplica dos veces.
+- Una transacción con la fila bloqueada (`SELECT … FOR UPDATE`, con el estado en una subconsulta, no en un JOIN): vuelve a comprobar estado y fin del viaje (no exige todos los comprobantes); pasa a «liquidada» e inserta el renglón de `viaticos_historial` (usuario = solicitante, sin motivo). Responde 200 con el detalle de la solicitud (como `GET /solicitudes/:id`).
+- 403 explicativo si el viaje aún no termina o si ya está liquidada. Una segunda liquidación o un doble clic no se aplica dos veces.
 - Después del commit (un fallo se registra y no deshace la liquidación): notificación `modulo = 'viaticos'`, `tipo` `solicitud_liquidada`, `nivel` `info`, sin `vale_id`, a los usuarios activos con `viaticos.liquidar` (sin el rol Administrador) con el correlativo y el solicitante en el mensaje, y evento `viaticos_actualizada` (`accion` `liquidada`) a la sala `viaticos:gestion` y al solicitante.
 
 ### `GET /gestiones/:id/liquidacion` (`viaticos.liquidar`)

@@ -158,7 +158,7 @@ const CATALOGO = Object.freeze({
   'liquidacion.viajeNoTermina': 'La solicitud {correlativo} aún no se puede liquidar: el viaje termina el {fecha} y se liquida a partir del día siguiente.',
   'liquidacion.yaLiquidada': 'La solicitud {correlativo} ya fue liquidada: no se pueden agregar ni quitar comprobantes ni liquidarla de nuevo.',
   'liquidacion.faltaRubro': '{nombre}: faltan {faltan} de {solicitados}',
-  'liquidacion.faltan': 'Aún faltan comprobantes para liquidar la solicitud {correlativo} ({detalle}). Agrega un comprobante por cada uno y vuelve a liquidar.',
+  'liquidacion.faltan': 'Aún faltan comprobantes de la solicitud {correlativo} ({detalle}). Puedes liquidarla igual; contabilidad verá los que hayas cargado.',
   'liquidacion.archivoFalta': 'Adjunta el archivo del comprobante (imagen o PDF) en el campo «archivo».',
   'liquidacion.sinRubros': 'ninguno, la solicitud no tiene gastos por liquidar',
   'liquidacion.rubroNoSolicitado': 'El tipo de gasto elegido no forma parte de lo que solicitaste en este viaje. Solo puedes liquidar: {rubros}.',

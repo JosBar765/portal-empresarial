@@ -88,7 +88,7 @@ class LiquidacionService {
     if (!esLargo(fila) || (fila.estado !== ESTADOS.AUTORIZADA && fila.estado !== ESTADOS.LIQUIDADA)) throw prohibido(motivoSinCambios(fila, pipeline));
     const calculo = await this.calcular(fila, ejecutor);
     const bloqueo = motivoNoLiquidable(fila, pipeline);
-    const faltan = calculo.faltanComprobantes > 0 ? msg('liquidacion.faltan', { correlativo: fila.correlativo, detalle: detalleFaltante(calculo.pendientes) }) : null;
+    const avisoFaltantes = calculo.faltanComprobantes > 0 ? msg('liquidacion.faltan', { correlativo: fila.correlativo, detalle: detalleFaltante(calculo.pendientes) }) : null;
     return {
       solicitudId: fila.id,
       correlativo: fila.correlativo,
@@ -99,8 +99,9 @@ class LiquidacionService {
       faltanComprobantes: calculo.faltanComprobantes,
       comprobantes: calculo.comprobantes.map(comprobanteDeVista),
       editable: bloqueo === null,
-      puedeLiquidar: bloqueo === null && faltan === null,
-      motivoNoPuedeLiquidar: bloqueo || faltan
+      puedeLiquidar: bloqueo === null,
+      motivoNoPuedeLiquidar: bloqueo,
+      avisoFaltantes
     };
   }
 
@@ -214,7 +215,7 @@ class LiquidacionService {
     return this.obtener(usuario, propia.id, externo);
   }
 
-  // Liquida en una transacción con la fila bloqueada: se vuelve a comprobar estado, fin del viaje y comprobantes completos.
+  // Liquida en una transacción con la fila bloqueada: se vuelve a comprobar estado y fin del viaje. No exige todos los comprobantes: el solicitante decide cuándo marcarla.
   // `externo` (solo pruebas): ejecutor de una transacción ya abierta; sin commit propio ni efectos posteriores.
   async liquidar(usuario, idCrudo, { externo } = {}) {
     const propia = await solicitudService.obtenerPropia(usuario, idCrudo, externo);
@@ -223,10 +224,6 @@ class LiquidacionService {
       const fila = await solicitudService.leerEncabezado(propia.id, tx);
       const bloqueo = motivoNoLiquidable(fila, pipelineDe(fila));
       if (bloqueo) throw prohibido(bloqueo);
-      const calculo = await this.calcular(fila, tx);
-      if (calculo.faltanComprobantes > 0) {
-        throw prohibido(msg('liquidacion.faltan', { correlativo: fila.correlativo, detalle: detalleFaltante(calculo.pendientes) }));
-      }
       const estadoId = await escrituraRepo.estadoId(ESTADOS.LIQUIDADA, tx);
       await escrituraRepo.actualizarEstado(propia.id, estadoId, tx);
       await escrituraRepo.insertarHistorial(propia.id, estadoId, usuario.id, null, tx);
