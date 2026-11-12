@@ -10,18 +10,18 @@ Todo se ejecutó en un ambiente local de desarrollo: una base de datos desechabl
 
 ## Veredicto
 
-**El módulo está en buen estado y casi listo para producción.** El recorrido completo de un proyecto (configurar, crear, aprobar, repartir, gestionar, vender, confirmar, reasignar, cerrar y dar el visto bueno) funciona. No quedan hallazgos críticos ni altos abiertos.
+**El módulo está en buen estado y listo para pasar a staging.** El recorrido completo de un proyecto (configurar, crear, aprobar, repartir, gestionar, vender, confirmar, reasignar, cerrar y dar el visto bueno) funciona. No quedan hallazgos críticos ni altos, y los de seguridad de severidad media están corregidos.
 
-Antes de salir a producción conviene resolver **dos decisiones de seguridad** (la política de seguridad de contenido y la invalidación del token al cerrar sesión) y repetir la verificación en **MariaDB 11.8** y en **staging** (cookies seguras y HTTPS), que no se pudieron probar aquí.
+Antes de producción conviene repetir la verificación en **MariaDB 11.8** y en **staging** (cookies `Secure`, HTTPS y la política de seguridad de contenido con el despliegue real), que no se pudieron probar aquí.
 
 ## Cifras
 
 | | Total | Corregidos | Abiertos | Otros |
 |---|---|---|---|---|
 | **Alta** | 1 | 1 | 0 | |
-| **Media** | 7 | 4 | 3 | |
+| **Media** | 7 | 6 | 1 | |
 | **Baja** | 20 | 11 | 7 | 1 no reproducible, 1 informativo |
-| **Total** | **28** | **16** | **10** | **2** |
+| **Total** | **28** | **18** | **8** | **2** |
 
 - **Pruebas automáticas:** 18 scripts de verificación con unas 905 comprobaciones; pasan todas menos una (la prueba de avisos, que es frágil; ver E-05).
 - **Pruebas adicionales de este QA:** unos 400 casos por HTTP (integración, valores límite, entradas especiales, permisos, importación y exportación), 96 combinaciones de permisos, 12 afirmaciones de los manuales y 36 mediciones de rendimiento.
@@ -37,8 +37,8 @@ Severidad: Alta, Media o Baja. Estado: **Corregido**, **Abierto**, **No reproduc
 | ID | Hallazgo y cómo se encontró | Esperado y obtenido | Sev. | Estado | Recomendación |
 |---|---|---|---|---|---|
 | E-01 | `npm audit` reportó 8 vulnerabilidades en dependencias de producción, una crítica (`proxy-addr`, suplantación de IP) y cuatro altas (`multer`, `sharp`, `body-parser`, `engine.io`). | Esperado: 0. Obtenido: 8. | Alta | **Corregido** | `npm audit fix` sin `--force`: 0 vulnerabilidades. Solo cambió el archivo de bloqueo. |
-| S-01 | La aplicación no envía política de seguridad de contenido (`helmet({ contentSecurityPolicy: false })`). | Esperado: cabecera CSP. Obtenido: ninguna. | Media | Abierto | Definir una CSP que permita los scripts de unpkg (íconos). Requiere probar todos los módulos. |
-| S-02 | Tras cerrar sesión, el token anterior sigue siendo válido hasta que vence (15 minutos). El token no se liga a la sesión activa. | Esperado: 401 tras el cierre de sesión. Obtenido: 200. | Media | Abierto | Validar el identificador del token contra `sesiones_activas`, o documentar el riesgo aceptado. |
+| S-01 | La aplicación no enviaba política de seguridad de contenido (`helmet({ contentSecurityPolicy: false })`). | Esperado: cabecera CSP. Obtenido: ninguna. | Media | **Corregido** | Nueva política (`src/core/seguridad/csp.js`): scripts solo del sitio, de unpkg y los en línea existentes por hash; sin `unsafe-inline` ni `unsafe-eval` en scripts; `object-src none`. Verificada en login, dashboard, vales, administración y proyectos, con el importmap del despliegue simulado. |
+| S-02 | Tras cerrar sesión, el token anterior seguía siendo válido hasta que vencía (15 minutos). El token no se ligaba a la sesión activa. | Esperado: 401 tras el cierre de sesión. Obtenido: 200. | Media | **Corregido** | El access token solo vale si su `sid` coincide con `sesiones_activas` (cookie y Bearer); un token sin `sid` no se acepta. Tres comprobaciones nuevas, que fallan con el código anterior. |
 | E-02 | 22 consultas SQL directas en 7 servicios (`cierre`, `proyecto`, `importación`, `seguimiento`, `alcanceAdmin`, `gestión`, `rondas`). Rompe la regla «servicios sin SQL». | Esperado: todo el SQL en repositorios. | Media | Abierto | Mover las consultas a sus repositorios (refactor sin cambio de comportamiento). |
 | E-03 | El endpoint de CSRF devuelve un valor fijo y decorativo. El código lo documenta; la protección real es `SameSite=Strict`. | Sin riesgo directo. | Baja | Abierto | Retirarlo cuando el login deje de usarlo. |
 | E-04 | Un usuario con solo `proyectos.ver` puede listar la Cartera de su país. | A decidir con el dueño del producto. | Baja | Abierto | Confirmar si es lo deseado. |
@@ -101,7 +101,8 @@ Se resumen por técnica. El detalle de cada caso queda en los scripts.
 | Entradas especiales | Vacíos, espacios, ñ y tildes, emojis, HTML, SQL, caracteres de control, formatos de fecha inválidos | unos 50 | Pasan. HTML y SQL se guardan como texto y la interfaz no los ejecuta. |
 | Importación CSV | 0, 1, 2000 y 2001 filas; archivo de 5 MB más 2 bytes; vacío; ejecutable; separador desconocido; fórmula; país inexistente; confirmar en paralelo; reimportar | 14 | Pasan. |
 | Exportación | CSV y PDF del cierre; acceso sin permiso | 8 | Pasan. Los CSV llevan marca para Excel. |
-| Seguridad (HTTP) | Cookies, tokens alterados, sin firma, cierre de sesión, enumeración de usuarios, límite de intentos, inyección, archivos sensibles, CORS, cabeceras | 25 | Pasan, salvo S-01 y S-02. |
+| Seguridad (HTTP) | Cookies, tokens alterados, sin firma, cierre de sesión, enumeración de usuarios, límite de intentos, inyección, archivos sensibles, CORS, cabeceras | 25 | Pasan, salvo S-01 y S-02 (corregidos después). |
+| Seguridad: regresión tras S-01 y S-02 | `pruebas-sesion` (47), `pruebas-fase1` (64) y `pruebas-csp` (10); el navegador carga login, dashboard, vales, administración y proyectos con la política activa | 121 | Pasan todas. |
 | Rendimiento | 6,000 empresas, reparto, lecturas, exportaciones y 30 peticiones en paralelo | 36 | Reparto de 6,000 empresas en 0.6 s; lecturas de 10 a 130 ms; 30 en paralelo sin errores (la más lenta, 230 ms). |
 | Accesibilidad y móvil | Auditoría automática en 10 pantallas a 390 px y en escritorio: etiquetas, nombres, ids, contraste, tamaño táctil | 10 pantallas | Sin desbordes; ver A-01 a A-04. |
 | Aceptación | Afirmaciones de los manuales no cubiertas por el recorrido | 12 | Coinciden las 12. |
@@ -130,9 +131,8 @@ Se resumen por técnica. El detalle de cada caso queda en los scripts.
 
 ## 1. Antes de producción
 
-- **S-02:** ligar el token a la sesión activa, o documentar el riesgo aceptado.
-- **S-01:** definir una política de seguridad de contenido y probarla en todos los módulos.
-- Repetir las 18 verificaciones en **MariaDB 11.8** y probar en **staging** (cookies `Secure`, HTTPS).
+- Repetir las 18 verificaciones en **MariaDB 11.8**.
+- Probar en **staging**: cookies `Secure`, HTTPS y la política de seguridad de contenido con el despliegue real (el importmap se inyecta al instalar; aquí se simuló y funcionó).
 - Asignar los permisos `proyectos.*` en la pantalla Roles de staging y producción (tarea del dueño del portal).
 
 ## 2. Mantenibilidad
