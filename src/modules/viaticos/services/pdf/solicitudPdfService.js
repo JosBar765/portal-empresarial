@@ -307,7 +307,8 @@ function lineasDeComidas(comidas) {
     porTipo.set(c.tipoComidaId, actual);
   }
   return [...porTipo.values()].sort((a, b) => a.tipoComidaId - b.tipoComidaId).map(c => {
-    const clave = `pdf.comida.${c.nombreBase}`;
+    // Una sola comida va en singular («1 Desayuno»); varias, en plural.
+    const clave = `pdf.comida.${c.nombreBase}${c.cantidad === 1 ? '.uno' : ''}`;
     return {
       ...c,
       nombre: Object.prototype.hasOwnProperty.call(CATALOGO, clave) ? msg(clave) : capitalizar(c.nombreBase),
@@ -342,9 +343,9 @@ function seccionesDeInspeccion(ctx, detalle) {
     ? [{ texto: t('siMayusculas'), color: COLOR.rojo }, { texto: ` (${defectos.length})` }]
     : [{ texto: t('noMayusculas') }];
   dibujarSubseccion(ctx, t('defectos'), resumen, [
-    { etiqueta: t('colTipo'), x: 0, w: 0.26, valor: f => f.tipoDefectoNombre },
-    { etiqueta: t('colDescripcion'), x: 0.26, w: 0.44, valor: f => f.descripcion || '' },
-    { etiqueta: t('colImagen'), x: 0.7, w: 0.3, alinear: 'der', valor: f => f.correlativoImagen }
+    { etiqueta: t('colTipo'), x: 0, w: 0.2, valor: f => f.tipoDefectoNombre },
+    { etiqueta: t('colDescripcion'), x: 0.2, w: 0.3, valor: f => f.descripcion || '' },
+    { etiqueta: t('colImagen'), x: 0.5, w: 0.5, alinear: 'der', valor: f => f.correlativoImagen }
   ], defectos, { vacio: false });
 }
 

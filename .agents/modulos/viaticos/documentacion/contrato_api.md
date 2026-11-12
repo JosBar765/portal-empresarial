@@ -86,7 +86,7 @@ Lo comparten `POST /solicitudes/calcular` (cuerpo JSON, el payload directo, sin 
 
 ### Respuesta de `POST /solicitudes/calcular`
 
-Siempre 200 si el cuerpo es un objeto (el cliente decide con `valido`). Los errores de formato y de negocio se acumulan.
+Siempre 200 si el cuerpo es un objeto (el cliente decide con `valido`). Los errores de formato se acumulan entre sí; si hay alguno, no se evalúan las reglas de negocio (fechas, licencia, traslape…) hasta que el formato sea válido, porque dependen de datos bien formados. Una vez corregido el formato, los errores de negocio también se acumulan.
 
 ```json
 {

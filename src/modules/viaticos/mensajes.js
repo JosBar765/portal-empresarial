@@ -118,7 +118,7 @@ const CATALOGO = Object.freeze({
   'solicitud.comidaFueraDeFechas': 'La comida del {fecha} cae fuera del viaje ({salida} al {regreso}). Marca solo días dentro del viaje.',
   'solicitud.comidaRepetida': 'El {comida} del {fecha} está marcado más de una vez. Déjalo una sola vez.',
   'solicitud.tipoComidaNoExiste': 'El tipo de comida elegido no existe. Elige uno de la lista.',
-  'solicitud.comidaSinValor': 'Falta configurar el valor del {comida} en {moneda}. Pide a un administrador que lo cargue en Configuración y vuelve a calcular.',
+  'solicitud.comidaSinValor': 'Falta configurar el valor de la comida «{comida}» en {moneda}. Pide a un administrador que lo cargue en Configuración y vuelve a calcular.',
   'solicitud.tipoGastoNoExiste': 'El tipo de gasto elegido no existe. Elige uno de la lista.',
   'solicitud.tipoGastoNoSeleccionable': 'El tipo de gasto «{nombre}» no se puede usar en «Otros gastos». Elige otro tipo.',
   'solicitud.tipoGastoInactivo': 'El tipo de gasto «{nombre}» está desactivado. Elige otro tipo.',
@@ -260,6 +260,9 @@ const CATALOGO = Object.freeze({
   'pdf.comida.desayuno': 'Desayunos',
   'pdf.comida.almuerzo': 'Almuerzos',
   'pdf.comida.cena': 'Cenas',
+  'pdf.comida.desayuno.uno': 'Desayuno',
+  'pdf.comida.almuerzo.uno': 'Almuerzo',
+  'pdf.comida.cena.uno': 'Cena',
 
   // ---- Pipeline ----
   'pipeline.paso.autorizacion': 'Esperando autorización',
