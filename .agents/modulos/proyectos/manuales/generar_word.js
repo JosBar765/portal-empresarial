@@ -7,7 +7,8 @@ const path = require('path');
 const D = require('docx');
 const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, ShadingType, BorderStyle, LevelFormat, AlignmentType, PageBreak, ImageRun, Footer, PageNumber } = D;
 
-const carpeta = __dirname;
+// Sin argumentos genera los manuales de esta carpeta; con una carpeta como argumento genera sus `manual_*.md` e `informe_*.md` (por ejemplo, el informe de QA).
+const carpeta = process.argv[2] ? path.resolve(process.argv[2]) : __dirname;
 const ANCHO = 9360; // carta, márgenes de 1"
 const COLOR = '7A3F5C';
 const AVISOS = {
@@ -148,9 +149,9 @@ function convertir(archivo) {
     new Paragraph({ spacing: { before: 2400 }, children: [] }),
     new Paragraph({ children: [new TextRun({ text: 'Portal Empresarial · MundiTrofeos S.A.', font: 'Arial', size: 24, color: '64748B' })] }),
     new Paragraph({ spacing: { before: 120, after: 80 }, children: [new TextRun({ text: 'Módulo Proyectos', font: 'Arial', bold: true, size: 64, color: COLOR })] }),
-    new Paragraph({ spacing: { after: 240 }, children: [new TextRun({ text: `Manual de usuario${rol ? ` · ${rol.trim()}` : ''}`, font: 'Arial', bold: true, size: 40 })] }),
+    new Paragraph({ spacing: { after: 240 }, children: [new TextRun({ text: /^informe/.test(archivo) ? (rol ? rol.trim() : 'Informe') : `Manual de usuario${rol ? ` · ${rol.trim()}` : ''}`, font: 'Arial', bold: true, size: 40 })] }),
     new Paragraph({ children: [new TextRun({ text: resto.join('·').trim() || 'Guía paso a paso para usar el módulo con confianza.', font: 'Arial', size: 26, color: '475569' })] }),
-    new Paragraph({ spacing: { before: 1600 }, children: [new TextRun({ text: 'Versión del 11 de noviembre de 2026', font: 'Arial', size: 20, color: '64748B' })] }),
+    new Paragraph({ spacing: { before: 1600 }, children: [new TextRun({ text: `Versión del ${new Date().toLocaleDateString('es-GT', { day: 'numeric', month: 'long', year: 'numeric' })}`, font: 'Arial', size: 20, color: '64748B' })] }),
     new Paragraph({ children: [new PageBreak()] })
   ];
 
@@ -176,7 +177,7 @@ function convertir(archivo) {
 }
 
 (async () => {
-  for (const archivo of fs.readdirSync(carpeta).filter(f => /^manual_.*\.md$/.test(f)).sort()) {
+  for (const archivo of fs.readdirSync(carpeta).filter(f => /^(manual|informe)_.*\.md$/.test(f)).sort()) {
     const buf = await convertir(archivo);
     const salida = path.join(carpeta, archivo.replace(/\.md$/, '.docx'));
     fs.writeFileSync(salida, buf);
