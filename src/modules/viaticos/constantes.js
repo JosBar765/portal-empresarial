@@ -82,8 +82,14 @@ const ARCHIVOS = Object.freeze({
   MAX_DEFECTOS: LIMITES_SOLICITUD.MAX_DEFECTOS,
   AJUSTE_TIPOS: 'tipos_archivo_permitidos',
   AJUSTE_MAX_MB: 'max_archivo_mb',
-  TIPO_NOMBRE_DEFECTO: 'DEFECTO'
+  TIPO_NOMBRE_DEFECTO: 'DEFECTO',
+  // Storage no sobrescribe: ante un nombre ya usado se prueba el contador siguiente hasta este tope de intentos.
+  INTENTOS_NOMBRE: 5,
+  PATRON_NOMBRE_DUPLICADO: /already exists|ya existe|HTTP 409/i
 });
+
+// Filas de viaticos_tipos_gasto que la liquidación identifica por nombre (la semilla las crea con seleccionable_en_gastos = 0).
+const RUBROS_FIJOS = Object.freeze({ HOSPEDAJE: 'Hospedaje', COMBUSTIBLE: 'Combustible' });
 
 // Etapa que se escribe en el nombre del archivo en Storage (como en Vales: creación, corrección previa a la autorización, autorización).
 const ETAPAS_DOCUMENTO = Object.freeze({ CREACION: 'CREACION', CORRECCION: 'CORRECCION', AUTORIZACION: 'AUTORIZACION' });
@@ -91,7 +97,7 @@ const ETAPAS_DOCUMENTO = Object.freeze({ CREACION: 'CREACION', CORRECCION: 'CORR
 const SENTIDOS_TRAMO = Object.freeze({ IDA: 'ida', VUELTA: 'vuelta' });
 
 // La llave de idempotencia llega del cliente; se acota para caber en idempotency_keys junto al prefijo del usuario.
-const IDEMPOTENCIA = Object.freeze({ ENDPOINT_CREAR: 'viaticos:crear', MAX_LLAVE: 64 });
+const IDEMPOTENCIA = Object.freeze({ ENDPOINT_CREAR: 'viaticos:crear', ENDPOINT_COMPROBANTE: 'viaticos:comprobante', MAX_LLAVE: 64 });
 
 const NOTIFICACION = Object.freeze({
   MODULO: 'viaticos',
@@ -100,6 +106,7 @@ const NOTIFICACION = Object.freeze({
   TIPO_MODIFICADA: 'solicitud_modificada',
   TIPO_AUTORIZADA: 'solicitud_autorizada',
   TIPO_RECHAZADA: 'solicitud_rechazada',
+  TIPO_LIQUIDADA: 'solicitud_liquidada',
   NIVEL_RECHAZO: 'alerta'
 });
 
@@ -111,7 +118,8 @@ const TIEMPO_REAL = Object.freeze({
   ACCION_MODIFICADA: 'modificada',
   ACCION_DADA_DE_BAJA: 'dada_de_baja',
   ACCION_AUTORIZADA: 'autorizada',
-  ACCION_RECHAZADA: 'rechazada'
+  ACCION_RECHAZADA: 'rechazada',
+  ACCION_LIQUIDADA: 'liquidada'
 });
 
 const ROL_ADMINISTRADOR_ID = 1;
@@ -185,5 +193,5 @@ const MESES_ABREVIADOS = Object.freeze(['ene', 'feb', 'mar', 'abr', 'may', 'jun'
 
 module.exports = {
   PERMISOS, PREFIJO_PERMISOS, ESTADOS, MODALIDADES, RECURSOS, AJUSTES, MIME_PERMITIDOS, LIMITES,
-  LIMITES_SOLICITUD, ARCHIVOS, ETAPAS_DOCUMENTO, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, TIEMPO_REAL, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, NIVELES_RESALTADOS, MIME_IMAGEN_PDF, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS
+  LIMITES_SOLICITUD, ARCHIVOS, RUBROS_FIJOS, ETAPAS_DOCUMENTO, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, TIEMPO_REAL, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, NIVELES_RESALTADOS, MIME_IMAGEN_PDF, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS
 };

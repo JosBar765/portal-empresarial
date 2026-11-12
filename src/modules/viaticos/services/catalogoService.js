@@ -57,6 +57,8 @@ function crearServicio(def) {
     return fila;
   }
 
+  const esProtegido = fila => Boolean(def.protegidos) && def.protegidos.includes(fila.nombre);
+
   return {
     listar: () => repo.listar(def),
 
@@ -68,15 +70,19 @@ function crearServicio(def) {
     },
 
     async editar(id, cuerpo) {
-      await leer(id);
+      const actual = await leer(id);
       const valores = validar(cuerpo, true);
+      if (esProtegido(actual) && valores.nombre !== undefined && valores.nombre !== actual.nombre) {
+        throw new ErrorDeNegocio(msg('catalogo.protegidoRenombrar', { nombre: actual.nombre, nuevo: valores.nombre }), 409);
+      }
       await conDuplicados(valores, () => repo.actualizar(def, id, valores));
       return leer(id);
     },
 
     async cambiarActivo(id, cuerpo) {
       const activo = validarActivo(cuerpo);
-      await leer(id);
+      const actual = await leer(id);
+      if (!activo && esProtegido(actual)) throw new ErrorDeNegocio(msg('catalogo.protegidoDesactivar', { nombre: actual.nombre }), 409);
       await repo.cambiarActivo(def, id, activo);
       return leer(id);
     }

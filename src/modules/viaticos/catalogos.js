@@ -1,7 +1,7 @@
 // src/modules/viaticos/catalogos.js
 // Definición declarativa de los catálogos simples de /config. El SQL genérico se arma SOLO desde aquí
 // (tabla, columnas y orden), nunca con nombres que vengan del cliente.
-const { RECURSOS } = require('./constantes');
+const { RECURSOS, RUBROS_FIJOS } = require('./constantes');
 
 const NOMBRE_100 = { columna: 'nombre', etiqueta: 'Nombre', tipo: 'texto', max: 100 };
 const CODIGO_20 = { columna: 'codigo', etiqueta: 'Código', tipo: 'texto', max: 20 };
@@ -17,6 +17,7 @@ function congelar(valor) {
 }
 
 // orden: expresión ORDER BY con alias `t` para la tabla. unica: columnas de la clave única (para el mensaje de duplicado).
+// protegidos: nombres de filas que el módulo busca por nombre; no se renombran ni se desactivan.
 const CATALOGOS = congelar({
   [RECURSOS.MONEDAS]: {
     tabla: 'viaticos_monedas',
@@ -48,6 +49,7 @@ const CATALOGOS = congelar({
     articulo: 'el tipo de gasto',
     orden: 't.nombre',
     unica: ['nombre'],
+    protegidos: Object.values(RUBROS_FIJOS),
     columnas: [
       NOMBRE_100,
       ES_OTROS,

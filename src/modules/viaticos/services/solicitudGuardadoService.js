@@ -1,9 +1,7 @@
 // src/modules/viaticos/services/solicitudGuardadoService.js
 // Casos de uso del solicitante que escriben: crear, modificar y dar de baja. El servidor recalcula todo y
 // valida antes de tocar la base; la solicitud y sus partes se guardan en una sola transacción.
-const crypto = require('crypto');
 const db = require('../../../config/database');
-const idempotencyRepository = require('../../../core/idempotency/idempotencyRepository');
 const notificacionService = require('../../../core/notifications/notificacionService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const solicitudRepo = require('../repositories/solicitudRepository');
@@ -18,20 +16,10 @@ const { msg } = require('../mensajes');
 const { calcularSolicitud } = require('./calculoService');
 const { normalizarDatos, evaluar, claveDePar } = require('./validacionSolicitudService');
 const archivosService = require('./archivosViaticoService');
+const { llaveDeIdempotencia, ejecutarUnaVez } = require('./idempotenciaService');
 const documentoService = require('./documentoService');
 const { erroresDeTextos } = require('./pdf/solicitudPdfService');
 const solicitudService = require('./solicitudService');
-
-// Cola por llave: dos envíos simultáneos con la misma llave se ejecutan uno tras otro para que el segundo vea el resultado del primero.
-const colasPorLlave = new Map();
-function conColaDeLlave(llave, fn) {
-  const anterior = colasPorLlave.get(llave) || Promise.resolve();
-  const actual = anterior.then(fn, fn);
-  const cola = actual.catch(() => {});
-  colasPorLlave.set(llave, cola);
-  cola.then(() => { if (colasPorLlave.get(llave) === cola) colasPorLlave.delete(llave); });
-  return actual;
-}
 
 // `datos` llega como texto JSON (multipart), como objeto envuelto o como el payload directo (JSON puro).
 function extraerDatos(cuerpo) {
@@ -50,19 +38,6 @@ function extraerDatos(cuerpo) {
   }
   if (!datos || typeof datos !== 'object' || Array.isArray(datos)) throw new ErrorDeNegocio(msg('solicitud.datosFalta'), 400);
   return datos;
-}
-
-// La llave se prefija con el usuario: la misma llave de otra persona nunca devuelve una solicitud ajena.
-function llaveDeIdempotencia(datos, usuarioId) {
-  const bruta = datos.idempotencyKey;
-  let llave = crypto.randomUUID();
-  if (bruta !== undefined && bruta !== null && bruta !== '') {
-    if (typeof bruta !== 'string' || bruta.trim().length === 0 || bruta.trim().length > IDEMPOTENCIA.MAX_LLAVE) {
-      throw errorDeValidacion(msg('validacion.revisar'), { idempotencyKey: msg('solicitud.llaveIdempotencia', { max: IDEMPOTENCIA.MAX_LLAVE }) });
-    }
-    llave = bruta.trim();
-  }
-  return `viaticos:${usuarioId}:${llave}`;
 }
 
 // Lista de errores {campo, mensaje} a mapa por campo; el primero de cada campo gana.
@@ -127,18 +102,8 @@ function armarPartes({ datos, ctx, evaluacion, calculo }) {
 class SolicitudGuardadoService {
   async crear(usuario, cuerpo, archivos = []) {
     const datos = extraerDatos(cuerpo);
-    const llave = llaveDeIdempotencia(datos, usuario.id);
-    return conColaDeLlave(llave, async () => {
-      const previo = await idempotencyRepository.buscar(llave);
-      if (previo) return previo.resultado;
-      const resultado = await this.guardar(usuario, datos, archivos);
-      try {
-        await idempotencyRepository.registrar(llave, IDEMPOTENCIA.ENDPOINT_CREAR, resultado);
-      } catch (error) {
-        console.error('[Viáticos] No se pudo registrar la llave de idempotencia:', error.message);
-      }
-      return resultado;
-    });
+    const llave = llaveDeIdempotencia(datos.idempotencyKey, usuario.id);
+    return ejecutarUnaVez({ llave, endpoint: IDEMPOTENCIA.ENDPOINT_CREAR, accion: () => this.guardar(usuario, datos, archivos) });
   }
 
   async modificar(usuario, idCrudo, cuerpo, archivos = []) {

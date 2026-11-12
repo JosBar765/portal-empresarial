@@ -1,14 +1,16 @@
 // src/modules/viaticos/services/documentoService.js
-// Documentos de una solicitud: el PDF y las fotos de defectos que alimentan el visor.
+// Documentos de una solicitud: el PDF, las fotos de defectos y, ya liquidada, sus comprobantes; alimentan el visor.
 const supabaseStorage = require('../../../core/files/supabaseStorage');
 const nombreArchivo = require('../../../core/files/nombreArchivo');
 const solicitudRepo = require('../repositories/solicitudRepository');
 const escrituraRepo = require('../repositories/solicitudEscrituraRepository');
+const comprobanteRepo = require('../repositories/comprobanteRepository');
 const solicitudService = require('./solicitudService');
 const archivosService = require('./archivosViaticoService');
 const { generarPdfSolicitud } = require('./pdf/solicitudPdfService');
 const { msg } = require('../mensajes');
-const { ETAPAS_DOCUMENTO } = require('../constantes');
+const { ETAPAS_DOCUMENTO, ESTADOS } = require('../constantes');
+const { aCentavos, formatear } = require('../dinero');
 
 const TIPO_PDF = 'application/pdf';
 
@@ -77,7 +79,7 @@ class DocumentoService {
     return this.documentosDe(await solicitudService.leerEncabezado(idCrudo));
   }
 
-  // Las rutas guardadas ya son las URLs públicas de Storage. El PDF va primero y las fotos de defectos después.
+  // Las rutas guardadas ya son las URLs públicas de Storage. El PDF va primero, luego las fotos de defectos y al final los comprobantes (solo liquidada).
   async documentosDe(fila) {
     const defectos = await solicitudRepo.listarArchivosDefectos(fila.id);
     const documentos = [];
@@ -87,7 +89,20 @@ class DocumentoService {
       tipo: d.mimeType === TIPO_PDF ? 'pdf' : 'imagen',
       url: d.ruta
     }));
+    if (fila.estado === ESTADOS.LIQUIDADA) documentos.push(...await this.comprobantesComoDocumentos(fila));
     return documentos;
+  }
+
+  async comprobantesComoDocumentos(fila) {
+    const comprobantes = await comprobanteRepo.listar(fila.id);
+    return comprobantes.map((c, i) => {
+      const datos = { numero: i + 1, rubro: c.tipoGastoNombre, moneda: fila.monedaSimbolo, monto: formatear(aCentavos(c.monto)) };
+      return {
+        titulo: c.descripcion ? msg('documento.tituloComprobanteDescrito', { ...datos, descripcion: c.descripcion }) : msg('documento.tituloComprobante', datos),
+        tipo: c.mimeType === TIPO_PDF ? 'pdf' : 'imagen',
+        url: c.ruta
+      };
+    });
   }
 }
 

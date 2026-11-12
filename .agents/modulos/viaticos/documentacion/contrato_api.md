@@ -11,9 +11,9 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 - Vehículo propio: solo el del solicitante; con depreciación. Vehículo de la empresa: sin depreciación (`depreciacion_por_km` NULL). Viaje corto: solo vehículos de la empresa.
 - Correlativo `VIA-<código país>-<n de 6 dígitos>`: `viaticos_secuencias` incrementada dentro de la transacción con `FOR UPDATE`.
 - «En curso», «Terminado» y «Vencida» se calculan con las fechas y la hora de Guatemala (`calendarioLaboral.ahoraUTC6`). `modificar` y `dar de baja` solo en esperando autorización, rechazada o vencida; modificar regenera el PDF y vuelve a esperando autorización. Autorizar solo si está esperando autorización y no está vencida.
-- Liquidar: solo más de 1 día, autorizada y terminado el viaje; cada rubro admite como máximo los comprobantes solicitados (noches de hotel, combustible, y cada gasto por tipo); comidas y depreciación no se liquidan; «Liquidar» solo cuando falta por liquidar es cero.
+- Liquidar: solo más de 1 día, autorizada y terminado el viaje; cada rubro admite como máximo los comprobantes solicitados (noches de hotel, combustible, y cada gasto por tipo); comidas y depreciación no se liquidan; «Liquidar» solo cuando no falta ningún comprobante (decisión a confirmar con el dueño; ver «Liquidación (F3.6)»).
 - Borrar archivos en Storage solo en producción (`supabaseStorage.eliminar`). Creación y subidas aceptan `idempotencyKey`.
-- Notificaciones (`modulo = 'viaticos'`, `vale_id` NULL, el correlativo va en el mensaje): al crear o modificar, a los usuarios con `viaticos.autorizar`; al autorizar o rechazar, al solicitante. Tiempo real: eventos por `sendToUsers` y la sala `viaticos:gestion` (validada con `viaticos.gestionar`).
+- Notificaciones (`modulo = 'viaticos'`, `vale_id` NULL, el correlativo va en el mensaje): al crear o modificar, a los usuarios con `viaticos.autorizar`; al autorizar o rechazar, al solicitante; al liquidar, a los usuarios con `viaticos.liquidar`. Tiempo real: eventos por `sendToUsers` y la sala `viaticos:gestion` (validada con `viaticos.gestionar`).
 
 ## Endpoints (prefijo `/api/viaticos`)
 
@@ -27,16 +27,16 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | `POST /solicitudes` | ver | Crea (multipart: campo `datos` JSON y campo `defectos` para las fotos del viaje corto) |
 | `PUT /solicitudes/:id` | ver | Modifica (mismo formato) |
 | `DELETE /solicitudes/:id` | ver | Da de baja (borra registro y archivos) |
-| `GET /solicitudes/:id/documentos` | ver | Lista para el visor: PDF y fotos de defectos |
+| `GET /solicitudes/:id/documentos` | ver | Lista para el visor: PDF, fotos de defectos y, ya liquidada, los comprobantes |
 | `GET /solicitudes/:id/liquidacion` | ver | Resumen, pendientes por rubro y comprobantes |
 | `POST /solicitudes/:id/comprobantes` | ver | Agrega un comprobante (multipart: `archivo`, `tipoGastoId`, `monto`, `descripcion`) |
 | `DELETE /solicitudes/:id/comprobantes/:comprobanteId` | ver | Quita un comprobante |
-| `POST /solicitudes/:id/liquidar` | ver | Liquida |
+| `POST /solicitudes/:id/liquidar` | ver | Liquida (con todos los comprobantes completos) |
 | `GET /gestiones?desde=&hasta=&q=` | gestionar | Todas las solicitudes, con solicitante y país |
 | `GET /gestiones/:id` y `/gestiones/:id/documentos` | gestionar | Detalle y documentos |
 | `POST /gestiones/:id/autorizar` | autorizar | Autoriza |
 | `POST /gestiones/:id/rechazar` | autorizar | Rechaza con `{ motivo }` libre y obligatorio |
-| `GET /gestiones/:id/liquidacion` | liquidar | Vista de solo lectura para contabilidad |
+| `GET /gestiones/:id/liquidacion` | liquidar | Vista de solo lectura para contabilidad (cifras, diferencia, comprobantes y PDF) |
 | `GET /config/<recurso>` | configurar | Lista |
 | `POST /config/<recurso>` | configurar | Crea |
 | `PUT /config/<recurso>/:id` | configurar | Edita |
@@ -172,7 +172,7 @@ Todo archivo de viáticos va al bucket propio `SUPABASE_STORAGE_BUCKET_VIATICOS`
 | Foto de defecto añadida al modificar | `<CORRELATIVO>_DEFECTO_CORRECCION_X` |
 | Comprobante de liquidación | `<CORRELATIVO>_LIQUIDACION_<RUBRO>_X` (el rubro sale del nombre del tipo de gasto, sin acentos y en mayúsculas: `HOSPEDAJE`, `COMBUSTIBLE`, `PEAJE`…) |
 
-Limitación conocida (solo staging y desarrollo, donde el borrado de Storage no actúa): si en una modificación se quitan todas las fotos de una etapa y en otra posterior se vuelven a agregar, el contador reinicia y el nombre puede chocar con un archivo que quedó sin borrar.
+Limitación conocida (solo staging y desarrollo, donde el borrado de Storage no actúa): si en una modificación se quitan todas las fotos de una etapa y en otra posterior se vuelven a agregar, el contador reinicia y el nombre puede chocar con un archivo que quedó sin borrar. Los comprobantes sí lo resuelven (ver «Nombres ante duplicados» en «Liquidación (F3.6)»).
 
 ## Gestiones (F3.5)
 
@@ -182,9 +182,9 @@ Las solicitudes de Gestiones son las de todas las personas y países (no se comp
 
 - `GET /gestiones?desde=&hasta=&q=` (`gestionar`): mismos filtros que `GET /solicitudes` (`desde`/`hasta` sobre la fecha de creación, por defecto la semana actual de Guatemala; `q` hasta 50 caracteres). `q` busca por correlativo parcial, por nombre del solicitante (parcial) o por fecha de viáticos (`AAAA-MM-DD` o `DD/MM/AAAA`). Responde `{ desde, hasta, solicitudes }`; cada ítem trae lo de la lista de Solicitudes (`id`, `correlativo`, `fechaCreacion`, `modalidad`, `fechaSalida`, `fechaRegreso`, `totalSolicitado`, `pipeline`) más `solicitante { id, nombre }` y `pais { codigo, nombre }`.
 - Orden «según estados»: primero «Esperando autorización» (la más antigua primero, para atender en orden); luego vencida y rechazada, autorizada, en curso, terminada y liquidada (en cada grupo, la más reciente primero).
-- `pipeline.acciones` de Gestiones depende de los permisos de quien consulta (no son las del dueño: aquí no hay `modificar` ni `darDeBaja`): `ver` siempre; `autorizar` y `rechazar` con `viaticos.autorizar` y solo en «esperando autorización» sin vencer; `liquidar` con `viaticos.liquidar` solo en viajes de más de 1 día autorizados cuyo viaje ya terminó (la liquidación en sí es F3.6).
+- `pipeline.acciones` de Gestiones depende de los permisos de quien consulta (no son las del dueño: aquí no hay `modificar` ni `darDeBaja`): `ver` siempre; `autorizar` y `rechazar` con `viaticos.autorizar` y solo en «esperando autorización» sin vencer; `liquidar` (abrir la vista de solo lectura de contabilidad, ver «Liquidación (F3.6)») con `viaticos.liquidar` solo en viajes de más de 1 día con el viaje ya terminado o ya liquidados.
 - `GET /gestiones/:id` (`gestionar`): el mismo detalle que `GET /solicitudes/:id` (incluye `solicitante`, `pais` e `historial` con el usuario de cada paso y el motivo del rechazo) de cualquier solicitud, con las `acciones` de Gestiones; 404 si no existe.
-- `GET /gestiones/:id/documentos` (`gestionar`): igual que `GET /solicitudes/:id/documentos` de cualquier solicitud.
+- `GET /gestiones/:id/documentos` (`gestionar`): igual que `GET /solicitudes/:id/documentos` de cualquier solicitud (con los comprobantes si está liquidada).
 
 ### Autorizar y rechazar
 
@@ -205,4 +205,92 @@ Un fallo de cualquiera se registra con `console.error` y no deshace la decisión
 ### Tiempo real
 
 - Sala `viaticos:gestion`: un cliente se une con `register_module('viaticos:gestion')`; el validador de sala (`events.js`, registrado con `registrarValidadorSala`) solo la concede a quien tenga `viaticos.gestionar` en el socket ya autenticado.
-- Evento `viaticos_actualizada` con `{ id, correlativo, estado, accion }`; `accion` es `creada`, `modificada`, `dada_de_baja`, `autorizada` o `rechazada`, y `estado` es el estado guardado (`null` al dar de baja, porque la solicitud ya no existe). Se envía a la sala de gestión (`sendToModule`) y al solicitante (`sendToUsers`) después del commit al crear, modificar, dar de baja, autorizar y rechazar; quien está en ambos puede recibirlo dos veces (el cliente solo refresca). Un fallo al emitir se registra y no deshace la operación.
+- Evento `viaticos_actualizada` con `{ id, correlativo, estado, accion }`; `accion` es `creada`, `modificada`, `dada_de_baja`, `autorizada`, `rechazada` o `liquidada`, y `estado` es el estado guardado (`null` al dar de baja, porque la solicitud ya no existe). Se envía a la sala de gestión (`sendToModule`) y al solicitante (`sendToUsers`) después del commit al crear, modificar, dar de baja, autorizar, rechazar y liquidar; quien está en ambos puede recibirlo dos veces (el cliente solo refresca). Un fallo al emitir se registra y no deshace la operación.
+
+## Liquidación (F3.6)
+
+Los endpoints del solicitante (`/solicitudes/:id/…`) son solo del propio usuario y solo exigen `viaticos.ver`; el de contabilidad (`/gestiones/:id/liquidacion`) exige `viaticos.liquidar`. Código en `services/liquidacionService.js` (casos de uso), `services/liquidacionCalculoService.js` (cálculo puro) y `repositories/comprobanteRepository.js`.
+
+### Qué se liquida
+
+- Solo viajes de más de 1 día, en estado «autorizada» y con el viaje terminado (hoy de Guatemala posterior a la fecha de regreso). Las comidas y la depreciación del vehículo propio no se liquidan ni cuentan en `solicitadoALiquidar`.
+- Rubros y cantidad máxima de comprobantes, derivados de la solicitud: Hospedaje = total de noches (uno por noche); Combustible = 1 (si el combustible solicitado es mayor que cero); cada renglón de «otros gastos» = 1 comprobante de su tipo de gasto (dos peajes = dos comprobantes de «Peaje»). Un tipo de gasto que no forma parte de la solicitud no admite comprobantes.
+- Hospedaje y Combustible son filas de `viaticos_tipos_gasto` con `seleccionable_en_gastos = 0`; el servidor las identifica por nombre exacto (`RUBROS_FIJOS` en `constantes.js`: «Hospedaje» y «Combustible»). Si faltan: 409 explicativo. Por eso `/config/tipos-gasto` no permite renombrarlas ni desactivarlas (409 con el motivo).
+- El importe de combustible se recalcula con los mismos km, rendimiento y precio de la solicitud (misma fórmula que el cálculo).
+
+### Resumen en dinero (en la moneda de la solicitud)
+
+`resumen = { solicitadoALiquidar, liquidado, faltaPorLiquidar }`: solicitado = hospedaje + combustible + otros gastos de la solicitud; liquidado = suma de los montos de los comprobantes; `faltaPorLiquidar` = max(0, solicitado − liquidado). Además `pendientes` (un renglón por rubro, completo o no) `{ tipoGastoId, nombre, esOtros, solicitados, liquidados }` y `faltanComprobantes` (suma de lo que falta de cada rubro). Los montos son informativos: contabilidad hace el cálculo definitivo fuera del sistema.
+
+**Decisión de diseño, a confirmar con el dueño:** «Liquidar» se habilita cuando no falta ningún comprobante (todos los rubros completos), no cuando el monto liquidado es exactamente igual al solicitado, porque los montos reales casi nunca coinciden con lo solicitado.
+
+### `GET /solicitudes/:id/liquidacion`
+
+```json
+{
+  "solicitudId": 12, "correlativo": "VIA-GT-000123", "estado": "autorizada",
+  "moneda": { "id": 1, "codigo": "GTQ", "nombre": "Quetzal", "simbolo": "Q" },
+  "resumen": { "solicitadoALiquidar": 1439.64, "liquidado": 301, "faltaPorLiquidar": 1138.64 },
+  "pendientes": [ { "tipoGastoId": 1, "nombre": "Hospedaje", "esOtros": false, "solicitados": 3, "liquidados": 1 } ],
+  "faltanComprobantes": 6,
+  "comprobantes": [ { "id": 5, "tipoGastoId": 1, "rubro": "Hospedaje", "descripcion": null, "monto": 301, "nombreArchivo": "hotel.png", "tipoArchivo": "image/png", "tamano": 1024, "url": "https://…/VIA-GT-000123_LIQUIDACION_HOSPEDAJE_1.png", "subidoEn": "2026-11-12 09:30:00" } ],
+  "editable": true,
+  "puedeLiquidar": false,
+  "motivoNoPuedeLiquidar": "Aún faltan comprobantes para liquidar la solicitud VIA-GT-000123 (Hospedaje: faltan 2 de 3; …). Agrega un comprobante por cada uno y vuelve a liquidar."
+}
+```
+
+- `editable`: se pueden agregar y quitar comprobantes (autorizada con el viaje terminado). `puedeLiquidar`: `editable` y sin comprobantes faltantes; si es `false`, `motivoNoPuedeLiquidar` dice por qué (el viaje aún no termina, faltan comprobantes, ya está liquidada…); si es `true`, es `null`.
+- 403 explicativo si la solicitud es ajena, de 1 día o menos o no está autorizada ni liquidada; 404 si no existe. Con el viaje aún en curso responde 200 con `puedeLiquidar: false`.
+
+### `POST /solicitudes/:id/comprobantes`
+
+- `multipart/form-data`: campo de archivo `archivo` (un solo archivo) y campos `tipoGastoId`, `monto`, `descripcion` e `idempotencyKey` (opcional, 1 a 64 caracteres).
+- `monto` mayor que cero, con hasta 2 decimales y como máximo 99,999,999.99. `descripcion` es obligatoria solo si el tipo de gasto es «otros» (hasta 100 caracteres); para los demás tipos se ignora y se guarda vacía.
+- El archivo se valida contra `viaticos_ajustes` igual que las fotos de defectos: tipo declarado permitido, contenido real que coincide con el tipo, tamaño máximo y, en imágenes, tope de megapíxeles.
+- Respuesta 201: `{ comprobante, …liquidacion }`, donde `comprobante` tiene la forma de cada elemento de `comprobantes` y el resto es la misma respuesta que `GET /solicitudes/:id/liquidacion` ya actualizada.
+- 400 `{ error, campos }` por campo (`tipoGastoId`, `monto`, `descripcion`, `archivo`, `idempotencyKey`), por ejemplo cuando el rubro ya tiene todos sus comprobantes («solicitaste 3 y llevas 3»). 403 si la solicitud no admite comprobantes (ajena, de 1 día o menos, no autorizada, viaje sin terminar o ya liquidada); 404 si no existe.
+- Una sola transacción con la solicitud bloqueada (`SELECT … FOR UPDATE`): el estado, el fin del viaje y la cantidad por rubro se vuelven a comprobar con la fila bloqueada, así dos envíos simultáneos no pasan del máximo.
+- Idempotencia: la llave se guarda por usuario como `viaticos:<usuarioId>:<llave>` con el endpoint `viaticos:comprobante`; repetir el `POST` con la misma llave devuelve el resultado ya guardado sin subir de nuevo el archivo, y envíos simultáneos con la misma llave se serializan (misma cola que la creación). Una llave ya usada en otra operación (p. ej. al crear una solicitud) da 400 en `idempotencyKey`.
+- Si algo falla después de subir el archivo, se intenta borrarlo de Storage (solo actúa en producción).
+
+### `DELETE /solicitudes/:id/comprobantes/:comprobanteId`
+
+- Solo mientras la solicitud sigue «autorizada»; ya «liquidada» no se agregan ni se quitan comprobantes (403). 404 si el comprobante no existe o es de otra solicitud.
+- Responde 200 con la misma forma que `GET /solicitudes/:id/liquidacion`. El archivo se borra de Storage después del commit (solo actúa en producción).
+
+### `POST /solicitudes/:id/liquidar`
+
+- Una transacción con la fila bloqueada (`SELECT … FOR UPDATE`, con el estado en una subconsulta, no en un JOIN): vuelve a comprobar estado, fin del viaje y que no falte ningún comprobante; pasa a «liquidada» e inserta el renglón de `viaticos_historial` (usuario = solicitante, sin motivo). Responde 200 con el detalle de la solicitud (como `GET /solicitudes/:id`).
+- 403 explicativo si falta algún comprobante (nombra los rubros y cuántos faltan), si el viaje aún no termina o si ya está liquidada. Una segunda liquidación o un doble clic no se aplica dos veces.
+- Después del commit (un fallo se registra y no deshace la liquidación): notificación `modulo = 'viaticos'`, `tipo` `solicitud_liquidada`, `nivel` `info`, sin `vale_id`, a los usuarios activos con `viaticos.liquidar` (sin el rol Administrador) con el correlativo y el solicitante en el mensaje, y evento `viaticos_actualizada` (`accion` `liquidada`) a la sala `viaticos:gestion` y al solicitante.
+
+### `GET /gestiones/:id/liquidacion` (`viaticos.liquidar`)
+
+Solo lectura para contabilidad; funciona con solicitudes de cualquier persona y también si aún no hay comprobantes.
+
+```json
+{
+  "solicitudId": 12, "correlativo": "VIA-GT-000123", "estado": "liquidada",
+  "pipeline": { "fase": "liquidada", "etiqueta": "Liquidado" },
+  "solicitante": { "id": 4, "nombre": "…" }, "pais": { "codigo": "GT", "nombre": "Guatemala" },
+  "moneda": { "id": 1, "codigo": "GTQ", "nombre": "Quetzal", "simbolo": "Q" },
+  "resumen": { "solicitadoALiquidar": 1439.64, "liquidado": 1747.5, "faltaPorLiquidar": 0 },
+  "diferencia": 307.86,
+  "pendientes": [ … ], "faltanComprobantes": 0,
+  "comprobantes": [ { "id": 5, "rubro": "Hospedaje", "monto": 301, "url": "…", "nombreArchivo": "hotel.png", "tipoArchivo": "image/png", … } ],
+  "pdf": { "titulo": "Solicitud VIA-GT-000123", "tipo": "pdf", "url": "https://…" }
+}
+```
+
+- `diferencia` = `liquidado` − `solicitadoALiquidar` (negativa si se liquidó menos de lo solicitado). `pdf` es `null` si la solicitud no tiene PDF.
+- Solo solicitudes de más de 1 día «autorizadas» o «liquidadas»; las demás: 403 explicativo (de 1 día o menos, esperando autorización, rechazada…). 404 si no existe.
+- La acción `liquidar` de `pipeline.acciones` en Gestiones (con `viaticos.liquidar`) aparece con el viaje terminado y también ya liquidada, para poder revisar los comprobantes después.
+
+### Documentos
+
+`GET /solicitudes/:id/documentos` y `GET /gestiones/:id/documentos`: si la solicitud está «liquidada», se agregan al final los comprobantes en orden de carga, con título legible `Comprobante <n>: <rubro> · <símbolo> <monto>` (con la descripción entre paréntesis en los de tipo «otros») y `tipo` `pdf` o `imagen`. Antes de liquidar no aparecen ahí.
+
+### Nombres ante duplicados
+
+Los comprobantes se nombran `<CORRELATIVO>_LIQUIDACION_<RUBRO>_X` en el bucket de viáticos; `X` parte de `máximo existente + 1` entre los comprobantes vigentes del rubro. Storage no sobrescribe y fuera de producción el borrado no actúa, así que al quitar un comprobante y agregar otro el nombre puede seguir ocupado. Cuando Storage responde «ya existe» (409), el servidor prueba el contador siguiente, hasta 5 intentos por comprobante (`ARCHIVOS.INTENTOS_NOMBRE`); el nombre que quedó guardado es el de la URL del comprobante. Si se agotan los 5 intentos: 409 explicativo («… después de 5 intentos …») y no se guarda nada. En producción el borrado sí actúa y el contador nunca choca.

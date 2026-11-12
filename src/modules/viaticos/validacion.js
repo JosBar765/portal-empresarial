@@ -6,7 +6,7 @@ const { errorDeValidacion } = require('./errores');
 const { msg } = require('./mensajes');
 
 const FECHA_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-const DECIMAL_RE = /^\d{1,10}(\.\d{1,2})?$/;
+const DECIMAL_RE = /^-?\d{1,10}(\.\d{1,2})?$/;
 const ENTERO_RE = /^-?\d{1,10}$/;
 const FECHA_HORA_RE = /^(\d{4}-\d{2}-\d{2}) ([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -88,7 +88,7 @@ class Validador {
     return numero;
   }
 
-  // Hasta 2 decimales, como las columnas DECIMAL(n,2) de la base.
+  // Hasta 2 decimales, como las columnas DECIMAL(n,2) de la base; un negativo cae en el error de rango, no en el de formato.
   decimal(cuerpo, campo, etiqueta, { min = 0, minExclusivo = false, max, requerido = true }) {
     const valor = cuerpo[campo];
     if (vacio(valor)) return this.faltante(campo, etiqueta, requerido);

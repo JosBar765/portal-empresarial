@@ -8,6 +8,7 @@ const contextoController = require('./controllers/contextoController');
 const configController = require('./controllers/configController');
 const solicitudController = require('./controllers/solicitudController');
 const gestionController = require('./controllers/gestionController');
+const liquidacionController = require('./controllers/liquidacionController');
 const { crearCrud } = require('./controllers/crudController');
 const catalogoService = require('./services/catalogoService');
 const tramoService = require('./services/tramoService');
@@ -16,6 +17,7 @@ const vehiculoService = require('./services/vehiculoService');
 // En memoria y con el tope duro: el tipo y el tamaño efectivos los valida el servicio contra viaticos_ajustes.
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: ARCHIVOS.MAX_MB_DURO * 1024 * 1024 } });
 const fotosDefectos = upload.fields([{ name: ARCHIVOS.CAMPO_DEFECTOS, maxCount: ARCHIVOS.MAX_DEFECTOS }]);
+const archivoComprobante = upload.single(ARCHIVOS.CAMPO_ARCHIVO);
 
 const router = express.Router();
 router.get('/contexto', contextoController.obtener);
@@ -30,12 +32,19 @@ router.put('/solicitudes/:id', fotosDefectos, solicitudController.modificar);
 router.delete('/solicitudes/:id', solicitudController.darDeBaja);
 router.get('/solicitudes/:id/documentos', solicitudController.documentos);
 
-// Gestiones: ver todo exige viaticos.gestionar; autorizar y rechazar, viaticos.autorizar.
+// Liquidación del solicitante (más de 1 día): comprobantes y liquidar; también solo exigen viaticos.ver.
+router.get('/solicitudes/:id/liquidacion', liquidacionController.obtener);
+router.post('/solicitudes/:id/comprobantes', archivoComprobante, liquidacionController.agregarComprobante);
+router.delete('/solicitudes/:id/comprobantes/:comprobanteId', liquidacionController.quitarComprobante);
+router.post('/solicitudes/:id/liquidar', liquidacionController.liquidar);
+
+// Gestiones: ver todo exige viaticos.gestionar; autorizar y rechazar, viaticos.autorizar; la vista de liquidación (solo lectura), viaticos.liquidar.
 router.get('/gestiones', requirePermission(PERMISOS.GESTIONAR), gestionController.listar);
 router.get('/gestiones/:id', requirePermission(PERMISOS.GESTIONAR), gestionController.obtener);
 router.get('/gestiones/:id/documentos', requirePermission(PERMISOS.GESTIONAR), gestionController.documentos);
 router.post('/gestiones/:id/autorizar', requirePermission(PERMISOS.AUTORIZAR), gestionController.autorizar);
 router.post('/gestiones/:id/rechazar', requirePermission(PERMISOS.AUTORIZAR), gestionController.rechazar);
+router.get('/gestiones/:id/liquidacion', requirePermission(PERMISOS.LIQUIDAR), gestionController.liquidacion);
 
 // Configuración: todo el subárbol exige viaticos.configurar.
 const config = express.Router();

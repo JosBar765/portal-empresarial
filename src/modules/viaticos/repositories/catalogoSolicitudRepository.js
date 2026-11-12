@@ -130,6 +130,11 @@ class CatalogoSolicitudRepository {
     return filasACamel(await ejecutor.query('SELECT id, nombre, es_otros, seleccionable_en_gastos, activo FROM viaticos_tipos_gasto WHERE id IN (?)', [ids], 'viaticos:tiposGastoPorIds'));
   }
 
+  // Los rubros fijos de la liquidación (Hospedaje, Combustible) se buscan por su nombre.
+  async tiposGastoPorNombres(nombres, ejecutor = db) {
+    return filasACamel(await ejecutor.query('SELECT id, nombre, es_otros FROM viaticos_tipos_gasto WHERE nombre IN (?)', [nombres], 'viaticos:tiposGastoPorNombres'));
+  }
+
   async tiposDefectoPorIds(ids, ejecutor = db) {
     if (ids.length === 0) return [];
     return filasACamel(await ejecutor.query('SELECT id, nombre, es_otros, activo FROM viaticos_tipos_defecto WHERE id IN (?)', [ids], 'viaticos:tiposDefectoPorIds'));

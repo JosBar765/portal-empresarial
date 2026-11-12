@@ -79,11 +79,12 @@ function accionesDe(fase, esLargo) {
   return acciones;
 }
 
-// Acciones de la pestaña Gestiones según los permisos de quien consulta: decidir solo mientras espera autorización (una vencida ya no se decide).
+// Acciones de la pestaña Gestiones según los permisos de quien consulta: decidir solo mientras espera autorización (una vencida ya no se decide);
+// la vista de liquidación (solo lectura) se abre con el viaje terminado y también una vez liquidada.
 function accionesDeGestion({ fase, esLargo, permisos }) {
   const acciones = [ACCIONES.VER];
   if (permisos.includes(PERMISOS.AUTORIZAR) && fase === FASES.ESPERANDO) acciones.push(ACCIONES.AUTORIZAR, ACCIONES.RECHAZAR);
-  if (permisos.includes(PERMISOS.LIQUIDAR) && esLargo && fase === FASES.TERMINADA) acciones.push(ACCIONES.LIQUIDAR);
+  if (permisos.includes(PERMISOS.LIQUIDAR) && esLargo && (fase === FASES.TERMINADA || fase === FASES.LIQUIDADA)) acciones.push(ACCIONES.LIQUIDAR);
   return acciones;
 }
 

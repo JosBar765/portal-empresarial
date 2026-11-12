@@ -21,6 +21,8 @@ const CATALOGO = Object.freeze({
   // ---- Catálogos simples ----
   'catalogo.noExiste': 'No existe {articulo} con el identificador {id}. Recarga la lista e inténtalo de nuevo.',
   'catalogo.duplicado': 'Ya existe {articulo} con {detalle}. Usa otro valor o edita la que ya existe.',
+  'catalogo.protegidoRenombrar': 'No se puede renombrar «{nombre}» a «{nuevo}»: la liquidación de viáticos identifica este tipo de gasto por su nombre. Conserva el nombre original.',
+  'catalogo.protegidoDesactivar': 'No se puede desactivar «{nombre}»: la liquidación de viáticos depende de este tipo de gasto. Déjalo activo.',
   'pais.noExiste': 'El país elegido no existe. Elige uno de la lista de países.',
 
   // ---- Tramos ----
@@ -147,13 +149,37 @@ const CATALOGO = Object.freeze({
   'defecto.archivoSobrante': 'Adjuntaste {cantidad} fotos pero solo {usadas} están asignadas a un defecto. Quita las que sobran o registra su defecto.',
   'defecto.archivosSinInspeccion': 'Un viaje de más de 1 día no lleva fotos de defectos. Quita los archivos adjuntos.',
 
+  // ---- Liquidación ----
+  'liquidacion.etiquetaMonto': 'Monto del comprobante',
+  'liquidacion.etiquetaRubro': 'Tipo de gasto',
+  'liquidacion.etiquetaDescripcion': 'Descripción del gasto',
+  'liquidacion.soloLargo': 'La solicitud {correlativo} es de 1 día o menos y no se liquida: solo se liquidan los viajes de más de 1 día.',
+  'liquidacion.noAutorizada': 'La solicitud {correlativo} está «{estado}» y no se puede liquidar: solo se liquida una solicitud autorizada cuyo viaje ya terminó.',
+  'liquidacion.viajeNoTermina': 'La solicitud {correlativo} aún no se puede liquidar: el viaje termina el {fecha} y se liquida a partir del día siguiente.',
+  'liquidacion.yaLiquidada': 'La solicitud {correlativo} ya fue liquidada: no se pueden agregar ni quitar comprobantes ni liquidarla de nuevo.',
+  'liquidacion.faltaRubro': '{nombre}: faltan {faltan} de {solicitados}',
+  'liquidacion.faltan': 'Aún faltan comprobantes para liquidar la solicitud {correlativo} ({detalle}). Agrega un comprobante por cada uno y vuelve a liquidar.',
+  'liquidacion.archivoFalta': 'Adjunta el archivo del comprobante (imagen o PDF) en el campo «archivo».',
+  'liquidacion.sinRubros': 'ninguno, la solicitud no tiene gastos por liquidar',
+  'liquidacion.rubroNoSolicitado': 'El tipo de gasto elegido no forma parte de lo que solicitaste en este viaje. Solo puedes liquidar: {rubros}.',
+  'liquidacion.rubroCompleto': 'Ya adjuntaste todos los comprobantes de «{nombre}»: solicitaste {solicitados} y llevas {liquidados}. No se pueden agregar más; quita uno si quieres reemplazarlo o elige otro tipo de gasto.',
+  'liquidacion.descripcionObligatoria': 'Describe el gasto de tipo «{rubro}» (hasta {max} caracteres): con el tipo «otros» la descripción es obligatoria.',
+  'liquidacion.comprobanteNoExiste': 'No existe el comprobante {id} en la solicitud {correlativo}. Recarga la liquidación e inténtalo de nuevo.',
+  'liquidacion.nombreAgotado': 'No se pudo asignar un nombre libre en Storage al comprobante de «{rubro}» después de {intentos} intentos (el último probado fue «{nombre}»). Avisa a un administrador para limpiar los archivos sobrantes del bucket.',
+  'liquidacion.rubroFijoFalta': 'Falta el tipo de gasto «{nombre}» en la configuración y la liquidación depende de él. Pide a un administrador que lo cree en Configuración con ese nombre exacto y vuelve a intentarlo.',
+  'liquidacion.gestionNoDisponible': 'La solicitud {correlativo} está «{estado}» y no tiene liquidación para revisar: solo se revisan las de más de 1 día que estén autorizadas o liquidadas.',
+  'liquidacion.llaveOtraOperacion': 'La clave de reintento («idempotencyKey») ya se usó en otra operación. Usa una clave nueva para cada envío.',
+
   // ---- Notificaciones y documentos ----
   'notificacion.solicitudNueva': 'Nueva solicitud de viáticos {correlativo} de {solicitante}: espera tu autorización.',
   'notificacion.solicitudModificada': 'La solicitud de viáticos {correlativo} de {solicitante} fue modificada y espera tu autorización.',
   'notificacion.solicitudAutorizada': 'Tu solicitud {correlativo} fue autorizada.',
   'notificacion.solicitudRechazada': 'Tu solicitud {correlativo} fue rechazada. Motivo: {motivo}',
+  'notificacion.solicitudLiquidada': 'La solicitud de viáticos {correlativo} de {solicitante} fue liquidada: ya puedes revisar sus comprobantes.',
   'documento.tituloPdf': 'Solicitud {correlativo}',
   'documento.tituloDefecto': 'Defecto {numero}: {tipo}',
+  'documento.tituloComprobante': 'Comprobante {numero}: {rubro} · {moneda} {monto}',
+  'documento.tituloComprobanteDescrito': 'Comprobante {numero}: {rubro} ({descripcion}) · {moneda} {monto}',
 
   // ---- Gestiones ----
   'gestion.etiquetaMotivo': 'Motivo del rechazo',
