@@ -10,7 +10,7 @@ import { aId } from '../datos.js';
 import { t } from '../../textos.js';
 
 // Las claves de las advertencias son los nombres de las salvedades del servidor.
-const TITULO_ADVERTENCIA = {
+export const TITULO_ADVERTENCIA = {
   licencia: 'formulario.advertencia.licencia',
   'tarjeta de circulación': 'formulario.advertencia.tarjeta',
   seguro: 'formulario.advertencia.seguro'

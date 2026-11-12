@@ -89,7 +89,7 @@ export async function cargarSolicitudes({ conEstado = false } = {}) {
 
 const ACCIONES_FILA = {
   [ACCIONES.VER]: (solicitud) => abrirVisorSolicitud(solicitud),
-  [ACCIONES.MODIFICAR]: (solicitud) => abrirFormularioSolicitud({ modo: 'modificar', solicitud }),
+  [ACCIONES.MODIFICAR]: (solicitud) => abrirFormularioSolicitud({ modo: 'modificar', solicitud, alTerminar: () => cargarSolicitudes() }),
   [ACCIONES.DAR_DE_BAJA]: (solicitud) => darDeBaja(solicitud, cargarSolicitudes),
   [ACCIONES.LIQUIDAR]: (solicitud) => abrirLiquidacion(solicitud)
 };

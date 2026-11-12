@@ -140,4 +140,57 @@
   .vi-modal-solicitud .modal-footer .btn { flex: 1; }
   .vi-modal-solicitud .vi-btn-agregar { min-height: 44px; }
   .vi-modal-solicitud .date-field-trigger { min-height: 44px; }
+  .vi-modal-solicitud .form-field input, .vi-modal-solicitud .form-field select { min-height: 44px; }
+  .vi-nivel-fila { grid-template-columns: minmax(0, 1fr); }
+  .vi-nivel-fila .field-error { grid-column: 1; }
+  .vi-opciones { flex-wrap: nowrap; }
+  .vi-opcion { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 4px; }
+  .vi-defecto { grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; }
+  .vi-defecto__titulo { display: block; grid-column: 1; grid-row: 1; align-self: center; }
+  .vi-defecto__campos { grid-column: 1 / -1; grid-row: 2; }
+  .vi-defecto .vi-renglon__quitar { grid-column: 2; grid-row: 1; }
+  .vi-foto__cuerpo { grid-column: 1 / -1; grid-row: 3; flex-direction: row; align-items: stretch; }
+  .vi-foto__vista { width: 80px; height: auto; min-height: 70px; }
+  .vi-foto__acciones { flex: 1; align-items: stretch; }
+  .vi-foto .field-error { grid-row: 4; }
 }
+
+/* ---------- Viaje de 1 día o menos: niveles de fluidos, kit y defectos con foto ---------- */
+.vi-niveles { display: flex; flex-direction: column; gap: 10px; }
+.vi-nivel-fila { display: grid; grid-template-columns: 220px minmax(0, 1fr); align-items: center; column-gap: 12px; row-gap: 4px; }
+.vi-nivel-fila .field-error { grid-column: 2; }
+.vi-nivel-etiqueta { font-size: var(--text-sm); color: var(--color-text); }
+.vi-opciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.vi-opcion {
+  min-width: 40px; min-height: 36px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  background: var(--color-surface); color: var(--color-text-secondary); font-family: var(--font-body); font-size: var(--text-sm); font-weight: 600; cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+.vi-opcion:hover { border-color: var(--color-text-muted); }
+.vi-opcion:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.vi-opcion.is-activa { background: var(--color-primary-dark); border-color: var(--color-primary-dark); color: var(--color-surface); }
+.vi-opcion.is-activa.is-bajo { background: var(--color-warning-bg); border-color: var(--color-warning); color: var(--color-warning); }
+
+.vi-defecto { grid-template-columns: minmax(0, 1fr) 150px 36px; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.vi-defecto__titulo { display: none; font-weight: 700; font-size: var(--text-sm); }
+.vi-defecto__campos { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.vi-defecto .vi-renglon__quitar { grid-column: 3; grid-row: 1; }
+/* La caja de la foto deja que su error ocupe todo el ancho del renglón, debajo de los campos. */
+.vi-foto { display: contents; }
+.vi-foto__cuerpo { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.vi-foto .field-error { grid-column: 1 / -1; grid-row: 2; }
+.vi-foto__vista {
+  display: flex; align-items: center; justify-content: center; width: 84px; height: 60px; padding: 0; overflow: hidden;
+  border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-muted); color: var(--color-text-muted); font-size: 22px;
+}
+button.vi-foto__vista { cursor: zoom-in; }
+button.vi-foto__vista:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.vi-foto__vista img { width: 100%; height: 100%; object-fit: cover; }
+.vi-foto.is-invalid .vi-foto__vista--vacia { border-style: dashed; border-color: var(--color-danger); color: var(--color-danger); }
+.vi-foto__acciones { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.vi-foto__boton { white-space: nowrap; }
+
+.vi-resumen__estado--corto { font-size: var(--text-sm); color: var(--color-text); }
+.vi-resumen__estado--corto ion-icon { flex: none; font-size: 18px; }
+
+.vi-resumen--corto { padding-top: 10px; padding-bottom: 10px; }

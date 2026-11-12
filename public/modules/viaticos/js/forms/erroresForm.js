@@ -4,13 +4,17 @@
 import { TEXTOS, t } from '../textos.js';
 import { marcarErroresDeCampos } from '../components/validacion.js';
 import { crearAviso } from '../components/aviso.js';
-import { erroresLocales, raizDeCampo, remapearCampo } from './datos.js';
+import { erroresLocales, familiaDeCampo, raizDeCampo, remapearCampo } from './datos.js';
 
 // Todos los errores vigentes como { campo, mensaje }, sin filtrar por lo tocado.
 export function erroresVigentes(ctx) {
   const locales = erroresLocales(ctx.estado, ctx.catalogos).map(e => ({ campo: e.campo, mensaje: t(e.clave, e.params) }));
   const rutaIncompleta = locales.some(e => e.campo === 'origenInicialId' || e.campo.startsWith('tramos['));
-  const servidor = ctx.erroresServidor.filter(e => !(rutaIncompleta && e.campo === 'tramos') && !locales.some(l => l.campo === e.campo));
+  // Un error general de lista (tramos, fluidos, kit…) sobra si ya hay renglones a medias que lo explican; la hora mala explica la fecha que falta.
+  const explicado = (campo) => (campo === 'tramos' && rutaIncompleta)
+    || (['inspeccion.fluidos', 'inspeccion.kit', 'inspeccion.defectos'].includes(campo) && locales.some(l => l.campo.startsWith(`${campo}[`)))
+    || (campo === 'fechaSalida' && locales.some(l => l.campo === 'horaSalida'));
+  const servidor = ctx.erroresServidor.filter(e => !explicado(e.campo) && !locales.some(l => l.campo === e.campo));
   return [...locales, ...servidor];
 }
 
@@ -25,7 +29,7 @@ export function erroresDeCampos(campos, indices) {
 export function camposPendientes(errores) {
   const nombres = [];
   for (const e of errores) {
-    const clave = `formulario.campo.${raizDeCampo(e.campo)}`;
+    const clave = `formulario.campo.${familiaDeCampo(e.campo)}`;
     const nombre = clave in TEXTOS ? t(clave) : t('formulario.campo.otro');
     if (!nombres.includes(nombre)) nombres.push(nombre);
   }

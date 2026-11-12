@@ -13,7 +13,8 @@ const OPCIONES_TIPO = [
 
 // Control segmentado accesible: un grupo de radios con flechas para moverse entre ellos.
 function crearSegmentado(ctx) {
-  const botones = OPCIONES_TIPO.map(o => h('button', { type: 'button', role: 'radio', class: 'vi-segmentado__opcion', 'data-modalidad': o.valor, text: t(o.clave) }));
+  // Al modificar, el tipo de viaje no se puede cambiar: los botones quedan deshabilitados.
+  const botones = OPCIONES_TIPO.map(o => h('button', { type: 'button', role: 'radio', class: 'vi-segmentado__opcion', 'data-modalidad': o.valor, text: t(o.clave), disabled: ctx.modo === 'modificar' }));
   const grupo = h('div', { class: 'vi-segmentado', role: 'radiogroup', 'aria-labelledby': 'vi-sol-tipo-etiqueta' }, botones);
   const pintar = () => botones.forEach(b => {
     const activo = b.dataset.modalidad === ctx.estado.modalidad;
@@ -48,7 +49,7 @@ export function crearSeccionSolicitud(ctx, { alElegirPais }) {
   const paises = ctx.contexto.paises || [];
   const pais = crearCombo({
     id: 'vi-sol-pais', name: 'paisId', etiquetaAria: t('formulario.pais.etiqueta'), placeholder: t('formulario.pais.placeholder'),
-    grupos: [{ opciones: opcionesDe(paises, p => p.nombre) }], valor: estado.paisId, alCambiar: (v) => alElegirPais(aId(v))
+    grupos: [{ opciones: opcionesDe(paises, p => p.nombre) }], valor: estado.paisId, deshabilitado: ctx.modo === 'modificar', alCambiar: (v) => alElegirPais(aId(v))
   });
   const moneda = crearCombo({
     id: 'vi-sol-moneda', name: 'monedaId', etiquetaAria: t('formulario.moneda.etiqueta'), placeholder: t('formulario.moneda.placeholder'),
@@ -63,7 +64,7 @@ export function crearSeccionSolicitud(ctx, { alElegirPais }) {
   function pintarMonedas() {
     const monedas = ctx.catalogos ? ctx.catalogos.monedas : [];
     llenarCombo(moneda, { placeholder: t('formulario.moneda.placeholder'), grupos: [{ opciones: opcionesDe(monedas, m => `${m.nombre} (${m.simbolo})`) }], valor: estado.monedaId });
-    moneda.disabled = monedas.length === 0;
+    moneda.disabled = monedas.length === 0 || ctx.modo === 'modificar';
     campoMoneda.style.display = estado.modalidad === MODALIDADES.MAS_DE_UN_DIA ? '' : 'none';
   }
   ctx.suscribir('catalogos', pintarMonedas, true);

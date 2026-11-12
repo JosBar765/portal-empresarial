@@ -2,14 +2,11 @@
 // El dinero (combustible, depreciación, hospedaje, comidas, otros, total) lo calcula siempre el servidor.
 import { MODALIDADES, LIMITES_SOLICITUD } from '../config/constantes.js';
 import { diasEntre } from '../utils/fechas.js';
-import { normalizarDecimal } from '../utils/numero.js';
+import { normalizarDecimal, numeroATexto } from '../utils/numero.js';
+import { aId } from '../utils/ids.js';
+import { armarPayloadCorto, erroresLocalesCorto, estadoCortoDeDetalle, estadoCortoInicial, reconciliarCorto } from './datosCorto.js';
 
-// Los ids del estado son número o '' (sin elegir); un <select> entrega texto.
-export function aId(valor) {
-  if (valor === '' || valor === null || valor === undefined) return '';
-  const n = Number(valor);
-  return Number.isInteger(n) ? n : '';
-}
+export { aId };
 
 export function estadoInicial({ paises = [] } = {}) {
   return {
@@ -29,7 +26,9 @@ export function estadoInicial({ paises = [] } = {}) {
     hospedajes: [],
     // { 'AAAA-MM-DD': { [tipoComidaId]: true } }
     comidas: {},
-    gastos: []
+    gastos: [],
+    // Solo del viaje de 1 día o menos: hora de salida, odómetro, { fluidoId: nivelId }, { kitItemId: boolean } y defectos con su foto.
+    ...estadoCortoInicial()
   };
 }
 
@@ -142,6 +141,9 @@ const existe = (lista, id) => id !== '' && lista.some(x => x.id === id);
 // Descarta lo elegido que ya no existe en el catálogo (p. ej. al cambiar de país) y preselecciona lo único posible.
 export function reconciliarEstado(estado, cat) {
   const vehiculo = cat.vehiculos.find(v => v.id === estado.vehiculoId);
+  const esCorto = estado.modalidad === MODALIDADES.HASTA_UN_DIA;
+  // El viaje corto solo admite vehículos de la empresa con tarjeta de circulación vigente.
+  const noServible = (v) => !!v.bloqueo || (esCorto && (v.esPropio || !!v.bloqueoViajeCorto));
   const monedaId = existe(cat.monedas, estado.monedaId) ? estado.monedaId : (cat.monedas.length === 1 ? cat.monedas[0].id : '');
   const dias = diasEntre(estado.fechaSalida, estado.fechaRegreso);
   const valores = valoresComidaDeMoneda(cat.valoresComida, monedaId);
@@ -149,11 +151,12 @@ export function reconciliarEstado(estado, cat) {
   return {
     ...estado,
     monedaId,
-    vehiculoId: vehiculo && !vehiculo.bloqueo ? estado.vehiculoId : '',
+    vehiculoId: vehiculo && !noServible(vehiculo) ? estado.vehiculoId : '',
     motivoId: existe(cat.motivos, estado.motivoId) ? estado.motivoId : '',
     ...normalizarRuta(estado, cat.tramos),
     comidas,
-    gastos: estado.gastos.map(g => ({ ...g, tipoGastoId: existe(cat.tiposGasto, g.tipoGastoId) ? g.tipoGastoId : '' }))
+    gastos: estado.gastos.map(g => ({ ...g, tipoGastoId: existe(cat.tiposGasto, g.tipoGastoId) ? g.tipoGastoId : '' })),
+    ...reconciliarCorto(estado, cat)
   };
 }
 
@@ -178,9 +181,10 @@ function entero(texto) {
 const vacio = (texto) => normalizarDecimal(texto) === '';
 const sinTexto = (texto) => String(texto ?? '').trim() === '';
 
-// Devuelve { datos, indices } (indices: posición del renglón de la pantalla de cada elemento enviado) o null si no hay cálculo.
-// Solo viajan los renglones completos: uno a medias se pide completar o quitar, no se manda a medias.
+// Devuelve { datos, indices, fotos } (indices: posición del renglón de la pantalla de cada elemento enviado; fotos: archivos en el orden de
+// `archivoIndice`, solo en el viaje corto). Solo viajan los renglones completos: uno a medias se pide completar o quitar, no se manda a medias.
 export function armarPayload(estado, cat, { idempotencyKey } = {}) {
+  if (estado.modalidad === MODALIDADES.HASTA_UN_DIA) return armarPayloadCorto(estado, cat, { idempotencyKey });
   if (estado.modalidad !== MODALIDADES.MAS_DE_UN_DIA) return null;
   const veh = vehiculoDelEstado(estado, cat);
   const datos = { modalidad: estado.modalidad };
@@ -227,13 +231,15 @@ export function armarPayload(estado, cat, { idempotencyKey } = {}) {
   });
 
   if (idempotencyKey) datos.idempotencyKey = idempotencyKey;
-  return { datos, indices };
+  return { datos, indices, fotos: [] };
 }
 
 // ---------- Errores ----------
 // Lo que falta o está a medias en la pantalla; el texto lo pone quien lo pinta (`clave` de textos.js).
 export function erroresLocales(estado, cat) {
-  if (!cat || estado.modalidad !== MODALIDADES.MAS_DE_UN_DIA) return [];
+  if (!cat) return [];
+  if (estado.modalidad === MODALIDADES.HASTA_UN_DIA) return erroresLocalesCorto(estado, cat);
+  if (estado.modalidad !== MODALIDADES.MAS_DE_UN_DIA) return [];
   const errores = [];
   const nombre = (id) => (cat.ubicaciones.find(u => u.id === id) || {}).nombre || '';
   if (estado.origenInicialId === '') errores.push({ campo: 'origenInicialId', clave: 'formulario.error.origen' });
@@ -257,16 +263,71 @@ export function erroresLocales(estado, cat) {
 
 // «tramos[1]» del servidor apunta a la posición dentro de lo enviado; aquí se traduce a la del renglón de la pantalla.
 export function remapearCampo(campo, indices) {
-  const m = /^(tramos|hospedajes|gastos)\[(\d+)\](.*)$/.exec(campo);
+  const m = /^(tramos|hospedajes|gastos|inspeccion\.fluidos|inspeccion\.kit|inspeccion\.defectos)\[(\d+)\](.*)$/.exec(campo);
   if (m) {
     const posicion = Number(m[2]);
-    const fila = indices && indices[m[1]] && indices[m[1]][posicion] !== undefined ? indices[m[1]][posicion] : posicion;
+    const lista = indices && indices[m[1].replace('inspeccion.', '')];
+    const fila = lista && lista[posicion] !== undefined ? lista[posicion] : posicion;
     return `${m[1]}[${fila}]${m[3]}`;
   }
   if (/^comidas(\[|$)/.test(campo)) return 'comidas';
   return campo;
 }
 
+// Clave con la que un campo cuenta como «tocado»: la sección y, en la inspección, cada renglón por separado.
 export function raizDeCampo(campo) {
-  return String(campo).split(/[.[]/)[0];
+  const texto = String(campo);
+  const renglon = /^inspeccion\.(?:fluidos|kit|defectos)\[\d+\]/.exec(texto);
+  if (renglon) return renglon[0];
+  if (texto.startsWith('inspeccion.')) return texto.split(/[.[]/).slice(0, 2).join('.');
+  return texto.split(/[.[]/)[0];
+}
+
+// Nombre del campo sin posiciones («inspeccion.defectos[2].descripcion» -> «inspeccion.defectos»): sirve para nombrarlo en el motivo del envío.
+export function familiaDeCampo(campo) {
+  return raizDeCampo(campo).replace(/\[\d+\]/, '');
+}
+
+// ---------- Detalle del servidor -> estado ----------
+const diaDe = (valor) => String(valor || '').slice(0, 10);
+
+// Reconstruye el estado del formulario desde `GET /solicitudes/:id`; es la inversa de `armarPayload` (ver la prueba de ida y vuelta).
+export function detalleAEstado(detalle) {
+  const base = estadoInicial();
+  const comun = {
+    paisId: aId(detalle.pais && detalle.pais.id),
+    modalidad: detalle.modalidad,
+    vehiculoId: aId(detalle.vehiculo && detalle.vehiculo.id),
+    motivoId: aId(detalle.motivo && detalle.motivo.id)
+  };
+  if (detalle.modalidad === MODALIDADES.HASTA_UN_DIA) return { ...base, ...comun, ...estadoCortoDeDetalle(detalle) };
+  const tramos = [...(detalle.tramos || [])].sort((a, b) => a.orden - b.orden);
+  const comidas = {};
+  for (const c of detalle.comidas || []) {
+    const dia = diaDe(c.fecha);
+    comidas[dia] = { ...(comidas[dia] || {}), [aId(c.tipoComidaId)]: true };
+  }
+  return {
+    ...base,
+    ...comun,
+    monedaId: aId(detalle.moneda && detalle.moneda.id),
+    fechaSalida: diaDe(detalle.fechaSalida),
+    fechaRegreso: diaDe(detalle.fechaRegreso),
+    rendimiento: numeroATexto(detalle.rendimientoKmGalon),
+    precioGalon: numeroATexto(detalle.precioGalon),
+    depreciacion: numeroATexto(detalle.depreciacionPorKm),
+    origenInicialId: tramos.length ? aId(tramos[0].origenId) : '',
+    tramos: tramos.length ? tramos.map(t => ({ destinoId: aId(t.destinoId) })) : [{ destinoId: '' }],
+    hospedajes: (detalle.hospedajes || []).map(h => ({ hotel: h.hotel || '', lugar: h.lugar || '', noches: numeroATexto(h.noches), valorNoche: numeroATexto(h.valorNoche) })),
+    comidas,
+    gastos: (detalle.gastos || []).map(g => ({ tipoGastoId: aId(g.tipoGastoId), descripcion: g.descripcion || '', monto: numeroATexto(g.monto) }))
+  };
+}
+
+// Motivo con el que se rechazó la solicitud (último renglón «rechazada» del historial); '' si no está rechazada o no hay motivo.
+export function motivoDeRechazo(detalle) {
+  const rechazada = String(detalle.estado || '').toLowerCase() === 'rechazada' || (detalle.pipeline && detalle.pipeline.fase === 'rechazada');
+  if (!rechazada) return '';
+  const renglon = [...(detalle.historial || [])].reverse().find(r => String(r.estado || '').toLowerCase() === 'rechazada' && r.motivo);
+  return renglon ? renglon.motivo : '';
 }

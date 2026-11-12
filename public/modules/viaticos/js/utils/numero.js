@@ -27,6 +27,13 @@ export function normalizarDecimal(texto) {
   return decimal ? `${entera}.${decimal}` : entera;
 }
 
+// Valor que llega del servidor (número o texto con ceros sobrantes, p. ej. «35.00») -> texto editable («35»); '' si no hay valor.
+export function numeroATexto(valor) {
+  if (valor === null || valor === undefined || valor === '') return '';
+  const n = Number(valor);
+  return Number.isFinite(n) ? String(n) : String(valor);
+}
+
 // Número para mostrar o comparar; null si está vacío o no es un número.
 export function aNumero(texto) {
   const canonico = normalizarDecimal(texto);
