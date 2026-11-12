@@ -138,7 +138,7 @@ async function renderDetalle(cont, id) {
         puedeCancelar ? h('button', { class: 'btn btn--danger', type: 'button', onclick: () => cancelar(p, () => renderDetalle(cont, id)) }, icono('close-circle-outline'), 'Cancelar proyecto') : null)
     }),
     h('div', { class: 'chips chips--ficha' }, chipDe(p)),
-    p.estado === 'pendiente_aprobacion' ? aviso({ tipo: 'advertencia', titulo: `Pediste la activación el ${fechaLarga((p.aprobacionPedidaEn || '').slice(0, 10))}`, texto: `${p.aprobacionPedidaPor ? `${p.aprobacionPedidaPor} ` : 'El gerente '}la aprobará o la devolverá con comentarios. Mientras tanto no se reparte nada y no se edita.` }) : null,
+    p.estado === 'pendiente_aprobacion' ? aviso({ tipo: 'advertencia', titulo: `Pediste la activación el ${fechaLarga((p.aprobacionPedidaEn || '').slice(0, 10))}`, texto: 'El gerente la aprobará o la devolverá con comentarios. Mientras tanto no se reparte nada y no se edita.' }) : null,
     p.estado === 'cancelado' ? aviso({ titulo: 'Proyecto cancelado', texto: 'Sus tiendas y sus empresas quedaron libres. Lo registrado se conserva en el historial.' }) : null,
     h('div', { class: 'ficha-cuerpo' },
       h('div', { class: 'ficha-columna' },
@@ -146,7 +146,7 @@ async function renderDetalle(cont, id) {
           h('dl', { class: 'datos' }, dato('Nicho', p.nicho), dato('Mes', p.mesTexto), dato('Inicio', fechaLarga(p.fechaInicio)), dato('Fin', fechaLarga(p.fechaFin)),
             dato('Artículo', p.articulo ? `${p.articulo}${p.existenciaMuestras !== null ? ` · ${p.existenciaMuestras} unidades` : ''}` : 'Sin artículo'),
             dato('Meta', p.metaMonto !== null ? `${p.metaMonto.toLocaleString('es-GT')} ${p.metaMoneda}` : 'Sin meta'),
-            dato('Tope por asesor', p.topePorAsesor === null ? 'Sin tope' : String(p.topePorAsesor)), dato('Plantilla', p.fotoConfiguracion && p.fotoConfiguracion.plantilla))),
+            dato('Tope por asesor', p.topePorAsesor === null ? 'Sin tope' : String(p.topePorAsesor)), dato('Plantilla', (p.fotoConfiguracion && p.fotoConfiguracion.plantilla) || p.plantillaNombre))),
         h('section', { class: 'panel' }, h('h2', { class: 'panel-titulo', text: `Tiendas (${p.tiendas.length})` }),
           h('ul', { class: 'lista-simple' }, p.tiendas.map(t => h('li', null, h('strong', { text: t.codigo }), ` · ${t.empresa} · ${t.pais}`))))),
       h('div', { class: 'ficha-columna' },

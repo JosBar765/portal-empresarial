@@ -61,7 +61,7 @@ export async function renderSeguimiento(cont, parametro) {
         h('td', null, barra(a.gestionadas, a.asignadas, a.semaforo)),
         ...(a.otraTienda ? [h('td', { class: 'num texto-tenue', text: '—' }), h('td', { class: 'num texto-tenue', text: '—' }), h('td', { class: 'num texto-tenue', text: '—' }), h('td', { class: 'num texto-tenue', text: '—' }), h('td', { class: 'texto-tenue', text: '—' })]
           : [h('td', { class: 'num', text: String(a.interesadas) }), h('td', { class: 'num', text: String(a.cotizadas) }), h('td', { class: 'num', text: String(a.vendidas) }),
-            h('td', { class: `num${a.yaGestiono ? '' : ' texto-rojo'}`, title: a.yaGestiono ? 'Días entre la asignación y la primera gestión' : 'Todavía no registra ninguna gestión', text: `${a.reaccionDias} d` }), h('td', null, chipSemaforo(a.semaforo))]),
+            h('td', { class: `num${a.yaGestiono ? '' : ' texto-rojo'}`, title: a.yaGestiono ? 'Días entre la asignación y la primera gestión' : 'Todavía no registra ninguna gestión', text: a.reaccionDias === null || a.reaccionDias === undefined ? '—' : (a.yaGestiono ? `${a.reaccionDias} d` : 'Sin gestión') }), h('td', null, chipSemaforo(a.semaforo))]),
         h('td', { class: 'acciones-fila' }, a.otraTienda ? candado('Solo lectura')
           : puede ? h('button', { class: 'btn btn--ghost btn--chico', type: 'button', onclick: () => reasignar({ asesor: a }) }, icono('swap-horizontal-outline'), 'Reasignar') : null)))))));
   }
@@ -80,7 +80,7 @@ export async function renderSeguimiento(cont, parametro) {
       entrada.value = valores.monto;
       entrada.addEventListener('input', () => { valores.monto = entrada.value; });
       montar(nodo,
-        h('p', { class: 'hoja-subtitulo', text: `${a.nombre} · ${a.empresa}. Ajustar una meta no cambia la de los demás.` }),
+        h('p', { class: 'hoja-subtitulo', text: `${a.nombre} · ${a.empresa}${/\.$/.test(a.empresa) ? '' : '.'} Ajustar una meta no cambia la de los demás.` }),
         h('div', { class: `campo${errores.monto ? ' campo--error' : ''}` }, h('label', { for: 'meta-monto', text: `Meta (${monedaMeta()})` }), entrada,
           errores.monto ? h('span', { class: 'campo-error', text: errores.monto }) : h('span', { class: 'campo-ayuda', text: 'Déjalo vacío para volver a la parte igual del proyecto.' })));
     };

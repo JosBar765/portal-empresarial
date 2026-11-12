@@ -1,7 +1,7 @@
 // Panel gerencial (G1, #/panel), lista de cierres por dar visto bueno (G4, #/vistobueno) y revisión de un cierre (G2, #/vistobueno/<id>).
 // Todo en solo lectura, salvo la decisión del gerente (dar el visto bueno o devolverlo con comentarios).
 import { h, icono, montar } from '../utils/dom.js';
-import { hace } from '../utils/formato.js';
+import { hace, pluralizar } from '../utils/formato.js';
 import { aviso, cargando, estadoVacio, avisar } from '../components/ui.js';
 import { campoArea } from '../components/campos.js';
 import { obtenerPanelGerencial, listarPorDarVistoBueno, obtenerInforme, darVistoBueno, devolverCierre } from '../api/api.js';
@@ -123,7 +123,7 @@ async function renderRevision(cont, id) {
     h('nav', { class: 'migas' }, h('a', { href: '#/vistobueno' }, icono('arrow-back-outline'), 'Por dar visto bueno')),
     h('div', { class: 'pagina-cabecera' },
       h('div', null, h('div', { class: 'mi-proyecto-titulo' }, h('h1', { class: 'pagina-titulo', text: `${proyecto.nicho} · ${nombreDelMes(proyecto.anio, proyecto.mes)}` }), h('span', { class: 'chip-oscuro', text: proyecto.estado === 'cerrado' ? 'Cerrado' : 'Activo' }), chipVB),
-        h('p', { class: 'pagina-subtitulo', text: `${proyecto.paises || ''} · ${proyecto.tiendas} tiendas${datos.cierre ? ` · cerrado el ${diaCorto(datos.cierre.en)} por ${datos.cierre.por}` : ''}` })),
+        h('p', { class: 'pagina-subtitulo', text: `${proyecto.paises || ''} · ${pluralizar(proyecto.tiendas, 'tienda', 'tiendas')}${datos.cierre ? ` · cerrado el ${diaCorto(datos.cierre.en)} por ${datos.cierre.por}` : ''}` })),
       h('div', { class: 'acciones-cabecera' }, menuExportar(proyecto.id), enlacePdf(proyecto.id))),
     h('div', { class: 'cierre-cuerpo' },
       h('div', { class: 'cierre-columna' },

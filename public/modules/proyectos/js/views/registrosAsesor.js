@@ -5,7 +5,7 @@ import { avisar } from '../components/ui.js';
 import { modalFormulario } from '../components/modalFormulario.js';
 import { campoLista, campoTexto, campoArea, campoFechaHora } from '../components/campos.js';
 import { registrarGestion, registrarCotizacion, registrarVenta, marcarEmpresaPerdida, descartarEmpresa } from '../api/api.js';
-import { simboloDe } from '../utils/gestion.js';
+import { simboloDe, diaCorto } from '../utils/gestion.js';
 
 // Una clave por hoja abierta: un doble clic o un reintento no duplica el registro.
 const nuevaClave = () => (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID().replace(/-/g, '') : `${Date.now()}${Math.random().toString(36).slice(2)}`).slice(0, 40);
@@ -52,7 +52,7 @@ export function formularioGestion(ficha, opciones, { alCambiar } = {}) {
       campoArea({ valores, errores, clave: 'nota', etiqueta: 'Nota', maximo: 1000, prefijoId: 'gestion' }),
       campoFechaHora({
         valores, errores, clave: 'proximaEn', etiqueta: 'Próximo seguimiento', obligatorio: Boolean(r && r.requiere_proxima), prefijoId: 'gestion',
-        ayuda: r && r.requiere_proxima ? 'Obligatorio con este resultado.' : 'Opcional.',
+        ayuda: r && r.requiere_proxima ? 'Obligatorio con este resultado.' : (ficha.proximaGestion ? `Opcional. Si lo dejas vacío, se borra el seguimiento ya programado (${diaCorto(ficha.proximaGestion)}).` : 'Opcional.'),
         validar: (v) => (r && r.requiere_proxima && vacio(v) ? 'Con este resultado hay que fijar la fecha del próximo seguimiento.' : '')
       }),
       muestra ? h('div', { class: 'muestra-caja' },
