@@ -11,6 +11,9 @@ export const state = {
   ventana: null,
   // Texto del buscador de la lista abierta (sin espacios sobrantes).
   busqueda: '',
+  // Gestiones lleva su propio período y búsqueda para no pisar los de Solicitudes.
+  ventanaGestion: null,
+  busquedaGestion: '',
   // id de solicitud -> marca de tiempo de la acción propia, para no avisarle al usuario lo que él mismo hizo.
   accionesPropias: new Map()
 };

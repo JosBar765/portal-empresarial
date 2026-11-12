@@ -20,7 +20,7 @@ export function htmlAcciones(solicitud) {
   }).join('');
 }
 
-const celda = (clave, contenido, clase = '') => `<td data-label="${escapeHtml(t(clave))}"${clase ? ` class="${clase}"` : ''}>${contenido}</td>`;
+export const celda = (clave, contenido, clase = '') => `<td data-label="${escapeHtml(t(clave))}"${clase ? ` class="${clase}"` : ''}>${contenido}</td>`;
 
 export function htmlFilaSolicitud(s) {
   const tipo = t(s.modalidad === MODALIDADES.MAS_DE_UN_DIA ? 'solicitudes.tipo.mas_de_un_dia' : 'solicitudes.tipo.hasta_un_dia');

@@ -19,6 +19,13 @@ import { t } from '../../textos.js';
 
 const textoDeError = (e) => (typeof e === 'string' ? e : t(e.clave, e.params));
 
+// Miniatura que abre el archivo; también la usa la liquidación de solo lectura de Gestiones.
+export function miniatura({ url, tipo, etiquetaAria, alPulsar }) {
+  const imagen = tipo === 'imagen' && urlSegura(url);
+  return h('button', { type: 'button', class: 'vi-comp__miniatura', 'aria-label': etiquetaAria, onclick: (e) => alPulsar(e.currentTarget) },
+    imagen ? h('img', { src: url, alt: '', loading: 'lazy' }) : icono('document-outline'));
+}
+
 // `obtenerLiq()` devuelve la última liquidación del servidor; `alActualizar(liq)` la reemplaza (resumen, pendientes y esta sección).
 export function crearComprobantes({ solicitudId, ajustes, obtenerLiq, alActualizar }) {
   const borradores = [];
@@ -47,12 +54,6 @@ export function crearComprobantes({ solicitudId, ajustes, obtenerLiq, alActualiz
   const campoDato = (etiqueta, valor, clase = '') => h('div', { class: `vi-comp__dato ${clase}`.trim() },
     h('span', { class: 'vi-comp__etiqueta', text: etiqueta }),
     h('span', { class: 'vi-comp__valor', text: valor }));
-
-  function miniatura({ url, tipo, etiquetaAria, alPulsar }) {
-    const imagen = tipo === 'imagen' && urlSegura(url);
-    return h('button', { type: 'button', class: 'vi-comp__miniatura', 'aria-label': etiquetaAria, onclick: (e) => alPulsar(e.currentTarget) },
-      imagen ? h('img', { src: url, alt: '', loading: 'lazy' }) : icono('document-outline'));
-  }
 
   // ---------- Comprobantes guardados ----------
   function filaGuardada(c, liq, indice) {

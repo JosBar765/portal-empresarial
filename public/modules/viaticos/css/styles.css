@@ -5,6 +5,7 @@
 @import url('/modules/viaticos/css/formulario.css');
 @import url('/modules/viaticos/css/visor.css');
 @import url('/modules/viaticos/css/liquidacion.css');
+@import url('/modules/viaticos/css/gestiones.css');
 
 .header-back {
   color: var(--color-text-secondary);

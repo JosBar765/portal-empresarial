@@ -57,12 +57,17 @@ export function mostrarErrorModal(overlay, mensaje) {
   box.textContent = mensaje;
 }
 
+const htmlDetalles = (detalles) => (detalles.length
+  ? `<dl class="vi-confirmar-detalle">${detalles.map(d => `<div class="vi-confirmar-detalle__fila${d.destacado ? ' is-destacado' : ''}"><dt>${escapeHtml(d.etiqueta)}</dt><dd>${escapeHtml(d.valor)}</dd></div>`).join('')}</dl>`
+  : '');
+
 // Confirmación sí/no; cerrar por cualquier otra vía equivale a cancelar. Con `peligro` el botón de aceptar es rojo (acciones que no se pueden deshacer).
-export function confirmarModal({ title, mensaje, aceptar = t('comun.aceptar'), cancelar = t('comun.cancelar'), peligro = false }) {
+// `detalles` ([{ etiqueta, valor, destacado }]) agrega una tabla de datos bajo el mensaje, p. ej. el resumen de lo que se va a autorizar.
+export function confirmarModal({ title, mensaje, detalles = [], aceptar = t('comun.aceptar'), cancelar = t('comun.cancelar'), peligro = false }) {
   return new Promise((resolve) => {
     const { overlay, cerrar } = abrirModal({
       title,
-      bodyHtml: `<p>${escapeHtml(mensaje)}</p>`,
+      bodyHtml: `<p>${escapeHtml(mensaje)}</p>${htmlDetalles(detalles)}`,
       footerHtml: `<button class="btn btn--ghost" type="button" data-accion="cancelar">${escapeHtml(cancelar)}</button><button class="btn ${peligro ? 'btn--danger' : 'btn--primary'}" type="button" data-accion="aceptar">${escapeHtml(aceptar)}</button>`,
       alCerrar: () => resolve(false)
     });
