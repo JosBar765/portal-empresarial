@@ -152,14 +152,6 @@
         showError('Tu sesión expiró. Ingresa nuevamente.');
       }
 
-      // Obtener token CSRF
-      let csrfToken = '';
-      try {
-        const res = await fetch('/api/auth.php?action=csrf');
-        const data = await res.json();
-        csrfToken = data.csrf_token || '';
-      } catch (_) { }
-
       // Mostrar/ocultar contraseña
       if (togglePassBtn) {
         togglePassBtn.addEventListener('click', () => {
@@ -203,7 +195,7 @@
           const res = await fetch('/api/auth.php?action=login', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({email, password, csrf_token: csrfToken}),
+            body: JSON.stringify({email, password}),
           });
           const data = await res.json();
 
@@ -213,11 +205,6 @@
             mostrarSesionActivaModal(data.message);
             setLoading(false);
           } else {
-            // Renovar CSRF token
-            try {
-              const csrfRes = await fetch('/api/auth.php?action=csrf');
-              csrfToken = (await csrfRes.json()).csrf_token || '';
-            } catch (_) { }
             showError(data.error || 'Credenciales incorrectas. Intenta de nuevo.');
             setLoading(false);
           }

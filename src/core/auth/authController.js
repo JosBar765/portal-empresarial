@@ -12,8 +12,6 @@ class AuthController {
     switch (action) {
       case 'session_check':
         return this.sessionCheck(req, res);
-      case 'csrf':
-        return this.getCsrfToken(req, res);
       case 'login':
         return this.loginPost(req, res);
       case 'logout':
@@ -56,16 +54,8 @@ class AuthController {
     });
   }
 
-  // Este endpoint y el `csrf_token` que el login manda en su body son
-  // decorativos — ningún middleware lo valida en ningún lado (el valor es
-  // el mismo string fijo para cualquiera). Se conserva sin tocar porque
-  // `public/login/index.html` todavía lo consume, pero la protección CSRF
-  // REAL de este proyecto es `sameSite: 'strict'` en la cookie del JWT
-  // (ver loginPost/refreshToken) — suficiente dado que la app solo usa esa
-  // cookie, sin formularios cross-site relevantes que dependan de ella.
-  async getCsrfToken(req, res) {
-    return res.json({ csrf_token: 'munditrofeos_csrf_token_jwt_secure' });
-  }
+  // La protección CSRF de este proyecto es `sameSite: 'strict'` en las cookies de sesión (ver tokenService): la app solo usa esas
+  // cookies, sin formularios de otros sitios que dependan de ellas. No hay token CSRF aparte.
 
   async loginPost(req, res) {
     const { email, password } = req.body;
