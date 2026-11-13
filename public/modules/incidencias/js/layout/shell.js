@@ -62,6 +62,7 @@ export function ajustarMenu(permisos) {
   const mostrar = (ruta, visible) => { const el = document.querySelector(`.sidebar-item[data-ruta="${ruta}"]`); if (el) el.style.display = visible ? '' : 'none'; };
   mostrar('verificar', permisos.includes('incidencias.verificar'));
   mostrar('reportar', permisos.includes('incidencias.reportar'));
+  mostrar('configuracion', permisos.includes('incidencias.configurar'));
 }
 
 export function marcarActivo(ruta) {

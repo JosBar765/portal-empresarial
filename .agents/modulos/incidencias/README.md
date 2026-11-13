@@ -1,6 +1,6 @@
 # Módulo Incidencias (`incidencias`) — especificación v3
 
-> **Estado:** mockup v3 aprobado (Figma, página «Prototipo v3 · Guatemala (núcleo)»). Fases 1 a 4 hechas: migración, permisos, semillas, entrada en el catálogo, el backend del núcleo y el de la configuración, y la interfaz de reportar, listas, detalle y acciones. Falta la pantalla de Configuración (fase 5) y el QA.
+> **Estado:** mockup v3 aprobado (Figma, página «Prototipo v3 · Guatemala (núcleo)»). Fases 1 a 5 hechas: migración, permisos, semillas, entrada en el catálogo, el backend del núcleo y el de la configuración, la interfaz de reportar, listas, detalle y acciones, y la pantalla de Configuración. Falta el QA (fase 6).
 > **Fuente de verdad:** este archivo. `analisis_modulo_incidencias.md` (v1) y `analisis_modulo_incidencias_v2.md` quedan solo como historial: eran más amplios (reemplazo de equipo, cotizaciones, dashboards por rol, hallazgos de Supervisiones, Centroamérica).
 > **Rama:** `module/incidencias` (desde `dev`). Commits por tema, en español, sin atribución de IA.
 
@@ -93,6 +93,10 @@ Vanilla JS en módulos ES, sin handlers en línea (CSP), con las rutas por `#`: 
 - **Detalle:** resumen e historial, «Cómo va», detalles, prioridad, comentarios y las acciones que el servidor permite (cada una en una hoja modal accesible: foco atrapado, Escape, errores por campo).
 - **En vivo:** un aviso de la campana abre la incidencia que nombra y las pantallas abiertas se actualizan solas.
 - **Celular:** el botón principal queda fijo abajo, objetivos táctiles de 44 px, lo importante primero y `prefers-reduced-motion` respetado.
+
+### Configuración (`#/configuracion/:pestana`, fase 5)
+
+Solo con `incidencias.configurar`. Siete pestañas sobre `/api/incidencias/configuracion/*`: Países (interruptor y aviso), Catálogos (categorías, zonas, tipos de activo, especialidades y motivos de espera; nada se borra, se apaga), Prioridades (nombre, color, orden y la tabla impacto → prioridad), Técnicos (alta con buscador de personas, especialidades y cobertura), Verificadores (por país o por tienda; resalta tiendas sin verificador), Roles y permisos (matriz rol × permiso; un rol a la vez; no deja a nadie sin poder configurar) y Parámetros (se dibuja desde el registro del servidor). Arriba, avisos con enlace a la pestaña que los arregla; «Historial de cambios» abre quién cambió qué. En el celular las tablas se vuelven tarjetas y las pestañas se deslizan; cambios sin guardar piden confirmación al salir de la pestaña.
 
 ## Implementación (patrón de Proyectos)
 

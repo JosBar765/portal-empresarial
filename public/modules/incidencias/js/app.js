@@ -9,6 +9,7 @@ import { mostrarLista } from './views/lista.js';
 import { mostrarReportar } from './views/reportar.js';
 import { mostrarEnviada } from './views/enviada.js';
 import { mostrarDetalle } from './views/detalle.js';
+import { mostrarConfiguracion } from './views/config/configuracion.js';
 import { pantallaMensaje, botonEnlace } from './views/estados.js';
 
 const contenido = () => $('#panel-content');
@@ -41,6 +42,9 @@ async function abrir() {
     } else if (nombre === 'verificar') {
       marcarActivo('verificar');
       vista = permisos.includes('incidencias.verificar') ? await mostrarLista(cont, { vista: 'verificar' }) : mostrarSinPermiso(cont);
+    } else if (nombre === 'configuracion') {
+      marcarActivo('configuracion');
+      vista = permisos.includes('incidencias.configurar') ? await mostrarConfiguracion(cont, { pestana: param }) : mostrarSinPermiso(cont);
     } else if (nombre === 'mis' || nombre === '') {
       marcarActivo('mis');
       let tab = null;
