@@ -6,6 +6,7 @@ const multer = require('multer');
 const { rateLimit } = require('express-rate-limit');
 const router = express.Router();
 const incidenciaController = require('./controllers/incidenciaController');
+const configRoutes = require('./configRoutes');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 const { PERMISO } = require('./constantes');
 
@@ -39,6 +40,9 @@ const asignar = requirePermission(PERMISO.ASIGNAR);
 // Lo que necesita el formulario y los avisos de reportes parecidos.
 router.get('/formulario', reportar, incidenciaController.formulario);
 router.get('/similares', reportar, incidenciaController.similares);
+
+// La configuración va antes de «/:id» para que no se confunda con un identificador.
+router.use('/configuracion', configRoutes);
 
 router.get('/resumen', incidenciaController.resumen);
 router.get('/', incidenciaController.listar);
