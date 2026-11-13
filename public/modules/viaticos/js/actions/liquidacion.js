@@ -1,7 +1,7 @@
 // Liquidación del solicitante: modal con el resumen, los rubros pendientes, los comprobantes y el botón «Liquidar».
 // «Liquidar» queda habilitado aunque falten comprobantes (decisión del dueño): lo que falta solo se informa en un aviso.
 import { state } from '../state.js';
-import { h, icono } from '../utils/dom.js';
+import { h, icono, montar } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
 import { abrirModal, confirmarModal } from '../components/modal.js';
 import { crearAviso } from '../components/aviso.js';
@@ -47,7 +47,8 @@ export function abrirLiquidacion(solicitud, { alTerminar } = {}) {
 
   // Los avisos salen del servidor: el de lo que falta se informa, nunca bloquea.
   function pintarAvisos(extra) {
-    avisos.replaceChildren(
+    // montar descarta los valores vacíos: replaceChildren nativo los escribiría como texto («false», «undefined»).
+    montar(avisos,
       !liq.puedeLiquidar && liq.motivoNoPuedeLiquidar && crearAviso({ tipo: 'info', titulo: t('liquidacion.avisoMotivo.titulo'), texto: liq.motivoNoPuedeLiquidar }),
       liq.avisoFaltantes && crearAviso({ tipo: 'warning', titulo: t('liquidacion.avisoFaltantes.titulo'), texto: liq.avisoFaltantes }),
       extra);

@@ -141,8 +141,8 @@
   .vi-modal-solicitud .vi-btn-agregar { min-height: 44px; }
   .vi-modal-solicitud .date-field-trigger { min-height: 44px; }
   .vi-modal-solicitud .form-field input, .vi-modal-solicitud .form-field select { min-height: 44px; }
-  .vi-nivel-fila { grid-template-columns: minmax(0, 1fr); }
-  .vi-nivel-fila .field-error { grid-column: 1; }
+  .form-field.vi-nivel-fila { grid-template-columns: minmax(0, 1fr); }
+  .form-field.vi-nivel-fila .field-error { grid-column: 1; }
   .vi-opciones { flex-wrap: nowrap; }
   .vi-opcion { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 4px; }
   .vi-defecto { grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; }
@@ -157,9 +157,11 @@
 
 /* ---------- Viaje de 1 día o menos: niveles de fluidos, kit y defectos con foto ---------- */
 .vi-niveles { display: flex; flex-direction: column; gap: 10px; }
-.vi-nivel-fila { display: grid; grid-template-columns: 220px minmax(0, 1fr); align-items: center; column-gap: 12px; row-gap: 4px; }
+.form-field.vi-nivel-fila { display: grid; grid-template-columns: 220px minmax(0, 1fr); align-items: center; column-gap: 12px; row-gap: 4px; }
 .vi-nivel-fila .field-error { grid-column: 2; }
-.vi-nivel-etiqueta { font-size: var(--text-sm); color: var(--color-text); }
+.vi-nivel-etiqueta { font-size: var(--text-sm); color: var(--color-text); text-align: left; }
+/* Los nombres vienen de la base en minúscula: solo la primera letra va en mayúscula. */
+.vi-nivel-etiqueta::first-letter { text-transform: uppercase; }
 .vi-opciones { display: flex; flex-wrap: wrap; gap: 8px; }
 .vi-opcion {
   min-width: 40px; min-height: 36px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
