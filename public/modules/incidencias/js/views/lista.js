@@ -26,7 +26,8 @@ function pestanasDe(permisos) {
   }
   if (tiene('incidencias.verificar') || tiene('incidencias.asignar')) tabs.push({ id: 'tiendas', etiqueta: 'De mis tiendas', vista: 'tiendas', estados: 'abiertas', filtroEstado: true, conteo: r => r.tiendas && r.tiendas.abiertas });
   if (tiene('incidencias.ver_todas')) tabs.push({ id: 'todas', etiqueta: 'Todas', vista: 'todas', estados: 'abiertas', filtroEstado: true, conteo: r => r.todas && r.todas.abiertas });
-  tabs.push({ id: 'reportadas', etiqueta: 'Reportadas por mí', vista: 'reportadas', filtroChips: true, conteo: r => r.reportadas && r.reportadas.abiertas });
+  // Quien no puede reportar no tiene qué ver aquí, salvo que sea su única pestaña.
+  if (tiene('incidencias.reportar') || !tabs.length) tabs.push({ id: 'reportadas', etiqueta: 'Reportadas por mí', vista: 'reportadas', filtroChips: true, conteo: r => r.reportadas && r.reportadas.abiertas });
   return tabs;
 }
 

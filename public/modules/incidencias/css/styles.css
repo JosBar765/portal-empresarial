@@ -533,6 +533,9 @@ a.sidebar-item, a.btn { text-decoration: none; }
 .inc-interruptor--encendido { background: var(--color-primary); }
 .inc-interruptor-perilla { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .15s; }
 .inc-interruptor--encendido .inc-interruptor-perilla { transform: translateX(18px); }
+/* El área que se toca es mayor que el dibujo (44 px de alto) sin agrandar el interruptor. */
+.inc-interruptor::after, .inc-ficha-quitar::after { content: ''; position: absolute; inset: -9px -4px; }
+.inc-ficha-quitar { position: relative; }
 .inc-interruptor:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
 .inc-interruptor:disabled { opacity: .6; cursor: wait; }
 .inc-casillas { display: flex; flex-wrap: wrap; gap: 6px 16px; max-height: 220px; overflow-y: auto; padding: 4px 0; }
