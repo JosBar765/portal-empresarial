@@ -15,12 +15,12 @@ Cualquier usuario reporta un problema ligado a **una tienda** (y por ella, a un 
 
 | Entra | Queda para fases posteriores |
 |---|---|
-| Reportar con fotos, buzón, tomar, avances, espera, enviar a verificación, verificar o pedir corrección (rondas), reasignar, devolver al buzón, descartar, historial único, avisos (campana y tiempo real), listados por rol, configuración completa, versión móvil | Reemplazo de equipo y cotizaciones · dashboard de gerencia · hallazgos desde Supervisiones · inventario de activos individual (se enlazará con Inventario de Maquinaria) · correo o WhatsApp · mantenimiento preventivo · Centroamérica |
+| Reportar con fotos, buzón, tomar, avances, espera, enviar a verificación, verificar o pedir corrección (rondas), reasignar, devolver al buzón, descartar, historial único, avisos (campana y tiempo real), listados por rol, configuración completa, versión móvil | Reemplazo de equipo y cotizaciones · dashboard de gerencia · hallazgos desde Supervisiones · inventario de activos individual (se enlazará con Inventario de Maquinaria) · correo o WhatsApp · mantenimiento preventivo · Centroamérica · rutas y procesos externos de las tiendas (incluido el «contacto en el lugar») |
 
 ## Reglas
 
 - **Ubicación.** Tienda activa de un país habilitado; por defecto la suya (`asesores.tienda_id` o la primera de `supervisor_tiendas`). Zona (general o por tienda), categoría (define la especialidad que atiende), tipo de activo (opcional, por categoría) y texto libre.
-- **Reporte.** Foto obligatoria (de 1 a 5; JPG, PNG o WebP), título (≤120), descripción, impacto en 4 niveles y contacto en sitio opcional. **La prioridad la calcula el servidor** con la tabla impacto → prioridad editable; el cliente solo manda el impacto. Aviso de posible duplicado (misma tienda y zona o tipo con incidencia abierta). Límite diario de reportes por usuario.
+- **Reporte.** Foto obligatoria (de 1 a 5; JPG, PNG o WebP), título (≤120), descripción, impacto en 4 niveles. **La prioridad la calcula el servidor** con la tabla impacto → prioridad editable; el cliente solo manda el impacto. Aviso de posible duplicado (misma tienda y zona o tipo con incidencia abierta). Límite diario de reportes por usuario.
 - **Estados** (en palabras completas): `en_buzon` → `en_proceso` ⇄ `en_espera` → `en_verificacion` → `cerrada`; `correccion_solicitada` (vuelve al técnico y cuenta una ronda); `descartada`. Tomar es atómico: quien la toma primero queda como responsable.
 - **Avances.** Texto, hasta 3 fotos y evolución (mejoró · sin cambios · empeoró), con fecha y hora. Enviar a verificación exige describir lo hecho y una foto de evidencia.
 - **Verificación.** La hace el **verificador de esa tienda** (o del país, si la tienda no tiene uno propio). Quien trabajó la incidencia no puede verificarla. Pedir corrección exige comentario y abre una ronda nueva.

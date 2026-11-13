@@ -19,7 +19,6 @@ Misma revisión que se hizo en Proyectos: que cada texto lo entienda quien repor
 | Evidencia del reporte / de cierre | Fotos del reporte / foto de cierre |
 | Estado del ciclo | Cómo va |
 | Compatibles contigo · COMPATIBILIDAD | Para tu especialidad · ESPECIALIDAD |
-| Contacto en sitio | Contacto en el lugar |
 | VERIFICA EL CIERRE | REVISA QUE QUEDE RESUELTA |
 | Informe final · informes de evolución | Resumen final · avances |
 | Impacto → prioridad | Impacto y prioridad |
