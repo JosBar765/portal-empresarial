@@ -381,9 +381,13 @@ class ValeBuzonService {
 
     // Búsqueda: corre sobre la lista COMPLETA ya filtrada por rol/ventana/contador, no solo sobre la página cargada en el
     // navegador. Los contadores no se ven afectados.
-    const busqueda = normalizarParaBusqueda(String(filtros.busqueda || '').trim());
-    const valesBuscados = busqueda
-      ? valesConAtraso.filter(v => normalizarParaBusqueda(`${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`).includes(busqueda))
+    // Varias palabras en cualquier orden: cada una debe aparecer en el correlativo, el cliente o la empresa.
+    const palabrasBusqueda = normalizarParaBusqueda(String(filtros.busqueda || '')).split(/\s+/).filter(Boolean);
+    const valesBuscados = palabrasBusqueda.length
+      ? valesConAtraso.filter(v => {
+        const texto = normalizarParaBusqueda(`${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`);
+        return palabrasBusqueda.every(p => texto.includes(p));
+      })
       : valesConAtraso;
 
     // Orden por columna: un clic en un encabezado de la tabla pide un orden
