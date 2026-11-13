@@ -30,7 +30,8 @@ function esAccionPropia(id) {
 // Aviso solo si la vista afectada es la abierta y la acción no es propia. En Solicitudes solo importan las decisiones sobre lo del propio usuario (`solicitanteId`).
 function avisarSiAplica(data) {
   const avisables = ACCIONES_AVISABLES[state.tab] || [];
-  if (!avisables.includes(data.accion) || esAccionPropia(data.id) || !window.toast) return;
+  // El actor viaja en el evento: quien hizo la acción no recibe además un aviso de lo que acaba de hacer (el evento puede llegar antes que la respuesta).
+  if (!avisables.includes(data.accion) || Number(data.actorId) === Number(state.user.id) || esAccionPropia(data.id) || !window.toast) return;
   const enSolicitudes = state.tab === TABS.SOLICITUDES;
   if (enSolicitudes && Number(data.solicitanteId) !== Number(state.user.id)) return;
   const tipo = data.accion === 'rechazada' ? 'warning' : 'info';

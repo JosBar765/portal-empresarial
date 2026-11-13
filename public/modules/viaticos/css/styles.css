@@ -532,7 +532,8 @@
   align-items: center;
 }
 
-.vi-resumen {
+.vi-lista-resumen,
+.vi-filtros .vi-resumen {
   font-size: 12px;
   color: var(--color-text-secondary);
   white-space: nowrap;
@@ -573,7 +574,8 @@
     align-items: stretch;
   }
 
-  .vi-resumen {
+  .vi-lista-resumen,
+.vi-filtros .vi-resumen {
     order: 2;
   }
 

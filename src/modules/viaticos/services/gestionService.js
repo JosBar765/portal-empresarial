@@ -80,7 +80,7 @@ class GestionService {
     };
     const decidida = await (externo ? aplicar(externo) : db.transaccion(aplicar));
     if (externo) return decidida;
-    await this.despuesDelCommit(decidida, motivo);
+    await this.despuesDelCommit(decidida, motivo, usuario.id);
     return this.obtener(usuario, id);
   }
 
@@ -97,7 +97,7 @@ class GestionService {
   }
 
   // PDF con el nombre de quien autorizó, aviso al solicitante y tiempo real; un fallo se registra y no deshace la decisión.
-  async despuesDelCommit({ id, correlativo, solicitanteId, estado }, motivo) {
+  async despuesDelCommit({ id, correlativo, solicitanteId, estado }, motivo, actorId) {
     const autorizada = estado === ESTADOS.AUTORIZADA;
     if (autorizada) {
       try {
@@ -117,7 +117,7 @@ class GestionService {
       console.error('[Viáticos] No se pudo notificar la decisión sobre la solicitud:', error.message);
     }
     events.emitirActualizacion({
-      id, correlativo, estado, solicitanteId, accion: autorizada ? TIEMPO_REAL.ACCION_AUTORIZADA : TIEMPO_REAL.ACCION_RECHAZADA
+      id, correlativo, estado, solicitanteId, actorId, accion: autorizada ? TIEMPO_REAL.ACCION_AUTORIZADA : TIEMPO_REAL.ACCION_RECHAZADA
     });
   }
 }

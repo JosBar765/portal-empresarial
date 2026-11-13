@@ -140,7 +140,7 @@ export function renderSolicitudes(contenedor) {
       h('div', { class: 'vi-seccion-cabecera' },
         h('h2', { text: t('tab.solicitudes.titulo') }),
         h('div', { class: 'vi-filtros' },
-          h('span', { class: 'vi-resumen', id: 'vi-solicitudes-resumen', 'aria-live': 'polite' }),
+          h('span', { class: 'vi-lista-resumen', id: 'vi-solicitudes-resumen', 'aria-live': 'polite' }),
           h('div', { class: 'vi-buscador' }, icono('search-outline'), buscador))),
       zona));
 

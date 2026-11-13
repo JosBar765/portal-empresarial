@@ -217,7 +217,7 @@ Un fallo de cualquiera se registra con `console.error` y no deshace la decisión
 ### Tiempo real
 
 - Sala `viaticos:gestion`: un cliente se une con `register_module('viaticos:gestion')`; el validador de sala (`events.js`, registrado con `registrarValidadorSala`) solo la concede a quien tenga `viaticos.gestionar` en el socket ya autenticado.
-- Evento `viaticos_actualizada` con `{ id, correlativo, estado, solicitanteId, accion }` (el cliente compara `solicitanteId` con su usuario para saber si la solicitud es suya); `accion` es `creada`, `modificada`, `dada_de_baja`, `autorizada`, `rechazada` o `liquidada`, y `estado` es el estado guardado (`null` al dar de baja, porque la solicitud ya no existe). Se envía a la sala de gestión (`sendToModule`) y al solicitante (`sendToUsers`) después del commit al crear, modificar, dar de baja, autorizar, rechazar y liquidar; quien está en ambos puede recibirlo dos veces (el cliente solo refresca). Un fallo al emitir se registra y no deshace la operación.
+- Evento `viaticos_actualizada` con `{ id, correlativo, estado, solicitanteId, actorId, accion }` (el cliente compara `solicitanteId` con su usuario para saber si la solicitud es suya y `actorId` para no avisar a quien hizo la acción); `accion` es `creada`, `modificada`, `dada_de_baja`, `autorizada`, `rechazada` o `liquidada`, y `estado` es el estado guardado (`null` al dar de baja, porque la solicitud ya no existe). Se envía a la sala de gestión (`sendToModule`) y al solicitante (`sendToUsers`) después del commit al crear, modificar, dar de baja, autorizar, rechazar y liquidar; quien está en ambos puede recibirlo dos veces (el cliente solo refresca). Un fallo al emitir se registra y no deshace la operación.
 
 ## Liquidación (F3.6)
 

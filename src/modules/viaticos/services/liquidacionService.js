@@ -252,7 +252,7 @@ class LiquidacionService {
       console.error('[Viáticos] No se pudo notificar la liquidación de la solicitud:', error.message);
     }
     events.emitirActualizacion({
-      id: fila.id, correlativo: fila.correlativo, estado: ESTADOS.LIQUIDADA, solicitanteId: usuario.id, accion: TIEMPO_REAL.ACCION_LIQUIDADA
+      id: fila.id, correlativo: fila.correlativo, estado: ESTADOS.LIQUIDADA, solicitanteId: usuario.id, actorId: usuario.id, accion: TIEMPO_REAL.ACCION_LIQUIDADA
     });
   }
 }

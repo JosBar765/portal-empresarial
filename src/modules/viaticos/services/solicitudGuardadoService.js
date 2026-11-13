@@ -226,7 +226,7 @@ class SolicitudGuardadoService {
       console.error('[Viáticos] No se pudo notificar la solicitud:', error.message);
     }
     events.emitirActualizacion({
-      id: detalle.id, correlativo: detalle.correlativo, estado: detalle.estado, solicitanteId: usuario.id,
+      id: detalle.id, correlativo: detalle.correlativo, estado: detalle.estado, solicitanteId: usuario.id, actorId: usuario.id,
       accion: esModificacion ? TIEMPO_REAL.ACCION_MODIFICADA : TIEMPO_REAL.ACCION_CREADA
     });
     return detalle;
@@ -250,7 +250,7 @@ class SolicitudGuardadoService {
     if (!externo) {
       await archivosService.eliminarArchivos(urls);
       events.emitirActualizacion({
-        id: fila.id, correlativo: fila.correlativo, estado: null, solicitanteId: usuario.id, accion: TIEMPO_REAL.ACCION_DADA_DE_BAJA
+        id: fila.id, correlativo: fila.correlativo, estado: null, solicitanteId: usuario.id, actorId: usuario.id, accion: TIEMPO_REAL.ACCION_DADA_DE_BAJA
       });
     }
     return { id: fila.id, correlativo: fila.correlativo };

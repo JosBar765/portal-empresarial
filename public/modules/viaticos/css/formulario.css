@@ -194,3 +194,10 @@ button.vi-foto__vista:focus-visible { outline: 2px solid var(--color-primary); o
 .vi-resumen__estado--corto ion-icon { flex: none; font-size: 18px; }
 
 .vi-resumen--corto { padding-top: 10px; padding-bottom: 10px; }
+
+/* En pantallas angostas o bajas el resumen muestra solo el total: el detalle ya se ve en cada sección y deja más espacio al formulario. */
+@media (max-width: 640px), (max-height: 700px) {
+  .vi-modal-solicitud .vi-resumen__fila { display: none; }
+  .vi-modal-solicitud .vi-resumen { padding-top: 8px; padding-bottom: 8px; }
+  .vi-modal-solicitud .vi-resumen__total { margin-top: 0; padding: 8px 14px; }
+}

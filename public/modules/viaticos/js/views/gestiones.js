@@ -134,7 +134,7 @@ export function renderGestiones(contenedor) {
       h('div', { class: 'vi-seccion-cabecera' },
         h('h2', { text: t('gestiones.titulo') }),
         h('div', { class: 'vi-filtros' },
-          h('span', { class: 'vi-resumen', id: 'vi-gestiones-resumen', 'aria-live': 'polite' }),
+          h('span', { class: 'vi-lista-resumen', id: 'vi-gestiones-resumen', 'aria-live': 'polite' }),
           h('div', { class: 'vi-buscador' }, icono('search-outline'), buscador))),
       zona));
 
