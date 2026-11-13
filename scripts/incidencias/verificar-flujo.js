@@ -144,6 +144,27 @@ async function verificar() {
     r = await rep('POST', '/', nuevo({ impacto: 'riesgo_personas', zonaId: Z2, categoriaId: catImpresion, tipoActivoId: '' }), [PNG]);
     const incP1 = r.datos && r.datos.incidencia;
     prueba('riesgo para las personas es P1', r.status === 201 && incP1.prioridad.codigo === 'P1', JSON.stringify(incP1 && incP1.prioridad));
+    // Seguridad: lo que el cliente manda de más se ignora y los identificadores raros no tumban el servidor.
+    r = await rep('POST', '/', nuevo({ idempotencyKey: clave(), estado: 'cerrada', tecnicoId: T1, reportadaPor: X, prioridadId: 1, ronda: 9, correlativo: 'INC-000001', impacto: 'molestia_menor', zonaId: Z2, categoriaId: catImpresion, tipoActivoId: '' }), [PNG]);
+    const incMasa = r.datos && r.datos.incidencia;
+    const filaMasa = incMasa ? await estadoEnBase(incMasa.id) : null;
+    const duenoMasa = incMasa ? (await db.query('SELECT reportada_por FROM incidencias WHERE id = ?', [incMasa.id], 'inc:dueno'))[0].reportada_por : null;
+    prueba('estado, técnico, dueño, prioridad y ronda que manda el cliente se ignoran', r.status === 201 && filaMasa.estado === 'en_buzon' && filaMasa.tecnico_id === null && filaMasa.ronda === 0 && duenoMasa === R && incMasa.correlativo !== 'INC-000001', JSON.stringify({ filaMasa, duenoMasa }));
+    // La incidencia de esta prueba no debe alterar los conteos de las siguientes.
+    if (incMasa) { await db.query('DELETE FROM notificaciones WHERE modulo = ? AND referencia_id = ?', ['incidencias', incMasa.id], 'inc:limpia_not'); await db.query('DELETE FROM incidencias WHERE id = ?', [incMasa.id], 'inc:limpia_masa'); }
+    for (const raro of ['abc', '0', '-1', '99999999999999999999', '1;DROP', '1.5']) {
+      r = await rep('GET', `/${raro}`);
+      prueba(`el identificador «${raro}» responde 400 o 404, nunca 500`, r.status === 400 || r.status === 404, r.status);
+    }
+    r = await t2('POST', `/${incA}/tomar`, {});
+    prueba('un técnico que no cubre la tienda no puede tomarla → 404', r.status === 404, r.status);
+    for (const [metodo, ruta, cuerpo] of [['POST', `/${incA}/reasignar`, { tecnicoId: T1, motivo: 'Prueba de acceso ajeno' }], ['PUT', `/${incA}/prioridad`, { prioridadId: 1, motivo: 'Prueba de acceso ajeno' }], ['POST', `/${incA}/descartar`, { motivo: 'Prueba de acceso ajeno' }], ['POST', `/${incA}/comentarios`, { texto: 'Prueba de acceso ajeno', idempotencyKey: clave() }]]) {
+      r = await ver2(metodo, ruta, cuerpo);
+      prueba(`un verificador de otra tienda no puede ${ruta.split('/')[2]} → 404`, r.status === 404, r.status);
+    }
+    r = await otro('GET', `/${incA}`);
+    prueba('un tercero no ve ni la existencia de la incidencia (404, no 403)', r.status === 404, r.status);
+
     r = await rep('GET', `/similares?tiendaId=${TA}&categoriaId=${catElectrica}&zonaId=${Z1}`);
     prueba('avisa de reportes parecidos mientras se escribe', r.status === 200 && r.datos.similares.length >= 1 && r.datos.similares[0].correlativo, JSON.stringify(r.datos));
 
