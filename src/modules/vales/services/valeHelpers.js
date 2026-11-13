@@ -349,26 +349,38 @@ function validarLongitudCampo(campo, valor) {
   throw new Error(`${etiqueta} es demasiad${etiqueta.startsWith('La ') ? 'a larga' : 'o largo'} (máximo ${maximo} caracteres).`);
 }
 
-// Talleres a los que un asesor puede enviar: los generales y los Diseño Local que atienden su tienda (`tiendas_atendidas_ids`).
-const talleresElegiblesDeTienda = (talleres, tiendaId) => talleres.filter(t => t.tienda_id == null || (t.tiendas_atendidas_ids || []).includes(tiendaId));
+// Diseño Local elegible para quien envía desde `ctx` (`tallerRepository.contextoDeTienda`): atiende su tienda, o su país y el de la sede comparten Diseño Local.
+const localEsElegible = (t, ctx) => (t.tiendas_atendidas_ids || []).includes(ctx && ctx.tiendaId) || Boolean(ctx && ctx.comparteDisenoLocal && t.pais_comparte_diseno_local === 1);
+
+// Talleres a los que un asesor puede enviar: los generales y los Diseño Local elegibles para su tienda y país (`ctx` nulo: solo generales).
+const talleresElegiblesDeTienda = (talleres, ctx) => talleres.filter(t => t.tienda_id == null || localEsElegible(t, ctx));
+
+// Textos de las reglas de elección de talleres (los datos reales se interpolan).
+const MENSAJES_ELECCION_TALLERES = {
+  localConGeneral: 'Los talleres de Diseño Local no se pueden combinar con los talleres generales. Elige solo Diseño Local o solo talleres generales.',
+  localNoElegible: (taller) => `El Diseño Local «${taller.nombre}» (${taller.pais_nombre}) no está disponible para tu tienda: solo puedes enviar a un Diseño Local que atienda tu tienda o, si tu país y el del taller comparten Diseño Local, a los de esos países. Quítalo y elige otro taller.`,
+  localesDePaisesDistintos: (paises) => `Los talleres de Diseño Local de un mismo vale deben ser del mismo país y elegiste de ${paises.join(' y ')}. Deja solo los de un país.`
+};
 
 // Elegibilidad de los talleres de un vale (ids ya numéricos): los mismos mensajes al crear, al guardar un borrador y al consultar fechas.
-// `tiendaIdAsesor` activa las reglas de Diseño Local: nunca se mezcla con los generales y todos deben atender la tienda del asesor.
-function validarEleccionTalleres(talleresIds, talleresActivos, tiendaIdAsesor = null) {
+// `ctxAsesor` (`tallerRepository.contextoDeTienda`) activa las reglas de Diseño Local: nunca se mezcla con los generales, todos deben ser
+// elegibles para la tienda y país del asesor y, juntos, de un mismo país.
+function validarEleccionTalleres(talleresIds, talleresActivos, ctxAsesor = null) {
   const idsValidos = new Set(talleresActivos.map(t => t.id));
   if (!talleresIds.every(id => idsValidos.has(id))) {
     throw new Error('Alguno de los talleres elegidos ya no está disponible. Vuelve a elegirlos.');
   }
-  if (tiendaIdAsesor === null) return;
+  if (ctxAsesor === null) return;
   const seleccionados = talleresIds.map(id => talleresActivos.find(t => t.id === id));
   const locales = seleccionados.filter(t => t.tienda_id !== null);
   const generales = seleccionados.filter(t => t.tienda_id === null);
   if (locales.length > 0 && generales.length > 0) {
-    throw new Error('Los talleres de Diseño Local no se pueden combinar con los talleres generales. Elige solo Diseño Local o solo talleres generales.');
+    throw new Error(MENSAJES_ELECCION_TALLERES.localConGeneral);
   }
-  if (locales.some(t => !(t.tiendas_atendidas_ids || []).includes(tiendaIdAsesor))) {
-    throw new Error('Solo se puede enviar a un Diseño Local que atienda tu tienda.');
-  }
+  const noElegible = locales.find(t => !localEsElegible(t, ctxAsesor));
+  if (noElegible) throw new Error(MENSAJES_ELECCION_TALLERES.localNoElegible(noElegible));
+  const paises = [...new Map(locales.map(t => [t.pais_id, t.pais_nombre])).values()];
+  if (paises.length > 1) throw new Error(MENSAJES_ELECCION_TALLERES.localesDePaisesDistintos(paises));
 }
 
 module.exports = {

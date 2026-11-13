@@ -12,9 +12,12 @@ import { cargarBuzon } from '../views/buzon.js';
 import { limitarTelefono } from '/js/telefono.js';
 
 const DESCRIPCION_MAX_CARACTERES = 600;
+// Código preseleccionado: el del país de quien crea el vale (por su tienda); sin tienda, Guatemala como hasta ahora.
 export function opcionesPaises() {
+  const miPaisId = state.catalogos.miPais ? state.catalogos.miPais.id : null;
+  const esElPorDefecto = (p) => (miPaisId !== null ? p.id === miPaisId : p.codigo === 'GT');
   return (state.catalogos.paises || []).map(p =>
-    `<option value="${p.codigo_telefono}" ${p.codigo === 'GT' ? 'selected' : ''}>${p.codigo_telefono} ${p.codigo}</option>`
+    `<option value="${p.codigo_telefono}" ${esElPorDefecto(p) ? 'selected' : ''}>${p.codigo_telefono} ${p.codigo}</option>`
   ).join('');
 }
 

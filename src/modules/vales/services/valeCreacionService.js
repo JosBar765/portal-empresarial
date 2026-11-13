@@ -481,7 +481,7 @@ class ValeCreacionService {
     if (talleresIds.length === 0) {
       throw new Error('Debe seleccionar al menos un taller para el vale de arte.');
     }
-    validarEleccionTalleres(talleresIds, await tallerRepository.listarActivos(), tiendaIdAsesor);
+    validarEleccionTalleres(talleresIds, await tallerRepository.listarActivos(), await tallerRepository.contextoDeTienda(tiendaIdAsesor));
     return talleresIds;
   }
 

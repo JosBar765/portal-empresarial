@@ -1,16 +1,46 @@
 // src/modules/vales/repositories/tallerRepository.js
 const db = require('../../../config/database');
 
+// País de una tienda: departamento, si no subdivisión y, en último caso, empresa (igual que el calendario).
+const JOINS_PAIS_DE_TIENDA = (ti) => `LEFT JOIN departamentos d ON d.id = ${ti}.departamento_id
+       LEFT JOIN subdivisiones s ON s.id = ${ti}.subdivision_id
+       LEFT JOIN empresas e ON e.id = ${ti}.empresa_id
+       LEFT JOIN paises p ON p.id = COALESCE(d.pais_id, s.pais_id, e.pais_id)`;
+
 class TallerRepository {
-  // Cada Diseño Local trae las tiendas que atiende (`taller_local_tiendas`); los generales, un arreglo vacío (los ven todas).
+  // Cada Diseño Local trae las tiendas que atiende (`taller_local_tiendas`) y el país de su sede (`pais_id`, `pais_nombre`,
+  // `pais_comparte_diseno_local`); los generales, un arreglo vacío y país nulo (los ven todas).
   async listarActivos() {
     const filas = await db.query(
       `SELECT t.id, t.nombre, t.encargado_id, t.tienda_id, t.limite_diario,
-              (SELECT GROUP_CONCAT(lt.tienda_id) FROM taller_local_tiendas lt WHERE lt.taller_id = t.id) AS tiendas_atendidas
-       FROM talleres t WHERE t.activo = 1 ORDER BY t.nombre`,
+              (SELECT GROUP_CONCAT(lt.tienda_id) FROM taller_local_tiendas lt WHERE lt.taller_id = t.id) AS tiendas_atendidas,
+              p.id AS pais_id, p.nombre AS pais_nombre, p.comparte_diseno_local AS pais_comparte_diseno_local
+       FROM talleres t
+       LEFT JOIN tiendas ti ON ti.id = t.tienda_id
+       ${JOINS_PAIS_DE_TIENDA('ti')}
+       WHERE t.activo = 1 ORDER BY t.nombre`,
       [], 'taller:list'
     );
-    return filas.map(({ tiendas_atendidas, ...taller }) => ({ ...taller, tiendas_atendidas_ids: tiendas_atendidas ? tiendas_atendidas.split(',').map(Number) : [] }));
+    return filas.map(({ tiendas_atendidas, pais_comparte_diseno_local, ...taller }) => ({
+      ...taller, pais_comparte_diseno_local: pais_comparte_diseno_local === null ? null : Number(pais_comparte_diseno_local),
+      tiendas_atendidas_ids: tiendas_atendidas ? tiendas_atendidas.split(',').map(Number) : []
+    }));
+  }
+
+  // Contexto con el que un asesor elige Diseño Local: su tienda, su país y si ese país comparte. Sin tienda (null/0), nada es elegible salvo los generales.
+  async contextoDeTienda(tiendaId) {
+    if (tiendaId === null || tiendaId === undefined) return null;
+    const sinPais = { tiendaId: Number(tiendaId) || 0, paisId: null, paisNombre: null, comparteDisenoLocal: false };
+    if (!sinPais.tiendaId) return sinPais;
+    const filas = await db.query(
+      `SELECT p.id AS pais_id, p.nombre AS pais_nombre, p.comparte_diseno_local
+       FROM tiendas ti
+       ${JOINS_PAIS_DE_TIENDA('ti')}
+       WHERE ti.id = ?`,
+      [sinPais.tiendaId], 'taller:contexto_tienda'
+    );
+    const fila = filas[0];
+    return fila && fila.pais_id ? { tiendaId: sinPais.tiendaId, paisId: fila.pais_id, paisNombre: fila.pais_nombre, comparteDisenoLocal: Number(fila.comparte_diseno_local) === 1 } : sinPais;
   }
 
   // Todos los talleres, incluidos los inactivos: para mostrar el NOMBRE de un
