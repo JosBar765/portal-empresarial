@@ -58,7 +58,7 @@ class ValeModificacionService {
       // La modificación va a los mismos talleres del original.
       const filasOriginal = await valeTallerRepository.listarPorVale(valeId);
       const talleresIds = [...new Set(filasOriginal.map(f => f.taller_id))];
-      const datos = await valeCreacionService.validarDatosVale({ ...payload, descripcion: justificacion }, { requiereTalleres: false, talleresFijos: talleresIds, modificacionTipo: tipo });
+      const datos = await valeCreacionService.validarDatosVale({ ...payload, descripcion: justificacion }, { requiereTalleres: false, talleresFijos: talleresIds, modificacionTipo: tipo, tiendaIdFecha: original.tienda_id });
       await capacidadEntregaService.validarLimiteDiario(talleresIds, datos.fechaEntregaNorm.slice(0, 10));
 
       const numero = (original.modificacion_numero || 0) + 1;

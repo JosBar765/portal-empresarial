@@ -54,6 +54,12 @@ class ValeCatalogoService {
     return tiendaId;
   }
 
+  // País de la tienda de quien crea vales (feriados de la entrega); null si no es asesor, no tiene tienda o la tienda no tiene país.
+  async paisDeLaTienda(usuario) {
+    const ctx = await this._contextoComoAsesor(usuario);
+    return (ctx && ctx.paisId) || null;
+  }
+
   // El asesor solo recibe lo que puede elegir (los generales y el Diseño Local de su tienda); los demás roles, el catálogo completo.
   async obtenerTalleres(usuario) {
     const talleres = await tallerRepository.listarActivos();

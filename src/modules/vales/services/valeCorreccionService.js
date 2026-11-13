@@ -66,7 +66,7 @@ class ValeCorreccionService {
         }
         propuestaOriginal = original && (original.propuesta_general_url || (await propuestaRepository.obtenerUltimaPorVale(original.id))?.url);
       }
-      const datos = await valeCreacionService.validarDatosVale(payloadEfectivo, { tiendaIdAsesor: esMod ? null : vale.tienda_id, modificacionTipo: esMod ? vale.modificacion_tipo : null });
+      const datos = await valeCreacionService.validarDatosVale(payloadEfectivo, { tiendaIdAsesor: esMod ? null : vale.tienda_id, tiendaIdFecha: vale.tienda_id, modificacionTipo: esMod ? vale.modificacion_tipo : null });
       const fechaEntregaISO = datos.fechaEntregaNorm.slice(0, 10);
       await capacidadEntregaService.validarLimiteDiario(datos.talleresIds, fechaEntregaISO);
 

@@ -138,6 +138,17 @@ const DIAS_HABILES_MODIFICACION_URGENTE = 1;
 const TIPOS_MODIFICACION_CON_VALE = Object.keys(DIAS_HABILES_MODIFICACION);
 const diasHabilesDeModificacion = (tipo, urgente) => (urgente ? DIAS_HABILES_MODIFICACION_URGENTE : DIAS_HABILES_MODIFICACION[tipo]);
 
+// Días de trabajo mínimos de la fecha de entrega de un vale que no es modificación (el día de ingreso cuenta solo antes de la hora máxima del taller).
+const DIAS_HABILES_VALE = 3;
+const DIAS_HABILES_VALE_URGENTE = 1;
+
+// Opciones del calendario para ofrecer o validar la fecha de entrega: una modificación rige por su tipo; un vale normal por DIAS_HABILES_VALE.
+// `paisId` = país de la tienda del asesor (feriados); sin él rige el del taller.
+function opcionesFechaEntrega({ urgente = false, modificacionTipo = null, paisId = null } = {}) {
+  if (modificacionTipo) return { diasHabiles: diasHabilesDeModificacion(modificacionTipo, urgente), paisId };
+  return { diasHabiles: urgente ? DIAS_HABILES_VALE_URGENTE : DIAS_HABILES_VALE, diasHabilesUrgente: urgente ? 0 : DIAS_HABILES_VALE_URGENTE, desdeDiaHabil: true, paisId };
+}
+
 // Código de un vale MOD: MOD-X, MOD2-X, MOD3-X… con X el correlativo del vale raíz, que nunca cambia.
 const PREFIJO_MOD = /^MOD\d*-/;
 const esCorrelativoMod = (correlativo) => PREFIJO_MOD.test(String(correlativo || ''));
@@ -238,9 +249,8 @@ function normalizarDatetime(valor, finDelDia = false) {
   return limpio.length === 16 ? `${limpio}:00` : limpio;
 }
 
-// Urgente lo marca el asesor: sin urgente la entrega pide 3 días naturales de antelación; con urgente basta el mínimo del calendario
-// (no se salta la hora máxima de recibimiento). El formulario lo manda como casilla ('on' / 'true' / '1').
-const DIAS_MINIMOS_SIN_URGENTE = 3;
+// Urgente lo marca el asesor: sin urgente la entrega pide DIAS_HABILES_VALE días de trabajo; con urgente basta 1 (sin saltarse la hora máxima de recibimiento).
+// El formulario lo manda como casilla ('on' / 'true' / '1').
 function esUrgente(valor) {
   return valor === true || valor === 1 || ['on', 'true', '1'].includes(String(valor).toLowerCase());
 }
@@ -389,9 +399,9 @@ module.exports = {
   ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION, PERMISO_GESTIONAR_TALLER,
   esAdministrador, esSupervisor, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
   hoyISO, horaActual, calcularAtraso, enriquecer,
-  esValeDeModificacion, DIAS_HABILES_MODIFICACION, diasHabilesDeModificacion, TIPOS_MODIFICACION_CON_VALE,
+  esValeDeModificacion, DIAS_HABILES_MODIFICACION, diasHabilesDeModificacion, TIPOS_MODIFICACION_CON_VALE, DIAS_HABILES_VALE, DIAS_HABILES_VALE_URGENTE, opcionesFechaEntrega,
   PREFIJO_MOD, esCorrelativoMod, correlativoBase, armarCorrelativoMod, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
-  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial, MAX_ENTERO, MAX_COTIZACION, validarCantidadYCotizacion,
+  normalizarDatetime, esUrgente, registrarHistorial, MAX_ENTERO, MAX_COTIZACION, validarCantidadYCotizacion,
   requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo, validarMensajeChat, salasDeInvolucrados, esSupervisorDelAsesor
 };

@@ -31,7 +31,7 @@ const { MOTIVOS_BAJA, armarBaja } = require('./valeBajas');
 const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
   ESTADOS, hoyISO, horaActual, enriquecer,
-  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, diasHabilesDeModificacion, registrarHistorial,
+  normalizarDatetime, esUrgente, opcionesFechaEntrega, registrarHistorial,
   esAdministrador, esSupervisor, requerirVale, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
   esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor, salasDeInvolucrados, validarCantidadYCotizacion,
   ETIQUETAS_TEXTO_VALE, validarLongitudCampo, validarEleccionTalleres
@@ -43,16 +43,22 @@ class ValeCreacionService {
     return `${d}/${m}/${a}`;
   }
 
-  // Al autorizar, la entrega no puede haber quedado por debajo del mínimo vigente de sus talleres.
+  // País de la tienda (feriados de la entrega); null sin tienda o sin país, y entonces rige el del taller.
+  async paisDeLaTienda(tiendaId) {
+    const ctx = await tallerRepository.contextoDeTienda(tiendaId);
+    return (ctx && ctx.paisId) || null;
+  }
+
+  // Al autorizar (creación y MOD), la entrega solo debe seguir siendo posterior a hoy y en un día que reciba vales; los días mínimos se exigieron al pedirla.
   async exigirFechaAutorizable(vale) {
     const entrega = String(vale.fecha_entrega).slice(0, 10);
     const talleresIds = idsDeCsv(vale.talleres_solicitados);
-    const minima = await calendarioService.fechaMinimaEntrega(talleresIds);
-    const rechazar = 'Rechaza el vale para que el asesor modifique la fecha de entrega.';
-    if (entrega < hoyISO()) throw new Error(`La fecha de entrega ya pasó. ${rechazar}`);
-    if (!minima || entrega >= minima) return;
-    const hora = await calendarioService.horaMaximaRestrictiva(talleresIds);
-    throw new Error(`La fecha de entrega ya no está disponible (mínima: ${this.formatearFecha(minima)}; la hora máxima de recibimiento es ${hora}). ${rechazar}`);
+    try {
+      await calendarioService.validarFechaEntrega(entrega, talleresIds, { soloPosteriorAHoy: true, paisId: await this.paisDeLaTienda(vale.tienda_id) });
+    } catch (error) {
+      if (!(error instanceof ErrorDeNegocio)) throw error;
+      throw new Error(`${error.message} Rechaza el vale para que el asesor modifique la fecha de entrega.`);
+    }
   }
 
   // La idempotency key viaja como campo del propio FormData (junto a los
@@ -362,7 +368,7 @@ class ValeCreacionService {
       const fechaEntrega = String(vale.fecha_entrega).slice(0, 10);
       const talleresIds = idsDeCsv(vale.talleres_solicitados);
       try {
-        await calendarioService.validarFechaEntrega(fechaEntrega, talleresIds);
+        await calendarioService.validarFechaEntrega(fechaEntrega, talleresIds, { soloPosteriorAHoy: true, paisId: await this.paisDeLaTienda(vale.tienda_id) });
       } catch (error) {
         if (!(error instanceof ErrorDeNegocio)) throw error;
         throw new Error(`${error.message} Corrige el vale con una fecha de entrega válida antes de reenviarlo.`);
@@ -389,8 +395,8 @@ class ValeCreacionService {
   // que crearVale() sigue exigiendo `talleresIds` aquí pero
   // solicitarModificacion() no pasa por este camino para elegir taller).
   // `modificacionTipo` (BASICA / MEDIA / AVANZADA) marca un vale MOD: su fecha de entrega pide ese mínimo en días hábiles
-  // desde hoy (con «urgente», el siguiente día que reciba vales), en lugar de los 3 días naturales de un vale normal.
-  async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null, talleresFijos = [], modificacionTipo = null } = {}) {
+  // desde hoy (con «urgente», 1), en lugar de los días hábiles de un vale normal. `tiendaIdFecha` (la del asesor) fija el país de los feriados.
+  async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null, talleresFijos = [], modificacionTipo = null, tiendaIdFecha = tiendaIdAsesor } = {}) {
     const { fechaEntrega, fechaEvento, cantidad, cotizacion } = payload;
     // Los invisibles de un texto pegado (espacio de ancho cero, word joiner…) se quitan solos, sin avisar.
     const limpio = (valor) => (typeof valor === 'string' ? quitarInvisibles(valor) : valor);
@@ -436,11 +442,7 @@ class ValeCreacionService {
     if (!fechaReal(fechaEventoNorm)) throw new Error('La fecha del evento no es válida.');
     const talleresIds = requiereTalleres ? await this.validarTalleresIds(payload.talleresIds, tiendaIdAsesor) : talleresFijos;
     const urgente = esUrgente(payload.urgente);
-    if (modificacionTipo) {
-      await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, 0, undefined, diasHabilesDeModificacion(modificacionTipo, urgente));
-    } else {
-      await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, urgente ? 0 : DIAS_MINIMOS_SIN_URGENTE);
-    }
+    await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, opcionesFechaEntrega({ urgente, modificacionTipo, paisId: await this.paisDeLaTienda(tiendaIdFecha) }));
     if (!(new Date(fechaEventoNorm.replace(' ', 'T')) > new Date(fechaEntregaNorm.replace(' ', 'T')))) {
       throw new Error('La fecha del evento debe ser posterior a la fecha de entrega.');
     }
