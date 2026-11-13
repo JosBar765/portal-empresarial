@@ -91,7 +91,7 @@
   }
 
   // Cada módulo inicia su propio centro: `modulo` es su id del catálogo ('vales', 'admin'…).
-  function iniciar({ socket, modulo }) {
+  function iniciar({ socket, modulo, alAbrir }) {
     root = document.getElementById('notificaciones-root');
     if (!root || !modulo) return;
     estado.modulo = modulo;
@@ -107,7 +107,13 @@
         cargar(false);
       } else {
         const item = e.target.closest('.notif-item');
-        if (item) marcarLeida(Number(item.dataset.id));
+        if (item) {
+          const id = Number(item.dataset.id);
+          marcarLeida(id);
+          // Un módulo puede abrir lo que el aviso nombra (p. ej. una incidencia); recibe la notificación completa.
+          const aviso = estado.items.find(n => n.id === id);
+          if (alAbrir && aviso) alAbrir(aviso);
+        }
       }
     });
     document.addEventListener('click', () => {
