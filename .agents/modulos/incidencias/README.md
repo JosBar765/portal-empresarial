@@ -1,6 +1,6 @@
 # Módulo Incidencias (`incidencias`) — especificación v3
 
-> **Estado:** mockup v3 aprobado (Figma, página «Prototipo v3 · Guatemala (núcleo)»). Fases 1 a 3 hechas: migración, permisos, semillas, entrada en el catálogo, el backend del núcleo y el de la configuración (API). Falta la interfaz.
+> **Estado:** mockup v3 aprobado (Figma, página «Prototipo v3 · Guatemala (núcleo)»). Fases 1 a 4 hechas: migración, permisos, semillas, entrada en el catálogo, el backend del núcleo y el de la configuración, y la interfaz de reportar, listas, detalle y acciones. Falta la pantalla de Configuración (fase 5) y el QA.
 > **Fuente de verdad:** este archivo. `analisis_modulo_incidencias.md` (v1) y `analisis_modulo_incidencias_v2.md` quedan solo como historial: eran más amplios (reemplazo de equipo, cotizaciones, dashboards por rol, hallazgos de Supervisiones, Centroamérica).
 > **Rama:** `module/incidencias` (desde `dev`). Commits por tema, en español, sin atribución de IA.
 
@@ -83,6 +83,16 @@ Todo exige `incidencias.configurar`. Nada se borra: lo que ya no sirve se **apag
 | `GET /roles` · `PUT /roles/:rolId` | Qué rol tiene cada permiso `incidencias.*`; guarda con el servicio de Administración (herencia entre roles y aviso en vivo), conserva los permisos de otros módulos, agrega «Ver» solo y no deja al módulo sin un rol que pueda configurarlo |
 
 Verificación: `node scripts/incidencias/verificar-configuracion.js` sobre una base desechable (89 comprobaciones; pasa en MySQL 8.4 y MariaDB 11.8).
+
+## Interfaz (`public/modules/incidencias/`, fase 4)
+
+Vanilla JS en módulos ES, sin handlers en línea (CSP), con las rutas por `#`: `#/mis`, `#/reportar`, `#/enviada/:id`, `#/incidencia/:id` y `#/verificar`.
+
+- **Reportar:** foto con la cámara del teléfono o la galería (se reduce en el aparato antes de subirla), tienda y zona, categoría y activo, aviso de reportes parecidos, impacto y el resumen «Cómo se atenderá». Un reintento nunca duplica (clave de operación por formulario).
+- **Mis incidencias:** las pestañas salen de lo que cada persona puede hacer: Buzón, Mías, En espera y Cerradas (técnico), De mis tiendas (verificador o asignador), Todas (consulta total) y Reportadas por mí. Tarjetas con números, filtros y búsqueda; tabla en pantalla ancha y tarjetas bajo 640 px. «Tomar» se hace desde el propio buzón.
+- **Detalle:** resumen e historial, «Cómo va», detalles, prioridad, comentarios y las acciones que el servidor permite (cada una en una hoja modal accesible: foco atrapado, Escape, errores por campo).
+- **En vivo:** un aviso de la campana abre la incidencia que nombra y las pantallas abiertas se actualizan solas.
+- **Celular:** el botón principal queda fijo abajo, objetivos táctiles de 44 px, lo importante primero y `prefers-reduced-motion` respetado.
 
 ## Implementación (patrón de Proyectos)
 
