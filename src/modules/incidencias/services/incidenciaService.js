@@ -9,21 +9,13 @@ const alcance = require('./alcanceService');
 const fotoService = require('./fotoService');
 const avisos = require('./avisosService');
 const parametros = require('../parametros');
-const { ESTADOS, ETIQUETA_ESTADO, ABIERTOS, EN_TRABAJO, IMPACTOS, EVENTO, PERMISO, LIMITES } = require('../constantes');
+const { ESTADOS, ETIQUETA_ESTADO, ABIERTOS, EN_TRABAJO, IMPACTOS, IMPACTO_TEXTOS, EVENTO, PERMISO, LIMITES } = require('../constantes');
 const { errorDeValidacion, noEncontrada, sinPermiso, limpio } = require('../errores');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero } = require('../../../core/utils/validar');
 
 const CLAVE = /^[A-Za-z0-9_-]{8,64}$/;
 const MENSAJE_SIN_CLAVE = 'Falta la clave de la operación. Recarga la página e inténtalo de nuevo.';
-
-// Los cuatro impactos tal como se muestran al reportar.
-const IMPACTO_TEXTOS = {
-  riesgo_personas: { nombre: 'Riesgo para las personas', ayuda: 'Chispas, cable expuesto, fuga' },
-  detiene_operacion: { nombre: 'Detiene la operación', ayuda: 'No se puede trabajar' },
-  trabajo_con_limitaciones: { nombre: 'Trabajo con limitaciones', ayuda: 'Hay alternativa pero es lenta' },
-  molestia_menor: { nombre: 'Molestia menor', ayuda: 'No afecta el trabajo' }
-};
 
 const VISTAS = ['reportadas', 'buzon', 'tecnico', 'verificar', 'tiendas', 'todas'];
 

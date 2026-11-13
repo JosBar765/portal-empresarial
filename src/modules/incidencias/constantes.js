@@ -29,6 +29,13 @@ const EN_TRABAJO = [ESTADOS.EN_PROCESO, ESTADOS.CORRECCION_PEDIDA];
 const TERMINADOS = [ESTADOS.CERRADA, ESTADOS.DESCARTADA];
 
 const IMPACTOS = ['riesgo_personas', 'detiene_operacion', 'trabajo_con_limitaciones', 'molestia_menor'];
+// Los cuatro impactos tal como se muestran al reportar (los impactos son fijos; lo que se elige en Configuración es su prioridad).
+const IMPACTO_TEXTOS = Object.freeze({
+  riesgo_personas: { nombre: 'Riesgo para las personas', ayuda: 'Chispas, cable expuesto, fuga' },
+  detiene_operacion: { nombre: 'Detiene la operación', ayuda: 'No se puede trabajar' },
+  trabajo_con_limitaciones: { nombre: 'Trabajo con limitaciones', ayuda: 'Hay alternativa pero es lenta' },
+  molestia_menor: { nombre: 'Molestia menor', ayuda: 'No afecta el trabajo' }
+});
 const EVOLUCIONES = ['mejoro', 'sin_cambios', 'empeoro'];
 
 const EVENTO = Object.freeze({
@@ -60,4 +67,4 @@ const PERMISO = Object.freeze({
 
 const LIMITES = Object.freeze({ titulo: 120, descripcion: 2000, texto: 1000, motivo: 255, comentario: 500, activoTexto: 120 });
 
-module.exports = { ESTADOS, ETIQUETA_ESTADO, ABIERTOS, EN_TRABAJO, TERMINADOS, IMPACTOS, EVOLUCIONES, EVENTO, PERMISO, LIMITES };
+module.exports = { ESTADOS, ETIQUETA_ESTADO, ABIERTOS, EN_TRABAJO, TERMINADOS, IMPACTOS, IMPACTO_TEXTOS, EVOLUCIONES, EVENTO, PERMISO, LIMITES };
