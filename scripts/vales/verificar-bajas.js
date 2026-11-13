@@ -100,6 +100,29 @@ async function main() {
         eliminado === true && !(await existe(vale.id)) && b && b.motivo === 'VENCIMIENTO_ADJUNTOS' && b.razon === 'vencimiento' && b.estado === 'CREADO', JSON.stringify(b));
     }
 
+    console.log('3b. Una modificación que vence deja registro y no deja borrador');
+    {
+      for (const camino of ['vigencia', 'adjuntos']) {
+        const original = await crearVale({ estado: 'RECIBIDO', modificado: 1 });
+        const mod = await crearVale({ estado: camino === 'vigencia' ? 'SOLICITANDO_MODIFICACION' : 'CREADO', originalId: original.id, prefijo: 'MOD-', vigenciaPasada: camino === 'vigencia' });
+        if (camino === 'adjuntos') {
+          await db.query(
+            `INSERT INTO vale_talleres (vale_id, taller_id, estado_id, activo, adjuntos_vence_en)
+             VALUES (?, ?, (SELECT id FROM estados_taller WHERE nombre = 'ADJUNTOS_RECHAZADOS'), 1, DATE_SUB(NOW(), INTERVAL 1 HOUR))`,
+            [mod.id, taller.id], 'bajas:fila_adjuntos_mod'
+          );
+        }
+        const eliminado = camino === 'vigencia' ? await valeCreacionService.expirarVale(mod.id) : await valeAdjuntosService.expirarPorAdjuntos(mod.id);
+        const [b] = await bajasDe(mod.correlativo);
+        prueba(`vence por ${camino}: la modificación se elimina, queda su registro, sin borrador y con el código del original`,
+          eliminado === true && !(await existe(mod.id)) && b && b.motivo === (camino === 'vigencia' ? 'VENCIMIENTO_VIGENCIA' : 'VENCIMIENTO_ADJUNTOS')
+          && b.borrador_id === null && b.vale_original_correlativo === original.correlativo
+          && (await db.query('SELECT 1 FROM vale_borradores WHERE correlativo_origen = ?', [mod.correlativo], 'bajas:borrador_mod_vence')).length === 0, JSON.stringify(b));
+        prueba(`vence por ${camino}: el vale original sigue existiendo y queda reabierto`,
+          (await existe(original.id)) && (await db.query('SELECT modificado FROM vales WHERE id = ?', [original.id], 'bajas:original_mod'))[0].modificado === 0);
+      }
+    }
+
     console.log('4. Solicitud de modificación rechazada');
     {
       const original = await crearVale({ estado: 'RECIBIDO', modificado: 1 });
