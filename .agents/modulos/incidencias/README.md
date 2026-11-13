@@ -1,0 +1,72 @@
+# Módulo Incidencias (`incidencias`) — especificación v3
+
+> **Estado:** diseño (mockup en Figma, página «Prototipo v3 · Guatemala (núcleo)»). Sin código hasta aprobar el mockup.
+> **Fuente de verdad:** este archivo. `analisis_modulo_incidencias.md` (v1) y `analisis_modulo_incidencias_v2.md` quedan solo como historial: eran más amplios (reemplazo de equipo, cotizaciones, dashboards por rol, hallazgos de Supervisiones, Centroamérica).
+> **Rama:** `module/incidencias` (desde `dev`). Commits por tema, en español, sin atribución de IA.
+
+## Idea
+
+Cualquier usuario reporta un problema ligado a **una tienda** (y por ella, a un país). La incidencia cae a un **buzón compartido**; los **técnicos** la toman, dan avances y la llevan hasta que un **verificador** aprueba que quedó resuelta. Todo se configura desde el propio módulo (nada de nombres, roles ni listas en el código) y debe funcionar bien en teléfono.
+
+- **v1 solo Guatemala.** Centroamérica tiene un proceso aún por definir: cada país se **habilita desde el módulo**; apagado, quien reporta ve «aún no disponible en tu país».
+- **Los técnicos aún no son usuarios del sistema.** Se crean en Administración con el rol que corresponda; el módulo decide qué roles cumplen cada función.
+
+## Entra y no entra en v1
+
+| Entra | Queda para fases posteriores |
+|---|---|
+| Reportar con fotos, buzón, tomar, avances, espera, enviar a verificación, verificar o pedir corrección (rondas), reasignar, devolver al buzón, descartar, historial único, avisos (campana y tiempo real), listados por rol, configuración completa, versión móvil | Reemplazo de equipo y cotizaciones · dashboard de gerencia · hallazgos desde Supervisiones · inventario de activos individual (se enlazará con Inventario de Maquinaria) · correo o WhatsApp · mantenimiento preventivo · Centroamérica |
+
+## Reglas
+
+- **Ubicación.** Tienda activa de un país habilitado; por defecto la suya (`asesores.tienda_id` o la primera de `supervisor_tiendas`). Zona (general o por tienda), categoría (define la especialidad que atiende), tipo de activo (opcional, por categoría) y texto libre.
+- **Reporte.** Foto obligatoria (de 1 a 5; JPG, PNG o WebP), título (≤120), descripción, impacto en 4 niveles y contacto en sitio opcional. **La prioridad la calcula el servidor** con la tabla impacto → prioridad editable; el cliente solo manda el impacto. Aviso de posible duplicado (misma tienda y zona o tipo con incidencia abierta). Límite diario de reportes por usuario.
+- **Estados** (en palabras completas): `en_buzon` → `en_proceso` ⇄ `en_espera` → `en_verificacion` → `cerrada`; `correccion_solicitada` (vuelve al técnico y cuenta una ronda); `descartada`. Tomar es atómico: quien la toma primero queda como responsable.
+- **Avances.** Texto, hasta 3 fotos y evolución (mejoró · sin cambios · empeoró), con fecha y hora. Enviar a verificación exige describir lo hecho y una foto de evidencia.
+- **Verificación.** La hace el **verificador de esa tienda** (o del país, si la tienda no tiene uno propio). Quien trabajó la incidencia no puede verificarla. Pedir corrección exige comentario y abre una ronda nueva.
+- **Reasignar, devolver, descartar.** Reasignar y descartar: `incidencias.asignar` dentro de su alcance, siempre con motivo. El técnico puede devolver al buzón una incidencia propia, con motivo.
+- **Historial inmutable** (`incidencia_eventos`): apertura, entrada al buzón, toma, avances, espera, reanudación, verificación, correcciones, reasignaciones, descarte y cierre.
+- **Quién ve qué.** Reportante: lo que reportó. Técnico: el buzón de las tiendas que cubre y lo suyo. Verificador o asignador: las de sus tiendas. `ver_todas`: todo, en solo lectura. Fuera de alcance responde **404**. Todo se valida en el backend.
+- **Avisos** (campana del portal y refresco en vivo): incidencia nueva → técnicos con cobertura (P1 como alerta); tomada, avance, espera y cierre → quien reportó; a verificación → verificadores; corrección solicitada → técnico; reasignada → técnico nuevo y anterior; descartada → quien reportó.
+
+## Configuración (pantalla del módulo, permiso `incidencias.configurar`)
+
+| Pestaña | Qué se edita |
+|---|---|
+| Países | Interruptor por país |
+| Catálogos | Categorías (con especialidad), zonas, tipos de activo, especialidades, motivos de espera |
+| Prioridades | Nombre, color y orden de P1 a P4; tabla impacto → prioridad; subir un nivel por reincidencia |
+| Técnicos | Usuarios que son técnicos, sus especialidades y las tiendas que cubren |
+| Verificadores | Verificador(es) por tienda y por país; alerta de tiendas sin verificador |
+| Roles y permisos | Qué rol puede reportar, atender, verificar, asignar, ver todo o configurar (escribe `rol_permisos` de `incidencias.*`) |
+| Parámetros | Máximo de fotos, límite diario, ventana de duplicados, días sin avance para resaltar |
+
+## Permisos
+
+`incidencias.ver` · `.reportar` · `.resolver` (técnico) · `.verificar` · `.asignar` · `.ver_todas` · `.configurar`. La migración los asigna solo al Administrador; el resto se asigna desde la pestaña «Roles y permisos» o desde Roles.
+
+## Datos
+
+Migración aditiva e idempotente `NN_incidencias_nucleo.sql`. Configuración: `incidencia_paises`, `incidencia_especialidades`, `incidencia_categorias`, `incidencia_zonas`, `incidencia_tipos_activo`, `incidencia_prioridades`, `incidencia_reglas_prioridad`, `incidencia_motivos_espera`, `incidencia_tecnicos` (+ especialidades y tiendas), `incidencia_verificadores`. Núcleo: `incidencias`, `incidencia_fotos` (solo la URL de Storage, nunca la imagen en MySQL) e `incidencia_eventos`. Parámetros en `parametros_sistema` con prefijo `incidencias.`.
+
+## Implementación (patrón de Proyectos)
+
+Controladores solo HTTP; servicios con las reglas; repositorios con todo el SQL. Se reutilizan los guards de permisos, `MODULOS`, `notificacionService`, `socketManager`, `subirYRegistrarArchivo` con `supabaseStorage`, `idempotencyKey`, `responderError` e `idObligatorio`. Frontend vanilla con los tokens de `public/css/global.css`, sin handlers en línea (CSP). Móvil: tarjetas bajo 640 px, objetivos táctiles de 44 px, cámara directa y reducción de la imagen antes de subir.
+
+## Fases
+
+0. Rama, esta documentación y mockup aprobado.
+1. Migración, permisos, semillas y entrada en el catálogo.
+2. Backend núcleo y scripts de verificación.
+3. Backend de configuración.
+4. Frontend: reportar, listados, detalle y acciones.
+5. Frontend: configuración.
+6. QA por rol (escritorio y 390 px), documentación final y fila en el mapa de docs de `CLAUDE.md`.
+
+## Supuestos (el dueño puede cambiarlos)
+
+1. El técnico puede devolver al buzón una incidencia propia.
+2. Sin verificador por tienda ni por país, la incidencia queda visible para quien tenga `incidencias.verificar` (nunca el técnico que la trabajó) y Configuración muestra la alerta.
+3. Gerente y Administrador ven todo en solo lectura.
+4. Se puede elegir cualquier tienda activa de un país habilitado, incluida la sede central.
+5. Los permisos solo se asignan al Administrador al migrar.
