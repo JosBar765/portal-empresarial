@@ -20,10 +20,10 @@ Verificado también en **MariaDB 11.8** (49 migraciones y las 18 verificaciones 
 |---|---|---|---|---|
 | **Alta** | 1 | 1 | 0 | |
 | **Media** | 7 | 7 | 0 | |
-| **Baja** | 20 | 11 | 7 | 1 no reproducible, 1 informativo |
-| **Total** | **28** | **19** | **7** | **2** |
+| **Baja** | 20 | 16 | 2 | 1 no reproducible, 1 informativo |
+| **Total** | **28** | **24** | **2** | **2** |
 
-- **Pruebas automáticas:** 18 scripts de verificación con unas 905 comprobaciones; pasan todas menos una (la prueba de avisos, que es frágil; ver E-05).
+- **Pruebas automáticas:** 18 scripts de verificación con unas 905 comprobaciones; pasan todas (la de avisos se corrigió: ver E-05).
 - **Pruebas adicionales de este QA:** unos 400 casos por HTTP (integración, valores límite, entradas especiales, permisos, importación y exportación), 96 combinaciones de permisos, 12 afirmaciones de los manuales y 36 mediciones de rendimiento.
 - **Recorrido manual:** más de 40 pasos con los cuatro roles, con captura de lo observado en cada uno.
 - Cada corrección se verificó con una prueba que **falla con el código anterior y pasa con el nuevo**.
@@ -40,9 +40,9 @@ Severidad: Alta, Media o Baja. Estado: **Corregido**, **Abierto**, **No reproduc
 | S-01 | La aplicación no enviaba política de seguridad de contenido (`helmet({ contentSecurityPolicy: false })`). | Esperado: cabecera CSP. Obtenido: ninguna. | Media | **Corregido** | Nueva política (`src/core/seguridad/csp.js`): scripts solo del sitio, de unpkg y los en línea existentes por hash; sin `unsafe-inline` ni `unsafe-eval` en scripts; `object-src none`. Verificada en login, dashboard, vales, administración y proyectos, con el importmap del despliegue simulado. |
 | S-02 | Tras cerrar sesión, el token anterior seguía siendo válido hasta que vencía (15 minutos). El token no se ligaba a la sesión activa. | Esperado: 401 tras el cierre de sesión. Obtenido: 200. | Media | **Corregido** | El access token solo vale si su `sid` coincide con `sesiones_activas` (cookie y Bearer); un token sin `sid` no se acepta. Tres comprobaciones nuevas, que fallan con el código anterior. |
 | E-02 | 22 consultas SQL directas en 7 servicios (`cierre`, `proyecto`, `importación`, `seguimiento`, `alcanceAdmin`, `gestión`, `rondas`). Rompía la regla «servicios sin SQL». | Esperado: todo el SQL en repositorios. | Media | **Corregido** | Todo el SQL pasó a los repositorios (nuevo `operacionRepository` para claves de operación y bloqueos; `resolverVistoBueno`, `actualizarCodigo`, `registrarImportacion`, `bloquearParaCompletar`, `reemplazarExcepciones`). Sin cambio de comportamiento: las 18 verificaciones dan el mismo resultado. |
-| E-03 | El endpoint de CSRF devuelve un valor fijo y decorativo. El código lo documenta; la protección real es `SameSite=Strict`. | Sin riesgo directo. | Baja | Abierto | Retirarlo cuando el login deje de usarlo. |
+| E-03 | El endpoint de CSRF devuelve un valor fijo y decorativo. El código lo documenta; la protección real es `SameSite=Strict`. | Sin riesgo directo. | Baja | **Corregido** | El login ya no pide ni manda el valor decorativo y el endpoint `action=csrf` se retiró. La protección sigue siendo `SameSite=Strict`. |
 | E-04 | Un usuario con solo `proyectos.ver` puede listar la Cartera de su país. | A decidir con el dueño del producto. | Baja | Abierto | Confirmar si es lo deseado. |
-| E-05 | La prueba `verificar-avisos` espera 2 destinatarios para «proyecto vencido», pero el aviso llega a todos los supervisores que cubren una tienda del proyecto (13 en la base de prueba). | Esperado: 2. Obtenido: 13. Es la prueba la que depende de los datos. | Baja | Abierto | Ajustar la prueba para contar a los supervisores de las tiendas del proyecto. |
+| E-05 | La prueba `verificar-avisos` espera 2 destinatarios para «proyecto vencido», pero el aviso llega a todos los supervisores que cubren una tienda del proyecto (13 en la base de prueba). | Esperado: 2. Obtenido: 13. Es la prueba la que depende de los datos. | Baja | **Corregido** | La prueba ahora compara contra los destinatarios reales del primer aviso. `verificar-avisos`: 38 OK, 0 fallas. |
 
 ## Validación y datos
 
@@ -50,7 +50,7 @@ Severidad: Alta, Media o Baja. Estado: **Corregido**, **Abierto**, **No reproduc
 |---|---|---|---|---|---|
 | Q-01 | Crear un proyecto con una fecha que no existe en el calendario (`2026-02-31`, `2027-02-29`) o con una etapa así dio un **error 500**. | Esperado: 400 «Escribe la fecha como AAAA-MM-DD». Obtenido: 500. Causa: `Date.parse` acepta el 31 de febrero y MySQL lo rechaza. | Media | **Corregido** | Nuevo validador `esFechaReal` en proyectos, seguimientos y filtros del historial. Dos pruebas nuevas. |
 | Q-02 | Se puede crear un borrador sin tiendas. | Es válido para un borrador; al activarlo da 4xx. | Baja | Informativo | Ninguna. |
-| Q-03 | Un doble clic con la misma llave de idempotencia deja un `ER_DUP_ENTRY` en el registro del servidor aunque el resultado es correcto (una sola fila). | Esperado: sin ruido en el registro. | Baja | Abierto | Tratarlo como caso esperado y registrarlo como información. |
+| Q-03 | Un doble clic con la misma llave de idempotencia deja un `ER_DUP_ENTRY` en el registro del servidor aunque el resultado es correcto (una sola fila). | Esperado: sin ruido en el registro. | Baja | **Corregido** | Un duplicado (`ER_DUP_ENTRY`) se registra como información, no como error; el resto de errores de base sigue como error. |
 
 ## Accesibilidad
 
@@ -74,8 +74,8 @@ Severidad: Alta, Media o Baja. Estado: **Corregido**, **Abierto**, **No reproduc
 | M-07 | La reacción de un asesor sin gestión salía como «0 d» en rojo, que se lee como «reaccionó el mismo día». | Esperado: «Sin gestión» o «—». | Baja | **Corregido** | Texto «Sin gestión» (con empresas) o «—» (sin empresas). |
 | M-08 | Se puede programar un seguimiento para una hora que ya pasó hoy (solo se rechaza una fecha pasada). | A decidir: ¿rechazar horas pasadas? | Baja | Abierto | Decisión de negocio. |
 | M-09 | Textos con errores: «S.A..», «1 tiendas» y doble punto en el aviso del comentario del gerente. | Esperado: texto limpio. | Baja | **Corregido** | Corregidos los tres. |
-| M-11 | La campana del gerente conserva el aviso de «activación pedida» después de resolverla. | Esperado: se marca leído al actuar. | Baja | Abierto | Marcar como leídos los avisos de la acción resuelta. |
-| M-14 | La reasignación equitativa eligió destinatarios sin un criterio visible (con empate en 3 empresas). | Esperado: explicación o criterio fijo. | Baja | Abierto | Mostrar el criterio en la vista previa. |
+| M-11 | La campana del gerente conserva el aviso de «activación pedida» después de resolverla. | Esperado: se marca leído al actuar. | Baja | **Corregido** | Al aprobar o rechazar, el aviso «activación pedida» queda leído para todos. Prueba nueva en `verificar-avisos`. |
+| M-14 | La reasignación equitativa eligió destinatarios sin un criterio visible (con empate en 3 empresas). | Esperado: explicación o criterio fijo. | Baja | **Corregido** | La vista previa de la reasignación equitativa muestra el criterio: a quien tenga menos empresas; en empate, el de menor identificador. |
 
 ## Aceptación contra los manuales
 
@@ -135,16 +135,10 @@ Se resumen por técnica. El detalle de cada caso queda en los scripts.
 - Probar en **staging**: cookies `Secure`, HTTPS y la política de seguridad de contenido con el despliegue real (el importmap se inyecta al instalar; aquí se simuló y funcionó).
 - Asignar los permisos `proyectos.*` en la pantalla Roles de staging y producción (tarea del dueño del portal).
 
-## 2. Mantenibilidad
+## 2. Decisiones del dueño del producto (los dos hallazgos abiertos)
 
-- **E-05:** arreglar la prueba de avisos.
-
-## 3. Pequeños y de experiencia
-
-- **M-11:** marcar como leídos los avisos resueltos.
-- **M-14:** explicar el criterio de la reasignación equitativa.
-- **M-08:** decidir si se rechazan horas pasadas.
-- **E-04, E-03 y Q-03:** decisiones o limpieza menor.
+- **M-08:** decidir si se rechazan horas pasadas al programar un seguimiento (hoy solo se rechaza una fecha pasada).
+- **E-04:** confirmar si quien solo tiene `proyectos.ver` debe poder listar la Cartera de su país.
 
 # 6. Mejoras sugeridas
 
