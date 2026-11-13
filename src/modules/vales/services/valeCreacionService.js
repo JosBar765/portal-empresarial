@@ -275,6 +275,7 @@ class ValeCreacionService {
       if (!esAdministrador(usuario) && !supervisoresDelAsesor.some(s => s.id === usuario.id)) {
         throw new ErrorDeNegocio('Este vale es de un asesor que no está a tu cargo.', 403);
       }
+      await valeVistoService.exigirVisto(usuario, valeId);
       const motivoLimpio = validarMotivoRechazo(motivo);
       if (modificacion) {
         const original = await valeRepository.obtenerPorId(vale.vale_original_id);
