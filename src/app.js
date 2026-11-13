@@ -19,6 +19,7 @@ const retencionArchivosWatcher = require('./modules/vales/retencionArchivosWatch
 const notificacionLimpieza = require('./core/notifications/notificacionLimpieza');
 const adminRoutes = require('./modules/admin/routes');
 const promptsRoutes = require('./modules/prompts/routes');
+const incidenciasRoutes = require('./modules/incidencias/routes');
 const notificacionRoutes = require('./core/notifications/notificacionRoutes');
 const { MENSAJE_INTERNO } = require('./core/utils/erroresHttp');
 
@@ -117,6 +118,9 @@ app.use('/api/admin', requireAuth, requirePermission('admin.ver'), adminRoutes);
 
 // Rutas de API del Generador de Prompts
 app.use('/api/prompts', requireAuth, requirePermission('prompts.ver'), promptsRoutes);
+
+// Rutas de API del módulo Incidencias
+app.use('/api/incidencias', requireAuth, requirePermission('incidencias.ver'), incidenciasRoutes);
 
 // Centro de notificaciones (de cualquier usuario autenticado, sin permiso de módulo)
 app.use('/api/notificaciones', requireAuth, notificacionRoutes);
