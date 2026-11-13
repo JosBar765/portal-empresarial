@@ -127,6 +127,7 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 | Vales de Arte (`vales`) | `.agents/modulos/vales de arte/README.md` | Vouchers: create, authorize, assign, deliver, confirm. |
 | Administración Central (`admin`) | `.agents/modulos/admin/README.md` | Users, roles, talleres, maintenance, schedules, admin tools. |
 | Generador de Prompts (`prompts`) | `.agents/modulos/generador de prompts/README.md` | Prompt builder for image generators; products and parameters set by the admin. |
+| Incidencias (`incidencias`) | `.agents/modulos/incidencias/README.md` | Store problem reports with photos; technicians take them from a shared inbox and a verifier approves; everything configurable in the module. |
 
 - New module: `README.md` section 4 and `.agents/reglas/reglas_modulo.md`; document it under `.agents/modulos/<name>/` (`README.md` + `documentacion/`).
 - Global rules: `.agents/reglas/` (architecture, module templates, auth, implementation style, UI, SQL files, environments, CI, deployment).

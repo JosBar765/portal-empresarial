@@ -1,6 +1,6 @@
 # Módulo Incidencias (`incidencias`) — especificación v3
 
-> **Estado:** mockup v3 aprobado (Figma, página «Prototipo v3 · Guatemala (núcleo)»). Fases 1 a 5 hechas: migración, permisos, semillas, entrada en el catálogo, el backend del núcleo y el de la configuración, la interfaz de reportar, listas, detalle y acciones, y la pantalla de Configuración. Falta el QA (fase 6).
+> **Estado:** mockup v3 aprobado (Figma, página «Prototipo v3 · Guatemala (núcleo)»). Fases 1 a 5 hechas: migración, permisos, semillas, entrada en el catálogo, el backend del núcleo y el de la configuración, la interfaz de reportar, listas, detalle y acciones, y la pantalla de Configuración. QA de la fase 6 hecho (ver «QA y pendientes»).
 > **Fuente de verdad:** este archivo. `analisis_modulo_incidencias.md` (v1) y `analisis_modulo_incidencias_v2.md` quedan solo como historial: eran más amplios (reemplazo de equipo, cotizaciones, dashboards por rol, hallazgos de Supervisiones, Centroamérica).
 > **Rama:** `module/incidencias` (desde `dev`). Commits por tema, en español, sin atribución de IA.
 
@@ -97,6 +97,14 @@ Vanilla JS en módulos ES, sin handlers en línea (CSP), con las rutas por `#`: 
 ### Configuración (`#/configuracion/:pestana`, fase 5)
 
 Solo con `incidencias.configurar`. Siete pestañas sobre `/api/incidencias/configuracion/*`: Países (interruptor y aviso), Catálogos (categorías, zonas, tipos de activo, especialidades y motivos de espera; nada se borra, se apaga), Prioridades (nombre, color, orden y la tabla impacto → prioridad), Técnicos (alta con buscador de personas, especialidades y cobertura), Verificadores (por país o por tienda; resalta tiendas sin verificador), Roles y permisos (matriz rol × permiso; un rol a la vez; no deja a nadie sin poder configurar) y Parámetros (se dibuja desde el registro del servidor). Arriba, avisos con enlace a la pestaña que los arregla; «Historial de cambios» abre quién cambió qué. En el celular las tablas se vuelven tarjetas y las pestañas se deslizan; cambios sin guardar piden confirmación al salir de la pestaña.
+
+## QA y pendientes (fase 6)
+
+**Hecho:** 108 comprobaciones del flujo y 90 de la configuración, en MySQL 8.4 y en MariaDB 11.8 (migraciones 44 a 46 incluidas). Seguridad: el cliente no puede fijar estado, técnico, dueño, prioridad ni ronda al reportar; identificadores raros (`abc`, `0`, `-1`, enormes, `1;DROP`, `1.5`) dan 400 o 404 y nunca 500; fuera de alcance siempre 404 (reasignar, prioridad, descartar, comentar, tomar, ver), sin revelar que existe. Política de contenido (CSP de Proyectos) probada con ambas ramas unidas: sin violaciones en reportar, listas, configuración, vista previa de fotos y avisos en vivo (el módulo no lleva estilos ni HTML en línea). Roles probados en pantalla (asesor, técnico, supervisor, gerente, administrador): el menú, las pestañas y las rutas respetan el permiso («No tienes permiso para esta pantalla»). Accesibilidad: botones y campos con nombre, un solo `h1` por pantalla, sin ids repetidos, áreas táctiles de 44 px.
+
+**Al fusionar con Proyectos:** `src/app.js` y `src/core/permissions/modulesCatalog.js` chocan en las líneas donde cada módulo se registra; se resuelve conservando los dos (comprobado: el catálogo queda `vales, admin, prompts, incidencias, proyectos`). Las migraciones de Incidencias son 44 a 46.
+
+**Pendiente (fuera de la v1):** cámara real en un teléfono; tablero del técnico; reemplazo de equipo y cotizaciones; panel de gerencia; hallazgos desde Supervisiones; Centroamérica; contraste medido con herramienta (se cuidó con los colores del sistema, pero no se midió).
 
 ## Implementación (patrón de Proyectos)
 
