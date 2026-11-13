@@ -348,7 +348,11 @@ class ValeBuzonService {
 
     // Filtro por tienda (una, un país o un grupo Trofex): solo lo manda el frontend de Supervisor, Gerente y Administrador.
     const tiendasFiltro = idsDeTiendaFiltro(filtros);
-    if (tiendasFiltro.size) todosConTaller = todosConTaller.filter(v => tiendasFiltro.has(v.tienda_id));
+    if (tiendasFiltro.size) {
+      // Los asesores con supervisión especial no se ocultan por tienda: solo sus supervisores asignados los autorizan y se perdería el vale.
+      const especiales = rol === ROL.SUPERVISOR ? new Set(await usuarioValeRepository.listarAsesorIdsConSupervisionEspecial(usuario.id)) : new Set();
+      todosConTaller = todosConTaller.filter(v => tiendasFiltro.has(v.tienda_id) || especiales.has(v.asesor_id));
+    }
 
     let resultado = await this._resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador);
     // «Atrasados» se combina con las demás tarjetas: con otra activa cuenta los atrasados de esa selección. En Trabajo
