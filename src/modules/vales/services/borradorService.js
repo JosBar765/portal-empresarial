@@ -3,6 +3,7 @@
 // Son privados de su dueño y viven DIAS_VIGENCIA días desde su creación. Al enviarse pasan por crearVale.
 const borradorRepository = require('../repositories/borradorRepository');
 const tallerRepository = require('../repositories/tallerRepository');
+const documentoRepository = require('../repositories/documentoRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const supabaseStorage = require('../../../core/files/supabaseStorage');
 const subirYRegistrarArchivo = require('../../../core/files/subirYRegistrarArchivo');
@@ -120,9 +121,64 @@ class BorradorService {
   async listar(usuario) {
     const [filas, maximo] = await Promise.all([borradorRepository.listarPorUsuario(usuario.id), borradorRepository.obtenerTope()]);
     const borradores = filas.map(f => ({
-      id: f.id, titulo: f.titulo, creadoEn: f.creado_en, venceEn: f.vence_en, diasRestantes: Number(f.dias_restantes)
+      id: f.id, titulo: f.titulo, creadoEn: f.creado_en, venceEn: f.vence_en, diasRestantes: Number(f.dias_restantes),
+      correlativoOrigen: f.correlativo_origen, nuevo: Boolean(f.nuevo)
     }));
-    return { borradores, total: borradores.length, maximo };
+    return { borradores, total: borradores.length, maximo, nuevos: borradores.filter(b => b.nuevo).length };
+  }
+
+  // Al abrir la lista el asesor ya vio los borradores por vencimiento: la insignia vuelve a cero.
+  async marcarVistos(usuario) {
+    await borradorRepository.marcarVistos(usuario.id);
+    return { ok: true };
+  }
+
+  // Borrador de un vale que venció (se llama ANTES de borrarlo, con sus archivos aún en Storage). No aplica el tope ni
+  // el chequeo de borrador vacío y nunca lanza: devuelve el id, o null si no se pudo y el vencimiento sigue igual.
+  async crearDesdeVale(vale, motivo) {
+    let id;
+    try {
+      id = await borradorRepository.insertarDesdeVale(vale.id, motivo, DIAS_VIGENCIA);
+    } catch (e) {
+      console.error(`[Borradores] No se pudo crear el borrador del vale vencido ${vale.correlativo}: ${e.message}`);
+      return null;
+    }
+    await this._copiarAdjuntosDeVale(id, vale);
+    return id;
+  }
+
+  // Mejor esfuerzo: un archivo que no se pueda copiar se omite y el borrador queda con los demás.
+  async _copiarAdjuntosDeVale(borradorId, vale) {
+    try {
+      const documentos = (await documentoRepository.listarPorVale(vale.id)).filter(d => d.ruta);
+      const grupos = [['imagen', 'IMAGEN', MAX_IMAGENES], ['documento', 'PDF', MAX_DOCUMENTOS]];
+      for (const [tipo, tipoNombre, maximo] of grupos) {
+        let contador = 1;
+        for (const doc of documentos.filter(d => d.tipo === tipo).slice(0, maximo)) {
+          try {
+            const buffer = await supabaseStorage.descargar(doc.ruta);
+            await subirYRegistrarArchivo({
+              buffer, nombreOriginal: doc.nombre_original, mimeType: doc.mime_type,
+              nombreObjeto: nombreArchivo.borrador(borradorId, tipoNombre, contador),
+              storage: supabaseStorage.borradores,
+              registrar: (subida) => borradorRepository.insertarDocumento({
+                borradorId, nombreOriginal: doc.nombre_original, ruta: subida.url, tipo, mimeType: doc.mime_type, tamano: subida.size
+              })
+            });
+            contador++;
+          } catch (e) {
+            console.error(`[Borradores] Archivo del vale ${vale.correlativo} sin copiar al borrador ${borradorId}: ${doc.ruta} (${e.message})`);
+          }
+        }
+      }
+    } catch (e) {
+      console.error(`[Borradores] Adjuntos del vale ${vale.correlativo} sin copiar al borrador ${borradorId}: ${e.message}`);
+    }
+  }
+
+  // Si el vale no se pudo borrar, el borrador creado de antemano sobra: se quita para no duplicarlo en el siguiente intento.
+  async descartar(id) {
+    try { await this._purgar(id); } catch (e) { console.error(`[Borradores] Borrador sin descartar: ${id} (${e.message})`); }
   }
 
   async obtener(usuario, idCrudo) {

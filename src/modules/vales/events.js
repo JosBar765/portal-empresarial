@@ -96,10 +96,10 @@ function guardarNotificaciones({ vale, contenido, salas, actorId, nivel, tipo, v
     .catch(error => console.error('[Notificaciones] No se pudieron guardar:', error.message));
 }
 
-function notificar({ vale, accion, actor = null, actorId = null, destino = null, salas = [], nivel = 'info', beep = true, tipo = null, detalle = null, valeBorrado = false, texto = null }) {
+function notificar({ vale, accion, actor = null, actorId = null, destino = null, salas = [], nivel = 'info', beep = true, tipo = null, detalle = null, valeBorrado = false, texto = null, conAdmin = true }) {
   const cuerpo = texto || `fue ${accion}${actor ? ` por ${actor}` : ''}${destino ? ` a ${destino}` : ''}`;
   const mensaje = `${fechaHoraLocal()} – Vale: ${vale.correlativo} ${cuerpo}${detalle ? `. ${detalle}` : ''}`;
-  const salasFinal = [...new Set([...(salas || []), SALA_ADMIN])];
+  const salasFinal = [...new Set([...(salas || []), ...(conAdmin ? [SALA_ADMIN] : [])])];
   guardarNotificaciones({
     vale, salas, actorId, nivel, tipo, valeBorrado,
     contenido: mensaje.slice(mensaje.indexOf('Vale:'))
@@ -125,9 +125,14 @@ function notificar({ vale, accion, actor = null, actorId = null, destino = null,
   socketManager.sendToRooms([`vale:${vale.id}`], 'vale_actualizado', { valeId: vale.id });
 }
 
+// Un vale vencido pasó a los borradores del asesor: su botón «Borradores» actualiza la insignia.
+function borradorNuevo(asesorId) {
+  socketManager.sendToUsers([asesorId], 'borradores_nuevos', {});
+}
+
 // Solo refresca la pantalla de quien esté en las salas: sin cartel, sin beep, sin campana.
 function refrescar({ vale, salas = [] }) {
   socketManager.sendToRooms([...new Set(salas)], 'vale_refrescar', { valeId: vale.id, estado: vale.estado });
 }
 
-module.exports = { notificar, refrescar };
+module.exports = { notificar, refrescar, borradorNuevo };

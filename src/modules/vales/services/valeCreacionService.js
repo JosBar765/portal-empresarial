@@ -308,16 +308,38 @@ class ValeCreacionService {
       const original = esValeDeModificacion(vale) ? await valeRepository.obtenerPorId(vale.vale_original_id) : null;
       const horas = await calendarioService.horasVencimiento();
       const plazo = `${horas} ${horas === 1 ? 'hora laboral' : 'horas laborales'}`;
-      await this.eliminarValeConArchivos(valeId, await armarBaja(MOTIVOS_BAJA.VENCIMIENTO_VIGENCIA));
+      const borradorId = await this.eliminarVencidoConBorrador(vale, MOTIVOS_BAJA.VENCIMIENTO_VIGENCIA);
+      const salaAsesor = `asesor:${vale.asesor_id}`;
+      // El asesor recibe el aviso del borrador (si se creó); supervisores y administración, el de siempre.
+      if (borradorId) {
+        valeEvents.notificar({
+          vale, tipo: 'EXPIRADO_A_BORRADOR', valeBorrado: true, nivel: 'alerta', conAdmin: false, salas: [salaAsesor],
+          texto: `venció (vigencia de ${plazo}) y lo guardamos en tus Borradores`
+        });
+      }
       valeEvents.notificar({
         vale, tipo: 'EXPIRADO', valeBorrado: true, nivel: 'alerta',
         texto: original
           ? `(solicitud de modificación) fue eliminado automáticamente: venció su vigencia de ${plazo} sin ser autorizado. ${original.correlativo} ya quedó como Recibido`
           : `fue eliminado automáticamente: venció su vigencia de ${plazo} sin ser autorizado`,
-        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
+        salas: [...(borradorId ? [] : [salaAsesor]), ...supervisores.map(s => `supervisor:${s.id}`)]
       });
       return true;
     });
+  }
+
+  // Un vale vencido (no MOD-) pasa antes a un borrador del asesor; si el borrador falla, el borrado y su registro siguen igual.
+  // Devuelve el id del borrador o null.
+  async eliminarVencidoConBorrador(vale, motivo) {
+    const borradorId = esValeDeModificacion(vale) ? null : await borradorService.crearDesdeVale(vale, motivo);
+    try {
+      await this.eliminarValeConArchivos(vale.id, await armarBaja(motivo, null, { borradorId }));
+    } catch (error) {
+      if (borradorId) await borradorService.descartar(borradorId);
+      throw error;
+    }
+    if (borradorId) valeEvents.borradorNuevo(vale.asesor_id);
+    return borradorId;
   }
 
   // El asesor da de baja un vale propio sin autorizar (o rechazado), o ya autorizado mientras algún taller

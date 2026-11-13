@@ -284,6 +284,12 @@ export async function listarBorradores() {
   return data;
 }
 
+// Al abrir la lista: los borradores por vencimiento dejan de ser «nuevos» (la insignia vuelve a cero).
+export async function marcarBorradoresVistos() {
+  const res = await fetch('/api/vales/borradores/vistos', { method: 'POST' });
+  if (!res.ok) throw new Error('No se pudieron marcar los borradores como vistos.');
+}
+
 export async function obtenerBorrador(borradorId) {
   const res = await fetch(`/api/vales/borradores/${borradorId}`);
   const data = await leerJSON(res);
