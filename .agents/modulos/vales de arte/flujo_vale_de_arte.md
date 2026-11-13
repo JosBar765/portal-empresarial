@@ -208,10 +208,10 @@ Notas:
   autorización" (este último dentro del modal del motivo, abajo a la izquierda; permiso `vales.crear`) o puede darlo de baja. Al reenviar
   vuelve a `ESPERANDO_AUTORIZACION` y la marca de "visto" del supervisor se
   reinicia. Nada se borra al rechazar.
-- **Ver antes de autorizar:** el supervisor solo puede autorizar (creación o
+- **Ver antes de autorizar o rechazar:** el supervisor solo puede autorizar o rechazar (creación o
   modificación) un vale que haya abierto con "Ver" o cuyo PDF haya abierto
-  (`vale_vistos`); se exige en pantalla y en el servidor. Si el asesor corrige,
-  la marca se reinicia.
+  (`vale_vistos`); se exige en pantalla y en el servidor, tanto para autorizar como para rechazar. Si el asesor corrige o reenvía,
+  la marca se reinicia y el supervisor debe volver a abrir «Ver» antes de autorizar o rechazar.
 - **Vigencia de N horas laborales:** un vale nuevo en `ESPERANDO_AUTORIZACION`, una solicitud
   de modificación (`MOD-` en `SOLICITANDO_MODIFICACION`) o un vale normal
   en `RECHAZADO` se **elimina solo** (con sus archivos) cuando vence su plazo de N horas
