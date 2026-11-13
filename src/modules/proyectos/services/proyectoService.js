@@ -562,6 +562,7 @@ class ProyectoService {
   // La activación aprobada o rechazada se le avisa a quien la pidió.
   async _avisarResolucion(usuario, proyecto, mensaje) {
     try {
+      await avisosService.resolver('activacion_pedida', proyecto.id);
       const fila = await proyectoRepository.obtener(proyecto.id, null);
       await avisosService.notificar('activacion_resuelta', { proyectoId: proyecto.id, autorId: usuario.id, explicitos: { supervisor: [fila.creado_por] }, referenciaTipo: 'proyecto', referenciaId: proyecto.id, mensaje });
     } catch (error) { console.error('[Proyectos] No se pudo avisar de la resolución:', error.message); }

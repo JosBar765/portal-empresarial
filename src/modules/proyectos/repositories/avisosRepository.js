@@ -92,6 +92,13 @@ class AvisosRepository {
     const res = await db.query('INSERT IGNORE INTO idempotency_keys (idempotency_key, endpoint, resultado) VALUES (?, ?, ?)', [clave, 'proyectos.vigilante', '{}'], 'proyectos_avisos:sellar');
     return res.affectedRows === 1;
   }
+
+  // Marca como leídos, para todos, los avisos de un tipo sobre un proyecto cuando la acción que pedían ya se resolvió.
+  async marcarLeidos(tipo, proyectoId) {
+    await db.query(
+      "UPDATE notificaciones SET leida_en = NOW() WHERE modulo = 'proyectos' AND tipo = ? AND referencia_tipo = 'proyecto' AND referencia_id = ? AND leida_en IS NULL",
+      [tipo, proyectoId], 'proyectos_avisos:marcar_leidos');
+  }
 }
 
 module.exports = new AvisosRepository();

@@ -95,6 +95,11 @@ class AvisosService {
     await notificacionService.registrar(lista, { modulo: 'proyectos', tipo: clave, referenciaTipo, referenciaId, nivel, mensaje });
     return lista;
   }
+
+  // Cuando la acción que pedía un aviso ya se resolvió (p. ej. la activación pedida), el aviso deja de estar pendiente para todos.
+  async resolver(clave, proyectoId) {
+    await avisosRepository.marcarLeidos(clave, proyectoId);
+  }
 }
 
 module.exports = new AvisosService();

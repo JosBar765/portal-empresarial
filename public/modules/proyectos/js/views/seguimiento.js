@@ -227,6 +227,7 @@ export async function abrirReasignar({ proyectoId, asesor = null, empresas = nul
       h('div', { class: 'campo' }, h('label', { for: 'reasignar-destino', text: 'Destino (solo asesores de tus tiendas)' }), destino,
         errores.destino ? h('div', { class: 'campo-mensaje campo-mensaje--error' }, icono('alert-circle-outline'), h('span', { text: errores.destino })) : null),
       vista && vista.porAsesor.length ? h('div', { class: 'vista-reparto' }, vista.porAsesor.map(p => h('span', { class: 'vista-reparto-item' }, h('span', { class: 'avatar-contacto', text: iniciales(p.nombre) }), `${p.nombre} recibe +${p.recibe}`))) : null,
+      valores.destino === 'equitativo' && vista && vista.porAsesor.length ? h('p', { class: 'texto-tenue', text: 'Criterio: cada empresa pasa, una por una, a quien tenga menos empresas en este proyecto (sin contar a quien las cede). Si hay empate, gana el asesor de menor identificador, así la vista previa y el resultado son iguales.' }) : null,
       campoArea({ valores, errores, clave: 'motivo', etiqueta: 'Motivo (obligatorio)', maximo: 255, prefijoId: 'reasignar', ayuda: 'Queda en el historial con el motivo. Se avisa a quien recibe y a quien cede.' }));
   }
   dibujar();
