@@ -597,3 +597,26 @@ a.sidebar-item, a.btn { text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   .inc-fila, .inc-fotos-zona { transition: none; }
 }
+
+/* ---- Pulido de lectura (auditoría de interfaz) ----
+   Textos un punto más grandes que el resto del portal (se lee de pie, en el celular) y un gris de apoyo que sí cumple el contraste AA. */
+:root { --text-xs: 0.8125rem; --text-sm: 0.875rem; --color-text-muted: #64748B; }
+.inc-tiempo { font-size: var(--text-sm); }
+@media (min-width: 641px) { .inc-acciones { margin: 12px 0 4px; } }
+.inc-datos dt, .inc-curso dt { margin-top: 14px; }
+.inc-datos dt:first-child, .inc-curso dt:first-child { margin-top: 0; }
+@media (max-width: 640px) {
+  /* 16 px evita que el teléfono haga zoom al tocar un campo. */
+  .inc-campo input, .inc-campo select, .inc-campo textarea, .inc-comentar textarea, .inc-buscador, .inc-select-filtro, .inc-personas input[type="search"], .inc-parametro-valor input, .inc-regla select { font-size: 16px; }
+  .inc-acciones .btn { flex: 1 0 auto; justify-content: center; }
+  /* La barra fija de abajo no tapa lo último de la pantalla. */
+  #panel-content:has(.inc-acciones), #panel-content:has(.inc-barra-fija) { padding-bottom: 96px; }
+  .inc-pagina-titulo .btn { width: 100%; justify-content: center; }
+  /* Los números primero: la explicación de cada tarjeta se deja para la pantalla ancha, salvo si hay algo urgente. */
+  .inc-kpi { padding: 10px 12px; gap: 2px; }
+  .inc-kpi-nota { display: none; }
+  .inc-kpi--alerta .inc-kpi-nota { display: block; white-space: normal; overflow: visible; line-height: 1.3; }
+  .inc-foto-quitar::after { content: ''; position: absolute; inset: -8px; }
+  .inc-fotos-botones { width: 100%; }
+  .inc-fotos-boton { justify-content: center; }
+}

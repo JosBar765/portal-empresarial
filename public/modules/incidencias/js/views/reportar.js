@@ -30,7 +30,7 @@ export async function mostrarReportar(cont) {
   const selCategoria = h('select', { id: 'rep-categoria', name: 'categoriaId', required: true },
     opcion('', 'Elige la categoría', { disabled: true }), f.categorias.map(c => opcion(c.id, c.nombre)));
   const selActivo = h('select', { id: 'rep-activo', name: 'tipoActivoId' });
-  const inActivoTexto = h('input', { id: 'rep-activo-texto', name: 'activoTexto', type: 'text', maxlength: f.limites.activoTexto, placeholder: 'Por ejemplo: la impresora de la caja 2 (opcional)', autocomplete: 'off' });
+  const inActivoTexto = h('input', { id: 'rep-activo-texto', name: 'activoTexto', type: 'text', maxlength: f.limites.activoTexto, placeholder: 'Por ejemplo: la impresora de la caja 2', autocomplete: 'off' });
   const inTitulo = h('input', { id: 'rep-titulo', name: 'titulo', type: 'text', maxlength: f.limites.titulo, placeholder: 'Un título corto para reconocerla', autocomplete: 'off', required: true });
   const inDescripcion = h('textarea', { id: 'rep-descripcion', name: 'descripcion', rows: 4, maxlength: f.limites.descripcion, placeholder: 'Qué pasa, desde cuándo y qué ya probaste.', required: true });
   const contadorDescripcion = h('span', { class: 'inc-contador', text: `0 de ${f.limites.descripcion}` });
