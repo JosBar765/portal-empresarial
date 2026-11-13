@@ -4,7 +4,7 @@
 // window.centroNotificaciones.iniciar({ socket, modulo: 'vales' }).
 (() => {
   const POR_PAGINA = 20;
-  const estado = { modulo: null, items: [], noLeidas: 0, hayMas: false, abierto: false, cargando: false };
+  const estado = { modulo: null, items: [], noLeidas: 0, hayMas: false, abierto: false, cargando: false, enlaces: {} };
   let root = null;
   let tituloBase = '';
 
@@ -49,7 +49,7 @@
     // Conserva el desplazamiento de la lista al redibujar (marcar leída, cargar más).
     const scrollPrevio = root.querySelector('.notif-lista')?.scrollTop || 0;
     const lista = estado.items.map(n => `
-      <li class="notif-item${n.leida_en ? '' : ' is-no-leida'}${n.nivel === 'alerta' ? ' is-alerta' : ''}" data-id="${n.id}">
+      <li class="notif-item${n.leida_en ? '' : ' is-no-leida'}${n.nivel === 'alerta' ? ' is-alerta' : ''}${estado.enlaces[n.tipo] ? ' is-enlace' : ''}" data-id="${n.id}">
         <span class="notif-contenido">${escapar(n.mensaje)}</span>
         <span class="notif-fecha">${formatearFecha(n.creado_en)}</span>
       </li>`).join('');
@@ -91,10 +91,12 @@
   }
 
   // Cada módulo inicia su propio centro: `modulo` es su id del catálogo ('vales', 'admin'…).
-  function iniciar({ socket, modulo }) {
+  // `enlaces` ({ TIPO: () => acción }) convierte en enlace las notificaciones de ese tipo: al hacer clic se ejecuta la acción.
+  function iniciar({ socket, modulo, enlaces = {} }) {
     root = document.getElementById('notificaciones-root');
     if (!root || !modulo) return;
     estado.modulo = modulo;
+    estado.enlaces = enlaces;
     tituloBase = document.title.replace(/^\(\d+\+?\)\s*/, '');
     root.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -107,7 +109,15 @@
         cargar(false);
       } else {
         const item = e.target.closest('.notif-item');
-        if (item) marcarLeida(Number(item.dataset.id));
+        if (!item) return;
+        const id = Number(item.dataset.id);
+        marcarLeida(id);
+        const accion = estado.enlaces[(estado.items.find(n => n.id === id) || {}).tipo];
+        if (accion) {
+          estado.abierto = false;
+          render();
+          accion();
+        }
       }
     });
     document.addEventListener('click', () => {
