@@ -66,6 +66,16 @@ class UsuarioValeRepository {
     );
   }
 
+  // Asesores con supervisión especial asignada a este supervisor (por `asesor_supervisores`).
+  async listarAsesorIdsConSupervisionEspecial(supervisorId) {
+    const filas = await db.query(
+      'SELECT asesor_id FROM asesor_supervisores WHERE supervisor_id = ?',
+      [supervisorId],
+      'usuario:find_asesores_supervision_especial'
+    );
+    return filas.map(f => f.asesor_id);
+  }
+
   // Inverso de la anterior: los supervisores activos (con `vales.supervisar`) que autorizan a un asesor — los que tiene asignados;
   // si no tiene ninguna asignación, los que cubren su tienda (puede haber MÁS de uno, supervisores rotativos).
   // Con asignación y todos inválidos queda vacío: no se cae a los de la tienda.
