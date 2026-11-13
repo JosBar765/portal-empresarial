@@ -108,7 +108,7 @@ class BorradorService {
     if (!csv) return;
     const [solicitante, activos] = await Promise.all([usuarioValeRepository.obtenerPorId(usuario.id), tallerRepository.listarActivos()]);
     // Sin tienda asignada ningún Diseño Local es elegible (0 no coincide con ninguna tienda).
-    validarEleccionTalleres(csv.split(',').map(Number), activos, Number(solicitante && solicitante.tienda_id) || 0);
+    validarEleccionTalleres(csv.split(',').map(Number), activos, await tallerRepository.contextoDeTienda(Number(solicitante && solicitante.tienda_id) || 0));
   }
 
   async _obtenerPropio(usuarioId, id) {

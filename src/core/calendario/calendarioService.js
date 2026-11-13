@@ -96,28 +96,22 @@ class CalendarioService {
     };
   }
 
-  async fechaMinimaEntrega(talleresIds, ahora = calendario.ahoraUTC6()) {
-    return calendario.fechaMinimaEntrega(await cargar(), talleresIds, ahora);
+  // `opciones` de la fecha de entrega (ver calendarioLaboral): { diasHabiles, diasHabilesUrgente }.
+  async fechaMinimaEntrega(talleresIds, opciones = {}, ahora = calendario.ahoraUTC6()) {
+    return calendario.fechaMinimaEntrega(await cargar(), talleresIds, ahora, opciones);
   }
 
-  // `diasMinimos`: 3 cuando el vale no es urgente (antelación mínima en días naturales); 0 con «urgente».
-  // `diasHabiles`: antelación mínima en días que reciben vales, para las modificaciones (básica 1, media 2, avanzada 3; urgente 1).
-  async fechasNoDisponibles(talleresIds, desde, hasta, diasMinimos = 0, ahora = calendario.ahoraUTC6(), diasHabiles = 0) {
+  async fechasNoDisponibles(talleresIds, desde, hasta, opciones = {}, ahora = calendario.ahoraUTC6()) {
     const cfg = await cargar();
     return {
-      minima: calendario.fechaMinimaEntrega(cfg, talleresIds, ahora, diasMinimos, diasHabiles),
+      minima: calendario.fechaMinimaEntrega(cfg, talleresIds, ahora, opciones),
       horaMaxima: calendario.horaMaximaRestrictiva(cfg, talleresIds),
-      noDisponibles: calendario.fechasNoDisponibles(cfg, talleresIds, desde, hasta, ahora, diasMinimos, diasHabiles)
+      noDisponibles: calendario.fechasNoDisponibles(cfg, talleresIds, desde, hasta, ahora, opciones)
     };
   }
 
-  async validarFechaEntrega(fecha, talleresIds, diasMinimos = 0, ahora = calendario.ahoraUTC6(), diasHabiles = 0) {
-    return calendario.validarFechaEntrega(await cargar(), fecha, talleresIds, ahora, diasMinimos, diasHabiles);
-  }
-
-  // Primera fecha de entrega posible de una modificación: el enésimo día que recibe vales contando desde hoy.
-  async fechaMinimaModificacion(talleresIds, diasHabiles, ahora = calendario.ahoraUTC6()) {
-    return calendario.fechaMinimaEntrega(await cargar(), talleresIds, ahora, 0, diasHabiles);
+  async validarFechaEntrega(fecha, talleresIds, opciones = {}, ahora = calendario.ahoraUTC6()) {
+    return calendario.validarFechaEntrega(await cargar(), fecha, talleresIds, ahora, opciones);
   }
 
   async existenTalleres(talleresIds) {

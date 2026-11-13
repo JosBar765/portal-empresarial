@@ -12,9 +12,12 @@ import { cargarBuzon } from '../views/buzon.js';
 import { limitarTelefono } from '/js/telefono.js';
 
 const DESCRIPCION_MAX_CARACTERES = 600;
+// Código preseleccionado: el del país de quien crea el vale (por su tienda); sin tienda, Guatemala como hasta ahora.
 export function opcionesPaises() {
+  const miPaisId = state.catalogos.miPais ? state.catalogos.miPais.id : null;
+  const esElPorDefecto = (p) => (miPaisId !== null ? p.id === miPaisId : p.codigo === 'GT');
   return (state.catalogos.paises || []).map(p =>
-    `<option value="${p.codigo_telefono}" ${p.codigo === 'GT' ? 'selected' : ''}>${p.codigo_telefono} ${p.codigo}</option>`
+    `<option value="${p.codigo_telefono}" ${esElPorDefecto(p) ? 'selected' : ''}>${p.codigo_telefono} ${p.codigo}</option>`
   ).join('');
 }
 
@@ -65,10 +68,16 @@ export function abrirModalBorrador(borrador, opciones) {
 const NOTA_ENTREGA_SIN_TALLER = 'Elige primero un taller para ver la fecha mínima de entrega.';
 const NOMBRE_TIPO_MOD = { BASICA: 'básica', MEDIA: 'media', AVANZADA: 'avanzada' };
 
-// Ayuda de la casilla «urgente»: en una modificación baja el plazo al siguiente día disponible.
-const textoAyudaUrgente = (esMod, marcada) => {
+const textoDiasHabiles = (n) => `${n} ${n === 1 ? 'día hábil' : 'días hábiles'}`;
+
+// Ayuda de la casilla «urgente»: en una modificación baja el plazo al siguiente día disponible. `regla` ({ normal, urgente }, en días hábiles) la
+// informa el servidor junto con las fechas; hasta entonces el texto no lleva números.
+const textoAyudaUrgente = (esMod, marcada, regla = null) => {
   if (esMod) return marcada ? 'Entrega al siguiente día disponible.' : 'Márcalo para entregar al siguiente día disponible.';
-  return marcada ? 'Puedes elegir una entrega con menos de 3 días; sigue aplicando la hora máxima de recibimiento.' : 'Márcalo si la entrega es en menos de 3 días.';
+  if (marcada) {
+    return `Permite una entrega con ${regla ? `mínimo ${textoDiasHabiles(regla.urgente)} de trabajo` : 'menos días hábiles de trabajo'}; el día cuenta solo si el vale entra antes de la hora máxima de recibimiento.`;
+  }
+  return regla ? `Márcalo si la entrega es en menos de ${textoDiasHabiles(regla.normal)}.` : 'Márcalo si la entrega es antes del plazo normal de días hábiles.';
 };
 
 // `tipoModificacion` (BASICA / MEDIA / AVANZADA): al pedir una modificación con vale MOD; al corregir un MOD sale del propio vale.
@@ -173,7 +182,9 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
   // Las reglas de la fecha de entrega (mínima, feriados, días sin recepción, hora máxima) las calcula el servidor.
   let consultaFechas = 0;
   const casillaUrgente = overlay.querySelector('[name="urgente"]');
+  const ayudaUrgente = overlay.querySelector('#urgente-ayuda');
   let mesVisible = null;
+  let reglaDias = null;
   const cargarFechasEntrega = async (anio, mes, reemplazar = false) => {
     mesVisible = { anio, mes };
     const talleresIds = [...tallerSeleccionados];
@@ -188,8 +199,11 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
       const data = await obtenerFechasEntrega(talleresIds, `${anio}-${mm}-01`, `${anio}-${mm}-${String(new Date(anio, mes, 0).getDate()).padStart(2, '0')}`, !!casillaUrgente && casillaUrgente.checked, tipoMod);
       if (consulta !== consultaFechas) return;
       apiFechaEntrega.setRestricciones(data.minima ? parseIsoLocal(data.minima) : null, new Map(data.noDisponibles.map(x => [x.fecha, x])), reemplazar);
+      reglaDias = data.diasHabiles || null;
+      if (ayudaUrgente && casillaUrgente) ayudaUrgente.textContent = textoAyudaUrgente(esMod, casillaUrgente.checked, reglaDias);
+      const diasAplicados = reglaDias && (casillaUrgente && casillaUrgente.checked ? reglaDias.urgente : reglaDias.normal);
       notaEntrega.textContent = data.minima
-        ? `Mínimo ${data.minima.slice(8, 10)}/${data.minima.slice(5, 7)} · se recibe hasta las ${data.horaMaxima}`
+        ? `Mínimo ${data.minima.slice(8, 10)}/${data.minima.slice(5, 7)} · ${diasAplicados ? `${textoDiasHabiles(diasAplicados)} de trabajo; hoy cuenta solo si el vale entra antes de las ` : 'se recibe hasta las '}${data.horaMaxima}`
         : 'No hay días para recibir vales. Avisa al administrador.';
     } catch {
       if (consulta === consultaFechas) notaEntrega.textContent = 'No se cargaron las fechas; se validarán al guardar.';
@@ -203,9 +217,8 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
     }
   });
   // Marcar o desmarcar «Urgente» cambia la fecha mínima: se recargan las reglas y se borra la fecha si ya no vale.
-  const ayudaUrgente = overlay.querySelector('#urgente-ayuda');
   if (casillaUrgente) casillaUrgente.addEventListener('change', () => {
-    ayudaUrgente.textContent = textoAyudaUrgente(esMod, casillaUrgente.checked);
+    ayudaUrgente.textContent = textoAyudaUrgente(esMod, casillaUrgente.checked, reglaDias);
     const { anio, mes } = mesVisible || { anio: new Date().getFullYear(), mes: new Date().getMonth() + 1 };
     cargarFechasEntrega(anio, mes, true);
   });
