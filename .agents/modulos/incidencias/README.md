@@ -92,6 +92,7 @@ Vanilla JS en módulos ES, sin handlers en línea (CSP), con las rutas por `#`: 
 - **Mis incidencias:** las pestañas salen de lo que cada persona puede hacer: Buzón, Mías, En espera y Cerradas (técnico), De mis tiendas (verificador o asignador), Todas (consulta total) y Reportadas por mí. Tarjetas con números, filtros y búsqueda; tabla en pantalla ancha y tarjetas bajo 640 px. «Tomar» se hace desde el propio buzón.
 - **Detalle:** resumen e historial, «Cómo va», detalles, prioridad, comentarios y las acciones que el servidor permite (cada una en una hoja modal accesible: foco atrapado, Escape, errores por campo).
 - **En vivo:** un aviso de la campana abre la incidencia que nombra y las pantallas abiertas se actualizan solas.
+- **Elegir tienda:** un botón abre una hoja con buscador y las tiendas agrupadas por país y ruta o área («Trofex Ruta 1», «Munditrofeos»…), con la tienda propia primero; en el celular sube desde abajo y casi llena la pantalla. En Configuración, los selectores de zonas, verificadores y cobertura usan los mismos grupos.
 - **Celular:** el botón principal queda fijo abajo, objetivos táctiles de 44 px, lo importante primero y `prefers-reduced-motion` respetado.
 
 ### Configuración (`#/configuracion/:pestana`, fase 5)
