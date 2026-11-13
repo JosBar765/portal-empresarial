@@ -85,6 +85,7 @@ router.post('/', crearVale, camposAdjuntos, (req, res) => valeController.crear(r
 
 // Borradores: privados de su dueño; van antes de /:id para que "borradores" no se lea como un id.
 router.get('/borradores', crearVale, (req, res) => borradorController.listar(req, res));
+router.post('/borradores/vistos', crearVale, (req, res) => borradorController.marcarVistos(req, res));
 router.get('/borradores/:id', crearVale, (req, res) => borradorController.obtener(req, res));
 router.post('/borradores', crearVale, camposAdjuntos, (req, res) => borradorController.crear(req, res));
 router.put('/borradores/:id', crearVale, camposAdjuntos, (req, res) => borradorController.actualizar(req, res));

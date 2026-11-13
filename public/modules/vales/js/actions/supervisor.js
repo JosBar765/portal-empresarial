@@ -16,11 +16,11 @@ const MENSAJE_RECHAZO_POR_DEFECTO = 'Rechazado';
 const MOTIVOS_RAPIDOS_CREACION = ['Corrige los datos del cliente y reenvía.', 'La fecha de entrega no es viable: elige otra.', 'Falta información o archivos: complétalos y reenvía.'];
 const MOTIVOS_RAPIDOS_MODIFICACION = ['Esta modificación no procede.', 'Crea una nueva con el cambio completo.'];
 
-// El supervisor debe haber abierto "Ver" en el vale antes de autorizarlo (también se exige en el servidor).
+// El supervisor debe haber abierto "Ver" en el vale antes de autorizarlo o rechazarlo (también se exige en el servidor).
 function htmlAvisoVisto(visto) {
   return visto
     ? '<p class="nota-visto"><ion-icon name="checkmark-circle-outline"></ion-icon> Ya revisaste este vale.</p>'
-    : '<div class="form-aviso"><ion-icon name="alert-circle-outline"></ion-icon><span>Antes de autorizar, abre el vale con «Ver».</span></div>';
+    : '<div class="form-aviso"><ion-icon name="alert-circle-outline"></ion-icon><span>Antes de autorizar o rechazar, abre el vale con «Ver».</span></div>';
 }
 
 // Modal de autorización abierto en este momento (para avisarle si el asesor corrige el vale).
@@ -46,6 +46,8 @@ function habilitarAutorizarAbierto(valeId) {
   const btn = abierto.overlay.querySelector('#btn-confirmar');
   if (!btn || btn.dataset.enviando) return;
   btn.disabled = false;
+  const rechazar = abierto.overlay.querySelector('#btn-rechazar');
+  if (rechazar) rechazar.disabled = false;
   const aviso = abierto.overlay.querySelector('.form-aviso');
   if (aviso) aviso.outerHTML = htmlAvisoVisto(true);
 }
@@ -98,6 +100,7 @@ export function abrirModalAutorizarCreacion(vale) {
   });
   modalAutorizarAbierto = { valeId: vale.id, overlay };
   overlay.querySelector('#btn-confirmar').disabled = !estaVisto(vale);
+  overlay.querySelector('#btn-rechazar').disabled = !estaVisto(vale);
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
   overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
     const btn = overlay.querySelector('#btn-confirmar');
@@ -166,6 +169,7 @@ function abrirModalRechazarCreacion(vale, cerrarAutorizacion, { modificacion = f
   btn.addEventListener('click', async () => {
     btn.disabled = true;
     try {
+      await vistosEnCurso.get(vale.id); // el servidor exige el visto ya guardado
       await (modificacion ? rechazarModificacion : rechazarCreacion)(vale.id, textarea.value.trim());
       window.toast.success(modificacion ? 'Modificación rechazada' : 'Vale rechazado', modificacion ? `${vale.correlativo} eliminada. El asesor verá tu mensaje.` : `${vale.correlativo} volvió al asesor con tu mensaje.`);
       cerrar();
