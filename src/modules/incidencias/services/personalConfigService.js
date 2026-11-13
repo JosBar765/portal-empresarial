@@ -33,6 +33,11 @@ class PersonalConfigService {
     return { candidatos: filas.map(f => ({ id: f.id, nombre: f.nombre, email: f.email, rol: f.rol, sinPermiso: !f.con_permiso })) };
   }
 
+  async candidatosVerificador(query = {}) {
+    const filas = await configRepository.personasParaVerificar(limpio(query.q).slice(0, 60));
+    return { candidatos: filas.map(f => ({ id: f.id, nombre: f.nombre, email: f.email, rol: f.rol, sinPermiso: !f.con_permiso })) };
+  }
+
   async _cobertura(datos, { obligatorioSiNoTodas }) {
     const errores = {};
     const especialidadIds = [];

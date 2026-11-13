@@ -32,6 +32,7 @@ router.post('/tecnicos', configController.agregarTecnico);
 router.put('/tecnicos/:usuarioId', configController.actualizarTecnico);
 
 router.get('/verificadores', configController.verificadores);
+router.get('/verificadores/candidatos', configController.candidatosVerificador);
 router.post('/verificadores', configController.agregarVerificador);
 router.delete('/verificadores/:id', configController.quitarVerificador);
 

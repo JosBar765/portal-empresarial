@@ -200,6 +200,16 @@ class ConfigRepository {
        ORDER BY u.nombre LIMIT 20`, params, 'incidencias_config:candidatos');
   }
 
+  // Personas activas para el selector de «Asignar verificador» (cualquiera puede ser verificador; el listado avisa si su rol no puede verificar).
+  async personasParaVerificar(q) {
+    const params = [];
+    let filtro = '';
+    if (q) { filtro = ' AND (u.nombre LIKE ? OR u.email LIKE ?)'; const like = `%${String(q).replace(/[\\%_]/g, m => `\\${m}`)}%`; params.push(like, like); }
+    return db.query(
+      `SELECT u.id, u.nombre, u.email, ro.nombre AS rol, ${CONSULTA_USUARIO_PERMISO('incidencias.verificar')} AS con_permiso
+       FROM usuarios u JOIN roles ro ON ro.id = u.rol_id WHERE u.activo = 1${filtro} ORDER BY u.nombre LIMIT 20`, params, 'incidencias_config:personas_verificar');
+  }
+
   async abiertasDeTecnico(usuarioId) {
     const filas = await db.query("SELECT COUNT(*) AS n FROM incidencias WHERE tecnico_id = ? AND estado IN ('en_proceso','en_espera','correccion_pedida','en_verificacion')", [usuarioId], 'incidencias_config:abiertas_tecnico');
     return Number(filas[0].n);

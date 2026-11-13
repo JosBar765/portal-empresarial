@@ -229,6 +229,8 @@ async function verificar() {
     r = await adm('GET', '/configuracion/verificadores');
     const sin0 = r.datos.sinVerificador;
     prueba('lista las tiendas de los países encendidos con quién las verifica', r.status === 200 && r.datos.tiendas.length > 0 && r.datos.tiendas.every(t => t.pais === 'Guatemala') && sin0 === r.datos.tiendas.filter(t => !t.efectivo).length);
+    r = await adm('GET', '/configuracion/verificadores/candidatos?q=a');
+    prueba('el selector de verificadores ofrece personas activas y avisa si su rol no puede verificar', r.status === 200 && r.datos.candidatos.length > 0 && r.datos.candidatos.every(c => c.id && c.nombre && typeof c.sinPermiso === 'boolean'), JSON.stringify(r.datos));
     r = await adm('POST', '/configuracion/verificadores', { usuarioId: U2, tiendaId: TA, paisId: paisGT });
     prueba('una tienda y un país a la vez → 400', r.status === 400 && r.datos.campos.tiendaId);
     r = await adm('POST', '/configuracion/verificadores', { usuarioId: U2 });

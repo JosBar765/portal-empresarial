@@ -43,6 +43,7 @@ class ConfigController {
     this.actualizarTecnico = accion(200, req => personalConfigService.actualizarTecnico(req.user, idObligatorio(req.params.usuarioId), comoObjeto(req.body)));
 
     this.verificadores = accion(200, () => personalConfigService.verificadores());
+    this.candidatosVerificador = accion(200, req => personalConfigService.candidatosVerificador(comoObjeto(req.query)));
     this.agregarVerificador = accion(201, req => personalConfigService.agregarVerificador(req.user, comoObjeto(req.body)));
     this.quitarVerificador = accion(200, req => personalConfigService.quitarVerificador(req.user, idObligatorio(req.params.id)));
 
