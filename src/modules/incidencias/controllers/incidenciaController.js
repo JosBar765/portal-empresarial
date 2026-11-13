@@ -21,6 +21,7 @@ class IncidenciaController {
   constructor() {
     this.formulario = accion(200, req => incidenciaService.formulario(req.user));
     this.similares = accion(200, req => incidenciaService.similares(comoObjeto(req.query)));
+    this.atencion = accion(200, req => incidenciaService.atencion(comoObjeto(req.query)));
     this.crear = accion(201, req => incidenciaService.crear(req.user, comoObjeto(req.body), req.files, claveDe(req)));
     this.listar = accion(200, req => incidenciaService.listar(req.user, comoObjeto(req.query)));
     this.resumen = accion(200, req => incidenciaService.resumen(req.user));

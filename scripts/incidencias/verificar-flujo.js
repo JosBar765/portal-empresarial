@@ -107,6 +107,10 @@ async function verificar() {
     prueba('trae los 4 impactos con su prioridad y el límite de fotos', r.datos.impactos.length === 4 && r.datos.impactos[0].prioridad.codigo === 'P1' && r.datos.limites.fotos === 5 && r.datos.reportesRestantes === 30, JSON.stringify(r.datos.impactos));
     r = await otro('GET', '/formulario');
     prueba('quien solo puede ver no entra al formulario → 403', r.status === 403, r.status);
+    r = await rep('GET', `/atencion?tiendaId=${TA}&categoriaId=${catElectrica}`);
+    prueba('«cómo se atenderá» dice cuántos técnicos la pueden tomar y quién revisa que quede resuelta', r.status === 200 && r.datos.tecnicos === 2 && r.datos.verifica.length === 1 && r.datos.origenVerificador === 'tienda', JSON.stringify(r.datos));
+    r = await rep('GET', '/atencion');
+    prueba('sin tienda responde vacío, no falla', r.status === 200 && r.datos.tecnicos === 0 && r.datos.verifica.length === 0);
 
     console.log('Reportar');
     r = await rep('POST', '/', nuevo(), []);
@@ -156,6 +160,7 @@ async function verificar() {
     prueba('otra persona sin relación recibe 404 (no se revela que existe)', r.status === 404);
     r = await t1('GET', `/${incA}`);
     prueba('un técnico que cubre la tienda ve la incidencia del buzón y puede tomarla', r.status === 200 && r.datos.acciones.tomar === true);
+    prueba('el detalle trae el máximo de fotos por avance y marca cada evento como interno o visible', r.datos.opciones.fotosPorAvance === 3 && r.datos.eventos.every(e => typeof e.visibleReportante === 'boolean'), JSON.stringify(r.datos.opciones));
     r = await t2('GET', `/${incA}`);
     prueba('un técnico que no cubre esa tienda recibe 404', r.status === 404);
     r = await ver('GET', `/${incA}`);

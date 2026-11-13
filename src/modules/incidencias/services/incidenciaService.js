@@ -93,6 +93,23 @@ class IncidenciaService {
     return { similares: filas.map(f => ({ id: f.id, correlativo: f.correlativo, titulo: f.titulo, creadaEn: f.creado_en })) };
   }
 
+  // Lo que se muestra a la derecha del formulario: cuántos técnicos la pueden tomar y quién revisa que quede resuelta.
+  async atencion(query) {
+    const tiendaId = aEntero(query.tiendaId);
+    if (!tiendaId) return { tecnicos: 0, especialidad: null, verifica: [], origenVerificador: null };
+    const categoriaId = aEntero(query.categoriaId);
+    const categoria = categoriaId ? await catalogoRepository.categoria(categoriaId) : null;
+    const especialidades = categoria && categoria.especialidad_id ? (await catalogoRepository.categorias()).find(c => c.id === categoria.id) : null;
+    const tecnicos = await this._tecnicosParaAvisar({ tienda_id: tiendaId, especialidad_id: categoria && categoria.especialidad_id });
+    const verificadores = await personal.verificadoresDe(tiendaId);
+    return {
+      tecnicos: tecnicos.length,
+      especialidad: especialidades ? especialidades.especialidad : null,
+      verifica: verificadores.personas.map(p => ({ nombre: p.nombre })),
+      origenVerificador: verificadores.origen
+    };
+  }
+
   // --- Reportar ---
 
   _campos(datos) {
@@ -286,7 +303,8 @@ class IncidenciaService {
     const visibles = soloReportante ? eventos.filter(e => e.visible_reportante) : eventos;
     const fotosPorEvento = new Map();
     for (const f of fotos) { if (!fotosPorEvento.has(f.evento_id)) fotosPorEvento.set(f.evento_id, []); fotosPorEvento.get(f.evento_id).push({ id: f.id, url: f.url, etapa: f.etapa }); }
-    const opciones = {};
+    // Lo que la pantalla necesita para sus formularios de avance, espera, reasignación y prioridad.
+    const opciones = { fotosPorAvance: (await parametros.valores()).fotos_por_avance };
     if (acciones.espera) opciones.motivosEspera = await catalogoRepository.motivosEspera();
     if (acciones.reasignar) opciones.tecnicos = await personal.tecnicosParaReasignar(inc.tienda_id);
     if (acciones.cambiarPrioridad) opciones.prioridades = await catalogoRepository.prioridades();
@@ -302,7 +320,7 @@ class IncidenciaService {
       },
       eventos: visibles.map(e => ({
         id: e.id, tipo: e.tipo, usuario: e.usuario_id ? { id: e.usuario_id, nombre: e.usuario } : null, texto: e.texto, evolucion: e.evolucion,
-        ronda: e.ronda, datos: typeof e.datos === 'string' ? JSON.parse(e.datos) : e.datos, creadoEn: e.creado_en, fotos: fotosPorEvento.get(e.id) || []
+        ronda: e.ronda, datos: typeof e.datos === 'string' ? JSON.parse(e.datos) : e.datos, creadoEn: e.creado_en, visibleReportante: Boolean(e.visible_reportante), fotos: fotosPorEvento.get(e.id) || []
       })),
       acciones,
       opciones,

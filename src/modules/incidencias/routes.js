@@ -40,6 +40,7 @@ const asignar = requirePermission(PERMISO.ASIGNAR);
 // Lo que necesita el formulario y los avisos de reportes parecidos.
 router.get('/formulario', reportar, incidenciaController.formulario);
 router.get('/similares', reportar, incidenciaController.similares);
+router.get('/atencion', reportar, incidenciaController.atencion);
 
 // La configuración va antes de «/:id» para que no se confunda con un identificador.
 router.use('/configuracion', configRoutes);
