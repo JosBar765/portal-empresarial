@@ -5,27 +5,10 @@ import { h, icono } from '../utils/dom.js';
 import * as api from '../api/incidenciasApi.js';
 import { abrirHoja } from '../components/modal.js';
 import { selectorFotos } from '../components/fotos.js';
+import { campoTexto, campoSelect, nota, errorDeCampos } from '../components/campos.js';
 import { claveDeOperacion, ordinal } from '../utils/formato.js';
 
 const aviso = (tipo, titulo, texto) => { if (window.toast) window.toast[tipo](titulo, texto); };
-const errorDeCampos = (campos) => Object.assign(new Error('Revisa los datos marcados.'), { campos });
-
-// Un campo de texto con su etiqueta, pie y marca de error (`data-campo`).
-function campoTexto({ etiqueta, nombre, filas = 3, max, placeholder, ayuda, obligatorio = false }) {
-  const area = h('textarea', { id: `acc-${nombre}`, name: nombre, rows: filas, maxlength: max, placeholder: placeholder || '' });
-  return {
-    el: h('div', { class: 'inc-campo inc-campo--ancho', 'data-campo': nombre }, h('label', { for: `acc-${nombre}`, text: `${etiqueta}${obligatorio ? ' *' : ''}` }), area, ayuda ? h('p', { class: 'inc-tenue', text: ayuda }) : null),
-    valor: () => area.value.trim()
-  };
-}
-
-function campoSelect({ etiqueta, nombre, opciones, vacio = 'Elige una opción' }) {
-  const sel = h('select', { id: `acc-${nombre}`, name: nombre }, h('option', { value: '', text: vacio }), opciones.map(o => h('option', { value: String(o.valor), text: o.texto })));
-  return { el: h('div', { class: 'inc-campo inc-campo--ancho', 'data-campo': nombre }, h('label', { for: `acc-${nombre}`, text: `${etiqueta} *` }), sel), valor: () => sel.value };
-}
-
-const nota = (texto, tipo = 'info') => h('div', { class: `inc-aviso inc-aviso--${tipo}` }, icono(tipo === 'peligro' ? 'warning-outline' : 'information-circle-outline'), h('span', { text: texto }));
-
 export function crearAcciones(d, alCambiar) {
   const id = d.incidencia.id;
   const correlativo = d.incidencia.correlativo;
