@@ -4,6 +4,7 @@
 import { h, icono, montar, sinRebote } from '../utils/dom.js';
 import { formulario, atencion, similares, crear } from '../api/incidenciasApi.js';
 import { selectorFotos } from '../components/fotos.js';
+import { selectorTienda } from '../components/selectorTienda.js';
 import { chipPrioridad } from '../components/chips.js';
 import { claveDeOperacion, hace } from '../utils/formato.js';
 import { cargando, mostrarError, mostrarNoDisponible } from './estados.js';
@@ -20,12 +21,7 @@ export async function mostrarReportar(cont) {
   const v = { tiendaId: f.tiendaPropiaId ? String(f.tiendaPropiaId) : '', zonaId: '', categoriaId: '', tipoActivoId: '', impacto: '' };
   let enviando = false;
 
-  const paises = [...new Set(f.tiendas.map(t => t.pais))];
-  const selTienda = h('select', { id: 'rep-tienda', name: 'tiendaId', required: true },
-    opcion('', 'Elige dónde está el problema', { disabled: true }),
-    paises.length > 1
-      ? paises.map(p => h('optgroup', { label: p }, f.tiendas.filter(t => t.pais === p).map(t => opcion(t.id, `${t.codigo} · ${t.empresa}${t.id === f.tiendaPropiaId ? ' (tu tienda)' : ''}`))))
-      : f.tiendas.map(t => opcion(t.id, `${t.codigo} · ${t.empresa}${t.id === f.tiendaPropiaId ? ' (tu tienda)' : ''}`)));
+  const selTienda = selectorTienda({ id: 'rep-tienda', tiendas: f.tiendas, propiaId: f.tiendaPropiaId, valor: v.tiendaId, alElegir: (id) => { v.tiendaId = id; llenarZonas(); actualizarResumen(); pedirAtencion(); buscarSimilares(); } });
   const selZona = h('select', { id: 'rep-zona', name: 'zonaId', required: true });
   const selCategoria = h('select', { id: 'rep-categoria', name: 'categoriaId', required: true },
     opcion('', 'Elige la categoría', { disabled: true }), f.categorias.map(c => opcion(c.id, c.nombre)));
@@ -88,12 +84,9 @@ export async function mostrarReportar(cont) {
     selActivo.replaceChildren(opcion('', v.categoriaId ? 'Sin elegir' : 'Primero elige la categoría'), ...tipos.map(t => opcion(t.id, t.nombre)));
     v.tipoActivoId = '';
   }
-  selTienda.value = v.tiendaId;
-  if (!v.tiendaId) selTienda.options[0].selected = true;
   llenarZonas();
   llenarActivos();
   selCategoria.options[0].selected = true;
-  selTienda.addEventListener('change', () => { v.tiendaId = selTienda.value; llenarZonas(); actualizarResumen(); pedirAtencion(); buscarSimilares(); });
   selZona.addEventListener('change', () => { v.zonaId = selZona.value; buscarSimilares(); });
   selCategoria.addEventListener('change', () => { v.categoriaId = selCategoria.value; llenarActivos(); pedirAtencion(); buscarSimilares(); });
   selActivo.addEventListener('change', () => { v.tipoActivoId = selActivo.value; buscarSimilares(); });
@@ -176,7 +169,7 @@ export async function mostrarReportar(cont) {
       h('div', { class: 'inc-reportar-formulario' },
         h('section', { class: 'inc-card inc-seccion' }, h('h2', { text: '1. Foto del problema' }), fotos.el),
         h('section', { class: 'inc-card inc-seccion' }, h('h2', { text: '2. ¿Dónde está?' }),
-          h('div', { class: 'inc-rejilla' }, campo('rep-tienda', 'Ubicación *', selTienda, { clave: 'tiendaId' }), campo('rep-zona', 'Zona *', selZona, { clave: 'zonaId' }))),
+          h('div', { class: 'inc-rejilla' }, campo('rep-tienda', 'Ubicación *', selTienda.el, { clave: 'tiendaId' }), campo('rep-zona', 'Zona *', selZona, { clave: 'zonaId' }))),
         h('section', { class: 'inc-card inc-seccion' }, h('h2', { text: '3. ¿Qué pasó?' }),
           h('div', { class: 'inc-rejilla' }, campo('rep-categoria', 'Categoría *', selCategoria, { clave: 'categoriaId' }), campo('rep-activo', 'Activo afectado', selActivo, { clave: 'tipoActivoId' })),
           campo('rep-activo-texto', '¿Cuál? (opcional)', inActivoTexto, { ancho: true, clave: 'activoTexto' }),

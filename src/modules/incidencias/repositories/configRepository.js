@@ -238,8 +238,9 @@ class ConfigRepository {
   // Las tiendas activas de los países habilitados: donde importa tener quién verifique.
   async tiendasHabilitadas() {
     return db.query(
-      `SELECT t.id, t.codigo, e.nombre AS empresa, p.id AS pais_id, p.nombre AS pais
+      `SELECT t.id, t.codigo, e.nombre AS empresa, d.nombre AS departamento, s.nombre AS subdivision, p.id AS pais_id, p.nombre AS pais
        FROM tiendas t JOIN empresas e ON e.id = t.empresa_id JOIN paises p ON p.id = e.pais_id
+       JOIN departamentos d ON d.id = t.departamento_id LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
        JOIN incidencia_paises ip ON ip.pais_id = p.id AND ip.habilitado = 1
        WHERE t.activo = 1 ORDER BY p.nombre, e.nombre, t.codigo`, [], 'incidencias_config:tiendas_habilitadas');
   }

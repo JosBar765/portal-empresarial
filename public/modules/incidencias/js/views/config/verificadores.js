@@ -4,6 +4,7 @@ import { h, montar } from '../../utils/dom.js';
 import * as api from '../../api/configApi.js';
 import { abrirHoja, confirmar } from '../../components/modal.js';
 import { campoSelect, nota } from '../../components/campos.js';
+import { nombreDeGrupo, nombreDeTienda } from '../../utils/tiendas.js';
 import { aviso, avisarError, tablaConfig, botonPrincipal, encabezadoPestana, selectorPersonas } from './comun.js';
 
 export async function mostrarVerificadores(cont, { alCambiar } = {}) {
@@ -11,7 +12,7 @@ export async function mostrarVerificadores(cont, { alCambiar } = {}) {
 
   function formulario(tienda = null) {
     const persona = selectorPersonas({ buscar: api.candidatosVerificador, etiqueta: 'Persona' });
-    const opciones = [...datos.tiendas.map(t => ({ valor: `t${t.id}`, texto: `${t.codigo} · ${t.empresa}` })), ...datos.paises.map(p => ({ valor: `p${p.id}`, texto: `Todo ${p.nombre}` }))];
+    const opciones = [...datos.paises.map(p => ({ valor: `p${p.id}`, texto: `Todo ${p.nombre}`, grupo: 'A nivel país' })), ...datos.tiendas.map(t => ({ valor: `t${t.id}`, texto: `${t.codigo} · ${nombreDeTienda(t, datos.tiendas)}`, grupo: `${t.pais} · ${nombreDeGrupo(t.departamento)}` }))];
     const donde = campoSelect({ etiqueta: 'Qué verifica', nombre: 'tiendaId', opciones, vacio: 'Elige una tienda o un país', valor: tienda ? `t${tienda.id}` : '' });
     abrirHoja({
       titulo: 'Agregar verificador', contenido: h('div', { class: 'inc-formulario-hoja' }, persona.el, donde.el, nota('Quien trabajó una incidencia nunca la verifica. Si una tienda no tiene verificador, vale el del país.')),

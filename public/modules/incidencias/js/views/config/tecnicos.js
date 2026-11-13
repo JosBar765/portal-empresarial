@@ -4,6 +4,7 @@ import { h, montar } from '../../utils/dom.js';
 import * as api from '../../api/configApi.js';
 import { abrirHoja } from '../../components/modal.js';
 import { casillas, interruptor, nota } from '../../components/campos.js';
+import { nombreDeGrupo, nombreDeTienda } from '../../utils/tiendas.js';
 import { aviso, avisarError, tablaConfig, botonEditar, botonPrincipal, encabezadoPestana, selectorPersonas, tiendasDeConfig } from './comun.js';
 
 export async function mostrarTecnicos(cont, { alCambiar } = {}) {
@@ -17,7 +18,7 @@ export async function mostrarTecnicos(cont, { alCambiar } = {}) {
     const esp = casillas({ etiqueta: 'Especialidades', nombre: 'especialidadIds', opciones: especialidades.map(e => ({ valor: e.id, texto: e.nombre })), seleccion: new Set((actual ? actual.especialidades : []).map(e => e.id)), ayuda: 'Sin marcar ninguna, puede tomar cualquier categoría.' });
     let todas = actual ? actual.todasLasTiendas : true;
     const cajaTodas = h('input', { type: 'checkbox', checked: todas });
-    const tie = casillas({ etiqueta: 'Tiendas que cubre', nombre: 'tiendaIds', opciones: tiendas.map(t => ({ valor: t.id, texto: `${t.codigo} · ${t.empresa}` })), seleccion: new Set((actual ? actual.tiendas : []).map(t => t.id)) });
+    const tie = casillas({ etiqueta: 'Tiendas que cubre', nombre: 'tiendaIds', opciones: tiendas.map(t => ({ valor: t.id, texto: `${t.codigo} · ${nombreDeTienda(t, tiendas)}`, grupo: `${t.pais} · ${nombreDeGrupo(t.departamento)}` })), seleccion: new Set((actual ? actual.tiendas : []).map(t => t.id)) });
     const zonaTiendas = h('div', { hidden: todas }, tie.el);
     cajaTodas.addEventListener('change', () => { todas = cajaTodas.checked; zonaTiendas.hidden = todas; });
     const interruptorTodas = h('div', { class: 'inc-campo inc-campo--ancho', 'data-campo': 'todasLasTiendas' }, h('label', { class: 'inc-casilla' }, cajaTodas, h('span', { text: 'Cubre todas las tiendas' })));

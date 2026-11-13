@@ -4,6 +4,7 @@ import { h, montar } from '../../utils/dom.js';
 import * as api from '../../api/configApi.js';
 import { abrirHoja } from '../../components/modal.js';
 import { campoLinea, campoNumero, campoSelect, interruptor, nota } from '../../components/campos.js';
+import { nombreDeGrupo, nombreDeTienda } from '../../utils/tiendas.js';
 import { aviso, avisarError, tablaConfig, botonEditar, botonPrincipal, encabezadoPestana, tiendasDeConfig } from './comun.js';
 
 const SUB = [
@@ -38,7 +39,8 @@ export async function mostrarCatalogos(cont) {
     const nombre = campoLinea({ etiqueta: 'Nombre', nombre: 'nombre', max: 80, valor: actual ? actual.nombre : '', obligatorio: true });
     let extra = null;
     if (sub === 'categorias') extra = campoSelect({ etiqueta: 'Especialidad que la atiende', nombre: 'especialidadId', opciones: await opcionesDe('especialidades', e => ({ valor: e.id, texto: e.nombre })), vacio: 'Cualquier técnico', obligatorio: false, valor: actual ? actual.especialidad_id : '' });
-    if (sub === 'zonas') extra = campoSelect({ etiqueta: 'Dónde se usa', nombre: 'tiendaId', opciones: (await tiendasDeConfig()).map(x => ({ valor: x.id, texto: `${x.codigo} · ${x.empresa}` })), vacio: 'General: en todas las tiendas', obligatorio: false, valor: actual ? actual.tienda_id : '' });
+    const tiendasTodas = sub === 'zonas' ? await tiendasDeConfig() : [];
+    if (sub === 'zonas') extra = campoSelect({ etiqueta: 'Dónde se usa', nombre: 'tiendaId', opciones: tiendasTodas.map(x => ({ valor: x.id, texto: `${x.codigo} · ${nombreDeTienda(x, tiendasTodas)}`, grupo: `${x.pais} · ${nombreDeGrupo(x.departamento)}` })), vacio: 'General: en todas las tiendas', obligatorio: false, valor: actual ? actual.tienda_id : '' });
     if (sub === 'tipos-activo') extra = campoSelect({ etiqueta: 'Categoría', nombre: 'categoriaId', opciones: await opcionesDe('categorias', c => ({ valor: c.id, texto: c.nombre })), vacio: 'Elige la categoría', valor: actual ? actual.categoria_id : '' });
     const orden = campoNumero({ etiqueta: 'Lugar en la lista (opcional)', nombre: 'orden', min: 0, max: 999, valor: actual ? actual.orden : '', ayuda: 'Los números más bajos salen primero.' });
     campos.push(nombre.el);

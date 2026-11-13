@@ -28,7 +28,7 @@ export const botonPrincipal = (texto, alHacerClic, nombreIcono = 'add-outline') 
 // Las tiendas de los países encendidos (para elegir zonas y coberturas); se piden una vez por visita.
 let tiendasEnMemoria = null;
 export async function tiendasDeConfig({ renovar = false } = {}) {
-  if (!tiendasEnMemoria || renovar) tiendasEnMemoria = (await pedirVerificadores()).tiendas.map(t => ({ id: t.id, codigo: t.codigo, empresa: t.empresa, pais: t.pais }));
+  if (!tiendasEnMemoria || renovar) tiendasEnMemoria = (await pedirVerificadores()).tiendas.map(t => ({ id: t.id, codigo: t.codigo, empresa: t.empresa, departamento: t.departamento, subdivision: t.subdivision, pais: t.pais }));
   return tiendasEnMemoria;
 }
 

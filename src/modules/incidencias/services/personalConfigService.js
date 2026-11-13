@@ -127,7 +127,7 @@ class PersonalConfigService {
     const listaTiendas = tiendas.map(t => {
       const propios = filas.filter(v => v.tienda_id === t.id).map(persona);
       const delPais = (porPais.get(t.pais_id) || { verificadores: [] }).verificadores;
-      return { id: t.id, codigo: t.codigo, empresa: t.empresa, pais: t.pais, paisId: t.pais_id, verificadores: propios, efectivo: propios.length ? 'tienda' : (delPais.length ? 'pais' : null) };
+      return { id: t.id, codigo: t.codigo, empresa: t.empresa, departamento: t.departamento, subdivision: t.subdivision, pais: t.pais, paisId: t.pais_id, verificadores: propios, efectivo: propios.length ? 'tienda' : (delPais.length ? 'pais' : null) };
     });
     return { paises: [...porPais.values()], tiendas: listaTiendas, sinVerificador: listaTiendas.filter(t => !t.efectivo).length };
   }
