@@ -118,6 +118,7 @@ async function verificar() {
     r = await ger('POST', `/proyectos/${proyectoId}/aprobar`, { idempotencyKey: clave() });
     prueba('el gerente aprueba y activa el proyecto', r.status === 200 && r.datos.estado === 'activo');
     prueba('aprobar le avisa a quien pidió la activación', (await cuenta('activacion_resuelta', SUP)) === 1 && (await cuenta('activacion_resuelta', gerente)) === 0);
+    prueba('resuelta la activación, el aviso de «activación pedida» del gerente queda leído', Number((await db.query("SELECT COUNT(*) AS n FROM notificaciones WHERE modulo = 'proyectos' AND tipo = 'activacion_pedida' AND usuario_id = ? AND leida_en IS NULL", [gerente], 'avi:pedida_leida'))[0].n) === 0);
     const porAsesor = await db.query('SELECT asesor_id, COUNT(*) AS n FROM proy_participaciones WHERE proyecto_id = ? AND asesor_id IS NOT NULL GROUP BY asesor_id ORDER BY asesor_id', [proyectoId], 'avi:reparto');
     const avisosReparto = await db.query("SELECT usuario_id, mensaje FROM notificaciones WHERE modulo = 'proyectos' AND tipo = 'reparto_recibido' AND creado_en >= ?", [inicio], 'avi:avisos_reparto');
     prueba('al activar, cada asesor recibe un aviso con cuántas empresas le tocaron', avisosReparto.length === porAsesor.length && porAsesor.every(a => avisosReparto.some(v => v.usuario_id === a.asesor_id && v.mensaje.includes(`${a.n} ${Number(a.n) === 1 ? 'empresa' : 'empresas'}`))), JSON.stringify([avisosReparto.length, porAsesor.length]));
@@ -180,9 +181,10 @@ async function verificar() {
     await db.query("UPDATE proy_proyectos SET fecha_fin = ? WHERE id = ?", [gt(-30), segundoId], 'avi:proyecto_vencido');
     v = await vigilante.revisar();
     prueba('un proyecto pasado de fecha y de gracia avisa como vencido a supervisor y a gerencia', v && v.vencidos === 1 && (await cuenta('proyecto_vencido', SUP)) === 1 && (await cuenta('proyecto_vencido', gerente)) === 1, JSON.stringify(v));
+    const totalVencido = await cuenta('proyecto_vencido');
     prueba('queda sellado en aviso_vencido_en', (await db.query('SELECT aviso_vencido_en FROM proy_proyectos WHERE id = ?', [segundoId], 'avi:sello'))[0].aviso_vencido_en !== null);
     v = await vigilante.revisar();
-    prueba('no avisa dos veces del mismo vencimiento ni lo cierra solo', v && v.vencidos === 0 && (await cuenta('proyecto_vencido')) === 2 && (await db.query('SELECT estado FROM proy_proyectos WHERE id = ?', [segundoId], 'avi:estado'))[0].estado === 'activo');
+    prueba('no avisa dos veces del mismo vencimiento ni lo cierra solo', v && v.vencidos === 0 && (await cuenta('proyecto_vencido')) === totalVencido && (await db.query('SELECT estado FROM proy_proyectos WHERE id = ?', [segundoId], 'avi:estado'))[0].estado === 'activo');
     await adm('PUT', '/config/avisos', { celdas: [{ evento: 'seguimiento_vencido', rol: 'asesor', activo: false }, { evento: 'seguimiento_vencido', rol: 'supervisor', activo: false }] });
     await db.query('UPDATE proy_participaciones SET proxima_gestion_en = ? WHERE id = ?', [`${gt(-2)} 09:00:00`, s3], 'avi:otro_vencido');
     const antes = await cuenta('seguimiento_vencido');
