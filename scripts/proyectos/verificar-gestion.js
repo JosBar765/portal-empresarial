@@ -122,6 +122,8 @@ async function verificar() {
     prueba('un resultado que exige próximo seguimiento no se guarda sin fecha → 400', r.status === 400 && !!r.datos.campos.proximaEn && (await cuenta('proy_gestiones', a1)) === 0, JSON.stringify(r.datos));
     r = await asesor('POST', `/participaciones/${a1}/gestiones`, { canalId: canal, resultadoId: rSinRespuesta, proximaEn: dia(-1), idempotencyKey: clave() });
     prueba('el seguimiento en una fecha pasada → 400', r.status === 400 && !!r.datos.campos.proximaEn);
+    r = await asesor('POST', `/participaciones/${a1}/gestiones`, { canalId: canal, resultadoId: rSinRespuesta, proximaEn: `${dia(0).slice(0, 10)} 00:00`, idempotencyKey: clave() });
+    prueba('el seguimiento hoy a una hora que ya pasó → 400', r.status === 400 && !!r.datos.campos.proximaEn && (await cuenta('proy_gestiones', a1)) === 0, JSON.stringify(r.datos));
     r = await asesor('POST', `/participaciones/${a1}/gestiones`, { canalId: canal, resultadoId: rSinRespuesta, contactoId: 99999999, proximaEn: dia(1), idempotencyKey: clave() });
     prueba('un contacto que no es de la empresa → 400', r.status === 400 && !!r.datos.campos.contactoId);
     const k1 = clave();

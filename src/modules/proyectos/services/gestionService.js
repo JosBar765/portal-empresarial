@@ -251,6 +251,7 @@ class GestionService {
       const m = FECHA_HORA.exec(limpio(datos.proximaEn));
       if (!m || !esFechaReal(m[1]) || Number.isNaN(Date.parse(`${m[1]}T${m[2] || '00:00'}:00Z`))) campos.proximaEn = 'Escribe una fecha válida para el seguimiento.';
       else if (m[1] < hoyGT()) campos.proximaEn = 'El seguimiento no puede ser en una fecha pasada.';
+      else if (m[2] && `${m[1]} ${m[2]}:00` < aTexto(ahoraGT())) campos.proximaEn = 'Esa hora ya pasó: elige una hora posterior a la actual.';
       else proximaEn = `${m[1]} ${m[2] || '09:00'}:00`;
     }
     if (Object.keys(campos).length) throw errorDeValidacion('Revisa los datos de la gestión.', campos);
