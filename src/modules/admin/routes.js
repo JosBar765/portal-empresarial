@@ -39,6 +39,11 @@ router.patch('/talleres/:id/activo', gestionarTalleres, (req, res) => adminContr
 router.get('/talleres/:id/personal', verAdmin, (req, res) => adminController.listarPersonalTaller(req, res));
 router.post('/talleres/:id/encargado', gestionarTalleres, (req, res) => adminController.asignarEncargadoDeTaller(req, res));
 router.delete('/talleres/:id/encargado', gestionarTalleres, (req, res) => adminController.quitarEncargadoDeTaller(req, res));
+router.get('/talleres/propuestas-compartidas', verAdmin, (req, res) => adminController.listarGruposPropuestasCompartidas(req, res));
+router.put('/talleres/:id/comparte-propuestas', gestionarTalleres, (req, res) => adminController.actualizarComparteDePropuestas(req, res));
+router.get('/talleres/:id/tiendas', verAdmin, (req, res) => adminController.listarTiendasDeLocal(req, res));
+router.post('/talleres/:id/tiendas', gestionarTalleres, (req, res) => adminController.agregarTiendaALocal(req, res));
+router.delete('/talleres/:id/tiendas/:tiendaId', gestionarTalleres, (req, res) => adminController.quitarTiendaDeLocal(req, res));
 router.post('/talleres/:id/disenadores', gestionarTalleres, (req, res) => adminController.asignarDisenadorATaller(req, res));
 router.delete('/talleres/:id/disenadores/:usuarioId', gestionarTalleres, (req, res) => adminController.quitarDisenadorDeTaller(req, res));
 router.put('/talleres/:id/limite-diario', gestionarTalleres, (req, res) => adminController.actualizarLimiteDiarioTaller(req, res));
@@ -53,6 +58,10 @@ router.get('/tiendas/:id/personal', verAdmin, (req, res) => adminController.list
 router.post('/tiendas/:id/personal', gestionarTiendas, (req, res) => adminController.agregarPersonalATienda(req, res));
 router.delete('/tiendas/:id/personal/:usuarioId', gestionarTiendas, (req, res) => adminController.quitarPersonalDeTienda(req, res));
 
+// Supervisión especial de un asesor (mismo permiso que asignar personal a tiendas)
+router.get('/asesores/:id/supervisores', verAdmin, (req, res) => adminController.obtenerSupervisionAsesor(req, res));
+router.put('/asesores/:id/supervisores', gestionarTiendas, (req, res) => adminController.reemplazarSupervisionAsesor(req, res));
+
 // Mantenimiento
 router.get('/mantenimiento', verAdmin, (req, res) => adminController.obtenerMantenimiento(req, res));
 router.put('/mantenimiento', gestionarMantenimiento, (req, res) => adminController.actualizarMantenimiento(req, res));
@@ -65,6 +74,7 @@ router.get('/horarios/parametros', gestionarHorarios, (req, res) => horarioContr
 router.put('/horarios/parametros', gestionarHorarios, (req, res) => horarioController.guardarParametros(req, res));
 router.put('/horarios/retencion', gestionarHorarios, (req, res) => horarioController.guardarRetencion(req, res));
 router.get('/horarios/paises', gestionarHorarios, (req, res) => horarioController.listarPaises(req, res));
+router.put('/horarios/paises/:id/comparte-diseno-local', gestionarHorarios, (req, res) => horarioController.guardarComparteDisenoLocal(req, res));
 router.get('/feriados', gestionarHorarios, (req, res) => horarioController.listarFeriados(req, res));
 router.post('/feriados', gestionarHorarios, (req, res) => horarioController.crearFeriado(req, res));
 router.put('/feriados/:id', gestionarHorarios, (req, res) => horarioController.actualizarFeriado(req, res));

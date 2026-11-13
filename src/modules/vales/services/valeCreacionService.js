@@ -27,11 +27,12 @@ const valeEvents = require('../events');
 const valeMutex = require('./valeMutex');
 const valeVistoService = require('./valeVistoService');
 const borradorService = require('./borradorService');
+const { MOTIVOS_BAJA, armarBaja } = require('./valeBajas');
 const valeRechazoRepository = require('../repositories/valeRechazoRepository');
 const {
   ESTADOS, hoyISO, horaActual, enriquecer,
-  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, diasHabilesDeModificacion, registrarHistorial,
-  esAdministrador, requerirVale, ROL, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
+  normalizarDatetime, esUrgente, opcionesFechaEntrega, registrarHistorial,
+  esAdministrador, esSupervisor, requerirVale, ESTADOS_EDITABLES_ASESOR, ESTADOS_TALLER, validarMotivoRechazo,
   esValeDeModificacion, estadoEnAutorizacion, puedeActuarComoAsesor, salasDeInvolucrados, validarCantidadYCotizacion,
   ETIQUETAS_TEXTO_VALE, validarLongitudCampo, validarEleccionTalleres
 } = require('./valeHelpers');
@@ -42,16 +43,21 @@ class ValeCreacionService {
     return `${d}/${m}/${a}`;
   }
 
-  // Al autorizar, la entrega no puede haber quedado por debajo del mínimo vigente de sus talleres.
+  // Reglas de la fecha de entrega de un vale ya guardado: las mismas que al crearlo (su tipo y su «urgente»), pero con el reloj de ahora.
+  opcionesFechaDeVale(vale) {
+    return opcionesFechaEntrega({ urgente: esUrgente(vale.urgente), modificacionTipo: esValeDeModificacion(vale) ? vale.modificacion_tipo : null });
+  }
+
+  // Al autorizar (creación y MOD) se vuelve a exigir la regla completa con la hora de ese momento; si ya no se cumple, el supervisor rechaza el vale.
   async exigirFechaAutorizable(vale) {
     const entrega = String(vale.fecha_entrega).slice(0, 10);
     const talleresIds = idsDeCsv(vale.talleres_solicitados);
-    const minima = await calendarioService.fechaMinimaEntrega(talleresIds);
-    const rechazar = 'Rechaza el vale para que el asesor modifique la fecha de entrega.';
-    if (entrega < hoyISO()) throw new Error(`La fecha de entrega ya pasó. ${rechazar}`);
-    if (!minima || entrega >= minima) return;
-    const hora = await calendarioService.horaMaximaRestrictiva(talleresIds);
-    throw new Error(`La fecha de entrega ya no está disponible (mínima: ${this.formatearFecha(minima)}; la hora máxima de recibimiento es ${hora}). ${rechazar}`);
+    try {
+      await calendarioService.validarFechaEntrega(entrega, talleresIds, this.opcionesFechaDeVale(vale));
+    } catch (error) {
+      if (!(error instanceof ErrorDeNegocio)) throw error;
+      throw new Error(`${error.message} Rechaza el vale para que el asesor modifique la fecha de entrega.`);
+    }
   }
 
   // La idempotency key viaja como campo del propio FormData (junto a los
@@ -93,7 +99,7 @@ class ValeCreacionService {
       throw new Error('No se encontró la tienda asignada a tu usuario. Avisa al administrador.');
     }
     // Un supervisor autoriza también sus propios vales, pero solo si su tienda tiene algún supervisor que la cubra.
-    if (Number(solicitante.rol_id) === ROL.SUPERVISOR && (await usuarioValeRepository.obtenerSupervisoresDeAsesor(usuario.id)).length === 0) {
+    if (esSupervisor(usuario) && (await usuarioValeRepository.obtenerSupervisoresDeAsesor(usuario.id)).length === 0) {
       throw new Error('Tu tienda no tiene ningún supervisor que pueda autorizar tus vales, así que no se puede crear. Avisa al administrador.');
     }
     // El prefijo del correlativo es el país de la empresa de la tienda, salvo que la empresa defina uno propio (Trofex: TX).
@@ -269,10 +275,11 @@ class ValeCreacionService {
       if (!esAdministrador(usuario) && !supervisoresDelAsesor.some(s => s.id === usuario.id)) {
         throw new ErrorDeNegocio('Este vale es de un asesor que no está a tu cargo.', 403);
       }
+      await valeVistoService.exigirVisto(usuario, valeId);
       const motivoLimpio = validarMotivoRechazo(motivo);
       if (modificacion) {
         const original = await valeRepository.obtenerPorId(vale.vale_original_id);
-        await this.eliminarValeConArchivos(valeId);
+        await this.eliminarValeConArchivos(valeId, await armarBaja(MOTIVOS_BAJA.MODIFICACION_RECHAZADA, usuario.id));
         const codigoOriginal = original ? original.correlativo : 'El vale original';
         valeEvents.notificar({
           vale, tipo: 'RECHAZADO', valeBorrado: true, nivel: 'alerta', actorId: usuario.id,
@@ -307,16 +314,38 @@ class ValeCreacionService {
       const original = esValeDeModificacion(vale) ? await valeRepository.obtenerPorId(vale.vale_original_id) : null;
       const horas = await calendarioService.horasVencimiento();
       const plazo = `${horas} ${horas === 1 ? 'hora laboral' : 'horas laborales'}`;
-      await this.eliminarValeConArchivos(valeId);
+      const borradorId = await this.eliminarVencidoConBorrador(vale, MOTIVOS_BAJA.VENCIMIENTO_VIGENCIA);
+      const salaAsesor = `asesor:${vale.asesor_id}`;
+      // El asesor recibe el aviso del borrador (si se creó); supervisores y administración, el de siempre.
+      if (borradorId) {
+        valeEvents.notificar({
+          vale, tipo: 'EXPIRADO_A_BORRADOR', valeBorrado: true, nivel: 'alerta', conAdmin: false, salas: [salaAsesor],
+          texto: `venció (vigencia de ${plazo}) y lo guardamos en tus Borradores`
+        });
+      }
       valeEvents.notificar({
         vale, tipo: 'EXPIRADO', valeBorrado: true, nivel: 'alerta',
         texto: original
           ? `(solicitud de modificación) fue eliminado automáticamente: venció su vigencia de ${plazo} sin ser autorizado. ${original.correlativo} ya quedó como Recibido`
           : `fue eliminado automáticamente: venció su vigencia de ${plazo} sin ser autorizado`,
-        salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
+        salas: [...(borradorId ? [] : [salaAsesor]), ...supervisores.map(s => `supervisor:${s.id}`)]
       });
       return true;
     });
+  }
+
+  // Un vale vencido (no MOD-) pasa antes a un borrador del asesor; si el borrador falla, el borrado y su registro siguen igual.
+  // Devuelve el id del borrador o null.
+  async eliminarVencidoConBorrador(vale, motivo) {
+    const borradorId = esValeDeModificacion(vale) ? null : await borradorService.crearDesdeVale(vale, motivo);
+    try {
+      await this.eliminarValeConArchivos(vale.id, await armarBaja(motivo, null, { borradorId }));
+    } catch (error) {
+      if (borradorId) await borradorService.descartar(borradorId);
+      throw error;
+    }
+    if (borradorId) valeEvents.borradorNuevo(vale.asesor_id);
+    return borradorId;
   }
 
   // El asesor da de baja un vale propio sin autorizar (o rechazado), o ya autorizado mientras algún taller
@@ -324,7 +353,7 @@ class ValeCreacionService {
   async darDeBaja(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       if (!puedeActuarComoAsesor(usuario)) {
-        throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede dar de baja un vale.', 403);
+        throw new ErrorDeNegocio('Solo quien puede crear vales puede darlos de baja.', 403);
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {
@@ -336,7 +365,7 @@ class ValeCreacionService {
         throw new Error(`${esValeDeModificacion(vale) ? 'Esta modificación ya fue autorizada' : 'Este vale ya fue autorizado'}: solo se puede dar de baja mientras un taller reclame sus adjuntos.`);
       }
       const salas = await salasDeInvolucrados(vale, talleres);
-      await this.eliminarValeConArchivos(valeId);
+      await this.eliminarValeConArchivos(valeId, await armarBaja(MOTIVOS_BAJA.BAJA_ASESOR, usuario.id));
       valeEvents.notificar({
         vale, accion: 'dado de baja', tipo: 'VALE_DADO_DE_BAJA', valeBorrado: true, actor: usuario.nombre, actorId: usuario.id, salas
       });
@@ -348,7 +377,7 @@ class ValeCreacionService {
   async reenviarAutorizacion(usuario, valeId) {
     return valeMutex.conLockDeVale(valeId, async () => {
       if (!puedeActuarComoAsesor(usuario)) {
-        throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede reenviar un vale a autorización.', 403);
+        throw new ErrorDeNegocio('Solo quien puede crear vales puede reenviar un vale a autorización.', 403);
       }
       const vale = await requerirVale(valeId);
       if (vale.asesor_id !== usuario.id) {
@@ -361,7 +390,7 @@ class ValeCreacionService {
       const fechaEntrega = String(vale.fecha_entrega).slice(0, 10);
       const talleresIds = idsDeCsv(vale.talleres_solicitados);
       try {
-        await calendarioService.validarFechaEntrega(fechaEntrega, talleresIds);
+        await calendarioService.validarFechaEntrega(fechaEntrega, talleresIds, this.opcionesFechaDeVale(vale));
       } catch (error) {
         if (!(error instanceof ErrorDeNegocio)) throw error;
         throw new Error(`${error.message} Corrige el vale con una fecha de entrega válida antes de reenviarlo.`);
@@ -388,7 +417,7 @@ class ValeCreacionService {
   // que crearVale() sigue exigiendo `talleresIds` aquí pero
   // solicitarModificacion() no pasa por este camino para elegir taller).
   // `modificacionTipo` (BASICA / MEDIA / AVANZADA) marca un vale MOD: su fecha de entrega pide ese mínimo en días hábiles
-  // desde hoy (con «urgente», el siguiente día que reciba vales), en lugar de los 3 días naturales de un vale normal.
+  // desde hoy (con «urgente», 1), en lugar de los días hábiles de un vale normal.
   async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null, talleresFijos = [], modificacionTipo = null } = {}) {
     const { fechaEntrega, fechaEvento, cantidad, cotizacion } = payload;
     // Los invisibles de un texto pegado (espacio de ancho cero, word joiner…) se quitan solos, sin avisar.
@@ -435,11 +464,7 @@ class ValeCreacionService {
     if (!fechaReal(fechaEventoNorm)) throw new Error('La fecha del evento no es válida.');
     const talleresIds = requiereTalleres ? await this.validarTalleresIds(payload.talleresIds, tiendaIdAsesor) : talleresFijos;
     const urgente = esUrgente(payload.urgente);
-    if (modificacionTipo) {
-      await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, 0, undefined, diasHabilesDeModificacion(modificacionTipo, urgente));
-    } else {
-      await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, urgente ? 0 : DIAS_MINIMOS_SIN_URGENTE);
-    }
+    await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, opcionesFechaEntrega({ urgente, modificacionTipo }));
     if (!(new Date(fechaEventoNorm.replace(' ', 'T')) > new Date(fechaEntregaNorm.replace(' ', 'T')))) {
       throw new Error('La fecha del evento debe ser posterior a la fecha de entrega.');
     }
@@ -480,7 +505,7 @@ class ValeCreacionService {
     if (talleresIds.length === 0) {
       throw new Error('Debe seleccionar al menos un taller para el vale de arte.');
     }
-    validarEleccionTalleres(talleresIds, await tallerRepository.listarActivos(), tiendaIdAsesor);
+    validarEleccionTalleres(talleresIds, await tallerRepository.listarActivos(), await tallerRepository.contextoDeTienda(tiendaIdAsesor));
     return talleresIds;
   }
 
@@ -504,17 +529,19 @@ class ValeCreacionService {
   // best-effort: si Supabase sigue caído no hay forma de borrar ahí, pero
   // igual se borra el vale de MySQL (no vale la pena bloquear el borrado
   // completo por un archivo que de todas formas queda inalcanzable).
-  async eliminarValeConArchivos(valeId) {
+  // `baja` (ver valeBajas.armarBaja) deja el registro permanente de la eliminación; sin ella no se registra nada
+  // (revertir una creación fallida: el vale nunca llegó a existir).
+  async eliminarValeConArchivos(valeId, baja = null) {
     const vale = await valeRepository.obtenerPorId(valeId);
     if (!vale) return;
     // Un MOD- toma también el lock del original (mismo orden que aprobarModificacion).
     if (vale.vale_original_id) {
-      return valeMutex.conLockDeVale(vale.vale_original_id, () => this._eliminarValeYArchivos(vale));
+      return valeMutex.conLockDeVale(vale.vale_original_id, () => this._eliminarValeYArchivos(vale, baja));
     }
-    return this._eliminarValeYArchivos(vale);
+    return this._eliminarValeYArchivos(vale, baja);
   }
 
-  async _eliminarValeYArchivos(vale) {
+  async _eliminarValeYArchivos(vale, baja) {
     const documentos = await documentoRepository.listarPorVale(vale.id);
     // Un archivo que otro vale (el original de una modificación) también usa no se borra de Storage.
     const rutas = [];
@@ -525,7 +552,7 @@ class ValeCreacionService {
     // Borrar el vale y reabrir el original (si era su único MOD-) es una sola transacción.
     await valeRepository.eliminarYReabrirOriginal({
       valeId: vale.id, valeOriginalId: vale.vale_original_id || null, usuarioId: vale.asesor_id,
-      accionHistorial: 'Solicitud de modificación eliminada: puede solicitar una nueva'
+      accionHistorial: 'Solicitud de modificación eliminada: puede solicitar una nueva', baja
     });
     // Storage solo tras confirmar la base; best-effort.
     for (const ruta of rutas) {

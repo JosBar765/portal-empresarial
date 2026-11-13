@@ -6,7 +6,7 @@ const tallerRepository = require('../repositories/tallerRepository');
 const catalogoRepository = require('../repositories/catalogoRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const calendarioService = require('../../../core/calendario/calendarioService');
-const { ROL, esAsistente, validarEleccionTalleres, talleresElegiblesDeTienda } = require('./valeHelpers');
+const { ROL, esAsistente, esAdministrador, esSupervisor, puedeActuarComoAsesor, validarEleccionTalleres, talleresElegiblesDeTienda } = require('./valeHelpers');
 
 class ValeCatalogoService {
   // `talleres` sigue devolviendo el catálogo COMPLETO (lo usan todos los
@@ -23,12 +23,14 @@ class ValeCatalogoService {
       tallerRepository.listarActivos()
     ]);
     const solicitante = usuario ? await usuarioValeRepository.obtenerPorId(usuario.id) : null;
+    // País del solicitante y si comparte Diseño Local: el frontend ordena y agrupa los talleres con esto.
+    const contextoDiseno = solicitante && solicitante.tienda_id ? await tallerRepository.contextoDeTienda(solicitante.tienda_id) : null;
     // `tiendasGerencia` es el conjunto de tiendas que el filtro de tienda
     // (el buzón) le puede ofrecer a ESTE usuario — el catálogo completo para
     // Administrador/Gerente, solo las de sus asesores cubiertos para el
     // Supervisor (mismo alcance que su buzón).
     let tiendasGerencia = tiendas;
-    if (usuario && usuario.rolId === ROL.SUPERVISOR) {
+    if (usuario && esSupervisor(usuario)) {
       const asesores = await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id);
       const idsTienda = new Set(asesores.map(a => a.tienda_id).filter(Boolean));
       tiendasGerencia = tiendas.filter(t => idsTienda.has(t.id));
@@ -37,26 +39,36 @@ class ValeCatalogoService {
     // `miTallerId` solo le sirve al Asistente (el taller que opera); el resto lo resuelve por `talleres.encargado_id`.
     const miTallerId = usuario && esAsistente(usuario) && solicitante ? (solicitante.taller_id || null) : null;
     const horasVencimientoVale = await calendarioService.horasVencimiento();
-    return { tiendas, paises, talleres, miTiendaId: (solicitante && solicitante.tienda_id) || null, miTallerId, tiendasGerencia, horasVencimientoVale };
+    const miPais = contextoDiseno && contextoDiseno.paisId ? { id: contextoDiseno.paisId, nombre: contextoDiseno.paisNombre, comparteDisenoLocal: contextoDiseno.comparteDisenoLocal } : null;
+    return { tiendas, paises, talleres, miTiendaId: (solicitante && solicitante.tienda_id) || null, miPais, miTallerId, tiendasGerencia, horasVencimientoVale };
   }
 
-  // Tienda con la que elige talleres quien crea vales (asesor o supervisor); 0 si no tiene, y entonces ningún Diseño Local es elegible. Otros roles: null.
+  // Tienda con la que elige talleres quien crea vales (asesor, supervisor o cualquier rol con vales.crear salvo administrador); 0 si no tiene tienda, y entonces ningún Diseño Local es elegible. Otros roles: null.
   async _tiendaComoAsesor(usuario) {
-    if (!usuario || ![ROL.ASESOR, ROL.SUPERVISOR].includes(usuario.rolId)) return null;
+    if (!usuario) return null;
+    const esAsesorOSupervisor = usuario.rolId === ROL.ASESOR || esSupervisor(usuario);
+    // Otro rol con vales.crear se trata como asesor; sin tienda en asesores recibe 0 (solo talleres generales).
+    if (!esAsesorOSupervisor && (esAdministrador(usuario) || !puedeActuarComoAsesor(usuario))) return null;
     const yo = await usuarioValeRepository.obtenerPorId(usuario.id);
-    return Number(yo && yo.tienda_id) || 0;
+    const tiendaId = Number(yo && yo.tienda_id) || 0;
+    return tiendaId;
   }
 
   // El asesor solo recibe lo que puede elegir (los generales y el Diseño Local de su tienda); los demás roles, el catálogo completo.
   async obtenerTalleres(usuario) {
     const talleres = await tallerRepository.listarActivos();
-    const tiendaId = await this._tiendaComoAsesor(usuario);
-    return tiendaId === null ? talleres : talleresElegiblesDeTienda(talleres, tiendaId);
+    const ctx = await this._contextoComoAsesor(usuario);
+    return ctx === null ? talleres : talleresElegiblesDeTienda(talleres, ctx);
+  }
+
+  // Tienda y país con los que elige talleres quien crea vales (null para otros roles).
+  async _contextoComoAsesor(usuario) {
+    return tallerRepository.contextoDeTienda(await this._tiendaComoAsesor(usuario));
   }
 
   // Mismas reglas y mensajes que la creación del vale, para las consultas del calendario antes de enviarlo.
   async validarTalleresElegibles(usuario, talleresIds) {
-    validarEleccionTalleres(talleresIds, await tallerRepository.listarActivos(), await this._tiendaComoAsesor(usuario));
+    validarEleccionTalleres(talleresIds, await tallerRepository.listarActivos(), await this._contextoComoAsesor(usuario));
   }
 
   // El Asistente (de cualquier taller) opera un taller como si fuera su propio

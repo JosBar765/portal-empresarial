@@ -157,8 +157,16 @@ class HorarioService {
     return this.obtenerParametros();
   }
 
-  listarPaises() {
-    return tiendaAdminRepository.listarPaises();
+  async listarPaises() {
+    return (await tiendaAdminRepository.listarPaises()).map(({ comparte_diseno_local, ...pais }) => ({ ...pais, comparteDisenoLocal: Number(comparte_diseno_local) === 1 }));
+  }
+
+  // Un país que comparte Diseño Local ofrece los suyos a los demás que también comparten y usa los de ellos.
+  async guardarComparteDisenoLocal(paisIdCrudo, body) {
+    const paisId = await this.exigirPais(paisIdCrudo);
+    if (!body || typeof body.comparte !== 'boolean') throw err('Indica si el país comparte Diseño Local (sí o no).');
+    await repo.guardarComparteDisenoLocal(paisId, body.comparte);
+    return { id: paisId, comparteDisenoLocal: body.comparte };
   }
 
   async listarFeriados(paisIdCrudo) {

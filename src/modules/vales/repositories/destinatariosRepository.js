@@ -3,18 +3,25 @@
 const db = require('../../../config/database');
 
 class DestinatariosRepository {
-  // Encargado del taller y los asistentes (cualquier rol con padre) vinculados a él.
+  // Encargado del taller y quienes lo gestionan con él (permiso `vales.gestionar_taller`, no el rol) vinculados a él.
   async listarDeTaller(tallerId) {
     const rows = await db.query(
       `SELECT t.encargado_id AS id FROM talleres t WHERE t.id = ? AND t.encargado_id IS NOT NULL
        UNION
        SELECT tt.usuario_id AS id FROM taller_disenadores tt
        JOIN usuarios u ON u.id = tt.usuario_id
-       JOIN roles r ON r.id = u.rol_id
-       WHERE tt.taller_id = ? AND r.hereda_de_rol_id IS NOT NULL AND u.activo = 1`,
+       JOIN rol_permisos rp ON rp.rol_id = u.rol_id
+       JOIN permisos p ON p.id = rp.permiso_id AND p.codigo = 'vales.gestionar_taller'
+       WHERE tt.taller_id = ? AND u.activo = 1`,
       [tallerId, tallerId],
       'destinatarios:taller'
     );
+    return rows.map(r => r.id);
+  }
+
+  // Administradores activos (el rol se pasa desde valeHelpers para no repetir su id aquí).
+  async listarAdministradores(rolAdministradorId) {
+    const rows = await db.query('SELECT u.id FROM usuarios u WHERE u.rol_id = ? AND u.activo = 1', [rolAdministradorId], 'destinatarios:administradores');
     return rows.map(r => r.id);
   }
 

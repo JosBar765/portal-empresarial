@@ -327,6 +327,8 @@ body {
 .notif-item:hover { background: var(--color-surface-muted); }
 .notif-item.is-no-leida { background: var(--color-info-bg, #EFF6FF); color: var(--color-text); font-weight: 600; }
 .notif-item.is-alerta { border-left: 3px solid var(--color-danger); }
+.notif-item.is-enlace { cursor: pointer; }
+.notif-item.is-enlace .notif-contenido { text-decoration: underline; text-underline-offset: 2px; }
 .notif-fecha { font-size: 11px; font-weight: 500; color: var(--color-text-muted); }
 .notif-vacio { padding: 18px 14px; font-size: 13px; color: var(--color-text-muted); text-align: center; }
 

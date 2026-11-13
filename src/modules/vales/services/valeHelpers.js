@@ -55,6 +55,9 @@ const ROL = {
 const PERMISO_FUSION = 'vales.aprobar_general';
 const SALA_FUSION = 'vales:fusion';
 
+// Permiso que agrupa asignar, revisar, verificar adjuntos y responder rechazos de propuesta del taller.
+const PERMISO_GESTIONAR_TALLER = 'vales.gestionar_taller';
+
 const ROLES_ENCARGADO_TALLER = [ROL.ENCARGADO_DISENO, ROL.ENCARGADO_UV3D, ROL.ASISTENTE_DISENO, ROL.ENCARGADO_PROTEXTIL, ROL.ENCARGADO_DISENO_LOCAL];
 const ROLES_TALLER_Y_DISENADOR = [...ROLES_ENCARGADO_TALLER, ROL.DISENADOR];
 
@@ -73,9 +76,9 @@ function rolEncargadoDe(usuario) {
   return usuario.heredaDeRolId != null ? usuario.heredaDeRolId : ROL.ENCARGADO_DISENO;
 }
 
-// Encargado de taller o asistente de cualquier taller.
+// Quien gestiona un taller (encargado o asistente) lo es por el permiso, no por el rol; el administrador no cuenta. Se lee del token en cada petición.
 function esDeTaller(usuario) {
-  return ROLES_ENCARGADO_TALLER.includes(usuario.rolId) || esAsistente(usuario);
+  return !esAdministrador(usuario) && (usuario.permissions || []).includes(PERMISO_GESTIONAR_TALLER);
 }
 
 function esTallerODisenador(usuario) {
@@ -134,6 +137,16 @@ const DIAS_HABILES_MODIFICACION = { BASICA: 1, MEDIA: 2, AVANZADA: 3 };
 const DIAS_HABILES_MODIFICACION_URGENTE = 1;
 const TIPOS_MODIFICACION_CON_VALE = Object.keys(DIAS_HABILES_MODIFICACION);
 const diasHabilesDeModificacion = (tipo, urgente) => (urgente ? DIAS_HABILES_MODIFICACION_URGENTE : DIAS_HABILES_MODIFICACION[tipo]);
+
+// Días de trabajo mínimos de la fecha de entrega de un vale que no es modificación (el día de ingreso cuenta solo antes de la hora máxima del taller).
+const DIAS_HABILES_VALE = 3;
+const DIAS_HABILES_VALE_URGENTE = 1;
+
+// Opciones del calendario para ofrecer o validar la fecha de entrega: una modificación rige por su tipo; un vale normal por DIAS_HABILES_VALE.
+function opcionesFechaEntrega({ urgente = false, modificacionTipo = null } = {}) {
+  if (modificacionTipo) return { diasHabiles: diasHabilesDeModificacion(modificacionTipo, urgente) };
+  return { diasHabiles: urgente ? DIAS_HABILES_VALE_URGENTE : DIAS_HABILES_VALE, diasHabilesUrgente: urgente ? 0 : DIAS_HABILES_VALE_URGENTE };
+}
 
 // Código de un vale MOD: MOD-X, MOD2-X, MOD3-X… con X el correlativo del vale raíz, que nunca cambia.
 const PREFIJO_MOD = /^MOD\d*-/;
@@ -235,9 +248,8 @@ function normalizarDatetime(valor, finDelDia = false) {
   return limpio.length === 16 ? `${limpio}:00` : limpio;
 }
 
-// Urgente lo marca el asesor: sin urgente la entrega pide 3 días naturales de antelación; con urgente basta el mínimo del calendario
-// (no se salta la hora máxima de recibimiento). El formulario lo manda como casilla ('on' / 'true' / '1').
-const DIAS_MINIMOS_SIN_URGENTE = 3;
+// Urgente lo marca el asesor: sin urgente la entrega pide DIAS_HABILES_VALE días de trabajo; con urgente basta 1 (sin saltarse la hora máxima de recibimiento).
+// El formulario lo manda como casilla ('on' / 'true' / '1').
 function esUrgente(valor) {
   return valor === true || valor === 1 || ['on', 'true', '1'].includes(String(valor).toLowerCase());
 }
@@ -272,10 +284,10 @@ async function requerirVale(valeId) {
   return vale;
 }
 
-// Quien puede crear y gestionar vales propios: el asesor y también el supervisor de ventas (que debe tener además
-// una fila en `asesores` para saber de qué tienda es). Autorizar su propio vale es una regla aparte: ver autorizarCreacion.
+// Quien puede crear y gestionar vales propios depende del permiso `vales.crear`, no del rol (debe tener además una fila en
+// `asesores` para saber de qué tienda es); cada uso lo combina con el chequeo de dueño. Autorizar su propio vale es una regla aparte.
 function puedeActuarComoAsesor(usuario) {
-  return usuario.rolId === ROL.ASESOR || usuario.rolId === ROL.SUPERVISOR;
+  return (usuario.permissions || []).includes('vales.crear');
 }
 
 function assertPropioDelAsesor(usuario, vale) {
@@ -292,9 +304,14 @@ async function salasDeInvolucrados(vale, talleres) {
   return [...new Set([`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`), ...salasTalleres])];
 }
 
-// Supervisor (rol 3) que cubre la tienda del asesor dueño del vale: lee sus chats, nunca escribe.
+// Supervisor = quien tiene el permiso `vales.supervisar` (solo el rol 3), no el rol en sí; se lee del token en cada petición.
+function esSupervisor(usuario) {
+  return (usuario.permissions || []).includes('vales.supervisar');
+}
+
+// Supervisor que cubre la tienda del asesor dueño del vale: lee sus chats, nunca escribe.
 async function esSupervisorDelAsesor(usuario, vale) {
-  if (usuario.rolId !== ROL.SUPERVISOR) return false;
+  if (!esSupervisor(usuario)) return false;
   return (await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id)).some(s => s.id === usuario.id);
 }
 
@@ -341,37 +358,49 @@ function validarLongitudCampo(campo, valor) {
   throw new Error(`${etiqueta} es demasiad${etiqueta.startsWith('La ') ? 'a larga' : 'o largo'} (máximo ${maximo} caracteres).`);
 }
 
-// Talleres a los que un asesor puede enviar: los generales y el Diseño Local de su propia tienda.
-const talleresElegiblesDeTienda = (talleres, tiendaId) => talleres.filter(t => t.tienda_id == null || t.tienda_id === tiendaId);
+// Diseño Local elegible para quien envía desde `ctx` (`tallerRepository.contextoDeTienda`): atiende su tienda, o su país y el de la sede comparten Diseño Local.
+const localEsElegible = (t, ctx) => (t.tiendas_atendidas_ids || []).includes(ctx && ctx.tiendaId) || Boolean(ctx && ctx.comparteDisenoLocal && t.pais_comparte_diseno_local === 1);
+
+// Talleres a los que un asesor puede enviar: los generales y los Diseño Local elegibles para su tienda y país (`ctx` nulo: solo generales).
+const talleresElegiblesDeTienda = (talleres, ctx) => talleres.filter(t => t.tienda_id == null || localEsElegible(t, ctx));
+
+// Textos de las reglas de elección de talleres (los datos reales se interpolan).
+const MENSAJES_ELECCION_TALLERES = {
+  localConGeneral: 'Los talleres de Diseño Local no se pueden combinar con los talleres generales. Elige solo Diseño Local o solo talleres generales.',
+  localNoElegible: (taller) => `El Diseño Local «${taller.nombre}» (${taller.pais_nombre}) no está disponible para tu tienda: solo puedes enviar a un Diseño Local que atienda tu tienda o, si tu país y el del taller comparten Diseño Local, a los de esos países. Quítalo y elige otro taller.`,
+  localesDePaisesDistintos: (paises) => `Los talleres de Diseño Local de un mismo vale deben ser del mismo país y elegiste de ${paises.join(' y ')}. Deja solo los de un país.`
+};
 
 // Elegibilidad de los talleres de un vale (ids ya numéricos): los mismos mensajes al crear, al guardar un borrador y al consultar fechas.
-// `tiendaIdAsesor` activa las reglas de Diseño Local: nunca se mezcla con los generales ni se elige el de otra tienda.
-function validarEleccionTalleres(talleresIds, talleresActivos, tiendaIdAsesor = null) {
+// `ctxAsesor` (`tallerRepository.contextoDeTienda`) activa las reglas de Diseño Local: nunca se mezcla con los generales, todos deben ser
+// elegibles para la tienda y país del asesor y, juntos, de un mismo país.
+function validarEleccionTalleres(talleresIds, talleresActivos, ctxAsesor = null) {
   const idsValidos = new Set(talleresActivos.map(t => t.id));
   if (!talleresIds.every(id => idsValidos.has(id))) {
     throw new Error('Alguno de los talleres elegidos ya no está disponible. Vuelve a elegirlos.');
   }
-  if (tiendaIdAsesor === null) return;
+  if (ctxAsesor === null) return;
   const seleccionados = talleresIds.map(id => talleresActivos.find(t => t.id === id));
   const locales = seleccionados.filter(t => t.tienda_id !== null);
   const generales = seleccionados.filter(t => t.tienda_id === null);
   if (locales.length > 0 && generales.length > 0) {
-    throw new Error('El Diseño Local no se puede combinar con los talleres generales (Diseño, Diseño UV/3D y Protextil). Elige solo uno de los dos tipos.');
+    throw new Error(MENSAJES_ELECCION_TALLERES.localConGeneral);
   }
-  if (locales.some(t => t.tienda_id !== tiendaIdAsesor)) {
-    throw new Error('Solo se puede enviar a Diseño Local de su propia tienda.');
-  }
+  const noElegible = locales.find(t => !localEsElegible(t, ctxAsesor));
+  if (noElegible) throw new Error(MENSAJES_ELECCION_TALLERES.localNoElegible(noElegible));
+  const paises = [...new Map(locales.map(t => [t.pais_id, t.pais_nombre])).values()];
+  if (paises.length > 1) throw new Error(MENSAJES_ELECCION_TALLERES.localesDePaisesDistintos(paises));
 }
 
 module.exports = {
   LIMITES_TEXTO_VALE, ETIQUETAS_TEXTO_VALE, validarLongitudCampo, validarEleccionTalleres, talleresElegiblesDeTienda,
   algunTallerProtege, ESTADOS, ESTADOS_EDITABLES_ASESOR, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ESTADOS_TALLER,
-  ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION,
-  esAdministrador, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
+  ROL, ROLES_ENCARGADO_TALLER, ROLES_TALLER_Y_DISENADOR, PERMISO_FUSION, SALA_FUSION, PERMISO_GESTIONAR_TALLER,
+  esAdministrador, esSupervisor, esAsistente, rolEncargadoDe, esDeTaller, esTallerODisenador,
   hoyISO, horaActual, calcularAtraso, enriquecer,
-  esValeDeModificacion, DIAS_HABILES_MODIFICACION, diasHabilesDeModificacion, TIPOS_MODIFICACION_CON_VALE,
+  esValeDeModificacion, DIAS_HABILES_MODIFICACION, diasHabilesDeModificacion, TIPOS_MODIFICACION_CON_VALE, DIAS_HABILES_VALE, DIAS_HABILES_VALE_URGENTE, opcionesFechaEntrega,
   PREFIJO_MOD, esCorrelativoMod, correlativoBase, armarCorrelativoMod, estadoEnAutorizacion, etiquetaActorTaller, estadoVisibleAsesor,
   dentroDeVentana, ordenarPorGrupos, ordenarPorFecha, esHoy,
-  normalizarDatetime, esUrgente, DIAS_MINIMOS_SIN_URGENTE, registrarHistorial, MAX_ENTERO, MAX_COTIZACION, validarCantidadYCotizacion,
+  normalizarDatetime, esUrgente, registrarHistorial, MAX_ENTERO, MAX_COTIZACION, validarCantidadYCotizacion,
   requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor, validarMotivoRechazo, validarMensajeChat, salasDeInvolucrados, esSupervisorDelAsesor
 };

@@ -5,6 +5,7 @@ import { listarTalleres, toggleActivoTaller as apiToggleActivoTaller } from '../
 import { abrirModalVerPersonalTaller, abrirModalPersonalTaller } from '../actions/tallerPersonal.js';
 import { abrirModalLimiteTaller } from '../actions/tallerLimite.js';
 import { abrirModalHoraMaximaTaller } from '../actions/tallerHoraMaxima.js';
+import { abrirModalTiendasLocal } from '../actions/tallerTiendas.js';
 import { abrirModalNuevoTaller } from '../forms/tallerForm.js';
 
 export async function cargarTalleres() {
@@ -41,7 +42,7 @@ export function renderTalleres() {
     <tr class="${t.activo ? '' : 'fila-inactiva'}">
       <td data-label="Taller">${escapeHtml(t.nombre)}</td>
       <td data-label="Tienda">${t.tienda_id != null
-        ? `${escapeHtml(t.tienda_nombre || '')}<div class="tabla-secundaria">${escapeHtml(t.tienda_codigo || '')}</div>`
+        ? `${escapeHtml(t.tienda_nombre || '')}<div class="tabla-secundaria">${escapeHtml(t.tienda_codigo || '')} (sede)${Number(t.tiendas_atendidas_count) > 1 ? ` · atiende ${Number(t.tiendas_atendidas_count)} tiendas` : ''}</div>`
         : '<span class="form-hint">Toda la empresa</span>'}</td>
       <td data-label="Encargado">${t.encargado_nombre ? escapeHtml(t.encargado_nombre) : '<span class="form-hint">Sin encargado</span>'}</td>
       <td data-label="Diseñadores">${t.disenadores_count}</td>
@@ -66,6 +67,16 @@ export function renderTalleres() {
     btnGestionar.innerHTML = '<ion-icon name="people-outline"></ion-icon>';
     btnGestionar.addEventListener('click', () => abrirModalPersonalTaller(t));
     celda.appendChild(btnGestionar);
+
+    // Solo los Diseño Local atienden tiendas asignadas; los generales atienden a todas.
+    if (t.tienda_id != null) {
+      const btnTiendas = document.createElement('button');
+      btnTiendas.className = 'btn-icon';
+      btnTiendas.title = 'Asignar tiendas';
+      btnTiendas.innerHTML = '<ion-icon name="storefront-outline"></ion-icon>';
+      btnTiendas.addEventListener('click', () => abrirModalTiendasLocal(t));
+      celda.appendChild(btnTiendas);
+    }
 
     const btnLimite = document.createElement('button');
     btnLimite.className = 'btn-icon';

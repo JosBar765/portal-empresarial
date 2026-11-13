@@ -196,13 +196,46 @@ class ValeRepository {
     });
   }
 
+  // Foto del vale tal como está (con fecha de entrega y motivo de rechazo) en la transacción `tx`.
+  async _registrarBaja(tx, valeId, baja) {
+    const registro = await tx.query(
+      `INSERT INTO vale_bajas (correlativo, cliente_empresa, cliente_nombre, asesor_id, asesor_nombre, asesor_correo,
+         vale_original_correlativo, estado, motivo, razon, eliminado_por_id, eliminado_por_correo, creado_en_vale,
+         fecha_entrega, motivo_rechazo, taller_id, taller_nombre, borrador_id)
+       SELECT v.correlativo, v.cliente_empresa, v.cliente_nombre, v.asesor_id, a.nombre, a.email,
+         o.correlativo, ev.nombre, ?, ?, ?, ?, v.creado_en,
+         DATE(v.fecha_entrega), v.rechazo_motivo, ?, ?, ?
+       FROM vales v
+       LEFT JOIN estados_vale ev ON ev.id = v.estado_id
+       LEFT JOIN usuarios a ON a.id = v.asesor_id
+       LEFT JOIN vales o ON o.id = v.vale_original_id
+       WHERE v.id = ?`,
+      [baja.motivo, baja.razon, baja.actorId || null, baja.actorCorreo || null,
+        baja.tallerId || null, baja.tallerNombre || null, baja.borradorId || null, valeId], 'vale:registrar_baja'
+    );
+    if (registro.affectedRows !== 1) throw new Error('No se pudo registrar la baja del vale.');
+  }
+
+  // Quitar UN taller (el vale sigue vivo): desactivarlo, ajustar los talleres solicitados y dejar su registro, todo o nada.
+  async quitarTallerYRegistrar({ valeId, valeTallerId, talleresSolicitados, baja }) {
+    return db.transaccion(async (tx) => {
+      await this._registrarBaja(tx, valeId, baja);
+      await tx.query('UPDATE vale_talleres SET activo = 0 WHERE id = ?', [valeTallerId], 'vale_taller:desactivar');
+      await tx.query('UPDATE vales SET talleres_solicitados = ? WHERE id = ?', [talleresSolicitados, valeId], 'vale:update_talleres_solicitados');
+    });
+  }
+
   // Solo para revertir una creación fallida, un rechazo, una baja o un vencimiento (ver valeCreacionService.eliminarValeConArchivos):
   // el resto del ciclo nunca borra filas; el cascade de FKs limpia lo demás.
   // Si era un MOD- sin hermanos, reabre el original con su historial: todo o nada.
-  async eliminarYReabrirOriginal({ valeId, valeOriginalId, usuarioId, accionHistorial }) {
+  // Con `baja` (ver valeBajas.armarBaja) deja además el registro permanente en `vale_bajas`, antes del
+  // DELETE y en la misma transacción: si el registro falla, el vale no se borra. Sin `baja` (revertir una creación
+  // fallida) no registra nada.
+  async eliminarYReabrirOriginal({ valeId, valeOriginalId, usuarioId, accionHistorial, baja = null }) {
     return db.transaccion(async (tx) => {
       // Bloquea al original para que no compita con una aprobación concurrente.
       if (valeOriginalId) await tx.query('SELECT id FROM vales WHERE id = ? FOR UPDATE', [valeOriginalId], 'vale:bloquear_original');
+      if (baja) await this._registrarBaja(tx, valeId, baja);
       await tx.query('DELETE FROM vales WHERE id = ?', [valeId], 'vale:delete');
       if (!valeOriginalId) return false;
       const res = await tx.query(

@@ -37,6 +37,10 @@ class HorarioRepository {
     );
   }
 
+  async guardarComparteDisenoLocal(paisId, comparte) {
+    await db.query('UPDATE paises SET comparte_diseno_local = ? WHERE id = ?', [comparte ? 1 : 0, paisId], 'pais:comparte_diseno_local');
+  }
+
   async existePais(paisId) {
     const rows = await db.query('SELECT id FROM paises WHERE id = ?', [paisId], 'feriado:pais');
     return rows.length > 0;

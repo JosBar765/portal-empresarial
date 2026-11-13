@@ -6,6 +6,7 @@ import {
 import { escapeHtml } from '../utils/formato.js';
 import { wireContador, htmlHilo, MAX_CARACTERES_CHAT } from './adjuntos.js';
 import { state } from '../state.js';
+import { ladoDeChat } from '../permisos.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { marcarRechazoVisto } from '../utils/modificacionesVistas.js';
 
@@ -156,7 +157,7 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
     if (c.estado === 'RECHAZADO' && c.lado === 'ASESOR') { marcarRechazoVisto(c.id); leido = true; }
   };
   const refrescar = async () => {
-    try { pintar(await obtenerConversacionRechazoPropuesta(vale.id, rechazoId)); } catch (error) { hilo.innerHTML = `<div class="chat-vacio"><p>${escapeHtml(error.message)}</p></div>`; }
+    try { pintar(await obtenerConversacionRechazoPropuesta(vale.id, rechazoId, ladoDeChat(vale))); } catch (error) { hilo.innerHTML = `<div class="chat-vacio"><p>${escapeHtml(error.message)}</p></div>`; }
   };
   state.conversacionAbierta = { overlay, valeId: vale.id, refrescar };
   await refrescar();
@@ -167,7 +168,7 @@ export async function abrirModalConversacionRechazo(vale, rechazoId) {
     if (!actualizar()) return;
     enviar.disabled = true;
     try {
-      pintar(await enviarMensajeRechazoPropuesta(vale.id, rechazoId, textarea.value.trim()));
+      pintar(await enviarMensajeRechazoPropuesta(vale.id, rechazoId, textarea.value.trim(), ladoDeChat(vale)));
       textarea.value = '';
       ajustarAlto();
     } catch (error) {

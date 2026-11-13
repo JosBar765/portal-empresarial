@@ -18,7 +18,7 @@ export function abrirModalMotivoRechazo(vale) {
     bodyHtml: `
       <p style="font-size:13px;margin-bottom:8px;">El supervisor devolvió este vale con el siguiente motivo:</p>
       <p class="motivo-rechazo">${escapeHtml(vale.rechazo_motivo || 'Sin motivo registrado.')}</p>
-      <p style="font-size:13px;margin-top:12px;">Corrígelo con el botón de la tuerca y luego reenvíalo a autorización con el botón de abajo, o dalo de baja.</p>
+      <p style="font-size:13px;margin-top:12px;">Corrígelo con el botón de la tuerca y luego reenvíalo a autorización con el botón de abajo${puede('darDeBaja') ? ', o dalo de baja' : ''}.</p>
     `,
     footerHtml: '<button class="btn btn--primary" id="btn-reenviar" style="margin-right:auto;"><ion-icon name="send-outline"></ion-icon> Reenviar a autorización</button><button class="btn btn--ghost" id="btn-cerrar">Entendido</button>'
   });
