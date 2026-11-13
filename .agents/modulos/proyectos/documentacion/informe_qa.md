@@ -20,8 +20,8 @@ Verificado también en **MariaDB 11.8** (49 migraciones y las 18 verificaciones 
 |---|---|---|---|---|
 | **Alta** | 1 | 1 | 0 | |
 | **Media** | 7 | 7 | 0 | |
-| **Baja** | 20 | 16 | 2 | 1 no reproducible, 1 informativo |
-| **Total** | **28** | **24** | **2** | **2** |
+| **Baja** | 20 | 17 | 0 | 1 no reproducible, 1 informativo, 1 decidido |
+| **Total** | **28** | **25** | **0** | **3** |
 
 - **Pruebas automáticas:** 18 scripts de verificación con unas 905 comprobaciones; pasan todas (la de avisos se corrigió: ver E-05).
 - **Pruebas adicionales de este QA:** unos 400 casos por HTTP (integración, valores límite, entradas especiales, permisos, importación y exportación), 96 combinaciones de permisos, 12 afirmaciones de los manuales y 36 mediciones de rendimiento.
@@ -41,7 +41,7 @@ Severidad: Alta, Media o Baja. Estado: **Corregido**, **Abierto**, **No reproduc
 | S-02 | Tras cerrar sesión, el token anterior seguía siendo válido hasta que vencía (15 minutos). El token no se ligaba a la sesión activa. | Esperado: 401 tras el cierre de sesión. Obtenido: 200. | Media | **Corregido** | El access token solo vale si su `sid` coincide con `sesiones_activas` (cookie y Bearer); un token sin `sid` no se acepta. Tres comprobaciones nuevas, que fallan con el código anterior. |
 | E-02 | 22 consultas SQL directas en 7 servicios (`cierre`, `proyecto`, `importación`, `seguimiento`, `alcanceAdmin`, `gestión`, `rondas`). Rompía la regla «servicios sin SQL». | Esperado: todo el SQL en repositorios. | Media | **Corregido** | Todo el SQL pasó a los repositorios (nuevo `operacionRepository` para claves de operación y bloqueos; `resolverVistoBueno`, `actualizarCodigo`, `registrarImportacion`, `bloquearParaCompletar`, `reemplazarExcepciones`). Sin cambio de comportamiento: las 18 verificaciones dan el mismo resultado. |
 | E-03 | El endpoint de CSRF devuelve un valor fijo y decorativo. El código lo documenta; la protección real es `SameSite=Strict`. | Sin riesgo directo. | Baja | **Corregido** | El login ya no pide ni manda el valor decorativo y el endpoint `action=csrf` se retiró. La protección sigue siendo `SameSite=Strict`. |
-| E-04 | Un usuario con solo `proyectos.ver` puede listar la Cartera de su país. | A decidir con el dueño del producto. | Baja | Abierto | Confirmar si es lo deseado. |
+| E-04 | Un usuario con solo `proyectos.ver` puede listar la Cartera de su país. | A decidir con el dueño del producto. | Baja | **Decidido** | Decisión del dueño del producto: se deja así. La vista es de solo lectura y el alcance por país ya la limita. |
 | E-05 | La prueba `verificar-avisos` espera 2 destinatarios para «proyecto vencido», pero el aviso llega a todos los supervisores que cubren una tienda del proyecto (13 en la base de prueba). | Esperado: 2. Obtenido: 13. Es la prueba la que depende de los datos. | Baja | **Corregido** | La prueba ahora compara contra los destinatarios reales del primer aviso. `verificar-avisos`: 38 OK, 0 fallas. |
 
 ## Validación y datos
@@ -72,7 +72,7 @@ Severidad: Alta, Media o Baja. Estado: **Corregido**, **Abierto**, **No reproduc
 | M-05 | Aviso de «cambios sin guardar» al salir del Kit aunque ya estaba guardado. | Esperado: sin aviso. | Baja | No reproducible | Se intentó de nuevo (editar, guardar, salir) y no ocurrió. Seguir atento. |
 | M-06 | El artículo que sugiere el plan del año se perdía al pasar del paso 1 al 2 del asistente. | Esperado: Medalla preseleccionada en el paso 3. | Baja | **Corregido** | Causa real: el primer guardado del borrador no enviaba el artículo. Verificado en el navegador. |
 | M-07 | La reacción de un asesor sin gestión salía como «0 d» en rojo, que se lee como «reaccionó el mismo día». | Esperado: «Sin gestión» o «—». | Baja | **Corregido** | Texto «Sin gestión» (con empresas) o «—» (sin empresas). |
-| M-08 | Se puede programar un seguimiento para una hora que ya pasó hoy (solo se rechaza una fecha pasada). | A decidir: ¿rechazar horas pasadas? | Baja | Abierto | Decisión de negocio. |
+| M-08 | Se puede programar un seguimiento para una hora que ya pasó hoy (solo se rechaza una fecha pasada). | A decidir: ¿rechazar horas pasadas? | Baja | **Corregido** | Con fecha de hoy y hora, se rechaza una hora que ya pasó (400, «Esa hora ya pasó»). Sin hora se sigue tomando las 09:00. Prueba nueva en `verificar-gestion` (73 OK). |
 | M-09 | Textos con errores: «S.A..», «1 tiendas» y doble punto en el aviso del comentario del gerente. | Esperado: texto limpio. | Baja | **Corregido** | Corregidos los tres. |
 | M-11 | La campana del gerente conserva el aviso de «activación pedida» después de resolverla. | Esperado: se marca leído al actuar. | Baja | **Corregido** | Al aprobar o rechazar, el aviso «activación pedida» queda leído para todos. Prueba nueva en `verificar-avisos`. |
 | M-14 | La reasignación equitativa eligió destinatarios sin un criterio visible (con empate en 3 empresas). | Esperado: explicación o criterio fijo. | Baja | **Corregido** | La vista previa de la reasignación equitativa muestra el criterio: a quien tenga menos empresas; en empate, el de menor identificador. |
@@ -135,10 +135,9 @@ Se resumen por técnica. El detalle de cada caso queda en los scripts.
 - Probar en **staging**: cookies `Secure`, HTTPS y la política de seguridad de contenido con el despliegue real (el importmap se inyecta al instalar; aquí se simuló y funcionó).
 - Asignar los permisos `proyectos.*` en la pantalla Roles de staging y producción (tarea del dueño del portal).
 
-## 2. Decisiones del dueño del producto (los dos hallazgos abiertos)
+## 2. Mantenibilidad y experiencia
 
-- **M-08:** decidir si se rechazan horas pasadas al programar un seguimiento (hoy solo se rechaza una fecha pasada).
-- **E-04:** confirmar si quien solo tiene `proyectos.ver` debe poder listar la Cartera de su país.
+- Sin pendientes: los hallazgos abiertos se corrigieron o se decidieron con el dueño del producto.
 
 # 6. Mejoras sugeridas
 
