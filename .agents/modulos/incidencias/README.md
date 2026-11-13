@@ -1,6 +1,6 @@
 # Módulo Incidencias (`incidencias`) — especificación v3
 
-> **Estado:** diseño (mockup en Figma, página «Prototipo v3 · Guatemala (núcleo)»). Sin código hasta aprobar el mockup.
+> **Estado:** mockup v3 aprobado (Figma, página «Prototipo v3 · Guatemala (núcleo)»). Fase 1 hecha: migración, permisos, semillas y entrada en el catálogo. Faltan el backend y la interfaz.
 > **Fuente de verdad:** este archivo. `analisis_modulo_incidencias.md` (v1) y `analisis_modulo_incidencias_v2.md` quedan solo como historial: eran más amplios (reemplazo de equipo, cotizaciones, dashboards por rol, hallazgos de Supervisiones, Centroamérica).
 > **Rama:** `module/incidencias` (desde `dev`). Commits por tema, en español, sin atribución de IA.
 
@@ -21,7 +21,7 @@ Cualquier usuario reporta un problema ligado a **una tienda** (y por ella, a un 
 
 - **Ubicación.** Tienda activa de un país habilitado; por defecto la suya (`asesores.tienda_id` o la primera de `supervisor_tiendas`). Zona (general o por tienda), categoría (define la especialidad que atiende), tipo de activo (opcional, por categoría) y texto libre.
 - **Reporte.** Foto obligatoria (de 1 a 5; JPG, PNG o WebP), título (≤120), descripción, impacto en 4 niveles. **La prioridad la calcula el servidor** con la tabla impacto → prioridad editable; el cliente solo manda el impacto. Aviso de posible duplicado (misma tienda y zona o tipo con incidencia abierta). Límite diario de reportes por usuario.
-- **Estados** (en palabras completas): `en_buzon` → `en_proceso` ⇄ `en_espera` → `en_verificacion` → `cerrada`; `correccion_solicitada` (vuelve al técnico y cuenta una ronda); `descartada`. Tomar es atómico: quien la toma primero queda como responsable.
+- **Estados** (en palabras completas): `en_buzon` → `en_proceso` ⇄ `en_espera` → `en_verificacion` → `cerrada`; `correccion_pedida` (vuelve al técnico y cuenta una revisión); `descartada`. Tomar es atómico: quien la toma primero queda como responsable.
 - **Avances.** Texto, hasta 3 fotos y evolución (mejoró · sin cambios · empeoró), con fecha y hora. Enviar a verificación exige describir lo hecho y una foto de evidencia.
 - **Verificación.** La hace el **verificador de esa tienda** (o del país, si la tienda no tiene uno propio). Quien trabajó la incidencia no puede verificarla. Pedir corrección exige comentario y abre una ronda nueva.
 - **Reasignar, devolver, descartar.** Reasignar y descartar: `incidencias.asignar` dentro de su alcance, siempre con motivo. El técnico puede devolver al buzón una incidencia propia, con motivo.
@@ -47,7 +47,7 @@ Cualquier usuario reporta un problema ligado a **una tienda** (y por ella, a un 
 
 ## Datos
 
-Migración aditiva e idempotente `NN_incidencias_nucleo.sql`. Configuración: `incidencia_paises`, `incidencia_especialidades`, `incidencia_categorias`, `incidencia_zonas`, `incidencia_tipos_activo`, `incidencia_prioridades`, `incidencia_reglas_prioridad`, `incidencia_motivos_espera`, `incidencia_tecnicos` (+ especialidades y tiendas), `incidencia_verificadores`. Núcleo: `incidencias`, `incidencia_fotos` (solo la URL de Storage, nunca la imagen en MySQL) e `incidencia_eventos`. Parámetros en `parametros_sistema` con prefijo `incidencias.`.
+Migración aditiva e idempotente `incidencias_nucleo` (número 44, después de los scripts de Proyectos). Configuración: `incidencia_paises`, `incidencia_especialidades`, `incidencia_categorias`, `incidencia_zonas`, `incidencia_tipos_activo`, `incidencia_prioridades`, `incidencia_reglas_prioridad`, `incidencia_motivos_espera`, `incidencia_tecnicos` (+ especialidades y tiendas), `incidencia_verificadores`. Núcleo: `incidencias`, `incidencia_fotos` (solo la URL de Storage, nunca la imagen en MySQL) e `incidencia_eventos`. Parámetros en `parametros_sistema` con prefijo `incidencias.`.
 
 ## Implementación (patrón de Proyectos)
 
