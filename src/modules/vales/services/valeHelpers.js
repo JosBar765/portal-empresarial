@@ -143,10 +143,9 @@ const DIAS_HABILES_VALE = 3;
 const DIAS_HABILES_VALE_URGENTE = 1;
 
 // Opciones del calendario para ofrecer o validar la fecha de entrega: una modificación rige por su tipo; un vale normal por DIAS_HABILES_VALE.
-// `paisId` = país de la tienda del asesor (feriados); sin él rige el del taller.
-function opcionesFechaEntrega({ urgente = false, modificacionTipo = null, paisId = null } = {}) {
-  if (modificacionTipo) return { diasHabiles: diasHabilesDeModificacion(modificacionTipo, urgente), paisId };
-  return { diasHabiles: urgente ? DIAS_HABILES_VALE_URGENTE : DIAS_HABILES_VALE, diasHabilesUrgente: urgente ? 0 : DIAS_HABILES_VALE_URGENTE, desdeDiaHabil: true, paisId };
+function opcionesFechaEntrega({ urgente = false, modificacionTipo = null } = {}) {
+  if (modificacionTipo) return { diasHabiles: diasHabilesDeModificacion(modificacionTipo, urgente) };
+  return { diasHabiles: urgente ? DIAS_HABILES_VALE_URGENTE : DIAS_HABILES_VALE, diasHabilesUrgente: urgente ? 0 : DIAS_HABILES_VALE_URGENTE };
 }
 
 // Código de un vale MOD: MOD-X, MOD2-X, MOD3-X… con X el correlativo del vale raíz, que nunca cambia.

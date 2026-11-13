@@ -43,18 +43,17 @@ class ValeCreacionService {
     return `${d}/${m}/${a}`;
   }
 
-  // País de la tienda (feriados de la entrega); null sin tienda o sin país, y entonces rige el del taller.
-  async paisDeLaTienda(tiendaId) {
-    const ctx = await tallerRepository.contextoDeTienda(tiendaId);
-    return (ctx && ctx.paisId) || null;
+  // Reglas de la fecha de entrega de un vale ya guardado: las mismas que al crearlo (su tipo y su «urgente»), pero con el reloj de ahora.
+  opcionesFechaDeVale(vale) {
+    return opcionesFechaEntrega({ urgente: esUrgente(vale.urgente), modificacionTipo: esValeDeModificacion(vale) ? vale.modificacion_tipo : null });
   }
 
-  // Al autorizar (creación y MOD), la entrega solo debe seguir siendo posterior a hoy y en un día que reciba vales; los días mínimos se exigieron al pedirla.
+  // Al autorizar (creación y MOD) se vuelve a exigir la regla completa con la hora de ese momento; si ya no se cumple, el supervisor rechaza el vale.
   async exigirFechaAutorizable(vale) {
     const entrega = String(vale.fecha_entrega).slice(0, 10);
     const talleresIds = idsDeCsv(vale.talleres_solicitados);
     try {
-      await calendarioService.validarFechaEntrega(entrega, talleresIds, { soloPosteriorAHoy: true, paisId: await this.paisDeLaTienda(vale.tienda_id) });
+      await calendarioService.validarFechaEntrega(entrega, talleresIds, this.opcionesFechaDeVale(vale));
     } catch (error) {
       if (!(error instanceof ErrorDeNegocio)) throw error;
       throw new Error(`${error.message} Rechaza el vale para que el asesor modifique la fecha de entrega.`);
@@ -368,7 +367,7 @@ class ValeCreacionService {
       const fechaEntrega = String(vale.fecha_entrega).slice(0, 10);
       const talleresIds = idsDeCsv(vale.talleres_solicitados);
       try {
-        await calendarioService.validarFechaEntrega(fechaEntrega, talleresIds, { soloPosteriorAHoy: true, paisId: await this.paisDeLaTienda(vale.tienda_id) });
+        await calendarioService.validarFechaEntrega(fechaEntrega, talleresIds, this.opcionesFechaDeVale(vale));
       } catch (error) {
         if (!(error instanceof ErrorDeNegocio)) throw error;
         throw new Error(`${error.message} Corrige el vale con una fecha de entrega válida antes de reenviarlo.`);
@@ -395,8 +394,8 @@ class ValeCreacionService {
   // que crearVale() sigue exigiendo `talleresIds` aquí pero
   // solicitarModificacion() no pasa por este camino para elegir taller).
   // `modificacionTipo` (BASICA / MEDIA / AVANZADA) marca un vale MOD: su fecha de entrega pide ese mínimo en días hábiles
-  // desde hoy (con «urgente», 1), en lugar de los días hábiles de un vale normal. `tiendaIdFecha` (la del asesor) fija el país de los feriados.
-  async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null, talleresFijos = [], modificacionTipo = null, tiendaIdFecha = tiendaIdAsesor } = {}) {
+  // desde hoy (con «urgente», 1), en lugar de los días hábiles de un vale normal.
+  async validarDatosVale(payload, { requiereTalleres = true, tiendaIdAsesor = null, talleresFijos = [], modificacionTipo = null } = {}) {
     const { fechaEntrega, fechaEvento, cantidad, cotizacion } = payload;
     // Los invisibles de un texto pegado (espacio de ancho cero, word joiner…) se quitan solos, sin avisar.
     const limpio = (valor) => (typeof valor === 'string' ? quitarInvisibles(valor) : valor);
@@ -442,7 +441,7 @@ class ValeCreacionService {
     if (!fechaReal(fechaEventoNorm)) throw new Error('La fecha del evento no es válida.');
     const talleresIds = requiereTalleres ? await this.validarTalleresIds(payload.talleresIds, tiendaIdAsesor) : talleresFijos;
     const urgente = esUrgente(payload.urgente);
-    await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, opcionesFechaEntrega({ urgente, modificacionTipo, paisId: await this.paisDeLaTienda(tiendaIdFecha) }));
+    await calendarioService.validarFechaEntrega(fechaEntregaNorm.slice(0, 10), talleresIds, opcionesFechaEntrega({ urgente, modificacionTipo }));
     if (!(new Date(fechaEventoNorm.replace(' ', 'T')) > new Date(fechaEntregaNorm.replace(' ', 'T')))) {
       throw new Error('La fecha del evento debe ser posterior a la fecha de entrega.');
     }

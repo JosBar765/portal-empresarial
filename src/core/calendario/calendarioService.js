@@ -96,7 +96,7 @@ class CalendarioService {
     };
   }
 
-  // `opciones` de la fecha de entrega (ver calendarioLaboral): { diasHabiles, diasHabilesUrgente, paisId, soloPosteriorAHoy }.
+  // `opciones` de la fecha de entrega (ver calendarioLaboral): { diasHabiles, diasHabilesUrgente }.
   async fechaMinimaEntrega(talleresIds, opciones = {}, ahora = calendario.ahoraUTC6()) {
     return calendario.fechaMinimaEntrega(await cargar(), talleresIds, ahora, opciones);
   }

@@ -37,8 +37,7 @@ class FechasEntregaService {
     const tipo = String(modificacionCrudo || '').toUpperCase();
     const urgente = esUrgente(urgenteCrudo);
     if (tipo && !TIPOS_MODIFICACION_CON_VALE.includes(tipo)) throw new ErrorDeNegocio('El tipo de modificación no es válido.');
-    const paisId = await valeCatalogoService.paisDeLaTienda(usuario);
-    const opciones = opcionesFechaEntrega({ urgente, modificacionTipo: tipo || null, paisId });
+    const opciones = opcionesFechaEntrega({ urgente, modificacionTipo: tipo || null });
     const respuesta = await calendarioService.fechasNoDisponibles(talleresIds, desdeCrudo, hastaCrudo, opciones);
     const regla = (conUrgente) => opcionesFechaEntrega({ urgente: conUrgente, modificacionTipo: tipo || null }).diasHabiles;
     return { ...respuesta, diasHabiles: { normal: regla(false), urgente: regla(true) } };

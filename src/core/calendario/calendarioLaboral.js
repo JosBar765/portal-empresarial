@@ -145,28 +145,25 @@ function nesimoDiaHabil(cfg, ahora, n, paisId) {
   return contados === n ? isoDe(dia) : null;
 }
 
-// Pasada la hora máxima del taller, la solicitud cuenta como del siguiente día que recibe vales; con `desdeDiaHabil`, también si hoy no recibe vales.
-function diaDeSolicitud(cfg, ahora, t, desdeDiaHabil = false) {
+// Pasada la hora máxima del taller, o si hoy no recibe vales, la solicitud cuenta como del siguiente día que recibe vales.
+function diaDeSolicitud(cfg, ahora, t) {
   const hoy = inicioDia(aMs(ahora));
-  if (minutosDelDia(ahora) < t.horaMaxima && !(desdeDiaHabil && !recibeVales(cfg, isoDe(hoy), t.paisId))) return hoy;
+  if (minutosDelDia(ahora) < t.horaMaxima && recibeVales(cfg, isoDe(hoy), t.paisId)) return hoy;
   const siguiente = nesimoDiaHabil(cfg, ahora, 1, t.paisId);
   return siguiente ? diaMs(siguiente) : hoy;
 }
 
 // Opciones de la fecha de entrega: `diasHabiles` = días de trabajo mínimos (vale 3, urgente 1, modificaciones 1 a 3; el día de ingreso cuenta solo antes de la hora máxima del taller);
-// `paisId` = país de los feriados (el de la tienda del asesor; sin él, el del taller); `soloPosteriorAHoy` = solo exige que no sea hoy ni pasada (reenvío y autorización);
-// `desdeDiaHabil` = un ingreso en día sin recepción cuenta desde el siguiente día hábil (vales normales; las modificaciones conservan su cálculo).
-const conPais = (t, paisId) => (paisId ? { ...t, paisId } : t);
+// Los feriados y horarios son los del país de cada taller.
 
 // null si los días configurados no alcanzan. Nunca devuelve hoy.
-function fechaMinimaParaTaller(cfg, tallerId, ahora, { diasHabiles = 0, paisId = null, soloPosteriorAHoy = false, desdeDiaHabil = false } = {}) {
-  const t = conPais(datosTaller(cfg, tallerId), paisId);
+function fechaMinimaParaTaller(cfg, tallerId, ahora, { diasHabiles = 0 } = {}) {
+  const t = datosTaller(cfg, tallerId);
   let dia = inicioDia(aMs(ahora));
   if (minutosDelDia(ahora) >= t.horaMaxima) dia += MS_DIA;
-  if (soloPosteriorAHoy) dia = Math.max(dia, inicioDia(aMs(ahora)) + MS_DIA);
   if (diasHabiles > 0) {
     // Nunca se entrega hoy para hoy, ni antes ni después de la hora máxima.
-    const base = diaDeSolicitud(cfg, ahora, t, desdeDiaHabil);
+    const base = diaDeSolicitud(cfg, ahora, t);
     dia = Math.max(dia, base + MS_DIA);
     const habil = nesimoDiaHabil(cfg, new Date(base), diasHabiles, t.paisId);
     if (!habil) return null;
@@ -199,7 +196,7 @@ function horaMaximaRestrictiva(cfg, talleresIds) {
 function razonNoDisponible(cfg, fecha, talleresIds, ahora, opciones = {}) {
   const hoy = isoDe(aMs(ahora));
   for (const id of talleresIds) {
-    const t = conPais(datosTaller(cfg, id), opciones.paisId);
+    const t = datosTaller(cfg, id);
     if (fecha < hoy) return { motivo: 'PASADO', detalle: 'Fecha pasada' };
     const feriado = feriadoDe(cfg, t.paisId, fecha);
     if (feriado) return { motivo: 'FERIADO', detalle: feriado };
@@ -231,7 +228,7 @@ function fechasNoDisponibles(cfg, talleresIds, desde, hasta, ahora, opciones = {
 
 // Cómo se cuenta la mínima, con números, para los mensajes de error.
 const explicarMinima = (cfg, talleresIds, diasHabiles) => (diasHabiles > 0
-  ? ` (${textoDiasHabiles(diasHabiles)} de trabajo contados desde hoy; hoy cuenta solo si el vale entra antes de las ${horaMaximaRestrictiva(cfg, talleresIds)}, y los días sin recepción y los feriados no cuentan)`
+  ? ` (${textoDiasHabiles(diasHabiles)} de trabajo, contando desde hoy; hoy cuenta solo si el vale entra antes de las ${horaMaximaRestrictiva(cfg, talleresIds)}, y los días sin recepción y los feriados no cuentan)`
   : '');
 
 // Lanza un Error con mensaje para el usuario si la fecha de entrega no se puede pedir; si no, devuelve la mínima.
