@@ -1,6 +1,6 @@
 # Módulo Incidencias (`incidencias`) — especificación v3
 
-> **Estado:** mockup v3 aprobado (Figma, página «Prototipo v3 · Guatemala (núcleo)»). Fases 1 y 2 hechas: migración, permisos, semillas, entrada en el catálogo y el backend del núcleo (API). Faltan la configuración desde el módulo (fase 3) y la interfaz.
+> **Estado:** mockup v3 aprobado (Figma, página «Prototipo v3 · Guatemala (núcleo)»). Fases 1 a 3 hechas: migración, permisos, semillas, entrada en el catálogo, el backend del núcleo y el de la configuración (API). Falta la interfaz.
 > **Fuente de verdad:** este archivo. `analisis_modulo_incidencias.md` (v1) y `analisis_modulo_incidencias_v2.md` quedan solo como historial: eran más amplios (reemplazo de equipo, cotizaciones, dashboards por rol, hallazgos de Supervisiones, Centroamérica).
 > **Rama:** `module/incidencias` (desde `dev`). Commits por tema, en español, sin atribución de IA.
 
@@ -66,6 +66,23 @@ Todas piden `incidencias.ver` y, además, el permiso de cada ruta; el servicio v
 | `POST /:id/comentarios` | quien la ve | Comentario (el técnico puede dejarlo interno) |
 
 Verificación: `node --require ./scripts/security/stub-storage.js scripts/incidencias/verificar-flujo.js` sobre una base desechable (92 comprobaciones; pasa en MySQL 8.4 y MariaDB 11.8).
+
+## API de la configuración (`/api/incidencias/configuracion`, fase 3)
+
+Todo exige `incidencias.configurar`. Nada se borra: lo que ya no sirve se **apaga** (`activo = 0`) para no perder el historial de las incidencias que lo usaron. Cada cambio queda en `incidencia_config_historial` (quién, qué, antes y después).
+
+| Ruta | Qué hace |
+|---|---|
+| `GET /estado` · `GET /historial` | Avisos de arriba (tiendas sin verificador, técnicos activos, roles que configuran) y el historial de cambios |
+| `GET /paises` · `PUT /paises/:id` | Encender o apagar un país y su aviso («Todavía no está disponible en tu país»); el formulario lo refleja al momento |
+| `GET/POST /catalogos/:catalogo` · `PUT /catalogos/:catalogo/:id` | `especialidades`, `categorias` (con su especialidad), `zonas` (generales o de una tienda), `tipos-activo` (por categoría) y `motivos-espera`; el nombre no se repite dentro de su ámbito |
+| `GET/POST /prioridades` · `PUT /prioridades/:id` · `PUT /prioridades/reglas` | Prioridades (código, nombre, color y orden; 1 es la más urgente) y qué prioridad corresponde a cada uno de los cuatro impactos; no se apaga una prioridad que use una regla |
+| `GET/PUT /parametros` | Los seis parámetros con su valor, su valor por defecto y sus límites (fotos, reportes por día, reportes repetidos, días sin avance, subir de prioridad) |
+| `GET /tecnicos` · `GET /tecnicos/candidatos` · `POST /tecnicos` · `PUT /tecnicos/:usuarioId` | Quién es técnico (usuarios que ya existen), sus especialidades y las tiendas que cubre; no se desactiva a quien tenga incidencias abiertas; avisa si su rol no tiene el permiso de atender |
+| `GET/POST /verificadores` · `DELETE /verificadores/:id` | Verificadores por tienda o por país, con quién verifica de verdad cada tienda y cuántas quedan sin verificador |
+| `GET /roles` · `PUT /roles/:rolId` | Qué rol tiene cada permiso `incidencias.*`; guarda con el servicio de Administración (herencia entre roles y aviso en vivo), conserva los permisos de otros módulos, agrega «Ver» solo y no deja al módulo sin un rol que pueda configurarlo |
+
+Verificación: `node scripts/incidencias/verificar-configuracion.js` sobre una base desechable (89 comprobaciones; pasa en MySQL 8.4 y MariaDB 11.8).
 
 ## Implementación (patrón de Proyectos)
 
