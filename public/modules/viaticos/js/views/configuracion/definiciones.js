@@ -27,6 +27,17 @@ export const DEFINICIONES = Object.freeze({
       NOMBRE_100('config.ph.nombreLicencia')
     ]
   },
+  // Se administra dentro de «Reglas de licencia», por país: el país no es un campo de esta definición (lo fija la sección).
+  'tipos-placa': {
+    recurso: 'tipos-placa',
+    texto: 'config.tipos-placa',
+    columnas: [{ campo: 'codigo' }, { campo: 'nombre' }],
+    busca: ['codigo', 'nombre'],
+    campos: [
+      { nombre: 'codigo', tipo: 'texto', max: 20, placeholder: 'config.ph.codigoPlaca' },
+      NOMBRE_100('config.ph.nombrePlaca')
+    ]
+  },
   ubicaciones: {
     recurso: 'ubicaciones',
     texto: 'config.ubicaciones',

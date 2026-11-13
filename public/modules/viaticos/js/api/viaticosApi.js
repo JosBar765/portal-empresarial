@@ -103,8 +103,9 @@ export const crearConfig = (recurso, datos) => pedir(`${BASE}/config/${recurso}`
 export const editarConfig = (recurso, id, datos) => pedir(`${BASE}/config/${recurso}/${id}`, enJson('PUT', datos));
 export const cambiarActivoConfig = (recurso, id, activo) => pedir(`${BASE}/config/${recurso}/${id}/activo`, enJson('PATCH', { activo }));
 
-// Países: solo lectura.
+// Países y combustibles: solo lectura.
 export const listarPaises = () => listarConfig('paises');
+export const listarCombustibles = () => listarConfig('combustibles');
 
 // Matriz moneda × comida; el PUT reemplaza todo: { valores: [{ monedaId, tipoComidaId, valor }] }.
 export const obtenerValoresComida = () => listarConfig('valores-comida');

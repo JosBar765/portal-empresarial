@@ -1,18 +1,30 @@
 // Filas de las tablas de Configuración como HTML puro (sin DOM); todo texto del servidor pasa por escapeHtml.
-import { escapeHtml } from '../../utils/formato.js';
+import { escapeHtml, formatearFecha } from '../../utils/formato.js';
 import { t } from '../../textos.js';
+import { VIGENCIA, estadoVigencia } from './vigencia.js';
 import { esProtegido, formatearMedida, nombreDestinoTramo, notasDeFila } from './modelo.js';
 
-const celda = (etiqueta, contenido, clase = '') => `<td data-label="${escapeHtml(etiqueta)}"${clase ? ` class="${clase}"` : ''}>${contenido}</td>`;
+export const celda = (etiqueta, contenido, clase = '') => `<td data-label="${escapeHtml(etiqueta)}"${clase ? ` class="${clase}"` : ''}>${contenido}</td>`;
+
+export const VACIO = '<span class="vi-celda-secundaria">—</span>';
+export const conValor = (texto) => (texto ? escapeHtml(texto) : VACIO);
+
+// Solo texto en ámbar, sin pill: «Vencida» o «Por vencer» junto a la fecha.
+export function htmlVigencia(venceEl, hoyIso) {
+  if (!venceEl) return VACIO;
+  const estado = estadoVigencia(venceEl, hoyIso);
+  const aviso = estado === VIGENCIA.VENCIDA ? 'config.vigencia.vencida' : (estado === VIGENCIA.POR_VENCER ? 'config.vigencia.porVencer' : null);
+  return `${escapeHtml(formatearFecha(venceEl))}${aviso ? ` <span class="vi-vigencia vi-vigencia--${estado}">${escapeHtml(t(aviso))}</span>` : ''}`;
+}
 
 export const tieneDetalle = (definicion) => Boolean(definicion.informativos || definicion.protegidos);
 
-const htmlEstado = (activo) => `<span class="vi-estado${activo ? '' : ' vi-estado--inactivo'}">${escapeHtml(t(activo ? 'config.estado.activo' : 'config.estado.inactivo'))}</span>`;
+export const htmlEstado = (activo) => `<span class="vi-estado${activo ? '' : ' vi-estado--inactivo'}">${escapeHtml(t(activo ? 'config.estado.activo' : 'config.estado.inactivo'))}</span>`;
 
-const boton = ({ accion, id, icono, texto, clase = '' }) => `<button type="button" class="btn-icon${clase ? ` ${clase}` : ''}" data-accion="${accion}" data-id="${Number(id)}" title="${escapeHtml(texto)}" aria-label="${escapeHtml(texto)}"><ion-icon name="${icono}"></ion-icon></button>`;
+export const boton = ({ accion, id, icono, texto, clase = '' }) => `<button type="button" class="btn-icon${clase ? ` ${clase}` : ''}" data-accion="${accion}" data-id="${Number(id)}" title="${escapeHtml(texto)}" aria-label="${escapeHtml(texto)}"><ion-icon name="${icono}"></ion-icon></button>`;
 
 // Editar y activar o desactivar; una fila sin botones deja su celda de acciones vacía (en el celular se oculta).
-function celdaAcciones({ id, nombre, activo, editable = true, alternable = true }) {
+export function celdaAcciones({ id, nombre, activo, editable = true, alternable = true }) {
   const botones = [];
   if (editable) botones.push(boton({ accion: 'editar', id, icono: 'create-outline', texto: t('config.accion.editarAria', { nombre }) }));
   if (alternable) {

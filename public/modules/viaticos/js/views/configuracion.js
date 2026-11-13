@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import { CLAVES_LOCALES } from '../config/constantes.js';
 import { h, montar } from '../utils/dom.js';
 import { t } from '../textos.js';
+import { renderArchivos } from './configuracion/archivos.js';
 import { renderCatalogo } from './configuracion/catalogo.js';
 import { DEFINICIONES } from './configuracion/definiciones.js';
 import { renderPersonas } from './configuracion/personas.js';
@@ -26,7 +27,8 @@ const SUBPESTANAS = [
   { id: 'tramos', render: renderTramos },
   { id: 'motivos', render: catalogo('motivos') },
   { id: 'tipos-gasto', render: catalogo('tipos-gasto') },
-  { id: 'tipos-defecto', render: catalogo('tipos-defecto') }
+  { id: 'tipos-defecto', render: catalogo('tipos-defecto') },
+  { id: 'archivos', render: renderArchivos }
 ];
 
 // localStorage puede fallar (modo privado, datos bloqueados): es solo comodidad.
