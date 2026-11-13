@@ -1,6 +1,6 @@
 # Módulo Incidencias (`incidencias`) — especificación v3
 
-> **Estado:** mockup v3 aprobado (Figma, página «Prototipo v3 · Guatemala (núcleo)»). Fase 1 hecha: migración, permisos, semillas y entrada en el catálogo. Faltan el backend y la interfaz.
+> **Estado:** mockup v3 aprobado (Figma, página «Prototipo v3 · Guatemala (núcleo)»). Fases 1 y 2 hechas: migración, permisos, semillas, entrada en el catálogo y el backend del núcleo (API). Faltan la configuración desde el módulo (fase 3) y la interfaz.
 > **Fuente de verdad:** este archivo. `analisis_modulo_incidencias.md` (v1) y `analisis_modulo_incidencias_v2.md` quedan solo como historial: eran más amplios (reemplazo de equipo, cotizaciones, dashboards por rol, hallazgos de Supervisiones, Centroamérica).
 > **Rama:** `module/incidencias` (desde `dev`). Commits por tema, en español, sin atribución de IA.
 
@@ -48,6 +48,24 @@ Cualquier usuario reporta un problema ligado a **una tienda** (y por ella, a un 
 ## Datos
 
 Migración aditiva e idempotente `incidencias_nucleo` (número 44, después de los scripts de Proyectos). Configuración: `incidencia_paises`, `incidencia_especialidades`, `incidencia_categorias`, `incidencia_zonas`, `incidencia_tipos_activo`, `incidencia_prioridades`, `incidencia_reglas_prioridad`, `incidencia_motivos_espera`, `incidencia_tecnicos` (+ especialidades y tiendas), `incidencia_verificadores`. Núcleo: `incidencias`, `incidencia_fotos` (solo la URL de Storage, nunca la imagen en MySQL) e `incidencia_eventos`. Parámetros en `parametros_sistema` con prefijo `incidencias.`.
+
+## API del núcleo (`/api/incidencias`, fase 2)
+
+Todas piden `incidencias.ver` y, además, el permiso de cada ruta; el servicio vuelve a comprobar la relación de la persona con la incidencia (suya, de su buzón o de sus tiendas). Fuera de alcance responde **404**.
+
+| Ruta | Quién | Qué hace |
+|---|---|---|
+| `GET /formulario` | reporta | Tiendas de los países habilitados, zonas, categorías, tipos de activo, impactos con su prioridad, límites y la tienda propia (o el aviso si su país está apagado) |
+| `GET /similares` | reporta | Reportes parecidos y recientes de la misma tienda, mientras se escribe |
+| `POST /` | reporta | Reporta con fotos (multipart, campo `fotos`) y `idempotencyKey`; calcula la prioridad y avisa a los técnicos |
+| `GET /` · `GET /resumen` | según la lista | Listas (`vista` = reportadas, buzon, tecnico, verificar, tiendas, todas; filtros `estado`, `prioridadId`, `tiendaId`, `q`) y números de pestañas y tarjetas |
+| `GET /:id` | quien la ve | Detalle: datos, fotos, historial (sin lo interno para quien solo reportó), acciones permitidas y opciones |
+| `POST /:id/tomar` · `avances` · `espera` · `reanudar` · `verificacion` · `devolver` | resuelve | Ciclo del técnico (tomar es atómico; avance y verificación llevan fotos e `idempotencyKey`) |
+| `POST /:id/aprobar` · `correccion` | verifica | Cerrar o pedir corrección (quien trabajó en la incidencia nunca la verifica) |
+| `POST /:id/reasignar` · `descartar` · `PUT /:id/prioridad` | asigna | Pasar a otro técnico o al buzón, descartar, cambiar la prioridad; siempre con motivo |
+| `POST /:id/comentarios` | quien la ve | Comentario (el técnico puede dejarlo interno) |
+
+Verificación: `node --require ./scripts/security/stub-storage.js scripts/incidencias/verificar-flujo.js` sobre una base desechable (92 comprobaciones; pasa en MySQL 8.4 y MariaDB 11.8).
 
 ## Implementación (patrón de Proyectos)
 
