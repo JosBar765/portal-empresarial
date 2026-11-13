@@ -59,7 +59,7 @@ export function wireSidebar() {
 
 // Muestra solo las opciones del menú que le tocan a esta persona.
 export function ajustarMenu(permisos) {
-  const mostrar = (ruta, visible) => { const el = document.querySelector(`.sidebar-item[data-ruta="${ruta}"]`); if (el) el.style.display = visible ? '' : 'none'; };
+  const mostrar = (ruta, visible) => { const el = document.querySelector(`.sidebar-item[data-ruta="${ruta}"]`); if (el) el.hidden = !visible; };
   mostrar('verificar', permisos.includes('incidencias.verificar'));
   mostrar('reportar', permisos.includes('incidencias.reportar'));
   mostrar('configuracion', permisos.includes('incidencias.configurar'));

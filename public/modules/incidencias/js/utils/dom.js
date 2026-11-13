@@ -9,7 +9,6 @@ export function h(tag, props, ...hijos) {
     if (v == null || v === false) continue;
     if (k === 'class') nodo.className = v;
     else if (k === 'text') nodo.textContent = v;
-    else if (k === 'html') nodo.innerHTML = v;
     else if (k.startsWith('on')) nodo.addEventListener(k.slice(2), v);
     else nodo.setAttribute(k, v === true ? '' : v);
   }

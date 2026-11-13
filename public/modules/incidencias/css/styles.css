@@ -227,6 +227,7 @@
    Incidencias — estilos propios (prefijo inc-). Los colores salen de los tokens de global.css.
    ========================================================================== */
 a.sidebar-item, a.btn { text-decoration: none; }
+.sidebar-item[hidden] { display: none !important; }
 /* Un elemento con `hidden` se oculta aunque su clase le dé otro display. */
 .inc-banner[hidden], .inc-aviso[hidden], .inc-campo-error[hidden], .inc-fotos-aviso[hidden], .inc-hoja-error[hidden], .sidebar-contador[hidden], .inc-tabs[hidden], .inc-kpis[hidden] { display: none !important; }
 .sidebar-contador {
