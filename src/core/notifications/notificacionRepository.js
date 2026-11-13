@@ -1,13 +1,13 @@
 // src/core/notifications/notificacionRepository.js
 const db = require('../../config/database');
 
-const COLUMNAS = 'id, modulo, vale_id, tipo, nivel, mensaje, creado_en, leida_en';
+const COLUMNAS = 'id, modulo, vale_id, referencia_tipo, referencia_id, tipo, nivel, mensaje, creado_en, leida_en';
 
 class NotificacionRepository {
-  async crear(usuarioId, { modulo, valeId = null, tipo = null, nivel = 'info', mensaje }) {
+  async crear(usuarioId, { modulo, valeId = null, referenciaTipo = null, referenciaId = null, tipo = null, nivel = 'info', mensaje }) {
     const res = await db.query(
-      'INSERT INTO notificaciones (usuario_id, modulo, vale_id, tipo, nivel, mensaje) VALUES (?, ?, ?, ?, ?, ?)',
-      [usuarioId, modulo, valeId, tipo, nivel, mensaje],
+      'INSERT INTO notificaciones (usuario_id, modulo, vale_id, referencia_tipo, referencia_id, tipo, nivel, mensaje) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [usuarioId, modulo, valeId, referenciaTipo, referenciaId, tipo, nivel, mensaje],
       'notificacion:insert'
     );
     const rows = await db.query(`SELECT ${COLUMNAS} FROM notificaciones WHERE id = ?`, [res.insertId], 'notificacion:find');
@@ -15,11 +15,11 @@ class NotificacionRepository {
   }
 
   // Una notificación por usuario en un solo INSERT; devuelve las filas creadas por `usuario_id`.
-  async crearParaUsuarios(usuariosIds, { modulo, valeId = null, tipo = null, nivel = 'info', mensaje }) {
+  async crearParaUsuarios(usuariosIds, { modulo, valeId = null, referenciaTipo = null, referenciaId = null, tipo = null, nivel = 'info', mensaje }) {
     if (!usuariosIds.length) return new Map();
     const res = await db.query(
-      'INSERT INTO notificaciones (usuario_id, modulo, vale_id, tipo, nivel, mensaje) VALUES ?',
-      [usuariosIds.map(id => [id, modulo, valeId, tipo, nivel, mensaje])],
+      'INSERT INTO notificaciones (usuario_id, modulo, vale_id, referencia_tipo, referencia_id, tipo, nivel, mensaje) VALUES ?',
+      [usuariosIds.map(id => [id, modulo, valeId, referenciaTipo, referenciaId, tipo, nivel, mensaje])],
       'notificacion:insert_varias'
     );
     const filas = await db.query(
