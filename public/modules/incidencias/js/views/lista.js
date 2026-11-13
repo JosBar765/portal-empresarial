@@ -232,7 +232,7 @@ export async function mostrarLista(cont, { vista = 'mis', tab: tabPedida } = {})
 
   buscador.addEventListener('input', sinRebote(() => { sesion.q = buscador.value.trim(); cargar(); }, 350));
   const encabezado = h('div', { class: 'inc-pagina-titulo' }, h('div', null, titulo, subtitulo),
-    permisos.includes('incidencias.reportar') && !esVerificar ? botonEnlace('Reportar incidencia', '#/reportar', true, 'add-outline') : null);
+    permisos.includes('incidencias.reportar') && !esVerificar ? (() => { const b = botonEnlace('Reportar incidencia', '#/reportar', true, 'add-outline'); b.classList.add('inc-fab'); return b; })() : null);
   montar(cont, encabezado, zonaTabs, zonaKpi, zonaFiltros, zonaLista);
   subtitulo.textContent = esVerificar ? 'Incidencias resueltas que esperan tu aprobación.' : (SUBTITULO[sesion.tab.id] || '');
   dibujarTabs();

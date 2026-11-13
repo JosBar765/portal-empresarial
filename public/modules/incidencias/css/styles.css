@@ -620,3 +620,26 @@ a.sidebar-item, a.btn { text-decoration: none; }
   .inc-fotos-botones { width: 100%; }
   .inc-fotos-boton { justify-content: center; }
 }
+
+/* ---- Celular: más lista y menos adorno ----
+   Los contadores pasan de cuatro tarjetas a una tira de una línea que se desliza, «Reportar» queda flotando abajo a la derecha
+   y se esconden los subtítulos, para que las incidencias aparezcan casi de inmediato. */
+@media (max-width: 640px) {
+  .main-container { padding-top: 12px; }
+  .inc-pagina-titulo { margin-bottom: 10px; }
+  .inc-pagina-titulo p { display: none; }
+  .inc-fab { position: fixed; right: 16px; bottom: 16px; z-index: 80; width: auto; min-height: 52px; padding: 0 20px; border-radius: 999px; box-shadow: 0 6px 18px rgba(15, 23, 42, .35); }
+  .inc-pagina-titulo .inc-fab { width: auto; }
+  .inc-tabs { margin-bottom: 10px; }
+  .inc-kpis { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px 10px; padding: 0 16px 2px; scrollbar-width: none; }
+  .inc-kpis::-webkit-scrollbar { display: none; }
+  .inc-kpi { flex: 0 0 auto; flex-direction: row-reverse; align-items: baseline; justify-content: flex-end; gap: 8px; padding: 8px 14px; border-radius: 999px; }
+  .inc-kpi-valor { font-size: var(--text-lg); line-height: 1; }
+  .inc-kpi-titulo { white-space: nowrap; }
+  .inc-kpi .inc-kpi-nota, .inc-kpi--alerta .inc-kpi-nota { display: none; }
+  .inc-filtros { gap: 8px; margin-bottom: 10px; }
+  .inc-buscador { flex: 1 1 140px; min-width: 0; }
+  .inc-select-filtro { flex: 0 0 auto; max-width: 45%; }
+  .inc-tarjetas { gap: 10px; }
+  .inc-tarjeta { padding: 12px 14px; gap: 6px; }
+}

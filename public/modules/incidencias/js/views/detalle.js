@@ -210,7 +210,7 @@ export async function mostrarDetalle(cont, id, { pestana = 'resumen' } = {}) {
     montar(cont,
       h('a', { class: 'inc-volver', href: '#/mis' }, icono('arrow-back-outline'), 'Mis incidencias'),
       h('div', { class: 'inc-detalle-cabeza' },
-        h('div', { class: 'inc-fila-chips' }, chipPrioridad(i.prioridad), chipEstado(i.estado, i.estadoEtiqueta), h('span', { class: 'inc-correlativo', text: i.correlativo }), i.ronda ? h('span', { class: 'inc-tenue', text: `· ${ordinal(i.ronda)} revisión` }) : null),
+        h('div', { class: 'inc-fila-chips' }, chipPrioridad(i.prioridad), chipEstado(i.estado, i.estadoEtiqueta), h('span', { class: 'inc-correlativo', text: i.correlativo }), i.ronda ? h('span', { class: 'inc-chip inc-chip--neutro', text: `${ordinal(i.ronda)} revisión` }) : null),
         h('h1', { class: 'inc-detalle-titulo', text: i.titulo }),
         lista.length ? h('div', { class: 'inc-acciones', role: 'group', 'aria-label': 'Acciones de la incidencia' }, lista) : null),
       avisoDeEstado(),
