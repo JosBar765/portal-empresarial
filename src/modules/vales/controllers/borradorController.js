@@ -12,6 +12,14 @@ class BorradorController {
     }
   }
 
+  async marcarVistos(req, res) {
+    try {
+      return res.json(await borradorService.marcarVistos(req.user));
+    } catch (error) {
+      return responderErrorInterno(res, error);
+    }
+  }
+
   async obtener(req, res) {
     try {
       return res.json(await borradorService.obtener(req.user, req.params.id));

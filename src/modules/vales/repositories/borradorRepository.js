@@ -36,6 +36,7 @@ class BorradorRepository {
     return db.query(
       `SELECT id, COALESCE(cliente_nombre, producto, 'Borrador sin título') AS titulo,
               DATE_FORMAT(creado_en, '%Y-%m-%d') AS creado_en, DATE_FORMAT(vence_en, '%Y-%m-%d') AS vence_en,
+              correlativo_origen, (origen_motivo IS NOT NULL AND visto_en IS NULL) AS nuevo,
               ${DIAS_RESTANTES} AS dias_restantes
        FROM vale_borradores WHERE usuario_id = ? AND enviado_en IS NULL ORDER BY creado_en DESC, id DESC`,
       [usuarioId], 'borrador:listar'
@@ -58,6 +59,35 @@ class BorradorRepository {
       [usuarioId, ...CAMPOS_EDITABLES.map(c => datos[c]), diasVigencia], 'borrador:insert'
     );
     return result.insertId;
+  }
+
+  // Copia los datos del vale vencido tal cual (mismas columnas y tamaños); `vence_en` se fija con el reloj de MySQL.
+  async insertarDesdeVale(valeId, origenMotivo, diasVigencia) {
+    const result = await db.query(
+      `INSERT INTO vale_borradores (usuario_id, ${CAMPOS_EDITABLES.join(', ')}, correlativo_origen, origen_motivo, vence_en)
+       SELECT v.asesor_id, v.cliente_empresa, v.cliente_nombre, v.cliente_telefono, v.cliente_correo, v.talleres_solicitados,
+         v.fecha_entrega, v.fecha_evento, v.urgente, v.producto, v.material, v.tecnica, v.acabado, v.cantidad, v.cotizacion,
+         v.descripcion, v.correlativo, ?, DATE_ADD(NOW(), INTERVAL ? DAY)
+       FROM vales v WHERE v.id = ?`,
+      [origenMotivo, diasVigencia, valeId], 'borrador:insert_desde_vale'
+    );
+    if (result.affectedRows !== 1) throw new Error('No se pudo crear el borrador del vale vencido.');
+    return result.insertId;
+  }
+
+  async contarNuevos(usuarioId) {
+    const rows = await db.query(
+      'SELECT COUNT(*) AS n FROM vale_borradores WHERE usuario_id = ? AND enviado_en IS NULL AND origen_motivo IS NOT NULL AND visto_en IS NULL',
+      [usuarioId], 'borrador:contar_nuevos'
+    );
+    return Number(rows[0].n);
+  }
+
+  async marcarVistos(usuarioId) {
+    await db.query(
+      'UPDATE vale_borradores SET visto_en = NOW() WHERE usuario_id = ? AND origen_motivo IS NOT NULL AND visto_en IS NULL',
+      [usuarioId], 'borrador:marcar_vistos'
+    );
   }
 
   actualizar(id, datos) {

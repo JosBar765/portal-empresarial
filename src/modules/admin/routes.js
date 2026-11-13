@@ -74,6 +74,7 @@ router.get('/horarios/parametros', gestionarHorarios, (req, res) => horarioContr
 router.put('/horarios/parametros', gestionarHorarios, (req, res) => horarioController.guardarParametros(req, res));
 router.put('/horarios/retencion', gestionarHorarios, (req, res) => horarioController.guardarRetencion(req, res));
 router.get('/horarios/paises', gestionarHorarios, (req, res) => horarioController.listarPaises(req, res));
+router.put('/horarios/paises/:id/comparte-diseno-local', gestionarHorarios, (req, res) => horarioController.guardarComparteDisenoLocal(req, res));
 router.get('/feriados', gestionarHorarios, (req, res) => horarioController.listarFeriados(req, res));
 router.post('/feriados', gestionarHorarios, (req, res) => horarioController.crearFeriado(req, res));
 router.put('/feriados/:id', gestionarHorarios, (req, res) => horarioController.actualizarFeriado(req, res));

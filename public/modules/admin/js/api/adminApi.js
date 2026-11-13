@@ -226,6 +226,10 @@ export function obtenerParametrosHorario() {
   return obtenerJson('/api/admin/horarios/parametros');
 }
 
+export function guardarComparteDisenoLocal(paisId, comparte) {
+  return enviarConBody(`/api/admin/horarios/paises/${paisId}/comparte-diseno-local`, 'PUT', { comparte });
+}
+
 export function guardarTopeBorradores(maxBorradoresPorUsuario) {
   return enviarConBody('/api/admin/horarios/parametros', 'PUT', { maxBorradoresPorUsuario });
 }

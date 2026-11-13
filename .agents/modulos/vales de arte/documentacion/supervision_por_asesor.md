@@ -25,3 +25,7 @@ En el mismo flujo del PUT (`supervisionAsesorService`):
 
 ## Pasos de producción
 La migración `asesor_supervisores` se aplica sola al arrancar en staging y producción. Nadie tiene filas al inicio: el comportamiento no cambia hasta que el administrador asigne supervisores.
+
+## Filtro de tienda del Buzón
+
+Los vales de un asesor con supervisión especial asignada a ese supervisor **no se ocultan por el filtro de tienda** del Buzón (una tienda, un país o un grupo): solo sus supervisores asignados pueden autorizarlos y, si el filtro los escondiera, el vale esperaría sin que nadie lo viera. Los contadores del Buzón los incluyen, porque se calculan sobre la misma lista ya filtrada. Aplica solo al Buzón y a Trabajo realizado del Supervisor; Administrador y Gerente filtran como siempre, y los demás asesores se filtran por su tienda.

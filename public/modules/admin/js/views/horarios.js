@@ -2,7 +2,7 @@ import { state } from '../state.js';
 import { $ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
-import { obtenerHorarios, guardarHorarios, obtenerParametrosHorario, guardarParametrosHorario, guardarTopeBorradores, guardarRetencionArchivos, listarPaisesHorarios, listarFeriados, crearFeriado, actualizarFeriado, eliminarFeriado } from '../api/adminApi.js';
+import { obtenerHorarios, guardarHorarios, obtenerParametrosHorario, guardarParametrosHorario, guardarTopeBorradores, guardarRetencionArchivos, guardarComparteDisenoLocal, listarPaisesHorarios, listarFeriados, crearFeriado, actualizarFeriado, eliminarFeriado } from '../api/adminApi.js';
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
@@ -93,6 +93,16 @@ function renderHorarios() {
       </div>
     </section>
 
+    <section class="horario-seccion" aria-labelledby="diseno-local-titulo">
+      <div class="panel-toolbar"><h3 id="diseno-local-titulo">Diseño Local entre países</h3></div>
+      <div id="diseno-local-error" class="form-error" role="alert" style="display:none;"></div>
+      <span class="form-hint">Los asesores de un país con esto activo pueden enviar vales a los Diseño Local de otros países que también lo tengan activo, y sus Diseño Local se ofrecen a ellos.</span>
+      <div class="form-field horario-pais">
+        ${state.paisesHorarios.map(p => `<span class="form-checkbox"><input type="checkbox" class="pais-comparte-diseno-local" id="comparte-${p.id}" data-pais-id="${p.id}" ${p.comparteDisenoLocal ? 'checked' : ''}>
+        <label for="comparte-${p.id}">${escapeHtml(p.nombre)}</label></span>`).join('')}
+      </div>
+    </section>
+
     <section class="horario-seccion" aria-labelledby="feriados-titulo">
       <div class="panel-toolbar">
         <h3 id="feriados-titulo">Feriados</h3>
@@ -112,6 +122,7 @@ function renderHorarios() {
   $('#btn-guardar-horario').addEventListener('click', guardar);
   $('#btn-guardar-parametros').addEventListener('click', guardarParametros);
   $('#btn-guardar-max-borradores').addEventListener('click', guardarMaxBorradores);
+  document.querySelectorAll('.pais-comparte-diseno-local').forEach(chk => chk.addEventListener('change', () => guardarComparte(chk)));
   $('#btn-guardar-retencion').addEventListener('click', guardarRetencion);
   $('#btn-agregar-feriado').addEventListener('click', () => abrirModalFeriado());
   $('#select-pais-feriados').addEventListener('change', async (e) => {
@@ -251,6 +262,24 @@ async function guardarRetencion() {
     mostrarErrorRetencion(error.message);
   }
   btn.disabled = false;
+}
+
+// Cada interruptor se guarda al cambiarlo; si falla, vuelve a su valor anterior.
+async function guardarComparte(chk) {
+  const caja = $('#diseno-local-error');
+  caja.style.display = 'none';
+  chk.disabled = true;
+  try {
+    const r = await guardarComparteDisenoLocal(Number(chk.dataset.paisId), chk.checked);
+    const pais = state.paisesHorarios.find(x => x.id === r.id);
+    if (pais) pais.comparteDisenoLocal = r.comparteDisenoLocal;
+    window.toast.success('País actualizado', 'El cambio en Diseño Local entre países quedó guardado.');
+  } catch (error) {
+    chk.checked = !chk.checked;
+    caja.textContent = error.message;
+    caja.style.display = '';
+  }
+  chk.disabled = false;
 }
 
 async function guardarMaxBorradores() {

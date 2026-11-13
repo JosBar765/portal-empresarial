@@ -43,6 +43,14 @@ class AdminHorarioController {
     }
   }
 
+  async guardarComparteDisenoLocal(req, res) {
+    try {
+      return res.json(await service.guardarComparteDisenoLocal(req.params.id, req.body));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async listarPaises(req, res) {
     try {
       return res.json(await service.listarPaises());
