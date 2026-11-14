@@ -26,6 +26,9 @@ export function estadoInicial({ paises = [] } = {}) {
     hospedajes: [],
     // { 'AAAA-MM-DD': { [tipoComidaId]: true } }
     comidas: {},
+    // Las comidas se marcan solas salvo las que el usuario desmarcó a propósito ({ 'AAAA-MM-DD|tipoComidaId': true }); al modificar una solicitud guardada no se marcan solas.
+    comidasAutoMarcar: true,
+    comidasDesmarcadas: {},
     gastos: [],
     // Solo del viaje de 1 día o menos: hora de salida, odómetro, { fluidoId: nivelId }, { kitItemId: boolean } y defectos con su foto.
     ...estadoCortoInicial()
@@ -104,6 +107,18 @@ export function conservarMarcas(marcas, dias) {
   for (const [dia, tipos] of Object.entries(marcas || {})) {
     const activos = Object.fromEntries(Object.entries(tipos).filter(([, marcado]) => marcado));
     if (vigentes.has(dia) && Object.keys(activos).length) resultado[dia] = activos;
+  }
+  return resultado;
+}
+
+// Marca todas las comidas con valor de cada día del viaje, salvo las que el usuario desmarcó.
+export function marcarPorDefecto(marcas, dias, valores, desmarcadas) {
+  let resultado = marcas;
+  for (const dia of dias) {
+    for (const tipoId of Object.keys(valores)) {
+      const marcada = resultado[dia] && resultado[dia][tipoId];
+      if (!marcada && !(desmarcadas && desmarcadas[`${dia}|${tipoId}`])) resultado = alternarMarca(resultado, dia, tipoId, true);
+    }
   }
   return resultado;
 }
@@ -320,6 +335,7 @@ export function detalleAEstado(detalle) {
     tramos: tramos.length ? tramos.map(t => ({ destinoId: aId(t.destinoId) })) : [{ destinoId: '' }],
     hospedajes: (detalle.hospedajes || []).map(h => ({ hotel: h.hotel || '', lugar: h.lugar || '', noches: numeroATexto(h.noches), valorNoche: numeroATexto(h.valorNoche) })),
     comidas,
+    comidasAutoMarcar: false,
     gastos: (detalle.gastos || []).map(g => ({ tipoGastoId: aId(g.tipoGastoId), descripcion: g.descripcion || '', monto: numeroATexto(g.monto) }))
   };
 }

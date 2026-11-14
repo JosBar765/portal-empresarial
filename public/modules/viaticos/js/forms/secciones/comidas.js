@@ -5,7 +5,7 @@ import { crearAviso } from '../../components/aviso.js';
 import { crearTotales, ponerTotal } from '../../components/renglones.js';
 import { formatearDinero } from '../../utils/formato.js';
 import { diasEntre, etiquetaDia } from '../../utils/fechas.js';
-import { alternarMarca, depurarMarcas, valoresComidaDeMoneda } from '../datos.js';
+import { alternarMarca, depurarMarcas, marcarPorDefecto, valoresComidaDeMoneda } from '../datos.js';
 import { t } from '../../textos.js';
 
 const capitalizar = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -29,6 +29,7 @@ export function crearSeccionComidas(ctx) {
     const moneda = ctx.moneda();
     const simbolo = ctx.simbolo();
     estado.comidas = depurarMarcas(estado.comidas, dias, valores);
+    if (estado.comidasAutoMarcar) estado.comidas = marcarPorDefecto(estado.comidas, dias, valores, estado.comidasDesmarcadas);
 
     ayuda.textContent = moneda
       ? t('formulario.comidas.valores', { valores: tipos.filter(x => valores[x.id]).map(x => `${x.nombre} ${formatearDinero(simbolo, valores[x.id])}`).join(', ') || t('formulario.comidas.ninguno') })
@@ -47,7 +48,11 @@ export function crearSeccionComidas(ctx) {
       tipos.map(tipo => {
         const habilitada = !!valores[tipo.id];
         const input = h('input', { type: 'checkbox', id: `vi-sol-comida-${dia}-${tipo.id}`, 'data-dia': dia, 'data-tipo': String(tipo.id), checked: !!(estado.comidas[dia] && estado.comidas[dia][tipo.id]), disabled: !habilitada });
-        input.addEventListener('change', () => { estado.comidas = alternarMarca(estado.comidas, dia, tipo.id, input.checked); ctx.cambio('comidas'); });
+        input.addEventListener('change', () => {
+          estado.comidas = alternarMarca(estado.comidas, dia, tipo.id, input.checked);
+          if (input.checked) delete estado.comidasDesmarcadas[`${dia}|${tipo.id}`]; else estado.comidasDesmarcadas[`${dia}|${tipo.id}`] = true;
+          ctx.cambio('comidas');
+        });
         return h('label', { class: 'vi-check', title: habilitada ? undefined : t('formulario.comidas.sinValor') },
           input, h('span', { class: 'vi-solo-lector', text: t('formulario.comidas.marcar', { comida: tipo.nombre, dia: etiquetaDia(dia) }) }));
       })));
