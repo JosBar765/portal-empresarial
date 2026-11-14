@@ -1,5 +1,6 @@
 // src/modules/admin/repositories/tiendaAdminRepository.js
 const db = require('../../../config/database');
+const { CON_PERMISO_SUPERVISAR } = require('./permisoSupervisarSql');
 
 class TiendaAdminRepository {
   async listarConDetalle() {
@@ -118,7 +119,7 @@ class TiendaAdminRepository {
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
        JOIN supervisor_tiendas st ON st.usuario_id = u.id AND st.tienda_id = ?
-       WHERE u.activo = 1 AND u.rol_id = 3
+       WHERE u.activo = 1 AND ${CON_PERMISO_SUPERVISAR('u.rol_id')}
        ORDER BY nombre`,
       [tiendaId, tiendaId, tiendaId, tiendaId],
       'tienda_admin:personal_detalle'

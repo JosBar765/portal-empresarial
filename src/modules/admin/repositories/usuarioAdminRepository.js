@@ -1,5 +1,6 @@
 // src/modules/admin/repositories/usuarioAdminRepository.js
 const db = require('../../../config/database');
+const { CON_PERMISO_SUPERVISAR } = require('./permisoSupervisarSql');
 
 // Columnas de `usuarios` que pueden salir de este repositorio hacia los
 // servicios y, de ahí, al navegador. NUNCA `*`: `password_hash`,
@@ -15,7 +16,8 @@ class UsuarioAdminRepository {
               CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS tienda_nombre,
               p.nombre AS paises_asignados,
               COALESCE(tt.taller_id, td.id) AS taller_id,
-              COALESCE(a.telefono, sup.telefono) AS telefono
+              COALESCE(a.telefono, sup.telefono) AS telefono,
+              ${CON_PERMISO_SUPERVISAR('u.rol_id')} AS es_supervisor
        FROM usuarios u
        JOIN roles r ON r.id = u.rol_id
        LEFT JOIN asesores a ON a.usuario_id = u.id
@@ -30,6 +32,16 @@ class UsuarioAdminRepository {
       [],
       'usuario_admin:list'
     );
+  }
+
+  // Un rol supervisa cuando tiene `vales.supervisar`, no por su número de rol.
+  async rolPuedeSupervisar(rolId) {
+    const rows = await db.query(
+      `SELECT ${CON_PERMISO_SUPERVISAR('?')} AS es_supervisor`,
+      [rolId],
+      'usuario_admin:rol_puede_supervisar'
+    );
+    return Boolean(rows[0] && rows[0].es_supervisor);
   }
 
   async obtenerPorId(id) {
@@ -112,7 +124,12 @@ class UsuarioAdminRepository {
   }
 
   async actualizarSupervisor(usuarioId, telefono) {
-    return db.query('UPDATE supervisores SET telefono = ? WHERE usuario_id = ?', [telefono || null, usuarioId], 'supervisor:update');
+    // Un rol con el permiso puede no tener aún su fila: se crea (usuario_id es UNIQUE).
+    return db.query(
+      'INSERT INTO supervisores (usuario_id, telefono) VALUES (?, ?) ON DUPLICATE KEY UPDATE telefono = VALUES(telefono)',
+      [usuarioId, telefono || null],
+      'supervisor:update'
+    );
   }
 
   async eliminarSupervisor(usuarioId) {

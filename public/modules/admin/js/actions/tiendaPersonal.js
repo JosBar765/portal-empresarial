@@ -1,5 +1,5 @@
 import { escapeHtml } from '../utils/formato.js';
-import { ROL_ASESOR, ROL_SUPERVISOR } from '../config/roles.js';
+import { ROL_ASESOR } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { $$ } from '../utils/dom.js';
 import {
@@ -73,14 +73,14 @@ async function cargarCuerpoPersonal(tienda) {
   ]);
   const todosUsuarios = usuariosRaw.data.usuarios;
   const idsActuales = new Set(personal.map(p => p.id));
-  // Solo Asesor/Supervisor se asignan a una tienda desde aquí — el resto
+  // Solo Asesor y quien tiene `vales.supervisar` se asignan a una tienda desde aquí — el resto
   // depende de su taller (Gestionar Talleres). Un Asesor ya asignado a
-  // OTRA tienda no debe aparecer (una sola tienda a la vez); un Supervisor
+  // OTRA tienda no debe aparecer (una sola tienda a la vez); un supervisor
   // sí, porque puede cubrir varias.
   const disponibles = todosUsuarios.filter(u =>
     u.activo && !idsActuales.has(u.id) && (
       (u.rol_id === ROL_ASESOR && u.tienda_id == null) ||
-      u.rol_id === ROL_SUPERVISOR
+      u.es_supervisor
     )
   );
 

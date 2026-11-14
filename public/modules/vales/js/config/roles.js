@@ -22,7 +22,7 @@ export function rolEncargadoDe(user) {
   return user.rolId === ROL.ASISTENTE_DISENO ? ROL.ENCARGADO_DISENO : user.rolId;
 }
 
-// El supervisor es quien tiene `vales.supervisar` (solo el rol 3), no el rol en sí; se lee del token en cada uso.
+// El supervisor es quien tiene `vales.supervisar` (cualquier rol que lo tenga), no el rol en sí; se lee del token en cada uso.
 export function esSupervisor(user) {
   return (user.permissions || []).includes('vales.supervisar');
 }
