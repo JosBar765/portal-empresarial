@@ -21,7 +21,7 @@ El flujo de vales ya decide por permiso + datos (`supervisor_tiendas`, `asesor_s
 - [x] T5. Levantar el guard (`adminService.js` `_exigirSupervisarSoloEnSupervisor` y `roles.js` admin) y actualizar comentarios «solo el rol 3».
 - [x] T6. `menuCascada.js`: mostrar al final los roles activos no listados.
 - [x] T7. Docs en `.agents/modulos/admin/` y vales.
-- [ ] T8. Prueba comparativa en la BD local: rol de prueba + usuario de prueba en la misma tienda que un supervisor existente; comparar «Ver personal», candidatos, buzón/autorización de vales y un vale creado por cada uno. Control: resultados del rol 3 idénticos a `dev`.
+- [x] T8. Prueba comparativa en la BD local: rol de prueba + usuario de prueba en la misma tienda que un supervisor existente; comparar «Ver personal», candidatos, buzón/autorización de vales y un vale creado por cada uno. Control: resultados del rol 3 idénticos a `dev`.
 
 ## Rutas
 Delegado (un escritor): T1-T7 (2+ archivos no triviales, lectura que prepara la escritura). T8: delegado a un verificador; la BD local y el servidor (puerto 3000, reinicio automático) los levantó el dueño.
@@ -32,4 +32,9 @@ Sin runner automatizado en el proyecto; RED/GREEN no aplica (excepción registra
 ## Evidencia
 - Análisis de dependencias (2026-11-14): vales decide por permiso; el acoplamiento está en admin (`adminService.js:86,133,198,337,353`, `tiendaAdminRepository.js:121`, `tiendaPersonal.js:83`, `menuCascada.js:134-139`).
 - T1-T7 hechas (2026-11-14), un escritor delegado: 10 archivos modificados + `permisoSupervisarSql.js` nuevo. `node --check` OK en backend y front. Diff revisado por el padre.
-- Pendiente: comparación viejo vs nuevo en la BD local (el escritor no pudo leer `.env`) y T8.
+- Equivalencia (2026-11-14, BD local con `NODE_ENV=development`, por la conexión de la app; `.env` bloqueado): solo el rol 3 tiene `vales.supervisar`; ningún rol 3 activo sin el permiso; `supervisor_tiendas` sin usuarios de otros roles; «Ver personal» viejo vs nuevo en 27 tiendas: 0 diferencias; candidatos `es_supervisor` vs `rol_id = 3` en 92 usuarios: 0 diferencias.
+- T8 por la API HTTP con la cuenta admin de pruebas (rol 42 «Supervisor con viáticos (prueba)» = permisos del rol 3 + `viaticos.ver` y `viaticos.gestionar`; usuario 136). Panel: crear el rol con `vales.supervisar` (201), guardar sus permisos (200), asignarlo a las tiendas 1 y 2, listarlo en «Ver personal», quitarlo y reasignarlo; la tienda 2 sigue mostrando a `ventas1` y `gerentesala`; control negativo: un encargado de taller sigue sin asignarse (400).
+- T8 vales, `ventas1` (rol 3) vs usuario nuevo, mismo resultado en: permisos efectivos del token, detalle (`ESPERANDO_AUTORIZACION`), marcar visto, autorizar (`CREADO`), rechazar (`RECHAZADO`), crear vale como supervisor, autorizar el propio vale, doble autorización (mismo error) y dar de baja tras autorizar (mismo error). Con la misma cobertura el buzón difiere solo en los vales propios de cada uno (6 de `ventas1`, 1 del nuevo); 97 coinciden.
+- Nota de método: autorizar o rechazar exige que ese supervisor marque «Ver» antes (visto por usuario); una primera corrida lo pasó por alto y no era una diferencia del código.
+- Datos de prueba que quedan en la BD local: rol 42, usuario 136 (con fila en `asesores` de la tienda 1 y cobertura de las tiendas 1 y 2) y los vales 9433 a 9444 más los de la segunda corrida.
+- No probado: notificaciones por socket y la UI en navegador; el comportamiento en producción depende de las 3 consultas previas (mismos resultados esperados que en local).
