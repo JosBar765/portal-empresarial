@@ -102,9 +102,11 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
   const nombresTalleres = [...tallerSeleccionados]
     .map(id => ((state.catalogos.talleres || []).find(t => t.id === id) || {}).nombre || `#${id}`);
   const titulos = { crear: 'Crear Vale de Arte', corregir: esMod ? 'Corregir modificación' : 'Corregir vale', modificar: 'Solicitar modificación', borrador: 'Borrador de Vale de Arte' };
-  const { overlay, cerrar } = abrirModal({
+  const { overlay, cerrar, intentarCerrar } = abrirModal({
     title: hayOriginal ? `${titulos[modo]} — ${vale.correlativo}` : titulos[modo],
     size: 'lg',
+    // Al crear, salir con datos escritos pide confirmación para no perderlos sin querer.
+    confirmarCierre: modo === 'crear' ? (cerrarDirecto) => avisarSalida(cerrarDirecto) : undefined,
     bodyHtml: `
       <form id="form-crear-vale">
         ${esModificacion ? `<p class="mod-aviso"><ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon><span>Modificación <strong>${NOMBRE_TIPO_MOD[tipoMod] || 'media'}</strong>: crea <strong>${escapeHtml(siguienteCodigoMod(vale))}</strong> y lo autoriza tu supervisor.</span></p>` : ''}
@@ -285,8 +287,35 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
     return formData;
   };
 
-  overlay.querySelector('#btn-cancelar-crear').addEventListener('click', () => { cerrar(); if (alCancelar) alCancelar(); });
+  overlay.querySelector('#btn-cancelar-crear').addEventListener('click', () => {
+    if (modo === 'crear') { intentarCerrar(); return; }
+    cerrar();
+    if (alCancelar) alCancelar();
+  });
   const btnBorrador = overlay.querySelector('#btn-guardar-borrador');
+  // Hay algo escrito, elegido o adjunto (el código de país del teléfono viene preseleccionado y no cuenta).
+  const hayContenido = () => tallerSeleccionados.size > 0 || getImagenes().length > 0 || getDocumentos().length > 0
+    || [...formCrear.elements].some(el => el.name && el.name !== 'clienteTelefonoPais' && el.type !== 'file'
+      && (el.type === 'checkbox' ? el.checked : String(el.value).trim() !== ''));
+  let avisoSalidaAbierto = false;
+  const avisarSalida = (cerrarDirecto) => {
+    if (!hayContenido()) { cerrarDirecto(); return; }
+    if (avisoSalidaAbierto) return;
+    avisoSalidaAbierto = true;
+    const aviso = abrirModal({
+      title: 'Tienes cambios sin guardar',
+      bodyHtml: '<p style="font-size:13px;">Si sales ahora, perderás lo que escribiste. Puedes seguir editando o guardarlo como borrador para terminarlo después.</p>',
+      footerHtml: `
+        <button class="btn btn--danger" id="btn-descartar" style="margin-right:auto;">Descartar</button>
+        <button class="btn btn--ghost" id="btn-seguir-editando">Seguir editando</button>
+        <button class="btn btn--primary" id="btn-borrador-salida">Guardar como borrador</button>
+      `,
+      alCerrar: () => { avisoSalidaAbierto = false; }
+    });
+    aviso.overlay.querySelector('#btn-seguir-editando').addEventListener('click', aviso.cerrar);
+    aviso.overlay.querySelector('#btn-descartar').addEventListener('click', () => { aviso.cerrar(); cerrarDirecto(); });
+    aviso.overlay.querySelector('#btn-borrador-salida').addEventListener('click', () => { aviso.cerrar(); btnBorrador.click(); });
+  };
   if (btnBorrador) btnBorrador.addEventListener('click', async () => {
     // Un borrador no se valida: se guarda lo que haya escrito.
     const formData = armarFormData();
