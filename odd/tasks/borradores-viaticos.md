@@ -1,6 +1,6 @@
 # Borradores de solicitudes de viáticos
 
-Rama: `module/viaticos` (el dueño trabaja el módulo ahí). Estado: en curso (2026-11-14). Estrategia de entrega: `ask-on-risk`.
+Rama: `module/viaticos` (el dueño trabaja el módulo ahí). Estado: implementado y probado el 2026-11-14; falta probar el envío desde un borrador (necesita un vehículo configurado). Estrategia de entrega: `ask-on-risk`.
 
 ## Objetivo
 Que quien solicita viáticos pueda guardar a medias el formulario «Nueva solicitud de viáticos» y retomarlo después, como los borradores de Vales de Arte.
@@ -24,11 +24,11 @@ Que quien solicita viáticos pueda guardar a medias el formulario «Nueva solici
 - [x] T1. Migración `NN_viaticos_borradores.sql` (siguiente número libre; aditiva, idempotente): tabla y ajustes de vigencia y tope.
 - [x] T2. Backend: repositorio, servicio, controlador, rutas, textos y vigilante de vencimiento (arranque en `app.js`).
 - [x] T3. Enviar desde un borrador: `borradorId` en `solicitudGuardadoService` borra el borrador del dueño dentro de la transacción de crear.
-- [ ] T4. Front: API (`viaticosApi.js`) y conversión estado ↔ borrador sin fotos (conserva `comidasAutoMarcar` y `comidasDesmarcadas`).
-- [ ] T5. Front: botón «Guardar borrador», abrir un borrador y enviarlo con `borradorId` en el modal.
-- [ ] T6. Front: botón «Borradores (n)», lista (abrir, eliminar) y refresco del contador.
-- [ ] T7. Docs del módulo (`README.md`, `contrato_api.md`, `modelo_datos.md`, `plano_frontend.md`).
-- [ ] T8. Prueba: API (crear, listar, actualizar, borrar, ajeno 404, tope, vacío, vencido, enviar borra el borrador) y navegador con las dos modalidades.
+- [x] T4. Front: API (`viaticosApi.js`) y conversión estado ↔ borrador sin fotos (conserva `comidasAutoMarcar` y `comidasDesmarcadas`).
+- [x] T5. Front: botón «Guardar borrador», abrir un borrador y enviarlo con `borradorId` en el modal.
+- [x] T6. Front: botón «Borradores (n)», lista (abrir, eliminar) y refresco del contador.
+- [x] T7. Docs del módulo (`README.md`, `contrato_api.md`, `modelo_datos.md`, `plano_frontend.md`).
+- [x] T8. Prueba: API (crear, listar, actualizar, borrar, ajeno 404, tope, vacío, vencido, enviar borra el borrador) y navegador con las dos modalidades.
 
 ## Rutas
 Delegado (un escritor por bloque): T1-T3 backend; T4-T6 frontend. T7 y T8 los coordina el padre. El servidor y la BD local los levanta el dueño; `npm run migrate` lo corre el dueño (`! npm run migrate`).
@@ -39,3 +39,7 @@ Sin runner automatizado en el proyecto; RED/GREEN no aplica (excepción registra
 ## Evidencia
 - T1-T3 (servidor) hechas por un escritor delegado: migración `38_viaticos_borradores.sql` (tabla y ajustes `borrador_vigencia_dias` = 30 y `borrador_max_por_usuario` = 15), repositorio, servicio, controlador, rutas, mensajes, vigilante horario y `borradorId` al crear una solicitud; la documentación de la API y del modelo de datos ya quedó actualizada. `node --check` OK; revisado por el padre (tipos de la migración contra `usuarios.id` INT y el patrón de siembra de `37_viaticos_semilla.sql`). Sin probar contra BD ni HTTP: la migración la aplica el dueño con `npm run migrate`.
 - Análisis previo (2026-11-14): borradores de Vales (`vale_borradores`, `borradorService`, `forms/borradores.js`, vigilante horario) y modal de Viáticos (`solicitudForm.js`, `datos.js`, `datosCorto.js`, `armarPayload`).
+- T4-T7 (formulario) hechas por un escritor delegado: `borradorEstado.js` (estado ↔ borrador sin fotos), `forms/borradores.js` (botón «Borradores (n)» y lista), `utils/eventosBorradores.js`, `css/borradores.css`, tercer modo `borrador` en `solicitudForm.js`, textos centralizados y `plano_frontend.md`. Tras guardar, el modal se cierra; reabrir desde la lista deja el siguiente guardado como actualización. `antesDeCerrar` solo cambió de textos (`confirmarModal` no admite una tercera acción).
+- T8 por API HTTP (2026-11-14, BD local, migración 38 aplicada por el dueño): crear 201; listar con país, fechas y `diasRestantes` = 30; leer devuelve los datos idénticos; actualizar no renueva el vencimiento; rechaza vacío, solo banderas, modalidad inválida, `datos` que no es objeto y más de 64 KB (400); tope: 15 creados y el 16.º da 409 con mensaje explicativo; con el tope lleno se puede actualizar; eliminar libera cupo; un borrador vencido da 404 y no sale en la lista; ni otro usuario ni el admin con `viaticos.ver` pueden ver, editar ni borrar un borrador ajeno (404); `borradorId` inválido al enviar da error propio en `campos.borradorId`.
+- T8 en navegador (Chrome, usuario de prueba): botón «Borradores (n)» junto a «Nueva solicitud»; «Guardar borrador» habilitado aunque «Enviar solicitud» no lo esté; guardar cierra el modal con aviso y sube el contador; la lista muestra tipo de viaje, país, fechas, creado y «Vence en 30 días»; abrir restaura país, moneda, fechas y comidas con las desmarcaciones manuales; guardar desde un borrador actualiza el mismo (1 borrador, mismo id y vencimiento); borrador de «1 día o menos» guarda y restaura tipo de viaje, combustible y odómetro, sin fotos; eliminar pide confirmación, avisa y actualiza lista y contador.
+- No probado: enviar una solicitud DESDE un borrador (borra el borrador en la transacción) porque en la BD local no hay ningún vehículo configurado, así que no hay solicitud válida posible; el vigilante horario de vencimiento (solo se probó que el listado y la lectura ocultan los vencidos); el mensaje del 409 del tope dentro del modal (solo por API); el defecto con foto en el borrador de 1 día.

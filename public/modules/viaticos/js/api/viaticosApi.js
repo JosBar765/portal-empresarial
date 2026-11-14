@@ -71,6 +71,13 @@ export const modificarSolicitud = (id, datos, fotos) => pedir(`${BASE}/solicitud
 export const darDeBajaSolicitud = (id) => pedir(`${BASE}/solicitudes/${id}`, { method: 'DELETE' });
 export const obtenerDocumentosSolicitud = (id) => pedir(`${BASE}/solicitudes/${id}/documentos`);
 
+// ---------- Borradores del propio usuario (sin fotos; `datos` es el estado del formulario) ----------
+export const listarBorradores = () => pedir(`${BASE}/borradores`);
+export const obtenerBorrador = (id) => pedir(`${BASE}/borradores/${id}`);
+export const crearBorrador = (modalidad, datos) => pedir(`${BASE}/borradores`, enJson('POST', { modalidad, datos }));
+export const actualizarBorrador = (id, modalidad, datos) => pedir(`${BASE}/borradores/${id}`, enJson('PUT', { modalidad, datos }));
+export const eliminarBorrador = (id) => pedir(`${BASE}/borradores/${id}`, { method: 'DELETE' });
+
 // ---------- Liquidación del solicitante ----------
 export const obtenerLiquidacion = (id) => pedir(`${BASE}/solicitudes/${id}/liquidacion`);
 

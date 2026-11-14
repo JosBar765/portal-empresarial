@@ -7,7 +7,7 @@ Fuente: lectura de `public/modules/vales/` y `public/modules/prompts/` (2026-11-
 ```text
 public/modules/viaticos/
 ├── index.html
-├── css/        styles.css (entrada: @import '/css/dashboard.css'), pipeline.css, visor.css, reportes.css (barra de período)
+├── css/        styles.css (entrada: @import '/css/dashboard.css'), pipeline.css, visor.css, reportes.css (barra de período), borradores.css (acciones de la barra y lista de borradores)
 └── js/
     ├── app.js              # arranque (patrón de Prompts, permisos finos)
     ├── state.js            # un único objeto mutable exportado
@@ -19,7 +19,7 @@ public/modules/viaticos/
     ├── components/         # modal.js (con confirmarModal), validacion.js, visorDocumento.js, barraPeriodo.js, pipeline.js, dropzone.js
     ├── layout/             # sidebar.js (pestañas por permiso, colapso, cajón móvil), cuenta.js (menú de cuenta y cierre de sesión)
     ├── views/              # solicitudes.js, gestiones.js, configuracion/…
-    ├── forms/              # solicitudForm (largo y corto)
+    ├── forms/              # solicitudForm (largo y corto; modos crear, modificar y borrador), borradorEstado.js, borradores.js
     └── actions/            # liquidación, autorizar, rechazar, dar de baja
 ```
 
@@ -49,6 +49,17 @@ Header: `.app-header > .header-brand` (`#sidebar-toggle-mobile`, `a.header-back`
 ## API (patrón `pedir()` de `prompts/js/api/promptsApi.js`)
 
 Sin `credentials` (mismo origen). `pedir(url, opciones)` envuelve el fallo de red; lee `res.json().catch(() => null)`; ante `!res.ok` lanza `Error` con `status`, `campos`, `errores` y `codigo`. FormData sin `Content-Type`; la `idempotencyKey` va dentro de `datos` y se reenvía igual en un reintento. Errores de negocio llegan como 400 (con `campos`) o 403; nunca 401. `mensajesDeError(error)` devuelve la lista de errores, los valores de `campos` o el mensaje. Hay que escribir `formatearDinero(simbolo, importe)` (no existe).
+
+## Borradores de solicitudes
+
+- `api/viaticosApi.js`: `listarBorradores`, `obtenerBorrador`, `crearBorrador(modalidad, datos)`, `actualizarBorrador(id, modalidad, datos)` y `eliminarBorrador` (contrato en `contrato_api.md`, «Borradores»).
+- `forms/borradorEstado.js` (puro, sin DOM): `estadoABorrador(estado)` deja un objeto JSON plano sin `File` ni URLs (de cada defecto solo `tipoDefectoId` y `descripcion`; conserva `comidasAutoMarcar` y `comidasDesmarcadas`) y `borradorAEstado(datos, modalidad, { paises })` arma el estado completo sobre `estadoInicial()`, ignorando claves desconocidas y cayendo al valor por defecto si un tipo no encaja. Los ids de catálogo no se validan ahí: los depura `reconciliarEstado` al cargar los catálogos.
+- `solicitudForm.js`, tercer modo `'borrador'` (`abrirFormularioSolicitud({ modo: 'borrador', borrador, alTerminar })`, `borrador` = respuesta de `GET /borradores/:id`): sigue siendo una solicitud nueva (país, tipo de viaje y moneda editables; «Enviar solicitud» con la validación completa) y agrega `borradorId` al `datos` del envío solo en este modo; nunca al modificar. Tras enviar avisa el cambio de borradores porque el servidor ya lo borró.
+- Botón «Guardar borrador» (`#vi-sol-borrador`, `btn--ghost`, junto a Cancelar) en los modos crear y borrador, nunca al modificar. No depende del cálculo ni de la validación: guarda lo que haya (POST en crear, PUT en borrador), muestra el aviso de éxito, avisa el cambio y **cierra el modal**; los errores 400 y 409 del servidor se muestran dentro del modal, que sigue abierto. Mientras guarda (`ctx.enviando`) se frenan el envío, este botón y el cierre.
+- Al cerrar con cambios (`ctx.sucio`) la confirmación solo avisa (en crear sugiere «Guardar borrador»; en borrador dice que se pierden los cambios no guardados): `confirmarModal` no admite una tercera acción.
+- `forms/borradores.js`: `crearBotonBorradores({ alTerminar })` (`#vi-btn-borradores`, «Borradores (n)», dentro de `.vi-toolbar-acciones` junto a «Nueva solicitud» en la vista Solicitudes) y `abrirModalBorradores`: lista con tipo de viaje, país (de `state.contexto.paises`, si se conoce), fechas del viaje, «Creado el…» y «Vence en N días» (rojo con 3 o menos, «Vence hoy» con 0), y acciones «Abrir» (`obtenerBorrador` y abre el modal en modo borrador) y «Eliminar» (con `confirmarModal`). Un 404 (venció o se eliminó) muestra un aviso y refresca la lista y el contador. Clases `vi-borrador-*`.
+- `utils/eventosBorradores.js`: evento de documento `viaticos:borradores:cambio` (`avisarCambioBorradores()`); guardar, eliminar y enviar desde un borrador lo disparan y el botón refresca su contador.
+- Textos: claves `borradores.*` y `formulario.borrador.*` / `formulario.cerrar.mensajeBorrador` en `textos.js`.
 
 ## Tablas y móvil
 

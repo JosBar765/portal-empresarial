@@ -1,4 +1,4 @@
-// Modal de solicitud de viáticos: crear (más de 1 día y 1 día o menos) y modificar una solicitud propia.
+// Modal de solicitud de viáticos: crear (más de 1 día y 1 día o menos), modificar una solicitud propia y retomar un borrador.
 import { state } from '../state.js';
 import { h, icono, montar } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
@@ -7,10 +7,12 @@ import { abrirModal, confirmarModal, mostrarErrorModal } from '../components/mod
 import { crearAviso } from '../components/aviso.js';
 import { cerrarPanelFechaActivo } from '../components/datepicker.js';
 import { enfocarPrimerCampoInvalido, limpiarErrorCampo } from '../components/validacion.js';
-import { calcularSolicitud, crearLlaveIdempotencia, crearSolicitud, mensajesDeError, modificarSolicitud, obtenerCatalogosSolicitud, obtenerSolicitud } from '../api/viaticosApi.js';
+import { actualizarBorrador, calcularSolicitud, crearBorrador, crearLlaveIdempotencia, crearSolicitud, mensajesDeError, modificarSolicitud, obtenerCatalogosSolicitud, obtenerSolicitud } from '../api/viaticosApi.js';
 import { registrarAccionPropia } from '../socket.js';
 import { t } from '../textos.js';
 import { armarPayload, detalleAEstado, estadoInicial, motivoDeRechazo, raizDeCampo, reconciliarEstado, remapearCampo } from './datos.js';
+import { avisarCambioBorradores } from '../utils/eventosBorradores.js';
+import { borradorAEstado, estadoABorrador } from './borradorEstado.js';
 import { crearContexto } from './contexto.js';
 import { crearCalculador } from './calculo.js';
 import { camposPendientes, erroresDeCampos, erroresVigentes, pintarErrores } from './erroresForm.js';
@@ -32,16 +34,21 @@ import { crearSeccionDefectos } from './secciones/defectos.js';
 const puedeModificar = (solicitud) => !!solicitud && solicitud.id != null && ((solicitud.pipeline && solicitud.pipeline.acciones) || []).includes(ACCIONES.MODIFICAR);
 
 // `alTerminar` recarga la lista tras guardar (se recibe como función para no importar la vista: evita un ciclo de imports).
+// Modo 'borrador': `borrador` es la respuesta de GET /borradores/:id; sigue siendo una solicitud nueva (se envía con `borradorId`).
 // Devuelve null si no abre; si no, { ctx, cerrar, overlay, listo } (`listo` se cumple cuando el formulario ya está armado).
-export function abrirFormularioSolicitud({ modo = 'crear', solicitud, alTerminar } = {}) {
+export function abrirFormularioSolicitud({ modo = 'crear', solicitud, borrador, alTerminar } = {}) {
   const esModificar = modo === 'modificar';
+  const esBorrador = modo === 'borrador';
+  if (esBorrador && !(borrador && borrador.id)) return null;
+  const borradorId = esBorrador ? borrador.id : null;
   if (esModificar && !puedeModificar(solicitud)) {
     const estadoActual = solicitud && solicitud.pipeline ? solicitud.pipeline.etiqueta : '';
     window.toast?.warning(t('tab.solicitudes'), t('formulario.modificar.noPermitida', { correlativo: solicitud ? solicitud.correlativo : '', estado: estadoActual }));
     return null;
   }
 
-  const ctx = crearContexto({ estado: estadoInicial({ paises: state.contexto.paises || [] }), contexto: state.contexto, modo });
+  const paises = state.contexto.paises || [];
+  const ctx = crearContexto({ estado: esBorrador ? borradorAEstado(borrador.datos, borrador.modalidad, { paises }) : estadoInicial({ paises }), contexto: state.contexto, modo });
   const { estado } = ctx;
   if (esModificar && solicitud.modalidad) estado.modalidad = solicitud.modalidad;
   let cerrado = false;
@@ -65,19 +72,21 @@ export function abrirFormularioSolicitud({ modo = 'crear', solicitud, alTerminar
     bodyHtml: '',
     footerHtml: `<span class="vi-pie-motivo" id="vi-sol-motivo-envio" aria-live="polite"></span>
       <button class="btn btn--ghost" type="button" id="vi-sol-cancelar">${escapeHtml(t('comun.cancelar'))}</button>
+      ${esModificar ? '' : `<button class="btn btn--ghost" type="button" id="vi-sol-borrador">${escapeHtml(t('formulario.borrador.guardar'))}</button>`}
       <button class="btn btn--primary" type="button" id="vi-sol-enviar" aria-describedby="vi-sol-motivo-envio">${escapeHtml(t(esModificar ? 'formulario.guardar' : 'formulario.enviar'))}</button>`,
     antesDeCerrar: async () => {
       if (ctx.enviando) return false;
       if (!ctx.sucio) return true;
       return confirmarModal({
-        title: t('formulario.cerrar.titulo'), mensaje: t(esModificar ? 'formulario.cerrar.mensajeModificar' : 'formulario.cerrar.mensaje'),
-        aceptar: t(esModificar ? 'formulario.cerrar.salirModificar' : 'formulario.cerrar.salir'), cancelar: t('formulario.cerrar.seguir'), peligro: true
+        title: t('formulario.cerrar.titulo'), mensaje: t(esModificar ? 'formulario.cerrar.mensajeModificar' : (esBorrador ? 'formulario.cerrar.mensajeBorrador' : 'formulario.cerrar.mensaje')),
+        aceptar: t(esModificar || esBorrador ? 'formulario.cerrar.salirModificar' : 'formulario.cerrar.salir'), cancelar: t('formulario.cerrar.seguir'), peligro: true
       });
     },
     alCerrar: () => { cerrado = true; calculador.cancelar(); cerrarPanelFechaActivo(); ctx.soltarDetalle(); }
   });
   const cuerpo = overlay.querySelector('.modal-body');
   const botonEnviar = overlay.querySelector('#vi-sol-enviar');
+  const botonBorrador = overlay.querySelector('#vi-sol-borrador');
   const motivoEnvio = overlay.querySelector('#vi-sol-motivo-envio');
   overlay.querySelector('#vi-sol-cancelar').addEventListener('click', () => overlay.querySelector('.modal-close').click());
 
@@ -119,6 +128,8 @@ export function abrirFormularioSolicitud({ modo = 'crear', solicitud, alTerminar
     pintarErrores(ctx, { form, bloqueos });
     const motivo = motivoDeshabilitado();
     botonEnviar.disabled = !!motivo || ctx.enviando;
+    // Guardar borrador no depende del cálculo ni de la validación: solo se frena mientras se envía o se guarda.
+    if (botonBorrador) botonBorrador.disabled = ctx.enviando;
     botonEnviar.title = motivo || '';
     motivoEnvio.textContent = motivo || '';
   }
@@ -224,6 +235,7 @@ export function abrirFormularioSolicitud({ modo = 'crear', solicitud, alTerminar
   }
 
   botonEnviar.addEventListener('click', enviar);
+  if (botonBorrador) botonBorrador.addEventListener('click', guardarBorrador);
 
   // ---------- Modificar: carga del detalle ----------
   async function cargarSolicitud() {
@@ -272,12 +284,13 @@ export function abrirFormularioSolicitud({ modo = 'crear', solicitud, alTerminar
     try {
       const guardada = esModificar
         ? await modificarSolicitud(solicitud.id, entrada.datos, fotos)
-        : await crearSolicitud({ ...entrada.datos, idempotencyKey: ultimoEnvio.llave }, fotos);
+        : await crearSolicitud({ ...entrada.datos, ...(esBorrador ? { borradorId } : {}), idempotencyKey: ultimoEnvio.llave }, fotos);
       registrarAccionPropia(guardada.id ?? (solicitud && solicitud.id));
       const correlativo = guardada.correlativo || (solicitud && solicitud.correlativo);
       window.toast?.success(t('tab.solicitudes'), t(esModificar ? 'formulario.actualizada' : 'formulario.enviada', { correlativo }));
       ctx.sucio = false;
       cerrar();
+      if (esBorrador) avisarCambioBorradores(); // el servidor borró el borrador al crear la solicitud
       if (alTerminar) await alTerminar();
     } catch (error) {
       if (cerrado) return;
@@ -293,6 +306,32 @@ export function abrirFormularioSolicitud({ modo = 'crear', solicitud, alTerminar
     } finally {
       ctx.enviando = false;
       botonEnviar.classList.remove('btn--loading');
+      actualizarEnvio();
+    }
+  }
+
+  // ---------- Guardar borrador ----------
+  // Guarda lo que haya (sin fotos) y cierra el modal; reabrirlo desde «Borradores» deja el siguiente guardado como actualización.
+  async function guardarBorrador() {
+    if (ctx.enviando || !cargada) return;
+    cuerpo.querySelectorAll(':scope > .form-error').forEach(b => b.remove());
+    ctx.enviando = true;
+    botonBorrador.classList.add('btn--loading');
+    actualizarEnvio();
+    try {
+      const datos = estadoABorrador(estado);
+      if (esBorrador) await actualizarBorrador(borradorId, estado.modalidad, datos);
+      else await crearBorrador(estado.modalidad, datos);
+      window.toast?.success(t('tab.solicitudes'), t('formulario.borrador.guardado'));
+      avisarCambioBorradores();
+      ctx.sucio = false;
+      cerrar();
+    } catch (error) {
+      if (cerrado) return;
+      mostrarErrorModal(overlay, mensajesDeError(error).join(' '));
+    } finally {
+      ctx.enviando = false;
+      botonBorrador.classList.remove('btn--loading');
       actualizarEnvio();
     }
   }

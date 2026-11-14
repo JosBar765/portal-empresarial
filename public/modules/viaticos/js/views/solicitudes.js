@@ -7,6 +7,7 @@ import { crearBarraPeriodo } from '../components/barraPeriodo.js';
 import { htmlFilaSolicitud } from '../components/filaSolicitud.js';
 import { abrirVisorSolicitud } from '../components/visorDocumento.js';
 import { abrirFormularioSolicitud } from '../forms/solicitudForm.js';
+import { crearBotonBorradores } from '../forms/borradores.js';
 import { abrirLiquidacion } from '../actions/liquidacion.js';
 import { darDeBaja } from '../actions/solicitudAcciones.js';
 import { registrarRecarga } from '../socket.js';
@@ -135,7 +136,7 @@ export function renderSolicitudes(contenedor) {
   const zona = h('div', { class: 'tabla-wrapper', tabindex: '0', role: 'region', 'aria-label': t('solicitudes.tablaAria') }, tabla);
 
   montar(contenedor,
-    h('div', { class: 'panel-toolbar' }, barraPeriodo, botonNueva),
+    h('div', { class: 'panel-toolbar' }, barraPeriodo, h('div', { class: 'vi-toolbar-acciones' }, crearBotonBorradores({ alTerminar: () => cargarSolicitudes() }), botonNueva)),
     h('section', { class: 'vi-seccion' },
       h('div', { class: 'vi-seccion-cabecera' },
         h('h2', { text: t('tab.solicitudes.titulo') }),
