@@ -23,6 +23,14 @@ El flujo de vales ya decide por permiso + datos (`supervisor_tiendas`, `asesor_s
 - [x] T7. Docs en `.agents/modulos/admin/` y vales.
 - [x] T8. Prueba comparativa en la BD local: rol de prueba + usuario de prueba en la misma tienda que un supervisor existente; comparar «Ver personal», candidatos, buzón/autorización de vales y un vale creado por cada uno. Control: resultados del rol 3 idénticos a `dev`.
 
+## Fase 2 (2026-11-14): que TODO funcione igual para quien cambie al rol nuevo
+Pedido del dueño tras la primera prueba: cerrar lo que quedó fuera de alcance, porque el supervisor existente (`supervisor1@trofex.com`) pasará al rol nuevo y no debe notar diferencia.
+- [x] T9. Crear/editar usuario: la fila `supervisores` y el teléfono se deciden por el permiso del rol, no por el rol 3 (backend `adminService.crearUsuario`/`actualizarUsuario`, `actualizarSupervisor` que inserte si falta la fila, y `usuarioForm.js` que muestra el teléfono para ese rol).
+- [x] T10. Supervisión especial por asesor: quién puede ser supervisor asignable y cómo se valida se decide por el permiso (`supervisionAsesorRepository.listarAsignables`, `supervisionAsesorService`, y el frontend si filtra por rol).
+- [ ] T11. Prueba exacta: `supervisor1@trofex.com` (rol 3) con vales de una tienda que cubre, antes y después de pasarlo al rol de prueba; acciones de vales, asignarlo a otra tienda, editar su teléfono, supervisión especial; devolverlo al rol 3.
+- [ ] T12. Vistas en navegador: `ventas1` (rol 3) frente al usuario de prueba (rol nuevo), mismas pantallas del módulo de vales y del panel admin; comparar contenido y capturas.
+- Decisión T-red: la «red de seguridad» del rol 3 sin permiso (`rolVista`, `_rolDelBuzon`, `resolverAlcance`) no se generaliza: solo aplica si se QUITA `vales.supervisar` a un rol y no se puede inferir por el id de un rol nuevo; con el permiso el comportamiento es idéntico.
+
 ## Rutas
 Delegado (un escritor): T1-T7 (2+ archivos no triviales, lectura que prepara la escritura). T8: delegado a un verificador; la BD local y el servidor (puerto 3000, reinicio automático) los levantó el dueño.
 

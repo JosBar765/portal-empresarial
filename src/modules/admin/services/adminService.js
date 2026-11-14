@@ -20,7 +20,6 @@ const calendarioService = require('../../../core/calendario/calendarioService');
 // rol con usuarios activos", que en la práctica lo sigue cubriendo.
 const ROLES_BASE = [1];
 const ROL_ASESOR = 2;
-const ROL_SUPERVISOR = 3;
 const ROL_ADMINISTRADOR = 1;
 const MODULO_ADMIN = 'admin';
 // Diseño, Diseño 3D y Protextil son talleres únicos a nivel de toda la
@@ -82,7 +81,8 @@ class AdminService {
     await this._validarEncargadoUnico(rolId, null);
     const passwordHash = await bcrypt.hash(password, 10);
     const rolNum = Number(rolId);
-    const esSupervisor = rolNum === ROL_SUPERVISOR;
+    // La fila de supervisor la decide el permiso del rol, no su número.
+    const esSupervisor = await usuarioAdminRepository.rolPuedeSupervisar(rolNum);
     const esAsesor = rolNum === ROL_ASESOR;
     const id = await usuarioAdminRepository.crear({ nombre, email, passwordHash, rolId: rolNum });
     if (esAsesor) {
@@ -129,7 +129,7 @@ class AdminService {
     if (rolNum === ROL_ASESOR) {
       const asesorExistente = await usuarioAdminRepository.obtenerAsesorPorUsuarioId(id);
       await usuarioAdminRepository.actualizarAsesor(id, asesorExistente ? asesorExistente.tienda_id : null, telefono || null);
-    } else if (rolNum === ROL_SUPERVISOR) {
+    } else if (await usuarioAdminRepository.rolPuedeSupervisar(rolNum)) {
       await usuarioAdminRepository.actualizarSupervisor(id, telefono || null);
     }
     return usuarioAdminRepository.obtenerPorId(id);
@@ -173,7 +173,7 @@ class AdminService {
   async listarRoles() {
     const roles = await rolRepository.listarConConteo();
     return {
-      roles: roles.map(r => ({ ...r, base: ROLES_BASE.includes(r.id) }))
+      roles: roles.map(r => ({ ...r, base: ROLES_BASE.includes(r.id), es_supervisor: Boolean(r.es_supervisor) }))
     };
   }
 

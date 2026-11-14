@@ -4,7 +4,7 @@ const repo = require('../repositories/supervisionAsesorRepository');
 const usuarioValeRepository = require('../../vales/repositories/usuarioValeRepository');
 const valeMutex = require('../../vales/services/valeMutex');
 const valeEvents = require('../../vales/events');
-const { ROL, ESTADOS } = require('../../vales/services/valeHelpers');
+const { ESTADOS } = require('../../vales/services/valeHelpers');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
 
@@ -29,7 +29,7 @@ class SupervisionAsesorService {
     const asesor = await this._exigirAsesor(asesorId);
     const [asignados, asignables, supervisoresACargo, supervisoresDeTienda, esperando] = await Promise.all([
       repo.listarAsignados(asesorId),
-      repo.listarAsignables(ROL.SUPERVISOR),
+      repo.listarAsignables(),
       usuarioValeRepository.obtenerSupervisoresDeAsesor(asesorId),
       repo.listarSupervisoresDeTienda(asesorId),
       repo.listarValesEsperando(asesorId, ESTADOS_QUE_ESPERAN_AL_SUPERVISOR)
@@ -59,7 +59,7 @@ class SupervisionAsesorService {
       const u = encontrados.get(id);
       if (!u) throw new ErrorDeNegocio(`El supervisor ${id} no existe. Recarga la lista y elige de nuevo.`, 400);
       if (!u.activo) throw new ErrorDeNegocio(`${u.nombre} está inactivo y no puede autorizar vales. Quítalo de la lista o actívalo primero.`, 400);
-      if (u.rol_id !== ROL.SUPERVISOR || !u.con_permiso) {
+      if (!u.con_permiso) {
         throw new ErrorDeNegocio(`${u.nombre} no es un supervisor con permiso para autorizar vales. Elige solo supervisores de ventas con ese permiso.`, 400);
       }
     }

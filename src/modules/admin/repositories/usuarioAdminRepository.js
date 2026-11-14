@@ -124,7 +124,12 @@ class UsuarioAdminRepository {
   }
 
   async actualizarSupervisor(usuarioId, telefono) {
-    return db.query('UPDATE supervisores SET telefono = ? WHERE usuario_id = ?', [telefono || null, usuarioId], 'supervisor:update');
+    // Un rol con el permiso puede no tener aún su fila: se crea (usuario_id es UNIQUE).
+    return db.query(
+      'INSERT INTO supervisores (usuario_id, telefono) VALUES (?, ?) ON DUPLICATE KEY UPDATE telefono = VALUES(telefono)',
+      [usuarioId, telefono || null],
+      'supervisor:update'
+    );
   }
 
   async eliminarSupervisor(usuarioId) {
