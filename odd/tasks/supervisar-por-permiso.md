@@ -1,6 +1,6 @@
 # fix/supervisar-por-permiso: la supervisión de tiendas se decide por `vales.supervisar`, no por el rol 3
 
-Rama: `fix/supervisar-por-permiso` (desde `dev` actualizado, 2026-11-14). Estado: en curso. Estrategia de entrega: `ask-on-risk`.
+Rama: `fix/supervisar-por-permiso` (desde `dev` actualizado, 2026-11-14). Estado: **hecho y mergeado en `module/viaticos`** (12 de 12 tareas, 2026-11-14); la rama `fix/supervisar-por-permiso` se borró sin haberse publicado. Estrategia de entrega: `ask-on-risk`.
 
 ## Objetivo
 Un rol nuevo con `vales.supervisar` (copia del rol 3 + permisos de viáticos) debe poder asignarse a tiendas y supervisar desde el panel admin igual que el rol 3. El comportamiento del rol 3 en producción debe quedar IDÉNTICO.
@@ -31,6 +31,69 @@ Pedido del dueño tras la primera prueba: cerrar lo que quedó fuera de alcance,
 - [x] T12. Vistas en navegador: `ventas1` (rol 3) frente al usuario de prueba (rol nuevo), mismas pantallas del módulo de vales y del panel admin; comparar contenido y capturas.
 - Decisión T-red: la «red de seguridad» del rol 3 sin permiso (`rolVista`, `_rolDelBuzon`, `resolverAlcance`) no se generaliza: solo aplica si se QUITA `vales.supervisar` a un rol y no se puede inferir por el id de un rol nuevo; con el permiso el comportamiento es idéntico.
 
+## Cierre y puesta en producción (2026-11-14)
+Resultado: un rol con `vales.supervisar` (cualquier rol, no solo el 3) supervisa, autoriza, recibe notificaciones y se gestiona desde el panel igual que el rol 3. La rama no tiene migraciones ni cambios de esquema.
+
+Rol para supervisores que también solicitan viáticos:
+- Permisos del rol 3 + **solo `viaticos.ver`**. Solicitar (crear, modificar, dar de baja, ver las propias y liquidar) exige únicamente `viaticos.ver`; `viaticos.gestionar` muestra las solicitudes de TODOS en «Gestiones» y `viaticos.autorizar` autoriza (corrige la suposición inicial de que `gestionar` era «solicitar»).
+- Cada supervisor debe estar dado de alta en Viáticos → Configuración → Personas (países y licencia); sin países el selector queda vacío y no puede crear solicitudes, sea cual sea su rol.
+
+Orden en producción:
+1. Correr Q1 a Q4 (abajo) antes de desplegar; si alguna difiere de lo esperado, no mover a nadie.
+2. Desplegar; crear el rol con los permisos del rol 3 + `viaticos.ver` (el módulo de Viáticos debe estar desplegado para que ese permiso exista); correr Q5.
+3. `UPDATE usuarios SET rol_id = <ID_NUEVO> WHERE id = <uno solo>;` pedirle que cierre sesión (el token conserva el rol viejo hasta renovarse); correr Q6, Q7 y Q8; probar una solicitud real.
+4. Si todo cuadra, mover a los demás. Marcha atrás: `UPDATE usuarios SET rol_id = 3 WHERE id = ...` (probada en local, deja todo como estaba).
+
+Resultado real de Q1 a Q4 en producción (2026-11-14): Q1 solo el rol 3; Q2 y Q3 vacías; Q4 con los ids 16, 17, 18 y 19.
+
+```sql
+-- Q1: roles con vales.supervisar. ESPERADO: solo el rol 3
+SELECT r.id, r.nombre FROM roles r
+JOIN rol_permisos rp ON rp.rol_id = r.id
+JOIN permisos p ON p.id = rp.permiso_id
+WHERE p.codigo = 'vales.supervisar';
+
+-- Q2: usuarios rol 3 activos SIN el permiso. ESPERADO: vacío
+SELECT u.id, u.email FROM usuarios u
+WHERE u.rol_id = 3 AND u.activo = 1 AND NOT EXISTS (
+  SELECT 1 FROM rol_permisos rp JOIN permisos p ON p.id = rp.permiso_id
+  WHERE rp.rol_id = u.rol_id AND p.codigo = 'vales.supervisar');
+
+-- Q3 (solo ANTES del cambio): cobertura de usuarios que no son rol 3. ESPERADO: vacío
+SELECT st.usuario_id, u.email, u.rol_id, st.tienda_id
+FROM supervisor_tiendas st JOIN usuarios u ON u.id = st.usuario_id
+WHERE u.rol_id <> 3;
+
+-- Q4: estado de los usuarios a mover (guardar el resultado para compararlo con Q6)
+SELECT u.id, u.email, u.rol_id, u.activo,
+  (SELECT COUNT(*) FROM supervisores s WHERE s.usuario_id = u.id) AS fila_supervisores,
+  (SELECT COUNT(*) FROM asesores a WHERE a.usuario_id = u.id) AS fila_asesores,
+  (SELECT COUNT(*) FROM supervisor_tiendas st WHERE st.usuario_id = u.id) AS tiendas_cubiertas,
+  (SELECT COUNT(*) FROM asesor_supervisores x WHERE x.supervisor_id = u.id) AS supervision_especial
+FROM usuarios u WHERE u.email IN ('correo1', 'correo2');
+
+-- Q5: permisos del rol nuevo frente al 3. ESPERADO: solo viaticos.ver
+SELECT p.codigo, MAX(rp.rol_id = 3) AS en_rol_3, MAX(rp.rol_id = <ID_NUEVO>) AS en_rol_nuevo
+FROM permisos p JOIN rol_permisos rp ON rp.permiso_id = p.id
+WHERE rp.rol_id IN (3, <ID_NUEVO>) GROUP BY p.codigo HAVING en_rol_3 <> en_rol_nuevo;
+
+-- Q6: repetir Q4 tras el UPDATE. ESPERADO: igual salvo rol_id
+
+-- Q7 (después del cambio): cobertura de usuarios cuyo rol NO tiene el permiso. ESPERADO: vacío
+SELECT st.usuario_id, u.email, u.rol_id FROM supervisor_tiendas st
+JOIN usuarios u ON u.id = st.usuario_id WHERE NOT EXISTS (
+  SELECT 1 FROM rol_permisos rp JOIN permisos p ON p.id = rp.permiso_id
+  WHERE rp.rol_id = u.rol_id AND p.codigo = 'vales.supervisar');
+
+-- Q8 (después del cambio): supervisión especial a usuarios sin el permiso. ESPERADO: vacío
+SELECT x.asesor_id, x.supervisor_id, u.email FROM asesor_supervisores x
+JOIN usuarios u ON u.id = x.supervisor_id WHERE NOT EXISTS (
+  SELECT 1 FROM rol_permisos rp JOIN permisos p ON p.id = rp.permiso_id
+  WHERE rp.rol_id = u.rol_id AND p.codigo = 'vales.supervisar');
+```
+
+Límites conocidos: si algún día se QUITA `vales.supervisar` a un rol que no sea el 3, sus usuarios dejan de comportarse como supervisores (la «red de seguridad» del buzón y de reportes solo se aplica al rol 3). El selector de rol de «Nuevo usuario» y el filtro de la lista ahora muestran al final los roles que no están en la jerarquía fija (por ejemplo Piloto). No se probó una solicitud de viáticos enviada de punta a punta ni autorizada con `viaticos.autorizar`.
+
 ## Rutas
 Delegado (un escritor): T1-T7 (2+ archivos no triviales, lectura que prepara la escritura). T8: delegado a un verificador; la BD local y el servidor (puerto 3000, reinicio automático) los levantó el dueño.
 
@@ -41,7 +104,7 @@ Sin runner automatizado en el proyecto; RED/GREEN no aplica (excepción registra
 - Análisis de dependencias (2026-11-14): vales decide por permiso; el acoplamiento está en admin (`adminService.js:86,133,198,337,353`, `tiendaAdminRepository.js:121`, `tiendaPersonal.js:83`, `menuCascada.js:134-139`).
 - T1-T7 hechas (2026-11-14), un escritor delegado: 10 archivos modificados + `permisoSupervisarSql.js` nuevo. `node --check` OK en backend y front. Diff revisado por el padre.
 - Equivalencia (2026-11-14, BD local con `NODE_ENV=development`, por la conexión de la app; `.env` bloqueado): solo el rol 3 tiene `vales.supervisar`; ningún rol 3 activo sin el permiso; `supervisor_tiendas` sin usuarios de otros roles; «Ver personal» viejo vs nuevo en 27 tiendas: 0 diferencias; candidatos `es_supervisor` vs `rol_id = 3` en 92 usuarios: 0 diferencias.
-- T8 por la API HTTP con la cuenta admin de pruebas (rol 42 «Supervisor con viáticos (prueba)» = permisos del rol 3 + `viaticos.ver` y `viaticos.gestionar`; usuario 136). Panel: crear el rol con `vales.supervisar` (201), guardar sus permisos (200), asignarlo a las tiendas 1 y 2, listarlo en «Ver personal», quitarlo y reasignarlo; la tienda 2 sigue mostrando a `ventas1` y `gerentesala`; control negativo: un encargado de taller sigue sin asignarse (400).
+- T8 por la API HTTP con la cuenta admin de pruebas (rol 42 «Supervisor con viáticos (prueba)» = permisos del rol 3 + `viaticos.ver` y `viaticos.gestionar` en esta prueba; después se ajustó a solo `viaticos.ver`, que es lo que corresponde para solicitar (ver el cierre); usuario 136). Panel: crear el rol con `vales.supervisar` (201), guardar sus permisos (200), asignarlo a las tiendas 1 y 2, listarlo en «Ver personal», quitarlo y reasignarlo; la tienda 2 sigue mostrando a `ventas1` y `gerentesala`; control negativo: un encargado de taller sigue sin asignarse (400).
 - T8 vales, `ventas1` (rol 3) vs usuario nuevo, mismo resultado en: permisos efectivos del token, detalle (`ESPERANDO_AUTORIZACION`), marcar visto, autorizar (`CREADO`), rechazar (`RECHAZADO`), crear vale como supervisor, autorizar el propio vale, doble autorización (mismo error) y dar de baja tras autorizar (mismo error). Con la misma cobertura el buzón difiere solo en los vales propios de cada uno (6 de `ventas1`, 1 del nuevo); 97 coinciden.
 - Nota de método: autorizar o rechazar exige que ese supervisor marque «Ver» antes (visto por usuario); una primera corrida lo pasó por alto y no era una diferencia del código.
 - Datos de prueba que quedan en la BD local: rol 42, usuario 136 (con fila en `asesores` de la tienda 1 y cobertura de las tiendas 1 y 2) y los vales 9433 a 9444 más los de la segunda corrida.
