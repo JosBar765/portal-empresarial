@@ -135,7 +135,10 @@ export function construirArbolRoles(roles) {
   const porId = new Map(roles.map(r => [r.id, r]));
   const hoja = (id) => porId.has(id) ? { tipo: 'hoja', valor: id, etiqueta: porId.get(id).nombre } : null;
   const grupoEncargados = { tipo: 'grupo', etiqueta: 'Encargados de taller', hijos: [4, 5, 9, 10].map(hoja).filter(Boolean) };
-  return [hoja(1), hoja(8), hoja(3), hoja(2), grupoEncargados, hoja(7), hoja(6)].filter(Boolean);
+  const idsFijos = [1, 8, 3, 2, 4, 5, 9, 10, 7, 6];
+  // Los roles nuevos (fuera de la jerarquía fija) van al final, solo los activos, en el orden recibido.
+  const nuevos = roles.filter(r => !idsFijos.includes(r.id) && (r.activo === undefined || r.activo)).map(r => hoja(r.id));
+  return [hoja(1), hoja(8), hoja(3), hoja(2), grupoEncargados, hoja(7), hoja(6), ...nuevos].filter(Boolean);
 }
 
 // Paneles, flyouts y hoja inferior viven sueltos en document.body (un ancestro

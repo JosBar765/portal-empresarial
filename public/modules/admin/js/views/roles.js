@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
-import { ROL_ADMINISTRADOR, ROL_SUPERVISOR } from '../config/roles.js';
+import { ROL_ADMINISTRADOR } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import {
   listarRolesRaw, toggleActivoRol as apiToggleActivoRol, guardarRol,
@@ -136,9 +136,6 @@ async function abrirModalPermisos(rol) {
   // backend lo valida): se bloquean los que el padre no tiene y aún no están marcados.
   const sinPermisoDelPadre = (id) => !!permisoIdsPadre && !permisoIdsPadre.includes(id);
   const noHeredable = (id) => sinPermisoDelPadre(id) && !permisoIdsActuales.includes(id);
-  // «Supervisar Vales de Arte» es exclusivo del rol Supervisor de Ventas (el backend también lo rechaza).
-  const soloSupervisor = (p) => p.codigo === 'vales.supervisar' && rol.id !== ROL_SUPERVISOR && !permisoIdsActuales.includes(p.id);
-  const noDisponible = (p) => noHeredable(p.id) || soloSupervisor(p);
 
   // Al Administrador no se le puede quitar ningún permiso del módulo admin (el
   // backend también lo rechaza): esas casillas marcadas quedan bloqueadas. Los
@@ -156,8 +153,8 @@ async function abrirModalPermisos(rol) {
       </div>
       <div class="permisos-lista">
         ${grupos[modulo].map(p => `
-          <label class="permiso-item${noDisponible(p) ? ' permiso-item--no-heredable' : ''}"${noHeredable(p.id) ? ' title="Su encargado no tiene este permiso"' : (soloSupervisor(p) ? ' title="Solo el rol Supervisor de Ventas puede tener este permiso"' : '')}>
-            <input type="checkbox" class="chk-permiso" value="${p.id}" ${permisoIdsActuales.includes(p.id) ? 'checked' : ''} ${bloqueado(p.id, modulo) || noDisponible(p) ? 'disabled' : ''}>
+          <label class="permiso-item${noHeredable(p.id) ? ' permiso-item--no-heredable' : ''}"${noHeredable(p.id) ? ' title="Su encargado no tiene este permiso"' : ''}>
+            <input type="checkbox" class="chk-permiso" value="${p.id}" ${permisoIdsActuales.includes(p.id) ? 'checked' : ''} ${bloqueado(p.id, modulo) || noHeredable(p.id) ? 'disabled' : ''}>
             ${escapeHtml(p.nombre)}
           </label>
         `).join('')}

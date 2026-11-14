@@ -2,8 +2,7 @@
 // Supervisores asignados a un asesor (`asesor_supervisores`) y los datos que el admin necesita para cambiarlos.
 const db = require('../../../config/database');
 
-const CON_PERMISO_SUPERVISAR = (rolColumna) =>
-  `EXISTS (SELECT 1 FROM rol_permisos rp JOIN permisos p ON p.id = rp.permiso_id WHERE rp.rol_id = ${rolColumna} AND p.codigo = 'vales.supervisar')`;
+const { CON_PERMISO_SUPERVISAR } = require('./permisoSupervisarSql');
 
 class SupervisionAsesorRepository {
   async obtenerAsesor(asesorId) {

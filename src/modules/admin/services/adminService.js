@@ -22,7 +22,6 @@ const ROLES_BASE = [1];
 const ROL_ASESOR = 2;
 const ROL_SUPERVISOR = 3;
 const ROL_ADMINISTRADOR = 1;
-const PERMISO_SUPERVISAR = 'vales.supervisar';
 const MODULO_ADMIN = 'admin';
 // Diseño, Diseño 3D y Protextil son talleres únicos a nivel de toda la
 // empresa (a diferencia de Diseño Local, que pertenece a una tienda sede) — un solo
@@ -192,17 +191,8 @@ class AdminService {
     return grupos;
   }
 
-  // `vales.supervisar` es exclusivo del Supervisor de Ventas (rol 3): su cobertura y su alta dependen de ese rol.
-  async _exigirSupervisarSoloEnSupervisor(rolId, permisoIds) {
-    const supervisar = (await permisoRepository.listarTodos()).find(p => p.codigo === PERMISO_SUPERVISAR);
-    if (supervisar && Number(rolId) !== ROL_SUPERVISOR && permisoIds.includes(supervisar.id)) {
-      throw new ErrorDeNegocio('El permiso «Supervisar Vales de Arte» solo se puede asignar al rol Supervisor de Ventas. Quítalo de este rol para guardar los cambios.', 400);
-    }
-  }
-
   async crearRol({ nombre, descripcion, permisoIds }) {
     if (!nombre) throw new Error('El nombre del rol es obligatorio.');
-    await this._exigirSupervisarSoloEnSupervisor(null, (Array.isArray(permisoIds) ? permisoIds : []).map(aEntero));
     const id = await rolRepository.crear({ nombre, descripcion });
     if (Array.isArray(permisoIds) && permisoIds.length) {
       await rolRepository.establecerPermisos(id, permisoIds);
@@ -222,7 +212,6 @@ class AdminService {
     if (!Array.isArray(permisoIds)) throw new Error('La lista de permisos debe ser un arreglo.');
     const ids = permisoIds.map(aEntero);
     if (ids.some(n => n === null)) throw new Error('La lista de permisos contiene valores inválidos.');
-    await this._exigirSupervisarSoloEnSupervisor(id, ids);
     // Al Administrador no se le puede quitar ningún permiso del módulo admin
     // (los actuales ni los que se le agreguen); los de otros módulos, como
     // vales, sí. Se valida aquí, no solo en la UI.
@@ -334,7 +323,8 @@ class AdminService {
   async agregarPersonalATienda(tiendaId, usuarioId) {
     const usuario = await usuarioAdminRepository.obtenerPorId(usuarioId);
     if (!usuario) throw new Error('Usuario no encontrado.');
-    if (Number(usuario.rol_id) === ROL_SUPERVISOR) {
+    // Cubre tiendas quien tiene `vales.supervisar`, sea cual sea su rol.
+    if (await usuarioAdminRepository.rolPuedeSupervisar(usuario.rol_id)) {
       return tiendaAdminRepository.agregarSupervisorATienda(usuarioId, tiendaId);
     }
     if (Number(usuario.rol_id) === ROL_ASESOR) {
@@ -350,7 +340,7 @@ class AdminService {
   async quitarPersonalDeTienda(tiendaId, usuarioId) {
     const usuario = await usuarioAdminRepository.obtenerPorId(usuarioId);
     if (!usuario) throw new Error('Usuario no encontrado.');
-    if (Number(usuario.rol_id) === ROL_SUPERVISOR) {
+    if (await usuarioAdminRepository.rolPuedeSupervisar(usuario.rol_id)) {
       return tiendaAdminRepository.quitarSupervisorDeTienda(usuarioId, tiendaId);
     }
     if (Number(usuario.rol_id) === ROL_ASESOR) {

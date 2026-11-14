@@ -304,7 +304,7 @@ async function salasDeInvolucrados(vale, talleres) {
   return [...new Set([`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`), ...salasTalleres])];
 }
 
-// Supervisor = quien tiene el permiso `vales.supervisar` (solo el rol 3), no el rol en sí; se lee del token en cada petición.
+// Supervisor = quien tiene el permiso `vales.supervisar` (cualquier rol que lo tenga), no el rol en sí; se lee del token en cada petición.
 function esSupervisor(usuario) {
   return (usuario.permissions || []).includes('vales.supervisar');
 }
