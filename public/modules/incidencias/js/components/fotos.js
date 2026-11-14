@@ -3,6 +3,7 @@
 // la computadora, miniaturas con «Quitar» y reducción de cada foto antes de subirla.
 import { h, icono } from '../utils/dom.js';
 import { reducirImagen } from '../utils/imagen.js';
+import { abrirVisor } from './visorFotos.js';
 
 const TIPOS = /^image\/(jpeg|png|webp)$/;
 
@@ -26,11 +27,18 @@ export function selectorFotos({ max, obligatorio = false, etiqueta = 'Fotos', ay
 
   function mostrarAviso(texto) { aviso.hidden = !texto; aviso.textContent = texto || ''; }
 
+  // Tocar la miniatura la muestra grande (todavía sin enviar); «Quitar» sigue aparte.
+  function verGrande(i) {
+    const ver = h('button', { class: 'inc-foto-ver', type: 'button', 'aria-label': `Ver la foto ${i + 1} de ${fotos.length}` }, h('img', { src: fotos[i].url, alt: `Foto ${i + 1}` }));
+    ver.addEventListener('click', () => abrirVisor({ fotos: fotos.map((f, n) => ({ url: f.url, titulo: `Foto ${n + 1} de ${fotos.length}`, detalle: 'Todavía sin enviar', nombreArchivo: f.archivo && f.archivo.name })), indice: i, origen: ver }));
+    return ver;
+  }
+
   function dibujar() {
     contador.textContent = `${fotos.length} de ${max}`;
     botonCamara.disabled = botonGaleria.disabled = fotos.length >= max;
     miniaturas.replaceChildren(...fotos.map((f, i) => h('li', { class: 'inc-foto' },
-      h('img', { src: f.url, alt: `Foto ${i + 1}` }),
+      verGrande(i),
       h('button', { class: 'inc-foto-quitar', type: 'button', 'aria-label': `Quitar la foto ${i + 1}`, onclick: () => { URL.revokeObjectURL(f.url); fotos.splice(i, 1); mostrarAviso(''); dibujar(); } }, icono('close-outline')))));
     if (trabajando) miniaturas.append(h('li', { class: 'inc-foto inc-foto--cargando', 'aria-label': 'Preparando la foto' }, icono('sync-outline', 'spin-animation')));
   }

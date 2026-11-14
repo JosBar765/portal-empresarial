@@ -34,7 +34,7 @@ export function abrirHoja({ titulo, subtitulo, contenido, acciones = [], cancela
     if (anterior && anterior.focus) anterior.focus();
   };
   function alTeclear(e) {
-    if (!overlay.isConnected) return;
+    if (!overlay.isConnected || document.querySelector('.inc-visor')) return;
     if (e.key === 'Escape') { e.stopPropagation(); cerrar(); return; }
     if (e.key !== 'Tab') return;
     const lista = enfocables();

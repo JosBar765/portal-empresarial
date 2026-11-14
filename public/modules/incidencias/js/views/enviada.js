@@ -4,6 +4,15 @@ import { h, icono, montar } from '../utils/dom.js';
 import { detalle } from '../api/incidenciasApi.js';
 import { chipPrioridad, chipEstado } from '../components/chips.js';
 import { cargando, mostrarError, botonEnlace } from './estados.js';
+import { miniaturaAbrible } from '../components/visorFotos.js';
+
+// Las fotos que se acaban de mandar, para confirmar que salieron bien (se abren en el visor).
+function fotosEnviadas(i) {
+  const fotos = i.fotos || [];
+  if (!fotos.length) return null;
+  const secuencia = fotos.map(f => ({ url: f.url, titulo: 'Tu reporte', detalle: i.correlativo }));
+  return h('ul', { class: 'inc-fotos-lista inc-enviada-fotos', 'aria-label': 'Las fotos que enviaste' }, fotos.map((f, n) => h('li', { class: 'inc-foto' }, miniaturaAbrible(secuencia, n))));
+}
 
 export async function mostrarEnviada(cont, id) {
   montar(cont, cargando('Un momento…'));
@@ -15,6 +24,7 @@ export async function mostrarEnviada(cont, id) {
       h('h2', { class: 'inc-enviada-numero', text: i.correlativo }),
       h('p', { class: 'inc-enviada-titulo', text: `${i.titulo} · ${i.tienda.codigo}${i.zona ? ` · ${i.zona}` : ''}` }),
       h('div', { class: 'inc-fila-chips' }, chipPrioridad(i.prioridad), chipEstado(i.estado, i.estadoEtiqueta)),
+      fotosEnviadas(i),
       h('div', { class: 'inc-enviada-sigue' },
         h('h3', { text: 'Qué sigue' }),
         h('ul', null,

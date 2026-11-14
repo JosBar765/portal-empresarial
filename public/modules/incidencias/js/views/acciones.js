@@ -6,7 +6,8 @@ import * as api from '../api/incidenciasApi.js';
 import { abrirHoja } from '../components/modal.js';
 import { selectorFotos } from '../components/fotos.js';
 import { campoTexto, campoSelect, nota, errorDeCampos } from '../components/campos.js';
-import { claveDeOperacion, ordinal } from '../utils/formato.js';
+import { claveDeOperacion, fechaHora, ordinal } from '../utils/formato.js';
+import { miniaturaAbrible } from '../components/visorFotos.js';
 
 const aviso = (tipo, titulo, texto) => { if (window.toast) window.toast[tipo](titulo, texto); };
 export function crearAcciones(d, alCambiar) {
@@ -113,8 +114,12 @@ export function crearAcciones(d, alCambiar) {
     revisarCierre() {
       const envio = d.eventos.find(e => e.tipo === 'a_verificacion');
       const fotosReporte = d.incidencia.fotos || [];
-      const galeria = (titulo, lista) => (lista && lista.length ? h('div', { class: 'inc-revision-fotos' }, h('span', { class: 'inc-etiqueta', text: titulo }),
-        h('ul', { class: 'inc-fotos-lista inc-fotos-lista--solo-ver' }, lista.map((f, i) => h('li', { class: 'inc-foto' }, h('a', { href: f.url, target: '_blank', rel: 'noopener' }, h('img', { src: f.url, alt: `${titulo} ${i + 1}`, loading: 'lazy' })))))) : null);
+      // Antes y después forman una sola secuencia en el visor: se pasa de la foto del problema a la del cierre sin cerrarlo.
+      const antes = fotosReporte.map(f => ({ url: f.url, titulo: 'Antes · lo que se reportó', detalle: `${d.incidencia.reportante.nombre} · ${fechaHora(d.incidencia.creadaEn)}` }));
+      const despues = ((envio && envio.fotos) || []).map(f => ({ url: f.url, titulo: 'Después · foto de cierre', detalle: `${envio.usuario ? envio.usuario.nombre : 'El técnico'} · ${fechaHora(envio.creadoEn)}` }));
+      const secuencia = [...antes, ...despues];
+      const galeria = (titulo, lista, desde) => (lista && lista.length ? h('div', { class: 'inc-revision-fotos' }, h('span', { class: 'inc-etiqueta', text: titulo }),
+        h('ul', { class: 'inc-fotos-lista inc-fotos-lista--solo-ver' }, lista.map((f, i) => h('li', { class: 'inc-foto' }, miniaturaAbrible(secuencia, desde + i, { alt: `${titulo} ${i + 1}` }))))) : null);
       const comentario = campoTexto({ etiqueta: 'Comentario o qué debe corregirse', nombre: 'comentario', max: 500, placeholder: 'Obligatorio si pides una corrección.', ayuda: 'Si apruebas, el comentario es opcional.' });
       const fotos = selectorFotos({ max: fotosMax, etiqueta: 'Fotos de apoyo para la corrección (opcional)' });
       const ronda = d.incidencia.ronda ? ` · ${ordinal(d.incidencia.ronda)} revisión` : '';
@@ -135,7 +140,7 @@ export function crearAcciones(d, alCambiar) {
         titulo: `Revisar cierre · ${correlativo}${ronda}`, subtitulo: d.incidencia.titulo, ancho: 'lg',
         contenido: h('div', { class: 'inc-formulario-hoja' },
           nota(`La resolvió ${d.incidencia.tecnico ? d.incidencia.tecnico.nombre : 'el técnico'}. Revisa que el problema haya quedado resuelto.`, 'info'),
-          h('div', { class: 'inc-revision' }, galeria('Antes · lo que se reportó', fotosReporte), galeria('Después · foto de cierre', envio && envio.fotos)),
+          h('div', { class: 'inc-revision' }, galeria('Antes · lo que se reportó', fotosReporte, 0), galeria('Después · foto de cierre', envio && envio.fotos, antes.length)),
           envio && envio.texto ? h('div', { class: 'inc-revision-resumen' }, h('span', { class: 'inc-etiqueta', text: 'Resumen del trabajo' }), h('p', { text: envio.texto })) : null,
           comentario.el, d.acciones.pedirCorreccion ? fotos.el : null),
         acciones: botones, cancelar: 'Cancelar'

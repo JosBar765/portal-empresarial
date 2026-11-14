@@ -3,6 +3,7 @@
 // en un solo historial. Los botones salen de `acciones` (lo que el servidor permite a esta persona en este momento).
 import { h, icono, montar } from '../utils/dom.js';
 import { detalle as pedirDetalle, comentar } from '../api/incidenciasApi.js';
+import { miniaturaAbrible } from '../components/visorFotos.js';
 import { chipPrioridad, chipEstado, chipTexto, chipEvolucion } from '../components/chips.js';
 import { fechaHora, hace, ordinal, claveDeOperacion } from '../utils/formato.js';
 import { crearAcciones } from './acciones.js';
@@ -42,10 +43,11 @@ function presentar(e) {
 
 const GRUPOS = { todo: null, avances: ['avance', 'comentario'], correcciones: ['correccion_pedida', 'a_verificacion', 'cierre'], reasignaciones: ['reasignacion', 'devolucion_buzon', 'toma', 'prioridad'] };
 
-function galeria(fotos, clase = '') {
+// Las miniaturas abren el visor con todas las fotos del grupo; cada una lleva su etiqueta (de qué es, quién la subió y cuándo).
+function galeria(fotos, { titulo = 'Foto', detalle = '' } = {}) {
   if (!fotos || !fotos.length) return null;
-  return h('ul', { class: `inc-fotos-lista inc-fotos-lista--solo-ver ${clase}`.trim() }, fotos.map((f, i) => h('li', { class: 'inc-foto' },
-    h('a', { href: f.url, target: '_blank', rel: 'noopener', 'aria-label': `Abrir la foto ${i + 1}` }, h('img', { src: f.url, alt: `Foto ${i + 1}`, loading: 'lazy' })))));
+  const secuencia = fotos.map(f => ({ url: f.url, titulo, detalle }));
+  return h('ul', { class: 'inc-fotos-lista inc-fotos-lista--solo-ver' }, fotos.map((f, i) => h('li', { class: 'inc-foto' }, miniaturaAbrible(secuencia, i))));
 }
 
 export async function mostrarDetalle(cont, id, { pestana = 'resumen' } = {}) {
@@ -174,7 +176,7 @@ export async function mostrarDetalle(cont, id, { pestana = 'resumen' } = {}) {
     const i = ctx.d.incidencia;
     return h('div', { class: 'inc-detalle-cuerpo' },
       h('div', { class: 'inc-detalle-principal' },
-        h('section', { class: 'inc-card' }, h('h2', { text: 'Fotos del reporte' }), galeria(i.fotos) || h('p', { class: 'inc-tenue', text: 'Sin fotos.' })),
+        h('section', { class: 'inc-card' }, h('h2', { text: 'Fotos del reporte' }), galeria(i.fotos, { titulo: 'Foto del reporte', detalle: `${i.reportante.nombre} · ${fechaHora(i.creadaEn)}` }) || h('p', { class: 'inc-tenue', text: 'Sin fotos.' })),
         h('section', { class: 'inc-card' }, h('h2', { text: 'Descripción' }), h('p', { class: 'inc-descripcion', text: i.descripcion }),
           h('div', { class: 'inc-fila-chips' }, chipTexto(IMPACTO[i.impacto] || i.impacto, i.impacto === 'riesgo_personas' ? 'inc-chip--prio-rojo' : 'inc-chip--neutro'), i.reincidente ? chipTexto('Se repite', 'inc-chip--alerta') : null)),
         tarjetaComentarios()),
@@ -198,7 +200,7 @@ export async function mostrarDetalle(cont, id, { pestana = 'resumen' } = {}) {
                 h('span', { class: 'inc-tenue', text: e.usuario ? e.usuario.nombre : 'Sistema' }),
                 p.detalle ? h('p', { text: p.detalle }) : null,
                 e.texto ? h('p', { class: 'inc-evento-texto', text: e.texto }) : null,
-                galeria(e.fotos)));
+                galeria(e.fotos, { titulo: p.titulo, detalle: `${e.usuario ? e.usuario.nombre : 'Sistema'} · ${fechaHora(e.creadoEn)}` })));
           })) : h('p', { class: 'inc-tenue', text: 'No hay nada con ese filtro.' }))),
       h('aside', { class: 'inc-detalle-lateral' }, tarjetaCursos(), tarjetaDetalles()));
   }
