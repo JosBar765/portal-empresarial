@@ -9,6 +9,7 @@ const configController = require('./controllers/configController');
 const solicitudController = require('./controllers/solicitudController');
 const gestionController = require('./controllers/gestionController');
 const liquidacionController = require('./controllers/liquidacionController');
+const borradorController = require('./controllers/borradorController');
 const { crearCrud } = require('./controllers/crudController');
 const catalogoService = require('./services/catalogoService');
 const tramoService = require('./services/tramoService');
@@ -25,6 +26,13 @@ router.get('/contexto', contextoController.obtener);
 // Solicitudes del propio usuario (solo exigen viaticos.ver, el permiso de montaje).
 router.get('/catalogos/solicitud', solicitudController.catalogos);
 router.post('/solicitudes/calcular', solicitudController.calcular);
+// Borradores del propio usuario (solo exigen viaticos.ver).
+router.get('/borradores', borradorController.listar);
+router.get('/borradores/:id', borradorController.obtener);
+router.post('/borradores', borradorController.crear);
+router.put('/borradores/:id', borradorController.actualizar);
+router.delete('/borradores/:id', borradorController.eliminar);
+
 router.get('/solicitudes', solicitudController.listar);
 router.get('/solicitudes/:id', solicitudController.obtener);
 router.post('/solicitudes', fotosDefectos, solicitudController.crear);

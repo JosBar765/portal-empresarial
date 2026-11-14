@@ -2,7 +2,8 @@
 // Reglas de una solicitud de viáticos. `normalizarDatos` valida la forma del payload; `evaluar` aplica las reglas
 // de negocio sobre un contexto ya leído de la base (sin I/O). Ambas acumulan los errores en lugar de cortar en el primero.
 const { MODALIDADES, LIMITES, LIMITES_SOLICITUD, SALVEDADES } = require('../constantes');
-const { Validador, cuerpoObjeto } = require('../validacion');
+const { aEntero } = require('../../../core/utils/validar');
+const { Validador, cuerpoObjeto, vacio, mostrar } = require('../validacion');
 const { fueraDelViaje, comidasSinValor } = require('./calculoService');
 const { formatearFecha } = require('./pipelineService');
 const { msg } = require('../mensajes');
@@ -117,6 +118,14 @@ function normalizarInspeccion(v, cuerpo) {
   return inspeccion;
 }
 
+// Borrador desde el que se envía la solicitud (opcional): solo se valida su forma; el servicio lo borra si es del usuario.
+function borradorDeOrigen(v, cuerpo) {
+  if (vacio(cuerpo.borradorId)) return null;
+  const id = aEntero(cuerpo.borradorId);
+  if (id === null) v.falla('borradorId', msg('borrador.idEnvio', { valor: mostrar(cuerpo.borradorId) }));
+  return id;
+}
+
 // Devuelve { datos, errores }: `datos` solo es confiable si `errores` viene vacío.
 function normalizarDatos(cuerpoCrudo) {
   const cuerpo = cuerpoObjeto(cuerpoCrudo);
@@ -130,7 +139,8 @@ function normalizarDatos(cuerpoCrudo) {
     motivoId: v.id(cuerpo, 'motivoId', 'Motivo del viaje'),
     monedaId: null, fechaSalida: null, fechaRegreso: null,
     rendimientoKmGalon: null, precioGalon: null, depreciacionPorKm: null,
-    tramos: [], hospedajes: [], comidas: [], gastos: [], inspeccion: null
+    tramos: [], hospedajes: [], comidas: [], gastos: [], inspeccion: null,
+    borradorId: borradorDeOrigen(v, cuerpo)
   };
   if (modalidad === MODALIDADES.MAS_DE_UN_DIA) {
     normalizarViajeLargo(v, cuerpo, datos);

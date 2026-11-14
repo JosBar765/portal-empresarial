@@ -20,6 +20,7 @@ const { llaveDeIdempotencia, ejecutarUnaVez } = require('./idempotenciaService')
 const documentoService = require('./documentoService');
 const { erroresDeTextos } = require('./pdf/solicitudPdfService');
 const solicitudService = require('./solicitudService');
+const borradorService = require('./borradorService');
 
 // `datos` llega como texto JSON (multipart), como objeto envuelto o como el payload directo (JSON puro).
 function extraerDatos(cuerpo) {
@@ -146,7 +147,7 @@ class SolicitudGuardadoService {
     const subidas = [];
     let guardado;
     try {
-      const persistir = tx => this.persistir(tx, { usuario, ctx, partes, archivos, previa, subidas });
+      const persistir = tx => this.persistir(tx, { usuario, ctx, partes, archivos, previa, subidas, borradorId: datos.borradorId });
       guardado = await (externo ? persistir(externo) : db.transaccion(persistir));
     } catch (error) {
       await archivosService.eliminarArchivos(subidas);
@@ -158,7 +159,7 @@ class SolicitudGuardadoService {
     return this.despuesDelCommit(usuario, guardado.id, Boolean(previa));
   }
 
-  async persistir(tx, { usuario, ctx, partes, archivos, previa, subidas }) {
+  async persistir(tx, { usuario, ctx, partes, archivos, previa, subidas, borradorId = null }) {
     const estadoId = await escrituraRepo.estadoId(ESTADOS.ESPERANDO_AUTORIZACION, tx);
     let id;
     let correlativo;
@@ -193,6 +194,8 @@ class SolicitudGuardadoService {
       registrar: defecto => escrituraRepo.insertarDefecto(id, defecto, tx)
     });
     await escrituraRepo.insertarHistorial(id, estadoId, usuario.id, null, tx);
+    // Al crear desde un borrador, este se descarta en la misma transacción (solo el del usuario; uno ajeno o ya borrado se ignora).
+    if (!previa && borradorId !== null) await borradorService.descartarAlEnviar(usuario.id, borradorId, tx);
     // Solo se borran de Storage las fotos de los defectos que ya no están; las conservadas siguen en uso.
     const enUso = new Set(partes.defectos.filter(d => conservados.has(d.defectoId)).map(d => conservados.get(d.defectoId).ruta));
     return { id, correlativo, fotosDescartadas: fotosAnteriores.filter(ruta => !enUso.has(ruta)) };

@@ -31,6 +31,7 @@ Solicita, autoriza y liquida los viáticos de viajes de trabajo. Hay dos modalid
 - **PDF:** una hoja en el caso normal; si las listas no caben sigue en otra con el mismo encabezado, el total y las firmas siempre juntos, y «n/total» al pie. Al autorizar se regenera con el nombre de quien autorizó sobre la línea de Administración (**tentativo**: gerencia aún no define el proceso).
 - **Archivos en Storage** (bucket propio, nombres como en el vale de arte): `<CORR>_CREACION`, `<CORR>_CORRECCION_PRE_AUTORIZACION_X`, `<CORR>_AUTORIZACION`, `<CORR>_DEFECTO_CREACION_X` y `_CORRECCION_X`, `<CORR>_LIQUIDACION_<RUBRO>_X`. Tipos y tamaño permitidos en `viaticos_ajustes`.
 - **Entornos:** el borrado de archivos pasa por `supabaseStorage.eliminar`, que solo actúa con `NODE_ENV=production` (ver `reglas_entornos.md`). En desarrollo y staging los archivos reemplazados quedan en el bucket.
+- **Borradores:** el formulario «Nueva solicitud» se guarda a medias en `viaticos_borradores` (ambas modalidades, sin fotos). Son privados de su dueño (ajeno: 404), viven 30 días desde su creación (no se renuevan al editar), tope de 15 por usuario (el 16.º da 409); vigencia y tope salen de `viaticos_ajustes`. Enviar la solicitud con `borradorId` borra el borrador en la misma transacción; un watcher horario borra los vencidos.
 - **Errores:** de negocio con 400 (con `campos`) o 403, nunca 401; los internos salen genéricos.
 
 ## Documentos

@@ -68,6 +68,16 @@ const CATALOGO = Object.freeze({
   'ajuste.lista': '«{clave}» debe ser una lista con al menos un tipo de archivo, sin repetidos, elegidos entre: {permitidos}. Corrígela.',
   'ajuste.entero': '«{clave}» debe ser un número entero entre {min} y {max} (recibido: {valor}). Escribe un entero dentro del rango.',
 
+  // ---- Borradores ----
+  'borrador.noExiste': 'No existe el borrador {id} entre los tuyos o ya venció. Recarga la lista de borradores e inténtalo de nuevo.',
+  'borrador.modalidad': '«Modalidad» del borrador debe ser «mas_de_un_dia» o «hasta_un_dia» (recibido: {valor}). Elige una de las dos.',
+  'borrador.datosObjeto': '«Datos del borrador» debe ser un objeto con los campos del formulario (no una lista ni un valor suelto). Corrige el formato.',
+  'borrador.datosGrandes': 'Los datos del borrador pesan {tamano} KB y el máximo permitido es {max} KB. Quita contenido del formulario y vuelve a guardar.',
+  'borrador.vacio': 'El borrador está vacío: llena al menos un campo del formulario antes de guardarlo.',
+  'borrador.tope': 'Ya tienes {tope} borradores, el máximo permitido. Elimina uno o envía alguno como solicitud para poder guardar otro.',
+  'borrador.ajusteFaltante': 'Falta el ajuste «{clave}» en la tabla viaticos_ajustes. Aplica la migración «viaticos_borradores» (en desarrollo: npm run migrate; en staging y producción se aplica al iniciar el servidor).',
+  'borrador.idEnvio': '«Borrador de origen» (borradorId) debe ser un identificador entero positivo (recibido: {valor}). Corrígelo o no lo envíes.',
+
   // ---- Solicitudes: forma del payload ----
   'campo.fechaHora': '«{etiqueta}» debe ser una fecha y hora válidas con formato AAAA-MM-DD HH:mm, por ejemplo 2026-03-31 08:30 (recibido: {valor}). Corrígela.',
   'solicitud.modalidad': '«Modalidad» debe ser «mas_de_un_dia» o «hasta_un_dia» (recibido: {valor}). Elige una de las dos.',

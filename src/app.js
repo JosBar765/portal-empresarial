@@ -15,6 +15,7 @@ const atrasoWatcher = require('./modules/vales/atrasoWatcher');
 const vigenciaWatcher = require('./modules/vales/vigenciaWatcher');
 const adjuntosWatcher = require('./modules/vales/adjuntosWatcher');
 const borradorWatcher = require('./modules/vales/borradorWatcher');
+const borradorViaticosWatcher = require('./modules/viaticos/borradorWatcher');
 const retencionArchivosWatcher = require('./modules/vales/retencionArchivosWatcher');
 const notificacionLimpieza = require('./core/notifications/notificacionLimpieza');
 const adminRoutes = require('./modules/admin/routes');
@@ -132,6 +133,7 @@ atrasoWatcher.iniciar();
 vigenciaWatcher.iniciar();
 adjuntosWatcher.iniciar();
 borradorWatcher.iniciar();
+borradorViaticosWatcher.iniciar();
 retencionArchivosWatcher.iniciar();
 notificacionLimpieza.iniciar();
 

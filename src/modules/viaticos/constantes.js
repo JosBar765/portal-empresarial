@@ -47,7 +47,17 @@ const RECURSOS = Object.freeze({
 const MIME_PERMITIDOS = Object.freeze(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
 const AJUSTES = Object.freeze({
   tipos_archivo_permitidos: Object.freeze({ tipo: 'lista', permitidos: MIME_PERMITIDOS, etiqueta: 'Tipos de archivo permitidos' }),
-  max_archivo_mb: Object.freeze({ tipo: 'entero', min: 1, max: 25, etiqueta: 'Tamaño máximo por archivo (MB)' })
+  max_archivo_mb: Object.freeze({ tipo: 'entero', min: 1, max: 25, etiqueta: 'Tamaño máximo por archivo (MB)' }),
+  borrador_vigencia_dias: Object.freeze({ tipo: 'entero', min: 1, max: 365, etiqueta: 'Vigencia de un borrador (días)' }),
+  borrador_max_por_usuario: Object.freeze({ tipo: 'entero', min: 1, max: 200, etiqueta: 'Máximo de borradores por usuario' })
+});
+
+// Borradores: claves de sus ajustes, tope del JSON guardado (cabe holgado en el límite de 200 kb del body) y claves de `datos` que no son contenido del usuario.
+const BORRADORES = Object.freeze({
+  AJUSTE_VIGENCIA_DIAS: 'borrador_vigencia_dias',
+  AJUSTE_MAX_POR_USUARIO: 'borrador_max_por_usuario',
+  MAX_BYTES_DATOS: 64 * 1024,
+  CLAVES_NO_CONTENIDO: Object.freeze(['modalidad', 'comidasAutoMarcar', 'comidasDesmarcadas'])
 });
 
 // Topes de las columnas DECIMAL de la base.
@@ -193,6 +203,6 @@ const ACCIONES = Object.freeze({
 const MESES_ABREVIADOS = Object.freeze(['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']);
 
 module.exports = {
-  PERMISOS, PREFIJO_PERMISOS, ESTADOS, MODALIDADES, RECURSOS, AJUSTES, MIME_PERMITIDOS, LIMITES,
+  PERMISOS, PREFIJO_PERMISOS, ESTADOS, MODALIDADES, RECURSOS, AJUSTES, BORRADORES, MIME_PERMITIDOS, LIMITES,
   LIMITES_SOLICITUD, ARCHIVOS, RUBROS_FIJOS, ETAPAS_DOCUMENTO, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, TIEMPO_REAL, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, NIVELES_RESALTADOS, MIME_IMAGEN_PDF, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS
 };

@@ -58,6 +58,14 @@ Prefijo de tablas: `viaticos_`. Convenciones del proyecto: español, `snake_case
 | `viaticos_defectos` | `id`, `solicitud_id`, `tipo_defecto_id`, `descripcion` NULL (solo «otros»), `ruta`, `mime_type`, `tamano` |
 | `viaticos_comprobantes` | `id`, `solicitud_id`, `tipo_gasto_id`, `descripcion` NULL (solo «otro»), `monto`, `nombre_original`, `ruta`, `mime_type`, `tamano`, `subido_en` |
 
+## Borradores de solicitud
+
+| Tabla | Columnas clave |
+|---|---|
+| `viaticos_borradores` | `id`, `usuario_id` (FK `usuarios`, CASCADE; el borrador es privado de su dueño), `modalidad` ENUM('hasta_un_dia','mas_de_un_dia'), `datos` JSON (estado del formulario; sin fotos ni archivos), `creado_en`, `actualizado_en`, `vence_en` (se fija al crear y no se renueva al editar); índices por `usuario_id` y por `vence_en` |
+
+Ajustes en `viaticos_ajustes` (migración `viaticos_borradores`): `borrador_vigencia_dias` = 30 (días de vida desde la creación) y `borrador_max_por_usuario` = 15 (tope por usuario). Ambos se editan con `PUT /config/ajustes/:clave`: la vigencia entre 1 y 365 y el tope entre 1 y 200. Un watcher horario borra los vencidos; enviar la solicitud borra el borrador de origen.
+
 Dar de baja una solicitud la borra con sus hijas (`ON DELETE CASCADE`) y el servicio borra los archivos en Storage solo en producción. Las FK hacia `usuarios` obligatorias van con `RESTRICT`; las de pertenencia con `CASCADE` (convención del proyecto).
 
 ## Permisos (`permisos.modulo = 'viaticos'`)

@@ -22,6 +22,11 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | `GET /contexto` | ver | Usuario, permisos `viaticos.*`, países del usuario, licencia y ajustes de archivo |
 | `GET /catalogos/solicitud?paisId=` | ver | Motivos, vehículos disponibles (empresa del país y propios del solicitante), ubicaciones, tramos, monedas, valores de comida, tipos de gasto y de defecto, fluidos, niveles y kit |
 | `POST /solicitudes/calcular` | ver | Valida y calcula sin guardar: importes, totales, advertencias y errores bloqueantes |
+| `GET /borradores` | ver | Mis borradores vigentes, del más nuevo al más viejo (ver «Borradores») |
+| `GET /borradores/:id` | ver | Un borrador mío con su `datos` completo |
+| `POST /borradores` | ver | Guarda un borrador nuevo (`{ modalidad, datos }`) |
+| `PUT /borradores/:id` | ver | Actualiza un borrador mío; no renueva su vencimiento |
+| `DELETE /borradores/:id` | ver | Elimina un borrador mío |
 | `GET /solicitudes?desde=&hasta=&q=` | ver | Mis solicitudes con pipeline y acciones disponibles |
 | `GET /solicitudes/:id` | ver | Detalle (propio) |
 | `POST /solicitudes` | ver | Crea (multipart: campo `datos` JSON y campo `defectos` para las fotos del viaje corto) |
@@ -154,6 +159,29 @@ Al modificar una solicitud de 1 día o menos no hay que volver a subir las fotos
 - 400 `{ error, campos }`: datos inválidos; `campos` acumula los errores de formato, de negocio y de archivos por campo (`inspeccion.defectos[0]`, `defectos`, `idempotencyKey`…). Las advertencias no bloquean y se guardan como salvedades. Archivos: tipo no permitido, contenido que no corresponde al tipo, tamaño sobre `max_archivo_mb`, defecto sin foto ni `defectoId`, con ambos a la vez, foto repetida, fotos sobrantes, fotos en un viaje de más de 1 día y, en `defectoId`, que no sea de la solicitud, esté repetido o se envíe al crear (cada uno con su mensaje explicativo en `inspeccion.defectos[i]`).
 - 400 sin `campos`: `datos` ausente o con JSON inválido; ajustes de archivos sin configurar. Multer (global): más de 20 fotos, archivo sobre 25 MB.
 - 403: la solicitud es de otra persona o su estado ya no admite modificar ni dar de baja (autorizada, liquidada); 404 si no existe. El estado se revalida dentro de la transacción con la fila bloqueada.
+
+## Borradores
+
+Guardan el formulario «Nueva solicitud» a medias, para ambas modalidades. Solo guardan los campos del formulario: nunca fotos ni archivos. La identidad sale de `req.user`; un borrador ajeno o vencido responde 404 igual que uno inexistente. Todos exigen solo `viaticos.ver`.
+
+- `GET /borradores` → 200 `{ borradores: [ { id, modalidad, paisId, fechaSalida, fechaRegreso, creadoEn, venceEn, diasRestantes } ] }`. Solo los vigentes, del más nuevo al más viejo. `paisId`, `fechaSalida` y `fechaRegreso` se leen de `datos` y son `null` si no están; `creadoEn` y `venceEn` son `AAAA-MM-DD`; `diasRestantes` (entero, 0 el último día) lo calcula MySQL.
+- `GET /borradores/:id` → 200 `{ id, modalidad, datos, creadoEn, venceEn, diasRestantes }`.
+- `POST /borradores` con `{ modalidad, datos }` → 201 con la misma forma que `GET /borradores/:id`.
+- `PUT /borradores/:id` con `{ modalidad, datos }` → 200 con la misma forma. No cambia `creadoEn` ni `venceEn` y no cuenta contra el tope.
+- `DELETE /borradores/:id` → 200 `{ ok: true }`.
+- Vigencia (`borrador_vigencia_dias`, 30) contada desde la creación, sin renovar al editar; tope por usuario (`borrador_max_por_usuario`, 15) de borradores vigentes. Ambos salen de `viaticos_ajustes`. Un watcher horario borra los vencidos.
+- Al guardar solo se valida la forma, no las reglas de la solicitud: `modalidad` válida; `datos` objeto (no lista ni `null`); serializado, de hasta 64 KB (`BORRADORES.MAX_BYTES_DATOS`); no vacío (`''`, `null`, `false`, listas u objetos sin contenido no cuentan, ni `modalidad`, `comidasAutoMarcar` ni `comidasDesmarcadas`). Los ids dentro de `datos` son opacos: el cliente los reconcilia con los catálogos al abrir el borrador.
+
+### Errores de borradores
+
+- 400 `{ error: 'Hay datos que no son válidos…', campos: { modalidad?, datos? } }`: modalidad inválida, `datos` que no es un objeto, demasiado grande (con su tamaño y el máximo) o vacío. Un `:id` que no es entero responde 400 `{ error: 'Borrador inválido.' }`.
+- 404 `{ error }`: no existe entre los del usuario o ya venció.
+- 409 `{ error }`: `POST` con el usuario ya en el tope («Ya tienes 15 borradores… elimina uno o envía alguno como solicitud»). Nunca 401: `sessionGuard.js` lo trata como sesión vencida. El conteo y el insert van en una transacción que bloquea la fila del usuario, así que dos guardados simultáneos no superan el tope.
+- 500 `{ error }`: falta alguno de los dos ajustes (la migración `viaticos_borradores` no se aplicó).
+
+### Enviar desde un borrador
+
+`POST /solicitudes` acepta `borradorId` dentro de `datos` (entero positivo, opcional; otro valor da 400 con el campo `borradorId` en `campos`). Si la solicitud se crea, el servidor borra ese borrador en la misma transacción, solo si es del usuario: uno ajeno o ya borrado se ignora sin fallar. Al modificar (`PUT /solicitudes/:id`) `borradorId` se ignora. Un reintento con la misma `idempotencyKey` devuelve la solicitud ya creada.
 
 ### Efectos
 
