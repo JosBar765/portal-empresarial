@@ -6,7 +6,7 @@ import { crearCampo, crearSeccionForm } from '../../components/campo.js';
 import { crearCampoNumerico } from '../../components/campoNumerico.js';
 import { crearBotonAgregar, crearBotonQuitar, crearTotales, ponerTotal } from '../../components/renglones.js';
 import { formatearDinero } from '../../utils/formato.js';
-import { aId } from '../datos.js';
+import { aId, gastoEsOtros } from '../datos.js';
 import { t } from '../../textos.js';
 
 export function crearSeccionGastos(ctx) {
@@ -26,23 +26,37 @@ export function crearSeccionGastos(ctx) {
     const combo = crearCombo({
       id: `vi-sol-gasto-tipo-${i}`, name: `gastos[${i}].tipoGastoId`, etiquetaAria: t('formulario.gastos.tipoDelGasto', { n: i + 1 }), placeholder: t('formulario.gastos.tipoPlaceholder'),
       grupos: [{ opciones: opcionesDe(catalogos.tiposGasto, g => g.nombre) }], valor: fila.tipoGastoId,
-      alCambiar: (v) => { fila.tipoGastoId = aId(v); ctx.cambio('gastos'); }
+      alCambiar: (v) => {
+        fila.tipoGastoId = aId(v);
+        // Se muestra u oculta en el lugar, sin repintar, para no perder el foco del tipo.
+        const otros = gastoEsOtros(catalogos, fila.tipoGastoId);
+        if (!otros) { fila.descripcion = ''; descripcion.value = ''; }
+        ponerDescripcionVisible(otros);
+        ctx.cambio('gastos');
+      }
     });
     const descripcion = h('input', {
       type: 'text', id: `vi-sol-gasto-descripcion-${i}`, name: `gastos[${i}].descripcion`, maxlength: String(LIMITES_SOLICITUD.DESCRIPCION), autocomplete: 'off',
       value: fila.descripcion, 'aria-label': t('formulario.gastos.descripcionDelGasto', { n: i + 1 })
     });
     descripcion.addEventListener('input', () => { fila.descripcion = descripcion.value; ctx.cambio('gastos'); });
+    const campoDescripcion = crearCampo({ etiqueta: t('formulario.gastos.descripcionMax', { max: LIMITES_SOLICITUD.DESCRIPCION }), control: descripcion, idControl: `vi-sol-gasto-descripcion-${i}`, clase: 'vi-gasto__descripcion', soloMovil: true });
+    const ponerDescripcionVisible = (visible) => {
+      campoDescripcion.hidden = !visible;
+      campoDescripcion.closest('.vi-renglon--gasto')?.classList.toggle('vi-renglon--gasto-sin-descripcion', !visible);
+    };
     const monto = crearCampoNumerico({
       id: `vi-sol-gasto-monto-${i}`, name: `gastos[${i}].monto`, valor: fila.monto, etiquetaAria: etiquetaMonto(),
       alCambiar: (v) => { fila.monto = v; ctx.cambio('gastos'); }
     });
-    return h('div', { class: 'vi-renglon vi-renglon--gasto', 'data-fila': String(i) },
+    const nodo = h('div', { class: 'vi-renglon vi-renglon--gasto', 'data-fila': String(i) },
       h('span', { class: 'vi-renglon__titulo', text: t('formulario.gastos.titulo', { n: i + 1 }) }),
-      crearCampo({ etiqueta: t('formulario.gastos.tipo'), control: combo, idControl: `vi-sol-gasto-tipo-${i}`, soloMovil: true }),
-      crearCampo({ etiqueta: t('formulario.gastos.descripcionMax', { max: LIMITES_SOLICITUD.DESCRIPCION }), control: descripcion, idControl: `vi-sol-gasto-descripcion-${i}`, soloMovil: true }),
+      crearCampo({ etiqueta: t('formulario.gastos.tipo'), control: combo, idControl: `vi-sol-gasto-tipo-${i}`, clase: 'vi-gasto__tipo', soloMovil: true }),
+      campoDescripcion,
       crearCampo({ etiqueta: etiquetaMonto(), control: monto, idControl: `vi-sol-gasto-monto-${i}`, soloMovil: true }),
       crearBotonQuitar({ etiqueta: t('formulario.gastos.quitar', { n: i + 1 }), alPulsar: () => quitar(i) }));
+    ponerDescripcionVisible(gastoEsOtros(catalogos, fila.tipoGastoId));
+    return nodo;
   }
 
   function pintar(foco) {

@@ -20,7 +20,7 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | Método y ruta | Permiso | Descripción |
 |---|---|---|
 | `GET /contexto` | ver | Usuario, permisos `viaticos.*`, países del usuario, licencia y ajustes de archivo |
-| `GET /catalogos/solicitud?paisId=` | ver | Motivos, vehículos disponibles (empresa del país y propios del solicitante), ubicaciones, tramos, monedas, valores de comida, tipos de gasto y de defecto, fluidos, niveles y kit |
+| `GET /catalogos/solicitud?paisId=` | ver | Motivos, vehículos disponibles (empresa del país y propios del solicitante), ubicaciones, tramos, monedas, valores de comida, tipos de gasto (con `esOtros`) y de defecto, fluidos, niveles y kit |
 | `POST /solicitudes/calcular` | ver | Valida y calcula sin guardar: importes, totales, advertencias y errores bloqueantes |
 | `GET /borradores` | ver | Mis borradores vigentes, del más nuevo al más viejo (ver «Borradores») |
 | `GET /borradores/:id` | ver | Un borrador mío con su `datos` completo |
@@ -86,6 +86,7 @@ Lo comparten `POST /solicitudes/calcular` (cuerpo JSON, el payload directo, sin 
 ```
 
 - `modalidad`: `mas_de_un_dia` o `hasta_un_dia`. En más de 1 día: `monedaId`, `fechaSalida` (`AAAA-MM-DD`), `fechaRegreso`, `rendimientoKmGalon`, `precioGalon`, `tramos` (al menos uno) y, si el vehículo es propio, `depreciacionPorKm`; `hospedajes`, `comidas` y `gastos` son opcionales; `inspeccion` no se admite. En 1 día o menos: `fechaSalida` es `AAAA-MM-DD HH:mm` (hora de Guatemala), `inspeccion` es obligatoria y no se admiten tramos, hospedajes, comidas ni gastos; el combustible no se calcula (`rendimientoKmGalon` y `precioGalon` se ignoran).
+- Otros gastos (`gastos[]`): `descripcion` es obligatoria solo si el tipo de gasto es «otros» (`esOtros` en el catálogo); para los demás tipos se ignora y se guarda vacía (la columna no admite nulo). Sin ella, el tipo «otros» da error en `gastos[i].descripcion`: «Describe el gasto {n} de tipo «{nombre}» (hasta 100 caracteres): con el tipo «otros» la descripción es obligatoria…».
 - Longitudes: hotel y lugar 50, descripciones 100. Noches, montos y valores mayores que cero. Cada fluido debe informarse; el nivel `N/A` solo en los fluidos con `permiteNoAplica`. Cada defecto es de una de dos formas excluyentes: NUEVO, con `archivoIndice` (posición de su foto en el campo `defectos` del multipart), o EXISTENTE, con `defectoId` (id de un defecto de la propia solicitud, solo al modificar) para conservar su foto actual; ver «Conservar la foto de un defecto» (en `calcular` solo se valida el formato).
 - Supuesto: «más de 1 día» significa con pernocta; el regreso debe ser posterior a la salida (si regresas el mismo día es «1 día o menos»).
 - Las ubicaciones de un tramo se eligen en cualquier sentido: el servidor busca el par ordenado en `viaticos_tramos`. Convención para guardar `viaticos_solicitud_tramos.sentido`: `ida` si el origen es la ubicación A del tramo, `vuelta` si es la B.

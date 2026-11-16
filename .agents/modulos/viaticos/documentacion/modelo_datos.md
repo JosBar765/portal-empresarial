@@ -51,7 +51,7 @@ Prefijo de tablas: `viaticos_`. Convenciones del proyecto: español, `snake_case
 | `viaticos_solicitud_tramos` | `id`, `solicitud_id` (CASCADE), `orden`, `tramo_id`, `sentido` ('ida','vuelta'), `km`, `horas` (copia histórica) |
 | `viaticos_solicitud_hospedajes` | `id`, `solicitud_id`, `hotel` VARCHAR(50), `lugar` VARCHAR(50), `noches`, `valor_noche` |
 | `viaticos_solicitud_comidas` | `solicitud_id`, `fecha`, `tipo_comida_id` (PK compuesta), `valor_unitario` (copia histórica); una fila por comida marcada |
-| `viaticos_solicitud_gastos` | `id`, `solicitud_id`, `tipo_gasto_id`, `descripcion` VARCHAR(100), `monto` |
+| `viaticos_solicitud_gastos` | `id`, `solicitud_id`, `tipo_gasto_id`, `descripcion` VARCHAR(100) (vacía salvo en el tipo «otros»), `monto` |
 | `viaticos_solicitud_salvedades` | `solicitud_id`, `salvedad_id` (PK compuesta) |
 | `viaticos_inspeccion_fluidos` | `solicitud_id`, `fluido_id` (PK compuesta), `nivel_id` |
 | `viaticos_solicitud_kit` | `solicitud_id`, `kit_item_id` (PK compuesta), `presente` |

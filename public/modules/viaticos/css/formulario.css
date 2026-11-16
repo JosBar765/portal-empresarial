@@ -78,6 +78,9 @@
 .vi-renglon--tramo { grid-template-columns: 24px minmax(0, 1fr) 16px minmax(0, 1fr) 76px 60px 36px; }
 .vi-renglon--hospedaje { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 90px 140px 36px; }
 .vi-renglon--gasto { grid-template-columns: 180px minmax(0, 1fr) 120px 36px; }
+/* Sin descripción (tipo distinto de «otros») el tipo ocupa su columna y el monto no se corre. */
+.vi-gasto__descripcion[hidden] { display: none; }
+.vi-renglon--gasto-sin-descripcion > .vi-gasto__tipo { grid-column: 1 / 3; }
 .vi-renglon__num { min-height: 36px; display: flex; align-items: center; font-size: var(--text-sm); color: var(--color-text-secondary); }
 .vi-renglon__flecha { min-height: 36px; display: flex; align-items: center; justify-content: center; color: var(--color-text-muted); }
 .vi-celda-dato { min-height: 36px; display: flex; align-items: center; font-size: var(--text-sm); }

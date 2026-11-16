@@ -141,6 +141,7 @@ const CATALOGO = Object.freeze({
   'solicitud.kitRepetido': 'El elemento «{item}» del kit está registrado más de una vez. Déjalo una sola vez.',
   'solicitud.defectoNoExiste': 'El tipo de defecto elegido no existe. Elige uno de la lista.',
   'solicitud.defectoInactivo': 'El tipo de defecto «{nombre}» está desactivado. Elige otro tipo.',
+  'solicitud.gastoDescripcion': 'Describe el gasto {n} de tipo «{nombre}» (hasta {max} caracteres): con el tipo «otros» la descripción es obligatoria. Escríbela o elige otro tipo de gasto.',
   'solicitud.defectoDescripcion': 'Describe el defecto «{nombre}» (hasta {max} caracteres): con el tipo «otros» la descripción es obligatoria.',
 
   // ---- Solicitudes: guardado ----

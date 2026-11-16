@@ -170,12 +170,18 @@ export function reconciliarEstado(estado, cat) {
     motivoId: existe(cat.motivos, estado.motivoId) ? estado.motivoId : '',
     ...normalizarRuta(estado, cat.tramos),
     comidas,
-    gastos: estado.gastos.map(g => ({ ...g, tipoGastoId: existe(cat.tiposGasto, g.tipoGastoId) ? g.tipoGastoId : '' })),
+    gastos: estado.gastos.map(g => {
+      const tipoGastoId = existe(cat.tiposGasto, g.tipoGastoId) ? g.tipoGastoId : '';
+      // La descripción solo existe con el tipo «otros»: si el tipo cambió o ya no está, se descarta.
+      return { ...g, tipoGastoId, descripcion: gastoEsOtros(cat, tipoGastoId) ? g.descripcion : '' };
+    }),
     ...reconciliarCorto(estado, cat)
   };
 }
 
 // ---------- Estado -> payload `datos` ----------
+// Solo el tipo «otros» lleva descripción.
+export const gastoEsOtros = (cat, tipoGastoId) => !!(cat && cat.tiposGasto.some(x => x.id === tipoGastoId && x.esOtros));
 export const vehiculoDelEstado = (estado, cat) => (cat ? cat.vehiculos.find(v => v.id === estado.vehiculoId) || null : null);
 
 function poner(datos, clave, valor) {
@@ -240,8 +246,11 @@ export function armarPayload(estado, cat, { idempotencyKey } = {}) {
 
   datos.gastos = [];
   estado.gastos.forEach((fila, i) => {
-    if (fila.tipoGastoId === '' || sinTexto(fila.descripcion) || vacio(fila.monto)) return;
-    datos.gastos.push({ tipoGastoId: fila.tipoGastoId, descripcion: fila.descripcion.trim(), monto: importe(fila.monto) });
+    const otros = gastoEsOtros(cat, fila.tipoGastoId);
+    if (fila.tipoGastoId === '' || (otros && sinTexto(fila.descripcion)) || vacio(fila.monto)) return;
+    const gasto = { tipoGastoId: fila.tipoGastoId, monto: importe(fila.monto) };
+    if (otros) gasto.descripcion = fila.descripcion.trim();
+    datos.gastos.push(gasto);
     indices.gastos.push(i);
   });
 
@@ -270,7 +279,7 @@ export function erroresLocales(estado, cat) {
   });
   estado.gastos.forEach((fila, i) => {
     if (fila.tipoGastoId === '') errores.push({ campo: `gastos[${i}].tipoGastoId`, clave: 'formulario.error.tipoGasto' });
-    if (sinTexto(fila.descripcion)) errores.push({ campo: `gastos[${i}].descripcion`, clave: 'formulario.error.descripcion', params: { max: LIMITES_SOLICITUD.DESCRIPCION } });
+    if (gastoEsOtros(cat, fila.tipoGastoId) && sinTexto(fila.descripcion)) errores.push({ campo: `gastos[${i}].descripcion`, clave: 'formulario.error.descripcion', params: { max: LIMITES_SOLICITUD.DESCRIPCION } });
     if (vacio(fila.monto)) errores.push({ campo: `gastos[${i}].monto`, clave: 'formulario.error.monto' });
   });
   return errores;

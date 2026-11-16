@@ -289,7 +289,7 @@ function seccionesDeCostos(ctx, detalle) {
 
   dibujarSubseccion(ctx, t('otrosGastos'), dinero(otros.importe), [
     { etiqueta: t('colTipo'), x: 0, w: 0.2, valor: f => f.tipoGastoNombre },
-    { etiqueta: t('colDescripcion'), x: 0.2, w: 0.6, valor: f => f.descripcion },
+    { etiqueta: t('colDescripcion'), x: 0.2, w: 0.6, valor: f => f.descripcion || '' },
     { etiqueta: t('colMonto'), x: 0.8, w: 0.2, alinear: 'der', valor: f => dinero(f.monto) }
   ], otros.lineas);
 

@@ -82,7 +82,8 @@ function normalizarViajeLargo(v, cuerpo, datos) {
 
   datos.gastos = lista(v, cuerpo, 'gastos', 'Otros gastos', LIMITES_SOLICITUD.MAX_GASTOS).map((g, i) => enRenglon(v, `gastos[${i}]`, s => ({
     tipoGastoId: s.id(g, 'tipoGastoId', `Tipo del gasto ${i + 1}`),
-    descripcion: s.texto(g, 'descripcion', `Descripción del gasto ${i + 1}`, { max: LIMITES_SOLICITUD.DESCRIPCION }),
+    // Opcional en la forma: solo es obligatoria con el tipo «otros», que se conoce al validar las reglas.
+    descripcion: s.texto(g, 'descripcion', `Descripción del gasto ${i + 1}`, { max: LIMITES_SOLICITUD.DESCRIPCION, requerido: false }),
     monto: valorMonto(s, g, 'monto', `Monto del gasto ${i + 1}`)
   })));
 }
@@ -312,6 +313,9 @@ function validarGastos(datos, ctx, errores) {
     if (!tipo) errores.push({ campo, mensaje: msg('solicitud.tipoGastoNoExiste') });
     else if (!tipo.activo) errores.push({ campo, mensaje: msg('solicitud.tipoGastoInactivo', { nombre: tipo.nombre }) });
     else if (!tipo.seleccionableEnGastos) errores.push({ campo, mensaje: msg('solicitud.tipoGastoNoSeleccionable', { nombre: tipo.nombre }) });
+    else if (tipo.esOtros && !gasto.descripcion) errores.push({ campo: `${campo}.descripcion`, mensaje: msg('solicitud.gastoDescripcion', { n: i + 1, nombre: tipo.nombre, max: LIMITES_SOLICITUD.DESCRIPCION }) });
+    // Fuera de «otros» la descripción no se usa: se guarda vacía (la columna no admite nulo).
+    else if (!tipo.esOtros) gasto.descripcion = '';
   });
 }
 
