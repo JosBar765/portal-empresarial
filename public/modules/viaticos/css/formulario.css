@@ -209,6 +209,13 @@ button.vi-foto__vista:focus-visible { outline: 2px solid var(--color-primary); o
   .vi-modal-solicitud .vi-pie-motivo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .vi-modal-solicitud .modal-footer { flex-wrap: wrap; gap: 8px; }
   .vi-modal-solicitud .modal-footer .btn { flex: 1 1 0; min-width: 0; padding-left: 6px; padding-right: 6px; font-size: 13px; white-space: nowrap; }
+  /* La barra del total necesita el ancho: el botón del desglose queda solo con su ícono y el importe no se parte en dos líneas. */
+  .vi-modal-solicitud .vi-resumen__toggle span { display: none; }
+  .vi-modal-solicitud .vi-resumen__toggle { padding: 8px; }
+  .vi-modal-solicitud .vi-resumen__total-valor { white-space: nowrap; }
+  /* Las columnas de comidas miden 64 px: con la letra normal «desayuno» y «almuerzo» se pisaban. */
+  .vi-comidas__fila--cabecera { font-size: 9px; letter-spacing: 0; }
+  .vi-comidas__tipo { min-width: 0; }
 }
 
 /* ---------- Errores de campo del modal: un ícono rojo en la esquina del campo; el mensaje sale en un globo (mouse, foco o toque) ---------- */

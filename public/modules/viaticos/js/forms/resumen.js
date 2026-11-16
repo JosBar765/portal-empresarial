@@ -22,6 +22,9 @@ export function crearResumen(ctx, { alReintentar }) {
   const textoToggle = h('span', { text: t('formulario.resumen.verDesglose') });
   const toggle = h('button', { class: 'vi-resumen__toggle', type: 'button', id: 'vi-sol-resumen-toggle', 'aria-expanded': 'false', 'aria-controls': 'vi-sol-resumen-desglose' },
     icono('chevron-up-outline'), textoToggle);
+  // En celular solo se ve el ícono: el nombre accesible lo da el atributo, no el texto.
+  toggle.setAttribute('aria-label', t('formulario.resumen.verDesglose'));
+  toggle.title = t('formulario.resumen.verDesglose');
   const barra = h('div', { class: 'vi-resumen__barra' }, toggle,
     h('div', { class: 'vi-resumen__total' }, h('span', { text: t('formulario.resumen.total') }), total));
   const el = h('div', { class: 'vi-resumen', id: 'vi-sol-resumen', role: 'region', 'aria-label': t('formulario.resumen.titulo') }, estado, desglose, barra);
@@ -29,6 +32,8 @@ export function crearResumen(ctx, { alReintentar }) {
     const abierto = el.classList.toggle('is-abierto');
     toggle.setAttribute('aria-expanded', String(abierto));
     textoToggle.textContent = t(abierto ? 'formulario.resumen.ocultarDesglose' : 'formulario.resumen.verDesglose');
+    toggle.setAttribute('aria-label', textoToggle.textContent);
+    toggle.title = textoToggle.textContent;
   });
 
   function pintar() {
