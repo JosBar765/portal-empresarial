@@ -92,7 +92,7 @@ export function abrirFormularioSolicitud({ modo = 'crear', solicitud, borrador, 
 
   // ---------- Cálculo ----------
   const calculador = crearCalculador({
-    calcular: calcularSolicitud,
+    calcular: (datos) => calcularSolicitud(datos, esModificar ? solicitud.id : null),
     alIniciar: () => { ctx.calculando = true; ctx.emitir('calculando'); actualizarEnvio(); },
     alResultado: (respuesta, indices) => {
       ctx.calculando = false;

@@ -63,7 +63,8 @@ export const obtenerContexto = () => pedir(`${BASE}/contexto`);
 export const obtenerCatalogosSolicitud = (paisId) => pedir(`${BASE}/catalogos/solicitud${consulta({ paisId })}`);
 
 // ---------- Solicitudes del propio usuario ----------
-export const calcularSolicitud = (datos) => pedir(`${BASE}/solicitudes/calcular`, enJson('POST', datos));
+// `solicitudId` solo en modo modificar: el servidor no cuenta esa solicitud como traslape de sí misma.
+export const calcularSolicitud = (datos, solicitudId = null) => pedir(`${BASE}/solicitudes/calcular${solicitudId ? `?solicitudId=${encodeURIComponent(solicitudId)}` : ''}`, enJson('POST', datos));
 export const listarSolicitudes = (filtros) => pedir(`${BASE}/solicitudes${consulta(filtros)}`);
 export const obtenerSolicitud = (id) => pedir(`${BASE}/solicitudes/${id}`);
 export const crearSolicitud = (datos, fotos) => pedir(`${BASE}/solicitudes`, { method: 'POST', body: formularioSolicitud(datos, fotos) });

@@ -64,6 +64,8 @@ Recursos de `/config`: `paises` y `combustibles` (solo lectura; este último lo 
 
 Lo comparten `POST /solicitudes/calcular` (cuerpo JSON, el payload directo, sin envoltura), `crear` y `modificar` (campo `datos` del multipart). camelCase; los importes aceptan número o texto con hasta 2 decimales.
 
+`POST /solicitudes/calcular` acepta `?solicitudId=` (modo modificar): esa solicitud propia no cuenta como traslape de sí misma, igual que al guardar. Un valor que no sea un entero positivo da 400.
+
 ```json
 {
   "paisId": 1, "modalidad": "mas_de_un_dia", "vehiculoId": 2, "motivoId": 3,

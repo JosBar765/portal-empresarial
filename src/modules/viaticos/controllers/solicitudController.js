@@ -11,7 +11,7 @@ const fotosDe = req => (req.files && req.files[ARCHIVOS.CAMPO_DEFECTOS]) || [];
 
 module.exports = {
   catalogos: manejar(req => service.catalogosSolicitud(req.user, req.query)),
-  calcular: manejar(req => service.calcular(req.user, req.body)),
+  calcular: manejar(req => service.calcular(req.user, req.body, req.query.solicitudId)),
   listar: manejar(req => service.listar(req.user, req.query)),
   obtener: manejar(req => service.obtener(req.user, req.params.id)),
   crear: manejar(req => guardado.crear(req.user, req.body, fotosDe(req)), { status: 201 }),

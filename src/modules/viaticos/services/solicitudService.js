@@ -1,7 +1,7 @@
 // src/modules/viaticos/services/solicitudService.js
 // Casos de uso del solicitante que solo leen: catálogos del formulario, cálculo en vivo, lista y detalle (el guardado está en solicitudGuardadoService).
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
-const { idObligatorio } = require('../../../core/utils/validar');
+const { idObligatorio, idOpcional } = require('../../../core/utils/validar');
 const { ahoraUTC6 } = require('../../../core/calendario/calendarioLaboral');
 const catalogoRepo = require('../repositories/catalogoSolicitudRepository');
 const solicitudRepo = require('../repositories/solicitudRepository');
@@ -239,11 +239,13 @@ class SolicitudService {
   }
 
   // Valida y calcula sin guardar. Los errores bloqueantes viajan en la respuesta (200), no como excepción.
-  async calcular(usuario, cuerpo) {
+  // `solicitudId` (modo modificar) deja fuera del chequeo de traslape a la propia solicitud, como hace el guardado.
+  async calcular(usuario, cuerpo, solicitudId = null) {
     const { datos, errores: erroresForma } = normalizarDatos(cuerpo);
     if (erroresForma.length > 0) return respuestaDeCalculo(datos.modalidad, { errores: erroresForma });
+    const excluirSolicitudId = idOpcional(solicitudId, 'El identificador de la solicitud');
     const { hoy, ahora } = instante();
-    const ctx = await this.cargarContexto(usuario.id, datos);
+    const ctx = await this.cargarContexto(usuario.id, datos, { excluirSolicitudId });
     const evaluacion = evaluar({ datos, ctx, hoy, ahora });
     const puedeCalcular = Boolean(ctx.vehiculo)
       && (datos.modalidad !== MODALIDADES.MAS_DE_UN_DIA || Boolean(ctx.moneda))
