@@ -46,6 +46,9 @@ function aResumen(f) {
   };
 }
 
+// Una foto ya borrada por la regla de conservación no lleva URL: la pantalla muestra «Foto eliminada por antigüedad».
+const aFoto = (f) => (f.purgada_en ? { id: f.id, etapa: f.etapa, eliminada: true } : { id: f.id, url: f.url, etapa: f.etapa });
+
 class IncidenciaService {
   // --- Formulario ---
 
@@ -302,7 +305,7 @@ class IncidenciaService {
     const soloReportante = rel.esReportante && !rel.esResponsable && !rel.verificaConPermiso && !rel.lectura && !rel.cubre;
     const visibles = soloReportante ? eventos.filter(e => e.visible_reportante) : eventos;
     const fotosPorEvento = new Map();
-    for (const f of fotos) { if (!fotosPorEvento.has(f.evento_id)) fotosPorEvento.set(f.evento_id, []); fotosPorEvento.get(f.evento_id).push({ id: f.id, url: f.url, etapa: f.etapa }); }
+    for (const f of fotos) { if (!fotosPorEvento.has(f.evento_id)) fotosPorEvento.set(f.evento_id, []); fotosPorEvento.get(f.evento_id).push(aFoto(f)); }
     // Lo que la pantalla necesita para sus formularios de avance, espera, reasignación y prioridad.
     const opciones = { fotosPorAvance: (await parametros.valores()).fotos_por_avance };
     if (acciones.espera) opciones.motivosEspera = await catalogoRepository.motivosEspera();
@@ -314,7 +317,7 @@ class IncidenciaService {
         descripcion: inc.descripcion,
         departamento: inc.departamento,
         duplicadaDe: inc.duplicada_de,
-        fotos: fotos.filter(f => f.etapa === 'reporte').map(f => ({ id: f.id, url: f.url })),
+        fotos: fotos.filter(f => f.etapa === 'reporte').map(aFoto),
         verifica: soloReportante ? verificadores.personas.map(p => ({ nombre: p.nombre })) : verificadores.personas.map(p => ({ id: p.id, nombre: p.nombre })),
         origenVerificador: verificadores.origen
       },

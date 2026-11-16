@@ -183,6 +183,13 @@ async function verificar() {
     prueba('trae los parámetros con su valor, su valor por defecto y sus límites', r.status === 200 && r.datos.parametros.length >= 6 && r.datos.parametros.every(p => p.etiqueta && p.valor !== undefined));
     r = await adm('PUT', '/configuracion/parametros', { valores: { fotos_por_reporte: 99 } });
     prueba('un valor fuera de rango → 400', r.status === 400 && r.datos.campos.fotos_por_reporte);
+    r = await adm('GET', '/configuracion/parametros');
+    const retFotos = r.datos.parametros.find(p => p.clave === 'meses_retencion_fotos');
+    prueba('el plazo de conservación de fotos aparece: 12 meses por defecto, de 0 (siempre) a 120', retFotos && retFotos.defecto === 12 && retFotos.valor === 12 && retFotos.min === 0 && retFotos.max === 120 && retFotos.unidad === 'meses', JSON.stringify(retFotos));
+    r = await adm('PUT', '/configuracion/parametros', { valores: { meses_retencion_fotos: 121 } });
+    prueba('un plazo fuera de rango (121) se rechaza → 400', r.status === 400 && r.datos.campos && r.datos.campos.meses_retencion_fotos, JSON.stringify(r.datos));
+    r = await adm('PUT', '/configuracion/parametros', { valores: { meses_retencion_fotos: 0 } });
+    prueba('0 es válido: conservar siempre', r.status === 200 && r.datos.parametros.find(p => p.clave === 'meses_retencion_fotos').valor === 0, JSON.stringify(r.datos));
     r = await adm('PUT', '/configuracion/parametros', { valores: { inventado: 1 } });
     prueba('un parámetro que no existe → 400', r.status === 400 && r.datos.campos.inventado);
     r = await adm('PUT', '/configuracion/parametros', { valores: { subir_nivel_reincidencia: 'quizás' } });

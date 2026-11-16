@@ -17,6 +17,8 @@ const PARAMETROS = [
     etiqueta: 'Aviso de reportes repetidos', ayuda: 'Busca reportes parecidos de la misma tienda de los últimos días. 0 apaga el aviso.' },
   { clave: 'dias_sin_avance', tipo: 'entero', defecto: 7, min: 1, max: 60, unidad: 'días',
     etiqueta: 'Días sin avance', ayuda: 'Desde cuántos días se resalta una incidencia que no avanza.' },
+  { clave: 'meses_retencion_fotos', tipo: 'entero', defecto: 12, min: 0, max: 120, unidad: 'meses',
+    etiqueta: 'Conservar fotos (meses)', ayuda: 'Pasado este tiempo desde que se cierra o se descarta una incidencia, se borran sus fotos del reporte y de los avances; las del cierre se conservan. 0 = conservar siempre. Solo se aplica en producción.' },
   { clave: 'subir_nivel_reincidencia', tipo: 'booleano', defecto: true,
     etiqueta: 'Subir de prioridad si se repite', ayuda: 'Si en la misma tienda y zona hubo otra incidencia reciente, la prioridad sube un nivel.' }
 ];

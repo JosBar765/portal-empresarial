@@ -80,7 +80,7 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 - `development`: local. `staging`: testing domain, production backup, own bucket. `production`. `test`: automated.
 - Critical actions run **only in production**; elsewhere do nothing and log it.
 - Critical: Storage delete/replace, purges, emails, push, webhooks, third-party calls, external resources located by DB values.
-- Guarded today: `supabaseStorage.eliminar`, retention watcher.
+- Guarded today: `supabaseStorage.eliminar`, retention watchers (Vales files, Incidencias photos).
 - New actions: follow `.agents/reglas/reglas_entornos.md`; update its inventory.
 - Session cookies are `Secure` in staging and production.
 - Refresh staging from production: `npm run staging:probar-conexion` / `staging:refrescar`; rules: `.agents/reglas/reglas_refresco_staging.md`.

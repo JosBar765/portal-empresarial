@@ -215,7 +215,20 @@ class IncidenciaRepository {
   }
 
   async fotos(id) {
-    return db.query('SELECT id, evento_id, etapa, url FROM incidencia_fotos WHERE incidencia_id = ? ORDER BY id', [id], 'incidencias:fotos_de');
+    return db.query('SELECT id, evento_id, etapa, url, purgada_en FROM incidencia_fotos WHERE incidencia_id = ? ORDER BY id', [id], 'incidencias:fotos_de');
+  }
+
+  // Fotos del reporte y de los avances cuya incidencia se cerró o se descartó hace más de `meses` y aún siguen en Storage.
+  async fotosVencidas(meses, limite) {
+    return db.query(
+      `SELECT f.id, f.url FROM incidencia_fotos f JOIN incidencias i ON i.id = f.incidencia_id
+       WHERE f.etapa IN ('reporte', 'avance') AND f.purgada_en IS NULL AND i.estado IN ('cerrada', 'descartada')
+         AND i.cerrada_en IS NOT NULL AND i.cerrada_en < DATE_SUB(NOW(), INTERVAL ? MONTH)
+       ORDER BY f.id LIMIT ?`, [meses, limite], 'incidencias:fotos_vencidas');
+  }
+
+  async marcarFotoPurgada(id) {
+    await db.query('UPDATE incidencia_fotos SET purgada_en = NOW() WHERE id = ? AND purgada_en IS NULL', [id], 'incidencias:foto_purgada');
   }
 }
 

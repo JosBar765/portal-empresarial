@@ -113,10 +113,10 @@ export function crearAcciones(d, alCambiar) {
     // Quien verifica: ve el trabajo, aprueba o pide una corrección.
     revisarCierre() {
       const envio = d.eventos.find(e => e.tipo === 'a_verificacion');
-      const fotosReporte = d.incidencia.fotos || [];
+      const fotosReporte = (d.incidencia.fotos || []).filter(f => !f.eliminada);
       // Antes y después forman una sola secuencia en el visor: se pasa de la foto del problema a la del cierre sin cerrarlo.
       const antes = fotosReporte.map(f => ({ url: f.url, titulo: 'Antes · lo que se reportó', detalle: `${d.incidencia.reportante.nombre} · ${fechaHora(d.incidencia.creadaEn)}` }));
-      const despues = ((envio && envio.fotos) || []).map(f => ({ url: f.url, titulo: 'Después · foto de cierre', detalle: `${envio.usuario ? envio.usuario.nombre : 'El técnico'} · ${fechaHora(envio.creadoEn)}` }));
+      const despues = ((envio && envio.fotos) || []).filter(f => !f.eliminada).map(f => ({ url: f.url, titulo: 'Después · foto de cierre', detalle: `${envio.usuario ? envio.usuario.nombre : 'El técnico'} · ${fechaHora(envio.creadoEn)}` }));
       const secuencia = [...antes, ...despues];
       const galeria = (titulo, lista, desde) => (lista && lista.length ? h('div', { class: 'inc-revision-fotos' }, h('span', { class: 'inc-etiqueta', text: titulo }),
         h('ul', { class: 'inc-fotos-lista inc-fotos-lista--solo-ver' }, lista.map((f, i) => h('li', { class: 'inc-foto' }, miniaturaAbrible(secuencia, desde + i, { alt: `${titulo} ${i + 1}` }))))) : null);
@@ -140,7 +140,7 @@ export function crearAcciones(d, alCambiar) {
         titulo: `Revisar cierre · ${correlativo}${ronda}`, subtitulo: d.incidencia.titulo, ancho: 'lg',
         contenido: h('div', { class: 'inc-formulario-hoja' },
           nota(`La resolvió ${d.incidencia.tecnico ? d.incidencia.tecnico.nombre : 'el técnico'}. Revisa que el problema haya quedado resuelto.`, 'info'),
-          h('div', { class: 'inc-revision' }, galeria('Antes · lo que se reportó', fotosReporte, 0), galeria('Después · foto de cierre', envio && envio.fotos, antes.length)),
+          h('div', { class: 'inc-revision' }, galeria('Antes · lo que se reportó', fotosReporte, 0), galeria('Después · foto de cierre', envio && envio.fotos && envio.fotos.filter(f => !f.eliminada), antes.length)),
           envio && envio.texto ? h('div', { class: 'inc-revision-resumen' }, h('span', { class: 'inc-etiqueta', text: 'Resumen del trabajo' }), h('p', { text: envio.texto })) : null,
           comentario.el, d.acciones.pedirCorreccion ? fotos.el : null),
         acciones: botones, cancelar: 'Cancelar'

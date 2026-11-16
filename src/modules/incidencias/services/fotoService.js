@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const { tipoRealCoincide } = require('../../../core/files/fileSignature');
 const { excedeElLimiteDePixeles } = require('../../../core/files/imagenDimensiones');
 const imageOptimizer = require('../../../core/files/imageOptimizer');
-const storage = require('../../../core/files/supabaseStorage');
+const storage = require('../../../core/files/supabaseStorage').incidencias;
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 
 const TIPOS = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];

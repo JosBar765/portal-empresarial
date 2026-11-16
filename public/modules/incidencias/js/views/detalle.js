@@ -46,8 +46,12 @@ const GRUPOS = { todo: null, avances: ['avance', 'comentario'], correcciones: ['
 // Las miniaturas abren el visor con todas las fotos del grupo; cada una lleva su etiqueta (de qué es, quién la subió y cuándo).
 function galeria(fotos, { titulo = 'Foto', detalle = '' } = {}) {
   if (!fotos || !fotos.length) return null;
-  const secuencia = fotos.map(f => ({ url: f.url, titulo, detalle }));
-  return h('ul', { class: 'inc-fotos-lista inc-fotos-lista--solo-ver' }, fotos.map((f, i) => h('li', { class: 'inc-foto' }, miniaturaAbrible(secuencia, i))));
+  // Lo ya borrado por la regla de conservación se dibuja como un cuadro y no entra en la secuencia del visor.
+  const secuencia = fotos.filter(f => !f.eliminada).map(f => ({ url: f.url, titulo, detalle }));
+  let lugar = 0;
+  return h('ul', { class: 'inc-fotos-lista inc-fotos-lista--solo-ver' }, fotos.map(f => (f.eliminada
+    ? h('li', { class: 'inc-foto inc-foto--eliminada', title: 'Foto eliminada por antigüedad' }, icono('image-outline'), h('span', { text: 'Foto eliminada por antigüedad' }))
+    : h('li', { class: 'inc-foto' }, miniaturaAbrible(secuencia, lugar++)))));
 }
 
 export async function mostrarDetalle(cont, id, { pestana = 'resumen' } = {}) {
