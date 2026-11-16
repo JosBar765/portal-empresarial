@@ -12,6 +12,7 @@ import { registrarAccionPropia } from '../socket.js';
 import { t } from '../textos.js';
 import { armarPayload, detalleAEstado, estadoInicial, motivoDeRechazo, raizDeCampo, reconciliarEstado, remapearCampo } from './datos.js';
 import { avisarCambioBorradores } from '../utils/eventosBorradores.js';
+import { tiempoRestante } from '../utils/vencimiento.js';
 import { borradorAEstado, estadoABorrador } from './borradorEstado.js';
 import { crearContexto } from './contexto.js';
 import { crearCalculador } from './calculo.js';
@@ -211,7 +212,9 @@ export function abrirFormularioSolicitud({ modo = 'crear', solicitud, borrador, 
     estadoDeDetalle(h('p', { class: 'vi-ayuda vi-vacio', text: t('formulario.pais.elige') }));
 
     const motivo = detalleSolicitud ? motivoDeRechazo(detalleSolicitud) : '';
-    if (motivo) rechazo.replaceChildren(crearAviso({ tipo: 'info', titulo: t('formulario.modificar.rechazoTitulo'), texto: t('formulario.modificar.rechazoTexto', { motivo }) }));
+    // Si la solicitud tiene plazo, se dice cuánto queda: al vencer pasa a «Borradores».
+    const vence = detalleSolicitud && detalleSolicitud.vencimiento ? ` ${t('formulario.modificar.rechazoVence', { tiempo: tiempoRestante(detalleSolicitud.vencimiento.minutosRestantes) })}` : '';
+    if (motivo) rechazo.replaceChildren(crearAviso({ tipo: 'info', titulo: t('formulario.modificar.rechazoTitulo'), texto: t('formulario.modificar.rechazoTexto', { motivo }) + vence }));
 
     // Al cambiar de tipo de viaje se vuelve a ajustar lo elegido (p. ej. un vehículo propio no sirve en un viaje corto) y se descarta el cálculo anterior.
     ctx.suscribir('modalidad', () => {

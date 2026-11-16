@@ -21,7 +21,7 @@ export function tipoDeDocumento({ tipo, url } = {}) {
   return 'pdf';
 }
 
-// Título de la cabecera del visor de una solicitud: «Solicitud VIA-GT-000123».
+// Título de la cabecera del visor de una solicitud: «Solicitud VIA-GT-123».
 export const tituloVisorSolicitud = (correlativo) => t('visor.tituloSolicitud', { correlativo: correlativo || '' }).trim();
 
 // Título del visor de un comprobante: «Comprobante — Hospedaje».

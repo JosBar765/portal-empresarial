@@ -41,7 +41,7 @@ export function htmlFilaGestion(s) {
     ${celda('gestiones.col.fechaCreacion', escapeHtml(formatearFechaCorta(s.fechaCreacion)), 'vi-celda-secundaria')}
     ${celda('gestiones.col.fechaViaticos', escapeHtml(formatearRangoViaje(s)))}
     ${celda('gestiones.col.tipo', escapeHtml(tipo), 'vi-celda-secundaria')}
-    ${celda('gestiones.col.estado', htmlPipeline(s.pipeline))}
+    ${celda('gestiones.col.estado', htmlPipeline(s.pipeline, s.vencimiento))}
     <td class="acciones-cell"><div class="acciones-wrap">${htmlAccionesGestion(s)}</div></td>
   </tr>`;
 }

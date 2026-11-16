@@ -49,8 +49,12 @@ const AJUSTES = Object.freeze({
   tipos_archivo_permitidos: Object.freeze({ tipo: 'lista', permitidos: MIME_PERMITIDOS, etiqueta: 'Tipos de archivo permitidos' }),
   max_archivo_mb: Object.freeze({ tipo: 'entero', min: 1, max: 25, etiqueta: 'Tamaño máximo por archivo (MB)' }),
   borrador_vigencia_dias: Object.freeze({ tipo: 'entero', min: 1, max: 365, etiqueta: 'Vigencia de un borrador (días)' }),
-  borrador_max_por_usuario: Object.freeze({ tipo: 'entero', min: 1, max: 200, etiqueta: 'Máximo de borradores por usuario' })
+  borrador_max_por_usuario: Object.freeze({ tipo: 'entero', min: 1, max: 200, etiqueta: 'Máximo de borradores por usuario' }),
+  rechazo_vigencia_horas: Object.freeze({ tipo: 'entero', min: 1, max: 168, etiqueta: 'Horas que una rechazada espera antes de pasar a borrador' })
 });
+
+// Solicitud rechazada: su plazo son horas corridas del ajuste; se avisa cuando ya pasó esta fracción (queda el 25 %).
+const RECHAZO = Object.freeze({ AJUSTE_VIGENCIA_HORAS: 'rechazo_vigencia_horas', FRACCION_AVISO: 0.75 });
 
 // Borradores: claves de sus ajustes, tope del JSON guardado (cabe holgado en el límite de 200 kb del body) y claves de `datos` que no son contenido del usuario.
 const BORRADORES = Object.freeze({
@@ -118,6 +122,8 @@ const NOTIFICACION = Object.freeze({
   TIPO_AUTORIZADA: 'solicitud_autorizada',
   TIPO_RECHAZADA: 'solicitud_rechazada',
   TIPO_LIQUIDADA: 'solicitud_liquidada',
+  TIPO_POR_VENCER: 'solicitud_por_vencer',
+  TIPO_VENCIDA: 'solicitud_vencida',
   NIVEL_RECHAZO: 'alerta'
 });
 
@@ -130,13 +136,15 @@ const TIEMPO_REAL = Object.freeze({
   ACCION_DADA_DE_BAJA: 'dada_de_baja',
   ACCION_AUTORIZADA: 'autorizada',
   ACCION_RECHAZADA: 'rechazada',
-  ACCION_LIQUIDADA: 'liquidada'
+  ACCION_LIQUIDADA: 'liquidada',
+  ACCION_VENCIDA: 'vencida',
+  EVENTO_BORRADORES_NUEVOS: 'viaticos_borradores_nuevos'
 });
 
 const ROL_ADMINISTRADOR_ID = 1;
 
-// Correlativo: VIA-<código país>-<número con ceros a la izquierda>.
-const CORRELATIVO = Object.freeze({ PREFIJO: 'VIA', DIGITOS: 6 });
+// Correlativo: VIA-<código país>-<número sin ceros a la izquierda>; arranca en 1 por país.
+const CORRELATIVO = Object.freeze({ PREFIJO: 'VIA' });
 
 // Estados guardados en los que la solicitud todavía se modifica o se da de baja (coinciden con las acciones del pipeline).
 const ESTADOS_EDITABLES = Object.freeze([ESTADOS.ESPERANDO_AUTORIZACION, ESTADOS.RECHAZADA]);
@@ -203,6 +211,6 @@ const ACCIONES = Object.freeze({
 const MESES_ABREVIADOS = Object.freeze(['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']);
 
 module.exports = {
-  PERMISOS, PREFIJO_PERMISOS, ESTADOS, MODALIDADES, RECURSOS, AJUSTES, BORRADORES, MIME_PERMITIDOS, LIMITES,
+  PERMISOS, PREFIJO_PERMISOS, ESTADOS, MODALIDADES, RECURSOS, AJUSTES, RECHAZO, BORRADORES, MIME_PERMITIDOS, LIMITES,
   LIMITES_SOLICITUD, ARCHIVOS, RUBROS_FIJOS, ETAPAS_DOCUMENTO, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, TIEMPO_REAL, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, NIVELES_RESALTADOS, MIME_IMAGEN_PDF, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS
 };

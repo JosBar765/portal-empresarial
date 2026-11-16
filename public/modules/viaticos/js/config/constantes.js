@@ -99,6 +99,8 @@ export const RECURSOS = Object.freeze({
 export const TIEMPO_REAL = Object.freeze({
   SALA_GESTION: 'viaticos:gestion',
   EVENTO_ACTUALIZADA: 'viaticos_actualizada',
+  // Llegó un borrador creado por el vencimiento de una solicitud rechazada (refresca la insignia del botón «Borradores»).
+  EVENTO_BORRADORES_NUEVOS: 'viaticos_borradores_nuevos',
   ESPERA_RECARGA_MS: 400,
   // Una acción propia suprime su aviso durante esta ventana; el servidor emite el evento justo tras el commit.
   VENTANA_ACCION_PROPIA_MS: 8000

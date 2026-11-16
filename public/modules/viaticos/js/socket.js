@@ -2,6 +2,10 @@ import { state } from './state.js';
 import { TIEMPO_REAL, ACCIONES_AVISABLES, PERMISOS, TABS } from './config/constantes.js';
 import { t } from './textos.js';
 import { refreshToken, logout } from './api/authApi.js';
+import { avisarCambioBorradores } from './utils/eventosBorradores.js';
+
+// Tipo de la notificación que el servidor emite al pasar una solicitud rechazada a borrador (NOTIFICACION.TIPO_VENCIDA).
+const NOTIFICACION_VENCIDA = 'solicitud_vencida';
 
 let recargaVista = null;
 let recargaProgramada = null;
@@ -58,7 +62,11 @@ document.addEventListener('visibilitychange', () => {
 export function initSocket() {
   if (typeof io === 'undefined') return;
   state.socket = io({ query: { userId: state.user.id } });
-  window.centroNotificaciones?.iniciar({ socket: state.socket, modulo: 'viaticos' });
+  // Una solicitud rechazada que venció pasó a Borradores: su notificación abre la lista (import dinámico: evita un ciclo con los formularios).
+  window.centroNotificaciones?.iniciar({
+    socket: state.socket, modulo: 'viaticos',
+    enlaces: { [NOTIFICACION_VENCIDA]: () => import('./forms/borradores.js').then(m => m.abrirModalBorradores()) }
+  });
   window.avisoMantenimiento?.iniciar({ socket: state.socket, rolId: state.user.rolId });
 
   state.socket.on('connect', () => {
@@ -75,6 +83,7 @@ export function initSocket() {
     await logout();
     window.location.href = '/login/?expired=true';
   });
+  state.socket.on(TIEMPO_REAL.EVENTO_BORRADORES_NUEVOS, avisarCambioBorradores);
   state.socket.on(TIEMPO_REAL.EVENTO_ACTUALIZADA, (data) => {
     avisarSiAplica(data);
     programarRecarga();

@@ -136,7 +136,7 @@
 .vi-quitar-licencia { color: var(--color-danger); }
 
 /* Raíces de las subpestañas que se pintan solas: sin min-width una tabla ancha ensancharía el panel. */
-.vi-reglas-raiz, .vi-archivos-raiz { min-width: 0; }
+.vi-reglas-raiz, .vi-archivos-raiz, .vi-vencimiento-raiz { min-width: 0; }
 
 /* Reglas de licencia: selector de país y las dos secciones una bajo la otra. */
 .vi-selector-pais { max-width: 280px; margin-bottom: 16px; }

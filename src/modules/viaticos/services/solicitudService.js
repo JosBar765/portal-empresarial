@@ -7,12 +7,13 @@ const catalogoRepo = require('../repositories/catalogoSolicitudRepository');
 const solicitudRepo = require('../repositories/solicitudRepository');
 const personaRepo = require('../repositories/personaRepository');
 const ajusteRepo = require('../repositories/ajusteRepository');
-const { MODALIDADES, ORDEN_FASES, NIVEL_NO_APLICA } = require('../constantes');
+const { MODALIDADES, ESTADOS, ORDEN_FASES, NIVEL_NO_APLICA } = require('../constantes');
 const { Validador, cuerpoObjeto } = require('../validacion');
 const { parsearJson } = require('../utilidades');
 const { msg } = require('../mensajes');
 const { calcularSolicitud } = require('./calculoService');
 const { calcularPipeline, formatearFecha } = require('./pipelineService');
+const { vencimientosDe } = require('./rechazoPlazoService');
 const { normalizarDatos, evaluar, erroresDeLicencia, rangoDelViaje, claveDePar } = require('./validacionSolicitudService');
 
 const MAX_BUSQUEDA = 50;
@@ -265,10 +266,16 @@ class SolicitudService {
   async listar(usuario, query) {
     const { desde, hasta, hoy, busqueda } = leerParametrosDeLista(query);
     const filas = await solicitudRepo.listar({ solicitanteId: usuario.id, desde, hasta, ...busqueda });
-    const items = filas.map(fila => itemDeLista(fila, pipelineDe(fila, hoy)));
+    const vencimientos = await this.vencimientosDeLista(filas);
+    const items = filas.map(fila => ({ ...itemDeLista(fila, pipelineDe(fila, hoy)), vencimiento: vencimientos.get(Number(fila.id)) || null }));
     items.sort((a, b) => ORDEN_FASES[a.pipeline.fase] - ORDEN_FASES[b.pipeline.fase]
       || (a.fechaCreacion < b.fechaCreacion ? 1 : a.fechaCreacion > b.fechaCreacion ? -1 : b.id - a.id));
     return { desde, hasta, solicitudes: items };
+  }
+
+  // Tiempo que le queda a las rechazadas de una lista ({ id -> { venceEn, minutosRestantes } }); las demás no tienen plazo.
+  vencimientosDeLista(filas, ejecutor) {
+    return vencimientosDe(filas.filter(f => f.estado === ESTADOS.RECHAZADA).map(f => f.id), ejecutor);
   }
 
   // Encabezado de cualquier solicitud, sin comprobar de quién es: 404 si no existe.
@@ -304,6 +311,7 @@ class SolicitudService {
     ]);
     const { hoy } = instante();
     const esLargo = fila.modalidad === MODALIDADES.MAS_DE_UN_DIA;
+    const vencimientos = await this.vencimientosDeLista([fila], ejecutor);
     return {
       id: fila.id,
       correlativo: fila.correlativo,
@@ -332,7 +340,8 @@ class SolicitudService {
       salvedades,
       inspeccion: esLargo ? null : { odometro: fila.odometro, fluidos, kit, defectos },
       historial,
-      pipeline: pipelineDe(fila, hoy)
+      pipeline: pipelineDe(fila, hoy),
+      vencimiento: vencimientos.get(Number(fila.id)) || null
     };
   }
 

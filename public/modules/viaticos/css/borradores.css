@@ -18,6 +18,23 @@
 .vi-borrador-vence--alerta { color: var(--color-danger); font-weight: 600; }
 .vi-borrador-acciones { display: flex; gap: 8px; flex-shrink: 0; }
 
+/* Borradores creados por el vencimiento de una solicitud rechazada: etiqueta «Nuevo» y de dónde vienen. */
+.vi-borrador-etiquetas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.vi-borrador-etiqueta { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: var(--radius-full); }
+.vi-borrador-etiqueta--nuevo { background: var(--color-danger-bg); color: var(--color-danger); }
+.vi-borrador-origen { font-size: 12px; font-weight: 600; color: var(--color-warning); overflow-wrap: anywhere; }
+
+/* Globito rojo sobre el botón «Borradores» con la cantidad de borradores nuevos por vencimiento. */
+.vi-btn-borradores { position: relative; }
+.vi-borradores-insignia {
+  position: absolute; top: -7px; right: -7px;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  background: var(--color-danger); color: #FFFFFF;
+  border-radius: var(--radius-full);
+  font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+}
+.vi-borradores-insignia[hidden] { display: none; }
+
 @media (max-width: 560px) {
   .vi-toolbar-acciones { flex-direction: column; align-items: stretch; }
   .vi-borrador-item { flex-direction: column; align-items: stretch; }

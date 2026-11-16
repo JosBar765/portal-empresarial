@@ -75,6 +75,7 @@ export const obtenerDocumentosSolicitud = (id) => pedir(`${BASE}/solicitudes/${i
 // ---------- Borradores del propio usuario (sin fotos; `datos` es el estado del formulario) ----------
 export const listarBorradores = () => pedir(`${BASE}/borradores`);
 export const obtenerBorrador = (id) => pedir(`${BASE}/borradores/${id}`);
+export const marcarBorradoresVistos = () => pedir(`${BASE}/borradores/vistos`, { method: 'POST' });
 export const crearBorrador = (modalidad, datos) => pedir(`${BASE}/borradores`, enJson('POST', { modalidad, datos }));
 export const actualizarBorrador = (id, modalidad, datos) => pedir(`${BASE}/borradores/${id}`, enJson('PUT', { modalidad, datos }));
 export const eliminarBorrador = (id) => pedir(`${BASE}/borradores/${id}`, { method: 'DELETE' });

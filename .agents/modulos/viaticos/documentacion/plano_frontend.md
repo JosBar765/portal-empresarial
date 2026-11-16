@@ -7,7 +7,7 @@ Fuente: lectura de `public/modules/vales/` y `public/modules/prompts/` (2026-11-
 ```text
 public/modules/viaticos/
 ├── index.html
-├── css/        styles.css (entrada: @import '/css/dashboard.css'), pipeline.css, visor.css, reportes.css (barra de período), borradores.css (acciones de la barra y lista de borradores)
+├── css/        styles.css (entrada: @import '/css/dashboard.css'), pipeline.css, visor.css, reportes.css (barra de período), borradores.css (acciones de la barra, lista de borradores e insignia de los nuevos)
 └── js/
     ├── app.js              # arranque (patrón de Prompts, permisos finos)
     ├── state.js            # un único objeto mutable exportado
@@ -52,7 +52,7 @@ Sin `credentials` (mismo origen). `pedir(url, opciones)` envuelve el fallo de re
 
 ## Borradores de solicitudes
 
-- `api/viaticosApi.js`: `listarBorradores`, `obtenerBorrador`, `crearBorrador(modalidad, datos)`, `actualizarBorrador(id, modalidad, datos)` y `eliminarBorrador` (contrato en `contrato_api.md`, «Borradores»).
+- `api/viaticosApi.js`: `listarBorradores`, `obtenerBorrador`, `crearBorrador(modalidad, datos)`, `actualizarBorrador(id, modalidad, datos)` y `eliminarBorrador` y `marcarBorradoresVistos` (`POST /borradores/vistos`) (contrato en `contrato_api.md`, «Borradores»).
 - `forms/borradorEstado.js` (puro, sin DOM): `estadoABorrador(estado)` deja un objeto JSON plano sin `File` ni URLs (de cada defecto solo `tipoDefectoId` y `descripcion`; conserva `comidasAutoMarcar` y `comidasDesmarcadas`) y `borradorAEstado(datos, modalidad, { paises })` arma el estado completo sobre `estadoInicial()`, ignorando claves desconocidas y cayendo al valor por defecto si un tipo no encaja. Los ids de catálogo no se validan ahí: los depura `reconciliarEstado` al cargar los catálogos.
 - `solicitudForm.js`, tercer modo `'borrador'` (`abrirFormularioSolicitud({ modo: 'borrador', borrador, alTerminar })`, `borrador` = respuesta de `GET /borradores/:id`): sigue siendo una solicitud nueva (país, tipo de viaje y moneda editables; «Enviar solicitud» con la validación completa) y agrega `borradorId` al `datos` del envío solo en este modo; nunca al modificar. Tras enviar avisa el cambio de borradores porque el servidor ya lo borró.
 - **Descripción de «Otros gastos»** (`forms/secciones/gastos.js`): solo aparece, se pide y se envía con un tipo `esOtros`; al cambiar a otro tipo se oculta en el lugar (atributo `hidden` y clase `vi-renglon--gasto-sin-descripcion`, que deja al tipo ocupar su columna) y se vacía. `gastoEsOtros` (`forms/datos.js`) decide en `armarPayload`, `erroresLocales` y `reconciliarEstado`.
@@ -61,8 +61,11 @@ Sin `credentials` (mismo origen). `pedir(url, opciones)` envuelve el fallo de re
 - Botón «Guardar borrador» (`#vi-sol-borrador`, `btn--ghost`, junto a Cancelar) en los modos crear y borrador, nunca al modificar. No depende del cálculo ni de la validación: guarda lo que haya (POST en crear, PUT en borrador), muestra el aviso de éxito, avisa el cambio y **cierra el modal**; los errores 400 y 409 del servidor se muestran dentro del modal, que sigue abierto. Mientras guarda (`ctx.enviando`) se frenan el envío, este botón y el cierre.
 - Al cerrar con cambios (`ctx.sucio`) la confirmación solo avisa (en crear sugiere «Guardar borrador»; en borrador dice que se pierden los cambios no guardados): `confirmarModal` no admite una tercera acción.
 - `forms/borradores.js`: `crearBotonBorradores({ alTerminar })` (`#vi-btn-borradores`, «Borradores (n)», dentro de `.vi-toolbar-acciones` junto a «Nueva solicitud» en la vista Solicitudes) y `abrirModalBorradores`: lista con tipo de viaje, país (de `state.contexto.paises`, si se conoce), fechas del viaje, «Creado el…» y «Vence en N días» (rojo con 3 o menos, «Vence hoy» con 0), y acciones «Abrir» (`obtenerBorrador` y abre el modal en modo borrador) y «Eliminar» (con `confirmarModal`). Un 404 (venció o se eliminó) muestra un aviso y refresca la lista y el contador. Clases `vi-borrador-*`.
-- `utils/eventosBorradores.js`: evento de documento `viaticos:borradores:cambio` (`avisarCambioBorradores()`); guardar, eliminar y enviar desde un borrador lo disparan y el botón refresca su contador.
-- Textos: claves `borradores.*` y `formulario.borrador.*` / `formulario.cerrar.mensajeBorrador` en `textos.js`.
+- `utils/eventosBorradores.js`: evento de documento `viaticos:borradores:cambio` (`avisarCambioBorradores()`); guardar, eliminar y enviar desde un borrador lo disparan y el botón refresca su contador y su insignia. El evento de socket `viaticos_borradores_nuevos` (`TIEMPO_REAL.EVENTO_BORRADORES_NUEVOS`) también lo dispara.
+- Borradores nuevos por vencimiento: el botón «Borradores» lleva una insignia roja `#vi-borradores-nuevos` (`.vi-borradores-insignia`, oculta con 0, «99+» desde 100) con `nuevos` de `GET /borradores`. La lista pinta la etiqueta «Nuevo» (`.vi-borrador-etiqueta--nuevo`) y la línea de origen «Venció la solicitud VIA-GT-000003 · Motivo del rechazo: …» en los borradores con `origenCorrelativo`; solo después de pintarla llama a `POST /borradores/vistos` y avisa el cambio, así la insignia se apaga al abrir la lista y las etiquetas siguen visibles mientras esté abierta. La notificación `solicitud_vencida` (`socket.js`, `enlaces`) abre la lista con un import dinámico de `borradores.js`, como Vales con `EXPIRADO_A_BORRADOR`.
+- Vencimiento de una rechazada: `utils/vencimiento.js` (`tiempoRestante`, `textoVencimiento`, `esUrgente`) da «Vence en 3 h 20 min» (solo minutos bajo una hora; «Vence en menos de 1 min» con 0). `htmlPipeline(pipeline, vencimiento)` lo pinta bajo el motivo del rechazo en las listas de Solicitudes y de Gestiones (`.vi-pl-vence`, en rojo con menos de una hora) y el modal de modificar lo añade al aviso del rechazo. El valor es el del servidor al cargar la lista: se refresca con los eventos de tiempo real y al recargar.
+- Configuración, subpestaña «Vencimientos» (`views/configuracion/vencimiento.js` y `vencimientoModelo.js`): campos numéricos de `rechazo_vigencia_horas` (1 a 168), `borrador_vigencia_dias` (1 a 365) y `borrador_max_por_usuario` (1 a 200) con `PUT /config/ajustes/:clave`, aviso de cambios sin guardar y errores explicativos por campo, igual que «Archivos».
+- Textos: claves `borradores.*`, `vencimiento.*`, `config.vencimiento.*` y `formulario.borrador.*` / `formulario.cerrar.mensajeBorrador` en `textos.js`.
 
 ## Visto en Gestiones
 
@@ -83,7 +86,7 @@ Abrir «Ver documentos» en Gestiones (`abrirVisorSolicitud(..., { gestion: true
 | `pipeline.js` | `vales/js/components/pipeline.js` + `css/pipeline.css` | Solo `htmlPipeline` y el tooltip; el payload lo arma el servidor |
 | `dropzone.js` | `vales/js/components/dropzone.js` | Ajustar tamaño máximo y etiquetas según `viaticos_ajustes` |
 | `selectorMultiple.js` | `vales/js/components/selectorMultiple.js` | Para los países de una persona |
-| Subpestañas de administración | `prompts/js/views/admin/editor.js:152-176` y `.pr-adm-tabs` | Base de las 11 subpestañas de Configuración |
+| Subpestañas de administración | `prompts/js/views/admin/editor.js:152-176` y `.pr-adm-tabs` | Base de las subpestañas de Configuración (la última es «Vencimientos») |
 
 ## Contrato de la API del backend
 

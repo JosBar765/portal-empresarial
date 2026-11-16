@@ -3,6 +3,7 @@
 import { escapeHtml } from '../utils/formato.js';
 import { ESTADOS_PASO, FASES } from '../config/constantes.js';
 import { t, TEXTOS } from '../textos.js';
+import { esUrgente, textoVencimiento } from '../utils/vencimiento.js';
 
 const SIMBOLOS = {
   completado: '<svg viewBox="0 0 12 10" aria-hidden="true"><path d="M1.5 5.5 4.5 8.5 10.5 1.5"/></svg>',
@@ -21,8 +22,8 @@ function htmlNodo(paso, i, total, vencida) {
   return `<span class="vi-pl-nodo vi-pl-nodo--${escapeHtml(estado)}" role="img" aria-label="${escapeHtml(descripcion)}">${SIMBOLOS[estado] || ''}</span>`;
 }
 
-// `pipeline`: { pasos: [{ clave, etiqueta, estado }], etiqueta, detalle, vencida, fase }.
-export function htmlPipeline(pipeline) {
+// `pipeline`: { pasos: [{ clave, etiqueta, estado }], etiqueta, detalle, vencida, fase }; `vencimiento` ({ minutosRestantes }) solo en las rechazadas.
+export function htmlPipeline(pipeline, vencimiento = null) {
   if (!pipeline || !Array.isArray(pipeline.pasos) || pipeline.pasos.length === 0) return '';
   const vencida = !!pipeline.vencida || pipeline.fase === FASES.VENCIDA;
   const pasos = pipeline.pasos.map((paso, i) => {
@@ -31,10 +32,12 @@ export function htmlPipeline(pipeline) {
   }).join('');
   // Solo «Rechazada» y «Vencida» cambian el color del texto; ninguna lleva fondo.
   const tono = pipeline.fase === FASES.RECHAZADA ? ' vi-pl-estado--rechazada' : (vencida ? ' vi-pl-estado--vencida' : '');
-  const titulo = [pipeline.etiqueta, pipeline.detalle].filter(Boolean).join('. ');
+  const vence = vencimiento ? textoVencimiento(vencimiento) : '';
+  const titulo = [pipeline.etiqueta, pipeline.detalle, vence].filter(Boolean).join('. ');
   return `<div class="vi-pipeline" role="group" aria-label="${escapeHtml(titulo)}" title="${escapeHtml(titulo)}">
     <div class="vi-pl-pasos">${pasos}</div>
     <span class="vi-pl-estado${tono}">${escapeHtml(pipeline.etiqueta)}</span>
     ${pipeline.detalle ? `<span class="vi-pl-detalle">${escapeHtml(pipeline.detalle)}</span>` : ''}
+    ${vence ? `<span class="vi-pl-vence${esUrgente(vencimiento) ? ' vi-pl-vence--urgente' : ''}">${escapeHtml(vence)}</span>` : ''}
   </div>`;
 }

@@ -5,6 +5,8 @@ const db = require('../../../config/database');
 
 // Días que faltan para vencer, con el reloj de MySQL (el mismo que fija `vence_en`).
 const DIAS_RESTANTES = 'GREATEST(0, CEIL(TIMESTAMPDIFF(SECOND, NOW(), vence_en) / 86400))';
+// «Nuevo» = creado por el vencimiento de una solicitud y aún no visto por su dueño; los hechos a mano nunca lo son.
+const ORIGEN = 'origen_correlativo, origen_motivo, (visto_en IS NULL AND origen_correlativo IS NOT NULL) AS nuevo';
 const FECHAS = "DATE_FORMAT(creado_en, '%Y-%m-%d') AS creado_en, DATE_FORMAT(vence_en, '%Y-%m-%d') AS vence_en";
 
 class BorradorRepository {
@@ -26,7 +28,7 @@ class BorradorRepository {
   listarVigentes(usuarioId) {
     return db.query(
       `SELECT id, modalidad, JSON_EXTRACT(datos, '$.paisId') AS pais_id, JSON_EXTRACT(datos, '$.fechaSalida') AS fecha_salida,
-              JSON_EXTRACT(datos, '$.fechaRegreso') AS fecha_regreso, ${FECHAS}, ${DIAS_RESTANTES} AS dias_restantes
+              JSON_EXTRACT(datos, '$.fechaRegreso') AS fecha_regreso, ${FECHAS}, ${DIAS_RESTANTES} AS dias_restantes, ${ORIGEN}
        FROM viaticos_borradores WHERE usuario_id = ? AND vence_en > NOW() ORDER BY creado_en DESC, id DESC`,
       [usuarioId], 'viaticos:borradorListar'
     );
@@ -48,6 +50,25 @@ class BorradorRepository {
       [usuarioId, modalidad, datosJson, diasVigencia], 'viaticos:borradorInsertar'
     );
     return resultado.insertId;
+  }
+
+  // Borrador que nace del vencimiento de una solicitud rechazada: no cuenta contra el tope (no se pierde el trabajo del solicitante).
+  async insertarPorVencimiento({ usuarioId, modalidad, datosJson, diasVigencia, origenCorrelativo, origenMotivo }, ejecutor = db) {
+    const resultado = await ejecutor.query(
+      `INSERT INTO viaticos_borradores (usuario_id, modalidad, datos, vence_en, origen_correlativo, origen_motivo)
+       VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? DAY), ?, ?)`,
+      [usuarioId, modalidad, datosJson, diasVigencia, origenCorrelativo, origenMotivo], 'viaticos:borradorInsertarPorVencimiento'
+    );
+    return resultado.insertId;
+  }
+
+  // Apaga la marca «nuevo» de todos los borradores del usuario; devuelve cuántos cambió.
+  async marcarVistos(usuarioId) {
+    const resultado = await db.query(
+      'UPDATE viaticos_borradores SET visto_en = NOW() WHERE usuario_id = ? AND visto_en IS NULL AND origen_correlativo IS NOT NULL',
+      [usuarioId], 'viaticos:borradorMarcarVistos'
+    );
+    return resultado.affectedRows;
   }
 
   async actualizar(id, usuarioId, modalidad, datosJson) {

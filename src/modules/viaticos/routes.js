@@ -28,6 +28,7 @@ router.get('/catalogos/solicitud', solicitudController.catalogos);
 router.post('/solicitudes/calcular', solicitudController.calcular);
 // Borradores del propio usuario (solo exigen viaticos.ver).
 router.get('/borradores', borradorController.listar);
+router.post('/borradores/vistos', borradorController.marcarVistos);
 router.get('/borradores/:id', borradorController.obtener);
 router.post('/borradores', borradorController.crear);
 router.put('/borradores/:id', borradorController.actualizar);

@@ -4,7 +4,7 @@ import { h, icono, montar } from '../utils/dom.js';
 import { formatearFecha, formatearRangoViaje } from '../utils/formato.js';
 import { MODALIDADES } from '../config/constantes.js';
 import { abrirModal, confirmarModal, mostrarErrorModal } from '../components/modal.js';
-import { eliminarBorrador, listarBorradores, obtenerBorrador } from '../api/viaticosApi.js';
+import { eliminarBorrador, listarBorradores, marcarBorradoresVistos, obtenerBorrador } from '../api/viaticosApi.js';
 import { EVENTO_BORRADORES, avisarCambioBorradores } from '../utils/eventosBorradores.js';
 import { t } from '../textos.js';
 import { abrirFormularioSolicitud } from './solicitudForm.js';
@@ -21,15 +21,19 @@ function textoVencimiento(dias) {
   return dias === 1 ? t('borradores.venceEnUno') : t('borradores.venceEnVarios', { n: dias });
 }
 
-// Botón «Borradores (n)»; el contador se refresca solo con el evento de cambios. `alTerminar` recarga la lista si se envía un borrador.
+// Botón «Borradores (n)» con una insignia roja con los borradores nuevos por vencimiento; ambos se refrescan solos con el evento de cambios.
+// `alTerminar` recarga la lista si se envía un borrador.
 export function crearBotonBorradores({ alTerminar } = {}) {
   const etiqueta = h('span', { text: t('borradores.boton', { n: 0 }) });
+  const insignia = h('span', { class: 'vi-borradores-insignia', id: 'vi-borradores-nuevos', title: t('borradores.insignia'), hidden: true, text: '0' });
   const boton = h('button', { class: 'btn btn--ghost vi-btn-borradores', type: 'button', id: 'vi-btn-borradores', onclick: () => abrirModalBorradores({ alTerminar }) },
-    icono('document-text-outline'), etiqueta);
+    icono('document-text-outline'), etiqueta, insignia);
   const pintar = async () => {
     try {
-      const { borradores } = await listarBorradores();
+      const { borradores, nuevos = 0 } = await listarBorradores();
       etiqueta.textContent = t('borradores.boton', { n: borradores.length });
+      insignia.textContent = nuevos > 99 ? '99+' : String(nuevos);
+      insignia.hidden = !nuevos;
     } catch {
       // El contador es solo informativo: si no carga, se queda como estaba.
     }
@@ -44,12 +48,18 @@ export function crearBotonBorradores({ alTerminar } = {}) {
   return boton;
 }
 
+// «Venció la solicitud VIA-GT-3 · Motivo del rechazo: …» de un borrador creado por vencimiento.
+const textoOrigen = (b) => [t('borradores.origen', { correlativo: b.origenCorrelativo }), b.origenMotivo && t('borradores.origenMotivo', { motivo: b.origenMotivo })].filter(Boolean).join(' · ');
+
 function filaBorrador(b) {
   const datosViaje = [nombrePais(b.paisId), b.fechaSalida ? formatearRangoViaje(b) : ''].filter(Boolean).join(' · ');
   const alerta = b.diasRestantes <= DIAS_ALERTA;
   return h('li', { class: 'vi-borrador-item', 'data-id': String(b.id) },
     h('div', { class: 'vi-borrador-info' },
       h('strong', { class: 'vi-borrador-titulo', text: t(b.modalidad === MODALIDADES.MAS_DE_UN_DIA ? 'formulario.subtitulo.masDeUnDia' : 'formulario.subtitulo.hastaUnDia') }),
+      b.origenCorrelativo && h('span', { class: 'vi-borrador-etiquetas' },
+        b.nuevo && h('span', { class: 'vi-borrador-etiqueta vi-borrador-etiqueta--nuevo', text: t('borradores.nuevo') }),
+        h('span', { class: 'vi-borrador-origen', text: textoOrigen(b) })),
       datosViaje && h('span', { class: 'vi-borrador-meta', text: datosViaje }),
       h('span', { class: 'vi-borrador-meta' },
         `${t('borradores.creado', { fecha: formatearFecha(b.creadoEn) })} · `,
@@ -77,18 +87,19 @@ export function abrirModalBorradores({ alTerminar } = {}) {
     try {
       respuesta = await listarBorradores();
     } catch (error) {
-      if (!overlay.isConnected) return;
+      if (!overlay.isConnected) return null;
       montar(contenido);
       mostrarErrorModal(overlay, error.message);
-      return;
+      return null;
     }
-    if (!overlay.isConnected) return;
+    if (!overlay.isConnected) return null;
     const lista = respuesta.borradores || [];
     montar(contenido,
       h('p', { class: 'vi-ayuda', text: t('borradores.nota') }),
       lista.length
         ? h('ul', { class: 'vi-borrador-lista' }, lista.map(filaBorrador))
         : h('p', { class: 'vi-ayuda vi-vacio', text: t('borradores.vacio') }));
+    return respuesta;
   };
 
   // 404: el borrador venció o se eliminó desde otra pestaña; se avisa y se refresca la lista y el contador.
@@ -134,5 +145,14 @@ export function abrirModalBorradores({ alTerminar } = {}) {
     else abrir(id, boton);
   });
 
-  pintar();
+  // La lista se pinta con las etiquetas «Nuevo»; recién después se marcan como vistos y la insignia se apaga.
+  pintar().then(async (respuesta) => {
+    if (!respuesta || !respuesta.nuevos) return;
+    try {
+      await marcarBorradoresVistos();
+      avisarCambioBorradores();
+    } catch {
+      // Sin conexión: se marcan como vistos en la próxima apertura.
+    }
+  });
 }

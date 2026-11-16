@@ -29,7 +29,7 @@ export function htmlFilaSolicitud(s) {
     ${celda('solicitudes.col.fechaCreacion', escapeHtml(formatearFechaCorta(s.fechaCreacion)), 'vi-celda-secundaria')}
     ${celda('solicitudes.col.fechaViaticos', escapeHtml(formatearRangoViaje(s)))}
     ${celda('solicitudes.col.tipo', escapeHtml(tipo), 'vi-celda-secundaria')}
-    ${celda('solicitudes.col.estado', htmlPipeline(s.pipeline))}
+    ${celda('solicitudes.col.estado', htmlPipeline(s.pipeline, s.vencimiento))}
     <td class="acciones-cell"><div class="acciones-wrap">${htmlAcciones(s)}</div></td>
   </tr>`;
 }

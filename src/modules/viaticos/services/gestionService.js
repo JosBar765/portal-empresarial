@@ -46,8 +46,10 @@ class GestionService {
     const { desde, hasta, hoy, busqueda } = solicitudService.leerParametrosDeLista(query);
     const filas = await solicitudRepo.listar({ desde, hasta, ...busqueda, nombre: busqueda.correlativo || null });
     const vistas = await vistoService.idsVistos(usuario, filas.map(fila => fila.id));
+    const vencimientos = await solicitudService.vencimientosDeLista(filas);
     const items = filas.map(fila => ({
       ...solicitudService.itemDeLista(fila, pipelineDeGestion(solicitudService.pipelineDe(fila, hoy), fila.modalidad, usuario)),
+      vencimiento: vencimientos.get(Number(fila.id)) || null,
       solicitante: { id: fila.solicitanteId, nombre: fila.solicitanteNombre },
       pais: { codigo: fila.paisCodigo, nombre: fila.paisNombre },
       visto: vistas.has(Number(fila.id))
@@ -81,6 +83,7 @@ class GestionService {
       await vistoService.exigirVisto(usuario, id, fila.correlativo, tx);
       const estadoId = await escrituraRepo.estadoId(estadoDestino, tx);
       await escrituraRepo.actualizarEstado(id, estadoId, tx);
+      if (estadoDestino === ESTADOS.RECHAZADA) await escrituraRepo.marcarRechazada(id, tx);
       await escrituraRepo.insertarHistorial(id, estadoId, usuario.id, motivo, tx);
       return { id, correlativo: fila.correlativo, solicitanteId: fila.solicitanteId, estado: estadoDestino };
     };

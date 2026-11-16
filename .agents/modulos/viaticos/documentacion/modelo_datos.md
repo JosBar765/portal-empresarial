@@ -29,7 +29,7 @@ Prefijo de tablas: `viaticos_`. Convenciones del proyecto: español, `snake_case
 | `viaticos_estados` | `id`, `nombre` (esperando autorización, rechazada, autorizada, liquidada) |
 | `viaticos_salvedades` | `id`, `nombre`, `texto_pdf` (licencia, tarjeta de circulación, seguro: «… vencerá durante el trayecto») |
 | `viaticos_ajustes` | `clave` (PK), `valor` JSON, `descripcion` (tipos y tamaño máximo de archivo, etc.; mismo patrón que `prompt_ajustes`) |
-| `viaticos_secuencias` | `pais_id` (PK), `ultimo` — correlativo `VIA-<código país>-<ultimo con 6 dígitos>`, incrementado en transacción con `FOR UPDATE` |
+| `viaticos_secuencias` | `pais_id` (PK), `ultimo` — correlativo `VIA-<código país>-<ultimo>`, incrementado en transacción con `FOR UPDATE` |
 
 ## Licencias, vehículos y personas
 
@@ -62,10 +62,20 @@ Prefijo de tablas: `viaticos_`. Convenciones del proyecto: español, `snake_case
 
 | Tabla | Columnas clave |
 |---|---|
-| `viaticos_borradores` | `id`, `usuario_id` (FK `usuarios`, CASCADE; el borrador es privado de su dueño), `modalidad` ENUM('hasta_un_dia','mas_de_un_dia'), `datos` JSON (estado del formulario; sin fotos ni archivos), `creado_en`, `actualizado_en`, `vence_en` (se fija al crear y no se renueva al editar); índices por `usuario_id` y por `vence_en` |
+| `viaticos_borradores` | `id`, `usuario_id` (FK `usuarios`, CASCADE; el borrador es privado de su dueño), `modalidad` ENUM('hasta_un_dia','mas_de_un_dia'), `datos` JSON (estado del formulario; sin fotos ni archivos), `creado_en`, `actualizado_en`, `vence_en` (se fija al crear y no se renueva al editar), `visto_en` NULL, `origen_correlativo` VARCHAR(30) NULL, `origen_motivo` VARCHAR(500) NULL; índices por `usuario_id` y por `vence_en` |
 
 Ajustes en `viaticos_ajustes` (migración `viaticos_borradores`): `borrador_vigencia_dias` = 30 (días de vida desde la creación) y `borrador_max_por_usuario` = 15 (tope por usuario). Ambos se editan con `PUT /config/ajustes/:clave`: la vigencia entre 1 y 365 y el tope entre 1 y 200. Un watcher horario borra los vencidos; enviar la solicitud borra el borrador de origen.
 
+Un borrador es «nuevo» si `visto_en` es NULL y `origen_correlativo` no lo es: solo los crea el vencimiento de una solicitud rechazada (`origen_correlativo` = correlativo de la solicitud que venció, `origen_motivo` = su motivo de rechazo; migración `viaticos_rechazo_vencimiento`). Los hechos a mano y los anteriores a la migración nunca son «nuevos». `POST /borradores/vistos` rellena `visto_en`.
+
+### Vencimiento de las solicitudes rechazadas
+
+| Dónde | Columnas |
+|---|---|
+| `viaticos_solicitudes` | `rechazada_en` DATETIME NULL (instante del rechazo, con el reloj de MySQL; inicia el plazo), `vencimiento_aviso_en` DATETIME NULL (cuándo se avisó que quedaba el 25 % del plazo; una sola vez) |
+| `viaticos_ajustes` | `rechazo_vigencia_horas` = 4 (horas corridas entre el rechazo y el vencimiento; se edita con `PUT /config/ajustes/:clave`, entre 1 y 168) |
+
+`rechazada_en` y `vencimiento_aviso_en` se ponen al rechazar y vuelven a NULL al modificar la solicitud (regresa a «esperando autorización»). Al vencer, un watcher (cada 60 s) crea el borrador y elimina la solicitud en una transacción. Las solicitudes ya rechazadas al migrar empezaron su plazo al aplicar la migración.
 ### Vistos de solicitudes
 
 | Tabla | Columnas clave |

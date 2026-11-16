@@ -62,7 +62,7 @@ function textosLibres(datos) {
   ];
 }
 
-const formatearCorrelativo = (codigoPais, numero) => `${CORRELATIVO.PREFIJO}-${codigoPais}-${String(numero).padStart(CORRELATIVO.DIGITOS, '0')}`;
+const formatearCorrelativo = (codigoPais, numero) => `${CORRELATIVO.PREFIJO}-${codigoPais}-${numero}`;
 
 // Todo lo que se guarda, derivado de los datos validados y del cálculo del servidor: nada del cliente que sea un importe.
 function armarPartes({ datos, ctx, evaluacion, calculo }) {
@@ -179,6 +179,8 @@ class SolicitudGuardadoService {
       // Lo modificado hay que revisarlo de nuevo: los vistos anteriores dejan de valer.
       await vistoRepo.borrarDeSolicitud(id, tx);
       await escrituraRepo.actualizarEncabezado(id, { ...partes.encabezado, estadoId }, tx);
+      // Vuelve a esperar autorización: si estaba rechazada, su plazo de vencimiento se cancela.
+      await escrituraRepo.limpiarVencimiento(id, tx);
     } else {
       correlativo = formatearCorrelativo(ctx.pais.codigo, await escrituraRepo.siguienteNumero(partes.encabezado.paisId, tx));
       id = await escrituraRepo.insertarEncabezado({ ...partes.encabezado, correlativo, solicitanteId: usuario.id, estadoId }, tx);

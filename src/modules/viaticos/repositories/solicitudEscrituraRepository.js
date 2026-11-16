@@ -60,6 +60,20 @@ class SolicitudEscrituraRepository {
     await ejecutor.query('UPDATE viaticos_solicitudes SET estado_id = ? WHERE id = ?', [estadoId, id], 'viaticos:actualizarEstado');
   }
 
+  // El plazo de vencimiento nace al rechazar, con el reloj de MySQL (el mismo que lo compara después).
+  async marcarRechazada(id, ejecutor = db) {
+    await ejecutor.query(
+      'UPDATE viaticos_solicitudes SET rechazada_en = NOW(), vencimiento_aviso_en = NULL WHERE id = ?', [id], 'viaticos:marcarRechazada'
+    );
+  }
+
+  // Una solicitud que vuelve a esperar autorización deja de tener plazo.
+  async limpiarVencimiento(id, ejecutor = db) {
+    await ejecutor.query(
+      'UPDATE viaticos_solicitudes SET rechazada_en = NULL, vencimiento_aviso_en = NULL WHERE id = ?', [id], 'viaticos:limpiarVencimiento'
+    );
+  }
+
   async insertarEncabezado(solicitud, ejecutor = db) {
     const res = await ejecutor.query(
       `INSERT INTO viaticos_solicitudes (correlativo, solicitante_id, ${COLUMNAS_ENCABEZADO.join(', ')}) VALUES (?, ?, ${COLUMNAS_ENCABEZADO.map(() => '?').join(', ')})`,

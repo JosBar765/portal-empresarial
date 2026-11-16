@@ -10,6 +10,7 @@ import { renderPersonas } from './configuracion/personas.js';
 import { renderReglasLicencia } from './configuracion/reglasLicencia.js';
 import { renderTramos } from './configuracion/tramos.js';
 import { renderValoresComida } from './configuracion/valoresComida.js';
+import { renderVencimiento } from './configuracion/vencimiento.js';
 import { renderVehiculos } from './configuracion/vehiculos.js';
 import { estadoLista } from './configuracion/lista.js';
 
@@ -28,7 +29,8 @@ const SUBPESTANAS = [
   { id: 'motivos', render: catalogo('motivos') },
   { id: 'tipos-gasto', render: catalogo('tipos-gasto') },
   { id: 'tipos-defecto', render: catalogo('tipos-defecto') },
-  { id: 'archivos', render: renderArchivos }
+  { id: 'archivos', render: renderArchivos },
+  { id: 'vencimientos', render: renderVencimiento }
 ];
 
 // localStorage puede fallar (modo privado, datos bloqueados): es solo comodidad.

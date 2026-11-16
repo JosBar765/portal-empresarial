@@ -69,8 +69,7 @@ const comoTexto = valor => (typeof valor === 'string' && valor.trim() !== '' ? v
 class BorradorService {
   async listar(usuario) {
     const filas = await repo.listarVigentes(usuario.id);
-    return {
-      borradores: filas.map(f => ({
+    const borradores = filas.map(f => ({
         id: f.id,
         modalidad: f.modalidad,
         paisId: aEntero(parsearJson(f.pais_id)),
@@ -78,9 +77,18 @@ class BorradorService {
         fechaRegreso: comoTexto(parsearJson(f.fecha_regreso)),
         creadoEn: f.creado_en,
         venceEn: f.vence_en,
-        diasRestantes: Number(f.dias_restantes)
-      }))
-    };
+        diasRestantes: Number(f.dias_restantes),
+        nuevo: Boolean(f.nuevo),
+        origenCorrelativo: f.origen_correlativo,
+        origenMotivo: f.origen_motivo
+      }));
+    return { borradores, nuevos: borradores.filter(b => b.nuevo).length };
+  }
+
+  // El dueño abrió la lista: los borradores creados por vencimiento dejan de ser «nuevos».
+  async marcarVistos(usuario) {
+    await repo.marcarVistos(usuario.id);
+    return { ok: true };
   }
 
   async obtener(usuario, idCrudo) {
@@ -122,6 +130,12 @@ class BorradorService {
     const id = idObligatorio(idCrudo, 'Borrador');
     if (await repo.eliminar(id, usuario.id) === 0) throw new ErrorDeNegocio(msg('borrador.noExiste', { id }), 404);
     return { ok: true };
+  }
+
+  // Dentro de la transacción del vencimiento: el borrador nace con el origen visible y sin contar contra el tope.
+  async crearPorVencimiento(tx, { usuarioId, modalidad, datos, origenCorrelativo, origenMotivo }) {
+    const diasVigencia = await leerAjusteEntero(BORRADORES.AJUSTE_VIGENCIA_DIAS);
+    return repo.insertarPorVencimiento({ usuarioId, modalidad, datosJson: JSON.stringify(datos), diasVigencia, origenCorrelativo, origenMotivo }, tx);
   }
 
   // Al enviar la solicitud: borra el borrador de origen dentro de su transacción; uno ajeno o ya borrado se ignora.

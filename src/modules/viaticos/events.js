@@ -22,4 +22,13 @@ function emitirActualizacion({ id, correlativo, estado, solicitanteId, actorId, 
   }
 }
 
-module.exports = { emitirActualizacion, puedeUnirseASala };
+// Avisa al dueño que le llegó un borrador creado por vencimiento (su botón «Borradores» refresca la insignia); un fallo no deshace nada.
+function emitirBorradoresNuevos(usuarioId) {
+  try {
+    socketManager.sendToUsers([usuarioId], TIEMPO_REAL.EVENTO_BORRADORES_NUEVOS, {});
+  } catch (error) {
+    console.error('[Viáticos] No se pudo emitir el aviso de borradores nuevos:', error.message);
+  }
+}
+
+module.exports = { emitirActualizacion, emitirBorradoresNuevos, puedeUnirseASala };
