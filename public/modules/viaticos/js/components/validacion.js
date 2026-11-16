@@ -23,6 +23,13 @@ export function marcarErrorCampo(campo, mensaje) {
     wrapper.appendChild(msg);
   }
   msg.querySelector('span').textContent = mensaje;
+  // En el modal de solicitud el error es un ícono con globo: se enfoca con teclado o toque y se lee como imagen con su mensaje.
+  if (campo.closest('.vi-modal-solicitud')) {
+    msg.tabIndex = 0;
+    msg.setAttribute('role', 'img');
+    msg.setAttribute('aria-label', mensaje);
+    msg.querySelector('span').setAttribute('aria-hidden', 'true');
+  }
 }
 
 export function mensajeValidezCampo(campo) {

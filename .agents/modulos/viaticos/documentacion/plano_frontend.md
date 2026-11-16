@@ -70,7 +70,7 @@ Sin `credentials` (mismo origen). `pedir(url, opciones)` envuelve el fallo de re
 | Componente | Origen | Nota |
 |---|---|---|
 | `modal.js` | `prompts/js/components/modal.js` | Incluye `confirmarModal` (Promise) y `mostrarErrorModal`; `abrirModal({ title, bodyHtml, footerHtml, size, alCerrar })` |
-| `validacion.js` | `vales/js/components/validacion.js` | Independiente; exige `.form-field` alrededor del campo; para mapear `campos` usar `marcarErrorCampo` |
+| `validacion.js` | `vales/js/components/validacion.js` | Independiente; exige `.form-field` alrededor del campo; para mapear `campos` usar `marcarErrorCampo`. En el modal de solicitud el error se ve como un ícono rojo en la esquina del campo con el mensaje en un globo (mouse, foco o toque; estilos al final de `css/formulario.css`), no como texto bajo el campo |
 | `visorDocumento.js` | `vales/js/components/visorDocumento.js` + `css/visor.css` | `abrirVisor({ titulo, subtitulo, documentos:[{etiqueta,url}], activo, acciones, aviso, alCerrar })`; quitar los atajos y los imports de Vales |
 | `barraPeriodo.js` | `vales/js/components/barraPeriodoReportes.js` + `reportes.css` | `crearBarraPeriodo(contenedor, { obtener, alCambiar, prefijo })`; período `{ tipo, fecha, desde, hasta }`; requiere `datepicker.js` y `fechas.js` |
 | `pipeline.js` | `vales/js/components/pipeline.js` + `css/pipeline.css` | Solo `htmlPipeline` y el tooltip; el payload lo arma el servidor |

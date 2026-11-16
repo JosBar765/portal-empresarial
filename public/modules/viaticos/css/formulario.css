@@ -203,3 +203,30 @@ button.vi-foto__vista:focus-visible { outline: 2px solid var(--color-primary); o
   .vi-modal-solicitud .vi-resumen { padding-top: 8px; padding-bottom: 8px; }
   .vi-modal-solicitud .vi-resumen__total { margin-top: 0; padding: 8px 14px; }
 }
+
+/* ---------- Errores de campo del modal: un ícono rojo en la esquina del campo; el mensaje sale en un globo (mouse, foco o toque) ---------- */
+.vi-modal-solicitud .form-field { position: relative; }
+.vi-modal-solicitud .form-field > .field-error {
+  position: absolute; top: -8px; right: -6px; z-index: 3; grid-column: auto; grid-row: auto;
+  width: 20px; height: 20px; padding: 0; justify-content: center; border-radius: 50%;
+  background: var(--color-surface); cursor: help; animation: none;
+}
+.vi-modal-solicitud .form-field > .field-error ion-icon { font-size: 20px; }
+.vi-modal-solicitud .form-field > .field-error:focus-visible { outline: 2px solid var(--color-danger); outline-offset: 1px; }
+.vi-modal-solicitud .form-field > .field-error > span {
+  display: none; position: absolute; top: calc(100% + 6px); right: 0; width: max-content; max-width: min(280px, 70vw);
+  padding: 6px 10px; border-radius: var(--radius-sm); background: var(--color-danger); color: var(--color-surface);
+  font-size: 12px; line-height: 1.35; font-weight: 500; text-align: left; box-shadow: var(--shadow-md); pointer-events: none;
+}
+.vi-modal-solicitud .form-field > .field-error:hover > span,
+.vi-modal-solicitud .form-field > .field-error:focus > span { display: block; }
+/* Filas de nivel y kit (etiqueta + opciones): el ícono queda entre la etiqueta y las opciones, y su globo se abre hacia la derecha. */
+.vi-modal-solicitud .form-field.vi-nivel-fila > .field-error { top: 50%; right: auto; left: 196px; margin-top: -10px; }
+.vi-modal-solicitud .form-field.vi-nivel-fila > .field-error > span { right: auto; left: -4px; }
+/* Foto de un defecto: el ícono queda en la esquina superior derecha de la miniatura (84 px) y no al final de la caja. */
+.vi-modal-solicitud .vi-foto > .field-error { right: auto; left: 74px; }
+.vi-modal-solicitud .vi-foto > .field-error > span { right: auto; left: -4px; }
+@media (max-width: 640px) {
+  .vi-modal-solicitud .form-field.vi-nivel-fila > .field-error { top: -8px; right: -6px; left: auto; margin-top: 0; }
+  .vi-modal-solicitud .form-field.vi-nivel-fila > .field-error > span { left: auto; right: 0; }
+}
