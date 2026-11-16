@@ -109,6 +109,7 @@
   position: fixed;
   z-index: 200;
   width: 264px;
+  overflow-y: auto;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);

@@ -205,12 +205,23 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = t(
     });
   }
 
+  // El panel nunca debe salirse de la ventana: se abre debajo del campo, se voltea hacia arriba si abajo no cabe y,
+  // si en ninguno de los dos lados cabe, se pega al borde (con scroll propio si la ventana es más baja que el calendario).
   function posicionarPanel() {
     const rect = trigger.getBoundingClientRect();
+    const margen = 8;
+    const separacion = 6;
+    panelEl.style.maxHeight = `${window.innerHeight - margen * 2}px`;
     const anchoPanel = panelEl.offsetWidth;
+    const altoPanel = panelEl.offsetHeight;
     let left = rect.left;
     if (left + anchoPanel > window.innerWidth - 12) left = Math.max(12, rect.right - anchoPanel);
-    panelEl.style.top = `${rect.bottom + 6}px`;
+    const espacioAbajo = window.innerHeight - rect.bottom - separacion - margen;
+    const espacioArriba = rect.top - separacion - margen;
+    let top = rect.bottom + separacion;
+    if (altoPanel > espacioAbajo && espacioArriba > espacioAbajo) top = rect.top - separacion - altoPanel;
+    top = Math.min(Math.max(margen, top), Math.max(margen, window.innerHeight - altoPanel - margen));
+    panelEl.style.top = `${top}px`;
     panelEl.style.left = `${left}px`;
   }
 
