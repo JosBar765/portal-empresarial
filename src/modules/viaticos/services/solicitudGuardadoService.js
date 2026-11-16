@@ -7,6 +7,7 @@ const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const solicitudRepo = require('../repositories/solicitudRepository');
 const escrituraRepo = require('../repositories/solicitudEscrituraRepository');
 const destinatarioRepo = require('../repositories/destinatarioRepository');
+const vistoRepo = require('../repositories/vistoRepository');
 const {
   MODALIDADES, ESTADOS, ESTADOS_EDITABLES, ACCIONES, PERMISOS, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, TIEMPO_REAL, CORRELATIVO, ETAPAS_DOCUMENTO
 } = require('../constantes');
@@ -175,6 +176,8 @@ class SolicitudGuardadoService {
       const invalidos = archivosService.validarConservados(partes.defectos, new Set(previos.map(d => d.id)));
       if (invalidos.length > 0) throw errorDeValidacion(msg('validacion.revisar'), aCampos(invalidos));
       await escrituraRepo.borrarPartes(id, tx);
+      // Lo modificado hay que revisarlo de nuevo: los vistos anteriores dejan de valer.
+      await vistoRepo.borrarDeSolicitud(id, tx);
       await escrituraRepo.actualizarEncabezado(id, { ...partes.encabezado, estadoId }, tx);
     } else {
       correlativo = formatearCorrelativo(ctx.pais.codigo, await escrituraRepo.siguienteNumero(partes.encabezado.paisId, tx));

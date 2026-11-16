@@ -100,6 +100,7 @@ export const liquidarSolicitud = (id) => pedir(`${BASE}/solicitudes/${id}/liquid
 export const listarGestiones = (filtros) => pedir(`${BASE}/gestiones${consulta(filtros)}`);
 export const obtenerGestion = (id) => pedir(`${BASE}/gestiones/${id}`);
 export const obtenerDocumentosGestion = (id) => pedir(`${BASE}/gestiones/${id}/documentos`);
+export const registrarVistoGestion = (id) => pedir(`${BASE}/gestiones/${id}/visto`, { method: 'POST' });
 export const autorizarGestion = (id) => pedir(`${BASE}/gestiones/${id}/autorizar`, { method: 'POST' });
 export const rechazarGestion = (id, motivo) => pedir(`${BASE}/gestiones/${id}/rechazar`, enJson('POST', { motivo }));
 export const obtenerLiquidacionGestion = (id) => pedir(`${BASE}/gestiones/${id}/liquidacion`);

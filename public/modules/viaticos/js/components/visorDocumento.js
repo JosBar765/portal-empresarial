@@ -153,7 +153,8 @@ export const abrirVisorImagen = ({ titulo, url, origen = null }) => abrirVisorAr
 
 // Documentos de una solicitud: pide la lista al servidor (PDF primero y, ya liquidada, los comprobantes al final) con su cargando y su error.
 // `gestion`: la consulta es de Gestiones (cualquier solicitud) y no la del propio usuario.
-export function abrirVisorSolicitud(solicitud, { gestion = false } = {}) {
+// `alMostrar`: se avisa cuando los documentos ya se pudieron mostrar (así Gestiones registra el visto).
+export function abrirVisorSolicitud(solicitud, { gestion = false, alMostrar = null } = {}) {
   const titulo = tituloVisorSolicitud(solicitud.correlativo);
   const origen = document.activeElement;
   let abierto = true;
@@ -188,6 +189,7 @@ export function abrirVisorSolicitud(solicitud, { gestion = false } = {}) {
       return;
     }
     cerrar();
+    if (alMostrar) alMostrar(solicitud);
     abrirVisor({ titulo, subtitulo: solicitud.pipeline && solicitud.pipeline.etiqueta ? solicitud.pipeline.etiqueta : '', documentos: lista.map(d => ({ etiqueta: d.titulo, url: d.url, tipo: d.tipo })), origen });
   }
   cargar();

@@ -66,6 +66,14 @@ Prefijo de tablas: `viaticos_`. Convenciones del proyecto: español, `snake_case
 
 Ajustes en `viaticos_ajustes` (migración `viaticos_borradores`): `borrador_vigencia_dias` = 30 (días de vida desde la creación) y `borrador_max_por_usuario` = 15 (tope por usuario). Ambos se editan con `PUT /config/ajustes/:clave`: la vigencia entre 1 y 365 y el tope entre 1 y 200. Un watcher horario borra los vencidos; enviar la solicitud borra el borrador de origen.
 
+### Vistos de solicitudes
+
+| Tabla | Columnas clave |
+|---|---|
+| `viaticos_vistos` | `solicitud_id` (FK `viaticos_solicitudes`, CASCADE), `usuario_id` (FK `usuarios`, CASCADE), `visto_en`; PK (`solicitud_id`, `usuario_id`) |
+
+Un renglón indica que esa persona abrió el documento de la solicitud y ya puede autorizarla o rechazarla (migración `viaticos_vistos`). Modificar la solicitud borra sus renglones.
+
 Dar de baja una solicitud la borra con sus hijas (`ON DELETE CASCADE`) y el servicio borra los archivos en Storage solo en producción. Las FK hacia `usuarios` obligatorias van con `RESTRICT`; las de pertenencia con `CASCADE` (convención del proyecto).
 
 ## Permisos (`permisos.modulo = 'viaticos'`)

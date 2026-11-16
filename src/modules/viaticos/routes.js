@@ -50,6 +50,7 @@ router.post('/solicitudes/:id/liquidar', liquidacionController.liquidar);
 router.get('/gestiones', requirePermission(PERMISOS.GESTIONAR), gestionController.listar);
 router.get('/gestiones/:id', requirePermission(PERMISOS.GESTIONAR), gestionController.obtener);
 router.get('/gestiones/:id/documentos', requirePermission(PERMISOS.GESTIONAR), gestionController.documentos);
+router.post('/gestiones/:id/visto', requirePermission(PERMISOS.AUTORIZAR), gestionController.visto);
 router.post('/gestiones/:id/autorizar', requirePermission(PERMISOS.AUTORIZAR), gestionController.autorizar);
 router.post('/gestiones/:id/rechazar', requirePermission(PERMISOS.AUTORIZAR), gestionController.rechazar);
 router.get('/gestiones/:id/liquidacion', requirePermission(PERMISOS.LIQUIDAR), gestionController.liquidacion);

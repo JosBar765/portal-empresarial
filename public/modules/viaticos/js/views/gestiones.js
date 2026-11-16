@@ -2,9 +2,9 @@
 import { state } from '../state.js';
 import { $, h, icono, montar } from '../utils/dom.js';
 import { ACCIONES } from '../config/constantes.js';
-import { listarGestiones } from '../api/viaticosApi.js';
+import { listarGestiones, registrarVistoGestion } from '../api/viaticosApi.js';
 import { crearBarraPeriodo } from '../components/barraPeriodo.js';
-import { htmlFilaGestion } from '../components/filaGestion.js';
+import { htmlFilaGestion, htmlAccionesGestion } from '../components/filaGestion.js';
 import { abrirVisorSolicitud } from '../components/visorDocumento.js';
 import { autorizar, rechazar } from '../actions/gestionAcciones.js';
 import { abrirLiquidacionGestion } from '../actions/liquidacionGestion.js';
@@ -85,8 +85,29 @@ export async function cargarGestiones({ conEstado = false } = {}) {
 
 const recargar = () => cargarGestiones();
 
+// Repinta solo los botones de esa fila (la lista no se recarga).
+function repintarAcciones(solicitud) {
+  const contenedor = vista && vista.tbody.querySelector(`tr[data-id="${Number(solicitud.id)}"] .acciones-wrap`);
+  if (contenedor) contenedor.innerHTML = htmlAccionesGestion(solicitud);
+}
+
+// Abrir el visor cuenta como revisar la solicitud: se registra en el servidor y se habilitan Autorizar y Rechazar.
+async function registrarVisto(solicitud) {
+  const acciones = (solicitud.pipeline && solicitud.pipeline.acciones) || [];
+  if (solicitud.visto !== false || !(acciones.includes(ACCIONES.AUTORIZAR) || acciones.includes(ACCIONES.RECHAZAR))) return;
+  try {
+    const { visto } = await registrarVistoGestion(solicitud.id);
+    // Se busca en la lista actual: una recarga pudo reemplazar el objeto mientras se registraba.
+    const actual = gestiones.find(s => Number(s.id) === Number(solicitud.id));
+    if (actual && visto) { actual.visto = true; repintarAcciones(actual); }
+    else if (!visto) await cargarGestiones();
+  } catch (error) {
+    window.toast?.error(t('gestiones.visto.error'), error.message);
+  }
+}
+
 const ACCIONES_FILA = {
-  [ACCIONES.VER]: (solicitud) => abrirVisorSolicitud(solicitud, { gestion: true }),
+  [ACCIONES.VER]: (solicitud) => abrirVisorSolicitud(solicitud, { gestion: true, alMostrar: registrarVisto }),
   [ACCIONES.AUTORIZAR]: (solicitud) => autorizar(solicitud, { alTerminar: recargar }),
   [ACCIONES.RECHAZAR]: (solicitud) => rechazar(solicitud, { alTerminar: recargar }),
   [ACCIONES.LIQUIDAR]: (solicitud) => abrirLiquidacionGestion(solicitud)

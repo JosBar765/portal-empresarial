@@ -64,6 +64,10 @@ Sin `credentials` (mismo origen). `pedir(url, opciones)` envuelve el fallo de re
 - `utils/eventosBorradores.js`: evento de documento `viaticos:borradores:cambio` (`avisarCambioBorradores()`); guardar, eliminar y enviar desde un borrador lo disparan y el botón refresca su contador.
 - Textos: claves `borradores.*` y `formulario.borrador.*` / `formulario.cerrar.mensajeBorrador` en `textos.js`.
 
+## Visto en Gestiones
+
+Abrir «Ver documentos» en Gestiones (`abrirVisorSolicitud(..., { gestion: true, alMostrar })`) registra el visto con `registrarVistoGestion` cuando los documentos ya se pudieron mostrar. Mientras la fila trae `visto === false`, Autorizar y Rechazar salen deshabilitados (`disabled`, `aria-disabled` y un `title` que dice que se abra «Ver» primero); al registrarse se repintan solo los botones de esa fila, sin recargar la lista. `gestionAcciones.js` también se niega a abrir la decisión sin visto y, ante el 400 del servidor, recarga la lista. Es solo ayuda visual: el servidor es quien lo exige. Textos: `gestiones.accion.requiereVer` y `gestiones.visto.*`.
+
 ## Tablas y móvil
 
 `.tabla-wrapper[tabindex=0][role=region]` → `table.buzon-table.data-table.sticky-header`; cada `td` lleva `data-label` y la de acciones `.acciones-cell`; en ≤900 px cada fila es una tarjeta (`::before{content:attr(data-label)}`); objetivos táctiles de 44 px a ≤640 px. Tabla fija en escritorio con `body.vista-tabla-fija` (solo desde 901 px; `--sep-buzon` 16 px). Fila vacía: `td.tabla-vacia`. Los modales a ≤480 px ocupan la pantalla.

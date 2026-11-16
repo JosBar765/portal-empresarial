@@ -39,6 +39,7 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | `POST /solicitudes/:id/liquidar` | ver | Liquida (con todos los comprobantes completos) |
 | `GET /gestiones?desde=&hasta=&q=` | gestionar | Todas las solicitudes, con solicitante y país |
 | `GET /gestiones/:id` y `/gestiones/:id/documentos` | gestionar | Detalle y documentos |
+| `POST /gestiones/:id/visto` | autorizar | Registra que quien consulta abrió el documento (requisito para autorizar o rechazar) |
 | `POST /gestiones/:id/autorizar` | autorizar | Autoriza |
 | `POST /gestiones/:id/rechazar` | autorizar | Rechaza con `{ motivo }` libre y obligatorio |
 | `GET /gestiones/:id/liquidacion` | liquidar | Vista de solo lectura para contabilidad (cifras, diferencia, comprobantes y PDF) |
@@ -228,6 +229,13 @@ Las solicitudes de Gestiones son las de todas las personas y países (no se comp
 - `pipeline.acciones` de Gestiones depende de los permisos de quien consulta (no son las del dueño: aquí no hay `modificar` ni `darDeBaja`): `ver` siempre; `autorizar` y `rechazar` con `viaticos.autorizar` y solo en «esperando autorización» sin vencer; `liquidar` (abrir la vista de solo lectura de contabilidad, ver «Liquidación (F3.6)») con `viaticos.liquidar` solo en viajes de más de 1 día con el viaje ya terminado o ya liquidados.
 - `GET /gestiones/:id` (`gestionar`): el mismo detalle que `GET /solicitudes/:id` (incluye `solicitante`, `pais` e `historial` con el usuario de cada paso y el motivo del rechazo) de cualquier solicitud, con las `acciones` de Gestiones; 404 si no existe.
 - `GET /gestiones/:id/documentos` (`gestionar`): igual que `GET /solicitudes/:id/documentos` de cualquier solicitud (con los comprobantes si está liquidada).
+
+### Visto obligatorio
+
+- Quien autoriza o rechaza debe haber abierto antes el documento de la solicitud (como en Vales de Arte). `POST /gestiones/:id/visto` (`autorizar`, sin cuerpo; la persona sale siempre de `req.user`) responde 200 `{ visto: true }` si la solicitud espera autorización y guarda el visto en `viaticos_vistos`; en cualquier otra fase responde 200 `{ visto: false }` sin guardar nada; 404 si no existe. Es idempotente.
+- `autorizar` y `rechazar` comprueban el visto dentro de la transacción, con la fila bloqueada y antes de cambiar el estado. Sin visto: 400 `{ error }` («Debes revisar la solicitud … abre «Ver documentos»…»). El Administrador (rol 1) queda exento.
+- Cada ítem de `GET /gestiones` y el detalle de `GET /gestiones/:id` traen `visto` (booleano: ya lo vio quien consulta; siempre `true` para el Administrador).
+- Si el solicitante modifica la solicitud (`PUT /solicitudes/:id`), se borran sus vistos en la misma transacción: hay que revisarla otra vez.
 
 ### Autorizar y rechazar
 

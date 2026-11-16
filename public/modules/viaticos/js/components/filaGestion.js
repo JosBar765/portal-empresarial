@@ -13,11 +13,17 @@ const BOTONES = [
   { accion: ACCIONES.LIQUIDAR, icono: 'cash-outline', texto: 'gestiones.accion.liquidar' }
 ];
 
+const DECISIONES = [ACCIONES.AUTORIZAR, ACCIONES.RECHAZAR];
+
 export function htmlAccionesGestion(solicitud) {
   const permitidas = (solicitud.pipeline && solicitud.pipeline.acciones) || [];
   return BOTONES.filter(b => permitidas.includes(b.accion)).map(b => {
     const texto = escapeHtml(t(b.texto));
-    return `<button type="button" class="btn-icon${b.clase ? ` ${b.clase}` : ''}" data-accion="${b.accion}" data-id="${Number(solicitud.id)}" title="${texto}" aria-label="${texto}"><ion-icon name="${b.icono}"></ion-icon></button>`;
+    // Decidir exige haber abierto «Ver» antes (solo ayuda visual: el servidor lo exige).
+    const sinVer = DECISIONES.includes(b.accion) && solicitud.visto === false;
+    const titulo = sinVer ? escapeHtml(t('gestiones.accion.requiereVer')) : texto;
+    const bloqueo = sinVer ? ' disabled aria-disabled="true"' : '';
+    return `<button type="button" class="btn-icon${b.clase ? ` ${b.clase}` : ''}" data-accion="${b.accion}" data-id="${Number(solicitud.id)}" title="${titulo}" aria-label="${titulo}"${bloqueo}><ion-icon name="${b.icono}"></ion-icon></button>`;
   }).join('');
 }
 

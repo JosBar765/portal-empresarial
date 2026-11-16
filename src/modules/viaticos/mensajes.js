@@ -201,6 +201,7 @@ const CATALOGO = Object.freeze({
   'gestion.etiquetaMotivo': 'Motivo del rechazo',
   'gestion.motivoObligatorio': 'Escribe el motivo del rechazo (entre 1 y {max} caracteres): el solicitante lo leerá para saber qué corregir.',
   'gestion.noSeAutoriza': 'La solicitud {correlativo} está «{estado}» y no se puede autorizar: solo se autoriza mientras espera autorización y antes de la fecha de salida. Si venció o fue rechazada, el solicitante debe modificarla para que vuelva a esperar autorización.',
+  'gestion.debesVer': 'Debes revisar la solicitud {correlativo} antes de autorizarla o rechazarla: abre el botón «Ver documentos» de su fila, revisa el documento y vuelve a intentarlo. Si el solicitante la modifica, tendrás que revisarla otra vez.',
   'gestion.noSeRechaza': 'La solicitud {correlativo} está «{estado}» y no se puede rechazar: solo se rechaza mientras espera autorización y antes de la fecha de salida. Si venció o ya fue decidida, no hay nada que rechazar.',
 
   // ---- Solicitudes: advertencias (salvedades) ----

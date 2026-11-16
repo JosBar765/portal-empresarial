@@ -15,6 +15,7 @@ const { msg } = require('../mensajes');
 const { accionesDeGestion } = require('./pipelineService');
 const solicitudService = require('./solicitudService');
 const documentoService = require('./documentoService');
+const vistoService = require('./vistoService');
 
 // Lo que espera autorización va primero (para atenderlo en orden); el resto sigue el orden de fases de Solicitudes.
 const grupoDe = fase => (fase === FASES.ESPERANDO ? 0 : ORDEN_FASES[fase] + 1);
@@ -44,10 +45,12 @@ class GestionService {
   async listar(usuario, query) {
     const { desde, hasta, hoy, busqueda } = solicitudService.leerParametrosDeLista(query);
     const filas = await solicitudRepo.listar({ desde, hasta, ...busqueda, nombre: busqueda.correlativo || null });
+    const vistas = await vistoService.idsVistos(usuario, filas.map(fila => fila.id));
     const items = filas.map(fila => ({
       ...solicitudService.itemDeLista(fila, pipelineDeGestion(solicitudService.pipelineDe(fila, hoy), fila.modalidad, usuario)),
       solicitante: { id: fila.solicitanteId, nombre: fila.solicitanteNombre },
-      pais: { codigo: fila.paisCodigo, nombre: fila.paisNombre }
+      pais: { codigo: fila.paisCodigo, nombre: fila.paisNombre },
+      visto: vistas.has(Number(fila.id))
     }));
     items.sort((a, b) => grupoDe(a.pipeline.fase) - grupoDe(b.pipeline.fase)
       || (grupoDe(a.pipeline.fase) === 0 ? porCreacion(a, b) : porCreacion(b, a)));
@@ -56,7 +59,8 @@ class GestionService {
 
   async obtener(usuario, idCrudo) {
     const detalle = await solicitudService.leerDetalle(idCrudo);
-    return { ...detalle, pipeline: pipelineDeGestion(detalle.pipeline, detalle.modalidad, usuario) };
+    const vistas = await vistoService.idsVistos(usuario, [detalle.id]);
+    return { ...detalle, pipeline: pipelineDeGestion(detalle.pipeline, detalle.modalidad, usuario), visto: vistas.has(Number(detalle.id)) };
   }
 
   // `externo` (solo pruebas): ejecutor de una transacción ya abierta; sin commit propio ni efectos posteriores.
@@ -73,6 +77,8 @@ class GestionService {
     const id = idObligatorio(idCrudo, 'Identificador de la solicitud');
     const aplicar = async tx => {
       const fila = await this.bloquearPendiente(id, claveMensaje, tx);
+      // Antes de cambiar nada: sin visto no se autoriza ni se rechaza (el Administrador queda exento).
+      await vistoService.exigirVisto(usuario, id, fila.correlativo, tx);
       const estadoId = await escrituraRepo.estadoId(estadoDestino, tx);
       await escrituraRepo.actualizarEstado(id, estadoId, tx);
       await escrituraRepo.insertarHistorial(id, estadoId, usuario.id, motivo, tx);

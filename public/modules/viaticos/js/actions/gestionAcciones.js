@@ -12,9 +12,16 @@ import { t } from '../textos.js';
 // Ids con una decisión abierta o enviándose: un doble clic o una segunda acción sobre la misma solicitud no hace nada.
 const enCurso = new Set();
 
+// Defensa extra: el botón ya está deshabilitado sin visto y el servidor lo exige igual.
+function faltaVer(solicitud) {
+  if (solicitud.visto !== false) return false;
+  window.toast?.error(t('gestiones.visto.titulo'), t('gestiones.visto.texto', { correlativo: solicitud.correlativo }));
+  return true;
+}
+
 // `alTerminar` recarga la lista (se recibe como función para no importar la vista y evitar un ciclo de imports).
 export async function autorizar(solicitud, { alTerminar } = {}) {
-  if (enCurso.has(solicitud.id)) return false;
+  if (faltaVer(solicitud) || enCurso.has(solicitud.id)) return false;
   enCurso.add(solicitud.id);
   try {
     const confirmada = await confirmarModal({
@@ -28,8 +35,8 @@ export async function autorizar(solicitud, { alTerminar } = {}) {
       await autorizarGestion(solicitud.id);
     } catch (error) {
       window.toast?.error(t('gestiones.autorizar.error'), mensajesDeError(error).join(' '));
-      // Un 403 dice que el estado cambió (ya autorizada, rechazada o vencida): la lista está desactualizada.
-      if (error.status === 403 && alTerminar) await alTerminar();
+      // Un 403 dice que el estado cambió (ya autorizada, rechazada o vencida) y un 400, que falta el visto: la lista está desactualizada.
+      if ((error.status === 403 || error.status === 400) && alTerminar) await alTerminar();
       return false;
     }
     // El evento de tiempo real no trae al actor: se marca antes de recargar para no avisarle lo que él mismo hizo.
@@ -44,7 +51,7 @@ export async function autorizar(solicitud, { alTerminar } = {}) {
 
 // Devuelve una promesa que se cumple al cerrarse el modal: `true` si se rechazó, `false` si no.
 export function rechazar(solicitud, { alTerminar } = {}) {
-  if (enCurso.has(solicitud.id)) return Promise.resolve(false);
+  if (faltaVer(solicitud) || enCurso.has(solicitud.id)) return Promise.resolve(false);
   enCurso.add(solicitud.id);
   return new Promise((resolve) => {
     const max = LIMITES_SOLICITUD.MOTIVO_RECHAZO;
@@ -120,6 +127,8 @@ export function rechazar(solicitud, { alTerminar } = {}) {
         window.toast?.error(t('gestiones.rechazar.error'), texto);
         // Un 403 dice que el estado cambió: ya no hay nada que rechazar, así que se refresca la lista y se puede salir sin confirmar.
         if (error.status === 403) { descartable = true; if (alTerminar) await alTerminar(); }
+        // Un 400 sin campos es el «debes revisar»: se refresca la fila para reflejar el visto del servidor.
+        else if (error.status === 400 && alTerminar) await alTerminar();
         return;
       }
       registrarAccionPropia(solicitud.id);
