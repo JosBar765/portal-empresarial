@@ -110,6 +110,18 @@
 .vi-resumen { flex: none; display: flex; flex-direction: column; gap: 4px; padding: 14px 24px; border-top: 1px solid var(--color-border); background: var(--color-bg); font-size: var(--text-sm); color: var(--color-text-secondary); }
 .vi-resumen__fila { display: flex; justify-content: space-between; gap: 12px; }
 .vi-resumen__fila span:last-child { color: var(--color-text); }
+.vi-resumen__desglose { display: none; flex-direction: column; gap: 4px; padding-bottom: 6px; }
+.vi-resumen.is-abierto .vi-resumen__desglose { display: flex; }
+.vi-resumen__barra { display: flex; align-items: center; gap: 10px; }
+.vi-resumen__barra .vi-resumen__total { flex: 1 1 auto; margin-top: 0; }
+.vi-resumen__toggle {
+  display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 6px 8px; border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--color-text-secondary); font: inherit; font-size: var(--text-xs); font-weight: 600; cursor: pointer;
+}
+.vi-resumen__toggle:hover { background: var(--color-surface-muted); color: var(--color-text); }
+.vi-resumen__toggle:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.vi-resumen__toggle ion-icon { font-size: 16px; transition: transform var(--transition-fast); }
+.vi-resumen.is-abierto .vi-resumen__toggle ion-icon { transform: rotate(180deg); }
 .vi-resumen__total { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; padding: 10px 16px; border: 2px solid var(--color-text); border-radius: var(--radius-md); background: var(--color-surface); }
 .vi-resumen__total > span:first-child { font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-text); }
 .vi-resumen__total-valor { font-family: var(--font-title); font-size: var(--text-md); font-weight: 700; color: var(--color-text); }
@@ -141,18 +153,6 @@
   .vi-modal-solicitud .vi-btn-agregar { min-height: 44px; }
   .vi-modal-solicitud .date-field-trigger { min-height: 44px; }
   .vi-modal-solicitud .form-field input, .vi-modal-solicitud .form-field select { min-height: 44px; }
-  .form-field.vi-nivel-fila { grid-template-columns: minmax(0, 1fr); }
-  .form-field.vi-nivel-fila .field-error { grid-column: 1; }
-  .vi-opciones { flex-wrap: nowrap; }
-  .vi-opcion { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 4px; }
-  .vi-defecto { grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; }
-  .vi-defecto__titulo { display: block; grid-column: 1; grid-row: 1; align-self: center; }
-  .vi-defecto__campos { grid-column: 1 / -1; grid-row: 2; }
-  .vi-defecto .vi-renglon__quitar { grid-column: 2; grid-row: 1; }
-  .vi-foto__cuerpo { grid-column: 1 / -1; grid-row: 3; flex-direction: row; align-items: stretch; }
-  .vi-foto__vista { width: 80px; height: auto; min-height: 70px; }
-  .vi-foto__acciones { flex: 1; align-items: stretch; }
-  .vi-foto .field-error { grid-row: 4; }
 }
 
 /* ---------- Viaje de 1 día o menos: niveles de fluidos, kit y defectos con foto ---------- */
@@ -197,11 +197,18 @@ button.vi-foto__vista:focus-visible { outline: 2px solid var(--color-primary); o
 
 .vi-resumen--corto { padding-top: 10px; padding-bottom: 10px; }
 
-/* En pantallas angostas o bajas el resumen muestra solo el total: el detalle ya se ve en cada sección y deja más espacio al formulario. */
-@media (max-width: 640px), (max-height: 700px) {
-  .vi-modal-solicitud .vi-resumen__fila { display: none; }
+/* En pantallas angostas o bajas (laptops con zoom, celulares) cabecera, resumen y pie se compactan para dejarle alto al formulario. */
+@media (max-width: 640px), (max-height: 800px) {
+  .vi-modal-solicitud .modal-header { padding-top: 12px; padding-bottom: 12px; }
   .vi-modal-solicitud .vi-resumen { padding-top: 8px; padding-bottom: 8px; }
-  .vi-modal-solicitud .vi-resumen__total { margin-top: 0; padding: 8px 14px; }
+  .vi-modal-solicitud .vi-resumen__total { padding: 8px 14px; }
+  .vi-modal-solicitud .modal-footer { padding-top: 10px; padding-bottom: 10px; }
+}
+/* Celular: el motivo ocupa una sola línea (el detalle sale al pasar el cursor o en cada campo) y los tres botones caben en una fila. */
+@media (max-width: 640px) {
+  .vi-modal-solicitud .vi-pie-motivo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .vi-modal-solicitud .modal-footer { flex-wrap: wrap; gap: 8px; }
+  .vi-modal-solicitud .modal-footer .btn { flex: 1 1 0; min-width: 0; padding-left: 6px; padding-right: 6px; font-size: 13px; white-space: nowrap; }
 }
 
 /* ---------- Errores de campo del modal: un ícono rojo en la esquina del campo; el mensaje sale en un globo (mouse, foco o toque) ---------- */
@@ -226,6 +233,19 @@ button.vi-foto__vista:focus-visible { outline: 2px solid var(--color-primary); o
 /* Foto de un defecto: el ícono queda en la esquina superior derecha de la miniatura (84 px) y no al final de la caja. */
 .vi-modal-solicitud .vi-foto > .field-error { right: auto; left: 74px; }
 .vi-modal-solicitud .vi-foto > .field-error > span { right: auto; left: -4px; }
+/* Viaje de 1 día o menos en celular: va aquí, después de las reglas base de esa sección, para que no las pise el orden del archivo. */
+@media (max-width: 640px) {
+  .form-field.vi-nivel-fila { grid-template-columns: minmax(0, 1fr); }
+  .vi-opciones { flex-wrap: nowrap; }
+  .vi-opcion { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 4px; }
+  .vi-defecto { grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; }
+  .vi-defecto__titulo { display: block; grid-column: 1; grid-row: 1; align-self: center; }
+  .vi-defecto__campos { grid-column: 1 / -1; grid-row: 2; }
+  .vi-defecto .vi-renglon__quitar { grid-column: 2; grid-row: 1; }
+  .vi-foto__cuerpo { grid-column: 1 / -1; grid-row: 3; flex-direction: row; align-items: stretch; }
+  .vi-foto__vista { width: 80px; height: auto; min-height: 70px; }
+  .vi-foto__acciones { flex: 1; align-items: stretch; }
+}
 @media (max-width: 640px) {
   .vi-modal-solicitud .form-field.vi-nivel-fila > .field-error { top: -8px; right: -6px; left: auto; margin-top: 0; }
   .vi-modal-solicitud .form-field.vi-nivel-fila > .field-error > span { left: auto; right: 0; }

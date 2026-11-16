@@ -294,6 +294,8 @@ export const TEXTOS = {
   'formulario.resumen.comidas': 'Comidas',
   'formulario.resumen.otros': 'Otros',
   'formulario.resumen.total': 'Total solicitado',
+  'formulario.resumen.verDesglose': 'Ver desglose',
+  'formulario.resumen.ocultarDesglose': 'Ocultar desglose',
   'formulario.resumen.calculando': 'Calculando...',
   'formulario.resumen.errorCalculo': 'No se pudo calcular: {motivo}',
 

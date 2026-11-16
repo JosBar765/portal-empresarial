@@ -132,6 +132,7 @@ export function abrirFormularioSolicitud({ modo = 'crear', solicitud, borrador, 
     if (botonBorrador) botonBorrador.disabled = ctx.enviando;
     botonEnviar.title = motivo || '';
     motivoEnvio.textContent = motivo || '';
+    motivoEnvio.title = motivo || '';
   }
 
   // ---------- Carga de catálogos por país ----------

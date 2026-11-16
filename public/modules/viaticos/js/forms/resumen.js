@@ -17,8 +17,19 @@ export function crearResumen(ctx, { alReintentar }) {
   const filas = RUBROS.map(([clave, texto]) => h('div', { class: 'vi-resumen__fila', 'data-rubro': clave },
     h('span', { text: t(texto) }), h('span', { id: `vi-sol-res-${clave}`, text: '' })));
   const total = h('span', { id: 'vi-sol-res-total', class: 'vi-resumen__total-valor', text: '' });
-  const el = h('div', { class: 'vi-resumen', id: 'vi-sol-resumen', role: 'region', 'aria-label': t('formulario.resumen.titulo') },
-    estado, filas, h('div', { class: 'vi-resumen__total' }, h('span', { text: t('formulario.resumen.total') }), total));
+  // El desglose empieza plegado para no quitarle alto al formulario; solo queda a la vista la barra con el total.
+  const desglose = h('div', { class: 'vi-resumen__desglose', id: 'vi-sol-resumen-desglose' }, filas);
+  const textoToggle = h('span', { text: t('formulario.resumen.verDesglose') });
+  const toggle = h('button', { class: 'vi-resumen__toggle', type: 'button', id: 'vi-sol-resumen-toggle', 'aria-expanded': 'false', 'aria-controls': 'vi-sol-resumen-desglose' },
+    icono('chevron-up-outline'), textoToggle);
+  const barra = h('div', { class: 'vi-resumen__barra' }, toggle,
+    h('div', { class: 'vi-resumen__total' }, h('span', { text: t('formulario.resumen.total') }), total));
+  const el = h('div', { class: 'vi-resumen', id: 'vi-sol-resumen', role: 'region', 'aria-label': t('formulario.resumen.titulo') }, estado, desglose, barra);
+  toggle.addEventListener('click', () => {
+    const abierto = el.classList.toggle('is-abierto');
+    toggle.setAttribute('aria-expanded', String(abierto));
+    textoToggle.textContent = t(abierto ? 'formulario.resumen.ocultarDesglose' : 'formulario.resumen.verDesglose');
+  });
 
   function pintar() {
     const simbolo = ctx.simbolo();
