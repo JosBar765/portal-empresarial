@@ -11,7 +11,7 @@ const { aCentavos } = require('../../dinero');
 const { msg, CATALOGO } = require('../../mensajes');
 const { sumarTramos, calcularCombustible, calcularDepreciacion, calcularHospedaje, calcularOtrosGastos } = require('../calculoService');
 const {
-  PAGINA, ANCHO_CONTENIDO, COLOR, partirEnLineas, formatearFecha, formatearNumero, formatearDinero, capitalizar,
+  PAGINA, ANCHO_CONTENIDO, ALTURA_MAYUSCULA, COLOR, partirEnLineas, formatearFecha, formatearNumero, formatearDinero, capitalizar,
   ancho, texto, textoDerecha, textoMulticolor, linea
 } = require('./pdfHelpers');
 
@@ -20,6 +20,15 @@ const TAMANO_TITULO_REFERENCIA = 18;
 const COLUMNAS_IMAGENES = 3;
 const SEPARACION_IMAGENES = 10;
 const ALTO_FILA = 14;
+const ALTO_LOGO_MAX = 38;
+const ALTO_TOTAL_FILA = 16;
+const SEPARACION_GUIA = 4;
+// Aire entre secciones: medido desde la última línea base (o regla de cierre) hasta el tope de la siguiente; es el que ya tenía «LECTURA ODÓMETRO».
+const SEPARACION_SECCIONES = 12;
+const ALTO_DESGLOSE = 18;
+// Las firmas viven siempre a esta altura (sobre el pie «n/total»); el cierre no baja de LIMITE_CIERRE.
+const Y_FIRMAS = PAGINA.ALTO_PIE + 30;
+const LIMITE_CIERRE = Y_FIRMAS + 16;
 
 const t = (clave, params) => msg(`pdf.${clave}`, params);
 
@@ -71,22 +80,36 @@ function asegurarEspacio(ctx, alto) {
   if (ctx.y - alto < PAGINA.LIMITE_INFERIOR) nuevaPagina(ctx);
 }
 
+// Cierra una sección dejando SEPARACION_SECCIONES bajo su última línea base (o regla de cierre).
+function separarSeccion(ctx, yReferencia) {
+  ctx.y = yReferencia - SEPARACION_SECCIONES;
+}
+
+// Bloque de dos líneas (arriba: altura de mayúscula; abajo: línea base) centrado en el eje `yCentro`.
+function dibujarBloqueCentrado(ctx, yCentro, x, superior, inferior, separacion) {
+  const altoBloque = ALTURA_MAYUSCULA * superior.size + separacion;
+  const baseSuperior = yCentro + altoBloque / 2 - ALTURA_MAYUSCULA * superior.size;
+  texto(ctx, superior.valor, x, baseSuperior, superior);
+  texto(ctx, inferior.valor, x, baseSuperior - separacion, inferior);
+}
+
+// El tope del logo queda a MARGEN del borde (igual que el margen izquierdo); los textos se centran en su eje.
 function dibujarEncabezado(ctx) {
-  const alto = 46;
   const yTop = ctx.y;
-  texto(ctx, t('titulo'), PAGINA.MARGEN, yTop - 16, { size: ctx.tamanoTitulo, bold: true });
-  texto(ctx, t('subtitulo', { fecha: ctx.fechaTexto }), PAGINA.MARGEN, yTop - 30, { size: 8, color: COLOR.etiqueta });
-  const xCorrelativo = PAGINA.MARGEN + ANCHO_CONTENIDO * 0.44;
-  texto(ctx, t('correlativo'), xCorrelativo, yTop - 11, { size: 7, bold: true, color: COLOR.etiqueta });
-  texto(ctx, ctx.correlativo, xCorrelativo, yTop - 27, { size: 13, bold: true });
+  const dims = ctx.logo ? ctx.logo.scaleToFit(ANCHO_CONTENIDO * 0.14, ALTO_LOGO_MAX) : { width: 0, height: ALTO_LOGO_MAX };
+  const yCentro = yTop - dims.height / 2;
+  dibujarBloqueCentrado(ctx, yCentro, PAGINA.MARGEN,
+    { valor: t('titulo'), size: ctx.tamanoTitulo, bold: true },
+    { valor: t('subtitulo', { fecha: ctx.fechaTexto }), size: 8, color: COLOR.etiqueta }, 14);
+  dibujarBloqueCentrado(ctx, yCentro, PAGINA.MARGEN + ANCHO_CONTENIDO * 0.44,
+    { valor: t('correlativo'), size: 7, bold: true, color: COLOR.etiqueta },
+    { valor: ctx.correlativo, size: 13, bold: true }, 16);
   if (ctx.logo) {
-    const dims = ctx.logo.scaleToFit(ANCHO_CONTENIDO * 0.14, alto - 8);
-    ctx.page.drawImage(ctx.logo, {
-      x: PAGINA.MARGEN + ANCHO_CONTENIDO - dims.width, y: yTop - alto + (alto - dims.height) / 2, width: dims.width, height: dims.height
-    });
+    ctx.page.drawImage(ctx.logo, { x: PAGINA.MARGEN + ANCHO_CONTENIDO - dims.width, y: yTop - dims.height, width: dims.width, height: dims.height });
   }
-  linea(ctx, yTop - alto, { grosor: 1, color: COLOR.divisorFuerte });
-  ctx.y = yTop - alto - 14;
+  const yLinea = yTop - dims.height - 6;
+  linea(ctx, yLinea, { grosor: 1, color: COLOR.divisorFuerte });
+  ctx.y = yLinea - 14;
 }
 
 // Grilla «etiqueta gris sobre valor» con una línea fina tras cada fila (igual que el vale de arte).
@@ -117,7 +140,7 @@ function dibujarSeccionCampos(ctx, titulo, filas) {
     ctx.y -= fila.alto;
     linea(ctx, ctx.y);
   });
-  ctx.y -= 8;
+  separarSeccion(ctx, ctx.y);
 }
 
 // Título de subsección a la izquierda y su cálculo (opcional, texto o partes de color) a la derecha.
@@ -130,7 +153,7 @@ function dibujarSubtitulo(ctx, titulo, calculo) {
 }
 
 // columnas: { etiqueta, x, w (fracciones del ancho), alinear: 'izq'|'der', valor(fila), color?(fila), dibujar?(ctx, fila, x, y) }.
-function dibujarTabla(ctx, columnas, filas, { encabezado = true } = {}) {
+function dibujarTabla(ctx, columnas, filas, { encabezado = true, reservaFinal = 0, guia = false } = {}) {
   const borde = fraccion => PAGINA.MARGEN + fraccion * ANCHO_CONTENIDO;
   const preparar = fila => {
     // Una celda vacía queda en blanco (no «-»).
@@ -150,9 +173,11 @@ function dibujarTabla(ctx, columnas, filas, { encabezado = true } = {}) {
     linea(ctx, ctx.y);
     ctx.y -= 2;
   }
-  filas.forEach(fila => {
+  let yBase = ctx.y;
+  filas.forEach((fila, indice) => {
     const { celdas, alto } = preparar(fila);
-    asegurarEspacio(ctx, alto);
+    // La última fila viaja con la fila de total para que la suma no quede sola en otra hoja.
+    asegurarEspacio(ctx, alto + (indice === filas.length - 1 ? reservaFinal : 0));
     columnas.forEach((c, i) => {
       if (c.dibujar) { c.dibujar(ctx, fila, borde(c.x), ctx.y - 10); return; }
       const opciones = { size: 9, color: c.color ? c.color(fila) : COLOR.texto };
@@ -161,26 +186,66 @@ function dibujarTabla(ctx, columnas, filas, { encabezado = true } = {}) {
         else texto(ctx, l, borde(c.x), ctx.y - 10 - n * 11, opciones);
       });
     });
+    if (guia) dibujarGuia(ctx, columnas, celdas, borde);
+    yBase = ctx.y - 10 - (Math.max(...celdas.map(l => l.length), 1) - 1) * 11;
     ctx.y -= alto;
   });
-  ctx.y -= 4;
+  // Con fila de total, la tabla solo deja su aire interno; la sección se cierra tras el total.
+  if (reservaFinal) ctx.y -= 4;
+  else separarSeccion(ctx, yBase);
+}
+
+// Línea punteada entre el nombre (primera columna) y el valor (última, a la derecha); se omite si no cabe.
+function dibujarGuia(ctx, columnas, celdas, borde) {
+  const ultima = columnas.length - 1;
+  const nombre = celdas[0][0];
+  const valor = celdas[ultima][0];
+  if (!nombre || !valor) return;
+  const desde = borde(columnas[0].x) + ancho(ctx, nombre, 9) + SEPARACION_GUIA;
+  const hasta = borde(columnas[ultima].x + columnas[ultima].w) - ancho(ctx, valor, 9) - SEPARACION_GUIA;
+  if (hasta - desde < 6) return;
+  ctx.page.drawLine({
+    start: { x: desde, y: ctx.y - 10 }, end: { x: hasta, y: ctx.y - 10 }, thickness: 0.6, color: COLOR.guia, dashArray: [1, 2]
+  });
+}
+
+// Fila final «TOTAL  <valor>» pegada al borde derecho, con una regla fina encima.
+function dibujarFilaTotal(ctx, valor) {
+  const derecha = PAGINA.MARGEN + ANCHO_CONTENIDO;
+  linea(ctx, ctx.y + 1, { grosor: 0.75, color: COLOR.texto });
+  textoDerecha(ctx, valor, derecha, ctx.y - 10, { size: 9, bold: true });
+  textoDerecha(ctx, t('total'), derecha - ancho(ctx, valor, 9, true) - 10, ctx.y - 10, { size: 9, bold: true });
+  separarSeccion(ctx, ctx.y - 10);
 }
 
 // Subsección completa: el título viaja con su cabecera y la primera fila para no quedar huérfano.
+// `opciones.total` es el texto de la suma, que se dibuja al final de la sección (nunca en la fila del título).
 function dibujarSubseccion(ctx, titulo, calculo, columnas, filas, opciones = {}) {
   const conEncabezado = opciones.encabezado !== false && filas.length > 0;
-  asegurarEspacio(ctx, 18 + (conEncabezado ? 13 : 0) + ALTO_FILA + 6);
+  // Con una sola fila, título, fila y total no se parten entre hojas.
+  asegurarEspacio(ctx, 18 + (conEncabezado ? 13 : 0) + ALTO_FILA + 6 + (opciones.total && filas.length === 1 ? ALTO_TOTAL_FILA : 0));
   dibujarSubtitulo(ctx, titulo, calculo);
   if (filas.length === 0) {
     if (opciones.vacio !== false) {
       texto(ctx, t('sinRegistros'), PAGINA.MARGEN, ctx.y - 10, { size: 9, color: COLOR.etiqueta });
-      ctx.y -= ALTO_FILA + 6;
+      separarSeccion(ctx, ctx.y - 10);
     } else {
-      ctx.y -= 2;
+      separarSeccion(ctx, ctx.y + 8); // la línea base del título está 10 pt bajo su tope
     }
     return;
   }
-  dibujarTabla(ctx, columnas, filas, { encabezado: conEncabezado });
+  dibujarTabla(ctx, columnas, filas, { encabezado: conEncabezado, reservaFinal: opciones.total ? ALTO_TOTAL_FILA : 0, guia: opciones.guia });
+  if (opciones.total) dibujarFilaTotal(ctx, opciones.total);
+}
+
+// Divisor de la parte de desglose: barra negra de todo el ancho; viaja junto con la sección que le sigue.
+function dibujarDivisorDesglose(ctx, altoSiguiente) {
+  asegurarEspacio(ctx, ALTO_DESGLOSE + SEPARACION_SECCIONES + altoSiguiente);
+  const y = ctx.y - ALTO_DESGLOSE;
+  ctx.page.drawRectangle({ x: PAGINA.MARGEN, y, width: ANCHO_CONTENIDO, height: ALTO_DESGLOSE, color: COLOR.texto });
+  const rotulo = t('desglose');
+  texto(ctx, rotulo, PAGINA.MARGEN + (ANCHO_CONTENIDO - ancho(ctx, rotulo, 9.5, true)) / 2, y + 5.5, { size: 9.5, bold: true, color: rgb(1, 1, 1) });
+  ctx.y = y - SEPARACION_SECCIONES;
 }
 
 // Flecha vectorial: Helvetica no dibuja «→».
@@ -253,45 +318,47 @@ function seccionesDeCostos(ctx, detalle) {
   const propio = detalle.vehiculo.esPropio && detalle.depreciacionPorKm !== null && detalle.depreciacionPorKm !== undefined;
   const depreciacion = propio ? calcularDepreciacion({ kmTotal: ruta.kmTotal, depreciacionPorKm: detalle.depreciacionPorKm }) : null;
 
-  dibujarSubseccion(ctx, t('ruta'), t('unidadKm', { km: formatearNumero(ruta.kmTotal) }), [
+  dibujarSubseccion(ctx, t('ruta'), null, [
     { etiqueta: t('colNumero'), x: 0, w: 0.06, valor: f => String(f.orden) },
     { etiqueta: t('colOrigenDestino'), x: 0.06, w: 0.62, dibujar: (c, f, x, y) => dibujarRutaDeTramo(c, f, x, y) },
     { etiqueta: t('colHoras'), x: 0.68, w: 0.16, alinear: 'der', valor: f => t('unidadHoras', { horas: formatearNumero(f.horas) }) },
     { etiqueta: t('colKm'), x: 0.84, w: 0.16, alinear: 'der', valor: f => t('unidadKm', { km: formatearNumero(f.km) }) }
-  ], detalle.tramos);
+  ], detalle.tramos, { total: t('unidadKm', { km: formatearNumero(ruta.kmTotal) }) });
 
-  dibujarSubseccion(ctx, t('combustibleTitulo'), t('calcCombustible', {
-    km: formatearNumero(ruta.kmTotal), rendimiento: formatearNumero(detalle.rendimientoKmGalon),
-    precio: dinero(detalle.precioGalon), importe: dinero(combustible.importe)
-  }), [], [], { vacio: false });
+  // Un cálculo es una sola línea de detalle (la fórmula) y cierra con su fila TOTAL, como las demás secciones.
+  const lineaDeCalculo = [{ x: 0, w: 1, valor: f => f }];
+  dibujarSubseccion(ctx, t('combustibleTitulo'), null, lineaDeCalculo, [t('calcCombustible', {
+    km: formatearNumero(ruta.kmTotal), rendimiento: formatearNumero(detalle.rendimientoKmGalon), precio: dinero(detalle.precioGalon)
+  })], { encabezado: false, total: dinero(combustible.importe) });
   if (depreciacion) {
-    dibujarSubseccion(ctx, t('depreciacion'), t('calcDepreciacion', {
-      km: formatearNumero(ruta.kmTotal), tasa: dinero(detalle.depreciacionPorKm), importe: dinero(depreciacion.importe)
-    }), [], [], { vacio: false });
+    dibujarSubseccion(ctx, t('depreciacion'), null, lineaDeCalculo, [t('calcDepreciacion', {
+      km: formatearNumero(ruta.kmTotal), tasa: dinero(detalle.depreciacionPorKm)
+    })], { encabezado: false, total: dinero(depreciacion.importe) });
   }
 
-  dibujarSubseccion(ctx, t('hospedaje'), dinero(hospedaje.importe), [
+  dibujarSubseccion(ctx, t('hospedaje'), null, [
     { etiqueta: t('colNumero'), x: 0, w: 0.06, valor: (f) => String(hospedaje.lineas.indexOf(f) + 1) },
     { etiqueta: t('colHotel'), x: 0.06, w: 0.3, valor: f => f.hotel },
     { etiqueta: t('colLugar'), x: 0.38, w: 0.26, valor: f => f.lugar },
     { etiqueta: t('colNoches'), x: 0.64, w: 0.08, alinear: 'der', valor: f => String(f.noches) },
     { etiqueta: t('colValorNoche'), x: 0.72, w: 0.14, alinear: 'der', valor: f => dinero(f.valorNoche) },
     { etiqueta: t('colTotal'), x: 0.86, w: 0.14, alinear: 'der', valor: f => dinero(f.total) }
-  ], hospedaje.lineas);
+  ], hospedaje.lineas, { total: dinero(hospedaje.importe) });
 
   const comidas = lineasDeComidas(detalle.comidas);
   const totalComidas = comidas.reduce((s, c) => s + c.totalCentavos, 0);
-  dibujarSubseccion(ctx, t('comidas'), formatearDinero(simbolo, totalComidas / 100), [
-    { x: 0, w: 1, valor: c => t('lineaComida', {
-      cantidad: c.cantidad, nombre: c.nombre, valor: dinero(c.valorUnitario), total: formatearDinero(simbolo, c.totalCentavos / 100)
-    }) }
-  ], comidas, { encabezado: false });
+  dibujarSubseccion(ctx, t('comidas'), null, [
+    { etiqueta: t('colCantidad'), x: 0, w: 0.14, valor: c => String(c.cantidad) },
+    { etiqueta: t('colComida'), x: 0.14, w: 0.46, valor: c => c.nombre },
+    { etiqueta: t('colPresupuesto'), x: 0.6, w: 0.2, alinear: 'der', valor: c => dinero(c.valorUnitario) },
+    { etiqueta: t('colTotal'), x: 0.8, w: 0.2, alinear: 'der', valor: c => formatearDinero(simbolo, c.totalCentavos / 100) }
+  ], comidas, { total: formatearDinero(simbolo, totalComidas / 100) });
 
-  dibujarSubseccion(ctx, t('otrosGastos'), dinero(otros.importe), [
+  dibujarSubseccion(ctx, t('otrosGastos'), null, [
     { etiqueta: t('colTipo'), x: 0, w: 0.2, valor: f => f.tipoGastoNombre },
     { etiqueta: t('colDescripcion'), x: 0.2, w: 0.6, valor: f => f.descripcion || '' },
     { etiqueta: t('colMonto'), x: 0.8, w: 0.2, alinear: 'der', valor: f => dinero(f.monto) }
-  ], otros.lineas);
+  ], otros.lineas, { total: dinero(otros.importe) });
 
   const calculado = (combustible.importe * 100 + (depreciacion ? depreciacion.importe * 100 : 0)
     + hospedaje.importe * 100 + totalComidas + otros.importe * 100) / 100;
@@ -307,8 +374,7 @@ function lineasDeComidas(comidas) {
     porTipo.set(c.tipoComidaId, actual);
   }
   return [...porTipo.values()].sort((a, b) => a.tipoComidaId - b.tipoComidaId).map(c => {
-    // Una sola comida va en singular («1 Desayuno»); varias, en plural.
-    const clave = `pdf.comida.${c.nombreBase}${c.cantidad === 1 ? '.uno' : ''}`;
+    const clave = `pdf.comida.${c.nombreBase}`;
     return {
       ...c,
       nombre: Object.prototype.hasOwnProperty.call(CATALOGO, clave) ? msg(clave) : capitalizar(c.nombreBase),
@@ -323,29 +389,32 @@ function seccionesDeInspeccion(ctx, detalle) {
     const resaltado = NIVELES_RESALTADOS[nombre];
     return resaltado ? COLOR[resaltado] : COLOR.texto;
   };
+  asegurarEspacio(ctx, 30);
+  const yOdometro = ctx.y;
+  dibujarSubtitulo(ctx, t('odometro'), t('unidadKm', { km: formatearNumero(inspeccion.odometro) }));
+  separarSeccion(ctx, yOdometro - 10);
+
   const filaSimple = { x: 0, w: 0.7 };
   dibujarSubseccion(ctx, t('fluidos'), null, [
     { ...filaSimple, valor: f => capitalizar(f.fluidoNombre) },
     { x: 0.7, w: 0.3, alinear: 'der', valor: f => f.nivelNombre, color: f => colorDeNivel(f.nivelNombre) }
-  ], inspeccion.fluidos, { encabezado: false });
-
-  asegurarEspacio(ctx, 30);
-  dibujarSubtitulo(ctx, t('odometro'), t('unidadKm', { km: formatearNumero(inspeccion.odometro) }));
-  ctx.y -= 4;
+  ], inspeccion.fluidos, { encabezado: false, guia: true });
 
   dibujarSubseccion(ctx, t('kit'), null, [
     { ...filaSimple, valor: f => capitalizar(f.kitItemNombre) },
     { x: 0.7, w: 0.3, alinear: 'der', valor: f => (f.presente ? t('si') : t('no')), color: f => (f.presente ? COLOR.texto : COLOR.rojo) }
-  ], inspeccion.kit, { encabezado: false });
+  ], inspeccion.kit, { encabezado: false, guia: true });
 
   const defectos = inspeccion.defectos;
   const resumen = defectos.length > 0
     ? [{ texto: t('siMayusculas'), color: COLOR.rojo }, { texto: ` (${defectos.length})` }]
     : [{ texto: t('noMayusculas') }];
   dibujarSubseccion(ctx, t('defectos'), resumen, [
-    { etiqueta: t('colTipo'), x: 0, w: 0.2, valor: f => f.tipoDefectoNombre },
-    { etiqueta: t('colDescripcion'), x: 0.2, w: 0.3, valor: f => f.descripcion || '' },
-    { etiqueta: t('colImagen'), x: 0.5, w: 0.5, alinear: 'der', valor: f => f.correlativoImagen }
+    // La posición en la lista completa mantiene la numeración al seguir en otra hoja.
+    { etiqueta: t('colNumero'), x: 0, w: 0.06, valor: f => String(defectos.indexOf(f) + 1) },
+    { etiqueta: t('colTipo'), x: 0.06, w: 0.2, valor: f => f.tipoDefectoNombre },
+    { etiqueta: t('colDescripcion'), x: 0.26, w: 0.3, valor: f => f.descripcion || '' },
+    { etiqueta: t('colImagen'), x: 0.56, w: 0.44, alinear: 'der', valor: f => f.correlativoImagen }
   ], defectos, { vacio: false });
 }
 
@@ -355,12 +424,13 @@ function alturaDeSalvedades(ctx, salvedades) {
 }
 
 const ALTO_CAJA_TOTAL = 30;
-const ALTO_FIRMAS = 52;
+// Alto reservado bajo el cierre para que nunca invada la zona fija de las firmas.
+const ALTO_FIRMAS = LIMITE_CIERRE - PAGINA.LIMITE_INFERIOR;
 
 // Total + salvedades + firmas van siempre juntos: si no caben en la hoja actual, pasan juntos a la siguiente.
 function dibujarCierre(ctx, detalle, total) {
   const salvedades = alturaDeSalvedades(ctx, detalle.salvedades);
-  const altoTotal = total ? ALTO_CAJA_TOTAL + 8 : 4;
+  const altoTotal = total ? ALTO_CAJA_TOTAL + SEPARACION_SECCIONES : 4;
   asegurarEspacio(ctx, altoTotal + (detalle.salvedades.length ? salvedades.alto : 0) + ALTO_FIRMAS);
 
   if (!total) ctx.y -= 4;
@@ -369,7 +439,7 @@ function dibujarCierre(ctx, detalle, total) {
     ctx.page.drawRectangle({ x: PAGINA.MARGEN, y, width: ANCHO_CONTENIDO, height: ALTO_CAJA_TOTAL, borderColor: COLOR.texto, borderWidth: 1 });
     texto(ctx, t('totalSolicitado'), PAGINA.MARGEN + 14, y + 11, { size: 10.5, bold: true });
     textoDerecha(ctx, formatearDinero(total.simbolo, total.total), PAGINA.MARGEN + ANCHO_CONTENIDO - 14, y + 11, { size: 13, bold: true });
-    ctx.y = y - 8;
+    ctx.y = y - SEPARACION_SECCIONES;
   }
 
   if (detalle.salvedades.length) {
@@ -389,7 +459,7 @@ function dibujarCierre(ctx, detalle, total) {
     ctx.y -= 22;
   }
 
-  const yFirma = ctx.y - 28;
+  const yFirma = Y_FIRMAS;
   const anchoCaja = 240;
   const xAdministracion = PAGINA.MARGEN + ANCHO_CONTENIDO - anchoCaja;
   // El nombre va sobre la línea; el de administración aparece cuando la solicitud ya fue autorizada.
@@ -397,7 +467,7 @@ function dibujarCierre(ctx, detalle, total) {
   [[PAGINA.MARGEN, t('firmaSolicitante'), detalle.solicitante.nombre], [xAdministracion, t('firmaAdministracion'), autorizacion && autorizacion.usuarioNombre]].forEach(([x, etiqueta, nombre]) => {
     ctx.page.drawLine({ start: { x, y: yFirma }, end: { x: x + anchoCaja, y: yFirma }, thickness: 1, color: COLOR.texto });
     texto(ctx, etiqueta, x, yFirma - 9, { size: 6.5, bold: true, color: COLOR.etiqueta });
-    if (nombre) texto(ctx, nombre, x, yFirma + 4, { size: 9 });
+    if (nombre) texto(ctx, recortar(ctx, nombre, 9, anchoCaja), x, yFirma + 4, { size: 9 });
   });
   ctx.y = yFirma - 24;
 }
@@ -477,6 +547,8 @@ async function generarPdfSolicitud(detalle, { imagenes = [], fechaGeneracion } =
 
   const esLargo = detalle.modalidad === MODALIDADES.MAS_DE_UN_DIA;
   let total = null;
+  // El divisor va en ambas modalidades y viaja con la primera sección que le sigue (ruta u odómetro).
+  dibujarDivisorDesglose(ctx, esLargo ? 18 + 13 + ALTO_FILA + ALTO_TOTAL_FILA + 6 : 30);
   if (esLargo) total = seccionesDeCostos(ctx, detalle);
   else seccionesDeInspeccion(ctx, detalle);
   dibujarCierre(ctx, detalle, total);

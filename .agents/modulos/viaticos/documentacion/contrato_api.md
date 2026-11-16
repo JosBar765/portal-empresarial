@@ -9,7 +9,7 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 - No se crea para fechas pasadas; no se traslapa con otra solicitud activa del mismo solicitante (cualquier estado menos rechazada); un viaje corto no admite auto con tarjeta de circulación vencida.
 - Más de 1 día: tramos encadenados (cada origen es el destino del anterior) y cada par existe en `viaticos_tramos`; km y horas se copian al renglón. Advertencias (no bloquean y se guardan como salvedades): licencia, tarjeta de circulación o seguro que vencen dentro de la ventana del viaje (o seguro vencido).
 - Vehículo propio: solo el del solicitante; con depreciación. Vehículo de la empresa: sin depreciación (`depreciacion_por_km` NULL). Viaje corto: solo vehículos de la empresa.
-- Correlativo `VIA-<código país>-<n de 6 dígitos>`: `viaticos_secuencias` incrementada dentro de la transacción con `FOR UPDATE`.
+- Correlativo `VIA-<código país>-<número, sin ceros a la izquierda>`: `viaticos_secuencias` incrementada dentro de la transacción con `FOR UPDATE`.
 - «En curso», «Terminado» y «Vencida» se calculan con las fechas y la hora de Guatemala (`calendarioLaboral.ahoraUTC6`). `modificar` y `dar de baja` solo en esperando autorización, rechazada o vencida; modificar regenera el PDF y vuelve a esperando autorización. Autorizar solo si está esperando autorización y no está vencida.
 - Liquidar: solo más de 1 día, autorizada y terminado el viaje; cada rubro admite como máximo los comprobantes solicitados (noches de hotel, combustible, y cada gasto por tipo); comidas y depreciación no se liquidan; «Liquidar» lo marca el solicitante cuando quiere, aunque falten comprobantes (decisión del dueño; ver «Liquidación (F3.6)»).
 - Borrar archivos en Storage solo en producción (`supabaseStorage.eliminar`). Creación y subidas aceptan `idempotencyKey`.
@@ -22,12 +22,13 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | `GET /contexto` | ver | Usuario, permisos `viaticos.*`, países del usuario, licencia y ajustes de archivo |
 | `GET /catalogos/solicitud?paisId=` | ver | Motivos, vehículos disponibles (empresa del país y propios del solicitante), ubicaciones, tramos, monedas, valores de comida, tipos de gasto (con `esOtros`) y de defecto, fluidos, niveles y kit |
 | `POST /solicitudes/calcular` | ver | Valida y calcula sin guardar: importes, totales, advertencias y errores bloqueantes |
-| `GET /borradores` | ver | Mis borradores vigentes, del más nuevo al más viejo (ver «Borradores») |
+| `GET /borradores` | ver | Mis borradores vigentes, del más nuevo al más viejo, y cuántos son nuevos por vencimiento (ver «Borradores») |
 | `GET /borradores/:id` | ver | Un borrador mío con su `datos` completo |
 | `POST /borradores` | ver | Guarda un borrador nuevo (`{ modalidad, datos }`) |
 | `PUT /borradores/:id` | ver | Actualiza un borrador mío; no renueva su vencimiento |
 | `DELETE /borradores/:id` | ver | Elimina un borrador mío |
-| `GET /solicitudes?desde=&hasta=&q=` | ver | Mis solicitudes con pipeline y acciones disponibles |
+| `POST /borradores/vistos` | ver | Marca como vistos mis borradores nuevos por vencimiento (apaga la insignia del botón «Borradores») |
+| `GET /solicitudes?desde=&hasta=&q=` | ver | Mis solicitudes con pipeline y acciones disponibles; las rechazadas traen `vencimiento` (ver «Vencimiento de una solicitud rechazada») |
 | `GET /solicitudes/:id` | ver | Detalle (propio) |
 | `POST /solicitudes` | ver | Crea (multipart: campo `datos` JSON y campo `defectos` para las fotos del viaje corto) |
 | `PUT /solicitudes/:id` | ver | Modifica (mismo formato) |
@@ -168,12 +169,13 @@ Al modificar una solicitud de 1 día o menos no hay que volver a subir las fotos
 
 Guardan el formulario «Nueva solicitud» a medias, para ambas modalidades. Solo guardan los campos del formulario: nunca fotos ni archivos. La identidad sale de `req.user`; un borrador ajeno o vencido responde 404 igual que uno inexistente. Todos exigen solo `viaticos.ver`.
 
-- `GET /borradores` → 200 `{ borradores: [ { id, modalidad, paisId, fechaSalida, fechaRegreso, creadoEn, venceEn, diasRestantes } ] }`. Solo los vigentes, del más nuevo al más viejo. `paisId`, `fechaSalida` y `fechaRegreso` se leen de `datos` y son `null` si no están; `creadoEn` y `venceEn` son `AAAA-MM-DD`; `diasRestantes` (entero, 0 el último día) lo calcula MySQL.
+- `GET /borradores` → 200 `{ borradores: [ { id, modalidad, paisId, fechaSalida, fechaRegreso, creadoEn, venceEn, diasRestantes, nuevo, origenCorrelativo, origenMotivo } ], nuevos }`. `nuevo` (booleano) es `true` en un borrador creado por el vencimiento de una solicitud rechazada que su dueño aún no vio (`visto_en` NULL y `origen_correlativo` no NULL); `origenCorrelativo` y `origenMotivo` (motivo del rechazo) son `null` en los borradores hechos a mano, que nunca son «nuevos», ni lo son los anteriores a la migración; `nuevos` es la cantidad de borradores con `nuevo`. Solo los vigentes, del más nuevo al más viejo. `paisId`, `fechaSalida` y `fechaRegreso` se leen de `datos` y son `null` si no están; `creadoEn` y `venceEn` son `AAAA-MM-DD`; `diasRestantes` (entero, 0 el último día) lo calcula MySQL.
 - `GET /borradores/:id` → 200 `{ id, modalidad, datos, creadoEn, venceEn, diasRestantes }`.
 - `POST /borradores` con `{ modalidad, datos }` → 201 con la misma forma que `GET /borradores/:id`.
 - `PUT /borradores/:id` con `{ modalidad, datos }` → 200 con la misma forma. No cambia `creadoEn` ni `venceEn` y no cuenta contra el tope.
 - `DELETE /borradores/:id` → 200 `{ ok: true }`.
-- Vigencia (`borrador_vigencia_dias`, 30) contada desde la creación, sin renovar al editar; tope por usuario (`borrador_max_por_usuario`, 15) de borradores vigentes. Ambos salen de `viaticos_ajustes`. Un watcher horario borra los vencidos.
+- `POST /borradores/vistos` (sin cuerpo; el dueño sale de `req.user`) → 200 `{ ok: true }`. Marca `visto_en` en todos los borradores del usuario con `visto_en` NULL y `origen_correlativo` no NULL; es idempotente. Se declara antes de `/borradores/:id`. El cliente lo llama solo después de pintar la lista, para que se vea la etiqueta «Nuevo» antes de apagar la insignia.
+- Vigencia (`borrador_vigencia_dias`, 30) contada desde la creación, sin renovar al editar; tope por usuario (`borrador_max_por_usuario`, 15) de borradores vigentes. Ambos salen de `viaticos_ajustes`. Un watcher horario borra los vencidos. Los borradores creados por el vencimiento de una solicitud rechazada no cuentan contra el tope (no se pierde el trabajo del solicitante), pero sí ocupan lugar para el conteo de los siguientes que se guarden a mano. Crear o actualizar un borrador a mano nunca fija `origen_correlativo`, `origen_motivo` ni `visto_en`.
 - Al guardar solo se valida la forma, no las reglas de la solicitud: `modalidad` válida; `datos` objeto (no lista ni `null`); serializado, de hasta 64 KB (`BORRADORES.MAX_BYTES_DATOS`); no vacío (`''`, `null`, `false`, listas u objetos sin contenido no cuentan, ni `modalidad`, `comidasAutoMarcar` ni `comidasDesmarcadas`). Los ids dentro de `datos` son opacos: el cliente los reconcilia con los catálogos al abrir el borrador.
 
 ### Errores de borradores
@@ -196,9 +198,9 @@ Guardan el formulario «Nueva solicitud» a medias, para ambas modalidades. Solo
 
 - Lo genera `services/pdf/solicitudPdfService.js` (`pdf-lib`, Carta, estilo «recibo» en blanco y negro como el vale de arte) tras crear o modificar; no se guarda el binario en la base: solo la URL pública en `viaticos_solicitudes.pdf_ruta`.
 - Nombre en Storage según la etapa (ver «Archivos en Storage»); cada regeneración actualiza `pdf_ruta` y borra el anterior (el borrado solo actúa en producción).
-- Encabezado: título «SOLICITUD DE VIÁTICOS» con la letra calculada para ocupar el mismo ancho que «VALE DE ARTE» a 18 pt, correlativo, «MundiTrofeos S.A. · Generado dd/mm/aaaa» y logo; se repite en cada hoja. Pie de todas las hojas: `n/total`.
-- Contenido: información del solicitante (puesto = rol; licencia = tipo · número), del vehículo (póliza vacía si no tiene) y del viaje. Más de 1 día: ruta y kilometraje, combustible, depreciación (solo vehículo propio), hotel y hospedaje, comidas, otros gastos y caja TOTAL SOLICITADO (el total guardado). 1 día o menos: nivel de fluidos (`1/4` amarillo, `E` rojo), odómetro, kit de emergencia (cada «No» en rojo), defectos `SÍ (n)/NO` y, solo si hay defectos, una última hoja con sus fotos (3 por fila con el nombre de su archivo, p. ej. `<CORRELATIVO>_DEFECTO_CREACION_<n>`; una foto que no se pueda bajar o que no sea PNG/JPEG se reemplaza por un recuadro «Imagen no disponible»). Después, SALVEDADES (solo si hay, con `texto_pdf` y «TOMAR EN CUENTA» con doble subrayado) y las firmas: el nombre del solicitante sobre su línea y, al autorizarse la solicitud, el nombre de quien autorizó sobre la línea de Administración (tentativo: gerencia aún no define el proceso).
-- Desbordamiento: normalmente una sola hoja. Las listas (tramos, hoteles, comidas, otros gastos, defectos) no tienen límite de filas y siguen en otra hoja con el mismo encabezado; la caja TOTAL SOLICITADO, las salvedades y las firmas van siempre juntas: si no caben en la hoja actual pasan juntas a la siguiente.
+- Encabezado: título «SOLICITUD DE VIÁTICOS» con la letra calculada para ocupar el mismo ancho que «VALE DE ARTE» a 18 pt, correlativo, «MundiTrofeos S.A. · Generado dd/mm/aaaa» y logo; el tope del logo queda a 40 pt del borde (igual que el margen izquierdo) y los dos bloques de texto se centran en vertical sobre el eje del logo; se repite en cada hoja. Pie de todas las hojas: `n/total`.
+- Contenido: información del solicitante (puesto = rol; licencia = tipo · número), del vehículo (póliza vacía si no tiene) y del viaje. Más de 1 día: barra negra «DESGLOSE» (viaja junto con la ruta), ruta y kilometraje, combustible, depreciación (solo vehículo propio), hotel y hospedaje, comidas, otros gastos y caja TOTAL SOLICITADO (el total guardado). El título de cada sección lleva solo el nombre; la suma de ruta (km), hospedaje, comidas, otros gastos, combustible y depreciación es una fila «TOTAL» en negrita, con una regla encima, al final de la sección y alineada a la derecha; combustible y depreciación muestran su fórmula (sin el resultado) como única línea de detalle y se mantienen juntos título, fórmula y total. Comidas es una tabla `CANTIDAD | COMIDA | PRESUPUESTO | TOTAL` (una fila por tipo de comida, nombre en plural, valor unitario guardado en la solicitud y cantidad × valor) y su fila «TOTAL» al final. 1 día o menos: barra «DESGLOSE» (viaja junto con el odómetro), odómetro, nivel de fluidos (`1/4` amarillo, `E` rojo), kit de emergencia (cada «No» en rojo), defectos `SÍ (n)/NO` y, solo si hay defectos, una última hoja con sus fotos (3 por fila con el nombre de su archivo, p. ej. `<CORRELATIVO>_DEFECTO_CREACION_<n>`; una foto que no se pueda bajar o que no sea PNG/JPEG se reemplaza por un recuadro «Imagen no disponible»). Después, SALVEDADES (solo si hay, con `texto_pdf` y «TOMAR EN CUENTA» con doble subrayado) y las firmas, siempre a la misma altura sobre el pie `n/total` (no siguen al contenido): el nombre del solicitante sobre su línea y, al autorizarse la solicitud, el nombre de quien autorizó sobre la línea de Administración (tentativo: gerencia aún no define el proceso).
+- Desbordamiento: normalmente una sola hoja. Las listas (tramos, hoteles, comidas, otros gastos, defectos) no tienen límite de filas y siguen en otra hoja con el mismo encabezado; la caja TOTAL SOLICITADO, las salvedades y las firmas van siempre juntas: si no caben en la hoja actual (reservando la zona fija de las firmas) pasan juntas a la siguiente, donde las firmas quedan otra vez al pie.
 - Textos: Helvetica solo dibuja WinAnsi. Al guardar, hotel, lugar y descripciones con caracteres que no se pueden dibujar (emoji, flechas, chino…) se rechazan con 400 por campo; el generador además sustituye cualquier carácter restante por «?» para no fallar.
 - Si la regeneración falla, la solicitud queda guardada sin PDF (el error se registra) y `GET /solicitudes/:id/documentos` lista solo las fotos.
 
@@ -243,20 +245,34 @@ Las solicitudes de Gestiones son las de todas las personas y países (no se comp
 - `motivo` es texto libre y obligatorio (no hay motivos predeterminados): se recorta, no puede quedar vacío y admite hasta 300 caracteres (`LIMITES_SOLICITUD.MOTIVO_RECHAZO`). Si falta, queda en blanco o se excede: 400 `{ error, campos: { motivo } }` con la regla y cómo corregirla.
 - Condición: la solicitud debe estar «esperando autorización» y no vencida (salida anterior a hoy, hora de Guatemala). Si no, 403 con un mensaje que nombra el estado actual («Vencida», «Rechazada», «Autorizado»…); 404 si no existe.
 - Bloqueo transaccional: una sola transacción con `SELECT … FOR UPDATE` sobre la solicitud (sin bloquear la fila compartida de `viaticos_estados`); con la fila bloqueada se vuelve a comprobar el estado y el vencimiento, cambia `estado_id` e inserta el renglón de `viaticos_historial` (estado nuevo, usuario que decide y, al rechazar, el `motivo`). Dos decisiones simultáneas o un doble clic no se aplican dos veces: la segunda recibe el 403.
-- Una solicitud rechazada se modifica con `PUT /solicitudes/:id` y vuelve a «esperando autorización»; el motivo queda en el historial y el pipeline solo lo muestra mientras esté rechazada.
+- Una solicitud rechazada se modifica con `PUT /solicitudes/:id` y vuelve a «esperando autorización» (eso cancela su vencimiento); el motivo queda en el historial y el pipeline solo lo muestra mientras esté rechazada. Si no se modifica a tiempo, vence y pasa a un borrador (ver «Vencimiento de una solicitud rechazada»).
 
 ### Efectos posteriores al commit
 
 Un fallo de cualquiera se registra con `console.error` y no deshace la decisión.
 
 - Autorizar: se regenera el PDF con la etapa `AUTORIZACION` (`<CORRELATIVO>_AUTORIZACION`); el detalle que recibe el generador ya incluye el renglón «autorizada» del historial y de ahí sale el nombre que se imprime sobre la línea de Administración.
-- Notificación al solicitante (`modulo = 'viaticos'`, `vale_id` NULL): «Tu solicitud VIA-GT-000123 fue autorizada.» (`tipo` `solicitud_autorizada`, `nivel` `info`) o «Tu solicitud … fue rechazada. Motivo: …» (`tipo` `solicitud_rechazada`, `nivel` `alerta`).
+- Notificación al solicitante (`modulo = 'viaticos'`, `vale_id` NULL): «Tu solicitud VIA-GT-123 fue autorizada.» (`tipo` `solicitud_autorizada`, `nivel` `info`) o «Tu solicitud … fue rechazada. Motivo: …» (`tipo` `solicitud_rechazada`, `nivel` `alerta`).
 - Tiempo real: ver abajo.
 
 ### Tiempo real
 
 - Sala `viaticos:gestion`: un cliente se une con `register_module('viaticos:gestion')`; el validador de sala (`events.js`, registrado con `registrarValidadorSala`) solo la concede a quien tenga `viaticos.gestionar` en el socket ya autenticado.
-- Evento `viaticos_actualizada` con `{ id, correlativo, estado, solicitanteId, actorId, accion }` (el cliente compara `solicitanteId` con su usuario para saber si la solicitud es suya y `actorId` para no avisar a quien hizo la acción); `accion` es `creada`, `modificada`, `dada_de_baja`, `autorizada`, `rechazada` o `liquidada`, y `estado` es el estado guardado (`null` al dar de baja, porque la solicitud ya no existe). Se envía a la sala de gestión (`sendToModule`) y al solicitante (`sendToUsers`) después del commit al crear, modificar, dar de baja, autorizar, rechazar y liquidar; quien está en ambos puede recibirlo dos veces (el cliente solo refresca). Un fallo al emitir se registra y no deshace la operación.
+- Evento `viaticos_actualizada` con `{ id, correlativo, estado, solicitanteId, actorId, accion }` (el cliente compara `solicitanteId` con su usuario para saber si la solicitud es suya y `actorId` para no avisar a quien hizo la acción); `accion` es `creada`, `modificada`, `dada_de_baja`, `autorizada`, `rechazada`, `liquidada` o `vencida` (una rechazada que venció y pasó a borrador; `actorId` es `null`), y `estado` es el estado guardado (`null` al dar de baja o vencer, porque la solicitud ya no existe). Se envía a la sala de gestión (`sendToModule`) y al solicitante (`sendToUsers`) después del commit al crear, modificar, dar de baja, autorizar, rechazar y liquidar; quien está en ambos puede recibirlo dos veces (el cliente solo refresca). Un fallo al emitir se registra y no deshace la operación.
+- Evento `viaticos_borradores_nuevos` (`{}`), solo al solicitante (`sendToUsers`), cuando una solicitud rechazada vence y le llega un borrador nuevo: el botón «Borradores» refresca su insignia.
+
+## Vencimiento de una solicitud rechazada
+
+Una solicitud rechazada vence `rechazo_vigencia_horas` horas corridas (no laborales; 4 por omisión, de 1 a 168, editable en Configuración con `PUT /config/ajustes/rechazo_vigencia_horas`) después del rechazo: al vencer pasa a un borrador de quien la pidió y la solicitud desaparece. Código en `rechazoWatcher.js`, `services/rechazoVencimientoService.js`, `services/rechazoPlazoService.js` y `repositories/rechazoRepository.js`; el borrador se arma en `services/borradorDesdeSolicitud.js` (réplica en el servidor de `detalleAEstado` + `estadoABorrador` del formulario).
+
+- Reloj: `viaticos_solicitudes.rechazada_en` se fija con `NOW()` de MySQL al rechazar (misma transacción) y, junto con `vencimiento_aviso_en`, vuelve a NULL cuando la solicitud se modifica y regresa a «esperando autorización»: modificar a tiempo cancela el vencimiento. Las que ya estaban rechazadas al aplicar la migración `viaticos_rechazo_vencimiento` empezaron su plazo en ese momento.
+- `vencimiento`: cada ítem de `GET /solicitudes` y de `GET /gestiones`, y el detalle (`GET /solicitudes/:id` y `GET /gestiones/:id`), traen `vencimiento: { venceEn, minutosRestantes }` si la solicitud está rechazada, o `null` en cualquier otro estado. `venceEn` es `AAAA-MM-DD HH:mm:ss` (hora de MySQL) y `minutosRestantes` un entero ≥ 0; ambos salen del reloj de MySQL, no del navegador.
+- Watcher (cada 60 s; la primera revisión espera la conexión; el error de una solicitud se registra y no detiene a las demás). Solo mira solicitudes en estado «rechazada»:
+  - Aviso previo, una sola vez: `vencimiento_aviso_en IS NULL` y `rechazada_en + 75 % del plazo <= NOW() < rechazada_en + plazo` (queda el 25 %). Se marca `vencimiento_aviso_en` y se notifica al solicitante (`tipo` `solicitud_por_vencer`, `nivel` `alerta`) con el tiempo que queda y que pasará a «Borradores».
+  - Vencimiento: `rechazada_en + plazo <= NOW()`. Por solicitud, en una transacción: bloquea la fila con `FOR UPDATE` y revalida que siga rechazada y vencida (si el solicitante la modificó entre tanto, no pasa nada); lee el detalle y el último motivo del historial; inserta el borrador del solicitante (`modalidad`, `datos`, `vence_en` = ahora + `borrador_vigencia_dias`, `visto_en` NULL, `origen_correlativo`, `origen_motivo`) sin contar contra el tope de borradores; y elimina la solicitud (partes, historial y vistos caen por CASCADE). Ocurre todo o nada.
+  - Después del commit (un fallo se registra y no deshace el vencimiento): se borran de Storage el PDF y las fotos de los defectos (solo actúa en producción), notificación `solicitud_vencida` al solicitante (`nivel` `alerta`, con el correlativo y el motivo del rechazo; en el centro de notificaciones abre «Borradores»), evento `viaticos_actualizada` con `accion` `vencida` y evento `viaticos_borradores_nuevos`.
+- El borrador conserva todo el formulario salvo las fotos de los defectos (de cada defecto solo `tipoDefectoId` y `descripcion`); el correlativo de la solicitud se pierde. En el viaje de más de 1 día lleva `comidasAutoMarcar: false` y `comidasDesmarcadas: {}` para que el formulario no vuelva a marcar las comidas que se habían desmarcado.
+- Los ajustes `rechazo_vigencia_horas`, `borrador_vigencia_dias` y `borrador_max_por_usuario` se editan en Configuración, subpestaña «Vencimientos». Si falta `rechazo_vigencia_horas` (la migración no se aplicó) las listas de solicitudes responden 500 con un mensaje que nombra la migración.
 
 ## Liquidación (F3.6)
 
@@ -279,16 +295,16 @@ Los endpoints del solicitante (`/solicitudes/:id/…`) son solo del propio usuar
 
 ```json
 {
-  "solicitudId": 12, "correlativo": "VIA-GT-000123", "estado": "autorizada",
+  "solicitudId": 12, "correlativo": "VIA-GT-123", "estado": "autorizada",
   "moneda": { "id": 1, "codigo": "GTQ", "nombre": "Quetzal", "simbolo": "Q" },
   "resumen": { "solicitadoALiquidar": 1439.64, "liquidado": 301, "faltaPorLiquidar": 1138.64 },
   "pendientes": [ { "tipoGastoId": 1, "nombre": "Hospedaje", "esOtros": false, "solicitados": 3, "liquidados": 1 } ],
   "faltanComprobantes": 6,
-  "comprobantes": [ { "id": 5, "tipoGastoId": 1, "rubro": "Hospedaje", "descripcion": null, "monto": 301, "nombreArchivo": "hotel.png", "tipoArchivo": "image/png", "tamano": 1024, "url": "https://…/VIA-GT-000123_LIQUIDACION_HOSPEDAJE_1.png", "subidoEn": "2026-11-12 09:30:00" } ],
+  "comprobantes": [ { "id": 5, "tipoGastoId": 1, "rubro": "Hospedaje", "descripcion": null, "monto": 301, "nombreArchivo": "hotel.png", "tipoArchivo": "image/png", "tamano": 1024, "url": "https://…/VIA-GT-123_LIQUIDACION_HOSPEDAJE_1.png", "subidoEn": "2026-11-12 09:30:00" } ],
   "editable": true,
   "puedeLiquidar": true,
   "motivoNoPuedeLiquidar": null,
-  "avisoFaltantes": "Aún faltan comprobantes de la solicitud VIA-GT-000123 (Hospedaje: faltan 2 de 3; …). Puedes liquidarla igual; contabilidad verá los que hayas cargado."
+  "avisoFaltantes": "Aún faltan comprobantes de la solicitud VIA-GT-123 (Hospedaje: faltan 2 de 3; …). Puedes liquidarla igual; contabilidad verá los que hayas cargado."
 }
 ```
 
@@ -323,7 +339,7 @@ Solo lectura para contabilidad; funciona con solicitudes de cualquier persona y 
 
 ```json
 {
-  "solicitudId": 12, "correlativo": "VIA-GT-000123", "estado": "liquidada",
+  "solicitudId": 12, "correlativo": "VIA-GT-123", "estado": "liquidada",
   "pipeline": { "fase": "liquidada", "etiqueta": "Liquidado" },
   "solicitante": { "id": 4, "nombre": "…" }, "pais": { "codigo": "GT", "nombre": "Guatemala" },
   "moneda": { "id": 1, "codigo": "GTQ", "nombre": "Quetzal", "simbolo": "Q" },
@@ -331,7 +347,7 @@ Solo lectura para contabilidad; funciona con solicitudes de cualquier persona y 
   "diferencia": 307.86,
   "pendientes": [ … ], "faltanComprobantes": 0,
   "comprobantes": [ { "id": 5, "rubro": "Hospedaje", "monto": 301, "url": "…", "nombreArchivo": "hotel.png", "tipoArchivo": "image/png", … } ],
-  "pdf": { "titulo": "Solicitud VIA-GT-000123", "tipo": "pdf", "url": "https://…" }
+  "pdf": { "titulo": "Solicitud VIA-GT-123", "tipo": "pdf", "url": "https://…" }
 }
 ```
 

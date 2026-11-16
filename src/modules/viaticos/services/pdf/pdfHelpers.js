@@ -5,11 +5,14 @@ const { formatear, aCentavos } = require('../../dinero');
 
 const PAGINA = Object.freeze({ ANCHO: 612, ALTO: 792, MARGEN: 40, LIMITE_INFERIOR: 44, ALTO_PIE: 30 });
 const ANCHO_CONTENIDO = PAGINA.ANCHO - PAGINA.MARGEN * 2;
+// Altura de las mayúsculas de Helvetica por punto de cuerpo: sirve para centrar textos en vertical.
+const ALTURA_MAYUSCULA = 0.718;
 
 const COLOR = Object.freeze({
   texto: rgb(0, 0, 0),
   etiqueta: rgb(0.45, 0.48, 0.52),
   divisor: rgb(0.85, 0.85, 0.85),
+  guia: rgb(0.533, 0.533, 0.533),
   divisorFuerte: rgb(0.15, 0.15, 0.15),
   marco: rgb(0.6, 0.6, 0.6),
   rojo: rgb(0.8, 0.1, 0.1),
@@ -100,6 +103,6 @@ function linea(ctx, y, { grosor = 0.75, color = COLOR.divisor } = {}) {
 }
 
 module.exports = {
-  PAGINA, ANCHO_CONTENIDO, COLOR, partirEnLineas, formatearFecha, formatearNumero, formatearDinero, capitalizar,
+  PAGINA, ANCHO_CONTENIDO, ALTURA_MAYUSCULA, COLOR, partirEnLineas, formatearFecha, formatearNumero, formatearDinero, capitalizar,
   seguro, ancho, texto, textoDerecha, textoMulticolor, linea
 };
