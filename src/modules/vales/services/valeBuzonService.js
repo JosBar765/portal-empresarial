@@ -348,7 +348,11 @@ class ValeBuzonService {
 
     // Filtro por tienda (una, un país o un grupo Trofex): solo lo manda el frontend de Supervisor, Gerente y Administrador.
     const tiendasFiltro = idsDeTiendaFiltro(filtros);
-    if (tiendasFiltro.size) todosConTaller = todosConTaller.filter(v => tiendasFiltro.has(v.tienda_id));
+    if (tiendasFiltro.size) {
+      // Los asesores con supervisión especial no se ocultan por tienda: solo sus supervisores asignados los autorizan y se perdería el vale.
+      const especiales = rol === ROL.SUPERVISOR ? new Set(await usuarioValeRepository.listarAsesorIdsConSupervisionEspecial(usuario.id)) : new Set();
+      todosConTaller = todosConTaller.filter(v => tiendasFiltro.has(v.tienda_id) || especiales.has(v.asesor_id));
+    }
 
     let resultado = await this._resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador);
     // «Atrasados» se combina con las demás tarjetas: con otra activa cuenta los atrasados de esa selección. En Trabajo
@@ -377,9 +381,13 @@ class ValeBuzonService {
 
     // Búsqueda: corre sobre la lista COMPLETA ya filtrada por rol/ventana/contador, no solo sobre la página cargada en el
     // navegador. Los contadores no se ven afectados.
-    const busqueda = normalizarParaBusqueda(String(filtros.busqueda || '').trim());
-    const valesBuscados = busqueda
-      ? valesConAtraso.filter(v => normalizarParaBusqueda(`${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`).includes(busqueda))
+    // Varias palabras en cualquier orden: cada una debe aparecer en el correlativo, el cliente o la empresa.
+    const palabrasBusqueda = normalizarParaBusqueda(String(filtros.busqueda || '')).split(/\s+/).filter(Boolean);
+    const valesBuscados = palabrasBusqueda.length
+      ? valesConAtraso.filter(v => {
+        const texto = normalizarParaBusqueda(`${v.correlativo} ${v.cliente_nombre} ${v.cliente_empresa || ''}`);
+        return palabrasBusqueda.every(p => texto.includes(p));
+      })
       : valesConAtraso;
 
     // Orden por columna: un clic en un encabezado de la tabla pide un orden

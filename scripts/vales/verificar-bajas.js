@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // scripts/vales/verificar-bajas.js
 // Comprueba el registro permanente de bajas (`vale_bajas`): cada vale eliminado por uno de los cuatro caminos deja
-// una fila con su código, cliente, dueño, razón, estado y horas; revertir una creación fallida no deja nada; y si el
-// registro falla, el vale no se borra.
+// una fila con su código, cliente, dueño, razón, estado, fecha de entrega y horas (y el enlace al borrador si venció);
+// quitar un solo taller de un vale con varios deja una fila `TALLER_QUITADO` y el vale sigue vivo; revertir una
+// creación fallida no deja nada; y si el registro falla, el vale no se borra.
 //
 // Uso (base DESECHABLE con las migraciones aplicadas; crea vales de prueba y limpia al terminar):
 //   node --require ./scripts/security/stub-storage.js scripts/vales/verificar-bajas.js
@@ -80,6 +81,9 @@ async function main() {
       prueba('el vale se elimina y la razón es «vencimiento», sin persona',
         eliminado === true && !(await existe(vale.id)) && b && b.motivo === 'VENCIMIENTO_VIGENCIA' && b.razon === 'vencimiento'
         && b.eliminado_por_id === null && b.eliminado_por_correo === null && b.asesor_correo === asesor.email, JSON.stringify(b));
+      const [borrador] = await db.query('SELECT id, origen_motivo, talleres_ids FROM vale_borradores WHERE correlativo_origen = ?', [vale.correlativo], 'bajas:borrador');
+      prueba('el vencimiento deja un borrador del asesor y la baja guarda su id y la fecha de entrega que se quería',
+        !!borrador && borrador.origen_motivo === 'VENCIMIENTO_VIGENCIA' && b && b.borrador_id === borrador.id && b.fecha_entrega !== null, JSON.stringify({ borrador, b }));
     }
 
     console.log('3. Vencimiento de adjuntos');
@@ -96,6 +100,29 @@ async function main() {
         eliminado === true && !(await existe(vale.id)) && b && b.motivo === 'VENCIMIENTO_ADJUNTOS' && b.razon === 'vencimiento' && b.estado === 'CREADO', JSON.stringify(b));
     }
 
+    console.log('3b. Una modificación que vence deja registro y no deja borrador');
+    {
+      for (const camino of ['vigencia', 'adjuntos']) {
+        const original = await crearVale({ estado: 'RECIBIDO', modificado: 1 });
+        const mod = await crearVale({ estado: camino === 'vigencia' ? 'SOLICITANDO_MODIFICACION' : 'CREADO', originalId: original.id, prefijo: 'MOD-', vigenciaPasada: camino === 'vigencia' });
+        if (camino === 'adjuntos') {
+          await db.query(
+            `INSERT INTO vale_talleres (vale_id, taller_id, estado_id, activo, adjuntos_vence_en)
+             VALUES (?, ?, (SELECT id FROM estados_taller WHERE nombre = 'ADJUNTOS_RECHAZADOS'), 1, DATE_SUB(NOW(), INTERVAL 1 HOUR))`,
+            [mod.id, taller.id], 'bajas:fila_adjuntos_mod'
+          );
+        }
+        const eliminado = camino === 'vigencia' ? await valeCreacionService.expirarVale(mod.id) : await valeAdjuntosService.expirarPorAdjuntos(mod.id);
+        const [b] = await bajasDe(mod.correlativo);
+        prueba(`vence por ${camino}: la modificación se elimina, queda su registro, sin borrador y con el código del original`,
+          eliminado === true && !(await existe(mod.id)) && b && b.motivo === (camino === 'vigencia' ? 'VENCIMIENTO_VIGENCIA' : 'VENCIMIENTO_ADJUNTOS')
+          && b.borrador_id === null && b.vale_original_correlativo === original.correlativo
+          && (await db.query('SELECT 1 FROM vale_borradores WHERE correlativo_origen = ?', [mod.correlativo], 'bajas:borrador_mod_vence')).length === 0, JSON.stringify(b));
+        prueba(`vence por ${camino}: el vale original sigue existiendo y queda reabierto`,
+          (await existe(original.id)) && (await db.query('SELECT modificado FROM vales WHERE id = ?', [original.id], 'bajas:original_mod'))[0].modificado === 0);
+      }
+    }
+
     console.log('4. Solicitud de modificación rechazada');
     {
       const original = await crearVale({ estado: 'RECIBIDO', modificado: 1 });
@@ -106,6 +133,8 @@ async function main() {
       prueba('la modificación se elimina y guarda «rechazado por: correo» y el código del original',
         !(await existe(mod.id)) && b && b.motivo === 'MODIFICACION_RECHAZADA' && b.razon === `rechazado por: ${admin.email}`
         && b.vale_original_correlativo === original.correlativo && b.estado === 'SOLICITANDO_MODIFICACION', JSON.stringify(b));
+      prueba('una modificación no deja borrador y su baja no guarda borrador_id',
+        b && b.borrador_id === null && (await db.query('SELECT 1 FROM vale_borradores WHERE correlativo_origen = ?', [mod.correlativo], 'bajas:borrador_mod')).length === 0);
       prueba('el original sigue existiendo y queda reabierto', (await existe(original.id)) && orig.modificado === 0);
       prueba('el original no deja registro de baja', (await bajasDe(original.correlativo)).length === 0);
     }
@@ -127,8 +156,39 @@ async function main() {
       prueba('el registro inválido falla y el vale sigue intacto (todo o nada)', !!falla && (await existe(vale.id)) && (await bajasDe(vale.correlativo)).length === 0,
         falla ? falla.message : 'no falló');
     }
+
+    console.log('7. Quitar un solo taller de un vale con varios talleres (el vale sigue vivo)');
+    {
+      const [otro] = await db.query('SELECT id FROM talleres WHERE activo = 1 AND id <> ? ORDER BY id LIMIT 1', [taller.id], 'bajas:otro_taller');
+      if (!otro) {
+        console.log('  (se omite: hace falta un segundo taller activo)');
+      } else {
+        for (const automatico of [false, true]) {
+          const etiqueta = automatico ? 'automático (adjuntos vencidos)' : 'manual (el asesor)';
+          const vale = await crearVale({ estado: 'CREADO' });
+          const filaTaller = (tallerId, vence) => db.query(
+            `INSERT INTO vale_talleres (vale_id, taller_id, estado_id, activo, adjuntos_vence_en)
+             VALUES (?, ?, (SELECT id FROM estados_taller WHERE nombre = 'ADJUNTOS_RECHAZADOS'), 1, ${vence})`, [vale.id, tallerId], 'bajas:fila_taller');
+          await filaTaller(taller.id, automatico ? 'DATE_SUB(NOW(), INTERVAL 1 HOUR)' : 'DATE_ADD(NOW(), INTERVAL 1 DAY)');
+          await filaTaller(otro.id, 'DATE_ADD(NOW(), INTERVAL 1 DAY)');
+          await db.query('UPDATE vales SET talleres_solicitados = ? WHERE id = ?', [`${taller.id},${otro.id}`, vale.id], 'bajas:solicitados');
+          if (automatico) await valeAdjuntosService.expirarPorAdjuntos(vale.id);
+          else await valeAdjuntosService.quitarTallerDeVale(vale.id, taller.id, { actor: actorAsesor });
+          const filas = await db.query("SELECT * FROM vale_bajas WHERE correlativo = ? AND motivo = 'TALLER_QUITADO'", [vale.correlativo], 'bajas:taller_quitado');
+          const [b] = filas;
+          const [v] = await db.query('SELECT talleres_solicitados FROM vales WHERE id = ?', [vale.id], 'bajas:solicitados_leer');
+          prueba(`${etiqueta}: deja UNA fila TALLER_QUITADO con el taller, y el vale sigue vivo con el otro taller`,
+            filas.length === 1 && b.taller_id === taller.id && !!b.taller_nombre && (await existe(vale.id)) && v.talleres_solicitados === String(otro.id), JSON.stringify(b));
+          prueba(`${etiqueta}: la razón y quién la decidió son correctos`,
+            automatico
+              ? /^adjuntos vencidos: taller /.test(b.razon) && b.eliminado_por_id === null
+              : b.razon === `taller quitado por: ${asesor.email}` && b.eliminado_por_id === asesor.id, b && b.razon);
+        }
+      }
+    }
   } finally {
     // Limpieza, pase lo que pase: nada de esta prueba debe quedar en la base.
+    await db.query('DELETE FROM vale_borradores WHERE correlativo_origen IN (?)', [correlativos.length ? correlativos : ['-']], 'bajas:limpiar_borradores');
     await db.query('DELETE FROM vale_bajas WHERE correlativo IN (?)', [correlativos.length ? correlativos : ['-']], 'bajas:limpiar_bajas');
     await db.query('DELETE FROM notificaciones WHERE vale_id IN (SELECT id FROM vales WHERE correlativo IN (?))', [correlativos.length ? correlativos : ['-']], 'bajas:limpiar_notificaciones');
     await db.query('DELETE FROM vales WHERE correlativo IN (?)', [correlativos.length ? correlativos : ['-']], 'bajas:limpiar_vales');

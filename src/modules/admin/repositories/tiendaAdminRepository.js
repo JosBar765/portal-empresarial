@@ -139,7 +139,7 @@ class TiendaAdminRepository {
   }
 
   async listarPaises() {
-    return db.query('SELECT id, codigo, nombre, codigo_telefono FROM paises ORDER BY nombre', [], 'catalog:paises');
+    return db.query('SELECT id, codigo, nombre, codigo_telefono, comparte_diseno_local FROM paises ORDER BY nombre', [], 'catalog:paises');
   }
 
   // Crea un departamento nuevo desde el modal "Nueva tienda" (radio "crear

@@ -1,5 +1,5 @@
 // src/modules/vales/services/valeVistoService.js
-// El supervisor debe abrir "Ver" en un vale pendiente antes de autorizarlo.
+// El supervisor debe abrir "Ver" en un vale pendiente antes de autorizarlo o rechazarlo.
 const valeRepository = require('../repositories/valeRepository');
 const valeVistoRepository = require('../repositories/valeVistoRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
@@ -19,7 +19,7 @@ class ValeVistoService {
   async exigirVisto(usuario, valeId) {
     if (esAdministrador(usuario)) return;
     if (!(await valeVistoRepository.existe(valeId, usuario.id))) {
-      throw new Error('Debes revisar este vale con el botón "Ver" antes de autorizarlo.');
+      throw new Error('Debes revisar este vale con el botón "Ver" antes de autorizarlo o rechazarlo.');
     }
   }
 }

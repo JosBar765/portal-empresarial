@@ -4,7 +4,7 @@ const calendarioService = require('../../../core/calendario/calendarioService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
 const valeCatalogoService = require('./valeCatalogoService');
-const { esUrgente, DIAS_MINIMOS_SIN_URGENTE, diasHabilesDeModificacion, TIPOS_MODIFICACION_CON_VALE } = require('./valeHelpers');
+const { esUrgente, opcionesFechaEntrega, TIPOS_MODIFICACION_CON_VALE } = require('./valeHelpers');
 
 const MAX_TALLERES = 20;
 const MAX_DIAS_RANGO = 93;
@@ -25,7 +25,8 @@ function parsearFecha(crudo, etiqueta) {
 }
 
 class FechasEntregaService {
-  // Un vale MOD (modificacion = BASICA, MEDIA o AVANZADA) rige por días hábiles desde hoy; «urgente» lo baja al siguiente día que reciba vales.
+  // Un vale (normal o MOD con modificacion = BASICA, MEDIA o AVANZADA) rige por días hábiles de trabajo desde hoy; «urgente» lo baja a 1.
+  // `diasHabiles` ({ normal, urgente }) va en la respuesta para que el formulario explique la regla sin repetir los números.
   async obtenerFechasEntrega(talleresCrudo, desdeCrudo, hastaCrudo, urgenteCrudo, modificacionCrudo, usuario) {
     const talleresIds = parsearTalleres(talleresCrudo);
     const desde = parsearFecha(desdeCrudo, 'La fecha inicial');
@@ -36,10 +37,10 @@ class FechasEntregaService {
     const tipo = String(modificacionCrudo || '').toUpperCase();
     const urgente = esUrgente(urgenteCrudo);
     if (tipo && !TIPOS_MODIFICACION_CON_VALE.includes(tipo)) throw new ErrorDeNegocio('El tipo de modificación no es válido.');
-    if (tipo) {
-      return calendarioService.fechasNoDisponibles(talleresIds, desdeCrudo, hastaCrudo, 0, undefined, diasHabilesDeModificacion(tipo, urgente));
-    }
-    return calendarioService.fechasNoDisponibles(talleresIds, desdeCrudo, hastaCrudo, urgente ? 0 : DIAS_MINIMOS_SIN_URGENTE);
+    const opciones = opcionesFechaEntrega({ urgente, modificacionTipo: tipo || null });
+    const respuesta = await calendarioService.fechasNoDisponibles(talleresIds, desdeCrudo, hastaCrudo, opciones);
+    const regla = (conUrgente) => opcionesFechaEntrega({ urgente: conUrgente, modificacionTipo: tipo || null }).diasHabiles;
+    return { ...respuesta, diasHabiles: { normal: regla(false), urgente: regla(true) } };
   }
 }
 

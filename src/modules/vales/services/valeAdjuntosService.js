@@ -163,11 +163,13 @@ class ValeAdjuntosService {
       if (talleres.length < 2) {
         throw new Error('Este es el único taller del vale: usa «Dar de baja» para eliminar el vale completo.');
       }
-      await valeTallerRepository.desactivar(fila.id);
-      // El texto de talleres solicitados debe quedar igual que las filas activas.
-      await valeRepository.actualizarTalleresSolicitados(valeId, talleres.filter(f => f.id !== fila.id).map(f => f.taller_id).join(','));
-      await valeTallerService._recalcularEstadoVale(valeId, usuario.id);
       const nombre = await this._nombreTaller(fila.taller_id);
+      // Desactivar el taller, igualar los talleres solicitados a las filas activas y registrar la baja: una sola transacción.
+      await valeRepository.quitarTallerYRegistrar({
+        valeId, valeTallerId: fila.id, talleresSolicitados: talleres.filter(f => f.id !== fila.id).map(f => f.taller_id).join(','),
+        baja: await armarBaja(MOTIVOS_BAJA.TALLER_QUITADO, automatico ? null : usuario.id, { tallerId: fila.taller_id, tallerNombre: nombre })
+      });
+      await valeTallerService._recalcularEstadoVale(valeId, usuario.id);
       const actualizado = await valeRepository.obtenerPorId(valeId);
       await registrarHistorial(valeId, usuario.id, fila.taller_id, vale.estado, actualizado.estado, automatico
         ? `Taller ${nombre} dado de baja del vale: el asesor no envió los adjuntos a tiempo (automático)`
@@ -283,11 +285,19 @@ class ValeAdjuntosService {
       const salas = await salasDeInvolucrados(vale, talleres);
       const original = esValeDeModificacion(vale) ? await valeRepository.obtenerPorId(vale.vale_original_id) : null;
       const horas = await calendarioService.horasVencimiento();
-      await valeCreacionService.eliminarValeConArchivos(valeId, await armarBaja(MOTIVOS_BAJA.VENCIMIENTO_ADJUNTOS));
+      const borradorId = await valeCreacionService.eliminarVencidoConBorrador(vale, MOTIVOS_BAJA.VENCIMIENTO_ADJUNTOS);
+      const salaAsesor = `asesor:${vale.asesor_id}`;
+      // El asesor recibe el aviso del borrador (si se creó); el resto de involucrados, el de siempre.
+      if (borradorId) {
+        valeEvents.notificar({
+          vale, tipo: 'EXPIRADO_A_BORRADOR', valeBorrado: true, nivel: 'alerta', conAdmin: false, salas: [salaAsesor],
+          texto: 'venció (adjuntos sin respuesta) y lo guardamos en tus Borradores'
+        });
+      }
       valeEvents.notificar({
         vale, tipo: 'ADJUNTOS_VENCIDOS', valeBorrado: true, nivel: 'alerta',
         texto: `${original ? '(solicitud de modificación) ' : ''}fue eliminado automáticamente: el asesor no envió los adjuntos en ${horas} ${horas === 1 ? 'hora laboral' : 'horas laborales'}${original ? `. ${original.correlativo} ya quedó como Recibido` : ''}`,
-        salas
+        salas: borradorId ? salas.filter(s => s !== salaAsesor) : salas
       });
       return true;
     });
