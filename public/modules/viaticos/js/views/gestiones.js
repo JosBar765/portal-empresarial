@@ -8,6 +8,7 @@ import { htmlFilaGestion, htmlAccionesGestion } from '../components/filaGestion.
 import { abrirVisorSolicitud } from '../components/visorDocumento.js';
 import { autorizar, rechazar } from '../actions/gestionAcciones.js';
 import { abrirLiquidacionGestion } from '../actions/liquidacionGestion.js';
+import { abrirHistorial } from '../actions/historial.js';
 import { registrarRecarga } from '../socket.js';
 import { aplicarPeriodoAConsulta, periodoInicial } from '../utils/periodo.js';
 import { htmlCabecera, ordenar, siguienteOrden } from '../utils/ordenTabla.js';
@@ -110,7 +111,8 @@ const ACCIONES_FILA = {
   [ACCIONES.VER]: (solicitud) => abrirVisorSolicitud(solicitud, { gestion: true, alMostrar: registrarVisto }),
   [ACCIONES.AUTORIZAR]: (solicitud) => autorizar(solicitud, { alTerminar: recargar }),
   [ACCIONES.RECHAZAR]: (solicitud) => rechazar(solicitud, { alTerminar: recargar }),
-  [ACCIONES.LIQUIDAR]: (solicitud) => abrirLiquidacionGestion(solicitud)
+  [ACCIONES.LIQUIDAR]: (solicitud) => abrirLiquidacionGestion(solicitud),
+  [ACCIONES.HISTORIAL]: (solicitud) => abrirHistorial(solicitud)
 };
 
 // Delegación en el tbody: la fila se repinta en cada carga y sus botones no llevan listeners propios.

@@ -92,6 +92,13 @@ Contrato: «Recibos» en `contrato_api.md`. Estilos en `css/recibo.css` (importa
 - **Contabilidad** (`actions/liquidacionGestion.js`): la tabla «Comprobantes y recibos» agrega una fila por recibo con la marca «Recibo», número y concepto como descripción, monto y el PDF en el visor. «Solicitado a liquidar» ya incluye comidas y depreciación.
 - Textos: claves `recibo.*`, `firma.*`, `liquidacion.recibo.*`, `liquidacion.progreso.recibo` y `gestiones.liq.recibo.*`.
 
+## Historial
+
+- Solo en Gestiones: botón `time-outline` en `components/filaGestion.js`, que el servidor deja en `pipeline.acciones` únicamente con `viaticos.ver_historial` (el cliente dibuja lo que llega). Solicitudes no lo tiene.
+- `actions/historial.js` (`abrirHistorial`) abre un modal «Historial — <correlativo>» con `GET /gestiones/:id/historial`: estado de carga, lista (fecha y hora de Guatemala (el servidor la manda como texto y se lee sin `Date`), actor en negrita y frase corta), «Sin movimientos registrados.» si está vacía y mensaje del servidor con «Reintentar» si falla (403 y 404 sin reintento). El HTML de la lista es una función pura (`htmlListaHistorial`) y todo texto del servidor se escapa.
+- Copia del patrón de `vales/js/actions/historial.js` (no se importa: `/modules/vales/*` está protegido). Sin tiempo real. Estilos en `css/historial.css`; en celular el modal ocupa todo el ancho y la lista se desplaza dentro.
+- Con 5 botones, `.acciones-wrap` (108 px) los reparte en dos filas en escritorio; en tarjeta el ancho es automático.
+
 ## Gesto «atrás» en celular
 
 `utils/historialCapas.js`: mientras haya un modal, el visor o la firma abiertos se mantiene una entrada propia en el historial (`history.pushState`), así el botón o gesto «atrás» cierra solo la capa de arriba en vez de salir del módulo. Cada capa se registra con `registrarCapa(cerrarPorAtras)` y llama al `soltar()` que devuelve al cerrarse por cualquier vía; si la capa no se deja cerrar (cambios sin guardar) la entrada se repone. Usado en `components/modal.js`, `components/visorDocumento.js` y `components/firmaPantalla.js`.

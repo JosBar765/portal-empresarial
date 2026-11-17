@@ -1,0 +1,11 @@
+/* Modal del historial de una solicitud (Gestiones). Solo variables de global.css. Prefijo `vi-`. */
+.vi-modal-historial .modal-body { max-height: 60vh; overflow-y: auto; }
+.vi-historial-lista { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.vi-historial-lista li { font-size: 12px; padding: 8px 12px; background: var(--color-surface-muted); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+.vi-historial-lista .fecha { color: var(--color-text-muted); margin-right: 2px; }
+.vi-historial-cargando { color: var(--color-text-muted); }
+.vi-historial-error { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; color: var(--color-danger); }
+@media (max-width: 640px) {
+  .vi-modal-historial { width: 100%; max-width: 100%; }
+  .vi-modal-historial .modal-body { max-height: 70vh; }
+}

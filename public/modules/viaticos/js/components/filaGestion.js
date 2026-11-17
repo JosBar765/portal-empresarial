@@ -10,7 +10,8 @@ const BOTONES = [
   { accion: ACCIONES.VER, icono: 'eye-outline', texto: 'gestiones.accion.ver' },
   { accion: ACCIONES.AUTORIZAR, icono: 'checkmark-done-outline', texto: 'gestiones.accion.autorizar', clase: 'icon-success' },
   { accion: ACCIONES.RECHAZAR, icono: 'close-outline', texto: 'gestiones.accion.rechazar', clase: 'icon-danger' },
-  { accion: ACCIONES.LIQUIDAR, icono: 'cash-outline', texto: 'gestiones.accion.liquidar' }
+  { accion: ACCIONES.LIQUIDAR, icono: 'cash-outline', texto: 'gestiones.accion.liquidar' },
+  { accion: ACCIONES.HISTORIAL, icono: 'time-outline', texto: 'gestiones.accion.historial' }
 ];
 
 const DECISIONES = [ACCIONES.AUTORIZAR, ACCIONES.RECHAZAR];

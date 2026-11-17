@@ -26,8 +26,8 @@ Una acción **Historial** en la pestaña `Gestiones`, visible para quien tenga e
 ## Tareas
 - [x] T1. Migración 42 (permiso, tabla permanente, relleno).
 - [x] T2. Servidor: `movimientoRepository`, registro de los 10 movimientos en la misma transacción, endpoint de lectura y acción en el pipeline de Gestiones, constantes y mensajes.
-- [ ] T3. Frontend: botón y modal de Historial en Gestiones.
-- [ ] T4. Documentación del módulo (README, contrato, modelo de datos, plano del frontend).
+- [x] T3. Frontend: botón y modal de Historial en Gestiones.
+- [x] T4. Documentación del módulo (README, contrato, modelo de datos, plano del frontend).
 - [ ] T5. Pruebas: API (permiso, 404, orden, movimientos de una baja y de un vencimiento conservados en la tabla) y navegador.
 
 ## Rutas
@@ -42,5 +42,11 @@ Sin runner automatizado; RED/GREEN no aplica (excepción registrada). Verificaci
 - Escritor: `--check` de 14 archivos y frases de los 12 tipos impresas. Padre: `--check` repetido, migración leída (idempotente, sin FK, relleno sin duplicar).
 - Sin probar contra la BD: la migración 42 no está aplicada (T5).
 
+## Evidencia T3 (2026-11-17, escritor delegado; revisado por el padre)
+- Botón «Ver historial» (`time-outline`) solo en las filas de Gestiones cuando `pipeline.acciones` trae `historial`; modal «Historial — <correlativo>» con fecha, actor y frase, estado vacío y error con reintento; `obtenerHistorialGestion`; plano del frontend actualizado. Solicitudes no cambia.
+- Corrección del padre: el servidor entrega las fechas como texto «AAAA-MM-DD HH:mm:ss» ya en hora de Guatemala (`dateStrings`), así que el modal las lee como texto (el escritor usaba `new Date()`, que Safari no entiende y suponía UTC).
+- Escritor: `--check` de 6 archivos, lista pura probada con vacío, normal, `<script>` escapado y actor Sistema. Padre: formato de fecha probado con 3 valores.
+- Sin probar en el navegador ni contra la BD: la migración 42 no está aplicada (T5).
+
 ## Próximo paso
-T3: escritor del frontend (después del cambio del modal del recibo, que comparte archivos).
+T5: pruebas, cuando el servidor local tenga la migración 42.

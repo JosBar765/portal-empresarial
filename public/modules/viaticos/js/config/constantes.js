@@ -4,7 +4,8 @@ export const PERMISOS = Object.freeze({
   GESTIONAR: 'viaticos.gestionar',
   AUTORIZAR: 'viaticos.autorizar',
   LIQUIDAR: 'viaticos.liquidar',
-  CONFIGURAR: 'viaticos.configurar'
+  CONFIGURAR: 'viaticos.configurar',
+  VER_HISTORIAL: 'viaticos.ver_historial'
 });
 
 export const TABS = Object.freeze({
@@ -66,7 +67,8 @@ export const ACCIONES = Object.freeze({
   DAR_DE_BAJA: 'darDeBaja',
   AUTORIZAR: 'autorizar',
   RECHAZAR: 'rechazar',
-  LIQUIDAR: 'liquidar'
+  LIQUIDAR: 'liquidar',
+  HISTORIAL: 'historial'
 });
 
 export const ETIQUETA_ACCION = Object.freeze({
@@ -75,7 +77,8 @@ export const ETIQUETA_ACCION = Object.freeze({
   [ACCIONES.DAR_DE_BAJA]: 'Dar de baja',
   [ACCIONES.AUTORIZAR]: 'Autorizar',
   [ACCIONES.RECHAZAR]: 'Rechazar',
-  [ACCIONES.LIQUIDAR]: 'Liquidar'
+  [ACCIONES.LIQUIDAR]: 'Liquidar',
+  [ACCIONES.HISTORIAL]: 'Historial'
 });
 
 // Recursos del segmento de la URL de /config.

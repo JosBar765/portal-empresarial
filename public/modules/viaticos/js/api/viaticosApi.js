@@ -118,6 +118,7 @@ export const registrarVistoGestion = (id) => pedir(`${BASE}/gestiones/${id}/vist
 export const autorizarGestion = (id) => pedir(`${BASE}/gestiones/${id}/autorizar`, { method: 'POST' });
 export const rechazarGestion = (id, motivo) => pedir(`${BASE}/gestiones/${id}/rechazar`, enJson('POST', { motivo }));
 export const obtenerLiquidacionGestion = (id) => pedir(`${BASE}/gestiones/${id}/liquidacion`);
+export const obtenerHistorialGestion = (id) => pedir(`${BASE}/gestiones/${id}/historial`);
 
 // ---------- Configuración: recursos con la misma forma (lista, alta, edición y activar) ----------
 // `recurso` es un valor de RECURSOS: monedas, ubicaciones, tramos, motivos, tipos-gasto, tipos-defecto, tipos-licencia, tipos-placa, vehiculos.
