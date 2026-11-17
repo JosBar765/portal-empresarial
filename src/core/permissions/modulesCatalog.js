@@ -39,6 +39,15 @@ const MODULOS = [
     path: '/modules/viaticos',
     permission: 'viaticos.ver',
     color: '#6B7A3A'
+  },
+  {
+    id: 'incidencias',
+    nombre: 'Incidencias',
+    descripcion: 'Reporta problemas de tus tiendas con fotos; los técnicos los resuelven y quedan registrados.',
+    icono: 'construct-outline',
+    path: '/modules/incidencias',
+    permission: 'incidencias.ver',
+    color: '#C2410C'
   }
 ];
 

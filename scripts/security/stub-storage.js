@@ -29,10 +29,13 @@ http.createServer((req, res) => {
 const supabaseStorage = require(path.join(RAIZ, 'src', 'core', 'files', 'supabaseStorage'));
 const { extensionParaTipo } = require(path.join(RAIZ, 'src', 'core', 'files', 'fileSignature'));
 
-supabaseStorage.subir = async (buffer, nombreOriginal, mimeType) => {
-  const objeto = crypto.randomBytes(16).toString('hex') + (extensionParaTipo(mimeType) || '');
-  almacen.set(`/${objeto}`, { buffer, tipo: mimeType });
-  return { path: objeto, url: `http://127.0.0.1:${PUERTO}/${objeto}`, size: buffer.length };
-};
-supabaseStorage.eliminar = async (url) => { almacen.delete(new URL(url).pathname); return true; };
+// El bucket de siempre y el de Incidencias comparten este almacén en memoria.
+for (const destino of [supabaseStorage, supabaseStorage.incidencias]) {
+  destino.subir = async (buffer, nombreOriginal, mimeType) => {
+    const objeto = crypto.randomBytes(16).toString('hex') + (extensionParaTipo(mimeType) || '');
+    almacen.set(`/${objeto}`, { buffer, tipo: mimeType });
+    return { path: objeto, url: `http://127.0.0.1:${PUERTO}/${objeto}`, size: buffer.length };
+  };
+  destino.eliminar = async (url) => { almacen.delete(new URL(url).pathname); return true; };
+}
 console.log(`[stub-storage] Storage de pruebas en memoria, sirviendo en http://127.0.0.1:${PUERTO}`);

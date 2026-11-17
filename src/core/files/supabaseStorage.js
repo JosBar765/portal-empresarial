@@ -138,5 +138,7 @@ const storage = new SupabaseStorage(config.supabase.bucket);
 storage.borradores = new SupabaseStorage(config.supabase.bucketBorradores);
 storage.viaticos = new SupabaseStorage(config.supabase.bucketViaticos);
 storage.viaticosRecibos = new SupabaseStorage(config.supabase.bucketViaticosRecibos);
+// Las fotos de Incidencias viven en su propio bucket, con su propia regla de conservación.
+storage.incidencias = new SupabaseStorage(config.supabase.bucketIncidencias);
 
 module.exports = storage;

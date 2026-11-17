@@ -18,10 +18,12 @@ const borradorWatcher = require('./modules/vales/borradorWatcher');
 const borradorViaticosWatcher = require('./modules/viaticos/borradorWatcher');
 const rechazoViaticosWatcher = require('./modules/viaticos/rechazoWatcher');
 const retencionArchivosWatcher = require('./modules/vales/retencionArchivosWatcher');
+const retencionFotosIncidenciasWatcher = require('./modules/incidencias/retencionFotosWatcher');
 const notificacionLimpieza = require('./core/notifications/notificacionLimpieza');
 const adminRoutes = require('./modules/admin/routes');
 const promptsRoutes = require('./modules/prompts/routes');
 const viaticosRoutes = require('./modules/viaticos/routes');
+const incidenciasRoutes = require('./modules/incidencias/routes');
 const notificacionRoutes = require('./core/notifications/notificacionRoutes');
 const { MENSAJE_INTERNO } = require('./core/utils/erroresHttp');
 
@@ -123,6 +125,8 @@ app.use('/api/prompts', requireAuth, requirePermission('prompts.ver'), promptsRo
 
 // Rutas de API de la Calculadora de Viáticos
 app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'), viaticosRoutes);
+// Rutas de API del módulo Incidencias
+app.use('/api/incidencias', requireAuth, requirePermission('incidencias.ver'), incidenciasRoutes);
 
 // Centro de notificaciones (de cualquier usuario autenticado, sin permiso de módulo)
 app.use('/api/notificaciones', requireAuth, notificacionRoutes);
@@ -137,6 +141,7 @@ borradorWatcher.iniciar();
 borradorViaticosWatcher.iniciar();
 rechazoViaticosWatcher.iniciar();
 retencionArchivosWatcher.iniciar();
+retencionFotosIncidenciasWatcher.iniciar();
 notificacionLimpieza.iniciar();
 
 // Estado del mantenimiento para el aviso con cuenta regresiva (segundos restantes, sin depender del reloj del cliente).

@@ -3,6 +3,7 @@ import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { etiquetaEstado } from '../permisos.js';
 import { formatearFecha, escapeHtml, correlativoBase } from '../utils/formato.js';
 import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, obtenerPropuestaVale, aprobarModificacion, rechazarModificacion, marcarValeVisto } from '../api/valesApi.js';
+import { confirmarAccion } from '../components/confirmar.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { abrirVisorVale, abrirVisorDocumentos } from '../components/visorDocumento.js';
 
@@ -102,7 +103,7 @@ export function abrirModalAutorizarCreacion(vale) {
   overlay.querySelector('#btn-confirmar').disabled = !estaVisto(vale);
   overlay.querySelector('#btn-rechazar').disabled = !estaVisto(vale);
   overlay.querySelector('#btn-cerrar').addEventListener('click', cerrar);
-  overlay.querySelector('#btn-confirmar').addEventListener('click', async () => {
+  const autorizar = async () => {
     const btn = overlay.querySelector('#btn-confirmar');
     btn.disabled = true;
     btn.dataset.enviando = '1';
@@ -121,7 +122,15 @@ export function abrirModalAutorizarCreacion(vale) {
       // sin esperar a que el evento de socket llegue o a un refresco manual.
       cargarBuzon();
     }
-  });
+  };
+  // Pide confirmación solo cuando «Autorizar» está habilitado, es decir, ya se vio el vale.
+  overlay.querySelector('#btn-confirmar').addEventListener('click', () => confirmarAccion({
+    title: `Autorizar creación — ${vale.correlativo}`,
+    pregunta: '¿Estás seguro que deseas autorizar este vale de arte?',
+    mensaje: 'Se envía ahora al taller y queda firmado con tu nombre.',
+    textoConfirmar: 'Autorizar',
+    alConfirmar: autorizar
+  }));
   overlay.querySelector('#btn-rechazar').addEventListener('click', () => abrirModalRechazarCreacion(vale, cerrar));
 }
 

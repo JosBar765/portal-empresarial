@@ -73,6 +73,7 @@ async function verificar(base) {
     SUPABASE_STORAGE_BUCKET: 'ci-bucket',
     SUPABASE_STORAGE_BUCKET_BORRADORES: 'ci-bucket-borradores',
     SUPABASE_STORAGE_BUCKET_VIATICOS: 'ci-bucket-viaticos'
+    SUPABASE_STORAGE_BUCKET_INCIDENCIAS: 'ci-bucket-incidencias'
   };
 
   console.log(`Arranque: node src/server.js en el puerto ${puerto}`);
