@@ -92,6 +92,10 @@ Contrato: «Recibos» en `contrato_api.md`. Estilos en `css/recibo.css` (importa
 - **Contabilidad** (`actions/liquidacionGestion.js`): la tabla «Comprobantes y recibos» agrega una fila por recibo con la marca «Recibo», número y concepto como descripción, monto y el PDF en el visor. «Solicitado a liquidar» ya incluye comidas y depreciación.
 - Textos: claves `recibo.*`, `firma.*`, `liquidacion.recibo.*`, `liquidacion.progreso.recibo` y `gestiones.liq.recibo.*`.
 
+## Gesto «atrás» en celular
+
+`utils/historialCapas.js`: mientras haya un modal, el visor o la firma abiertos se mantiene una entrada propia en el historial (`history.pushState`), así el botón o gesto «atrás» cierra solo la capa de arriba en vez de salir del módulo. Cada capa se registra con `registrarCapa(cerrarPorAtras)` y llama al `soltar()` que devuelve al cerrarse por cualquier vía; si la capa no se deja cerrar (cambios sin guardar) la entrada se repone. Usado en `components/modal.js`, `components/visorDocumento.js` y `components/firmaPantalla.js`.
+
 ## Tablas y móvil
 
 `.tabla-wrapper[tabindex=0][role=region]` → `table.buzon-table.data-table.sticky-header`; cada `td` lleva `data-label` y la de acciones `.acciones-cell`; en ≤900 px cada fila es una tarjeta (`::before{content:attr(data-label)}`); objetivos táctiles de 44 px a ≤640 px. Tabla fija en escritorio con `body.vista-tabla-fija` (solo desde 901 px; `--sep-buzon` 16 px). Fila vacía: `td.tabla-vacia`. Los modales a ≤480 px ocupan la pantalla.

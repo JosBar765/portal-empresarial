@@ -1,5 +1,6 @@
 // Lienzo de firma a pantalla completa (dedo, lápiz o mouse con Pointer Events); se apila sobre los modales y devuelve la firma en PNG.
 import { h } from '../utils/dom.js';
+import { registrarCapa } from '../utils/historialCapas.js';
 import { t } from '../textos.js';
 
 const MARGEN_RECORTE = 12; // px CSS alrededor del trazo al exportar
@@ -160,6 +161,7 @@ export function abrirFirmaPantalla({ nombre = '' } = {}) {
     function terminar(resultado) {
       if (terminado) return;
       terminado = true;
+      soltarHistorial();
       document.removeEventListener('keydown', alTeclear, true);
       window.removeEventListener('resize', alRedimensionar);
       if (observador) observador.disconnect();
@@ -186,6 +188,7 @@ export function abrirFirmaPantalla({ nombre = '' } = {}) {
     document.body.append(capa);
     document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', alTeclear, true);
+    const soltarHistorial = registrarCapa(() => terminar(null));
     window.addEventListener('resize', alRedimensionar);
     if (observador) observador.observe(area);
     ajustarTamano();

@@ -1,5 +1,6 @@
 import { $ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
+import { registrarCapa } from '../utils/historialCapas.js';
 import { t } from '../textos.js';
 
 // `subtitle` va bajo el título; `clase` se suma a la caja; `antesDeCerrar()` (sí/no, puede ser asíncrona) filtra X, Escape y clic fuera,
@@ -22,6 +23,7 @@ export function abrirModal({ title, subtitle, bodyHtml, footerHtml, size, clase,
   const onKeydown = (e) => { if (e.key === 'Escape') intentarCerrar(); };
   document.addEventListener('keydown', onKeydown);
   const cerrar = () => {
+    soltarHistorial();
     document.removeEventListener('keydown', onKeydown);
     overlay.remove();
     if (alCerrar) alCerrar();
@@ -37,6 +39,7 @@ export function abrirModal({ title, subtitle, bodyHtml, footerHtml, size, clase,
       consultando = false;
     }
   };
+  const soltarHistorial = registrarCapa(intentarCerrar);
   overlay.querySelector('.modal-close').addEventListener('click', intentarCerrar);
   let mousedownEnOverlay = false;
   overlay.addEventListener('mousedown', (e) => { mousedownEnOverlay = (e.target === overlay); });

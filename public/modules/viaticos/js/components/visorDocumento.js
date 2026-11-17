@@ -6,6 +6,7 @@ import { tipoDeDocumento, tituloVisorSolicitud, urlSegura } from '../utils/docum
 import { abrirModal } from './modal.js';
 import { crearAviso } from './aviso.js';
 import { escapeHtml } from '../utils/formato.js';
+import { registrarCapa } from '../utils/historialCapas.js';
 import { t } from '../textos.js';
 
 const FOCALIZABLES = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -99,6 +100,7 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, alC
   }
 
   function cerrar() {
+    soltarHistorial();
     document.removeEventListener('keydown', alTeclear, true);
     document.body.style.overflow = sobreflujoPrevio;
     overlay.remove();
@@ -137,6 +139,7 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, alC
   overlay.addEventListener('mousedown', (e) => { mousedownEnFondo = (e.target === overlay); });
   overlay.addEventListener('click', (e) => { if (e.target === overlay && mousedownEnFondo) cerrar(); mousedownEnFondo = false; });
   document.addEventListener('keydown', alTeclear, true);
+  const soltarHistorial = registrarCapa(cerrar);
 
   mostrar(actual);
   (overlay.querySelector('.vi-visor__pestana.is-activa') || overlay.querySelector('[data-visor-cerrar]')).focus();
