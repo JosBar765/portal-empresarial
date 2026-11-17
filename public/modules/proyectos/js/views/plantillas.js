@@ -3,6 +3,7 @@
 import { h, icono, montar } from '../utils/dom.js';
 import { cabecera, aviso, cargando, interruptor, avisar, barraGuardado, estadoVacio } from '../components/ui.js';
 import { registrarSalida } from '../components/salida.js';
+import { iconoAyuda } from '../components/ayuda.js';
 import { confirmarModal } from '../components/modal.js';
 import { campoTexto, campoLista, campoArea } from '../components/campos.js';
 import { listarPlantillas, crearPlantilla, editarPlantilla, cambiarActivaPlantilla, listarCatalogo } from '../api/api.js';
@@ -76,15 +77,15 @@ export async function renderPlantillas(cont) {
   function pestanaGeneral() {
     const base = { valores: borrador, errores, prefijoId: 'plantilla', alCambiar: actualizarBarra };
     const interr = (titulo, ayuda, clave, bloqueado) => h('div', { class: 'ajuste-simple' },
-      h('div', null, h('div', { class: 'ajuste-nombre', text: titulo }), h('div', { class: 'ajuste-ayuda', text: ayuda })),
+      h('div', null, h('div', { class: 'ajuste-nombre' }, titulo, iconoAyuda(`plantillas.${clave}`)), h('div', { class: 'ajuste-ayuda', text: ayuda })),
       interruptor({ marcado: borrador[clave], deshabilitado: bloqueado, etiqueta: titulo, alCambiar: (v) => { borrador[clave] = v; actualizarBarra(); } }));
     return [
       h('div', { class: 'form-rejilla' },
         campoTexto({ ...base, clave: 'nombre', etiqueta: 'Nombre', obligatorio: true, maximo: 100, validar: (v) => validarTexto(v, { maximo: 100, obligatorio: true, mensajeObligatorio: 'Escribe el nombre de la plantilla.' }) }),
-        campoLista({ ...base, clave: 'articuloId', etiqueta: 'Artículo de muestra', opciones: articulos.filter(a => a.activo).map(a => ({ id: a.id, nombre: a.nombre })), vacio: 'Sin artículo' }),
-        campoTexto({ ...base, clave: 'existenciaSugerida', etiqueta: 'Existencia sugerida', maximo: 8, ayuda: 'Unidades para el proyecto.' }),
-        campoTexto({ ...base, clave: 'topePorAsesor', etiqueta: 'Tope de empresas por asesor', maximo: 3, ayuda: 'Opcional. Lo que sobra queda en reserva.' }),
-        campoTexto({ ...base, clave: 'metaMonto', etiqueta: 'Meta de venta', maximo: 14 }),
+        campoLista({ ...base, clave: 'articuloId', etiqueta: 'Artículo de muestra', ayudaClave: 'plantillas.articulo', opciones: articulos.filter(a => a.activo).map(a => ({ id: a.id, nombre: a.nombre })), vacio: 'Sin artículo' }),
+        campoTexto({ ...base, clave: 'existenciaSugerida', etiqueta: 'Existencia sugerida', ayudaClave: 'plantillas.existencia', maximo: 8, ayuda: 'Unidades para el proyecto.' }),
+        campoTexto({ ...base, clave: 'topePorAsesor', etiqueta: 'Tope de empresas por asesor', ayudaClave: 'plantillas.tope', maximo: 3, ayuda: 'Opcional. Lo que sobra queda en reserva.' }),
+        campoTexto({ ...base, clave: 'metaMonto', etiqueta: 'Meta de venta', ayudaClave: 'plantillas.meta', maximo: 14 }),
         campoLista({ ...base, clave: 'metaMoneda', etiqueta: 'Moneda de la meta', opciones: monedas.filter(m => m.activo).map(m => ({ id: m.codigo, nombre: `${m.codigo} · ${m.nombre}` })), vacio: 'Sin moneda', textoIds: true })),
       campoArea({ valores: borrador, errores, clave: 'descripcion', etiqueta: 'Descripción (opcional)', maximo: 255, prefijoId: 'plantilla' }),
       interr('Predeterminada', 'El asistente la ofrece primero al crear un proyecto.', 'predeterminada', seleccion.predeterminada),
@@ -106,7 +107,7 @@ export async function renderPlantillas(cont) {
     return [
       errores.etapas ? aviso({ tipo: 'error', titulo: errores.etapas }) : null,
       h('div', { class: 'tabla-caja' }, h('div', { class: 'tabla-scroll' }, h('table', { class: 'data-table' },
-        h('thead', null, h('tr', null, ['', 'Etapa', 'Qué se espera', 'Días hábiles', ''].map(t => h('th', { text: t })))),
+        h('thead', null, h('tr', null, ['', 'Etapa', 'Qué se espera', 'Días hábiles', ''].map(t => h('th', null, t, t === 'Etapa' ? iconoAyuda('plantillas.etapas') : null)))),
         h('tbody', null, borrador.etapas.map((e, i) => h('tr', null,
           h('td', null, h('div', { class: 'mover' },
             h('button', { class: 'boton-icono', type: 'button', 'aria-label': 'Subir', onclick: () => mover(i, -1), disabled: i === 0 }, icono('chevron-up-outline')),
@@ -129,7 +130,7 @@ export async function renderPlantillas(cont) {
     };
     return [
       h('div', { class: 'tabla-caja' }, h('div', { class: 'tabla-scroll' }, h('table', { class: 'data-table' },
-        h('thead', null, h('tr', null, ['Campo', 'Valor de la plantilla', 'El supervisor puede…'].map(t => h('th', { text: t })))),
+        h('thead', null, h('tr', null, ['Campo', 'Valor de la plantilla', 'El supervisor puede…'].map(t => h('th', null, t, t.startsWith('El supervisor') ? iconoAyuda('plantillas.controles') : null)))),
         h('tbody', null, CONTROLES.map(([clave, etiqueta]) => h('tr', null,
           h('td', { class: 'cambio-ajuste', text: etiqueta }),
           h('td', null, borrador.controles[clave] === 'bloqueado' ? icono('lock-closed-outline') : null, ` ${valorDe[clave]}`),
@@ -183,7 +184,7 @@ export async function renderPlantillas(cont) {
 
   montar(cont,
     cabecera({
-      titulo: 'Plantillas de proyecto', subtitulo: 'Define duración, etapas y qué puede cambiar el supervisor.',
+      ayuda: 'plantillas', titulo: 'Plantillas de proyecto', subtitulo: 'Define duración, etapas y qué puede cambiar el supervisor.',
       acciones: h('button', { class: 'btn btn--primary', type: 'button', onclick: () => elegir(copia(NUEVA)) }, icono('add-outline'), 'Nueva plantilla')
     }),
     h('div', { class: 'campos-cuerpo' }, zonaLista, zonaEditor));

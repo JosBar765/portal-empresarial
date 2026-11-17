@@ -121,7 +121,7 @@ export async function renderHistorial(cont) {
 
   await cargar();
   montar(cont,
-    cabecera({ titulo: 'Historial de cambios', subtitulo: 'Quién cambió qué, cuándo y cómo estaba antes. Se puede restaurar.' }),
+    cabecera({ ayuda: 'historial', titulo: 'Historial de cambios', subtitulo: 'Quién cambió qué, cuándo y cómo estaba antes. Se puede restaurar.' }),
     zonaFiltros, zonaTabla);
   dibujarFiltros();
   dibujarTabla();

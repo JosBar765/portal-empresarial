@@ -1,15 +1,19 @@
 // Piezas pequeñas que repiten todas las pantallas del módulo.
 import { h, icono } from '../utils/dom.js';
 import { pluralizar } from '../utils/formato.js';
+import { comoFunciona } from './ayuda.js';
 
 export const avisar = (tipo, titulo, mensaje) => window.toast && window.toast[tipo](titulo, mensaje);
 
-export function cabecera({ titulo, subtitulo, acciones }) {
-  return h('div', { class: 'pagina-cabecera' },
+// `ayuda`: clave de la explicación de la pantalla (js/ayuda/textos.js); agrega el botón «¿Cómo funciona?» bajo el título.
+export function cabecera({ titulo, subtitulo, acciones, ayuda }) {
+  const fila = h('div', { class: 'pagina-cabecera' },
     h('div', null,
       h('h1', { class: 'pagina-titulo', text: titulo }),
       subtitulo ? h('p', { class: 'pagina-subtitulo', text: subtitulo }) : null),
     acciones || null);
+  const explicacion = ayuda ? comoFunciona(ayuda) : null;
+  return explicacion ? h('div', { class: 'pagina-cabecera-grupo' }, fila, explicacion) : fila;
 }
 
 const ICONOS_AVISO = { info: 'information-circle-outline', advertencia: 'warning-outline', error: 'alert-circle-outline' };

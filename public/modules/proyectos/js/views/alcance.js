@@ -2,6 +2,7 @@
 // Solo se guardan las diferencias; quitar un país no borra ningún dato.
 import { h, icono, montar } from '../utils/dom.js';
 import { cabecera, cargando, avisar, estadoVacio } from '../components/ui.js';
+import { iconoAyuda } from '../components/ayuda.js';
 import { modalFormulario } from '../components/modalFormulario.js';
 import { listarAlcance, guardarAlcance } from '../api/api.js';
 
@@ -72,6 +73,7 @@ export async function renderAlcance(cont) {
     const nodo = h('form', { class: 'formulario-modal', novalidate: '' });
     const dibujar = () => montar(nodo,
       h('p', { class: 'panel-descripcion', text: `${persona.nombre} · ${persona.rol}. Marca los países que verá y en los que podrá registrar empresas. Lo marcado con «tienda» es su país por defecto.` }),
+      iconoAyuda('alcance.paises'),
       h('div', { class: 'lista-paises' }, datos.paises.map(p => h('label', { class: 'opcion-pais' },
         h('input', { type: 'checkbox', checked: elegidos.has(p.id), onchange: (e) => { if (e.target.checked) elegidos.add(p.id); else elegidos.delete(p.id); error = ''; dibujar(); } }),
         h('span', { class: 'opcion-pais-nombre', text: p.nombre }),
@@ -95,7 +97,7 @@ export async function renderAlcance(cont) {
   const limpiar = h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => { Object.assign(filtros, { busqueda: '', rol: '', pais: '' }); renderAlcance(cont); } }, 'Quitar filtros');
 
   montar(cont,
-    cabecera({ titulo: 'Alcance de usuarios', subtitulo: 'Cada persona ve el país de su tienda. Aquí amplías o quitas países.' }),
+    cabecera({ ayuda: 'alcance', titulo: 'Alcance de usuarios', subtitulo: 'Cada persona ve el país de su tienda. Aquí amplías o quitas países.' }),
     h('div', { class: 'panel filtros filtros--clientes' },
       h('div', { class: 'campo campo--busqueda' }, h('label', { text: 'Buscar' }), busqueda),
       selector('rol', 'Rol', datos.roles, 'Todos'), selector('pais', 'País', datos.paises, 'Todos'), limpiar),

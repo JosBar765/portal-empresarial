@@ -2,6 +2,7 @@
 // Ruta: #/plan. Un mes ya activo, en aprobación o cerrado no se puede cambiar; un mes sin plan no se activa solo.
 import { h, icono, montar } from '../utils/dom.js';
 import { cabecera, cargando, interruptor, avisar, aviso } from '../components/ui.js';
+import { iconoAyuda } from '../components/ayuda.js';
 import { modalFormulario } from '../components/modalFormulario.js';
 import { confirmarModal } from '../components/modal.js';
 import { obtenerPlan, guardarPlanMes, quitarPlanMes, listarCatalogo, listarPlantillas, guardarAutomatizacion } from '../api/api.js';
@@ -64,11 +65,11 @@ export async function renderPlanAnio(cont, parametro) {
     }
     return h('section', { class: 'panel plan-automatico' },
       h('div', { class: 'ajuste-simple' },
-        h('div', null, h('div', { class: 'ajuste-nombre', text: 'Activación automática' }), h('div', { class: 'ajuste-ayuda', text: 'El sistema crea y activa el proyecto del plan en el día y la hora elegidos, con todas las tiendas libres que tienen asesores.' })),
+        h('div', null, h('div', { class: 'ajuste-nombre' }, 'Activación automática', iconoAyuda('parametros.activacion_auto.activa')), h('div', { class: 'ajuste-ayuda', text: 'El sistema crea y activa el proyecto del plan en el día y la hora elegidos, con todas las tiendas libres que tienen asesores.' })),
         interruptor({ marcado: a.activa, etiqueta: 'Activación automática', alCambiar: (v) => cambiarAjuste('activacion_auto.activa', v) })),
       h('div', { class: 'plan-controles' },
-        h('div', { class: 'campo' }, h('label', { text: 'Día de la activación' }), dia),
-        h('div', { class: 'campo' }, h('label', { text: 'Hora (Guatemala)' }), hora)),
+        h('div', { class: 'campo' }, h('div', { class: 'campo-etiqueta-fila' }, h('label', { text: 'Día de la activación' }), iconoAyuda('parametros.activacion_auto.dia')), dia),
+        h('div', { class: 'campo' }, h('div', { class: 'campo-etiqueta-fila' }, h('label', { text: 'Hora (Guatemala)' }), iconoAyuda('parametros.activacion_auto.hora')), hora)),
       linea);
   }
 
@@ -85,6 +86,7 @@ export async function renderPlanAnio(cont, parametro) {
       return h('div', { class: `campo${errores[clave] ? ' campo--error' : ''}` }, h('label', { text: etiqueta }), control, errores[clave] ? h('span', { class: 'campo-error', text: errores[clave] }) : null);
     };
     const dibujarForm = () => montar(nodo,
+      iconoAyuda('plan.mes'),
       h('p', { class: 'hoja-subtitulo', text: 'Elige el nicho y el artículo del mes. El nicho se sugiere al crear el proyecto y la activación automática lo usa.' }),
       lista('nichoId', 'Nicho', nichosActivos, 'Elige un nicho'),
       lista('articuloId', 'Artículo de muestra', articulosActivos, 'Sin artículo (lo fija la plantilla)'),
@@ -142,7 +144,7 @@ export async function renderPlanAnio(cont, parametro) {
 
   montar(cont,
     cabecera({
-      titulo: `Plan del año ${anio}`,
+      ayuda: 'plan', titulo: `Plan del año ${anio}`,
       subtitulo: 'Qué nicho y artículo toca cada mes. El sistema sugiere el nicho del plan y puede activar el proyecto solo.',
       acciones: h('div', { class: 'acciones-cabecera' },
         h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => { anio -= 1; location.hash = `#/plan/${anio}`; } }, icono('chevron-back-outline'), `Año ${anio - 1}`),

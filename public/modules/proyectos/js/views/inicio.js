@@ -98,7 +98,7 @@ export async function renderInicio(cont) {
   const resumen = await obtenerResumen();
   montar(cont,
     cabecera({
-      titulo: 'Centro de configuración',
+      titulo: 'Centro de configuración', ayuda: 'inicio',
       subtitulo: 'Todo lo ajustable sin programar. Aplica a proyectos nuevos.',
       acciones: h('a', { class: 'btn btn--ghost', href: '#/historial' }, icono('time-outline'), 'Ver historial de cambios')
     }),

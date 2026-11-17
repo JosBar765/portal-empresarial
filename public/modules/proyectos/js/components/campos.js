@@ -5,18 +5,22 @@
 // El nodo devuelto trae `nodo.revisar()` (marca el campo como tocado y lo valida; devuelve true si está bien) y
 // `nodo.control` (lo que recibe el foco).
 import { h, icono, montar } from '../utils/dom.js';
+import { iconoAyuda } from './ayuda.js';
 import { aplicarMascara, digitos, normalizarSitioWeb, paisDelPrefijo, validarTelefonoLocal } from '../utils/validar.js';
 
 const idDe = (prefijoId, clave) => `${prefijoId}-${clave.replace(/\./g, '-')}`;
 const IMAGEN = { error: 'alert-circle-outline', ok: 'checkmark-circle-outline' };
 
 // Arma la envoltura común: etiqueta, control y mensaje; y la lógica de cuándo validar y cómo pintar el estado.
-function campoBase({ id, etiqueta, obligatorio, control, foco, clave, valores, errores, validar, ayuda, textoOk, icono: conIcono = false, extra }) {
+function campoBase({ id, etiqueta, obligatorio, control, foco, clave, valores, errores, validar, ayuda, ayudaClave, textoOk, icono: conIcono = false, extra }) {
   const mensaje = h('div', { class: 'campo-mensaje', 'aria-live': 'polite' });
   const marca = conIcono ? h('ion-icon', { class: 'campo-icono', 'aria-hidden': 'true' }) : null;
   const envuelto = h('div', { class: `campo-control${conIcono ? ' campo-control--icono' : ''}` }, control, marca);
   const nodo = h('div', { class: 'campo' },
-    h('label', { for: id }, etiqueta, obligatorio ? h('span', { class: 'campo-obligatorio', text: ' *' }) : null), envuelto, mensaje);
+    ayudaClave
+      ? h('div', { class: 'campo-etiqueta-fila' }, h('label', { for: id }, etiqueta, obligatorio ? h('span', { class: 'campo-obligatorio', text: ' *' }) : null), iconoAyuda(ayudaClave))
+      : h('label', { for: id }, etiqueta, obligatorio ? h('span', { class: 'campo-obligatorio', text: ' *' }) : null),
+    envuelto, mensaje);
   let tocado = Boolean(errores[clave]);
 
   function pintar(tipo, texto) {
@@ -48,11 +52,11 @@ function campoBase({ id, etiqueta, obligatorio, control, foco, clave, valores, e
   return nodo;
 }
 
-export function campoTexto({ clave, etiqueta, valores, errores, alCambiar, maximo = 150, tipo = 'text', ayuda, obligatorio, placeholder, prefijoId = 'f', validar, textoOk }) {
+export function campoTexto({ clave, etiqueta, valores, errores, alCambiar, maximo = 150, tipo = 'text', ayuda, ayudaClave, obligatorio, placeholder, prefijoId = 'f', validar, textoOk }) {
   const id = idDe(prefijoId, clave);
   const control = h('input', { id, type: tipo, maxlength: maximo, autocomplete: 'off', placeholder: placeholder || null });
   control.value = valores[clave] || '';
-  const nodo = campoBase({ id, etiqueta, obligatorio, control, foco: control, clave, valores, errores, validar, ayuda, textoOk, icono: true });
+  const nodo = campoBase({ id, etiqueta, obligatorio, control, foco: control, clave, valores, errores, validar, ayuda, ayudaClave, textoOk, icono: true });
   control.addEventListener('input', () => { valores[clave] = control.value; nodo.alEscribir(); if (alCambiar) alCambiar(); });
   control.addEventListener('blur', () => nodo.alSalir());
   return nodo;
@@ -60,12 +64,12 @@ export function campoTexto({ clave, etiqueta, valores, errores, alCambiar, maxim
 
 // `opciones`: [{ id, nombre }]. Si hay una sola y es obligatoria, queda elegida.
 // Con `textoIds` los identificadores son textos (las opciones de un campo propio); si no, números.
-export function campoLista({ clave, etiqueta, valores, errores, opciones, alCambiar, vacio = 'Elige…', obligatorio, prefijoId = 'f', validar, textoIds = false }) {
+export function campoLista({ clave, etiqueta, valores, errores, opciones, alCambiar, vacio = 'Elige…', obligatorio, ayudaClave, prefijoId = 'f', validar, textoIds = false }) {
   const id = idDe(prefijoId, clave);
   const control = h('select', { id }, h('option', { value: '', text: vacio }), opciones.map(o => h('option', { value: String(o.id), text: o.nombre })));
   if (!valores[clave] && opciones.length === 1 && obligatorio) valores[clave] = opciones[0].id;
   control.value = valores[clave] ? String(valores[clave]) : '';
-  const nodo = campoBase({ id, etiqueta, obligatorio, control, foco: control, clave, valores, errores, validar });
+  const nodo = campoBase({ id, etiqueta, obligatorio, control, foco: control, clave, valores, errores, validar, ayudaClave });
   control.addEventListener('change', () => { valores[clave] = control.value ? (textoIds ? control.value : Number(control.value)) : ''; nodo.alEscribir(); nodo.alSalir(); if (alCambiar) alCambiar(); });
   control.addEventListener('blur', () => nodo.alSalir());
   return nodo;

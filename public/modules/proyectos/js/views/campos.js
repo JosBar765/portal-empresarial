@@ -2,6 +2,7 @@
 // La clave se genera de la etiqueta y, como el tipo, no cambia después de crear el campo.
 import { h, icono, montar } from '../utils/dom.js';
 import { cabecera, cargando, interruptor, avisar, estadoVacio, barraGuardado } from '../components/ui.js';
+import { iconoAyuda } from '../components/ayuda.js';
 import { registrarSalida } from '../components/salida.js';
 import { confirmarModal } from '../components/modal.js';
 import { campoTexto, campoLista } from '../components/campos.js';
@@ -75,9 +76,9 @@ export async function renderCampos(cont) {
       h('div', { class: 'campo' }, h('label', null, etiqueta, borrador.obligatorio ? h('span', { class: 'campo-obligatorio', text: ' *' }) : null), control));
   }
 
-  function fila(titulo, ayuda, valor, alCambiar) {
+  function fila(titulo, ayuda, valor, alCambiar, claveAyuda) {
     return h('div', { class: 'ajuste-simple' },
-      h('div', null, h('div', { class: 'ajuste-nombre', text: titulo }), h('div', { class: 'ajuste-ayuda', text: ayuda })),
+      h('div', null, h('div', { class: 'ajuste-nombre' }, titulo, claveAyuda ? iconoAyuda(claveAyuda) : null), h('div', { class: 'ajuste-ayuda', text: ayuda })),
       interruptor({ marcado: valor, etiqueta: titulo, alCambiar }));
   }
 
@@ -89,7 +90,7 @@ export async function renderCampos(cont) {
       onclick: () => { if (!nuevo) return; borrador.tipo = valor; delete errores.tipo; dibujarEditor(); }
     }, texto)));
     const opciones = borrador.tipo === 'lista' ? h('div', { class: `campo${errores.opciones ? ' campo--error' : ''}` },
-      h('label', { for: 'campo-opciones' }, 'Opciones', h('span', { class: 'campo-obligatorio', text: ' *' })),
+      h('div', { class: 'campo-etiqueta-fila' }, h('label', { for: 'campo-opciones' }, 'Opciones', h('span', { class: 'campo-obligatorio', text: ' *' })), iconoAyuda('campos.opciones')),
       (() => { const t = h('textarea', { id: 'campo-opciones', rows: 5, placeholder: 'Una opción por línea' }); t.value = borrador.opcionesTexto; t.addEventListener('input', () => { borrador.opcionesTexto = t.value; delete errores.opciones; actualizarBarra(); vistaZona(); }); return t; })(),
       errores.opciones ? h('span', { class: 'campo-error', text: errores.opciones }) : h('span', { class: 'campo-ayuda', text: 'Una opción por línea; mínimo dos.' })) : null;
     const zonaVista = h('div');
@@ -98,16 +99,16 @@ export async function renderCampos(cont) {
 
     const etiqueta = campoTexto({ ...base, clave: 'etiqueta', etiqueta: 'Etiqueta', maximo: 100, obligatorio: true, prefijoId: 'campo', alCambiar: () => { actualizarBarra(); vistaZona(); },
       validar: (v) => (String(v || '').trim() ? '' : 'Escribe la etiqueta del campo.') });
-    const nicho = campoLista({ ...base, clave: 'nichoId', etiqueta: 'Nicho', opciones: nichos.filter(n => n.activo).map(n => ({ id: n.id, nombre: n.nombre })), vacio: TODOS, prefijoId: 'campo', alCambiar: () => { borrador.nichoId = borrador.nichoId || null; actualizarBarra(); } });
+    const nicho = campoLista({ ...base, clave: 'nichoId', etiqueta: 'Nicho', ayudaClave: 'campos.nicho', opciones: nichos.filter(n => n.activo).map(n => ({ id: n.id, nombre: n.nombre })), vacio: TODOS, prefijoId: 'campo', alCambiar: () => { borrador.nichoId = borrador.nichoId || null; actualizarBarra(); } });
     montar(zonaEditor, h('section', { class: 'panel formulario-campo' },
       h('h2', { class: 'panel-titulo', text: nuevo ? 'Nuevo campo' : seleccion.etiqueta }),
       h('div', { class: 'form-rejilla' }, etiqueta, nicho),
-      h('div', { class: `campo${errores.tipo ? ' campo--error' : ''}` }, h('span', { class: 'campo-etiqueta', text: 'Tipo de dato' }), tipos,
+      h('div', { class: `campo${errores.tipo ? ' campo--error' : ''}` }, h('span', { class: 'campo-etiqueta' }, 'Tipo de dato', iconoAyuda('campos.tipo')), tipos,
         errores.tipo ? h('span', { class: 'campo-error', text: errores.tipo }) : (nuevo ? null : h('span', { class: 'campo-ayuda', text: 'El tipo no se puede cambiar: crea otro campo.' }))),
       opciones,
-      fila('Obligatorio', 'Sin este dato no se puede guardar la empresa.', borrador.obligatorio, (v) => { borrador.obligatorio = v; actualizarBarra(); vistaZona(); }),
-      fila('Visible en la lista', 'Se muestra como columna en la cartera.', borrador.visibleEnLista, (v) => { borrador.visibleEnLista = v; actualizarBarra(); }),
-      nuevo ? null : fila('Activo', 'Desactivarlo no borra los datos ya guardados.', seleccion.activo, alternarActivo),
+      fila('Obligatorio', 'Sin este dato no se puede guardar la empresa.', borrador.obligatorio, (v) => { borrador.obligatorio = v; actualizarBarra(); vistaZona(); }, 'campos.obligatorio'),
+      fila('Visible en la lista', 'Se muestra como columna en la cartera.', borrador.visibleEnLista, (v) => { borrador.visibleEnLista = v; actualizarBarra(); }, 'campos.visible_lista'),
+      nuevo ? null : fila('Activo', 'Desactivarlo no borra los datos ya guardados.', seleccion.activo, alternarActivo, 'campos.activo'),
       zonaVista, barra.nodo));
     actualizarBarra();
   }
@@ -152,7 +153,7 @@ export async function renderCampos(cont) {
 
   montar(cont,
     cabecera({
-      titulo: 'Campos propios de la empresa',
+      ayuda: 'campos', titulo: 'Campos propios de la empresa',
       subtitulo: 'Datos extra por nicho: aparecen en el formulario, la ficha, los filtros y la plantilla CSV.',
       acciones: h('button', { class: 'btn btn--primary', type: 'button', onclick: () => elegir(NUEVO) }, icono('add-outline'), 'Nuevo campo')
     }),

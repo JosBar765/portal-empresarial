@@ -3,6 +3,7 @@
 import { h, icono, montar } from '../utils/dom.js';
 import { cabecera, cargando, avisar, interruptor } from '../components/ui.js';
 import { confirmarModal } from '../components/modal.js';
+import { iconoAyuda } from '../components/ayuda.js';
 import { obtenerAvisos, guardarAvisos, restaurarAvisos } from '../api/api.js';
 
 const ETIQUETA_ROL = { asesor: 'Asesor', supervisor: 'Supervisor', gerente: 'Gerente' };
@@ -47,16 +48,16 @@ export async function renderAvisos(cont) {
   function dibujar() {
     montar(zona,
       h('div', { class: 'tabla-caja' }, h('div', { class: 'tabla-scroll' }, h('table', { class: 'data-table tabla-avisos' },
-        h('thead', null, h('tr', null, [h('th', { text: 'Evento' }), ...datos.roles.map(r => h('th', { class: 'celda-centro', text: ETIQUETA_ROL[r] })), h('th', { class: 'celda-centro', text: 'Anticipación' })])),
+        h('thead', null, h('tr', null, [h('th', { text: 'Evento' }), ...datos.roles.map(r => h('th', { class: 'celda-centro', text: ETIQUETA_ROL[r] })), h('th', { class: 'celda-centro' }, 'Anticipación', iconoAyuda('avisos.anticipacion'))])),
         h('tbody', null, datos.eventos.map(e => h('tr', null,
-          h('td', null, h('strong', { text: e.nombre }), h('div', { class: 'texto-tenue', text: e.grupo })),
+          h('td', null, h('strong', { text: e.nombre }), iconoAyuda(`avisos.${e.clave}`), h('div', { class: 'texto-tenue', text: e.grupo })),
           ...datos.roles.map(r => celda(e, r)), anticipacion(e))))))),
       h('p', { class: 'texto-tenue', text: 'Nunca se avisa a quien hace la acción. Los recordatorios (seguimiento que vence, proyecto por cerrar) los revisa el sistema cada 15 minutos.' }));
   }
 
   montar(cont,
     cabecera({
-      titulo: 'Notificaciones', subtitulo: 'Qué eventos avisan, a quién y con cuánta anticipación.',
+      ayuda: 'avisos', titulo: 'Notificaciones', subtitulo: 'Qué eventos avisan, a quién y con cuánta anticipación.',
       acciones: h('button', { class: 'btn btn--ghost', type: 'button', onclick: restaurar }, icono('refresh-outline'), 'Restaurar valores por defecto')
     }),
     zona);

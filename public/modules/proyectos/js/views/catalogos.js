@@ -6,6 +6,11 @@ import {
   listarCatalogo, crearEnCatalogo, editarEnCatalogo, cambiarActivoEnCatalogo, listarPaises, guardarPais
 } from '../api/api.js';
 import { CATALOGOS, PESTANAS, CONFIRMACION_VENTAS, EFECTOS_ETIQUETA } from './catalogosConfig.js';
+import { iconoAyuda } from '../components/ayuda.js';
+
+// Qué ajuste de un catálogo explica su icono (i), y qué columna de la tabla de países.
+const AYUDA_DE_CAMPO = { efectoEstado: 'catalogos.resultado.efecto', contactoLogrado: 'catalogos.resultado.contacto', requiereProxima: 'catalogos.resultado.proxima', presencial: 'catalogos.canal.presencial' };
+const AYUDA_DE_COLUMNA = { Moneda: 'catalogos.pais.moneda', Referencia: 'reglas.referencia_pais', Confirmación: 'reglas.confirmacion_pais' };
 
 const FILAS_VISIBLES = 7;
 const TITULO_PAISES = 'Países';
@@ -48,7 +53,7 @@ export async function renderCatalogos(cont) {
   function dibujarTitulo() {
     const config = CATALOGOS[pestana];
     montar(zonaTitulo, cabecera({
-      titulo: 'Catálogos',
+      ayuda: `catalogos.${pestana}`, titulo: 'Catálogos',
       subtitulo: 'Se editan sin programar: una fila nueva es una opción nueva.',
       acciones: config ? h('button', { class: 'btn btn--primary', type: 'button', onclick: () => seleccionar(null) }, icono('add-outline'), config.nuevo) : null
     }));
@@ -142,7 +147,7 @@ export async function renderCatalogos(cont) {
     const actualizar = (valor) => { borrador[campo.clave] = valor; delete errores[campo.clave]; };
     let control;
     if (campo.tipo === 'interruptor') {
-      return h('div', { class: 'campo-fila' }, h('span', { text: campo.etiqueta }),
+      return h('div', { class: 'campo-fila' }, h('span', null, campo.etiqueta, iconoAyuda(AYUDA_DE_CAMPO[campo.clave])),
         interruptor({ marcado: valorDe(campo), etiqueta: campo.etiqueta, alCambiar: actualizar }));
     }
     if (campo.tipo === 'area') {
@@ -163,7 +168,7 @@ export async function renderCatalogos(cont) {
       });
     }
     return h('div', { class: `campo${error ? ' campo--error' : ''}` },
-      h('label', { for: id, text: campo.etiqueta }), control,
+      h('div', { class: 'campo-etiqueta-fila' }, h('label', { for: id, text: campo.etiqueta }), iconoAyuda(AYUDA_DE_CAMPO[campo.clave])), control,
       error ? h('span', { class: 'campo-error', text: error }) : null);
   }
 
@@ -218,7 +223,7 @@ export async function renderCatalogos(cont) {
   function tablaDePaises() {
     return h('div', { class: 'tabla-caja' },
       h('div', { class: 'tabla-scroll' }, h('table', { class: 'data-table' },
-        h('thead', null, h('tr', null, ['País', 'Moneda', 'Prefijo', 'Teléfono', 'Referencia', 'Confirmación', ''].map(t => h('th', { text: t })))),
+        h('thead', null, h('tr', null, ['País', 'Moneda', 'Prefijo', 'Teléfono', 'Referencia', 'Confirmación', ''].map(t => h('th', null, t, AYUDA_DE_COLUMNA[t] ? iconoAyuda(AYUDA_DE_COLUMNA[t]) : null)))),
         h('tbody', null, paises.map(p => h('tr', { class: seleccion && seleccion.paisId === p.paisId ? 'fila-seleccionada' : null },
           h('td', { class: 'cambio-ajuste', text: p.nombre }),
           h('td', { text: p.monedaCodigo || '—' }),
@@ -267,13 +272,13 @@ export async function renderCatalogos(cont) {
     confirmacion.addEventListener('change', () => { borrador.confirmacionVentas = deTexto(confirmacion.value); });
     return h('form', { class: 'panel formulario-lateral', novalidate: '', onsubmit: (e) => { e.preventDefault(); guardarDePais(); } },
       h('h3', { text: `Editar país: ${seleccion.nombre}` }),
-      h('div', { class: `campo${errores.monedaCodigo ? ' campo--error' : ''}` }, h('label', { for: 'pais-moneda', text: 'Moneda local' }), moneda,
+      h('div', { class: `campo${errores.monedaCodigo ? ' campo--error' : ''}` }, h('div', { class: 'campo-etiqueta-fila' }, h('label', { for: 'pais-moneda', text: 'Moneda local' }), iconoAyuda('catalogos.pais.moneda')), moneda,
         errores.monedaCodigo ? h('span', { class: 'campo-error', text: errores.monedaCodigo }) : null),
       campoTexto('prefijoTelefono', 'Prefijo del teléfono'),
       campoTexto('formatoTelefono', 'Formato del teléfono', 'Usa # para cada dígito, por ejemplo #### ####.'),
-      h('div', { class: 'campo-fila' }, h('span', { text: 'Referencia obligatoria' }),
+      h('div', { class: 'campo-fila' }, h('span', null, 'Referencia obligatoria', iconoAyuda('reglas.referencia_pais')),
         interruptor({ marcado: valor('referenciaObligatoria'), etiqueta: 'Referencia obligatoria', alCambiar: (v) => { borrador.referenciaObligatoria = v; } })),
-      h('div', { class: 'campo' }, h('label', { for: 'pais-confirmacion', text: 'Confirmación de ventas' }), confirmacion),
+      h('div', { class: 'campo' }, h('div', { class: 'campo-etiqueta-fila' }, h('label', { for: 'pais-confirmacion', text: 'Confirmación de ventas' }), iconoAyuda('reglas.confirmacion_pais')), confirmacion),
       !valor('monedaCodigo') ? aviso({ tipo: 'advertencia', titulo: 'Sin moneda local', texto: 'Las cotizaciones y ventas de este país saldrán en dólares hasta que elijas una.' }) : null,
       h('button', { class: 'btn btn--primary', type: 'submit' }, icono('checkmark-outline'), 'Guardar país'));
   }

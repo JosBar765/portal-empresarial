@@ -5,6 +5,7 @@ import { pluralizar } from '../utils/formato.js';
 import { cabecera, aviso, cargando, interruptor, barraGuardado, avisar } from '../components/ui.js';
 import { listarParametros, guardarParametros } from '../api/api.js';
 import { registrarSalida } from '../components/salida.js';
+import { iconoAyuda } from '../components/ayuda.js';
 
 const NUMERICOS = ['entero', 'porcentaje', 'entero_opcional'];
 const ETIQUETAS_OPCION = {
@@ -106,7 +107,7 @@ export async function renderParametros(cont) {
     const lineaDefecto = h('div', { class: 'ajuste-defecto' });
     const error = h('div', { class: 'ajuste-mensaje-error' });
     const nodo = h('div', { class: 'ajuste' },
-      h('div', { class: 'ajuste-nombre', text: def.etiqueta }),
+      h('div', { class: 'ajuste-nombre' }, def.etiqueta, iconoAyuda(`parametros.${def.clave}`)),
       h('div', { class: 'ajuste-ayuda', text: def.ayuda }),
       control, error);
     const valorVigente = () => (def.clave in borrador ? borrador[def.clave] : guardado(def.clave));
@@ -183,7 +184,7 @@ export async function renderParametros(cont) {
 
   registrarSalida(() => Object.keys(borrador).length > 0);
   montar(cont,
-    cabecera({ titulo: 'Parámetros', subtitulo: 'Ajustes de reparto, seguimiento e informes, con su rango y valor por defecto.' }),
+    cabecera({ ayuda: 'parametros', titulo: 'Parámetros', subtitulo: 'Ajustes de reparto, seguimiento e informes, con su rango y valor por defecto.' }),
     aviso({ titulo: 'Aplica a proyectos nuevos', texto: 'Los proyectos que ya están activos conservan la configuración con la que nacieron.' }),
     h('div', { class: 'parametros-cuerpo' }, listaGrupos, panelDerecho));
   dibujarLista();

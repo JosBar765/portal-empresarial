@@ -2,6 +2,7 @@
 // El portal no envía nada: el asesor los abre prellenados desde la ficha de la empresa y los envía él mismo. Ruta: #/kit.
 import { h, icono, montar } from '../utils/dom.js';
 import { cabecera, cargando, interruptor, avisar, barraGuardado } from '../components/ui.js';
+import { iconoAyuda } from '../components/ayuda.js';
 import { registrarSalida } from '../components/salida.js';
 import { confirmarModal } from '../components/modal.js';
 import { listarKits, obtenerKit, guardarKit } from '../api/api.js';
@@ -121,11 +122,11 @@ export async function renderKitNicho(cont) {
       h('div', { class: 'ajuste-simple' },
         h('div', null, h('div', { class: 'ajuste-nombre', text: 'Kit activo' }), h('div', { class: 'ajuste-ayuda', text: 'Apagado, el asesor no ve guion ni mensajes de este nicho.' })),
         interruptor({ marcado: borrador.activo, etiqueta: 'Kit activo', alCambiar: (v) => { borrador.activo = v; actualizarBarra(); } })),
-      h('div', { class: `campo${errores.guion ? ' campo--error' : ''}` }, h('label', { text: 'Guion de llamada' }), guion,
+      h('div', { class: `campo${errores.guion ? ' campo--error' : ''}` }, h('div', { class: 'campo-etiqueta-fila' }, h('label', { text: 'Guion de llamada' }), iconoAyuda('kit.guion')), guion,
         errores.guion ? h('span', { class: 'campo-error', text: errores.guion }) : h('span', { class: 'campo-ayuda', text: 'Un paso por línea. Se le muestra al asesor en la ficha de la empresa.' })),
       chips,
       h('div', { class: 'aviso aviso--info' }, icono('information-circle-outline'), h('div', null, h('strong', { text: 'El portal no envía mensajes' }), h('p', { text: 'El asesor abre el mensaje prellenado en WhatsApp o en su correo y lo envía él mismo. Si a la empresa le falta un dato, ese mensaje se oculta.' }))),
-      h('h3', { class: 'panel-titulo', text: 'Mensajes' }),
+      h('h3', { class: 'panel-titulo' }, 'Mensajes', iconoAyuda('kit.mensajes'), iconoAyuda('kit.variables')),
       errores.mensajes ? h('span', { class: 'campo-error', text: errores.mensajes }) : null,
       borrador.mensajes.map(tarjetaMensaje),
       borrador.mensajes.length < MAX_MENSAJES ? h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => { borrador.mensajes.push(alta()); actualizarBarra(); dibujarEditor(); } }, icono('add-outline'), 'Agregar mensaje') : null,
@@ -156,7 +157,7 @@ export async function renderKitNicho(cont) {
   }
 
   montar(cont,
-    cabecera({ titulo: 'Kit del nicho', subtitulo: 'Guion y mensajes por nicho. El asesor los abre prellenados; el portal no los envía.' }),
+    cabecera({ ayuda: 'kit', titulo: 'Kit del nicho', subtitulo: 'Guion y mensajes por nicho. El asesor los abre prellenados; el portal no los envía.' }),
     h('div', { class: 'campos-cuerpo' }, zonaLista, zonaEditor));
   await cargarNicho(nicho);
 }

@@ -4,6 +4,7 @@ import { pluralizar } from '../utils/formato.js';
 import { cabecera, aviso, cargando, interruptor, barraGuardado, avisar } from '../components/ui.js';
 import { listarReglas, guardarReglas, listarPaises, guardarPais } from '../api/api.js';
 import { registrarSalida } from '../components/salida.js';
+import { iconoAyuda } from '../components/ayuda.js';
 
 const OPCIONES_CONFIRMACION = [['heredar', 'Heredar'], ['si', 'Sí'], ['no', 'No']];
 const aTexto = (valor) => (valor === null ? 'heredar' : (valor ? 'si' : 'no'));
@@ -42,7 +43,7 @@ export async function renderReglas(cont) {
       reglas.map(regla => h('div', { class: 'regla' },
         interruptor({ marcado: regla.clave in borradorReglas ? borradorReglas[regla.clave] : regla.valor, etiqueta: regla.etiqueta, alCambiar: (v) => editarRegla(regla, v) }),
         h('div', { class: 'regla-cuerpo' },
-          h('div', { class: 'regla-nombre', text: regla.etiqueta }),
+          h('div', { class: 'regla-nombre' }, regla.etiqueta, iconoAyuda(`parametros.${regla.clave}`)),
           h('div', { class: 'regla-texto', text: regla.ayuda }),
           regla.nota ? h('div', { class: 'regla-nota' }, icono('information-circle-outline'), regla.nota) : null,
           regla.permiso ? h('div', { class: 'regla-nota' }, icono('lock-closed-outline'), `Permiso: ${regla.permiso}`) : null))));
@@ -70,7 +71,7 @@ export async function renderReglas(cont) {
       h('p', { class: 'panel-descripcion', text: 'Referencia obligatoria y confirmación de ventas, país por país.' }),
       h('div', { class: 'tabla-caja' }, h('div', { class: 'tabla-scroll' },
         h('table', { class: 'data-table' },
-          h('thead', null, h('tr', null, ['País', 'Moneda', 'Referencia', 'Confirmación'].map(t => h('th', { text: t })))),
+          h('thead', null, h('tr', null, [['País'], ['Moneda'], ['Referencia', 'reglas.referencia_pais'], ['Confirmación', 'reglas.confirmacion_pais']].map(([t, clave]) => h('th', null, t, clave ? iconoAyuda(clave) : null)))),
           h('tbody', null, paises.map(filaPais))))),
       h('div', { class: 'separado' }, aviso({
         titulo: 'Cambiar una regla aplica a proyectos nuevos',
@@ -116,7 +117,7 @@ export async function renderReglas(cont) {
 
   registrarSalida(() => cantidad() > 0);
   montar(cont,
-    cabecera({ titulo: 'Reglas y aprobaciones', subtitulo: 'Enciende o apaga pasos del flujo. Por defecto, el flujo ya aprobado.' }),
+    cabecera({ ayuda: 'reglas', titulo: 'Reglas y aprobaciones', subtitulo: 'Enciende o apaga pasos del flujo. Por defecto, el flujo ya aprobado.' }),
     h('div', { class: 'reglas-cuerpo' }, panelReglas, panelPaises));
   dibujar();
 }
