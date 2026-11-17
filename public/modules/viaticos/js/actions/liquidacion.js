@@ -133,14 +133,17 @@ export function abrirLiquidacion(solicitud, { alTerminar } = {}) {
 
   async function liquidar() {
     if (liquidando || reciboAbierto || !liq || !liq.puedeLiquidar || (comprobantes && comprobantes.enCurso())) return;
+    // Lo que falta va como lista vertical (un rubro por línea) en vez de una frase corrida con punto y coma.
+    const incompletos = liq.pendientes.filter(p => Number(p.liquidados) < Number(p.solicitados));
+    const detalles = incompletos.map(p => ({ etiqueta: p.nombre, valor: t('liquidacion.confirmar.llevas', { liquidados: p.liquidados, solicitados: p.solicitados }) }));
     const mensaje = [
       t('liquidacion.confirmar.mensaje'),
       comprobantes.hayBorradores() && t('liquidacion.confirmar.borradores'),
-      liq.avisoFaltantes
+      detalles.length && t('liquidacion.confirmar.faltantes')
     ].filter(Boolean).join(' ');
     liquidando = true;
     botonLiquidar.disabled = true;
-    const confirmada = await confirmarModal({ title: t('liquidacion.confirmar.titulo'), mensaje, aceptar: t('liquidacion.confirmar.aceptar') });
+    const confirmada = await confirmarModal({ title: t('liquidacion.confirmar.titulo'), mensaje, detalles, aceptar: t('liquidacion.confirmar.aceptar') });
     if (!confirmada || cerrado) { liquidando = false; actualizarBoton(); return; }
     botonLiquidar.classList.add('btn--loading');
     try {

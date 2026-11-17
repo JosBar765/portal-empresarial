@@ -467,6 +467,8 @@ export const TEXTOS = {
   'liquidacion.confirmar.titulo': 'Liquidar solicitud',
   'liquidacion.confirmar.mensaje': '¿Estás seguro de que deseas liquidar esta solicitud? No podrás agregar más comprobantes.',
   'liquidacion.confirmar.borradores': 'Los comprobantes que no has guardado se descartarán.',
+  'liquidacion.confirmar.faltantes': 'Aún faltan comprobantes de estos rubros (llevas de lo solicitado). Puedes liquidar igual: contabilidad verá los que cargaste.',
+  'liquidacion.confirmar.llevas': '{liquidados} de {solicitados}',
   'liquidacion.confirmar.aceptar': 'Liquidar',
   'liquidacion.exito': 'Solicitud {correlativo} liquidada',
   'liquidacion.errorLiquidar': 'No se pudo liquidar',
