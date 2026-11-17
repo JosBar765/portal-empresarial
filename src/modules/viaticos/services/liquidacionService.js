@@ -11,7 +11,7 @@ const reciboRepo = require('../repositories/reciboRepository');
 const catalogoRepo = require('../repositories/catalogoSolicitudRepository');
 const destinatarioRepo = require('../repositories/destinatarioRepository');
 const {
-  ESTADOS, FASES, MODALIDADES, PERMISOS, NOTIFICACION, TIEMPO_REAL, IDEMPOTENCIA, LIMITES, LIMITES_SOLICITUD, ARCHIVOS, RUBROS_FIJOS, MESES_COMPLETOS
+  ESTADOS, FASES, MODALIDADES, PERMISOS, NOTIFICACION, TIEMPO_REAL, IDEMPOTENCIA, LIMITES, LIMITES_SOLICITUD, ARCHIVOS, RUBROS_FIJOS, MESES_COMPLETOS, MOVIMIENTOS
 } = require('../constantes');
 const events = require('../events');
 const { Validador, cuerpoObjeto, vacio } = require('../validacion');
@@ -23,6 +23,7 @@ const {
 const { llaveDeIdempotencia, ejecutarUnaVez } = require('./idempotenciaService');
 const archivosService = require('./archivosViaticoService');
 const solicitudService = require('./solicitudService');
+const movimientoService = require('./movimientoService');
 
 const esLargo = fila => fila.modalidad === MODALIDADES.MAS_DE_UN_DIA;
 const pipelineDe = fila => solicitudService.pipelineDe(fila, solicitudService.instante().hoy);
@@ -205,7 +206,7 @@ class LiquidacionService {
     const subidas = [];
     let creado;
     try {
-      const persistir = tx => this.persistirComprobante(tx, { id: propia.id, datos, archivo, ajustes, subidas });
+      const persistir = tx => this.persistirComprobante(tx, { id: propia.id, usuario, datos, archivo, ajustes, subidas });
       creado = await (externo ? persistir(externo) : db.transaccion(persistir));
     } catch (error) {
       await archivosService.eliminarArchivos(subidas);
@@ -215,7 +216,7 @@ class LiquidacionService {
     return { comprobante: comprobanteDeVista(comprobante), ...await this.obtener(usuario, propia.id, externo) };
   }
 
-  async persistirComprobante(tx, { id, datos, archivo, ajustes, subidas }) {
+  async persistirComprobante(tx, { id, usuario, datos, archivo, ajustes, subidas }) {
     await this.bloquear(id, tx);
     const fila = await solicitudService.leerEncabezado(id, tx);
     const bloqueo = motivoNoLiquidable(fila, pipelineDe(fila));
@@ -247,6 +248,9 @@ class LiquidacionService {
       correlativo: fila.correlativo, rubro: rubro.nombre, archivo, existentes: calculo.comprobantes.map(c => c.ruta), subidas,
       registrar: async subida => {
         comprobanteId = await comprobanteRepo.insertar(id, { tipoGastoId, descripcion, monto, nombreOriginal: String(archivo.originalname || '').slice(0, 255), ...subida }, tx);
+        await movimientoService.registrar(MOVIMIENTOS.COMPROBANTE_AGREGADO, fila, usuario, {
+          rubro: rubro.nombre, monto: movimientoService.monto(fila.monedaSimbolo, monto)
+        }, tx);
       }
     });
     return comprobanteId;
@@ -266,6 +270,7 @@ class LiquidacionService {
         throw new ErrorDeNegocio(msg('liquidacion.comprobanteNoExiste', { id: comprobanteId, correlativo: fila.correlativo }), 404);
       }
       await comprobanteRepo.eliminar(comprobanteId, tx);
+      await movimientoService.registrar(MOVIMIENTOS.COMPROBANTE_QUITADO, fila, usuario, { rubro: comprobante.tipoGastoNombre }, tx);
       return comprobante.ruta;
     };
     const ruta = await (externo ? borrar(externo) : db.transaccion(borrar));
@@ -285,6 +290,7 @@ class LiquidacionService {
       const estadoId = await escrituraRepo.estadoId(ESTADOS.LIQUIDADA, tx);
       await escrituraRepo.actualizarEstado(propia.id, estadoId, tx);
       await escrituraRepo.insertarHistorial(propia.id, estadoId, usuario.id, null, tx);
+      await movimientoService.registrar(MOVIMIENTOS.LIQUIDADA, fila, usuario, {}, tx);
     };
     await (externo ? aplicar(externo) : db.transaccion(aplicar));
     if (!externo) await this.despuesDelCommit(usuario, propia);

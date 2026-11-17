@@ -357,7 +357,22 @@ const CATALOGO = Object.freeze({
   'pipeline.detalle.en_curso': 'Termina el {fecha}',
   'pipeline.detalle.terminada': 'Pendiente de liquidar',
   'pipeline.detalle.liquidada': 'Liquidado el {fecha}',
-  'pipeline.detalle.liquidadaSinFecha': 'Liquidado'
+  'pipeline.detalle.liquidadaSinFecha': 'Liquidado',
+
+  // ---- Historial de movimientos (una frase corta por movimiento, en tercera persona como en Vales) ----
+  'movimiento.actorSistema': 'Sistema',
+  'movimiento.creada': 'Creó la solicitud',
+  'movimiento.modificada': 'Modificó la solicitud',
+  'movimiento.revisada': 'Revisó el documento de la solicitud',
+  'movimiento.autorizada': 'Autorizó la solicitud',
+  'movimiento.rechazada': 'Rechazó la solicitud. Motivo: {motivo}',
+  'movimiento.recibo_creado': 'Creó el recibo {numero} de {rubro} por {monto}',
+  'movimiento.recibo_quitado': 'Quitó el recibo {numero}',
+  'movimiento.comprobante_agregado': 'Agregó un comprobante de {rubro} por {monto}',
+  'movimiento.comprobante_quitado': 'Quitó un comprobante de {rubro}',
+  'movimiento.liquidada': 'Liquidó la solicitud',
+  'movimiento.vencida': 'La solicitud venció tras el rechazo y pasó a borrador',
+  'movimiento.dada_de_baja': 'Dio de baja la solicitud'
 });
 
 // Una sola pasada: un valor que contenga «{x}» no se vuelve a interpretar. Un marcador sin valor es un error del programa.

@@ -6,11 +6,12 @@ const notificacionService = require('../../../core/notifications/notificacionSer
 const rechazoRepo = require('../repositories/rechazoRepository');
 const escrituraRepo = require('../repositories/solicitudEscrituraRepository');
 const solicitudRepo = require('../repositories/solicitudRepository');
-const { ESTADOS, NOTIFICACION, TIEMPO_REAL, RECHAZO } = require('../constantes');
+const { ESTADOS, NOTIFICACION, TIEMPO_REAL, RECHAZO, MOVIMIENTOS } = require('../constantes');
 const events = require('../events');
 const { msg } = require('../mensajes');
 const solicitudService = require('./solicitudService');
 const borradorService = require('./borradorService');
+const movimientoService = require('./movimientoService');
 const archivosService = require('./archivosViaticoService');
 const { borradorDesdeSolicitud } = require('./borradorDesdeSolicitud');
 const { horasDeVigencia, SEGUNDOS_POR_HORA } = require('./rechazoPlazoService');
@@ -77,6 +78,8 @@ class RechazoVencimientoService {
       const borradorId = await borradorService.crearPorVencimiento(tx, {
         usuarioId: fila.solicitanteId, modalidad, datos, origenCorrelativo: fila.correlativo, origenMotivo: motivo
       });
+      // Antes del DELETE y sin actor: lo hace el sistema.
+      await movimientoService.registrar(MOVIMIENTOS.VENCIDA, { id, correlativo: fila.correlativo }, null, {}, tx);
       await escrituraRepo.eliminar(id, tx);
       return { ...fila, motivo, borradorId, urls: [...archivos.map(d => d.ruta), fila.pdfRuta] };
     });

@@ -8,6 +8,7 @@ const contextoController = require('./controllers/contextoController');
 const configController = require('./controllers/configController');
 const solicitudController = require('./controllers/solicitudController');
 const gestionController = require('./controllers/gestionController');
+const historialController = require('./controllers/historialController');
 const liquidacionController = require('./controllers/liquidacionController');
 const reciboController = require('./controllers/reciboController');
 const borradorController = require('./controllers/borradorController');
@@ -53,10 +54,11 @@ router.post('/solicitudes/:id/recibos', firmaRecibo, reciboController.agregar);
 router.delete('/solicitudes/:id/recibos/:reciboId', reciboController.quitar);
 router.post('/solicitudes/:id/liquidar', liquidacionController.liquidar);
 
-// Gestiones: ver todo exige viaticos.gestionar; autorizar y rechazar, viaticos.autorizar; la vista de liquidación (solo lectura), viaticos.liquidar.
+// Gestiones: ver todo exige viaticos.gestionar; autorizar y rechazar, viaticos.autorizar; la vista de liquidación (solo lectura), viaticos.liquidar; el historial exige además viaticos.ver_historial.
 router.get('/gestiones', requirePermission(PERMISOS.GESTIONAR), gestionController.listar);
 router.get('/gestiones/:id', requirePermission(PERMISOS.GESTIONAR), gestionController.obtener);
 router.get('/gestiones/:id/documentos', requirePermission(PERMISOS.GESTIONAR), gestionController.documentos);
+router.get('/gestiones/:id/historial', requirePermission(PERMISOS.GESTIONAR), requirePermission(PERMISOS.VER_HISTORIAL), historialController.listar);
 router.post('/gestiones/:id/visto', requirePermission(PERMISOS.AUTORIZAR), gestionController.visto);
 router.post('/gestiones/:id/autorizar', requirePermission(PERMISOS.AUTORIZAR), gestionController.autorizar);
 router.post('/gestiones/:id/rechazar', requirePermission(PERMISOS.AUTORIZAR), gestionController.rechazar);

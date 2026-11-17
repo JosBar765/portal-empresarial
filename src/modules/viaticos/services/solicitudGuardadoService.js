@@ -9,7 +9,7 @@ const escrituraRepo = require('../repositories/solicitudEscrituraRepository');
 const destinatarioRepo = require('../repositories/destinatarioRepository');
 const vistoRepo = require('../repositories/vistoRepository');
 const {
-  MODALIDADES, ESTADOS, ESTADOS_EDITABLES, ACCIONES, PERMISOS, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, TIEMPO_REAL, CORRELATIVO, ETAPAS_DOCUMENTO
+  MODALIDADES, ESTADOS, ESTADOS_EDITABLES, ACCIONES, PERMISOS, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, TIEMPO_REAL, CORRELATIVO, ETAPAS_DOCUMENTO, MOVIMIENTOS
 } = require('../constantes');
 const events = require('../events');
 const { errorDeValidacion } = require('../errores');
@@ -22,6 +22,7 @@ const documentoService = require('./documentoService');
 const { erroresDeTextos } = require('./pdf/solicitudPdfService');
 const solicitudService = require('./solicitudService');
 const borradorService = require('./borradorService');
+const movimientoService = require('./movimientoService');
 
 // `datos` llega como texto JSON (multipart), como objeto envuelto o como el payload directo (JSON puro).
 function extraerDatos(cuerpo) {
@@ -199,6 +200,7 @@ class SolicitudGuardadoService {
       registrar: defecto => escrituraRepo.insertarDefecto(id, defecto, tx)
     });
     await escrituraRepo.insertarHistorial(id, estadoId, usuario.id, null, tx);
+    await movimientoService.registrar(previa ? MOVIMIENTOS.MODIFICADA : MOVIMIENTOS.CREADA, { id, correlativo }, usuario, {}, tx);
     // Al crear desde un borrador, este se descarta en la misma transacción (solo el del usuario; uno ajeno o ya borrado se ignora).
     if (!previa && borradorId !== null) await borradorService.descartarAlEnviar(usuario.id, borradorId, tx);
     // Solo se borran de Storage las fotos de los defectos que ya no están; las conservadas siguen en uso.
@@ -251,6 +253,8 @@ class SolicitudGuardadoService {
       await this.bloquearEditable(fila.id, fila.correlativo, 'solicitud.noSeDaDeBaja', tx);
       const urls = (await solicitudRepo.listarArchivosDefectos(fila.id, tx)).map(d => d.ruta);
       const actual = await solicitudRepo.obtenerEncabezado(fila.id, tx);
+      // Antes del DELETE: el movimiento no tiene llave foránea y queda aunque la solicitud desaparezca.
+      await movimientoService.registrar(MOVIMIENTOS.DADA_DE_BAJA, fila, usuario, {}, tx);
       await escrituraRepo.eliminar(fila.id, tx);
       return [...urls, actual.pdfRuta];
     };

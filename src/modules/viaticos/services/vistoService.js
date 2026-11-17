@@ -5,9 +5,10 @@ const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
 const escrituraRepo = require('../repositories/solicitudEscrituraRepository');
 const vistoRepo = require('../repositories/vistoRepository');
-const { FASES, ROL_ADMINISTRADOR_ID } = require('../constantes');
+const { FASES, ROL_ADMINISTRADOR_ID, MOVIMIENTOS } = require('../constantes');
 const { msg } = require('../mensajes');
 const solicitudService = require('./solicitudService');
+const movimientoService = require('./movimientoService');
 
 const esAdministrador = usuario => usuario.rolId === ROL_ADMINISTRADOR_ID;
 
@@ -20,7 +21,10 @@ class VistoService {
       if (!fila) throw new ErrorDeNegocio(msg('solicitud.noExiste', { id }), 404);
       const pipeline = solicitudService.pipelineDe(fila, solicitudService.instante().hoy);
       if (pipeline.fase !== FASES.ESPERANDO) return { visto: false };
+      // Solo la primera vez de cada persona deja movimiento; con la fila bloqueada, la comprobación previa no corre carrera.
+      const primeraVez = !(await vistoRepo.existe(id, usuario.id, tx));
       await vistoRepo.registrar(id, usuario.id, tx);
+      if (primeraVez) await movimientoService.registrar(MOVIMIENTOS.REVISADA, fila, usuario, {}, tx);
       return { visto: true };
     });
   }

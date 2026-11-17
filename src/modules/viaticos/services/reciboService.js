@@ -6,7 +6,7 @@ const { idObligatorio } = require('../../../core/utils/validar');
 const { tipoRealCoincide } = require('../../../core/files/fileSignature');
 const { excedeElLimiteDePixeles } = require('../../../core/files/imagenDimensiones');
 const reciboRepo = require('../repositories/reciboRepository');
-const { RECIBOS, IDEMPOTENCIA, LIMITES } = require('../constantes');
+const { RECIBOS, IDEMPOTENCIA, LIMITES, MOVIMIENTOS } = require('../constantes');
 const { Validador, cuerpoObjeto, vacio, mostrar } = require('../validacion');
 const { errorDeValidacion } = require('../errores');
 const { msg } = require('../mensajes');
@@ -17,6 +17,7 @@ const { erroresDeTextos } = require('./pdf/solicitudPdfService');
 const archivosService = require('./archivosViaticoService');
 const solicitudService = require('./solicitudService');
 const liquidacionService = require('./liquidacionService');
+const movimientoService = require('./movimientoService');
 
 const { motivoNoLiquidable, motivoSinCambios, reciboDeVista } = liquidacionService;
 const BYTES_POR_MB = 1024 * 1024;
@@ -146,7 +147,7 @@ class ReciboService {
     const subidas = [];
     let creado;
     try {
-      const persistir = tx => this.persistir(tx, { id: propia.id, recibo, firma: archivo.buffer, subidas });
+      const persistir = tx => this.persistir(tx, { id: propia.id, usuario, recibo, firma: archivo.buffer, subidas });
       creado = await (externo ? persistir(externo) : db.transaccion(persistir));
     } catch (error) {
       await archivosService.eliminarRecibos(subidas);
@@ -156,7 +157,7 @@ class ReciboService {
     return { recibo: reciboDeVista(guardado), ...await liquidacionService.obtener(usuario, propia.id, externo) };
   }
 
-  async persistir(tx, { id, recibo, firma, subidas }) {
+  async persistir(tx, { id, usuario, recibo, firma, subidas }) {
     await liquidacionService.bloquear(id, tx);
     const fila = await solicitudService.leerEncabezado(id, tx);
     exigirLiquidable(fila);
@@ -173,6 +174,9 @@ class ReciboService {
       correlativo: fila.correlativo, rubro: recibo.rubro, pdf, nombreOriginal: `${numero}.pdf`, existentes: calculo.recibos.map(r => r.ruta), subidas,
       registrar: async subida => {
         reciboId = await reciboRepo.insertar(id, { ...recibo, contador, numero, montoLetras, ruta: subida.ruta, tamano: subida.tamano }, tx);
+        await movimientoService.registrar(MOVIMIENTOS.RECIBO_CREADO, fila, usuario, {
+          numero, rubro: msg(`recibo.rubro.${recibo.rubro}`), monto: movimientoService.monto(fila.monedaSimbolo, recibo.monto)
+        }, tx);
       }
     });
     return reciboId;
@@ -192,6 +196,7 @@ class ReciboService {
         throw new ErrorDeNegocio(msg('recibo.noExiste', { id: reciboId, correlativo: fila.correlativo }), 404);
       }
       await reciboRepo.eliminar(reciboId, tx);
+      await movimientoService.registrar(MOVIMIENTOS.RECIBO_QUITADO, fila, usuario, { numero: recibo.numero }, tx);
       return recibo.ruta;
     };
     const ruta = await (externo ? borrar(externo) : db.transaccion(borrar));

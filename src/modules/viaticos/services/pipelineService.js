@@ -85,6 +85,8 @@ function accionesDeGestion({ fase, esLargo, permisos }) {
   const acciones = [ACCIONES.VER];
   if (permisos.includes(PERMISOS.AUTORIZAR) && fase === FASES.ESPERANDO) acciones.push(ACCIONES.AUTORIZAR, ACCIONES.RECHAZAR);
   if (permisos.includes(PERMISOS.LIQUIDAR) && esLargo && (fase === FASES.TERMINADA || fase === FASES.LIQUIDADA)) acciones.push(ACCIONES.LIQUIDAR);
+  // Toda solicitud que existe tiene historial, en cualquier fase.
+  if (permisos.includes(PERMISOS.VER_HISTORIAL)) acciones.push(ACCIONES.HISTORIAL);
   return acciones;
 }
 

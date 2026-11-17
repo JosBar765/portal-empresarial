@@ -6,7 +6,8 @@ const PERMISOS = Object.freeze({
   GESTIONAR: 'viaticos.gestionar',
   AUTORIZAR: 'viaticos.autorizar',
   LIQUIDAR: 'viaticos.liquidar',
-  CONFIGURAR: 'viaticos.configurar'
+  CONFIGURAR: 'viaticos.configurar',
+  VER_HISTORIAL: 'viaticos.ver_historial'
 });
 
 const PREFIJO_PERMISOS = 'viaticos.';
@@ -223,13 +224,33 @@ const ACCIONES = Object.freeze({
   DAR_DE_BAJA: 'darDeBaja',
   AUTORIZAR: 'autorizar',
   RECHAZAR: 'rechazar',
-  LIQUIDAR: 'liquidar'
+  LIQUIDAR: 'liquidar',
+  HISTORIAL: 'historial'
 });
+
+// Claves de viaticos_movimientos.tipo (el historial permanente de cada solicitud); se consultan directo en la base.
+const MOVIMIENTOS = Object.freeze({
+  CREADA: 'creada',
+  MODIFICADA: 'modificada',
+  REVISADA: 'revisada',
+  AUTORIZADA: 'autorizada',
+  RECHAZADA: 'rechazada',
+  RECIBO_CREADO: 'recibo_creado',
+  RECIBO_QUITADO: 'recibo_quitado',
+  COMPROBANTE_AGREGADO: 'comprobante_agregado',
+  COMPROBANTE_QUITADO: 'comprobante_quitado',
+  LIQUIDADA: 'liquidada',
+  VENCIDA: 'vencida',
+  DADA_DE_BAJA: 'dada_de_baja'
+});
+
+// Actor de un movimiento hecho por el servidor (el vencimiento): sin usuario; su nombre sale de mensajes.js.
+const SISTEMA = Object.freeze({ USUARIO_ID: null, MENSAJE_NOMBRE: 'movimiento.actorSistema' });
 
 // Abreviaturas fijas para no depender del idioma del servidor.
 const MESES_ABREVIADOS = Object.freeze(['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']);
 
 module.exports = {
   PERMISOS, PREFIJO_PERMISOS, ESTADOS, MODALIDADES, RECURSOS, AJUSTES, RECHAZO, BORRADORES, MIME_PERMITIDOS, LIMITES,
-  LIMITES_SOLICITUD, ARCHIVOS, RUBROS_FIJOS, ETAPAS_DOCUMENTO, SENTIDOS_TRAMO, IDEMPOTENCIA, RECIBOS, MESES_COMPLETOS, NOTIFICACION, TIEMPO_REAL, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, NIVELES_RESALTADOS, MIME_IMAGEN_PDF, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS
+  LIMITES_SOLICITUD, ARCHIVOS, RUBROS_FIJOS, ETAPAS_DOCUMENTO, SENTIDOS_TRAMO, IDEMPOTENCIA, RECIBOS, MESES_COMPLETOS, NOTIFICACION, TIEMPO_REAL, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, NIVELES_RESALTADOS, MIME_IMAGEN_PDF, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS, MOVIMIENTOS, SISTEMA
 };

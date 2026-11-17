@@ -7,7 +7,7 @@ const { idObligatorio } = require('../../../core/utils/validar');
 const solicitudRepo = require('../repositories/solicitudRepository');
 const escrituraRepo = require('../repositories/solicitudEscrituraRepository');
 const {
-  ESTADOS, FASES, ORDEN_FASES, MODALIDADES, ETAPAS_DOCUMENTO, NOTIFICACION, TIEMPO_REAL, LIMITES_SOLICITUD
+  ESTADOS, FASES, ORDEN_FASES, MODALIDADES, ETAPAS_DOCUMENTO, NOTIFICACION, TIEMPO_REAL, LIMITES_SOLICITUD, MOVIMIENTOS
 } = require('../constantes');
 const events = require('../events');
 const { Validador, cuerpoObjeto, vacio } = require('../validacion');
@@ -16,6 +16,7 @@ const { accionesDeGestion } = require('./pipelineService');
 const solicitudService = require('./solicitudService');
 const documentoService = require('./documentoService');
 const vistoService = require('./vistoService');
+const movimientoService = require('./movimientoService');
 
 // Lo que espera autorización va primero (para atenderlo en orden); el resto sigue el orden de fases de Solicitudes.
 const grupoDe = fase => (fase === FASES.ESPERANDO ? 0 : ORDEN_FASES[fase] + 1);
@@ -85,6 +86,8 @@ class GestionService {
       await escrituraRepo.actualizarEstado(id, estadoId, tx);
       if (estadoDestino === ESTADOS.RECHAZADA) await escrituraRepo.marcarRechazada(id, tx);
       await escrituraRepo.insertarHistorial(id, estadoId, usuario.id, motivo, tx);
+      const tipo = estadoDestino === ESTADOS.AUTORIZADA ? MOVIMIENTOS.AUTORIZADA : MOVIMIENTOS.RECHAZADA;
+      await movimientoService.registrar(tipo, fila, usuario, { motivo }, tx);
       return { id, correlativo: fila.correlativo, solicitanteId: fila.solicitanteId, estado: estadoDestino };
     };
     const decidida = await (externo ? aplicar(externo) : db.transaccion(aplicar));

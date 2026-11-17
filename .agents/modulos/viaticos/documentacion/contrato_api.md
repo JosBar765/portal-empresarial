@@ -46,6 +46,7 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | `POST /gestiones/:id/visto` | autorizar | Registra que quien consulta abrió el documento (requisito para autorizar o rechazar) |
 | `POST /gestiones/:id/autorizar` | autorizar | Autoriza |
 | `POST /gestiones/:id/rechazar` | autorizar | Rechaza con `{ motivo }` libre y obligatorio |
+| `GET /gestiones/:id/historial` | gestionar y ver_historial | Movimientos de la solicitud en orden cronológico (ver «Historial de movimientos») |
 | `GET /gestiones/:id/liquidacion` | liquidar | Vista de solo lectura para contabilidad (cifras, diferencia, comprobantes y PDF) |
 | `GET /config/<recurso>` | configurar | Lista |
 | `POST /config/<recurso>` | configurar | Crea |
@@ -264,6 +265,19 @@ Un fallo de cualquiera se registra con `console.error` y no deshace la decisión
 - Sala `viaticos:gestion`: un cliente se une con `register_module('viaticos:gestion')`; el validador de sala (`events.js`, registrado con `registrarValidadorSala`) solo la concede a quien tenga `viaticos.gestionar` en el socket ya autenticado.
 - Evento `viaticos_actualizada` con `{ id, correlativo, estado, solicitanteId, actorId, accion }` (el cliente compara `solicitanteId` con su usuario para saber si la solicitud es suya y `actorId` para no avisar a quien hizo la acción); `accion` es `creada`, `modificada`, `dada_de_baja`, `autorizada`, `rechazada`, `liquidada` o `vencida` (una rechazada que venció y pasó a borrador; `actorId` es `null`), y `estado` es el estado guardado (`null` al dar de baja o vencer, porque la solicitud ya no existe). Se envía a la sala de gestión (`sendToModule`) y al solicitante (`sendToUsers`) después del commit al crear, modificar, dar de baja, autorizar, rechazar y liquidar; quien está en ambos puede recibirlo dos veces (el cliente solo refresca). Un fallo al emitir se registra y no deshace la operación.
 - Evento `viaticos_borradores_nuevos` (`{}`), solo al solicitante (`sendToUsers`), cuando una solicitud rechazada vence y le llega un borrador nuevo: el botón «Borradores» refresca su insignia.
+
+## Historial de movimientos
+
+`GET /gestiones/:id/historial` exige `viaticos.gestionar` **y** `viaticos.ver_historial` (sin alguno: 403). Responde 200:
+
+```json
+{ "correlativo": "VIA-GT-12", "movimientos": [ { "id": 1, "tipo": "creada", "usuarioNombre": "Ana Pérez", "accion": "Creó la solicitud", "creadoEn": "2026-11-17T14:03:11.000Z" } ] }
+```
+
+- Orden cronológico (`id` ascendente). 404 si la solicitud no existe: el historial de una solicitud ya borrada (baja o vencimiento) **no se sirve**, se consulta directo en `viaticos_movimientos`.
+- La acción `historial` entra en `pipeline.acciones` de `GET /gestiones` y de `GET /gestiones/:id` (en cualquier fase) solo si quien consulta tiene `viaticos.ver_historial`; nunca en el pipeline de Solicitudes.
+- Cada movimiento se registra en `viaticos_movimientos` dentro de la misma transacción del cambio (se confirman o se deshacen juntos); la tabla es permanente (sin llaves foráneas), por eso sobrevive a la baja y al vencimiento. `usuario_id` NULL = el sistema (`usuarioNombre` «Sistema»).
+- Tipos y frases (`mensajes.js`, `movimiento.<tipo>`): `creada` «Creó la solicitud»; `modificada` «Modificó la solicitud»; `revisada` «Revisó el documento de la solicitud» (solo la primera vez de cada persona tras cada modificación); `autorizada` «Autorizó la solicitud»; `rechazada` «Rechazó la solicitud. Motivo: …»; `recibo_creado` «Creó el recibo <número> de <rubro> por <monto>»; `recibo_quitado` «Quitó el recibo <número>»; `comprobante_agregado` «Agregó un comprobante de <rubro> por <monto>»; `comprobante_quitado` «Quitó un comprobante de <rubro>»; `liquidada` «Liquidó la solicitud»; `vencida` «La solicitud venció tras el rechazo y pasó a borrador» (actor: el sistema); `dada_de_baja` «Dio de baja la solicitud». Los montos llevan el símbolo de la moneda de la solicitud.
 
 ## Vencimiento de una solicitud rechazada
 

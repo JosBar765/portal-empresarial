@@ -79,6 +79,14 @@ Un borrador es «nuevo» si `visto_en` es NULL y `origen_correlativo` no lo es: 
 | `viaticos_ajustes` | `rechazo_vigencia_horas` = 4 (horas corridas entre el rechazo y el vencimiento; se edita con `PUT /config/ajustes/:clave`, entre 1 y 168) |
 
 `rechazada_en` y `vencimiento_aviso_en` se ponen al rechazar y vuelven a NULL al modificar la solicitud (regresa a «esperando autorización»). Al vencer, un watcher (cada 60 s) crea el borrador y elimina la solicitud en una transacción. Las solicitudes ya rechazadas al migrar empezaron su plazo al aplicar la migración.
+### Historial de movimientos
+
+| Tabla | Columnas clave |
+|---|---|
+| `viaticos_movimientos` | `id`, `solicitud_id` (INT, **sin FK**), `correlativo` (copia), `tipo` (clave del movimiento), `usuario_id` (INT NULL, **sin FK**; NULL = el sistema), `usuario_nombre` (copia), `accion` (frase corta), `creado_en`; índices por `solicitud_id`, `correlativo` y `creado_en` |
+
+Tabla permanente (migración `viaticos_historial`): no tiene llaves foráneas a propósito, para que sus renglones sobrevivan a la baja y al vencimiento (que borran la solicitud y su `viaticos_historial` por CASCADE); por eso copia el correlativo y el nombre del actor. El historial de una solicitud borrada se consulta directo en esta tabla. La migración rellena los movimientos pasados desde `viaticos_historial` (creada, modificada, autorizada, rechazada con su motivo y liquidada; el primer renglón «esperando autorización» de cada solicitud es la creación) sin duplicar si se repite; los demás tipos (revisada, recibos, comprobantes, vencida, dada de baja) solo existen desde que el código los registra. `viaticos_historial` no cambia (alimenta el motivo del rechazo y el PDF).
+
 ### Vistos de solicitudes
 
 | Tabla | Columnas clave |
@@ -91,7 +99,7 @@ Dar de baja una solicitud la borra con sus hijas (`ON DELETE CASCADE`) y el serv
 
 ## Permisos (`permisos.modulo = 'viaticos'`)
 
-`viaticos.ver`, `viaticos.gestionar`, `viaticos.autorizar`, `viaticos.liquidar`, `viaticos.configurar`. Se insertan por `codigo` (sin id fijo) en la migración. Asignación (dueño): se crea el rol **Piloto** (nuevo, sin id fijo en la migración, buscado por nombre) con `viaticos.ver`, y el Administrador recibe los cinco. Cualquier otro rol (p. ej. Supervisor de Ventas, que también solicita viáticos) se asigna después desde Administración. Antes de F3 hay que verificar que Administración y los filtros por rol del código no asuman solo los roles 1 a 10.
+`viaticos.ver`, `viaticos.gestionar`, `viaticos.autorizar`, `viaticos.liquidar`, `viaticos.configurar`, `viaticos.ver_historial` (acción «Historial» de Gestiones; la migración `viaticos_historial` la asigna solo al Administrador). Se insertan por `codigo` (sin id fijo) en la migración. Asignación (dueño): se crea el rol **Piloto** (nuevo, sin id fijo en la migración, buscado por nombre) con `viaticos.ver`, y el Administrador recibe los cinco primeros (el sexto lo asigna su migración). Cualquier otro rol (p. ej. Supervisor de Ventas, que también solicita viáticos) se asigna después desde Administración. Antes de F3 hay que verificar que Administración y los filtros por rol del código no asuman solo los roles 1 a 10.
 
 ## Pendientes de confirmar
 
