@@ -30,9 +30,9 @@ Las comidas y la depreciación SÍ se liquidan, pero no con un comprobante de un
 - [x] T0. Mockup en Figma del modal del recibo (celular, tablet, PC) y su lugar en el modal de liquidación; aprobación del dueño.
 - [x] T1. Diseño técnico: modelo de datos del recibo (tabla propia o comprobante con datos de recibo), migración, ajuste de rubros (Alimentación, Depreciación) y del cálculo.
 - [x] T2. Servidor: cálculo de liquidación con comidas y depreciación; endpoints de vista previa, creación y borrado del recibo; número a letras; PDF del recibo con firma; bucket nuevo en `env.js` y `supabaseStorage`.
-- [ ] T3. Frontend: modal del recibo con firma dibujada (celular, tablet, PC) e integración en el modal de liquidación.
-- [ ] T4. Contabilidad y visor: recibos en la vista de solo lectura y en los documentos.
-- [ ] T5. Documentación del módulo (README, contrato, modelo de datos, plano del frontend) y `reglas_entornos.md` si aplica.
+- [x] T3. Frontend: modal del recibo con firma dibujada (celular, tablet, PC) e integración en el modal de liquidación.
+- [x] T4. Contabilidad y visor: recibos en la vista de solo lectura y en los documentos.
+- [x] T5. Documentación del módulo (README, contrato, modelo de datos, plano del frontend) y `reglas_entornos.md` si aplica.
 - [ ] T6. Pruebas: API y navegador (celular, tablet, PC).
 
 ## Rutas
@@ -68,5 +68,13 @@ Mockup creado (delegado a un trabajador de diseño; revisado por el padre con un
 - Sin probar por HTTP ni contra la BD (T6).
 - Entrega: el pronóstico supera ~400 líneas; la rama `module/viaticos` es la unidad de PR del dueño, así que no se encadena (excepción registrada).
 
+Revisión RDD tras el commit `b73e690`: `gentle-ai review assess` (base `ed37c9a`) → riesgo medio, `review_due: false` (`under_budget`); queda pendiente en el tramo.
+
+## Evidencia T3/T4 (2026-11-17, escritor delegado; revisado por el padre)
+- Nuevos: `actions/liquidacion/recibo.js`, `reciboDatos.js` (reglas puras), `components/firmaPantalla.js`, `css/recibo.css`. Cambiados: API, modal de liquidación, comprobantes (los rubros de recibo no se ofrecen como comprobante), resumen, vista de contabilidad («Comprobantes y recibos»; se corrigió la etiqueta vieja «(sin comidas)»), textos, `styles.css`, plano del frontend.
+- Escritor: `--check` de 10 archivos, carga de los 5 módulos con DOM simulado, claves de texto completas, 13 casos de reglas puras correctos. Padre: `--check` repetido sobre todos los JS cambiados, bien.
+- Límite conocido: la fecha futura se rechaza al validar (el selector de fecha no tiene máximo).
+- Sin probar en el navegador: falta que el dueño agregue la variable del bucket y aplique la migración 41 (T6).
+
 ## Próximo paso
-T3/T4: escritor del frontend.
+T6: pruebas por API y navegador, cuando el servidor local tenga la variable y la migración.

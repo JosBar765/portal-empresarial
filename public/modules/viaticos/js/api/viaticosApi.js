@@ -97,6 +97,19 @@ export function agregarComprobante(id, { archivo, tipoGastoId, monto, descripcio
 export const quitarComprobante = (id, comprobanteId) => pedir(`${BASE}/solicitudes/${id}/comprobantes/${comprobanteId}`, { method: 'DELETE' });
 export const liquidarSolicitud = (id) => pedir(`${BASE}/solicitudes/${id}/liquidar`, { method: 'POST' });
 
+// ---------- Recibos firmados de la liquidación ----------
+export const montoEnLetrasRecibo = (id, monto) => pedir(`${BASE}/solicitudes/${id}/recibos/letras`, enJson('POST', { monto }));
+
+// `datos`: { rubro, fecha, monto, recibiDe, concepto, formaPago, numeroCheque?, numeroCuenta?, idempotencyKey }; `firma`: PNG de la firma.
+export function crearRecibo(id, datos, firma) {
+  const formulario = new FormData();
+  formulario.append('datos', JSON.stringify(datos));
+  formulario.append('firma', firma, 'firma.png');
+  return pedir(`${BASE}/solicitudes/${id}/recibos`, { method: 'POST', body: formulario });
+}
+
+export const quitarRecibo = (id, reciboId) => pedir(`${BASE}/solicitudes/${id}/recibos/${reciboId}`, { method: 'DELETE' });
+
 // ---------- Gestiones (todas las solicitudes) ----------
 export const listarGestiones = (filtros) => pedir(`${BASE}/gestiones${consulta(filtros)}`);
 export const obtenerGestion = (id) => pedir(`${BASE}/gestiones/${id}`);

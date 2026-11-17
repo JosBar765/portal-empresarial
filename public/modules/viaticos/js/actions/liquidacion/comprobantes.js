@@ -1,11 +1,11 @@
 // Sección «Comprobantes liquidados»: los ya guardados (una fila con su información y su miniatura) y los borradores por guardar.
 // Toda cifra y todo cupo salen de la última respuesta del servidor; el cliente solo descuenta los borradores abiertos.
-import { h, icono } from '../../utils/dom.js';
+import { h, icono, montar } from '../../utils/dom.js';
 import { LIMITES_SOLICITUD } from '../../config/constantes.js';
 import { aId } from '../../utils/ids.js';
 import { formatearDinero, formatearTamano } from '../../utils/formato.js';
 import { tipoDeDocumento, tituloVisorComprobante, urlSegura } from '../../utils/documentos.js';
-import { agregarComprobante, crearLlaveIdempotencia, mensajesDeError, quitarComprobante } from '../../api/viaticosApi.js';
+import { agregarComprobante, crearLlaveIdempotencia, mensajesDeError, quitarComprobante, quitarRecibo } from '../../api/viaticosApi.js';
 import { confirmarModal } from '../../components/modal.js';
 import { abrirVisorArchivo } from '../../components/visorDocumento.js';
 import { crearCampo } from '../../components/campo.js';
@@ -26,8 +26,13 @@ export function miniatura({ url, tipo, etiquetaAria, alPulsar }) {
     imagen ? h('img', { src: url, alt: '', loading: 'lazy' }) : icono('document-outline'));
 }
 
+// Marca «Recibo» que distingue los recibos firmados de los comprobantes; también la usa la vista de contabilidad.
+export const etiquetaRecibo = () => h('span', { class: 'vi-etiqueta-recibo', text: t('liquidacion.recibo.etiqueta') });
+export const tituloVisorRecibo = (r) => t('liquidacion.recibo.visor', { numero: r.numero, rubro: r.rubroNombre || '' });
+
 // `obtenerLiq()` devuelve la última liquidación del servidor; `alActualizar(liq)` la reemplaza (resumen, pendientes y esta sección).
-export function crearComprobantes({ solicitudId, ajustes, obtenerLiq, alActualizar }) {
+// `alGenerarRecibo()` abre el modal del recibo (lo maneja el modal de liquidación, que lo apila encima).
+export function crearComprobantes({ solicitudId, ajustes, obtenerLiq, alActualizar, alGenerarRecibo }) {
   const borradores = [];
   let guardando = false;
   const urls = new Map(); // File -> URL temporal de su vista previa
@@ -101,9 +106,55 @@ export function crearComprobantes({ solicitudId, ajustes, obtenerLiq, alActualiz
     }
   }
 
+  // ---------- Recibos guardados: misma fila que un comprobante, con la marca «Recibo» y su PDF ----------
+  function filaRecibo(r, liq) {
+    const simbolo = liq.moneda ? liq.moneda.simbolo : '';
+    const quitar = liq.editable && crearBotonQuitar({ etiqueta: t('liquidacion.recibo.quitar.aria', { numero: r.numero }), alPulsar: (e) => quitarReciboGuardado(r, simbolo, e.currentTarget) });
+    return h('div', { class: 'vi-comp vi-comp--recibo', 'data-recibo': String(r.id) },
+      h('span', { class: 'vi-comp__titulo', text: t('liquidacion.recibo.n', { numero: r.numero }) }),
+      h('div', { class: 'vi-comp__info' },
+        etiquetaRecibo(),
+        campoDato(t('liquidacion.recibo.numero'), r.numero),
+        campoDato(t('liquidacion.col.rubro'), r.rubroNombre),
+        campoDato(t('liquidacion.col.monto', { simbolo }), formatearDinero(simbolo, r.monto)),
+        r.concepto && campoDato(t('recibo.concepto'), r.concepto, 'vi-comp__dato--ancho')),
+      h('div', { class: 'vi-comp__archivo' },
+        miniatura({
+          url: r.url, tipo: 'pdf', etiquetaAria: t('liquidacion.recibo.ver', { numero: r.numero, rubro: r.rubroNombre }),
+          alPulsar: (origen) => abrirVisorArchivo({ titulo: tituloVisorRecibo(r), url: r.url, tipo: 'pdf', origen })
+        }),
+        h('div', { class: 'vi-comp__meta' },
+          h('strong', { text: r.numero }),
+          h('small', { text: t('liquidacion.recibo.meta', { tamano: formatearTamano(r.tamano || 0) }) }))),
+      quitar || null);
+  }
+
+  async function quitarReciboGuardado(r, simbolo, boton) {
+    const clave = `recibo-${r.id}`;
+    if (quitando.has(clave) || guardando) return;
+    const confirmada = await confirmarModal({
+      title: t('liquidacion.recibo.quitar.titulo'),
+      mensaje: t('liquidacion.recibo.quitar.mensaje', { numero: r.numero, rubro: r.rubroNombre, monto: formatearDinero(simbolo, r.monto) }),
+      aceptar: t('liquidacion.quitar.confirmar'),
+      peligro: true
+    });
+    if (!confirmada) return;
+    quitando.add(clave);
+    boton.disabled = true;
+    try {
+      alActualizar(await quitarRecibo(solicitudId, r.id));
+      window.toast?.success(t('tab.solicitudes'), t('liquidacion.recibo.quitar.exito', { numero: r.numero }));
+    } catch (error) {
+      boton.disabled = false;
+      window.toast?.error(t('liquidacion.recibo.quitar.error'), mensajesDeError(error).join(' '));
+    } finally {
+      quitando.delete(clave);
+    }
+  }
+
   // ---------- Borradores ----------
   const esOtros = (liq, b) => {
-    const p = liq.pendientes.find(x => Number(x.tipoGastoId) === Number(b.tipoGastoId));
+    const p = liq.pendientes.find(x => !x.rubroRecibo && Number(x.tipoGastoId) === Number(b.tipoGastoId));
     return !!(p && p.esOtros);
   };
 
@@ -260,7 +311,7 @@ export function crearComprobantes({ solicitudId, ajustes, obtenerLiq, alActualiz
   function pintarBorradores(foco) {
     const activo = foco || (document.activeElement && document.activeElement.id);
     const liq = obtenerLiq();
-    vacio.hidden = liq.comprobantes.length > 0 || borradores.length > 0;
+    vacio.hidden = liq.comprobantes.length > 0 || recibosDe(liq).length > 0 || borradores.length > 0;
     bloqueBorradores.replaceChildren(...borradores.map(b => filaBorrador(b, liq)));
     pintarAgregar();
     if (activo) { const nodo = bloqueBorradores.querySelector(`#${CSS.escape(activo)}`); if (nodo && !nodo.disabled) nodo.focus(); }
@@ -269,12 +320,16 @@ export function crearComprobantes({ solicitudId, ajustes, obtenerLiq, alActualiz
   function pintarAgregar() {
     const liq = obtenerLiq();
     const puede = liq.editable && rubrosConCupo(liq.pendientes, borradores).length > 0;
-    contenedorAgregar.replaceChildren(...(puede ? [crearBotonAgregar({ texto: t('liquidacion.borrador.agregar'), alPulsar: agregarBorrador })] : []));
+    // «Generar recibo» va junto a «Agregar comprobante» mientras se pueda editar: los recibos «Otro» no tienen tope.
+    const recibo = liq.editable && alGenerarRecibo && h('button', { class: 'btn btn--ghost btn--sm vi-btn-agregar vi-btn-recibo', type: 'button', id: 'vi-liq-generar-recibo', onclick: alGenerarRecibo }, icono('receipt-outline'), t('liquidacion.recibo.generar'));
+    montar(contenedorAgregar, puede && crearBotonAgregar({ texto: t('liquidacion.borrador.agregar'), alPulsar: agregarBorrador }), recibo);
   }
+
+  const recibosDe = (liq) => (Array.isArray(liq.recibos) ? liq.recibos : []);
 
   function pintar() {
     const liq = obtenerLiq();
-    guardados.replaceChildren(...liq.comprobantes.map((c, i) => filaGuardada(c, liq, i)));
+    guardados.replaceChildren(...liq.comprobantes.map((c, i) => filaGuardada(c, liq, i)), ...recibosDe(liq).map(r => filaRecibo(r, liq)));
     // Si ya no se puede editar (p. ej. quedó liquidada) los borradores no tienen dónde guardarse.
     if (!liq.editable) borradores.splice(0).forEach(b => soltarUrl(b.archivo));
     pintarBorradores();

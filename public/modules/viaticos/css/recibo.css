@@ -1,0 +1,88 @@
+/* Recibos firmados: marca «Recibo» en las listas, modal del recibo y lienzo de firma a pantalla completa. Solo variables de global.css. Prefijo `vi-`. */
+
+/* ---------- Marca y filas de recibo (liquidación del solicitante y vista de contabilidad) ---------- */
+.vi-etiqueta-recibo {
+  display: inline-flex; align-self: center; align-items: center; padding: 2px 10px; border-radius: var(--radius-full);
+  background: var(--color-primary-light); border: 1px solid var(--color-primary-border); color: var(--color-primary);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap;
+}
+.vi-comp--recibo .vi-comp__info { align-items: center; }
+.vi-gl-rubro-recibo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.vi-agregar { flex-wrap: wrap; gap: 8px; }
+.vi-btn-recibo { display: inline-flex; align-items: center; gap: 6px; }
+.vi-btn-recibo ion-icon { font-size: 16px; }
+
+/* ---------- Modal del recibo ---------- */
+.vi-modal-recibo .modal-header { align-items: flex-start; }
+.vi-modal-recibo .modal-body { display: flex; flex-direction: column; gap: 14px; }
+.vi-modal-recibo .field-error { animation: none; }
+.vi-rec-form { display: flex; flex-direction: column; gap: 14px; }
+.vi-rec-fila { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.vi-rec-fila[hidden], .vi-rec-numero[hidden] { display: none; }
+.vi-rec-letras .vi-calculado__valor { white-space: normal; }
+.vi-modal-recibo .form-field textarea { min-height: 64px; }
+
+/* Rubros: un rubro deshabilitado se ve apagado y su motivo va debajo en texto. */
+.vi-rec-rubros .vi-segmentado__opcion:disabled { cursor: not-allowed; color: var(--color-text-muted); background: var(--color-surface-muted); }
+
+/* Forma de pago: tres radios en línea con su texto como objetivo táctil. */
+.vi-rec-pagos { display: flex; flex-wrap: wrap; gap: 8px; }
+.vi-rec-pago {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  background: var(--color-surface); font-size: var(--text-sm); color: var(--color-text); cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+.vi-rec-pago:has(input:checked) { border-color: var(--color-primary); background: var(--color-primary-light); }
+.vi-rec-pago:has(input:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.form-field .vi-rec-pago input[type="radio"] { width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--color-primary); box-shadow: none; }
+
+/* Firma: caja punteada con «FIRMAR» o la vista previa, y debajo la línea con el nombre y «Recibí conforme». */
+.vi-rec-firma__caja {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 110px; padding: 12px;
+  border: 1px dashed var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); text-align: center;
+}
+.form-field.is-invalid .vi-rec-firma__caja { border-color: var(--color-danger); }
+.vi-rec-firmar { display: inline-flex; align-items: center; gap: 6px; letter-spacing: 0.05em; }
+.vi-rec-firma__imagen { max-width: 100%; max-height: 120px; object-fit: contain; }
+.vi-rec-firma__pie { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: var(--text-sm); color: var(--color-text); }
+.vi-rec-firma__linea { width: min(280px, 100%); border-top: 1px solid var(--color-text-secondary); margin-bottom: 4px; }
+.vi-rec-firma__pie small { font-size: var(--text-xs); color: var(--color-text-secondary); }
+
+/* ---------- Lienzo de firma a pantalla completa (encima de los modales, debajo de los avisos) ---------- */
+.vi-firma {
+  position: fixed; inset: 0; z-index: 150; display: flex; flex-direction: column; gap: 12px;
+  padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left));
+  background: var(--color-surface); animation: fadeIn .15s var(--ease-out);
+}
+.vi-firma__cabecera h3 { margin: 0; font-family: var(--font-title); font-size: var(--text-md); font-weight: 700; color: var(--color-primary); }
+.vi-firma__area { position: relative; flex: 1; min-height: 160px; border: 1px dashed var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); overflow: hidden; }
+.vi-firma__lienzo { position: absolute; inset: 0; display: block; touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; }
+.vi-firma__guia { position: absolute; left: 10%; right: 10%; bottom: 14%; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; color: var(--color-text-secondary); font-size: var(--text-sm); }
+.vi-firma__linea { align-self: stretch; border-top: 1px solid var(--color-text-muted); margin-bottom: 4px; }
+.vi-firma__nombre { color: var(--color-text); }
+.vi-firma__conforme { font-size: var(--text-xs); }
+.vi-firma__pie { display: flex; justify-content: flex-end; gap: 10px; }
+.vi-firma__pie #vi-firma-limpiar { margin-right: auto; }
+
+/* ---------- Tablet y celular ---------- */
+@media (max-width: 640px) {
+  .vi-modal-recibo.modal-box { max-width: 100%; height: 100%; max-height: 100%; border-radius: 0; }
+  .modal-overlay:has(> .vi-modal-recibo) { padding: 0; }
+  .vi-rec-fila { grid-template-columns: minmax(0, 1fr); }
+  .vi-modal-recibo .vi-segmentado__opcion, .vi-rec-pago, .vi-modal-recibo .btn, .vi-modal-recibo .date-field-trigger { min-height: 44px; }
+  .vi-modal-recibo .form-field input:not([type="radio"]) { min-height: 44px; }
+  .vi-rec-pagos { flex-wrap: nowrap; }
+  .vi-rec-pago { flex: 1 1 0; min-width: 0; justify-content: center; padding: 0 6px; }
+  .vi-modal-recibo .modal-footer .btn { flex: 1; }
+  .vi-firma { gap: 8px; padding: calc(10px + var(--safe-top)) calc(10px + var(--safe-right)) calc(10px + var(--safe-bottom)) calc(10px + var(--safe-left)); }
+  .vi-firma__pie .btn { flex: 1; min-height: 44px; }
+  .vi-firma__pie #vi-firma-limpiar { margin-right: 0; }
+  .vi-comp--recibo .vi-comp__info > .vi-etiqueta-recibo { display: none; }
+  .vi-modal-liquidacion .vi-agregar .vi-btn-agregar { width: 100%; justify-content: center; }
+}
+
+/* Celular acostado: poco alto, así que el lienzo se queda con casi todo y la cabecera se reduce a una línea. */
+@media (max-height: 480px) {
+  .vi-firma #vi-firma-ayuda { display: none; }
+  .vi-firma__area { min-height: 120px; }
+}

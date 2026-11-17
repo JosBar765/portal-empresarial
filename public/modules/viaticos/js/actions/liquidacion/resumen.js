@@ -44,7 +44,7 @@ export function crearResumenLiquidacion() {
     }
     pendientes.replaceChildren(...liq.pendientes.map(p => {
       const completo = pendienteCompleto(p);
-      return h('div', { class: `vi-liq-rubro${completo ? ' is-completo' : ''}`, 'data-tipo-gasto': String(p.tipoGastoId) },
+      return h('div', { class: `vi-liq-rubro${completo ? ' is-completo' : ''}`, 'data-tipo-gasto': p.tipoGastoId == null ? null : String(p.tipoGastoId), 'data-rubro-recibo': p.rubroRecibo || null },
         h('div', { class: 'vi-liq-rubro__cab' },
           h('strong', { text: p.nombre }),
           completo && h('span', { class: 'vi-liq-rubro__visto', title: t('liquidacion.pendiente.completo') }, icono('checkmark-outline'), h('span', { class: 'vi-solo-lector', text: t('liquidacion.pendiente.completo') }))),

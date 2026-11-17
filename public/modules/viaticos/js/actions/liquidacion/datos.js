@@ -23,9 +23,10 @@ export function cupoRestante(pendiente, borradores = [], excluir = null) {
   return Math.max(0, Number(pendiente.solicitados) - Number(pendiente.liquidados) - reservados);
 }
 
-// Solo los rubros con cupo, cada uno con lo que le queda.
+// Solo los rubros con cupo, cada uno con lo que le queda. Alimentación y Depreciación (`rubroRecibo`) se liquidan con recibo, no con comprobante.
 export function rubrosConCupo(pendientes = [], borradores = [], excluir = null) {
   return pendientes
+    .filter(p => !p.rubroRecibo && p.tipoGastoId != null)
     .map(p => ({ tipoGastoId: p.tipoGastoId, nombre: p.nombre, esOtros: !!p.esOtros, restantes: cupoRestante(p, borradores, excluir) }))
     .filter(r => r.restantes > 0);
 }
@@ -34,6 +35,7 @@ export function rubrosConCupo(pendientes = [], borradores = [], excluir = null) 
 export function textoProgreso(pendiente, rubroNoches) {
   const noches = pendiente.nombre === rubroNoches;
   const uno = Number(pendiente.solicitados) === 1;
+  if (pendiente.rubroRecibo) return { clave: 'liquidacion.progreso.recibo', params: { liquidados: pendiente.liquidados, solicitados: pendiente.solicitados } };
   const clave = noches ? (uno ? 'liquidacion.progreso.nocheUna' : 'liquidacion.progreso.noches') : (uno ? 'liquidacion.progreso.comprobanteUno' : 'liquidacion.progreso.comprobantes');
   return { clave, params: { liquidados: pendiente.liquidados, solicitados: pendiente.solicitados } };
 }

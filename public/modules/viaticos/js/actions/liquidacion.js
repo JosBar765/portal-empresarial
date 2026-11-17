@@ -9,6 +9,7 @@ import { liquidarSolicitud, mensajesDeError, obtenerLiquidacion } from '../api/v
 import { registrarAccionPropia } from '../socket.js';
 import { crearResumenLiquidacion } from './liquidacion/resumen.js';
 import { crearComprobantes } from './liquidacion/comprobantes.js';
+import { abrirRecibo } from './liquidacion/recibo.js';
 import { t } from '../textos.js';
 
 // `alTerminar` recarga la lista tras liquidar (se recibe como función para no importar la vista: evita un ciclo de imports).
@@ -19,6 +20,7 @@ export function abrirLiquidacion(solicitud, { alTerminar } = {}) {
   let liquidando = false;
   let numeroCarga = 0;
   let comprobantes = null;
+  let reciboAbierto = false;
 
   const { overlay, cerrar } = abrirModal({
     title: t('liquidacion.titulo', { correlativo: solicitud.correlativo }),
@@ -29,6 +31,8 @@ export function abrirLiquidacion(solicitud, { alTerminar } = {}) {
     footerHtml: `<button class="btn btn--ghost" type="button" id="vi-liq-cerrar">${escapeHtml(t('comun.cerrar'))}</button>
       <button class="btn btn--primary" type="button" id="vi-liq-liquidar" disabled>${escapeHtml(t('liquidacion.liquidar'))}</button>`,
     antesDeCerrar: async () => {
+      // Cada modal escucha su propio Escape: con el recibo encima, solo se cierra el recibo.
+      if (reciboAbierto) return false;
       if (liquidando || (comprobantes && comprobantes.enCurso())) return false;
       if (!comprobantes || !comprobantes.hayBorradores()) return true;
       return confirmarModal({
@@ -94,7 +98,8 @@ export function abrirLiquidacion(solicitud, { alTerminar } = {}) {
         solicitudId: solicitud.id,
         ajustes: (state.contexto && state.contexto.ajustes) || null,
         obtenerLiq: () => liq,
-        alActualizar: aplicar
+        alActualizar: aplicar,
+        alGenerarRecibo: generarRecibo
       });
       cuerpo.replaceChildren(avisos, resumen.el, comprobantes.el);
       aplicar(respuesta);
@@ -105,8 +110,29 @@ export function abrirLiquidacion(solicitud, { alTerminar } = {}) {
     }
   }
 
+  function generarRecibo() {
+    if (reciboAbierto || !liq || !liq.editable || liquidando) return;
+    reciboAbierto = true;
+    abrirRecibo({
+      solicitudId: solicitud.id,
+      liq,
+      alCerrar: () => {
+        reciboAbierto = false;
+        const boton = overlay.querySelector('#vi-liq-generar-recibo');
+        if (boton && !cerrado) boton.focus();
+      },
+      alGuardar: (nueva, recibo) => {
+        if (cerrado) return;
+        aplicar(nueva);
+        window.toast?.success(t('tab.solicitudes'), t('recibo.guardado', { numero: recibo.numero }));
+        const nodo = overlay.querySelector(`[data-recibo="${recibo.id}"] .vi-comp__miniatura`);
+        if (nodo) nodo.focus();
+      }
+    });
+  }
+
   async function liquidar() {
-    if (liquidando || !liq || !liq.puedeLiquidar || (comprobantes && comprobantes.enCurso())) return;
+    if (liquidando || reciboAbierto || !liq || !liq.puedeLiquidar || (comprobantes && comprobantes.enCurso())) return;
     const mensaje = [
       t('liquidacion.confirmar.mensaje'),
       comprobantes.hayBorradores() && t('liquidacion.confirmar.borradores'),

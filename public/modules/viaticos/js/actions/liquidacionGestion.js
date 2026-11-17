@@ -1,4 +1,4 @@
-// Liquidación de solo lectura para contabilidad: cifras, diferencia, comprobantes y el PDF de la solicitud.
+// Liquidación de solo lectura para contabilidad: cifras, diferencia, comprobantes, recibos firmados y el PDF de la solicitud.
 import { h, icono } from '../utils/dom.js';
 import { RUBRO_HOSPEDAJE } from '../config/constantes.js';
 import { escapeHtml, formatearDinero, formatearTamano } from '../utils/formato.js';
@@ -7,7 +7,7 @@ import { abrirModal } from '../components/modal.js';
 import { crearAviso } from '../components/aviso.js';
 import { abrirVisorArchivo, abrirVisorSolicitud } from '../components/visorDocumento.js';
 import { mensajesDeError, obtenerLiquidacionGestion } from '../api/viaticosApi.js';
-import { miniatura } from './liquidacion/comprobantes.js';
+import { etiquetaRecibo, miniatura, tituloVisorRecibo } from './liquidacion/comprobantes.js';
 import { pendienteCompleto, textoProgreso } from './liquidacion/datos.js';
 import { claveTextoDiferencia, signoDiferencia, subtituloLiquidacion, textoDiferencia, tituloLiquidacionGestion } from './gestionDatos.js';
 import { t } from '../textos.js';
@@ -35,6 +35,24 @@ function filaComprobante(c, simbolo) {
       'vi-gl-celda-archivo'));
 }
 
+// El recibo usa las mismas columnas: rubro con la marca «Recibo», número y concepto como descripción, y su PDF.
+function filaRecibo(r, simbolo) {
+  const abrir = (origen) => abrirVisorArchivo({ titulo: tituloVisorRecibo(r), url: r.url, tipo: 'pdf', origen });
+  const aria = t('gestiones.liq.recibo.verAria', { numero: r.numero, rubro: r.rubroNombre });
+  const celda = (clave, contenido, clase = '', params) => h('td', { 'data-label': t(clave, params), class: clase || null }, contenido);
+  return h('tr', { 'data-recibo': String(r.id) },
+    celda('gestiones.liq.col.rubro', h('div', { class: 'vi-gl-rubro-recibo' }, etiquetaRecibo(), h('strong', { text: r.rubroNombre }))),
+    celda('gestiones.liq.col.descripcion', t('gestiones.liq.recibo.descripcion', { numero: r.numero, concepto: r.concepto || '' })),
+    celda('gestiones.liq.col.monto', formatearDinero('', r.monto), 'vi-gl-monto', { simbolo }),
+    celda('gestiones.liq.col.comprobante', h('div', { class: 'vi-gl-archivo' },
+      miniatura({ url: r.url, tipo: 'pdf', etiquetaAria: aria, alPulsar: abrir }),
+      h('div', { class: 'vi-comp__meta' },
+        h('strong', { text: r.numero }),
+        r.tamano != null && h('small', { text: t('gestiones.liq.recibo.meta', { tamano: formatearTamano(r.tamano) }) })),
+      h('button', { type: 'button', class: 'btn btn--ghost btn--sm vi-gl-ver', text: t('gestiones.liq.ver'), 'aria-label': aria, onclick: (e) => abrir(e.currentTarget) })),
+      'vi-gl-celda-archivo'));
+}
+
 function seccionRubros(liq) {
   if (!Array.isArray(liq.pendientes) || !liq.pendientes.length) return null;
   return h('section', { class: 'vi-liq-seccion', 'aria-labelledby': 'vi-gl-rubros-titulo' },
@@ -42,7 +60,7 @@ function seccionRubros(liq) {
     h('div', { class: 'vi-liq-pendientes', id: 'vi-gl-rubros' }, liq.pendientes.map(p => {
       const completo = pendienteCompleto(p);
       const progreso = textoProgreso(p, RUBRO_HOSPEDAJE);
-      return h('div', { class: `vi-liq-rubro${completo ? ' is-completo' : ''}`, 'data-tipo-gasto': String(p.tipoGastoId) },
+      return h('div', { class: `vi-liq-rubro${completo ? ' is-completo' : ''}`, 'data-tipo-gasto': p.tipoGastoId == null ? null : String(p.tipoGastoId), 'data-rubro-recibo': p.rubroRecibo || null },
         h('div', { class: 'vi-liq-rubro__cab' },
           h('strong', { text: p.nombre }),
           completo && h('span', { class: 'vi-liq-rubro__visto' }, icono('checkmark-outline'), h('span', { class: 'vi-solo-lector', text: t('liquidacion.pendiente.completo') }))),
@@ -90,11 +108,12 @@ export function abrirLiquidacionGestion(solicitud) {
     const simbolo = liq.moneda ? liq.moneda.simbolo : '';
     const signo = signoDiferencia(liq.diferencia);
     const comprobantes = Array.isArray(liq.comprobantes) ? liq.comprobantes : [];
-    const tabla = comprobantes.length
+    const recibos = Array.isArray(liq.recibos) ? liq.recibos : [];
+    const tabla = comprobantes.length || recibos.length
       ? h('div', { class: 'tabla-wrapper vi-gl-tabla-wrapper', tabindex: '0', role: 'region', 'aria-label': t('gestiones.liq.comprobantes') },
         h('table', { class: 'vi-gl-tabla', id: 'vi-gl-tabla' },
           h('thead', null, h('tr', null, ['rubro', 'descripcion', 'monto', 'comprobante'].map(c => h('th', { text: t(`gestiones.liq.col.${c}`, { simbolo }) })))),
-          h('tbody', null, comprobantes.map(c => filaComprobante(c, simbolo)))))
+          h('tbody', null, comprobantes.map(c => filaComprobante(c, simbolo)), recibos.map(r => filaRecibo(r, simbolo)))))
       : h('p', { class: 'vi-ayuda vi-vacio', id: 'vi-gl-vacio', text: t('gestiones.liq.sinComprobantes') });
 
     cuerpo.replaceChildren(
