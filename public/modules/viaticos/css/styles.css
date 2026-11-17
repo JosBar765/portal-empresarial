@@ -437,6 +437,32 @@
   box-shadow: -1px 0 0 var(--color-border);
 }
 
+/* Encabezado ordenable: un botón sin aspecto de botón que hereda la tipografía del th. */
+.vi-th-orden {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.vi-th-orden ion-icon {
+  font-size: 14px;
+  opacity: 0.4;
+}
+
+.vi-th-orden:hover ion-icon,
+.vi-th-orden:focus-visible ion-icon,
+.vi-th-orden--activo ion-icon {
+  opacity: 1;
+}
+
 /* Las celdas de encabezado fijas van sobre las demás; el selector repite `.sticky-header` para ganar en especificidad a global.css. */
 .buzon-table.sticky-header th:first-child,
 .buzon-table.sticky-header th:last-child {

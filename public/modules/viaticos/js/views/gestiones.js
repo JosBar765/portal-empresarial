@@ -10,7 +10,7 @@ import { autorizar, rechazar } from '../actions/gestionAcciones.js';
 import { abrirLiquidacionGestion } from '../actions/liquidacionGestion.js';
 import { registrarRecarga } from '../socket.js';
 import { aplicarPeriodoAConsulta, periodoInicial } from '../utils/periodo.js';
-import { escapeHtml } from '../utils/formato.js';
+import { htmlCabecera, ordenar, siguienteOrden } from '../utils/ordenTabla.js';
 import { t } from '../textos.js';
 
 const ESPERA_BUSQUEDA_MS = 300;
@@ -51,7 +51,7 @@ function pintarTabla() {
       : estado('document-outline', t('gestiones.vacio.titulo'), t('gestiones.vacio.texto'))));
     return;
   }
-  tbody.innerHTML = gestiones.map(htmlFilaGestion).join('');
+  tbody.innerHTML = ordenar(gestiones, state.ordenGestion).map(htmlFilaGestion).join('');
 }
 
 // `conEstado`: muestra «cargando» y vuelve la tabla arriba (cambio de período o de búsqueda). Un refresco en vivo no mueve nada.
@@ -128,7 +128,16 @@ async function alPulsarFila(evento) {
   }
 }
 
-const htmlCabeceras = () => COLUMNAS.map(clave => `<th>${escapeHtml(t(`gestiones.col.${clave}`))}</th>`).join('');
+const htmlCabeceras = () => COLUMNAS.map(clave => htmlCabecera(clave, t(`gestiones.col.${clave}`), state.ordenGestion)).join('');
+
+// Ordena en el navegador la lista ya cargada; sin datos todavía (cargando o error) solo cambia el encabezado.
+function alOrdenar(evento) {
+  const boton = evento.target.closest('[data-orden]');
+  if (!boton) return;
+  state.ordenGestion = siguienteOrden(state.ordenGestion, boton.dataset.orden);
+  evento.currentTarget.querySelector('tr').innerHTML = htmlCabeceras();
+  if (hayDatos) pintarTabla();
+}
 
 export function renderGestiones(contenedor) {
   if (vista && vista.barra) vista.barra.cerrar();
@@ -146,7 +155,7 @@ export function renderGestiones(contenedor) {
   });
   const tbody = h('tbody', { id: 'vi-gestiones-tbody', onclick: alPulsarFila });
   const tabla = h('table', { class: 'buzon-table data-table sticky-header' },
-    h('thead', null, h('tr', { html: htmlCabeceras() })), tbody);
+    h('thead', { onclick: alOrdenar }, h('tr', { html: htmlCabeceras() })), tbody);
   const zona = h('div', { class: 'tabla-wrapper', tabindex: '0', role: 'region', 'aria-label': t('gestiones.tablaAria') }, tabla);
 
   montar(contenedor,

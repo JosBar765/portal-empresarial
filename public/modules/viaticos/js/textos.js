@@ -73,6 +73,7 @@ export const TEXTOS = {
   'solicitudes.col.tipo': 'Tipo',
   'solicitudes.col.estado': 'Estado',
   'solicitudes.col.acciones': 'Acciones',
+  'orden.ordenarPor': 'Ordenar por {columna}',
   'solicitudes.tipo.mas_de_un_dia': '+1 día',
   'solicitudes.tipo.hasta_un_dia': '1 día o menos',
   'solicitudes.resumen.una': '1 solicitud',

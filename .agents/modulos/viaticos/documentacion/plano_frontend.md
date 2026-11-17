@@ -71,6 +71,10 @@ Sin `credentials` (mismo origen). `pedir(url, opciones)` envuelve el fallo de re
 
 Abrir «Ver documentos» en Gestiones (`abrirVisorSolicitud(..., { gestion: true, alMostrar })`) registra el visto con `registrarVistoGestion` cuando los documentos ya se pudieron mostrar. Mientras la fila trae `visto === false`, Autorizar y Rechazar salen deshabilitados (`disabled`, `aria-disabled` y un `title` que dice que se abra «Ver» primero); al registrarse se repintan solo los botones de esa fila, sin recargar la lista. `gestionAcciones.js` también se niega a abrir la decisión sin visto y, ante el 400 del servidor, recarga la lista. Es solo ayuda visual: el servidor es quien lo exige. Textos: `gestiones.accion.requiereVer` y `gestiones.visto.*`.
 
+## Orden por encabezado
+
+En Solicitudes y Gestiones, los encabezados «Correlativo», «Fecha creación» y «Fecha viáticos» (esta ordena por la fecha de salida) son botones (`utils/ordenTabla.js`, clase `vi-th-orden`, `aria-sort`). Cada clic cicla ascendente, descendente y sin orden (vuelve al orden por estados del servidor). Se ordena en el navegador sobre la lista ya cargada, sin pedir al servidor; el correlativo compara en forma numérica para que `VIA-GT-26` quede después de `VIA-GT-000025`. El orden vive en `state.ordenSolicitudes` y `state.ordenGestion`, y sobrevive a recargas y a cambiar de pestaña. En celular (tarjetas) los encabezados no se ven, así que no hay orden.
+
 ## Tablas y móvil
 
 `.tabla-wrapper[tabindex=0][role=region]` → `table.buzon-table.data-table.sticky-header`; cada `td` lleva `data-label` y la de acciones `.acciones-cell`; en ≤900 px cada fila es una tarjeta (`::before{content:attr(data-label)}`); objetivos táctiles de 44 px a ≤640 px. Tabla fija en escritorio con `body.vista-tabla-fija` (solo desde 901 px; `--sep-buzon` 16 px). Fila vacía: `td.tabla-vacia`. Los modales a ≤480 px ocupan la pantalla.

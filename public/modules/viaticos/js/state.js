@@ -14,6 +14,9 @@ export const state = {
   // Gestiones lleva su propio período y búsqueda para no pisar los de Solicitudes.
   ventanaGestion: null,
   busquedaGestion: '',
+  // Orden por encabezado de cada tabla: { clave, direccion } o null (orden por estados del servidor).
+  ordenSolicitudes: null,
+  ordenGestion: null,
   // id de solicitud -> marca de tiempo de la acción propia, para no avisarle al usuario lo que él mismo hizo.
   accionesPropias: new Map()
 };

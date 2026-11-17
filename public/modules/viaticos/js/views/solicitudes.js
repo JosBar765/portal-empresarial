@@ -12,7 +12,7 @@ import { abrirLiquidacion } from '../actions/liquidacion.js';
 import { darDeBaja } from '../actions/solicitudAcciones.js';
 import { registrarRecarga } from '../socket.js';
 import { aplicarPeriodoAConsulta, periodoInicial } from '../utils/periodo.js';
-import { escapeHtml } from '../utils/formato.js';
+import { htmlCabecera, ordenar, siguienteOrden } from '../utils/ordenTabla.js';
 import { t } from '../textos.js';
 
 const ESPERA_BUSQUEDA_MS = 300;
@@ -56,7 +56,7 @@ function pintarTabla() {
       : estado('document-outline', t('solicitudes.vacio.titulo'), t('solicitudes.vacio.texto'))));
     return;
   }
-  tbody.innerHTML = solicitudes.map(htmlFilaSolicitud).join('');
+  tbody.innerHTML = ordenar(solicitudes, state.ordenSolicitudes).map(htmlFilaSolicitud).join('');
 }
 
 // `conEstado`: muestra «cargando» y vuelve la tabla arriba (cambio de período o de búsqueda). Un refresco en vivo no mueve nada.
@@ -112,7 +112,16 @@ async function alPulsarFila(evento) {
 
 function htmlCabeceras() {
   return ['correlativo', 'fechaCreacion', 'fechaViaticos', 'tipo', 'estado', 'acciones']
-    .map(clave => `<th>${escapeHtml(t(`solicitudes.col.${clave}`))}</th>`).join('');
+    .map(clave => htmlCabecera(clave, t(`solicitudes.col.${clave}`), state.ordenSolicitudes)).join('');
+}
+
+// Ordena en el navegador la lista ya cargada; sin datos todavía (cargando o error) solo cambia el encabezado.
+function alOrdenar(evento) {
+  const boton = evento.target.closest('[data-orden]');
+  if (!boton) return;
+  state.ordenSolicitudes = siguienteOrden(state.ordenSolicitudes, boton.dataset.orden);
+  evento.currentTarget.querySelector('tr').innerHTML = htmlCabeceras();
+  if (hayDatos) pintarTabla();
 }
 
 export function renderSolicitudes(contenedor) {
@@ -132,7 +141,7 @@ export function renderSolicitudes(contenedor) {
   });
   const tbody = h('tbody', { id: 'vi-solicitudes-tbody', onclick: alPulsarFila });
   const tabla = h('table', { class: 'buzon-table data-table sticky-header' },
-    h('thead', null, h('tr', { html: htmlCabeceras() })), tbody);
+    h('thead', { onclick: alOrdenar }, h('tr', { html: htmlCabeceras() })), tbody);
   const zona = h('div', { class: 'tabla-wrapper', tabindex: '0', role: 'region', 'aria-label': t('solicitudes.tablaAria') }, tabla);
 
   montar(contenedor,
