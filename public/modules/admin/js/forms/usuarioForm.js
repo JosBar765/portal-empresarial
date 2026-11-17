@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { escapeHtml } from '../utils/formato.js';
-import { ROL_ASESOR, ROL_SUPERVISOR, ROLES_ENCARGADO_UNICO } from '../config/roles.js';
+import { ROL_ASESOR, ROLES_ENCARGADO_UNICO } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { crearMenuCascada, construirArbolRoles } from '../components/menuCascada.js';
 import { listarRolesRaw, listarUsuariosRaw, obtenerOrganizacion, guardarUsuario } from '../api/adminApi.js';
@@ -24,6 +24,13 @@ export async function abrirModalUsuario(usuario) {
 
   const rolesAsignables = roles.filter(r => r.activo);
   let rolIdActual = esEdicion ? Number(usuario.rol_id) : (rolesAsignables[0] ? rolesAsignables[0].id : null);
+
+  // Tienen teléfono el asesor y los roles con el permiso de supervisar, no un rol fijo.
+  const llevaTelefono = (rolId) => {
+    if (rolId === ROL_ASESOR) return true;
+    const rol = roles.find(r => Number(r.id) === Number(rolId));
+    return Boolean(rol && rol.es_supervisor);
+  };
 
   function deshabilitarRol(nodo) {
     if (!ROLES_ENCARGADO_UNICO.includes(Number(nodo.valor))) return null;
@@ -73,7 +80,7 @@ export async function abrirModalUsuario(usuario) {
   const numeroTelActual = restoTel.join(' ');
   function renderTelefono() {
     const zona = overlay.querySelector('#zona-telefono');
-    if (rolIdActual !== ROL_ASESOR && rolIdActual !== ROL_SUPERVISOR) {
+    if (!llevaTelefono(rolIdActual)) {
       zona.innerHTML = '';
       return;
     }
@@ -117,7 +124,7 @@ export async function abrirModalUsuario(usuario) {
       password: overlay.querySelector('#input-password') ? overlay.querySelector('#input-password').value : '',
       rolId: rolIdActual
     };
-    if (rolIdActual === ROL_ASESOR || rolIdActual === ROL_SUPERVISOR) {
+    if (llevaTelefono(rolIdActual)) {
       const paisTel = overlay.querySelector('#input-telefono-pais').value;
       const numTel = overlay.querySelector('#input-telefono').value.trim();
       payload.telefono = numTel ? `${paisTel} ${numTel}` : '';

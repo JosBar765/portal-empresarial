@@ -12,7 +12,7 @@ Caso de uso: un asesor de El Salvador que ve licitaciones y solo deben autorizar
 - El vale sigue a la asignación vigente: la autorización se calcula al autorizar, dentro del candado del vale.
 
 ## Administración
-Pestaña Usuarios, icono «Supervisión especial» de un asesor (rol 2). `GET /api/admin/asesores/:id/supervisores` devuelve la asignación, los supervisores asignables (activos, rol 3 con `vales.supervisar`), quién autoriza hoy, los supervisores de su tienda y los vales que esperan acción (autorización o solicitud de modificación). `PUT` con `{ supervisorIds: [...] }` **reemplaza** el conjunto; una lista vacía quita la asignación. El PUT exige `admin.tiendas.gestionar` y valida con mensajes explicativos: asesor existente, supervisores existentes, activos, rol 3 con permiso y sin repetidos.
+Pestaña Usuarios, icono «Supervisión especial» de un asesor (rol 2). `GET /api/admin/asesores/:id/supervisores` devuelve la asignación, los supervisores asignables (activos, de cualquier rol con `vales.supervisar`), quién autoriza hoy, los supervisores de su tienda y los vales que esperan acción (autorización o solicitud de modificación). `PUT` con `{ supervisorIds: [...] }` **reemplaza** el conjunto; una lista vacía quita la asignación. El PUT exige `admin.tiendas.gestionar` y valida con mensajes explicativos: asesor existente, supervisores existentes, activos, con el permiso `vales.supervisar` y sin repetidos.
 
 Antes de confirmar, el modal advierte: «Este asesor tiene N vales esperando autorización; pasarán a ser autorizados por: [nombres]. Los supervisores de su tienda dejarán de verlos.»
 

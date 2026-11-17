@@ -1,0 +1,186 @@
+// src/modules/viaticos/services/archivosViaticoService.js
+// Archivos del módulo (fotos de defectos, comprobantes y recibos): validación contra los ajustes, subida a Storage y borrado.
+const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
+const { tipoRealCoincide } = require('../../../core/files/fileSignature');
+const { excedeElLimiteDePixeles } = require('../../../core/files/imagenDimensiones');
+const subirYRegistrarArchivo = require('../../../core/files/subirYRegistrarArchivo');
+const { StorageUploadError } = require('../../../core/files/errores');
+const supabaseStorage = require('../../../core/files/supabaseStorage');
+const nombreArchivo = require('../../../core/files/nombreArchivo');
+const ajusteRepo = require('../repositories/ajusteRepository');
+const { MODALIDADES, ARCHIVOS, RECIBOS } = require('../constantes');
+const { parsearJson } = require('../utilidades');
+const { msg } = require('../mensajes');
+
+const BYTES_POR_MB = 1024 * 1024;
+
+// El navegador puede declarar «image/jpg»; Storage y la base usan el tipo canónico.
+const tipoCanonico = mime => (mime === 'image/jpg' ? 'image/jpeg' : mime);
+
+// Tipos y tamaño máximo vigentes (viaticos_ajustes); sin ellos no se puede validar nada.
+async function leerAjustes() {
+  const filas = await ajusteRepo.listar();
+  const valor = clave => {
+    const fila = filas.find(f => f.clave === clave);
+    return fila ? parsearJson(fila.valor) : null;
+  };
+  const tipos = valor(ARCHIVOS.AJUSTE_TIPOS);
+  const maxMb = Number(valor(ARCHIVOS.AJUSTE_MAX_MB));
+  if (!Array.isArray(tipos) || tipos.length === 0 || !(maxMb > 0)) throw new ErrorDeNegocio(msg('archivo.ajustesFaltan'), 400);
+  return { tipos, maxMb, maxBytes: maxMb * BYTES_POR_MB };
+}
+
+// Errores de un archivo suelto: tipo declarado, contenido real, tamaño y dimensiones.
+function erroresDeArchivo(archivo, ajustes, campo) {
+  const nombre = String(archivo.originalname || '').slice(0, 80);
+  const mime = tipoCanonico(archivo.mimetype);
+  const falla = mensaje => [{ campo, mensaje }];
+  if (!ajustes.tipos.includes(mime)) return falla(msg('archivo.tipoNoPermitido', { nombre, tipo: mime || 'desconocido', permitidos: ajustes.tipos.join(', ') }));
+  if (!tipoRealCoincide(archivo.buffer, mime)) return falla(msg('archivo.contenidoNoCoincide', { nombre, tipo: mime }));
+  if (archivo.size > ajustes.maxBytes) {
+    return falla(msg('archivo.demasiadoGrande', { nombre, tamano: (archivo.size / BYTES_POR_MB).toFixed(1), max: ajustes.maxMb }));
+  }
+  if (mime.startsWith('image/') && excedeElLimiteDePixeles(archivo.buffer, mime)) return falla(msg('archivo.dimensiones', { nombre }));
+  return [];
+}
+
+// Los defectos con `defectoId` conservan su foto: solo al modificar (`previos` es el Set de ids de la solicitud; null al crear), existentes y sin repetir.
+function validarConservados(defectos, previos) {
+  const errores = [];
+  const vistos = new Set();
+  defectos.forEach((defecto, i) => {
+    if (defecto.defectoId === null || defecto.defectoId === undefined) return;
+    const campo = `inspeccion.defectos[${i}]`;
+    const numero = i + 1;
+    if (previos === null) errores.push({ campo, mensaje: msg('defecto.conservarSoloAlModificar', { numero }) });
+    else if (!previos.has(defecto.defectoId)) errores.push({ campo, mensaje: msg('defecto.noEsDeLaSolicitud', { numero, id: defecto.defectoId }) });
+    else if (vistos.has(defecto.defectoId)) errores.push({ campo, mensaje: msg('defecto.conservadoRepetido', { id: defecto.defectoId }) });
+    vistos.add(defecto.defectoId);
+  });
+  return errores;
+}
+
+// Cada defecto trae una foto nueva (`archivoIndice`) o conserva la suya (`defectoId`), nunca ambas; no pueden sobrar fotos ni repetirse.
+function validarDefectos({ datos, archivos, ajustes, previos = null }) {
+  if (datos.modalidad === MODALIDADES.MAS_DE_UN_DIA) {
+    return archivos.length > 0 ? [{ campo: ARCHIVOS.CAMPO_DEFECTOS, mensaje: msg('defecto.archivosSinInspeccion') }] : [];
+  }
+  const defectos = datos.inspeccion ? datos.inspeccion.defectos : [];
+  const errores = validarConservados(defectos, previos);
+  const usados = new Set();
+  defectos.forEach((defecto, i) => {
+    const campo = `inspeccion.defectos[${i}]`;
+    const nueva = defecto.archivoIndice !== null && defecto.archivoIndice !== undefined;
+    const conserva = defecto.defectoId !== null && defecto.defectoId !== undefined;
+    if (nueva && conserva) return errores.push({ campo, mensaje: msg('defecto.ambosOrigenes', { numero: i + 1 }) });
+    if (!nueva && !conserva) return errores.push({ campo, mensaje: msg('defecto.sinOrigen', { numero: i + 1 }) });
+    if (conserva) return undefined;
+    const archivo = archivos[defecto.archivoIndice];
+    if (!archivo) errores.push({ campo, mensaje: msg('defecto.sinArchivo', { numero: i + 1, indice: defecto.archivoIndice }) });
+    else if (usados.has(defecto.archivoIndice)) errores.push({ campo, mensaje: msg('defecto.archivoRepetido', { indice: defecto.archivoIndice }) });
+    else errores.push(...erroresDeArchivo(archivo, ajustes, campo));
+    usados.add(defecto.archivoIndice);
+    return undefined;
+  });
+  if (archivos.some((_, indice) => !usados.has(indice))) {
+    errores.push({ campo: ARCHIVOS.CAMPO_DEFECTOS, mensaje: msg('defecto.archivoSobrante', { cantidad: archivos.length, usadas: usados.size }) });
+  }
+  return errores;
+}
+
+// Sube las fotos nuevas en orden y registra cada defecto; `subidas` acumula las URLs para poder deshacer si algo falla después.
+// `etapa` es CREACION o CORRECCION (ETAPAS_DOCUMENTO). `existentes` son las URLs de todas las fotos previas: el contador de la etapa sigue desde ellas para no repetir nombres.
+// `conservados` mapea defectoId a su fila previa (ruta, mimeType, tamano): esos defectos se registran con la misma foto y sin tocar Storage.
+async function subirDefectos({ correlativo, etapa, defectos, archivos, existentes = [], conservados = new Map(), registrar, subidas }) {
+  let contador = nombreArchivo.siguienteContador(existentes, nombreArchivo.prefijoAdjunto(correlativo, ARCHIVOS.TIPO_NOMBRE_DEFECTO, etapa));
+  for (const defecto of defectos) {
+    if (defecto.defectoId !== null && defecto.defectoId !== undefined) {
+      const previo = conservados.get(defecto.defectoId);
+      await registrar({ ...defecto, ruta: previo.ruta, mimeType: previo.mimeType, tamano: previo.tamano });
+      continue;
+    }
+    const archivo = archivos[defecto.archivoIndice];
+    const mimeType = tipoCanonico(archivo.mimetype);
+    await subirYRegistrarArchivo({
+      buffer: archivo.buffer,
+      nombreOriginal: archivo.originalname,
+      mimeType,
+      storage: supabaseStorage.viaticos,
+      nombreObjeto: nombreArchivo.adjunto(correlativo, ARCHIVOS.TIPO_NOMBRE_DEFECTO, etapa, contador),
+      registrar: async subida => {
+        await registrar({ ...defecto, ruta: subida.url, mimeType, tamano: subida.size });
+        subidas.push(subida.url);
+      }
+    });
+    contador += 1;
+  }
+}
+
+// Sube el comprobante como <CORR>_LIQUIDACION_<RUBRO>_X. Storage no sobrescribe y fuera de producción el borrado no actúa, así que un nombre
+// que quedó sin borrar choca: ante «ya existe» se prueba el contador siguiente (hasta ARCHIVOS.INTENTOS_NOMBRE intentos).
+// `existentes` son las URLs de los comprobantes vigentes del mismo rubro. Devuelve el nombre que quedó guardado y los intentos usados.
+async function subirComprobante({ correlativo, rubro, archivo, existentes = [], registrar, subidas }) {
+  return subirConNombreLibre({
+    storage: supabaseStorage.viaticos,
+    contador: nombreArchivo.siguienteContador(existentes, nombreArchivo.prefijoLiquidacion(correlativo, rubro)),
+    nombreDe: contador => nombreArchivo.liquidacion(correlativo, rubro, contador),
+    buffer: archivo.buffer, nombreOriginal: archivo.originalname, mimeType: tipoCanonico(archivo.mimetype),
+    registrar, subidas, agotado: nombre => msg('liquidacion.nombreAgotado', { rubro, intentos: ARCHIVOS.INTENTOS_NOMBRE, nombre })
+  });
+}
+
+// Sube el PDF del recibo a su propio bucket como <CORR>_LIQUIDACION_RECIBO_<RUBRO>_X, con el mismo contador y reintentos que los comprobantes.
+async function subirRecibo({ correlativo, rubro, pdf, nombreOriginal, existentes = [], registrar, subidas }) {
+  return subirConNombreLibre({
+    storage: supabaseStorage.viaticosRecibos,
+    contador: nombreArchivo.siguienteContador(existentes, nombreArchivo.prefijoRecibo(correlativo, rubro)),
+    nombreDe: contador => nombreArchivo.recibo(correlativo, rubro, contador),
+    buffer: pdf, nombreOriginal, mimeType: RECIBOS.MIME_PDF,
+    registrar, subidas, agotado: nombre => msg('recibo.nombreAgotado', { rubro, intentos: ARCHIVOS.INTENTOS_NOMBRE, nombre })
+  });
+}
+
+// Storage no sobrescribe: ante «ya existe» se prueba el contador siguiente (hasta ARCHIVOS.INTENTOS_NOMBRE intentos).
+async function subirConNombreLibre({ storage, contador: inicial, nombreDe, buffer, nombreOriginal, mimeType, registrar, subidas, agotado }) {
+  let contador = inicial;
+  let nombreObjeto = null;
+  for (let intento = 1; intento <= ARCHIVOS.INTENTOS_NOMBRE; intento += 1) {
+    nombreObjeto = nombreDe(contador);
+    try {
+      await subirYRegistrarArchivo({
+        buffer,
+        nombreOriginal,
+        mimeType,
+        storage,
+        nombreObjeto,
+        registrar: async subida => {
+          await registrar({ ruta: subida.url, mimeType, tamano: subida.size });
+          subidas.push(subida.url);
+        }
+      });
+      return { nombreObjeto, intentos: intento };
+    } catch (error) {
+      if (!(error instanceof StorageUploadError) || !ARCHIVOS.PATRON_NOMBRE_DUPLICADO.test(error.message)) throw error;
+      contador += 1;
+    }
+  }
+  throw new ErrorDeNegocio(agotado(nombreObjeto), 409);
+}
+
+// Borra de Storage (solo actúa en producción; ver supabaseStorage.eliminar). Un fallo se registra y no interrumpe.
+// `storage` debe ser el bucket donde vive el archivo: con otro, el nombre podría coincidir con un objeto ajeno.
+async function eliminarArchivos(urls, storage = supabaseStorage.viaticos) {
+  for (const url of urls.filter(Boolean)) {
+    try {
+      await storage.eliminar(url);
+    } catch (error) {
+      console.error('[Viáticos] No se pudo borrar un archivo de Storage:', error.message);
+    }
+  }
+}
+
+const eliminarRecibos = urls => eliminarArchivos(urls, supabaseStorage.viaticosRecibos);
+
+module.exports = {
+  leerAjustes, erroresDeArchivo, validarConservados, validarDefectos, subirDefectos, subirComprobante, subirRecibo, eliminarArchivos, eliminarRecibos, tipoCanonico
+};
