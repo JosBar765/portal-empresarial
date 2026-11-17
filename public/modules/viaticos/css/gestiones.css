@@ -1,0 +1,55 @@
+/* Pestaña «Gestiones»: solicitante, confirmación de autorizar, motivo del rechazo y liquidación de solo lectura. Solo variables de global.css. Prefijo `vi-`. */
+
+/* ---------- Columna Solicitante: nombre y país ---------- */
+.vi-solicitante { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.vi-solicitante strong { font-weight: 700; color: var(--color-text); }
+.vi-solicitante__pais { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+/* ---------- Confirmación de autorizar: resumen de la solicitud ---------- */
+.vi-confirmar-detalle { display: flex; flex-direction: column; gap: 6px; margin: 16px 0 0; padding: 12px 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
+.vi-confirmar-detalle__fila { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.vi-confirmar-detalle dt { font-size: var(--text-sm); color: var(--color-text-secondary); }
+.vi-confirmar-detalle dd { margin: 0; font-size: var(--text-sm); font-weight: 700; color: var(--color-text); text-align: right; overflow-wrap: anywhere; }
+.vi-confirmar-detalle__fila.is-destacado dd { font-family: var(--font-title); font-size: var(--text-md); }
+
+/* ---------- Rechazo: motivo libre con contador ---------- */
+.vi-rechazo-campo { margin-top: 16px; }
+.vi-rechazo-campo textarea { min-height: 104px; }
+.vi-rechazo-contador { align-self: flex-end; font-size: var(--text-xs); color: var(--color-text-muted); }
+.vi-rechazo-contador.is-excedido { font-weight: 700; color: var(--color-danger); }
+
+/* ---------- Liquidación de solo lectura ---------- */
+.vi-modal-liqgestion .vi-liq-tarjetas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.vi-liq-tarjeta__nota { font-size: var(--text-xs); color: var(--color-text-secondary); }
+.vi-gl-diferencia--cero .vi-liq-tarjeta__valor { color: var(--color-success); }
+.vi-gl-diferencia--mas .vi-liq-tarjeta__valor { color: var(--color-warning); }
+.vi-gl-diferencia--menos .vi-liq-tarjeta__valor { color: var(--color-primary); }
+.vi-gl-cabecera { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.vi-gl-cabecera .vi-form-seccion__titulo { margin: 0; }
+
+.vi-gl-tabla-wrapper { overflow-x: auto; }
+.vi-gl-tabla { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.vi-gl-tabla th { padding: 10px 12px; background: var(--color-bg); border-bottom: 1px solid var(--color-border); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-align: left; text-transform: uppercase; color: var(--color-text-secondary); }
+.vi-gl-tabla td { padding: 10px 12px; border-bottom: 1px solid var(--color-border); vertical-align: middle; color: var(--color-text); overflow-wrap: anywhere; }
+.vi-gl-monto { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vi-gl-archivo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.vi-gl-archivo .vi-comp__meta { max-width: 180px; }
+
+/* ---------- Celulares: tarjetas con la información a la izquierda y la miniatura de 56 px a la derecha, objetivos táctiles de 44 px ---------- */
+@media (max-width: 640px) {
+  .vi-modal-liqgestion .vi-liq-tarjetas { grid-template-columns: minmax(0, 1fr); }
+  .vi-gl-cabecera { flex-direction: column; align-items: stretch; }
+  .vi-gl-cabecera .btn { width: 100%; min-height: 44px; }
+  .vi-gl-tabla, .vi-gl-tabla tbody { display: block; width: 100%; }
+  .vi-gl-tabla thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .vi-gl-tabla tr { display: grid; grid-template-columns: minmax(0, 1fr) 56px; column-gap: 12px; align-items: center; margin-bottom: 12px; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+  .vi-gl-tabla td { display: flex; grid-column: 1; justify-content: space-between; gap: 12px; padding: 4px 0; border: 0; text-align: right; }
+  .vi-gl-tabla td::before { content: attr(data-label); flex: none; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; text-align: left; color: var(--color-text-secondary); }
+  .vi-gl-tabla td.vi-gl-celda-archivo { grid-column: 2; grid-row: 1 / span 3; justify-self: end; padding: 0; }
+  .vi-gl-tabla td.vi-gl-celda-archivo::before { content: none; }
+  .vi-gl-archivo .vi-comp__meta, .vi-gl-ver { display: none; }
+  .vi-gl-archivo .vi-comp__miniatura { width: 56px; height: 56px; min-width: 44px; min-height: 44px; }
+  .vi-modal-liqgestion .modal-footer .btn { flex: 1; }
+  .vi-rechazo-campo textarea { min-height: 120px; }
+  #vi-rechazo-volver, #vi-rechazo-enviar { flex: 1; }
+}

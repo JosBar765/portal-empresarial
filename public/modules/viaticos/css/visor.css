@@ -1,0 +1,67 @@
+/* Visor emergente de documentos (PDF e imágenes). Solo variables de global.css. Prefijo `vi-`. */
+.vi-visor-overlay {
+  position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; padding: 32px;
+  background: rgba(15, 23, 42, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  animation: fadeIn .15s var(--ease-out);
+}
+.vi-visor {
+  display: flex; flex-direction: column; width: min(1100px, 100%); height: min(92vh, 100%);
+  background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); overflow: hidden;
+}
+.vi-visor__cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; }
+.vi-visor__titulos { min-width: 0; }
+.vi-visor__titulos h3 { margin: 0; font-family: var(--font-title); font-size: var(--text-base); font-weight: 700; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vi-visor__titulos p { margin: 2px 0 0; font-size: var(--text-sm); color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vi-visor__acciones { display: flex; align-items: center; gap: 8px; flex: none; }
+.vi-visor__acciones .btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.vi-visor__acciones .btn ion-icon { font-size: 16px; }
+.vi-visor__acciones [hidden], .vi-visor__error [hidden] { display: none !important; }
+.vi-visor__cerrar {
+  display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; font: inherit; color: var(--color-text-secondary);
+  background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer;
+}
+.vi-visor__cerrar ion-icon { font-size: 22px; }
+.vi-visor__cerrar:hover { background: var(--color-surface-muted); color: var(--color-text); }
+.vi-visor__cerrar:focus-visible, .vi-visor__pestana:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.vi-visor__pestanas { display: flex; gap: 4px; padding: 0 16px; overflow-x: auto; border-bottom: 1px solid var(--color-border); border-top: 1px solid var(--color-border); scrollbar-width: none; }
+.vi-visor__pestanas::-webkit-scrollbar { display: none; }
+.vi-visor__pestana {
+  flex: none; white-space: nowrap; padding: 10px 14px; font: inherit; font-size: var(--text-sm); font-weight: 600; color: var(--color-text-secondary);
+  background: transparent; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
+}
+.vi-visor__pestana:hover { color: var(--color-text); }
+.vi-visor__pestana.is-activa { color: var(--color-text); border-bottom-color: var(--color-text); }
+
+.vi-visor__cuerpo { position: relative; flex: 1; min-height: 0; background: var(--color-surface-muted); border-top: 1px solid var(--color-border); }
+.vi-visor__contenido { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto; }
+.vi-visor__marco { width: 100%; height: 100%; border: 0; background: var(--color-surface); }
+.vi-visor__imagen { max-width: 100%; max-height: 100%; object-fit: contain; }
+.vi-visor__cargando, .vi-visor__error {
+  position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  color: var(--color-text-secondary); font-size: var(--text-sm); background: var(--color-surface-muted);
+}
+.vi-visor__cargando[hidden], .vi-visor__error[hidden] { display: none; }
+.vi-visor__cargando ion-icon, .vi-visor__error ion-icon { font-size: 28px; }
+.vi-visor__error p { margin: 0; }
+.vi-visor__pie { padding: 10px 16px; border-top: 1px solid var(--color-border); }
+.vi-visor__ayuda { margin: 0; font-size: var(--text-xs); color: var(--color-text-muted); }
+
+/* Un modal de confirmación abierto desde el visor queda por encima de él. */
+.vi-visor-overlay ~ .modal-overlay { z-index: 130; }
+
+/* Modal de espera de los documentos de una solicitud */
+.vi-visor-espera { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 80px; color: var(--color-text-secondary); }
+.vi-visor-espera ion-icon { font-size: 22px; }
+.vi-visor-reintentar { margin-top: 12px; }
+
+@media (max-width: 640px) {
+  .vi-visor-overlay { padding: 0; }
+  .vi-visor { width: 100%; height: 100%; border-radius: 0; }
+  .vi-visor__cab { padding: 10px 12px; }
+  .vi-visor__acciones [data-visor-pestana] span, .vi-visor__acciones [data-visor-descarga] span { display: none; }
+  .vi-visor__acciones .btn { min-width: 44px; min-height: 44px; justify-content: center; }
+  .vi-visor__cerrar { width: 44px; height: 44px; }
+  .vi-visor__pestana { min-height: 44px; }
+  .vi-visor__error .btn { min-height: 44px; }
+}

@@ -1,0 +1,138 @@
+# Plano del frontend — Calculadora de Viáticos
+
+Fuente: lectura de `public/modules/vales/` y `public/modules/prompts/` (2026-11-12). Reglas: `.agents/reglas/reglas_implementacion.md` (JS vanilla con módulos ES, sin bundler), `reglas_disenoUI.md` (solo tokens de `global.css`), CLAUDE.md §8 (no quitar los marcadores del importmap).
+
+## Estructura
+
+```text
+public/modules/viaticos/
+├── index.html
+├── css/        styles.css (entrada: @import '/css/dashboard.css'), pipeline.css, visor.css, reportes.css (barra de período), borradores.css (acciones de la barra, lista de borradores e insignia de los nuevos)
+└── js/
+    ├── app.js              # arranque (patrón de Prompts, permisos finos)
+    ├── state.js            # un único objeto mutable exportado
+    ├── textos.js           # catálogo de textos: t('clave', {param}); lanza si falta la clave
+    ├── socket.js           # Socket.IO, salas y recarga con debounce
+    ├── config/             # constantes: permisos, pestañas, etiquetas
+    ├── utils/              # dom.js (h, icono, montar, $), formato.js (escapeHtml, fechas, dinero, tamaño), fechas.js
+    ├── api/                # viaticosApi.js (una función por endpoint; patrón pedir() de Prompts)
+    ├── components/         # modal.js (con confirmarModal), validacion.js, visorDocumento.js, barraPeriodo.js, pipeline.js, dropzone.js
+    ├── layout/             # sidebar.js (pestañas por permiso, colapso, cajón móvil), cuenta.js (menú de cuenta y cierre de sesión)
+    ├── views/              # solicitudes.js, gestiones.js, configuracion/…
+    ├── forms/              # solicitudForm (largo y corto; modos crear, modificar y borrador), borradorEstado.js, borradores.js
+    └── actions/            # liquidación, autorizar, rechazar, dar de baja
+```
+
+## Reglas del módulo
+
+- **Los componentes de Vales se copian, no se importan.** `/modules/vales/*` responde 403 o redirige a `/dashboard/` a quien no tenga `vales.ver` (`requireModuleAccess`). `/js`, `/css` y `/assets` son públicos y se pueden usar (`/js/sessionGuard.js`, `/js/toast.js`, `/js/notificaciones.js`).
+- **Clases:** el shell y la tabla conservan los nombres de Vales (`.app-shell`, `.sidebar-vales`, `.tabla-wrapper`, `.buzon-vacio`, `.btn-icon`, `.form-field`…). Todo lo propio de viáticos lleva el prefijo `vi-`.
+- **Importaciones:** relativas con extensión `.js` (`./x.js`), o absolutas `/js/x.js`. El versionado (`scripts/versionarEstaticos.js`, solo en staging y producción) solo cubre `public/js/` y la carpeta `js/` del HTML.
+- **HTML del servidor** siempre por `escapeHtml` o `textContent`. Íconos `<ion-icon name="…-outline">`. Ocultar por permiso con `style.display`.
+- **Estado único** `state` (sin getters ni suscripciones). Ciclos de imports solo si son funciones que no se ejecutan en la carga; se documentan.
+- **Comentarios** en español, de una línea, solo el porqué.
+
+## HTML (copiar de `vales/index.html:3-62`)
+
+Orden del `<head>`: charset y viewport; `<!-- importmap:inicio --><!-- importmap:fin -->`; `<title>… | Portal Empresarial</title>`; favicon `/assets/logos/LOGO_GP_isotipo.png`; CSS del módulo; Ionicons (`unpkg.com/ionicons@7.1.0`, módulo y `nomodule`); `<script src="/socket.io/socket.io.js">`. Al final del `<body>`: `/js/sessionGuard.js`, `/js/toast.js`, `/js/notificaciones.js`, `/js/mantenimientoAviso.js` y `<script type="module" src="/modules/viaticos/js/app.js">`. Raíces: `#modals-root`, `#toast-root.toast-root`, `#notificaciones-root.notif-root` (en el header).
+
+Header: `.app-header > .header-brand` (`#sidebar-toggle-mobile`, `a.header-back` a `/dashboard/`, logo, `.header-title` «Calculadora de Viáticos», `.header-company` «MundiTrofeos S.A.»), `.notif-root#notificaciones-root` y `.header-user-menu` con `#account-widget`, `#account-avatar`, `#user-display-name`, `#user-display-role`, `#account-dropdown`, `#account-dropdown-name`, `#account-dropdown-role` y `#logout-btn`. Sidebar: `<aside class="sidebar-vales" id="sidebar-vales">` con `.sidebar-item[data-tab]` y `#sidebar-collapse-toggle`; `#sidebar-backdrop`. Contenido: `.app-shell > .app-layout > main.main-container > section#panel-content`. Footer: `footer.app-footer > span.footer-text` «© 2026 MundiTrofeos S.A. | Portal de Herramientas Corporativo Interno». Estado de carga: `.buzon-vacio` con `sync-outline.spin-animation`.
+
+## Arranque (patrón de Prompts, `prompts/js/app.js`)
+
+`sessionCheck` (`GET /api/auth.php?action=session_check`) → si no autenticado, `/login/?expired=true`; guarda `state.user`; sin `viaticos.ver` en `permissions`, `/dashboard/`; pinta cuenta y avatar; `seguirAltoEncabezado()` (`--header-height` con `ResizeObserver`); sidebar por permiso (`PERMISO_POR_TAB`, pestaña activa en `localStorage` `viaticos:tabActiva` si sigue visible); `initSocket`; `cargarTab()` con spinner y, en error, `.buzon-vacio.buzon-vacio-error`. Cambiar de pestaña con cambios sin guardar pide confirmación (`state.salidaVista`).
+
+## Socket (`vales/js/socket.js`)
+
+`io({ query: { userId } })` protegido por `typeof io`; `window.centroNotificaciones?.iniciar({ socket, modulo: 'viaticos' })`; en `connect` emite `register_module` con `['role_<rolId>']` más `'viaticos:gestion'` si tiene `viaticos.gestionar`; maneja `permisos_actualizados` (refresh y recarga), `sesion_revocada` (logout) y `viaticos_actualizada` `{ id, correlativo, estado, accion }` → toast si el actor no es uno mismo y recarga con debounce de 400 ms (aplazada si `document.hidden`).
+
+## API (patrón `pedir()` de `prompts/js/api/promptsApi.js`)
+
+Sin `credentials` (mismo origen). `pedir(url, opciones)` envuelve el fallo de red; lee `res.json().catch(() => null)`; ante `!res.ok` lanza `Error` con `status`, `campos`, `errores` y `codigo`. FormData sin `Content-Type`; la `idempotencyKey` va dentro de `datos` y se reenvía igual en un reintento. Errores de negocio llegan como 400 (con `campos`) o 403; nunca 401. `mensajesDeError(error)` devuelve la lista de errores, los valores de `campos` o el mensaje. Hay que escribir `formatearDinero(simbolo, importe)` (no existe).
+
+## Borradores de solicitudes
+
+- `api/viaticosApi.js`: `listarBorradores`, `obtenerBorrador`, `crearBorrador(modalidad, datos)`, `actualizarBorrador(id, modalidad, datos)` y `eliminarBorrador` y `marcarBorradoresVistos` (`POST /borradores/vistos`) (contrato en `contrato_api.md`, «Borradores»).
+- `forms/borradorEstado.js` (puro, sin DOM): `estadoABorrador(estado)` deja un objeto JSON plano sin `File` ni URLs (de cada defecto solo `tipoDefectoId` y `descripcion`; conserva `comidasAutoMarcar` y `comidasDesmarcadas`) y `borradorAEstado(datos, modalidad, { paises })` arma el estado completo sobre `estadoInicial()`, ignorando claves desconocidas y cayendo al valor por defecto si un tipo no encaja. Los ids de catálogo no se validan ahí: los depura `reconciliarEstado` al cargar los catálogos.
+- `solicitudForm.js`, tercer modo `'borrador'` (`abrirFormularioSolicitud({ modo: 'borrador', borrador, alTerminar })`, `borrador` = respuesta de `GET /borradores/:id`): sigue siendo una solicitud nueva (país, tipo de viaje y moneda editables; «Enviar solicitud» con la validación completa) y agrega `borradorId` al `datos` del envío solo en este modo; nunca al modificar. Tras enviar avisa el cambio de borradores porque el servidor ya lo borró.
+- **Descripción de «Otros gastos»** (`forms/secciones/gastos.js`): solo aparece, se pide y se envía con un tipo `esOtros`; al cambiar a otro tipo se oculta en el lugar (atributo `hidden` y clase `vi-renglon--gasto-sin-descripcion`, que deja al tipo ocupar su columna) y se vacía. `gastoEsOtros` (`forms/datos.js`) decide en `armarPayload`, `erroresLocales` y `reconciliarEstado`.
+- **Responsive del modal de solicitud** (`css/formulario.css`): el resumen del pie (`resumen.js`) muestra solo la barra con el total y un botón «Ver desglose» (plegado por defecto, `aria-expanded`); con poco alto (800 px o menos) o en celular (640 px o menos) cabecera, resumen y pie se compactan, y en celular el motivo del pie ocupa una línea y los tres botones van en una fila. Las reglas de celular del viaje de 1 día o menos van al final del archivo, después de sus reglas base: declaradas antes, las base las pisan y el diseño móvil no se aplica.
+- **Calendario del selector de fecha** (`components/datepicker.js`): el panel es `position: fixed` en `<body>` y se calcula contra la ventana, no contra el modal: se abre debajo del campo, se voltea hacia arriba si abajo no cabe y se limita al borde (con scroll propio, `max-height`) si no cabe en ningún lado, para que ningún día quede fuera de la ventana. El título del mes lleva a una cuadrícula de meses (con flechas de año) y el del año a una de años (doce por página, con el año visible dentro), como el calendario de la barra de período: llegar a una fecha lejana, p. ej. mayo de 2030 en el vencimiento de una licencia, toma 4 clics y no uno por mes. Un mes o año anterior a la fecha mínima sale deshabilitado. Medido de 360 a 1536 px de ancho y de 420 a 730 px de alto.
+- Botón «Guardar borrador» (`#vi-sol-borrador`, `btn--ghost`, junto a Cancelar) en los modos crear y borrador, nunca al modificar. No depende del cálculo ni de la validación: guarda lo que haya (POST en crear, PUT en borrador), muestra el aviso de éxito, avisa el cambio y **cierra el modal**; los errores 400 y 409 del servidor se muestran dentro del modal, que sigue abierto. Mientras guarda (`ctx.enviando`) se frenan el envío, este botón y el cierre.
+- Al cerrar con cambios (`ctx.sucio`) la confirmación solo avisa (en crear sugiere «Guardar borrador»; en borrador dice que se pierden los cambios no guardados): `confirmarModal` no admite una tercera acción.
+- `forms/borradores.js`: `crearBotonBorradores({ alTerminar })` (`#vi-btn-borradores`, «Borradores (n)», dentro de `.vi-toolbar-acciones` junto a «Nueva solicitud» en la vista Solicitudes) y `abrirModalBorradores`: lista con tipo de viaje, país (de `state.contexto.paises`, si se conoce), fechas del viaje, «Creado el…» y «Vence en N días» (rojo con 3 o menos, «Vence hoy» con 0), y acciones «Abrir» (`obtenerBorrador` y abre el modal en modo borrador) y «Eliminar» (con `confirmarModal`). Un 404 (venció o se eliminó) muestra un aviso y refresca la lista y el contador. Clases `vi-borrador-*`.
+- `utils/eventosBorradores.js`: evento de documento `viaticos:borradores:cambio` (`avisarCambioBorradores()`); guardar, eliminar y enviar desde un borrador lo disparan y el botón refresca su contador y su insignia. El evento de socket `viaticos_borradores_nuevos` (`TIEMPO_REAL.EVENTO_BORRADORES_NUEVOS`) también lo dispara.
+- Borradores nuevos por vencimiento: el botón «Borradores» lleva una insignia roja `#vi-borradores-nuevos` (`.vi-borradores-insignia`, oculta con 0, «99+» desde 100) con `nuevos` de `GET /borradores`. La lista pinta la etiqueta «Nuevo» (`.vi-borrador-etiqueta--nuevo`) y la línea de origen «Venció la solicitud VIA-GT-000003 · Motivo del rechazo: …» en los borradores con `origenCorrelativo`; solo después de pintarla llama a `POST /borradores/vistos` y avisa el cambio, así la insignia se apaga al abrir la lista y las etiquetas siguen visibles mientras esté abierta. La notificación `solicitud_vencida` (`socket.js`, `enlaces`) abre la lista con un import dinámico de `borradores.js`, como Vales con `EXPIRADO_A_BORRADOR`.
+- Vencimiento de una rechazada: `utils/vencimiento.js` (`tiempoRestante`, `textoVencimiento`, `esUrgente`) da «Vence en 3 h 20 min» (solo minutos bajo una hora; «Vence en menos de 1 min» con 0). `htmlPipeline(pipeline, vencimiento)` lo pinta bajo el motivo del rechazo en las listas de Solicitudes y de Gestiones (`.vi-pl-vence`, en rojo con menos de una hora) y el modal de modificar lo añade al aviso del rechazo. El valor es el del servidor al cargar la lista: se refresca con los eventos de tiempo real y al recargar.
+- Configuración, subpestaña «Vencimientos» (`views/configuracion/vencimiento.js` y `vencimientoModelo.js`): campos numéricos de `rechazo_vigencia_horas` (1 a 168), `borrador_vigencia_dias` (1 a 365) y `borrador_max_por_usuario` (1 a 200) con `PUT /config/ajustes/:clave`, aviso de cambios sin guardar y errores explicativos por campo, igual que «Archivos».
+- Textos: claves `borradores.*`, `vencimiento.*`, `config.vencimiento.*` y `formulario.borrador.*` / `formulario.cerrar.mensajeBorrador` en `textos.js`.
+
+## Visto en Gestiones
+
+Abrir «Ver documentos» en Gestiones (`abrirVisorSolicitud(..., { gestion: true, alMostrar })`) registra el visto con `registrarVistoGestion` cuando los documentos ya se pudieron mostrar. Mientras la fila trae `visto === false`, Autorizar y Rechazar salen deshabilitados (`disabled`, `aria-disabled` y un `title` que dice que se abra «Ver» primero); al registrarse se repintan solo los botones de esa fila, sin recargar la lista. `gestionAcciones.js` también se niega a abrir la decisión sin visto y, ante el 400 del servidor, recarga la lista. Es solo ayuda visual: el servidor es quien lo exige. Textos: `gestiones.accion.requiereVer` y `gestiones.visto.*`.
+
+## Orden por encabezado
+
+En Solicitudes y Gestiones, los encabezados «Correlativo», «Fecha creación» y «Fecha viáticos» (esta ordena por la fecha de salida) son botones (`utils/ordenTabla.js`, clase `vi-th-orden`, `aria-sort`). Cada clic cicla ascendente, descendente y sin orden (vuelve al orden por estados del servidor). Se ordena en el navegador sobre la lista ya cargada, sin pedir al servidor; el correlativo compara en forma numérica para que `VIA-GT-26` quede después de `VIA-GT-000025`. El orden vive en `state.ordenSolicitudes` y `state.ordenGestion`, y sobrevive a recargas y a cambiar de pestaña. En celular (tarjetas) los encabezados no se ven, así que no hay orden.
+
+## Modal de liquidación del solicitante
+
+`actions/liquidacion.js` y `actions/liquidacion/resumen.js`, con estilos en `css/liquidacion.css` limitados con `:not(.vi-modal-liqgestion)` porque la vista de contabilidad comparte las clases `vi-liq-*` y no cambia. Tres cajitas compactas («Solicitado a liquidar», «Liquidado», «Sin liquidar»); bajo «Pendiente por liquidar», un contador por rubro con el formato `Hospedaje 1 de 3` (`liquidacion.progreso.simple`); si faltan comprobantes sale una barra baja «Faltan comprobantes» (`.vi-liq-faltan`) sin detalle (el servidor sigue mandando `avisoFaltantes`, que se usa en la confirmación de «Liquidar»); al pulsar «Liquidar» la confirmación lista lo que falta en vertical, un rubro por línea (`Hospedaje · 1 de 3`), con el `detalles` de `confirmarModal` y no como frase corrida; y la barra de avance con su porcentaje va fija en el pie, sobre «Cerrar» y «Liquidar», oculta hasta la primera respuesta del servidor.
+
+## Recibos y firma
+
+Contrato: «Recibos» en `contrato_api.md`. Estilos en `css/recibo.css` (importado desde `styles.css`).
+
+- **API** (`api/viaticosApi.js`): `montoEnLetrasRecibo(id, monto)`, `crearRecibo(id, datos, firma)` (multipart: `datos` en JSON con la `idempotencyKey` y el archivo `firma`, PNG) y `quitarRecibo(id, reciboId)`.
+- **En el modal de liquidación** (`actions/liquidacion/comprobantes.js`): «Generar recibo» (`#vi-liq-generar-recibo`) va junto a «Agregar comprobante» mientras `liq.editable`. Los recibos se listan en «Comprobantes liquidados» después de los comprobantes (`.vi-comp--recibo`, `data-recibo`), con la marca «Recibo» (`.vi-etiqueta-recibo`), número, rubro, monto, concepto y la miniatura del PDF que abre el visor; se quitan con confirmación mientras se pueda editar. Las filas de `pendientes` con `rubroRecibo` (Alimentación y Depreciación, `tipoGastoId: null`) cuentan en «Pendiente por liquidar» pero `rubrosConCupo` las omite: no se liquidan con comprobante.
+- **Modal del recibo** (`actions/liquidacion/recibo.js`, reglas puras en `reciboDatos.js`): se apila sobre la liquidación con `abrirModal` (`.vi-modal-recibo`). Un solo combo «Concepto» (`crearCombo`: Alimentación · Depreciación · Otro): una opción sin `sugerenciasRecibo.<rubro>` o que ya tiene su recibo queda deshabilitada (su motivo es solo el `title`, sin texto visible) y la selección inicial es la primera disponible o «Otro». Con Alimentación o Depreciación no hay campo de texto y el cliente no envía `concepto` (lo arma el servidor); con «Otro» aparece el campo «Concepto», obligatorio y de hasta 100 caracteres. El modal no lleva textos de ayuda. Fecha con el selector del módulo (por defecto `sugerenciasRecibo.fecha`; el selector no tiene fecha máxima, así que una fecha futura se rechaza al validar), monto sugerido (vacío en «Otro»; al cambiar de rubro solo se reemplaza si el usuario no lo editó), «Cantidad en letras» de solo lectura pedida a `POST …/recibos/letras` con espera de 300 ms y número de pedido (una respuesta vieja no pisa a la nueva), «Recibí de» vacío, forma de pago en radios (N.º de cheque obligatorio con cheque, N.º de cuenta opcional con transferencia).
+- **Validación**: `validarRecibo` replica las reglas del servidor (largos 100/100/30/40, con el concepto solo si el rubro es «Otro», monto como los comprobantes, fecha no futura, firma obligatoria) con un ícono rojo en la esquina de cada campo y el mensaje en un globo al tocarlo (mismo mecanismo del modal de solicitud, ver `validacion.js`), sin resumen escrito; los `campos` de un 400 se marcan igual y un 409 o 403 se muestra como aviso. La llave de idempotencia se reutiliza en el reintento del mismo contenido y cambia si cambia algún dato o la firma (`llaveDeRecibo`). Cerrar con cambios pide confirmación. Al guardar se cierra el recibo, la liquidación se repinta con la respuesta (`aplicar`) y sale un aviso.
+- **Firma** (`components/firmaPantalla.js`): «FIRMAR» abre una capa a pantalla completa (`.vi-firma`, sobre los modales y bajo los avisos) con un lienzo de Pointer Events (dedo, lápiz o mouse; `touch-action: none` y la página no se desplaza), que respeta `devicePixelRatio` y redibuja la firma escalada al cambiar el tamaño o la orientación. «Limpiar», «Cancelar» y «Aceptar» (deshabilitado hasta que haya trazo). Devuelve un PNG transparente recortado al trazo (como máximo al doble de resolución). En el modal queda la vista previa con «Volver a firmar» y, debajo de la línea, el nombre del solicitante (`sugerenciasRecibo.solicitanteNombre`) con «Recibí conforme».
+- **Escape con modales apilados**: cada `abrirModal` escucha Escape en el documento. La liquidación rechaza cerrarse mientras el recibo está abierto (`reciboAbierto`), así Escape solo cierra el de arriba; la capa de firma escucha Escape en captura y detiene la propagación, así solo se cierra ella.
+- **Contabilidad** (`actions/liquidacionGestion.js`): la tabla «Comprobantes y recibos» agrega una fila por recibo con la marca «Recibo», número y concepto como descripción, monto y el PDF en el visor. «Solicitado a liquidar» ya incluye comidas y depreciación.
+- Textos: claves `recibo.*`, `firma.*`, `liquidacion.recibo.*`, `liquidacion.progreso.recibo` y `gestiones.liq.recibo.*`.
+
+## Historial
+
+- Solo en Gestiones: botón `time-outline` en `components/filaGestion.js`, que el servidor deja en `pipeline.acciones` únicamente con `viaticos.ver_historial` (el cliente dibuja lo que llega). Solicitudes no lo tiene.
+- `actions/historial.js` (`abrirHistorial`) abre un modal «Historial — <correlativo>» con `GET /gestiones/:id/historial`: estado de carga, lista (fecha y hora de Guatemala (el servidor la manda como texto y se lee sin `Date`), actor en negrita y frase corta), «Sin movimientos registrados.» si está vacía y mensaje del servidor con «Reintentar» si falla (403 y 404 sin reintento). El HTML de la lista es una función pura (`htmlListaHistorial`) y todo texto del servidor se escapa.
+- Copia del patrón de `vales/js/actions/historial.js` (no se importa: `/modules/vales/*` está protegido). Sin tiempo real. Estilos en `css/historial.css`; en celular el modal ocupa todo el ancho y la lista se desplaza dentro.
+- Con 5 botones, `.acciones-wrap` (108 px) los reparte en dos filas en escritorio; en tarjeta el ancho es automático.
+
+## Gesto «atrás» en celular
+
+`utils/historialCapas.js`: mientras haya un modal, el visor o la firma abiertos se mantiene una entrada propia en el historial (`history.pushState`), así el botón o gesto «atrás» cierra solo la capa de arriba en vez de salir del módulo. Cada capa se registra con `registrarCapa(cerrarPorAtras)` y llama al `soltar()` que devuelve al cerrarse por cualquier vía; si la capa no se deja cerrar (cambios sin guardar) la entrada se repone. Usado en `components/modal.js`, `components/visorDocumento.js` y `components/firmaPantalla.js`.
+
+## Tablas y móvil
+
+`.tabla-wrapper[tabindex=0][role=region]` → `table.buzon-table.data-table.sticky-header`; cada `td` lleva `data-label` y la de acciones `.acciones-cell`; en ≤900 px cada fila es una tarjeta (`::before{content:attr(data-label)}`); objetivos táctiles de 44 px a ≤640 px. Tabla fija en escritorio con `body.vista-tabla-fija` (solo desde 901 px; `--sep-buzon` 16 px). Fila vacía: `td.tabla-vacia`. Los modales a ≤480 px ocupan la pantalla.
+
+## Reportes
+
+Pestaña `reportes` (permiso `viaticos.reportes`, además de `viaticos.ver`); entre Gestiones y Configuración en el menú. Sin el permiso no aparece y `viaticos:tabActiva` guardada no la abre (`puedeVerTab`). Solo muestra importes AUTORIZADOS; lo liquidado no aparece nunca. El diseño aprobado está en la página «Reportes» del Figma del módulo.
+
+- Archivos: `views/reportes.js` (carga y eventos), `components/barrasRanking.js` (ranking de barras y tabla) y `components/graficoPastel.js` (dona SVG propia y leyenda); estos dos son funciones puras que devuelven HTML con todo texto del servidor escapado. Estilos en `css/informes.css` (prefijo `vi-rep-`). API: `obtenerOpcionesReportes`, `obtenerReportes` y `urlPdfReportes` en `viaticosApi.js`.
+- Barra fija (`.vi-rep-barra`, `position: sticky` bajo el encabezado): `barraPeriodo` con prefijo `vr` y su propio `state.ventanaReportes`, combos Moneda y País (de `GET /reportes/opciones`) y «Imprimir / PDF», que abre `GET /reportes/pdf` con los mismos filtros en otra pestaña (`window.open(..., 'noopener')`; si el navegador la bloquea, un aviso). En celular (≤ 640 px) Moneda y País pasan a un panel «Filtros» y el botón de imprimir queda solo con el ícono.
+- Selección en `state.seleccionReportes` (`monedaId`, `paisId`, `solicitanteId`): sobrevive al cambiar de pestaña y se reinicia si la moneda o el país ya no están en las opciones de la ventana (la moneda vuelve a `monedaPorDefecto`). Un solicitante elegido que ya no aparece se quita.
+- Cambiar la ventana recarga opciones e informe; cambiar moneda o país, solo el informe. Elegir un solicitante (clic en una barra o en una fila; otro clic lo quita; o el combo «Ver reparto de:» y «Quitar selección») solo vuelve a pedir `GET /reportes?...&solicitanteId=` para el reparto: las tarjetas y el ranking no cambian, solo se resalta la fila. Un contador de cargas descarta las respuestas viejas.
+- Estados: cargando, vacío («No hay solicitudes autorizadas en este período con esta moneda») y error con «Reintentar».
+- Accesibilidad: la dona es `role="img"` con un `aria-label` que resume monto y % por categoría; el color nunca es la única señal (la leyenda trae monto y %); las filas del ranking y el nombre de la tabla son botones con `aria-pressed`.
+- Tablas reales que a ≤ 640 px pasan a tarjetas con `data-label`, como las demás del módulo.
+- No se registra recarga por tiempo real: el reporte se recalcula al abrir la pestaña o al cambiar un filtro.
+
+## Componentes que se copian
+
+| Componente | Origen | Nota |
+|---|---|---|
+| `modal.js` | `prompts/js/components/modal.js` | Incluye `confirmarModal` (Promise) y `mostrarErrorModal`; `abrirModal({ title, bodyHtml, footerHtml, size, alCerrar })` |
+| `validacion.js` | `vales/js/components/validacion.js` | Independiente; exige `.form-field` alrededor del campo; para mapear `campos` usar `marcarErrorCampo`. En el modal de solicitud el error se ve como un ícono rojo en la esquina del campo con el mensaje en un globo (mouse, foco o toque; estilos al final de `css/formulario.css`), no como texto bajo el campo |
+| `visorDocumento.js` | `vales/js/components/visorDocumento.js` + `css/visor.css` | `abrirVisor({ titulo, subtitulo, documentos:[{etiqueta,url}], activo, acciones, aviso, alCerrar })`; quitar los atajos y los imports de Vales |
+| `barraPeriodo.js` | `vales/js/components/barraPeriodoReportes.js` + `reportes.css` | `crearBarraPeriodo(contenedor, { obtener, alCambiar, prefijo })`; período `{ tipo, fecha, desde, hasta }`; requiere `datepicker.js` y `fechas.js` |
+| `pipeline.js` | `vales/js/components/pipeline.js` + `css/pipeline.css` | Solo `htmlPipeline` y el tooltip; el payload lo arma el servidor |
+| `dropzone.js` | `vales/js/components/dropzone.js` | Ajustar tamaño máximo y etiquetas según `viaticos_ajustes` |
+| `selectorMultiple.js` | `vales/js/components/selectorMultiple.js` | Para los países de una persona |
+| Subpestañas de administración | `prompts/js/views/admin/editor.js:152-176` y `.pr-adm-tabs` | Base de las subpestañas de Configuración (la última es «Vencimientos») |
+
+## Contrato de la API del backend
+
+`.agents/modulos/viaticos/documentacion/contrato_api.md` (endpoints, payloads, errores y reglas) es la fuente de verdad para las llamadas.
