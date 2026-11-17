@@ -7,16 +7,19 @@ const { idObligatorio } = require('../../../core/utils/validar');
 const solicitudRepo = require('../repositories/solicitudRepository');
 const escrituraRepo = require('../repositories/solicitudEscrituraRepository');
 const comprobanteRepo = require('../repositories/comprobanteRepository');
+const reciboRepo = require('../repositories/reciboRepository');
 const catalogoRepo = require('../repositories/catalogoSolicitudRepository');
 const destinatarioRepo = require('../repositories/destinatarioRepository');
 const {
-  ESTADOS, FASES, MODALIDADES, PERMISOS, NOTIFICACION, TIEMPO_REAL, IDEMPOTENCIA, LIMITES, LIMITES_SOLICITUD, ARCHIVOS, RUBROS_FIJOS
+  ESTADOS, FASES, MODALIDADES, PERMISOS, NOTIFICACION, TIEMPO_REAL, IDEMPOTENCIA, LIMITES, LIMITES_SOLICITUD, ARCHIVOS, RUBROS_FIJOS, MESES_COMPLETOS
 } = require('../constantes');
 const events = require('../events');
 const { Validador, cuerpoObjeto, vacio } = require('../validacion');
 const { msg } = require('../mensajes');
 const { formatearFecha } = require('./pipelineService');
-const { combustibleSolicitado, calcularRubros, solicitadoALiquidar, calcularLiquidacion } = require('./liquidacionCalculoService');
+const {
+  combustibleSolicitado, depreciacionSolicitada, alimentacionSolicitada, calcularRubros, solicitadoALiquidar, calcularLiquidacion
+} = require('./liquidacionCalculoService');
 const { llaveDeIdempotencia, ejecutarUnaVez } = require('./idempotenciaService');
 const archivosService = require('./archivosViaticoService');
 const solicitudService = require('./solicitudService');
@@ -60,13 +63,59 @@ const comprobanteDeVista = c => ({
   subidoEn: c.subidoEn
 });
 
+const reciboDeVista = r => ({
+  id: r.id,
+  numero: r.numero,
+  rubro: r.rubro,
+  rubroNombre: msg(`recibo.rubro.${r.rubro}`),
+  fecha: r.fecha,
+  monto: r.monto,
+  montoLetras: r.montoLetras,
+  recibiDe: r.recibiDe,
+  concepto: r.concepto,
+  formaPago: r.formaPago,
+  numeroCheque: r.numeroCheque,
+  numeroCuenta: r.numeroCuenta,
+  url: r.ruta,
+  tamano: r.tamano,
+  creadoEn: r.creadoEn
+});
+
+// Fechas del viaje en palabras para el concepto sugerido: «del 21 al 24 de abril de 2026».
+function periodoDelViaje(salida, regreso) {
+  const partes = valor => {
+    const [anio, mes, dia] = String(valor).slice(0, 10).split('-');
+    return { anio, mes: MESES_COMPLETOS[Number(mes) - 1], dia: String(Number(dia)) };
+  };
+  const d = partes(salida);
+  const h = partes(regreso || salida);
+  if (d.anio !== h.anio) return msg('recibo.periodoDistintoAnio', { desde: d.dia, mesDesde: d.mes, anioDesde: d.anio, hasta: h.dia, mesHasta: h.mes, anioHasta: h.anio });
+  if (d.mes !== h.mes) return msg('recibo.periodoMismoAnio', { desde: d.dia, mesDesde: d.mes, hasta: h.dia, mesHasta: h.mes, anio: h.anio });
+  if (d.dia !== h.dia) return msg('recibo.periodoMismoMes', { desde: d.dia, hasta: h.dia, mes: h.mes, anio: h.anio });
+  return msg('recibo.periodoUnDia', { dia: d.dia, mes: d.mes, anio: d.anio });
+}
+
+// Valores que el modal del recibo propone (todos editables): monto = lo solicitado del rubro, concepto con las fechas del viaje; null si el rubro no se solicitó.
+function sugerenciasRecibo(fila, importes) {
+  const periodo = periodoDelViaje(fila.fechaSalida, fila.fechaRegreso);
+  const sugerencia = (importe, clave) => (importe > 0 ? { monto: importe, concepto: msg(clave, { periodo }) } : null);
+  return {
+    solicitanteNombre: fila.solicitanteNombre,
+    fecha: solicitudService.instante().hoy,
+    moneda: { codigo: fila.monedaCodigo, nombre: fila.monedaNombre, nombrePlural: fila.monedaNombrePlural, simbolo: fila.monedaSimbolo },
+    alimentacion: sugerencia(importes.alimentacion, 'recibo.conceptoAlimentacion'),
+    depreciacion: sugerencia(importes.depreciacion, 'recibo.conceptoDepreciacion')
+  };
+}
+
 class LiquidacionService {
-  // Rubros, resumen en dinero y comprobantes de la solicitud; solo lecturas (`ejecutor` permite leer dentro de una transacción).
+  // Rubros, resumen en dinero, comprobantes y recibos de la solicitud; solo lecturas (`ejecutor` permite leer dentro de una transacción).
   async calcular(fila, ejecutor) {
     const id = fila.id;
-    const [hospedajes, gastos, tramos, comprobantes, fijos] = await Promise.all([
+    const [hospedajes, gastos, tramos, comidas, comprobantes, recibos, fijos] = await Promise.all([
       solicitudRepo.listarHospedajes(id, ejecutor), solicitudRepo.listarGastos(id, ejecutor), solicitudRepo.listarTramos(id, ejecutor),
-      comprobanteRepo.listar(id, ejecutor), catalogoRepo.tiposGastoPorNombres(Object.values(RUBROS_FIJOS), ejecutor)
+      solicitudRepo.listarComidas(id, ejecutor), comprobanteRepo.listar(id, ejecutor), reciboRepo.listar(id, ejecutor),
+      catalogoRepo.tiposGastoPorNombres(Object.values(RUBROS_FIJOS), ejecutor)
     ]);
     const fijo = nombre => {
       const tipo = fijos.find(f => f.nombre === nombre);
@@ -77,8 +126,13 @@ class LiquidacionService {
     const tipoCombustible = fijo(RUBROS_FIJOS.COMBUSTIBLE);
     const tipos = await catalogoRepo.tiposGastoPorIds([...new Set(gastos.map(g => g.tipoGastoId))], ejecutor);
     const combustible = combustibleSolicitado({ tramos, rendimientoKmGalon: fila.rendimientoKmGalon, precioGalon: fila.precioGalon });
-    const rubros = calcularRubros({ hospedajes, gastos, combustible, tipoHospedaje, tipoCombustible, tiposGasto: new Map(tipos.map(t => [t.id, t])) });
-    return { ...calcularLiquidacion({ rubros, solicitado: solicitadoALiquidar({ hospedajes, gastos, combustible }), comprobantes }), comprobantes };
+    const importesRecibo = {
+      alimentacion: alimentacionSolicitada(comidas),
+      depreciacion: depreciacionSolicitada({ tramos, depreciacionPorKm: fila.depreciacionPorKm, vehiculoPropio: fila.vehiculoPropietarioId !== null })
+    };
+    const partes = { hospedajes, gastos, combustible, ...importesRecibo };
+    const rubros = calcularRubros({ ...partes, tipoHospedaje, tipoCombustible, tiposGasto: new Map(tipos.map(t => [t.id, t])) });
+    return { ...calcularLiquidacion({ rubros, solicitado: solicitadoALiquidar(partes), comprobantes, recibos }), comprobantes, recibos, importesRecibo };
   }
 
   // Liquidación del propio solicitante: resumen, pendientes por rubro, comprobantes y si ya puede liquidar (y si no, por qué).
@@ -98,6 +152,8 @@ class LiquidacionService {
       pendientes: calculo.pendientes,
       faltanComprobantes: calculo.faltanComprobantes,
       comprobantes: calculo.comprobantes.map(comprobanteDeVista),
+      recibos: calculo.recibos.map(reciboDeVista),
+      sugerenciasRecibo: sugerenciasRecibo(fila, calculo.importesRecibo),
       editable: bloqueo === null,
       puedeLiquidar: bloqueo === null,
       motivoNoPuedeLiquidar: bloqueo,
@@ -127,6 +183,7 @@ class LiquidacionService {
       pendientes: calculo.pendientes,
       faltanComprobantes: calculo.faltanComprobantes,
       comprobantes: calculo.comprobantes.map(comprobanteDeVista),
+      recibos: calculo.recibos.map(reciboDeVista),
       pdf: fila.pdfRuta ? { titulo: msg('documento.tituloPdf', { correlativo: fila.correlativo }), tipo: 'pdf', url: fila.pdfRuta } : null
     };
   }
@@ -170,7 +227,8 @@ class LiquidacionService {
     const monto = v.decimal(datos, 'monto', msg('liquidacion.etiquetaMonto'), { minExclusivo: true, max: LIMITES.VALOR_MAX });
     const rubro = tipoGastoId === null ? null : calculo.pendientes.find(r => r.tipoGastoId === tipoGastoId);
     if (tipoGastoId !== null && !rubro) {
-      const lista = calculo.pendientes.map(r => `${r.nombre} (${r.solicitados})`).join(', ') || msg('liquidacion.sinRubros');
+      // Alimentación y depreciación no tienen tipo de gasto: se respaldan con un recibo, no con un comprobante.
+      const lista = calculo.pendientes.filter(r => r.tipoGastoId !== null).map(r => `${r.nombre} (${r.solicitados})`).join(', ') || msg('liquidacion.sinRubros');
       v.falla('tipoGastoId', msg('liquidacion.rubroNoSolicitado', { rubros: lista }));
     } else if (rubro && rubro.liquidados >= rubro.solicitados) {
       v.falla('tipoGastoId', msg('liquidacion.rubroCompleto', { nombre: rubro.nombre, solicitados: rubro.solicitados, liquidados: rubro.liquidados }));
@@ -259,3 +317,5 @@ class LiquidacionService {
 
 module.exports = new LiquidacionService();
 module.exports.motivoNoLiquidable = motivoNoLiquidable;
+module.exports.motivoSinCambios = motivoSinCambios;
+module.exports.reciboDeVista = reciboDeVista;

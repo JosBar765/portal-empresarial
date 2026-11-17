@@ -14,7 +14,7 @@ Prefijo de tablas: `viaticos_`. Convenciones del proyecto: español, `snake_case
 
 | Tabla | Columnas clave |
 |---|---|
-| `viaticos_monedas` | `id`, `codigo` (UNIQUE, ISO: GTQ, USD, HNL, NIO, CRC, PAB), `nombre`, `simbolo`, `activo` |
+| `viaticos_monedas` | `id`, `codigo` (UNIQUE, ISO: GTQ, USD, HNL, NIO, CRC, PAB, BZD), `nombre`, `simbolo`, `activo`, `nombre_plural` NULL (migración `viaticos_recibos`: «Quetzales», «Dólares»…; lo escribe el recibo tras el monto en letras; si está vacío se forma con la regla del español sobre `nombre`) |
 | `viaticos_tipos_comida` | `id`, `nombre` (desayuno, almuerzo, cena), `orden` |
 | `viaticos_valores_comida` | `moneda_id`, `tipo_comida_id` (PK compuesta), `valor` — depende solo de la moneda (ej. GTQ 30/40/40; USD 20/25/25), no del país |
 | `viaticos_ubicaciones` | `id`, `pais_id`, `nombre`, `activo`; UNIQUE (`pais_id`, `nombre`) — el país es un atributo de la ubicación; no filtra qué ubicaciones se pueden elegir en una solicitud |
@@ -57,6 +57,9 @@ Prefijo de tablas: `viaticos_`. Convenciones del proyecto: español, `snake_case
 | `viaticos_solicitud_kit` | `solicitud_id`, `kit_item_id` (PK compuesta), `presente` |
 | `viaticos_defectos` | `id`, `solicitud_id`, `tipo_defecto_id`, `descripcion` NULL (solo «otros»), `ruta`, `mime_type`, `tamano` |
 | `viaticos_comprobantes` | `id`, `solicitud_id`, `tipo_gasto_id`, `descripcion` NULL (solo «otro»), `monto`, `nombre_original`, `ruta`, `mime_type`, `tamano`, `subido_en` |
+| `viaticos_recibos` | `id`, `solicitud_id` (FK, CASCADE), `contador`, `numero` (`<CORRELATIVO>-R<contador>`), `rubro` ENUM('alimentacion','depreciacion','otro'), `fecha` DATE, `monto` DECIMAL(10,2) > 0, `monto_letras`, `recibi_de` (100), `concepto` (200), `forma_pago` ENUM('efectivo','cheque','transferencia'), `numero_cheque` NULL (30, solo cheque), `numero_cuenta` NULL (40, solo transferencia), `ruta` (PDF en el bucket de recibos), `tamano`, `creado_en`; UNIQUE (`solicitud_id`, `contador`) |
+
+Recibos (migración `viaticos_recibos`): tabla propia y no filas de `viaticos_comprobantes`, porque allí `tipo_gasto_id` es obligatorio y alimentación, depreciación y «otro» no son tipos de gasto. La firma no se guarda aparte: vive solo dentro del PDF.
 
 ## Borradores de solicitud
 

@@ -11,7 +11,7 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 - Vehículo propio: solo el del solicitante; con depreciación. Vehículo de la empresa: sin depreciación (`depreciacion_por_km` NULL). Viaje corto: solo vehículos de la empresa.
 - Correlativo `VIA-<código país>-<número, sin ceros a la izquierda>`: `viaticos_secuencias` incrementada dentro de la transacción con `FOR UPDATE`.
 - «En curso», «Terminado» y «Vencida» se calculan con las fechas y la hora de Guatemala (`calendarioLaboral.ahoraUTC6`). `modificar` y `dar de baja` solo en esperando autorización, rechazada o vencida; modificar regenera el PDF y vuelve a esperando autorización. Autorizar solo si está esperando autorización y no está vencida.
-- Liquidar: solo más de 1 día, autorizada y terminado el viaje; cada rubro admite como máximo los comprobantes solicitados (noches de hotel, combustible, y cada gasto por tipo); comidas y depreciación no se liquidan; «Liquidar» lo marca el solicitante cuando quiere, aunque falten comprobantes (decisión del dueño; ver «Liquidación (F3.6)»).
+- Liquidar: solo más de 1 día, autorizada y terminado el viaje; cada rubro admite como máximo los comprobantes solicitados (noches de hotel, combustible, y cada gasto por tipo); comidas y depreciación se liquidan con un recibo firmado por el solicitante (uno por rubro), y hay recibos «otro» sin límite; «Liquidar» lo marca el solicitante cuando quiere, aunque falten comprobantes (decisión del dueño; ver «Liquidación (F3.6)»).
 - Borrar archivos en Storage solo en producción (`supabaseStorage.eliminar`). Creación y subidas aceptan `idempotencyKey`.
 - Notificaciones (`modulo = 'viaticos'`, `vale_id` NULL, el correlativo va en el mensaje): al crear o modificar, a los usuarios con `viaticos.autorizar`; al autorizar o rechazar, al solicitante; al liquidar, a los usuarios con `viaticos.liquidar`. Tiempo real: eventos por `sendToUsers` y la sala `viaticos:gestion` (validada con `viaticos.gestionar`).
 
@@ -34,10 +34,13 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | `PUT /solicitudes/:id` | ver | Modifica (mismo formato) |
 | `DELETE /solicitudes/:id` | ver | Da de baja (borra registro y archivos) |
 | `GET /solicitudes/:id/documentos` | ver | Lista para el visor: PDF, fotos de defectos y, ya liquidada, los comprobantes |
-| `GET /solicitudes/:id/liquidacion` | ver | Resumen, pendientes por rubro y comprobantes |
+| `GET /solicitudes/:id/liquidacion` | ver | Resumen, pendientes por rubro, comprobantes, recibos y valores sugeridos del recibo |
 | `POST /solicitudes/:id/comprobantes` | ver | Agrega un comprobante (multipart: `archivo`, `tipoGastoId`, `monto`, `descripcion`) |
 | `DELETE /solicitudes/:id/comprobantes/:comprobanteId` | ver | Quita un comprobante |
-| `POST /solicitudes/:id/liquidar` | ver | Liquida (con todos los comprobantes completos) |
+| `POST /solicitudes/:id/recibos/letras` | ver | Vista previa del monto en letras (`{ monto }`) |
+| `POST /solicitudes/:id/recibos` | ver | Genera y guarda un recibo firmado (multipart: `datos` JSON y `firma` PNG) |
+| `DELETE /solicitudes/:id/recibos/:reciboId` | ver | Quita un recibo |
+| `POST /solicitudes/:id/liquidar` | ver | Liquida (aunque falten comprobantes o recibos; solo se avisa) |
 | `GET /gestiones?desde=&hasta=&q=` | gestionar | Todas las solicitudes, con solicitante y país |
 | `GET /gestiones/:id` y `/gestiones/:id/documentos` | gestionar | Detalle y documentos |
 | `POST /gestiones/:id/visto` | autorizar | Registra que quien consulta abrió el documento (requisito para autorizar o rechazar) |
@@ -216,6 +219,7 @@ Todo archivo de viáticos va al bucket propio `SUPABASE_STORAGE_BUCKET_VIATICOS`
 | Foto de defecto al crear | `<CORRELATIVO>_DEFECTO_CREACION_X` |
 | Foto de defecto añadida al modificar | `<CORRELATIVO>_DEFECTO_CORRECCION_X` (las fotos conservadas mantienen su nombre) |
 | Comprobante de liquidación | `<CORRELATIVO>_LIQUIDACION_<RUBRO>_X` (el rubro sale del nombre del tipo de gasto, sin acentos y en mayúsculas: `HOSPEDAJE`, `COMBUSTIBLE`, `PEAJE`…) |
+| Recibo firmado de la liquidación (PDF) | `<CORRELATIVO>_LIQUIDACION_RECIBO_<RUBRO>_X` con `ALIMENTACION`, `DEPRECIACION` u `OTRO`; va al bucket propio `SUPABASE_STORAGE_BUCKET_VIATICOS_RECIBOS` (`supabaseStorage.viaticosRecibos`; variable obligatoria, distinta entre staging y producción) |
 
 Limitación conocida (solo staging y desarrollo, donde el borrado de Storage no actúa): si en una modificación se quitan todas las fotos de una etapa y en otra posterior se vuelven a agregar, el contador reinicia y el nombre puede chocar con un archivo que quedó sin borrar. Los comprobantes sí lo resuelven (ver «Nombres ante duplicados» en «Liquidación (F3.6)»).
 
@@ -276,18 +280,19 @@ Una solicitud rechazada vence `rechazo_vigencia_horas` horas corridas (no labora
 
 ## Liquidación (F3.6)
 
-Los endpoints del solicitante (`/solicitudes/:id/…`) son solo del propio usuario y solo exigen `viaticos.ver`; el de contabilidad (`/gestiones/:id/liquidacion`) exige `viaticos.liquidar`. Código en `services/liquidacionService.js` (casos de uso), `services/liquidacionCalculoService.js` (cálculo puro) y `repositories/comprobanteRepository.js`.
+Los endpoints del solicitante (`/solicitudes/:id/…`) son solo del propio usuario y solo exigen `viaticos.ver`; el de contabilidad (`/gestiones/:id/liquidacion`) exige `viaticos.liquidar`. Código en `services/liquidacionService.js` (casos de uso), `services/liquidacionCalculoService.js` (cálculo puro), `services/reciboService.js` (recibos), `services/montoEnLetras.js`, `services/pdf/reciboPdfService.js` y `repositories/comprobanteRepository.js` / `reciboRepository.js`.
 
 ### Qué se liquida
 
-- Solo viajes de más de 1 día, en estado «autorizada» y con el viaje terminado (hoy de Guatemala posterior a la fecha de regreso). Las comidas y la depreciación del vehículo propio no se liquidan ni cuentan en `solicitadoALiquidar`.
+- Solo viajes de más de 1 día, en estado «autorizada» y con el viaje terminado (hoy de Guatemala posterior a la fecha de regreso).
 - Rubros y cantidad máxima de comprobantes, derivados de la solicitud: Hospedaje = total de noches (uno por noche); Combustible = 1 (si el combustible solicitado es mayor que cero); cada renglón de «otros gastos» = 1 comprobante de su tipo de gasto (dos peajes = dos comprobantes de «Peaje»). Un tipo de gasto que no forma parte de la solicitud no admite comprobantes.
+- Alimentación (suma de los valores unitarios de las comidas guardadas en la solicitud) y Depreciación (km totales × depreciación por km, solo vehículo propio) se liquidan con **un recibo firmado** cada una, si su importe es mayor que cero; no admiten comprobantes. Los recibos «otro» (cualquier otro dinero recibido) no tienen límite ni completan ningún rubro, pero suman en `liquidado`.
 - Hospedaje y Combustible son filas de `viaticos_tipos_gasto` con `seleccionable_en_gastos = 0`; el servidor las identifica por nombre exacto (`RUBROS_FIJOS` en `constantes.js`: «Hospedaje» y «Combustible»). Si faltan: 409 explicativo. Por eso `/config/tipos-gasto` no permite renombrarlas ni desactivarlas (409 con el motivo).
 - El importe de combustible se recalcula con los mismos km, rendimiento y precio de la solicitud (misma fórmula que el cálculo).
 
 ### Resumen en dinero (en la moneda de la solicitud)
 
-`resumen = { solicitadoALiquidar, liquidado, faltaPorLiquidar }`: solicitado = hospedaje + combustible + otros gastos de la solicitud; liquidado = suma de los montos de los comprobantes; `faltaPorLiquidar` = max(0, solicitado − liquidado). Además `pendientes` (un renglón por rubro, completo o no) `{ tipoGastoId, nombre, esOtros, solicitados, liquidados }` y `faltanComprobantes` (suma de lo que falta de cada rubro). Los montos son informativos: contabilidad hace el cálculo definitivo fuera del sistema.
+`resumen = { solicitadoALiquidar, liquidado, faltaPorLiquidar }`: solicitado = hospedaje + combustible + comidas + depreciación + otros gastos de la solicitud; liquidado = suma de los montos de los comprobantes y de los recibos (incluidos los «otro»); `faltaPorLiquidar` = max(0, solicitado − liquidado). Además `pendientes` (un renglón por rubro, completo o no) `{ tipoGastoId, rubroRecibo, nombre, esOtros, solicitados, liquidados }` y `faltanComprobantes` (suma de lo que falta de cada rubro, recibos incluidos). Orden: Hospedaje, Combustible, Alimentación, Depreciación y los tipos de gasto. Alimentación y Depreciación llevan `tipoGastoId: null`, `rubroRecibo` `alimentacion` o `depreciacion` y `solicitados: 1`; los demás, `rubroRecibo: null`. Los montos son informativos: contabilidad hace el cálculo definitivo fuera del sistema.
 
 **Decisión del dueño:** «Liquidar» lo marca el solicitante cuando quiere, aunque falten comprobantes: exigir todos los comprobantes (o un monto exacto) es una limitación demasiado estricta. Lo que sí se mantiene es el tope por rubro (no se pueden cargar más comprobantes de los solicitados). Lo que falte solo se informa (`avisoFaltantes`); contabilidad ve los comprobantes cargados y hace el cálculo definitivo fuera del sistema.
 
@@ -301,6 +306,13 @@ Los endpoints del solicitante (`/solicitudes/:id/…`) son solo del propio usuar
   "pendientes": [ { "tipoGastoId": 1, "nombre": "Hospedaje", "esOtros": false, "solicitados": 3, "liquidados": 1 } ],
   "faltanComprobantes": 6,
   "comprobantes": [ { "id": 5, "tipoGastoId": 1, "rubro": "Hospedaje", "descripcion": null, "monto": 301, "nombreArchivo": "hotel.png", "tipoArchivo": "image/png", "tamano": 1024, "url": "https://…/VIA-GT-123_LIQUIDACION_HOSPEDAJE_1.png", "subidoEn": "2026-11-12 09:30:00" } ],
+  "recibos": [ { "id": 2, "numero": "VIA-GT-123-R1", "rubro": "alimentacion", "rubroNombre": "Alimentación", "fecha": "2026-11-12", "monto": 440, "montoLetras": "Cuatrocientos cuarenta 00/100 quetzales", "recibiDe": "…", "concepto": "Viáticos por alimentación del 21 al 24 de abril de 2026", "formaPago": "efectivo", "numeroCheque": null, "numeroCuenta": null, "url": "https://…/VIA-GT-123_LIQUIDACION_RECIBO_ALIMENTACION_1.pdf", "tamano": 7000, "creadoEn": "2026-11-12 09:40:00" } ],
+  "sugerenciasRecibo": {
+    "solicitanteNombre": "…", "fecha": "2026-11-17",
+    "moneda": { "codigo": "GTQ", "nombre": "Quetzal", "nombrePlural": "Quetzales", "simbolo": "Q" },
+    "alimentacion": { "monto": 440, "concepto": "Viáticos por alimentación del 21 al 24 de abril de 2026" },
+    "depreciacion": null
+  },
   "editable": true,
   "puedeLiquidar": true,
   "motivoNoPuedeLiquidar": null,
@@ -308,7 +320,8 @@ Los endpoints del solicitante (`/solicitudes/:id/…`) son solo del propio usuar
 }
 ```
 
-- `editable`: se pueden agregar y quitar comprobantes (autorizada con el viaje terminado). `puedeLiquidar`: igual a `editable` (los comprobantes que falten no lo impiden); si es `false`, `motivoNoPuedeLiquidar` dice por qué (el viaje aún no termina, ya está liquidada…); si es `true`, es `null`. `avisoFaltantes` es un texto informativo (o `null` si no falta ninguno) para que la interfaz advierta antes de confirmar.
+- `sugerenciasRecibo` (solo en esta vista del solicitante): valores que el modal del recibo propone, todos editables. `alimentacion` y `depreciacion` son `null` si ese rubro no se solicitó (importe 0); `monto` es lo solicitado del rubro y `concepto` usa las fechas del viaje (plantillas en `mensajes.js`); `fecha` es hoy de Guatemala. Que ya exista el recibo del rubro se ve en `pendientes`.
+- `editable`: se pueden agregar y quitar comprobantes y recibos (autorizada con el viaje terminado). `puedeLiquidar`: igual a `editable` (los comprobantes que falten no lo impiden); si es `false`, `motivoNoPuedeLiquidar` dice por qué (el viaje aún no termina, ya está liquidada…); si es `true`, es `null`. `avisoFaltantes` es un texto informativo (o `null` si no falta ninguno) para que la interfaz advierta antes de confirmar.
 - 403 explicativo si la solicitud es ajena, de 1 día o menos o no está autorizada ni liquidada; 404 si no existe. Con el viaje aún en curso responde 200 con `puedeLiquidar: false`.
 
 ### `POST /solicitudes/:id/comprobantes`
@@ -326,6 +339,24 @@ Los endpoints del solicitante (`/solicitudes/:id/…`) son solo del propio usuar
 
 - Solo mientras la solicitud sigue «autorizada»; ya «liquidada» no se agregan ni se quitan comprobantes (403). 404 si el comprobante no existe o es de otra solicitud.
 - Responde 200 con la misma forma que `GET /solicitudes/:id/liquidacion`. El archivo se borra de Storage después del commit (solo actúa en producción).
+
+### Recibos
+
+El recibo lo genera y firma el propio solicitante (decisión del dueño: solo él puede generarlo). Mismas reglas de estado que los comprobantes (ajena 403, de 1 día o menos 403, no autorizada 403, viaje sin terminar 403, ya liquidada 403; 404 si la solicitud no existe).
+
+`POST /solicitudes/:id/recibos/letras` — cuerpo JSON `{ "monto": 440 }` → 200 `{ "montoLetras": "Cuatrocientos cuarenta 00/100 quetzales" }`. `monto` mayor que cero, hasta 2 decimales y como máximo 99,999,999.99 (400 con `campos.monto`). El plural sale de `viaticos_monedas.nombre_plural` (si falta, se forma con la regla del español sobre el nombre). Las letras siguen el español de los cheques: «Cien», «Ciento uno», «Veintiuno», «Mil», «Veintiún mil», «Un millón», «Dos millones»; los centavos van como `NN/100`.
+
+`POST /solicitudes/:id/recibos` — `multipart/form-data`:
+
+- `datos` (texto JSON): `rubro` (`alimentacion`, `depreciacion` u `otro`), `fecha` (`AAAA-MM-DD`, hoy o antes), `monto` (como en `letras`), `recibiDe` (obligatorio, hasta 100), `concepto` (obligatorio, hasta 200), `formaPago` (`efectivo`, `cheque` o `transferencia`), `numeroCheque` (obligatorio solo con cheque, hasta 30), `numeroCuenta` (opcional, solo con transferencia, hasta 40) e `idempotencyKey` (opcional, 1 a 64; también se acepta como campo suelto). Con otra forma de pago, `numeroCheque` y `numeroCuenta` se ignoran.
+- `firma`: archivo PNG obligatorio (se verifica el contenido real, máximo 2 MB `RECIBOS.MAX_FIRMA_MB`, con tope de megapíxeles). La firma vive solo dentro del PDF.
+- Los textos se validan contra lo que el PDF puede dibujar (Helvetica): emoji y similares dan 400 en su campo.
+- Alimentación y Depreciación: como máximo un recibo cada una y solo si su importe solicitado es mayor que cero (sin importe: 400 `campos.rubro`; ya existe: 409 con `campos.rubro` y el número del existente). «Otro»: sin límite. El monto no tiene tope frente a lo solicitado.
+- Una transacción con la solicitud bloqueada (`SELECT … FOR UPDATE`): vuelve a comprobar estado y cupo; número `<CORRELATIVO>-R<contador>` (contador = máximo existente + 1 en la solicitud); monto en letras; PDF (`reciboPdfService`: hoja carta en blanco y negro con el recibo arriba: logo del trofeo, «RECIBO» y su número, cajas DÍA/MES/AÑO, caja del monto con el símbolo de la moneda, «RECIBÍ DE», «LA CANTIDAD DE» en letras con el plural en mayúsculas, «POR CONCEPTO DE», casillas EFECTIVO/CHEQUE/TRANSFERENCIA con una X, N.º de cheque y de cuenta, y la firma sobre la línea «RECIBÍ CONFORME» con el nombre del solicitante); subida al bucket de recibos con el nombre y los reintentos de «Nombres ante duplicados».
+- Respuesta 201: `{ recibo, …liquidacion }` (`recibo` con la forma de cada elemento de `recibos`). 400 `{ error, campos }` por campo (`rubro`, `fecha`, `monto`, `recibiDe`, `concepto`, `formaPago`, `numeroCheque`, `numeroCuenta`, `firma`, `idempotencyKey`); 400 sin `campos` si `datos` falta o no es JSON.
+- Idempotencia con el endpoint `viaticos:recibo` (mismo esquema que los comprobantes). Si algo falla después de subir el PDF, se intenta borrarlo (solo actúa en producción).
+
+`DELETE /solicitudes/:id/recibos/:reciboId` — solo mientras la solicitud sigue «autorizada» (ya liquidada: 403); 404 si el recibo no existe o es de otra solicitud. 200 con la misma forma que `GET /solicitudes/:id/liquidacion`; el PDF se borra de Storage después del commit (solo actúa en producción). Para corregir un recibo se quita y se vuelve a hacer.
 
 ### `POST /solicitudes/:id/liquidar`
 
@@ -347,6 +378,7 @@ Solo lectura para contabilidad; funciona con solicitudes de cualquier persona y 
   "diferencia": 307.86,
   "pendientes": [ … ], "faltanComprobantes": 0,
   "comprobantes": [ { "id": 5, "rubro": "Hospedaje", "monto": 301, "url": "…", "nombreArchivo": "hotel.png", "tipoArchivo": "image/png", … } ],
+  "recibos": [ … misma forma que en GET /solicitudes/:id/liquidacion … ],
   "pdf": { "titulo": "Solicitud VIA-GT-123", "tipo": "pdf", "url": "https://…" }
 }
 ```
@@ -357,8 +389,8 @@ Solo lectura para contabilidad; funciona con solicitudes de cualquier persona y 
 
 ### Documentos
 
-`GET /solicitudes/:id/documentos` y `GET /gestiones/:id/documentos`: si la solicitud está «liquidada», se agregan al final los comprobantes en orden de carga, con título legible `Comprobante <n>: <rubro> · <símbolo> <monto>` (con la descripción entre paréntesis en los de tipo «otros») y `tipo` `pdf` o `imagen`. Antes de liquidar no aparecen ahí.
+`GET /solicitudes/:id/documentos` y `GET /gestiones/:id/documentos`: si la solicitud está «liquidada», se agregan al final los comprobantes en orden de carga, con título legible `Comprobante <n>: <rubro> · <símbolo> <monto>` (con la descripción entre paréntesis en los de tipo «otros») y `tipo` `pdf` o `imagen`, y después los recibos en orden de número, `Recibo <número>: <rubro> · <símbolo> <monto>` (p. ej. `Recibo VIA-GT-39-R1: Alimentación · Q 440.00`), `tipo` `pdf`. Antes de liquidar no aparecen ahí.
 
 ### Nombres ante duplicados
 
-Los comprobantes se nombran `<CORRELATIVO>_LIQUIDACION_<RUBRO>_X` en el bucket de viáticos; `X` parte de `máximo existente + 1` entre los comprobantes vigentes del rubro. Storage no sobrescribe y fuera de producción el borrado no actúa, así que al quitar un comprobante y agregar otro el nombre puede seguir ocupado. Cuando Storage responde «ya existe» (409), el servidor prueba el contador siguiente, hasta 5 intentos por comprobante (`ARCHIVOS.INTENTOS_NOMBRE`); el nombre que quedó guardado es el de la URL del comprobante. Si se agotan los 5 intentos: 409 explicativo («… después de 5 intentos …») y no se guarda nada. En producción el borrado sí actúa y el contador nunca choca.
+Los comprobantes se nombran `<CORRELATIVO>_LIQUIDACION_<RUBRO>_X` en el bucket de viáticos; `X` parte de `máximo existente + 1` entre los comprobantes vigentes del rubro. Storage no sobrescribe y fuera de producción el borrado no actúa, así que al quitar un comprobante y agregar otro el nombre puede seguir ocupado. Cuando Storage responde «ya existe» (409), el servidor prueba el contador siguiente, hasta 5 intentos por comprobante (`ARCHIVOS.INTENTOS_NOMBRE`); el nombre que quedó guardado es el de la URL del comprobante. Si se agotan los 5 intentos: 409 explicativo («… después de 5 intentos …») y no se guarda nada. En producción el borrado sí actúa y el contador nunca choca. Los recibos siguen la misma regla con `<CORRELATIVO>_LIQUIDACION_RECIBO_<RUBRO>_X` en su propio bucket (el `X` del archivo es independiente del `R<contador>` del número del recibo).

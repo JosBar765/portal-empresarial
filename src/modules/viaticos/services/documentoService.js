@@ -1,10 +1,11 @@
 // src/modules/viaticos/services/documentoService.js
-// Documentos de una solicitud: el PDF, las fotos de defectos y, ya liquidada, sus comprobantes; alimentan el visor.
+// Documentos de una solicitud: el PDF, las fotos de defectos y, ya liquidada, sus comprobantes y recibos; alimentan el visor.
 const supabaseStorage = require('../../../core/files/supabaseStorage');
 const nombreArchivo = require('../../../core/files/nombreArchivo');
 const solicitudRepo = require('../repositories/solicitudRepository');
 const escrituraRepo = require('../repositories/solicitudEscrituraRepository');
 const comprobanteRepo = require('../repositories/comprobanteRepository');
+const reciboRepo = require('../repositories/reciboRepository');
 const solicitudService = require('./solicitudService');
 const archivosService = require('./archivosViaticoService');
 const { generarPdfSolicitud } = require('./pdf/solicitudPdfService');
@@ -89,8 +90,18 @@ class DocumentoService {
       tipo: d.mimeType === TIPO_PDF ? 'pdf' : 'imagen',
       url: d.ruta
     }));
-    if (fila.estado === ESTADOS.LIQUIDADA) documentos.push(...await this.comprobantesComoDocumentos(fila));
+    if (fila.estado === ESTADOS.LIQUIDADA) documentos.push(...await this.comprobantesComoDocumentos(fila), ...await this.recibosComoDocumentos(fila));
     return documentos;
+  }
+
+  // Recibos firmados (siempre PDF), después de los comprobantes.
+  async recibosComoDocumentos(fila) {
+    const recibos = await reciboRepo.listar(fila.id);
+    return recibos.map(r => ({
+      titulo: msg('documento.tituloRecibo', { numero: r.numero, rubro: msg(`recibo.rubro.${r.rubro}`), moneda: fila.monedaSimbolo, monto: formatear(aCentavos(r.monto)) }),
+      tipo: 'pdf',
+      url: r.ruta
+    }));
   }
 
   async comprobantesComoDocumentos(fila) {

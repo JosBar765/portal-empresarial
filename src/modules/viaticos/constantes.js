@@ -112,7 +112,26 @@ const ETAPAS_DOCUMENTO = Object.freeze({ CREACION: 'CREACION', CORRECCION: 'CORR
 const SENTIDOS_TRAMO = Object.freeze({ IDA: 'ida', VUELTA: 'vuelta' });
 
 // La llave de idempotencia llega del cliente; se acota para caber en idempotency_keys junto al prefijo del usuario.
-const IDEMPOTENCIA = Object.freeze({ ENDPOINT_CREAR: 'viaticos:crear', ENDPOINT_COMPROBANTE: 'viaticos:comprobante', MAX_LLAVE: 64 });
+const IDEMPOTENCIA = Object.freeze({ ENDPOINT_CREAR: 'viaticos:crear', ENDPOINT_COMPROBANTE: 'viaticos:comprobante', ENDPOINT_RECIBO: 'viaticos:recibo', MAX_LLAVE: 64 });
+
+// Recibos firmados de la liquidación: rubros y formas de pago (coinciden con los ENUM de viaticos_recibos), largos de sus textos y la firma (PNG).
+const RECIBOS = Object.freeze({
+  RUBROS: Object.freeze({ ALIMENTACION: 'alimentacion', DEPRECIACION: 'depreciacion', OTRO: 'otro' }),
+  FORMAS_PAGO: Object.freeze({ EFECTIVO: 'efectivo', CHEQUE: 'cheque', TRANSFERENCIA: 'transferencia' }),
+  RECIBI_DE: 100,
+  CONCEPTO: 200,
+  NUMERO_CHEQUE: 30,
+  NUMERO_CUENTA: 40,
+  CAMPO_DATOS: 'datos',
+  CAMPO_FIRMA: 'firma',
+  MIME_FIRMA: 'image/png',
+  MAX_FIRMA_MB: 2,
+  PREFIJO_NUMERO: 'R',
+  MIME_PDF: 'application/pdf'
+});
+
+// Nombres completos de los meses para los conceptos sugeridos del recibo.
+const MESES_COMPLETOS = Object.freeze(['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']);
 
 const NOTIFICACION = Object.freeze({
   MODULO: 'viaticos',
@@ -212,5 +231,5 @@ const MESES_ABREVIADOS = Object.freeze(['ene', 'feb', 'mar', 'abr', 'may', 'jun'
 
 module.exports = {
   PERMISOS, PREFIJO_PERMISOS, ESTADOS, MODALIDADES, RECURSOS, AJUSTES, RECHAZO, BORRADORES, MIME_PERMITIDOS, LIMITES,
-  LIMITES_SOLICITUD, ARCHIVOS, RUBROS_FIJOS, ETAPAS_DOCUMENTO, SENTIDOS_TRAMO, IDEMPOTENCIA, NOTIFICACION, TIEMPO_REAL, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, NIVELES_RESALTADOS, MIME_IMAGEN_PDF, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS
+  LIMITES_SOLICITUD, ARCHIVOS, RUBROS_FIJOS, ETAPAS_DOCUMENTO, SENTIDOS_TRAMO, IDEMPOTENCIA, RECIBOS, MESES_COMPLETOS, NOTIFICACION, TIEMPO_REAL, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, NIVELES_RESALTADOS, MIME_IMAGEN_PDF, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS
 };

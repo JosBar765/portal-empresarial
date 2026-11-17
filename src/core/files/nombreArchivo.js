@@ -102,6 +102,17 @@ function liquidacion(correlativo, rubro, contador) {
   return `${prefijoLiquidacion(correlativo, rubro)}_${contador}`;
 }
 
+// Viáticos: recibo firmado de la liquidación (<CORR>_LIQUIDACION_RECIBO_<RUBRO>_X).
+function prefijoRecibo(correlativo, rubro) {
+  const codigo = segmento(rubro);
+  if (!codigo) throw new Error('El rubro del recibo no tiene un nombre válido para nombrar el archivo en Storage.');
+  return `${sanitizarCorrelativo(correlativo)}_LIQUIDACION_RECIBO_${codigo}`;
+}
+
+function recibo(correlativo, rubro, contador) {
+  return `${prefijoRecibo(correlativo, rubro)}_${contador}`;
+}
+
 // Máximo X + 1 entre las URLs/nombres que empiezan por `${prefijo}_` seguido solo de dígitos
 // (se ignoran carpeta, extensión y querystring); 1 si no hay ninguno.
 function siguienteContador(urlsExistentes, prefijo) {
@@ -120,5 +131,5 @@ module.exports = {
   sanitizarCorrelativo, codigoTaller, siguienteContador,
   pdfCreacion, pdfAutorizacion, prefijoCorreccionPreAutorizacion, pdfCorreccionPreAutorizacion,
   adjunto, prefijoAdjunto, borrador, prefijoBorrador, propuesta, prefijoPropuesta, prefijoPropuestaFusion, propuestaFusion,
-  prefijoCorreccionAdmin, correccionAdmin, prefijoLiquidacion, liquidacion
+  prefijoCorreccionAdmin, correccionAdmin, prefijoLiquidacion, liquidacion, prefijoRecibo, recibo
 };

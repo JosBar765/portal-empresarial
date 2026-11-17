@@ -1,5 +1,5 @@
 // src/modules/viaticos/services/archivosViaticoService.js
-// Archivos del módulo (fotos de defectos y comprobantes): validación contra los ajustes, subida a Storage y borrado.
+// Archivos del módulo (fotos de defectos, comprobantes y recibos): validación contra los ajustes, subida a Storage y borrado.
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { tipoRealCoincide } = require('../../../core/files/fileSignature');
 const { excedeElLimiteDePixeles } = require('../../../core/files/imagenDimensiones');
@@ -8,7 +8,7 @@ const { StorageUploadError } = require('../../../core/files/errores');
 const supabaseStorage = require('../../../core/files/supabaseStorage');
 const nombreArchivo = require('../../../core/files/nombreArchivo');
 const ajusteRepo = require('../repositories/ajusteRepository');
-const { MODALIDADES, ARCHIVOS } = require('../constantes');
+const { MODALIDADES, ARCHIVOS, RECIBOS } = require('../constantes');
 const { parsearJson } = require('../utilidades');
 const { msg } = require('../mensajes');
 
@@ -120,17 +120,38 @@ async function subirDefectos({ correlativo, etapa, defectos, archivos, existente
 // que quedó sin borrar choca: ante «ya existe» se prueba el contador siguiente (hasta ARCHIVOS.INTENTOS_NOMBRE intentos).
 // `existentes` son las URLs de los comprobantes vigentes del mismo rubro. Devuelve el nombre que quedó guardado y los intentos usados.
 async function subirComprobante({ correlativo, rubro, archivo, existentes = [], registrar, subidas }) {
-  let contador = nombreArchivo.siguienteContador(existentes, nombreArchivo.prefijoLiquidacion(correlativo, rubro));
-  const mimeType = tipoCanonico(archivo.mimetype);
+  return subirConNombreLibre({
+    storage: supabaseStorage.viaticos,
+    contador: nombreArchivo.siguienteContador(existentes, nombreArchivo.prefijoLiquidacion(correlativo, rubro)),
+    nombreDe: contador => nombreArchivo.liquidacion(correlativo, rubro, contador),
+    buffer: archivo.buffer, nombreOriginal: archivo.originalname, mimeType: tipoCanonico(archivo.mimetype),
+    registrar, subidas, agotado: nombre => msg('liquidacion.nombreAgotado', { rubro, intentos: ARCHIVOS.INTENTOS_NOMBRE, nombre })
+  });
+}
+
+// Sube el PDF del recibo a su propio bucket como <CORR>_LIQUIDACION_RECIBO_<RUBRO>_X, con el mismo contador y reintentos que los comprobantes.
+async function subirRecibo({ correlativo, rubro, pdf, nombreOriginal, existentes = [], registrar, subidas }) {
+  return subirConNombreLibre({
+    storage: supabaseStorage.viaticosRecibos,
+    contador: nombreArchivo.siguienteContador(existentes, nombreArchivo.prefijoRecibo(correlativo, rubro)),
+    nombreDe: contador => nombreArchivo.recibo(correlativo, rubro, contador),
+    buffer: pdf, nombreOriginal, mimeType: RECIBOS.MIME_PDF,
+    registrar, subidas, agotado: nombre => msg('recibo.nombreAgotado', { rubro, intentos: ARCHIVOS.INTENTOS_NOMBRE, nombre })
+  });
+}
+
+// Storage no sobrescribe: ante «ya existe» se prueba el contador siguiente (hasta ARCHIVOS.INTENTOS_NOMBRE intentos).
+async function subirConNombreLibre({ storage, contador: inicial, nombreDe, buffer, nombreOriginal, mimeType, registrar, subidas, agotado }) {
+  let contador = inicial;
   let nombreObjeto = null;
   for (let intento = 1; intento <= ARCHIVOS.INTENTOS_NOMBRE; intento += 1) {
-    nombreObjeto = nombreArchivo.liquidacion(correlativo, rubro, contador);
+    nombreObjeto = nombreDe(contador);
     try {
       await subirYRegistrarArchivo({
-        buffer: archivo.buffer,
-        nombreOriginal: archivo.originalname,
+        buffer,
+        nombreOriginal,
         mimeType,
-        storage: supabaseStorage.viaticos,
+        storage,
         nombreObjeto,
         registrar: async subida => {
           await registrar({ ruta: subida.url, mimeType, tamano: subida.size });
@@ -143,18 +164,23 @@ async function subirComprobante({ correlativo, rubro, archivo, existentes = [], 
       contador += 1;
     }
   }
-  throw new ErrorDeNegocio(msg('liquidacion.nombreAgotado', { rubro, intentos: ARCHIVOS.INTENTOS_NOMBRE, nombre: nombreObjeto }), 409);
+  throw new ErrorDeNegocio(agotado(nombreObjeto), 409);
 }
 
 // Borra de Storage (solo actúa en producción; ver supabaseStorage.eliminar). Un fallo se registra y no interrumpe.
-async function eliminarArchivos(urls) {
+// `storage` debe ser el bucket donde vive el archivo: con otro, el nombre podría coincidir con un objeto ajeno.
+async function eliminarArchivos(urls, storage = supabaseStorage.viaticos) {
   for (const url of urls.filter(Boolean)) {
     try {
-      await supabaseStorage.viaticos.eliminar(url);
+      await storage.eliminar(url);
     } catch (error) {
       console.error('[Viáticos] No se pudo borrar un archivo de Storage:', error.message);
     }
   }
 }
 
-module.exports = { leerAjustes, erroresDeArchivo, validarConservados, validarDefectos, subirDefectos, subirComprobante, eliminarArchivos, tipoCanonico };
+const eliminarRecibos = urls => eliminarArchivos(urls, supabaseStorage.viaticosRecibos);
+
+module.exports = {
+  leerAjustes, erroresDeArchivo, validarConservados, validarDefectos, subirDefectos, subirComprobante, subirRecibo, eliminarArchivos, eliminarRecibos, tipoCanonico
+};

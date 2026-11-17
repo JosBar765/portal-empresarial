@@ -3,12 +3,13 @@
 const express = require('express');
 const multer = require('multer');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
-const { PERMISOS, RECURSOS, ARCHIVOS } = require('./constantes');
+const { PERMISOS, RECURSOS, ARCHIVOS, RECIBOS } = require('./constantes');
 const contextoController = require('./controllers/contextoController');
 const configController = require('./controllers/configController');
 const solicitudController = require('./controllers/solicitudController');
 const gestionController = require('./controllers/gestionController');
 const liquidacionController = require('./controllers/liquidacionController');
+const reciboController = require('./controllers/reciboController');
 const borradorController = require('./controllers/borradorController');
 const { crearCrud } = require('./controllers/crudController');
 const catalogoService = require('./services/catalogoService');
@@ -19,6 +20,7 @@ const vehiculoService = require('./services/vehiculoService');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: ARCHIVOS.MAX_MB_DURO * 1024 * 1024 } });
 const fotosDefectos = upload.fields([{ name: ARCHIVOS.CAMPO_DEFECTOS, maxCount: ARCHIVOS.MAX_DEFECTOS }]);
 const archivoComprobante = upload.single(ARCHIVOS.CAMPO_ARCHIVO);
+const firmaRecibo = upload.single(RECIBOS.CAMPO_FIRMA);
 
 const router = express.Router();
 router.get('/contexto', contextoController.obtener);
@@ -45,6 +47,10 @@ router.get('/solicitudes/:id/documentos', solicitudController.documentos);
 router.get('/solicitudes/:id/liquidacion', liquidacionController.obtener);
 router.post('/solicitudes/:id/comprobantes', archivoComprobante, liquidacionController.agregarComprobante);
 router.delete('/solicitudes/:id/comprobantes/:comprobanteId', liquidacionController.quitarComprobante);
+// Recibos firmados (alimentación, depreciación u otro): vista previa del monto en letras, crear (multipart con la firma) y quitar.
+router.post('/solicitudes/:id/recibos/letras', reciboController.letras);
+router.post('/solicitudes/:id/recibos', firmaRecibo, reciboController.agregar);
+router.delete('/solicitudes/:id/recibos/:reciboId', reciboController.quitar);
 router.post('/solicitudes/:id/liquidar', liquidacionController.liquidar);
 
 // Gestiones: ver todo exige viaticos.gestionar; autorizar y rechazar, viaticos.autorizar; la vista de liquidación (solo lectura), viaticos.liquidar.

@@ -133,9 +133,10 @@ class SupabaseStorage {
   }
 }
 
-// El bucket de siempre; `borradores` y `viaticos` son la misma clase apuntando a sus propios buckets.
+// El bucket de siempre; `borradores`, `viaticos` y `viaticosRecibos` son la misma clase apuntando a sus propios buckets.
 const storage = new SupabaseStorage(config.supabase.bucket);
 storage.borradores = new SupabaseStorage(config.supabase.bucketBorradores);
 storage.viaticos = new SupabaseStorage(config.supabase.bucketViaticos);
+storage.viaticosRecibos = new SupabaseStorage(config.supabase.bucketViaticosRecibos);
 
 module.exports = storage;

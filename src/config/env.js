@@ -148,7 +148,8 @@ const config = {
     secretKey: leer('SUPABASE_SECRET_KEY').trim(),
     bucket: leer('SUPABASE_STORAGE_BUCKET').trim(),
     bucketBorradores: leer('SUPABASE_STORAGE_BUCKET_BORRADORES').trim(),
-    bucketViaticos: leer('SUPABASE_STORAGE_BUCKET_VIATICOS').trim()
+    bucketViaticos: leer('SUPABASE_STORAGE_BUCKET_VIATICOS').trim(),
+    bucketViaticosRecibos: leer('SUPABASE_STORAGE_BUCKET_VIATICOS_RECIBOS').trim()
   }
 };
 

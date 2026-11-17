@@ -5,7 +5,7 @@ const { ESTADOS } = require('../constantes');
 const { filaACamel, filasACamel } = require('../utilidades');
 
 const ENCABEZADO = `SELECT s.id, s.correlativo, s.pais_id, p.codigo AS pais_codigo, p.nombre AS pais_nombre,
-       s.moneda_id, mo.codigo AS moneda_codigo, mo.nombre AS moneda_nombre, mo.simbolo AS moneda_simbolo,
+       s.moneda_id, mo.codigo AS moneda_codigo, mo.nombre AS moneda_nombre, mo.simbolo AS moneda_simbolo, mo.nombre_plural AS moneda_nombre_plural,
        s.solicitante_id, u.nombre AS solicitante_nombre, s.modalidad, e.nombre AS estado,
        s.motivo_id, mt.nombre AS motivo_nombre, s.vehiculo_id, v.marca AS vehiculo_marca, v.modelo AS vehiculo_modelo,
        v.anio AS vehiculo_anio, v.placa AS vehiculo_placa, v.propietario_id AS vehiculo_propietario_id,
