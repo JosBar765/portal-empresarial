@@ -1230,11 +1230,11 @@ body { font-size: var(--text-sm); line-height: 1.45; }
 .ayuda-bloque-icono { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px; background: var(--color-surface-muted); color: var(--color-primary); font-size: 19px; }
 .ayuda-bloque-cuerpo { min-width: 0; flex: 1; }
 .ayuda-bloque-titulo { margin: 0 0 4px; font-size: var(--text-base); font-weight: 700; color: var(--color-text); line-height: 32px; }
-.ayuda-bloque p, .ayuda-bloque li { margin: 0; font-size: var(--text-base); line-height: 1.55; color: var(--color-text-secondary); }
+.ayuda-bloque p, .ayuda-bloque li { margin: 0; font-size: var(--text-sm); line-height: 1.6; color: var(--color-text-secondary); }
 .ayuda-bloque ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
 .ayuda-bloque ul li { position: relative; padding-left: 18px; }
 .ayuda-bloque ul li::before { content: ''; position: absolute; left: 2px; top: .62em; width: 7px; height: 7px; border-radius: 50%; background: var(--color-primary); opacity: .55; }
-.ayuda-bloque--sirve .ayuda-bloque-cuerpo p { font-size: 16px; color: var(--color-text); }
+.ayuda-bloque--sirve .ayuda-bloque-cuerpo p { font-size: var(--text-base); line-height: 1.55; color: var(--color-text); }
 .ayuda-bloque--ejemplo, .ayuda-bloque--ojo { padding: 14px 16px; border-radius: 12px; }
 .ayuda-bloque--ejemplo { background: #F1F6FF; border: 1px solid #D5E3FB; }
 .ayuda-bloque--ejemplo .ayuda-bloque-icono { background: #DCE8FD; color: #1D4ED8; }
@@ -1278,7 +1278,6 @@ body { font-size: var(--text-sm); line-height: 1.45; }
   .ayuda-franja { padding: 12px; gap: 12px; }
   .ayuda-franja-accion { display: none; }
   .ayuda-panel { padding: 16px 14px 18px; gap: 16px; }
-  .ayuda-bloque--sirve .ayuda-bloque-cuerpo p { font-size: var(--text-base); }
   .ayuda-i { width: 36px; height: 36px; }
 }
 @media (prefers-reduced-motion: reduce) { .ayuda-fondo, .ayuda-hoja, .ayuda-recuadro { animation: none; } .ayuda-franja > ion-icon:last-child, .ayuda-franja, .ayuda-paso { transition: none; } }
