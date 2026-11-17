@@ -310,7 +310,7 @@ Pestaña «Reportes»: solo para quien tiene `viaticos.reportes` (además de `vi
 Los importes son números en la moneda del reporte. Los porcentajes llevan 1 decimal y suman 100.0 (el ajuste de redondeo va a la porción mayor). `promedio` es total entre solicitudes. `reparto` es de todos los solicitantes o, con `solicitanteId`, solo de ese; las categorías, en este orden y con estas claves: `hospedaje`, `combustible`, `alimentacion`, `depreciacion`, `otros` (otros gastos). Los importes por categoría se calculan por partes con la misma lógica de `calculoService` (hospedaje Σ noches × valor, comidas Σ valor guardado, combustible por km/rendimiento/precio, depreciación km × valor solo con vehículo propio, otros gastos Σ monto); los totales usan el `total_solicitado` guardado y, si las categorías de una solicitud no cuadran con él, se registra en el log del servidor.
 
 ### `GET /reportes/pdf`
-Mismos filtros y mismos datos que el JSON. `Content-Type: application/pdf`, `Content-Disposition: inline; filename="reporte-viaticos-<desde>_<hasta>.pdf"`. Carta en blanco y negro con resumen, ranking de barras (los 10 con mayor inversión), pastel con leyenda, tabla de todos los solicitantes con fila TOTAL y paginación `n/total`.
+Mismos filtros y mismos datos que el JSON. `Content-Type: application/pdf`, `Content-Disposition: inline; filename="reporte-viaticos-<desde>_<hasta>.pdf"`. Carta a color (los de la pantalla: hospedaje, combustible, alimentación, depreciación y otros) con resumen, ranking de barras (los 10 con mayor inversión), pastel con leyenda, tabla de todos los solicitantes con fila TOTAL y paginación `n/total`.
 
 ## Vencimiento de una solicitud rechazada
 
