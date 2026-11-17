@@ -17,14 +17,14 @@ export const TEXTOS = {
     inicio: {
       sirve: 'Es la puerta de entrada a todo lo que se puede ajustar en Proyectos sin pedir cambios al sistema. Cada tarjeta lleva a un área, te dice cuántos ajustes tiene y qué falta resolver.',
       guia: [
-        'Catálogos: revisa los nichos, artículos, canales y resultados. Son las listas de opciones que usa todo lo demás. Termina de asignar la moneda local de cada país.',
-        'Alcance de usuarios: confirma qué países ve cada persona (por defecto, el de su tienda).',
-        'Parámetros: ajusta el reparto, el seguimiento, el semáforo, la importación y el informe.',
-        'Plantillas de proyecto: crea los moldes con los que los supervisores arman cada proyecto.',
-        'Reglas y aprobaciones: decide si hace falta visto bueno, aprobación o confirmación de ventas.',
-        'Notificaciones: elige qué avisos recibe cada rol.',
-        'Kit del nicho y Campos propios: guiones, mensajes y datos extra por nicho.',
-        'Plan del año: planifica el nicho de cada mes y, si quieres, activa los proyectos solos.'
+        { ruta: '#/catalogos', titulo: 'Catálogos', texto: 'Revisa nichos, artículos, canales y resultados, y asigna la moneda local de cada país.' },
+        { ruta: '#/alcance', titulo: 'Alcance de usuarios', texto: 'Confirma qué países ve cada persona (por defecto, el de su tienda).' },
+        { ruta: '#/parametros', titulo: 'Parámetros', texto: 'Ajusta el reparto, el seguimiento, el semáforo, la importación y el informe.' },
+        { ruta: '#/plantillas', titulo: 'Plantillas de proyecto', texto: 'Crea los moldes con los que los supervisores arman cada proyecto.' },
+        { ruta: '#/reglas', titulo: 'Reglas y aprobaciones', texto: 'Decide si hace falta visto bueno, aprobación o confirmación de ventas.' },
+        { ruta: '#/notificaciones', titulo: 'Notificaciones', texto: 'Elige qué avisos recibe cada rol.' },
+        { ruta: '#/kit', titulo: 'Kit del nicho y campos propios', texto: 'Guiones, mensajes y datos extra por nicho.' },
+        { ruta: '#/plan', titulo: 'Plan del año', texto: 'Planifica el nicho de cada mes y, si quieres, activa los proyectos solos.' }
       ],
       cambias: ['Desde aquí solo se entra a cada área; los cambios se hacen dentro de ellas.', 'El aviso amarillo de arriba lista lo que falta configurar (por ejemplo, un país sin moneda local) y te lleva directo a resolverlo.'],
       efecto: 'Las tarjetas se actualizan solas con lo que guardes. Casi todo lo que cambies aplica a los proyectos nuevos; lo que ya está en marcha no se mueve.',

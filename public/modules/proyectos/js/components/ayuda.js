@@ -1,4 +1,4 @@
-// Ayuda integrada de las pantallas de Configuración: «¿Cómo funciona?» (desplegable bajo el título) y el icono (i) de los
+// Ayuda integrada de las pantallas de Configuración: «¿Cómo funciona?» (franja desplegable bajo el título) y el icono (i) de los
 // ajustes con reglas. Todos los textos salen de ../ayuda/textos.js. En escritorio el (i) abre un recuadro junto al icono; en el
 // celular, una hoja desde abajo. Nada de esto cambia lo que la persona está escribiendo.
 import { h, icono } from '../utils/dom.js';
@@ -6,46 +6,81 @@ import { TEXTOS } from '../ayuda/textos.js';
 
 const CELULAR = '(max-width: 640px)';
 let contador = 0;
-let abierta = null; // { cerrar } de la ayuda (i) abierta ahora
+let abierta = null; // { cerrar, caja } de la ayuda (i) abierta ahora
 
 const recordar = (clave, valor) => { try { sessionStorage.setItem(`proyectos:ayuda:${clave}`, valor ? '1' : '0'); } catch (e) { /* solo comodidad */ } };
 const recordada = (clave) => { try { return sessionStorage.getItem(`proyectos:ayuda:${clave}`) === '1'; } catch (e) { return false; } };
-
 const lista = (valor) => (Array.isArray(valor) ? valor : (valor ? [valor] : []));
 
-// Un bloque con título: párrafo o lista de viñetas.
-function bloque(titulo, contenido, clase = '') {
+// Cada tipo de bloque lleva su icono y su color, para que se reconozca de un vistazo.
+const TIPOS = {
+  sirve: { titulo: 'Para qué sirve', icono: 'help-circle-outline' },
+  cambias: { titulo: 'Qué puedes cambiar', icono: 'create-outline' },
+  efecto: { titulo: 'Qué pasa cuando lo cambias', icono: 'flash-outline' },
+  ejemplo: { titulo: 'Ejemplo', icono: 'bulb-outline' },
+  ojo: { titulo: 'Ten en cuenta', icono: 'alert-circle-outline' },
+  que: { titulo: 'Qué es', icono: 'help-circle-outline' }
+};
+
+// Un bloque: icono + título + párrafo o viñetas. `ancho` lo estira a todo el ancho de la rejilla.
+function bloque(tipo, contenido, { ancho = false } = {}) {
   const items = lista(contenido);
   if (!items.length) return null;
-  return h('section', { class: `ayuda-bloque ${clase}`.trim() },
-    h('h3', { class: 'ayuda-bloque-titulo', text: titulo }),
-    items.length === 1 ? h('p', { text: items[0] }) : h('ul', null, items.map(t => h('li', { text: t }))));
+  const t = TIPOS[tipo];
+  return h('section', { class: `ayuda-bloque ayuda-bloque--${tipo}${ancho ? ' ayuda-bloque--ancho' : ''}` },
+    h('div', { class: 'ayuda-bloque-icono', 'aria-hidden': 'true' }, icono(t.icono)),
+    h('div', { class: 'ayuda-bloque-cuerpo' },
+      h('h3', { class: 'ayuda-bloque-titulo', text: t.titulo }),
+      items.length === 1 ? h('p', { text: items[0] }) : h('ul', null, items.map(x => h('li', { text: x })))));
 }
 
-// El cuerpo de una pantalla: para qué sirve, qué se puede cambiar, qué pasa al cambiarlo, ejemplo y lo importante.
+// «Por dónde empezar»: pasos numerados, cada uno lleva a su pantalla.
+function pasos(guia) {
+  return h('section', { class: 'ayuda-bloque ayuda-bloque--guia ayuda-bloque--ancho' },
+    h('div', { class: 'ayuda-bloque-icono', 'aria-hidden': 'true' }, icono('rocket-outline')),
+    h('div', { class: 'ayuda-bloque-cuerpo' },
+      h('h3', { class: 'ayuda-bloque-titulo', text: 'Por dónde empezar' }),
+      h('ol', { class: 'ayuda-pasos' }, guia.map((p, i) => h('li', null,
+        h('a', { class: 'ayuda-paso', href: p.ruta },
+          h('span', { class: 'ayuda-paso-numero', text: String(i + 1), 'aria-hidden': 'true' }),
+          h('span', { class: 'ayuda-paso-texto' }, h('strong', { text: p.titulo }), h('span', { text: p.texto })),
+          icono('arrow-forward-outline')))))));
+}
+
 function cuerpoPantalla(t) {
   return [
-    bloque('Para qué sirve', t.sirve),
-    t.guia ? h('section', { class: 'ayuda-bloque' }, h('h3', { class: 'ayuda-bloque-titulo', text: 'Por dónde empezar' }), h('ol', null, t.guia.map(p => h('li', { text: p })))) : null,
-    bloque('Qué puedes cambiar', t.cambias),
-    bloque('Qué pasa cuando lo cambias', t.efecto),
-    bloque('Ejemplo', t.ejemplo, 'ayuda-bloque--ejemplo'),
-    bloque('Ten en cuenta', t.ojo, 'ayuda-bloque--ojo')
+    bloque('sirve', t.sirve, { ancho: true }),
+    t.guia ? pasos(t.guia) : null,
+    bloque('cambias', t.cambias),
+    bloque('efecto', t.efecto),
+    bloque('ejemplo', t.ejemplo, { ancho: true }),
+    bloque('ojo', t.ojo, { ancho: true })
   ].filter(Boolean);
 }
 
-// Ayuda de la pantalla: botón «¿Cómo funciona?» que despliega la explicación completa, sin salir de la pantalla.
+// Ayuda de la pantalla: franja «¿Cómo funciona?» que despliega la explicación completa, sin salir de la pantalla.
 export function comoFunciona(clave) {
   const t = TEXTOS.pantallas[clave];
   if (!t) return null;
   const id = `ayuda-pantalla-${++contador}`;
+  const accion = h('span', { class: 'ayuda-franja-accion', text: 'Ver explicación' });
   const flecha = icono('chevron-down-outline');
   flecha.classList.add('ayuda-flecha');
-  const boton = h('button', { class: 'ayuda-boton', type: 'button', 'aria-expanded': 'false', 'aria-controls': id }, icono('help-circle-outline'), h('span', { text: '¿Cómo funciona?' }), flecha);
+  const boton = h('button', { class: 'ayuda-franja', type: 'button', 'aria-expanded': 'false', 'aria-controls': id },
+    h('span', { class: 'ayuda-franja-icono', 'aria-hidden': 'true' }, icono('help-circle-outline')),
+    h('span', { class: 'ayuda-franja-texto' },
+      h('strong', { text: '¿Cómo funciona?' }),
+      h('span', { text: 'Para qué sirve, qué puedes cambiar y un ejemplo.' })),
+    accion, flecha);
   const panel = h('div', { class: 'ayuda-panel', id, role: 'region', 'aria-label': '¿Cómo funciona esta pantalla?', hidden: true }, cuerpoPantalla(t));
-  const poner = (abierto) => { boton.setAttribute('aria-expanded', String(abierto)); panel.hidden = !abierto; recordar(clave, abierto); };
+  const poner = (abierto) => {
+    boton.setAttribute('aria-expanded', String(abierto));
+    accion.textContent = abierto ? 'Ocultar' : 'Ver explicación';
+    panel.hidden = !abierto;
+    recordar(clave, abierto);
+  };
   boton.addEventListener('click', () => poner(panel.hidden));
-  if (recordada(clave)) { boton.setAttribute('aria-expanded', 'true'); panel.hidden = false; }
+  if (recordada(clave)) poner(true);
   return h('div', { class: 'ayuda-pantalla' }, boton, panel);
 }
 
@@ -55,11 +90,14 @@ function abrirAyuda(t, origen) {
   cerrarAbierta();
   const celular = window.matchMedia(CELULAR).matches;
   const idTitulo = `ayuda-titulo-${++contador}`;
-  const cuerpo = [bloque('Qué es', t.que), bloque('Qué pasa cuando lo cambias', t.efecto), bloque('Ejemplo', t.ejemplo, 'ayuda-bloque--ejemplo'), bloque('Ten en cuenta', t.ojo, 'ayuda-bloque--ojo')].filter(Boolean);
+  const cuerpo = [bloque('que', t.que), bloque('efecto', t.efecto), bloque('ejemplo', t.ejemplo), bloque('ojo', t.ojo)].filter(Boolean);
   const cerrarBoton = h('button', { class: 'ayuda-cerrar', type: 'button', 'aria-label': 'Cerrar la ayuda' }, icono('close-outline'));
   const entendido = celular ? h('button', { class: 'btn btn--primary ayuda-entendido', type: 'button', text: 'Entendido' }) : null;
   const caja = h('div', { class: celular ? 'ayuda-hoja' : 'ayuda-recuadro', role: 'dialog', 'aria-modal': celular ? 'true' : 'false', 'aria-labelledby': idTitulo },
-    h('div', { class: 'ayuda-cabecera' }, h('h2', { class: 'ayuda-titulo', id: idTitulo, text: t.titulo }), cerrarBoton),
+    celular ? h('div', { class: 'ayuda-agarre', 'aria-hidden': 'true' }) : null,
+    h('div', { class: 'ayuda-cabecera' },
+      h('span', { class: 'ayuda-franja-icono ayuda-franja-icono--chico', 'aria-hidden': 'true' }, icono('information-circle-outline')),
+      h('h2', { class: 'ayuda-titulo', id: idTitulo, text: t.titulo }), cerrarBoton),
     h('div', { class: 'ayuda-cuerpo' }, cuerpo), entendido);
   const fondo = celular ? h('div', { class: 'ayuda-fondo' }, caja) : null;
   document.body.append(fondo || caja);
@@ -68,12 +106,12 @@ function abrirAyuda(t, origen) {
   function colocar() {
     if (celular) return;
     const r = origen.getBoundingClientRect();
-    const ancho = Math.min(380, window.innerWidth - 24);
+    const ancho = Math.min(400, window.innerWidth - 24);
     caja.style.width = `${ancho}px`;
-    const izquierda = Math.max(12, Math.min(r.left, window.innerWidth - ancho - 12));
-    const debajo = r.bottom + 8;
+    const izquierda = Math.max(12, Math.min(r.left - 8, window.innerWidth - ancho - 12));
+    const debajo = r.bottom + 10;
     const alto = caja.offsetHeight;
-    const arriba = debajo + alto > window.innerHeight - 12 ? Math.max(12, r.top - alto - 8) : debajo;
+    const arriba = debajo + alto > window.innerHeight - 12 ? Math.max(12, r.top - alto - 10) : debajo;
     caja.style.left = `${izquierda}px`;
     caja.style.top = `${arriba}px`;
   }
