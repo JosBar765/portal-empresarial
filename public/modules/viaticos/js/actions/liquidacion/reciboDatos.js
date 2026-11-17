@@ -6,7 +6,7 @@ import { montoDeBorrador } from './datos.js';
 import { t } from '../../textos.js';
 
 // Mismos largos y valores que el servidor (RECIBOS en src/modules/viaticos/constantes.js); quien decide sigue siendo el servidor.
-export const LIMITES_RECIBO = Object.freeze({ RECIBI_DE: 100, CONCEPTO: 200, NUMERO_CHEQUE: 30, NUMERO_CUENTA: 40 });
+export const LIMITES_RECIBO = Object.freeze({ RECIBI_DE: 100, CONCEPTO: 100, NUMERO_CHEQUE: 30, NUMERO_CUENTA: 40 });
 export const RUBROS_RECIBO = Object.freeze(['alimentacion', 'depreciacion', 'otro']);
 export const FORMAS_PAGO = Object.freeze(['efectivo', 'cheque', 'transferencia']);
 const RUBROS_UNICOS = ['alimentacion', 'depreciacion'];
@@ -34,10 +34,10 @@ export function disponibilidadRubros(liq) {
 
 export const rubroInicial = (disponibilidad) => RUBROS_RECIBO.find(r => disponibilidad[r] && disponibilidad[r].disponible) || 'otro';
 
-// Monto y concepto que propone el servidor para el rubro; «Otro» no tiene sugerencia.
+// Monto que propone el servidor para el rubro (el concepto de Alimentación y Depreciación lo arma el servidor); «Otro» no tiene sugerencia.
 export function sugerenciaDe(liq, rubro) {
   const s = rubro !== 'otro' && liq && liq.sugerenciasRecibo ? liq.sugerenciasRecibo[rubro] : null;
-  return { monto: s ? numeroATexto(s.monto) : '', concepto: s ? recortado(s.concepto) : '' };
+  return { monto: s ? numeroATexto(s.monto) : '' };
 }
 
 export function formularioRecibo(liq) {
@@ -45,17 +45,16 @@ export function formularioRecibo(liq) {
   const s = sugerenciaDe(liq, rubro);
   const fecha = (liq && liq.sugerenciasRecibo && liq.sugerenciasRecibo.fecha) || '';
   return {
-    rubro, fecha, monto: s.monto, recibiDe: '', concepto: s.concepto, formaPago: '', numeroCheque: '', numeroCuenta: '',
-    firma: null, firmaN: 0, montoEditado: false, conceptoEditado: false, llave: null, huellaLlave: null
+    rubro, fecha, monto: s.monto, recibiDe: '', concepto: '', formaPago: '', numeroCheque: '', numeroCuenta: '',
+    firma: null, firmaN: 0, montoEditado: false, llave: null, huellaLlave: null
   };
 }
 
-// Al cambiar de rubro solo se reemplaza lo que el usuario no editó a mano.
+// Al cambiar de rubro solo se reemplaza el monto si el usuario no lo editó a mano.
 export function cambiarRubro(f, liq, rubro) {
   f.rubro = rubro;
   const s = sugerenciaDe(liq, rubro);
   if (!f.montoEditado) f.monto = s.monto;
-  if (!f.conceptoEditado) f.concepto = s.concepto;
   return f;
 }
 
@@ -85,7 +84,7 @@ export function validarRecibo(f, { hoy = null, disponibilidad = null } = {}) {
   if (monto.error) error('monto', monto.error.replace('liquidacion.error.', 'recibo.error.'), { monto: recortado(f.monto) });
 
   texto('recibiDe', LIMITES_RECIBO.RECIBI_DE, 'recibo.error.recibiDe', 'recibo.recibiDe');
-  texto('concepto', LIMITES_RECIBO.CONCEPTO, f.rubro === 'otro' ? 'recibo.error.conceptoOtro' : 'recibo.error.concepto', 'recibo.concepto');
+  if (f.rubro === 'otro') texto('concepto', LIMITES_RECIBO.CONCEPTO, 'recibo.error.conceptoOtro', 'recibo.concepto');
 
   if (!FORMAS_PAGO.includes(f.formaPago)) error('formaPago', 'recibo.error.formaPago');
   else if (f.formaPago === 'cheque') texto('numeroCheque', LIMITES_RECIBO.NUMERO_CHEQUE, 'recibo.error.numeroCheque', 'recibo.numeroCheque');
@@ -95,13 +94,14 @@ export function validarRecibo(f, { hoy = null, disponibilidad = null } = {}) {
   return e;
 }
 
-// `datos` del POST (sin la llave): los números de cheque y de cuenta solo van con su forma de pago.
+// `datos` del POST (sin la llave): el concepto solo va con «Otro» y los números de cheque y de cuenta solo con su forma de pago.
 export function datosDeEnvio(f) {
   const monto = montoDeBorrador(f.monto);
   const datos = {
     rubro: f.rubro, fecha: f.fecha, monto: monto.error ? recortado(f.monto) : Number(monto.valor),
-    recibiDe: recortado(f.recibiDe), concepto: recortado(f.concepto), formaPago: f.formaPago
+    recibiDe: recortado(f.recibiDe), formaPago: f.formaPago
   };
+  if (f.rubro === 'otro') datos.concepto = recortado(f.concepto);
   if (f.formaPago === 'cheque') datos.numeroCheque = recortado(f.numeroCheque);
   if (f.formaPago === 'transferencia' && recortado(f.numeroCuenta)) datos.numeroCuenta = recortado(f.numeroCuenta);
   return datos;

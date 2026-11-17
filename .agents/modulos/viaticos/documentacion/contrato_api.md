@@ -324,7 +324,7 @@ Los endpoints del solicitante (`/solicitudes/:id/…`) son solo del propio usuar
   "sugerenciasRecibo": {
     "solicitanteNombre": "…", "fecha": "2026-11-17",
     "moneda": { "codigo": "GTQ", "nombre": "Quetzal", "nombrePlural": "Quetzales", "simbolo": "Q" },
-    "alimentacion": { "monto": 440, "concepto": "Viáticos por alimentación del 21 al 24 de abril de 2026" },
+    "alimentacion": { "monto": 440 },
     "depreciacion": null
   },
   "editable": true,
@@ -334,7 +334,7 @@ Los endpoints del solicitante (`/solicitudes/:id/…`) son solo del propio usuar
 }
 ```
 
-- `sugerenciasRecibo` (solo en esta vista del solicitante): valores que el modal del recibo propone, todos editables. `alimentacion` y `depreciacion` son `null` si ese rubro no se solicitó (importe 0); `monto` es lo solicitado del rubro y `concepto` usa las fechas del viaje (plantillas en `mensajes.js`); `fecha` es hoy de Guatemala. Que ya exista el recibo del rubro se ve en `pendientes`.
+- `sugerenciasRecibo` (solo en esta vista del solicitante): valores que el modal del recibo propone, todos editables. `alimentacion` y `depreciacion` son `null` si ese rubro no se solicitó (importe 0); `monto` es lo solicitado del rubro (el concepto ya no se sugiere: lo arma el servidor al guardar); `fecha` es hoy de Guatemala. Que ya exista el recibo del rubro se ve en `pendientes`.
 - `editable`: se pueden agregar y quitar comprobantes y recibos (autorizada con el viaje terminado). `puedeLiquidar`: igual a `editable` (los comprobantes que falten no lo impiden); si es `false`, `motivoNoPuedeLiquidar` dice por qué (el viaje aún no termina, ya está liquidada…); si es `true`, es `null`. `avisoFaltantes` es un texto informativo (o `null` si no falta ninguno) para que la interfaz advierta antes de confirmar.
 - 403 explicativo si la solicitud es ajena, de 1 día o menos o no está autorizada ni liquidada; 404 si no existe. Con el viaje aún en curso responde 200 con `puedeLiquidar: false`.
 
@@ -362,10 +362,11 @@ El recibo lo genera y firma el propio solicitante (decisión del dueño: solo é
 
 `POST /solicitudes/:id/recibos` — `multipart/form-data`:
 
-- `datos` (texto JSON): `rubro` (`alimentacion`, `depreciacion` u `otro`), `fecha` (`AAAA-MM-DD`, hoy o antes), `monto` (como en `letras`), `recibiDe` (obligatorio, hasta 100), `concepto` (obligatorio, hasta 200), `formaPago` (`efectivo`, `cheque` o `transferencia`), `numeroCheque` (obligatorio solo con cheque, hasta 30), `numeroCuenta` (opcional, solo con transferencia, hasta 40) e `idempotencyKey` (opcional, 1 a 64; también se acepta como campo suelto). Con otra forma de pago, `numeroCheque` y `numeroCuenta` se ignoran.
+- `datos` (texto JSON): `rubro` (`alimentacion`, `depreciacion` u `otro`), `fecha` (`AAAA-MM-DD`, hoy o antes), `monto` (como en `letras`), `recibiDe` (obligatorio, hasta 100), `concepto` (obligatorio y solo con `otro`, hasta 100; con `alimentacion` o `depreciacion` se ignora y lo arma el servidor), `formaPago` (`efectivo`, `cheque` o `transferencia`), `numeroCheque` (obligatorio solo con cheque, hasta 30), `numeroCuenta` (opcional, solo con transferencia, hasta 40) e `idempotencyKey` (opcional, 1 a 64; también se acepta como campo suelto). Con otra forma de pago, `numeroCheque` y `numeroCuenta` se ignoran.
 - `firma`: archivo PNG obligatorio (se verifica el contenido real, máximo 2 MB `RECIBOS.MAX_FIRMA_MB`, con tope de megapíxeles). La firma vive solo dentro del PDF.
 - Los textos se validan contra lo que el PDF puede dibujar (Helvetica): emoji y similares dan 400 en su campo.
 - Alimentación y Depreciación: como máximo un recibo cada una y solo si su importe solicitado es mayor que cero (sin importe: 400 `campos.rubro`; ya existe: 409 con `campos.rubro` y el número del existente). «Otro»: sin límite. El monto no tiene tope frente a lo solicitado.
+- Concepto: con `otro` es el texto del usuario (400 `campos.concepto` si falta o pasa de 100 caracteres, con mensaje que dice la regla y cómo corregir). Con `alimentacion` o `depreciacion` lo genera el servidor con la fecha del viaje («Viáticos por alimentación del 21 al 24 de abril de 2026», «Depreciación del vehículo …»; plantillas `recibo.conceptoAlimentacion` y `recibo.conceptoDepreciacion` en `mensajes.js`) y ese texto es el que se imprime en el PDF y se guarda (la columna sigue en VARCHAR(200)); `recibos[].concepto` lo devuelve siempre.
 - Una transacción con la solicitud bloqueada (`SELECT … FOR UPDATE`): vuelve a comprobar estado y cupo; número `<CORRELATIVO>-R<contador>` (contador = máximo existente + 1 en la solicitud); monto en letras; PDF (`reciboPdfService`: hoja carta en blanco y negro con el recibo arriba: logo del trofeo, «RECIBO» y su número, cajas DÍA/MES/AÑO, caja del monto con el símbolo de la moneda, «RECIBÍ DE», «LA CANTIDAD DE» en letras con el plural en mayúsculas, «POR CONCEPTO DE», casillas EFECTIVO/CHEQUE/TRANSFERENCIA con una X, N.º de cheque y de cuenta, y la firma sobre la línea «RECIBÍ CONFORME» con el nombre del solicitante); subida al bucket de recibos con el nombre y los reintentos de «Nombres ante duplicados».
 - Respuesta 201: `{ recibo, …liquidacion }` (`recibo` con la forma de cada elemento de `recibos`). 400 `{ error, campos }` por campo (`rubro`, `fecha`, `monto`, `recibiDe`, `concepto`, `formaPago`, `numeroCheque`, `numeroCuenta`, `firma`, `idempotencyKey`); 400 sin `campos` si `datos` falta o no es JSON.
 - Idempotencia con el endpoint `viaticos:recibo` (mismo esquema que los comprobantes). Si algo falla después de subir el PDF, se intenta borrarlo (solo actúa en producción).

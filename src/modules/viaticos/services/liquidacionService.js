@@ -96,16 +96,21 @@ function periodoDelViaje(salida, regreso) {
   return msg('recibo.periodoUnDia', { dia: d.dia, mes: d.mes, anio: d.anio });
 }
 
-// Valores que el modal del recibo propone (todos editables): monto = lo solicitado del rubro, concepto con las fechas del viaje; null si el rubro no se solicitó.
+// Concepto que el servidor arma para Alimentación y Depreciación (rubro + fechas del viaje); «otro» lo escribe el usuario.
+const CLAVES_CONCEPTO = { alimentacion: 'recibo.conceptoAlimentacion', depreciacion: 'recibo.conceptoDepreciacion' };
+function conceptoDeRubro(fila, rubro) {
+  return msg(CLAVES_CONCEPTO[rubro], { periodo: periodoDelViaje(fila.fechaSalida, fila.fechaRegreso) });
+}
+
+// Valores que el modal del recibo propone: monto editable = lo solicitado del rubro; null si el rubro no se solicitó.
 function sugerenciasRecibo(fila, importes) {
-  const periodo = periodoDelViaje(fila.fechaSalida, fila.fechaRegreso);
-  const sugerencia = (importe, clave) => (importe > 0 ? { monto: importe, concepto: msg(clave, { periodo }) } : null);
+  const sugerencia = importe => (importe > 0 ? { monto: importe } : null);
   return {
     solicitanteNombre: fila.solicitanteNombre,
     fecha: solicitudService.instante().hoy,
     moneda: { codigo: fila.monedaCodigo, nombre: fila.monedaNombre, nombrePlural: fila.monedaNombrePlural, simbolo: fila.monedaSimbolo },
-    alimentacion: sugerencia(importes.alimentacion, 'recibo.conceptoAlimentacion'),
-    depreciacion: sugerencia(importes.depreciacion, 'recibo.conceptoDepreciacion')
+    alimentacion: sugerencia(importes.alimentacion),
+    depreciacion: sugerencia(importes.depreciacion)
   };
 }
 
@@ -325,3 +330,4 @@ module.exports = new LiquidacionService();
 module.exports.motivoNoLiquidable = motivoNoLiquidable;
 module.exports.motivoSinCambios = motivoSinCambios;
 module.exports.reciboDeVista = reciboDeVista;
+module.exports.conceptoDeRubro = conceptoDeRubro;

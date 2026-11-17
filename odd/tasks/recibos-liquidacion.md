@@ -76,5 +76,8 @@ Revisión RDD tras el commit `b73e690`: `gentle-ai review assess` (base `ed37c9a
 - Límite conocido: la fecha futura se rechaza al validar (el selector de fecha no tiene máximo).
 - Sin probar en el navegador: falta que el dueño agregue la variable del bucket y aplique la migración 41 (T6).
 
+## Cambio del dueño (2026-11-17): combobox de concepto
+El modal reemplaza el selector de Rubro y el campo de concepto por un solo combobox «Concepto» con Alimentación, Depreciación y Otro. Con Alimentación o Depreciación NO hay campo de texto: el concepto lo arma el servidor (rubro + fechas del viaje) y el monto sigue sugerido y editable. Con Otro sale un campo de texto libre, obligatorio, máximo 100 caracteres. Se mantienen la regla de un recibo por rubro y las píldoras «Alimentación 0 de 1» / «Depreciación 0 de 1». Se quitan todos los textos de ayuda del modal (los errores siguen como ícono con globo). El tope del concepto baja de 200 a 100 (la columna sigue en VARCHAR(200); no hay migración).
+
 ## Próximo paso
 T6: pruebas por API y navegador, cuando el servidor local tenga la variable y la migración.

@@ -7,6 +7,7 @@ import { crearAviso } from '../../components/aviso.js';
 import { crearCampo, crearCampoCalculado, ponerCalculado } from '../../components/campo.js';
 import { crearCampoFecha } from '../../components/campoFecha.js';
 import { crearCampoNumerico } from '../../components/campoNumerico.js';
+import { crearCombo } from '../../components/comboAgrupado.js';
 import { wireCampoFecha } from '../../components/datepicker.js';
 import { abrirFirmaPantalla } from '../../components/firmaPantalla.js';
 import { enfocarPrimerCampoInvalido, limpiarErrorCampo, marcarErroresDeCampos } from '../../components/validacion.js';
@@ -61,45 +62,24 @@ export function abrirRecibo({ solicitudId, liq, alGuardar, alCerrar }) {
   const avisos = h('div', { class: 'vi-avisos', id: 'vi-rec-avisos', 'aria-live': 'assertive' });
   const limpiarAviso = () => avisos.replaceChildren();
 
-  // ---------- Rubro (control segmentado; los no disponibles quedan deshabilitados con su motivo) ----------
-  const botonesRubro = RUBROS_RECIBO.map(r => h('button', {
-    type: 'button', role: 'radio', class: 'vi-segmentado__opcion', 'data-rubro': r, text: nombreRubro(r),
-    disabled: !disponibilidad[r].disponible, title: disponibilidad[r].motivo ? textoDeError(disponibilidad[r].motivo) : null
+  // ---------- Concepto (combo; los rubros no disponibles quedan deshabilitados y su motivo sale al pasar el mouse) ----------
+  const opcionesRubro = RUBROS_RECIBO.map(r => ({
+    valor: r, texto: nombreRubro(r), deshabilitada: !disponibilidad[r].disponible,
+    titulo: disponibilidad[r].motivo ? textoDeError(disponibilidad[r].motivo) : undefined
   }));
-  const motivos = RUBROS_RECIBO.filter(r => disponibilidad[r].motivo).map(r => textoDeError(disponibilidad[r].motivo));
-  const grupoRubro = h('div', { class: 'vi-segmentado vi-rec-rubros', role: 'radiogroup', id: 'vi-rec-rubro', 'data-campo': 'rubro', 'aria-labelledby': 'vi-rec-rubro-etiqueta', 'aria-describedby': motivos.length ? 'vi-rec-rubro-ayuda' : null }, botonesRubro);
-  const pintarRubro = () => botonesRubro.forEach(b => {
-    const activo = b.dataset.rubro === f.rubro;
-    b.setAttribute('aria-checked', String(activo));
-    b.tabIndex = activo ? 0 : -1;
-    b.classList.toggle('is-activa', activo);
+  const comboRubro = crearCombo({
+    id: 'vi-rec-rubro', name: 'rubro', etiquetaAria: t('recibo.concepto'), grupos: [{ opciones: opcionesRubro }], valor: f.rubro,
+    alCambiar: (rubro) => elegirRubro(rubro)
   });
   const elegirRubro = (rubro) => {
     if (rubro === f.rubro || !disponibilidad[rubro].disponible) return;
     cambiarRubro(f, liq, rubro);
-    pintarRubro();
     monto.value = f.monto;
-    concepto.value = f.concepto;
-    limpiarErrorCampo(grupoRubro);
+    pintarConcepto();
+    limpiarErrorCampo(comboRubro);
     pedirLetras();
   };
-  botonesRubro.forEach((b, i) => {
-    b.addEventListener('click', () => elegirRubro(b.dataset.rubro));
-    b.addEventListener('keydown', (e) => {
-      const paso = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
-      if (!paso) return;
-      e.preventDefault();
-      // Salta los rubros deshabilitados; «Otro» siempre está disponible, así que el ciclo termina.
-      let j = i;
-      do { j = (j + paso + botonesRubro.length) % botonesRubro.length; } while (botonesRubro[j].disabled);
-      elegirRubro(botonesRubro[j].dataset.rubro);
-      botonesRubro[j].focus();
-    });
-  });
-  const campoRubro = h('div', { class: 'form-field vi-rec-campo-rubro' },
-    h('span', { class: 'vi-etiqueta', id: 'vi-rec-rubro-etiqueta', text: t('recibo.rubro') }),
-    grupoRubro,
-    motivos.length && h('p', { class: 'vi-ayuda', id: 'vi-rec-rubro-ayuda', text: motivos.join(' ') }));
+  const campoRubro = crearCampo({ etiqueta: t('recibo.concepto'), control: comboRubro, idControl: 'vi-rec-rubro' });
 
   // ---------- Fecha, monto y monto en letras ----------
   const campoFecha = crearCampoFecha({ id: 'vi-rec-fecha', name: 'fecha', etiqueta: t('recibo.fecha') });
@@ -130,9 +110,12 @@ export function abrirRecibo({ solicitudId, liq, alGuardar, alCerrar }) {
   // ---------- Textos ----------
   const recibiDe = h('input', { type: 'text', id: 'vi-rec-recibi', name: 'recibiDe', maxlength: String(LIMITES_RECIBO.RECIBI_DE), autocomplete: 'off', placeholder: t('recibo.recibiDe.ejemplo') });
   recibiDe.addEventListener('input', () => { f.recibiDe = recibiDe.value; limpiarErrorCampo(recibiDe); });
-  const concepto = h('textarea', { id: 'vi-rec-concepto', name: 'concepto', maxlength: String(LIMITES_RECIBO.CONCEPTO), rows: '2', placeholder: t('recibo.concepto.ejemplo') });
+  // Texto libre solo con «Otro»; con Alimentación o Depreciación el concepto lo arma el servidor.
+  const concepto = h('input', { type: 'text', id: 'vi-rec-concepto', name: 'concepto', maxlength: String(LIMITES_RECIBO.CONCEPTO), autocomplete: 'off', placeholder: t('recibo.concepto.ejemplo') });
   concepto.value = f.concepto;
-  concepto.addEventListener('input', () => { f.concepto = concepto.value; f.conceptoEditado = true; limpiarErrorCampo(concepto); });
+  concepto.addEventListener('input', () => { f.concepto = concepto.value; limpiarErrorCampo(concepto); });
+  const campoConcepto = crearCampo({ etiqueta: t('recibo.concepto'), control: concepto, idControl: 'vi-rec-concepto' });
+  function pintarConcepto() { campoConcepto.hidden = f.rubro !== 'otro'; }
 
   // ---------- Forma de pago (radios nativos) y sus números ----------
   const radios = FORMAS_PAGO.map(forma => {
@@ -158,8 +141,7 @@ export function abrirRecibo({ solicitudId, liq, alGuardar, alCerrar }) {
   function pintarFirma() {
     if (!f.firma) {
       bloqueFirma.replaceChildren(
-        h('button', { type: 'button', class: 'btn btn--primary vi-rec-firmar', id: 'vi-rec-firmar', onclick: firmar }, icono('create-outline'), t('recibo.firmar')),
-        h('small', { class: 'vi-ayuda', text: t('recibo.firma.ayuda') }));
+        h('button', { type: 'button', class: 'btn btn--primary vi-rec-firmar', id: 'vi-rec-firmar', onclick: firmar }, icono('create-outline'), t('recibo.firmar')));
       return;
     }
     bloqueFirma.replaceChildren(
@@ -194,7 +176,7 @@ export function abrirRecibo({ solicitudId, liq, alGuardar, alCerrar }) {
       crearCampo({ etiqueta: t('recibo.monto', { simbolo }), control: monto, idControl: 'vi-rec-monto' })),
     campoLetras,
     crearCampo({ etiqueta: t('recibo.recibiDe'), control: recibiDe, idControl: 'vi-rec-recibi' }),
-    crearCampo({ etiqueta: t('recibo.concepto'), control: concepto, idControl: 'vi-rec-concepto' }),
+    campoConcepto,
     h('div', { class: 'form-field vi-rec-campo-pago', role: 'radiogroup', 'aria-labelledby': 'vi-rec-pago-etiqueta' },
       h('span', { class: 'vi-etiqueta', id: 'vi-rec-pago-etiqueta', text: t('recibo.formaPago') }),
       h('div', { class: 'vi-rec-pagos' }, radios)),
@@ -246,11 +228,10 @@ export function abrirRecibo({ solicitudId, liq, alGuardar, alCerrar }) {
   }
   botonGuardar.addEventListener('click', guardar);
 
-  pintarRubro();
+  pintarConcepto();
   pintarNumerosPago();
   pintarFirma();
   pedirLetras();
-  const primero = botonesRubro.find(b => b.tabIndex === 0);
-  if (primero) primero.focus();
+  comboRubro.focus();
   return { cerrar };
 }

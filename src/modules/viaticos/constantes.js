@@ -120,7 +120,7 @@ const RECIBOS = Object.freeze({
   RUBROS: Object.freeze({ ALIMENTACION: 'alimentacion', DEPRECIACION: 'depreciacion', OTRO: 'otro' }),
   FORMAS_PAGO: Object.freeze({ EFECTIVO: 'efectivo', CHEQUE: 'cheque', TRANSFERENCIA: 'transferencia' }),
   RECIBI_DE: 100,
-  CONCEPTO: 200,
+  CONCEPTO: 100,
   NUMERO_CHEQUE: 30,
   NUMERO_CUENTA: 40,
   CAMPO_DATOS: 'datos',

@@ -19,7 +19,7 @@ const solicitudService = require('./solicitudService');
 const liquidacionService = require('./liquidacionService');
 const movimientoService = require('./movimientoService');
 
-const { motivoNoLiquidable, motivoSinCambios, reciboDeVista } = liquidacionService;
+const { motivoNoLiquidable, motivoSinCambios, reciboDeVista, conceptoDeRubro } = liquidacionService;
 const BYTES_POR_MB = 1024 * 1024;
 const RUBROS_UNICOS = [RECIBOS.RUBROS.ALIMENTACION, RECIBOS.RUBROS.DEPRECIACION];
 
@@ -79,7 +79,8 @@ async function validarRecibo(datos, archivo) {
   if (fecha && fecha > hoy) v.falla('fecha', msg('recibo.fechaFutura', { fecha, hoy }));
   const monto = v.decimal(datos, 'monto', msg('recibo.etiquetaMonto'), { minExclusivo: true, max: LIMITES.VALOR_MAX });
   const recibiDe = v.texto(datos, 'recibiDe', msg('recibo.etiquetaRecibiDe'), { max: RECIBOS.RECIBI_DE });
-  const concepto = v.texto(datos, 'concepto', msg('recibo.etiquetaConcepto'), { max: RECIBOS.CONCEPTO });
+  // Solo «otro» trae concepto del usuario; en los demás rubros lo arma el servidor y lo que llegue se ignora.
+  const concepto = rubro === RECIBOS.RUBROS.OTRO ? v.texto(datos, 'concepto', msg('recibo.etiquetaConcepto'), { max: RECIBOS.CONCEPTO }) : null;
 
   let formaPago = null;
   if (vacio(datos.formaPago)) v.faltante('formaPago', msg('recibo.etiquetaFormaPago'), true);
@@ -157,12 +158,15 @@ class ReciboService {
     return { recibo: reciboDeVista(guardado), ...await liquidacionService.obtener(usuario, propia.id, externo) };
   }
 
-  async persistir(tx, { id, usuario, recibo, firma, subidas }) {
+  async persistir(tx, { id, usuario, recibo: reciboValidado, firma, subidas }) {
+    let recibo = reciboValidado;
     await liquidacionService.bloquear(id, tx);
     const fila = await solicitudService.leerEncabezado(id, tx);
     exigirLiquidable(fila);
     const calculo = await liquidacionService.calcular(fila, tx);
     exigirCupo(recibo.rubro, calculo, fila);
+    // El concepto de Alimentación y Depreciación nunca viene del cliente.
+    if (recibo.rubro !== RECIBOS.RUBROS.OTRO) recibo = { ...recibo, concepto: conceptoDeRubro(fila, recibo.rubro) };
 
     const contador = await reciboRepo.siguienteContador(id, tx);
     const numero = `${fila.correlativo}-${RECIBOS.PREFIJO_NUMERO}${contador}`;
