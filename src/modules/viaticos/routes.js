@@ -9,6 +9,7 @@ const configController = require('./controllers/configController');
 const solicitudController = require('./controllers/solicitudController');
 const gestionController = require('./controllers/gestionController');
 const historialController = require('./controllers/historialController');
+const reporteController = require('./controllers/reporteController');
 const liquidacionController = require('./controllers/liquidacionController');
 const reciboController = require('./controllers/reciboController');
 const borradorController = require('./controllers/borradorController');
@@ -63,6 +64,11 @@ router.post('/gestiones/:id/visto', requirePermission(PERMISOS.AUTORIZAR), gesti
 router.post('/gestiones/:id/autorizar', requirePermission(PERMISOS.AUTORIZAR), gestionController.autorizar);
 router.post('/gestiones/:id/rechazar', requirePermission(PERMISOS.AUTORIZAR), gestionController.rechazar);
 router.get('/gestiones/:id/liquidacion', requirePermission(PERMISOS.LIQUIDAR), gestionController.liquidacion);
+
+// Reportes (inversión por solicitante y reparto por categoría): todo exige viaticos.reportes; las rutas fijas van antes de cualquier :id.
+router.get('/reportes/opciones', requirePermission(PERMISOS.REPORTES), reporteController.opciones);
+router.get('/reportes/pdf', requirePermission(PERMISOS.REPORTES), reporteController.pdf);
+router.get('/reportes', requirePermission(PERMISOS.REPORTES), reporteController.obtener);
 
 // Configuración: todo el subárbol exige viaticos.configurar.
 const config = express.Router();

@@ -7,7 +7,8 @@ const PERMISOS = Object.freeze({
   AUTORIZAR: 'viaticos.autorizar',
   LIQUIDAR: 'viaticos.liquidar',
   CONFIGURAR: 'viaticos.configurar',
-  VER_HISTORIAL: 'viaticos.ver_historial'
+  VER_HISTORIAL: 'viaticos.ver_historial',
+  REPORTES: 'viaticos.reportes'
 });
 
 const PREFIJO_PERMISOS = 'viaticos.';
@@ -247,10 +248,20 @@ const MOVIMIENTOS = Object.freeze({
 // Actor de un movimiento hecho por el servidor (el vencimiento): sin usuario; su nombre sale de mensajes.js.
 const SISTEMA = Object.freeze({ USUARIO_ID: null, MENSAJE_NOMBRE: 'movimiento.actorSistema' });
 
+// Reportes: categorías del reparto (clave estable; su nombre sale de mensajes.js), en el orden en que se muestran.
+const REPORTES = Object.freeze({
+  CATEGORIAS: Object.freeze({ HOSPEDAJE: 'hospedaje', COMBUSTIBLE: 'combustible', ALIMENTACION: 'alimentacion', DEPRECIACION: 'depreciacion', OTROS: 'otros' }),
+  ORDEN_CATEGORIAS: Object.freeze(['hospedaje', 'combustible', 'alimentacion', 'depreciacion', 'otros']),
+  // Los porcentajes se guardan en décimas (1 decimal) y suman 1000 = 100.0 %.
+  DECIMAS_TOTAL: 1000,
+  PDF_MAX_BARRAS: 10,
+  PDF_NOMBRE_ARCHIVO: 'reporte-viaticos'
+});
+
 // Abreviaturas fijas para no depender del idioma del servidor.
 const MESES_ABREVIADOS = Object.freeze(['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']);
 
 module.exports = {
   PERMISOS, PREFIJO_PERMISOS, ESTADOS, MODALIDADES, RECURSOS, AJUSTES, RECHAZO, BORRADORES, MIME_PERMITIDOS, LIMITES,
-  LIMITES_SOLICITUD, ARCHIVOS, RUBROS_FIJOS, ETAPAS_DOCUMENTO, SENTIDOS_TRAMO, IDEMPOTENCIA, RECIBOS, MESES_COMPLETOS, NOTIFICACION, TIEMPO_REAL, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, NIVELES_RESALTADOS, MIME_IMAGEN_PDF, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS, MOVIMIENTOS, SISTEMA
+  LIMITES_SOLICITUD, ARCHIVOS, RUBROS_FIJOS, ETAPAS_DOCUMENTO, SENTIDOS_TRAMO, IDEMPOTENCIA, RECIBOS, MESES_COMPLETOS, NOTIFICACION, TIEMPO_REAL, ROL_ADMINISTRADOR_ID, CORRELATIVO, ESTADOS_EDITABLES, NIVEL_NO_APLICA, NIVELES_RESALTADOS, MIME_IMAGEN_PDF, SALVEDADES, FASES, ORDEN_FASES, PASOS, ESTADOS_PASO, ACCIONES, MESES_ABREVIADOS, MOVIMIENTOS, SISTEMA, REPORTES
 };

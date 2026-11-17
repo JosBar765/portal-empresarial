@@ -24,9 +24,9 @@ Una pestaña **Reportes** que aparece solo con el permiso nuevo `viaticos.report
 - **Mockup obligatorio** (CLAUDE.md): Figma del módulo (https://www.figma.com/design/UxBfvT3cceaLEvnYsnJeZA), celular, tablet y PC, sin código antes de la aprobación.
 
 ## Tareas
-- [ ] T0. Mockup en Figma (celular, tablet, PC) y aprobación del dueño.
-- [ ] T1. Migración 43 (permiso) y consultas/servicio de reportes (inversión por solicitante, reparto por categoría).
-- [ ] T2. Endpoints `GET /reportes/...` con `viaticos.reportes`, PDF del reporte.
+- [x] T0. Mockup en Figma (celular, tablet, PC) y aprobación del dueño.
+- [x] T1. Migración 43 (permiso) y consultas/servicio de reportes (inversión por solicitante, reparto por categoría).
+- [x] T2. Endpoints `GET /reportes/...` con `viaticos.reportes`, PDF del reporte.
 - [ ] T3. Frontend: pestaña, barra fija, ranking, pastel SVG y tabla, estados vacío y de error, responsive.
 - [ ] T4. Documentación del módulo.
 - [ ] T5. Pruebas por API y navegador.
@@ -40,5 +40,13 @@ Sin runner automatizado; RED/GREEN no aplica (excepción registrada). Los import
 ## Evidencia T0 (2026-11-17)
 Mockup creado (trabajador de diseño delegado; el padre revisó la captura del marco de PC): página «Reportes», https://www.figma.com/design/UxBfvT3cceaLEvnYsnJeZA/?node-id=59-87. Marcos: `59:88` PC, `59:377` PC con solicitante seleccionado, `61:199` tablet, `61:490` celular, `64:293` estados (vacío, cargando, error), `64:330` PDF carta. Supuestos del diseño por confirmar: las tarjetas de resumen siempre muestran los totales globales (aunque haya un solicitante elegido); el pastel es una dona con el total al centro (el PDF usa un pastel en grises); en celular el panel de «Filtros» (moneda y país) no está dibujado; el PDF es de una sola página (la paginación n/total no está dibujada).
 
+**Mockup aprobado por el dueño (2026-11-17)**, sin cambios.
+
+## Evidencia T1/T2 (2026-11-17, escritor delegado; revisado por el padre)
+- Migración 43 (permiso `viaticos.reportes`, Administrador), `reporteRepository`, `reporteService`, `reporteCalculoService`, `reporteController`, `reportePdfService`; endpoints `GET /reportes/opciones`, `GET /reportes` y `GET /reportes/pdf`. Docs: contrato, modelo de datos y README. Los importes por categoría se calculan en el servicio con `calcularCombustible`/`calcularDepreciacion`; la ventana filtra por la fecha de autorización (primer renglón `autorizada` de `viaticos_historial`).
+- Escritor: `--check` de 8 archivos, cálculo con 6 solicitantes y casos de redondeo, PDF de 6 solicitantes (1 página) y de 60 (3 páginas) válidos. En el PDF el ranking dibuja solo las 10 primeras barras; la tabla lista a todos.
+- Padre: `--check` repetido y prueba de SOLO LECTURA contra la BD local (ventana 2026, GTQ): 10 solicitudes, 2 solicitantes, total Q 9,602.79; la suma de las 5 categorías es exactamente Q 9,602.79 (sin avisos de descuadre) y los porcentajes suman 100.0; el reparto de un solicitante también cuadra.
+- Sin probar por HTTP ni el PDF a la vista: la migración 43 no está aplicada.
+
 ## Próximo paso
-Aprobación del mockup por el dueño; luego T1.
+T3: escritor del frontend.

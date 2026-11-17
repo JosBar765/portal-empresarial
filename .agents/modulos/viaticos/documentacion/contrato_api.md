@@ -48,6 +48,9 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | `POST /gestiones/:id/rechazar` | autorizar | Rechaza con `{ motivo }` libre y obligatorio |
 | `GET /gestiones/:id/historial` | gestionar y ver_historial | Movimientos de la solicitud en orden cronológico (ver «Historial de movimientos») |
 | `GET /gestiones/:id/liquidacion` | liquidar | Vista de solo lectura para contabilidad (cifras, diferencia, comprobantes y PDF) |
+| `GET /reportes/opciones?desde=&hasta=` | reportes | Monedas y países con movimiento en la ventana y la moneda por omisión (ver «Reportes») |
+| `GET /reportes?desde=&hasta=&monedaId=&paisId=&solicitanteId=` | reportes | Inversión por solicitante y reparto por categoría |
+| `GET /reportes/pdf?...` (mismos filtros) | reportes | El mismo reporte en PDF (`application/pdf`, `inline`) |
 | `GET /config/<recurso>` | configurar | Lista |
 | `POST /config/<recurso>` | configurar | Crea |
 | `PUT /config/<recurso>/:id` | configurar | Edita |
@@ -278,6 +281,36 @@ Un fallo de cualquiera se registra con `console.error` y no deshace la decisión
 - La acción `historial` entra en `pipeline.acciones` de `GET /gestiones` y de `GET /gestiones/:id` (en cualquier fase) solo si quien consulta tiene `viaticos.ver_historial`; nunca en el pipeline de Solicitudes.
 - Cada movimiento se registra en `viaticos_movimientos` dentro de la misma transacción del cambio (se confirman o se deshacen juntos); la tabla es permanente (sin llaves foráneas), por eso sobrevive a la baja y al vencimiento. `usuario_id` NULL = el sistema (`usuarioNombre` «Sistema»).
 - Tipos y frases (`mensajes.js`, `movimiento.<tipo>`): `creada` «Creó la solicitud»; `modificada` «Modificó la solicitud»; `revisada` «Revisó el documento de la solicitud» (solo la primera vez de cada persona tras cada modificación); `autorizada` «Autorizó la solicitud»; `rechazada` «Rechazó la solicitud. Motivo: …»; `recibo_creado` «Creó el recibo <número> de <rubro> por <monto>»; `recibo_quitado` «Quitó el recibo <número>»; `comprobante_agregado` «Agregó un comprobante de <rubro> por <monto>»; `comprobante_quitado` «Quitó un comprobante de <rubro>»; `liquidada` «Liquidó la solicitud»; `vencida` «La solicitud venció tras el rechazo y pasó a borrador» (actor: el sistema); `dada_de_baja` «Dio de baja la solicitud». Los montos llevan el símbolo de la moneda de la solicitud.
+
+## Reportes
+
+Pestaña «Reportes»: solo para quien tiene `viaticos.reportes` (además de `viaticos.ver`, que da acceso al módulo); sin él los tres endpoints responden 403.
+
+**Qué cuenta.** Solicitudes de más de 1 día (`mas_de_un_dia`) en estado guardado `autorizada` o `liquidada` (en curso y terminada son fases derivadas de las mismas). No cuentan las que esperan autorización ni las rechazadas, ni los viajes de 1 día o menos (no llevan importes). Se cuentan con los datos actuales de la solicitud (ya no se edita).
+
+**Qué se muestra.** Siempre el importe AUTORIZADO (`total_solicitado`): el dinero se entrega al autorizar. **Lo liquidado (montos liquidados, comprobantes y recibos) no aparece en ningún reporte ni en el PDF.**
+
+**Ventana.** `desde` y `hasta` (`AAAA-MM-DD`, inclusivos, por omisión la semana actual de Guatemala; mismas reglas que `GET /gestiones`) filtran por la fecha de AUTORIZACIÓN: la del renglón `autorizada` de `viaticos_historial` (si hubiera varios, cuenta una vez con el más antiguo), no por la de creación ni la del viaje.
+
+**Una moneda a la vez** (no hay tasas de cambio). `monedaId` opcional; sin él se usa la de mayor total autorizado en la ventana (`null` si no hay movimiento). `paisId` y `solicitanteId` son opcionales. Un id inexistente de moneda o país responde 404; un `solicitanteId` sin solicitudes en el resultado devuelve el reparto vacío (no es un error). Un id con formato inválido o una fecha inválida responden 400.
+
+### `GET /reportes/opciones?desde=&hasta=`
+`{ monedas: [{ id, codigo, nombre, simbolo }], paises: [{ id, codigo, nombre }], monedaPorDefecto }`: solo monedas y países con movimiento en la ventana; `monedas` va de mayor a menor total y `monedaPorDefecto` es el `id` de la primera (`null` si no hay).
+
+### `GET /reportes`
+```
+{ desde, hasta,
+  moneda: { id, codigo, nombre, simbolo } | null,
+  pais: { id, codigo, nombre } | null,
+  resumen: { total, solicitudes, solicitantes, promedio },
+  solicitantes: [{ solicitanteId, nombre, solicitudes, total, porcentaje, promedio }],   // de mayor a menor total
+  reparto: { alcance: { solicitanteId: number|null, nombre: string|null }, total,
+             categorias: [{ clave, nombre, monto, porcentaje }] } }                      // vacío si no hay movimiento
+```
+Los importes son números en la moneda del reporte. Los porcentajes llevan 1 decimal y suman 100.0 (el ajuste de redondeo va a la porción mayor). `promedio` es total entre solicitudes. `reparto` es de todos los solicitantes o, con `solicitanteId`, solo de ese; las categorías, en este orden y con estas claves: `hospedaje`, `combustible`, `alimentacion`, `depreciacion`, `otros` (otros gastos). Los importes por categoría se calculan por partes con la misma lógica de `calculoService` (hospedaje Σ noches × valor, comidas Σ valor guardado, combustible por km/rendimiento/precio, depreciación km × valor solo con vehículo propio, otros gastos Σ monto); los totales usan el `total_solicitado` guardado y, si las categorías de una solicitud no cuadran con él, se registra en el log del servidor.
+
+### `GET /reportes/pdf`
+Mismos filtros y mismos datos que el JSON. `Content-Type: application/pdf`, `Content-Disposition: inline; filename="reporte-viaticos-<desde>_<hasta>.pdf"`. Carta en blanco y negro con resumen, ranking de barras (los 10 con mayor inversión), pastel con leyenda, tabla de todos los solicitantes con fila TOTAL y paginación `n/total`.
 
 ## Vencimiento de una solicitud rechazada
 

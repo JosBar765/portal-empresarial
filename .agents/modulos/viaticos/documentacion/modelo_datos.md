@@ -99,7 +99,7 @@ Dar de baja una solicitud la borra con sus hijas (`ON DELETE CASCADE`) y el serv
 
 ## Permisos (`permisos.modulo = 'viaticos'`)
 
-`viaticos.ver`, `viaticos.gestionar`, `viaticos.autorizar`, `viaticos.liquidar`, `viaticos.configurar`, `viaticos.ver_historial` (acción «Historial» de Gestiones; la migración `viaticos_historial` la asigna solo al Administrador). Se insertan por `codigo` (sin id fijo) en la migración. Asignación (dueño): se crea el rol **Piloto** (nuevo, sin id fijo en la migración, buscado por nombre) con `viaticos.ver`, y el Administrador recibe los cinco primeros (el sexto lo asigna su migración). Cualquier otro rol (p. ej. Supervisor de Ventas, que también solicita viáticos) se asigna después desde Administración. Antes de F3 hay que verificar que Administración y los filtros por rol del código no asuman solo los roles 1 a 10.
+`viaticos.ver`, `viaticos.gestionar`, `viaticos.autorizar`, `viaticos.liquidar`, `viaticos.configurar`, `viaticos.ver_historial` (acción «Historial» de Gestiones; la migración `viaticos_historial` la asigna solo al Administrador), `viaticos.reportes` (pestaña «Reportes»; la migración `viaticos_reportes` la asigna solo al Administrador, sin tablas nuevas). Se insertan por `codigo` (sin id fijo) en la migración. Asignación (dueño): se crea el rol **Piloto** (nuevo, sin id fijo en la migración, buscado por nombre) con `viaticos.ver`, y el Administrador recibe los cinco primeros (el sexto lo asigna su migración). Cualquier otro rol (p. ej. Supervisor de Ventas, que también solicita viáticos) se asigna después desde Administración. Antes de F3 hay que verificar que Administración y los filtros por rol del código no asuman solo los roles 1 a 10.
 
 ## Pendientes de confirmar
 
