@@ -1,5 +1,5 @@
 // Liquidación del solicitante: modal con el resumen, los rubros pendientes, los comprobantes y el botón «Liquidar».
-// «Liquidar» queda habilitado aunque falten comprobantes (decisión del dueño): lo que falta solo se informa en un aviso.
+// «Liquidar» queda habilitado aunque falten comprobantes (decisión del dueño): lo que falta solo se informa en una barra de aviso.
 import { state } from '../state.js';
 import { h, icono, montar } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
@@ -44,13 +44,15 @@ export function abrirLiquidacion(solicitud, { alTerminar } = {}) {
 
   const avisos = h('div', { class: 'vi-avisos', id: 'vi-liq-avisos', 'aria-live': 'polite' });
   const resumen = crearResumenLiquidacion();
+  // La barra de avance queda fija sobre los botones: siempre a la vista, aunque la lista de comprobantes se desplace.
+  overlay.querySelector('.modal-footer').prepend(resumen.avance);
 
   // Los avisos salen del servidor: el de lo que falta se informa, nunca bloquea.
   function pintarAvisos(extra) {
     // montar descarta los valores vacíos: replaceChildren nativo los escribiría como texto («false», «undefined»).
     montar(avisos,
       !liq.puedeLiquidar && liq.motivoNoPuedeLiquidar && crearAviso({ tipo: 'info', titulo: t('liquidacion.avisoMotivo.titulo'), texto: liq.motivoNoPuedeLiquidar }),
-      liq.avisoFaltantes && crearAviso({ tipo: 'warning', titulo: t('liquidacion.avisoFaltantes.titulo'), texto: liq.avisoFaltantes }),
+      liq.avisoFaltantes && h('div', { class: 'vi-liq-faltan', role: 'status' }, icono('warning-outline'), t('liquidacion.avisoFaltantes.titulo')),
       extra);
   }
 

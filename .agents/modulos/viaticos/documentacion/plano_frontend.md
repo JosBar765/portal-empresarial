@@ -75,6 +75,10 @@ Abrir «Ver documentos» en Gestiones (`abrirVisorSolicitud(..., { gestion: true
 
 En Solicitudes y Gestiones, los encabezados «Correlativo», «Fecha creación» y «Fecha viáticos» (esta ordena por la fecha de salida) son botones (`utils/ordenTabla.js`, clase `vi-th-orden`, `aria-sort`). Cada clic cicla ascendente, descendente y sin orden (vuelve al orden por estados del servidor). Se ordena en el navegador sobre la lista ya cargada, sin pedir al servidor; el correlativo compara en forma numérica para que `VIA-GT-26` quede después de `VIA-GT-000025`. El orden vive en `state.ordenSolicitudes` y `state.ordenGestion`, y sobrevive a recargas y a cambiar de pestaña. En celular (tarjetas) los encabezados no se ven, así que no hay orden.
 
+## Modal de liquidación del solicitante
+
+`actions/liquidacion.js` y `actions/liquidacion/resumen.js`, con estilos en `css/liquidacion.css` limitados con `:not(.vi-modal-liqgestion)` porque la vista de contabilidad comparte las clases `vi-liq-*` y no cambia. Tres cajitas compactas («Solicitado a liquidar», «Liquidado», «Sin liquidar»); bajo «Pendiente por liquidar», un contador por rubro con el formato `Hospedaje 1 de 3` (`liquidacion.progreso.simple`); si faltan comprobantes sale una barra baja «Faltan comprobantes» (`.vi-liq-faltan`) sin detalle (el servidor sigue mandando `avisoFaltantes`, que se usa en la confirmación de «Liquidar»); y la barra de avance con su porcentaje va fija en el pie, sobre «Cerrar» y «Liquidar», oculta hasta la primera respuesta del servidor.
+
 ## Tablas y móvil
 
 `.tabla-wrapper[tabindex=0][role=region]` → `table.buzon-table.data-table.sticky-header`; cada `td` lleva `data-label` y la de acciones `.acciones-cell`; en ≤900 px cada fila es una tarjeta (`::before{content:attr(data-label)}`); objetivos táctiles de 44 px a ≤640 px. Tabla fija en escritorio con `body.vista-tabla-fija` (solo desde 901 px; `--sep-buzon` 16 px). Fila vacía: `td.tabla-vacia`. Los modales a ≤480 px ocupan la pantalla.
