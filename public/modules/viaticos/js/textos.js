@@ -475,7 +475,6 @@ export const TEXTOS = {
   'liquidacion.recibo.generar': 'Generar recibo',
   'liquidacion.recibo.etiqueta': 'Recibo',
   'liquidacion.recibo.n': 'Recibo {numero}',
-  'liquidacion.recibo.numero': 'Número',
   'liquidacion.recibo.ver': 'Ver el recibo {numero} de {rubro} (PDF)',
   'liquidacion.recibo.visor': 'Recibo {numero} — {rubro}',
   'liquidacion.recibo.meta': 'PDF · {tamano} · clic para ver',

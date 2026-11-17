@@ -6,7 +6,8 @@
   background: var(--color-primary-light); border: 1px solid var(--color-primary-border); color: var(--color-primary);
   font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap;
 }
-.vi-comp--recibo .vi-comp__info { align-items: center; }
+/* Solo en fila (escritorio): en celular la información va en columna y centrarla la corría de su margen. */
+@media (min-width: 641px) { .vi-comp--recibo .vi-comp__info { align-items: center; } }
 .vi-gl-rubro-recibo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .vi-agregar { flex-wrap: wrap; gap: 8px; }
 .vi-btn-recibo { display: inline-flex; align-items: center; gap: 6px; }

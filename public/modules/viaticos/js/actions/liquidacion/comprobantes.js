@@ -114,7 +114,6 @@ export function crearComprobantes({ solicitudId, ajustes, obtenerLiq, alActualiz
       h('span', { class: 'vi-comp__titulo', text: t('liquidacion.recibo.n', { numero: r.numero }) }),
       h('div', { class: 'vi-comp__info' },
         etiquetaRecibo(),
-        campoDato(t('liquidacion.recibo.numero'), r.numero),
         campoDato(t('liquidacion.col.rubro'), r.rubroNombre),
         campoDato(t('liquidacion.col.monto', { simbolo }), formatearDinero(simbolo, r.monto)),
         r.concepto && campoDato(t('recibo.concepto'), r.concepto, 'vi-comp__dato--ancho')),
