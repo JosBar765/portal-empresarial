@@ -253,3 +253,11 @@ Los permisos se asignan **desde la pantalla Roles** de Administración Central. 
 - Las acciones destructivas no existen: se desactiva, no se borra.
 - Los textos libres (guiones, mensajes, encabezado del informe) se guardan como texto y se pintan escapados.
 - Los ajustes de la lista de «fijo a propósito» (sección 2.1) no tienen pantalla, para que nadie pueda romper la integridad por error.
+
+## 9. Ayuda integrada en las pantallas de configuración
+
+Cada pantalla de Configuración se explica sola, sin salir de ella:
+- **«¿Cómo funciona?»** (botón bajo el título): para qué sirve, qué se puede cambiar, qué pasa al cambiarlo (y desde cuándo), un ejemplo y lo que hay que tener en cuenta. En el Centro de configuración incluye la guía de **por dónde empezar**. Cada pestaña de Catálogos tiene la suya.
+- **Icono (i)** junto a los ajustes con reglas (todos los parámetros, los avisos, las reglas por país, los controles de plantilla, los tipos de campo propio, el efecto de un resultado, la moneda de un país…): en escritorio abre un recuadro; en el celular, una hoja desde abajo con «Entendido».
+- Los textos viven en un solo archivo, `public/modules/proyectos/js/ayuda/textos.js`; el componente es `js/components/ayuda.js`. Se redactan en español sencillo, con qué es, qué cambia al tocarlo, desde cuándo vale y un ejemplo con números.
+- **Un ajuste nuevo exige su texto:** `node scripts/proyectos/verificar-ayudas.js` falla si algún parámetro del registro, evento de notificación, pestaña de catálogo o ajuste con reglas no tiene explicación (qué es, qué pasa al cambiarlo y ejemplo). Corre sin base de datos.
