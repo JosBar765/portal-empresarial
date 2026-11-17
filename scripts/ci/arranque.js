@@ -72,7 +72,8 @@ async function verificar(base) {
     SUPABASE_SECRET_KEY: 'ci-clave-falsa',
     SUPABASE_STORAGE_BUCKET: 'ci-bucket',
     SUPABASE_STORAGE_BUCKET_BORRADORES: 'ci-bucket-borradores',
-    SUPABASE_STORAGE_BUCKET_VIATICOS: 'ci-bucket-viaticos'
+    SUPABASE_STORAGE_BUCKET_VIATICOS: 'ci-bucket-viaticos',
+    SUPABASE_STORAGE_BUCKET_VIATICOS_RECIBOS: 'ci-bucket-viaticos-recibos',
     SUPABASE_STORAGE_BUCKET_INCIDENCIAS: 'ci-bucket-incidencias'
   };
 

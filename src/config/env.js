@@ -149,7 +149,7 @@ const config = {
     bucket: leer('SUPABASE_STORAGE_BUCKET').trim(),
     bucketBorradores: leer('SUPABASE_STORAGE_BUCKET_BORRADORES').trim(),
     bucketViaticos: leer('SUPABASE_STORAGE_BUCKET_VIATICOS').trim(),
-    bucketViaticosRecibos: leer('SUPABASE_STORAGE_BUCKET_VIATICOS_RECIBOS').trim()
+    bucketViaticosRecibos: leer('SUPABASE_STORAGE_BUCKET_VIATICOS_RECIBOS').trim(),
     bucketIncidencias: leer('SUPABASE_STORAGE_BUCKET_INCIDENCIAS').trim()
   }
 };
