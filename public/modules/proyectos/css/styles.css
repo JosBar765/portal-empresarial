@@ -1223,7 +1223,10 @@ body { font-size: var(--text-sm); line-height: 1.45; }
 .ayuda-franja[aria-expanded="true"] > ion-icon:last-child { transform: rotate(180deg); }
 
 /* El panel: una rejilla de bloques con icono, no un muro de texto. */
-.ayuda-panel { padding: 20px 22px 22px; background: #fff; border: 1px solid var(--color-border); border-top: none; border-radius: 0 0 14px 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; }
+.ayuda-panel { background: #fff; border: 1px solid var(--color-border); border-top: none; border-radius: 0 0 14px 14px; }
+.ayuda-panel-interior { padding: 20px 22px 18px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; }
+.ayuda-panel-pie { grid-column: 1 / -1; display: flex; justify-content: flex-end; padding-top: 12px; border-top: 1px solid var(--color-border); }
+.ayuda-cerrar-panel { gap: 6px; }
 .ayuda-panel[hidden] { display: none; }
 .ayuda-bloque { display: flex; gap: 12px; min-width: 0; }
 .ayuda-bloque--ancho { grid-column: 1 / -1; }
@@ -1273,11 +1276,12 @@ body { font-size: var(--text-sm); line-height: 1.45; }
 .ayuda-entendido { width: 100%; min-height: 48px; margin-top: 18px; justify-content: center; }
 @keyframes ayuda-entra { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ayuda-sube { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-@media (max-width: 900px) { .ayuda-panel { grid-template-columns: minmax(0, 1fr); } .ayuda-pasos { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 900px) { .ayuda-panel-interior { grid-template-columns: minmax(0, 1fr); } .ayuda-pasos { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) {
   .ayuda-franja { padding: 12px; gap: 12px; }
   .ayuda-franja-accion { display: none; }
-  .ayuda-panel { padding: 16px 14px 18px; gap: 16px; }
+  .ayuda-panel-interior { padding: 16px 14px 14px; gap: 16px; }
+  .ayuda-cerrar-panel { width: 100%; min-height: 44px; justify-content: center; }
   .ayuda-i { width: 36px; height: 36px; }
 }
 @media (prefers-reduced-motion: reduce) { .ayuda-fondo, .ayuda-hoja, .ayuda-recuadro { animation: none; } .ayuda-franja > ion-icon:last-child, .ayuda-franja, .ayuda-paso { transition: none; } }

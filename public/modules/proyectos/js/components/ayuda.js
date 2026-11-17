@@ -71,14 +71,54 @@ export function comoFunciona(clave) {
       h('strong', { text: '¿Cómo funciona?' }),
       h('span', { text: 'Para qué sirve, qué puedes cambiar y un ejemplo.' })),
     accion, flecha);
-  const panel = h('div', { class: 'ayuda-panel', id, role: 'region', 'aria-label': '¿Cómo funciona esta pantalla?', hidden: true }, cuerpoPantalla(t));
+  const cerrarAlFinal = h('button', { class: 'btn btn--ghost ayuda-cerrar-panel', type: 'button' }, icono('chevron-up-outline'), 'Cerrar explicación');
+  const panel = h('div', { class: 'ayuda-panel', id, role: 'region', 'aria-label': '¿Cómo funciona esta pantalla?', hidden: true },
+    h('div', { class: 'ayuda-panel-interior' }, cuerpoPantalla(t), h('div', { class: 'ayuda-panel-pie' }, cerrarAlFinal)));
   const poner = (abierto) => {
     boton.setAttribute('aria-expanded', String(abierto));
     accion.textContent = abierto ? 'Ocultar' : 'Ver explicación';
-    panel.hidden = !abierto;
+    animar(panel, abierto);
   };
-  boton.addEventListener('click', () => poner(panel.hidden));
+  boton.addEventListener('click', () => poner(boton.getAttribute('aria-expanded') !== 'true'));
+  // Al terminar de leer, se cierra sin tener que subir hasta la franja.
+  cerrarAlFinal.addEventListener('click', () => {
+    poner(false);
+    boton.scrollIntoView({ block: 'nearest', behavior: sinMovimiento() ? 'auto' : 'smooth' });
+    boton.focus();
+  });
   return h('div', { class: 'ayuda-pantalla' }, boton, panel);
+}
+
+const sinMovimiento = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Abre o cierra el panel con una transición de altura corta, para que se note que el contenido se mueve y no que «salta».
+function animar(panel, abrir) {
+  if (sinMovimiento()) { panel.hidden = !abrir; return; }
+  const terminar = () => {
+    panel.removeEventListener('transitionend', alTerminar);
+    panel.style.height = '';
+    panel.style.overflow = '';
+    panel.style.transition = '';
+    panel.hidden = !abrir;
+  };
+  const alTerminar = (e) => { if (e.target === panel && e.propertyName === 'height') terminar(); };
+  panel.addEventListener('transitionend', alTerminar);
+  panel.style.overflow = 'hidden';
+  if (abrir) {
+    const desde = panel.hidden ? 0 : panel.offsetHeight; // si se abre a mitad de un cierre, sigue desde donde iba
+    panel.hidden = false;
+    const alto = panel.scrollHeight;
+    panel.style.height = `${desde}px`;
+    panel.getBoundingClientRect();
+    panel.style.transition = 'height .26s ease';
+    panel.style.height = `${alto}px`;
+  } else {
+    panel.style.height = `${panel.offsetHeight}px`;
+    panel.getBoundingClientRect();
+    panel.style.transition = 'height .22s ease';
+    panel.style.height = '0px';
+  }
+  setTimeout(terminar, 450); // por si el navegador no avisa del fin de la transición
 }
 
 function cerrarAbierta() { if (abierta) abierta.cerrar(); }
