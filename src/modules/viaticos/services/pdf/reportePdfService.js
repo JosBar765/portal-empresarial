@@ -19,7 +19,10 @@ const ALTO_BARRA = 9;
 const ANCHO_NOMBRE_BARRA = 150;
 const ANCHO_MAX_BARRA = 230;
 const RADIO_PASTEL = 62;
-const GRISES = [0.12, 0.32, 0.5, 0.68, 0.84].map(g => rgb(g, g, g));
+// Colores de las categorías = los de la pantalla (tokens de global.css), en el orden hospedaje, combustible, alimentación, depreciación y otros.
+const hexARgb = (hex) => rgb(parseInt(hex.slice(1, 3), 16) / 255, parseInt(hex.slice(3, 5), 16) / 255, parseInt(hex.slice(5, 7), 16) / 255);
+const COLORES = ['#1B2130', '#2563EB', '#E85D04', '#16A34A', '#94A3B8'].map(hexARgb);
+const COLOR_BARRA = COLORES[1];
 const X_DER = PAGINA.MARGEN + ANCHO_CONTENIDO;
 // Columnas de la tabla por solicitante: [clave, ancho, alineación].
 const COLUMNAS = [['numero', 24, 'izq'], ['solicitante', 190, 'izq'], ['solicitudes', 70, 'der'], ['total', 100, 'der'], ['porcentaje', 50, 'der'], ['promedio', 98, 'der']];
@@ -101,7 +104,7 @@ function dibujarRanking(ctx) {
     const [nombre] = partirEnLineas(s.nombre, m => ancho(ctx, m, 8.5), ANCHO_NOMBRE_BARRA, 1);
     texto(ctx, nombre, PAGINA.MARGEN, ctx.y - 10, { size: 8.5 });
     const largo = mayor > 0 ? Math.max(1, (s.total / mayor) * ANCHO_MAX_BARRA) : 0;
-    ctx.page.drawRectangle({ x: xBarra, y: ctx.y - 11, width: largo, height: ALTO_BARRA, color: GRISES[1] });
+    ctx.page.drawRectangle({ x: xBarra, y: ctx.y - 11, width: largo, height: ALTO_BARRA, color: COLOR_BARRA });
     textoDerecha(ctx, `${formatearDinero(moneda.simbolo, s.total)}  ·  ${porcentaje(s.porcentaje)}`, X_DER, ctx.y - 10, { size: 8.5 });
     ctx.y -= ALTO_FILA;
   }
@@ -131,7 +134,7 @@ function dibujarReparto(ctx) {
   }
   const cx = PAGINA.MARGEN + RADIO_PASTEL + 8;
   const cy = ctx.y - RADIO_PASTEL - 4;
-  const conMonto = reparto.categorias.map((c, i) => ({ ...c, color: GRISES[i % GRISES.length] })).filter(c => c.monto > 0);
+  const conMonto = reparto.categorias.map((c, i) => ({ ...c, color: COLORES[i % COLORES.length] })).filter(c => c.monto > 0);
   if (conMonto.length === 1) {
     ctx.page.drawCircle({ x: cx, y: cy, size: RADIO_PASTEL, color: conMonto[0].color });
   } else {
@@ -151,7 +154,7 @@ function dibujarReparto(ctx) {
   textoDerecha(ctx, t('colPorcentaje'), X_DER, y - 8, { size: 7, bold: true, color: COLOR.etiqueta });
   y -= 18;
   reparto.categorias.forEach((c, i) => {
-    ctx.page.drawRectangle({ x: xLeyenda, y: y - 9, width: 9, height: 9, color: GRISES[i % GRISES.length], borderColor: COLOR.marco, borderWidth: 0.5 });
+    ctx.page.drawRectangle({ x: xLeyenda, y: y - 9, width: 9, height: 9, color: COLORES[i % COLORES.length], borderColor: COLOR.marco, borderWidth: 0.5 });
     texto(ctx, c.nombre, xLeyenda + 18, y - 8, { size: 9 });
     textoDerecha(ctx, formatearDinero(moneda.simbolo, c.monto), xMonto, y - 8, { size: 9 });
     textoDerecha(ctx, porcentaje(c.porcentaje), X_DER, y - 8, { size: 9 });
