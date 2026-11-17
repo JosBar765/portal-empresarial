@@ -209,17 +209,12 @@ export function abrirRecibo({ solicitudId, liq, alGuardar, alCerrar }) {
     limpiarErrorCampo(e.target);
   });
 
-  // Resumen arriba («Revisa 2 campos…») y cada mensaje junto a su campo, como en el mockup.
+  // Cada error es un ícono en la esquina de su campo (el mensaje sale al tocarlo), como en el modal de solicitud; lo que no es de un campo va en un aviso.
   function mostrarErrores(campos) {
     formulario.querySelectorAll('.form-field.is-invalid').forEach(w => w.classList.remove('is-invalid'));
     formulario.querySelectorAll('.field-error').forEach(m => m.remove());
-    const { sueltos } = marcarErroresDeCampos(formulario, campos);
-    const n = Object.keys(campos).length;
-    avisos.replaceChildren(crearAviso({
-      tipo: 'error',
-      titulo: t(n === 1 ? 'recibo.errores.uno' : 'recibo.errores.varios', { n }),
-      texto: sueltos.length ? sueltos.join(' ') : t('recibo.errores.texto')
-    }));
+    limpiarAviso();
+    marcarErroresDeCampos(formulario, campos);
     enfocarPrimerCampoInvalido(formulario);
   }
 

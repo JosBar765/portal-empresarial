@@ -17,6 +17,22 @@
 .vi-modal-recibo .modal-header { align-items: flex-start; }
 .vi-modal-recibo .modal-body { display: flex; flex-direction: column; gap: 14px; }
 .vi-modal-recibo .field-error { animation: none; }
+/* Errores de campo: un ícono rojo en la esquina del campo y el mensaje en un globo (mouse, foco o toque), igual que el modal de solicitud. */
+.vi-modal-recibo .form-field { position: relative; }
+.vi-modal-recibo .form-field > .field-error {
+  position: absolute; top: -8px; right: -6px; z-index: 3;
+  width: 20px; height: 20px; padding: 0; justify-content: center; border-radius: 50%;
+  background: var(--color-surface); cursor: help;
+}
+.vi-modal-recibo .form-field > .field-error ion-icon { font-size: 20px; }
+.vi-modal-recibo .form-field > .field-error:focus-visible { outline: 2px solid var(--color-danger); outline-offset: 1px; }
+.vi-modal-recibo .form-field > .field-error > span {
+  display: none; position: absolute; top: calc(100% + 6px); right: 0; width: max-content; max-width: min(280px, 70vw);
+  padding: 6px 10px; border-radius: var(--radius-sm); background: var(--color-danger); color: var(--color-surface);
+  font-size: 12px; line-height: 1.35; font-weight: 500; text-align: left; box-shadow: var(--shadow-md); pointer-events: none;
+}
+.vi-modal-recibo .form-field > .field-error:hover > span,
+.vi-modal-recibo .form-field > .field-error:focus > span { display: block; }
 .vi-rec-form { display: flex; flex-direction: column; gap: 14px; }
 .vi-rec-fila { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
 .vi-rec-fila[hidden], .vi-rec-numero[hidden] { display: none; }
