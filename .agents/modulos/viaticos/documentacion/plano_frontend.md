@@ -107,6 +107,19 @@ Contrato: «Recibos» en `contrato_api.md`. Estilos en `css/recibo.css` (importa
 
 `.tabla-wrapper[tabindex=0][role=region]` → `table.buzon-table.data-table.sticky-header`; cada `td` lleva `data-label` y la de acciones `.acciones-cell`; en ≤900 px cada fila es una tarjeta (`::before{content:attr(data-label)}`); objetivos táctiles de 44 px a ≤640 px. Tabla fija en escritorio con `body.vista-tabla-fija` (solo desde 901 px; `--sep-buzon` 16 px). Fila vacía: `td.tabla-vacia`. Los modales a ≤480 px ocupan la pantalla.
 
+## Reportes
+
+Pestaña `reportes` (permiso `viaticos.reportes`, además de `viaticos.ver`); entre Gestiones y Configuración en el menú. Sin el permiso no aparece y `viaticos:tabActiva` guardada no la abre (`puedeVerTab`). Solo muestra importes AUTORIZADOS; lo liquidado no aparece nunca. El diseño aprobado está en la página «Reportes» del Figma del módulo.
+
+- Archivos: `views/reportes.js` (carga y eventos), `components/barrasRanking.js` (ranking de barras y tabla) y `components/graficoPastel.js` (dona SVG propia y leyenda); estos dos son funciones puras que devuelven HTML con todo texto del servidor escapado. Estilos en `css/informes.css` (prefijo `vi-rep-`). API: `obtenerOpcionesReportes`, `obtenerReportes` y `urlPdfReportes` en `viaticosApi.js`.
+- Barra fija (`.vi-rep-barra`, `position: sticky` bajo el encabezado): `barraPeriodo` con prefijo `vr` y su propio `state.ventanaReportes`, combos Moneda y País (de `GET /reportes/opciones`) y «Imprimir / PDF», que abre `GET /reportes/pdf` con los mismos filtros en otra pestaña (`window.open(..., 'noopener')`; si el navegador la bloquea, un aviso). En celular (≤ 640 px) Moneda y País pasan a un panel «Filtros» y el botón de imprimir queda solo con el ícono.
+- Selección en `state.seleccionReportes` (`monedaId`, `paisId`, `solicitanteId`): sobrevive al cambiar de pestaña y se reinicia si la moneda o el país ya no están en las opciones de la ventana (la moneda vuelve a `monedaPorDefecto`). Un solicitante elegido que ya no aparece se quita.
+- Cambiar la ventana recarga opciones e informe; cambiar moneda o país, solo el informe. Elegir un solicitante (clic en una barra o en una fila; otro clic lo quita; o el combo «Ver reparto de:» y «Quitar selección») solo vuelve a pedir `GET /reportes?...&solicitanteId=` para el reparto: las tarjetas y el ranking no cambian, solo se resalta la fila. Un contador de cargas descarta las respuestas viejas.
+- Estados: cargando, vacío («No hay solicitudes autorizadas en este período con esta moneda») y error con «Reintentar».
+- Accesibilidad: la dona es `role="img"` con un `aria-label` que resume monto y % por categoría; el color nunca es la única señal (la leyenda trae monto y %); las filas del ranking y el nombre de la tabla son botones con `aria-pressed`.
+- Tablas reales que a ≤ 640 px pasan a tarjetas con `data-label`, como las demás del módulo.
+- No se registra recarga por tiempo real: el reporte se recalcula al abrir la pestaña o al cambiar un filtro.
+
 ## Componentes que se copian
 
 | Componente | Origen | Nota |

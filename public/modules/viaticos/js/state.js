@@ -14,6 +14,9 @@ export const state = {
   // Gestiones lleva su propio período y búsqueda para no pisar los de Solicitudes.
   ventanaGestion: null,
   busquedaGestion: '',
+  // Reportes: su propio período y la selección (moneda, país, solicitante) que sobrevive al cambiar de pestaña.
+  ventanaReportes: null,
+  seleccionReportes: { monedaId: '', paisId: '', solicitanteId: '' },
   // Orden por encabezado de cada tabla: { clave, direccion } o null (orden por estados del servidor).
   ordenSolicitudes: null,
   ordenGestion: null,

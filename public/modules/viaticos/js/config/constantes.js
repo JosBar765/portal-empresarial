@@ -5,18 +5,21 @@ export const PERMISOS = Object.freeze({
   AUTORIZAR: 'viaticos.autorizar',
   LIQUIDAR: 'viaticos.liquidar',
   CONFIGURAR: 'viaticos.configurar',
-  VER_HISTORIAL: 'viaticos.ver_historial'
+  VER_HISTORIAL: 'viaticos.ver_historial',
+  REPORTES: 'viaticos.reportes'
 });
 
 export const TABS = Object.freeze({
   SOLICITUDES: 'solicitudes',
   GESTIONES: 'gestiones',
+  REPORTES: 'reportes',
   CONFIGURACION: 'configuracion'
 });
 
 export const PERMISO_POR_TAB = Object.freeze({
   [TABS.SOLICITUDES]: PERMISOS.VER,
   [TABS.GESTIONES]: PERMISOS.GESTIONAR,
+  [TABS.REPORTES]: PERMISOS.REPORTES,
   [TABS.CONFIGURACION]: PERMISOS.CONFIGURAR
 });
 

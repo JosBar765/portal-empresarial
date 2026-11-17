@@ -27,8 +27,8 @@ Una pestaña **Reportes** que aparece solo con el permiso nuevo `viaticos.report
 - [x] T0. Mockup en Figma (celular, tablet, PC) y aprobación del dueño.
 - [x] T1. Migración 43 (permiso) y consultas/servicio de reportes (inversión por solicitante, reparto por categoría).
 - [x] T2. Endpoints `GET /reportes/...` con `viaticos.reportes`, PDF del reporte.
-- [ ] T3. Frontend: pestaña, barra fija, ranking, pastel SVG y tabla, estados vacío y de error, responsive.
-- [ ] T4. Documentación del módulo.
+- [x] T3. Frontend: pestaña, barra fija, ranking, pastel SVG y tabla, estados vacío y de error, responsive.
+- [x] T4. Documentación del módulo.
 - [ ] T5. Pruebas por API y navegador.
 
 ## Rutas
@@ -48,5 +48,11 @@ Mockup creado (trabajador de diseño delegado; el padre revisó la captura del m
 - Padre: `--check` repetido y prueba de SOLO LECTURA contra la BD local (ventana 2026, GTQ): 10 solicitudes, 2 solicitantes, total Q 9,602.79; la suma de las 5 categorías es exactamente Q 9,602.79 (sin avisos de descuadre) y los porcentajes suman 100.0; el reparto de un solicitante también cuadra.
 - Sin probar por HTTP ni el PDF a la vista: la migración 43 no está aplicada.
 
+## Evidencia T3 (2026-11-17, escritor delegado; revisado por el padre)
+- Pestaña «Reportes» (`bar-chart-outline`, entre Gestiones y Configuración) visible solo con `viaticos.reportes`; `views/reportes.js`, `components/barrasRanking.js`, `components/graficoPastel.js` (SVG propio), `css/informes.css`; barra fija con ventana de tiempo propia (`state.ventanaReportes`), moneda y país, botón Imprimir / PDF que abre `/reportes/pdf` con los mismos filtros; ranking y tabla clicables que cambian solo el reparto; estados vacío, cargando y error; tablas como tarjetas a 640 px o menos; plano del frontend actualizado.
+- Escritor: `--check` de 8 archivos, geometría del pastel (vacío, 100 %, cinco categorías), anchos de barra y escape de `<script>`; 27 claves de texto presentes. Padre: `--check` repetido y revisión del cableado de la pestaña (constantes, `panel.js`, `index.html`).
+- El escritor no consultó Figma (siguió el encargo). Sin probar en el navegador: la migración 43 no está aplicada (T5).
+- No hay recarga en tiempo real: el reporte se recarga al abrir la pestaña o cambiar un filtro.
+
 ## Próximo paso
-T3: escritor del frontend.
+T5: pruebas por API y navegador, cuando el servidor local tenga las migraciones 42 y 43.

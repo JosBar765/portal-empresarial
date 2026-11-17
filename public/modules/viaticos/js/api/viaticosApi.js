@@ -58,6 +58,12 @@ function formularioSolicitud(datos, fotos = []) {
   return formulario;
 }
 
+// ---------- Reportes (permiso viaticos.reportes) ----------
+export const obtenerOpcionesReportes = (filtros) => pedir(`${BASE}/reportes/opciones${consulta({ desde: filtros.desde, hasta: filtros.hasta })}`);
+export const obtenerReportes = (filtros) => pedir(`${BASE}/reportes${consulta(filtros)}`);
+// El PDF se abre en otra pestaña con los mismos filtros que la pantalla.
+export const urlPdfReportes = (filtros) => `${BASE}/reportes/pdf${consulta(filtros)}`;
+
 // ---------- Contexto y catálogos ----------
 export const obtenerContexto = () => pedir(`${BASE}/contexto`);
 export const obtenerCatalogosSolicitud = (paisId) => pedir(`${BASE}/catalogos/solicitud${consulta({ paisId })}`);

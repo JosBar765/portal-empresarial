@@ -6,11 +6,13 @@ import { t } from '../textos.js';
 import { registrarRecarga } from '../socket.js';
 import { renderSolicitudes } from '../views/solicitudes.js';
 import { renderGestiones } from '../views/gestiones.js';
+import { renderReportes } from '../views/reportes.js';
 import { renderConfiguracion } from '../views/configuracion.js';
 
 const VISTAS = {
   [TABS.SOLICITUDES]: renderSolicitudes,
   [TABS.GESTIONES]: renderGestiones,
+  [TABS.REPORTES]: renderReportes,
   [TABS.CONFIGURACION]: renderConfiguracion
 };
 
