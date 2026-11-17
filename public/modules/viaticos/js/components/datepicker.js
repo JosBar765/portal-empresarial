@@ -61,6 +61,9 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = t(
   let seleccionado = null;
   let minActual = minDate;
   let mesVisible = new Date();
+  let vista = 'dias';
+  let anioVisible = mesVisible.getFullYear();
+  let desplazamientoAnios = 0;
   let panelEl = null;
   let placeholderActual = placeholder;
 
@@ -169,7 +172,15 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = t(
     if (panelFechaActivo === api) panelFechaActivo = null;
   }
 
+  // Tres vistas: días del mes, meses del año y años; el título lleva de una a la siguiente para llegar a una fecha lejana en pocos clics.
   function renderPanel() {
+    if (vista === 'anios') renderAnios();
+    else if (vista === 'meses') renderMeses();
+    else renderDias();
+    if (panelEl) posicionarPanel();
+  }
+
+  function renderDias() {
     const hoy = hoyMedianoche();
     const primerDia = new Date(mesVisible.getFullYear(), mesVisible.getMonth(), 1);
     const offset = (primerDia.getDay() + 6) % 7; // lunes = primer día de la semana
@@ -185,10 +196,11 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = t(
       if (deshabilitado) clases.push('is-disabled');
       celdas += `<button type="button" class="${clases.join(' ')}" ${deshabilitado ? 'disabled' : ''} data-fecha="${isoLocal(fecha)}">${d}</button>`;
     }
+    const etiqueta = `${MESES[mesVisible.getMonth()]} ${mesVisible.getFullYear()}`;
     panelEl.innerHTML = `
       <div class="dp-header">
         <button type="button" class="dp-nav" data-nav="-1" aria-label="${t('periodo.mesAnterior')}"><ion-icon name="chevron-back-outline"></ion-icon></button>
-        <span class="dp-month-label">${MESES[mesVisible.getMonth()]} ${mesVisible.getFullYear()}</span>
+        <button type="button" class="dp-titulo" data-vista="meses" aria-label="${t('periodo.elegirOtroMes', { mes: etiqueta })}">${etiqueta}<ion-icon name="chevron-down-outline" aria-hidden="true"></ion-icon></button>
         <button type="button" class="dp-nav" data-nav="1" aria-label="${t('periodo.mesSiguiente')}"><ion-icon name="chevron-forward-outline"></ion-icon></button>
       </div>
       <div class="dp-weekdays">${DIAS_SEMANA_CORTO.map(d => `<span>${d}</span>`).join('')}</div>
@@ -200,9 +212,67 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = t(
         renderPanel();
       });
     });
+    panelEl.querySelector('[data-vista="meses"]').addEventListener('click', () => { anioVisible = mesVisible.getFullYear(); vista = 'meses'; renderPanel(); });
     panelEl.querySelectorAll('.dp-day[data-fecha]:not(.is-disabled)').forEach(btn => {
       btn.addEventListener('click', () => seleccionar(parseIsoLocal(btn.dataset.fecha)));
     });
+  }
+
+  // Un mes o un año sin ningún día elegible (todo anterior a la fecha mínima) se deshabilita.
+  const mesSinDias = (anio, mes) => !!(minActual && new Date(anio, mes + 1, 0) < minActual);
+  const anioSinDias = (anio) => !!(minActual && new Date(anio, 11, 31) < minActual);
+
+  function renderMeses() {
+    const hoy = hoyMedianoche();
+    const botones = MESES.map((nombre, i) => {
+      const clases = ['dp-mes'];
+      if (anioVisible === hoy.getFullYear() && i === hoy.getMonth()) clases.push('is-actual');
+      if (seleccionado && seleccionado.getFullYear() === anioVisible && seleccionado.getMonth() === i) clases.push('is-selected');
+      return `<button type="button" class="${clases.join(' ')}" data-mes="${i}" aria-label="${nombre} ${anioVisible}" ${mesSinDias(anioVisible, i) ? 'disabled' : ''}>${nombre.slice(0, 3)}</button>`;
+    }).join('');
+    panelEl.innerHTML = `
+      <div class="dp-header">
+        <button type="button" class="dp-nav" data-nav-anio="-1" aria-label="${t('periodo.anioAnterior')}"><ion-icon name="chevron-back-outline"></ion-icon></button>
+        <button type="button" class="dp-titulo" data-vista="anios" aria-label="${t('periodo.elegirOtroAnio', { anio: anioVisible })}">${anioVisible}<ion-icon name="chevron-down-outline" aria-hidden="true"></ion-icon></button>
+        <button type="button" class="dp-nav" data-nav-anio="1" aria-label="${t('periodo.anioSiguiente')}"><ion-icon name="chevron-forward-outline"></ion-icon></button>
+      </div>
+      <div class="dp-meses">${botones}</div>
+    `;
+    panelEl.querySelectorAll('[data-nav-anio]').forEach(b => b.addEventListener('click', () => { anioVisible += Number(b.dataset.navAnio); renderPanel(); }));
+    panelEl.querySelector('[data-vista="anios"]').addEventListener('click', () => { vista = 'anios'; renderPanel(); });
+    panelEl.querySelectorAll('.dp-mes:not(:disabled)').forEach(b => b.addEventListener('click', () => {
+      mesVisible = new Date(anioVisible, Number(b.dataset.mes), 1);
+      vista = 'dias';
+      renderPanel();
+    }));
+  }
+
+  // Doce años por página, con el año visible dentro de la página (así 2030 aparece sin avanzar desde 2026).
+  function renderAnios() {
+    const hoy = hoyMedianoche();
+    const inicio = anioVisible - 4 + desplazamientoAnios;
+    const botones = Array.from({ length: 12 }, (_, i) => {
+      const anio = inicio + i;
+      const clases = ['dp-mes'];
+      if (anio === hoy.getFullYear()) clases.push('is-actual');
+      if (seleccionado && seleccionado.getFullYear() === anio) clases.push('is-selected');
+      return `<button type="button" class="${clases.join(' ')}" data-anio="${anio}" ${anioSinDias(anio) ? 'disabled' : ''}>${anio}</button>`;
+    }).join('');
+    panelEl.innerHTML = `
+      <div class="dp-header">
+        <button type="button" class="dp-nav" data-nav-pagina="-1" aria-label="${t('periodo.aniosAnteriores')}"><ion-icon name="chevron-back-outline"></ion-icon></button>
+        <span class="dp-month-label">${inicio} – ${inicio + 11}</span>
+        <button type="button" class="dp-nav" data-nav-pagina="1" aria-label="${t('periodo.aniosSiguientes')}"><ion-icon name="chevron-forward-outline"></ion-icon></button>
+      </div>
+      <div class="dp-meses">${botones}</div>
+    `;
+    panelEl.querySelectorAll('[data-nav-pagina]').forEach(b => b.addEventListener('click', () => { desplazamientoAnios += 12 * Number(b.dataset.navPagina); renderPanel(); }));
+    panelEl.querySelectorAll('.dp-mes:not(:disabled)').forEach(b => b.addEventListener('click', () => {
+      anioVisible = Number(b.dataset.anio);
+      desplazamientoAnios = 0;
+      vista = 'meses';
+      renderPanel();
+    }));
   }
 
   // El panel nunca debe salirse de la ventana: se abre debajo del campo, se voltea hacia arriba si abajo no cabe y,
@@ -231,6 +301,8 @@ export function wireCampoFecha(overlay, name, { minDate = null, placeholder = t(
     if (panelFechaActivo) panelFechaActivo.cerrar();
     const base = minActual && minActual > hoyMedianoche() ? minActual : hoyMedianoche();
     mesVisible = seleccionado ? new Date(seleccionado) : new Date(base);
+    vista = 'dias';
+    desplazamientoAnios = 0;
     panelEl = document.createElement('div');
     panelEl.className = 'date-picker-panel';
     document.body.appendChild(panelEl);
