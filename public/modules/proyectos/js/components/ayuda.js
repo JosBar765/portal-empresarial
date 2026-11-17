@@ -8,8 +8,6 @@ const CELULAR = '(max-width: 640px)';
 let contador = 0;
 let abierta = null; // { cerrar, caja } de la ayuda (i) abierta ahora
 
-const recordar = (clave, valor) => { try { sessionStorage.setItem(`proyectos:ayuda:${clave}`, valor ? '1' : '0'); } catch (e) { /* solo comodidad */ } };
-const recordada = (clave) => { try { return sessionStorage.getItem(`proyectos:ayuda:${clave}`) === '1'; } catch (e) { return false; } };
 const lista = (valor) => (Array.isArray(valor) ? valor : (valor ? [valor] : []));
 
 // Cada tipo de bloque lleva su icono y su color, para que se reconozca de un vistazo.
@@ -59,6 +57,7 @@ function cuerpoPantalla(t) {
 }
 
 // Ayuda de la pantalla: franja «¿Cómo funciona?» que despliega la explicación completa, sin salir de la pantalla.
+// Siempre empieza cerrada: la explicación aparece solo cuando la persona la pide.
 export function comoFunciona(clave) {
   const t = TEXTOS.pantallas[clave];
   if (!t) return null;
@@ -77,10 +76,8 @@ export function comoFunciona(clave) {
     boton.setAttribute('aria-expanded', String(abierto));
     accion.textContent = abierto ? 'Ocultar' : 'Ver explicación';
     panel.hidden = !abierto;
-    recordar(clave, abierto);
   };
   boton.addEventListener('click', () => poner(panel.hidden));
-  if (recordada(clave)) poner(true);
   return h('div', { class: 'ayuda-pantalla' }, boton, panel);
 }
 
