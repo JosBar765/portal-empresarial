@@ -16,7 +16,7 @@ Gestión de usuarios, roles, permisos, talleres y tiendas del portal, más herra
 
 - Backend: `src/modules/admin/` (`controllers/adminController.js`, `adminHorarioController.js`, `adminValePdfController.js`; `services/` (incluye `supervisionAsesorService.js`); `repositories/`; `routes.js`).
 - Frontend: `public/modules/admin/` (`js/app.js` y `js/views/`: `usuarios`, `roles`, `talleres`, `tiendas`, `mantenimiento`, `horarios`, `crearVale`, `propuestasCompartidas`; `actions/tallerTiendas.js` para las tiendas de un Local; `actions/supervisionAsesor.js` para la supervisión especial).
-- Aviso de mantenimiento para los demás usuarios: `public/js/mantenimientoAviso.js`.
+- Aviso de mantenimiento para todos los usuarios, también el Administrador: `public/js/mantenimientoAviso.js`.
 
 ## Reglas clave
 
