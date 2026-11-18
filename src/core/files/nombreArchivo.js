@@ -17,19 +17,18 @@ function segmento(texto) {
 }
 
 // Un taller nuevo debe agregarse aquí; si no, entregar una propuesta con archivo falla.
-// `taller`: { nombre, tienda_codigo? }. Diseño Local usa el código de su tienda; si no viene,
-// se toma del nombre ('Diseño Local - ECL' -> ECL), que coincide con tiendas.codigo.
+// `taller`: { nombre, tienda_id?, tienda_codigo? }. Un Diseño Local (`tienda_id` no nulo) usa el código de su tienda sede, nunca su nombre (es libre).
 function codigoTaller(taller) {
   const nombre = String((taller && taller.nombre) || '').trim();
+  if (taller && taller.tienda_id != null) {
+    const tienda = segmento(taller.tienda_codigo || '');
+    if (!tienda) throw new Error(`No se pudo determinar el código de tienda del taller "${nombre}".`);
+    return `DISENIO_${tienda}`;
+  }
   const base = segmento(nombre);
   if (base === 'DISENO') return 'DISENIO';
   if (/^DISENO_UV_?3D$/.test(base)) return 'DISENIO_UV3D';
   if (base === 'PROTEXTIL') return 'PROTEXTIL';
-  if (/^DISENO_LOCAL/.test(base)) {
-    const tienda = segmento((taller && taller.tienda_codigo) || nombre.split(' - ').slice(1).join(' ') || '');
-    if (!tienda) throw new Error(`No se pudo determinar el código de tienda del taller "${nombre}".`);
-    return `DISENIO_${tienda}`;
-  }
   throw new Error(`El taller "${nombre}" no tiene código para nombrar archivos en Storage. Agrégalo en codigoTaller (src/core/files/nombreArchivo.js).`);
 }
 
@@ -92,6 +91,28 @@ function propuestaFusion(correlativo, contador) {
   return `${prefijoPropuestaFusion(correlativo)}_${contador}`;
 }
 
+// Viáticos: comprobante de liquidación; el rubro sale del nombre del tipo de gasto (sin acentos, en mayúsculas).
+function prefijoLiquidacion(correlativo, rubro) {
+  const codigo = segmento(rubro);
+  if (!codigo) throw new Error('El rubro de la liquidación no tiene un nombre válido para nombrar el archivo en Storage.');
+  return `${sanitizarCorrelativo(correlativo)}_LIQUIDACION_${codigo}`;
+}
+
+function liquidacion(correlativo, rubro, contador) {
+  return `${prefijoLiquidacion(correlativo, rubro)}_${contador}`;
+}
+
+// Viáticos: recibo firmado de la liquidación (<CORR>_LIQUIDACION_RECIBO_<RUBRO>_X).
+function prefijoRecibo(correlativo, rubro) {
+  const codigo = segmento(rubro);
+  if (!codigo) throw new Error('El rubro del recibo no tiene un nombre válido para nombrar el archivo en Storage.');
+  return `${sanitizarCorrelativo(correlativo)}_LIQUIDACION_RECIBO_${codigo}`;
+}
+
+function recibo(correlativo, rubro, contador) {
+  return `${prefijoRecibo(correlativo, rubro)}_${contador}`;
+}
+
 // Máximo X + 1 entre las URLs/nombres que empiezan por `${prefijo}_` seguido solo de dígitos
 // (se ignoran carpeta, extensión y querystring); 1 si no hay ninguno.
 function siguienteContador(urlsExistentes, prefijo) {
@@ -110,5 +131,5 @@ module.exports = {
   sanitizarCorrelativo, codigoTaller, siguienteContador,
   pdfCreacion, pdfAutorizacion, prefijoCorreccionPreAutorizacion, pdfCorreccionPreAutorizacion,
   adjunto, prefijoAdjunto, borrador, prefijoBorrador, propuesta, prefijoPropuesta, prefijoPropuestaFusion, propuestaFusion,
-  prefijoCorreccionAdmin, correccionAdmin
+  prefijoCorreccionAdmin, correccionAdmin, prefijoLiquidacion, liquidacion, prefijoRecibo, recibo
 };

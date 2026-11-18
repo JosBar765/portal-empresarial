@@ -1,11 +1,12 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
-import { ROL_ADMINISTRADOR } from '../config/roles.js';
+import { ROL_ADMINISTRADOR, ROL_ASESOR } from '../config/roles.js';
 import { crearMenuCascada, crearFiltroTiendas, construirArbolRoles } from '../components/menuCascada.js';
 import { resolverTiendaIds, valorVigente } from '/js/filtroCascada.js';
 import { listarUsuariosRaw, listarTiendas, listarRolesRaw, toggleActivoUsuario as apiToggleActivoUsuario } from '../api/adminApi.js';
 import { abrirModalUsuario } from '../forms/usuarioForm.js';
+import { abrirModalSupervisionAsesor } from '../actions/supervisionAsesor.js';
 
 // Catálogos livianos para los filtros de tienda/rol — se cargan una sola vez
 // (independiente de qué pestaña los pida primero) y se reusan.
@@ -114,6 +115,15 @@ export function renderFilasUsuarios() {
       btnEditar.innerHTML = '<ion-icon name="create-outline"></ion-icon>';
       btnEditar.addEventListener('click', () => abrirModalUsuario(u));
       celda.appendChild(btnEditar);
+
+      if (Number(u.rol_id) === ROL_ASESOR) {
+        const btnSupervision = document.createElement('button');
+        btnSupervision.className = 'btn-icon';
+        btnSupervision.title = 'Supervisión especial';
+        btnSupervision.innerHTML = '<ion-icon name="shield-checkmark-outline"></ion-icon>';
+        btnSupervision.addEventListener('click', () => abrirModalSupervisionAsesor(u));
+        celda.appendChild(btnSupervision);
+      }
 
       const btnToggle = document.createElement('button');
       btnToggle.className = `btn-icon candado-estado ${u.activo ? 'candado-activo' : 'candado-inactivo'}`;

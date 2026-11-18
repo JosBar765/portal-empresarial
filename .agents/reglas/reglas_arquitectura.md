@@ -303,7 +303,7 @@ Ejemplo:
 
 vales.ver
 vales.crear
-vales.editar
+vales.revisar
 vales.eliminar
 
 prompts.ver
@@ -325,7 +325,7 @@ ASESOR_VENTAS
 
 DISEÑADOR
 - vales.ver
-- vales.editar
+- vales.trabajar
 - prompts.ver
 
 ADMINISTRADOR

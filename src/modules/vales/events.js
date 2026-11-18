@@ -14,7 +14,7 @@ const destinatariosRepository = require('./repositories/destinatariosRepository'
 const tallerRepository = require('./repositories/tallerRepository');
 const valeCatalogoService = require('./services/valeCatalogoService');
 const valeDetalleService = require('./services/valeDetalleService');
-const { ROL, esDeTaller, PERMISO_FUSION, SALA_FUSION, esAdministrador } = require('./services/valeHelpers');
+const { ROL, esDeTaller, PERMISO_FUSION, SALA_FUSION, esAdministrador, esSupervisor } = require('./services/valeHelpers');
 
 const SALA_ADMIN = 'vales:admin';
 
@@ -27,9 +27,11 @@ async function puedeUnirseASala(socket, sala) {
   const usuario = socket.user;
   if (sala === SALA_ADMIN) return esAdministrador(usuario);
   if (sala === SALA_FUSION) return (usuario.permissions || []).includes(PERMISO_FUSION);
+  // Quien crea vales (vales.crear), sea cual sea su rol, recibe lo de los suyos en su sala de asesor.
+  if (sala === `asesor:${usuario.id}` && (usuario.permissions || []).includes('vales.crear')) return true;
   if (usuario.rolId === ROL.ASESOR) return sala === `asesor:${usuario.id}`;
   // El supervisor también puede crear vales: recibe lo de los suyos en su sala de asesor.
-  if (usuario.rolId === ROL.SUPERVISOR) return sala === `supervisor:${usuario.id}` || sala === `asesor:${usuario.id}`;
+  if (esSupervisor(usuario)) return sala === `supervisor:${usuario.id}` || sala === `asesor:${usuario.id}`;
   if (usuario.rolId === ROL.DISENADOR) return sala === `disenador:${usuario.id}`;
   if (esDeTaller(usuario) && sala.startsWith('taller:')) {
     const tallerId = Number(sala.slice('taller:'.length));
@@ -76,10 +78,11 @@ function fechaHoraLocal() {
  * @param {string|null} detalle Texto adicional al final del mensaje (p. ej. el motivo de un rechazo).
  * @param {string|null} tipo Etiqueta opcional para que el cliente reaccione a eventos concretos (p. ej. 'CORREGIDO').
  */
-// Usuarios concretos detrás de cada sala (el Administrador, que ve todo, no recibe notificaciones guardadas).
+// Usuarios concretos detrás de cada sala; la sala del Administrador resuelve a los administradores activos, para que su campanita también las guarde.
 async function usuariosDeSalas(salas) {
   const ids = new Set();
   for (const sala of salas) {
+    if (sala === SALA_ADMIN) { (await destinatariosRepository.listarAdministradores(ROL.ADMINISTRADOR)).forEach(id => ids.add(id)); continue; }
     const [tipo, valor] = String(sala).split(':');
     if (['asesor', 'supervisor', 'disenador'].includes(tipo)) ids.add(Number(valor));
     else if (tipo === 'taller') (await destinatariosRepository.listarDeTaller(Number(valor))).forEach(id => ids.add(id));
@@ -89,15 +92,15 @@ async function usuariosDeSalas(salas) {
 }
 
 function guardarNotificaciones({ vale, contenido, salas, actorId, nivel, tipo, valeBorrado }) {
-  usuariosDeSalas(salas || [])
+  usuariosDeSalas([...(salas || []), SALA_ADMIN])
     .then(ids => notificacionService.registrar(ids.filter(id => id !== actorId), { modulo: 'vales', valeId: valeBorrado ? null : vale.id, tipo, nivel, mensaje: contenido }))
     .catch(error => console.error('[Notificaciones] No se pudieron guardar:', error.message));
 }
 
-function notificar({ vale, accion, actor = null, actorId = null, destino = null, salas = [], nivel = 'info', beep = true, tipo = null, detalle = null, valeBorrado = false, texto = null }) {
+function notificar({ vale, accion, actor = null, actorId = null, destino = null, salas = [], nivel = 'info', beep = true, tipo = null, detalle = null, valeBorrado = false, texto = null, conAdmin = true }) {
   const cuerpo = texto || `fue ${accion}${actor ? ` por ${actor}` : ''}${destino ? ` a ${destino}` : ''}`;
   const mensaje = `${fechaHoraLocal()} – Vale: ${vale.correlativo} ${cuerpo}${detalle ? `. ${detalle}` : ''}`;
-  const salasFinal = [...new Set([...(salas || []), SALA_ADMIN])];
+  const salasFinal = [...new Set([...(salas || []), ...(conAdmin ? [SALA_ADMIN] : [])])];
   guardarNotificaciones({
     vale, salas, actorId, nivel, tipo, valeBorrado,
     contenido: mensaje.slice(mensaje.indexOf('Vale:'))
@@ -123,9 +126,14 @@ function notificar({ vale, accion, actor = null, actorId = null, destino = null,
   socketManager.sendToRooms([`vale:${vale.id}`], 'vale_actualizado', { valeId: vale.id });
 }
 
+// Un vale vencido pasó a los borradores del asesor: su botón «Borradores» actualiza la insignia.
+function borradorNuevo(asesorId) {
+  socketManager.sendToUsers([asesorId], 'borradores_nuevos', {});
+}
+
 // Solo refresca la pantalla de quien esté en las salas: sin cartel, sin beep, sin campana.
 function refrescar({ vale, salas = [] }) {
   socketManager.sendToRooms([...new Set(salas)], 'vale_refrescar', { valeId: vale.id, estado: vale.estado });
 }
 
-module.exports = { notificar, refrescar };
+module.exports = { notificar, refrescar, borradorNuevo };

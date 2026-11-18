@@ -133,8 +133,12 @@ class SupabaseStorage {
   }
 }
 
-// El bucket de siempre; `borradores` es la misma clase apuntando al bucket de los adjuntos de borradores.
+// El bucket de siempre; `borradores`, `viaticos` y `viaticosRecibos` son la misma clase apuntando a sus propios buckets.
 const storage = new SupabaseStorage(config.supabase.bucket);
 storage.borradores = new SupabaseStorage(config.supabase.bucketBorradores);
+storage.viaticos = new SupabaseStorage(config.supabase.bucketViaticos);
+storage.viaticosRecibos = new SupabaseStorage(config.supabase.bucketViaticosRecibos);
+// Las fotos de Incidencias viven en su propio bucket, con su propia regla de conservación.
+storage.incidencias = new SupabaseStorage(config.supabase.bucketIncidencias);
 
 module.exports = storage;

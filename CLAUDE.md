@@ -24,7 +24,7 @@ Master guide of the MundiTrofeos portal. Platform-wide rules only. Module detail
 - `DB_PASSWORD` empty only outside production; other formats: `src/config/env.js`.
 - Accounts: header of `database/users.sql`; admin is `admin@grupopremia.com`.
 - Change dev passwords in production.
-- Roles (rol_id 1-10): `.agents/modulos/admin/README.md`.
+- Roles (rol_id 1-10, plus Piloto created by the viáticos migration): `.agents/modulos/admin/README.md`.
 
 ## 3. Folder map
 
@@ -80,7 +80,7 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 - `development`: local. `staging`: testing domain, production backup, own bucket. `production`. `test`: automated.
 - Critical actions run **only in production**; elsewhere do nothing and log it.
 - Critical: Storage delete/replace, purges, emails, push, webhooks, third-party calls, external resources located by DB values.
-- Guarded today: `supabaseStorage.eliminar`, retention watcher.
+- Guarded today: `supabaseStorage.eliminar`, retention watchers (Vales files, Incidencias photos).
 - New actions: follow `.agents/reglas/reglas_entornos.md`; update its inventory.
 - Session cookies are `Secure` in staging and production.
 - Refresh staging from production: `npm run staging:probar-conexion` / `staging:refrescar`; rules: `.agents/reglas/reglas_refresco_staging.md`.
@@ -127,6 +127,8 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 | Vales de Arte (`vales`) | `.agents/modulos/vales de arte/README.md` | Vouchers: create, authorize, assign, deliver, confirm. |
 | Administración Central (`admin`) | `.agents/modulos/admin/README.md` | Users, roles, talleres, maintenance, schedules, admin tools. |
 | Generador de Prompts (`prompts`) | `.agents/modulos/generador de prompts/README.md` | Prompt builder for image generators; products and parameters set by the admin. |
+| Calculadora de Viáticos (`viaticos`) | `.agents/modulos/viaticos/README.md` | Travel allowance requests: create, authorize, settle with receipts; catalogs set by the admin. |
+| Incidencias (`incidencias`) | `.agents/modulos/incidencias/README.md` | Store problem reports with photos; technicians take them from a shared inbox and a verifier approves; everything configurable in the module. |
 
 - New module: `README.md` section 4 and `.agents/reglas/reglas_modulo.md`; document it under `.agents/modulos/<name>/` (`README.md` + `documentacion/`).
 - Global rules: `.agents/reglas/` (architecture, module templates, auth, implementation style, UI, SQL files, environments, CI, deployment).

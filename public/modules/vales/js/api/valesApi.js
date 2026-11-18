@@ -214,15 +214,15 @@ export function rechazarAdjuntos(valeId, tallerId, mensaje) {
   return enviarJSON(`/api/vales/${valeId}/rechazar-adjuntos`, { tallerId, mensaje });
 }
 
-export async function obtenerConversacion(valeId, tallerId) {
-  const res = await fetch(`/api/vales/${valeId}/mensajes?tallerId=${encodeURIComponent(tallerId)}`);
+export async function obtenerConversacion(valeId, tallerId, lado) {
+  const res = await fetch(`/api/vales/${valeId}/mensajes?tallerId=${encodeURIComponent(tallerId)}${lado ? `&lado=${encodeURIComponent(lado)}` : ''}`);
   const data = await leerJSON(res);
   if (!res.ok) throw new Error(data.error || 'No se pudo cargar la conversación.');
   return data;
 }
 
-export function enviarMensajeRechazo(valeId, tallerId, mensaje) {
-  return enviarJSON(`/api/vales/${valeId}/mensajes`, { tallerId, mensaje });
+export function enviarMensajeRechazo(valeId, tallerId, mensaje, lado) {
+  return enviarJSON(`/api/vales/${valeId}/mensajes`, { tallerId, mensaje, ...(lado ? { lado } : {}) });
 }
 
 export function responderAdjuntos(valeId, tallerId, mensaje) {
@@ -245,15 +245,15 @@ export async function listarRechazosPropuesta(valeId) {
   return data;
 }
 
-export async function obtenerConversacionRechazoPropuesta(valeId, rechazoId) {
-  const res = await fetch(`/api/vales/${valeId}/rechazos-propuesta/${rechazoId}/mensajes`);
+export async function obtenerConversacionRechazoPropuesta(valeId, rechazoId, lado) {
+  const res = await fetch(`/api/vales/${valeId}/rechazos-propuesta/${rechazoId}/mensajes${lado ? `?lado=${encodeURIComponent(lado)}` : ''}`);
   const data = await leerJSON(res);
   if (!res.ok) throw new Error(data.error || 'No se pudo cargar la conversación.');
   return data;
 }
 
-export function enviarMensajeRechazoPropuesta(valeId, rechazoId, mensaje) {
-  return enviarJSON(`/api/vales/${valeId}/rechazos-propuesta/${rechazoId}/mensajes`, { mensaje });
+export function enviarMensajeRechazoPropuesta(valeId, rechazoId, mensaje, lado) {
+  return enviarJSON(`/api/vales/${valeId}/rechazos-propuesta/${rechazoId}/mensajes`, { mensaje, ...(lado ? { lado } : {}) });
 }
 
 export function aceptarRechazoPropuesta(valeId, rechazoId, mensaje) {
@@ -282,6 +282,12 @@ export async function listarBorradores() {
   const data = await leerJSON(res);
   if (!res.ok) throw new Error(data.error || 'No se pudieron cargar los borradores.');
   return data;
+}
+
+// Al abrir la lista: los borradores por vencimiento dejan de ser «nuevos» (la insignia vuelve a cero).
+export async function marcarBorradoresVistos() {
+  const res = await fetch('/api/vales/borradores/vistos', { method: 'POST' });
+  if (!res.ok) throw new Error('No se pudieron marcar los borradores como vistos.');
 }
 
 export async function obtenerBorrador(borradorId) {

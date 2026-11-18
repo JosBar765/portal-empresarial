@@ -10,6 +10,9 @@ function idTallerConversacion(valor) {
   try { return idObligatorio(valor, 'Taller'); } catch { throw new Error('Indica de qué taller es la conversación.'); }
 }
 
+// Pista de la pantalla; el servicio solo la honra si el usuario es el dueño del vale.
+const ladoPedido = (valor) => (valor === 'ASESOR' ? 'ASESOR' : null);
+
 class ValeController {
   async catalogos(req, res) {
     try {
@@ -321,7 +324,7 @@ class ValeController {
 
   async conversacionRechazoPropuesta(req, res) {
     try {
-      return res.json(await valeService.conversacionRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId)));
+      return res.json(await valeService.conversacionRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId), ladoPedido(req.query.lado)));
     } catch (error) {
       return responderError(res, error);
     }
@@ -329,7 +332,7 @@ class ValeController {
 
   async enviarMensajeRechazoPropuesta(req, res) {
     try {
-      return res.json(await valeService.enviarMensajeRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId), req.body && req.body.mensaje));
+      return res.json(await valeService.enviarMensajeRechazoPropuesta(req.user, idObligatorio(req.params.id), idObligatorio(req.params.rechazoId), req.body && req.body.mensaje, ladoPedido(req.body && req.body.lado)));
     } catch (error) {
       return responderError(res, error);
     }
@@ -433,7 +436,7 @@ class ValeController {
 
   async conversacion(req, res) {
     try {
-      return res.json(await valeService.listarConversacion(req.user, idObligatorio(req.params.id), idTallerConversacion(req.query.tallerId)));
+      return res.json(await valeService.listarConversacion(req.user, idObligatorio(req.params.id), idTallerConversacion(req.query.tallerId), ladoPedido(req.query.lado)));
     } catch (error) {
       return responderError(res, error);
     }
@@ -441,7 +444,7 @@ class ValeController {
 
   async enviarMensaje(req, res) {
     try {
-      return res.json(await valeService.enviarMensaje(req.user, idObligatorio(req.params.id), idTallerConversacion(req.body && req.body.tallerId), req.body && req.body.mensaje));
+      return res.json(await valeService.enviarMensaje(req.user, idObligatorio(req.params.id), idTallerConversacion(req.body && req.body.tallerId), req.body && req.body.mensaje, ladoPedido(req.body && req.body.lado)));
     } catch (error) {
       return responderError(res, error);
     }

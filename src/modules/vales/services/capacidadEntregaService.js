@@ -8,7 +8,7 @@ const tallerRepository = require('../repositories/tallerRepository');
 const capacidadRepository = require('../repositories/capacidadRepository');
 const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeCatalogoService = require('./valeCatalogoService');
-const { ROL, ESTADOS_TALLER, esDeTaller, talleresElegiblesDeTienda } = require('./valeHelpers');
+const { ROL, ESTADOS_TALLER, esDeTaller, esSupervisor, talleresElegiblesDeTienda } = require('./valeHelpers');
 
 const idsDe = (texto) => String(texto || '').split(',').map(Number).filter(Number.isInteger);
 
@@ -69,15 +69,21 @@ class CapacidadEntregaService {
   // su equipo; el Asesor, los talleres a los que puede enviar (los generales y el Diseño Local de su tienda) y sus vales por
   // autorizar; quien tenga el permiso sin tiendas propias ve todos los talleres con límite y todos los vales.
   async _alcanceCupo(usuario) {
-    if (usuario.rolId === ROL.SUPERVISOR) {
+    if (esSupervisor(usuario)) {
       const talleresIds = (await tallerRepository.listarIdsPorSupervisor(usuario.id)).map(t => t.id);
       const asesores = await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id);
       return { conLimite: await this._talleresConLimite(talleresIds), asesorIds: [...new Set([...asesores.map(a => a.id), usuario.id])] };
     }
     if (usuario.rolId === ROL.ASESOR) {
       const yo = await usuarioValeRepository.obtenerPorId(usuario.id);
-      const miTiendaId = yo ? yo.tienda_id : null;
-      const alcanzables = talleresElegiblesDeTienda(await tallerRepository.listarActivos(), miTiendaId).map(t => t.id);
+      const ctx = await tallerRepository.contextoDeTienda(yo && yo.tienda_id ? yo.tienda_id : 0);
+      const alcanzables = talleresElegiblesDeTienda(await tallerRepository.listarActivos(), ctx).map(t => t.id);
+      return { conLimite: await this._talleresConLimite(alcanzables), asesorIds: [usuario.id] };
+    }
+    // Otro rol con ver_cupo que crea vales (tienda 0 = sin tienda: solo generales) ve lo mismo que el asesor; sin vales.crear, todo.
+    const ctx = await valeCatalogoService._contextoComoAsesor(usuario);
+    if (ctx !== null) {
+      const alcanzables = talleresElegiblesDeTienda(await tallerRepository.listarActivos(), ctx).map(t => t.id);
       return { conLimite: await this._talleresConLimite(alcanzables), asesorIds: [usuario.id] };
     }
     const todos = (await tallerRepository.listarActivos()).map(t => t.id);
@@ -115,12 +121,12 @@ class CapacidadEntregaService {
   }
 
   // Información por día del calendario desplegable del Buzón, según el rol:
-  //  - con `vales.ver_cupo` (Supervisor) y el Asesor: el cupo de los talleres con límite que le corresponden (ver obtenerCupoMes);
+  //  - con `vales.ver_cupo` (único requisito; Supervisor y Asesor lo traen por migración): el cupo de los talleres con límite que le corresponden (ver obtenerCupoMes);
   //  - Encargado/Asistente de taller: cuántos vales entran cada día a su taller (por fecha de entrega);
   //  - Diseñador: cuántas asignaciones activas suyas entran cada día (las mismas que ve en su buzón);
   //  - cualquier otro: nada (el calendario queda como siempre).
   async obtenerCalendarioBuzon(usuario, anio, mes) {
-    if ((usuario.permissions || []).includes('vales.ver_cupo') || usuario.rolId === ROL.ASESOR) return { tipo: 'cupo', ...(await this.obtenerCupoMes(usuario, anio, mes)) };
+    if ((usuario.permissions || []).includes('vales.ver_cupo')) return { tipo: 'cupo', ...(await this.obtenerCupoMes(usuario, anio, mes)) };
     const mesStr = String(mes).padStart(2, '0');
     const rango = { fechaDesde: `${anio}-${mesStr}-01`, fechaHasta: `${anio}-${mesStr}-${String(new Date(anio, mes, 0).getDate()).padStart(2, '0')}` };
     if (usuario.rolId === ROL.DISENADOR) {

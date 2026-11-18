@@ -25,7 +25,7 @@ const valeMutex = require('./valeMutex');
 const calendarioService = require('../../../core/calendario/calendarioService');
 const {
   ESTADOS, ROL, hoyISO, horaActual, enriquecer, registrarHistorial,
-  esAdministrador, esValeDeModificacion, requerirVale, assertPropioDelAsesor, puedeActuarComoAsesor,
+  esAdministrador, esValeDeModificacion, requerirVale, puedeActuarComoAsesor,
   TIPOS_MODIFICACION_CON_VALE, correlativoBase, armarCorrelativoMod
 } = require('./valeHelpers');
 
@@ -39,11 +39,12 @@ class ValeModificacionService {
       const previo = await idempotencyRepository.buscar(key);
       if (previo) return previo.resultado;
 
-      if (!puedeActuarComoAsesor(usuario)) throw new ErrorDeNegocio('Solo un asesor o un supervisor de ventas puede solicitar una modificación.', 403);
+      if (!puedeActuarComoAsesor(usuario)) throw new ErrorDeNegocio('Solo quien puede crear vales puede solicitar una modificación.', 403);
       const tipo = String(payload.tipo || '').toUpperCase();
       if (!TIPOS_MODIFICACION_CON_VALE.includes(tipo)) throw new Error('Elige el tipo de modificación: básica, media o avanzada.');
       const original = await requerirVale(valeId);
-      assertPropioDelAsesor(usuario, original);
+      // Dueño estricto: assertPropioDelAsesor deja pasar al administrador, que ahora cumpliría el permiso.
+      if (original.asesor_id !== usuario.id) throw new ErrorDeNegocio('Este vale fue creado por otro asesor.', 403);
       if (![ESTADOS.RECIBIDO, ESTADOS.PENDIENTE_CONFIRMACION].includes(original.estado)) {
         throw new Error('Solo se puede solicitar una modificación de un vale que ya fue entregado o recibido.');
       }

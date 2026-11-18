@@ -8,6 +8,7 @@ import { cargarTalleres } from '../views/talleres.js';
 import { cargarMantenimiento } from '../views/mantenimiento.js';
 import { cargarCrearVale } from '../views/crearVale.js';
 import { cargarHorarios } from '../views/horarios.js';
+import { cargarPropuestasCompartidas } from '../views/propuestasCompartidas.js';
 
 // Sidebar: mismo patrón colapsable/cajón móvil que Vales de Arte. Las 5
 // pestañas ahora sí varían por usuario — quien entra al panel sin ser
@@ -30,7 +31,8 @@ const PERMISO_POR_TAB = {
   talleres: 'admin.talleres.gestionar',
   mantenimiento: 'admin.mantenimiento.gestionar',
   'crear-vale': 'admin.vales.generar',
-  horarios: 'admin.horarios.gestionar'
+  horarios: 'admin.horarios.gestionar',
+  'propuestas-compartidas': 'admin.talleres.gestionar'
 };
 const TABS_VALIDOS = Object.keys(PERMISO_POR_TAB);
 
@@ -63,6 +65,7 @@ export async function cargarTab() {
     else if (state.tab === 'mantenimiento') await cargarMantenimiento();
     else if (state.tab === 'crear-vale') await cargarCrearVale();
     else if (state.tab === 'horarios') await cargarHorarios();
+    else if (state.tab === 'propuestas-compartidas') await cargarPropuestasCompartidas();
   } catch (error) {
     cont.innerHTML = `<div class="buzon-vacio buzon-vacio-error"><ion-icon name="alert-circle-outline"></ion-icon><h3>No se pudo cargar</h3><p>${escapeHtml(error.message)}</p></div>`;
   }

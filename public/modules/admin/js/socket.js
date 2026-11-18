@@ -7,6 +7,7 @@ export function initSocket() {
   if (typeof io === 'undefined') return;
   state.socket = io({ query: { userId: state.user.id } });
   window.centroNotificaciones?.iniciar({ socket: state.socket, modulo: 'admin' });
+  window.avisoMantenimiento?.iniciar({ socket: state.socket, rolId: state.user.rolId });
   state.socket.on('connect', () => {
     state.socket.emit('register_module', [`role_${state.user.rolId}`]);
   });

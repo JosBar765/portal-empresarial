@@ -12,6 +12,7 @@ Buzón y Trabajo realizado usan la misma barra de período que la pestaña Repor
 - Se pierde el pie «Todo <mes>»: el mes completo se elige con el tipo «Mes».
 - Buzón y Trabajo comparten la barra (`state.ventana`); Reportes mantiene la suya (`state.reporte.ventana`), sin cambios.
 - El Buzón sigue mostrando los vales anteriores aún abiertos (arrastrados); Trabajo realizado, ventana estricta.
+- **Excepción para el taller:** el Buzón del Encargado/Asistente muestra siempre, sin importar la fecha de entrega, los vales que esperan su atención con plazo (el taller en `VERIFICANDO_ADJUNTOS` o `ADJUNTOS_RESPONDIDOS`), igual que los rechazos de propuesta; sin esto un vale recién autorizado con entrega en un mes posterior llegaba por notificación pero no aparecía en la lista. Los contadores del encargado los incluyen. Lo demás sigue la ventana.
 
 ## Cómo viaja al servidor
 `js/utils/ventana.js` (`aplicarVentanaAQuery`) manda solo lo que acepta `_resolverVentana` (`mes` y `rango`):

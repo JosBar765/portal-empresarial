@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { $, $$ } from '../utils/dom.js';
-import { ROL, ROLES_CON_SIDEBAR, ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
+import { ROL, ROLES_CON_SIDEBAR, esEncargadoTaller, esDeTallerODisenador, rolVista } from '../config/roles.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { actualizarIndicadoresOrden } from './toolbar.js';
 
@@ -13,7 +13,7 @@ const SIDEBAR_ANCHO = '224px';
 const SIDEBAR_ANCHO_COLAPSADO = '68px';
 
 export function actualizarOffsetSidebar(sidebar) {
-  const offset = !ROLES_CON_SIDEBAR.includes(rolEncargadoDe(state.user))
+  const offset = !ROLES_CON_SIDEBAR.includes(rolVista(state.user))
     ? '0px'
     : (sidebar.classList.contains('colapsado') ? SIDEBAR_ANCHO_COLAPSADO : SIDEBAR_ANCHO);
   document.documentElement.style.setProperty('--sidebar-offset', offset);
@@ -23,9 +23,11 @@ export function actualizarOffsetSidebar(sidebar) {
 // activo. El resto de vistas solo cambian el título.
 export function actualizarTituloYSeccionesVista() {
   // El combobox de diseñadores es de los encargados y solo aplica al Buzón (Trabajo realizado y Reportes no lo usan).
-  $('#filtro-disenador').style.display = ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)) && state.vista === 'buzon' ? '' : 'none';
+  $('#filtro-disenador').style.display = esEncargadoTaller(state.user) && state.vista === 'buzon' ? '' : 'none';
   const enReportes = state.vista === 'reportes';
-  $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : 'Buzón de Vales de Arte';
+  $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : (state.vista === 'mios' ? 'Mis vales' : 'Buzón de Vales de Arte');
+  // «Mis vales» es la vista del asesor: la columna Taller se ve aunque el rol sea de taller.
+  $('.buzon-table').classList.toggle('oculta-taller', esDeTallerODisenador(state.user) && state.vista !== 'mios');
   $('#reportes-vista').style.display = enReportes ? 'block' : 'none';
   const enVistaPropia = enReportes;
   $('#contadores-grid').style.display = enVistaPropia ? 'none' : '';
@@ -39,7 +41,7 @@ export function actualizarTituloYSeccionesVista() {
 export function wireSidebar() {
   const sidebar = $('#sidebar-vales');
   const toggleMovil = $('#sidebar-toggle-mobile');
-  if (!ROLES_CON_SIDEBAR.includes(rolEncargadoDe(state.user))) {
+  if (!ROLES_CON_SIDEBAR.includes(rolVista(state.user))) {
     sidebar.style.display = 'none';
     actualizarOffsetSidebar(sidebar);
     return;
@@ -60,6 +62,12 @@ export function wireSidebar() {
   // Reportes de actividad: por permiso (vales.ver_reportes), para cualquier rol.
   if ((state.user.permissions || []).includes('vales.ver_reportes')) {
     $('#sidebar-item-reportes', sidebar).style.display = '';
+  }
+
+  // «Mis vales»: quien crea vales con otro rol (Gerente, Diseñador, Encargado…) los ve aparte; Asesor y Supervisor ya los tienen en su Buzón.
+  const permisos = state.user.permissions || [];
+  if (permisos.includes('vales.crear') && permisos.includes('vales.ver') && ![ROL.ADMINISTRADOR, ROL.ASESOR, ROL.SUPERVISOR].includes(rolVista(state.user))) {
+    $('#sidebar-item-mios', sidebar).style.display = '';
   }
 
   // No perder la vista activa al recargar — se valida contra las vistas que

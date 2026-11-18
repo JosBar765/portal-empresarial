@@ -80,7 +80,8 @@ export function marcadorTipoRegistro(v) {
   if (v._tipoRegistro === 'FUSION') {
     return ' <span class="tag-tipo-registro" title="Fusión final de las propuestas de los talleres">(F)</span>';
   }
-  if (v._tipoRegistro === 'PROPUESTA') {
+  // En una fila propia no hay «su taller» que la propusiera: no lleva marca.
+  if (v._tipoRegistro === 'PROPUESTA' && !v._propio) {
     return ' <span class="tag-tipo-registro" title="Propuesta realizada por su taller">(P)</span>';
   }
   return '';

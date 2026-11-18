@@ -66,6 +66,11 @@
        resto del layout solo necesita compensarlo con --sidebar-offset). -->
   <aside class="sidebar-vales" id="sidebar-vales" style="display:none;">
     <!-- Qué botones se ven depende del rol y de sus permisos — ver wireSidebar() en layout/sidebar.js. -->
+    <!-- «Mis vales»: lo ven los roles con vales.crear que no son asesor ni supervisor (se muestra desde sidebar.js). -->
+    <button class="sidebar-item" id="sidebar-item-mios" data-vista="mios" style="display:none;">
+      <ion-icon name="document-text-outline"></ion-icon>
+      <span>Mis vales</span>
+    </button>
     <button class="sidebar-item sidebar-item-active" id="sidebar-item-primario" data-vista="buzon">
       <ion-icon name="file-tray-full-outline"></ion-icon>
       <span>Buzón</span>
@@ -98,6 +103,7 @@
           <button class="btn btn--ghost" id="btn-borradores" style="display:none;">
             <ion-icon name="document-text-outline"></ion-icon>
             Borradores (<span id="borradores-contador">0</span>)
+            <span class="borradores-insignia" id="borradores-nuevos" hidden title="Borradores nuevos por vencimiento">0</span>
           </button>
           <button class="btn btn--primary" id="btn-nuevo-vale" style="display:none;">
             <ion-icon name="add-outline"></ion-icon>

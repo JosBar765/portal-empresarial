@@ -1,7 +1,7 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { verificarAdjuntos, rechazarAdjuntos, responderAdjuntos, darDeBajaTallerVale, obtenerConversacion, enviarMensajeRechazo } from '../api/valesApi.js';
 import { escapeHtml, inicialesAvatar } from '../utils/formato.js';
-import { puedeResponderAdjuntos } from '../permisos.js';
+import { puedeResponderAdjuntos, ladoDeChat } from '../permisos.js';
 import { state } from '../state.js';
 import { cargarBuzon } from '../views/buzon.js';
 
@@ -228,7 +228,7 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
     btnYaAtendi.hidden = !(puedeResponderAdjuntos(vale) && conversacion.puede_escribir && conversacion.lado === 'ASESOR' && conversacion.estado === 'ADJUNTOS_RECHAZADOS');
   };
   const refrescar = async () => {
-    try { pintar(await obtenerConversacion(vale.id, tallerId)); } catch (error) { hilo.innerHTML = `<div class="chat-vacio"><p>${escapeHtml(error.message)}</p></div>`; }
+    try { pintar(await obtenerConversacion(vale.id, tallerId, ladoDeChat(vale))); } catch (error) { hilo.innerHTML = `<div class="chat-vacio"><p>${escapeHtml(error.message)}</p></div>`; }
   };
   state.conversacionAbierta = { overlay, valeId: vale.id, refrescar };
   await refrescar();
@@ -240,7 +240,7 @@ export async function abrirModalConversacion(vale, tallerId, nombreTaller = '') 
     enviar.disabled = true;
     enviar.classList.add('is-enviando');
     try {
-      pintar(await enviarMensajeRechazo(vale.id, tallerId, textarea.value.trim()));
+      pintar(await enviarMensajeRechazo(vale.id, tallerId, textarea.value.trim(), ladoDeChat(vale)));
       textarea.value = '';
       ajustarAlto();
     } catch (error) {

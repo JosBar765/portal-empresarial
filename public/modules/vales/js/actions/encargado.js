@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { ROLES_ENCARGADO_TALLER, rolEncargadoDe } from '../config/roles.js';
+import { esEncargadoTaller } from '../config/roles.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { confirmarAccion } from '../components/confirmar.js';
 import { htmlAdjuntosPropuesta, wireAdjuntosPropuesta } from '../components/adjuntosPropuesta.js';
@@ -30,7 +30,7 @@ export async function cargarDisenadoresAsignables() {
     disenadores = await obtenerDisenadoresAsignables();
   } catch { /* se muestra select vacío si falla */ }
 
-  if (ROLES_ENCARGADO_TALLER.includes(rolEncargadoDe(state.user)) && !disenadores.some(t => t.id === state.user.id)) {
+  if (esEncargadoTaller(state.user) && !disenadores.some(t => t.id === state.user.id)) {
     disenadores = [{ id: state.user.id, nombre: `${state.user.nombre} (YO)` }, ...disenadores];
   }
   return disenadores;
@@ -70,6 +70,8 @@ export async function abrirModalAsignar(vale) {
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
       btn.disabled = false;
+      // Si otra persona asignó el vale primero, el buzón ya cambió: se recarga para mostrar el estado real.
+      cargarBuzon();
     }
   });
 }
@@ -150,6 +152,7 @@ export async function abrirModalRevisar(vale) {
       cargarBuzon();
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
+      cargarBuzon(); // si otra persona ya actuó, el buzón cambió: se recarga para mostrar el estado real
     }
   }
 }

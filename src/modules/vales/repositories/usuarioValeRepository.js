@@ -46,31 +46,50 @@ class UsuarioValeRepository {
     );
   }
 
+  // Asesor = fila en asesores + permiso vales.crear (no el rol). Por tienda (sin supervisión asignada; los supervisores se excluyen, ven lo suyo por otra vía)
+  // o por asignación explícita en `asesor_supervisores`, que solo cuenta si el supervisor sigue activo y con `vales.supervisar`.
   async listarAsesoresPorSupervisor(supervisorId) {
     return db.query(
       `SELECT DISTINCT u.id, u.nombre, u.email, a.tienda_id
        FROM usuarios u
        JOIN asesores a ON a.usuario_id = u.id
-       JOIN supervisor_tiendas st ON st.tienda_id = a.tienda_id
-       WHERE u.rol_id = 2 AND u.activo = 1 AND st.usuario_id = ?
+       WHERE EXISTS (SELECT 1 FROM rol_permisos rp JOIN permisos p ON p.id = rp.permiso_id WHERE rp.rol_id = u.rol_id AND p.codigo = 'vales.crear') AND u.activo = 1 AND (
+         (NOT EXISTS (SELECT 1 FROM asesor_supervisores x WHERE x.asesor_id = u.id)
+           AND NOT EXISTS (SELECT 1 FROM supervisor_tiendas s WHERE s.usuario_id = u.id)
+           AND EXISTS (SELECT 1 FROM supervisor_tiendas st WHERE st.tienda_id = a.tienda_id AND st.usuario_id = ?))
+         OR EXISTS (SELECT 1 FROM asesor_supervisores x JOIN usuarios sup ON sup.id = x.supervisor_id
+                    WHERE x.asesor_id = u.id AND x.supervisor_id = ? AND sup.activo = 1 AND EXISTS (SELECT 1 FROM rol_permisos rp JOIN permisos p ON p.id = rp.permiso_id WHERE rp.rol_id = sup.rol_id AND p.codigo = 'vales.supervisar'))
+       )
        ORDER BY u.nombre`,
-      [supervisorId],
+      [supervisorId, supervisorId],
       'usuario:find_asesores_by_supervisor'
     );
   }
 
-  // Inverso de la anterior: todos los supervisores (rol 3) que cubren la
-  // tienda de un asesor dado — puede haber MÁS de uno (supervisores
-  // rotativos).
+  // Asesores con supervisión especial asignada a este supervisor (por `asesor_supervisores`).
+  async listarAsesorIdsConSupervisionEspecial(supervisorId) {
+    const filas = await db.query(
+      'SELECT asesor_id FROM asesor_supervisores WHERE supervisor_id = ?',
+      [supervisorId],
+      'usuario:find_asesores_supervision_especial'
+    );
+    return filas.map(f => f.asesor_id);
+  }
+
+  // Inverso de la anterior: los supervisores activos (con `vales.supervisar`) que autorizan a un asesor — los que tiene asignados;
+  // si no tiene ninguna asignación, los que cubren su tienda (puede haber MÁS de uno, supervisores rotativos).
+  // Con asignación y todos inválidos queda vacío: no se cae a los de la tienda.
   async obtenerSupervisoresDeAsesor(asesorId) {
     return db.query(
       `SELECT DISTINCT u.id, u.nombre, u.email
        FROM usuarios u
-       JOIN supervisor_tiendas st ON st.usuario_id = u.id
-       JOIN asesores a ON a.tienda_id = st.tienda_id
-       WHERE u.rol_id = 3 AND u.activo = 1 AND a.usuario_id = ?
+       WHERE EXISTS (SELECT 1 FROM rol_permisos rp JOIN permisos p ON p.id = rp.permiso_id WHERE rp.rol_id = u.rol_id AND p.codigo = 'vales.supervisar') AND u.activo = 1 AND (
+         EXISTS (SELECT 1 FROM asesor_supervisores x WHERE x.asesor_id = ? AND x.supervisor_id = u.id)
+         OR (NOT EXISTS (SELECT 1 FROM asesor_supervisores x WHERE x.asesor_id = ?)
+             AND EXISTS (SELECT 1 FROM supervisor_tiendas st JOIN asesores a ON a.tienda_id = st.tienda_id WHERE st.usuario_id = u.id AND a.usuario_id = ?))
+       )
        ORDER BY u.nombre`,
-      [asesorId],
+      [asesorId, asesorId, asesorId],
       'usuario:find_supervisores_by_asesor'
     );
   }

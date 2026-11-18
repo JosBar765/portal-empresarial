@@ -1,15 +1,21 @@
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { escapeHtml, formatearFecha } from '../utils/formato.js';
-import { listarBorradores, obtenerBorrador, eliminarBorrador } from '../api/valesApi.js';
+import { listarBorradores, obtenerBorrador, eliminarBorrador, marcarBorradoresVistos } from '../api/valesApi.js';
 import { abrirModalBorrador } from './valeForm.js';
 import { EVENTO_BORRADORES, avisarCambioBorradores } from '../utils/eventosBorradores.js';
 
 const DIAS_ALERTA = 3;
 
+function pintarContadores({ total, nuevos }) {
+  document.querySelector('#borradores-contador').textContent = total;
+  const insignia = document.querySelector('#borradores-nuevos');
+  insignia.textContent = nuevos > 99 ? '99+' : nuevos;
+  insignia.hidden = !nuevos;
+}
+
 export async function actualizarContadorBorradores() {
   try {
-    const { total } = await listarBorradores();
-    document.querySelector('#borradores-contador').textContent = total;
+    pintarContadores(await listarBorradores());
   } catch {
     // El contador es solo informativo: si no carga, se queda como estaba.
   }
@@ -26,11 +32,20 @@ function textoVencimiento(dias) {
   return `Vence en ${dias} ${dias === 1 ? 'día' : 'días'}`;
 }
 
+function htmlEtiquetas(b) {
+  if (!b.correlativoOrigen) return '';
+  return `
+        <span class="borrador-etiquetas">
+          <span class="borrador-etiqueta borrador-etiqueta--vencido">Venció — basado en ${escapeHtml(b.correlativoOrigen)}</span>
+          ${b.nuevo ? '<span class="borrador-etiqueta borrador-etiqueta--nuevo">Nuevo</span>' : ''}
+        </span>`;
+}
+
 function htmlFila(b) {
   return `
     <li class="borrador-item" data-id="${b.id}">
       <div class="borrador-info">
-        <strong class="borrador-titulo">${escapeHtml(b.titulo)}</strong>
+        <strong class="borrador-titulo">${escapeHtml(b.titulo)}</strong>${htmlEtiquetas(b)}
         <span class="borrador-meta">
           Creado el ${formatearFecha(b.creadoEn)} ·
           <span class="borrador-vence${b.diasRestantes <= DIAS_ALERTA ? ' borrador-vence--alerta' : ''}">${textoVencimiento(b.diasRestantes)}</span>
@@ -61,7 +76,8 @@ export async function abrirModalBorradores() {
       mostrarErrorModal(overlay, error.message);
       return;
     }
-    document.querySelector('#borradores-contador').textContent = datos.total;
+    // La lista se pinta con las etiquetas «Nuevo»; recién después se marcan como vistos y la insignia se apaga.
+    pintarContadores(datos);
     contenido.innerHTML = `
       <p class="form-nota">Tienes ${datos.total} de ${datos.maximo} borradores. Cada uno se elimina solo a los 30 días de crearse.</p>
       ${datos.borradores.length
@@ -90,7 +106,12 @@ export async function abrirModalBorradores() {
     }
   });
 
-  pintar();
+  pintar().then(async () => {
+    try {
+      await marcarBorradoresVistos();
+      pintarContadores({ ...(await listarBorradores()), nuevos: 0 });
+    } catch { /* sin conexión: se marcan en la próxima apertura */ }
+  });
 }
 
 function abrirModalEliminarBorrador(id, alTerminar) {

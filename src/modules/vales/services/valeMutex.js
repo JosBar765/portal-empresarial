@@ -53,6 +53,13 @@ class ValeMutex {
     }
   }
 
+  // Toma varios vales a la vez, todo o nada y en orden ascendente; si alguno está ocupado no espera: lanza `ErrorDeNegocio` 409 y suelta los ya tomados.
+  async conLocksDeVales(valeIds, fn) {
+    const ids = [...new Set(valeIds.map(Number))].sort((a, b) => a - b);
+    const tomar = (i) => (i === ids.length ? fn() : this.conLockDeVale(ids[i], () => tomar(i + 1)));
+    return tomar(0);
+  }
+
   conColaDeCreacion(asesorId, fn) {
     const key = Number(asesorId);
     const anterior = this._colaCreacionPorAsesor.get(key) || Promise.resolve();
