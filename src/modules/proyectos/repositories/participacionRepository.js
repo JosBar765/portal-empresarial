@@ -153,7 +153,7 @@ class ParticipacionRepository {
 
   contactos(clienteId) {
     return db.query(
-      `SELECT t.id, t.nombre, t.cargo, t.telefono, t.correo, t.principal, a.nombre AS area
+      `SELECT t.id, t.nombre, t.cargo, t.telefono, t.correo, t.principal, t.area_id, a.nombre AS area
        FROM proy_contactos t JOIN proy_areas_contacto a ON a.id = t.area_id WHERE t.cliente_id = ? AND t.activo = 1 ORDER BY t.principal DESC, t.id`,
       [clienteId], 'proyectos_gestion:contactos'
     );

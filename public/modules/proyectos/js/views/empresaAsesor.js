@@ -2,10 +2,11 @@
 // y los registros. En escritorio la gestión es un panel fijo a la derecha; en celular, una hoja inferior. Ruta: #/empresa/<id>.
 import { h, icono, montar } from '../utils/dom.js';
 import { hace } from '../utils/formato.js';
-import { aviso, cargando } from '../components/ui.js';
-import { obtenerFichaDeEmpresa, obtenerOpcionesDeGestion } from '../api/api.js';
+import { aviso, avisar, cargando } from '../components/ui.js';
+import { obtenerFichaDeEmpresa, obtenerOpcionesDeGestion, obtenerOpcionesClientes } from '../api/api.js';
 import { chipGestion, formatoMonto, hrefLlamar, hrefWhatsApp, diaCorto, horaDe } from '../utils/gestion.js';
 import { abrirKit } from './kitAsesor.js';
+import { ventanaContacto } from './clienteFicha.js';
 import { formularioGestion, abrirGestion, abrirCotizacion, abrirVenta, abrirPerdida, abrirDescarte } from './registrosAsesor.js';
 
 const iniciales = (nombre) => String(nombre || '').trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase() || '··';
@@ -37,6 +38,14 @@ function pintar(cont, ficha, opciones) {
   const llamar = hrefLlamar(telefono);
   const whatsapp = hrefWhatsApp(telefono);
   const dinero = opciones.monedas;
+
+  // Agregar o editar un contacto de la empresa; al guardar, la ficha se vuelve a pedir y se redibuja.
+  const abrirContacto = async (contacto) => {
+    try {
+      const opcionesClientes = await obtenerOpcionesClientes();
+      ventanaContacto({ id: empresa.id, paisId: empresa.paisId }, opcionesClientes, contacto, async () => { alGuardar(await obtenerFichaDeEmpresa(ficha.id)); });
+    } catch (error) { avisar('error', 'No se pudo abrir el formulario', error.message); }
+  };
 
   const enlaceBoton = (href, nombre, texto, extra = {}) => (href
     ? h('a', { class: 'btn btn--ghost', href, ...extra }, icono(nombre), texto)
@@ -106,7 +115,8 @@ function pintar(cont, ficha, opciones) {
   const contactosNodo = contactos.length ? contactos.map(c => h('div', { class: 'contacto-tarjeta' },
     h('span', { class: 'avatar-contacto', text: iniciales(c.nombre) }),
     h('div', { class: 'contacto-datos' }, h('strong', { text: c.nombre }), h('div', { class: 'texto-tenue', text: [c.cargo || c.area, c.telefono].filter(Boolean).join(' · ') }), c.cargo ? h('div', { class: 'texto-tenue', text: c.area }) : null),
-    hrefLlamar(c.telefono) ? h('a', { class: 'btn btn--ghost btn--solo-icono', href: hrefLlamar(c.telefono), 'aria-label': `Llamar a ${c.nombre}` }, icono('call-outline')) : null))
+    hrefLlamar(c.telefono) ? h('a', { class: 'btn btn--ghost btn--solo-icono', href: hrefLlamar(c.telefono), 'aria-label': `Llamar a ${c.nombre}` }, icono('call-outline')) : null,
+    ficha.abierta ? h('button', { class: 'btn btn--ghost btn--solo-icono', type: 'button', 'aria-label': `Editar a ${c.nombre}`, onclick: () => abrirContacto(c) }, icono('create-outline')) : null))
     : [h('p', { class: 'texto-tenue', text: 'Esta empresa todavía no tiene contactos.' })];
 
   montar(cont,
@@ -122,7 +132,10 @@ function pintar(cont, ficha, opciones) {
     !ficha.abierta ? aviso({ tipo: 'advertencia', titulo: ficha.estado === 'descartada' ? 'Empresa descartada' : 'Solo consulta', texto: ficha.estado === 'descartada' ? 'La descartaste de este proyecto: ya no recibe registros.' : `«${ficha.proyecto.nombre}» ya no está activo: puedes ver lo que se hizo, pero no registrar nada nuevo.` }) : null,
     ficha.seguimientoVencido ? aviso({ tipo: 'error', titulo: `Seguimiento vencido desde el ${diaCorto(ficha.proximaGestion)}`, texto: 'Registra una gestión para fijar la nueva fecha.' }) : null,
     h('div', { class: `ficha-asesor${panelGestion ? '' : ' ficha-asesor--sin-panel'}` },
-      h('div', { class: 'ficha-asesor-col' }, datosEmpresa, h('h2', { class: 'panel-titulo', text: 'Contactos por área' }), contactosNodo),
+      h('div', { class: 'ficha-asesor-col' }, datosEmpresa,
+        h('div', { class: 'contactos-cabecera' }, h('h2', { class: 'panel-titulo', text: 'Contactos por área' }),
+          ficha.abierta ? h('button', { class: 'btn btn--ghost btn--chico', type: 'button', onclick: () => abrirContacto(null) }, icono('person-add-outline'), 'Agregar contacto') : null),
+        contactosNodo),
       h('div', { class: 'ficha-asesor-col' }, h('h2', { class: 'panel-titulo', text: 'Historial' }), historial, tablaDinero ? [h('h2', { class: 'panel-titulo', text: 'Cotizaciones y ventas' }), tablaDinero] : null),
       panelGestion));
 }

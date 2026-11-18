@@ -163,8 +163,8 @@ class GestionService {
     return {
       id: p.id, estado: p.estado, abierta,
       proyecto: { id: proyecto.id, nombre: proyecto.nombre, estado: proyecto.estado },
-      empresa: { id: p.cliente_id, nombre: p.nombre, nicho: p.nicho, pais: p.pais, ciudad: p.ciudad, direccion: p.direccion, sitioWeb: p.sitio_web, telefono: p.telefono, estructura: p.estructura },
-      contactos: contactos.map(c => ({ id: c.id, nombre: c.nombre, cargo: c.cargo, area: c.area, telefono: c.telefono, correo: c.correo, principal: Boolean(c.principal) })),
+      empresa: { id: p.cliente_id, nombre: p.nombre, nicho: p.nicho, pais: p.pais, paisId: p.pais_id, ciudad: p.ciudad, direccion: p.direccion, sitioWeb: p.sitio_web, telefono: p.telefono, estructura: p.estructura },
+      contactos: contactos.map(c => ({ id: c.id, nombre: c.nombre, cargo: c.cargo, area: c.area, areaId: c.area_id, telefono: c.telefono, correo: c.correo, principal: Boolean(c.principal) })),
       ultimaGestion: p.ultima_gestion_en || null, proximaGestion: p.proxima_gestion_en || null,
       seguimientoVencido: Boolean(p.proxima_gestion_en) && sinHora(p.proxima_gestion_en) < hoy && !FINALES.includes(p.estado),
       historial: this._lineaDeTiempo(historial),

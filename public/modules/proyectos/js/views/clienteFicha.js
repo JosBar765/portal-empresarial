@@ -185,7 +185,8 @@ function ventanaEstado(empresa, opciones, accion, alActualizar) {
   });
 }
 
-function ventanaContacto(empresa, opciones, contacto, alActualizar) {
+// También la usa la ficha del asesor (empresaAsesor.js) para agregar y editar contactos.
+export function ventanaContacto(empresa, opciones, contacto, alActualizar) {
   const prefijos = opciones.prefijos || [];
   const valores = contacto
     ? { nombre: contacto.nombre, areaId: contacto.areaId, cargo: contacto.cargo || '', telefono: '', correo: contacto.correo || '', principal: contacto.principal }

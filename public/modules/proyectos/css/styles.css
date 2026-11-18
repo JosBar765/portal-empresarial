@@ -1287,3 +1287,5 @@ body { font-size: var(--text-sm); line-height: 1.45; }
 @media (prefers-reduced-motion: reduce) { .ayuda-fondo, .ayuda-hoja, .ayuda-recuadro { animation: none; } .ayuda-franja > ion-icon:last-child, .ayuda-franja, .ayuda-paso { transition: none; } }
 .campo-etiqueta-fila { display: flex; align-items: center; gap: 2px; }
 .campo-etiqueta-fila > label { margin: 0; }
+.contactos-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.contactos-cabecera .panel-titulo { margin: 0; }
