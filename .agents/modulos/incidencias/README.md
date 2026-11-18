@@ -110,7 +110,7 @@ Solo con `incidencias.configurar`. Siete pestañas sobre `/api/incidencias/confi
 
 ## Fotos: bucket propio y regla de conservación
 
-- Las fotos viven en **su propio bucket** (`SUPABASE_STORAGE_BUCKET_INCIDENCIAS`, obligatorio; público, 5 MB, JPG/PNG/WebP; distinto del de Vales y de un entorno a otro). En la base solo se guarda la URL.
+- Las fotos viven en **su propio bucket** (`SUPABASE_STORAGE_BUCKET_INCIDENCIAS`, obligatorio; público, 5 MB, JPG/PNG/WebP; distinto de un entorno a otro). En la base solo se guarda la URL.
 - **Regla de conservación** (Configuración → Parámetros → «Conservar fotos (meses)», 12 por omisión, 0 = conservar siempre): pasado ese plazo desde que una incidencia se **cierra o se descarta**, se borran de Storage sus fotos del **reporte y de los avances**; las del **cierre se conservan**. La incidencia, su texto y su historial no se tocan: en lugar de la foto se ve «Foto eliminada por antigüedad» (`incidencia_fotos.purgada_en`, migración `incidencias_fotos_purga`).
 - La aplica `retencionFotosWatcher` al arrancar y cada 6 horas, **solo en producción** (fuera de producción ni corre ni `eliminar` borra). Si Storage falla, la base queda intacta y el siguiente ciclo reintenta.
 - Probada con `scripts/incidencias/verificar-retencion.js`.

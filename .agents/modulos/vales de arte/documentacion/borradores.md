@@ -8,7 +8,7 @@ Quien tiene el permiso `vales.crear` (asesores y supervisores) puede guardar el 
 - Vive 30 días desde su creación (constante `DIAS_VIGENCIA` en `borradorService.js`); editarlo no lo renueva. `vence_en` se calcula con el reloj de MySQL.
 - Es privado: solo su dueño lo lista, lee, edita, borra o envía (otro usuario recibe «El borrador no existe», también los supervisores).
 - Tope por usuario: parámetro `max_borradores_por_usuario` (15 por defecto, entero de 1 a 200), editable por el Administrador en «Horarios y feriados». Se aplica al crear, no al editar.
-- Adjuntos: mismos límites que un vale (5 MB c/u, JPG/PNG/WEBP y PDF, misma validación de firma). Viven en un bucket aparte (`SUPABASE_STORAGE_BUCKET_BORRADORES`) con nombre `BORRADOR-<id>_<IMAGEN|PDF>_<n>`.
+- Adjuntos: mismos límites que un vale (5 MB c/u, JPG/PNG/WEBP y PDF, misma validación de firma). Viven en un bucket aparte (`SUPABASE_STORAGE_BUCKET_VALES_BORRADORES`) con nombre `BORRADOR-<id>_<IMAGEN|PDF>_<n>`.
 - Sin aviso previo de caducidad: la lista muestra «Vence en N días» (en rojo con 3 o menos).
 
 ## Borradores por vencimiento
@@ -40,5 +40,5 @@ El usuario abre el borrador (mismo modal, precargado) y pulsa «Crear Vale de Ar
 
 ## Pasos en producción
 1. Importar `database/borradores_vales.sql` (idempotente) ANTES de desplegar. La columna `enviado_en` la agrega la migración `borradores_enviados`, que se aplica sola al arrancar en staging y producción.
-2. Crear en Supabase Storage el bucket de borradores y definir `SUPABASE_STORAGE_BUCKET_BORRADORES` en el `.env` (es obligatoria: sin ella el servidor no arranca).
+2. Crear en Supabase Storage el bucket de borradores y definir `SUPABASE_STORAGE_BUCKET_VALES_BORRADORES` en el `.env` (es obligatoria: sin ella el servidor no arranca).
 3. Desplegar. El tope se ajusta en Administración > Horarios y feriados.
