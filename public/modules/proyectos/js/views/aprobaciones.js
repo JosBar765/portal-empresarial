@@ -1,4 +1,4 @@
-// G5 · Aprobar activación: el gerente ve lo que el supervisor pide activar y la vista previa del reparto; al aprobar se reparte
+// G5 · Aprobar activación: quien aprueba ve lo que el supervisor pide activar y la vista previa del reparto; al aprobar se reparte
 // en ese momento y se avisa a los asesores; al rechazar, el proyecto vuelve a borrador con su comentario.
 import { h, icono, montar } from '../utils/dom.js';
 import { fechaCorta, pluralizar } from '../utils/formato.js';

@@ -81,6 +81,8 @@ async function verificar() {
     prueba('diseñadores, encargados y asistentes no lo ven', [4, 5, 6, 7].every(r => !sesion[r].modules.includes('proyectos') && !sesion[r].permissions.some(p => p.startsWith('proyectos.'))));
 
     console.log('Qué puede hacer cada rol (con los permisos que recibe de verdad)');
+    // Quién aprueba y da el visto bueno se asigna por persona: el gerente en los dos pasos y el administrador en la activación.
+    await db.query("INSERT IGNORE INTO proy_aprobadores (usuario_id, paso) VALUES (12, 'activacion'), (12, 'visto_bueno'), (?, 'activacion')", [admin], 'act:aprobadores');
     const quien = { admin: [await usuarioDe(1), sesion[1].permissions], asesor: [49, sesion[2].permissions], supervisor: [13, sesion[3].permissions], gerente: [12, sesion[8].permissions], disenador: [await usuarioDe(6), sesion[6].permissions], encargado: [await usuarioDe(4), sesion[4].permissions] };
     const probar = async (nombre, metodo, ruta, esperado, cuerpo) => {
       const obtenidos = {};
@@ -127,6 +129,7 @@ async function verificar() {
     prueba('el que pierde sabe qué tienda falló y qué proyecto la bloquea', perdedor.status === 409 && /Una tienda, un proyecto activo a la vez/.test(perdedor.datos.error || ''), JSON.stringify(perdedor.datos));
     prueba('la base queda con un solo proyecto activo en esa tienda', Number((await db.query("SELECT COUNT(*) AS n FROM proy_proyecto_tiendas pt JOIN proy_proyectos y ON y.id = pt.proyecto_id WHERE pt.tienda_id = 4 AND pt.proyecto_abierto = 1 AND y.id IN (?)", [proyectosCreados], 'act:abiertos'))[0].n) === 1);
   } finally {
+    await db.query('DELETE FROM proy_aprobadores', [], 'act:quitar_aprobadores');
     // Limpieza, pase lo que pase: los permisos vuelven a como estaban y no queda nada de la prueba.
     for (const rol of roles) await adminService.actualizarPermisosRol(rol, originales.get(rol));
     if (proyectosCreados.length) {

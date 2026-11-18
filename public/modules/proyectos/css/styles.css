@@ -1292,3 +1292,10 @@ body { font-size: var(--text-sm); line-height: 1.45; }
 .aviso-global { margin: 0 0 12px; max-width: 920px; }
 .acciones-centradas { display: flex; justify-content: center; margin-top: 8px; }
 .etiqueta-solo-admin { display: inline-flex; align-items: center; gap: 4px; background: var(--color-surface-muted); color: var(--color-text-secondary); }
+.aprobadores-paso { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid var(--color-border); }
+.aprobadores-paso:first-of-type { border-top: 0; }
+.aprobadores-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-persona { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 12px; border-radius: 999px; background: var(--color-surface-muted); font-size: 13px; }
+.chip-quitar { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 0; border-radius: 50%; background: transparent; color: var(--color-text-secondary); cursor: pointer; }
+.chip-quitar:hover { background: var(--color-border); }
+.aprobadores-paso .control-select { max-width: 360px; }

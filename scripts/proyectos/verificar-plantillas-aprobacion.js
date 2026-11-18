@@ -43,6 +43,9 @@ async function verificar() {
   const [{ id: paisGT }] = await db.query("SELECT id FROM paises WHERE codigo = 'GT'", [], 'pla:pais');
   const [{ id: admin }] = await db.query('SELECT id FROM usuarios WHERE rol_id = 1 ORDER BY id LIMIT 1', [], 'pla:admin');
   const [{ id: gerente }] = await db.query("SELECT id FROM usuarios WHERE email = 'gerente@grupopremia.com'", [], 'pla:gerente');
+  // Quién aprueba y da el visto bueno se asigna por persona: la prueba asigna al gerente (y al administrador en la activación) y lo quita al terminar.
+  await db.query("INSERT IGNORE INTO proy_aprobadores (usuario_id, paso) VALUES (?, 'activacion'), (?, 'visto_bueno')", [gerente, gerente], 'pla:aprobadores');
+  await db.query("INSERT IGNORE INTO proy_aprobadores (usuario_id, paso) SELECT id, 'activacion' FROM usuarios WHERE rol_id = 1", [], 'pla:aprobadores_admin');
   const [{ id: articulo }] = await db.query('SELECT id FROM proy_articulos WHERE activo = 1 ORDER BY id LIMIT 1', [], 'pla:articulo');
   const SUP = 13;
   const T1 = 1;
@@ -153,7 +156,7 @@ async function verificar() {
     prueba('con la aprobación apagada, pedirla responde 409', (await sup('POST', `/proyectos/${a1.id}/pedir-aprobacion`)).status === 409);
     await configService.guardar({ 'reglas.aprobar_activacion': true }, admin);
     r = await sup('POST', `/proyectos/${a1.id}/activar`, { idempotencyKey: clave() });
-    prueba('con la aprobación encendida, activar directo responde 409', r.status === 409 && /aprobación del gerente/.test(r.datos.error));
+    prueba('con la aprobación encendida, activar directo responde 409', r.status === 409 && /aprobación de quien aprueba/.test(r.datos.error));
     await sup('PUT', `/proyectos/${a1.id}`, { fechaInicio: null });
     r = await sup('POST', `/proyectos/${a1.id}/pedir-aprobacion`);
     prueba('no se puede pedir la aprobación con datos incompletos (400)', r.status === 400 && !!r.datos.campos.fechaInicio, JSON.stringify(r.datos));
@@ -188,6 +191,7 @@ async function verificar() {
     await sup('POST', `/proyectos/${a1.id}/cancelar`, { motivo: 'Fin de la prueba' });
     await configService.guardar({ 'reglas.aprobar_activacion': false }, admin);
   } finally {
+    await db.query('DELETE FROM proy_aprobadores', [], 'pla:quitar_aprobadores');
     // Limpieza, pase lo que pase: nada de esta prueba debe quedar en la base.
     await db.query("DELETE FROM proy_proyectos WHERE (creado_en >= ? AND creado_por IN (?)) OR codigo LIKE 'PLA-%'", [inicio, [SUP, admin, gerente]], 'pla:limpiar_proyectos');
     await db.query("DELETE FROM proy_clientes WHERE nombre LIKE 'PLA %'", [], 'pla:limpiar_clientes');

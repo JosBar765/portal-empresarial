@@ -47,6 +47,8 @@ async function verificar() {
   const [{ id: paisGT }] = await db.query("SELECT id FROM paises WHERE codigo = 'GT'", [], 'avi:pais');
   const [{ id: admin }] = await db.query('SELECT id FROM usuarios WHERE rol_id = 1 ORDER BY id LIMIT 1', [], 'avi:admin');
   const [{ id: gerente }] = await db.query("SELECT id FROM usuarios WHERE email = 'gerente@grupopremia.com'", [], 'avi:gerente');
+  // Quién aprueba y da el visto bueno se asigna por persona: la prueba asigna al gerente (y al administrador en la activación) y lo quita al terminar.
+  await db.query("INSERT IGNORE INTO proy_aprobadores (usuario_id, paso) VALUES (?, 'activacion'), (?, 'visto_bueno')", [gerente, gerente], 'avi:aprobadores');
   const [{ id: articulo }] = await db.query('SELECT id FROM proy_articulos WHERE activo = 1 ORDER BY id LIMIT 1', [], 'avi:articulo');
   const paisAntes = (await db.query('SELECT moneda_codigo, referencia_obligatoria, confirmacion_ventas FROM proy_pais_config WHERE pais_id = ?', [paisGT], 'avi:pais_antes'))[0];
   const SUP = 13;
@@ -192,6 +194,7 @@ async function verificar() {
     prueba('con la celda apagada el vigilante no avisa', (await cuenta('seguimiento_vencido')) === antes);
     void rSinRespuesta; void canal;
   } finally {
+    await db.query('DELETE FROM proy_aprobadores', [], 'avi:quitar_aprobadores');
     // Limpieza, pase lo que pase: nada de esta prueba debe quedar en la base.
     for (const id of [proyectoId, segundoId].filter(Boolean)) {
       const part = '(SELECT id FROM proy_participaciones WHERE proyecto_id = ?)';

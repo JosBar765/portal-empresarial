@@ -43,6 +43,8 @@ async function verificar() {
   const [{ id: paisGT }] = await db.query("SELECT id FROM paises WHERE codigo = 'GT'", [], 'cie:pais');
   const [{ id: admin }] = await db.query('SELECT id FROM usuarios WHERE rol_id = 1 ORDER BY id LIMIT 1', [], 'cie:admin');
   const [{ id: gerente }] = await db.query("SELECT id FROM usuarios WHERE email = 'gerente@grupopremia.com'", [], 'cie:gerente');
+  // Quién aprueba y da el visto bueno se asigna por persona: la prueba asigna al gerente (y al administrador en la activación) y lo quita al terminar.
+  await db.query("INSERT IGNORE INTO proy_aprobadores (usuario_id, paso) VALUES (?, 'activacion'), (?, 'visto_bueno')", [gerente, gerente], 'cie:aprobadores');
   const [{ id: articulo }] = await db.query('SELECT id FROM proy_articulos WHERE activo = 1 ORDER BY id LIMIT 1', [], 'cie:articulo');
   const paisAntes = (await db.query('SELECT moneda_codigo, referencia_obligatoria, confirmacion_ventas FROM proy_pais_config WHERE pais_id = ?', [paisGT], 'cie:pais_antes'))[0];
   const resultado = async (nombre) => (await db.query('SELECT id FROM proy_resultados_gestion WHERE nombre = ?', [nombre], 'cie:resultado'))[0].id;
@@ -212,7 +214,7 @@ async function verificar() {
     prueba('reenviar con las conclusiones vacías → 400', r.status === 400 && !!r.datos.campos.conclusiones);
     r = await sup('POST', `/proyectos/${proyectoId}/reenviar`, { conclusiones: 'Corregido: el monto de la tienda 1 es el correcto.', idempotencyKey: clave() });
     prueba('reenviar vuelve a «pendiente» con las conclusiones corregidas', r.status === 200 && r.datos.vistoBueno.estado === 'pendiente' && /Corregido/.test(r.datos.conclusiones), JSON.stringify(r.datos.vistoBueno));
-    prueba('gerencia sin el permiso de visto bueno no lo da (403)', (await llamar('POST', `/proyectos/${proyectoId}/visto-bueno`, { usuario: gerente, permisos: PERM_GERENTE_SOLO_VER, cuerpo: { idempotencyKey: clave() } })).status === 403);
+    prueba('quien no está asignado para el visto bueno no lo da (403)', (await llamar('POST', `/proyectos/${proyectoId}/visto-bueno`, { usuario: SUP, permisos: PERM_GERENTE_SOLO_VER, cuerpo: { idempotencyKey: clave() } })).status === 403);
     const kVB = clave();
     r = await ger('POST', `/proyectos/${proyectoId}/visto-bueno`, { comentario: 'Buen proyecto.', idempotencyKey: kVB });
     prueba('dar el visto bueno guarda quién, cuándo y el comentario', r.status === 200 && r.datos.vistoBueno.estado === 'dado' && !!r.datos.vistoBueno.por && r.datos.vistoBueno.comentario === 'Buen proyecto.', JSON.stringify(r.datos.vistoBueno));
@@ -256,6 +258,7 @@ async function verificar() {
     prueba('el filtro por país funciona', (await ger('GET', `/gerencia/panel?anio=2026&paisId=${paisGT}`)).status === 200);
     prueba('un supervisor no abre el panel gerencial (403)', (await sup('GET', '/gerencia/panel')).status === 403);
   } finally {
+    await db.query('DELETE FROM proy_aprobadores', [], 'cie:quitar_aprobadores');
     // Limpieza, pase lo que pase: nada de esta prueba debe quedar en la base.
     for (const id of [proyectoId, segundoId].filter(Boolean)) {
       const part = '(SELECT id FROM proy_participaciones WHERE proyecto_id = ?)';

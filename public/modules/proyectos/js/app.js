@@ -2,7 +2,7 @@
 import { state } from './state.js';
 import { $, h, icono, montar } from './utils/dom.js';
 import { inicialesAvatar } from './utils/formato.js';
-import { sessionCheck, logout, refreshToken } from './api/api.js';
+import { sessionCheck, logout, refreshToken, obtenerMisPermisos } from './api/api.js';
 import { wireSidebar, wireAccountMenu, marcarRuta, mostrarSoloPermitidas } from './layout/sidebar.js';
 import { cargando, estadoError, estadoVacio } from './components/ui.js';
 import { liberarSalida } from './components/salida.js';
@@ -148,6 +148,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sesion = await sessionCheck();
     if (!sesion.autenticado) { window.location.href = '/login/?expired=true'; return; }
     state.user = sesion.user;
+    // Quién aprueba y quién da el visto bueno se asigna por persona: el servidor devuelve los permisos ya con eso.
+    try { state.user.permissions = (await obtenerMisPermisos()).permisos; } catch (error) { /* se queda con los de la sesión */ }
     if (!(state.user.permissions || []).includes('proyectos.ver')) { window.location.href = '/dashboard/'; return; }
 
     $('#user-display-name').textContent = state.user.nombre;

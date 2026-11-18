@@ -2,6 +2,16 @@
 // Montado en /api/proyectos detrás de requireAuth y proyectos.ver.
 const express = require('express');
 const router = express.Router();
+const aprobadorController = require('./controllers/aprobadorController');
+const aprobadorService = require('./services/aprobadorService');
+
+// Quién aprueba y quién da el visto bueno se asigna por persona: se reemplazan los dos permisos del rol por los de esta persona.
+router.use(async (req, res, siguiente) => {
+  try {
+    if (req.user) req.user = { ...req.user, permissions: await aprobadorService.permisosDe(req.user) };
+    siguiente();
+  } catch (error) { siguiente(error); }
+});
 const configController = require('./controllers/configController');
 const catalogoController = require('./controllers/catalogoController');
 const clienteController = require('./controllers/clienteController');
@@ -31,6 +41,7 @@ const configurar = (req, res, siguiente) => {
 const registrar = requirePermission('proyectos.clientes.registrar');
 const importar = requirePermission('proyectos.clientes.importar');
 const activar = requirePermission('proyectos.activar');
+// Aprobar y dar el visto bueno son permisos virtuales: se calculan por persona (aprobadorService), no por rol.
 const aprobar = requirePermission('proyectos.aprobar_activacion');
 const gestionar = requirePermission('proyectos.gestionar');
 const reasignar = requirePermission('proyectos.reasignar');
@@ -146,6 +157,9 @@ router.post('/clientes/:id/contactos', registrar, clienteController.agregarConta
 // Centro de configuración: inicio (A0), parámetros (A3), reglas e interruptores (A5), historial (A10) y país
 router.get('/config/parametros', administrar, configController.listar('parametros'));
 router.put('/config/parametros', administrar, configController.guardar('parametros'));
+router.get('/yo', aprobadorController.yo);
+router.get('/config/aprobadores', administrar, aprobadorController.listar);
+router.put('/config/aprobadores', administrar, aprobadorController.guardar);
 router.get('/config/reglas', administrar, configController.listar('reglas'));
 router.put('/config/reglas', administrar, configController.guardar('reglas'));
 router.get('/config/avisos', configurar, avisosController.matriz);

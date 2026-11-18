@@ -139,7 +139,7 @@ export async function renderAsistente(cont, id) {
       if (!(await guardar({ silencioso: true }))) return;
       if (opciones.ajustes.aprobarActivacion) {
         await pedirAprobacionProyecto(e.id);
-        avisar('success', 'Aprobación pedida', 'El gerente la aprobará o la devolverá con comentarios.');
+        avisar('success', 'Aprobación pedida', 'Quien aprueba la autorizará o la devolverá con comentarios.');
       } else {
         await activarProyecto(e.id, claveActivacion);
         avisar('success', 'Proyecto activado', 'Las empresas ya están repartidas entre los asesores.');

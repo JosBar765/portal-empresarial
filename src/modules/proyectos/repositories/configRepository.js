@@ -44,6 +44,7 @@ class ConfigRepository {
     else if (area === 'kits') condiciones.push("h.entidad = 'kit'");
     else if (area === 'plan') condiciones.push("h.entidad = 'plan'");
     else if (area === 'avisos') condiciones.push("h.entidad = 'aviso'");
+    else if (area === 'aprobadores') condiciones.push("h.entidad = 'aprobadores'");
     if (usuarioId) { condiciones.push('h.usuario_id = ?'); params.push(usuarioId); }
     if (desde) { condiciones.push('DATE(h.creado_en) >= ?'); params.push(desde); }
     if (hasta) { condiciones.push('DATE(h.creado_en) <= ?'); params.push(hasta); }

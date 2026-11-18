@@ -9,14 +9,14 @@ const NOMBRES = { 1: 'Administrador', 2: 'Asesor de Ventas', 3: 'Supervisor de V
 const PERMISOS_POR_ROL = {
   [ROLES.ADMINISTRADOR]: [
     'proyectos.ver', 'proyectos.clientes.registrar', 'proyectos.clientes.importar', 'proyectos.activar', 'proyectos.reasignar', 'proyectos.ver_gerencia',
-    'proyectos.ver_reportes', 'proyectos.corregir', 'proyectos.aprobar_activacion', 'proyectos.confirmar_ventas', 'proyectos.configurar', 'proyectos.administrar'
+    'proyectos.ver_reportes', 'proyectos.corregir', 'proyectos.confirmar_ventas', 'proyectos.configurar', 'proyectos.administrar'
   ],
   [ROLES.ASESOR]: ['proyectos.ver', 'proyectos.clientes.registrar', 'proyectos.gestionar'],
   [ROLES.SUPERVISOR]: [
     'proyectos.ver', 'proyectos.clientes.registrar', 'proyectos.clientes.importar', 'proyectos.gestionar', 'proyectos.activar', 'proyectos.reasignar',
     'proyectos.supervisar', 'proyectos.ver_reportes', 'proyectos.corregir', 'proyectos.confirmar_ventas', 'proyectos.configurar'
   ],
-  [ROLES.GERENTE]: ['proyectos.ver', 'proyectos.ver_gerencia', 'proyectos.dar_visto_bueno', 'proyectos.ver_reportes', 'proyectos.aprobar_activacion']
+  [ROLES.GERENTE]: ['proyectos.ver', 'proyectos.ver_gerencia', 'proyectos.ver_reportes']
 };
 
 // Para qué sirve cada permiso (se muestra en la tabla del documento y de la herramienta).
@@ -29,10 +29,10 @@ const DESCRIPCIONES = {
   'proyectos.reasignar': 'Pasar empresas de un asesor a otro',
   'proyectos.supervisar': 'Ver el avance de su equipo',
   'proyectos.ver_gerencia': 'Ver todo en solo lectura',
-  'proyectos.dar_visto_bueno': 'Dar o devolver el visto bueno al cierre',
+  'proyectos.dar_visto_bueno': 'Dar o devolver el visto bueno al cierre (por persona, en Reglas y aprobaciones; no se asigna a roles)',
   'proyectos.ver_reportes': 'Ver y exportar informes en PDF',
   'proyectos.corregir': 'Anular una cotización o venta equivocada',
-  'proyectos.aprobar_activacion': 'Aprobar o rechazar la activación de un proyecto',
+  'proyectos.aprobar_activacion': 'Aprobar o rechazar la activación de un proyecto (por persona, en Reglas y aprobaciones; no se asigna a roles)',
   'proyectos.confirmar_ventas': 'Confirmar o rechazar ventas por confirmar',
   'proyectos.configurar': 'Cambiar plantillas, notificaciones, kit, campos propios y plan del año',
   'proyectos.administrar': 'Todo el Centro de configuración (catálogos, parámetros, reglas y alcance incluidos)'

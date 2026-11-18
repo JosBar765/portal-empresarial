@@ -13,7 +13,7 @@ const { definicion: catalogo } = require('../catalogos');
 const { EVENTOS: EVENTOS_AVISO } = require('../eventos');
 
 const POR_PAGINA = 20;
-const AREAS = ['parametros', 'reglas', 'catalogos', 'paises', 'campos', 'alcance', 'plantillas', 'avisos', 'kits', 'plan'];
+const AREAS = ['parametros', 'reglas', 'catalogos', 'paises', 'campos', 'alcance', 'plantillas', 'avisos', 'kits', 'plan', 'aprobadores'];
 
 const ETIQUETAS_PAIS = {
   monedaCodigo: 'Moneda', prefijoTelefono: 'Prefijo', formatoTelefono: 'Formato de teléfono',
@@ -116,6 +116,12 @@ function describirFila(fila, nombresPais) {
     return {
       ...base, area: 'Kit del nicho', objeto: fuente.nicho || fila.clave,
       cambios: fila.accion === 'crear' ? [] : diferencias(antes, despues, ETIQUETAS_KIT), restaurable: false
+    };
+  }
+  if (fila.entidad === 'aprobadores') {
+    return {
+      ...base, area: 'Quién aprueba', objeto: fila.clave === 'activacion' ? 'Aprobar la activación' : 'Dar el visto bueno',
+      cambios: diferencias(antes, despues, { personas: 'Personas' }), restaurable: false
     };
   }
   if (fila.entidad === 'alcance') {

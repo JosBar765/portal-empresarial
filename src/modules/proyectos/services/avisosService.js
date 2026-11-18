@@ -3,6 +3,7 @@
 // avisa un evento, nunca avisa al autor de la acción y entrega por el centro de notificaciones (campana + socket).
 const db = require('../../../config/database');
 const avisosRepository = require('../repositories/avisosRepository');
+const aprobadorService = require('./aprobadorService');
 const configRepository = require('../repositories/configRepository');
 const notificacionService = require('../../../core/notifications/notificacionService');
 const { ROLES, EVENTOS, evento } = require('../eventos');
@@ -76,6 +77,13 @@ class AvisosService {
     return e && e.anticipacion ? e.anticipacion.valor : null;
   }
 
+  // Gerencia de un evento: las dos aprobaciones llegan a quien las da (asignado por persona); el resto, a quien ve todo.
+  _gerencia(clave) {
+    if (clave === 'activacion_pedida') return aprobadorService.idsDe('activacion');
+    if (clave === 'cierre_pendiente') return aprobadorService.idsDe('visto_bueno');
+    return avisosRepository.gerentes();
+  }
+
   // Avisa un evento. `explicitos`: { asesor: [ids], supervisor: [ids] } cuando los destinatarios no se deducen del proyecto.
   // Devuelve los usuarios avisados. Nunca avisa a `autorId`.
   async notificar(clave, { proyectoId = null, autorId = null, explicitos = {}, mensaje, referenciaTipo = 'participacion', referenciaId = null, nivel = 'info' }) {
@@ -86,7 +94,7 @@ class AvisosService {
     for (const rol of ROLES) {
       if (!fila.roles[rol].aplica || !fila.roles[rol].activo) continue;
       let ids = explicitos[rol];
-      if (!ids) ids = rol === 'supervisor' && proyectoId ? await avisosRepository.supervisoresDelProyecto(proyectoId) : rol === 'gerente' ? await avisosRepository.gerentes() : [];
+      if (!ids) ids = rol === 'supervisor' && proyectoId ? await avisosRepository.supervisoresDelProyecto(proyectoId) : rol === 'gerente' ? await this._gerencia(clave) : [];
       ids.forEach(id => destinatarios.add(id));
     }
     if (autorId !== null) destinatarios.delete(autorId);

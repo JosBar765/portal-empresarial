@@ -436,7 +436,7 @@ class ProyectoService {
   async activar(usuario, id, { idempotencyKey } = {}) {
     exigir(usuario, 'proyectos.activar', 'No tienes permiso para activar proyectos.');
     const ajustes = await configService.valores();
-    if (ajustes['reglas.aprobar_activacion']) throw new ErrorDeNegocio('Este proyecto necesita la aprobación del gerente antes de activarse: pídela primero.', 409);
+    if (ajustes['reglas.aprobar_activacion']) throw new ErrorDeNegocio('Este proyecto necesita la aprobación de quien aprueba antes de activarse: pídela primero.', 409);
     return this._activacion(usuario, id, { idempotencyKey, desde: 'borrador', prefijo: 'proy-activar', extra: {}, accion: 'activar' });
   }
 

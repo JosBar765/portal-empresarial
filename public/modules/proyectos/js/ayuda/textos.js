@@ -47,7 +47,7 @@ export const TEXTOS = {
     },
     reglas: {
       sirve: 'Enciende o apaga pasos extra del flujo de un proyecto: el visto bueno del gerente al cerrar, la aprobación antes de activar y la confirmación de ventas. También define, país por país, si la referencia de cotización y venta es obligatoria.',
-      cambias: ['Tres interruptores generales (visto bueno al cerrar, aprobación antes de activar, confirmación de ventas).', 'Una tabla por país: referencia obligatoria y confirmación de ventas (heredar, sí o no).', 'Quién aprueba o confirma no se decide aquí: se asigna a cada rol en Administración → Roles.'],
+      cambias: ['Tres interruptores generales (visto bueno al cerrar, aprobación antes de activar, confirmación de ventas).', '«Quién aprueba»: las personas que aprueban la activación y las que dan el visto bueno (se eligen una por una y se guardan al momento).', 'Una tabla por país: referencia obligatoria y confirmación de ventas (heredar, sí o no).', 'Quién aprueba o confirma no se decide aquí: se asigna a cada rol en Administración → Roles.'],
       efecto: 'Cambiar una regla aplica a los proyectos nuevos. La referencia obligatoria se aplica a las cotizaciones y ventas que se registren desde ahora.',
       ejemplo: 'Si enciendes «Aprobación del gerente antes de activar», el supervisor ya no activa directo: pide la activación, el proyecto queda «esperando aprobación» y, cuando el gerente aprueba, se reparte.',
       ojo: ['Con todo en su valor por defecto el flujo es el ya aprobado: solo el visto bueno al cerrar viene encendido.', 'Solo el administrador cambia esta pantalla, porque afecta a todas las tiendas y países. Los supervisores la ven bloqueada.']
@@ -333,15 +333,15 @@ export const TEXTOS = {
     // --- Reglas ---
     'parametros.reglas.visto_bueno_cierre': {
       titulo: 'Visto bueno del gerente al cerrar',
-      que: 'Cuando el supervisor cierra un proyecto, el cierre espera a que el gerente lo revise y dé su visto bueno.',
-      efecto: `Apagado: el proyecto se cierra sin visto bueno. Quién da el visto bueno se asigna en Roles. ${APLICA_NUEVOS}`,
-      ejemplo: 'Encendido: el supervisor cierra «Bancos noviembre», el gerente lo revisa y lo aprueba o lo devuelve con comentarios.'
+      que: 'Cuando el supervisor cierra un proyecto, el cierre espera a que quien da el visto bueno lo revise y lo apruebe.',
+      efecto: `Apagado: el proyecto se cierra sin visto bueno. Quién lo da se elige por persona en «Quién aprueba», en esta misma pantalla. ${APLICA_NUEVOS}`,
+      ejemplo: 'Encendido: el supervisor cierra «Bancos noviembre», la persona asignada lo revisa y lo aprueba o lo devuelve con comentarios.'
     },
     'parametros.reglas.aprobar_activacion': {
-      titulo: 'Aprobación del gerente antes de activar',
-      que: 'El supervisor no activa el proyecto directamente: pide la activación y el gerente la aprueba.',
-      efecto: `Encendido: aparece el estado «esperando aprobación»; al aprobar, el proyecto se activa y se reparte. Si el gerente rechaza, vuelve a borrador con su comentario. ${APLICA_NUEVOS}`,
-      ejemplo: 'El supervisor pide activar el proyecto de noviembre; el gerente lo aprueba y en ese momento se reparten las empresas.'
+      titulo: 'Aprobación antes de activar',
+      que: 'El supervisor no activa el proyecto directamente: pide la activación y quien aprueba la autoriza. Quién aprueba se elige por persona en «Quién aprueba», en esta misma pantalla.',
+      efecto: `Encendido: aparece el estado «esperando aprobación»; al aprobar, el proyecto se activa y se reparte. Si quien aprueba la rechaza, vuelve a borrador con su comentario. ${APLICA_NUEVOS}`,
+      ejemplo: 'El supervisor pide activar el proyecto de noviembre; quien aprueba lo autoriza y en ese momento se reparten las empresas.'
     },
     'parametros.reglas.confirmar_ventas': {
       titulo: 'Confirmación de ventas por el supervisor',

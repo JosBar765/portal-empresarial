@@ -42,11 +42,11 @@ class AvisosRepository {
     return filas.map(f => f.usuario_id);
   }
 
-  // Gerencia: quien tiene el permiso de ver todo o de dar el visto bueno.
+  // Gerencia: quien tiene el permiso de ver todo. (Quién aprueba y quién da el visto bueno se asigna por persona: aprobadorService.)
   async gerentes() {
     const filas = await db.query(
       `SELECT DISTINCT u.id FROM usuarios u JOIN rol_permisos rp ON rp.rol_id = u.rol_id JOIN permisos p ON p.id = rp.permiso_id
-       WHERE u.activo = 1 AND p.codigo IN ('proyectos.ver_gerencia', 'proyectos.dar_visto_bueno')`, [], 'proyectos_avisos:gerentes'
+       WHERE u.activo = 1 AND p.codigo = 'proyectos.ver_gerencia'`, [], 'proyectos_avisos:gerentes'
     );
     return filas.map(f => f.id);
   }

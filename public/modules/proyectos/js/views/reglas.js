@@ -2,7 +2,7 @@
 import { h, icono, montar } from '../utils/dom.js';
 import { pluralizar } from '../utils/formato.js';
 import { cabecera, aviso, cargando, interruptor, barraGuardado, avisar } from '../components/ui.js';
-import { listarReglas, guardarReglas, listarPaises, guardarPais } from '../api/api.js';
+import { listarReglas, guardarReglas, listarPaises, guardarPais, obtenerAprobadores, guardarAprobadores } from '../api/api.js';
 import { registrarSalida } from '../components/salida.js';
 import { iconoAyuda } from '../components/ayuda.js';
 
@@ -14,6 +14,8 @@ export async function renderReglas(cont) {
   montar(cont, cargando());
   let reglas = (await listarReglas()).grupos.flatMap(g => g.parametros);
   let paises = (await listarPaises()).paises;
+  let aprobadores = await obtenerAprobadores();
+  const panelAprobadores = h('section', { class: 'panel' });
   let borradorReglas = {};
   let borradorPaises = {};
 
@@ -25,6 +27,7 @@ export async function renderReglas(cont) {
 
   function editarRegla(regla, valor) {
     if (valor === regla.valor) delete borradorReglas[regla.clave]; else borradorReglas[regla.clave] = valor;
+    dibujarAprobadores();
     barra.actualizar(cantidad());
   }
 
@@ -39,7 +42,7 @@ export async function renderReglas(cont) {
   function dibujarReglas() {
     montar(panelReglas,
       h('h2', { class: 'panel-titulo', text: 'Aprobaciones del flujo' }),
-      h('p', { class: 'panel-descripcion', text: 'Quién aprueba se asigna en Roles.' }),
+      h('p', { class: 'panel-descripcion', text: 'Enciende o apaga cada paso. Quién aprueba se elige más abajo, por persona.' }),
       reglas.map(regla => h('div', { class: 'regla' },
         interruptor({ marcado: regla.clave in borradorReglas ? borradorReglas[regla.clave] : regla.valor, etiqueta: regla.etiqueta, alCambiar: (v) => editarRegla(regla, v) }),
         h('div', { class: 'regla-cuerpo' },
@@ -47,6 +50,46 @@ export async function renderReglas(cont) {
           h('div', { class: 'regla-texto', text: regla.ayuda }),
           regla.nota ? h('div', { class: 'regla-nota' }, icono('information-circle-outline'), regla.nota) : null,
           regla.permiso ? h('div', { class: 'regla-nota' }, icono('lock-closed-outline'), `Permiso: ${regla.permiso}`) : null))));
+  }
+
+  // Quién aprueba la activación y quién da el visto bueno: se elige por persona y se guarda al momento.
+  const PASOS = [
+    { clave: 'activacion', regla: 'reglas.aprobar_activacion', titulo: 'Quién aprueba la activación', texto: 'Reciben el aviso, ven «Por aprobar» y deciden si el proyecto se activa.' },
+    { clave: 'vistoBueno', regla: 'reglas.visto_bueno_cierre', titulo: 'Quién da el visto bueno', texto: 'Reciben el aviso del cierre, ven «Por dar visto bueno» y lo aprueban o lo devuelven.' }
+  ];
+  const reglaEncendida = (clave) => { const r = reglas.find(x => x.clave === clave); return r ? (clave in borradorReglas ? borradorReglas[clave] : r.valor) : false; };
+
+  async function cambiarAprobadores(paso, ids) {
+    try {
+      aprobadores = await guardarAprobadores({ [paso]: ids });
+      avisar('success', 'Guardado', 'La lista quedó actualizada.');
+    } catch (error) { avisar(error.campos ? 'warning' : 'error', 'No se pudo guardar', (error.campos && Object.values(error.campos)[0]) || error.message); }
+    dibujarAprobadores();
+  }
+
+  function bloqueAprobadores(paso) {
+    const personas = aprobadores[paso.clave];
+    const libres = aprobadores.candidatos.filter(c => !personas.some(p => p.id === c.id));
+    const elegir = h('select', { class: 'control-select', 'aria-label': `Agregar a ${paso.titulo.toLowerCase()}` },
+      h('option', { value: '', text: 'Agregar persona…' }), libres.map(c => h('option', { value: c.id, text: `${c.nombre} · ${c.rol || 'Sin rol'}` })));
+    elegir.addEventListener('change', () => { if (elegir.value) cambiarAprobadores(paso.clave, [...personas.map(p => p.id), Number(elegir.value)]); });
+    const sinNadie = !personas.length && reglaEncendida(paso.regla);
+    return h('div', { class: 'aprobadores-paso' },
+      h('div', { class: 'regla-nombre', text: paso.titulo }),
+      h('div', { class: 'regla-texto', text: paso.texto }),
+      h('div', { class: 'aprobadores-chips' }, personas.length
+        ? personas.map(p => h('span', { class: 'chip-persona' }, p.nombre,
+          h('button', { class: 'chip-quitar', type: 'button', 'aria-label': `Quitar a ${p.nombre}`, onclick: () => cambiarAprobadores(paso.clave, personas.filter(x => x.id !== p.id).map(x => x.id)) }, icono('close-outline'))))
+        : h('span', { class: 'regla-nota', text: 'Nadie asignado todavía.' })),
+      sinNadie ? aviso({ tipo: 'advertencia', titulo: 'Nadie puede aprobar', texto: 'Este paso está encendido y no hay nadie asignado: los proyectos quedarían esperando. Asigna a alguien.' }) : null,
+      libres.length ? elegir : null);
+  }
+
+  function dibujarAprobadores() {
+    montar(panelAprobadores,
+      h('h2', { class: 'panel-titulo', text: 'Quién aprueba' }),
+      h('p', { class: 'panel-descripcion', text: 'Elige a las personas, una por una. Puede ser cualquiera con acceso a Proyectos; los cambios se guardan al momento y quedan en el Historial.' }),
+      PASOS.map(bloqueAprobadores));
   }
 
   function filaPais(pais) {
@@ -82,6 +125,7 @@ export async function renderReglas(cont) {
 
   function dibujar() {
     dibujarReglas();
+    dibujarAprobadores();
     dibujarPaises();
     barra.actualizar(cantidad());
   }
@@ -118,6 +162,6 @@ export async function renderReglas(cont) {
   registrarSalida(() => cantidad() > 0);
   montar(cont,
     cabecera({ ayuda: 'reglas', titulo: 'Reglas y aprobaciones', subtitulo: 'Enciende o apaga pasos del flujo. Por defecto, el flujo ya aprobado.' }),
-    h('div', { class: 'reglas-cuerpo' }, panelReglas, panelPaises));
+    h('div', { class: 'reglas-cuerpo' }, panelReglas, panelAprobadores, panelPaises));
   dibujar();
 }

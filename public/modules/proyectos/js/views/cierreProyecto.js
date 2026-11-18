@@ -51,7 +51,7 @@ function confirmarCierre(datos, conclusiones, alTerminar) {
     sinGestionar ? aviso({ tipo: 'advertencia', titulo: `${pluralizar(sinGestionar, 'empresa sigue', 'empresas siguen')} sin gestionar`, texto: 'Quedan libres para otro proyecto. Las que tienen resultado conservan su estado.' }) : null,
     h('label', { class: 'casilla' }, (() => { const i = h('input', { type: 'checkbox' }); i.checked = valores.revisado; i.addEventListener('change', () => { valores.revisado = i.checked; delete errores.revisado; dibujar(); }); return i; })(), h('span', { text: 'Revisé las conclusiones y el informe' })),
     errores.revisado ? h('div', { class: 'campo-mensaje campo-mensaje--error' }, icono('alert-circle-outline'), h('span', { text: errores.revisado })) : null,
-    datos.reglas && datos.reglas.vistoBueno ? h('p', { class: 'campo-mensaje', text: 'Se avisará al gerente para su visto bueno.' }) : null);
+    datos.reglas && datos.reglas.vistoBueno ? h('p', { class: 'campo-mensaje', text: 'Se avisará a quien da el visto bueno para su visto bueno.' }) : null);
   dibujar();
   const { overlay } = modalFormulario({
     title: 'Cerrar proyecto', nodo, aceptar: 'Cerrar proyecto',
@@ -122,7 +122,7 @@ function pintarCierre(cont, datos) {
       h('div', { class: 'cierre-columna' },
         conclusiones,
         sinGestionar ? aviso({ tipo: 'advertencia', titulo: `${pluralizar(sinGestionar, 'empresa queda', 'empresas quedan')} sin gestionar`, texto: 'Al cerrar quedan libres. Las que tienen resultado conservan su estado.' }) : null,
-        h('section', { class: 'panel' }, h('h2', { class: 'panel-subtitulo', text: 'Visto bueno del gerente' }), h('p', { class: 'texto-tenue', text: datos.reglas && datos.reglas.vistoBueno ? 'Se pedirá al cerrar. Puede devolverlo con comentarios.' : 'No se pide: el cierre termina aquí.' })),
+        h('section', { class: 'panel' }, h('h2', { class: 'panel-subtitulo', text: 'Visto bueno' }), h('p', { class: 'texto-tenue', text: datos.reglas && datos.reglas.vistoBueno ? 'Se pedirá al cerrar. Puede devolverlo con comentarios.' : 'No se pide: el cierre termina aquí.' })),
         datos.permisos.cerrar ? h('button', { class: 'btn btn--primary btn--ancho', type: 'button', onclick: () => confirmarCierre(datos, () => valores.conclusiones, (nuevo) => pintarCerrado(cont, nuevo)) }, icono('checkmark-outline'), 'Cerrar proyecto') : null)));
 }
 
@@ -134,8 +134,8 @@ export function pintarCerrado(cont, datos) {
   const banner = () => {
     if (!vistoBueno) return null;
     if (vistoBueno.estado === 'dado') return h('div', { class: 'aviso aviso--ok', role: 'note' }, icono('checkmark-circle-outline'), h('div', null, h('div', { class: 'aviso-titulo', text: 'Visto bueno dado' }), h('div', { class: 'aviso-texto', text: `${vistoBueno.por} · ${diaCorto(vistoBueno.en)}${vistoBueno.comentario ? ` · «${vistoBueno.comentario}»` : ''}` })));
-    if (vistoBueno.estado === 'devuelto') return aviso({ tipo: 'error', titulo: 'El gerente devolvió el cierre con comentarios', texto: `${vistoBueno.por} · ${diaCorto(vistoBueno.en)} · «${String(vistoBueno.comentario || '').trim().replace(/[.\s]+$/, '')}». Ajusta las conclusiones y reenvíalo.` });
-    return aviso({ tipo: 'advertencia', titulo: 'Esperando el visto bueno del gerente', texto: 'Se te avisará cuando lo dé o lo devuelva con comentarios.' });
+    if (vistoBueno.estado === 'devuelto') return aviso({ tipo: 'error', titulo: 'Quien da el visto bueno devolvió el cierre con comentarios', texto: `${vistoBueno.por} · ${diaCorto(vistoBueno.en)} · «${String(vistoBueno.comentario || '').trim().replace(/[.\s]+$/, '')}». Ajusta las conclusiones y reenvíalo.` });
+    return aviso({ tipo: 'advertencia', titulo: 'Esperando el visto bueno', texto: 'Se te avisará cuando lo dé o lo devuelva con comentarios.' });
   };
   const editable = datos.permisos.reenviar;
   const zonaConclusiones = h('section', { class: 'panel' });
@@ -143,7 +143,7 @@ export function pintarCerrado(cont, datos) {
     editable ? [campoArea({ valores, errores, clave: 'conclusiones', etiqueta: 'Corrige las conclusiones', maximo: 4000, prefijoId: 'reenviar' }),
       h('div', { class: 'acciones-panel' }, h('button', { class: 'btn btn--primary', type: 'button', onclick: async () => {
         try { const nuevo = await reenviarCierre(proyecto.id, { conclusiones: valores.conclusiones, idempotencyKey: claveNueva() }); avisar('success', 'Cierre reenviado', 'El gerente lo revisará de nuevo.'); pintarCerrado(cont, nuevo); } catch (error) { if (error.campos) { Object.assign(errores, error.campos); dibujarConclusiones(); } else avisar('error', 'No se pudo reenviar', error.message); }
-      } }, icono('send-outline'), 'Reenviar al gerente'))]
+      } }, icono('send-outline'), 'Reenviar para el visto bueno'))]
       : h('p', { class: 'texto-parrafo', text: datos.conclusiones || 'Sin conclusiones.' }));
   dibujarConclusiones();
   montar(cont,

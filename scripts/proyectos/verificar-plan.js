@@ -44,6 +44,9 @@ async function verificar() {
   const [{ id: paisGT }] = await db.query("SELECT id FROM paises WHERE codigo = 'GT'", [], 'plan:pais_gt');
   const [{ id: admin }] = await db.query('SELECT id FROM usuarios WHERE rol_id = 1 ORDER BY id LIMIT 1', [], 'plan:admin');
   const [{ id: gerente }] = await db.query("SELECT id FROM usuarios WHERE email = 'gerente@grupopremia.com'", [], 'plan:gerente');
+  // Quién aprueba y da el visto bueno se asigna por persona: la prueba asigna al gerente (y al administrador en la activación) y lo quita al terminar.
+  await db.query("INSERT IGNORE INTO proy_aprobadores (usuario_id, paso) VALUES (?, 'activacion'), (?, 'visto_bueno')", [gerente, gerente], 'plan:aprobadores');
+  await db.query("INSERT IGNORE INTO proy_aprobadores (usuario_id, paso) SELECT id, 'activacion' FROM usuarios WHERE rol_id = 1", [], 'plan:aprobadores_admin');
   const [{ id: articuloId }] = await db.query('SELECT id FROM proy_articulos WHERE activo = 1 ORDER BY id LIMIT 1', [], 'plan:articulo');
   const [{ id: plantillaId }] = await db.query('SELECT id FROM proy_plantillas WHERE activa = 1 ORDER BY predeterminada DESC, id LIMIT 1', [], 'plan:plantilla');
   const hoyGT = new Date(Date.now() - 6 * 3600 * 1000).toISOString().slice(0, 10);
@@ -188,6 +191,7 @@ async function verificar() {
     v = await automatica.revisar(nuevaAhora(diaSig, '07:30'));
     prueba('con el mes en aprobación, no se crea otro proyecto', v.estado === 'ya_existe' && (await proyectosDelMes(anioSig, mesSig)).length === 1);
   } finally {
+    await db.query('DELETE FROM proy_aprobadores', [], 'plan:quitar_aprobadores');
     // Limpieza, pase lo que pase: nada de esta prueba debe quedar en la base.
     for (const [rol, permisoId] of prestados) await db.query('DELETE FROM rol_permisos WHERE rol_id = ? AND permiso_id = ?', [rol, permisoId], 'plan:quitar_permiso');
     await db.query('DELETE FROM proy_proyectos WHERE creado_en >= ? AND creado_por = ?', [inicio, admin], 'plan:limpiar_proyectos');
