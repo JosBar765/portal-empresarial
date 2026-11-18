@@ -106,7 +106,7 @@ Reglas por entorno:
 - `JWT_SECRET` (≥ 32 caracteres) **distinto en cada entorno**: con el mismo, un token de producción valdría en staging.
 - `SOCKET_CORS_ORIGIN` con el dominio exacto de cada entorno (sin barra final ni `*`; HTTPS en producción).
 - `DB_*` apuntan a la base de **su** entorno; `DB_PASSWORD` solo puede estar vacía fuera de producción.
-- Las claves de Supabase son del **mismo proyecto** en staging y producción: solo los nombres de bucket separan los entornos. `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_BUCKET_BORRADORES`, `SUPABASE_STORAGE_BUCKET_VIATICOS` y `SUPABASE_STORAGE_BUCKET_INCIDENCIAS` deben ser **distintos** entre staging y producción; el de Incidencias, además, distinto de los otros dos (si no, `[FATAL]`).
+- Las claves de Supabase son del **mismo proyecto** en staging y producción: solo los nombres de bucket separan los entornos. `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_BUCKET_BORRADORES`, `SUPABASE_STORAGE_BUCKET_VIATICOS` y `SUPABASE_STORAGE_BUCKET_INCIDENCIAS` deben ser **distintos** entre staging y producción.
 
 ## 6. Riesgos y qué hacer
 

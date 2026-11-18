@@ -154,11 +154,6 @@ const config = {
   }
 };
 
-// Las fotos de Incidencias tienen su propio bucket (y su propia regla de conservación): no pueden compartirlo con Vales.
-if (config.supabase.bucketIncidencias && [config.supabase.bucket, config.supabase.bucketBorradores].includes(config.supabase.bucketIncidencias)) {
-  problemas.push('SUPABASE_STORAGE_BUCKET_INCIDENCIAS debe ser un bucket propio, distinto de SUPABASE_STORAGE_BUCKET y SUPABASE_STORAGE_BUCKET_BORRADORES.');
-}
-
 if (problemas.length) {
   problemas.forEach(p => console.error(`[FATAL] ${p}`));
   console.error(`[FATAL] ${problemas.length} problema(s) de configuración en el .env (ver .env.example). No se puede arrancar el servidor.`);
