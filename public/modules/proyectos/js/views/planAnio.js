@@ -1,7 +1,7 @@
 // A2 · Plan del año: qué nicho, artículo y plantilla toca cada mes (para toda la región) y la activación automática del proyecto del mes.
 // Ruta: #/plan. Un mes ya activo, en aprobación o cerrado no se puede cambiar; un mes sin plan no se activa solo.
 import { h, icono, montar } from '../utils/dom.js';
-import { cabecera, cargando, interruptor, avisar, aviso } from '../components/ui.js';
+import { cabecera, cargando, interruptor, avisar, aviso, confirmarCambioGlobal } from '../components/ui.js';
 import { iconoAyuda } from '../components/ayuda.js';
 import { modalFormulario } from '../components/modalFormulario.js';
 import { confirmarModal } from '../components/modal.js';
@@ -34,6 +34,7 @@ export async function renderPlanAnio(cont, parametro) {
   // --- Activación automática ---
 
   async function cambiarAjuste(clave, valor) {
+    if (!(await confirmarCambioGlobal())) { dibujar(); return; }
     try {
       await guardarAutomatizacion({ [clave]: valor });
       datos = await obtenerPlan(anio);
@@ -144,7 +145,7 @@ export async function renderPlanAnio(cont, parametro) {
 
   montar(cont,
     cabecera({
-      ayuda: 'plan', titulo: `Plan del año ${anio}`,
+      ayuda: 'plan', global: true, titulo: `Plan del año ${anio}`,
       subtitulo: 'Qué nicho y artículo toca cada mes. El sistema sugiere el nicho del plan y puede activar el proyecto solo.',
       acciones: h('div', { class: 'acciones-cabecera' },
         h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => { anio -= 1; location.hash = `#/plan/${anio}`; } }, icono('chevron-back-outline'), `Año ${anio - 1}`),

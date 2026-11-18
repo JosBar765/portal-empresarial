@@ -1,10 +1,10 @@
 // Orquestador del módulo Proyectos: sesión, rutas por # y conexión en vivo.
 import { state } from './state.js';
-import { $, montar } from './utils/dom.js';
+import { $, h, icono, montar } from './utils/dom.js';
 import { inicialesAvatar } from './utils/formato.js';
 import { sessionCheck, logout, refreshToken } from './api/api.js';
 import { wireSidebar, wireAccountMenu, marcarRuta, mostrarSoloPermitidas } from './layout/sidebar.js';
-import { cargando, estadoError } from './components/ui.js';
+import { cargando, estadoError, estadoVacio } from './components/ui.js';
 import { liberarSalida } from './components/salida.js';
 import { renderInicio } from './views/inicio.js';
 import { renderCatalogos } from './views/catalogos.js';
@@ -32,7 +32,14 @@ import { renderClientesGanados } from './views/clientesGanados.js';
 import { renderKitNicho } from './views/kitNicho.js';
 import { renderPlanAnio } from './views/planAnio.js';
 
-// Cada pantalla pide su propio permiso: entrar a Proyectos solo exige `proyectos.ver`, y la configuración, `proyectos.administrar`.
+// Pantalla que solo cambia el administrador: se explica en lugar de dejar un hueco o saltar a otra.
+function pantallaSoloAdmin(contenedor, nombre) {
+  montar(contenedor, estadoVacio(`${nombre}: solo el administrador`, 'Esta parte de la configuración la cambia únicamente el administrador, porque afecta a todas las tiendas y países. Si necesitas un cambio aquí, pídeselo.', 'lock-closed-outline'),
+    h('div', { class: 'acciones-centradas' }, h('a', { class: 'btn btn--ghost', href: '#/inicio' }, icono('arrow-back-outline'), 'Volver al Centro de configuración')));
+}
+
+// Cada pantalla pide su propio permiso: entrar a Proyectos solo exige `proyectos.ver`; la configuración, `proyectos.configurar` o `proyectos.administrar`.
+// `soloAdmin`: la pantalla es de quien administra; quien solo configura la ve bloqueada, con la explicación, en lugar de saltar a otra.
 const RUTAS = {
   miproyecto: { render: renderMiProyecto, permiso: 'proyectos.gestionar' },
   parahoy: { render: renderParaHoy, permiso: 'proyectos.gestionar' },
@@ -40,9 +47,9 @@ const RUTAS = {
   anteriores: { render: renderAnteriores, permiso: 'proyectos.gestionar' },
   clientes: { render: renderClientes, permiso: 'proyectos.ver' },
   importar: { render: renderImportar, permiso: 'proyectos.clientes.importar' },
-  inicio: { render: renderInicio, permiso: 'proyectos.administrar' },
-  parametros: { render: renderParametros, permiso: 'proyectos.administrar' },
-  reglas: { render: renderReglas, permiso: 'proyectos.administrar' },
+  inicio: { render: renderInicio, permiso: ['proyectos.configurar', 'proyectos.administrar'] },
+  parametros: { render: renderParametros, permiso: ['proyectos.configurar', 'proyectos.administrar'], soloAdmin: 'Parámetros' },
+  reglas: { render: renderReglas, permiso: ['proyectos.configurar', 'proyectos.administrar'], soloAdmin: 'Reglas y aprobaciones' },
   proyectos: { render: renderProyectos, permiso: ['proyectos.activar', 'proyectos.ver_gerencia', 'proyectos.administrar'] },
   seguimiento: { render: renderSeguimiento, permiso: ['proyectos.supervisar', 'proyectos.ver_gerencia', 'proyectos.administrar'] },
   participacion: { render: renderSupervisionEmpresa, permiso: ['proyectos.supervisar', 'proyectos.ver_gerencia', 'proyectos.administrar'] },
@@ -51,14 +58,14 @@ const RUTAS = {
   panel: { render: renderPanel, permiso: ['proyectos.ver_gerencia', 'proyectos.administrar'] },
   vistobueno: { render: renderVistoBueno, permiso: 'proyectos.dar_visto_bueno' },
   aprobaciones: { render: renderAprobaciones, permiso: 'proyectos.aprobar_activacion' },
-  plantillas: { render: renderPlantillas, permiso: 'proyectos.administrar' },
-  notificaciones: { render: renderAvisos, permiso: 'proyectos.administrar' },
-  campos: { render: renderCampos, permiso: 'proyectos.administrar' },
-  kit: { render: renderKitNicho, permiso: 'proyectos.administrar' },
-  plan: { render: renderPlanAnio, permiso: 'proyectos.administrar' },
-  alcance: { render: renderAlcance, permiso: 'proyectos.administrar' },
-  historial: { render: renderHistorial, permiso: 'proyectos.administrar' },
-  catalogos: { render: renderCatalogos, permiso: 'proyectos.administrar' }
+  plantillas: { render: renderPlantillas, permiso: ['proyectos.configurar', 'proyectos.administrar'] },
+  notificaciones: { render: renderAvisos, permiso: ['proyectos.configurar', 'proyectos.administrar'] },
+  campos: { render: renderCampos, permiso: ['proyectos.configurar', 'proyectos.administrar'] },
+  kit: { render: renderKitNicho, permiso: ['proyectos.configurar', 'proyectos.administrar'] },
+  plan: { render: renderPlanAnio, permiso: ['proyectos.configurar', 'proyectos.administrar'] },
+  alcance: { render: renderAlcance, permiso: ['proyectos.configurar', 'proyectos.administrar'], soloAdmin: 'Alcance de usuarios' },
+  historial: { render: renderHistorial, permiso: ['proyectos.configurar', 'proyectos.administrar'] },
+  catalogos: { render: renderCatalogos, permiso: ['proyectos.configurar', 'proyectos.administrar'], soloAdmin: 'Catálogos' }
 };
 // Una ruta puede pedir un permiso o varios (basta con uno).
 const puedeVer = (ruta) => [].concat(RUTAS[ruta].permiso).some(p => state.user.permissions.includes(p));
@@ -115,7 +122,8 @@ async function mostrar(destino) {
   const contenedor = $('#panel-content');
   montar(contenedor, cargando());
   try {
-    await RUTAS[destino.ruta].render(contenedor, destino.parametro);
+    if (RUTAS[destino.ruta].soloAdmin && !state.user.permissions.includes('proyectos.administrar')) pantallaSoloAdmin(contenedor, RUTAS[destino.ruta].soloAdmin);
+    else await RUTAS[destino.ruta].render(contenedor, destino.parametro);
   } catch (error) {
     montar(contenedor, estadoError(error));
   }

@@ -42,7 +42,7 @@ export async function renderPlantillas(cont) {
 
   const zonaLista = h('div', { class: 'panel campos-lista' });
   const zonaEditor = h('div');
-  const barra = barraGuardado({ alDescartar: () => { borrador = aBorrador(seleccion); errores = {}; dibujarEditor(); }, alGuardar: guardar });
+  const barra = barraGuardado({ global: true, alDescartar: () => { borrador = aBorrador(seleccion); errores = {}; dibujarEditor(); }, alGuardar: guardar });
   const cambios = () => {
     const base = aBorrador(seleccion);
     return Object.keys(base).filter(k => JSON.stringify(base[k]) !== JSON.stringify(borrador[k])).length;
@@ -184,7 +184,7 @@ export async function renderPlantillas(cont) {
 
   montar(cont,
     cabecera({
-      ayuda: 'plantillas', titulo: 'Plantillas de proyecto', subtitulo: 'Define duración, etapas y qué puede cambiar el supervisor.',
+      ayuda: 'plantillas', global: true, titulo: 'Plantillas de proyecto', subtitulo: 'Define duración, etapas y qué puede cambiar el supervisor.',
       acciones: h('button', { class: 'btn btn--primary', type: 'button', onclick: () => elegir(copia(NUEVA)) }, icono('add-outline'), 'Nueva plantilla')
     }),
     h('div', { class: 'campos-cuerpo' }, zonaLista, zonaEditor));

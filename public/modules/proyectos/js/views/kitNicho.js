@@ -36,7 +36,7 @@ export async function renderKitNicho(cont) {
 
   const zonaLista = h('div', { class: 'panel campos-lista' });
   const zonaEditor = h('div');
-  const barra = barraGuardado({ alDescartar: () => { borrador = copia(original); errores = {}; dibujarEditor(); }, alGuardar: guardar });
+  const barra = barraGuardado({ global: true, alDescartar: () => { borrador = copia(original); errores = {}; dibujarEditor(); }, alGuardar: guardar });
   const cambios = () => {
     if (!borrador) return 0;
     return (borrador.guion !== original.guion ? 1 : 0) + (borrador.activo !== original.activo ? 1 : 0) + (JSON.stringify(borrador.mensajes) !== JSON.stringify(original.mensajes) ? 1 : 0);
@@ -157,7 +157,7 @@ export async function renderKitNicho(cont) {
   }
 
   montar(cont,
-    cabecera({ ayuda: 'kit', titulo: 'Kit del nicho', subtitulo: 'Guion y mensajes por nicho. El asesor los abre prellenados; el portal no los envía.' }),
+    cabecera({ ayuda: 'kit', global: true, titulo: 'Kit del nicho', subtitulo: 'Guion y mensajes por nicho. El asesor los abre prellenados; el portal no los envía.' }),
     h('div', { class: 'campos-cuerpo' }, zonaLista, zonaEditor));
   await cargarNicho(nicho);
 }

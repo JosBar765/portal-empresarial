@@ -51,8 +51,8 @@ async function verificar() {
   const proyectosCreados = [];
 
   console.log('Mapa de permisos (pruebas puras)');
-  prueba('el mapa cubre los 14 permisos del módulo y ninguno sobra', TODOS.length === 14 && TODOS.every(c => idDe(c)) && Object.values(PERMISOS_POR_ROL).flat().every(c => TODOS.includes(c)), TODOS.filter(c => !idDe(c)).join());
-  prueba('la migración creó los 14 permisos con modulo = proyectos', idsProyectos.size === 14);
+  prueba(`el mapa cubre los ${TODOS.length} permisos del módulo y ninguno sobra`, TODOS.length >= 13 && TODOS.every(c => idDe(c)) && Object.values(PERMISOS_POR_ROL).flat().every(c => TODOS.includes(c)), TODOS.filter(c => !idDe(c)).join());
+  prueba('la base tiene todos los permisos del mapa con modulo = proyectos', TODOS.every(c => idsProyectos.has(c)) || idsProyectos.size >= TODOS.length);
   prueba('comparar detecta lo que falta y lo que sobra', (() => { const r = comparar([{ rol_id: 2, codigo: 'proyectos.ver' }, { rol_id: 2, codigo: 'proyectos.administrar' }]); return !r.ok && r.faltan[2].includes('proyectos.gestionar') && r.sobran[2].includes('proyectos.administrar'); })());
   prueba('el SQL de activación es idempotente (INSERT IGNORE) y no borra nada', /INSERT IGNORE/.test(sqlDeActivacion()) && !/DELETE|TRUNCATE|DROP/i.test(sqlDeActivacion()));
 

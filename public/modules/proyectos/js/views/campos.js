@@ -29,7 +29,7 @@ export async function renderCampos(cont) {
 
   const zonaLista = h('div', { class: 'panel campos-lista' });
   const zonaEditor = h('div');
-  const barra = barraGuardado({ alDescartar: () => { borrador = aBorrador(seleccion); errores = {}; dibujarEditor(); }, alGuardar: guardar });
+  const barra = barraGuardado({ global: true, alDescartar: () => { borrador = aBorrador(seleccion); errores = {}; dibujarEditor(); }, alGuardar: guardar });
   const cambios = () => {
     const base = aBorrador(seleccion);
     return Object.keys(base).filter(k => JSON.stringify(base[k]) !== JSON.stringify(borrador[k])).length;
@@ -153,7 +153,7 @@ export async function renderCampos(cont) {
 
   montar(cont,
     cabecera({
-      ayuda: 'campos', titulo: 'Campos propios de la empresa',
+      ayuda: 'campos', global: true, titulo: 'Campos propios de la empresa',
       subtitulo: 'Datos extra por nicho: aparecen en el formulario, la ficha, los filtros y la plantilla CSV.',
       acciones: h('button', { class: 'btn btn--primary', type: 'button', onclick: () => elegir(NUEVO) }, icono('add-outline'), 'Nuevo campo')
     }),

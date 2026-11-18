@@ -57,7 +57,7 @@ export async function renderAvisos(cont) {
 
   montar(cont,
     cabecera({
-      ayuda: 'avisos', titulo: 'Notificaciones', subtitulo: 'Qué eventos avisan, a quién y con cuánta anticipación.',
+      ayuda: 'avisos', global: true, titulo: 'Notificaciones', subtitulo: 'Qué eventos avisan, a quién y con cuánta anticipación.',
       acciones: h('button', { class: 'btn btn--ghost', type: 'button', onclick: restaurar }, icono('refresh-outline'), 'Restaurar valores por defecto')
     }),
     zona);

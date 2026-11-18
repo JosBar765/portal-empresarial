@@ -1,7 +1,7 @@
 // A0 · Centro de configuración: una tarjeta por área, lo que falta resolver y los últimos cambios.
 import { h, icono, montar } from '../utils/dom.js';
 import { hace, nombreCorto, pluralizar } from '../utils/formato.js';
-import { cabecera, aviso, cargando } from '../components/ui.js';
+import { cabecera, aviso, cargando, esAdministrador } from '../components/ui.js';
 import { obtenerResumen } from '../api/api.js';
 import { textoDeCambio } from './cambios.js';
 
@@ -14,10 +14,14 @@ const NOMBRES_CORTOS_REGLA = {
 const masReciente = (...cambios) => cambios.filter(Boolean).sort((a, b) => (a.fecha < b.fecha ? 1 : -1))[0] || null;
 const pieDe = (cambio, sinCambios) => (cambio ? `${nombreCorto(cambio.usuario)} · ${hace(cambio.fecha)}` : sinCambios);
 
+const SOLO_ADMIN = ['catalogos', 'parametros', 'reglas', 'alcance'];
+
 function tarjeta({ titulo, texto, pie, nombreIcono, ruta, fase }) {
+  const bloqueada = SOLO_ADMIN.includes(ruta) && !esAdministrador();
   const contenido = [
     h('div', { class: 'tarjeta-cabecera' },
       h('span', { class: 'tarjeta-icono' }, icono(nombreIcono)),
+      bloqueada ? h('span', { class: 'etiqueta-fase etiqueta-solo-admin' }, icono('lock-closed-outline'), 'Solo administrador') : null,
       fase ? h('span', { class: 'etiqueta-fase', text: `Fase ${fase}` }) : null),
     h('div', { class: 'tarjeta-titulo', text: titulo }),
     h('div', { class: 'tarjeta-texto', text: texto }),

@@ -23,6 +23,11 @@ const { rateLimit } = require('express-rate-limit');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
 const administrar = requirePermission('proyectos.administrar');
+// La parte operativa de la configuración (plantillas, avisos, kit, campos, plan) la cambian también los supervisores.
+const configurar = (req, res, siguiente) => {
+  const permisos = (req.user && req.user.permissions) || [];
+  return permisos.includes('proyectos.configurar') || permisos.includes('proyectos.administrar') ? siguiente() : res.status(403).json({ error: 'No tienes permiso para realizar esta acción.' });
+};
 const registrar = requirePermission('proyectos.clientes.registrar');
 const importar = requirePermission('proyectos.clientes.importar');
 const activar = requirePermission('proyectos.activar');
@@ -143,40 +148,40 @@ router.get('/config/parametros', administrar, configController.listar('parametro
 router.put('/config/parametros', administrar, configController.guardar('parametros'));
 router.get('/config/reglas', administrar, configController.listar('reglas'));
 router.put('/config/reglas', administrar, configController.guardar('reglas'));
-router.get('/config/avisos', administrar, avisosController.matriz);
-router.put('/config/avisos', administrar, avisosController.guardar);
-router.post('/config/avisos/restaurar', administrar, avisosController.restaurar);
+router.get('/config/avisos', configurar, avisosController.matriz);
+router.put('/config/avisos', configurar, avisosController.guardar);
+router.post('/config/avisos/restaurar', configurar, avisosController.restaurar);
 router.post('/config/ajustes/:clave/restaurar', administrar, (req, res) => configController.restaurar(req, res));
-router.get('/config/resumen', administrar, (req, res) => configController.resumen(req, res));
-router.get('/config/historial', administrar, (req, res) => configController.historial(req, res));
+router.get('/config/resumen', configurar, (req, res) => configController.resumen(req, res));
+router.get('/config/historial', configurar, (req, res) => configController.historial(req, res));
 router.post('/config/historial/:id/restaurar', administrar, (req, res) => configController.restaurarCambio(req, res));
 router.get('/config/paises', administrar, (req, res) => configController.listarPaises(req, res));
 router.put('/config/paises/:id', administrar, (req, res) => configController.guardarPais(req, res));
 
 // Catálogos (A1): nichos, artículos, áreas, canales, resultados, motivos, estructuras y monedas
 // Plantillas de proyecto (A4 y A4b)
-router.get('/config/plantillas', administrar, plantillaController.listar);
-router.post('/config/plantillas', administrar, plantillaController.crear);
-router.put('/config/plantillas/:id', administrar, plantillaController.editar);
-router.patch('/config/plantillas/:id/activa', administrar, plantillaController.cambiarActivo);
+router.get('/config/plantillas', configurar, plantillaController.listar);
+router.post('/config/plantillas', configurar, plantillaController.crear);
+router.put('/config/plantillas/:id', configurar, plantillaController.editar);
+router.patch('/config/plantillas/:id/activa', configurar, plantillaController.cambiarActivo);
 
 // Campos propios de la empresa (A6) y alcance de usuarios por país (A7)
-router.get('/config/campos', administrar, campoController.listar);
-router.post('/config/campos', administrar, campoController.crear);
-router.put('/config/campos/:id', administrar, campoController.editar);
-router.patch('/config/campos/:id/activo', administrar, campoController.cambiarActivo);
-router.get('/config/plan/:anio', administrar, planController.anio);
-router.put('/config/plan/:anio/:mes', administrar, planController.guardarMes);
-router.delete('/config/plan/:anio/:mes', administrar, planController.quitarMes);
-router.get('/config/automatizacion', administrar, configController.listar('automatizacion'));
-router.put('/config/automatizacion', administrar, configController.guardar('automatizacion'));
-router.get('/config/kits', administrar, kitController.listar);
-router.get('/config/kits/:nichoId', administrar, kitController.obtener);
-router.put('/config/kits/:nichoId', administrar, kitController.guardar);
+router.get('/config/campos', configurar, campoController.listar);
+router.post('/config/campos', configurar, campoController.crear);
+router.put('/config/campos/:id', configurar, campoController.editar);
+router.patch('/config/campos/:id/activo', configurar, campoController.cambiarActivo);
+router.get('/config/plan/:anio', configurar, planController.anio);
+router.put('/config/plan/:anio/:mes', configurar, planController.guardarMes);
+router.delete('/config/plan/:anio/:mes', configurar, planController.quitarMes);
+router.get('/config/automatizacion', configurar, configController.listar('automatizacion'));
+router.put('/config/automatizacion', configurar, configController.guardar('automatizacion'));
+router.get('/config/kits', configurar, kitController.listar);
+router.get('/config/kits/:nichoId', configurar, kitController.obtener);
+router.put('/config/kits/:nichoId', configurar, kitController.guardar);
 router.get('/config/alcance', administrar, campoController.listarAlcance);
 router.put('/config/alcance/:usuarioId', administrar, campoController.guardarAlcance);
 
-router.get('/catalogos/:catalogo', administrar, (req, res) => catalogoController.listar(req, res));
+router.get('/catalogos/:catalogo', configurar, (req, res) => catalogoController.listar(req, res));
 router.post('/catalogos/:catalogo', administrar, (req, res) => catalogoController.crear(req, res));
 router.put('/catalogos/:catalogo/:id', administrar, (req, res) => catalogoController.editar(req, res));
 router.patch('/catalogos/:catalogo/:id/activo', administrar, (req, res) => catalogoController.cambiarActivo(req, res));

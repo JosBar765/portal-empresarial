@@ -1289,3 +1289,6 @@ body { font-size: var(--text-sm); line-height: 1.45; }
 .campo-etiqueta-fila > label { margin: 0; }
 .contactos-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .contactos-cabecera .panel-titulo { margin: 0; }
+.aviso-global { margin: 0 0 12px; max-width: 920px; }
+.acciones-centradas { display: flex; justify-content: center; margin-top: 8px; }
+.etiqueta-solo-admin { display: inline-flex; align-items: center; gap: 4px; background: var(--color-surface-muted); color: var(--color-text-secondary); }

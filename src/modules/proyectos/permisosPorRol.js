@@ -9,12 +9,12 @@ const NOMBRES = { 1: 'Administrador', 2: 'Asesor de Ventas', 3: 'Supervisor de V
 const PERMISOS_POR_ROL = {
   [ROLES.ADMINISTRADOR]: [
     'proyectos.ver', 'proyectos.clientes.registrar', 'proyectos.clientes.importar', 'proyectos.activar', 'proyectos.reasignar', 'proyectos.ver_gerencia',
-    'proyectos.ver_reportes', 'proyectos.corregir', 'proyectos.aprobar_activacion', 'proyectos.confirmar_ventas', 'proyectos.administrar'
+    'proyectos.ver_reportes', 'proyectos.corregir', 'proyectos.aprobar_activacion', 'proyectos.confirmar_ventas', 'proyectos.configurar', 'proyectos.administrar'
   ],
   [ROLES.ASESOR]: ['proyectos.ver', 'proyectos.clientes.registrar', 'proyectos.gestionar'],
   [ROLES.SUPERVISOR]: [
     'proyectos.ver', 'proyectos.clientes.registrar', 'proyectos.clientes.importar', 'proyectos.gestionar', 'proyectos.activar', 'proyectos.reasignar',
-    'proyectos.supervisar', 'proyectos.ver_reportes', 'proyectos.corregir', 'proyectos.confirmar_ventas'
+    'proyectos.supervisar', 'proyectos.ver_reportes', 'proyectos.corregir', 'proyectos.confirmar_ventas', 'proyectos.configurar'
   ],
   [ROLES.GERENTE]: ['proyectos.ver', 'proyectos.ver_gerencia', 'proyectos.dar_visto_bueno', 'proyectos.ver_reportes', 'proyectos.aprobar_activacion']
 };
@@ -34,7 +34,8 @@ const DESCRIPCIONES = {
   'proyectos.corregir': 'Anular una cotización o venta equivocada',
   'proyectos.aprobar_activacion': 'Aprobar o rechazar la activación de un proyecto',
   'proyectos.confirmar_ventas': 'Confirmar o rechazar ventas por confirmar',
-  'proyectos.administrar': 'Todo el Centro de configuración'
+  'proyectos.configurar': 'Cambiar plantillas, notificaciones, kit, campos propios y plan del año',
+  'proyectos.administrar': 'Todo el Centro de configuración (catálogos, parámetros, reglas y alcance incluidos)'
 };
 
 // Todos los permisos del módulo, en el orden de la propuesta.

@@ -29,68 +29,70 @@ export const TEXTOS = {
       cambias: ['Desde aquí solo se entra a cada área; los cambios se hacen dentro de ellas.', 'El aviso amarillo de arriba lista lo que falta configurar (por ejemplo, un país sin moneda local) y te lleva directo a resolverlo.'],
       efecto: 'Las tarjetas se actualizan solas con lo que guardes. Casi todo lo que cambies aplica a los proyectos nuevos; lo que ya está en marcha no se mueve.',
       ejemplo: 'La tarjeta «Parámetros» dice «35 ajustes en su valor por defecto»: significa que todavía no cambiaste ninguno y el módulo funciona con los valores recomendados.',
-      ojo: 'No tienes que configurar todo para empezar: con los valores por defecto el módulo ya funciona.'
+      ojo: ['No tienes que configurar todo para empezar: con los valores por defecto el módulo ya funciona.', 'Los supervisores cambian plantillas, notificaciones, kit del nicho, campos propios y plan del año. Catálogos, parámetros, reglas y alcance los cambia solo el administrador (verás un candado).']
     },
     parametros: {
       sirve: 'Aquí están los números y los interruptores que gobiernan el reparto de empresas, el seguimiento, el semáforo, las importaciones, los datos de las empresas y el informe de cierre.',
       cambias: ['Cada ajuste muestra su valor actual, el rango permitido y su valor por defecto; «Restaurar» lo devuelve a como venía.', 'Toca el icono (i) de un ajuste para ver qué es, qué pasa si lo cambias y un ejemplo.', 'Los cambios se guardan juntos con «Guardar cambios».'],
       efecto: [APLICA_NUEVOS, 'Los catálogos, los campos propios, el alcance y las notificaciones sí valen al instante; los parámetros de reparto, seguimiento, semáforo e informe se «congelan» en cada proyecto al activarlo.'],
       ejemplo: 'Si hoy cambias «Días sin gestión para marcar estancada» de 7 a 5, los proyectos que actives desde mañana marcarán empresas estancadas a los 5 días; el proyecto de este mes sigue con 7.',
-      ojo: 'Todo cambio queda en el Historial, con quién lo hizo y el valor anterior, y se puede restaurar.'
+      ojo: ['Todo cambio queda en el Historial, con quién lo hizo y el valor anterior, y se puede restaurar.', 'Solo el administrador cambia esta pantalla, porque afecta a todas las tiendas y países. Los supervisores la ven bloqueada.']
     },
     plantillas: {
       sirve: 'Una plantilla es un molde para crear proyectos. Guarda la duración, las etapas y los valores que el supervisor encontrará ya puestos (artículo, existencia, meta, tope), y decide qué puede cambiar él.',
       cambias: ['Datos generales: nombre, descripción, si está activa y si es la predeterminada (solo una).', 'Etapas: nombre, qué se espera y cuántos días hábiles dura cada una.', 'Valores por defecto: artículo de muestra, existencia sugerida, tope por asesor y meta de venta.', 'Permisos del supervisor: para cada dato, si es editable, está bloqueado (con candado) o es obligatorio.'],
       efecto: ['Al activar un proyecto se guarda una copia de la plantilla: si la editas después, los proyectos que ya la usaron no cambian.', 'Las plantillas no se borran: se desactivan. Una plantilla inactiva ya no se ofrece al crear proyectos.'],
       ejemplo: '«Proyecto mensual estándar» tiene 4 etapas de 5 días hábiles (20 días, 4 semanas). Si bloqueas la meta en 50,000, el supervisor la ve con candado y no puede cambiarla.',
-      ojo: 'Las etapas orientan, no bloquean: sirven para el semáforo y para decir «vas atrasado respecto a la etapa», pero el asesor puede registrar gestiones en cualquier momento.'
+      ojo: ['Las etapas orientan, no bloquean: sirven para el semáforo y para decir «vas atrasado respecto a la etapa», pero el asesor puede registrar gestiones en cualquier momento.', 'La configuración es una sola para todas las tiendas y países. Los supervisores y el administrador pueden cambiar esta pantalla, y todo queda en el Historial con su nombre.']
     },
     reglas: {
       sirve: 'Enciende o apaga pasos extra del flujo de un proyecto: el visto bueno del gerente al cerrar, la aprobación antes de activar y la confirmación de ventas. También define, país por país, si la referencia de cotización y venta es obligatoria.',
       cambias: ['Tres interruptores generales (visto bueno al cerrar, aprobación antes de activar, confirmación de ventas).', 'Una tabla por país: referencia obligatoria y confirmación de ventas (heredar, sí o no).', 'Quién aprueba o confirma no se decide aquí: se asigna a cada rol en Administración → Roles.'],
       efecto: 'Cambiar una regla aplica a los proyectos nuevos. La referencia obligatoria se aplica a las cotizaciones y ventas que se registren desde ahora.',
       ejemplo: 'Si enciendes «Aprobación del gerente antes de activar», el supervisor ya no activa directo: pide la activación, el proyecto queda «esperando aprobación» y, cuando el gerente aprueba, se reparte.',
-      ojo: 'Con todo en su valor por defecto el flujo es el ya aprobado: solo el visto bueno al cerrar viene encendido.'
+      ojo: ['Con todo en su valor por defecto el flujo es el ya aprobado: solo el visto bueno al cerrar viene encendido.', 'Solo el administrador cambia esta pantalla, porque afecta a todas las tiendas y países. Los supervisores la ven bloqueada.']
     },
     avisos: {
       sirve: 'Decide qué eventos avisan por la campana del portal, a qué roles les llegan y, en algunos, con cuánta anticipación. El portal nunca manda correos ni mensajes por su cuenta.',
       cambias: ['Un interruptor por evento y por rol (asesor, supervisor, gerente).', 'La anticipación de los avisos que la tienen (horas, días o unidades).', '«Restaurar valores por defecto» devuelve toda la matriz a como viene.'],
       efecto: 'Cada cambio se guarda al momento y vale desde ya. A quien hizo la acción nunca se le avisa de lo que hizo él mismo, y los avisos se borran solos a los 30 días.',
-      ejemplo: 'Si apagas «Seguimiento vencido» para el supervisor, deja de recibirlo en la campana, pero el asesor sigue recibiéndolo.'
+      ejemplo: 'Si apagas «Seguimiento vencido» para el supervisor, deja de recibirlo en la campana, pero el asesor sigue recibiéndolo.',
+      ojo: 'La configuración es una sola para todas las tiendas y países. Los supervisores y el administrador pueden cambiar esta pantalla, y todo queda en el Historial con su nombre.'
     },
     kit: {
       sirve: 'Para cada nicho puedes escribir un guion de llamada y mensajes de WhatsApp o correo. El asesor los abre desde la ficha de la empresa con los datos ya puestos. El portal no envía nada: solo abre WhatsApp o el correo con el texto listo.',
       cambias: ['El guion de llamada (hasta 4000 caracteres).', 'Los mensajes: título, texto, canal, si están activos y el orden (hasta 20 por kit).', 'Si el kit del nicho está encendido o apagado.'],
       efecto: 'Vale al instante para todos los asesores. Cada cambio queda en el Historial; guardar sin cambiar nada no deja registro.',
       ejemplo: 'El mensaje «Hola {contacto}, soy {asesor} de Premia: te propongo {articulo} para {empresa}» se abre ya completo con los nombres reales.',
-      ojo: 'Solo puedes usar las variables {empresa}, {contacto}, {asesor}, {articulo} y {nicho}. Cualquier otra se rechaza al guardar, con el número del mensaje.'
+      ojo: ['Solo puedes usar las variables {empresa}, {contacto}, {asesor}, {articulo} y {nicho}. Cualquier otra se rechaza al guardar, con el número del mensaje.', 'La configuración es una sola para todas las tiendas y países. Los supervisores y el administrador pueden cambiar esta pantalla, y todo queda en el Historial con su nombre.']
     },
     campos: {
       sirve: 'Los campos propios agregan datos extra a la ficha de la empresa según el nicho, sin programar (por ejemplo «Número de agencias» solo para bancos). Aparecen en el formulario, la ficha, los filtros y la plantilla CSV de importación.',
       cambias: ['Etiqueta y tipo: texto, número, lista, sí/no o fecha.', 'Las opciones, si es una lista.', 'Si es obligatorio y si se ve como columna en la lista.', 'A qué nicho aplica, o a todos.', 'Si está activo.'],
       efecto: ['Un campo nuevo empieza a pedirse al instante.', 'Desactivar un campo no borra datos: deja de pedirse y mostrarse, y los datos que ya estaban vuelven si lo reactivas.'],
       ejemplo: 'Creas «¿Cuántas sucursales tiene?» (número, solo para Bancos y cooperativas, obligatorio): desde ya, al registrar un banco, el formulario lo exige.',
-      ojo: 'El tipo y la clave de un campo no se pueden cambiar después. Para otro tipo, crea otro campo.'
+      ojo: ['El tipo y la clave de un campo no se pueden cambiar después. Para otro tipo, crea otro campo.', 'La configuración es una sola para todas las tiendas y países. Los supervisores y el administrador pueden cambiar esta pantalla, y todo queda en el Historial con su nombre.']
     },
     plan: {
       sirve: 'Es el calendario del año: para cada mes eliges qué nicho, qué artículo de muestra y qué plantilla toca. Alimenta las sugerencias al crear un proyecto y, si quieres, activa los proyectos solos.',
       cambias: ['Nicho, artículo y plantilla de cada mes.', 'La activación automática: encenderla, el día del mes y la hora.'],
       efecto: ['Al crear un proyecto, el asistente propone el nicho, el artículo y la plantilla del plan del mes.', 'Con la activación automática encendida, el sistema crea y activa el proyecto del mes en el día y la hora elegidos.'],
       ejemplo: 'Plan de noviembre: nicho «Bancos y cooperativas». Activación automática el día 0 a las 07:00 = el primer día hábil de noviembre a las 7 de la mañana, hora de Guatemala.',
-      ojo: 'Un mes que ya pasó, o que ya tiene proyecto activo, esperando aprobación o cerrado, no se puede cambiar. Si no se puede crear el proyecto (por ejemplo, sin tiendas libres), no se crea nada y se avisa a los administradores.'
+      ojo: ['Un mes que ya pasó, o que ya tiene proyecto activo, esperando aprobación o cerrado, no se puede cambiar. Si no se puede crear el proyecto (por ejemplo, sin tiendas libres), no se crea nada y se avisa a los administradores.', 'La configuración es una sola para todas las tiendas y países. Los supervisores y el administrador pueden cambiar esta pantalla, y todo queda en el Historial con su nombre.']
     },
     alcance: {
       sirve: 'Define de qué países ve y registra empresas cada persona. Por defecto cada una ve el país de su tienda; aquí amplías o quitas países para casos especiales, por ejemplo un supervisor regional.',
       cambias: ['Agregar o quitar países a una persona.', 'Solo se guardan las diferencias: volver al país de su tienda borra los ajustes.'],
       efecto: 'El cambio es inmediato: afecta a la cartera, al registro de empresas, a la importación y a la ficha. Quitar un país no borra ningún dato: simplemente deja de verse.',
       ejemplo: 'A Carlos, supervisor de Guatemala, le agregas Honduras: desde ya ve y registra empresas de ambos países.',
-      ojo: 'Quien tiene el permiso de gerencia o de administrar ve todos los países, sin importar estos ajustes.'
+      ojo: ['Quien tiene el permiso de gerencia o de administrar ve todos los países, sin importar estos ajustes.', 'Solo el administrador cambia esta pantalla, porque afecta a todas las tiendas y países. Los supervisores la ven bloqueada.']
     },
     historial: {
       sirve: 'Es el registro de todo lo que se ha cambiado en la configuración: quién, cuándo, qué ajuste y cómo estaba antes y después.',
       cambias: ['Se puede filtrar por área, por persona y por fechas.', 'Se puede restaurar un valor anterior.'],
       efecto: 'Restaurar un valor es un cambio nuevo: también queda registrado, y aplica como cualquier otro (a proyectos nuevos o al instante, según el ajuste).',
-      ejemplo: 'Ves que el martes alguien subió «Filas máximas por archivo» de 2000 a 5000. Con «Restaurar» vuelve a 2000 y queda anotado quién lo restauró.'
+      ejemplo: 'Ves que el martes alguien subió «Filas máximas por archivo» de 2000 a 5000. Con «Restaurar» vuelve a 2000 y queda anotado quién lo restauró.',
+      ojo: 'Los supervisores pueden ver el historial; restaurar un valor delicado (catálogos, parámetros, reglas o alcance) lo hace solo el administrador.'
     },
     'catalogos.nichos': {
       sirve: 'Los nichos son los tipos de empresa a los que se vende en cada proyecto (bancos, hoteles, colegios…). Cada empresa de la cartera y cada proyecto pertenece a uno.',
