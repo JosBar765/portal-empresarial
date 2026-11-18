@@ -32,6 +32,24 @@ const MODULOS = [
     color: '#0E7C7B'
   },
   {
+    id: 'viaticos',
+    nombre: 'Calculadora de Viáticos',
+    descripcion: 'Solicita, autoriza y liquida los viáticos de viajes de trabajo.',
+    icono: 'car-outline',
+    path: '/modules/viaticos',
+    permission: 'viaticos.ver',
+    color: '#6B7A3A'
+  },
+  {
+    id: 'incidencias',
+    nombre: 'Incidencias',
+    descripcion: 'Reporta problemas de tus tiendas con fotos; los técnicos los resuelven y quedan registrados.',
+    icono: 'construct-outline',
+    path: '/modules/incidencias',
+    permission: 'incidencias.ver',
+    color: '#C2410C'
+  },
+  {
     id: 'proyectos',
     nombre: 'Proyectos',
     descripcion: 'Proyectos de venta por nicho: reparto de empresas entre asesores, gestión y cierre.',

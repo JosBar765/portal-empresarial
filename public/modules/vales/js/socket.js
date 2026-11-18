@@ -4,6 +4,7 @@ import { roomsParaUsuario } from './permisos.js';
 import { refreshToken, logout } from './api/authApi.js';
 import { cargarBuzon } from './views/buzon.js';
 import { avisarCambioEnModalAutorizar } from './actions/supervisor.js';
+import { avisarCambioBorradores } from './utils/eventosBorradores.js';
 
 export function reproducirBeep() {
   try {
@@ -24,7 +25,12 @@ export function reproducirBeep() {
 export function initSocket() {
   if (typeof io === 'undefined') return;
   state.socket = io({ query: { userId: state.user.id } });
-  window.centroNotificaciones?.iniciar({ socket: state.socket, modulo: 'vales' });
+  // Un vale vencido pasó a Borradores: la notificación abre la lista (import dinámico: evita un ciclo con los formularios).
+  window.centroNotificaciones?.iniciar({
+    socket: state.socket, modulo: 'vales',
+    enlaces: { EXPIRADO_A_BORRADOR: () => import('./forms/borradores.js').then(m => m.abrirModalBorradores()) }
+  });
+  state.socket.on('borradores_nuevos', avisarCambioBorradores);
   window.avisoMantenimiento?.iniciar({ socket: state.socket, rolId: state.user.rolId });
   state.socket.on('connect', () => {
     // `role_X` es independiente de las salas de notificación de vales — todo

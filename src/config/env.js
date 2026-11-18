@@ -147,9 +147,17 @@ const config = {
     url: supabaseUrl,
     secretKey: leer('SUPABASE_SECRET_KEY').trim(),
     bucket: leer('SUPABASE_STORAGE_BUCKET').trim(),
-    bucketBorradores: leer('SUPABASE_STORAGE_BUCKET_BORRADORES').trim()
+    bucketBorradores: leer('SUPABASE_STORAGE_BUCKET_BORRADORES').trim(),
+    bucketViaticos: leer('SUPABASE_STORAGE_BUCKET_VIATICOS').trim(),
+    bucketViaticosRecibos: leer('SUPABASE_STORAGE_BUCKET_VIATICOS_RECIBOS').trim(),
+    bucketIncidencias: leer('SUPABASE_STORAGE_BUCKET_INCIDENCIAS').trim()
   }
 };
+
+// Las fotos de Incidencias tienen su propio bucket (y su propia regla de conservación): no pueden compartirlo con Vales.
+if (config.supabase.bucketIncidencias && [config.supabase.bucket, config.supabase.bucketBorradores].includes(config.supabase.bucketIncidencias)) {
+  problemas.push('SUPABASE_STORAGE_BUCKET_INCIDENCIAS debe ser un bucket propio, distinto de SUPABASE_STORAGE_BUCKET y SUPABASE_STORAGE_BUCKET_BORRADORES.');
+}
 
 if (problemas.length) {
   problemas.forEach(p => console.error(`[FATAL] ${p}`));

@@ -76,14 +76,14 @@ class CapacidadEntregaService {
     }
     if (usuario.rolId === ROL.ASESOR) {
       const yo = await usuarioValeRepository.obtenerPorId(usuario.id);
-      const miTiendaId = yo ? yo.tienda_id : null;
-      const alcanzables = talleresElegiblesDeTienda(await tallerRepository.listarActivos(), miTiendaId).map(t => t.id);
+      const ctx = await tallerRepository.contextoDeTienda(yo && yo.tienda_id ? yo.tienda_id : 0);
+      const alcanzables = talleresElegiblesDeTienda(await tallerRepository.listarActivos(), ctx).map(t => t.id);
       return { conLimite: await this._talleresConLimite(alcanzables), asesorIds: [usuario.id] };
     }
     // Otro rol con ver_cupo que crea vales (tienda 0 = sin tienda: solo generales) ve lo mismo que el asesor; sin vales.crear, todo.
-    const miTiendaId = await valeCatalogoService._tiendaComoAsesor(usuario);
-    if (miTiendaId !== null) {
-      const alcanzables = talleresElegiblesDeTienda(await tallerRepository.listarActivos(), miTiendaId).map(t => t.id);
+    const ctx = await valeCatalogoService._contextoComoAsesor(usuario);
+    if (ctx !== null) {
+      const alcanzables = talleresElegiblesDeTienda(await tallerRepository.listarActivos(), ctx).map(t => t.id);
       return { conLimite: await this._talleresConLimite(alcanzables), asesorIds: [usuario.id] };
     }
     const todos = (await tallerRepository.listarActivos()).map(t => t.id);

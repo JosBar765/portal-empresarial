@@ -1,10 +1,12 @@
 // src/modules/admin/repositories/rolRepository.js
 const db = require('../../../config/database');
+const { CON_PERMISO_SUPERVISAR } = require('./permisoSupervisarSql');
 
 class RolRepository {
   async listarConConteo() {
     return db.query(
-      `SELECT r.*, COUNT(DISTINCT u.id) AS usuarios_count, COUNT(DISTINCT rp.permiso_id) AS permisos_count
+      `SELECT r.*, COUNT(DISTINCT u.id) AS usuarios_count, COUNT(DISTINCT rp.permiso_id) AS permisos_count,
+              ${CON_PERMISO_SUPERVISAR('r.id')} AS es_supervisor
        FROM roles r
        LEFT JOIN usuarios u ON u.rol_id = r.id AND u.activo = 1
        LEFT JOIN rol_permisos rp ON rp.rol_id = r.id

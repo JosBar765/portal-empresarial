@@ -1,0 +1,42 @@
+/* Borradores de solicitudes: acciones de la barra y lista del modal. */
+.vi-toolbar-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.vi-borrador-lista { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.vi-borrador-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.vi-borrador-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.vi-borrador-titulo { font-size: 14px; color: var(--color-text); }
+.vi-borrador-meta { font-size: 12px; color: var(--color-text-secondary); }
+.vi-borrador-vence--alerta { color: var(--color-danger); font-weight: 600; }
+.vi-borrador-acciones { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* Borradores creados por el vencimiento de una solicitud rechazada: etiqueta «Nuevo» y de dónde vienen. */
+.vi-borrador-etiquetas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.vi-borrador-etiqueta { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: var(--radius-full); }
+.vi-borrador-etiqueta--nuevo { background: var(--color-danger-bg); color: var(--color-danger); }
+.vi-borrador-origen { font-size: 12px; font-weight: 600; color: var(--color-warning); overflow-wrap: anywhere; }
+
+/* Globito rojo sobre el botón «Borradores» con la cantidad de borradores nuevos por vencimiento. */
+.vi-btn-borradores { position: relative; }
+.vi-borradores-insignia {
+  position: absolute; top: -7px; right: -7px;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  background: var(--color-danger); color: #FFFFFF;
+  border-radius: var(--radius-full);
+  font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+}
+.vi-borradores-insignia[hidden] { display: none; }
+
+@media (max-width: 560px) {
+  .vi-toolbar-acciones { flex-direction: column; align-items: stretch; }
+  .vi-borrador-item { flex-direction: column; align-items: stretch; }
+  .vi-borrador-acciones .btn { flex: 1; }
+}

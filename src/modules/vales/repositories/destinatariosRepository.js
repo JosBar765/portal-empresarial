@@ -19,6 +19,12 @@ class DestinatariosRepository {
     return rows.map(r => r.id);
   }
 
+  // Administradores activos (el rol se pasa desde valeHelpers para no repetir su id aquí).
+  async listarAdministradores(rolAdministradorId) {
+    const rows = await db.query('SELECT u.id FROM usuarios u WHERE u.rol_id = ? AND u.activo = 1', [rolAdministradorId], 'destinatarios:administradores');
+    return rows.map(r => r.id);
+  }
+
   async listarConPermiso(codigoPermiso) {
     const rows = await db.query(
       `SELECT DISTINCT u.id FROM usuarios u

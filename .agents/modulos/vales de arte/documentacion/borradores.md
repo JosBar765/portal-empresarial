@@ -9,7 +9,17 @@ Quien tiene el permiso `vales.crear` (asesores y supervisores) puede guardar el 
 - Es privado: solo su dueño lo lista, lee, edita, borra o envía (otro usuario recibe «El borrador no existe», también los supervisores).
 - Tope por usuario: parámetro `max_borradores_por_usuario` (15 por defecto, entero de 1 a 200), editable por el Administrador en «Horarios y feriados». Se aplica al crear, no al editar.
 - Adjuntos: mismos límites que un vale (5 MB c/u, JPG/PNG/WEBP y PDF, misma validación de firma). Viven en un bucket aparte (`SUPABASE_STORAGE_BUCKET_BORRADORES`) con nombre `BORRADOR-<id>_<IMAGEN|PDF>_<n>`.
-- Sin sockets, sin notificaciones y sin aviso previo: la lista muestra «Vence en N días» (en rojo con 3 o menos).
+- Sin aviso previo de caducidad: la lista muestra «Vence en N días» (en rojo con 3 o menos).
+
+## Borradores por vencimiento
+Un vale que vence por vigencia (`ESPERANDO_AUTORIZACION` o `RECHAZADO`, `VENCIMIENTO_VIGENCIA`) o por adjuntos cuando se borra el vale entero (`VENCIMIENTO_ADJUNTOS`) pasa a un borrador de su asesor; las modificaciones `MOD-` se borran sin borrador (con su registro en `vale_bajas`). Si un vale con 2 o más talleres solo pierde un taller, sigue vivo y no hay borrador.
+- `borradorService.crearDesdeVale` se llama ANTES del borrado (`valeCreacionService.eliminarVencidoConBorrador`) y copia cliente, producto, material, técnica, acabado, cantidad, cotización, descripción, fechas de entrega y evento, urgente y TODOS los `talleres_solicitados`. Guarda `correlativo_origen`, `origen_motivo` y `visto_en` NULL (migración `vencidos_a_borrador`). El PDF del vale no se copia.
+- NO aplica el tope `max_borradores_por_usuario` (se guarda aunque el asesor ya tenga el máximo) ni el rechazo de «borrador vacío», pero sí cuenta para el tope de los borradores manuales. Caduca a los 30 días como cualquiera (`DIAS_VIGENCIA`).
+- Imágenes y PDF se descargan del bucket principal y se suben al de borradores (máximo 10 y 5), en mejor esfuerzo: un archivo que falla se omite con `console.error` `[Borradores]`. Si falla TODO el borrador, el vale se borra igual y la baja queda con `borrador_id` nulo.
+- El vale que se reenvíe tendrá un correlativo nuevo y revalida todas las reglas (incluida la fecha de entrega).
+- Aviso: el asesor recibe una notificación `EXPIRADO_A_BORRADOR` («venció … y lo guardamos en tus Borradores»); al hacer clic abre la lista de Borradores. Supervisores y talleres reciben el texto de siempre. Sin borrador, el asesor recibe también el de siempre.
+- Insignia roja sobre el botón «Borradores» con los borradores NUEVOS por vencimiento (`origen_motivo` no nulo y `visto_en` nulo), distinta del «(N)» total; se actualiza por socket (evento `borradores_nuevos` a `usuario:<id>`) y al cargar. Al abrir la lista se llama `POST /borradores/vistos`, que marca `visto_en`.
+- En la lista llevan la etiqueta «Venció — basado en <correlativo_origen>» y «Nuevo» hasta que se abren.
 
 ## Envío
 El usuario abre el borrador (mismo modal, precargado) y pulsa «Crear Vale de Arte»: corre el `crearVale` normal con TODAS sus validaciones y `borradorId` en el formulario. Los adjuntos del borrador que no se quitaron se descargan y se suben al bucket normal con el nombre definitivo `{CORR}_...`, sumados a los nuevos (la regla de «al menos un adjunto» y el máximo de 10 imágenes y 5 PDF aplican al conjunto). Si el vale se crea, el borrador se marca enviado (`vale_borradores.enviado_en`, migración `borradores_enviados`) y se borran sus archivos del bucket (también los que el usuario quitó), cada fila de documento en cuanto su archivo se borra y, si todos se borraron, la fila del borrador. Si algún archivo no se puede borrar, el borrador queda marcado como enviado y el vigilante lo reintenta; el error solo va al log `[Borradores]` y el usuario siempre recibe el vale. Un borrador enviado ya no existe para el usuario (no se lista, abre, edita, envía ni cuenta en el tope: «El borrador no existe»). Si `crearVale` falla, no se marca ni se borra nada: el borrador y sus archivos quedan intactos y se puede reenviar. Fuera de producción `eliminar` no borra de Storage (ver `storage_solo_produccion.md`), así que ahí la limpieza solo quita las filas. Un lock por `borradorId` evita crear dos vales con un mismo borrador; un reintento con la misma `idempotencyKey` devuelve el vale ya creado.
@@ -18,7 +28,7 @@ El usuario abre el borrador (mismo modal, precargado) y pulsa «Crear Vale de Ar
 `src/modules/vales/borradorWatcher.js` (arranca en `app.js`, espera `db.listo`, corre cada hora): por cada borrador vencido, y por cada enviado pendiente de limpieza (sin esperar a su vencimiento), borra primero los objetos de Storage y luego la fila; si Storage falla deja la fila y reintenta en el siguiente ciclo. No cubre los archivos huérfanos de envíos anteriores a esta migración (no hay fila que los apunte).
 
 ## API (`/api/vales`, permiso `vales.crear`)
-`GET /borradores`, `GET /borradores/:id`, `POST /borradores`, `PUT /borradores/:id` (`documentosQuitar` como al corregir un vale), `DELETE /borradores/:id`. `POST /` acepta `borradorId` y `documentosQuitar`.
+`GET /borradores`, `GET /borradores/:id`, `POST /borradores`, `PUT /borradores/:id` (`documentosQuitar` como al corregir un vale), `DELETE /borradores/:id`, `POST /borradores/vistos` (marca los de vencimiento como vistos; `GET /borradores` devuelve además `nuevos`). `POST /` acepta `borradorId` y `documentosQuitar`.
 
 ## Cómo verificar
 1. Crear un borrador solo con un campo y otro solo con un PDF; uno vacío debe rechazarse.

@@ -45,6 +45,9 @@ Las migraciones de `database/migrations/` tocan solo la base del propio entorno,
 |---|---|---|
 | Borrar objetos de Storage (incluye el bucket de borradores y los huérfanos) | `supabaseStorage.eliminar` | Solo en producción |
 | Purga de PDF, adjuntos y propuestas por antigüedad | `retencionArchivosWatcher` | Solo en producción |
+| Borrar archivos de Viáticos (fotos de defectos, PDF y comprobantes) al modificar o dar de baja una solicitud | `supabaseStorage.eliminar` (vía `archivosViaticoService.eliminarArchivos`) | Solo en producción |
+| Borrar el PDF de un recibo de Viáticos al quitarlo o si falla su registro (bucket de recibos) | `supabaseStorage.viaticosRecibos.eliminar` (vía `archivosViaticoService.eliminarRecibos`) | Solo en producción |
+| Purga de fotos de Incidencias (reporte y avances) por antigüedad desde el cierre, según el parámetro `meses_retencion_fotos` (0 = conservar siempre) | `retencionFotosWatcher` (Incidencias) | Solo en producción |
 
 Hoy el código no envía correos, notificaciones push ni webhooks, ni llama a APIs de terceros. Detalle del borrado de archivos: `.agents/modulos/vales de arte/documentacion/storage_solo_produccion.md`.
 
@@ -59,7 +62,8 @@ Hoy el código no envía correos, notificaciones push ni webhooks, ni llama a AP
 - `NODE_ENV=staging`. Con HTTPS, la cookie de sesión va con `Secure` en `staging` y `production`.
 - `JWT_SECRET` distinto al de producción: con el mismo, un token de producción sería aceptado en pruebas.
 - `SOCKET_CORS_ORIGIN` con el dominio de pruebas.
-- Un bucket propio para `SUPABASE_STORAGE_BUCKET` y otro (o el mismo) para `SUPABASE_STORAGE_BUCKET_BORRADORES`; ninguno puede ser el de producción. Si las claves de Supabase son las de producción (mismo proyecto), ese par de variables es lo único que separa ambos entornos para las subidas.
+- Un bucket propio para `SUPABASE_STORAGE_BUCKET` otro (o el mismo) para `SUPABASE_STORAGE_BUCKET_BORRADORES` otro para `SUPABASE_STORAGE_BUCKET_VIATICOS` y otro para `SUPABASE_STORAGE_BUCKET_VIATICOS_RECIBOS`; ninguno puede ser el de producción. Si las claves de Supabase son las de producción (mismo proyecto), esas variables son lo único que separa ambos entornos para las subidas.
+- Un bucket propio para `SUPABASE_STORAGE_BUCKET`, otro (o el mismo) para `SUPABASE_STORAGE_BUCKET_BORRADORES` y uno distinto de ambos para `SUPABASE_STORAGE_BUCKET_INCIDENCIAS`; ninguno puede ser el de producción. Si las claves de Supabase son las de producción (mismo proyecto), esas variables son lo único que separa ambos entornos para las subidas.
 - Una base restaurada de producción guarda URLs de archivos reales: leerlas no modifica nada, pero generar un PDF viejo descarga esos archivos.
 - Para restaurar staging desde producción: `npm run staging:refrescar` (ver `reglas_refresco_staging.md`).
 - La base de staging lleva la marca `parametros_sistema.entorno = 'staging'` (se pone una vez con `npm run staging:marcar`).

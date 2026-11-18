@@ -12,7 +12,7 @@ Caso de uso: un asesor de El Salvador que ve licitaciones y solo deben autorizar
 - El vale sigue a la asignación vigente: la autorización se calcula al autorizar, dentro del candado del vale.
 
 ## Administración
-Pestaña Usuarios, icono «Supervisión especial» de un asesor (rol 2). `GET /api/admin/asesores/:id/supervisores` devuelve la asignación, los supervisores asignables (activos, rol 3 con `vales.supervisar`), quién autoriza hoy, los supervisores de su tienda y los vales que esperan acción (autorización o solicitud de modificación). `PUT` con `{ supervisorIds: [...] }` **reemplaza** el conjunto; una lista vacía quita la asignación. El PUT exige `admin.tiendas.gestionar` y valida con mensajes explicativos: asesor existente, supervisores existentes, activos, rol 3 con permiso y sin repetidos.
+Pestaña Usuarios, icono «Supervisión especial» de un asesor (rol 2). `GET /api/admin/asesores/:id/supervisores` devuelve la asignación, los supervisores asignables (activos, de cualquier rol con `vales.supervisar`), quién autoriza hoy, los supervisores de su tienda y los vales que esperan acción (autorización o solicitud de modificación). `PUT` con `{ supervisorIds: [...] }` **reemplaza** el conjunto; una lista vacía quita la asignación. El PUT exige `admin.tiendas.gestionar` y valida con mensajes explicativos: asesor existente, supervisores existentes, activos, con el permiso `vales.supervisar` y sin repetidos.
 
 Antes de confirmar, el modal advierte: «Este asesor tiene N vales esperando autorización; pasarán a ser autorizados por: [nombres]. Los supervisores de su tienda dejarán de verlos.»
 
@@ -25,3 +25,7 @@ En el mismo flujo del PUT (`supervisionAsesorService`):
 
 ## Pasos de producción
 La migración `asesor_supervisores` se aplica sola al arrancar en staging y producción. Nadie tiene filas al inicio: el comportamiento no cambia hasta que el administrador asigne supervisores.
+
+## Filtro de tienda del Buzón
+
+Los vales de un asesor con supervisión especial asignada a ese supervisor **no se ocultan por el filtro de tienda** del Buzón (una tienda, un país o un grupo): solo sus supervisores asignados pueden autorizarlos y, si el filtro los escondiera, el vale esperaría sin que nadie lo viera. Los contadores del Buzón los incluyen, porque se calculan sobre la misma lista ya filtrada. Aplica solo al Buzón y a Trabajo realizado del Supervisor; Administrador y Gerente filtran como siempre, y los demás asesores se filtran por su tienda.
