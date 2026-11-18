@@ -4,8 +4,9 @@ import { h, icono, montar } from '../utils/dom.js';
 import { hace } from '../utils/formato.js';
 import { aviso, avisar, cargando } from '../components/ui.js';
 import { obtenerFichaDeEmpresa, obtenerOpcionesDeGestion, obtenerOpcionesClientes } from '../api/api.js';
-import { chipGestion, formatoMonto, hrefLlamar, hrefWhatsApp, diaCorto, horaDe } from '../utils/gestion.js';
+import { chipGestion, formatoMonto, hrefLlamar, diaCorto, horaDe } from '../utils/gestion.js';
 import { abrirKit } from './kitAsesor.js';
+import { accionesFicha } from '../components/accionesFicha.js';
 import { ventanaContacto } from './clienteFicha.js';
 import { formularioGestion, abrirGestion, abrirCotizacion, abrirVenta, abrirPerdida, abrirDescarte } from './registrosAsesor.js';
 
@@ -32,11 +33,6 @@ export async function renderEmpresaAsesor(cont, parametro) {
 function pintar(cont, ficha, opciones) {
   const alGuardar = (nueva) => pintar(cont, nueva, opciones);
   const { empresa, contactos, registro } = ficha;
-  const principal = contactos.find(c => c.principal) || contactos[0] || null;
-  const telefono = (principal && principal.telefono) || empresa.telefono;
-  const correo = contactos.find(c => c.correo);
-  const llamar = hrefLlamar(telefono);
-  const whatsapp = hrefWhatsApp(telefono);
   const dinero = opciones.monedas;
 
   // Agregar o editar un contacto de la empresa; al guardar, la ficha se vuelve a pedir y se redibuja.
@@ -46,25 +42,6 @@ function pintar(cont, ficha, opciones) {
       ventanaContacto({ id: empresa.id, paisId: empresa.paisId }, opcionesClientes, contacto, async () => { alGuardar(await obtenerFichaDeEmpresa(ficha.id)); });
     } catch (error) { avisar('error', 'No se pudo abrir el formulario', error.message); }
   };
-
-  const enlaceBoton = (href, nombre, texto, extra = {}) => (href
-    ? h('a', { class: 'btn btn--ghost', href, ...extra }, icono(nombre), texto)
-    : h('span', { class: 'btn btn--ghost btn--inactivo', title: 'Sin dato de contacto' }, icono(nombre), texto));
-
-  // --- Menú de más acciones ---
-  const menu = h('div', { class: 'menu-acciones', hidden: '' },
-    h('button', { type: 'button', onclick: () => abrirCotizacion(ficha, opciones, alGuardar) }, icono('document-text-outline'), 'Registrar cotización'),
-    h('button', { type: 'button', onclick: () => abrirVenta(ficha, opciones, alGuardar) }, icono('cash-outline'), 'Registrar venta'),
-    h('button', { type: 'button', class: 'menu-acciones-peligro', onclick: () => abrirPerdida(ficha, opciones, alGuardar) }, icono('thumbs-down-outline'), 'Marcar como perdida'),
-    h('button', { type: 'button', class: 'menu-acciones-peligro', onclick: () => abrirDescarte(ficha, alGuardar) }, icono('close-circle-outline'), 'Descartar empresa'));
-  const botonMenu = h('button', { class: 'btn btn--ghost btn--solo-icono', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': 'Más acciones' }, icono('ellipsis-horizontal'));
-  botonMenu.addEventListener('click', (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; botonMenu.setAttribute('aria-expanded', String(!menu.hidden)); });
-  const cerrarMenu = () => { menu.hidden = true; botonMenu.setAttribute('aria-expanded', 'false'); };
-  document.addEventListener('click', function alClic(e) {
-    if (!menu.isConnected) { document.removeEventListener('click', alClic); return; }
-    if (!menu.contains(e.target)) cerrarMenu();
-  });
-  menu.addEventListener('click', cerrarMenu);
 
   // --- Panel de gestión de escritorio ---
   const panelGestion = ficha.abierta ? (() => {
@@ -79,9 +56,10 @@ function pintar(cont, ficha, opciones) {
       h('div', { class: 'acciones-panel' }, h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => f.reiniciar() }, 'Cancelar'), guardar));
   })() : null;
 
-  const registrarGestionBtn = ficha.abierta ? h('button', { class: 'btn btn--primary', type: 'button', onclick: () => {
+  // En escritorio la gestión es el panel fijo de la derecha; en celular, una hoja inferior.
+  const registrarGestion = () => {
     if (window.matchMedia('(min-width: 1101px)').matches && panelGestion) { panelGestion.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); const c = panelGestion.querySelector('select, input, textarea'); if (c) c.focus(); } else abrirGestion(ficha, opciones, alGuardar);
-  } }, icono('add-outline'), 'Registrar gestión') : null;
+  };
 
   // --- Línea de tiempo ---
   const textoDe = (e) => {
@@ -124,11 +102,14 @@ function pintar(cont, ficha, opciones) {
     h('div', { class: 'pagina-cabecera pagina-cabecera--ficha' },
       h('div', null, h('div', { class: 'mi-proyecto-titulo' }, h('h1', { class: 'pagina-titulo', text: empresa.nombre }), chipGestion(ficha.estado)),
         h('p', { class: 'pagina-subtitulo', text: [empresa.nicho, empresa.estructura, empresa.ciudad].filter(Boolean).join(' · ') })),
-      h('div', { class: 'acciones-cabecera acciones-ficha' },
-        enlaceBoton(llamar, 'call-outline', 'Llamar'), enlaceBoton(whatsapp, 'logo-whatsapp', 'WhatsApp', ENLACE_EXTERNO), correo ? enlaceBoton(`mailto:${correo.correo}`, 'mail-outline', 'Correo') : null,
-        ficha.abierta ? h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => abrirKit(ficha.id) }, icono('chatbubbles-outline'), 'Mensajes y guion') : null,
-        registro.puedeCrearVale ? h('a', { class: 'btn btn--ghost', href: `/modules/vales/?prellenar=proyectos:${ficha.id}&volver=${encodeURIComponent(`#/empresa/${ficha.id}`)}` }, icono('link-outline'), 'Crear vale') : null,
-        ficha.abierta ? h('div', { class: 'menu-contenedor' }, botonMenu, menu) : null, registrarGestionBtn)),
+      h('div', { class: 'acciones-cabecera acciones-ficha' }, accionesFicha({
+        ficha,
+        acciones: {
+          gestion: registrarGestion, cotizacion: () => abrirCotizacion(ficha, opciones, alGuardar), venta: () => abrirVenta(ficha, opciones, alGuardar),
+          perdida: () => abrirPerdida(ficha, opciones, alGuardar), descarte: () => abrirDescarte(ficha, alGuardar), kit: () => abrirKit(ficha.id)
+        },
+        hrefVale: registro.puedeCrearVale ? `/modules/vales/?prellenar=proyectos:${ficha.id}&volver=${encodeURIComponent(`#/empresa/${ficha.id}`)}` : null
+      }))),
     !ficha.abierta ? aviso({ tipo: 'advertencia', titulo: ficha.estado === 'descartada' ? 'Empresa descartada' : 'Solo consulta', texto: ficha.estado === 'descartada' ? 'La descartaste de este proyecto: ya no recibe registros.' : `«${ficha.proyecto.nombre}» ya no está activo: puedes ver lo que se hizo, pero no registrar nada nuevo.` }) : null,
     ficha.seguimientoVencido ? aviso({ tipo: 'error', titulo: `Seguimiento vencido desde el ${diaCorto(ficha.proximaGestion)}`, texto: 'Registra una gestión para fijar la nueva fecha.' }) : null,
     h('div', { class: `ficha-asesor${panelGestion ? '' : ' ficha-asesor--sin-panel'}` },

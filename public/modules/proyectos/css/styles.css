@@ -1300,3 +1300,43 @@ body { font-size: var(--text-sm); line-height: 1.45; }
 .chip-quitar:hover { background: var(--color-border); }
 .aprobadores-paso .control-select { max-width: 360px; }
 .barra-volver { margin: 0 0 12px; }
+
+/* ¿Qué vas a hacer? (ficha de la empresa): Contactar, Registrar y Crear vale */
+.que-hacer { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.que-hacer-rotulo { font-size: var(--text-xs); font-weight: 500; color: var(--color-text-secondary); }
+.que-hacer-fila { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.que-hacer-contenedor { position: relative; }
+.que-hacer-boton { gap: 6px; }
+.que-hacer-boton--abierto { background: var(--color-info-bg); border-color: var(--color-info-text); color: var(--color-info-text); }
+.que-hacer-panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: min(392px, 92vw); max-height: 70vh; overflow-y: auto; padding: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: 0 8px 24px rgba(15, 23, 42, .14); }
+.que-hacer-panel[hidden], .que-hacer-fondo[hidden] { display: none; }
+.que-hacer-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 4px 6px 8px; }
+.que-hacer-titulo { font-size: 15px; font-weight: 600; }
+.que-hacer-cerrar { display: none; }
+.que-hacer-lista { display: flex; flex-direction: column; gap: 6px; }
+.que-hacer-persona { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: var(--radius-md); background: var(--color-surface-muted); }
+.que-hacer-persona-datos { display: flex; align-items: center; gap: 10px; }
+.que-hacer-persona-nombre { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.que-hacer-persona-nombre .chip-estado--principal { margin-left: 0; }
+.que-hacer-persona-acciones { display: flex; flex-wrap: wrap; gap: 6px; }
+.que-hacer-accion--apagada { opacity: .5; cursor: not-allowed; }
+.que-hacer-opcion { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 0; border-radius: var(--radius-md); background: transparent; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.que-hacer-opcion:hover { background: var(--color-surface-muted); }
+.que-hacer-opcion--destacada { background: var(--color-info-bg); }
+.que-hacer-opcion--peligro, .que-hacer-opcion--peligro strong { color: var(--color-danger); }
+.que-hacer-opcion strong, .que-hacer-opcion small { display: block; }
+.que-hacer-opcion small { font-size: var(--text-xs); color: var(--color-text-secondary); }
+.que-hacer-sin-icono { width: 16px; flex: none; }
+.que-hacer-separador { width: 100%; margin: 2px 0; border: 0; border-top: 1px solid var(--color-border); }
+@media (max-width: 700px) {
+  .que-hacer { align-items: stretch; width: 100%; }
+  .que-hacer-fila { flex-wrap: nowrap; justify-content: stretch; }
+  .que-hacer-contenedor, .que-hacer-fila > .que-hacer-boton { flex: 1 1 0; min-width: 0; }
+  .que-hacer-contenedor > .que-hacer-boton { width: 100%; }
+  .que-hacer-boton { justify-content: center; padding-inline: 8px; min-height: 44px; }
+  .que-hacer-fondo { position: fixed; inset: 0; z-index: 90; background: rgba(15, 23, 42, .4); }
+  .que-hacer-panel { position: fixed; z-index: 91; left: 0; right: 0; top: auto; bottom: 0; width: auto; max-height: 85vh; padding: 12px 16px 20px; border: 0; border-radius: 20px 20px 0 0; }
+  .que-hacer-cerrar { display: inline-flex; }
+  .que-hacer-accion { flex: 1 1 0; justify-content: center; min-height: 40px; }
+  .que-hacer-opcion { min-height: 56px; }
+}
