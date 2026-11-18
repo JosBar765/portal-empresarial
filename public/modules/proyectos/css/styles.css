@@ -1299,3 +1299,4 @@ body { font-size: var(--text-sm); line-height: 1.45; }
 .chip-quitar { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 0; border-radius: 50%; background: transparent; color: var(--color-text-secondary); cursor: pointer; }
 .chip-quitar:hover { background: var(--color-border); }
 .aprobadores-paso .control-select { max-width: 360px; }
+.barra-volver { margin: 0 0 12px; }

@@ -83,7 +83,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   // `?prellenar=clientes:<id>` es la recompra desde Clientes ganados: mismos datos, pero el vale no se liga a ningún proyecto.
   const desdeProyectos = /^(proyectos|clientes):(\d+)$/.exec(new URLSearchParams(window.location.search).get('prellenar') || '');
   if (desdeProyectos) {
+    mostrarVolverAProyectos(new URLSearchParams(window.location.search).get('volver'));
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
     if (puede('crear')) (desdeProyectos[1] === 'clientes' ? abrirModalCrearValeRecompra : abrirModalCrearValeDesdeProyectos)(Number(desdeProyectos[2]));
   }
 });
+
+// Quien llegó desde Proyectos puede regresar a su pantalla: solo se acepta una ruta propia de Proyectos («#/empresa/12»), nunca una dirección libre.
+function mostrarVolverAProyectos(destino) {
+  if (!/^#\/[a-z]+(\/[a-z0-9]+)?$/.test(destino || '')) return;
+  const main = document.querySelector('main');
+  if (!main) return;
+  const barra = document.createElement('div');
+  barra.className = 'volver-origen';
+  const enlace = document.createElement('a');
+  enlace.className = 'btn btn--ghost btn--sm';
+  enlace.href = `/modules/proyectos/${destino}`;
+  enlace.textContent = '← Volver a Proyectos';
+  barra.appendChild(enlace);
+  main.prepend(barra);
+}

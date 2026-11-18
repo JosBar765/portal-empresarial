@@ -22,7 +22,7 @@ const ultimaVenta = (e) => `${fechaLarga(e.ultimaVenta.fecha)} · ${formatoMonto
 const totales = (e) => e.totales.map(t => formatoMonto(t.monto, t.moneda)).join(' · ');
 
 // «Crear vale» abre Vales con el vale prellenado para la recompra: solo viaja el id de la empresa, nunca datos personales.
-const hrefCrearVale = (e) => `/modules/vales/?prellenar=clientes:${encodeURIComponent(e.id)}`;
+const hrefCrearVale = (e) => `/modules/vales/?prellenar=clientes:${encodeURIComponent(e.id)}&volver=${encodeURIComponent('#/ganados')}`;
 
 function filaDeTabla(e, puedeVale) {
   return h('tr', null,

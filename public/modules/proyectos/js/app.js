@@ -6,6 +6,8 @@ import { sessionCheck, logout, refreshToken, obtenerMisPermisos } from './api/ap
 import { wireSidebar, wireAccountMenu, marcarRuta, mostrarSoloPermitidas } from './layout/sidebar.js';
 import { cargando, estadoError, estadoVacio } from './components/ui.js';
 import { liberarSalida } from './components/salida.js';
+import { barraVolver } from './components/barraVolver.js';
+import { destinoDeAviso, nombreDePantalla } from './utils/avisosRutas.js';
 import { renderInicio } from './views/inicio.js';
 import { renderCatalogos } from './views/catalogos.js';
 import { renderParametros } from './views/parametros.js';
@@ -80,10 +82,20 @@ function seguirAltoEncabezado() {
   if ('ResizeObserver' in window) new ResizeObserver(fijar).observe(encabezado);
 }
 
+// Un clic en un aviso de la campana lleva a la pantalla relacionada y deja la forma de regresar a donde se estaba.
+async function abrirDesdeAviso(aviso) {
+  const hash = destinoDeAviso(aviso, state.user.permissions);
+  if (!hash) { window.toast && window.toast.info('Proyectos', 'Ese aviso ya no tiene una pantalla a la que llevarte.'); return; }
+  if (hash === window.location.hash) return;
+  if (state.salidaVista && !(await state.salidaVista.confirmar())) return;
+  state.volver = { hash: state.clave ? `#/${state.clave}` : '#/', texto: nombreDePantalla(state.ruta), destino: hash.replace(/^#\//, '') };
+  window.location.hash = hash;
+}
+
 function iniciarConexionEnVivo() {
   if (typeof io === 'undefined') return;
   state.socket = io({ query: { userId: state.user.id } });
-  window.centroNotificaciones?.iniciar({ socket: state.socket, modulo: 'proyectos' });
+  window.centroNotificaciones?.iniciar({ socket: state.socket, modulo: 'proyectos', alAbrir: abrirDesdeAviso });
   state.socket.on('connect', () => state.socket.emit('register_module', [`role_${state.user.rolId}`]));
   // Si cambian los permisos de su rol mientras trabaja, se renueva la sesión y se recarga.
   state.socket.on('permisos_actualizados', async () => {
@@ -118,12 +130,18 @@ async function mostrar(destino) {
   document.body.style.overflow = '';
   state.ruta = destino.ruta;
   state.clave = claveDe(destino);
+  // «Volver» vale solo para la pantalla a la que llevó el aviso: al seguir navegando se descarta.
+  if (state.volver && state.volver.destino !== state.clave) state.volver = null;
   marcarRuta(destino.ruta);
   const contenedor = $('#panel-content');
   montar(contenedor, cargando());
   try {
     if (RUTAS[destino.ruta].soloAdmin && !state.user.permissions.includes('proyectos.administrar')) pantallaSoloAdmin(contenedor, RUTAS[destino.ruta].soloAdmin);
     else await RUTAS[destino.ruta].render(contenedor, destino.parametro);
+    if (state.volver) {
+      const volver = state.volver;
+      contenedor.prepend(barraVolver({ texto: volver.texto, alVolver: () => { state.volver = null; window.location.hash = volver.hash; } }));
+    }
   } catch (error) {
     montar(contenedor, estadoError(error));
   }

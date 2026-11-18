@@ -127,7 +127,7 @@ function pintar(cont, ficha, opciones) {
       h('div', { class: 'acciones-cabecera acciones-ficha' },
         enlaceBoton(llamar, 'call-outline', 'Llamar'), enlaceBoton(whatsapp, 'logo-whatsapp', 'WhatsApp', ENLACE_EXTERNO), correo ? enlaceBoton(`mailto:${correo.correo}`, 'mail-outline', 'Correo') : null,
         ficha.abierta ? h('button', { class: 'btn btn--ghost', type: 'button', onclick: () => abrirKit(ficha.id) }, icono('chatbubbles-outline'), 'Mensajes y guion') : null,
-        registro.puedeCrearVale ? h('a', { class: 'btn btn--ghost', href: `/modules/vales/?prellenar=proyectos:${ficha.id}` }, icono('link-outline'), 'Crear vale') : null,
+        registro.puedeCrearVale ? h('a', { class: 'btn btn--ghost', href: `/modules/vales/?prellenar=proyectos:${ficha.id}&volver=${encodeURIComponent(`#/empresa/${ficha.id}`)}` }, icono('link-outline'), 'Crear vale') : null,
         ficha.abierta ? h('div', { class: 'menu-contenedor' }, botonMenu, menu) : null, registrarGestionBtn)),
     !ficha.abierta ? aviso({ tipo: 'advertencia', titulo: ficha.estado === 'descartada' ? 'Empresa descartada' : 'Solo consulta', texto: ficha.estado === 'descartada' ? 'La descartaste de este proyecto: ya no recibe registros.' : `«${ficha.proyecto.nombre}» ya no está activo: puedes ver lo que se hizo, pero no registrar nada nuevo.` }) : null,
     ficha.seguimientoVencido ? aviso({ tipo: 'error', titulo: `Seguimiento vencido desde el ${diaCorto(ficha.proximaGestion)}`, texto: 'Registra una gestión para fijar la nueva fecha.' }) : null,

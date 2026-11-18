@@ -2397,3 +2397,4 @@
 .form-aviso--proyectos { background: #F5ECF1; border-color: #E5CFDA; color: #5C2E45; }
 .form-aviso--proyectos ion-icon { color: #7A3F5C; }
 input.campo-bloqueado { background: var(--color-surface-muted); color: var(--color-text-secondary); cursor: not-allowed; }
+.volver-origen { margin: 0 0 12px; }
