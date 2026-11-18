@@ -31,6 +31,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  // Este módulo no abre socket: el aviso se mantiene al día consultando al servidor cada 30 s.
+  window.avisoMantenimiento?.iniciar({ rolId: state.user.rolId });
   seguirAltoEncabezado();
   wireAccountMenu();
   wireSidebar();
