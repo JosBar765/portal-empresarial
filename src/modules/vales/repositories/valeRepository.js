@@ -214,6 +214,21 @@ class ValeRepository {
         baja.tallerId || null, baja.tallerNombre || null, baja.borradorId || null, valeId], 'vale:registrar_baja'
     );
     if (registro.affectedRows !== 1) throw new Error('No se pudo registrar la baja del vale.');
+    return registro.insertId;
+  }
+
+  // Copia el historial del vale a `vale_baja_historial` antes del DELETE (el cascade lo borraría), con usuario y taller como foto.
+  async _copiarHistorialABaja(tx, valeId, bajaId) {
+    await tx.query(
+      `INSERT INTO vale_baja_historial (baja_id, usuario_id, usuario_correo, taller_id, taller_nombre, disenador_id,
+         estado_anterior, estado_nuevo, accion, creado_en)
+       SELECT ?, h.usuario_id, u.email, h.taller_id, t.nombre, h.disenador_id, h.estado_anterior, h.estado_nuevo, h.accion, h.creado_en
+       FROM vale_historial h
+       LEFT JOIN usuarios u ON u.id = h.usuario_id
+       LEFT JOIN talleres t ON t.id = h.taller_id
+       WHERE h.vale_id = ? ORDER BY h.id`,
+      [bajaId, valeId], 'vale:copiar_historial_baja'
+    );
   }
 
   // Quitar UN taller (el vale sigue vivo): desactivarlo, ajustar los talleres solicitados y dejar su registro, todo o nada.
@@ -235,7 +250,7 @@ class ValeRepository {
     return db.transaccion(async (tx) => {
       // Bloquea al original para que no compita con una aprobación concurrente.
       if (valeOriginalId) await tx.query('SELECT id FROM vales WHERE id = ? FOR UPDATE', [valeOriginalId], 'vale:bloquear_original');
-      if (baja) await this._registrarBaja(tx, valeId, baja);
+      if (baja) await this._copiarHistorialABaja(tx, valeId, await this._registrarBaja(tx, valeId, baja));
       await tx.query('DELETE FROM vales WHERE id = ?', [valeId], 'vale:delete');
       if (!valeOriginalId) return false;
       const res = await tx.query(

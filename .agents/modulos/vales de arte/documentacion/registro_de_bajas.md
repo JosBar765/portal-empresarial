@@ -1,6 +1,6 @@
 # Registro permanente de vales dados de baja
 
-Cuando un vale se elimina completo, el `DELETE` borra la fila y el cascade se lleva sus talleres, documentos e historial. Para no perder el rastro, cada baja deja una fila en `vale_bajas`, dentro de la **misma transacción** que el borrado.
+Cuando un vale se elimina completo, el `DELETE` borra la fila y el cascade se lleva sus talleres, documentos e historial. Para no perder el rastro, cada baja deja una fila en `vale_bajas` y copia el historial del vale a `vale_baja_historial`, dentro de la **misma transacción** que el borrado.
 
 ## Qué se registra
 
@@ -36,11 +36,26 @@ Una fila por cada taller quitado, en la misma transacción que desactiva el tall
 
 Sin claves foráneas hacia `vales` ni `usuarios`: el registro sobrevive al borrado y a cualquier cambio en los usuarios. Ningún proceso la purga.
 
+## La tabla `vale_baja_historial`
+
+Una fila por cada fila de `vale_historial` del vale eliminado, ligada a su baja por `baja_id`. Se copia **antes** del `DELETE`, en la misma transacción, para poder auditar qué le pasó al vale desde que se creó (también las modificaciones `MOD-` que vencen o se rechazan).
+
+| Columna | Qué guarda |
+|---|---|
+| `baja_id` | Id de la fila de `vale_bajas`. |
+| `usuario_id`, `usuario_correo` | Quien hizo la acción (correo como foto del momento). |
+| `taller_id`, `taller_nombre` | Taller de la acción, si la hubo (nombre como foto del momento). |
+| `disenador_id` | Diseñador de la acción, si la hubo. |
+| `estado_anterior`, `estado_nuevo`, `accion` | Igual que en `vale_historial`. |
+| `creado_en` | Fecha original de la acción. |
+
+Sin claves foráneas y sin purga, igual que `vale_bajas`. `TALLER_QUITADO` no copia historial: el vale sigue vivo y conserva el suyo.
+
 ## Cómo funciona
 
 - `valeBajas.armarBaja(motivo, actorId, { borradorId, tallerId, tallerNombre })` arma el registro; el correo de quien eliminó se lee de `usuarios`, no del token.
 - `valeCreacionService.eliminarValeConArchivos(valeId, baja)` es el único punto de borrado; sin `baja` no registra.
-- `valeRepository.eliminarYReabrirOriginal({ …, baja })` hace el `INSERT … SELECT` desde `vales` **antes** del `DELETE`, en la misma transacción. Si el registro falla, el vale no se borra: nunca se elimina sin dejar rastro.
+- `valeRepository.eliminarYReabrirOriginal({ …, baja })` hace el `INSERT … SELECT` desde `vales` **antes** del `DELETE`, en la misma transacción, y luego copia el historial con `_copiarHistorialABaja`. Si el registro o la copia fallan, el vale no se borra: nunca se elimina sin dejar rastro.
 - `valeCreacionService.eliminarVencidoConBorrador` crea el borrador ANTES de borrar y pasa su id a la baja; si el borrado falla, descarta el borrador.
 - Las columnas `fecha_entrega`, `motivo_rechazo`, `taller_*` y `borrador_id` las agrega la migración `vencidos_a_borrador`. Cambian `valeCreacionService`, `valeAdjuntosService` y `vale_bajas`.
 - Un motivo nuevo es una entrada más en `valeBajas.js` y un `armarBaja` en el camino que borra.
@@ -54,6 +69,11 @@ FROM vale_bajas ORDER BY eliminado_en DESC LIMIT 50;
 
 -- Bajas de un asesor
 SELECT * FROM vale_bajas WHERE asesor_correo = 'asesor@grupopremia.com' ORDER BY eliminado_en DESC;
+
+-- Qué le pasó a un vale antes de eliminarse (su historial completo)
+SELECT h.creado_en, h.usuario_correo, h.taller_nombre, h.estado_anterior, h.estado_nuevo, h.accion
+FROM vale_bajas b JOIN vale_baja_historial h ON h.baja_id = b.id
+WHERE b.correlativo = 'VAL-0001' ORDER BY b.id, h.creado_en, h.id;
 ```
 
 ## Verificación
