@@ -10,12 +10,12 @@ const { createClient } = require('@supabase/supabase-js');
 
 const url = process.env.SUPABASE_URL;
 const secretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-const bucket = process.env.SUPABASE_STORAGE_BUCKET;
+const bucket = process.env.SUPABASE_STORAGE_BUCKET_VALES;
 
 console.log('--- Configuración leída de .env ---');
 console.log('SUPABASE_URL:', url || '(vacío)');
 console.log('SUPABASE_SECRET_KEY / SUPABASE_SERVICE_ROLE_KEY:', secretKey ? `${secretKey.slice(0, 12)}... (${secretKey.length} caracteres)` : '(vacío)');
-console.log('SUPABASE_STORAGE_BUCKET:', bucket || '(vacío)');
+console.log('SUPABASE_STORAGE_BUCKET_VALES:', bucket || '(vacío)');
 console.log('');
 
 if (!url || !secretKey || !bucket) {

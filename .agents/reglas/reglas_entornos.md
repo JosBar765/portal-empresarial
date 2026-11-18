@@ -62,8 +62,8 @@ Hoy el código no envía correos, notificaciones push ni webhooks, ni llama a AP
 - `NODE_ENV=staging`. Con HTTPS, la cookie de sesión va con `Secure` en `staging` y `production`.
 - `JWT_SECRET` distinto al de producción: con el mismo, un token de producción sería aceptado en pruebas.
 - `SOCKET_CORS_ORIGIN` con el dominio de pruebas.
-- Un bucket propio para `SUPABASE_STORAGE_BUCKET` otro (o el mismo) para `SUPABASE_STORAGE_BUCKET_BORRADORES` otro para `SUPABASE_STORAGE_BUCKET_VIATICOS` y otro para `SUPABASE_STORAGE_BUCKET_VIATICOS_RECIBOS`; ninguno puede ser el de producción. Si las claves de Supabase son las de producción (mismo proyecto), esas variables son lo único que separa ambos entornos para las subidas.
-- Un bucket propio para `SUPABASE_STORAGE_BUCKET`, otro (o el mismo) para `SUPABASE_STORAGE_BUCKET_BORRADORES` y para `SUPABASE_STORAGE_BUCKET_INCIDENCIAS`; ninguno puede ser el de producción. Si las claves de Supabase son las de producción (mismo proyecto), esas variables son lo único que separa ambos entornos para las subidas.
+- Un bucket propio para `SUPABASE_STORAGE_BUCKET_VALES` otro (o el mismo) para `SUPABASE_STORAGE_BUCKET_VALES_BORRADORES` otro para `SUPABASE_STORAGE_BUCKET_VIATICOS` y otro para `SUPABASE_STORAGE_BUCKET_VIATICOS_RECIBOS`; ninguno puede ser el de producción. Si las claves de Supabase son las de producción (mismo proyecto), esas variables son lo único que separa ambos entornos para las subidas.
+- Un bucket propio para `SUPABASE_STORAGE_BUCKET_VALES`, otro (o el mismo) para `SUPABASE_STORAGE_BUCKET_VALES_BORRADORES` y para `SUPABASE_STORAGE_BUCKET_INCIDENCIAS`; ninguno puede ser el de producción. Si las claves de Supabase son las de producción (mismo proyecto), esas variables son lo único que separa ambos entornos para las subidas.
 - Una base restaurada de producción guarda URLs de archivos reales: leerlas no modifica nada, pero generar un PDF viejo descarga esos archivos.
 - Para restaurar staging desde producción: `npm run staging:refrescar` (ver `reglas_refresco_staging.md`).
 - La base de staging lleva la marca `parametros_sistema.entorno = 'staging'` (se pone una vez con `npm run staging:marcar`).
