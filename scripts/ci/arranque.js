@@ -70,8 +70,8 @@ async function verificar(base) {
     DB_NAME: process.env.CI_DB_NAME,
     SUPABASE_URL: 'https://ci-falso.supabase.co',
     SUPABASE_SECRET_KEY: 'ci-clave-falsa',
-    SUPABASE_STORAGE_BUCKET_VALES: 'ci-bucket',
-    SUPABASE_STORAGE_BUCKET_VALES_BORRADORES: 'ci-bucket-borradores',
+    SUPABASE_STORAGE_BUCKET_VALES: 'ci-bucket-vales',
+    SUPABASE_STORAGE_BUCKET_VALES_BORRADORES: 'ci-bucket-vales-borradores',
     SUPABASE_STORAGE_BUCKET_VIATICOS: 'ci-bucket-viaticos',
     SUPABASE_STORAGE_BUCKET_VIATICOS_RECIBOS: 'ci-bucket-viaticos-recibos',
     SUPABASE_STORAGE_BUCKET_INCIDENCIAS: 'ci-bucket-incidencias'
