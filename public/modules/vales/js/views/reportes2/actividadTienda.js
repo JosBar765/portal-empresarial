@@ -3,6 +3,8 @@ import { $ } from '../../utils/dom.js';
 import { escapeHtml } from '../../utils/formato.js';
 import { obtenerReporteActividadTienda, descargarReporteActividadTiendaPdf } from '../../api/valesApi.js';
 import { aplicarPeriodoAQuery } from '../../components/barraPeriodoReportes.js';
+import { crearFiltroTiendas } from '/js/menuCascada.js';
+import { paramsDeTienda, valorVigente, resolverTiendaIds } from '../../utils/filtroTiendas.js';
 import { htmlBloqueVigentes, conectarBloqueVigentes } from '../../components/atrasadosVigentes.js';
 import {
   htmlEsqueletoCuerpo, cabeceraPanel, htmlTablaSeccion, SECCIONES_REPORTE, htmlSeccion, conectarSecciones, conectarAcciones
@@ -14,10 +16,13 @@ const INFO_TIENDA = { texto: 'Tienda' };
 const CLAVE_VIGENTES = 'vales:rep2VigentesPlegado';
 const leerPlegadoVigentes = () => { try { return localStorage.getItem(CLAVE_VIGENTES) === '1'; } catch { return false; } };
 
+// Las tiendas con las que se armó el menú: convierten un país o un grupo en su lista de ids (mismo criterio que Reportes).
+let tiendasDelMenu = [];
+
 function construirQuery(periodo) {
   const qs = new URLSearchParams();
   aplicarPeriodoAQuery(qs, periodo);
-  if (state.reporte2.tiendaId) qs.set('tiendaId', state.reporte2.tiendaId);
+  Object.entries(paramsDeTienda(state.reporte2.tiendaId, tiendasDelMenu)).forEach(([clave, valor]) => qs.set(clave, valor));
   return qs;
 }
 
@@ -34,19 +39,8 @@ function htmlVigentes(av) {
   });
 }
 
-function htmlFiltroTienda(data) {
-  const actual = String(state.reporte2.tiendaId || '');
-  const vacio = data.alcance === 'supervisadas' ? T.todasMisTiendas : T.todasLasTiendas;
-  return `<div class="rep-filtros rep2-filtros">
-    <label class="rep2-combo">
-      <span class="rep-filtro-rotulo">${escapeHtml(T.filtroTienda)}</span>
-      <select id="rep2-tienda" aria-label="${escapeHtml(T.filtroTienda)}">
-        <option value="">${escapeHtml(vacio)}</option>
-        ${data.filtros.tiendas.map(t => `<option value="${t.id}"${String(t.id) === actual ? ' selected' : ''}>${escapeHtml(t.nombre)}</option>`).join('')}
-      </select>
-    </label>
-  </div>`;
-}
+// Contenedor del menú global en cascada; el menú se monta tras pintar (ver renderActividadTienda).
+const htmlFiltroTienda = () => '<div class="rep-filtros rep2-filtros"><div class="rep-filtros-fila"><div id="rep2-f-tienda"></div></div></div>';
 
 function htmlVacio(periodo) {
   const ampliar = periodo.tipo !== 'mes';
@@ -75,19 +69,30 @@ const horaActual = () => new Date().toLocaleTimeString('es-GT', { hour: '2-digit
 
 export async function renderActividadTienda(cont, periodo, { recargar, cambiarVentana }) {
   const data = await obtenerReporteActividadTienda(construirQuery(periodo));
+  tiendasDelMenu = data.filtros.tiendas;
+  // Un país o grupo que ya no resuelve a ninguna tienda vuelve a «todas».
+  state.reporte2.tiendaId = valorVigente(state.reporte2.tiendaId, v => resolverTiendaIds(v, tiendasDelMenu));
   cont.innerHTML = `
     <div class="rep2-cab">
       <h3>${escapeHtml(data.titulo)}</h3>
       <p class="rend-meta">${escapeHtml(data.periodo.etiqueta)} · ${escapeHtml(T.actualizado)} ${horaActual()}</p>
     </div>
-    ${htmlFiltroTienda(data)}
+    ${htmlFiltroTienda()}
     ${htmlVigentes(data.atrasadosVigentes)}
     <div class="rend-grid"><section class="rend-panel rend-span-12" id="rep2-panel">${htmlPanel(data, periodo)}</section></div>
     <details class="rend-notas">
       <summary>${escapeHtml(T.notasTitulo)}</summary>
       <ul>${T.notas.map(n => `<li>${n}</li>`).join('')}</ul>
     </details>`;
-  $('#rep2-tienda', cont).addEventListener('change', (e) => { state.reporte2.tiendaId = e.target.value; recargar(); });
+  // El bloque se recrea en cada render: el menú nace de nuevo con la tienda vigente.
+  const menuTienda = crearFiltroTiendas({
+    tiendas: tiendasDelMenu,
+    etiquetaVacio: data.alcance === 'supervisadas' ? T.todasMisTiendas : T.todasLasTiendas,
+    ariaLabel: T.filtroTienda,
+    valorActual: state.reporte2.tiendaId || '',
+    onSeleccionar: (valor) => { state.reporte2.tiendaId = valor === '' || valor == null ? '' : String(valor); recargar(); }
+  });
+  $('#rep2-f-tienda', cont).appendChild(menuTienda.elemento);
   const vigentes = $('#rep2-vigentes', cont);
   if (vigentes) {
     conectarBloqueVigentes(vigentes, (plegado) => { try { localStorage.setItem(CLAVE_VIGENTES, plegado ? '1' : '0'); } catch { /* sin almacenamiento: no se recuerda */ } });

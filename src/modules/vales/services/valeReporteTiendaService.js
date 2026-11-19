@@ -7,7 +7,10 @@ const valeReportePdfService = require('./valeReportePdfService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { esSupervisor, hoyISO } = require('./valeHelpers');
 
+const MAX_TIENDAS_FILTRO = 500;
+
 const { resolverVentanaReporte, rangoDe, etiquetaPeriodo, dentro, antesDe } = valeReporteService.periodo;
+const { etiquetaTiendasFiltro } = valeReporteService;
 
 const TEXTOS = {
   titulo: 'Actividad de tienda',
@@ -22,15 +25,16 @@ const tiendasVisibles = (usuario) => (esSupervisor(usuario) ? reporteRepository.
 const paraMenu = (t) => ({ id: t.id, nombre: t.nombre, codigo: t.codigo ?? null, pais_nombre: t.pais_nombre ?? null, departamento_nombre: t.departamento_nombre ?? null });
 
 class ValeReporteTiendaService {
-  // `filtros`: ventana, fecha, desde, hasta y tiendaId (entero o null, ya validado por el controlador).
+  // `filtros`: ventana, fecha, desde, hasta, tiendaId (entero o null) y tiendaIds (enteros), ya validados por el controlador.
   async obtenerReporte(usuario, filtros = {}) {
     const rango = rangoDe(resolverVentanaReporte(filtros));
     const acotado = esSupervisor(usuario);
     const tiendas = await tiendasVisibles(usuario);
-    const tiendaId = filtros.tiendaId || null;
-    if (tiendaId && !tiendas.some(t => t.id === tiendaId)) throw new ErrorDeNegocio(TEXTOS.tiendaAjena, 400);
+    const elegidas = [...new Set([filtros.tiendaId, ...(filtros.tiendaIds || [])].filter(Boolean))].slice(0, MAX_TIENDAS_FILTRO);
+    // Una tienda fuera de las visibles del usuario no se filtra en silencio: responde 400 sin revelar si existe.
+    if (elegidas.some(id => !tiendas.some(t => t.id === id))) throw new ErrorDeNegocio(TEXTOS.tiendaAjena, 400);
     // Un supervisor sin tiendas queda con un id inexistente: un filtro vacío mostraría todas.
-    const ids = tiendaId ? [tiendaId] : (acotado ? tiendas.map(t => t.id) : []);
+    const ids = elegidas.length ? elegidas : (acotado ? tiendas.map(t => t.id) : []);
     const tiendaSel = new Set(acotado && !ids.length ? [0] : ids);
     const corte = hoyISO();
     const argumentos = {
@@ -41,13 +45,13 @@ class ValeReporteTiendaService {
     const grupos = await valeReporteGruposService.armar(argumentos);
     const vigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosAntesDe: (f) => antesDe(f, rango) });
     const { secciones, totalVales, truncado } = grupos;
-    const nombres = tiendaId ? tiendas.filter(t => t.id === tiendaId).map(t => t.nombre).join(', ') : null;
     return {
       titulo: acotado ? TEXTOS.tituloSupervisor : TEXTOS.titulo,
       alcance: acotado ? 'supervisadas' : 'todas',
       periodo: { ...rango, corte, etiqueta: etiquetaPeriodo(rango), titulo: `Fecha de entrega: ${etiquetaPeriodo(rango)}` },
-      tiendaId,
-      resumenFiltros: [nombres ? `Tiendas: ${nombres}` : TEXTOS.tiendasTodas],
+      tiendaIds: elegidas,
+      // Nombra la selección (tienda, país o grupo) igual que el PDF de Actividad.
+      resumenFiltros: [elegidas.length ? etiquetaTiendasFiltro(elegidas, tiendas) : TEXTOS.tiendasTodas],
       conteos: {
         atrasadosAntes: vigentes.total,
         ...Object.fromEntries(SECCIONES.map(clave => [clave, secciones[clave].total]))

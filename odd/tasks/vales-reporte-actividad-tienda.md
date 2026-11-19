@@ -28,3 +28,4 @@ No test runner. node --check on touched JS, structural readback, contract check 
 
 ## Progress
 Shell committed as 6784a7f6.
+Filtro de tienda cambiado al selector global en cascada (tiendaId/tiendaIds, validación estricta, etiqueta del PDF como Actividad); sin commit aún.

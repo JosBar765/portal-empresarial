@@ -164,11 +164,14 @@ class ValeController {
     }
   }
 
-  // Reporte de actividad de tienda: el período igual que Actividad y, opcional, una tienda.
+  // Reporte de actividad de tienda: el período igual que Actividad y, opcional, lo que emite el filtro en cascada (una tienda o una lista).
+  // A diferencia de Reportes, un id mal formado responde 400 en vez de ignorarse.
   _filtrosReporteTienda(req) {
+    const lista = String(req.query.tiendaIds ?? '').split(',').filter(t => t.trim() !== '');
     return {
       ventana: req.query.ventana, fecha: req.query.fecha, desde: req.query.desde, hasta: req.query.hasta,
-      tiendaId: idOpcional(req.query.tiendaId, 'Tienda')
+      tiendaId: idOpcional(req.query.tiendaId, 'Tienda'),
+      tiendaIds: lista.map(t => idObligatorio(t.trim(), 'Tienda'))
     };
   }
 
