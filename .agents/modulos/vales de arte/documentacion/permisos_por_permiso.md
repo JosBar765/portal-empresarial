@@ -17,6 +17,8 @@ Las acciones, vistas y gates del módulo dependían del **rol** (Asesor, Supervi
 
 Sin cambios, por decisión del dueño: `vales.aprobar_general` (fusión; roles 4 y 7), `vales.trabajar` (también el diseñador), `vales.dar_de_baja` (permiso atómico aparte), `vales.ver`, `vales.ver_reportes`, `vales.ver_historial`.
 
+Permiso posterior: `vales.reporte_actividad_tienda` (rutas `/api/vales/reportes/actividad-tienda` y su `/pdf`). Cubre el reporte «Actividad de tienda» de Reportes 2: solo vales autorizados, agrupados por tienda. El alcance sale del permiso `vales.supervisar`, no del rol: quien lo tiene ve únicamente las tiendas bajo su supervisión (una tienda ajena responde 400); cualquier otro usuario con el permiso del reporte ve todas las tiendas.
+
 Retirados sin sustituto (nadie los consultaba): `vales.editar` y `vales.responder_modificacion_basica`.
 
 ## Reglas

@@ -23,6 +23,7 @@ const valeRechazoPropuestaService = require('./valeRechazoPropuestaService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeReporteService = require('./valeReporteService');
 const valeReportePdfService = require('./valeReportePdfService');
+const valeReporteTiendaService = require('./valeReporteTiendaService');
 const valeAdjuntosService = require('./valeAdjuntosService');
 
 module.exports = {
@@ -43,6 +44,10 @@ module.exports = {
     const [y, m, d] = f.split('-');
     return { reporte, pdf: await valeReportePdfService.generar(reporte, { generadoPor: usuario.nombre, ahora: `${d}/${m}/${y} ${h}`, tipo }) };
   },
+
+  // Reporte de actividad de tienda (Reportes 2)
+  obtenerReporteActividadTienda: (...a) => valeReporteTiendaService.obtenerReporte(...a),
+  generarReporteActividadTiendaPdf: (...a) => valeReporteTiendaService.generarPdf(...a),
 
   // Catálogo
   obtenerCatalogos: (...a) => valeCatalogoService.obtenerCatalogos(...a),

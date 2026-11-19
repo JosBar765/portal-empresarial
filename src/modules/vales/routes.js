@@ -33,6 +33,7 @@ const autorizarCreacionVale = requirePermission('vales.supervisar');
 const crearVale = requirePermission('vales.crear');
 const asignarVale = requirePermission('vales.gestionar_taller');
 const verReportes = requirePermission('vales.ver_reportes');
+const verReporteActividadTienda = requirePermission('vales.reporte_actividad_tienda');
 const trabajarVale = requirePermission('vales.trabajar');
 const revisarVale = requirePermission('vales.gestionar_taller');
 const aprobacionGeneralVale = requirePermission('vales.aprobar_general');
@@ -81,6 +82,8 @@ router.get('/carga-trabajo/:disenadorId', asignarVale, (req, res) => valeControl
 router.get('/', verVales, (req, res) => valeController.buzon(req, res));
 router.get('/reportes', verReportes, limitarReportes, (req, res) => valeController.reportes(req, res));
 router.get('/reportes/pdf', verReportes, limitarReportes, (req, res) => valeController.reportePdf(req, res));
+router.get('/reportes/actividad-tienda', verReporteActividadTienda, limitarReportes, (req, res) => valeController.reporteActividadTienda(req, res));
+router.get('/reportes/actividad-tienda/pdf', verReporteActividadTienda, limitarReportes, (req, res) => valeController.reporteActividadTiendaPdf(req, res));
 router.post('/', crearVale, camposAdjuntos, (req, res) => valeController.crear(req, res));
 
 // Borradores: privados de su dueño; van antes de /:id para que "borradores" no se lea como un id.

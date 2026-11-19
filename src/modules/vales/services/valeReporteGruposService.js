@@ -54,10 +54,10 @@ class ValeReporteGruposService {
   // `soloAtrasadosAntesDe(fechaIso)` (opcional): en lugar del período, devuelve los vales atrasados y abiertos cuya fecha de entrega
   // es ANTERIOR al período («atrasados antes del período») con las mismas reglas de alcance y filtros, como { total, truncado, vales }.
   // `corte`: fecha de la «foto». Es hoy salvo en un período ya cerrado, donde es su último día (cifras al cierre: no cambian después).
-  async armar({ alcance, dentroDelRango, agruparPor, tiendaSel, tallerSel, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO() }) {
+  async armar({ alcance, dentroDelRango, agruparPor, tiendaSel, tallerSel, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO(), soloAutorizados = false }) {
     const alCorte = corte < hoyISO();
     const todos = (await valeRepository.listarTodos())
-      .filter(v => (soloAtrasadosAntesDe ? soloAtrasadosAntesDe(fechaDe(v.fecha_entrega)) : dentroDelRango(fechaDe(v.fecha_entrega))))
+      .filter(v => (!soloAutorizados || !!v.autorizado_en) && (soloAtrasadosAntesDe ? soloAtrasadosAntesDe(fechaDe(v.fecha_entrega)) : dentroDelRango(fechaDe(v.fecha_entrega))))
       .map(enriquecer)
       .filter(v => !soloAtrasadosAntesDe || (alCorte
         // Al cierre: vencido antes del corte y que entonces aún no se aprobaba (hoy abierto, o aprobado después del corte).

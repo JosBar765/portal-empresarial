@@ -797,3 +797,5 @@ module.exports = new ValeReporteService();
 module.exports.MAX_FILAS_PDF = MAX_FILAS_PDF;
 module.exports.etiquetaTiendasFiltro = etiquetaTiendasFiltro;
 module.exports.etiquetaTalleresFiltro = etiquetaTalleresFiltro;
+// Período del reporte de actividad de tienda: mismas ventanas y fechas que Actividad.
+module.exports.periodo = { resolverVentanaReporte, rangoDe, etiquetaPeriodo, dentro, antesDe };

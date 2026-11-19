@@ -25,6 +25,7 @@ const SECCIONES_PDF = [
   { clave: 'noEntregados', titulo: 'NO ENTREGADOS' },
   { clave: 'entregados', titulo: 'ENTREGADOS' }
 ];
+const TITULOS_PDF = { actividad: 'REPORTE DE ACTIVIDAD', rendimiento: 'REPORTE DE RENDIMIENTO', 'actividad-tienda': 'REPORTE DE ACTIVIDAD DE TIENDA' };
 const COLOR_SERIE_A = rgb(0.145, 0.388, 0.922);
 const COLOR_SERIE_B = rgb(0.086, 0.639, 0.29);
 
@@ -154,7 +155,7 @@ class ValeReportePdfService {
   _encabezado(ctx, reporte, generadoPor, ahora) {
     const x0 = MARGIN;
     if (ctx.logo) ctx.page.drawImage(ctx.logo, { x: x0, y: ctx.y - 22, width: 22, height: 22 });
-    this._texto(ctx, reporte.tipo === 'rendimiento' ? 'REPORTE DE RENDIMIENTO' : 'REPORTE DE ACTIVIDAD', x0 + 30, ctx.y - 9, { size: 12, bold: true });
+    this._texto(ctx, TITULOS_PDF[reporte.tipo] || TITULOS_PDF.actividad, x0 + 30, ctx.y - 9, { size: 12, bold: true });
     this._texto(ctx, reporte.titulo, x0 + 30, ctx.y - 20, { size: 8.5, color: GRIS });
     const derecha = [reporte.periodo.titulo || `Período: ${reporte.periodo.etiqueta}`, `Generado: ${ahora}${generadoPor ? ` por ${generadoPor}` : ''}`];
     derecha.forEach((linea, i) => {
@@ -375,7 +376,7 @@ class ValeReportePdfService {
     if (av.grupos) {
       // Agrupados como las demás secciones (por diseñador, asesor, taller o tienda), del más atrasado al menos.
       this._gruposPdf(ctx, av.grupos, 'atrasados', esTaller);
-      if (av.truncado) { this._texto(ctx, `Se muestran los ${av.vales.length} más atrasados de ${av.total}.`, MARGIN, ctx.y - 2, { size: 8, color: GRIS }); ctx.y -= 14; }
+      if (av.truncado) { this._texto(ctx, `Se muestran los ${av.grupos.reduce((s, g) => s + g.vales.length, 0)} más atrasados de ${av.total}.`, MARGIN, ctx.y - 2, { size: 8, color: GRIS }); ctx.y -= 14; }
       return;
     }
     const conResponsable = av.vales.some(v => v.responsable);

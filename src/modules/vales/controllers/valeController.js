@@ -164,6 +164,34 @@ class ValeController {
     }
   }
 
+  // Reporte de actividad de tienda: el período igual que Actividad y, opcional, una tienda.
+  _filtrosReporteTienda(req) {
+    return {
+      ventana: req.query.ventana, fecha: req.query.fecha, desde: req.query.desde, hasta: req.query.hasta,
+      tiendaId: idOpcional(req.query.tiendaId, 'Tienda')
+    };
+  }
+
+  async reporteActividadTienda(req, res) {
+    try {
+      return res.json(await valeService.obtenerReporteActividadTienda(req.user, this._filtrosReporteTienda(req)));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async reporteActividadTiendaPdf(req, res) {
+    try {
+      const { reporte, pdf } = await valeService.generarReporteActividadTiendaPdf(req.user, this._filtrosReporteTienda(req));
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="reporte-actividad-tienda-${reporte.periodo.desde}.pdf"`);
+      res.setHeader('Content-Length', pdf.length);
+      return res.end(pdf);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   // Propuesta de un vale con su nota y enlaces: tipo `taller` (con disenadorId), `general` (la fusión) o `ultima`.
   async propuesta(req, res) {
     try {
