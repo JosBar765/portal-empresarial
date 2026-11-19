@@ -13,6 +13,11 @@ import { tienePermiso } from '../permisos.js';
 let pedidoVigente = 0;
 let barraPeriodo = null;
 
+// El reporte elegido sobrevive a recargar la página (preferencia local del navegador).
+const CLAVE_REPORTE = 'vales:rep2Reporte';
+const leerReporteGuardado = () => { try { return localStorage.getItem(CLAVE_REPORTE) || ''; } catch { return ''; } };
+const guardarReporte = (id) => { try { localStorage.setItem(CLAVE_REPORTE, id); } catch { /* sin almacenamiento: no se recuerda */ } };
+
 // Solo los reportes cuyo permiso tiene la persona (el servidor lo exige igual).
 const catalogoVisible = () => CATALOGO.filter(r => !r.permiso || tienePermiso(r.permiso));
 const reporteElegido = () => catalogoVisible().find(r => r.id === state.reporte2.reporteId) || null;
@@ -58,7 +63,7 @@ function armarShell(cont) {
     obtener: () => state.reporte2.ventana,
     alCambiar: cambiarVentana
   });
-  $('#rep2-combo', cont).addEventListener('change', (e) => { state.reporte2.reporteId = e.target.value; cargarReportes2(); });
+  $('#rep2-combo', cont).addEventListener('change', (e) => { state.reporte2.reporteId = e.target.value; guardarReporte(state.reporte2.reporteId); cargarReportes2(); });
   $('#rep2-actualizar', cont).addEventListener('click', () => cargarReportes2());
   $('#rep2-pdf', cont).addEventListener('click', descargarPdf);
   cont.dataset.wired = '1';
@@ -80,8 +85,10 @@ export async function cargarReportes2() {
   const cont = $('#reportes2-vista');
   armarShell(cont);
   barraPeriodo.pintar();
-  // Un reporte que ya no está en el catálogo se olvida.
-  if (state.reporte2.reporteId && !reporteElegido()) state.reporte2.reporteId = '';
+  // Al abrir la pestaña tras recargar se recupera el último reporte elegido.
+  if (!state.reporte2.reporteId) state.reporte2.reporteId = leerReporteGuardado();
+  // Un reporte que ya no está en el catálogo (o sin permiso) se olvida, también del navegador.
+  if (state.reporte2.reporteId && !reporteElegido()) { state.reporte2.reporteId = ''; guardarReporte(''); }
   const reporte = reporteElegido();
   sincronizarControles(cont, reporte);
   const cuerpo = $('#rep2-cuerpo', cont);
