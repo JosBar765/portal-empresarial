@@ -557,8 +557,8 @@ function renderFichas(data, ev = data.evaluados || []) {
   $('#rep-limpiar', cont).addEventListener('click', () => { r.asesorIds = []; r.disenadorIds = []; cargarReportes(); });
 }
 
-export function cabeceraPanel(titulo, subtitulo, extra = '') {
-  return `<header class="rend-panel-cab"><div><h3>${titulo}</h3><p>${subtitulo}</p></div>${extra}</header>`;
+export function cabeceraPanel(titulo, subtitulo = '', extra = '') {
+  return `<header class="rend-panel-cab"><div><h3>${titulo}</h3>${subtitulo ? `<p>${subtitulo}</p>` : ''}</div>${extra}</header>`;
 }
 
 const vacio = (icono, titulo, texto) => `<div class="rend-vacio"><ion-icon name="${icono}"></ion-icon><h4>${titulo}</h4><p>${texto}</p></div>`;

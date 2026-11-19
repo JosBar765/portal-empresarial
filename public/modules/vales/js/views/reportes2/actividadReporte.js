@@ -16,8 +16,6 @@ const botonVer = (v) => `<button type="button" class="btn-icon" data-ver="${v.id
 
 const horaActual = () => new Date().toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' });
 
-const plural = (n, [uno, varios]) => `${n} ${n === 1 ? uno : varios}`;
-
 function htmlVigentes(av, T) {
   if (!av || !av.total) return '';
   const vales = av.grupos.flatMap(g => g.vales.map(v => ({ v, grupo: g.nombre }))).sort((a, b) => b.v.diasAtraso - a.v.diasAtraso);
@@ -42,10 +40,9 @@ function htmlVacio(periodo, T) {
 function htmlPanel(data, periodo, T) {
   const g = data.grupos;
   const secciones = SECCIONES_REPORTE.map(def => ({ ...def, ...g.secciones[def.clave] })).filter(x => x.total > 0);
-  const grupos = new Set(secciones.flatMap(x => x.grupos.map(gr => gr.id))).size;
-  const sub = `${plural(g.totalVales, ['vale', 'vales'])} · ${plural(grupos, T.unidad)}`;
-  if (!secciones.length) return cabeceraPanel(T.panel, sub) + htmlVacio(periodo, T);
-  return `${cabeceraPanel(T.panel, sub)}
+  // Sin contador de vales: quienes trabajan por adelantado tienen vales con entrega fuera de la ventana y el total confundía.
+  if (!secciones.length) return cabeceraPanel(T.panel) + htmlVacio(periodo, T);
+  return `${cabeceraPanel(T.panel)}
     ${secciones.map(sec => htmlSeccion({
     ...sec, prefijo: 'rep2-sec', sub: sec.clave === 'entregados' ? T.subEntregados : sec.sub, cuerpo: htmlTablaSeccion(sec, { texto: T.columna }, false)
   })).join('')}
