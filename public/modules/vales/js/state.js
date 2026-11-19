@@ -20,7 +20,7 @@ export const state = {
     ventana: { tipo: 'hoy', fecha: isoLocal(new Date()), desde: '', hasta: '' },
     agruparPor: '', tiendaId: '', tallerId: '', asesorIds: [], disenadorIds: [], expandidos: new Set()
   },
-  reporte2: { ventana: { tipo: 'hoy', fecha: isoLocal(new Date()), desde: '', hasta: '' }, reporteId: '', tiendaId: '' }, // Reportes 2: período, reporte y tienda elegidos
+  reporte2: { ventana: { tipo: 'hoy', fecha: isoLocal(new Date()), desde: '', hasta: '' }, reporteId: '', tiendaId: '', tallerId: '', disenadorIds: [], asesorIds: [] }, // Reportes 2: período, reporte y filtros elegidos
   busqueda: '',
   mensajeVacio: '', // texto de la lista vacía que manda el servidor (p. ej. encargado sin taller)
   sort: { key: null, dir: null }, // ídem el orden por columna

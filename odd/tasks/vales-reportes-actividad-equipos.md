@@ -19,8 +19,8 @@ No Figma mockup (owner decision): same layout and behavior as the tienda report.
 ## Tasks
 - [ ] T0 Migration `50_reportes_actividad_equipos.sql` (3 permissions, Administrador only). Written by the parent.
 - [x] T1 Backend (service `valeReporteEquiposService.js`; `armar` gains `entregadoPorTaller` and `permitirVale`; verified by node --check, no test runner): 3 data endpoints + 3 PDFs, reusing the tienda report service/PDF machinery and the Actividad machinery (`armar`, `soloAutorizados`, `soloAtrasadosAntesDe`).
-- [ ] T2 Frontend: 3 catalog entries reusing `reportes2/actividadTienda.js` structure (extract shared render into a common module instead of copying).
-- [ ] T3 Docs: flujo_vale_de_arte.md §11.1, README, permisos_por_permiso.md, correcciones_64.md (check next free number).
+- [x] T2 Frontend (shared render `reportes2/actividadReporte.js`, 3 entries in `actividadEquipos.js`; node --check OK, no test runner, owner does browser check): 3 catalog entries reusing `reportes2/actividadTienda.js` structure (extract shared render into a common module instead of copying).
+- [x] T3 Docs (flujo §11.1, README, correcciones_64.md; permisos_por_permiso.md verified): flujo_vale_de_arte.md §11.1, README, permisos_por_permiso.md, correcciones_64.md (check next free number).
 
 ## Route
 T1 and T2 delegated to separate writers (backend first). Same branch: `feat/vales-reportes-2`.

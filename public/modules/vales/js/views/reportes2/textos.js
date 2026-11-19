@@ -26,6 +26,8 @@ export const TEXTOS_TIENDA = {
   filtroTienda: 'Tienda',
   todasLasTiendas: 'Todas las tiendas',
   todasMisTiendas: 'Todas mis tiendas',
+  columna: 'Tienda',
+  unidad: ['tienda', 'tiendas'],
   panel: 'Vales por tienda',
   actualizado: 'Actualizado',
   vacioTitulo: 'Sin vales con entrega en este período',
@@ -42,3 +44,46 @@ export const TEXTOS_TIENDA = {
     '<strong>Tiendas:</strong> quien supervisa ve solo las tiendas a su cargo; los demás ven todas.'
   ]
 };
+
+// Los reportes de talleres, diseñadores y asesores comparten textos; cambia quién se evalúa y qué significa «Entregado».
+const textosEquipo = ({ etiqueta, columna, unidad, filtro, todos, todosMis, entregado, sub, ultimaNota }) => ({
+  ...TEXTOS_TIENDA,
+  etiqueta,
+  columna,
+  unidad,
+  filtro,
+  todos,
+  todosMis,
+  panel: `Vales por ${unidad[0]}`,
+  subEntregados: sub,
+  notas: [
+    TEXTOS_TIENDA.notas[0],
+    TEXTOS_TIENDA.notas[1],
+    `<strong>Entregado:</strong> ${entregado} Los atrasados y los no entregados siguen abiertos.`,
+    ultimaNota
+  ]
+});
+
+export const TEXTOS_TALLER = textosEquipo({
+  etiqueta: 'Reporte de actividad de talleres', columna: 'Taller', unidad: ['taller', 'talleres'],
+  filtro: 'Taller', todos: 'Todos los talleres', todosMis: 'Todos mis talleres',
+  entregado: 'el Encargado del taller ya aprobó la propuesta; en revisión todavía no cuenta.',
+  sub: 'Ya aprobados por el Encargado',
+  ultimaNota: '<strong>Talleres:</strong> quien gestiona talleres ve solo los suyos; los demás ven todos.'
+});
+
+export const TEXTOS_DISENADOR = textosEquipo({
+  etiqueta: 'Reporte de actividad de diseñadores', columna: 'Diseñador', unidad: ['diseñador', 'diseñadores'],
+  filtro: 'Diseñadores', todos: 'Todos los diseñadores', todosMis: 'Todos mis diseñadores',
+  entregado: 'el Encargado del taller ya aprobó la propuesta; en revisión todavía no cuenta.',
+  sub: 'Ya aprobados por el Encargado',
+  ultimaNota: '<strong>Diseñadores:</strong> quien gestiona talleres ve solo los diseñadores de sus talleres; los demás ven todos.'
+});
+
+export const TEXTOS_ASESOR = textosEquipo({
+  etiqueta: 'Reporte de actividad de asesores', columna: 'Asesor', unidad: ['asesor', 'asesores'],
+  filtro: 'Asesores', todos: 'Todos los asesores', todosMis: 'Todos mis asesores',
+  entregado: 'el vale ya llegó al asesor.',
+  sub: TEXTOS_TIENDA.subEntregados,
+  ultimaNota: '<strong>Asesores:</strong> quien supervisa ve solo a sus asesores y a sí mismo; los demás ven todos.'
+});

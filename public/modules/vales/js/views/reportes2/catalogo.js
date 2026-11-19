@@ -1,5 +1,6 @@
-import { TEXTOS_TIENDA } from './textos.js';
+import { TEXTOS_TIENDA, TEXTOS_TALLER, TEXTOS_DISENADOR, TEXTOS_ASESOR } from './textos.js';
 import { renderActividadTienda, esqueletoActividadTienda, pdfActividadTienda } from './actividadTienda.js';
+import { reporteTaller, reporteDisenador, reporteAsesor } from './actividadEquipos.js';
 
 // Catálogo de Reportes 2: cada reporte nuevo se agrega aquí y la pestaña lo ofrece sola en el combo.
 // { id, etiqueta, permiso, render(contenedor, periodo, { recargar, cambiarVentana }), esqueleto?(), pdf?(periodo) }
@@ -17,5 +18,8 @@ export const CATALOGO = [
     render: renderActividadTienda,
     esqueleto: esqueletoActividadTienda,
     pdf: pdfActividadTienda
-  }
+  },
+  { id: 'actividad-taller', etiqueta: TEXTOS_TALLER.etiqueta, permiso: 'vales.reporte_actividad_taller', ...reporteTaller },
+  { id: 'actividad-disenador', etiqueta: TEXTOS_DISENADOR.etiqueta, permiso: 'vales.reporte_actividad_disenador', ...reporteDisenador },
+  { id: 'actividad-asesor', etiqueta: TEXTOS_ASESOR.etiqueta, permiso: 'vales.reporte_actividad_asesor', ...reporteAsesor }
 ];

@@ -121,22 +121,22 @@ export async function descargarReportePdf(qs) {
   return { blob: await res.blob(), nombre };
 }
 
-// Reporte de actividad de tienda (Reportes 2) y su PDF; mismos parámetros en ambos.
-export async function obtenerReporteActividadTienda(qs) {
-  const res = await fetch(`/api/vales/reportes/actividad-tienda?${qs.toString()}`);
+// Reportes de actividad de Reportes 2 (tienda, taller, diseñador, asesor) y su PDF; mismos parámetros en ambos.
+export async function obtenerReporteActividad(ruta, qs) {
+  const res = await fetch(`/api/vales/reportes/${ruta}?${qs.toString()}`);
   const data = await leerJSON(res);
   if (!res.ok) throw new Error(data.error || 'No se pudo cargar el reporte.');
   return data;
 }
 
-export async function descargarReporteActividadTiendaPdf(qs) {
-  const res = await fetch(`/api/vales/reportes/actividad-tienda/pdf?${qs.toString()}`);
+export async function descargarReporteActividadPdf(ruta, qs) {
+  const res = await fetch(`/api/vales/reportes/${ruta}/pdf?${qs.toString()}`);
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error || 'No se pudo generar el PDF.');
   }
   const disposicion = res.headers.get('Content-Disposition') || '';
-  const nombre = (/filename="([^"]+)"/.exec(disposicion) || [])[1] || 'reporte-actividad-tienda.pdf';
+  const nombre = (/filename="([^"]+)"/.exec(disposicion) || [])[1] || `reporte-${ruta}.pdf`;
   return { blob: await res.blob(), nombre };
 }
 
