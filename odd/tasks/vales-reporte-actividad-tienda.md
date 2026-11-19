@@ -17,8 +17,8 @@ Same essence as the Reportes > Actividad report, focused exclusively on tiendas.
 - [x] T0 (written as `49_reporte_actividad_tienda.sql`, granted only to Administrador like 43_viaticos_reportes; not applied: owner runs `npm run migrate`) Permission `vales.reporte_actividad_tienda`: ONLY an idempotent migration in `database/migrations/` (never seed.sql/schema.sql: they are the initial state, migrations are the source of truth). Written by the parent, not by the code writer.
 - [x] T1 Backend data: route, controller, service (+ repository if needed). Reuse existing report services where possible. Document the permission in the module README / permisos_por_permiso.md.
 - [x] T2 Backend PDF: pdf service + route, file name `reporte-actividad-tienda-<fecha>.pdf`.
-- [ ] T3 Frontend: catalog entry (with permission), render (header meta, tienda selector, vigentes card, sections with flat tables, pipeline), empty/loading/error states, mobile, PDF download.
-- [ ] T4 Docs: flujo_vale_de_arte.md, README.md, permisos_por_permiso.md, correcciones_63.md (check next free number).
+- [x] T3 (node --check ok; sin test runner; prueba en navegador pendiente del dueño) Frontend: catalog entry (with permission), render (header meta, tienda selector, vigentes card, sections with flat tables, pipeline), empty/loading/error states, mobile, PDF download.
+- [x] T4 (correcciones_63.md creado) Docs: flujo_vale_de_arte.md, README.md, permisos_por_permiso.md, correcciones_63.md (check next free number).
 
 ## Route
 T1+T2: one delegated writer (backend). T3+T4: second delegated writer after backend contract is known. Same branch as the shell: `feat/vales-reportes-2`.

@@ -4,6 +4,7 @@ import { escapeHtml } from '../utils/formato.js';
 import { crearBarraPeriodo } from '../components/barraPeriodoReportes.js';
 import { CATALOGO } from './reportes2/catalogo.js';
 import { TEXTOS as T } from './reportes2/textos.js';
+import { tienePermiso } from '../permisos.js';
 
 // -----------------------------------------------------------------------
 // Reportes 2: contenedor de reportes. Un combo elige el reporte; la ventana de tiempo, «Actualizar» y «Descargar PDF»
@@ -12,7 +13,14 @@ import { TEXTOS as T } from './reportes2/textos.js';
 let pedidoVigente = 0;
 let barraPeriodo = null;
 
-const reporteElegido = () => CATALOGO.find(r => r.id === state.reporte2.reporteId) || null;
+// Solo los reportes cuyo permiso tiene la persona (el servidor lo exige igual).
+const catalogoVisible = () => CATALOGO.filter(r => !r.permiso || tienePermiso(r.permiso));
+const reporteElegido = () => catalogoVisible().find(r => r.id === state.reporte2.reporteId) || null;
+
+function cambiarVentana(ventana) {
+  state.reporte2.ventana = ventana;
+  cargarReportes2();
+}
 
 const htmlEstado = (icono, titulo, texto, extra = '', modificador = '') => `
   <div class="rep-estado rep-estado--tarjeta${modificador}">
@@ -39,7 +47,7 @@ function armarShell(cont) {
         <span class="rep-filtro-rotulo">${escapeHtml(T.comboEtiqueta)}</span>
         <select id="rep2-combo" aria-label="${escapeHtml(T.comboEtiqueta)}">
           <option value="">${escapeHtml(T.comboVacio)}</option>
-          ${CATALOGO.map(r => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.etiqueta)}</option>`).join('')}
+          ${catalogoVisible().map(r => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.etiqueta)}</option>`).join('')}
         </select>
       </label>
       <div class="rp-barra" id="rep2-periodo"></div>
@@ -48,7 +56,7 @@ function armarShell(cont) {
   barraPeriodo = crearBarraPeriodo($('#rep2-periodo', cont), {
     prefijo: 'rp2', // ids y campos propios: Reportes ya usa los de por defecto
     obtener: () => state.reporte2.ventana,
-    alCambiar: (ventana) => { state.reporte2.ventana = ventana; barraPeriodo.pintar(); cargarReportes2(); }
+    alCambiar: cambiarVentana
   });
   $('#rep2-combo', cont).addEventListener('change', (e) => { state.reporte2.reporteId = e.target.value; cargarReportes2(); });
   $('#rep2-actualizar', cont).addEventListener('click', () => cargarReportes2());
@@ -79,25 +87,32 @@ export async function cargarReportes2() {
   const cuerpo = $('#rep2-cuerpo', cont);
   const pedido = ++pedidoVigente;
   if (!reporte) {
-    cuerpo.innerHTML = CATALOGO.length
+    delete cuerpo.dataset.reporte;
+    cuerpo.innerHTML = catalogoVisible().length
       ? htmlEstado('analytics-outline', T.vacioTitulo, T.vacioTexto)
       : htmlEstado('analytics-outline', T.vacioTitulo, T.vacioSinCatalogo);
     return;
   }
   cuerpo.setAttribute('aria-busy', 'true');
+  // Al cambiar de reporte (o tras un error) se muestra su esqueleto; al refrescar el mismo, el contenido previo se atenúa.
+  if (cuerpo.dataset.reporte !== reporte.id && reporte.esqueleto) cuerpo.innerHTML = reporte.esqueleto();
+  else cuerpo.classList.add('is-refetching');
   // Se pinta en un nodo aparte y se cambia al terminar: una respuesta vieja nunca pisa a la última.
   const destino = document.createElement('div');
   try {
-    await reporte.render(destino, { ...state.reporte2.ventana });
+    await reporte.render(destino, { ...state.reporte2.ventana }, { recargar: cargarReportes2, cambiarVentana });
     if (pedido !== pedidoVigente) return;
     cuerpo.replaceChildren(...destino.childNodes);
+    cuerpo.dataset.reporte = reporte.id;
   } catch (error) {
     if (pedido !== pedidoVigente) return;
+    delete cuerpo.dataset.reporte;
+    cuerpo.classList.remove('is-refetching');
     cuerpo.innerHTML = htmlEstado('alert-circle-outline', T.errorTitulo, mensajeDeError(error),
       `<button class="btn btn--ghost btn--sm" id="rep2-reintentar" type="button">${escapeHtml(T.reintentar)}</button>`, ' rep-estado--error');
     $('#rep2-reintentar', cuerpo).addEventListener('click', () => cargarReportes2());
   } finally {
-    if (pedido === pedidoVigente) cuerpo.removeAttribute('aria-busy');
+    if (pedido === pedidoVigente) { cuerpo.removeAttribute('aria-busy'); cuerpo.classList.remove('is-refetching'); }
   }
 }
 

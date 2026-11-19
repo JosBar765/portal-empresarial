@@ -15,3 +15,11 @@
 }
 .rep2-combo select:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 #rep2-pdf:disabled, #rep2-actualizar:disabled { opacity: .5; cursor: not-allowed; }
+/* Encabezado y filtro propios de cada reporte (el título de la pestaña ya está arriba) */
+.rep2-cab { margin-bottom: 12px; }
+.rep2-cab h3 { font-family: var(--font-title); font-size: 18px; font-weight: 700; color: var(--color-text); }
+.rep2-filtros { margin-bottom: 14px; }
+@media (max-width: 640px) {
+  .rep2-combo { display: flex; width: 100%; }
+  .rep2-combo select { flex: 1; min-height: 44px; }
+}

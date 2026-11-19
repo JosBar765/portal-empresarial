@@ -159,7 +159,7 @@ export async function cargarReportes() {
 const SUFIJO_ACTUALIZANDO = ' · Actualizando…';
 
 // Primera carga: barras grises con la forma del reporte (controles, aviso y tabla) en vez de un texto suelto.
-function htmlEsqueletoCuerpo() {
+export function htmlEsqueletoCuerpo() {
   const barra = (...mod) => `<span class="rep-esq-barra ${mod.map(m => `rep-esq-barra--${m}`).join(' ')}"></span>`;
   const fila = () => `<div class="rep-esq-fila">${barra('vale')}${barra('persona')}${barra('estado')}${barra('corta')}${barra('pildora-s')}${barra('cuadro')}</div>`;
   return `<div class="rep-esq" role="status" aria-label="Calculando el reporte">
@@ -557,7 +557,7 @@ function renderFichas(data, ev = data.evaluados || []) {
   $('#rep-limpiar', cont).addEventListener('click', () => { r.asesorIds = []; r.disenadorIds = []; cargarReportes(); });
 }
 
-function cabeceraPanel(titulo, subtitulo, extra = '') {
+export function cabeceraPanel(titulo, subtitulo, extra = '') {
   return `<header class="rend-panel-cab"><div><h3>${titulo}</h3><p>${subtitulo}</p></div>${extra}</header>`;
 }
 
@@ -582,13 +582,13 @@ let vistaTaller = false;
 
 // Una sola tabla por sección con todos sus vales: la persona (o taller/tienda) es una columna, no un desplegable.
 // Atrasados y entregados muestran el Atraso (en los entregados, los días con que se entregó).
-function htmlTablaSeccion(sec, info) {
+export function htmlTablaSeccion(sec, info, taller = vistaTaller) { // `taller` explícito: otros reportes no dependen del rol de Reportes
   const conAtraso = sec.clave === 'atrasados' || sec.clave === 'entregados';
   const filas = sec.grupos.flatMap(g => g.vales.map(v => `
     <tr>
-      <td class="rep-c-vale" data-label="Vale"><strong>${escapeHtml(v.correlativo)}</strong>${v.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${vistaTaller ? '' : `<span class="rep-cliente">${escapeHtml(v.cliente)}</span>`}</td>
+      <td class="rep-c-vale" data-label="Vale"><strong>${escapeHtml(v.correlativo)}</strong>${v.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${taller ? '' : `<span class="rep-cliente">${escapeHtml(v.cliente)}</span>`}</td>
       <td class="rep-c-grupo" data-label="${info.texto}"><span class="rep-grupo-nombre"><span class="rep-avatar" aria-hidden="true">${escapeHtml(inicialesAvatar(g.nombre))}</span><span>${escapeHtml(g.nombre)}</span></span></td>
-      ${vistaTaller ? `<td class="rep-c-ingreso" data-label="Fecha de ingreso">${escapeHtml(formatearFechaHora(v.creadoEn))}</td>` : ''}
+      ${taller ? `<td class="rep-c-ingreso" data-label="Fecha de ingreso">${escapeHtml(formatearFechaHora(v.creadoEn))}</td>` : ''}
       <td class="rep-c-estado" data-label="Estado">${celdaEstado(v)}</td>
       <td class="rep-c-entrega fecha-entrega" data-label="Entrega">${escapeHtml(formatearFecha(v.fechaEntrega))}</td>
       ${conAtraso ? `<td class="rep-c-atraso" data-label="Atraso">${sec.clave === 'entregados' ? htmlAtrasoEntregado(v) : htmlAtraso(v)}</td>` : ''}
@@ -598,12 +598,12 @@ function htmlTablaSeccion(sec, info) {
     </tr>`)).join('');
   if (!filas) return '<p class="rep-sin-vales">Sin vales con entrega en este período.</p>';
   const recortado = sec.grupos.some(g => g.recortado);
-  return `<div class="rep-mini-wrap"><table class="rep-mini rep-mini--plana${vistaTaller ? ' rep-mini--taller' : ''}"><thead><tr><th>Vale</th><th>${info.texto}</th>${vistaTaller ? '<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
+  return `<div class="rep-mini-wrap"><table class="rep-mini rep-mini--plana${taller ? ' rep-mini--taller' : ''}"><thead><tr><th>Vale</th><th>${info.texto}</th>${taller ?'<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>
     ${recortado ? '<p class="rep-nota">Se muestran los vales más urgentes; acota el período o los filtros para ver el resto.</p>' : ''}`;
 }
 
 // Secciones del reporte (tras «Atrasados antes del período»): cada una plegable, con su contador.
-const SECCIONES_REPORTE = [
+export const SECCIONES_REPORTE = [
   { clave: 'atrasados', titulo: 'Atrasados en el período', icono: 'alert-circle', sub: 'Entrega en el período, vencidos y aún abiertos' },
   { clave: 'noEntregados', titulo: 'No entregados', icono: 'time-outline', sub: 'En curso y dentro del plazo' },
   { clave: 'entregados', titulo: 'Entregados', icono: 'checkmark-circle', sub: '' }
@@ -617,22 +617,22 @@ const leerSeccionPlegada = (clave) => {
 };
 const guardarSeccionPlegada = (clave, plegada) => { try { localStorage.setItem(`vales:repSec:${clave}`, plegada ? '1' : '0'); } catch { /* sin almacenamiento */ } };
 
-function htmlSeccion({ clave, titulo, icono, sub, total, cuerpo }) {
+export function htmlSeccion({ clave, titulo, icono, sub, total, cuerpo, prefijo = 'rep-sec' }) { // `prefijo` evita ids repetidos entre pestañas
   const plegada = leerSeccionPlegada(clave);
   return `
     <section class="rep-seccion rep-seccion--${clave}" data-seccion="${clave}" aria-label="${escapeHtml(titulo)}">
-      <button type="button" class="rep-seccion-cab" aria-expanded="${!plegada}" aria-controls="rep-sec-${clave}">
+      <button type="button" class="rep-seccion-cab" aria-expanded="${!plegada}" aria-controls="${prefijo}-${clave}">
         <ion-icon name="${icono}" class="rep-seccion-icono" aria-hidden="true"></ion-icon>
         <span class="rep-seccion-titulo">${escapeHtml(titulo)}</span>
         <span class="rep-seccion-n">${total}</span>
         <span class="rep-seccion-sub">${escapeHtml(sub)}</span>
         <ion-icon name="chevron-down-outline" class="rep-seccion-chevron" aria-hidden="true"></ion-icon>
       </button>
-      <div class="rep-seccion-cuerpo" id="rep-sec-${clave}"${plegada ? ' hidden' : ''}>${cuerpo}</div>
+      <div class="rep-seccion-cuerpo" id="${prefijo}-${clave}"${plegada ? ' hidden' : ''}>${cuerpo}</div>
     </section>`;
 }
 
-function conectarSecciones(panel) {
+export function conectarSecciones(panel) {
   panel.querySelectorAll('.rep-seccion').forEach(sec => {
     const cab = $('.rep-seccion-cab', sec);
     cab.addEventListener('click', () => {
@@ -684,7 +684,7 @@ function renderGrupos(data) {
 }
 
 // Acciones de cada vale: ver el vale (PDF) y ver su propuesta.
-function conectarAcciones(cuerpo) {
+export function conectarAcciones(cuerpo) {
   cuerpo.querySelectorAll('[data-ver]').forEach(b => b.addEventListener('click', () => (b.dataset.multitaller
     ? abrirVisorMultitaller({ id: b.dataset.ver, correlativo: b.dataset.correlativo })
     : abrirVisorVale({ id: b.dataset.ver, correlativo: b.dataset.correlativo, propuesta: b.dataset.conPropuesta ? { tipo: 'ultima' } : null }))));
