@@ -19,6 +19,6 @@ La pestaña «Reportes 2» (correcciones 62) no tenía ningún reporte. El prime
 
 - `js/views/reportes2/actividadTienda.js` (nuevo), `catalogo.js`, `textos.js`: reporte, entrada del catálogo y textos.
 - `js/views/reportes2.js`: filtra el catálogo por permiso, esqueleto de carga y contexto `{ recargar, cambiarVentana }` para el reporte.
-- `js/views/reportes.js`: exporta funciones ya existentes (tabla y secciones plegables, esqueleto) sin cambiar su comportamiento; `htmlTablaSeccion` recibe `taller` y `htmlSeccion` un `prefijo` de ids opcionales.
+- `js/views/reportes.js`: exporta funciones ya existentes (tabla y secciones plegables, esqueleto) sin cambiar su comportamiento; `htmlTablaSeccion` recibe `taller` y `htmlSeccion` un `prefijo` de ids opcionales. Son piezas compartidas temporales: Reportes 2 sustituirá a «Reportes» y esa lógica se migrará a `reportes2/` (ver `flujo_vale_de_arte.md` §11.1).
 - `js/api/valesApi.js`, `js/state.js` (`state.reporte2.tiendaId`), `css/reportes2.css`.
 - Backend: rutas, servicio y PDF de `actividad-tienda` (ver `permisos_por_permiso.md`).
