@@ -65,11 +65,13 @@ export function crearReporteActividad({ ruta, textos: T, filtro }) {
     filtro.recibir(data);
     const fichas = filtro.quitar && data.evaluados?.length ? htmlFichas(data.evaluados) : '';
     cont.innerHTML = `
-    <div class="rep2-cab">
-      <h3>${escapeHtml(data.titulo)}</h3>
-      <p class="rend-meta">${escapeHtml(data.periodo.etiqueta)} · ${escapeHtml(T.actualizado)} ${horaActual()}</p>
+    <div class="rep2-cabfila">
+      <div class="rep2-cab">
+        <h3>${escapeHtml(data.titulo)}</h3>
+        <p class="rend-meta">${escapeHtml(data.periodo.etiqueta)} · ${escapeHtml(T.actualizado)} ${horaActual()}</p>
+      </div>
+      <div class="rep-filtros rep2-filtros"><div class="rep-filtros-fila"><div id="${filtro.id}"></div></div></div>
     </div>
-    <div class="rep-filtros rep2-filtros"><div class="rep-filtros-fila"><div id="${filtro.id}"></div></div></div>
     ${fichas}
     ${htmlVigentes(data.atrasadosVigentes, T)}
     <div class="rend-grid"><section class="rend-panel rend-span-12" id="rep2-panel">${htmlPanel(data, periodo, T)}</section></div>

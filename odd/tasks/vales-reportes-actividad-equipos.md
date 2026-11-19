@@ -30,3 +30,4 @@ No test runner. node --check on touched JS, structural readback, contract check 
 
 ## Progress
 Tienda report committed (be625ece). Starting T0/T1.
+Compact lists (frontend CSS + header markup, scoped to `#rep2-panel`, desktop only; docs updated): no test runner, owner does the browser check; commit pending.

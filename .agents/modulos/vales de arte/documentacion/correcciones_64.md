@@ -14,6 +14,7 @@ Reportes 2 solo tenía el reporte por tienda. Faltaban los equivalentes por tall
 - **Alcance por permiso:** `vales.gestionar_taller` ve solo sus talleres y los diseñadores de esos talleres; `vales.supervisar`, solo sus asesores (y a sí mismo) y su zona; los demás, todo. Con ambos permisos se unen los alcances (en Actividad el Supervisor prevalece). El reporte de asesores responde 403 a quien solo tiene `vales.gestionar_taller`.
 - **PDF:** mismo formato que el de tienda, con una barra por taller, diseñador o asesor y sin cliente.
 - **Sin contador total de vales:** los cuatro reportes de actividad (tienda, talleres, diseñadores y asesores) ya no muestran bajo «Vales por …» la línea «N vales · M …». Talleres y diseñadores pueden adelantar trabajo, así que su total de vales con entrega en la ventana no representaba su actividad. Quedan los contadores de cada sección. `cabeceraPanel` omite el subtítulo si no se le pasa.
+- **Listas más compactas:** en los cuatro reportes de actividad se reduce el alto de las filas (de ~68 px a ~50 px) con menos relleno vertical en celdas, encabezados de tabla y botones de sección, y el título con su período comparte fila con el filtro. Conservan las dos líneas (cliente y estado con su detalle). Aplica solo dentro de Reportes 2 (`#rep2-panel`, escritorio); la pestaña «Reportes» mantiene su espaciado porque se eliminará.
 
 ## Archivos
 

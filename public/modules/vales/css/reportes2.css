@@ -19,7 +19,17 @@
 .rep2-cab { margin-bottom: 12px; }
 .rep2-cab h3 { font-family: var(--font-title); font-size: 18px; font-weight: 700; color: var(--color-text); }
 .rep2-filtros { margin-bottom: 14px; }
+/* Título con su período y el filtro comparten fila; envuelve en pantallas angostas */
+.rep2-cabfila { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 14px; }
+.rep2-cabfila .rep2-cab, .rep2-cabfila .rep2-filtros { margin-bottom: 0; }
+/* Listas compactas solo en Reportes 2 (la pestaña Reportes comparte clases y conserva su espaciado); el ancho móvil queda como está */
+@media (min-width: 641px) {
+  #rep2-panel .rep-mini th { padding-block: 5px; }
+  #rep2-panel .rep-mini td { padding-block: 4px; }
+  #rep2-panel .rep-seccion-cab { min-height: 36px; padding-block: 4px; }
+}
 @media (max-width: 640px) {
   .rep2-combo { display: flex; width: 100%; }
   .rep2-combo select { flex: 1; min-height: 44px; }
+  .rep2-cabfila .rep2-filtros { width: 100%; }
 }
