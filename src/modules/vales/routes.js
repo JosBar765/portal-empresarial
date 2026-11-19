@@ -34,6 +34,9 @@ const crearVale = requirePermission('vales.crear');
 const asignarVale = requirePermission('vales.gestionar_taller');
 const verReportes = requirePermission('vales.ver_reportes');
 const verReporteActividadTienda = requirePermission('vales.reporte_actividad_tienda');
+const verReporteActividadTaller = requirePermission('vales.reporte_actividad_taller');
+const verReporteActividadDisenador = requirePermission('vales.reporte_actividad_disenador');
+const verReporteActividadAsesor = requirePermission('vales.reporte_actividad_asesor');
 const trabajarVale = requirePermission('vales.trabajar');
 const revisarVale = requirePermission('vales.gestionar_taller');
 const aprobacionGeneralVale = requirePermission('vales.aprobar_general');
@@ -84,6 +87,12 @@ router.get('/reportes', verReportes, limitarReportes, (req, res) => valeControll
 router.get('/reportes/pdf', verReportes, limitarReportes, (req, res) => valeController.reportePdf(req, res));
 router.get('/reportes/actividad-tienda', verReporteActividadTienda, limitarReportes, (req, res) => valeController.reporteActividadTienda(req, res));
 router.get('/reportes/actividad-tienda/pdf', verReporteActividadTienda, limitarReportes, (req, res) => valeController.reporteActividadTiendaPdf(req, res));
+router.get('/reportes/actividad-taller', verReporteActividadTaller, limitarReportes, (req, res) => valeController.reporteActividadEquipo(req, res, 'taller'));
+router.get('/reportes/actividad-taller/pdf', verReporteActividadTaller, limitarReportes, (req, res) => valeController.reporteActividadEquipoPdf(req, res, 'taller'));
+router.get('/reportes/actividad-disenador', verReporteActividadDisenador, limitarReportes, (req, res) => valeController.reporteActividadEquipo(req, res, 'disenador'));
+router.get('/reportes/actividad-disenador/pdf', verReporteActividadDisenador, limitarReportes, (req, res) => valeController.reporteActividadEquipoPdf(req, res, 'disenador'));
+router.get('/reportes/actividad-asesor', verReporteActividadAsesor, limitarReportes, (req, res) => valeController.reporteActividadEquipo(req, res, 'asesor'));
+router.get('/reportes/actividad-asesor/pdf', verReporteActividadAsesor, limitarReportes, (req, res) => valeController.reporteActividadEquipoPdf(req, res, 'asesor'));
 router.post('/', crearVale, camposAdjuntos, (req, res) => valeController.crear(req, res));
 
 // Borradores: privados de su dueño; van antes de /:id para que "borradores" no se lea como un id.

@@ -19,6 +19,8 @@ Sin cambios, por decisión del dueño: `vales.aprobar_general` (fusión; roles 4
 
 Permiso posterior: `vales.reporte_actividad_tienda` (rutas `/api/vales/reportes/actividad-tienda` y su `/pdf`). Cubre el reporte «Actividad de tienda» de Reportes 2: solo vales autorizados, agrupados por tienda. El alcance sale del permiso `vales.supervisar`, no del rol: quien lo tiene ve únicamente las tiendas bajo su supervisión (una tienda ajena responde 400); cualquier otro usuario con el permiso del reporte ve todas las tiendas.
 
+Permisos posteriores: `vales.reporte_actividad_taller`, `vales.reporte_actividad_disenador` y `vales.reporte_actividad_asesor` (rutas `/api/vales/reportes/actividad-taller`, `/actividad-disenador` y `/actividad-asesor`, cada una con su `/pdf`). Solo vales autorizados, agrupados por taller, diseñador o asesor; «entregado» es, en talleres y diseñadores, que el Encargado ya aprobó la parte del taller (en revisión no cuenta) y, en asesores, que el vale ya llegó al asesor. El alcance sale de los permisos, no del rol: `vales.gestionar_taller` ve solo sus talleres y los diseñadores de ellos; `vales.supervisar` ve solo sus asesores (y a sí mismo) y, en talleres y diseñadores, los vales de esos asesores en los talleres de su zona (los generales y los Diseño Local de sus tiendas); quien tiene ambos ve la unión; cualquier otro con el permiso del reporte ve todo. El reporte de asesores no se ofrece a quien solo tiene `gestionar_taller` (403). Un filtro fuera del alcance responde 400.
+
 Retirados sin sustituto (nadie los consultaba): `vales.editar` y `vales.responder_modificacion_basica`.
 
 ## Reglas

@@ -195,6 +195,35 @@ class ValeController {
     }
   }
 
+  // Reportes de actividad de talleres, diseñadores y asesores: el período igual que Actividad y la lista de su filtro (id mal formado: 400).
+  _filtrosReporteEquipo(req, tipo) {
+    const lista = (valor, etiqueta) => String(valor ?? '').split(',').filter(t => t.trim() !== '').map(t => idObligatorio(t.trim(), etiqueta));
+    const periodo = { ventana: req.query.ventana, fecha: req.query.fecha, desde: req.query.desde, hasta: req.query.hasta };
+    if (tipo === 'taller') return { ...periodo, tallerId: idOpcional(req.query.tallerId, 'Taller'), tallerIds: lista(req.query.tallerIds, 'Taller') };
+    if (tipo === 'disenador') return { ...periodo, disenadorIds: lista(req.query.disenadorIds, 'Diseñador') };
+    return { ...periodo, asesorIds: lista(req.query.asesorIds, 'Asesor') };
+  }
+
+  async reporteActividadEquipo(req, res, tipo) {
+    try {
+      return res.json(await valeService.obtenerReporteActividadEquipo(tipo, req.user, this._filtrosReporteEquipo(req, tipo)));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async reporteActividadEquipoPdf(req, res, tipo) {
+    try {
+      const { reporte, pdf } = await valeService.generarReporteActividadEquipoPdf(tipo, req.user, this._filtrosReporteEquipo(req, tipo));
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="reporte-actividad-${tipo}-${reporte.periodo.desde || 'historial'}.pdf"`);
+      res.setHeader('Content-Length', pdf.length);
+      return res.end(pdf);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   // Propuesta de un vale con su nota y enlaces: tipo `taller` (con disenadorId), `general` (la fusión) o `ultima`.
   async propuesta(req, res) {
     try {

@@ -25,7 +25,8 @@ const SECCIONES_PDF = [
   { clave: 'noEntregados', titulo: 'NO ENTREGADOS' },
   { clave: 'entregados', titulo: 'ENTREGADOS' }
 ];
-const TITULOS_PDF = { actividad: 'REPORTE DE ACTIVIDAD', rendimiento: 'REPORTE DE RENDIMIENTO', 'actividad-tienda': 'REPORTE DE ACTIVIDAD DE TIENDA' };
+const TITULOS_PDF = { actividad: 'REPORTE DE ACTIVIDAD', rendimiento: 'REPORTE DE RENDIMIENTO', 'actividad-tienda': 'REPORTE DE ACTIVIDAD DE TIENDA',
+  'actividad-taller': 'REPORTE DE ACTIVIDAD DE TALLERES', 'actividad-disenador': 'REPORTE DE ACTIVIDAD DE DISEÑADORES', 'actividad-asesor': 'REPORTE DE ACTIVIDAD DE ASESORES' };
 const COLOR_SERIE_A = rgb(0.145, 0.388, 0.922);
 const COLOR_SERIE_B = rgb(0.086, 0.639, 0.29);
 

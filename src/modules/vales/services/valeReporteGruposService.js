@@ -54,7 +54,8 @@ class ValeReporteGruposService {
   // `soloAtrasadosAntesDe(fechaIso)` (opcional): en lugar del período, devuelve los vales atrasados y abiertos cuya fecha de entrega
   // es ANTERIOR al período («atrasados antes del período») con las mismas reglas de alcance y filtros, como { total, truncado, vales }.
   // `corte`: fecha de la «foto». Es hoy salvo en un período ya cerrado, donde es su último día (cifras al cierre: no cambian después).
-  async armar({ alcance, dentroDelRango, agruparPor, tiendaSel, tallerSel, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO(), soloAutorizados = false }) {
+  // `entregadoPorTaller`: «entregado» = el Encargado ya aprobó la parte del taller (como la vista Taller), sin ser el rol Encargado. `permitirVale(vale, filas)`: acota por permiso.
+  async armar({ alcance, dentroDelRango, agruparPor, tiendaSel, tallerSel, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO(), soloAutorizados = false, entregadoPorTaller = false, permitirVale = null }) {
     const alCorte = corte < hoyISO();
     const todos = (await valeRepository.listarTodos())
       .filter(v => (!soloAutorizados || !!v.autorizado_en) && (soloAtrasadosAntesDe ? soloAtrasadosAntesDe(fechaDe(v.fecha_entrega)) : dentroDelRango(fechaDe(v.fecha_entrega))))
@@ -69,6 +70,7 @@ class ValeReporteGruposService {
     const filas = (v) => v._filasTaller || [];
     // El segundo parámetro apaga los filtros que no son de la vista (en Rendimiento global, Ventas no filtra por diseñador; Taller, ni por tienda ni por asesor).
     const pasaFiltros = (v, { tienda = true, asesores = true, disenadores = true } = {}) => {
+      if (permitirVale && !permitirVale(v, filas(v))) return false;
       if (alcance.rol === 'supervisor' && !(alcance.asesorIds || []).includes(v.asesor_id)) return false;
       if (alcance.rol === 'encargado' && !filas(v).some(f => (alcance.tallerIds || []).includes(f.taller_id))) return false;
       if (tienda && tiendaSel.size && !tiendaSel.has(v.tienda_id)) return false;
@@ -97,7 +99,8 @@ class ValeReporteGruposService {
 
     // Vista Taller (Encargado/Asistente): un vale está terminado (entregado) cuando el Encargado ya aprobó su parte; en revisión aún no cuenta.
     const esTaller = alcance.rol === 'encargado';
-    const propias = (v) => filas(v).filter(f => (alcance.tallerIds || []).includes(f.taller_id));
+    // Con `entregadoPorTaller` las partes propias son las de los talleres elegidos (o todas), no las de un Encargado.
+    const propias = (v) => filas(v).filter(f => (entregadoPorTaller ? (!tallerSel.size || tallerSel.has(f.taller_id)) : (alcance.tallerIds || []).includes(f.taller_id)));
     // Al cierre, una parte cuenta como aprobada solo si el Encargado la aprobó a más tardar en el corte.
     const aprobadaAlCorte = (f) => f.estado === ESTADOS_TALLER.APROBADO && (!alCorte || !f.atraso_congelado_en || fechaDe(f.atraso_congelado_en) <= corte);
     const terminadoTaller = (v, propias) => {
@@ -139,7 +142,7 @@ class ValeReporteGruposService {
         tienePropuesta: !!urlPropuesta || conEnlaces, urlPropuesta, conEnlaces, multitaller: new Set(idsTaller).size >= 2
       };
     };
-    const fichas = new Map(paraFichas.map(v => [v.id, fichar(v, esTaller, propias)]));
+    const fichas = new Map(paraFichas.map(v => [v.id, fichar(v, esTaller || entregadoPorTaller, propias)]));
     // Rendimiento global de Taller: mismas reglas que el Encargado, sobre todas las filas de taller (o las del taller elegido).
     const fichasTaller = esGlobal ? new Map(visiblesTaller.map(v => [v.id, fichar(v, true, filasDelTaller)])) : fichas;
 

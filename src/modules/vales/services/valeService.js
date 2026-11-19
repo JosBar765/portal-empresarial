@@ -24,6 +24,7 @@ const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const valeReporteService = require('./valeReporteService');
 const valeReportePdfService = require('./valeReportePdfService');
 const valeReporteTiendaService = require('./valeReporteTiendaService');
+const valeReporteEquiposService = require('./valeReporteEquiposService');
 const valeAdjuntosService = require('./valeAdjuntosService');
 
 module.exports = {
@@ -48,6 +49,9 @@ module.exports = {
   // Reporte de actividad de tienda (Reportes 2)
   obtenerReporteActividadTienda: (...a) => valeReporteTiendaService.obtenerReporte(...a),
   generarReporteActividadTiendaPdf: (...a) => valeReporteTiendaService.generarPdf(...a),
+  // Reportes de actividad de talleres, diseñadores y asesores (Reportes 2): el primer argumento es el tipo (taller, disenador, asesor).
+  obtenerReporteActividadEquipo: (...a) => valeReporteEquiposService.obtenerReporte(...a),
+  generarReporteActividadEquipoPdf: (...a) => valeReporteEquiposService.generarPdf(...a),
 
   // Catálogo
   obtenerCatalogos: (...a) => valeCatalogoService.obtenerCatalogos(...a),
