@@ -2,6 +2,7 @@ import { $ } from '../../utils/dom.js';
 import { escapeHtml } from '../../utils/formato.js';
 import { obtenerReporteActividad, descargarReporteActividadPdf } from '../../api/valesApi.js';
 import { aplicarPeriodoAQuery } from '../../components/barraPeriodoReportes.js';
+import { htmlContadores } from './contadoresActividad.js';
 import { htmlBloqueVigentes, conectarBloqueVigentes } from '../../components/atrasadosVigentes.js';
 import {
   htmlEsqueletoCuerpo, cabeceraPanel, htmlTablaSeccion, SECCIONES_REPORTE, htmlSeccion, conectarSecciones, conectarAcciones
@@ -52,7 +53,8 @@ function htmlPanel(data, periodo, T) {
 // Quién se evalúa (solo en los filtros de personas), con × para quitar a cada uno, como en Reportes.
 const htmlFichas = (evaluados) => `<div class="rep-fichas" id="rep2-fichas"><span class="rep-fichas-rotulo">Evaluando a:</span>${evaluados.map(p => `<span class="rep-ficha">${escapeHtml(p.nombre)}<button type="button" data-quitar="${p.id}" aria-label="Quitar a ${escapeHtml(p.nombre)}"><ion-icon name="close" aria-hidden="true"></ion-icon></button></span>`).join('')}<button type="button" class="rep-link" id="rep2-limpiar">Limpiar</button></div>`;
 
-export function crearReporteActividad({ ruta, textos: T, filtro }) {
+// `contadores: true` muestra las tarjetas de resumen (solo el reporte de tienda).
+export function crearReporteActividad({ ruta, textos: T, filtro, contadores = false }) {
   const construirQuery = (periodo) => {
     const qs = new URLSearchParams();
     aplicarPeriodoAQuery(qs, periodo);
@@ -73,6 +75,7 @@ export function crearReporteActividad({ ruta, textos: T, filtro }) {
       <div class="rep-filtros rep2-filtros"><div class="rep-filtros-fila"><div id="${filtro.id}"></div></div></div>
     </div>
     ${fichas}
+    ${contadores ? htmlContadores(data.contadores, T) : ''}
     ${htmlVigentes(data.atrasadosVigentes, T)}
     <div class="rend-grid"><section class="rend-panel rend-span-12" id="rep2-panel">${htmlPanel(data, periodo, T)}</section></div>
     <details class="rend-notas">

@@ -28,7 +28,31 @@
   #rep2-panel .rep-mini td { padding-block: 4px; }
   #rep2-panel .rep-seccion-cab { min-height: 36px; padding-block: 4px; }
 }
+/* Contadores del reporte de actividad de tienda */
+.rep2-contadores { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 12px; align-items: stretch; margin-bottom: 14px; }
+.rep2-contadores .rep2-cont-card { display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; padding: 10px 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; }
+.rep2-contadores .rep2-cont-rotulo { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
+.rep2-contadores .rep2-cont-num { font-family: var(--font-title); font-size: 22px; font-weight: 700; line-height: 1.2; color: var(--color-text); }
+.rep2-contadores .rep2-cont-detalle { font-size: 12px; color: var(--color-text-muted); }
+.rep2-contadores .rep2-cont-card--recibidos { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; }
+.rep2-contadores .rep2-cont-total { display: flex; flex-direction: column; gap: 2px; }
+.rep2-contadores .rep2-cont-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.rep2-contadores .rep2-cont-chip { display: flex; align-items: center; gap: 8px; padding: 5px 12px; background: var(--color-surface-muted); border-radius: 8px; }
+.rep2-contadores .rep2-cont-chip-rotulo { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
+.rep2-contadores .rep2-cont-punto { width: 8px; height: 8px; border-radius: 50%; background: var(--rep2-cont-color); flex: none; }
+.rep2-contadores .rep2-cont-chip-num { font-family: var(--font-title); font-size: 16px; font-weight: 700; color: var(--rep2-cont-color); }
+.rep2-contadores .rep2-cont-chip--atraso { --rep2-cont-color: var(--color-danger); }
+.rep2-contadores .rep2-cont-chip--sin { --rep2-cont-color: var(--color-success); }
+.rep2-contadores .rep2-cont-chip--adelanto { --rep2-cont-color: var(--color-info); }
 @media (max-width: 640px) {
+  .rep2-contadores { grid-template-columns: 1fr 1fr; }
+  .rep2-contadores .rep2-cont-card { padding-inline: 14px; }
+  /* Recibidos ocupa todo el ancho: rótulo y total en una línea y las tres categorías en tres columnas iguales. */
+  .rep2-contadores .rep2-cont-card--recibidos { grid-column: 1 / -1; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 8px; }
+  .rep2-contadores .rep2-cont-total { flex-direction: row; align-items: baseline; gap: 8px; }
+  .rep2-contadores .rep2-cont-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .rep2-contadores .rep2-cont-chip { flex-direction: column; align-items: flex-start; gap: 2px; padding: 5px 8px; }
+  .rep2-contadores .rep2-cont-chip-rotulo { font-size: 11px; }
   .rep2-combo { display: flex; width: 100%; }
   .rep2-combo select { flex: 1; min-height: 44px; }
   .rep2-cabfila .rep2-filtros { width: 100%; }

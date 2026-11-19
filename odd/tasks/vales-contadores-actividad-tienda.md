@@ -15,8 +15,8 @@ Counters at the top of "Reporte de actividad de tienda" (Reportes 2). Mockup app
 
 ## Tasks
 - [x] T1 Backend: `contadores` in the tienda report response (+ day-of-arrival derived from the vale history).
-- [ ] T2 Frontend: cards (desktop and mobile), data from `contadores`, note text in "Cómo funciona este reporte".
-- [ ] T3 Docs: flujo_vale_de_arte.md §11.1, correcciones_65.md (check next free number).
+- [x] T2 Frontend: cards (desktop and mobile), data from `contadores`, note text in "Cómo funciona este reporte".
+- [x] T3 Docs: flujo_vale_de_arte.md §11.1, correcciones_65.md (check next free number).
 
 ## Route
 T1 and T2 delegated to separate writers (backend first). Same branch `feat/vales-reportes-2`.
@@ -27,3 +27,4 @@ No test runner. node --check on touched JS, structural readback, contract check.
 ## Progress
 Mockup approved. Starting T1.
 T1 done: `contadores` added to the tienda report (opt-in flag `contadores` in `armar`, computed over all visible vales before truncation); node --check ok; no test runner.
+T2+T3 done: `contadoresActividad.js` + opt-in `contadores: true` in the tienda config, CSS scoped to `.rep2-contadores`, notes added, docs (§11.1, correcciones_65); node --check ok; no test runner (exception), owner checks in browser.

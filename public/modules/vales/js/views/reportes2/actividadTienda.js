@@ -11,6 +11,7 @@ let tiendasDelMenu = [];
 const reporte = crearReporteActividad({
   ruta: 'actividad-tienda',
   textos: T,
+  contadores: true,
   filtro: {
     id: 'rep2-f-tienda',
     aplicar: (qs) => Object.entries(paramsDeTienda(state.reporte2.tiendaId, tiendasDelMenu)).forEach(([clave, valor]) => qs.set(clave, valor)),

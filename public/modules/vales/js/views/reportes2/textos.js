@@ -41,8 +41,20 @@ export const TEXTOS_TIENDA = {
     '<strong>Vales incluidos:</strong> solo los autorizados; los que esperan autorización no cuentan.',
     '<strong>Período:</strong> se filtra por la <strong>fecha de entrega</strong> de los vales. La única excepción es «Atrasados antes del período»: vales abiertos y vencidos con entrega anterior al período.',
     '<strong>Entregado:</strong> el vale ya llegó al asesor. Los atrasados y los no entregados siguen abiertos.',
+    '<strong>Ingresados:</strong> vales autorizados con entrega en el período.',
+    '<strong>Recibidos:</strong> vales que ya llegaron al asesor. Con atraso: llegaron después de su fecha de entrega; sin atraso: llegaron el mismo día de su fecha de entrega; adelantados: llegaron antes de su fecha de entrega.',
+    '<strong>Fueron urgentes:</strong> porcentaje de los vales ingresados que fueron marcados como urgentes.',
     '<strong>Tiendas:</strong> quien supervisa ve solo las tiendas a su cargo; los demás ven todas.'
-  ]
+  ],
+  // Contadores del encabezado (solo en el reporte de tienda).
+  contadoresAria: 'Resumen del período',
+  contIngresados: 'Ingresados',
+  contUrgentes: 'Fueron urgentes',
+  contRecibidos: 'Recibidos',
+  contConAtraso: 'Con atraso',
+  contSinAtraso: 'Sin atraso',
+  contAdelantados: 'Adelantados',
+  contDetalleUrgentes: (total, ingresados) => `${total} de ${ingresados} ${ingresados === 1 ? 'vale' : 'vales'}`
 };
 
 // Los reportes de talleres, diseñadores y asesores comparten textos; cambia quién se evalúa y qué significa «Entregado».
