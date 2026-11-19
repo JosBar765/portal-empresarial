@@ -1,0 +1,17 @@
+/* Reportes 2: combo de reporte junto a la barra de período (reusa .rp-barra, .rep-estado y .rend-* de reportes.css) */
+.rep2-controles { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-bottom: 14px; }
+.rep2-controles .rp-barra { margin-bottom: 0; }
+.rep2-combo { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.rep2-combo select {
+  min-height: 40px;
+  max-width: 100%;
+  padding: 0 12px;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.rep2-combo select:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+#rep2-pdf:disabled, #rep2-actualizar:disabled { opacity: .5; cursor: not-allowed; }

@@ -84,6 +84,11 @@
       <ion-icon name="stats-chart-outline"></ion-icon>
       <span>Reportes</span>
     </button>
+    <!-- Reportes 2: contenedor de reportes nuevos (mismo permiso vales.ver_reportes; se muestra desde sidebar.js). -->
+    <button class="sidebar-item" id="sidebar-item-reportes2" data-vista="reportes2" style="display:none;">
+      <ion-icon name="analytics-outline"></ion-icon>
+      <span>Reportes 2</span>
+    </button>
     <button class="sidebar-collapse-toggle" id="sidebar-collapse-toggle" type="button" title="Colapsar menú">
       <ion-icon name="chevron-back-outline"></ion-icon>
       <span>Colapsar</span>
@@ -115,6 +120,8 @@
 
         <!-- Reportes de actividad (según el rol) — reemplaza al buzón mientras state.vista === 'reportes'. -->
         <section class="vista-propia reportes-vista" id="reportes-vista" style="display:none;"></section>
+        <!-- Reportes 2 — reemplaza al buzón mientras state.vista === 'reportes2'. -->
+        <section class="vista-propia reportes-vista" id="reportes2-vista" style="display:none;"></section>
 
 
         <section class="buzon-section">
