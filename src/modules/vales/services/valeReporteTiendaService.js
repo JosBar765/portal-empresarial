@@ -42,7 +42,7 @@ class ValeReporteTiendaService {
       dentroDelRango: (f) => dentro(f, rango), agruparPor: 'tienda', tiendaSel,
       tallerSel: new Set(), asesorSel: new Set(), disSel: new Set(), corte, soloAutorizados: true
     };
-    const grupos = await valeReporteGruposService.armar(argumentos);
+    const grupos = await valeReporteGruposService.armar({ ...argumentos, contadores: true });
     const vigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosAntesDe: (f) => antesDe(f, rango) });
     const { secciones, totalVales, truncado } = grupos;
     return {
@@ -58,6 +58,7 @@ class ValeReporteTiendaService {
       },
       atrasadosVigentes: { total: vigentes.total, truncado: vigentes.truncado, grupos: vigentes.grupos },
       grupos: { agruparPor: 'tienda', secciones, totalVales, truncado },
+      contadores: grupos.contadores,
       filtros: { tiendas: tiendas.map(paraMenu) }
     };
   }

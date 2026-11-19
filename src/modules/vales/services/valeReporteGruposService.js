@@ -22,6 +22,11 @@ function diasAtrasoAl(v, corte) {
   const congelado = fechaDe(v.atraso_congelado_en);
   return diasEntreFechas(fechaDe(v.fecha_entrega), congelado && congelado <= corte ? congelado : corte);
 }
+// Día en que la propuesta llegó al asesor (el mismo `atraso_congelado_en` de diasAtrasoAl); null si no quedó registrado.
+function llegadaAlAsesor(v, corte) {
+  const congelado = fechaDe(v.atraso_congelado_en);
+  return congelado && congelado <= corte ? congelado : null;
+}
 // El vale ya llegó al asesor (propuesta lista para confirmar o ya confirmada): «entregado» para Asesor, Supervisor, Gerente y Administrador.
 const ESTADOS_LLEGO_AL_ASESOR = [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
 const SECCIONES = ['atrasados', 'noEntregados', 'entregados'];
@@ -55,7 +60,7 @@ class ValeReporteGruposService {
   // es ANTERIOR al período («atrasados antes del período») con las mismas reglas de alcance y filtros, como { total, truncado, vales }.
   // `corte`: fecha de la «foto». Es hoy salvo en un período ya cerrado, donde es su último día (cifras al cierre: no cambian después).
   // `entregadoPorTaller`: «entregado» = el Encargado ya aprobó la parte del taller (como la vista Taller), sin ser el rol Encargado. `permitirVale(vale, filas)`: acota por permiso.
-  async armar({ alcance, dentroDelRango, agruparPor, tiendaSel, tallerSel, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO(), soloAutorizados = false, entregadoPorTaller = false, permitirVale = null }) {
+  async armar({ alcance, dentroDelRango, agruparPor, tiendaSel, tallerSel, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO(), soloAutorizados = false, entregadoPorTaller = false, permitirVale = null, contadores = false }) {
     const alCorte = corte < hoyISO();
     const todos = (await valeRepository.listarTodos())
       .filter(v => (!soloAutorizados || !!v.autorizado_en) && (soloAtrasadosAntesDe ? soloAtrasadosAntesDe(fechaDe(v.fecha_entrega)) : dentroDelRango(fechaDe(v.fecha_entrega))))
@@ -244,7 +249,27 @@ class ValeReporteGruposService {
     const datosRendimiento = esGlobal
       ? await this._rendimientoGlobal({ visiblesVentas: exigiblesDe(visiblesVentas), visiblesTaller: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, filasDe: filasDelTaller, tiendaSel, tallerSel, asesorSel, disSel, nombresConRol })
       : this._rendimiento({ alcance, visibles: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, esTaller, propias, filas, tallerSel, asesorSel, disSel, nombresConRol });
-    return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento: datosRendimiento };
+    // Contadores opcionales: se calculan sobre todos los vales visibles, antes del tope de MAX_VALES.
+    const extra = contadores ? { contadores: this._contadores(visibles, fichas, corte) } : {};
+    return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento: datosRendimiento, ...extra };
+  }
+
+  // Ingresados, urgentes y recibidos (propuesta ya en el asesor) según el día de llegada frente a la fecha de entrega.
+  _contadores(visibles, fichas, corte) {
+    const lista = visibles.map(v => ({ v, ficha: fichas.get(v.id) }));
+    const urgentes = lista.filter(x => x.ficha.urgente).length;
+    const recibidos = lista.filter(x => x.ficha.seccion === 'entregados');
+    // Con atraso = el mismo diasTarde de la sección Entregados; sin fecha de llegada registrada (datos antiguos) cuenta como sin atraso.
+    const conAtraso = recibidos.filter(x => x.ficha.diasTarde > 0).length;
+    const adelantados = recibidos.filter(x => {
+      const llegada = llegadaAlAsesor(x.v, corte);
+      return !(x.ficha.diasTarde > 0) && !!llegada && llegada < x.ficha.fechaEntrega;
+    }).length;
+    return {
+      ingresados: lista.length,
+      urgentes: { total: urgentes, porcentaje: lista.length ? Math.round(urgentes / lista.length * 100) : 0 },
+      recibidos: { total: recibidos.length, conAtraso, sinAtraso: recibidos.length - conAtraso - adelantados, adelantados }
+    };
   }
 
   // Reporte de rendimiento: por persona, dos cifras comparadas, su % y sus atrasados, sobre los vales del período y con los filtros
