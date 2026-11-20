@@ -105,8 +105,8 @@ document.addEventListener('visibilitychange', () => {
 });
 
 function refrescarPantalla() {
-  // Reportes y Reportes 2 se actualizan a mano con su botón «Actualizar».
-  if (state.vista !== 'reportes' && state.vista !== 'reportes2') cargarBuzon();
+  // Reportes se actualiza a mano con su botón «Actualizar».
+  if (state.vista !== 'reportes2') cargarBuzon();
   if (state.cargaTrabajoModal) {
     if (state.cargaTrabajoModal.overlay.isConnected) {
       state.cargaTrabajoModal.actualizar();

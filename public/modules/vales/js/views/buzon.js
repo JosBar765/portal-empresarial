@@ -10,7 +10,6 @@ import { abrirVisorVale } from '../components/visorDocumento.js';
 import { htmlBloqueVigentes, conectarBloqueVigentes } from '../components/atrasadosVigentes.js';
 import { formatearFecha, formatearFechaHora, celdaTaller, claveFila, marcadorTipoRegistro, badgePersona, escapeHtml } from '../utils/formato.js';
 import { obtenerBuzon, obtenerMasVales } from '../api/valesApi.js';
-import { cargarReportes } from './reportes.js';
 import { cargarReportes2 } from './reportes2.js';
 import { abrirModalAutorizarCreacion, abrirModalAprobarModificacion, abrirModalVerSupervisor } from '../actions/supervisor.js';
 import { abrirModalAsignar, abrirModalRevisar, abrirModalAprobarGeneral } from '../actions/encargado.js';
@@ -57,7 +56,6 @@ let ultimaConsulta = '';
 
 export async function cargarBuzon() {
   // Reportes de actividad: tienen su propia vista y su propia consulta.
-  if (state.vista === 'reportes') return cargarReportes();
   if (state.vista === 'reportes2') return cargarReportes2();
   state.paginacion = { limit: 50, cursor: null, total: 0, hasMore: false, cargandoMas: false };
   const qs = construirQueryBase();

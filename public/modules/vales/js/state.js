@@ -16,11 +16,7 @@ export const state = {
   soloRechazos: false, // ídem: vales con rechazo de propuesta (Encargado y Asistente, en el Buzón)
   soloModificados: false, // ídem: vales MOD- y sus originales
   disenadorFiltro: '', // combobox de diseñadores (solo encargados)
-  reporte: { // Reportes: su propio período (arranca en «Hoy»), agrupación, filtros y filas desplegadas
-    ventana: { tipo: 'hoy', fecha: isoLocal(new Date()), desde: '', hasta: '' },
-    agruparPor: '', tiendaId: '', tallerId: '', asesorIds: [], disenadorIds: [], expandidos: new Set()
-  },
-  reporte2: { ventana: { tipo: 'hoy', fecha: isoLocal(new Date()), desde: '', hasta: '' }, reporteId: '', tiendaId: '', tallerId: '', disenadorIds: [], asesorIds: [] }, // Reportes 2: período, reporte y filtros elegidos
+  reporte2: { ventana: { tipo: 'hoy', fecha: isoLocal(new Date()), desde: '', hasta: '' }, reporteId: '', tiendaId: '', tiendaElegida: null, tiendaElegidaNombre: '', asesorTiendaId: '', asesorElegida: null, asesorElegidaNombre: '', asesorElegidaUrgentes: false, tallerId: '', disenadorIds: [], asesorIds: [], contadorElegido: null, urgenteElegido: false }, // Reportes 2: período, reporte y filtros elegidos; `tiendaElegida` = id de la tienda cuya barra se eligió en la gráfica (solo enfoca los contadores y el desglose; null si no hay); `asesorElegida` hace lo mismo con el asesor (`asesorElegidaUrgentes`: solo sus vales urgentes); `contadorElegido` (filtro de estado de un contador) y `urgenteElegido` filtran solo el desglose y no se guardan
   busqueda: '',
   mensajeVacio: '', // texto de la lista vacía que manda el servidor (p. ej. encargado sin taller)
   sort: { key: null, dir: null }, // ídem el orden por columna

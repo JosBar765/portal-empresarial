@@ -2,7 +2,7 @@
 // y un panel con casillas, «Seleccionar todos / Quitar selección» y Aplicar / Cancelar. Se cierra con Esc o clic fuera.
 import { escapeHtml } from '../utils/formato.js';
 
-// `opciones`: [{ id, nombre }]; `seleccion`: ids elegidos; `plural`: ['asesor', 'asesores'].
+// `opciones`: [{ id, nombre }]; `seleccion`: ids elegidos; `plural`: ['asesor', 'asesores']; `icono`: opcional (sin él, solo el texto).
 export function crearSelectorMultiple(contenedor, { uid, icono, vacio, plural, opciones, seleccion, alAplicar }) {
   const elegidos = new Set(seleccion.map(String));
   const etiqueta = () => {
@@ -13,7 +13,7 @@ export function crearSelectorMultiple(contenedor, { uid, icono, vacio, plural, o
   contenedor.innerHTML = `
     <div class="rep-selector" id="${uid}">
       <button type="button" class="filtro-tienda rep-selector-btn${elegidos.size ? ' is-activo' : ''}" aria-haspopup="dialog" aria-expanded="false">
-        <ion-icon name="${icono}" aria-hidden="true"></ion-icon><span>${escapeHtml(etiqueta())}</span>
+        ${icono ? `<ion-icon name="${icono}" aria-hidden="true"></ion-icon>` : ''}<span>${escapeHtml(etiqueta())}</span>
       </button>
       <div class="rep-selector-panel" role="dialog" aria-label="${escapeHtml(`Elegir ${plural[1]}`)}" hidden>
         <input type="search" class="rep-selector-buscar" placeholder="Buscar por nombre" aria-label="Buscar por nombre" autocomplete="off">

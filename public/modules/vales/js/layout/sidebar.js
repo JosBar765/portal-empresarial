@@ -24,17 +24,15 @@ export function actualizarOffsetSidebar(sidebar) {
 export function actualizarTituloYSeccionesVista() {
   // El combobox de diseñadores es de los encargados y solo aplica al Buzón (Trabajo realizado y Reportes no lo usan).
   $('#filtro-disenador').style.display = esEncargadoTaller(state.user) && state.vista === 'buzon' ? '' : 'none';
-  const enReportes = state.vista === 'reportes';
   $('#buzon-titulo').textContent = state.vista === 'trabajo' ? 'Trabajo Realizado' : (state.vista === 'mios' ? 'Mis vales' : 'Buzón de Vales de Arte');
   // «Mis vales» es la vista del asesor: la columna Taller se ve aunque el rol sea de taller.
   $('.buzon-table').classList.toggle('oculta-taller', esDeTallerODisenador(state.user) && state.vista !== 'mios');
   const enReportes2 = state.vista === 'reportes2';
-  $('#reportes-vista').style.display = enReportes ? 'block' : 'none';
   $('#reportes2-vista').style.display = enReportes2 ? 'block' : 'none';
-  const enVistaPropia = enReportes || enReportes2;
+  const enVistaPropia = enReportes2;
   $('#contadores-grid').style.display = enVistaPropia ? 'none' : '';
   $('.buzon-section').style.display = enVistaPropia ? 'none' : '';
-  // Reportes y Reportes 2 traen su propia barra de fechas.
+  // Reportes trae su propia barra de fechas.
   $('.vales-toolbar').style.display = enVistaPropia ? 'none' : '';
   // Buzón y Trabajo realizado: layout fijo con scroll solo en la tabla (ver «Layout fijo» en styles.css).
   document.body.classList.toggle('vista-tabla-fija', !enVistaPropia);
@@ -59,11 +57,10 @@ export function wireSidebar() {
   if (state.user.rolId === ROL.GERENTE && !(state.user.permissions || []).includes('vales.ver')) {
     $('#sidebar-item-primario', sidebar).style.display = 'none';
     $('#sidebar-item-secundario', sidebar).style.display = 'none';
-    state.vista = 'reportes';
+    state.vista = 'reportes2';
   }
   // Reportes de actividad: por permiso (vales.ver_reportes), para cualquier rol.
   if ((state.user.permissions || []).includes('vales.ver_reportes')) {
-    $('#sidebar-item-reportes', sidebar).style.display = '';
     $('#sidebar-item-reportes2', sidebar).style.display = '';
   }
 

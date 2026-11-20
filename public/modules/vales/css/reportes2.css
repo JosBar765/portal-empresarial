@@ -15,10 +15,21 @@
 }
 .rep2-combo select:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 #rep2-pdf:disabled, #rep2-actualizar:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Fila de filtros propios del reporte (sobre el resultado): se acomoda en varias líneas en pantallas angostas. */
+.rep2-filtros { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.rep2-filtros-estado { font-size: var(--text-sm); color: var(--color-text-secondary); }
+.rep2-filtros-error { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: var(--text-sm); color: var(--color-danger); }
+.rep2-referencia { font-size: 12px; color: var(--color-text-muted); overflow-wrap: anywhere; }
+
+/* Resultado que ya no coincide con los filtros: sigue visible pero atenuado, con un aviso para volver a generarlo. */
+.rend-cuerpo.is-obsoleto { opacity: .6; }
+.rep2-obsoleto { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; padding: 8px 12px; font-size: var(--text-sm); color: var(--color-warning); background: var(--color-warning-bg); border: 1px solid var(--color-warning); border-radius: var(--radius-md); }
+.rep2-obsoleto[hidden] { display: none; }
+.rep2-obsoleto ion-icon { flex: none; font-size: 18px; }
 /* Encabezado y filtro propios de cada reporte (el título de la pestaña ya está arriba) */
 .rep2-cab { margin-bottom: 12px; }
 .rep2-cab h3 { font-family: var(--font-title); font-size: 18px; font-weight: 700; color: var(--color-text); }
-.rep2-filtros { margin-bottom: 14px; }
 /* Título con su período y el filtro comparten fila; envuelve en pantallas angostas */
 .rep2-cabfila { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 14px; }
 .rep2-cabfila .rep2-cab, .rep2-cabfila .rep2-filtros { margin-bottom: 0; }
@@ -28,13 +39,17 @@
   #rep2-panel .rep-mini td { padding-block: 4px; }
   #rep2-panel .rep-seccion-cab { min-height: 36px; padding-block: 4px; }
 }
+/* Sección «Atrasados (anteriores al período)» del desglose: mismos colores que los atrasados del período. */
+#rep2-panel .rep-seccion--atrasadosAnteriores .rep-seccion-icono { color: var(--color-danger); }
+#rep2-panel .rep-seccion--atrasadosAnteriores .rep-seccion-n { color: var(--color-danger); background: var(--color-danger-bg); }
 /* Contadores del reporte de actividad de tienda */
-.rep2-contadores { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 12px; align-items: stretch; margin-bottom: 14px; }
-.rep2-contadores .rep2-cont-card { display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; padding: 10px 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; }
+/* Rejilla de seis columnas: fila de tres tarjetas (cada una ocupa 2) y fila de dos (cada una ocupa 3). */
+.rep2-contadores { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; align-items: stretch; margin-bottom: 14px; }
+.rep2-contadores .rep2-cont-card { grid-column: span 2; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; padding: 10px 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; }
 .rep2-contadores .rep2-cont-rotulo { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
 .rep2-contadores .rep2-cont-num { font-family: var(--font-title); font-size: 22px; font-weight: 700; line-height: 1.2; color: var(--color-text); }
 .rep2-contadores .rep2-cont-detalle { font-size: 12px; color: var(--color-text-muted); }
-.rep2-contadores .rep2-cont-card--recibidos { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; }
+.rep2-contadores .rep2-cont-card--grupo { grid-column: span 3; flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px 24px; flex-wrap: wrap; container: rep2-grupo / inline-size; }
 .rep2-contadores .rep2-cont-total { display: flex; flex-direction: column; gap: 2px; }
 .rep2-contadores .rep2-cont-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .rep2-contadores .rep2-cont-chip { display: flex; align-items: center; gap: 8px; padding: 5px 12px; background: var(--color-surface-muted); border-radius: 8px; }
@@ -43,17 +58,99 @@
 .rep2-contadores .rep2-cont-chip-num { font-family: var(--font-title); font-size: 16px; font-weight: 700; color: var(--rep2-cont-color); }
 .rep2-contadores .rep2-cont-chip--atraso { --rep2-cont-color: var(--color-danger); }
 .rep2-contadores .rep2-cont-chip--sin { --rep2-cont-color: var(--color-success); }
-.rep2-contadores .rep2-cont-chip--adelanto { --rep2-cont-color: var(--color-info); }
+/* Gráfica «Vales ingresados por tienda»: barras ordenadas; la que más mete en el color de acento, las demás en gris. */
+/* Tarjeta y título iguales a los del panel «Desglose de Vales de Arte» (.rend-panel y .rend-panel-cab h3). */
+.rep2-gt { margin-bottom: 14px; padding: 20px 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.rep2-gt-cab h3 { margin: 0 0 16px; font-family: var(--font-title); font-size: var(--text-md); font-weight: 700; color: var(--color-text); }
+/* Una sola rejilla para todas las filas (cada fila es `display: contents`): la columna de nombres mide lo que el nombre más largo y los nombres se alinean a la derecha, junto al arranque de las barras. */
+.rep2-gt-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(80px, 1fr) auto; align-items: center; gap: 8px 12px; }
+.rep2-gt-fila { display: contents; }
+.rep2-gt-fila[hidden] { display: none; }
+/* El nombre de la tienda se lee completo: si no cabe en una línea, pasa a la siguiente (nunca se recorta con «…»). */
+.rep2-gt-nombre { font-size: var(--text-base); line-height: 1.3; text-align: right; color: var(--color-text); overflow-wrap: anywhere; }
+/* La barra es un botón (teclado y pulsación): la pista no se ve, solo la barra. La elegida lleva un borde. */
+.rep2-gt-pista { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 12.5px; padding: 0; margin: 0; border: 0; background: transparent; text-align: left; }
+/* Solo las gráficas pulsables (reporte de tiendas) muestran el cursor de mano y el oscurecido al pasar. */
+.rep2-gt--interactiva button.rep2-gt-pista, .rep2-gt--interactiva .rep2-gt-valor { cursor: pointer; }
+.rep2-gt--interactiva .rep2-gt-fila:hover .rep2-gt-barra { filter: brightness(0.9); }
+/* El nombre de la tienda es un botón que sugiere ir al reporte de asesores de esa tienda. */
+.rep2-gt-nombre--boton { padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-base); line-height: 1.3; text-align: right; color: var(--color-text); cursor: pointer; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; transition: color var(--transition-fast), text-decoration-color var(--transition-fast); }
+.rep2-gt-nombre--boton:hover, .rep2-gt-nombre--boton:focus-visible { color: var(--color-primary); text-decoration-color: currentColor; }
+.rep2-gt-fila--elegida .rep2-gt-barra { outline: 2px solid var(--color-primary-dark); outline-offset: 2px; }
+/* El largo de la barra es una fracción de la pista menos el lugar que se reserva para el porcentaje, que va en su punta. */
+.rep2-gt-barra { display: block; flex: none; height: 12.5px; width: calc((100% - 52px) * var(--razon, 0)); background: var(--color-text-muted); border-radius: 0 4px 4px 0; }
+.rep2-gt-fila--lider .rep2-gt-barra { background: var(--color-primary); }
+/* Barra apilada (reporte de asesores): tramo azul de no urgentes y tramo ámbar de urgentes, con 2 px de la superficie entre ambos. */
+.rep2-gt-barra--apilada { display: flex; gap: 2px; background: transparent; border-radius: 0; }
+.rep2-gt-seg { display: flex; align-items: center; justify-content: center; min-width: 2px; height: 100%; overflow: hidden; font-size: 11px; font-weight: 700; line-height: 1; color: #fff; }
+.rep2-gt-seg--base { background: var(--color-primary); }
+/* Ámbar con texto oscuro (contraste); el ancho mínimo deja ver la cifra aunque sea un solo vale. */
+.rep2-gt-seg--urgente { background: var(--color-warning); color: var(--color-text); min-width: 16px; cursor: pointer; }
+/* Enfoque solo de urgentes: el tramo ámbar lleva su propio contorno (hacia adentro, para no tapar al vecino). */
+.rep2-gt-fila--elegida-urgentes .rep2-gt-seg--urgente { outline: 2px solid var(--color-text); outline-offset: -2px; }
+.rep2-gt--interactiva .rep2-gt-nombre { cursor: pointer; }
+.rep2-gt-seg:last-child { border-radius: 0 4px 4px 0; }
+.rep2-gt-leyenda { display: flex; flex-wrap: wrap; gap: 16px; margin: -8px 0 12px; font-size: var(--text-sm); color: var(--color-text-secondary); }
+.rep2-gt-sw { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
+.rep2-gt-sw--base { background: var(--color-primary); }
+.rep2-gt-sw--urgente { background: var(--color-warning); }
+.rep2-gt-valor { text-align: right; font-size: var(--text-base); font-variant-numeric: tabular-nums; color: var(--color-text); }
+.rep2-gt-pct { flex: none; font-size: var(--text-sm); color: var(--color-text-secondary); white-space: nowrap; }
+.rep2-gt-mas { margin-top: 6px; }
+/* Reporte de asesores: el selector de tienda y el de asesores van uno junto al otro. */
+.rep2-filtros-doble { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+/* En pantallas anchas el panel del selector se abre hacia la izquierda: el selector está al borde derecho y a la derecha se salía de la ventana. */
+@media (min-width: 641px) {
+  .rep2-filtros .rep-selector-panel { left: auto; right: 0; }
+}
+/* Celular (maqueta): Ingresados y Urgentes lado a lado; Sin entregar, Atrasados y Entregados a todo el ancho. */
 @media (max-width: 640px) {
   .rep2-contadores { grid-template-columns: 1fr 1fr; }
-  .rep2-contadores .rep2-cont-card { padding-inline: 14px; }
-  /* Recibidos ocupa todo el ancho: rótulo y total en una línea y las tres categorías en tres columnas iguales. */
-  .rep2-contadores .rep2-cont-card--recibidos { grid-column: 1 / -1; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 8px; }
+  .rep2-contadores .rep2-cont-card { grid-column: span 1; padding-inline: 14px; }
+  .rep2-contadores .rep2-cont-card--sin-entregar, .rep2-contadores .rep2-cont-card--grupo { grid-column: 1 / -1; padding-inline: 16px; }
+  .rep2-contadores .rep2-cont-card--sin-entregar { flex-direction: row; align-items: baseline; justify-content: flex-start; gap: 8px; }
+}
+/* Cuando una tarjeta con total y categorías (Atrasados, Entregados) no alcanza para ponerlos lado a lado (~360 px), las categorías bajan en dos columnas iguales y el total pasa a una línea («Atrasados 12»). Depende del ancho de la tarjeta, no de la pantalla. */
+@container rep2-grupo (max-width: 360px) {
   .rep2-contadores .rep2-cont-total { flex-direction: row; align-items: baseline; gap: 8px; }
-  .rep2-contadores .rep2-cont-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .rep2-contadores .rep2-cont-chips { flex: 1 1 100%; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .rep2-contadores .rep2-cont-chip { flex-direction: column; align-items: flex-start; gap: 2px; padding: 5px 8px; }
   .rep2-contadores .rep2-cont-chip-rotulo { font-size: 11px; }
+}
+@media (max-width: 640px) {
+  /* Gráfica por tienda: el nombre y el valor en una línea y la barra debajo, a todo el ancho. */
+  .rep2-gt { padding: 16px; }
+  .rep2-gt-lista { display: block; }
+  .rep2-gt-fila { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 12px; padding: 4px 0; }
+  .rep2-gt-nombre, .rep2-gt-nombre--boton { text-align: left; }
+  .rep2-gt-pista { grid-column: 1 / -1; grid-row: 2; }
   .rep2-combo { display: flex; width: 100%; }
   .rep2-combo select { flex: 1; min-height: 44px; }
   .rep2-cabfila .rep2-filtros { width: 100%; }
 }
+
+/* Botón «Ver más» bajo la tabla de vales (dibujo a demanda) y aviso de PDF largo en el modal del desglose */
+.rep-ver-mas { display: flex; justify-content: center; margin-top: 10px; }
+.rep-ver-mas[hidden] { display: none; }
+.rep-aviso-pdf { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; padding: 8px 12px; font-size: var(--text-sm); color: var(--color-warning); background: var(--color-warning-bg); border: 1px solid var(--color-warning); border-radius: var(--radius-md); }
+.rep-aviso-pdf ion-icon { flex: none; margin-top: 2px; }
+/* Modal del PDF con filtros de vista: filtros activos y una opción por botón (con su conteo y aviso debajo). */
+.rep-opcion-pdf-filtros { margin: 6px 0 14px; padding-left: 20px; font-size: var(--text-sm); }
+.rep-opciones-pdf { display: flex; flex-direction: column; gap: 10px; }
+.rep-opcion-pdf .btn { width: 100%; justify-content: space-between; gap: 12px; text-align: left; white-space: normal; }
+.rep-opcion-pdf-titulo { font-weight: 600; }
+.rep-opcion-pdf-conteo { flex: none; color: var(--color-text-muted); }
+.rep-opcion-pdf .rep-aviso-pdf { margin-top: 6px; }
+.rep-estado--aviso .rep-estado-icono { color: var(--color-warning); background: var(--color-warning-bg); }
+.rep-estado--aviso p { max-width: 460px; }
+
+/* Filtro por contador: los contadores pulsables son botones con el mismo aspecto; el activo se marca con borde y fondo, no solo con color. */
+.rep2-contadores button.rep2-pulsable { font: inherit; color: inherit; text-align: left; cursor: pointer; appearance: none; }
+.rep2-contadores button.rep2-cont-card { width: 100%; }
+.rep2-contadores button.rep2-cont-total { padding: 2px 8px; margin: -2px -8px; background: none; border: 1px solid transparent; border-radius: 8px; }
+.rep2-contadores button.rep2-cont-chip { border: 1px solid transparent; }
+.rep2-contadores .rep2-pulsable:hover { background: rgba(var(--color-primary-rgb), 0.06); }
+.rep2-contadores .rep2-pulsable:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.rep2-contadores .rep2-pulsable.is-activo { background: rgba(var(--color-primary-rgb), 0.12); border-color: var(--color-primary); box-shadow: inset 0 0 0 1px var(--color-primary); }
+/* Fila de filtros activos sobre el desglose (usa el aspecto de las fichas de .rep-ficha). */
+.rep2-filtros-activos { margin: 0 0 12px; }
