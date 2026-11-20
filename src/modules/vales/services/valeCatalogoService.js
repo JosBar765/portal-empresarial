@@ -39,7 +39,7 @@ class ValeCatalogoService {
     // `miTallerId` solo le sirve al Asistente (el taller que opera); el resto lo resuelve por `talleres.encargado_id`.
     const miTallerId = usuario && esAsistente(usuario) && solicitante ? (solicitante.taller_id || null) : null;
     const horasVencimientoVale = await calendarioService.horasVencimiento();
-    const miPais = contextoDiseno && contextoDiseno.paisId ? { id: contextoDiseno.paisId, nombre: contextoDiseno.paisNombre, comparteDisenoLocal: contextoDiseno.comparteDisenoLocal } : null;
+    const miPais = contextoDiseno && contextoDiseno.paisId ? { id: contextoDiseno.paisId, nombre: contextoDiseno.paisNombre, comparteDisenoLocal: contextoDiseno.comparteDisenoLocal, moneda_simbolo: contextoDiseno.monedaSimbolo, moneda_codigo: contextoDiseno.monedaCodigo } : null;
     return { tiendas, paises, talleres, miTiendaId: (solicitante && solicitante.tienda_id) || null, miPais, miTallerId, tiendasGerencia, horasVencimientoVale };
   }
 

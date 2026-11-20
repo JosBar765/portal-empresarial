@@ -28,6 +28,15 @@ export function formatearFechaHora(valor) {
 }
 
 
+// Moneda del país del vale (o del asesor): `fuente` trae `moneda_simbolo`/`moneda_codigo`; sin ninguno no se muestra símbolo.
+export const simboloMoneda = (fuente) => (fuente && (fuente.moneda_simbolo || fuente.moneda_codigo)) || '';
+export function formatearMonto(monto, fuente) {
+  const numero = Number(monto);
+  if (monto == null || !Number.isFinite(numero)) return '';
+  const simbolo = simboloMoneda(fuente);
+  return `${simbolo}${simbolo.length > 1 ? ' ' : ''}${numero.toFixed(2)}`;
+}
+
 export function formatearTamano(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;

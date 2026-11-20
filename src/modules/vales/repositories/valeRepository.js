@@ -11,10 +11,16 @@ const { ahoraUTC6 } = require('../../../core/calendario/calendarioLaboral');
 // con una subconsulta inline a partir del mismo string de siempre.
 const SELECT_VALE = `
   SELECT v.*, ev.nombre AS estado, ta.nombre AS autorizacion_tipo,
-         TIMESTAMPDIFF(MINUTE, NOW(), v.vigencia_hasta) AS vigencia_minutos
+         TIMESTAMPDIFF(MINUTE, NOW(), v.vigencia_hasta) AS vigencia_minutos,
+         pp.moneda_simbolo, pp.moneda_codigo
   FROM vales v
   LEFT JOIN estados_vale ev ON ev.id = v.estado_id
   LEFT JOIN tipos_autorizacion ta ON ta.id = v.autorizacion_tipo_id
+  LEFT JOIN tiendas pti ON pti.id = v.tienda_id
+  LEFT JOIN departamentos pd ON pd.id = pti.departamento_id
+  LEFT JOIN subdivisiones ps ON ps.id = pti.subdivision_id
+  LEFT JOIN empresas pe ON pe.id = pti.empresa_id
+  LEFT JOIN paises pp ON pp.id = COALESCE(pd.pais_id, ps.pais_id, pe.pais_id)
 `;
 
 class ValeRepository {
