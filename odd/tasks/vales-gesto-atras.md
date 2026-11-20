@@ -1,6 +1,6 @@
 # Vales: el gesto «atrás» del celular sale del módulo con un visor o modal abierto
 
-Estado: PENDIENTE, sin empezar (registrado el 2026-11-17; el dueño lo compondrá después). Va en su propia rama desde `dev` actualizada, no en `module/viaticos`.
+Estado: HECHO el 2026-11-19 en `feat/vales-reportes-2` por indicación del dueño (portado de Viáticos: `utils/historialCapas.js`, `modal.js`, `visorDocumento.js`; ver `correcciones_66.md`). Falta probarlo en un celular real. Pendiente: revisar otros módulos con visores propios.
 
 ## Problema
 En celular, con el visor de documentos (o cualquier modal) abierto en Vales de Arte, el botón o gesto «atrás» del navegador no cierra el visor: sale de la página y lleva al dashboard de módulos. Se pierde lo que se estaba viendo o llenando. El frontend de Vales no maneja el historial del navegador (no hay `pushState` ni `popstate` en `public/modules/vales/`).
