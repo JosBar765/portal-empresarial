@@ -9,10 +9,11 @@ const propuestaRepository = require('../repositories/propuestaRepository');
 const reporteRepository = require('../repositories/reporteRepository');
 const valeBuzonService = require('./valeBuzonService');
 const { calcularPipeline } = require('./valePipeline');
+const { contadoresDeFichas, contadoresPorGrupo, completarPorGrupo } = require('./valeReporteContadores');
 const { ROL, ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ROLES_ENCARGADO_TALLER, hoyISO, enriquecer, esValeDeModificacion } = require('./valeHelpers');
 
 const AGRUPACIONES = ['asesor', 'disenador', 'taller', 'tienda'];
-const MAX_VALES = 1000;
+const MAX_VALES = 5000; // válvula de seguridad (~2 años a 160 vales al mes); la pantalla dibuja bajo demanda y el PDF 5000 filas tarda ~0,5 s
 const MAX_VIGENTES = 200;
 
 const fechaDe = (valor) => String(valor || '').slice(0, 10);
@@ -21,11 +22,6 @@ const diasEntreFechas = (a, b) => Math.max(0, Math.round((Date.parse(`${b}T00:00
 function diasAtrasoAl(v, corte) {
   const congelado = fechaDe(v.atraso_congelado_en);
   return diasEntreFechas(fechaDe(v.fecha_entrega), congelado && congelado <= corte ? congelado : corte);
-}
-// Día en que la propuesta llegó al asesor (el mismo `atraso_congelado_en` de diasAtrasoAl); null si no quedó registrado.
-function llegadaAlAsesor(v, corte) {
-  const congelado = fechaDe(v.atraso_congelado_en);
-  return congelado && congelado <= corte ? congelado : null;
 }
 // El vale ya llegó al asesor (propuesta lista para confirmar o ya confirmada): «entregado» para Asesor, Supervisor, Gerente y Administrador.
 const ESTADOS_LLEGO_AL_ASESOR = [ESTADOS.PENDIENTE_CONFIRMACION, ESTADOS.RECIBIDO, ESTADOS.CONFIRMADO];
@@ -60,9 +56,10 @@ class ValeReporteGruposService {
   // es ANTERIOR al período («atrasados antes del período») con las mismas reglas de alcance y filtros, como { total, truncado, vales }.
   // `corte`: fecha de la «foto». Es hoy salvo en un período ya cerrado, donde es su último día (cifras al cierre: no cambian después).
   // `entregadoPorTaller`: «entregado» = el Encargado ya aprobó la parte del taller (como la vista Taller), sin ser el rol Encargado. `permitirVale(vale, filas)`: acota por permiso.
-  async armar({ alcance, dentroDelRango, agruparPor, tiendaSel, tallerSel, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO(), soloAutorizados = false, entregadoPorTaller = false, permitirVale = null, contadores = false }) {
+  async armar({ alcance, dentroDelRango, agruparPor, tiendaSel, tallerSel, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO(), soloAutorizados = false, entregadoPorTaller = false, permitirVale = null, contadores = false, soloUrgentes = false }) {
     const alCorte = corte < hoyISO();
     const todos = (await valeRepository.listarTodos())
+      .filter(v => !soloUrgentes || Number(v.urgente)) // enfoque «solo urgentes»: contadores y desglose parten solo de ellos
       .filter(v => (!soloAutorizados || !!v.autorizado_en) && (soloAtrasadosAntesDe ? soloAtrasadosAntesDe(fechaDe(v.fecha_entrega)) : dentroDelRango(fechaDe(v.fecha_entrega))))
       .map(enriquecer)
       .filter(v => !soloAtrasadosAntesDe || (alCorte
@@ -212,7 +209,13 @@ class ValeReporteGruposService {
       // `sinEntregar`: de los atrasados que se arrastran, los que el taller aún no entrega (alimenta el contador «Atrasados sin entregar»).
       // `sinEntregarTaller`: lo mismo con la definición de Taller (solo Administrador y Gerente, cuyas fichas son las de Ventas).
       const sinEntregarTaller = esGlobal ? { sinEntregarTaller: visiblesTaller.filter(v => { const f = fichasTaller.get(v.id); return f.atrasado && !f.terminado; }).length } : {};
-      return { total: todosVigentes.length, truncado: todosVigentes.length > MAX_VIGENTES, sinEntregar: todosVigentes.filter(v => !v.terminado).length, ...sinEntregarTaller, vales: todosVigentes.slice(0, MAX_VIGENTES), grupos: gruposVigentes };
+      // Atrasados anteriores por grupo (todos y solo urgentes), para los contadores de cada barra.
+      const porGrupoAnteriores = {};
+      for (const g of lista) {
+        const atrasados = g.vales.filter(v => v.atrasado);
+        porGrupoAnteriores[g.id] = { todos: atrasados.length, urgentes: atrasados.filter(v => v.urgente).length };
+      }
+      return { total: todosVigentes.length, truncado: todosVigentes.length > MAX_VIGENTES, sinEntregar: todosVigentes.filter(v => !v.terminado).length, ...sinEntregarTaller, porGrupoAnteriores, vales: todosVigentes.slice(0, MAX_VIGENTES), grupos: gruposVigentes };
     }
 
     // Tres secciones (atrasados, no entregados, entregados): las mismas filas de la agrupación elegida, solo con los vales de cada una.
@@ -227,19 +230,12 @@ class ValeReporteGruposService {
       .filter(Boolean)
       .sort((a, b) => COMPARADORES[clave](a.vales[0], b.vales[0]) || b.total - a.total || a.nombre.localeCompare(b.nombre));
 
-    // Tope de vales por respuesta: se recortan del final (los menos urgentes) y se avisa.
-    let restante = MAX_VALES;
+    // Sobre el tope no se recorta (una lista parcial que parece completa confunde): se omite el desglose y los totales siguen exactos.
+    const desgloseOmitido = totalVales > MAX_VALES;
     const secciones = {};
     for (const clave of SECCIONES) {
       const grupos = porSeccion(clave);
-      secciones[clave] = {
-        total: grupos.reduce((s, g) => s + g.vales.length, 0),
-        grupos: grupos.map(g => {
-          const vales = g.vales.slice(0, Math.max(0, restante));
-          restante -= vales.length;
-          return { ...g, vales, recortado: vales.length < g.vales.length };
-        }).filter(g => g.vales.length)
-      };
+      secciones[clave] = { total: grupos.reduce((s, g) => s + g.vales.length, 0), grupos: desgloseOmitido ? [] : grupos };
     }
     // Rendimiento «hasta hoy»: un vale cuya fecha de entrega aún no llega no puede contarse como no entregado; entra cuando llega su fecha.
     const exigiblesDe = (lista) => lista.filter(v => fechaDe(v.fecha_entrega) <= corte);
@@ -249,26 +245,46 @@ class ValeReporteGruposService {
     const datosRendimiento = esGlobal
       ? await this._rendimientoGlobal({ visiblesVentas: exigiblesDe(visiblesVentas), visiblesTaller: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, filasDe: filasDelTaller, tiendaSel, tallerSel, asesorSel, disSel, nombresConRol })
       : this._rendimiento({ alcance, visibles: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, esTaller, propias, filas, tallerSel, asesorSel, disSel, nombresConRol });
-    // Contadores opcionales: se calculan sobre todos los vales visibles, antes del tope de MAX_VALES.
-    const extra = contadores ? { contadores: this._contadores(visibles, fichas, corte) } : {};
-    return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento: datosRendimiento, ...extra };
+    // Contadores opcionales: se calculan sobre todos los vales visibles, antes de omitir el desglose por MAX_VALES.
+    const extra = contadores ? { contadores: this._contadores(visibles, fichas, tiendas, { agruparPor, nombres, grupos }) } : {};
+    return { agruparPor, secciones, totalVales, truncado: false, desgloseOmitido, indicadoresTaller, rendimiento: datosRendimiento, ...extra };
   }
 
-  // Ingresados, urgentes y recibidos (propuesta ya en el asesor) según el día de llegada frente a la fecha de entrega.
-  _contadores(visibles, fichas, corte) {
+  // Ingresados, urgentes y recibidos (propuesta ya en el asesor), con y sin atraso.
+  _contadores(visibles, fichas, tiendas, { agruparPor = 'tienda', nombres = new Map(), grupos = new Map() } = {}) {
     const lista = visibles.map(v => ({ v, ficha: fichas.get(v.id) }));
-    const urgentes = lista.filter(x => x.ficha.urgente).length;
-    const recibidos = lista.filter(x => x.ficha.seccion === 'entregados');
-    // Con atraso = el mismo diasTarde de la sección Entregados; sin fecha de llegada registrada (datos antiguos) cuenta como sin atraso.
-    const conAtraso = recibidos.filter(x => x.ficha.diasTarde > 0).length;
-    const adelantados = recibidos.filter(x => {
-      const llegada = llegadaAlAsesor(x.v, corte);
-      return !(x.ficha.diasTarde > 0) && !!llegada && llegada < x.ficha.fechaEntrega;
-    }).length;
+    // Vales ingresados por tienda (todos, sin el tope de las listas), de mayor a menor; alimenta la gráfica por tienda.
+    const porTiendaId = new Map();
+    visibles.forEach(v => porTiendaId.set(v.tienda_id, (porTiendaId.get(v.tienda_id) || 0) + 1));
+    const porTienda = [...porTiendaId].map(([id, total]) => ({ id, nombre: tiendas.get(id) || `Tienda ${id}`, total }))
+      .sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, 'es'));
+    // Con la agrupación por asesor, lo mismo por asesor (alimenta la gráfica del reporte de asesores).
+    const extraAsesor = {};
+    if (agruparPor === 'asesor') {
+      // Cada asesor con su total y cuántos de esos vales fueron urgentes: la gráfica los apila en una misma barra.
+      const porAsesorId = new Map();
+      lista.forEach(({ v, ficha }) => {
+        const previo = porAsesorId.get(v.asesor_id) || { total: 0, urgentes: 0 };
+        porAsesorId.set(v.asesor_id, { total: previo.total + 1, urgentes: previo.urgentes + (ficha.urgente ? 1 : 0) });
+      });
+      extraAsesor.porAsesor = [...porAsesorId].map(([id, x]) => ({ id, nombre: nombres.get(id) || `#${id}`, total: x.total, urgentes: x.urgentes }))
+        .sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, 'es'));
+    }
+    const { ingresados, urgentes, recibidos } = contadoresDeFichas({ fichas: lista.map(x => x.ficha) });
+    // Por grupo (tienda o asesor), sobre todos sus vales antes de los topes; sin atrasados anteriores hasta `completarContadores`.
+    const porGrupo = agruparPor === 'tienda' || agruparPor === 'asesor'
+      ? { porGrupo: contadoresPorGrupo(new Map([...grupos].map(([id, g]) => [id, g.vales]))) } : {};
+    return { ingresados, porTienda, ...extraAsesor, urgentes, recibidos, ...porGrupo };
+  }
+
+  // Suma a los contadores los de Atrasados (anteriores al período y del período actual, con su suma) y Sin entregar, que salen de las secciones.
+  // Lo comparten los reportes de actividad que llevan contadores (tienda y asesores).
+  completarContadores(contadores, vigentes, secciones) {
     return {
-      ingresados: lista.length,
-      urgentes: { total: urgentes, porcentaje: lista.length ? Math.round(urgentes / lista.length * 100) : 0 },
-      recibidos: { total: recibidos.length, conAtraso, sinAtraso: recibidos.length - conAtraso - adelantados, adelantados }
+      ...contadores,
+      ...(contadores.porGrupo ? { porGrupo: completarPorGrupo(contadores.porGrupo, vigentes.porGrupoAnteriores) } : {}),
+      atrasados: { total: vigentes.total + secciones.atrasados.total, anteriores: vigentes.total, actuales: secciones.atrasados.total },
+      sinEntregar: secciones.noEntregados.total
     };
   }
 

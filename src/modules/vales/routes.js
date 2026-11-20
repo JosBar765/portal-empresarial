@@ -5,6 +5,7 @@ const router = express.Router();
 const valeController = require('./controllers/valeController');
 const borradorController = require('./controllers/borradorController');
 const { rateLimit } = require('express-rate-limit');
+const { nuevaReferencia, lineaLog, exigirPermisoReporte } = require('./utils/reporteErrores');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
 
 const TIPOS_PERMITIDOS = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']);
@@ -32,11 +33,10 @@ const verVales = requirePermission('vales.ver');
 const autorizarCreacionVale = requirePermission('vales.supervisar');
 const crearVale = requirePermission('vales.crear');
 const asignarVale = requirePermission('vales.gestionar_taller');
-const verReportes = requirePermission('vales.ver_reportes');
-const verReporteActividadTienda = requirePermission('vales.reporte_actividad_tienda');
-const verReporteActividadTaller = requirePermission('vales.reporte_actividad_taller');
-const verReporteActividadDisenador = requirePermission('vales.reporte_actividad_disenador');
-const verReporteActividadAsesor = requirePermission('vales.reporte_actividad_asesor');
+const verReporteActividadTienda = exigirPermisoReporte('vales.reporte_actividad_tienda', 'actividad-tienda', requirePermission('vales.reporte_actividad_tienda'));
+const verReporteActividadTaller = exigirPermisoReporte('vales.reporte_actividad_taller', 'actividad-taller', requirePermission('vales.reporte_actividad_taller'));
+const verReporteActividadDisenador = exigirPermisoReporte('vales.reporte_actividad_disenador', 'actividad-disenador', requirePermission('vales.reporte_actividad_disenador'));
+const verReporteActividadAsesor = exigirPermisoReporte('vales.reporte_actividad_asesor', 'actividad-asesor', requirePermission('vales.reporte_actividad_asesor'));
 const trabajarVale = requirePermission('vales.trabajar');
 const revisarVale = requirePermission('vales.gestionar_taller');
 const aprobacionGeneralVale = requirePermission('vales.aprobar_general');
@@ -69,7 +69,34 @@ const limitarReportes = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => `reportes:${req.user.id}`,
   handler: (req, res) => {
-    res.status(429).json({ error: 'Demasiados reportes seguidos. Espera un momento e inténtalo de nuevo.' });
+    const referencia = nuevaReferencia();
+    const reporte = req.path.replace(/^\/reportes\//, '').replace(/\/pdf$/, '') || '-';
+    const etapa = 'limite';
+    const mensaje = 'Demasiados reportes seguidos. Espera un momento e inténtalo de nuevo.';
+    console.warn(lineaLog({ referencia, reporte, etapa, req, estado: 429, codigo: 'REPORTE_LIMITE', mensaje }));
+    // resetTime es una fecha; el cliente solo necesita los segundos de espera.
+    const reset = req.rateLimit && req.rateLimit.resetTime;
+    const reintentarEnSegundos = reset ? Math.max(1, Math.ceil((new Date(reset).getTime() - Date.now()) / 1000)) : 60;
+    res.status(429).json({ error: mensaje, codigo: 'REPORTE_LIMITE', referencia, etapa, reintentarEnSegundos });
+  }
+});
+
+// Las opciones de los filtros no recorren vales: tope más holgado, con su propio contador.
+const limitarOpciones = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `reportes-opciones:${req.user.id}`,
+  handler: (req, res) => {
+    const referencia = nuevaReferencia();
+    const reporte = req.path.replace(/^\/reportes\//, '').replace(/\/opciones$/, '') || '-';
+    const etapa = 'limite';
+    const mensaje = 'Demasiadas consultas seguidas. Espera un momento e inténtalo de nuevo.';
+    console.warn(lineaLog({ referencia, reporte, etapa, req, estado: 429, codigo: 'REPORTE_LIMITE', mensaje }));
+    const reset = req.rateLimit && req.rateLimit.resetTime;
+    const reintentarEnSegundos = reset ? Math.max(1, Math.ceil((new Date(reset).getTime() - Date.now()) / 1000)) : 60;
+    res.status(429).json({ error: mensaje, codigo: 'REPORTE_LIMITE', referencia, etapa, reintentarEnSegundos });
   }
 });
 
@@ -83,8 +110,10 @@ router.get('/carga-trabajo', asignarVale, (req, res) => valeController.cargaTrab
 router.get('/carga-trabajo/:disenadorId', asignarVale, (req, res) => valeController.cargaTrabajoDisenador(req, res));
 
 router.get('/', verVales, (req, res) => valeController.buzon(req, res));
-router.get('/reportes', verReportes, limitarReportes, (req, res) => valeController.reportes(req, res));
-router.get('/reportes/pdf', verReportes, limitarReportes, (req, res) => valeController.reportePdf(req, res));
+router.get('/reportes/actividad-tienda/opciones', verReporteActividadTienda, limitarOpciones, (req, res) => valeController.opcionesActividadTienda(req, res));
+router.get('/reportes/actividad-taller/opciones', verReporteActividadTaller, limitarOpciones, (req, res) => valeController.opcionesActividadEquipo(req, res, 'taller'));
+router.get('/reportes/actividad-disenador/opciones', verReporteActividadDisenador, limitarOpciones, (req, res) => valeController.opcionesActividadEquipo(req, res, 'disenador'));
+router.get('/reportes/actividad-asesor/opciones', verReporteActividadAsesor, limitarOpciones, (req, res) => valeController.opcionesActividadEquipo(req, res, 'asesor'));
 router.get('/reportes/actividad-tienda', verReporteActividadTienda, limitarReportes, (req, res) => valeController.reporteActividadTienda(req, res));
 router.get('/reportes/actividad-tienda/pdf', verReporteActividadTienda, limitarReportes, (req, res) => valeController.reporteActividadTiendaPdf(req, res));
 router.get('/reportes/actividad-taller', verReporteActividadTaller, limitarReportes, (req, res) => valeController.reporteActividadEquipo(req, res, 'taller'));

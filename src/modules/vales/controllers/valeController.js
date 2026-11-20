@@ -2,8 +2,10 @@
 const valeService = require('../services/valeService');
 const { leerAdjuntos } = require('../services/propuestaAdjuntos');
 const { validarArchivos, tipoRealCoincide } = require('../../../core/files/fileSignature');
-const { responderError, responderErrorInterno } = require('../../../core/utils/erroresHttp');
+const { responderError, responderErrorInterno, ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
+const { ESTADOS_DESGLOSE } = require('../services/valeReporteFiltroDesglose');
 const { idObligatorio, idOpcional } = require('../../../core/utils/validar');
+const { responderErrorReporte } = require('../utils/reporteErrores');
 
 // Taller de la conversación: obligatorio y válido.
 function idTallerConversacion(valor) {
@@ -121,57 +123,26 @@ class ValeController {
     }
   }
 
-  _filtrosReporte(req) {
-    return {
-      ventana: req.query.ventana,
-      fecha: req.query.fecha,
-      desde: req.query.desde,
-      hasta: req.query.hasta,
-      tiendaId: req.query.tiendaId,
-      tiendaIds: req.query.tiendaIds,
-      tallerId: req.query.tallerId,
-      tallerIds: req.query.tallerIds,
-      personaIds: req.query.personaIds,
-      asesorIds: req.query.asesorIds,
-      disenadorIds: req.query.disenadorIds,
-      agruparPor: req.query.agruparPor,
-      tipo: req.query.tipo
-    };
-  }
-
-  async reportes(req, res) {
-    try {
-      return res.json(await valeService.obtenerReporte(req.user, this._filtrosReporte(req)));
-    } catch (error) {
-      return responderError(res, error);
-    }
-  }
-
-  async reportePdf(req, res) {
-    try {
-      const { reporte, pdf } = await valeService.generarReportePdf(req.user, this._filtrosReporte(req), String(req.query.tipo || 'actividad'), String(req.query.enfoque || 'ventas'));
-      const fecha = reporte.periodo.desde && reporte.periodo.desde === reporte.periodo.hasta ? reporte.periodo.desde : (reporte.periodo.desde || 'historial');
-      const quien = reporte.evaluados.length === 1
-        ? reporte.evaluados[0].nombre.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
-        : (reporte.evaluados.length > 1 ? `${reporte.evaluados.length}-personas` : '');
-      const sufijo = quien ? `${fecha}-${quien}` : fecha;
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="reporte-${req.query.tipo === 'rendimiento' ? 'rendimiento' : 'actividad'}-${sufijo}.pdf"`);
-      res.setHeader('Content-Length', pdf.length);
-      return res.end(pdf);
-    } catch (error) {
-      return responderError(res, error);
-    }
+  // Solo el PDF: filtro del desglose por contador (estado exclusivo + urgentes); un estado desconocido responde 400.
+  _filtroDesglose(req) {
+    const estado = String(req.query.desgloseEstado ?? '');
+    if (estado && !ESTADOS_DESGLOSE.includes(estado)) throw new ErrorDeNegocio('El filtro del desglose no es válido.', 400);
+    return { desgloseEstado: estado || null, desgloseUrgentes: req.query.desgloseUrgentes === '1' };
   }
 
   // Reporte de actividad de tienda: el período igual que Actividad y, opcional, lo que emite el filtro en cascada (una tienda o una lista).
-  // A diferencia de Reportes, un id mal formado responde 400 en vez de ignorarse.
+  // Un id mal formado responde 400 en vez de ignorarse.
   _filtrosReporteTienda(req) {
     const lista = String(req.query.tiendaIds ?? '').split(',').filter(t => t.trim() !== '');
     return {
       ventana: req.query.ventana, fecha: req.query.fecha, desde: req.query.desde, hasta: req.query.hasta,
       tiendaId: idOpcional(req.query.tiendaId, 'Tienda'),
-      tiendaIds: lista.map(t => idObligatorio(t.trim(), 'Tienda'))
+      tiendaIds: lista.map(t => idObligatorio(t.trim(), 'Tienda')),
+      // Solo el PDF lo usa: `desglose=0` lo imprime sin el desglose de vales (contadores y gráfica siempre van).
+      incluirDesglose: req.query.desglose !== '0',
+      // Solo el PDF: id de la tienda enfocada en la gráfica; el desglose se imprime de esa tienda (null = el del filtro).
+      tiendaDesglose: idOpcional(req.query.tiendaDesglose, 'Tienda'),
+      ...this._filtroDesglose(req)
     };
   }
 
@@ -179,7 +150,23 @@ class ValeController {
     try {
       return res.json(await valeService.obtenerReporteActividadTienda(req.user, this._filtrosReporteTienda(req)));
     } catch (error) {
-      return responderError(res, error);
+      return responderErrorReporte(req, res, error, { reporte: 'actividad-tienda', etapa: 'generar' });
+    }
+  }
+
+  async opcionesActividadTienda(req, res) {
+    try {
+      return res.json(await valeService.obtenerOpcionesActividadTienda(req.user));
+    } catch (error) {
+      return responderErrorReporte(req, res, error, { reporte: 'actividad-tienda', etapa: 'opciones' });
+    }
+  }
+
+  async opcionesActividadEquipo(req, res, tipo) {
+    try {
+      return res.json(await valeService.obtenerOpcionesActividadEquipo(tipo, req.user));
+    } catch (error) {
+      return responderErrorReporte(req, res, error, { reporte: `actividad-${tipo}`, etapa: 'opciones' });
     }
   }
 
@@ -191,7 +178,7 @@ class ValeController {
       res.setHeader('Content-Length', pdf.length);
       return res.end(pdf);
     } catch (error) {
-      return responderError(res, error);
+      return responderErrorReporte(req, res, error, { reporte: 'actividad-tienda', etapa: 'pdf' });
     }
   }
 
@@ -201,14 +188,22 @@ class ValeController {
     const periodo = { ventana: req.query.ventana, fecha: req.query.fecha, desde: req.query.desde, hasta: req.query.hasta };
     if (tipo === 'taller') return { ...periodo, tallerId: idOpcional(req.query.tallerId, 'Taller'), tallerIds: lista(req.query.tallerIds, 'Taller') };
     if (tipo === 'disenador') return { ...periodo, disenadorIds: lista(req.query.disenadorIds, 'Diseñador') };
-    return { ...periodo, asesorIds: lista(req.query.asesorIds, 'Asesor') };
+    // Asesores: además filtra por tienda (una o una lista para un país o grupo) y su PDF puede omitir el desglose (`desglose=0`).
+    return {
+      ...periodo, asesorIds: lista(req.query.asesorIds, 'Asesor'),
+      tiendaId: idOpcional(req.query.tiendaId, 'Tienda'), tiendaIds: lista(req.query.tiendaIds, 'Tienda'),
+      incluirDesglose: req.query.desglose !== '0',
+      // Asesor enfocado en la gráfica: su desglose en el PDF y, con `soloUrgentes=1`, solo sus vales urgentes (contadores y desglose).
+      asesorDesglose: idOpcional(req.query.asesorDesglose, 'Asesor'), soloUrgentes: req.query.soloUrgentes === '1',
+      ...this._filtroDesglose(req)
+    };
   }
 
   async reporteActividadEquipo(req, res, tipo) {
     try {
       return res.json(await valeService.obtenerReporteActividadEquipo(tipo, req.user, this._filtrosReporteEquipo(req, tipo)));
     } catch (error) {
-      return responderError(res, error);
+      return responderErrorReporte(req, res, error, { reporte: `actividad-${tipo}`, etapa: 'generar' });
     }
   }
 
@@ -220,7 +215,7 @@ class ValeController {
       res.setHeader('Content-Length', pdf.length);
       return res.end(pdf);
     } catch (error) {
-      return responderError(res, error);
+      return responderErrorReporte(req, res, error, { reporte: `actividad-${tipo}`, etapa: 'pdf' });
     }
   }
 

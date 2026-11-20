@@ -14,18 +14,23 @@ const LOGO_PATH = path.join(__dirname, '../../../../public/assets/logos/LOGO_GP_
 
 const NEGRO = rgb(0, 0, 0);
 const GRIS = rgb(0.45, 0.48, 0.52);
+// Dos líneas para que quepa en la página; el desglose se omite sobre el tope de vales del servicio de grupos.
+const TEXTO_DESGLOSE_OMITIDO = (n) => [`El período tiene ${n.toLocaleString('es-GT')} vales: son demasiados para listarlos en el PDF.`, 'Acota el período o los filtros para ver el desglose.'];
 const LINEA = rgb(0.85, 0.85, 0.85);
 const FONDO_CABECERA = rgb(0.95, 0.96, 0.97);
 const ROJO = rgb(0.8, 0.1, 0.1);
 const AMBAR = rgb(0.85, 0.47, 0.02);
 const GRIS_TEXTO = rgb(0.3, 0.33, 0.37);
+const AMARILLO_RESALTE = rgb(1, 0.93, 0.4); // resaltado de la línea de filtros en los reportes de Reportes 2
 
 const SECCIONES_PDF = [
   { clave: 'atrasados', titulo: 'ATRASADOS EN EL PERÍODO' },
   { clave: 'noEntregados', titulo: 'NO ENTREGADOS' },
   { clave: 'entregados', titulo: 'ENTREGADOS' }
 ];
-const TITULOS_PDF = { actividad: 'REPORTE DE ACTIVIDAD', rendimiento: 'REPORTE DE RENDIMIENTO', 'actividad-tienda': 'REPORTE DE ACTIVIDAD DE TIENDA',
+// Títulos de Reportes 2 (reportes `actividad-*`): sección de atrasados del período, sin entregar y atrasados anteriores al período.
+const TITULOS_REPORTES2 = { atrasados: 'ATRASADOS (PERÍODO ACTUAL)', noEntregados: 'SIN ENTREGAR', vigentes: 'ATRASADOS (ANTERIORES AL PERÍODO)' };
+const TITULOS_PDF = { actividad: 'REPORTE DE ACTIVIDAD', rendimiento: 'REPORTE DE RENDIMIENTO', 'actividad-tienda': 'REPORTE DE ACTIVIDAD DE TIENDAS',
   'actividad-taller': 'REPORTE DE ACTIVIDAD DE TALLERES', 'actividad-disenador': 'REPORTE DE ACTIVIDAD DE DISEÑADORES', 'actividad-asesor': 'REPORTE DE ACTIVIDAD DE ASESORES' };
 const COLOR_SERIE_A = rgb(0.145, 0.388, 0.922);
 const COLOR_SERIE_B = rgb(0.086, 0.639, 0.29);
@@ -113,12 +118,131 @@ class ValeReportePdfService {
 
   // Reporte de actividad: atrasados antes del período y las tres secciones del período (o la lista del Asesor y del Diseñador).
   _actividad(ctx, reporte) {
-    if (reporte.atrasadosVigentes && reporte.atrasadosVigentes.total) this._vigentes(ctx, reporte.atrasadosVigentes, reporte.rol === 'encargado');
+    if (reporte.contadores) {
+      this._contadoresActividad(ctx, reporte.contadores);
+      // La gráfica es por asesor en el reporte de asesores y por tienda en el de tiendas.
+      if (reporte.tipo === 'actividad-asesor') this._graficaBarras(ctx, reporte.contadores.porAsesor, 'VALES INGRESADOS POR ASESOR', 'asesores', { apilada: true });
+      else this._graficaBarras(ctx, reporte.contadores.porTienda, 'VALES INGRESADOS POR TIENDA', 'tiendas');
+    }
+    if (reporte.incluirDesglose === false) return; // sin desglose: solo los contadores y la gráfica (el dueño lo elige al descargar)
+    if (reporte.contadores) this._divisionDesglose(ctx);
+    if (reporte.desgloseDe) this._titulo(ctx, `DESGLOSE DE VALES DE ARTE: ${String(reporte.desgloseDe).toUpperCase()}`); // desglose de la tienda enfocada
+    const desgloseOmitido = !!(reporte.grupos && reporte.grupos.desgloseOmitido);
+    if (!desgloseOmitido && reporte.atrasadosVigentes && reporte.atrasadosVigentes.total) this._vigentes(ctx, reporte.atrasadosVigentes, reporte.rol === 'encargado', String(reporte.tipo).startsWith('actividad-') ? TITULOS_REPORTES2.vigentes : undefined);
     if (reporte.grupos) this._secciones(ctx, reporte);
     else {
       reporte.tablas.forEach(t => this._tablaPersonas(ctx, t));
       this._listado(ctx, reporte);
     }
+  }
+
+  // Franja de contadores del reporte de actividad de tienda, en dos filas (maqueta aprobada en Figma, ~9 % de la página):
+  // Ingresados · Urgentes · Sin entregar / Atrasados (anteriores, actuales) · Entregados (con atraso, sin atraso).
+  _contadoresActividad(ctx, c) {
+    const ALTO = 72; const FILA = 36;
+    const top = ctx.y + 6;
+    ctx.page.drawRectangle({ x: MARGIN, y: top - ALTO, width: CONTENT_WIDTH, height: ALTO, color: FONDO_CABECERA });
+    const verde = COLOR_SEMAFORO.verde;
+    const num = (n) => String(Number(n) || 0);
+    const linea = (x1, y1, x2, y2) => ctx.page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness: 0.75, color: LINEA });
+    const separador = (x, fila) => linea(MARGIN + x, top - fila * FILA - 6, MARGIN + x, top - fila * FILA - 30);
+    // `extras`: textos a la derecha del valor ({ texto, color, size, bold, hueco }); la altura de la fila es la del valor.
+    const celda = (x, fila, etiqueta, valor, extras = []) => {
+      const x0 = MARGIN + x; const base = top - fila * FILA - 27.5;
+      this._texto(ctx, etiqueta, x0, top - fila * FILA - 11.7, { size: 7, color: GRIS });
+      this._texto(ctx, valor, x0, base, { size: 12, bold: true });
+      let cx = x0 + ctx.fontBold.widthOfTextAtSize(limpiar(valor), 12);
+      extras.forEach(({ texto, color, size = 8.5, bold = true, hueco = 12 }) => {
+        cx += hueco;
+        this._texto(ctx, texto, cx, base, { size, bold, color });
+        cx += (bold ? ctx.fontBold : ctx.font).widthOfTextAtSize(limpiar(texto), size);
+      });
+    };
+    const u = c.urgentes || {}; const a = c.atrasados || {}; const r = c.recibidos || {};
+    celda(10, 0, 'Ingresados', num(c.ingresados));
+    separador(180, 0);
+    celda(192, 0, 'Urgentes', `${num(u.porcentaje)} %`, [{ texto: `${num(u.total)} de ${num(c.ingresados)} vales`, color: GRIS, size: 7.5, bold: false, hueco: 5 }]);
+    separador(360, 0);
+    celda(372, 0, 'Sin entregar', num(c.sinEntregar));
+    linea(MARGIN + 10, top - FILA, MARGIN + CONTENT_WIDTH - 10, top - FILA);
+    celda(10, 1, 'Atrasados', num(a.total), [{ texto: `Anteriores ${num(a.anteriores)}`, color: ROJO }, { texto: `Actuales ${num(a.actuales)}`, color: ROJO }]);
+    separador(270, 1);
+    celda(282, 1, 'Entregados', num(r.total), [{ texto: `Con atraso ${num(r.conAtraso)}`, color: ROJO }, { texto: `Sin atraso ${num(r.sinAtraso)}`, color: verde }]);
+    ctx.y = top - ALTO - 8;
+  }
+
+  // Línea que separa el resumen (contadores y gráfica) del desglose de vales. Si el desglose arranca en una página nueva no hace falta.
+  _divisionDesglose(ctx) {
+    const pagina = ctx.page;
+    this._espacio(ctx, 40);
+    if (ctx.page !== pagina) return;
+    ctx.page.drawLine({ start: { x: MARGIN, y: ctx.y - 2 }, end: { x: PAGE_WIDTH - MARGIN, y: ctx.y - 2 }, thickness: 0.75, color: rgb(0.6, 0.6, 0.6) });
+    ctx.y -= 14;
+  }
+
+  // «Vales ingresados por tienda» (o por asesor): barras horizontales de mayor a menor (las 10 primeras y el resto sumado en «Otras»); la que
+  // más mete en azul y las demás en gris. `lista` es [{ nombre, total }]; llega en null si no corresponde (una sola tienda en el filtro).
+  // `apilada` (reporte de asesores): cada barra se divide en vales no urgentes (azul) y urgentes (ámbar, como en pantalla) con su leyenda;
+  // como el color pasa a significar «urgente», no se resalta la mayor. `lista` trae entonces `urgentes`.
+  _graficaBarras(ctx, lista, titulo, unidadOtras, { apilada = false } = {}) {
+    const porTienda = lista;
+    if (!Array.isArray(porTienda) || !porTienda.length) return; // basta una con vales
+    const total = porTienda.reduce((s, t) => s + (Number(t.total) || 0), 0);
+    if (!total) return;
+    const TOP = 10; const FILA = 13; const ALTO_BARRA = 8.75; const ANCHO_VALOR = 24; const TOPE_NOMBRE = 260;
+    const maximo = Number(porTienda[0].total) || 0;
+    const pct = (n) => { const p = n / total * 100; return n > 0 && p < 1 ? '<1' : String(Math.round(p)); };
+    const filas = porTienda.slice(0, TOP).map(t => ({ nombre: t.nombre, total: Number(t.total) || 0, urgentes: Number(t.urgentes) || 0, lider: !apilada && Number(t.total) === maximo }));
+    const resto = porTienda.slice(TOP);
+    if (resto.length) filas.push({ nombre: `Otras (${resto.length} ${unidadOtras})`, total: resto.reduce((s, t) => s + (Number(t.total) || 0), 0), urgentes: 0, lider: false, otras: true });
+    this._espacio(ctx, 30 + filas.length * FILA + (apilada ? 12 : 0));
+    this._titulo(ctx, titulo); // mismo estilo de título que las demás secciones del PDF
+    if (apilada) {
+      // Leyenda: los dos colores de la barra con su nombre (el color no se interpreta solo).
+      let lx = MARGIN;
+      [[COLOR_SERIE_A, 'No urgentes'], [AMBAR, 'Urgentes']].forEach(([color, texto]) => {
+        ctx.page.drawRectangle({ x: lx, y: ctx.y + 1.5, width: 7, height: 7, color });
+        this._texto(ctx, texto, lx + 10, ctx.y + 2, { size: 7.5, color: GRIS_TEXTO });
+        lx += 10 + ctx.font.widthOfTextAtSize(texto, 7.5) + 14;
+      });
+      ctx.y -= 10;
+    }
+    // La columna de nombres mide lo que el nombre más largo (con un tope) y los nombres van a la derecha, junto al arranque de las barras.
+    const anchoDe = (f) => ctx.font.widthOfTextAtSize(limpiar(f.nombre), 7.5);
+    const anchoNombre = Math.min(TOPE_NOMBRE, Math.max(...filas.map(anchoDe)));
+    // El porcentaje va en la punta de cada barra (se reserva su ancho al final de la pista) y la columna de la derecha lleva la cantidad.
+    const reservaPct = ctx.font.widthOfTextAtSize('100 %', 7.5) + 5;
+    const x0 = MARGIN + anchoNombre + 8; const anchoPista = CONTENT_WIDTH - anchoNombre - ANCHO_VALOR - 16 - reservaPct;
+    // «Otras» suma varias tiendas: no lleva barra (no es comparable con una sola) y no escala a las demás.
+    const maxFila = Math.max(maximo, 1);
+    filas.forEach((f) => {
+      const base = ctx.y - FILA + 3.5;
+      const nombre = this._ajustar(ctx, f.nombre, anchoNombre, 7.5);
+      const anchoTexto = ctx.font.widthOfTextAtSize(limpiar(nombre), 7.5);
+      this._texto(ctx, nombre, MARGIN + anchoNombre - anchoTexto, base, { size: 7.5 });
+      const ancho = Math.max(f.total / maxFila * anchoPista, f.total > 0 ? 1.5 : 0);
+      const yBarra = ctx.y - FILA + (FILA - ALTO_BARRA) / 2;
+      if (ancho > 0 && !f.otras && apilada) {
+        // Dos tramos con un hueco de 1,5 pt: el azul (no urgentes) y, a continuación, el ámbar (urgentes) con su cantidad, siempre visible.
+        const HUECO = 1.5;
+        const n = String(f.urgentes);
+        const wN = ctx.fontBold.widthOfTextAtSize(n, 6.5);
+        // Mínimo de wN + 4 para que quepa la cifra aunque sea un solo vale.
+        const anchoUrg = f.urgentes > 0 ? Math.max(f.urgentes / maxFila * anchoPista, wN + 4) : 0;
+        const anchoBase = Math.max(ancho - anchoUrg - (anchoUrg ? HUECO : 0), 0);
+        if (anchoBase > 0) ctx.page.drawRectangle({ x: x0, y: yBarra, width: anchoBase, height: ALTO_BARRA, color: COLOR_SERIE_A });
+        if (anchoUrg > 0) {
+          ctx.page.drawRectangle({ x: x0 + anchoBase + (anchoBase ? HUECO : 0), y: yBarra, width: anchoUrg, height: ALTO_BARRA, color: AMBAR });
+          this._texto(ctx, n, x0 + anchoBase + (anchoBase ? HUECO : 0) + (anchoUrg - wN) / 2, yBarra + 2.3, { size: 6.5, bold: true, color: rgb(0.1, 0.1, 0.1) });
+        }
+      } else if (ancho > 0 && !f.otras) ctx.page.drawRectangle({ x: x0, y: yBarra, width: ancho, height: ALTO_BARRA, color: f.lider ? COLOR_SERIE_A : rgb(0.58, 0.64, 0.72) });
+      // «Otras» no lleva barra: su porcentaje arranca donde empezaría una.
+      this._texto(ctx, `${pct(f.total)} %`, x0 + (f.otras ? 0 : ancho) + 4, base, { size: 7.5 });
+      const cantidad = String(f.total);
+      this._texto(ctx, cantidad, PAGE_WIDTH - MARGIN - ctx.font.widthOfTextAtSize(limpiar(cantidad), 7.5), base, { size: 7.5 });
+      ctx.y -= FILA;
+    });
+    ctx.y -= 8;
   }
 
   // Pie de la última página de todo reporte: dos líneas de firma, la de quien lo imprimió (con su nombre) y la de su jefe inmediato.
@@ -167,7 +291,13 @@ class ValeReportePdfService {
     // «Agrupar por» no aplica al reporte de rendimiento.
     const filtrosVisibles = (reporte.resumenFiltros || []).filter(t => reporte.tipo !== 'rendimiento' || !/^Agrupado por/.test(t));
     if (filtrosVisibles.length) {
-      this._texto(ctx, this._ajustar(ctx, filtrosVisibles.join('  ·  '), CONTENT_WIDTH, 7.5), MARGIN, ctx.y - 5, { size: 7.5, color: GRIS });
+      const linea = this._ajustar(ctx, filtrosVisibles.join('  ·  '), CONTENT_WIDTH, 7.5);
+      // Reportes 2: la línea de filtros va resaltada en amarillo (como marcatexto) y con tinta más oscura para que se lea sobre el fondo.
+      const resaltar = String(reporte.tipo).startsWith('actividad-');
+      if (resaltar) {
+        ctx.page.drawRectangle({ x: MARGIN - 2, y: ctx.y - 7.5, width: ctx.font.widthOfTextAtSize(limpiar(linea), 7.5) + 4, height: 10.5, color: AMARILLO_RESALTE });
+      }
+      this._texto(ctx, linea, MARGIN, ctx.y - 5, { size: 7.5, color: resaltar ? GRIS_TEXTO : GRIS });
       ctx.y -= 13;
     }
     const evaluados = reporte.evaluados || [];
@@ -254,21 +384,28 @@ class ValeReportePdfService {
     const nombre = { asesor: 'ASESOR', disenador: 'DISEÑADOR', taller: 'TALLER', tienda: 'TIENDA' }[g.agruparPor];
     const esTaller = reporte.rol === 'encargado';
     const hayVales = SECCIONES_PDF.some(sec => g.secciones[sec.clave].total > 0);
+    // Filtro solo con atrasados anteriores: ya se imprimieron arriba, no hay nada vacío que avisar.
+    if (!hayVales && reporte.filtroDesglose && reporte.atrasadosVigentes && reporte.atrasadosVigentes.total) return;
     if (!hayVales) {
       this._titulo(ctx, `VALES POR ${nombre} (0)`);
-      this._texto(ctx, 'No hubo vales con entrega en este período.', MARGIN, ctx.y - 8, { size: 9, color: GRIS });
+      // Con filtro del desglose el vacío es del filtro, no del período.
+      this._texto(ctx, reporte.filtroDesglose ? 'Ningún vale cumple el filtro del desglose.' : 'No hubo vales con entrega en este período.', MARGIN, ctx.y - 8, { size: 9, color: GRIS });
       ctx.y -= 20;
+      return;
+    }
+    if (g.desgloseOmitido) {
+      this._titulo(ctx, `VALES POR ${nombre} (${g.totalVales})`);
+      TEXTO_DESGLOSE_OMITIDO(g.totalVales).forEach((linea, i) => this._texto(ctx, linea, MARGIN, ctx.y - 8 - i * 12, { size: 9, color: GRIS }));
+      ctx.y -= 32;
       return;
     }
     for (const sec of SECCIONES_PDF) {
       const datos = g.secciones[sec.clave];
       if (!datos.total) continue;
-      this._titulo(ctx, `${sec.titulo} (${datos.total})`);
+      // Los reportes de actividad de Reportes 2 renombran estas secciones; Actividad y Rendimiento conservan sus títulos.
+      const titulo = (String(reporte.tipo).startsWith('actividad-') && TITULOS_REPORTES2[sec.clave]) || sec.titulo;
+      this._titulo(ctx, `${titulo} (${datos.total})`);
       this._gruposPdf(ctx, datos.grupos, sec.clave, esTaller);
-    }
-    if (g.truncado) {
-      this._espacio(ctx, 16);
-      this._texto(ctx, `Hay ${g.totalVales} vales; se muestran los más urgentes. Acota el período o los filtros para ver el resto.`, MARGIN, ctx.y - 8, { size: 8, color: GRIS });
     }
   }
 
@@ -372,8 +509,8 @@ class ValeReportePdfService {
   }
 
   // «Atrasados vigentes»: vales atrasados y abiertos con entrega fuera del período, del más atrasado al menos.
-  _vigentes(ctx, av, esTaller = false) {
-    this._titulo(ctx, `ATRASADOS ANTES DEL PERÍODO (${av.total})`);
+  _vigentes(ctx, av, esTaller = false, titulo = 'ATRASADOS ANTES DEL PERÍODO') {
+    this._titulo(ctx, `${titulo} (${av.total})`);
     if (av.grupos) {
       // Agrupados como las demás secciones (por diseñador, asesor, taller o tienda), del más atrasado al menos.
       this._gruposPdf(ctx, av.grupos, 'atrasados', esTaller);
