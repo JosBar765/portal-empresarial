@@ -5,7 +5,7 @@ import { obtenerDisenadoresAsignables, obtenerCalendarioBuzon } from '../api/val
 import { crearBarraPeriodo } from '../components/barraPeriodoReportes.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { crearFiltroTiendas } from '/js/menuCascada.js';
-import { resolverTiendaIds, valorVigente } from '/js/filtroCascada.js';
+import { resolverTiendaIds } from '/js/filtroCascada.js';
 
 // «Ver reporte de este día»: abre la pestaña Reportes con período «Día» en esa fecha de entrega.
 function verReporteDelDia(iso) {
@@ -74,17 +74,18 @@ export function wireToolbar() {
     const contenedorTienda = $('#filtro-tienda');
     contenedorTienda.style.display = '';
     const tiendasMenu = state.catalogos.tiendasGerencia || state.catalogos.tiendas || [];
-    // Un valor recordado solo vale si todavía existe en el catálogo de este usuario (por ejemplo, ya no cubre esa tienda).
-    const recordado = state.tiendaId == null ? leerFiltroTienda() : null;
+    // El valor recordado puede ser un id, «pais:X», «grupo:Y» o una lista; se pasa a lista de ids y se descartan las tiendas que ya no están en el catálogo de este usuario.
+    const recordado = state.tiendaId == null ? leerFiltroTienda() : state.tiendaId;
     if (recordado) {
-      const existe = resolverTiendaIds(recordado, tiendasMenu).some(id => tiendasMenu.some(t => Number(t.id) === Number(id)));
-      if (existe) state.tiendaId = recordado; else guardarFiltroTienda(null);
+      const ids = resolverTiendaIds(recordado, tiendasMenu).filter(id => tiendasMenu.some(t => Number(t.id) === id));
+      state.tiendaId = ids.length ? ids.join(',') : null;
+      guardarFiltroTienda(state.tiendaId);
     }
-    state.tiendaId = valorVigente(state.tiendaId, v => resolverTiendaIds(v, tiendasMenu)) || null;
     const menuTienda = crearFiltroTiendas({
       tiendas: tiendasMenu,
+      multiple: true,
       valorActual: state.tiendaId ? String(state.tiendaId) : '',
-      // Misma semántica que el `change` del select anterior: vacío = sin filtro.
+      // Vacío = sin filtro; si no, lista de ids «3,7,9».
       onSeleccionar: (valor) => {
         state.tiendaId = valor ? String(valor) : null;
         guardarFiltroTienda(state.tiendaId);

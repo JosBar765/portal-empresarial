@@ -3,7 +3,9 @@ const SIN_PAIS = 'Sin país';
 const PREFIJO_PAIS = 'pais:';
 const PREFIJO_GRUPO = 'grupo:';
 
-const esValorLista = (valor) => typeof valor === 'string' && (valor.startsWith(PREFIJO_PAIS) || valor.startsWith(PREFIJO_GRUPO));
+// Selección múltiple de tiendas: ids separados por coma («3,7,9»); un id suelto sigue siendo un valor simple.
+const esValorMultiple = (valor) => typeof valor === 'string' && valor.includes(',');
+const esValorLista = (valor) => typeof valor === 'string' && (valor.startsWith(PREFIJO_PAIS) || valor.startsWith(PREFIJO_GRUPO) || esValorMultiple(valor));
 const idsDe = (items) => items.map(t => Number(t.id)).filter(id => Number.isInteger(id) && id > 0);
 const idUnico = (texto) => (/^\d+$/.test(texto.trim()) && Number(texto) > 0 ? [Number(texto)] : []);
 // Un taller con varios países cuenta en cada uno; sin país cuenta en «Sin país».
@@ -12,6 +14,11 @@ const paisesDeTaller = (t) => (t.paises && t.paises.length ? t.paises : [SIN_PAI
 export function resolverTiendaIds(valor, tiendas = []) {
   if (valor === '' || valor == null) return [];
   const texto = String(valor);
+  if (esValorMultiple(texto)) {
+    // Un id que ya no está en el catálogo se descarta.
+    const conocidos = new Set(idsDe(tiendas));
+    return [...new Set(texto.split(',').flatMap(idUnico))].filter(id => conocidos.has(id));
+  }
   if (texto.startsWith(PREFIJO_PAIS)) {
     const pais = texto.slice(PREFIJO_PAIS.length);
     return idsDe(tiendas.filter(t => (t.pais_nombre || SIN_PAIS) === pais));
@@ -44,5 +51,6 @@ export const paramsDeTaller = (valor, talleres = []) => paramsDe(valor, resolver
 
 // Un país o grupo que ya no resuelve a ningún id (catálogo cambiado) vuelve a «todas» en vez de filtrar por nada.
 export function valorVigente(valor, resolverIds) {
+  if (esValorMultiple(valor)) return resolverIds(valor).join(',');
   return esValorLista(valor) && !resolverIds(valor).length ? '' : valor;
 }
