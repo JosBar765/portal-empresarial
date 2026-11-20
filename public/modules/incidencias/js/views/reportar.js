@@ -18,7 +18,7 @@ export async function mostrarReportar(cont) {
   if (!f.tiendas.length) { mostrarNoDisponible(cont, f.avisoPais); return {}; }
 
   const clave = claveDeOperacion();
-  const v = { tiendaId: f.tiendaPropiaId ? String(f.tiendaPropiaId) : '', zonaId: '', categoriaId: '', tipoActivoId: '', impacto: '' };
+  const v = { tiendaId: f.tiendaPropiaId ? String(f.tiendaPropiaId) : '', zonaId: '', categoriaId: '', tipoActivoId: '', activoOtro: false, impacto: '' };
   let enviando = false;
 
   const selTienda = selectorTienda({ id: 'rep-tienda', tiendas: f.tiendas, propiaId: f.tiendaPropiaId, valor: v.tiendaId, alElegir: (id) => { v.tiendaId = id; llenarZonas(); actualizarResumen(); pedirAtencion(); buscarSimilares(); } });
@@ -81,15 +81,31 @@ export async function mostrarReportar(cont) {
   function llenarActivos() {
     const tipos = f.tiposActivo.filter(t => String(t.categoriaId) === v.categoriaId);
     selActivo.disabled = !v.categoriaId;
-    selActivo.replaceChildren(opcion('', v.categoriaId ? 'Sin elegir' : 'Primero elige la categoría'), ...tipos.map(t => opcion(t.id, t.nombre)));
+    // «Otro» va siempre al final y no es del catálogo: así existe en toda categoría y nadie lo puede quitar al editar la lista.
+    selActivo.replaceChildren(opcion('', v.categoriaId ? 'Sin elegir' : 'Primero elige la categoría'), ...tipos.map(t => opcion(t.id, t.nombre)), ...(v.categoriaId ? [opcion('otro', 'Otro (especificar)')] : []));
     v.tipoActivoId = '';
+    v.activoOtro = false;
+    etiquetaDelActivoTexto();
+  }
+  // Con «Otro», «¿Cuál?» es obligatorio; con cualquier otra opción sigue siendo opcional.
+  function etiquetaDelActivoTexto() {
+    const etiqueta = cont.querySelector('label[for="rep-activo-texto"]');
+    if (etiqueta) etiqueta.textContent = v.activoOtro ? '¿Cuál? *' : '¿Cuál? (opcional)';
+    inActivoTexto.placeholder = v.activoOtro ? 'Escribe qué equipo o cosa es' : 'Por ejemplo: la impresora de la caja 2';
+    inActivoTexto.required = v.activoOtro;
   }
   llenarZonas();
   llenarActivos();
   selCategoria.options[0].selected = true;
   selZona.addEventListener('change', () => { v.zonaId = selZona.value; buscarSimilares(); });
   selCategoria.addEventListener('change', () => { v.categoriaId = selCategoria.value; llenarActivos(); pedirAtencion(); buscarSimilares(); });
-  selActivo.addEventListener('change', () => { v.tipoActivoId = selActivo.value; buscarSimilares(); });
+  selActivo.addEventListener('change', () => {
+    v.activoOtro = selActivo.value === 'otro';
+    v.tipoActivoId = v.activoOtro ? '' : selActivo.value;
+    etiquetaDelActivoTexto();
+    if (v.activoOtro) inActivoTexto.focus();
+    buscarSimilares();
+  });
   inDescripcion.addEventListener('input', () => { contadorDescripcion.textContent = `${inDescripcion.value.length} de ${f.limites.descripcion}`; });
 
   const campo = (id, etiqueta, control, extra = {}) => h('div', { class: `inc-campo${extra.ancho ? ' inc-campo--ancho' : ''}`, 'data-campo': extra.clave || control.name },
@@ -120,6 +136,7 @@ export async function mostrarReportar(cont) {
     if (!inTitulo.value.trim()) campos.titulo = 'Escribe un título corto.';
     if (!inDescripcion.value.trim()) campos.descripcion = 'Cuenta qué pasó.';
     if (!v.impacto) campos.impacto = 'Elige cómo afecta el trabajo.';
+    if (v.activoOtro && !inActivoTexto.value.trim()) campos.activoTexto = 'Escribe cuál es el activo.';
     if (!fotos.cantidad()) campos.fotos = 'Agrega al menos una foto del problema.';
     if (fotos.ocupado()) campos.fotos = 'Espera a que termine de prepararse la foto.';
     marcarErrores(campos);
@@ -137,6 +154,7 @@ export async function mostrarReportar(cont) {
     datos.set('zonaId', v.zonaId);
     datos.set('categoriaId', v.categoriaId);
     if (v.tipoActivoId) datos.set('tipoActivoId', v.tipoActivoId);
+    if (v.activoOtro) datos.set('activoOtro', '1');
     if (inActivoTexto.value.trim()) datos.set('activoTexto', inActivoTexto.value.trim());
     datos.set('titulo', inTitulo.value.trim());
     datos.set('descripcion', inDescripcion.value.trim());
