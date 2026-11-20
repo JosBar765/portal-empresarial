@@ -31,7 +31,7 @@ const TERMINADOS = [ESTADOS.CERRADA, ESTADOS.DESCARTADA];
 const IMPACTOS = ['riesgo_personas', 'detiene_operacion', 'trabajo_con_limitaciones', 'molestia_menor'];
 // Los cuatro impactos tal como se muestran al reportar (los impactos son fijos; lo que se elige en Configuración es su prioridad).
 const IMPACTO_TEXTOS = Object.freeze({
-  riesgo_personas: { nombre: 'Riesgo para las personas', ayuda: 'Chispas, cable expuesto, fuga' },
+  riesgo_personas: { nombre: 'Riesgo para las personas o equipo', ayuda: 'Chispas, cable expuesto, fuga' },
   detiene_operacion: { nombre: 'Detiene la operación', ayuda: 'No se puede trabajar' },
   trabajo_con_limitaciones: { nombre: 'Trabajo con limitaciones', ayuda: 'Hay alternativa pero es lenta' },
   molestia_menor: { nombre: 'Molestia menor', ayuda: 'No afecta el trabajo' }
