@@ -76,6 +76,16 @@ class UsuarioValeRepository {
     return filas.map(f => f.asesor_id);
   }
 
+  // Los mismos asesores con su nombre, solo activos y por orden alfabético: lo que el selector del Buzón ofrece al supervisor.
+  async listarAsesoresEspeciales(supervisorId) {
+    return db.query(
+      `SELECT u.id, u.nombre FROM asesor_supervisores x JOIN usuarios u ON u.id = x.asesor_id
+       WHERE x.supervisor_id = ? AND u.activo = 1 ORDER BY u.nombre`,
+      [supervisorId],
+      'usuario:find_asesores_especiales_nombres'
+    );
+  }
+
   // Inverso de la anterior: los supervisores activos (con `vales.supervisar`) que autorizan a un asesor — los que tiene asignados;
   // si no tiene ninguna asignación, los que cubren su tienda (puede haber MÁS de uno, supervisores rotativos).
   // Con asignación y todos inválidos queda vacío: no se cae a los de la tienda.

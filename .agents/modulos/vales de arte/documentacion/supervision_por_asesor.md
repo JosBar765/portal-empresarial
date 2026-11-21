@@ -28,4 +28,11 @@ La migración `asesor_supervisores` se aplica sola al arrancar en staging y prod
 
 ## Filtro de tienda del Buzón
 
-Los vales de un asesor con supervisión especial asignada a ese supervisor **no se ocultan por el filtro de tienda** del Buzón (una tienda, un país o un grupo): solo sus supervisores asignados pueden autorizarlos y, si el filtro los escondiera, el vale esperaría sin que nadie lo viera. Los contadores del Buzón los incluyen, porque se calculan sobre la misma lista ya filtrada. Aplica solo al Buzón y a Trabajo realizado del Supervisor; Administrador y Gerente filtran como siempre, y los demás asesores se filtran por su tienda.
+Antes los vales de un asesor con supervisión especial **nunca se ocultaban** por el filtro de tienda: solo se podía elegir una tienda, y esos vales los autorizan únicamente sus supervisores asignados, así que si el filtro los escondiera el vale esperaría sin que nadie lo viera. Con el selector múltiple (correcciones 73 y 75) **esa regla se retiró** y la decide el supervisor:
+
+- En el primer nivel del selector, junto a los países y bajo el encabezado «Supervisión especial», el Supervisor ve como casillas a **sus** asesores con supervisión especial (`asesoresEspeciales` del catálogo: activos, por nombre).
+- Sin ninguna selección se ve todo, especiales incluidos. Con selección, el Buzón y Trabajo realizado muestran los vales de las **tiendas marcadas más los de los asesores marcados**; un asesor especial sin marcar queda oculto.
+- El cliente manda `asesorIds` (lista de ids separada por comas, mismo tope de 500 y mismo descarte de lo inválido que `tiendaIds`). El servidor solo acepta, para el Supervisor, la intersección con sus propios asesores especiales; cualquier otro id se ignora, porque el filtro solo reduce lo que su rol ya ve. Los contadores se calculan sobre la misma lista ya filtrada.
+- Administrador, Gerente y los demás roles no ven estas filas y filtran como siempre.
+- En el valor del selector el asesor va como `a<id>` (p. ej. «3,7,a12»), para no chocar con los ids de tienda; lo guardado en el navegador se limpia de tiendas y asesores que ya no corresponden.
+- Riesgo asumido: con un filtro activo y un especial sin marcar, sus vales por autorizar no se ven hasta marcarlo o limpiar el filtro.
