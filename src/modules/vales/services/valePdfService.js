@@ -11,6 +11,7 @@ const path = require('path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const { descargarPdfConReintentos, ErrorDescargaPdf } = require('../../../core/files/descargarPdfConReintentos');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
+const { formatearMonto, monedaDeVale } = require('../../../core/utils/moneda');
 
 const PAGE_WIDTH = 612; // Carta
 const PAGE_HEIGHT = 792;
@@ -470,7 +471,7 @@ class ValePdfService {
     // cotización es el dato económico principal del vale (recuadro
     // destacado, como el total de un recibo), y comparten fila con la caja
     // de firma y autorización.
-    this._dibujarFilaCotizacionYFirma(ctx, `Q ${Number(vale.cotizacion).toFixed(2)}`, 'FIRMA Y AUTORIZACIÓN', vale.__firmaAutorizacion || null);
+    this._dibujarFilaCotizacionYFirma(ctx, formatearMonto(vale.cotizacion, monedaDeVale(vale), { paraPdf: true }), 'FIRMA Y AUTORIZACIÓN', vale.__firmaAutorizacion || null);
   }
 
   /**
