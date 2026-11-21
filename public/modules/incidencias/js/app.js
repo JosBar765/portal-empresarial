@@ -82,6 +82,7 @@ function iniciarSocket() {
   if (typeof io === 'undefined') return;
   state.socket = io({ query: { userId: state.user.id } });
   window.centroNotificaciones?.iniciar({ socket: state.socket, modulo: 'incidencias', alAbrir: alAbrirAviso });
+  window.avisoMantenimiento?.iniciar({ socket: state.socket, rolId: state.user.rolId });
   state.socket.on('connect', () => state.socket.emit('register_module', [`role_${state.user.rolId}`]));
   // Otra persona cambió algo: la pantalla abierta se actualiza sola (sin quitarle el lugar a quien está leyendo).
   let pendiente = null;
