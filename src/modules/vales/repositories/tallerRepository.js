@@ -33,14 +33,14 @@ class TallerRepository {
     const sinPais = { tiendaId: Number(tiendaId) || 0, paisId: null, paisNombre: null, comparteDisenoLocal: false };
     if (!sinPais.tiendaId) return sinPais;
     const filas = await db.query(
-      `SELECT p.id AS pais_id, p.nombre AS pais_nombre, p.comparte_diseno_local
+      `SELECT p.id AS pais_id, p.nombre AS pais_nombre, p.comparte_diseno_local, p.moneda_simbolo, p.moneda_codigo
        FROM tiendas ti
        ${JOINS_PAIS_DE_TIENDA('ti')}
        WHERE ti.id = ?`,
       [sinPais.tiendaId], 'taller:contexto_tienda'
     );
     const fila = filas[0];
-    return fila && fila.pais_id ? { tiendaId: sinPais.tiendaId, paisId: fila.pais_id, paisNombre: fila.pais_nombre, comparteDisenoLocal: Number(fila.comparte_diseno_local) === 1 } : sinPais;
+    return fila && fila.pais_id ? { tiendaId: sinPais.tiendaId, paisId: fila.pais_id, paisNombre: fila.pais_nombre, comparteDisenoLocal: Number(fila.comparte_diseno_local) === 1, monedaSimbolo: fila.moneda_simbolo || null, monedaCodigo: fila.moneda_codigo || null } : sinPais;
   }
 
   // Todos los talleres, incluidos los inactivos: para mostrar el NOMBRE de un
