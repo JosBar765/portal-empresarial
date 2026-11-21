@@ -3,7 +3,7 @@ import { $, $$ } from '../utils/dom.js';
 import { ROL, ROLES_CON_SIDEBAR, esDeTallerODisenador, rolVista, esSupervisor } from '../config/roles.js';
 import { CONTADORES_CONFIG } from '../config/contadores.js';
 import { aplicarVentanaAQuery } from '../utils/ventana.js';
-import { paramsDeTienda, resolverTiendaIds, valorVigente } from '../utils/filtroTiendas.js';
+import { paramsDeTienda, resolverTiendaIds, resolverAsesorIds, valorVigente } from '../utils/filtroTiendas.js';
 import { puede, tienePermiso, usaEstadosVisibles, esAccionDeTrabajoVisible, puedeLeerConversacionAdjuntos } from '../permisos.js';
 import { celdaEstado } from '../components/pipeline.js';
 import { abrirVisorVale } from '../components/visorDocumento.js';
@@ -40,8 +40,9 @@ export function construirQueryBase() {
   if (state.busqueda) qs.set('busqueda', state.busqueda);
   // Mismas tiendas con las que se armó el menú, para convertir país o grupo en la lista de ids.
   const tiendasMenu = (state.catalogos && (state.catalogos.tiendasGerencia || state.catalogos.tiendas)) || [];
-  state.tiendaId = valorVigente(state.tiendaId, v => resolverTiendaIds(v, tiendasMenu)) || null;
-  Object.entries(paramsDeTienda(state.tiendaId, tiendasMenu)).forEach(([clave, valor]) => qs.set(clave, valor));
+  const asesoresMenu = (state.catalogos && state.catalogos.asesoresEspeciales) || [];
+  state.tiendaId = valorVigente(state.tiendaId, v => resolverTiendaIds(v, tiendasMenu), v => resolverAsesorIds(v, asesoresMenu)) || null;
+  Object.entries(paramsDeTienda(state.tiendaId, tiendasMenu, asesoresMenu)).forEach(([clave, valor]) => qs.set(clave, valor));
   if (state.sort.key && state.sort.dir) {
     qs.set('sortKey', state.sort.key);
     qs.set('sortDir', state.sort.dir);

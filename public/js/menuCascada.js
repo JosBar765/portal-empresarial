@@ -14,7 +14,9 @@ const CONSULTA_MOVIMIENTO_REDUCIDO = '(prefers-reduced-motion: reduce)';
 const ESPERA_HOVER_MS = 150;
 const MENSAJE_GRUPO_VACIO = 'Este país no tiene tiendas activas.';
 const MENSAJE_ARBOL_VACIO = 'No hay tiendas activas.';
-const SELECTOR_PANELES = '.menu-cascada-panel, .menu-cascada-panel-nivel2';
+const PREFIJO_ASESOR = 'a';
+const TITULO_ASESORES = 'Supervisión especial';
+const SELECTOR_PANELES ='.menu-cascada-panel, .menu-cascada-panel-nivel2';
 const SELECTOR_FILAS = '.menu-cascada-item:not(:disabled)';
 
 const $$ = (selector, raiz = document) => Array.from(raiz.querySelectorAll(selector));
@@ -36,7 +38,8 @@ const valoresDe = (nodos) => nodos.flatMap(n => (n.tipo === 'hoja' ? (esVacio(n.
 const enfocar = (el) => { if (el) el.focus({ preventScroll: true }); };
 
 // `conTodas`: primera fila «Todas — <país|grupo>» en cada submenú de 2 o más tiendas, con valor «pais:X» o «grupo:Y».
-export function construirArbolTiendas(tiendas, { conTodas = false } = {}) {
+// `asesores` (modo múltiple): `{ id, nombre }` con supervisión especial; van tras los países como hojas con valor «a<id>» bajo su propio encabezado.
+export function construirArbolTiendas(tiendas, { conTodas = false, asesores = [] } = {}) {
   const etiquetaTienda = t => (t.codigo ? `${t.codigo} - ${t.nombre}` : t.nombre);
   const porEtiqueta = (a, b) => etiquetaTienda(a).localeCompare(etiquetaTienda(b));
   const hojaDe = t => ({ tipo: 'hoja', valor: t.id, etiqueta: etiquetaTienda(t) });
@@ -88,12 +91,13 @@ export function construirArbolTiendas(tiendas, { conTodas = false } = {}) {
     if (indice === 0) nodo.encabezadoAntes = 'País';
     return nodo;
   });
+  const nodosAsesor = asesores.map((a, i) => ({ tipo: 'hoja', valor: `${PREFIJO_ASESOR}${a.id}`, etiqueta: a.nombre, ...(i === 0 ? { encabezadoAntes: TITULO_ASESORES } : {}) }));
   // Con un solo país el primer nivel sobra: sus tiendas suben al nivel 1 bajo el nombre del país.
   if (nodosPais.length === 1) {
     const [unico] = nodosPais;
-    return unico.hijos.map((h, i) => (i === 0 ? { ...h, encabezadoAntes: unico.etiqueta } : h));
+    return [...unico.hijos.map((h, i) => (i === 0 ? { ...h, encabezadoAntes: unico.etiqueta } : h)), ...nodosAsesor];
   }
-  return nodosPais;
+  return [...nodosPais, ...nodosAsesor];
 }
 
 // Talleres por país: un taller con varios países aparece en cada uno; sin país va al final como «Sin país».
@@ -226,7 +230,10 @@ export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilit
       const valores = valoresDe([n]);
       return valores.length === seleccion.size && valores.every(v => seleccion.has(v));
     });
-    return paisEntero ? paisEntero.etiqueta : `${seleccion.size} tiendas`;
+    if (paisEntero) return paisEntero.etiqueta;
+    // Con asesores marcados ya no son solo tiendas.
+    const conAsesores = [...seleccion].some(v => v.startsWith(PREFIJO_ASESOR));
+    return `${seleccion.size} ${conAsesores ? 'seleccionados' : 'tiendas'}`;
   }
 
   function actualizarTrigger() {
@@ -849,7 +856,7 @@ export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilit
 const crearFiltro = (construirArbol, lista, { etiquetaVacio, ...resto }) => crearMenuCascada({
   ...resto,
   etiquetaVacio,
-  arbol: [{ tipo: 'hoja', valor: '', etiqueta: etiquetaVacio }, ...construirArbol(lista, { conTodas: !resto.multiple })]
+  arbol: [{ tipo: 'hoja', valor: '', etiqueta: etiquetaVacio }, ...construirArbol(lista, { conTodas: !resto.multiple, asesores: resto.multiple ? resto.asesores : [] })]
 });
 
 export const crearFiltroTiendas = ({ tiendas, etiquetaVacio = 'Todas las tiendas', ariaLabel = 'Filtrar por tienda', ...resto }) =>

@@ -5,7 +5,7 @@ import { obtenerDisenadoresAsignables, obtenerCalendarioBuzon } from '../api/val
 import { crearBarraPeriodo } from '../components/barraPeriodoReportes.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { crearFiltroTiendas } from '/js/menuCascada.js';
-import { resolverTiendaIds } from '/js/filtroCascada.js';
+import { resolverTiendaIds, resolverAsesorIds, valorDeAsesor } from '/js/filtroCascada.js';
 
 // «Ver reporte de este día»: abre la pestaña Reportes con período «Día» en esa fecha de entrega.
 function verReporteDelDia(iso) {
@@ -74,18 +74,24 @@ export function wireToolbar() {
     const contenedorTienda = $('#filtro-tienda');
     contenedorTienda.style.display = '';
     const tiendasMenu = state.catalogos.tiendasGerencia || state.catalogos.tiendas || [];
-    // El valor recordado puede ser un id, «pais:X», «grupo:Y» o una lista; se pasa a lista de ids y se descartan las tiendas que ya no están en el catálogo de este usuario.
+    // Asesores con supervisión especial (solo el Supervisor los recibe); sin ellos el selector queda como antes.
+    const asesoresMenu = state.catalogos.asesoresEspeciales || [];
+    // El valor recordado puede ser un id, «pais:X», «grupo:Y» o una lista (con «a<id>» por asesor); se pasa a ids y se descartan las tiendas y asesores que ya no están en el catálogo de este usuario.
     const recordado = state.tiendaId == null ? leerFiltroTienda() : state.tiendaId;
     if (recordado) {
-      const ids = resolverTiendaIds(recordado, tiendasMenu).filter(id => tiendasMenu.some(t => Number(t.id) === id));
+      const ids = [
+        ...resolverTiendaIds(recordado, tiendasMenu).filter(id => tiendasMenu.some(t => Number(t.id) === id)),
+        ...resolverAsesorIds(recordado, asesoresMenu).map(valorDeAsesor)
+      ];
       state.tiendaId = ids.length ? ids.join(',') : null;
       guardarFiltroTienda(state.tiendaId);
     }
     const menuTienda = crearFiltroTiendas({
       tiendas: tiendasMenu,
+      asesores: asesoresMenu,
       multiple: true,
       valorActual: state.tiendaId ? String(state.tiendaId) : '',
-      // Vacío = sin filtro; si no, lista de ids «3,7,9».
+      // Vacío = sin filtro; si no, lista «3,7,9» (los asesores como «a12»).
       onSeleccionar: (valor) => {
         state.tiendaId = valor ? String(valor) : null;
         guardarFiltroTienda(state.tiendaId);
