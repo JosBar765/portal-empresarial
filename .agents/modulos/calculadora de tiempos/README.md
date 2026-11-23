@@ -12,6 +12,10 @@ Estado: **idea definida, falta mockup en Figma, aprobación y código.** Las im�
 | Resultado | Días por etapa, **días al cliente** y **fecha de entrega** (solo lunes a viernes, sin contar el día de la orden; se puede elegir otra fecha de inicio). |
 | Quién mantiene las tablas | El **administrador, desde el portal**, con versiones y fecha de versión (hoy 5.0) e historial de cambios. |
 | Historial de cálculos | **No se guarda nada por usuario.** Botón «Copiar resumen» para pegarlo en la cotización o el chat. |
+| Festivos | La fecha **descuenta los festivos** del calendario del portal (por país), además de sábados y domingos. |
+| Urgente | Solo **avisa** que requiere autorización del gerente; se muestran los tiempos normales (la tabla no trae tiempos urgentes). |
+| UV | Suma días a la etapa de producción/fábrica **y al total al cliente**. |
+| Margen +1 | Se suma **una sola vez por pieza, al final** (etapas + complementos + 1). En un pedido con varias piezas se toma la más larga, sin otro día extra. |
 
 ## 2. Cómo está armada la tabla (lo que se lee de las imágenes)
 
@@ -72,11 +76,8 @@ Tablas con prefijo `tiempos_` (migración aditiva e idempotente):
 Permisos: `tiempos.ver` (calculadora y referencia) y `tiempos.administrar`. Se registra en `MODULOS` (`src/core/permissions/modulesCatalog.js`). Sin archivos ni Storage.
 
 ## 6. Por confirmar
-1. **Feriados:** ¿se descuentan los días festivos del calendario, o solo sábados y domingos? (`src/core/calendario` ya existe en el portal.)
-2. **Urgente:** ¿solo se avisa «requiere autorización del gerente» o hay que reducir días? (la tabla no trae tiempos urgentes).
-3. **UV:** ¿el complemento suma también a los días al cliente? (se asume que sí, porque va dentro de fábrica/producción).
-4. **Margen +1:** confirmar que aplica siempre, también con complementos.
-5. **Revisión de la carga inicial:** validar fila por fila las tablas transcritas.
+1. **Revisión de la carga inicial:** validar fila por fila las tablas transcritas de las imágenes.
+2. **Colores extra:** confirmar el conteo (3.º y 4.º color: +1 día; 5.º y 6.º: +2).
 
 ## 7. Fases
 1. Idea y reglas (este documento) → 2. Mockup en Figma, aprobado → 3. Base de datos y carga inicial → 4. Motor de cálculo con pruebas → 5. Calculadora y tabla de referencia → 6. Administración e historial → 7. Documentación, revisión en celular y PR a `dev`.
