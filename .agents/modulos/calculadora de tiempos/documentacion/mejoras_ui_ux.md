@@ -25,3 +25,10 @@ Qué trae: buscador (en Referencia también busca en los avisos), pestañas por 
 
 ## Corrección incluida
 En pantallas angostas la tabla ancha de Referencia se mostraba junto a las tarjetas; la regla que la mostraba era de Administración y ahora solo aplica allí.
+
+## Auditoría de responsive (2026-11-23)
+Revisión automática (texto cortado, partido, fuera de pantalla, scroll horizontal) en 320, 375, 414, 600, 768, 1024, 1180, 1181, 1280 y 1440 px, en calculadora, referencia, administración e historial, y con el selector abierto. Se corrigió:
+- Las pestañas de línea («Producción 22») se cortaban en la lista de Administración: ahora toman el ancho de su contenido, sin partirse (`white-space: nowrap`), y la columna de la lista pasó a 300 px.
+- Con el menú lateral abierto, la tabla de Referencia quedaba cortada (la columna «Cliente» no se veía): bajo 1180 px la lista se apila como selector con tarjetas; Administración se apila bajo 1260 px. Las celdas de las tablas son más compactas.
+- En celulares de 400 px o menos, Cantidad y Colores van en una columna.
+- El botón del selector deja que el nombre largo ocupe varias líneas en vez de cortarlo con «…».
