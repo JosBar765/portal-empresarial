@@ -77,5 +77,12 @@ ok('contadores: null -> «—»', cuenta(nulos, />—</g) === 2);
 ok('contadores: tarjetas nuevas no son botones', !/<button[^>]*rep2-cont-card--mitad/.test(htmlContadores({ ...base, efectividad: 1, aTiempo: 1 }, T, { pulsables: true, activos: {} })));
 ok('contadores: tienda/asesor no cambian de tarjetas', cartas(htmlContadores(base, TEXTOS_TIENDA)) === 5 && cartas(htmlContadores(base, TEXTOS_ASESOR, { pulsables: true })) === 5);
 
+// Resaltado en rojo y negrita de la efectividad MÁS BAJA y las entregas tardías MÁS ALTAS (con empates; todas iguales o máximo 0, nada).
+const resaltadas = (lista) => filasGraficaDisenadores(lista).filas.map(f => `${f.nombre}:${f.masBaja ? 'E' : ''}${f.masTardia ? 'T' : ''}`).join(' ');
+ok('resaltado: la efectividad más baja y la tardía más alta', resaltadas(lista3) === 'Sin diseñador asignado: Ana:ET Luis:', resaltadas(lista3));
+ok('resaltado: los empates en el mínimo se resaltan todos', resaltadas([d(1, 'Ana', 4, 3, 0, 75, 0), d(2, 'Luis', 3, 2, 0, 66.67, 0), d(3, 'Eva', 3, 2, 0, 66.67, 0), d(4, 'Max', 2, 2, 0, 100, 0)]) === 'Ana: Eva:E Luis:E Max:');
+ok('resaltado: con todas las efectividades iguales y tardías en 0 no se resalta nada', resaltadas([d(1, 'Ana', 4, 4, 0, 100, 0), d(2, 'Luis', 3, 3, 0, 100, 0)]) === 'Ana: Luis:');
+ok('resaltado: el HTML marca solo esas celdas', cuenta(htmlGraficaDisenadores(lista3, T), /rep2-gd-max/g) === 2);
+
 console.log(fallos ? `\n${fallos} comprobación(es) fallaron` : '\nTodo OK');
 process.exit(fallos ? 1 : 0);

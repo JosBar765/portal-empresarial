@@ -287,6 +287,13 @@ class ValeReportePdfService {
       nombre: String(d.nombre ?? '').replace(/ · (Encargado|Asistente)$/, ''), asignados: Number(d.asignados) || 0, entregados: Number(d.entregados) || 0, tarde: Number(d.tarde) || 0, efectividad: d.efectividad, tardias: d.tardias,
       sinAsignar: d.id != null && Number(d.id) === 0 // solo la barra de asignados, sin E ni T y con el nombre alineado a ella
     }));
+    // La efectividad más baja y las entregas tardías más altas (con empates) van en rojo y negrita, como en la pantalla: sin dato no cuentan, con todas iguales o con un máximo de 0 no se resalta nada.
+    const valores = (clave) => filas.filter(f => !f.sinAsignar && f[clave] != null).map(f => Number(f[clave]));
+    const ve = valores('efectividad'); const minE = Math.min(...ve); const maxE = Math.max(...ve);
+    const maxT = Math.max(0, ...valores('tardias'));
+    const rojo = { bold: true, color: ROJO };
+    const resaltaE = (f) => (f.efectividad != null && minE < maxE && Number(f.efectividad) === minE ? rojo : {});
+    const resaltaT = (f) => (maxT > 0 && f.tardias != null && Number(f.tardias) === maxT ? rojo : {});
     // La nota de arriba (si la hay) se parte en líneas del ancho de la página.
     const lineasNota = [];
     if (notaArriba) {
@@ -353,8 +360,8 @@ class ValeReportePdfService {
         }
         this._texto(ctx, String(f.entregados), xTarde + anchoTarde + 4, yE + 1.2, { size: 7.5 });
       }
-      derecha(conSimboloPorcentaje(f.efectividad), derechaE, ctx.y - 13, { size: 7.5 });
-      derecha(conSimboloPorcentaje(f.tardias), derechaT, ctx.y - 13, { size: 7.5 });
+      derecha(conSimboloPorcentaje(f.efectividad), derechaE, ctx.y - 13, { size: 7.5, ...resaltaE(f) });
+      derecha(conSimboloPorcentaje(f.tardias), derechaT, ctx.y - 13, { size: 7.5, ...resaltaT(f) });
       ctx.y -= FILA;
     });
     if (notaFinal) this._texto(ctx, notaFinal, MARGIN, ctx.y - 4, { size: 7, color: GRIS });

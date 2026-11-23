@@ -26,7 +26,11 @@ export function filasGraficaDisenadores(lista) {
   const razon = (n) => (maximo ? Math.max(n / maximo, n > 0 ? 0.015 : 0) : 0);
   // «Sin asignar» siempre va primero; el resto de más a menos asignados y, a igualdad, por nombre (la misma regla del servidor y del PDF).
   base.sort((a, b) => (Number(b.sinAsignar) - Number(a.sinAsignar)) || (b.asignados - a.asignados) || a.nombre.localeCompare(b.nombre, 'es'));
-  const filas = base.map(f => ({ ...f, razonAsignados: razon(f.asignados), razonEntregados: razon(f.entregados), rojoMinimo: f.tarde > 0 }));
+  // Se resaltan la efectividad MÁS BAJA y las entregas tardías MÁS ALTAS (todas las filas que empatan): sin dato no cuentan, con todas iguales o con un máximo de 0 no hay nada que destacar.
+  const valores = (clave) => base.filter(f => !f.sinAsignar && f[clave] != null).map(f => Number(f[clave]));
+  const ve = valores('efectividad'); const minE = Math.min(...ve); const maxE = Math.max(...ve);
+  const maxT = Math.max(0, ...valores('tardias'));
+  const filas = base.map(f => ({ ...f, razonAsignados: razon(f.asignados), razonEntregados: razon(f.entregados), rojoMinimo: f.tarde > 0, masBaja: !f.sinAsignar && f.efectividad != null && minE < maxE && Number(f.efectividad) === minE, masTardia: !f.sinAsignar && maxT > 0 && Number(f.tardias) === maxT }));
   return { maximo, filas };
 }
 
@@ -63,8 +67,8 @@ function fila(f, { elegida, modoElegido, interactiva, T, irA = false }) {
     : `<span class="rep2-gd-linea"><span class="rep2-gd-barra rep2-gd-barra--apilada" style="--razon:${f.razonEntregados.toFixed(4)}">${aTiempo}${tarde}</span><span class="rep2-gd-cant">${f.entregados}</span></span>`;
   const columnas = f.sinAsignar
     ? '<span class="rep2-gd-e"></span><span class="rep2-gd-t"></span>'
-    : `<span class="rep2-gd-e" title="${escapeHtml(T.gdTituloE)}">${conSimboloPorcentaje(f.efectividad)}</span>
-      <span class="rep2-gd-t" title="${escapeHtml(T.gdTituloT)}">${conSimboloPorcentaje(f.tardias)}</span>`;
+    : `<span class="rep2-gd-e${f.masBaja ? ' rep2-gd-max' : ''}" title="${escapeHtml(T.gdTituloE)}">${conSimboloPorcentaje(f.efectividad)}</span>
+      <span class="rep2-gd-t${f.masTardia ? ' rep2-gd-max' : ''}" title="${escapeHtml(T.gdTituloT)}">${conSimboloPorcentaje(f.tardias)}</span>`;
   return `<li class="rep2-gt-fila rep2-gd-fila${f.sinAsignar ? ' rep2-gd-fila--sin' : ''}${elegida ? ' rep2-gt-fila--elegida' : ''}" data-id="${f.id}">
       ${nombre}
       <span class="rep2-gd-barras">

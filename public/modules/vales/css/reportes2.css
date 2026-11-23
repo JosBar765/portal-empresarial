@@ -214,6 +214,7 @@
 .rep2-gd-seg:last-child { border-radius: 0 4px 4px 0; }
 .rep2-gd-cant { flex: none; min-width: 2ch; font-size: var(--text-sm); font-variant-numeric: tabular-nums; color: var(--color-text-secondary); }
 .rep2-gd-e, .rep2-gd-t { text-align: right; font-size: var(--text-base); font-variant-numeric: tabular-nums; color: var(--color-text); white-space: nowrap; }
+.rep2-gd .rep2-gd-max { color: var(--color-danger); font-weight: 700; }
 .rep2-gt--interactiva button.rep2-gd-barra, .rep2-gt--interactiva button.rep2-gd-seg { cursor: pointer; }
 .rep2-gt--interactiva button.rep2-gd-barra:hover, .rep2-gt--interactiva button.rep2-gd-seg:hover { filter: brightness(1.25); }
 /* Elegido: contorno del color del texto (no solo color) y sobre sus vecinos; el foco de teclado usa el azul de acento, más separado. */
