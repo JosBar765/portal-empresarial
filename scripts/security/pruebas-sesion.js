@@ -139,6 +139,18 @@ const sock = async (ck) => {
   chk('logout limpia ambas cookies', crudas(r).filter(x => /^(token|refresh_token)=;/.test(x)).length === 2, crudas(r).join(' | '));
   chk('refresh de una sesion cerrada ya no sirve', (await pet('GET', '/api/admin/roles', { token: caducado2, refresh_token: c.refresh_token })).status === 401);
 
+  // 9b. Un access token VIGENTE deja de servir en cuanto se cierra la sesión (antes seguía valiendo hasta vencer), y un login nuevo invalida el anterior
+  ({ r, c } = await login());
+  const vigente = c.token;
+  chk('access token vigente con su sesión viva: 200', (await pet('GET', '/api/admin/roles', { token: vigente })).status === 200);
+  await pet('POST', '/api/auth/logout', { token: vigente, refresh_token: c.refresh_token });
+  chk('access token vigente tras cerrar la sesión: 401 (no espera a vencer)', (await pet('GET', '/api/admin/roles', { token: vigente })).status === 401);
+  chk('el mismo token por cabecera Bearer tras cerrar la sesión: 401', (await fetch(BASE + '/api/admin/roles', { headers: { Authorization: `Bearer ${vigente}` } })).status === 401);
+  const sinSid = jsonwebtoken.sign({ ...payload, sid: undefined }, config.jwtSecret, { algorithm: 'HS256', expiresIn: '5m' });
+  ({ r, c } = await login());
+  chk('un token firmado pero sin sid no se acepta (aunque haya sesión)', (await pet('GET', '/api/admin/roles', { token: sinSid })).status === 401);
+  await pet('POST', '/api/auth/logout', { token: c.token, refresh_token: c.refresh_token });
+
   // 10. Techo absoluto
   ({ r, c } = await login());
   await db.query('UPDATE sesiones_activas SET refresh_expira_en = NOW() - INTERVAL 1 MINUTE WHERE usuario_id = 1');

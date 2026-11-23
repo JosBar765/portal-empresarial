@@ -109,6 +109,7 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 - Don't use `database/migraciones/`.
 - Don't hardcode defaults for env variables.
 - Don't return raw `error.message` from MySQL/Storage.
+- Don't write inline handlers (`onclick="..."`) or load scripts/fonts/images from a new domain without adding it to `src/core/seguridad/csp.js`: the CSP blocks them (`.agents/reglas/reglas_autenticacion.md` §9).
 - Don't answer 401 for business errors: `public/js/sessionGuard.js` treats any 401 from `/api/` as an expired session. Use 403.
 - Don't register protected routes before `authenticateJWT`, or public ones after it.
 - Don't delete Storage files outside production.
@@ -129,6 +130,7 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 | Generador de Prompts (`prompts`) | `.agents/modulos/generador de prompts/README.md` | Prompt builder for image generators; products and parameters set by the admin. |
 | Calculadora de Viáticos (`viaticos`) | `.agents/modulos/viaticos/README.md` | Travel allowance requests: create, authorize, settle with receipts; catalogs set by the admin. |
 | Incidencias (`incidencias`) | `.agents/modulos/incidencias/README.md` | Store problem reports with photos; technicians take them from a shared inbox and a verifier approves; everything configurable in the module. |
+| Proyectos (`proyectos`) | `.agents/modulos/proyectos/README.md` | Sales projects by niche: global company base, equal split among advisors, follow-up and closing; admin configuration center. |
 
 - New module: `README.md` section 4 and `.agents/reglas/reglas_modulo.md`; document it under `.agents/modulos/<name>/` (`README.md` + `documentacion/`).
 - Global rules: `.agents/reglas/` (architecture, module templates, auth, implementation style, UI, SQL files, environments, CI, deployment).

@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const config = require('./config/env');
+const csp = require('./core/seguridad/csp');
 const authRoutes = require('./core/auth/authRoutes');
 const tokenService = require('./core/auth/tokenService');
 const { authenticateJWT, requireAuth, requirePermission, requireModuleAccess } = require('./core/permissions/permissionMiddleware');
@@ -19,11 +20,13 @@ const borradorViaticosWatcher = require('./modules/viaticos/borradorWatcher');
 const rechazoViaticosWatcher = require('./modules/viaticos/rechazoWatcher');
 const retencionArchivosWatcher = require('./modules/vales/retencionArchivosWatcher');
 const retencionFotosIncidenciasWatcher = require('./modules/incidencias/retencionFotosWatcher');
+const proyectosWatcher = require('./modules/proyectos/proyectosWatcher');
 const notificacionLimpieza = require('./core/notifications/notificacionLimpieza');
 const adminRoutes = require('./modules/admin/routes');
 const promptsRoutes = require('./modules/prompts/routes');
 const viaticosRoutes = require('./modules/viaticos/routes');
 const incidenciasRoutes = require('./modules/incidencias/routes');
+const proyectosRoutes = require('./modules/proyectos/routes');
 const notificacionRoutes = require('./core/notifications/notificacionRoutes');
 const { MENSAJE_INTERNO } = require('./core/utils/erroresHttp');
 
@@ -36,12 +39,14 @@ if (config.trustProxy > 0) {
   app.set('trust proxy', config.trustProxy);
 }
 
-// Cabeceras de seguridad HTTP (X-Frame-Options, X-Content-Type-Options,
-// etc.) — CSP desactivada por ahora: el frontend carga Ionicons y
-// Socket.IO client desde rutas propias/CDN sin una política ya definida
-// para ellas, y activar CSP con los defaults de Helmet sin esa revisión
-// aparte podría bloquearlos.
-app.use(helmet({ contentSecurityPolicy: false }));
+// Cabeceras de seguridad HTTP (X-Frame-Options, X-Content-Type-Options, etc.) y política de seguridad de contenido (src/core/seguridad/csp.js):
+// scripts solo de este sitio, del CDN de los íconos y los que ya están en los HTML (por hash); sin unsafe-inline ni unsafe-eval en scripts.
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: csp.directivas({ carpetaPublica: path.join(__dirname, '../public'), urlAlmacenamiento: config.supabase.url })
+  }
+}));
 
 // Middlewares para parsear cuerpos de solicitudes y cookies. Límite
 // explícito de tamaño de body (el default de Express ya es 100kb, esto
@@ -127,6 +132,8 @@ app.use('/api/prompts', requireAuth, requirePermission('prompts.ver'), promptsRo
 app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'), viaticosRoutes);
 // Rutas de API del módulo Incidencias
 app.use('/api/incidencias', requireAuth, requirePermission('incidencias.ver'), incidenciasRoutes);
+// Rutas de API del módulo Proyectos (la administración exige además proyectos.administrar)
+app.use('/api/proyectos', requireAuth, requirePermission('proyectos.ver'), proyectosRoutes);
 
 // Centro de notificaciones (de cualquier usuario autenticado, sin permiso de módulo)
 app.use('/api/notificaciones', requireAuth, notificacionRoutes);
@@ -142,6 +149,7 @@ borradorViaticosWatcher.iniciar();
 rechazoViaticosWatcher.iniciar();
 retencionArchivosWatcher.iniciar();
 retencionFotosIncidenciasWatcher.iniciar();
+proyectosWatcher.iniciar();
 notificacionLimpieza.iniciar();
 
 // Estado del mantenimiento para el aviso con cuenta regresiva (segundos restantes, sin depender del reloj del cliente).

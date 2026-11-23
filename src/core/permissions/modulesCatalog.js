@@ -48,6 +48,15 @@ const MODULOS = [
     path: '/modules/incidencias',
     permission: 'incidencias.ver',
     color: '#C2410C'
+  },
+  {
+    id: 'proyectos',
+    nombre: 'Proyectos',
+    descripcion: 'Proyectos de venta por nicho: reparto de empresas entre asesores, gestión y cierre.',
+    icono: 'folder-open-outline',
+    path: '/modules/proyectos',
+    permission: 'proyectos.ver',
+    color: '#7A3F5C'
   }
 ];
 
