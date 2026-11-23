@@ -1,8 +1,8 @@
 # Calculadora de Tiempos — plan de pruebas de caja negra
 
-Se escribe **antes del código**, a partir de la tabla de referencia y de las reglas de `README.md`. Cada caso tiene su resultado esperado calculado a mano desde las imágenes de `referencias/`; cuando exista el motor, estos casos se convierten en `scripts/tiempos/verificar-*.js` (misma costumbre que los demás módulos) y se repiten a ojo en el navegador, en escritorio y a 390 px.
+Se escribió a partir de la tabla de referencia y de las reglas de `README.md`. Cada caso tiene su resultado esperado calculado a mano desde las imágenes de `referencias/`, no desde el código. Los casos de las secciones 2, 3, 5 y 6 están automatizados en `scripts/tiempos/verificar-caja-negra.js` (solo habla con la API HTTP); la sección 7 (interfaz) y parte de la 4 se repiten a ojo en el navegador, en escritorio y a 390 px.
 
-Los casos marcados **(supuesto)** dependen de una decisión aún abierta (ver README §6). Se corrigen cuando se decida.
+Las decisiones que estaban abiertas quedaron resueltas en el `README.md`: festivos de Guatemala (tabla `feriados` del portal), urgente solo avisa, el UV entra al cálculo y el margen de 1 día cuenta una sola vez por pieza. Los casos marcados **(supuesto)** ya están confirmados por esas decisiones.
 
 ## 1. Técnicas
 
@@ -127,3 +127,14 @@ La instalación del módulo no cambia a los demás: el catálogo de módulos, lo
 - Cero errores 500 en las pruebas de §2.2 y §5.
 - Recorrido manual por rol (administrador, usuario con `tiempos.ver`, sin permiso) en escritorio y celular, sin errores en consola.
 - Informe corto al final: cuántos casos, cuáles fallaron y qué se corrigió.
+
+## 10. Resultado de la primera ejecución (2026-11-23)
+
+| Prueba | Resultado |
+|---|---|
+| `verificar-caja-negra.js` (§2, §3, §5, §6) | **55 de 55** correctas |
+| `verificar-motor.js`, `verificar-datos.js`, `verificar-api.js`, `verificar-admin.js` (existentes) | 38, 135 filas «Cliente» sin diferencias, 16 y 51 correctas |
+| Base de datos | MySQL 8.4. **Pendiente MariaDB 11.8.** |
+| Interfaz (§7) y administración a ojo (§4) | **Pendiente:** requiere navegador; no se pudo en esta ejecución. |
+
+La regla «Cliente = suma de etapas + 1» se cumple en las 135 filas impresas de las imágenes, sin ninguna discrepancia.
