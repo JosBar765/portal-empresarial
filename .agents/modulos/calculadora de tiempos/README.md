@@ -2,7 +2,7 @@
 
 Módulo del portal que convierte la **Tabla de tiempos** (hoy Ver. 5.0, 27/07/2026) en una herramienta de consulta: el usuario elige producto y cantidad, y el módulo devuelve los días por etapa, los días que se le dan al cliente y la fecha de entrega.
 
-Estado: **idea definida, falta mockup en Figma, aprobación y código.** Las imágenes de referencia están en `referencias/`.
+Estado: **idea definida y mockup hecho en Figma (pendiente de aprobación); falta código.** Mockup: https://www.figma.com/design/b0CqDb0IHG3IpXRzGesFI5 (páginas «01 · Calculadora — escritorio», «02 · Calculadora — celular» y «03 · Referencia y administración»). Las imágenes de referencia están en `referencias/`.
 
 ## 1. Decisiones tomadas (2026-11-21)
 
