@@ -10,6 +10,10 @@ class TiemposController {
     try { return res.json(await tablaService.catalogo()); } catch (error) { return responderError(res, error, 400, extraDeError(error)); }
   }
 
+  async festivos(req, res) {
+    try { return res.json({ festivos: await tablaService.festivosEntre(String(req.query.desde || ''), String(req.query.hasta || '')) }); } catch (error) { return responderError(res, error, 400, extraDeError(error)); }
+  }
+
   async calcular(req, res) {
     try { return res.json(await tablaService.calcular(req.body)); } catch (error) { return responderError(res, error, 400, extraDeError(error)); }
   }

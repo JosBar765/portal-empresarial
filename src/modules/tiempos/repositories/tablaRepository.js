@@ -76,10 +76,10 @@ class TablaRepository {
     return tabla;
   }
 
-  // Feriados de Guatemala (los que ya usa el portal para el calendario laboral): [{ fecha, seRepite }].
+  // Feriados de Guatemala (los que ya usa el portal para el calendario laboral): [{ fecha, nombre, seRepite }].
   async feriadosGuatemala() {
     return db.query(
-      `SELECT DATE_FORMAT(f.fecha, '%Y-%m-%d') AS fecha, f.se_repite_cada_anio AS seRepite FROM feriados f
+      `SELECT DATE_FORMAT(f.fecha, '%Y-%m-%d') AS fecha, f.nombre, f.se_repite_cada_anio AS seRepite FROM feriados f
        JOIN paises p ON p.id = f.pais_id AND p.nombre = 'Guatemala'`, [], 'tiempos:feriados'
     );
   }

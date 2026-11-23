@@ -81,7 +81,8 @@ Permisos: `tiempos.ver` (calculadora y referencia) y `tiempos.administrar`. Se r
 
 ## 7. Fases (avance)
 - Hecho: 1 idea, 2 mockup aprobado (2026-11-23), 3 base de datos y carga inicial (migración 52, `tablaV5.js`, `verificar-datos.js`), 4 motor de cálculo (`src/modules/tiempos/calculo/`: `motor.js`, `fechas.js`, `resumen.js`; pruebas en `scripts/tiempos/verificar-motor.js`).
-- Sigue: 5 calculadora y tabla de referencia (API y pantallas), 6 administración e historial, 7 documentación y PR.
+- Hecho: 5 calculadora y tabla de referencia: API (`/api/tiempos/tabla`, `/calcular`, `/festivos`; `scripts/tiempos/verificar-api.js`) y pantallas (`public/modules/tiempos/`), módulo registrado en `modulesCatalog` con `tiempos.ver`.
+- Sigue: 6 administración e historial (edición por borrador, publicar versión, historial de versiones, `tiempos.administrar`), 7 documentación y PR.
 - Cambio sobre el mockup: al activar «Impresión UV» aparece un selector con el tipo de UV (impresión, cama plana / DTF o vinil sin revestimiento), porque cada uno suma días distintos.
 
 ## Fases (plan original)

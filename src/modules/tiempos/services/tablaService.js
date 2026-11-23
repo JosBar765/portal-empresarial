@@ -47,14 +47,23 @@ class TablaService {
     };
   }
 
-  // Festivos de Guatemala (los de cada año y los que se repiten) para el año de la orden y los dos siguientes.
-  async festivos(anio) {
+  // Festivos de Guatemala (los de una sola fecha y los que se repiten cada año) de `anio` a `anio + 2`: Map fecha → nombre.
+  async festivosMapa(anio) {
     const filas = await tablaRepository.feriadosGuatemala();
-    const set = new Set();
+    const mapa = new Map();
     for (const f of filas) {
-      if (f.seRepite) { for (let a = anio; a <= anio + 2; a++) set.add(`${a}${f.fecha.slice(4)}`); } else set.add(f.fecha);
+      if (f.seRepite) { for (let a = anio; a <= anio + 2; a++) mapa.set(`${a}${f.fecha.slice(4)}`, f.nombre); } else mapa.set(f.fecha, f.nombre);
     }
-    return set;
+    return mapa;
+  }
+
+  async festivos(anio) { return new Set((await this.festivosMapa(anio)).keys()); }
+
+  // Para el calendario de la pantalla: festivos entre dos fechas, [{ fecha, nombre }].
+  async festivosEntre(desde, hasta) {
+    if (!esFechaISO(desde) || !esFechaISO(hasta) || desde > hasta) throw errorDeValidacion('Revisa las fechas.', { desde: 'Fechas no válidas.' });
+    const mapa = await this.festivosMapa(Number(desde.slice(0, 4)));
+    return [...mapa.entries()].filter(([f]) => f >= desde && f <= hasta).sort(([a], [b]) => (a < b ? -1 : 1)).map(([fecha, nombre]) => ({ fecha, nombre }));
   }
 
   // `entrada`: { fechaOrden?, piezas: [{ productoClave, cantidad, colores?, moldesGrande?, lanyard?, uv?, urgente? }] }

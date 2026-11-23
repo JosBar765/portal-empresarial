@@ -5,6 +5,7 @@ const router = express.Router();
 const tiemposController = require('./controllers/tiemposController');
 
 router.get('/tabla', (req, res) => tiemposController.tabla(req, res));
+router.get('/festivos', (req, res) => tiemposController.festivos(req, res));
 router.post('/calcular', (req, res) => tiemposController.calcular(req, res));
 
 module.exports = router;
