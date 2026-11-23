@@ -406,8 +406,8 @@ a.sidebar-item, a.btn { text-decoration: none; }
 .tm-etiqueta-gris { font-size: var(--text-xs); background: var(--color-surface-muted); color: var(--color-text-secondary); border-radius: var(--radius-full); padding: 3px 10px; }
 .tm-tabla-caja { border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow-x: auto; }
 .tm-tabla { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
-.tm-tabla th { background: var(--color-surface-muted); color: var(--color-text-secondary); font-size: var(--text-xs); font-weight: 600; text-align: left; padding: 10px 12px; white-space: nowrap; }
-.tm-tabla td { padding: 10px 12px; border-top: 1px solid var(--color-border); white-space: nowrap; }
+.tm-tabla th { background: var(--color-surface-muted); color: var(--color-text-secondary); font-size: var(--text-xs); font-weight: 600; text-align: left; padding: 10px 8px; }
+.tm-tabla td { padding: 10px 8px; border-top: 1px solid var(--color-border); white-space: nowrap; }
 .tm-tabla .tm-num { text-align: center; }
 .tm-tabla .tm-cliente { background: var(--tm-acento-bg); color: var(--tm-acento-texto); font-weight: 700; }
 .tm-fila-convenir td { background: var(--tm-ambar-bg); color: var(--tm-ambar); font-weight: 500; }
@@ -456,7 +456,7 @@ a.sidebar-item, a.btn { text-decoration: none; }
 .tm-referencia--admin { grid-template-columns: 280px minmax(0, 1fr); }
 .tm-editor { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .tm-opcion { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.tm-celda { width: 72px; padding: 6px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font: inherit; font-size: var(--text-sm); text-align: center; background: var(--color-surface); color: var(--color-text); }
+.tm-celda { width: 60px; padding: 6px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font: inherit; font-size: var(--text-sm); text-align: center; background: var(--color-surface); color: var(--color-text); }
 .tm-celda:focus, .tm-texto-edit:focus { outline: 2px solid var(--color-primary); outline-offset: 1px; }
 .tm-celda--cambio { border-color: var(--color-primary); }
 .tm-celda--error { border-color: var(--color-danger) !important; background: var(--color-danger-bg); }
@@ -558,4 +558,18 @@ a.sidebar-item, a.btn { text-decoration: none; }
   .tm-barra-accion:not([hidden]) { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; padding: 10px 16px; background: var(--color-surface); border-top: 1px solid var(--color-border); }
   .tm-barra-accion .btn { flex: 1 1 auto; justify-content: center; }
   .tm-ref-movil .tm-selector { padding: 12px 14px; }
+}
+
+/* --- Portátiles angostos: con el menú lateral abierto no cabe la lista junto a la tabla, así que se apilan --- */
+@media (max-width: 1180px) {
+  .tm-referencia, .tm-referencia--admin { grid-template-columns: minmax(0, 1fr); }
+  .tm-referencia:not(.tm-referencia--admin) .tm-ref-lista { display: none; }
+  .tm-ref-movil { display: block; }
+  .tm-referencia:not(.tm-referencia--admin) .tm-tabla-caja { display: none; }
+  .tm-referencia:not(.tm-referencia--admin) .tm-ref-tarjetas { display: flex; }
+  .tm-referencia--admin .tm-ref-lista { display: flex; max-height: 300px; }
+  .tm-ref-calcular { display: none; }
+  .tm-barra-accion:not([hidden]) { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; padding: 10px 16px; background: var(--color-surface); border-top: 1px solid var(--color-border); }
+  .tm-barra-accion .btn { flex: 1 1 auto; justify-content: center; }
+  .main-container { padding-bottom: 96px; }
 }
