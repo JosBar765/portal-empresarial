@@ -101,7 +101,7 @@
 .rep2-gt-seg { display: flex; align-items: center; justify-content: center; min-width: 2px; height: 100%; overflow: hidden; font-size: 11px; font-weight: 700; line-height: 1; color: #fff; }
 .rep2-gt-seg--base { background: var(--color-primary); }
 /* Ámbar con texto oscuro (contraste); el ancho mínimo deja ver la cifra aunque sea un solo vale. */
-.rep2-gt-seg--urgente { background: var(--color-warning); color: var(--color-text); min-width: 16px; cursor: pointer; }
+.rep2-gt-seg--urgente { background: var(--color-warning); color: #fff; min-width: 16px; cursor: pointer; }
 /* Enfoque solo de urgentes: el tramo ámbar lleva su propio contorno (hacia adentro, para no tapar al vecino). */
 .rep2-gt-fila--elegida-urgentes .rep2-gt-seg--urgente { outline: 2px solid var(--color-text); outline-offset: -2px; }
 .rep2-gt--interactiva .rep2-gt-nombre { cursor: pointer; }
@@ -112,7 +112,6 @@
 .rep2-gt-sw--urgente { background: var(--color-warning); }
 .rep2-gt-valor { text-align: right; font-size: var(--text-base); font-variant-numeric: tabular-nums; color: var(--color-text); }
 .rep2-gt-pct { flex: none; font-size: var(--text-sm); color: var(--color-text-secondary); white-space: nowrap; }
-.rep2-gt-mas { margin-top: 6px; }
 /* Reporte de asesores: el selector de tienda y el de asesores van uno junto al otro. */
 .rep2-filtros-doble { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 /* Los dos selectores de la fila miden lo mismo: el botón de personas con la altura del menú en cascada. */
@@ -147,9 +146,7 @@
   .rep2-cabfila .rep2-filtros { width: 100%; }
 }
 
-/* Botón «Ver más» bajo la tabla de vales (dibujo a demanda) y aviso de PDF largo en el modal del desglose */
-.rep-ver-mas { display: flex; justify-content: center; margin-top: 10px; }
-.rep-ver-mas[hidden] { display: none; }
+/* Aviso de PDF largo en el modal del desglose */
 .rep-aviso-pdf { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; padding: 8px 12px; font-size: var(--text-sm); color: var(--color-warning); background: var(--color-warning-bg); border: 1px solid var(--color-warning); border-radius: var(--radius-md); }
 .rep-aviso-pdf ion-icon { flex: none; margin-top: 2px; }
 /* Modal del PDF con filtros de vista: filtros activos y una opción por botón (con su conteo y aviso debajo). */
@@ -195,10 +192,10 @@
 /* Nombre | barras | E | T en una sola rejilla (las filas son `display: contents`, como en la gráfica de asesores). */
 .rep2-gd-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(120px, 1fr) 4.5rem 4.5rem; align-items: center; gap: 10px 12px; }
 .rep2-gd-colh { text-align: right; font-size: var(--text-sm); font-weight: 700; color: var(--color-text-secondary); cursor: help; }
-.rep2-gd-barras { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rep2-gd-barras { display: flex; flex-direction: column; gap: 1px; min-width: 0; } /* cada línea mide 14 px (la cifra cabe en 11 px): las dos barras de una persona quedan casi pegadas y se distinguen de la siguiente */
 /* Sin diseñador asignado: el hueco ocupa lo de la segunda barra y el nombre se alinea con la única barra (centro de la primera línea, de 16 px). */
-.rep2-gd-linea { min-height: 16px; } /* la altura de una línea (la fija el texto de la cantidad): el hueco y el nombre de Sin asignar usan la misma */
-.rep2-gd-linea--hueco { height: 16px; }
+.rep2-gd-linea { min-height: 14px; } /* la altura de una línea (la fija el texto de la cantidad): el hueco y el nombre de Sin asignar usan la misma */
+.rep2-gd-linea--hueco { height: 14px; }
 .rep2-gd-fila--sin .rep2-gd-nombre { align-self: start; display: flex; align-items: center; justify-content: flex-end; height: 16px; white-space: nowrap; }
 .rep2-gd-linea { display: flex; align-items: center; gap: 6px; min-width: 0; }
 /* Las dos barras comparten escala: el largo es una fracción de la línea menos el lugar de la cifra, que va en la punta. */
@@ -212,7 +209,7 @@
 /* El ancho mínimo deja ver la cifra aunque sea una sola entrega tarde; blanco sobre rojo da 4.8:1. */
 .rep2-gd-seg--tarde { background: var(--color-danger); min-width: 16px; }
 .rep2-gd-seg:last-child { border-radius: 0 4px 4px 0; }
-.rep2-gd-cant { flex: none; min-width: 2ch; font-size: var(--text-sm); font-variant-numeric: tabular-nums; color: var(--color-text-secondary); }
+.rep2-gd-cant { flex: none; min-width: 2ch; line-height: 1; font-size: var(--text-sm); font-variant-numeric: tabular-nums; color: var(--color-text-secondary); }
 .rep2-gd-e, .rep2-gd-t { text-align: right; font-size: var(--text-base); font-variant-numeric: tabular-nums; color: var(--color-text); white-space: nowrap; }
 .rep2-gd .rep2-gd-max { color: var(--color-danger); font-weight: 700; }
 .rep2-gt--interactiva button.rep2-gd-barra, .rep2-gt--interactiva button.rep2-gd-seg { cursor: pointer; }

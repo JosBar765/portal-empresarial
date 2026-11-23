@@ -5,8 +5,6 @@ import { abrirVisorVale } from '../../components/visorDocumento.js';
 import { abrirVisorMultitaller } from '../../actions/propuestasMultitaller.js';
 import { abrirModalHistorial } from '../../actions/historial.js';
 import { puede } from '../../permisos.js';
-import { siguienteTramo, datosVerMas } from './desglosePaginado.js';
-import { TEXTOS_DESGLOSE } from './textos.js';
 
 // Piezas del desglose de vales compartidas por los reportes de actividad de Reportes 2 (esqueleto, cabecera, tabla y secciones plegables).
 
@@ -44,11 +42,9 @@ function htmlAtrasoEntregado(v) {
   return v.diasTarde >= 1 ? `<span class="badge badge-atraso" title="Entregado con atraso">${v.diasTarde} d</span>` : '<span class="badge badge-ok">Al día</span>';
 }
 
-// Tablas con filas aún sin dibujar (por id) y cuerpos plegados sin construir (por id del cuerpo); se vacían en cada panel nuevo.
-const paginas = new Map();
+// Cuerpos plegados sin construir (por id del cuerpo); se vacían en cada panel nuevo.
 const diferidos = new Map();
-let secuencia = 0;
-export function reiniciarDesglose() { paginas.clear(); diferidos.clear(); }
+export function reiniciarDesglose() { diferidos.clear(); }
 
 // Talleres (`g.nombres`): una píldora azul por taller, como en el buzón (la misma clase `.taller-tag`); el resto, el nombre con su avatar opcional.
 // Diseñadores: las píldoras salen de los diseñadores del vale (`v.disenadoresDelVale`), también al enfocar uno, para ver siempre a todos.
@@ -57,7 +53,7 @@ const celdaGrupo = (g, avatar, v = {}) => (Array.isArray(nombresDeLaFila(g, v)) 
   ? `<div class="taller-tags-cell">${nombresDeLaFila(g, v).map(n => `<span class="taller-tag${n === 'Sin asignar' ? ' taller-tag--sin-asignar' : ''}">${escapeHtml(n)}</span>`).join('')}</div>`
   : `<span class="rep-grupo-nombre">${avatar ? `<span class="rep-avatar" aria-hidden="true">${escapeHtml(inicialesAvatar(g.nombre))}</span>` : ''}<span>${escapeHtml(g.nombre)}</span></span>`);
 
-// Una fila de la tabla: la misma para las primeras filas y para las que llegan con «Ver más».
+// Una fila de la tabla.
 function htmlFila(g, v, { clave, info, taller, avatar }) {
   const conAtraso = clave === 'atrasados' || clave === 'entregados';
   return `
@@ -75,56 +71,17 @@ function htmlFila(g, v, { clave, info, taller, avatar }) {
     </tr>`;
 }
 
-const htmlBotonVerMas = (id, quedan) => {
-  const { n, quedan: q } = datosVerMas(quedan);
-  return `<div class="rep-ver-mas"><button type="button" class="btn btn--ghost btn--sm" data-ver-mas="${id}">${escapeHtml(TEXTOS_DESGLOSE.verMas(n, q))}</button></div>`;
-};
-
 // Una sola tabla por sección con todos sus vales: la persona (o taller/tienda) es una columna, no un desplegable.
 // Atrasados y entregados muestran el Atraso (en los entregados, los días con que se entregó).
-// Dibuja solo las primeras filas; el resto queda en memoria (`paginas`) y se agrega con «Ver más».
+// Dibuja todas las filas de la sección.
 export function htmlTablaSeccion(sec, info, taller = false, avatar = true) {
-  const items = sec.grupos.flatMap(g => g.vales.map(v => ({ g, v })));
+  // Una sola lista por fecha de entrega (la más próxima primero), sin importar a qué persona, taller o tienda pertenece cada fila.
+  const items = sec.grupos.flatMap(g => g.vales.map(v => ({ g, v }))).sort((a, b) => String(a.v.fechaEntrega).localeCompare(String(b.v.fechaEntrega)) || a.v.id - b.v.id);
   if (!items.length) return '<p class="rep-sin-vales">Sin vales con entrega en este período.</p>';
   const ctx = { clave: sec.clave, info, taller, avatar };
-  const { hasta, quedan } = siguienteTramo(items.length, 0);
-  const filas = items.slice(0, hasta).map(({ g, v }) => htmlFila(g, v, ctx)).join('');
-  let verMas = '';
-  if (quedan > 0) {
-    const id = `pag-${++secuencia}`;
-    paginas.set(id, { items, ctx, mostrados: hasta });
-    verMas = htmlBotonVerMas(id, quedan);
-  }
+  const filas = items.map(({ g, v }) => htmlFila(g, v, ctx)).join('');
   const conAtraso = sec.clave === 'atrasados' || sec.clave === 'entregados';
-  return `<div class="rep-mini-caja"><div class="rep-mini-wrap"><table class="rep-mini rep-mini--plana${taller ? ' rep-mini--taller' : ''}"><thead><tr><th>Vale</th><th>${info.texto}</th>${taller ?'<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div></div>${verMas}`;
-}
-
-// «Ver N más»: agrega la siguiente tanda a la misma tabla y conecta solo las filas nuevas (sin duplicar eventos).
-function verMas(boton) {
-  const id = boton.dataset.verMas;
-  const pag = paginas.get(id);
-  if (!pag) return;
-  const { desde, hasta, quedan } = siguienteTramo(pag.items.length, pag.mostrados);
-  const caja = boton.closest('.rep-ver-mas');
-  const tbody = $('tbody', caja.previousElementSibling);
-  const antes = tbody.rows.length;
-  tbody.insertAdjacentHTML('beforeend', pag.items.slice(desde, hasta).map(({ g, v }) => htmlFila(g, v, pag.ctx)).join(''));
-  for (let i = antes; i < tbody.rows.length; i++) conectarAcciones(tbody.rows[i]);
-  pag.mostrados = hasta;
-  if (quedan > 0) {
-    const { n, quedan: q } = datosVerMas(quedan);
-    boton.textContent = TEXTOS_DESGLOSE.verMas(n, q);
-    return;
-  }
-  // Sin más filas el botón desaparece: el foco pasa a la primera fila nueva para no perderlo.
-  paginas.delete(id);
-  const primera = tbody.rows[antes] && tbody.rows[antes].querySelector('[data-ver]');
-  if (primera) primera.focus();
-  caja.hidden = true;
-}
-
-export function conectarVerMas(raiz) {
-  raiz.querySelectorAll('[data-ver-mas]').forEach(b => b.addEventListener('click', () => verMas(b)));
+  return `<div class="rep-mini-caja"><div class="rep-mini-wrap"><table class="rep-mini rep-mini--plana${taller ? ' rep-mini--taller' : ''}"><thead><tr><th>Vale</th><th>${info.texto}</th>${taller ?'<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div></div>`;
 }
 
 // Secciones del reporte (tras «Atrasados antes del período»): cada una plegable, con su contador.
@@ -166,11 +123,9 @@ function construirDiferido(cuerpo) {
   diferidos.delete(cuerpo.id);
   cuerpo.innerHTML = construir();
   conectarAcciones(cuerpo);
-  conectarVerMas(cuerpo);
 }
 
 export function conectarSecciones(panel) {
-  conectarVerMas(panel); // las secciones desplegadas ya traen sus filas; las plegadas se conectan al abrirse
   panel.querySelectorAll('.rep-seccion').forEach(sec => {
     const cab = $('.rep-seccion-cab', sec);
     cab.addEventListener('click', () => {

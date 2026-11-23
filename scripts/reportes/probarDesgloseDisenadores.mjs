@@ -19,15 +19,15 @@ const vale = (id, disenadores, extra = {}) => ({ id, correlativo: `V-${id}`, aut
 const grupo = (id, nombre, vales) => ({ id, nombre, total: vales.length, vales });
 
 // El vale 1 es compartido entre Ana y Beto: está en el grupo de cada uno (con la MISMA ficha); el 2 es solo de Ana; el 3, solo de Beto; el 4 no tiene diseñador.
-const v1 = vale(1, [ana, beto], { atrasado: true });
-const v2 = vale(2, [ana], { atrasado: true }); const v3 = vale(3, [beto], { atrasado: true }); const v4 = vale(4, [], { atrasado: true });
+const v1 = vale(1, [ana, beto], { atrasado: true, fechaEntrega: '2026-11-10' });
+const v2 = vale(2, [ana], { atrasado: true, fechaEntrega: '2026-11-05' }); const v3 = vale(3, [beto], { atrasado: true, fechaEntrega: '2026-11-07' }); const v4 = vale(4, [], { atrasado: true, fechaEntrega: '2026-11-01' });
 const sec = { total: 5, grupos: [grupo(1, 'Ana Pérez', [v1, v2]), grupo(2, 'Beto López', [v1, v3]), grupo(0, 'Sin asignar', [v4])] };
 
 // ---- una fila por vale ---------------------------------------------------------------------------------------------------------------------
 const unida = unirSeccionPorVale(sec);
 ok(unida.total === 4, 'el vale compartido cuenta una sola vez en la sección (5 apariciones -> 4 vales)');
 const nombres = unida.grupos.map(g => g.nombre);
-ok(nombres.join('|') === 'Ana Pérez|Ana Pérez, Beto López|Beto López|Sin asignar', `un grupo por conjunto de diseñadores: ${nombres.join(' | ')}`);
+ok(nombres.join('|') === 'Sin asignar|Ana Pérez|Beto López|Ana Pérez, Beto López', `un grupo por conjunto de diseñadores, por la fecha de entrega de su primer vale: ${nombres.join(' | ')}`);
 const compartido = unida.grupos.find(g => g.nombre === 'Ana Pérez, Beto López');
 ok(compartido.vales.length === 1 && compartido.nombres.join() === 'Ana Pérez,Beto López' && compartido.ids.join() === '1,2', 'el compartido va con sus dos diseñadores (nombres e ids)');
 ok(unida.grupos.find(g => g.nombre === 'Sin asignar').nombres.join() === 'Sin asignar', 'un vale sin diseñador va en «Sin asignar»');

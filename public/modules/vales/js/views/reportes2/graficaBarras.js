@@ -6,8 +6,6 @@
 import { escapeHtml } from '../../utils/formato.js';
 import { htmlCabeceraPlegable, htmlCuerpoPlegable, clasePlegada, conectarPlegable } from './graficaPlegable.js';
 
-const VISIBLES = 10;
-const desplegadas = new Set(); // por gráfica (clave): se recuerda entre cargas, porque elegir una barra recarga el reporte y no debe volver a plegar la lista
 const entero = (n) => Number(n) || 0;
 const porcentaje = (n, total) => {
   const p = total ? n / total * 100 : 0;
@@ -22,7 +20,7 @@ const tramos = (t) => {
   return `${base > 0 ? `<span class="rep2-gt-seg rep2-gt-seg--base" style="flex:${base}"></span>` : ''}${urgentes > 0 ? `<span class="rep2-gt-seg rep2-gt-seg--urgente" data-modo="urgentes" style="flex:${urgentes}">${urgentes}</span>` : ''}`;
 };
 
-const fila = (t, maximo, total, { lider, oculta, elegida, elegidaUrgentes, interactiva, nombreBoton, apilada, T }) => {
+const fila = (t, maximo, total, { lider, elegida, elegidaUrgentes, interactiva, nombreBoton, apilada, T }) => {
   const razon = maximo ? Math.max(t.total / maximo, t.total > 0 ? 0.015 : 0) : 0; // largo de la barra respecto de la mayor (el CSS reserva el lugar del porcentaje)
   // Apilada: la etiqueta añade qué hace el tramo ámbar (solo urgentes); si ya está enfocado ese modo, se ofrece quitarlo.
   const base = elegida && !(apilada && elegidaUrgentes) ? T.graficaQuitar(t.nombre) : T.graficaVerDe(t.nombre);
@@ -36,7 +34,7 @@ const fila = (t, maximo, total, { lider, oculta, elegida, elegidaUrgentes, inter
   const pista = interactiva
     ? `<button type="button" class="rep2-gt-pista" aria-pressed="${elegida}" aria-label="${escapeHtml(etiqueta)}"${detalle ? ` title="${escapeHtml(detalle)}"` : ''}>${barra}</button>`
     : `<span class="rep2-gt-pista"${detalle ? ` title="${escapeHtml(detalle)}" role="img" aria-label="${escapeHtml(`${t.nombre}: ${detalle}`)}"` : ''}>${barra}</span>`;
-  return `<li class="rep2-gt-fila${lider ? ' rep2-gt-fila--lider' : ''}${elegida ? ' rep2-gt-fila--elegida' : ''}${elegida && elegidaUrgentes ? ' rep2-gt-fila--elegida-urgentes' : ''}" data-id="${entero(t.id)}"${oculta ? ' data-extra hidden' : ''}>
+  return `<li class="rep2-gt-fila${lider ? ' rep2-gt-fila--lider' : ''}${elegida ? ' rep2-gt-fila--elegida' : ''}${elegida && elegidaUrgentes ? ' rep2-gt-fila--elegida-urgentes' : ''}" data-id="${entero(t.id)}">
       ${nombre}
       ${pista}
       <span class="rep2-gt-valor">${entero(t.total)}</span>
@@ -52,15 +50,11 @@ export function htmlGraficaBarras(lista, T, { titulo = T.graficaTitulo, clave = 
   const total = lista.reduce((s, t) => s + entero(t.total), 0);
   if (!total) return '';
   const maximo = entero(lista[0].total);
-  const restantes = Math.max(lista.length - VISIBLES, 0);
-  // La elegida siempre debe verse: si está entre las ocultas, la lista se muestra desplegada.
   const indiceElegida = elegida == null ? -1 : lista.findIndex(t => entero(t.id) === entero(elegida));
-  const abierta = desplegadas.has(clave) || indiceElegida >= VISIBLES;
   const cuerpo = `${apilada ? `<div class="rep2-gt-leyenda" aria-hidden="true"><span><i class="rep2-gt-sw rep2-gt-sw--base"></i>${escapeHtml(T.graficaNoUrgentes)}</span><span><i class="rep2-gt-sw rep2-gt-sw--urgente"></i>${escapeHtml(T.graficaUrgentes)}</span></div>` : ''}
     <ol class="rep2-gt-lista">${lista.map((t, i) => fila(t, maximo, total, {
-    lider: !apilada && entero(t.total) === maximo, oculta: i >= VISIBLES && !abierta, elegida: i === indiceElegida, elegidaUrgentes, interactiva, nombreBoton, apilada, T
-  })).join('')}</ol>
-    ${restantes ? `<button type="button" class="rep-link rep2-gt-mas" aria-expanded="${abierta}" data-restantes="${restantes}">${escapeHtml(abierta ? T.graficaMenos : T.graficaRestantes(restantes))}</button>` : ''}`;
+    lider: !apilada && entero(t.total) === maximo, elegida: i === indiceElegida, elegidaUrgentes, interactiva, nombreBoton, apilada, T
+  })).join('')}</ol>`;
   return `<section class="rep2-gt${interactiva || nombreBoton ? ' rep2-gt--interactiva' : ''}${clasePlegada(clave)}" id="rep2-grafica-${clave}" data-clave="${clave}" aria-label="${escapeHtml(titulo)}">
     ${htmlCabeceraPlegable(titulo, clave)}
     ${htmlCuerpoPlegable(clave, cuerpo)}
@@ -74,16 +68,6 @@ export function conectarGraficaBarras(raiz, T, { alElegir = null, alNombre = nul
   const seccion = raiz.querySelector('.rep2-gt');
   if (!seccion) return;
   conectarPlegable(seccion, seccion.dataset.clave);
-  const boton = seccion.querySelector('.rep2-gt-mas');
-  if (boton) {
-    boton.addEventListener('click', () => {
-      const abrir = boton.getAttribute('aria-expanded') !== 'true';
-      if (abrir) desplegadas.add(seccion.dataset.clave); else desplegadas.delete(seccion.dataset.clave);
-      seccion.querySelectorAll('[data-extra]').forEach(li => { li.hidden = !abrir; });
-      boton.setAttribute('aria-expanded', String(abrir));
-      boton.textContent = abrir ? T.graficaMenos : T.graficaRestantes(Number(boton.dataset.restantes));
-    });
-  }
   const lista = seccion.querySelector('.rep2-gt-lista');
   if (lista && (alElegir || alNombre)) {
     // Un solo oyente: la barra (con teclado), la cifra y el nombre de su fila.
@@ -96,10 +80,10 @@ export function conectarGraficaBarras(raiz, T, { alElegir = null, alNombre = nul
       else if (alElegir) alElegir(id, nombre, e.target.closest('.rep2-gt-seg--urgente') ? 'urgentes' : 'todos');
     });
   }
-  // Presionar fuera de las barras (título, leyenda, bordes de la gráfica) quita la barra elegida; el botón «Ver las N restantes» no cuenta.
+  // Presionar fuera de las barras (título, leyenda, bordes de la gráfica) quita la barra elegida; siempre salen todas las barras.
   if (alQuitar) {
     seccion.addEventListener('click', (e) => {
-      if (!e.target.closest('li[data-id]') && !e.target.closest('.rep2-gt-mas') && !e.target.closest('.rep2-gt-plegar')) alQuitar();
+      if (!e.target.closest('li[data-id]') && !e.target.closest('.rep2-gt-plegar')) alQuitar();
     });
   }
 }

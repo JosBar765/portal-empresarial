@@ -46,7 +46,6 @@ export const TEXTOS = {
 
 // Desglose de vales (todos los reportes de actividad): dibujo a demanda.
 export const TEXTOS_DESGLOSE = {
-  verMas: (n, quedan) => `Ver ${n} más (quedan ${quedan})`
 };
 
 // Reporte de actividad de tienda.
@@ -130,8 +129,6 @@ export const TEXTOS_TIENDA = {
   graficaDetalle: (total, urgentes) => `${total} ${total === 1 ? 'vale' : 'vales'} · ${urgentes} ${urgentes === 1 ? 'urgente' : 'urgentes'}`,
   graficaVerDe: (nombre) => `Ver los contadores y el desglose de ${nombre}`,
   graficaQuitar: (nombre) => `Quitar el enfoque en ${nombre} y ver todas las tiendas`,
-  graficaRestantes: (n) => `Ver las ${n} restantes`,
-  graficaMenos: 'Ver menos',
   contDetalleUrgentes: (total, ingresados) => `${total} de ${ingresados} ${ingresados === 1 ? 'vale' : 'vales'}`
 };
 
