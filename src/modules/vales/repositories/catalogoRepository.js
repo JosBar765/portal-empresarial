@@ -38,7 +38,7 @@ class CatalogoRepository {
   }
 
   async listarPaises() {
-    return db.query('SELECT id, codigo, nombre, codigo_telefono FROM paises ORDER BY nombre', [], 'catalog:paises');
+    return db.query('SELECT id, codigo, nombre, codigo_telefono, moneda_simbolo, moneda_codigo FROM paises ORDER BY nombre', [], 'catalog:paises');
   }
 }
 
