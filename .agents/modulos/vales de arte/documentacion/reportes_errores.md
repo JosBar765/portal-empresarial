@@ -41,7 +41,7 @@ Cada petición de `generar` o `pdf` arma el reporte dos veces (período y atrasa
 
 | Código | Estado | Significado y causa típica | Qué hacer |
 |---|---|---|---|
-| `REPORTE_FILTRO_INVALIDO` | 400 | Un filtro mal formado o ajeno al alcance (incluido un `desgloseEstado` que no es uno de los siete estados del filtro del desglose); casi siempre un filtro guardado que ya no corresponde (p. ej. una tienda fuera del alcance). | «Restablecer filtros» y volver a elegir. |
+| `REPORTE_FILTRO_INVALIDO` | 400 | Un filtro mal formado o ajeno al alcance (incluido un `desgloseEstado` que no es uno de los siete estados del filtro del desglose, o un `disenadorModo` que no es `entregados` ni `tarde`); casi siempre un filtro guardado que ya no corresponde (p. ej. una tienda fuera del alcance). | «Restablecer filtros» y volver a elegir. |
 | `REPORTE_SIN_ACCESO` | 403 | La persona no tiene el permiso del reporte (etapa `permiso`: el rechazo deja su línea `[Reportes] ... etapa=permiso` en el log) (o no tiene alcance, p. ej. asesores para quien solo gestiona un taller). | Pedir el permiso en «Roles y Permisos». |
 | `REPORTE_NO_ENCONTRADO` | 404 | El servidor no reconoce el reporte. | Elegir otro. |
 | `REPORTE_LIMITE` | 429 | Demasiadas consultas: 30 por minuto en `generar` y `pdf`, 120 en `opciones`. | Esperar los segundos que indica la tarjeta. |

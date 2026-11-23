@@ -1,5 +1,7 @@
 # Reporte de actividad de tiendas (Reportes 2): cómo funciona
 
+> **Actualización 2026-11-23 (`correcciones_83.md`):** la tarjeta y la sección **«Sin entregar»** se llaman ahora **«Por vencer»** (misma definición), y el PDF imprime **todas** las barras de la gráfica por tienda (ya no «las 10 mayores y una fila Otras»).
+
 Documento de referencia de **un solo reporte**, de punta a punta: qué muestra, con qué reglas, cómo se interactúa en pantalla, cómo sale en el PDF y dónde está cada pieza. Su hermano, el reporte de actividad de asesores, está en `reporte_actividad_asesores.md`. Complementa a `reportes_2_guia.md` (la guía general de Reportes 2 y de cómo retomar el trabajo), a `flujo_vale_de_arte.md` §11.1 (reglas de negocio) y a `correcciones_62.md` … `correcciones_66.md` (el detalle de cada cambio).
 
 ## 1. En una frase
@@ -12,7 +14,7 @@ Dado un período y un filtro de tiendas, el reporte resume **cuántos vales ingr
 |---|---|
 | Permiso | `vales.reporte_actividad_tienda` (se concede por migración solo al Administrador; el resto se asigna desde «Roles y Permisos»). La pestaña «Reportes» la abre `vales.ver_reportes`, que solo abre la pestaña. |
 | Alcance | Quien tiene `vales.supervisar` ve solo las tiendas a su cargo y el selector dice «Todas mis tiendas»; cualquier otro con el permiso ve todas. El alcance es por **permiso**, no por nombre de rol. |
-| Filtro | Un solo selector de tienda en cascada (país → grupo → tienda). Valores: «Todas las tiendas», «Todas — <país>», «Todas — <grupo>» o una tienda. Viaja como `tiendaId` (una) o `tiendaIds` (lista, para país o grupo). Una tienda fuera de las visibles responde 400. |
+| Filtro | Un solo selector de tienda en **modo múltiple** (casillas: una o varias tiendas, o un país o grupo entero con la casilla del padre; menú de `public/js/menuCascada.js`). Entrega ids sueltos («3,7,9»; vacío = todas) y viaja como `tiendaId` (una) o `tiendaIds` (varias). Una tienda fuera de las visibles responde 400. Cambiar una casilla solo marca el resultado como desactualizado (no consulta). Los filtros guardados en el navegador antes del selector múltiple («pais:X», «grupo:Y») se convierten a la lista de sus tiendas al cargar y los ids que ya no existen se descartan (`views/reportes2/valorTiendas.js`). |
 | Período | Hoy, Día, Semana, Mes o Desde–Hasta. El período filtra por la **fecha de entrega** del vale. |
 | Cuándo se consulta | Solo al presionar **«Generar»** (antes «Actualizar»). Elegir el reporte muestra el selector de tienda (opciones de `/opciones`); cambiar tienda o período después de generar solo marca el resultado como viejo. |
 
@@ -122,7 +124,7 @@ Si hay algún **filtro de la vista** activo (barra enfocada, contador o ambos), 
 
 ### Estructura de la página 1
 
-1. **Encabezado:** logo, título, período, quién y cuándo lo generó, y la línea de filtros («Tiendas: Todas las tiendas») **resaltada en amarillo** (solo en los reportes de Reportes 2).
+1. **Encabezado:** logo, título, período, quién y cuándo lo generó, y la línea de filtros («Tiendas: Todas las tiendas») **en negrita** (solo en los reportes de Reportes 2; antes iba resaltada en amarillo).
 2. **Franja de contadores** de dos filas (~9 % de la página): Ingresados · Urgentes · Sin entregar / Atrasados (Anteriores, Actuales) · Entregados (Con atraso, Sin atraso).
 3. **Gráfica «Vales ingresados por tienda»:** las 10 mayores y una fila «Otras (N tiendas)» con su suma, **sin barra** (sumar varias tiendas no es comparable con una sola). Porcentaje en la punta de cada barra y cantidad a la derecha. Se omite si la respuesta no trae `porTienda`.
 4. **Línea gris divisoria** (solo si el desglose se incluye y no arranca en una página nueva).
@@ -142,7 +144,7 @@ Todo fallo responde `{ error, codigo, referencia, etapa }`; ver `reportes_errore
 | Parámetro | Rutas | Significado |
 |---|---|---|
 | `ventana`, `fecha`, `desde`, `hasta` | ambas | Período. |
-| `tiendaId` / `tiendaIds` | ambas | Una tienda o una lista (país o grupo). Mal formado: 400. Fuera de las visibles: 400. |
+| `tiendaId` / `tiendaIds` | ambas | Una tienda o una lista de ids (varias tiendas, o las de un país o grupo). Mal formado: 400. Fuera de las visibles: 400. |
 | `desglose=0` | PDF | Imprime sin el desglose (por defecto lo incluye). |
 | `tiendaDesglose=<id>` | PDF | Imprime el desglose de esa tienda (la enfocada). Si no es visible para el usuario: 400. |
 

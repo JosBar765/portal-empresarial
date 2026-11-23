@@ -1,5 +1,7 @@
 # Reporte de actividad de asesores (Reportes 2): cómo funciona
 
+> **Actualización 2026-11-23 (`correcciones_83.md`):** la tarjeta y la sección **«Sin entregar»** se llaman ahora **«Por vencer»** (misma definición), y el PDF imprime **todas** las barras de la gráfica por asesor.
+
 Referencia de **un solo reporte**. Es el hermano del reporte de actividad de tiendas y comparte con él casi todo: léelo primero (`reporte_actividad_tienda.md`) y aquí solo se explica lo que cambia. Registro cronológico de los cambios: `correcciones_67.md`.
 
 ## 1. En una frase
@@ -12,8 +14,8 @@ Dado un período y un filtro de tienda, el reporte muestra **cuántos vales ingr
 |---|---|
 | Permiso | `vales.reporte_actividad_asesor` (migración, solo Administrador al inicio; el resto se asigna desde «Roles y Permisos»). |
 | Alcance | Quien tiene `vales.supervisar` ve solo a sus asesores (y a sí mismo) y las tiendas a su cargo; cualquier otro con el permiso ve todo. Quien solo tiene `vales.gestionar_taller` recibe 403: este reporte no es para él. |
-| Filtro de tienda | El mismo selector en cascada del reporte de tiendas (país → grupo → tienda; «Todas las tiendas», «Todas — <país>», «Todas — <grupo>» o una tienda). Viaja como `tiendaId` o `tiendaIds`. Una tienda fuera de las visibles responde 400. Su valor vive en `state.reporte2.asesorTiendaId`, **separado** del filtro del reporte de tiendas. |
-| Filtro de asesores | El selector múltiple de asesores va junto al de tienda, **sin ícono**, y ofrece solo **los asesores de la tienda elegida** (si se elige un país o un grupo, los de sus tiendas; sin tienda, todos). Cambiar la tienda actualiza la lista sin consultar y saca de la selección a quien ya no está en ella. Acota a los asesores elegidos (`asesorIds`). Quien no trae tienda (el supervisor como «(yo)») se ofrece siempre. |
+| Filtro de tienda | El mismo selector de tienda en **modo múltiple** (casillas: una o varias tiendas, o un país o grupo entero con la casilla del padre; menú de `public/js/menuCascada.js`). Entrega ids sueltos («3,7,9»; vacío = todas) y viaja como `tiendaId` (una) o `tiendaIds` (varias). Una tienda fuera de las visibles responde 400. Su valor vive en `state.reporte2.asesorTiendaId`, **separado** del filtro del reporte de tiendas. |
+| Filtro de asesores | El selector múltiple de asesores va junto al de tienda, **sin ícono**, y ofrece solo **los asesores de las tiendas elegidas** (una o varias; sin tienda, todos). Cambiar la tienda actualiza la lista sin consultar y saca de la selección a quien ya no está en ella. Acota a los asesores elegidos (`asesorIds`). Quien no trae tienda (el supervisor como «(yo)») se ofrece siempre. |
 | Período | El mismo del resto de la pestaña «Reportes». |
 | Cuándo se consulta | Solo con **«Generar»** (antes «Actualizar»). Al elegir el reporte aparecen los selectores de tienda y de asesores (de `/opciones`); cambiarlos o cambiar el período solo marca el resultado como viejo. |
 
@@ -24,7 +26,7 @@ Dado un período y un filtro de tienda, el reporte muestra **cuántos vales ingr
 | **Contadores** | Los mismos cinco, con las mismas definiciones y la misma identidad contable, pero calculados sobre los vales de la tienda elegida (o de todas) y de los asesores visibles. «Entregado» significa que el vale ya llegó al asesor. |
 | **Gráfica** | «Vales ingresados por asesor»: una barra por cada asesor que haya metido un vale, **apilada**: un tramo azul con los vales no urgentes y, a continuación, un tramo amarillo con los urgentes (`--color-warning`), con 2 px entre ambos. La cantidad de urgentes va siempre dentro del tramo amarillo, en texto oscuro; el tramo tiene un ancho mínimo (16 px) para que el número quepa aunque sea un solo vale, así que ese tramo no es exactamente proporcional cuando es muy pequeño. El detalle «N vales · U urgentes» sale al pasar el cursor. Lleva una leyenda («No urgentes», «Urgentes»). El resto es como la de tiendas (barras de mayor a menor, porcentaje en la punta, cantidad total a la derecha, diez visibles y «Ver las N restantes», nombres completos alineados a la derecha). Como el color significa «urgente», **no se resalta la barra mayor**. **Es pulsable**: ver §3.1. |
 | **Desglose** | Las mismas cuatro secciones (Atrasados anteriores al período, Atrasados período actual, Sin entregar y Entregados); lo que cambia es que las tablas se agrupan **por asesor** y no por tienda. Con el círculo de iniciales junto al nombre, que el reporte de tiendas ya no lleva. |
-| **PDF** | Igual que el de tiendas: franja de contadores, gráfica «VALES INGRESADOS POR ASESOR» apilada y con leyenda (10 mayores y «Otras (N asesores)» sin barra), línea divisoria y desglose. Al descargar, el mismo modal «¿incluir el desglose?». El botón del PDF queda deshabilitado hasta generar y mientras el resultado esté viejo. La línea de filtros resaltada lleva ambos filtros: «Asesores: Todos  ·  Tiendas: Todas». |
+| **PDF** | Igual que el de tiendas: franja de contadores, gráfica «VALES INGRESADOS POR ASESOR» apilada y con leyenda (10 mayores y «Otras (N asesores)» sin barra), línea divisoria y desglose. Al descargar, el mismo modal «¿incluir el desglose?». El botón del PDF queda deshabilitado hasta generar y mientras el resultado esté viejo. La línea de filtros, en negrita, lleva ambos filtros: «Asesores: Todos  ·  Tiendas: Todas». |
 | **Barra enfocada** | Ver §3.1. Con un asesor enfocado, el modal del PDF avisa de quién es y «Sí» imprime **su** desglose (`asesorDesglose`), o solo el de sus urgentes (`soloUrgentes=1`) si el enfoque era el tramo amarillo. Los contadores y la gráfica del PDF siguen siendo los del filtro. El título sale «DESGLOSE DE VALES DE ARTE: <ASESOR>» o «<ASESOR> (SOLO URGENTES)». |
 
 ### 3.1 Barra enfocada (interacción)
@@ -52,7 +54,7 @@ Igual que en el reporte de tiendas (ver `reporte_actividad_tienda.md`, «Filtrar
 | Parámetro | Significado |
 |---|---|
 | `ventana`, `fecha`, `desde`, `hasta` | Período. |
-| `tiendaId` / `tiendaIds` | Una tienda o una lista (país o grupo). Mal formado o ajeno: 400. |
+| `tiendaId` / `tiendaIds` | Una tienda o una lista de ids (varias tiendas, o las de un país o grupo). Mal formado o ajeno: 400. |
 | `asesorIds` | Lista de asesores. Fuera del alcance: 400. |
 | `desglose=0` | Solo el PDF: imprime sin el desglose. |
 | `soloUrgentes=1` | Solo vales urgentes (el enfoque del tramo amarillo). Hoy solo lo usa el PDF, junto con `asesorDesglose`; en pantalla el enfoque es local. |

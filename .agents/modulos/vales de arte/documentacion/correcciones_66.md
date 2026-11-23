@@ -17,7 +17,7 @@ Rama: `feat/vales-reportes-2`. Este archivo es el **registro cronológico** de l
 - Ayuda actualizada en «Cómo funciona este reporte» (Sin entregar, Atrasados, Entregados).
 - **Títulos de las agrupaciones** (solo Reportes 2, pantalla y PDF): «Atrasados antes del período» → **«Atrasados (anteriores al período)»** y «Atrasados en el período» → **«Atrasados (período actual)»**. Reportes y Actividad conservan los suyos. Los textos están en `reportes2/textos.js` (`tituloVigentes`, `seccionAtrasados`) y, en el PDF, en `TITULOS_REPORTES2` de `valeReportePdfService.js`; `htmlBloqueVigentes` recibe ahora un `titulo` opcional.
 
-## PDF de Reportes 2: línea de filtros resaltada
+## PDF de Reportes 2: línea de filtros resaltada (reemplazado: ahora va en negrita, ver `correcciones_77.md`)
 
 - En el PDF de los reportes de actividad de Reportes 2, la línea de filtros bajo el título («Tiendas: Todas las tiendas», «Taller: …», etc.) va con fondo amarillo (`AMARILLO_RESALTE`) y tinta más oscura. Actividad y Rendimiento conservan la suya sin resaltar.
 
