@@ -80,8 +80,9 @@ Permisos: `tiempos.ver` (calculadora y referencia) y `tiempos.administrar`. Se r
 2. **Colores extra:** confirmar el conteo (3.º y 4.º color: +1 día; 5.º y 6.º: +2).
 
 ## 7. Fases (avance)
-- Hecho: 1 idea, 2 mockup aprobado (2026-11-23), 3 base de datos y carga inicial (migración 52, `tablaV5.js`, `verificar-datos.js`).
-- Sigue: 4 motor de cálculo, 5 calculadora y tabla de referencia, 6 administración e historial, 7 documentación y PR.
+- Hecho: 1 idea, 2 mockup aprobado (2026-11-23), 3 base de datos y carga inicial (migración 52, `tablaV5.js`, `verificar-datos.js`), 4 motor de cálculo (`src/modules/tiempos/calculo/`: `motor.js`, `fechas.js`, `resumen.js`; pruebas en `scripts/tiempos/verificar-motor.js`).
+- Sigue: 5 calculadora y tabla de referencia (API y pantallas), 6 administración e historial, 7 documentación y PR.
+- Cambio sobre el mockup: al activar «Impresión UV» aparece un selector con el tipo de UV (impresión, cama plana / DTF o vinil sin revestimiento), porque cada uno suma días distintos.
 
 ## Fases (plan original)
 1. Idea y reglas (este documento) → 2. Mockup en Figma, aprobado → 3. Base de datos y carga inicial → 4. Motor de cálculo con pruebas → 5. Calculadora y tabla de referencia → 6. Administración e historial → 7. Documentación, revisión en celular y PR a `dev`.
