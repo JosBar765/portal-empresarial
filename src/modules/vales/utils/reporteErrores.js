@@ -6,7 +6,7 @@ const { ErrorDeNegocio, esErrorInterno, responderError } = require('../../../cor
 // Solo estos filtros viajan al log: nunca el cuerpo completo ni datos personales.
 const FILTROS_LOGUEABLES = [
   'ventana', 'fecha', 'desde', 'hasta', 'tiendaId', 'tiendaIds', 'tallerId', 'tallerIds',
-  'disenadorIds', 'asesorIds', 'asesorDesglose', 'tiendaDesglose', 'soloUrgentes', 'desglose',
+  'disenadorIds', 'asesorIds', 'asesorDesglose', 'disenadorDesglose', 'disenadorModo', 'tallerDesglose', 'tallerModo', 'tiendaDesglose', 'soloUrgentes', 'desglose',
   'desgloseEstado', 'desgloseUrgentes'
 ];
 

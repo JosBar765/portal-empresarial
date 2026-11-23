@@ -15,15 +15,15 @@ const REGLAS = {
   entregadosSinAtraso: { secciones: ['entregados'], vigentes: false, vale: v => !(Number(v.diasTarde) > 0) }
 };
 
-// Mismas palabras que los contadores de la pantalla y los títulos del PDF.
+// Mismas palabras que las etiquetas de filtro de la pantalla (ROTULO_FILTRO en reportes2/actividadReporte.js): lo que se ve es lo que se imprime.
 const ETIQUETAS = {
-  sinEntregar: 'Sin entregar',
+  sinEntregar: 'Por vencer',
   atrasados: 'Atrasados',
-  atrasadosAnteriores: 'Atrasados (anteriores al período)',
-  atrasadosActuales: 'Atrasados (período actual)',
+  atrasadosAnteriores: 'Atrasados: Anteriores',
+  atrasadosActuales: 'Atrasados: Actuales',
   entregados: 'Entregados',
-  entregadosConAtraso: 'Entregados con atraso',
-  entregadosSinAtraso: 'Entregados sin atraso'
+  entregadosConAtraso: 'Entregados: Con atraso',
+  entregadosSinAtraso: 'Entregados: Sin atraso'
 };
 
 const vacia = (sec) => ({ ...sec, total: 0, grupos: [] });
@@ -65,12 +65,50 @@ function etiquetaFiltroDesglose({ estado = null, urgentes = false } = {}) {
   return [ETIQUETAS[estado], urgentes ? 'Urgentes' : null].filter(Boolean).join(' + ');
 }
 
-// Para el PDF: filtra el desglose, anota el filtro en la línea de filtros y deja `filtroDesglose` (el PDF distingue «filtro sin vales»).
+// Etiqueta de la barra elegida en la gráfica: la misma de la pantalla (T.pdfFiltroGrupo en reportes2/textos.js; lo cruza probarEnfoqueDisenador.mjs).
+function etiquetaEnfoque(columna, nombre, { modo = null, urgentes = false } = {}) {
+  return `${columna}: ${nombre}${modo === 'entregados' ? ' (solo entregados)' : modo === 'tarde' ? ' (solo entregas tarde)' : urgentes ? ' (solo vales urgentes)' : ''}`;
+}
+
+// Contadores de la barra elegida: los que muestra la pantalla al enfocarla (espejo de `enfocarPayload`, enfoque.js), con Efectividad y Entregas a tiempo propias.
+function contadoresEnfocados(contadores, id, { modo = null, urgentes = false } = {}) {
+  const variante = modo || (urgentes ? 'urgentes' : 'todos');
+  const C = contadores?.porGrupo?.[id]?.[variante];
+  if (!C) return contadores;
+  const resultado = { ...contadores, ...C };
+  if (contadores.efectividad !== undefined && C.recibidos) {
+    resultado.efectividad = C.ingresados ? Math.round(C.recibidos.total / C.ingresados * 10000) / 100 : null;
+    resultado.aTiempo = C.recibidos.total ? Math.round(C.recibidos.sinAtraso / C.recibidos.total * 10000) / 100 : null;
+  }
+  return resultado;
+}
+
+// Para el PDF: filtra el desglose y anota los filtros en la línea de filtros, en el orden y con las palabras de las etiquetas de la pantalla
+// (barra elegida, urgentes, estado). Deja `filtroDesglose` solo si hay filtro por contador (el PDF distingue «filtro sin vales»).
 function aplicarFiltroPdf(reporte, { desgloseEstado = null, desgloseUrgentes = false } = {}) {
   const filtro = { estado: desgloseEstado, urgentes: desgloseUrgentes };
   const etiqueta = etiquetaFiltroDesglose(filtro);
-  if (!etiqueta) return reporte;
-  return { ...filtrarDesglose(reporte, filtro), filtroDesglose: etiqueta, resumenFiltros: [...(reporte.resumenFiltros || []), `Desglose filtrado: ${etiqueta}`] };
+  const partes = [reporte.enfoqueEtiqueta, desgloseUrgentes ? 'Urgentes' : null, ETIQUETAS[desgloseEstado]].filter(Boolean);
+  if (!partes.length) return reporte;
+  const base = etiqueta ? filtrarDesglose(reporte, filtro) : reporte;
+  return { ...base, filtroDesglose: etiqueta || reporte.enfoqueEtiqueta, resumenFiltros: [...(reporte.resumenFiltros || []), `Filtrado por: ${partes.join(' · ')}`] };
 }
 
-module.exports = { ESTADOS_DESGLOSE, filtrarDesglose, etiquetaFiltroDesglose, aplicarFiltroPdf };
+// Deja solo el grupo `id` en el desglose (espejo de `enfocarPayload` sin urgentes); el id 0 es un grupo válido y el total del grupo se conserva.
+function soloGrupoDesglose(reporte, id) {
+  if (!reporte || id === null || id === undefined) return reporte;
+  const enfocar = (sec) => {
+    const grupos = (sec.grupos || []).filter(g => (String(g.id) === String(id) || (Array.isArray(g.ids) && g.ids.some(x => String(x) === String(id)))) && (g.vales || []).length).map(g => ({ ...g }));
+    return { ...sec, total: grupos.reduce((s, g) => s + g.total, 0), grupos };
+  };
+  const secciones = {};
+  for (const [clave, sec] of Object.entries(reporte.grupos?.secciones || {})) secciones[clave] = enfocar(sec);
+  const resultado = { ...reporte, grupos: { ...reporte.grupos, secciones } };
+  if (reporte.atrasadosVigentes) resultado.atrasadosVigentes = { ...reporte.atrasadosVigentes, ...enfocar(reporte.atrasadosVigentes) };
+  return resultado;
+}
+
+// Barras del diseñador: estado del desglose por modo (espejo de `ESTADO_DE_MODO` del frontend, enfoque.js).
+const ESTADO_DE_MODO = { entregados: 'entregados', tarde: 'entregadosConAtraso' };
+
+module.exports = { ESTADOS_DESGLOSE, ESTADO_DE_MODO, filtrarDesglose, etiquetaFiltroDesglose, aplicarFiltroPdf, soloGrupoDesglose, etiquetaEnfoque, contadoresEnfocados };

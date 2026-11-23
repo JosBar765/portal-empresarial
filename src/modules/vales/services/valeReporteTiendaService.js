@@ -4,7 +4,7 @@ const reporteRepository = require('../repositories/reporteRepository');
 const valeReportePeriodo = require('./valeReportePeriodo');
 const valeReporteGruposService = require('./valeReporteGruposService');
 const valeReportePdfService = require('./valeReportePdfService');
-const { aplicarFiltroPdf } = require('./valeReporteFiltroDesglose');
+const { aplicarFiltroPdf, contadoresEnfocados, etiquetaEnfoque } = require('./valeReporteFiltroDesglose');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { esSupervisor, hoyISO } = require('./valeHelpers');
 
@@ -84,6 +84,9 @@ class ValeReporteTiendaService {
       const deTienda = await this.obtenerReporte(usuario, { ...filtros, tiendaId: filtros.tiendaDesglose, tiendaIds: [] });
       const nombre = (reporte.contadores.porTienda || []).find(t => t.id === filtros.tiendaDesglose)?.nombre || deTienda.resumenFiltros[0];
       Object.assign(reporte, { grupos: deTienda.grupos, atrasadosVigentes: deTienda.atrasadosVigentes, desgloseDe: nombre });
+      // Los contadores que se imprimen son los de la tienda elegida, como en pantalla; la gráfica sigue siendo la general.
+      reporte.contadores = contadoresEnfocados(reporte.contadores, filtros.tiendaDesglose);
+      reporte.enfoqueEtiqueta = etiquetaEnfoque('Tienda', nombre);
     }
     // El filtro por contador se aplica al desglose ya elegido; contadores y gráfica siguen siendo los del filtro general.
     const filtrado = reporte.incluirDesglose ? aplicarFiltroPdf(reporte, filtros) : reporte;

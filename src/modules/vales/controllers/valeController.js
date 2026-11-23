@@ -187,8 +187,23 @@ class ValeController {
   _filtrosReporteEquipo(req, tipo) {
     const lista = (valor, etiqueta) => String(valor ?? '').split(',').filter(t => t.trim() !== '').map(t => idObligatorio(t.trim(), etiqueta));
     const periodo = { ventana: req.query.ventana, fecha: req.query.fecha, desde: req.query.desde, hasta: req.query.hasta };
-    if (tipo === 'taller') return { ...periodo, tallerId: idOpcional(req.query.tallerId, 'Taller'), tallerIds: lista(req.query.tallerIds, 'Taller') };
-    if (tipo === 'disenador') return { ...periodo, disenadorIds: lista(req.query.disenadorIds, 'Diseñador') };
+    if (tipo === 'taller') {
+      // Taller enfocado en la gráfica (solo PDF) y su modo (entregados | tarde), como el diseñador en su reporte.
+      const modo = String(req.query.tallerModo ?? '').trim();
+      if (modo !== '' && modo !== 'entregados' && modo !== 'tarde') throw new ErrorDeNegocio('El modo del taller no es válido.', 400);
+      return {
+        ...periodo, tallerId: idOpcional(req.query.tallerId, 'Taller'), tallerIds: lista(req.query.tallerIds, 'Taller'),
+        incluirDesglose: req.query.desglose !== '0', tallerDesglose: idOpcional(req.query.tallerDesglose, 'Taller'), tallerModo: modo || null, ...this._filtroDesglose(req)
+      };
+    }
+    if (tipo === 'disenador') {
+      // Diseñador enfocado en la gráfica (solo PDF): el 0 es el grupo «Sin diseñador asignado», que `idOpcional` no admite.
+      const enfocado = String(req.query.disenadorDesglose ?? '').trim();
+      const disenadorDesglose = enfocado === '' ? null : enfocado === '0' ? 0 : idObligatorio(enfocado, 'Diseñador');
+      const modo = String(req.query.disenadorModo ?? '').trim();
+      if (modo !== '' && modo !== 'entregados' && modo !== 'tarde') throw new ErrorDeNegocio('El modo del diseñador no es válido.', 400);
+      return { ...periodo, disenadorIds: lista(req.query.disenadorIds, 'Diseñador'), tallerId: idOpcional(req.query.tallerId, 'Taller'), tallerIds: lista(req.query.tallerIds, 'Taller'), incluirDesglose: req.query.desglose !== '0', disenadorDesglose, disenadorModo: modo || null, ...this._filtroDesglose(req) };
+    }
     // Asesores: además filtra por tienda (una o una lista para un país o grupo) y su PDF puede omitir el desglose (`desglose=0`).
     return {
       ...periodo, asesorIds: lista(req.query.asesorIds, 'Asesor'),

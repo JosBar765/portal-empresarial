@@ -63,6 +63,32 @@ console.log('    resumenFiltros filtrado:', JSON.stringify(filtrado.resumenFiltr
 console.log('    vacío2 totales:', Object.values(vacio2.grupos.secciones).map(s => s.total), 'vigentes', vacio2.atrasadosVigentes.total);
 assert.equal(JSON.stringify(payload), copia);
 
+// (e) cruce del enfoque por grupo (servidor `soloGrupoDesglose` vs frontend `enfocarPayload`), incl. id 0 y un id desconocido
+const { enfocarPayload } = await import(pathToFileURL(raiz + '/public/modules/vales/js/views/reportes2/enfoque.js').href);
+const g0 = (vales) => ({ id: 0, nombre: 'Sin diseñador asignado', total: vales.length + 2, vales });
+const secG = (vales) => ({ total: vales.length, grupos: sec(vales).grupos.concat(vales.length ? [g0(vales.slice(0, 1))] : []) });
+const payloadG = {
+  ...payload, tipo: 'actividad-disenador', rol: 'disenador',
+  contadores: { ...payload.contadores, porGrupo: { 1: { todos: { ingresados: 1 }, urgentes: {} }, 2: { todos: { ingresados: 1 }, urgentes: {} }, 0: { todos: { ingresados: 1 }, urgentes: {} } } },
+  grupos: { ...payload.grupos, secciones: { atrasados: secG(atr), noEntregados: secG(noE), entregados: secG(ent) } },
+  atrasadosVigentes: { ...secG(ant), truncado: false }
+};
+const copiaG = JSON.stringify(payloadG);
+let cruces = 0;
+for (const id of [1, 2, 0, '0', 99]) {
+  const s = B.soloGrupoDesglose(payloadG, id);
+  const f = enfocarPayload(payloadG, { id });
+  if (id === 99) { assert.equal(f, payloadG); assert.deepEqual(Object.values(s.grupos.secciones).map(x => x.total), [0, 0, 0]); assert.equal(s.atrasadosVigentes.total, 0); cruces++; continue; }
+  assert.deepEqual(s.grupos.secciones, f.grupos.secciones, `secciones grupo ${id}`);
+  assert.deepEqual(s.atrasadosVigentes, f.atrasadosVigentes, `vigentes grupo ${id}`);
+  assert.ok(Object.values(s.grupos.secciones).every(x => x.grupos.every(g => String(g.id) === String(id))));
+  cruces++;
+}
+assert.equal(B.soloGrupoDesglose(payloadG, null), payloadG);
+assert.equal(B.soloGrupoDesglose(payloadG, undefined), payloadG);
+assert.equal(JSON.stringify(payloadG), copiaG);
+console.log('(e) enfoque por grupo frontend/backend OK, ids comparados:', cruces, '| null/undefined devuelven el mismo objeto | entrada sin mutar');
+
 // (d) etiquetas
 for (const f of [{ estado: 'atrasadosAnteriores' }, { estado: 'entregadosConAtraso' }, { estado: 'sinEntregar', urgentes: true }, { urgentes: true }, {}]) console.log('(d)', JSON.stringify(f), '->', JSON.stringify(B.etiquetaFiltroDesglose(f)));
 console.log('OK');

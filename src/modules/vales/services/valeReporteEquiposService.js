@@ -7,7 +7,7 @@ const usuarioValeRepository = require('../repositories/usuarioValeRepository');
 const valeReportePeriodo = require('./valeReportePeriodo');
 const valeReporteGruposService = require('./valeReporteGruposService');
 const valeReportePdfService = require('./valeReportePdfService');
-const { aplicarFiltroPdf } = require('./valeReporteFiltroDesglose');
+const { aplicarFiltroPdf, soloGrupoDesglose, filtrarDesglose, ESTADO_DE_MODO, contadoresEnfocados, etiquetaEnfoque } = require('./valeReporteFiltroDesglose');
 const valeCatalogoService = require('./valeCatalogoService');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { esSupervisor, esAdministrador, esDeTaller, hoyISO } = require('./valeHelpers');
@@ -33,6 +33,8 @@ const TIPOS = {
   asesor: { agruparPor: 'asesor', clave: 'asesorIds', menu: 'asesores', titulo: 'Actividad de asesores', tituloAcotado: 'Actividad de mis asesores', todos: 'Asesores: Todos', entregadoPorTaller: false, uno: 'Asesor', varios: 'Asesores' }
 };
 
+const TODOS_LOS_TALLERES = TIPOS.taller.todos;
+const { unirSeccionPorVale, unirSeccionesPorVale } = require('./valeReporteTalleres');
 const idsDe = (texto) => String(texto || '').split(',').map(Number).filter(Boolean);
 
 class ValeReporteEquiposService {
@@ -60,19 +62,22 @@ class ValeReporteEquiposService {
     };
   }
 
+  // Talleres que ve el usuario, con el país de cada uno: el filtro del reporte de talleres y el de talleres del reporte de diseñadores.
+  async _opcionesTalleres(acceso) {
+    const talleres = (await tallerRepository.listarTodos()).filter(t => acceso.global || acceso.talleres.has(t.id));
+    const tiendasDeTaller = new Map();
+    (await reporteRepository.listarTiendasPorTaller()).forEach(r => tiendasDeTaller.set(r.taller_id, [...(tiendasDeTaller.get(r.taller_id) || []), r.tienda_id]));
+    // El país de un taller sale de sus tiendas (talleres.tienda_id es nulo en los centrales).
+    const paisDeTienda = new Map((await reporteRepository.listarTiendas()).map(t => [t.id, t.pais_nombre]));
+    return talleres.map(t => ({
+      id: t.id, nombre: t.nombre, tiendaIds: tiendasDeTaller.get(t.id) || [],
+      paises: [...new Set((tiendasDeTaller.get(t.id) || []).map(id => paisDeTienda.get(id)).filter(Boolean))]
+    }));
+  }
+
   // Opciones del filtro del tipo, ya acotadas al alcance del usuario.
   async _opciones(tipo, usuario, acceso) {
-    if (tipo === 'taller') {
-      const talleres = (await tallerRepository.listarTodos()).filter(t => acceso.global || acceso.talleres.has(t.id));
-      const tiendasDeTaller = new Map();
-      (await reporteRepository.listarTiendasPorTaller()).forEach(r => tiendasDeTaller.set(r.taller_id, [...(tiendasDeTaller.get(r.taller_id) || []), r.tienda_id]));
-      // El país de un taller sale de sus tiendas (talleres.tienda_id es nulo en los centrales).
-      const paisDeTienda = new Map((await reporteRepository.listarTiendas()).map(t => [t.id, t.pais_nombre]));
-      return talleres.map(t => ({
-        id: t.id, nombre: t.nombre, tiendaIds: tiendasDeTaller.get(t.id) || [],
-        paises: [...new Set((tiendasDeTaller.get(t.id) || []).map(id => paisDeTienda.get(id)).filter(Boolean))]
-      }));
-    }
+    if (tipo === 'taller') return this._opcionesTalleres(acceso);
     if (tipo === 'disenador') {
       return (await reporteRepository.listarDisenadores())
         .map(d => ({ id: d.id, nombre: valeReporteGruposService.etiquetaNombre(d.nombre, d.rol_id, d.hereda_de_rol_id), tallerIds: idsDe(d.taller_ids) }))
@@ -110,19 +115,21 @@ class ValeReporteEquiposService {
     const opciones = await this._opciones(tipo, usuario, acceso);
     // Solo el reporte de asesores: además lleva el filtro de tienda.
     const tiendas = tipo === 'asesor' ? await (acceso.sup ? reporteRepository.listarTiendasPorSupervisor(usuario.id) : reporteRepository.listarTiendas()) : [];
-    return { config, acceso, opciones, tiendas };
+    // Solo el reporte de diseñadores: además lleva el filtro de talleres (acota los diseñadores y los vales).
+    const talleres = tipo === 'disenador' ? await this._opcionesTalleres(acceso) : [];
+    return { config, acceso, opciones, tiendas, talleres };
   }
 
   // Opciones de los filtros sin recorrer vales: las mismas que lleva el reporte generado.
   async obtenerOpciones(tipo, usuario) {
-    const { config, acceso, opciones, tiendas } = await this._contexto(tipo, usuario);
-    return { alcance: acceso.global ? 'todas' : 'acotadas', filtros: { [config.menu]: opciones, ...(tipo === 'asesor' ? { tiendas: tiendas.map(paraMenuTienda) } : {}) } };
+    const { config, acceso, opciones, tiendas, talleres } = await this._contexto(tipo, usuario);
+    return { alcance: acceso.global ? 'todas' : 'acotadas', filtros: { [config.menu]: opciones, ...(tipo === 'asesor' ? { tiendas: tiendas.map(paraMenuTienda) } : {}), ...(tipo === 'disenador' ? { talleres } : {}) } };
   }
 
   // `filtros`: ventana, fecha, desde, hasta y la lista del tipo (tallerId/tallerIds, disenadorIds o asesorIds), ya validados por el controlador.
   async obtenerReporte(tipo, usuario, filtros = {}) {
     const rango = rangoDe(resolverVentanaReporte(filtros));
-    const { config, acceso, opciones, tiendas } = await this._contexto(tipo, usuario);
+    const { config, acceso, opciones, tiendas, talleres } = await this._contexto(tipo, usuario);
     const elegidas = [...new Set((tipo === 'taller' ? [filtros.tallerId, ...(filtros.tallerIds || [])] : (filtros[config.clave] || [])).filter(Boolean))].slice(0, MAX_ELEGIDOS);
     // Una selección fuera de lo visible del usuario no se filtra en silencio: responde 400 sin revelar si existe.
     if (elegidas.some(id => !opciones.some(o => o.id === id))) throw new ErrorDeNegocio(TEXTOS.ajeno, 400);
@@ -131,12 +138,16 @@ class ValeReporteEquiposService {
     const tiendasElegidas = conTiendas ? [...new Set([filtros.tiendaId, ...(filtros.tiendaIds || [])].filter(Boolean))].slice(0, MAX_ELEGIDOS) : [];
     if (tiendasElegidas.some(id => !tiendas.some(t => t.id === id))) throw new ErrorDeNegocio(TEXTOS.tiendaAjena, 400);
 
+    // Solo el reporte de diseñadores: talleres elegidos (tallerId/tallerIds); uno fuera de lo visible del usuario responde 400 como el resto.
+    const talleresElegidos = tipo === 'disenador' ? [...new Set([filtros.tallerId, ...(filtros.tallerIds || [])].filter(Boolean))].slice(0, MAX_ELEGIDOS) : [];
+    if (talleresElegidos.some(id => !talleres.some(t => t.id === id))) throw new ErrorDeNegocio(TEXTOS.ajeno, 400);
+
     const acotado = !acceso.global;
     // Acotado y sin talleres: un id inexistente, porque un filtro vacío mostraría todos.
     const permitidos = acceso.talleres.size ? [...acceso.talleres] : [0];
     let tallerSel = new Set();
     if (tipo === 'taller') tallerSel = new Set(elegidas.length ? elegidas : (acotado ? permitidos : []));
-    else if (tipo === 'disenador' && acotado) tallerSel = new Set(permitidos);
+    else if (tipo === 'disenador') tallerSel = new Set(talleresElegidos.length ? talleresElegidos : (acotado ? permitidos : []));
     const corte = hoyISO();
     const argumentos = {
       alcance: { rol: tipo, equipo: true, personas: [] },
@@ -144,23 +155,29 @@ class ValeReporteEquiposService {
       tiendaSel: new Set(tiendasElegidas), tallerSel, asesorSel: new Set(tipo === 'asesor' ? elegidas : []), disSel: new Set(tipo === 'disenador' ? elegidas : []),
       corte, soloAutorizados: true, entregadoPorTaller: config.entregadoPorTaller, permitirVale: this._permitirVale(tipo, acceso), soloUrgentes: tipo === 'asesor' && filtros.soloUrgentes === true
     };
-    const grupos = await valeReporteGruposService.armar({ ...argumentos, contadores: conTiendas });
+    const grupos = await valeReporteGruposService.armar({ ...argumentos, contadores: conTiendas || tipo === 'disenador' || tipo === 'taller' });
     const vigentes = await valeReporteGruposService.armar({ ...argumentos, soloAtrasadosAntesDe: (f) => antesDe(f, rango) });
-    const { secciones, totalVales, truncado, desgloseOmitido } = grupos;
+    const { secciones: seccionesPorTaller, totalVales, truncado, desgloseOmitido } = grupos;
+    // Talleres y diseñadores: un vale compartido sale una sola vez, con todos sus talleres o diseñadores en la columna (también al enfocar uno).
+    const deTaller = tipo === 'taller' || tipo === 'disenador';
+    const secciones = deTaller ? unirSeccionesPorVale(seccionesPorTaller) : seccionesPorTaller;
+    const vigentesUnidos = deTaller ? unirSeccionPorVale({ total: vigentes.total, grupos: vigentes.grupos }) : null;
     return {
       titulo: acotado ? config.tituloAcotado : config.titulo,
       alcance: acotado ? 'acotadas' : 'todas',
       periodo: { ...rango, corte, etiqueta: etiquetaPeriodo(rango), titulo: `Fecha de entrega: ${etiquetaPeriodo(rango)}` },
       [config.clave]: elegidas,
-      resumenFiltros: [this._resumen(tipo, config, elegidas, opciones), ...(conTiendas ? [tiendasElegidas.length ? etiquetaTiendasFiltro(tiendasElegidas, tiendas) : TEXTOS.tiendasTodas] : [])],
+      ...(tipo === 'disenador' ? { tallerIds: talleresElegidos } : {}),
+      resumenFiltros: [...(tipo === 'disenador' ? [talleresElegidos.length ? etiquetaTalleresFiltro(talleresElegidos, talleres) : TODOS_LOS_TALLERES] : []), this._resumen(tipo, config, elegidas, opciones), ...(conTiendas ? [tiendasElegidas.length ? etiquetaTiendasFiltro(tiendasElegidas, tiendas) : TEXTOS.tiendasTodas] : [])],
       conteos: {
         atrasadosAntes: vigentes.total,
         ...Object.fromEntries(SECCIONES.map(clave => [clave, secciones[clave].total]))
       },
-      atrasadosVigentes: { total: vigentes.total, truncado: vigentes.truncado, grupos: vigentes.grupos },
+      atrasadosVigentes: { total: vigentes.total, truncado: vigentes.truncado, grupos: deTaller ? vigentesUnidos.grupos : vigentes.grupos },
       grupos: { agruparPor: config.agruparPor, secciones, totalVales, truncado, desgloseOmitido }, // `desgloseOmitido`: demasiados vales para listarlos
-      ...(conTiendas ? { tiendaIds: tiendasElegidas, contadores: valeReporteGruposService.completarContadores(grupos.contadores, vigentes, secciones) } : {}),
-      filtros: { [config.menu]: opciones, ...(conTiendas ? { tiendas: tiendas.map(paraMenuTienda) } : {}) }
+      ...(conTiendas ? { tiendaIds: tiendasElegidas } : {}),
+      ...(conTiendas || tipo === 'disenador' || tipo === 'taller' ? { contadores: valeReporteGruposService.completarContadores(grupos.contadores, vigentes, secciones) } : {}),
+      filtros: { [config.menu]: opciones, ...(conTiendas ? { tiendas: tiendas.map(paraMenuTienda) } : {}), ...(tipo === 'disenador' ? { talleres } : {}) }
     };
   }
 
@@ -178,10 +195,36 @@ class ValeReporteEquiposService {
       const deAsesor = await this.obtenerReporte('asesor', usuario, { ...filtros, asesorIds: [filtros.asesorDesglose], soloUrgentes });
       const nombre = (reporte.contadores?.porAsesor || []).find(a => a.id === filtros.asesorDesglose)?.nombre
         || (reporte.filtros.asesores || []).find(a => a.id === filtros.asesorDesglose)?.nombre || deAsesor.resumenFiltros[0];
-      Object.assign(reporte, { grupos: deAsesor.grupos, atrasadosVigentes: deAsesor.atrasadosVigentes, desgloseDe: soloUrgentes ? `${nombre} (solo urgentes)` : nombre });
+      Object.assign(reporte, { grupos: deAsesor.grupos, atrasadosVigentes: deAsesor.atrasadosVigentes, desgloseDe: soloUrgentes ? `${nombre} (solo vales urgentes)` : nombre });
+      // Los contadores que se imprimen son los de la barra elegida, como en pantalla; la gráfica sigue siendo la general.
+      reporte.contadores = contadoresEnfocados(reporte.contadores, filtros.asesorDesglose, { urgentes: soloUrgentes });
+      reporte.enfoqueEtiqueta = etiquetaEnfoque('Asesor', nombre, { urgentes: soloUrgentes });
     }
-    // El filtro por contador (solo asesores) se aplica al desglose ya elegido; contadores y gráfica siguen siendo los del filtro general.
-    const filtrado = tipo === 'asesor' && reporte.incluirDesglose ? aplicarFiltroPdf(reporte, filtros) : reporte;
+    // Diseñador enfocado en la gráfica: su grupo sale del mismo reporte (sin segunda consulta); el 0 es «Sin diseñador asignado».
+    if (tipo === 'disenador' && reporte.incluirDesglose && filtros.disenadorDesglose != null) {
+      const elegido = (reporte.contadores?.porDisenador || []).find(d => String(d.id) === String(filtros.disenadorDesglose));
+      if (!elegido) throw new ErrorDeNegocio('Diseñador no válido para este reporte.', 400);
+      const modo = filtros.disenadorModo;
+      const deDisenador = soloGrupoDesglose(reporte, elegido.id);
+      // La barra de entregados/tarde filtra primero; el filtro por contador se aplica después (intersección, como en pantalla).
+      const sufijo = modo === 'tarde' ? ' (solo entregas tarde)' : modo === 'entregados' ? ' (solo entregados)' : '';
+      Object.assign(reporte, modo ? filtrarDesglose(deDisenador, { estado: ESTADO_DE_MODO[modo] }) : deDisenador, { desgloseDe: `${elegido.nombre}${sufijo}` });
+      reporte.contadores = contadoresEnfocados(reporte.contadores, elegido.id, { modo });
+      reporte.enfoqueEtiqueta = etiquetaEnfoque('Diseñador', elegido.nombre, { modo });
+    }
+    // Taller enfocado en la gráfica: su grupo sale del mismo reporte; la barra de entregados/tarde filtra primero y el filtro por contador después.
+    if (tipo === 'taller' && reporte.incluirDesglose && filtros.tallerDesglose != null) {
+      const elegido = (reporte.contadores?.porTaller || []).find(t => String(t.id) === String(filtros.tallerDesglose));
+      if (!elegido) throw new ErrorDeNegocio('Taller no válido para este reporte.', 400);
+      const modo = filtros.tallerModo;
+      const deTaller = soloGrupoDesglose(reporte, elegido.id);
+      const sufijo = modo === 'tarde' ? ' (solo entregas tarde)' : modo === 'entregados' ? ' (solo entregados)' : '';
+      Object.assign(reporte, modo ? filtrarDesglose(deTaller, { estado: ESTADO_DE_MODO[modo] }) : deTaller, { desgloseDe: `${elegido.nombre}${sufijo}` });
+      reporte.contadores = contadoresEnfocados(reporte.contadores, elegido.id, { modo });
+      reporte.enfoqueEtiqueta = etiquetaEnfoque('Taller', elegido.nombre, { modo });
+    }
+    // El filtro por contador (asesores, diseñadores y talleres) se aplica al desglose ya elegido; contadores y gráfica siguen siendo los del filtro general.
+    const filtrado = (tipo === 'asesor' || tipo === 'disenador' || tipo === 'taller') && reporte.incluirDesglose ? aplicarFiltroPdf(reporte, filtros) : reporte;
     const ahora = new Date(Date.now() - 6 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 16);
     const [f, h] = ahora.split(' ');
     const [y, m, d] = f.split('-');

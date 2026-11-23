@@ -3,6 +3,9 @@
 const fs = require('fs/promises');
 const path = require('path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+const { conSimboloPorcentaje, detalleUrgentes, detalleEfectividad, detalleATiempo } = require('./valeReporteContadores');
+const { NOTA_TALLERES } = require('./valeReporteTalleres');
+const { NOTA_DISENADORES } = require('./valeReporteDisenadores');
 
 const PAGE_WIDTH = 612; // Carta vertical
 const PAGE_HEIGHT = 792;
@@ -21,7 +24,6 @@ const FONDO_CABECERA = rgb(0.95, 0.96, 0.97);
 const ROJO = rgb(0.8, 0.1, 0.1);
 const AMBAR = rgb(0.85, 0.47, 0.02);
 const GRIS_TEXTO = rgb(0.3, 0.33, 0.37);
-const AMARILLO_RESALTE = rgb(1, 0.93, 0.4); // resaltado de la línea de filtros en los reportes de Reportes 2
 
 const SECCIONES_PDF = [
   { clave: 'atrasados', titulo: 'ATRASADOS EN EL PERÍODO' },
@@ -29,11 +31,17 @@ const SECCIONES_PDF = [
   { clave: 'entregados', titulo: 'ENTREGADOS' }
 ];
 // Títulos de Reportes 2 (reportes `actividad-*`): sección de atrasados del período, sin entregar y atrasados anteriores al período.
-const TITULOS_REPORTES2 = { atrasados: 'ATRASADOS (PERÍODO ACTUAL)', noEntregados: 'SIN ENTREGAR', vigentes: 'ATRASADOS (ANTERIORES AL PERÍODO)' };
+const TITULOS_REPORTES2 = { atrasados: 'ATRASADOS (PERÍODO ACTUAL)', noEntregados: 'POR VENCER', vigentes: 'ATRASADOS (ANTERIORES AL PERÍODO)' };
 const TITULOS_PDF = { actividad: 'REPORTE DE ACTIVIDAD', rendimiento: 'REPORTE DE RENDIMIENTO', 'actividad-tienda': 'REPORTE DE ACTIVIDAD DE TIENDAS',
   'actividad-taller': 'REPORTE DE ACTIVIDAD DE TALLERES', 'actividad-disenador': 'REPORTE DE ACTIVIDAD DE DISEÑADORES', 'actividad-asesor': 'REPORTE DE ACTIVIDAD DE ASESORES' };
 const COLOR_SERIE_A = rgb(0.145, 0.388, 0.922);
 const COLOR_SERIE_B = rgb(0.086, 0.639, 0.29);
+// Gráfica de diseñadores: los mismos colores de la pantalla (global.css): --color-primary #2563EB, --color-success #16A34A, --color-danger #DC2626.
+const COLOR_DIS_ASIGNADOS = rgb(37 / 255, 99 / 255, 235 / 255);
+const COLOR_DIS_ATIEMPO = rgb(22 / 255, 163 / 255, 74 / 255);
+const COLOR_DIS_SIN_ASIGNAR = rgb(0.85, 0.47, 0.02); // el ámbar (--color-warning) de la barra «Sin asignar»
+const COLOR_DIS_TARDE = rgb(220 / 255, 38 / 255, 38 / 255);
+const BLANCO = rgb(1, 1, 1);
 
 // Celda de estado: «Paso N de 5 · Nombre del paso» (el atraso va en su propia columna).
 function celdaEstado(pipeline) {
@@ -121,7 +129,10 @@ class ValeReportePdfService {
     if (reporte.contadores) {
       this._contadoresActividad(ctx, reporte.contadores);
       // La gráfica es por asesor en el reporte de asesores y por tienda en el de tiendas.
-      if (reporte.tipo === 'actividad-asesor') this._graficaBarras(ctx, reporte.contadores.porAsesor, 'VALES INGRESADOS POR ASESOR', 'asesores', { apilada: true });
+      if (reporte.tipo === 'actividad-disenador') this._graficaDisenadores(ctx, reporte.contadores.porDisenador, { notaArriba: NOTA_DISENADORES, notaFinal: null });
+      // Talleres: el mismo diseño; la nota de los vales en varios talleres va impresa bajo el título (en pantalla es un ícono con ayuda).
+      else if (reporte.tipo === 'actividad-taller') this._graficaDisenadores(ctx, reporte.contadores.porTaller, { titulo: 'VALES ASIGNADOS Y ENTREGADOS POR TALLER', notaArriba: NOTA_TALLERES, notaFinal: null, unidad: 'talleres' });
+      else if (reporte.tipo === 'actividad-asesor') this._graficaBarras(ctx, reporte.contadores.porAsesor, 'VALES INGRESADOS POR ASESOR', 'asesores', { apilada: true });
       else this._graficaBarras(ctx, reporte.contadores.porTienda, 'VALES INGRESADOS POR TIENDA', 'tiendas');
     }
     if (reporte.incluirDesglose === false) return; // sin desglose: solo los contadores y la gráfica (el dueño lo elige al descargar)
@@ -138,7 +149,9 @@ class ValeReportePdfService {
 
   // Franja de contadores del reporte de actividad de tienda, en dos filas (maqueta aprobada en Figma, ~9 % de la página):
   // Ingresados · Urgentes · Sin entregar / Atrasados (anteriores, actuales) · Entregados (con atraso, sin atraso).
+  // Reporte de diseñadores (trae `efectividad`): sin Urgentes, y la primera fila es Ingresados · Efectividad · Entregas a tiempo · Sin entregar.
   _contadoresActividad(ctx, c) {
+    const conEfectividad = c.efectividad !== undefined;
     const ALTO = 72; const FILA = 36;
     const top = ctx.y + 6;
     ctx.page.drawRectangle({ x: MARGIN, y: top - ALTO, width: CONTENT_WIDTH, height: ALTO, color: FONDO_CABECERA });
@@ -160,10 +173,22 @@ class ValeReportePdfService {
     };
     const u = c.urgentes || {}; const a = c.atrasados || {}; const r = c.recibidos || {};
     celda(10, 0, 'Ingresados', num(c.ingresados));
-    separador(180, 0);
-    celda(192, 0, 'Urgentes', `${num(u.porcentaje)} %`, [{ texto: `${num(u.total)} de ${num(c.ingresados)} vales`, color: GRIS, size: 7.5, bold: false, hueco: 5 }]);
-    separador(360, 0);
-    celda(372, 0, 'Sin entregar', num(c.sinEntregar));
+    if (conEfectividad) {
+      const recibidos = Number(r.total) || 0; const aTiempo = recibidos - (Number(r.conAtraso) || 0);
+      const detalle = (texto) => [{ texto, color: GRIS, size: 7.5, bold: false, hueco: 5 }];
+      // Textos de detalle iguales a los de la pantalla; la tarjeta de Efectividad es más ancha porque lleva «(N atrasados)».
+      separador(80, 0);
+      celda(90, 0, 'Por vencer', num(c.sinEntregar));
+      separador(150, 0);
+      celda(160, 0, 'Efectividad', conSimboloPorcentaje(c.efectividad), detalle(detalleEfectividad(recibidos, Number(c.ingresados) || 0, Number(a.actuales) || 0)));
+      separador(370, 0);
+      celda(380, 0, 'Entregas a tiempo', conSimboloPorcentaje(c.aTiempo), detalle(detalleATiempo(aTiempo, recibidos)));
+    } else {
+      separador(180, 0);
+      celda(192, 0, 'Urgentes', conSimboloPorcentaje(u.porcentaje), [{ texto: detalleUrgentes(Number(u.total) || 0, Number(c.ingresados) || 0), color: GRIS, size: 7.5, bold: false, hueco: 5 }]);
+      separador(360, 0);
+      celda(372, 0, 'Por vencer', num(c.sinEntregar));
+    }
     linea(MARGIN + 10, top - FILA, MARGIN + CONTENT_WIDTH - 10, top - FILA);
     celda(10, 1, 'Atrasados', num(a.total), [{ texto: `Anteriores ${num(a.anteriores)}`, color: ROJO }, { texto: `Actuales ${num(a.actuales)}`, color: ROJO }]);
     separador(270, 1);
@@ -189,13 +214,12 @@ class ValeReportePdfService {
     if (!Array.isArray(porTienda) || !porTienda.length) return; // basta una con vales
     const total = porTienda.reduce((s, t) => s + (Number(t.total) || 0), 0);
     if (!total) return;
-    const TOP = 10; const FILA = 13; const ALTO_BARRA = 8.75; const ANCHO_VALOR = 24; const TOPE_NOMBRE = 260;
+    const FILA = 13; const ALTO_BARRA = 8.75; const ANCHO_VALOR = 24; const TOPE_NOMBRE = 260;
     const maximo = Number(porTienda[0].total) || 0;
     const pct = (n) => { const p = n / total * 100; return n > 0 && p < 1 ? '<1' : String(Math.round(p)); };
-    const filas = porTienda.slice(0, TOP).map(t => ({ nombre: t.nombre, total: Number(t.total) || 0, urgentes: Number(t.urgentes) || 0, lider: !apilada && Number(t.total) === maximo }));
-    const resto = porTienda.slice(TOP);
-    if (resto.length) filas.push({ nombre: `Otras (${resto.length} ${unidadOtras})`, total: resto.reduce((s, t) => s + (Number(t.total) || 0), 0), urgentes: 0, lider: false, otras: true });
-    this._espacio(ctx, 30 + filas.length * FILA + (apilada ? 12 : 0));
+    // Salen todas las tiendas o asesores (sin «Otras»), como en la pantalla desplegada; si no caben en la página, las filas siguen en la siguiente.
+    const filas = porTienda.map(t => ({ nombre: t.nombre, total: Number(t.total) || 0, urgentes: Number(t.urgentes) || 0, lider: !apilada && Number(t.total) === maximo }));
+    this._espacio(ctx, 30 + Math.min(filas.length, 6) * FILA + (apilada ? 12 : 0));
     this._titulo(ctx, titulo); // mismo estilo de título que las demás secciones del PDF
     if (apilada) {
       // Leyenda: los dos colores de la barra con su nombre (el color no se interpreta solo).
@@ -216,6 +240,7 @@ class ValeReportePdfService {
     // «Otras» suma varias tiendas: no lleva barra (no es comparable con una sola) y no escala a las demás.
     const maxFila = Math.max(maximo, 1);
     filas.forEach((f) => {
+      this._espacio(ctx, FILA);
       const base = ctx.y - FILA + 3.5;
       const nombre = this._ajustar(ctx, f.nombre, anchoNombre, 7.5);
       const anchoTexto = ctx.font.widthOfTextAtSize(limpiar(nombre), 7.5);
@@ -243,6 +268,97 @@ class ValeReportePdfService {
       ctx.y -= FILA;
     });
     ctx.y -= 8;
+  }
+
+  // «Vales asignados y entregados por diseñador»: por diseñador, una barra de asignados y otra de entregados (a tiempo en verde y
+  // tarde en rojo con su cantidad), ambas en una misma escala, y a la derecha las columnas E (efectividad) y T (entregas tardías).
+  // `lista`: [{ nombre, asignados, entregados, tarde, efectividad, tardias }]. Salen todos, de más a menos asignados
+  // (un vale compartido cuenta en cada diseñador, la suma no es comparable).
+  _graficaDisenadores(ctx, lista, { titulo = 'VALES ASIGNADOS Y ENTREGADOS POR DISEÑADOR', notaArriba = null, notaFinal = null } = {}) {
+    const base = (Array.isArray(lista) ? lista : []).filter(d => (Number(d.asignados) || 0) > 0);
+    if (!base.length) return;
+    const FILA = 23; const ALTO_BARRA = 8; const HUECO = 1.5; const TOPE_NOMBRE = 260; const ANCHO_COL = 46;
+    // «Sin asignar» (id 0) siempre primero; el resto de más a menos asignados y, a igualdad, por nombre (la misma regla de la pantalla).
+    const esSin = (d) => d.id != null && Number(d.id) === 0;
+    const nombreSinRol = (d) => String(d.nombre ?? '').replace(/ · (Encargado|Asistente)$/, '');
+    const ordenada = [...base].sort((a, b) => (esSin(b) - esSin(a)) || ((Number(b.asignados) || 0) - (Number(a.asignados) || 0)) || nombreSinRol(a).localeCompare(nombreSinRol(b), 'es'));
+    // Salen todos los diseñadores (sin «Otros»); si no caben en la página, las filas siguen en la siguiente.
+    const filas = ordenada.map(d => ({
+      nombre: String(d.nombre ?? '').replace(/ · (Encargado|Asistente)$/, ''), asignados: Number(d.asignados) || 0, entregados: Number(d.entregados) || 0, tarde: Number(d.tarde) || 0, efectividad: d.efectividad, tardias: d.tardias,
+      sinAsignar: d.id != null && Number(d.id) === 0 // solo la barra de asignados, sin E ni T y con el nombre alineado a ella
+    }));
+    // La nota de arriba (si la hay) se parte en líneas del ancho de la página.
+    const lineasNota = [];
+    if (notaArriba) {
+      let actual = '';
+      for (const palabra of notaArriba.split(' ')) {
+        const prueba = actual ? `${actual} ${palabra}` : palabra;
+        if (actual && ctx.font.widthOfTextAtSize(limpiar(prueba), 7.5) > CONTENT_WIDTH) { lineasNota.push(actual); actual = palabra; } else actual = prueba;
+      }
+      if (actual) lineasNota.push(actual);
+    }
+    this._espacio(ctx, 30 + 34 + lineasNota.length * 10 + Math.min(filas.length, 6) * FILA);
+    this._titulo(ctx, titulo);
+    lineasNota.forEach((linea) => { this._texto(ctx, linea, MARGIN, ctx.y, { size: 7.5, color: GRIS_TEXTO }); ctx.y -= 10; });
+    if (lineasNota.length) ctx.y -= 2;
+    // Leyenda: los tres colores con su nombre y, en otra línea, qué significan las letras de las columnas.
+    let lx = MARGIN;
+    [[COLOR_DIS_ASIGNADOS, 'Asignados'], [COLOR_DIS_ATIEMPO, 'Entregados a tiempo'], [COLOR_DIS_TARDE, 'Entregados tarde']].forEach(([color, texto]) => {
+      ctx.page.drawRectangle({ x: lx, y: ctx.y - 0.5, width: 7, height: 7, color });
+      this._texto(ctx, texto, lx + 10, ctx.y, { size: 7.5, color: GRIS_TEXTO });
+      lx += 10 + ctx.font.widthOfTextAtSize(texto, 7.5) + 14;
+    });
+    ctx.y -= 11;
+    // Qué significan las letras de las columnas, con E y T en negrita y sin el cálculo (va en las notas de la pantalla).
+    let letrasX = MARGIN;
+    [['E', true], [' = Efectividad  ·  ', false], ['T', true], [' = Entregas tardías', false]].forEach(([texto, bold]) => {
+      this._texto(ctx, texto, letrasX, ctx.y, { size: 7.5, color: GRIS, bold });
+      letrasX += (bold ? ctx.fontBold : ctx.font).widthOfTextAtSize(limpiar(texto), 7.5);
+    });
+    ctx.y -= 12;
+    const derechaT = PAGE_WIDTH - MARGIN; const derechaE = derechaT - ANCHO_COL;
+    const derecha = (texto, xDerecha, y, opciones) => {
+      const f = opciones.bold ? ctx.fontBold : ctx.font;
+      this._texto(ctx, texto, xDerecha - f.widthOfTextAtSize(limpiar(texto), opciones.size), y, opciones);
+    };
+    derecha('E', derechaE, ctx.y - 3, { size: 8, bold: true, color: GRIS });
+    derecha('T', derechaT, ctx.y - 3, { size: 8, bold: true, color: GRIS });
+    ctx.y -= 12;
+    const anchoNombre = Math.min(TOPE_NOMBRE, Math.max(...filas.map(f => ctx.font.widthOfTextAtSize(limpiar(f.nombre), 7.5))));
+    const maximo = Math.max(1, ...filas.map(f => f.asignados));
+    // Se reserva el ancho de la cantidad más larga para que el número del extremo no invada la columna E.
+    const reservaCant = Math.max(...filas.map(f => ctx.font.widthOfTextAtSize(String(Math.max(f.asignados, f.entregados || 0)), 7.5))) + 12;
+    const x0 = MARGIN + anchoNombre + 8; const anchoPista = derechaE - ANCHO_COL - x0 - reservaCant;
+    filas.forEach((f) => {
+      this._espacio(ctx, FILA);
+      const nombre = this._ajustar(ctx, f.nombre, anchoNombre, 7.5);
+      const yA = ctx.y - 10; const yE = ctx.y - 19;
+      this._texto(ctx, nombre, MARGIN + anchoNombre - ctx.font.widthOfTextAtSize(limpiar(nombre), 7.5), f.sinAsignar ? yA + 1.2 : ctx.y - 13, { size: 7.5 });
+      const escala = (n) => (n > 0 ? Math.max(n / maximo * anchoPista, 1.5) : 0);
+      {
+        const anchoA = escala(f.asignados);
+        ctx.page.drawRectangle({ x: x0, y: yA, width: anchoA, height: ALTO_BARRA, color: f.sinAsignar ? COLOR_DIS_SIN_ASIGNAR : COLOR_DIS_ASIGNADOS });
+        this._texto(ctx, String(f.asignados), x0 + anchoA + 4, yA + 1.2, { size: 7.5 });
+        if (f.sinAsignar) { ctx.y -= FILA; return; }
+        // Entregados en dos tramos con un hueco de 1,5 pt: a tiempo y tarde, esta con su cantidad (mínimo para que quepa la cifra, incluso un 1).
+        const anchoTotal = escala(f.entregados);
+        const n = String(f.tarde); const wN = ctx.fontBold.widthOfTextAtSize(n, 6.5);
+        const anchoTarde = f.tarde > 0 ? Math.max(f.tarde / maximo * anchoPista, wN + 4) : 0;
+        const anchoBase = Math.max(anchoTotal - anchoTarde - (anchoTarde ? HUECO : 0), 0);
+        if (anchoBase > 0) ctx.page.drawRectangle({ x: x0, y: yE, width: anchoBase, height: ALTO_BARRA, color: COLOR_DIS_ATIEMPO });
+        const xTarde = x0 + anchoBase + (anchoBase ? HUECO : 0);
+        if (anchoTarde > 0) {
+          ctx.page.drawRectangle({ x: xTarde, y: yE, width: anchoTarde, height: ALTO_BARRA, color: COLOR_DIS_TARDE });
+          this._texto(ctx, n, xTarde + (anchoTarde - wN) / 2, yE + 1.6, { size: 6.5, bold: true, color: BLANCO });
+        }
+        this._texto(ctx, String(f.entregados), xTarde + anchoTarde + 4, yE + 1.2, { size: 7.5 });
+      }
+      derecha(conSimboloPorcentaje(f.efectividad), derechaE, ctx.y - 13, { size: 7.5 });
+      derecha(conSimboloPorcentaje(f.tardias), derechaT, ctx.y - 13, { size: 7.5 });
+      ctx.y -= FILA;
+    });
+    if (notaFinal) this._texto(ctx, notaFinal, MARGIN, ctx.y - 4, { size: 7, color: GRIS });
+    ctx.y -= notaFinal ? 18 : 8;
   }
 
   // Pie de la última página de todo reporte: dos líneas de firma, la de quien lo imprimió (con su nombre) y la de su jefe inmediato.
@@ -291,14 +407,25 @@ class ValeReportePdfService {
     // «Agrupar por» no aplica al reporte de rendimiento.
     const filtrosVisibles = (reporte.resumenFiltros || []).filter(t => reporte.tipo !== 'rendimiento' || !/^Agrupado por/.test(t));
     if (filtrosVisibles.length) {
-      const linea = this._ajustar(ctx, filtrosVisibles.join('  ·  '), CONTENT_WIDTH, 7.5);
-      // Reportes 2: la línea de filtros va resaltada en amarillo (como marcatexto) y con tinta más oscura para que se lea sobre el fondo.
-      const resaltar = String(reporte.tipo).startsWith('actividad-');
-      if (resaltar) {
-        ctx.page.drawRectangle({ x: MARGIN - 2, y: ctx.y - 7.5, width: ctx.font.widthOfTextAtSize(limpiar(linea), 7.5) + 4, height: 10.5, color: AMARILLO_RESALTE });
-      }
-      this._texto(ctx, linea, MARGIN, ctx.y - 5, { size: 7.5, color: resaltar ? GRIS_TEXTO : GRIS });
-      ctx.y -= 13;
+      // Reportes 2: la línea de filtros va en negrita (antes, resaltada en amarillo); se mide con la fuente en negrita para que quepa.
+      const destacar = String(reporte.tipo).startsWith('actividad-');
+      // Las líneas se parten por palabras: una barra elegida y filtros largos se imprimen completos, no recortados con «…».
+      const fuente = destacar ? ctx.fontBold : ctx.font;
+      const partir = (partes) => {
+        const salida = [];
+        let actual = '';
+        for (const palabra of partes.join('  ·  ').split(' ')) {
+          const prueba = actual ? `${actual} ${palabra}` : palabra;
+          if (actual && fuente.widthOfTextAtSize(limpiar(prueba), 7.5) > CONTENT_WIDTH) { salida.push(actual); actual = palabra; } else actual = prueba;
+        }
+        if (actual) salida.push(actual);
+        return salida;
+      };
+      // «Filtrado por» (barra elegida, urgentes, estado) va en su propia línea, debajo de la selección de los combos.
+      const esFiltrado = (t) => /^Filtrado por/.test(t);
+      const lineas = [...partir(filtrosVisibles.filter(t => !esFiltrado(t))), ...partir(filtrosVisibles.filter(esFiltrado))];
+      lineas.forEach((linea, i) => this._texto(ctx, linea, MARGIN, ctx.y - 5 - i * 10, destacar ? { size: 7.5, bold: true } : { size: 7.5, color: GRIS }));
+      ctx.y -= 13 + (lineas.length - 1) * 10;
     }
     const evaluados = reporte.evaluados || [];
     if (evaluados.length) {
@@ -403,10 +530,24 @@ class ValeReportePdfService {
       const datos = g.secciones[sec.clave];
       if (!datos.total) continue;
       // Los reportes de actividad de Reportes 2 renombran estas secciones; Actividad y Rendimiento conservan sus títulos.
+      // En el reporte de diseñadores «Sin entregar» se llama «Por vencer».
       const titulo = (String(reporte.tipo).startsWith('actividad-') && TITULOS_REPORTES2[sec.clave]) || sec.titulo;
       this._titulo(ctx, `${titulo} (${datos.total})`);
       this._gruposPdf(ctx, datos.grupos, sec.clave, esTaller);
     }
+  }
+
+  // Parte un texto en líneas por palabras para que quepa en `ancho` (nunca se recorta con «…»).
+  _partirEnLineas(ctx, texto, ancho, size, bold = false) {
+    const fuente = bold ? ctx.fontBold : ctx.font;
+    const lineas = [];
+    let actual = '';
+    for (const palabra of String(texto).split(' ')) {
+      const prueba = actual ? `${actual} ${palabra}` : palabra;
+      if (actual && fuente.widthOfTextAtSize(limpiar(prueba), size) > ancho) { lineas.push(actual); actual = palabra; } else actual = prueba;
+    }
+    if (actual) lineas.push(actual);
+    return lineas;
   }
 
   // Cada persona (o taller/tienda) con sus vales. «Atraso» solo en las secciones de atrasados; «Con atraso» solo en entregados, donde la
@@ -423,12 +564,17 @@ class ValeReportePdfService {
       return `${formatear(fecha, 'fecha')} ${(hora || '').slice(0, 5)}`;
     };
     for (const grupo of grupos) {
-      this._espacio(ctx, 80);
       const resumen = `${grupo.total} vale${grupo.total === 1 ? '' : 's'}`;
-      ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - 18, width: CONTENT_WIDTH, height: 18, color: FONDO_CABECERA });
-      this._texto(ctx, this._ajustar(ctx, grupo.nombre, 200, 9, true), MARGIN + 6, ctx.y - 13, { size: 9, bold: true });
-      this._texto(ctx, this._ajustar(ctx, resumen, CONTENT_WIDTH - 220, 7.5), MARGIN + 214, ctx.y - 13, { size: 7.5, color: GRIS });
-      ctx.y -= 22;
+      // El nombre del grupo se imprime completo: si no cabe en la columna de 200 pt (varios diseñadores o talleres), se parte en líneas y el conteo pasa al borde derecho.
+      const cabe = ctx.fontBold.widthOfTextAtSize(limpiar(grupo.nombre), 9) <= 200;
+      const lineasNombre = cabe ? [grupo.nombre] : this._partirEnLineas(ctx, grupo.nombre, CONTENT_WIDTH - 110, 9, true);
+      const alto = 18 + (lineasNombre.length - 1) * 11;
+      this._espacio(ctx, 62 + alto);
+      ctx.page.drawRectangle({ x: MARGIN, y: ctx.y - alto, width: CONTENT_WIDTH, height: alto, color: FONDO_CABECERA });
+      lineasNombre.forEach((linea, i) => this._texto(ctx, linea, MARGIN + 6, ctx.y - 13 - i * 11, { size: 9, bold: true }));
+      const xResumen = cabe ? MARGIN + 214 : PAGE_WIDTH - MARGIN - 6 - ctx.font.widthOfTextAtSize(limpiar(resumen), 7.5);
+      this._texto(ctx, resumen, xResumen, ctx.y - 13, { size: 7.5, color: GRIS });
+      ctx.y -= alto + 4;
       const filas = grupo.vales.map(v => [
         `${v.correlativo}${v.esMod && !/^MOD\d*-/.test(v.correlativo) ? ' (MOD)' : ''}`,
         ...(esTaller ? [ingreso(v)] : []),
