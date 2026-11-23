@@ -50,6 +50,7 @@ class TablaRepository {
     const tabla = {
       version: { id: version.id, numero: version.numero, fecha: version.fecha, nota: version.nota },
       lineas: lineas.map(l => ({ clave: l.clave, nombre: l.nombre })),
+      etapasLista: etapas.map(e => ({ clave: e.clave, nombre: e.nombre })),
       etapas: etapasPorClave,
       productos: {},
       extras: {},
