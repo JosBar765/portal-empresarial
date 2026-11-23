@@ -24,3 +24,20 @@ Cuenta: Encargado de Diseño (rol 4), por HTTP real y en el navegador.
 
 - **Más de 5000 vales (`desgloseOmitido`):** no se probó; no hay datos locales con ese volumen. El código existe (`MAX_VALES`, aviso en pantalla y en el PDF, tarjetas no pulsables), pero sin verificación con datos reales.
 - La discrepancia «Atrasados (suma de anteriores) vs Ingresados» se dejó como está por decisión del dueño.
+
+## Pendiente de gerencia: vales reasignados entre diseñadores
+
+Los reportes atribuyen un vale al diseñador **vigente** (`vale_talleres.disenador_id`, una columna por taller que cada reasignación sobrescribe). Quien trabajó el vale y fue reemplazado **no suma** asignados ni entregados, y el atraso acumulado se carga completo a quien lo termina. El historial del vale sí guarda el recorrido, pero los reportes no lo leen. Esto no es un error de cálculo: es una regla de negocio por definir. **Decisión del dueño: ignorarlo por ahora y consultar a gerencia.**
+
+Prueba del flujo (BD local, vale de un solo taller, estado restaurado al terminar): Jesús asigna a Alma, Alma cancela en proceso, Jesús reasigna a Henry, Henry envía, Jesús desaprueba y se lo reasigna a sí mismo, y lo entrega.
+
+- Al asignarlo a Alma y al cancelar ella, el vale es de Alma (la cancelación no cambia el diseñador); aparece en «Atrasados» de Alma.
+- Al reasignarlo a Henry, sale del conteo de Alma (−1 asignado) y pasa a Henry (+1).
+- Al reasignarlo a Jesús, sale de Henry y pasa a Jesús (+1 asignado).
+- Al entregarlo, Jesús suma +1 entregado y +1 entregado tarde; Alma y Henry quedan en su cifra anterior.
+- Los contadores únicos del reporte solo cambian cuando el vale se entrega (un vale menos atrasado, uno más entregado); las reasignaciones no los mueven.
+- En cada paso el vale aparece en un solo diseñador; no hubo contradicciones entre asignados, entregados y desglose.
+
+## Resaltado en la gráfica de talleres y diseñadores
+
+En las columnas E y T de la gráfica (pantalla y PDF) van en **rojo y negrita** la **efectividad más baja** y las **entregas tardías más altas**. Los empates se resaltan todos; una efectividad sin dato no cuenta; si todas las efectividades son iguales, o el máximo de tardías es 0 %, no se resalta nada; «Sin asignar» no entra. Código: `graficaDisenadores.js` (`masBaja`, `masTardia`), `reportes2.css` (`.rep2-gd-max`) y `valeReportePdfService.js` (`resaltaE`, `resaltaT`); prueba en `probarGraficaDisenadores.mjs`.
