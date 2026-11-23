@@ -30,7 +30,7 @@ Todo cambio va a un **borrador** (copia de la versión en uso); los usuarios ven
 ## 4. Piezas del código
 | Parte | Dónde |
 |---|---|
-| Migración | `database/migrations/52_tiempos_nucleo.sql` (tablas `tiempos_*` y permisos) |
+| Migración | `database/migrations/54_tiempos_nucleo.sql` (tablas `tiempos_*` y permisos) |
 | Carga inicial (Ver. 5.0) | `src/modules/tiempos/datos/tablaV5.js` + `services/cargaInicialService.js` (al arrancar, si no hay versiones) |
 | Motor de cálculo (funciones puras) | `src/modules/tiempos/calculo/` (`motor.js`, `fechas.js`, `resumen.js`, `validacion.js`, `diferencias.js`) |
 | API | `src/modules/tiempos/` (`routes.js`, `controllers/`, `services/`, `repositories/`), montada en `/api/tiempos` |

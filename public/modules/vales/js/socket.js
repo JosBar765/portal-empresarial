@@ -106,7 +106,7 @@ document.addEventListener('visibilitychange', () => {
 
 function refrescarPantalla() {
   // Reportes se actualiza a mano con su botón «Actualizar».
-  if (state.vista !== 'reportes') cargarBuzon();
+  if (state.vista !== 'reportes2') cargarBuzon();
   if (state.cargaTrabajoModal) {
     if (state.cargaTrabajoModal.overlay.isConnected) {
       state.cargaTrabajoModal.actualizar();

@@ -9,11 +9,13 @@ const propuestaRepository = require('../repositories/propuestaRepository');
 const reporteRepository = require('../repositories/reporteRepository');
 const valeBuzonService = require('./valeBuzonService');
 const { calcularPipeline } = require('./valePipeline');
+const { contadoresDeFichas, contadoresPorGrupo, completarPorGrupo } = require('./valeReporteContadores');
+const { seccionDeEntrega, resumenPorDisenador, resumenPorGrupo, contadoresUnicos } = require('./valeReporteDisenadores');
 const { ROL, ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ROLES_ENCARGADO_TALLER, hoyISO, enriquecer, esValeDeModificacion } = require('./valeHelpers');
 
 const AGRUPACIONES = ['asesor', 'disenador', 'taller', 'tienda'];
-const MAX_VALES = 1000;
-const MAX_VIGENTES = 200;
+const MAX_VALES = 5000; // válvula de seguridad (~2 años a 160 vales al mes); la pantalla dibuja bajo demanda y el PDF 5000 filas tarda ~0,5 s
+const MAX_VIGENTES = Infinity; // los atrasados vigentes salen todos: ningún reporte oculta ni recorta filas
 
 const fechaDe = (valor) => String(valor || '').slice(0, 10);
 const diasEntreFechas = (a, b) => Math.max(0, Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 864e5));
@@ -29,12 +31,8 @@ const ESTADOS_VALE_TERMINADO_TALLER = [ESTADOS.APROBADO_DEPARTAMENTO, ESTADOS.PE
 const redondear = (n) => Math.round(n * 10) / 10;
 
 const porFechaEntrega = (a, b) => String(a.fechaEntrega).localeCompare(String(b.fechaEntrega)) || a.id - b.id;
-// Orden de los vales dentro de cada sección.
-const COMPARADORES = {
-  atrasados: (a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || porFechaEntrega(a, b),
-  noEntregados: (a, b) => String(a.creadoEn).localeCompare(String(b.creadoEn)) || a.id - b.id,
-  entregados: (a, b) => ((b.diasTarde || 0) > 0) - ((a.diasTarde || 0) > 0) || (b.diasTarde || 0) - (a.diasTarde || 0) || porFechaEntrega(a, b)
-};
+// Orden de los vales dentro de cada sección: todo el desglose va por fecha de entrega, de la más próxima a la más lejana.
+const COMPARADORES = { atrasados: porFechaEntrega, noEntregados: porFechaEntrega, entregados: porFechaEntrega };
 // Las filas (personas, talleres o tiendas) se ordenan por su primer vale, ya en el orden de la sección.
 const ordenarGrupos = (grupos, clave) => grupos.sort((a, b) => COMPARADORES[clave](a.vales[0], b.vales[0]) || b.total - a.total || a.nombre.localeCompare(b.nombre));
 
@@ -54,10 +52,12 @@ class ValeReporteGruposService {
   // `soloAtrasadosAntesDe(fechaIso)` (opcional): en lugar del período, devuelve los vales atrasados y abiertos cuya fecha de entrega
   // es ANTERIOR al período («atrasados antes del período») con las mismas reglas de alcance y filtros, como { total, truncado, vales }.
   // `corte`: fecha de la «foto». Es hoy salvo en un período ya cerrado, donde es su último día (cifras al cierre: no cambian después).
-  async armar({ alcance, dentroDelRango, agruparPor, tiendaSel, tallerSel, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO() }) {
+  // `entregadoPorTaller`: «entregado» = el Encargado ya aprobó la parte del taller (como la vista Taller), sin ser el rol Encargado. `permitirVale(vale, filas)`: acota por permiso.
+  async armar({ alcance, dentroDelRango, agruparPor, tiendaSel, tallerSel, asesorSel, disSel, soloAtrasadosAntesDe = null, corte = hoyISO(), soloAutorizados = false, entregadoPorTaller = false, permitirVale = null, contadores = false, soloUrgentes = false }) {
     const alCorte = corte < hoyISO();
     const todos = (await valeRepository.listarTodos())
-      .filter(v => (soloAtrasadosAntesDe ? soloAtrasadosAntesDe(fechaDe(v.fecha_entrega)) : dentroDelRango(fechaDe(v.fecha_entrega))))
+      .filter(v => !soloUrgentes || Number(v.urgente)) // enfoque «solo urgentes»: contadores y desglose parten solo de ellos
+      .filter(v => (!soloAutorizados || !!v.autorizado_en) && (soloAtrasadosAntesDe ? soloAtrasadosAntesDe(fechaDe(v.fecha_entrega)) : dentroDelRango(fechaDe(v.fecha_entrega))))
       .map(enriquecer)
       .filter(v => !soloAtrasadosAntesDe || (alCorte
         // Al cierre: vencido antes del corte y que entonces aún no se aprobaba (hoy abierto, o aprobado después del corte).
@@ -69,11 +69,14 @@ class ValeReporteGruposService {
     const filas = (v) => v._filasTaller || [];
     // El segundo parámetro apaga los filtros que no son de la vista (en Rendimiento global, Ventas no filtra por diseñador; Taller, ni por tienda ni por asesor).
     const pasaFiltros = (v, { tienda = true, asesores = true, disenadores = true } = {}) => {
+      if (permitirVale && !permitirVale(v, filas(v))) return false;
       if (alcance.rol === 'supervisor' && !(alcance.asesorIds || []).includes(v.asesor_id)) return false;
       if (alcance.rol === 'encargado' && !filas(v).some(f => (alcance.tallerIds || []).includes(f.taller_id))) return false;
       if (tienda && tiendaSel.size && !tiendaSel.has(v.tienda_id)) return false;
       if (asesores && asesorSel.size && !asesorSel.has(v.asesor_id)) return false;
       if (tallerSel.size && !filas(v).some(f => tallerSel.has(f.taller_id))) return false;
+      // Reporte de actividad de talleres: solo lo que entró a algún taller (un vale aún sin taller no cuenta).
+      if (agruparPor === 'taller' && entregadoPorTaller && !filas(v).length) return false;
       if (disenadores && disSel.size && !filas(v).some(f => (!tallerSel.size || tallerSel.has(f.taller_id)) && disSel.has(f.disenador_id))) return false;
       return true;
     };
@@ -97,7 +100,10 @@ class ValeReporteGruposService {
 
     // Vista Taller (Encargado/Asistente): un vale está terminado (entregado) cuando el Encargado ya aprobó su parte; en revisión aún no cuenta.
     const esTaller = alcance.rol === 'encargado';
-    const propias = (v) => filas(v).filter(f => (alcance.tallerIds || []).includes(f.taller_id));
+    // Con `entregadoPorTaller` las partes propias son las de los talleres elegidos (o todas), no las de un Encargado.
+    // Reportes de talleres y diseñadores (`entregadoPorTaller`): el estado de un vale compartido es el del vale COMPLETO (todas sus filas), con o sin filtro de
+    // talleres o de alcance: el filtro decide qué vales aparecen, no si están entregados (si un taller se atrasa, se atrasan todos).
+    const propias = (v) => filas(v).filter(f => (entregadoPorTaller ? true : (alcance.tallerIds || []).includes(f.taller_id)));
     // Al cierre, una parte cuenta como aprobada solo si el Encargado la aprobó a más tardar en el corte.
     const aprobadaAlCorte = (f) => f.estado === ESTADOS_TALLER.APROBADO && (!alCorte || !f.atraso_congelado_en || fechaDe(f.atraso_congelado_en) <= corte);
     const terminadoTaller = (v, propias) => {
@@ -124,26 +130,29 @@ class ValeReporteGruposService {
       const abierto = alCorte ? !entregado : (!ESTADOS_TERMINALES.includes(v.estado) && !(esTaller ? aprobadoTaller : entregado));
       const vencido = alCorte ? fechaDe(v.fecha_entrega) < corte : !!v.atrasado;
       const asignados = [...new Set((esTaller ? propias(v) : filas(v)).map(f => f.disenador_id).filter(Boolean))].map(id => nombres.get(id) || `#${id}`);
-      const atrasadoFicha = abierto && vencido;
-      // Precedencia: un vale atrasado va solo en su sección; luego entregado; el resto, no entregado.
-      const seccion = atrasadoFicha ? 'atrasados' : (entregado ? 'entregados' : 'noEntregados');
+      // Precedencia compartida con la ficha por diseñador: un vale atrasado va solo en su sección; luego entregado; el resto, no entregado.
+      const { atrasado: atrasadoFicha, seccion } = seccionDeEntrega({ abierto, vencido, entregado });
       return {
         seccion,
         id: v.id, correlativo: v.correlativo, cliente: v.cliente_nombre, esMod: esValeDeModificacion(v), urgente: !!Number(v.urgente),
         estado: v.estado, pipeline, terminado, disenadores: asignados.length ? asignados.join(', ') : 'Sin asignar',
         creadoEn: `${fechaDe(v.fecha_creacion)} ${String(v.hora_creacion || '00:00:00').slice(0, 8)}`,
         autorizado: !!v.autorizado_en && (!alCorte || fechaDe(v.autorizado_en) <= corte), fechaEntrega: fechaDe(v.fecha_entrega),
-        atrasado: abierto && vencido, diasAtraso: abierto ? (alCorte ? diasEntreFechas(fechaDe(v.fecha_entrega), corte) : (v.diasAtraso || 0)) : 0, venceHoy: abierto && !!v.venceHoy,
+        atrasado: atrasadoFicha, diasAtraso: abierto ? (alCorte ? diasEntreFechas(fechaDe(v.fecha_entrega), corte) : (v.diasAtraso || 0)) : 0, venceHoy: abierto && !!v.venceHoy,
         // Días de atraso con que se entregó (hasta que la propuesta llegó al asesor, o hasta el corte); 0 si llegó a tiempo.
         diasTarde: entregado ? diasAtrasoAl(v, corte) : 0,
-        tienePropuesta: !!urlPropuesta || conEnlaces, urlPropuesta, conEnlaces, multitaller: new Set(idsTaller).size >= 2
+        tienePropuesta: !!urlPropuesta || conEnlaces, urlPropuesta, conEnlaces, multitaller: new Set(idsTaller).size >= 2,
+        // Todos los talleres a los que fue el vale (el desglose de talleres los muestra siempre, aunque el reporte esté filtrado por uno).
+        talleresDelVale: [...new Set(idsTaller)].map(id => ({ id, nombre: talleres.get(id) || `Taller ${id}` }))
       };
     };
-    const fichas = new Map(paraFichas.map(v => [v.id, fichar(v, esTaller, propias)]));
+    const fichas = new Map(paraFichas.map(v => [v.id, fichar(v, esTaller || entregadoPorTaller, propias)]));
     // Rendimiento global de Taller: mismas reglas que el Encargado, sobre todas las filas de taller (o las del taller elegido).
     const fichasTaller = esGlobal ? new Map(visiblesTaller.map(v => [v.id, fichar(v, true, filasDelTaller)])) : fichas;
 
     // Claves de agrupación de cada vale (un vale de varios talleres cuenta bajo cada uno).
+    // Con un taller elegido (o para el Encargado, sus talleres) solo cuentan las filas de ese taller, no las de otros talleres del vale.
+    const delTallerDe = (v) => (tallerSel.size ? filas(v).filter(f => tallerSel.has(f.taller_id)) : (esTaller ? propias(v) : filas(v)));
     const clavesDe = (v) => {
       if (agruparPor === 'asesor') return [{ id: v.asesor_id, nombre: nombres.get(v.asesor_id) || `#${v.asesor_id}` }];
       if (agruparPor === 'tienda') return [{ id: v.tienda_id, nombre: tiendas.get(v.tienda_id) || `Tienda ${v.tienda_id}` }];
@@ -152,24 +161,36 @@ class ValeReporteGruposService {
         const unicos = [...new Set(ids)].filter(id => !tallerSel.size || tallerSel.has(id));
         return unicos.length ? unicos.map(id => ({ id, nombre: talleres.get(id) || `Taller ${id}` })) : [{ id: 0, nombre: 'Sin taller' }];
       }
-      // Con un taller elegido (o para el Encargado, sus talleres) solo cuentan las filas de ese taller, no las de otros talleres del vale.
-      const delTaller = tallerSel.size ? filas(v).filter(f => tallerSel.has(f.taller_id)) : (esTaller ? propias(v) : filas(v));
+      const delTaller = delTallerDe(v);
       const dis = [...new Set(delTaller.map(f => f.disenador_id).filter(Boolean))].filter(id => !disSel.size || disSel.has(id));
-      return dis.length ? dis.map(id => ({ id, nombre: nombresConRol.get(id) || `#${id}` })) : [{ id: 0, nombre: 'Sin diseñador asignado' }];
+      // Nombre sin el rol («Encargado», «Asistente»): en los reportes las personas se muestran solo por su nombre.
+      return dis.length ? dis.map(id => ({ id, nombre: nombres.get(id) || `#${id}` })) : [{ id: 0, nombre: 'Sin asignar' }];
     };
 
+    // Un vale compartido (varios talleres o varios diseñadores) se entrega, o se atrasa, para TODOS a la vez: «justos pagan por pecadores». Todos los grupos
+    // usan la ficha del vale completo; no hay estado por parte. Los contadores, la gráfica y el desglose salen de la misma ficha.
+    const resumenPorEquipo = (agruparPor === 'taller' || agruparPor === 'disenador') && entregadoPorTaller;
+    // Diseñadores: de cada vale se guardan TODOS sus diseñadores (no solo los elegidos); el desglose los muestra juntos en una sola fila.
+    const diseniadoresDeVale = new Map();
+    const disenadoresDe = (v) => {
+      if (!diseniadoresDeVale.has(v.id)) {
+        const ids = [...new Set(delTallerDe(v).map(f => f.disenador_id).filter(Boolean))];
+        diseniadoresDeVale.set(v.id, ids.map(id => ({ id, nombre: nombres.get(id) || `#${id}` })));
+      }
+      return diseniadoresDeVale.get(v.id);
+    };
     const grupos = new Map();
     for (const v of visibles) {
       for (const clave of clavesDe(v)) {
         if (!grupos.has(clave.id)) grupos.set(clave.id, { clave: `${agruparPor}:${clave.id}`, id: clave.id, nombre: clave.nombre, vales: [] });
-        grupos.get(clave.id).vales.push(fichas.get(v.id));
+        grupos.get(clave.id).vales.push(agruparPor === 'disenador' && entregadoPorTaller ? { ...fichas.get(v.id), disenadoresDelVale: disenadoresDe(v) } : fichas.get(v.id));
       }
     }
     // Las personas elegidas explícitamente aparecen aunque no hayan creado vales (con ceros).
     const elegidas = agruparPor === 'asesor' ? asesorSel : (agruparPor === 'disenador' ? disSel : new Set());
     if (elegidas.size) {
       const faltan = [...elegidas].filter(id => !grupos.has(id));
-      (await reporteRepository.listarNombres(faltan)).forEach(u => grupos.set(u.id, { clave: `${agruparPor}:${u.id}`, id: u.id, nombre: agruparPor === 'disenador' ? this.etiquetaNombre(u.nombre, u.rol_id, u.hereda_de_rol_id) : u.nombre, vales: [] }));
+      (await reporteRepository.listarNombres(faltan)).forEach(u => grupos.set(u.id, { clave: `${agruparPor}:${u.id}`, id: u.id, nombre: u.nombre, vales: [] }));
     }
 
     const totalVales = visibles.length;
@@ -193,7 +214,7 @@ class ValeReporteGruposService {
       }
       const todosVigentes = [...unicos.values()]
         .map(({ responsables, ...v }) => ({ ...v, responsable: responsables.join(', ') }))
-        .sort((a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || String(a.fechaEntrega).localeCompare(String(b.fechaEntrega)));
+        .sort(porFechaEntrega);
       // Los mismos vales, agrupados como las secciones del período (para el PDF): del más atrasado al menos.
       let restanteVigentes = MAX_VIGENTES;
       const gruposVigentes = ordenarGrupos(lista
@@ -204,7 +225,13 @@ class ValeReporteGruposService {
       // `sinEntregar`: de los atrasados que se arrastran, los que el taller aún no entrega (alimenta el contador «Atrasados sin entregar»).
       // `sinEntregarTaller`: lo mismo con la definición de Taller (solo Administrador y Gerente, cuyas fichas son las de Ventas).
       const sinEntregarTaller = esGlobal ? { sinEntregarTaller: visiblesTaller.filter(v => { const f = fichasTaller.get(v.id); return f.atrasado && !f.terminado; }).length } : {};
-      return { total: todosVigentes.length, truncado: todosVigentes.length > MAX_VIGENTES, sinEntregar: todosVigentes.filter(v => !v.terminado).length, ...sinEntregarTaller, vales: todosVigentes.slice(0, MAX_VIGENTES), grupos: gruposVigentes };
+      // Atrasados anteriores por grupo (todos y solo urgentes), para los contadores de cada barra.
+      const porGrupoAnteriores = {};
+      for (const g of lista) {
+        const atrasados = g.vales.filter(v => v.atrasado);
+        porGrupoAnteriores[g.id] = { todos: atrasados.length, urgentes: atrasados.filter(v => v.urgente).length };
+      }
+      return { total: todosVigentes.length, truncado: todosVigentes.length > MAX_VIGENTES, sinEntregar: todosVigentes.filter(v => !v.terminado).length, ...sinEntregarTaller, porGrupoAnteriores, vales: todosVigentes.slice(0, MAX_VIGENTES), grupos: gruposVigentes };
     }
 
     // Tres secciones (atrasados, no entregados, entregados): las mismas filas de la agrupación elegida, solo con los vales de cada una.
@@ -219,19 +246,12 @@ class ValeReporteGruposService {
       .filter(Boolean)
       .sort((a, b) => COMPARADORES[clave](a.vales[0], b.vales[0]) || b.total - a.total || a.nombre.localeCompare(b.nombre));
 
-    // Tope de vales por respuesta: se recortan del final (los menos urgentes) y se avisa.
-    let restante = MAX_VALES;
+    // Sobre el tope no se recorta (una lista parcial que parece completa confunde): se omite el desglose y los totales siguen exactos.
+    const desgloseOmitido = totalVales > MAX_VALES;
     const secciones = {};
     for (const clave of SECCIONES) {
       const grupos = porSeccion(clave);
-      secciones[clave] = {
-        total: grupos.reduce((s, g) => s + g.vales.length, 0),
-        grupos: grupos.map(g => {
-          const vales = g.vales.slice(0, Math.max(0, restante));
-          restante -= vales.length;
-          return { ...g, vales, recortado: vales.length < g.vales.length };
-        }).filter(g => g.vales.length)
-      };
+      secciones[clave] = { total: grupos.reduce((s, g) => s + g.vales.length, 0), grupos: desgloseOmitido ? [] : grupos };
     }
     // Rendimiento «hasta hoy»: un vale cuya fecha de entrega aún no llega no puede contarse como no entregado; entra cuando llega su fecha.
     const exigiblesDe = (lista) => lista.filter(v => fechaDe(v.fecha_entrega) <= corte);
@@ -241,7 +261,58 @@ class ValeReporteGruposService {
     const datosRendimiento = esGlobal
       ? await this._rendimientoGlobal({ visiblesVentas: exigiblesDe(visiblesVentas), visiblesTaller: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, filasDe: filasDelTaller, tiendaSel, tallerSel, asesorSel, disSel, nombresConRol })
       : this._rendimiento({ alcance, visibles: exigibles, hastaHoy, aprobada: aprobadaAlCorte, corte, fichas, esTaller, propias, filas, tallerSel, asesorSel, disSel, nombresConRol });
-    return { agruparPor, secciones, totalVales, truncado: totalVales > MAX_VALES, indicadoresTaller, rendimiento: datosRendimiento };
+    // Contadores opcionales: se calculan sobre todos los vales visibles, antes de omitir el desglose por MAX_VALES.
+    const extra = contadores ? { contadores: this._contadores(visibles, fichas, tiendas, { agruparPor, nombres, grupos, porParte: resumenPorEquipo }) } : {};
+    return { agruparPor, secciones, totalVales, truncado: false, desgloseOmitido, indicadoresTaller, rendimiento: datosRendimiento, ...extra };
+  }
+
+  // Ingresados, urgentes y recibidos (propuesta ya en el asesor), con y sin atraso.
+  _contadores(visibles, fichas, tiendas, { agruparPor = 'tienda', nombres = new Map(), grupos = new Map(), porParte = false } = {}) {
+    const lista = visibles.map(v => ({ v, ficha: fichas.get(v.id) }));
+    // Vales ingresados por tienda (todos, sin el tope de las listas), de mayor a menor; alimenta la gráfica por tienda.
+    const porTiendaId = new Map();
+    visibles.forEach(v => porTiendaId.set(v.tienda_id, (porTiendaId.get(v.tienda_id) || 0) + 1));
+    const porTienda = [...porTiendaId].map(([id, total]) => ({ id, nombre: tiendas.get(id) || `Tienda ${id}`, total }))
+      .sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, 'es'));
+    // Con la agrupación por asesor, lo mismo por asesor (alimenta la gráfica del reporte de asesores).
+    const extraAsesor = {};
+    if (agruparPor === 'asesor') {
+      // Cada asesor con su total y cuántos de esos vales fueron urgentes: la gráfica los apila en una misma barra.
+      const porAsesorId = new Map();
+      lista.forEach(({ v, ficha }) => {
+        const previo = porAsesorId.get(v.asesor_id) || { total: 0, urgentes: 0 };
+        porAsesorId.set(v.asesor_id, { total: previo.total + 1, urgentes: previo.urgentes + (ficha.urgente ? 1 : 0) });
+      });
+      extraAsesor.porAsesor = [...porAsesorId].map(([id, x]) => ({ id, nombre: nombres.get(id) || `#${id}`, total: x.total, urgentes: x.urgentes }))
+        .sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, 'es'));
+    }
+    const { ingresados, urgentes, recibidos } = contadoresDeFichas({ fichas: lista.map(x => x.ficha) });
+    // Por grupo (tienda o asesor), sobre todos sus vales antes de los topes; sin atrasados anteriores hasta `completarContadores`.
+    const porGrupo = agruparPor === 'tienda' || agruparPor === 'asesor'
+      ? { porGrupo: contadoresPorGrupo(new Map([...grupos].map(([id, g]) => [id, g.vales]))) } : {};
+    if (agruparPor === 'disenador' || (agruparPor === 'taller' && porParte)) {
+      // Diseñadores y talleres: totales sobre vales únicos (las secciones repiten los vales compartidos) y cifras por diseñador o taller con su propia parte.
+      const unicos = contadoresUnicos(lista.map(x => x.ficha));
+      return {
+        ...unicos, porTienda, ...(agruparPor === 'taller' ? { porTaller: resumenPorGrupo(grupos) } : { porDisenador: resumenPorDisenador(grupos) }),
+        porGrupo: contadoresPorGrupo(new Map([...grupos].map(([id, g]) => [id, g.vales])), { conEntrega: true })
+      };
+    }
+    return { ingresados, porTienda, ...extraAsesor, urgentes, recibidos, ...porGrupo };
+  }
+
+  // Suma a los contadores los de Atrasados (anteriores al período y del período actual, con su suma) y Sin entregar, que salen de las secciones.
+  // Lo comparten los reportes de actividad que llevan contadores (tienda y asesores).
+  completarContadores(contadores, vigentes, secciones) {
+    // Diseñadores y talleres: los contadores ya traen atrasados y sin entregar sobre vales únicos; las secciones los duplicarían.
+    const porVale = !!contadores.porDisenador || !!contadores.porTaller;
+    const actuales = porVale ? contadores.atrasados.actuales : secciones.atrasados.total;
+    return {
+      ...contadores,
+      ...(contadores.porGrupo ? { porGrupo: completarPorGrupo(contadores.porGrupo, vigentes.porGrupoAnteriores) } : {}),
+      atrasados: { total: vigentes.total + actuales, anteriores: vigentes.total, actuales },
+      sinEntregar: porVale ? contadores.sinEntregar : secciones.noEntregados.total
+    };
   }
 
   // Reporte de rendimiento: por persona, dos cifras comparadas, su % y sus atrasados, sobre los vales del período y con los filtros

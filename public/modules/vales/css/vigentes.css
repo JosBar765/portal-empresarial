@@ -18,14 +18,11 @@
 .vig-cuerpo[hidden] { display: none; }
 
 .vig-lista { margin: 0; padding: 0; list-style: none; }
-.vig-lista.is-completa { max-height: 340px; overflow-y: auto; }
 .vig-item {
   display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.6fr) 96px 84px auto; align-items: center; gap: 12px;
   padding: 9px 14px; border-top: 1px solid var(--color-border);
 }
 .vig-item:first-child { border-top: 0; }
-.vig-item--extra { display: none; }
-.vig-lista.is-completa .vig-item--extra { display: grid; }
 .vig-item:hover { background: var(--color-surface-muted); }
 .vig-vale { display: flex; flex-direction: column; min-width: 0; }
 .vig-correlativo { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); }
@@ -45,12 +42,6 @@
 .vig-acciones { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 .vig-acciones .acciones-wrap { display: flex; gap: 4px; }
 
-.vig-mas {
-  display: block; width: 100%; min-height: 40px; padding: 8px 14px; font: inherit; font-size: 12px; font-weight: 600; text-align: center;
-  color: var(--color-primary-dark); background: transparent; border: 0; border-top: 1px solid var(--color-border); cursor: pointer;
-}
-.vig-mas:hover { background: var(--color-surface-muted); }
-.vig-mas:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 .vig-nota { margin: 0; padding: 8px 14px; font-size: 12px; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); }
 
 @media (max-width: 900px) {

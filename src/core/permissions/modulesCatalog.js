@@ -57,6 +57,15 @@ const MODULOS = [
     path: '/modules/tiempos',
     permission: 'tiempos.ver',
     color: '#00695C'
+  },
+  {
+    id: 'proyectos',
+    nombre: 'Proyectos',
+    descripcion: 'Proyectos de venta por nicho: reparto de empresas entre asesores, gestión y cierre.',
+    icono: 'folder-open-outline',
+    path: '/modules/proyectos',
+    permission: 'proyectos.ver',
+    color: '#7A3F5C'
   }
 ];
 

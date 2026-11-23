@@ -2,20 +2,18 @@ import { escapeHtml, formatearFecha } from '../utils/formato.js';
 
 // -----------------------------------------------------------------------
 // Bloque «Atrasados vigentes» (Buzón y Reportes): una tarjeta discreta con un resumen en el encabezado y una lista compacta de los
-// vales atrasados que siguen abiertos. Muestra los 5 más atrasados y el resto bajo demanda, para no saturar la vista. Plegable
+// vales atrasados que siguen abiertos. Muestra todos, de la fecha de entrega más próxima a la más lejana. Plegable
 // (el usuario recuerda su elección). Cada fila: vale y contexto, paso del pipeline, fecha de entrega, días de atraso y acciones.
 // -----------------------------------------------------------------------
-const VISIBLES = 5;
-
 // Gravedad por días de atraso (no depende solo del color: el texto siempre dice los días).
 const gravedad = (dias) => (dias >= 8 ? 'alta' : (dias >= 4 ? 'media' : 'baja'));
 const textoDias = (dias) => (dias >= 1 ? `${dias} ${dias === 1 ? 'día' : 'días'}` : 'Hoy');
 
-function htmlItem(it, extra) {
+function htmlItem(it) {
   const p = it.pipeline || {};
   const paso = p.paso ? `Paso ${p.paso} de 5` : '';
   return `
-    <li class="vig-item${extra ? ' vig-item--extra' : ''}">
+    <li class="vig-item">
       <div class="vig-vale">
         <span class="vig-correlativo"><strong>${escapeHtml(it.correlativo)}</strong>${it.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${it.marcaHtml || ''}</span>
         ${it.sub ? `<span class="vig-sub">${escapeHtml(it.sub)}</span>` : ''}
@@ -30,10 +28,9 @@ function htmlItem(it, extra) {
     </li>`;
 }
 
-// `items`: [{ correlativo, esMod, sub, pipeline, fechaEntrega, diasAtraso, accionesHtml }], del más atrasado al menos.
+// `items`: [{ correlativo, esMod, sub, pipeline, fechaEntrega, diasAtraso, accionesHtml }], por fecha de entrega.
 export function htmlBloqueVigentes({ id, total, items, truncado, plegado, textoPeriodo = 'con entrega anterior al período elegido' }) {
   const masAtrasado = items.length ? Math.max(...items.map(i => i.diasAtraso || 0)) : 0;
-  const resto = items.length - VISIBLES;
   return `
     <section class="vig" id="${id}" aria-label="Atrasados antes del período">
       <button type="button" class="vig-cab" aria-expanded="${!plegado}" aria-controls="${id}-cuerpo">
@@ -44,14 +41,13 @@ export function htmlBloqueVigentes({ id, total, items, truncado, plegado, textoP
         <ion-icon name="chevron-down-outline" class="vig-chevron" aria-hidden="true"></ion-icon>
       </button>
       <div class="vig-cuerpo" id="${id}-cuerpo"${plegado ? ' hidden' : ''}>
-        <ul class="vig-lista">${items.map((it, i) => htmlItem(it, i >= VISIBLES)).join('')}</ul>
-        ${resto > 0 ? `<button type="button" class="vig-mas" aria-expanded="false" data-resto="${resto}">Ver los ${resto} restantes</button>` : ''}
+        <ul class="vig-lista">${items.map(htmlItem).join('')}</ul>
         ${truncado ? `<p class="vig-nota">Se muestran los ${items.length} más atrasados de ${total}.</p>` : ''}
       </div>
     </section>`;
 }
 
-// Conecta el plegado del bloque y el «Ver los N restantes». `alCambiarPlegado(plegado)` guarda la preferencia.
+// Conecta el plegado del bloque. `alCambiarPlegado(plegado)` guarda la preferencia.
 export function conectarBloqueVigentes(raiz, alCambiarPlegado) {
   const cab = raiz.querySelector('.vig-cab');
   const cuerpo = raiz.querySelector('.vig-cuerpo');
@@ -61,13 +57,4 @@ export function conectarBloqueVigentes(raiz, alCambiarPlegado) {
     cuerpo.hidden = !abrir;
     alCambiarPlegado(!abrir);
   });
-  const mas = raiz.querySelector('.vig-mas');
-  if (mas) {
-    mas.addEventListener('click', () => {
-      const abrir = mas.getAttribute('aria-expanded') !== 'true';
-      mas.setAttribute('aria-expanded', String(abrir));
-      raiz.querySelector('.vig-lista').classList.toggle('is-completa', abrir);
-      mas.textContent = abrir ? 'Ver menos' : `Ver los ${mas.dataset.resto} restantes`;
-    });
-  }
 }
