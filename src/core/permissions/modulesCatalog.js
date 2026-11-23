@@ -48,6 +48,15 @@ const MODULOS = [
     path: '/modules/incidencias',
     permission: 'incidencias.ver',
     color: '#C2410C'
+  },
+  {
+    id: 'tiempos',
+    nombre: 'Calculadora de Tiempos',
+    descripcion: 'Calcula en cuántos días se entrega un pedido y consulta la tabla de tiempos de producción.',
+    icono: 'timer-outline',
+    path: '/modules/tiempos',
+    permission: 'tiempos.ver',
+    color: '#00695C'
   }
 ];
 
