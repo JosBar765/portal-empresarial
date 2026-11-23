@@ -1,6 +1,7 @@
 import { $ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
 import { cerrarPanelFechaActivo } from './datepicker.js';
+import { registrarCapa } from '../utils/historialCapas.js';
 
 // `alCerrar` (opcional) se ejecuta una sola vez, con el modal ya retirado, sea cual sea la forma de cerrarlo.
 // `confirmarCierre(cerrar)` (opcional) intercepta los cierres del usuario (×, Escape, clic fuera, `intentarCerrar`); `cerrar` sigue siendo directo.
@@ -31,6 +32,7 @@ export function abrirModal({ title, bodyHtml, footerHtml, size, alCerrar, confir
   document.addEventListener('keydown', onKeydown);
   let alCerrarEjecutado = false;
   const cerrar = () => {
+    soltarHistorial();
     document.removeEventListener('keydown', onKeydown);
     cerrarPanelFechaActivo(); // por si el modal se cierra con un calendario todavía abierto
     overlay.remove();
@@ -39,6 +41,7 @@ export function abrirModal({ title, bodyHtml, footerHtml, size, alCerrar, confir
       alCerrar();
     }
   };
+  const soltarHistorial = registrarCapa(intentarCerrar);
   overlay.querySelector('.modal-close').addEventListener('click', intentarCerrar);
   // Cerrar solo si el click EMPEZÓ (mousedown) y TERMINÓ (click) sobre el
   // propio backdrop: un `click` del DOM se dispara sobre el ancestro común de

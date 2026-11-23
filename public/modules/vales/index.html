@@ -80,8 +80,9 @@
       <span>Trabajo realizado</span>
     </button>
     <!-- Reportes de actividad: lo ven los roles con el permiso vales.ver_reportes (se muestra desde sidebar.js). -->
-    <button class="sidebar-item" id="sidebar-item-reportes" data-vista="reportes" style="display:none;">
-      <ion-icon name="stats-chart-outline"></ion-icon>
+    <!-- Reportes (ids internos reportes2): mismo permiso vales.ver_reportes; se muestra desde sidebar.js. -->
+    <button class="sidebar-item" id="sidebar-item-reportes2" data-vista="reportes2" style="display:none;">
+      <ion-icon name="analytics-outline"></ion-icon>
       <span>Reportes</span>
     </button>
     <button class="sidebar-collapse-toggle" id="sidebar-collapse-toggle" type="button" title="Colapsar menú">
@@ -113,8 +114,8 @@
 
         <section class="contadores-grid" id="contadores-grid"></section>
 
-        <!-- Reportes de actividad (según el rol) — reemplaza al buzón mientras state.vista === 'reportes'. -->
-        <section class="vista-propia reportes-vista" id="reportes-vista" style="display:none;"></section>
+        <!-- Reportes — reemplaza al buzón mientras state.vista === 'reportes2'. -->
+        <section class="vista-propia reportes-vista" id="reportes2-vista" style="display:none;"></section>
 
 
         <section class="buzon-section">
@@ -136,7 +137,7 @@
                   <th data-sort-key="correlativo">Correlativo</th>
                   <th data-sort-key="fecha_ingreso" class="col-fecha-ingreso">Fecha Ingreso</th>
                   <th data-sort-key="fecha_entrega">Fecha Entrega</th>
-                  <th>Atraso</th>
+                  <th data-sort-key="atraso">Atraso</th>
                   <th class="col-taller">Taller</th>
                   <th>Estado</th>
                   <th>Acciones</th>

@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
 import { etiquetaEstado } from '../permisos.js';
-import { formatearFecha, escapeHtml, correlativoBase } from '../utils/formato.js';
+import { formatearFecha, escapeHtml, correlativoBase, formatearMonto } from '../utils/formato.js';
 import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, obtenerPropuestaVale, aprobarModificacion, rechazarModificacion, marcarValeVisto } from '../api/valesApi.js';
 import { confirmarAccion } from '../components/confirmar.js';
 import { cargarBuzon } from '../views/buzon.js';
@@ -304,7 +304,7 @@ function htmlDatosVale(v, { destacado = null } = {}) {
         ${dato('Técnica', v.tecnica)}
         ${dato('Acabado', v.acabado)}
         ${dato('Cantidad', v.cantidad)}
-        ${dato('Cotización', v.cotizacion != null ? `Q${Number(v.cotizacion).toFixed(2)}` : '')}`)}
+        ${dato('Cotización', formatearMonto(v.cotizacion, v))}`)}
     </div>`;
 }
 

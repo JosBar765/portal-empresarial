@@ -1,3 +1,5 @@
+import { ErrorReporte } from './errorReporte.js';
+
 // Una función por endpoint de /api/vales. Cada una reproduce exactamente la
 // semántica de verificación de errores que tenía su call site original en el
 // app.js monolítico — algunas lanzan con el mensaje del servidor, otras con
@@ -102,22 +104,36 @@ export async function obtenerPropuestaVale(id, { tipo = 'ultima', disenadorId = 
   return data;
 }
 
-export async function obtenerReporte(qs) {
-  const res = await fetch(`/api/vales/reportes?${qs.toString()}`);
-  const data = await leerJSON(res);
-  if (!res.ok) throw new Error(data.error || 'No se pudo cargar el reporte.');
-  return data;
+// Reportes de actividad de Reportes 2 (tienda, taller, diseñador, asesor), sus opciones de filtro y su PDF. Todo fallo sale como ErrorReporte.
+async function pedirReporte(url, { etapa, ruta }) {
+  let res;
+  try { res = await fetch(url); } catch (error) { throw ErrorReporte.deRed(error, { etapa, reporte: ruta }); }
+  return res;
 }
 
-// Descarga el PDF del reporte con los mismos filtros; devuelve { blob, nombre }.
-export async function descargarReportePdf(qs) {
-  const res = await fetch(`/api/vales/reportes/pdf?${qs.toString()}`);
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'No se pudo generar el PDF.');
+async function jsonDeReporte(res, ruta, etapa) {
+  if (res.ok) {
+    try { return await res.json(); } catch { throw new ErrorReporte('', { status: res.status, codigo: 'REPORTE_RESPUESTA', etapa, reporte: ruta }); }
   }
+  throw ErrorReporte.deRespuesta(res, await res.json().catch(() => null), { etapa, reporte: ruta });
+}
+
+export async function obtenerReporteActividad(ruta, qs) {
+  const res = await pedirReporte(`/api/vales/reportes/${ruta}?${qs.toString()}`, { etapa: 'generar', ruta });
+  return jsonDeReporte(res, ruta, 'generar');
+}
+
+// Opciones de los filtros del reporte (sin escanear vales): mismo formato { alcance, filtros } que trae el reporte completo.
+export async function obtenerOpcionesReporte(ruta) {
+  const res = await pedirReporte(`/api/vales/reportes/${ruta}/opciones`, { etapa: 'opciones', ruta });
+  return jsonDeReporte(res, ruta, 'opciones');
+}
+
+export async function descargarReporteActividadPdf(ruta, qs) {
+  const res = await pedirReporte(`/api/vales/reportes/${ruta}/pdf?${qs.toString()}`, { etapa: 'pdf', ruta });
+  if (!res.ok) throw ErrorReporte.deRespuesta(res, await res.json().catch(() => null), { etapa: 'pdf', reporte: ruta });
   const disposicion = res.headers.get('Content-Disposition') || '';
-  const nombre = (/filename="([^"]+)"/.exec(disposicion) || [])[1] || 'reporte-vales.pdf';
+  const nombre = (/filename="([^"]+)"/.exec(disposicion) || [])[1] || `reporte-${ruta}.pdf`;
   return { blob: await res.blob(), nombre };
 }
 

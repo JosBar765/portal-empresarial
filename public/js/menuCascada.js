@@ -14,7 +14,9 @@ const CONSULTA_MOVIMIENTO_REDUCIDO = '(prefers-reduced-motion: reduce)';
 const ESPERA_HOVER_MS = 150;
 const MENSAJE_GRUPO_VACIO = 'Este país no tiene tiendas activas.';
 const MENSAJE_ARBOL_VACIO = 'No hay tiendas activas.';
-const SELECTOR_PANELES = '.menu-cascada-panel, .menu-cascada-panel-nivel2';
+const PREFIJO_ASESOR = 'a';
+const TITULO_ASESORES = 'Supervisión especial';
+const SELECTOR_PANELES ='.menu-cascada-panel, .menu-cascada-panel-nivel2';
 const SELECTOR_FILAS = '.menu-cascada-item:not(:disabled)';
 
 const $$ = (selector, raiz = document) => Array.from(raiz.querySelectorAll(selector));
@@ -29,10 +31,15 @@ function escapeHtml(valor) {
 }
 
 const esVacio = (valor) => valor === '' || valor == null;
+// Modo múltiple: el valor es una lista de ids (array o «3,7,9»); se guarda como conjunto de textos.
+const aConjunto = (valor) => new Set((Array.isArray(valor) ? valor : String(valor ?? '').split(',')).map(v => String(v).trim()).filter(Boolean));
+// Valores de todas las hojas seleccionables bajo un nodo (la fila de «Todas» no cuenta).
+const valoresDe = (nodos) => nodos.flatMap(n => (n.tipo === 'hoja' ? (esVacio(n.valor) ? [] : [String(n.valor)]) : valoresDe(n.hijos || [])));
 const enfocar = (el) => { if (el) el.focus({ preventScroll: true }); };
 
 // `conTodas`: primera fila «Todas — <país|grupo>» en cada submenú de 2 o más tiendas, con valor «pais:X» o «grupo:Y».
-export function construirArbolTiendas(tiendas, { conTodas = false } = {}) {
+// `asesores` (modo múltiple): `{ id, nombre }` con supervisión especial; van tras los países como hojas con valor «a<id>» bajo su propio encabezado.
+export function construirArbolTiendas(tiendas, { conTodas = false, asesores = [] } = {}) {
   const etiquetaTienda = t => (t.codigo ? `${t.codigo} - ${t.nombre}` : t.nombre);
   const porEtiqueta = (a, b) => etiquetaTienda(a).localeCompare(etiquetaTienda(b));
   const hojaDe = t => ({ tipo: 'hoja', valor: t.id, etiqueta: etiquetaTienda(t) });
@@ -84,12 +91,13 @@ export function construirArbolTiendas(tiendas, { conTodas = false } = {}) {
     if (indice === 0) nodo.encabezadoAntes = 'País';
     return nodo;
   });
+  const nodosAsesor = asesores.map((a, i) => ({ tipo: 'hoja', valor: `${PREFIJO_ASESOR}${a.id}`, etiqueta: a.nombre, ...(i === 0 ? { encabezadoAntes: TITULO_ASESORES } : {}) }));
   // Con un solo país el primer nivel sobra: sus tiendas suben al nivel 1 bajo el nombre del país.
   if (nodosPais.length === 1) {
     const [unico] = nodosPais;
-    return unico.hijos.map((h, i) => (i === 0 ? { ...h, encabezadoAntes: unico.etiqueta } : h));
+    return [...unico.hijos.map((h, i) => (i === 0 ? { ...h, encabezadoAntes: unico.etiqueta } : h)), ...nodosAsesor];
   }
-  return nodosPais;
+  return [...nodosPais, ...nodosAsesor];
 }
 
 // Talleres por país: un taller con varios países aparece en cada uno; sin país va al final como «Sin país».
@@ -156,9 +164,11 @@ export const menusCascadaAbiertos = new Set();
 
 // `deshabilitar(nodoHoja)` opcional: devuelve { disabled, motivo } para
 // bloquear una hoja sin sacarla del árbol, con el motivo como title.
-export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilitar, onSeleccionar, ariaLabel, mensajeVacio }) {
+// `multiple` (opt-in): casillas en tiendas y padres (marcado, vacío o parcial); el menú sigue abierto y `onSeleccionar` recibe «3,7,9» (vacío = ninguna).
+export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilitar, onSeleccionar, ariaLabel, mensajeVacio, multiple = false, unidad = { singular: 'tienda', plural: 'tiendas' } }) {
   let arbolActual = arbol || [];
   let actual = valorActual;
+  let seleccion = multiple ? aConjunto(valorActual) : null;
   let estado = null; // { tipo:'cargando' } | { tipo:'error', mensaje, onReintentar }
   let abierto = false;
   let enHoja = false;
@@ -211,16 +221,60 @@ export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilit
     return null;
   }
 
+  // Un solo país entero elegido se nombra por el país; si no, la tienda o «N tiendas».
+  function etiquetaMultiple() {
+    if (!seleccion.size) return etiquetaVacio;
+    if (seleccion.size === 1) return buscarEtiqueta([...seleccion][0], arbolActual) || `1 ${unidad.singular}`;
+    const paisEntero = arbolActual.find(n => {
+      if (n.tipo !== 'grupo') return false;
+      const valores = valoresDe([n]);
+      return valores.length === seleccion.size && valores.every(v => seleccion.has(v));
+    });
+    if (paisEntero) return paisEntero.etiqueta;
+    // Con asesores marcados ya no son solo tiendas.
+    const conAsesores = [...seleccion].some(v => v.startsWith(PREFIJO_ASESOR));
+    return `${seleccion.size} ${conAsesores ? 'seleccionados' : unidad.plural}`;
+  }
+
   function actualizarTrigger() {
-    const etiqueta = esVacio(actual) ? etiquetaVacio : (buscarEtiqueta(actual, arbolActual) || etiquetaVacio);
+    const etiqueta = multiple ? etiquetaMultiple() : (esVacio(actual) ? etiquetaVacio : (buscarEtiqueta(actual, arbolActual) || etiquetaVacio));
     etiquetaSpan.textContent = etiqueta;
     trigger.title = etiqueta || '';
     if (ariaLabel) trigger.setAttribute('aria-label', `${ariaLabel}: ${etiqueta}`);
   }
 
+  const ICONO_CASILLA = { marcado: 'checkbox', vacio: 'square-outline', parcial: 'remove-circle' };
+
+  function marcarActivosMultiple(raices) {
+    raices.forEach(raiz => {
+      $$('.menu-cascada-item[data-valor]', raiz).forEach(btn => {
+        const sinSeleccion = btn.dataset.valor === '';
+        const activo = sinSeleccion ? !seleccion.size : seleccion.has(btn.dataset.valor);
+        btn.classList.toggle('menu-cascada-item-activo', activo);
+        if (sinSeleccion) {
+          if (activo) btn.setAttribute('aria-current', 'true'); else btn.removeAttribute('aria-current');
+          return;
+        }
+        btn.setAttribute('aria-checked', String(activo));
+        const icono = btn.querySelector('.menu-cascada-casilla');
+        if (icono) icono.setAttribute('name', ICONO_CASILLA[activo ? 'marcado' : 'vacio']);
+      });
+      $$('.menu-cascada-item-padre', raiz).forEach(btn => {
+        const casilla = btn.querySelector('.menu-cascada-casilla');
+        if (!casilla || !btn._valores) return;
+        const marcadas = btn._valores.filter(v => seleccion.has(v)).length;
+        const estadoCasilla = marcadas === 0 ? 'vacio' : (marcadas === btn._valores.length ? 'marcado' : 'parcial');
+        casilla.setAttribute('name', ICONO_CASILLA[estadoCasilla]);
+        casilla.setAttribute('aria-checked', estadoCasilla === 'parcial' ? 'mixed' : String(estadoCasilla === 'marcado'));
+        casilla.dataset.estado = estadoCasilla;
+      });
+    });
+  }
+
   function marcarActivos() {
     const valor = esVacio(actual) ? '' : String(actual);
     const raices = [nav, ...flyouts.map(f => f.panel), cuerpoHoja].filter(Boolean);
+    if (multiple) { marcarActivosMultiple(raices); return; }
     raices.forEach(raiz => $$('.menu-cascada-item[data-valor]', raiz).forEach(btn => {
       const activo = btn.dataset.valor === valor;
       btn.classList.toggle('menu-cascada-item-activo', activo);
@@ -245,14 +299,18 @@ export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilit
     btn.className = 'menu-cascada-item';
     btn.tabIndex = -1;
     btn.dataset.valor = esVacio(nodo.valor) ? '' : nodo.valor;
-    btn.innerHTML = '<span class="menu-cascada-item-texto"></span><ion-icon class="menu-cascada-check" name="checkmark-outline"></ion-icon>';
-    btn.firstChild.textContent = nodo.etiqueta;
+    const conCasilla = multiple && !esVacio(nodo.valor);
+    btn.innerHTML = conCasilla
+      ? '<ion-icon class="menu-cascada-casilla" name="square-outline"></ion-icon><span class="menu-cascada-item-texto"></span>'
+      : '<span class="menu-cascada-item-texto"></span><ion-icon class="menu-cascada-check" name="checkmark-outline"></ion-icon>';
+    btn.querySelector('.menu-cascada-item-texto').textContent = nodo.etiqueta;
+    if (conCasilla) btn.setAttribute('role', 'checkbox');
     const estadoFila = deshabilitar ? deshabilitar(nodo) : null;
     if (estadoFila && estadoFila.disabled) {
       btn.disabled = true;
       if (estadoFila.motivo) btn.title = estadoFila.motivo;
     } else {
-      btn.addEventListener('click', () => seleccionar(nodo.valor));
+      btn.addEventListener('click', () => (multiple ? alternarHoja(nodo.valor) : seleccionar(nodo.valor)));
     }
     li.appendChild(btn);
     return { li, btn };
@@ -268,6 +326,17 @@ export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilit
     btn.setAttribute('aria-haspopup', 'true');
     btn.setAttribute('aria-expanded', 'false');
     btn.innerHTML = `<span class="menu-cascada-item-texto">${escapeHtml(nodo.etiqueta)}</span><ion-icon name="chevron-forward-outline"></ion-icon>`;
+    if (multiple) {
+      // La casilla marca todas las tiendas del país o grupo; el resto de la fila sigue abriendo el submenú.
+      btn._valores = valoresDe(nodo.hijos || []);
+      const casilla = document.createElement('ion-icon');
+      casilla.className = 'menu-cascada-casilla';
+      casilla.setAttribute('name', 'square-outline');
+      casilla.setAttribute('role', 'checkbox');
+      casilla.setAttribute('aria-label', `Marcar todas: ${nodo.etiqueta}`);
+      casilla.addEventListener('click', (e) => { e.stopPropagation(); alternarGrupo(btn); });
+      btn.insertBefore(casilla, btn.firstChild);
+    }
     li.appendChild(btn);
     return { li, btn };
   }
@@ -538,6 +607,36 @@ export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilit
   }
 
   // ---------- Abrir / cerrar ----------
+  // Modo múltiple: cada cambio se emite y el menú sigue abierto para seguir marcando.
+  function emitirMultiple() {
+    actual = [...seleccion].join(',');
+    actualizarTrigger();
+    marcarActivos();
+    if (onSeleccionar) onSeleccionar(actual);
+  }
+
+  function alternarHoja(valor) {
+    if (esVacio(valor)) {
+      // «Todas las tiendas» limpia la selección y cierra, como el modo simple.
+      seleccion.clear();
+      emitirMultiple();
+      cerrarTodo(true);
+      return;
+    }
+    const clave = String(valor);
+    if (seleccion.has(clave)) seleccion.delete(clave); else seleccion.add(clave);
+    emitirMultiple();
+  }
+
+  // Padre marcado por completo: desmarca todas sus tiendas; en cualquier otro estado las marca todas.
+  function alternarGrupo(btnPadre) {
+    const valores = btnPadre._valores || [];
+    if (!valores.length) return;
+    const completo = valores.every(v => seleccion.has(v));
+    valores.forEach(v => { if (completo) seleccion.delete(v); else seleccion.add(v); });
+    emitirMultiple();
+  }
+
   function seleccionar(valor) {
     actual = valor;
     actualizarTrigger();
@@ -681,6 +780,10 @@ export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilit
         e.preventDefault();
         enfocar(e.key === 'Home' ? filas[0] : filas[filas.length - 1]);
         break;
+      case ' ':
+        // Espacio sobre un padre marca o desmarca todas sus tiendas; Enter o la flecha siguen abriéndolo.
+        if (multiple && activo && activo._valores) { e.preventDefault(); alternarGrupo(activo); }
+        break;
       case 'ArrowRight':
         if (activo && activo.classList && activo.classList.contains('menu-cascada-item-padre')) {
           e.preventDefault();
@@ -726,6 +829,7 @@ export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilit
     elemento: cont,
     actualizar(nuevoValor) {
       actual = nuevoValor;
+      if (multiple) seleccion = aConjunto(nuevoValor);
       actualizarTrigger();
       marcarActivos();
     },
@@ -748,14 +852,15 @@ export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilit
 }
 
 // Solo para filtros: un campo de formulario exige un solo valor y por eso no usa «Todas — <país o grupo>».
+// En modo múltiple los padres llevan su propia casilla, así que no hace falta la fila «Todas — <país|grupo>».
 const crearFiltro = (construirArbol, lista, { etiquetaVacio, ...resto }) => crearMenuCascada({
   ...resto,
   etiquetaVacio,
-  arbol: [{ tipo: 'hoja', valor: '', etiqueta: etiquetaVacio }, ...construirArbol(lista, { conTodas: true })]
+  arbol: [{ tipo: 'hoja', valor: '', etiqueta: etiquetaVacio }, ...construirArbol(lista, { conTodas: !resto.multiple, asesores: resto.multiple ? resto.asesores : [] })]
 });
 
 export const crearFiltroTiendas = ({ tiendas, etiquetaVacio = 'Todas las tiendas', ariaLabel = 'Filtrar por tienda', ...resto }) =>
   crearFiltro(construirArbolTiendas, tiendas || [], { etiquetaVacio, ariaLabel, ...resto });
 
 export const crearFiltroTalleres = ({ talleres, etiquetaVacio = 'Todos los talleres', ariaLabel = 'Filtrar por taller', ...resto }) =>
-  crearFiltro(construirArbolTalleres, talleres || [], { etiquetaVacio, ariaLabel, ...resto });
+  crearFiltro(construirArbolTalleres, talleres || [], { etiquetaVacio, ariaLabel, unidad: { singular: 'taller', plural: 'talleres' }, mensajeVacio: 'No hay talleres disponibles.', ...resto });

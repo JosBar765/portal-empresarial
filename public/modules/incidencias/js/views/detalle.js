@@ -10,7 +10,7 @@ import { crearAcciones } from './acciones.js';
 import { cargando, mostrarError } from './estados.js';
 
 const IMPACTO = {
-  riesgo_personas: 'Riesgo para las personas', detiene_operacion: 'Detiene la operación',
+  riesgo_personas: 'Riesgo para las personas o equipo', detiene_operacion: 'Detiene la operación',
   trabajo_con_limitaciones: 'Trabajo con limitaciones', molestia_menor: 'Molestia menor'
 };
 

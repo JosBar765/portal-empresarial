@@ -20,29 +20,21 @@ const valeVistoService = require('./valeVistoService');
 const propuestasCompartidasService = require('./propuestasCompartidasService');
 const valeModificacionService = require('./valeModificacionService');
 const valeRechazoPropuestaService = require('./valeRechazoPropuestaService');
-const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
-const valeReporteService = require('./valeReporteService');
-const valeReportePdfService = require('./valeReportePdfService');
+const valeReporteTiendaService = require('./valeReporteTiendaService');
+const valeReporteEquiposService = require('./valeReporteEquiposService');
 const valeAdjuntosService = require('./valeAdjuntosService');
 
 module.exports = {
   // Reportes de actividad
-  obtenerReporte: (...a) => valeReporteService.obtenerReporte(...a),
-  // `tipo`: 'actividad' (por defecto) o 'rendimiento' (no disponible para Asesor ni Diseñador). `enfoque` ('ventas' o 'taller'): qué reporte
-  // de Rendimiento imprimen el Administrador y el Gerente; los demás roles lo ignoran.
-  generarReportePdf: async (usuario, filtros, tipo = 'actividad', enfoque = 'ventas') => {
-    if (!['actividad', 'rendimiento'].includes(tipo)) throw new ErrorDeNegocio('El tipo de reporte no es válido.');
-    if (!['ventas', 'taller'].includes(enfoque)) throw new ErrorDeNegocio('El enfoque del reporte no es válido.');
-    const reporte = await valeReporteService.obtenerReporte(usuario, { ...filtros, tipo }, { maxFilas: valeReporteService.MAX_FILAS_PDF });
-    if (tipo === 'rendimiento' && !(reporte.grupos && reporte.grupos.rendimiento)) throw new ErrorDeNegocio('El reporte de rendimiento no está disponible para tu rol.');
-    reporte.tipo = tipo;
-    reporte.enfoque = enfoque;
-    if (tipo === 'rendimiento') reporte.titulo = reporte.titulo.replace(/^Actividad/, 'Rendimiento') + (reporte.grupos.rendimiento.vistas ? ` · ${enfoque === 'taller' ? 'Taller' : 'Ventas'}` : '');
-    const ahora = new Date(Date.now() - 6 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 16);
-    const [f, h] = ahora.split(' ');
-    const [y, m, d] = f.split('-');
-    return { reporte, pdf: await valeReportePdfService.generar(reporte, { generadoPor: usuario.nombre, ahora: `${d}/${m}/${y} ${h}`, tipo }) };
-  },
+  // Reporte de actividad de tienda (Reportes 2)
+  obtenerReporteActividadTienda: (...a) => valeReporteTiendaService.obtenerReporte(...a),
+  generarReporteActividadTiendaPdf: (...a) => valeReporteTiendaService.generarPdf(...a),
+  // Reportes de actividad de talleres, diseñadores y asesores (Reportes 2): el primer argumento es el tipo (taller, disenador, asesor).
+  obtenerReporteActividadEquipo: (...a) => valeReporteEquiposService.obtenerReporte(...a),
+  generarReporteActividadEquipoPdf: (...a) => valeReporteEquiposService.generarPdf(...a),
+  // Opciones de los filtros de cada reporte, sin recorrer vales.
+  obtenerOpcionesActividadTienda: (...a) => valeReporteTiendaService.obtenerOpciones(...a),
+  obtenerOpcionesActividadEquipo: (...a) => valeReporteEquiposService.obtenerOpciones(...a),
 
   // Catálogo
   obtenerCatalogos: (...a) => valeCatalogoService.obtenerCatalogos(...a),
