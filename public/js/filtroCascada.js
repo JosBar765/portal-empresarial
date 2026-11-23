@@ -45,6 +45,11 @@ export function resolverAsesorIds(valor, asesores = []) {
 export function resolverTallerIds(valor, talleres = []) {
   if (valor === '' || valor == null) return [];
   const texto = String(valor);
+  // Selección múltiple de talleres: ids separados por coma; un id que ya no está en el catálogo se descarta.
+  if (texto.includes(',')) {
+    const conocidos = new Set(idsDe(talleres));
+    return [...new Set(texto.split(',').flatMap(idUnico))].filter(id => conocidos.has(id));
+  }
   if (texto.startsWith(PREFIJO_PAIS)) {
     const pais = texto.slice(PREFIJO_PAIS.length);
     return idsDe(talleres.filter(t => paisesDeTaller(t).includes(pais)));

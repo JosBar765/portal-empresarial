@@ -2,6 +2,7 @@ import { $ } from '../utils/dom.js';
 import { escapeHtml } from '../utils/formato.js';
 import { obtenerPropuestaVale } from '../api/valesApi.js';
 import { htmlPropuestaExtras, hayExtras } from './propuestaInfo.js';
+import { registrarCapa } from '../utils/historialCapas.js';
 
 // -----------------------------------------------------------------------
 // Visor emergente de documentos (vale de arte y propuesta): reemplaza a abrir una pestaña nueva. Casi pantalla completa en
@@ -142,6 +143,7 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, acc
   }
 
   function cerrar() {
+    soltarHistorial();
     document.removeEventListener('keydown', alTeclear, true);
     document.body.style.overflow = sobreflujoPrevio;
     overlay.remove();
@@ -182,6 +184,7 @@ export function abrirVisor({ titulo, subtitulo = '', documentos, activo = 0, acc
   overlay.addEventListener('mousedown', (e) => { mousedownEnFondo = (e.target === overlay); });
   overlay.addEventListener('click', (e) => { if (e.target === overlay && mousedownEnFondo) cerrar(); mousedownEnFondo = false; });
   document.addEventListener('keydown', alTeclear, true);
+  const soltarHistorial = registrarCapa(cerrar);
 
   mostrar(actual);
   (overlay.querySelector('.visor-pestana.is-activa') || overlay.querySelector('[data-visor-cerrar]')).focus();

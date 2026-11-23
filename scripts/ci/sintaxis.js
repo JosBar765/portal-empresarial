@@ -41,8 +41,8 @@ function revisar(archivo) {
     parseaComoScript(codigo, archivo);
     return null;
   } catch (errorScript) {
-    // Solo el frontend puede ser un módulo ES; el backend es CommonJS.
-    if (esBackend) return errorScript.message;
+    // Solo el frontend y los scripts .mjs pueden ser módulos ES; el resto del backend es CommonJS.
+    if (esBackend && !archivo.endsWith('.mjs')) return errorScript.message;
     try {
       parseaComoModulo(codigo, archivo);
       return null;

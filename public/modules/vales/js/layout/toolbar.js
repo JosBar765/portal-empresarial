@@ -6,12 +6,13 @@ import { crearBarraPeriodo } from '../components/barraPeriodoReportes.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { crearFiltroTiendas } from '/js/menuCascada.js';
 import { resolverTiendaIds, resolverAsesorIds, valorDeAsesor } from '/js/filtroCascada.js';
+import { restaurarFiltrosReportes2 } from '../utils/filtrosReportes2.js';
 
 // «Ver reporte de este día»: abre la pestaña Reportes con período «Día» en esa fecha de entrega.
 function verReporteDelDia(iso) {
-  state.reporte.ventana = { tipo: 'dia', fecha: iso, desde: '', hasta: '' };
-  state.reporte.expandidos.clear();
-  const boton = document.querySelector('.sidebar-item[data-vista="reportes"]');
+  restaurarFiltrosReportes2(); // antes de fijar la ventana: lo fijado aquí debe ganar sobre lo guardado
+  state.reporte2.ventana = { tipo: 'dia', fecha: iso, desde: '', hasta: '' };
+  const boton = document.querySelector('.sidebar-item[data-vista="reportes2"]');
   if (boton && boton.style.display !== 'none') boton.click();
 }
 
