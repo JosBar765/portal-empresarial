@@ -29,3 +29,19 @@ export const logout = () => fetch('/api/auth.php?action=logout');
 export const obtenerTabla = () => pedir(`${BASE}/tabla`);
 export const calcular = (pedido) => pedir(`${BASE}/calcular`, enJson('POST', pedido));
 export const obtenerFestivos = (desde, hasta) => pedir(`${BASE}/festivos?desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`);
+
+// Administración (solo tiempos.administrar)
+export const adminEstado = () => pedir(`${BASE}/admin/estado`);
+export const adminTabla = () => pedir(`${BASE}/admin/tabla`);
+export const adminCrearProducto = (cuerpo) => pedir(`${BASE}/admin/productos`, enJson('POST', cuerpo));
+export const adminGuardarProducto = (clave, cuerpo) => pedir(`${BASE}/admin/productos/${encodeURIComponent(clave)}`, enJson('PUT', cuerpo));
+export const adminGuardarExtras = (cuerpo) => pedir(`${BASE}/admin/extras`, enJson('PUT', cuerpo));
+export const adminGuardarAvisos = (cuerpo) => pedir(`${BASE}/admin/avisos-generales`, enJson('PUT', cuerpo));
+export const adminGuardarCatalogos = (cuerpo) => pedir(`${BASE}/admin/catalogos`, enJson('PUT', cuerpo));
+export const adminCambios = () => pedir(`${BASE}/admin/cambios`);
+export const adminPublicar = (cuerpo) => pedir(`${BASE}/admin/publicar`, enJson('POST', cuerpo));
+export const adminDescartar = () => pedir(`${BASE}/admin/borrador`, { method: 'DELETE' });
+export const adminVersiones = () => pedir(`${BASE}/admin/versiones`);
+export const adminCambiosDeVersion = (id) => pedir(`${BASE}/admin/versiones/${id}/cambios`);
+export const adminUsarComoBorrador = (id) => pedir(`${BASE}/admin/versiones/${id}/usar-como-borrador`, enJson('POST', {}));
+export const adminActividad = () => pedir(`${BASE}/admin/actividad`);

@@ -55,3 +55,28 @@ export function cargando(texto = 'Cargando…') {
 }
 
 export { montar };
+
+// Ventana con contenido propio y botones Cancelar / acción. `alAceptar()` puede ser asíncrona: si lanza un error, la ventana
+// se queda abierta y `alError(error)` lo muestra. Devuelve { cerrar, error(mensaje) }.
+export function ventana({ titulo, subtitulo, contenido, aceptar = 'Guardar', alAceptar, ancho = 520 }) {
+  const previo = document.activeElement;
+  const idTitulo = nuevoId('titulo');
+  const aviso = h('p', { class: 'tm-pie tm-pie--error', hidden: '', role: 'alert' });
+  const cerrar = () => { document.removeEventListener('keydown', alTecla); fondo.remove(); if (previo && previo.focus) previo.focus(); };
+  const alTecla = (e) => { if (e.key === 'Escape') cerrar(); };
+  const boton = h('button', { class: 'btn btn--primary', type: 'button', text: aceptar });
+  boton.addEventListener('click', async () => {
+    boton.disabled = true; aviso.hidden = true;
+    try { const seguir = await alAceptar(); if (seguir !== false) cerrar(); } catch (error) { aviso.textContent = error.message; aviso.hidden = false; } finally { boton.disabled = false; }
+  });
+  const fondo = h('div', { class: 'tm-modal-fondo', onclick: (e) => { if (e.target === fondo) cerrar(); } },
+    h('div', { class: 'tm-modal tm-modal--ancha', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': idTitulo, style: `width: min(100%, ${ancho}px)` },
+      h('div', { class: 'tm-modal-cabecera' }, h('div', null, h('h2', { id: idTitulo, text: titulo }), subtitulo ? h('p', { text: subtitulo }) : null),
+        h('button', { class: 'btn btn--ghost btn--solo-icono', type: 'button', 'aria-label': 'Cerrar', onclick: cerrar }, icono('close-outline'))),
+      contenido, aviso,
+      h('div', { class: 'tm-modal-acciones' }, h('button', { class: 'btn btn--ghost', type: 'button', onclick: cerrar, text: 'Cancelar' }), boton)));
+  document.getElementById('modals-root').append(fondo);
+  document.addEventListener('keydown', alTecla);
+  const foco = fondo.querySelector('input, select, textarea'); if (foco) foco.focus();
+  return { cerrar, error: (m) => { aviso.textContent = m; aviso.hidden = false; } };
+}

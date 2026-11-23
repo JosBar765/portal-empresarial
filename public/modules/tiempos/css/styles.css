@@ -446,3 +446,65 @@ a.sidebar-item, a.btn { text-decoration: none; }
   .tm-barra-boton { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
   .tm-acciones .btn { flex: 1 1 100%; justify-content: center; }
 }
+
+/* --- Administración --- */
+.tm-titulo-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tm-chip { display: inline-flex; align-items: center; font-size: var(--text-xs); font-weight: 600; border-radius: var(--radius-full); padding: 5px 12px; white-space: nowrap; }
+.tm-chip--verde { background: var(--color-success-bg); color: #166534; }
+.tm-chip--ambar { background: var(--tm-ambar-bg); color: var(--tm-ambar); }
+.tm-chip--gris { background: var(--color-surface-muted); color: var(--color-text-secondary); }
+.tm-referencia--admin { grid-template-columns: 280px minmax(0, 1fr); }
+.tm-editor { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.tm-opcion { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tm-celda { width: 72px; padding: 6px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font: inherit; font-size: var(--text-sm); text-align: center; background: var(--color-surface); color: var(--color-text); }
+.tm-celda:focus, .tm-texto-edit:focus { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+.tm-celda--cambio { border-color: var(--color-primary); }
+.tm-celda--error { border-color: var(--color-danger) !important; background: var(--color-danger-bg); }
+.tm-texto-edit { flex: 1; min-width: 0; padding: 9px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font: inherit; font-size: var(--text-sm); background: var(--color-surface); color: var(--color-text); }
+.tm-tabla--editable td { padding: 6px 8px; }
+.tm-tabla--editable td:first-child { white-space: nowrap; }
+.tm-cliente-calc { display: inline-flex; min-width: 44px; justify-content: center; background: var(--color-surface-muted); border-radius: var(--radius-sm); padding: 6px 8px; font-weight: 700; color: var(--color-text-secondary); }
+.tm-rangos { display: flex; flex-direction: column; gap: 14px; }
+.tm-opciones-producto { display: flex; flex-direction: column; gap: 10px; }
+.tm-errores { margin: 0; padding-left: 18px; color: var(--color-danger); font-size: var(--text-xs); display: flex; flex-direction: column; gap: 4px; }
+.tm-barra-guardado { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; position: sticky; bottom: 0; background: var(--color-surface); padding-top: 4px; }
+.tm-barra-guardado-fila { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--color-surface-muted); border-radius: var(--radius-md); padding: 10px 14px; flex-wrap: wrap; }
+.tm-barra-estado { display: inline-flex; align-items: center; gap: 8px; font-size: var(--text-sm); color: var(--color-text-secondary); }
+.tm-barra-estado i { width: 8px; height: 8px; border-radius: 50%; background: var(--color-text-muted); }
+.tm-barra-estado--cambios { color: var(--color-text); font-weight: 600; }
+.tm-barra-estado--cambios i { background: var(--color-primary); }
+.tm-barra-botones { display: flex; gap: 8px; }
+.tm-extra-fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.tm-extra-card { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.tm-extra-card .tm-celda { width: 56px; }
+.tm-params { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.tm-campo--param { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px; margin: 0; }
+.tm-campo--param .tm-celda { width: 72px; align-self: flex-start; }
+.tm-avisos-bloque, .tm-catalogo { display: flex; flex-direction: column; gap: 8px; }
+.tm-aviso-fila { display: flex; align-items: center; gap: 10px; }
+.tm-catalogos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.tm-catalogo { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 14px; }
+.tm-catalogo-fila { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.tm-catalogo-fila .tm-tenue { white-space: nowrap; }
+.tm-form { display: flex; flex-direction: column; gap: 2px; }
+.tm-form select, .tm-form input[type=text], .tm-form input[type=date] { width: 100%; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font: inherit; font-size: var(--text-sm); background: var(--color-surface); color: var(--color-text); min-height: 40px; }
+.tm-modal--ancha { max-height: 90vh; overflow-y: auto; }
+.tm-modal-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.tm-modal-cabecera p { margin-top: 2px; }
+.tm-historial { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 16px; align-items: start; margin-bottom: 16px; }
+.tm-historial-lista { display: flex; flex-direction: column; gap: 10px; }
+.tm-version-fila { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; width: 100%; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; font: inherit; cursor: pointer; }
+.tm-version-fila--activa { border-color: var(--color-primary); background: var(--color-info-bg); }
+.tm-version-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; }
+.tm-version-nota { font-size: var(--text-xs); color: var(--color-text); }
+.tm-cambios { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tm-cambios li { display: flex; flex-direction: column; background: var(--color-surface-muted); border-radius: var(--radius-sm); padding: 10px 12px; font-size: var(--text-sm); }
+.tm-cambios li span { font-size: var(--text-xs); color: var(--color-text-secondary); }
+.tm-historial-detalle { display: flex; flex-direction: column; gap: 12px; }
+.tm-actividad { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: var(--text-sm); }
+@media (max-width: 1000px) {
+  .tm-referencia--admin, .tm-historial { grid-template-columns: minmax(0, 1fr); }
+  .tm-referencia--admin .tm-ref-lista { display: flex; max-height: 240px; }
+  .tm-tabla-caja { display: block; }
+  .tm-barra-guardado { position: static; }
+}

@@ -82,7 +82,9 @@ Permisos: `tiempos.ver` (calculadora y referencia) y `tiempos.administrar`. Se r
 ## 7. Fases (avance)
 - Hecho: 1 idea, 2 mockup aprobado (2026-11-23), 3 base de datos y carga inicial (migración 52, `tablaV5.js`, `verificar-datos.js`), 4 motor de cálculo (`src/modules/tiempos/calculo/`: `motor.js`, `fechas.js`, `resumen.js`; pruebas en `scripts/tiempos/verificar-motor.js`).
 - Hecho: 5 calculadora y tabla de referencia: API (`/api/tiempos/tabla`, `/calcular`, `/festivos`; `scripts/tiempos/verificar-api.js`) y pantallas (`public/modules/tiempos/`), módulo registrado en `modulesCatalog` con `tiempos.ver`.
-- Sigue: 6 administración e historial (edición por borrador, publicar versión, historial de versiones, `tiempos.administrar`), 7 documentación y PR.
+- Hecho: 6 administración e historial: API `/api/tiempos/admin/*` (borrador, validaciones, publicar, historial; `scripts/tiempos/verificar-admin.js`) y pantallas `#/administracion` y `#/administracion/historial` con el permiso `tiempos.administrar`.
+- Sigue: 7 documentación, revisión en celular y PR a `dev`.
+- Decisiones de la fase 6: un producto nuevo nace oculto (se muestra cuando tiene rangos con días); las etapas y líneas se renombran y se agregan, no se borran; el último rango de cada producto siempre es «a convenir»; la costura de Protextil sale de la columna Costura del Lanyard.
 - Cambio sobre el mockup: al activar «Impresión UV» aparece un selector con el tipo de UV (impresión, cama plana / DTF o vinil sin revestimiento), porque cada uno suma días distintos.
 
 ## Fases (plan original)

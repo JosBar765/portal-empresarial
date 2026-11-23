@@ -7,10 +7,13 @@ import { sessionCheck, logout } from './api/tiemposApi.js';
 import { seguirAltoEncabezado, wireAccountMenu, wireSidebar, ajustarMenu, marcarActivo } from './layout/shell.js';
 import { mostrarCalculadora } from './views/calculadora.js';
 import { mostrarReferencia } from './views/referencia.js';
+import { mostrarAdministracion } from './views/admin/administracion.js';
+import { mostrarHistorial } from './views/admin/historial.js';
 import { mensaje } from './components/ui.js';
 
 const contenido = () => $('#panel-content');
-const leerRuta = () => (window.location.hash.replace(/^#\/?/, '').split('?')[0].split('/')[0] || 'calculadora');
+const partesRuta = () => window.location.hash.replace(/^#\/?/, '').split('?')[0].split('/');
+const leerRuta = () => partesRuta()[0] || 'calculadora';
 
 async function abrir() {
   const ruta = leerRuta();
@@ -21,6 +24,11 @@ async function abrir() {
   try {
     if (ruta === 'calculadora') { marcarActivo('calculadora'); state.vista = await mostrarCalculadora(cont); }
     else if (ruta === 'referencia') { marcarActivo('referencia'); state.vista = await mostrarReferencia(cont); }
+    else if (ruta === 'administracion') {
+      marcarActivo('administracion');
+      if (!(state.user.permissions || []).includes('tiempos.administrar')) montar(cont, mensaje({ nombreIcono: 'lock-closed-outline', tono: 'peligro', titulo: 'No tienes permiso para esta pantalla', texto: 'Solo el administrador puede editar la tabla de tiempos. Si crees que debería estar disponible, avisa al administrador.', acciones: [h('a', { class: 'btn btn--primary', href: '#/calculadora' }, 'Ir a la calculadora')] }));
+      else state.vista = partesRuta()[1] === 'historial' ? await mostrarHistorial(cont) : await mostrarAdministracion(cont);
+    }
     else { window.location.hash = '#/calculadora'; }
   } catch (error) {
     const sinTabla = error.status === 409;
