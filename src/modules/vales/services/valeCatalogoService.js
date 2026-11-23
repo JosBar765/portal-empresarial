@@ -30,7 +30,10 @@ class ValeCatalogoService {
     // Administrador/Gerente, solo las de sus asesores cubiertos para el
     // Supervisor (mismo alcance que su buzón).
     let tiendasGerencia = tiendas;
+    let asesoresEspeciales = [];
     if (usuario && esSupervisor(usuario)) {
+      // Se ofrecen en el selector del Buzón junto a los países para ver u ocultar sus vales.
+      asesoresEspeciales = (await usuarioValeRepository.listarAsesoresEspeciales(usuario.id)).map(a => ({ id: a.id, nombre: a.nombre }));
       const asesores = await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id);
       const idsTienda = new Set(asesores.map(a => a.tienda_id).filter(Boolean));
       tiendasGerencia = tiendas.filter(t => idsTienda.has(t.id));
@@ -39,8 +42,8 @@ class ValeCatalogoService {
     // `miTallerId` solo le sirve al Asistente (el taller que opera); el resto lo resuelve por `talleres.encargado_id`.
     const miTallerId = usuario && esAsistente(usuario) && solicitante ? (solicitante.taller_id || null) : null;
     const horasVencimientoVale = await calendarioService.horasVencimiento();
-    const miPais = contextoDiseno && contextoDiseno.paisId ? { id: contextoDiseno.paisId, nombre: contextoDiseno.paisNombre, comparteDisenoLocal: contextoDiseno.comparteDisenoLocal } : null;
-    return { tiendas, paises, talleres, miTiendaId: (solicitante && solicitante.tienda_id) || null, miPais, miTallerId, tiendasGerencia, horasVencimientoVale };
+    const miPais = contextoDiseno && contextoDiseno.paisId ? { id: contextoDiseno.paisId, nombre: contextoDiseno.paisNombre, comparteDisenoLocal: contextoDiseno.comparteDisenoLocal, moneda_simbolo: contextoDiseno.monedaSimbolo, moneda_codigo: contextoDiseno.monedaCodigo } : null;
+    return { tiendas, paises, talleres, miTiendaId: (solicitante && solicitante.tienda_id) || null, miPais, miTallerId, tiendasGerencia, asesoresEspeciales, horasVencimientoVale };
   }
 
   // Tienda con la que elige talleres quien crea vales (asesor, supervisor o cualquier rol con vales.crear salvo administrador); 0 si no tiene tienda, y entonces ningún Diseño Local es elegible. Otros roles: null.

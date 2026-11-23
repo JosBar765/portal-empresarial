@@ -346,12 +346,15 @@ class ValeBuzonService {
       todosConTaller = await this._enriquecerConTaller(cargados, valeTalleresTodos);
     }
 
-    // Filtro por tienda (una, un país o un grupo Trofex): solo lo manda el frontend de Supervisor, Gerente y Administrador.
+    // Filtro por tienda (una, un país o un grupo Trofex) y, solo para el Supervisor, por sus asesores con supervisión especial:
+    // sin selección se ve todo; con selección, solo las tiendas y asesores marcados (un especial sin marcar se oculta).
     const tiendasFiltro = idsDeTiendaFiltro(filtros);
-    if (tiendasFiltro.size) {
-      // Los asesores con supervisión especial no se ocultan por tienda: solo sus supervisores asignados los autorizan y se perdería el vale.
-      const especiales = rol === ROL.SUPERVISOR ? new Set(await usuarioValeRepository.listarAsesorIdsConSupervisionEspecial(usuario.id)) : new Set();
-      todosConTaller = todosConTaller.filter(v => tiendasFiltro.has(v.tienda_id) || especiales.has(v.asesor_id));
+    // Solo se admiten sus propios asesores especiales: el filtro únicamente reduce lo que su rol ya ve.
+    const asesoresFiltro = rol === ROL.SUPERVISOR && filtros.asesorIds
+      ? new Set((await usuarioValeRepository.listarAsesorIdsConSupervisionEspecial(usuario.id)).filter(id => idsDeFiltro(filtros.asesorIds).has(id)))
+      : new Set();
+    if (tiendasFiltro.size || asesoresFiltro.size) {
+      todosConTaller = todosConTaller.filter(v => tiendasFiltro.has(v.tienda_id) || asesoresFiltro.has(v.asesor_id));
     }
 
     let resultado = await this._resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador);
@@ -400,6 +403,7 @@ class ValeBuzonService {
         case 'fecha_ingreso': return v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`;
         case 'fecha_entrega': return v.fecha_entrega || '';
         case 'fecha_evento': return v.fecha_evento || '';
+        case 'atraso': return Number(v.diasAtraso) || 0;
         default: return '';
       }
     };

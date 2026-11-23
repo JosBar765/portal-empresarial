@@ -198,6 +198,19 @@
   color: var(--color-text-muted);
 }
 
+/* Casillas del modo múltiple; el selector doble gana a la regla de íconos de los padres */
+.menu-cascada-item .menu-cascada-casilla {
+  flex-shrink: 0;
+  font-size: 18px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.menu-cascada-item .menu-cascada-casilla[data-estado="marcado"],
+.menu-cascada-item .menu-cascada-casilla[data-estado="parcial"] {
+  color: var(--color-primary);
+}
+
 /* «Todas las tiendas» / «Todos los roles» (sin filtro) conservan el texto oscuro aun estando activas o con hover */
 .menu-cascada-item[data-valor=""],
 .menu-cascada-item[data-valor=""]:hover:not(:disabled) {

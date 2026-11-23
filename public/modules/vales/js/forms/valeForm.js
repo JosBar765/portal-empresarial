@@ -5,7 +5,7 @@ import { htmlCampoFecha, wireCampoFecha, validarCampoFecha } from '../components
 import { htmlDropzone, wireDropzone, ARCHIVO_MAX_BYTES } from '../components/dropzone.js';
 import { validarCamposNativos, wireLimpiezaValidacionInline, enfocarPrimerCampoInvalido } from '../components/validacion.js';
 import { hoyMedianoche, sumarDiaLocal, parseIsoLocal } from '../utils/fechas.js';
-import { escapeHtml, formatearFecha, siguienteCodigoMod } from '../utils/formato.js';
+import { escapeHtml, formatearFecha, siguienteCodigoMod, simboloMoneda } from '../utils/formato.js';
 import { crearVale, corregirVale, solicitarModificacion, obtenerCapacidadEntrega, obtenerFechasEntrega, obtenerDetalleVale, guardarBorrador, actualizarBorrador, obtenerPrefillProyectos, obtenerPrefillRecompra, vincularValeProyectos } from '../api/valesApi.js';
 import { avisarCambioBorradores } from '../utils/eventosBorradores.js';
 import { cargarBuzon } from '../views/buzon.js';
@@ -141,6 +141,9 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
     ? (talleresOriginales.length ? talleresOriginales : String(vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite))
     : (esCorreccion ? String(vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite)
       : (esBorrador ? vale.talleres_ids.filter(id => talleresSeleccionablesAsesor().some(t => t.id === id)) : [])));
+  // Moneda del país del vale (al corregir/modificar) o, al crear, la del país de quien lo crea.
+  const simbolo = simboloMoneda(hayOriginal ? vale : null) || simboloMoneda(state.catalogos.miPais);
+  const etiquetaMoneda = simbolo ? ` (${escapeHtml(simbolo)})` : '';
   const documentosQuitar = new Set();
   const nombresTalleres = [...tallerSeleccionados]
     .map(id => ((state.catalogos.talleres || []).find(t => t.id === id) || {}).nombre || `#${id}`);
@@ -189,7 +192,7 @@ function abrirModalFormularioVale(vale, modo = vale ? 'corregir' : 'crear', tipo
           <div class="form-field"><label>Técnica</label><input type="text" name="tecnica" maxlength="40" /></div>
           <div class="form-field"><label>Acabado</label><input type="text" name="acabado" maxlength="40" /></div>
           <div class="form-field"><label>Cantidad *</label><input type="number" name="cantidad" min="1" max="2147483647" step="1" required /></div>
-          <div class="form-field"><label>Cotización (Q) *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>        </div>
+          <div class="form-field"><label>Cotización${etiquetaMoneda} *</label><input type="number" name="cotizacion" min="0.01" step="0.01" required /></div>        </div>
 
         <div class="section-title">Boceto y Descripción</div>
         <div class="form-grid">
