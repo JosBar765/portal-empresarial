@@ -26,6 +26,8 @@ export async function mostrarCalculadora(cont) {
   let errorGeneral = '';
   let textoCopiado = '';
   let solicitud = 0;
+  let respaldo = null; // la pieza tal como estaba antes de «Restablecer», para «Deshacer»
+  let temporizadorDeshacer = 0;
 
   // Viene de «Calcular este producto» en la tabla de referencia: #/calculadora?producto=clave&cantidad=300
   function desdeEnlace() {
@@ -69,7 +71,31 @@ export async function mostrarCalculadora(cont) {
     pintarTodoMenosForm();
   }
   const programar = sinRebote(recalcular, 250);
-  const cambio = () => { textoCopiado = ''; if (refs.actualizarAgregar) refs.actualizarAgregar(); programar(); };
+  const cambio = () => { descartarRespaldo(); textoCopiado = ''; if (refs.actualizarAgregar) refs.actualizarAgregar(); programar(); };
+
+  // ------------------------------------------------------------------ restablecer la pieza (con «Deshacer»)
+  const intacta = (p) => !p.productoClave && !p.cantidad && Number(p.colores) === incluidos && !p.moldesGrande && !p.usarUv && !p.lanyard && !p.urgente;
+  function descartarRespaldo() {
+    respaldo = null; clearTimeout(temporizadorDeshacer);
+    if (refs.aviso) refs.aviso.hidden = true;
+  }
+  function restablecer() {
+    const p = piezas[activa];
+    if (intacta(p)) return;
+    respaldo = { indice: activa, datos: { ...p } };
+    const limpia = nueva(); limpia.id = p.id; contador--; // misma pieza, sin gastar un número
+    piezas[activa] = limpia;
+    textoCopiado = '';
+    clearTimeout(temporizadorDeshacer); temporizadorDeshacer = setTimeout(descartarRespaldo, 8000);
+    pintarForm(); recalcular();
+  }
+  function deshacer() {
+    if (!respaldo) return;
+    const { indice, datos } = respaldo;
+    if (piezas[indice]) { piezas[indice] = { ...datos }; activa = indice; }
+    descartarRespaldo();
+    pintarForm(); recalcular();
+  }
 
   const resultadoDe = (i) => { const k = indices.indexOf(i); return k >= 0 && resultado ? resultado.piezas[k] : null; };
 
@@ -133,13 +159,20 @@ export async function mostrarCalculadora(cont) {
     }
     extras.push(interruptor({ marcado: p.urgente, etiqueta: 'Pedido urgente', ayuda: 'Lo autoriza el gerente; aquí verás los tiempos normales', alCambiar: (v) => { p.urgente = v; cambio(); } }));
 
-    const agregar = h('button', { class: 'btn btn--ghost tm-ancho', type: 'button', onclick: () => { piezas.push(nueva()); activa = piezas.length - 1; textoCopiado = ''; pintarForm(); pintarPiezas(); } }, icono('add-outline'), 'Agregar otra pieza al pedido');
+    const agregar = h('button', { class: 'btn btn--ghost tm-ancho', type: 'button', onclick: () => { descartarRespaldo(); piezas.push(nueva()); activa = piezas.length - 1; textoCopiado = ''; pintarForm(); pintarPiezas(); } }, icono('add-outline'), 'Agregar otra pieza al pedido');
     // Se vuelve a evaluar cada vez que cambia algo, no solo al dibujar el formulario.
-    refs.actualizarAgregar = () => { const ok = lista(p); agregar.disabled = !ok; agregar.title = ok ? '' : 'Completa esta pieza para agregar otra'; };
+    const botonRestablecer = h('button', { class: 'btn btn--ghost btn--chico tm-restablecer', type: 'button', onclick: restablecer }, icono('refresh-outline'), 'Restablecer');
+    const aviso = h('div', { class: 'tm-aviso-deshacer', role: 'status', hidden: respaldo ? null : '' },
+      h('span', { text: 'Se restableció la pieza.' }), h('button', { class: 'tm-enlace', type: 'button', onclick: deshacer }, 'Deshacer'));
+    refs.aviso = aviso;
+    refs.actualizarAgregar = () => {
+      const ok = lista(p); agregar.disabled = !ok; agregar.title = ok ? '' : 'Completa esta pieza para agregar otra';
+      const nada = intacta(p); botonRestablecer.disabled = nada; botonRestablecer.title = nada ? 'No hay nada que restablecer' : 'Vuelve esta pieza a cero (la fecha se conserva)';
+    };
     refs.actualizarAgregar();
 
     montar(refs.formulario, h('section', { class: 'tm-card tm-formulario', 'aria-label': `Pieza ${activa + 1}` },
-      h('h2', { class: 'tm-card-titulo', text: `Pieza ${activa + 1}` }),
+      h('div', { class: 'tm-form-cab' }, h('h2', { class: 'tm-card-titulo', text: `Pieza ${activa + 1}` }), botonRestablecer), aviso,
       campo('Producto', sp.nodo, null, '', `prod-${p.id}`),
       h('div', { class: 'tm-fila-2' }, campo('Cantidad', entrada, h('div', null, ayudaCantidad, atajos)), campo('Colores', colores, pie(textoColores))),
       campo('Fecha de la orden', fecha.nodo, pie('Se cuenta desde el siguiente día hábil: el día de la orden no cuenta'), '', 'fecha-orden'),
@@ -166,7 +199,7 @@ export async function mostrarCalculadora(cont) {
           h('div', { class: 'tm-pieza-dias' }, dias, masLarga ? h('span', { class: 'tm-etiqueta-larga', text: 'Define la entrega' }) : null)),
         detalle ? h('p', { class: 'tm-tenue tm-pieza-detalle', text: detalle }) : null,
         h('div', { class: 'tm-pieza-acciones' },
-          h('button', { class: 'tm-enlace', type: 'button', onclick: () => { activa = i; pintarForm(); pintarPiezas(); } }, 'Editar'),
+          h('button', { class: 'tm-enlace', type: 'button', onclick: () => { descartarRespaldo(); activa = i; pintarForm(); pintarPiezas(); } }, 'Editar'),
           h('button', { class: 'tm-enlace tm-enlace--peligro', type: 'button', onclick: () => quitar(i) }, 'Quitar')));
     }));
   }

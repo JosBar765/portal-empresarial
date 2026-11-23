@@ -583,3 +583,12 @@ a.sidebar-item, a.btn { text-decoration: none; }
 @media (max-width: 400px) {
   .tm-fila-2 { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* --- Restablecer la pieza y «Deshacer» --- */
+.tm-form-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tm-form-cab .tm-card-titulo { margin: 0; }
+.tm-restablecer { flex-shrink: 0; }
+.tm-restablecer:disabled { opacity: .45; cursor: not-allowed; }
+.tm-aviso-deshacer { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--color-info-bg); color: var(--color-primary); border-radius: var(--radius-sm); padding: 8px 12px; font-size: var(--text-sm); font-weight: 500; }
+.tm-aviso-deshacer[hidden] { display: none; }
+.tm-aviso-deshacer .tm-enlace { font-weight: 700; }

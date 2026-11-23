@@ -32,3 +32,9 @@ Revisión automática (texto cortado, partido, fuera de pantalla, scroll horizon
 - Con el menú lateral abierto, la tabla de Referencia quedaba cortada (la columna «Cliente» no se veía): bajo 1180 px la lista se apila como selector con tarjetas; Administración se apila bajo 1260 px. Las celdas de las tablas son más compactas.
 - En celulares de 400 px o menos, Cantidad y Colores van en una columna.
 - El botón del selector deja que el nombre largo ocupe varias líneas en vez de cortarlo con «…».
+
+## Restablecer la pieza (2026-11-23)
+Mockup aprobado: Figma página «04», N7 y N8.
+- Botón **Restablecer** en la tarjeta de la pieza (junto al título). Limpia producto, cantidad, colores (vuelven a los incluidos) y extras; **conserva la fecha de la orden**. Solo afecta a la pieza que se edita; «Empezar de nuevo» sigue borrando todo el pedido.
+- Sin ventana de confirmación: aparece el aviso «Se restableció la pieza. **Deshacer**» durante 8 segundos. Se descarta al editar cualquier dato, agregar otra pieza o cambiar de pieza.
+- Queda atenuado («No hay nada que restablecer») cuando la pieza ya está en blanco.
