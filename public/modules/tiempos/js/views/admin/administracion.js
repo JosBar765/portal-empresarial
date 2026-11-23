@@ -5,6 +5,7 @@ import { h, icono, montar } from '../../utils/dom.js';
 import { campo, pie, interruptor, confirmar, ventana, cargando } from '../../components/ui.js';
 import { adminTabla, adminGuardarProducto, adminCrearProducto, adminGuardarExtras, adminGuardarAvisos, adminGuardarCatalogos, adminCambios, adminPublicar } from '../../api/tiemposApi.js';
 import { hoyISO } from '../../utils/formato.js';
+import { listaProductos } from '../../components/listaProductos.js';
 
 const copia = (x) => JSON.parse(JSON.stringify(x));
 const num = (texto) => (/^\d{1,9}$/.test(String(texto).trim()) ? Number(texto) : String(texto).trim());
@@ -33,6 +34,19 @@ export async function mostrarAdministracion(cont) {
 
   const producto = () => datos.productos.find(p => p.clave === clave);
   const etapasDe = (p) => p.etapas.map(e => datos.etapas.find(x => x.clave === e) || { clave: e, nombre: e });
+  // «11–16 d»: los días al cliente (etapas + margen) de sus rangos con días.
+  const metaAdmin = (p) => {
+    const v = p.rangos.filter(r => !r.aConvenir && p.etapas.every(e => esNum(r.dias[e]))).map(r => p.etapas.reduce((t, e) => t + r.dias[e], 0) + margen());
+    if (!v.length) return 'Sin días';
+    const a = Math.min(...v); const b = Math.max(...v);
+    return a === b ? `${a} d` : `${a}–${b} d`;
+  };
+  const sinRangos = (p) => !p.rangos.some(r => !r.aConvenir);
+  const lista = listaProductos({
+    datos: { lineas: datos.lineas, productos: datos.productos, valor: clave }, metaDe: metaAdmin, placeholder: 'Buscar producto…',
+    filtros: [{ clave: 'todos', nombre: 'Todos', prueba: () => true }, { clave: 'ocultos', nombre: 'Ocultos', prueba: (p) => p.activo === false }, { clave: 'sinRangos', nombre: 'Sin rangos', prueba: sinRangos }],
+    alElegir: (c) => irA(tab === 'extras' || tab === 'catalogos' ? 'rangos' : tab, c)
+  });
 
   // ------------------------------------------------------------------ lo que se edita en cada pestaña
   function iniciarTrabajo() {
@@ -214,19 +228,8 @@ export async function mostrarAdministracion(cont) {
 
   // ------------------------------------------------------------------ marco
   function pintarLista() {
-    const nodos = [];
-    for (const l of datos.lineas) {
-      const delaLinea = datos.productos.filter(p => p.linea === l.clave);
-      if (!delaLinea.length) continue;
-      nodos.push(h('div', { class: 'tm-lista-linea', text: l.nombre.toUpperCase() }));
-      let grupo = Symbol('x');
-      for (const p of delaLinea) {
-        if (p.grupo !== grupo) { grupo = p.grupo; if (p.grupo) nodos.push(h('div', { class: 'tm-lista-grupo', text: p.grupo })); }
-        nodos.push(h('button', { class: `tm-opcion${p.clave === clave && (tab === 'rangos' || tab === 'avisos') ? ' tm-opcion--activa' : ''}`, type: 'button', onclick: () => irA(tab === 'extras' || tab === 'catalogos' ? 'rangos' : tab, p.clave) }, p.nombre, p.activo ? null : h('span', { class: 'tm-etiqueta-gris', text: 'Oculto' })));
-      }
-    }
-    nodos.push(h('button', { class: 'btn btn--ghost tm-ancho', type: 'button', onclick: nuevoProducto }, icono('add-outline'), 'Producto nuevo'));
-    montar(refs.lista, nodos);
+    lista.actualizar({ lineas: datos.lineas, productos: datos.productos, valor: tab === 'rangos' || tab === 'avisos' ? clave : '' });
+    montar(refs.lista, lista.nodo, h('button', { class: 'btn btn--ghost tm-ancho', type: 'button', onclick: nuevoProducto }, icono('add-outline'), 'Producto nuevo'));
   }
 
   function pintarCabecera() {
@@ -246,7 +249,7 @@ export async function mostrarAdministracion(cont) {
     const p = producto();
     montar(refs.editor,
       h('div', { class: 'tm-pills', role: 'tablist' }, TABS.map(([k, t]) => h('button', { class: `tm-pill${tab === k ? ' tm-pill--activa' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(tab === k), onclick: () => irA(k) }, t))),
-      (tab === 'rangos' || tab === 'avisos') && p ? h('div', { class: 'tm-ref-titulo' }, h('h2', { text: p.nombre }), p.grupo ? h('span', { class: 'tm-etiqueta-gris', text: p.grupo }) : null) : null,
+      (tab === 'rangos' || tab === 'avisos') && p ? h('div', { class: 'tm-ref-titulo' }, h('h2', { text: p.nombre }), p.grupo ? h('span', { class: 'tm-etiqueta-gris', text: p.grupo }) : null, tab === 'rangos' ? h('button', { class: 'btn btn--ghost btn--chico tm-ref-accion', type: 'button', onclick: duplicarProducto }, icono('copy-outline'), 'Duplicar este producto') : null) : null,
       cuerpo, refs.barra);
   }
 
@@ -267,6 +270,24 @@ export async function mostrarAdministracion(cont) {
         try {
           const r = await adminCrearProducto({ nombre: nombre.value, linea: linea.value, etapas: datos.etapas.map(e => e.clave).filter(e => elegidas.has(e)), rangos: [{ desde: 1, hasta: null, aConvenir: true, dias: {} }], avisos: aviso.value.trim() ? [aviso.value] : [] });
           tab = 'rangos'; if (window.toast) window.toast.success('Producto creado', 'Está oculto: agrega sus rangos y días y luego muéstralo.');
+          await recargar({ clave: r.clave });
+        } catch (error) { throw new Error(error.campos ? Object.values(error.campos)[0] : error.message); }
+      }
+    });
+  }
+
+  // Crea una variante copiando etapas, rangos y avisos del producto elegido (nace oculta, como todo producto nuevo).
+  async function duplicarProducto() {
+    if (!(await confirmarSalida())) return;
+    const p = producto(); if (!p) return;
+    const nombre = h('input', { type: 'text', id: 'dp-nombre', maxlength: 150, value: `${p.nombre} (copia)` });
+    ventana({
+      titulo: 'Duplicar producto', subtitulo: `Se copian los rangos, los días y los avisos de «${p.nombre}». La copia nace oculta: ajústala y luego muéstrala.`, aceptar: 'Crear copia',
+      contenido: h('div', { class: 'tm-form' }, campo('Nombre de la copia', nombre, pie('Cambia el nombre para distinguirla, por ejemplo «Antique con 3 colores».'))),
+      alAceptar: async () => {
+        try {
+          const r = await adminCrearProducto({ nombre: nombre.value, linea: p.linea, grupo: p.grupo || '', etapas: [...p.etapas], permiteMoldes: p.permiteMoldes, permiteLanyard: p.permiteLanyard, avisos: [...p.avisos], rangos: p.rangos.map(x => ({ desde: x.desde, hasta: x.hasta, aConvenir: x.aConvenir, dias: { ...x.dias } })) });
+          tab = 'rangos'; if (window.toast) window.toast.success('Producto duplicado', 'La copia está oculta: revisa sus días y muéstrala cuando esté lista.');
           await recargar({ clave: r.clave });
         } catch (error) { throw new Error(error.campos ? Object.values(error.campos)[0] : error.message); }
       }

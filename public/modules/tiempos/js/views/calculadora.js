@@ -15,8 +15,9 @@ export async function mostrarCalculadora(cont) {
   const incluidos = params.colores_incluidos ?? 2;
 
   let contador = 0;
-  const nueva = () => ({ id: ++contador, linea: '', productoClave: '', cantidad: '', colores: incluidos, moldesGrande: false, usarUv: false, uv: '', lanyard: false, urgente: false });
+  const nueva = () => ({ id: ++contador, productoClave: '', cantidad: '', colores: incluidos, moldesGrande: false, usarUv: false, uv: '', lanyard: false, urgente: false });
   let piezas = [nueva()];
+  desdeEnlace();
   let activa = 0;
   let fechaOrden = hoyISO();
   let resultado = null; // respuesta del servidor
@@ -26,6 +27,14 @@ export async function mostrarCalculadora(cont) {
   let textoCopiado = '';
   let solicitud = 0;
 
+  // Viene de «Calcular este producto» en la tabla de referencia: #/calculadora?producto=clave&cantidad=300
+  function desdeEnlace() {
+    const q = new URLSearchParams((window.location.hash.split('?')[1]) || '');
+    const prod = catalogo.productos.find(x => x.clave === q.get('producto'));
+    if (!prod) return;
+    piezas[0].productoClave = prod.clave;
+    if (/^\d{1,9}$/.test(q.get('cantidad') || '')) piezas[0].cantidad = q.get('cantidad');
+  }
   const producto = (p) => catalogo.productos.find(x => x.clave === p.productoClave) || null;
   const cantidadNumero = (p) => (/^\d{1,9}$/.test(String(p.cantidad).trim()) ? Number(p.cantidad) : null);
   const lista = (p) => Boolean(producto(p)) && cantidadNumero(p) >= 1 && (!p.usarUv || p.uv);
@@ -82,19 +91,26 @@ export async function mostrarCalculadora(cont) {
       ayudaCantidad.textContent = rg ? `Cae en el rango de ${textoRango(rg)} piezas` : `Se trabaja desde ${prod.minimo} piezas`;
       if (r && r.estado === 'a_convenir' && r.mensaje && !(rg && rg.aConvenir)) { ayudaCantidad.textContent = r.mensaje; ayudaCantidad.classList.add('tm-pie--aviso'); }
     };
-    entrada.addEventListener('input', () => { p.cantidad = entrada.value.trim(); actualizarAyuda(); cambio(); });
-    actualizarAyuda();
+    // Atajos: el inicio de cada rango del producto, para ver cómo cambian los días sin escribir.
+    const atajos = h('div', { class: 'tm-atajos' });
+    const pintarAtajos = () => {
+      const n = cantidadNumero(p);
+      const inicios = prod ? prod.rangos.filter(r => !r.aConvenir).map(r => r.desde) : [];
+      atajos.hidden = !inicios.length;
+      atajos.replaceChildren(...(inicios.length ? [h('span', { class: 'tm-tenue', text: 'Atajos: empieza cada rango en' }), h('div', { class: 'tm-pills' }, inicios.slice(0, 6).map(d => {
+        const rg = rangoDe(prod, n); const activo = Boolean(rg) && rg.desde === d && n === d;
+        return h('button', { class: `tm-pill tm-pill--chica${activo ? ' tm-pill--activa' : ''}`, type: 'button', text: String(d), onclick: () => { p.cantidad = String(d); entrada.value = p.cantidad; actualizarAyuda(); pintarAtajos(); cambio(); } });
+      }))] : []));
+    };
+    entrada.addEventListener('input', () => { p.cantidad = entrada.value.trim(); actualizarAyuda(); pintarAtajos(); cambio(); });
+    actualizarAyuda(); pintarAtajos();
     refs.actualizarAyuda = actualizarAyuda;
 
-    const lineas = h('div', { class: 'tm-pills', role: 'group', 'aria-label': 'Línea' }, catalogo.lineas.map(l => h('button', {
-      class: `tm-pill${p.linea === l.clave ? ' tm-pill--activa' : ''}`, type: 'button', 'aria-pressed': String(p.linea === l.clave), text: l.nombre,
-      onclick: () => { p.linea = p.linea === l.clave ? '' : l.clave; pintarForm(); }
-    })));
     const sp = selectorProducto({
-      catalogo, linea: p.linea, valor: p.productoClave, id: `prod-${p.id}`,
+      catalogo, valor: p.productoClave, id: `prod-${p.id}`,
       alElegir: (clave) => {
         const nuevoProd = catalogo.productos.find(x => x.clave === clave);
-        p.productoClave = clave; p.linea = nuevoProd.linea;
+        p.productoClave = clave;
         if (!nuevoProd.permiteMoldes) p.moldesGrande = false;
         if (!nuevoProd.permiteLanyard) p.lanyard = false;
         pintarForm(); cambio();
@@ -124,9 +140,8 @@ export async function mostrarCalculadora(cont) {
 
     montar(refs.formulario, h('section', { class: 'tm-card tm-formulario', 'aria-label': `Pieza ${activa + 1}` },
       h('h2', { class: 'tm-card-titulo', text: `Pieza ${activa + 1}` }),
-      h('div', { class: 'tm-campo' }, h('span', { class: 'tm-etiqueta', text: 'Línea' }), lineas),
       campo('Producto', sp.nodo, null, '', `prod-${p.id}`),
-      h('div', { class: 'tm-fila-2' }, campo('Cantidad', entrada, ayudaCantidad), campo('Colores', colores, pie(textoColores))),
+      h('div', { class: 'tm-fila-2' }, campo('Cantidad', entrada, h('div', null, ayudaCantidad, atajos)), campo('Colores', colores, pie(textoColores))),
       campo('Fecha de la orden', fecha.nodo, pie('Se cuenta desde el siguiente día hábil: el día de la orden no cuenta'), '', 'fecha-orden'),
       h('div', { class: 'tm-separador' }),
       h('h3', { class: 'tm-subtitulo', text: 'Extras que cambian el tiempo' }), h('div', { class: 'tm-extras' }, extras),
@@ -209,7 +224,7 @@ export async function mostrarCalculadora(cont) {
       if (!errorGeneral) {
         partes.push(h('div', { class: 'tm-vacio' },
           h('h2', { text: 'Elige un producto para empezar' }),
-          h('ol', null, ['Elige la línea y el producto', 'Escribe la cantidad de piezas', 'Copia el resumen para el cliente'].map(t => h('li', { text: t })))));
+          h('ol', null, ['Elige el producto', 'Escribe la cantidad de piezas', 'Copia el resumen para el cliente'].map(t => h('li', { text: t })))));
       }
     } else {
       const pedidoVarias = resultado.piezas.length > 1;
@@ -227,6 +242,8 @@ export async function mostrarCalculadora(cont) {
               h('span', { class: `tm-por-pieza-barra${k === resultado.piezaMasLarga ? ' tm-por-pieza-barra--larga' : ''}`, style: `width: ${Math.round((r.total / resultado.dias) * 100)}%` })))));
           partes.push(h('div', { class: 'tm-nota' }, h('strong', { text: 'Cómo se calcula el pedido' }), h('p', { text: 'Las piezas se hacen al mismo tiempo, por eso la entrega es la de la pieza que más tarda. No se suman los días de una pieza con otra.' })));
         } else partes.push(desglose(resultado.piezas[0]));
+        const pr = producto(piezas[activa]);
+        if (pr && !pedidoVarias) partes.splice(1, 0, h('a', { class: 'tm-enlace-tabla', href: `#/referencia?producto=${encodeURIComponent(pr.clave)}` }, 'Ver la tabla de este producto', icono('chevron-forward-outline')));
       } else if (resultado.estado === 'a_convenir') {
         const r = resultado.piezas.find(x => x.estado === 'a_convenir');
         partes.push(hero({ etiqueta: 'Tiempo para prometer al cliente', numero: 'Tiempo a convenir', linea1: r.mensaje, linea2: 'Pregunta a producción cuántos días necesita y acuerden la fecha antes de prometerla al cliente.', ambar: true }));
@@ -258,6 +275,7 @@ export async function mostrarCalculadora(cont) {
 
   pintarForm();
   pintarTodoMenosForm();
+  if (lista(piezas[0])) recalcular(); // llega desde la tabla de referencia con producto y cantidad
   montar(cont,
     h('div', { class: 'tm-titulo' }, h('div', null, h('h1', { text: 'Calculadora de tiempos' }), h('p', { text: 'Elige el producto y la cantidad. Te decimos cuántos días hábiles tarda y qué día se entrega.' })),
       h('span', { class: 'tm-version', text: `Tabla de tiempos v${catalogo.version.numero} · ${catalogo.version.fecha.split('-').reverse().join('/')}` })),

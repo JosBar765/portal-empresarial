@@ -46,7 +46,7 @@ Todo cambio va a un **borrador** (copia de la versión en uso); los usuarios ven
 `scripts/tiempos/` (cada uno dice cómo correrlo): `verificar-datos.js` (tabla impresa sin base de datos), `verificar-motor.js` (38 pruebas del cálculo), `verificar-api.js` (API de usuario) y `verificar-admin.js` (administración; escribe en la base: solo una base desechable).
 
 ## 7. Documentos
-`documentacion/`: `calculo_y_api.md`, `administracion.md`, `carga_inicial.md`, `pantallas.md` (acciones del mockup), `auditoria_textos.md`.
+`documentacion/`: `calculo_y_api.md`, `administracion.md`, `carga_inicial.md`, `pantallas.md` (acciones del mockup), `auditoria_textos.md`, `mejoras_ui_ux.md` (selector por categorías, duplicar producto).
 
 ## 8. Decisiones (2026-11-21 a 2026-11-23)
 | Tema | Decisión |
