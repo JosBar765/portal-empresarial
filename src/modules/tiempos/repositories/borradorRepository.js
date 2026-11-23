@@ -94,7 +94,7 @@ class BorradorRepository {
       await tx.query('UPDATE tiempos_productos SET nombre = ?, grupo = ?, activo = ?, permite_moldes = ?, permite_lanyard = ? WHERE id = ?', [p.nombre, p.grupo, p.activo ? 1 : 0, p.permiteMoldes ? 1 : 0, p.permiteLanyard ? 1 : 0, id], 'tiempos:actualizar_producto');
       await tx.query('DELETE FROM tiempos_rangos WHERE producto_id = ?', [id], 'tiempos:borrar_rangos');
     } else {
-      const r = await tx.query('INSERT INTO tiempos_productos (version_id, clave, linea_clave, grupo, nombre, orden, activo, permite_moldes, permite_lanyard) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)', [versionId, p.clave, p.linea, p.grupo, p.nombre, p.orden, p.permiteMoldes ? 1 : 0, p.permiteLanyard ? 1 : 0], 'tiempos:crear_producto');
+      const r = await tx.query('INSERT INTO tiempos_productos (version_id, clave, linea_clave, grupo, nombre, orden, activo, permite_moldes, permite_lanyard) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [versionId, p.clave, p.linea, p.grupo, p.nombre, p.orden, p.activo ? 1 : 0, p.permiteMoldes ? 1 : 0, p.permiteLanyard ? 1 : 0], 'tiempos:crear_producto');
       id = r.insertId;
     }
     for (const [i, r] of p.rangos.entries()) {
