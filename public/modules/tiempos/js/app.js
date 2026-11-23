@@ -27,6 +27,8 @@ async function abrir() {
     else if (ruta === 'administracion') {
       marcarActivo('administracion');
       if (!(state.user.permissions || []).includes('tiempos.administrar')) montar(cont, mensaje({ nombreIcono: 'lock-closed-outline', tono: 'peligro', titulo: 'No tienes permiso para esta pantalla', texto: 'Solo el administrador puede editar la tabla de tiempos. Si crees que debería estar disponible, avisa al administrador.', acciones: [h('a', { class: 'btn btn--primary', href: '#/calculadora' }, 'Ir a la calculadora')] }));
+      // La tabla es muy ancha para editarla en el celular: se explica y se lleva a Referencia.
+      else if (window.matchMedia('(max-width: 700px)').matches) montar(cont, mensaje({ nombreIcono: 'desktop-outline', tono: 'info', titulo: 'Administración de tablas', texto: 'Para editar tiempos, rangos y versiones usa una computadora: la tabla es muy ancha para el celular. Aquí puedes consultar la tabla en «Referencia».', acciones: [h('a', { class: 'btn btn--primary', href: '#/referencia' }, 'Ir a Referencia')] }));
       else state.vista = partesRuta()[1] === 'historial' ? await mostrarHistorial(cont) : await mostrarAdministracion(cont);
     }
     else { window.location.hash = '#/calculadora'; }

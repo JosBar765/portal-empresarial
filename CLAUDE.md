@@ -129,6 +129,7 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 | Generador de Prompts (`prompts`) | `.agents/modulos/generador de prompts/README.md` | Prompt builder for image generators; products and parameters set by the admin. |
 | Calculadora de Viáticos (`viaticos`) | `.agents/modulos/viaticos/README.md` | Travel allowance requests: create, authorize, settle with receipts; catalogs set by the admin. |
 | Incidencias (`incidencias`) | `.agents/modulos/incidencias/README.md` | Store problem reports with photos; technicians take them from a shared inbox and a verifier approves; everything configurable in the module. |
+| Calculadora de Tiempos (`tiempos`) | `.agents/modulos/calculadora de tiempos/README.md` | Production time table as a tool: product + quantity give days per stage, days to promise the customer and a delivery date; the admin edits the table by versions. |
 
 - New module: `README.md` section 4 and `.agents/reglas/reglas_modulo.md`; document it under `.agents/modulos/<name>/` (`README.md` + `documentacion/`).
 - Global rules: `.agents/reglas/` (architecture, module templates, auth, implementation style, UI, SQL files, environments, CI, deployment).
