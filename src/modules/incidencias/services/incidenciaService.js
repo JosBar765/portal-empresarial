@@ -133,6 +133,8 @@ class IncidenciaService {
     if (!descripcion) campos.descripcion = 'Cuenta qué pasó.';
     else if (descripcion.length > LIMITES.descripcion) campos.descripcion = `La descripción admite hasta ${LIMITES.descripcion} caracteres.`;
     if (activoTexto && activoTexto.length > LIMITES.activoTexto) campos.activoTexto = `Admite hasta ${LIMITES.activoTexto} caracteres.`;
+    // «Otro» en Activo afectado no tiene tipo de catálogo: obliga a decir cuál es.
+    if (['1', 'true', true, 1].includes(datos.activoOtro) && !activoTexto) campos.activoTexto = 'Escribe cuál es el activo.';
     if (!IMPACTOS.includes(datos.impacto)) campos.impacto = 'Elige cómo afecta el trabajo.';
     return { campos, valores: { tiendaId, zonaId, categoriaId, tipoActivoId, titulo, descripcion, activoTexto, impacto: datos.impacto } };
   }
