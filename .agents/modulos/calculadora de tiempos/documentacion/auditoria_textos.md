@@ -43,5 +43,6 @@ Revisión de todos los textos del mockup para que sean claros y útiles para qui
 - **Estados:** «Cargando la tabla», «No pudimos cargar la tabla», «No tienes acceso a esta calculadora», «Todavía no hay una tabla publicada».
 - **Admin:** confirmaciones («¿Eliminar este rango?», «¿Descartar los cambios?», «¿Ocultar el producto?», «¿Descartar el borrador?») y errores con la corrección sugerida.
 
-## Pendiente de definir con el dueño
-- **Qué es cada etapa** (Piloto, Fundición, Fábrica, Ensamble, Diseño, Producción, Costura, Molde, Corte, 3D): una frase por etapa para mostrarla como ayuda junto al nombre.
+## Decisiones
+- **Ayuda por etapa:** por ahora no se incluye (decidido 2026-11-23). Las columnas llevan solo el nombre de la etapa.
+- **Iconos:** el mockup no usa emojis ni caracteres como iconos; las flechas, la «X» y el menú son trazos simples y marcan dónde va un icono. En el código se usan los iconos del portal (Ionicons).
