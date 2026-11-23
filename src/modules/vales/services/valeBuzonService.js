@@ -403,6 +403,7 @@ class ValeBuzonService {
         case 'fecha_ingreso': return v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`;
         case 'fecha_entrega': return v.fecha_entrega || '';
         case 'fecha_evento': return v.fecha_evento || '';
+        case 'atraso': return Number(v.diasAtraso) || 0;
         default: return '';
       }
     };
