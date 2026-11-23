@@ -192,7 +192,7 @@
 /* Nombre | barras | E | T en una sola rejilla (las filas son `display: contents`, como en la gráfica de asesores). */
 .rep2-gd-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(120px, 1fr) 4.5rem 4.5rem; align-items: center; gap: 10px 12px; }
 .rep2-gd-colh { text-align: right; font-size: var(--text-sm); font-weight: 700; color: var(--color-text-secondary); cursor: help; }
-.rep2-gd-barras { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rep2-gd-barras { display: flex; flex-direction: column; gap: 0; min-width: 0; } /* cada línea ya mide 16 px (la altura de su cifra): sin hueco extra las dos barras de una persona quedan juntas y se distingue de la siguiente */
 /* Sin diseñador asignado: el hueco ocupa lo de la segunda barra y el nombre se alinea con la única barra (centro de la primera línea, de 16 px). */
 .rep2-gd-linea { min-height: 16px; } /* la altura de una línea (la fija el texto de la cantidad): el hueco y el nombre de Sin asignar usan la misma */
 .rep2-gd-linea--hueco { height: 16px; }
