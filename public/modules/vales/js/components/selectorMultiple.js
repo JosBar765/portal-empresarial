@@ -4,7 +4,7 @@ import { escapeHtml } from '../utils/formato.js';
 
 // `opciones`: [{ id, nombre }]; `seleccion`: ids elegidos; `plural`: ['asesor', 'asesores']; `icono`: opcional (sin él, solo el texto).
 export function crearSelectorMultiple(contenedor, { uid, icono, vacio, plural, opciones, seleccion, alAplicar }) {
-  const elegidos = new Set(seleccion.map(String));
+  let elegidos = new Set(seleccion.map(String)); // lo aplicado; cambia al presionar «Aplicar»
   const etiqueta = () => {
     if (!elegidos.size) return vacio;
     if (elegidos.size === 1) return (opciones.find(o => elegidos.has(String(o.id))) || {}).nombre || `1 ${plural[0]}`;
@@ -33,6 +33,11 @@ export function crearSelectorMultiple(contenedor, { uid, icono, vacio, plural, o
     </div>`;
   const raiz = contenedor.querySelector('.rep-selector');
   const boton = raiz.querySelector('.rep-selector-btn');
+  // El botón dice lo que está aplicado: se repinta al aplicar (antes quedaba con el texto de cuando se armó el selector).
+  const pintarBoton = () => {
+    const texto = boton.querySelector('span'); if (texto) texto.textContent = etiqueta();
+    boton.classList.toggle('is-activo', elegidos.size > 0);
+  };
   const panel = raiz.querySelector('.rep-selector-panel');
   const cajas = () => [...panel.querySelectorAll('input[type="checkbox"]')];
   const marcadas = () => cajas().filter(c => c.checked).map(c => c.value);
@@ -54,6 +59,9 @@ export function crearSelectorMultiple(contenedor, { uid, icono, vacio, plural, o
     if (abierto) { cerrar(); return; }
     abierto = true;
     panel.hidden = false;
+    // Se abre alineado al botón; si así se saldría de la ventana por la derecha, se alinea al borde derecho del botón.
+    panel.classList.remove('rep-selector-panel--der');
+    if (panel.getBoundingClientRect().right > window.innerWidth - 8) panel.classList.add('rep-selector-panel--der');
     boton.setAttribute('aria-expanded', 'true');
     document.addEventListener('mousedown', fuera, true);
     document.addEventListener('keydown', teclado, true);
@@ -75,7 +83,10 @@ export function crearSelectorMultiple(contenedor, { uid, icono, vacio, plural, o
   });
   panel.querySelector('[data-accion="aplicar"]').addEventListener('click', () => {
     const ids = marcadas();
+    const aplicados = ids.length === opciones.length ? [] : ids; // todos marcados = sin filtro
+    elegidos = new Set(aplicados.map(String));
+    pintarBoton();
     cerrar(false);
-    alAplicar(ids.length === opciones.length ? [] : ids); // todos marcados = sin filtro
+    alAplicar(aplicados);
   });
 }

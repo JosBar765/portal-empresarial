@@ -4,6 +4,7 @@
 // deshace) y el nombre sugiere ir al reporte de asesores de esa tienda. En el de asesores (apilada) la barra y el nombre enfocan todos los vales
 // del asesor y el tramo ámbar solo los urgentes (`modo` 'urgentes' / 'todos').
 import { escapeHtml } from '../../utils/formato.js';
+import { htmlCabeceraPlegable, htmlCuerpoPlegable, clasePlegada, conectarPlegable } from './graficaPlegable.js';
 
 const VISIBLES = 10;
 const desplegadas = new Set(); // por gráfica (clave): se recuerda entre cargas, porque elegir una barra recarga el reporte y no debe volver a plegar la lista
@@ -55,15 +56,14 @@ export function htmlGraficaBarras(lista, T, { titulo = T.graficaTitulo, clave = 
   // La elegida siempre debe verse: si está entre las ocultas, la lista se muestra desplegada.
   const indiceElegida = elegida == null ? -1 : lista.findIndex(t => entero(t.id) === entero(elegida));
   const abierta = desplegadas.has(clave) || indiceElegida >= VISIBLES;
-  return `<section class="rep2-gt${interactiva || nombreBoton ? ' rep2-gt--interactiva' : ''}" id="rep2-grafica-${clave}" data-clave="${clave}" aria-label="${escapeHtml(titulo)}">
-    <header class="rep2-gt-cab">
-      <h3>${escapeHtml(titulo)}</h3>
-    </header>
-    ${apilada ? `<div class="rep2-gt-leyenda" aria-hidden="true"><span><i class="rep2-gt-sw rep2-gt-sw--base"></i>${escapeHtml(T.graficaNoUrgentes)}</span><span><i class="rep2-gt-sw rep2-gt-sw--urgente"></i>${escapeHtml(T.graficaUrgentes)}</span></div>` : ''}
+  const cuerpo = `${apilada ? `<div class="rep2-gt-leyenda" aria-hidden="true"><span><i class="rep2-gt-sw rep2-gt-sw--base"></i>${escapeHtml(T.graficaNoUrgentes)}</span><span><i class="rep2-gt-sw rep2-gt-sw--urgente"></i>${escapeHtml(T.graficaUrgentes)}</span></div>` : ''}
     <ol class="rep2-gt-lista">${lista.map((t, i) => fila(t, maximo, total, {
     lider: !apilada && entero(t.total) === maximo, oculta: i >= VISIBLES && !abierta, elegida: i === indiceElegida, elegidaUrgentes, interactiva, nombreBoton, apilada, T
   })).join('')}</ol>
-    ${restantes ? `<button type="button" class="rep-link rep2-gt-mas" aria-expanded="${abierta}" data-restantes="${restantes}">${escapeHtml(abierta ? T.graficaMenos : T.graficaRestantes(restantes))}</button>` : ''}
+    ${restantes ? `<button type="button" class="rep-link rep2-gt-mas" aria-expanded="${abierta}" data-restantes="${restantes}">${escapeHtml(abierta ? T.graficaMenos : T.graficaRestantes(restantes))}</button>` : ''}`;
+  return `<section class="rep2-gt${interactiva || nombreBoton ? ' rep2-gt--interactiva' : ''}${clasePlegada(clave)}" id="rep2-grafica-${clave}" data-clave="${clave}" aria-label="${escapeHtml(titulo)}">
+    ${htmlCabeceraPlegable(titulo, clave)}
+    ${htmlCuerpoPlegable(clave, cuerpo)}
   </section>`;
 }
 
@@ -73,6 +73,7 @@ export function htmlGraficaBarras(lista, T, { titulo = T.graficaTitulo, clave = 
 export function conectarGraficaBarras(raiz, T, { alElegir = null, alNombre = null, alQuitar = null } = {}) {
   const seccion = raiz.querySelector('.rep2-gt');
   if (!seccion) return;
+  conectarPlegable(seccion, seccion.dataset.clave);
   const boton = seccion.querySelector('.rep2-gt-mas');
   if (boton) {
     boton.addEventListener('click', () => {
@@ -98,7 +99,7 @@ export function conectarGraficaBarras(raiz, T, { alElegir = null, alNombre = nul
   // Presionar fuera de las barras (título, leyenda, bordes de la gráfica) quita la barra elegida; el botón «Ver las N restantes» no cuenta.
   if (alQuitar) {
     seccion.addEventListener('click', (e) => {
-      if (!e.target.closest('li[data-id]') && !e.target.closest('.rep2-gt-mas')) alQuitar();
+      if (!e.target.closest('li[data-id]') && !e.target.closest('.rep2-gt-mas') && !e.target.closest('.rep2-gt-plegar')) alQuitar();
     });
   }
 }

@@ -5,6 +5,7 @@ import { obtenerReporteActividad, descargarReporteActividadPdf } from '../../api
 import { aplicarPeriodoAQuery } from '../../components/barraPeriodoReportes.js';
 import { htmlContadores } from './contadoresActividad.js';
 import { htmlGraficaBarras, conectarGraficaBarras } from './graficaBarras.js';
+import { htmlGraficaDisenadores, conectarGraficaDisenadores } from './graficaDisenadores.js';
 import { preguntarDesglosePdf } from './modalDesglosePdf.js';
 import { preguntarIrAAsesores } from './modalIrAAsesores.js';
 import { enfocarPayload, existeGrupo, contarFilasDesglose } from './enfoque.js';
@@ -83,10 +84,11 @@ const ROTULO_FILTRO = {
   entregadosConAtraso: T => T.filtroCategoria(T.contEntregados, T.contConAtraso), entregadosSinAtraso: T => T.filtroCategoria(T.contEntregados, T.contSinAtraso)
 };
 
-// Filtros por contador activos, con × para quitar cada uno (mismo aspecto que las fichas de personas).
-function htmlFiltrosActivos(claves, T) {
+// Filtros activos (la barra elegida en la gráfica y los contadores), con × para quitar cada uno (mismo aspecto que las fichas de personas).
+// `textoGrupo`: la etiqueta de la barra elegida (la misma que lleva el PDF); la clave «grupo» la representa.
+function htmlFiltrosActivos(claves, T, textoGrupo = '') {
   if (!claves.length) return '';
-  const fichas = claves.map(k => { const r = ROTULO_FILTRO[k](T); return `<span class="rep-ficha">${escapeHtml(r)}<button type="button" data-quitar-filtro="${k}" aria-label="${escapeHtml(T.quitarFiltro(r))}"><ion-icon name="close" aria-hidden="true"></ion-icon></button></span>`; });
+  const fichas = claves.map(k => { const r = k === 'grupo' ? textoGrupo : ROTULO_FILTRO[k](T); return `<span class="rep-ficha">${escapeHtml(r)}<button type="button" data-quitar-filtro="${k}" aria-label="${escapeHtml(T.quitarFiltro(r))}"><ion-icon name="close" aria-hidden="true"></ion-icon></button></span>`; });
   return `<div class="rep-fichas rep2-filtros-activos" id="rep2-filtros-activos"><span class="rep-fichas-rotulo">${escapeHtml(T.filtrosActivos)}</span>${fichas.join('')}${claves.length > 1 ? `<button type="button" class="rep-link" data-quitar-filtro="todos">${escapeHtml(T.quitarFiltros)}</button>` : ''}</div>`;
 }
 
@@ -98,10 +100,11 @@ const htmlFichas = (evaluados, T) => `<div class="rep-fichas" id="rep2-fichas"><
 // `grafica`: { elegida(), limpiar(), alElegir(id, repintar, nombre, modo), irAAsesores?(id), elegidaNombre(), elegidaUrgentes?(), parametroDesglose? } hace pulsables
 // las barras: la elegida enfoca contadores y desglose en esa tienda o asesor filtrando el reporte ya generado (enfoque.js), sin consultar; lo demás
 // —selector, gráfica, PDF— sigue con el filtro vigente. En tiendas el nombre sugiere, con un modal, ir al reporte de asesores de esa tienda;
-// en asesores `elegidaUrgentes` enfoca solo sus vales urgentes. Sin `grafica` solo informa.
+// en asesores `elegidaUrgentes` enfoca solo sus vales urgentes. Con `tipo: 'agrupada'` (diseñadores) la gráfica es la de dos barras y `modo()`
+// (todos | entregados | tarde) dice qué parte se pulsó. Sin `grafica` solo informa.
 // `preguntarDesglose: true` (tiendas y asesores): al descargar el PDF un modal pregunta si se incluye el desglose de vales (`desglose=0` = sin él).
 // Pulsar un contador alterna su filtro (el de estado es uno solo; «urgente» es aparte) y repinta con lo generado, sin consultar; × y «Quitar filtros» los retiran.
-function conectarFiltroContadores(cont, repintar) {
+function conectarFiltroContadores(cont, repintar, quitarGrupo = () => {}) {
   const alternar = (clave) => {
     if (clave === 'urgente') state.reporte2.urgenteElegido = !state.reporte2.urgenteElegido;
     else state.reporte2.contadorElegido = state.reporte2.contadorElegido === clave ? null : clave;
@@ -116,8 +119,9 @@ function conectarFiltroContadores(cont, repintar) {
     const b = e.target.closest('[data-quitar-filtro]');
     if (!b) return;
     const k = b.dataset.quitarFiltro;
+    if (k === 'grupo' || k === 'todos') quitarGrupo(); // la barra elegida de la gráfica
     if (k === 'urgente' || k === 'todos') state.reporte2.urgenteElegido = false;
-    if (k !== 'urgente') state.reporte2.contadorElegido = null;
+    if (k !== 'urgente' && k !== 'grupo') state.reporte2.contadorElegido = null;
     repintar();
   });
 }
@@ -150,19 +154,26 @@ export function crearReporteActividad({ ruta, textos: T, filtro, contadores = fa
     // Si la elegida ya no está en lo generado (cambió el período o el filtro) se descarta y todo vuelve al filtro vigente.
     const enfocada = idElegida != null && existeGrupo(data, idElegida) && Array.isArray(listaGrafica) && listaGrafica.some(t => Number(t.id) === Number(idElegida));
     if (idElegida != null && !enfocada) grafica.limpiar();
-    const vista = enfocada ? enfocarPayload(data, { id: idElegida, urgentes: !!grafica.elegidaUrgentes?.() }) : data;
+    const agrupada = grafica?.tipo === 'agrupada'; // gráfica de dos barras por persona (diseñadores): el enfoque trae su propio modo
+    const vista = enfocada ? enfocarPayload(data, agrupada ? { id: idElegida, modo: grafica.modo() } : { id: idElegida, urgentes: !!grafica.elegidaUrgentes?.() }) : data;
     const pulsables = contadores && !vista.grupos?.desgloseOmitido;
-    const filtroContador = pulsables ? { estado: state.reporte2.contadorElegido, urgente: state.reporte2.urgenteElegido } : {};
-    const clavesFiltro = [filtroContador.urgente ? 'urgente' : null, filtroContador.estado || null].filter(Boolean);
+    // El reporte de diseñadores (`agrupada`) no tiene contador de Urgentes: un filtro «urgente» que venga de otro reporte no se aplica.
+    const filtroContador = pulsables ? { estado: state.reporte2.contadorElegido, urgente: agrupada ? false : state.reporte2.urgenteElegido } : {};
+    // La barra elegida va primero, como filtro de lo que se ve y de lo que se imprime; luego los de los contadores.
+    const textoGrupo = enfocada ? T.pdfFiltroGrupo(T.columna, grafica.elegidaNombre(), !!grafica.elegidaUrgentes?.(), agrupada ? grafica.modo() : null) : '';
+    const clavesFiltro = [enfocada ? 'grupo' : null, filtroContador.urgente ? 'urgente' : null, filtroContador.estado || null].filter(Boolean);
     const vistaDesglose = aplicarFiltroContador(vista, filtroContador);
     // Lo que el PDF ofrece imprimir: el desglose como se ve (barra + contador) o el general.
     vistaMostrada = vistaDesglose;
     vistaGeneral = data;
     contadorMostrado = filtroContador;
     // El nombre de una barra de tienda lleva al reporte de asesores, si la persona tiene acceso a él.
-    const alNombre = grafica && grafica.irAAsesores && irAReporte && puedeIrA && puedeIrA('actividad-asesor')
-      ? async (id, nombre) => { if (await preguntarIrAAsesores(T, nombre)) { grafica.irAAsesores(id); irAReporte('actividad-asesor'); } }
+    // El nombre de una tienda lleva al reporte de asesores y el de un taller al de diseñadores (con el filtro ya elegido), si la persona tiene acceso.
+    const irA = grafica?.irAAsesores ? { ruta: 'actividad-asesor', ir: grafica.irAAsesores } : (grafica?.irADisenadores ? { ruta: 'actividad-disenador', ir: grafica.irADisenadores } : null);
+    const alNombre = irA && irAReporte && puedeIrA && puedeIrA(irA.ruta)
+      ? async (id, nombre) => { if (await preguntarIrAAsesores(T, nombre)) { irA.ir(id); irAReporte(irA.ruta); } }
       : null;
+    const claveGraficaAgrupada = graficaClave === 'porTaller' ? 'talleres' : 'disenadores';
     const fichas = filtro.quitar && data.evaluados?.length ? htmlFichas(data.evaluados, T) : '';
     cont.innerHTML = `
     <div class="rep2-cabfila">
@@ -172,11 +183,13 @@ export function crearReporteActividad({ ruta, textos: T, filtro, contadores = fa
       </div>
     </div>
     ${fichas}
-    ${contadores ? htmlContadores(vista.contadores, T, { pulsables, activos: filtroContador }) + htmlGraficaBarras(listaGrafica, T, {
+    ${contadores ? htmlContadores(vista.contadores, T, { pulsables, activos: filtroContador }) + (agrupada
+    ? htmlGraficaDisenadores(listaGrafica, T, { elegida: enfocada ? Number(idElegida) : null, modoElegido: enfocada ? grafica.modo() : 'todos', interactiva: true, clave: claveGraficaAgrupada, irA: !!alNombre })
+    : htmlGraficaBarras(listaGrafica, T, {
       titulo: T.graficaTitulo, clave: graficaClave === 'porAsesor' ? 'asesores' : 'tiendas',
       elegida: enfocada ? Number(idElegida) : null, elegidaUrgentes: enfocada && !!grafica.elegidaUrgentes?.(), interactiva: !!grafica, nombreBoton: !!alNombre, apilada: graficaClave === 'porAsesor'
-    }) : ''}
-    <div class="rend-grid"><section class="rend-panel rend-span-12" id="rep2-panel">${htmlPanel(vistaDesglose, periodo, T, sinAvatar, htmlFiltrosActivos(clavesFiltro, T))}</section></div>
+    })) : ''}
+    <div class="rend-grid"><section class="rend-panel rend-span-12" id="rep2-panel">${htmlPanel(vistaDesglose, periodo, T, sinAvatar, htmlFiltrosActivos(clavesFiltro, T, textoGrupo))}</section></div>
     <details class="rend-notas">
       <summary>${escapeHtml(T.notasTitulo)}</summary>
       <ul>${T.notas.map(n => `<li>${n}</li>`).join('')}</ul>
@@ -186,8 +199,10 @@ export function crearReporteActividad({ ruta, textos: T, filtro, contadores = fa
       cont.querySelectorAll('[data-quitar]').forEach(b => b.addEventListener('click', () => { filtro.quitar(b.dataset.quitar); b.closest('.rep-ficha').remove(); remontarFiltros(); alCambiar(); }));
       $('#rep2-limpiar', cont).addEventListener('click', () => { filtro.limpiar(); $('#rep2-fichas', cont).remove(); remontarFiltros(); alCambiar(); });
     }
-    if (pulsables) conectarFiltroContadores(cont, repintar);
-    conectarGraficaBarras(cont, T, { alElegir: grafica ? (id, nombre, modo) => grafica.alElegir(id, repintar, nombre, modo) : null, alNombre, alQuitar: enfocada ? () => { grafica.limpiar(); repintar(); } : null });
+    if (pulsables) conectarFiltroContadores(cont, repintar, () => { if (enfocada) grafica.limpiar(); });
+    const conexion = { alElegir: grafica ? (id, nombre, modo) => grafica.alElegir(id, repintar, nombre, modo) : null, alQuitar: enfocada ? () => { grafica.limpiar(); repintar(); } : null };
+    if (agrupada) conectarGraficaDisenadores(cont, T, { ...conexion, alNombre, clave: claveGraficaAgrupada });
+    else conectarGraficaBarras(cont, T, { ...conexion, alNombre });
     const panel = $('#rep2-panel', cont);
     conectarAcciones(panel);
     conectarSecciones(panel);
@@ -221,9 +236,10 @@ export function crearReporteActividad({ ruta, textos: T, filtro, contadores = fa
       if (preguntarDesglose) {
         // Con filtros de vista (barra enfocada o contadores) el modal ofrece imprimir el desglose filtrado, el completo o ninguno.
         const idEnfocada = grafica ? grafica.elegida() : null;
-        const enfoque = idEnfocada != null ? { id: idEnfocada, parametro: grafica.parametroDesglose, urgentes: !!grafica.elegidaUrgentes?.() } : null;
+        const modoGrafica = grafica?.tipo === 'agrupada' ? grafica.modo() : null;
+        const enfoque = idEnfocada != null ? { id: idEnfocada, parametro: grafica.parametroDesglose, urgentes: !!grafica.elegidaUrgentes?.(), modo: modoGrafica } : null;
         const filtros = [
-          ...(enfoque ? [T.pdfFiltroGrupo(T.columna, grafica.elegidaNombre(), enfoque.urgentes)] : []),
+          ...(enfoque ? [T.pdfFiltroGrupo(T.columna, grafica.elegidaNombre(), enfoque.urgentes, modoGrafica)] : []),
           ...[contadorMostrado.urgente ? 'urgente' : null, contadorMostrado.estado || null].filter(Boolean).map(k => ROTULO_FILTRO[k](T))
         ];
         // Con el desglose general omitido (más de 5000 vales) no se ofrece el completo y se desconoce cuántos vales trae el filtrado.

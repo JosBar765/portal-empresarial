@@ -1,6 +1,7 @@
 import { state } from '../../state.js';
 import { crearFiltroTiendas } from '/js/menuCascada.js';
-import { paramsDeTienda, valorVigente, resolverTiendaIds } from '../../utils/filtroTiendas.js';
+import { paramsDeTienda } from '../../utils/filtroTiendas.js';
+import { normalizarValorTiendas } from './valorTiendas.js';
 import { crearReporteActividad } from './actividadReporte.js';
 import { TEXTOS_TIENDA as T } from './textos.js';
 
@@ -35,14 +36,15 @@ export const reporteTienda = crearReporteActividad({
     aplicar: (qs) => Object.entries(paramsDeTienda(state.reporte2.tiendaId, tiendasDelMenu)).forEach(([clave, valor]) => qs.set(clave, valor)),
     recibir: (data) => {
       tiendasDelMenu = data.filtros.tiendas;
-      // Un país o grupo que ya no resuelve a ninguna tienda vuelve a «todas».
-      state.reporte2.tiendaId = valorVigente(state.reporte2.tiendaId, v => resolverTiendaIds(v, tiendasDelMenu));
+      // El selector es múltiple: lo guardado como «pais:X» o «grupo:Y» pasa a la lista de sus tiendas y lo que ya no existe se descarta (sin nada vuelve a «todas»).
+      state.reporte2.tiendaId = normalizarValorTiendas(state.reporte2.tiendaId, tiendasDelMenu);
     },
     montar: (destino, data, alCambiar) => {
       const menu = crearFiltroTiendas({
         tiendas: tiendasDelMenu,
         etiquetaVacio: data.alcance === 'supervisadas' ? T.todasMisTiendas : T.todasLasTiendas,
         ariaLabel: T.filtroTienda,
+        multiple: true, // casillas: varias tiendas, o un país o grupo entero con la casilla del padre
         valorActual: state.reporte2.tiendaId || '',
         // Un filtro nuevo en el selector descarta la barra elegida: esa tienda puede ya no estar en el conjunto.
         onSeleccionar: (valor) => { state.reporte2.tiendaElegida = null; state.reporte2.tiendaElegidaNombre = ''; state.reporte2.tiendaId = valor === '' || valor == null ? '' : String(valor); alCambiar(); }

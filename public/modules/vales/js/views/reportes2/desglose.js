@@ -3,6 +3,8 @@ import { escapeHtml, formatearFecha, formatearFechaHora, inicialesAvatar } from 
 import { celdaEstado } from '../../components/pipeline.js';
 import { abrirVisorVale } from '../../components/visorDocumento.js';
 import { abrirVisorMultitaller } from '../../actions/propuestasMultitaller.js';
+import { abrirModalHistorial } from '../../actions/historial.js';
+import { puede } from '../../permisos.js';
 import { siguienteTramo, datosVerMas } from './desglosePaginado.js';
 import { TEXTOS_DESGLOSE } from './textos.js';
 
@@ -48,19 +50,27 @@ const diferidos = new Map();
 let secuencia = 0;
 export function reiniciarDesglose() { paginas.clear(); diferidos.clear(); }
 
+// Talleres (`g.nombres`): una píldora azul por taller, como en el buzón (la misma clase `.taller-tag`); el resto, el nombre con su avatar opcional.
+// Diseñadores: las píldoras salen de los diseñadores del vale (`v.disenadoresDelVale`), también al enfocar uno, para ver siempre a todos.
+const nombresDeLaFila = (g, v) => (Array.isArray(v.disenadoresDelVale) ? (v.disenadoresDelVale.length ? v.disenadoresDelVale.map(d => d.nombre) : ['Sin asignar']) : g.nombres);
+const celdaGrupo = (g, avatar, v = {}) => (Array.isArray(nombresDeLaFila(g, v)) && nombresDeLaFila(g, v).length
+  ? `<div class="taller-tags-cell">${nombresDeLaFila(g, v).map(n => `<span class="taller-tag${n === 'Sin asignar' ? ' taller-tag--sin-asignar' : ''}">${escapeHtml(n)}</span>`).join('')}</div>`
+  : `<span class="rep-grupo-nombre">${avatar ? `<span class="rep-avatar" aria-hidden="true">${escapeHtml(inicialesAvatar(g.nombre))}</span>` : ''}<span>${escapeHtml(g.nombre)}</span></span>`);
+
 // Una fila de la tabla: la misma para las primeras filas y para las que llegan con «Ver más».
 function htmlFila(g, v, { clave, info, taller, avatar }) {
   const conAtraso = clave === 'atrasados' || clave === 'entregados';
   return `
     <tr>
       <td class="rep-c-vale" data-label="Vale"><strong>${escapeHtml(v.correlativo)}</strong>${v.esMod ? '<span class="badge badge-mod">MOD</span>' : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${taller ? '' : `<span class="rep-cliente">${escapeHtml(v.cliente)}</span>`}</td>
-      <td class="rep-c-grupo" data-label="${info.texto}"><span class="rep-grupo-nombre">${avatar ? `<span class="rep-avatar" aria-hidden="true">${escapeHtml(inicialesAvatar(g.nombre))}</span>` : ''}<span>${escapeHtml(g.nombre)}</span></span></td>
+      <td class="rep-c-grupo" data-label="${info.texto}">${celdaGrupo(g, avatar, v)}</td>
       ${taller ? `<td class="rep-c-ingreso" data-label="Fecha de ingreso">${escapeHtml(formatearFechaHora(v.creadoEn))}</td>` : ''}
       <td class="rep-c-estado" data-label="Estado">${celdaEstado(v)}</td>
       <td class="rep-c-entrega fecha-entrega" data-label="Entrega">${escapeHtml(formatearFecha(v.fechaEntrega))}</td>
       ${conAtraso ? `<td class="rep-c-atraso" data-label="Atraso">${clave === 'entregados' ? htmlAtrasoEntregado(v) : htmlAtraso(v)}</td>` : ''}
       <td class="rep-acciones-celda rep-c-acciones" data-label="Acciones"><div class="rep-acciones-fila">
         <button type="button" class="btn-icon" data-ver="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}"${v.tienePropuesta ? ' data-con-propuesta="1"' : ''}${v.multitaller ? ' data-multitaller="1"' : ''} title="Ver vale" aria-label="Ver vale ${escapeHtml(v.correlativo)}"><ion-icon name="eye-outline"></ion-icon></button>
+        ${puede('verHistorial') ? `<button type="button" class="btn-icon" data-historial="${v.id}" data-correlativo="${escapeHtml(v.correlativo)}" title="Ver historial" aria-label="Ver historial de ${escapeHtml(v.correlativo)}"><ion-icon name="time-outline" aria-hidden="true"></ion-icon></button>` : ''}
       </div></td>
     </tr>`;
 }
@@ -86,7 +96,7 @@ export function htmlTablaSeccion(sec, info, taller = false, avatar = true) {
     verMas = htmlBotonVerMas(id, quedan);
   }
   const conAtraso = sec.clave === 'atrasados' || sec.clave === 'entregados';
-  return `<div class="rep-mini-wrap"><table class="rep-mini rep-mini--plana${taller ? ' rep-mini--taller' : ''}"><thead><tr><th>Vale</th><th>${info.texto}</th>${taller ?'<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div>${verMas}`;
+  return `<div class="rep-mini-caja"><div class="rep-mini-wrap"><table class="rep-mini rep-mini--plana${taller ? ' rep-mini--taller' : ''}"><thead><tr><th>Vale</th><th>${info.texto}</th>${taller ?'<th>Fecha de ingreso</th>' : ''}<th>Estado</th><th>Entrega</th>${conAtraso ? '<th>Atraso</th>' : ''}<th>Acciones</th></tr></thead><tbody>${filas}</tbody></table></div></div>${verMas}`;
 }
 
 // «Ver N más»: agrega la siguiente tanda a la misma tabla y conecta solo las filas nuevas (sin duplicar eventos).
@@ -179,4 +189,6 @@ export function conectarAcciones(cuerpo) {
   cuerpo.querySelectorAll('[data-ver]').forEach(b => b.addEventListener('click', () => (b.dataset.multitaller
     ? abrirVisorMultitaller({ id: b.dataset.ver, correlativo: b.dataset.correlativo })
     : abrirVisorVale({ id: b.dataset.ver, correlativo: b.dataset.correlativo, propuesta: b.dataset.conPropuesta ? { tipo: 'ultima' } : null }))));
+  // Historial del vale: solo para quien tiene el permiso (`vales.ver_historial`); es el mismo modal del buzón.
+  cuerpo.querySelectorAll('[data-historial]').forEach(b => b.addEventListener('click', () => abrirModalHistorial({ id: b.dataset.historial, correlativo: b.dataset.correlativo })));
 }

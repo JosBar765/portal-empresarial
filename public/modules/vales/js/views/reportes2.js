@@ -123,7 +123,27 @@ function armarShell(cont) {
   $('#rep2-combo', cont).addEventListener('change', (e) => { state.reporte2.reporteId = e.target.value; guardarReporte(state.reporte2.reporteId); seleccionarReporte(); });
   $('#rep2-actualizar', cont).addEventListener('click', () => generar());
   $('#rep2-pdf', cont).addEventListener('click', descargarPdf);
+  conectarBotonSubir(cont);
   cont.dataset.wired = '1';
+}
+
+// Botón flotante «Subir al inicio»: aparece al bajar un buen trecho y lleva arriba de una. Va en el body (no en la vista): el contenedor principal
+// anima con `transform`, y eso hace que un `position: fixed` interior se mida contra él y no contra la ventana. Se oculta con la vista de Reportes.
+const DISTANCIA_PARA_SUBIR = 400;
+function conectarBotonSubir(vistaReportes) {
+  if (document.getElementById('rep2-subir')) return;
+  const boton = document.createElement('button');
+  boton.type = 'button'; boton.id = 'rep2-subir'; boton.className = 'rep2-subir'; boton.hidden = true;
+  boton.setAttribute('aria-label', T.subir); boton.title = T.subir;
+  boton.innerHTML = '<ion-icon name="arrow-up-outline" aria-hidden="true"></ion-icon>';
+  document.body.appendChild(boton);
+  const actualizar = () => { boton.hidden = window.scrollY < DISTANCIA_PARA_SUBIR || getComputedStyle(vistaReportes).display === 'none'; };
+  window.addEventListener('scroll', actualizar, { passive: true });
+  new MutationObserver(actualizar).observe(vistaReportes, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
+  boton.addEventListener('click', () => {
+    const sinAnimar = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: sinAnimar ? 'auto' : 'smooth' });
+  });
 }
 
 // Los controles reflejan el estado: «Generar» se resalta cuando hay algo nuevo que generar; el PDF solo corresponde a un resultado al día.

@@ -165,7 +165,7 @@ export const menusCascadaAbiertos = new Set();
 // `deshabilitar(nodoHoja)` opcional: devuelve { disabled, motivo } para
 // bloquear una hoja sin sacarla del árbol, con el motivo como title.
 // `multiple` (opt-in): casillas en tiendas y padres (marcado, vacío o parcial); el menú sigue abierto y `onSeleccionar` recibe «3,7,9» (vacío = ninguna).
-export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilitar, onSeleccionar, ariaLabel, mensajeVacio, multiple = false }) {
+export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilitar, onSeleccionar, ariaLabel, mensajeVacio, multiple = false, unidad = { singular: 'tienda', plural: 'tiendas' } }) {
   let arbolActual = arbol || [];
   let actual = valorActual;
   let seleccion = multiple ? aConjunto(valorActual) : null;
@@ -224,7 +224,7 @@ export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilit
   // Un solo país entero elegido se nombra por el país; si no, la tienda o «N tiendas».
   function etiquetaMultiple() {
     if (!seleccion.size) return etiquetaVacio;
-    if (seleccion.size === 1) return buscarEtiqueta([...seleccion][0], arbolActual) || '1 tienda';
+    if (seleccion.size === 1) return buscarEtiqueta([...seleccion][0], arbolActual) || `1 ${unidad.singular}`;
     const paisEntero = arbolActual.find(n => {
       if (n.tipo !== 'grupo') return false;
       const valores = valoresDe([n]);
@@ -233,7 +233,7 @@ export function crearMenuCascada({ arbol, valorActual, etiquetaVacio, deshabilit
     if (paisEntero) return paisEntero.etiqueta;
     // Con asesores marcados ya no son solo tiendas.
     const conAsesores = [...seleccion].some(v => v.startsWith(PREFIJO_ASESOR));
-    return `${seleccion.size} ${conAsesores ? 'seleccionados' : 'tiendas'}`;
+    return `${seleccion.size} ${conAsesores ? 'seleccionados' : unidad.plural}`;
   }
 
   function actualizarTrigger() {
@@ -863,4 +863,4 @@ export const crearFiltroTiendas = ({ tiendas, etiquetaVacio = 'Todas las tiendas
   crearFiltro(construirArbolTiendas, tiendas || [], { etiquetaVacio, ariaLabel, ...resto });
 
 export const crearFiltroTalleres = ({ talleres, etiquetaVacio = 'Todos los talleres', ariaLabel = 'Filtrar por taller', ...resto }) =>
-  crearFiltro(construirArbolTalleres, talleres || [], { etiquetaVacio, ariaLabel, ...resto });
+  crearFiltro(construirArbolTalleres, talleres || [], { etiquetaVacio, ariaLabel, unidad: { singular: 'taller', plural: 'talleres' }, mensajeVacio: 'No hay talleres disponibles.', ...resto });

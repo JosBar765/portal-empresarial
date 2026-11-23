@@ -48,7 +48,7 @@
 .rep2-contadores .rep2-cont-card { grid-column: span 2; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; padding: 10px 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; }
 .rep2-contadores .rep2-cont-rotulo { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
 .rep2-contadores .rep2-cont-num { font-family: var(--font-title); font-size: 22px; font-weight: 700; line-height: 1.2; color: var(--color-text); }
-.rep2-contadores .rep2-cont-detalle { font-size: 12px; color: var(--color-text-muted); }
+.rep2-contadores .rep2-cont-detalle { font-size: 12px; color: var(--color-text-muted); overflow-wrap: anywhere; } /* un detalle largo baja a otra línea en vez de desbordar la tarjeta */
 .rep2-contadores .rep2-cont-card--grupo { grid-column: span 3; flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px 24px; flex-wrap: wrap; container: rep2-grupo / inline-size; }
 .rep2-contadores .rep2-cont-total { display: flex; flex-direction: column; gap: 2px; }
 .rep2-contadores .rep2-cont-chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -62,6 +62,22 @@
 /* Tarjeta y título iguales a los del panel «Desglose de Vales de Arte» (.rend-panel y .rend-panel-cab h3). */
 .rep2-gt { margin-bottom: 14px; padding: 20px 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
 .rep2-gt-cab h3 { margin: 0 0 16px; font-family: var(--font-title); font-size: var(--text-md); font-weight: 700; color: var(--color-text); }
+/* Título plegable: el mismo gesto de las secciones del desglose; plegada, la tarjeta queda solo con el título. */
+.rep2-gt-plegar { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 0; font: inherit; color: inherit; text-align: left; background: transparent; border: 0; cursor: pointer; }
+.rep2-gt-plegar:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; border-radius: var(--radius-xs); }
+.rep2-gt-chevron { flex: none; font-size: 18px; color: var(--color-text-muted); transition: transform var(--transition-fast); }
+.rep2-gt-plegar[aria-expanded="false"] .rep2-gt-chevron { transform: rotate(-90deg); }
+.rep2-gt--plegada .rep2-gt-cab h3 { margin-bottom: 0; }
+.rep2-gt-cuerpo[hidden] { display: none; }
+/* Ícono de información junto al título: la ayuda sale al pasar el mouse, al enfocar con teclado o al tocar (celular). */
+.rep2-gt-cab--info { display: flex; align-items: flex-start; gap: 8px; }
+.rep2-gt-cab--info h3 { flex: 1; min-width: 0; }
+.rep2-gt-info { position: relative; flex: none; }
+.rep2-gt-info-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; font-size: 20px; color: var(--color-text-muted); background: transparent; border: 0; border-radius: 50%; cursor: help; }
+.rep2-gt-info-btn:hover, .rep2-gt-info-btn:focus-visible { color: var(--color-primary); }
+.rep2-gt-info-btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.rep2-gt-tip { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; width: max-content; max-width: min(320px, calc(100vw - 56px)); padding: 10px 12px; font-size: var(--text-sm); font-weight: 400; line-height: 1.4; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); visibility: hidden; opacity: 0; transition: opacity var(--transition-fast); pointer-events: none; }
+.rep2-gt-info:hover .rep2-gt-tip, .rep2-gt-info:focus-within .rep2-gt-tip { visibility: visible; opacity: 1; }
 /* Una sola rejilla para todas las filas (cada fila es `display: contents`): la columna de nombres mide lo que el nombre más largo y los nombres se alinean a la derecha, junto al arranque de las barras. */
 .rep2-gt-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(80px, 1fr) auto; align-items: center; gap: 8px 12px; }
 .rep2-gt-fila { display: contents; }
@@ -99,9 +115,11 @@
 .rep2-gt-mas { margin-top: 6px; }
 /* Reporte de asesores: el selector de tienda y el de asesores van uno junto al otro. */
 .rep2-filtros-doble { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-/* En pantallas anchas el panel del selector se abre hacia la izquierda: el selector está al borde derecho y a la derecha se salía de la ventana. */
-@media (min-width: 641px) {
-  .rep2-filtros .rep-selector-panel { left: auto; right: 0; }
+/* Los dos selectores de la fila miden lo mismo: el botón de personas con la altura del menú en cascada. */
+.rep2-filtros-doble .rep-selector-btn { min-height: 38px; }
+/* Celular: los selectores de la fila de filtros ocupan todo el ancho, uno bajo otro. */
+@media (max-width: 640px) {
+  .rep2-filtros-doble > div { flex: 1 1 100%; min-width: 0; }
 }
 /* Celular (maqueta): Ingresados y Urgentes lado a lado; Sin entregar, Atrasados y Entregados a todo el ancho. */
 @media (max-width: 640px) {
@@ -154,3 +172,78 @@
 .rep2-contadores .rep2-pulsable.is-activo { background: rgba(var(--color-primary-rgb), 0.12); border-color: var(--color-primary); box-shadow: inset 0 0 0 1px var(--color-primary); }
 /* Fila de filtros activos sobre el desglose (usa el aspecto de las fichas de .rep-ficha). */
 .rep2-filtros-activos { margin: 0 0 12px; }
+
+/* Reporte de diseñadores (sin Urgentes): primera fila de cuatro tarjetas iguales (Ingresados, Efectividad, Entregas a tiempo, Sin entregar) y la segunda de dos mitades. */
+@media (min-width: 641px) {
+  .rep2-contadores--cuatro { grid-template-columns: repeat(12, 1fr); }
+  .rep2-contadores--cuatro .rep2-cont-card { grid-column: span 3; }
+  .rep2-contadores--cuatro .rep2-cont-card--grupo { grid-column: span 6; }
+}
+@media (max-width: 640px) {
+  /* Celular: las cuatro en dos por dos; Sin entregar deja su fila a todo el ancho y se vuelve una tarjeta más. */
+  .rep2-contadores--cuatro .rep2-cont-card--sin-entregar { grid-column: span 1; flex-direction: column; align-items: stretch; justify-content: center; gap: 2px; padding-inline: 14px; }
+}
+
+/* Gráfica «Vales asignados y entregados por diseñador». Colores: Asignados = azul de acento; Entregados a tiempo = azul marino (--color-primary-dark);
+   Entregados tarde = rojo. El verde se descartó: junto al rojo se confunde con daltonismo (luminancia relativa 0.27 vs 0.17, contraste 1.5:1). El azul marino
+   contra el rojo da 3.3:1 y contra el azul de acento 3.1:1 (WCAG 1.4.11 pide 3:1); además cada barra lleva su cifra y la leyenda nombra los colores. */
+.rep2-gd { --rep2-gd-atiempo: var(--color-success); }
+.rep2-gd-sw--asignados { background: var(--color-primary); }
+.rep2-gd-sw--atiempo { background: var(--rep2-gd-atiempo); }
+.rep2-gd-sw--tarde { background: var(--color-danger); }
+.rep2-gd-letras { margin: -4px 0 12px; font-size: var(--text-sm); color: var(--color-text-secondary); }
+/* Nombre | barras | E | T en una sola rejilla (las filas son `display: contents`, como en la gráfica de asesores). */
+.rep2-gd-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(120px, 1fr) 4.5rem 4.5rem; align-items: center; gap: 10px 12px; }
+.rep2-gd-colh { text-align: right; font-size: var(--text-sm); font-weight: 700; color: var(--color-text-secondary); cursor: help; }
+.rep2-gd-barras { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* Sin diseñador asignado: el hueco ocupa lo de la segunda barra y el nombre se alinea con la única barra (centro de la primera línea, de 16 px). */
+.rep2-gd-linea { min-height: 16px; } /* la altura de una línea (la fija el texto de la cantidad): el hueco y el nombre de Sin asignar usan la misma */
+.rep2-gd-linea--hueco { height: 16px; }
+.rep2-gd-fila--sin .rep2-gd-nombre { align-self: start; display: flex; align-items: center; justify-content: flex-end; height: 16px; white-space: nowrap; }
+.rep2-gd-linea { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* Las dos barras comparten escala: el largo es una fracción de la línea menos el lugar de la cifra, que va en la punta. */
+.rep2-gd-barra { display: block; flex: none; height: 12.5px; width: calc((100% - 44px) * var(--razon, 0)); padding: 0; border: 0; border-radius: 0 4px 4px 0; }
+.rep2-gd-barra--asignados { background: var(--color-primary); }
+/* «Sin asignar»: su única barra va con el color de advertencia. */
+.rep2-gd-fila--sin .rep2-gd-barra--asignados { background: var(--color-warning); }
+.rep2-gd-barra--apilada { display: flex; gap: 2px; background: transparent; border-radius: 0; }
+.rep2-gd-seg { display: flex; align-items: center; justify-content: center; min-width: 2px; height: 100%; padding: 0; border: 0; overflow: hidden; font: inherit; font-size: 11px; font-weight: 700; line-height: 1; color: #fff; }
+.rep2-gd-seg--atiempo { background: var(--rep2-gd-atiempo); }
+/* El ancho mínimo deja ver la cifra aunque sea una sola entrega tarde; blanco sobre rojo da 4.8:1. */
+.rep2-gd-seg--tarde { background: var(--color-danger); min-width: 16px; }
+.rep2-gd-seg:last-child { border-radius: 0 4px 4px 0; }
+.rep2-gd-cant { flex: none; min-width: 2ch; font-size: var(--text-sm); font-variant-numeric: tabular-nums; color: var(--color-text-secondary); }
+.rep2-gd-e, .rep2-gd-t { text-align: right; font-size: var(--text-base); font-variant-numeric: tabular-nums; color: var(--color-text); white-space: nowrap; }
+.rep2-gt--interactiva button.rep2-gd-barra, .rep2-gt--interactiva button.rep2-gd-seg { cursor: pointer; }
+.rep2-gt--interactiva button.rep2-gd-barra:hover, .rep2-gt--interactiva button.rep2-gd-seg:hover { filter: brightness(1.25); }
+/* Elegido: contorno del color del texto (no solo color) y sobre sus vecinos; el foco de teclado usa el azul de acento, más separado. */
+.rep2-gd-barra[aria-pressed="true"], .rep2-gd-seg[aria-pressed="true"] { outline: 2px solid var(--color-text); outline-offset: 1px; position: relative; z-index: 1; }
+.rep2-gd-barra:focus-visible, .rep2-gd-seg:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; position: relative; z-index: 2; }
+.rep2-gd-nombre[aria-pressed="true"] { color: var(--color-primary); font-weight: 600; text-decoration-color: currentColor; }
+@media (max-width: 640px) {
+  /* Celular: nombre, E y T en una línea (el nombre puede partirse en varias) y las dos barras debajo, a todo el ancho. */
+  .rep2-gd-lista { display: block; }
+  .rep2-gd-fila, .rep2-gd-cab { display: grid; grid-template-columns: minmax(0, 1fr) 4.25rem 4.25rem; align-items: center; gap: 2px 8px; padding: 4px 0; }
+  .rep2-gd-cab > :nth-child(2) { display: none; }
+  .rep2-gd-nombre { grid-column: 1; grid-row: 1; }
+  .rep2-gd-e { grid-column: 2; grid-row: 1; }
+  .rep2-gd-t { grid-column: 3; grid-row: 1; }
+  .rep2-gd-barras { grid-column: 1 / -1; grid-row: 2; }
+  /* Celular: el nombre ya va en su propia línea sobre las barras; el hueco de la segunda barra sobra. */
+  .rep2-gd-fila--sin .rep2-gd-nombre { display: block; height: auto; white-space: normal; align-self: center; }
+  .rep2-gd-linea--hueco { display: none; }
+}
+/* Desglose de talleres: las píldoras de taller (clase del buzón) sin el botón de quitar y sin cortar el nombre. */
+.rep-c-grupo .taller-tag { padding: 3px 10px; white-space: nowrap; }
+/* Botón flotante para subir al inicio de Reportes (aparece al bajar; debajo de los modales y las ventanas). */
+.rep2-subir { position: fixed; right: 20px; bottom: 20px; z-index: 90; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; font-size: 22px; color: var(--color-surface); background: var(--color-primary); border: 0; border-radius: 50%; box-shadow: var(--shadow-lg); cursor: pointer; transition: transform var(--transition-fast), background var(--transition-fast); }
+.rep2-subir[hidden] { display: none; }
+.rep2-subir:hover { background: var(--color-primary-dark); transform: translateY(-2px); }
+.rep2-subir:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+@media (max-width: 640px) { .rep2-subir { right: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); } }
+@media (prefers-reduced-motion: reduce) { .rep2-subir { transition: none; } .rep2-subir:hover { transform: none; } }
+/* «Sin asignar»: la píldora lleva el mismo color que su barra en la gráfica (--color-warning). */
+.rep-c-grupo .taller-tag--sin-asignar { color: var(--color-warning); background: var(--color-warning-bg); }«Sin asignar»: la píldora lleva el mismo color que su barra en la gráfica (--color-warning). */
+.rep-c-grupo .taller-tag--sin-asignar { color: var(--color-warning); background: var(--color-warning-bg); }
+/* Columna Atraso: la píldora («47 d», «Al día») no se parte en dos líneas aunque la columna sea angosta. */
+.rep-c-atraso .badge { white-space: nowrap; }
