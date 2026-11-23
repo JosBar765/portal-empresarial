@@ -26,3 +26,8 @@ El número del tramo ámbar (urgentes) de la gráfica de asesores va en blanco, 
 - Con datos reales (BD local): 400 filas de los cuatro reportes, todas en orden de fecha de entrega, dentro de cada grupo y entre grupos; sin recorte de vigentes.
 - Scripts de unidad y de verificación contra la BD en verde; la prueba de desglose de diseñadores se actualizó al nuevo orden de grupos.
 - PDF de asesores renderizado: números de las urgentes en blanco y atrasados por fecha de entrega.
+
+## Ajustes de presentación (pantalla y PDF)
+
+- **Encabezado del PDF de actividad:** «Fecha de entrega: …» va en negrita (los cuatro reportes de actividad); «Generado: …» sigue en gris.
+- **Gráfica de talleres y diseñadores:** las dos barras de cada persona quedan más juntas (3 px) y se distinguen mejor de la persona siguiente (12 px). Se fijó el alto de línea de la cifra (`.rep2-gd-cant`), que mantenía cada línea en 16 px.
