@@ -132,7 +132,7 @@ export function conectarGraficaDisenadores(raiz, T, { alElegir = null, alQuitar 
   }
   if (alQuitar) {
     seccion.addEventListener('click', (e) => {
-      if (!e.target.closest('li[data-id]') && !e.target.closest('.rep2-gt-mas') && !e.target.closest('.rep2-gt-plegar') && !e.target.closest('.rep2-gt-info')) alQuitar();
+      if (!e.target.closest('li[data-id]') && !e.target.closest('.rep2-gt-plegar') && !e.target.closest('.rep2-gt-info')) alQuitar();
     });
   }
 }

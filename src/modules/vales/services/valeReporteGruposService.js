@@ -15,7 +15,7 @@ const { ROL, ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ROLES_ENCARGADO_TALLER
 
 const AGRUPACIONES = ['asesor', 'disenador', 'taller', 'tienda'];
 const MAX_VALES = 5000; // válvula de seguridad (~2 años a 160 vales al mes); la pantalla dibuja bajo demanda y el PDF 5000 filas tarda ~0,5 s
-const MAX_VIGENTES = 200;
+const MAX_VIGENTES = Infinity; // los atrasados vigentes salen todos: ningún reporte oculta ni recorta filas
 
 const fechaDe = (valor) => String(valor || '').slice(0, 10);
 const diasEntreFechas = (a, b) => Math.max(0, Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 864e5));
@@ -31,12 +31,8 @@ const ESTADOS_VALE_TERMINADO_TALLER = [ESTADOS.APROBADO_DEPARTAMENTO, ESTADOS.PE
 const redondear = (n) => Math.round(n * 10) / 10;
 
 const porFechaEntrega = (a, b) => String(a.fechaEntrega).localeCompare(String(b.fechaEntrega)) || a.id - b.id;
-// Orden de los vales dentro de cada sección.
-const COMPARADORES = {
-  atrasados: (a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || porFechaEntrega(a, b),
-  noEntregados: (a, b) => String(a.creadoEn).localeCompare(String(b.creadoEn)) || a.id - b.id,
-  entregados: (a, b) => ((b.diasTarde || 0) > 0) - ((a.diasTarde || 0) > 0) || (b.diasTarde || 0) - (a.diasTarde || 0) || porFechaEntrega(a, b)
-};
+// Orden de los vales dentro de cada sección: todo el desglose va por fecha de entrega, de la más próxima a la más lejana.
+const COMPARADORES = { atrasados: porFechaEntrega, noEntregados: porFechaEntrega, entregados: porFechaEntrega };
 // Las filas (personas, talleres o tiendas) se ordenan por su primer vale, ya en el orden de la sección.
 const ordenarGrupos = (grupos, clave) => grupos.sort((a, b) => COMPARADORES[clave](a.vales[0], b.vales[0]) || b.total - a.total || a.nombre.localeCompare(b.nombre));
 
@@ -218,7 +214,7 @@ class ValeReporteGruposService {
       }
       const todosVigentes = [...unicos.values()]
         .map(({ responsables, ...v }) => ({ ...v, responsable: responsables.join(', ') }))
-        .sort((a, b) => (b.diasAtraso || 0) - (a.diasAtraso || 0) || String(a.fechaEntrega).localeCompare(String(b.fechaEntrega)));
+        .sort(porFechaEntrega);
       // Los mismos vales, agrupados como las secciones del período (para el PDF): del más atrasado al menos.
       let restanteVigentes = MAX_VIGENTES;
       const gruposVigentes = ordenarGrupos(lista

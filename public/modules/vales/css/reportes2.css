@@ -101,7 +101,7 @@
 .rep2-gt-seg { display: flex; align-items: center; justify-content: center; min-width: 2px; height: 100%; overflow: hidden; font-size: 11px; font-weight: 700; line-height: 1; color: #fff; }
 .rep2-gt-seg--base { background: var(--color-primary); }
 /* Ámbar con texto oscuro (contraste); el ancho mínimo deja ver la cifra aunque sea un solo vale. */
-.rep2-gt-seg--urgente { background: var(--color-warning); color: var(--color-text); min-width: 16px; cursor: pointer; }
+.rep2-gt-seg--urgente { background: var(--color-warning); color: #fff; min-width: 16px; cursor: pointer; }
 /* Enfoque solo de urgentes: el tramo ámbar lleva su propio contorno (hacia adentro, para no tapar al vecino). */
 .rep2-gt-fila--elegida-urgentes .rep2-gt-seg--urgente { outline: 2px solid var(--color-text); outline-offset: -2px; }
 .rep2-gt--interactiva .rep2-gt-nombre { cursor: pointer; }
@@ -112,7 +112,6 @@
 .rep2-gt-sw--urgente { background: var(--color-warning); }
 .rep2-gt-valor { text-align: right; font-size: var(--text-base); font-variant-numeric: tabular-nums; color: var(--color-text); }
 .rep2-gt-pct { flex: none; font-size: var(--text-sm); color: var(--color-text-secondary); white-space: nowrap; }
-.rep2-gt-mas { margin-top: 6px; }
 /* Reporte de asesores: el selector de tienda y el de asesores van uno junto al otro. */
 .rep2-filtros-doble { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 /* Los dos selectores de la fila miden lo mismo: el botón de personas con la altura del menú en cascada. */
@@ -147,9 +146,7 @@
   .rep2-cabfila .rep2-filtros { width: 100%; }
 }
 
-/* Botón «Ver más» bajo la tabla de vales (dibujo a demanda) y aviso de PDF largo en el modal del desglose */
-.rep-ver-mas { display: flex; justify-content: center; margin-top: 10px; }
-.rep-ver-mas[hidden] { display: none; }
+/* Aviso de PDF largo en el modal del desglose */
 .rep-aviso-pdf { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; padding: 8px 12px; font-size: var(--text-sm); color: var(--color-warning); background: var(--color-warning-bg); border: 1px solid var(--color-warning); border-radius: var(--radius-md); }
 .rep-aviso-pdf ion-icon { flex: none; margin-top: 2px; }
 /* Modal del PDF con filtros de vista: filtros activos y una opción por botón (con su conteo y aviso debajo). */

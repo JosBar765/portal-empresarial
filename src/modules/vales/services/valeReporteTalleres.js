@@ -35,10 +35,12 @@ function unirSeccionPorVale(seccion) {
     if (!porConjunto.has(nombre)) porConjunto.set(nombre, { vales: [], ids: ordenados.map(([, id]) => id) });
     porConjunto.get(nombre).vales.push(vale);
   }
-  const unidos = [...porConjunto].map(([nombre, { vales, ids }]) => ({
+  // Todo el desglose va por fecha de entrega: los vales de cada fila y las filas por su primer vale.
+  const porFecha = (a, b) => String(a.fechaEntrega).localeCompare(String(b.fechaEntrega)) || a.id - b.id;
+  const unidos = [...porConjunto].map(([nombre, { vales: sinOrden, ids }]) => ({ vales: sinOrden.sort(porFecha), nombre, ids })).map(({ nombre, ids, vales }) => ({
     clave: `taller:${nombre}`, id: nombre, nombre, nombres: nombre.split(SEPARADOR), ids, vales, total: vales.length,
     autorizados: vales.filter(v => v.autorizado).length, atrasados: vales.filter(v => v.atrasado).length
-  })).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  })).sort((a, b) => porFecha(a.vales[0], b.vales[0]) || a.nombre.localeCompare(b.nombre, 'es'));
   return { ...seccion, total: unidos.reduce((s, g) => s + g.total, 0), grupos: unidos };
 }
 

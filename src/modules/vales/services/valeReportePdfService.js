@@ -258,7 +258,7 @@ class ValeReportePdfService {
         if (anchoBase > 0) ctx.page.drawRectangle({ x: x0, y: yBarra, width: anchoBase, height: ALTO_BARRA, color: COLOR_SERIE_A });
         if (anchoUrg > 0) {
           ctx.page.drawRectangle({ x: x0 + anchoBase + (anchoBase ? HUECO : 0), y: yBarra, width: anchoUrg, height: ALTO_BARRA, color: AMBAR });
-          this._texto(ctx, n, x0 + anchoBase + (anchoBase ? HUECO : 0) + (anchoUrg - wN) / 2, yBarra + 2.3, { size: 6.5, bold: true, color: rgb(0.1, 0.1, 0.1) });
+          this._texto(ctx, n, x0 + anchoBase + (anchoBase ? HUECO : 0) + (anchoUrg - wN) / 2, yBarra + 2.3, { size: 6.5, bold: true, color: BLANCO });
         }
       } else if (ancho > 0 && !f.otras) ctx.page.drawRectangle({ x: x0, y: yBarra, width: ancho, height: ALTO_BARRA, color: f.lider ? COLOR_SERIE_A : rgb(0.58, 0.64, 0.72) });
       // «Otras» no lleva barra: su porcentaje arranca donde empezaría una.
