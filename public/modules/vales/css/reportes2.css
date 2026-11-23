@@ -192,10 +192,10 @@
 /* Nombre | barras | E | T en una sola rejilla (las filas son `display: contents`, como en la gráfica de asesores). */
 .rep2-gd-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(120px, 1fr) 4.5rem 4.5rem; align-items: center; gap: 10px 12px; }
 .rep2-gd-colh { text-align: right; font-size: var(--text-sm); font-weight: 700; color: var(--color-text-secondary); cursor: help; }
-.rep2-gd-barras { display: flex; flex-direction: column; gap: 0; min-width: 0; } /* cada línea ya mide 16 px (la altura de su cifra): sin hueco extra las dos barras de una persona quedan juntas y se distingue de la siguiente */
+.rep2-gd-barras { display: flex; flex-direction: column; gap: 1px; min-width: 0; } /* cada línea mide 14 px (la cifra cabe en 11 px): las dos barras de una persona quedan casi pegadas y se distinguen de la siguiente */
 /* Sin diseñador asignado: el hueco ocupa lo de la segunda barra y el nombre se alinea con la única barra (centro de la primera línea, de 16 px). */
-.rep2-gd-linea { min-height: 16px; } /* la altura de una línea (la fija el texto de la cantidad): el hueco y el nombre de Sin asignar usan la misma */
-.rep2-gd-linea--hueco { height: 16px; }
+.rep2-gd-linea { min-height: 14px; } /* la altura de una línea (la fija el texto de la cantidad): el hueco y el nombre de Sin asignar usan la misma */
+.rep2-gd-linea--hueco { height: 14px; }
 .rep2-gd-fila--sin .rep2-gd-nombre { align-self: start; display: flex; align-items: center; justify-content: flex-end; height: 16px; white-space: nowrap; }
 .rep2-gd-linea { display: flex; align-items: center; gap: 6px; min-width: 0; }
 /* Las dos barras comparten escala: el largo es una fracción de la línea menos el lugar de la cifra, que va en la punta. */
@@ -209,7 +209,7 @@
 /* El ancho mínimo deja ver la cifra aunque sea una sola entrega tarde; blanco sobre rojo da 4.8:1. */
 .rep2-gd-seg--tarde { background: var(--color-danger); min-width: 16px; }
 .rep2-gd-seg:last-child { border-radius: 0 4px 4px 0; }
-.rep2-gd-cant { flex: none; min-width: 2ch; font-size: var(--text-sm); font-variant-numeric: tabular-nums; color: var(--color-text-secondary); }
+.rep2-gd-cant { flex: none; min-width: 2ch; line-height: 1; font-size: var(--text-sm); font-variant-numeric: tabular-nums; color: var(--color-text-secondary); }
 .rep2-gd-e, .rep2-gd-t { text-align: right; font-size: var(--text-base); font-variant-numeric: tabular-nums; color: var(--color-text); white-space: nowrap; }
 .rep2-gd .rep2-gd-max { color: var(--color-danger); font-weight: 700; }
 .rep2-gt--interactiva button.rep2-gd-barra, .rep2-gt--interactiva button.rep2-gd-seg { cursor: pointer; }
