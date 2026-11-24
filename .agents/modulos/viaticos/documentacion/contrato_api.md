@@ -41,7 +41,7 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | `POST /solicitudes/:id/recibos` | ver | Genera y guarda un recibo firmado (multipart: `datos` JSON y `firma` PNG) |
 | `DELETE /solicitudes/:id/recibos/:reciboId` | ver | Quita un recibo |
 | `POST /solicitudes/:id/liquidar` | ver | Liquida (aunque falten comprobantes o recibos; solo se avisa) |
-| `GET /gestiones?desde=&hasta=&q=` | gestionar | Todas las solicitudes, con solicitante y país |
+| `GET /gestiones?desde=&hasta=&q=` | gestionar | Todas las solicitudes, con solicitante, país y, si lo hay, el piloto (`piloto: { id, nombre }`); `q` busca también por el nombre del piloto |
 | `GET /gestiones/:id` y `/gestiones/:id/documentos` | gestionar | Detalle y documentos |
 | `POST /gestiones/:id/visto` | autorizar | Registra que quien consulta abrió el documento (requisito para autorizar o rechazar) |
 | `POST /gestiones/:id/autorizar` | autorizar | Autoriza |

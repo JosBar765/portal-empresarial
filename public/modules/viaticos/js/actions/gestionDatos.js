@@ -52,6 +52,8 @@ export function detallesAutorizar(solicitud) {
     { etiqueta: t('gestiones.detalle.solicitante'), valor: [nombreSolicitante(solicitud), nombrePais(solicitud)].filter(Boolean).join(' · ') },
     { etiqueta: t('gestiones.detalle.fechas'), valor: formatearRangoViaje(solicitud) }
   ];
+  // Con piloto, quien maneja es distinto de quien tramita.
+  if (solicitud.piloto && solicitud.piloto.nombre) detalles.splice(2, 0, { etiqueta: t('gestiones.detalle.conductor'), valor: solicitud.piloto.nombre });
   const total = Number(solicitud.totalSolicitado);
   if (solicitud.modalidad === MODALIDADES.MAS_DE_UN_DIA && Number.isFinite(total) && total > 0) {
     detalles.push({ etiqueta: t('gestiones.detalle.total'), valor: formatearDinero(solicitud.moneda ? solicitud.moneda.simbolo : '', total), destacado: true });

@@ -49,8 +49,9 @@ class SolicitudRepository {
       params.push(`%${escaparLike(correlativo)}%`);
     }
     if (nombre) {
-      busqueda.push('u.nombre LIKE ?');
-      params.push(`%${escaparLike(nombre)}%`);
+      // Quien tramita o el piloto que maneja.
+      busqueda.push('(u.nombre LIKE ? OR pl.nombre LIKE ?)');
+      params.push(`%${escaparLike(nombre)}%`, `%${escaparLike(nombre)}%`);
     }
     if (fecha) {
       busqueda.push(`(${RANGO_VIAJE})`);

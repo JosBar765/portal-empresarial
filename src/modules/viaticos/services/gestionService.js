@@ -52,6 +52,7 @@ class GestionService {
       ...solicitudService.itemDeLista(fila, pipelineDeGestion(solicitudService.pipelineDe(fila, hoy), fila.modalidad, usuario)),
       vencimiento: vencimientos.get(Number(fila.id)) || null,
       solicitante: { id: fila.solicitanteId, nombre: fila.solicitanteNombre },
+      piloto: fila.pilotoId ? { id: fila.pilotoId, nombre: fila.pilotoNombre } : null,
       pais: { codigo: fila.paisCodigo, nombre: fila.paisNombre },
       visto: vistas.has(Number(fila.id))
     }));
