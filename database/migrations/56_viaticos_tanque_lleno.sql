@@ -15,10 +15,12 @@
 --   ALTER TABLE `viaticos_vehiculos` DROP COLUMN `capacidad_tanque_galones`;
 --   ALTER TABLE `viaticos_solicitudes` DROP COLUMN `tanque_lleno`, DROP COLUMN `capacidad_tanque_galones`;
 
+-- Nota: las dos columnas con CHECK no llevan COMMENT porque MariaDB no admite CHECK (...) seguido de COMMENT en la misma columna.
+-- Capacidad del tanque: en galones; NULL = el vehículo no sale con tanque lleno. En la solicitud: la capacidad vigente al crearla.
 SET NAMES utf8mb4;
 
 SET @sql = (SELECT IF(COUNT(*) = 0,
-  'ALTER TABLE `viaticos_vehiculos` ADD COLUMN `capacidad_tanque_galones` DECIMAL(10,2) NULL DEFAULT NULL CHECK (`capacidad_tanque_galones` IS NULL OR `capacidad_tanque_galones` > 0) COMMENT ''Capacidad del tanque en galones; NULL = sin descuento por tanque lleno''',
+  'ALTER TABLE `viaticos_vehiculos` ADD COLUMN `capacidad_tanque_galones` DECIMAL(10,2) NULL DEFAULT NULL CHECK (`capacidad_tanque_galones` IS NULL OR `capacidad_tanque_galones` > 0)',
   'SELECT 1')
   FROM information_schema.COLUMNS
   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'viaticos_vehiculos' AND COLUMN_NAME = 'capacidad_tanque_galones');
@@ -32,7 +34,7 @@ SET @sql = (SELECT IF(COUNT(*) = 0,
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @sql = (SELECT IF(COUNT(*) = 0,
-  'ALTER TABLE `viaticos_solicitudes` ADD COLUMN `capacidad_tanque_galones` DECIMAL(10,2) NULL DEFAULT NULL CHECK (`capacidad_tanque_galones` IS NULL OR `capacidad_tanque_galones` > 0) COMMENT ''Capacidad del tanque vigente al crear la solicitud; NULL si no es tanque lleno''',
+  'ALTER TABLE `viaticos_solicitudes` ADD COLUMN `capacidad_tanque_galones` DECIMAL(10,2) NULL DEFAULT NULL CHECK (`capacidad_tanque_galones` IS NULL OR `capacidad_tanque_galones` > 0)',
   'SELECT 1')
   FROM information_schema.COLUMNS
   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'viaticos_solicitudes' AND COLUMN_NAME = 'capacidad_tanque_galones');
