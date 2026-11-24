@@ -31,7 +31,8 @@ export function htmlAccionesGestion(solicitud) {
 const htmlSolicitante = (s) => {
   const nombre = (s.solicitante && s.solicitante.nombre) || '-';
   const pais = s.pais && s.pais.nombre;
-  return `<div class="vi-solicitante"><strong>${escapeHtml(nombre)}</strong>${pais ? `<span class="vi-solicitante__pais">${escapeHtml(pais)}</span>` : ''}</div>`;
+  const conductor = s.piloto && s.piloto.nombre;
+  return `<div class="vi-solicitante"><strong>${escapeHtml(nombre)}</strong>${pais ? `<span class="vi-solicitante__pais">${escapeHtml(pais)}</span>` : ''}${conductor ? `<span class="vi-solicitante__conductor">${escapeHtml(t('gestiones.conductor', { nombre: conductor }))}</span>` : ''}</div>`;
 };
 
 export function htmlFilaGestion(s) {
