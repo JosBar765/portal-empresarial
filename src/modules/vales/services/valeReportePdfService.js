@@ -258,7 +258,7 @@ class ValeReportePdfService {
         if (anchoBase > 0) ctx.page.drawRectangle({ x: x0, y: yBarra, width: anchoBase, height: ALTO_BARRA, color: COLOR_SERIE_A });
         if (anchoUrg > 0) {
           ctx.page.drawRectangle({ x: x0 + anchoBase + (anchoBase ? HUECO : 0), y: yBarra, width: anchoUrg, height: ALTO_BARRA, color: AMBAR });
-          this._texto(ctx, n, x0 + anchoBase + (anchoBase ? HUECO : 0) + (anchoUrg - wN) / 2, yBarra + 2.3, { size: 6.5, bold: true, color: rgb(0.1, 0.1, 0.1) });
+          this._texto(ctx, n, x0 + anchoBase + (anchoBase ? HUECO : 0) + (anchoUrg - wN) / 2, yBarra + 2.3, { size: 6.5, bold: true, color: BLANCO });
         }
       } else if (ancho > 0 && !f.otras) ctx.page.drawRectangle({ x: x0, y: yBarra, width: ancho, height: ALTO_BARRA, color: f.lider ? COLOR_SERIE_A : rgb(0.58, 0.64, 0.72) });
       // «Otras» no lleva barra: su porcentaje arranca donde empezaría una.
@@ -406,9 +406,13 @@ class ValeReportePdfService {
     this._texto(ctx, TITULOS_PDF[reporte.tipo] || TITULOS_PDF.actividad, x0 + 30, ctx.y - 9, { size: 12, bold: true });
     this._texto(ctx, reporte.titulo, x0 + 30, ctx.y - 20, { size: 8.5, color: GRIS });
     const derecha = [reporte.periodo.titulo || `Período: ${reporte.periodo.etiqueta}`, `Generado: ${ahora}${generadoPor ? ` por ${generadoPor}` : ''}`];
+    // «Fecha de entrega: …» (reportes de actividad) va en negrita; se mide con la fuente en negrita para alinearla a la derecha.
+    const negritaFecha = !!reporte.periodo.titulo;
     derecha.forEach((linea, i) => {
-      const t = this._ajustar(ctx, linea, 330, 7.5);
-      this._texto(ctx, t, PAGE_WIDTH - MARGIN - ctx.font.widthOfTextAtSize(t, 7.5), ctx.y - 9 - i * 10, { size: 7.5, color: GRIS });
+      const negrita = negritaFecha && i === 0;
+      const t = this._ajustar(ctx, linea, 330, 7.5, negrita);
+      const fuente = negrita ? ctx.fontBold : ctx.font;
+      this._texto(ctx, t, PAGE_WIDTH - MARGIN - fuente.widthOfTextAtSize(t, 7.5), ctx.y - 9 - i * 10, negrita ? { size: 7.5, bold: true } : { size: 7.5, color: GRIS });
     });
     ctx.y -= 28;
     // «Agrupar por» no aplica al reporte de rendimiento.
