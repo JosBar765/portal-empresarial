@@ -14,9 +14,13 @@ export function estadoInicial({ paises = [] } = {}) {
     modalidad: MODALIDADES.MAS_DE_UN_DIA,
     monedaId: '',
     vehiculoId: '',
+    // Conductor: '' = el propio solicitante («Yo»); si no, el id de un piloto del catálogo.
+    pilotoId: '',
     rendimiento: '',
     precioGalon: '',
     depreciacion: '',
+    // «Sale con el tanque lleno»: solo con un vehículo que tenga capacidad de tanque.
+    tanqueLleno: false,
     fechaSalida: '',
     fechaRegreso: '',
     motivoId: '',
@@ -155,10 +159,12 @@ const existe = (lista, id) => id !== '' && lista.some(x => x.id === id);
 
 // Descarta lo elegido que ya no existe en el catálogo (p. ej. al cambiar de país) y preselecciona lo único posible.
 export function reconciliarEstado(estado, cat) {
+  // Un piloto que ya no está activo en el catálogo vuelve a «Yo».
+  const pilotoId = existe(cat.pilotos || [], estado.pilotoId) ? estado.pilotoId : '';
   const vehiculo = cat.vehiculos.find(v => v.id === estado.vehiculoId);
   const esCorto = estado.modalidad === MODALIDADES.HASTA_UN_DIA;
   // El viaje corto solo admite vehículos de la empresa con tarjeta de circulación vigente.
-  const noServible = (v) => !!v.bloqueo || (esCorto && (v.esPropio || !!v.bloqueoViajeCorto));
+  const noServible = (v) => !!bloqueoDeVehiculo(v, { ...estado, pilotoId }, cat) || (esCorto && (v.esPropio || !!v.bloqueoViajeCorto));
   const monedaId = existe(cat.monedas, estado.monedaId) ? estado.monedaId : (cat.monedas.length === 1 ? cat.monedas[0].id : '');
   const dias = diasEntre(estado.fechaSalida, estado.fechaRegreso);
   const valores = valoresComidaDeMoneda(cat.valoresComida, monedaId);
@@ -166,6 +172,7 @@ export function reconciliarEstado(estado, cat) {
   return {
     ...estado,
     monedaId,
+    pilotoId,
     vehiculoId: vehiculo && !noServible(vehiculo) ? estado.vehiculoId : '',
     motivoId: existe(cat.motivos, estado.motivoId) ? estado.motivoId : '',
     ...normalizarRuta(estado, cat.tramos),
@@ -183,6 +190,13 @@ export function reconciliarEstado(estado, cat) {
 // Solo el tipo «otros» lleva descripción.
 export const gastoEsOtros = (cat, tipoGastoId) => !!(cat && cat.tiposGasto.some(x => x.id === tipoGastoId && x.esOtros));
 export const vehiculoDelEstado = (estado, cat) => (cat ? cat.vehiculos.find(v => v.id === estado.vehiculoId) || null : null);
+export const pilotoDelEstado = (estado, cat) => (cat && estado.pilotoId !== '' ? (cat.pilotos || []).find(p => p.id === estado.pilotoId) || null : null);
+
+// Motivo por el que la licencia de quien maneja (el piloto elegido o, sin piloto, el solicitante) no permite el vehículo; null si lo permite.
+export function bloqueoDeVehiculo(veh, estado, cat) {
+  const piloto = pilotoDelEstado(estado, cat);
+  return (piloto ? piloto.bloqueos[veh.id] : veh.bloqueo) || null;
+}
 
 function poner(datos, clave, valor) {
   if (valor !== '' && valor !== null && valor !== undefined) datos[clave] = valor;
@@ -211,6 +225,7 @@ export function armarPayload(estado, cat, { idempotencyKey } = {}) {
   const datos = { modalidad: estado.modalidad };
   poner(datos, 'paisId', estado.paisId);
   poner(datos, 'vehiculoId', estado.vehiculoId);
+  poner(datos, 'pilotoId', estado.pilotoId);
   poner(datos, 'motivoId', estado.motivoId);
   poner(datos, 'monedaId', estado.monedaId);
   poner(datos, 'fechaSalida', estado.fechaSalida);
@@ -218,6 +233,8 @@ export function armarPayload(estado, cat, { idempotencyKey } = {}) {
   if (!vacio(estado.rendimiento)) datos.rendimientoKmGalon = importe(estado.rendimiento);
   if (!vacio(estado.precioGalon)) datos.precioGalon = importe(estado.precioGalon);
   if (veh && veh.esPropio && !vacio(estado.depreciacion)) datos.depreciacionPorKm = importe(estado.depreciacion);
+  // Solo viaja marcada y con capacidad: sin ella el servidor respondería con el error de la regla.
+  if (estado.tanqueLleno && veh && veh.capacidadTanqueGalones != null) datos.tanqueLleno = true;
 
   const indices = { tramos: [], hospedajes: [], gastos: [] };
   datos.tramos = [];
@@ -322,6 +339,7 @@ export function detalleAEstado(detalle) {
     paisId: aId(detalle.pais && detalle.pais.id),
     modalidad: detalle.modalidad,
     vehiculoId: aId(detalle.vehiculo && detalle.vehiculo.id),
+    pilotoId: aId(detalle.piloto && detalle.piloto.id),
     motivoId: aId(detalle.motivo && detalle.motivo.id)
   };
   if (detalle.modalidad === MODALIDADES.HASTA_UN_DIA) return { ...base, ...comun, ...estadoCortoDeDetalle(detalle) };
@@ -340,6 +358,7 @@ export function detalleAEstado(detalle) {
     rendimiento: numeroATexto(detalle.rendimientoKmGalon),
     precioGalon: numeroATexto(detalle.precioGalon),
     depreciacion: numeroATexto(detalle.depreciacionPorKm),
+    tanqueLleno: detalle.tanqueLleno === true,
     origenInicialId: tramos.length ? aId(tramos[0].origenId) : '',
     tramos: tramos.length ? tramos.map(t => ({ destinoId: aId(t.destinoId) })) : [{ destinoId: '' }],
     hospedajes: (detalle.hospedajes || []).map(h => ({ hotel: h.hotel || '', lugar: h.lugar || '', noches: numeroATexto(h.noches), valorNoche: numeroATexto(h.valorNoche) })),

@@ -5,7 +5,7 @@ const { filaACamel, filasACamel } = require('../utilidades');
 const SELECT = `SELECT v.id, v.pais_id, p.nombre AS pais_nombre, v.propietario_id, u.nombre AS propietario_nombre,
        v.marca, v.modelo, v.anio, v.placa, v.tipo_placa_id, tp.nombre AS tipo_placa_nombre,
        v.combustible_id, c.nombre AS combustible_nombre, v.tonelaje, v.pasajeros,
-       v.poliza_numero, v.poliza_vence_el, v.tarjeta_vence_el, v.activo
+       v.capacidad_tanque_galones, v.poliza_numero, v.poliza_vence_el, v.tarjeta_vence_el, v.activo
   FROM viaticos_vehiculos v
   JOIN paises p ON p.id = v.pais_id
   LEFT JOIN usuarios u ON u.id = v.propietario_id
@@ -14,7 +14,7 @@ const SELECT = `SELECT v.id, v.pais_id, p.nombre AS pais_nombre, v.propietario_i
 
 const COLUMNAS = [
   'pais_id', 'propietario_id', 'marca', 'modelo', 'anio', 'placa', 'tipo_placa_id', 'combustible_id',
-  'tonelaje', 'pasajeros', 'poliza_numero', 'poliza_vence_el', 'tarjeta_vence_el'
+  'tonelaje', 'pasajeros', 'capacidad_tanque_galones', 'poliza_numero', 'poliza_vence_el', 'tarjeta_vence_el'
 ];
 
 class VehiculoRepository {
@@ -27,7 +27,7 @@ class VehiculoRepository {
     return filas[0] ? filaACamel(filas[0]) : null;
   }
 
-  // `valores` trae las 13 columnas de COLUMNAS (null donde corresponda).
+  // `valores` trae las 14 columnas de COLUMNAS (null donde corresponda).
   async insertar(valores) {
     const resultado = await db.query(
       `INSERT INTO viaticos_vehiculos (${COLUMNAS.join(', ')}) VALUES (${COLUMNAS.map(() => '?').join(', ')})`,

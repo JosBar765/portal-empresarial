@@ -70,7 +70,7 @@ class ReporteRepository {
     const { where, params } = filtrosDe(filtros);
     return filasACamel(await ejecutor.query(
       `SELECT s.id, s.correlativo, s.solicitante_id, u.nombre AS solicitante_nombre, s.total_solicitado,
-              s.rendimiento_km_galon, s.precio_galon, s.depreciacion_por_km, v.propietario_id AS vehiculo_propietario_id,
+              s.rendimiento_km_galon, s.precio_galon, s.tanque_lleno, s.capacidad_tanque_galones, s.depreciacion_por_km, v.propietario_id AS vehiculo_propietario_id,
               (SELECT COALESCE(SUM(st.km), 0) FROM viaticos_solicitud_tramos st WHERE st.solicitud_id = s.id) AS km_total,
               (SELECT COALESCE(SUM(hp.noches * hp.valor_noche), 0) FROM viaticos_solicitud_hospedajes hp WHERE hp.solicitud_id = s.id) AS hospedaje,
               (SELECT COALESCE(SUM(c.valor_unitario), 0) FROM viaticos_solicitud_comidas c WHERE c.solicitud_id = s.id) AS comidas,

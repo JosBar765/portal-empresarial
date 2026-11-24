@@ -6,9 +6,10 @@ const { msg } = require('../mensajes');
 const { calcularCombustible, calcularDepreciacion, calcularHospedaje, calcularOtrosGastos, sumarTramos } = require('./calculoService');
 
 // Importe de combustible solicitado, recalculado con los mismos datos y fórmula que el cálculo de la solicitud.
-function combustibleSolicitado({ tramos, rendimientoKmGalon, precioGalon }) {
+// `capacidadTanque`: la guardada en la solicitud con tanque lleno (null si no lo es).
+function combustibleSolicitado({ tramos, rendimientoKmGalon, precioGalon, capacidadTanque = null }) {
   const { kmTotal } = sumarTramos(tramos);
-  return calcularCombustible({ kmTotal, rendimientoKmGalon, precioGalon }).importe;
+  return calcularCombustible({ kmTotal, rendimientoKmGalon, precioGalon, capacidadTanque }).importe;
 }
 
 // Depreciación solicitada: km totales × depreciación por km, solo con vehículo propio (sin él la solicitud no la guarda: 0).

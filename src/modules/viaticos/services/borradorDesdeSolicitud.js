@@ -30,7 +30,7 @@ function separarFechaHora(texto) {
 // Valores iniciales de `estadoInicial()` del formulario, tal como los guarda `estadoABorrador`.
 function datosBase() {
   return {
-    paisId: '', modalidad: MODALIDADES.MAS_DE_UN_DIA, monedaId: '', vehiculoId: '', rendimiento: '', precioGalon: '', depreciacion: '',
+    paisId: '', modalidad: MODALIDADES.MAS_DE_UN_DIA, monedaId: '', vehiculoId: '', pilotoId: '', rendimiento: '', precioGalon: '', depreciacion: '', tanqueLleno: false,
     fechaSalida: '', fechaRegreso: '', motivoId: '', origenInicialId: '', tramos: [{ destinoId: '' }], hospedajes: [], comidas: {},
     comidasAutoMarcar: true, comidasDesmarcadas: {}, gastos: [], horaSalida: '', odometro: '', fluidos: {}, kit: {}, defectos: []
   };
@@ -52,6 +52,7 @@ function datosLargo(detalle, comun) {
     rendimiento: numeroATexto(detalle.rendimientoKmGalon),
     precioGalon: numeroATexto(detalle.precioGalon),
     depreciacion: numeroATexto(detalle.depreciacionPorKm),
+    tanqueLleno: presente(detalle.tanqueLleno),
     origenInicialId: tramos.length ? aId(tramos[0].origenId) : '',
     tramos: tramos.length ? tramos.map(t => ({ destinoId: aId(t.destinoId) })) : [{ destinoId: '' }],
     hospedajes: (detalle.hospedajes || []).map(h => ({
@@ -91,6 +92,7 @@ function borradorDesdeSolicitud(detalle) {
     paisId: aId(detalle.pais && detalle.pais.id),
     modalidad: detalle.modalidad,
     vehiculoId: aId(detalle.vehiculo && detalle.vehiculo.id),
+    pilotoId: aId(detalle.piloto && detalle.piloto.id),
     motivoId: aId(detalle.motivo && detalle.motivo.id)
   };
   const datos = detalle.modalidad === MODALIDADES.HASTA_UN_DIA ? datosCorto(detalle, comun) : datosLargo(detalle, comun);

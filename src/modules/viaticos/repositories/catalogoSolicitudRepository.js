@@ -5,7 +5,7 @@ const { filaACamel, filasACamel } = require('../utilidades');
 
 const SELECT_VEHICULO = `SELECT v.id, v.pais_id, v.propietario_id, v.marca, v.modelo, v.anio, v.placa,
        v.tipo_placa_id, tp.nombre AS tipo_placa_nombre, v.combustible_id, c.nombre AS combustible_nombre,
-       v.tonelaje, v.pasajeros, v.poliza_numero, v.poliza_vence_el, v.tarjeta_vence_el, v.activo
+       v.tonelaje, v.pasajeros, v.capacidad_tanque_galones, v.poliza_numero, v.poliza_vence_el, v.tarjeta_vence_el, v.activo
   FROM viaticos_vehiculos v
   JOIN viaticos_tipos_placa tp ON tp.id = v.tipo_placa_id
   JOIN viaticos_combustibles c ON c.id = v.combustible_id`;

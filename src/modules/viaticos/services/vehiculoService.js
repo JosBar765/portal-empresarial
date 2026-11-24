@@ -21,6 +21,7 @@ function validar(cuerpo) {
     combustible_id: v.id(datos, 'combustibleId', 'Combustible'),
     tonelaje: v.decimal(datos, 'tonelaje', 'Tonelaje', { min: 0, minExclusivo: true, max: LIMITES.TONELAJE_MAX, requerido: false }),
     pasajeros: v.entero(datos, 'pasajeros', 'Pasajeros', { min: 1, max: LIMITES.ENTERO_MAX, requerido: false }),
+    capacidad_tanque_galones: v.decimal(datos, 'capacidadTanqueGalones', 'Capacidad del tanque (galones)', { min: 0, minExclusivo: true, max: LIMITES.TONELAJE_MAX, requerido: false }),
     poliza_numero: v.texto(datos, 'polizaNumero', 'Número de póliza', { max: 50, requerido: false }),
     poliza_vence_el: v.fecha(datos, 'polizaVenceEl', 'Vencimiento de la póliza', { requerido: false }),
     tarjeta_vence_el: v.fecha(datos, 'tarjetaVenceEl', 'Vencimiento de la tarjeta de circulación')
