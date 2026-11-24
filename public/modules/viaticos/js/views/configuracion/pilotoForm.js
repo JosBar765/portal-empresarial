@@ -13,7 +13,7 @@ import { LIMITES_PILOTO, armarPayloadPiloto, validarPiloto } from './pilotosMode
 const ID = (nombre) => `vi-pil-${nombre}`;
 const CAMPOS = ['nombre', 'tipoLicenciaId', 'numero', 'venceEl'];
 
-const campo = (nombre, control) => crearCampo({ etiqueta: t(`config.pilotos.campo.${nombre}`), control, idControl: ID(nombre) });
+const campo = (nombre, control, clase = '') => crearCampo({ etiqueta: t(`config.pilotos.campo.${nombre}`), control, idControl: ID(nombre), clase });
 
 // `tiposLicencia` son los activos; el del piloto se agrega aunque se haya desactivado para no perderlo al guardar.
 function opcionesDeTipos(tiposLicencia, piloto) {
@@ -42,8 +42,9 @@ export function abrirFormularioPiloto({ piloto, tiposLicencia, alGuardar }) {
   const ref = abrirFormularioConfig({
     titulo: t(enEdicion ? 'config.pilotos.edicion' : 'config.pilotos.alta'),
     hijos: [
-      campo('nombre', nombre),
-      campo('tipoLicenciaId', select),
+      campo('nombre', nombre, 'full'),
+      // Filas completas: el texto largo del tipo de licencia ensanchaba el formulario y cortaba la columna derecha; el nombre también necesita espacio.
+      campo('tipoLicenciaId', select, 'full'),
       campo('numero', numero),
       crearCampoFecha({ id: ID('venceEl'), name: 'venceEl', etiqueta: t('config.pilotos.campo.venceEl') }),
       h('p', { class: 'form-hint full', text: t('config.pilotos.ayudaForm') })
