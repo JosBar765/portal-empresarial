@@ -6,7 +6,8 @@ import { crearCampo } from '../../components/campo.js';
 import { aId, pilotoDelEstado } from '../datos.js';
 import { t } from '../../textos.js';
 
-const textoPiloto = (p) => t('formulario.conductor.piloto', { nombre: p.nombre, tipo: p.tipoLicenciaCodigo });
+// El prefijo de país del código (GT-B) sobra en el selector: la licencia ya es del país de la solicitud.
+const textoPiloto = (p) => t('formulario.conductor.piloto', { nombre: p.nombre, tipo: String(p.tipoLicenciaCodigo).replace(/^[A-Z]{2}-/, '') });
 
 export function crearCampoConductor(ctx) {
   const { estado, catalogos } = ctx;

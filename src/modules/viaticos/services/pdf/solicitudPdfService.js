@@ -274,6 +274,9 @@ function dibujarRutaDeTramo(ctx, tramo, x, y) {
   texto(ctx, destino, xFlecha + 15, y);
 }
 
+// El código de licencia lleva prefijo de país (GT-B); en el papel solo importa el tipo.
+const sinPrefijoDePais = (codigo) => (codigo ? String(codigo).replace(/^[A-Z]{2}-/, '') : codigo);
+
 // Quien viaja: el piloto si lo hay; si no, el solicitante.
 function personaDelViaje({ solicitante, piloto }) {
   return piloto
@@ -291,7 +294,7 @@ function seccionesDeViaje(ctx, detalle) {
     { etiqueta: t('puesto'), valor: quien.puesto, proporcion: 0.3 },
     {
       etiqueta: t('licencia'),
-      valor: quien.licenciaNumero ? t('licenciaValor', { tipo: quien.licenciaTipo || '-', numero: quien.licenciaNumero }) : '',
+      valor: quien.licenciaNumero ? t('licenciaValor', { tipo: sinPrefijoDePais(quien.licenciaTipo) || '-', numero: quien.licenciaNumero }) : '',
       proporcion: 0.3
     }
   ]]);
