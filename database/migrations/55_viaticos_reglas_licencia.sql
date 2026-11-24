@@ -10,10 +10,12 @@
 --      global y varios países repiten letras con significado distinto.
 --   4. Crea las reglas (país, licencia, placa) con tonelaje y pasajeros máximos (NULL: sin límite).
 --
--- GT-M (motocicletas) queda sin límites en todas las placas: el modelo no distingue tipo de vehículo.
+-- GT-M (motocicletas) queda sin límites en todas las placas, incluida la nueva placa «M» (Motocicleta),
+-- para poder registrar motos como vehículo y pedir viáticos. Nicaragua: categorías 1 y 2 (motos) sin
+-- límites; no se cargan las agrícolas (categoría 8).
 -- No cubre (el modelo no lo expresa): remuneración, ejes, articulado, materiales peligrosos,
 -- licencia Profesional ni transporte público. Las licencias de
--- pasajeros sin cifra en la fuente (NI-4B, NI-5B, NI-6B, NI-7, CR-D1, CR-D3, PA-E1, PA-E3) quedan sin límite.
+-- pasajeros sin cifra en la fuente (CR-D1, CR-D3, PA-E1, PA-E3) quedan sin límite.
 --
 -- Cómo se aplica (idempotente: no duplica ni pisa lo que el dueño editó en Configuración):
 --   Automáticamente al iniciar el servidor en staging y producción; en desarrollo: npm run migrate.
@@ -32,6 +34,7 @@ SELECT p.`id`, d.`codigo`, d.`nombre` FROM (
   UNION ALL SELECT 'GT', 'C', 'Comercial'
   UNION ALL SELECT 'GT', 'A', 'Alquiler'
   UNION ALL SELECT 'GT', 'U', 'Urbana'
+  UNION ALL SELECT 'GT', 'M', 'Motocicleta'
   UNION ALL SELECT 'SV', 'TODAS', 'Todas las placas'
   UNION ALL SELECT 'HN', 'TODAS', 'Todas las placas'
   UNION ALL SELECT 'NI', 'TODAS', 'Todas las placas'
@@ -58,6 +61,8 @@ SELECT d.`codigo`, d.`nombre` FROM (
   UNION ALL SELECT 'HN-CE', 'Honduras · Tipo CE'
   UNION ALL SELECT 'HN-D1', 'Honduras · Tipo D1'
   UNION ALL SELECT 'HN-D', 'Honduras · Tipo D'
+  UNION ALL SELECT 'NI-1', 'Nicaragua · Categoría 1 (motocicletas de baja cilindrada)'
+  UNION ALL SELECT 'NI-2', 'Nicaragua · Categoría 2 (motocicletas de mayor cilindrada)'
   UNION ALL SELECT 'NI-3', 'Nicaragua · Categoría 3'
   UNION ALL SELECT 'NI-4A', 'Nicaragua · Categoría 4A'
   UNION ALL SELECT 'NI-4B', 'Nicaragua · Categoría 4B'
@@ -91,6 +96,7 @@ SELECT p.`id`, tl.`id`, tp.`id`, d.`tonelaje_max`, d.`pasajeros_max` FROM (
   UNION ALL SELECT 'GT', 'GT-M', 'C', NULL, NULL
   UNION ALL SELECT 'GT', 'GT-M', 'A', NULL, NULL
   UNION ALL SELECT 'GT', 'GT-M', 'U', NULL, NULL
+  UNION ALL SELECT 'GT', 'GT-M', 'M', NULL, NULL
   UNION ALL SELECT 'GT', 'GT-C', 'P', 3.50, NULL
   UNION ALL SELECT 'GT', 'GT-B', 'P', 3.50, NULL
   UNION ALL SELECT 'GT', 'GT-B', 'C', 3.50, NULL
@@ -109,12 +115,14 @@ SELECT p.`id`, tl.`id`, tp.`id`, d.`tonelaje_max`, d.`pasajeros_max` FROM (
   UNION ALL SELECT 'HN', 'HN-CE', 'TODAS', NULL, NULL
   UNION ALL SELECT 'HN', 'HN-D1', 'TODAS', NULL, 25
   UNION ALL SELECT 'HN', 'HN-D', 'TODAS', NULL, NULL
-  UNION ALL SELECT 'NI', 'NI-3', 'TODAS', 4.00, NULL
+  UNION ALL SELECT 'NI', 'NI-1', 'TODAS', NULL, NULL
+  UNION ALL SELECT 'NI', 'NI-2', 'TODAS', NULL, NULL
+  UNION ALL SELECT 'NI', 'NI-3', 'TODAS', 3.50, 9
   UNION ALL SELECT 'NI', 'NI-4A', 'TODAS', 8.00, NULL
-  UNION ALL SELECT 'NI', 'NI-4B', 'TODAS', NULL, NULL
-  UNION ALL SELECT 'NI', 'NI-5A', 'TODAS', 18.00, NULL
-  UNION ALL SELECT 'NI', 'NI-5B', 'TODAS', NULL, NULL
-  UNION ALL SELECT 'NI', 'NI-6A', 'TODAS', NULL, NULL
+  UNION ALL SELECT 'NI', 'NI-4B', 'TODAS', NULL, 18
+  UNION ALL SELECT 'NI', 'NI-5A', 'TODAS', 12.00, NULL
+  UNION ALL SELECT 'NI', 'NI-5B', 'TODAS', NULL, 25
+  UNION ALL SELECT 'NI', 'NI-6A', 'TODAS', 18.00, NULL
   UNION ALL SELECT 'NI', 'NI-6B', 'TODAS', NULL, NULL
   UNION ALL SELECT 'NI', 'NI-7', 'TODAS', NULL, NULL
   UNION ALL SELECT 'CR', 'CR-B1', 'TODAS', 4.00, NULL
