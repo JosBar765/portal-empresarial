@@ -1,9 +1,11 @@
-# Viáticos: reglas de licencia de seis países
+# Viáticos: reglas de licencia de siete países
 
-Rama: `fix/viaticos-reglas-licencias`. Alcance elegido: solo datos.
+Rama: `fix/viaticos-reglas-licencias`. Alcance: solo datos; sin cambios de esquema ni de código.
 
-- [x] T1 Migración `55_viaticos_reglas_licencia.sql`: Panamá, placas, tipos de licencia con prefijo de país y reglas (tonelaje y pasajeros).
+Flotilla: moto, automóvil, SUV y panel. Reglas: moto y 4 ruedas separadas (placa «M» solo con licencia de moto); en Guatemala GT-C solo con placa P, GT-B y GT-A con P, C y A; sin límites de tonelaje ni pasajeros (decisión del dueño, regla no contrastada con la ley de cada país).
+
+- [x] T1 Migración `55_viaticos_reglas_licencia.sql` (Panamá, placas, licencias con prefijo de país, reglas; Belice incluido).
 - [x] T2 Docs: README y `modelo_datos.md`.
-- [ ] T3 Aplicar y verificar en la base local (pendiente de autorización).
+- [ ] T3 Reaplicar en la base local y verificar (pendiente: la 55 ya estaba aplicada con las reglas anteriores).
 
-Supuestos: Nicaragua según la tabla del dueño (cat. 3 = 3.5 t y 9 pasajeros; 6A = 18 t; 1 y 2 motos sin límite; sin cat. 8 agrícola); placa GT «M» para registrar motos; GT-M sin límites pero solo con la placa M (confirmado por el dueño); ejes y carga peligrosa no importan (flota: moto, auto, SUV y panel); licencias de pasajeros sin cifra, sin límite.
+No cubierto: licencia Profesional de Nicaragua con placa comercial, camiones, buses, ejes, carga peligrosa y agrícolas.
