@@ -274,21 +274,26 @@ function dibujarRutaDeTramo(ctx, tramo, x, y) {
   texto(ctx, destino, xFlecha + 15, y);
 }
 
+// Quien viaja: el piloto si lo hay; si no, el solicitante.
+function personaDelViaje({ solicitante, piloto }) {
+  return piloto
+    ? { nombre: piloto.nombre, puesto: t('puestoPiloto'), licenciaTipo: piloto.licenciaTipo, licenciaNumero: piloto.licenciaNumero }
+    : solicitante;
+}
+
 function seccionesDeViaje(ctx, detalle) {
   const esLargo = detalle.modalidad === MODALIDADES.MAS_DE_UN_DIA;
-  const { solicitante, vehiculo, piloto } = detalle;
-  // Con piloto la licencia que cuenta es la suya: reemplaza a la del solicitante en la misma fila para no romper la hoja única.
-  const campoLicencia = piloto
-    ? { etiqueta: t('conductor'), valor: t('conductorValor', { nombre: piloto.nombre, tipo: piloto.licenciaTipo || '-', numero: piloto.licenciaNumero }), proporcion: 0.5 }
-    : {
-      etiqueta: t('licencia'),
-      valor: solicitante.licenciaNumero ? t('licenciaValor', { tipo: solicitante.licenciaTipo || '-', numero: solicitante.licenciaNumero }) : '',
-      proporcion: 0.3
-    };
+  const { vehiculo } = detalle;
+  // Con piloto, el bloque describe a quien maneja (no al supervisor que tramita): sin datos duplicados y en una sola hoja.
+  const quien = personaDelViaje(detalle);
   dibujarSeccionCampos(ctx, t('secSolicitante'), [[
-    { etiqueta: t('solicitante'), valor: solicitante.nombre, proporcion: piloto ? 0.3 : 0.4 },
-    { etiqueta: t('puesto'), valor: solicitante.puesto, proporcion: piloto ? 0.2 : 0.3 },
-    campoLicencia
+    { etiqueta: t('solicitante'), valor: quien.nombre, proporcion: 0.4 },
+    { etiqueta: t('puesto'), valor: quien.puesto, proporcion: 0.3 },
+    {
+      etiqueta: t('licencia'),
+      valor: quien.licenciaNumero ? t('licenciaValor', { tipo: quien.licenciaTipo || '-', numero: quien.licenciaNumero }) : '',
+      proporcion: 0.3
+    }
   ]]);
   dibujarSeccionCampos(ctx, t('secVehiculo'), [
     [
@@ -476,7 +481,7 @@ function dibujarCierre(ctx, detalle, total) {
   const xAdministracion = PAGINA.MARGEN + ANCHO_CONTENIDO - anchoCaja;
   // El nombre va sobre la línea; el de administración aparece cuando la solicitud ya fue autorizada.
   const autorizacion = [...(detalle.historial || [])].reverse().find(h => h.estado === ESTADOS.AUTORIZADA);
-  [[PAGINA.MARGEN, t('firmaSolicitante'), detalle.solicitante.nombre], [xAdministracion, t('firmaAdministracion'), autorizacion && autorizacion.usuarioNombre]].forEach(([x, etiqueta, nombre]) => {
+  [[PAGINA.MARGEN, t('firmaSolicitante'), personaDelViaje(detalle).nombre], [xAdministracion, t('firmaAdministracion'), autorizacion && autorizacion.usuarioNombre]].forEach(([x, etiqueta, nombre]) => {
     ctx.page.drawLine({ start: { x, y: yFirma }, end: { x: x + anchoCaja, y: yFirma }, thickness: 1, color: COLOR.texto });
     texto(ctx, etiqueta, x, yFirma - 9, { size: 6.5, bold: true, color: COLOR.etiqueta });
     if (nombre) texto(ctx, recortar(ctx, nombre, 9, anchoCaja), x, yFirma + 4, { size: 9 });
