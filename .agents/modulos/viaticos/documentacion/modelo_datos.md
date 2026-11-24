@@ -35,18 +35,19 @@ Prefijo de tablas: `viaticos_`. Convenciones del proyecto: español, `snake_case
 
 | Tabla | Columnas clave |
 |---|---|
-| `viaticos_tipos_licencia` | `id`, `codigo`, `nombre`, `activo` (catálogo global; las reglas por país lo usan) |
+| `viaticos_tipos_licencia` | `id`, `codigo`, `nombre`, `activo` (catálogo global; las reglas por país lo usan; el código lleva prefijo de país: `GT-B`, `HN-B`…) |
 | `viaticos_tipos_placa` | `id`, `pais_id`, `codigo`, `nombre`, `activo` |
 | `viaticos_reglas_licencia` | `pais_id`, `tipo_licencia_id`, `tipo_placa_id` (PK compuesta), `tonelaje_max` NULL, `pasajeros_max` NULL — qué placa permite manejar cada tipo de licencia en cada país |
 | `viaticos_licencias` | `usuario_id` (PK, FK `usuarios`), `tipo_licencia_id`, `numero`, `vence_el` — **una por persona (supuesto)** |
 | `viaticos_usuario_paises` | `usuario_id`, `pais_id` (PK compuesta) — países en los que puede solicitar |
-| `viaticos_vehiculos` | `id`, `pais_id`, `propietario_id` NULL (NULL = de la empresa; si no, FK `usuarios`), `marca`, `modelo`, `anio`, `placa`, `tipo_placa_id`, `combustible_id`, `tonelaje` NULL, `pasajeros` NULL, `poliza_numero` NULL, `poliza_vence_el` NULL (la póliza es opcional), `tarjeta_vence_el` (obligatoria), `activo`; UNIQUE (`pais_id`, `placa`) |
+| `viaticos_vehiculos` | `id`, `pais_id`, `propietario_id` NULL (NULL = de la empresa; si no, FK `usuarios`), `marca`, `modelo`, `anio`, `placa`, `tipo_placa_id`, `combustible_id`, `tonelaje` NULL, `pasajeros` NULL, `capacidad_tanque_galones` NULL (DECIMAL > 0; NULL = pide viáticos completos y no ofrece «Sale con el tanque lleno»), `poliza_numero` NULL, `poliza_vence_el` NULL (la póliza es opcional), `tarjeta_vence_el` (obligatoria), `activo`; UNIQUE (`pais_id`, `placa`) |
+| `viaticos_pilotos` | `id`, `nombre` VARCHAR(100), `tipo_licencia_id` (FK `viaticos_tipos_licencia`, RESTRICT), `numero` VARCHAR(50), `vence_el` DATE, `activo`, `creado_en`, `actualizado_en` — repartidores de la empresa que manejan en viajes tramitados por un solicitante (migración `viaticos_pilotos`). **No son usuarios del portal**: registro compartido, se desactivan y nunca se borran (`piloto_id` de las solicitudes los referencia con RESTRICT) |
 
 ## Solicitud y sus partes
 
 | Tabla | Columnas clave |
 |---|---|
-| `viaticos_solicitudes` | `id`, `correlativo` (UNIQUE), `pais_id`, `moneda_id` NULL (solo viajes de más de 1 día), `solicitante_id`, `modalidad` ENUM('hasta_un_dia','mas_de_un_dia'), `estado_id`, `motivo_id`, `vehiculo_id`, `fecha_salida` DATETIME, `fecha_regreso` DATE NULL, `rendimiento_km_galon`, `precio_galon`, `depreciacion_por_km` (NULL si el vehículo es de la empresa), `odometro` NULL, `total_solicitado`, `pdf_ruta` NULL, `creado_en`, `actualizado_en` |
+| `viaticos_solicitudes` | `id`, `correlativo` (UNIQUE), `pais_id`, `moneda_id` NULL (solo viajes de más de 1 día), `solicitante_id`, `modalidad` ENUM('hasta_un_dia','mas_de_un_dia'), `estado_id`, `motivo_id`, `vehiculo_id`, `piloto_id` NULL (FK `viaticos_pilotos`, RESTRICT; NULL = maneja el solicitante, y entonces se valida su licencia; con piloto se valida la licencia del piloto), `fecha_salida` DATETIME, `fecha_regreso` DATE NULL, `rendimiento_km_galon`, `precio_galon`, `tanque_lleno` TINYINT NOT NULL DEFAULT 0 (1 = sale con el tanque lleno; solo más de 1 día), `capacidad_tanque_galones` NULL (capacidad del vehículo al crear la solicitud; NULL si `tanque_lleno` = 0, así editar el vehículo no altera PDF, liquidación ni reportes), `depreciacion_por_km` (NULL si el vehículo es de la empresa), `odometro` NULL, `total_solicitado`, `pdf_ruta` NULL, `creado_en`, `actualizado_en` |
 | `viaticos_historial` | `id`, `solicitud_id` (CASCADE), `estado_id`, `usuario_id`, `motivo` NULL (razón del rechazo, libre), `creado_en` |
 | `viaticos_solicitud_tramos` | `id`, `solicitud_id` (CASCADE), `orden`, `tramo_id`, `sentido` ('ida','vuelta'), `km`, `horas` (copia histórica) |
 | `viaticos_solicitud_hospedajes` | `id`, `solicitud_id`, `hotel` VARCHAR(50), `lugar` VARCHAR(50), `noches`, `valor_noche` |

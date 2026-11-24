@@ -76,10 +76,13 @@ function armarPartes({ datos, ctx, evaluacion, calculo }) {
       modalidad: datos.modalidad,
       motivoId: datos.motivoId,
       vehiculoId: datos.vehiculoId,
+      pilotoId: datos.pilotoId,
       fechaSalida: datos.fechaSalida,
       fechaRegreso: esLargo ? datos.fechaRegreso : null,
       rendimientoKmGalon: esLargo ? datos.rendimientoKmGalon : null,
       precioGalon: esLargo ? datos.precioGalon : null,
+      tanqueLleno: esLargo && datos.tanqueLleno,
+      capacidadTanqueGalones: esLargo && datos.tanqueLleno ? ctx.vehiculo.capacidadTanqueGalones : null,
       depreciacionPorKm: esLargo && evaluacion.vehiculoPropio ? datos.depreciacionPorKm : null,
       odometro: esLargo ? null : inspeccion.odometro,
       totalSolicitado: calculo.totales.totalSolicitado
@@ -142,7 +145,8 @@ class SolicitudGuardadoService {
       vehiculoPropio: evaluacion.vehiculoPropio,
       tiposComida: ctx.tiposComida,
       valoresPorTipo: ctx.valoresPorTipo,
-      monedaNombre: ctx.moneda ? ctx.moneda.nombre : ''
+      monedaNombre: ctx.moneda ? ctx.moneda.nombre : '',
+      capacidadTanque: datos.tanqueLleno ? ctx.vehiculo.capacidadTanqueGalones : null
     });
     const partes = armarPartes({ datos, ctx, evaluacion, calculo });
 

@@ -15,13 +15,21 @@ function sumarTramos(tramos) {
 }
 
 // (km / rendimiento) × precio; los galones se muestran redondeados pero el importe parte de la razón exacta.
-function calcularCombustible({ kmTotal, rendimientoKmGalon, precioGalon }) {
+// Con `capacidadTanque` (tanque lleno) se paga max(0, galones de la ruta − capacidad), restado exacto antes de redondear.
+function calcularCombustible({ kmTotal, rendimientoKmGalon, precioGalon, capacidadTanque = null }) {
   const km = BigInt(aCentesimas(kmTotal));
-  const rendimiento = aCentesimas(rendimientoKmGalon);
+  const rendimiento = BigInt(aCentesimas(rendimientoKmGalon));
   const precio = BigInt(aCentavos(precioGalon));
+  const capacidad = capacidadTanque === null || capacidadTanque === undefined ? 0n : BigInt(aCentesimas(capacidadTanque));
+  const galonesRuta = dividirRedondeado(km * 100n, rendimiento);
+  // Pagados (centésimas de galón) = (km×100 − capacidad×rendimiento) / rendimiento; nunca negativo.
+  const exceso = km * 100n - capacidad * rendimiento;
+  const pagados = exceso > 0n ? exceso : 0n;
   return {
-    galones: aDinero(dividirRedondeado(km * 100n, rendimiento)),
-    importe: aDinero(dividirRedondeado(km * precio, rendimiento))
+    galonesRuta: aDinero(galonesRuta),
+    capacidad: capacidadTanque === null || capacidadTanque === undefined ? null : aDinero(Number(capacidad)),
+    galones: aDinero(dividirRedondeado(pagados, rendimiento)),
+    importe: aDinero(dividirRedondeado(pagados * precio, rendimiento * 100n))
   };
 }
 
@@ -77,13 +85,13 @@ function calcularOtrosGastos(gastos) {
 }
 
 // `datos` ya está normalizado; `tramos` trae km y horas del catálogo, en el orden del viaje.
-// Un viaje de 1 día o menos no lleva importes.
-function calcularSolicitud({ datos, tramos, vehiculoPropio, tiposComida, valoresPorTipo, monedaNombre }) {
+// Un viaje de 1 día o menos no lleva importes. `capacidadTanque`: capacidad del vehículo si el viaje sale con el tanque lleno.
+function calcularSolicitud({ datos, tramos, vehiculoPropio, tiposComida, valoresPorTipo, monedaNombre, capacidadTanque = null }) {
   if (datos.modalidad !== MODALIDADES.MAS_DE_UN_DIA) {
     return { desglose: null, totales: { totalSolicitado: 0 } };
   }
   const ruta = sumarTramos(tramos);
-  const combustible = calcularCombustible({ kmTotal: ruta.kmTotal, rendimientoKmGalon: datos.rendimientoKmGalon, precioGalon: datos.precioGalon });
+  const combustible = calcularCombustible({ kmTotal: ruta.kmTotal, rendimientoKmGalon: datos.rendimientoKmGalon, precioGalon: datos.precioGalon, capacidadTanque });
   const depreciacion = vehiculoPropio ? calcularDepreciacion({ kmTotal: ruta.kmTotal, depreciacionPorKm: datos.depreciacionPorKm }) : null;
   const hospedaje = calcularHospedaje(datos.hospedajes);
   const comidas = calcularComidas({
@@ -100,7 +108,7 @@ function calcularSolicitud({ datos, tramos, vehiculoPropio, tiposComida, valores
   return {
     desglose: {
       ruta: { tramos, ...ruta },
-      combustible: { rendimientoKmGalon: datos.rendimientoKmGalon, precioGalon: datos.precioGalon, ...combustible },
+      combustible: { rendimientoKmGalon: datos.rendimientoKmGalon, precioGalon: datos.precioGalon, tanqueLleno: capacidadTanque !== null, ...combustible },
       depreciacion: depreciacion ? { depreciacionPorKm: datos.depreciacionPorKm, ...depreciacion } : null,
       hospedaje,
       comidas,

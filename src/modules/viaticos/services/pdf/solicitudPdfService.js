@@ -274,15 +274,27 @@ function dibujarRutaDeTramo(ctx, tramo, x, y) {
   texto(ctx, destino, xFlecha + 15, y);
 }
 
+// El código de licencia lleva prefijo de país (GT-B); en el papel solo importa el tipo.
+const sinPrefijoDePais = (codigo) => (codigo ? String(codigo).replace(/^[A-Z]{2}-/, '') : codigo);
+
+// Quien viaja: el piloto si lo hay; si no, el solicitante.
+function personaDelViaje({ solicitante, piloto }) {
+  return piloto
+    ? { nombre: piloto.nombre, puesto: t('puestoPiloto'), licenciaTipo: piloto.licenciaTipo, licenciaNumero: piloto.licenciaNumero }
+    : solicitante;
+}
+
 function seccionesDeViaje(ctx, detalle) {
   const esLargo = detalle.modalidad === MODALIDADES.MAS_DE_UN_DIA;
-  const { solicitante, vehiculo } = detalle;
+  const { vehiculo } = detalle;
+  // Con piloto, el bloque describe a quien maneja (no al supervisor que tramita): sin datos duplicados y en una sola hoja.
+  const quien = personaDelViaje(detalle);
   dibujarSeccionCampos(ctx, t('secSolicitante'), [[
-    { etiqueta: t('solicitante'), valor: solicitante.nombre, proporcion: 0.4 },
-    { etiqueta: t('puesto'), valor: solicitante.puesto, proporcion: 0.3 },
+    { etiqueta: t('solicitante'), valor: quien.nombre, proporcion: 0.4 },
+    { etiqueta: t('puesto'), valor: quien.puesto, proporcion: 0.3 },
     {
       etiqueta: t('licencia'),
-      valor: solicitante.licenciaNumero ? t('licenciaValor', { tipo: solicitante.licenciaTipo || '-', numero: solicitante.licenciaNumero }) : '',
+      valor: quien.licenciaNumero ? t('licenciaValor', { tipo: sinPrefijoDePais(quien.licenciaTipo) || '-', numero: quien.licenciaNumero }) : '',
       proporcion: 0.3
     }
   ]]);
@@ -312,7 +324,9 @@ function seccionesDeCostos(ctx, detalle) {
   const simbolo = detalle.moneda ? detalle.moneda.simbolo : '';
   const dinero = importe => formatearDinero(simbolo, importe);
   const ruta = sumarTramos(detalle.tramos);
-  const combustible = calcularCombustible({ kmTotal: ruta.kmTotal, rendimientoKmGalon: detalle.rendimientoKmGalon, precioGalon: detalle.precioGalon });
+  const combustible = calcularCombustible({ kmTotal: ruta.kmTotal, rendimientoKmGalon: detalle.rendimientoKmGalon, precioGalon: detalle.precioGalon,
+    capacidadTanque: detalle.tanqueLleno ? detalle.capacidadTanqueGalones : null
+  });
   const hospedaje = calcularHospedaje(detalle.hospedajes);
   const otros = calcularOtrosGastos(detalle.gastos);
   const propio = detalle.vehiculo.esPropio && detalle.depreciacionPorKm !== null && detalle.depreciacionPorKm !== undefined;
@@ -327,9 +341,15 @@ function seccionesDeCostos(ctx, detalle) {
 
   // Un cálculo es una sola línea de detalle (la fórmula) y cierra con su fila TOTAL, como las demás secciones.
   const lineaDeCalculo = [{ x: 0, w: 1, valor: f => f }];
-  dibujarSubseccion(ctx, t('combustibleTitulo'), null, lineaDeCalculo, [t('calcCombustible', {
-    km: formatearNumero(ruta.kmTotal), rendimiento: formatearNumero(detalle.rendimientoKmGalon), precio: dinero(detalle.precioGalon)
-  })], { encabezado: false, total: dinero(combustible.importe) });
+  const formulaCombustible = detalle.tanqueLleno
+    ? t('calcCombustibleTanque', {
+      km: formatearNumero(ruta.kmTotal), rendimiento: formatearNumero(detalle.rendimientoKmGalon),
+      capacidad: formatearNumero(detalle.capacidadTanqueGalones), precio: dinero(detalle.precioGalon)
+    })
+    : t('calcCombustible', {
+      km: formatearNumero(ruta.kmTotal), rendimiento: formatearNumero(detalle.rendimientoKmGalon), precio: dinero(detalle.precioGalon)
+    });
+  dibujarSubseccion(ctx, t('combustibleTitulo'), null, lineaDeCalculo, [formulaCombustible],{ encabezado: false, total: dinero(combustible.importe) });
   if (depreciacion) {
     dibujarSubseccion(ctx, t('depreciacion'), null, lineaDeCalculo, [t('calcDepreciacion', {
       km: formatearNumero(ruta.kmTotal), tasa: dinero(detalle.depreciacionPorKm)
@@ -464,7 +484,7 @@ function dibujarCierre(ctx, detalle, total) {
   const xAdministracion = PAGINA.MARGEN + ANCHO_CONTENIDO - anchoCaja;
   // El nombre va sobre la línea; el de administración aparece cuando la solicitud ya fue autorizada.
   const autorizacion = [...(detalle.historial || [])].reverse().find(h => h.estado === ESTADOS.AUTORIZADA);
-  [[PAGINA.MARGEN, t('firmaSolicitante'), detalle.solicitante.nombre], [xAdministracion, t('firmaAdministracion'), autorizacion && autorizacion.usuarioNombre]].forEach(([x, etiqueta, nombre]) => {
+  [[PAGINA.MARGEN, t('firmaSolicitante'), personaDelViaje(detalle).nombre], [xAdministracion, t('firmaAdministracion'), autorizacion && autorizacion.usuarioNombre]].forEach(([x, etiqueta, nombre]) => {
     ctx.page.drawLine({ start: { x, y: yFirma }, end: { x: x + anchoCaja, y: yFirma }, thickness: 1, color: COLOR.texto });
     texto(ctx, etiqueta, x, yFirma - 9, { size: 6.5, bold: true, color: COLOR.etiqueta });
     if (nombre) texto(ctx, recortar(ctx, nombre, 9, anchoCaja), x, yFirma + 4, { size: 9 });

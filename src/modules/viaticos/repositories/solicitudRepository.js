@@ -9,8 +9,9 @@ const ENCABEZADO = `SELECT s.id, s.correlativo, s.pais_id, p.codigo AS pais_codi
        s.solicitante_id, u.nombre AS solicitante_nombre, s.modalidad, e.nombre AS estado,
        s.motivo_id, mt.nombre AS motivo_nombre, s.vehiculo_id, v.marca AS vehiculo_marca, v.modelo AS vehiculo_modelo,
        v.anio AS vehiculo_anio, v.placa AS vehiculo_placa, v.propietario_id AS vehiculo_propietario_id,
+       s.piloto_id, pl.nombre AS piloto_nombre, pl.numero AS piloto_licencia_numero, ptl.codigo AS piloto_licencia_tipo,
        s.fecha_salida, s.fecha_regreso, s.rendimiento_km_galon, s.precio_galon, s.depreciacion_por_km, s.odometro,
-       s.total_solicitado, s.pdf_ruta, s.creado_en, s.actualizado_en,
+       s.tanque_lleno, s.capacidad_tanque_galones, s.total_solicitado, s.pdf_ruta, s.creado_en, s.actualizado_en,
        (SELECT h.motivo FROM viaticos_historial h WHERE h.solicitud_id = s.id AND h.motivo IS NOT NULL ORDER BY h.id DESC LIMIT 1) AS motivo_rechazo,
        (SELECT MAX(h.creado_en) FROM viaticos_historial h JOIN viaticos_estados he ON he.id = h.estado_id
          WHERE h.solicitud_id = s.id AND he.nombre = ?) AS liquidada_en
@@ -20,7 +21,9 @@ const ENCABEZADO = `SELECT s.id, s.correlativo, s.pais_id, p.codigo AS pais_codi
   JOIN usuarios u ON u.id = s.solicitante_id
   JOIN viaticos_estados e ON e.id = s.estado_id
   JOIN viaticos_motivos mt ON mt.id = s.motivo_id
-  JOIN viaticos_vehiculos v ON v.id = s.vehiculo_id`;
+  JOIN viaticos_vehiculos v ON v.id = s.vehiculo_id
+  LEFT JOIN viaticos_pilotos pl ON pl.id = s.piloto_id
+  LEFT JOIN viaticos_tipos_licencia ptl ON ptl.id = pl.tipo_licencia_id`;
 
 // El día de salida y el de regreso (o solo la salida) delimitan el viaje; sirve para traslapes y búsquedas por fecha.
 const RANGO_VIAJE = 'DATE(s.fecha_salida) <= ? AND COALESCE(s.fecha_regreso, DATE(s.fecha_salida)) >= ?';
@@ -46,8 +49,9 @@ class SolicitudRepository {
       params.push(`%${escaparLike(correlativo)}%`);
     }
     if (nombre) {
-      busqueda.push('u.nombre LIKE ?');
-      params.push(`%${escaparLike(nombre)}%`);
+      // Quien tramita o el piloto que maneja.
+      busqueda.push('(u.nombre LIKE ? OR pl.nombre LIKE ?)');
+      params.push(`%${escaparLike(nombre)}%`, `%${escaparLike(nombre)}%`);
     }
     if (fecha) {
       busqueda.push(`(${RANGO_VIAJE})`);

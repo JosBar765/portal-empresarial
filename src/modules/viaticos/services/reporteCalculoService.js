@@ -12,7 +12,8 @@ function categoriasDeSolicitud(fila) {
   // Sin rendimiento o precio guardado no hay combustible que calcular.
   const hayCombustible = fila.rendimientoKmGalon !== null && fila.precioGalon !== null;
   const combustible = hayCombustible ? calcularCombustible({
-    kmTotal: fila.kmTotal, rendimientoKmGalon: fila.rendimientoKmGalon, precioGalon: fila.precioGalon
+    kmTotal: fila.kmTotal, rendimientoKmGalon: fila.rendimientoKmGalon, precioGalon: fila.precioGalon,
+    capacidadTanque: fila.tanqueLleno ? fila.capacidadTanqueGalones : null
   }).importe : 0;
   const propio = fila.vehiculoPropietarioId !== null && fila.depreciacionPorKm !== null;
   const depreciacion = propio ? calcularDepreciacion({ kmTotal: fila.kmTotal, depreciacionPorKm: fila.depreciacionPorKm }).importe : 0;

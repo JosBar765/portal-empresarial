@@ -20,7 +20,7 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | Método y ruta | Permiso | Descripción |
 |---|---|---|
 | `GET /contexto` | ver | Usuario, permisos `viaticos.*`, países del usuario, licencia y ajustes de archivo |
-| `GET /catalogos/solicitud?paisId=` | ver | Motivos, vehículos disponibles (empresa del país y propios del solicitante), ubicaciones, tramos, monedas, valores de comida, tipos de gasto (con `esOtros`) y de defecto, fluidos, niveles y kit |
+| `GET /catalogos/solicitud?paisId=` | ver | Motivos, vehículos disponibles (empresa del país y propios del solicitante), `pilotos` activos (`id`, `nombre`, `tipoLicenciaCodigo`, `tipoLicenciaNombre`, `numero`, `venceEl` y `bloqueos`: mapa `vehiculoId` → motivo por el que la licencia del piloto no permite ese vehículo en el país), ubicaciones, tramos, monedas, valores de comida, tipos de gasto (con `esOtros`) y de defecto, fluidos, niveles y kit |
 | `POST /solicitudes/calcular` | ver | Valida y calcula sin guardar: importes, totales, advertencias y errores bloqueantes |
 | `GET /borradores` | ver | Mis borradores vigentes, del más nuevo al más viejo, y cuántos son nuevos por vencimiento (ver «Borradores») |
 | `GET /borradores/:id` | ver | Un borrador mío con su `datos` completo |
@@ -41,7 +41,7 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | `POST /solicitudes/:id/recibos` | ver | Genera y guarda un recibo firmado (multipart: `datos` JSON y `firma` PNG) |
 | `DELETE /solicitudes/:id/recibos/:reciboId` | ver | Quita un recibo |
 | `POST /solicitudes/:id/liquidar` | ver | Liquida (aunque falten comprobantes o recibos; solo se avisa) |
-| `GET /gestiones?desde=&hasta=&q=` | gestionar | Todas las solicitudes, con solicitante y país |
+| `GET /gestiones?desde=&hasta=&q=` | gestionar | Todas las solicitudes, con solicitante, país y, si lo hay, el piloto (`piloto: { id, nombre }`); `q` busca también por el nombre del piloto |
 | `GET /gestiones/:id` y `/gestiones/:id/documentos` | gestionar | Detalle y documentos |
 | `POST /gestiones/:id/visto` | autorizar | Registra que quien consulta abrió el documento (requisito para autorizar o rechazar) |
 | `POST /gestiones/:id/autorizar` | autorizar | Autoriza |
@@ -56,16 +56,18 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | `PUT /config/<recurso>/:id` | configurar | Edita |
 | `PATCH /config/<recurso>/:id/activo` | configurar | Activa o desactiva |
 
-Recursos de `/config`: `paises` y `combustibles` (solo lectura; este último lo necesita el formulario de vehículos), `monedas`, `valores-comida` (matriz moneda × comida, `PUT` completo), `ubicaciones`, `tramos`, `motivos`, `tipos-gasto`, `tipos-defecto`, `tipos-licencia`, `tipos-placa`, `reglas-licencia`, `vehiculos`, `personas` (lista de usuarios con licencia y países; `PUT /config/personas/:usuarioId`) y `ajustes` (`GET` y `PUT /config/ajustes/:clave`). Fluidos, niveles, kit, combustibles, estados y salvedades no se editan desde la interfaz.
+Recursos de `/config`: `paises` y `combustibles` (solo lectura; este último lo necesita el formulario de vehículos), `monedas`, `valores-comida` (matriz moneda × comida, `PUT` completo), `ubicaciones`, `tramos`, `motivos`, `tipos-gasto`, `tipos-defecto`, `tipos-licencia`, `tipos-placa`, `reglas-licencia`, `vehiculos`, `pilotos` (repartidores que no son usuarios; ver «Pilotos»), `personas` (lista de usuarios con licencia y países; `PUT /config/personas/:usuarioId`) y `ajustes` (`GET` y `PUT /config/ajustes/:clave`). Fluidos, niveles, kit, combustibles, estados y salvedades no se editan desde la interfaz.
 
 ## Ajustes de implementación de `/config` (F3.2)
 
 - Entradas y salidas en camelCase; `activo` y las marcas son booleanos reales.
 - Los valores de comida son mayores que cero (la tabla lo exige); una celda vacía significa «sin configurar» y se borra al guardar la matriz.
+- `vehiculos` acepta `capacidadTanqueGalones` (decimal mayor que cero, opcional): capacidad del tanque en galones; sin ella el vehículo pide viáticos completos.
 - `reglas-licencia` no tiene id: `PUT` y `DELETE /config/reglas-licencia/:paisId/:tipoLicenciaId/:tipoPlacaId`; el `POST` recibe `paisId`, `tipoLicenciaId`, `tipoPlacaId`, `tonelajeMax` y `pasajerosMax`, y el tipo de placa debe ser del país de la regla.
 - `tramos`: el `POST` recibe `origenId` y `destinoId` y guarda el par ordenado; el `PUT` solo edita `km` y `horas`.
 - No se pueden cambiar al editar: `paisId` (ubicaciones y tipos de placa), `esOtros` y `seleccionableEnGastos`.
 - `personas`: `PUT /config/personas/:usuarioId` recibe `{ licencia: { tipoLicenciaId, numero, venceEl } | null, paisIds: [] }`; `paisIds` es obligatorio.
+- `pilotos` (migración `viaticos_pilotos`): `POST` y `PUT /config/pilotos[/:id]` reciben `{ nombre, tipoLicenciaId, numero, venceEl }`, todos obligatorios (`nombre` hasta 100, `numero` hasta 50; el PDF debe poder dibujar sus caracteres); la lista trae además `tipoLicenciaCodigo`, `tipoLicenciaNombre` y `activo`. Se desactivan con `PATCH /:id/activo`, nunca se borran. Un `id` inexistente da 404.
 
 ## Solicitudes: payload, cálculo y lectura (F3.3 parte A)
 
@@ -80,7 +82,7 @@ Lo comparten `POST /solicitudes/calcular` (cuerpo JSON, el payload directo, sin 
   "paisId": 1, "modalidad": "mas_de_un_dia", "vehiculoId": 2, "motivoId": 3,
   "monedaId": 1,
   "fechaSalida": "2026-12-01", "fechaRegreso": "2026-12-04",
-  "rendimientoKmGalon": 35, "precioGalon": 32.5, "depreciacionPorKm": 1.25,
+  "rendimientoKmGalon": 35, "precioGalon": 32.5, "depreciacionPorKm": 1.25, "tanqueLleno": false,
   "tramos": [{ "origenId": 1, "destinoId": 2 }],
   "hospedajes": [{ "hotel": "Hotel X", "lugar": "Xela", "noches": 2, "valorNoche": 350 }],
   "comidas": [{ "fecha": "2026-12-01", "tipoComidaId": 1 }],
@@ -94,8 +96,9 @@ Lo comparten `POST /solicitudes/calcular` (cuerpo JSON, el payload directo, sin 
 }
 ```
 
-- `modalidad`: `mas_de_un_dia` o `hasta_un_dia`. En más de 1 día: `monedaId`, `fechaSalida` (`AAAA-MM-DD`), `fechaRegreso`, `rendimientoKmGalon`, `precioGalon`, `tramos` (al menos uno) y, si el vehículo es propio, `depreciacionPorKm`; `hospedajes`, `comidas` y `gastos` son opcionales; `inspeccion` no se admite. En 1 día o menos: `fechaSalida` es `AAAA-MM-DD HH:mm` (hora de Guatemala), `inspeccion` es obligatoria y no se admiten tramos, hospedajes, comidas ni gastos; el combustible no se calcula (`rendimientoKmGalon` y `precioGalon` se ignoran).
+- `modalidad`: `mas_de_un_dia` o `hasta_un_dia`. En más de 1 día: `monedaId`, `fechaSalida` (`AAAA-MM-DD`), `fechaRegreso`, `rendimientoKmGalon`, `precioGalon`, `tramos` (al menos uno) y, si el vehículo es propio, `depreciacionPorKm`; `tanqueLleno` (booleano, opcional, por omisión `false`: «Sale con el tanque lleno»; con `true` el vehículo debe tener `capacidadTanqueGalones`, si no responde 400 en `tanqueLleno` explicando qué configurar); `hospedajes`, `comidas` y `gastos` son opcionales; `inspeccion` no se admite. En 1 día o menos: `fechaSalida` es `AAAA-MM-DD HH:mm` (hora de Guatemala), `inspeccion` es obligatoria y no se admiten tramos, hospedajes, comidas ni gastos; el combustible no se calcula (`rendimientoKmGalon` y `precioGalon` se ignoran).
 - Otros gastos (`gastos[]`): `descripcion` es obligatoria solo si el tipo de gasto es «otros» (`esOtros` en el catálogo); para los demás tipos se ignora y se guarda vacía (la columna no admite nulo). Sin ella, el tipo «otros» da error en `gastos[i].descripcion`: «Describe el gasto {n} de tipo «{nombre}» (hasta 100 caracteres): con el tipo «otros» la descripción es obligatoria…».
+- `pilotoId` (entero, opcional, ambas modalidades): piloto que maneja el viaje; ausente o `null` = maneja el solicitante («Yo»). Con `pilotoId` el servidor evalúa la licencia del PILOTO en lugar de la del solicitante (la de este no se exige): mismas reglas de placa de `viaticos_reglas_licencia`; vencida = error en `pilotoId`; la que vence durante el viaje = advertencia con salvedad `licencia`; un tipo que no permite el vehículo = error en `vehiculoId`. Todos los textos nombran al piloto. Un piloto inexistente o desactivado da error en `pilotoId`. El solicitante sigue necesitando países en `Configuración → Personas`. La solicitud guarda `piloto_id` (se conserva al modificar y en los borradores, clave `pilotoId`) y el detalle trae `piloto` (`{ id, nombre, licenciaTipo, licenciaNumero }` o `null`); con piloto, el PDF muestra en «Información del solicitante» y en la firma «Solicitante» los datos del piloto (nombre, puesto «Piloto», tipo y número de licencia) en lugar de los del supervisor, sin duplicar.
 - Longitudes: hotel y lugar 50, descripciones 100. Noches, montos y valores mayores que cero. Cada fluido debe informarse; el nivel `N/A` solo en los fluidos con `permiteNoAplica`. Cada defecto es de una de dos formas excluyentes: NUEVO, con `archivoIndice` (posición de su foto en el campo `defectos` del multipart), o EXISTENTE, con `defectoId` (id de un defecto de la propia solicitud, solo al modificar) para conservar su foto actual; ver «Conservar la foto de un defecto» (en `calcular` solo se valida el formato).
 - Supuesto: «más de 1 día» significa con pernocta; el regreso debe ser posterior a la salida (si regresas el mismo día es «1 día o menos»).
 - Las ubicaciones de un tramo se eligen en cualquier sentido: el servidor busca el par ordenado en `viaticos_tramos`. Convención para guardar `viaticos_solicitud_tramos.sentido`: `ida` si el origen es la ubicación A del tramo, `vuelta` si es la B.
@@ -114,7 +117,7 @@ Siempre 200 si el cuerpo es un objeto (el cliente decide con `valido`). Los erro
   "salvedadIds": [1],
   "desglose": {
     "ruta": { "tramos": [{ "orden": 1, "tramoId": 7, "origenId": 1, "origenNombre": "…", "destinoId": 2, "destinoNombre": "…", "km": 205, "horas": 8 }], "kmTotal": 660, "horasTotal": 24 },
-    "combustible": { "rendimientoKmGalon": 35, "precioGalon": 32.5, "galones": 18.86, "importe": 612.86 },
+    "combustible": { "rendimientoKmGalon": 35, "precioGalon": 32.5, "tanqueLleno": false, "galonesRuta": 18.86, "capacidad": null, "galones": 18.86, "importe": 612.86 },
     "depreciacion": { "depreciacionPorKm": 1.25, "importe": 825 },
     "hospedaje": { "lineas": [{ "hotel": "…", "lugar": "…", "noches": 2, "valorNoche": 350, "total": 700 }], "totalNoches": 3, "importe": 1000 },
     "comidas": { "lineas": [{ "tipoComidaId": 1, "nombre": "desayuno", "cantidad": 3, "valorUnitario": 35, "total": 105 }], "importe": 510 },
@@ -127,11 +130,12 @@ Siempre 200 si el cuerpo es un objeto (el cliente decide con `valido`). Los erro
 - `desglose` y `totales` son `null` si el formato del payload es inválido o si hay errores que impiden calcular (tramos, comidas, gastos, depreciación, vehículo o moneda inexistentes). Los demás errores (licencia, fechas, traslape) no impiden mostrar el desglose. En viaje corto: `desglose: null` y `totales: { totalSolicitado: 0 }`.
 - `depreciacion` es `null` (y su total 0) con vehículo de la empresa; con vehículo propio es obligatoria y se calcula km totales × depreciación por km.
 - Aritmética en centavos enteros, redondeo half-up solo al final de cada importe; los galones se muestran redondeados pero el combustible parte de la razón exacta.
+- Tanque lleno (solo más de 1 día): `galones` = max(0, galones de la ruta − capacidad) y `importe` = esos galones × precio por galón, con la resta exacta antes de redondear (no se redondean los galones antes de multiplicar). `galonesRuta` son los galones sin descuento y `capacidad` la del vehículo (`null` sin tanque lleno). Si la capacidad cubre la ruta, el combustible es 0. La solicitud guarda `tanque_lleno` y `capacidad_tanque_galones` vigente al crearla, y PDF, liquidación y reportes recalculan con lo guardado, nunca con la capacidad actual del vehículo.
 - Advertencias: licencia, tarjeta de circulación o seguro que vencen antes de terminar el viaje (o tarjeta y seguro ya vencidos); el seguro sin póliza no advierte. Una licencia vencida o no registrada es un error, no una advertencia.
 
 ### Lectura
 
-- `GET /catalogos/solicitud?paisId=`: 403 si el usuario no tiene países o el país no es suyo. Devuelve `pais`, `motivos`, `vehiculos` (cada uno con `esPropio`, `tarjetaVenceEl`, `polizaVenceEl`, `bloqueo` —motivo por el que su licencia no permite manejarlo, o `null`— y `bloqueoViajeCorto` —vehículo propio o tarjeta vencida, o `null`—), `ubicaciones`, `tramos` (activos), `monedas`, `valoresComida` (`monedaId`, `tipoComidaId`, `valor`), `tiposComida`, `tiposGasto` (seleccionables), `tiposDefecto`, `fluidos` (cada uno con sus `niveles`), `kit` y `ajustesArchivo`.
+- `GET /catalogos/solicitud?paisId=`: 403 si el usuario no tiene países o el país no es suyo. Devuelve `pais`, `motivos`, `vehiculos` (cada uno con `esPropio`, `capacidadTanqueGalones` —`null` si no la tiene; solo con ella el formulario ofrece «Sale con el tanque lleno»—, `tarjetaVenceEl`, `polizaVenceEl`, `bloqueo` —motivo por el que su licencia no permite manejarlo, o `null`— y `bloqueoViajeCorto` —vehículo propio o tarjeta vencida, o `null`—), `ubicaciones`, `tramos` (activos), `monedas`, `valoresComida` (`monedaId`, `tipoComidaId`, `valor`), `tiposComida`, `tiposGasto` (seleccionables), `tiposDefecto`, `fluidos` (cada uno con sus `niveles`), `kit` y `ajustesArchivo`.
 - `GET /solicitudes?desde=&hasta=&q=`: solo las del usuario. `desde` y `hasta` (`AAAA-MM-DD`) filtran por la fecha de creación y por defecto son la semana actual (lunes a domingo). `q` (hasta 50 caracteres) busca por correlativo parcial o por fecha de viáticos (`AAAA-MM-DD` o `DD/MM/AAAA`: la fecha cae dentro del viaje). Responde `{ desde, hasta, solicitudes }`; cada solicitud trae `pipeline` y se ordena por estados: primero vencida, rechazada y esperando autorización; luego autorizada, en curso, terminada y liquidada; en cada grupo, la más reciente primero.
 - `GET /solicitudes/:id`: detalle completo del propio solicitante (tramos con origen y destino, hospedajes, comidas, gastos, salvedades, inspección, historial y `pipeline`); 404 si no existe y 403 si es de otra persona.
 
@@ -335,7 +339,7 @@ Los endpoints del solicitante (`/solicitudes/:id/…`) son solo del propio usuar
 - Rubros y cantidad máxima de comprobantes, derivados de la solicitud: Hospedaje = total de noches (uno por noche); Combustible = 1 (si el combustible solicitado es mayor que cero); cada renglón de «otros gastos» = 1 comprobante de su tipo de gasto (dos peajes = dos comprobantes de «Peaje»). Un tipo de gasto que no forma parte de la solicitud no admite comprobantes.
 - Alimentación (suma de los valores unitarios de las comidas guardadas en la solicitud) y Depreciación (km totales × depreciación por km, solo vehículo propio) se liquidan con **un recibo firmado** cada una, si su importe es mayor que cero; no admiten comprobantes. Los recibos «otro» (cualquier otro dinero recibido) no tienen límite ni completan ningún rubro, pero suman en `liquidado`.
 - Hospedaje y Combustible son filas de `viaticos_tipos_gasto` con `seleccionable_en_gastos = 0`; el servidor las identifica por nombre exacto (`RUBROS_FIJOS` en `constantes.js`: «Hospedaje» y «Combustible»). Si faltan: 409 explicativo. Por eso `/config/tipos-gasto` no permite renombrarlas ni desactivarlas (409 con el motivo).
-- El importe de combustible se recalcula con los mismos km, rendimiento y precio de la solicitud (misma fórmula que el cálculo).
+- El importe de combustible se recalcula con los mismos km, rendimiento y precio de la solicitud y, si salió con el tanque lleno, con la capacidad guardada en ella (misma fórmula que el cálculo).
 
 ### Resumen en dinero (en la moneda de la solicitud)
 

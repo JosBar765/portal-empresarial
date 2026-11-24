@@ -7,6 +7,7 @@ import { renderArchivos } from './configuracion/archivos.js';
 import { renderCatalogo } from './configuracion/catalogo.js';
 import { DEFINICIONES } from './configuracion/definiciones.js';
 import { renderPersonas } from './configuracion/personas.js';
+import { renderPilotos } from './configuracion/pilotos.js';
 import { renderReglasLicencia } from './configuracion/reglasLicencia.js';
 import { renderTramos } from './configuracion/tramos.js';
 import { renderValoresComida } from './configuracion/valoresComida.js';
@@ -19,6 +20,7 @@ const catalogo = (recurso) => (panel) => renderCatalogo(panel, DEFINICIONES[recu
 // Orden de la tira; `id` es también la clave de su texto (`config.sub.<id>`).
 const SUBPESTANAS = [
   { id: 'personas', render: renderPersonas },
+  { id: 'pilotos', render: renderPilotos },
   { id: 'monedas', render: catalogo('monedas') },
   { id: 'valores-comida', render: renderValoresComida },
   { id: 'tipos-licencia', render: catalogo('tipos-licencia') },

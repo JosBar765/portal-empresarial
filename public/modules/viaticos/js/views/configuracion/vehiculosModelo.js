@@ -65,6 +65,10 @@ export function validarVehiculo(valores, { anioActual = new Date().getFullYear()
     const { error } = validarDecimalPositivo(valores.tonelaje, { campo: t('config.vehiculos.campo.tonelaje'), max: LIMITES_VEHICULO.TONELAJE_MAX, ejemplo: '3.5' });
     if (error) errores.tonelaje = error;
   }
+  if (!vacio(valores.capacidadTanqueGalones)) {
+    const { error } = validarDecimalPositivo(valores.capacidadTanqueGalones, { campo: t('config.vehiculos.campo.capacidadTanqueGalones'), max: LIMITES_VEHICULO.TONELAJE_MAX, ejemplo: '15' });
+    if (error) errores.capacidadTanqueGalones = error;
+  }
   if (!vacio(valores.pasajeros)) {
     const texto = String(valores.pasajeros).trim();
     if (!/^\d+$/.test(texto) || Number(texto) < 1 || Number(texto) > LIMITES_VEHICULO.ENTERO_MAX) errores.pasajeros = t('config.vehiculos.error.pasajeros');
@@ -96,6 +100,7 @@ export function armarPayloadVehiculo(valores) {
     combustibleId: Number(valores.combustibleId),
     tonelaje: vacio(valores.tonelaje) ? null : Number(normalizarDecimal(valores.tonelaje)),
     pasajeros: vacio(valores.pasajeros) ? null : Number(String(valores.pasajeros).trim()),
+    capacidadTanqueGalones: vacio(valores.capacidadTanqueGalones) ? null : Number(normalizarDecimal(valores.capacidadTanqueGalones)),
     polizaNumero: texto(valores.polizaNumero),
     polizaVenceEl: texto(valores.polizaVenceEl),
     tarjetaVenceEl: texto(valores.tarjetaVenceEl)

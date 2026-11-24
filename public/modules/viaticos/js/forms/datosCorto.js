@@ -122,6 +122,7 @@ export function armarPayloadCorto(estado, cat, { idempotencyKey } = {}) {
   const datos = { modalidad: MODALIDADES.HASTA_UN_DIA };
   poner(datos, 'paisId', estado.paisId);
   poner(datos, 'vehiculoId', estado.vehiculoId);
+  poner(datos, 'pilotoId', estado.pilotoId);
   poner(datos, 'motivoId', estado.motivoId);
   poner(datos, 'fechaSalida', fechaHoraSalida(estado));
   const { inspeccion, indices, fotos } = armarInspeccion(estado, cat);

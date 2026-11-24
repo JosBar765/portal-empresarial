@@ -41,6 +41,7 @@ const RECURSOS = Object.freeze({
   TIPOS_PLACA: 'tipos-placa',
   REGLAS_LICENCIA: 'reglas-licencia',
   VEHICULOS: 'vehiculos',
+  PILOTOS: 'pilotos',
   PERSONAS: 'personas',
   AJUSTES: 'ajustes'
 });
