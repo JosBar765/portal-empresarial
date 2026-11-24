@@ -35,7 +35,7 @@ Prefijo de tablas: `viaticos_`. Convenciones del proyecto: español, `snake_case
 
 | Tabla | Columnas clave |
 |---|---|
-| `viaticos_tipos_licencia` | `id`, `codigo`, `nombre`, `activo` (catálogo global; las reglas por país lo usan) |
+| `viaticos_tipos_licencia` | `id`, `codigo`, `nombre`, `activo` (catálogo global; las reglas por país lo usan; el código lleva prefijo de país: `GT-B`, `HN-B`…) |
 | `viaticos_tipos_placa` | `id`, `pais_id`, `codigo`, `nombre`, `activo` |
 | `viaticos_reglas_licencia` | `pais_id`, `tipo_licencia_id`, `tipo_placa_id` (PK compuesta), `tonelaje_max` NULL, `pasajeros_max` NULL — qué placa permite manejar cada tipo de licencia en cada país |
 | `viaticos_licencias` | `usuario_id` (PK, FK `usuarios`), `tipo_licencia_id`, `numero`, `vence_el` — **una por persona (supuesto)** |
