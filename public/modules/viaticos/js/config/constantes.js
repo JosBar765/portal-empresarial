@@ -26,8 +26,7 @@ export const PERMISO_POR_TAB = Object.freeze({
 export const CLAVES_LOCALES = Object.freeze({
   TAB_ACTIVA: 'viaticos:tabActiva',
   SIDEBAR_COLAPSADO: 'viaticos:sidebarColapsado',
-  SUBTAB_CONFIG: 'viaticos:subtabConfig',
-  PAIS_REGLAS: 'viaticos:paisReglas'
+  SUBTAB_CONFIG: 'viaticos:subtabConfig'
 });
 
 export const MODALIDADES = Object.freeze({

@@ -3,9 +3,10 @@ const db = require('../../../config/database');
 const { filaACamel, filasACamel } = require('../utilidades');
 
 const SELECT = `SELECT p.id, p.nombre, p.tipo_licencia_id, tl.codigo AS tipo_licencia_codigo, tl.nombre AS tipo_licencia_nombre,
-       p.numero, p.vence_el, p.activo
+       tl.pais_id AS tipo_licencia_pais_id, lp.nombre AS tipo_licencia_pais_nombre, p.numero, p.vence_el, p.activo
   FROM viaticos_pilotos p
-  JOIN viaticos_tipos_licencia tl ON tl.id = p.tipo_licencia_id`;
+  JOIN viaticos_tipos_licencia tl ON tl.id = p.tipo_licencia_id
+  LEFT JOIN paises lp ON lp.id = tl.pais_id`;
 
 class PilotoRepository {
   async listar() {

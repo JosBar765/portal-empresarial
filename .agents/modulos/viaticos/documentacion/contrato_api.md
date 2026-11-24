@@ -5,7 +5,7 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 ## Reglas del servidor (las aplica el service, nunca se confía en el cliente)
 - El servidor recalcula todos los importes (km, galones, combustible, depreciación, hospedaje, comidas, otros gastos y total); ignora los calculados que mande el cliente.
 - El país de la solicitud debe estar en `viaticos_usuario_paises` del solicitante; la moneda existe y está activa (solo viajes de más de 1 día).
-- El solicitante tiene licencia registrada y vigente (`vence_el >= hoy`); si no, error explicativo. La regla de `viaticos_reglas_licencia` del país de la solicitud decide si el tipo de licencia sirve para el tipo de placa del vehículo (y su tonelaje y pasajeros, si la regla los limita).
+- El solicitante tiene licencia registrada y vigente (`vence_el >= hoy`); si no, error explicativo. La regla de `viaticos_reglas_licencia` del país de la solicitud decide si el tipo de licencia sirve para el tipo de placa del vehículo (y su tonelaje y pasajeros, si la regla los limita). Un tipo de licencia pertenece a un país: si la licencia es de un país distinto al de la solicitud no hay regla y el error de `vehiculoId` nombra el país de la licencia («La licencia Tipo B es de Honduras y no sirve en una solicitud de Guatemala…»); con licencia del mismo país sin regla se mantiene «no autoriza manejar el vehículo».
 - No se crea para fechas pasadas; no se traslapa con otra solicitud activa del mismo solicitante (cualquier estado menos rechazada); un viaje corto no admite auto con tarjeta de circulación vencida.
 - Más de 1 día: tramos encadenados (cada origen es el destino del anterior) y cada par existe en `viaticos_tramos`; km y horas se copian al renglón. Advertencias (no bloquean y se guardan como salvedades): licencia, tarjeta de circulación o seguro que vencen dentro de la ventana del viaje (o seguro vencido).
 - Vehículo propio: solo el del solicitante; con depreciación. Vehículo de la empresa: sin depreciación (`depreciacion_por_km` NULL). Viaje corto: solo vehículos de la empresa.
@@ -20,7 +20,7 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | Método y ruta | Permiso | Descripción |
 |---|---|---|
 | `GET /contexto` | ver | Usuario, permisos `viaticos.*`, países del usuario, licencia y ajustes de archivo |
-| `GET /catalogos/solicitud?paisId=` | ver | Motivos, vehículos disponibles (empresa del país y propios del solicitante), `pilotos` activos (`id`, `nombre`, `tipoLicenciaCodigo`, `tipoLicenciaNombre`, `numero`, `venceEl` y `bloqueos`: mapa `vehiculoId` → motivo por el que la licencia del piloto no permite ese vehículo en el país), ubicaciones, tramos, monedas, valores de comida, tipos de gasto (con `esOtros`) y de defecto, fluidos, niveles y kit |
+| `GET /catalogos/solicitud?paisId=` | ver | Motivos, vehículos disponibles (empresa del país y propios del solicitante), `pilotos` activos (`id`, `nombre`, `tipoLicenciaCodigo`, `tipoLicenciaNombre`, `tipoLicenciaPaisId`, `tipoLicenciaPaisNombre`, `numero`, `venceEl` y `bloqueos`: mapa `vehiculoId` → motivo por el que la licencia del piloto no permite ese vehículo en el país), ubicaciones, tramos, monedas, valores de comida, tipos de gasto (con `esOtros`) y de defecto, fluidos, niveles y kit |
 | `POST /solicitudes/calcular` | ver | Valida y calcula sin guardar: importes, totales, advertencias y errores bloqueantes |
 | `GET /borradores` | ver | Mis borradores vigentes, del más nuevo al más viejo, y cuántos son nuevos por vencimiento (ver «Borradores») |
 | `GET /borradores/:id` | ver | Un borrador mío con su `datos` completo |
@@ -63,11 +63,12 @@ Recursos de `/config`: `paises` y `combustibles` (solo lectura; este último lo 
 - Entradas y salidas en camelCase; `activo` y las marcas son booleanos reales.
 - Los valores de comida son mayores que cero (la tabla lo exige); una celda vacía significa «sin configurar» y se borra al guardar la matriz.
 - `vehiculos` acepta `capacidadTanqueGalones` (decimal mayor que cero, opcional): capacidad del tanque en galones; sin ella el vehículo pide viáticos completos.
-- `reglas-licencia` no tiene id: `PUT` y `DELETE /config/reglas-licencia/:paisId/:tipoLicenciaId/:tipoPlacaId`; el `POST` recibe `paisId`, `tipoLicenciaId`, `tipoPlacaId`, `tonelajeMax` y `pasajerosMax`, y el tipo de placa debe ser del país de la regla.
+- `tipos-licencia` es por país como `tipos-placa`: el `POST` recibe `{ paisId, codigo, nombre }` (código hasta 20 y nombre hasta 100; único por país, si no 409) y la lista trae `id`, `paisId`, `paisNombre`, `codigo`, `nombre` y `activo`; el cliente la filtra por país (no hay filtro en el servidor). `PUT` solo edita `codigo` y `nombre`.
+- `reglas-licencia` no tiene id: `PUT` y `DELETE /config/reglas-licencia/:paisId/:tipoLicenciaId/:tipoPlacaId`; el `POST` recibe `paisId`, `tipoLicenciaId`, `tipoPlacaId`, `tonelajeMax` y `pasajerosMax`, y el tipo de licencia y el tipo de placa deben ser del país de la regla (400 con `campos.tipoLicenciaId` o `campos.tipoPlacaId`).
 - `tramos`: el `POST` recibe `origenId` y `destinoId` y guarda el par ordenado; el `PUT` solo edita `km` y `horas`.
-- No se pueden cambiar al editar: `paisId` (ubicaciones y tipos de placa), `esOtros` y `seleccionableEnGastos`.
+- No se pueden cambiar al editar: `paisId` (ubicaciones, tipos de licencia y tipos de placa), `esOtros` y `seleccionableEnGastos`.
 - `personas`: `PUT /config/personas/:usuarioId` recibe `{ licencia: { tipoLicenciaId, numero, venceEl } | null, paisIds: [] }`; `paisIds` es obligatorio.
-- `pilotos` (migración `viaticos_pilotos`): `POST` y `PUT /config/pilotos[/:id]` reciben `{ nombre, tipoLicenciaId, numero, venceEl }`, todos obligatorios (`nombre` hasta 100, `numero` hasta 50; el PDF debe poder dibujar sus caracteres); la lista trae además `tipoLicenciaCodigo`, `tipoLicenciaNombre` y `activo`. Se desactivan con `PATCH /:id/activo`, nunca se borran. Un `id` inexistente da 404.
+- `pilotos` (migración `viaticos_pilotos`): `POST` y `PUT /config/pilotos[/:id]` reciben `{ nombre, tipoLicenciaId, numero, venceEl }`, todos obligatorios (`nombre` hasta 100, `numero` hasta 50; el PDF debe poder dibujar sus caracteres); la lista trae además `tipoLicenciaCodigo`, `tipoLicenciaNombre`, `tipoLicenciaPaisId`, `tipoLicenciaPaisNombre` y `activo`. Se desactivan con `PATCH /:id/activo`, nunca se borran. Un `id` inexistente da 404.
 
 ## Solicitudes: payload, cálculo y lectura (F3.3 parte A)
 

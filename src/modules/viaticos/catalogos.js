@@ -66,9 +66,9 @@ const CATALOGOS = congelar({
   [RECURSOS.TIPOS_LICENCIA]: {
     tabla: 'viaticos_tipos_licencia',
     articulo: 'el tipo de licencia',
-    orden: 't.codigo',
-    unica: ['codigo'],
-    columnas: [CODIGO_20, NOMBRE_100]
+    orden: 't.pais_id, t.codigo',
+    unica: ['pais_id', 'codigo'],
+    columnas: [PAIS, CODIGO_20, NOMBRE_100]
   },
   [RECURSOS.TIPOS_PLACA]: {
     tabla: 'viaticos_tipos_placa',

@@ -8,6 +8,7 @@ import { crearCampoFecha } from '../../components/campoFecha.js';
 import { llenarCombo } from '../../components/comboAgrupado.js';
 import { wireCampoFecha } from '../../components/datepicker.js';
 import { abrirFormularioConfig } from './modalConfig.js';
+import { gruposDeTiposPorPais } from './licenciaTexto.js';
 import { LIMITES_PILOTO, armarPayloadPiloto, validarPiloto } from './pilotosModelo.js';
 
 const ID = (nombre) => `vi-pil-${nombre}`;
@@ -16,12 +17,10 @@ const CAMPOS = ['nombre', 'tipoLicenciaId', 'numero', 'venceEl'];
 const campo = (nombre, control, clase = '') => crearCampo({ etiqueta: t(`config.pilotos.campo.${nombre}`), control, idControl: ID(nombre), clase });
 
 // `tiposLicencia` son los activos; el del piloto se agrega aunque se haya desactivado para no perderlo al guardar.
-function opcionesDeTipos(tiposLicencia, piloto) {
-  const lista = tiposLicencia.map(tp => ({ valor: tp.id, texto: `${tp.codigo} · ${tp.nombre}` }));
-  if (piloto && !tiposLicencia.some(tp => tp.id === piloto.tipoLicenciaId)) {
-    lista.push({ valor: piloto.tipoLicenciaId, texto: `${piloto.tipoLicenciaCodigo} · ${piloto.tipoLicenciaNombre}` });
-  }
-  return lista;
+// Un grupo por país: el piloto puede tener una licencia de cualquier país.
+function gruposDeTipos(tiposLicencia, piloto) {
+  const actual = piloto && { id: piloto.tipoLicenciaId, codigo: piloto.tipoLicenciaCodigo, nombre: piloto.tipoLicenciaNombre, paisNombre: piloto.tipoLicenciaPaisNombre };
+  return gruposDeTiposPorPais(tiposLicencia, actual);
 }
 
 // `piloto` es null en el alta.
@@ -31,7 +30,7 @@ export function abrirFormularioPiloto({ piloto, tiposLicencia, alGuardar }) {
 
   const nombre = h('input', { type: 'text', id: ID('nombre'), name: 'nombre', autocomplete: 'off', maxlength: LIMITES_PILOTO.NOMBRE, value: p.nombre ?? '', placeholder: t('config.pilotos.ph.nombre') });
   const select = h('select', { id: ID('tipoLicenciaId'), name: 'tipoLicenciaId' });
-  llenarCombo(select, { placeholder: t('config.pilotos.seleccionaTipo'), grupos: [{ opciones: opcionesDeTipos(tiposLicencia, piloto) }], valor: p.tipoLicenciaId ?? '' });
+  llenarCombo(select, { placeholder: t('config.pilotos.seleccionaTipo'), grupos: gruposDeTipos(tiposLicencia, piloto), valor: p.tipoLicenciaId ?? '' });
   const numero = h('input', { type: 'text', id: ID('numero'), name: 'numero', autocomplete: 'off', maxlength: LIMITES_PILOTO.NUMERO, value: p.numero ?? '', placeholder: t('config.pilotos.ph.numero') });
 
   const leer = (form) => Object.fromEntries(CAMPOS.map(nombreCampo => {

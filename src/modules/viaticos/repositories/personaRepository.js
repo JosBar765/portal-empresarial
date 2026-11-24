@@ -4,9 +4,10 @@ const db = require('../../../config/database');
 const { filasACamel } = require('../utilidades');
 
 const SELECT_LICENCIA = `SELECT l.usuario_id, l.tipo_licencia_id, tl.codigo AS tipo_licencia_codigo,
-       tl.nombre AS tipo_licencia_nombre, l.numero, l.vence_el
+       tl.nombre AS tipo_licencia_nombre, tl.pais_id AS tipo_licencia_pais_id, lp.nombre AS tipo_licencia_pais_nombre, l.numero, l.vence_el
   FROM viaticos_licencias l
-  JOIN viaticos_tipos_licencia tl ON tl.id = l.tipo_licencia_id`;
+  JOIN viaticos_tipos_licencia tl ON tl.id = l.tipo_licencia_id
+  LEFT JOIN paises lp ON lp.id = tl.pais_id`;
 
 const SELECT_PAISES = `SELECT up.usuario_id, p.id, p.codigo, p.nombre
   FROM viaticos_usuario_paises up
