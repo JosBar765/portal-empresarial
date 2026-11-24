@@ -44,6 +44,8 @@ const PORT = config.port;
   // sesiones_activas son falsos. Se reinician, pero las sesiones vigentes se
   // conservan — su refresh token vive ahí y un reinicio/despliegue no debe
   // cerrarle la sesión a nadie.
+  // Calculadora de Tiempos: si el módulo ya está migrado y no hay ninguna versión de la tabla, carga la Ver. 5.0 (no frena el arranque si falla).
+  try { await require('./modules/tiempos/services/cargaInicialService').cargar(); } catch (error) { console.warn(`[Tiempos] No se pudo hacer la carga inicial: ${error.message}`); }
   await sesionRepository.asegurarEsquema();
   await sesionRepository.reiniciarPresencia();
 

@@ -26,6 +26,7 @@ const adminRoutes = require('./modules/admin/routes');
 const promptsRoutes = require('./modules/prompts/routes');
 const viaticosRoutes = require('./modules/viaticos/routes');
 const incidenciasRoutes = require('./modules/incidencias/routes');
+const tiemposRoutes = require('./modules/tiempos/routes');
 const proyectosRoutes = require('./modules/proyectos/routes');
 const notificacionRoutes = require('./core/notifications/notificacionRoutes');
 const { MENSAJE_INTERNO } = require('./core/utils/erroresHttp');
@@ -132,6 +133,8 @@ app.use('/api/prompts', requireAuth, requirePermission('prompts.ver'), promptsRo
 app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'), viaticosRoutes);
 // Rutas de API del módulo Incidencias
 app.use('/api/incidencias', requireAuth, requirePermission('incidencias.ver'), incidenciasRoutes);
+// Calculadora de Tiempos (editar la tabla exige además tiempos.administrar)
+app.use('/api/tiempos', requireAuth, requirePermission('tiempos.ver'), tiemposRoutes);
 // Rutas de API del módulo Proyectos (la administración exige además proyectos.administrar)
 app.use('/api/proyectos', requireAuth, requirePermission('proyectos.ver'), proyectosRoutes);
 
