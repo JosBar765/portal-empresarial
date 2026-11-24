@@ -11,17 +11,16 @@ import { llenarCombo } from '../../components/comboAgrupado.js';
 import { wireCampoFecha } from '../../components/datepicker.js';
 import { limpiarErrorCampo } from '../../components/validacion.js';
 import { abrirFormularioConfig } from './modalConfig.js';
+import { gruposDeTiposPorPais } from './licenciaTexto.js';
 import { armarPayloadPersona, armarPayloadQuitarLicencia, validarPersona } from './personasModelo.js';
 
 const ID = (nombre) => `vi-per-${nombre}`;
 
 // `tiposLicencia` son los activos; el de la persona se agrega aunque se haya desactivado para no perderlo al guardar.
-function opcionesDeTipos(tiposLicencia, licencia) {
-  const lista = tiposLicencia.map(tp => ({ valor: tp.id, texto: `${tp.codigo} · ${tp.nombre}` }));
-  if (licencia && !tiposLicencia.some(tp => tp.id === licencia.tipoLicenciaId)) {
-    lista.push({ valor: licencia.tipoLicenciaId, texto: `${licencia.tipoLicenciaCodigo} · ${licencia.tipoLicenciaNombre}` });
-  }
-  return lista;
+// Un grupo por país: la persona puede tener una licencia de cualquier país.
+function gruposDeTipos(tiposLicencia, licencia) {
+  const actual = licencia && { id: licencia.tipoLicenciaId, codigo: licencia.tipoLicenciaCodigo, nombre: licencia.tipoLicenciaNombre, paisNombre: licencia.tipoLicenciaPaisNombre };
+  return gruposDeTiposPorPais(tiposLicencia, actual);
 }
 
 export function abrirEdicionPersona({ persona, paises, tiposLicencia, alGuardar }) {
@@ -36,7 +35,7 @@ export function abrirEdicionPersona({ persona, paises, tiposLicencia, alGuardar 
   pintarAviso();
 
   const select = h('select', { id: ID('tipo'), name: 'licencia.tipoLicenciaId', 'data-campo': 'licencia' });
-  llenarCombo(select, { placeholder: t('config.personas.seleccionaTipo'), grupos: [{ opciones: opcionesDeTipos(tiposLicencia, licencia) }], valor: licencia ? licencia.tipoLicenciaId : '' });
+  llenarCombo(select, { placeholder: t('config.personas.seleccionaTipo'), grupos: gruposDeTipos(tiposLicencia, licencia), valor: licencia ? licencia.tipoLicenciaId : '' });
   const numero = h('input', {
     type: 'text', id: ID('numero'), name: 'licencia.numero', autocomplete: 'off',
     placeholder: t('config.personas.ph.numero'), value: licencia ? licencia.numero : ''

@@ -37,7 +37,9 @@ class ReglaLicenciaService {
 
     const campos = {};
     if (!(await referencias.paisExiste(paisId))) campos.paisId = msg('pais.noExiste');
-    if (!(await referencias.tipoLicenciaExiste(tipoLicenciaId))) campos.tipoLicenciaId = msg('regla.tipoLicenciaNoExiste');
+    const licencia = await referencias.tipoLicenciaPorId(tipoLicenciaId);
+    if (!licencia) campos.tipoLicenciaId = msg('regla.tipoLicenciaNoExiste');
+    else if (licencia.paisId !== paisId) campos.tipoLicenciaId = msg('regla.licenciaOtroPais');
     const placa = await referencias.tipoPlacaPorId(tipoPlacaId);
     if (!placa) campos.tipoPlacaId = msg('regla.tipoPlacaNoExiste');
     else if (placa.paisId !== paisId) campos.tipoPlacaId = msg('regla.placaOtroPais');

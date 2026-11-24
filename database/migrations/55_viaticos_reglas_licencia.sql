@@ -92,7 +92,10 @@ SELECT d.`codigo`, d.`nombre` FROM (
   UNION ALL SELECT 'BZ-B', 'Belice · Class B'
   UNION ALL SELECT 'BZ-C', 'Belice · Class C'
 ) d
-WHERE NOT EXISTS (SELECT 1 FROM `viaticos_tipos_licencia` t WHERE t.`codigo` = d.`codigo`);
+-- Solo con el esquema anterior (sin pais_id): la migración viaticos_licencias_por_pais los convierte a un tipo por país,
+-- y volver a insertar los códigos con prefijo duplicaría los tipos o fallaría por el país obligatorio.
+WHERE NOT EXISTS (SELECT 1 FROM `viaticos_tipos_licencia` t WHERE t.`codigo` = d.`codigo`)
+  AND NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'viaticos_tipos_licencia' AND COLUMN_NAME = 'pais_id');
 
 -- Reglas (sin límites de tonelaje ni pasajeros)
 INSERT INTO `viaticos_reglas_licencia` (`pais_id`, `tipo_licencia_id`, `tipo_placa_id`)

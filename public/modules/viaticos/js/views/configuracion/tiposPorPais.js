@@ -1,4 +1,4 @@
-// Sección «Tipos de placa» de un país dentro de «Reglas de licencia»: alta con el país fijo, edición y activar o desactivar.
+// Sección de tipos (de licencia o de placa) de un país dentro de «Licencias y placas»: alta con el país fijo, edición y activar o desactivar.
 import { h } from '../../utils/dom.js';
 import { t } from '../../textos.js';
 import { cambiarActivoConfig, crearConfig, editarConfig } from '../../api/viaticosApi.js';
@@ -9,35 +9,36 @@ import { htmlFilaCatalogo } from './filas.js';
 import { crearPanelLista, estadoLista } from './lista.js';
 import { abrirFormularioConfig } from './modalConfig.js';
 import { armarPayloadCatalogo, camposDe, etiquetaCampo, filtrarFilas, validarCamposCatalogo } from './modelo.js';
-import { tiposPlacaDe } from './reglasModelo.js';
+import { tiposDePais } from './reglasModelo.js';
 
-const DEFINICION = DEFINICIONES['tipos-placa'];
-const idCampo = (campo) => `vi-placa-${campo.nombre}`;
-
-// `contexto`: { obtener() -> { paisId, paisNombre, tiposPlaca }, recargar() } (el padre es dueño de los datos).
-export function crearSeccionTiposPlaca(contexto) {
+// `tipo`: { recurso: 'tipos-placa' | 'tipos-licencia', datos: clave de la lista en el contexto, idBase, icono }.
+// `contexto`: { obtener() -> { paisId, paisNombre, [tipo.datos] }, recargar() } (el padre es dueño de los datos).
+export function crearSeccionTiposPorPais(contexto, { recurso, datos, idBase, icono }) {
+  const DEFINICION = DEFINICIONES[recurso];
+  const TEXTO = DEFINICION.texto;
+  const idCampo = (campo) => `${idBase}-${campo.nombre}`;
   let busqueda = '';
   let accionEnCurso = false;
-  const seccion = t('config.tipos-placa.titulo');
+  const seccion = t(`${TEXTO}.titulo`);
   const panel = crearPanelLista({
     seccion,
     titulo: seccion,
-    subtitulo: t('config.tipos-placa.subtitulo'),
-    idBase: 'vi-placa',
+    subtitulo: t(`${TEXTO}.subtitulo`),
+    idBase,
     encabezados: [t('config.campo.codigo'), t('config.campo.nombre'), t('config.col.estado'), t('config.col.acciones')],
     alAgregar: () => abrirFormulario(null),
     alBuscar: (texto) => { busqueda = texto.trim(); pintar(); },
     alPulsarFila: (evento) => alPulsarFila(evento)
   });
 
-  const filasDelPais = () => tiposPlacaDe(contexto.obtener().tiposPlaca, contexto.obtener().paisId);
+  const filasDelPais = () => tiposDePais(contexto.obtener()[datos], contexto.obtener().paisId);
 
   function pintar() {
     const filas = filasDelPais();
     const { paisNombre } = contexto.obtener();
     if (filas.length === 0) {
       panel.ponerResumen(null);
-      panel.ponerEstado(estadoLista({ icono: 'document-outline', titulo: t('config.tipos-placa.vacio.titulo', { pais: paisNombre }), texto: t('config.tipos-placa.vacio.texto') }));
+      panel.ponerEstado(estadoLista({ icono, titulo: t(`${TEXTO}.vacio.titulo`, { pais: paisNombre }), texto: t(`${TEXTO}.vacio.texto`) }));
       return;
     }
     const visibles = filtrarFilas(filas, busqueda, (f) => DEFINICION.busca.map(c => f[c]));
@@ -55,17 +56,17 @@ export function crearSeccionTiposPlaca(contexto) {
     }));
     // El país no cambia: se muestra de solo lectura para que quede claro a cuál país pertenece el tipo.
     const pais = crearCampo({
-      etiqueta: t('config.campo.paisId'), idControl: 'vi-placa-pais', clase: 'full',
-      control: h('input', { type: 'text', id: 'vi-placa-pais', name: 'paisNombre', 'data-campo': 'paisId', value: paisNombre, disabled: true })
+      etiqueta: t('config.campo.paisId'), idControl: `${idBase}-pais`, clase: 'full',
+      control: h('input', { type: 'text', id: `${idBase}-pais`, name: 'paisNombre', 'data-campo': 'paisId', value: paisNombre, disabled: true })
     });
     const leer = (form) => Object.fromEntries(camposDe(DEFINICION, enEdicion).map(c => [c.nombre, form.elements[c.nombre].value]));
     const ref = abrirFormularioConfig({
-      titulo: t(`config.tipos-placa.${enEdicion ? 'edicion' : 'alta'}`, { pais: paisNombre }),
-      hijos: [pais, ...campos, h('p', { class: 'form-hint full', text: t('config.tipos-placa.ayudaPais') })],
+      titulo: t(`${TEXTO}.${enEdicion ? 'edicion' : 'alta'}`, { pais: paisNombre }),
+      hijos: [pais, ...campos, h('p', { class: 'form-hint full', text: t(`${TEXTO}.ayudaPais`) })],
       validar: () => validarCamposCatalogo(DEFINICION, leer(ref.form), { enEdicion }),
       enviar: () => {
         const payload = armarPayloadCatalogo(DEFINICION, leer(ref.form), { enEdicion });
-        return enEdicion ? editarConfig('tipos-placa', fila.id, payload) : crearConfig('tipos-placa', { paisId, ...payload });
+        return enEdicion ? editarConfig(recurso, fila.id, payload) : crearConfig(recurso, { paisId, ...payload });
       },
       // El código repetido en el país se explica junto a su campo.
       erroresDeServidor: (error) => (error.status === 409 ? { codigo: error.message } : null),
@@ -86,7 +87,7 @@ export function crearSeccionTiposPlaca(contexto) {
     });
     if (!confirmado) return;
     try {
-      await cambiarActivoConfig('tipos-placa', fila.id, activar);
+      await cambiarActivoConfig(recurso, fila.id, activar);
     } catch (error) {
       window.toast?.error(t('config.toast.errorEstado'), error.message);
       return;

@@ -169,6 +169,7 @@ class SolicitudService {
       });
       return {
         id: p.id, nombre: p.nombre, tipoLicenciaCodigo: p.tipoLicenciaCodigo, tipoLicenciaNombre: p.tipoLicenciaNombre,
+        tipoLicenciaPaisId: p.tipoLicenciaPaisId, tipoLicenciaPaisNombre: p.tipoLicenciaPaisNombre,
         numero: p.numero, venceEl: p.venceEl, bloqueos
       };
     });

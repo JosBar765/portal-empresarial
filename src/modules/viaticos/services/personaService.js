@@ -78,7 +78,7 @@ class PersonaService {
     if (!(await repo.obtenerUsuarioActivo(usuarioId))) throw new ErrorDeNegocio(msg('persona.noExiste', { id: usuarioId }), 404);
 
     const campos = {};
-    if (licencia && !(await referencias.tipoLicenciaExiste(licencia.tipoLicenciaId))) campos.licencia = msg('persona.tipoLicenciaNoExiste');
+    if (licencia && !(await referencias.tipoLicenciaPorId(licencia.tipoLicenciaId))) campos.licencia = msg('persona.tipoLicenciaNoExiste');
     if ((await referencias.contarPaises(paisIds)) !== paisIds.length) campos.paisIds = msg('persona.paisNoExiste');
     if (Object.keys(campos).length > 0) throw errorDeValidacion(msg('validacion.revisar'), campos);
 

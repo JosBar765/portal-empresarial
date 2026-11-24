@@ -17,6 +17,7 @@ export const DEFINICIONES = Object.freeze({
       { nombre: 'simbolo', tipo: 'texto', max: 5, placeholder: 'config.ph.simbolo' }
     ]
   },
+  // Igual que los tipos de placa: pertenece a un país que fija la sección de «Licencias y placas».
   'tipos-licencia': {
     recurso: 'tipos-licencia',
     texto: 'config.tipos-licencia',
@@ -27,7 +28,7 @@ export const DEFINICIONES = Object.freeze({
       NOMBRE_100('config.ph.nombreLicencia')
     ]
   },
-  // Se administra dentro de «Reglas de licencia», por país: el país no es un campo de esta definición (lo fija la sección).
+  // Se administra dentro de «Licencias y placas», por país: el país no es un campo de esta definición (lo fija la sección).
   'tipos-placa': {
     recurso: 'tipos-placa',
     texto: 'config.tipos-placa',

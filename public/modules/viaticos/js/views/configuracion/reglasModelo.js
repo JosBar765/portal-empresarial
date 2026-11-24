@@ -2,28 +2,36 @@
 import { t } from '../../textos.js';
 import { normalizarDecimal } from '../../utils/numero.js';
 import { formatearMedida, validarDecimalPositivo } from './modelo.js';
+import { etiquetaTipo } from './licenciaTexto.js';
 
 // Mismos topes que LIMITES del servidor (constantes.js).
 export const LIMITES_REGLA = Object.freeze({ TONELAJE_MAX: 99999999.99, ENTERO_MAX: 2147483647 });
 
 const vacio = (v) => v === null || v === undefined || String(v).trim() === '';
 
-export const tiposPlacaDe = (tipos, paisId) => tipos.filter(tp => Number(tp.paisId) === Number(paisId));
+// Sirve para tipos de licencia y de placa: ambos llevan paisId.
+export const tiposDePais = (tipos, paisId) => tipos.filter(tp => Number(tp.paisId) === Number(paisId));
 export const reglasDe = (reglas, paisId) => reglas.filter(r => Number(r.paisId) === Number(paisId));
 
 // El tipo de placa de una regla nueva: del país y activo.
-export const tiposPlacaElegibles = (tipos, paisId) => tiposPlacaDe(tipos, paisId).filter(tp => tp.activo);
+export const tiposPlacaElegibles = (tipos, paisId) => tiposDePais(tipos, paisId).filter(tp => tp.activo);
+// Igual para el tipo de licencia: la regla exige que licencia y placa sean del país de la regla.
+export const tiposLicenciaElegibles = tiposPlacaElegibles;
 
-// País recordado si todavía existe; si no, el primero.
-export function paisInicial(paises, guardado) {
+// País recordado si todavía existe; si no, el primero que ya tiene tipos de licencia (`idsConDatos`); si no, el primero de la lista.
+export function paisInicial(paises, guardado, idsConDatos = []) {
   if (!paises.length) return null;
-  return paises.some(p => Number(p.id) === Number(guardado)) ? Number(guardado) : paises[0].id;
+  if (paises.some(p => Number(p.id) === Number(guardado))) return Number(guardado);
+  const tieneDatos = p => idsConDatos.some(id => Number(id) === Number(p.id));
+  // Guatemala primero: es el país de operación; si no tiene datos, el primero que los tenga.
+  const conDatos = paises.find(p => p.codigo === 'GT' && tieneDatos(p)) || paises.find(tieneDatos);
+  return (conDatos || paises[0]).id;
 }
 
 export const claveRegla = (r) => ({ paisId: r.paisId, tipoLicenciaId: r.tipoLicenciaId, tipoPlacaId: r.tipoPlacaId });
 export const mismaRegla = (a, b) => a.paisId === b.paisId && a.tipoLicenciaId === b.tipoLicenciaId && a.tipoPlacaId === b.tipoPlacaId;
 
-export const textoTipoLicencia = (r) => `${r.tipoLicenciaCodigo} · ${r.tipoLicenciaNombre}`;
+export const textoTipoLicencia = (r) => etiquetaTipo(r.tipoLicenciaCodigo, r.tipoLicenciaNombre);
 export const textoTipoPlaca = (r) => `${r.tipoPlacaCodigo} · ${r.tipoPlacaNombre}`;
 export const nombreRegla = (r) => `${r.tipoLicenciaCodigo} / ${r.tipoPlacaCodigo}`;
 

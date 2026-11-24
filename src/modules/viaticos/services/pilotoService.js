@@ -22,7 +22,7 @@ function validar(cuerpo) {
 
 async function verificarReferencias(valores) {
   const campos = {};
-  if (!(await referencias.tipoLicenciaExiste(valores.tipo_licencia_id))) campos.tipoLicenciaId = msg('persona.tipoLicenciaNoExiste');
+  if (!(await referencias.tipoLicenciaPorId(valores.tipo_licencia_id))) campos.tipoLicenciaId = msg('persona.tipoLicenciaNoExiste');
   // Nombre y número salen en el PDF de la solicitud: sus caracteres deben poder dibujarse.
   const textos = await erroresDeTextos([
     { campo: 'nombre', etiqueta: 'Nombre', valor: valores.nombre },
