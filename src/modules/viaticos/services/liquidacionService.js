@@ -131,7 +131,7 @@ class LiquidacionService {
     const tipoHospedaje = fijo(RUBROS_FIJOS.HOSPEDAJE);
     const tipoCombustible = fijo(RUBROS_FIJOS.COMBUSTIBLE);
     const tipos = await catalogoRepo.tiposGastoPorIds([...new Set(gastos.map(g => g.tipoGastoId))], ejecutor);
-    const combustible = combustibleSolicitado({ tramos, rendimientoKmGalon: fila.rendimientoKmGalon, precioGalon: fila.precioGalon });
+    const combustible = combustibleSolicitado({ tramos, rendimientoKmGalon: fila.rendimientoKmGalon, precioGalon: fila.precioGalon, capacidadTanque: fila.tanqueLleno ? fila.capacidadTanqueGalones : null });
     const importesRecibo = {
       alimentacion: alimentacionSolicitada(comidas),
       depreciacion: depreciacionSolicitada({ tramos, depreciacionPorKm: fila.depreciacionPorKm, vehiculoPropio: fila.vehiculoPropietarioId !== null })

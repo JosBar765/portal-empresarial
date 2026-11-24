@@ -10,7 +10,7 @@ const ENCABEZADO = `SELECT s.id, s.correlativo, s.pais_id, p.codigo AS pais_codi
        s.motivo_id, mt.nombre AS motivo_nombre, s.vehiculo_id, v.marca AS vehiculo_marca, v.modelo AS vehiculo_modelo,
        v.anio AS vehiculo_anio, v.placa AS vehiculo_placa, v.propietario_id AS vehiculo_propietario_id,
        s.fecha_salida, s.fecha_regreso, s.rendimiento_km_galon, s.precio_galon, s.depreciacion_por_km, s.odometro,
-       s.total_solicitado, s.pdf_ruta, s.creado_en, s.actualizado_en,
+       s.tanque_lleno, s.capacidad_tanque_galones, s.total_solicitado, s.pdf_ruta, s.creado_en, s.actualizado_en,
        (SELECT h.motivo FROM viaticos_historial h WHERE h.solicitud_id = s.id AND h.motivo IS NOT NULL ORDER BY h.id DESC LIMIT 1) AS motivo_rechazo,
        (SELECT MAX(h.creado_en) FROM viaticos_historial h JOIN viaticos_estados he ON he.id = h.estado_id
          WHERE h.solicitud_id = s.id AND he.nombre = ?) AS liquidada_en

@@ -13,7 +13,7 @@ import { numeroATexto } from '../../utils/numero.js';
 import { armarPayloadVehiculo, propietariosDelPais, tiposPlacaDelPais, validarVehiculo } from './vehiculosModelo.js';
 
 const ID = (nombre) => `vi-veh-${nombre}`;
-const CAMPOS = ['paisId', 'propietarioId', 'marca', 'modelo', 'anio', 'placa', 'tipoPlacaId', 'combustibleId', 'tonelaje', 'pasajeros', 'polizaNumero', 'tarjetaVenceEl', 'polizaVenceEl'];
+const CAMPOS = ['paisId', 'propietarioId', 'marca', 'modelo', 'anio', 'placa', 'tipoPlacaId', 'combustibleId', 'tonelaje', 'pasajeros', 'capacidadTanqueGalones', 'polizaNumero', 'tarjetaVenceEl', 'polizaVenceEl'];
 
 const texto = (nombre, valor, extra = {}) => h('input', { type: 'text', id: ID(nombre), name: nombre, autocomplete: 'off', value: valor ?? '', ...extra });
 const campo = (nombre, control, clase = '') => crearCampo({ etiqueta: t(`config.vehiculos.campo.${nombre}`), control, idControl: ID(nombre), clase });
@@ -59,6 +59,7 @@ export function abrirFormularioVehiculo({ vehiculo, paises, tiposPlaca, combusti
   const anio = crearCampoNumerico({ id: ID('anio'), name: 'anio', valor: v.anio ?? '', entero: true, placeholder: t('config.vehiculos.ph.anio') });
   const tonelaje = crearCampoNumerico({ id: ID('tonelaje'), name: 'tonelaje', valor: numeroATexto(v.tonelaje), placeholder: t('config.vehiculos.ph.tonelaje') });
   const pasajeros = crearCampoNumerico({ id: ID('pasajeros'), name: 'pasajeros', valor: v.pasajeros ?? '', entero: true, placeholder: t('config.vehiculos.ph.pasajeros') });
+  const capacidad = crearCampoNumerico({ id: ID('capacidadTanqueGalones'), name: 'capacidadTanqueGalones', valor: numeroATexto(v.capacidadTanqueGalones), placeholder: t('config.vehiculos.ph.capacidadTanqueGalones') });
 
   const leer = (form) => Object.fromEntries(CAMPOS.map(nombre => {
     const control = form.querySelector(`[name="${nombre}"]`);
@@ -77,6 +78,8 @@ export function abrirFormularioVehiculo({ vehiculo, paises, tiposPlaca, combusti
     campo('combustibleId', selectCombustible),
     campo('tonelaje', tonelaje),
     campo('pasajeros', pasajeros),
+    campo('capacidadTanqueGalones', capacidad),
+    h('p', { class: 'form-hint full', text: t('config.vehiculos.ayudaCapacidad') }),
     h('p', { class: 'form-hint full', text: t(enEdicion ? 'config.vehiculos.ayudaEdicion' : 'config.vehiculos.ayudaAlta') }),
     h('h4', { class: 'vi-form-subtitulo full', text: t('config.vehiculos.poliza.titulo') }),
     campo('polizaNumero', texto('polizaNumero', v.polizaNumero, { placeholder: t('config.vehiculos.ph.poliza') })),

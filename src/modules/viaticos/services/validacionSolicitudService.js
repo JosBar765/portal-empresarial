@@ -60,6 +60,7 @@ function normalizarViajeLargo(v, cuerpo, datos) {
   datos.rendimientoKmGalon = valorMonto(v, cuerpo, 'rendimientoKmGalon', 'Rendimiento (km por galón)');
   datos.precioGalon = valorMonto(v, cuerpo, 'precioGalon', 'Precio por galón');
   datos.depreciacionPorKm = v.decimal(cuerpo, 'depreciacionPorKm', 'Depreciación por km', { minExclusivo: true, max: LIMITES.VALOR_MAX, requerido: false });
+  datos.tanqueLleno = v.booleano(cuerpo, 'tanqueLleno', 'Sale con el tanque lleno') === 1;
 
   const tramos = lista(v, cuerpo, 'tramos', 'Tramos', LIMITES_SOLICITUD.MAX_TRAMOS);
   if (tramos.length === 0 && !v.campos.tramos) v.falla('tramos', msg('solicitud.tramosVacio'));
@@ -139,7 +140,7 @@ function normalizarDatos(cuerpoCrudo) {
     vehiculoId: v.id(cuerpo, 'vehiculoId', 'Vehículo'),
     motivoId: v.id(cuerpo, 'motivoId', 'Motivo del viaje'),
     monedaId: null, fechaSalida: null, fechaRegreso: null,
-    rendimientoKmGalon: null, precioGalon: null, depreciacionPorKm: null,
+    rendimientoKmGalon: null, precioGalon: null, depreciacionPorKm: null, tanqueLleno: false,
     tramos: [], hospedajes: [], comidas: [], gastos: [], inspeccion: null,
     borradorId: borradorDeOrigen(v, cuerpo)
   };
@@ -193,6 +194,9 @@ function validarVehiculo(datos, ctx, hoy, errores) {
   if (esCorto && veh.tarjetaVenceEl < hoy) { falla(msg('solicitud.tarjetaVencida', { placa, fecha: formatearFecha(veh.tarjetaVenceEl) })); valido = false; }
   if (!esCorto && veh.propietarioId !== null && !(datos.depreciacionPorKm > 0)) {
     errores.push({ campo: 'depreciacionPorKm', mensaje: msg('solicitud.depreciacionObligatoria') });
+  }
+  if (!esCorto && datos.tanqueLleno && veh.capacidadTanqueGalones === null) {
+    errores.push({ campo: 'tanqueLleno', mensaje: msg('solicitud.tanqueSinCapacidad', { placa }) });
   }
   return valido;
 }

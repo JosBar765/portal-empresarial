@@ -1,8 +1,8 @@
 // src/modules/viaticos/utilidades.js
 // Las columnas de MySQL llegan en snake_case; la API habla camelCase.
-const BOOLEANAS = new Set(['activo', 'esOtros', 'seleccionableEnGastos', 'permiteNoAplica', 'bajoLaMitad', 'presente']);
+const BOOLEANAS = new Set(['activo', 'esOtros', 'seleccionableEnGastos', 'permiteNoAplica', 'bajoLaMitad', 'presente', 'tanqueLleno']);
 const NUMERICAS = new Set([
-  'km', 'horas', 'valor', 'tonelaje', 'tonelajeMax', 'rendimientoKmGalon', 'precioGalon', 'depreciacionPorKm',
+  'km', 'horas', 'valor', 'tonelaje', 'tonelajeMax', 'capacidadTanqueGalones', 'rendimientoKmGalon', 'precioGalon', 'depreciacionPorKm',
   'odometro', 'totalSolicitado', 'valorNoche', 'monto', 'valorUnitario'
 ]); // mysql2 devuelve los DECIMAL como texto
 

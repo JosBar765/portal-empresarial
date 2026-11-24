@@ -17,6 +17,8 @@ export function estadoInicial({ paises = [] } = {}) {
     rendimiento: '',
     precioGalon: '',
     depreciacion: '',
+    // «Sale con el tanque lleno»: solo con un vehículo que tenga capacidad de tanque.
+    tanqueLleno: false,
     fechaSalida: '',
     fechaRegreso: '',
     motivoId: '',
@@ -218,6 +220,8 @@ export function armarPayload(estado, cat, { idempotencyKey } = {}) {
   if (!vacio(estado.rendimiento)) datos.rendimientoKmGalon = importe(estado.rendimiento);
   if (!vacio(estado.precioGalon)) datos.precioGalon = importe(estado.precioGalon);
   if (veh && veh.esPropio && !vacio(estado.depreciacion)) datos.depreciacionPorKm = importe(estado.depreciacion);
+  // Solo viaja marcada y con capacidad: sin ella el servidor respondería con el error de la regla.
+  if (estado.tanqueLleno && veh && veh.capacidadTanqueGalones != null) datos.tanqueLleno = true;
 
   const indices = { tramos: [], hospedajes: [], gastos: [] };
   datos.tramos = [];
@@ -340,6 +344,7 @@ export function detalleAEstado(detalle) {
     rendimiento: numeroATexto(detalle.rendimientoKmGalon),
     precioGalon: numeroATexto(detalle.precioGalon),
     depreciacion: numeroATexto(detalle.depreciacionPorKm),
+    tanqueLleno: detalle.tanqueLleno === true,
     origenInicialId: tramos.length ? aId(tramos[0].origenId) : '',
     tramos: tramos.length ? tramos.map(t => ({ destinoId: aId(t.destinoId) })) : [{ destinoId: '' }],
     hospedajes: (detalle.hospedajes || []).map(h => ({ hotel: h.hotel || '', lugar: h.lugar || '', noches: numeroATexto(h.noches), valorNoche: numeroATexto(h.valorNoche) })),

@@ -51,6 +51,9 @@ export function crearSeccionVehiculo(ctx) {
   const galones = crearCampoCalculado({ etiqueta: t('formulario.vehiculo.galones'), id: 'vi-sol-galones' });
   const costoCombustible = crearCampoCalculado({ etiqueta: '', id: 'vi-sol-costo-combustible' });
   const costoDepreciacion = crearCampoCalculado({ etiqueta: '', id: 'vi-sol-costo-depreciacion' });
+  const casillaTanque = h('input', { type: 'checkbox', id: 'vi-sol-tanque-lleno', name: 'tanqueLleno', checked: estado.tanqueLleno === true });
+  casillaTanque.addEventListener('change', () => { estado.tanqueLleno = casillaTanque.checked; ctx.cambio('combustible'); });
+  const campoTanque = h('label', { class: 'vi-ayuda', for: 'vi-sol-tanque-lleno', id: 'vi-sol-tanque-lleno-campo' }, casillaTanque, ` ${t('formulario.vehiculo.tanqueLleno')}`);
   const filaDatos = h('div', { class: 'vi-grid vi-grid--3' }, campoRendimiento, campoPrecio, campoDepreciacion);
   const filaCalculados = h('div', { class: 'vi-grid vi-grid--3' }, galones, costoCombustible, costoDepreciacion);
   const etiqueta = (campo, texto) => { campo.querySelector('label').textContent = texto; };
@@ -64,6 +67,12 @@ export function crearSeccionVehiculo(ctx) {
     costoDepreciacion.style.display = sinDepreciacion ? 'none' : '';
     filaDatos.classList.toggle('vi-grid--2', sinDepreciacion);
     filaCalculados.classList.toggle('vi-grid--2', sinDepreciacion);
+    // La casilla solo se ofrece con un vehículo que tenga capacidad de tanque; con otro se desmarca.
+    const conTanque = !!veh && veh.capacidadTanqueGalones != null;
+    if (ctx.catalogos && !conTanque) estado.tanqueLleno = false;
+    casillaTanque.checked = estado.tanqueLleno === true;
+    campoTanque.style.display = conTanque ? '' : 'none';
+    etiqueta(galones, t(estado.tanqueLleno ? 'formulario.vehiculo.galonesPagar' : 'formulario.vehiculo.galones'));
     nota.textContent = t(!veh ? 'formulario.vehiculo.notaSinElegir' : veh.esPropio ? 'formulario.vehiculo.notaPropio' : 'formulario.vehiculo.notaEmpresa');
     etiqueta(campoRendimiento, t('formulario.vehiculo.rendimiento.etiqueta'));
     etiqueta(campoPrecio, conMoneda(t('formulario.vehiculo.precio.etiqueta'), simbolo));
@@ -82,6 +91,7 @@ export function crearSeccionVehiculo(ctx) {
 
   ctx.suscribir('moneda', pintar);
   ctx.suscribir('vehiculo', pintar);
+  ctx.suscribir('combustible', pintar);
   ctx.suscribir('resultado', mostrarCalculo);
   pintar();
   mostrarCalculo();
@@ -90,6 +100,7 @@ export function crearSeccionVehiculo(ctx) {
     nota,
     crearCampo({ etiqueta: t('formulario.vehiculo.etiqueta'), control: combo, idControl: 'vi-sol-vehiculo' }),
     avisoBloqueados,
+    campoTanque,
     filaDatos,
     filaCalculados);
   return { el };

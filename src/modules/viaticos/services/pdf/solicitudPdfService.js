@@ -312,7 +312,9 @@ function seccionesDeCostos(ctx, detalle) {
   const simbolo = detalle.moneda ? detalle.moneda.simbolo : '';
   const dinero = importe => formatearDinero(simbolo, importe);
   const ruta = sumarTramos(detalle.tramos);
-  const combustible = calcularCombustible({ kmTotal: ruta.kmTotal, rendimientoKmGalon: detalle.rendimientoKmGalon, precioGalon: detalle.precioGalon });
+  const combustible = calcularCombustible({ kmTotal: ruta.kmTotal, rendimientoKmGalon: detalle.rendimientoKmGalon, precioGalon: detalle.precioGalon,
+    capacidadTanque: detalle.tanqueLleno ? detalle.capacidadTanqueGalones : null
+  });
   const hospedaje = calcularHospedaje(detalle.hospedajes);
   const otros = calcularOtrosGastos(detalle.gastos);
   const propio = detalle.vehiculo.esPropio && detalle.depreciacionPorKm !== null && detalle.depreciacionPorKm !== undefined;
@@ -327,9 +329,15 @@ function seccionesDeCostos(ctx, detalle) {
 
   // Un cálculo es una sola línea de detalle (la fórmula) y cierra con su fila TOTAL, como las demás secciones.
   const lineaDeCalculo = [{ x: 0, w: 1, valor: f => f }];
-  dibujarSubseccion(ctx, t('combustibleTitulo'), null, lineaDeCalculo, [t('calcCombustible', {
-    km: formatearNumero(ruta.kmTotal), rendimiento: formatearNumero(detalle.rendimientoKmGalon), precio: dinero(detalle.precioGalon)
-  })], { encabezado: false, total: dinero(combustible.importe) });
+  const formulaCombustible = detalle.tanqueLleno
+    ? t('calcCombustibleTanque', {
+      km: formatearNumero(ruta.kmTotal), rendimiento: formatearNumero(detalle.rendimientoKmGalon),
+      capacidad: formatearNumero(detalle.capacidadTanqueGalones), precio: dinero(detalle.precioGalon)
+    })
+    : t('calcCombustible', {
+      km: formatearNumero(ruta.kmTotal), rendimiento: formatearNumero(detalle.rendimientoKmGalon), precio: dinero(detalle.precioGalon)
+    });
+  dibujarSubseccion(ctx, t('combustibleTitulo'), null, lineaDeCalculo, [formulaCombustible],{ encabezado: false, total: dinero(combustible.importe) });
   if (depreciacion) {
     dibujarSubseccion(ctx, t('depreciacion'), null, lineaDeCalculo, [t('calcDepreciacion', {
       km: formatearNumero(ruta.kmTotal), tasa: dinero(detalle.depreciacionPorKm)

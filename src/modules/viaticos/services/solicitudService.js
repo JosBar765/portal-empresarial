@@ -21,7 +21,7 @@ const MS_DIA = 24 * 60 * 60 * 1000;
 const FECHA_ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
 const FECHA_LATINA_RE = /^(\d{2})\/(\d{2})\/(\d{4})$/;
 // Los errores de estos campos impiden armar el desglose; los demás (licencia, fechas…) no.
-const CAMPOS_DEL_CALCULO = ['tramos', 'comidas', 'gastos', 'depreciacionPorKm'];
+const CAMPOS_DEL_CALCULO = ['tramos', 'comidas', 'gastos', 'depreciacionPorKm', 'tanqueLleno'];
 
 // «Ahora» de Guatemala como textos comparables: hoy «AAAA-MM-DD» y ahora «AAAA-MM-DD HH:mm».
 function instante() {
@@ -170,6 +170,7 @@ class SolicitudService {
       tipoPlaca: veh.tipoPlacaNombre,
       combustible: veh.combustibleNombre,
       esPropio: veh.propietarioId !== null,
+      capacidadTanqueGalones: veh.capacidadTanqueGalones,
       tarjetaVenceEl: veh.tarjetaVenceEl,
       polizaVenceEl: veh.polizaVenceEl,
       bloqueo: errorLicencia ? errorLicencia.mensaje : null,
@@ -258,7 +259,8 @@ class SolicitudService {
       vehiculoPropio: evaluacion.vehiculoPropio,
       tiposComida: ctx.tiposComida,
       valoresPorTipo: ctx.valoresPorTipo,
-      monedaNombre: ctx.moneda ? ctx.moneda.nombre : ''
+      monedaNombre: ctx.moneda ? ctx.moneda.nombre : '',
+      capacidadTanque: datos.tanqueLleno ? ctx.vehiculo.capacidadTanqueGalones : null
     });
     return respuestaDeCalculo(datos.modalidad, { errores: evaluacion.errores, advertencias: evaluacion.advertencias, ...calculo });
   }
@@ -330,6 +332,8 @@ class SolicitudService {
       fechaRegreso: fila.fechaRegreso,
       rendimientoKmGalon: esLargo ? fila.rendimientoKmGalon : null,
       precioGalon: esLargo ? fila.precioGalon : null,
+      tanqueLleno: esLargo && fila.tanqueLleno,
+      capacidadTanqueGalones: esLargo ? fila.capacidadTanqueGalones : null,
       depreciacionPorKm: fila.depreciacionPorKm,
       odometro: fila.odometro,
       totalSolicitado: fila.totalSolicitado,

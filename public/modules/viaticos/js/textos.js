@@ -193,6 +193,8 @@ export const TEXTOS = {
   'formulario.vehiculo.depreciacion.etiqueta': 'Depreciación por km',
   'formulario.vehiculo.depreciacion.ejemplo': 'Ej. 0.80',
   'formulario.vehiculo.galones': 'Galones requeridos',
+  'formulario.vehiculo.galonesPagar': 'Galones a pagar (descontado el tanque)',
+  'formulario.vehiculo.tanqueLleno': 'Sale con el tanque lleno',
   'formulario.vehiculo.costoCombustible': 'Costo de gasolina',
   'formulario.vehiculo.costoDepreciacion': 'Costo de depreciación',
 
@@ -881,6 +883,9 @@ export const TEXTOS = {
   'config.vehiculos.campo.combustibleId': 'Combustible',
   'config.vehiculos.campo.tonelaje': 'Tonelaje (opcional)',
   'config.vehiculos.campo.pasajeros': 'Pasajeros (opcional)',
+  'config.vehiculos.campo.capacidadTanqueGalones': 'Capacidad del tanque (galones) (opcional)',
+  'config.vehiculos.ph.capacidadTanqueGalones': 'Ej. 15',
+  'config.vehiculos.ayudaCapacidad': 'Si la llenas, la solicitud de más de 1 día ofrece «Sale con el tanque lleno» y solo se paga la diferencia entre los galones de la ruta y esta capacidad. Vacía: se pagan los viáticos completos.',
   'config.vehiculos.campo.polizaNumero': 'Número de póliza',
   'config.vehiculos.campo.polizaVenceEl': 'Vencimiento de la póliza',
   'config.vehiculos.campo.tarjetaVenceEl': 'Vencimiento de la tarjeta',
