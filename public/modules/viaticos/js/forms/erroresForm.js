@@ -18,7 +18,8 @@ export function erroresVigentes(ctx) {
   return [...locales, ...servidor];
 }
 
-const esVisible = (ctx, campo) => campo === 'licencia' || ctx.intentoEnvio || ctx.tocados.has(raizDeCampo(campo));
+// La licencia vencida de un piloto (campo `pilotoId`) también se ve siempre.
+const esVisible = (ctx, campo) => campo === 'licencia' || campo === 'pilotoId' || ctx.intentoEnvio || ctx.tocados.has(raizDeCampo(campo));
 
 // Traduce un `campos` del servidor (posiciones dentro de lo enviado) a errores de la pantalla.
 export function erroresDeCampos(campos, indices) {

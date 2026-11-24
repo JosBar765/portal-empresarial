@@ -223,6 +223,14 @@ export function abrirFormularioSolicitud({ modo = 'crear', solicitud, borrador, 
       ctx.erroresServidor = [];
       pintarDetalle();
     }, true);
+    // Otro conductor, otra licencia: un vehículo que ya no sirve se descarta y se descarta el cálculo anterior.
+    ctx.suscribir('piloto', () => {
+      const vehiculoAntes = estado.vehiculoId;
+      if (ctx.catalogos) Object.assign(estado, reconciliarEstado(estado, ctx.catalogos));
+      if (estado.vehiculoId !== vehiculoAntes) ctx.emitir('vehiculo');
+      ctx.respuesta = null;
+      ctx.erroresServidor = [];
+    }, true);
     ctx.suscribir('*', () => { recalcular(); actualizarEnvio(); }, true);
 
     // Un campo se considera tocado al salir de él o cambiarlo: desde ahí sus errores se muestran.

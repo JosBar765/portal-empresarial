@@ -54,6 +54,7 @@ const CATALOGO = Object.freeze({
   'vehiculo.polizaIncompleta': 'La póliza necesita número y fecha de vencimiento a la vez. Completa los dos o deja ambos vacíos si el vehículo no tiene póliza.',
 
   // ---- Personas ----
+  'piloto.noExiste': 'No existe el piloto con el identificador {id}. Recarga la lista e inténtalo de nuevo.',
   'persona.noExiste': 'No existe un usuario activo con el identificador {id}. Recarga la lista e inténtalo de nuevo.',
   'persona.licenciaIncompleta': 'La licencia necesita tipo, número y fecha de vencimiento a la vez. Completa los tres o déjalos vacíos para quitarla.',
   'persona.licenciaObjeto': '«Licencia» debe ser un objeto con tipoLicenciaId, numero y venceEl, o null para quitarla. Corrige el formato.',
@@ -118,6 +119,12 @@ const CATALOGO = Object.freeze({
   'solicitud.licenciaTonelajeSinDato': 'La regla de licencias de {pais} limita el tonelaje a {max}, pero el vehículo {placa} no tiene tonelaje registrado. Pide que lo registren o elige otro vehículo.',
   'solicitud.licenciaPasajeros': 'Tu licencia tipo {tipo} permite hasta {max} pasajeros con placa {tipoPlaca} en {pais}, y el vehículo {placa} tiene {valor}. Elige otro vehículo.',
   'solicitud.licenciaPasajerosSinDato': 'La regla de licencias de {pais} limita los pasajeros a {max}, pero el vehículo {placa} no tiene pasajeros registrados. Pide que los registren o elige otro vehículo.',
+  'solicitud.pilotoNoExiste': 'El piloto elegido no existe. Elige uno de la lista o deja «Yo» como conductor.',
+  'solicitud.pilotoInactivo': 'El piloto {nombre} está desactivado y no puede manejar en nuevos viajes. Elige otro piloto o deja «Yo» como conductor.',
+  'solicitud.piloto.licenciaVencida': 'La licencia del piloto {piloto} venció el {fecha} (hoy es {hoy}) y no puede manejar con ella vencida. Pide que actualicen su registro en Configuración o elige otro conductor.',
+  'solicitud.piloto.licenciaNoSirve': 'La licencia tipo {tipo} del piloto {piloto} no autoriza manejar el vehículo {placa} (placa tipo {tipoPlaca}) en {pais}. Elige un vehículo que su licencia permita u otro conductor.',
+  'solicitud.piloto.licenciaTonelaje': 'La licencia tipo {tipo} del piloto {piloto} permite hasta {max} de tonelaje con placa {tipoPlaca} en {pais}, y el vehículo {placa} tiene {valor}. Elige otro vehículo u otro conductor.',
+  'solicitud.piloto.licenciaPasajeros': 'La licencia tipo {tipo} del piloto {piloto} permite hasta {max} pasajeros con placa {tipoPlaca} en {pais}, y el vehículo {placa} tiene {valor}. Elige otro vehículo u otro conductor.',
   'solicitud.fechaPasada': '«{etiqueta}» ({fecha}) ya pasó y hoy es {hoy}. Elige hoy o una fecha futura.',
   'solicitud.horaPasada': 'La hora de salida ({fecha}) ya pasó y ahora son las {ahora}. Elige una hora posterior.',
   'solicitud.regresoAnterior': 'La fecha de regreso ({regreso}) debe ser posterior a la de salida ({salida}): un viaje de más de 1 día incluye al menos una noche fuera. Si regresas el mismo día, elige «1 día o menos».',
@@ -298,6 +305,7 @@ const CATALOGO = Object.freeze({
 
   // ---- Solicitudes: advertencias (salvedades) ----
   'advertencia.licenciaVence': 'Tu licencia vence el {fecha}, antes de que termine el viaje. Puedes continuar; quedará como salvedad en el PDF.',
+  'advertencia.piloto.licenciaVence': 'La licencia del piloto {piloto} vence el {fecha}, antes de que termine el viaje. Puedes continuar; quedará como salvedad en el PDF.',
   'advertencia.tarjetaVence': 'La tarjeta de circulación del vehículo {placa} vence el {fecha}, antes de que termine el viaje. Puedes continuar; quedará como salvedad en el PDF.',
   'advertencia.tarjetaVencida': 'La tarjeta de circulación del vehículo {placa} venció el {fecha}. Puedes continuar; quedará como salvedad en el PDF.',
   'advertencia.seguroVence': 'El seguro del vehículo {placa} vence el {fecha}, antes de que termine el viaje. Puedes continuar; quedará como salvedad en el PDF.',
@@ -315,6 +323,8 @@ const CATALOGO = Object.freeze({
   'pdf.solicitante': 'SOLICITANTE',
   'pdf.puesto': 'PUESTO',
   'pdf.licencia': 'LICENCIA',
+  'pdf.conductor': 'CONDUCTOR',
+  'pdf.conductorValor': '{nombre} (licencia {tipo} · {numero})',
   'pdf.vehiculo': 'VEHÍCULO',
   'pdf.placa': 'PLACA',
   'pdf.poliza': 'NO. DE PÓLIZA',

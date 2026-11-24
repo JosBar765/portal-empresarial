@@ -20,7 +20,7 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | Método y ruta | Permiso | Descripción |
 |---|---|---|
 | `GET /contexto` | ver | Usuario, permisos `viaticos.*`, países del usuario, licencia y ajustes de archivo |
-| `GET /catalogos/solicitud?paisId=` | ver | Motivos, vehículos disponibles (empresa del país y propios del solicitante), ubicaciones, tramos, monedas, valores de comida, tipos de gasto (con `esOtros`) y de defecto, fluidos, niveles y kit |
+| `GET /catalogos/solicitud?paisId=` | ver | Motivos, vehículos disponibles (empresa del país y propios del solicitante), `pilotos` activos (`id`, `nombre`, `tipoLicenciaCodigo`, `tipoLicenciaNombre`, `numero`, `venceEl` y `bloqueos`: mapa `vehiculoId` → motivo por el que la licencia del piloto no permite ese vehículo en el país), ubicaciones, tramos, monedas, valores de comida, tipos de gasto (con `esOtros`) y de defecto, fluidos, niveles y kit |
 | `POST /solicitudes/calcular` | ver | Valida y calcula sin guardar: importes, totales, advertencias y errores bloqueantes |
 | `GET /borradores` | ver | Mis borradores vigentes, del más nuevo al más viejo, y cuántos son nuevos por vencimiento (ver «Borradores») |
 | `GET /borradores/:id` | ver | Un borrador mío con su `datos` completo |
@@ -56,7 +56,7 @@ Montaje: `app.use('/api/viaticos', requireAuth, requirePermission('viaticos.ver'
 | `PUT /config/<recurso>/:id` | configurar | Edita |
 | `PATCH /config/<recurso>/:id/activo` | configurar | Activa o desactiva |
 
-Recursos de `/config`: `paises` y `combustibles` (solo lectura; este último lo necesita el formulario de vehículos), `monedas`, `valores-comida` (matriz moneda × comida, `PUT` completo), `ubicaciones`, `tramos`, `motivos`, `tipos-gasto`, `tipos-defecto`, `tipos-licencia`, `tipos-placa`, `reglas-licencia`, `vehiculos`, `personas` (lista de usuarios con licencia y países; `PUT /config/personas/:usuarioId`) y `ajustes` (`GET` y `PUT /config/ajustes/:clave`). Fluidos, niveles, kit, combustibles, estados y salvedades no se editan desde la interfaz.
+Recursos de `/config`: `paises` y `combustibles` (solo lectura; este último lo necesita el formulario de vehículos), `monedas`, `valores-comida` (matriz moneda × comida, `PUT` completo), `ubicaciones`, `tramos`, `motivos`, `tipos-gasto`, `tipos-defecto`, `tipos-licencia`, `tipos-placa`, `reglas-licencia`, `vehiculos`, `pilotos` (repartidores que no son usuarios; ver «Pilotos»), `personas` (lista de usuarios con licencia y países; `PUT /config/personas/:usuarioId`) y `ajustes` (`GET` y `PUT /config/ajustes/:clave`). Fluidos, niveles, kit, combustibles, estados y salvedades no se editan desde la interfaz.
 
 ## Ajustes de implementación de `/config` (F3.2)
 
@@ -67,6 +67,7 @@ Recursos de `/config`: `paises` y `combustibles` (solo lectura; este último lo 
 - `tramos`: el `POST` recibe `origenId` y `destinoId` y guarda el par ordenado; el `PUT` solo edita `km` y `horas`.
 - No se pueden cambiar al editar: `paisId` (ubicaciones y tipos de placa), `esOtros` y `seleccionableEnGastos`.
 - `personas`: `PUT /config/personas/:usuarioId` recibe `{ licencia: { tipoLicenciaId, numero, venceEl } | null, paisIds: [] }`; `paisIds` es obligatorio.
+- `pilotos` (migración `viaticos_pilotos`): `POST` y `PUT /config/pilotos[/:id]` reciben `{ nombre, tipoLicenciaId, numero, venceEl }`, todos obligatorios (`nombre` hasta 100, `numero` hasta 50; el PDF debe poder dibujar sus caracteres); la lista trae además `tipoLicenciaCodigo`, `tipoLicenciaNombre` y `activo`. Se desactivan con `PATCH /:id/activo`, nunca se borran. Un `id` inexistente da 404.
 
 ## Solicitudes: payload, cálculo y lectura (F3.3 parte A)
 
@@ -97,6 +98,7 @@ Lo comparten `POST /solicitudes/calcular` (cuerpo JSON, el payload directo, sin 
 
 - `modalidad`: `mas_de_un_dia` o `hasta_un_dia`. En más de 1 día: `monedaId`, `fechaSalida` (`AAAA-MM-DD`), `fechaRegreso`, `rendimientoKmGalon`, `precioGalon`, `tramos` (al menos uno) y, si el vehículo es propio, `depreciacionPorKm`; `tanqueLleno` (booleano, opcional, por omisión `false`: «Sale con el tanque lleno»; con `true` el vehículo debe tener `capacidadTanqueGalones`, si no responde 400 en `tanqueLleno` explicando qué configurar); `hospedajes`, `comidas` y `gastos` son opcionales; `inspeccion` no se admite. En 1 día o menos: `fechaSalida` es `AAAA-MM-DD HH:mm` (hora de Guatemala), `inspeccion` es obligatoria y no se admiten tramos, hospedajes, comidas ni gastos; el combustible no se calcula (`rendimientoKmGalon` y `precioGalon` se ignoran).
 - Otros gastos (`gastos[]`): `descripcion` es obligatoria solo si el tipo de gasto es «otros» (`esOtros` en el catálogo); para los demás tipos se ignora y se guarda vacía (la columna no admite nulo). Sin ella, el tipo «otros» da error en `gastos[i].descripcion`: «Describe el gasto {n} de tipo «{nombre}» (hasta 100 caracteres): con el tipo «otros» la descripción es obligatoria…».
+- `pilotoId` (entero, opcional, ambas modalidades): piloto que maneja el viaje; ausente o `null` = maneja el solicitante («Yo»). Con `pilotoId` el servidor evalúa la licencia del PILOTO en lugar de la del solicitante (la de este no se exige): mismas reglas de placa de `viaticos_reglas_licencia`; vencida = error en `pilotoId`; la que vence durante el viaje = advertencia con salvedad `licencia`; un tipo que no permite el vehículo = error en `vehiculoId`. Todos los textos nombran al piloto. Un piloto inexistente o desactivado da error en `pilotoId`. El solicitante sigue necesitando países en `Configuración → Personas`. La solicitud guarda `piloto_id` (se conserva al modificar y en los borradores, clave `pilotoId`) y el detalle trae `piloto` (`{ id, nombre, licenciaTipo, licenciaNumero }` o `null`); el PDF añade «CONDUCTOR» solo si hay piloto.
 - Longitudes: hotel y lugar 50, descripciones 100. Noches, montos y valores mayores que cero. Cada fluido debe informarse; el nivel `N/A` solo en los fluidos con `permiteNoAplica`. Cada defecto es de una de dos formas excluyentes: NUEVO, con `archivoIndice` (posición de su foto en el campo `defectos` del multipart), o EXISTENTE, con `defectoId` (id de un defecto de la propia solicitud, solo al modificar) para conservar su foto actual; ver «Conservar la foto de un defecto» (en `calcular` solo se valida el formato).
 - Supuesto: «más de 1 día» significa con pernocta; el regreso debe ser posterior a la salida (si regresas el mismo día es «1 día o menos»).
 - Las ubicaciones de un tramo se eligen en cualquier sentido: el servidor busca el par ordenado en `viaticos_tramos`. Convención para guardar `viaticos_solicitud_tramos.sentido`: `ida` si el origen es la ubicación A del tramo, `vuelta` si es la B.

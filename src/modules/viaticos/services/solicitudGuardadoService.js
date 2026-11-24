@@ -76,6 +76,7 @@ function armarPartes({ datos, ctx, evaluacion, calculo }) {
       modalidad: datos.modalidad,
       motivoId: datos.motivoId,
       vehiculoId: datos.vehiculoId,
+      pilotoId: datos.pilotoId,
       fechaSalida: datos.fechaSalida,
       fechaRegreso: esLargo ? datos.fechaRegreso : null,
       rendimientoKmGalon: esLargo ? datos.rendimientoKmGalon : null,

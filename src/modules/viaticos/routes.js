@@ -17,6 +17,7 @@ const { crearCrud } = require('./controllers/crudController');
 const catalogoService = require('./services/catalogoService');
 const tramoService = require('./services/tramoService');
 const vehiculoService = require('./services/vehiculoService');
+const pilotoService = require('./services/pilotoService');
 
 // En memoria y con el tope duro: el tipo y el tamaño efectivos los valida el servicio contra viaticos_ajustes.
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: ARCHIVOS.MAX_MB_DURO * 1024 * 1024 } });
@@ -89,6 +90,7 @@ config.get(`/${RECURSOS.COMBUSTIBLES}`, configController.listarCombustibles);
 Object.entries(catalogoService.servicios).forEach(([recurso, servicio]) => registrarCrud(recurso, servicio));
 registrarCrud(RECURSOS.TRAMOS, tramoService);
 registrarCrud(RECURSOS.VEHICULOS, vehiculoService);
+registrarCrud(RECURSOS.PILOTOS, pilotoService);
 
 config.get(`/${RECURSOS.VALORES_COMIDA}`, configController.obtenerValoresComida);
 config.put(`/${RECURSOS.VALORES_COMIDA}`, configController.guardarValoresComida);

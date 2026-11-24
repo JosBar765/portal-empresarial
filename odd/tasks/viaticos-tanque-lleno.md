@@ -32,3 +32,27 @@ Exploración delegada (mapeo de más de 5 consultas): fórmula en `calculoServic
 - T1 a T4 escritas por el escritor delegado (sin commits todavía). Verificado: `node --check` en los 23 .js tocados; script de un solo uso sobre `calcularCombustible`: ruta 14 gal con capacidad 8 paga 6 gal (importe 180 con precio 30), capacidad 20 paga 0, sin tanque lleno igual que antes (420 y 238.87), caso fraccionario 215 km / 30 / capacidad 5 redondea una sola vez (72.22).
 - Migración 56 aplicada en la base local. API probada (cuenta de desarrollo, vehículos temporales borrados): sin casilla igual que antes; ruta 14.33 gal con capacidad 8 paga 6.33 gal (importe 190); capacidad mayor que la ruta paga 0; casilla sin capacidad en el vehículo: 400 explicativo en `tanqueLleno` (calcular y crear).
 - Pendiente de probar: PDF, liquidación, reportes y formulario en el navegador (la casilla reutiliza `vi-ayuda`, sin CSS propio).
+
+# Ampliación: registro de pilotos (misma rama, a pedido del dueño)
+
+Los supervisores tramitan los viáticos de sus pilotos (repartidores); hoy el sistema valida la licencia del supervisor y el PDF no dice quién maneja. Los pilotos no son usuarios del portal.
+
+## Reglas (decididas con el dueño)
+- Tabla propia `viaticos_pilotos` (nombre, tipo de licencia, número, vencimiento, activo); no se crean usuarios. Se desactivan, no se borran. Se administran en Configuración → «Pilotos» (permiso `viaticos.configurar`).
+- Registro compartido: cualquier solicitante con `viaticos.ver` elige entre todos los pilotos activos (la asignación supervisor→pilotos queda para después, si hace falta).
+- Campo «Conductor» en la solicitud (ambas modalidades): «Yo» (por defecto) o un piloto. Solo se muestra si hay pilotos activos. Con piloto elegido: franja «Tramitando para: <nombre>», y la licencia que se valida es la del piloto (mismas reglas de placa y vigencia; la que vence durante el viaje es advertencia); la licencia del solicitante no se exige. El solicitante sigue necesitando países en Personas.
+- `viaticos_solicitudes.piloto_id` (NULL = maneja el solicitante). Modificar y borradores lo conservan.
+- PDF y detalle: «Solicitante: <supervisor> · Conductor: <piloto> (licencia, número)».
+- Migración 57.
+
+## Progreso de la ampliación
+- T6 a T9 escritas por el escritor delegado (sin commits). Verificado: `node --check` en los 26 .js tocados (los del front copiados a .mjs); script de un solo uso sobre `erroresDeLicencia` y `evaluar`: piloto con licencia válida sin errores; tipo que no sirve para la placa, error en `vehiculoId` que nombra al piloto; licencia vencida, error en `pilotoId`; por vencer durante el viaje, advertencia `licencia` con el nombre del piloto; piloto inexistente o desactivado, error en `pilotoId`; sin piloto, las reglas del solicitante quedan igual (faltante, vencida, no sirve, por vencer).
+- Decisiones: el catálogo trae por piloto `bloqueos` (vehículo -> motivo) para que el formulario deshabilite los vehículos que la licencia del piloto no permite; el campo «Conductor» vive dentro de la sección de vehículo de ambas modalidades; si el piloto elegido deja de estar activo, el formulario vuelve a «Yo». No se tocó la lista ni el detalle de Gestiones (el PDF sí muestra «CONDUCTOR»); `viaticos_movimientos` no registra al conductor.
+- Pendiente (T10): aplicar la migración 57 en la base local, probar la API (CRUD, calcular, crear, modificar, borrador) y el formulario y la pestaña «Pilotos» en el navegador; el PDF con conductor tampoco se ha generado aún.
+
+## Tareas
+- [x] T6 Migración 57 + CRUD de pilotos (servicio, repositorio, rutas, validación) y catálogo de la solicitud con los pilotos activos.
+- [x] T7 Validación de la solicitud con el piloto como conductor (licencia, vigencia, salvedad) y guardado de `piloto_id`.
+- [x] T8 Front: subpestaña «Pilotos» en Configuración y campo «Conductor» en el formulario (payload, modificar, borradores en ambos sentidos).
+- [x] T9 PDF y detalle con el conductor; docs (`modelo_datos.md`, `contrato_api.md`, README).
+- [x] T10 Verificación: `node --check` en los 26 .js; API con la cuenta de desarrollo (migración 57 aplicada): sin piloto y sin licencia del solicitante falla como antes; piloto GT-B con placa P pasa; GT-C con placa C falla nombrando al piloto; piloto vencido, inactivo e inexistente fallan con 400 explicativo en `pilotoId`; el catálogo trae `bloqueos` por piloto. Formulario visto en el navegador (campo «Conductor» y franja «Tramitando para»). Sin probar: crear la solicitud con piloto y su PDF, la pestaña «Pilotos» de Configuración, modificar y borradores con piloto, y Gestiones (no muestra el conductor).

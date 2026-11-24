@@ -138,6 +138,7 @@ function normalizarDatos(cuerpoCrudo) {
     modalidad,
     paisId: v.id(cuerpo, 'paisId', 'País'),
     vehiculoId: v.id(cuerpo, 'vehiculoId', 'Vehículo'),
+    pilotoId: v.id(cuerpo, 'pilotoId', 'Piloto', { requerido: false }), // null = maneja el solicitante
     motivoId: v.id(cuerpo, 'motivoId', 'Motivo del viaje'),
     monedaId: null, fechaSalida: null, fechaRegreso: null,
     rendimientoKmGalon: null, precioGalon: null, depreciacionPorKm: null, tanqueLleno: false,
@@ -201,30 +202,43 @@ function validarVehiculo(datos, ctx, hoy, errores) {
   return valido;
 }
 
-// Errores de la licencia del solicitante, con o sin vehículo elegido; el catálogo de la solicitud los reutiliza para marcar vehículos.
-function erroresDeLicencia({ licencia, vehiculo, regla, paisNombre, hoy }) {
+// Errores de la licencia de quien maneja (el solicitante o, con `piloto` = su nombre, ese piloto), con o sin vehículo elegido;
+// el catálogo de la solicitud los reutiliza para marcar vehículos.
+function erroresDeLicencia({ licencia, vehiculo, regla, paisNombre, hoy, piloto = null }) {
   if (!licencia) return [{ campo: 'licencia', mensaje: msg('solicitud.licenciaFaltante') }];
+  // Con piloto, los textos nombran al piloto; sin él, hablan de «tu» licencia.
+  const clave = nombre => (piloto ? `solicitud.piloto.${nombre}` : `solicitud.${nombre}`);
   if (licencia.venceEl < hoy) {
-    return [{ campo: 'licencia', mensaje: msg('solicitud.licenciaVencida', { fecha: formatearFecha(licencia.venceEl), hoy: formatearFecha(hoy) }) }];
+    return [{ campo: piloto ? 'pilotoId' : 'licencia', mensaje: msg(clave('licenciaVencida'), { piloto, fecha: formatearFecha(licencia.venceEl), hoy: formatearFecha(hoy) }) }];
   }
   if (!vehiculo) return [];
-  const base = { tipo: licencia.tipoLicenciaNombre, placa: vehiculo.placa, tipoPlaca: vehiculo.tipoPlacaNombre, pais: paisNombre };
+  const base = { piloto, tipo: licencia.tipoLicenciaNombre, placa: vehiculo.placa, tipoPlaca: vehiculo.tipoPlacaNombre, pais: paisNombre };
   const falla = mensaje => [{ campo: 'vehiculoId', mensaje }];
-  if (!regla) return falla(msg('solicitud.licenciaNoSirve', base));
+  if (!regla) return falla(msg(clave('licenciaNoSirve'), base));
   if (regla.tonelajeMax !== null) {
     if (vehiculo.tonelaje === null) return falla(msg('solicitud.licenciaTonelajeSinDato', { ...base, max: regla.tonelajeMax }));
-    if (vehiculo.tonelaje > regla.tonelajeMax) return falla(msg('solicitud.licenciaTonelaje', { ...base, max: regla.tonelajeMax, valor: vehiculo.tonelaje }));
+    if (vehiculo.tonelaje > regla.tonelajeMax) return falla(msg(clave('licenciaTonelaje'), { ...base, max: regla.tonelajeMax, valor: vehiculo.tonelaje }));
   }
   if (regla.pasajerosMax !== null) {
     if (vehiculo.pasajeros === null) return falla(msg('solicitud.licenciaPasajerosSinDato', { ...base, max: regla.pasajerosMax }));
-    if (vehiculo.pasajeros > regla.pasajerosMax) return falla(msg('solicitud.licenciaPasajeros', { ...base, max: regla.pasajerosMax, valor: vehiculo.pasajeros }));
+    if (vehiculo.pasajeros > regla.pasajerosMax) return falla(msg(clave('licenciaPasajeros'), { ...base, max: regla.pasajerosMax, valor: vehiculo.pasajeros }));
   }
   return [];
 }
 
-function validarLicencia(ctx, hoy, vehiculoValido, errores) {
+// El piloto elegido debe existir y estar activo; sin piloto no hay nada que revisar.
+function validarPiloto(datos, ctx, errores) {
+  if (datos.pilotoId === null) return;
+  if (!ctx.piloto) errores.push({ campo: 'pilotoId', mensaje: msg('solicitud.pilotoNoExiste') });
+  else if (!ctx.piloto.activo) errores.push({ campo: 'pilotoId', mensaje: msg('solicitud.pilotoInactivo', { nombre: ctx.piloto.nombre }) });
+}
+
+// Con piloto, `ctx.licencia` ya es la del piloto (cargarContexto); si el piloto no existe, `validarPiloto` ya avisó.
+function validarLicencia(datos, ctx, hoy, vehiculoValido, errores) {
+  if (datos.pilotoId !== null && !ctx.piloto) return;
   errores.push(...erroresDeLicencia({
-    licencia: ctx.licencia, vehiculo: vehiculoValido ? ctx.vehiculo : null, regla: ctx.regla, paisNombre: ctx.pais ? ctx.pais.nombre : '', hoy
+    licencia: ctx.licencia, vehiculo: vehiculoValido ? ctx.vehiculo : null, regla: ctx.regla, paisNombre: ctx.pais ? ctx.pais.nombre : '', hoy,
+    piloto: ctx.piloto ? ctx.piloto.nombre : null
   }));
 }
 
@@ -361,7 +375,10 @@ function calcularAdvertencias(ctx, hoy, fin) {
   const salida = [];
   const agregar = (clave, claveMensaje, params) => salida.push({ clave, salvedadId: ctx.salvedades.get(clave) ?? null, mensaje: msg(claveMensaje, params) });
   const lic = ctx.licencia;
-  if (lic && lic.venceEl >= hoy && lic.venceEl <= fin) agregar(SALVEDADES.LICENCIA, 'advertencia.licenciaVence', { fecha: formatearFecha(lic.venceEl) });
+  if (lic && lic.venceEl >= hoy && lic.venceEl <= fin) {
+    const piloto = ctx.piloto ? ctx.piloto.nombre : null;
+    agregar(SALVEDADES.LICENCIA, piloto ? 'advertencia.piloto.licenciaVence' : 'advertencia.licenciaVence', { piloto, fecha: formatearFecha(lic.venceEl) });
+  }
   const veh = ctx.vehiculo;
   if (veh) {
     const params = fecha => ({ placa: veh.placa, fecha: formatearFecha(fecha) });
@@ -382,7 +399,8 @@ function evaluar({ datos, ctx, hoy, ahora }) {
   validarPais(datos, ctx, errores);
   validarCatalogosSimples(datos, ctx, errores);
   const vehiculoValido = validarVehiculo(datos, ctx, hoy, errores);
-  validarLicencia(ctx, hoy, vehiculoValido, errores);
+  validarPiloto(datos, ctx, errores);
+  validarLicencia(datos, ctx, hoy, vehiculoValido, errores);
   const fechasCoherentes = validarFechas(datos, ctx, hoy, ahora, errores);
   let tramos = [];
   if (datos.modalidad === MODALIDADES.MAS_DE_UN_DIA) {

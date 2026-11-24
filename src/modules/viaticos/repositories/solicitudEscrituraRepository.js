@@ -9,12 +9,12 @@ const TABLAS_DE_PARTES = [
 ];
 
 const COLUMNAS_ENCABEZADO = [
-  'pais_id', 'moneda_id', 'modalidad', 'estado_id', 'motivo_id', 'vehiculo_id', 'fecha_salida', 'fecha_regreso',
+  'pais_id', 'moneda_id', 'modalidad', 'estado_id', 'motivo_id', 'vehiculo_id', 'piloto_id', 'fecha_salida', 'fecha_regreso',
   'rendimiento_km_galon', 'precio_galon', 'tanque_lleno', 'capacidad_tanque_galones', 'depreciacion_por_km', 'odometro', 'total_solicitado'
 ];
 
 const valoresDeEncabezado = s => [
-  s.paisId, s.monedaId, s.modalidad, s.estadoId, s.motivoId, s.vehiculoId, s.fechaSalida, s.fechaRegreso,
+  s.paisId, s.monedaId, s.modalidad, s.estadoId, s.motivoId, s.vehiculoId, s.pilotoId, s.fechaSalida, s.fechaRegreso,
   s.rendimientoKmGalon, s.precioGalon, s.tanqueLleno ? 1 : 0, s.capacidadTanqueGalones, s.depreciacionPorKm, s.odometro, s.totalSolicitado
 ];
 

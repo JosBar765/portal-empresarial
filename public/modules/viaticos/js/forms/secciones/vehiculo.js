@@ -1,11 +1,12 @@
 // Sección «Vehículo»: vehículo de la empresa o propio, datos del combustible (los ingresa el usuario) y sus costos (calculados por el servidor).
 import { h } from '../../utils/dom.js';
-import { crearCombo } from '../../components/comboAgrupado.js';
+import { crearCombo, llenarCombo } from '../../components/comboAgrupado.js';
 import { crearCampo, crearCampoCalculado, ponerCalculado, crearSeccionForm } from '../../components/campo.js';
 import { crearCampoNumerico } from '../../components/campoNumerico.js';
 import { crearAviso } from '../../components/aviso.js';
 import { formatearDinero } from '../../utils/formato.js';
-import { aId } from '../datos.js';
+import { aId, bloqueoDeVehiculo, pilotoDelEstado } from '../datos.js';
+import { crearCampoConductor } from './conductor.js';
 import { t } from '../../textos.js';
 
 const conMoneda = (texto, simbolo) => (simbolo ? `${texto} (${simbolo})` : texto);
@@ -14,16 +15,21 @@ function textoVehiculo(v) {
   return `${t(v.esPropio ? 'formulario.vehiculo.propio' : 'formulario.vehiculo.empresa')} · ${v.marca} ${v.modelo} ${v.anio} · ${v.placa}`;
 }
 
-function gruposDeVehiculos(vehiculos) {
-  const opcion = (v) => ({
-    valor: v.id,
-    texto: v.bloqueo ? `${textoVehiculo(v)} · ${t('formulario.vehiculo.noDisponible')}` : textoVehiculo(v),
-    deshabilitada: !!v.bloqueo,
-    titulo: v.bloqueo || undefined
-  });
+// El bloqueo depende de quién maneja: el solicitante o el piloto elegido.
+function gruposDeVehiculos(ctx) {
+  const { estado, catalogos } = ctx;
+  const opcion = (v) => {
+    const bloqueo = bloqueoDeVehiculo(v, estado, catalogos);
+    return {
+      valor: v.id,
+      texto: bloqueo ? `${textoVehiculo(v)} · ${t('formulario.vehiculo.noDisponible')}` : textoVehiculo(v),
+      deshabilitada: !!bloqueo,
+      titulo: bloqueo || undefined
+    };
+  };
   return [
-    { etiqueta: t('formulario.vehiculo.grupoEmpresa'), opciones: vehiculos.filter(v => !v.esPropio).map(opcion) },
-    { etiqueta: t('formulario.vehiculo.grupoPropios'), opciones: vehiculos.filter(v => v.esPropio).map(opcion) }
+    { etiqueta: t('formulario.vehiculo.grupoEmpresa'), opciones: catalogos.vehiculos.filter(v => !v.esPropio).map(opcion) },
+    { etiqueta: t('formulario.vehiculo.grupoPropios'), opciones: catalogos.vehiculos.filter(v => v.esPropio).map(opcion) }
   ].filter(g => g.opciones.length > 0);
 }
 
@@ -32,13 +38,25 @@ export function crearSeccionVehiculo(ctx) {
   const nota = h('p', { class: 'vi-ayuda', id: 'vi-sol-vehiculo-nota', 'aria-live': 'polite' });
   const combo = crearCombo({
     id: 'vi-sol-vehiculo', name: 'vehiculoId', etiquetaAria: t('formulario.vehiculo.etiqueta'), placeholder: t('formulario.vehiculo.placeholder'),
-    grupos: gruposDeVehiculos(catalogos.vehiculos), valor: estado.vehiculoId,
+    grupos: gruposDeVehiculos(ctx), valor: estado.vehiculoId,
     alCambiar: (v) => { estado.vehiculoId = aId(v); ctx.cambio('vehiculo'); }
   });
-  const bloqueados = catalogos.vehiculos.filter(v => v.bloqueo);
-  const avisoBloqueados = bloqueados.length ? crearAviso({
-    tipo: 'info', titulo: t('formulario.vehiculo.bloqueadosTitulo'), texto: bloqueados.map(v => `${v.placa}: ${v.bloqueo}`).join(' ')
-  }) : null;
+  const avisoBloqueados = h('div', { class: 'vi-avisos', id: 'vi-sol-vehiculo-bloqueados' });
+  const conductor = crearCampoConductor(ctx);
+
+  function pintarBloqueados() {
+    const bloqueados = catalogos.vehiculos.map(v => ({ v, bloqueo: bloqueoDeVehiculo(v, estado, catalogos) })).filter(x => x.bloqueo);
+    avisoBloqueados.replaceChildren(...(bloqueados.length ? [crearAviso({
+      tipo: 'info', titulo: t(pilotoDelEstado(estado, catalogos) ? 'formulario.vehiculo.bloqueadosPiloto' : 'formulario.vehiculo.bloqueadosTitulo'),
+      texto: bloqueados.map(x => `${x.v.placa}: ${x.bloqueo}`).join(' ')
+    })] : []));
+  }
+  // Al cambiar de conductor cambian los vehículos que su licencia permite.
+  ctx.suscribir('piloto', () => {
+    llenarCombo(combo, { placeholder: t('formulario.vehiculo.placeholder'), grupos: gruposDeVehiculos(ctx), valor: estado.vehiculoId });
+    pintarBloqueados();
+  });
+  pintarBloqueados();
 
   const campoNum = (id, name, clave, propiedad) => crearCampoNumerico({
     id, name, valor: estado[propiedad], placeholder: t(`formulario.vehiculo.${clave}.ejemplo`), etiquetaAria: t(`formulario.vehiculo.${clave}.etiqueta`),
@@ -99,6 +117,7 @@ export function crearSeccionVehiculo(ctx) {
   const el = crearSeccionForm({ id: 'vi-sol-seccion-vehiculo', titulo: t('formulario.seccion.vehiculo') },
     nota,
     crearCampo({ etiqueta: t('formulario.vehiculo.etiqueta'), control: combo, idControl: 'vi-sol-vehiculo' }),
+    conductor && conductor.el,
     avisoBloqueados,
     campoTanque,
     filaDatos,

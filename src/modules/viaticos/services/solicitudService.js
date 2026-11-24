@@ -6,6 +6,7 @@ const { ahoraUTC6 } = require('../../../core/calendario/calendarioLaboral');
 const catalogoRepo = require('../repositories/catalogoSolicitudRepository');
 const solicitudRepo = require('../repositories/solicitudRepository');
 const personaRepo = require('../repositories/personaRepository');
+const pilotoRepo = require('../repositories/pilotoRepository');
 const ajusteRepo = require('../repositories/ajusteRepository');
 const { MODALIDADES, ESTADOS, ORDEN_FASES, NIVEL_NO_APLICA } = require('../constantes');
 const { Validador, cuerpoObjeto } = require('../validacion');
@@ -138,6 +139,7 @@ class SolicitudService {
       pais,
       motivos,
       vehiculos: vehiculos.map(veh => this.marcarVehiculo(veh, { licencia, reglas, pais, hoy })),
+      pilotos: await this.pilotosDeCatalogo(vehiculos, pais, hoy),
       ubicaciones,
       tramos,
       monedas,
@@ -154,10 +156,28 @@ class SolicitudService {
     };
   }
 
-  // `bloqueo`: motivo por el que el solicitante no puede usar el vehículo en ningún viaje; `bloqueoViajeCorto`: solo en uno corto.
-  marcarVehiculo(veh, { licencia, reglas, pais, hoy }) {
+  // Pilotos activos para el selector «Conductor»; `bloqueos` dice, por vehículo, por qué la licencia del piloto no lo permite.
+  async pilotosDeCatalogo(vehiculos, pais, hoy) {
+    const pilotos = await pilotoRepo.listarActivos();
+    const tipos = [...new Set(pilotos.map(p => p.tipoLicenciaId))];
+    const reglasPorTipo = new Map(await Promise.all(tipos.map(async id => [id, await catalogoRepo.listarReglasDeLicencia(pais.id, id)])));
+    return pilotos.map(p => {
+      const bloqueos = {};
+      vehiculos.forEach(veh => {
+        const { bloqueo } = this.marcarVehiculo(veh, { licencia: p, reglas: reglasPorTipo.get(p.tipoLicenciaId), pais, hoy, piloto: p.nombre });
+        if (bloqueo) bloqueos[veh.id] = bloqueo;
+      });
+      return {
+        id: p.id, nombre: p.nombre, tipoLicenciaCodigo: p.tipoLicenciaCodigo, tipoLicenciaNombre: p.tipoLicenciaNombre,
+        numero: p.numero, venceEl: p.venceEl, bloqueos
+      };
+    });
+  }
+
+  // `bloqueo`: motivo por el que el solicitante (o el piloto, si viene) no puede usar el vehículo en ningún viaje; `bloqueoViajeCorto`: solo en uno corto.
+  marcarVehiculo(veh, { licencia, reglas, pais, hoy, piloto = null }) {
     const regla = reglas.find(r => r.tipoPlacaId === veh.tipoPlacaId) || null;
-    const [errorLicencia] = erroresDeLicencia({ licencia, vehiculo: veh, regla, paisNombre: pais.nombre, hoy });
+    const [errorLicencia] = erroresDeLicencia({ licencia, vehiculo: veh, regla, paisNombre: pais.nombre, hoy, piloto });
     let bloqueoViajeCorto = null;
     if (veh.propietarioId !== null) bloqueoViajeCorto = msg('solicitud.vehiculoPropioViajeCorto', { placa: veh.placa });
     else if (veh.tarjetaVenceEl < hoy) bloqueoViajeCorto = msg('solicitud.tarjetaVencida', { placa: veh.placa, fecha: formatearFecha(veh.tarjetaVenceEl) });
@@ -181,20 +201,24 @@ class SolicitudService {
   // Lee de la base lo que `evaluar` necesita según la modalidad. Solo lecturas; `ejecutor` permite leer dentro de una transacción.
   async cargarContexto(usuarioId, datos, { excluirSolicitudId = null, ejecutor } = {}) {
     const esLargo = datos.modalidad === MODALIDADES.MAS_DE_UN_DIA;
-    const [paises, licencia, moneda, motivo, vehiculo, salvedades] = await Promise.all([
+    const conPiloto = datos.pilotoId !== null;
+    const [paises, licenciaPropia, moneda, motivo, vehiculo, salvedades, piloto] = await Promise.all([
       personaRepo.listarPaisesDe(usuarioId, ejecutor),
-      personaRepo.obtenerLicencia(usuarioId, ejecutor),
+      conPiloto ? null : personaRepo.obtenerLicencia(usuarioId, ejecutor),
       esLargo ? catalogoRepo.monedaPorId(datos.monedaId, ejecutor) : null,
       catalogoRepo.motivoPorId(datos.motivoId, ejecutor),
       catalogoRepo.vehiculoPorId(datos.vehiculoId, ejecutor),
-      catalogoRepo.listarSalvedades(ejecutor)
+      catalogoRepo.listarSalvedades(ejecutor),
+      conPiloto ? pilotoRepo.obtenerPorId(datos.pilotoId, ejecutor) : null
     ]);
+    // Con piloto se evalúa su licencia (el piloto trae las mismas claves) y la del solicitante no se exige.
+    const licencia = conPiloto ? piloto : licenciaPropia;
     const { desde, hasta } = rangoDelViaje(datos);
     const ctx = {
       usuarioId,
       paisIds: paises.map(p => p.id),
       pais: paises.find(p => p.id === datos.paisId) || null,
-      licencia, moneda, motivo, vehiculo,
+      licencia, piloto, moneda, motivo, vehiculo,
       regla: null,
       salvedades: new Map(salvedades.map(s => [s.nombre, s.id])),
       traslapes: await solicitudRepo.buscarTraslapes(usuarioId, desde, hasta, excluirSolicitudId, ejecutor),
@@ -323,6 +347,8 @@ class SolicitudService {
       pais: { id: fila.paisId, codigo: fila.paisCodigo, nombre: fila.paisNombre },
       moneda: fila.monedaId ? { id: fila.monedaId, codigo: fila.monedaCodigo, nombre: fila.monedaNombre, simbolo: fila.monedaSimbolo } : null,
       solicitante: { id: fila.solicitanteId, nombre: fila.solicitanteNombre },
+      // null = maneja el solicitante.
+      piloto: fila.pilotoId ? { id: fila.pilotoId, nombre: fila.pilotoNombre, licenciaTipo: fila.pilotoLicenciaTipo, licenciaNumero: fila.pilotoLicenciaNumero } : null,
       motivo: { id: fila.motivoId, nombre: fila.motivoNombre },
       vehiculo: {
         id: fila.vehiculoId, marca: fila.vehiculoMarca, modelo: fila.vehiculoModelo, anio: fila.vehiculoAnio,
