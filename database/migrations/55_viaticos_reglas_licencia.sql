@@ -10,8 +10,8 @@
 --      global y varios países repiten letras con significado distinto.
 --   4. Crea las reglas (país, licencia, placa) con tonelaje y pasajeros máximos (NULL: sin límite).
 --
--- GT-M (motocicletas) queda sin límites en todas las placas, incluida la nueva placa «M» (Motocicleta),
--- para poder registrar motos como vehículo y pedir viáticos. Nicaragua: categorías 1 y 2 (motos) sin
+-- GT-M (motocicletas) solo sirve con la nueva placa «M» (Motocicleta) y sin límites, para poder
+-- registrar motos como vehículo y pedir viáticos. Nicaragua: categorías 1 y 2 (motos) sin
 -- límites; no se cargan las agrícolas (categoría 8).
 -- No cubre (el modelo no lo expresa): remuneración, ejes, articulado, materiales peligrosos,
 -- licencia Profesional ni transporte público. Las licencias de
@@ -92,11 +92,7 @@ WHERE NOT EXISTS (SELECT 1 FROM `viaticos_tipos_licencia` t WHERE t.`codigo` = d
 -- Reglas: placa NULL en la fuente = la placa única del país («TODAS»); en Guatemala se indica P, C, A o U.
 INSERT INTO `viaticos_reglas_licencia` (`pais_id`, `tipo_licencia_id`, `tipo_placa_id`, `tonelaje_max`, `pasajeros_max`)
 SELECT p.`id`, tl.`id`, tp.`id`, d.`tonelaje_max`, d.`pasajeros_max` FROM (
-  SELECT 'GT' AS `pais`, 'GT-M' AS `licencia`, 'P' AS `placa`, NULL AS `tonelaje_max`, NULL AS `pasajeros_max`
-  UNION ALL SELECT 'GT', 'GT-M', 'C', NULL, NULL
-  UNION ALL SELECT 'GT', 'GT-M', 'A', NULL, NULL
-  UNION ALL SELECT 'GT', 'GT-M', 'U', NULL, NULL
-  UNION ALL SELECT 'GT', 'GT-M', 'M', NULL, NULL
+  SELECT 'GT' AS `pais`, 'GT-M' AS `licencia`, 'M' AS `placa`, NULL AS `tonelaje_max`, NULL AS `pasajeros_max`
   UNION ALL SELECT 'GT', 'GT-C', 'P', 3.50, NULL
   UNION ALL SELECT 'GT', 'GT-B', 'P', 3.50, NULL
   UNION ALL SELECT 'GT', 'GT-B', 'C', 3.50, NULL
