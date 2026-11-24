@@ -212,9 +212,11 @@ function erroresDeLicencia({ licencia, vehiculo, regla, paisNombre, hoy, piloto 
     return [{ campo: piloto ? 'pilotoId' : 'licencia', mensaje: msg(clave('licenciaVencida'), { piloto, fecha: formatearFecha(licencia.venceEl), hoy: formatearFecha(hoy) }) }];
   }
   if (!vehiculo) return [];
-  const base = { piloto, tipo: licencia.tipoLicenciaNombre, placa: vehiculo.placa, tipoPlaca: vehiculo.tipoPlacaNombre, pais: paisNombre };
+  const paisLicencia = licencia.tipoLicenciaPaisNombre || paisNombre;
+  const base = { piloto, tipo: licencia.tipoLicenciaNombre, placa: vehiculo.placa, tipoPlaca: vehiculo.tipoPlacaNombre, pais: paisNombre, paisLicencia };
   const falla = mensaje => [{ campo: 'vehiculoId', mensaje }];
-  if (!regla) return falla(msg(clave('licenciaNoSirve'), base));
+  // Sin regla y con la licencia de otro país: se dice de qué país es, porque ahí está la causa.
+  if (!regla) return falla(msg(clave(paisLicencia !== paisNombre ? 'licenciaOtroPais' : 'licenciaNoSirve'), base));
   if (regla.tonelajeMax !== null) {
     if (vehiculo.tonelaje === null) return falla(msg('solicitud.licenciaTonelajeSinDato', { ...base, max: regla.tonelajeMax }));
     if (vehiculo.tonelaje > regla.tonelajeMax) return falla(msg(clave('licenciaTonelaje'), { ...base, max: regla.tonelajeMax, valor: vehiculo.tonelaje }));

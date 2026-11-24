@@ -29,9 +29,10 @@ class ReferenciaRepository {
     return filas[0] ? filasACamel(filas)[0] : null;
   }
 
-  async tipoLicenciaExiste(id, ejecutor = db) {
-    const filas = await ejecutor.query('SELECT id FROM viaticos_tipos_licencia WHERE id = ?', [id], 'viaticos:tipoLicenciaExiste');
-    return filas.length > 0;
+  // Devuelve id y país (o null): la regla exige que licencia y placa sean del mismo país.
+  async tipoLicenciaPorId(id, ejecutor = db) {
+    const filas = await ejecutor.query('SELECT id, pais_id FROM viaticos_tipos_licencia WHERE id = ?', [id], 'viaticos:tipoLicenciaPorId');
+    return filas[0] ? filasACamel(filas)[0] : null;
   }
 
   async combustibleExiste(id, ejecutor = db) {

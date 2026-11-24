@@ -8,7 +8,7 @@ import { renderCatalogo } from './configuracion/catalogo.js';
 import { DEFINICIONES } from './configuracion/definiciones.js';
 import { renderPersonas } from './configuracion/personas.js';
 import { renderPilotos } from './configuracion/pilotos.js';
-import { renderReglasLicencia } from './configuracion/reglasLicencia.js';
+import { renderLicenciasPlacas } from './configuracion/licenciasPlacas.js';
 import { renderTramos } from './configuracion/tramos.js';
 import { renderValoresComida } from './configuracion/valoresComida.js';
 import { renderVencimiento } from './configuracion/vencimiento.js';
@@ -23,8 +23,7 @@ const SUBPESTANAS = [
   { id: 'pilotos', render: renderPilotos },
   { id: 'monedas', render: catalogo('monedas') },
   { id: 'valores-comida', render: renderValoresComida },
-  { id: 'tipos-licencia', render: catalogo('tipos-licencia') },
-  { id: 'reglas-licencia', render: renderReglasLicencia },
+  { id: 'licencias-placas', render: renderLicenciasPlacas },
   { id: 'vehiculos', render: renderVehiculos },
   { id: 'ubicaciones', render: catalogo('ubicaciones') },
   { id: 'tramos', render: renderTramos },

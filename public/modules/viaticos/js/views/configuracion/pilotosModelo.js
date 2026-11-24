@@ -8,7 +8,7 @@ export const LIMITES_PILOTO = Object.freeze({ NOMBRE: 100, NUMERO: 50 });
 
 const vacio = (v) => v === null || v === undefined || String(v).trim() === '';
 
-export const filtrarPilotos = (pilotos, busqueda = '') => filtrarFilas(pilotos, busqueda, (p) => [p.nombre, p.numero, p.tipoLicenciaCodigo, p.tipoLicenciaNombre]);
+export const filtrarPilotos = (pilotos, busqueda = '') => filtrarFilas(pilotos, busqueda, (p) => [p.nombre, p.numero, p.tipoLicenciaCodigo, p.tipoLicenciaNombre, p.tipoLicenciaPaisNombre]);
 
 // Errores del cliente como { campo: mensaje } con los nombres del servidor.
 export function validarPiloto(valores) {

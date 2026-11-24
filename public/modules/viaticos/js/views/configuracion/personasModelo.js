@@ -3,6 +3,7 @@
 import { t } from '../../textos.js';
 import { esIsoValido } from '../../utils/fechas.js';
 import { filtrarFilas } from './modelo.js';
+import { textoTipoConPais } from './licenciaTexto.js';
 
 export const FILTROS_PERSONA = Object.freeze({ TODAS: 'todas', CON_LICENCIA: 'con_licencia', SIN_LICENCIA: 'sin_licencia', SIN_PAISES: 'sin_paises' });
 
@@ -26,8 +27,10 @@ export const contarPorFiltro = (personas, filtro) => personas.filter(p => cumple
 
 export const textoPaises = (paises) => (paises || []).map(p => p.nombre).join(', ');
 
-// «A · 1234567»; sin licencia, vacío.
-export const textoLicencia = (licencia) => (licencia ? `${licencia.tipoLicenciaCodigo} · ${licencia.numero}` : '');
+// «Tipo B (Honduras) · 1234567»; sin licencia, vacío.
+export const textoLicencia = (licencia) => (licencia
+  ? `${textoTipoConPais(licencia.tipoLicenciaCodigo, licencia.tipoLicenciaNombre, licencia.tipoLicenciaPaisNombre)} · ${licencia.numero}`
+  : '');
 
 // Errores del cliente como { campo: mensaje }, con los mismos nombres que usa el servidor (`licencia.numero`, `paisIds`…).
 // La licencia es todo o nada; los países pueden quedar vacíos (el servidor lo permite), pero la persona no podrá solicitar viáticos.

@@ -10,8 +10,9 @@ import { h } from '../../utils/dom.js';
 import { crearPanelLista, estadoLista } from './lista.js';
 import { abrirFormularioConfig } from './modalConfig.js';
 import { filtrarFilas } from './modelo.js';
+import { etiquetaTipo } from './licenciaTexto.js';
 import { htmlFilaRegla } from './reglasFilas.js';
-import { armarPayloadRegla, claveRegla, nombreRegla, reglasDe, textoTipoLicencia, textoTipoPlaca, tiposPlacaElegibles, validarRegla } from './reglasModelo.js';
+import { armarPayloadRegla, claveRegla, nombreRegla, reglasDe, textoTipoLicencia, textoTipoPlaca, tiposLicenciaElegibles, tiposPlacaElegibles, validarRegla } from './reglasModelo.js';
 
 const ID = (nombre) => `vi-regla-${nombre}`;
 
@@ -64,14 +65,14 @@ export function crearSeccionReglas(contexto) {
 
   function abrirAlta() {
     const { paisId, paisNombre, tiposLicencia, tiposPlaca } = contexto.obtener();
-    const licencias = tiposLicencia.filter(tp => tp.activo);
+    const licencias = tiposLicenciaElegibles(tiposLicencia, paisId);
     const placas = tiposPlacaElegibles(tiposPlaca, paisId);
     if (!licencias.length || !placas.length) {
       window.toast?.error(t('config.reglas.alta', { pais: paisNombre }), t(licencias.length ? 'config.reglas.sinPlacas' : 'config.reglas.sinLicencias', { pais: paisNombre }));
       return;
     }
     const selectLicencia = h('select', { id: ID('tipoLicenciaId'), name: 'tipoLicenciaId' });
-    llenarCombo(selectLicencia, { placeholder: t('config.reglas.seleccionaLicencia'), grupos: [{ opciones: opcionesDe(licencias, tp => `${tp.codigo} · ${tp.nombre}`) }], valor: '' });
+    llenarCombo(selectLicencia, { placeholder: t('config.reglas.seleccionaLicencia'), grupos: [{ opciones: opcionesDe(licencias, tp => etiquetaTipo(tp.codigo, tp.nombre)) }], valor: '' });
     const selectPlaca = h('select', { id: ID('tipoPlacaId'), name: 'tipoPlacaId' });
     llenarCombo(selectPlaca, { placeholder: t('config.reglas.seleccionaPlaca'), grupos: [{ opciones: opcionesDe(placas, tp => `${tp.codigo} · ${tp.nombre}`) }], valor: '' });
     const ref = abrirFormularioConfig({
