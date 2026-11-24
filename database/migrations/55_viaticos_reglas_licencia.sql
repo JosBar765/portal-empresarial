@@ -5,12 +5,12 @@
 -- Flotilla de la empresa: motocicleta, automóvil, SUV y panel. Solo hay dos reglas reales:
 --   1. Moto y 4 ruedas están separadas: una licencia de moto solo sirve con la placa «M» (Motocicleta)
 --      y una de 4 ruedas nunca con ella. Sin límites de tonelaje ni pasajeros.
---   2. Guatemala: la licencia C solo sirve con placa Particular (P); B y A sirven con P, C y A.
+--   2. Guatemala: la licencia C solo sirve con placa Particular (P); B sirve con P, C y A; A con P, C, A y U.
 --      En los demás países toda licencia de 4 ruedas sirve con la placa única «TODAS».
 --
 -- Qué hace:
 --   1. Crea el país Panamá (PA) si no existe.
---   2. Crea los tipos de placa: Guatemala P, C, A y M; los demás países «TODAS» (4 ruedas) y «M» (moto).
+--   2. Crea los tipos de placa: Guatemala P, C, A, U y M; los demás países «TODAS» (4 ruedas) y «M» (moto).
 --   3. Crea los tipos de licencia con el código prefijado por país (GT-B, HN-B…): el código es único
 --      global y varios países repiten letras con significado distinto.
 --   4. Crea las reglas (país, licencia, placa), sin límites de tonelaje ni pasajeros (NULL).
@@ -34,6 +34,7 @@ SELECT p.`id`, d.`codigo`, d.`nombre` FROM (
   SELECT 'GT' AS `pais`, 'P' AS `codigo`, 'Particular' AS `nombre`
   UNION ALL SELECT 'GT', 'C', 'Comercial'
   UNION ALL SELECT 'GT', 'A', 'Alquiler'
+  UNION ALL SELECT 'GT', 'U', 'Urbana'
   UNION ALL SELECT 'GT', 'M', 'Motocicleta'
   UNION ALL SELECT 'SV', 'TODAS', 'Todas las placas de 4 ruedas'
   UNION ALL SELECT 'SV', 'M', 'Motocicleta'
@@ -104,6 +105,7 @@ SELECT p.`id`, tl.`id`, tp.`id` FROM (
   UNION ALL SELECT 'GT', 'GT-A', 'P'
   UNION ALL SELECT 'GT', 'GT-A', 'C'
   UNION ALL SELECT 'GT', 'GT-A', 'A'
+  UNION ALL SELECT 'GT', 'GT-A', 'U'
   UNION ALL SELECT 'SV', 'SV-MOTO', 'M'
   UNION ALL SELECT 'SV', 'SV-PARTICULAR', 'TODAS'
   UNION ALL SELECT 'SV', 'SV-LIVIANA', 'TODAS'

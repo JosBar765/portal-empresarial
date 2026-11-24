@@ -2,7 +2,7 @@
 
 Rama: `fix/viaticos-reglas-licencias`. Alcance: solo datos; sin cambios de esquema ni de código.
 
-Flotilla: moto, automóvil, SUV y panel. Reglas: moto y 4 ruedas separadas (placa «M» solo con licencia de moto); en Guatemala GT-C solo con placa P, GT-B y GT-A con P, C y A; sin límites de tonelaje ni pasajeros (decisión del dueño, regla no contrastada con la ley de cada país).
+Flotilla: moto, automóvil, SUV y panel. Reglas: moto y 4 ruedas separadas (placa «M» solo con licencia de moto); en Guatemala GT-C solo con placa P, GT-B con P, C y A, y GT-A con P, C, A y U; sin límites de tonelaje ni pasajeros (decisión del dueño, regla no contrastada con la ley de cada país).
 
 - [x] T1 Migración `55_viaticos_reglas_licencia.sql` (Panamá, placas, licencias con prefijo de país, reglas; Belice incluido).
 - [x] T2 Docs: README y `modelo_datos.md`.
