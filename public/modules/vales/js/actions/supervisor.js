@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { abrirModal, mostrarErrorModal } from '../components/modal.js';
-import { etiquetaEstado } from '../permisos.js';
+import { etiquetaEstado, puede } from '../permisos.js';
 import { formatearFecha, escapeHtml, correlativoBase, formatearMonto } from '../utils/formato.js';
 import { autorizarCreacion, rechazarCreacion, obtenerDetalleVale, obtenerPropuestaVale, aprobarModificacion, rechazarModificacion, marcarValeVisto } from '../api/valesApi.js';
 import { confirmarAccion } from '../components/confirmar.js';
@@ -81,8 +81,18 @@ export function avisarCambioEnModalAutorizar(valeId) {
   cuerpo.prepend(aviso);
 }
 
+const idsDeTalleres = (vale) => String(vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
+
+// Autoriza la creación y refresca el Buzón; lo comparten el modal de autorizar y el visor del vale.
+async function ejecutarAutorizacion(vale) {
+  await vistosEnCurso.get(vale.id); // el servidor exige el visto ya guardado
+  await autorizarCreacion(vale.id);
+  window.toast.success('Creación autorizada', `${vale.correlativo} ya está ${idsDeTalleres(vale).length > 1 ? 'en los talleres' : 'en el taller'}.`);
+  cargarBuzon();
+}
+
 export function abrirModalAutorizarCreacion(vale) {
-  const talleresIds = String(vale.talleres_solicitados || '').split(',').map(Number).filter(Number.isFinite);
+  const talleresIds = idsDeTalleres(vale);
   const nombresTalleres = talleresIds
     .map(id => ((state.catalogos.talleres || []).find(t => t.id === id) || {}).nombre || `#${id}`)
     .join(', ');
@@ -108,11 +118,8 @@ export function abrirModalAutorizarCreacion(vale) {
     btn.disabled = true;
     btn.dataset.enviando = '1';
     try {
-      await vistosEnCurso.get(vale.id); // el servidor exige el visto ya guardado
-      await autorizarCreacion(vale.id);
-      window.toast.success('Creación autorizada', `${vale.correlativo} ya está ${talleresIds.length > 1 ? 'en los talleres' : 'en el taller'}.`);
+      await ejecutarAutorizacion(vale);
       cerrar();
-      cargarBuzon();
     } catch (error) {
       mostrarErrorModal(overlay, error.message);
       btn.disabled = false;
@@ -260,8 +267,43 @@ export function abrirModalVerSupervisor(fila) {
   overlay.querySelector('#btn-ver-pdf').addEventListener('click', () => {
     registrarVisto(fila);
     cerrar();
+    // Si el vale espera su autorización, se decide sin salir del visor (Autorizar y Rechazar en el pie).
+    const autorizable = puede('autorizarCreacion') && v.estado === 'ESPERANDO_AUTORIZACION';
+    let visor = null;
+    // Al decidir desde el visor no se reabre el modal de elección: el vale ya cambió de estado.
+    const cerrarSinReabrir = (cerrarVisor) => () => { if (visor) visor.descartarAlCerrar(); cerrarVisor(); };
+    const autorizar = ({ cerrar: cerrarVisor, boton }) => confirmarAccion({
+      title: `Autorizar creación — ${v.correlativo}`,
+      pregunta: '¿Estás seguro que deseas autorizar este vale de arte?',
+      mensaje: 'Se envía ahora al taller y queda firmado con tu nombre.',
+      textoConfirmar: 'Autorizar',
+      alConfirmar: async () => {
+        boton.disabled = true;
+        try {
+          await ejecutarAutorizacion(v);
+          cerrarSinReabrir(cerrarVisor)();
+        } catch (error) {
+          window.toast.error('No se pudo autorizar', error.message);
+          boton.disabled = false;
+          // Otro supervisor pudo haberlo autorizado un instante antes: se refresca el buzón.
+          cargarBuzon();
+        }
+      }
+    });
     // Cerrar el visor (X, Escape o fondo) vuelve a este modal de elección, igual que «Ver info».
-    abrirVisorVale({ id: v.id, correlativo: v.correlativo, propuesta: v.propuesta_general_url || v.propuesta_extra ? { tipo: 'general' } : null, alCerrar: () => abrirModalVerSupervisor(fila) });
+    visor = abrirVisorVale({
+      id: v.id,
+      correlativo: v.correlativo,
+      propuesta: v.propuesta_general_url || v.propuesta_extra ? { tipo: 'general' } : null,
+      subtitulo: autorizable ? 'Puedes autorizarlo o rechazarlo desde aquí.' : '',
+      acciones: autorizable ? [
+        { etiqueta: 'Rechazar', icono: 'close-outline', clase: 'btn--danger', onClick: ({ cerrar: cerrarVisor }) => abrirModalRechazarCreacion(v, cerrarSinReabrir(cerrarVisor)) },
+        { etiqueta: 'Autorizar', icono: 'checkmark-outline', clase: 'btn--primary', onClick: autorizar }
+      ] : [],
+      alCerrar: () => abrirModalVerSupervisor(fila)
+    });
+    // Para avisarle si el asesor corrige el vale mientras lo está viendo.
+    if (visor && autorizable) modalAutorizarAbierto = { valeId: v.id, overlay: visor.overlay };
   });
   overlay.querySelector('#btn-ver-info').addEventListener('click', () => {
     registrarVisto(fila);
