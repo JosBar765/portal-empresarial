@@ -277,20 +277,19 @@ function dibujarRutaDeTramo(ctx, tramo, x, y) {
 function seccionesDeViaje(ctx, detalle) {
   const esLargo = detalle.modalidad === MODALIDADES.MAS_DE_UN_DIA;
   const { solicitante, vehiculo, piloto } = detalle;
-  const filasSolicitante = [[
-    { etiqueta: t('solicitante'), valor: solicitante.nombre, proporcion: 0.4 },
-    { etiqueta: t('puesto'), valor: solicitante.puesto, proporcion: 0.3 },
-    {
+  // Con piloto la licencia que cuenta es la suya: reemplaza a la del solicitante en la misma fila para no romper la hoja única.
+  const campoLicencia = piloto
+    ? { etiqueta: t('conductor'), valor: t('conductorValor', { nombre: piloto.nombre, tipo: piloto.licenciaTipo || '-', numero: piloto.licenciaNumero }), proporcion: 0.5 }
+    : {
       etiqueta: t('licencia'),
       valor: solicitante.licenciaNumero ? t('licenciaValor', { tipo: solicitante.licenciaTipo || '-', numero: solicitante.licenciaNumero }) : '',
       proporcion: 0.3
-    }
-  ]];
-  // Solo cuando maneja un piloto y no el solicitante.
-  if (piloto) {
-    filasSolicitante.push([{ etiqueta: t('conductor'), valor: t('conductorValor', { nombre: piloto.nombre, tipo: piloto.licenciaTipo || '-', numero: piloto.licenciaNumero }), proporcion: 1 }]);
-  }
-  dibujarSeccionCampos(ctx, t('secSolicitante'), filasSolicitante);
+    };
+  dibujarSeccionCampos(ctx, t('secSolicitante'), [[
+    { etiqueta: t('solicitante'), valor: solicitante.nombre, proporcion: piloto ? 0.3 : 0.4 },
+    { etiqueta: t('puesto'), valor: solicitante.puesto, proporcion: piloto ? 0.2 : 0.3 },
+    campoLicencia
+  ]]);
   dibujarSeccionCampos(ctx, t('secVehiculo'), [
     [
       { etiqueta: t('vehiculo'), valor: t('vehiculoValor', { marca: vehiculo.marca, modelo: vehiculo.modelo, anio: vehiculo.anio }), proporcion: 0.3 },
