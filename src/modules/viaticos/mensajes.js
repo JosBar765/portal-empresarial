@@ -375,7 +375,7 @@ const CATALOGO = Object.freeze({
   'pdf.firmaSolicitante': 'SOLICITANTE',
   'pdf.firmaAdministracion': 'ADMINISTRACIÓN',
   'pdf.calcCombustible': '({km} km / {rendimiento} km/gal) × {precio}',
-  'pdf.calcCombustibleTanque': '(({km} km / {rendimiento} km/gal) − {capacidad} gal) × {precio}',
+  'pdf.calcCombustibleTanque': '(({km} km / {rendimiento} km/gal) - {capacidad} gal) × {precio}',
   'pdf.calcDepreciacion': '{km} km × {tasa}',
   'pdf.unidadHoras': '{horas} h',
   'pdf.unidadKm': '{km} km',
