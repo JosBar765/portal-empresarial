@@ -6,4 +6,4 @@ Rama: `fix/viaticos-reglas-licencias`. Alcance elegido: solo datos.
 - [x] T2 Docs: README y `modelo_datos.md`.
 - [ ] T3 Aplicar y verificar en la base local (pendiente de autorización).
 
-Supuestos: NI-3 = 4 t (inicio de 4A), NI-5A = 18 t (rígidos), motos sin reglas; licencias de pasajeros sin cifra, sin límite.
+Supuestos: NI-3 = 4 t (inicio de 4A), NI-5A = 18 t (rígidos), GT-M sin límites en todas las placas (confirmado por el dueño); ejes y carga peligrosa no importan (flota: moto, auto, SUV y panel); licencias de pasajeros sin cifra, sin límite.
