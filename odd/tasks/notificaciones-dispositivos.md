@@ -39,9 +39,9 @@ Today notifications are only visible inside the open portal. An earlier push imp
 - Commits in Spanish, Conventional Commits, no AI attribution.
 
 ## Tasks
-- [ ] T1 Data and catalog: migration (subscriptions with device class, preferences), category catalog per module with role/permission visibility. Route: delegated (writer trigger).
-- [ ] T2 Backend push: service, repositories, routes (config, subscribe, unsubscribe, preferences), gate by preference and device class, VAPID env, `web-push`, subscription removal, staging cleanup, environment rules. Route: delegated.
-- [ ] T3 Types: every Vales notification gets a `tipo`; check the other modules map completely. Route: delegated.
+- [x] T1 Data and catalog: migration (subscriptions with device class, preferences), category catalog per module with role/permission visibility. Route: delegated (writer trigger).
+- [x] T2 Backend push: service, repositories, routes (config, subscribe, unsubscribe, preferences), gate by preference and device class, VAPID env, `web-push`, subscription removal, staging cleanup, environment rules. Route: delegated.
+- [x] T3 Types: every Vales notification gets a `tipo`; check the other modules map completely. Route: delegated.
 - [ ] T4 Frontend: public `sw.js`, manifest, icons, device activation, gear and modal in the bell for all module pages, logout cleanup. Route: delegated.
 - [ ] T5 Docs (`README` of notifications, modules, `reglas_entornos.md`) and verification. Route: delegated.
 
@@ -55,6 +55,26 @@ Forecast well over 400 authored lines. Work-unit commits per task; PR slicing is
 
 ## Progress and evidence
 - 2026-11-25: branch created; plan written.
+- T1 fe31e935: migration `59_notificaciones_dispositivos.sql` (not applied anywhere), `categorias.js`. RED (module missing) then GREEN.
+- T2 4a6079c3: push service/repositories, preferences API, env, `web-push`, revocation on disable/password change, staging cleanup, environment rules. RED then GREEN. Added: endpoint allowlist of known push services.
+- T3 (see git log): every Vales notification has a `tipo`. RED then GREEN.
+- `node --test scripts/notificaciones/`: 27/27. `npm run ci:sintaxis`: 787 files OK. Not run: `ci:migraciones`, `ci:arranque` (need a database); no real push, no browser.
+- Route: delegated to one forked writer (writer trigger). RDD assessment: left to the parent.
+
+## API for T4 (authenticated, under /api/notificaciones/push)
+- `GET /config` -> `{ habilitado, clavePublica }`
+- `POST /suscripcion` `{ endpoint, keys: { p256dh, auth }, dispositivo: 'escritorio'|'movil' }` -> `{ ok }` / 400 `{ error }`
+- `DELETE /suscripcion` `{ endpoint }` -> `{ ok }`
+- `GET /preferencias?modulo=<id>` -> `{ categorias: [{ id, nombre, descripcion, escritorio, movil }] }` (empty = no gear)
+- `PUT /preferencias` `{ modulo, categoria | todas: true, canal: 'escritorio'|'movil', activo: boolean }` -> `{ ok }` / 400 / 403 `{ error }`
+- Push payload: `{ titulo, cuerpo, url, tag: 'notif-<id>', nivel, modulo }`
+- Service worker: skip only when a portal window is visible and focused, except on Apple browsers (always show).
+
+## Open points
+- Maintenance mode closes sessions but keeps subscriptions (not treated as a revocation).
+- Session revocation by refresh-token reuse (`tokenService`) keeps subscriptions: outside the edit surfaces.
+- Proyectos categories are shown by permission; if the admin matrix turns an event off for a role, the category still shows.
+- `CLAUDE.md` section 6 and `reglas_refresco_staging.md` do not yet mention the push exception and cleanup (T5).
 
 ## Next step
-T1.
+T4 (frontend).
