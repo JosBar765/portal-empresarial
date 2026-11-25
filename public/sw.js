@@ -21,10 +21,11 @@ self.addEventListener('push', (event) => {
   }
 
   event.waitUntil((async () => {
-    // Con una pestaña visible y enfocada ya avisa el propio portal (toast y campana).
+    // Solo si está a la vista el MISMO módulo ya avisa el portal; los demás módulos ignoran avisos ajenos.
     if (!esApple()) {
+      const modulo = new URL(datos.url || '/dashboard/', self.location.origin).pathname;
       const ventanas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      if (ventanas.some(v => v.visibilityState === 'visible' && v.focused)) return;
+      if (ventanas.some(v => v.visibilityState === 'visible' && v.focused && new URL(v.url).pathname.startsWith(modulo))) return;
     }
     await self.registration.showNotification(datos.titulo || 'Portal Empresarial', {
       body: datos.cuerpo || '',
