@@ -40,16 +40,25 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const destino = new URL((event.notification.data && event.notification.data.url) || '/dashboard/', self.location.origin);
+  const aviso = Number(destino.searchParams.get('aviso')) || null;
   event.waitUntil((async () => {
-    const ventanas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const abierta = ventanas.find(v => new URL(v.url).origin === self.location.origin);
-    if (!abierta) {
-      await self.clients.openWindow(destino.href);
+    const ventanas = (await self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+      .filter(v => new URL(v.url).origin === self.location.origin);
+    // La que ya está en ese módulo no se recarga (se perdería lo que tenga a medias): se le dice qué abrir.
+    const enModulo = ventanas.find(v => new URL(v.url).pathname.startsWith(destino.pathname));
+    if (enModulo) {
+      await enModulo.focus();
+      if (aviso) enModulo.postMessage({ tipo: 'abrir-aviso', id: aviso });
       return;
     }
-    await abierta.focus();
-    // Si ya está en ese módulo no se recarga: se perdería lo que tenga a medias.
-    const actual = new URL(abierta.url).pathname;
-    if (!actual.startsWith(destino.pathname) && 'navigate' in abierta) await abierta.navigate(destino.href).catch(() => {});
+    const abierta = ventanas[0];
+    if (abierta && 'navigate' in abierta) {
+      await abierta.focus();
+      try {
+        await abierta.navigate(destino.href);
+        return;
+      } catch { /* una ventana que este service worker no controla no se puede navegar */ }
+    }
+    await self.clients.openWindow(destino.href);
   })());
 });

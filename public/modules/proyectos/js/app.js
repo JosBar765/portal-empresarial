@@ -193,4 +193,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (state.user.permissions.includes('proyectos.gestionar')) montarBarraInferior();
   window.addEventListener('hashchange', alCambiarElHash);
   await mostrar(destinoDelHash());
+  window.centroNotificaciones?.abrirPendiente();
 });

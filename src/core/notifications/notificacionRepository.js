@@ -32,6 +32,12 @@ class NotificacionRepository {
     return porUsuario;
   }
 
+  // Una notificación, solo si es de ese usuario.
+  async obtener(usuarioId, id) {
+    const rows = await db.query(`SELECT ${COLUMNAS} FROM notificaciones WHERE id = ? AND usuario_id = ?`, [id, usuarioId], 'notificacion:find_propia');
+    return rows[0] || null;
+  }
+
   async listar(usuarioId, modulo, limite, desplazamiento) {
     return db.query(
       `SELECT ${COLUMNAS} FROM notificaciones WHERE usuario_id = ? AND modulo = ? ORDER BY id DESC LIMIT ? OFFSET ?`,
