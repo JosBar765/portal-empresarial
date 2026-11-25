@@ -3,6 +3,7 @@
 // a los 30 días de emitidas); se empuja en vivo a la sala personal `usuario:<id>` de cada destinatario.
 const notificacionRepository = require('./notificacionRepository');
 const socketManager = require('../websocket/socketManager');
+const pushService = require('./pushService');
 const { MODULOS } = require('../permissions/modulesCatalog');
 const { ErrorDeNegocio } = require('../utils/erroresHttp');
 
@@ -19,6 +20,7 @@ class NotificacionService {
     validarModulo(datos.modulo);
     const porUsuario = await notificacionRepository.crearParaUsuarios([...new Set(usuariosIds)], datos);
     porUsuario.forEach((notificacion, usuarioId) => socketManager.sendToRooms([`usuario:${usuarioId}`], 'notificacion_nueva', notificacion));
+    pushService.enviar(datos.modulo, datos.tipo, porUsuario); // sin esperar: el push nunca frena la operación
   }
 
   async listar(usuarioId, { modulo, limite, desplazamiento }) {

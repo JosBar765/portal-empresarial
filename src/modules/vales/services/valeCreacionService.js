@@ -183,7 +183,7 @@ class ValeCreacionService {
     // (supervisores rotativos) — se notifica a todos, no solo a "el" supervisor.
     const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(usuario.id);
     valeEvents.notificar({
-      vale, accion: 'creado, esperando autorización', actor: solicitante.nombre, actorId: usuario.id,
+      vale, accion: 'creado, esperando autorización', tipo: 'CREADO', actor: solicitante.nombre, actorId: usuario.id,
       salas: [`asesor:${usuario.id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
     });
     const resultado = enriquecer(vale);
@@ -248,7 +248,7 @@ class ValeCreacionService {
       }
       const actualizado = await valeRepository.obtenerPorId(valeId);
       valeEvents.notificar({
-        vale: actualizado, accion: 'autorizado (creación)', actor: usuario.nombre, actorId: usuario.id,
+        vale: actualizado, accion: 'autorizado (creación)', tipo: 'AUTORIZADO', actor: usuario.nombre, actorId: usuario.id,
         salas: [`asesor:${vale.asesor_id}`, ...supervisoresDelAsesor.map(s => `supervisor:${s.id}`), ...talleresIds.map(id => `taller:${id}`)]
       });
       return enriquecer(actualizado);
@@ -403,7 +403,7 @@ class ValeCreacionService {
       const actualizado = await valeRepository.obtenerPorId(valeId);
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(vale.asesor_id);
       valeEvents.notificar({
-        vale: actualizado, accion: 'reenviado a autorización', actor: usuario.nombre, actorId: usuario.id,
+        vale: actualizado, accion: 'reenviado a autorización', tipo: 'REENVIADO', actor: usuario.nombre, actorId: usuario.id,
         salas: [`asesor:${vale.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
       });
       return enriquecer(actualizado);

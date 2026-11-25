@@ -110,7 +110,7 @@ class SupervisionAsesorService {
       if (nuevos.length) {
         const prefijo = v.estado === ESTADOS.SOLICITANDO_MODIFICACION ? '(solicitud de modificación) ' : '';
         valeEvents.notificar({
-          vale, actor: admin.nombre, actorId: admin.id,
+          vale, tipo: 'PASA_A_AUTORIZACION', actor: admin.nombre, actorId: admin.id,
           texto: `${prefijo}pasó a tu autorización: ${admin.nombre} cambió la supervisión del asesor ${asesor.nombre}`,
           salas: nuevos.map(s => `supervisor:${s.id}`)
         });
