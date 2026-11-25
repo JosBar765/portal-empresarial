@@ -25,7 +25,9 @@ async function authenticateJWT(req, res, next) {
   }
 
   if (!decoded) {
-    tokenService.limpiarCookies(res);
+    // Solo se borran si llegaron: la app instalada puede arrancar sin enviarlas (SameSite) y borrarlas cerraría la sesión del navegador.
+    const trajoCookies = req.cookies && (req.cookies[tokenService.ACCESS_COOKIE] || req.cookies[tokenService.REFRESH_COOKIE]);
+    if (trajoCookies) tokenService.limpiarCookies(res);
     return handleUnauthorized(req, res);
   }
 
