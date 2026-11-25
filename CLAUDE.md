@@ -18,7 +18,7 @@ Master guide of the MundiTrofeos portal. Platform-wide rules only. Module detail
 - Import `database/schema.sql`, `seed.sql`, `users.sql`, in order.
 - Copy `.env.example` to `.env`; fill every variable.
 - Run `npm run dev`: `http://localhost:3000`.
-- Env vars: all required, no defaults; missing or invalid: `[FATAL]`, exit.
+- Env vars: all required, no defaults; missing or invalid: `[FATAL]`, exit. Exception: `VAPID_*` (web push) are optional.
 - `NODE_ENV`: `development|staging|production|test`.
 - `JWT_SECRET` ≥ 32 chars; `SOCKET_CORS_ORIGIN` exact origins, never `*`.
 - `DB_PASSWORD` empty only outside production; other formats: `src/config/env.js`.
@@ -80,6 +80,7 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 - `development`: local. `staging`: testing domain, production backup, own bucket. `production`. `test`: automated.
 - Critical actions run **only in production**; elsewhere do nothing and log it.
 - Critical: Storage delete/replace, purges, emails, push, webhooks, third-party calls, external resources located by DB values.
+- Push exception: also runs in staging and development, each with its own VAPID keys (`reglas_entornos.md`).
 - Guarded today: `supabaseStorage.eliminar`, retention watchers (Vales files, Incidencias photos).
 - New actions: follow `.agents/reglas/reglas_entornos.md`; update its inventory.
 - Session cookies are `Secure` in staging and production.
@@ -134,5 +135,6 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 | Proyectos (`proyectos`) | `.agents/modulos/proyectos/README.md` | Sales projects by niche: global company base, equal split among advisors, follow-up and closing; admin configuration center. |
 
 - New module: `README.md` section 4 and `.agents/reglas/reglas_modulo.md`; document it under `.agents/modulos/<name>/` (`README.md` + `documentacion/`).
-- Global rules: `.agents/reglas/` (architecture, module templates, auth, implementation style, UI, SQL files, environments, CI, deployment).
+- Global rules: `.agents/reglas/` (architecture, module templates, auth, implementation style, UI, SQL files, environments, CI, deployment, notifications).
+- Notifications (bell, device push, setup, troubleshooting): `.agents/reglas/reglas_notificaciones.md`.
 - Vales also has `flujo_vale_de_arte.md` (source of truth), `analisis_modulo.md` (history), `correcciones/` (changelog).

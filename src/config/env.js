@@ -1,6 +1,7 @@
 // src/config/env.js
 const dotenv = require('dotenv');
 const path = require('path');
+const { leerPush } = require('../core/notifications/pushConfig');
 
 // Cargar variables de entorno
 dotenv.config({ path: path.join(__dirname, '../../.env') });
@@ -136,6 +137,7 @@ const config = {
   refreshExpiresIn,
   socketCorsOrigin: leerOrigenes('SOCKET_CORS_ORIGIN'),
   trustProxy: leerSaltosDeProxy('TRUST_PROXY'),
+  push: leerPush(process.env, nodeEnv),
   db: {
     host: leer('DB_HOST').trim(),
     port: leerPuerto('DB_PORT'),

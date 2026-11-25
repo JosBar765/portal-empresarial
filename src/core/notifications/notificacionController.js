@@ -1,6 +1,8 @@
 // src/core/notifications/notificacionController.js
 const notificacionService = require('./notificacionService');
-const { responderErrorInterno } = require('../utils/erroresHttp');
+const pushService = require('./pushService');
+const preferenciaService = require('./preferenciaService');
+const { responderError, responderErrorInterno } = require('../utils/erroresHttp');
 const { idObligatorio } = require('../utils/validar');
 
 class NotificacionController {
@@ -27,6 +29,45 @@ class NotificacionController {
       return res.json({ ok: true });
     } catch (error) {
       return responderErrorInterno(res, error);
+    }
+  }
+
+  pushConfig(req, res) {
+    return res.json({ habilitado: pushService.habilitado(), clavePublica: pushService.clavePublica() });
+  }
+
+  async pushSuscribir(req, res) {
+    try {
+      await pushService.suscribir(req.user.id, req.body, req.get('user-agent'));
+      return res.json({ ok: true });
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async pushDesuscribir(req, res) {
+    try {
+      await pushService.desuscribir(req.user.id, req.body && req.body.endpoint);
+      return res.json({ ok: true });
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async listarPreferencias(req, res) {
+    try {
+      return res.json(await preferenciaService.listar(req.user, req.query.modulo));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async guardarPreferencia(req, res) {
+    try {
+      await preferenciaService.guardar(req.user, req.body);
+      return res.json({ ok: true });
+    } catch (error) {
+      return responderError(res, error);
     }
   }
 

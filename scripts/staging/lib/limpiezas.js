@@ -30,6 +30,12 @@ const LIMPIEZAS = [
     nombre: 'sesiones_activas: sesiones de producción eliminadas',
     toleraTablaAusente: true,
     sql: 'DELETE FROM sesiones_activas'
+  },
+  {
+    // Segunda barrera (la primera son las claves VAPID propias): staging no guarda dispositivos reales.
+    nombre: 'push_suscripciones: dispositivos de producción eliminados',
+    toleraTablaAusente: true,
+    sql: 'DELETE FROM push_suscripciones'
   }
 ];
 

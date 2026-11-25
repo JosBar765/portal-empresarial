@@ -41,7 +41,7 @@ class ValeConfirmacionService {
       // asesor (pueden ser varios, rotativos).
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(usuario.id);
       valeEvents.notificar({
-        vale: actualizado, accion: 'confirmado de recibido', actor: usuario.nombre, actorId: usuario.id,
+        vale: actualizado, accion: 'confirmado de recibido', tipo: 'RECIBIDO_CONFIRMADO', actor: usuario.nombre, actorId: usuario.id,
         salas: supervisores.map(s => `supervisor:${s.id}`)
       });
       return enriquecer(actualizado);
