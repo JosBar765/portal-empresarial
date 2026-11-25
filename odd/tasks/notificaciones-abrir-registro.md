@@ -32,6 +32,7 @@ Tapping a notification (system push or bell) opens the record it is about, in th
 - Route: bounded writer (fork). RED: 8 failing tests of 8. GREEN: `node --test scripts/notificaciones/` 55/55, security tests 8/8, `ci:sintaxis` 800 files.
 - Both locators run read-only against local data: each role gets its tab; outsiders get 404.
 - Not verified: any browser run, a real notification click.
+- A6 browser (Chrome, localhost, admin test account): Vales from URL, from the service worker message and from the bell (tab, month, search box); deleted voucher shows the toast; another user's notification returns 404. Viáticos moved to the request (simulated notification, real record). Incidencias: route only (no local records). Proyectos: not verified (test account has no project permissions). Pending: real system notification click.
 
 ## Next step
 A6.
