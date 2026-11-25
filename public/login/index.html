@@ -131,6 +131,11 @@
       const togglePassBtn = document.getElementById('toggle-password');
       const eyeIcon = document.getElementById('eye-icon');
       const sesionActivaOverlay = document.getElementById('sesion-activa-overlay');
+      // Vuelve a donde se iba (p. ej. el módulo de una notificación); solo páginas propias, nunca una URL de fuera.
+      function destinoTrasLogin(busqueda) {
+        const pedido = new URLSearchParams(busqueda).get('destino') || '';
+        return /^\/modules\/[a-z]+\/$/.test(pedido) ? pedido : '/dashboard/';
+      }
 
       function mostrarSesionActivaModal(mensaje) {
         if (mensaje) sesionActivaOverlay.querySelector('.modal-body p').textContent = mensaje;
@@ -144,7 +149,7 @@
       try {
         const checkRes = await fetch('/api/auth.php?action=session_check');
         const checkData = await checkRes.json();
-        if (checkData.autenticado) {window.location.href = '/dashboard/'; return;}
+        if (checkData.autenticado) {window.location.href = destinoTrasLogin(window.location.search); return;}
       } catch (_) { }
 
       // Mostrar sesión expirada
@@ -200,7 +205,7 @@
           const data = await res.json();
 
           if (res.ok && data.ok) {
-            window.location.href = '/dashboard/';
+            window.location.href = destinoTrasLogin(window.location.search);
           } else if (res.status === 409 && data.error === 'ACTIVE_SESSION_EXISTS') {
             mostrarSesionActivaModal(data.message);
             setLoading(false);
