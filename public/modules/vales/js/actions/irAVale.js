@@ -24,4 +24,5 @@ export async function irAVale(aviso) {
   // El clic del menú cambia título y secciones igual que a mano; si ya estaba ahí no hace nada.
   if (conMenu) botonDeVista(vista).click();
   mostrarEnBuzon({ tipo: 'mes', fecha: ubicacion.fechaEntrega, desde: '', hasta: '' }, ubicacion.correlativo);
+  window.buscador?.destacar('#filtro-texto');
 }

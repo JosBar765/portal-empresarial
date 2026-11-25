@@ -734,3 +734,22 @@ body {
   .aj-largo { display: none; }
   .aj-corto { display: inline; }
 }
+
+/* Buscador de lista destacado: lupa, borde visible y, con texto, resaltado con «✕» para limpiar. */
+.buscador { position: relative; display: flex; align-items: center; border-radius: var(--radius-sm); }
+.buscador > ion-icon { position: absolute; left: 12px; font-size: 16px; color: var(--color-text-secondary); pointer-events: none; }
+.buscador > input[type="text"] { width: 300px; max-width: 100%; padding-left: 36px; padding-right: 36px; border: 1.5px solid var(--color-text-muted); }
+.buscador > input[type="text"]:not(:placeholder-shown) { border-color: var(--color-primary); background: var(--color-primary-light); font-weight: 600; }
+.buscador:has(> input:not(:placeholder-shown)) > ion-icon { color: var(--color-primary); }
+.buscador-limpiar { position: absolute; right: 6px; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; border-radius: var(--radius-full); background: transparent; color: var(--color-primary); font-size: 18px; cursor: pointer; }
+.buscador-limpiar:hover { background: var(--color-surface); }
+.buscador > input:placeholder-shown ~ .buscador-limpiar { display: none; }
+.buscador.is-destacado { animation: buscador-destello 0.9s var(--ease-out) 2; }
+@keyframes buscador-destello {
+  0% { box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0.55); }
+  100% { box-shadow: 0 0 0 10px rgba(var(--color-primary-rgb), 0); }
+}
+@media (max-width: 640px) {
+  .buscador { width: 100%; }
+  .buscador > input[type="text"] { width: 100%; }
+}
