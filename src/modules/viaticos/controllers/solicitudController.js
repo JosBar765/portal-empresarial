@@ -1,6 +1,7 @@
 // src/modules/viaticos/controllers/solicitudController.js
 // Solicitudes del propio usuario: la identidad sale siempre de req.user.
 const service = require('../services/solicitudService');
+const ubicacion = require('../services/ubicacionService');
 const guardado = require('../services/solicitudGuardadoService');
 const documentos = require('../services/documentoService');
 const { ARCHIVOS } = require('../constantes');
@@ -14,6 +15,7 @@ module.exports = {
   calcular: manejar(req => service.calcular(req.user, req.body, req.query.solicitudId)),
   listar: manejar(req => service.listar(req.user, req.query)),
   obtener: manejar(req => service.obtener(req.user, req.params.id)),
+  ubicacion: manejar(req => ubicacion.ubicar(req.user, req.params.id)),
   crear: manejar(req => guardado.crear(req.user, req.body, fotosDe(req)), { status: 201 }),
   modificar: manejar(req => guardado.modificar(req.user, req.params.id, req.body, fotosDe(req))),
   darDeBaja: manejar(req => guardado.darDeBaja(req.user, req.params.id)),

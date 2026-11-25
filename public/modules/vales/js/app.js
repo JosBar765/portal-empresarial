@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initSocket();
 
   await cargarBuzon();
+  window.centroNotificaciones?.abrirPendiente();
 
   $('#logout-btn').addEventListener('click', async () => {
     await logout();

@@ -3,6 +3,20 @@
 // marcar como leída (una o todas). Cada módulo lo inicia con su socket y su id:
 // window.centroNotificaciones.iniciar({ socket, modulo: 'vales' }).
 (() => {
+  // El push abre `?aviso=<id>`: de la dirección solo se acepta un número.
+  const idDeAvisoEnUrl = (busqueda) => {
+    const valor = new URLSearchParams(busqueda).get('aviso') || '';
+    return /^\d{1,10}$/.test(valor) ? Number(valor) : null;
+  };
+  const urlSinAviso = ({ pathname, search, hash }) => {
+    const parametros = new URLSearchParams(search);
+    parametros.delete('aviso');
+    const resto = parametros.toString();
+    return `${pathname}${resto ? `?${resto}` : ''}${hash}`;
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { idDeAvisoEnUrl, urlSinAviso };
+  if (typeof window === 'undefined') return;
+
   const POR_PAGINA = 20;
   const estado = { modulo: null, items: [], noLeidas: 0, hayMas: false, abierto: false, cargando: false, enlaces: {}, alAbrir: null, configurable: false };
   let root = null;
@@ -58,7 +72,7 @@
     // Conserva el desplazamiento de la lista al redibujar (marcar leída, cargar más).
     const scrollPrevio = root.querySelector('.notif-lista')?.scrollTop || 0;
     const lista = estado.items.map(n => `
-      <li class="notif-item${n.leida_en ? '' : ' is-no-leida'}${n.nivel === 'alerta' ? ' is-alerta' : ''}${estado.enlaces[n.tipo] || (estado.alAbrir && n.referencia_tipo) ? ' is-enlace' : ''}" data-id="${n.id}">
+      <li class="notif-item${n.leida_en ? '' : ' is-no-leida'}${n.nivel === 'alerta' ? ' is-alerta' : ''}${accionDe(n) ? ' is-enlace' : ''}" data-id="${n.id}">
         <span class="notif-contenido">${iconoDeAviso(n)}${escapar(n.mensaje)}</span>
         <span class="notif-fecha">${formatearFecha(n.creado_en)}</span>
       </li>`).join('');
@@ -100,6 +114,49 @@
     } catch { /* se reintenta al recargar */ }
   }
 
+  // Lo que hace tocar un aviso (en la campana o en la notificación del sistema); null si no lleva a ninguna parte.
+  function accionDe(aviso) {
+    if (estado.enlaces[aviso.tipo]) return estado.enlaces[aviso.tipo];
+    return estado.alAbrir && (aviso.referencia_tipo || aviso.vale_id) ? () => estado.alAbrir(aviso) : null;
+  }
+
+  const sinDestino = () => window.toast && window.toast.info('Notificaciones', 'Ese aviso ya no tiene una pantalla a la que llevarte.');
+
+  // El módulo avisa cuando ya cargó (`abrirPendiente`); hasta entonces el aviso espera.
+  let moduloListo = false;
+  let avisoPendiente = null;
+
+  async function abrirAviso(id) {
+    let aviso;
+    try {
+      aviso = await pedir(`/api/notificaciones/${id}`);
+    } catch {
+      sinDestino();
+      return;
+    }
+    if (aviso.modulo !== estado.modulo) return;
+    if (!aviso.leida_en) {
+      try {
+        await fetch(`/api/notificaciones/${id}/leer`, { method: 'POST' });
+        cargar(true);
+      } catch { /* queda sin leer: se ve en la campana */ }
+    }
+    const accion = accionDe(aviso);
+    if (accion) accion(); else sinDestino();
+  }
+
+  function pedirApertura(id) {
+    if (!id) return;
+    if (moduloListo) abrirAviso(id); else avisoPendiente = id;
+  }
+
+  function abrirPendiente() {
+    moduloListo = true;
+    const id = avisoPendiente;
+    avisoPendiente = null;
+    if (id) abrirAviso(id);
+  }
+
   // Cada módulo inicia su propio centro: `modulo` es su id del catálogo ('vales', 'admin'…).
   // `enlaces` ({ TIPO: () => acción }) convierte en enlace las notificaciones de ese tipo: al hacer clic se ejecuta la acción.
   // `alAbrir(notificación)` es la otra vía: sirve a quien enlaza por lo que el aviso nombra (referencia_tipo/referencia_id), no por su tipo.
@@ -129,7 +186,7 @@
         const id = Number(item.dataset.id);
         marcarLeida(id);
         const aviso = estado.items.find(n => n.id === id) || {};
-        const accion = estado.enlaces[aviso.tipo] || (alAbrir && aviso.referencia_tipo ? () => alAbrir(aviso) : null);
+        const accion = accionDe(aviso);
         if (accion) {
           estado.abierto = false;
           render();
@@ -155,6 +212,17 @@
     }
     render();
     cargar(true);
+    const pedido = idDeAvisoEnUrl(window.location.search);
+    if (pedido) {
+      window.history.replaceState(window.history.state, '', urlSinAviso(window.location));
+      pedirApertura(pedido);
+    }
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', (e) => {
+        if (e.data && e.data.tipo === 'abrir-aviso') pedirApertura(Number(e.data.id));
+      });
+      navigator.serviceWorker.startMessages?.();
+    }
     // El engranaje solo aparece si este usuario tiene categorías que configurar en este módulo.
     window.notificacionesAjustes?.hayCategorias(modulo).then((hay) => {
       estado.configurable = hay;
@@ -162,5 +230,5 @@
     });
   }
 
-  window.centroNotificaciones = { iniciar };
+  window.centroNotificaciones = { iniciar, abrirPendiente, sinDestino };
 })();

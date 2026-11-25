@@ -28,6 +28,8 @@ export function initSocket() {
   // Un vale vencido pasó a Borradores: la notificación abre la lista (import dinámico: evita un ciclo con los formularios).
   window.centroNotificaciones?.iniciar({
     socket: state.socket, modulo: 'vales',
+    // Import dinámico: el buzón y sus formularios dependen de este archivo.
+    alAbrir: (aviso) => import('./actions/irAVale.js').then(m => m.irAVale(aviso)),
     enlaces: { EXPIRADO_A_BORRADOR: () => import('./forms/borradores.js').then(m => m.abrirModalBorradores()) }
   });
   state.socket.on('borradores_nuevos', avisarCambioBorradores);

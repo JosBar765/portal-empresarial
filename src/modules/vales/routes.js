@@ -133,6 +133,7 @@ router.put('/borradores/:id', crearVale, camposAdjuntos, (req, res) => borradorC
 router.delete('/borradores/:id', crearVale, (req, res) => borradorController.eliminar(req, res));
 
 router.get('/:id', verVales, (req, res) => valeController.detalle(req, res));
+router.get('/:id/ubicacion', verVales, (req, res) => valeController.ubicacion(req, res));
 router.get('/:id/pdf', verVales, (req, res) => valeController.descargarPdf(req, res));
 router.get('/:id/propuesta', verVales, (req, res) => valeController.propuesta(req, res));
 router.post('/:id/propuestas-otros/:tallerId/visto', verVales, (req, res) => valeController.propuestaOtroTallerVista(req, res));

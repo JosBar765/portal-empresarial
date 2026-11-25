@@ -41,6 +41,7 @@ router.delete('/borradores/:id', borradorController.eliminar);
 
 router.get('/solicitudes', solicitudController.listar);
 router.get('/solicitudes/:id', solicitudController.obtener);
+router.get('/solicitudes/:id/ubicacion', solicitudController.ubicacion);
 router.post('/solicitudes', fotosDefectos, solicitudController.crear);
 router.put('/solicitudes/:id', fotosDefectos, solicitudController.modificar);
 router.delete('/solicitudes/:id', solicitudController.darDeBaja);

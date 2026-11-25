@@ -134,7 +134,7 @@
       // Vuelve a donde se iba (p. ej. el módulo de una notificación); solo páginas propias, nunca una URL de fuera.
       function destinoTrasLogin(busqueda) {
         const pedido = new URLSearchParams(busqueda).get('destino') || '';
-        return /^\/modules\/[a-z]+\/$/.test(pedido) ? pedido : '/dashboard/';
+        return /^\/modules\/[a-z]+\/(\?aviso=\d{1,10})?$/.test(pedido) ? pedido : '/dashboard/';
       }
 
       function mostrarSesionActivaModal(mensaje) {

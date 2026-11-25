@@ -124,5 +124,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   iniciarSocket();
   window.addEventListener('hashchange', abrir);
   await abrir();
+  window.centroNotificaciones?.abrirPendiente();
 });
 

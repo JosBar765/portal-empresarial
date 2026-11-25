@@ -39,6 +39,7 @@ class RechazoVencimientoService {
         await notificacionService.registrar([solicitud.solicitanteId], {
           modulo: NOTIFICACION.MODULO,
           tipo: NOTIFICACION.TIPO_POR_VENCER,
+          referenciaTipo: NOTIFICACION.REFERENCIA, referenciaId: solicitud.id,
           nivel: NOTIFICACION.NIVEL_RECHAZO,
           mensaje: msg('notificacion.solicitudPorVencer', { correlativo: solicitud.correlativo, restante: formatearDuracion(solicitud.minutosRestantes) })
         });
@@ -95,6 +96,7 @@ class RechazoVencimientoService {
       await notificacionService.registrar([solicitanteId], {
         modulo: NOTIFICACION.MODULO,
         tipo: NOTIFICACION.TIPO_VENCIDA,
+        referenciaTipo: NOTIFICACION.REFERENCIA, referenciaId: id,
         nivel: NOTIFICACION.NIVEL_RECHAZO,
         mensaje: msg('notificacion.solicitudVencida', { correlativo, motivo: motivo ?? '' })
       });

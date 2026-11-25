@@ -23,6 +23,14 @@ class NotificacionController {
     }
   }
 
+  async obtener(req, res) {
+    try {
+      return res.json(await notificacionService.obtener(req.user.id, idObligatorio(req.params.id)));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async marcarLeida(req, res) {
     try {
       await notificacionService.marcarLeida(req.user.id, idObligatorio(req.params.id));
