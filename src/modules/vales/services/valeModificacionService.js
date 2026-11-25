@@ -122,7 +122,7 @@ class ValeModificacionService {
       const nuevoMod = await valeRepository.obtenerPorId(modId);
       const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(usuario.id);
       valeEvents.notificar({
-        vale: nuevoMod, accion: `creado, esperando autorización (modificación de ${original.correlativo}, que quedó como Recibido)`, actor: usuario.nombre, actorId: usuario.id,
+        vale: nuevoMod, accion: `creado, esperando autorización (modificación de ${original.correlativo}, que quedó como Recibido)`, tipo: 'MODIFICACION_SOLICITADA', actor: usuario.nombre, actorId: usuario.id,
         salas: [`asesor:${usuario.id}`, ...supervisores.map(s => `supervisor:${s.id}`)]
       });
       const resultado = { ...enriquecer(actualizado), modificacionId: modId };
@@ -188,7 +188,7 @@ class ValeModificacionService {
         const nuevoVale = await valeRepository.obtenerPorId(mod.id);
         const supervisores = await usuarioValeRepository.obtenerSupervisoresDeAsesor(original.asesor_id);
         valeEvents.notificar({
-          vale: nuevoVale, accion: 'autorizado (modificación)', actor: usuario.nombre, actorId: usuario.id,
+          vale: nuevoVale, accion: 'autorizado (modificación)', tipo: 'AUTORIZADO', actor: usuario.nombre, actorId: usuario.id,
           salas: [`asesor:${original.asesor_id}`, ...supervisores.map(s => `supervisor:${s.id}`), ...talleresIds.map(id => `taller:${id}`)]
         });
         return enriquecer(nuevoVale);
