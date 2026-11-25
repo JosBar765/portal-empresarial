@@ -79,6 +79,12 @@ app.use('/login', async (req, res, next) => {
 });
 app.use('/login', express.static(path.join(__dirname, '../public/login')));
 
+// Avisos del sistema: el navegador pide el service worker y el manifest sin sesión. Sin caché para que una versión nueva llegue enseguida.
+app.get(['/sw.js', '/manifest.webmanifest'], (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, '../public', req.path));
+});
+
 // Rutas de API de autenticación (los endpoints internos deciden si requieren token)
 app.use('/api/auth.php', authRoutes);
 app.use('/api/auth', authRoutes);

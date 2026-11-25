@@ -4,7 +4,7 @@
 // window.centroNotificaciones.iniciar({ socket, modulo: 'vales' }).
 (() => {
   const POR_PAGINA = 20;
-  const estado = { modulo: null, items: [], noLeidas: 0, hayMas: false, abierto: false, cargando: false, enlaces: {}, alAbrir: null };
+  const estado = { modulo: null, items: [], noLeidas: 0, hayMas: false, abierto: false, cargando: false, enlaces: {}, alAbrir: null, configurable: false };
   let root = null;
   let tituloBase = '';
 
@@ -71,6 +71,7 @@
         <div class="notif-panel-header">
           <strong>Notificaciones</strong>
           <button type="button" class="notif-leer-todas"${estado.noLeidas ? '' : ' disabled'}>Marcar todas como leídas</button>
+          ${estado.configurable ? '<button type="button" class="notif-config" title="Configurar notificaciones" aria-label="Configurar notificaciones"><ion-icon name="settings-outline"></ion-icon></button>' : ''}
         </div>
         <ul class="notif-lista">${lista || '<li class="notif-vacio">No hay notificaciones.</li>'}</ul>
         ${estado.hayMas ? '<button type="button" class="notif-mas">Cargar más</button>' : ''}
@@ -114,6 +115,10 @@
       if (e.target.closest('.notif-bell')) {
         estado.abierto = !estado.abierto;
         render();
+      } else if (e.target.closest('.notif-config')) {
+        estado.abierto = false;
+        render();
+        window.notificacionesAjustes.abrir(estado.modulo);
       } else if (e.target.closest('.notif-leer-todas')) {
         marcarTodas();
       } else if (e.target.closest('.notif-mas')) {
@@ -150,6 +155,11 @@
     }
     render();
     cargar(true);
+    // El engranaje solo aparece si este usuario tiene categorías que configurar en este módulo.
+    window.notificacionesAjustes?.hayCategorias(modulo).then((hay) => {
+      estado.configurable = hay;
+      if (hay) render();
+    });
   }
 
   window.centroNotificaciones = { iniciar };
