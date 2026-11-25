@@ -151,7 +151,8 @@ export function renderSolicitudes(contenedor) {
         h('h2', { text: t('tab.solicitudes.titulo') }),
         h('div', { class: 'vi-filtros' },
           h('span', { class: 'vi-lista-resumen', id: 'vi-solicitudes-resumen', 'aria-live': 'polite' }),
-          h('div', { class: 'vi-buscador' }, icono('search-outline'), buscador))),
+          h('div', { class: 'vi-buscador buscador' }, icono('search-outline'), buscador,
+            h('button', { type: 'button', class: 'buscador-limpiar', 'aria-label': 'Limpiar la búsqueda' }, icono('close-outline'))))),
       zona));
 
   vista = { tbody, zona, barra: null };

@@ -1,7 +1,6 @@
 // src/modules/vales/repositories/valeRepository.js
 const crypto = require('crypto');
 const db = require('../../../config/database');
-const { ahoraUTC6 } = require('../../../core/calendario/calendarioLaboral');
 
 // `estado`/`autorizacion_tipo` viven en catálogos (estados_vale,
 // tipos_autorizacion — ver analisis_correcciones_24.md #5) en vez de ENUM en
@@ -334,13 +333,14 @@ class ValeRepository {
   // Vales con >= 1 día de atraso (por día calendario UTC-6, ver calcularAtraso)
   // y sin notificar — usado por atrasoWatcher. Excluye vales con el atraso ya
   // congelado: su atraso no corre en vivo.
-  async listarAtrasadosSinNotificar() {
+  // Vencidos sin avisar: los que siguen pendientes y los entregados hoy ya vencidos (antes de la hora del aviso).
+  async listarAtrasadosSinNotificar(hoy) {
     return db.query(
       `${SELECT_VALE}
-       WHERE v.atraso_notificado_en IS NULL AND v.atraso_congelado_en IS NULL
-         AND ev.nombre NOT IN ('RECIBIDO', 'CONFIRMADO')
-         AND DATE(v.fecha_entrega) < ?`,
-      [ahoraUTC6().toISOString().slice(0, 10)],
+       WHERE v.atraso_notificado_en IS NULL AND DATE(v.fecha_entrega) < ?
+         AND ((v.atraso_congelado_en IS NULL AND ev.nombre NOT IN ('RECIBIDO', 'CONFIRMADO'))
+           OR DATE(v.atraso_congelado_en) = ?)`,
+      [hoy, hoy],
       'vale:list_atrasados_sin_notificar'
     );
   }

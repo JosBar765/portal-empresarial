@@ -685,13 +685,18 @@ combinarse con cualquier filtro de estado.
   `RECIBIDO` sin sello de congelamiento usan `actualizado_en` como respaldo.
 - Un **rechazo de propuesta** que el taller acepta (§1.2) **descongela** el atraso: `atraso_congelado_en` vuelve a `NULL` en la fila del taller y en el vale, y
   corre otra vez desde la fecha de entrega original (que no cambia). Mientras el rechazo está abierto o el taller lo rechaza, sigue detenido.
-- **Alerta en vivo:** `atrasoWatcher.js` corre cada 60 s en el mismo proceso
-  y detecta los vales con **1 día o más** de atraso (a partir de las 00:00 del
-  día siguiente a su `fecha_entrega`; ese mismo día solo se muestra "Hoy"). Dispara
-  una alerta roja **una sola vez por vale** (`atraso_notificado_en`) solo a
-  quien lo tiene "en su vista": el asesor, sus supervisores, los talleres con
-  fila activa (pendiente, asignado, en proceso, en pausa o en revisión), los diseñadores con
-  vale activo, y la sala `vales:fusion` si el vale está `APROBADO_DEPARTAMENTO`.
+- **Alerta en vivo:** el vale cuenta como atrasado desde las 00:00 del día
+  siguiente a su `fecha_entrega` (ese mismo día solo se muestra "Hoy"), pero el
+  **aviso sale a las 08:00** (hora de Guatemala), también en fin de semana y
+  feriados. `atrasoWatcher.js` corre cada 60 s y dispara una alerta roja **una sola
+  vez por vale** (`atraso_notificado_en`) a: el asesor, sus supervisores, los
+  talleres con fila activa (pendiente, asignado, en proceso, en pausa o en revisión),
+  los diseñadores con vale activo, y la sala `vales:fusion` si el vale está
+  `APROBADO_DEPARTAMENTO`.
+- **Entregado antes del aviso:** si venció a las 00:00 y se entregó antes de las
+  08:00, se avisa igual («quedó atrasado; se entregó hoy a las hh:mm»), porque el
+  atraso ya cuenta en los reportes. También lo reciben el taller y el diseñador que
+  entregaron ya vencido; quien entregó a tiempo no.
 
 ## 8. Tiempo real
 

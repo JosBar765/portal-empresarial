@@ -35,4 +35,5 @@ export async function irASolicitud(aviso) {
   }
   if (state.salidaVista) { state.salidaVista.liberar(); state.salidaVista = null; }
   if (state.tab === tab) await cargarTab(); else await cambiarTab(tab);
+  window.buscador?.destacar('.vi-buscador input');
 }
