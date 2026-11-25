@@ -14,15 +14,19 @@ const { ESTADOS_TALLER } = require('./services/valeService');
 const { SALA_FUSION } = require('./services/valeHelpers');
 
 const INTERVALO_MS = 60 * 1000;
+// El atraso cuenta desde las 00:00; el aviso espera a esta hora para no llegar de madrugada.
+const HORA_AVISO = 8;
 const ESTADOS_TALLER_ACTIVOS = [ESTADOS_TALLER.VERIFICANDO_ADJUNTOS, ESTADOS_TALLER.ADJUNTOS_RECHAZADOS, ESTADOS_TALLER.ADJUNTOS_RESPONDIDOS, ESTADOS_TALLER.PENDIENTE_ASIGNACION, ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION];
 const ESTADOS_TALLER_CON_DISENADOR = [ESTADOS_TALLER.ASIGNADO, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_REVISION];
 
 // Mismo offset fijo UTC-6 que valeHelpers.js (hoyISO/horaActual) — no
 // depender de la zona horaria del sistema operativo del proceso Node.
-function ahoraLocal() {
-  const d = new Date(Date.now() - 6 * 60 * 60 * 1000);
+function ahoraLocal(ahora = new Date()) {
+  const d = new Date(ahora.getTime() - 6 * 60 * 60 * 1000);
   return d.toISOString().slice(0, 19).replace('T', ' ');
 }
+
+const entregadoTarde = (entregado, limite) => String(entregado).slice(0, 10) > String(limite).slice(0, 10);
 
 // Solo se avisa a quien actualmente tiene este vale "en su vista" — un vale que
 // todavía está siendo trabajado por un taller no aparece en la cola de fusión,
@@ -36,7 +40,13 @@ async function salasParaVale(vale) {
 
   const filas = await valeTallerRepository.listarPorVale(vale.id);
   filas.forEach(f => {
-    if (f.atraso_congelado_en) return; // su Encargado ya aprobó la propuesta del taller: su atraso terminó
+    // Quien entregó a tiempo queda fuera; quien entregó ya vencido (antes de la hora del aviso) también se entera.
+    if (f.atraso_congelado_en) {
+      if (!entregadoTarde(f.atraso_congelado_en, vale.fecha_entrega)) return;
+      salas.push(`taller:${f.taller_id}`);
+      if (f.disenador_id) salas.push(`disenador:${f.disenador_id}`);
+      return;
+    }
     if (ESTADOS_TALLER_ACTIVOS.includes(f.estado)) salas.push(`taller:${f.taller_id}`);
     if (f.disenador_id && ESTADOS_TALLER_CON_DISENADOR.includes(f.estado)) salas.push(`disenador:${f.disenador_id}`);
   });
@@ -48,13 +58,18 @@ async function salasParaVale(vale) {
   return salas;
 }
 
-async function revisarAtrasos() {
+async function revisarAtrasos(ahora = new Date()) {
   try {
-    const vencidos = await valeRepository.listarAtrasadosSinNotificar();
+    const momento = ahoraLocal(ahora);
+    if (Number(momento.slice(11, 13)) < HORA_AVISO) return;
+    const vencidos = await valeRepository.listarAtrasadosSinNotificar(momento.slice(0, 10));
     for (const vale of vencidos) {
       const salas = await salasParaVale(vale);
-      valeEvents.notificar({ vale, accion: 'marcado como atrasado', tipo: 'ATRASO', salas, nivel: 'alerta' });
-      await valeRepository.marcarAtrasoNotificado(vale.id, ahoraLocal());
+      const entregado = vale.atraso_congelado_en
+        ? { texto: `quedó atrasado; se entregó hoy a las ${String(vale.atraso_congelado_en).slice(11, 16)}` }
+        : { accion: 'marcado como atrasado' };
+      valeEvents.notificar({ vale, ...entregado, tipo: 'ATRASO', salas, nivel: 'alerta' });
+      await valeRepository.marcarAtrasoNotificado(vale.id, momento);
     }
   } catch (error) {
     console.error('[AtrasoWatcher] Error revisando atrasos:', error);
@@ -67,7 +82,7 @@ function iniciar() {
   // app.js, antes de que esa conexión termine de establecerse. Con el primer
   // chequeo recién a los 60s, para entonces el pool ya está listo (si la
   // conexión hubiera fallado, el proceso ya habría terminado).
-  setInterval(revisarAtrasos, INTERVALO_MS);
+  setInterval(() => revisarAtrasos(), INTERVALO_MS);
 }
 
-module.exports = { iniciar };
+module.exports = { iniciar, revisarAtrasos };
