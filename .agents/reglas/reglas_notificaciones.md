@@ -182,9 +182,11 @@ WHERE u.email = 'correo@ejemplo.com';
 
 ## Sin verificar todavía (2026-11-25)
 
-Probado en desarrollo con Brave de escritorio: activación, flujo de Vales, rechazos y atraso. Falta:
+Probado en desarrollo (Brave de escritorio): activación, flujo de Vales, rechazos y atraso. Probado en staging (Samsung S25 Ultra, Chrome, app instalada): aviso con la app cerrada y tras reiniciar el teléfono, cierre y nuevo inicio de sesión, otro usuario en el mismo equipo, aviso con la PC en otro módulo y enlace externo sin perder la sesión. Falta:
 
-- Android e iPhone reales, y que el hosting permita conectarse a los servicios push.
+- Aviso tras una o dos horas sin usar el teléfono (ahorro de batería).
+- iPhone o iPad.
+- Que tocar la notificación con la app cerrada abra el módulo y no el dashboard.
 - Las categorías «Bajas y eliminaciones» y los avisos «por vencer».
 - La visibilidad de categorías por rol (se dedujo de los emisores) y los avisos de Viáticos, Incidencias y Proyectos.
 
