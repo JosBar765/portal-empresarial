@@ -170,11 +170,11 @@ class ValeReporteGruposService {
     // Un vale compartido (varios talleres o varios diseñadores) se entrega, o se atrasa, para TODOS a la vez: «justos pagan por pecadores». Todos los grupos
     // usan la ficha del vale completo; no hay estado por parte. Los contadores, la gráfica y el desglose salen de la misma ficha.
     const resumenPorEquipo = (agruparPor === 'taller' || agruparPor === 'disenador') && entregadoPorTaller;
-    // Diseñadores: de cada vale se guardan TODOS sus diseñadores (no solo los elegidos); el desglose los muestra juntos en una sola fila.
+    // Diseñadores: de cada vale se guardan TODOS sus diseñadores (no solo los elegidos ni los de los talleres filtrados: el filtro decide qué vales aparecen, no a quiénes muestra la fila).
     const diseniadoresDeVale = new Map();
     const disenadoresDe = (v) => {
       if (!diseniadoresDeVale.has(v.id)) {
-        const ids = [...new Set(delTallerDe(v).map(f => f.disenador_id).filter(Boolean))];
+        const ids = [...new Set(filas(v).map(f => f.disenador_id).filter(Boolean))];
         diseniadoresDeVale.set(v.id, ids.map(id => ({ id, nombre: nombres.get(id) || `#${id}` })));
       }
       return diseniadoresDeVale.get(v.id);
