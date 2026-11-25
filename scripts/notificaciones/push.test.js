@@ -215,3 +215,46 @@ test('en producción no se registra el detalle de cada aviso', async () => {
     assert.strictEqual(log, '');
   } finally { config.nodeEnv = 'development'; }
 });
+
+const DIAGNOSTICO = [
+  { usuario_id: 8, activo: 1, marca_escritorio: 0, marca_movil: 0, escritorios: 1, moviles: 0 },
+  { usuario_id: 9, activo: 1, marca_escritorio: 1, marca_movil: 0, escritorios: 0, moviles: 0 },
+  { usuario_id: 10, activo: 1, marca_escritorio: 0, marca_movil: 1, escritorios: 1, moviles: 0 },
+  { usuario_id: 11, activo: 0, marca_escritorio: 1, marca_movil: 1, escritorios: 1, moviles: 1 }
+];
+const CINCO = () => new Map([7, 8, 9, 10, 11].map(id => [id, { id, mensaje: 'texto privado', nivel: 'info' }]));
+const SOLO_EL_7 = [{ id: 1, usuario_id: 7, endpoint: ENDPOINT, p256dh: 'k', auth: 'a' }];
+
+test('fuera de producción se explica por qué cada destinatario quedó sin push', async () => {
+  reiniciar();
+  responder = (tag) => {
+    if (tag === 'push:destinos') return SOLO_EL_7;
+    return tag === 'push:diagnostico' ? DIAGNOSTICO : [];
+  };
+  pushService._setSender(async () => {});
+  const log = await capturar(() => pushService.enviar('vales', 'ATRASO', CINCO()));
+  assert.match(log, /usuarios=7,8,9,10,11/);
+  assert.match(log, /sin envío: 8=sin casilla, 9=sin dispositivo, 10=sin dispositivo de la clase marcada, 11=usuario desactivado/);
+  assert.deepStrictEqual(consultas.find(c => c.tag === 'push:diagnostico').params.at(-1), [8, 9, 10, 11]);
+  assert.ok(!log.includes('texto privado') && !log.includes(ENDPOINT));
+});
+
+test('si el diagnóstico falla, el aviso se envía igual; en producción ni se consulta', async () => {
+  reiniciar();
+  const enviados = [];
+  responder = (tag) => {
+    if (tag === 'push:diagnostico') throw new Error('x');
+    return tag === 'push:destinos' ? SOLO_EL_7 : [];
+  };
+  pushService._setSender(async () => enviados.push(1));
+  await capturar(() => pushService.enviar('vales', 'ATRASO', CINCO()));
+  assert.strictEqual(enviados.length, 1);
+
+  const config = require(path.join(SRC, 'config/env'));
+  config.nodeEnv = 'production';
+  consultas.length = 0;
+  try {
+    await capturar(() => pushService.enviar('vales', 'ATRASO', CINCO()));
+    assert.ok(!consultas.some(c => c.tag === 'push:diagnostico'));
+  } finally { config.nodeEnv = 'development'; }
+});

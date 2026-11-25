@@ -33,7 +33,8 @@ class NotificacionController {
   }
 
   pushConfig(req, res) {
-    return res.json({ habilitado: pushService.habilitado(), clavePublica: pushService.clavePublica() });
+    // `usuarioId`: el navegador recuerda quién activó el dispositivo.
+    return res.json({ habilitado: pushService.habilitado(), clavePublica: pushService.clavePublica(), usuarioId: req.user.id });
   }
 
   async pushSuscribir(req, res) {
