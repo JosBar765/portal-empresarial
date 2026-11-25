@@ -25,8 +25,9 @@ Cada aviso del portal llega a la **campana** del módulo. Además, cada persona 
 | Las casillas son del usuario | Se ven igual en cualquier equipo |
 | La activación es del dispositivo | Hay que activar cada navegador o teléfono; vale para todos los módulos |
 | Cada módulo configura lo suyo | El engranaje solo aparece si el usuario tiene categorías en ese módulo |
-| Cerrar sesión | Borra ese dispositivo: hay que volver a activarlo. Cerrar la pestaña no |
-| Con el portal a la vista | No sale la notificación del sistema (ya avisa el portal). En Apple sale siempre |
+| Cerrar sesión | Deja de recibir en ese dispositivo; se reactiva solo cuando **la misma persona** vuelve a entrar. «Desactivar» sí lo olvida |
+| Entra otra persona en el equipo | Queda apagado hasta que ella lo active |
+| Con **ese módulo** a la vista | No sale la notificación del sistema (ya avisa el portal). Con otro módulo sí. En Apple sale siempre |
 | Tocar la notificación | Abre el módulo |
 
 ### Dónde funciona
@@ -69,7 +70,8 @@ módulo ─► notificacionService.registrar ─► guarda en `notificaciones` +
 - El envío nunca bloquea ni rompe la operación que generó el aviso.
 - Máximo 10 envíos a la vez, 8 s de espera por envío; el servicio push reintenta hasta 24 h. Las alertas van con urgencia alta.
 - Un dispositivo que el servicio da por vencido (404 o 410) se borra solo.
-- Un equipo compartido pasa al último usuario que entra.
+- El navegador recuerda quién activó el dispositivo. Al cargar el portal o volver a él, repara la suscripción de esa persona (perdida, vencida o creada con otras claves) sin pedir nada. En iPhone puede requerir tocar «Activar».
+- Si entra otra persona, el dispositivo se suelta; no pasa a su nombre.
 - Celulares y tabletas cuentan como **celular**.
 - Usuarios desactivados no reciben. Desactivar un usuario o cambiar su contraseña borra sus dispositivos.
 - **El modo mantenimiento y la revocación por reuso de token no los borran.**
@@ -110,7 +112,7 @@ Tres variables **opcionales**, que van juntas:
 Reglas que no se negocian:
 
 - **Las claves de producción no se usan en ningún otro entorno.** Es lo que impide que una prueba llegue a un teléfono real.
-- **No cambiar el par una vez en uso:** todos tendrían que volver a activar.
+- **No cambiar el par una vez en uso:** cada dispositivo deja de recibir hasta que su dueño abra el portal (en iPhone puede tener que volver a activar).
 - El push es la excepción a «acciones críticas solo en producción»: corre también en staging y desarrollo, nunca en `test` (`reglas_entornos.md`).
 - El refresco de staging borra `push_suscripciones` (`reglas_refresco_staging.md`).
 - Sin las variables el portal arranca igual, con los avisos apagados y sin la tarjeta de activación.
@@ -126,7 +128,7 @@ Reglas que no se negocian:
 | «Registration failed - push service error» | El navegador no llega a su servicio push | Brave: ver arriba. Si no: VPN, antivirus o red |
 | «Algo salió mal de nuestro lado» al activar | Error del servidor | Ver `push:upsert` en el log |
 | `Unknown column 'dispositivo'` | Quedó una tabla vieja de una prueba local anterior | `ALTER TABLE push_suscripciones ADD COLUMN dispositivo VARCHAR(10) NOT NULL AFTER auth;` |
-| Llega a la campana pero no al dispositivo | Sin dispositivo, sin casilla, solo campana o portal a la vista | Seguir las líneas `[Push]` |
+| Llega a la campana pero no al dispositivo | Sin dispositivo, sin casilla, solo campana, módulo a la vista o es quien hizo la acción (nunca se avisa a sí mismo) | Seguir las líneas `[Push]` |
 | El log dice `enviado` y no se ve | Problema en el equipo | Permisos del sistema, «No molestar», ahorro de batería |
 
 ### Líneas del log
@@ -138,7 +140,8 @@ Todas empiezan con `[Push]` y no llevan claves, direcciones de dispositivos ni t
 | `Avisos del sistema activados` / `desactivados: …` | todos menos `test` | Estado al arrancar y motivo |
 | `dispositivo registrado: usuario N, movil, servicio Apple` | staging y desarrollo | El dispositivo quedó guardado y con qué clase |
 | `modulo/TIPO sin categoría: solo campana` | staging y desarrollo | Ese aviso no se envía a dispositivos |
-| `modulo/TIPO categoría=x destinatarios=3 dispositivos=0` | staging y desarrollo | Nadie de los 3 tiene a la vez dispositivo activado y casilla de esa clase |
+| `modulo/TIPO categoría=x destinatarios=3 dispositivos=0 usuarios=5,9,13` | staging y desarrollo | A quién iba y a cuántos dispositivos. Quien actuó no figura |
+| `modulo/TIPO sin envío: 5=sin casilla, 9=sin dispositivo` | staging y desarrollo | Motivo por persona: `sin casilla`, `sin dispositivo`, `sin dispositivo de la clase marcada` o `usuario desactivado` |
 | `enviado notif-N a usuario N por Google` | staging y desarrollo | El servicio aceptó el envío |
 | `suscripción vencida del usuario N …: se elimina` | staging y desarrollo | El navegador ya no existe o quitó el permiso |
 | `No se pudo enviar el aviso … (403): motivo` | todos | Claves o `VAPID_SUBJECT` |

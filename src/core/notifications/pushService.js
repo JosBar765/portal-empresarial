@@ -142,6 +142,23 @@ async function enviarUno(s, payload, opciones) {
   }
 }
 
+function razonSinEnvio(f) {
+  if (!Number(f.activo)) return 'usuario desactivado';
+  if (!Number(f.marca_escritorio) && !Number(f.marca_movil)) return 'sin casilla';
+  if (!Number(f.escritorios) && !Number(f.moviles)) return 'sin dispositivo';
+  return 'sin dispositivo de la clase marcada';
+}
+
+// Solo fuera de producción: por qué algunos destinatarios no recibieron push. Quien actuó no figura: se excluye antes.
+async function explicarSinEnvio(modulo, tipo, categoria, usuariosIds) {
+  try {
+    const filas = await pushRepository.diagnostico(modulo, categoria, usuariosIds);
+    if (filas.length) detalle(`${modulo}/${tipo} sin envío: ${filas.map(f => `${f.usuario_id}=${razonSinEnvio(f)}`).join(', ')}`);
+  } catch (error) {
+    detalle(`no se pudo explicar quién quedó sin envío (${(error && error.code) || 'error'}).`);
+  }
+}
+
 // `porUsuario`: Map usuario_id -> notificación recién guardada.
 async function enviar(modulo, tipo, porUsuario) {
   try {
@@ -152,7 +169,12 @@ async function enviar(modulo, tipo, porUsuario) {
       return;
     }
     const destinos = await pushRepository.destinos(modulo, categoria, [...porUsuario.keys()]);
-    detalle(`${modulo}/${tipo} categoría=${categoria} destinatarios=${porUsuario.size} dispositivos=${destinos.length}`);
+    detalle(`${modulo}/${tipo} categoría=${categoria} destinatarios=${porUsuario.size} dispositivos=${destinos.length} usuarios=${[...porUsuario.keys()].join(',')}`);
+    if (detallado()) {
+      const alcanzados = new Set(destinos.map(s => s.usuario_id));
+      const sinEnvio = [...porUsuario.keys()].filter(id => !alcanzados.has(id));
+      if (sinEnvio.length) await explicarSinEnvio(modulo, tipo, categoria, sinEnvio);
+    }
     await Promise.all(destinos.map(s => {
       const notificacion = porUsuario.get(s.usuario_id);
       const opciones = { TTL: TTL_SEGUNDOS, urgency: notificacion.nivel === 'alerta' ? 'high' : 'normal', timeout: TIMEOUT_MS };

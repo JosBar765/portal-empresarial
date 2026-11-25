@@ -28,6 +28,20 @@ class PushRepository {
     );
   }
 
+  // Solo para el registro de diagnóstico: qué marcó y qué dispositivos tiene cada destinatario.
+  diagnostico(modulo, categoria, usuariosIds) {
+    return db.query(
+      `SELECT u.id AS usuario_id, u.activo, COALESCE(MAX(p.escritorio), 0) AS marca_escritorio, COALESCE(MAX(p.movil), 0) AS marca_movil,
+         COALESCE(MAX(s.dispositivo = 'escritorio'), 0) AS escritorios, COALESCE(MAX(s.dispositivo = 'movil'), 0) AS moviles
+       FROM usuarios u
+       LEFT JOIN notificacion_preferencias p ON p.usuario_id = u.id AND p.modulo = ? AND p.categoria = ?
+       LEFT JOIN push_suscripciones s ON s.usuario_id = u.id
+       WHERE u.id IN (?) GROUP BY u.id, u.activo ORDER BY u.id`,
+      [modulo, categoria, usuariosIds],
+      'push:diagnostico'
+    );
+  }
+
   async eliminarPorEndpoint(usuarioId, endpoint) {
     await db.query('DELETE FROM push_suscripciones WHERE endpoint_hash = ? AND usuario_id = ?', [hashEndpoint(endpoint), usuarioId], 'push:delete_by_endpoint');
   }
