@@ -61,4 +61,15 @@ ok(nombresDe(enfocarPayload(reporte, { id: 2 })).join('|') === '1:Ana Pérez, Be
 const sv = soloGrupoDesglose(reporte, 1);
 ok(nombresDe(sv).join('|') === nombresDe(deAna).join('|') && sv.grupos.secciones.atrasados.total === 2, 'servidor/PDF: el mismo enfoque y el mismo total que en pantalla');
 ok(reporte.grupos.secciones.atrasados === unida && unida.total === 4, 'la vista general no cambia');
+
+// ---- filtro de talleres: la fila muestra a todos, pero cada barra conserva sus vales ----------------------------------------------------------
+// El vale 7 está SIN diseñador en el taller filtrado (barra «Sin asignar») y con Beto en otro taller; el 8 es de Beto en el taller filtrado.
+const v7 = vale(7, [beto], { fechaEntrega: '2026-11-02' }); const v8 = vale(8, [beto], { fechaEntrega: '2026-11-03' });
+const conFiltro = unirSeccionPorVale({ total: 2, grupos: [grupo(0, 'Sin asignar', [v7]), grupo(2, 'Beto López', [v8])] });
+const enfocadas = (id) => conFiltro.grupos.filter(g => g.id === id || g.ids.includes(id)).flatMap(g => g.vales.map(v => v.id)).sort().join(',');
+ok(enfocadas(0) === '7', `enfocar «Sin asignar» deja su vale aunque la fila muestre al diseñador de otro taller: ${enfocadas(0)}`);
+ok(enfocadas(2) === '7,8', `enfocar a Beto deja los vales donde participa: ${enfocadas(2)}`);
+ok(conFiltro.grupos.every(g => g.nombre === 'Beto López'), 'las dos filas muestran a Beto');
+ok(new Set(conFiltro.grupos.map(g => g.clave)).size === conFiltro.grupos.length, 'cada grupo tiene su clave propia');
+
 console.log('\nTodo OK');

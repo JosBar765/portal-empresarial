@@ -90,11 +90,11 @@ function revisaReporte(tipo, R, etiqueta) {
   }
   if (tipo === 'disenador') {
     verifica((c.porDisenador || []).every(d => d.entregados <= d.asignados && d.tarde <= d.entregados), `${etiqueta}: en cada diseñador tarde ≤ entregados ≤ asignados`);
-    // 5) la gráfica cuenta cada vale en cada uno de sus diseñadores (los sin diseñador, en «Sin asignar»), con el estado del vale completo
+    // 5) enfocar cada barra deja exactamente sus vales (con filtro de talleres la fila también muestra a diseñadores sin barra)
     if (!omitido) {
-      const pares = filas.reduce((s, v) => s + Math.max((v.disenadoresDelVale || []).length, 1), 0);
-      const asignados = (c.porDisenador || []).reduce((s, d) => s + d.asignados, 0);
-      verifica(asignados === pares, `${etiqueta}: asignados por diseñador = pares vale-diseñador del desglose`, `${asignados} vs ${pares}`);
+      const filasDeBarra = (id) => new Set(Object.values(R.grupos.secciones).flatMap(sec => sec.grupos.filter(g => g.id === id || (g.ids || []).includes(id)).flatMap(g => g.vales.map(v => v.id)))).size;
+      const malas = (c.porDisenador || []).filter(d => filasDeBarra(d.id) !== d.asignados);
+      verifica(malas.length === 0, `${etiqueta}: cada barra de diseñador = sus filas del desglose`, malas.slice(0, 3).map(d => `${d.nombre}: ${d.asignados} vs ${filasDeBarra(d.id)}`).join('; '));
     }
   }
   return new Map(filas.map(v => [v.id, v.clave]));
@@ -133,6 +133,14 @@ async function revisaPdf(tipo, R, filtros, etiqueta) {
   verifica(sinNombre.length === 0, `${etiqueta} PDF: la gráfica trae a quienes muestra la pantalla`, sinNombre.map(nombre).join(', '));
 }
 
+// A quiénes muestra cada fila del desglose (diseñadores en su reporte, talleres en el de talleres): el filtro de talleres no puede esconder a ninguno.
+const mostradosPorVale = (tipo, R) => {
+  const campo = tipo === 'disenador' ? 'disenadoresDelVale' : 'talleresDelVale';
+  const m = new Map();
+  for (const sec of Object.values(R.grupos.secciones)) for (const g of sec.grupos) for (const v of g.vales) m.set(v.correlativo, (v[campo] || []).map(x => x.nombre).sort().join(' + '));
+  return m;
+};
+
 // ---- recorrido -------------------------------------------------------------------------------------------------------------------------------
 const hoy = new Date(); const meses = [0, 1, 2, 3].map(k => { const d = new Date(hoy.getFullYear(), hoy.getMonth() - k, 15); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-15`; });
 const guardado = new Map(); // «tipo|fecha» -> estado de cada vale sin filtro
@@ -154,6 +162,9 @@ for (const tipo of ['tienda', 'taller', 'disenador', 'asesor']) {
           const base = guardado.get(`${tipo}|${fecha}`);
           const distintos = [...estadoFiltrado].filter(([id, clave]) => base.has(id) && base.get(id) !== clave);
           verifica(distintos.length === 0, `${etiqueta}: el filtro «${t.nombre}» no cambia el estado de ningún vale`, `${distintos.length} vales cambian de sección: ${distintos.slice(0, 5).map(([id]) => id).join(', ')}`);
+          const completos = mostradosPorVale(tipo, R);
+          const recortados = [...mostradosPorVale(tipo, F)].filter(([vale, quienes]) => completos.has(vale) && completos.get(vale) !== quienes);
+          verifica(recortados.length === 0, `${etiqueta}: el filtro «${t.nombre}» muestra a todos los de cada vale`, `${recortados.length} filas recortadas: ${recortados.slice(0, 3).map(([vale, quienes]) => `${vale} «${completos.get(vale)}» -> «${quienes}»`).join('; ')}`);
         }
       }
     } catch (error) {
