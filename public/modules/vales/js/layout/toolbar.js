@@ -26,6 +26,25 @@ function guardarFiltroTienda(valor) {
   } catch { /* sin almacenamiento el filtro simplemente no se recuerda */ }
 }
 
+// Controles de la barra que hay que repintar cuando el buzón se acomoda solo (al abrir un aviso).
+let barraPeriodo = null;
+let menuTienda = null;
+
+export function mostrarEnBuzon(ventana, busqueda) {
+  Object.assign(state, {
+    ventana, busqueda, filtroContador: null, soloAtrasados: false, soloRechazos: false, soloModificados: false,
+    disenadorFiltro: '', tiendaId: null, sort: { key: null, dir: null }
+  });
+  $('#filtro-texto').value = busqueda;
+  const selectDisenador = $('#filtro-disenador');
+  if (selectDisenador) selectDisenador.value = '';
+  // El filtro de tienda recordado no se borra: solo se quita mientras se muestra este vale.
+  menuTienda?.actualizar('');
+  barraPeriodo?.pintar();
+  actualizarIndicadoresOrden();
+  cargarBuzon();
+}
+
 export function wireToolbar() {
   // Misma barra de período que Reportes (Hoy · Día · Semana · Mes · Desde–Hasta), con su propio estado: state.ventana.
   const cambiarVentana = (ventana) => { state.ventana = ventana; barra.pintar(); cargarBuzon(); };
@@ -41,6 +60,7 @@ export function wireToolbar() {
     alVerVales: (iso) => cambiarVentana({ ...state.ventana, tipo: 'dia', fecha: iso }),
     alVerReporte: permisos.includes('vales.ver_reportes') ? verReporteDelDia : null
   });
+  barraPeriodo = barra;
   // Búsqueda contra el servidor — corre sobre TODOS los vales del buzón, no
   // solo la página ya cargada; debounced para no disparar una petición por
   // cada tecla.
@@ -87,7 +107,7 @@ export function wireToolbar() {
       state.tiendaId = ids.length ? ids.join(',') : null;
       guardarFiltroTienda(state.tiendaId);
     }
-    const menuTienda = crearFiltroTiendas({
+    menuTienda = crearFiltroTiendas({
       tiendas: tiendasMenu,
       asesores: asesoresMenu,
       multiple: true,

@@ -1,5 +1,6 @@
 // src/modules/vales/controllers/valeController.js
 const valeService = require('../services/valeService');
+const valeUbicacionService = require('../services/valeUbicacionService');
 const { leerAdjuntos } = require('../services/propuestaAdjuntos');
 const { validarArchivos, tipoRealCoincide } = require('../../../core/files/fileSignature');
 const { responderError, responderErrorInterno, ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
@@ -90,6 +91,15 @@ class ValeController {
       const archivos = validarArchivos(req.files);
       const vale = await valeService.corregirVale(req.user, idObligatorio(req.params.id), req.body, archivos);
       return res.json(vale);
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  // Dónde ve este usuario el vale que nombra un aviso.
+  async ubicacion(req, res) {
+    try {
+      return res.json(await valeUbicacionService.ubicar(req.user, idObligatorio(req.params.id)));
     } catch (error) {
       return responderError(res, error);
     }
