@@ -314,6 +314,7 @@ class LiquidacionService {
       await notificacionService.registrar(destinatarios, {
         modulo: NOTIFICACION.MODULO,
         tipo: NOTIFICACION.TIPO_LIQUIDADA,
+        referenciaTipo: NOTIFICACION.REFERENCIA, referenciaId: fila.id,
         nivel: NOTIFICACION.NIVEL,
         mensaje: msg('notificacion.solicitudLiquidada', { correlativo: fila.correlativo, solicitante: fila.solicitanteNombre })
       });

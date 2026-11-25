@@ -49,4 +49,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireSidebar();
   initSocket();
   await cargarTab();
+  window.centroNotificaciones?.abrirPendiente();
 });
