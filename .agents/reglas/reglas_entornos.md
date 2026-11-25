@@ -48,8 +48,18 @@ Las migraciones de `database/migrations/` tocan solo la base del propio entorno,
 | Borrar archivos de Viáticos (fotos de defectos, PDF y comprobantes) al modificar o dar de baja una solicitud | `supabaseStorage.eliminar` (vía `archivosViaticoService.eliminarArchivos`) | Solo en producción |
 | Borrar el PDF de un recibo de Viáticos al quitarlo o si falla su registro (bucket de recibos) | `supabaseStorage.viaticosRecibos.eliminar` (vía `archivosViaticoService.eliminarRecibos`) | Solo en producción |
 | Purga de fotos de Incidencias (reporte y avances) por antigüedad desde el cierre, según el parámetro `meses_retencion_fotos` (0 = conservar siempre) | `retencionFotosWatcher` (Incidencias) | Solo en producción |
+| Enviar notificaciones push (Web Push) a los dispositivos suscritos | `pushService` (`src/core/notifications`) | Excepción: producción, staging y desarrollo, cada uno con sus claves (ver abajo) |
 
-Hoy el código no envía correos, notificaciones push ni webhooks, ni llama a APIs de terceros. Detalle del borrado de archivos: `.agents/modulos/vales de arte/documentacion/storage_solo_produccion.md`.
+Hoy el código no envía correos ni webhooks. Detalle del borrado de archivos: `.agents/modulos/vales de arte/documentacion/storage_solo_produccion.md`.
+
+## Excepción: notificaciones push
+
+Aprobada por el dueño (2026-11-25): el push corre en `production`, `staging` y `development` para poder probarlo antes de producción; en `test` queda apagado. Dos barreras, ambas obligatorias:
+
+1. **Claves VAPID propias por entorno.** Una suscripción solo admite envíos firmados con la clave con la que se creó. Las claves de producción **nunca** se usan en otro entorno.
+2. **El refresco de staging borra `push_suscripciones`** (`scripts/staging/lib/limpiezas.js`).
+
+Variables opcionales (excepción a «todas obligatorias»): `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`mailto:` o `https:`). El par se genera una vez por entorno con `npx web-push generate-vapid-keys`. Sin ellas el push queda apagado y el resto del portal funciona igual.
 
 ## Al agregar una acción o un módulo nuevo
 

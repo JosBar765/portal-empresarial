@@ -12,6 +12,7 @@ const socketManager = require('../../../core/websocket/socketManager');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero, validarTelefono } = require('../../../core/utils/validar');
 const sesionRepository = require('../../../core/auth/sesionRepository');
+const pushService = require('../../../core/notifications/pushService');
 const calendarioService = require('../../../core/calendario/calendarioService');
 
 // Roles base protegidos: no se pueden eliminar ni renombrar, pero sus
@@ -124,6 +125,7 @@ class AdminService {
       // refresh token, que duraría hasta 12 h) debe dejar de servir: si la
       // cuenta estaba comprometida, el atacante no conserva el acceso.
       await sesionRepository.eliminarPorUsuario(id);
+      await pushService.revocarUsuario(id);
       socketManager.sendToUser(id, 'sesion_revocada', {});
     }
     if (rolNum === ROL_ASESOR) {
@@ -158,6 +160,7 @@ class AdminService {
       // Borra también la sesión: su refresh token deja de servir de inmediato
       // (antes caía recién en la siguiente renovación del access token).
       await sesionRepository.eliminarPorUsuario(id);
+      await pushService.revocarUsuario(id);
       socketManager.sendToUser(id, 'sesion_revocada', {});
     }
     return resultado;
