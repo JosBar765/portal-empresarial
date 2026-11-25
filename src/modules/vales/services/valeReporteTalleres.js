@@ -16,11 +16,12 @@ const NOTA_TALLERES = 'Un vale que pasa por varios talleres cuenta una sola vez 
 function unirSeccionPorVale(seccion) {
   const grupos = (seccion && seccion.grupos) || [];
   if (!grupos.length) return seccion;
-  const porVale = new Map(); // id del vale -> { vale, nombres: nombre -> id del taller }
+  const porVale = new Map(); // id del vale -> { vale, nombres: nombre -> id, barras: ids de los grupos en que venía }
   for (const g of grupos) {
     for (const v of g.vales || []) {
-      if (!porVale.has(v.id)) porVale.set(v.id, { vale: v, nombres: new Map() });
+      if (!porVale.has(v.id)) porVale.set(v.id, { vale: v, nombres: new Map(), barras: new Set() });
       const entrada = porVale.get(v.id);
+      entrada.barras.add(g.id);
       // Los talleres (o diseñadores) de un vale son TODOS a los que fue (`talleresDelVale` / `disenadoresDelVale`), no solo el del grupo: filtrar por uno no esconde a los demás.
       // Las filas del reporte de diseñadores traen las dos listas: ahí manda la de diseñadores (aunque esté vacía: «Sin asignar»); en talleres solo hay la de talleres.
       const todos = Array.isArray(v.disenadoresDelVale) ? v.disenadoresDelVale : v.talleresDelVale;
@@ -29,16 +30,21 @@ function unirSeccionPorVale(seccion) {
     }
   }
   const porConjunto = new Map(); // «Diseño, Diseño UV/3D» -> { vales (en el orden en que ya venían), ids }
-  for (const { vale, nombres } of porVale.values()) {
+  for (const { vale, nombres, barras } of porVale.values()) {
     const ordenados = [...nombres].sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'es'));
     const nombre = ordenados.map(([n]) => n).join(SEPARADOR);
-    if (!porConjunto.has(nombre)) porConjunto.set(nombre, { vales: [], ids: ordenados.map(([, id]) => id) });
-    porConjunto.get(nombre).vales.push(vale);
+    // Una barra que no está entre los nombres mostrados (con filtro de talleres: «Sin asignar» en el taller elegido y diseñador en otro) también
+    // identifica a la fila, para que enfocar esa barra no pierda el vale.
+    const mostrados = ordenados.map(([, id]) => id);
+    const fueraDeNombres = [...barras].filter(id => !mostrados.includes(id)).sort((a, b) => a - b);
+    const llave = fueraDeNombres.length ? `${nombre}|${fueraDeNombres.join(',')}` : nombre;
+    if (!porConjunto.has(llave)) porConjunto.set(llave, { nombre, vales: [], ids: [...mostrados, ...fueraDeNombres] });
+    porConjunto.get(llave).vales.push(vale);
   }
   // Todo el desglose va por fecha de entrega: los vales de cada fila y las filas por su primer vale.
   const porFecha = (a, b) => String(a.fechaEntrega).localeCompare(String(b.fechaEntrega)) || a.id - b.id;
-  const unidos = [...porConjunto].map(([nombre, { vales: sinOrden, ids }]) => ({ vales: sinOrden.sort(porFecha), nombre, ids })).map(({ nombre, ids, vales }) => ({
-    clave: `taller:${nombre}`, id: nombre, nombre, nombres: nombre.split(SEPARADOR), ids, vales, total: vales.length,
+  const unidos = [...porConjunto].map(([llave, { nombre, vales: sinOrden, ids }]) => ({ llave, vales: sinOrden.sort(porFecha), nombre, ids })).map(({ llave, nombre, ids, vales }) => ({
+    clave: `taller:${llave}`, id: llave, nombre, nombres: nombre.split(SEPARADOR), ids, vales, total: vales.length,
     autorizados: vales.filter(v => v.autorizado).length, atrasados: vales.filter(v => v.atrasado).length
   })).sort((a, b) => porFecha(a.vales[0], b.vales[0]) || a.nombre.localeCompare(b.nombre, 'es'));
   return { ...seccion, total: unidos.reduce((s, g) => s + g.total, 0), grupos: unidos };
