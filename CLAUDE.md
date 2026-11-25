@@ -135,5 +135,6 @@ database/             # schema.sql, seed.sql, users.sql, migrations/
 | Proyectos (`proyectos`) | `.agents/modulos/proyectos/README.md` | Sales projects by niche: global company base, equal split among advisors, follow-up and closing; admin configuration center. |
 
 - New module: `README.md` section 4 and `.agents/reglas/reglas_modulo.md`; document it under `.agents/modulos/<name>/` (`README.md` + `documentacion/`).
-- Global rules: `.agents/reglas/` (architecture, module templates, auth, implementation style, UI, SQL files, environments, CI, deployment).
+- Global rules: `.agents/reglas/` (architecture, module templates, auth, implementation style, UI, SQL files, environments, CI, deployment, notifications).
+- Notifications (bell, device push, setup, troubleshooting): `.agents/reglas/reglas_notificaciones.md`.
 - Vales also has `flujo_vale_de_arte.md` (source of truth), `analisis_modulo.md` (history), `correcciones/` (changelog).

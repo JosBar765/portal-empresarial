@@ -2,7 +2,7 @@
 
 El centro de notificaciones dejó de ser global: **cada notificación pertenece a un módulo** y cada módulo muestra solo las suyas. Rama `fix/centro-notificaciones`.
 
-Los avisos del sistema (escritorio y celular) y su configuración por módulo: `notificaciones_dispositivos.md`.
+Los avisos del sistema (escritorio y celular) y su configuración por módulo: `.agents/reglas/reglas_notificaciones.md`.
 
 ## Qué cambió
 
