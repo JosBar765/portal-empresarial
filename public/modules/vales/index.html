@@ -124,7 +124,11 @@
           <div class="buzon-toolbar">
             <h2 id="buzon-titulo">Buzón de Vales de Arte</h2>
             <div class="buzon-filtros">
-              <input type="text" id="filtro-texto" placeholder="Buscar por correlativo o cliente..." />
+              <div class="buscador">
+                <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
+                <input type="text" id="filtro-texto" placeholder="Buscar por correlativo o cliente..." />
+                <button type="button" class="buscador-limpiar" aria-label="Limpiar la búsqueda"><ion-icon name="close-outline"></ion-icon></button>
+              </div>
               <select id="filtro-disenador" aria-label="Filtrar por diseñador" style="display:none;">
                 <option value="">Todos los diseñadores</option>
               </select>
@@ -176,6 +180,7 @@
   <script src="/js/toast.js"></script>
   <script src="/js/pushDispositivo.js"></script>
   <script src="/js/notificacionesAjustes.js"></script>
+  <script src="/js/buscador.js"></script>
   <script src="/js/notificaciones.js"></script>
   <script src="/js/mantenimientoAviso.js"></script>
   <script type="module" src="/modules/vales/js/app.js"></script>

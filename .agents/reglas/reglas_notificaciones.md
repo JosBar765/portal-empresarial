@@ -198,11 +198,10 @@ WHERE u.email = 'correo@ejemplo.com';
 
 ## Sin verificar todavía (2026-11-25)
 
-Probado en desarrollo (Brave de escritorio): activación, flujo de Vales, rechazos y atraso. Probado en staging (Samsung S25 Ultra, Chrome, app instalada): aviso con la app cerrada y tras reiniciar el teléfono, cierre y nuevo inicio de sesión, otro usuario en el mismo equipo, aviso con la PC en otro módulo y enlace externo sin perder la sesión. Falta:
+Probado en desarrollo (Brave de escritorio): activación, flujo de Vales, rechazos y atraso. Probado en staging (Samsung S25 Ultra, Chrome, app instalada): aviso con la app cerrada y tras reiniciar el teléfono, cierre y nuevo inicio de sesión, otro usuario en el mismo equipo, aviso con la PC en otro módulo y enlace externo sin perder la sesión. Tocar una notificación real abre el vale en la computadora y en el celular. Falta:
 
 - Aviso tras una o dos horas sin usar el teléfono (ahorro de batería).
 - iPhone o iPad.
-- Que tocar una notificación real abra el registro (en la computadora y con la app del celular cerrada).
 - Las categorías «Bajas y eliminaciones» y los avisos «por vencer».
 - La visibilidad de categorías por rol (se dedujo de los emisores) y los avisos de Viáticos, Incidencias y Proyectos.
 
