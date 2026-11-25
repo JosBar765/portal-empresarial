@@ -117,7 +117,7 @@ function armarPayload(modulo, notificacion) {
   return JSON.stringify({
     titulo: datos ? datos.nombre : 'Portal Empresarial',
     cuerpo: notificacion.mensaje,
-    url: datos ? `${datos.path}/` : '/dashboard/',
+    url: datos ? `${datos.path}/?aviso=${notificacion.id}` : '/dashboard/',
     tag: `notif-${notificacion.id}`,
     nivel: notificacion.nivel,
     modulo

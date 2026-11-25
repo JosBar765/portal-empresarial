@@ -231,6 +231,7 @@ class SolicitudGuardadoService {
       await notificacionService.registrar(destinatarios, {
         modulo: NOTIFICACION.MODULO,
         tipo: esModificacion ? NOTIFICACION.TIPO_MODIFICADA : NOTIFICACION.TIPO_NUEVA,
+        referenciaTipo: NOTIFICACION.REFERENCIA, referenciaId: id,
         nivel: NOTIFICACION.NIVEL,
         mensaje: msg(esModificacion ? 'notificacion.solicitudModificada' : 'notificacion.solicitudNueva', {
           correlativo: detalle.correlativo, solicitante: detalle.solicitante.nombre

@@ -138,6 +138,7 @@ const MESES_COMPLETOS = Object.freeze(['enero', 'febrero', 'marzo', 'abril', 'ma
 
 const NOTIFICACION = Object.freeze({
   MODULO: 'viaticos',
+  REFERENCIA: 'solicitud',
   NIVEL: 'info',
   TIPO_NUEVA: 'solicitud_nueva',
   TIPO_MODIFICADA: 'solicitud_modificada',

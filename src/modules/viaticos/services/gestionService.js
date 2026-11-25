@@ -124,6 +124,7 @@ class GestionService {
         modulo: NOTIFICACION.MODULO,
         tipo: autorizada ? NOTIFICACION.TIPO_AUTORIZADA : NOTIFICACION.TIPO_RECHAZADA,
         nivel: autorizada ? NOTIFICACION.NIVEL : NOTIFICACION.NIVEL_RECHAZO,
+        referenciaTipo: NOTIFICACION.REFERENCIA, referenciaId: id,
         mensaje: autorizada ? msg('notificacion.solicitudAutorizada', { correlativo }) : msg('notificacion.solicitudRechazada', { correlativo, motivo })
       });
     } catch (error) {

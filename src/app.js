@@ -11,6 +11,7 @@ const tokenService = require('./core/auth/tokenService');
 const { authenticateJWT, requireAuth, requirePermission, requireModuleAccess } = require('./core/permissions/permissionMiddleware');
 const { MODULOS } = require('./core/permissions/modulesCatalog');
 const maintenanceGate = require('./core/permissions/maintenanceMiddleware');
+const { destinoSeguro } = require('./core/permissions/destinoLogin');
 const valeRoutes = require('./modules/vales/routes');
 const atrasoWatcher = require('./modules/vales/atrasoWatcher');
 const vigenciaWatcher = require('./modules/vales/vigenciaWatcher');
@@ -73,7 +74,7 @@ app.use('/js', express.static(path.join(__dirname, '../public/js')));
 app.use('/login', async (req, res, next) => {
   const decoded = await tokenService.autenticar(req, res);
   if (decoded) {
-    return res.redirect('/dashboard/');
+    return res.redirect(destinoSeguro(req.query.destino) || '/dashboard/');
   }
   next();
 });

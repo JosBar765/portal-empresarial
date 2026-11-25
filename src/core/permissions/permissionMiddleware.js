@@ -2,6 +2,7 @@
 const path = require('path');
 const jwtHelper = require('../auth/jwtHelper');
 const tokenService = require('../auth/tokenService');
+const { rutaDeLogin } = require('./destinoLogin');
 
 /**
  * Middleware global para interceptar y verificar el token JWT.
@@ -51,7 +52,7 @@ function handleUnauthorized(req, res) {
   }
   
   // Si intenta acceder a una vista/página, redirigir inmediatamente al login (302)
-  return res.redirect('/login/?expired=true');
+  return res.redirect(rutaDeLogin(req.originalUrl));
 }
 
 /**

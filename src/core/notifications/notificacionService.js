@@ -23,6 +23,12 @@ class NotificacionService {
     pushService.enviar(datos.modulo, datos.tipo, porUsuario); // sin esperar: el push nunca frena la operación
   }
 
+  async obtener(usuarioId, id) {
+    const notificacion = await notificacionRepository.obtener(usuarioId, id);
+    if (!notificacion) throw new ErrorDeNegocio('Ese aviso ya no está disponible.', 404);
+    return notificacion;
+  }
+
   async listar(usuarioId, { modulo, limite, desplazamiento }) {
     validarModulo(modulo);
     const limiteSeguro = Math.min(Math.max(Number(limite) || POR_PAGINA, 1), 50);

@@ -65,6 +65,8 @@ export function initSocket() {
   // Una solicitud rechazada que venció pasó a Borradores: su notificación abre la lista (import dinámico: evita un ciclo con los formularios).
   window.centroNotificaciones?.iniciar({
     socket: state.socket, modulo: 'viaticos',
+    // Import dinámico: las vistas dependen de este archivo.
+    alAbrir: (aviso) => import('./actions/irASolicitud.js').then(m => m.irASolicitud(aviso)),
     enlaces: { [NOTIFICACION_VENCIDA]: () => import('./forms/borradores.js').then(m => m.abrirModalBorradores()) }
   });
   window.avisoMantenimiento?.iniciar({ socket: state.socket, rolId: state.user.rolId });

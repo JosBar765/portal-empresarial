@@ -92,6 +92,8 @@ Define las políticas y guards de rutas:
 Sesión = **access token corto** (cookie `token`) + **refresh token opaco y rotativo** (cookie `refresh_token`, `REFRESH_TOKEN_EXPIRES_IN`, por defecto `12h` como techo absoluto desde el login). Ambas cookies: `httpOnly`, `sameSite: 'strict'`, `path: '/'`.
 
 Una petición **sin** cookies de sesión recibe 401 o la redirección al login, pero **no se le ordena borrarlas**: la app instalada puede arrancar sin enviarlas (`sameSite: strict`) y borrarlas cerraría la sesión del navegador, dejándola huérfana en `sesiones_activas`. Solo se borran las que llegaron y no valen. Prueba: `node --test scripts/security/cookiesSinSesion.test.js`.
+
+Al mandar al login desde una página de módulo se conserva el destino (`?destino=/modules/<nombre>/`, y de los parámetros solo `aviso=<número>`), y tras comprobar o iniciar la sesión se vuelve ahí. Solo se aceptan páginas propias (`src/core/permissions/destinoLogin.js` y `destinoTrasLogin` en el login): nunca una URL de fuera. Prueba: `node --test scripts/security/destinoLogin.test.js`.
 *   El refresh token nunca se guarda en claro: `sesiones_activas` solo tiene su hash SHA-256 (`refresh_hash`) y el anterior (`refresh_anterior_hash`).
 *   `autenticar(req, res)` (usado por `authenticateJWT`, `sessionCheck` y los redirects de `/` y `/login`): si el access token venció, lo renueva solo con el refresh, releyendo rol, permisos y `activo` de la base. Un usuario desactivado o con permisos cambiados lo refleja en la siguiente renovación (minutos), sin depender del socket.
 *   Cada renovación rota el refresh token con compare-and-set. Peticiones paralelas con el mismo refresh comparten resultado durante 30 s (en memoria: el sistema es un solo proceso).

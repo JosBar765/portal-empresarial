@@ -28,7 +28,21 @@ Cada aviso del portal llega a la **campana** del módulo. Además, cada persona 
 | Cerrar sesión | Deja de recibir en ese dispositivo; se reactiva solo cuando **la misma persona** vuelve a entrar. «Desactivar» sí lo olvida |
 | Entra otra persona en el equipo | Queda apagado hasta que ella lo active |
 | Con **ese módulo** a la vista | No sale la notificación del sistema (ya avisa el portal). Con otro módulo sí. En Apple sale siempre |
-| Tocar la notificación | Abre el módulo |
+| Tocar un aviso | En la campana o en la notificación del sistema, abre lo que nombra (ver «Qué abre cada aviso») |
+
+### Qué abre cada aviso
+
+| Módulo | Qué hace |
+|---|---|
+| Vales de Arte | Va a la pestaña donde ese usuario ve el vale, pone el mes de su entrega, escribe el correlativo en el buscador y quita los demás filtros |
+| Viáticos | Va a Solicitudes o Gestiones, pone el mes en que se creó y escribe el correlativo en el buscador |
+| Incidencias | Abre la incidencia |
+| Proyectos | Abre la pantalla relacionada, con la forma de volver |
+
+- Si el registro ya no existe o no está disponible para esa persona, sale el cartel «Ese aviso ya no tiene una pantalla a la que llevarte».
+- Los avisos de Viáticos anteriores a 2026-11-25 no guardaron su solicitud: no abren nada.
+- Un vale con modificaciones puede aparecer junto a ellas, porque comparten número.
+- Las solicitudes vencidas y los vales vencidos que pasaron a Borradores abren Borradores desde la campana.
 
 ### Dónde funciona
 
@@ -174,6 +188,8 @@ WHERE u.email = 'correo@ejemplo.com';
 3. Agregar el `tipo` a una categoría de `categorias.js`. Sin categoría queda solo en la campana.
 4. Categoría nueva: definir qué permisos pueden recibirla, según a quién avisa de verdad el emisor.
 
+**Abrir lo que nombra un aviso:** el push lleva `?aviso=<id>` y `public/js/notificaciones.js` ejecuta la misma acción que al tocarlo en la campana. Un módulo solo necesita guardar la referencia (`vale_id` o `referencia_tipo`/`referencia_id`), pasar `alAbrir` al iniciar la campana y llamar a `centroNotificaciones.abrirPendiente()` cuando ya cargó. El servidor decide qué puede ver cada persona (`valeUbicacionService`, `viaticos/services/ubicacionService`).
+
 **Módulo nuevo:** además, su campana (ver `centro_notificaciones_por_modulo.md` en Vales) y los scripts `pushDispositivo.js` y `notificacionesAjustes.js` en su página.
 
 **Pruebas:** `node --test scripts/notificaciones/` (sin base de datos ni red). Íconos: `node scripts/notificaciones/generarIconos.js`.
@@ -182,9 +198,11 @@ WHERE u.email = 'correo@ejemplo.com';
 
 ## Sin verificar todavía (2026-11-25)
 
-Probado en desarrollo con Brave de escritorio: activación, flujo de Vales, rechazos y atraso. Falta:
+Probado en desarrollo (Brave de escritorio): activación, flujo de Vales, rechazos y atraso. Probado en staging (Samsung S25 Ultra, Chrome, app instalada): aviso con la app cerrada y tras reiniciar el teléfono, cierre y nuevo inicio de sesión, otro usuario en el mismo equipo, aviso con la PC en otro módulo y enlace externo sin perder la sesión. Falta:
 
-- Android e iPhone reales, y que el hosting permita conectarse a los servicios push.
+- Aviso tras una o dos horas sin usar el teléfono (ahorro de batería).
+- iPhone o iPad.
+- Que tocar una notificación real abra el registro (en la computadora y con la app del celular cerrada).
 - Las categorías «Bajas y eliminaciones» y los avisos «por vencer».
 - La visibilidad de categorías por rol (se dedujo de los emisores) y los avisos de Viáticos, Incidencias y Proyectos.
 

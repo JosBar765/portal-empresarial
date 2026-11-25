@@ -81,7 +81,7 @@ test('envía a los dispositivos que activaron la categoría, con título, cuerpo
   await pushService.enviar('viaticos', 'solicitud_autorizada', porUsuario);
   assert.deepStrictEqual(consultas[0].params, ['viaticos', 'autorizadas_rechazadas', [7, 8]]);
   assert.strictEqual(enviados.length, 1);
-  assert.deepStrictEqual(enviados[0].payload, { titulo: 'Calculadora de Viáticos', cuerpo: 'Autorizada', url: '/modules/viaticos/', tag: 'notif-55', nivel: 'info', modulo: 'viaticos' });
+  assert.deepStrictEqual(enviados[0].payload, { titulo: 'Calculadora de Viáticos', cuerpo: 'Autorizada', url: '/modules/viaticos/?aviso=55', tag: 'notif-55', nivel: 'info', modulo: 'viaticos' });
   assert.strictEqual(enviados[0].opciones.urgency, 'normal');
 });
 
