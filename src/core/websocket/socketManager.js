@@ -5,7 +5,6 @@ const config = require('../../config/env');
 const sesionRepository = require('../auth/sesionRepository');
 
 let io = null;
-const activeConnections = new Map(); // Guardar conexiones activas asociadas a usuarios
 
 // Cada módulo que use salas más específicas que "role_<rolId>" (genérico,
 // ver más abajo) registra aquí su propia función de validación —
@@ -87,7 +86,6 @@ function init(server) {
 
   io.on('connection', (socket) => {
     const userId = String(socket.user.id);
-    activeConnections.set(userId, socket.id);
     socket.join(`usuario:${userId}`);
     console.log(`[WebSocket] Usuario conectado: ${userId} (Socket: ${socket.id})`);
 
@@ -101,7 +99,6 @@ function init(server) {
     if (socket.user.sid) sesionRepository.incrementarConexion(socket.user.id, socket.user.sid).catch(() => {});
 
     socket.on('disconnect', () => {
-      activeConnections.delete(userId);
       console.log(`[WebSocket] Usuario desconectado: ${userId}`);
       if (socket.user.sid) sesionRepository.decrementarConexion(socket.user.id, socket.user.sid).catch(() => {});
     });
@@ -162,16 +159,13 @@ function sendToModule(moduleName, event, data) {
 }
 
 /**
- * Envía un mensaje a un usuario específico si está conectado.
- * @param {string|number} userId 
- * @param {string} event 
- * @param {any} data 
+ * Envía un mensaje a todas las pestañas conectadas de un usuario.
+ * @param {string|number} userId
+ * @param {string} event
+ * @param {any} data
  */
 function sendToUser(userId, event, data) {
-  if (io && activeConnections.has(String(userId))) {
-    const socketId = activeConnections.get(String(userId));
-    io.to(socketId).emit(event, data);
-  }
+  sendToUsers([userId], event, data);
 }
 
 /**
