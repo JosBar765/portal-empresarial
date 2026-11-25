@@ -42,8 +42,8 @@ Today notifications are only visible inside the open portal. An earlier push imp
 - [x] T1 Data and catalog: migration (subscriptions with device class, preferences), category catalog per module with role/permission visibility. Route: delegated (writer trigger).
 - [x] T2 Backend push: service, repositories, routes (config, subscribe, unsubscribe, preferences), gate by preference and device class, VAPID env, `web-push`, subscription removal, staging cleanup, environment rules. Route: delegated.
 - [x] T3 Types: every Vales notification gets a `tipo`; check the other modules map completely. Route: delegated.
-- [ ] T4 Frontend: public `sw.js`, manifest, icons, device activation, gear and modal in the bell for all module pages, logout cleanup. Route: delegated.
-- [ ] T5 Docs (`README` of notifications, modules, `reglas_entornos.md`) and verification. Route: delegated.
+- [x] T4 Frontend: public `sw.js`, manifest, icons, device activation, gear and modal in the bell for all module pages, logout cleanup. Route: delegated.
+- [x] T5 Docs (`README` of notifications, modules, `reglas_entornos.md`) and verification. Route: delegated.
 
 ## Checks
 - Offline tests with stubbed repositories (`node --test`), RED before GREEN for backend behavior.
@@ -61,6 +61,10 @@ Forecast well over 400 authored lines. Work-unit commits per task; PR slicing is
 - `node --test scripts/notificaciones/`: 27/27. `npm run ci:sintaxis`: 787 files OK. Not run: `ci:migraciones`, `ci:arranque` (need a database); no real push, no browser.
 - Route: delegated to one forked writer (writer trigger). RDD assessment: left to the parent.
 
+- T4 2fa8dc2d: public sw.js/manifest, icons, pushDispositivo.js, notificacionesAjustes.js, gear in 7 modules, logout cleanup (capture click on #logout-btn). RED (modules missing) then GREEN: node --test 33/33; ci:sintaxis 792 OK.
+- T4 UI checked with a static harness (stubbed API) in headless Edge at 1366x768 and 360px: gear, rows, autosave, revert, column toggle, pre-prompt, popover, Escape. Not checked against a running server, nor a real push.
+- T5: notificaciones_dispositivos.md, staging refresh rules, CLAUDE.md push exception.
+
 ## API for T4 (authenticated, under /api/notificaciones/push)
 - `GET /config` -> `{ habilitado, clavePublica }`
 - `POST /suscripcion` `{ endpoint, keys: { p256dh, auth }, dispositivo: 'escritorio'|'movil' }` -> `{ ok }` / 400 `{ error }`
@@ -74,7 +78,7 @@ Forecast well over 400 authored lines. Work-unit commits per task; PR slicing is
 - Maintenance mode closes sessions but keeps subscriptions (not treated as a revocation).
 - Session revocation by refresh-token reuse (`tokenService`) keeps subscriptions: outside the edit surfaces.
 - Proyectos categories are shown by permission; if the admin matrix turns an event off for a role, the category still shows.
-- `CLAUDE.md` section 6 and `reglas_refresco_staging.md` do not yet mention the push exception and cleanup (T5).
+- Explicit logout removes the device subscription, so the user must activate again after logging back in.
 
 ## Next step
-T4 (frontend).
+Owner: set VAPID keys in .env, run npm run migrate, test on localhost, then staging with a phone. Choose PR slicing.

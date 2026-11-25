@@ -2,6 +2,8 @@
 
 El centro de notificaciones dejó de ser global: **cada notificación pertenece a un módulo** y cada módulo muestra solo las suyas. Rama `fix/centro-notificaciones`.
 
+Los avisos del sistema (escritorio y celular) y su configuración por módulo: `notificaciones_dispositivos.md`.
+
 ## Qué cambió
 
 - **Datos:** la tabla `notificaciones` tiene la columna `modulo` (`VARCHAR(30)`, id del catálogo `modulesCatalog.js`: `vales`, `admin`…), con el índice `(usuario_id, modulo, leida_en, id)`. `valeEvents` guarda las suyas con `modulo: 'vales'`.

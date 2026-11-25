@@ -20,7 +20,7 @@ Código: `scripts/staging/` (`probar-conexion.js`, `marcar.js`, `refrescar.js`, 
 - **Todo lo que escribe va a DESTINO.** Se borran todas sus tablas y vistas (así no queda un `schema_migrations` viejo que engañe al ejecutor), se recrean con el DDL exacto de ORIGEN (`SHOW CREATE TABLE`: motor, charset y claves foráneas) y se copian las filas en lotes por streaming.
 - **Fechas exactas.** Ambas sesiones usan `time_zone = '+00:00'` para que los `TIMESTAMP` queden idénticos; los `DATETIME` se copian como texto. Los `JSON` se copian como texto UTF-8.
 - **Verificación.** `COUNT(*)` exacto de cada tabla en ORIGEN (dentro de la misma foto) y DESTINO; cualquier diferencia termina con código 1.
-- **Limpiezas de staging** (solo DESTINO, lista extensible en `scripts/staging/lib/limpiezas.js`): modo mantenimiento apagado y `sesiones_activas` vaciada (son sesiones de producción, inútiles con otro `JWT_SECRET`).
+- **Limpiezas de staging** (solo DESTINO, lista extensible en `scripts/staging/lib/limpiezas.js`): modo mantenimiento apagado y `sesiones_activas` vaciada (son sesiones de producción, inútiles con otro `JWT_SECRET`) y `push_suscripciones` vaciada (son dispositivos de producción; ver la excepción de push en `reglas_entornos.md`).
 - Las credenciales viven solo en `scripts/staging/.env.refresco` (ignorado por git) y nunca se imprimen.
 
 ## Preparación (una sola vez)
