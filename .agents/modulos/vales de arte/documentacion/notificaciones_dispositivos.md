@@ -47,3 +47,17 @@ Variables opcionales `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`
 ## Pruebas
 
 `node --test scripts/notificaciones/` (sin base de datos ni red). Íconos: `node scripts/notificaciones/generarIconos.js`.
+
+## Diagnóstico por el registro del servidor
+
+Todas las líneas empiezan con `[Push]`. No incluyen claves, direcciones de dispositivos ni textos de avisos.
+
+| Línea | Entornos | Qué indica |
+|---|---|---|
+| `Avisos del sistema activados` / `desactivados: …` | todos menos `test` | Estado al arrancar y motivo |
+| `dispositivo registrado: usuario N, movil, servicio Apple` | staging y desarrollo | El dispositivo quedó guardado y con qué clase |
+| `modulo/TIPO sin categoría: solo campana` | staging y desarrollo | Ese aviso no se envía a dispositivos |
+| `modulo/TIPO categoría=x destinatarios=3 dispositivos=0` | staging y desarrollo | Con `dispositivos=0`: nadie activó su dispositivo o marcó la casilla de esa clase |
+| `enviado notif-N a usuario N por Google` | staging y desarrollo | El servicio aceptó el envío; si no se ve, revisar el teléfono (permisos, No molestar, ahorro de batería) |
+| `No se pudo enviar el aviso a usuario N por Apple (403): motivo` | todos | Rechazo del servicio (claves) o red (`ETIMEDOUT`: salida bloqueada) |
+| `última hora: enviados X, fallidos Y, …` | todos | Resumen por hora |

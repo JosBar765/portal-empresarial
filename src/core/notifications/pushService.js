@@ -44,6 +44,25 @@ setInterval(() => {
 
 let sender = null;
 
+// Registros para diagnosticar en el hosting: nunca llevan claves, direcciones de dispositivos ni textos de avisos.
+const MAX_MOTIVO = 200;
+const detallado = () => config.nodeEnv !== 'production';
+const detalle = (mensaje) => { if (detallado()) console.log(`[Push] ${mensaje}`); };
+
+function servicioDe(endpoint) {
+  let host = '';
+  try { host = new URL(endpoint).hostname; } catch { return 'desconocido'; }
+  if (host.endsWith('googleapis.com')) return 'Google';
+  if (host.endsWith('mozilla.com')) return 'Mozilla';
+  if (host.endsWith('apple.com')) return 'Apple';
+  if (host.endsWith('windows.com')) return 'Microsoft';
+  return 'desconocido';
+}
+
+// El cuerpo de la respuesta dice por qué se rechazó; se le quitan las direcciones.
+const motivoDe = (error) => String((error && (error.body || error.message)) || '')
+  .replace(/https?:\/\/\S+/g, '[dirección]').replace(/\s+/g, ' ').trim().slice(0, MAX_MOTIVO);
+
 const habilitado = () => Boolean(config.push && config.push.habilitado);
 const clavePublica = () => (habilitado() ? config.push.publicKey : null);
 
@@ -77,6 +96,7 @@ async function suscribir(usuarioId, suscripcion, userAgent) {
     dispositivo: suscripcion.dispositivo,
     userAgent: typeof userAgent === 'string' ? userAgent.slice(0, 255) : null
   });
+  detalle(`dispositivo registrado: usuario ${usuarioId}, ${suscripcion.dispositivo}, servicio ${servicioDe(endpoint)}`);
 }
 
 async function desuscribir(usuarioId, endpoint) {
@@ -109,13 +129,15 @@ async function enviarUno(s, payload, opciones) {
   try {
     await conCupo(() => emisor({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, opciones));
     contadores.enviados++;
+    detalle(`enviado ${JSON.parse(payload).tag} a usuario ${s.usuario_id} por ${servicioDe(s.endpoint)}`);
   } catch (error) {
     if (error && (error.statusCode === 404 || error.statusCode === 410)) {
       contadores.eliminadas++;
+      detalle(`suscripción vencida del usuario ${s.usuario_id} (${servicioDe(s.endpoint)}, ${error.statusCode}): se elimina`);
       await pushRepository.eliminarPorId(s.id).catch(() => {});
     } else {
       contadores.fallidos++;
-      console.error(`[Push] No se pudo enviar el aviso (${(error && (error.statusCode || error.code)) || 'error'}).`);
+      console.error(`[Push] No se pudo enviar el aviso a usuario ${s.usuario_id} por ${servicioDe(s.endpoint)} (${(error && (error.statusCode || error.code)) || 'error'}): ${motivoDe(error)}`);
     }
   }
 }
@@ -125,8 +147,12 @@ async function enviar(modulo, tipo, porUsuario) {
   try {
     if (!habilitado() || !porUsuario.size) return;
     const categoria = categoriaDeTipo(modulo, tipo);
-    if (!categoria) return;
+    if (!categoria) {
+      detalle(`${modulo}/${tipo} sin categoría: solo campana`);
+      return;
+    }
     const destinos = await pushRepository.destinos(modulo, categoria, [...porUsuario.keys()]);
+    detalle(`${modulo}/${tipo} categoría=${categoria} destinatarios=${porUsuario.size} dispositivos=${destinos.length}`);
     await Promise.all(destinos.map(s => {
       const notificacion = porUsuario.get(s.usuario_id);
       const opciones = { TTL: TTL_SEGUNDOS, urgency: notificacion.nivel === 'alerta' ? 'high' : 'normal', timeout: TIMEOUT_MS };

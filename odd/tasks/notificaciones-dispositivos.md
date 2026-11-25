@@ -79,6 +79,7 @@ Forecast well over 400 authored lines. Work-unit commits per task; PR slicing is
 - Session revocation by refresh-token reuse (`tokenService`) keeps subscriptions: outside the edit surfaces.
 - Proyectos categories are shown by permission; if the admin matrix turns an event off for a role, the category still shows.
 - Explicit logout removes the device subscription, so the user must activate again after logging back in.
+- 2026-11-25: diagnostic logging for the hosting (startup state, send failures with service and reason; per-notification detail outside production). Route: inline. RED 3 failing, GREEN 37/37; ci:sintaxis OK.
 
 ## Next step
 Owner: set VAPID keys in .env, run npm run migrate, test on localhost, then staging with a phone. Choose PR slicing.

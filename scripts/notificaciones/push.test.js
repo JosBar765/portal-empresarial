@@ -41,7 +41,7 @@ test('push activo en producción, staging y desarrollo; nunca en test', () => {
 test('sin claves o con claves incompletas o inválidas queda apagado', () => {
   const avisos = [];
   const avisar = (m) => avisos.push(m);
-  assert.strictEqual(leerPush({}, 'production', avisar).habilitado, false);
+  assert.strictEqual(leerPush({}, 'production', avisar, () => {}).habilitado, false);
   assert.strictEqual(avisos.length, 0);
   assert.strictEqual(leerPush({ VAPID_PUBLIC_KEY: 'a' }, 'production', avisar).habilitado, false);
   assert.strictEqual(leerPush({ ...CLAVES, VAPID_SUBJECT: 'correo@x.com' }, 'production', avisar).habilitado, false);
@@ -157,4 +157,61 @@ test('guardar rechaza canal, valor o categoría no permitidos', async () => {
   await assert.rejects(preferenciaService.guardar(ASESOR, { ...base, activo: 'si' }), /activ/i);
   await assert.rejects(preferenciaService.guardar(ASESOR, { ...base, categoria: 'por_autorizar' }), /categoría/i);
   assert.strictEqual(consultas.length, 0);
+});
+
+// Registros para diagnosticar en el hosting.
+async function capturar(tarea) {
+  const lineas = [];
+  const originales = { log: console.log, warn: console.warn, error: console.error };
+  for (const k of Object.keys(originales)) console[k] = (m) => lineas.push(String(m));
+  try { await tarea(); } finally { Object.assign(console, originales); }
+  return lineas.join('\n');
+}
+
+test('al arrancar se informa si los avisos quedan activados o por qué no', () => {
+  const lineas = [];
+  const anotar = (m) => lineas.push(m);
+  leerPush(CLAVES, 'staging', anotar, anotar);
+  leerPush({}, 'production', anotar, anotar);
+  leerPush(CLAVES, 'test', anotar, anotar);
+  assert.strictEqual(lineas.length, 2);
+  assert.match(lineas[0], /activados.*staging/);
+  assert.match(lineas[1], /desactivados.*no hay variables VAPID/i);
+  assert.ok(!lineas.join().includes(CLAVES.VAPID_PRIVATE_KEY));
+});
+
+test('un envío fallido registra servicio, código y motivo, sin la dirección del dispositivo', async () => {
+  reiniciar();
+  const endpoint = 'https://web.push.apple.com/secreto123';
+  responder = (tag) => (tag === 'push:destinos' ? [{ id: 1, usuario_id: 7, endpoint, p256dh: 'k', auth: 'a' }] : []);
+  pushService._setSender(async () => { throw Object.assign(new Error('x'), { statusCode: 403, body: `{"reason":"BadJwtToken"} ${endpoint}` }); });
+  const log = await capturar(() => pushService.enviar('vales', 'ATRASO', new Map([[7, { id: 1, mensaje: 'texto privado' }]])));
+  assert.match(log, /Apple/);
+  assert.match(log, /403/);
+  assert.match(log, /BadJwtToken/);
+  assert.ok(!log.includes('secreto123') && !log.includes('texto privado'));
+});
+
+test('fuera de producción cada aviso cuenta qué pasó', async () => {
+  reiniciar();
+  const sinDispositivos = await capturar(() => pushService.enviar('vales', 'ASIGNADO', new Map([[7, { id: 1, mensaje: 'x' }]])));
+  assert.match(sinDispositivos, /vales\/ASIGNADO categoría=asignacion destinatarios=1 dispositivos=0/);
+  const soloCampana = await capturar(() => pushService.enviar('vales', 'TOMADO', new Map([[7, { id: 1, mensaje: 'x' }]])));
+  assert.match(soloCampana, /vales\/TOMADO sin categoría: solo campana/);
+  responder = (tag) => (tag === 'push:destinos' ? [{ id: 1, usuario_id: 7, endpoint: ENDPOINT, p256dh: 'k', auth: 'a' }] : []);
+  pushService._setSender(async () => {});
+  const enviado = await capturar(() => pushService.enviar('vales', 'ATRASO', new Map([[7, { id: 9, mensaje: 'x' }]])));
+  assert.match(enviado, /enviado notif-9 a usuario 7 por Google/);
+  const registrado = await capturar(() => pushService.suscribir(7, suscripcion(), 'Android'));
+  assert.match(registrado, /dispositivo registrado: usuario 7, movil, servicio Google/);
+});
+
+test('en producción no se registra el detalle de cada aviso', async () => {
+  reiniciar();
+  const config = require(path.join(SRC, 'config/env'));
+  config.nodeEnv = 'production';
+  try {
+    const log = await capturar(() => pushService.enviar('vales', 'TOMADO', new Map([[7, { id: 1, mensaje: 'x' }]])));
+    assert.strictEqual(log, '');
+  } finally { config.nodeEnv = 'development'; }
 });
