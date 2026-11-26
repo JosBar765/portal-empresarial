@@ -14,7 +14,7 @@ Select some of the assigned stores, see and receive notifications only for those
 - Bell subtitle «Mostrando: …». Block at the bottom, collapsed by default: «N sin leer en M tiendas que no ves» with «Toca para ver cuáles»; expanded: one compact row per store with unread («tienda · cantidad · Ver») and «Ver todas mis tiendas». «Ver» adds the store to the selection. Hidden when nothing is unread outside.
 - «Marcar todas como leídas» marks only what is shown.
 - The selection is the same one as the Buzón store filter, stored on the server so it applies to push and follows the user across devices.
-- Only for supervisors; Administrador and Gerente keep today's behaviour. Other modules unchanged.
+- Changed by the owner (2026-11-26): applies to everyone with the Buzón store selector (Supervisor, Gerente, Administrador). Other modules unchanged. Accepted risk: nobody may be alerted for a store that nobody has selected.
 - Bell keeps its 30-day retention.
 
 ## Constraints

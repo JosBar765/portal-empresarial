@@ -1,6 +1,6 @@
-// La campana de Vales sigue las tiendas que el supervisor marca en el Buzón; la selección vive en el servidor.
+// La campana de Vales sigue las tiendas marcadas en el Buzón; la selección vive en el servidor.
 import { state } from '../state.js';
-import { ROL } from '../config/roles.js';
+import { ROL, rolVista } from '../config/roles.js';
 import { resolverTiendaIds, resolverAsesorIds } from '/js/filtroCascada.js';
 
 const API = '/api/vales/filtro-avisos';
@@ -12,7 +12,8 @@ let alElegir = () => {};
 
 const tiendas = () => state.catalogos.tiendasGerencia || [];
 const asesores = () => state.catalogos.asesoresEspeciales || [];
-const esSupervisorConAvisos = () => (state.user.permissions || []).includes('vales.supervisar') && state.user.rolId !== ROL.ADMINISTRADOR;
+// Los mismos que ven el selector de tiendas en la barra del Buzón.
+const tieneSelectorDeTiendas = () => [ROL.SUPERVISOR, ROL.GERENTE, ROL.ADMINISTRADOR].includes(rolVista(state.user));
 
 function seleccionDeValor(valor) {
   const elegibles = new Set(tiendas().map(t => t.id));
@@ -37,7 +38,7 @@ async function enviar(nueva) {
 // Al abrir el Buzón: manda lo guardado en el servidor; si nunca se guardó, sube lo que recordaba este navegador.
 // Devuelve el valor para el selector, o null si a este usuario no le aplica o no se pudo leer.
 export async function sincronizarAlcance(valorLocal, cuandoElija) {
-  if (!esSupervisorConAvisos()) return null;
+  if (!tieneSelectorDeTiendas()) return null;
   alElegir = cuandoElija;
   try {
     const guardada = await pedir();

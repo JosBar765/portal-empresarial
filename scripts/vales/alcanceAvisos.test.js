@@ -119,7 +119,7 @@ const catalogo = { tiendasGerencia: TIENDAS, asesoresEspeciales: ASESORES };
 const idVales = (r) => require.resolve(path.join(SRC, 'modules/vales', r));
 const falsos = {
   'services/valeCatalogoService': { obtenerCatalogos: async () => catalogo },
-  'services/valeHelpers': { esSupervisor: (u) => u.permissions.includes('vales.supervisar'), esAdministrador: (u) => u.rolId === 1 }
+  'services/valeHelpers': { ROL: { GERENTE: 8 }, esSupervisor: (u) => u.permissions.includes('vales.supervisar'), esAdministrador: (u) => u.rolId === 1 }
 };
 for (const [r, exports] of Object.entries(falsos)) require.cache[idVales(r)] = { id: idVales(r), filename: idVales(r), loaded: true, exports };
 const filtro = require(path.join(SRC, 'modules/vales/services/valeFiltroAvisosService'));
@@ -134,15 +134,24 @@ test('guardar recorta a lo que el supervisor puede ver y recuerda que ya eligió
   });
 });
 
-test('leer ignora y limpia lo que ya no aplica; quien no es supervisor no filtra', async () => {
+test('el Administrador y el Gerente también filtran su campana', async () => {
+  await conBase(() => [], async () => {
+    for (const usuario of [{ id: 1, rolId: 1, permissions: [] }, { id: 2, rolId: 8, permissions: [] }]) {
+      assert.strictEqual((await filtro.leer(usuario)).aplica, true);
+      assert.deepStrictEqual((await filtro.guardar(usuario, { tiendas: [1] })).tiendas, [1]);
+    }
+  });
+});
+
+test('leer ignora y limpia lo que ya no aplica; sin selector de tiendas no se filtra', async () => {
   const filas = [{ clase: 'guardado', ref_id: 0 }, { clase: 'tienda', ref_id: 1 }, { clase: 'tienda', ref_id: 99 }];
   await conBase((tag) => (tag === 'alcance:leer' ? filas : []), async () => {
     assert.deepStrictEqual(await filtro.leer(SUPERVISOR), { aplica: true, guardado: true, tiendas: [1], asesores: [] });
     assert.strictEqual(porTag('alcance:borrar').length, 1);
   });
   await conBase(() => [], async () => {
-    assert.deepStrictEqual(await filtro.leer({ id: 2, rolId: 8, permissions: [] }), { aplica: false, guardado: false, tiendas: [], asesores: [] });
+    assert.deepStrictEqual(await filtro.leer({ id: 2, rolId: 2, permissions: [] }), { aplica: false, guardado: false, tiendas: [], asesores: [] });
     assert.strictEqual(porTag('alcance:borrar').length, 1, 'no deja un filtro viejo activo');
-    await assert.rejects(filtro.guardar({ id: 1, rolId: 1, permissions: ['vales.supervisar'] }, { tiendas: [1] }), /supervisor/i);
+    await assert.rejects(filtro.guardar({ id: 3, rolId: 2, permissions: [] }, { tiendas: [1] }), /filtrar/i);
   });
 });

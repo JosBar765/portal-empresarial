@@ -1,11 +1,12 @@
-// La campana de Vales sigue las tiendas que el supervisor marca en el Buzón. El servidor decide qué puede marcar.
+// La campana de Vales sigue las tiendas que cada uno marca en el Buzón. El servidor decide qué puede marcar.
 const alcanceRepository = require('../../../core/notifications/alcanceRepository');
 const valeCatalogoService = require('./valeCatalogoService');
-const { esSupervisor, esAdministrador } = require('./valeHelpers');
+const { ROL, esSupervisor, esAdministrador } = require('./valeHelpers');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 
 const MODULO = 'vales';
-const aplica = (usuario) => esSupervisor(usuario) && !esAdministrador(usuario);
+// Quienes tienen el selector de tiendas en el Buzón: Supervisor, Gerente y Administrador.
+const aplica = (usuario) => esSupervisor(usuario) || esAdministrador(usuario) || usuario.rolId === ROL.GERENTE;
 
 async function permitidos(usuario) {
   const { tiendasGerencia = [], asesoresEspeciales = [] } = await valeCatalogoService.obtenerCatalogos(usuario);
@@ -15,7 +16,7 @@ async function permitidos(usuario) {
 const recortar = (lista, validos) => [...new Set((Array.isArray(lista) ? lista : []).map(Number))].filter(id => validos.has(id));
 
 class ValeFiltroAvisosService {
-  // Descarta (y borra) lo que ya no aplica: tiendas que dejó de cubrir o un rol que ya no es de supervisor.
+  // Descarta (y borra) lo que ya no aplica: tiendas que dejó de cubrir o un rol que ya no tiene el selector.
   async leer(usuario) {
     if (!aplica(usuario)) {
       await alcanceRepository.borrar(usuario.id, MODULO);
@@ -32,7 +33,7 @@ class ValeFiltroAvisosService {
   }
 
   async guardar(usuario, { tiendas, asesores } = {}) {
-    if (!aplica(usuario)) throw new ErrorDeNegocio('Solo un supervisor puede filtrar sus avisos por tienda.', 403);
+    if (!aplica(usuario)) throw new ErrorDeNegocio('Tu rol no puede filtrar sus avisos por tienda.', 403);
     const validos = await permitidos(usuario);
     const seleccion = { tiendas: recortar(tiendas, validos.tiendas), asesores: recortar(asesores, validos.asesores) };
     await alcanceRepository.reemplazar(usuario.id, MODULO, seleccion);
