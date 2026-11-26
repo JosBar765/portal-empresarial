@@ -19,9 +19,16 @@ class AlcanceRepository {
     return db.query('DELETE FROM notificacion_filtros WHERE usuario_id = ? AND modulo = ?', [usuarioId, modulo], 'alcance:borrar');
   }
 
-  // La fila `guardado` distingue «elegí todas» de «nunca elegí».
-  reemplazar(usuarioId, modulo, { tiendas, asesores }) {
-    const filas = [['guardado', 0], ...tiendas.map(id => ['tienda', id]), ...asesores.map(id => ['asesor', id])];
+  usuariosConFiltro(modulo) {
+    return db.query("SELECT DISTINCT usuario_id FROM notificacion_filtros WHERE modulo = ? AND clase <> 'guardado'", [modulo], 'alcance:usuarios');
+  }
+
+  // La fila `guardado` distingue «elegí todas» de «nunca elegí». `paises` y `grupos`: completos, con sus tiendas futuras.
+  reemplazar(usuarioId, modulo, { tiendas = [], paises = [], grupos = [], asesores = [] }) {
+    const filas = [
+      ['guardado', 0], ...tiendas.map(id => ['tienda', id]), ...paises.map(id => ['pais', id]),
+      ...grupos.map(id => ['grupo', id]), ...asesores.map(id => ['asesor', id])
+    ];
     return db.transaccion(async (tx) => {
       await tx.query('DELETE FROM notificacion_filtros WHERE usuario_id = ? AND modulo = ?', [usuarioId, modulo], 'alcance:borrar');
       await tx.query(

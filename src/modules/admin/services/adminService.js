@@ -13,6 +13,7 @@ const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { aEntero, validarTelefono } = require('../../../core/utils/validar');
 const sesionRepository = require('../../../core/auth/sesionRepository');
 const pushService = require('../../../core/notifications/pushService');
+const valeFiltroAvisosService = require('../../vales/services/valeFiltroAvisosService');
 const calendarioService = require('../../../core/calendario/calendarioService');
 
 // Roles base protegidos: no se pueden eliminar ni renombrar, pero sus
@@ -149,7 +150,9 @@ class AdminService {
     if (activo && usuario) {
       await this._validarEncargadoUnico(usuario.rol_id, id);
     }
-    const resultado = await usuarioAdminRepository.establecerActivo(id, activo);
+    const cambiar = () => usuarioAdminRepository.establecerActivo(id, activo);
+    // Activar o desactivar un asesor cambia las tiendas que cubren sus supervisores.
+    const resultado = await (usuario && Number(usuario.rol_id) === ROL_ASESOR ? valeFiltroAvisosService.trasCambioDeAsignaciones(cambiar) : cambiar());
     // Su JWT ya emitido sigue siendo válido (firma/expiración intactas)
     // hasta que expire por su cuenta — authenticateJWT nunca reconsulta
     // `usuarios.activo` en cada request. Si sigue con el socket conectado,
@@ -323,7 +326,12 @@ class AdminService {
     return tiendaAdminRepository.listarPersonalDetalle(tiendaId);
   }
 
-  async agregarPersonalATienda(tiendaId, usuarioId) {
+  // Cambiar quién cubre qué ajusta las tiendas marcadas de cada supervisor.
+  agregarPersonalATienda(tiendaId, usuarioId) {
+    return valeFiltroAvisosService.trasCambioDeAsignaciones(() => this._agregarPersonal(tiendaId, usuarioId));
+  }
+
+  async _agregarPersonal(tiendaId, usuarioId) {
     const usuario = await usuarioAdminRepository.obtenerPorId(usuarioId);
     if (!usuario) throw new Error('Usuario no encontrado.');
     // Cubre tiendas quien tiene `vales.supervisar`, sea cual sea su rol.
@@ -340,7 +348,11 @@ class AdminService {
     throw new Error('Este rol no se asigna a una tienda desde aquí — su ubicación depende de su taller (ver Gestionar Talleres).');
   }
 
-  async quitarPersonalDeTienda(tiendaId, usuarioId) {
+  quitarPersonalDeTienda(tiendaId, usuarioId) {
+    return valeFiltroAvisosService.trasCambioDeAsignaciones(() => this._quitarPersonal(tiendaId, usuarioId));
+  }
+
+  async _quitarPersonal(tiendaId, usuarioId) {
     const usuario = await usuarioAdminRepository.obtenerPorId(usuarioId);
     if (!usuario) throw new Error('Usuario no encontrado.');
     if (await usuarioAdminRepository.rolPuedeSupervisar(usuario.rol_id)) {

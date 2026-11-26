@@ -12,10 +12,37 @@
   // Igual que en el selector del Buzón: el código primero.
   const etiqueta = (t) => (t && t.codigo ? `${t.codigo} - ${t.nombre}` : (t || {}).nombre);
 
+  // Países y rutas marcados por completo se nombran así; el resto, tienda por tienda.
+  function nombresDeTiendas(ids, tiendas) {
+    const marcadas = new Set(ids);
+    const nombres = [];
+    const cubiertas = new Set();
+    const claves = [t => t.pais_nombre, t => (/trofex/i.test(t.departamento_nombre || '') ? t.departamento_nombre.replace(/^Ventas\s+/i, '') : null)];
+    claves.forEach((clave) => {
+      new Set(tiendas.map(clave).filter(Boolean)).forEach((nombre) => {
+        const suyas = tiendas.filter(t => clave(t) === nombre);
+        if (suyas.length < 2 || !suyas.every(t => marcadas.has(t.id) && !cubiertas.has(t.id))) return;
+        suyas.forEach(t => cubiertas.add(t.id));
+        nombres.push(nombre);
+      });
+    });
+    return [...nombres, ...ids.filter(id => !cubiertas.has(id)).map(id => etiqueta(tiendas.find(t => t.id === id)))];
+  }
+
+  // Lo que hay que sumar para ver un registro: nada si ya está, su tienda o, si no es elegible, su asesor especial.
+  function incluir(seleccion, { tiendaId, asesorId }, tiendas, asesores) {
+    if (vacia(seleccion) || tiendaId == null || seleccion.tiendas.includes(tiendaId) || seleccion.asesores.includes(asesorId)) {
+      return { cubierto: true, nueva: null };
+    }
+    if (tiendas.some(t => t.id === tiendaId)) return { cubierto: true, nueva: agregar(seleccion, tiendaId) };
+    if (asesores.some(a => a.id === asesorId)) return { cubierto: true, nueva: agregar(seleccion, `a${asesorId}`) };
+    return { cubierto: false, nueva: null };
+  }
+
   function rotulo(seleccion, tiendas, asesores) {
     if (vacia(seleccion)) return 'todas tus tiendas';
     const nombres = [
-      ...seleccion.tiendas.map(id => etiqueta(tiendas.find(t => t.id === id))),
+      ...nombresDeTiendas(seleccion.tiendas, tiendas),
       ...seleccion.asesores.map(id => (asesores.find(a => a.id === id) || {}).nombre)
     ].filter(Boolean);
     return nombres.length <= 2 ? nombres.join(', ') : `${nombres.length} tiendas`;
@@ -50,7 +77,7 @@
     return { tiendas: esAsesor ? seleccion.tiendas : sumar(seleccion.tiendas), asesores: esAsesor ? sumar(seleccion.asesores) : seleccion.asesores };
   }
 
-  const api = { permite, rotulo, grupos, resumenFuera, valorDeSeleccion, agregar };
+  const api = { permite, rotulo, grupos, resumenFuera, valorDeSeleccion, agregar, incluir };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') window.alcanceAvisos = api;
 })();

@@ -4,6 +4,7 @@ const repo = require('../repositories/supervisionAsesorRepository');
 const usuarioValeRepository = require('../../vales/repositories/usuarioValeRepository');
 const valeMutex = require('../../vales/services/valeMutex');
 const valeEvents = require('../../vales/events');
+const valeFiltroAvisosService = require('../../vales/services/valeFiltroAvisosService');
 const { ESTADOS } = require('../../vales/services/valeHelpers');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { idObligatorio } = require('../../../core/utils/validar');
@@ -76,7 +77,7 @@ class SupervisionAsesorService {
         const actuales = ids(await repo.listarAsignados(asesorId));
         if (mismoConjunto(actuales, lista)) return { cambio: false };
         const esperando = await repo.listarValesEsperando(asesorId, ESTADOS_QUE_ESPERAN_AL_SUPERVISOR);
-        const resultado = await this._aplicarConLocks(admin, asesor, lista, esperando);
+        const resultado = await valeFiltroAvisosService.trasCambioDeAsignaciones(() => this._aplicarConLocks(admin, asesor, lista, esperando));
         if (resultado) return resultado;
       }
       throw new ErrorDeNegocio(MENSAJE_VALES_CAMBIARON, 409);

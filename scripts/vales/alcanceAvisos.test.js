@@ -168,3 +168,92 @@ test('un aviso sin asesor nunca deja la regla sin respuesta (NULL)', () => {
   assert.ok(regla.includes('a <=> u'), 'la comparación con el asesor debe ser segura ante NULL');
   assert.ok(!/OR a = u/.test(regla));
 });
+
+// C1: se guarda lo que se quiso decir (país o grupo completo), no solo los ids del momento.
+const T = [
+  { id: 1, codigo: 'MTC', nombre: 'Uno', pais_id: 10, pais_nombre: 'Guatemala', departamento_id: 5, departamento_nombre: 'Guatemala' },
+  { id: 2, codigo: 'XEL', nombre: 'Dos', pais_id: 10, pais_nombre: 'Guatemala', departamento_id: 6, departamento_nombre: 'Quetzaltenango' },
+  { id: 3, codigo: 'R11', nombre: 'Ruta a', pais_id: 20, pais_nombre: 'Honduras', departamento_id: 7, departamento_nombre: 'Ventas Trofex Ruta 1' },
+  { id: 4, codigo: 'R12', nombre: 'Ruta b', pais_id: 20, pais_nombre: 'Honduras', departamento_id: 7, departamento_nombre: 'Ventas Trofex Ruta 1' },
+  { id: 5, codigo: 'SPS', nombre: 'Suelta', pais_id: 20, pais_nombre: 'Honduras', departamento_id: 8, departamento_nombre: 'Cortés' }
+];
+const reglas = require(path.join(SRC, 'modules/vales/services/valeAlcanceReglas'));
+
+test('un país o un grupo completo se guarda como tal; todas las tiendas, como sin filtro', () => {
+  assert.deepStrictEqual(reglas.compactar([1, 2], T), { tiendas: [], paises: [10], grupos: [] });
+  assert.deepStrictEqual(reglas.compactar([3, 4], T), { tiendas: [], paises: [], grupos: [7] });
+  assert.deepStrictEqual(reglas.compactar([1, 3], T), { tiendas: [1, 3], paises: [], grupos: [] });
+  assert.deepStrictEqual(reglas.compactar([1, 2, 3, 4, 5], T), { tiendas: [], paises: [], grupos: [] });
+});
+
+test('al leer, país y grupo se expanden a las tiendas de hoy (las nuevas entran solas)', () => {
+  const filas = [{ clase: 'pais', ref_id: 10 }, { clase: 'grupo', ref_id: 7 }];
+  const nueva = { ...T[0], id: 9 };
+  assert.deepStrictEqual(reglas.expandir(filas, [...T, nueva]).sort(), [1, 2, 3, 4, 9]);
+});
+
+test('la regla de visibilidad entiende país y grupo', () => {
+  const sql = visibleSql({ usuario: 'u', modulo: 'm', tienda: 't', asesor: 'a' });
+  assert.match(sql, /f\.clase = 'pais'/);
+  assert.match(sql, /f\.clase = 'grupo'/);
+});
+
+test('C2: el cambio del administrador quita las perdidas y marca las nuevas; sin filtro no cambia', () => {
+  const filas = [{ clase: 'tienda', ref_id: 1 }, { clase: 'tienda', ref_id: 3 }, { clase: 'asesor', ref_id: 12 }];
+  const antes = { tiendas: T.slice(0, 3), asesores: [12] };
+  const despues = { tiendas: [T[0], T[4]], asesores: [30] };
+  assert.deepStrictEqual(reglas.ajustar(filas, antes, despues), { tiendas: [1, 5], paises: [], grupos: [], asesores: [30] });
+  assert.strictEqual(reglas.ajustar([], antes, despues), null);
+  assert.strictEqual(reglas.ajustar(filas, antes, antes), null);
+  // Una tienda nueva de un país ya marcado no se repite como id.
+  assert.deepStrictEqual(reglas.ajustar([{ clase: 'pais', ref_id: 10 }], { tiendas: [T[0]], asesores: [] }, { tiendas: [T[0], T[1]], asesores: [] }), null);
+});
+
+test('el rótulo nombra el país o el grupo completo', () => {
+  assert.strictEqual(alcance.rotulo({ tiendas: [1, 2], asesores: [] }, T, []), 'Guatemala');
+  assert.strictEqual(alcance.rotulo({ tiendas: [3, 4], asesores: [] }, T, []), 'Trofex Ruta 1');
+});
+
+test('C3: abrir un aviso de una tienda no marcada la agrega a la selección', () => {
+  const sel = { tiendas: [1], asesores: [] };
+  assert.deepStrictEqual(alcance.incluir(sel, { tiendaId: 1 }, T, []), { cubierto: true, nueva: null });
+  assert.deepStrictEqual(alcance.incluir(sel, { tiendaId: 3 }, T, []), { cubierto: true, nueva: { tiendas: [1, 3], asesores: [] } });
+  assert.deepStrictEqual(alcance.incluir(sel, { tiendaId: 99, asesorId: 12 }, T, [{ id: 12 }]), { cubierto: true, nueva: { tiendas: [1], asesores: [12] } });
+  assert.deepStrictEqual(alcance.incluir(sel, { tiendaId: 99, asesorId: 50 }, T, []), { cubierto: false, nueva: null });
+  assert.deepStrictEqual(alcance.incluir({ tiendas: [], asesores: [] }, { tiendaId: 3 }, T, []), { cubierto: true, nueva: null });
+});
+
+test('guardar y ajustar avisan a las otras pantallas del mismo usuario', async () => {
+  const socket = require(path.join(SRC, 'core/websocket/socketManager'));
+  const enviados = [];
+  socket.sendToUsers = (ids, evento) => enviados.push([ids, evento]);
+  await conBase(() => [], () => filtro.guardar(SUPERVISOR, { tiendas: [1] }));
+  assert.deepStrictEqual(enviados, [[[7], 'alcance_avisos']]);
+});
+
+test('el cambio de asignaciones del administrador ajusta la selección guardada y avisa; un fallo al ajustar no lo bloquea', async () => {
+  let cubiertas = [1, 2];
+  const ids = ['repositories/usuarioValeRepository', 'repositories/catalogoRepository'].map(idVales);
+  const previos = ids.map(id => require.cache[id]);
+  const falsosRepos = [
+    { listarAsesoresPorSupervisor: async () => cubiertas.map(tienda_id => ({ tienda_id })), listarAsesoresEspeciales: async () => [] },
+    { listarTiendas: async () => [1, 2, 3].map(id => ({ id, pais_id: 10, departamento_id: 20 })) }
+  ];
+  ids.forEach((id, i) => { require.cache[id] = { id, filename: id, loaded: true, exports: falsosRepos[i] }; });
+  const socket = require(path.join(SRC, 'core/websocket/socketManager'));
+  const enviados = [];
+  socket.sendToUsers = (usuarios) => enviados.push(usuarios);
+  const responder = (tag) => (tag === 'alcance:usuarios' ? [{ usuario_id: 7 }] : tag === 'alcance:leer' ? [{ clase: 'guardado', ref_id: 0 }, { clase: 'tienda', ref_id: 1 }] : []);
+  try {
+    await conBase(responder, async () => {
+      assert.strictEqual(await filtro.trasCambioDeAsignaciones(async () => { cubiertas = [2, 3]; return 'hecho'; }), 'hecho');
+      assert.deepStrictEqual(porTag('alcance:insert')[0].params[0].map(f => f.slice(2)), [['guardado', 0], ['tienda', 3]]);
+      assert.deepStrictEqual(enviados, [[7]]);
+    });
+    await conBase(() => { throw new Error('sin base'); }, async () => {
+      assert.strictEqual(await filtro.trasCambioDeAsignaciones(async () => 'hecho'), 'hecho');
+    });
+  } finally {
+    ids.forEach((id, i) => { if (previos[i]) require.cache[id] = previos[i]; else delete require.cache[id]; });
+  }
+});
