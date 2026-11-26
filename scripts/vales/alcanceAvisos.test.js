@@ -161,3 +161,10 @@ test('en la campana las tiendas se nombran con su código, como en el selector',
   assert.strictEqual(alcance.rotulo({ tiendas: [1], asesores: [] }, conCodigo, []), 'SSV - Premia');
   assert.strictEqual(alcance.grupos([{ tiendaId: 4, tienda: 'MTC - Munditrofeos', asesorId: 2, noLeidas: 3 }], conCodigo, [])[0].nombre, 'MTC - Munditrofeos');
 });
+
+test('un aviso sin asesor nunca deja la regla sin respuesta (NULL)', () => {
+  const { visibleSql } = require(path.join(SRC, 'core/notifications/alcanceSql'));
+  const regla = visibleSql({ usuario: 'u', modulo: 'm', tienda: 't', asesor: 'a' });
+  assert.ok(regla.includes('a <=> u'), 'la comparación con el asesor debe ser segura ante NULL');
+  assert.ok(!/OR a = u/.test(regla));
+});
