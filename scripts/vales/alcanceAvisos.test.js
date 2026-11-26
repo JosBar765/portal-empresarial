@@ -34,7 +34,7 @@ const porTag = (tag) => consultas.filter(c => c.tag === tag);
 test('la condición deja pasar: sin selección, sin tienda, lo propio y lo marcado', () => {
   const sql = visibleSql({ usuario: 'n.usuario_id', modulo: 'n.modulo', tienda: 'n.tienda_id', asesor: 'n.asesor_id' });
   assert.match(sql, /n\.tienda_id IS NULL/);
-  assert.match(sql, /n\.asesor_id = n\.usuario_id/);
+  assert.match(sql, /n\.asesor_id <=> n\.usuario_id/);
   assert.match(sql, /NOT EXISTS/);
   assert.match(sql, /clase = 'tienda'[\s\S]*clase = 'asesor'/);
 });
