@@ -29,7 +29,7 @@ Select some of the assigned stores, see and receive notifications only for those
 - [x] B2 Server: save/read selection; filter list, counts, summary, mark-all and push; per-store unread counts.
 - [x] B3 Client: persist the Buzón filter to the server, bell subtitle and block, toast/sound filter, live updates.
 - [x] B4 Docs (flow, notifications guide).
-- [ ] B5 Browser verification with responsive after the owner allows the local migration.
+- [x] B5 Browser verification with responsive after the owner allows the local migration.
 
 ## Progress and evidence
 - Route: one bounded writer (fork). RED: `alcanceAvisos` module missing. GREEN: `node --test scripts/notificaciones/` 55/55, `scripts/vales/alcanceAvisos.test.js` 8/8, `avisoAtraso.test.js` 4/4, `ci:sintaxis` OK. `ci:migraciones` not run (needs a CI database).
@@ -38,6 +38,8 @@ Select some of the assigned stores, see and receive notifications only for those
 - Responsive: static harness with the real CSS and bell script at 360x700 and in a 1366x768 window, collapsed and expanded; fixed a truncated subtitle and a squashed list.
 - Decisions: server is the source of truth, with a `guardado` marker so an old browser value is not uploaded again; selection pruned on load; stores no longer assigned appear in the block without «Ver»; a special advisor whose store is not selectable gets its own row.
 - Open: after an administrator reassigns stores, the old selection is pruned only when the supervisor next opens Vales; until then push for the new stores is silent.
+- Fixed after the owner tried it: migration 61 (store of deleted vouchers) and the store name in the out-of-selection query.
+- B5 (Chrome, localhost, admin test account): filtered bell, subtitle, collapsed and expanded block, «Ver» updates selector and server; desktop and 360x700 without horizontal overflow. Every new read query run against local tables. Pending: toast/sound and push with a live event, supervisor account, phone.
 
 ## Next step
-B5: the owner allows `npm run migrate` on the local database, then browser verification. Until the migration runs, notifications fail on a server running this branch.
+Owner tests; push and PR when asked.
