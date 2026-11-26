@@ -46,13 +46,14 @@ Select some of the assigned stores, see and receive notifications only for those
 - [x] C2 When the administrator changes a supervisor's stores, adjust the saved filter at once: lost stores leave, new ones are checked. No filter stays no filter.
 - [x] C3 Opening a notification of an unchecked store adds that store to the selection (saved) and shows the voucher; the selector is never cleared by opening a notification. Same for own vouchers.
 - [x] C4 Other open pages and devices of the same user pick up a selection change without reload.
-- [ ] C5 Parent verifies in the browser (desktop and phone width) including live toast and push.
+- [x] C5 Parent verifies in the browser (desktop and phone width) including live toast and push.
 
 ### C1-C4 evidence
 - Route: one bounded writer (fork). RED: `valeAlcanceReglas` missing. GREEN: notifications 55/55, `alcanceAvisos` 19/19, `avisoAtraso` 4/4, `ci:sintaxis` 809 files.
 - New SQL run read-only on local MySQL 8.4 (list, counts, out-of-selection, push, mark-all EXPLAIN, country/group/store matching with literal rows). MariaDB not run.
 - No migration: `notificacion_filtros.clase` takes `pais` and `grupo`.
 - Open: role or permission changes are only pruned when the user next opens Vales; browser verification pending (C5).
+- C5 (built-in browser, localhost, admin test account): country saved and labelled; opening a notification of an unchecked store adds it and keeps the selector; a second tab follows a change; live toast only for checked stores and the other one is counted outside; 375 px without overflow. Own-voucher case follows the same rule (owner confirmed). Pending: push on a real device, C2 with a real admin change, supervisor account, MariaDB.
 
 ## Next step
-C5.
+Owner tests C2 and push; push and PR when asked.
