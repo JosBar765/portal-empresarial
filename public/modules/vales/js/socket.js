@@ -5,7 +5,7 @@ import { refreshToken, logout } from './api/authApi.js';
 import { cargarBuzon } from './views/buzon.js';
 import { avisarCambioEnModalAutorizar } from './actions/supervisor.js';
 import { avisarCambioBorradores } from './utils/eventosBorradores.js';
-import { alcanceCampana, permiteEnVivo } from './utils/alcanceVales.js';
+import { alcanceCampana, permiteEnVivo, conectarAlcance } from './utils/alcanceVales.js';
 
 export function reproducirBeep() {
   try {
@@ -35,6 +35,7 @@ export function initSocket() {
     enlaces: { EXPIRADO_A_BORRADOR: () => import('./forms/borradores.js').then(m => m.abrirModalBorradores()) }
   });
   state.socket.on('borradores_nuevos', avisarCambioBorradores);
+  conectarAlcance(state.socket);
   window.avisoMantenimiento?.iniciar({ socket: state.socket, rolId: state.user.rolId });
   state.socket.on('connect', () => {
     // `role_X` es independiente de las salas de notificación de vales — todo

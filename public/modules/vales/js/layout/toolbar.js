@@ -33,16 +33,19 @@ let menuTienda = null;
 // Se cumple cuando la selección guardada en el servidor ya está aplicada al selector.
 export let filtroSincronizado = Promise.resolve();
 
-export function mostrarEnBuzon(ventana, busqueda) {
+// `quitarTienda`: solo cuando la tienda del vale no se puede marcar; la selección guardada no cambia.
+export function mostrarEnBuzon(ventana, busqueda, { quitarTienda = false } = {}) {
   Object.assign(state, {
     ventana, busqueda, filtroContador: null, soloAtrasados: false, soloRechazos: false, soloModificados: false,
-    disenadorFiltro: '', tiendaId: null, sort: { key: null, dir: null }
+    disenadorFiltro: '', sort: { key: null, dir: null }
   });
   $('#filtro-texto').value = busqueda;
   const selectDisenador = $('#filtro-disenador');
   if (selectDisenador) selectDisenador.value = '';
-  // El filtro de tienda recordado no se borra: solo se quita mientras se muestra este vale.
-  menuTienda?.actualizar('');
+  if (quitarTienda) {
+    state.tiendaId = null;
+    menuTienda?.actualizar('');
+  }
   barraPeriodo?.pintar();
   actualizarIndicadoresOrden();
   cargarBuzon();
@@ -132,7 +135,9 @@ export function wireToolbar() {
       menuTienda.actualizar(valor);
       cargarBuzon();
     };
-    filtroSincronizado = sincronizarAlcance(state.tiendaId || '', (valor) => { aplicarValor(valor); guardarAlcance(valor); })
+    // Un cambio hecho en otra pantalla puede traer tiendas que el selector aún no tiene.
+    const alLlegar = (valor, tiendas, asesores) => { menuTienda.actualizarTiendas(tiendas, asesores); aplicarValor(valor); };
+    filtroSincronizado = sincronizarAlcance(state.tiendaId || '', (valor) => { aplicarValor(valor); guardarAlcance(valor); }, alLlegar)
       .then((valor) => { if (valor !== null && valor !== (state.tiendaId || '')) aplicarValor(valor); });
   }
 }

@@ -115,14 +115,14 @@ test('ubicar un vale: pestañas donde de verdad aparece para ese usuario', async
   const buzon = require(path.join(SRC, 'modules/vales/services/valeUbicacionService'));
   const pedidas = [];
   const dependencias = {
-    obtenerVale: async (id) => (id === 5 ? { id: 5, correlativo: 'GT-1', fecha_entrega: '2026-10-09 00:00:00' } : null),
+    obtenerVale: async (id) => (id === 5 ? { id: 5, correlativo: 'GT-1', fecha_entrega: '2026-10-09 00:00:00', tienda_id: 3, asesor_id: 12 } : null),
     obtenerBuzon: async (usuario, filtros) => {
       pedidas.push(filtros);
       if (filtros.vista === 'mios') throw Object.assign(new Error('No tienes permiso para ver tus vales.'), { status: 403 });
       return { vales: filtros.vista === 'trabajo' ? [{ id: 5 }] : [{ id: 6 }] };
     }
   };
-  assert.deepStrictEqual(await buzon.ubicar({ id: 7 }, 5, dependencias), { correlativo: 'GT-1', fechaEntrega: '2026-10-09', vistas: ['trabajo'] });
+  assert.deepStrictEqual(await buzon.ubicar({ id: 7 }, 5, dependencias), { correlativo: 'GT-1', fechaEntrega: '2026-10-09', vistas: ['trabajo'], tiendaId: 3, asesorId: 12 });
   assert.deepStrictEqual(pedidas[0], { vista: 'buzon', ventana: 'mes', fecha: '2026-10-09', busqueda: 'GT-1' });
   await assert.rejects(buzon.ubicar({ id: 7 }, 8, dependencias), (e) => e.status === 404);
   await assert.rejects(buzon.ubicar({ id: 7 }, 5, { ...dependencias, obtenerBuzon: async () => ({ vales: [] }) }), (e) => e.status === 404);

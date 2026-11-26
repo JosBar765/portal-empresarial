@@ -25,7 +25,7 @@ async function ubicar(usuario, valeId, dependencias = porDefecto()) {
     }
   }
   if (!vistas.length) throw noDisponible();
-  return { correlativo: vale.correlativo, fechaEntrega, vistas };
+  return { correlativo: vale.correlativo, fechaEntrega, vistas, tiendaId: vale.tienda_id ?? null, asesorId: vale.asesor_id ?? null };
 }
 
 module.exports = { ubicar };

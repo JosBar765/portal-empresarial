@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initSocket();
 
   await cargarBuzon();
-  // Abrir un aviso quita el filtro por un momento: antes debe estar aplicada la selección guardada, o la taparía.
+  // Abrir un aviso puede sumar su tienda a la selección: antes debe estar aplicada la guardada.
   await filtroSincronizado;
   window.centroNotificaciones?.abrirPendiente();
 

@@ -1,5 +1,6 @@
 // La campana de Vales sigue las tiendas marcadas en el Buzón; la selección vive en el servidor.
 import { state } from '../state.js';
+import { obtenerCatalogos } from '../api/valesApi.js';
 import { ROL, rolVista } from '../config/roles.js';
 import { resolverTiendaIds, resolverAsesorIds } from '/js/filtroCascada.js';
 
@@ -9,6 +10,9 @@ const NADA = { tiendas: [], asesores: [] };
 let aplica = false;
 let seleccion = NADA;
 let alElegir = () => {};
+let alRecibir = () => {};
+// Con un guardado en camino manda lo de esta pantalla: releer podría traer el paso anterior.
+let guardando = 0;
 
 const tiendas = () => state.catalogos.tiendasGerencia || [];
 const asesores = () => state.catalogos.asesoresEspeciales || [];
@@ -30,16 +34,23 @@ async function pedir(opciones) {
 }
 
 async function enviar(nueva) {
-  const guardada = await pedir({ method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nueva) });
+  let guardada;
+  guardando++;
+  try {
+    guardada = await pedir({ method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nueva) });
+  } finally {
+    guardando--;
+  }
   seleccion = { tiendas: guardada.tiendas, asesores: guardada.asesores };
   window.centroNotificaciones?.recargar();
 }
 
 // Al abrir el Buzón: manda lo guardado en el servidor; si nunca se guardó, sube lo que recordaba este navegador.
 // Devuelve el valor para el selector, o null si a este usuario no le aplica o no se pudo leer.
-export async function sincronizarAlcance(valorLocal, cuandoElija) {
+export async function sincronizarAlcance(valorLocal, cuandoElija, cuandoLlegue) {
   if (!tieneSelectorDeTiendas()) return null;
   alElegir = cuandoElija;
+  alRecibir = cuandoLlegue || (() => {});
   try {
     const guardada = await pedir();
     if (!guardada.aplica) return null;
@@ -59,6 +70,39 @@ export async function sincronizarAlcance(valorLocal, cuandoElija) {
 export function guardarAlcance(valor) {
   if (!aplica) return;
   enviar(seleccionDeValor(valor)).catch(() => window.toast?.error('Notificaciones', 'No se pudo guardar la selección de tiendas. Revisa tu conexión y vuelve a elegirlas.'));
+}
+
+const firma = (s) => JSON.stringify([[...s.tiendas].sort((a, b) => a - b), [...s.asesores].sort((a, b) => a - b)]);
+
+// La selección cambió en otra pantalla o la ajustó el administrador: se aplica aquí sin volver a guardarla.
+async function releer() {
+  if (!aplica || guardando) return;
+  try {
+    const guardada = await pedir();
+    if (guardando || !guardada.aplica || firma(guardada) === firma(seleccion)) return;
+    // El administrador pudo cambiar también las tiendas que se pueden marcar.
+    state.catalogos = await obtenerCatalogos();
+    seleccion = { tiendas: guardada.tiendas, asesores: guardada.asesores };
+    alRecibir(window.alcanceAvisos.valorDeSeleccion(seleccion), tiendas(), asesores());
+    window.centroNotificaciones?.recargar();
+  } catch { /* se vuelve a intentar con el próximo cambio o al reconectar */ }
+}
+
+export function conectarAlcance(socket) {
+  socket.on('alcance_avisos', releer);
+  // Al reconectar pudo haberse perdido un cambio.
+  socket.on('connect', releer);
+}
+
+// Antes de mostrar el registro de un aviso: si su tienda no está marcada, se agrega. Devuelve false si no se puede marcar.
+export function incluirEnSeleccion(registro) {
+  if (!aplica) return false;
+  const { cubierto, nueva } = window.alcanceAvisos.incluir(seleccion, registro, tiendas(), asesores());
+  if (nueva) {
+    seleccion = nueva;
+    alElegir(window.alcanceAvisos.valorDeSeleccion(nueva));
+  }
+  return cubierto;
 }
 
 // ¿Un aviso en vivo (cartel y sonido) es de lo que se está viendo?
