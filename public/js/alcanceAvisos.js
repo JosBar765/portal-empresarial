@@ -9,10 +9,13 @@
     return seleccion.tiendas.includes(tiendaId) || seleccion.asesores.includes(asesorId);
   }
 
+  // Igual que en el selector del Buzón: el código primero.
+  const etiqueta = (t) => (t && t.codigo ? `${t.codigo} - ${t.nombre}` : (t || {}).nombre);
+
   function rotulo(seleccion, tiendas, asesores) {
     if (vacia(seleccion)) return 'todas tus tiendas';
     const nombres = [
-      ...seleccion.tiendas.map(id => (tiendas.find(t => t.id === id) || {}).nombre),
+      ...seleccion.tiendas.map(id => etiqueta(tiendas.find(t => t.id === id))),
       ...seleccion.asesores.map(id => (asesores.find(a => a.id === id) || {}).nombre)
     ].filter(Boolean);
     return nombres.length <= 2 ? nombres.join(', ') : `${nombres.length} tiendas`;
@@ -25,7 +28,7 @@
       const tienda = tiendas.find(t => t.id === f.tiendaId);
       const especial = !tienda && asesores.find(a => a.id === f.asesorId);
       const clave = especial ? `a${especial.id}` : String(f.tiendaId);
-      const nombre = especial ? especial.nombre : (tienda ? tienda.nombre : f.tienda);
+      const nombre = especial ? especial.nombre : (tienda ? etiqueta(tienda) : f.tienda);
       const grupo = porClave.get(clave) || { clave, nombre, noLeidas: 0, puedeVer: Boolean(tienda || especial) };
       grupo.noLeidas += f.noLeidas;
       porClave.set(clave, grupo);

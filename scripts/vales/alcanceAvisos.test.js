@@ -155,3 +155,9 @@ test('leer ignora y limpia lo que ya no aplica; sin selector de tiendas no se fi
     await assert.rejects(filtro.guardar({ id: 3, rolId: 2, permissions: [] }, { tiendas: [1] }), /filtrar/i);
   });
 });
+
+test('en la campana las tiendas se nombran con su código, como en el selector', () => {
+  const conCodigo = [{ id: 1, codigo: 'SSV', nombre: 'Premia' }, { id: 4, codigo: 'MTC', nombre: 'Munditrofeos' }];
+  assert.strictEqual(alcance.rotulo({ tiendas: [1], asesores: [] }, conCodigo, []), 'SSV - Premia');
+  assert.strictEqual(alcance.grupos([{ tiendaId: 4, tienda: 'MTC - Munditrofeos', asesorId: 2, noLeidas: 3 }], conCodigo, [])[0].nombre, 'MTC - Munditrofeos');
+});

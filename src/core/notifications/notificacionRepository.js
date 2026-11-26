@@ -70,7 +70,7 @@ class NotificacionRepository {
   // No leídas que la selección deja fuera, por tienda y asesor: solo nombres y cantidades.
   fueraDeSeleccion(usuarioId, modulo) {
     return db.query(
-      `SELECT notificaciones.tienda_id, CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS tienda,
+      `SELECT notificaciones.tienda_id, CONCAT(t.codigo, ' - ', e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS tienda,
          notificaciones.asesor_id, u.nombre AS asesor, COUNT(*) AS n
        FROM notificaciones
        JOIN tiendas t ON t.id = notificaciones.tienda_id
