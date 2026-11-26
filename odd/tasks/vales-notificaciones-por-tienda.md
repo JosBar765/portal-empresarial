@@ -55,5 +55,12 @@ Select some of the assigned stores, see and receive notifications only for those
 - Open: role or permission changes are only pruned when the user next opens Vales; browser verification pending (C5).
 - C5 (built-in browser, localhost, admin test account): country saved and labelled; opening a notification of an unchecked store adds it and keeps the selector; a second tab follows a change; live toast only for checked stores and the other one is counted outside; 375 px without overflow. Own-voucher case follows the same rule (owner confirmed). Pending: push on a real device, C2 with a real admin change, supervisor account, MariaDB.
 
+## Later verification (2026-11-26)
+- C2 with real admin changes over the local API (supervisor `regional@`, with a special-supervision advisor): new stores get checked, lost stores leave, a country selection holds, no filter stays none. Store assignments restored.
+- Push filter by code: `pushService.enviar` with a fake sender on local MySQL inside a rolled-back transaction, 11/11 cases (store, country, route, special advisor, own voucher, no store, no advisor). Real device still pending.
+
+## Decisions
+- 2026-11-26, owner: a country or group with a single eligible store is still saved as the country or group (new stores join it).
+
 ## Next step
 Owner tests C2 and push; push and PR when asked.
