@@ -25,13 +25,19 @@ Select some of the assigned stores, see and receive notifications only for those
 - Offline tests, RED before GREEN. Keep CRLF, ids, classes; no inline handlers.
 
 ## Tasks
-- [ ] B1 Data: store and advisor on each Vales notification (with backfill from the voucher) and the saved selection.
-- [ ] B2 Server: save/read selection; filter list, counts, summary, mark-all and push; per-store unread counts.
-- [ ] B3 Client: persist the Buzón filter to the server, bell subtitle and block, toast/sound filter, live updates.
-- [ ] B4 Docs (flow, notifications guide).
+- [x] B1 Data: store and advisor on each Vales notification (with backfill from the voucher) and the saved selection.
+- [x] B2 Server: save/read selection; filter list, counts, summary, mark-all and push; per-store unread counts.
+- [x] B3 Client: persist the Buzón filter to the server, bell subtitle and block, toast/sound filter, live updates.
+- [x] B4 Docs (flow, notifications guide).
 - [ ] B5 Browser verification with responsive after the owner allows the local migration.
 
 ## Progress and evidence
+- Route: one bounded writer (fork). RED: `alcanceAvisos` module missing. GREEN: `node --test scripts/notificaciones/` 55/55, `scripts/vales/alcanceAvisos.test.js` 8/8, `avisoAtraso.test.js` 4/4, `ci:sintaxis` OK. `ci:migraciones` not run (needs a CI database).
+- Commits: 2d4dbecb (data and server), 2dafc61c (client), 79656fb5 (this document), 0b9e03f3 (guide and flow).
+- Visibility rule checked read-only on the local engine with inline rows (7 cases). The migration and the new queries have not run against real tables.
+- Responsive: static harness with the real CSS and bell script at 360x700 and in a 1366x768 window, collapsed and expanded; fixed a truncated subtitle and a squashed list.
+- Decisions: server is the source of truth, with a `guardado` marker so an old browser value is not uploaded again; selection pruned on load; stores no longer assigned appear in the block without «Ver»; a special advisor whose store is not selectable gets its own row.
+- Open: after an administrator reassigns stores, the old selection is pruned only when the supervisor next opens Vales; until then push for the new stores is silent.
 
 ## Next step
-B1.
+B5: the owner allows `npm run migrate` on the local database, then browser verification. Until the migration runs, notifications fail on a server running this branch.
