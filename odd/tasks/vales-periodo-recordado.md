@@ -20,5 +20,9 @@ The date selector must not reset on reload or after leaving the platform.
 - Browser (localhost, admin test account): next month kept after reload; past month opens November after leaving; next week kept; 375 px without overflow.
 - Shares `toolbar.js` with PR #236; different lines.
 
+- Sweep: every «today» over 1100 days with day, week and month (465300 cases), 0 failures.
+- Browser: calendar (day, week, month with year change, range end), a real bell notification (moves the period, saved value unchanged, voucher shown), roles admin, asesor, encargado, diseñador, supervisor, gerente and asistente; calendar at 375 px.
+- Pending: real phone.
+
 ## Next step
 Owner tries it; push and PR when asked.
