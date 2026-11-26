@@ -46,7 +46,7 @@ Select some of the assigned stores, see and receive notifications only for those
 - [x] C2 When the administrator changes a supervisor's stores, adjust the saved filter at once: lost stores leave, new ones are checked. No filter stays no filter.
 - [x] C3 Opening a notification of an unchecked store adds that store to the selection (saved) and shows the voucher; the selector is never cleared by opening a notification. Same for own vouchers.
 - [x] C4 Other open pages and devices of the same user pick up a selection change without reload.
-- [x] C5 Parent verifies in the browser (desktop and phone width) including live toast and push.
+- [ ] C5 Parent verifies in the browser (desktop and phone width) including live toast and push.
 
 ### C1-C4 evidence
 - Route: one bounded writer (fork). RED: `valeAlcanceReglas` missing. GREEN: notifications 55/55, `alcanceAvisos` 19/19, `avisoAtraso` 4/4, `ci:sintaxis` 809 files.
