@@ -5,6 +5,7 @@ import { obtenerDisenadoresAsignables, obtenerCalendarioBuzon } from '../api/val
 import { crearBarraPeriodo } from '../components/barraPeriodoReportes.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { crearFiltroTiendas } from '/js/menuCascada.js';
+import { sincronizarAlcance, guardarAlcance } from '../utils/alcanceVales.js';
 import { resolverTiendaIds, resolverAsesorIds, valorDeAsesor } from '/js/filtroCascada.js';
 import { restaurarFiltrosReportes2 } from '../utils/filtrosReportes2.js';
 
@@ -29,6 +30,8 @@ function guardarFiltroTienda(valor) {
 // Controles de la barra que hay que repintar cuando el buzón se acomoda solo (al abrir un aviso).
 let barraPeriodo = null;
 let menuTienda = null;
+// Se cumple cuando la selección guardada en el servidor ya está aplicada al selector.
+export let filtroSincronizado = Promise.resolve();
 
 export function mostrarEnBuzon(ventana, busqueda) {
   Object.assign(state, {
@@ -117,9 +120,20 @@ export function wireToolbar() {
         state.tiendaId = valor ? String(valor) : null;
         guardarFiltroTienda(state.tiendaId);
         cargarBuzon();
+        guardarAlcance(state.tiendaId);
       }
     });
     contenedorTienda.appendChild(menuTienda.elemento);
+
+    // La campana sigue esta misma selección. «Ver» y «Ver todas» desde la campana pasan por aquí.
+    const aplicarValor = (valor) => {
+      state.tiendaId = valor || null;
+      guardarFiltroTienda(state.tiendaId);
+      menuTienda.actualizar(valor);
+      cargarBuzon();
+    };
+    filtroSincronizado = sincronizarAlcance(state.tiendaId || '', (valor) => { aplicarValor(valor); guardarAlcance(valor); })
+      .then((valor) => { if (valor !== null && valor !== (state.tiendaId || '')) aplicarValor(valor); });
   }
 }
 

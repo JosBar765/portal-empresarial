@@ -10,7 +10,7 @@ import { sessionCheck, logout } from './api/authApi.js';
 import { obtenerCatalogos } from './api/valesApi.js';
 import { wireAccountMenu } from './layout/accountMenu.js';
 import { wireSidebar } from './layout/sidebar.js';
-import { wireToolbar, wireSortHeaders } from './layout/toolbar.js';
+import { wireToolbar, wireSortHeaders, filtroSincronizado } from './layout/toolbar.js';
 import { initSocket } from './socket.js';
 import { iniciarTooltipPipeline } from './components/pipeline.js';
 import { cargarBuzon, wireScrollInfinito, wireIndicadoresScrollHorizontal } from './views/buzon.js';
@@ -70,6 +70,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   initSocket();
 
   await cargarBuzon();
+  // Abrir un aviso quita el filtro por un momento: antes debe estar aplicada la selección guardada, o la taparía.
+  await filtroSincronizado;
   window.centroNotificaciones?.abrirPendiente();
 
   $('#logout-btn').addEventListener('click', async () => {
