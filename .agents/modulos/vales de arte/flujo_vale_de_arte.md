@@ -713,6 +713,7 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
   proceso.
 - Los destinatarios de una baja o de un vencimiento que borra el vale se calculan con `salasDeInvolucrados` (`valeHelpers.js`) antes del borrado; la notificación guarda `vale_id` en NULL al desaparecer el vale.
 - Al recibir un evento, el cliente refresca su buzón.
+- **Supervisor y sus tiendas marcadas:** si el supervisor marca tiendas (o asesores con supervisión especial) en el Buzón, su campana, contador, carteles, sonido y push muestran solo esos vales, más los propios. Los demás avisos se guardan igual y la campana indica cuántos hay sin leer en las tiendas no marcadas. Sin nada marcado ve todo. Detalle: `.agents/reglas/reglas_notificaciones.md`.
 - **Quién recibe qué** (el actor nunca se avisa a sí mismo; cada persona recibe una sola notificación por movimiento):
   - **Asesor** (y su **supervisor**, por la sala `supervisor:<id>`): asignar, comenzar, entregar la propuesta, aprobación de **cada** taller (aunque el vale tenga varios), fusión y correcciones. Pausar, reanudar y cancelar el proceso **no** le llegan.
   - **Taller** (encargado + asistentes): lo que llega a su taller, la cancelación del proceso (alerta roja) y el atraso, también con el proceso en `EN_PAUSA`. La confirmación de recibido no les llega: su flujo termina en la aprobación.

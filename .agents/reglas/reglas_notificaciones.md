@@ -58,6 +58,23 @@ Cada aviso del portal llega a la **campana** del módulo. Además, cada persona 
 
 El portal no puede volver a preguntar. La persona lo desbloquea: candado junto a la dirección → Notificaciones → Permitir → recargar. En iPhone: Ajustes → Notificaciones → el portal.
 
+### Supervisores: avisos según las tiendas marcadas (Vales)
+
+La campana sigue la misma selección de tiendas del Buzón. Se guarda en el servidor, así que vale igual en la computadora y en el celular.
+
+| Regla | Detalle |
+|---|---|
+| Con tiendas marcadas | Campana, contador, burbuja del dashboard, cartel, sonido y push son solo de esas tiendas (y de los asesores con supervisión especial marcados) |
+| Sin ninguna marcada | Todo, como antes |
+| No se pierde nada | Cada aviso se guarda; al cambiar la selección aparecen como no leídos los que llegaron entretanto (sin push atrasado) |
+| Siempre se muestran | Los avisos de los vales propios y los que no tienen tienda (por ejemplo, de vales eliminados antes de este cambio) |
+| «Mostrando: …» | Rótulo de lo que se está viendo |
+| Bloque inferior | «N sin leer en M tiendas que no ves», plegado; al tocarlo, una fila por tienda con **Ver** (la suma a la selección) y «Ver todas mis tiendas» |
+| «Marcar todas como leídas» | Solo marca lo que se está mostrando |
+| Quién | Supervisores. El administrador, el gerente y los demás roles no cambian |
+
+Datos: `notificaciones.tienda_id` y `asesor_id`, y `notificacion_filtros`. Regla de visibilidad: `src/core/notifications/alcanceSql.js`. API: `GET` y `PUT /api/vales/filtro-avisos`. En el registro del push, «tienda no marcada» explica por qué alguien no lo recibió.
+
 ## 2. Cómo funciona
 
 ```text
