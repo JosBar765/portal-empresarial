@@ -104,6 +104,11 @@
   display: flex;
 }
 
+/* The clear button takes the icon's spot: hidden (keeps its width) so no edge shows behind it. */
+.date-field-compact.has-value .date-field-trigger ion-icon {
+  visibility: hidden;
+}
+
 /* ---- Panel del calendario (fixed en <body>, por encima de los modales) ---- */
 .date-picker-panel {
   position: fixed;
