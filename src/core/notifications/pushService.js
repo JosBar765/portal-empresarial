@@ -144,15 +144,16 @@ async function enviarUno(s, payload, opciones) {
 
 function razonSinEnvio(f) {
   if (!Number(f.activo)) return 'usuario desactivado';
+  if (Number(f.fuera)) return 'tienda no marcada';
   if (!Number(f.marca_escritorio) && !Number(f.marca_movil)) return 'sin casilla';
   if (!Number(f.escritorios) && !Number(f.moviles)) return 'sin dispositivo';
   return 'sin dispositivo de la clase marcada';
 }
 
 // Solo fuera de producción: por qué algunos destinatarios no recibieron push. Quien actuó no figura: se excluye antes.
-async function explicarSinEnvio(modulo, tipo, categoria, usuariosIds) {
+async function explicarSinEnvio(modulo, tipo, categoria, usuariosIds, aviso) {
   try {
-    const filas = await pushRepository.diagnostico(modulo, categoria, usuariosIds);
+    const filas = await pushRepository.diagnostico(modulo, categoria, usuariosIds, aviso);
     if (filas.length) detalle(`${modulo}/${tipo} sin envío: ${filas.map(f => `${f.usuario_id}=${razonSinEnvio(f)}`).join(', ')}`);
   } catch (error) {
     detalle(`no se pudo explicar quién quedó sin envío (${(error && error.code) || 'error'}).`);
@@ -168,12 +169,15 @@ async function enviar(modulo, tipo, porUsuario) {
       detalle(`${modulo}/${tipo} sin categoría: solo campana`);
       return;
     }
-    const destinos = await pushRepository.destinos(modulo, categoria, [...porUsuario.keys()]);
+    // Todos reciben el mismo aviso: su tienda y asesor deciden, según la selección de cada uno, a quién se envía.
+    const { tienda_id: tiendaId = null, asesor_id: asesorId = null } = porUsuario.values().next().value;
+    const aviso = { tiendaId, asesorId };
+    const destinos = await pushRepository.destinos(modulo, categoria, [...porUsuario.keys()], aviso);
     detalle(`${modulo}/${tipo} categoría=${categoria} destinatarios=${porUsuario.size} dispositivos=${destinos.length} usuarios=${[...porUsuario.keys()].join(',')}`);
     if (detallado()) {
       const alcanzados = new Set(destinos.map(s => s.usuario_id));
       const sinEnvio = [...porUsuario.keys()].filter(id => !alcanzados.has(id));
-      if (sinEnvio.length) await explicarSinEnvio(modulo, tipo, categoria, sinEnvio);
+      if (sinEnvio.length) await explicarSinEnvio(modulo, tipo, categoria, sinEnvio, aviso);
     }
     await Promise.all(destinos.map(s => {
       const notificacion = porUsuario.get(s.usuario_id);

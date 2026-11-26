@@ -79,7 +79,7 @@ test('envía a los dispositivos que activaron la categoría, con título, cuerpo
   pushService._setSender(async (s, payload, opciones) => enviados.push({ s, payload: JSON.parse(payload), opciones }));
   const porUsuario = new Map([[7, { id: 55, mensaje: 'Autorizada', nivel: 'info' }], [8, { id: 56, mensaje: 'Autorizada', nivel: 'info' }]]);
   await pushService.enviar('viaticos', 'solicitud_autorizada', porUsuario);
-  assert.deepStrictEqual(consultas[0].params, ['viaticos', 'autorizadas_rechazadas', [7, 8]]);
+  assert.deepStrictEqual(consultas[0].params, ['viaticos', 'autorizadas_rechazadas', null, null, [7, 8]]);
   assert.strictEqual(enviados.length, 1);
   assert.deepStrictEqual(enviados[0].payload, { titulo: 'Calculadora de Viáticos', cuerpo: 'Autorizada', url: '/modules/viaticos/?aviso=55', tag: 'notif-55', nivel: 'info', modulo: 'viaticos' });
   assert.strictEqual(enviados[0].opciones.urgency, 'normal');
