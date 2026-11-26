@@ -8,7 +8,7 @@ The date selector must not reset on reload or after leaving the platform.
 ## Approved behaviour
 - Per user and browser; Buzón and «Trabajo realizado» (shared period). Reportes unchanged.
 - Only a future day, week or month is kept. Current or past opens the current one of the same type (owner: looking back is a momentary query).
-- A range is kept while it has not ended (assumption, to confirm with the owner).
+- A range is kept while it has not ended (owner confirmed).
 - Opening a notification moves the period without saving it.
 
 ## Tasks
