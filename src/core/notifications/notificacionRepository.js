@@ -70,12 +70,15 @@ class NotificacionRepository {
   // No leídas que la selección deja fuera, por tienda y asesor: solo nombres y cantidades.
   fueraDeSeleccion(usuarioId, modulo) {
     return db.query(
-      `SELECT notificaciones.tienda_id, t.nombre AS tienda, notificaciones.asesor_id, u.nombre AS asesor, COUNT(*) AS n
+      `SELECT notificaciones.tienda_id, CONCAT(e.nombre, IF(s.nombre IS NOT NULL, CONCAT(', ', s.nombre), '')) AS tienda,
+         notificaciones.asesor_id, u.nombre AS asesor, COUNT(*) AS n
        FROM notificaciones
        JOIN tiendas t ON t.id = notificaciones.tienda_id
+       JOIN empresas e ON e.id = t.empresa_id
+       LEFT JOIN subdivisiones s ON s.id = t.subdivision_id
        LEFT JOIN usuarios u ON u.id = notificaciones.asesor_id
        WHERE notificaciones.usuario_id = ? AND notificaciones.modulo = ? AND notificaciones.leida_en IS NULL AND NOT ${VISIBLE}
-       GROUP BY notificaciones.tienda_id, t.nombre, notificaciones.asesor_id, u.nombre`,
+       GROUP BY notificaciones.tienda_id, tienda, notificaciones.asesor_id, u.nombre`,
       [usuarioId, modulo],
       'notificacion:fuera'
     );
