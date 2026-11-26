@@ -42,11 +42,17 @@ Select some of the assigned stores, see and receive notifications only for those
 - B5 (Chrome, localhost, admin test account): filtered bell, subtitle, collapsed and expanded block, «Ver» updates selector and server; desktop and 360x700 without horizontal overflow. Every new read query run against local tables. Pending: toast/sound and push with a live event, supervisor account, phone.
 
 ## Follow-up approved by the owner (2026-11-26)
-- [ ] C1 Intent, not ids: when every eligible store of a country or selector group is checked, save the country or group (new stores join it); every eligible store means no filter.
-- [ ] C2 When the administrator changes a supervisor's stores, adjust the saved filter at once: lost stores leave, new ones are checked. No filter stays no filter.
-- [ ] C3 Opening a notification of an unchecked store adds that store to the selection (saved) and shows the voucher; the selector is never cleared by opening a notification. Same for own vouchers.
-- [ ] C4 Other open pages and devices of the same user pick up a selection change without reload.
+- [x] C1 Intent, not ids: when every eligible store of a country or selector group is checked, save the country or group (new stores join it); every eligible store means no filter.
+- [x] C2 When the administrator changes a supervisor's stores, adjust the saved filter at once: lost stores leave, new ones are checked. No filter stays no filter.
+- [x] C3 Opening a notification of an unchecked store adds that store to the selection (saved) and shows the voucher; the selector is never cleared by opening a notification. Same for own vouchers.
+- [x] C4 Other open pages and devices of the same user pick up a selection change without reload.
 - [ ] C5 Parent verifies in the browser (desktop and phone width) including live toast and push.
 
+### C1-C4 evidence
+- Route: one bounded writer (fork). RED: `valeAlcanceReglas` missing. GREEN: notifications 55/55, `alcanceAvisos` 19/19, `avisoAtraso` 4/4, `ci:sintaxis` 809 files.
+- New SQL run read-only on local MySQL 8.4 (list, counts, out-of-selection, push, mark-all EXPLAIN, country/group/store matching with literal rows). MariaDB not run.
+- No migration: `notificacion_filtros.clase` takes `pais` and `grupo`.
+- Open: role or permission changes are only pruned when the user next opens Vales; browser verification pending (C5).
+
 ## Next step
-C1.
+C5.
