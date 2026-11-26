@@ -41,5 +41,12 @@ Select some of the assigned stores, see and receive notifications only for those
 - Fixed after the owner tried it: migration 61 (store of deleted vouchers) and the store name in the out-of-selection query.
 - B5 (Chrome, localhost, admin test account): filtered bell, subtitle, collapsed and expanded block, «Ver» updates selector and server; desktop and 360x700 without horizontal overflow. Every new read query run against local tables. Pending: toast/sound and push with a live event, supervisor account, phone.
 
+## Follow-up approved by the owner (2026-11-26)
+- [ ] C1 Intent, not ids: when every eligible store of a country or selector group is checked, save the country or group (new stores join it); every eligible store means no filter.
+- [ ] C2 When the administrator changes a supervisor's stores, adjust the saved filter at once: lost stores leave, new ones are checked. No filter stays no filter.
+- [ ] C3 Opening a notification of an unchecked store adds that store to the selection (saved) and shows the voucher; the selector is never cleared by opening a notification. Same for own vouchers.
+- [ ] C4 Other open pages and devices of the same user pick up a selection change without reload.
+- [ ] C5 Parent verifies in the browser (desktop and phone width) including live toast and push.
+
 ## Next step
-Owner tests; push and PR when asked.
+C1.
