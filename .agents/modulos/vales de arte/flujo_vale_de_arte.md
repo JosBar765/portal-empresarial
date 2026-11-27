@@ -103,7 +103,7 @@ Diagrama general (flujo feliz y desvíos):
 | 2 | `ASIGNADO` | Asignado | Tiene diseñador, aún no empieza. | Asignación · el encargado **desaprueba** y reasigna | Diseñador comienza → `EN_PROCESO` |
 | 3 | `EN_PROCESO` | En Proceso | El diseñador trabaja (solo 1 por diseñador). | Comenzar · reanudar | Entregar o cancelar → `EN_REVISION` · Pausar → `EN_PAUSA` |
 | 4 | `EN_PAUSA` | En Pausa | El diseñador detuvo el trabajo. | Pausar | Reanudar → `EN_PROCESO` |
-| 5 | `EN_REVISION` | En Revisión | Entregó propuesta (o canceló sin haber entregado nunca) y espera al encargado. | Entregar / cancelar | Aprobar → `APROBADO` · Desaprobar → `ASIGNADO` |
+| 5 | `EN_REVISION` | En Revisión | Entregó propuesta (o canceló el proceso) y espera al encargado. | Entregar / cancelar | Aprobar → `APROBADO` · Desaprobar → `ASIGNADO` |
 | 6 | `APROBADO` | Aprobado | El taller terminó (con propuesta con archivo). | Aprobación del encargado (o autoaprobación si se autoasignó y entregó con archivo) | — |
 | 7 | `VERIFICANDO_ADJUNTOS` | Verificar adjuntos | Estado inicial de todo taller: el encargado debe confirmar que recibió los adjuntos por correo. | El supervisor autoriza (una fila por taller) | Verifica → `PENDIENTE_ASIGNACION` · Rechaza → `ADJUNTOS_RECHAZADOS` |
 | 8 | `ADJUNTOS_RECHAZADOS` | Esperando adjuntos | El encargado rechazó el taller por no haber recibido los adjuntos; espera al asesor (plazo único de N horas laborales). | Rechazo del encargado | El asesor responde → `ADJUNTOS_RESPONDIDOS` · Vence → baja del taller (vale multitaller) o se borra el vale (último taller) |
@@ -430,8 +430,8 @@ Nace cuando el Supervisor autoriza la creación (o aprueba la modificación), en
           └───┬───────────┬───┘  reanudar   └────────────┘         │
               │           │   (también exige no tener otro        │
               │           │    EN_PROCESO)                        │
-   entrega    │           │ cancela el proceso (solo si nunca     │
-   propuesta  │           │ entregó propuesta, alerta roja)       │
+   entrega    │           │ cancela el proceso (anula lo ya       │
+   propuesta  │           │ entregado, alerta roja)               │
               ▼           ▼                                       │
           ┌─────────────────────┐                                 │
           │     EN_REVISION     │─────────────────────────────────┘
@@ -452,13 +452,13 @@ Reglas:
   los enlaces son complementos opcionales. Lo único que deja un taller en
   `EN_REVISION` sin propuesta es «Cancelar proceso» (alerta roja; no crea fila
   en `vale_propuestas`, solo queda en el historial), y entonces el encargado no
-  podrá aprobar, solo desaprobar/reasignar. «Cancelar proceso» solo está disponible mientras el
-  diseñador no haya entregado ninguna propuesta de ese vale: tras una entrega
-  ya no es posible (el botón se oculta y el backend lo rechaza), así que el
-  diseñador entrega la nueva versión o el encargado reasigna. Vale igual para
-  el encargado que trabaja su propio vale. El Buzón calcula esta condición (`ya_entrego_propuesta`)
-  solo para los vales «En proceso»: tras desaprobar y reasignar, el vale aparece sin la marca mientras
-  está «Asignado» y la marca (y con ella la ausencia del botón) aparece cuando el diseñador pulsa «Comenzar».
+  podrá aprobar, solo desaprobar/reasignar.
+- **Cancelar proceso:** disponible siempre que el vale esté «En proceso», haya entregado antes o no (vale igual para el
+  encargado que trabaja su propio vale). Cancelar **anula** las propuestas que ese diseñador había entregado en ese vale
+  (`vale_propuestas.anulada_en`): no se muestran en el detalle, el visor, los reportes ni como propuesta compartida, y no
+  se pueden aprobar. En un vale de un solo taller también se quita su copia como propuesta general. Los archivos se
+  conservan: cuentan para la numeración y la retención. Una entrega posterior es una propuesta normal.
+  Migración `propuestas_anuladas.sql`.
 - **Autoasignación:** un encargado puede asignarse el vale (o reasignárselo
   tras desaprobar) a sí mismo. Si luego entrega, su trabajo se
   **autoaprueba** en el mismo paso (no pasa por revisión de sí mismo).
