@@ -219,7 +219,7 @@ Notas:
   laborales (§5.1) si nadie lo autoriza; cuando queda el 25% del plazo (en tiempo laboral) se avisa
   una vez al asesor y a sus supervisores (`vigenciaWatcher.js`, cada 60 s). Aplica solo a vales
   creados desde que existe esta regla. Un vale normal que vence **pasa a un borrador del asesor**
-  (con aviso y enlace a Borradores; ver `documentacion/borradores.md`); la modificación `MOD-`
+  (con aviso y enlace a Borradores, **solo para su dueño**: ni los administradores lo reciben en la campana; ver `documentacion/borradores.md`); la modificación `MOD-`
   se borra sin borrador. Ambos dejan su registro en `vale_bajas`.
 - Mientras está en `ESPERANDO_AUTORIZACION` (o `RECHAZADO`), el **asesor dueño**
   también puede darlo de baja (permiso `vales.dar_de_baja`): el vale se borra.
