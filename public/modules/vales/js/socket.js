@@ -4,6 +4,7 @@ import { roomsParaUsuario } from './permisos.js';
 import { refreshToken, logout } from './api/authApi.js';
 import { cargarBuzon } from './views/buzon.js';
 import { avisarCambioEnModalAutorizar } from './actions/supervisor.js';
+import { avisarCambioEnModalVenta } from './actions/venta.js';
 import { avisarCambioBorradores } from './utils/eventosBorradores.js';
 import { alcanceCampana, permiteEnVivo, conectarAlcance } from './utils/alcanceVales.js';
 
@@ -82,7 +83,10 @@ export function initSocket() {
     if (data.tipo !== 'RECHAZO_PROPUESTA_MENSAJE') programarRecarga();
   });
   // Solo refresco, sin toast ni beep (ver `refrescar` en events.js).
-  state.socket.on('vale_refrescar', () => programarRecarga());
+  state.socket.on('vale_refrescar', (data) => {
+    if (data && data.venta) avisarCambioEnModalVenta(data);
+    programarRecarga();
+  });
   // Canal aparte de `vale_evento` (ver events.js) — llega a CUALQUIER vista
   // que tenga abierto el historial de ESTE vale, sin importar el rol ni si
   // esa vista está en alguna de las salas por rol de `vale_evento`. Nunca

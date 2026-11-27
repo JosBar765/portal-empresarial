@@ -971,3 +971,17 @@ El Administrador recibe todos; talleres y Gerente, ninguno. Los demás superviso
 | Con otra tarjeta activa | Manda esa tarjeta: no se agregan vales ajenos a ella |
 | Tarjeta «POR CONFIRMAR OV» | Del supervisor: cuenta las por confirmar que ve y las filtra |
 | Código | `services/valeVentaBuzon.js` y `valeVentaReglas.js` |
+
+### 17.2 Pantalla
+
+| Quién | Botones de la fila |
+|---|---|
+| Dueño, vale recibido sin venta | «Registrar OV» |
+| Dueño, por confirmar | «Administrar OV» (tuerca): corregir o borrar en un solo modal |
+| Dueño, vendido | Ninguno de venta |
+| Supervisor, por confirmar | «Confirmar venta» y «Rechazar», con doble confirmación |
+
+- El registro sugiere «Usar <cotización>» solo si la cotización es un entero válido como OV; nunca la prellena.
+- Con el modal del supervisor abierto, si el asesor cambia la OV se muestran el número nuevo y el anterior; si otro supervisor la resuelve, «Esta OV ya fue resuelta». Llega por `vale_refrescar` (con `venta`) y, si no, por el 409 del servidor.
+- Las filas por confirmar tienen fondo de advertencia. Mockup aprobado: https://www.figma.com/design/bn6CidWc35t40LccVjVlJo
+- Código: `js/actions/venta.js`, `js/utils/ordenVenta.js` y `views/buzon.js`.

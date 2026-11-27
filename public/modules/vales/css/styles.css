@@ -2404,3 +2404,22 @@
 .form-aviso--proyectos ion-icon { color: #7A3F5C; }
 input.campo-bloqueado { background: var(--color-surface-muted); color: var(--color-text-secondary); cursor: not-allowed; }
 .volver-origen { margin: 0 0 12px; }
+
+/* Venta por orden de venta (OV): fila por confirmar, columna Estado y sus modales. */
+.buzon-table tbody tr.fila-venta-pendiente td { background: var(--color-warning-bg); }
+.venta-estado { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.venta-numero { font-size: 12px; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.badge-venta-pendiente { background: var(--vale-estado-pendiente-confirmacion-bg); color: var(--vale-estado-pendiente-confirmacion-fg); }
+.badge-venta-vendido { background: var(--vale-estado-confirmado-bg); color: var(--vale-estado-confirmado-fg); }
+.venta-subtitulo { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 12px; overflow-wrap: anywhere; }
+.venta-texto { font-size: 13px; overflow-wrap: anywhere; }
+.venta-sugerencia { margin-top: 12px; min-height: 36px; padding: 6px 12px; border: 0; border-radius: var(--radius-sm); background: var(--color-primary-light); color: var(--color-primary); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.venta-footer { flex-wrap: wrap; }
+.venta-footer .venta-borrar { margin-right: auto; }
+
+@media (max-width: 640px) {
+  /* En tarjetas el aviso de «por confirmar» va en la tarjeta entera, no en cada celda. */
+  .buzon-table tbody tr.fila-venta-pendiente { background: var(--color-warning-bg); border-color: var(--color-warning); }
+  .buzon-table tbody tr.fila-venta-pendiente td { background: transparent; }
+  .venta-sugerencia { min-height: 44px; }
+}
