@@ -43,7 +43,9 @@ class ValeMutex {
   async conLockDeVale(valeId, fn) {
     const key = Number(valeId);
     if (this._locksEnVale.has(key)) {
-      throw new ErrorDeNegocio('Este vale se está procesando en este momento. Espera unos segundos e inténtalo de nuevo.', 409);
+      const ocupado = new ErrorDeNegocio('Este vale se está procesando en este momento. Espera unos segundos e inténtalo de nuevo.', 409);
+      ocupado.codigo = 'VALE_OCUPADO';
+      throw ocupado;
     }
     this._locksEnVale.add(key);
     try {

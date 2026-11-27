@@ -55,7 +55,21 @@ Cada regla aprobada se comprueba en el servidor y en pantalla; dos registros sim
 - Sin verificar: migración, índices únicos y concurrencia en MySQL, pantalla en navegador, avisos en vivo.
 - Decisiones del escritor: con otra tarjeta activa no se agregan pendientes fuera de su filtro; decide solo quien devuelve `obtenerSupervisoresDeAsesor` (en vales propios, si se cubre).
 - No se hizo la pantalla de error con «Reintentar» del mockup: sigue la de error del buzón.
-- RDD: sin evaluar por el escritor.
+- Verificación del padre: `node --test "scripts/vales/*.test.js"`, 63 de 63.
+- RDD: `review assess` sobre d7004d0c..89412c8d: riesgo medio, 1296 líneas, `review_due: false` (`under_budget`). Sin revisión nativa.
+
+- 2026-11-27: migración `63_vales_ventas.sql` aplicada en la base local (`npm run migrate`, con autorización del dueño); 0 pendientes.
+
+- 2026-11-27: recorrido en navegador (BD local, `ventas2` y `ventas1`). Correcto: formato, limpieza de espacios, duplicado con correlativo, corrección y borrado, orden y excepción de período, contador y filtro, doble modal de confirmar y rechazar, VENDIDO, rechazo sin marca, campana de ambos, abrir un aviso, celular a 390 px (listado del supervisor), consola sin errores desde su captura.
+- Hallazgo: una pendiente fuera del período suma en la tarjeta «Atrasados» pero no en «Total recibidos».
+- Sin probar: aviso «la OV cambió» y «ya fue resuelta» (dos sesiones), registro simultáneo, Administrador, Gerente y talleres, push al dispositivo, modales en celular.
+- Datos de prueba: `GT-MTC-1126-9281` quedó VENDIDO con la OV 900000000003.
+
+- 2026-11-27: el dueño decidió dejar la tarjeta «Atrasados» como está.
+- Segunda ronda (API local y navegador): misma OV en dos vales a la vez, 5 de 5 deja una; permisos 403; talleres y diseñadores no reciben el número; vale no recibido 409; confirmar y rechazar a la vez resuelve una; borrar contra rechazar resuelve una; VENDIDO no se cambia ni reutiliza; «la OV cambió», «borró la OV» y «ya fue resuelta» en pantalla; modales a 390 px; Gerente en solo lectura; Encargado sin cambios.
+- Discrepancia: en acciones simultáneas sobre un mismo vale, el segundo recibe «Este vale se está procesando…» y no «ya fue resuelta».
+- Sin probar: Administrador (sin contraseña documentada), push al dispositivo, un segundo supervisor real (ninguna cuenta probada cubre a ese asesor; «ya fue resuelta» se simuló).
+- Datos de prueba permanentes: `GT-MTC-1126-9281` y `MOD-GT-MTC-1126-9374` quedaron VENDIDO.
 
 ## Siguiente paso
-Aplicar la migración en desarrollo (`npm run migrate`), reiniciar el servidor y hacer el recorrido de punta a punta.
+Abrir el PR cuando el dueño lo pida.

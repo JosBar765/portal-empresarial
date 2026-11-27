@@ -28,10 +28,24 @@ function mensajeDuplicada(numero, otra) {
   return `La OV ${numero} ya está registrada en el vale ${otra.correlativo}. Una OV solo puede usarse en un vale. ${salida}`;
 }
 
+// Dos acciones a la vez sobre un vale: la segunda espera su turno para ver el estado real («ya fue resuelta»).
+const REINTENTOS = 20;
+const PAUSA_MS = 150;
+async function conTurno(valeId, fn) {
+  for (let intento = 1; ; intento++) {
+    try {
+      return await valeMutex.conLockDeVale(valeId, fn);
+    } catch (error) {
+      if (error.codigo !== 'VALE_OCUPADO' || intento >= REINTENTOS) throw error;
+      await new Promise((resolve) => setTimeout(resolve, PAUSA_MS));
+    }
+  }
+}
+
 class ValeVentaService {
   async registrar(usuario, valeId, numeroCrudo) {
     const numero = normalizarNumeroOv(numeroCrudo);
-    return valeMutex.conLockDeVale(valeId, async () => {
+    return conTurno(valeId, async () => {
       const vale = await this._valeDelDueno(usuario, valeId);
       if (vale.estado !== ESTADOS.RECIBIDO) {
         throw new ErrorDeNegocio('Solo se puede registrar la venta de un vale recibido. Confirma primero el recibido de este vale.', 409);
@@ -56,7 +70,7 @@ class ValeVentaService {
 
   async corregir(usuario, valeId, numeroCrudo) {
     const numero = normalizarNumeroOv(numeroCrudo);
-    return valeMutex.conLockDeVale(valeId, async () => {
+    return conTurno(valeId, async () => {
       const vale = await this._valeDelDueno(usuario, valeId);
       const actual = await this._pendienteDelDueno(valeId);
       if (actual.numero_ov === numero) return { venta: { numero, estado: actual.estado } };
@@ -78,7 +92,7 @@ class ValeVentaService {
   }
 
   async borrar(usuario, valeId) {
-    return valeMutex.conLockDeVale(valeId, async () => {
+    return conTurno(valeId, async () => {
       const vale = await this._valeDelDueno(usuario, valeId);
       const actual = await this._pendienteDelDueno(valeId);
       const numero = actual.numero_ov;
@@ -106,7 +120,7 @@ class ValeVentaService {
   // `numeroCrudo` es el número que vio el supervisor: si ya no es el vigente, no se hace nada.
   async _decidir(usuario, valeId, numeroCrudo, estado) {
     const numero = normalizarNumeroOv(numeroCrudo);
-    return valeMutex.conLockDeVale(valeId, async () => {
+    return conTurno(valeId, async () => {
       const vale = await requerirVale(valeId);
       const { lista, salas } = await this._supervisores(vale);
       const soloLee = esAdministrador(usuario) || usuario.rolId === ROL.GERENTE;

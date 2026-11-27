@@ -106,3 +106,12 @@ test('administrator, manager and other supervisors cannot decide', async () => {
   ]) await falla(servicio.confirmar(usuario, 5, '100'), 403, /supervisor de este asesor/);
   assert.deepStrictEqual(hechos, []);
 });
+
+test('an action that collides on the same voucher waits and then sees the real state', async () => {
+  reiniciar();
+  activa = pendiente();
+  const primera = servicio.confirmar(supervisor, 5, '100').then(() => { activa = null; ultima = { numero_ov: '100', estado: 'CONFIRMADA' }; });
+  const segunda = servicio.rechazar(supervisor, 5, '100');
+  await primera;
+  await falla(segunda, 409, /ya fue resuelta/);
+});
