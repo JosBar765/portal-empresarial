@@ -3,6 +3,8 @@ import { $, $$ } from '../utils/dom.js';
 import { ROL, esEncargadoTaller, esDeTallerODisenador, rolVista } from '../config/roles.js';
 import { obtenerDisenadoresAsignables, obtenerCalendarioBuzon } from '../api/valesApi.js';
 import { crearBarraPeriodo } from '../components/barraPeriodoReportes.js';
+import { leerPeriodo, guardarPeriodo } from '../utils/periodoRecordado.js';
+import { hoyMedianoche, isoLocal } from '../utils/fechas.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { crearFiltroTiendas } from '/js/menuCascada.js';
 import { sincronizarAlcance, guardarAlcance } from '../utils/alcanceVales.js';
@@ -53,7 +55,9 @@ export function mostrarEnBuzon(ventana, busqueda, { quitarTienda = false } = {})
 
 export function wireToolbar() {
   // Misma barra de período que Reportes (Hoy · Día · Semana · Mes · Desde–Hasta), con su propio estado: state.ventana.
-  const cambiarVentana = (ventana) => { state.ventana = ventana; barra.pintar(); cargarBuzon(); };
+  // Solo se recuerda lo que elige el usuario: abrir un aviso mueve el período sin guardarlo.
+  state.ventana = leerPeriodo(state.user.id, isoLocal(hoyMedianoche()));
+  const cambiarVentana = (ventana) => { state.ventana = ventana; guardarPeriodo(state.user.id, ventana); barra.pintar(); cargarBuzon(); };
   // Quien tiene vales.ver_cupo ve el cupo de los talleres por día; el Encargado/Asistente, cuántos vales tiene
   // su taller; el Diseñador, cuántas asignaciones suyas.
   const permisos = state.user.permissions || [];

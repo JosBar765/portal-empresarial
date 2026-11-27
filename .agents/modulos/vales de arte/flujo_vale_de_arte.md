@@ -613,6 +613,11 @@ día) y, al pulsar el título del mes, una cuadrícula de meses con flechas de a
 mes; también «Todo el mes» desde el calendario). Las flechas ‹ › avanzan de mes en mes o de día en día
 según lo elegido. Un día viaja al servidor como un rango de un solo día.
 
+**Período recordado (Buzón y Trabajo realizado):** se guarda por usuario en cada navegador. Al volver a abrir solo
+se respeta un día, semana o mes **futuro**; si era el actual o uno pasado, se muestra el actual del mismo tipo (mirar
+atrás es una consulta momentánea). Un rango se respeta mientras no haya terminado. Sin nada guardado: el mes actual.
+Abrir un aviso mueve el período sin guardarlo. Reportes recuerda lo suyo por separado (`periodoRecordado.js`).
+
 ## 5. Límites y cupos
 
 | Límite | Dónde se valida | Efecto |
