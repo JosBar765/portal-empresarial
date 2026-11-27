@@ -528,7 +528,7 @@ cambia quién puede hacer cada acción.
 
 ### Historial del vale
 
-La acción «Ver historial» y el contenido del historial dependen del permiso `vales.ver_historial`, que hoy tienen el Administrador (rol 1) y el Gerente (rol 8; migración `gerente_ver_historial`, los Gerentes con sesión abierta deben volver a entrar porque el permiso viaja en el token). Sin el permiso la acción no se muestra (Buzón, Encontrar vale y Rendimiento) y además el servidor devuelve el historial vacío en el detalle del vale (`GET /api/vales/:id`). Con el permiso, cada rol sigue viendo las categorías que le corresponden (`_filtrarHistorialPorRol`): el Administrador todo; el Gerente creación, corrección, rechazo y reenvío de la creación, autorización de la creación, asignación, aprobación de cada taller, retorno al asesor, confirmación de recibido, solicitud y aprobación de modificación y adjuntos, más los chats del rechazo de adjuntos y de propuesta (`conversaciones`, `conversacionesPropuesta`) en solo lectura. Se asigna a otros roles desde el seed o desde el panel de administración.
+La acción «Ver historial» y el contenido del historial dependen del permiso `vales.ver_historial`, que hoy tienen el Administrador (rol 1) y el Gerente (rol 8; migración `gerente_ver_historial`, los Gerentes con sesión abierta deben volver a entrar porque el permiso viaja en el token). Sin el permiso la acción no se muestra (Buzón, Encontrar vale y Rendimiento) y además el servidor devuelve el historial vacío en el detalle del vale (`GET /api/vales/:id`). Con el permiso, cada rol sigue viendo las categorías que le corresponden (`_filtrarHistorialPorRol`): el Administrador todo; el Gerente creación, corrección, rechazo y reenvío de la creación, autorización de la creación, asignación, aprobación de cada taller, retorno al asesor, confirmación de recibido, solicitud y aprobación de modificación, adjuntos y venta (sección 17), más los chats del rechazo de adjuntos y de propuesta (`conversaciones`, `conversacionesPropuesta`) en solo lectura. Se asigna a otros roles desde el seed o desde el panel de administración.
 
 ### Vales del supervisor
 
@@ -930,3 +930,32 @@ En un vale con varios talleres, los talleres que comparten propuestas ven la úl
 ## 16. Retención de archivos
 
 A los 30 días de `confirmado_en` se borran de Storage el PDF y los adjuntos del vale, y a los 60 las propuestas (individuales y general); en la BD quedan los datos y las URLs en NULL. Los plazos son editables por el Administrador (`dias_retencion_pdf_adjuntos`, `dias_retencion_propuestas` en `parametros_sistema`). Detalle, reglas y pasos de producción (script `retencion_archivos`): `documentacion/retencion_archivos.md`.
+
+## 17. Venta por orden de venta (OV)
+
+Un vale recibido puede registrarse como vendido con el número de su orden de venta. La venta **no es un estado** del vale (`vales.estado` no cambia) ni un paso del pipeline: vive en `vale_ventas` (script `vales_ventas`). No hay reportes de ventas todavía.
+
+| Regla | Detalle |
+|---|---|
+| Quién registra | Solo el dueño (`vales.crear` y `vale.asesor_id`), con el vale `RECIBIDO`. Sin plazo; también vales recibidos antes de existir la función. Que un vale aparezca en «Trabajo realizado» no basta |
+| Número | Entero de 1 a 12 dígitos, sin cero inicial. Se quitan espacios y caracteres invisibles. Se guarda como `BIGINT` y viaja como texto |
+| Unicidad | Una OV está en un solo vale de toda la empresa mientras esté por confirmar o confirmada, y un vale tiene una sola venta activa. Lo garantizan los índices únicos `numero_activo` y `vale_activo`, también con registros simultáneos. El error nombra el correlativo que la usa |
+| Por confirmar | El dueño puede corregirla o borrarla (borrar pide confirmación) |
+| Quién decide | El supervisor del asesor (`vales.supervisar`, `obtenerSupervisoresDeAsesor`, incluida la supervisión especial); en sus vales, él mismo si se cubre. Doble confirmación, sin motivo. Administrador y Gerente solo leen |
+| Número visto | Confirmar y rechazar envían el número que vio el supervisor: si cambió, 409 y no pasa nada. Gana el primero (candado por vale y escritura condicional); el segundo recibe 409 |
+| Confirmada | «VENDIDO». No se anula |
+| Rechazada o borrada | El vale queda como si nunca hubiera tenido OV y el número se libera |
+| Modificación | Una venta nunca bloquea pedirla; el vale `MOD-` no hereda nada |
+| Registro | `vale_venta_eventos` guarda cada registro, corrección, borrado, confirmación, rechazo y duplicado bloqueado (número, usuario, fecha en UTC-6). Los que se aplicaron anotan además una línea «Venta: …» en el historial, que talleres y diseñadores no ven |
+
+**API** (`/api/vales`): `POST`, `PUT` y `DELETE /:id/venta` (`vales.crear`); `POST /:id/venta/confirmar` y `/rechazar` (`vales.supervisar`). Cuerpo: `{ numeroOv }` (texto). El 409 trae `codigo`: `OV_CAMBIO` (con `numeroActual`), `OV_RESUELTA`, `OV_RETIRADA`, `OV_DUPLICADA` u `OV_EXISTENTE`.
+
+**Avisos** (campana; categoría «Ventas»):
+
+| Tipo | Cuándo | A quién | Push |
+|---|---|---|---|
+| `VENTA_POR_CONFIRMAR` | Registro | Supervisores del asesor | Sí |
+| `VENTA_CORREGIDA`, `VENTA_RETIRADA` | Corrección o borrado | Supervisores del asesor | No |
+| `VENTA_CONFIRMADA`, `VENTA_RECHAZADA` | Decisión (el mensaje trae la OV) | Dueño | Sí |
+
+El Administrador recibe todos; talleres y Gerente, ninguno. Los demás supervisores se refrescan en silencio.

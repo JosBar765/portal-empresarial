@@ -28,6 +28,8 @@ function categoriaHistorial(h) {
   const ea = h.estado_anterior;
   const en = h.estado_nuevo;
   if (ea === null) return 'CREACION'; // crearVale() y la creación del vale MOD- nuevo
+  // La venta no cambia el estado del vale: la distingue el texto. Talleres y diseñadores no la ven.
+  if (/^Venta: /.test(h.accion)) return 'VENTA';
   // Entradas del ORIGINAL ante una modificación: su estado no cambia (o pasa a RECIBIDO al aprobarse), así que las distingue el texto.
   if (/^Asesor solicitó modificación/.test(h.accion)) return 'SOLICITUD_MODIFICACION';
   if (/aprobó la solicitud de modificación/.test(h.accion)) return 'APROBACION_MODIFICACION_ORIGINAL';
@@ -247,7 +249,7 @@ class ValeDetalleService {
     if (usuario.rolId === ROL.ASESOR || esSupervisor(usuario)) {
       const permitidas = new Set([
         'CREACION', 'CORRECCION', 'RECHAZO_CREACION', 'REENVIO_AUTORIZACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER', 'RETORNO_ASESOR',
-        'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL', 'ADJUNTOS'
+        'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL', 'ADJUNTOS', 'VENTA'
       ]);
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
     }
@@ -255,7 +257,7 @@ class ValeDetalleService {
     if (usuario.rolId === ROL.GERENTE) {
       const permitidas = new Set([
         'CREACION', 'CORRECCION', 'RECHAZO_CREACION', 'REENVIO_AUTORIZACION', 'AUTORIZACION_CREACION', 'ASIGNACION', 'APROBACION_TALLER',
-        'RETORNO_ASESOR', 'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL', 'ADJUNTOS'
+        'RETORNO_ASESOR', 'CONFIRMACION_RECIBIDO', 'SOLICITUD_MODIFICACION', 'APROBACION_MODIFICACION_ORIGINAL', 'ADJUNTOS', 'VENTA'
       ]);
       return conCategoria.filter(h => permitidas.has(h._categoria)).map(sinCategoria);
     }
