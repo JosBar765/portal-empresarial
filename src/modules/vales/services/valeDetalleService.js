@@ -75,7 +75,7 @@ class ValeDetalleService {
     const talleres = await valeTallerRepository.listarPorVale(valeId);
     if (!(await this._puedeVerVale(usuario, vale, talleres))) throw this.errorSinAcceso();
     const [propuestasCrudas, documentos, historial, enlacesFusion] = await Promise.all([
-      propuestaRepository.listarPorVale(valeId),
+      propuestaRepository.listarVigentesPorVale(valeId),
       documentoRepository.listarPorVale(valeId),
       historialRepository.listarPorVale(valeId),
       propuestaRepository.listarEnlacesDeFusion(valeId)
@@ -135,8 +135,8 @@ class ValeDetalleService {
         throw new ErrorDeNegocio('No tienes acceso a la propuesta de ese taller.', 403);
       }
     } else if (alcance) {
-      const visibles = await propuestasCompartidasService.filtrarPropuestas(alcance, await propuestaRepository.listarPorVale(valeId));
-      propuesta = visibles[visibles.length - 1]; // listarPorVale va en orden ascendente de id
+      const visibles = await propuestasCompartidasService.filtrarPropuestas(alcance, await propuestaRepository.listarVigentesPorVale(valeId));
+      propuesta = visibles[visibles.length - 1]; // la lista va en orden ascendente de id
     } else {
       propuesta = await propuestaRepository.obtenerUltimaPorVale(valeId);
     }
