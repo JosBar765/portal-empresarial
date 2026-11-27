@@ -571,7 +571,7 @@ Detalles de esa cola:
 
 Cada rol tiene dos vistas en la barra lateral: **Buzón** (lo pendiente /
 activo) y **Trabajo realizado** (lo ya hecho, ordenado por fecha). Las tablas
-tienen las mismas columnas para todos; cambian filtros, orden y acciones.
+tienen las mismas columnas para todos; cambian filtros, orden y acciones. La venta por orden de venta cambia la columna Estado y el orden de «Trabajo realizado» (sección 17.1).
 
 **«Mis vales».** Un rol con `vales.crear` y `vales.ver` que no es Asesor, Supervisor ni Administrador (Gerente, Diseñador, Encargado, Asistente…) ve en la barra lateral una tercera vista, «Mis vales» (`GET /api/vales?vista=mios`, que exige `vales.crear`; sin él responde 403). Es el Buzón del asesor aplicado solo a los vales que creó el propio usuario: los mismos contadores por paso del pipeline (Por autorizar… Por recibir, Modificados, Atrasados), el estado «lógico» del asesor, la columna Taller visible y un pipeline sin las etiquetas de acción del taller. Se carga aparte de su Buzón de rol, así que incluye sus vales aunque estén en otro taller, y las únicas acciones son las del dueño (ver y decidir, solicitar modificación, rechazo de propuesta, corregir, dar de baja, historial). Sus Buzón y Trabajo realizado no cambian. El **Trabajo realizado** mezclado con los vales propios queda para una etapa posterior. El dueño que también es del taller (encargado, asistente) actúa como asesor desde «Mis vales» y como taller desde su Buzón: la pantalla pide `lado=ASESOR` en los chats (`/mensajes` y `/rechazos-propuesta/:rid/mensajes`) y el servidor solo lo honra si es el dueño; cancelar el rechazo es siempre del dueño.
 
@@ -959,3 +959,15 @@ Un vale recibido puede registrarse como vendido con el número de su orden de ve
 | `VENTA_CONFIRMADA`, `VENTA_RECHAZADA` | Decisión (el mensaje trae la OV) | Dueño | Sí |
 
 El Administrador recibe todos; talleres y Gerente, ninguno. Los demás supervisores se refrescan en silencio.
+
+### 17.1 En «Trabajo realizado»
+
+| Regla | Detalle |
+|---|---|
+| Quién ve la venta | El dueño, el supervisor del asesor, el Administrador y el Gerente. Las filas de trabajo de un taller o diseñador no la traen; su vale propio sí |
+| Columna Estado | «POR CONFIRMAR OV» o «VENDIDO», con «OV <número>» debajo, en lugar del pipeline. Sin venta no cambia nada |
+| Orden | Las por confirmar van primero, la registrada hace más tiempo arriba. Ordenar por una columna reemplaza este orden. Orden y paginación en el servidor |
+| Período | Las por confirmar se listan siempre, aunque su entrega quede fuera. El filtro de tiendas sí aplica, igual que la búsqueda y «Atrasados» |
+| Con otra tarjeta activa | Manda esa tarjeta: no se agregan vales ajenos a ella |
+| Tarjeta «POR CONFIRMAR OV» | Del supervisor: cuenta las por confirmar que ve y las filtra |
+| Código | `services/valeVentaBuzon.js` y `valeVentaReglas.js` |
