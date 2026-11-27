@@ -12,11 +12,15 @@ After delivering once (even if disapproved), the designer loses «Cancelar proce
 - A new delivery after that is a normal proposal.
 
 ## Tasks
-- [ ] T1 Additive migration `62_*` (60 and 61 belong to PR #236) marking void proposals; void them on cancel; every «current/latest proposal» read ignores them; remove the cancel block and the `ya_entrego_propuesta` flag. Offline tests, flow doc.
+- [x] T1 Additive migration `62_*` (60 and 61 belong to PR #236) marking void proposals; void them on cancel; every «current/latest proposal» read ignores them; remove the cancel block and the `ya_entrego_propuesta` flag. Offline tests, flow doc.
 - [ ] T2 Apply the migration locally (owner permission) and verify by API and browser, desktop and phone width.
 
 ## Delivery
 Route: one bounded writer (fork). Local database migration needs the owner's permission.
 
+## Evidence
+- T1 (c9c4bfcf): RED `listarVigentesPorVale` / `anularDeDisenador` missing and cancel rejected; GREEN `scripts/vales/*.test.js` 11/11, `ci:sintaxis` 804 files. Migration not run; no query executed against a database.
+- Void marker: `vale_propuestas.anulada_en`. Cancel voids first, in one transaction with the single-workshop general copy, then changes the state.
+
 ## Next step
-Paused by the owner (2026-11-26) before any code change: start T1.
+T2, after the owner allows the local migration.
