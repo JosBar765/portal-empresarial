@@ -51,20 +51,43 @@ class PropuestaRepository {
     const filtro = valeIds ? ' AND vale_id IN (?)' : '';
     const fusion = await db.query(`SELECT DISTINCT vale_id FROM vale_propuesta_enlaces WHERE propuesta_id IS NULL${filtro}`, valeIds ? [valeIds] : [], 'propuesta:vales_con_enlaces_fusion');
     const propuestas = await db.query(
-      `SELECT DISTINCT vale_id FROM vale_propuesta_enlaces WHERE propuesta_id IS NOT NULL${filtro}
-       UNION SELECT DISTINCT vale_id FROM vale_propuestas WHERE nota IS NOT NULL${filtro}`,
+      `SELECT DISTINCT vale_id FROM vale_propuesta_enlaces
+       WHERE propuesta_id IN (SELECT id FROM vale_propuestas WHERE anulada_en IS NULL)${filtro}
+       UNION SELECT DISTINCT vale_id FROM vale_propuestas WHERE anulada_en IS NULL AND nota IS NOT NULL${filtro}`,
       valeIds ? [valeIds, valeIds] : [],
       'propuesta:vales_con_extra'
     );
     return { fusion: new Set(fusion.map(f => f.vale_id)), propuestas: new Set(propuestas.map(f => f.vale_id)) };
   }
 
+  // Todas, también las anuladas: solo para numerar archivos.
   async listarPorVale(valeId) {
     return db.query('SELECT * FROM vale_propuestas WHERE vale_id = ? ORDER BY id ASC', [valeId], 'propuesta:list_by_vale');
   }
 
+  // Las que cuentan: una propuesta anulada no se muestra ni se aprueba.
+  async listarVigentesPorVale(valeId) {
+    return db.query('SELECT * FROM vale_propuestas WHERE vale_id = ? AND anulada_en IS NULL ORDER BY id ASC', [valeId], 'propuesta:list_vigentes_by_vale');
+  }
+
+  // Cancelar el proceso anula lo entregado por ese diseñador. La copia que un vale de un solo taller guarda como
+  // propuesta general también se quita; la fusión de varios talleres es otro archivo y no se toca.
+  async anularDeDisenador(valeId, disenadorId) {
+    await db.transaccion(async (tx) => {
+      await tx.query(
+        `UPDATE vales SET propuesta_general_url = NULL WHERE id = ?
+           AND propuesta_general_url IN (SELECT url FROM vale_propuestas WHERE vale_id = ? AND disenador_id = ? AND url IS NOT NULL)`,
+        [valeId, valeId, disenadorId], 'propuesta:quitar_general_anulada'
+      );
+      await tx.query(
+        'UPDATE vale_propuestas SET anulada_en = NOW() WHERE vale_id = ? AND disenador_id = ? AND anulada_en IS NULL',
+        [valeId, disenadorId], 'propuesta:anular_de_disenador'
+      );
+    });
+  }
+
   async obtenerUltimaPorVale(valeId) {
-    const rows = await db.query('SELECT * FROM vale_propuestas WHERE vale_id = ? ORDER BY id DESC LIMIT 1', [valeId], 'propuesta:latest_by_vale');
+    const rows = await db.query('SELECT * FROM vale_propuestas WHERE vale_id = ? AND anulada_en IS NULL ORDER BY id DESC LIMIT 1', [valeId], 'propuesta:latest_by_vale');
     return rows[0] || null;
   }
 
@@ -72,7 +95,7 @@ class PropuestaRepository {
   async listarUltimasPorVales(valeIds) {
     if (!valeIds.length) return new Map();
     const filas = await db.query(
-      'SELECT vale_id, url FROM vale_propuestas WHERE vale_id IN (?) AND url IS NOT NULL ORDER BY id ASC',
+      'SELECT vale_id, url FROM vale_propuestas WHERE vale_id IN (?) AND url IS NOT NULL AND anulada_en IS NULL ORDER BY id ASC',
       [valeIds],
       'propuesta:latest_by_vales'
     );
@@ -88,28 +111,17 @@ class PropuestaRepository {
     const rows = await db.query(
       `SELECT p.*, (SELECT COUNT(*) FROM vale_propuesta_enlaces e WHERE e.propuesta_id = p.id) AS n_enlaces
        FROM vale_propuestas p
-       JOIN (SELECT MAX(id) AS id FROM vale_propuestas WHERE vale_id IN (?) AND disenador_id IS NOT NULL GROUP BY vale_id, disenador_id) u ON u.id = p.id`,
+       JOIN (SELECT MAX(id) AS id FROM vale_propuestas WHERE vale_id IN (?) AND disenador_id IS NOT NULL AND anulada_en IS NULL GROUP BY vale_id, disenador_id) u ON u.id = p.id`,
       [valeIds],
       'propuesta:latest_by_vales_disenadores'
     );
     return new Map(rows.map(p => [`${p.vale_id}-${p.disenador_id}`, p]));
   }
 
-  // Pares (vale, diseñador) que ya entregaron alguna propuesta, en un solo viaje; clave `${vale_id}-${disenador_id}`.
-  async listarParesConPropuesta(valeIds, disenadorIds) {
-    if (!valeIds.length || !disenadorIds.length) return new Set();
-    const rows = await db.query(
-      'SELECT DISTINCT vale_id, disenador_id FROM vale_propuestas WHERE vale_id IN (?) AND disenador_id IN (?)',
-      [valeIds, disenadorIds],
-      'propuesta:pares_con_propuesta'
-    );
-    return new Set(rows.map(p => `${p.vale_id}-${p.disenador_id}`));
-  }
-
   async obtenerUltimaPorValeYDisenador(valeId, disenadorId) {
     const rows = await db.query(
       `SELECT p.*, (SELECT COUNT(*) FROM vale_propuesta_enlaces e WHERE e.propuesta_id = p.id) AS n_enlaces
-       FROM vale_propuestas p WHERE p.vale_id = ? AND p.disenador_id = ? ORDER BY p.id DESC LIMIT 1`,
+       FROM vale_propuestas p WHERE p.vale_id = ? AND p.disenador_id = ? AND p.anulada_en IS NULL ORDER BY p.id DESC LIMIT 1`,
       [valeId, disenadorId],
       'propuesta:latest_by_vale_disenador'
     );

@@ -58,6 +58,28 @@ Cada aviso del portal llega a la **campana** del módulo. Además, cada persona 
 
 El portal no puede volver a preguntar. La persona lo desbloquea: candado junto a la dirección → Notificaciones → Permitir → recargar. En iPhone: Ajustes → Notificaciones → el portal.
 
+### Avisos según las tiendas marcadas (Vales)
+
+La campana sigue la misma selección de tiendas del Buzón. Se guarda en el servidor, así que vale igual en la computadora y en el celular.
+
+| Regla | Detalle |
+|---|---|
+| Con tiendas marcadas | Campana, contador, burbuja del dashboard, cartel, sonido y push son solo de esas tiendas (y de los asesores con supervisión especial marcados) |
+| Sin ninguna o con todas marcadas | Todo, como antes (no queda filtro) |
+| Países y rutas completos | Si están marcadas todas las tiendas de un país o de una ruta Trofex, se guarda el país o la ruta: sus tiendas nuevas entran solas |
+| Cambios del administrador | Al cambiar tiendas, supervisión de un asesor o activar y desactivar un asesor: las tiendas perdidas salen de la selección y las nuevas entran marcadas. Sin filtro sigue sin filtro; si se pierde todo lo marcado y no entra nada, queda sin filtro |
+| Abrir un aviso de una tienda no marcada | Se agrega esa tienda (o su asesor especial) a la selección y se muestra el vale. Solo si no se puede marcar, el filtro se quita en pantalla por esa vez |
+| Varias pantallas | El servidor emite `alcance_avisos` a la sala del usuario; las demás pantallas releen la selección sin recargar (también al reconectar) |
+| No se pierde nada | Cada aviso se guarda; al cambiar la selección aparecen como no leídos los que llegaron entretanto (sin push atrasado) |
+| Siempre se muestran | Los avisos de los vales propios y los que no tienen tienda (por ejemplo, de vales eliminados antes de este cambio) |
+| «Mostrando: …» | Rótulo de lo que se está viendo |
+| Bloque inferior | «N sin leer en M tiendas que no ves», plegado; al tocarlo, una fila por tienda con **Ver** (la suma a la selección) y «Ver todas mis tiendas» |
+| «Marcar todas como leídas» | Solo marca lo que se está mostrando |
+| Quién | Quien tiene el selector de tiendas: Supervisor, Gerente y Administrador. Los demás roles no cambian |
+| Riesgo conocido | Si nadie tiene marcada una tienda, un vale suyo por autorizar no avisa a nadie: solo se ve en el bloque «tiendas que no ves» |
+
+Datos: `notificaciones.tienda_id` y `asesor_id`, y `notificacion_filtros` (clases `tienda`, `asesor`, `pais` y `grupo`; `grupo` guarda el departamento de la ruta). Regla de visibilidad: `src/core/notifications/alcanceSql.js`. API: `GET` y `PUT /api/vales/filtro-avisos`. En el registro del push, «tienda no marcada» explica por qué alguien no lo recibió.
+
 ## 2. Cómo funciona
 
 ```text
@@ -103,7 +125,8 @@ El nombre y el contenido exactos están en `categorias.js`.
 | Proyectos | Reparto · Seguimiento · Proyecto · Aprobaciones · Ventas · Muestras |
 
 - Cada usuario ve solo las categorías que sus permisos pueden recibir. El administrador ve todas las de Vales.
-- Solo campana en Vales: «corregido», «tomado», «pausado» y «reanudado».
+- Solo campana en Vales: «corregido» y «tomado».
+- Pausar y reanudar un proceso no avisan (ni campana, ni cartel, ni sonido, ni push): solo refrescan las pantallas.
 - Proyectos: si el administrador apaga un evento para un rol en su matriz de avisos, no llega ni a la campana; la preferencia personal no lo reactiva.
 - Prompts, Tiempos y Administración no tienen categorías. El administrador configura los avisos de Vales desde la campana de Vales.
 

@@ -5,6 +5,7 @@ import { refreshToken, logout } from './api/authApi.js';
 import { cargarBuzon } from './views/buzon.js';
 import { avisarCambioEnModalAutorizar } from './actions/supervisor.js';
 import { avisarCambioBorradores } from './utils/eventosBorradores.js';
+import { alcanceCampana, permiteEnVivo, conectarAlcance } from './utils/alcanceVales.js';
 
 export function reproducirBeep() {
   try {
@@ -30,9 +31,11 @@ export function initSocket() {
     socket: state.socket, modulo: 'vales',
     // Import dinámico: el buzón y sus formularios dependen de este archivo.
     alAbrir: (aviso) => import('./actions/irAVale.js').then(m => m.irAVale(aviso)),
+    alcance: alcanceCampana,
     enlaces: { EXPIRADO_A_BORRADOR: () => import('./forms/borradores.js').then(m => m.abrirModalBorradores()) }
   });
   state.socket.on('borradores_nuevos', avisarCambioBorradores);
+  conectarAlcance(state.socket);
   window.avisoMantenimiento?.iniciar({ socket: state.socket, rolId: state.user.rolId });
   state.socket.on('connect', () => {
     // `role_X` es independiente de las salas de notificación de vales — todo
@@ -69,7 +72,8 @@ export function initSocket() {
     }
     const conversacionVisible = ['MENSAJE_RECHAZO', 'RECHAZO_PROPUESTA_MENSAJE'].includes(data.tipo) && state.conversacionAbierta && state.conversacionAbierta.overlay.isConnected && state.conversacionAbierta.valeId === data.valeId;
     const esPropiaAccion = data.actorId != null && data.actorId === state.user.id;
-    if (!esPropiaAccion && !conversacionVisible) { // con la conversación abierta no se repite cartel ni beep
+    // Con la conversación abierta no se repite cartel ni beep; de una tienda no marcada, tampoco.
+    if (!esPropiaAccion && !conversacionVisible && permiteEnVivo(data)) {
       const esAlerta = data.nivel === 'alerta';
       window.toast[esAlerta ? 'error' : 'info'](esAlerta ? 'Atención' : 'Vale de arte', data.mensaje);
       if (data.beep !== false) reproducirBeep();

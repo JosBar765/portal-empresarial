@@ -98,7 +98,7 @@ class PropuestaCompartidaRepository {
        JOIN talleres ts ON ts.id = sib.taller_id AND ts.comparte_propuestas = 1 AND ${grupoDe('ts')} = ${grupoDe('tm')}
        JOIN estados_taller es ON es.id = sib.estado_id AND es.nombre = 'APROBADO'
        JOIN vale_propuestas lp ON lp.id = (
-         SELECT MAX(p.id) FROM vale_propuestas p WHERE p.vale_id = sib.vale_id AND p.disenador_id = sib.disenador_id
+         SELECT MAX(p.id) FROM vale_propuestas p WHERE p.vale_id = sib.vale_id AND p.disenador_id = sib.disenador_id AND p.anulada_en IS NULL
        )
        LEFT JOIN vale_propuestas_otros_vistos v
          ON v.usuario_id = ? AND v.vale_id = sib.vale_id AND v.taller_origen_id = sib.taller_id

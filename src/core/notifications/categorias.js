@@ -66,7 +66,7 @@ const CATALOGO = Object.freeze({
 });
 
 // Avisos que se decidió dejar solo en la campana.
-const SOLO_CAMPANA = Object.freeze({ vales: ['CORREGIDO', 'TOMADO', 'PAUSADO', 'REANUDADO'] });
+const SOLO_CAMPANA = Object.freeze({ vales: ['CORREGIDO', 'TOMADO'] });
 
 // El administrador recibe todo lo de Vales sin tener los permisos de cada rol.
 const MODULOS_COMPLETOS_PARA_ADMIN = ['vales'];

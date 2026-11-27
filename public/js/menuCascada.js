@@ -859,8 +859,13 @@ const crearFiltro = (construirArbol, lista, { etiquetaVacio, ...resto }) => crea
   arbol: [{ tipo: 'hoja', valor: '', etiqueta: etiquetaVacio }, ...construirArbol(lista, { conTodas: !resto.multiple, asesores: resto.multiple ? resto.asesores : [] })]
 });
 
-export const crearFiltroTiendas = ({ tiendas, etiquetaVacio = 'Todas las tiendas', ariaLabel = 'Filtrar por tienda', ...resto }) =>
-  crearFiltro(construirArbolTiendas, tiendas || [], { etiquetaVacio, ariaLabel, ...resto });
+export const crearFiltroTiendas = ({ tiendas, etiquetaVacio = 'Todas las tiendas', ariaLabel = 'Filtrar por tienda', ...resto }) => {
+  const menu = crearFiltro(construirArbolTiendas, tiendas || [], { etiquetaVacio, ariaLabel, ...resto });
+  // Para cuando cambian las tiendas que la persona puede marcar sin recargar la página.
+  menu.actualizarTiendas = (lista, asesores) => menu.establecerArbol([{ tipo: 'hoja', valor: '', etiqueta: etiquetaVacio },
+    ...construirArbolTiendas(lista || [], { conTodas: !resto.multiple, asesores: resto.multiple ? asesores : [] })]);
+  return menu;
+};
 
 export const crearFiltroTalleres = ({ talleres, etiquetaVacio = 'Todos los talleres', ariaLabel = 'Filtrar por taller', ...resto }) =>
   crearFiltro(construirArbolTalleres, talleres || [], { etiquetaVacio, ariaLabel, unidad: { singular: 'taller', plural: 'talleres' }, mensajeVacio: 'No hay talleres disponibles.', ...resto });

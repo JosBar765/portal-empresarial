@@ -3,8 +3,11 @@ import { $, $$ } from '../utils/dom.js';
 import { ROL, esEncargadoTaller, esDeTallerODisenador, rolVista } from '../config/roles.js';
 import { obtenerDisenadoresAsignables, obtenerCalendarioBuzon } from '../api/valesApi.js';
 import { crearBarraPeriodo } from '../components/barraPeriodoReportes.js';
+import { leerPeriodo, guardarPeriodo } from '../utils/periodoRecordado.js';
+import { hoyMedianoche, isoLocal } from '../utils/fechas.js';
 import { cargarBuzon } from '../views/buzon.js';
 import { crearFiltroTiendas } from '/js/menuCascada.js';
+import { sincronizarAlcance, guardarAlcance } from '../utils/alcanceVales.js';
 import { resolverTiendaIds, resolverAsesorIds, valorDeAsesor } from '/js/filtroCascada.js';
 import { restaurarFiltrosReportes2 } from '../utils/filtrosReportes2.js';
 
@@ -29,17 +32,22 @@ function guardarFiltroTienda(valor) {
 // Controles de la barra que hay que repintar cuando el buzón se acomoda solo (al abrir un aviso).
 let barraPeriodo = null;
 let menuTienda = null;
+// Se cumple cuando la selección guardada en el servidor ya está aplicada al selector.
+export let filtroSincronizado = Promise.resolve();
 
-export function mostrarEnBuzon(ventana, busqueda) {
+// `quitarTienda`: solo cuando la tienda del vale no se puede marcar; la selección guardada no cambia.
+export function mostrarEnBuzon(ventana, busqueda, { quitarTienda = false } = {}) {
   Object.assign(state, {
     ventana, busqueda, filtroContador: null, soloAtrasados: false, soloRechazos: false, soloModificados: false,
-    disenadorFiltro: '', tiendaId: null, sort: { key: null, dir: null }
+    disenadorFiltro: '', sort: { key: null, dir: null }
   });
   $('#filtro-texto').value = busqueda;
   const selectDisenador = $('#filtro-disenador');
   if (selectDisenador) selectDisenador.value = '';
-  // El filtro de tienda recordado no se borra: solo se quita mientras se muestra este vale.
-  menuTienda?.actualizar('');
+  if (quitarTienda) {
+    state.tiendaId = null;
+    menuTienda?.actualizar('');
+  }
   barraPeriodo?.pintar();
   actualizarIndicadoresOrden();
   cargarBuzon();
@@ -47,7 +55,9 @@ export function mostrarEnBuzon(ventana, busqueda) {
 
 export function wireToolbar() {
   // Misma barra de período que Reportes (Hoy · Día · Semana · Mes · Desde–Hasta), con su propio estado: state.ventana.
-  const cambiarVentana = (ventana) => { state.ventana = ventana; barra.pintar(); cargarBuzon(); };
+  // Solo se recuerda lo que elige el usuario: abrir un aviso mueve el período sin guardarlo.
+  state.ventana = leerPeriodo(state.user.id, isoLocal(hoyMedianoche()));
+  const cambiarVentana = (ventana) => { state.ventana = ventana; guardarPeriodo(state.user.id, ventana); barra.pintar(); cargarBuzon(); };
   // Quien tiene vales.ver_cupo ve el cupo de los talleres por día; el Encargado/Asistente, cuántos vales tiene
   // su taller; el Diseñador, cuántas asignaciones suyas.
   const permisos = state.user.permissions || [];
@@ -117,9 +127,22 @@ export function wireToolbar() {
         state.tiendaId = valor ? String(valor) : null;
         guardarFiltroTienda(state.tiendaId);
         cargarBuzon();
+        guardarAlcance(state.tiendaId);
       }
     });
     contenedorTienda.appendChild(menuTienda.elemento);
+
+    // La campana sigue esta misma selección. «Ver» y «Ver todas» desde la campana pasan por aquí.
+    const aplicarValor = (valor) => {
+      state.tiendaId = valor || null;
+      guardarFiltroTienda(state.tiendaId);
+      menuTienda.actualizar(valor);
+      cargarBuzon();
+    };
+    // Un cambio hecho en otra pantalla puede traer tiendas que el selector aún no tiene.
+    const alLlegar = (valor, tiendas, asesores) => { menuTienda.actualizarTiendas(tiendas, asesores); aplicarValor(valor); };
+    filtroSincronizado = sincronizarAlcance(state.tiendaId || '', (valor) => { aplicarValor(valor); guardarAlcance(valor); }, alLlegar)
+      .then((valor) => { if (valor !== null && valor !== (state.tiendaId || '')) aplicarValor(valor); });
   }
 }
 

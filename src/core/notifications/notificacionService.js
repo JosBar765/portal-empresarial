@@ -4,6 +4,7 @@
 const notificacionRepository = require('./notificacionRepository');
 const socketManager = require('../websocket/socketManager');
 const pushService = require('./pushService');
+const alcanceRepository = require('./alcanceRepository');
 const { MODULOS } = require('../permissions/modulesCatalog');
 const { ErrorDeNegocio } = require('../utils/erroresHttp');
 
@@ -34,10 +35,14 @@ class NotificacionService {
     const limiteSeguro = Math.min(Math.max(Number(limite) || POR_PAGINA, 1), 50);
     const desde = Math.max(Number(desplazamiento) || 0, 0);
     const filas = await notificacionRepository.listar(usuarioId, modulo, limiteSeguro + 1, desde);
+    const filtrada = await alcanceRepository.activo(usuarioId, modulo);
+    const fuera = filtrada ? await notificacionRepository.fueraDeSeleccion(usuarioId, modulo) : [];
     return {
       notificaciones: filas.slice(0, limiteSeguro),
       hayMas: filas.length > limiteSeguro,
-      noLeidas: await notificacionRepository.contarNoLeidas(usuarioId, modulo)
+      noLeidas: await notificacionRepository.contarNoLeidas(usuarioId, modulo),
+      filtrada,
+      fuera: fuera.map(f => ({ tiendaId: f.tienda_id, tienda: f.tienda, asesorId: f.asesor_id, asesor: f.asesor, noLeidas: Number(f.n) }))
     };
   }
 

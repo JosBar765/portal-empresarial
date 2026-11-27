@@ -103,7 +103,7 @@ Diagrama general (flujo feliz y desvíos):
 | 2 | `ASIGNADO` | Asignado | Tiene diseñador, aún no empieza. | Asignación · el encargado **desaprueba** y reasigna | Diseñador comienza → `EN_PROCESO` |
 | 3 | `EN_PROCESO` | En Proceso | El diseñador trabaja (solo 1 por diseñador). | Comenzar · reanudar | Entregar o cancelar → `EN_REVISION` · Pausar → `EN_PAUSA` |
 | 4 | `EN_PAUSA` | En Pausa | El diseñador detuvo el trabajo. | Pausar | Reanudar → `EN_PROCESO` |
-| 5 | `EN_REVISION` | En Revisión | Entregó propuesta (o canceló sin haber entregado nunca) y espera al encargado. | Entregar / cancelar | Aprobar → `APROBADO` · Desaprobar → `ASIGNADO` |
+| 5 | `EN_REVISION` | En Revisión | Entregó propuesta (o canceló el proceso) y espera al encargado. | Entregar / cancelar | Aprobar → `APROBADO` · Desaprobar → `ASIGNADO` |
 | 6 | `APROBADO` | Aprobado | El taller terminó (con propuesta con archivo). | Aprobación del encargado (o autoaprobación si se autoasignó y entregó con archivo) | — |
 | 7 | `VERIFICANDO_ADJUNTOS` | Verificar adjuntos | Estado inicial de todo taller: el encargado debe confirmar que recibió los adjuntos por correo. | El supervisor autoriza (una fila por taller) | Verifica → `PENDIENTE_ASIGNACION` · Rechaza → `ADJUNTOS_RECHAZADOS` |
 | 8 | `ADJUNTOS_RECHAZADOS` | Esperando adjuntos | El encargado rechazó el taller por no haber recibido los adjuntos; espera al asesor (plazo único de N horas laborales). | Rechazo del encargado | El asesor responde → `ADJUNTOS_RESPONDIDOS` · Vence → baja del taller (vale multitaller) o se borra el vale (último taller) |
@@ -219,7 +219,7 @@ Notas:
   laborales (§5.1) si nadie lo autoriza; cuando queda el 25% del plazo (en tiempo laboral) se avisa
   una vez al asesor y a sus supervisores (`vigenciaWatcher.js`, cada 60 s). Aplica solo a vales
   creados desde que existe esta regla. Un vale normal que vence **pasa a un borrador del asesor**
-  (con aviso y enlace a Borradores; ver `documentacion/borradores.md`); la modificación `MOD-`
+  (con aviso y enlace a Borradores, **solo para su dueño**: ni los administradores lo reciben en la campana; ver `documentacion/borradores.md`); la modificación `MOD-`
   se borra sin borrador. Ambos dejan su registro en `vale_bajas`.
 - Mientras está en `ESPERANDO_AUTORIZACION` (o `RECHAZADO`), el **asesor dueño**
   también puede darlo de baja (permiso `vales.dar_de_baja`): el vale se borra.
@@ -430,8 +430,8 @@ Nace cuando el Supervisor autoriza la creación (o aprueba la modificación), en
           └───┬───────────┬───┘  reanudar   └────────────┘         │
               │           │   (también exige no tener otro        │
               │           │    EN_PROCESO)                        │
-   entrega    │           │ cancela el proceso (solo si nunca     │
-   propuesta  │           │ entregó propuesta, alerta roja)       │
+   entrega    │           │ cancela el proceso (anula lo ya       │
+   propuesta  │           │ entregado, alerta roja)               │
               ▼           ▼                                       │
           ┌─────────────────────┐                                 │
           │     EN_REVISION     │─────────────────────────────────┘
@@ -452,13 +452,13 @@ Reglas:
   los enlaces son complementos opcionales. Lo único que deja un taller en
   `EN_REVISION` sin propuesta es «Cancelar proceso» (alerta roja; no crea fila
   en `vale_propuestas`, solo queda en el historial), y entonces el encargado no
-  podrá aprobar, solo desaprobar/reasignar. «Cancelar proceso» solo está disponible mientras el
-  diseñador no haya entregado ninguna propuesta de ese vale: tras una entrega
-  ya no es posible (el botón se oculta y el backend lo rechaza), así que el
-  diseñador entrega la nueva versión o el encargado reasigna. Vale igual para
-  el encargado que trabaja su propio vale. El Buzón calcula esta condición (`ya_entrego_propuesta`)
-  solo para los vales «En proceso»: tras desaprobar y reasignar, el vale aparece sin la marca mientras
-  está «Asignado» y la marca (y con ella la ausencia del botón) aparece cuando el diseñador pulsa «Comenzar».
+  podrá aprobar, solo desaprobar/reasignar.
+- **Cancelar proceso:** disponible siempre que el vale esté «En proceso», haya entregado antes o no (vale igual para el
+  encargado que trabaja su propio vale). Cancelar **anula** las propuestas que ese diseñador había entregado en ese vale
+  (`vale_propuestas.anulada_en`): no se muestran en el detalle, el visor, los reportes ni como propuesta compartida, y no
+  se pueden aprobar. En un vale de un solo taller también se quita su copia como propuesta general. Los archivos se
+  conservan: cuentan para la numeración y la retención. Una entrega posterior es una propuesta normal.
+  Migración `propuestas_anuladas.sql`.
 - **Autoasignación:** un encargado puede asignarse el vale (o reasignárselo
   tras desaprobar) a sí mismo. Si luego entrega, su trabajo se
   **autoaprueba** en el mismo paso (no pasa por revisión de sí mismo).
@@ -613,6 +613,11 @@ día) y, al pulsar el título del mes, una cuadrícula de meses con flechas de a
 mes; también «Todo el mes» desde el calendario). Las flechas ‹ › avanzan de mes en mes o de día en día
 según lo elegido. Un día viaja al servidor como un rango de un solo día.
 
+**Período recordado (Buzón y Trabajo realizado):** se guarda por usuario en cada navegador. Al volver a abrir solo
+se respeta un día, semana o mes **futuro**; si era el actual o uno pasado, se muestra el actual del mismo tipo (mirar
+atrás es una consulta momentánea). Un rango se respeta mientras no haya terminado. Sin nada guardado: el mes actual.
+Abrir un aviso mueve el período sin guardarlo. Reportes recuerda lo suyo por separado (`periodoRecordado.js`).
+
 ## 5. Límites y cupos
 
 | Límite | Dónde se valida | Efecto |
@@ -713,10 +718,12 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
   proceso.
 - Los destinatarios de una baja o de un vencimiento que borra el vale se calculan con `salasDeInvolucrados` (`valeHelpers.js`) antes del borrado; la notificación guarda `vale_id` en NULL al desaparecer el vale.
 - Al recibir un evento, el cliente refresca su buzón.
+- **Tiendas marcadas (Supervisor, Gerente y Administrador):** si marcan tiendas (el supervisor, también asesores con supervisión especial) en el Buzón, su campana, contador, carteles, sonido y push muestran solo esos vales, más los propios. Los demás avisos se guardan igual y la campana indica cuántos hay sin leer en las tiendas no marcadas. Sin nada marcado (o con todo) ve todo; un país o una ruta marcados por completo incluyen sus tiendas futuras. La selección se ajusta sola cuando el administrador cambia sus tiendas, abrir un aviso de una tienda no marcada la agrega, y las demás pantallas del usuario se actualizan solas. Detalle: `.agents/reglas/reglas_notificaciones.md`.
 - **Quién recibe qué** (el actor nunca se avisa a sí mismo; cada persona recibe una sola notificación por movimiento):
-  - **Asesor** (y su **supervisor**, por la sala `supervisor:<id>`): asignar, comenzar, entregar la propuesta, aprobación de **cada** taller (aunque el vale tenga varios), fusión y correcciones. Pausar, reanudar y cancelar el proceso **no** le llegan.
+  - **Asesor** (y su **supervisor**, por la sala `supervisor:<id>`): asignar, comenzar, entregar la propuesta, aprobación de **cada** taller (aunque el vale tenga varios), fusión y correcciones. Cancelar el proceso **no** le llega.
   - **Taller** (encargado + asistentes): lo que llega a su taller, la cancelación del proceso (alerta roja) y el atraso, también con el proceso en `EN_PAUSA`. La confirmación de recibido no les llega: su flujo termina en la aprobación.
   - **Diseñador:** asignación, propuesta aprobada y atraso, también en pausa.
+  - **Pausar y reanudar no avisan a nadie** (ni campana, ni cartel, ni sonido): solo refrescan las pantallas. Quedan en `vale_historial`, pero «Ver historial» no los muestra.
   - **Fusión:** al fusionar, se avisa al asesor, a sus supervisores y a `vales:fusion` (los demás con `vales.aprobar_general` actualizan su cola en tiempo real).
   - **Autoaprobación** (el encargado entrega su propia propuesta): solo el aviso de aprobación, sin el de entrega.
   - **Gerente:** ninguna notificación ni cartel (si se une a la sala `vale:<id>` de un vale abierto solo recibe `vale_actualizado` con el id, sin datos). **Administrador:** carteles (`vales:admin`), el mismo refresco y, desde ahora, también la notificación guardada en su campanita (cada administrador activo recibe una por evento, salvo el que ejecutó la acción; las antiguas se purgan como las demás).

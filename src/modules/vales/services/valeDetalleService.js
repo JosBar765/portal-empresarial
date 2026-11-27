@@ -75,7 +75,7 @@ class ValeDetalleService {
     const talleres = await valeTallerRepository.listarPorVale(valeId);
     if (!(await this._puedeVerVale(usuario, vale, talleres))) throw this.errorSinAcceso();
     const [propuestasCrudas, documentos, historial, enlacesFusion] = await Promise.all([
-      propuestaRepository.listarPorVale(valeId),
+      propuestaRepository.listarVigentesPorVale(valeId),
       documentoRepository.listarPorVale(valeId),
       historialRepository.listarPorVale(valeId),
       propuestaRepository.listarEnlacesDeFusion(valeId)
@@ -135,8 +135,8 @@ class ValeDetalleService {
         throw new ErrorDeNegocio('No tienes acceso a la propuesta de ese taller.', 403);
       }
     } else if (alcance) {
-      const visibles = await propuestasCompartidasService.filtrarPropuestas(alcance, await propuestaRepository.listarPorVale(valeId));
-      propuesta = visibles[visibles.length - 1]; // listarPorVale va en orden ascendente de id
+      const visibles = await propuestasCompartidasService.filtrarPropuestas(alcance, await propuestaRepository.listarVigentesPorVale(valeId));
+      propuesta = visibles[visibles.length - 1]; // la lista va en orden ascendente de id
     } else {
       propuesta = await propuestaRepository.obtenerUltimaPorVale(valeId);
     }
@@ -225,7 +225,7 @@ class ValeDetalleService {
   // - Gerente: lo mismo que el asesor, más "cuándo se asignó" y "cuándo se
   //   aprobó" a nivel de TODOS los talleres, sin importar a quién ni cuál taller.
   // - Encargados de taller: autorización de creación (sin scope de taller) +
-  //   su propio ciclo de asignación/proceso/pausa/reanudación/entrega-o-
+  //   su propio ciclo de asignación/proceso/entrega-o-
   //   cancelación/aprobación/reasignación, acotado a SU taller — nunca lo que
   //   pasó en otro taller del mismo vale, ni los eventos de nivel de vale
   //   (creación, retorno, confirmación, modificación) que antes se colaban
@@ -236,7 +236,9 @@ class ValeDetalleService {
   //   sembradas antes de que existiera la columna `disenador_id` caen a un
   //   respaldo por nombre en el texto de `accion` (best-effort, solo para
   //   datos históricos previos a esta corrección).
-  async _filtrarHistorialPorRol(usuario, historial) {
+  async _filtrarHistorialPorRol(usuario, completo) {
+    // Las pausas y reanudaciones se guardan (consultables en la base) pero no se muestran: ensuciaban el historial.
+    const historial = completo.filter(h => !['PAUSA', 'REANUDACION'].includes(categoriaHistorial(h)));
     if (!usuario || usuario.rolId === ROL.ADMINISTRADOR) return historial; // Administrador: todo, sin filtrar
 
     const conCategoria = historial.map(h => ({ ...h, _categoria: categoriaHistorial(h) }));
@@ -262,7 +264,7 @@ class ValeDetalleService {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
       if (!tallerVisible) return [];
       const cicloTaller = new Set([
-        'ASIGNACION', 'EN_PROCESO', 'PAUSA', 'REANUDACION',
+        'ASIGNACION', 'EN_PROCESO',
         'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO', 'APROBACION_TALLER', 'DESAPROBACION_REASIGNACION', 'ADJUNTOS'
       ]);
       return conCategoria
@@ -273,7 +275,7 @@ class ValeDetalleService {
     if (usuario.rolId === ROL.DISENADOR) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
       if (!tallerVisible) return [];
-      const propias = new Set(['EN_PROCESO', 'PAUSA', 'REANUDACION', 'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO']);
+      const propias = new Set(['EN_PROCESO', 'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO']);
       const deUnEncargado = new Set(['ASIGNACION', 'APROBACION_TALLER', 'DESAPROBACION_REASIGNACION']);
       return conCategoria
         .filter(h => {

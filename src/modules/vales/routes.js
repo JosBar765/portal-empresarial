@@ -101,6 +101,9 @@ const limitarOpciones = rateLimit({
 });
 
 router.get('/catalogos', verVales, (req, res) => valeController.catalogos(req, res));
+// Tiendas que la campana de Vales muestra a un supervisor (la misma selección del Buzón).
+router.get('/filtro-avisos', verVales, (req, res) => valeController.filtroAvisos(req, res));
+router.put('/filtro-avisos', verVales, (req, res) => valeController.guardarFiltroAvisos(req, res));
 router.get('/talleres', verVales, (req, res) => valeController.talleres(req, res));
 router.get('/capacidad-entrega', crearVale, (req, res) => valeController.capacidadEntrega(req, res));
 router.get('/fechas-entrega', crearVale, (req, res) => valeController.fechasEntrega(req, res));
