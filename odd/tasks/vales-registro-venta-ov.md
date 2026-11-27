@@ -77,5 +77,7 @@ Cada regla aprobada se comprueba en el servidor y en pantalla; dos registros sim
 
 - El dueño dio por buenos los demás comportamientos. Corregido y verificado en el servidor: un supervisor que decide sobre un vale de un asesor que también supervisa ya puede abrirlo (antes 403); el dueño con rol de taller o diseñador ve las líneas de venta del historial. Pruebas 122 de 122.
 
+- Pruebas con las dos ramas unidas (rama temporal, borrada): 122 de 122 y 8 de seguridad; ciclo completo de un vale (crear a recibir) con pausa y reanudación; dos supervisores reales sobre la misma OV (3 de 3 «ya fue resuelta»); modificación de un vale vendido sin bloqueo; reporte de asesores 238 a 239, igual al conteo directo. Datos de prueba: `GT-MTC-1126-9475` VENDIDO.
+
 ## Siguiente paso
 Abrir el PR cuando el dueño lo pida.
