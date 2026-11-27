@@ -71,5 +71,9 @@ Cada regla aprobada se comprueba en el servidor y en pantalla; dos registros sim
 - Sin probar: Administrador (sin contraseña documentada), push al dispositivo, un segundo supervisor real (ninguna cuenta probada cubre a ese asesor; «ya fue resuelta» se simuló).
 - Datos de prueba permanentes: `GT-MTC-1126-9281` y `MOD-GT-MTC-1126-9374` quedaron VENDIDO.
 
+- Tercera ronda: el choque simultáneo quedó corregido (0532b4d4) y verificado en el servidor (3 de 3 «ya fue resuelta»). Administrador en solo lectura (403 al decidir) y recibe los avisos. Push de escritorio verificado: llegan registro y rechazo; corregir y borrar no. Cuenta local `gerentezona13@` restablecida a la contraseña del seed.
+- Observado: al Administrador le llega el texto del rechazo dirigido al asesor («Puedes registrar otra»).
+- Pendiente de decisión: la sugerencia de la cotización ofrece montos.
+
 ## Siguiente paso
 Abrir el PR cuando el dueño lo pida.
