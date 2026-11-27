@@ -37,6 +37,7 @@ export const CONTADORES_CONFIG = {
     ],
     // Dos grupos — lo que él autorizó, y lo que sus asesores confirmaron de recibido.
     trabajo: [
+      { key: 'porConfirmarOv', label: 'POR CONFIRMAR OV', filtro: 'porConfirmarOv' },
       { key: 'autorizadosHoy', label: 'Autorizados hoy', filtro: 'autorizadosHoy' },
       { key: 'confirmadosHoy', label: 'Confirmados hoy', filtro: 'confirmadosHoy' },
       { key: 'totalAutorizados', label: 'Total autorizados', filtro: 'totalAutorizados' },

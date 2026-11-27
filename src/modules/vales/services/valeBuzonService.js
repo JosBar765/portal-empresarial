@@ -19,6 +19,7 @@ const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 const { normalizarParaBusqueda } = require('../../../core/utils/texto');
 const valeVistoRepository = require('../repositories/valeVistoRepository');
 const { calcularPipeline, prepararPipeline } = require('./valePipeline');
+const { aplicarVentas } = require('./valeVentaBuzon');
 const {
   ESTADOS, ESTADOS_TALLER, ESTADOS_TERMINALES, ESTADOS_CONFIRMADOS, ROL,
   esAdministrador, esSupervisor, enriquecer, dentroDeVentana, ordenarPorGrupos,
@@ -358,6 +359,15 @@ class ValeBuzonService {
     }
 
     let resultado = await this._resolverPorRol(usuario, vista, todosConTaller, valeTalleresTodos, talleresTodos, ventana, filtroContador);
+    if (vista === 'trabajo') {
+      const venta = await aplicarVentas({
+        usuario, filas: resultado.vales, filtroContador,
+        enTiendas: v => (!tiendasFiltro.size && !asesoresFiltro.size) || tiendasFiltro.has(v.tienda_id) || asesoresFiltro.has(v.asesor_id),
+        cargarVales: ids => this._cargarPorIds(ids),
+        comoPropias: [ROL.ENCARGADO_DISENO, ROL.DISENADOR].includes(rol)
+      });
+      resultado = { ...resultado, vales: venta.vales, contadores: { ...resultado.contadores, porConfirmarOv: venta.porConfirmarOv } };
+    }
     // «Atrasados» se combina con las demás tarjetas: con otra activa cuenta los atrasados de esa selección. En Trabajo
     // realizado (vales entregados con atraso) siempre se calcula aquí.
     if (resultado.contadores && (vista === 'trabajo' || (filtroContador && typeof resultado.contadores.atrasados === 'number'))) {
@@ -490,6 +500,12 @@ class ValeBuzonService {
       nextCursor,
       ...(resultado.mensajeVacio ? { mensajeVacio: resultado.mensajeVacio } : {})
     };
+  }
+
+  // Vales sueltos con sus talleres, sin ventana de fechas.
+  async _cargarPorIds(valeIds) {
+    const cargados = (await valeRepository.listarParaBuzon({ valeIds })).map(enriquecer);
+    return this._enriquecerConTaller(cargados, await valeTallerRepository.listarPorVales(cargados.map(v => v.id)));
   }
 
   // Aplica el filtro de un contador DESPUÉS de calcular las contadores (para

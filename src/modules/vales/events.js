@@ -135,8 +135,9 @@ function borradorNuevo(asesorId) {
 }
 
 // Solo refresca la pantalla de quien esté en las salas: sin cartel, sin beep, sin campana.
-function refrescar({ vale, salas = [] }) {
-  socketManager.sendToRooms([...new Set(salas)], 'vale_refrescar', { valeId: vale.id, estado: vale.estado });
+// `venta` ({numero, estado}) avisa a un modal de venta abierto; solo va a quienes pueden ver la OV.
+function refrescar({ vale, salas = [], venta = null, actorId = null }) {
+  socketManager.sendToRooms([...new Set(salas)], 'vale_refrescar', { valeId: vale.id, estado: vale.estado, ...(venta ? { venta, actorId } : {}) });
 }
 
 module.exports = { notificar, refrescar, borradorNuevo, SALA_ADMIN };

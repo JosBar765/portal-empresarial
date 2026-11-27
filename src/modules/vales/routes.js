@@ -4,6 +4,7 @@ const multer = require('multer');
 const router = express.Router();
 const valeController = require('./controllers/valeController');
 const borradorController = require('./controllers/borradorController');
+const ventaController = require('./controllers/ventaController');
 const { rateLimit } = require('express-rate-limit');
 const { nuevaReferencia, lineaLog, exigirPermisoReporte } = require('./utils/reporteErrores');
 const { requirePermission } = require('../../core/permissions/permissionMiddleware');
@@ -61,6 +62,7 @@ const escribirRechazoPropuesta = (req, res, next) => {
     : res.status(403).json({ error: 'No tienes permiso para escribir en esta conversación.' });
 };
 const aprobarModificacionVale = requirePermission('vales.supervisar');
+const decidirVenta = requirePermission('vales.supervisar');
 // Un reporte recorre el historial del período: se acota por usuario (ya autenticado).
 const limitarReportes = rateLimit({
   windowMs: 60 * 1000,
@@ -173,5 +175,11 @@ router.post('/:id/visto', requirePermission('vales.supervisar'), (req, res) => v
 router.post('/:id/dar-de-baja', darDeBajaVale, (req, res) => valeController.darDeBaja(req, res));
 router.post('/:id/talleres/:tallerId/baja', darDeBajaVale, (req, res) => valeController.darDeBajaTaller(req, res));
 router.post('/:id/corregir', corregirVale, camposAdjuntos, (req, res) => valeController.corregir(req, res));
+// Venta por orden de venta: la gestiona el dueño y la decide el supervisor del asesor.
+router.post('/:id/venta', crearVale, (req, res) => ventaController.registrar(req, res));
+router.put('/:id/venta', crearVale, (req, res) => ventaController.corregir(req, res));
+router.delete('/:id/venta', crearVale, (req, res) => ventaController.borrar(req, res));
+router.post('/:id/venta/confirmar', decidirVenta, (req, res) => ventaController.confirmar(req, res));
+router.post('/:id/venta/rechazar', decidirVenta, (req, res) => ventaController.rechazar(req, res));
 
 module.exports = router;

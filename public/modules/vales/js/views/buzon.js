@@ -19,6 +19,7 @@ import { abrirVisorDecisionAsesor, abrirDarDeBaja, abrirModalMotivoRechazo } fro
 import { abrirModalCorregirVale } from '../forms/valeForm.js';
 import { abrirSelectorModificacion } from '../actions/modificacionTipo.js';
 import { abrirModalHistorial } from '../actions/historial.js';
+import { abrirModalRegistrarVenta, abrirModalAdministrarVenta, abrirModalConfirmarVenta, abrirModalRechazarVenta } from '../actions/venta.js';
 import { abrirVisorPropuestasOtros } from '../actions/propuestasOtros.js';
 import { abrirConversacionesRechazo } from '../actions/rechazoPropuesta.js';
 import { rechazosSinLeer, textoRechazos } from '../utils/modificacionesVistas.js';
@@ -241,11 +242,12 @@ export function renderTabla() {
   const tbody = $('#buzon-tbody');
   if (filas.length === 0) {
     const esBusqueda = !!state.busqueda;
+    const sinVentas = !esBusqueda && state.filtroContador === 'porConfirmarOv';
     const icono = esBusqueda ? 'search-outline' : 'file-tray-outline';
-    const titulo = esBusqueda ? 'Sin resultados' : 'Buzón vacío';
+    const titulo = esBusqueda ? 'Sin resultados' : (sinVentas ? 'No hay ventas por confirmar' : 'Buzón vacío');
     const mensaje = esBusqueda
       ? `No encontramos vales de arte para «${state.busqueda}».`
-      : (state.mensajeVacio || 'No hay vales de arte para mostrar con los filtros actuales.');
+      : (sinVentas ? 'Cuando un asesor registre una OV, aparecerá aquí.' : (state.mensajeVacio || 'No hay vales de arte para mostrar con los filtros actuales.'));
     tbody.innerHTML = `
       <tr><td colspan="${columnasVisibles()}" class="tabla-vacia">
         <div class="buzon-vacio">
@@ -268,16 +270,24 @@ const empresaDeFila = (v) => {
     ? `<span class="vale-empresa" title="${escapeHtml(identificador)}">${escapeHtml(identificador)}</span>` : '';
 };
 
+// En un vale con venta, la columna «Estado» muestra la venta en lugar del pipeline.
+function celdaVenta({ estado, numero }) {
+  const insignia = estado === 'POR_CONFIRMAR'
+    ? '<span class="badge badge-venta-pendiente">POR CONFIRMAR OV</span>'
+    : '<span class="badge badge-venta-vendido">VENDIDO</span>';
+  return `<div class="venta-estado">${insignia}<span class="venta-numero">OV ${escapeHtml(numero)}</span></div>`;
+}
+
 // Dibuja las filas de vales (y sus botones de acción) en un <tbody>.
 function pintarFilas(tbody, filas) {
   tbody.innerHTML = filas.map(v => `
-    <tr>
+    <tr${v.venta?.estado === 'POR_CONFIRMAR' ? ' class="fila-venta-pendiente"' : ''}>
       <td data-label="Correlativo"><strong>${v.correlativo}</strong>${marcadorTipoRegistro(v)}${v.mod_en_tramite ? `<span class="badge badge-mod" title="Tiene la solicitud de modificación ${v.mod_en_tramite.correlativo} en trámite">MOD en trámite</span>` : ''}${badgeRechazoPropuesta(v)}${rechazosSinLeer(v).length ? `<span class="badge badge-rechazada" title="${escapeHtml(textoRechazos(rechazosSinLeer(v)))}">Rechazo respondido</span>` : ''}${v.urgente ? '<span class="badge badge-urgente">URGENTE</span>' : ''}${marcaPropuestaNueva(v)}${badgePersona(v)}${empresaDeFila(v)}</td>
       <td data-label="Fecha Ingreso" class="col-fecha-ingreso">${formatearFechaHora(v.creado_en || `${v.fecha_creacion} ${v.hora_creacion}`)}</td>
       <td data-label="Fecha Entrega" class="fecha-entrega">${formatearFecha(v.fecha_entrega)}</td>
       <td data-label="Atraso">${v.venceHoy ? '<span class="badge badge-hoy">Hoy</span>' : (v.atrasado ? `<span class="badge badge-atraso">${v.diasAtraso}d</span>` : `<span class="badge badge-ok">Al día</span>`)}</td>
       <td data-label="Taller" class="col-taller">${celdaTaller(v)}</td>
-      <td data-label="Estado" class="col-estado">${celdaEstado(v)}</td>
+      <td data-label="Estado" class="col-estado">${v.venta ? celdaVenta(v.venta) : celdaEstado(v)}</td>
       <td data-label="Acciones" class="acciones-cell" data-row-key="${claveFila(v)}"></td>
     </tr>
   `).join('');
@@ -429,16 +439,31 @@ const accionesDeBaja = (v) => puede('darDeBaja') && (['ESPERANDO_AUTORIZACION', 
   ? [{ icono: 'ban-outline', titulo: 'Dar de baja', clase: 'icon-danger', onClick: abrirDarDeBaja }]
   : [];
 
+// Venta (OV), solo en «Trabajo realizado»: el dueño la registra o administra; el supervisor la confirma o rechaza.
+// Las filas de trabajo de un taller (propuesta o fusión) no son del dueño.
+function accionesDeVenta(v) {
+  if (state.vista !== 'trabajo') return [];
+  const propia = esDuenoDe(v) && tienePermiso('vales.crear') && (!v._tipoRegistro || v._propio);
+  const acciones = [];
+  if (propia && !v.venta && v.estado === 'RECIBIDO') acciones.push({ icono: 'cart-outline', titulo: 'Registrar OV', onClick: abrirModalRegistrarVenta });
+  if (propia && v.venta?.estado === 'POR_CONFIRMAR') acciones.push({ icono: 'settings-outline', titulo: 'Administrar OV', onClick: abrirModalAdministrarVenta });
+  if (v.venta?.puede_decidir) {
+    acciones.push({ icono: 'checkmark-circle-outline', titulo: 'Confirmar venta', clase: 'icon-success', onClick: abrirModalConfirmarVenta });
+    acciones.push({ icono: 'close-circle-outline', titulo: 'Rechazar', clase: 'icon-danger', onClick: abrirModalRechazarVenta });
+  }
+  return acciones;
+}
+
 // Lector global dueño de su vale: la lectura de siempre más las acciones de dueño; nunca las de taller ni de supervisor.
 function construirAccionesLectorDueno(v) {
   const [ver, ...lectura] = construirAccionesDeLectura(v);
-  return [decideEnPaso5(v) ? accionVerYDecidir : ver, ...accionesDeModificacion(v), ...accionesChatRechazo(v), ...accionesDeCorreccion(v), ...lectura, ...accionesDeBaja(v)];
+  return [decideEnPaso5(v) ? accionVerYDecidir : ver, ...accionesDeVenta(v), ...accionesDeModificacion(v), ...accionesChatRechazo(v), ...accionesDeCorreccion(v), ...lectura, ...accionesDeBaja(v)];
 }
 
 // «Mis vales»: solo las acciones del dueño, nunca las del rol (taller, supervisor o lectura global).
 function construirAccionesMios(v) {
   const acciones = [decideEnPaso5(v) ? accionVerYDecidir : { icono: 'eye-outline', titulo: 'Ver vale de arte (PDF)', onClick: () => abrirVisorDeFila(v, propuestaVisible(v)) }];
-  acciones.push(...accionesDeModificacion(v), ...accionesChatRechazo(v), ...accionesDeCorreccion(v));
+  acciones.push(...accionesDeVenta(v), ...accionesDeModificacion(v), ...accionesChatRechazo(v), ...accionesDeCorreccion(v));
   if (puede('verHistorial')) acciones.push({ icono: 'time-outline', titulo: 'Ver historial', onClick: abrirModalHistorial });
   acciones.push(...accionesDeBaja(v));
   return acciones;
@@ -492,6 +517,7 @@ export function construirAcciones(v) {
   if (puede('aprobarGeneral') && v.estado === 'APROBADO_DEPARTAMENTO') {
     acciones.push({ icono: 'checkmark-done-circle-outline', titulo: 'Aprobar y fusionar', clase: 'icon-success', onClick: abrirModalAprobarGeneral });
   }
+  acciones.push(...accionesDeVenta(v));
   acciones.push(...accionesDeModificacion(v));
   acciones.push(...accionesChatRechazo(v));
   if (puede('aprobarModificacion') && v.estado === 'SOLICITANDO_MODIFICACION') {

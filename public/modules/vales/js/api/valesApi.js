@@ -48,6 +48,25 @@ async function enviarFormData(url, formData) {
   return data;
 }
 
+// Venta por orden de venta. El error conserva `codigo` y `numeroActual`: dicen si la OV cambió o ya se resolvió.
+async function enviarVenta(url, metodo, numeroOv) {
+  const res = await fetch(url, {
+    method: metodo,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ numeroOv })
+  });
+  const data = await leerJSON(res);
+  if (!res.ok) {
+    throw Object.assign(new Error(data.error || 'No se pudo completar la acción. Inténtalo de nuevo.'), { codigo: data.codigo, numeroActual: data.numeroActual });
+  }
+  return data;
+}
+export const registrarVenta = (id, numeroOv) => enviarVenta(`/api/vales/${id}/venta`, 'POST', numeroOv);
+export const corregirVenta = (id, numeroOv) => enviarVenta(`/api/vales/${id}/venta`, 'PUT', numeroOv);
+export const borrarVenta = (id) => enviarVenta(`/api/vales/${id}/venta`, 'DELETE');
+export const confirmarVenta = (id, numeroOv) => enviarVenta(`/api/vales/${id}/venta/confirmar`, 'POST', numeroOv);
+export const rechazarVenta = (id, numeroOv) => enviarVenta(`/api/vales/${id}/venta/rechazar`, 'POST', numeroOv);
+
 export async function obtenerCatalogos() {
   const res = await fetch('/api/vales/catalogos');
   return leerJSON(res);

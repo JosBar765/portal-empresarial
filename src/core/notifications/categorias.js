@@ -31,7 +31,9 @@ const CATALOGO = Object.freeze({
     cat('atrasos_vencimientos', 'Atrasos y por vencer', 'Un vale se atrasó, o su vigencia o el plazo de sus adjuntos está por vencer.',
       [CREA, SUPERVISA, TALLER, DISENA, FUSIONA], ['ATRASO', 'POR_EXPIRAR', 'ADJUNTOS_POR_VENCER']),
     cat('bajas', 'Bajas y eliminaciones', 'Un vale o un taller fue dado de baja, o un vale venció y se eliminó o pasó a Borradores.',
-      [CREA, SUPERVISA, TALLER, DISENA], ['VALE_DADO_DE_BAJA', 'TALLER_DADO_DE_BAJA', 'TALLER_DADO_DE_BAJA_AUTOMATICA', 'EXPIRADO', 'EXPIRADO_A_BORRADOR', 'ADJUNTOS_VENCIDOS'])
+      [CREA, SUPERVISA, TALLER, DISENA], ['VALE_DADO_DE_BAJA', 'TALLER_DADO_DE_BAJA', 'TALLER_DADO_DE_BAJA_AUTOMATICA', 'EXPIRADO', 'EXPIRADO_A_BORRADOR', 'ADJUNTOS_VENCIDOS']),
+    cat('ventas', 'Ventas', 'Una venta (orden de venta) quedó por confirmar, fue confirmada o fue rechazada.',
+      [CREA, SUPERVISA], ['VENTA_POR_CONFIRMAR', 'VENTA_CONFIRMADA', 'VENTA_RECHAZADA'])
   ],
   viaticos: [
     cat('por_autorizar', 'Por autorizar', 'Solicitudes nuevas o modificadas que esperan autorización.', ['viaticos.autorizar'], ['solicitud_nueva', 'solicitud_modificada']),
@@ -66,7 +68,7 @@ const CATALOGO = Object.freeze({
 });
 
 // Avisos que se decidió dejar solo en la campana.
-const SOLO_CAMPANA = Object.freeze({ vales: ['CORREGIDO', 'TOMADO'] });
+const SOLO_CAMPANA = Object.freeze({ vales: ['CORREGIDO', 'TOMADO', 'VENTA_CORREGIDA', 'VENTA_RETIRADA'] });
 
 // El administrador recibe todo lo de Vales sin tener los permisos de cada rol.
 const MODULOS_COMPLETOS_PARA_ADMIN = ['vales'];

@@ -12,7 +12,7 @@ const visibles = (modulo, permisos, rolId) => categorias.categoriasVisibles(modu
 
 test('cada módulo tiene las categorías aprobadas', () => {
   const total = m => categorias.categoriasDe(m).length;
-  assert.deepStrictEqual([total('vales'), total('viaticos'), total('incidencias'), total('proyectos')], [10, 4, 4, 6]);
+  assert.deepStrictEqual([total('vales'), total('viaticos'), total('incidencias'), total('proyectos')], [11, 4, 4, 6]);
   assert.deepStrictEqual([total('admin'), total('prompts'), total('tiempos')], [0, 0, 0]);
 });
 
@@ -58,9 +58,22 @@ test('visibilidad según permisos', () => {
 });
 
 test('el administrador ve todas las de Vales; sin permiso de ver el módulo no hay ninguna', () => {
-  assert.strictEqual(visibles('vales', ['vales.ver'], 1).length, 10);
+  assert.strictEqual(visibles('vales', ['vales.ver'], 1).length, 11);
   assert.deepStrictEqual(visibles('vales', ['vales.crear']), []);
   assert.deepStrictEqual(visibles('admin', ['admin.ver'], 1), []);
+});
+
+test('«Ventas» de Vales: sus tres avisos con push; corregir y borrar, solo campana', () => {
+  for (const tipo of ['VENTA_POR_CONFIRMAR', 'VENTA_CONFIRMADA', 'VENTA_RECHAZADA']) {
+    assert.strictEqual(categorias.categoriaDeTipo('vales', tipo), 'ventas', tipo);
+  }
+  for (const tipo of ['VENTA_CORREGIDA', 'VENTA_RETIRADA']) {
+    assert.strictEqual(categorias.categoriaDeTipo('vales', tipo), null, tipo);
+    assert.ok(categorias.SOLO_CAMPANA.vales.includes(tipo), tipo);
+  }
+  assert.ok(visibles('vales', ['vales.ver', 'vales.crear']).includes('ventas'));
+  assert.ok(visibles('vales', ['vales.ver', 'vales.supervisar']).includes('ventas'));
+  assert.ok(!visibles('vales', ['vales.ver', 'vales.gestionar_taller', 'vales.trabajar']).includes('ventas'));
 });
 
 test('Viáticos: todos sus tipos tienen categoría', () => {

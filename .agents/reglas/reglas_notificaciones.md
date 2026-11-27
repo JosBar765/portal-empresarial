@@ -119,13 +119,13 @@ El nombre y el contenido exactos están en `categorias.js`.
 
 | Módulo | Categorías |
 |---|---|
-| Vales de Arte | Pendientes de autorización · Autorizados y rechazados · Asignación de diseño · Avance del diseño · Aprobación y entrega · Rechazo de propuesta · Revisión de adjuntos · Mensajes · Atrasos y por vencer · Bajas y eliminaciones |
+| Vales de Arte | Pendientes de autorización · Autorizados y rechazados · Asignación de diseño · Avance del diseño · Aprobación y entrega · Rechazo de propuesta · Revisión de adjuntos · Mensajes · Atrasos y por vencer · Bajas y eliminaciones · Ventas |
 | Viáticos | Por autorizar · Autorizadas y rechazadas · Liquidadas · Vencimientos |
 | Incidencias | Buzón y asignación · Avance · Verificación y cierre · Comentarios |
 | Proyectos | Reparto · Seguimiento · Proyecto · Aprobaciones · Ventas · Muestras |
 
 - Cada usuario ve solo las categorías que sus permisos pueden recibir. El administrador ve todas las de Vales.
-- Solo campana en Vales: «corregido» y «tomado».
+- Solo campana en Vales: «corregido», «tomado» y la corrección o el borrado de una OV por confirmar.
 - Pausar y reanudar un proceso no avisan (ni campana, ni cartel, ni sonido, ni push): solo refrescan las pantallas.
 - Proyectos: si el administrador apaga un evento para un rol en su matriz de avisos, no llega ni a la campana; la preferencia personal no lo reactiva.
 - Prompts, Tiempos y Administración no tienen categorías. El administrador configura los avisos de Vales desde la campana de Vales.
