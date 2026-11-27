@@ -134,11 +134,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       socket.emit('register_module', `role_${currentUser.rolId}`);
     });
 
-    // Una notificación nueva sube la burbuja de su módulo.
+    // Una notificación nueva recalcula las burbujas: el servidor sabe cuáles cuentan según las tiendas marcadas.
     socket.on('notificacion_nueva', (n) => {
-      if (!burbujas[n.modulo]) return;
-      burbujas[n.modulo].cantidad += 1;
-      pintarBurbuja(n.modulo);
+      if (burbujas[n.modulo]) cargarResumenNotificaciones();
     });
     // Al volver a esta página (botón Atrás) se recalcula: el usuario pudo leer notificaciones dentro del módulo.
     window.addEventListener('pageshow', (e) => { if (e.persisted) cargarResumenNotificaciones(); });

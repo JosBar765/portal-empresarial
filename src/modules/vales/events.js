@@ -92,8 +92,10 @@ async function usuariosDeSalas(salas) {
 }
 
 function guardarNotificaciones({ vale, contenido, salas, actorId, nivel, tipo, valeBorrado }) {
+  // Tienda y asesor quedan en el aviso (aunque el vale se borre): deciden si entra en la selección de cada supervisor.
+  const origen = { tiendaId: vale.tienda_id ?? null, asesorId: vale.asesor_id ?? null };
   usuariosDeSalas([...(salas || []), SALA_ADMIN])
-    .then(ids => notificacionService.registrar(ids.filter(id => id !== actorId), { modulo: 'vales', valeId: valeBorrado ? null : vale.id, tipo, nivel, mensaje: contenido }))
+    .then(ids => notificacionService.registrar(ids.filter(id => id !== actorId), { modulo: 'vales', valeId: valeBorrado ? null : vale.id, tipo, nivel, mensaje: contenido, ...origen }))
     .catch(error => console.error('[Notificaciones] No se pudieron guardar:', error.message));
 }
 
@@ -110,6 +112,7 @@ function notificar({ vale, accion, actor = null, actorId = null, destino = null,
     correlativo: vale.correlativo,
     estado: vale.estado,
     asesorId: vale.asesor_id,
+    tiendaId: vale.tienda_id ?? null,
     actorId,
     mensaje,
     nivel,

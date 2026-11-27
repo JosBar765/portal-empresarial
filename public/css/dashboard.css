@@ -753,3 +753,20 @@ body {
   .buscador { width: 100%; }
   .buscador > input[type="text"] { width: 100%; }
 }
+
+/* Campana filtrada por tiendas: rótulo de lo que se ve y bloque plegable de lo que no. */
+.notif-alcance { flex: 0 0 auto; padding: 6px 14px; font-size: 12px; font-weight: 500; color: var(--color-text-secondary); border-bottom: 1px solid var(--color-border); }
+/* Con el bloque desplegado el panel puede crecer, para que la lista no quede aplastada. */
+.notif-panel.is-fuera-abierto { max-height: calc(100dvh - var(--safe-top, 0px) - 80px); }
+.notif-lista { flex: 1 1 auto; min-height: 56px; }
+.notif-fuera { flex: 0 0 auto; padding: 8px 14px; background: var(--color-surface-muted); border-top: 1px solid var(--color-border); }
+.notif-fuera-resumen { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 36px; padding: 0; border: none; background: none; font-family: inherit; font-size: 13px; color: var(--color-text); text-align: left; cursor: pointer; }
+.notif-fuera-resumen strong { display: block; font-weight: 600; }
+.notif-fuera-resumen small { display: block; font-size: 11px; color: var(--color-text-secondary); }
+.notif-fuera-resumen ion-icon { flex: 0 0 auto; color: var(--color-primary); }
+.notif-fuera-lista { list-style: none; margin: 6px 0; padding: 0; max-height: min(190px, 26vh); overflow-y: auto; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+.notif-fuera-fila { display: flex; align-items: center; gap: 8px; padding: 2px 10px; border-bottom: 1px solid var(--color-border); font-size: 13px; }
+.notif-fuera-fila:last-child { border-bottom: none; }
+.notif-fuera-nombre { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notif-fuera-cantidad { font-weight: 600; color: var(--color-text-secondary); }
+.notif-fuera-ver, .notif-fuera-todas { min-height: 32px; padding: 0 4px; border: none; background: none; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--color-primary); white-space: nowrap; cursor: pointer; }

@@ -1,5 +1,6 @@
 // src/modules/vales/controllers/valeController.js
 const valeService = require('../services/valeService');
+const valeFiltroAvisosService = require('../services/valeFiltroAvisosService');
 const valeUbicacionService = require('../services/valeUbicacionService');
 const { leerAdjuntos } = require('../services/propuestaAdjuntos');
 const { validarArchivos, tipoRealCoincide } = require('../../../core/files/fileSignature');
@@ -17,6 +18,22 @@ function idTallerConversacion(valor) {
 const ladoPedido = (valor) => (valor === 'ASESOR' ? 'ASESOR' : null);
 
 class ValeController {
+  async filtroAvisos(req, res) {
+    try {
+      return res.json(await valeFiltroAvisosService.leer(req.user));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
+  async guardarFiltroAvisos(req, res) {
+    try {
+      return res.json(await valeFiltroAvisosService.guardar(req.user, req.body));
+    } catch (error) {
+      return responderError(res, error);
+    }
+  }
+
   async catalogos(req, res) {
     try {
       const data = await valeService.obtenerCatalogos(req.user);
