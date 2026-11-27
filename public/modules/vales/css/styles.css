@@ -1295,6 +1295,11 @@
   display: flex;
 }
 
+/* The clear button takes the icon's spot: hidden (keeps its width) so no edge shows behind it. */
+.date-field-compact.has-value .date-field-trigger ion-icon {
+  visibility: hidden;
+}
+
 .date-picker-panel {
   position: fixed;
   z-index: 200;
