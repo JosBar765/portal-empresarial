@@ -75,5 +75,7 @@ Cada regla aprobada se comprueba en el servidor y en pantalla; dos registros sim
 - Observado: al Administrador le llega el texto del rechazo dirigido al asesor («Puedes registrar otra»).
 - Pendiente de decisión: la sugerencia de la cotización ofrece montos.
 
+- El dueño dio por buenos los demás comportamientos. Corregido y verificado en el servidor: un supervisor que decide sobre un vale de un asesor que también supervisa ya puede abrirlo (antes 403); el dueño con rol de taller o diseñador ve las líneas de venta del historial. Pruebas 122 de 122.
+
 ## Siguiente paso
 Abrir el PR cuando el dueño lo pida.

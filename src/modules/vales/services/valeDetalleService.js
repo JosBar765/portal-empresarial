@@ -15,7 +15,7 @@ const valeCatalogoService = require('./valeCatalogoService');
 const propuestasCompartidasService = require('./propuestasCompartidasService');
 const {
   ESTADOS, ROL, esDeTaller, esTallerODisenador,
-  esAdministrador, esSupervisor, enriquecer, puedeActuarComoAsesor
+  esAdministrador, esSupervisor, enriquecer, puedeActuarComoAsesor, esSupervisorDelAsesor
 } = require('./valeHelpers');
 
 // Clasifica cada fila de vale_historial en una categoría estable, a partir
@@ -91,7 +91,7 @@ class ValeDetalleService {
     const historialConActor = await this._enriquecerHistorialConActor(historial);
     // Sin `vales.ver_historial` el historial no sale del servidor.
     const historialVisible = (usuario.permissions || []).includes('vales.ver_historial')
-      ? await this._filtrarHistorialPorRol(usuario, historialConActor)
+      ? await this._filtrarHistorialPorRol(usuario, historialConActor, { esDuenio: vale.asesor_id === usuario.id })
       : [];
 
     // El supervisor necesita ver la justificación al decidir si autoriza la
@@ -193,7 +193,8 @@ class ValeDetalleService {
     if (usuario.rolId === ROL.ASESOR) return vale.asesor_id === usuario.id;
     if (esSupervisor(usuario)) {
       const misAsesoresIds = new Set((await usuarioValeRepository.listarAsesoresPorSupervisor(usuario.id)).map(a => a.id));
-      return misAsesoresIds.has(vale.asesor_id);
+      // Quien puede autorizar o decidir sobre el vale (p. ej. de un asesor que también supervisa) también lo abre.
+      return misAsesoresIds.has(vale.asesor_id) || esSupervisorDelAsesor(usuario, vale);
     }
     if (esTallerODisenador(usuario)) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
@@ -238,13 +239,15 @@ class ValeDetalleService {
   //   sembradas antes de que existiera la columna `disenador_id` caen a un
   //   respaldo por nombre en el texto de `accion` (best-effort, solo para
   //   datos históricos previos a esta corrección).
-  async _filtrarHistorialPorRol(usuario, completo) {
+  async _filtrarHistorialPorRol(usuario, completo, { esDuenio = false } = {}) {
     // Las pausas y reanudaciones se guardan (consultables en la base) pero no se muestran: ensuciaban el historial.
     const historial = completo.filter(h => !['PAUSA', 'REANUDACION'].includes(categoriaHistorial(h)));
     if (!usuario || usuario.rolId === ROL.ADMINISTRADOR) return historial; // Administrador: todo, sin filtrar
 
     const conCategoria = historial.map(h => ({ ...h, _categoria: categoriaHistorial(h) }));
     const sinCategoria = (h) => { const { _categoria, ...resto } = h; return resto; };
+    // El dueño ve la venta de su vale aunque su rol sea de taller o diseñador.
+    const ventaPropia = (h) => esDuenio && h._categoria === 'VENTA';
 
     if (usuario.rolId === ROL.ASESOR || esSupervisor(usuario)) {
       const permitidas = new Set([
@@ -264,23 +267,24 @@ class ValeDetalleService {
 
     if (esDeTaller(usuario)) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
-      if (!tallerVisible) return [];
+      if (!tallerVisible) return conCategoria.filter(ventaPropia).map(sinCategoria);
       const cicloTaller = new Set([
         'ASIGNACION', 'EN_PROCESO',
         'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO', 'APROBACION_TALLER', 'DESAPROBACION_REASIGNACION', 'ADJUNTOS'
       ]);
       return conCategoria
-        .filter(h => h._categoria === 'AUTORIZACION_CREACION' || (cicloTaller.has(h._categoria) && h.taller_id === tallerVisible))
+        .filter(h => ventaPropia(h) || h._categoria === 'AUTORIZACION_CREACION' || (cicloTaller.has(h._categoria) && h.taller_id === tallerVisible))
         .map(sinCategoria);
     }
 
     if (usuario.rolId === ROL.DISENADOR) {
       const tallerVisible = await this._tallerIdVisiblePara(usuario);
-      if (!tallerVisible) return [];
+      if (!tallerVisible) return conCategoria.filter(ventaPropia).map(sinCategoria);
       const propias = new Set(['EN_PROCESO', 'ENTREGA_PROPUESTA', 'CANCELACION_PROCESO']);
       const deUnEncargado = new Set(['ASIGNACION', 'APROBACION_TALLER', 'DESAPROBACION_REASIGNACION']);
       return conCategoria
         .filter(h => {
+          if (ventaPropia(h)) return true;
           if (h.taller_id !== tallerVisible) return false;
           if (propias.has(h._categoria)) return h.usuario_id === usuario.id;
           if (deUnEncargado.has(h._categoria)) {
