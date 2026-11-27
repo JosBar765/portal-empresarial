@@ -25,5 +25,7 @@ Route: one bounded writer (fork). Local database migration needs the owner's per
 - T2 (2026-11-27): migration applied locally with owner permission; API cycle deliver, disapprove, cancel, approve rejected, disapprove, deliver again, approve; review modal checked on desktop. No CSS or markup change, phone width not checked.
 - Owner accepted: the previous merged proposal stays visible; same designer in two workshops (admin only) left as is.
 
+- Two workshops (2026-11-27, local API, a modification voucher): cancel voids only that designer's proposal, the other workshop keeps its own; approving the cancelled one is rejected; after a new delivery both approve and the merge works. Not run: merge rejected by the advisor followed by a cancel.
+
 ## Next step
 Push and PR when the owner asks.
