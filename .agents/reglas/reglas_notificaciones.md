@@ -103,7 +103,8 @@ El nombre y el contenido exactos están en `categorias.js`.
 | Proyectos | Reparto · Seguimiento · Proyecto · Aprobaciones · Ventas · Muestras |
 
 - Cada usuario ve solo las categorías que sus permisos pueden recibir. El administrador ve todas las de Vales.
-- Solo campana en Vales: «corregido», «tomado», «pausado» y «reanudado».
+- Solo campana en Vales: «corregido» y «tomado».
+- Pausar y reanudar un proceso no avisan (ni campana, ni cartel, ni sonido, ni push): solo refrescan las pantallas.
 - Proyectos: si el administrador apaga un evento para un rol en su matriz de avisos, no llega ni a la campana; la preferencia personal no lo reactiva.
 - Prompts, Tiempos y Administración no tienen categorías. El administrador configura los avisos de Vales desde la campana de Vales.
 

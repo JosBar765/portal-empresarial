@@ -210,10 +210,8 @@ class ValeTallerService {
       await valeTallerRepository.actualizarEstado(fila.id, ESTADOS_TALLER.EN_PAUSA);
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PROCESO, ESTADOS_TALLER.EN_PAUSA, `${etiquetaActorTaller(usuario)} pausó el proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
-      valeEvents.notificar({
-        vale: actualizado, texto: `${usuario.nombre} pausó el proceso`, tipo: 'PAUSADO', actorId: usuario.id,
-        salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`]
-      });
+      // Sin aviso (ni campana, ni cartel, ni sonido): ida y vuelta frecuente que solo refresca las pantallas.
+      valeEvents.refrescar({ vale: actualizado, salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`, valeEvents.SALA_ADMIN] });
       return enriquecer(actualizado);
     });
   }
@@ -238,10 +236,8 @@ class ValeTallerService {
       });
       await registrarHistorial(valeId, usuario.id, fila.taller_id, ESTADOS_TALLER.EN_PAUSA, ESTADOS_TALLER.EN_PROCESO, `${etiquetaActorTaller(usuario)} reanudó el proceso`);
       const actualizado = await valeRepository.obtenerPorId(valeId);
-      valeEvents.notificar({
-        vale: actualizado, texto: `${usuario.nombre} reanudó el proceso`, tipo: 'REANUDADO', actorId: usuario.id,
-        salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`]
-      });
+      // Sin aviso (ni campana, ni cartel, ni sonido): ida y vuelta frecuente que solo refresca las pantallas.
+      valeEvents.refrescar({ vale: actualizado, salas: [`taller:${fila.taller_id}`, `disenador:${usuario.id}`, valeEvents.SALA_ADMIN] });
       return enriquecer(actualizado);
     });
   }

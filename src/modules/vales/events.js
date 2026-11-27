@@ -136,4 +136,4 @@ function refrescar({ vale, salas = [] }) {
   socketManager.sendToRooms([...new Set(salas)], 'vale_refrescar', { valeId: vale.id, estado: vale.estado });
 }
 
-module.exports = { notificar, refrescar, borradorNuevo };
+module.exports = { notificar, refrescar, borradorNuevo, SALA_ADMIN };

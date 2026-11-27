@@ -31,7 +31,7 @@ test('ids, nombres y descripciones completos; ningún tipo en dos categorías; t
 });
 
 test('los avisos que quedan solo en la campana no tienen categoría', () => {
-  for (const tipo of ['CORREGIDO', 'TOMADO', 'PAUSADO', 'REANUDADO']) {
+  for (const tipo of ['CORREGIDO', 'TOMADO']) {
     assert.strictEqual(categorias.categoriaDeTipo('vales', tipo), null);
     assert.ok(categorias.SOLO_CAMPANA.vales.includes(tipo));
   }

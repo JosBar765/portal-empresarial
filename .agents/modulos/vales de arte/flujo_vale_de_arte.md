@@ -714,9 +714,10 @@ Todos los eventos pasan por `valeEvents.notificar` (`events.js`) y se envían
 - Los destinatarios de una baja o de un vencimiento que borra el vale se calculan con `salasDeInvolucrados` (`valeHelpers.js`) antes del borrado; la notificación guarda `vale_id` en NULL al desaparecer el vale.
 - Al recibir un evento, el cliente refresca su buzón.
 - **Quién recibe qué** (el actor nunca se avisa a sí mismo; cada persona recibe una sola notificación por movimiento):
-  - **Asesor** (y su **supervisor**, por la sala `supervisor:<id>`): asignar, comenzar, entregar la propuesta, aprobación de **cada** taller (aunque el vale tenga varios), fusión y correcciones. Pausar, reanudar y cancelar el proceso **no** le llegan.
+  - **Asesor** (y su **supervisor**, por la sala `supervisor:<id>`): asignar, comenzar, entregar la propuesta, aprobación de **cada** taller (aunque el vale tenga varios), fusión y correcciones. Cancelar el proceso **no** le llega.
   - **Taller** (encargado + asistentes): lo que llega a su taller, la cancelación del proceso (alerta roja) y el atraso, también con el proceso en `EN_PAUSA`. La confirmación de recibido no les llega: su flujo termina en la aprobación.
   - **Diseñador:** asignación, propuesta aprobada y atraso, también en pausa.
+  - **Pausar y reanudar no avisan a nadie** (ni campana, ni cartel, ni sonido): solo refrescan las pantallas. Quedan en `vale_historial`, pero «Ver historial» no los muestra.
   - **Fusión:** al fusionar, se avisa al asesor, a sus supervisores y a `vales:fusion` (los demás con `vales.aprobar_general` actualizan su cola en tiempo real).
   - **Autoaprobación** (el encargado entrega su propia propuesta): solo el aviso de aprobación, sin el de entrega.
   - **Gerente:** ninguna notificación ni cartel (si se une a la sala `vale:<id>` de un vale abierto solo recibe `vale_actualizado` con el id, sin datos). **Administrador:** carteles (`vales:admin`), el mismo refresco y, desde ahora, también la notificación guardada en su campanita (cada administrador activo recibe una por evento, salvo el que ejecutó la acción; las antiguas se purgan como las demás).
