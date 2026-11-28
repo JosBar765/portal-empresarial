@@ -33,7 +33,7 @@ Se mantiene el versionado (todo va al borrador y se publica).
 - `permite_moldes` y `permite_lanyard` se reemplazan por el alcance del extra.
 - La costura deja de leer el producto Lanyard: se carga como extra «por cantidad» con los mismos rangos de la columna Costura.
 
-**Migración:** se ajustó la `54_tiempos_nucleo` directamente (el dueño confirmó que no corrió en ningún entorno). Quien la haya corrido en una base local debe recrear esa base.
+**Migración:** `64_tiempos_datos_administrables.sql`, aditiva e idempotente. La `54_tiempos_nucleo` NO se toca: ya llegó a staging con el PR #206 (en un primer intento se editó la 54; se revirtió el 2026-11-28 al detectar que ya estaba en staging). La 64 agrega columnas y tablas y convierte los datos de todas las versiones (grupos → categorías, tipos de UV → opciones del extra «uv», Colores/Moldes/Costura → extras con los mismos valores y el mismo alcance, reglas nuevas). Las columnas `grupo`, `permite_moldes`, `permite_lanyard` y `tiempos_extra_rangos.extra_id` quedan sin uso.
 
 ## 4. Motor
 `calcularPieza` recorre los extras activos que aplican al producto, en su orden, según el tipo. Se quitan las reglas fijas de moldes, colores y costura. La pieza recibe `extras: { [clave]: true | opción | unidades }`; la API sigue aceptando el formato anterior durante la transición.
@@ -75,3 +75,6 @@ https://www.figma.com/design/b0CqDb0IHG3IpXRzGesFI5 — aprobado el 2026-11-28.
 - Motor genérico (`calculo/extras.js`, `motor.js`): las pruebas anteriores dan lo mismo sin cambiar sus resultados esperados (motor 38, caja negra 55, API 16, datos 135 filas). Solo se adaptaron 3 comprobaciones de la forma del catálogo (los tipos de UV ahora son opciones del extra `uv`; «permite moldes» ahora es «se le ofrece el extra moldes»).
 - Administración: `verificar-admin.js` pasa a 80 comprobaciones (extras de los tres tipos, alcance, ocultar y quitar, reglas, catálogos con ocultar bloqueado, categoría de producto y cálculo con los extras nuevos al publicar).
 - Recorrido en el navegador (escritorio): las cinco pestañas de la administración, el asistente completo (por cantidad, alcance por categoría, revisar y guardar), la calculadora con los extras del catálogo y la tabla de referencia, sin errores en consola. Falta el recorrido en celular.
+
+## 10. Prueba de la conversión (simulación de staging, 2026-11-28)
+Base con el código de `dev` (migración 54 original, carga inicial y un borrador con cambios: UV cama plana 1–10 = 3 días, moldes 3 días, colores incluidos 3 y lanyard permitido en Comandos). Se calcularon 3150 piezas en la versión publicada y en el borrador antes y después de aplicar la 64: **0 diferencias** en ambas. La conversión dejó 4 extras por versión (Colores, Moldes, Costura, UV con 3 opciones), 8 categorías, Moldes y Costura en «Piezas fundidas» (y Costura también en Comandos en el borrador), sin rangos huérfanos. Re-ejecutar la 64 no cambia nada. Sobre esa base convertida pasan api 16, caja negra 55 y admin 80; en una base nueva pasan además motor 38 y datos; `ci:sintaxis`, `ci:migraciones` (A y B) y `ci:arranque` en verde.
