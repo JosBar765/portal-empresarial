@@ -36,6 +36,7 @@ export const adminTabla = () => pedir(`${BASE}/admin/tabla`);
 export const adminCrearProducto = (cuerpo) => pedir(`${BASE}/admin/productos`, enJson('POST', cuerpo));
 export const adminGuardarProducto = (clave, cuerpo) => pedir(`${BASE}/admin/productos/${encodeURIComponent(clave)}`, enJson('PUT', cuerpo));
 export const adminGuardarExtras = (cuerpo) => pedir(`${BASE}/admin/extras`, enJson('PUT', cuerpo));
+export const adminGuardarReglas = (cuerpo) => pedir(`${BASE}/admin/reglas`, enJson('PUT', cuerpo));
 export const adminGuardarAvisos = (cuerpo) => pedir(`${BASE}/admin/avisos-generales`, enJson('PUT', cuerpo));
 export const adminGuardarCatalogos = (cuerpo) => pedir(`${BASE}/admin/catalogos`, enJson('PUT', cuerpo));
 export const adminCambios = () => pedir(`${BASE}/admin/cambios`);

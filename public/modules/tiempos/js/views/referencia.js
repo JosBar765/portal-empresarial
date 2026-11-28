@@ -11,21 +11,16 @@ import { textoRango, pluralDias, rangoDe } from '../utils/formato.js';
 export async function mostrarReferencia(cont) {
   montar(cont, cargando('Cargando la tabla…'));
   const catalogo = await obtenerTabla();
-  const p = catalogo.parametros;
-  const incluidos = p.colores_incluidos ?? 2;
   let seleccion = catalogo.productos[0] ? catalogo.productos[0].clave : '';
   let cantidad = ''; // la que se escribe en «¿Cuántas piezas?»
   const pedido = new URLSearchParams((window.location.hash.split('?')[1]) || '').get('producto');
   if (pedido && catalogo.productos.some(x => x.clave === pedido)) seleccion = pedido;
 
-  // Los avisos de un producto: los que trae la tabla y los que salen de sus reglas.
-  const avisosDe = (prod) => {
-    const lista = [...prod.avisos];
-    if (prod.permiteLanyard) lista.push('Si lleva listón o lanyard cosido, suma la costura de Protextil.');
-    if (prod.permiteMoldes) lista.push(`La fundición cubre hasta 3.5 pulgadas; si es mayor, +${pluralDias(p.moldes_dias ?? 2)} por moldes.`);
-    lista.push(`Los tiempos incluyen ${incluidos} colores; desde el ${incluidos + 1}.er, +${pluralDias(p.colores_dias ?? 1)} por cada ${p.colores_cada ?? 2} colores.`);
-    return lista;
-  };
+  // Los avisos de un producto: los que trae la tabla y, por cada extra que se le ofrece, cuánto suma.
+  const avisosDe = (prod) => [
+    ...prod.avisos,
+    ...prod.extras.map(k => catalogo.extras.find(e => e.clave === k)).filter(Boolean).map(e => `${e.nombre}: ${e.resumen.charAt(0).toLowerCase()}${e.resumen.slice(1)}.`)
+  ];
   const coincide = (prod, q) => !q || sinAcentos(`${prod.nombre} ${prod.grupo || ''} ${avisosDe(prod).join(' ')}`).includes(q);
 
   const refs = { lista: h('nav', { class: 'tm-card tm-ref-lista', 'aria-label': 'Productos' }), detalle: h('section', { class: 'tm-card tm-ref-detalle', 'aria-live': 'polite' }), movil: h('div', { class: 'tm-ref-movil' }), barra: h('div', { class: 'tm-barra-accion' }) };

@@ -12,10 +12,11 @@ export async function mostrarCalculadora(cont) {
   montar(cont, cargando('Cargando la calculadora…'));
   const catalogo = await obtenerTabla();
   const params = catalogo.parametros;
-  const incluidos = params.colores_incluidos ?? 2;
+  const maxPiezas = Number.isInteger(params.max_piezas) ? params.max_piezas : 20;
 
   let contador = 0;
-  const nueva = () => ({ id: ++contador, productoClave: '', cantidad: '', colores: incluidos, moldesGrande: false, usarUv: false, uv: '', lanyard: false, urgente: false });
+  // `extras`: lo elegido de cada extra (true, clave de opción, '' = falta elegir la opción, o un número).
+  const nueva = () => ({ id: ++contador, productoClave: '', cantidad: '', extras: {}, urgente: false });
   let piezas = [nueva()];
   desdeEnlace();
   let activa = 0;
@@ -39,16 +40,17 @@ export async function mostrarCalculadora(cont) {
   }
   const producto = (p) => catalogo.productos.find(x => x.clave === p.productoClave) || null;
   const cantidadNumero = (p) => (/^\d{1,9}$/.test(String(p.cantidad).trim()) ? Number(p.cantidad) : null);
-  const lista = (p) => Boolean(producto(p)) && cantidadNumero(p) >= 1 && (!p.usarUv || p.uv);
-  const cargaUv = catalogo.extras.flatMap(e => e.rangos.filter(r => r.dias !== null).map(r => r.dias));
-  const textoUv = cargaUv.length ? `Agrega de ${Math.min(...cargaUv)} a ${Math.max(...cargaUv)} días según el tipo y la cantidad` : 'Agrega días según el tipo y la cantidad';
-  const textoColores = `Del ${incluidos + 1}.er color en adelante: +${params.colores_dias ?? 1} ${(params.colores_dias ?? 1) === 1 ? 'día' : 'días'} por cada ${params.colores_cada ?? 2} colores`;
+  // Los extras que el administrador ofrece en este producto, en su orden.
+  const extrasDe = (prod) => (prod ? prod.extras.map(k => catalogo.extras.find(e => e.clave === k)).filter(Boolean) : []);
+  const faltaOpcion = (p) => Object.values(p.extras).some(v => v === '');
+  const lista = (p) => Boolean(producto(p)) && cantidadNumero(p) >= 1 && !faltaOpcion(p);
+  const elegidosDe = (p) => Object.fromEntries(Object.entries(p.extras).filter(([, v]) => v !== '' && v !== false && v !== undefined));
 
   const refs = { piezas: h('div', { class: 'tm-piezas' }), formulario: h('div'), resultado: h('section', { class: 'tm-card tm-resultado', 'aria-live': 'polite', 'aria-label': 'Resultado' }), barra: h('div', { class: 'tm-barra-resumen', hidden: '' }) };
 
   // ------------------------------------------------------------------ cálculo
   function cuerpoDe(p) {
-    return { productoClave: p.productoClave, cantidad: cantidadNumero(p), colores: Number(p.colores), moldesGrande: p.moldesGrande, lanyard: p.lanyard, uv: p.usarUv ? p.uv : null, urgente: p.urgente };
+    return { productoClave: p.productoClave, cantidad: cantidadNumero(p), extras: elegidosDe(p), urgente: p.urgente };
   }
 
   async function recalcular() {
@@ -64,7 +66,7 @@ export async function mostrarCalculadora(cont) {
       if (mia !== solicitud) return;
       resultado = null; indices = []; errores = {}; errorGeneral = '';
       if (error.campos) {
-        for (const [k, v] of Object.entries(error.campos)) { const m = /^piezas\.(\d+)\.(\w+)$/.exec(k); if (m) { const pi = ids[Number(m[1])]; (errores[pi] = errores[pi] || {})[m[2]] = v; } else errorGeneral = v; }
+        for (const [k, v] of Object.entries(error.campos)) { const m = /^piezas\.(\d+)\.(.+)$/.exec(k); if (m) { const pi = ids[Number(m[1])]; (errores[pi] = errores[pi] || {})[m[2]] = v; } else errorGeneral = v; }
       } else errorGeneral = error.message;
     }
     textoCopiado = '';
@@ -74,7 +76,7 @@ export async function mostrarCalculadora(cont) {
   const cambio = () => { descartarRespaldo(); textoCopiado = ''; if (refs.actualizarAgregar) refs.actualizarAgregar(); programar(); };
 
   // ------------------------------------------------------------------ restablecer la pieza (con «Deshacer»)
-  const intacta = (p) => !p.productoClave && !p.cantidad && Number(p.colores) === incluidos && !p.moldesGrande && !p.usarUv && !p.lanyard && !p.urgente;
+  const intacta = (p) => !p.productoClave && !p.cantidad && !Object.keys(p.extras).length && !p.urgente;
   function descartarRespaldo() {
     respaldo = null; clearTimeout(temporizadorDeshacer);
     if (refs.aviso) refs.aviso.hidden = true;
@@ -137,26 +139,41 @@ export async function mostrarCalculadora(cont) {
       alElegir: (clave) => {
         const nuevoProd = catalogo.productos.find(x => x.clave === clave);
         p.productoClave = clave;
-        if (!nuevoProd.permiteMoldes) p.moldesGrande = false;
-        if (!nuevoProd.permiteLanyard) p.lanyard = false;
+        // Lo elegido de un extra que el producto nuevo no ofrece se descarta.
+        for (const k of Object.keys(p.extras)) if (!nuevoProd.extras.includes(k)) delete p.extras[k];
         pintarForm(); cambio();
       }
     });
-    const colores = h('select', { id: `col-${p.id}` }, Array.from({ length: 12 }, (_, i) => i + 1).map(n => h('option', { value: String(n), text: n === incluidos ? `${n} (incluidos)` : String(n) })));
-    colores.value = String(p.colores);
-    colores.addEventListener('change', () => { p.colores = Number(colores.value); cambio(); });
     const fecha = selectorFecha({ valor: fechaOrden, id: 'fecha-orden', alElegir: (iso) => { fechaOrden = iso; pintarForm(); cambio(); } });
 
     const extras = [];
-    if (prod && prod.permiteMoldes) extras.push(interruptor({ marcado: p.moldesGrande, etiqueta: 'Pieza fundida de más de 3.5 pulgadas', ayuda: `+${pluralDias(params.moldes_dias ?? 2)} por moldes`, alCambiar: (v) => { p.moldesGrande = v; cambio(); } }));
-    if (prod && prod.permiteLanyard) extras.push(interruptor({ marcado: p.lanyard, etiqueta: 'Lleva listón o lanyard cosido', ayuda: 'Suma los días de costura (tabla de Protextil) según la cantidad', alCambiar: (v) => { p.lanyard = v; cambio(); } }));
-    extras.push(interruptor({ marcado: p.usarUv, etiqueta: 'Impresión UV', ayuda: textoUv, alCambiar: (v) => { p.usarUv = v; if (!v) p.uv = ''; pintarForm(); cambio(); } }));
-    if (p.usarUv) {
-      const tipo = h('select', { id: `uv-${p.id}`, 'aria-label': 'Tipo de impresión UV' }, [h('option', { value: '', text: 'Elige el tipo de UV' }), ...catalogo.extras.map(e => h('option', { value: e.clave, text: e.nombre }))]);
-      tipo.value = p.uv;
-      tipo.addEventListener('change', () => { p.uv = tipo.value; cambio(); });
-      extras.push(h('div', { class: 'tm-uv-tipo' }, tipo, errores[activa] && errores[activa].uv ? h('p', { class: 'tm-pie tm-pie--error', text: errores[activa].uv }) : (p.uv ? null : h('p', { class: 'tm-pie tm-pie--aviso', text: 'Elige el tipo de UV para calcular: cada uno suma días distintos.' }))));
+    const errorDe = (clave) => (errores[activa] && errores[activa][`extras.${clave}`]) || '';
+    for (const e of extrasDe(prod)) {
+      const v = p.extras[e.clave];
+      if (e.tipo === 'por_unidades') {
+        const u = e.unidades;
+        const sel = h('select', { id: `ex-${p.id}-${e.clave}` }, Array.from({ length: u.max - (u.incluidas === 0 ? -1 : 0) }, (_, i) => i + (u.incluidas === 0 ? 0 : 1))
+          .map(n => h('option', { value: String(n), text: n === u.incluidas ? `${n} (incluidos)` : String(n) })));
+        sel.value = String(v === undefined ? u.incluidas : v);
+        sel.addEventListener('change', () => { const n = Number(sel.value); if (n === u.incluidas) delete p.extras[e.clave]; else p.extras[e.clave] = n; cambio(); });
+        extras.push(campo(e.etiqueta, sel, pie(errorDe(e.clave) || e.resumen), 'tm-campo--extra', `ex-${p.id}-${e.clave}`));
+        continue;
+      }
+      const encendido = v !== undefined && v !== false;
+      extras.push(interruptor({ marcado: encendido, etiqueta: e.etiqueta, ayuda: e.ayuda || e.resumen, alCambiar: (on) => {
+        if (!on) delete p.extras[e.clave];
+        else p.extras[e.clave] = e.tipo === 'por_cantidad' ? (e.opciones.length === 1 ? e.opciones[0].clave : '') : true;
+        pintarForm(); cambio();
+      } }));
+      if (e.tipo === 'por_cantidad' && encendido && e.opciones.length > 1) {
+        const tipo = h('select', { id: `ex-${p.id}-${e.clave}`, 'aria-label': `Tipo de ${e.nombre}` }, [h('option', { value: '', text: `Elige el tipo de ${e.nombre.toLowerCase()}` }), ...e.opciones.map(o => h('option', { value: o.clave, text: o.nombre }))]);
+        tipo.value = v;
+        tipo.addEventListener('change', () => { p.extras[e.clave] = tipo.value; cambio(); });
+        extras.push(h('div', { class: 'tm-uv-tipo' }, tipo, errorDe(e.clave) ? h('p', { class: 'tm-pie tm-pie--error', text: errorDe(e.clave) }) : (v ? null : h('p', { class: 'tm-pie tm-pie--aviso', text: `Elige el tipo para calcular: cada uno suma días distintos.` }))));
+      } else if (errorDe(e.clave)) extras.push(h('p', { class: 'tm-pie tm-pie--error', text: errorDe(e.clave) }));
     }
+    if (!prod) extras.push(h('p', { class: 'tm-tenue', text: 'Elige un producto para ver sus extras.' }));
+    else if (!extrasDe(prod).length) extras.push(h('p', { class: 'tm-tenue', text: 'Este producto no tiene extras.' }));
     extras.push(interruptor({ marcado: p.urgente, etiqueta: 'Pedido urgente', ayuda: 'Lo autoriza el gerente; aquí verás los tiempos normales', alCambiar: (v) => { p.urgente = v; cambio(); } }));
 
     const agregar = h('button', { class: 'btn btn--ghost tm-ancho', type: 'button', onclick: () => { descartarRespaldo(); piezas.push(nueva()); activa = piezas.length - 1; textoCopiado = ''; pintarForm(); pintarPiezas(); } }, icono('add-outline'), 'Agregar otra pieza al pedido');
@@ -166,7 +183,8 @@ export async function mostrarCalculadora(cont) {
       h('span', { text: 'Se restableció la pieza.' }), h('button', { class: 'tm-enlace', type: 'button', onclick: deshacer }, 'Deshacer'));
     refs.aviso = aviso;
     refs.actualizarAgregar = () => {
-      const ok = lista(p); agregar.disabled = !ok; agregar.title = ok ? '' : 'Completa esta pieza para agregar otra';
+      const lleno = piezas.length >= maxPiezas;
+      const ok = lista(p) && !lleno; agregar.disabled = !ok; agregar.title = lleno ? `Un pedido admite hasta ${maxPiezas} piezas` : (ok ? '' : 'Completa esta pieza para agregar otra');
       const nada = intacta(p); botonRestablecer.disabled = nada; botonRestablecer.title = nada ? 'No hay nada que restablecer' : 'Vuelve esta pieza a cero (la fecha se conserva)';
     };
     refs.actualizarAgregar();
@@ -174,7 +192,7 @@ export async function mostrarCalculadora(cont) {
     montar(refs.formulario, h('section', { class: 'tm-card tm-formulario', 'aria-label': `Pieza ${activa + 1}` },
       h('div', { class: 'tm-form-cab' }, h('h2', { class: 'tm-card-titulo', text: `Pieza ${activa + 1}` }), botonRestablecer), aviso,
       campo('Producto', sp.nodo, null, '', `prod-${p.id}`),
-      h('div', { class: 'tm-fila-2' }, campo('Cantidad', entrada, h('div', null, ayudaCantidad, atajos)), campo('Colores', colores, pie(textoColores))),
+      campo('Cantidad', entrada, h('div', null, ayudaCantidad, atajos)),
       campo('Fecha de la orden', fecha.nodo, pie('Se cuenta desde el siguiente día hábil: el día de la orden no cuenta'), '', 'fecha-orden'),
       h('div', { class: 'tm-separador' }),
       h('h3', { class: 'tm-subtitulo', text: 'Extras que cambian el tiempo' }), h('div', { class: 'tm-extras' }, extras),
@@ -182,6 +200,16 @@ export async function mostrarCalculadora(cont) {
   }
 
   // ------------------------------------------------------------------ otras piezas del pedido
+  // Lo elegido en palabras: «4 colores», «Moldes», «Cama plana / DTF».
+  function textoExtras(p) {
+    return Object.entries(elegidosDe(p)).map(([k, v]) => {
+      const e = catalogo.extras.find(x => x.clave === k); if (!e) return '';
+      if (e.tipo === 'por_unidades') return `${v} ${e.nombre.toLowerCase()}`;
+      if (e.tipo === 'por_cantidad' && e.opciones.length > 1) return (e.opciones.find(o => o.clave === v) || {}).nombre || e.nombre;
+      return e.nombre;
+    }).filter(Boolean);
+  }
+
   function pintarPiezas() {
     const otras = piezas.map((p, i) => ({ p, i })).filter(({ i }) => i !== activa);
     const pedidoVarias = resultado && resultado.piezas.length > 1;
@@ -195,7 +223,7 @@ export async function mostrarCalculadora(cont) {
       return h('article', { class: `tm-pieza${masLarga ? ' tm-pieza--larga' : ''}`, 'aria-label': `Pieza ${i + 1}` },
         h('div', { class: 'tm-pieza-cabecera' },
           h('span', { class: 'tm-pieza-n', text: String(i + 1) }),
-          h('div', { class: 'tm-pieza-texto' }, h('strong', { text: prod ? prod.nombre : 'Sin producto' }), h('span', { class: 'tm-tenue', text: `${p.cantidad ? `${p.cantidad} piezas` : 'Sin cantidad'} · ${p.colores} ${Number(p.colores) === 1 ? 'color' : 'colores'}` })),
+          h('div', { class: 'tm-pieza-texto' }, h('strong', { text: prod ? prod.nombre : 'Sin producto' }), h('span', { class: 'tm-tenue', text: [p.cantidad ? `${p.cantidad} piezas` : 'Sin cantidad', ...textoExtras(p)].join(' · ') })),
           h('div', { class: 'tm-pieza-dias' }, dias, masLarga ? h('span', { class: 'tm-etiqueta-larga', text: 'Define la entrega' }) : null)),
         detalle ? h('p', { class: 'tm-tenue tm-pieza-detalle', text: detalle }) : null,
         h('div', { class: 'tm-pieza-acciones' },
@@ -285,8 +313,8 @@ export async function mostrarCalculadora(cont) {
         const r = resultado.piezas.find(x => x.estado === 'bajo_minimo');
         partes.push(hero({ etiqueta: 'Tiempo para prometer al cliente', numero: 'Cantidad muy baja', linea1: r.mensaje, linea2: 'Sube la cantidad o consulta con producción si se puede hacer.', ambar: true }));
       }
-      if (resultado.urgente) partes.push(h('div', { class: 'tm-aviso tm-aviso--error' }, icono('alert-circle-outline'), h('div', null, h('strong', { text: 'Pedido urgente: necesita autorización del gerente' }), h('p', { text: 'La calculadora no acorta tiempos. Pide la autorización antes de prometer una fecha al cliente.' }))));
-      const avisos = [...new Set([...resultado.piezas.flatMap(p => p.avisos || []).filter(a => !/urgente/i.test(a)), ...resultado.avisosGenerales])];
+      if (resultado.urgente) partes.push(h('div', { class: 'tm-aviso tm-aviso--error' }, icono('alert-circle-outline'), h('div', null, h('strong', { text: resultado.avisoUrgente }), h('p', { text: 'La calculadora no acorta tiempos. Pide la autorización antes de prometer una fecha al cliente.' }))));
+      const avisos = [...new Set([...resultado.piezas.flatMap(p => p.avisos || []).filter(a => a !== resultado.avisoUrgente), ...resultado.avisosGenerales])];
       if (avisos.length) partes.push(h('div', { class: 'tm-nota' }, h('strong', { text: 'Antes de prometer, revisa' }), h('ul', null, avisos.map(a => h('li', { text: a })))));
       partes.push(h('div', { class: 'tm-acciones' },
         h('button', { class: 'btn btn--primary', type: 'button', onclick: copiar }, icono('copy-outline'), 'Copiar resumen'),

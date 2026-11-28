@@ -9,16 +9,16 @@ Mockup (Figma, aprobado 2026-11-23): https://www.figma.com/design/b0CqDb0IHG3IpX
 
 | Pantalla | Quién | Ruta |
 |---|---|---|
-| **Calculadora**: línea → producto → cantidad → colores, fecha y extras; resultado con desglose; pedido con varias piezas; «Copiar resumen» | `tiempos.ver` | `#/calculadora` |
+| **Calculadora**: producto → cantidad → fecha y los extras que el producto ofrece; resultado con desglose; pedido con varias piezas; «Copiar resumen» | `tiempos.ver` | `#/calculadora` |
 | **Tabla de referencia**: todos los productos, con buscador (también por avisos) | `tiempos.ver` | `#/referencia` |
-| **Administración**: rangos y días, extras, avisos, etapas y líneas; publicar | `tiempos.administrar` | `#/administracion` |
+| **Administración**: productos (rangos, días y categoría), extras, catálogos (líneas, categorías y etapas), reglas y avisos; publicar | `tiempos.administrar` | `#/administracion` |
 | **Historial de versiones**: qué cambió, reutilizar una versión, descartar el borrador | `tiempos.administrar` | `#/administracion/historial` |
 
 En celular la calculadora y la referencia funcionan completas; la administración se explica y lleva a Referencia (la tabla es muy ancha).
 
 ## 2. Reglas de negocio (ver `documentacion/calculo_y_api.md`)
 - **Pieza**: días de cada etapa del rango de su cantidad + extras + **1 día de margen** = días al cliente («Cliente» no se guarda, se calcula).
-- **Extras**: colores (la tabla incluye 2; desde el 3.º, +1 día por cada 2), moldes (+2 días en piezas fundidas de más de 3.5"), costura del lanyard (columna Costura del Lanyard según la cantidad), impresión UV (tipo y cantidad).
+- **Extras**: los define el administrador, de tres tipos: **sí/no** (días fijos, p. ej. Moldes +2), **por cantidad** (tabla de rangos con una o varias opciones, p. ej. Impresión UV y Costura del lanyard) y **por unidades** (incluye N y suma días por grupo, p. ej. Colores: incluye 2, +1 día cada 2). Cada uno se ofrece en todos los productos o en las líneas, categorías o productos que se elijan. La carga inicial trae Colores, Moldes, Costura del lanyard e Impresión UV con los valores de la tabla impresa.
 - **Pedido**: las piezas se hacen a la vez; la entrega es la de la **pieza más larga** (no se suman). Si una pieza queda «a convenir», todo el pedido queda a convenir.
 - **Fecha**: solo lunes a viernes, sin festivos de Guatemala (tabla `feriados` del portal); el día de la orden no cuenta.
 - **Urgente**: solo avisa que lo autoriza el gerente; no acorta tiempos.
@@ -61,7 +61,9 @@ Todo cambio va a un **borrador** (copia de la versión en uso); los usuarios ven
 | Margen | +1 día una sola vez por pieza, al final. |
 | Ayuda por etapa | Por ahora no se incluye. |
 | Producto nuevo | Nace oculto hasta tener rangos con días. |
-| Etapas y líneas | Se renombran y se agregan; no se borran. |
+| Catálogos | Líneas, categorías y etapas se renombran, ordenan, agregan y ocultan; no se borran. Lo que usa un producto visible no se oculta. |
+| Extras | Tres tipos, con alcance por línea, categoría o producto; un extra ya publicado no se quita, se oculta (2026-11-28). |
+| Reglas | Margen, máximo de piezas por pedido y texto del aviso de urgente, editables. |
 
 ## 9. Pendiente
 - Confirmar con producción las 3 diferencias de la tabla impresa (`documentacion/carga_inicial.md`).
