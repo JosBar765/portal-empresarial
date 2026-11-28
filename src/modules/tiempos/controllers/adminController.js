@@ -17,7 +17,8 @@ class AdminController {
     this.tabla = accion(200, () => adminService.tablaAdmin());
     this.crearProducto = accion(201, (req) => adminService.guardarProducto(null, req.body, req.user));
     this.guardarProducto = accion(200, (req) => adminService.guardarProducto(String(req.params.clave), req.body, req.user));
-    this.guardarExtras = accion(200, async (req) => { await adminService.guardarExtras(req.body, req.user); return { guardado: true }; });
+    this.guardarExtras = accion(200, (req) => adminService.guardarExtras(req.body, req.user));
+    this.guardarReglas = accion(200, async (req) => { await adminService.guardarReglas(req.body, req.user); return { guardado: true }; });
     this.guardarAvisos = accion(200, async (req) => { await adminService.guardarAvisosGenerales(req.body, req.user); return { guardado: true }; });
     this.guardarCatalogos = accion(200, async (req) => { await adminService.guardarCatalogos(req.body, req.user); return { guardado: true }; });
     this.cambios = accion(200, async () => ({ cambios: await adminService.cambios() }));

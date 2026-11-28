@@ -32,7 +32,7 @@ async function verificar() {
     prueba('devuelve la versión 5.0, 3 líneas y 38 productos', r.estado === 200 && t.version.numero === '5.0' && t.lineas.length === 3 && t.productos.length === 38, j(r.cuerpo).slice(0, 150));
     const antique = t.productos.find(p => p.clave === 'fundida-antique-con-color');
     prueba('cada rango trae «Cliente» calculado (75–500 → 11) y el último queda a convenir', antique.rangos[0].cliente === 11 && antique.rangos[antique.rangos.length - 1].aConvenir === true && antique.rangos[antique.rangos.length - 1].cliente === null, j(antique.rangos));
-    prueba('trae los tipos de UV, las reglas y los avisos generales', t.extras.length === 3 && t.parametros.margen_dias === 1 && t.avisosGenerales.length >= 4);
+    prueba('trae los tipos de UV, las reglas y los avisos generales', t.extras.find(e => e.clave === 'uv').opciones.length === 3 && t.parametros.margen_dias === 1 && t.avisosGenerales.length >= 4);
     prueba('los avisos del producto vienen con el producto', t.productos.find(p => p.clave === 'mundi-3d-filamento').avisos.length === 1);
 
     console.log('Cálculo');

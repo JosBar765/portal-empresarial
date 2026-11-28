@@ -1,71 +1,108 @@
 // src/modules/tiempos/calculo/motor.js
 // Motor de la Calculadora de Tiempos: funciones puras (sin base de datos ni red) sobre una `tabla` ya cargada.
-//  - Pieza: días por etapa del rango de su cantidad + extras (colores, moldes, costura de lanyard, UV) + margen = días al cliente.
+//  - Pieza: días por etapa del rango de su cantidad + extras elegidos + margen = días al cliente.
+//  - Extras: los define el administrador (ver calculo/extras.js); cada uno suma según su tipo (sí/no, por cantidad, por unidades).
 //  - Pedido: las piezas se hacen a la vez, así que la entrega es la de la pieza más larga (no se suman entre sí).
 //  - Si una pieza no tiene tiempo en la tabla (cantidad «a convenir»), todo el pedido queda a convenir.
 //  - Urgente no acorta nada: solo se marca para avisar que lo autoriza el gerente.
 const { esFechaISO, hacerDiaHabil, sumarDiasHabiles, primerDiaHabil } = require('./fechas');
+const { aplica, diasPorUnidades } = require('./extras');
 
-const PRODUCTO_COSTURA = 'protextil-lanyard';
-const ETAPA_COSTURA = 'costura';
+const AVISO_URGENTE = 'Pedido urgente: necesita autorización del gerente. Aquí ves los tiempos normales.';
 
 const cantidadValida = (c) => typeof c === 'number' && Number.isInteger(c) && c >= 1;
 const enRango = (r, cantidad) => cantidad >= r.desde && (r.hasta === null || cantidad <= r.hasta);
 const buscarRango = (rangos, cantidad) => rangos.find(r => enRango(r, cantidad)) || null;
-const parametro = (tabla, clave, defecto) => (tabla.parametros && tabla.parametros[clave] !== undefined ? tabla.parametros[clave] : defecto);
+const parametro = (tabla, clave, defecto) => (tabla.parametros && tabla.parametros[clave] !== undefined && tabla.parametros[clave] !== null ? tabla.parametros[clave] : defecto);
 const nombreEtapa = (tabla, clave) => (tabla.etapas[clave] ? tabla.etapas[clave].nombre : clave);
+const minuscula = (t) => t.charAt(0).toLowerCase() + t.slice(1);
 
 function invalida(errores) { return { estado: 'invalida', errores }; }
 
-// Calcula una pieza: { productoClave, cantidad, colores?, moldesGrande?, lanyard?, uv?: claveDeUv|null, urgente? }
+// Revisa lo que eligió el usuario para cada extra y lo deja listo: Map clave → valor (true, clave de opción o número).
+function elegidos(tabla, producto, pedidos, errores) {
+  const listo = new Map();
+  for (const [clave, valor] of Object.entries(pedidos || {})) {
+    const e = tabla.extras.find(x => x.clave === clave);
+    const campo = `extras.${clave}`;
+    if (!e) { errores[campo] = 'Ese extra no existe. Recarga la página.'; continue; }
+    if (valor === false || valor === null || valor === undefined || valor === '') continue;
+    if (e.activo === false) { errores[campo] = `«${e.nombre}» ya no está disponible. Recarga la página.`; continue; }
+    if (producto && !aplica(e, producto)) { errores[campo] = `Este producto no lleva «${minuscula(e.nombre)}».`; continue; }
+    if (e.tipo === 'si_no') {
+      if (valor !== true) errores[campo] = `Marca o desmarca «${e.etiqueta}».`; else listo.set(clave, true);
+    } else if (e.tipo === 'por_unidades') {
+      if (!Number.isInteger(valor) || valor < 1 || valor > e.unidades.max) errores[campo] = `Escribe la cantidad de ${minuscula(e.nombre)}, de 1 a ${e.unidades.max}.`;
+      else listo.set(clave, valor);
+    } else {
+      const opcion = valor === true && e.opciones.length === 1 ? e.opciones[0] : e.opciones.find(o => o.clave === valor);
+      if (!opcion) errores[campo] = e.opciones.length > 1 ? `Elige un tipo de ${minuscula(e.nombre)} de la lista.` : `Marca o desmarca «${e.etiqueta}».`;
+      else listo.set(clave, opcion);
+    }
+  }
+  return listo;
+}
+
+// Los campos de antes (colores, moldesGrande, lanyard, uv) siguen valiendo: se pasan a `extras` con las claves de la carga inicial,
+// y sus errores se devuelven con el nombre del campo que se mandó.
+const CAMPOS_ANTERIORES = [['colores', 'colores'], ['moldesGrande', 'moldes'], ['lanyard', 'costura'], ['uv', 'uv']];
+function extrasPedidos(pieza) {
+  const extras = { ...(pieza.extras && typeof pieza.extras === 'object' && !Array.isArray(pieza.extras) ? pieza.extras : {}) };
+  const origen = {};
+  for (const [campo, clave] of CAMPOS_ANTERIORES) {
+    const v = pieza[campo];
+    if (v === undefined || v === null || v === false || v === '' || extras[clave] !== undefined) continue;
+    extras[clave] = v; origen[`extras.${clave}`] = campo;
+  }
+  return { extras, origen };
+}
+
+// Calcula una pieza: { productoClave, cantidad, extras?: { clave: true | claveDeOpcion | número }, urgente? }
 function calcularPieza(tabla, pieza) {
   const errores = {};
   const producto = tabla.productos[pieza.productoClave];
   if (!producto || producto.activo === false) errores.productoClave = 'Elige un producto de la lista.';
   if (!cantidadValida(pieza.cantidad)) errores.cantidad = 'Escribe la cantidad de piezas como un número entero, de 1 en adelante.';
-  const incluidos = parametro(tabla, 'colores_incluidos', 2);
-  const colores = pieza.colores === undefined || pieza.colores === null ? incluidos : pieza.colores;
-  if (!Number.isInteger(colores) || colores < 1 || colores > 12) errores.colores = 'Escribe la cantidad de colores, de 1 a 12.';
-  if (pieza.moldesGrande && producto && !producto.permiteMoldes) errores.moldesGrande = 'Este producto no lleva moldes.';
-  if (pieza.lanyard && producto && !producto.permiteLanyard) errores.lanyard = 'Este producto no lleva listón o lanyard cosido.';
-  if (pieza.uv && !(tabla.extras && tabla.extras[pieza.uv])) errores.uv = 'Elige un tipo de impresión UV de la lista.';
+  const pedidos = extrasPedidos(pieza);
+  const errExtras = {};
+  const listo = elegidos(tabla, producto && producto.activo !== false ? producto : null, pedidos.extras, errExtras);
+  for (const [k, m] of Object.entries(errExtras)) errores[pedidos.origen[k] || k] = m;
   if (Object.keys(errores).length) return invalida(errores);
 
-  const base = { productoClave: producto.clave, producto: producto.nombre, cantidad: pieza.cantidad, colores, urgente: Boolean(pieza.urgente) };
+  const base = { productoClave: producto.clave, producto: producto.nombre, cantidad: pieza.cantidad, urgente: Boolean(pieza.urgente) };
   const avisos = [...(producto.avisos || [])];
   const primero = producto.rangos[0];
   if (pieza.cantidad < primero.desde) return { ...base, estado: 'bajo_minimo', minimo: primero.desde, mensaje: `Este producto se trabaja desde ${primero.desde} piezas.`, avisos };
   const rango = buscarRango(producto.rangos, pieza.cantidad);
-  if (!rango || rango.aConvenir) return { ...base, estado: 'a_convenir', rango: rango ? { desde: rango.desde, hasta: rango.hasta } : null, mensaje: `Esta cantidad (${rango ? rango.desde : pieza.cantidad} o más) no está en la tabla: el tiempo se acuerda con producción.`, avisos };
+  if (!rango || rango.aConvenir) return { ...base, estado: 'a_convenir', rango: rango ? { desde: rango.desde, hasta: rango.hasta } : null, mensaje: `Esta cantidad (${rango ? rango.desde : pieza.cantidad} piezas o más) no está en la tabla: el tiempo se acuerda con producción.`, avisos };
 
   const etapas = producto.etapas.map(clave => ({ clave, nombre: nombreEtapa(tabla, clave), dias: rango.dias[clave] }));
   const extras = [];
   const aConvenirPor = (nombre) => ({ ...base, estado: 'a_convenir', rango: { desde: rango.desde, hasta: rango.hasta }, mensaje: `${nombre}: esta cantidad no está en la tabla, el tiempo se acuerda con producción.`, avisos });
 
-  // Colores: la tabla incluye `colores_incluidos`; por cada `colores_cada` colores extra se suman `colores_dias` días.
-  const extra = Math.max(0, colores - incluidos);
-  if (extra > 0) {
-    const grupos = Math.ceil(extra / parametro(tabla, 'colores_cada', 2));
-    extras.push({ clave: 'colores', nombre: `Colores extra (${extra})`, dias: grupos * parametro(tabla, 'colores_dias', 1) });
+  // En el orden de la tabla; los de unidades cuentan siempre (si no se eligen, valen lo incluido).
+  for (const e of tabla.extras) {
+    if (e.tipo === 'por_unidades') {
+      if (e.activo === false || !aplica(e, producto)) continue;
+      const n = listo.has(e.clave) ? listo.get(e.clave) : e.unidades.incluidas;
+      const d = diasPorUnidades(e.unidades, n);
+      if (d > 0) extras.push({ clave: e.clave, nombre: `${e.nombre} extra (${n - e.unidades.incluidas})`, dias: d });
+      continue;
+    }
+    if (!listo.has(e.clave)) continue;
+    if (e.tipo === 'si_no') extras.push({ clave: e.clave, nombre: e.nombre, dias: e.diasFijos });
+    else {
+      const o = listo.get(e.clave);
+      const nombre = e.opciones.length > 1 ? o.nombre : e.nombre;
+      if (pieza.cantidad < o.rangos[0].desde) return { ...base, estado: 'bajo_minimo', minimo: o.rangos[0].desde, mensaje: `${nombre} se trabaja desde ${o.rangos[0].desde} piezas.`, avisos };
+      const r = buscarRango(o.rangos, pieza.cantidad);
+      if (!r || r.aConvenir) return aConvenirPor(nombre);
+      extras.push({ clave: e.clave, opcion: o.clave, nombre, dias: r.dias });
+      if (o.aviso) avisos.push(o.aviso);
+    }
+    if (e.aviso) avisos.push(e.aviso);
   }
-  if (pieza.moldesGrande) extras.push({ clave: 'moldes', nombre: 'Moldes (más de 3.5 pulgadas)', dias: parametro(tabla, 'moldes_dias', 2) });
-  if (pieza.lanyard) {
-    const costura = tabla.productos[PRODUCTO_COSTURA];
-    const rc = costura ? buscarRango(costura.rangos, pieza.cantidad) : null;
-    if (!costura) return invalida({ lanyard: 'No está cargado el tiempo de costura del lanyard.' });
-    if (pieza.cantidad < costura.rangos[0].desde) return { ...base, estado: 'bajo_minimo', minimo: costura.rangos[0].desde, mensaje: `La costura del lanyard se trabaja desde ${costura.rangos[0].desde} piezas.`, avisos };
-    if (!rc || rc.aConvenir) return aConvenirPor('Costura del lanyard');
-    extras.push({ clave: 'costura', nombre: 'Costura del lanyard', dias: rc.dias[ETAPA_COSTURA] });
-  }
-  if (pieza.uv) {
-    const uv = tabla.extras[pieza.uv];
-    const ru = buscarRango(uv.rangos, pieza.cantidad);
-    if (pieza.cantidad < uv.rangos[0].desde) return { ...base, estado: 'bajo_minimo', minimo: uv.rangos[0].desde, mensaje: `${uv.nombre} se trabaja desde ${uv.rangos[0].desde} piezas.`, avisos };
-    if (!ru || ru.aConvenir) return aConvenirPor(uv.nombre);
-    extras.push({ clave: uv.clave, nombre: uv.nombre, dias: ru.dias });
-    if (uv.aviso) avisos.push(uv.aviso);
-  }
-  if (pieza.urgente) avisos.push('Pedido urgente: necesita autorización del gerente. Aquí ves los tiempos normales.');
+  if (pieza.urgente) avisos.push(parametro(tabla, 'aviso_urgente', AVISO_URGENTE));
 
   const margen = parametro(tabla, 'margen_dias', 1);
   const diasEtapas = etapas.reduce((s, e) => s + e.dias, 0);
@@ -87,7 +124,7 @@ function calcularPedido(tabla, pedido, opciones = {}) {
   const hayAConvenir = piezas.some(p => p.estado === 'a_convenir');
   const urgente = piezas.some(p => p.urgente);
   const avisosGenerales = tabla.avisosGenerales || [];
-  const comun = { piezas, urgente, avisosGenerales, version: tabla.version || null };
+  const comun = { piezas, urgente, avisoUrgente: parametro(tabla, 'aviso_urgente', AVISO_URGENTE), avisosGenerales, version: tabla.version || null };
   if (hayInvalida) return { ...comun, estado: 'invalida' };
   if (hayBajoMinimo) return { ...comun, estado: 'bajo_minimo' };
   if (hayAConvenir) return { ...comun, estado: 'a_convenir' };
@@ -101,4 +138,4 @@ function calcularPedido(tabla, pedido, opciones = {}) {
   };
 }
 
-module.exports = { calcularPieza, calcularPedido, buscarRango, PRODUCTO_COSTURA };
+module.exports = { calcularPieza, calcularPedido, buscarRango, AVISO_URGENTE };

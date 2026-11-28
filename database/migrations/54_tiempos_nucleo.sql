@@ -2,7 +2,7 @@
 -- Script de migración para una base YA EN PRODUCCIÓN (no forma parte de schema.sql ni seed.sql).
 --
 -- Qué agrega: el módulo Calculadora de Tiempos. La Tabla de tiempos se guarda por VERSIÓN: cada versión es una copia completa
--- (líneas, etapas, productos, rangos con sus días, extras, parámetros y avisos); una versión está «publicada» (la que ven todos),
+-- (líneas, categorías, etapas, productos, rangos con sus días, extras con sus opciones y alcance, reglas y avisos); una versión está «publicada» (la que ven todos),
 -- como mucho una está en «borrador» (lo que edita el administrador) y las anteriores quedan «reemplazadas» como historial.
 -- «Cliente» no se guarda: se calcula (suma de etapas + margen). La carga inicial (Ver. 5.0) la hace el servidor al arrancar si no
 -- hay ninguna versión. Crea además los permisos `tiempos.ver` y `tiempos.administrar`, SIN asignar a ningún rol.
@@ -11,8 +11,9 @@
 --   Automáticamente al iniciar el servidor en staging y producción; en desarrollo: npm run migrate.
 --
 -- Reversa:
---   DROP TABLE IF EXISTS `tiempos_historial`, `tiempos_avisos`, `tiempos_parametros`, `tiempos_extra_rangos`, `tiempos_extras`,
---     `tiempos_rango_etapas`, `tiempos_rangos`, `tiempos_productos`, `tiempos_etapas`, `tiempos_lineas`, `tiempos_versiones`;
+--   DROP TABLE IF EXISTS `tiempos_historial`, `tiempos_avisos`, `tiempos_parametros`, `tiempos_extra_alcance`, `tiempos_extra_rangos`,
+--     `tiempos_extra_opciones`, `tiempos_extras`, `tiempos_rango_etapas`, `tiempos_rangos`, `tiempos_productos`, `tiempos_etapas`,
+--     `tiempos_categorias`, `tiempos_lineas`, `tiempos_versiones`;
 --   DELETE rp FROM `rol_permisos` rp JOIN `permisos` p ON p.`id` = rp.`permiso_id` WHERE p.`modulo` = 'tiempos';
 --   DELETE FROM `permisos` WHERE `modulo` = 'tiempos';
 
@@ -39,9 +40,24 @@ CREATE TABLE IF NOT EXISTS `tiempos_lineas` (
   `clave`      VARCHAR(40) NOT NULL,
   `nombre`     VARCHAR(80) NOT NULL,
   `orden`      INT NOT NULL DEFAULT 0,
+  `activo`     TINYINT(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_tiempos_linea` (`version_id`, `clave`),
   CONSTRAINT `fk_tiempos_linea_version` FOREIGN KEY (`version_id`) REFERENCES `tiempos_versiones` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Categorías: agrupan los productos dentro de una línea (se renombran, ordenan y ocultan desde la administración).
+CREATE TABLE IF NOT EXISTS `tiempos_categorias` (
+  `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `version_id`  INT UNSIGNED NOT NULL,
+  `clave`       VARCHAR(80) NOT NULL,
+  `linea_clave` VARCHAR(40) NOT NULL,
+  `nombre`      VARCHAR(80) NOT NULL,
+  `orden`       INT NOT NULL DEFAULT 0,
+  `activo`      TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_tiempos_categoria` (`version_id`, `clave`),
+  CONSTRAINT `fk_tiempos_categoria_version` FOREIGN KEY (`version_id`) REFERENCES `tiempos_versiones` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `tiempos_etapas` (
@@ -50,30 +66,27 @@ CREATE TABLE IF NOT EXISTS `tiempos_etapas` (
   `clave`      VARCHAR(40) NOT NULL,
   `nombre`     VARCHAR(80) NOT NULL,
   `orden`      INT NOT NULL DEFAULT 0,
+  `activo`     TINYINT(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_tiempos_etapa` (`version_id`, `clave`),
   CONSTRAINT `fk_tiempos_etapa_version` FOREIGN KEY (`version_id`) REFERENCES `tiempos_versiones` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- `permite_moldes`: piezas fundidas (suma los días de moldes si pasan de 3.5 pulgadas); `permite_lanyard`: puede llevar listón o lanyard cosido.
 CREATE TABLE IF NOT EXISTS `tiempos_productos` (
   `id`              INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `version_id`      INT UNSIGNED NOT NULL,
   `clave`           VARCHAR(80) NOT NULL,
   `linea_clave`     VARCHAR(40) NOT NULL,
-  `grupo`           VARCHAR(80) DEFAULT NULL,
+  `categoria_clave` VARCHAR(80) DEFAULT NULL,
   `nombre`          VARCHAR(150) NOT NULL,
   `orden`           INT NOT NULL DEFAULT 0,
   `activo`          TINYINT(1) NOT NULL DEFAULT 1,
-  `permite_moldes`  TINYINT(1) NOT NULL DEFAULT 0,
-  `permite_lanyard` TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_tiempos_producto` (`version_id`, `clave`),
   KEY `idx_tiempos_producto_linea` (`version_id`, `linea_clave`),
   CONSTRAINT `fk_tiempos_producto_version` FOREIGN KEY (`version_id`) REFERENCES `tiempos_versiones` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- `hasta` NULL = «en adelante»; `a_convenir` = ese rango no tiene tiempo fijo (se acuerda con producción).
 CREATE TABLE IF NOT EXISTS `tiempos_rangos` (
   `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `producto_id` INT UNSIGNED NOT NULL,
@@ -94,42 +107,78 @@ CREATE TABLE IF NOT EXISTS `tiempos_rango_etapas` (
   CONSTRAINT `fk_tiempos_rango_etapa` FOREIGN KEY (`rango_id`) REFERENCES `tiempos_rangos` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Extras por cantidad (impresión UV: días que se suman a la producción del producto).
+-- Extras: lo que se suma a una pieza según lo que pide el cliente. Tres tipos:
+--   si_no        → casilla; suma `dias_fijos` (p. ej. Moldes).
+--   por_cantidad → días según la cantidad, con una o varias opciones y una tabla de rangos por opción (p. ej. Impresión UV).
+--   por_unidades → número; incluye `unidades_incluidas` y suma `unidades_dias` por cada `unidades_cada` más (p. ej. Colores).
+-- `todos` = se ofrece en todos los productos; si no, en lo que diga `tiempos_extra_alcance`.
 CREATE TABLE IF NOT EXISTS `tiempos_extras` (
-  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `version_id` INT UNSIGNED NOT NULL,
-  `clave`      VARCHAR(40) NOT NULL,
-  `nombre`     VARCHAR(80) NOT NULL,
-  `aviso`      VARCHAR(255) DEFAULT NULL,
-  `orden`      INT NOT NULL DEFAULT 0,
+  `id`                 INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `version_id`         INT UNSIGNED NOT NULL,
+  `clave`              VARCHAR(80) NOT NULL,
+  `tipo`               ENUM('si_no', 'por_cantidad', 'por_unidades') NOT NULL,
+  `nombre`             VARCHAR(80) NOT NULL,
+  `etiqueta`           VARCHAR(120) NOT NULL,
+  `ayuda`              VARCHAR(255) DEFAULT NULL,
+  `aviso`              VARCHAR(255) DEFAULT NULL,
+  `dias_fijos`         INT DEFAULT NULL,
+  `unidades_incluidas` INT DEFAULT NULL,
+  `unidades_cada`      INT DEFAULT NULL,
+  `unidades_dias`      INT DEFAULT NULL,
+  `unidades_max`       INT DEFAULT NULL,
+  `todos`              TINYINT(1) NOT NULL DEFAULT 1,
+  `activo`             TINYINT(1) NOT NULL DEFAULT 1,
+  `orden`              INT NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_tiempos_extra` (`version_id`, `clave`),
   CONSTRAINT `fk_tiempos_extra_version` FOREIGN KEY (`version_id`) REFERENCES `tiempos_versiones` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Opciones de un extra por cantidad (los tipos de UV); cada una tiene su tabla de rangos.
+CREATE TABLE IF NOT EXISTS `tiempos_extra_opciones` (
+  `id`       INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `extra_id` INT UNSIGNED NOT NULL,
+  `clave`    VARCHAR(80) NOT NULL,
+  `nombre`   VARCHAR(80) NOT NULL,
+  `aviso`    VARCHAR(255) DEFAULT NULL,
+  `orden`    INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_tiempos_extra_opcion` (`extra_id`, `clave`),
+  CONSTRAINT `fk_tiempos_extra_opcion` FOREIGN KEY (`extra_id`) REFERENCES `tiempos_extras` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `tiempos_extra_rangos` (
   `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `extra_id`   INT UNSIGNED NOT NULL,
+  `opcion_id`  INT UNSIGNED NOT NULL,
   `desde`      INT NOT NULL,
   `hasta`      INT DEFAULT NULL,
   `dias`       INT DEFAULT NULL,
   `a_convenir` TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
-  KEY `idx_tiempos_extra_rango` (`extra_id`, `desde`),
-  CONSTRAINT `fk_tiempos_extra_rango` FOREIGN KEY (`extra_id`) REFERENCES `tiempos_extras` (`id`) ON DELETE CASCADE
+  KEY `idx_tiempos_extra_rango` (`opcion_id`, `desde`),
+  CONSTRAINT `fk_tiempos_extra_rango` FOREIGN KEY (`opcion_id`) REFERENCES `tiempos_extra_opciones` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Reglas generales: margen, colores incluidos, días por colores extra, días de moldes.
+-- Dónde se ofrece un extra que no es para todos: líneas, categorías o productos (por clave).
+CREATE TABLE IF NOT EXISTS `tiempos_extra_alcance` (
+  `extra_id` INT UNSIGNED NOT NULL,
+  `tipo`     ENUM('linea', 'categoria', 'producto') NOT NULL,
+  `clave`    VARCHAR(80) NOT NULL,
+  PRIMARY KEY (`extra_id`, `tipo`, `clave`),
+  CONSTRAINT `fk_tiempos_extra_alcance` FOREIGN KEY (`extra_id`) REFERENCES `tiempos_extras` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Reglas: números (`valor`) o textos (`texto`), p. ej. margen_dias, max_piezas, aviso_urgente.
 CREATE TABLE IF NOT EXISTS `tiempos_parametros` (
   `version_id` INT UNSIGNED NOT NULL,
   `clave`      VARCHAR(40) NOT NULL,
-  `valor`      INT NOT NULL,
+  `valor`      INT DEFAULT NULL,
+  `texto`      VARCHAR(255) DEFAULT NULL,
   `ayuda`      VARCHAR(255) DEFAULT NULL,
   PRIMARY KEY (`version_id`, `clave`),
   CONSTRAINT `fk_tiempos_parametro_version` FOREIGN KEY (`version_id`) REFERENCES `tiempos_versiones` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- `producto_clave` NULL = aviso general (se muestra en todos los resultados).
 CREATE TABLE IF NOT EXISTS `tiempos_avisos` (
   `id`             INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `version_id`     INT UNSIGNED NOT NULL,

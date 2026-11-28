@@ -4,7 +4,9 @@
 //  - los rangos de cada producto no se traslapan ni dejan huecos y el último queda «a convenir»,
 //  - cada rango trae un día por cada etapa del producto, y las etapas, líneas y claves existen y no se repiten.
 // Uso: node scripts/tiempos/verificar-datos.js
-const { ETAPAS, LINEAS, PRODUCTOS, UV, PARAMETROS } = require('../../src/modules/tiempos/datos/tablaV5');
+const { ETAPAS, LINEAS, PRODUCTOS, EXTRAS, PARAMETROS } = require('../../src/modules/tiempos/datos/tablaV5');
+// Las tablas por cantidad de los extras (los tipos de UV y la costura del lanyard).
+const UV = EXTRAS.filter(e => e.tipo === 'por_cantidad').flatMap(e => e.opciones);
 
 let buenas = 0;
 const avisos = [];
@@ -46,7 +48,7 @@ for (const u of UV) {
     if (hasta !== null) previoHasta = hasta;
   });
 }
-console.log(`${PRODUCTOS.length} productos, ${PRODUCTOS.reduce((n, p) => n + p.rangos.length, 0)} rangos, ${UV.length} tipos de UV.`);
+console.log(`${PRODUCTOS.length} productos, ${PRODUCTOS.reduce((n, p) => n + p.rangos.length, 0)} rangos, ${UV.length} tablas de extras por cantidad.`);
 console.log(`${buenas} filas con «Cliente» impreso que coincide con etapas + margen.`);
 if (avisos.length) { console.log(`\n${avisos.length} diferencia(s) para revisar contra la tabla impresa:`); avisos.forEach(a => console.log('  - ' + a)); process.exit(1); }
 console.log('Sin diferencias.');

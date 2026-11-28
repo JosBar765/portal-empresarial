@@ -33,9 +33,10 @@ class BorradorRepository {
     const v = await tx.query("INSERT INTO tiempos_versiones (numero, fecha, nota, estado, creada_por) VALUES (?, ?, ?, 'borrador', ?)", [numero, fecha, nota || null, usuarioId], 'tiempos:clonar_version');
     const n = v.insertId;
     const t = (sql, params, tag) => tx.query(sql, params, `tiempos:clonar_${tag}`);
-    await t('INSERT INTO tiempos_lineas (version_id, clave, nombre, orden) SELECT ?, clave, nombre, orden FROM tiempos_lineas WHERE version_id = ?', [n, origenId], 'lineas');
-    await t('INSERT INTO tiempos_etapas (version_id, clave, nombre, orden) SELECT ?, clave, nombre, orden FROM tiempos_etapas WHERE version_id = ?', [n, origenId], 'etapas');
-    await t('INSERT INTO tiempos_productos (version_id, clave, linea_clave, grupo, nombre, orden, activo, permite_moldes, permite_lanyard) SELECT ?, clave, linea_clave, grupo, nombre, orden, activo, permite_moldes, permite_lanyard FROM tiempos_productos WHERE version_id = ?', [n, origenId], 'productos');
+    await t('INSERT INTO tiempos_lineas (version_id, clave, nombre, orden, activo) SELECT ?, clave, nombre, orden, activo FROM tiempos_lineas WHERE version_id = ?', [n, origenId], 'lineas');
+    await t('INSERT INTO tiempos_categorias (version_id, clave, linea_clave, nombre, orden, activo) SELECT ?, clave, linea_clave, nombre, orden, activo FROM tiempos_categorias WHERE version_id = ?', [n, origenId], 'categorias');
+    await t('INSERT INTO tiempos_etapas (version_id, clave, nombre, orden, activo) SELECT ?, clave, nombre, orden, activo FROM tiempos_etapas WHERE version_id = ?', [n, origenId], 'etapas');
+    await t('INSERT INTO tiempos_productos (version_id, clave, linea_clave, categoria_clave, nombre, orden, activo) SELECT ?, clave, linea_clave, categoria_clave, nombre, orden, activo FROM tiempos_productos WHERE version_id = ?', [n, origenId], 'productos');
     await t(
       `INSERT INTO tiempos_rangos (producto_id, desde, hasta, a_convenir, orden)
        SELECT np.id, r.desde, r.hasta, r.a_convenir, r.orden FROM tiempos_rangos r
@@ -50,24 +51,40 @@ class BorradorRepository {
        JOIN tiempos_productos np ON np.version_id = ? AND np.clave = op.clave
        JOIN tiempos_rangos nr ON nr.producto_id = np.id AND nr.desde = orr.desde`, [origenId, n], 'dias'
     );
-    await t('INSERT INTO tiempos_extras (version_id, clave, nombre, aviso, orden) SELECT ?, clave, nombre, aviso, orden FROM tiempos_extras WHERE version_id = ?', [n, origenId], 'extras');
+    await t(`INSERT INTO tiempos_extras (version_id, clave, tipo, nombre, etiqueta, ayuda, aviso, dias_fijos, unidades_incluidas, unidades_cada, unidades_dias, unidades_max, todos, activo, orden)
+       SELECT ?, clave, tipo, nombre, etiqueta, ayuda, aviso, dias_fijos, unidades_incluidas, unidades_cada, unidades_dias, unidades_max, todos, activo, orden FROM tiempos_extras WHERE version_id = ?`, [n, origenId], 'extras');
     await t(
-      `INSERT INTO tiempos_extra_rangos (extra_id, desde, hasta, dias, a_convenir)
-       SELECT ne.id, er.desde, er.hasta, er.dias, er.a_convenir FROM tiempos_extra_rangos er
-       JOIN tiempos_extras oe ON oe.id = er.extra_id AND oe.version_id = ?
-       JOIN tiempos_extras ne ON ne.version_id = ? AND ne.clave = oe.clave`, [origenId, n], 'extra_rangos'
+      `INSERT INTO tiempos_extra_opciones (extra_id, clave, nombre, aviso, orden)
+       SELECT ne.id, o.clave, o.nombre, o.aviso, o.orden FROM tiempos_extra_opciones o
+       JOIN tiempos_extras oe ON oe.id = o.extra_id AND oe.version_id = ?
+       JOIN tiempos_extras ne ON ne.version_id = ? AND ne.clave = oe.clave`, [origenId, n], 'extra_opciones'
     );
-    await t('INSERT INTO tiempos_parametros (version_id, clave, valor, ayuda) SELECT ?, clave, valor, ayuda FROM tiempos_parametros WHERE version_id = ?', [n, origenId], 'parametros');
+    await t(
+      `INSERT INTO tiempos_extra_rangos (opcion_id, desde, hasta, dias, a_convenir)
+       SELECT no.id, er.desde, er.hasta, er.dias, er.a_convenir FROM tiempos_extra_rangos er
+       JOIN tiempos_extra_opciones oo ON oo.id = er.opcion_id
+       JOIN tiempos_extras oe ON oe.id = oo.extra_id AND oe.version_id = ?
+       JOIN tiempos_extras ne ON ne.version_id = ? AND ne.clave = oe.clave
+       JOIN tiempos_extra_opciones no ON no.extra_id = ne.id AND no.clave = oo.clave`, [origenId, n], 'extra_rangos'
+    );
+    await t(
+      `INSERT INTO tiempos_extra_alcance (extra_id, tipo, clave)
+       SELECT ne.id, a.tipo, a.clave FROM tiempos_extra_alcance a
+       JOIN tiempos_extras oe ON oe.id = a.extra_id AND oe.version_id = ?
+       JOIN tiempos_extras ne ON ne.version_id = ? AND ne.clave = oe.clave`, [origenId, n], 'extra_alcance'
+    );
+    await t('INSERT INTO tiempos_parametros (version_id, clave, valor, texto, ayuda) SELECT ?, clave, valor, texto, ayuda FROM tiempos_parametros WHERE version_id = ?', [n, origenId], 'parametros');
     await t('INSERT INTO tiempos_avisos (version_id, producto_clave, texto, orden) SELECT ?, producto_clave, texto, orden FROM tiempos_avisos WHERE version_id = ?', [n, origenId], 'avisos');
     return n;
   }
 
   // Lecturas dentro de la transacción: el borrador recién creado todavía no lo ven otras conexiones.
-  etapasDe(tx, versionId) { return tx.query('SELECT clave, nombre FROM tiempos_etapas WHERE version_id = ? ORDER BY orden', [versionId], 'tiempos:etapas_de'); }
-  lineasDe(tx, versionId) { return tx.query('SELECT clave, nombre FROM tiempos_lineas WHERE version_id = ? ORDER BY orden', [versionId], 'tiempos:lineas_de'); }
+  etapasDe(tx, versionId) { return tx.query('SELECT clave, nombre, activo FROM tiempos_etapas WHERE version_id = ? ORDER BY orden', [versionId], 'tiempos:etapas_de'); }
+  lineasDe(tx, versionId) { return tx.query('SELECT clave, nombre, activo FROM tiempos_lineas WHERE version_id = ? ORDER BY orden', [versionId], 'tiempos:lineas_de'); }
+  categoriasDe(tx, versionId) { return tx.query('SELECT clave, linea_clave AS linea, nombre, activo FROM tiempos_categorias WHERE version_id = ? ORDER BY orden', [versionId], 'tiempos:categorias_de'); }
 
   async productoDe(tx, versionId, clave) {
-    const f = await tx.query('SELECT id, clave, linea_clave AS linea, grupo, nombre, orden, activo FROM tiempos_productos WHERE version_id = ? AND clave = ?', [versionId, clave], 'tiempos:producto_de');
+    const f = await tx.query('SELECT id, clave, linea_clave AS linea, categoria_clave AS categoria, nombre, orden, activo FROM tiempos_productos WHERE version_id = ? AND clave = ?', [versionId, clave], 'tiempos:producto_de');
     return f[0] || null;
   }
 
@@ -91,10 +108,10 @@ class BorradorRepository {
   async guardarProducto(tx, versionId, p) {
     let id = p.id;
     if (id) {
-      await tx.query('UPDATE tiempos_productos SET nombre = ?, grupo = ?, activo = ?, permite_moldes = ?, permite_lanyard = ? WHERE id = ?', [p.nombre, p.grupo, p.activo ? 1 : 0, p.permiteMoldes ? 1 : 0, p.permiteLanyard ? 1 : 0, id], 'tiempos:actualizar_producto');
+      await tx.query('UPDATE tiempos_productos SET nombre = ?, categoria_clave = ?, activo = ? WHERE id = ?', [p.nombre, p.categoria, p.activo ? 1 : 0, id], 'tiempos:actualizar_producto');
       await tx.query('DELETE FROM tiempos_rangos WHERE producto_id = ?', [id], 'tiempos:borrar_rangos');
     } else {
-      const r = await tx.query('INSERT INTO tiempos_productos (version_id, clave, linea_clave, grupo, nombre, orden, activo, permite_moldes, permite_lanyard) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [versionId, p.clave, p.linea, p.grupo, p.nombre, p.orden, p.activo ? 1 : 0, p.permiteMoldes ? 1 : 0, p.permiteLanyard ? 1 : 0], 'tiempos:crear_producto');
+      const r = await tx.query('INSERT INTO tiempos_productos (version_id, clave, linea_clave, categoria_clave, nombre, orden, activo) VALUES (?, ?, ?, ?, ?, ?, ?)', [versionId, p.clave, p.linea, p.categoria, p.nombre, p.orden, p.activo ? 1 : 0], 'tiempos:crear_producto');
       id = r.insertId;
     }
     for (const [i, r] of p.rangos.entries()) {
@@ -106,18 +123,48 @@ class BorradorRepository {
     return id;
   }
 
-  // Extras (tipos de UV con sus rangos) y reglas generales. Los extras existentes se actualizan; los que no vienen se quitan.
-  async guardarExtras(tx, versionId, extras, parametros) {
-    const actuales = await tx.query('SELECT id, clave FROM tiempos_extras WHERE version_id = ?', [versionId], 'tiempos:extras_actuales');
-    for (const e of actuales) if (!extras.some(x => x.clave === e.clave)) await tx.query('DELETE FROM tiempos_extras WHERE id = ?', [e.id], 'tiempos:borrar_extra');
+  // Inserta los extras de una versión tal como llegan (en ese orden): datos, opciones con sus rangos y dónde se ofrecen.
+  async insertarExtras(tx, versionId, extras) {
     for (const [i, e] of extras.entries()) {
-      const previo = actuales.find(a => a.clave === e.clave);
-      let id;
-      if (previo) { id = previo.id; await tx.query('UPDATE tiempos_extras SET nombre = ?, aviso = ?, orden = ? WHERE id = ?', [e.nombre, e.aviso, i + 1, id], 'tiempos:actualizar_extra'); await tx.query('DELETE FROM tiempos_extra_rangos WHERE extra_id = ?', [id], 'tiempos:borrar_extra_rangos'); }
-      else { const r = await tx.query('INSERT INTO tiempos_extras (version_id, clave, nombre, aviso, orden) VALUES (?, ?, ?, ?, ?)', [versionId, e.clave, e.nombre, e.aviso, i + 1], 'tiempos:crear_extra'); id = r.insertId; }
-      for (const r of e.rangos) await tx.query('INSERT INTO tiempos_extra_rangos (extra_id, desde, hasta, dias, a_convenir) VALUES (?, ?, ?, ?, ?)', [id, r.desde, r.hasta, r.aConvenir ? null : r.dias, r.aConvenir ? 1 : 0], 'tiempos:crear_extra_rango');
+      const u = e.unidades || {};
+      const r = await tx.query(
+        `INSERT INTO tiempos_extras (version_id, clave, tipo, nombre, etiqueta, ayuda, aviso, dias_fijos, unidades_incluidas, unidades_cada, unidades_dias, unidades_max, todos, activo, orden)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [versionId, e.clave, e.tipo, e.nombre, e.etiqueta, e.ayuda || null, e.aviso || null, e.tipo === 'si_no' ? e.diasFijos : null,
+          e.tipo === 'por_unidades' ? u.incluidas : null, e.tipo === 'por_unidades' ? u.cada : null, e.tipo === 'por_unidades' ? u.dias : null, e.tipo === 'por_unidades' ? u.max : null,
+          e.alcance.todos ? 1 : 0, e.activo === false ? 0 : 1, i + 1], 'tiempos:crear_extra'
+      );
+      if (e.tipo === 'por_cantidad') {
+        for (const [j, o] of e.opciones.entries()) {
+          const ro = await tx.query('INSERT INTO tiempos_extra_opciones (extra_id, clave, nombre, aviso, orden) VALUES (?, ?, ?, ?, ?)', [r.insertId, o.clave, o.nombre, o.aviso || null, j + 1], 'tiempos:crear_extra_opcion');
+          for (const x of o.rangos) await tx.query('INSERT INTO tiempos_extra_rangos (opcion_id, desde, hasta, dias, a_convenir) VALUES (?, ?, ?, ?, ?)', [ro.insertId, x.desde, x.hasta, x.aConvenir ? null : x.dias, x.aConvenir ? 1 : 0], 'tiempos:crear_extra_rango');
+        }
+      }
+      if (!e.alcance.todos) {
+        for (const [tipo, lista] of [['linea', e.alcance.lineas], ['categoria', e.alcance.categorias], ['producto', e.alcance.productos]]) {
+          for (const clave of new Set(lista || [])) await tx.query('INSERT INTO tiempos_extra_alcance (extra_id, tipo, clave) VALUES (?, ?, ?)', [r.insertId, tipo, clave], 'tiempos:crear_extra_alcance');
+        }
+      }
     }
-    for (const [clave, valor] of Object.entries(parametros)) await tx.query('UPDATE tiempos_parametros SET valor = ? WHERE version_id = ? AND clave = ?', [valor, versionId, clave], 'tiempos:actualizar_parametro');
+  }
+
+  // Reemplaza todos los extras del borrador por la lista que llega (los datos de cada uno ya vienen validados).
+  async guardarExtras(tx, versionId, extras) {
+    await tx.query('DELETE FROM tiempos_extras WHERE version_id = ?', [versionId], 'tiempos:borrar_extras');
+    await this.insertarExtras(tx, versionId, extras);
+  }
+
+  // Reglas: número o texto según la regla; si no existe en la versión, se crea.
+  async guardarReglas(tx, versionId, reglas) {
+    for (const [clave, valor] of Object.entries(reglas)) {
+      const esTexto = typeof valor === 'string';
+      await tx.query('INSERT INTO tiempos_parametros (version_id, clave, valor, texto) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE valor = VALUES(valor), texto = VALUES(texto)',
+        [versionId, clave, esTexto ? null : valor, esTexto ? valor : null], 'tiempos:guardar_regla');
+    }
+  }
+
+  extrasClavesPublicadas() {
+    return db.query("SELECT DISTINCT e.clave FROM tiempos_extras e JOIN tiempos_versiones v ON v.id = e.version_id WHERE v.estado <> 'borrador'", [], 'tiempos:extras_publicados');
   }
 
   async guardarAvisosGenerales(tx, versionId, textos) {
@@ -125,14 +172,28 @@ class BorradorRepository {
     for (const [i, texto] of textos.entries()) await tx.query('INSERT INTO tiempos_avisos (version_id, producto_clave, texto, orden) VALUES (?, NULL, ?, ?)', [versionId, texto, i + 1], 'tiempos:crear_aviso_general');
   }
 
-  // Etapas y líneas: se renombran, se agregan y se reordenan; nunca se borran las que están en uso (lo valida el servicio).
+  // Líneas, categorías y etapas: se renombran, se agregan, se reordenan y se ocultan; nunca se borran.
   async guardarCatalogo(tx, tabla, versionId, filas) {
-    const t = tabla === 'lineas' ? 'tiempos_lineas' : 'tiempos_etapas';
+    const t = { lineas: 'tiempos_lineas', etapas: 'tiempos_etapas', categorias: 'tiempos_categorias' }[tabla];
     const actuales = await tx.query(`SELECT clave FROM ${t} WHERE version_id = ?`, [versionId], 'tiempos:catalogo_actual');
     for (const [i, f] of filas.entries()) {
-      if (actuales.some(a => a.clave === f.clave)) await tx.query(`UPDATE ${t} SET nombre = ?, orden = ? WHERE version_id = ? AND clave = ?`, [f.nombre, i + 1, versionId, f.clave], 'tiempos:actualizar_catalogo');
-      else await tx.query(`INSERT INTO ${t} (version_id, clave, nombre, orden) VALUES (?, ?, ?, ?)`, [versionId, f.clave, f.nombre, i + 1], 'tiempos:crear_catalogo');
+      const activo = f.activo === false ? 0 : 1;
+      if (actuales.some(a => a.clave === f.clave)) await tx.query(`UPDATE ${t} SET nombre = ?, orden = ?, activo = ? WHERE version_id = ? AND clave = ?`, [f.nombre, i + 1, activo, versionId, f.clave], 'tiempos:actualizar_catalogo');
+      else if (tabla === 'categorias') await tx.query(`INSERT INTO ${t} (version_id, clave, linea_clave, nombre, orden, activo) VALUES (?, ?, ?, ?, ?, ?)`, [versionId, f.clave, f.linea, f.nombre, i + 1, activo], 'tiempos:crear_catalogo');
+      else await tx.query(`INSERT INTO ${t} (version_id, clave, nombre, orden, activo) VALUES (?, ?, ?, ?, ?)`, [versionId, f.clave, f.nombre, i + 1, activo], 'tiempos:crear_catalogo');
     }
+  }
+
+  // Cuántos productos VISIBLES usan cada etapa, línea y categoría (lo que está en uso no se puede ocultar).
+  async usoVisible(con, versionId) {
+    const [etapas, lineas, categorias] = await Promise.all([
+      con.query(`SELECT re.etapa_clave AS clave, COUNT(DISTINCT p.id) AS n FROM tiempos_rango_etapas re JOIN tiempos_rangos r ON r.id = re.rango_id
+                 JOIN tiempos_productos p ON p.id = r.producto_id WHERE p.version_id = ? AND p.activo = 1 GROUP BY re.etapa_clave`, [versionId], 'tiempos:uso_etapas_visibles'),
+      con.query('SELECT linea_clave AS clave, COUNT(*) AS n FROM tiempos_productos WHERE version_id = ? AND activo = 1 GROUP BY linea_clave', [versionId], 'tiempos:uso_lineas_visibles'),
+      con.query('SELECT categoria_clave AS clave, COUNT(*) AS n FROM tiempos_productos WHERE version_id = ? AND activo = 1 AND categoria_clave IS NOT NULL GROUP BY categoria_clave', [versionId], 'tiempos:uso_categorias_visibles')
+    ]);
+    const mapa = (filas) => Object.fromEntries(filas.map(x => [x.clave, Number(x.n)]));
+    return { etapas: mapa(etapas), lineas: mapa(lineas), categorias: mapa(categorias) };
   }
 
   async usoDeEtapas(versionId) {
@@ -144,6 +205,10 @@ class BorradorRepository {
 
   async usoDeLineas(versionId) {
     return db.query('SELECT linea_clave AS clave, COUNT(*) AS productos FROM tiempos_productos WHERE version_id = ? GROUP BY linea_clave', [versionId], 'tiempos:uso_lineas');
+  }
+
+  async usoDeCategorias(versionId) {
+    return db.query('SELECT categoria_clave AS clave, COUNT(*) AS productos FROM tiempos_productos WHERE version_id = ? AND categoria_clave IS NOT NULL GROUP BY categoria_clave', [versionId], 'tiempos:uso_categorias');
   }
 
   async publicar(tx, borradorId, { numero, fecha, nota, usuarioId }) {

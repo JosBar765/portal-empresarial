@@ -68,13 +68,62 @@ function validarExtra(e) {
   return { ok: errores.length === 0, errores };
 }
 
-const LIMITES_PARAMETROS = { margen_dias: [0, 30], colores_incluidos: [1, 12], colores_cada: [1, 12], colores_dias: [0, 30], moldes_dias: [0, 60] };
+// Reglas generales: números con su rango y textos con su largo.
+const REGLAS = { margen_dias: { min: 0, max: 30 }, max_piezas: { min: 1, max: 50 }, aviso_urgente: { texto: true, min: 5, max: 255 } };
 function validarParametros(p) {
   const errores = [];
   for (const [clave, valor] of Object.entries(p)) {
-    const lim = LIMITES_PARAMETROS[clave];
-    if (!lim) errores.push({ campo: clave, mensaje: `«${clave}» no es una regla de la tabla.` });
-    else if (!Number.isInteger(valor) || valor < lim[0] || valor > lim[1]) errores.push({ campo: clave, mensaje: `Esta regla debe ser un número entero de ${lim[0]} a ${lim[1]}.` });
+    const r = REGLAS[clave];
+    if (!r) errores.push({ campo: clave, mensaje: `«${clave}» no es una regla de la tabla.` });
+    else if (r.texto) { if (typeof valor !== 'string' || valor.trim().length < r.min || valor.trim().length > r.max) errores.push({ campo: clave, mensaje: `El texto debe tener de ${r.min} a ${r.max} caracteres.` }); }
+    else if (!Number.isInteger(valor) || valor < r.min || valor > r.max) errores.push({ campo: clave, mensaje: `Esta regla debe ser un número entero de ${r.min} a ${r.max}.` });
+  }
+  return { ok: errores.length === 0, errores };
+}
+
+// Un extra del catálogo (lo que arma el asistente «Extra nuevo»). `catalogo`: { lineas, categorias, productos } con las claves válidas.
+const MAX_OPCIONES = 10;
+const MAX_EXTRAS = 30;
+function validarExtraCatalogo(e, catalogo) {
+  const errores = [];
+  const err = (campo, mensaje) => errores.push({ campo, mensaje });
+  const largo = (t, min, max) => typeof t === 'string' && t.trim().length >= min && t.trim().length <= max;
+  if (!['si_no', 'por_cantidad', 'por_unidades'].includes(e.tipo)) err('tipo', 'Elige cómo suma días este extra.');
+  if (!largo(e.nombre, 2, 80)) err('nombre', 'El nombre debe tener de 2 a 80 caracteres.');
+  if (!largo(e.etiqueta, 2, 120)) err('etiqueta', 'Escribe el texto que verá quien calcula (de 2 a 120 caracteres).');
+  if (e.ayuda && !largo(e.ayuda, 1, 255)) err('ayuda', 'La ayuda admite hasta 255 caracteres.');
+  if (e.aviso && !largo(e.aviso, 1, 255)) err('aviso', 'El aviso admite hasta 255 caracteres.');
+  if (e.tipo === 'si_no' && (!Number.isInteger(e.diasFijos) || e.diasFijos < 1 || e.diasFijos > MAX_DIAS)) err('diasFijos', `Escribe los días que suma, de 1 a ${MAX_DIAS}.`);
+  if (e.tipo === 'por_unidades') {
+    const u = e.unidades || {};
+    if (!Number.isInteger(u.max) || u.max < 1 || u.max > 99) err('unidades.max', 'El máximo debe ser un número de 1 a 99.');
+    if (!Number.isInteger(u.incluidas) || u.incluidas < 0 || (Number.isInteger(u.max) && u.incluidas > u.max)) err('unidades.incluidas', 'Las incluidas deben ser un número de 0 al máximo.');
+    if (!Number.isInteger(u.cada) || u.cada < 1 || u.cada > 99) err('unidades.cada', '«Cada cuántas» debe ser un número de 1 a 99.');
+    if (!Number.isInteger(u.dias) || u.dias < 1 || u.dias > MAX_DIAS) err('unidades.dias', `Los días deben ser un número de 1 a ${MAX_DIAS}.`);
+  }
+  if (e.tipo === 'por_cantidad') {
+    const ops = Array.isArray(e.opciones) ? e.opciones : [];
+    if (!ops.length) err('opciones', 'Agrega al menos una opción con su tabla de rangos.');
+    if (ops.length > MAX_OPCIONES) err('opciones', `Un extra admite hasta ${MAX_OPCIONES} opciones.`);
+    const nombres = new Set();
+    ops.forEach((o, i) => {
+      const r = validarExtra({ nombre: o.nombre, rangos: o.rangos });
+      r.errores.forEach(x => errores.push({ campo: `opciones.${i}.${x.indice === undefined ? x.campo : `${x.indice}.${x.campo}`}`, mensaje: x.mensaje }));
+      if (o.aviso && !largo(o.aviso, 1, 255)) err(`opciones.${i}.aviso`, 'El aviso admite hasta 255 caracteres.');
+      const k = String(o.nombre || '').trim().toLowerCase();
+      if (nombres.has(k)) err(`opciones.${i}.nombre`, 'Ya hay otra opción con ese nombre.');
+      nombres.add(k);
+    });
+  }
+  const a = e.alcance || {};
+  if (!a.todos) {
+    const total = (a.lineas || []).length + (a.categorias || []).length + (a.productos || []).length;
+    if (!total) err('alcance', 'Marca en qué líneas, categorías o productos se ofrece, o elige «Todos los productos».');
+    if (catalogo) {
+      if ((a.lineas || []).some(c => !catalogo.lineas.includes(c))) err('alcance', 'Hay una línea que ya no existe. Recarga la página.');
+      if ((a.categorias || []).some(c => !catalogo.categorias.includes(c))) err('alcance', 'Hay una categoría que ya no existe. Recarga la página.');
+      if ((a.productos || []).some(c => !catalogo.productos.includes(c))) err('alcance', 'Hay un producto que ya no existe. Recarga la página.');
+    }
   }
   return { ok: errores.length === 0, errores };
 }
@@ -84,4 +133,4 @@ const validarNombre = (nombre, etiqueta = 'producto') => (typeof nombre === 'str
 
 const aClave = (texto) => String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70) || 'producto';
 
-module.exports = { validarRangos, validarTextos, validarExtra, validarParametros, validarNombre, aClave, MAX_DIAS, MAX_RANGOS, MAX_AVISOS };
+module.exports = { validarRangos, validarTextos, validarExtra, validarExtraCatalogo, validarParametros, validarNombre, aClave, REGLAS, MAX_DIAS, MAX_RANGOS, MAX_AVISOS, MAX_EXTRAS };

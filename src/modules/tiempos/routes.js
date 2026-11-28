@@ -18,6 +18,7 @@ router.get('/admin/tabla', administrar, adminController.tabla);
 router.post('/admin/productos', administrar, adminController.crearProducto);
 router.put('/admin/productos/:clave', administrar, adminController.guardarProducto);
 router.put('/admin/extras', administrar, adminController.guardarExtras);
+router.put('/admin/reglas', administrar, adminController.guardarReglas);
 router.put('/admin/avisos-generales', administrar, adminController.guardarAvisos);
 router.put('/admin/catalogos', administrar, adminController.guardarCatalogos);
 router.get('/admin/cambios', administrar, adminController.cambios);

@@ -16,21 +16,21 @@ const LINEAS = [['produccion', 'Producción'], ['mundi', 'Mundi'], ['protextil',
 // rangos: [desde, hasta, [días por etapa en el orden de `etapas`], cliente impreso]
 const PRODUCTOS = [
   // ---------------------------------------------------------------- Producción · Piezas fundidas
-  { clave: 'fundida-antique-sin-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Antique sin color', moldes: true, lanyard: true, etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
+  { clave: 'fundida-antique-sin-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Antique sin color', etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
     rangos: [[75, 500, [2, 2, 3, 1], 9], [501, 1000, [2, 2, 4, 1], 10], [1001, 2000, [2, 2, 4, 2], 11], [2001, 3000, [2, 3, 5, 2], 13], [3001, null]] },
-  { clave: 'fundida-antique-accesorio-sin-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Antique con accesorio o giratoria, sin color', moldes: true, lanyard: true, etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
+  { clave: 'fundida-antique-accesorio-sin-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Antique con accesorio o giratoria, sin color', etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
     rangos: [[75, 250, [2, 2, 5, 1], 11], [251, 500, [2, 2, 6, 1], 12], [501, 1500, [2, 2, 7, 2], 14], [1501, 3000, [2, 3, 8, 2], 16], [3001, null]] },
-  { clave: 'fundida-antique-con-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Antique con color', moldes: true, lanyard: true, etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
+  { clave: 'fundida-antique-con-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Antique con color', etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
     rangos: [[75, 500, [2, 2, 5, 1], 11], [501, 1000, [2, 2, 6, 1], 12], [1001, 2000, [2, 2, 7, 2], 14], [2001, 3000, [2, 3, 8, 2], 16], [3001, null]] },
-  { clave: 'fundida-antique-accesorio-con-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Antique con accesorio o giratoria, con color', moldes: true, lanyard: true, etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
+  { clave: 'fundida-antique-accesorio-con-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Antique con accesorio o giratoria, con color', etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
     rangos: [[75, 250, [2, 2, 8, 1], 14], [251, 500, [2, 2, 9, 1], 15], [501, 1500, [2, 2, 10, 2], 17], [1501, 3000, [2, 3, 11, 2], 19], [3001, null]] },
-  { clave: 'fundida-brillante-sin-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Brillante sin color', moldes: true, lanyard: true, etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
+  { clave: 'fundida-brillante-sin-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Brillante sin color', etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
     rangos: [[75, 250, [2, 2, 8, 1], 14], [251, 500, [2, 2, 11, 1], 17], [501, 1500, [2, 2, 12, 2], 19], [1501, 3000, [2, 3, 14, 2], 22], [3001, null]] },
-  { clave: 'fundida-brillante-accesorio-sin-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Brillante con accesorio o giratoria, sin color', moldes: true, lanyard: true, etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
+  { clave: 'fundida-brillante-accesorio-sin-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Brillante con accesorio o giratoria, sin color', etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
     rangos: [[75, 250, [2, 2, 10, 1], 16], [251, 500, [2, 2, 13, 1], 19], [501, 1500, [2, 2, 14, 2], 21], [1501, 3000, [2, 3, 17, 2], 25], [3001, null]] }, // OJO: impreso Fábrica 16 y Cliente 25 (la suma da 24): se carga Fábrica 17 para respetar el Cliente impreso; por confirmar
-  { clave: 'fundida-brillante-con-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Brillante con color', moldes: true, lanyard: true, etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
+  { clave: 'fundida-brillante-con-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Brillante con color', etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
     rangos: [[75, 250, [2, 2, 10, 1], 16], [251, 500, [2, 2, 13, 1], 19], [501, 1500, [2, 2, 15, 2], 22], [1501, 3000, [2, 3, 17, 2], 25], [3001, null]] },
-  { clave: 'fundida-brillante-accesorio-con-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Brillante con accesorio o giratoria, con color', moldes: true, lanyard: true, etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
+  { clave: 'fundida-brillante-accesorio-con-color', linea: 'produccion', grupo: 'Piezas fundidas', nombre: 'Brillante con accesorio o giratoria, con color', etapas: ['piloto', 'fundicion', 'fabrica', 'ensamble'],
     rangos: [[75, 250, [2, 2, 12, 1], 18], [251, 500, [2, 2, 15, 1], 21], [501, 1500, [2, 2, 17, 2], 24], [1501, 3000, [2, 3, 19, 2], 27], [3001, null]] },
   // ---------------------------------------------------------------- Producción · Fotograbado
   { clave: 'fotograbado-laton', linea: 'produccion', grupo: 'Fotograbado', nombre: 'Fotograbado / latón calado o niquelado', etapas: ['diseno', 'fabrica', 'ensamble'],
@@ -102,20 +102,31 @@ const PRODUCTOS = [
     rangos: [[50, 250, [5, 1], 7], [251, 500, [6, 1], 8], [501, 1000, [7, 2], 10], [1001, 2500, [9, 3], 13], [2501, null]] }
 ];
 
-// Impresión UV: días que se suman a la producción del producto trabajado.
-const UV = [
-  { clave: 'uv-impresion', nombre: 'Impresión UV', rangos: [[75, 250, 2], [251, 500, 3], [501, 1500, 5], [1501, 3000, 7], [3001, null]] },
-  { clave: 'uv-cama-plana', nombre: 'Cama plana / DTF', aviso: 'Respeta los mínimos de los productos a trabajar.', rangos: [[1, 10, 2], [11, 150, 4], [151, 300, 6], [301, 600, 9], [601, 1000, 13], [1001, null]] },
-  { clave: 'uv-vinil', nombre: 'Vinil sin revestimiento', rangos: [[1, 300, 1], [301, 600, 2], [601, 1000, 3], [1001, null]] }
+// Extras: se cargan como datos editables desde la administración (ver la migración tiempos_nucleo).
+// `alcance`: null = todos los productos; si no, { lineas, categorias (nombre del grupo), productos }.
+// Costura del lanyard: la columna «Costura» del Lanyard de Protextil, que se suma a las piezas fundidas con listón o lanyard cosido.
+const EXTRAS = [
+  { clave: 'colores', tipo: 'por_unidades', nombre: 'Colores', etiqueta: '¿Cuántos colores lleva?', ayuda: 'Los tiempos de la tabla incluyen 2 colores.',
+    unidades: { incluidas: 2, cada: 2, dias: 1, max: 12 }, alcance: null },
+  { clave: 'moldes', tipo: 'si_no', nombre: 'Moldes', etiqueta: 'Pieza fundida de más de 3.5 pulgadas', ayuda: 'La fundición cubre hasta 3.5 pulgadas; más grande requiere moldes.',
+    diasFijos: 2, alcance: { categorias: ['Piezas fundidas'] } },
+  { clave: 'costura', tipo: 'por_cantidad', nombre: 'Costura del lanyard', etiqueta: 'Lleva listón o lanyard cosido', ayuda: 'Suma la costura de Protextil según la cantidad.',
+    opciones: [{ clave: 'costura', nombre: 'Costura del lanyard', rangos: [[50, 250, 1], [251, 500, 1], [501, 1000, 2], [1001, 2500, 3], [2501, null]] }],
+    alcance: { categorias: ['Piezas fundidas'] } },
+  // Impresión UV: días que se suman a la producción del producto trabajado.
+  { clave: 'uv', tipo: 'por_cantidad', nombre: 'Impresión UV', etiqueta: 'Impresión UV', ayuda: 'Suma días según el tipo de impresión y la cantidad.', alcance: null,
+    opciones: [
+      { clave: 'uv-impresion', nombre: 'Impresión UV', rangos: [[75, 250, 2], [251, 500, 3], [501, 1500, 5], [1501, 3000, 7], [3001, null]] },
+      { clave: 'uv-cama-plana', nombre: 'Cama plana / DTF', aviso: 'Respeta los mínimos de los productos a trabajar.', rangos: [[1, 10, 2], [11, 150, 4], [151, 300, 6], [301, 600, 9], [601, 1000, 13], [1001, null]] },
+      { clave: 'uv-vinil', nombre: 'Vinil sin revestimiento', rangos: [[1, 300, 1], [301, 600, 2], [601, 1000, 3], [1001, null]] }
+    ] }
 ];
 
-// Reglas generales de las observaciones de la tabla.
+// Reglas generales: [clave, número, texto, ayuda].
 const PARAMETROS = [
-  ['margen_dias', 1, 'Días de margen que se suman al total que se promete al cliente'],
-  ['colores_incluidos', 2, 'Colores que ya incluyen los tiempos de la tabla'],
-  ['colores_cada', 2, 'Cada cuántos colores extra se suma el día de colores'],
-  ['colores_dias', 1, 'Días que suma cada grupo de colores extra'],
-  ['moldes_dias', 2, 'Días extra por moldes en piezas fundidas de más de 3.5 pulgadas']
+  ['margen_dias', 1, null, 'Días de margen que se suman una vez a cada pieza, al final'],
+  ['max_piezas', 20, null, 'Cuántas piezas admite un pedido en la calculadora'],
+  ['aviso_urgente', null, 'Pedido urgente: necesita autorización del gerente. Aquí ves los tiempos normales.', 'Se muestra cuando se marca «Urgente»; no cambia los días']
 ];
 
 const AVISOS_GENERALES = [
@@ -126,4 +137,4 @@ const AVISOS_GENERALES = [
   'En impresión UV la tonalidad puede variar en producciones masivas. Logos y textos deben ser editables.'
 ];
 
-module.exports = { VERSION, ETAPAS, LINEAS, PRODUCTOS, UV, PARAMETROS, AVISOS_GENERALES };
+module.exports = { VERSION, ETAPAS, LINEAS, PRODUCTOS, EXTRAS, PARAMETROS, AVISOS_GENERALES };

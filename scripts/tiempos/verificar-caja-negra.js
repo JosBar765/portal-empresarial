@@ -185,7 +185,7 @@ async function verificar() {
 
     // ------------------------------------------------------------------ Datos de la tabla
     console.log('Datos de la tabla publicada');
-    prueba('38 productos (22 de la hoja 1 y 16 de la hoja 2, contados en las imágenes), 3 líneas y 3 tipos de UV', tabla.productos.length === 38 && tabla.lineas.length === 3 && tabla.extras.length === 3, `${tabla.productos.length}/${tabla.lineas.length}/${tabla.extras.length}`);
+    prueba('38 productos (22 de la hoja 1 y 16 de la hoja 2, contados en las imágenes), 3 líneas y 3 tipos de UV', tabla.productos.length === 38 && tabla.lineas.length === 3 && tabla.extras.find(e => e.clave === 'uv').opciones.length === 3, `${tabla.productos.length}/${tabla.lineas.length}`);
     const mal = [];
     for (const p of tabla.productos) {
       const rs = p.rangos;
@@ -204,11 +204,11 @@ async function verificar() {
     }
     prueba('Todos los productos: rangos en orden y sin huecos, último «a convenir», días enteros y «Cliente» = etapas + 1', !mal.length, mal.slice(0, 4).join(' | '));
     prueba('Los avisos de la hoja están en su producto (filamento, llavero NFC y mármol los traen)', ['mundi-3d-filamento', 'vidrio-marmol-grabado', 'protextil-liston'].every(c => tabla.productos.find(p => p.clave === c).avisos.length >= 1));
-    prueba('Los productos de fundición y solo ellos permiten moldes', tabla.productos.every(p => p.permiteMoldes === p.clave.startsWith('fundida-')), tabla.productos.filter(p => p.permiteMoldes !== p.clave.startsWith('fundida-')).map(p => p.clave).join(','));
+    prueba('Los productos de fundición y solo ellos permiten moldes', tabla.productos.every(p => p.extras.includes('moldes') === p.clave.startsWith('fundida-')), tabla.productos.filter(p => p.extras.includes('moldes') !== p.clave.startsWith('fundida-')).map(p => p.clave).join(','));
 
     // ------------------------------------------------------------------ Permisos y seguridad
     console.log('Permisos');
-    const rutasAdmin = [['GET', '/admin/estado'], ['GET', '/admin/tabla'], ['POST', '/admin/productos'], ['PUT', '/admin/productos/mundi-comandos'], ['PUT', '/admin/extras'], ['PUT', '/admin/avisos-generales'], ['PUT', '/admin/catalogos'], ['GET', '/admin/cambios'], ['POST', '/admin/publicar'], ['DELETE', '/admin/borrador'], ['GET', '/admin/versiones'], ['GET', '/admin/versiones/1/cambios'], ['POST', '/admin/versiones/1/usar-como-borrador'], ['GET', '/admin/actividad']];
+    const rutasAdmin = [['GET', '/admin/estado'], ['GET', '/admin/tabla'], ['POST', '/admin/productos'], ['PUT', '/admin/productos/mundi-comandos'], ['PUT', '/admin/extras'], ['PUT', '/admin/reglas'], ['PUT', '/admin/avisos-generales'], ['PUT', '/admin/catalogos'], ['GET', '/admin/cambios'], ['POST', '/admin/publicar'], ['DELETE', '/admin/borrador'], ['GET', '/admin/versiones'], ['GET', '/admin/versiones/1/cambios'], ['POST', '/admin/versiones/1/usar-como-borrador'], ['GET', '/admin/actividad']];
     const sinPermiso = [];
     for (const [metodo, ruta] of [['GET', '/tabla'], ['GET', '/festivos'], ['POST', '/calcular'], ...rutasAdmin]) {
       const x = await llamar(metodo, ruta, [], metodo === 'GET' || metodo === 'DELETE' ? undefined : {});
@@ -220,7 +220,7 @@ async function verificar() {
       const x = await llamar(metodo, ruta, VER, metodo === 'GET' || metodo === 'DELETE' ? undefined : {});
       if (x.estado !== 403) soloVer.push(`${metodo} ${ruta}→${x.estado}`);
     }
-    prueba('Con solo tiempos.ver, las 14 rutas de administración responden 403', !soloVer.length, soloVer.join(' | '));
+    prueba(`Con solo tiempos.ver, las ${rutasAdmin.length} rutas de administración responden 403`, !soloVer.length, soloVer.join(' | '));
     r = await llamar('GET', '/admin/estado', ADMIN);
     prueba('Con tiempos.administrar entra a la administración', r.estado === 200, String(r.estado));
 

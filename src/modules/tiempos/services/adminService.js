@@ -8,6 +8,7 @@ const tablaService = require('./tablaService');
 const { diferencias } = require('../calculo/diferencias');
 const v = require('../calculo/validacion');
 const { esFechaISO } = require('../calculo/fechas');
+const { textoExtra } = require('../calculo/extras');
 const { errorDeValidacion, sinTabla } = require('../errores');
 const { ErrorDeNegocio } = require('../../../core/utils/erroresHttp');
 
@@ -61,16 +62,22 @@ class AdminService {
     const borrador = await borradorRepository.versionBorrador();
     const version = borrador || await this._publicada();
     const t = await tablaRepository.cargarTabla(version);
-    const [usoEtapas, usoLineas] = await Promise.all([borradorRepository.usoDeEtapas(version.id), borradorRepository.usoDeLineas(version.id)]);
+    const [usoEtapas, usoLineas, usoCategorias, visible, publicados] = await Promise.all([
+      borradorRepository.usoDeEtapas(version.id), borradorRepository.usoDeLineas(version.id), borradorRepository.usoDeCategorias(version.id),
+      borradorRepository.usoVisible(db, version.id), borradorRepository.extrasClavesPublicadas()
+    ]);
     const publicada = borrador ? await tablaRepository.versionPublicada() : version;
+    const mapa = (filas) => Object.fromEntries(filas.map(x => [x.clave, Number(x.productos)]));
+    const yaPublicados = new Set(publicados.map(x => x.clave));
     return {
       version: { id: version.id, numero: version.numero, fecha: version.fecha, estado: version.estado }, esBorrador: Boolean(borrador),
       publicada: publicada ? { numero: publicada.numero, fecha: publicada.fecha } : null,
-      lineas: t.lineas, etapas: t.etapasLista,
-      productos: Object.values(t.productos).map(p => ({ clave: p.clave, nombre: p.nombre, linea: p.linea, grupo: p.grupo, activo: p.activo, permiteMoldes: p.permiteMoldes, permiteLanyard: p.permiteLanyard, etapas: p.etapas, rangos: p.rangos, avisos: p.avisos })),
-      extras: Object.values(t.extras).map(e => ({ clave: e.clave, nombre: e.nombre, aviso: e.aviso, rangos: e.rangos })),
+      lineas: t.lineas, categorias: t.categoriasLista, etapas: t.etapasLista,
+      productos: Object.values(t.productos).map(p => ({ clave: p.clave, nombre: p.nombre, linea: p.linea, categoria: p.categoria, grupo: p.grupo, activo: p.activo, etapas: p.etapas, rangos: p.rangos, avisos: p.avisos })),
+      extras: t.extras.map(e => ({ ...e, resumen: textoExtra(e), publicado: yaPublicados.has(e.clave) })),
       parametros: t.parametros, avisosGenerales: t.avisosGenerales,
-      uso: { etapas: Object.fromEntries(usoEtapas.map(x => [x.clave, Number(x.productos)])), lineas: Object.fromEntries(usoLineas.map(x => [x.clave, Number(x.productos)])) }
+      uso: { etapas: mapa(usoEtapas), lineas: mapa(usoLineas), categorias: mapa(usoCategorias) },
+      usoVisible: visible
     };
   }
 
@@ -95,6 +102,12 @@ class AdminService {
       const etapas = etapasValidas.filter(e => etapasClaves.includes(e.clave));
       const linea = clave ? previo.linea : b.linea;
       if (!clave && !lineasValidas.some(l => l.clave === linea)) campos.linea = 'Elige una línea de la lista.';
+      // Categoría: la que se elige (de la misma línea) o ninguna; si no se manda, se conserva la que tenía.
+      let categoria = b.categoria === undefined ? (previo ? previo.categoria : null) : (texto(b.categoria) || null);
+      if (categoria) {
+        const cat = (await borradorRepository.categoriasDe(tx, versionId)).find(c => c.clave === categoria);
+        if (!cat || cat.linea !== linea) { campos.categoria = 'Elige una categoría de la línea del producto.'; categoria = null; }
+      }
       const rangos = (Array.isArray(b.rangos) ? b.rangos : []).map(r => {
         const x = objeto(r); const dias = {};
         for (const [e, d] of Object.entries(objeto(x.dias))) dias[e] = d === '' || d === null || d === undefined ? undefined : aEntero(d);
@@ -110,8 +123,8 @@ class AdminService {
       const claveFinal = clave || await borradorRepository.claveLibre(tx, versionId, v.aClave(nombre));
       const antes = previo ? { nombre: previo.nombre } : null;
       await borradorRepository.guardarProducto(tx, versionId, {
-        id: previo ? previo.id : null, clave: claveFinal, linea, grupo: previo ? previo.grupo : (texto(b.grupo) || null), nombre, activo,
-        permiteMoldes: b.permiteMoldes === true, permiteLanyard: b.permiteLanyard === true, orden: previo ? previo.orden : await borradorRepository.siguienteOrden(tx, versionId),
+        id: previo ? previo.id : null, clave: claveFinal, linea, categoria, nombre, activo,
+        orden: previo ? previo.orden : await borradorRepository.siguienteOrden(tx, versionId),
         etapas: etapasClaves, rangos, avisos: avisos.filter(Boolean)
       });
       await borradorRepository.registrarHistorial(tx, { usuarioId: usuario.id, versionId, entidad: 'producto', clave: claveFinal, accion: previo ? 'editar' : 'crear', antes, despues: { nombre, rangos: rangos.length, activo } });
@@ -119,22 +132,66 @@ class AdminService {
     });
   }
 
+  // Todos los extras del borrador, en el orden en que se verán (lo envía la pestaña Extras y el asistente «Extra nuevo»).
+  // Un extra que ya estuvo en una versión publicada no se quita: se oculta.
   async guardarExtras(cuerpo, usuario) {
     const b = objeto(cuerpo);
-    const extras = (Array.isArray(b.extras) ? b.extras : []).map(e => {
-      const x = objeto(e);
-      return { clave: texto(x.clave), nombre: texto(x.nombre), aviso: texto(x.aviso) || null, rangos: (Array.isArray(x.rangos) ? x.rangos : []).map(r => { const y = objeto(r); const aConvenir = y.aConvenir === true; return { desde: aEntero(y.desde), hasta: aConvenir || y.hasta === null || y.hasta === undefined || y.hasta === '' ? null : aEntero(y.hasta), aConvenir, dias: aConvenir ? null : aEntero(y.dias) }; }) };
-    });
-    const parametros = {};
-    for (const [k, val] of Object.entries(objeto(b.parametros))) parametros[k] = aEntero(val);
+    const lista = Array.isArray(b.extras) ? b.extras : [];
     const campos = {};
-    extras.forEach((e, i) => { const r = v.validarExtra(e); if (!r.ok) Object.assign(campos, aCampos(`extras.${i}`, r.errores)); if (!e.clave) campos[`extras.${i}.clave`] = 'Falta la clave del extra.'; });
-    const rp = v.validarParametros(parametros); if (!rp.ok) Object.assign(campos, aCampos('parametros', rp.errores));
-    if (Object.keys(campos).length) throw errorDeValidacion(REVISA, campos);
+    if (lista.length > v.MAX_EXTRAS) throw errorDeValidacion(`Se admiten hasta ${v.MAX_EXTRAS} extras.`, { extras: `Se admiten hasta ${v.MAX_EXTRAS} extras.` });
+    const rangosDe = (rangos) => (Array.isArray(rangos) ? rangos : []).map(r => { const y = objeto(r); const aConvenir = y.aConvenir === true; return { desde: aEntero(y.desde), hasta: aConvenir || y.hasta === null || y.hasta === undefined || y.hasta === '' ? null : aEntero(y.hasta), aConvenir, dias: aConvenir ? null : aEntero(y.dias) }; });
+    const claves = (x) => (Array.isArray(x) ? x.filter(c => typeof c === 'string' && c.length <= 80) : []);
+    const extras = lista.map(e => {
+      const x = objeto(e); const u = objeto(x.unidades); const a = objeto(x.alcance);
+      return {
+        clave: texto(x.clave), tipo: texto(x.tipo), nombre: texto(x.nombre), etiqueta: texto(x.etiqueta), ayuda: texto(x.ayuda) || null, aviso: texto(x.aviso) || null,
+        activo: x.activo !== false, diasFijos: aEntero(x.diasFijos),
+        unidades: { incluidas: aEntero(u.incluidas), cada: aEntero(u.cada), dias: aEntero(u.dias), max: aEntero(u.max) },
+        opciones: (Array.isArray(x.opciones) ? x.opciones : []).map(o => { const y = objeto(o); return { clave: texto(y.clave), nombre: texto(y.nombre), aviso: texto(y.aviso) || null, rangos: rangosDe(y.rangos) }; }),
+        alcance: { todos: a.todos !== false, lineas: claves(a.lineas), categorias: claves(a.categorias), productos: claves(a.productos) }
+      };
+    });
     return db.transaccion(async (tx) => {
       const versionId = await this._asegurarBorrador(tx, usuario.id);
-      await borradorRepository.guardarExtras(tx, versionId, extras, parametros);
-      await borradorRepository.registrarHistorial(tx, { usuarioId: usuario.id, versionId, entidad: 'extras', clave: 'extras', accion: 'editar', despues: { extras: extras.length, parametros } });
+      const actual = await tablaRepository.cargarTabla({ id: versionId }, tx);
+      const catalogo = { lineas: actual.lineas.map(l => l.clave), categorias: actual.categoriasLista.map(c => c.clave), productos: Object.keys(actual.productos) };
+      const usadas = new Set();
+      const nombres = new Set();
+      extras.forEach((e, i) => {
+        const r = v.validarExtraCatalogo(e, catalogo);
+        if (!r.ok) Object.assign(campos, aCampos(`extras.${i}`, r.errores));
+        const n = e.nombre.toLowerCase();
+        if (nombres.has(n)) campos[`extras.${i}.nombre`] = 'Ya hay otro extra con ese nombre.';
+        nombres.add(n);
+        // Clave estable: la que traía; si es nuevo, sale del nombre.
+        if (!e.clave || usadas.has(e.clave)) { const base = v.aClave(e.nombre); let k = base; let j = 2; while (usadas.has(k) || (!e.clave && actual.extras.some(x => x.clave === k))) k = `${base}-${j++}`; e.clave = k; }
+        usadas.add(e.clave);
+        const opcionesUsadas = new Set();
+        for (const o of e.opciones) { if (!o.clave || opcionesUsadas.has(o.clave)) { const base = v.aClave(o.nombre); let k = base; let j = 2; while (opcionesUsadas.has(k)) k = `${base}-${j++}`; o.clave = k; } opcionesUsadas.add(o.clave); }
+      });
+      const publicados = new Set((await borradorRepository.extrasClavesPublicadas()).map(x => x.clave));
+      for (const previo of actual.extras) {
+        if (!usadas.has(previo.clave) && publicados.has(previo.clave)) campos.extras = `«${previo.nombre}» ya se usó en una versión publicada: no se puede quitar, ocúltalo.`;
+      }
+      if (Object.keys(campos).length) throw errorDeValidacion(REVISA, campos);
+      await borradorRepository.guardarExtras(tx, versionId, extras);
+      await borradorRepository.registrarHistorial(tx, { usuarioId: usuario.id, versionId, entidad: 'extras', clave: 'extras', accion: 'editar', despues: { extras: extras.map(e => e.clave) } });
+      return { claves: extras.map(e => e.clave) };
+    });
+  }
+
+  // Reglas generales: margen, máximo de piezas y el aviso de urgente.
+  async guardarReglas(cuerpo, usuario) {
+    const b = objeto(cuerpo);
+    const reglas = {};
+    for (const clave of Object.keys(v.REGLAS)) if (b[clave] !== undefined) reglas[clave] = v.REGLAS[clave].texto ? texto(b[clave]) : aEntero(b[clave]);
+    const r = v.validarParametros(reglas);
+    if (!r.ok) throw errorDeValidacion(REVISA, aCampos('reglas', r.errores));
+    if (!Object.keys(reglas).length) throw errorDeValidacion('No hay reglas para guardar.', {});
+    return db.transaccion(async (tx) => {
+      const versionId = await this._asegurarBorrador(tx, usuario.id);
+      await borradorRepository.guardarReglas(tx, versionId, reglas);
+      await borradorRepository.registrarHistorial(tx, { usuarioId: usuario.id, versionId, entidad: 'reglas', clave: 'reglas', accion: 'editar', despues: reglas });
     });
   }
 
@@ -149,31 +206,48 @@ class AdminService {
     });
   }
 
-  // Etapas y líneas: se renombran y se agregan (no se borran: lo que está en uso no puede desaparecer).
+  // Líneas, categorías y etapas: se renombran, se agregan, se ordenan y se ocultan (no se borran). Lo que usa un producto
+  // visible no se puede ocultar.
   async guardarCatalogos(cuerpo, usuario) {
     const b = objeto(cuerpo);
     const campos = {};
     const limpiar = (lista, tipo) => (Array.isArray(lista) ? lista : []).map((x, i) => {
-      const nombre = texto(objeto(x).nombre);
+      const y = objeto(x); const nombre = texto(y.nombre);
       if (nombre.length < 2 || nombre.length > 80) campos[`${tipo}.${i}.nombre`] = 'El nombre debe tener de 2 a 80 caracteres.';
-      return { clave: texto(objeto(x).clave), nombre };
+      return { clave: texto(y.clave), nombre, activo: y.activo !== false, linea: texto(y.linea) };
     });
-    const lineas = limpiar(b.lineas, 'lineas'); const etapas = limpiar(b.etapas, 'etapas');
-    for (const [tipo, lista] of [['lineas', lineas], ['etapas', etapas]]) {
+    const lineas = limpiar(b.lineas, 'lineas'); const etapas = limpiar(b.etapas, 'etapas'); const categorias = limpiar(b.categorias, 'categorias');
+    for (const [tipo, lista, grupo] of [['lineas', lineas, () => ''], ['etapas', etapas, () => ''], ['categorias', categorias, (x) => x.linea]]) {
       const vistos = new Set();
-      lista.forEach((x, i) => { const k = x.nombre.toLowerCase(); if (vistos.has(k)) campos[`${tipo}.${i}.nombre`] = 'Ya hay otra con ese nombre.'; vistos.add(k); });
+      lista.forEach((x, i) => { const k = `${grupo(x)}|${x.nombre.toLowerCase()}`; if (vistos.has(k)) campos[`${tipo}.${i}.nombre`] = 'Ya hay otra con ese nombre.'; vistos.add(k); });
     }
     if (Object.keys(campos).length) throw errorDeValidacion(REVISA, campos);
     return db.transaccion(async (tx) => {
       const versionId = await this._asegurarBorrador(tx, usuario.id);
-      for (const [tipo, lista, existentes] of [['lineas', lineas, await borradorRepository.lineasDe(tx, versionId)], ['etapas', etapas, await borradorRepository.etapasDe(tx, versionId)]]) {
-        const usadas = new Set(existentes.map(x => x.clave));
-        for (const x of lista) if (!x.clave || !usadas.has(x.clave)) { let k = v.aClave(x.nombre).replace(/-/g, '_'); let i = 2; while (usadas.has(k)) k = `${v.aClave(x.nombre).replace(/-/g, '_')}_${i++}`; x.clave = k; usadas.add(k); }
-        // lo que no vino se conserva al final (no se borra)
-        for (const e of existentes) if (!lista.some(x => x.clave === e.clave)) lista.push({ clave: e.clave, nombre: e.nombre });
-        await borradorRepository.guardarCatalogo(tx, tipo, versionId, lista);
+      const uso = await borradorRepository.usoVisible(tx, versionId);
+      const existentes = { lineas: await borradorRepository.lineasDe(tx, versionId), etapas: await borradorRepository.etapasDe(tx, versionId), categorias: await borradorRepository.categoriasDe(tx, versionId) };
+      const lineasValidas = new Set([...existentes.lineas.map(l => l.clave)]);
+      for (const [tipo, lista] of [['lineas', lineas], ['etapas', etapas], ['categorias', categorias]]) {
+        const usadas = new Set(existentes[tipo].map(x => x.clave));
+        lista.forEach((x, i) => {
+          if (tipo === 'categorias') {
+            const previa = existentes.categorias.find(c => c.clave === x.clave);
+            if (previa) x.linea = previa.linea; // una categoría no cambia de línea
+            else if (!lineasValidas.has(x.linea) && !lineas.some(l => l.clave === x.linea)) campos[`categorias.${i}.linea`] = 'Elige la línea de la categoría.';
+          }
+          if (!x.clave || !usadas.has(x.clave)) {
+            const base = tipo === 'categorias' ? `${x.linea}-${v.aClave(x.nombre)}` : v.aClave(x.nombre).replace(/-/g, '_');
+            let k = base; let j = 2; while (usadas.has(k)) k = `${base}${tipo === 'categorias' ? '-' : '_'}${j++}`; x.clave = k; usadas.add(k);
+          }
+          const enUso = uso[tipo][x.clave] || 0;
+          if (!x.activo && enUso) campos[`${tipo}.${i}.activo`] = `No se puede ocultar «${x.nombre}»: la usan ${enUso} ${enUso === 1 ? 'producto visible' : 'productos visibles'}.`;
+        });
+        // Lo que no vino se conserva al final (no se borra).
+        for (const e of existentes[tipo]) if (!lista.some(x => x.clave === e.clave)) lista.push({ clave: e.clave, nombre: e.nombre, activo: Boolean(e.activo), linea: e.linea });
       }
-      await borradorRepository.registrarHistorial(tx, { usuarioId: usuario.id, versionId, entidad: 'catalogos', clave: 'etapas_lineas', accion: 'editar', despues: { lineas: lineas.length, etapas: etapas.length } });
+      if (Object.keys(campos).length) throw errorDeValidacion(REVISA, campos);
+      for (const [tipo, lista] of [['lineas', lineas], ['etapas', etapas], ['categorias', categorias]]) await borradorRepository.guardarCatalogo(tx, tipo, versionId, lista);
+      await borradorRepository.registrarHistorial(tx, { usuarioId: usuario.id, versionId, entidad: 'catalogos', clave: 'catalogos', accion: 'editar', despues: { lineas: lineas.length, categorias: categorias.length, etapas: etapas.length } });
     });
   }
 

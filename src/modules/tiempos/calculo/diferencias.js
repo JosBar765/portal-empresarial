@@ -13,8 +13,7 @@ function diferencias(antes, despues) {
     if (!a) { poner(p.nombre, 'Producto nuevo'); continue; }
     if (a.nombre !== p.nombre) poner(a.nombre, `Nombre: «${a.nombre}» → «${p.nombre}»`);
     if (a.activo !== p.activo) poner(p.nombre, p.activo ? 'Vuelve a mostrarse en la calculadora' : 'Se oculta de la calculadora');
-    if (a.permiteMoldes !== p.permiteMoldes) poner(p.nombre, p.permiteMoldes ? 'Ahora lleva moldes' : 'Ya no lleva moldes');
-    if (a.permiteLanyard !== p.permiteLanyard) poner(p.nombre, p.permiteLanyard ? 'Ahora puede llevar lanyard cosido' : 'Ya no puede llevar lanyard cosido');
+    if ((a.grupo || null) !== (p.grupo || null)) poner(p.nombre, `Categoría: ${a.grupo || 'sin categoría'} → ${p.grupo || 'sin categoría'}`);
     const porDesdeA = new Map(a.rangos.map(r => [r.desde, r]));
     const porDesdeP = new Map(p.rangos.map(r => [r.desde, r]));
     for (const r of p.rangos) {
@@ -31,15 +30,26 @@ function diferencias(antes, despues) {
   }
   for (const [clave, a] of Object.entries(antes.productos)) if (!despues.productos[clave]) poner(a.nombre, 'Producto eliminado');
 
-  for (const [clave, e] of Object.entries(despues.extras)) {
-    const a = antes.extras[clave];
+  const extrasAntes = new Map(antes.extras.map(e => [e.clave, e]));
+  for (const e of despues.extras) {
+    const a = extrasAntes.get(e.clave);
     if (!a) { poner(e.nombre, 'Extra nuevo'); continue; }
-    if (JSON.stringify(a.rangos) !== JSON.stringify(e.rangos) || a.nombre !== e.nombre || a.aviso !== e.aviso) poner(e.nombre, 'Cambiaron sus rangos o días');
+    if (a.activo !== e.activo) poner(e.nombre, e.activo ? 'Vuelve a ofrecerse en la calculadora' : 'Se oculta de la calculadora');
+    if (a.nombre !== e.nombre) poner(e.nombre, `Nombre: «${a.nombre}» → «${e.nombre}»`);
+    const datos = (x) => JSON.stringify([x.etiqueta, x.ayuda, x.aviso, x.diasFijos, x.unidades, x.opciones]);
+    if (datos(a) !== datos(e)) poner(e.nombre, 'Cambiaron sus datos o sus días');
+    if (JSON.stringify(a.alcance) !== JSON.stringify(e.alcance)) poner(e.nombre, 'Cambió en qué productos se ofrece');
   }
-  for (const [clave, v] of Object.entries(despues.parametros)) if (antes.parametros[clave] !== v) poner('Reglas generales', `${clave}: ${antes.parametros[clave]} → ${v}`);
+  for (const a of antes.extras) if (!despues.extras.some(e => e.clave === a.clave)) poner(a.nombre, 'Extra quitado');
+  if (JSON.stringify(antes.extras.map(e => e.clave)) !== JSON.stringify(despues.extras.filter(e => extrasAntes.has(e.clave)).map(e => e.clave)) && antes.extras.every(e => despues.extras.some(x => x.clave === e.clave))) poner('Extras', 'Cambió el orden en la calculadora');
+  const NOMBRES_REGLAS = { margen_dias: 'Margen por imprevistos', max_piezas: 'Máximo de piezas por pedido', aviso_urgente: 'Aviso de pedido urgente' };
+  for (const [clave, v] of Object.entries(despues.parametros)) {
+    if (antes.parametros[clave] === v) continue;
+    poner('Reglas', typeof v === 'string' ? `${NOMBRES_REGLAS[clave] || clave}: texto nuevo` : `${NOMBRES_REGLAS[clave] || clave}: ${antes.parametros[clave] ?? 'sin dato'} → ${v}`);
+  }
   if (JSON.stringify(antes.avisosGenerales) !== JSON.stringify(despues.avisosGenerales)) poner('Avisos generales', 'Cambiaron los avisos generales');
-  const nombresLista = (t) => JSON.stringify([...t.lineas.map(l => `${l.clave}:${l.nombre}`), ...t.etapasLista.map(e => `${e.clave}:${e.nombre}`)]);
-  if (nombresLista(antes) !== nombresLista(despues)) poner('Etapas y líneas', 'Cambiaron las etapas o las líneas');
+  const lista = (t) => JSON.stringify([t.lineas, t.categoriasLista, t.etapasLista]);
+  if (lista(antes) !== lista(despues)) poner('Catálogos', 'Cambiaron las líneas, las categorías o las etapas (nombre, orden o visibilidad)');
   return cambios;
 }
 
